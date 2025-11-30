@@ -1,0 +1,66 @@
+{
+	"name": "bedrock",
+	"version": "0.0.1",
+	"private": "true",
+	"description": "IaC for Roblox deployment",
+	"keywords": ["infrastructure", "roblox", "deployment"],
+	"homepage": "https://github.com/christopher-buss/bedrock#readme",
+	"bugs": "https://github.com/christopher-buss/bedrock/issues",
+	"repository": {
+		"url": "git+https://github.com/christopher-buss/bedrock.git",
+		"type": "git"
+	},
+	"license": "MIT",
+	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
+	"sideEffects": false,
+	"type": "module",
+	"exports": {
+		".": "./dist/index.mjs",
+		"./package.json": "./package.json"
+	},
+	"main": "./dist/index.mjs",
+	"module": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
+	"files": ["dist"],
+	"scripts": {
+		"build": "tsdown --clean --dts",
+		"dev": "tsdown --stub",
+		"lint": "eslint --cache",
+		"lint:ci": "eslint --cache --cache-strategy content",
+		"prepublishOnly": "nr build",
+		"release": "bumpp",
+		"start": "tsx src/index.ts",
+		"test": "vitest",
+		"typecheck": "tsc --noEmit"
+	},
+	"simple-git-hooks": {
+		"pre-commit": "pnpm i --frozen-lockfile --ignore-scripts --offline && npx lint-staged"
+	},
+	"lint-staged": {
+		"*": "eslint --fix --cache"
+	},
+	"devDependencies": {
+		"@antfu/ni": "catalog:cli",
+		"@isentinel/eslint-config": "catalog:cli",
+		"@isentinel/tsconfig": "catalog:types",
+		"@types/node": "catalog:types",
+		"@vitest/eslint-plugin": "catalog:testing",
+		"bumpp": "catalog:cli",
+		"eslint": "catalog:cli",
+		"eslint-plugin-n": "catalog:testing",
+		"eslint-plugin-pnpm": "catalog:cli",
+		"jiti": "catalog:cli",
+		"lint-staged": "catalog:cli",
+		"publint": "catalog:testing",
+		"simple-git-hooks": "catalog:cli",
+		"tsdown": "catalog:cli",
+		"tsx": "catalog:cli",
+		"typescript": "catalog:cli",
+		"unplugin-unused": "catalog:testing",
+		"vitest": "catalog:testing"
+	},
+	"packageManager": "pnpm@10.24.0+sha512.01ff8ae71b4419903b65c60fb2dc9d34cf8bb6e06d03bde112ef38f7a34d6904c424ba66bea5cdcf12890230bf39f9580473140ed9c946fef328b6e5238a345a",
+	"engines": {
+		"node": ">=20.0.0"
+	}
+}
