@@ -1,0 +1,26 @@
+{
+	"$schema": "https://turborepo.org/schema.json",
+	"ui": "tui",
+	"tasks": {
+		"build": {
+			"dependsOn": ["^build"],
+			"outputs": ["dist/**"],
+			"outputMode": "new-only"
+		},
+		"dev": {
+			"cache": false,
+			"persistent": true
+		},
+		"test": {
+			"outputs": ["coverage/**"],
+			"outputMode": "new-only"
+		},
+		"lint": {
+			"outputMode": "new-only"
+		},
+		"typecheck": {
+			"dependsOn": ["^build"],
+			"outputMode": "new-only"
+		}
+	}
+}
