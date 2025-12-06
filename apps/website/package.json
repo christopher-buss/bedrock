@@ -1,0 +1,21 @@
+{
+	"name": "@bedrock/website",
+	"version": "0.0.1",
+	"private": true,
+	"description": "Bedrock documentation website",
+	"keywords": ["documentation", "website"],
+	"license": "MIT",
+	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
+	"type": "module",
+	"scripts": {
+		"build": "vitepress build",
+		"dev": "vitepress dev",
+		"preview": "vitepress preview"
+	},
+	"devDependencies": {
+		"vitepress": "^1.5.0"
+	},
+	"engines": {
+		"bun": ">=1.0.0"
+	}
+}
