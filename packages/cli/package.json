@@ -1,0 +1,37 @@
+{
+	"name": "bedrock",
+	"version": "0.0.1",
+	"description": "Infrastructure-as-Code deployment tool for Roblox",
+	"keywords": ["infrastructure", "roblox", "deployment", "cli"],
+	"license": "MIT",
+	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
+	"type": "module",
+	"exports": {
+		".": {
+			"import": "./dist/index.mjs",
+			"types": "./dist/index.d.mts"
+		}
+	},
+	"main": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
+	"files": ["dist"],
+	"scripts": {
+		"build": "tsdown --clean --dts",
+		"dev": "tsdown --stub",
+		"lint": "eslint --cache src tests",
+		"test": "vitest",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@bedrock/open-cloud": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/bun": "catalog:types",
+		"tsdown": "catalog:cli",
+		"typescript": "catalog:typescript",
+		"vitest": "catalog:testing"
+	},
+	"engines": {
+		"bun": ">=1.0.0"
+	}
+}
