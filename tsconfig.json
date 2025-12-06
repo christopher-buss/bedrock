@@ -2,8 +2,12 @@
 	"extends": "@isentinel/tsconfig/typescript",
 	"compilerOptions": {
 		"libReplacement": true,
-		"baseUrl": null,
-		"paths": { "*": ["./*"] },
+		"baseUrl": ".",
+		"paths": {
+			"@bedrock/open-cloud": ["packages/open-cloud/src"],
+			"@bedrock/open-cloud/*": ["packages/open-cloud/src/*"]
+		},
 		"types": ["bun"]
-	}
+	},
+	"exclude": ["node_modules", "dist", "packages", "apps"]
 }
