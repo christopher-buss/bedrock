@@ -31,7 +31,7 @@
 		"release": "bumpp",
 		"start": "tsx src/index.ts",
 		"test": "vitest",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsgo --noEmit"
 	},
 	"simple-git-hooks": {
 		"pre-commit": "pnpm i --frozen-lockfile --ignore-scripts --offline && npx lint-staged"
@@ -44,6 +44,7 @@
 		"@isentinel/eslint-config": "catalog:cli",
 		"@isentinel/tsconfig": "catalog:types",
 		"@types/bun": "catalog:types",
+		"@typescript/native-preview": "catalog:typescript",
 		"@vitest/eslint-plugin": "catalog:testing",
 		"bumpp": "catalog:cli",
 		"eslint": "catalog:cli",
@@ -55,7 +56,7 @@
 		"simple-git-hooks": "catalog:cli",
 		"tsdown": "catalog:cli",
 		"tsx": "catalog:cli",
-		"typescript": "catalog:cli",
+		"typescript": "catalog:typescript",
 		"unplugin-unused": "catalog:testing",
 		"vitest": "catalog:testing"
 	},

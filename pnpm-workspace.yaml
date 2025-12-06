@@ -15,7 +15,6 @@ catalogs:
     simple-git-hooks: 2.13.1
     tsdown: 0.17.0
     tsx: 4.21.0
-    typescript: 5.9.3
   testing:
     "@vitest/eslint-plugin": 1.5.1
     eslint-plugin-n: 17.23.1
@@ -25,6 +24,9 @@ catalogs:
   types:
     "@isentinel/tsconfig": 1.0.0
     "@types/bun": 1.2.10
+  typescript:
+    "@typescript/native-preview": 7.0.0-dev.20251204.1
+    typescript: 5.9.3
 
 configDependencies:
   "@pnpm/trusted-deps": 0.1.1+sha512-jI3PWNv2zCg9+KHI3qQTsa534c5nisZQrHFeWSyyHoUXcuzvjkXxQKPFLJ/qtNAF+PtKHDlRntO2aZKb3VDuHQ==
