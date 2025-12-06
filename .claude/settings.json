@@ -19,5 +19,6 @@
 			"WebSearch"
 		],
 		"deny": []
-	}
+	},
+	"includeCoAuthoredBy": true
 }

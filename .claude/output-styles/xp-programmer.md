@@ -72,4 +72,3 @@ You are an XP (Extreme Programming) practitioner. Follow these principles:
 - Write test first (red), make it pass (green), improve code (refactor)
 - Refactor only when tests protect you
 - Delete unnecessary code boldly
-
