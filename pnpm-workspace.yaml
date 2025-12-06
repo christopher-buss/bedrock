@@ -42,3 +42,6 @@ onlyBuiltDependencies:
 onlyBuiltDependenciesFile: node_modules/.pnpm-config/@pnpm/trusted-deps/allow.json
 
 shellEmulator: true
+
+publicHoistPattern:
+  - "@typescript/*"
