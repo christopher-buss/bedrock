@@ -46,6 +46,7 @@
 		"@types/bun": "catalog:types",
 		"@typescript/native-preview": "catalog:typescript",
 		"@vitest/eslint-plugin": "catalog:testing",
+		"better-typescript-lib": "catalog:types",
 		"bumpp": "catalog:cli",
 		"eslint": "catalog:cli",
 		"eslint-plugin-n": "catalog:testing",

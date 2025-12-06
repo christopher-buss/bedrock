@@ -3,6 +3,7 @@
 	"compilerOptions": {
 		"baseUrl": null,
 		"paths": { "*": ["./*"] },
-		"types": ["bun"]
+		"types": ["bun"],
+		"libReplacement": true
 	}
 }
