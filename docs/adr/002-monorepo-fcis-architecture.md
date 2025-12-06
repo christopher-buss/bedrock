@@ -1,10 +1,9 @@
 # ADR-002: Monorepo with Turborepo and FCIS + Ports Architecture
 
-Date: 2025-12-06
-Status: Accepted
+Date: 2025-12-06 Status: Accepted
 
-Decision Makers: Maintainer
-Tags: architecture, monorepo, turborepo, fcis, testing, modularity
+Decision Makers: Maintainer Tags: architecture, monorepo, turborepo, fcis,
+testing, modularity
 
 ## Context
 
@@ -19,17 +18,19 @@ Bedrock is TypeScript CLI for Roblox deployment. Requirements:
 Current state: Single package structure, planning multi-package growth.
 
 Constraints:
+
 - Must support swappable backends without rewrites
 - Core logic must be testable without mocks
 - Open Cloud client should be standalone package
 
 ## Decision
 
-Use **Turborepo monorepo** with **Functional Core, Imperative Shell (FCIS) + Ports** architecture.
+Use **Turborepo monorepo** with **Functional Core, Imperative Shell (FCIS) +
+Ports** architecture.
 
 ### Monorepo Structure
 
-```
+```text
 bedrock/
 ├── apps/
 │   └── website/              # Vitepress docs
@@ -43,7 +44,7 @@ bedrock/
 
 ### Internal Architecture (CLI package)
 
-```
+```text
 packages/cli/src/
 ├── core/         # Pure functions (no I/O, business logic)
 ├── shell/        # Commands (I/O orchestration)
@@ -90,31 +91,46 @@ packages/cli/src/
 
 **Pros**: Simpler setup, no workspace config, fewer build steps.
 
-**Rejected**: Known requirement for multiple packages (Open Cloud client, CLI, docs). Migration to monorepo later is painful. Better to start with structure that supports growth.
+**Rejected**: Known requirement for multiple packages (Open Cloud client, CLI,
+docs). Migration to monorepo later is painful. Better to start with structure
+that supports growth.
 
 ### Layered Architecture + Dependency Injection
 
-**Pros**: Familiar to enterprise developers, proven pattern (controllers → services → repositories).
+**Pros**: Familiar to enterprise developers, proven pattern (controllers →
+services → repositories).
 
-**Rejected**: Requires DI container, every test needs mocks, more boilerplate. FCIS achieves better testability with less ceremony for CLI scope.
+**Rejected**: Requires DI container, every test needs mocks, more boilerplate.
+FCIS achieves better testability with less ceremony for CLI scope.
 
-**Why not this**: CLI tools benefit from pure functional core more than layered services. DI overhead not justified when ports + adapters give same flexibility.
+**Why not this**: CLI tools benefit from pure functional core more than layered
+services. DI overhead not justified when ports + adapters give same flexibility.
 
 ### Hexagonal Architecture (Full)
 
-**Pros**: Excellent flexibility, domain logic isolated from infrastructure, proven pattern.
+**Pros**: Excellent flexibility, domain logic isolated from infrastructure,
+proven pattern.
 
-**Rejected**: More ceremony than needed for CLI scope (application services layer, domain layer, extensive port definitions). FCIS + Ports provides same benefits (swappable backends, testability) with less overhead.
+**Rejected**: More ceremony than needed for CLI scope (application services
+layer, domain layer, extensive port definitions). FCIS + Ports provides same
+benefits (swappable backends, testability) with less overhead.
 
-**Why not this**: Bedrock is CLI tool, not business domain application. Full hexagonal adds layers (application services, domain models) that don't map to CLI use case. FCIS simplified hexagonal for functional-first codebase.
+**Why not this**: Bedrock is CLI tool, not business domain application. Full
+hexagonal adds layers (application services, domain models) that don't map to
+CLI use case. FCIS simplified hexagonal for functional-first codebase.
 
 ### Feature-Based Folders (No Formal Architecture)
 
-**Pros**: Simple, fast to start, intuitive grouping (`deploy/`, `plan/`, `apply/`).
+**Pros**: Simple, fast to start, intuitive grouping (`deploy/`, `plan/`,
+`apply/`).
 
-**Rejected**: Poor testability (I/O mixed with logic), boundaries blur over time (where does shared logic go?). Doesn't meet testability requirements. Experience shows this degrades into spaghetti for CLI tools over time.
+**Rejected**: Poor testability (I/O mixed with logic), boundaries blur over time
+(where does shared logic go?). Doesn't meet testability requirements. Experience
+shows this degrades into spaghetti for CLI tools over time.
 
-**Why not this**: Tested deployment tools in production. Feature folders lead to I/O mixed with logic, making unit tests require mocks. Boundaries erode as codebase grows.
+**Why not this**: Tested deployment tools in production. Feature folders lead to
+I/O mixed with logic, making unit tests require mocks. Boundaries erode as
+codebase grows.
 
 ## Implementation Notes
 
@@ -127,11 +143,13 @@ packages/cli/src/
 ### FCIS Guidelines
 
 **Core rules:**
+
 - No imports from Node.js I/O modules (`fs`, `http`, etc.)
 - Functions take data, return data
 - Side effects forbidden (no logging, no mutations)
 
 **Shell rules:**
+
 - Orchestrates I/O (read files, call APIs)
 - Calls core functions for business logic
 - Handles errors, logging, CLI output
@@ -141,13 +159,19 @@ packages/cli/src/
 ```typescript
 // ports/StateBackend.ts
 export interface StateBackend {
-  read(): Promise<State | null>;
-  write(state: State): Promise<void>;
+	read(): Promise<null | State>;
+	write(state: State): Promise<void>;
 }
 
 // adapters/GistBackend.ts
 export class GistBackend implements StateBackend {
-  // Implementation with Octokit API calls
+	public async read(): Promise<null | State> {
+		/* ... */
+	}
+
+	public async write(state: State): Promise<void> {
+		/* ... */
+	}
 }
 ```
 
@@ -165,8 +189,11 @@ export class GistBackend implements StateBackend {
 
 ## References
 
-- [Functional Core, Imperative Shell](https://www.destroyallsoftware.com/screencasts/catalog/functional-core-imperative-shell) - Gary Bernhardt
-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/) - Alistair Cockburn
+- [Functional Core, Imperative Shell](https://www.destroyallsoftware.com/screencasts/catalog/functional-core-imperative-shell) -
+  Gary Bernhardt
+- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/) -
+  Alistair Cockburn
 - [Turborepo Documentation](https://turbo.build/repo/docs)
 - [pnpm Workspaces](https://pnpm.io/workspaces)
-- Pattern tested in production CLI tools (Terraform, Pulumi use similar port-adapter patterns)
+- Pattern tested in production CLI tools (Terraform, Pulumi use similar
+  port-adapter patterns)
