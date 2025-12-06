@@ -12,26 +12,15 @@
 	},
 	"license": "MIT",
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
-	"sideEffects": false,
 	"type": "module",
-	"exports": {
-		".": "./dist/index.mjs",
-		"./package.json": "./package.json"
-	},
-	"main": "./dist/index.mjs",
-	"module": "./dist/index.mjs",
-	"types": "./dist/index.d.mts",
-	"files": ["dist"],
 	"scripts": {
-		"build": "tsdown --clean --dts",
-		"dev": "tsdown --stub",
-		"lint": "eslint --cache",
-		"lint:ci": "eslint --cache --cache-strategy content",
-		"prepublishOnly": "nr build",
+		"build": "turbo build",
+		"dev": "turbo dev",
+		"lint": "turbo lint",
+		"lint:ci": "turbo lint -- --cache-strategy content",
 		"release": "bumpp",
-		"start": "tsx src/index.ts",
-		"test": "vitest",
-		"typecheck": "tsgo --noEmit"
+		"test": "turbo test",
+		"typecheck": "turbo typecheck"
 	},
 	"simple-git-hooks": {
 		"pre-commit": "pnpm i --frozen-lockfile --ignore-scripts --offline && npx lint-staged"
@@ -57,6 +46,7 @@
 		"simple-git-hooks": "catalog:cli",
 		"tsdown": "catalog:cli",
 		"tsx": "catalog:cli",
+		"turbo": "catalog:monorepo",
 		"typescript": "catalog:typescript",
 		"unplugin-unused": "catalog:testing",
 		"vitest": "catalog:testing"
