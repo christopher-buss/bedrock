@@ -11,6 +11,7 @@ things are the way they are.
 | ADR | Title | Status | Date |
 | --- | ----- | ------ | ---- |
 | [001](./001-typescript-bun-runtime.md) | TypeScript with Bun Runtime | Accepted | 2025-12-06 |
+| [002](./002-monorepo-fcis-architecture.md) | Monorepo with Turborepo and FCIS + Ports Architecture | Accepted | 2025-12-06 |
 
 ## Creating a New ADR
 
