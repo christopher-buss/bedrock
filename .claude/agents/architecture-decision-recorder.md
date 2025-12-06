@@ -70,9 +70,9 @@ Your first responsibility is to evaluate:
     - Use project's branch naming and directory structure conventions in
       examples
 
-7. **File Naming and Location**: ADR files should be named
-   `YYYYMMDD-short-title.md` and placed in `.claude/decisions/` or similar
-   architecture documentation directory.
+7. **File Naming and Location**: ADR files should be named `NNN-short-title.md`
+   (e.g., `001-typescript-language.md`) and placed in `docs/adr/`. Update
+   `docs/adr/README.md` index after creating.
 
 **Decision-Making Framework:**
 
@@ -371,37 +371,15 @@ mark it as superseded.
 
 ## Index Maintenance
 
-After creating ADR, update `docs/adr/README.md`:
+After creating ADR, update the index table in `docs/adr/README.md`:
 
 ```markdown
-# Architecture Decision Records
-
-ADRs documenting significant architectural choices.
-
-## Active ADRs
-
-- [ADR-001: Networking Framework Selection](001-networking-framework-selection.md) -
-  2025-11-01
-- [ADR-002: Monorepo with Feature-Based Packages](002-monorepo-feature-packages.md) -
-  2025-11-02
-- [ADR-003: DataStore Wrapper - ProfileService](003-datastore-wrapper-profileservice.md) -
-  2025-11-05
-
-## Superseded ADRs
-
-- [ADR-000: Initial Architecture](000-initial-architecture.md) - Superseded by
-  ADR-001, ADR-002
-
-## Tags
-
-- **networking**: ADR-001
-- **monorepo**: ADR-002
-- **datastore**: ADR-003
-- **infrastructure**: ADR-001, ADR-002, ADR-003
+| ADR                         | Title          | Status   | Date       |
+| --------------------------- | -------------- | -------- | ---------- |
+| [001](./001-short-title.md) | Decision Title | Accepted | YYYY-MM-DD |
 ```
 
-When ADR is superseded, move to "Superseded ADRs" section with reference to
-replacement.
+When ADR is superseded, update its status in the table to "Superseded by XXX".
 
 ---
 
