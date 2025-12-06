@@ -8,8 +8,8 @@
 	"type": "module",
 	"exports": {
 		".": {
-			"import": "./dist/index.mjs",
-			"types": "./dist/index.d.mts"
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs"
 		}
 	},
 	"main": "./dist/index.mjs",
@@ -18,12 +18,9 @@
 	"scripts": {
 		"build": "tsdown --clean --dts",
 		"dev": "tsdown --stub",
-		"lint": "eslint --cache src tests",
+		"lint": "eslint --cache src",
 		"test": "vitest",
 		"typecheck": "tsc --noEmit"
-	},
-	"dependencies": {
-		"@bedrock/open-cloud": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/bun": "catalog:types",
