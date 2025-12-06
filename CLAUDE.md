@@ -9,12 +9,73 @@ tool no longer maintained).
 ## Architecture
 
 - **Language**: TypeScript (ES modules)
+- **Runtime**: Bun
 - **Config**: c12-based multi-format support (TS, JS, YAML, JSON)
 - **State**: GitHub Gists (default), extensible backends
 - **Auth**: Roblox Open Cloud APIs only (no ROBLOSECURITY)
 - **Build**: tsdown
 - **Test**: vitest
 - **Lint**: eslint
+
+## Architecture Quick Reference
+
+**Pattern**: FCIS (Functional Core, Imperative Shell) + Ports
+
+```text
+┌─────────────────────────────────────────────────────┐
+│                      Shell                          │
+│  (I/O, CLI commands, orchestration)                 │
+│                                                     │
+│  ┌─────────────────────────────────────────────┐   │
+│  │                   Core                       │   │
+│  │  (Pure functions, business logic, no I/O)   │   │
+│  └─────────────────────────────────────────────┘   │
+│                                                     │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐         │
+│  │  Port    │  │  Port    │  │  Port    │         │
+│  │ (State)  │  │(OpenCloud)│ │ (Config) │         │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘         │
+└───────┼─────────────┼─────────────┼───────────────┘
+        │             │             │
+   ┌────▼────┐  ┌─────▼────┐  ┌────▼─────┐
+   │ Adapter │  │ Adapter  │  │ Adapter  │
+   │ (Gist)  │  │ (HTTP)   │  │  (c12)   │
+   └─────────┘  └──────────┘  └──────────┘
+```
+
+- **Core**: Pure functions, no side effects, easy to test
+- **Shell**: Orchestrates I/O, calls core with data from adapters
+- **Ports**: Interfaces defining what adapters must implement
+- **Adapters**: Concrete implementations (Gist, Open Cloud HTTP, etc.)
+
+## Testing Requirements (NON-NEGOTIABLE)
+
+**TDD is mandatory. No implementation without a failing test first.**
+
+1. **RED** - Write a failing test describing expected behavior
+2. **GREEN** - Write minimum code to pass
+3. **REFACTOR** - Clean up, keep tests green
+
+**Test levels:**
+
+| Layer    | Test with         | Isolation     |
+| -------- | ----------------- | ------------- |
+| Core     | Unit tests        | None needed   |
+| Shell    | Integration tests | Fake adapters |
+| Adapters | Adapter tests     | nock for HTTP |
+| E2E      | Scenario tests    | Real APIs     |
+
+**Coverage**: 100% required (statements, branches, functions, lines)
+
+**Naming**: `it("should <behavior>")` - enforced by ESLint
+
+**Anti-patterns (will be rejected):**
+
+- Writing implementation before tests
+- Testing mock behavior instead of real behavior
+- Mocking without understanding dependencies
+
+See `docs/adr/003-testing-strategy.md` for full details.
 
 ## Key Decisions
 
