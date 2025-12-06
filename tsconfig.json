@@ -2,6 +2,7 @@
 	"extends": "@isentinel/tsconfig/typescript",
 	"compilerOptions": {
 		"baseUrl": null,
-		"paths": { "*": ["./*"] }
+		"paths": { "*": ["./*"] },
+		"types": ["bun"]
 	}
 }

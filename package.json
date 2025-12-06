@@ -43,7 +43,7 @@
 		"@antfu/ni": "catalog:cli",
 		"@isentinel/eslint-config": "catalog:cli",
 		"@isentinel/tsconfig": "catalog:types",
-		"@types/node": "catalog:types",
+		"@types/bun": "catalog:types",
 		"@vitest/eslint-plugin": "catalog:testing",
 		"bumpp": "catalog:cli",
 		"eslint": "catalog:cli",
