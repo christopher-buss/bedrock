@@ -3,9 +3,9 @@
 	"extends": "./base.json",
 	"compilerOptions": {
 		"composite": false,
+		"rootDir": "${configDir}/src",
 		"declaration": true,
 		"declarationMap": true,
-		"rootDir": "${configDir}/src",
 		"outDir": "${configDir}/dist"
 	},
 	"include": ["${configDir}/src"]

@@ -7,8 +7,8 @@
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
 	"type": "module",
 	"exports": {
-		"./base.json": "./base.json",
-		"./build.json": "./build.json"
+		"./tsconfig.base.json": "./tsconfig.base.json",
+		"./tsconfig.build.json": "./tsconfig.build.json"
 	},
 	"scripts": {
 		"lint": "eslint --cache ."
