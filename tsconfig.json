@@ -1,13 +1,12 @@
 {
 	"extends": "@isentinel/tsconfig/typescript",
 	"compilerOptions": {
-		"libReplacement": true,
-		"baseUrl": ".",
-		"paths": {
-			"@bedrock/open-cloud": ["packages/open-cloud/src"],
-			"@bedrock/open-cloud/*": ["packages/open-cloud/src/*"]
-		},
-		"types": ["bun"]
+		"composite": true
 	},
-	"exclude": ["node_modules", "dist", "packages", "apps"]
+	"references": [
+		{ "path": "packages/cli" },
+		{ "path": "packages/open-cloud" },
+		{ "path": "packages/vitest-config" }
+	],
+	"files": []
 }

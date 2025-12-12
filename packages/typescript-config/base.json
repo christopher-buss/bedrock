@@ -1,0 +1,9 @@
+{
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"extends": "@isentinel/tsconfig/typescript",
+	"compilerOptions": {
+		"types": ["bun"]
+	},
+	"include": ["${configDir}/**/*"],
+	"exclude": ["${configDir}/node_modules", "${configDir}/**/.*/", "${configDir}/dist"]
+}

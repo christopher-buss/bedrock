@@ -81,9 +81,9 @@ export default defineConfig({
 			icon: "images/icons/game-icon.png",
 			passes: {
 				"vip-pass": {
+					name: "VIP Pass",
 					description: "Get exclusive VIP benefits!",
 					icon: "images/passes/vip.png",
-					name: "VIP Pass",
 					price: 399,
 				},
 			},

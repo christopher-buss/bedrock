@@ -1,0 +1,22 @@
+{
+	"name": "@bedrock/typescript-config",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Shared TypeScript configuration for Bedrock packages",
+	"keywords": ["typescript", "configuration", "tsconfig"],
+	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
+	"type": "module",
+	"exports": {
+		"./base.json": "./base.json",
+		"./build.json": "./build.json"
+	},
+	"scripts": {
+		"lint": "eslint --cache ."
+	},
+	"devDependencies": {
+		"@isentinel/tsconfig": "catalog:tsc"
+	},
+	"engines": {
+		"bun": ">=1.0.0"
+	}
+}
