@@ -17,7 +17,7 @@
 		"build": "turbo build",
 		"coverage:merge": "tsx scripts/merge-coverage.ts",
 		"dev": "turbo dev",
-		"gen:example-tests": "gen-jet packages/cli/src packages/open-cloud/src --header 'import { expect, it } from \"vitest\";' --test-file-extension '.example.spec' --test-function-name it",
+		"gen:example-tests": "bun scripts/generate-example-tests.ts",
 		"lint": "eslint --cache .",
 		"lint:ci": "eslint --cache --cache-strategy content .",
 		"test": "vitest run",
