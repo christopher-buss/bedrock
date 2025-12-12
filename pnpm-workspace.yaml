@@ -37,6 +37,8 @@ catalogs:
     jiti: 2.6.1
     tsx: 4.21.0
   test:
+    "@vitest/coverage-v8": 4.0.15
+    monocart-coverage-reports: 2.12.9
     vitest: 4.0.15
   tsc:
     "@isentinel/tsconfig": 1.1.0

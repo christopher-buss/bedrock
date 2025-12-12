@@ -4,6 +4,7 @@
 	"compilerOptions": {
 		"types": ["bun"],
 		"composite": true,
+		"libReplacement": true,
 		"noEmit": false,
 		"tsBuildInfoFile": "${configDir}/dist/.tsbuildinfo"
 	},

@@ -15,10 +15,12 @@
 	"type": "module",
 	"scripts": {
 		"build": "turbo build",
+		"coverage:merge": "tsx scripts/merge-coverage.ts",
 		"dev": "turbo dev",
 		"lint": "eslint --cache .",
 		"lint:ci": "eslint --cache --cache-strategy content .",
 		"test": "vitest run",
+		"test:ci": "turbo test -- --coverage && pnpm coverage:merge",
 		"test:watch": "vitest --watch",
 		"typecheck": "turbo typecheck"
 	},
@@ -36,6 +38,7 @@
 		"@isentinel/tsconfig": "catalog:tsc",
 		"@types/bun": "catalog:types",
 		"@typescript/native-preview": "catalog:types",
+		"@vitest/coverage-v8": "catalog:test",
 		"@vitest/eslint-plugin": "catalog:lint",
 		"better-typescript-lib": "catalog:tsc",
 		"eslint": "catalog:lint",
@@ -43,6 +46,7 @@
 		"eslint-plugin-pnpm": "catalog:lint",
 		"jiti": "catalog:script",
 		"lint-staged": "catalog:lint",
+		"monocart-coverage-reports": "catalog:test",
 		"pncat": "catalog:cli",
 		"publint": "catalog:lint",
 		"simple-git-hooks": "catalog:lint",
