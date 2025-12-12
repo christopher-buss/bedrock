@@ -48,17 +48,14 @@ jobs:
         run: pnpm turbo build
 
       - name: Test
-        run: pnpm test
+        run: pnpm test:ci
 
       - if: always()
         name: Upload coverage
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: coverage
-          path: |
-            coverage/
-            packages/*/coverage/
-            apps/*/coverage/
+          path: coverage/
           retention-days: 7
 
       - if: failure()
