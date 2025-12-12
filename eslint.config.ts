@@ -103,12 +103,4 @@ export default isentinel(
 			],
 		},
 	},
-	{
-		// Generated example tests from JSDoc @example comments
-		files: ["**/*.example.spec.ts"],
-		rules: {
-			"vitest/consistent-test-filename": "off",
-			"vitest/valid-title": "off",
-		},
-	},
 );
