@@ -25,7 +25,7 @@ async function main(): Promise<void> {
 	console.log("Example tests generated");
 }
 
-main().catch((err) => {
+main().catch((err: unknown) => {
 	console.error("Failed to generate example tests:", err);
 	process.exit(1);
 });
