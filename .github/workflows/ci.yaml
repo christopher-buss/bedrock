@@ -7,6 +7,8 @@ on:
   push:
     branches: [main]
 
+  workflow_dispatch:
+
 permissions:
   contents: read
 
@@ -26,30 +28,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      - name: Setup mise
-        uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # v3.5.1
-        with:
-          install: true
-
-      - name: Get pnpm store directory
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-        shell: bash
-
-      - name: Cache pnpm store
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: pnpm-${{ runner.os }}-${{ hashFiles("**/pnpm-lock.yaml") }}
-          path: ${{ env.STORE_PATH }}
-          restore-keys: pnpm-${{ runner.os }}-
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Setup
+        uses: ./.github/actions/setup
 
       - name: Cache ESLint
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          key: eslint-${{ runner.os }}-${{ hashFiles('eslint.config.ts') }}
+          key: eslint-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml', 'eslint.config.*') }}
           path: .eslintcache
           restore-keys: eslint-${{ runner.os }}-
 
@@ -70,7 +55,10 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: coverage
-          path: coverage/
+          path: |
+            coverage/
+            packages/*/coverage/
+            apps/*/coverage/
           retention-days: 7
 
       - if: failure()
