@@ -12,6 +12,9 @@ dist
 # Turbo cache
 .turbo
 
+# Git worktrees
+.worktrees/
+
 # VitePress
 **/.vitepress/cache
 **/.vitepress/dist
