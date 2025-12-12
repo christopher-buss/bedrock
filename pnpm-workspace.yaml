@@ -8,7 +8,6 @@ publicHoistPattern:
 
 shellEmulator: true
 trustPolicy: no-downgrade
-
 packages:
   - "packages/*"
   - "apps/*"
@@ -23,7 +22,7 @@ catalogs:
   dev:
     "@antfu/ni": 28.0.0
   lint:
-    "@isentinel/eslint-config": 4.7.0
+    "@isentinel/eslint-config": 4.7.1
     "@vitest/eslint-plugin": 1.5.2
     eslint: 9.39.1
     eslint-plugin-n: 17.23.1
