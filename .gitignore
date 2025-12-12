@@ -5,6 +5,7 @@ node_modules
 
 # Testing
 coverage
+*.example.spec.ts
 
 # Build outputs
 dist

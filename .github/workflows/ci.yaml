@@ -47,6 +47,9 @@ jobs:
       - name: Build
         run: pnpm turbo build
 
+      - name: Generate example tests
+        run: pnpm gen:example-tests
+
       - name: Test
         run: pnpm test:ci
 
