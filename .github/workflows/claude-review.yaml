@@ -33,6 +33,14 @@ jobs:
         id: skip-check
         name: Check if should skip
         run: |
+          # Check for skip-review label
+          LABELS=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json labels --jq '.labels[].name')
+          if echo "$LABELS" | grep -q "^skip-review$"; then
+            echo "skip-review label found - skipping review"
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           # Get list of changed files in this PR
           CHANGED_FILES=$(gh pr diff "$PR_NUMBER" --name-only --repo "$REPO")
 
