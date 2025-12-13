@@ -55,6 +55,8 @@
 		"tsdown": "catalog:build",
 		"tsx": "catalog:script",
 		"turbo": "catalog:monorepo",
+		"typedoc": "catalog:",
+		"typedoc-plugin-replace-text": "catalog:",
 		"typescript": "catalog:tsc",
 		"unplugin-unused": "catalog:build",
 		"vitest": "catalog:test"
