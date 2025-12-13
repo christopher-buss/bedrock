@@ -35,12 +35,9 @@ jobs:
         uses: anthropics/claude-code-action@f0c8eb29807907de7f5412d04afceb5e24817127 # v1.0.23
         with:
           allowed_non_write_users: "*"
-          allowed_tools: |
-            Bash(gh label list:*)
-            Bash(gh issue view:*)
-            Bash(gh issue edit:*)
-            Bash(gh search issues:*)
-          claude_args: --model haiku
+          claude_args: |
+            --model haiku
+            --allowedTools "Bash(gh label list:*),Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh search issues:*)"
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             REPO: ${{ github.repository }}
@@ -53,12 +50,9 @@ jobs:
         uses: anthropics/claude-code-action@f0c8eb29807907de7f5412d04afceb5e24817127 # v1.0.23
         with:
           allowed_non_write_users: "*"
-          allowed_tools: |
-            Bash(gh label list:*)
-            Bash(gh pr view:*)
-            Bash(gh pr edit:*)
-            Bash(gh pr diff:*)
-          claude_args: --model haiku
+          claude_args: |
+            --model haiku
+            --allowedTools "Bash(gh label list:*),Bash(gh pr view:*),Bash(gh pr edit:*),Bash(gh pr diff:*)"
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             REPO: ${{ github.repository }}

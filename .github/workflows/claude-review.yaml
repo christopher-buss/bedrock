@@ -76,15 +76,8 @@ jobs:
         name: Run Claude Code Review
         uses: anthropics/claude-code-action@f0c8eb29807907de7f5412d04afceb5e24817127 # v1.0.23
         with:
-          # See: https://github.com/anthropics/claude-code-action
-          allowed_tools: |
-            Glob
-            Grep
-            Read
-            mcp__github__add_pull_request_review_comment_to_pending_review
-            mcp__github__create_pending_pull_request_review
-            mcp__github__get_pull_request_diff
-            mcp__github__submit_pending_pull_request_review
+          claude_args: |
+            --allowedTools "Glob,Grep,Read,mcp__github__add_pull_request_review_comment_to_pending_review,mcp__github__create_pending_pull_request_review,mcp__github__get_pull_request_diff,mcp__github__submit_pending_pull_request_review"
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             REPO: ${{ github.repository }}
