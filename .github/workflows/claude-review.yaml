@@ -1,22 +1,23 @@
 name: Claude Code Review
 
 on:
-  pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
-    branches:
-      - develop
-      - main
+  workflow_run:
+    workflows: [Claude Triage]
+    types: [completed]
 
 concurrency:
-  group: claude-review-${{ github.event.pull_request.number }}
+  group: claude-review-${{ github.event.workflow_run.pull_requests[0].number || 'skipped' }}
   cancel-in-progress: true
 
 jobs:
   claude-review:
-    # Skip bots and fork PRs (forks don't have access to secrets)
+    # Only run if triage succeeded and it's a PR (not issue)
     if: |
-      github.event.pull_request.user.type != 'Bot' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.pull_requests[0] != null &&
+      github.event.workflow_run.actor.type != 'Bot' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     permissions:
       actions: read
       contents: read
@@ -28,7 +29,7 @@ jobs:
     steps:
       - env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
           REPO: ${{ github.repository }}
         id: skip-check
         name: Check if should skip
@@ -58,6 +59,7 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 1
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - id: read-prompt
         if: steps.skip-check.outputs.skip != 'true'
@@ -65,7 +67,7 @@ jobs:
         run: |
           {
             echo 'prompt<<EOF'
-            cat .claude/review-prompt.md
+            cat .claude/prompts/review-prompt.md
             echo 'EOF'
           } >> $GITHUB_OUTPUT
 
@@ -86,7 +88,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
+            PR NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
 
             # Bedrock Code Review
 
