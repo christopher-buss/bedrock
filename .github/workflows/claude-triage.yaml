@@ -1,0 +1,87 @@
+name: Claude Triage
+
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened]
+
+jobs:
+  triage:
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+      pull-requests: write
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 1
+
+      - id: read-prompt
+        name: Read triage prompt
+        run: |
+          {
+            echo 'prompt<<EOF'
+            cat .claude/prompts/triage-prompt.md
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
+      - if: github.event_name == 'issues'
+        name: Triage Issue
+        uses: anthropics/claude-code-action@f0c8eb29807907de7f5412d04afceb5e24817127 # v1.0.23
+        with:
+          allowed_non_write_users: "*"
+          allowed_tools: |
+            Bash(gh label list:*)
+            Bash(gh issue view:*)
+            Bash(gh issue edit:*)
+            Bash(gh search issues:*)
+          claude_args: --model haiku
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: ${{ github.event.issue.number }}
+
+            ${{ steps.read-prompt.outputs.prompt }}
+
+      - if: github.event_name == 'pull_request'
+        name: Triage Pull Request
+        uses: anthropics/claude-code-action@f0c8eb29807907de7f5412d04afceb5e24817127 # v1.0.23
+        with:
+          allowed_non_write_users: "*"
+          allowed_tools: |
+            Bash(gh label list:*)
+            Bash(gh pr view:*)
+            Bash(gh pr edit:*)
+            Bash(gh pr diff:*)
+          claude_args: --model haiku
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            ${{ steps.read-prompt.outputs.prompt }}
+
+            ---
+
+            ## skip-review Label
+
+            Add the "skip-review" label if this PR is trivial:
+            - Config file changes only (mise.toml, .gitignore, etc.)
+            - Dependency updates
+            - Typo fixes
+            - Comment-only changes
+            - CI/workflow file changes
+
+            Do NOT add skip-review for:
+            - New features
+            - Bug fixes in application code
+            - Refactoring
+            - Any changes to src/ or core logic
+
+            Use `gh pr diff` to check what files changed before deciding.
+    timeout-minutes: 5

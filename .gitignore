@@ -18,3 +18,5 @@ dist
 # VitePress
 **/.vitepress/cache
 **/.vitepress/dist
+.vercel
+.env*.local
