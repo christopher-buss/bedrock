@@ -11,16 +11,19 @@
 ## Testing Levels to Define
 
 ### Unit Tests
+
 - Core business logic (pure functions)
 - Individual adapters (mocked dependencies)
 - Open Cloud client (mocked HTTP)
 
 ### Integration Tests
+
 - Core + real adapters (e.g., real Gist backend against test gist)
 - CLI commands with mocked Open Cloud responses
 - Config loading with real c12
 
 ### E2E Tests
+
 - Full CLI flow against real Roblox (test universe?)
 - Or: against recorded/mocked API responses?
 

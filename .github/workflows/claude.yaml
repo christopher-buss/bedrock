@@ -8,26 +8,25 @@ on:
 
 jobs:
   claude:
-    if: |
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
     permissions:
       actions: read
       contents: read
       id-token: write
       issues: read
       pull-requests: read
+    if: |
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 1
 
-      - name: Run Claude Code
-        id: claude
-        uses: anthropics/claude-code-action@f9b2917716eb547b52148c7805dffe3a57864094 # v1
+      - id: claude
+        name: Run Claude Code
+        uses: anthropics/claude-code-action@f0c8eb29807907de7f5412d04afceb5e24817127 # v1.0.23
         with:
           additional_permissions: |
             actions: read

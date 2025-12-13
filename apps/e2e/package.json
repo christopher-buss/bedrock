@@ -8,14 +8,19 @@
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
 	"type": "module",
 	"scripts": {
-		"test": "vitest"
+		"lint": "eslint --cache .",
+		"test": "vitest",
+		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
 		"@bedrock/open-cloud": "workspace:*",
 		"bedrock": "workspace:*"
 	},
 	"devDependencies": {
-		"vitest": "catalog:testing"
+		"@bedrock/typescript-config": "workspace:*",
+		"@bedrock/vitest-config": "workspace:*",
+		"typescript": "catalog:tsc",
+		"vitest": "catalog:test"
 	},
 	"engines": {
 		"bun": ">=1.0.0"

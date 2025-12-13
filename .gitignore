@@ -3,12 +3,18 @@ node_modules
 .DS_Store
 .eslintcache
 
+# Testing
+coverage
+
 # Build outputs
 dist
 
 # Turbo cache
 .turbo
 
+# Git worktrees
+.worktrees/
+
 # VitePress
-.vitepress/cache
-.vitepress/dist
+**/.vitepress/cache
+**/.vitepress/dist

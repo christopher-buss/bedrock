@@ -5,6 +5,7 @@
 	"keywords": ["roblox", "open-cloud", "api"],
 	"license": "MIT",
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
+	"sideEffects": false,
 	"type": "module",
 	"exports": {
 		".": {
@@ -16,17 +17,19 @@
 	"types": "./dist/index.d.mts",
 	"files": ["dist"],
 	"scripts": {
-		"build": "tsdown --clean --dts",
+		"build": "tsdown --clean --dts --tsconfig tsconfig.build.json",
 		"dev": "tsdown --stub",
 		"lint": "eslint --cache src",
 		"test": "vitest",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsgo --noEmit -p tsconfig.build.json"
 	},
 	"devDependencies": {
+		"@bedrock/typescript-config": "workspace:*",
+		"@bedrock/vitest-config": "workspace:*",
 		"@types/bun": "catalog:types",
-		"tsdown": "catalog:cli",
-		"typescript": "catalog:typescript",
-		"vitest": "catalog:testing"
+		"tsdown": "catalog:build",
+		"typescript": "catalog:tsc",
+		"vitest": "catalog:test"
 	},
 	"engines": {
 		"bun": ">=1.0.0"

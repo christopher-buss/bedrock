@@ -48,7 +48,7 @@ causes type conflicts.
 
 In `package.json`, replace `@types/node` with `@types/bun`:
 
-```jsonc
+```json
 {
 	"@types/bun": "catalog:types"
 }
@@ -101,7 +101,7 @@ types:
 
 In `package.json`, add to devDependencies:
 
-```jsonc
+```json
 {
 	"better-typescript-lib": "catalog:types"
 }
@@ -121,11 +121,11 @@ This allows better-typescript-lib to override TypeScript's built-in types.
 
 In `tsconfig.json`, add to compilerOptions:
 
-```jsonc
+```json
 {
 	"compilerOptions": {
 		"libReplacement": true
-	},
+	}
 }
 ```
 
@@ -154,7 +154,7 @@ git commit -m "chore: add better-typescript-lib for stricter stdlib types"
 
 In `package.json`, replace:
 
-```jsonc
+```json
 {
 	"engines": {
 		"node": ">=20.0.0"
@@ -164,7 +164,7 @@ In `package.json`, replace:
 
 With:
 
-```jsonc
+```json
 {
 	"engines": {
 		"bun": ">=1.0.0"
@@ -204,7 +204,7 @@ tsx: 4.21.0
 
 In `package.json`, remove from devDependencies:
 
-```jsonc
+```json
 {
 	"tsx": "catalog:cli"
 }
@@ -214,7 +214,7 @@ In `package.json`, remove from devDependencies:
 
 In `package.json`, change the start script from:
 
-```jsonc
+```json
 {
 	"start": "tsx src/index.ts"
 }
@@ -222,7 +222,7 @@ In `package.json`, change the start script from:
 
 To:
 
-```jsonc
+```json
 {
 	"start": "bun run src/index.ts"
 }
@@ -256,7 +256,7 @@ git commit -m "chore: replace tsx with native Bun TypeScript execution"
 
 In `package.json`, add to scripts:
 
-```jsonc
+```json
 {
 	"build:binary": "bun build src/index.ts --compile --outfile dist/bedrock"
 }
@@ -295,26 +295,24 @@ should consolidate.
 
 Investigate and document:
 
-| Aspect | tsdown | bun build |
-|--------|--------|-----------|
-| ESM output | ? | ? |
-| CJS output | ? | ? |
-| `.d.ts` generation | ? | ? |
-| Binary compilation | ? | ? |
-| Bundle size | ? | ? |
-| Build speed | ? | ? |
-| Tree shaking | ? | ? |
+| Aspect             | tsdown | bun build |
+| ------------------ | ------ | --------- |
+| ESM output         | ?      | ?         |
+| CJS output         | ?      | ?         |
+| `.d.ts` generation | ?      | ?         |
+| Binary compilation | ?      | ?         |
+| Bundle size        | ?      | ?         |
+| Build speed        | ?      | ?         |
+| Tree shaking       | ?      | ?         |
 
 **Step 2: Test both build approaches**
 
-Run: `pnpm build && ls -la dist/`
-Document: Output files, sizes, formats
+Run: `pnpm build && ls -la dist/` Document: Output files, sizes, formats
 
-Run: `bun build src/index.ts --outdir dist-bun --target bun`
-Document: Output files, sizes, formats
+Run: `bun build src/index.ts --outdir dist-bun --target bun` Document: Output
+files, sizes, formats
 
-Run: `pnpm build:binary && ls -la dist/bedrock`
-Document: Binary size
+Run: `pnpm build:binary && ls -la dist/bedrock` Document: Binary size
 
 **Step 3: Present findings to user**
 
@@ -344,8 +342,8 @@ Update `package.json` scripts based on decision:
 
 **Step 6: Verify and commit**
 
-Run: `pnpm build` (npm distribution)
-Run: `pnpm build:binary` (standalone binary)
+Run: `pnpm build` (npm distribution) Run: `pnpm build:binary` (standalone
+binary)
 
 ```bash
 git add package.json pnpm-workspace.yaml docs/

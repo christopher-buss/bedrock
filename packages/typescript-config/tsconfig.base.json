@@ -1,0 +1,13 @@
+{
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"extends": "@isentinel/tsconfig/typescript",
+	"compilerOptions": {
+		"composite": true,
+		"tsBuildInfoFile": "${configDir}/dist/.tsbuildinfo",
+		"libReplacement": true,
+		"types": ["bun"],
+		"noEmit": false
+	},
+	"include": ["${configDir}/**/*"],
+	"exclude": ["${configDir}/node_modules", "${configDir}/**/.*/", "${configDir}/dist"]
+}

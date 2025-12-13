@@ -1,0 +1,5 @@
+{
+	"extends": "@bedrock/typescript-config/tsconfig.base.json",
+	"include": [".vitepress/**/*", "docs/**/*"],
+	"exclude": ["node_modules", ".vitepress/cache", ".vitepress/dist"]
+}

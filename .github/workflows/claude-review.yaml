@@ -1,0 +1,98 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+    branches:
+      - develop
+      - main
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  claude-review:
+    # Skip bots and fork PRs (forks don't have access to secrets)
+    if: |
+      github.event.pull_request.user.type != 'Bot' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      issues: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        id: skip-check
+        name: Check if should skip
+        run: |
+          # Get list of changed files in this PR
+          CHANGED_FILES=$(gh pr diff "$PR_NUMBER" --name-only --repo "$REPO")
+
+          # Check if this workflow file is in the changed files
+          WORKFLOW=".github/workflows/claude-review.yaml"
+          if echo "$CHANGED_FILES" | grep -q "^$WORKFLOW$"; then
+            echo "Workflow file changed - skipping review"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - if: steps.skip-check.outputs.skip != 'true'
+        name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 1
+
+      - id: read-prompt
+        if: steps.skip-check.outputs.skip != 'true'
+        name: Read review prompt
+        run: |
+          {
+            echo 'prompt<<EOF'
+            cat .claude/review-prompt.md
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
+      - id: claude-review
+        if: steps.skip-check.outputs.skip != 'true'
+        name: Run Claude Code Review
+        uses: anthropics/claude-code-action@f0c8eb29807907de7f5412d04afceb5e24817127 # v1.0.23
+        with:
+          # See: https://github.com/anthropics/claude-code-action
+          allowed_tools: |
+            Glob
+            Grep
+            Read
+            mcp__github__add_pull_request_review_comment_to_pending_review
+            mcp__github__create_pending_pull_request_review
+            mcp__github__get_pull_request_diff
+            mcp__github__submit_pending_pull_request_review
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            # Bedrock Code Review
+
+            Review this PR for compliance with Bedrock's architecture and
+            standards.
+
+            ${{ steps.read-prompt.outputs.prompt }}
+
+            ---
+
+            Use CLAUDE.md for project-specific guidance. Provide specific,
+            actionable feedback with inline comments. Include an overall summary
+            when submitting.
+
+            **Important**: Submit as "COMMENT" type (don't block PR).
+
+          track_progress: true
