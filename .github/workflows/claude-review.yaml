@@ -24,11 +24,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Wait for triage to complete
-        env:
+      - env:
           GH_TOKEN: ${{ github.token }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           REPO: ${{ github.repository }}
+        name: Wait for triage to complete
         run: |
           # Wait for triage workflow to complete (max 5 minutes)
           for i in {1..30}; do
