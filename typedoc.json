@@ -1,0 +1,23 @@
+{
+	"$schema": "https://typedoc.org/schema.json",
+	"entryPoints": ["./packages/cli/src/example.ts"],
+	"exclude": ["**/*.example.test.ts", "**/*.example.spec.ts"],
+	"tsconfig": "./packages/cli/tsconfig.json",
+	"out": "./docs-output",
+	"plugin": ["typedoc-plugin-replace-text"],
+	"replaceText": {
+		"inCodeCommentText": true,
+		"replacements": [
+			{
+				"pattern": ".*import.*from [\"']vitest[\"'].*\\n",
+				"flags": "g",
+				"replace": ""
+			},
+			{
+				"pattern": ".*expect\\(.*\\n",
+				"flags": "g",
+				"replace": ""
+			}
+		]
+	}
+}

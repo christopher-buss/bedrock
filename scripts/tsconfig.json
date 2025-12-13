@@ -1,10 +1,11 @@
 {
 	"extends": "@isentinel/tsconfig/typescript",
 	"compilerOptions": {
+		"composite": true,
 		"libReplacement": true,
 		"rootDir": ".",
 		"types": ["bun"],
-		"noEmit": true
+		"noEmit": false
 	},
 	"include": ["*.ts"]
 }
