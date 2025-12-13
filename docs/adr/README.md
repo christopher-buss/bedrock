@@ -15,6 +15,7 @@ things are the way they are.
 | [003](./003-testing-strategy.md)           | Testing Strategy                                      | Accepted | 2025-12-06 |
 | [004](./004-documentation-site.md)         | Documentation Site                                    | Accepted | 2025-12-12 |
 | [005](./005-jsdoc-example-testing.md)      | Tested JSDoc Examples                                 | Accepted | 2025-12-13 |
+| [006](./006-adr-enforcement.md)            | ADR Enforcement                                       | Accepted | 2025-12-13 |
 
 ## Creating a New ADR
 

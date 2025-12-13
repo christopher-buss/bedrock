@@ -50,11 +50,15 @@ tool no longer maintained).
 
 ## Testing Requirements (NON-NEGOTIABLE)
 
-**TDD is mandatory. No implementation without a failing test first.**
+Every line of production code must be written in response to a failing test.
 
-1. **RED** - Write a failing test describing expected behavior
-2. **GREEN** - Write minimum code to pass
-3. **REFACTOR** - Clean up, keep tests green
+**RED → GREEN → REFACTOR:**
+
+1. **RED:** Write failing test for desired behavior
+2. **GREEN:** Write minimum code to pass
+3. **REFACTOR:** Assess if refactoring adds value (commit before refactoring)
+
+**Git history must show TDD compliance.**
 
 **Test levels:**
 
@@ -115,8 +119,9 @@ bedrock/
 ### Before Committing
 
 1. Run `pnpm lint` (auto-fixes style issues)
-2. Run `pnpm test` (must pass)
-3. Run `pnpm typecheck` (must pass)
+2. Run `pnpm build` (must succeed)
+3. Run `pnpm test` (must pass)
+4. Run `pnpm typecheck` (must pass)
 
 ### Creating Issues
 
@@ -126,10 +131,78 @@ Use GitHub issue templates for:
 - Feature requests
 - Documentation improvements
 
-### Making Decisions
+### Making Architectural Decisions (MANDATORY)
 
-For significant architectural choices, create an ADR using the template in
-`docs/templates/adr.md`.
+**ADRs are mandatory before implementing architectural changes. No exceptions.**
+
+An Architecture Decision Record (ADR) must be created BEFORE implementation when
+ANY of these conditions apply:
+
+1. **Technology Choices**: New dependencies, build tools, frameworks, or
+   project-wide patterns
+2. **Architectural Patterns**: New layers, boundaries, abstractions, or
+   communication patterns
+3. **External Integrations**: Third-party services, APIs, authentication, or
+   state storage
+4. **Data Models**: State persistence, serialization, configuration formats, or
+   migrations
+5. **Security & Constraints**: Authentication methods, security requirements, or
+   secret management
+6. **Developer Workflow**: CI/CD changes, testing requirements, or code
+   generation
+7. **Breaking Changes**: Backwards-incompatible API changes, deprecations, or
+   removals
+
+**What does NOT require an ADR**:
+
+- Bug fixes that don't change architecture
+- Tests for existing code
+- Behavior-preserving refactors
+- Documentation updates (unless changing doc strategy)
+- Performance optimizations without new dependencies
+- Features following existing patterns
+
+**Process**:
+
+1. Identify decision type from list above
+2. Use `adr` agent to create ADR collaboratively
+3. Follow methodological Q&A process (see below)
+4. Get stakeholder approval if needed
+5. Mark ADR as "Accepted" before implementation begins
+6. Implement the change
+7. Update ADR if implementation reveals new information
+
+**For Claude Code**:
+
+When user requests implementation meeting ANY trigger criteria above:
+
+1. STOP before implementing
+2. Inform user an ADR is required
+3. Offer to use `adr` agent to create ADR collaboratively
+4. Wait for approval before proceeding with implementation
+
+**ADR Creation Process (Methodological Q&A)**:
+
+The ADR process must be slow and methodological. No assumptions. The `adr` agent
+guides through:
+
+1. **Context Gathering**: Problem? Constraints? Current state? Who's affected?
+2. **Options Exploration**: Alternatives? Pros/cons each? What if do nothing?
+3. **Decision Criteria**: What matters most? Deal-breakers? Timeline? Risk?
+4. **Consequences Analysis**: Positive outcomes? Trade-offs? Reversible? Future?
+5. **Documentation Review**: Review draft, confirm accuracy, identify gaps
+
+**Rules**:
+
+- Ask questions one at a time for complex decisions
+- Never assume - always confirm
+- Use AskUserQuestion tool liberally
+- Reference existing ADRs for consistency patterns
+- Draft ADR incrementally through conversation, not all at once
+
+**Rule of thumb**: If asking "should this be an ADR?" - it probably should be.
+
+See `docs/adr/006-adr-enforcement.md` for full rationale.
 
 ## Constraints
 
