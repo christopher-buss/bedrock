@@ -1,23 +1,20 @@
 name: Claude Code Review
 
 on:
-  workflow_run:
-    workflows: [Claude Triage]
-    types: [completed]
+  pull_request:
+    types: [opened]
 
 concurrency:
-  group: claude-review-${{ github.event.workflow_run.pull_requests[0].number || 'skipped' }}
+  group: claude-review-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   claude-review:
-    # Only run if triage succeeded and it's a PR (not issue)
+    # Only run if it's a PR from the same repo and not from a bot
     if: |
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.pull_requests[0] != null &&
-      github.event.workflow_run.actor.type != 'Bot' &&
-      github.event.workflow_run.head_repository.full_name == github.repository
+      github.event.pull_request != null &&
+      github.event.sender.type != 'Bot' &&
+      github.head_repository.full_name == github.repository
     permissions:
       actions: read
       contents: read
@@ -29,7 +26,37 @@ jobs:
     steps:
       - env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+        name: Wait for triage to complete
+        run: |
+          # Wait for triage workflow to complete (max 5 minutes)
+          for i in {1..30}; do
+            # Get the latest triage run for this PR commit
+            TRIAGE_STATUS=$(gh run list --workflow=claude-triage.yaml \
+              --repo "$REPO" \
+              --json conclusion,status,headSha \
+              --jq ".[] | select(.headSha == \"$PR_HEAD_SHA\") | .conclusion" \
+              --limit 1)
+
+            if [ "$TRIAGE_STATUS" = "success" ]; then
+              echo "Triage completed successfully"
+              exit 0
+            elif [ "$TRIAGE_STATUS" = "failure" ] || [ "$TRIAGE_STATUS" = "cancelled" ]; then
+              echo "Triage did not succeed (status: $TRIAGE_STATUS), skipping review"
+              exit 1
+            fi
+
+            echo "Waiting for triage to complete... (attempt $i/30)"
+            sleep 10
+          done
+
+          echo "Triage did not complete in time, skipping review"
+          exit 1
+
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         id: skip-check
         name: Check if should skip
@@ -59,7 +86,7 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 1
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - id: read-prompt
         if: steps.skip-check.outputs.skip != 'true'
@@ -81,7 +108,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
 
             # Bedrock Code Review
 
