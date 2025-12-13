@@ -309,12 +309,6 @@ export interface OpenCloudClientOptions {
 	onRequest?: (request: HttpRequest) => void;
 
 	onRetry?: (attempt: number, error: OpenCloudError) => void;
-
-	// Rate limiting (SDK manages queue internally)
-	rateLimit?: {
-		requestsPerMinute?: number; // e.g., 100
-		requestsPerSecond?: number; // e.g., 5
-	};
 	// cspell:disable-next-line
 	retryableStatuses?: Array<number>; // Default: [429, 500, 502, 503, 504]
 	retryDelay?: (attempt: number) => number; // Exponential backoff
@@ -350,18 +344,16 @@ from needing to coordinate retries with its own queue.
 const client = new GamePassesClient({
 	apiKey: "key",
 	maxRetries: 3,
-	onRateLimit: (waitMs) => {
-		console.log(`[Rate limit] Waiting ${waitMs}ms...`);
-	},
 
-	onRetry: (attempt, error) => {
-		console.log(`[Retry ${attempt}] ${error.message}`);
-	},
-
-	rateLimit: { requestsPerSecond: 5 }, // SDK enforces this
+	onRateLimit: (waitMs) => console.log(`[RATE LIMIT] Waiting ${waitMs}ms...`),
+	// Observability hooks (optional)
+	onRequest: (request) => console.log(`[REQUEST] ${request.method} ${request.url}`),
+	onRetry: (attempt, error) =>
+		console.log(`[RETRY ${attempt}] ${error.message}`),
 });
 
 // Bedrock fires all 10 requests - SDK queues internally
+// Rate limits are built-in (no configuration needed)
 const results = await Promise.all([
 	client.create({ name: "Pass 1", priceInRobux: 100, universeId: "123" }),
 	client.create({ name: "Pass 2", priceInRobux: 100, universeId: "123" }),
@@ -369,9 +361,19 @@ const results = await Promise.all([
 ]);
 ```
 
+**Note:** Rate limits are built into each client based on Roblox's documented
+API limits. Users don't configure them - the SDK knows the correct limits per
+API.
+
 ### Internal Implementation
 
 ```typescript
+// Rate limits per API (from Roblox documentation)
+const GAME_PASSES_RATE_LIMIT = {
+	requestsPerMinute: 60,
+	requestsPerSecond: 10,
+};
+
 class GamePassesClient {
 	private readonly config: OpenCloudConfig;
 	private readonly queue: RateLimitQueue;
@@ -380,8 +382,8 @@ class GamePassesClient {
 		this.config = Object.freeze({ ...options });
 		this.queue = new RateLimitQueue({
 			onWait: options.onRateLimit,
-			requestsPerMinute: options.rateLimit?.requestsPerMinute ?? Infinity,
-			requestsPerSecond: options.rateLimit?.requestsPerSecond ?? Infinity,
+			requestsPerMinute: GAME_PASSES_RATE_LIMIT.requestsPerMinute,
+			requestsPerSecond: GAME_PASSES_RATE_LIMIT.requestsPerSecond,
 		});
 	}
 
@@ -457,10 +459,24 @@ class GamePassesClient {
 }
 ```
 
+### Rate Limit Research Required
+
+**Implementation Note:** Actual Roblox Open Cloud rate limits must be researched
+and documented per API during implementation. The values shown above (60/min,
+10/sec) are placeholders.
+
+**Research sources:**
+
+- Roblox Open Cloud documentation
+- HTTP 429 response headers (`X-RateLimit-*`)
+- Roblox developer forums/announcements
+
+Each client should have its own rate limit constants based on the specific API.
+
 ### Benefits
 
 - ✅ **Bedrock doesn't manage queues** - Fire all requests, SDK handles it
-- ✅ **Rate limiting automatic** - SDK enforces limits per client instance
+- ✅ **Rate limiting automatic** - SDK knows correct limits per API
 - ✅ **Retries transparent** - SDK handles, CLI gets notified via hooks
 - ✅ **Observability** - CLI knows when retries/rate-limits happen
 - ✅ **Testable** - Inject fake HTTP client, no actual rate limiting in tests

@@ -1,8 +1,8 @@
 /**
- * Example: Using @bedrock/open-cloud SDK
+ * Example: Using @bedrock/open-cloud SDK.
  *
- * This example demonstrates the complete usage of the Open Cloud SDK,
- * including rate limiting, retries, error handling, and multi-key scenarios.
+ * This example demonstrates the complete usage of the Open Cloud SDK, including
+ * rate limiting, retries, error handling, and multi-key scenarios.
  */
 
 import {
@@ -11,9 +11,9 @@ import {
 	RateLimitError,
 	type Result,
 } from "@bedrock/open-cloud";
+import { GameIconsClient } from "@bedrock/open-cloud/game-icons";
 import { GamePassesClient } from "@bedrock/open-cloud/game-passes";
 import { UniversesClient } from "@bedrock/open-cloud/universes";
-import { GameIconsClient } from "@bedrock/open-cloud/game-icons";
 
 // =============================================================================
 // Configuration
@@ -23,13 +23,15 @@ const config: OpenCloudClientOptions = {
 	apiKey: process.env.ROBLOX_API_KEY!,
 	maxRetries: 3,
 
-	// Rate limiting - SDK manages queue internally
-	rateLimit: {
-		requestsPerSecond: 5, // Roblox limit
-		requestsPerMinute: 100,
+	onRateLimit: (waitMs) => {
+		console.log(`[RATE LIMIT] Waiting ${waitMs}ms...`);
 	},
 
-	// Observability hooks
+	/**
+	 * Observability hooks (optional).
+	 *
+	 * @param request
+	 */
 	onRequest: (request) => {
 		console.log(`[REQUEST] ${request.method} ${request.url}`);
 	},
@@ -37,17 +39,26 @@ const config: OpenCloudClientOptions = {
 	onRetry: (attempt, error) => {
 		console.log(`[RETRY ${attempt}] ${error.message}`);
 	},
-
-	onRateLimit: (waitMs) => {
-		console.log(`[RATE LIMIT] Waiting ${waitMs}ms...`);
-	},
 };
+
+// Note: Rate limits are built into each client based on Roblox's API limits.
+// Users don't configure them - the SDK knows the correct limits per API.
 
 // Separate API key for asset uploads (moderation safety)
 const assetUploadKey = process.env.ROBLOX_ASSET_UPLOAD_KEY!;
 
 // =============================================================================
 // Example 1: Basic Usage with Error Handling
+// =============================================================================
+
+interface DeploymentPlan {
+	assets: { icon?: Uint8Array; thumbnail?: Uint8Array };
+	gamePasses: Array<{ name: string; priceInRobux: number }>;
+	gameSettings: { displayName: string; maxPlayerCount: number };
+}
+
+// =============================================================================
+// Example 2: Multiple Requests (SDK Queues Internally)
 // =============================================================================
 
 async function createGamePass() {
@@ -80,45 +91,28 @@ async function createGamePass() {
 }
 
 // =============================================================================
-// Example 2: Multiple Requests (SDK Queues Internally)
+// Example 3: Per-Request Override (Multi-Key for Asset Uploads)
 // =============================================================================
 
-async function createMultipleGamePasses() {
+async function createGamePassOrThrow() {
 	const client = new GamePassesClient(config);
 
-	const gamePasses = [
-		{ name: "VIP Pass", priceInRobux: 100, universeId: "123456" },
-		{ name: "Premium Pass", priceInRobux: 250, universeId: "123456" },
-		{ name: "Elite Pass", priceInRobux: 500, universeId: "123456" },
-		{ name: "Legendary Pass", priceInRobux: 1000, universeId: "123456" },
-		{ name: "Ultimate Pass", priceInRobux: 2500, universeId: "123456" },
-	];
-
-	// Fire all requests at once - SDK queues and rate-limits internally
-	const results = await Promise.all(
-		gamePasses.map((parameters) => client.create(parameters)),
+	// If you prefer exceptions over Result handling
+	const gamePass = unwrapResult(
+		await client.create({
+			name: "VIP Pass",
+			priceInRobux: 100,
+			universeId: "123456",
+		}),
 	);
 
-	// Process results
-	const succeeded: Array<string> = [];
-	const failed: Array<string> = [];
+	console.log(`Created: ${gamePass.id}`);
 
-	for (const result of results) {
-		if (result.success) {
-			succeeded.push(result.data.id);
-		} else {
-			failed.push(result.error.message);
-		}
-	}
-
-	console.log(`Created ${succeeded.length} game passes`);
-	console.log(`Failed: ${failed.length}`);
-
-	return { succeeded, failed };
+	return gamePass;
 }
 
 // =============================================================================
-// Example 3: Per-Request Override (Multi-Key for Asset Uploads)
+// Example 4: Updating Universe Settings
 // =============================================================================
 
 async function createGamePassWithIcon(imageData: Uint8Array) {
@@ -150,111 +144,44 @@ async function createGamePassWithIcon(imageData: Uint8Array) {
 }
 
 // =============================================================================
-// Example 4: Updating Universe Settings
-// =============================================================================
-
-async function updateGameSettings() {
-	const client = new UniversesClient(config);
-
-	const result = await client.update({
-		universeId: "123456",
-		displayName: "My Awesome Game",
-		description: "An incredible Roblox experience",
-		maxPlayerCount: 50,
-		desktopEnabled: true,
-		mobileEnabled: true,
-		tabletEnabled: true,
-		consoleEnabled: false,
-		vrEnabled: false,
-	});
-
-	if (!result.success) {
-		console.error(`Failed to update universe: ${result.error.message}`);
-		return;
-	}
-
-	console.log(`Updated universe: ${result.data.id}`);
-
-	return result.data;
-}
-
-// =============================================================================
 // Example 5: Asset Upload Workflow
 // =============================================================================
 
-async function uploadGameAssets(iconData: Uint8Array, thumbnailData: Uint8Array) {
-	const iconClient = new GameIconsClient({
-		...config,
-		apiKey: assetUploadKey, // Use asset upload key for all icon operations
-	});
+async function createMultipleGamePasses() {
+	const client = new GamePassesClient(config);
 
-	const gameId = "123456";
-	const languageCode = "en-us";
+	const gamePasses = [
+		{ name: "VIP Pass", priceInRobux: 100, universeId: "123456" },
+		{ name: "Premium Pass", priceInRobux: 250, universeId: "123456" },
+		{ name: "Elite Pass", priceInRobux: 500, universeId: "123456" },
+		{ name: "Legendary Pass", priceInRobux: 1000, universeId: "123456" },
+		{ name: "Ultimate Pass", priceInRobux: 2500, universeId: "123456" },
+	];
 
-	// Upload game icon
-	const iconResult = await iconClient.upload({
-		gameId,
-		iconFile: iconData,
-		languageCode,
-	});
+	// Fire all requests at once - SDK queues and rate-limits internally
+	const results = await Promise.all(gamePasses.map((parameters) => client.create(parameters)));
 
-	if (!iconResult.success) {
-		console.error(`Icon upload failed: ${iconResult.error.message}`);
-		return { icon: null, thumbnail: null };
+	// Process results
+	const succeeded: Array<string> = [];
+	const failed: Array<string> = [];
+
+	for (const result of results) {
+		if (result.success) {
+			succeeded.push(result.data.id);
+		} else {
+			failed.push(result.error.message);
+		}
 	}
 
-	console.log(`Icon uploaded successfully`);
+	console.log(`Created ${succeeded.length} game passes`);
+	console.log(`Failed: ${failed.length}`);
 
-	// Note: Game thumbnails would use a separate client
-	// const thumbnailClient = new GameThumbnailsClient({...config, apiKey: assetUploadKey});
-
-	return {
-		icon: iconResult.data,
-		thumbnail: null, // Would be populated by thumbnail client
-	};
+	return { failed, succeeded };
 }
 
 // =============================================================================
 // Example 6: Pagination
 // =============================================================================
-
-async function listAllGamePasses(universeId: string) {
-	const client = new GamePassesClient(config);
-	const allGamePasses = [];
-	let nextPageToken: string | undefined;
-
-	do {
-		const result = await client.list({
-			universeId,
-			maxPageSize: 50,
-			pageToken: nextPageToken,
-		});
-
-		if (!result.success) {
-			console.error(`Failed to list game passes: ${result.error.message}`);
-			break;
-		}
-
-		allGamePasses.push(...result.data.items);
-		nextPageToken = result.data.nextPageToken;
-
-		console.log(`Fetched ${result.data.items.length} game passes`);
-	} while (nextPageToken);
-
-	console.log(`Total game passes: ${allGamePasses.length}`);
-
-	return allGamePasses;
-}
-
-// =============================================================================
-// Example 7: Bedrock IaC Deployment Workflow
-// =============================================================================
-
-interface DeploymentPlan {
-	gamePasses: Array<{ name: string; priceInRobux: number }>;
-	gameSettings: { displayName: string; maxPlayerCount: number };
-	assets: { icon?: Uint8Array; thumbnail?: Uint8Array };
-}
 
 async function deployGame(universeId: string, plan: DeploymentPlan) {
 	console.log("Starting deployment...");
@@ -267,17 +194,15 @@ async function deployGame(universeId: string, plan: DeploymentPlan) {
 	});
 
 	const results = {
+		assets: null as unknown,
 		gamePasses: [] as Array<string>,
 		settings: null as unknown,
-		assets: null as unknown,
 	};
 
 	// Step 1: Create all game passes (fire all at once, SDK queues)
 	console.log("Creating game passes...");
 	const gamePassResults = await Promise.all(
-		plan.gamePasses.map((parameters) =>
-			gamePassClient.create({ ...parameters, universeId }),
-		),
+		plan.gamePasses.map((parameters) => gamePassClient.create({ ...parameters, universeId })),
 	);
 
 	for (const result of gamePassResults) {
@@ -326,37 +251,36 @@ async function deployGame(universeId: string, plan: DeploymentPlan) {
 }
 
 // =============================================================================
-// Example 8: Helper for Result Unwrapping
+// Example 7: Bedrock IaC Deployment Workflow
 // =============================================================================
 
-function unwrapResult<T>(result: Result<T, Error>): T {
-	if (!result.success) {
-		throw result.error;
-	}
-
-	return result.data;
-}
-
-async function createGamePassOrThrow() {
+async function listAllGamePasses(universeId: string) {
 	const client = new GamePassesClient(config);
+	const allGamePasses = [];
+	let nextPageToken: string | undefined;
 
-	// If you prefer exceptions over Result handling
-	const gamePass = unwrapResult(
-		await client.create({
-			name: "VIP Pass",
-			priceInRobux: 100,
-			universeId: "123456",
-		}),
-	);
+	do {
+		const result = await client.list({
+			maxPageSize: 50,
+			pageToken: nextPageToken,
+			universeId,
+		});
 
-	console.log(`Created: ${gamePass.id}`);
+		if (!result.success) {
+			console.error(`Failed to list game passes: ${result.error.message}`);
+			break;
+		}
 
-	return gamePass;
+		allGamePasses.push(...result.data.items);
+		nextPageToken = result.data.nextPageToken;
+
+		console.log(`Fetched ${result.data.items.length} game passes`);
+	} while (nextPageToken);
+
+	console.log(`Total game passes: ${allGamePasses.length}`);
+
+	return allGamePasses;
 }
-
-// =============================================================================
-// Run Examples
-// =============================================================================
 
 async function main() {
 	try {
@@ -368,10 +292,84 @@ async function main() {
 
 		// Example 6: Pagination
 		await listAllGamePasses("123456");
-	} catch (error) {
-		console.error("Fatal error:", error);
+	} catch (err) {
+		console.error("Fatal error:", err);
 		process.exit(1);
 	}
+}
+
+// =============================================================================
+// Example 8: Helper for Result Unwrapping
+// =============================================================================
+
+function unwrapResult<T>(result: Result<T, Error>): T {
+	if (!result.success) {
+		throw result.error;
+	}
+
+	return result.data;
+}
+
+async function updateGameSettings() {
+	const client = new UniversesClient(config);
+
+	const result = await client.update({
+		consoleEnabled: false,
+		description: "An incredible Roblox experience",
+		desktopEnabled: true,
+		displayName: "My Awesome Game",
+		maxPlayerCount: 50,
+		mobileEnabled: true,
+		tabletEnabled: true,
+		universeId: "123456",
+		vrEnabled: false,
+	});
+
+	if (!result.success) {
+		console.error(`Failed to update universe: ${result.error.message}`);
+		return;
+	}
+
+	console.log(`Updated universe: ${result.data.id}`);
+
+	return result.data;
+}
+
+// =============================================================================
+// Run Examples
+// =============================================================================
+
+async function uploadGameAssets(iconData: Uint8Array, thumbnailData: Uint8Array) {
+	const iconClient = new GameIconsClient({
+		...config,
+		apiKey: assetUploadKey, // Use asset upload key for all icon operations
+	});
+
+	const gameId = "123456";
+	const languageCode = "en-us";
+
+	// Upload game icon
+	const iconResult = await iconClient.upload({
+		gameId,
+		iconFile: iconData,
+		languageCode,
+	});
+
+	if (!iconResult.success) {
+		console.error(`Icon upload failed: ${iconResult.error.message}`);
+		return { icon: null, thumbnail: null };
+	}
+
+	console.log("Icon uploaded successfully");
+
+	// Note: Game thumbnails would use a separate client
+	// const thumbnailClient = new GameThumbnailsClient({...config, apiKey:
+	// assetUploadKey});
+
+	return {
+		icon: iconResult.data,
+		thumbnail: null, // Would be populated by thumbnail client
+	};
 }
 
 // Uncomment to run examples
