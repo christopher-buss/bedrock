@@ -10,6 +10,7 @@ jobs:
   triage:
     permissions:
       contents: read
+      id-token: write
       issues: write
       pull-requests: write
 
