@@ -1033,17 +1033,17 @@ describe(GamePassesClient, () => {
 		"vitest": "catalog:test"
 	},
 	"engines": {
-		"node": ">=18.0.0",
-		"bun": ">=1.0.0"
+		"node": ">=24.12.0",
+		"bun": ">=1.3.0"
 	}
 }
 ```
 
 ## Runtime Compatibility
 
-**Dual Runtime Support:** Node.js 18+ and Bun 1.0+
+**Dual Runtime Support:** Node.js LTS (24.12+) and Bun 1.3+
 
-**Node.js 18+ requirements:**
+**Node.js LTS (24.12+) requirements:**
 
 - Native `fetch()` API (no polyfills)
 - `FormData` and Web Streams API
