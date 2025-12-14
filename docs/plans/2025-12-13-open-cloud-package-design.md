@@ -107,11 +107,11 @@ packages/open-cloud/
 │   ├── internal/                     # Internal utilities (not exported)
 │   │   ├── http/
 │   │   │   ├── fetch-client.ts       # HTTP implementation
-│   │   │   ├── types.ts              # HttpRequest, HttpResponse
-│   │   │   └── fake-client.ts        # Test utility
+│   │   │   ├── rate-limit-queue.ts   # Rate limiting & queuing
+│   │   │   ├── multipart.ts          # Multipart encoding
+│   │   │   └── types.ts              # HttpRequest, HttpResponse
 │   │   └── utils/
-│   │       ├── try-catch.ts          # tryCatch helper
-│   │       └── multipart.ts          # Multipart encoding
+│   │       └── try-catch.ts          # tryCatch helper
 │   │
 │   ├── errors/                       # Error classes (exported)
 │   │   ├── base.ts                   # OpenCloudError
@@ -127,6 +127,9 @@ packages/open-cloud/
 │   └── index.ts                      # Root export (errors + shared types only)
 │
 └── tests/
+    ├── helpers/                      # Test utilities
+    │   └── fake-http-client.ts       # Fake HTTP client for testing
+    │
     ├── unit/                         # Pure function tests
     │   └── resources/
     │       └── game-passes/
@@ -309,7 +312,6 @@ export interface OpenCloudClientOptions {
 	onRequest?: (request: HttpRequest) => void;
 
 	onRetry?: (attempt: number, error: OpenCloudError) => void;
-	// cspell:disable-next-line
 	retryableStatuses?: Array<number>; // Default: [429, 500, 502, 503, 504]
 	retryDelay?: (attempt: number) => number; // Exponential backoff
 
@@ -330,6 +332,76 @@ export interface RequestOptions {
 }
 ```
 
+## Edge Case Handling
+
+This section documents expected SDK behavior for edge cases that may occur
+during normal operation.
+
+### File Upload Edge Cases
+
+| Scenario                 | Behavior                                           |
+| ------------------------ | -------------------------------------------------- |
+| Empty file (0 bytes)     | Allow (API may reject, return ApiError)            |
+| Oversized file           | Client-side validation (return ValidationError)    |
+| Invalid MIME type        | Allow (API validates, return ApiError if rejected) |
+| Unicode in filename      | Encode properly in multipart Content-Disposition   |
+| Missing filename         | Generate default: `upload-{timestamp}.bin`         |
+| Null/undefined file data | Return ValidationError before making request       |
+
+**Implementation notes:**
+
+- Max file size limits per API must be researched and enforced client-side
+- Use `TextEncoder` for proper filename encoding in multipart headers
+- Validation happens in builders (pure functions return Result types)
+
+### Pagination Edge Cases
+
+| Scenario                  | Behavior                                          |
+| ------------------------- | ------------------------------------------------- |
+| Empty result set          | Return `{ items: [], nextPageToken: undefined }`  |
+| Invalid nextPageToken     | Pass to API, return ApiError if rejected          |
+| Expired nextPageToken     | API returns error, client propagates as ApiError  |
+| Missing maxPageSize       | Use API default (typically 100)                   |
+| maxPageSize out of bounds | Client validates against API limits, return error |
+
+### Rate Limit Edge Cases
+
+| Scenario                       | Behavior                                    |
+| ------------------------------ | ------------------------------------------- |
+| Multiple clients, same API key | Each client maintains own queue (duplicate) |
+| Very large queue (>1000 items) | No limit, continue queuing (memory warning) |
+| Queue during client disposal   | Pending requests complete, new rejected     |
+| Concurrent key override        | Each key gets separate queue lazily         |
+
+**Implementation notes:**
+
+- Document that multiple client instances with same API key won't share quotas
+- Consider adding queue size metrics to observability hooks in future
+
+### Network & Timeout Edge Cases
+
+| Scenario                  | Behavior                                         |
+| ------------------------- | ------------------------------------------------ |
+| Request timeout           | Return NetworkError after configured timeout     |
+| Timeout during retry      | Each retry attempt gets full timeout window      |
+| DNS resolution failure    | Return NetworkError with cause                   |
+| Connection refused        | Return NetworkError with cause                   |
+| Response body parse error | Return ApiError "Failed to parse response"       |
+| Partial response received | Depends on fetch() behavior, likely NetworkError |
+
+### API Key Edge Cases
+
+| Scenario                | Behavior                                   |
+| ----------------------- | ------------------------------------------ |
+| Empty string API key    | Allow (API will reject with 401/403)       |
+| Malformed API key       | Allow (API validates format)               |
+| Expired API key         | API returns 401/403, propagate as ApiError |
+| Key without permissions | API returns 403, propagate as ApiError     |
+| Key for wrong universe  | API returns 403/404, propagate as ApiError |
+
+**Rationale:** Client-side key validation is fragile and can break when Roblox
+changes key formats. Let the API be the source of truth.
+
 ## Rate Limiting & Retry Strategy
 
 ### Design Philosophy
@@ -347,7 +419,10 @@ const client = new GamePassesClient({
 
 	onRateLimit: (waitMs) => console.log(`[RATE LIMIT] Waiting ${waitMs}ms...`),
 	// Observability hooks (optional)
-	onRequest: (request) => console.log(`[REQUEST] ${request.method} ${request.url}`),
+	// eslint-disable-next-line arrow-style/arrow-return-style -- False positive
+	onRequest: (request) => {
+		return console.log(`[REQUEST] ${request.method} ${request.url}`);
+	},
 	onRetry: (attempt, error) =>
 		console.log(`[RETRY ${attempt}] ${error.message}`),
 });
@@ -376,26 +451,25 @@ const GAME_PASSES_RATE_LIMIT = {
 
 class GamePassesClient {
 	private readonly config: OpenCloudConfig;
-	private readonly queue: RateLimitQueue;
+	private readonly queues: Map<string, RateLimitQueue>;
 
 	constructor(options: OpenCloudClientOptions) {
 		this.config = Object.freeze({ ...options });
-		this.queue = new RateLimitQueue({
-			onWait: options.onRateLimit,
-			requestsPerMinute: GAME_PASSES_RATE_LIMIT.requestsPerMinute,
-			requestsPerSecond: GAME_PASSES_RATE_LIMIT.requestsPerSecond,
-		});
+		this.queues = new Map();
 	}
 
 	public async create(
 		parameters: CreateGamePassParams,
 		options?: RequestOptions,
 	): Promise<Result<GamePass, OpenCloudError>> {
-		return this.queue.add(async () => {
-			return this.executeWithRetry(buildCreateRequest(parameters), {
-				...this.config,
-				...options,
-			});
+		const mergedConfig = { ...this.config, ...options };
+		const queue = this.getQueue(mergedConfig.apiKey);
+
+		return queue.add(async () => {
+			return this.executeWithRetry(
+				buildCreateRequest(parameters),
+				mergedConfig,
+			);
 		});
 	}
 
@@ -418,11 +492,13 @@ class GamePassesClient {
 		};
 	}
 
+	// eslint-disable-next-line max-lines-per-function -- Example code
 	private async executeWithRetry(
 		request: HttpRequest,
 		config: RequestConfig,
 	): Promise<Result<GamePass, OpenCloudError>> {
 		const retryConfig = this.buildRetryConfig(config);
+		let lastError: OpenCloudError | undefined;
 
 		for (let attempt = 0; attempt <= retryConfig.maxRetries; attempt++) {
 			this.config.onRequest?.(request);
@@ -435,6 +511,8 @@ class GamePassesClient {
 				};
 			}
 
+			lastError = result.error;
+
 			if (
 				!this.shouldRetry(result.error, retryConfig) ||
 				attempt === retryConfig.maxRetries
@@ -445,15 +523,39 @@ class GamePassesClient {
 			this.config.onRetry?.(attempt + 1, result.error);
 			await sleep(retryConfig.retryDelay(attempt));
 		}
+
+		// Fallback: should never reach here, but TypeScript requires it
+		return {
+			error:
+				lastError ??
+				new NetworkError("Request failed after all retry attempts"),
+			success: false,
+		};
+	}
+
+	private getQueue(apiKey: string): RateLimitQueue {
+		const existingQueue = this.queues.get(apiKey);
+
+		if (existingQueue) {
+			return existingQueue;
+		}
+
+		const queue = new RateLimitQueue({
+			onWait: this.config.onRateLimit,
+			requestsPerMinute: GAME_PASSES_RATE_LIMIT.requestsPerMinute,
+			requestsPerSecond: GAME_PASSES_RATE_LIMIT.requestsPerSecond,
+		});
+		this.queues.set(apiKey, queue);
+		return queue;
 	}
 
 	private shouldRetry(
 		error: OpenCloudError,
-		config: { retryableStatuses: Array<number> }, // cspell:disable-line
+		config: { retryableStatuses: Array<number> },
 	): boolean {
 		return (
 			error instanceof ApiError &&
-			config.retryableStatuses.includes(error.statusCode) // cspell:disable-line
+			config.retryableStatuses.includes(error.statusCode)
 		);
 	}
 }
@@ -480,6 +582,96 @@ Each client should have its own rate limit constants based on the specific API.
 - ✅ **Retries transparent** - SDK handles, CLI gets notified via hooks
 - ✅ **Observability** - CLI knows when retries/rate-limits happen
 - ✅ **Testable** - Inject fake HTTP client, no actual rate limiting in tests
+- ✅ **Per-key rate limiting** - Different API keys maintain separate quotas
+
+## Idempotency & Retry Strategy
+
+### Idempotency Research
+
+**Research completed:** Roblox Open Cloud API documentation does not specify
+support for idempotency headers (such as `Idempotency-Key` or `X-Request-Id`).
+
+**Sources:**
+
+- [Cloud API Reference](https://create.roblox.com/docs/cloud/reference)
+- [Common API Patterns](https://create.roblox.com/docs/cloud/reference/patterns)
+
+### Retry Policy for Create Operations
+
+**Problem:** Without idempotency support, retrying failed create operations on
+5xx errors could result in duplicate resources.
+
+**Solution:** Different retry strategies based on operation type and error code.
+
+#### Retry Strategy by Operation Type
+
+| Operation Type | 429 (Rate Limit) | 500/502/503/504 (Server Error) |
+| -------------- | ---------------- | ------------------------------ |
+| **Create**     | ✅ Retry         | ❌ Do not retry                |
+| **Read/List**  | ✅ Retry         | ✅ Retry (safe, idempotent)    |
+| **Update**     | ✅ Retry         | ✅ Retry (idempotent by PUT)   |
+| **Delete**     | ✅ Retry         | ✅ Retry (idempotent)          |
+
+#### Implementation Strategy
+
+**Option 1: Per-method retry configuration (Recommended)**
+
+```typescript
+class GamePassesClient {
+	public async create(
+		parameters: CreateGamePassParams,
+		options?: RequestOptions,
+	): Promise<Result<GamePass, OpenCloudError>> {
+		const mergedConfig = { ...this.config, ...options };
+		const queue = this.getQueue(mergedConfig.apiKey);
+
+		return queue.add(async () => {
+			return this.executeWithRetry(buildCreateRequest(parameters), {
+				...mergedConfig,
+				// Create operations: only retry rate limits, not server errors
+				retryableStatuses: [429],
+			});
+		});
+	}
+
+	public async get(
+		gamePassId: string,
+		options?: RequestOptions,
+	): Promise<Result<GamePass, OpenCloudError>> {
+		const mergedConfig = { ...this.config, ...options };
+		const queue = this.getQueue(mergedConfig.apiKey);
+
+		return queue.add(async () => {
+			return this.executeWithRetry(buildGetRequest(gamePassId), {
+				...mergedConfig,
+				// Read operations: retry both rate limits and server errors
+				retryableStatuses: [429, 500, 502, 503, 504],
+			});
+		});
+	}
+}
+```
+
+**Benefits:**
+
+- ✅ Prevents duplicate resources from retried creates
+- ✅ Safe retries for idempotent operations (read, update, delete)
+- ✅ Users can override retry behavior per request
+- ✅ Explicit and self-documenting
+
+**Trade-offs:**
+
+- ⚠️ Users must handle failed create operations manually (no auto-retry on 5xx)
+- ⚠️ More verbose than blanket retry policy
+
+### Future: Idempotency Key Support
+
+If Roblox Open Cloud adds idempotency key support in the future:
+
+1. Add `idempotencyKey?: string` to `RequestOptions`
+2. Include `Idempotency-Key` header in requests when provided
+3. Enable 5xx retries for create operations when idempotency key is present
+4. Update documentation with idempotency best practices
 
 ## Error Handling
 
@@ -583,7 +775,6 @@ async function parseResponseBody(
 	response: Response,
 ): Promise<Result<unknown, OpenCloudError>> {
 	const bodyResult = await tryCatch(() => response.json());
-
 	if (!bodyResult.success) {
 		return {
 			error: new ApiError("Failed to parse response", response.status),
@@ -756,9 +947,9 @@ describe(buildCreateRequest, () => {
 ### Integration Tests
 
 ```typescript
-import { createFakeHttpClient } from "../../../../src/internal/http/fake-client";
 // tests/integration/resources/game-passes/client.spec.ts
 import { GamePassesClient } from "../../../../src/resources/game-passes";
+import { createFakeHttpClient } from "../../../helpers/fake-http-client";
 
 function createTestClient(http: HttpClient): GamePassesClient {
 	return new GamePassesClient({
@@ -867,6 +1058,126 @@ describe(GamePassesClient, () => {
 
 **No Bun-specific APIs** to ensure Node.js compatibility.
 
+## Security Considerations
+
+### API Key Security
+
+**Storage:**
+
+- ✅ API keys should be stored in environment variables, not hardcoded
+- ✅ Use `.env` files with `.gitignore` for local development
+- ✅ Use secure secret management (Vault, AWS Secrets Manager) in production
+- ❌ Never commit API keys to version control
+- ❌ Never log API keys (even in debug mode)
+
+**SDK Behavior:**
+
+- SDK does not persist or cache API keys beyond client instance lifetime
+- SDK does not log API keys in error messages or observability hooks
+- SDK does not validate key format (API is source of truth)
+- Keys are passed in request headers over HTTPS only
+
+**User Guidance (for SDK documentation):**
+
+```typescript
+// ❌ BAD: Hardcoded key
+const client = new GamePassesClient({ apiKey: "abc123..." });
+
+// ✅ GOOD: Environment variable
+const client = new GamePassesClient({
+	apiKey: process.env.ROBLOX_API_KEY ?? "",
+});
+
+// ✅ BETTER: Validate environment variable exists
+const apiKey = process.env.ROBLOX_API_KEY;
+
+if (!apiKey) {
+	throw new Error("ROBLOX_API_KEY environment variable is required");
+}
+
+const client = new GamePassesClient({ apiKey });
+```
+
+### API Key Rotation
+
+**Recommended practices for users:**
+
+1. Use different API keys for different permission levels
+2. Rotate keys periodically (e.g., every 90 days)
+3. Revoke compromised keys immediately via Roblox Creator Dashboard
+4. Use separate keys for CI/CD vs local development
+
+**SDK support:**
+
+- Per-request key override enables gradual key migration
+- No client restart needed - just override key in request options
+
+```typescript
+// Migrate to new key without client restart
+const result = await client.create(params, {
+	apiKey: rotatedApiKey,
+});
+```
+
+### Permission Scoping
+
+**Best practices for users:**
+
+- Create API keys with minimal required permissions (principle of least
+  privilege)
+- Use separate keys for asset uploads (moderation risk isolation)
+- Audit key permissions regularly
+
+**Example permission strategy:**
+
+```text
+Key 1 (Read-only): List/get operations only
+Key 2 (Deploy): Create/update universe settings, places
+Key 3 (Assets): Upload game icons, thumbnails (high moderation risk)
+Key 4 (Products): Manage game passes, developer products
+```
+
+### HTTPS Enforcement
+
+**SDK behavior:**
+
+- All requests use HTTPS by default
+- No option to disable HTTPS (security by design)
+- `baseUrl` override must use `https://` protocol
+- HTTP URLs rejected with ValidationError
+
+### Dependency Security
+
+**Zero runtime dependencies:**
+
+- Eliminates supply chain attack surface
+- No transitive dependency vulnerabilities
+- Faster security audits (only SDK code to review)
+
+**Development dependencies:**
+
+- Use Bun's catalog for version management
+- Run `pnpm audit` / `bun audit` regularly
+- Update dependencies via Dependabot or Renovate
+
+### Error Message Sanitization
+
+**Principle:** Error messages should not leak sensitive information.
+
+**Implementation:**
+
+- API keys never included in error messages or stack traces
+- Request URLs sanitized to remove query parameters with sensitive data
+- Response bodies only included if non-sensitive (never full auth errors)
+
+```typescript
+// ❌ BAD: Leaks API key
+throw new Error(`Request failed: GET ${url}?api_key=${apiKey}`);
+
+// ✅ GOOD: Sanitized
+throw new NetworkError("Request failed: GET /cloud/v2/universes/123");
+```
+
 ## Design Rationale
 
 ### Why Class-Based Clients?
@@ -929,6 +1240,192 @@ describe(GamePassesClient, () => {
 
 **Git history must show TDD compliance.**
 
+## Publishing & Release Process
+
+### npm Package Scope
+
+**Package name:** `@bedrock/open-cloud`
+
+**Scope availability:** Must verify `@bedrock` scope is available on npm or
+create organization account.
+
+**Alternative:** If `@bedrock` unavailable, consider `@bedrock-cli/open-cloud`
+or `@roblox-bedrock/open-cloud`.
+
+### Version Management
+
+**Strategy:** [Changesets](https://github.com/changesets/changesets)
+
+**Why changesets:**
+
+- Automated changelog generation
+- Semantic versioning enforcement
+- Monorepo-friendly (future packages)
+- Consumer-focused release notes
+
+**Workflow:**
+
+1. Developer creates changeset: `pnpm changeset`
+2. CI validates changeset exists for PR
+3. Merge to main triggers changeset action
+4. Bot creates "Version Packages" PR with bumped versions + changelog
+5. Merge version PR → automated npm publish
+
+### Pre-Release Testing
+
+**Before publishing to npm:**
+
+- ✅ All tests pass (`pnpm test`)
+- ✅ Build succeeds (`pnpm build`)
+- ✅ Type checking passes (`pnpm typecheck`)
+- ✅ Linting passes (`pnpm lint`)
+- ✅ No uncommitted changes
+- ✅ CHANGELOG.md updated
+- ✅ Version bumped in package.json
+
+**Optional (manual testing):**
+
+- Test in consuming project via `pnpm link`
+- Test E2E with real Roblox API (requires API key)
+- Verify bundle size meets targets
+
+### Publishing Strategy
+
+**CI/CD Pipeline (GitHub Actions):**
+
+```yaml
+name: Publish
+on:
+    push:
+        branches: [main]
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: oven-sh/setup-bun@v1
+            - run: bun install
+            - run: bun test
+            - run: bun run build
+            - env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+              run: bunx @changesets/action publish
+```
+
+**Protection:**
+
+- Require passing CI before merge
+- Require changeset for all PRs
+- Use npm automation tokens (not personal tokens)
+
+### Pre-Release Versions
+
+**Alpha/Beta testing:**
+
+```bash
+# Create pre-release
+pnpm changeset pre enter alpha
+pnpm changeset version
+pnpm publish --tag alpha
+
+# Exit pre-release mode
+pnpm changeset pre exit
+```
+
+**Use cases:**
+
+- Alpha: Breaking changes, experimental features
+- Beta: Stable but not battle-tested
+- RC (release candidate): Final testing before stable
+
+### Release Checklist
+
+**For every release:**
+
+- [ ] All tests passing on CI
+- [ ] Changelog generated and reviewed
+- [ ] Version follows semver (breaking = major, feature = minor, fix = patch)
+- [ ] Documentation updated (if API changed)
+- [ ] Migration guide (if breaking changes)
+- [ ] GitHub release created with notes
+- [ ] npm publish succeeded
+- [ ] Verify installation: `npm install @bedrock/open-cloud@latest`
+
+### Documentation Publishing
+
+**Strategy:** Auto-generate TypeScript docs with [TypeDoc](https://typedoc.org/)
+
+**Workflow:**
+
+1. Generate docs: `pnpm typedoc`
+2. Publish to GitHub Pages via CI
+3. Link from README: `https://bedrock.github.io/open-cloud/`
+
+**Alternative:** Use npm package docs if GitHub Pages unavailable.
+
+### Bundle Size Monitoring
+
+**Tools:** [bundlephobia](https://bundlephobia.com/) or size-limit
+
+**Targets:**
+
+- Minimal import (errors + types): < 1KB gzipped
+- Single resource client: < 5KB gzipped
+- Full SDK: < 15KB gzipped
+
+**CI check:**
+
+```json
+{
+	"devDependencies": {
+		"size-limit": "^11.0.0"
+	},
+	"size-limit": [
+		{
+			"path": "dist/index.js",
+			"limit": "1 KB"
+		},
+		{
+			"path": "dist/resources/game-passes/index.js",
+			"limit": "5 KB"
+		}
+	]
+}
+```
+
+### Deprecation Policy
+
+**When deprecating features:**
+
+1. Add `@deprecated` JSDoc tag with migration path
+2. Log deprecation warning at runtime (once per client instance)
+3. Document in changelog under "Deprecated" section
+4. Wait 2+ minor versions before removal
+5. Remove in next major version
+
+**Example:**
+
+```typescript
+/**
+ * Creates a game pass (deprecated).
+ *
+ * @deprecated Use `create()` instead. Will be removed in v2.0.0.
+ * @param parameters - Parameters for creating a game pass.
+ * @returns Result containing game pass or error.
+ */
+export async function createGamePass(
+	...parameters: Parameters<typeof this.create>
+): Promise<Result<GamePass>> {
+	console.warn(
+		"createGamePass() is deprecated. Use create() instead. " +
+			"This method will be removed in v2.0.0.",
+	);
+
+	return this.create(...parameters);
+}
+```
+
 ## Constraints & Requirements
 
 ### Must Have
@@ -965,6 +1462,31 @@ describe(GamePassesClient, () => {
 - **ADR-002**: FCIS for CLI - **does not apply to SDK** (SDK is I/O layer)
 - **ADR-003**: Testing strategy - TDD, 100% coverage
 - **ADR-007**: Open Cloud only - no legacy APIs
+
+## Mantle Migration Path
+
+**CLAUDE.md Constraint:** "Maintain Mantle migration path"
+
+**Scope:** This constraint applies to the **Bedrock CLI**, not this SDK package.
+
+The Open Cloud SDK is a low-level HTTP client library that provides access to
+Roblox APIs. Migration from Mantle to Bedrock is a CLI-layer concern involving:
+
+- State format conversion (Mantle YAML → Bedrock state backend)
+- Configuration migration (Mantle config → Bedrock c12 config)
+- Command equivalence (Mantle CLI → Bedrock CLI)
+- Resource mapping (Mantle resource IDs → Open Cloud resource paths)
+
+**SDK's Role:** The SDK provides the API layer that the Bedrock CLI uses to
+interact with Roblox. It doesn't need Mantle-specific compatibility because:
+
+1. Mantle used Rust with different HTTP patterns - no API compatibility needed
+2. Migration happens at CLI level (state + config transformation)
+3. SDK just needs to support Open Cloud APIs correctly
+4. CLI will map Mantle concepts → Open Cloud API calls via this SDK
+
+**Conclusion:** No Mantle-specific design required in SDK. Migration path is
+maintained at CLI layer using this SDK as the API foundation.
 
 ## References
 
