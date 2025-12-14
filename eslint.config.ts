@@ -1,4 +1,4 @@
-import isentinel, { GLOB_TESTS } from "@isentinel/eslint-config";
+import isentinel, { GLOB_MARKDOWN_CODE } from "@isentinel/eslint-config";
 
 export default isentinel(
 	{
@@ -8,10 +8,7 @@ export default isentinel(
 		pnpm: true,
 		roblox: false,
 		rules: {
-			"package-json/require-exports": ["error", { ignorePrivate: true }],
-			"package-json/require-files": ["error", { ignorePrivate: true }],
-			"package-json/require-sideEffects": ["error", { ignorePrivate: true }],
-			"package-json/require-types": ["error", { ignorePrivate: true }],
+			"antfu/consistent-list-newline": "off",
 		},
 		test: {
 			vitest: {
@@ -21,86 +18,10 @@ export default isentinel(
 		type: "package",
 	},
 	{
-		files: [...GLOB_TESTS],
+		files: [GLOB_MARKDOWN_CODE],
 		rules: {
-			"vitest/consistent-each-for": [
-				"error",
-				{
-					describe: "for",
-					it: "for",
-					suite: "for",
-					test: "for",
-				},
-			],
-			"vitest/consistent-test-filename": [
-				"error",
-				{
-					pattern: ".*\\.spec\\.[tj]sx?$",
-				},
-			],
-			"vitest/consistent-test-it": ["error", { fn: "it", withinDescribe: "it" }],
-			"vitest/consistent-vitest-vi": "error",
-			"vitest/expect-expect": "warn",
-			"vitest/hoisted-apis-on-top": "error",
-			"vitest/max-expects": "error",
-			"vitest/max-nested-describe": ["error", { max: 4 }],
-			"vitest/no-alias-methods": "error",
-			"vitest/no-commented-out-tests": "warn",
-			"vitest/no-conditional-expect": "error",
-			"vitest/no-conditional-in-test": "error",
-			"vitest/no-conditional-tests": "error",
-			"vitest/no-disabled-tests": "error",
-			"vitest/no-done-callback": "error",
-			"vitest/no-duplicate-hooks": "error",
-			"vitest/no-focused-tests": "error",
-			"vitest/no-hooks": "error",
-			"vitest/no-identical-title": "error",
-			"vitest/no-import-node-test": "error",
-			"vitest/no-interpolation-in-snapshots": "error",
-			"vitest/no-large-snapshots": "warn",
-			"vitest/no-standalone-expect": "error",
-			"vitest/no-test-prefixes": "error",
-			"vitest/no-test-return-statement": "error",
-			"vitest/padding-around-all": "warn",
-			"vitest/prefer-called-exactly-once-with": "warn",
-			"vitest/prefer-comparison-matcher": "warn",
-			"vitest/prefer-describe-function-title": "warn",
-			"vitest/prefer-each": "warn",
-			"vitest/prefer-equality-matcher": "warn",
-			"vitest/prefer-expect-assertions": "warn",
-			"vitest/prefer-expect-resolves": "error",
-			"vitest/prefer-expect-type-of": "error",
-			"vitest/prefer-hooks-in-order": "error",
-			"vitest/prefer-hooks-on-top": "error",
-			"vitest/prefer-import-in-mock": "error",
-			"vitest/prefer-importing-vitest-globals": "error",
-			"vitest/prefer-lowercase-title": "error",
-			"vitest/prefer-mock-promise-shorthand": "error",
-			"vitest/prefer-snapshot-hint": "warn",
-			"vitest/prefer-spy-on": "warn",
-			"vitest/prefer-strict-boolean-matchers": "error",
-			"vitest/prefer-strict-equal": "error",
-			"vitest/prefer-to-be": "error",
-			"vitest/prefer-to-be-object": "error",
-			"vitest/prefer-to-contain": "error",
-			"vitest/prefer-todo": "warn",
-			"vitest/prefer-vi-mocked": "error",
-			"vitest/require-awaited-expect-poll": "error",
-			"vitest/require-local-test-context-for-concurrent-snapshots": "error",
-			"vitest/require-mock-type-parameters": "error",
-			"vitest/require-to-throw-message": "warn",
-			"vitest/require-top-level-describe": "error",
-			"vitest/valid-describe-callback": "error",
-			"vitest/valid-expect": "error",
-			"vitest/valid-expect-in-promise": "error",
-			"vitest/valid-title": [
-				"error",
-				{
-					mustMatch: {
-						it: ["^should", 'Test title must start with "should"'],
-					},
-				},
-			],
+			"sonar/no-dead-store": "off",
+			"sonar/no-unused-collection": "off",
 		},
 	},
 );
