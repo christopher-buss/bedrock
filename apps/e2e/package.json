@@ -3,7 +3,10 @@
 	"version": "0.0.1",
 	"private": true,
 	"description": "Bedrock E2E scenario tests",
-	"keywords": ["e2e", "testing"],
+	"keywords": [
+		"e2e",
+		"testing"
+	],
 	"license": "MIT",
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
 	"type": "module",

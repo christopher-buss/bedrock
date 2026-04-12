@@ -2,7 +2,20 @@
 	"name": "bedrock",
 	"version": "0.0.1",
 	"description": "Infrastructure-as-Code deployment tool for Roblox",
-	"keywords": ["infrastructure", "roblox", "deployment", "cli"],
+	"keywords": [
+		"infrastructure",
+		"roblox",
+		"deployment",
+		"cli"
+	],
+	"homepage": "https://bedrock-livid.vercel.app/",
+	"bugs": {
+		"url": "https://github.com/christopher-buss/bedrock/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/christopher-buss/bedrock.git"
+	},
 	"license": "MIT",
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
 	"sideEffects": false,
@@ -15,7 +28,9 @@
 	},
 	"main": "./dist/index.mjs",
 	"types": "./dist/index.d.mts",
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"scripts": {
 		"build": "tsdown --clean --dts --tsconfig tsconfig.build.json",
 		"dev": "tsdown --stub",

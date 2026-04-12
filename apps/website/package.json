@@ -3,7 +3,10 @@
 	"version": "0.0.1",
 	"private": true,
 	"description": "Bedrock documentation website",
-	"keywords": ["documentation", "website"],
+	"keywords": [
+		"documentation",
+		"website"
+	],
 	"license": "MIT",
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
 	"type": "module",

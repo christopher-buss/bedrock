@@ -73,15 +73,15 @@ Change lines 1-2 from:
 
 ```yaml
 packages:
-    - src/*
+  - src/*
 ```
 
 To:
 
 ```yaml
 packages:
-    - "packages/*"
-    - "apps/*"
+  - "packages/*"
+  - "apps/*"
 ```
 
 **Step 2: Commit**
