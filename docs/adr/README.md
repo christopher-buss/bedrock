@@ -20,6 +20,7 @@ things are the way they are.
 | [008](./008-zero-runtime-dependencies.md)    | Zero Runtime Dependencies in `@bedrock/open-cloud`    | Proposed | 2026-04-12 |
 | [009](./009-result-types-over-exceptions.md) | Result Types Over Exceptions in `@bedrock/open-cloud` | Proposed | 2026-04-12 |
 | [010](./010-sdk-managed-rate-limiting-and-retry.md) | SDK-Managed Rate Limiting and Retry in `@bedrock/open-cloud` | Accepted | 2026-04-12 |
+| [011](./011-simplified-architecture-for-library-packages.md) | Simplified Architecture for Library Packages | Approved | 2026-04-12 |
 
 ## Creating a New ADR
 
