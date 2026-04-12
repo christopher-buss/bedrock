@@ -240,17 +240,17 @@ mitigate content moderation account bans.
 ```typescript
 export type Result<T, E = Error> =
 	| { data: T; success: true }
-	| { error: E; success: false };
+	| { err: E; success: false };
 
 // All client methods return Promise<Result<T, OpenCloudError>>
 const result = await client.create(params);
 
 if (!result.success) {
-	if (result.error instanceof RateLimitError) {
-		await sleep(result.error.retryAfterSeconds * 1000);
+	if (result.err instanceof RateLimitError) {
+		await sleep(result.err.retryAfterSeconds * 1000);
 		// retry...
 	} else {
-		console.error("Failed:", result.error.message);
+		console.error("Failed:", result.err.message);
 	}
 
 	return;
@@ -511,22 +511,19 @@ class GamePassesClient {
 				};
 			}
 
-			lastError = result.error;
+			lastError = result.err;
 
-			if (
-				!this.shouldRetry(result.error, retryConfig) ||
-				attempt === retryConfig.maxRetries
-			) {
+			if (!this.shouldRetry(result.err, retryConfig) || attempt === retryConfig.maxRetries) {
 				return result;
 			}
 
-			this.config.onRetry?.(attempt + 1, result.error);
+			this.config.onRetry?.(attempt + 1, result.err);
 			await sleep(retryConfig.retryDelay(attempt));
 		}
 
 		// Fallback: should never reach here, but TypeScript requires it
 		return {
-			error:
+			err:
 				lastError ??
 				new NetworkError("Request failed after all retry attempts"),
 			success: false,
@@ -754,7 +751,7 @@ export function createHttpClient(): HttpClient {
 
 			if (!response.ok) {
 				return {
-					error: createErrorFromResponse(response, bodyResult.data),
+					err: createErrorFromResponse(response, bodyResult.data),
 					success: false,
 				};
 			}
@@ -777,7 +774,7 @@ async function parseResponseBody(
 	const bodyResult = await tryCatch(() => response.json());
 	if (!bodyResult.success) {
 		return {
-			error: new ApiError("Failed to parse response", response.status),
+			err: new ApiError("Failed to parse response", response.status),
 			success: false,
 		};
 	}
@@ -799,7 +796,7 @@ async function performFetch(
 
 	if (!result.success) {
 		return {
-			error: new NetworkError("Network request failed", result.err),
+			err: new NetworkError("Network request failed", result.err),
 			success: false,
 		};
 	}
@@ -1007,8 +1004,8 @@ describe(GamePassesClient, () => {
 
 		assert(!result.success);
 
-		expect(result.error).toBeInstanceOf(RateLimitError);
-		expect(result.error.retryAfterSeconds).toBe(60);
+		expect(result.err).toBeInstanceOf(RateLimitError);
+		expect(result.err.retryAfterSeconds).toBe(60);
 	});
 });
 ```
