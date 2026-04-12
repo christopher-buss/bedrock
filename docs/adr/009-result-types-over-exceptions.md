@@ -1,6 +1,6 @@
 # ADR-009: Result Types Over Exceptions in `@bedrock/open-cloud`
 
-**Date:** 2026-04-12 **Status:** Proposed
+**Date:** 2026-04-12 **Status:** Accepted
 
 Decision Makers: Maintainer Tags: error-handling, open-cloud, typescript,
 functional, api-design

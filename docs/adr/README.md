@@ -17,10 +17,11 @@ things are the way they are.
 | [005](./005-jsdoc-example-testing.md)      | Tested JSDoc Examples                                 | Accepted | 2025-12-13 |
 | [006](./006-adr-enforcement.md)            | ADR Enforcement                                       | Accepted | 2025-12-13 |
 | [007](./007-open-cloud-only.md)            | Open Cloud APIs Only                                  | Accepted | 2025-12-13 |
-| [008](./008-zero-runtime-dependencies.md)    | Zero Runtime Dependencies in `@bedrock/open-cloud`    | Proposed | 2026-04-12 |
-| [009](./009-result-types-over-exceptions.md) | Result Types Over Exceptions in `@bedrock/open-cloud` | Proposed | 2026-04-12 |
+| [008](./008-zero-runtime-dependencies.md)    | Zero Runtime Dependencies in `@bedrock/open-cloud`    | Accepted | 2026-04-12 |
+| [009](./009-result-types-over-exceptions.md) | Result Types Over Exceptions in `@bedrock/open-cloud` | Accepted | 2026-04-12 |
 | [010](./010-sdk-managed-rate-limiting-and-retry.md) | SDK-Managed Rate Limiting and Retry in `@bedrock/open-cloud` | Accepted | 2026-04-12 |
-| [011](./011-simplified-architecture-for-library-packages.md) | Simplified Architecture for Library Packages | Approved | 2026-04-12 |
+| [011](./011-simplified-architecture-for-library-packages.md) | Simplified Architecture for Library Packages | Accepted | 2026-04-12 |
+| [012](./012-class-based-clients-with-per-request-overrides.md) | Class-Based Clients with Per-Request Config Overrides | Accepted | 2026-04-12 |
 
 ## Creating a New ADR
 

@@ -1,6 +1,6 @@
 # ADR-012: Class-Based Clients with Per-Request Config Overrides
 
-**Date:** 2026-04-12 **Status:** Approved
+**Date:** 2026-04-12 **Status:** Accepted
 
 **Refines:** ADR-011 (library/SDK packages use a simplified architecture)
 

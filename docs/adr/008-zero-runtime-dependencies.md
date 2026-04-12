@@ -1,6 +1,6 @@
 # ADR-008: Zero Runtime Dependencies in `@bedrock/open-cloud`
 
-**Date:** 2026-04-12 **Status:** Proposed
+**Date:** 2026-04-12 **Status:** Accepted
 
 Decision Makers: Maintainer Tags: dependencies, open-cloud, security,
 supply-chain, web-apis
@@ -72,9 +72,25 @@ only — not shipped to consumers.
 
 ### Negative
 
-- None identified. The target runtimes (Node.js 24.12+, Bun 1.3+) provide
-  native implementations of every API the SDK requires. There is no
-  functionality gap to work around.
+- **Hand-rolling ordinarily-dependency-provided logic**: multipart encoding,
+  the rate-limit queue (ADR-010), exponential backoff, and low-level HTTP
+  handling must all be implemented from scratch within the package. Each is
+  well-scoped, but each is also code to write, test, and maintain that a
+  mature HTTP framework would have provided pre-tested. The subset of Open
+  Cloud APIs this SDK targets keeps the scope manageable, but "manageable"
+  is not "free."
+- **Full test burden for primitives**: ADR-003 requires 100% coverage on
+  everything that ships, including the hand-rolled HTTP utilities. Edge
+  cases (retry timing, timeout handling, multipart encoding quirks,
+  `Retry-After` header parsing) that a framework would cover in its own
+  tests become the SDK's responsibility to test exhaustively.
+- **Discovery cost for HTTP edge cases**: frameworks like `got` or `ky`
+  have accumulated workarounds for HTTP edge cases over years of production
+  use (redirect handling, proxy support, header casing quirks, chunked
+  encoding interactions). A zero-dependency HTTP client will meet those
+  edge cases later, the hard way, and fix them in-tree. This is acceptable
+  for a SDK bound to a single vendor's well-documented API surface, but it
+  trades upfront dependency risk for long-tail maintenance risk.
 
 ### Neutral
 

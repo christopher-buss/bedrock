@@ -75,9 +75,11 @@ Specifically:
    retries.
 
 4. **Observability hooks**. `onRequest`, `onRetry`, and `onRateLimit` are
-   notification-only callbacks. They can be set at the client level via
-   `OpenCloudClientOptions` or overridden per-request via `RequestOptions`.
-   Consumers cannot cancel or alter retry behavior through them.
+   notification-only, client-level callbacks. They are set once via
+   `OpenCloudClientOptions` at construction and fire for every request the
+   client makes. Consumers cannot cancel or alter retry behavior through
+   them, and they are not available on `RequestOptions` — hooks are a
+   client-level concern, not a per-request concern (see ADR-012).
 
    ```typescript
    const client = new GamePassesClient({
@@ -85,11 +87,6 @@ Specifically:
    	onRateLimit: (waitMs) => logger.info(`rate limited, waiting ${waitMs}ms`),
    	onRequest: (request) => logger.debug(request),
    	onRetry: (attempt, error) => logger.warn({ attempt, error }),
-   });
-
-   // Per-request override for a noisy call
-   await client.create(parameters, {
-   	onRetry: (attempt, error) => verboseLogger.warn({ attempt, error }),
    });
    ```
 
@@ -125,12 +122,16 @@ Specifically:
   and handle failed create operations themselves. The SDK returns the error;
   the consumer decides whether to investigate, retry with idempotency
   guarantees, or surface the failure.
-- **Multiple client instances do not share quotas**: two `GamePassesClient`
-  instances with the same API key maintain separate queues, so their combined
-  request rate can exceed Roblox's actual limit. In practice this triggers a
-  429 that the SDK retries transparently — it is a performance optimization
-  gap, not a correctness issue. Bedrock CLI uses one client per resource type
-  in any case.
+- **Multiple client instances sharing an API key are a correctness hazard,
+  not just a performance gap**: two `GamePassesClient` instances with the
+  same key maintain independent queues that do not coordinate, so the SDK's
+  internal rate accounting is silently out of sync with Roblox's actual
+  per-key quota. The 429 handling transparently recovers from the over-issue,
+  but the SDK will have promised rate limiting it did not deliver. The
+  correct-by-construction solution is per-request API key overrides on a
+  single client instance (see ADR-012). Consumers who need to distribute
+  work across multiple keys should use overrides, not additional client
+  instances. Bedrock CLI uses one client per resource type in any case.
 - **Hooks are fire-and-forget**: `onRequest`, `onRetry`, and `onRateLimit`
   cannot cancel, delay, or modify retry behavior. Consumers who need that
   level of control must wrap the SDK, not reach inside it.

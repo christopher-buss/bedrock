@@ -1,6 +1,6 @@
 # ADR-011: Simplified Architecture for Library Packages
 
-**Date:** 2026-04-12 **Status:** Approved
+**Date:** 2026-04-12 **Status:** Accepted
 
 **Refines:** ADR-002 (library/SDK packages only)
 
