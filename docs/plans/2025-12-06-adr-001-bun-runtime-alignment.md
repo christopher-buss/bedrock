@@ -37,8 +37,8 @@ In `pnpm-workspace.yaml`, add to the `types` catalog:
 
 ```yaml
 types:
-    "@isentinel/tsconfig": 1.0.0
-    "@types/bun": 1.2.10
+  "@isentinel/tsconfig": 1.0.0
+  "@types/bun": 1.2.10
 ```
 
 Note: Remove `@types/node` - Bun includes Node.js-compatible types. Having both
@@ -92,9 +92,9 @@ In `pnpm-workspace.yaml`, add to the `types` catalog:
 
 ```yaml
 types:
-    "@isentinel/tsconfig": 1.0.0
-    "@types/bun": 1.2.10
-    better-typescript-lib: 2.12.0
+  "@isentinel/tsconfig": 1.0.0
+  "@types/bun": 1.2.10
+  better-typescript-lib: 2.12.0
 ```
 
 **Step 2: Add to package.json**

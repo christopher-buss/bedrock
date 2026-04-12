@@ -131,17 +131,17 @@ Following Mantle's approach, environments are determined by Git branch:
 
 ```yaml
 environments:
-    - branches: [live]
-      label: production
-      targetAccess: private
+  - branches: [live]
+    label: production
+    targetAccess: private
 
-    - branches: [staging]
-      label: staging
-      targetAccess: private
+  - branches: [staging]
+    label: staging
+    targetAccess: private
 
-    - branches: [main]
-      label: development
-      targetAccess: private
+  - branches: [main]
+    label: development
+    targetAccess: private
 ```
 
 When deploying from the `staging` branch, the staging environment configuration

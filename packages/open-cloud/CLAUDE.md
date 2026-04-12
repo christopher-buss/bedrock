@@ -110,7 +110,7 @@ All client methods return `Promise<Result<T, OpenCloudError>>`:
 const result = await client.create(params);
 if (!result.success) {
 	// Handle error explicitly
-	console.error(result.error.message);
+	console.error(result.err.message);
 	return;
 }
 

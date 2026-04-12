@@ -2,6 +2,8 @@
 
 Date: 2025-12-06 Status: Accepted
 
+Refined by: ADR-011 (library/SDK packages use a simplified architecture)
+
 Decision Makers: Maintainer Tags: architecture, monorepo, turborepo, fcis,
 testing, modularity
 

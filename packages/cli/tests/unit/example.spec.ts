@@ -85,7 +85,7 @@ describe("example test suite", () => {
 
 			const promise = Promise.reject(new Error("test error"));
 
-			await expect(promise).rejects.toThrowError("test error");
+			await expect(promise).rejects.toThrow("test error");
 		});
 	});
 
