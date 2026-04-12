@@ -19,6 +19,7 @@ things are the way they are.
 | [007](./007-open-cloud-only.md)            | Open Cloud APIs Only                                  | Accepted | 2025-12-13 |
 | [008](./008-zero-runtime-dependencies.md)    | Zero Runtime Dependencies in `@bedrock/open-cloud`    | Proposed | 2026-04-12 |
 | [009](./009-result-types-over-exceptions.md) | Result Types Over Exceptions in `@bedrock/open-cloud` | Proposed | 2026-04-12 |
+| [010](./010-sdk-managed-rate-limiting-and-retry.md) | SDK-Managed Rate Limiting and Retry in `@bedrock/open-cloud` | Accepted | 2026-04-12 |
 
 ## Creating a New ADR
 
