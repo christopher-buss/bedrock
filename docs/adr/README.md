@@ -22,6 +22,7 @@ things are the way they are.
 | [010](./010-sdk-managed-rate-limiting-and-retry.md) | SDK-Managed Rate Limiting and Retry in `@bedrock/open-cloud` | Accepted | 2026-04-12 |
 | [011](./011-simplified-architecture-for-library-packages.md) | Simplified Architecture for Library Packages | Accepted | 2026-04-12 |
 | [012](./012-class-based-clients-with-per-request-overrides.md) | Class-Based Clients with Per-Request Config Overrides | Accepted | 2026-04-12 |
+| [013](./013-hk-git-hook-manager-with-differentiated-gating.md) | hk for Git Hook Management with AI-vs-Human Differentiated Gating | Proposed | 2026-04-13 |
 
 ## Creating a New ADR
 
