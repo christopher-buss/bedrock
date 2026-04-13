@@ -7,6 +7,7 @@ experimental = true
 
 [tools]
 bun = "1.3.4"
+hk = "1.42.0"
 node = { version = "lts", postinstall = "corepack enable" }
 "npm:vercel" = "latest"
 
