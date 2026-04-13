@@ -65,6 +65,9 @@ catalogs:
     jiti:
       specifier: 2.6.1
       version: 2.6.1
+    std-env:
+      specifier: 4.0.0
+      version: 4.0.0
     tsx:
       specifier: 4.21.0
       version: 4.21.0
@@ -172,6 +175,9 @@ importers:
       simple-git-hooks:
         specifier: catalog:lint
         version: 2.13.1
+      std-env:
+        specifier: catalog:script
+        version: 4.0.0
       tsdown:
         specifier: catalog:build
         version: 0.21.7(@emnapi/core@1.7.1)(@emnapi/runtime@1.7.1)(@typescript/native-preview@7.0.0-dev.20251213.1)(oxc-resolver@11.19.1(@emnapi/core@1.7.1)(@emnapi/runtime@1.7.1))(publint@0.3.18)(synckit@0.11.12)(typescript@6.0.2)(unplugin-unused@0.5.7)

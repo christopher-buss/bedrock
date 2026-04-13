@@ -60,6 +60,7 @@
 		"pncat": "catalog:cli",
 		"publint": "catalog:lint",
 		"simple-git-hooks": "catalog:lint",
+		"std-env": "catalog:script",
 		"tsdown": "catalog:build",
 		"tsx": "catalog:script",
 		"turbo": "catalog:monorepo",

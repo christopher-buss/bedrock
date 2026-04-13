@@ -49,6 +49,7 @@ catalogs:
     turbo: 2.9.6
   script:
     jiti: 2.6.1
+    std-env: 4.0.0
     tsx: 4.21.0
   test:
     "@vitest/coverage-v8": 4.1.4
