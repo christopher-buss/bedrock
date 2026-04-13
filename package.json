@@ -19,15 +19,18 @@
 	"type": "module",
 	"scripts": {
 		"build": "turbo build",
+		"build:affected": "turbo run build --affected",
 		"coverage:merge": "tsx scripts/merge-coverage.ts",
 		"dev": "turbo dev",
 		"gen:example-tests": "bun scripts/generate-example-tests.ts",
 		"lint": "eslint --cache .",
 		"lint:ci": "eslint --cache --cache-strategy content .",
 		"test": "vitest run",
+		"test:affected": "turbo run test --affected",
 		"test:ci": "turbo test -- --coverage && pnpm coverage:merge",
 		"test:watch": "vitest --watch",
-		"typecheck": "turbo typecheck"
+		"typecheck": "turbo typecheck",
+		"typecheck:affected": "turbo run typecheck --affected"
 	},
 	"simple-git-hooks": {
 		"pre-commit": "pnpm i --frozen-lockfile --ignore-scripts --offline && npx lint-staged"
