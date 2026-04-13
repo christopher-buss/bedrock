@@ -1,6 +1,6 @@
 # ADR-013: hk for Git Hook Management with AI-vs-Human Differentiated Gating
 
-**Date:** 2026-04-13 **Status:** Proposed
+**Date:** 2026-04-13 **Status:** Accepted
 
 Decision Makers: Maintainer Tags: developer-workflow, git-hooks, tooling, mise, ci, agentic
 
@@ -52,7 +52,7 @@ script.
 ### The differentiated gate in detail
 
 hk's `condition` field on each step takes a Pkl string expression that is
-evaluated at hook runtime. A small Node script uses the `std-env` package's
+evaluated at hook runtime. A small Bun script uses the `std-env` package's
 `isAgent` export to detect whether a common AI coding agent is running the
 commit:
 
@@ -65,8 +65,12 @@ console.log(isAgent ? "true" : "false");
 The hk config binds this to a local variable:
 
 ```pkl
-local isAgent: String = #"exec("node scripts/is-agent.ts") == "true""#
+local isAgent: String = #"exec("bun scripts/is-agent.ts") == "true""#
 ```
+
+Using `bun` rather than `node` aligns with ADR-001 (Bun is the project
+runtime), avoids spawning a Node process from within a Bun-managed repo, and
+requires no transpile step — Bun executes the `.ts` file directly.
 
 Steps that should run only for agentic commits set `condition = isAgent`. Steps
 with no condition run for everyone. This is a config-level primitive, not a
