@@ -85,7 +85,7 @@ commitment.
 
 - **Config format**: Pkl (Apple's config language). The `hk.pkl` file imports a
   versioned schema from hk's GitHub releases
-  (`package://github.com/jdx/hk/releases/download/v1.38.0/hk@1.38.0#/Config.pkl`).
+  (`package://github.com/jdx/hk/releases/download/v1.42.0/hk@1.42.0#/Config.pkl`).
   Pkl is evaluated by hk itself; it is not a runtime dependency of the project.
 - **Parallel execution by default**: steps run concurrently unless marked
   `exclusive = true`.
@@ -118,17 +118,32 @@ Run for every commit regardless of author type:
 - `detect-private-key` (hk builtin)
 - `check-added-large-files` (hk builtin, excluding `pnpm-lock.yaml`)
 
+### Pre-commit project checks (unconditional — all authors)
+
+Light project checks scoped via turbo's `--affected` filter. Both set
+`exclusive = true`:
+
+- `lint` — glob `*.ts`, `*.tsx` → `pnpm lint:affected`
+  (replaces `lint-staged`'s ESLint-on-staged-files behaviour, scoped via
+  turbo's affected graph instead of git staging)
+- `typecheck` — glob `*.ts`, `*.tsx` → `pnpm typecheck:affected`
+
+Lint and typecheck run on every commit because both are fast under
+`--affected` filtering and a broken type graph poisons every downstream
+tool. They do not impose the latency concern that motivates agent-gating
+of the expensive steps below.
+
 ### Pre-commit heavy steps (conditioned on `isAgent` — agentic commits only)
 
 Each step sets `exclusive = true` (cannot run in parallel with each other):
 
-- `typecheck` — glob `*.ts`, `*.tsx` → `pnpm typecheck:affected`
 - `test` — glob `*.ts`, `*.tsx` → `pnpm test:affected`
 - `build` — glob `*.ts`, `*.tsx` → `pnpm build:affected`
 
-These steps enforce the full CLAUDE.md "Before Committing" gate at commit time
-when an AI agent is the author. They do not run for human commits at
-pre-commit time.
+These steps enforce the expensive portion of CLAUDE.md's "Before
+Committing" gate at commit time when an AI agent is the author. They do
+not run for human commits at pre-commit time; human commits hit test
+and build at pre-push instead.
 
 ### Pre-push (unconditional — all authors)
 
@@ -137,16 +152,26 @@ the full gate here, before any push to a remote.
 
 ### Additional hooks
 
-- **prepare-commit-msg**: `node scripts/prepare-commit-msg.ts {{commit_msg_file}}`
-  (commit message template injection).
 - **commit-msg**: `pnpm commitlint --edit {{commit_msg_file}}` — enforces
-  Conventional Commits format. `commitlint` (`@commitlint/cli` +
-  `@commitlint/config-conventional`) is added as a dev dependency as part of
-  this implementation.
+  Conventional Commits with project-specific extensions. The shipped
+  `commitlint.config.ts` extends `@commitlint/config-conventional` and
+  `@commitlint/config-pnpm-scopes` (pnpm-workspace-derived scopes),
+  applies a `SCOPE_ALIASES` map (`open-cloud → ocale`,
+  `typescript-config → tsconfig`, `vitest-config → vitest`), and adds
+  rules for `header-max-length` of 72, `subject-case` of `lower-case`,
+  and a `type-enum` restricted to the standard Conventional Commits set
+  (`build`, `ci`, `chore`, `docs`, `feat`, `fix`, `perf`, `refactor`,
+  `revert`, `style`, `test`). The commitlint packages are added as dev
+  dependencies as part of this implementation.
 - **post-merge**: two conditional steps — if `pnpm-lock.yaml` changed, run
   `pnpm install`; if `mise.toml` changed, run `mise install`.
-- **check hook** (manual, for CI): runs all guards plus typecheck + test + build
-  unconditionally via `hk check`.
+- **check hook** (manual, for CI): runs all guards + lint + typecheck +
+  test + build unconditionally via `hk check`. The test step uses a
+  dedicated `testCi` local that wraps `pnpm test:ci`
+  (`turbo run test --affected -- --coverage && pnpm coverage:merge`)
+  instead of the `test:affected` local used by pre-commit and pre-push.
+  This preserves coverage artefacts for CI upload without imposing
+  coverage-collection overhead on local hook runs.
 
 ### Config global settings
 
@@ -160,8 +185,12 @@ the full gate here, before any push to a remote.
 **Added**:
 
 - `hk` — installed via mise (mise.toml addition; no package.json change)
-- `std-env` — npm dev dependency
-- `@commitlint/cli` + `@commitlint/config-conventional` — npm dev dependencies
+- `std-env` — npm dev dependency (agent detection via its `isAgent` export)
+- `@commitlint/cli`, `@commitlint/config-conventional`,
+  `@commitlint/config-pnpm-scopes`, `@commitlint/prompt-cli`,
+  `@commitlint/types` — npm dev dependencies for Conventional Commits
+  enforcement with pnpm-workspace-derived scopes (see commit-msg entry
+  above for rule details)
 
 **Removed**:
 
@@ -289,8 +318,12 @@ community hook definitions.
 - **Add `:affected` scripts to root `package.json`**: `"typecheck:affected":
   "turbo run typecheck --affected"`, `"test:affected": "turbo run test
   --affected"`, `"build:affected": "turbo run build --affected"`.
-- **Add `hk` to `mise.toml`** under `[tools]`. Pin to the version whose schema
-  is referenced in `hk.pkl`.
+- **Add `hk` to `mise.toml`** under `[tools]` pinned to `v1.42.0`, matching
+  the schema version referenced in `hk.pkl`'s `amends` URL. Include a
+  mise-native `postinstall` hook (`if [ -z "$CI" ]; then hk install --mise;
+  fi`) so `.git/hooks/*` shims are wired automatically on first `mise
+  install` after clone, skipping the install under CI where hook shims
+  are not useful.
 - **Add `is-agent.ts` script** at `scripts/is-agent.ts` importing `std-env`'s
   `isAgent` and printing `"true"` or `"false"` to stdout.
 - **Remove `simple-git-hooks` and `lint-staged`** from `package.json` devDependencies
@@ -306,6 +339,11 @@ community hook definitions.
   implementation begins. The dependency changes listed above should be grouped
   in a single commit with the `hk.pkl` config, with this ADR referenced in the
   commit message.
+- **`prepare-commit-msg` deferred.** Earlier drafts of this decision listed a
+  `prepare-commit-msg` hook running a commit-message template script. That
+  hook was not implemented: the template behaviour was never specified, and
+  it is orthogonal to the differentiated gate that motivates this ADR. It can
+  be added later as a targeted change without revising this ADR.
 
 ## Related Decisions
 
