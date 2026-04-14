@@ -1,11 +1,17 @@
 import { sharedConfig } from "@bedrock/vitest-config";
 
-import { defineConfig } from "vitest/config";
+import { defineConfig } from "vite-plus";
 
 const LOCAL_TSCONFIG = "./tsconfig.json";
 
 export default defineConfig({
 	...sharedConfig,
+	run: {
+		cache: {
+			scripts: true,
+			tasks: true,
+		},
+	},
 	test: {
 		projects: [
 			{

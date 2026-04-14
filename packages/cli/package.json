@@ -33,7 +33,7 @@
 		"dist"
 	],
 	"scripts": {
-		"build": "tsdown --clean --dts --tsconfig tsconfig.build.json",
+		"build": "vp pack",
 		"dev": "tsdown --stub",
 		"lint": "eslint --cache src",
 		"test": "vitest",
