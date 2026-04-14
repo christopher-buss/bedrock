@@ -1,7 +1,6 @@
 ---
 description: Create a git commit following project standards
 argument-hint: [optional-commit-description]
-model: claude-haiku-4-5
 ---
 
 Create a git commit following project standards
@@ -15,7 +14,7 @@ Follows [Conventional Commits](https://www.conventionalcommits.org/) standard.
 1. **Format**: `type(scope): description`
     - Common types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`,
       `style`, `ci`
-    - Scope: The primary package/module effected (e.g., `cli`, `open-cloud`,
+    - Scope: The primary package/module effected (e.g., `cli`, `ocale`,
       `website`).
     - Description: Brief summary of changes (max 72 characters), always
       lowercase, no period at end. Split PascalCase with hyphens (e.g.,

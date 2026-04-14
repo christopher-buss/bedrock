@@ -1,12 +1,21 @@
+experimental_monorepo_root = true
+
 [env]
-_.path = [ '{{config_root}}/node_modules/.bin' ]
 _.file = { path = ".env", redact = true }
+_.path = [
+  '{{config_root}}/node_modules/.bin',
+  '{{cwd}}/node_modules/.bin', 
+]
 
 [settings]
 experimental = true
 
 [tools]
-bun = "1.3.4"
-node = { version = "lts", postinstall = "corepack enable" }
+"npm:@antfu/ni" = "latest"
+"npm:pncat" = "latest"
 "npm:vercel" = "latest"
+bun = "1.3.12"
+hk = { version = "1.42.0", postinstall = "if [ -z \"$CI\" ]; then hk install --mise; fi" }
+node = { version = "lts", postinstall = "corepack enable" }
+pkl = "latest"
 

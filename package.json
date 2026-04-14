@@ -19,26 +19,28 @@
 	"type": "module",
 	"scripts": {
 		"build": "turbo build",
+		"build:affected": "turbo run build --affected",
+		"commit": "commit",
 		"coverage:merge": "tsx scripts/merge-coverage.ts",
 		"dev": "turbo dev",
 		"gen:example-tests": "bun scripts/generate-example-tests.ts",
 		"lint": "eslint --cache .",
-		"lint:ci": "eslint --cache --cache-strategy content .",
+		"lint:affected": "turbo run lint --affected",
 		"test": "vitest run",
-		"test:ci": "turbo test -- --coverage && pnpm coverage:merge",
+		"test:affected": "turbo run test --affected",
+		"test:ci": "turbo run test --affected -- --coverage && pnpm coverage:merge",
 		"test:watch": "vitest --watch",
-		"typecheck": "turbo typecheck"
-	},
-	"simple-git-hooks": {
-		"pre-commit": "pnpm i --frozen-lockfile --ignore-scripts --offline && npx lint-staged"
-	},
-	"lint-staged": {
-		"*": "eslint --fix --cache"
+		"typecheck": "turbo typecheck",
+		"typecheck:affected": "turbo run typecheck --affected"
 	},
 	"devDependencies": {
-		"@antfu/ni": "catalog:dev",
 		"@bedrock/typescript-config": "workspace:*",
 		"@bedrock/vitest-config": "workspace:*",
+		"@commitlint/cli": "catalog:lint",
+		"@commitlint/config-conventional": "catalog:lint",
+		"@commitlint/config-pnpm-scopes": "catalog:lint",
+		"@commitlint/prompt-cli": "catalog:lint",
+		"@commitlint/types": "catalog:lint",
 		"@eslint/config-inspector": "catalog:lint",
 		"@isentinel/eslint-config": "catalog:lint",
 		"@isentinel/tsconfig": "catalog:tsc",
@@ -52,11 +54,10 @@
 		"eslint-plugin-pnpm": "catalog:lint",
 		"generate-jsdoc-example-tests": "catalog:test",
 		"jiti": "catalog:script",
-		"lint-staged": "catalog:lint",
 		"monocart-coverage-reports": "catalog:test",
-		"pncat": "catalog:cli",
+		"pncat": "catalog:dev",
 		"publint": "catalog:lint",
-		"simple-git-hooks": "catalog:lint",
+		"std-env": "catalog:script",
 		"tsdown": "catalog:build",
 		"tsx": "catalog:script",
 		"turbo": "catalog:monorepo",
@@ -66,7 +67,7 @@
 		"unplugin-unused": "catalog:build",
 		"vitest": "catalog:test"
 	},
-	"packageManager": "pnpm@10.25.0+sha512.5e82639027af37cf832061bcc6d639c219634488e0f2baebe785028a793de7b525ffcd3f7ff574f5e9860654e098fe852ba8ac5dd5cefe1767d23a020a92f501",
+	"packageManager": "pnpm@10.33.0+sha512.10568bb4a6afb58c9eb3630da90cc9516417abebd3fabbe6739f0ae795728da1491e9db5a544c76ad8eb7570f5c4bb3d6c637b2cb41bfdcdb47fa823c8649319",
 	"engines": {
 		"bun": ">=1.3.0"
 	}

@@ -5,9 +5,15 @@
 		"composite": true,
 		"tsBuildInfoFile": "${configDir}/dist/.tsbuildinfo",
 		"libReplacement": true,
+		"customConditions": ["source"],
 		"types": ["bun"],
 		"noEmit": false
 	},
 	"include": ["${configDir}/**/*"],
-	"exclude": ["${configDir}/node_modules", "${configDir}/**/.*/", "${configDir}/dist"]
+	"exclude": [
+		"${configDir}/node_modules",
+		"${configDir}/**/.*/",
+		"${configDir}/dist",
+		"${configDir}/coverage"
+	]
 }
