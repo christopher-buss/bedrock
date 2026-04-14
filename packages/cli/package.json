@@ -22,6 +22,7 @@
 	"type": "module",
 	"exports": {
 		".": {
+			"source": "./src/index.ts",
 			"types": "./dist/index.d.mts",
 			"import": "./dist/index.mjs"
 		}
@@ -37,6 +38,9 @@
 		"lint": "eslint --cache src",
 		"test": "vitest",
 		"typecheck": "tsgo --noEmit -p tsconfig.build.json"
+	},
+	"dependencies": {
+		"@bedrock/open-cloud": "workspace:*"
 	},
 	"devDependencies": {
 		"@bedrock/typescript-config": "workspace:*",

@@ -101,6 +101,18 @@ pnpm lint           # Check/fix linting
 pnpm typecheck      # TypeScript validation
 ```
 
+### Running Bun directly against workspace source
+
+Direct `bun` invocations of workspace code need `--conditions source` to
+resolve cross-package imports without a prior build:
+
+```bash
+bun --conditions source packages/cli/src/index.ts
+```
+
+Workaround until [oven-sh/bun#28851](https://github.com/oven-sh/bun/issues/28851)
+lands — drop the flag and this note afterwards.
+
 ## Project Structure
 
 ```text
