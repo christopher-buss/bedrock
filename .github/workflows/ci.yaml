@@ -69,32 +69,19 @@ jobs:
 
     timeout-minutes: 15
   commitlint:
-    name: Lint commits
-    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    name: Lint PR title
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          fetch-depth: 0
 
       - name: Setup
         uses: ./.github/actions/setup
 
-      - if: github.event_name == 'pull_request'
-        name: Lint PR commits
-        run: >
-          pnpm commitlint
-          --from ${{ github.event.pull_request.base.sha }}
-          --to ${{ github.event.pull_request.head.sha }}
-          --verbose
-
-      - if: github.event_name == 'merge_group'
-        name: Lint merge group commits
-        run: >
-          pnpm commitlint
-          --from ${{ github.event.merge_group.base_sha }}
-          --to ${{ github.event.merge_group.head_sha }}
-          --verbose
+      - name: Lint PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: echo "$PR_TITLE" | pnpm commitlint --verbose
 
     timeout-minutes: 5
