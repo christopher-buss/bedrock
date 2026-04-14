@@ -33,7 +33,7 @@
 	],
 	"scripts": {
 		"build": "vp pack",
-		"dev": "tsdown --stub",
+		"dev": "vp pack --watch",
 		"lint": "eslint --cache src",
 		"test": "vitest",
 		"typecheck": "tsgo --noEmit -p tsconfig.build.json"
@@ -42,7 +42,6 @@
 		"@bedrock/typescript-config": "workspace:*",
 		"@bedrock/vitest-config": "workspace:*",
 		"@types/bun": "catalog:types",
-		"tsdown": "catalog:build",
 		"typescript": "catalog:tsc",
 		"vitest": "catalog:test"
 	},

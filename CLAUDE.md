@@ -13,9 +13,8 @@ tool no longer maintained).
 - **Config**: c12-based multi-format support (TS, JS, YAML, JSON)
 - **State**: GitHub Gists (default), extensible backends
 - **Auth**: Roblox Open Cloud APIs only (no ROBLOSECURITY)
-- **Build**: tsdown
-- **Test**: vitest
-- **Lint**: eslint
+- **Toolchain**: Vite+ (`vp pack` builds, `vp test` runs Vitest, `vp run` orchestrates tasks)
+- **Lint**: eslint (retained for `@isentinel/eslint-config` custom rules)
 
 ## Architecture Quick Reference
 
