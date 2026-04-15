@@ -147,9 +147,13 @@ packages/open-cloud/
 **Why NOT strict FCIS?**
 
 ADR-002 prescribes FCIS for the **Bedrock CLI** (the application with business
-logic). The Open Cloud SDK is an **HTTP client library** - it IS the I/O layer
-for Bedrock. Forcing "Ports and Adapters" terminology on a simple HTTP wrapper
-adds unnecessary complexity.
+logic). **ADR-011** refines ADR-002 for library packages: a package may use a
+simplified architecture if it satisfies a five-criteria rubric (single
+responsibility, minimal translation, stable external contract, no meaningful
+pure core to separate, swappability is imaginary). `@bedrock/open-cloud`
+satisfies all five — it is an HTTP client library for one vendor API. Forcing
+"Ports and Adapters" terminology on it would produce Ports with exactly one
+implementation: ceremony rather than architecture.
 
 **What we keep from functional principles:**
 
@@ -322,12 +326,19 @@ export interface PaginatedResponse<T> {
 	readonly nextPageToken?: string;
 }
 
-export interface RequestOptions {
-	apiKey?: string;
-	baseUrl?: string;
-	maxRetries?: number;
-	timeout?: number;
-}
+// Per ADR-012, RequestOptions is derived from OpenCloudClientOptions via
+// Pick rather than declared independently, so the two types cannot drift.
+// Construction-only fields (`httpClient` — the test seam) and client-level
+// concerns (`onRequest`, `onRetry`, `onRateLimit` — observability hooks are
+// a client-level concern per ADR-010 and ADR-012) are intentionally
+// excluded from the Pick.
+export type RequestOptions = Pick<
+	OpenCloudClientOptions,
+	"apiKey" | "baseUrl" | "maxRetries" | "retryableStatuses" | "retryDelay" | "timeout"
+>;
+// Note: override semantics are **shallow merge**. Passing
+// `retryableStatuses: [429]` in `RequestOptions` replaces the default array
+// entirely — it does not extend it. See ADR-012.
 ```
 
 ## Edge Case Handling
@@ -364,16 +375,32 @@ during normal operation.
 
 ### Rate Limit Edge Cases
 
-| Scenario                       | Behavior                                    |
-| ------------------------------ | ------------------------------------------- |
-| Multiple clients, same API key | Each client maintains own queue (duplicate) |
-| Very large queue (>1000 items) | No limit, continue queuing (memory warning) |
-| Queue during client disposal   | Pending requests complete, new rejected     |
-| Concurrent key override        | Each key gets separate queue lazily         |
+| Scenario                       | Behavior                                          |
+| ------------------------------ | ------------------------------------------------- |
+| Multiple clients, same API key | **Correctness hazard** — see note below           |
+| Very large queue (>1000 items) | No limit, continue queuing (memory warning)       |
+| Queue during client disposal   | Pending requests complete, new rejected           |
+| Concurrent key override        | Each key gets separate queue lazily on one client |
+
+**Multiple clients sharing an API key is a correctness hazard, not just a
+performance gap** (ADR-010). Two `GamePassesClient` instances with the same
+key maintain independent `Map<string, RateLimitQueue>` fields that do not
+coordinate, so the SDK silently double-spends the key's server-side quota
+and produces 429s the built-in rate limiter should have prevented. Adaptive
+429 backoff absorbs the over-issue transparently, but the SDK will have
+promised rate limiting it did not deliver.
+
+**Correct-by-construction solution:** use a **single** client instance per
+resource type and distribute work across multiple API keys via per-request
+`RequestOptions.apiKey` overrides (ADR-012). Rate-limit queues are keyed by
+the *effective* API key inside a single client, so every request for a
+given key routes through the same queue regardless of which call site
+supplied it. Bedrock CLI uses one client per resource type in any case.
 
 **Implementation notes:**
 
-- Document that multiple client instances with same API key won't share quotas
+- Document the single-client + per-request-override pattern in the package
+  README as the recommended multi-key workflow
 - Consider adding queue size metrics to observability hooks in future
 
 ### Network & Timeout Edge Cases
@@ -439,12 +466,26 @@ API.
 
 ### Internal Implementation
 
+Per ADR-010, the default `retryableStatuses` list is **per-method**, not
+per-client. Read/list/update/delete methods default to
+`[429, 500, 502, 503, 504]`; create methods default to `[429]` only (no 5xx
+retry, because Roblox does not support idempotency keys — see the
+Idempotency section below). Client-level `retryableStatuses` in
+`OpenCloudClientOptions` does **not** override the create-method guard; only
+a `retryableStatuses` value passed in `RequestOptions` to a specific
+`create()` call can override it, for consumers who can guarantee idempotency
+externally.
+
 ```typescript
 // Rate limits per API (from Roblox documentation)
 const GAME_PASSES_RATE_LIMIT = {
 	requestsPerMinute: 60,
 	requestsPerSecond: 10,
 };
+
+// Default retryable status codes per operation class (ADR-010).
+const RETRYABLE_STATUSES_SAFE = [429, 500, 502, 503, 504] as const;
+const RETRYABLE_STATUSES_CREATE = [429] as const;
 
 class GamePassesClient {
 	private readonly config: OpenCloudConfig;
@@ -459,7 +500,10 @@ class GamePassesClient {
 		parameters: CreateGamePassParams,
 		options?: RequestOptions,
 	): Promise<Result<GamePass, OpenCloudError>> {
-		const mergedConfig = { ...this.config, ...options };
+		// Create-method guard: default [429] only. RequestOptions can override
+		// this; client-level retryableStatuses cannot (ADR-010).
+		const methodDefaults = { retryableStatuses: [...RETRYABLE_STATUSES_CREATE] };
+		const mergedConfig = { ...this.config, ...methodDefaults, ...options };
 		const queue = this.getQueue(mergedConfig.apiKey);
 
 		return queue.add(async () => {
@@ -467,16 +511,31 @@ class GamePassesClient {
 		});
 	}
 
+	public async get(
+		gamePassId: string,
+		options?: RequestOptions,
+	): Promise<Result<GamePass, OpenCloudError>> {
+		// Idempotent operation: default [429, 5xx]. Both client-level and
+		// per-request retryableStatuses can override.
+		const methodDefaults = { retryableStatuses: [...RETRYABLE_STATUSES_SAFE] };
+		const mergedConfig = { ...methodDefaults, ...this.config, ...options };
+		const queue = this.getQueue(mergedConfig.apiKey);
+
+		return queue.add(async () => {
+			return this.executeWithRetry(buildGetRequest(gamePassId), mergedConfig);
+		});
+	}
+
 	private buildRetryConfig(config: RequestConfig): {
 		maxRetries: number;
-		retryableStatuses: Array<number>;
+		retryableStatuses: ReadonlyArray<number>;
 		retryDelay: (attempt: number) => number;
 	} {
-		const retryableStatuses = config.retryableStatuses ?? [429, 500, 502, 503, 504];
-
 		return {
 			maxRetries: config.maxRetries ?? 3,
-			retryableStatuses,
+			// `config.retryableStatuses` is always set here — callers layer in
+			// a per-method default before calling `executeWithRetry`.
+			retryableStatuses: config.retryableStatuses,
 			retryDelay:
 				config.retryDelay ??
 				((attemptNumber: number) => Math.min(1000 * 2 ** attemptNumber, 30000)),
@@ -508,7 +567,12 @@ class GamePassesClient {
 			}
 
 			this.config.onRetry?.(attempt + 1, result.err);
-			await sleep(retryConfig.retryDelay(attempt));
+
+			// Adaptive 429 backoff: prefer `x-ratelimit-reset` when present,
+			// fall back to exponential backoff otherwise (ADR-010).
+			const waitMs = computeRetryWaitMs(result.err, attempt, retryConfig.retryDelay);
+			this.config.onRateLimit?.(waitMs);
+			await sleep(waitMs);
 		}
 
 		// Fallback: should never reach here, but TypeScript requires it
@@ -536,12 +600,48 @@ class GamePassesClient {
 
 	private shouldRetry(
 		error: OpenCloudError,
-		config: { retryableStatuses: Array<number> },
+		config: { retryableStatuses: ReadonlyArray<number> },
 	): boolean {
+		if (error instanceof RateLimitError) {
+			return config.retryableStatuses.includes(429);
+		}
+
 		return error instanceof ApiError && config.retryableStatuses.includes(error.statusCode);
 	}
 }
+
+// Pure helper. Returns the adaptive wait for a 429 (from
+// RateLimitError.retryAfterSeconds, populated from the `x-ratelimit-reset`
+// response header at parse time) or exponential backoff for any other
+// retryable error.
+function computeRetryWaitMs(
+	error: OpenCloudError,
+	attempt: number,
+	retryDelay: (attempt: number) => number,
+): number {
+	if (error instanceof RateLimitError && error.retryAfterSeconds > 0) {
+		return error.retryAfterSeconds * 1000;
+	}
+
+	return retryDelay(attempt);
+}
 ```
+
+**Key precedence rules (ADR-010):**
+
+- **Create methods**: merge order is
+  `{ ...this.config, ...methodDefaults, ...options }`. The method default
+  (`[429]`) sits between the client config and `RequestOptions`, so it
+  clobbers any client-level `retryableStatuses` but can itself be overridden
+  by a per-request `retryableStatuses`.
+- **Read/list/update/delete methods**: merge order is
+  `{ ...methodDefaults, ...this.config, ...options }`. The method default
+  (`[429, 500, 502, 503, 504]`) is at the bottom; both client-level and
+  per-request `retryableStatuses` override it.
+- **429 wait time**: `RateLimitError.retryAfterSeconds` is populated from the
+  `x-ratelimit-reset` response header during response parsing. When it is
+  present and positive, `computeRetryWaitMs` uses it directly; otherwise it
+  falls back to the configured `retryDelay` exponential-backoff function.
 
 ### Rate Limit Research Required
 
@@ -549,10 +649,24 @@ class GamePassesClient {
 and documented per API during implementation. The values shown above (60/min,
 10/sec) are placeholders.
 
+**Roblox 429 response headers** (confirmed, per ADR-010):
+
+- `x-ratelimit-limit` — the quota for the window
+- `x-ratelimit-remaining` — requests left in the current window
+- `x-ratelimit-reset` — seconds until the window resets
+
+The response parser populates `RateLimitError.retryAfterSeconds` from
+`x-ratelimit-reset` when it is present on a 429, and `computeRetryWaitMs`
+uses it directly so the SDK never over- or under-waits on throttled
+responses. When the header is missing or unparseable, the SDK falls back to
+the configured exponential backoff (`min(1000 * 2^attempt, 30_000)` ms).
+
 **Research sources:**
 
 - Roblox Open Cloud documentation
-- HTTP 429 response headers (`X-RateLimit-*`)
+- [Roblox Cloud Rate Limits reference](https://github.com/Roblox/creator-docs/blob/main/content/en-us/cloud/reference/rate-limits.md)
+- HTTP 429 response headers (`x-ratelimit-limit`, `x-ratelimit-remaining`,
+  `x-ratelimit-reset`)
 - Roblox developer forums/announcements
 
 Each client should have its own rate limit constants based on the specific API.
@@ -596,55 +710,28 @@ support for idempotency headers (such as `Idempotency-Key` or `X-Request-Id`).
 
 #### Implementation Strategy
 
-**Option 1: Per-method retry configuration (Recommended)**
+Per-method retry configuration is implemented as shown in the "Internal
+Implementation" code block above. The merge precedence guarantees that:
 
-```typescript
-class GamePassesClient {
-	public async create(
-		parameters: CreateGamePassParams,
-		options?: RequestOptions,
-	): Promise<Result<GamePass, OpenCloudError>> {
-		const mergedConfig = { ...this.config, ...options };
-		const queue = this.getQueue(mergedConfig.apiKey);
-
-		return queue.add(async () => {
-			return this.executeWithRetry(buildCreateRequest(parameters), {
-				...mergedConfig,
-				// Create operations: only retry rate limits, not server errors
-				retryableStatuses: [429],
-			});
-		});
-	}
-
-	public async get(
-		gamePassId: string,
-		options?: RequestOptions,
-	): Promise<Result<GamePass, OpenCloudError>> {
-		const mergedConfig = { ...this.config, ...options };
-		const queue = this.getQueue(mergedConfig.apiKey);
-
-		return queue.add(async () => {
-			return this.executeWithRetry(buildGetRequest(gamePassId), {
-				...mergedConfig,
-				// Read operations: retry both rate limits and server errors
-				retryableStatuses: [429, 500, 502, 503, 504],
-			});
-		});
-	}
-}
-```
+- Create methods default to `[429]` and cannot be relaxed by client-level
+  `retryableStatuses`, only by a `retryableStatuses` value passed in
+  `RequestOptions` to a specific call.
+- Read, list, update, and delete methods default to `[429, 500, 502, 503, 504]`
+  and accept overrides from either the client config or `RequestOptions`.
 
 **Benefits:**
 
 - ✅ Prevents duplicate resources from retried creates
 - ✅ Safe retries for idempotent operations (read, update, delete)
-- ✅ Users can override retry behavior per request
+- ✅ Users who can guarantee idempotency externally can still relax the
+  create guard via `RequestOptions.retryableStatuses`
 - ✅ Explicit and self-documenting
 
 **Trade-offs:**
 
-- ⚠️ Users must handle failed create operations manually (no auto-retry on 5xx)
-- ⚠️ More verbose than blanket retry policy
+- ⚠️ Users must handle failed create operations manually (no auto-retry on
+  5xx, unless they opt in via `RequestOptions.retryableStatuses`)
+- ⚠️ More verbose than a blanket retry policy
 
 ### Future: Idempotency Key Support
 
@@ -1180,8 +1267,11 @@ throw new NetworkError("Request failed: GET /cloud/v2/universes/123");
 | **Simplified** | ✅ **Chosen** | SDK is I/O layer, not application with business logic |
 | FCIS (Strict)  | ❌ Rejected   | Over-engineering for HTTP client library              |
 
-**Clarification:** ADR-002 prescribes FCIS for the **Bedrock CLI**
-(application), not for library packages like Open Cloud SDK.
+**Clarification:** **ADR-011** formalized this decision. ADR-002 prescribes
+FCIS for the **Bedrock CLI** (application) and is the default for the
+monorepo; ADR-011 carves out library packages that satisfy its five-criteria
+rubric. `@bedrock/open-cloud` satisfies all five and uses the simplified
+pattern described in this plan.
 
 ## Implementation Notes
 
@@ -1430,9 +1520,22 @@ export async function createGamePass(
 ## Related Decisions
 
 - **ADR-001**: TypeScript with Bun - runtime and tooling
-- **ADR-002**: FCIS for CLI - **does not apply to SDK** (SDK is I/O layer)
+- **ADR-002**: FCIS for CLI - refined by ADR-011 for library packages
 - **ADR-003**: Testing strategy - TDD, 100% coverage
 - **ADR-007**: Open Cloud only - no legacy APIs
+- **ADR-008**: Zero runtime dependencies in `@bedrock/open-cloud` - formalizes
+  the empty `dependencies` field and native-web-API-only constraint
+- **ADR-009**: Result types over exceptions - formalizes the discriminated
+  union `Result<T, E>` used at every public method boundary
+- **ADR-010**: SDK-managed rate limiting and retry - formalizes operation-
+  differentiated retry policy, `x-ratelimit-reset` adaptive backoff, and
+  per-API-key queue semantics
+- **ADR-011**: Simplified architecture for library packages - formalizes the
+  FCIS opt-out and the five-criteria rubric; `@bedrock/open-cloud` satisfies
+  all five and uses the simplified pattern described in this plan
+- **ADR-012**: Class-based clients with per-request config overrides -
+  formalizes `Object.freeze`d config, the `(params, options?)` method shape,
+  and `RequestOptions` as a subset derived from `OpenCloudClientOptions`
 
 ## Mantle Migration Path
 
