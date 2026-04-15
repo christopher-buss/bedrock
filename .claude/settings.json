@@ -1,7 +1,10 @@
 {
-	"outputStyle": "XP Programmer",
+	"env": {
+		"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+		"CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "true"
+	},
+	"includeCoAuthoredBy": true,
 	"permissions": {
-		"defaultMode": "plan",
 		"allow": [
 			"Bash(gh:*)",
 			"Bash(gh pr:*)",
@@ -18,11 +21,26 @@
 			"WebFetch",
 			"WebSearch"
 		],
-		"deny": []
+		"deny": [],
+		"defaultMode": "plan"
 	},
-	"includeCoAuthoredBy": true,
 	"enabledPlugins": {
-		"superpowers@superpowers-marketplace": true,
-		"elements-of-style@superpowers-marketplace": true
-	}
+		"sentinel@isentinel": true,
+		"worktrunk@worktrunk": true
+	},
+	"extraKnownMarketplaces": {
+		"isentinel": {
+			"source": {
+				"source": "github",
+				"repo": "christopher-buss/skills"
+			}
+		},
+		"worktrunk": {
+			"source": {
+				"source": "github",
+				"repo": "max-sixty/worktrunk"
+			}
+		}
+	},
+	"outputStyle": "sentinel:XP Programmer"
 }

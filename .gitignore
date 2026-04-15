@@ -22,3 +22,6 @@ dist
 **/.vitepress/dist
 .vercel
 .env*.local
+
+# AI
+!.claude/sentinel.local.md
