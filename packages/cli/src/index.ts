@@ -1,4 +1,4 @@
-import { openCloud } from "@bedrock/open-cloud";
+import { openCloud } from "@bedrock/ocale";
 
 openCloud();
 

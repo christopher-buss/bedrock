@@ -1,8 +1,23 @@
-import type { ViteUserConfig } from "vitest/config";
+import type { ViteUserConfig } from "vite-plus";
 
 export const sharedConfig = {
+	pack: {
+		clean: true,
+		dts: true,
+		entry: ["src/index.ts"],
+		exports: {
+			devExports: "source",
+		},
+		fixedExtension: true,
+		format: ["esm"],
+		publint: true,
+		shims: true,
+		sourcemap: true,
+		tsconfig: "tsconfig.build.json",
+		unused: { level: "error" },
+	},
 	resolve: {
-		conditions: ["source", "import", "module", "default"],
+		conditions: ["source", "module", "default"],
 	},
 	test: {
 		coverage: {
@@ -25,7 +40,6 @@ export const sharedConfig = {
 		},
 		globals: false,
 		passWithNoTests: true,
-		reporters: "dot",
 		typecheck: {
 			enabled: true,
 		},

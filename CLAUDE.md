@@ -13,9 +13,8 @@ tool no longer maintained).
 - **Config**: c12-based multi-format support (TS, JS, YAML, JSON)
 - **State**: GitHub Gists (default), extensible backends
 - **Auth**: Roblox Open Cloud APIs only (no ROBLOSECURITY)
-- **Build**: tsdown
-- **Test**: vitest
-- **Lint**: eslint
+- **Toolchain**: Vite+ (`vp pack` builds, `vp test` runs Vitest, `vp run` orchestrates tasks)
+- **Lint**: eslint (retained for `@isentinel/eslint-config` custom rules)
 
 ## Architecture Quick Reference
 
@@ -112,19 +111,6 @@ bun --conditions source packages/cli/src/index.ts
 
 Workaround until [oven-sh/bun#28851](https://github.com/oven-sh/bun/issues/28851)
 lands — drop the flag and this note afterwards.
-
-## Project Structure
-
-```text
-bedrock/
-├── src/              # Source code
-├── docs/
-│   ├── adr/          # Architecture Decision Records
-│   ├── plans/        # Feature implementation plans
-│   └── templates/    # Document templates
-├── .github/          # GitHub templates and workflows
-└── .claude/          # Claude Code configuration
-```
 
 ## Development Workflow
 

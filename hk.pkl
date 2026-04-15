@@ -7,11 +7,12 @@ local bash: String = "bash -c"
 // Agent detection: prints "true" if running inside an AI agent (Claude, Cursor, etc.)
 local isAgent: String = #"exec("bun scripts/is-agent.ts") == "true""#
 
-local guards = new Mapping<String, Step> {
-    ["no-commit-to-branch"] {
-        check = "hk util no-commit-to-branch --branch main"
-        shell = bash
-    }
+local preCommitBranchGuard = new Step {
+    check = "hk util no-commit-to-branch --branch main"
+    shell = bash
+}
+
+local sharedGuards = new Mapping<String, Step> {
     ["check-merge-conflict"] = (Builtins.check_merge_conflict) { shell = bash }
     ["detect-private-key"] = (Builtins.detect_private_key) { shell = bash }
     ["check-added-large-files"] = (Builtins.check_added_large_files) {
@@ -62,7 +63,8 @@ hooks {
     ["pre-commit"] {
         stash = "none"
         steps {
-            ...guards
+            ...sharedGuards
+            ["no-commit-to-branch"] = preCommitBranchGuard
 			["lint"] = (lint)
             ["typecheck"] = (typecheck)
             ["test"] = (test) { condition = isAgent }
@@ -101,7 +103,7 @@ hooks {
     }
     ["check"] {
         steps {
-            ...guards
+            ...sharedGuards
 			["lint"] = lint
             ["typecheck"] = typecheck
             ["test"] = testCi

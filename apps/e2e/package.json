@@ -12,16 +12,15 @@
 	"type": "module",
 	"scripts": {
 		"lint": "eslint --cache .",
-		"test": "vitest",
-		"typecheck": "tsgo --noEmit"
+		"test": "vitest"
 	},
 	"dependencies": {
-		"@bedrock/open-cloud": "workspace:*",
+		"@bedrock/ocale": "workspace:*",
 		"bedrock": "workspace:*"
 	},
 	"devDependencies": {
 		"@bedrock/typescript-config": "workspace:*",
-		"@bedrock/vitest-config": "workspace:*",
+		"@bedrock/vite-config": "workspace:*",
 		"typescript": "catalog:tsc",
 		"vitest": "catalog:test"
 	},
