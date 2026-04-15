@@ -23,11 +23,10 @@
 	"exports": {
 		".": {
 			"source": "./src/index.ts",
-			"types": "./dist/index.d.mts",
-			"import": "./dist/index.mjs"
-		}
+			"default": "./dist/index.mjs"
+		},
+		"./package.json": "./package.json"
 	},
-	"main": "./dist/index.mjs",
 	"types": "./dist/index.d.mts",
 	"files": [
 		"dist"
@@ -40,16 +39,22 @@
 		"typecheck": "tsgo --noEmit -p tsconfig.build.json"
 	},
 	"dependencies": {
-		"@bedrock/open-cloud": "workspace:*"
+		"@bedrock/ocale": "workspace:*"
 	},
 	"devDependencies": {
 		"@bedrock/typescript-config": "workspace:*",
-		"@bedrock/vitest-config": "workspace:*",
+		"@bedrock/vite-config": "workspace:*",
 		"@types/bun": "catalog:types",
 		"typescript": "catalog:tsc",
 		"vitest": "catalog:test"
 	},
 	"engines": {
 		"bun": ">=1.0.0"
+	},
+	"publishConfig": {
+		"exports": {
+			".": "./dist/index.mjs",
+			"./package.json": "./package.json"
+		}
 	}
 }

@@ -7,7 +7,7 @@
 	"references": [
 		{ "path": "packages/cli" },
 		{ "path": "packages/open-cloud" },
-		{ "path": "packages/vitest-config" },
+		{ "path": "packages/vite-config" },
 		{ "path": "scripts" }
 	],
 	"files": []

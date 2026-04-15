@@ -1,16 +1,5 @@
-import { defineConfig } from "vite-plus";
+import { sharedConfig } from "@bedrock/vite-config";
 
-export default defineConfig({
-	pack: {
-		clean: true,
-		dts: true,
-		entry: ["src/index.ts"],
-		fixedExtension: true,
-		format: ["esm"],
-		publint: true,
-		shims: true,
-		sourcemap: true,
-		tsconfig: "tsconfig.build.json",
-		unused: { level: "error" },
-	},
-});
+import { mergeConfig } from "vite-plus";
+
+export default mergeConfig(sharedConfig, {});

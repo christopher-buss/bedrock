@@ -112,19 +112,6 @@ bun --conditions source packages/cli/src/index.ts
 Workaround until [oven-sh/bun#28851](https://github.com/oven-sh/bun/issues/28851)
 lands — drop the flag and this note afterwards.
 
-## Project Structure
-
-```text
-bedrock/
-├── src/              # Source code
-├── docs/
-│   ├── adr/          # Architecture Decision Records
-│   ├── plans/        # Feature implementation plans
-│   └── templates/    # Document templates
-├── .github/          # GitHub templates and workflows
-└── .claude/          # Claude Code configuration
-```
-
 ## Development Workflow
 
 ### Before Committing

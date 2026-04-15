@@ -1,5 +1,4 @@
 catalogMode: prefer
-
 cleanupUnusedCatalogs: true
 enablePrePostScripts: true
 ignoreWorkspaceRootCheck: true
@@ -14,26 +13,31 @@ trustPolicyExclude:
   - eslint-config-prettier@9.1.2
   - semver@6.3.1
   - chokidar@4.0.3
+
 packages:
   - packages/*
   - apps/*
   - scripts/*
+
 overrides:
   "@typescript-eslint/eslint-plugin": 8.58.1
   "@typescript-eslint/parser": 8.58.1
   "@typescript-eslint/type-utils": 8.58.1
   "@typescript-eslint/utils": 8.58.1
+  vite: npm:@voidzero-dev/vite-plus-core@0.1.18
+  vitest: npm:@voidzero-dev/vite-plus-test@0.1.18
 
-catalog:
-  vite-plus: 0.1.16
 catalogs:
   build:
     typedoc: 0.28.19
     typedoc-plugin-replace-text: 4.2.0
     unplugin-unused: 0.5.7
-    vitepress: 2.0.0-alpha.17
+    vite-plus: 0.1.18
   dev:
+    oxc-minify: 0.125.0
     pncat: 0.11.1
+  docs:
+    vitepress: 2.0.0-alpha.17
   lint:
     "@commitlint/cli": 20.5.0
     "@commitlint/config-conventional": 20.5.0
@@ -63,8 +67,11 @@ catalogs:
   types:
     "@types/bun": 1.3.4
     "@typescript/native-preview": latest
+
 configDependencies:
   "@pnpm/trusted-deps": 0.1.1+sha512-jI3PWNv2zCg9+KHI3qQTsa534c5nisZQrHFeWSyyHoUXcuzvjkXxQKPFLJ/qtNAF+PtKHDlRntO2aZKb3VDuHQ==
+
 onlyBuiltDependencies:
   - unrs-resolver
+
 onlyBuiltDependenciesFile: node_modules/.pnpm-config/@pnpm/trusted-deps/allow.json

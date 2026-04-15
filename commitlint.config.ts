@@ -4,7 +4,7 @@ import { RuleConfigSeverity, type UserConfig } from "@commitlint/types";
 const SCOPE_ALIASES: Record<string, string> = {
 	"open-cloud": "ocale",
 	"typescript-config": "tsconfig",
-	"vitest-config": "vitest",
+	"vite-config": "vite",
 };
 
 export default {
