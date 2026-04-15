@@ -3,6 +3,8 @@
 Date: 2025-12-06 Status: Accepted
 
 Refined by: ADR-011 (library/SDK packages use a simplified architecture)
+Partially superseded by: ADR-014 (Turborepo is replaced by Vite+ as the task
+runner; the monorepo layout and FCIS + Ports architecture remain in effect)
 
 Decision Makers: Maintainer Tags: architecture, monorepo, turborepo, fcis,
 testing, modularity
