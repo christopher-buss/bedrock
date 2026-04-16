@@ -2,45 +2,46 @@ import { ApiError } from "../../errors/api-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
 
 /**
- * Shape of the fields {@link mergeConfig} and {@link shouldRetry} read. Kept
- * local so this module does not block on the future client options type that
- * will land with the resource clients.
+ * Fully-resolved retry config shape that {@link mergeConfig} and
+ * {@link shouldRetry} operate on. Fields are required because this represents
+ * the post-defaulting, internal view — callers should supply every field (or
+ * resolve them via a test factory / client constructor). The partial,
+ * user-facing type lives on client construction options; method defaults and
+ * per-request overrides use `Partial<RetryResolvable>`.
  */
 export interface RetryResolvable {
 	/** Roblox Open Cloud API key. */
-	readonly apiKey?: string;
-	/** Override base URL (defaults to the production Open Cloud host). */
-	readonly baseUrl?: string;
+	readonly apiKey: string;
+	/** Base URL for the Open Cloud API. */
+	readonly baseUrl: string;
 	/** Maximum retry attempts before giving up. */
-	readonly maxRetries?: number;
+	readonly maxRetries: number;
 	/** Status codes that are eligible for retry. */
-	readonly retryableStatuses?: ReadonlyArray<number>;
+	readonly retryableStatuses: ReadonlyArray<number>;
 	/** Fallback delay function when no server hint is available. */
-	readonly retryDelay?: (attempt: number) => number;
+	readonly retryDelay: (attempt: number) => number;
 	/** Per-request timeout in milliseconds. */
-	readonly timeout?: number;
+	readonly timeout: number;
 }
 
 /**
  * Default retry status codes for idempotent operations (read, list, update,
  * delete). Safe to retry on both rate limits and transient server errors.
  */
-export const IDEMPOTENT_METHOD_DEFAULTS: Readonly<
-	Pick<Required<RetryResolvable>, "retryableStatuses">
-> = Object.freeze({
-	retryableStatuses: Object.freeze([429, 500, 502, 503, 504] as const),
-});
+export const IDEMPOTENT_METHOD_DEFAULTS: Readonly<Pick<RetryResolvable, "retryableStatuses">> =
+	Object.freeze({
+		retryableStatuses: Object.freeze([429, 500, 502, 503, 504] as const),
+	});
 
 /**
  * Default retry status codes for create operations. Retries rate limits only,
  * to prevent duplicate resources on 5xx (Roblox Open Cloud has no
  * idempotency-key support).
  */
-export const CREATE_METHOD_DEFAULTS: Readonly<
-	Pick<Required<RetryResolvable>, "retryableStatuses">
-> = Object.freeze({
-	retryableStatuses: Object.freeze([429] as const),
-});
+export const CREATE_METHOD_DEFAULTS: Readonly<Pick<RetryResolvable, "retryableStatuses">> =
+	Object.freeze({
+		retryableStatuses: Object.freeze([429] as const),
+	});
 
 /**
  * Options for {@link computeRetryWaitMs}.
