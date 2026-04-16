@@ -11,6 +11,29 @@ describe(parseDiff, () => {
 		expect(result).toStrictEqual({ files: [], kind: "changes" });
 	});
 
+	it("should reject a newly added file with its path", () => {
+		expect.assertions(1);
+
+		const raw = [
+			"diff --git a/src/new.ts b/src/new.ts",
+			"new file mode 100644",
+			"index 0000000..abc1234",
+			"--- /dev/null",
+			"+++ b/src/new.ts",
+			"@@ -0,0 +1,3 @@",
+			"+a",
+			"+b",
+			"+c",
+		].join("\n");
+
+		const result = parseDiff(raw);
+
+		expect(result).toStrictEqual({
+			kind: "reject",
+			reasons: [{ kind: "new-file", path: "src/new.ts" }],
+		});
+	});
+
 	it("should reject a rename with the old and new paths", () => {
 		expect.assertions(1);
 

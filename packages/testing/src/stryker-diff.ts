@@ -39,6 +39,7 @@ const DIFF_HEADER = /^diff --git a\/(.+) b\/(.+)$/;
 const HUNK_HEADER = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/;
 const RENAME_FROM = /^rename from (.+)$/;
 const RENAME_TO = /^rename to (.+)$/;
+const NEW_FILE_MARKER = /^new file mode /;
 
 interface ParseState {
 	current: FileChange | undefined;
@@ -46,6 +47,8 @@ interface ParseState {
 	rejects: Array<DiffReject>;
 	renameFrom: string | undefined;
 }
+
+type LineHandler = (line: string, state: ParseState) => boolean;
 
 /**
  * Parse a unified-diff string (as produced by `git diff --unified=0 HEAD`)
@@ -68,34 +71,76 @@ export function parseDiff(raw: string): DiffResult {
 	return { files: state.files, kind: "changes" };
 }
 
+const HANDLERS: ReadonlyArray<LineHandler> = [
+	handleFileHeader,
+	handleNewFile,
+	handleRenameFrom,
+	handleRenameTo,
+	handleHunk,
+];
+
 function handleDiffLine(line: string, state: ParseState): void {
-	const fileMatch = DIFF_HEADER.exec(line);
-	if (fileMatch?.[2] !== undefined) {
-		state.current = { hunks: [], path: fileMatch[2] };
-		state.files.push(state.current);
-		state.renameFrom = undefined;
-		return;
+	for (const handler of HANDLERS) {
+		if (handler(line, state)) {
+			return;
+		}
+	}
+}
+
+function handleFileHeader(line: string, state: ParseState): boolean {
+	const match = DIFF_HEADER.exec(line);
+	if (match?.[2] === undefined) {
+		return false;
 	}
 
-	const renameFromMatch = RENAME_FROM.exec(line);
-	if (renameFromMatch?.[1] !== undefined) {
-		state.renameFrom = renameFromMatch[1];
-		state.files.pop();
-		state.current = undefined;
-		return;
+	state.current = { hunks: [], path: match[2] };
+	state.files.push(state.current);
+	state.renameFrom = undefined;
+	return true;
+}
+
+function handleNewFile(line: string, state: ParseState): boolean {
+	if (!NEW_FILE_MARKER.test(line) || !state.current) {
+		return false;
 	}
 
-	const renameToMatch = RENAME_TO.exec(line);
-	if (renameToMatch?.[1] !== undefined && state.renameFrom !== undefined) {
-		state.rejects.push({ from: state.renameFrom, kind: "rename", to: renameToMatch[1] });
-		state.renameFrom = undefined;
-		return;
+	state.rejects.push({ kind: "new-file", path: state.current.path });
+	state.files.pop();
+	state.current = undefined;
+	return true;
+}
+
+function handleRenameFrom(line: string, state: ParseState): boolean {
+	const match = RENAME_FROM.exec(line);
+	if (match?.[1] === undefined) {
+		return false;
 	}
 
-	const hunkMatch = HUNK_HEADER.exec(line);
-	if (hunkMatch && state.current) {
-		const startLine = Number(hunkMatch[1]);
-		const count = hunkMatch[2] === undefined ? 1 : Number(hunkMatch[2]);
-		state.current.hunks.push({ endLine: startLine + count - 1, startLine });
+	state.renameFrom = match[1];
+	state.files.pop();
+	state.current = undefined;
+	return true;
+}
+
+function handleRenameTo(line: string, state: ParseState): boolean {
+	const match = RENAME_TO.exec(line);
+	if (match?.[1] === undefined || state.renameFrom === undefined) {
+		return false;
 	}
+
+	state.rejects.push({ from: state.renameFrom, kind: "rename", to: match[1] });
+	state.renameFrom = undefined;
+	return true;
+}
+
+function handleHunk(line: string, state: ParseState): boolean {
+	const match = HUNK_HEADER.exec(line);
+	if (!match || !state.current) {
+		return false;
+	}
+
+	const startLine = Number(match[1]);
+	const count = match[2] === undefined ? 1 : Number(match[2]);
+	state.current.hunks.push({ endLine: startLine + count - 1, startLine });
+	return true;
 }
