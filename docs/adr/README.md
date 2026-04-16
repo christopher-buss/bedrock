@@ -24,6 +24,7 @@ things are the way they are.
 | [012](./012-class-based-clients-with-per-request-overrides.md) | Class-Based Clients with Per-Request Config Overrides | Accepted | 2026-04-12 |
 | [013](./013-hk-git-hook-manager-with-differentiated-gating.md) | hk for Git Hook Management with AI-vs-Human Differentiated Gating | Accepted | 2026-04-13 |
 | [014](./014-vite-plus-unified-toolchain.md) | Vite+ as Unified Build, Test, and Task Toolchain | Accepted | 2026-04-15 |
+| [015](./015-mutation-testing-stryker.md) | Mutation Testing with StrykerJS | Accepted | 2026-04-16 |
 
 ## Creating a New ADR
 
