@@ -1,5 +1,5 @@
 /** Injectable sleep function signature for testing. */
-export type Sleep = (ms: number) => Promise<void>;
+export type SleepFunc = (ms: number) => Promise<void>;
 
 /**
  * Default sleep implementation using setTimeout.
@@ -7,7 +7,7 @@ export type Sleep = (ms: number) => Promise<void>;
  * @param ms - Milliseconds to sleep.
  * @returns A promise that resolves after the delay.
  */
-export async function realSleep(ms: number): Promise<void> {
+export async function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => {
 		setTimeout(resolve, ms);
 	});
