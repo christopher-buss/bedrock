@@ -63,22 +63,4 @@ jobs:
             apps/*/dist/
             **/*.log
           retention-days: 7
-
     timeout-minutes: 15
-  commitlint:
-    name: Lint PR title
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Setup
-        uses: ./.github/actions/setup
-
-      - env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-        name: Lint PR title
-        run: echo "$PR_TITLE" | pnpm commitlint --verbose
-
-    timeout-minutes: 5
