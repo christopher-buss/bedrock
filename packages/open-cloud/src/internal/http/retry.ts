@@ -2,6 +2,47 @@ import { ApiError } from "../../errors/api-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
 
 /**
+ * Shape of the fields {@link mergeConfig} and {@link shouldRetry} read. Kept
+ * local so this module does not block on the future client options type that
+ * will land with the resource clients.
+ */
+export interface RetryResolvable {
+	/** Roblox Open Cloud API key. */
+	readonly apiKey?: string;
+	/** Override base URL (defaults to the production Open Cloud host). */
+	readonly baseUrl?: string;
+	/** Maximum retry attempts before giving up. */
+	readonly maxRetries?: number;
+	/** Status codes that are eligible for retry. */
+	readonly retryableStatuses?: ReadonlyArray<number>;
+	/** Fallback delay function when no server hint is available. */
+	readonly retryDelay?: (attempt: number) => number;
+	/** Per-request timeout in milliseconds. */
+	readonly timeout?: number;
+}
+
+/**
+ * Default retry status codes for idempotent operations (read, list, update,
+ * delete). Safe to retry on both rate limits and transient server errors.
+ */
+export const IDEMPOTENT_METHOD_DEFAULTS: Readonly<
+	Pick<Required<RetryResolvable>, "retryableStatuses">
+> = Object.freeze({
+	retryableStatuses: Object.freeze([429, 500, 502, 503, 504] as const),
+});
+
+/**
+ * Default retry status codes for create operations. Retries rate limits only,
+ * to prevent duplicate resources on 5xx (Roblox Open Cloud has no
+ * idempotency-key support).
+ */
+export const CREATE_METHOD_DEFAULTS: Readonly<
+	Pick<Required<RetryResolvable>, "retryableStatuses">
+> = Object.freeze({
+	retryableStatuses: Object.freeze([429] as const),
+});
+
+/**
  * Options for {@link computeRetryWaitMs}.
  */
 export interface ComputeRetryWaitMsOptions {
@@ -9,6 +50,23 @@ export interface ComputeRetryWaitMsOptions {
 	readonly attempt: number;
 	/** Fallback delay function when no server hint is available. */
 	readonly retryDelay: (attempt: number) => number;
+}
+
+/** Kind of HTTP method the merge is being performed for. */
+export type MethodKind = "create" | "idempotent";
+
+/**
+ * Options for {@link mergeConfig}.
+ *
+ * @template T - Concrete `RetryResolvable` subtype being merged.
+ */
+export interface MergeConfigOptions<T> {
+	/** Method-level defaults (e.g. {@link CREATE_METHOD_DEFAULTS}). */
+	readonly methodDefaults: Partial<T>;
+	/** Whether the method is a create or idempotent operation. */
+	readonly methodKind: MethodKind;
+	/** Optional per-request overrides; always win when provided. */
+	readonly requestOptions?: Partial<T>;
 }
 
 /**
@@ -95,4 +153,55 @@ export function shouldRetry(
 	}
 
 	return false;
+}
+
+/**
+ * Resolves the effective config for a single request by shallow-merging the
+ * client config, method defaults, and per-request options. Precedence depends
+ * on `methodKind`:
+ *
+ * - `"create"`: method defaults override client config, so client-level
+ *   settings cannot silently relax create-method safety. Only explicit
+ *   per-request `requestOptions` can.
+ * - `"idempotent"`: client config overrides method defaults, so consumers
+ *   can loosen or tighten retry policy globally. `requestOptions` still wins
+ *   when provided.
+ *
+ * Array-valued fields like `retryableStatuses` are *replaced*, not extended.
+ *
+ * @example
+ * // Create method: client [429, 500] + CREATE defaults [429] → [429]
+ * mergeConfig(
+ *     { apiKey: "k", retryableStatuses: [429, 500] },
+ *     { methodDefaults: CREATE_METHOD_DEFAULTS, methodKind: "create" },
+ * );
+ *
+ * @example
+ * // Idempotent method: client wins over method defaults
+ * mergeConfig(
+ *     { apiKey: "k", retryableStatuses: [429] },
+ *     {
+ *         methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+ *         methodKind: "idempotent",
+ *         requestOptions: { timeout: 10_000 },
+ *     },
+ * );
+ *
+ * @template T - Concrete `RetryResolvable` subtype being merged.
+ *
+ * @param clientConfig - Config frozen at client construction.
+ * @param options - Method defaults, method kind, and optional per-request overrides.
+ * @returns A new merged config object. Inputs are not mutated.
+ */
+export function mergeConfig<T extends RetryResolvable>(
+	clientConfig: T,
+	options: MergeConfigOptions<T>,
+): T {
+	const { methodDefaults, methodKind, requestOptions } = options;
+
+	if (methodKind === "create") {
+		return { ...clientConfig, ...methodDefaults, ...requestOptions };
+	}
+
+	return { ...methodDefaults, ...clientConfig, ...requestOptions };
 }

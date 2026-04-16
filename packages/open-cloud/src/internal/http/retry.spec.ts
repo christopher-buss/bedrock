@@ -3,7 +3,15 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
-import { computeRetryWaitMs, defaultRetryDelay, shouldRetry } from "./retry.ts";
+import {
+	computeRetryWaitMs,
+	CREATE_METHOD_DEFAULTS,
+	defaultRetryDelay,
+	IDEMPOTENT_METHOD_DEFAULTS,
+	mergeConfig,
+	type RetryResolvable,
+	shouldRetry,
+} from "./retry.ts";
 
 describe(defaultRetryDelay, () => {
 	it("should return 1000ms for attempt 0", () => {
@@ -133,5 +141,199 @@ describe(shouldRetry, () => {
 		expect(shouldRetry(null, { retryableStatuses: [429] })).toBe(false);
 		expect(shouldRetry("oops", { retryableStatuses: [429] })).toBe(false);
 		expect(shouldRetry(undefined, { retryableStatuses: [429] })).toBe(false);
+	});
+});
+
+describe("cREATE_METHOD_DEFAULTS", () => {
+	it("should expose retryableStatuses of [429] only", () => {
+		expect.assertions(1);
+
+		expect(CREATE_METHOD_DEFAULTS.retryableStatuses).toStrictEqual([429]);
+	});
+});
+
+describe("iDEMPOTENT_METHOD_DEFAULTS", () => {
+	it("should expose retryableStatuses of [429, 500, 502, 503, 504]", () => {
+		expect.assertions(1);
+
+		expect(IDEMPOTENT_METHOD_DEFAULTS.retryableStatuses).toStrictEqual([
+			429, 500, 502, 503, 504,
+		]);
+	});
+});
+
+describe(mergeConfig, () => {
+	describe("create methods", () => {
+		it("should have method defaults override client config (create-guard)", () => {
+			expect.assertions(1);
+
+			const clientConfig: RetryResolvable = {
+				apiKey: "k",
+				retryableStatuses: [429, 500],
+			};
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: CREATE_METHOD_DEFAULTS,
+				methodKind: "create",
+			});
+
+			expect(merged.retryableStatuses).toStrictEqual([429]);
+		});
+
+		it("should have requestOptions override method defaults", () => {
+			expect.assertions(1);
+
+			const clientConfig: RetryResolvable = {
+				apiKey: "k",
+				retryableStatuses: [429, 500],
+			};
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: CREATE_METHOD_DEFAULTS,
+				methodKind: "create",
+				requestOptions: { retryableStatuses: [429, 500, 503] },
+			});
+
+			expect(merged.retryableStatuses).toStrictEqual([429, 500, 503]);
+		});
+
+		it("should keep client apiKey when method defaults do not supply one", () => {
+			expect.assertions(1);
+
+			const clientConfig: RetryResolvable = { apiKey: "client-key" };
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: CREATE_METHOD_DEFAULTS,
+				methodKind: "create",
+			});
+
+			expect(merged.apiKey).toBe("client-key");
+		});
+
+		it("should let requestOptions override client apiKey", () => {
+			expect.assertions(1);
+
+			const clientConfig: RetryResolvable = { apiKey: "client-key" };
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: CREATE_METHOD_DEFAULTS,
+				methodKind: "create",
+				requestOptions: { apiKey: "request-key" },
+			});
+
+			expect(merged.apiKey).toBe("request-key");
+		});
+
+		it("should let requestOptions override client baseUrl", () => {
+			expect.assertions(1);
+
+			const clientConfig: RetryResolvable = {
+				apiKey: "k",
+				baseUrl: "https://client.example",
+			};
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: CREATE_METHOD_DEFAULTS,
+				methodKind: "create",
+				requestOptions: { baseUrl: "https://request.example" },
+			});
+
+			expect(merged.baseUrl).toBe("https://request.example");
+		});
+
+		it("should let requestOptions override client timeout", () => {
+			expect.assertions(1);
+
+			const clientConfig: RetryResolvable = { apiKey: "k", timeout: 5_000 };
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: CREATE_METHOD_DEFAULTS,
+				methodKind: "create",
+				requestOptions: { timeout: 20_000 },
+			});
+
+			expect(merged.timeout).toBe(20_000);
+		});
+
+		it("should let requestOptions override client maxRetries", () => {
+			expect.assertions(1);
+
+			const clientConfig: RetryResolvable = { apiKey: "k", maxRetries: 3 };
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: CREATE_METHOD_DEFAULTS,
+				methodKind: "create",
+				requestOptions: { maxRetries: 0 },
+			});
+
+			expect(merged.maxRetries).toBe(0);
+		});
+	});
+
+	describe("idempotent methods", () => {
+		it("should have client config override method defaults", () => {
+			expect.assertions(1);
+
+			const clientConfig: RetryResolvable = {
+				apiKey: "k",
+				retryableStatuses: [429, 500],
+			};
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+				methodKind: "idempotent",
+			});
+
+			expect(merged.retryableStatuses).toStrictEqual([429, 500]);
+		});
+
+		it("should fall through to method defaults when client has no retryableStatuses", () => {
+			expect.assertions(1);
+
+			const clientConfig: RetryResolvable = { apiKey: "k" };
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+				methodKind: "idempotent",
+			});
+
+			expect(merged.retryableStatuses).toStrictEqual([429, 500, 502, 503, 504]);
+		});
+
+		it("should have requestOptions override client config", () => {
+			expect.assertions(1);
+
+			const clientConfig: RetryResolvable = {
+				apiKey: "k",
+				retryableStatuses: [429, 500],
+			};
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+				methodKind: "idempotent",
+				requestOptions: { retryableStatuses: [503] },
+			});
+
+			expect(merged.retryableStatuses).toStrictEqual([503]);
+		});
+	});
+
+	it("should not mutate the input clientConfig", () => {
+		expect.assertions(2);
+
+		const clientConfig: RetryResolvable = {
+			apiKey: "client-key",
+			retryableStatuses: [429, 500],
+		};
+		const snapshot = { ...clientConfig };
+
+		mergeConfig(clientConfig, {
+			methodDefaults: CREATE_METHOD_DEFAULTS,
+			methodKind: "create",
+			requestOptions: { apiKey: "request-key", retryableStatuses: [503] },
+		});
+
+		expect(clientConfig).toStrictEqual(snapshot);
+		expect(clientConfig.retryableStatuses).toStrictEqual([429, 500]);
 	});
 });
