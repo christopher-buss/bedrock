@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseDiff } from "./stryker-diff.ts";
+import { buildMutateArgs, parseDiff } from "./stryker-diff.ts";
 
 describe(parseDiff, () => {
 	it("should return no files for an empty diff", () => {
@@ -159,5 +159,30 @@ describe(parseDiff, () => {
 			],
 			kind: "changes",
 		});
+	});
+});
+
+describe(buildMutateArgs, () => {
+	it("should return no args for an empty change set", () => {
+		expect.assertions(1);
+
+		expect(buildMutateArgs([])).toStrictEqual([]);
+	});
+
+	it("should emit one --mutate flag with comma-joined path:range patterns", () => {
+		expect.assertions(1);
+
+		const args = buildMutateArgs([
+			{
+				hunks: [
+					{ endLine: 5, startLine: 1 },
+					{ endLine: 20, startLine: 10 },
+				],
+				path: "src/a.ts",
+			},
+			{ hunks: [{ endLine: 3, startLine: 3 }], path: "src/b.ts" },
+		]);
+
+		expect(args).toStrictEqual(["--mutate", "src/a.ts:1-5,src/a.ts:10-20,src/b.ts:3-3"]);
 	});
 });

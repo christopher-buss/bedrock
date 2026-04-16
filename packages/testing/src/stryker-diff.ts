@@ -72,6 +72,24 @@ export function parseDiff(raw: string): DiffResult {
 	return { files: state.files, kind: "changes" };
 }
 
+/**
+ * Construct the Stryker CLI arguments for restricting mutation to the
+ * given file changes. Returns an empty array when no files are affected.
+ *
+ * @param files - Parsed file changes from {@link parseDiff}.
+ * @returns Stryker CLI args, e.g. `["--mutate", "a.ts:1-5,b.ts:3-3"]`.
+ */
+export function buildMutateArgs(files: ReadonlyArray<FileChange>): Array<string> {
+	if (files.length === 0) {
+		return [];
+	}
+
+	const patterns = files.flatMap((file) => {
+		return file.hunks.map((hunk) => `${file.path}:${hunk.startLine}-${hunk.endLine}`);
+	});
+	return ["--mutate", patterns.join(",")];
+}
+
 const HANDLERS: ReadonlyArray<LineHandler> = [
 	handleFileHeader,
 	handleNewFile,
