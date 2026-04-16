@@ -1,3 +1,4 @@
+import { ApiError } from "../../errors/api-error.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
 import type { Result } from "../../types.ts";
@@ -123,6 +124,16 @@ export function createFetchHttpClient(
 	};
 }
 
+function createApiError(status: number, body: unknown): ApiError {
+	const code = extractErrorCode(body);
+	const options: { code?: string; statusCode: number } = { statusCode: status };
+	if (code !== undefined) {
+		options.code = code;
+	}
+
+	return new ApiError(`HTTP ${status}`, options);
+}
+
 /**
  * Classifies a fetch `Response` into a typed `Result`.
  *
@@ -144,6 +155,13 @@ async function classifyResponse(response: Response): Promise<Result<HttpResponse
 	const bodyResult = await tryCatch(response.json());
 	if (!bodyResult.success) {
 		return bodyResult;
+	}
+
+	if (response.status < 200 || response.status >= 300) {
+		return {
+			err: createApiError(response.status, bodyResult.data),
+			success: false,
+		};
 	}
 
 	return {
