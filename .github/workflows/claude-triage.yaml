@@ -9,15 +9,17 @@ on:
 jobs:
   triage:
     permissions:
+      checks: read
       contents: read
       id-token: write
       issues: write
       pull-requests: write
+      statuses: read
 
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 1
 
@@ -32,7 +34,7 @@ jobs:
 
       - if: github.event_name == 'issues'
         name: Triage Issue
-        uses: anthropics/claude-code-action@f0c8eb29807907de7f5412d04afceb5e24817127 # v1.0.23
+        uses: anthropics/claude-code-action@931e62027356f4c337273719db085805456e53cc # v1.0.98
         with:
           allowed_non_write_users: "*"
           claude_args: |
@@ -47,7 +49,7 @@ jobs:
 
       - if: github.event_name == 'pull_request'
         name: Triage Pull Request
-        uses: anthropics/claude-code-action@f0c8eb29807907de7f5412d04afceb5e24817127 # v1.0.23
+        uses: anthropics/claude-code-action@931e62027356f4c337273719db085805456e53cc # v1.0.98
         with:
           allowed_non_write_users: "*"
           claude_args: |
