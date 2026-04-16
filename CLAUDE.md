@@ -121,6 +121,11 @@ lands — drop the flag and this note afterwards.
 3. Run `pnpm test` (must pass)
 4. Run `pnpm typecheck` (must pass)
 
+### Pull Requests
+
+PR titles must follow conventional commit format (e.g.
+`feat(ocale): add result type`). This is enforced by CI.
+
 ### Creating Issues
 
 Use GitHub issue templates for:
