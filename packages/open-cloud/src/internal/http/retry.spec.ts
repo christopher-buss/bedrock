@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "../../errors/api-error.ts";
+import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
-import { computeRetryWaitMs, defaultRetryDelay } from "./retry.ts";
+import { computeRetryWaitMs, defaultRetryDelay, shouldRetry } from "./retry.ts";
 
 describe(defaultRetryDelay, () => {
 	it("should return 1000ms for attempt 0", () => {
@@ -76,5 +77,61 @@ describe(computeRetryWaitMs, () => {
 		computeRetryWaitMs(error, { attempt: 7, retryDelay });
 
 		expect(retryDelay).toHaveBeenCalledWith(7);
+	});
+});
+
+describe(shouldRetry, () => {
+	it("should return true for RateLimitError when 429 is in retryableStatuses", () => {
+		expect.assertions(1);
+
+		const error = new RateLimitError("slow down", { retryAfterSeconds: 1 });
+
+		expect(shouldRetry(error, { retryableStatuses: [429, 500] })).toBe(true);
+	});
+
+	it("should return false for RateLimitError when 429 is not in retryableStatuses", () => {
+		expect.assertions(1);
+
+		const error = new RateLimitError("slow down", { retryAfterSeconds: 1 });
+
+		expect(shouldRetry(error, { retryableStatuses: [500, 502] })).toBe(false);
+	});
+
+	it("should return true for ApiError when its statusCode is in retryableStatuses", () => {
+		expect.assertions(1);
+
+		const error = new ApiError("unavailable", { statusCode: 503 });
+
+		expect(shouldRetry(error, { retryableStatuses: [429, 500, 502, 503, 504] })).toBe(true);
+	});
+
+	it("should return false for ApiError when its statusCode is not in retryableStatuses", () => {
+		expect.assertions(1);
+
+		const error = new ApiError("bad request", { statusCode: 400 });
+
+		expect(shouldRetry(error, { retryableStatuses: [429, 500] })).toBe(false);
+	});
+
+	it("should return false for NetworkError", () => {
+		expect.assertions(1);
+
+		const error = new NetworkError("offline");
+
+		expect(shouldRetry(error, { retryableStatuses: [429, 500] })).toBe(false);
+	});
+
+	it("should return false for a plain Error", () => {
+		expect.assertions(1);
+
+		expect(shouldRetry(new Error("boom"), { retryableStatuses: [429] })).toBe(false);
+	});
+
+	it("should return false for non-Error values", () => {
+		expect.assertions(3);
+
+		expect(shouldRetry(null, { retryableStatuses: [429] })).toBe(false);
+		expect(shouldRetry("oops", { retryableStatuses: [429] })).toBe(false);
+		expect(shouldRetry(undefined, { retryableStatuses: [429] })).toBe(false);
 	});
 });
