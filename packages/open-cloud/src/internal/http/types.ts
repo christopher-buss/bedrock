@@ -57,3 +57,16 @@ export interface HttpClient {
 		config: RequestConfig,
 	): Promise<Result<HttpResponse, OpenCloudError>>;
 }
+
+/**
+ * Client-level observability hooks. All hooks are notification-only and
+ * fire-and-forget — they cannot alter retry behaviour. See ADR-010.
+ */
+export interface OpenCloudHooks {
+	/** Fired before the SDK sleeps for a computed retry wait. */
+	readonly onRateLimit?: (waitMs: number) => void;
+	/** Fired before each HTTP attempt (including retries). */
+	readonly onRequest?: (request: HttpRequest) => void;
+	/** Fired before a retry is attempted. `attempt` is 1-indexed. */
+	readonly onRetry?: (attempt: number, error: OpenCloudError) => void;
+}

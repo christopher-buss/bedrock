@@ -1,3 +1,4 @@
+import { makeRetryConfig } from "#tests/helpers/retry-config";
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "../../errors/api-error.ts";
@@ -9,29 +10,8 @@ import {
 	defaultRetryDelay,
 	IDEMPOTENT_METHOD_DEFAULTS,
 	mergeConfig,
-	type RetryResolvable,
 	shouldRetry,
 } from "./retry.ts";
-
-/**
- * Builds a fully-populated {@link RetryResolvable} for tests. Every field has
- * a default, so adding a new required field to the interface breaks this
- * factory (one place, centrally) — forcing tests to opt into the new shape.
- *
- * @param overrides - Fields to replace on the default fixture.
- * @returns A fresh RetryResolvable with `overrides` applied.
- */
-function makeConfig(overrides: Partial<RetryResolvable> = {}): RetryResolvable {
-	return {
-		apiKey: "test-key",
-		baseUrl: "https://test.example",
-		maxRetries: 3,
-		retryableStatuses: [429],
-		retryDelay: defaultRetryDelay,
-		timeout: 30_000,
-		...overrides,
-	};
-}
 
 describe(defaultRetryDelay, () => {
 	it.for<[attempt: number, expected: number]>([
@@ -172,7 +152,7 @@ describe(mergeConfig, () => {
 		it("should have method defaults override client config (create-guard)", () => {
 			expect.assertions(1);
 
-			const clientConfig = makeConfig({ retryableStatuses: [429, 500] });
+			const clientConfig = makeRetryConfig({ retryableStatuses: [429, 500] });
 
 			const merged = mergeConfig(clientConfig, {
 				methodDefaults: CREATE_METHOD_DEFAULTS,
@@ -185,7 +165,7 @@ describe(mergeConfig, () => {
 		it("should have requestOptions override method defaults", () => {
 			expect.assertions(1);
 
-			const clientConfig = makeConfig({ retryableStatuses: [429, 500] });
+			const clientConfig = makeRetryConfig({ retryableStatuses: [429, 500] });
 
 			const merged = mergeConfig(clientConfig, {
 				methodDefaults: CREATE_METHOD_DEFAULTS,
@@ -199,7 +179,7 @@ describe(mergeConfig, () => {
 		it("should keep client apiKey when method defaults do not supply one", () => {
 			expect.assertions(1);
 
-			const clientConfig = makeConfig({ apiKey: "client-key" });
+			const clientConfig = makeRetryConfig({ apiKey: "client-key" });
 
 			const merged = mergeConfig(clientConfig, {
 				methodDefaults: CREATE_METHOD_DEFAULTS,
@@ -212,7 +192,7 @@ describe(mergeConfig, () => {
 		it("should let requestOptions override client apiKey", () => {
 			expect.assertions(1);
 
-			const clientConfig = makeConfig({ apiKey: "client-key" });
+			const clientConfig = makeRetryConfig({ apiKey: "client-key" });
 
 			const merged = mergeConfig(clientConfig, {
 				methodDefaults: CREATE_METHOD_DEFAULTS,
@@ -226,7 +206,7 @@ describe(mergeConfig, () => {
 		it("should let requestOptions override client baseUrl", () => {
 			expect.assertions(1);
 
-			const clientConfig = makeConfig({ baseUrl: "https://client.example" });
+			const clientConfig = makeRetryConfig({ baseUrl: "https://client.example" });
 
 			const merged = mergeConfig(clientConfig, {
 				methodDefaults: CREATE_METHOD_DEFAULTS,
@@ -240,7 +220,7 @@ describe(mergeConfig, () => {
 		it("should let requestOptions override client timeout", () => {
 			expect.assertions(1);
 
-			const clientConfig = makeConfig({ timeout: 5_000 });
+			const clientConfig = makeRetryConfig({ timeout: 5_000 });
 
 			const merged = mergeConfig(clientConfig, {
 				methodDefaults: CREATE_METHOD_DEFAULTS,
@@ -254,7 +234,7 @@ describe(mergeConfig, () => {
 		it("should let requestOptions override client maxRetries", () => {
 			expect.assertions(1);
 
-			const clientConfig = makeConfig({ maxRetries: 3 });
+			const clientConfig = makeRetryConfig({ maxRetries: 3 });
 
 			const merged = mergeConfig(clientConfig, {
 				methodDefaults: CREATE_METHOD_DEFAULTS,
@@ -270,7 +250,7 @@ describe(mergeConfig, () => {
 		it("should have client config override method defaults", () => {
 			expect.assertions(1);
 
-			const clientConfig = makeConfig({ retryableStatuses: [429, 500] });
+			const clientConfig = makeRetryConfig({ retryableStatuses: [429, 500] });
 
 			const merged = mergeConfig(clientConfig, {
 				methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
@@ -283,7 +263,7 @@ describe(mergeConfig, () => {
 		it("should have requestOptions override client config", () => {
 			expect.assertions(1);
 
-			const clientConfig = makeConfig({ retryableStatuses: [429, 500] });
+			const clientConfig = makeRetryConfig({ retryableStatuses: [429, 500] });
 
 			const merged = mergeConfig(clientConfig, {
 				methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
@@ -298,7 +278,7 @@ describe(mergeConfig, () => {
 	it("should not mutate the input clientConfig", () => {
 		expect.assertions(2);
 
-		const clientConfig = makeConfig({
+		const clientConfig = makeRetryConfig({
 			apiKey: "client-key",
 			retryableStatuses: [429, 500],
 		});
