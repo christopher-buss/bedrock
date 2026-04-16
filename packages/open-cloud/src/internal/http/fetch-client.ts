@@ -1,4 +1,7 @@
-import type { HttpRequest, RequestConfig } from "./types.ts";
+import type { OpenCloudError } from "../../errors/base.ts";
+import type { Result } from "../../types.ts";
+import { tryCatch } from "../utils/try-catch.ts";
+import type { HttpClient, HttpRequest, HttpResponse, RequestConfig } from "./types.ts";
 
 /**
  * Converts a `Headers` object to a plain record with lowercased keys.
@@ -26,7 +29,7 @@ export function extractErrorCode(body: unknown): string | undefined {
 		return undefined;
 	}
 
-	const { errorCode } = body as { errorCode: unknown };
+	const { errorCode } = body;
 	return typeof errorCode === "string" ? errorCode : undefined;
 }
 
@@ -90,4 +93,44 @@ export function buildFetchOptions(request: HttpRequest, config: RequestConfig): 
 	}
 
 	return options;
+}
+
+/**
+ * Creates an {@link HttpClient} backed by the Fetch API.
+ *
+ * @param fetchFunc - The fetch implementation to use. Defaults to `globalThis.fetch`.
+ * @returns An HttpClient that classifies responses into typed Results.
+ */
+export function createFetchHttpClient(
+	fetchFunc: (url: string, init: RequestInit) => Promise<Response> = globalThis.fetch,
+): HttpClient {
+	return {
+		async request(
+			httpRequest: HttpRequest,
+			config: RequestConfig,
+		): Promise<Result<HttpResponse, OpenCloudError>> {
+			const url = buildUrl(httpRequest, config);
+			const options = buildFetchOptions(httpRequest, config);
+
+			const fetchResult = await tryCatch(fetchFunc(url, options));
+			if (!fetchResult.success) {
+				return fetchResult;
+			}
+
+			const response = fetchResult.data;
+			const bodyResult = await tryCatch(response.json());
+			if (!bodyResult.success) {
+				return bodyResult;
+			}
+
+			return {
+				data: {
+					body: bodyResult.data,
+					headers: headersToRecord(response.headers),
+					status: response.status,
+				},
+				success: true,
+			};
+		},
+	};
 }

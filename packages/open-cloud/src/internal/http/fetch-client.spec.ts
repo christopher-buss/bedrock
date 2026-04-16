@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	buildFetchOptions,
 	buildUrl,
+	createFetchHttpClient,
 	extractErrorCode,
 	headersToRecord,
 	parseRetryAfterSeconds,
@@ -215,5 +216,37 @@ describe(buildFetchOptions, () => {
 		);
 
 		expect(options.body).toBeUndefined();
+	});
+});
+
+describe(createFetchHttpClient, () => {
+	it("should return success Result with parsed body for 200", async () => {
+		expect.assertions(4);
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response(JSON.stringify({ id: "123" }), {
+				headers: { "content-type": "application/json" },
+				status: 200,
+			});
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		expect(result.success).toBe(true);
+
+		const response = (
+			result as {
+				data: { body: unknown; headers: Record<string, string>; status: number };
+				success: true;
+			}
+		).data;
+
+		expect(response.status).toBe(200);
+		expect(response.body).toStrictEqual({ id: "123" });
+		expect(response.headers["content-type"]).toBe("application/json");
 	});
 });
