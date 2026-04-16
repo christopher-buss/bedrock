@@ -25,6 +25,10 @@
 			"source": "./src/index.ts",
 			"default": "./dist/index.mjs"
 		},
+		"./game-passes": {
+			"source": "./src/resources/game-passes/index.ts",
+			"default": "./dist/game-passes.mjs"
+		},
 		"./package.json": "./package.json"
 	},
 	"types": "./dist/index.d.mts",
@@ -54,6 +58,7 @@
 	"publishConfig": {
 		"exports": {
 			".": "./dist/index.mjs",
+			"./game-passes": "./dist/game-passes.mjs",
 			"./package.json": "./package.json"
 		}
 	}
