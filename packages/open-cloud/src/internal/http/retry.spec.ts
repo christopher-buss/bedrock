@@ -34,31 +34,18 @@ function makeConfig(overrides: Partial<RetryResolvable> = {}): RetryResolvable {
 }
 
 describe(defaultRetryDelay, () => {
-	it("should return 1000ms for attempt 0", () => {
+	it.for<[attempt: number, expected: number]>([
+		[0, 1000],
+		[1, 2000],
+		[2, 4000],
+		[3, 8000],
+	])("should double the wait on each attempt (attempt %i → %ims)", ([attempt, expected]) => {
 		expect.assertions(1);
 
-		expect(defaultRetryDelay(0)).toBe(1000);
+		expect(defaultRetryDelay(attempt)).toBe(expected);
 	});
 
-	it("should return 2000ms for attempt 1", () => {
-		expect.assertions(1);
-
-		expect(defaultRetryDelay(1)).toBe(2000);
-	});
-
-	it("should return 4000ms for attempt 2", () => {
-		expect.assertions(1);
-
-		expect(defaultRetryDelay(2)).toBe(4000);
-	});
-
-	it("should return 8000ms for attempt 3", () => {
-		expect.assertions(1);
-
-		expect(defaultRetryDelay(3)).toBe(8000);
-	});
-
-	it("should cap at 30000ms for large attempts", () => {
+	it("should cap the wait at 30 seconds once backoff exceeds it", () => {
 		expect.assertions(1);
 
 		expect(defaultRetryDelay(10)).toBe(30_000);
@@ -66,7 +53,7 @@ describe(defaultRetryDelay, () => {
 });
 
 describe(computeRetryWaitMs, () => {
-	it("should return retryAfterSeconds * 1000 for RateLimitError with positive retryAfterSeconds", () => {
+	it("should honor the server-supplied retry-after hint when present", () => {
 		expect.assertions(2);
 
 		const retryDelay = vi.fn<(attempt: number) => number>(() => 99_999);
@@ -76,7 +63,7 @@ describe(computeRetryWaitMs, () => {
 		expect(retryDelay).not.toHaveBeenCalled();
 	});
 
-	it("should fall back to retryDelay when RateLimitError.retryAfterSeconds is 0", () => {
+	it("should fall back to the retryDelay function when RateLimitError has no server hint", () => {
 		expect.assertions(2);
 
 		const retryDelay = vi.fn<(attempt: number) => number>((attempt) => 1000 * (attempt + 1));
@@ -86,7 +73,7 @@ describe(computeRetryWaitMs, () => {
 		expect(retryDelay).toHaveBeenCalledWith(2);
 	});
 
-	it("should fall back to retryDelay when error is an ApiError", () => {
+	it("should fall back to the retryDelay function for non-rate-limit errors", () => {
 		expect.assertions(2);
 
 		const retryDelay = vi.fn<(attempt: number) => number>((attempt) => 500 * (attempt + 1));
@@ -96,7 +83,7 @@ describe(computeRetryWaitMs, () => {
 		expect(retryDelay).toHaveBeenCalledWith(1);
 	});
 
-	it("should pass the attempt index through to the retryDelay function", () => {
+	it("should forward the attempt index to the retryDelay function", () => {
 		expect.assertions(1);
 
 		const retryDelay = vi.fn<(attempt: number) => number>(() => 0);
@@ -109,7 +96,7 @@ describe(computeRetryWaitMs, () => {
 });
 
 describe(shouldRetry, () => {
-	it("should return true for RateLimitError when 429 is in retryableStatuses", () => {
+	it("should mark rate-limit errors as retryable when 429 is in the allow-list", () => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("slow down", { retryAfterSeconds: 1 });
@@ -117,7 +104,7 @@ describe(shouldRetry, () => {
 		expect(shouldRetry(error, { retryableStatuses: [429, 500] })).toBe(true);
 	});
 
-	it("should return false for RateLimitError when 429 is not in retryableStatuses", () => {
+	it("should not mark rate-limit errors as retryable when 429 is excluded", () => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("slow down", { retryAfterSeconds: 1 });
@@ -125,7 +112,7 @@ describe(shouldRetry, () => {
 		expect(shouldRetry(error, { retryableStatuses: [500, 502] })).toBe(false);
 	});
 
-	it("should return true for ApiError when its statusCode is in retryableStatuses", () => {
+	it("should mark API errors as retryable when their status is in the allow-list", () => {
 		expect.assertions(1);
 
 		const error = new ApiError("unavailable", { statusCode: 503 });
@@ -133,7 +120,7 @@ describe(shouldRetry, () => {
 		expect(shouldRetry(error, { retryableStatuses: [429, 500, 502, 503, 504] })).toBe(true);
 	});
 
-	it("should return false for ApiError when its statusCode is not in retryableStatuses", () => {
+	it("should not mark API errors as retryable when their status is excluded", () => {
 		expect.assertions(1);
 
 		const error = new ApiError("bad request", { statusCode: 400 });
@@ -141,7 +128,7 @@ describe(shouldRetry, () => {
 		expect(shouldRetry(error, { retryableStatuses: [429, 500] })).toBe(false);
 	});
 
-	it("should return false for NetworkError", () => {
+	it("should not mark network errors as retryable", () => {
 		expect.assertions(1);
 
 		const error = new NetworkError("offline");
@@ -149,13 +136,13 @@ describe(shouldRetry, () => {
 		expect(shouldRetry(error, { retryableStatuses: [429, 500] })).toBe(false);
 	});
 
-	it("should return false for a plain Error", () => {
+	it("should not mark unclassified Error instances as retryable", () => {
 		expect.assertions(1);
 
 		expect(shouldRetry(new Error("boom"), { retryableStatuses: [429] })).toBe(false);
 	});
 
-	it("should return false for non-Error values", () => {
+	it("should not mark non-Error values as retryable", () => {
 		expect.assertions(3);
 
 		expect(shouldRetry(null, { retryableStatuses: [429] })).toBe(false);
