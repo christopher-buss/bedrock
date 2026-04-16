@@ -74,10 +74,13 @@ export interface MergeConfigOptions<T> {
  * Default exponential backoff: 1s → 2s → 4s → 8s → 16s → 30s (capped).
  *
  * @example
+ *
  * ```ts
- * defaultRetryDelay(0); // 1000
- * defaultRetryDelay(4); // 16000
- * defaultRetryDelay(10); // 30000 (capped)
+ * import { defaultRetryDelay } from "./retry";
+ *
+ * expect(defaultRetryDelay(0)).toBe(1000);
+ * expect(defaultRetryDelay(4)).toBe(16_000);
+ * expect(defaultRetryDelay(10)).toBe(30_000);
  * ```
  *
  * @param attempt - Zero-indexed retry attempt number.
@@ -92,16 +95,30 @@ export function defaultRetryDelay(attempt: number): number {
  * suggested delay when the error is a {@link RateLimitError} with a positive
  * `retryAfterSeconds`; otherwise falls through to `retryDelay(attempt)`.
  *
- * @example Adaptive 429 recovery
+ * @example
+ *
  * ```ts
+ * import { RateLimitError } from "../../errors/rate-limit.ts";
+ * import { computeRetryWaitMs, defaultRetryDelay } from "./retry";
+ *
  * const error = new RateLimitError("slow down", { retryAfterSeconds: 3 });
- * computeRetryWaitMs(error, { attempt: 0, retryDelay: defaultRetryDelay }); // 3000
+ *
+ * expect(computeRetryWaitMs(error, { attempt: 0, retryDelay: defaultRetryDelay })).toBe(
+ *     3000,
+ * );
  * ```
  *
- * @example Exponential fallback for 5xx
+ * @example
+ *
  * ```ts
+ * import { ApiError } from "../../errors/api-error.ts";
+ * import { computeRetryWaitMs, defaultRetryDelay } from "./retry";
+ *
  * const error = new ApiError("server error", { statusCode: 503 });
- * computeRetryWaitMs(error, { attempt: 2, retryDelay: defaultRetryDelay }); // 4000
+ *
+ * expect(computeRetryWaitMs(error, { attempt: 2, retryDelay: defaultRetryDelay })).toBe(
+ *     4000,
+ * );
  * ```
  *
  * @param error - The error returned by the failing request.
@@ -125,23 +142,39 @@ export function computeRetryWaitMs(
  * {@link ApiError} (checked against its `statusCode`) are retryable — network
  * errors and other failures always return `false`.
  *
- * @example Rate-limit retries enabled
+ * @example
+ *
  * ```ts
- * shouldRetry(new RateLimitError("", { retryAfterSeconds: 1 }), {
- *     retryableStatuses: [429],
- * }); // true
+ * import { RateLimitError } from "../../errors/rate-limit.ts";
+ * import { shouldRetry } from "./retry";
+ *
+ * const error = new RateLimitError("", { retryAfterSeconds: 1 });
+ *
+ * expect(shouldRetry(error, { retryableStatuses: [429] })).toBe(true);
  * ```
  *
- * @example 5xx retry enabled on idempotent methods
+ * @example
+ *
  * ```ts
- * shouldRetry(new ApiError("", { statusCode: 503 }), {
- *     retryableStatuses: [429, 500, 502, 503, 504],
- * }); // true
+ * import { ApiError } from "../../errors/api-error.ts";
+ * import { shouldRetry } from "./retry";
+ *
+ * const error = new ApiError("", { statusCode: 503 });
+ *
+ * expect(shouldRetry(error, { retryableStatuses: [429, 500, 502, 503, 504] })).toBe(
+ *     true,
+ * );
  * ```
  *
- * @example Network errors are never retried by this helper
+ * @example
+ *
  * ```ts
- * shouldRetry(new NetworkError("offline"), { retryableStatuses: [429] }); // false
+ * import { NetworkError } from "../../errors/network-error.ts";
+ * import { shouldRetry } from "./retry";
+ *
+ * const error = new NetworkError("offline");
+ *
+ * expect(shouldRetry(error, { retryableStatuses: [429] })).toBe(false);
  * ```
  *
  * @param error - The error returned by the failing request.
@@ -177,27 +210,63 @@ export function shouldRetry(
  *
  * Array-valued fields like `retryableStatuses` are *replaced*, not extended.
  *
- * @example Create method — client [429, 500] + CREATE defaults [429] → [429]
- * ```ts
- * mergeConfig(
- *     { apiKey: "k", retryableStatuses: [429, 500] },
- *     { methodDefaults: CREATE_METHOD_DEFAULTS, methodKind: "create" },
- * );
- * ```
- *
- * @example Idempotent method — client wins over method defaults
- * ```ts
- * mergeConfig(
- *     { apiKey: "k", retryableStatuses: [429] },
- *     {
- *         methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
- *         methodKind: "idempotent",
- *         requestOptions: { timeout: 10_000 },
- *     },
- * );
- * ```
- *
  * @template T - Concrete `RetryResolvable` subtype being merged.
+ *
+ * @example
+ *
+ * ```ts
+ * import {
+ *     CREATE_METHOD_DEFAULTS,
+ *     defaultRetryDelay,
+ *     mergeConfig,
+ *     type RetryResolvable,
+ * } from "./retry";
+ *
+ * const clientConfig: RetryResolvable = {
+ *     apiKey: "k",
+ *     baseUrl: "https://apis.roblox.com",
+ *     maxRetries: 3,
+ *     retryableStatuses: [429, 500],
+ *     retryDelay: defaultRetryDelay,
+ *     timeout: 30_000,
+ * };
+ *
+ * const merged = mergeConfig(clientConfig, {
+ *     methodDefaults: CREATE_METHOD_DEFAULTS,
+ *     methodKind: "create",
+ * });
+ *
+ * expect(merged.retryableStatuses).toStrictEqual([429]);
+ * ```
+ *
+ * @example
+ *
+ * ```ts
+ * import {
+ *     defaultRetryDelay,
+ *     IDEMPOTENT_METHOD_DEFAULTS,
+ *     mergeConfig,
+ *     type RetryResolvable,
+ * } from "./retry";
+ *
+ * const clientConfig: RetryResolvable = {
+ *     apiKey: "k",
+ *     baseUrl: "https://apis.roblox.com",
+ *     maxRetries: 3,
+ *     retryableStatuses: [429],
+ *     retryDelay: defaultRetryDelay,
+ *     timeout: 30_000,
+ * };
+ *
+ * const merged = mergeConfig(clientConfig, {
+ *     methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+ *     methodKind: "idempotent",
+ *     requestOptions: { timeout: 10_000 },
+ * });
+ *
+ * expect(merged.retryableStatuses).toStrictEqual([429]);
+ * expect(merged.timeout).toBe(10_000);
+ * ```
  *
  * @param clientConfig - Config frozen at client construction.
  * @param options - Method defaults, method kind, and optional per-request overrides.
