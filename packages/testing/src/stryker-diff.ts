@@ -40,6 +40,7 @@ const HUNK_HEADER = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/;
 const RENAME_FROM = /^rename from (.+)$/;
 const RENAME_TO = /^rename to (.+)$/;
 const NEW_FILE_MARKER = /^new file mode /;
+const BINARY_MARKER = /^Binary files /;
 
 interface ParseState {
 	current: FileChange | undefined;
@@ -74,6 +75,7 @@ export function parseDiff(raw: string): DiffResult {
 const HANDLERS: ReadonlyArray<LineHandler> = [
 	handleFileHeader,
 	handleNewFile,
+	handleBinary,
 	handleRenameFrom,
 	handleRenameTo,
 	handleHunk,
@@ -105,6 +107,17 @@ function handleNewFile(line: string, state: ParseState): boolean {
 	}
 
 	state.rejects.push({ kind: "new-file", path: state.current.path });
+	state.files.pop();
+	state.current = undefined;
+	return true;
+}
+
+function handleBinary(line: string, state: ParseState): boolean {
+	if (!BINARY_MARKER.test(line) || !state.current) {
+		return false;
+	}
+
+	state.rejects.push({ kind: "binary", path: state.current.path });
 	state.files.pop();
 	state.current = undefined;
 	return true;

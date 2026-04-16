@@ -11,6 +11,23 @@ describe(parseDiff, () => {
 		expect(result).toStrictEqual({ files: [], kind: "changes" });
 	});
 
+	it("should reject a binary file change with its path", () => {
+		expect.assertions(1);
+
+		const raw = [
+			"diff --git a/assets/logo.png b/assets/logo.png",
+			"index abc1234..def5678 100644",
+			"Binary files a/assets/logo.png and b/assets/logo.png differ",
+		].join("\n");
+
+		const result = parseDiff(raw);
+
+		expect(result).toStrictEqual({
+			kind: "reject",
+			reasons: [{ kind: "binary", path: "assets/logo.png" }],
+		});
+	});
+
 	it("should reject a newly added file with its path", () => {
 		expect.assertions(1);
 
