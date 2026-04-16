@@ -7,6 +7,8 @@
 		"libReplacement": true,
 		"customConditions": ["source"],
 		"types": ["bun"],
+		"allowImportingTsExtensions": true,
+		"allowJs": false,
 		"declarationDir": "${configDir}/dist",
 		"noEmit": false,
 		"isolatedDeclarations": true,

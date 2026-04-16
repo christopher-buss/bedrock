@@ -1,4 +1,4 @@
-import { OpenCloudError } from "./base";
+import { OpenCloudError } from "./base.ts";
 
 /**
  * Options for constructing a {@link RateLimitError}.

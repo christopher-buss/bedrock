@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { OpenCloudError } from "./base";
-import { RateLimitError } from "./rate-limit";
+import { OpenCloudError } from "./base.ts";
+import { RateLimitError } from "./rate-limit.ts";
 
 describe(RateLimitError, () => {
 	it("should set name to RateLimitError", () => {
