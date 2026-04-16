@@ -9,10 +9,12 @@ on:
 jobs:
   triage:
     permissions:
+      checks: read
       contents: read
       id-token: write
       issues: write
       pull-requests: write
+      statuses: read
 
     runs-on: ubuntu-latest
     steps:
