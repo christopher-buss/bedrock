@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { defaultRetryDelay } from "./retry.ts";
+import { ApiError } from "../../errors/api-error.ts";
+import { RateLimitError } from "../../errors/rate-limit.ts";
+import { computeRetryWaitMs, defaultRetryDelay } from "./retry.ts";
 
 describe(defaultRetryDelay, () => {
 	it("should return 1000ms for attempt 0", () => {
@@ -31,5 +33,48 @@ describe(defaultRetryDelay, () => {
 		expect.assertions(1);
 
 		expect(defaultRetryDelay(10)).toBe(30_000);
+	});
+});
+
+describe(computeRetryWaitMs, () => {
+	it("should return retryAfterSeconds * 1000 for RateLimitError with positive retryAfterSeconds", () => {
+		expect.assertions(2);
+
+		const retryDelay = vi.fn<(attempt: number) => number>(() => 99_999);
+		const error = new RateLimitError("slow down", { retryAfterSeconds: 3 });
+
+		expect(computeRetryWaitMs(error, { attempt: 0, retryDelay })).toBe(3000);
+		expect(retryDelay).not.toHaveBeenCalled();
+	});
+
+	it("should fall back to retryDelay when RateLimitError.retryAfterSeconds is 0", () => {
+		expect.assertions(2);
+
+		const retryDelay = vi.fn<(attempt: number) => number>((attempt) => 1000 * (attempt + 1));
+		const error = new RateLimitError("slow down", { retryAfterSeconds: 0 });
+
+		expect(computeRetryWaitMs(error, { attempt: 2, retryDelay })).toBe(3000);
+		expect(retryDelay).toHaveBeenCalledWith(2);
+	});
+
+	it("should fall back to retryDelay when error is an ApiError", () => {
+		expect.assertions(2);
+
+		const retryDelay = vi.fn<(attempt: number) => number>((attempt) => 500 * (attempt + 1));
+		const error = new ApiError("server error", { statusCode: 503 });
+
+		expect(computeRetryWaitMs(error, { attempt: 1, retryDelay })).toBe(1000);
+		expect(retryDelay).toHaveBeenCalledWith(1);
+	});
+
+	it("should pass the attempt index through to the retryDelay function", () => {
+		expect.assertions(1);
+
+		const retryDelay = vi.fn<(attempt: number) => number>(() => 0);
+		const error = new ApiError("server error", { statusCode: 500 });
+
+		computeRetryWaitMs(error, { attempt: 7, retryDelay });
+
+		expect(retryDelay).toHaveBeenCalledWith(7);
 	});
 });
