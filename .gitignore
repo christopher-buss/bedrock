@@ -25,3 +25,4 @@ dist
 
 # AI
 !.claude/sentinel.local.md
+.claude/state
