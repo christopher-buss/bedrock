@@ -7,12 +7,11 @@
 		"libReplacement": true,
 		"customConditions": ["source"],
 		"types": ["bun"],
-		"allowImportingTsExtensions": true,
+		"rewriteRelativeImportExtensions": true,
 		"allowJs": false,
 		"exactOptionalPropertyTypes": true,
 		"declarationDir": "${configDir}/dist",
 		"noEmit": false,
-		"isolatedDeclarations": true,
 		"erasableSyntaxOnly": true
 	},
 	"include": ["${configDir}/**/*"],
