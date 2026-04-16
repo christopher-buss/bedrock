@@ -1,5 +1,1 @@
-export function openCloud(): void {
-	console.warn("Hello, Open Cloud!");
-}
-
-export {};
+export type { Result } from "./types";

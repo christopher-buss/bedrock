@@ -43,6 +43,7 @@
 		"@commitlint/types": "catalog:lint",
 		"@eslint/config-inspector": "catalog:lint",
 		"@isentinel/eslint-config": "catalog:lint",
+		"@isentinel/hooks": "catalog:lint",
 		"@isentinel/tsconfig": "catalog:tsc",
 		"@types/bun": "catalog:types",
 		"@typescript/native-preview": "catalog:types",

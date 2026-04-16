@@ -50,6 +50,7 @@ catalogs:
     "@commitlint/types": 20.5.0
     "@eslint/config-inspector": 1.5.0
     "@isentinel/eslint-config": 5.0.0-beta.9
+    "@isentinel/hooks": 1.3.0
     "@vitest/eslint-plugin": 1.6.16
     eslint: 9.39.2
     eslint-plugin-n: 17.24.0
@@ -62,6 +63,7 @@ catalogs:
   test:
     "@vitest/coverage-v8": 4.1.4
     generate-jsdoc-example-tests: 0.2.6
+    jest-extended: 7.0.0
     monocart-coverage-reports: 2.12.10
     vitest: 4.1.4
   tsc:

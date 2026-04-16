@@ -8,5 +8,6 @@
 		"declarationMap": true,
 		"outDir": "${configDir}/dist"
 	},
-	"include": ["${configDir}/src"]
+	"include": ["${configDir}/src"],
+	"exclude": ["${configDir}/src/**/*.spec.ts", "${configDir}/src/**/*.test.ts"]
 }

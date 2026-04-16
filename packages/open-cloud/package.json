@@ -25,6 +25,10 @@
 			"source": "./src/index.ts",
 			"default": "./dist/index.mjs"
 		},
+		"./game-passes": {
+			"source": "./src/resources/game-passes/index.ts",
+			"default": "./dist/game-passes.mjs"
+		},
 		"./package.json": "./package.json"
 	},
 	"types": "./dist/index.d.mts",
@@ -34,7 +38,6 @@
 	"scripts": {
 		"build": "vp pack",
 		"dev": "vp pack --watch",
-		"lint": "eslint --cache src",
 		"test": "vitest",
 		"typecheck": "tsgo --noEmit -p tsconfig.build.json"
 	},
@@ -42,6 +45,7 @@
 		"@bedrock/typescript-config": "workspace:*",
 		"@bedrock/vite-config": "workspace:*",
 		"@types/bun": "catalog:types",
+		"jest-extended": "catalog:test",
 		"oxc-minify": "catalog:dev",
 		"typescript": "catalog:tsc",
 		"vitest": "catalog:test"
@@ -53,6 +57,7 @@
 	"publishConfig": {
 		"exports": {
 			".": "./dist/index.mjs",
+			"./game-passes": "./dist/game-passes.mjs",
 			"./package.json": "./package.json"
 		}
 	}
