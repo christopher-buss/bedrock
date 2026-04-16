@@ -90,6 +90,39 @@ export function buildMutateArgs(files: ReadonlyArray<FileChange>): Array<string>
 	return ["--mutate", patterns.join(",")];
 }
 
+/**
+ * Bucket file changes by the workspace package that contains them. Paths
+ * in the returned buckets are rewritten to be relative to their package
+ * directory so they can be passed to a per-package `stryker run` invocation.
+ * Files that don't live under any known package are dropped.
+ *
+ * @param files - Changes across the whole repo.
+ * @param packageDirectories - Repo-relative package directories (e.g. `packages/open-cloud`).
+ * @returns Map of package directory to changes with package-relative paths.
+ */
+export function groupByPackage(
+	files: ReadonlyArray<FileChange>,
+	packageDirectories: ReadonlyArray<string>,
+): Map<string, Array<FileChange>> {
+	const grouped = new Map<string, Array<FileChange>>();
+
+	for (const file of files) {
+		const packageDirectory = packageDirectories.find((directory) => {
+			return file.path.startsWith(`${directory}/`);
+		});
+		if (packageDirectory === undefined) {
+			continue;
+		}
+
+		const relativePath = file.path.slice(packageDirectory.length + 1);
+		const bucket = grouped.get(packageDirectory) ?? [];
+		bucket.push({ hunks: file.hunks, path: relativePath });
+		grouped.set(packageDirectory, bucket);
+	}
+
+	return grouped;
+}
+
 const HANDLERS: ReadonlyArray<LineHandler> = [
 	handleFileHeader,
 	handleNewFile,

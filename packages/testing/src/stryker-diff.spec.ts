@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildMutateArgs, parseDiff } from "./stryker-diff.ts";
+import { buildMutateArgs, groupByPackage, parseDiff } from "./stryker-diff.ts";
 
 describe(parseDiff, () => {
 	it("should return no files for an empty diff", () => {
@@ -184,5 +184,55 @@ describe(buildMutateArgs, () => {
 		]);
 
 		expect(args).toStrictEqual(["--mutate", "src/a.ts:1-5,src/a.ts:10-20,src/b.ts:3-3"]);
+	});
+});
+
+describe(groupByPackage, () => {
+	it("should return an empty map when no files are given", () => {
+		expect.assertions(1);
+
+		expect(groupByPackage([], ["packages/open-cloud"])).toStrictEqual(new Map());
+	});
+
+	it("should bucket files by package and strip the package prefix", () => {
+		expect.assertions(1);
+
+		const files = [
+			{ hunks: [{ endLine: 5, startLine: 1 }], path: "packages/open-cloud/src/a.ts" },
+			{ hunks: [{ endLine: 3, startLine: 3 }], path: "packages/cli/src/b.ts" },
+			{ hunks: [{ endLine: 2, startLine: 1 }], path: "packages/open-cloud/src/c.ts" },
+		];
+
+		const grouped = groupByPackage(files, ["packages/open-cloud", "packages/cli"]);
+
+		expect(grouped).toStrictEqual(
+			new Map([
+				["packages/cli", [{ hunks: [{ endLine: 3, startLine: 3 }], path: "src/b.ts" }]],
+				[
+					"packages/open-cloud",
+					[
+						{ hunks: [{ endLine: 5, startLine: 1 }], path: "src/a.ts" },
+						{ hunks: [{ endLine: 2, startLine: 1 }], path: "src/c.ts" },
+					],
+				],
+			]),
+		);
+	});
+
+	it("should drop files that fall outside every known package", () => {
+		expect.assertions(1);
+
+		const files = [
+			{ hunks: [{ endLine: 5, startLine: 1 }], path: "scripts/foo.ts" },
+			{ hunks: [{ endLine: 3, startLine: 3 }], path: "packages/cli/src/b.ts" },
+		];
+
+		const grouped = groupByPackage(files, ["packages/cli"]);
+
+		expect(grouped).toStrictEqual(
+			new Map([
+				["packages/cli", [{ hunks: [{ endLine: 3, startLine: 3 }], path: "src/b.ts" }]],
+			]),
+		);
 	});
 });
