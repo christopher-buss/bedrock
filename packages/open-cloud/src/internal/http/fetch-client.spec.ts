@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { RateLimitError } from "../../errors/rate-limit.ts";
 import {
 	buildFetchOptions,
 	buildUrl,
@@ -248,5 +249,50 @@ describe(createFetchHttpClient, () => {
 		expect(response.status).toBe(200);
 		expect(response.body).toStrictEqual({ id: "123" });
 		expect(response.headers["content-type"]).toBe("application/json");
+	});
+
+	it("should return RateLimitError for 429 with x-ratelimit-reset header", async () => {
+		expect.assertions(3);
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response("rate limited", {
+				headers: { "x-ratelimit-reset": "5" },
+				status: 429,
+			});
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		expect(result.success).toBe(false);
+
+		const { err } = result as { err: RateLimitError; success: false };
+
+		expect(err).toBeInstanceOf(RateLimitError);
+		expect(err.retryAfterSeconds).toBe(5);
+	});
+
+	it("should return RateLimitError with retryAfterSeconds 0 when header missing", async () => {
+		expect.assertions(3);
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response("rate limited", { status: 429 });
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		expect(result.success).toBe(false);
+
+		const { err } = result as { err: RateLimitError; success: false };
+
+		expect(err).toBeInstanceOf(RateLimitError);
+		expect(err.retryAfterSeconds).toBe(0);
 	});
 });

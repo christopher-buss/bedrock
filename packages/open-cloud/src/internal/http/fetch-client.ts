@@ -1,4 +1,5 @@
 import type { OpenCloudError } from "../../errors/base.ts";
+import { RateLimitError } from "../../errors/rate-limit.ts";
 import type { Result } from "../../types.ts";
 import { tryCatch } from "../utils/try-catch.ts";
 import type { HttpClient, HttpRequest, HttpResponse, RequestConfig } from "./types.ts";
@@ -117,20 +118,40 @@ export function createFetchHttpClient(
 				return fetchResult;
 			}
 
-			const response = fetchResult.data;
-			const bodyResult = await tryCatch(response.json());
-			if (!bodyResult.success) {
-				return bodyResult;
-			}
-
-			return {
-				data: {
-					body: bodyResult.data,
-					headers: headersToRecord(response.headers),
-					status: response.status,
-				},
-				success: true,
-			};
+			return classifyResponse(fetchResult.data);
 		},
+	};
+}
+
+/**
+ * Classifies a fetch `Response` into a typed `Result`.
+ *
+ * @param response - The raw fetch Response to classify.
+ * @returns A Result containing an HttpResponse on success or an OpenCloudError on failure.
+ */
+async function classifyResponse(response: Response): Promise<Result<HttpResponse, OpenCloudError>> {
+	if (response.status === 429) {
+		return {
+			err: new RateLimitError("Rate limited", {
+				retryAfterSeconds: parseRetryAfterSeconds(
+					response.headers.get("x-ratelimit-reset") ?? undefined,
+				),
+			}),
+			success: false,
+		};
+	}
+
+	const bodyResult = await tryCatch(response.json());
+	if (!bodyResult.success) {
+		return bodyResult;
+	}
+
+	return {
+		data: {
+			body: bodyResult.data,
+			headers: headersToRecord(response.headers),
+			status: response.status,
+		},
+		success: true,
 	};
 }
