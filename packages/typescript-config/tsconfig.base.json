@@ -7,6 +7,7 @@
 		"libReplacement": true,
 		"customConditions": ["source"],
 		"types": ["bun"],
+		"declarationDir": "${configDir}/dist",
 		"noEmit": false
 	},
 	"include": ["${configDir}/**/*"],
