@@ -92,4 +92,72 @@ describe(parseDiff, () => {
 			kind: "changes",
 		});
 	});
+
+	it("should collect every hunk range when a file has multiple hunks", () => {
+		expect.assertions(1);
+
+		const raw = [
+			"diff --git a/src/foo.ts b/src/foo.ts",
+			"index abc1234..def5678 100644",
+			"--- a/src/foo.ts",
+			"+++ b/src/foo.ts",
+			"@@ -1 +1 @@",
+			"-a",
+			"+b",
+			"@@ -10,2 +10,3 @@",
+			"-x",
+			"-y",
+			"+p",
+			"+q",
+			"+r",
+		].join("\n");
+
+		const result = parseDiff(raw);
+
+		expect(result).toStrictEqual({
+			files: [
+				{
+					hunks: [
+						{ endLine: 1, startLine: 1 },
+						{ endLine: 12, startLine: 10 },
+					],
+					path: "src/foo.ts",
+				},
+			],
+			kind: "changes",
+		});
+	});
+
+	it("should emit one entry per modified file when the diff spans several", () => {
+		expect.assertions(1);
+
+		const raw = [
+			"diff --git a/src/a.ts b/src/a.ts",
+			"index abc1..def2 100644",
+			"--- a/src/a.ts",
+			"+++ b/src/a.ts",
+			"@@ -3 +3 @@",
+			"-a",
+			"+b",
+			"diff --git a/src/b.ts b/src/b.ts",
+			"index ffff..1111 100644",
+			"--- a/src/b.ts",
+			"+++ b/src/b.ts",
+			"@@ -7,2 +7,2 @@",
+			"-x",
+			"-y",
+			"+p",
+			"+q",
+		].join("\n");
+
+		const result = parseDiff(raw);
+
+		expect(result).toStrictEqual({
+			files: [
+				{ hunks: [{ endLine: 3, startLine: 3 }], path: "src/a.ts" },
+				{ hunks: [{ endLine: 8, startLine: 7 }], path: "src/b.ts" },
+			],
+			kind: "changes",
+		});
+	});
 });
