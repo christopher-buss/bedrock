@@ -7,8 +7,12 @@
 		"libReplacement": true,
 		"customConditions": ["source"],
 		"types": ["bun"],
+		"rewriteRelativeImportExtensions": true,
+		"allowJs": false,
+		"exactOptionalPropertyTypes": true,
 		"declarationDir": "${configDir}/dist",
-		"noEmit": false
+		"noEmit": false,
+		"erasableSyntaxOnly": true
 	},
 	"include": ["${configDir}/**/*"],
 	"exclude": [

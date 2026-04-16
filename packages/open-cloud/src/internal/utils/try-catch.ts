@@ -1,4 +1,4 @@
-import type { Result } from "../../types";
+import type { Result } from "../../types.ts";
 
 /**
  * Wraps a promise into a {@link Result}, catching rejections.

@@ -15,12 +15,22 @@ export default isentinel(
 			},
 		},
 		type: "package",
+		typescript: {
+			erasableOnly: true,
+		},
 	},
 	{
 		name: "project/config",
 		files: ["*.config.{ts,js}"],
 		rules: {
 			"flawless/naming-convention": "off",
+		},
+	},
+	{
+		name: "project/src",
+		files: [`packages/*/*/${GLOB_SRC}`],
+		rules: {
+			"better-max-params/better-max-params": ["error", { func: 2 }],
 		},
 	},
 	{

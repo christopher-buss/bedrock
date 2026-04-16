@@ -6,7 +6,8 @@
 		"rootDir": "${configDir}/src",
 		"declaration": true,
 		"declarationMap": true,
-		"outDir": "${configDir}/dist"
+		"outDir": "${configDir}/dist",
+		"isolatedDeclarations": true
 	},
 	"include": ["${configDir}/src"],
 	"exclude": ["${configDir}/src/**/*.spec.ts", "${configDir}/src/**/*.test.ts"]

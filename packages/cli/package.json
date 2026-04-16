@@ -35,7 +35,7 @@
 		"build": "vp pack",
 		"dev": "vp pack --watch",
 		"test": "vitest",
-		"typecheck": "tsgo --noEmit -p tsconfig.build.json"
+		"typecheck": "tsgo --noEmit"
 	},
 	"devDependencies": {
 		"@bedrock/typescript-config": "workspace:*",
