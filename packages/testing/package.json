@@ -12,7 +12,8 @@
 	"type": "module",
 	"exports": {
 		"./jest-extended": "./src/jest-extended.ts",
-		"./stryker": "./src/stryker.ts"
+		"./stryker": "./src/stryker.ts",
+		"./stryker-diff": "./src/stryker-diff.ts"
 	},
 	"scripts": {
 		"test": "vp test",
