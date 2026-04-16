@@ -37,9 +37,6 @@
 		"test": "vitest",
 		"typecheck": "tsgo --noEmit -p tsconfig.build.json"
 	},
-	"dependencies": {
-		"@bedrock/ocale": "workspace:*"
-	},
 	"devDependencies": {
 		"@bedrock/typescript-config": "workspace:*",
 		"@bedrock/vite-config": "workspace:*",
