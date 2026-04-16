@@ -282,6 +282,9 @@ importers:
 
   packages/cli:
     devDependencies:
+      '@bedrock/testing':
+        specifier: workspace:*
+        version: link:../testing
       '@bedrock/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
@@ -300,6 +303,9 @@ importers:
 
   packages/open-cloud:
     devDependencies:
+      '@bedrock/testing':
+        specifier: workspace:*
+        version: link:../testing
       '@bedrock/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
@@ -309,12 +315,28 @@ importers:
       '@types/bun':
         specifier: catalog:types
         version: 1.3.4
-      jest-extended:
-        specifier: catalog:test
-        version: 7.0.0(typescript@6.0.2)
       oxc-minify:
         specifier: catalog:dev
         version: 0.125.0
+      typescript:
+        specifier: catalog:tsc
+        version: 6.0.2
+      vitest:
+        specifier: npm:@voidzero-dev/vite-plus-test@0.1.18
+        version: '@voidzero-dev/vite-plus-test@0.1.18(@types/node@24.10.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+
+  packages/testing:
+    dependencies:
+      jest-extended:
+        specifier: catalog:test
+        version: 7.0.0(typescript@6.0.2)
+    devDependencies:
+      '@bedrock/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/bun':
+        specifier: catalog:types
+        version: 1.3.4
       typescript:
         specifier: catalog:tsc
         version: 6.0.2
@@ -330,6 +352,9 @@ importers:
 
   packages/vite-config:
     dependencies:
+      '@bedrock/testing':
+        specifier: workspace:*
+        version: link:../testing
       vite-plus:
         specifier: catalog:build
         version: 0.1.18(@types/node@24.10.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
@@ -340,9 +365,6 @@ importers:
       '@types/bun':
         specifier: catalog:types
         version: 1.3.4
-      jest-extended:
-        specifier: catalog:test
-        version: 7.0.0(typescript@6.0.2)
       typescript:
         specifier: catalog:tsc
         version: 6.0.2
