@@ -1,4 +1,9 @@
-import { buildMutateArgs, groupByPackage, parseDiff } from "@bedrock/testing/stryker-diff";
+import {
+	buildMutateArgs,
+	filterMutableFiles,
+	groupByPackage,
+	parseDiff,
+} from "@bedrock/testing/stryker-diff";
 
 import { spawnSync } from "node:child_process";
 import { glob } from "node:fs/promises";
@@ -35,7 +40,7 @@ function runStrykerForEach(
 	for (const [packageDirectory, files] of grouped) {
 		const args = buildMutateArgs(files);
 		console.log(`\n→ Running Stryker in ${packageDirectory}`);
-		const result = spawnSync("pnpm", ["exec", "stryker", "run", ...args], {
+		const result = spawnSync("pnpm", ["exec", "stryker", "run", "stryker.config.ts", ...args], {
 			cwd: packageDirectory,
 			stdio: "inherit",
 		});
@@ -68,13 +73,14 @@ async function main(): Promise<void> {
 		process.exit(2);
 	}
 
-	if (parsed.files.length === 0) {
+	const mutable = filterMutableFiles(parsed.files);
+	if (mutable.length === 0) {
 		console.log("No modified files — nothing to mutate.");
 		return;
 	}
 
 	const packageDirectories = await discoverStrykerPackages();
-	const grouped = groupByPackage(parsed.files, packageDirectories);
+	const grouped = groupByPackage(mutable, packageDirectories);
 
 	if (grouped.size === 0) {
 		console.log("No mutable files under any Stryker-configured package.");

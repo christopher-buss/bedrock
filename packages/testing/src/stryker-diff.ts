@@ -90,6 +90,23 @@ export function buildMutateArgs(files: ReadonlyArray<FileChange>): Array<string>
 	return ["--mutate", patterns.join(",")];
 }
 
+const NON_MUTABLE_SUFFIXES: ReadonlyArray<string> = [".spec.ts", ".test.ts", ".d.ts"];
+
+/**
+ * Filter out files that Stryker should never mutate: test files and type
+ * declarations. Used to clean up a `parseDiff` result before passing it to
+ * `buildMutateArgs`, since the CLI `--mutate` flag overrides the config's
+ * own ignore patterns.
+ *
+ * @param files - Changes as returned by {@link parseDiff}.
+ * @returns The subset whose paths point at production source files.
+ */
+export function filterMutableFiles(files: ReadonlyArray<FileChange>): Array<FileChange> {
+	return files.filter(
+		(file) => !NON_MUTABLE_SUFFIXES.some((suffix) => file.path.endsWith(suffix)),
+	);
+}
+
 /**
  * Bucket file changes by the workspace package that contains them. Paths
  * in the returned buckets are rewritten to be relative to their package

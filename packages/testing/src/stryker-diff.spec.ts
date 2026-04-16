@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildMutateArgs, groupByPackage, parseDiff } from "./stryker-diff.ts";
+import { buildMutateArgs, filterMutableFiles, groupByPackage, parseDiff } from "./stryker-diff.ts";
 
 describe(parseDiff, () => {
 	it("should return no files for an empty diff", () => {
@@ -234,5 +234,24 @@ describe(groupByPackage, () => {
 				["packages/cli", [{ hunks: [{ endLine: 3, startLine: 3 }], path: "src/b.ts" }]],
 			]),
 		);
+	});
+});
+
+describe(filterMutableFiles, () => {
+	it("should drop spec, test, and declaration files", () => {
+		expect.assertions(1);
+
+		const files = [
+			{ hunks: [{ endLine: 1, startLine: 1 }], path: "src/a.ts" },
+			{ hunks: [{ endLine: 2, startLine: 2 }], path: "src/a.spec.ts" },
+			{ hunks: [{ endLine: 3, startLine: 3 }], path: "src/a.test.ts" },
+			{ hunks: [{ endLine: 4, startLine: 4 }], path: "src/types.d.ts" },
+			{ hunks: [{ endLine: 5, startLine: 5 }], path: "src/b.ts" },
+		];
+
+		expect(filterMutableFiles(files)).toStrictEqual([
+			{ hunks: [{ endLine: 1, startLine: 1 }], path: "src/a.ts" },
+			{ hunks: [{ endLine: 5, startLine: 5 }], path: "src/b.ts" },
+		]);
 	});
 });
