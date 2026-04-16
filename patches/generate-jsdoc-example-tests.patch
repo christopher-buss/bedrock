@@ -1,0 +1,66 @@
+diff --git a/lib/import.js b/lib/import.js
+index 9284bfe4bb04a149c5cba32df7791de1b0bc3298..e4d43102ea5b2f4b9f5bb2090b48790f05baa806 100644
+--- a/lib/import.js
++++ b/lib/import.js
+@@ -48,7 +48,7 @@ export function mergeImports(imports) {
+         return r[0];
+     });
+     const namedImports = Object.values(reduced.namedImports).map((r) => {
+-        const names = r.reduce((acc, i) => {
++        const accumulated = r.reduce((acc, i) => {
+             const idents = i.importClause?.name
+                 ? unique([...acc.idents, i.importClause.name.escapedText])
+                 : acc.idents;
+@@ -56,28 +56,34 @@ export function mergeImports(imports) {
+             if (!namedImports) {
+                 return { ...acc, idents };
+             }
+-            const specifiers = namedImports.elements
+-                ?.filter(e => e)
+-                .map(s => {
+-                if (s.propertyName) {
+-                    return `${s.propertyName.text} as ${s.name.escapedText}`;
+-                }
+-                return s.name.escapedText;
+-            });
+-            return {
+-                bindings: unique([...acc.bindings, ...specifiers]),
+-                idents
+-            };
+-        }, { bindings: [], idents: [] });
+-        const namedImportSpecifiers = names.bindings.map(n => {
++            const clauseIsTypeOnly = !!i.importClause?.isTypeOnly;
++            const bindings = new Map(acc.bindings);
++            for (const s of (namedImports.elements ?? []).filter(e => e)) {
++                const name = s.propertyName
++                    ? `${s.propertyName.text} as ${s.name.escapedText}`
++                    : s.name.escapedText;
++                const specIsTypeOnly = !!s.isTypeOnly || clauseIsTypeOnly;
++                const existing = bindings.get(name);
++                // A value import of a given name subsumes any type-only import of the same name.
++                bindings.set(name, {
++                    isTypeOnly: (existing?.isTypeOnly ?? true) && specIsTypeOnly,
++                });
++            }
++            return { bindings, idents };
++        }, { bindings: new Map(), idents: [] });
++        const entries = Array.from(accumulated.bindings.entries());
++        const allTypeOnly = entries.length > 0 && entries.every(([, v]) => v.isTypeOnly);
++        // When the entire clause is `import type { ... }`, the per-specifier `type`
++        // keyword is redundant (and TS forbids it). Strip it in that case.
++        const namedImportSpecifiers = entries.map(([n, v]) => {
+             // TOOD: passing propertyName with correct way
+-            return ts.factory.createImportSpecifier(undefined, undefined, ts.factory.createIdentifier(n));
++            return ts.factory.createImportSpecifier(allTypeOnly ? false : v.isTypeOnly, undefined, ts.factory.createIdentifier(n));
+         });
+-        const name = names.idents.length !== 0
+-            ? ts.factory.createIdentifier(names.idents[0])
++        const name = accumulated.idents.length !== 0
++            ? ts.factory.createIdentifier(accumulated.idents[0])
+             : undefined;
+         return ts.factory.createImportDeclaration(undefined, // modifiers (like 'declare' modifier)
+-        ts.factory.createImportClause(false, // isTypeOnly (new required parameter)
++        ts.factory.createImportClause(allTypeOnly, // isTypeOnly (new required parameter)
+         name, // default import (name)
+         ts.factory.createNamedImports(namedImportSpecifiers)), r[0].moduleSpecifier);
+     });

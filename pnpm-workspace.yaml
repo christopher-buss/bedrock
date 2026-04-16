@@ -8,7 +8,6 @@ publicHoistPattern:
 
 shellEmulator: true
 trustPolicy: no-downgrade
-trustPolicyIgnoreAfter: 10080 # 7 days
 
 trustPolicyExclude:
   - eslint-config-prettier@9.1.2
@@ -27,6 +26,9 @@ overrides:
   "@typescript-eslint/utils": 8.58.1
   vite: npm:@voidzero-dev/vite-plus-core@0.1.18
   vitest: npm:@voidzero-dev/vite-plus-test@0.1.18
+
+patchedDependencies:
+  generate-jsdoc-example-tests: patches/generate-jsdoc-example-tests.patch
 
 catalogs:
   build:
@@ -83,3 +85,4 @@ onlyBuiltDependencies:
   - unrs-resolver
 
 onlyBuiltDependenciesFile: node_modules/.pnpm-config/@pnpm/trusted-deps/allow.json
+trustPolicyIgnoreAfter: 10080 # 7 days

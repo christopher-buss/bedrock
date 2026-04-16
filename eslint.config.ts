@@ -4,7 +4,7 @@ export default isentinel(
 	{
 		name: "bedrock/root",
 		flawless: true,
-		ignores: ["!.claude", "**/vendor/**"],
+		ignores: ["!.claude", "**/vendor/**", "**/*.example.spec.ts"],
 		namedConfigs: true,
 		pnpm: true,
 		roblox: false,

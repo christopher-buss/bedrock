@@ -1,0 +1,316 @@
+import { describe, expect, it, vi } from "vitest";
+
+import { ApiError } from "../../errors/api-error.ts";
+import { NetworkError } from "../../errors/network-error.ts";
+import { RateLimitError } from "../../errors/rate-limit.ts";
+import {
+	computeRetryWaitMs,
+	CREATE_METHOD_DEFAULTS,
+	defaultRetryDelay,
+	IDEMPOTENT_METHOD_DEFAULTS,
+	mergeConfig,
+	type RetryResolvable,
+	shouldRetry,
+} from "./retry.ts";
+
+/**
+ * Builds a fully-populated {@link RetryResolvable} for tests. Every field has
+ * a default, so adding a new required field to the interface breaks this
+ * factory (one place, centrally) — forcing tests to opt into the new shape.
+ *
+ * @param overrides - Fields to replace on the default fixture.
+ * @returns A fresh RetryResolvable with `overrides` applied.
+ */
+function makeConfig(overrides: Partial<RetryResolvable> = {}): RetryResolvable {
+	return {
+		apiKey: "test-key",
+		baseUrl: "https://test.example",
+		maxRetries: 3,
+		retryableStatuses: [429],
+		retryDelay: defaultRetryDelay,
+		timeout: 30_000,
+		...overrides,
+	};
+}
+
+describe(defaultRetryDelay, () => {
+	it.for<[attempt: number, expected: number]>([
+		[0, 1000],
+		[1, 2000],
+		[2, 4000],
+		[3, 8000],
+	])("should double the wait on each attempt (attempt %i → %ims)", ([attempt, expected]) => {
+		expect.assertions(1);
+
+		expect(defaultRetryDelay(attempt)).toBe(expected);
+	});
+
+	it("should cap the wait at 30 seconds once backoff exceeds it", () => {
+		expect.assertions(1);
+
+		expect(defaultRetryDelay(10)).toBe(30_000);
+	});
+});
+
+describe(computeRetryWaitMs, () => {
+	it("should honor the server-supplied retry-after hint when present", () => {
+		expect.assertions(2);
+
+		const retryDelay = vi.fn<(attempt: number) => number>(() => 99_999);
+		const error = new RateLimitError("slow down", { retryAfterSeconds: 3 });
+
+		expect(computeRetryWaitMs(error, { attempt: 0, retryDelay })).toBe(3000);
+		expect(retryDelay).not.toHaveBeenCalled();
+	});
+
+	it("should fall back to the retryDelay function when RateLimitError has no server hint", () => {
+		expect.assertions(2);
+
+		const retryDelay = vi.fn<(attempt: number) => number>((attempt) => 1000 * (attempt + 1));
+		const error = new RateLimitError("slow down", { retryAfterSeconds: 0 });
+
+		expect(computeRetryWaitMs(error, { attempt: 2, retryDelay })).toBe(3000);
+		expect(retryDelay).toHaveBeenCalledWith(2);
+	});
+
+	it("should fall back to the retryDelay function for non-rate-limit errors", () => {
+		expect.assertions(2);
+
+		const retryDelay = vi.fn<(attempt: number) => number>((attempt) => 500 * (attempt + 1));
+		const error = new ApiError("server error", { statusCode: 503 });
+
+		expect(computeRetryWaitMs(error, { attempt: 1, retryDelay })).toBe(1000);
+		expect(retryDelay).toHaveBeenCalledWith(1);
+	});
+
+	it("should forward the attempt index to the retryDelay function", () => {
+		expect.assertions(1);
+
+		const retryDelay = vi.fn<(attempt: number) => number>(() => 0);
+		const error = new ApiError("server error", { statusCode: 500 });
+
+		computeRetryWaitMs(error, { attempt: 7, retryDelay });
+
+		expect(retryDelay).toHaveBeenCalledWith(7);
+	});
+});
+
+describe(shouldRetry, () => {
+	it("should mark rate-limit errors as retryable when 429 is in the allow-list", () => {
+		expect.assertions(1);
+
+		const error = new RateLimitError("slow down", { retryAfterSeconds: 1 });
+
+		expect(shouldRetry(error, { retryableStatuses: [429, 500] })).toBe(true);
+	});
+
+	it("should not mark rate-limit errors as retryable when 429 is excluded", () => {
+		expect.assertions(1);
+
+		const error = new RateLimitError("slow down", { retryAfterSeconds: 1 });
+
+		expect(shouldRetry(error, { retryableStatuses: [500, 502] })).toBe(false);
+	});
+
+	it("should mark API errors as retryable when their status is in the allow-list", () => {
+		expect.assertions(1);
+
+		const error = new ApiError("unavailable", { statusCode: 503 });
+
+		expect(shouldRetry(error, { retryableStatuses: [429, 500, 502, 503, 504] })).toBe(true);
+	});
+
+	it("should not mark API errors as retryable when their status is excluded", () => {
+		expect.assertions(1);
+
+		const error = new ApiError("bad request", { statusCode: 400 });
+
+		expect(shouldRetry(error, { retryableStatuses: [429, 500] })).toBe(false);
+	});
+
+	it("should not mark network errors as retryable", () => {
+		expect.assertions(1);
+
+		const error = new NetworkError("offline");
+
+		expect(shouldRetry(error, { retryableStatuses: [429, 500] })).toBe(false);
+	});
+
+	it("should not mark unclassified Error instances as retryable", () => {
+		expect.assertions(1);
+
+		expect(shouldRetry(new Error("boom"), { retryableStatuses: [429] })).toBe(false);
+	});
+
+	it("should not mark non-Error values as retryable", () => {
+		expect.assertions(3);
+
+		expect(shouldRetry(null, { retryableStatuses: [429] })).toBe(false);
+		expect(shouldRetry("oops", { retryableStatuses: [429] })).toBe(false);
+		expect(shouldRetry(undefined, { retryableStatuses: [429] })).toBe(false);
+	});
+});
+
+describe("method retry defaults", () => {
+	it("should restrict create methods to retrying rate limits only", () => {
+		expect.assertions(1);
+
+		expect(CREATE_METHOD_DEFAULTS.retryableStatuses).toStrictEqual([429]);
+	});
+
+	it("should allow idempotent methods to retry rate limits and common 5xx", () => {
+		expect.assertions(1);
+
+		expect(IDEMPOTENT_METHOD_DEFAULTS.retryableStatuses).toStrictEqual([
+			429, 500, 502, 503, 504,
+		]);
+	});
+});
+
+describe(mergeConfig, () => {
+	describe("create methods", () => {
+		it("should have method defaults override client config (create-guard)", () => {
+			expect.assertions(1);
+
+			const clientConfig = makeConfig({ retryableStatuses: [429, 500] });
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: CREATE_METHOD_DEFAULTS,
+				methodKind: "create",
+			});
+
+			expect(merged.retryableStatuses).toStrictEqual([429]);
+		});
+
+		it("should have requestOptions override method defaults", () => {
+			expect.assertions(1);
+
+			const clientConfig = makeConfig({ retryableStatuses: [429, 500] });
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: CREATE_METHOD_DEFAULTS,
+				methodKind: "create",
+				requestOptions: { retryableStatuses: [429, 500, 503] },
+			});
+
+			expect(merged.retryableStatuses).toStrictEqual([429, 500, 503]);
+		});
+
+		it("should keep client apiKey when method defaults do not supply one", () => {
+			expect.assertions(1);
+
+			const clientConfig = makeConfig({ apiKey: "client-key" });
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: CREATE_METHOD_DEFAULTS,
+				methodKind: "create",
+			});
+
+			expect(merged.apiKey).toBe("client-key");
+		});
+
+		it("should let requestOptions override client apiKey", () => {
+			expect.assertions(1);
+
+			const clientConfig = makeConfig({ apiKey: "client-key" });
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: CREATE_METHOD_DEFAULTS,
+				methodKind: "create",
+				requestOptions: { apiKey: "request-key" },
+			});
+
+			expect(merged.apiKey).toBe("request-key");
+		});
+
+		it("should let requestOptions override client baseUrl", () => {
+			expect.assertions(1);
+
+			const clientConfig = makeConfig({ baseUrl: "https://client.example" });
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: CREATE_METHOD_DEFAULTS,
+				methodKind: "create",
+				requestOptions: { baseUrl: "https://request.example" },
+			});
+
+			expect(merged.baseUrl).toBe("https://request.example");
+		});
+
+		it("should let requestOptions override client timeout", () => {
+			expect.assertions(1);
+
+			const clientConfig = makeConfig({ timeout: 5_000 });
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: CREATE_METHOD_DEFAULTS,
+				methodKind: "create",
+				requestOptions: { timeout: 20_000 },
+			});
+
+			expect(merged.timeout).toBe(20_000);
+		});
+
+		it("should let requestOptions override client maxRetries", () => {
+			expect.assertions(1);
+
+			const clientConfig = makeConfig({ maxRetries: 3 });
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: CREATE_METHOD_DEFAULTS,
+				methodKind: "create",
+				requestOptions: { maxRetries: 0 },
+			});
+
+			expect(merged.maxRetries).toBe(0);
+		});
+	});
+
+	describe("idempotent methods", () => {
+		it("should have client config override method defaults", () => {
+			expect.assertions(1);
+
+			const clientConfig = makeConfig({ retryableStatuses: [429, 500] });
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+				methodKind: "idempotent",
+			});
+
+			expect(merged.retryableStatuses).toStrictEqual([429, 500]);
+		});
+
+		it("should have requestOptions override client config", () => {
+			expect.assertions(1);
+
+			const clientConfig = makeConfig({ retryableStatuses: [429, 500] });
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+				methodKind: "idempotent",
+				requestOptions: { retryableStatuses: [503] },
+			});
+
+			expect(merged.retryableStatuses).toStrictEqual([503]);
+		});
+	});
+
+	it("should not mutate the input clientConfig", () => {
+		expect.assertions(2);
+
+		const clientConfig = makeConfig({
+			apiKey: "client-key",
+			retryableStatuses: [429, 500],
+		});
+		const snapshot = { ...clientConfig };
+
+		mergeConfig(clientConfig, {
+			methodDefaults: CREATE_METHOD_DEFAULTS,
+			methodKind: "create",
+			requestOptions: { apiKey: "request-key", retryableStatuses: [503] },
+		});
+
+		expect(clientConfig).toStrictEqual(snapshot);
+		expect(clientConfig.retryableStatuses).toStrictEqual([429, 500]);
+	});
+});
