@@ -8,7 +8,9 @@
 		"customConditions": ["source"],
 		"types": ["bun"],
 		"declarationDir": "${configDir}/dist",
-		"noEmit": false
+		"noEmit": false,
+		"isolatedDeclarations": true,
+		"erasableSyntaxOnly": true
 	},
 	"include": ["${configDir}/**/*"],
 	"exclude": [

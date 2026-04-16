@@ -15,6 +15,9 @@ export default isentinel(
 			},
 		},
 		type: "package",
+		typescript: {
+			erasableOnly: true,
+		},
 	},
 	{
 		name: "project/config",

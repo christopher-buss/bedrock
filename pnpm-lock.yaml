@@ -72,6 +72,9 @@ catalogs:
     eslint:
       specifier: 9.39.2
       version: 9.39.2
+    eslint-plugin-erasable-syntax-only:
+      specifier: 0.4.0
+      version: 0.4.0
     eslint-plugin-n:
       specifier: 17.24.0
       version: 17.24.0
@@ -185,6 +188,9 @@ importers:
       eslint:
         specifier: catalog:lint
         version: 9.39.2(jiti@2.6.1)
+      eslint-plugin-erasable-syntax-only:
+        specifier: catalog:lint
+        version: 0.4.0(@typescript-eslint/parser@8.58.1(eslint@9.39.2(jiti@2.6.1))(typescript@6.0.2))(eslint@9.39.2(jiti@2.6.1))(typescript@6.0.2)
       eslint-plugin-n:
         specifier: catalog:lint
         version: 17.24.0(eslint@9.39.2(jiti@2.6.1))(typescript@6.0.2)
@@ -3053,6 +3059,10 @@ packages:
   cacheable@2.3.4:
     resolution: {integrity: sha512-djgxybDbw9fL/ZWMI3+CE8ZilNxcwFkVtDc1gJ+IlOSSWkSMPQabhV/XCHTQ6pwwN6aivXPZ43omTooZiX06Ew==}
 
+  cached-factory@0.1.0:
+    resolution: {integrity: sha512-IGOSWu+NuED5UzCRmBeqQPZ8z7SkgrD/nN67W2iY1Qv83CVhevyMexkGclJ86saXisIqxoOnbeiTWvsCHRqJBw==}
+    engines: {node: '>=18'}
+
   callsites@3.1.0:
     resolution: {integrity: sha512-P8BjAsXvZS+VIDUI11hHCQEv74YT67YUi5JJFNWIqL235sBmjX4+qx9Muvls5ivyNENctx46xQLQ3aTuE7ssaQ==}
     engines: {node: '>=6'}
@@ -3522,6 +3532,14 @@ packages:
     engines: {node: ^20.0.0 || >=22.0.0}
     peerDependencies:
       eslint: '>=8.0.0'
+
+  eslint-plugin-erasable-syntax-only@0.4.0:
+    resolution: {integrity: sha512-7dx2gpfVn0FFEGukLqsF/izW4hGvSaySNOkcuSCO4q6Khh0ecOGYlRhW9hhDUtNryuKc+cXd1WFiQdpae3xzaQ==}
+    engines: {node: '>=20.18.0'}
+    peerDependencies:
+      '@typescript-eslint/parser': 8.58.1
+      eslint: '>=9'
+      typescript: '>=5'
 
   eslint-plugin-es-x@7.8.0:
     resolution: {integrity: sha512-7Ds8+wAAoV3T+LAKeu39Y5BzXCrGKrcISfgKEqTS4BDN8SFEDQd0S43jiQ8vIa3wUKD07qitZdfzlenSi8/0qQ==}
@@ -7788,6 +7806,8 @@ snapshots:
       keyv: 5.6.0
       qified: 0.9.1
 
+  cached-factory@0.1.0: {}
+
   callsites@3.1.0: {}
 
   caniuse-lite@1.0.30001757: {}
@@ -8280,6 +8300,16 @@ snapshots:
   eslint-plugin-de-morgan@2.0.0(eslint@9.39.2(jiti@2.6.1)):
     dependencies:
       eslint: 9.39.2(jiti@2.6.1)
+
+  eslint-plugin-erasable-syntax-only@0.4.0(@typescript-eslint/parser@8.58.1(eslint@9.39.2(jiti@2.6.1))(typescript@6.0.2))(eslint@9.39.2(jiti@2.6.1))(typescript@6.0.2):
+    dependencies:
+      '@typescript-eslint/parser': 8.58.1(eslint@9.39.2(jiti@2.6.1))(typescript@6.0.2)
+      '@typescript-eslint/utils': 8.58.1(eslint@9.39.2(jiti@2.6.1))(typescript@6.0.2)
+      cached-factory: 0.1.0
+      eslint: 9.39.2(jiti@2.6.1)
+      typescript: 6.0.2
+    transitivePeerDependencies:
+      - supports-color
 
   eslint-plugin-es-x@7.8.0(eslint@9.39.2(jiti@2.6.1)):
     dependencies:

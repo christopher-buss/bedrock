@@ -51,6 +51,7 @@
 		"@vitest/eslint-plugin": "catalog:lint",
 		"better-typescript-lib": "catalog:tsc",
 		"eslint": "catalog:lint",
+		"eslint-plugin-erasable-syntax-only": "catalog:lint",
 		"eslint-plugin-n": "catalog:lint",
 		"eslint-plugin-pnpm": "catalog:lint",
 		"eslint_d": "catalog:dev",
