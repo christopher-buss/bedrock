@@ -1,5 +1,6 @@
 import { ApiError } from "../../errors/api-error.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
+import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
 import type { Result } from "../../types.ts";
 import { tryCatch } from "../utils/try-catch.ts";
@@ -116,7 +117,10 @@ export function createFetchHttpClient(
 
 			const fetchResult = await tryCatch(fetchFunc(url, options));
 			if (!fetchResult.success) {
-				return fetchResult;
+				return {
+					err: new NetworkError("Network request failed", { cause: fetchResult.err }),
+					success: false,
+				};
 			}
 
 			return classifyResponse(fetchResult.data);
@@ -140,28 +144,29 @@ function createApiError(status: number, body: unknown): ApiError {
  * @param response - The raw fetch Response to classify.
  * @returns A Result containing an HttpResponse on success or an OpenCloudError on failure.
  */
+function createRateLimitError(response: Response): RateLimitError {
+	return new RateLimitError("Rate limited", {
+		retryAfterSeconds: parseRetryAfterSeconds(
+			response.headers.get("x-ratelimit-reset") ?? undefined,
+		),
+	});
+}
+
 async function classifyResponse(response: Response): Promise<Result<HttpResponse, OpenCloudError>> {
 	if (response.status === 429) {
-		return {
-			err: new RateLimitError("Rate limited", {
-				retryAfterSeconds: parseRetryAfterSeconds(
-					response.headers.get("x-ratelimit-reset") ?? undefined,
-				),
-			}),
-			success: false,
-		};
+		return { err: createRateLimitError(response), success: false };
 	}
 
 	const bodyResult = await tryCatch(response.json());
 	if (!bodyResult.success) {
-		return bodyResult;
+		return {
+			err: new ApiError("Failed to parse response body", { statusCode: response.status }),
+			success: false,
+		};
 	}
 
 	if (response.status < 200 || response.status >= 300) {
-		return {
-			err: createApiError(response.status, bodyResult.data),
-			success: false,
-		};
+		return { err: createApiError(response.status, bodyResult.data), success: false };
 	}
 
 	return {

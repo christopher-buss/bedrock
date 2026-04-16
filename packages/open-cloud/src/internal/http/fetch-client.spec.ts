@@ -1,6 +1,7 @@
 import { assert, describe, expect, it } from "vitest";
 
 import { ApiError } from "../../errors/api-error.ts";
+import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
 import {
 	buildFetchOptions,
@@ -326,5 +327,44 @@ describe(createFetchHttpClient, () => {
 
 		expect(result.err.statusCode).toBe(500);
 		expect(result.err.code).toBeUndefined();
+	});
+
+	it("should return ApiError when response body is not valid JSON", async () => {
+		expect.assertions(1);
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response("not json", { status: 200 });
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
+		expect(result.err.message).toBe("Failed to parse response body");
+	});
+
+	it("should return NetworkError when fetch throws TypeError", async () => {
+		expect.assertions(1);
+
+		const cause = new TypeError("Failed to fetch");
+		async function fakeFetch(): Promise<Response> {
+			throw cause;
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof NetworkError);
+
+		expect(result.err.cause).toBe(cause);
 	});
 });
