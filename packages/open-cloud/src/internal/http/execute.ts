@@ -1,7 +1,9 @@
+import { ApiError } from "../../errors/api-error.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
+import { RateLimitError } from "../../errors/rate-limit.ts";
 import type { Result } from "../../types.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
-import type { RetryResolvable } from "./retry.ts";
+import { computeRetryWaitMs, type RetryResolvable, shouldRetry } from "./retry.ts";
 import type { HttpRequest, HttpResponse, OpenCloudHooks } from "./types.ts";
 
 /** A transport callback: takes a request, returns a classified Result. */
@@ -37,6 +39,28 @@ export async function executeWithRetry(
 	request: HttpRequest,
 	options: ExecuteOptions,
 ): Promise<Result<HttpResponse, OpenCloudError>> {
-	options.hooks.onRequest?.(request);
-	return options.send(request);
+	const { config, hooks, send, sleep } = options;
+	let attempt = 0;
+
+	while (true) {
+		hooks.onRequest?.(request);
+		const result = await send(request);
+
+		if (result.success) {
+			return result;
+		}
+
+		const { err } = result;
+		const isClassified = err instanceof ApiError || err instanceof RateLimitError;
+
+		if (!isClassified || attempt >= config.maxRetries || !shouldRetry(err, config)) {
+			return result;
+		}
+
+		hooks.onRetry?.(attempt + 1, err);
+		const waitMs = computeRetryWaitMs(err, { attempt, retryDelay: config.retryDelay });
+		hooks.onRateLimit?.(waitMs);
+		await sleep(waitMs);
+		attempt += 1;
+	}
 }
