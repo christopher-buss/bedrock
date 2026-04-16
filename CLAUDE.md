@@ -14,7 +14,7 @@ tool no longer maintained).
 - **State**: GitHub Gists (default), extensible backends
 - **Auth**: Roblox Open Cloud APIs only (no ROBLOSECURITY)
 - **Toolchain**: Vite+ (`vp pack` builds, `vp test` runs Vitest, `vp run` orchestrates tasks)
-- **Lint**: eslint (retained for `@isentinel/eslint-config` custom rules)
+- **Lint**: eslint from monorepo root only (`pnpm lint`), no per-package lint scripts
 
 ## Architecture Quick Reference
 
