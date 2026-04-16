@@ -5,6 +5,8 @@ node_modules
 
 # Testing
 coverage
+reports
+.stryker-tmp
 
 # Build outputs
 dist

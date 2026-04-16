@@ -11,7 +11,8 @@
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
 	"type": "module",
 	"exports": {
-		"./jest-extended": "./src/jest-extended.ts"
+		"./jest-extended": "./src/jest-extended.ts",
+		"./stryker": "./src/stryker.ts"
 	},
 	"scripts": {
 		"typecheck": "tsgo --noEmit"
@@ -21,6 +22,9 @@
 	},
 	"devDependencies": {
 		"@bedrock/typescript-config": "workspace:*",
+		"@stryker-mutator/api": "catalog:test",
+		"@stryker-mutator/core": "catalog:test",
+		"@stryker-mutator/vitest-runner": "catalog:test",
 		"@types/bun": "catalog:types",
 		"typescript": "catalog:tsc",
 		"vitest": "catalog:test"
