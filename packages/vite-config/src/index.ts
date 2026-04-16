@@ -40,7 +40,7 @@ export const sharedConfig = {
 		},
 		globals: false,
 		passWithNoTests: true,
-		setupFiles: ["@bedrock/vite-config/vitest-setup"],
+		setupFiles: ["@bedrock/testing/jest-extended"],
 		typecheck: {
 			enabled: true,
 		},

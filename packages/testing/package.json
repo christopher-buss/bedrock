@@ -1,34 +1,29 @@
 {
-	"name": "@bedrock/vite-config",
+	"name": "@bedrock/testing",
 	"version": "0.0.0",
 	"private": true,
-	"description": "Shared Vite configuration for Bedrock packages",
+	"description": "Shared testing utilities for Bedrock packages",
 	"keywords": [
-		"vite",
-		"configuration",
-		"testing"
+		"testing",
+		"vitest",
+		"jest-extended"
 	],
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
 	"type": "module",
 	"exports": {
-		".": {
-			"types": "./src/index.ts",
-			"import": "./src/index.ts"
-		}
+		"./jest-extended": "./src/jest-extended.ts"
 	},
-	"main": "./src/index.ts",
-	"types": "./src/index.ts",
 	"scripts": {
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
-		"@bedrock/testing": "workspace:*",
-		"vite-plus": "catalog:build"
+		"jest-extended": "catalog:test"
 	},
 	"devDependencies": {
 		"@bedrock/typescript-config": "workspace:*",
 		"@types/bun": "catalog:types",
-		"typescript": "catalog:tsc"
+		"typescript": "catalog:tsc",
+		"vitest": "catalog:test"
 	},
 	"engines": {
 		"bun": ">=1.0.0"

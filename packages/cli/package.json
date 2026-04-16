@@ -38,6 +38,7 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"devDependencies": {
+		"@bedrock/testing": "workspace:*",
 		"@bedrock/typescript-config": "workspace:*",
 		"@bedrock/vite-config": "workspace:*",
 		"@types/bun": "catalog:types",
