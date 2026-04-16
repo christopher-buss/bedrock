@@ -357,6 +357,9 @@ importers:
       '@bedrock/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
+      '@bedrock/vite-config':
+        specifier: workspace:*
+        version: link:../vite-config
       '@stryker-mutator/api':
         specifier: catalog:test
         version: 9.6.1

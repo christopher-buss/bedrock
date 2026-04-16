@@ -15,6 +15,7 @@
 		"./stryker": "./src/stryker.ts"
 	},
 	"scripts": {
+		"test": "vp test",
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
@@ -22,6 +23,7 @@
 	},
 	"devDependencies": {
 		"@bedrock/typescript-config": "workspace:*",
+		"@bedrock/vite-config": "workspace:*",
 		"@stryker-mutator/api": "catalog:test",
 		"@stryker-mutator/core": "catalog:test",
 		"@stryker-mutator/vitest-runner": "catalog:test",
