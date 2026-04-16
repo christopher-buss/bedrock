@@ -9,6 +9,7 @@
 		"types": ["bun"],
 		"allowImportingTsExtensions": true,
 		"allowJs": false,
+		"exactOptionalPropertyTypes": true,
 		"declarationDir": "${configDir}/dist",
 		"noEmit": false,
 		"isolatedDeclarations": true,
