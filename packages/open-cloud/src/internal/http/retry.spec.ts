@@ -151,16 +151,14 @@ describe(shouldRetry, () => {
 	});
 });
 
-describe("cREATE_METHOD_DEFAULTS", () => {
-	it("should expose retryableStatuses of [429] only", () => {
+describe("method retry defaults", () => {
+	it("should restrict create methods to retrying rate limits only", () => {
 		expect.assertions(1);
 
 		expect(CREATE_METHOD_DEFAULTS.retryableStatuses).toStrictEqual([429]);
 	});
-});
 
-describe("iDEMPOTENT_METHOD_DEFAULTS", () => {
-	it("should expose retryableStatuses of [429, 500, 502, 503, 504]", () => {
+	it("should allow idempotent methods to retry rate limits and common 5xx", () => {
 		expect.assertions(1);
 
 		expect(IDEMPOTENT_METHOD_DEFAULTS.retryableStatuses).toStrictEqual([
