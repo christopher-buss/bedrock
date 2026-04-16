@@ -24,6 +24,13 @@ export default isentinel(
 		},
 	},
 	{
+		name: "project/src",
+		files: [`packages/*/*/${GLOB_SRC}`],
+		rules: {
+			"better-max-params/better-max-params": ["error", { func: 2 }],
+		},
+	},
+	{
 		name: "project/jsdoc",
 		files: [GLOB_SRC],
 		ignores: [GLOB_MARKDOWN_CODE],
