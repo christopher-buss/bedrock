@@ -5,6 +5,7 @@
 		"composite": false,
 		"rootDir": "${configDir}/src",
 		"declaration": true,
+		"declarationDir": "${configDir}/dist",
 		"declarationMap": true,
 		"outDir": "${configDir}/dist"
 	},
