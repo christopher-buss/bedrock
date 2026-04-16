@@ -390,9 +390,6 @@ importers:
 
   packages/vite-config:
     dependencies:
-      '@bedrock/testing':
-        specifier: workspace:*
-        version: link:../testing
       vite-plus:
         specifier: catalog:build
         version: 0.1.18(@types/node@24.10.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)

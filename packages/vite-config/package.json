@@ -22,7 +22,6 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
-		"@bedrock/testing": "workspace:*",
 		"vite-plus": "catalog:build"
 	},
 	"devDependencies": {
