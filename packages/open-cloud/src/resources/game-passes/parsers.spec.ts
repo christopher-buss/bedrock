@@ -152,4 +152,16 @@ describe(parseGamePassResponse, () => {
 
 		expect(result.data.updatedAt.toISOString()).toBe("2024-07-14T18:30:00.000Z");
 	});
+
+	it("should stringify the numeric gamePassId into the public id", () => {
+		expect.assertions(1);
+
+		const body = validBody({ gamePassId: 987_654 });
+
+		const result = parseGamePassResponse(body, 200);
+
+		assert(result.success);
+
+		expect(result.data.id).toBe("987654");
+	});
 });
