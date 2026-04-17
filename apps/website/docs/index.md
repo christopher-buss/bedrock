@@ -7,8 +7,8 @@ hero:
   tagline: Docs coming soon — start with Ocale.
   actions:
     - theme: brand
-      text: Ocale → Errors guide
-      link: /ocale/guide/errors
+      text: Ocale → Getting Started
+      link: /ocale/guide/getting-started
     - theme: alt
       text: GitHub
       link: https://github.com/christopher-buss/bedrock

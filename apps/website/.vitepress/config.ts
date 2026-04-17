@@ -17,10 +17,14 @@ export default defineConfig({
 	themeConfig: {
 		nav: [
 			{ link: "/", text: "Home" },
-			{ link: "/ocale/guide/errors", text: "Ocale" },
+			{ link: "/ocale/guide/getting-started", text: "Ocale" },
 		],
 		sidebar: {
 			"/ocale/": [
+				{
+					items: [{ link: "/ocale/guide/getting-started", text: "Getting Started" }],
+					text: "Ocale",
+				},
 				{
 					items: [
 						{ link: "/ocale/guide/errors", text: "Errors" },
@@ -29,7 +33,12 @@ export default defineConfig({
 					text: "Core",
 				},
 				{
-					items: [{ link: "/ocale/api/resources/game-passes/", text: "Game Passes" }],
+					items: [
+						{
+							link: "/ocale/api/resources/game-passes/classes/GamePassesClient",
+							text: "Game Passes",
+						},
+					],
 					text: "Resources",
 				},
 			],
