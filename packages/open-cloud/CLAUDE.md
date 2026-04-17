@@ -5,11 +5,11 @@ code in this repository.
 
 ## Package Overview
 
-`@bedrock/open-cloud` is a standalone TypeScript HTTP client for Roblox Open
-Cloud APIs. This package is designed to be publishable to npm and usable
-independently of the Bedrock CLI.
+`@bedrock/ocale` is a standalone TypeScript HTTP client for Roblox Open Cloud
+APIs. It is designed to be publishable to npm and usable independently of the
+Bedrock CLI.
 
-**Key characteristics:**
+Key characteristics:
 
 - Zero runtime dependencies
 - Class-based clients with immutable configuration
@@ -18,87 +18,8 @@ independently of the Bedrock CLI.
 - 100% test coverage requirement
 - Dual runtime support: Node.js LTS (24.12+) and Bun 1.3+
 
-## Common Commands
-
-```bash
-# Development
-pnpm build          # Build for production (tsdown)
-pnpm dev            # Watch mode (stub compilation)
-pnpm test           # Run tests (vitest)
-pnpm lint           # Lint source files (eslint)
-pnpm typecheck      # Type checking (tsgo)
-
-# Run a single test file
-pnpm test src/path/to/file.spec.ts
-
-# Run tests in watch mode
-pnpm test --watch
-
-# Run tests with coverage
-pnpm test --coverage
-```
-
-## Architecture
-
-### Package Structure
-
-```text
-src/
-├── resources/           # Service clients (public API via subpath exports)
-│   ├── game-passes/
-│   │   ├── index.ts    # GamePassesClient class
-│   │   ├── types.ts    # Public types
-│   │   ├── builders.ts # Pure: request builders
-│   │   └── parsers.ts  # Pure: response parsers
-│   ├── developer-products/
-│   ├── game-icons/
-│   ├── game-thumbnails/
-│   └── universes/
-│
-├── internal/           # Internal utilities (NOT exported)
-│   ├── http/
-│   │   ├── fetch-client.ts      # HTTP implementation
-│   │   ├── rate-limit-queue.ts  # Rate limiting & queuing
-│   │   ├── multipart.ts         # Multipart encoding
-│   │   └── types.ts             # HttpRequest, HttpResponse
-│   └── utils/
-│       └── try-catch.ts         # tryCatch helper
-│
-├── errors/             # Error classes (exported from root)
-│   ├── base.ts        # OpenCloudError
-│   ├── rate-limit.ts  # RateLimitError
-│   ├── api-error.ts   # ApiError
-│   ├── network-error.ts
-│   └── validation-error.ts
-│
-├── client/            # Shared client types
-│   └── types.ts       # OpenCloudClientOptions, RequestOptions
-│
-├── types.ts           # Shared types (Result, etc.)
-└── index.ts           # Root export (errors + shared types only)
-
-tests/
-├── helpers/           # Test utilities
-│   └── fake-http-client.ts
-├── unit/              # Pure function tests (builders, parsers)
-│   └── resources/
-└── integration/       # Client tests with fake HTTP
-    └── resources/
-```
-
-### FCIS Architecture Context
-
-The Bedrock CLI follows FCIS (Functional Core, Imperative Shell) architecture
-and will have an "Open Cloud Port" interface. This `@bedrock/open-cloud` package
-is the adapter implementation for that port.
-
-**Package structure:**
-
-- Pure builders (testable request construction)
-- Pure parsers (testable response parsing)
-- Result types (explicit error handling)
-- Immutable config (no hidden state)
-- HTTP client implementation
+The Roblox OpenAPI schema is vendored at `vendor/roblox-openapi.json`; refresh
+it via `scripts/fetch-openapi.ts` when upstream changes require it.
 
 ## Design Principles
 
@@ -134,92 +55,75 @@ const result = await client.create(params, {
 
 ### 3. Subpath Exports (No Barrel Files)
 
-Import from subpaths, NOT the root:
+Import from subpaths, not the root:
 
 ```typescript
-// ❌ WRONG - Root import not available for clients
-import { GamePassesClient } from "@bedrock/open-cloud";
-// ✅ CORRECT - Root only exports shared utilities
-import { RateLimitError, type Result } from "@bedrock/open-cloud";
-// ✅ CORRECT - Subpath import
-import { GamePassesClient } from "@bedrock/open-cloud/game-passes";
+// Root export only exposes shared utilities
+import { RateLimitError, type Result } from "@bedrock/ocale";
+// Resource clients live on subpaths
+import { GamePassesClient } from "@bedrock/ocale/game-passes";
 ```
 
-### 4. Rate Limiting Built-In
+The root `@bedrock/ocale` entry point deliberately does not re-export resource
+clients; consumers pay only for the services they import.
 
-SDK manages concurrency and rate limiting internally. Bedrock CLI can fire all
-requests at once - the SDK queues them automatically.
+### 4. Rate Limiting and Retries Built-In
 
-Each client has built-in rate limits based on Roblox's documented API limits.
-Users don't configure them.
-
-### 5. Idempotency-Aware Retries
-
-Different retry strategies based on operation type:
+The SDK manages concurrency, rate limiting, and retries internally. Consumers
+fire requests and the SDK queues them. Rate limits are per-operation, sourced
+from the vendored OpenAPI schema. Retries are idempotency-aware:
 
 | Operation | 429 (Rate Limit) | 5xx (Server Error) |
 | --------- | ---------------- | ------------------ |
-| Create    | ✅ Retry         | ❌ Do not retry    |
-| Read/List | ✅ Retry         | ✅ Retry           |
-| Update    | ✅ Retry         | ✅ Retry           |
-| Delete    | ✅ Retry         | ✅ Retry           |
+| Create    | Retry            | Do not retry       |
+| Read/List | Retry            | Retry              |
+| Update    | Retry            | Retry              |
+| Delete    | Retry            | Retry              |
 
-Create operations only retry rate limits to prevent duplicate resources (Roblox
-doesn't support idempotency keys).
+Create operations only retry rate limits to prevent duplicate resources
+(Roblox does not support idempotency keys).
+
+See [ADR-010](../../docs/adr/010-sdk-managed-rate-limiting-and-retry.md) for
+the implemented contract, including per-operation token buckets, the
+send-callback wiring between queue and retry, and the
+`onRequest` / `onRetry` / `onRateLimit` hook semantics.
 
 ## Testing Requirements
 
-### 100% Coverage (NON-NEGOTIABLE)
-
 Every line of production code must be written in response to a failing test.
+For the full RED → GREEN → REFACTOR commit cadence and the 100% coverage
+requirement, see the root [CLAUDE.md](../../CLAUDE.md) and
+[ADR-003](../../docs/adr/003-testing-strategy.md).
 
-**RED → GREEN → REFACTOR cycle:**
+Unit tests live alongside their subject as colocated `*.spec.ts` files.
+Integration tests live in `tests/integration/` and inject fakes for the two
+test seams on `OpenCloudClientOptions`:
 
-1. **RED:** Write failing test for desired behavior
-2. **GREEN:** Write minimum code to pass
-3. **REFACTOR:** Clean up while tests stay green
+- `httpClient`: swap the fetch-backed transport for a recorded fake. Canonical
+  fakes are [tests/helpers/fake-http-client.ts](tests/helpers/fake-http-client.ts)
+  and the simpler [tests/helpers/fake-send.ts](tests/helpers/fake-send.ts) for
+  single-call tests.
+- `sleep`: swap the `setTimeout`-backed sleep for
+  [tests/helpers/fake-sleep.ts](tests/helpers/fake-sleep.ts) so retry and
+  rate-limit timing is deterministic.
 
-**Commit cadence:** The pre-commit hook runs lint, typecheck, test, and build,
-so a pure-RED commit is rejected. Work RED → GREEN in the working tree, then
-commit RED + GREEN **together** as one commit per behaviour slice. REFACTOR
-lands as a separate commit only when refactoring adds value.
-
-### Test Levels
-
-| Layer    | Test with         | Location             | Isolation   |
-| -------- | ----------------- | -------------------- | ----------- |
-| Builders | Unit tests        | `tests/unit/`        | None needed |
-| Parsers  | Unit tests        | `tests/unit/`        | None needed |
-| Clients  | Integration tests | `tests/integration/` | Fake HTTP   |
-
-### Test Conventions
+Use a function reference in `describe()` so tests track renames:
 
 ```typescript
-// ✅ Use function reference in describe()
 describe(buildCreateRequest, () => {
 	it("should build request with required fields", () => {
 		// Test pure function
 	});
 });
-
-// Integration tests inject fake HTTP client
-const http = createFakeHttpClient();
-const client = new GamePassesClient({
-	apiKey: "test-key",
-	httpClient: http, // Inject for testing
-});
 ```
-
-### Coverage Target
-
-100% required (statements, branches, functions, lines) per ADR-003.
 
 ## Type System Guidelines
 
-1. **TypeScript-first**: camelCase (not snake_case like Roblox API)
-2. **Strict types**: No `any`, prefer `unknown` for untyped data
-3. **Readonly responses**: All response types immutable
-4. **Export everything**: All public types exported for consumers
+1. TypeScript-first: camelCase in the public API (not snake_case like the raw
+   Roblox wire format)
+2. Strict types: no `any`; prefer `unknown` for untyped data
+3. Readonly responses: every response type is immutable
+4. Export everything consumers need: all public types are re-exported
 
 ```typescript
 // Response types are readonly
@@ -232,68 +136,35 @@ export interface GamePass {
 
 ## Security Considerations
 
-1. **API keys**: Never log or expose in error messages
-2. **HTTPS only**: No option to disable HTTPS
-3. **Zero dependencies**: Eliminates supply chain attack surface
-4. **Error sanitization**: No sensitive data in error messages
-
-## Implementation Notes
-
-### Critical First Steps
-
-1. Implement shared utilities (tryCatch, Result, errors, HTTP client)
-2. Implement one service end-to-end (Game Passes) to validate pattern
-3. Replicate pattern to other services only after validation
-
-### Pure Functions (Builders & Parsers)
-
-- **Builders**: Take parameters, return HttpRequest (no I/O)
-- **Parsers**: Take response body, return domain object (no I/O)
-- Both are pure functions - easy to test without mocks
-
-### Client Classes
-
-- Encapsulate immutable config
-- Coordinate builders, HTTP, parsers
-- Return Result types
-- Manage rate limiting per API key
-
-## v0.1 Scope
-
-**Supported APIs:**
-
-- Game Passes
-- Developer Products
-- Game Icons
-- Game Thumbnails
-- Universes
-
-**Out of Scope:**
-
-- OAuth 2.0 (API keys only)
-- Data stores
-- Groups/Users
-- Avatar settings
+1. API keys must never be logged or included in error messages
+2. HTTPS only: no option to disable TLS
+3. Zero dependencies: minimizes supply chain attack surface
+4. Error sanitization: sensitive payload data is scrubbed before surfacing
 
 ## Runtime Compatibility
 
-**Supported runtimes:**
+Supported runtimes:
 
-- Node.js LTS (24.12+) (native fetch, FormData, TextEncoder)
+- Node.js LTS (24.12+) (native `fetch`, `FormData`, `TextEncoder`)
 - Bun 1.3+
 
-**Use standard web APIs exclusively:**
+Use standard web APIs exclusively so code runs on both:
 
 - `fetch()` for HTTP
-- `Uint8Array` for binary (NOT Node.js Buffer)
-- `TextEncoder`/`TextDecoder` for encoding
+- `Uint8Array` for binary (not Node.js `Buffer`)
+- `TextEncoder` / `TextDecoder` for encoding
 - `FormData` for multipart
 
-No Bun-specific APIs to ensure Node.js compatibility.
+No Bun-specific APIs.
 
 ## Related Documentation
 
-- Design plan: `/docs/plans/2025-12-13-open-cloud-package-design.md`
-- Root CLAUDE.md for Bedrock project context
-- ADR-003: Testing strategy (TDD, 100% coverage)
-- ADR-007: Open Cloud only (no legacy APIs)
+- Root [CLAUDE.md](../../CLAUDE.md): project context and workflow
+- [ADR-003](../../docs/adr/003-testing-strategy.md): testing strategy (TDD, 100% coverage)
+- [ADR-007](../../docs/adr/007-open-cloud-only.md): Open Cloud only (no legacy APIs)
+- [ADR-008](../../docs/adr/008-zero-runtime-dependencies.md): zero runtime dependencies
+- [ADR-009](../../docs/adr/009-result-types-over-exceptions.md): Result types
+- [ADR-010](../../docs/adr/010-sdk-managed-rate-limiting-and-retry.md): rate limiting and retries
+- [ADR-011](../../docs/adr/011-simplified-architecture-for-library-packages.md): simplified library architecture
+- [ADR-012](../../docs/adr/012-class-based-clients-with-per-request-overrides.md): class-based clients with per-request overrides
+- [docs/plans/2025-12-13-open-cloud-package-design.md](../../docs/plans/2025-12-13-open-cloud-package-design.md): historical design doc (superseded by the ADRs and the shipped code)
