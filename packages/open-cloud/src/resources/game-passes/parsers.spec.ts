@@ -140,4 +140,16 @@ describe(parseGamePassResponse, () => {
 
 		expect(result.data.createdAt.toISOString()).toBe("2024-05-01T08:00:00.000Z");
 	});
+
+	it("should convert updatedTimestamp into an updatedAt Date at the same instant", () => {
+		expect.assertions(1);
+
+		const body = validBody({ updatedTimestamp: "2024-07-14T18:30:00.000Z" });
+
+		const result = parseGamePassResponse(body, 200);
+
+		assert(result.success);
+
+		expect(result.data.updatedAt.toISOString()).toBe("2024-07-14T18:30:00.000Z");
+	});
 });
