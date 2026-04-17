@@ -8,7 +8,11 @@ import type { OpenCloudHooks } from "./types.ts";
 export interface OperationLimit {
 	/** Maximum sustained request rate in requests per second. */
 	readonly maxPerSecond: number;
-	/** Stable identifier for the operation (e.g. "game-passes.create"). */
+	/**
+	 * Stable identifier for the operation (e.g. "game-passes.create"). Not
+	 * consumed by the queue itself; callers use it to key per-operation
+	 * queues in a registry (see GamePassesClient).
+	 */
 	readonly operationKey: string;
 }
 
