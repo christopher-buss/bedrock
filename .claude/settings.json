@@ -28,6 +28,20 @@
 		"sentinel@isentinel": true,
 		"worktrunk@worktrunk": true
 	},
+	"hooks": {
+		"PostToolUse": [
+			{
+				"matcher": "EnterWorktree",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bash ${CLAUDE_PROJECT_DIR}/.claude/hooks/post-worktree-setup.sh",
+						"timeout": 300
+					}
+				]
+			}
+		]
+	},
 	"extraKnownMarketplaces": {
 		"isentinel": {
 			"source": {
