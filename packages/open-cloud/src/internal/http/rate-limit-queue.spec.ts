@@ -1,40 +1,7 @@
-import type { SleepFunc } from "#src/internal/utils/sleep";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { createFakeClock } from "#tests/helpers/fake-clock";
+import { describe, expect, it, vi } from "vitest";
 
 import { RateLimitQueue } from "./rate-limit-queue.ts";
-
-interface FakeClock {
-	readonly advance: (ms: number) => void;
-	readonly sleep: SleepFunc;
-	readonly waits: ReadonlyArray<number>;
-}
-
-/**
- * A test double where sleeping also advances the mocked `Date.now()` by
- * `ms`, so production code that drains by wall time sees deterministic
- * elapsed intervals without real-time drift. The `Date.now` spy is
- * restored automatically when the current test finishes.
- *
- * @returns A clock with a tracking `sleep`, a `waits` log, and `advance`.
- */
-function createFakeClock(): FakeClock {
-	let time = 0;
-	const waits: Array<number> = [];
-	const spy = vi.spyOn(Date, "now").mockImplementation(() => time);
-	onTestFinished(() => {
-		spy.mockRestore();
-	});
-	return {
-		advance(ms) {
-			time += ms;
-		},
-		async sleep(ms) {
-			waits.push(ms);
-			time += ms;
-		},
-		waits,
-	};
-}
 
 describe(RateLimitQueue, () => {
 	it("should invoke the task immediately when the bucket has tokens", async () => {

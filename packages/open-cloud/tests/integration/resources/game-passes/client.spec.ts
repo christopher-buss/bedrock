@@ -1,15 +1,11 @@
-import type { OpenCloudHooks, SleepFunc } from "#src/client/types";
+import type { OpenCloudHooks } from "#src/client/types";
 import { ApiError } from "#src/errors/api-error";
 import { GamePassesClient } from "#src/resources/game-passes/index";
 import type { GamePassConfigV2 } from "#src/resources/game-passes/wire";
+import { createFakeClock } from "#tests/helpers/fake-clock";
 import { createFakeHttpClient, type FakeHttpClient } from "#tests/helpers/fake-http-client";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
-import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
-
-interface FakeClock {
-	readonly sleep: SleepFunc;
-	readonly waits: ReadonlyArray<number>;
-}
+import { assert, describe, expect, it, vi } from "vitest";
 
 function validBody(overrides: Partial<GamePassConfigV2> = {}): GamePassConfigV2 {
 	return {
@@ -22,22 +18,6 @@ function validBody(overrides: Partial<GamePassConfigV2> = {}): GamePassConfigV2 
 		priceInformation: { defaultPriceInRobux: 100, enabledFeatures: [] },
 		updatedTimestamp: "2024-03-20T14:45:00.000Z",
 		...overrides,
-	};
-}
-
-function createFakeClock(): FakeClock {
-	let time = 0;
-	const waits: Array<number> = [];
-	const spy = vi.spyOn(Date, "now").mockImplementation(() => time);
-	onTestFinished(() => {
-		spy.mockRestore();
-	});
-	return {
-		async sleep(ms: number) {
-			waits.push(ms);
-			time += ms;
-		},
-		waits,
 	};
 }
 
