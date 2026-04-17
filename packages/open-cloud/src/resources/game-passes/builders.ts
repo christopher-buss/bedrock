@@ -4,63 +4,58 @@ import type { CreateGamePassParameters, GetGamePassParameters } from "./types.ts
 /**
  * Builds a `GET` request for the Open Cloud "read game pass" endpoint.
  *
- * @param params - Universe and game pass identifiers to interpolate into the
- *   URL.
+ * @param parameters - Universe and game pass identifiers to interpolate into
+ *   the URL.
  * @returns A pure {@link HttpRequest} describing the read call.
  */
-export function buildGetRequest(params: GetGamePassParameters): HttpRequest {
+export function buildGetRequest(parameters: GetGamePassParameters): HttpRequest {
 	return {
 		method: "GET",
-		url: `/game-passes/v1/universes/${params.universeId}/game-passes/${params.gamePassId}/creator`,
+		url: `/game-passes/v1/universes/${parameters.universeId}/game-passes/${parameters.gamePassId}/creator`,
 	};
 }
 
 /**
  * Builds a `POST` request for the Open Cloud "create game pass" endpoint.
  *
- * @param params - Parameters describing the new game pass.
+ * @param parameters - Fields describing the new game pass; optional values
+ *   omitted here are left off the multipart payload entirely.
  * @returns A pure {@link HttpRequest} describing the create call.
  */
-export function buildCreateRequest(
-	params: CreateGamePassParameters,
-): HttpRequest {
+export function buildCreateRequest(parameters: CreateGamePassParameters): HttpRequest {
 	const body = new FormData();
-	body.append("name", params.name);
-	appendIfDefined(body, "description", params.description);
-	appendIfDefined(body, "isForSale", params.isForSale);
-	appendIfDefined(body, "price", params.price);
-	appendIfDefined(
-		body,
-		"isRegionalPricingEnabled",
-		params.isRegionalPricingEnabled,
-	);
-	if (params.imageFile !== undefined) {
-		body.append(
-			"imageFile",
-			params.imageFile instanceof Blob
-				? params.imageFile
-				: new Blob([params.imageFile]),
-		);
+	body.append("name", parameters.name);
+	if (parameters.description !== undefined) {
+		body.append("description", parameters.description);
+	}
+
+	if (parameters.isForSale !== undefined) {
+		body.append("isForSale", String(parameters.isForSale));
+	}
+
+	if (parameters.price !== undefined) {
+		body.append("price", String(parameters.price));
+	}
+
+	if (parameters.isRegionalPricingEnabled !== undefined) {
+		body.append("isRegionalPricingEnabled", String(parameters.isRegionalPricingEnabled));
+	}
+
+	if (parameters.imageFile !== undefined) {
+		body.append("imageFile", toBlob(parameters.imageFile));
 	}
 
 	return {
 		body,
 		method: "POST",
-		url: `/game-passes/v1/universes/${params.universeId}/game-passes`,
+		url: `/game-passes/v1/universes/${parameters.universeId}/game-passes`,
 	};
 }
 
-/**
- * Appends a value to `body` under `name` when it is defined, coercing
- * non-string scalars via `String()`. Undefined values are skipped so that
- * `"undefined"` never leaks into the multipart payload.
- */
-function appendIfDefined(
-	body: FormData,
-	name: string,
-	value: boolean | number | string | undefined,
-): void {
-	if (value !== undefined) {
-		body.append(name, String(value));
+function toBlob(value: Blob | Uint8Array): Blob {
+	if (value instanceof Blob) {
+		return value;
 	}
+
+	return new Blob([new Uint8Array(value)]);
 }
