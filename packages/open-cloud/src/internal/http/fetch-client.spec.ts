@@ -210,15 +210,17 @@ describe(buildFetchOptions, () => {
 		expect(options.signal).toBeUndefined();
 	});
 
-	it("should omit body when request body is undefined", () => {
-		expect.assertions(1);
+	it("should omit body and Content-Type when request body is undefined", () => {
+		expect.assertions(2);
 
 		const options = buildFetchOptions(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
 		);
+		const headers = new Headers(options.headers);
 
 		expect(options.body).toBeUndefined();
+		expect(headers.get("content-type")).toBeNull();
 	});
 });
 
@@ -247,7 +249,7 @@ describe(createFetchHttpClient, () => {
 	});
 
 	it("should return RateLimitError for 429 with x-ratelimit-reset header", async () => {
-		expect.assertions(1);
+		expect.assertions(2);
 
 		async function fakeFetch(): Promise<Response> {
 			return new Response("rate limited", {
@@ -266,6 +268,7 @@ describe(createFetchHttpClient, () => {
 		assert(result.err instanceof RateLimitError);
 
 		expect(result.err.retryAfterSeconds).toBe(5);
+		expect(result.err.message).toBe("Rate limited");
 	});
 
 	it("should return RateLimitError with retryAfterSeconds 0 when header missing", async () => {
@@ -288,7 +291,7 @@ describe(createFetchHttpClient, () => {
 	});
 
 	it("should return ApiError for 400 with errorCode in body", async () => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		async function fakeFetch(): Promise<Response> {
 			return new Response(JSON.stringify({ errorCode: "INVALID_ARGUMENT", message: "bad" }), {
@@ -307,6 +310,27 @@ describe(createFetchHttpClient, () => {
 
 		expect(result.err.statusCode).toBe(400);
 		expect(result.err.code).toBe("INVALID_ARGUMENT");
+		expect(result.err.message).toBe("HTTP 400");
+	});
+
+	it("should return ApiError for 300 redirect responses", async () => {
+		expect.assertions(2);
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response(JSON.stringify({}), { status: 300 });
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
+		expect(result.err.statusCode).toBe(300);
+		expect(result.err.message).toBe("HTTP 300");
 	});
 
 	it("should return ApiError for 500 without errorCode", async () => {
@@ -330,7 +354,7 @@ describe(createFetchHttpClient, () => {
 	});
 
 	it("should return ApiError when response body is not valid JSON", async () => {
-		expect.assertions(1);
+		expect.assertions(2);
 
 		async function fakeFetch(): Promise<Response> {
 			return new Response("not json", { status: 200 });
@@ -346,10 +370,11 @@ describe(createFetchHttpClient, () => {
 		assert(result.err instanceof ApiError);
 
 		expect(result.err.message).toBe("Failed to parse response body");
+		expect(result.err.statusCode).toBe(200);
 	});
 
 	it("should return NetworkError when fetch throws TypeError", async () => {
-		expect.assertions(1);
+		expect.assertions(2);
 
 		const cause = new TypeError("Failed to fetch");
 		async function fakeFetch(): Promise<Response> {
@@ -366,5 +391,6 @@ describe(createFetchHttpClient, () => {
 		assert(result.err instanceof NetworkError);
 
 		expect(result.err.cause).toBe(cause);
+		expect(result.err.message).toBe("Network request failed");
 	});
 });
