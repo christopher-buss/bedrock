@@ -32,6 +32,9 @@ export function buildCreateRequest(
 	if (params.isForSale !== undefined) {
 		body.append("isForSale", String(params.isForSale));
 	}
+	if (params.price !== undefined) {
+		body.append("price", String(params.price));
+	}
 
 	return {
 		body,
