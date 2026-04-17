@@ -3,15 +3,23 @@ import { describe, expect, it, vi } from "vitest";
 import { sleep } from "./sleep.ts";
 
 describe(sleep, () => {
-	it("should resolve after the specified delay", async () => {
-		expect.assertions(1);
+	it("should not resolve before the specified delay elapses", async () => {
+		expect.assertions(2);
 
 		vi.useFakeTimers();
 
-		const promise = sleep(100);
-		vi.advanceTimersByTime(100);
+		const settled = vi.fn<() => void>();
+		const promise = sleep(100).then(settled);
 
-		await expect(promise).resolves.toBeUndefined();
+		vi.advanceTimersByTime(99);
+		await Promise.resolve();
+
+		expect(settled).not.toHaveBeenCalled();
+
+		vi.advanceTimersByTime(1);
+		await promise;
+
+		expect(settled).toHaveBeenCalledOnce();
 
 		vi.useRealTimers();
 	});
