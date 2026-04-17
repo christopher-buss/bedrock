@@ -1,3 +1,4 @@
+import { parseGamePassResponse } from "#src/resources/game-passes/parsers";
 import Ajv, { type ValidateFunction } from "ajv";
 import addFormats from "ajv-formats";
 import { readFileSync } from "node:fs";
@@ -19,13 +20,67 @@ addFormats(ajv);
 ajv.addSchema(openApiDocument, "roblox-openapi");
 
 describe("game-passes fixtures", () => {
-	it("should validate get-response.json against GamePassConfigV2", () => {
+	it.for([
+		{ fixture: "get-response.json", schema: "GamePassConfigV2" },
+		{ fixture: "create-response.json", schema: "GamePassConfigV2" },
+	])("should validate $fixture against $schema", ({ fixture, schema }) => {
 		expect.assertions(1);
 
-		const validator = getValidator("GamePassConfigV2");
-		const fixture = loadFixture("get-response.json");
+		const validator = getValidator(schema);
+		const body = loadFixture(fixture);
 
-		expectValid(validator, fixture);
+		expectValid(validator, body);
+	});
+
+	describe(parseGamePassResponse, () => {
+		it("should round-trip get-response.json into the public GamePass shape", () => {
+			expect.assertions(1);
+
+			const body = loadFixture("get-response.json");
+
+			const result = parseGamePassResponse(body, 200);
+
+			assert(result.success);
+
+			expect(result.data).toStrictEqual({
+				id: "12345678",
+				name: "Legendary Loot Pass",
+				createdAt: new Date("2023-06-10T09:15:42.000Z"),
+				description:
+					"Grants access to legendary loot, cosmetic flair, and the exclusive lobby.",
+				iconAssetId: "987654321",
+				isForSale: true,
+				price: {
+					defaultPriceInRobux: 499,
+					enabledFeatures: ["RegionalPricing"],
+				},
+				updatedAt: new Date("2024-11-02T17:08:21.500Z"),
+			});
+		});
+
+		it("should round-trip create-response.json and collapse iconAssetId 0 to undefined", () => {
+			expect.assertions(1);
+
+			const body = loadFixture("create-response.json");
+
+			const result = parseGamePassResponse(body, 200);
+
+			assert(result.success);
+
+			expect(result.data).toStrictEqual({
+				id: "98765432",
+				name: "Support Squad Pass",
+				createdAt: new Date("2024-12-20T12:00:00.000Z"),
+				description: "Back the creator and unlock bonus in-game tags.",
+				iconAssetId: undefined,
+				isForSale: false,
+				price: {
+					defaultPriceInRobux: 99,
+					enabledFeatures: [],
+				},
+				updatedAt: new Date("2024-12-20T12:00:00.000Z"),
+			});
+		});
 	});
 });
 

@@ -1,0 +1,13 @@
+{
+	"gamePassId": 98765432,
+	"name": "Support Squad Pass",
+	"description": "Back the creator and unlock bonus in-game tags.",
+	"isForSale": false,
+	"iconAssetId": 0,
+	"createdTimestamp": "2024-12-20T12:00:00.000Z",
+	"updatedTimestamp": "2024-12-20T12:00:00.000Z",
+	"priceInformation": {
+		"defaultPriceInRobux": 99,
+		"enabledFeatures": []
+	}
+}
