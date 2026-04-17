@@ -209,4 +209,30 @@ describe(parseGamePassResponse, () => {
 			"UserFixedPrice",
 		]);
 	});
+
+	it("should map a nested null defaultPriceInRobux to undefined on price", () => {
+		expect.assertions(1);
+
+		// Nested JSON null inside priceInformation — the parser normalizes
+		// it to undefined on the public GamePassPrice.
+		const body: unknown = JSON.parse(
+			`{
+				"createdTimestamp": "2024-01-15T10:30:00.000Z",
+				"description": "no default price",
+				"gamePassId": 7,
+				"iconAssetId": 7,
+				"isForSale": true,
+				"name": "Flex",
+				"priceInformation": { "defaultPriceInRobux": null, "enabledFeatures": [] },
+				"updatedTimestamp": "2024-03-20T14:45:00.000Z"
+			}`,
+		);
+
+		const result = parseGamePassResponse(body, 200);
+
+		assert(result.success);
+		assert(result.data.price);
+
+		expect(result.data.price.defaultPriceInRobux).toBeUndefined();
+	});
 });
