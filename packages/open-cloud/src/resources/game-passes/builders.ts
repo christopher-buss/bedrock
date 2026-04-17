@@ -35,6 +35,12 @@ export function buildCreateRequest(
 	if (params.price !== undefined) {
 		body.append("price", String(params.price));
 	}
+	if (params.isRegionalPricingEnabled !== undefined) {
+		body.append(
+			"isRegionalPricingEnabled",
+			String(params.isRegionalPricingEnabled),
+		);
+	}
 
 	return {
 		body,

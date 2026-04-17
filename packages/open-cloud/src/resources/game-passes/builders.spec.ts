@@ -179,4 +179,33 @@ describe(buildCreateRequest, () => {
 		assert(request.body instanceof FormData);
 		expect(request.body.has("price")).toBeFalse();
 	});
+
+	it("should stringify isRegionalPricingEnabled when provided", () => {
+		expect.assertions(1);
+
+		const params = {
+			isRegionalPricingEnabled: true,
+			name: "Epic Pass",
+			universeId: "67890",
+		} satisfies CreateGamePassParameters;
+
+		const request = buildCreateRequest(params);
+
+		assert(request.body instanceof FormData);
+		expect(request.body.get("isRegionalPricingEnabled")).toBe("true");
+	});
+
+	it("should omit isRegionalPricingEnabled when not provided", () => {
+		expect.assertions(1);
+
+		const params = {
+			name: "Epic Pass",
+			universeId: "67890",
+		} satisfies CreateGamePassParameters;
+
+		const request = buildCreateRequest(params);
+
+		assert(request.body instanceof FormData);
+		expect(request.body.has("isRegionalPricingEnabled")).toBeFalse();
+	});
 });
