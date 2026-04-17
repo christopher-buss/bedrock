@@ -47,8 +47,25 @@ const CLIENT_DEFAULTS = Object.freeze({
  *
  * Wires request builders, the injected {@link HttpClient}, and response
  * parsers into a single ergonomic surface. Every method returns a
- * {@link Result} so callers handle failure explicitly — no thrown
+ * {@link Result} so callers handle failure explicitly; no thrown
  * `OpenCloudError` ever escapes the client.
+ *
+ * ```ts
+ * import { GamePassesClient } from "@bedrock/ocale/game-passes";
+ *
+ * const client = new GamePassesClient({ apiKey: process.env.ROBLOX_API_KEY! });
+ *
+ * const result = await client.get({
+ *     universeId: "1234567890",
+ *     gamePassId: "9876543210",
+ * });
+ *
+ * if (result.success) {
+ *     console.log(`${result.data.name} (${result.data.id})`);
+ * } else {
+ *     console.error(result.err.message);
+ * }
+ * ```
  */
 export class GamePassesClient {
 	readonly #config: Readonly<RetryResolvable>;
