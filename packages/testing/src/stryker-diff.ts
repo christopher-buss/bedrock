@@ -222,6 +222,10 @@ function handleHunk(line: string, state: ParseState): boolean {
 
 	const startLine = Number(match[1]);
 	const count = match[2] === undefined ? 1 : Number(match[2]);
+	if (count === 0) {
+		return true;
+	}
+
 	state.current.hunks.push({ endLine: startLine + count - 1, startLine });
 	return true;
 }

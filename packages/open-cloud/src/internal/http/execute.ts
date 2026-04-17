@@ -1,6 +1,4 @@
-import { ApiError } from "../../errors/api-error.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
-import { RateLimitError } from "../../errors/rate-limit.ts";
 import type { Result } from "../../types.ts";
 import type { SleepFunc } from "../utils/sleep.ts";
 import { computeRetryWaitMs, type RetryResolvable, shouldRetry } from "./retry.ts";
@@ -49,17 +47,11 @@ export async function executeWithRetry(
 	let result = await attempt();
 
 	for (let retry = 0; retry < config.maxRetries; retry++) {
-		if (result.success) {
+		if (result.success || !shouldRetry(result.err, config)) {
 			return result;
 		}
 
 		const { err } = result;
-		const isClassified = err instanceof ApiError || err instanceof RateLimitError;
-
-		if (!isClassified || !shouldRetry(err, config)) {
-			return result;
-		}
-
 		hooks.onRetry?.(retry + 1, err);
 		const waitMs = computeRetryWaitMs(err, { attempt: retry, retryDelay: config.retryDelay });
 		hooks.onRateLimit?.(waitMs);

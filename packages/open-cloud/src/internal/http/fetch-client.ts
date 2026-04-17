@@ -24,15 +24,11 @@ export function headersToRecord(headers: Headers): Record<string, string> {
  * @returns The `errorCode` string if present, otherwise `undefined`.
  */
 export function extractErrorCode(body: unknown): string | undefined {
-	if (typeof body !== "object" || body === null) {
+	if (body === null || typeof body !== "object") {
 		return undefined;
 	}
 
-	if (!("errorCode" in body)) {
-		return undefined;
-	}
-
-	const { errorCode } = body;
+	const errorCode: unknown = Reflect.get(body, "errorCode");
 	return typeof errorCode === "string" ? errorCode : undefined;
 }
 
@@ -43,16 +39,12 @@ export function extractErrorCode(body: unknown): string | undefined {
  * @returns The number of seconds to wait, or 0 if missing/invalid.
  */
 export function parseRetryAfterSeconds(headerValue: string | undefined): number {
-	if (headerValue === undefined) {
-		return 0;
-	}
-
 	const parsed = Number(headerValue);
-	if (Number.isNaN(parsed) || parsed < 0) {
+	if (Number.isNaN(parsed)) {
 		return 0;
 	}
 
-	return Math.floor(parsed);
+	return Math.max(0, Math.floor(parsed));
 }
 
 /**
@@ -129,13 +121,10 @@ export function createFetchHttpClient(
 }
 
 function createApiError(status: number, body: unknown): ApiError {
-	const code = extractErrorCode(body);
-	const options: { code?: string; statusCode: number } = { statusCode: status };
-	if (code !== undefined) {
-		options.code = code;
-	}
-
-	return new ApiError(`HTTP ${status}`, options);
+	return new ApiError(`HTTP ${status}`, {
+		code: extractErrorCode(body),
+		statusCode: status,
+	});
 }
 
 /**
@@ -165,7 +154,7 @@ async function classifyResponse(response: Response): Promise<Result<HttpResponse
 		};
 	}
 
-	if (response.status < 200 || response.status >= 300) {
+	if (response.status >= 300) {
 		return { err: createApiError(response.status, bodyResult.data), success: false };
 	}
 

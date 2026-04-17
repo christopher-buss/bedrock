@@ -184,7 +184,7 @@ export function computeRetryWaitMs(
 export function shouldRetry(
 	error: unknown,
 	config: { readonly retryableStatuses: ReadonlyArray<number> },
-): boolean {
+): error is ApiError | RateLimitError {
 	if (error instanceof RateLimitError) {
 		return config.retryableStatuses.includes(429);
 	}
