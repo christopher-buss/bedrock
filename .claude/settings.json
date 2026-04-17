@@ -35,7 +35,7 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "bash ${CLAUDE_PROJECT_DIR}/.claude/hooks/post-worktree-setup.sh",
+						"command": "bun ${CLAUDE_PROJECT_DIR}/.claude/hooks/post-worktree-setup.ts",
 						"timeout": 300
 					}
 				]
