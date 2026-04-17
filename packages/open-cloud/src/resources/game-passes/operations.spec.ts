@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { CREATE_OPERATION_LIMIT, GET_OPERATION_LIMIT } from "./operations.ts";
 
-describe("gET_OPERATION_LIMIT", () => {
-	it("should identify the game-passes read endpoint with maxPerSecond=10", () => {
+describe("game-passes operation limits", () => {
+	it("should cap the read endpoint at 10 requests per second", () => {
 		expect.assertions(1);
 
 		expect(GET_OPERATION_LIMIT).toStrictEqual({
@@ -11,10 +11,8 @@ describe("gET_OPERATION_LIMIT", () => {
 			operationKey: "game-passes.get",
 		});
 	});
-});
 
-describe("cREATE_OPERATION_LIMIT", () => {
-	it("should identify the game-passes create endpoint with maxPerSecond=5", () => {
+	it("should cap the create endpoint at 5 requests per second", () => {
 		expect.assertions(1);
 
 		expect(CREATE_OPERATION_LIMIT).toStrictEqual({
