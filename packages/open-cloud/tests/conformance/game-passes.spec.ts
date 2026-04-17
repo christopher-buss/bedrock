@@ -117,11 +117,11 @@ function loadFixture(name: string): JSONValue {
  *
  * For a schema with a direct `type`, the keyword becomes a type union:
  * `{ type: "string", nullable: true }` → `{ type: ["string", "null"] }`.
- * For a schema without a direct `type` (e.g. An `allOf` wrapping a
- * `$ref`), the whole sub-schema is wrapped in `oneOf` with a `null`
+ * For a schema without a direct `type` (for example an `allOf` wrapping
+ * a `$ref`), the whole sub-schema is wrapped in `oneOf` with a `null`
  * branch. Simply dropping `nullable` would make the validator stricter
  * than the schema itself, so real API responses that include null
- * fields would false-positive as drift..
+ * fields would false-positive as drift.
  *
  * @param node - A node anywhere in the schema tree.
  * @returns The node with every `nullable: true` expressed as a null union.
