@@ -28,12 +28,11 @@ export class GamePassesClient {
 	constructor(options: OpenCloudClientOptions) {
 		const { httpClient } = resolveDependencies(options);
 		this.#httpClient = httpClient;
-		const config: RequestConfig = {
+		this.#config = Object.freeze({
 			apiKey: options.apiKey,
 			baseUrl: options.baseUrl ?? "https://apis.roblox.com",
-			...(options.timeout === undefined ? {} : { timeout: options.timeout }),
-		};
-		this.#config = Object.freeze(config);
+			timeout: options.timeout ?? 30_000,
+		});
 	}
 
 	/**

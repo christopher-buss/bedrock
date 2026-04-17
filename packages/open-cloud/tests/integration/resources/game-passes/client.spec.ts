@@ -64,7 +64,7 @@ describe(GamePassesClient, () => {
 			expect(result.err).toHaveProperty("statusCode", 404);
 		});
 
-		it("should default the base URL to https://apis.roblox.com", async () => {
+		it("should build the request config with defaults when only apiKey is provided", async () => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
@@ -79,7 +79,11 @@ describe(GamePassesClient, () => {
 
 			await client.get({ gamePassId: "12345", universeId: "1" });
 
-			expect(httpClient.requests[0]?.config.baseUrl).toBe("https://apis.roblox.com");
+			expect(httpClient.requests[0]?.config).toStrictEqual({
+				apiKey: "test-key",
+				baseUrl: "https://apis.roblox.com",
+				timeout: 30_000,
+			});
 		});
 
 		it("should forward the configured apiKey, baseUrl, and timeout to the request config", async () => {
