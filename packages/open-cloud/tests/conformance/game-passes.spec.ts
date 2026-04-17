@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
 
-const openApiDocument = stripNullable(
+const openApiDocument = nullableToUnion(
 	JSON.parse(
 		readFileSync(
 			fileURLToPath(new URL("../../vendor/roblox-openapi.json", import.meta.url)),
@@ -114,34 +114,52 @@ function loadFixture(name: string): unknown {
 }
 
 /**
- * Recursively removes the OpenAPI `nullable` keyword from a schema tree.
+ * Rewrites every OpenAPI 3.0 `nullable: true` annotation as a proper
+ * JSON Schema null union, so Ajv accepts the values the upstream API
+ * legitimately emits as `null`.
  *
- * Ajv v8 rejects `nullable` when it sits on a schema without an explicit
- * `type` (for example an `allOf` wrapping a `$ref`, which the Roblox
- * OpenAPI uses for its nullable object properties). Our fixtures never
- * emit JSON `null`, so removing `nullable` is semantically a no-op for
- * conformance checks.
+ * For a schema with a direct `type`, the keyword becomes a type union:
+ * `{ type: "string", nullable: true }` → `{ type: ["string", "null"] }`.
+ * For a schema without a direct `type` (e.g. An `allOf` wrapping a
+ * `$ref`), the whole sub-schema is wrapped in `oneOf` with a `null`
+ * branch. Simply dropping `nullable` would make the validator stricter
+ * than the schema itself, so real API responses that include null
+ * fields would false-positive as drift..
  *
  * @param node - A node anywhere in the schema tree.
- * @returns The node with all `nullable` keys removed, recursively.
+ * @returns The node with every `nullable: true` expressed as a null union.
  */
-function stripNullable(node: unknown): unknown {
+function nullableToUnion(node: unknown): unknown {
 	if (Array.isArray(node)) {
-		return node.map((item: unknown) => stripNullable(item));
+		return node.map(nullableToUnion);
 	}
 
-	if (isRecord(node)) {
-		const output: Record<string, unknown> = {};
-		for (const [key, value] of Object.entries(node)) {
-			if (key === "nullable") {
-				continue;
+	if (!isRecord(node)) {
+		return node;
+	}
+
+	const transformed: Record<string, unknown> = {};
+	let isNullable = false;
+	for (const [key, value] of Object.entries(node)) {
+		if (key === "nullable") {
+			if (value === true) {
+				isNullable = true;
 			}
 
-			output[key] = stripNullable(value);
+			continue;
 		}
 
-		return output;
+		transformed[key] = nullableToUnion(value);
 	}
 
-	return node;
+	if (!isNullable) {
+		return transformed;
+	}
+
+	const { type } = transformed;
+	if (typeof type === "string") {
+		return { ...transformed, type: [type, "null"] };
+	}
+
+	return { oneOf: [transformed, { type: "null" }] };
 }
