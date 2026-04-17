@@ -19,6 +19,10 @@ export default defineConfig({
 			{ link: "/", text: "Home" },
 			{ link: "/ocale/guide/getting-started", text: "Ocale" },
 		],
+		// Links into /ocale/api/** point at paths that typedoc-plugin-markdown
+		// generates from the ocale public API. If typedoc or the plugin is
+		// upgraded and changes its output layout, these links must be updated
+		// manually — there's no compile-time check that they resolve.
 		sidebar: {
 			"/ocale/": [
 				{

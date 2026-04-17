@@ -34,7 +34,7 @@ bedrock.dev/
 ├── /cli/           # Bedrock CLI documentation
 │   ├── guide/      # Getting started, tutorials
 │   └── config/     # Configuration reference
-└── /open-cloud/    # SDK documentation
+└── /ocale/        # SDK documentation (renamed from /open-cloud/)
     ├── guide/      # Usage guides
     └── api/        # Auto-generated API reference
 ```
