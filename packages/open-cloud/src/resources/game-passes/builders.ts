@@ -29,6 +29,9 @@ export function buildCreateRequest(
 	if (params.description !== undefined) {
 		body.append("description", params.description);
 	}
+	if (params.isForSale !== undefined) {
+		body.append("isForSale", String(params.isForSale));
+	}
 
 	return {
 		body,

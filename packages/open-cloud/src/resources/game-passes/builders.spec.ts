@@ -115,4 +115,39 @@ describe(buildCreateRequest, () => {
 		assert(request.body instanceof FormData);
 		expect(request.body.has("description")).toBeFalse();
 	});
+
+	it.for<[isForSale: boolean, expected: string]>([
+		[true, "true"],
+		[false, "false"],
+	])(
+		"should stringify isForSale=%s into the form body as %j",
+		([isForSale, expected]) => {
+			expect.assertions(1);
+
+			const params = {
+				isForSale,
+				name: "Epic Pass",
+				universeId: "67890",
+			} satisfies CreateGamePassParameters;
+
+			const request = buildCreateRequest(params);
+
+			assert(request.body instanceof FormData);
+			expect(request.body.get("isForSale")).toBe(expected);
+		},
+	);
+
+	it("should omit isForSale when not provided", () => {
+		expect.assertions(1);
+
+		const params = {
+			name: "Epic Pass",
+			universeId: "67890",
+		} satisfies CreateGamePassParameters;
+
+		const request = buildCreateRequest(params);
+
+		assert(request.body instanceof FormData);
+		expect(request.body.has("isForSale")).toBeFalse();
+	});
 });
