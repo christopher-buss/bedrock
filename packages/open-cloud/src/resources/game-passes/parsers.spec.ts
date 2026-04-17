@@ -171,11 +171,11 @@ describe(parseGamePassResponse, () => {
 		// distinguishes a legitimate record from such an array; this test
 		// locks in that the guard still fires even when every field-level
 		// check would otherwise accept the value.
-		const priceInformation: unknown = Object.assign([], {
+		const priceInformation = Object.assign([], {
 			defaultPriceInRobux: 100,
 			enabledFeatures: ["Invalid"],
 		});
-		const body: unknown = {
+		const body = {
 			name: "Hostile",
 			createdTimestamp: "2024-01-15T10:30:00.000Z",
 			description: "hostile",
