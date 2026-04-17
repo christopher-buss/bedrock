@@ -11,13 +11,18 @@
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
 	"type": "module",
 	"scripts": {
-		"build": "vitepress build",
-		"dev": "vitepress dev",
+		"docs:build": "typedoc && vitepress build",
+		"docs:dev": "concurrently -k -n typedoc,vitepress -c magenta,cyan \"typedoc --watch\" \"vitepress dev\"",
 		"lint": "eslint --cache .",
 		"preview": "vitepress preview"
 	},
 	"devDependencies": {
-		"vitepress": "catalog:docs"
+		"concurrently": "catalog:dev",
+		"typedoc": "catalog:build",
+		"typedoc-plugin-markdown": "catalog:build",
+		"typedoc-plugin-replace-text": "catalog:build",
+		"vitepress": "catalog:docs",
+		"vitepress-plugin-tabs": "catalog:docs"
 	},
 	"engines": {
 		"bun": ">=1.0.0"
