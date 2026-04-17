@@ -33,10 +33,12 @@ patchedDependencies:
 catalogs:
   build:
     typedoc: 0.28.19
+    typedoc-plugin-markdown: ^4.3.0
     typedoc-plugin-replace-text: 4.2.0
     unplugin-unused: 0.5.7
     vite-plus: 0.1.18
   dev:
+    concurrently: ^9.1.0
     eslint_d: 15.0.2
     file-entry-cache: 11.1.2
     get-tsconfig: 4.14.0
@@ -45,6 +47,7 @@ catalogs:
     pncat: 0.11.1
   docs:
     vitepress: 2.0.0-alpha.17
+    vitepress-plugin-tabs: ^0.8.0
   lint:
     "@commitlint/cli": 20.5.0
     "@commitlint/config-conventional": 20.5.0

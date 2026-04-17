@@ -71,6 +71,11 @@
 			"sourceType": "github",
 			"computedHash": "32f8a3426cb2d2c3db05977369e70d793e342c38ea87f5447eb22108c03c8d7a"
 		},
+		"vercel-cli": {
+			"source": "vercel/vercel",
+			"sourceType": "github",
+			"computedHash": "00a4868de90e83c00a950b04b8cc8ff217bbc6874371ff1d9b44b832a0d85011"
+		},
 		"vite": {
 			"source": "antfu/skills",
 			"sourceType": "github",

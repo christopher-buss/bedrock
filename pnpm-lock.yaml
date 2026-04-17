@@ -9,6 +9,9 @@ catalogs:
     typedoc:
       specifier: 0.28.19
       version: 0.28.19
+    typedoc-plugin-markdown:
+      specifier: ^4.3.0
+      version: 4.11.0
     typedoc-plugin-replace-text:
       specifier: 4.2.0
       version: 4.2.0
@@ -19,6 +22,9 @@ catalogs:
       specifier: 0.1.18
       version: 0.1.18
   dev:
+    concurrently:
+      specifier: ^9.1.0
+      version: 9.2.1
     eslint_d:
       specifier: 15.0.2
       version: 15.0.2
@@ -41,6 +47,9 @@ catalogs:
     vitepress:
       specifier: 2.0.0-alpha.17
       version: 2.0.0-alpha.17
+    vitepress-plugin-tabs:
+      specifier: ^0.8.0
+      version: 0.8.0
   lint:
     '@commitlint/cli':
       specifier: 20.5.0
@@ -262,12 +271,6 @@ importers:
       tsx:
         specifier: catalog:script
         version: 4.21.0
-      typedoc:
-        specifier: catalog:build
-        version: 0.28.19(typescript@6.0.2)
-      typedoc-plugin-replace-text:
-        specifier: catalog:build
-        version: 4.2.0(typedoc@0.28.19(typescript@6.0.2))
       typescript:
         specifier: catalog:tsc
         version: 6.0.2
@@ -305,9 +308,24 @@ importers:
 
   apps/website:
     devDependencies:
+      concurrently:
+        specifier: catalog:dev
+        version: 9.2.1
+      typedoc:
+        specifier: catalog:build
+        version: 0.28.19(typescript@6.0.2)
+      typedoc-plugin-markdown:
+        specifier: catalog:build
+        version: 4.11.0(typedoc@0.28.19(typescript@6.0.2))
+      typedoc-plugin-replace-text:
+        specifier: catalog:build
+        version: 4.2.0(typedoc@0.28.19(typescript@6.0.2))
       vitepress:
         specifier: catalog:docs
         version: 2.0.0-alpha.17(@types/node@24.10.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(yaml@2.8.3)
+      vitepress-plugin-tabs:
+        specifier: catalog:docs
+        version: 0.8.0(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(typescript@6.0.2))
 
   packages/cli:
     devDependencies:
@@ -3568,6 +3586,11 @@ packages:
   concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
 
+  concurrently@9.2.1:
+    resolution: {integrity: sha512-fsfrO0MxV64Znoy8/l1vVIjjHa29SZyyqPgQBwhiDcaW8wJc2W3XWVOGx4M3oJBnv/zdUZIIp1gDeS98GzP8Ng==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   confbox@0.1.8:
     resolution: {integrity: sha512-RMtmw0iFkeR4YV+fUOSucriAQNb9g8zFR52MWCtl+cCZOFRNL6zeB395vPzFhEjjn4fMxXudmELnl/KF/WrK6w==}
 
@@ -5544,6 +5567,10 @@ packages:
     resolution: {integrity: sha512-7++dFhtcx3353uBaq8DDR4NuxBetBzC7ZQOhmTQInHEd6bSrXdiEyzCvG07Z44UYdLShWUyXt5M/yhz8ekcb1A==}
     engines: {node: '>=8'}
 
+  shell-quote@1.8.3:
+    resolution: {integrity: sha512-ObmnIF4hXNg1BqhnHmgbDETF8dLPCggZWBjkQfhZpbszZnYur5DUljTcCHii5LC3J5E0yeO/1LIMyH+UvHQgyw==}
+    engines: {node: '>= 0.4'}
+
   shiki@3.23.0:
     resolution: {integrity: sha512-55Dj73uq9ZXL5zyeRPzHQsK7Nbyt6Y10k5s7OjuFZGMhpp4r/rsLBH0o/0fstIzX1Lep9VxefWljK/SKCzygIA==}
 
@@ -5706,6 +5733,10 @@ packages:
     resolution: {integrity: sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==}
     engines: {node: '>=8'}
 
+  supports-color@8.1.1:
+    resolution: {integrity: sha512-MpUEN2OodtUzxvKQl72cUF7RQ5EiHsGvSsVG0ia9c5RbWGL2CI4C7EpPS8UTBIplnlzZiNuV56w+FuNxy3ty2Q==}
+    engines: {node: '>=10'}
+
   supports-preserve-symlinks-flag@1.0.0:
     resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
     engines: {node: '>= 0.4'}
@@ -5841,6 +5872,12 @@ packages:
   typed-rest-client@2.3.0:
     resolution: {integrity: sha512-FfBj5tjviexjIus3La4n4s9i+f81Zj7HU+lUlQWK219HMRfmzLsbIf4PZF2+X6EouJKyuANpvvef5VrUWM4AFw==}
     engines: {node: '>= 16.0.0'}
+
+  typedoc-plugin-markdown@4.11.0:
+    resolution: {integrity: sha512-2iunh2ALyfyh204OF7h2u0kuQ84xB3jFZtFyUr01nThJkLvR8oGGSSDlyt2gyO4kXhvUxDcVbO0y43+qX+wFbw==}
+    engines: {node: '>= 18'}
+    peerDependencies:
+      typedoc: 0.28.x
 
   typedoc-plugin-replace-text@4.2.0:
     resolution: {integrity: sha512-vmhpFKg75l0CfHO7n3bdf/wwSWH6hQQxaZTqZ5HDe5Xd40tkk6jkVkP6SWhDhntSIflREQqwneflGJG3bCqPEA==}
@@ -5981,6 +6018,12 @@ packages:
         optional: true
       yaml:
         optional: true
+
+  vitepress-plugin-tabs@0.8.0:
+    resolution: {integrity: sha512-86FWHAuS9XCyTMDpMd5MELwp3bQyITDf/+IdZ20+iYbB8TIR8yoCp08PkDHxi4WWSVsCZ3n1uUIC7YCVhMsI3A==}
+    peerDependencies:
+      vitepress: ^1.0.0
+      vue: ^3.5.0
 
   vitepress@2.0.0-alpha.17:
     resolution: {integrity: sha512-Z3VPUpwk/bHYqt1uMVOOK1/4xFiWQov1GNc2FvMdz6kvje4JRXEOngVI9C+bi5jeedMSHiA4dwKkff1NCvbZ9Q==}
@@ -8902,6 +8945,15 @@ snapshots:
 
   concat-map@0.0.1: {}
 
+  concurrently@9.2.1:
+    dependencies:
+      chalk: 4.1.2
+      rxjs: 7.8.2
+      shell-quote: 1.8.3
+      supports-color: 8.1.1
+      tree-kill: 1.2.2
+      yargs: 17.7.2
+
   confbox@0.1.8: {}
 
   confbox@0.2.2: {}
@@ -11360,6 +11412,8 @@ snapshots:
 
   shebang-regex@3.0.0: {}
 
+  shell-quote@1.8.3: {}
+
   shiki@3.23.0:
     dependencies:
       '@shikijs/core': 3.23.0
@@ -11530,6 +11584,10 @@ snapshots:
     dependencies:
       has-flag: 4.0.0
 
+  supports-color@8.1.1:
+    dependencies:
+      has-flag: 4.0.0
+
   supports-preserve-symlinks-flag@1.0.0: {}
 
   synckit@0.11.11:
@@ -11649,6 +11707,10 @@ snapshots:
       qs: 6.15.1
       tunnel: 0.0.6
       underscore: 1.13.8
+
+  typedoc-plugin-markdown@4.11.0(typedoc@0.28.19(typescript@6.0.2)):
+    dependencies:
+      typedoc: 0.28.19(typescript@6.0.2)
 
   typedoc-plugin-replace-text@4.2.0(typedoc@0.28.19(typescript@6.0.2)):
     dependencies:
@@ -11819,6 +11881,11 @@ snapshots:
       lightningcss: 1.32.0
       tsx: 4.21.0
       yaml: 2.8.3
+
+  vitepress-plugin-tabs@0.8.0(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(typescript@6.0.2)):
+    dependencies:
+      vitepress: 2.0.0-alpha.17(@types/node@24.10.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(yaml@2.8.3)
+      vue: 3.5.32(typescript@6.0.2)
 
   vitepress@2.0.0-alpha.17(@types/node@24.10.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(yaml@2.8.3):
     dependencies:
