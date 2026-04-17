@@ -224,4 +224,25 @@ describe(buildCreateRequest, () => {
 		assert(request.body instanceof FormData);
 		expect(request.body.get("imageFile")).toBeInstanceOf(Blob);
 	});
+
+	it("should preserve the MIME type of a Blob imageFile", () => {
+		expect.assertions(2);
+
+		const imageFile = new Blob([new Uint8Array([1, 2, 3, 4])], {
+			type: "image/png",
+		});
+		const params = {
+			imageFile,
+			name: "Epic Pass",
+			universeId: "67890",
+		} satisfies CreateGamePassParameters;
+
+		const request = buildCreateRequest(params);
+
+		assert(request.body instanceof FormData);
+		const appended = request.body.get("imageFile");
+		assert(appended instanceof Blob);
+		expect(appended).toBeInstanceOf(Blob);
+		expect(appended.type).toBe("image/png");
+	});
 });
