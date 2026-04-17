@@ -31,4 +31,17 @@ describe(buildGetRequest, () => {
 			"/game-passes/v1/universes/67890/game-passes/12345/creator",
 		);
 	});
+
+	it("should not set a body", () => {
+		expect.assertions(1);
+
+		const params = {
+			gamePassId: "12345",
+			universeId: "67890",
+		} satisfies GetGamePassParameters;
+
+		const request = buildGetRequest(params);
+
+		expect(request.body).toBeUndefined();
+	});
 });
