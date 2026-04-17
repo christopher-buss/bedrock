@@ -22,6 +22,12 @@ local sharedGuards = new Mapping<String, Step> {
 }
 
 // Base checker steps — used directly by `hk check`, conditioned for hooks
+local genExampleTests = new Step {
+    check = "pnpm gen:example-tests"
+    shell = bash
+    exclusive = true
+}
+
 local lint = new Step {
 	glob = List("*.ts", "*.tsx")
 	check = "pnpm lint:affected"
@@ -67,6 +73,7 @@ hooks {
             ["no-commit-to-branch"] = preCommitBranchGuard
 			["lint"] = (lint)
             ["typecheck"] = (typecheck)
+            ["gen-example-tests"] = (genExampleTests) { condition = isAgent }
             ["test"] = (test) { condition = isAgent }
             ["build"] = (build) { condition = isAgent }
         }
@@ -75,6 +82,7 @@ hooks {
         steps {
 			["lint"] = lint
             ["typecheck"] = typecheck
+            ["gen-example-tests"] = genExampleTests
             ["test"] = test
             ["build"] = build
         }
@@ -106,6 +114,7 @@ hooks {
             ...sharedGuards
 			["lint"] = lint
             ["typecheck"] = typecheck
+            ["gen-example-tests"] = genExampleTests
             ["test"] = testCi
             ["build"] = build
         }
