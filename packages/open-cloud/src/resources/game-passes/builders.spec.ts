@@ -208,4 +208,20 @@ describe(buildCreateRequest, () => {
 		assert(request.body instanceof FormData);
 		expect(request.body.has("isRegionalPricingEnabled")).toBeFalse();
 	});
+
+	it("should wrap a Uint8Array imageFile into a Blob before appending", () => {
+		expect.assertions(1);
+
+		const imageFile = new Uint8Array([1, 2, 3, 4]);
+		const params = {
+			imageFile,
+			name: "Epic Pass",
+			universeId: "67890",
+		} satisfies CreateGamePassParameters;
+
+		const request = buildCreateRequest(params);
+
+		assert(request.body instanceof FormData);
+		expect(request.body.get("imageFile")).toBeInstanceOf(Blob);
+	});
 });

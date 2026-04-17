@@ -34,6 +34,14 @@ export function buildCreateRequest(
 		"isRegionalPricingEnabled",
 		params.isRegionalPricingEnabled,
 	);
+	if (params.imageFile !== undefined) {
+		body.append(
+			"imageFile",
+			params.imageFile instanceof Blob
+				? params.imageFile
+				: new Blob([params.imageFile]),
+		);
+	}
 
 	return {
 		body,
