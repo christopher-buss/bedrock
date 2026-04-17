@@ -8,9 +8,9 @@ import { createFetchHttpClient } from "./fetch-client.ts";
  */
 export interface ResolveDependenciesOptions {
 	/** Test seam: custom {@link HttpClient}. Defaults to a fetch-backed client. */
-	readonly httpClient?: HttpClient;
+	readonly httpClient?: HttpClient | undefined;
 	/** Test seam: custom {@link SleepFunc}. Defaults to a `setTimeout`-backed sleep. */
-	readonly sleep?: SleepFunc;
+	readonly sleep?: SleepFunc | undefined;
 }
 
 /**

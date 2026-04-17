@@ -63,10 +63,10 @@ export class GamePassesClient {
 	 *   optional test seams.
 	 */
 	constructor(options: OpenCloudClientOptions) {
-		const { apiKey, hooks, httpClient: _httpClient, sleep: _sleep, ...overrides } = options;
-		const { httpClient, sleep } = resolveDependencies(options);
-		this.#httpClient = httpClient;
-		this.#sleep = sleep;
+		const { apiKey, hooks, httpClient, sleep, ...overrides } = options;
+		const resolved = resolveDependencies({ httpClient, sleep });
+		this.#httpClient = resolved.httpClient;
+		this.#sleep = resolved.sleep;
 		this.#hooks = hooks ?? {};
 		this.#config = Object.freeze({
 			...CLIENT_DEFAULTS,
