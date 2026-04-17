@@ -188,4 +188,25 @@ describe(parseGamePassResponse, () => {
 
 		expect(result.data.iconAssetId).toBe("55555");
 	});
+
+	it("should preserve enabledFeatures on the converted price", () => {
+		expect.assertions(1);
+
+		const body = validBody({
+			priceInformation: {
+				defaultPriceInRobux: 50,
+				enabledFeatures: ["PriceOptimization", "UserFixedPrice"],
+			},
+		});
+
+		const result = parseGamePassResponse(body, 200);
+
+		assert(result.success);
+		assert(result.data.price);
+
+		expect(result.data.price.enabledFeatures).toStrictEqual([
+			"PriceOptimization",
+			"UserFixedPrice",
+		]);
+	});
 });
