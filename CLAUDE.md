@@ -78,6 +78,45 @@ Every line of production code must be written in response to a failing test.
 - Testing mock behavior instead of real behavior
 - Mocking without understanding dependencies
 
+### Public API examples
+
+Add a JSDoc `@example` block to any symbol exported from a package's
+`src/index.ts` barrel **where the example adds value** — i.e. the usage is
+non-trivial, has surprising edge cases, or the return shape isn't obvious from
+the signature. Skip `@example` on pass-through re-exports and trivial getters.
+
+Examples are dual-purpose:
+
+- `pnpm gen:example-tests` compiles every `@example` code block into an
+  `it(...)` test in `<source>.example.spec.ts`. Each block must be a complete,
+  runnable TypeScript snippet with imports, and should include `expect(...)`
+  assertions that prove the claim.
+- The same blocks are rendered into the public docs site by TypeDoc; the
+  `typedoc-plugin-replace-text` plugin strips the vitest import and `expect`
+  calls so readers see a clean usage sample.
+
+Format:
+
+````ts
+/**
+ * @example
+ * ```ts
+ * import { expect, it } from "vitest";
+ * import { myFn } from "@bedrock/pkg";
+ *
+ * const result = myFn({ foo: 1 });
+ * expect(result).toEqual({ ok: true });
+ * ```
+ */
+````
+
+One well-chosen `@example` is the target. Add a second only when a single
+block genuinely cannot convey the behavior — e.g. a success case plus a
+qualitatively different failure mode. More examples are not better; resist
+the urge to enumerate permutations of the same call. If you find yourself
+reaching for a third block, the symbol probably needs clearer types or a
+split, not more docs.
+
 See `docs/adr/003-testing-strategy.md` for full details.
 
 ## Key Decisions
@@ -92,13 +131,14 @@ See `docs/adr/` for full Architecture Decision Records.
 ## Common Commands
 
 ```bash
-pnpm install        # Install dependencies
-pnpm build          # Build for production
-pnpm dev            # Watch mode
-pnpm test           # Run tests
-pnpm lint           # Check/fix linting
-pnpm typecheck      # TypeScript validation
-pnpm mutate:changed # Mutation test files touched in the current git diff
+pnpm install           # Install dependencies
+pnpm build             # Build for production
+pnpm dev               # Watch mode
+pnpm test              # Run tests
+pnpm lint              # Check/fix linting
+pnpm typecheck         # TypeScript validation
+pnpm gen:example-tests # Generate *.example.spec.ts from @example JSDoc blocks
+pnpm mutate:changed    # Mutation test files touched in the current git diff
 ```
 
 ### Running Bun directly against workspace source
@@ -117,11 +157,12 @@ lands — drop the flag and this note afterwards.
 
 ### Before Committing
 
-1. Run `pnpm lint` (auto-fixes style issues)
-2. Run `pnpm build` (must succeed)
-3. Run `pnpm test` (must pass)
-4. Run `pnpm typecheck` (must pass)
-5. Run `pnpm mutate:changed` (no surviving mutants on touched `src/**` files)
+1. Run `pnpm gen:example-tests` (regenerate `*.example.spec.ts` from `@example` blocks)
+2. Run `pnpm lint` (auto-fixes style issues)
+3. Run `pnpm build` (must succeed)
+4. Run `pnpm test` (must pass)
+5. Run `pnpm typecheck` (must pass)
+6. Run `pnpm mutate:changed` (no surviving mutants on touched `src/**` files)
 
 ### Pull Requests
 
