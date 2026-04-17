@@ -91,8 +91,8 @@ hooks {
 			["lint"] = lint
             ["typecheck"] = typecheck
             ["gen-example-tests"] = genExampleTests
-            ["test"] = test
             ["build"] = build
+            ["test"] = test
         }
     }
     ["commit-msg"] {
@@ -123,8 +123,8 @@ hooks {
 			["lint"] = lint
             ["typecheck"] = typecheck
             ["gen-example-tests"] = genExampleTests
-            ["test"] = testCi
             ["build"] = build
+            ["test"] = testCi
         }
     }
 }
