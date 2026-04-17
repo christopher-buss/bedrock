@@ -1,0 +1,13 @@
+{
+	"gamePassId": 12345678,
+	"name": "Legendary Loot Pass",
+	"description": "Grants access to legendary loot, cosmetic flair, and the exclusive lobby.",
+	"isForSale": true,
+	"iconAssetId": 987654321,
+	"createdTimestamp": "2023-06-10T09:15:42.000Z",
+	"updatedTimestamp": "2024-11-02T17:08:21.500Z",
+	"priceInformation": {
+		"defaultPriceInRobux": 499,
+		"enabledFeatures": ["RegionalPricing"]
+	}
+}
