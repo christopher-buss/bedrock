@@ -7,6 +7,8 @@ const SCOPE_ALIASES: Record<string, string> = {
 	"vite-config": "vite",
 };
 
+const EXTRA_SCOPES = ["deps"];
+
 export default {
 	extends: ["@commitlint/config-conventional", "@commitlint/config-pnpm-scopes"],
 	rules: {
@@ -16,7 +18,7 @@ export default {
 				ctx,
 			)) as [RuleConfigSeverity, "always", Array<string>];
 			const aliased = scopes.map((scope) => SCOPE_ALIASES[scope] ?? scope);
-			return [level, applicable, aliased];
+			return [level, applicable, [...aliased, ...EXTRA_SCOPES]];
 		},
 		"subject-case": [RuleConfigSeverity.Error, "always", ["lower-case"]],
 		"type-enum": [
