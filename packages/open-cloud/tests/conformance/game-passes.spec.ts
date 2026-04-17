@@ -60,7 +60,7 @@ describe("game-passes fixtures", () => {
 			});
 		});
 
-		it("should round-trip create-response.json and collapse iconAssetId 0 to undefined", () => {
+		it("should round-trip create-response.json and map null priceInformation to undefined", () => {
 			expect.assertions(1);
 
 			const body = loadFixture("create-response.json");
@@ -74,12 +74,9 @@ describe("game-passes fixtures", () => {
 				name: "Support Squad Pass",
 				createdAt: new Date("2024-12-20T12:00:00.000Z"),
 				description: "Back the creator and unlock bonus in-game tags.",
-				iconAssetId: undefined,
+				iconAssetId: "13600173502",
 				isForSale: false,
-				price: {
-					defaultPriceInRobux: 99,
-					enabledFeatures: [],
-				},
+				price: undefined,
 				updatedAt: new Date("2024-12-20T12:00:00.000Z"),
 			});
 		});
