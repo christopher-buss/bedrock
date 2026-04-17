@@ -12,6 +12,7 @@ experimental = true
 
 [tools]
 "npm:@antfu/ni" = "latest"
+"npm:eslint_d" = "latest"
 "npm:pncat" = "latest"
 "npm:vercel" = "latest"
 bun = "1.3.12"
