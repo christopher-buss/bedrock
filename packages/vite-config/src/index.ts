@@ -1,3 +1,4 @@
+import process from "node:process";
 import type { ViteUserConfig } from "vite-plus";
 
 export const sharedConfig = {
@@ -42,7 +43,7 @@ export const sharedConfig = {
 		passWithNoTests: true,
 		setupFiles: ["@bedrock/testing/jest-extended"],
 		typecheck: {
-			enabled: true,
+			enabled: process.env["VITEST_TYPECHECK"] !== "false",
 		},
 	},
 } satisfies ViteUserConfig;

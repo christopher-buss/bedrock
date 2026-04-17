@@ -83,6 +83,7 @@ jobs:
 
       - env:
           MUTATE_BASE_REF: origin/${{ github.base_ref }}
+          VITEST_TYPECHECK: "false"
         name: Mutation test changed files
         run: pnpm mutate:changed
     timeout-minutes: 10
