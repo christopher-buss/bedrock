@@ -26,6 +26,7 @@ export const sharedConfig = {
 				"src/**/*.d.ts",
 				"src/**/*.test.{ts,tsx}",
 				"src/**/*.spec.{ts,tsx}",
+				"src/**/*.spec-d.ts",
 				"src/**/__tests__/**",
 				"src/**/__fixtures__/**",
 			],
