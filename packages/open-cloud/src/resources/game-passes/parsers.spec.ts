@@ -129,6 +129,16 @@ describe(parseGamePassResponse, () => {
 		expect(result.err.statusCode).toBe(502);
 	});
 
+	it("should return an ApiError when the body is not an object", () => {
+		expect.assertions(1);
+
+		const result = parseGamePassResponse("not an object", 500);
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+	});
+
 	it("should convert createdTimestamp into a createdAt Date at the same instant", () => {
 		expect.assertions(1);
 
@@ -234,5 +244,45 @@ describe(parseGamePassResponse, () => {
 		assert(result.data.price);
 
 		expect(result.data.price.defaultPriceInRobux).toBeUndefined();
+	});
+
+	it.for([
+		{
+			label: "priceInformation is not an object",
+			priceBody: "42",
+		},
+		{
+			label: "defaultPriceInRobux has the wrong type",
+			priceBody: '{ "defaultPriceInRobux": "free", "enabledFeatures": [] }',
+		},
+		{
+			label: "enabledFeatures is not an array",
+			priceBody: '{ "defaultPriceInRobux": null, "enabledFeatures": "none" }',
+		},
+		{
+			label: "enabledFeatures contains an unknown value",
+			priceBody: '{ "defaultPriceInRobux": null, "enabledFeatures": ["CustomThing"] }',
+		},
+	])("should return an ApiError when $label", ({ priceBody }) => {
+		expect.assertions(1);
+
+		const body: unknown = JSON.parse(
+			`{
+				"createdTimestamp": "2024-01-15T10:30:00.000Z",
+				"description": "malformed price",
+				"gamePassId": 9,
+				"iconAssetId": 9,
+				"isForSale": true,
+				"name": "Malformed",
+				"priceInformation": ${priceBody},
+				"updatedTimestamp": "2024-03-20T14:45:00.000Z"
+			}`,
+		);
+
+		const result = parseGamePassResponse(body, 422);
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
 	});
 });
