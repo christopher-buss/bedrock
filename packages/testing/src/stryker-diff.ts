@@ -20,12 +20,13 @@ export interface FileChange {
 
 /**
  * A file change the wrapper cannot translate into a mutation range:
- * renames, new files, and binary blobs. Surfaced as hard errors.
+ * renames and binary blobs. Surfaced as hard errors. New files are
+ * handled normally — their `@@ -0,0 +1,N @@` hunk already covers the
+ * full added range, which Stryker accepts as the mutation window.
  */
 export type DiffReject =
 	| { from: string; kind: "rename"; to: string }
-	| { kind: "binary"; path: string }
-	| { kind: "new-file"; path: string };
+	| { kind: "binary"; path: string };
 
 /**
  * Outcome of parsing `git diff HEAD`: either the per-file change set or
@@ -39,7 +40,6 @@ const DIFF_HEADER = /^diff --git a\/(.+) b\/(.+)$/;
 const HUNK_HEADER = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/;
 const RENAME_FROM = /^rename from (.+)$/;
 const RENAME_TO = /^rename to (.+)$/;
-const NEW_FILE_MARKER = /^new file mode /;
 const BINARY_MARKER = /^Binary files /;
 
 interface ParseState {
@@ -90,21 +90,27 @@ export function buildMutateArgs(files: ReadonlyArray<FileChange>): Array<string>
 	return ["--mutate", patterns.join(",")];
 }
 
-const NON_MUTABLE_SUFFIXES: ReadonlyArray<string> = [".spec.ts", ".test.ts", ".d.ts"];
+const MUTABLE_SUFFIXES: ReadonlyArray<string> = [".ts", ".tsx"];
+const NON_MUTABLE_SUFFIXES: ReadonlyArray<string> = [".spec.ts", ".spec-d.ts", ".test.ts", ".d.ts"];
 
 /**
- * Filter out files that Stryker should never mutate: test files and type
- * declarations. Used to clean up a `parseDiff` result before passing it to
- * `buildMutateArgs`, since the CLI `--mutate` flag overrides the config's
- * own ignore patterns.
+ * Filter down to files Stryker can actually mutate: TypeScript source
+ * that isn't a test or type declaration. Markdown, configs, and other
+ * non-TS files are dropped so the CLI `--mutate` flag (which overrides
+ * the config's own ignore patterns) never hands them to Stryker's
+ * parser — which has no handler for them and would crash.
  *
  * @param files - Changes as returned by {@link parseDiff}.
  * @returns The subset whose paths point at production source files.
  */
 export function filterMutableFiles(files: ReadonlyArray<FileChange>): Array<FileChange> {
-	return files.filter(
-		(file) => !NON_MUTABLE_SUFFIXES.some((suffix) => file.path.endsWith(suffix)),
-	);
+	return files.filter((file) => {
+		if (!MUTABLE_SUFFIXES.some((suffix) => file.path.endsWith(suffix))) {
+			return false;
+		}
+
+		return !NON_MUTABLE_SUFFIXES.some((suffix) => file.path.endsWith(suffix));
+	});
 }
 
 /**
@@ -142,7 +148,6 @@ export function groupByPackage(
 
 const HANDLERS: ReadonlyArray<LineHandler> = [
 	handleFileHeader,
-	handleNewFile,
 	handleBinary,
 	handleRenameFrom,
 	handleRenameTo,
@@ -166,17 +171,6 @@ function handleFileHeader(line: string, state: ParseState): boolean {
 	state.current = { hunks: [], path: match[2] };
 	state.files.push(state.current);
 	state.renameFrom = undefined;
-	return true;
-}
-
-function handleNewFile(line: string, state: ParseState): boolean {
-	if (!NEW_FILE_MARKER.test(line) || !state.current) {
-		return false;
-	}
-
-	state.rejects.push({ kind: "new-file", path: state.current.path });
-	state.files.pop();
-	state.current = undefined;
 	return true;
 }
 
