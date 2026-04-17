@@ -258,4 +258,72 @@ describe(GamePassesClient, () => {
 			expect(onRateLimit).toHaveBeenCalledExactlyOnceWith(1000);
 		});
 	});
+
+	describe("create", () => {
+		it("should return a parsed GamePass and send a POST with a FormData body", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validBody(),
+				status: 200,
+			});
+			const client = new GamePassesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.create({
+				name: "Epic Pass",
+				universeId: "1",
+			});
+
+			assert(result.success);
+
+			expect(result.data.id).toBe("12345");
+			expect(httpClient.requests[0]?.request.method).toBe("POST");
+			expect(httpClient.requests[0]?.request.body).toBeInstanceOf(FormData);
+		});
+
+		it("should use a queue independent of get() on the same client", async () => {
+			expect.assertions(1);
+
+			const httpClient = mockManyOk(createFakeHttpClient(), 11);
+			const clock = createFakeClock();
+			const client = new GamePassesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			for (let index = 0; index < 10; index++) {
+				await client.get({ gamePassId: "12345", universeId: "1" });
+			}
+
+			await client.create({ name: "Epic Pass", universeId: "1" });
+
+			expect(clock.waits).toStrictEqual([]);
+		});
+
+		it("should not retry a 5xx so the request can't duplicate create work", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockApiError({ statusCode: 500 })
+				.mockResponse({ body: validBody(), status: 200 });
+			const sleep = createFakeSleep();
+			const client = new GamePassesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep,
+			});
+
+			const result = await client.create({ name: "Epic Pass", universeId: "1" });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(httpClient.requests).toHaveLength(1);
+		});
+	});
 });

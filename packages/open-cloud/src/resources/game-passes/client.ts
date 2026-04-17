@@ -1,5 +1,6 @@
 import type {
 	HttpClient,
+	HttpRequest,
 	OpenCloudClientOptions,
 	OpenCloudHooks,
 	RequestOptions,
@@ -10,16 +11,34 @@ import { executeWithRetry } from "../../internal/http/execute.ts";
 import { type OperationLimit, RateLimitQueue } from "../../internal/http/rate-limit-queue.ts";
 import { resolveDependencies } from "../../internal/http/resolve-dependencies.ts";
 import {
+	CREATE_METHOD_DEFAULTS,
 	defaultRetryDelay,
 	IDEMPOTENT_METHOD_DEFAULTS,
 	mergeConfig,
+	type MethodKind,
 	type RetryResolvable,
 } from "../../internal/http/retry.ts";
 import type { Result } from "../../types.ts";
-import { buildGetRequest } from "./builders.ts";
-import { GET_OPERATION_LIMIT } from "./operations.ts";
+import { buildCreateRequest, buildGetRequest } from "./builders.ts";
+import { CREATE_OPERATION_LIMIT, GET_OPERATION_LIMIT } from "./operations.ts";
 import { parseGamePassResponse } from "./parsers.ts";
-import type { GamePass, GetGamePassParameters } from "./types.ts";
+import type { CreateGamePassParameters, GamePass, GetGamePassParameters } from "./types.ts";
+
+interface ExecuteCall {
+	readonly methodDefaults: Partial<RetryResolvable>;
+	readonly methodKind: MethodKind;
+	readonly operationLimit: OperationLimit;
+	readonly options: RequestOptions | undefined;
+	readonly request: HttpRequest;
+}
+
+const CLIENT_DEFAULTS = Object.freeze({
+	baseUrl: "https://apis.roblox.com",
+	maxRetries: 3,
+	retryableStatuses: IDEMPOTENT_METHOD_DEFAULTS.retryableStatuses,
+	retryDelay: defaultRetryDelay,
+	timeout: 30_000,
+} satisfies Omit<RetryResolvable, "apiKey">);
 
 /**
  * Public client for the Roblox Open Cloud Game Passes API.
@@ -44,18 +63,36 @@ export class GamePassesClient {
 	 *   optional test seams.
 	 */
 	constructor(options: OpenCloudClientOptions) {
+		const { apiKey, hooks, httpClient: _httpClient, sleep: _sleep, ...overrides } = options;
 		const { httpClient, sleep } = resolveDependencies(options);
 		this.#httpClient = httpClient;
 		this.#sleep = sleep;
-		this.#hooks = options.hooks ?? {};
+		this.#hooks = hooks ?? {};
 		this.#config = Object.freeze({
-			apiKey: options.apiKey,
-			baseUrl: options.baseUrl ?? "https://apis.roblox.com",
-			maxRetries: options.maxRetries ?? 3,
-			retryableStatuses:
-				options.retryableStatuses ?? IDEMPOTENT_METHOD_DEFAULTS.retryableStatuses,
-			retryDelay: options.retryDelay ?? defaultRetryDelay,
-			timeout: options.timeout ?? 30_000,
+			...CLIENT_DEFAULTS,
+			apiKey,
+			...overrides,
+		});
+	}
+
+	/**
+	 * Creates a new game pass under the supplied universe.
+	 *
+	 * @param parameters - Creation fields including the universe and pass name.
+	 * @param options - Optional per-request overrides.
+	 * @returns A {@link Result} wrapping the parsed {@link GamePass} or the
+	 *   {@link OpenCloudError} that caused the request to fail.
+	 */
+	public async create(
+		parameters: CreateGamePassParameters,
+		options?: RequestOptions,
+	): Promise<Result<GamePass, OpenCloudError>> {
+		return this.#execute({
+			methodDefaults: CREATE_METHOD_DEFAULTS,
+			methodKind: "create",
+			operationLimit: CREATE_OPERATION_LIMIT,
+			options,
+			request: buildCreateRequest(parameters),
 		});
 	}
 
@@ -72,26 +109,35 @@ export class GamePassesClient {
 		parameters: GetGamePassParameters,
 		options?: RequestOptions,
 	): Promise<Result<GamePass, OpenCloudError>> {
-		const merged = mergeConfig(this.#config, {
+		return this.#execute({
 			methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 			methodKind: "idempotent",
-			requestOptions: options ?? {},
+			operationLimit: GET_OPERATION_LIMIT,
+			options,
+			request: buildGetRequest(parameters),
+		});
+	}
+
+	async #execute(call: ExecuteCall): Promise<Result<GamePass, OpenCloudError>> {
+		const merged = mergeConfig(this.#config, {
+			methodDefaults: call.methodDefaults,
+			methodKind: call.methodKind,
+			requestOptions: call.options ?? {},
 		});
 		const requestConfig = {
 			apiKey: merged.apiKey,
 			baseUrl: merged.baseUrl,
 			timeout: merged.timeout,
 		};
-		const queue = this.#getQueue(merged.apiKey, GET_OPERATION_LIMIT);
+		const queue = this.#getQueue(merged.apiKey, call.operationLimit);
 		const httpResult = await queue.acquire(async () => {
-			return executeWithRetry(buildGetRequest(parameters), {
+			return executeWithRetry(call.request, {
 				config: merged,
 				hooks: this.#hooks,
-				send: async (request) => this.#httpClient.request(request, requestConfig),
+				send: async (toSend) => this.#httpClient.request(toSend, requestConfig),
 				sleep: this.#sleep,
 			});
 		});
-
 		if (!httpResult.success) {
 			return httpResult;
 		}
