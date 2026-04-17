@@ -1,4 +1,4 @@
-import type { HttpClient, OpenCloudClientOptions } from "../../client/types.ts";
+import type { HttpClient, OpenCloudClientOptions, RequestConfig } from "../../client/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { resolveDependencies } from "../../internal/http/resolve-dependencies.ts";
 import type { Result } from "../../types.ts";
@@ -15,8 +15,7 @@ import type { GamePass, GetGamePassParameters } from "./types.ts";
  * `OpenCloudError` ever escapes the client.
  */
 export class GamePassesClient {
-	readonly #apiKey: string;
-	readonly #baseUrl: string;
+	readonly #config: Readonly<RequestConfig>;
 	readonly #httpClient: HttpClient;
 
 	/**
@@ -28,9 +27,13 @@ export class GamePassesClient {
 	 */
 	constructor(options: OpenCloudClientOptions) {
 		const { httpClient } = resolveDependencies(options);
-		this.#apiKey = options.apiKey;
-		this.#baseUrl = options.baseUrl ?? "https://apis.roblox.com";
 		this.#httpClient = httpClient;
+		const config: RequestConfig = {
+			apiKey: options.apiKey,
+			baseUrl: options.baseUrl ?? "https://apis.roblox.com",
+			...(options.timeout === undefined ? {} : { timeout: options.timeout }),
+		};
+		this.#config = Object.freeze(config);
 	}
 
 	/**
@@ -42,10 +45,7 @@ export class GamePassesClient {
 	 */
 	public async get(parameters: GetGamePassParameters): Promise<Result<GamePass, OpenCloudError>> {
 		const request = buildGetRequest(parameters);
-		const httpResult = await this.#httpClient.request(request, {
-			apiKey: this.#apiKey,
-			baseUrl: this.#baseUrl,
-		});
+		const httpResult = await this.#httpClient.request(request, this.#config);
 
 		if (!httpResult.success) {
 			return httpResult;

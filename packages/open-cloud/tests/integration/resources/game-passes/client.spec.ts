@@ -63,5 +63,47 @@ describe(GamePassesClient, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 			expect(result.err).toHaveProperty("statusCode", 404);
 		});
+
+		it("should default the base URL to https://apis.roblox.com", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validBody(),
+				status: 200,
+			});
+			const client = new GamePassesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.get({ gamePassId: "12345", universeId: "1" });
+
+			expect(httpClient.requests[0]?.config.baseUrl).toBe("https://apis.roblox.com");
+		});
+
+		it("should forward the configured apiKey, baseUrl, and timeout to the request config", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validBody(),
+				status: 200,
+			});
+			const client = new GamePassesClient({
+				apiKey: "configured-key",
+				baseUrl: "https://staging.apis.roblox.com",
+				httpClient,
+				sleep: createFakeSleep(),
+				timeout: 5000,
+			});
+
+			await client.get({ gamePassId: "12345", universeId: "1" });
+
+			expect(httpClient.requests[0]?.config).toStrictEqual({
+				apiKey: "configured-key",
+				baseUrl: "https://staging.apis.roblox.com",
+				timeout: 5000,
+			});
+		});
 	});
 });
