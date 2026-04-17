@@ -1,11 +1,18 @@
 import type { PartialStrykerOptions } from "@stryker-mutator/api/core";
 
+interface TypescriptCheckerPluginOptions {
+	typescriptChecker: {
+		prioritizePerformanceOverAccuracy: boolean;
+	};
+}
+
 export const sharedStrykerConfig = {
+	checkers: ["typescript"],
 	coverageAnalysis: "perTest",
 	incremental: true,
 	incrementalFile: "reports/stryker-incremental.json",
 	mutate: ["src/**/*.ts", "!src/**/*.d.ts", "!src/**/*.spec.ts", "!src/**/*.spec-d.ts"],
-	plugins: ["@stryker-mutator/vitest-runner"],
+	plugins: ["@stryker-mutator/typescript-checker", "@stryker-mutator/vitest-runner"],
 	reporters: ["html", "clear-text", "progress"],
 	testRunner: "vitest",
 	thresholds: {
@@ -13,4 +20,8 @@ export const sharedStrykerConfig = {
 		high: 100,
 		low: 100,
 	},
-} satisfies PartialStrykerOptions;
+	tsconfigFile: "tsconfig.json",
+	typescriptChecker: {
+		prioritizePerformanceOverAccuracy: true,
+	},
+} satisfies PartialStrykerOptions & TypescriptCheckerPluginOptions;
