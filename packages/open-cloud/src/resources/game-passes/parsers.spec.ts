@@ -105,20 +105,32 @@ describe(parseGamePassResponse, () => {
 		expect(result.err.statusCode).toBe(422);
 	});
 
-	it("should return an ApiError when a required field has the wrong type", () => {
+	it.for([
+		{ badValue: '"12345"', field: "gamePassId" },
+		{ badValue: "42", field: "name" },
+		{ badValue: "false", field: "description" },
+		{ badValue: '"yes"', field: "isForSale" },
+		{ badValue: '"67890"', field: "iconAssetId" },
+		{ badValue: "12345", field: "createdTimestamp" },
+		{ badValue: "12345", field: "updatedTimestamp" },
+	])("should return an ApiError when $field has the wrong type", ({ badValue, field }) => {
 		expect.assertions(2);
 
+		// Duplicate keys are allowed in JSON; `JSON.parse` keeps the last
+		// occurrence so interpolating `badValue` at the end overrides the
+		// valid baseline.
 		const body: unknown = JSON.parse(
 			`{
-				"createdTimestamp": "2024-01-15T10:30:00.000Z",
-				"description": "wrong-type gamePassId",
-				"gamePassId": "12345",
-				"iconAssetId": 67890,
-				"isForSale": true,
-				"name": "Bad Pass",
-				"priceInformation": null,
-				"updatedTimestamp": "2024-03-20T14:45:00.000Z"
-			}`,
+					"createdTimestamp": "2024-01-15T10:30:00.000Z",
+					"description": "base",
+					"gamePassId": 1,
+					"iconAssetId": 1,
+					"isForSale": true,
+					"name": "base",
+					"priceInformation": null,
+					"updatedTimestamp": "2024-03-20T14:45:00.000Z",
+					"${field}": ${badValue}
+				}`,
 		);
 
 		const result = parseGamePassResponse(body, 502);
@@ -133,6 +145,48 @@ describe(parseGamePassResponse, () => {
 		expect.assertions(1);
 
 		const result = parseGamePassResponse("not an object", 500);
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+	});
+
+	it("should return an ApiError when the body is JSON null", () => {
+		expect.assertions(1);
+
+		// Without the top-level isRecord guard, `null["field"]` would throw;
+		// this test locks in the nullish rejection path.
+		const result = parseGamePassResponse(JSON.parse("null"), 500);
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+	});
+
+	it("should reject priceInformation that is an array with look-alike named properties", () => {
+		expect.assertions(1);
+
+		// Adversarial input: JavaScript arrays can carry named properties
+		// alongside their numeric indices. The inner isRecord guard is what
+		// distinguishes a legitimate record from such an array; this test
+		// locks in that the guard still fires even when every field-level
+		// check would otherwise accept the value.
+		const priceInformation: unknown = Object.assign([], {
+			defaultPriceInRobux: 100,
+			enabledFeatures: ["Invalid"],
+		});
+		const body: unknown = {
+			name: "Hostile",
+			createdTimestamp: "2024-01-15T10:30:00.000Z",
+			description: "hostile",
+			gamePassId: 1,
+			iconAssetId: 1,
+			isForSale: true,
+			priceInformation,
+			updatedTimestamp: "2024-03-20T14:45:00.000Z",
+		};
+
+		const result = parseGamePassResponse(body, 500);
 
 		assert(!result.success);
 
@@ -205,7 +259,7 @@ describe(parseGamePassResponse, () => {
 		const body = validBody({
 			priceInformation: {
 				defaultPriceInRobux: 50,
-				enabledFeatures: ["PriceOptimization", "UserFixedPrice"],
+				enabledFeatures: ["Invalid", "PriceOptimization", "UserFixedPrice"],
 			},
 		});
 
@@ -215,6 +269,7 @@ describe(parseGamePassResponse, () => {
 		assert(result.data.price);
 
 		expect(result.data.price.enabledFeatures).toStrictEqual([
+			"Invalid",
 			"PriceOptimization",
 			"UserFixedPrice",
 		]);
@@ -257,7 +312,7 @@ describe(parseGamePassResponse, () => {
 		},
 		{
 			label: "enabledFeatures is not an array",
-			priceBody: '{ "defaultPriceInRobux": null, "enabledFeatures": "none" }',
+			priceBody: '{ "defaultPriceInRobux": null, "enabledFeatures": {} }',
 		},
 		{
 			label: "enabledFeatures contains an unknown value",

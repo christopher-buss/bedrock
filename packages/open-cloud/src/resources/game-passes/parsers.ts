@@ -67,7 +67,7 @@ export function parseGamePassResponse(
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && Boolean(value) && !Array.isArray(value);
+	return Object.prototype.toString.call(value) === "[object Object]";
 }
 
 function hasRequiredPrimitiveFields(body: Record<string, unknown>): boolean {
