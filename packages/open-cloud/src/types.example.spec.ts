@@ -4,9 +4,9 @@ import type { Result } from '@bedrock/ocale'
 
 it('Example 1', () => {
   function parseAge(input: string): Result<number, Error> {
-    const n = Number(input)
-    return Number.isFinite(n)
-      ? { data: n, success: true }
+    const age = Number(input)
+    return Number.isFinite(age)
+      ? { data: age, success: true }
       : { err: new Error(`Not a number: ${input}`), success: false }
   }
   const ok = parseAge('42')
