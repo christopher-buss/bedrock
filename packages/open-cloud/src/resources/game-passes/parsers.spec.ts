@@ -1,5 +1,6 @@
 import { assert, describe, expect, it } from "vitest";
 
+import { ApiError } from "../../errors/api-error.ts";
 import { parseGamePassResponse } from "./parsers.ts";
 import type { GamePassConfigV2 } from "./wire.ts";
 
@@ -64,5 +65,29 @@ describe(parseGamePassResponse, () => {
 		assert(result.success);
 
 		expect(result.data.price).toBeUndefined();
+	});
+
+	it("should return an ApiError when a required field is missing", () => {
+		expect.assertions(3);
+
+		const body: unknown = JSON.parse(
+			`{
+				"createdTimestamp": "2024-01-15T10:30:00.000Z",
+				"description": "nameless",
+				"gamePassId": 12345,
+				"iconAssetId": 67890,
+				"isForSale": true,
+				"priceInformation": null,
+				"updatedTimestamp": "2024-03-20T14:45:00.000Z"
+			}`,
+		);
+
+		const result = parseGamePassResponse(body, 422);
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err.message).toBe("Malformed game pass response");
+		expect(result.err.statusCode).toBe(422);
 	});
 });
