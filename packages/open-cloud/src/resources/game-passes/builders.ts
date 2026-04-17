@@ -4,13 +4,13 @@ import type { GetGamePassParameters } from "./types.ts";
 /**
  * Builds a `GET` request for the Open Cloud "read game pass" endpoint.
  *
- * @param _params - Universe and game pass identifiers to interpolate into the
+ * @param params - Universe and game pass identifiers to interpolate into the
  *   URL.
  * @returns A pure {@link HttpRequest} describing the read call.
  */
-export function buildGetRequest(_params: GetGamePassParameters): HttpRequest {
+export function buildGetRequest(params: GetGamePassParameters): HttpRequest {
 	return {
 		method: "GET",
-		url: "",
+		url: `/game-passes/v1/universes/${params.universeId}/game-passes/${params.gamePassId}/creator`,
 	};
 }
