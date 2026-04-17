@@ -75,9 +75,6 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
-      - name: Generate example tests
-        run: pnpm gen:example-tests
-
       - env:
           MUTATE_BASE_REF: origin/${{ github.base_ref }}
           VITEST_TYPECHECK: "false"
