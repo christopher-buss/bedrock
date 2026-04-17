@@ -32,7 +32,7 @@ describe(executeWithRetry, () => {
 			config: makeRetryConfig(),
 			hooks,
 			send: fakeHttp.send,
-			sleep: fakeSleep.sleep,
+			sleep: fakeSleep,
 		});
 
 		assert(result.success);
@@ -62,7 +62,7 @@ describe(executeWithRetry, () => {
 			config: makeRetryConfig(),
 			hooks,
 			send: fakeHttp.send,
-			sleep: fakeSleep.sleep,
+			sleep: fakeSleep,
 		});
 
 		assert(result.success);
@@ -94,7 +94,7 @@ describe(executeWithRetry, () => {
 			}),
 			hooks,
 			send: fakeHttp.send,
-			sleep: fakeSleep.sleep,
+			sleep: fakeSleep,
 		});
 
 		assert(result.success);
@@ -121,7 +121,7 @@ describe(executeWithRetry, () => {
 			config: makeRetryConfig(),
 			hooks,
 			send: fakeHttp.send,
-			sleep: fakeSleep.sleep,
+			sleep: fakeSleep,
 		});
 
 		assert(!result.success);
@@ -151,7 +151,7 @@ describe(executeWithRetry, () => {
 			config: makeRetryConfig({ maxRetries: 2 }),
 			hooks,
 			send: fakeHttp.send,
-			sleep: fakeSleep.sleep,
+			sleep: fakeSleep,
 		});
 
 		assert(!result.success);
@@ -180,7 +180,7 @@ describe(executeWithRetry, () => {
 			config: makeRetryConfig(),
 			hooks,
 			send: fakeHttp.send,
-			sleep: fakeSleep.sleep,
+			sleep: fakeSleep,
 		});
 
 		assert(result.success);
@@ -209,7 +209,7 @@ describe(executeWithRetry, () => {
 			config: makeRetryConfig(),
 			hooks,
 			send: fakeHttp.send,
-			sleep: fakeSleep.sleep,
+			sleep: fakeSleep,
 		});
 
 		expect(onRequest).toHaveBeenCalledTimes(3);
@@ -236,7 +236,7 @@ describe(executeWithRetry, () => {
 			config: makeRetryConfig(),
 			hooks,
 			send: fakeHttp.send,
-			sleep: fakeSleep.sleep,
+			sleep: fakeSleep,
 		});
 
 		expect(onRetry).toHaveBeenCalledTimes(2);
@@ -262,7 +262,7 @@ describe(executeWithRetry, () => {
 			config: makeRetryConfig(),
 			hooks,
 			send: fakeHttp.send,
-			sleep: fakeSleep.sleep,
+			sleep: fakeSleep,
 		});
 
 		expect(onRateLimit.mock.calls.map(([waitMs]) => waitMs)).toStrictEqual([2000, 5000]);
@@ -285,7 +285,7 @@ describe(executeWithRetry, () => {
 			config: makeRetryConfig({ retryDelay }),
 			hooks: {},
 			send: fakeHttp.send,
-			sleep: fakeSleep.sleep,
+			sleep: fakeSleep,
 		});
 
 		expect(fakeSleep.waits).toStrictEqual([3000]);
@@ -311,7 +311,7 @@ describe(executeWithRetry, () => {
 			}),
 			hooks: {},
 			send: fakeHttp.send,
-			sleep: fakeSleep.sleep,
+			sleep: fakeSleep,
 		});
 
 		expect(fakeSleep.waits).toStrictEqual([1000, 2000]);
@@ -332,7 +332,7 @@ describe(executeWithRetry, () => {
 			config: makeRetryConfig({ retryableStatuses: [] }),
 			hooks,
 			send: fakeHttp.send,
-			sleep: fakeSleep.sleep,
+			sleep: fakeSleep,
 		});
 
 		assert(!result.success);
@@ -361,7 +361,7 @@ describe(executeWithRetry, () => {
 			config: makeRetryConfig({ maxRetries: 1 }),
 			hooks,
 			send: fakeHttp.send,
-			sleep: fakeSleep.sleep,
+			sleep: fakeSleep,
 		});
 
 		expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, firstError);
