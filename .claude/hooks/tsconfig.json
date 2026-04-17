@@ -1,0 +1,13 @@
+{
+	"extends": "@isentinel/tsconfig/typescript",
+	"compilerOptions": {
+		"composite": true,
+		"tsBuildInfoFile": "../state/hooks-build/tsconfig.tsbuildinfo",
+		"libReplacement": true,
+		"rootDir": ".",
+		"types": ["bun"],
+		"noEmit": false,
+		"outDir": "../state/hooks-build"
+	},
+	"include": ["*.ts"]
+}
