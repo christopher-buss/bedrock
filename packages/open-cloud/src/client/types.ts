@@ -63,7 +63,7 @@ export interface HttpClient {
 
 /**
  * Client-level observability hooks. All hooks are notification-only and
- * fire-and-forget — they cannot alter retry behaviour. See ADR-010.
+ * fire-and-forget; they cannot alter retry behaviour.
  */
 export interface OpenCloudHooks {
 	/** Fired before the SDK sleeps for a computed retry or rate-limit wait. */
@@ -90,8 +90,7 @@ export interface OpenCloudClientOptions {
 	 * fetch-backed transport. Useful for wrapping `fetch` with tracing
 	 * or metrics, routing through a custom proxy, or feeding the SDK
 	 * from a recorded-fixture or replay layer. Most consumers leave this
-	 * unset and use the default; internally it's the test seam the
-	 * package's own tests use to inject a fake HTTP client.
+	 * unset and use the default.
 	 */
 	readonly httpClient?: HttpClient;
 	/** Maximum retry attempts. Defaults to `3`. */
@@ -108,9 +107,7 @@ export interface OpenCloudClientOptions {
 	 * Plug in a custom {@link SleepFunc} used between retry attempts and
 	 * for rate-limit waits. Useful for integrating with a custom
 	 * scheduler or virtual clock. Most consumers leave this unset and
-	 * use the default `setTimeout`-backed sleep; internally it's the
-	 * test seam the package's own tests use to advance a fake clock
-	 * synchronously.
+	 * use the default `setTimeout`-backed sleep.
 	 */
 	readonly sleep?: SleepFunc;
 	/** Per-request timeout in milliseconds. Defaults to `30_000`. */

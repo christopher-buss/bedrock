@@ -41,7 +41,7 @@ const result = await client.get({
 
 ## Handle the Result
 
-Every client method returns `Result<T, OpenCloudError>` — errors are returned,
+Every client method returns `Result<T, OpenCloudError>`. Errors are returned,
 not thrown:
 
 ```ts

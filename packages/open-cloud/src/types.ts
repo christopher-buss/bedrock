@@ -1,5 +1,5 @@
 /**
- * Discriminated union for explicit error handling (ADR-009).
+ * Discriminated union for explicit error handling.
  *
  * Every SDK client method returns `Promise<Result<T, OpenCloudError>>`.
  * Errors are never thrown; they are returned as `{ err, success: false }`.

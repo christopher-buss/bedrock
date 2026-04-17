@@ -78,8 +78,7 @@ export class GamePassesClient {
 	 * Creates a new {@link GamePassesClient}. Configuration is frozen on
 	 * construction; per-request overrides are accepted on each method.
 	 *
-	 * @param options - Client-level configuration including the API key and
-	 *   optional test seams.
+	 * @param options - Client-level configuration including the API key.
 	 */
 	constructor(options: OpenCloudClientOptions) {
 		const { apiKey, hooks, httpClient, sleep, ...overrides } = options;
