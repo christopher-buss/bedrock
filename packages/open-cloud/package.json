@@ -51,6 +51,7 @@
 		"@bedrock/vite-config": "workspace:*",
 		"@stryker-mutator/api": "catalog:test",
 		"@stryker-mutator/core": "catalog:test",
+		"@stryker-mutator/typescript-checker": "catalog:test",
 		"@stryker-mutator/vitest-runner": "catalog:test",
 		"@types/bun": "catalog:types",
 		"oxc-minify": "catalog:dev",
