@@ -1,3 +1,5 @@
+import type { Except } from "type-fest";
+
 import type {
 	HttpClient,
 	HttpRequest,
@@ -38,7 +40,7 @@ const CLIENT_DEFAULTS = Object.freeze({
 	retryableStatuses: IDEMPOTENT_METHOD_DEFAULTS.retryableStatuses,
 	retryDelay: defaultRetryDelay,
 	timeout: 30_000,
-} satisfies Omit<RetryResolvable, "apiKey">);
+} satisfies Except<RetryResolvable, "apiKey">);
 
 /**
  * Public client for the Roblox Open Cloud Game Passes API.
