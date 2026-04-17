@@ -109,5 +109,36 @@ describe(GamePassesClient, () => {
 				timeout: 5000,
 			});
 		});
+
+		it("should apply per-request overrides over the client config", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validBody(),
+				status: 200,
+			});
+			const client = new GamePassesClient({
+				apiKey: "client-key",
+				baseUrl: "https://apis.roblox.com",
+				httpClient,
+				sleep: createFakeSleep(),
+				timeout: 30_000,
+			});
+
+			await client.get(
+				{ gamePassId: "12345", universeId: "1" },
+				{
+					apiKey: "override-key",
+					baseUrl: "https://override.example",
+					timeout: 1000,
+				},
+			);
+
+			expect(httpClient.requests[0]?.config).toStrictEqual({
+				apiKey: "override-key",
+				baseUrl: "https://override.example",
+				timeout: 1000,
+			});
+		});
 	});
 });
