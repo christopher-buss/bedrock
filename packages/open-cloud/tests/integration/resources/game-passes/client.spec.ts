@@ -1,29 +1,15 @@
 import type { OpenCloudHooks } from "#src/client/types";
 import { ApiError } from "#src/errors/api-error";
 import { GamePassesClient } from "#src/resources/game-passes/index";
-import type { GamePassConfigV2 } from "#src/resources/game-passes/wire";
 import { createFakeClock } from "#tests/helpers/fake-clock";
 import { createFakeHttpClient, type FakeHttpClient } from "#tests/helpers/fake-http-client";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
+import { validGamePassBody } from "#tests/helpers/game-passes";
 import { assert, describe, expect, it, vi } from "vitest";
-
-function validBody(overrides: Partial<GamePassConfigV2> = {}): GamePassConfigV2 {
-	return {
-		name: "Epic Pass",
-		createdTimestamp: "2024-01-15T10:30:00.000Z",
-		description: "Unlocks epic stuff",
-		gamePassId: 12_345,
-		iconAssetId: 67_890,
-		isForSale: true,
-		priceInformation: { defaultPriceInRobux: 100, enabledFeatures: [] },
-		updatedTimestamp: "2024-03-20T14:45:00.000Z",
-		...overrides,
-	};
-}
 
 function mockManyOk(fake: FakeHttpClient, count: number): FakeHttpClient {
 	for (let index = 0; index < count; index++) {
-		fake.mockResponse({ body: validBody(), status: 200 });
+		fake.mockResponse({ body: validGamePassBody(), status: 200 });
 	}
 
 	return fake;
@@ -35,7 +21,7 @@ describe(GamePassesClient, () => {
 			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient().mockResponse({
-				body: validBody(),
+				body: validGamePassBody(),
 				status: 200,
 			});
 			const client = new GamePassesClient({
@@ -78,7 +64,7 @@ describe(GamePassesClient, () => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
-				body: validBody(),
+				body: validGamePassBody(),
 				status: 200,
 			});
 			const client = new GamePassesClient({
@@ -100,7 +86,7 @@ describe(GamePassesClient, () => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
-				body: validBody(),
+				body: validGamePassBody(),
 				status: 200,
 			});
 			const client = new GamePassesClient({
@@ -124,7 +110,7 @@ describe(GamePassesClient, () => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient().mockResponse({
-				body: validBody(),
+				body: validGamePassBody(),
 				status: 200,
 			});
 			const client = new GamePassesClient({
@@ -156,7 +142,7 @@ describe(GamePassesClient, () => {
 
 			const httpClient = createFakeHttpClient()
 				.mockApiError({ statusCode: 500 })
-				.mockResponse({ body: validBody(), status: 200 });
+				.mockResponse({ body: validGamePassBody(), status: 200 });
 			const sleep = createFakeSleep();
 			const client = new GamePassesClient({
 				apiKey: "test-key",
@@ -215,7 +201,7 @@ describe(GamePassesClient, () => {
 
 			const httpClient = createFakeHttpClient()
 				.mockRateLimit({ retryAfterSeconds: 1 })
-				.mockResponse({ body: validBody(), status: 200 });
+				.mockResponse({ body: validGamePassBody(), status: 200 });
 			const sleep = createFakeSleep();
 			const onRequest = vi.fn<NonNullable<OpenCloudHooks["onRequest"]>>();
 			const onRetry = vi.fn<NonNullable<OpenCloudHooks["onRetry"]>>();
@@ -244,7 +230,7 @@ describe(GamePassesClient, () => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockResponse({
-				body: validBody(),
+				body: validGamePassBody(),
 				status: 200,
 			});
 			const client = new GamePassesClient({
@@ -290,7 +276,7 @@ describe(GamePassesClient, () => {
 
 			const httpClient = createFakeHttpClient()
 				.mockApiError({ statusCode: 500 })
-				.mockResponse({ body: validBody(), status: 200 });
+				.mockResponse({ body: validGamePassBody(), status: 200 });
 			const sleep = createFakeSleep();
 			const client = new GamePassesClient({
 				apiKey: "test-key",
