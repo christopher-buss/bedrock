@@ -61,7 +61,7 @@ describe(parseGamePassResponse, () => {
 		// The API sends a literal JSON `null` when no price is configured;
 		// `JSON.parse` preserves it as runtime null so we exercise the
 		// normalization the parser performs at the wire boundary.
-		const body: unknown = JSON.parse(
+		const body = JSON.parse(
 			`{
 				"createdTimestamp": "2024-01-15T10:30:00.000Z",
 				"description": "Free pass",
@@ -84,7 +84,7 @@ describe(parseGamePassResponse, () => {
 	it("should return an ApiError when a required field is missing", () => {
 		expect.assertions(3);
 
-		const body: unknown = JSON.parse(
+		const body = JSON.parse(
 			`{
 				"createdTimestamp": "2024-01-15T10:30:00.000Z",
 				"description": "nameless",
@@ -119,7 +119,7 @@ describe(parseGamePassResponse, () => {
 		// Duplicate keys are allowed in JSON; `JSON.parse` keeps the last
 		// occurrence so interpolating `badValue` at the end overrides the
 		// valid baseline.
-		const body: unknown = JSON.parse(
+		const body = JSON.parse(
 			`{
 					"createdTimestamp": "2024-01-15T10:30:00.000Z",
 					"description": "base",
@@ -280,7 +280,7 @@ describe(parseGamePassResponse, () => {
 
 		// Nested JSON null inside priceInformation — the parser normalizes
 		// it to undefined on the public GamePassPrice.
-		const body: unknown = JSON.parse(
+		const body = JSON.parse(
 			`{
 				"createdTimestamp": "2024-01-15T10:30:00.000Z",
 				"description": "no default price",
@@ -321,7 +321,7 @@ describe(parseGamePassResponse, () => {
 	])("should return an ApiError when $label", ({ priceBody }) => {
 		expect.assertions(1);
 
-		const body: unknown = JSON.parse(
+		const body = JSON.parse(
 			`{
 				"createdTimestamp": "2024-01-15T10:30:00.000Z",
 				"description": "malformed price",
