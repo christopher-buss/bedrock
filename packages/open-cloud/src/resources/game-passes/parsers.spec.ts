@@ -90,4 +90,28 @@ describe(parseGamePassResponse, () => {
 		expect(result.err.message).toBe("Malformed game pass response");
 		expect(result.err.statusCode).toBe(422);
 	});
+
+	it("should return an ApiError when a required field has the wrong type", () => {
+		expect.assertions(2);
+
+		const body: unknown = JSON.parse(
+			`{
+				"createdTimestamp": "2024-01-15T10:30:00.000Z",
+				"description": "wrong-type gamePassId",
+				"gamePassId": "12345",
+				"iconAssetId": 67890,
+				"isForSale": true,
+				"name": "Bad Pass",
+				"priceInformation": null,
+				"updatedTimestamp": "2024-03-20T14:45:00.000Z"
+			}`,
+		);
+
+		const result = parseGamePassResponse(body, 502);
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err.statusCode).toBe(502);
+	});
 });
