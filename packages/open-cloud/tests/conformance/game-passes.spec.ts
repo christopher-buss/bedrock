@@ -101,7 +101,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return Object.prototype.toString.call(value) === "[object Object]";
 }
 
-function loadFixture(name: string): unknown {
+function loadFixture(name: string): JSONValue {
 	return JSON.parse(
 		readFileSync(
 			fileURLToPath(new URL(`../fixtures/game-passes/${name}`, import.meta.url)),
