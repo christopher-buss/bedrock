@@ -40,12 +40,15 @@ export async function executeWithRetry(
 	options: ExecuteOptions,
 ): Promise<Result<HttpResponse, OpenCloudError>> {
 	const { config, hooks, send, sleep } = options;
-	let attempt = 0;
 
-	while (true) {
+	async function attempt(): Promise<Result<HttpResponse, OpenCloudError>> {
 		hooks.onRequest?.(request);
-		const result = await send(request);
+		return send(request);
+	}
 
+	let result = await attempt();
+
+	for (let retry = 0; retry < config.maxRetries; retry++) {
 		if (result.success) {
 			return result;
 		}
@@ -53,14 +56,17 @@ export async function executeWithRetry(
 		const { err } = result;
 		const isClassified = err instanceof ApiError || err instanceof RateLimitError;
 
-		if (!isClassified || attempt >= config.maxRetries || !shouldRetry(err, config)) {
+		if (!isClassified || !shouldRetry(err, config)) {
 			return result;
 		}
 
-		hooks.onRetry?.(attempt + 1, err);
-		const waitMs = computeRetryWaitMs(err, { attempt, retryDelay: config.retryDelay });
+		hooks.onRetry?.(retry + 1, err);
+		const waitMs = computeRetryWaitMs(err, { attempt: retry, retryDelay: config.retryDelay });
 		hooks.onRateLimit?.(waitMs);
 		await sleep(waitMs);
-		attempt += 1;
+
+		result = await attempt();
 	}
+
+	return result;
 }
