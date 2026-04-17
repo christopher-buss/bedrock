@@ -22,10 +22,10 @@ export function buildGetRequest(params: GetGamePassParameters): HttpRequest {
  * @returns A pure {@link HttpRequest} describing the create call.
  */
 export function buildCreateRequest(
-	_params: CreateGamePassParameters,
+	params: CreateGamePassParameters,
 ): HttpRequest {
 	return {
 		method: "POST",
-		url: "",
+		url: `/game-passes/v1/universes/${params.universeId}/game-passes`,
 	};
 }

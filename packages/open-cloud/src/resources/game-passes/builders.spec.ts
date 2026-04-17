@@ -59,4 +59,17 @@ describe(buildCreateRequest, () => {
 
 		expect(request.method).toBe("POST");
 	});
+
+	it("should interpolate universeId into the create URL", () => {
+		expect.assertions(1);
+
+		const params = {
+			name: "Epic Pass",
+			universeId: "67890",
+		} satisfies CreateGamePassParameters;
+
+		const request = buildCreateRequest(params);
+
+		expect(request.url).toBe("/game-passes/v1/universes/67890/game-passes");
+	});
 });
