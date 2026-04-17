@@ -160,6 +160,31 @@ describe(parseDiff, () => {
 			kind: "changes",
 		});
 	});
+
+	it("should skip pure-deletion hunks that have no new-side lines to mutate", () => {
+		expect.assertions(1);
+
+		const raw = [
+			"diff --git a/src/foo.ts b/src/foo.ts",
+			"index abc1234..def5678 100644",
+			"--- a/src/foo.ts",
+			"+++ b/src/foo.ts",
+			"@@ -10,3 +9,0 @@",
+			"-removed",
+			"-lines",
+			"-only",
+			"@@ -20,1 +18,1 @@",
+			"-old",
+			"+new",
+		].join("\n");
+
+		const result = parseDiff(raw);
+
+		expect(result).toStrictEqual({
+			files: [{ hunks: [{ endLine: 18, startLine: 18 }], path: "src/foo.ts" }],
+			kind: "changes",
+		});
+	});
 });
 
 describe(buildMutateArgs, () => {
