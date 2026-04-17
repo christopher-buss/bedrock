@@ -59,7 +59,7 @@ describe("example test suite", () => {
 
 			const isEnabled = true;
 
-			expect(isEnabled).toBe(true);
+			expect(isEnabled).toBeTrue();
 		});
 
 		it("should check falsy value", () => {
@@ -67,7 +67,7 @@ describe("example test suite", () => {
 
 			const isDisabled = false;
 
-			expect(isDisabled).toBe(false);
+			expect(isDisabled).toBeFalse();
 		});
 	});
 

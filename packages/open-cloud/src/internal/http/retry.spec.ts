@@ -81,7 +81,7 @@ describe(shouldRetry, () => {
 
 		const error = new RateLimitError("slow down", { retryAfterSeconds: 1 });
 
-		expect(shouldRetry(error, { retryableStatuses: [429, 500] })).toBe(true);
+		expect(shouldRetry(error, { retryableStatuses: [429, 500] })).toBeTrue();
 	});
 
 	it("should not mark rate-limit errors as retryable when 429 is excluded", () => {
@@ -89,7 +89,7 @@ describe(shouldRetry, () => {
 
 		const error = new RateLimitError("slow down", { retryAfterSeconds: 1 });
 
-		expect(shouldRetry(error, { retryableStatuses: [500, 502] })).toBe(false);
+		expect(shouldRetry(error, { retryableStatuses: [500, 502] })).toBeFalse();
 	});
 
 	it("should mark API errors as retryable when their status is in the allow-list", () => {
@@ -97,7 +97,7 @@ describe(shouldRetry, () => {
 
 		const error = new ApiError("unavailable", { statusCode: 503 });
 
-		expect(shouldRetry(error, { retryableStatuses: [429, 500, 502, 503, 504] })).toBe(true);
+		expect(shouldRetry(error, { retryableStatuses: [429, 500, 502, 503, 504] })).toBeTrue();
 	});
 
 	it("should not mark API errors as retryable when their status is excluded", () => {
@@ -105,7 +105,7 @@ describe(shouldRetry, () => {
 
 		const error = new ApiError("bad request", { statusCode: 400 });
 
-		expect(shouldRetry(error, { retryableStatuses: [429, 500] })).toBe(false);
+		expect(shouldRetry(error, { retryableStatuses: [429, 500] })).toBeFalse();
 	});
 
 	it("should not mark network errors as retryable", () => {
@@ -113,20 +113,20 @@ describe(shouldRetry, () => {
 
 		const error = new NetworkError("offline");
 
-		expect(shouldRetry(error, { retryableStatuses: [429, 500] })).toBe(false);
+		expect(shouldRetry(error, { retryableStatuses: [429, 500] })).toBeFalse();
 	});
 
 	it("should not mark unclassified Error instances as retryable", () => {
 		expect.assertions(1);
 
-		expect(shouldRetry(new Error("boom"), { retryableStatuses: [429] })).toBe(false);
+		expect(shouldRetry(new Error("boom"), { retryableStatuses: [429] })).toBeFalse();
 	});
 
 	it("should not mark non-Error values as retryable", () => {
 		expect.assertions(2);
 
-		expect(shouldRetry("oops", { retryableStatuses: [429] })).toBe(false);
-		expect(shouldRetry(undefined, { retryableStatuses: [429] })).toBe(false);
+		expect(shouldRetry("oops", { retryableStatuses: [429] })).toBeFalse();
+		expect(shouldRetry(undefined, { retryableStatuses: [429] })).toBeFalse();
 	});
 });
 

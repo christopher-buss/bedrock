@@ -66,7 +66,7 @@ describe("ApiErrorOptions", () => {
 	});
 
 	it("should have optional code", () => {
-		expectTypeOf<ApiErrorOptions>().toMatchTypeOf<{ code?: string | undefined }>();
+		expectTypeOf<ApiErrorOptions>().toExtend<{ code?: string | undefined }>();
 	});
 
 	it("should extend ErrorOptions", () => {

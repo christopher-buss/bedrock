@@ -52,11 +52,12 @@ catalogs:
     "@commitlint/prompt-cli": 20.5.0
     "@commitlint/types": 20.5.0
     "@eslint/config-inspector": 1.5.0
-    "@isentinel/eslint-config": 5.0.0-beta.9
+    "@isentinel/eslint-config": 5.0.0-beta.11
     "@isentinel/hooks": 1.3.0
     "@vitest/eslint-plugin": 1.6.16
     eslint: 9.39.2
     eslint-plugin-erasable-syntax-only: 0.4.0
+    eslint-plugin-jest-extended: 3.0.1
     eslint-plugin-n: 17.24.0
     eslint-plugin-pnpm: 1.6.0
     publint: 0.3.18
