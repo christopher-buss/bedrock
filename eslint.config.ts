@@ -31,6 +31,7 @@ export default isentinel(
 		files: [`packages/*/*/${GLOB_SRC}`],
 		rules: {
 			"better-max-params/better-max-params": ["error", { func: 2 }],
+			"unicorn/no-null": "error",
 		},
 	},
 	{

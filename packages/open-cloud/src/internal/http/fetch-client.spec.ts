@@ -70,6 +70,7 @@ describe(extractErrorCode, () => {
 	it("should return undefined when body is null", () => {
 		expect.assertions(1);
 
+		// eslint-disable-next-line unicorn/no-null -- verifies JSON `null` body handling
 		expect(extractErrorCode(null)).toBeUndefined();
 	});
 });

@@ -44,7 +44,7 @@ describe("type assertions", () => {
 	});
 
 	it("should verify nullable type", () => {
-		const value: null | string = null;
+		const value: string | undefined = undefined;
 
 		expectTypeOf(value).toBeNullable();
 	});
