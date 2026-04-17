@@ -1,22 +1,9 @@
+import { validGamePassBody } from "#tests/helpers/game-passes";
 import { assert, describe, expect, it } from "vitest";
 
 import { ApiError } from "../../errors/api-error.ts";
 import { parseGamePassResponse } from "./parsers.ts";
 import type { GamePassConfigV2 } from "./wire.ts";
-
-function validBody(overrides: Partial<GamePassConfigV2> = {}): GamePassConfigV2 {
-	return {
-		name: "Pass",
-		createdTimestamp: "2024-01-15T10:30:00.000Z",
-		description: "Pass",
-		gamePassId: 1,
-		iconAssetId: 1,
-		isForSale: true,
-		priceInformation: { defaultPriceInRobux: 100, enabledFeatures: [] },
-		updatedTimestamp: "2024-03-20T14:45:00.000Z",
-		...overrides,
-	};
-}
 
 describe(parseGamePassResponse, () => {
 	it("should return success with a fully converted GamePass for a valid body", () => {
@@ -196,7 +183,7 @@ describe(parseGamePassResponse, () => {
 	it("should convert createdTimestamp into a createdAt Date at the same instant", () => {
 		expect.assertions(1);
 
-		const body = validBody({ createdTimestamp: "2024-05-01T08:00:00.000Z" });
+		const body = validGamePassBody({ createdTimestamp: "2024-05-01T08:00:00.000Z" });
 
 		const result = parseGamePassResponse(body, 200);
 
@@ -208,7 +195,7 @@ describe(parseGamePassResponse, () => {
 	it("should convert updatedTimestamp into an updatedAt Date at the same instant", () => {
 		expect.assertions(1);
 
-		const body = validBody({ updatedTimestamp: "2024-07-14T18:30:00.000Z" });
+		const body = validGamePassBody({ updatedTimestamp: "2024-07-14T18:30:00.000Z" });
 
 		const result = parseGamePassResponse(body, 200);
 
@@ -220,7 +207,7 @@ describe(parseGamePassResponse, () => {
 	it("should stringify the numeric gamePassId into the public id", () => {
 		expect.assertions(1);
 
-		const body = validBody({ gamePassId: 987_654 });
+		const body = validGamePassBody({ gamePassId: 987_654 });
 
 		const result = parseGamePassResponse(body, 200);
 
@@ -232,7 +219,7 @@ describe(parseGamePassResponse, () => {
 	it("should treat iconAssetId 0 as an absent icon", () => {
 		expect.assertions(1);
 
-		const body = validBody({ iconAssetId: 0 });
+		const body = validGamePassBody({ iconAssetId: 0 });
 
 		const result = parseGamePassResponse(body, 200);
 
@@ -244,7 +231,7 @@ describe(parseGamePassResponse, () => {
 	it("should stringify a nonzero iconAssetId", () => {
 		expect.assertions(1);
 
-		const body = validBody({ iconAssetId: 55_555 });
+		const body = validGamePassBody({ iconAssetId: 55_555 });
 
 		const result = parseGamePassResponse(body, 200);
 
@@ -256,7 +243,7 @@ describe(parseGamePassResponse, () => {
 	it("should preserve enabledFeatures on the converted price", () => {
 		expect.assertions(1);
 
-		const body = validBody({
+		const body = validGamePassBody({
 			priceInformation: {
 				defaultPriceInRobux: 50,
 				enabledFeatures: ["Invalid", "PriceOptimization", "UserFixedPrice"],

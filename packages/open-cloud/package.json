@@ -55,6 +55,7 @@
 		"@stryker-mutator/vitest-runner": "catalog:test",
 		"@types/bun": "catalog:types",
 		"oxc-minify": "catalog:dev",
+		"type-fest": "catalog:types",
 		"typescript": "catalog:tsc",
 		"vitest": "catalog:test"
 	},

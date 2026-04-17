@@ -10,6 +10,7 @@ import {
 	defaultRetryDelay,
 	IDEMPOTENT_METHOD_DEFAULTS,
 	mergeConfig,
+	type MethodKind,
 	shouldRetry,
 } from "./retry.ts";
 
@@ -291,5 +292,18 @@ describe(mergeConfig, () => {
 
 		expect(clientConfig).toStrictEqual(snapshot);
 		expect(clientConfig.retryableStatuses).toStrictEqual([429, 500]);
+	});
+
+	it("should throw with the unknown methodKind in the error message", () => {
+		expect.assertions(1);
+
+		const clientConfig = makeRetryConfig();
+
+		expect(() => {
+			return mergeConfig(clientConfig, {
+				methodDefaults: CREATE_METHOD_DEFAULTS,
+				methodKind: "bogus" as MethodKind,
+			});
+		}).toThrowWithMessage(Error, "Unexpected methodKind: bogus");
 	});
 });
