@@ -2,18 +2,21 @@ import type { OpenCloudError } from "#src/errors/base";
 import type { HttpRequest, HttpResponse } from "#src/internal/http/types";
 import type { Result } from "#src/types";
 
-/** A transport callback shaped like the `send` argument of `executeWithRetry`. */
-export type FakeSend = (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>>;
+/**
+ * The `send` callback shape consumed by `executeWithRetry`. A plain
+ * transport function — no `RequestConfig`, no queueing, no retries.
+ */
+export type SendFunc = (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>>;
 
 /**
- * A scripted HTTP send: replays `responses` in order and records every
- * request it receives.
+ * A scripted fake for the `send` callback. Replays responses in order
+ * and records every request it receives.
  */
-export interface FakeHttpClient {
+export interface FakeSend {
 	/** Chronological log of every request the fake received. */
 	readonly requests: ReadonlyArray<HttpRequest>;
 	/** The scripted send callback. */
-	readonly send: FakeSend;
+	readonly send: SendFunc;
 }
 
 /**
@@ -25,9 +28,9 @@ export interface FakeHttpClient {
  * @returns A `send` callback plus a `requests` log.
  * @rejects {Error} When a call is made after all scripted responses are consumed.
  */
-export function createFakeHttpClient(options: {
+export function createFakeSend(options: {
 	readonly responses: ReadonlyArray<Result<HttpResponse, OpenCloudError>>;
-}): FakeHttpClient {
+}): FakeSend {
 	const requests: Array<HttpRequest> = [];
 	let index = 0;
 
@@ -38,7 +41,7 @@ export function createFakeHttpClient(options: {
 
 		if (response === undefined) {
 			throw new Error(
-				`createFakeHttpClient exhausted: ${String(index)} calls made, only ${String(options.responses.length)} responses scripted`,
+				`createFakeSend exhausted: ${String(index)} calls made, only ${String(options.responses.length)} responses scripted`,
 			);
 		}
 
