@@ -98,6 +98,7 @@ pnpm dev            # Watch mode
 pnpm test           # Run tests
 pnpm lint           # Check/fix linting
 pnpm typecheck      # TypeScript validation
+pnpm mutate:changed # Mutation test files touched in the current git diff
 ```
 
 ### Running Bun directly against workspace source
