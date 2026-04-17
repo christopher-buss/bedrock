@@ -133,3 +133,10 @@ reviewing documentation changes before merge.
 - [TypeDoc](https://typedoc.org/)
 - [typedoc-plugin-markdown](https://github.com/tgreyuk/typedoc-plugin-markdown)
 - [Vercel Documentation](https://vercel.com/docs)
+
+## Amendments
+
+- **2026-04-17:** The `@bedrock/open-cloud` package was renamed to
+  `@bedrock/ocale`. URL path is now `/ocale/` (not `/open-cloud/`) and TypeDoc
+  emits to `apps/website/docs/ocale/api/`. The directory `packages/open-cloud/`
+  retains its original name.
