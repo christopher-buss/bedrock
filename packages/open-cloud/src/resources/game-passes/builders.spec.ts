@@ -213,8 +213,8 @@ describe(buildCreateRequest, () => {
 		expect(request.body.has("isRegionalPricingEnabled")).toBeFalse();
 	});
 
-	it("should wrap a Uint8Array imageFile into a Blob before appending", () => {
-		expect.assertions(1);
+	it("should wrap a Uint8Array imageFile into a Blob preserving its bytes", () => {
+		expect.assertions(2);
 
 		const imageFile = new Uint8Array([1, 2, 3, 4]);
 		const parameters = {
@@ -226,8 +226,11 @@ describe(buildCreateRequest, () => {
 		const request = buildCreateRequest(parameters);
 
 		assert(request.body instanceof FormData);
+		const appended = request.body.get("imageFile");
+		assert(appended instanceof Blob);
 
-		expect(request.body.get("imageFile")).toBeInstanceOf(Blob);
+		expect(appended).toBeInstanceOf(Blob);
+		expect(appended.size).toBe(imageFile.byteLength);
 	});
 
 	it("should preserve the MIME type of a Blob imageFile", () => {
