@@ -1,5 +1,12 @@
-import type { HttpClient, OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
+import type {
+	HttpClient,
+	OpenCloudClientOptions,
+	OpenCloudHooks,
+	RequestOptions,
+	SleepFunc,
+} from "../../client/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
+import { executeWithRetry } from "../../internal/http/execute.ts";
 import { resolveDependencies } from "../../internal/http/resolve-dependencies.ts";
 import {
 	defaultRetryDelay,
@@ -22,7 +29,9 @@ import type { GamePass, GetGamePassParameters } from "./types.ts";
  */
 export class GamePassesClient {
 	readonly #config: Readonly<RetryResolvable>;
+	readonly #hooks: OpenCloudHooks;
 	readonly #httpClient: HttpClient;
+	readonly #sleep: SleepFunc;
 
 	/**
 	 * Creates a new {@link GamePassesClient}. Configuration is frozen on
@@ -32,8 +41,10 @@ export class GamePassesClient {
 	 *   optional test seams.
 	 */
 	constructor(options: OpenCloudClientOptions) {
-		const { httpClient } = resolveDependencies(options);
+		const { httpClient, sleep } = resolveDependencies(options);
 		this.#httpClient = httpClient;
+		this.#sleep = sleep;
+		this.#hooks = options.hooks ?? {};
 		this.#config = Object.freeze({
 			apiKey: options.apiKey,
 			baseUrl: options.baseUrl ?? "https://apis.roblox.com",
@@ -63,11 +74,16 @@ export class GamePassesClient {
 			methodKind: "idempotent",
 			requestOptions: options ?? {},
 		});
-		const request = buildGetRequest(parameters);
-		const httpResult = await this.#httpClient.request(request, {
+		const requestConfig = {
 			apiKey: merged.apiKey,
 			baseUrl: merged.baseUrl,
 			timeout: merged.timeout,
+		};
+		const httpResult = await executeWithRetry(buildGetRequest(parameters), {
+			config: merged,
+			hooks: this.#hooks,
+			send: async (request) => this.#httpClient.request(request, requestConfig),
+			sleep: this.#sleep,
 		});
 
 		if (!httpResult.success) {

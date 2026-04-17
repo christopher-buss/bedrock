@@ -1,9 +1,10 @@
+import type { OpenCloudHooks } from "#src/client/types";
 import { ApiError } from "#src/errors/api-error";
 import { GamePassesClient } from "#src/resources/game-passes/index";
 import type { GamePassConfigV2 } from "#src/resources/game-passes/wire";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it, vi } from "vitest";
 
 function validBody(overrides: Partial<GamePassConfigV2> = {}): GamePassConfigV2 {
 	return {
@@ -139,6 +140,55 @@ describe(GamePassesClient, () => {
 				baseUrl: "https://override.example",
 				timeout: 1000,
 			});
+		});
+
+		it("should retry a 5xx error using the default retryDelay and sleep", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockApiError({ statusCode: 500 })
+				.mockResponse({ body: validBody(), status: 200 });
+			const sleep = createFakeSleep();
+			const client = new GamePassesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep,
+			});
+
+			const result = await client.get({ gamePassId: "12345", universeId: "1" });
+
+			assert(result.success);
+
+			expect(httpClient.requests).toHaveLength(2);
+			expect(sleep.waits).toStrictEqual([1000]);
+		});
+
+		it("should retry a 429, thread the retry wait through sleep, and fire hooks", async () => {
+			expect.assertions(5);
+
+			const httpClient = createFakeHttpClient()
+				.mockRateLimit({ retryAfterSeconds: 1 })
+				.mockResponse({ body: validBody(), status: 200 });
+			const sleep = createFakeSleep();
+			const onRequest = vi.fn<NonNullable<OpenCloudHooks["onRequest"]>>();
+			const onRetry = vi.fn<NonNullable<OpenCloudHooks["onRetry"]>>();
+			const onRateLimit = vi.fn<NonNullable<OpenCloudHooks["onRateLimit"]>>();
+			const client = new GamePassesClient({
+				apiKey: "test-key",
+				hooks: { onRateLimit, onRequest, onRetry },
+				httpClient,
+				sleep,
+			});
+
+			const result = await client.get({ gamePassId: "12345", universeId: "1" });
+
+			assert(result.success);
+
+			expect(httpClient.requests).toHaveLength(2);
+			expect(sleep.waits).toStrictEqual([1000]);
+			expect(onRequest).toHaveBeenCalledTimes(2);
+			expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, expect.any(Error));
+			expect(onRateLimit).toHaveBeenCalledExactlyOnceWith(1000);
 		});
 	});
 });
