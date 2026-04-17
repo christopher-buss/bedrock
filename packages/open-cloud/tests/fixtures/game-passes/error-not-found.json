@@ -1,0 +1,6 @@
+{
+	"errorCode": "PassNotFound",
+	"errorMessage": "Game pass 12345678 was not found under universe 99999999.",
+	"field": "gamePassId",
+	"hint": "Confirm the game pass ID and that the caller's API key has access to the owning universe."
+}
