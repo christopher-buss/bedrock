@@ -245,4 +245,18 @@ describe(buildCreateRequest, () => {
 		expect(appended).toBeInstanceOf(Blob);
 		expect(appended.type).toBe("image/png");
 	});
+
+	it("should omit imageFile when not provided", () => {
+		expect.assertions(1);
+
+		const params = {
+			name: "Epic Pass",
+			universeId: "67890",
+		} satisfies CreateGamePassParameters;
+
+		const request = buildCreateRequest(params);
+
+		assert(request.body instanceof FormData);
+		expect(request.body.has("imageFile")).toBeFalse();
+	});
 });
