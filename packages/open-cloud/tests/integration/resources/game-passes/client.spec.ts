@@ -1,10 +1,15 @@
-import type { OpenCloudHooks } from "#src/client/types";
+import type { OpenCloudHooks, SleepFunc } from "#src/client/types";
 import { ApiError } from "#src/errors/api-error";
 import { GamePassesClient } from "#src/resources/game-passes/index";
 import type { GamePassConfigV2 } from "#src/resources/game-passes/wire";
-import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
+import { createFakeHttpClient, type FakeHttpClient } from "#tests/helpers/fake-http-client";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
+
+interface FakeClock {
+	readonly sleep: SleepFunc;
+	readonly waits: ReadonlyArray<number>;
+}
 
 function validBody(overrides: Partial<GamePassConfigV2> = {}): GamePassConfigV2 {
 	return {
@@ -18,6 +23,30 @@ function validBody(overrides: Partial<GamePassConfigV2> = {}): GamePassConfigV2 
 		updatedTimestamp: "2024-03-20T14:45:00.000Z",
 		...overrides,
 	};
+}
+
+function createFakeClock(): FakeClock {
+	let time = 0;
+	const waits: Array<number> = [];
+	const spy = vi.spyOn(Date, "now").mockImplementation(() => time);
+	onTestFinished(() => {
+		spy.mockRestore();
+	});
+	return {
+		async sleep(ms: number) {
+			waits.push(ms);
+			time += ms;
+		},
+		waits,
+	};
+}
+
+function mockManyOk(fake: FakeHttpClient, count: number): FakeHttpClient {
+	for (let index = 0; index < count; index++) {
+		fake.mockResponse({ body: validBody(), status: 200 });
+	}
+
+	return fake;
 }
 
 describe(GamePassesClient, () => {
@@ -161,6 +190,44 @@ describe(GamePassesClient, () => {
 
 			expect(httpClient.requests).toHaveLength(2);
 			expect(sleep.waits).toStrictEqual([1000]);
+		});
+
+		it("should sleep on the rate-limit queue once the burst allowance is exhausted", async () => {
+			expect.assertions(1);
+
+			const httpClient = mockManyOk(createFakeHttpClient(), 11);
+			const clock = createFakeClock();
+			const client = new GamePassesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			for (let index = 0; index < 11; index++) {
+				await client.get({ gamePassId: "12345", universeId: "1" });
+			}
+
+			expect(clock.waits).toStrictEqual([100]);
+		});
+
+		it("should route a per-request apiKey override through a separate queue", async () => {
+			expect.assertions(1);
+
+			const httpClient = mockManyOk(createFakeHttpClient(), 11);
+			const clock = createFakeClock();
+			const client = new GamePassesClient({
+				apiKey: "default-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			for (let index = 0; index < 10; index++) {
+				await client.get({ gamePassId: "12345", universeId: "1" });
+			}
+
+			await client.get({ gamePassId: "12345", universeId: "1" }, { apiKey: "override-key" });
+
+			expect(clock.waits).toStrictEqual([]);
 		});
 
 		it("should retry a 429, thread the retry wait through sleep, and fire hooks", async () => {

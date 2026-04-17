@@ -7,6 +7,7 @@ import type {
 } from "../../client/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { executeWithRetry } from "../../internal/http/execute.ts";
+import { type OperationLimit, RateLimitQueue } from "../../internal/http/rate-limit-queue.ts";
 import { resolveDependencies } from "../../internal/http/resolve-dependencies.ts";
 import {
 	defaultRetryDelay,
@@ -16,6 +17,7 @@ import {
 } from "../../internal/http/retry.ts";
 import type { Result } from "../../types.ts";
 import { buildGetRequest } from "./builders.ts";
+import { GET_OPERATION_LIMIT } from "./operations.ts";
 import { parseGamePassResponse } from "./parsers.ts";
 import type { GamePass, GetGamePassParameters } from "./types.ts";
 
@@ -31,6 +33,7 @@ export class GamePassesClient {
 	readonly #config: Readonly<RetryResolvable>;
 	readonly #hooks: OpenCloudHooks;
 	readonly #httpClient: HttpClient;
+	readonly #queues = new Map<string, RateLimitQueue>();
 	readonly #sleep: SleepFunc;
 
 	/**
@@ -79,11 +82,14 @@ export class GamePassesClient {
 			baseUrl: merged.baseUrl,
 			timeout: merged.timeout,
 		};
-		const httpResult = await executeWithRetry(buildGetRequest(parameters), {
-			config: merged,
-			hooks: this.#hooks,
-			send: async (request) => this.#httpClient.request(request, requestConfig),
-			sleep: this.#sleep,
+		const queue = this.#getQueue(merged.apiKey, GET_OPERATION_LIMIT);
+		const httpResult = await queue.acquire(async () => {
+			return executeWithRetry(buildGetRequest(parameters), {
+				config: merged,
+				hooks: this.#hooks,
+				send: async (request) => this.#httpClient.request(request, requestConfig),
+				sleep: this.#sleep,
+			});
 		});
 
 		if (!httpResult.success) {
@@ -91,5 +97,17 @@ export class GamePassesClient {
 		}
 
 		return parseGamePassResponse(httpResult.data.body, httpResult.data.status);
+	}
+
+	#getQueue(apiKey: string, limit: OperationLimit): RateLimitQueue {
+		const key = `${apiKey}::${limit.operationKey}`;
+		const existing = this.#queues.get(key);
+		if (existing !== undefined) {
+			return existing;
+		}
+
+		const queue = new RateLimitQueue(limit, this.#hooks, this.#sleep);
+		this.#queues.set(key, queue);
+		return queue;
 	}
 }
