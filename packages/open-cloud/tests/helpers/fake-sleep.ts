@@ -1,18 +1,19 @@
 import type { SleepFunc } from "#src/internal/utils/sleep";
 
-/** A sleep double that records its wait arguments without delaying. */
-export interface FakeSleep {
-	/** A sleep function that records `ms` and resolves immediately. */
-	readonly sleep: SleepFunc;
-	/** Chronological log of every `ms` value `sleep` was called with. */
+/**
+ * A directly-callable sleep double that records its wait arguments without
+ * delaying. Assignable to {@link SleepFunc}.
+ */
+export interface FakeSleep extends SleepFunc {
+	/** Chronological log of every `ms` value the fake was called with. */
 	readonly waits: ReadonlyArray<number>;
 }
 
 /**
- * Creates a {@link SleepFunc} that resolves immediately and records every
+ * Creates a {@link FakeSleep} that resolves immediately and records every
  * `ms` value it was called with.
  *
- * @returns A sleep function and a `waits` log.
+ * @returns A callable sleep function with a `waits` log attached.
  */
 export function createFakeSleep(): FakeSleep {
 	const waits: Array<number> = [];
@@ -21,5 +22,11 @@ export function createFakeSleep(): FakeSleep {
 		waits.push(ms);
 	}
 
-	return { sleep, waits };
+	const fake: FakeSleep = Object.assign(sleep, {
+		get waits(): ReadonlyArray<number> {
+			return waits;
+		},
+	});
+
+	return fake;
 }

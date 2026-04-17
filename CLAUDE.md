@@ -121,6 +121,7 @@ lands — drop the flag and this note afterwards.
 2. Run `pnpm build` (must succeed)
 3. Run `pnpm test` (must pass)
 4. Run `pnpm typecheck` (must pass)
+5. Run `pnpm mutate:changed` (no surviving mutants on touched `src/**` files)
 
 ### Pull Requests
 
