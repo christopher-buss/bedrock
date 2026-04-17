@@ -24,7 +24,11 @@ export function buildGetRequest(params: GetGamePassParameters): HttpRequest {
 export function buildCreateRequest(
 	params: CreateGamePassParameters,
 ): HttpRequest {
+	const body = new FormData();
+	body.append("name", params.name);
+
 	return {
+		body,
 		method: "POST",
 		url: `/game-passes/v1/universes/${params.universeId}/game-passes`,
 	};

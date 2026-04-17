@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 
 import { buildCreateRequest, buildGetRequest } from "./builders.ts";
 import type { CreateGamePassParameters, GetGamePassParameters } from "./types.ts";
@@ -71,5 +71,19 @@ describe(buildCreateRequest, () => {
 		const request = buildCreateRequest(params);
 
 		expect(request.url).toBe("/game-passes/v1/universes/67890/game-passes");
+	});
+
+	it("should append name to a FormData body", () => {
+		expect.assertions(1);
+
+		const params = {
+			name: "Epic Pass",
+			universeId: "67890",
+		} satisfies CreateGamePassParameters;
+
+		const request = buildCreateRequest(params);
+
+		assert(request.body instanceof FormData);
+		expect(request.body.get("name")).toBe("Epic Pass");
 	});
 });
