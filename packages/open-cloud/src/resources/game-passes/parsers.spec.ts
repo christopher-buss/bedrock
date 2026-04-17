@@ -164,4 +164,16 @@ describe(parseGamePassResponse, () => {
 
 		expect(result.data.id).toBe("987654");
 	});
+
+	it("should treat iconAssetId 0 as an absent icon", () => {
+		expect.assertions(1);
+
+		const body = validBody({ iconAssetId: 0 });
+
+		const result = parseGamePassResponse(body, 200);
+
+		assert(result.success);
+
+		expect(result.data.iconAssetId).toBeUndefined();
+	});
 });
