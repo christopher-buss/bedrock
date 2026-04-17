@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { buildMutateArgs, filterMutableFiles, groupByPackage, parseDiff } from "./stryker-diff.ts";
+import {
+	buildMutateArgs,
+	filterMutableFiles,
+	groupByPackage,
+	isTypesOnlyModule,
+	parseDiff,
+} from "./stryker-diff.ts";
 
 describe(parseDiff, () => {
 	it("should return no files for an empty diff", () => {
@@ -282,5 +288,64 @@ describe(filterMutableFiles, () => {
 			{ hunks: [{ endLine: 5, startLine: 5 }], path: "src/b.ts" },
 			{ hunks: [{ endLine: 8, startLine: 8 }], path: "src/component.tsx" },
 		]);
+	});
+});
+
+describe(isTypesOnlyModule, () => {
+	it("should treat an empty source as types-only", () => {
+		expect.assertions(1);
+
+		expect(isTypesOnlyModule("")).toBeTrue();
+	});
+
+	it("should treat a comments-only source as types-only", () => {
+		expect.assertions(1);
+
+		const source = `
+			// Just a header comment.
+			/**
+			 * And a block comment.
+			 */
+		`;
+
+		expect(isTypesOnlyModule(source)).toBeTrue();
+	});
+
+	it.for<[label: string, source: string]>([
+		["interface declaration", "export interface A { a: number; }"],
+		["type alias", "export type B = { b: string };"],
+		["type-only default import", 'import type X from "./other";\nexport type C = X;'],
+		["type-only named import", 'import type { Y } from "./other";\nexport type D = Y;'],
+		["type-only export specifier", "interface E { e: boolean; }\nexport type { E };"],
+		[
+			"mixed type-only imports and declarations",
+			[
+				'import type { Z } from "./z";',
+				"export interface F { f: Z; }",
+				"export type G = F;",
+			].join("\n"),
+		],
+	])("should treat %s as types-only", ([, source]) => {
+		expect.assertions(1);
+
+		expect(isTypesOnlyModule(source)).toBeTrue();
+	});
+
+	it.for<[label: string, source: string]>([
+		["function declaration", "export function h(): void {}"],
+		["const binding", "export const i = 1;"],
+		["class declaration", "export class J {}"],
+		["enum declaration", "export enum K { A = 0 }"],
+		["side-effect import", 'import "./polyfill";'],
+		["value import", 'import { run } from "./lib";\nrun();'],
+		["value re-export from a module", 'export { run } from "./lib";'],
+		[
+			"interface alongside a runtime statement",
+			"export interface L { a: number; }\nexport const m = 1;",
+		],
+	])("should reject %s as runtime-emitting", ([, source]) => {
+		expect.assertions(1);
+
+		expect(isTypesOnlyModule(source)).toBeFalse();
 	});
 });
