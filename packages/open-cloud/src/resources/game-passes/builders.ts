@@ -26,6 +26,9 @@ export function buildCreateRequest(
 ): HttpRequest {
 	const body = new FormData();
 	body.append("name", params.name);
+	if (params.description !== undefined) {
+		body.append("description", params.description);
+	}
 
 	return {
 		body,

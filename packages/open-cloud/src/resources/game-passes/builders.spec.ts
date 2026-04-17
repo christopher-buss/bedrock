@@ -86,4 +86,33 @@ describe(buildCreateRequest, () => {
 		assert(request.body instanceof FormData);
 		expect(request.body.get("name")).toBe("Epic Pass");
 	});
+
+	it("should append description when provided", () => {
+		expect.assertions(1);
+
+		const params = {
+			description: "Unlocks epic stuff",
+			name: "Epic Pass",
+			universeId: "67890",
+		} satisfies CreateGamePassParameters;
+
+		const request = buildCreateRequest(params);
+
+		assert(request.body instanceof FormData);
+		expect(request.body.get("description")).toBe("Unlocks epic stuff");
+	});
+
+	it("should omit description when not provided", () => {
+		expect.assertions(1);
+
+		const params = {
+			name: "Epic Pass",
+			universeId: "67890",
+		} satisfies CreateGamePassParameters;
+
+		const request = buildCreateRequest(params);
+
+		assert(request.body instanceof FormData);
+		expect(request.body.has("description")).toBeFalse();
+	});
 });
