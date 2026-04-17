@@ -79,24 +79,16 @@ export type ErrorCodeWire =
 	| "UniverseNotFound";
 
 /**
- * Wire shape of `GamePasses.ErrorResponse`, the body returned for
- * non-2xx Game Passes API responses.
- *
- * Every field is optional per the schema. Unlike the success-path
- * types above, error bodies are consumed raw by the HTTP layer (see
- * `extractErrorCode` in `internal/http/fetch-client.ts`) rather than
- * normalized through a parser, so each field may arrive as absent,
- * as explicit JSON `null`, or as a value. Real 4xx responses tend to
- * include every key and set irrelevant ones to `null` (e.g. `hint` on
- * a 404). Consumers that read these fields should treat absent and
- * `null` as equivalent.
+ * Wire shape of `GamePasses.ErrorResponse` — the body returned for
+ * non-2xx Game Passes API responses. All fields are genuinely optional
+ * per the schema.
  */
 export interface GamePassesErrorResponse {
 	/** Machine-readable error code from the enum above. */
 	readonly errorCode?: ErrorCodeWire;
 	/** Human-readable error description. */
 	readonly errorMessage?: string;
-	/** Field that triggered the error; the API formats this as `"<entity>: <id>"`. */
+	/** Field path that triggered the error, when applicable. */
 	readonly field?: string;
 	/** Suggested remediation, when provided by the API. */
 	readonly hint?: string;
