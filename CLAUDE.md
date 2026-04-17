@@ -172,8 +172,16 @@ lands — drop the flag and this note afterwards.
 
 ### Pull Requests
 
-PR titles must follow conventional commit format (e.g.
-`feat(ocale): add result type`). This is enforced by CI.
+PR titles are linted by commitlint (`.github/workflows/lint-pr-title.yaml`) —
+**verify both rules before `gh pr create` / `gh pr edit --title`:**
+
+1. **Subject lower-case**: kebab-case every uppercase letter after
+   `type(scope):`, including code identifiers (`mergeConfig` → `merge-config`,
+   `GamePassesClient` → `game-passes-client`).
+2. **Scope-enum**: if a scope is present it MUST be one of
+   `bedrock, e2e, global, ocale, testing, tsconfig, vite, website`. `ci`,
+   `chore`, `docs`, `build`, `refactor` are **types, not scopes** — write
+   `ci: …` with no scope, not `fix(ci): …`.
 
 ### Creating Issues
 
