@@ -13,6 +13,21 @@ export interface ApiErrorOptions extends ErrorOptions {
 /**
  * Thrown when the Roblox Open Cloud API returns a non-2xx response
  * that is not a rate limit (429).
+ *
+ * @example
+ *
+ * ```ts
+ * import { ApiError } from "@bedrock/ocale";
+ *
+ * const error = new ApiError("Game pass not found", {
+ *     code: "NotFound",
+ *     statusCode: 404,
+ * });
+ *
+ * expect(error).toBeInstanceOf(ApiError);
+ * expect(error.statusCode).toBe(404);
+ * expect(error.code).toBe("NotFound");
+ * ```
  */
 export class ApiError extends OpenCloudError {
 	public readonly code: string | undefined;

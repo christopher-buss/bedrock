@@ -11,6 +11,19 @@ export interface RateLimitErrorOptions extends ErrorOptions {
 /**
  * Thrown when the Roblox Open Cloud API returns a 429 Too Many Requests response.
  * Contains the server-suggested retry delay.
+ *
+ * @example
+ *
+ * ```ts
+ * import { RateLimitError } from "@bedrock/ocale";
+ *
+ * const error = new RateLimitError("Too many requests", {
+ *     retryAfterSeconds: 30,
+ * });
+ *
+ * expect(error).toBeInstanceOf(RateLimitError);
+ * expect(error.retryAfterSeconds).toBe(30);
+ * ```
  */
 export class RateLimitError extends OpenCloudError {
 	public override readonly name = "RateLimitError";
