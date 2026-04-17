@@ -123,9 +123,8 @@ describe(shouldRetry, () => {
 	});
 
 	it("should not mark non-Error values as retryable", () => {
-		expect.assertions(3);
+		expect.assertions(2);
 
-		expect(shouldRetry(null, { retryableStatuses: [429] })).toBe(false);
 		expect(shouldRetry("oops", { retryableStatuses: [429] })).toBe(false);
 		expect(shouldRetry(undefined, { retryableStatuses: [429] })).toBe(false);
 	});

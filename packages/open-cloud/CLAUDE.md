@@ -173,11 +173,16 @@ doesn't support idempotency keys).
 
 Every line of production code must be written in response to a failing test.
 
-**RED → GREEN → REFACTOR:**
+**RED → GREEN → REFACTOR cycle:**
 
 1. **RED:** Write failing test for desired behavior
 2. **GREEN:** Write minimum code to pass
-3. **REFACTOR:** Assess if refactoring adds value (commit before refactoring)
+3. **REFACTOR:** Clean up while tests stay green
+
+**Commit cadence:** The pre-commit hook runs lint, typecheck, test, and build,
+so a pure-RED commit is rejected. Work RED → GREEN in the working tree, then
+commit RED + GREEN **together** as one commit per behaviour slice. REFACTOR
+lands as a separate commit only when refactoring adds value.
 
 ### Test Levels
 

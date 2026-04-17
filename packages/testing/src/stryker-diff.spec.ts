@@ -28,7 +28,7 @@ describe(parseDiff, () => {
 		});
 	});
 
-	it("should reject a newly added file with its path", () => {
+	it("should record a newly added file with a hunk covering every added line", () => {
 		expect.assertions(1);
 
 		const raw = [
@@ -46,8 +46,8 @@ describe(parseDiff, () => {
 		const result = parseDiff(raw);
 
 		expect(result).toStrictEqual({
-			kind: "reject",
-			reasons: [{ kind: "new-file", path: "src/new.ts" }],
+			files: [{ hunks: [{ endLine: 3, startLine: 1 }], path: "src/new.ts" }],
+			kind: "changes",
 		});
 	});
 
@@ -263,7 +263,7 @@ describe(groupByPackage, () => {
 });
 
 describe(filterMutableFiles, () => {
-	it("should drop spec, test, and declaration files", () => {
+	it("should drop spec, test, declaration, and non-TS files", () => {
 		expect.assertions(1);
 
 		const files = [
@@ -272,11 +272,15 @@ describe(filterMutableFiles, () => {
 			{ hunks: [{ endLine: 3, startLine: 3 }], path: "src/a.test.ts" },
 			{ hunks: [{ endLine: 4, startLine: 4 }], path: "src/types.d.ts" },
 			{ hunks: [{ endLine: 5, startLine: 5 }], path: "src/b.ts" },
+			{ hunks: [{ endLine: 6, startLine: 6 }], path: "src/c.spec-d.ts" },
+			{ hunks: [{ endLine: 7, startLine: 7 }], path: "CLAUDE.md" },
+			{ hunks: [{ endLine: 8, startLine: 8 }], path: "src/component.tsx" },
 		];
 
 		expect(filterMutableFiles(files)).toStrictEqual([
 			{ hunks: [{ endLine: 1, startLine: 1 }], path: "src/a.ts" },
 			{ hunks: [{ endLine: 5, startLine: 5 }], path: "src/b.ts" },
+			{ hunks: [{ endLine: 8, startLine: 8 }], path: "src/component.tsx" },
 		]);
 	});
 });
