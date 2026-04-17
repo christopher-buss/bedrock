@@ -39,4 +39,30 @@ describe(parseGamePassResponse, () => {
 			updatedAt: new Date("2024-03-20T14:45:00.000Z"),
 		});
 	});
+
+	it("should map a null priceInformation to an undefined price", () => {
+		expect.assertions(1);
+
+		// The API sends a literal JSON `null` when no price is configured;
+		// `JSON.parse` preserves it as runtime null so we exercise the
+		// normalization the parser performs at the wire boundary.
+		const body: unknown = JSON.parse(
+			`{
+				"createdTimestamp": "2024-01-15T10:30:00.000Z",
+				"description": "Free pass",
+				"gamePassId": 42,
+				"iconAssetId": 99,
+				"isForSale": false,
+				"name": "Free Pass",
+				"priceInformation": null,
+				"updatedTimestamp": "2024-03-20T14:45:00.000Z"
+			}`,
+		);
+
+		const result = parseGamePassResponse(body, 200);
+
+		assert(result.success);
+
+		expect(result.data.price).toBeUndefined();
+	});
 });
