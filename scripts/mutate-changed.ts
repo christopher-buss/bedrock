@@ -13,9 +13,7 @@ import process from "node:process";
 function readGitDiff(): string {
 	const result = spawnSync("git", ["diff", "--unified=0", "HEAD"], { encoding: "utf8" });
 	if (result.status !== 0) {
-		throw new Error(
-			`git diff hasFailed with status ${String(result.status)}: ${result.stderr}`,
-		);
+		throw new Error(`git diff failed with status ${String(result.status)}: ${result.stderr}`);
 	}
 
 	return result.stdout;
@@ -36,20 +34,15 @@ function runStrykerForEach(
 		Array<{ hunks: Array<{ endLine: number; startLine: number }>; path: string }>
 	>,
 ): boolean {
-	let hasFailed = false;
-	for (const [packageDirectory, files] of grouped) {
+	const statuses = Array.from(grouped, ([packageDirectory, files]) => {
 		const args = buildMutateArgs(files);
 		console.log(`\n→ Running Stryker in ${packageDirectory}`);
-		const result = spawnSync("pnpm", ["exec", "stryker", "run", "stryker.config.ts", ...args], {
+		return spawnSync("pnpm", ["exec", "stryker", "run", "stryker.config.ts", ...args], {
 			cwd: packageDirectory,
 			stdio: "inherit",
-		});
-		if (result.status !== 0) {
-			hasFailed = true;
-		}
-	}
-
-	return hasFailed;
+		}).status;
+	});
+	return statuses.some((status) => status !== 0);
 }
 
 function reportReject(reason: { from?: string; kind: string; path?: string; to?: string }): void {
@@ -93,7 +86,7 @@ async function main(): Promise<void> {
 	}
 }
 
-main().catch((err: unknown) => {
+main().catch((err) => {
 	console.error(err);
 	process.exit(1);
 });
