@@ -2,44 +2,29 @@
 import { spawnSync } from "node:child_process";
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-
-interface ToolResponse {
-	cwd?: string;
-	directory?: string;
-	path?: string;
-	worktreePath?: string;
-}
+import process from "node:process";
 
 interface HookPayload {
-	tool_response?: ToolResponse;
+	// eslint-disable-next-line flawless/naming-convention -- matches Claude Code hook payload shape
+	tool_response?: {
+		cwd?: string;
+		directory?: string;
+		path?: string;
+		worktreePath?: string;
+	};
 }
 
 async function readStdin(): Promise<string> {
 	let data = "";
 	process.stdin.setEncoding("utf8");
-	for await (const chunk of process.stdin) data += chunk;
+	for await (const chunk of process.stdin) {
+		data += chunk;
+	}
+
 	return data;
 }
 
-function newestWorktreeDir(projectDir: string): string | null {
-	const parent = join(projectDir, ".claude", "worktrees");
-	let entries;
-	try {
-		entries = readdirSync(parent, { withFileTypes: true });
-	} catch {
-		return null;
-	}
-	const dirs = entries
-		.filter((e) => e.isDirectory())
-		.map((e) => {
-			const path = join(parent, e.name);
-			return { path, mtime: statSync(path).mtimeMs };
-		})
-		.sort((a, b) => b.mtime - a.mtime);
-	return dirs[0]?.path ?? null;
-}
-
-function isDir(path: string): boolean {
+function isDirectory(path: string): boolean {
 	try {
 		return statSync(path).isDirectory();
 	} catch {
@@ -47,49 +32,120 @@ function isDir(path: string): boolean {
 	}
 }
 
-async function main(): Promise<void> {
-	const raw = await readStdin();
-	let payload: HookPayload = {};
+function newestWorktreeDirectory(projectDirectory: string): string | undefined {
+	const parent = join(projectDirectory, ".claude", "worktrees");
+	let entries;
 	try {
-		if (raw) payload = JSON.parse(raw) as HookPayload;
+		entries = readdirSync(parent, { withFileTypes: true });
 	} catch {
-		// treat as empty payload
-	}
-	const r = payload.tool_response ?? {};
-	let worktree = r.path ?? r.worktreePath ?? r.cwd ?? r.directory ?? null;
-
-	if (!worktree || !isDir(worktree)) {
-		const projectDir = process.env.CLAUDE_PROJECT_DIR;
-		if (!projectDir) {
-			console.error("post-worktree-setup: CLAUDE_PROJECT_DIR not set");
-			process.exit(0);
-		}
-		worktree = newestWorktreeDir(projectDir);
+		return undefined;
 	}
 
-	if (!worktree || !isDir(worktree)) {
-		console.error("post-worktree-setup: could not locate new worktree path");
-		process.exit(0);
+	const directories = entries
+		.filter((entry) => entry.isDirectory())
+		.map((entry) => {
+			const path = join(parent, entry.name);
+			return { mtime: statSync(path).mtimeMs, path };
+		})
+		.sort((a, b) => b.mtime - a.mtime);
+	return directories[0]?.path;
+}
+
+function isJsonObject(value: JSONValue | undefined): value is JSONObject {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readString(object: JSONObject, key: string): string | undefined {
+	const value = object[key];
+	return typeof value === "string" ? value : undefined;
+}
+
+function tryParseJson(raw: string): JSONValue | undefined {
+	try {
+		return JSON.parse(raw);
+	} catch {
+		return undefined;
+	}
+}
+
+function parsePayload(raw: string): HookPayload {
+	if (raw === "") {
+		return {};
 	}
 
-	console.error(`post-worktree-setup: setting up ${worktree}`);
+	const parsed = tryParseJson(raw);
+	if (!isJsonObject(parsed)) {
+		return {};
+	}
 
+	const response = parsed["tool_response"];
+	if (!isJsonObject(response)) {
+		return {};
+	}
+
+	return {
+		tool_response: {
+			cwd: readString(response, "cwd"),
+			directory: readString(response, "directory"),
+			path: readString(response, "path"),
+			worktreePath: readString(response, "worktreePath"),
+		},
+	};
+}
+
+function resolveWorktree(payload: HookPayload): string | undefined {
+	const response = payload.tool_response ?? {};
+	const hinted = response.path ?? response.worktreePath ?? response.cwd ?? response.directory;
+	if (hinted !== undefined && isDirectory(hinted)) {
+		return hinted;
+	}
+
+	const projectDirectory = process.env["CLAUDE_PROJECT_DIR"];
+	if (projectDirectory === undefined || projectDirectory === "") {
+		return undefined;
+	}
+
+	const fallback = newestWorktreeDirectory(projectDirectory);
+	return fallback !== undefined && isDirectory(fallback) ? fallback : undefined;
+}
+
+function runSetup(worktree: string): number {
 	const steps: Array<[string, Array<string>]> = [
 		["mise", ["trust"]],
 		["mise", ["install"]],
 		["pnpm", ["install"]],
 	];
-	for (const [cmd, args] of steps) {
-		const result = spawnSync(cmd, args, {
+	for (const [command, args] of steps) {
+		const result = spawnSync(command, args, {
 			cwd: worktree,
 			shell: process.platform === "win32",
 			stdio: "inherit",
 		});
 		if (result.status !== 0) {
-			console.error(`post-worktree-setup: ${cmd} ${args.join(" ")} failed`);
-			process.exit(result.status ?? 1);
+			console.error(`post-worktree-setup: ${command} ${args.join(" ")} failed`);
+			return result.status ?? 1;
 		}
+	}
+
+	return 0;
+}
+
+async function main(): Promise<void> {
+	const payload = parsePayload(await readStdin());
+	const worktree = resolveWorktree(payload);
+	if (worktree === undefined) {
+		console.error("post-worktree-setup: could not locate new worktree path");
+		return;
+	}
+
+	console.error(`post-worktree-setup: setting up ${worktree}`);
+	const status = runSetup(worktree);
+	if (status !== 0) {
+		process.exit(status);
 	}
 }
 
-await main();
+main().catch((err) => {
+	console.error(err);
+	process.exit(1);
+});
