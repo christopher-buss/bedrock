@@ -39,9 +39,6 @@ jobs:
           path: .eslintcache
           restore-keys: eslint-${{ runner.os }}-
 
-      - name: Generate example tests
-        run: pnpm gen:example-tests
-
       - name: Run hk check
         run: hk check
 
