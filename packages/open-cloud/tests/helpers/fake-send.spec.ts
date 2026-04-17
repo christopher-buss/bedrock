@@ -56,7 +56,8 @@ describe(createFakeSend, () => {
 
 		await fakeSend.send(getRequest);
 
-		await expect(fakeSend.send(postRequest)).rejects.toThrow(
+		await expect(fakeSend.send(postRequest)).rejects.toThrowWithMessage(
+			Error,
 			"createFakeSend exhausted: 2 calls made, only 1 responses scripted",
 		);
 	});
