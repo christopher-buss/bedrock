@@ -32,11 +32,14 @@ jobs:
         run: |
           # Wait for triage workflow to complete (max 5 minutes)
           for i in {1..30}; do
-            # Get the latest triage run for this PR commit
+            # Filter by commit server-side so --limit 1 reliably returns the
+            # triage run for this PR. Client-side jq filtering combined with
+            # --limit 1 races when concurrent triage runs for other PRs exist.
             TRIAGE_STATUS=$(gh run list --workflow=claude-triage.yaml \
               --repo "$REPO" \
-              --json conclusion,status,headSha \
-              --jq ".[] | select(.headSha == \"$PR_HEAD_SHA\") | .conclusion" \
+              --commit "$PR_HEAD_SHA" \
+              --json conclusion \
+              --jq '.[0].conclusion' \
               --limit 1)
 
             if [ "$TRIAGE_STATUS" = "success" ]; then
