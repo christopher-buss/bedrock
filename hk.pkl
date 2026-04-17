@@ -65,6 +65,13 @@ local build = new Step {
     exclusive = true
 }
 
+local mutate = new Step {
+    glob = List("*.ts", "*.tsx")
+    check = "pnpm mutate:changed"
+    shell = bash
+    exclusive = true
+}
+
 hooks {
     ["pre-commit"] {
         stash = "none"
@@ -76,6 +83,7 @@ hooks {
             ["gen-example-tests"] = (genExampleTests) { condition = isAgent }
             ["test"] = (test) { condition = isAgent }
             ["build"] = (build) { condition = isAgent }
+            ["mutate"] = (mutate) { condition = isAgent }
         }
     }
     ["pre-push"] {
