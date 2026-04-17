@@ -18,7 +18,7 @@ export function buildGetRequest(params: GetGamePassParameters): HttpRequest {
 /**
  * Builds a `POST` request for the Open Cloud "create game pass" endpoint.
  *
- * @param _params - Parameters describing the new game pass.
+ * @param params - Parameters describing the new game pass.
  * @returns A pure {@link HttpRequest} describing the create call.
  */
 export function buildCreateRequest(
@@ -26,25 +26,33 @@ export function buildCreateRequest(
 ): HttpRequest {
 	const body = new FormData();
 	body.append("name", params.name);
-	if (params.description !== undefined) {
-		body.append("description", params.description);
-	}
-	if (params.isForSale !== undefined) {
-		body.append("isForSale", String(params.isForSale));
-	}
-	if (params.price !== undefined) {
-		body.append("price", String(params.price));
-	}
-	if (params.isRegionalPricingEnabled !== undefined) {
-		body.append(
-			"isRegionalPricingEnabled",
-			String(params.isRegionalPricingEnabled),
-		);
-	}
+	appendIfDefined(body, "description", params.description);
+	appendIfDefined(body, "isForSale", params.isForSale);
+	appendIfDefined(body, "price", params.price);
+	appendIfDefined(
+		body,
+		"isRegionalPricingEnabled",
+		params.isRegionalPricingEnabled,
+	);
 
 	return {
 		body,
 		method: "POST",
 		url: `/game-passes/v1/universes/${params.universeId}/game-passes`,
 	};
+}
+
+/**
+ * Appends a value to `body` under `name` when it is defined, coercing
+ * non-string scalars via `String()`. Undefined values are skipped so that
+ * `"undefined"` never leaks into the multipart payload.
+ */
+function appendIfDefined(
+	body: FormData,
+	name: string,
+	value: boolean | number | string | undefined,
+): void {
+	if (value !== undefined) {
+		body.append(name, String(value));
+	}
 }
