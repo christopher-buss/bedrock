@@ -42,7 +42,7 @@
 	"scripts": {
 		"build": "vp pack",
 		"dev": "vp pack --watch",
-		"test": "vitest",
+		"test": "vp test",
 		"typecheck": "tsgo --noEmit"
 	},
 	"devDependencies": {
