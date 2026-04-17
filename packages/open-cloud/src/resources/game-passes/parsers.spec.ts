@@ -4,6 +4,20 @@ import { ApiError } from "../../errors/api-error.ts";
 import { parseGamePassResponse } from "./parsers.ts";
 import type { GamePassConfigV2 } from "./wire.ts";
 
+function validBody(overrides: Partial<GamePassConfigV2> = {}): GamePassConfigV2 {
+	return {
+		name: "Pass",
+		createdTimestamp: "2024-01-15T10:30:00.000Z",
+		description: "Pass",
+		gamePassId: 1,
+		iconAssetId: 1,
+		isForSale: true,
+		priceInformation: { defaultPriceInRobux: 100, enabledFeatures: [] },
+		updatedTimestamp: "2024-03-20T14:45:00.000Z",
+		...overrides,
+	};
+}
+
 describe(parseGamePassResponse, () => {
 	it("should return success with a fully converted GamePass for a valid body", () => {
 		expect.assertions(1);
@@ -113,5 +127,17 @@ describe(parseGamePassResponse, () => {
 
 		expect(result.err).toBeInstanceOf(ApiError);
 		expect(result.err.statusCode).toBe(502);
+	});
+
+	it("should convert createdTimestamp into a createdAt Date at the same instant", () => {
+		expect.assertions(1);
+
+		const body = validBody({ createdTimestamp: "2024-05-01T08:00:00.000Z" });
+
+		const result = parseGamePassResponse(body, 200);
+
+		assert(result.success);
+
+		expect(result.data.createdAt.toISOString()).toBe("2024-05-01T08:00:00.000Z");
 	});
 });
