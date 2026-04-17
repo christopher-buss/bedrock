@@ -86,8 +86,12 @@ export interface OpenCloudClientOptions {
 	/** Optional observability hooks. */
 	readonly hooks?: OpenCloudHooks;
 	/**
-	 * Test seam: inject a custom {@link HttpClient}. Defaults to the built-in
-	 * fetch-backed implementation.
+	 * Plug in a custom {@link HttpClient} to wrap or replace the default
+	 * fetch-backed transport. Useful for wrapping `fetch` with tracing
+	 * or metrics, routing through a custom proxy, or feeding the SDK
+	 * from a recorded-fixture or replay layer. Most consumers leave this
+	 * unset and use the default; internally it's the test seam the
+	 * package's own tests use to inject a fake HTTP client.
 	 */
 	readonly httpClient?: HttpClient;
 	/** Maximum retry attempts. Defaults to `3`. */
@@ -101,8 +105,12 @@ export interface OpenCloudClientOptions {
 	/** Fallback delay function used when no server hint is available. */
 	readonly retryDelay?: (attempt: number) => number;
 	/**
-	 * Test seam: inject a custom {@link SleepFunc}. Defaults to a
-	 * `setTimeout`-backed implementation.
+	 * Plug in a custom {@link SleepFunc} used between retry attempts and
+	 * for rate-limit waits. Useful for integrating with a custom
+	 * scheduler or virtual clock. Most consumers leave this unset and
+	 * use the default `setTimeout`-backed sleep; internally it's the
+	 * test seam the package's own tests use to advance a fake clock
+	 * synchronously.
 	 */
 	readonly sleep?: SleepFunc;
 	/** Per-request timeout in milliseconds. Defaults to `30_000`. */
