@@ -213,7 +213,7 @@ describe(executeWithRetry, () => {
 		});
 
 		expect(onRequest).toHaveBeenCalledTimes(3);
-		expect(onRequest.mock.calls.every((call) => call[0] === request)).toBe(true);
+		expect(onRequest.mock.calls.every((call) => call[0] === request)).toBeTrue();
 	});
 
 	it("should fire onRetry with the 1-indexed attempt number", async () => {
