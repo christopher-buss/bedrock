@@ -34,7 +34,7 @@ jobs:
 
       - if: github.event_name == 'issues'
         name: Triage Issue
-        uses: anthropics/claude-code-action@931e62027356f4c337273719db085805456e53cc # v1.0.98
+        uses: anthropics/claude-code-action@c3d45e8e941e1b2ad7b278c57482d9c5bf1f35b3 # v1.0.99
         with:
           allowed_non_write_users: "*"
           claude_args: |
@@ -49,7 +49,7 @@ jobs:
 
       - if: github.event_name == 'pull_request'
         name: Triage Pull Request
-        uses: anthropics/claude-code-action@931e62027356f4c337273719db085805456e53cc # v1.0.98
+        uses: anthropics/claude-code-action@c3d45e8e941e1b2ad7b278c57482d9c5bf1f35b3 # v1.0.99
         with:
           allowed_non_write_users: "*"
           claude_args: |
