@@ -1,8 +1,9 @@
 # ADR-016: Knip for Workspace-Level Unused Code Detection
 
-**Date:** 2026-04-17 **Status:** Accepted
+**Date:** 2026-04-17  **Status:** Accepted
 
-Decision Makers: Maintainer Tags: developer-workflow, tooling, quality, monorepo, knip
+Decision Makers: Maintainer  
+Tags: developer-workflow, tooling, quality, monorepo, knip
 
 ## Context
 
