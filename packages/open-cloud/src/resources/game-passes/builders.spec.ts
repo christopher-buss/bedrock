@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { buildGetRequest } from "./builders.ts";
-import type { GetGamePassParameters } from "./types.ts";
+import { buildCreateRequest, buildGetRequest } from "./builders.ts";
+import type { CreateGamePassParameters, GetGamePassParameters } from "./types.ts";
 
 describe(buildGetRequest, () => {
 	it("should use the GET method", () => {
@@ -43,5 +43,20 @@ describe(buildGetRequest, () => {
 		const request = buildGetRequest(params);
 
 		expect(request.body).toBeUndefined();
+	});
+});
+
+describe(buildCreateRequest, () => {
+	it("should use the POST method", () => {
+		expect.assertions(1);
+
+		const params = {
+			name: "Epic Pass",
+			universeId: "67890",
+		} satisfies CreateGamePassParameters;
+
+		const request = buildCreateRequest(params);
+
+		expect(request.method).toBe("POST");
 	});
 });
