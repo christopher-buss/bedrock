@@ -171,7 +171,7 @@ describe("OpenCloudClientOptions", () => {
 	});
 
 	it("should have optional baseUrl, maxRetries, timeout", () => {
-		expectTypeOf<OpenCloudClientOptions>().toMatchTypeOf<{
+		expectTypeOf<OpenCloudClientOptions>().toExtend<{
 			baseUrl?: string;
 			maxRetries?: number;
 			timeout?: number;
@@ -188,7 +188,7 @@ describe("OpenCloudClientOptions", () => {
 	});
 
 	it("should expose hooks, httpClient, and sleep test seams as optional", () => {
-		expectTypeOf<OpenCloudClientOptions>().toMatchTypeOf<{
+		expectTypeOf<OpenCloudClientOptions>().toExtend<{
 			hooks?: OpenCloudHooks;
 			httpClient?: HttpClient;
 			sleep?: SleepFunc;

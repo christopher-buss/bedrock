@@ -40,7 +40,7 @@ jobs:
           restore-keys: eslint-${{ runner.os }}-
 
       - name: Run hk check
-        run: hk check
+        run: hk check --all
 
       - if: always()
         name: Upload coverage
