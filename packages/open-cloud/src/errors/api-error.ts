@@ -5,7 +5,7 @@ import { OpenCloudError } from "./base.ts";
  */
 export interface ApiErrorOptions extends ErrorOptions {
 	/** Optional machine-readable error code from the API. */
-	code?: string;
+	code?: string | undefined;
 	/** HTTP status code from the API response. */
 	statusCode: number;
 }
