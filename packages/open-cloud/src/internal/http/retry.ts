@@ -278,9 +278,16 @@ export function mergeConfig<T extends RetryResolvable>(
 ): T {
 	const { methodDefaults, methodKind, requestOptions } = options;
 
-	if (methodKind === "create") {
-		return { ...clientConfig, ...methodDefaults, ...requestOptions };
+	switch (methodKind) {
+		case "create": {
+			return { ...clientConfig, ...methodDefaults, ...requestOptions };
+		}
+		case "idempotent": {
+			return { ...methodDefaults, ...clientConfig, ...requestOptions };
+		}
+		default: {
+			const exhaustive: never = methodKind;
+			throw new Error(`Unexpected methodKind: ${String(exhaustive)}`);
+		}
 	}
-
-	return { ...methodDefaults, ...clientConfig, ...requestOptions };
 }
