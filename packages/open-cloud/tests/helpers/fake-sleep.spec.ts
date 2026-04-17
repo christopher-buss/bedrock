@@ -42,6 +42,6 @@ describe(createFakeSleep, () => {
 		const fakeSleep = createFakeSleep();
 		const asSleepFunc: SleepFunc = fakeSleep;
 
-		expect(asSleepFunc).toBeInstanceOf(Function);
+		expect(asSleepFunc).toBeFunction();
 	});
 });

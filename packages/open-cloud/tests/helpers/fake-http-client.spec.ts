@@ -177,13 +177,13 @@ describe(createFakeHttpClient, () => {
 	});
 
 	it("should throw FakeHttpClientError naming method, url, and consumed count when queue is empty", async () => {
-		expect.assertions(2);
+		expect.assertions(1);
 
 		const fake = createFakeHttpClient().mockResponse({ status: 200 });
 		await fake.request(getRequest, config);
 
-		await expect(fake.request(postRequest, config)).rejects.toThrow(FakeHttpClientError);
-		await expect(fake.request(postRequest, config)).rejects.toThrow(
+		await expect(fake.request(postRequest, config)).rejects.toThrowWithMessage(
+			FakeHttpClientError,
 			"FakeHttpClient: no mock queued for POST /v1/create (consumed 1, pending 0)",
 		);
 	});
