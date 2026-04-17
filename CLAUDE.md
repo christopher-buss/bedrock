@@ -51,13 +51,19 @@ tool no longer maintained).
 
 Every line of production code must be written in response to a failing test.
 
-**RED → GREEN → REFACTOR:**
+**RED → GREEN → REFACTOR cycle:**
 
 1. **RED:** Write failing test for desired behavior
 2. **GREEN:** Write minimum code to pass
-3. **REFACTOR:** Assess if refactoring adds value (commit before refactoring)
+3. **REFACTOR:** Clean up while tests stay green
 
-**Git history must show TDD compliance.**
+**Commit cadence:** The pre-commit hook (`hk`) runs lint, typecheck, test, and
+build, so a pure-RED commit is rejected before it can land. Work RED → GREEN
+in the working tree, then commit RED + GREEN **together** as one commit per
+behaviour slice. REFACTOR lands as a separate commit only when refactoring
+adds value for that slice.
+
+**Git history must show TDD compliance — one commit per behaviour slice.**
 
 **Test levels:**
 
