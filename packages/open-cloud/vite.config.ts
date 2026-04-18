@@ -3,17 +3,15 @@ import { sharedConfig } from "@bedrock/vite-config";
 import { mergeConfig } from "vite-plus";
 
 function addTestingSubpath(
-	exports: Record<string, unknown>,
+	exportsMap: Record<string, unknown>,
 	context: { isPublish: boolean },
 ): Record<string, unknown> {
 	if (context.isPublish) {
-		return exports;
+		return exportsMap;
 	}
 
-	return {
-		...exports,
-		"./testing": { source: "./tests/helpers/index.ts" },
-	};
+	exportsMap["./testing"] = { source: "./tests/helpers/index.ts" };
+	return exportsMap;
 }
 
 export default mergeConfig(sharedConfig, {
