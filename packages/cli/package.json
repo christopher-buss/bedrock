@@ -20,6 +20,10 @@
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
 	"sideEffects": false,
 	"type": "module",
+	"imports": {
+		"#src/*": "./src/*.ts",
+		"#tests/*": "./tests/*.ts"
+	},
 	"exports": {
 		".": {
 			"source": "./src/index.ts",
@@ -34,19 +38,28 @@
 	"scripts": {
 		"build": "vp pack",
 		"dev": "vp pack --watch",
-		"test": "vitest",
+		"test": "vp test",
 		"typecheck": "tsgo --noEmit"
+	},
+	"dependencies": {
+		"@bedrock/ocale": "workspace:*"
 	},
 	"devDependencies": {
 		"@bedrock/testing": "workspace:*",
 		"@bedrock/typescript-config": "workspace:*",
 		"@bedrock/vite-config": "workspace:*",
+		"@stryker-mutator/api": "catalog:test",
+		"@stryker-mutator/core": "catalog:test",
+		"@stryker-mutator/vitest-runner": "catalog:test",
 		"@types/bun": "catalog:types",
+		"oxc-minify": "catalog:dev",
+		"type-fest": "catalog:types",
 		"typescript": "catalog:tsc",
 		"vitest": "catalog:test"
 	},
 	"engines": {
-		"bun": ">=1.0.0"
+		"node": ">=24.12.0",
+		"bun": ">=1.3.0"
 	},
 	"publishConfig": {
 		"exports": {
