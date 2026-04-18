@@ -12,6 +12,7 @@ import type {
 	OpenCloudHooks,
 	RateLimitError,
 	RateLimitErrorOptions,
+	RequestConfig,
 	RequestOptions,
 	Result,
 	SleepFunc,
@@ -136,6 +137,24 @@ describe("HttpClient", () => {
 		expectTypeOf<HttpClient>()
 			.toHaveProperty("request")
 			.returns.resolves.toEqualTypeOf<Result<HttpResponse, OpenCloudError>>();
+	});
+
+	it("should accept a RequestConfig on request", () => {
+		expectTypeOf<HttpClient>()
+			.toHaveProperty("request")
+			.parameter(1)
+			.toEqualTypeOf<RequestConfig>();
+	});
+});
+
+describe("RequestConfig", () => {
+	it("should require apiKey and baseUrl as strings", () => {
+		expectTypeOf<RequestConfig>().toHaveProperty("apiKey").toBeString();
+		expectTypeOf<RequestConfig>().toHaveProperty("baseUrl").toBeString();
+	});
+
+	it("should have optional timeout as number", () => {
+		expectTypeOf<RequestConfig>().toHaveProperty("timeout").toEqualTypeOf<number | undefined>();
 	});
 });
 

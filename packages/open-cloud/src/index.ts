@@ -4,6 +4,7 @@ export type {
 	HttpResponse,
 	OpenCloudClientOptions,
 	OpenCloudHooks,
+	RequestConfig,
 	RequestOptions,
 	SleepFunc,
 } from "./client/types.ts";
