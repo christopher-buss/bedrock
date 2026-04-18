@@ -57,6 +57,55 @@ describe(parseDiff, () => {
 		});
 	});
 
+	it("should drop a deleted file entirely so mutate-changed never opens a missing path", () => {
+		expect.assertions(1);
+
+		const raw = [
+			"diff --git a/src/old.ts b/src/old.ts",
+			"deleted file mode 100644",
+			"index abc1234..0000000",
+			"--- a/src/old.ts",
+			"+++ /dev/null",
+			"@@ -1,3 +0,0 @@",
+			"-a",
+			"-b",
+			"-c",
+		].join("\n");
+
+		const result = parseDiff(raw);
+
+		expect(result).toStrictEqual({ files: [], kind: "changes" });
+	});
+
+	it("should drop only the deleted files and keep the surviving modifications", () => {
+		expect.assertions(1);
+
+		const raw = [
+			"diff --git a/src/gone.ts b/src/gone.ts",
+			"deleted file mode 100644",
+			"index abc1234..0000000",
+			"--- a/src/gone.ts",
+			"+++ /dev/null",
+			"@@ -1,2 +0,0 @@",
+			"-a",
+			"-b",
+			"diff --git a/src/alive.ts b/src/alive.ts",
+			"index ffff..1111 100644",
+			"--- a/src/alive.ts",
+			"+++ b/src/alive.ts",
+			"@@ -3 +3 @@",
+			"-old",
+			"+new",
+		].join("\n");
+
+		const result = parseDiff(raw);
+
+		expect(result).toStrictEqual({
+			files: [{ hunks: [{ endLine: 3, startLine: 3 }], path: "src/alive.ts" }],
+			kind: "changes",
+		});
+	});
+
 	it("should reject a rename with the old and new paths", () => {
 		expect.assertions(1);
 
@@ -289,6 +338,24 @@ describe(filterMutableFiles, () => {
 			{ hunks: [{ endLine: 8, startLine: 8 }], path: "src/component.tsx" },
 		]);
 	});
+
+	it("should drop files outside a src/ directory so Stryker's --mutate list cannot overreach", () => {
+		expect.assertions(1);
+
+		const files = [
+			{ hunks: [{ endLine: 1, startLine: 1 }], path: "packages/open-cloud/src/index.ts" },
+			{ hunks: [{ endLine: 2, startLine: 2 }], path: "packages/open-cloud/vite.config.ts" },
+			{
+				hunks: [{ endLine: 3, startLine: 3 }],
+				path: "packages/open-cloud/tests/helpers/index.ts",
+			},
+			{ hunks: [{ endLine: 4, startLine: 4 }], path: "scripts/mutate-changed.ts" },
+		];
+
+		expect(filterMutableFiles(files)).toStrictEqual([
+			{ hunks: [{ endLine: 1, startLine: 1 }], path: "packages/open-cloud/src/index.ts" },
+		]);
+	});
 });
 
 describe(isTypesOnlyModule, () => {
@@ -332,16 +399,36 @@ describe(isTypesOnlyModule, () => {
 	});
 
 	it.for<[label: string, source: string]>([
+		["value re-export from a module", 'export { run } from "./lib";'],
+		[
+			"mixed value and type re-exports from modules",
+			[
+				'export { ApiError } from "./errors/api-error.ts";',
+				'export { OpenCloudError } from "./errors/base.ts";',
+				'export type { Result } from "./types.ts";',
+			].join("\n"),
+		],
+		["renamed value re-export from a module", 'export { run as go } from "./lib";'],
+	])("should treat %s as types-only because it has no local runtime logic", ([, source]) => {
+		expect.assertions(1);
+
+		expect(isTypesOnlyModule(source)).toBeTrue();
+	});
+
+	it.for<[label: string, source: string]>([
 		["function declaration", "export function h(): void {}"],
 		["const binding", "export const i = 1;"],
 		["class declaration", "export class J {}"],
 		["enum declaration", "export enum K { A = 0 }"],
 		["side-effect import", 'import "./polyfill";'],
 		["value import", 'import { run } from "./lib";\nrun();'],
-		["value re-export from a module", 'export { run } from "./lib";'],
 		[
 			"interface alongside a runtime statement",
 			"export interface L { a: number; }\nexport const m = 1;",
+		],
+		[
+			"re-export alongside a runtime statement",
+			'export { run } from "./lib";\nexport const started = true;',
 		],
 	])("should reject %s as runtime-emitting", ([, source]) => {
 		expect.assertions(1);
