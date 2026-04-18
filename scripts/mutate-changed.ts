@@ -2,10 +2,12 @@ import {
 	buildMutateArgs,
 	filterMutableFiles,
 	groupByPackage,
+	isTypesOnlyModule,
 	parseDiff,
 } from "@bedrock/testing/stryker-diff";
 
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { glob } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
@@ -68,7 +70,9 @@ async function main(): Promise<void> {
 		process.exit(2);
 	}
 
-	const mutable = filterMutableFiles(parsed.files);
+	const mutable = filterMutableFiles(parsed.files).filter((file) => {
+		return !isTypesOnlyModule(readFileSync(file.path, "utf8"));
+	});
 	if (mutable.length === 0) {
 		console.log("No modified files — nothing to mutate.");
 		return;

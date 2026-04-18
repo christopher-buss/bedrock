@@ -125,6 +125,27 @@ split, not more docs.
 
 See `docs/adr/003-testing-strategy.md` for full details.
 
+## Type Conventions
+
+These conventions shape how new code is written and reviewed in this repo.
+
+- **`JSONValue` is an ambient global** provided by `better-typescript-lib`
+  (loaded via `@isentinel/tsconfig`'s `libReplacement: true`). It is the
+  return type of `JSON.parse` and the canonical "any parsed JSON shape"
+  type across the repo. Do not annotate `JSON.parse` call sites as
+  `: unknown`, and do not propose `type-fest`'s `JsonValue` as a
+  substitute: the ambient type is already in scope everywhere the base
+  tsconfig is extended.
+
+- **Wire types express nullability as `T | undefined`**, not `T | null`,
+  because `unicorn/no-null` is enforced under `src/**`. Parsers (for
+  example `parseGamePassResponse`) normalize JSON `null` to `undefined`
+  at the wire boundary so public types only surface `undefined`. When
+  an interface describes a raw wire body that is consumed without a
+  parser (error response types, for example), document the null-vs-absent
+  distinction at the declaration rather than widening the type to
+  `| null`.
+
 ## Key Decisions
 
 See `docs/adr/` for full Architecture Decision Records.

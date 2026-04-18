@@ -1,0 +1,6 @@
+{
+	"errorCode": "PassNotFound",
+	"errorMessage": "The pass with ID: 12345678 was not found in universe 99999999.",
+	"field": "pass: 12345678",
+	"hint": null
+}

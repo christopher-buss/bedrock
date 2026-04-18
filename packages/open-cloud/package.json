@@ -54,6 +54,8 @@
 		"@stryker-mutator/typescript-checker": "catalog:test",
 		"@stryker-mutator/vitest-runner": "catalog:test",
 		"@types/bun": "catalog:types",
+		"ajv": "catalog:test",
+		"ajv-formats": "catalog:test",
 		"oxc-minify": "catalog:dev",
 		"type-fest": "catalog:types",
 		"typescript": "catalog:tsc",

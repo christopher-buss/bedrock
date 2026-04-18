@@ -1,3 +1,5 @@
+import ts from "typescript";
+
 /**
  * A contiguous range of modified lines within a file.
  */
@@ -114,6 +116,28 @@ export function filterMutableFiles(files: ReadonlyArray<FileChange>): Array<File
 }
 
 /**
+ * Return `true` when every top-level statement in the given TypeScript
+ * source is erased at build time (interfaces, type aliases, type-only
+ * imports/exports). Such files produce no JS output and are useless
+ * mutation targets; Stryker's vitest runner also crashes when a zero-
+ * mutant source has no importers at runtime, so they must be filtered
+ * out before `stryker run` is invoked.
+ *
+ * @param source - Raw TypeScript source as a string.
+ * @returns `true` if the module has no runtime-emitting top-level code.
+ */
+export function isTypesOnlyModule(source: string): boolean {
+	const sourceFile = ts.createSourceFile(
+		"types-only-check.ts",
+		source,
+		ts.ScriptTarget.Latest,
+		false,
+		ts.ScriptKind.TS,
+	);
+	return sourceFile.statements.every(isErasableStatement);
+}
+
+/**
  * Bucket file changes by the workspace package that contains them. Paths
  * in the returned buckets are rewritten to be relative to their package
  * directory so they can be passed to a per-package `stryker run` invocation.
@@ -144,6 +168,26 @@ export function groupByPackage(
 	}
 
 	return grouped;
+}
+
+function isErasableStatement(statement: ts.Statement): boolean {
+	if (ts.isInterfaceDeclaration(statement)) {
+		return true;
+	}
+
+	if (ts.isTypeAliasDeclaration(statement)) {
+		return true;
+	}
+
+	if (ts.isImportDeclaration(statement)) {
+		return statement.importClause?.phaseModifier === ts.SyntaxKind.TypeKeyword;
+	}
+
+	if (ts.isExportDeclaration(statement)) {
+		return statement.isTypeOnly;
+	}
+
+	return false;
 }
 
 const HANDLERS: ReadonlyArray<LineHandler> = [

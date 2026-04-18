@@ -122,6 +122,12 @@ catalogs:
     '@vitest/coverage-v8':
       specifier: 4.1.4
       version: 4.1.4
+    ajv:
+      specifier: 8.18.0
+      version: 8.18.0
+    ajv-formats:
+      specifier: 3.0.1
+      version: 3.0.1
     generate-jsdoc-example-tests:
       specifier: 0.2.6
       version: 0.2.6
@@ -374,6 +380,12 @@ importers:
       '@types/bun':
         specifier: catalog:types
         version: 1.3.4
+      ajv:
+        specifier: catalog:test
+        version: 8.18.0
+      ajv-formats:
+        specifier: catalog:test
+        version: 3.0.1(ajv@8.18.0)
       oxc-minify:
         specifier: catalog:dev
         version: 0.125.0
@@ -3311,6 +3323,14 @@ packages:
     resolution: {integrity: sha512-UVJyE9MttOsBQIDKw1skb9nAwQuR5wuGD3+82K6JgJlm/Y+KI92oNsMNGZCYdDsVtRHSak0pcV5Dno5+4jh9sw==}
     engines: {node: '>=0.4.0'}
     hasBin: true
+
+  ajv-formats@3.0.1:
+    resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
+    peerDependencies:
+      ajv: ^8.0.0
+    peerDependenciesMeta:
+      ajv:
+        optional: true
 
   ajv@6.12.6:
     resolution: {integrity: sha512-j3fVLgvTo527anyYyJOGTYJbG+vnnQYvE0m5mmkc1TK+nxAppkCLMIL0aZ4dblVCNoGShhm+kzE4ZUykBoMg4g==}
@@ -7196,7 +7216,7 @@ snapshots:
 
   '@eslint/eslintrc@3.3.3':
     dependencies:
-      ajv: 6.12.6
+      ajv: 6.14.0
       debug: 4.4.3(supports-color@10.2.2)
       espree: 10.4.0
       globals: 14.0.0
@@ -8687,6 +8707,10 @@ snapshots:
   acorn@8.15.0: {}
 
   acorn@8.16.0: {}
+
+  ajv-formats@3.0.1(ajv@8.18.0):
+    optionalDependencies:
+      ajv: 8.18.0
 
   ajv@6.12.6:
     dependencies:
