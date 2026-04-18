@@ -26,6 +26,9 @@ things are the way they are.
 | [014](./014-vite-plus-unified-toolchain.md) | Vite+ as Unified Build, Test, and Task Toolchain | Accepted | 2026-04-15 |
 | [015](./015-mutation-testing-stryker.md) | Mutation Testing with StrykerJS | Accepted | 2026-04-16 |
 | [016](./016-knip-unused-code-detection.md) | Knip for Workspace-Level Unused Code Detection | Accepted | 2026-04-17 |
+| [017](./017-product-framing-programmatic-iac-with-cli.md) | Product Framing: Programmatic IaC with CLI Convenience (Level 2 Hybrid) | Accepted | 2026-04-17 |
+| [018](./018-fcis-ports-with-primary-driven-distinction.md) | Architecture Refinement: FCIS + Ports with Explicit Primary/Driven Port Distinction | Accepted | 2026-04-17 |
+| [019](./019-state-data-model-and-diff-algebra.md) | State Data Model and Diff Algebra (Mantle Parity) | Accepted | 2026-04-17 |
 
 ## Creating a New ADR
 
