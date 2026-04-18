@@ -1,11 +1,17 @@
 import { sharedConfig } from "@bedrock/vite-config";
 
 import { mergeConfig } from "vite-plus";
+import type { ExportsOptions } from "vite-plus/pack";
+
+type CustomExportsFunc = Extract<
+	NonNullable<ExportsOptions["customExports"]>,
+	(...args: never) => unknown
+>;
 
 function addTestingSubpath(
-	exportsMap: Record<string, unknown>,
-	context: { isPublish: boolean },
-): Record<string, unknown> {
+	exportsMap: Parameters<CustomExportsFunc>[0],
+	context: Parameters<CustomExportsFunc>[1],
+): ReturnType<CustomExportsFunc> {
 	if (context.isPublish) {
 		return exportsMap;
 	}
