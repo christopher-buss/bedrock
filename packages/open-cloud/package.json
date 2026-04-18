@@ -33,7 +33,10 @@
 			"source": "./src/resources/game-passes/index.ts",
 			"default": "./dist/game-passes.mjs"
 		},
-		"./package.json": "./package.json"
+		"./package.json": "./package.json",
+		"./testing": {
+			"source": "./tests/helpers/index.ts"
+		}
 	},
 	"types": "./dist/index.d.mts",
 	"files": [
