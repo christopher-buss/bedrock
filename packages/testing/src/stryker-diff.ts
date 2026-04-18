@@ -43,6 +43,7 @@ const HUNK_HEADER = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/;
 const RENAME_FROM = /^rename from (.+)$/;
 const RENAME_TO = /^rename to (.+)$/;
 const BINARY_MARKER = /^Binary files /;
+const DELETED_MARKER = /^deleted file mode /;
 
 interface ParseState {
 	current: FileChange | undefined;
@@ -94,13 +95,15 @@ export function buildMutateArgs(files: ReadonlyArray<FileChange>): Array<string>
 
 const MUTABLE_SUFFIXES: ReadonlyArray<string> = [".ts", ".tsx"];
 const NON_MUTABLE_SUFFIXES: ReadonlyArray<string> = [".spec.ts", ".spec-d.ts", ".test.ts", ".d.ts"];
+const SRC_SEGMENT = /(?:^|\/)src\//;
 
 /**
  * Filter down to files Stryker can actually mutate: TypeScript source
- * that isn't a test or type declaration. Markdown, configs, and other
- * non-TS files are dropped so the CLI `--mutate` flag (which overrides
- * the config's own ignore patterns) never hands them to Stryker's
- * parser — which has no handler for them and would crash.
+ * under a `src/` directory that isn't a test or type declaration.
+ * Markdown, configs, helper barrels under `tests/`, and other non-`src/`
+ * files are dropped so the CLI `--mutate` flag (which overrides the
+ * config's own ignore patterns) never hands them to Stryker — whose
+ * vitest runner would then fail to find any test importing them.
  *
  * @param files - Changes as returned by {@link parseDiff}.
  * @returns The subset whose paths point at production source files.
@@ -111,20 +114,26 @@ export function filterMutableFiles(files: ReadonlyArray<FileChange>): Array<File
 			return false;
 		}
 
-		return !NON_MUTABLE_SUFFIXES.some((suffix) => file.path.endsWith(suffix));
+		if (NON_MUTABLE_SUFFIXES.some((suffix) => file.path.endsWith(suffix))) {
+			return false;
+		}
+
+		return SRC_SEGMENT.test(file.path);
 	});
 }
 
 /**
  * Return `true` when every top-level statement in the given TypeScript
- * source is erased at build time (interfaces, type aliases, type-only
- * imports/exports). Such files produce no JS output and are useless
- * mutation targets; Stryker's vitest runner also crashes when a zero-
- * mutant source has no importers at runtime, so they must be filtered
- * out before `stryker run` is invoked.
+ * source has no local runtime logic worth mutating: interfaces, type
+ * aliases, type-only imports/exports, and pure re-export declarations
+ * that forward to another module without adding behavior. Such files
+ * are useless mutation targets; Stryker's vitest runner also crashes
+ * when it finds zero mutants and vitest's `related` query returns no
+ * test files, so they must be filtered out before `stryker run` is
+ * invoked.
  *
  * @param source - Raw TypeScript source as a string.
- * @returns `true` if the module has no runtime-emitting top-level code.
+ * @returns `true` if the module has no local runtime logic to mutate.
  */
 export function isTypesOnlyModule(source: string): boolean {
 	const sourceFile = ts.createSourceFile(
@@ -184,7 +193,11 @@ function isErasableStatement(statement: ts.Statement): boolean {
 	}
 
 	if (ts.isExportDeclaration(statement)) {
-		return statement.isTypeOnly;
+		if (statement.isTypeOnly) {
+			return true;
+		}
+
+		return statement.moduleSpecifier !== undefined;
 	}
 
 	return false;
@@ -193,6 +206,7 @@ function isErasableStatement(statement: ts.Statement): boolean {
 const HANDLERS: ReadonlyArray<LineHandler> = [
 	handleFileHeader,
 	handleBinary,
+	handleDeleted,
 	handleRenameFrom,
 	handleRenameTo,
 	handleHunk,
@@ -224,6 +238,16 @@ function handleBinary(line: string, state: ParseState): boolean {
 	}
 
 	state.rejects.push({ kind: "binary", path: state.current.path });
+	state.files.pop();
+	state.current = undefined;
+	return true;
+}
+
+function handleDeleted(line: string, state: ParseState): boolean {
+	if (!DELETED_MARKER.test(line) || !state.current) {
+		return false;
+	}
+
 	state.files.pop();
 	state.current = undefined;
 	return true;
