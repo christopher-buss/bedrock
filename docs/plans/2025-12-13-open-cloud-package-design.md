@@ -1,6 +1,28 @@
 # Open Cloud Package Design Document
 
-**Date:** 2025-12-13 **Status:** Design Phase **Package:** `@bedrock/open-cloud`
+**Date:** 2025-12-13 **Status:** Historical (superseded by implementation)
+**Package:** `@bedrock/ocale` (renamed from `@bedrock/open-cloud`)
+
+> **Heads up.** This document captures the design *as it was planned* in
+> December 2025. The shipped implementation diverged on several points. Do
+> not read this as a specification. For the current contract, consult:
+>
+> - [packages/open-cloud/CLAUDE.md](../../packages/open-cloud/CLAUDE.md) for
+>   orientation and principles
+> - [ADR-010](../adr/010-sdk-managed-rate-limiting-and-retry.md) for the
+>   rate-limit, retry, and hook contract
+> - [ADR-011](../adr/011-simplified-architecture-for-library-packages.md) for
+>   the simplified library architecture
+> - [ADR-012](../adr/012-class-based-clients-with-per-request-overrides.md) for
+>   the class-based client and per-request overrides shape
+> - the source under `packages/open-cloud/src/`
+>
+> Categories of drift between this doc and reality: URL paths come from the
+> vendored OpenAPI schema rather than hardcoded prefixes; rate limits are
+> per-operation rather than per-client; retries wrap the queue via a
+> send-callback rather than living inside a queue slot; response parsing
+> sits outside the retry loop; build output is `.mjs`/`.d.mts` via
+> `vp pack`, not `.js` via `tsdown`.
 
 ## Executive Summary
 
