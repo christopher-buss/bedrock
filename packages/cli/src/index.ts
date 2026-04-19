@@ -1,3 +1,4 @@
+export { diff } from "./core/diff.ts";
 export type {
 	CreateOperation,
 	NoopOperation,
