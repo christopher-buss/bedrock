@@ -91,13 +91,6 @@ function isPriceInformationStructWire(value: unknown): value is PriceInformation
 	return true;
 }
 
-/**
- * Type guard confirming that a decoded JSON body matches the
- * `GamePassConfigV2` wire schema from the Roblox Open Cloud OpenAPI.
- *
- * @param body - The decoded response body to inspect.
- * @returns `true` if every required field is present with the expected type.
- */
 function isGamePassConfigV2(body: unknown): body is GamePassConfigV2 {
 	if (!isRecord(body)) {
 		return false;
