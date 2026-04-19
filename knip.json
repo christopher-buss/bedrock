@@ -1,5 +1,5 @@
 {
-	"$schema": "https://unpkg.com/knip@6.4.1/schema.json",
+	"$schema": "https://unpkg.com/knip/schema.json",
 	"workspaces": {
 		".": {
 			"entry": ["scripts/**/*.ts", ".claude/hooks/**/*.ts", "pncat.config.ts"],
