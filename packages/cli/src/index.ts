@@ -1,2 +1,2 @@
-export { asResourceKey } from "./types/ids.ts";
-export type { ResourceKey } from "./types/ids.ts";
+export { asResourceKey, asRobloxAssetId, isRobloxAssetId } from "./types/ids.ts";
+export type { ResourceKey, RobloxAssetId } from "./types/ids.ts";
