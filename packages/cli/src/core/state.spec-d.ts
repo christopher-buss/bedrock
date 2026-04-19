@@ -1,0 +1,32 @@
+import { describe, expectTypeOf, it } from "vitest";
+
+import type { ResourceCurrentState } from "./resources.ts";
+import type { BedrockState, StateError } from "./state.ts";
+
+describe("BedrockState", () => {
+	it("should expose readonly environment, resources, and version fields", () => {
+		expectTypeOf<BedrockState>().toEqualTypeOf<{
+			readonly environment: string;
+			readonly resources: ReadonlyArray<ResourceCurrentState>;
+			readonly version: 1;
+		}>();
+	});
+
+	it("should pin version to the literal 1, not number", () => {
+		expectTypeOf<BedrockState["version"]>().toEqualTypeOf<1>();
+	});
+});
+
+describe("StateError", () => {
+	it("should tag the error with the literal kind 'stateError'", () => {
+		expectTypeOf<StateError["kind"]>().toEqualTypeOf<"stateError">();
+	});
+
+	it("should expose readonly file, kind, and reason fields", () => {
+		expectTypeOf<StateError>().toEqualTypeOf<{
+			readonly file: string;
+			readonly kind: "stateError";
+			readonly reason: string;
+		}>();
+	});
+});

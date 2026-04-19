@@ -94,12 +94,14 @@ the signature. Skip `@example` on pass-through re-exports and trivial getters.
 Examples are dual-purpose:
 
 - `pnpm gen:example-tests` compiles every `@example` code block into an
-  `it(...)` test in `<source>.example.spec.ts`. Each block must be a complete,
-  runnable TypeScript snippet with imports, and should include `expect(...)`
-  assertions that prove the claim.
-- The same blocks are rendered into the public docs site by TypeDoc; the
-  `typedoc-plugin-replace-text` plugin strips the vitest import and `expect`
-  calls so readers see a clean usage sample.
+  `it(...)` test in `<source>.example.spec.ts`. The generator prepends
+  `import { expect, it } from "vitest";` as a file header, so source blocks
+  **omit** that import -- include only the imports for the symbols being
+  demonstrated. Each block should include `expect(...)` assertions that
+  prove the claim.
+- The same blocks are rendered into the public docs site by TypeDoc;
+  `typedoc-plugin-replace-text` strips `expect(...)` lines (and any stray
+  vitest import, as a safety net) so readers see a clean usage sample.
 
 Format:
 
@@ -107,7 +109,6 @@ Format:
 /**
  * @example
  * ```ts
- * import { expect, it } from "vitest";
  * import { myFn } from "@bedrock/pkg";
  *
  * const result = myFn({ foo: 1 });
