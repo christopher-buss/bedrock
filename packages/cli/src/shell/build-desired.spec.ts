@@ -1,6 +1,5 @@
 import { assert, describe, expect, it, vi } from "vitest";
 
-import { isSha256Hex } from "../types/ids.ts";
 import { buildDesired, type GamePassConfigInput } from "./build-desired.ts";
 
 function gamePassConfig(overrides?: Partial<GamePassConfigInput>): GamePassConfigInput {
@@ -27,7 +26,7 @@ describe(buildDesired, () => {
 	});
 
 	it("should populate ResourceDesiredState and compute the SHA-256 hash from icon bytes", async () => {
-		expect.assertions(2);
+		expect.assertions(1);
 
 		const readFile = vi
 			.fn<(path: string) => Promise<Uint8Array>>()
@@ -35,20 +34,21 @@ describe(buildDesired, () => {
 
 		const result = await buildDesired({ gamePasses: [gamePassConfig()] }, readFile);
 
-		assert(result.success);
-
-		expect(result.data).toStrictEqual([
-			{
-				key: "vip-pass",
-				name: "VIP Pass",
-				description: "Grants VIP perks.",
-				iconFileHash: "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
-				iconFilePath: "assets/vip-icon.png",
-				kind: "gamePass",
-				price: 500,
-			},
-		]);
-		expect(isSha256Hex(result.data[0]!.iconFileHash)).toBeTrue();
+		expect(result).toStrictEqual({
+			data: [
+				{
+					key: "vip-pass",
+					name: "VIP Pass",
+					description: "Grants VIP perks.",
+					iconFileHash:
+						"039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
+					iconFilePath: "assets/vip-icon.png",
+					kind: "gamePass",
+					price: 500,
+				},
+			],
+			success: true,
+		});
 	});
 
 	it("should encode single-nibble bytes with a leading zero and emit lowercase hex", async () => {

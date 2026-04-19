@@ -5,9 +5,7 @@ import { asSha256Hex, isResourceKey, type ResourceKey } from "../types/ids.ts";
 
 /**
  * Single game-pass entry the caller assembles by hand to drive
- * `buildDesired` in slice 1. Interim scaffolding: slice 2's c12 loader will
- * replace this with a stable `defineConfig` contract; do not depend on this
- * shape from outside the shell module.
+ * `buildDesired`. Interim scaffolding; not a stable public API.
  */
 export interface GamePassConfigInput {
 	/** User-supplied handle; validated against the `ResourceKey` brand regex. */
@@ -23,8 +21,7 @@ export interface GamePassConfigInput {
 }
 
 /**
- * Top-level slice-1 config shape. Mirrors the fields the slice-2 c12 loader
- * will produce so the same tests keep passing once the loader lands. Not a
+ * Top-level input shape for `buildDesired`. Interim scaffolding; not a
  * stable public API.
  */
 export interface Slice1ConfigInput {
@@ -66,9 +63,8 @@ interface ValidatedEntry {
  * - Entries are processed sequentially, not via `Promise.all`, so first-fail
  *   error attribution is deterministic.
  * - `iconFilePath` is passed to `readFile` verbatim; path resolution is the
- *   caller's responsibility (the slice-2 c12 loader closes over the config
- *   directory before invoking `buildDesired`).
- * @param config - Slice-1 config carrying every game pass to normalize.
+ *   caller's responsibility.
+ * @param config - Config carrying every game pass to normalize.
  * @param readFile - Reads icon bytes for a given path; rejection becomes an `iconReadFailed` Err.
  * @returns `Ok` with the normalized desired state array, or `Err` with the first validation or I/O failure.
  */
