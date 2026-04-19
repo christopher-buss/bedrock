@@ -34,6 +34,57 @@ export type ApplyError =
  * @param ops - Reconciliation operations produced by `diff`, applied in order.
  * @param registry - Per-kind driver table; dispatch uses `op.desired.kind` as the index.
  * @returns `Ok(undefined)` when every operation succeeds, or the first failure encountered.
+ * @example
+ *
+ * ```ts
+ * import {
+ *     applyOps,
+ *     asResourceKey,
+ *     asRobloxAssetId,
+ *     asSha256Hex,
+ *     type DriverRegistry,
+ *     type Operation,
+ * } from "bedrock";
+ *
+ * const registry: DriverRegistry = {
+ *     gamePass: {
+ *         async create(desired) {
+ *             return {
+ *                 data: {
+ *                     ...desired,
+ *                     outputs: {
+ *                         assetId: asRobloxAssetId("9876543210"),
+ *                         iconAssetId: asRobloxAssetId("1122334455"),
+ *                     },
+ *                 },
+ *                 success: true,
+ *             };
+ *         },
+ *     },
+ * };
+ *
+ * const ops: ReadonlyArray<Operation> = [
+ *     {
+ *         key: asResourceKey("vip-pass"),
+ *         type: "create",
+ *         desired: {
+ *             key: asResourceKey("vip-pass"),
+ *             name: "VIP Pass",
+ *             description: "Grants VIP perks.",
+ *             iconFileHash: asSha256Hex(
+ *                 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+ *             ),
+ *             iconFilePath: "assets/vip-icon.png",
+ *             kind: "gamePass",
+ *             price: 500,
+ *         },
+ *     },
+ * ];
+ *
+ * return applyOps(ops, registry).then((result) => {
+ *     expect(result).toStrictEqual({ data: undefined, success: true });
+ * });
+ * ```
  */
 export async function applyOps(
 	ops: ReadonlyArray<Operation>,

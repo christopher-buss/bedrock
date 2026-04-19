@@ -67,6 +67,34 @@ interface ValidatedEntry {
  * @param config - Config carrying every game pass to normalize.
  * @param readFile - Reads icon bytes for a given path; rejection becomes an `iconReadFailed` Err.
  * @returns `Ok` with the normalized desired state array, or `Err` with the first validation or I/O failure.
+ * @example
+ *
+ * ```ts
+ * import { buildDesired } from "bedrock";
+ *
+ * const readFile = async (): Promise<Uint8Array> => new Uint8Array([1, 2, 3]);
+ *
+ * return buildDesired(
+ *     {
+ *         gamePasses: [
+ *             {
+ *                 key: "vip-pass",
+ *                 name: "VIP Pass",
+ *                 description: "Grants VIP perks.",
+ *                 iconFilePath: "assets/vip-icon.png",
+ *                 price: 500,
+ *             },
+ *         ],
+ *     },
+ *     readFile,
+ * ).then((result) => {
+ *     expect(result.success).toBeTrue();
+ *     if (result.success) {
+ *         expect(result.data).toHaveLength(1);
+ *         expect(result.data[0]!.kind).toBe("gamePass");
+ *     }
+ * });
+ * ```
  */
 export async function buildDesired(
 	config: Slice1ConfigInput,
