@@ -72,6 +72,13 @@ local mutate = new Step {
     exclusive = true
 }
 
+local unused = new Step {
+    glob = List("*.ts", "*.tsx")
+    check = "pnpm lint:unused"
+    shell = bash
+    exclusive = true
+}
+
 hooks {
     ["pre-commit"] {
         stash = "none"
@@ -91,6 +98,7 @@ hooks {
 			["lint"] = lint
             ["typecheck"] = typecheck
             ["gen-example-tests"] = genExampleTests
+            ["unused"] = unused
             ["build"] = build
             ["test"] = test
         }
@@ -123,6 +131,7 @@ hooks {
 			["lint"] = lint
             ["typecheck"] = typecheck
             ["gen-example-tests"] = genExampleTests
+            ["unused"] = unused
             ["build"] = build
             ["test"] = testCi
         }
