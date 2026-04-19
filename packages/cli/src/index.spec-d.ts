@@ -1,14 +1,25 @@
+import type { Result } from "@bedrock/ocale";
+
 import { describe, expectTypeOf, it } from "vitest";
 
 import {
+	applyOps,
 	asResourceKey,
 	asRobloxAssetId,
 	asSha256Hex,
+	buildDesired,
 	isResourceKey,
 	isRobloxAssetId,
 	isSha256Hex,
 } from "./index.ts";
-import type { ResourceKey, RobloxAssetId, Sha256Hex } from "./index.ts";
+import type {
+	ApplyError,
+	BuildDesiredError,
+	ResourceDesiredState,
+	ResourceKey,
+	RobloxAssetId,
+	Sha256Hex,
+} from "./index.ts";
 
 const brandShapeCases: ReadonlyArray<readonly [name: string, assertShape: () => void]> = [
 	[
@@ -85,5 +96,29 @@ describe(asRobloxAssetId, () => {
 describe(asSha256Hex, () => {
 	it("should return a Sha256Hex", () => {
 		expectTypeOf(asSha256Hex).toEqualTypeOf<(raw: string) => Sha256Hex>();
+	});
+});
+
+describe(buildDesired, () => {
+	it("should resolve to a Result of readonly desired state or BuildDesiredError", () => {
+		expectTypeOf<Awaited<ReturnType<typeof buildDesired>>>().toEqualTypeOf<
+			Result<ReadonlyArray<ResourceDesiredState>, BuildDesiredError>
+		>();
+	});
+
+	it("should discriminate BuildDesiredError on iconReadFailed and invalidKey kinds", () => {
+		expectTypeOf<BuildDesiredError["kind"]>().toEqualTypeOf<"iconReadFailed" | "invalidKey">();
+	});
+});
+
+describe(applyOps, () => {
+	it("should resolve to a Result of undefined or ApplyError", () => {
+		expectTypeOf<Awaited<ReturnType<typeof applyOps>>>().toEqualTypeOf<
+			Result<undefined, ApplyError>
+		>();
+	});
+
+	it("should discriminate ApplyError on driverFailure and updateUnsupported kinds", () => {
+		expectTypeOf<ApplyError["kind"]>().toEqualTypeOf<"driverFailure" | "updateUnsupported">();
 	});
 });
