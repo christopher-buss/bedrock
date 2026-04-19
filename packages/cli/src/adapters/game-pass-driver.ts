@@ -33,6 +33,22 @@ export interface GamePassDriverDeps {
  * @param deps - Injected ocale client, file reader, and owning universe.
  * @returns A driver indexable by `"gamePass"` in a `DriverRegistry`.
  * @throws Whatever `deps.readFile` rejects with.
+ *
+ * @example
+ *
+ * ```ts
+ * import { GamePassesClient } from "@bedrock/ocale/game-passes";
+ * import { asRobloxAssetId, createGamePassDriver } from "bedrock";
+ *
+ * const client = new GamePassesClient({ apiKey: "rbx-your-key" });
+ * const driver = createGamePassDriver({
+ *     client,
+ *     readFile: async () => new Uint8Array(),
+ *     universeId: asRobloxAssetId("1234567890"),
+ * });
+ *
+ * expect(driver.create).toBeFunction();
+ * ```
  */
 export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"gamePass"> {
 	return {
