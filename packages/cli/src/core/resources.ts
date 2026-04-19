@@ -1,3 +1,5 @@
+import type { Simplify } from "type-fest";
+
 import type { ResourceKey, RobloxAssetId, Sha256Hex } from "../types/ids.ts";
 
 /**
@@ -100,3 +102,53 @@ export interface ResourceOutputsByKind {
  * @template K - The resource kind discriminator.
  */
 export type ResourceOutputs<K extends ResourceKind> = ResourceOutputsByKind[K];
+
+/**
+ * Current (live) state for a resource kind.
+ *
+ * Composed from the matching desired-state shape plus a nested `outputs`
+ * object carrying Roblox-assigned identifiers. `Simplify` flattens the
+ * intersection so tooltips and error messages show a single flat type,
+ * not `Desired<K> & { outputs: Outputs<K> }`.
+ *
+ * The `outputs` sub-object stays nested (rather than flattening into the
+ * top level) to mirror Mantle's `{ inputs, outputs }` state layout,
+ * keeping migration copy clean.
+ *
+ * @template K - The resource kind discriminator. Defaults to the full
+ * `ResourceKind` union for the broad form used in `ReadonlyArray`
+ * collections.
+ *
+ * @example
+ *
+ * ```ts
+ * import {
+ *     asResourceKey,
+ *     asRobloxAssetId,
+ *     asSha256Hex,
+ *     type ResourceCurrentState,
+ * } from "bedrock";
+ *
+ * const current: ResourceCurrentState<"gamePass"> = {
+ *     description: "Grants VIP perks.",
+ *     iconFileHash: asSha256Hex(
+ *         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+ *     ),
+ *     iconFilePath: "assets/vip-icon.png",
+ *     key: asResourceKey("vip-pass"),
+ *     kind: "gamePass",
+ *     name: "VIP Pass",
+ *     outputs: {
+ *         assetId: asRobloxAssetId("9876543210"),
+ *         iconAssetId: asRobloxAssetId("1122334455"),
+ *     },
+ *     price: 500,
+ * };
+ *
+ * expect(current.outputs.assetId).toBe("9876543210");
+ * expect(current.kind).toBe("gamePass");
+ * ```
+ */
+export type ResourceCurrentState<K extends ResourceKind = ResourceKind> = Simplify<
+	Extract<ResourceDesiredState, { kind: K }> & { readonly outputs: ResourceOutputs<K> }
+>;

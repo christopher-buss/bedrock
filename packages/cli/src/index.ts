@@ -1,6 +1,7 @@
 export type {
 	GamePassDesiredState,
 	GamePassOutputs,
+	ResourceCurrentState,
 	ResourceDesiredState,
 	ResourceKind,
 	ResourceOutputs,
