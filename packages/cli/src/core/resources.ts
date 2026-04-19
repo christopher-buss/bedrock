@@ -1,4 +1,4 @@
-import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
+import type { ResourceKey, RobloxAssetId, Sha256Hex } from "../types/ids.ts";
 
 /**
  * Desired state for a game pass, as declared in user config.
@@ -60,3 +60,43 @@ export interface GamePassDesiredState {
  * the new kind at compile time.
  */
 export type ResourceDesiredState = GamePassDesiredState;
+
+/**
+ * Roblox-returned identifiers produced by creating or updating a game pass.
+ *
+ * Distinct from `GamePassDesiredState.key`: the desired-state key is a
+ * user-supplied handle, while these IDs are assigned by Roblox and
+ * discovered only after the first successful API call.
+ */
+export interface GamePassOutputs {
+	/** Primary Roblox asset ID for the game pass itself. */
+	readonly assetId: RobloxAssetId;
+	/** Roblox asset ID of the uploaded icon image. */
+	readonly iconAssetId: RobloxAssetId;
+}
+
+/**
+ * String union of every discriminator tag in `ResourceDesiredState`.
+ *
+ * Derived from the union rather than hand-maintained so adding a new
+ * `ResourceDesiredState` member automatically widens this type.
+ */
+export type ResourceKind = ResourceDesiredState["kind"];
+
+/**
+ * Per-kind outputs registry. Each `ResourceKind` must have a matching entry
+ * or `ResourceOutputs<K>` is a compile error. Modelled as an interface (not a
+ * type alias) so downstream packages can use declaration merging to register
+ * outputs for new kinds without touching this module.
+ */
+export interface ResourceOutputsByKind {
+	/** Outputs returned by the Roblox API for a game-pass resource. */
+	gamePass: GamePassOutputs;
+}
+
+/**
+ * Resolved outputs for a specific resource kind.
+ *
+ * @template K - The resource kind discriminator.
+ */
+export type ResourceOutputs<K extends ResourceKind> = ResourceOutputsByKind[K];
