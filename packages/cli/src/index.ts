@@ -14,6 +14,7 @@ export type {
 	ResourceOutputs,
 	ResourceOutputsByKind,
 } from "./core/resources.ts";
+export type { DriverRegistry, ResourceDriver } from "./ports/resource-driver.ts";
 export {
 	asResourceKey,
 	asRobloxAssetId,
