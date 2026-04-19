@@ -1,4 +1,10 @@
 export type {
+	CreateOperation,
+	NoopOperation,
+	Operation,
+	UpdateOperation,
+} from "./core/operations.ts";
+export type {
 	GamePassDesiredState,
 	GamePassOutputs,
 	ResourceCurrentState,
