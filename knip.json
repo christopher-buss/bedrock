@@ -1,16 +1,59 @@
 {
 	"$schema": "https://unpkg.com/knip@6.4.1/schema.json",
 	"workspaces": {
-		"packages/cli": {},
-		"packages/open-cloud": {},
-		"packages/testing": {},
+		".": {
+			"entry": ["scripts/**/*.ts", ".claude/hooks/**/*.ts", "pncat.config.ts"],
+			"ignoreDependencies": [
+				"@eslint/config-inspector",
+				"@isentinel/hooks",
+				"better-typescript-lib",
+				"eslint-plugin-erasable-syntax-only",
+				"eslint-plugin-pnpm",
+				"eslint_d",
+				"file-entry-cache",
+				"get-tsconfig",
+				"madge",
+				"oxc-minify",
+				"publint",
+				"unplugin-unused"
+			]
+		},
+		"packages/cli": {
+			"entry": ["stryker.config.ts"],
+			"ignoreDependencies": [
+				"@bedrock/ocale",
+				"@stryker-mutator/core",
+				"@stryker-mutator/typescript-checker",
+				"@stryker-mutator/vitest-runner",
+				"oxc-minify"
+			]
+		},
+		"packages/open-cloud": {
+			"entry": ["stryker.config.ts", "scripts/**/*.ts", "tests/helpers/index.ts"],
+			"ignoreDependencies": [
+				"@stryker-mutator/core",
+				"@stryker-mutator/typescript-checker",
+				"@stryker-mutator/vitest-runner",
+				"oxc-minify"
+			]
+		},
+		"packages/testing": {
+			"ignoreDependencies": [
+				"@stryker-mutator/core",
+				"@stryker-mutator/typescript-checker",
+				"@stryker-mutator/vitest-runner"
+			]
+		},
 		"packages/typescript-config": {},
 		"packages/vite-config": {},
-		"apps/e2e": {},
+		"apps/e2e": {
+			"ignoreBinaries": ["vitest"],
+			"ignoreDependencies": ["@bedrock/ocale", "@bedrock/vite-config", "bedrock", "vitest"]
+		},
 		"apps/website": {}
 	},
-	"entry": ["scripts/**/*.ts"],
 	"tags": ["-public"],
+	"stryker": true,
 	"vitest": true,
 	"vitepress": true
 }
