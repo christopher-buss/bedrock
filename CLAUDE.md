@@ -175,7 +175,7 @@ Direct `bun` invocations of workspace code need `--conditions source` to
 resolve cross-package imports without a prior build:
 
 ```bash
-bun --conditions source packages/cli/src/index.ts
+bun --conditions source packages/bedrock/src/index.ts
 ```
 
 Workaround until [oven-sh/bun#28851](https://github.com/oven-sh/bun/issues/28851)
