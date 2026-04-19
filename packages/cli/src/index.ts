@@ -1,3 +1,4 @@
+export type { GamePassDesiredState, ResourceDesiredState } from "./core/resources.ts";
 export {
 	asResourceKey,
 	asRobloxAssetId,
