@@ -1,5 +1,6 @@
+import { setTimeout as sleep } from "node:timers/promises";
+
 import type { HttpClient, SleepFunc } from "../../client/types.ts";
-import { sleep } from "../utils/sleep.ts";
 import { createFetchHttpClient } from "./fetch-client.ts";
 
 /**
