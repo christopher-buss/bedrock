@@ -25,8 +25,14 @@ export interface GamePassDriverDeps {
  * a desired-state entry to an ocale create call and the response back to a
  * `ResourceCurrentState<"gamePass">`.
  *
+ * Upstream `OpenCloudError` results pass through as `Result` failures.
+ * Filesystem errors from `deps.readFile` do not fit the `OpenCloudError`
+ * shape and propagate as promise rejections; shell callers are expected to
+ * translate them if a unified error surface is required.
+ *
  * @param deps - Injected ocale client, file reader, and owning universe.
  * @returns A driver indexable by `"gamePass"` in a `DriverRegistry`.
+ * @throws Whatever `deps.readFile` rejects with.
  */
 export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"gamePass"> {
 	return {

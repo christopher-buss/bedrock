@@ -166,4 +166,25 @@ describe(createGamePassDriver, () => {
 			"Malformed game pass response: iconAssetId missing after icon upload",
 		);
 	});
+
+	it("should propagate readFile rejections without calling ocale", async () => {
+		expect.assertions(2);
+
+		const fsError = new Error("ENOENT: no such file or directory");
+		const http = createFakeHttpClient();
+		const driver = createGamePassDriver({
+			client: new GamePassesClient({
+				apiKey: "test-api-key",
+				httpClient: http,
+				sleep: async () => {},
+			}),
+			readFile: async () => {
+				throw fsError;
+			},
+			universeId: UNIVERSE_ID,
+		});
+
+		await expect(driver.create(makeDesired())).rejects.toBe(fsError);
+		expect(http.requests).toBeEmpty();
+	});
 });
