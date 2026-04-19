@@ -1,3 +1,4 @@
+export { createGamePassDriver, type GamePassDriverDeps } from "./adapters/game-pass-driver.ts";
 export { diff } from "./core/diff.ts";
 export type {
 	CreateOperation,

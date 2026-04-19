@@ -16,7 +16,10 @@ function addTestingSubpath(
 		return exportsMap;
 	}
 
-	exportsMap["./testing"] = { source: "./tests/helpers/index.ts" };
+	exportsMap["./testing"] = {
+		default: "./tests/helpers/index.ts",
+		source: "./tests/helpers/index.ts",
+	};
 	return exportsMap;
 }
 
