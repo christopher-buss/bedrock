@@ -1,13 +1,10 @@
-/** @public */
 export { diff } from "./core/diff.ts";
-/** @public */
 export type {
 	CreateOperation,
 	NoopOperation,
 	Operation,
 	UpdateOperation,
 } from "./core/operations.ts";
-/** @public */
 export type {
 	GamePassDesiredState,
 	GamePassOutputs,

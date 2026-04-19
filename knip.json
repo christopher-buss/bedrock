@@ -19,7 +19,7 @@
 			]
 		},
 		"packages/cli": {
-			"entry": ["stryker.config.ts"],
+			"entry": ["stryker.config.ts", "src/**/index.ts"],
 			"ignoreDependencies": [
 				"@bedrock/ocale",
 				"@stryker-mutator/core",
@@ -29,7 +29,12 @@
 			]
 		},
 		"packages/open-cloud": {
-			"entry": ["stryker.config.ts", "scripts/**/*.ts", "tests/helpers/index.ts"],
+			"entry": [
+				"stryker.config.ts",
+				"scripts/**/*.ts",
+				"src/**/index.ts",
+				"tests/helpers/index.ts"
+			],
 			"ignoreDependencies": [
 				"@stryker-mutator/core",
 				"@stryker-mutator/typescript-checker",
@@ -52,7 +57,6 @@
 		},
 		"apps/website": {}
 	},
-	"tags": ["-public"],
 	"stryker": true,
 	"vitest": true,
 	"vitepress": true

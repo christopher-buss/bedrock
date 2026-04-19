@@ -1,5 +1,4 @@
 export { GamePassesClient } from "./client.ts";
-/** @public */
 export type {
 	CreateGamePassParameters,
 	GamePass,
