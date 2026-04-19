@@ -70,8 +70,7 @@ const desired = await buildDesired({ resources }, (path) => readFile(path));
 ```
 
 Injecting `readFile` keeps `buildDesired` testable against a fake filesystem,
-and keeps the pure [`diff`](/bedrock/api/index/functions/diff) function free
-of I/O.
+and keeps the pure [`diff`](/bedrock/api/functions/diff) function free of I/O.
 
 ## Load current state
 
@@ -88,7 +87,7 @@ const current: ReadonlyArray<ResourceCurrentState> = [];
 
 ## Compute the diff
 
-`diff` is pure and synchronous. It produces one [`Operation`](/bedrock/api/index/type-aliases/Operation)
+`diff` is pure and synchronous. It produces one [`Operation`](/bedrock/api/type-aliases/Operation)
 per desired resource:
 
 - `create` when the key is absent from current state.
@@ -109,8 +108,8 @@ introduces explicit orphan handling.
 
 Drivers are plugins that know how to materialize one resource kind against
 its upstream API. A driver is an object conforming to the
-[`ResourceDriver<K>`](/bedrock/api/index/interfaces/ResourceDriver) port.
-A [`DriverRegistry`](/bedrock/api/index/type-aliases/DriverRegistry) is a
+[`ResourceDriver<K>`](/bedrock/api/interfaces/ResourceDriver) port. A
+[`DriverRegistry`](/bedrock/api/type-aliases/DriverRegistry) is a
 compile-time-checked dispatch table: every `ResourceKind` must map to a
 driver or the registry fails to type-check.
 
@@ -160,12 +159,13 @@ if (!result.success) {
 
 ## Reference
 
-- [`diff`](/bedrock/api/index/functions/diff): pure reconciliation
-- [`buildDesired`](/bedrock/api/index/functions/buildDesired): hash icons, normalize desired state
-- [`applyOps`](/bedrock/api/index/functions/applyOps): first-fail dispatcher
-- [`Operation`](/bedrock/api/index/type-aliases/Operation): discriminated union of reconciliation steps
-- [`ResourceDesiredState`](/bedrock/api/index/type-aliases/ResourceDesiredState): what you declare
-- [`ResourceCurrentState`](/bedrock/api/index/type-aliases/ResourceCurrentState): what Bedrock tracks
-- [`ResourceDriver`](/bedrock/api/index/interfaces/ResourceDriver): the plugin contract
-- [`DriverRegistry`](/bedrock/api/index/type-aliases/DriverRegistry): kind → driver dispatch table
-- [`ResourceKey`](/bedrock/api/index/type-aliases/ResourceKey): branded primitive IDs
+- [`diff`](/bedrock/api/functions/diff): pure reconciliation
+- [`Operation`](/bedrock/api/type-aliases/Operation): discriminated union of reconciliation steps
+- [`ResourceDesiredState`](/bedrock/api/type-aliases/ResourceDesiredState): what you declare
+- [`ResourceCurrentState`](/bedrock/api/type-aliases/ResourceCurrentState): what Bedrock tracks
+- [`ResourceDriver`](/bedrock/api/interfaces/ResourceDriver): the plugin contract
+- [`DriverRegistry`](/bedrock/api/type-aliases/DriverRegistry): kind → driver dispatch table
+- [`ResourceKey`](/bedrock/api/type-aliases/ResourceKey): branded primitive IDs
+
+`buildDesired` and `applyOps` land in a follow-up along with the matching
+API pages.

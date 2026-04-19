@@ -33,47 +33,36 @@ export default defineConfig({
 				},
 				{
 					items: [
-						{ link: "/bedrock/api/index/functions/diff", text: "diff" },
-						{ link: "/bedrock/api/index/type-aliases/Operation", text: "Operation" },
+						{ link: "/bedrock/api/functions/diff", text: "diff" },
+						{ link: "/bedrock/api/type-aliases/Operation", text: "Operation" },
 						{
-							link: "/bedrock/api/index/type-aliases/ResourceDesiredState",
+							link: "/bedrock/api/type-aliases/ResourceDesiredState",
 							text: "ResourceDesiredState",
 						},
 						{
-							link: "/bedrock/api/index/type-aliases/ResourceCurrentState",
+							link: "/bedrock/api/type-aliases/ResourceCurrentState",
 							text: "ResourceCurrentState",
-						},
-						{
-							link: "/bedrock/api/index/interfaces/BedrockState",
-							text: "BedrockState",
 						},
 					],
 					text: "Core",
 				},
 				{
 					items: [
-						{ link: "/bedrock/api/index/functions/applyOps", text: "applyOps" },
 						{
-							link: "/bedrock/api/index/functions/buildDesired",
-							text: "buildDesired",
-						},
-					],
-					text: "Shell",
-				},
-				{
-					items: [
-						{
-							link: "/bedrock/api/index/interfaces/ResourceDriver",
+							link: "/bedrock/api/interfaces/ResourceDriver",
 							text: "ResourceDriver",
 						},
-						{ link: "/bedrock/api/index/interfaces/StatePort", text: "StatePort" },
+						{
+							link: "/bedrock/api/type-aliases/DriverRegistry",
+							text: "DriverRegistry",
+						},
 					],
 					text: "Ports",
 				},
 				{
 					items: [
 						{
-							link: "/bedrock/api/index/type-aliases/ResourceKey",
+							link: "/bedrock/api/type-aliases/ResourceKey",
 							text: "Branded IDs",
 						},
 					],
