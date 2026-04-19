@@ -1,14 +1,13 @@
 # Getting Started
 
 Bedrock is an Infrastructure-as-Code library for Roblox. You declare the
-resources you want, Bedrock reconciles them against the live state by calling
-Roblox Open Cloud through [`@bedrock/ocale`](/ocale/guide/getting-started),
-and reports what changed.
+resources you want. Bedrock reconciles them against the live state through
+[`@bedrock/ocale`](/ocale/guide/getting-started) and reports what changed.
 
-This guide walks the full programmatic pipeline shipped in the first slice:
+This guide walks through the programmatic pipeline as of the first slice:
 `config → buildDesired → diff → applyOps`. The `bedrock` CLI binary and
-config-file loader land in a later slice; for now everything below is called
-from your own TypeScript.
+config-file loader come later; for now everything below is called from your
+own TypeScript.
 
 ## Install
 
@@ -136,9 +135,9 @@ const registry: DriverRegistry = {
 const result = await applyOps(ops, registry);
 ```
 
-`applyOps` has first-fail semantics: the first driver error stops the
-deploy and is returned in a `Result`. Successful ops up to that point have
-already executed, matching the Terraform/Pulumi UX.
+`applyOps` stops on the first driver error and returns it in a `Result`. Any
+ops that ran before the failure stay applied; this matches how Terraform and
+Pulumi behave.
 
 ## Handle the result
 
