@@ -1,7 +1,6 @@
 export type {
 	HttpClient,
 	HttpRequest,
-	HttpRequestBody,
 	HttpResponse,
 	OpenCloudHooks,
 	RequestConfig,

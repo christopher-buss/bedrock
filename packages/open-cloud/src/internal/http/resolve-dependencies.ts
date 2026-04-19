@@ -6,7 +6,7 @@ import { createFetchHttpClient } from "./fetch-client.ts";
  * Options accepted by {@link resolveDependencies}. Mirrors the test-seam
  * subset of the public client options.
  */
-export interface ResolveDependenciesOptions {
+interface ResolveDependenciesOptions {
 	/** Test seam: custom {@link HttpClient}. Defaults to a fetch-backed client. */
 	readonly httpClient?: HttpClient | undefined;
 	/** Test seam: custom {@link SleepFunc}. Defaults to a `setTimeout`-backed sleep. */
@@ -16,7 +16,7 @@ export interface ResolveDependenciesOptions {
 /**
  * Fully-populated dependency set consumed by resource client constructors.
  */
-export interface ResolvedDependencies {
+interface ResolvedDependencies {
 	/** Concrete {@link HttpClient} implementation. */
 	readonly httpClient: HttpClient;
 	/** Concrete {@link SleepFunc} implementation. */
