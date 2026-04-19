@@ -119,11 +119,16 @@ Concretely:
 - **Install**: `knip` as a root `devDependency` via a new `catalog:lint`
   entry. No per-package installs — knip is invoked once from the
   workspace root.
-- **Config**: `knip.json` at repo root with `$schema` for IDE
-  completion. `knip.ts` is only needed when config is dynamically
-  computed, which Bedrock does not need.
+- **Config**: `knip.ts` at repo root, exporting a default `KnipConfig`
+  from the `knip` package. The TypeScript form gives the same
+  type-completion benefit `$schema` would give a `knip.json` file,
+  plus type checking on the config shape, plus the ability to extract
+  shared constants (for example the `@stryker-mutator/*` plugin list
+  that appears in three workspaces) without the duplication a JSON
+  form forces. The dynamic-config capability is a bonus, not the
+  reason.
 - **Workspace enumeration**: list each workspace explicitly under the
-  root `knip.json`'s `workspaces` key. Per-workspace `entry`, `project`,
+  root `knip.ts`'s `workspaces` key. Per-workspace `entry`, `project`,
   and plugin overrides live inside the root file; the explicit list
   makes each workspace's config surface visible in one place.
 - **Plugins**: enable knip's auto-detect plugins for Vitest and VitePress
@@ -180,7 +185,7 @@ Concretely:
   maintenance** for subpath entries. New subpath exports become entries
   the moment they are added to `package.json` without any config change.
   New workspace packages require a one-line addition to the explicit
-  `workspaces` map in `knip.json`.
+  `workspaces` map in `knip.ts`.
 - **Plugin system covers the project's specific tools** (Vitest, VitePress,
   Stryker, ESLint). Out-of-the-box treatment of test files and docs entry
   points without hand-curated globs.
@@ -192,7 +197,7 @@ Concretely:
   and config schema. Version pinning via the pnpm catalog mitigates drift.
 - **Entry-point config must stay current.** Additions to `apps/` or
   `scripts/` that knip's defaults don't cover, and new workspace
-  packages, require `knip.json` updates. Same class of maintenance as
+  packages, require `knip.ts` updates. Same class of maintenance as
   updating `hk.pkl` when adding a new hook step.
 - **Initial audit may surface "is this supposed to be public?" questions.**
   Library packages sometimes export symbols meant for downstream consumers
@@ -295,15 +300,19 @@ existing unscoped checks).
 
 **Files to create/modify:**
 
-- `knip.json` (new, root) — knip config with `$schema` reference.
-  Enumerate each workspace package under `workspaces` (packages/cli,
+- `knip.ts` (new, root) — knip config importing `KnipConfig` from
+  `knip` for type checking, exported as default. Enumerate each
+  workspace package under `workspaces` (packages/cli,
   packages/open-cloud, packages/testing, packages/typescript-config,
   packages/vite-config, apps/e2e, apps/website). Enable the Vitest
   and VitePress plugins globally; declare `scripts/**` as an explicit
   entry surface (it's a loose directory of Bun scripts with no
   `package.json`, not a true workspace despite the `scripts/*` line
-  in `pnpm-workspace.yaml`). Rely on knip's `package.json`-exports
-  auto-detection for library subpath entries (ADR-011).
+  in `pnpm-workspace.yaml`). Declare `src/**/index.ts` as entries for
+  library workspaces — knip does not report unused exports in entry
+  files, which is exactly the behaviour a public-API barrel wants.
+  Rely on knip's `package.json`-exports auto-detection for library
+  subpath entries (ADR-011) as a fallback.
 - `package.json` (root) — add `"lint:unused": "knip --cache"` script;
   add `knip` under devDependencies (via `catalog:lint` entry in
   `pnpm-workspace.yaml`).
@@ -323,9 +332,9 @@ existing unscoped checks).
   `gen-example-tests` in every hook that runs both.
 - **Initial cleanup** — run `pnpm lint:unused` against a clean checkout
   (with generated example tests present) and resolve every finding
-  (delete dead code, remove unused deps, mark intentionally-public-
-  unconsumed exports with the appropriate JSDoc tag, or add targeted
-  ignore entries in `knip.json` with a comment explaining why). Ship
+  (delete dead code, remove unused deps, treat barrel files as
+  entries, or add targeted ignore entries in `knip.ts` with a comment
+  explaining why). Ship
   the cleanup and the knip adoption in the same PR so the tool goes
   green the moment it is merged.
 
