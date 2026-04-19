@@ -1,0 +1,32 @@
+{
+	"$schema": "https://typedoc.org/schema.json",
+	"entryPoints": ["../../packages/cli/src/index.ts"],
+	"entryPointStrategy": "resolve",
+	"exclude": ["**/*.spec.ts", "**/*.spec-d.ts", "**/*.example.spec.ts", "**/*.example.test.ts"],
+	"tsconfig": "../../packages/cli/tsconfig.json",
+	"out": "./docs/bedrock/api",
+	"plugin": ["typedoc-plugin-markdown", "typedoc-plugin-replace-text"],
+	"readme": "none",
+	"githubPages": false,
+	"hideGenerator": true,
+	"useCodeBlocks": true,
+	"expandObjects": true,
+	"parametersFormat": "table",
+	"hideBreadcrumbs": true,
+	"hidePageHeader": true,
+	"replaceText": {
+		"inCodeCommentText": true,
+		"replacements": [
+			{
+				"pattern": ".*import.*from [\"']vitest[\"'].*\\n",
+				"flags": "g",
+				"replace": ""
+			},
+			{
+				"pattern": ".*expect\\(.*\\n",
+				"flags": "g",
+				"replace": ""
+			}
+		]
+	}
+}
