@@ -1,2 +1,8 @@
-export { asResourceKey, asRobloxAssetId, isRobloxAssetId } from "./types/ids.ts";
-export type { ResourceKey, RobloxAssetId } from "./types/ids.ts";
+export {
+	asResourceKey,
+	asRobloxAssetId,
+	asSha256Hex,
+	isRobloxAssetId,
+	isSha256Hex,
+} from "./types/ids.ts";
+export type { ResourceKey, RobloxAssetId, Sha256Hex } from "./types/ids.ts";

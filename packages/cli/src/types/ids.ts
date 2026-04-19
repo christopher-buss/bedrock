@@ -4,6 +4,8 @@ const RESOURCE_KEY_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 const ROBLOX_ASSET_ID_PATTERN = /^\d+$/;
 
+const SHA256_HEX_PATTERN = /^[0-9a-f]{64}$/;
+
 /**
  * User-supplied identifier for a resource within a config (e.g. `"vip-pass"`).
  * Stable across deploys; used to correlate desired ↔ current state.
@@ -15,6 +17,13 @@ export type ResourceKey = Tagged<string, "ResourceKey">;
  * precision loss in JavaScript.
  */
 export type RobloxAssetId = Tagged<string, "RobloxAssetId">;
+
+/**
+ * Lowercase hex-encoded SHA-256 digest (exactly 64 characters drawn from
+ * `0-9a-f`). Used to detect changes to file-backed resource inputs such as
+ * game-pass icons without re-uploading the file.
+ */
+export type Sha256Hex = Tagged<string, "Sha256Hex">;
 
 /**
  * Validate and brand a raw string as a {@link ResourceKey}.
@@ -106,6 +115,75 @@ export function asRobloxAssetId(raw: string): RobloxAssetId {
 			`RobloxAssetId must be a non-empty digit-only string matching ${String(
 				ROBLOX_ASSET_ID_PATTERN,
 			)} (got ${JSON.stringify(raw)})`,
+		);
+	}
+
+	return raw;
+}
+
+/**
+ * Type predicate: test whether a raw string is a valid {@link Sha256Hex}.
+ *
+ * Accepts exactly 64 lowercase hexadecimal characters (matching
+ * `/^[0-9a-f]{64}$/`). Prefer this when the caller owns error handling;
+ * use {@link asSha256Hex} when throwing is the right failure mode.
+ *
+ * @example
+ *
+ * ```ts
+ * import { isSha256Hex } from "bedrock";
+ *
+ * const digest = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+ * const valid = isSha256Hex(digest);
+ * const invalid = isSha256Hex(digest.toUpperCase());
+ * expect(valid).toBe(true);
+ * expect(invalid).toBe(false);
+ * ```
+ *
+ * @param raw - String to test.
+ * @returns `true` when `raw` matches the Sha256Hex shape; narrows `raw`.
+ */
+export function isSha256Hex(raw: string): raw is Sha256Hex {
+	return SHA256_HEX_PATTERN.test(raw);
+}
+
+/**
+ * Validate and brand a raw string as a {@link Sha256Hex}.
+ *
+ * Accepts exactly 64 lowercase hexadecimal characters. Uppercase hex, lengths
+ * other than 64, and any non-hex character are rejected so the brand is a
+ * canonical representation.
+ *
+ * @example
+ *
+ * ```ts
+ * import { asSha256Hex } from "bedrock";
+ *
+ * const digest = asSha256Hex(
+ *     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+ * );
+ *
+ * let thrown: unknown;
+ * try {
+ *     asSha256Hex("deadbeef");
+ * } catch (error) {
+ *     thrown = error;
+ * }
+ *
+ * expect(digest).toHaveLength(64);
+ * expect(thrown).toBeInstanceOf(RangeError);
+ * ```
+ *
+ * @param raw - Raw string to validate and brand.
+ * @returns The input re-typed as a {@link Sha256Hex}.
+ * @throws RangeError when `raw` is not exactly 64 lowercase hex characters.
+ */
+export function asSha256Hex(raw: string): Sha256Hex {
+	if (!isSha256Hex(raw)) {
+		throw new RangeError(
+			`Sha256Hex must be 64 lowercase hex characters matching ${String(
+				SHA256_HEX_PATTERN,
+			)} (got ${raw.length} chars: ${JSON.stringify(raw)})`,
 		);
 	}
 
