@@ -10,9 +10,9 @@ describe("StatePort.read", () => {
 		expectTypeOf<Parameters<StatePort["read"]>[0]>().toEqualTypeOf<string>();
 	});
 
-	it("should return Promise<Result<BedrockState | null, StateError>>", () => {
+	it("should return Promise<Result<BedrockState | undefined, StateError>>", () => {
 		expectTypeOf<ReturnType<StatePort["read"]>>().toEqualTypeOf<
-			Promise<Result<BedrockState | null, StateError>>
+			Promise<Result<BedrockState | undefined, StateError>>
 		>();
 	});
 });
