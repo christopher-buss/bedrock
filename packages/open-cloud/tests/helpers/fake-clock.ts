@@ -8,7 +8,7 @@ import { onTestFinished, vi } from "vitest";
  * `Date.now` spy is restored automatically when the current test
  * finishes.
  */
-export interface FakeClock {
+interface FakeClock {
 	/** Moves the mocked clock forward without pushing onto `waits`. */
 	readonly advance: (ms: number) => void;
 	/** A {@link SleepFunc} that records every `ms` and advances the clock. */
