@@ -12,9 +12,9 @@ describe("ResourceDriver", () => {
 		>().toEqualTypeOf<GamePassDesiredState>();
 	});
 
-	it("should return a Promise<Result<current, OpenCloudError>> for its kind", () => {
+	it("should return a Promise<Result<current-for-kind, OpenCloudError>>", () => {
 		expectTypeOf<ReturnType<ResourceDriver<"gamePass">["create"]>>().toEqualTypeOf<
-			Promise<Result<ResourceCurrentState, OpenCloudError>>
+			Promise<Result<Extract<ResourceCurrentState, { kind: "gamePass" }>, OpenCloudError>>
 		>();
 	});
 });
