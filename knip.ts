@@ -2,18 +2,13 @@
 
 import type { KnipConfig } from "knip";
 
-const STRYKER_DEPS = [
-	"@stryker-mutator/core",
-	"@stryker-mutator/typescript-checker",
-	"@stryker-mutator/vitest-runner",
-] as const;
-
-const OXC_MINIFY = "oxc-minify";
-
 const config: KnipConfig = {
-	stryker: true,
-	vitepress: true,
-	vitest: true,
+	ignoreDependencies: [
+		"@stryker-mutator/core",
+		"@stryker-mutator/typescript-checker",
+		"@stryker-mutator/vitest-runner",
+	],
+	ignoreWorkspaces: ["apps/e2e"],
 	workspaces: {
 		".": {
 			entry: ["scripts/**/*.ts", ".claude/hooks/**/*.ts", "pncat.config.ts"],
@@ -27,19 +22,15 @@ const config: KnipConfig = {
 				"file-entry-cache",
 				"get-tsconfig",
 				"madge",
-				OXC_MINIFY,
+				"oxc-minify",
 				"publint",
 				"unplugin-unused",
 			],
 		},
-		"apps/e2e": {
-			ignoreBinaries: ["vitest"],
-			ignoreDependencies: ["@bedrock/ocale", "@bedrock/vite-config", "bedrock", "vitest"],
-		},
 		"apps/website": {},
 		"packages/cli": {
-			entry: ["stryker.config.ts", "src/**/index.ts"],
-			ignoreDependencies: ["@bedrock/ocale", ...STRYKER_DEPS, OXC_MINIFY],
+			entry: ["stryker.config.ts", "src/index.ts"],
+			ignoreDependencies: ["@bedrock/ocale"],
 		},
 		"packages/open-cloud": {
 			entry: [
@@ -48,11 +39,8 @@ const config: KnipConfig = {
 				"src/**/index.ts",
 				"tests/helpers/index.ts",
 			],
-			ignoreDependencies: [...STRYKER_DEPS, OXC_MINIFY],
 		},
-		"packages/testing": {
-			ignoreDependencies: [...STRYKER_DEPS],
-		},
+		"packages/testing": {},
 		"packages/typescript-config": {},
 		"packages/vite-config": {},
 	},
