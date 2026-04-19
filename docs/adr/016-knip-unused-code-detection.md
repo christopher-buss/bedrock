@@ -143,12 +143,15 @@ Concretely:
   scoped. Pre-push runs unscoped checks for all authors already
   (ADR-013); knip fits there without changing the tier's character.
 - **Pre-push (all authors)**: new hk step `unused` added to `hk.pkl`,
-  `exclusive = true`, glob `*.ts`/`*.tsx`,
-  `check = "pnpm lint:unused"`. Humans and agents alike hit it before
-  push.
+  `exclusive = true`, `check = "pnpm lint:unused"`. Humans and agents
+  alike hit it before push. The glob widens the `*.ts`/`*.tsx` pattern
+  used by `lint` and `typecheck` to also include `package.json` and
+  `pnpm-workspace.yaml` so the step triggers on manifest-only changes
+  (e.g. adding an unused `devDependency` without touching source) —
+  knip's remit covers manifest changes too.
 - **CI via `hk check`**: same step added to the `check` hook
-  unconditionally. No separate CI workflow change required — the
-  existing `hk check` job picks it up.
+  unconditionally. CI invokes `hk check --all`, so every step runs
+  regardless of what changed. No separate CI workflow change required.
 - **Failure mode**: non-zero exit when any issue is found. No severity
   tiers, no warnings-only rollout. The tool is only added once the repo is
   clean against it (treated as an initial-commit prerequisite, not a

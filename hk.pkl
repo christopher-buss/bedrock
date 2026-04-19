@@ -73,7 +73,7 @@ local mutate = new Step {
 }
 
 local unused = new Step {
-    glob = List("*.ts", "*.tsx")
+    glob = List("*.ts", "*.tsx", "package.json", "pnpm-workspace.yaml")
     check = "pnpm lint:unused"
     shell = bash
     exclusive = true
