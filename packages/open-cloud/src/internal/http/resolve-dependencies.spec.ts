@@ -1,6 +1,6 @@
 import { resolveDependencies } from "#src/internal/http/resolve-dependencies";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
-import { setTimeout as sleep } from "node:timers/promises";
+import { setTimeout } from "node:timers/promises";
 import { describe, expect, it } from "vitest";
 
 describe(resolveDependencies, () => {
@@ -37,6 +37,6 @@ describe(resolveDependencies, () => {
 
 		const resolved = resolveDependencies({});
 
-		expect(resolved.sleep).toBe(sleep);
+		expect(resolved.sleep).toBe(setTimeout);
 	});
 });
