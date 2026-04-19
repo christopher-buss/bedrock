@@ -1,0 +1,16 @@
+{
+	"$schema": "https://unpkg.com/knip@6.4.1/schema.json",
+	"workspaces": {
+		"packages/cli": {},
+		"packages/open-cloud": {},
+		"packages/testing": {},
+		"packages/typescript-config": {},
+		"packages/vite-config": {},
+		"apps/e2e": {},
+		"apps/website": {}
+	},
+	"entry": ["scripts/**/*.ts"],
+	"tags": ["-public"],
+	"vitest": true,
+	"vitepress": true
+}
