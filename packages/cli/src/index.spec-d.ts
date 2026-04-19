@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, it } from "vitest";
 
-import { isRobloxAssetId, isSha256Hex } from "./index.ts";
+import { isResourceKey, isRobloxAssetId, isSha256Hex } from "./index.ts";
 import type { ResourceKey, RobloxAssetId, Sha256Hex } from "./index.ts";
 
 const brandShapeCases: ReadonlyArray<readonly [name: string, assertShape: () => void]> = [
@@ -42,6 +42,12 @@ describe("branded id types", () => {
 		expectTypeOf<RobloxAssetId>().not.toExtend<Sha256Hex>();
 		expectTypeOf<Sha256Hex>().not.toExtend<ResourceKey>();
 		expectTypeOf<Sha256Hex>().not.toExtend<RobloxAssetId>();
+	});
+});
+
+describe(isResourceKey, () => {
+	it("should carry a type predicate narrowing to ResourceKey", () => {
+		expectTypeOf(isResourceKey).toEqualTypeOf<(raw: string) => raw is ResourceKey>();
 	});
 });
 

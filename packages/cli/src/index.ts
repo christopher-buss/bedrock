@@ -2,6 +2,7 @@ export {
 	asResourceKey,
 	asRobloxAssetId,
 	asSha256Hex,
+	isResourceKey,
 	isRobloxAssetId,
 	isSha256Hex,
 } from "./types/ids.ts";

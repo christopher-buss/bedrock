@@ -26,6 +26,31 @@ export type RobloxAssetId = Tagged<string, "RobloxAssetId">;
 export type Sha256Hex = Tagged<string, "Sha256Hex">;
 
 /**
+ * Type predicate: test whether a raw string is a valid {@link ResourceKey}.
+ *
+ * Prefer this when the caller owns error handling (for example, constructing a
+ * `Result` error in a shell-layer parser). Use {@link asResourceKey} when an
+ * exception is the right failure mode.
+ *
+ * @example
+ *
+ * ```ts
+ * import { isResourceKey } from "bedrock";
+ *
+ * const valid = isResourceKey("vip-pass");
+ * const invalid = isResourceKey("vip pass");
+ * expect(valid).toBe(true);
+ * expect(invalid).toBe(false);
+ * ```
+ *
+ * @param raw - String to test.
+ * @returns `true` when `raw` matches the ResourceKey shape; narrows `raw`.
+ */
+export function isResourceKey(raw: string): raw is ResourceKey {
+	return RESOURCE_KEY_PATTERN.test(raw);
+}
+
+/**
  * Validate and brand a raw string as a {@link ResourceKey}.
  *
  * Accepts non-empty strings of alphanumeric characters, hyphens, and
@@ -37,8 +62,16 @@ export type Sha256Hex = Tagged<string, "Sha256Hex">;
  * import { asResourceKey } from "bedrock";
  *
  * const key = asResourceKey("vip-pass");
+ *
+ * let thrown: unknown;
+ * try {
+ *     asResourceKey("vip pass");
+ * } catch (error) {
+ *     thrown = error;
+ * }
+ *
  * expect(key).toBe("vip-pass");
- * expect(() => asResourceKey("vip pass")).toThrow(RangeError);
+ * expect(thrown).toBeInstanceOf(RangeError);
  * ```
  *
  * @param raw - Raw string to validate and brand.
@@ -46,13 +79,13 @@ export type Sha256Hex = Tagged<string, "Sha256Hex">;
  * @throws RangeError when `raw` is empty or contains disallowed characters.
  */
 export function asResourceKey(raw: string): ResourceKey {
-	if (!RESOURCE_KEY_PATTERN.test(raw)) {
+	if (!isResourceKey(raw)) {
 		throw new RangeError(
 			`ResourceKey must match ${String(RESOURCE_KEY_PATTERN)} (got ${JSON.stringify(raw)})`,
 		);
 	}
 
-	return raw as ResourceKey;
+	return raw;
 }
 
 /**

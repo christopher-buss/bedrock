@@ -4,9 +4,33 @@ import {
 	asResourceKey,
 	asRobloxAssetId,
 	asSha256Hex,
+	isResourceKey,
 	isRobloxAssetId,
 	isSha256Hex,
 } from "./ids.ts";
+
+describe(isResourceKey, () => {
+	it.for<[label: string, input: string]>([
+		["empty string", ""],
+		["single space", " "],
+		["embedded space", "has space"],
+		["forward slash", "has/slash"],
+		["dot", "has.dot"],
+	])("should return false for a %s", ([, input]) => {
+		expect.assertions(1);
+
+		expect(isResourceKey(input)).toBeFalse();
+	});
+
+	it.for<[input: string]>([["vip-pass"], ["VIP_Pass_2"], ["a"], ["A1_b-2"]])(
+		"should return true for %s",
+		([input]) => {
+			expect.assertions(1);
+
+			expect(isResourceKey(input)).toBeTrue();
+		},
+	);
+});
 
 describe(asResourceKey, () => {
 	it.for<[label: string, input: string]>([
