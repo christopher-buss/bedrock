@@ -57,8 +57,8 @@ describe(diff, () => {
 			{ key: desiredEntry.key, desired: desiredEntry, type: "create" },
 		]);
 
-		const [op] = ops;
-		assert(op?.type === "create");
+		const op = ops[0]!;
+		assert(op.type === "create");
 
 		// Referential identity proves the function does not clone the input.
 		expect(op.desired).toBe(desiredEntry);
@@ -100,8 +100,8 @@ describe(diff, () => {
 
 			expect(ops).toHaveLength(1);
 
-			const [op] = ops;
-			assert(op?.type === "update");
+			const op = ops[0]!;
+			assert(op.type === "update");
 
 			expect(op.desired).toBe(desiredEntry);
 			expect(op.current).toBe(currentEntry);
