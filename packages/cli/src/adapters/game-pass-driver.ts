@@ -37,17 +37,64 @@ export interface GamePassDriverDeps {
  * @example
  *
  * ```ts
+ * import type { HttpClient } from "@bedrock/ocale";
  * import { GamePassesClient } from "@bedrock/ocale/game-passes";
- * import { asRobloxAssetId, createGamePassDriver } from "bedrock";
+ * import {
+ *     asResourceKey,
+ *     asRobloxAssetId,
+ *     asSha256Hex,
+ *     createGamePassDriver,
+ * } from "bedrock";
  *
- * const client = new GamePassesClient({ apiKey: "rbx-your-key" });
+ * const httpClient: HttpClient = {
+ *     async request() {
+ *         return {
+ *             data: {
+ *                 body: {
+ *                     createdTimestamp: "2024-01-15T10:30:00.000Z",
+ *                     description: "Grants VIP perks.",
+ *                     gamePassId: 9_876_543_210,
+ *                     iconAssetId: 1_122_334_455,
+ *                     isForSale: true,
+ *                     name: "VIP Pass",
+ *                     updatedTimestamp: "2024-01-15T10:30:00.000Z",
+ *                 },
+ *                 headers: {},
+ *                 status: 200,
+ *             },
+ *             success: true,
+ *         };
+ *     },
+ * };
+ *
  * const driver = createGamePassDriver({
- *     client,
- *     readFile: async () => new Uint8Array(),
+ *     client: new GamePassesClient({
+ *         apiKey: "rbx-your-key",
+ *         httpClient,
+ *         sleep: async () => {},
+ *     }),
+ *     readFile: async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
  *     universeId: asRobloxAssetId("1234567890"),
  * });
  *
- * expect(driver.create).toBeFunction();
+ * return driver
+ *     .create({
+ *         description: "Grants VIP perks.",
+ *         iconFileHash: asSha256Hex(
+ *             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+ *         ),
+ *         iconFilePath: "assets/vip-icon.png",
+ *         key: asResourceKey("vip-pass"),
+ *         kind: "gamePass",
+ *         name: "VIP Pass",
+ *         price: 500,
+ *     })
+ *     .then((result) => {
+ *         expect(result.success).toBeTrue();
+ *         if (result.success) {
+ *             expect(result.data.outputs.assetId).toBe("9876543210");
+ *         }
+ *     });
  * ```
  */
 export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"gamePass"> {

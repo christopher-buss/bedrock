@@ -2,6 +2,7 @@ import { ApiError } from "@bedrock/ocale";
 import { GamePassesClient } from "@bedrock/ocale/game-passes";
 import { createFakeHttpClient, validGamePassBody } from "@bedrock/ocale/testing";
 
+import type { Except } from "type-fest";
 import { assert, describe, expect, it } from "vitest";
 
 import type { GamePassDesiredState } from "../core/resources.ts";
@@ -34,17 +35,14 @@ function makeDesired(overrides?: Partial<GamePassDesiredState>): GamePassDesired
 	};
 }
 
-function makeDriver(overrides?: Partial<GamePassDriverDeps>) {
+function makeDriver(overrides?: Partial<Except<GamePassDriverDeps, "client">>) {
 	const http = createFakeHttpClient();
-	const client =
-		overrides?.client ??
-		new GamePassesClient({
+	const driver = createGamePassDriver({
+		client: new GamePassesClient({
 			apiKey: "test-api-key",
 			httpClient: http,
 			sleep: async () => {},
-		});
-	const driver = createGamePassDriver({
-		client,
+		}),
 		readFile: async () => ICON_BYTES,
 		universeId: UNIVERSE_ID,
 		...overrides,
