@@ -35,7 +35,8 @@
 		},
 		"./package.json": "./package.json",
 		"./testing": {
-			"source": "./tests/helpers/index.ts"
+			"source": "./tests/helpers/index.ts",
+			"default": "./tests/helpers/index.ts"
 		}
 	},
 	"types": "./dist/index.d.mts",
