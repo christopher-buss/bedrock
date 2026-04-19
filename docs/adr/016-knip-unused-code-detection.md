@@ -119,16 +119,11 @@ Concretely:
 - **Install**: `knip` as a root `devDependency` via a new `catalog:lint`
   entry. No per-package installs — knip is invoked once from the
   workspace root.
-- **Config**: `knip.ts` at repo root, exporting a default `KnipConfig`
-  from the `knip` package. The TypeScript form gives the same
-  type-completion benefit `$schema` would give a `knip.json` file,
-  plus type checking on the config shape, plus the ability to extract
-  shared constants (for example the `@stryker-mutator/*` plugin list
-  that appears in three workspaces) without the duplication a JSON
-  form forces. The dynamic-config capability is a bonus, not the
-  reason.
+- **Config**: `knip.json` at repo root with `$schema` for IDE
+  completion. `knip.ts` is only needed when config is dynamically
+  computed, which Bedrock does not need.
 - **Workspace enumeration**: list each workspace explicitly under the
-  root `knip.ts`'s `workspaces` key. Per-workspace `entry`, `project`,
+  root `knip.json`'s `workspaces` key. Per-workspace `entry`, `project`,
   and plugin overrides live inside the root file; the explicit list
   makes each workspace's config surface visible in one place.
 - **Plugins**: enable knip's auto-detect plugins for Vitest and VitePress
@@ -148,15 +143,12 @@ Concretely:
   scoped. Pre-push runs unscoped checks for all authors already
   (ADR-013); knip fits there without changing the tier's character.
 - **Pre-push (all authors)**: new hk step `unused` added to `hk.pkl`,
-  `exclusive = true`, `check = "pnpm lint:unused"`. Humans and agents
-  alike hit it before push. The glob widens the `*.ts`/`*.tsx` pattern
-  used by `lint` and `typecheck` to also include `package.json` and
-  `pnpm-workspace.yaml` so the step triggers on manifest-only changes
-  (e.g. adding an unused `devDependency` without touching source) —
-  knip's remit covers manifest changes too.
+  `exclusive = true`, glob `*.ts`/`*.tsx`,
+  `check = "pnpm lint:unused"`. Humans and agents alike hit it before
+  push.
 - **CI via `hk check`**: same step added to the `check` hook
-  unconditionally. CI invokes `hk check --all`, so every step runs
-  regardless of what changed. No separate CI workflow change required.
+  unconditionally. No separate CI workflow change required — the
+  existing `hk check` job picks it up.
 - **Failure mode**: non-zero exit when any issue is found. No severity
   tiers, no warnings-only rollout. The tool is only added once the repo is
   clean against it (treated as an initial-commit prerequisite, not a
@@ -185,7 +177,7 @@ Concretely:
   maintenance** for subpath entries. New subpath exports become entries
   the moment they are added to `package.json` without any config change.
   New workspace packages require a one-line addition to the explicit
-  `workspaces` map in `knip.ts`.
+  `workspaces` map in `knip.json`.
 - **Plugin system covers the project's specific tools** (Vitest, VitePress,
   Stryker, ESLint). Out-of-the-box treatment of test files and docs entry
   points without hand-curated globs.
@@ -197,7 +189,7 @@ Concretely:
   and config schema. Version pinning via the pnpm catalog mitigates drift.
 - **Entry-point config must stay current.** Additions to `apps/` or
   `scripts/` that knip's defaults don't cover, and new workspace
-  packages, require `knip.ts` updates. Same class of maintenance as
+  packages, require `knip.json` updates. Same class of maintenance as
   updating `hk.pkl` when adding a new hook step.
 - **Initial audit may surface "is this supposed to be public?" questions.**
   Library packages sometimes export symbols meant for downstream consumers
@@ -300,19 +292,15 @@ existing unscoped checks).
 
 **Files to create/modify:**
 
-- `knip.ts` (new, root) — knip config importing `KnipConfig` from
-  `knip` for type checking, exported as default. Enumerate each
-  workspace package under `workspaces` (packages/cli,
+- `knip.json` (new, root) — knip config with `$schema` reference.
+  Enumerate each workspace package under `workspaces` (packages/cli,
   packages/open-cloud, packages/testing, packages/typescript-config,
   packages/vite-config, apps/e2e, apps/website). Enable the Vitest
   and VitePress plugins globally; declare `scripts/**` as an explicit
   entry surface (it's a loose directory of Bun scripts with no
   `package.json`, not a true workspace despite the `scripts/*` line
-  in `pnpm-workspace.yaml`). Declare `src/**/index.ts` as entries for
-  library workspaces — knip does not report unused exports in entry
-  files, which is exactly the behaviour a public-API barrel wants.
-  Rely on knip's `package.json`-exports auto-detection for library
-  subpath entries (ADR-011) as a fallback.
+  in `pnpm-workspace.yaml`). Rely on knip's `package.json`-exports
+  auto-detection for library subpath entries (ADR-011).
 - `package.json` (root) — add `"lint:unused": "knip --cache"` script;
   add `knip` under devDependencies (via `catalog:lint` entry in
   `pnpm-workspace.yaml`).
@@ -332,9 +320,9 @@ existing unscoped checks).
   `gen-example-tests` in every hook that runs both.
 - **Initial cleanup** — run `pnpm lint:unused` against a clean checkout
   (with generated example tests present) and resolve every finding
-  (delete dead code, remove unused deps, treat barrel files as
-  entries, or add targeted ignore entries in `knip.ts` with a comment
-  explaining why). Ship
+  (delete dead code, remove unused deps, mark intentionally-public-
+  unconsumed exports with the appropriate JSDoc tag, or add targeted
+  ignore entries in `knip.json` with a comment explaining why). Ship
   the cleanup and the knip adoption in the same PR so the tool goes
   green the moment it is merged.
 
@@ -384,3 +372,58 @@ ADR-006 requires this ADR to be accepted before implementation begins.
 - [Knip plugin list](https://knip.dev/reference/plugins)
 - [unplugin-unused](https://github.com/unplugin/unplugin-unused)
 - [tsdown `unused` option](https://tsdown.dev/options/unused)
+
+## Amendments
+
+### 2026-04-19 — Config file switched from `knip.json` to `knip.ts`
+
+Decision §Config originally picked `knip.json` on the reasoning that
+`knip.ts` "is only needed when config is dynamically computed". Landed
+as `knip.ts` instead. The original reasoning missed two benefits that
+apply here:
+
+- Type checking on the config shape (via `KnipConfig` imported from
+  the `knip` package) catches typos in plugin names, workspace keys,
+  and option names at edit time rather than at knip-run time.
+- Extractable shared constants remove the three-way duplication of
+  plugin lists (e.g. `@stryker-mutator/*` across cli, open-cloud, and
+  testing). A later iteration hoisted those to root
+  `ignoreDependencies` so workspaces inherit them, which removes the
+  need for constants — but the capability is only available in the TS
+  form.
+
+Dynamic config remains unused; it is a latent affordance, not the
+reason.
+
+### 2026-04-19 — Hk `unused` step glob widened beyond `*.ts`/`*.tsx`
+
+Decision §Pre-push originally mirrored the `lint`/`typecheck` glob
+(`*.ts`/`*.tsx`). PR review caught that a change touching only
+`package.json` (e.g. adding an unused `devDependency`) would then slip
+past the pre-push gate and only surface in CI. Knip's remit covers
+manifest changes — missed deps, catalog drift — so the glob was
+widened to `*.ts`, `*.tsx`, `package.json`, `pnpm-workspace.yaml` in
+`hk.pkl`. CI remains authoritative via `hk check --all`, which runs
+every step regardless of changed files.
+
+### 2026-04-19 — Public-API surface marked via `index.ts` entries, not JSDoc tags
+
+Consequences §Negative anticipated "is this supposed to be public?"
+questions and suggested either JSDoc-tag allowlisting or entry-level
+exemption. The initial cleanup shipped with JSDoc `@public` tags on
+the library barrel re-exports plus `tags: ["-public"]` in config. A
+follow-up simplified this by declaring the barrel files themselves as
+entries (`src/index.ts` for cli, `src/**/index.ts` for open-cloud
+since it has nested subpath barrels). Knip does not report unused
+exports in entry files by default, which is exactly the semantics a
+public-API barrel wants and expresses the intent directly in config
+without mirror-tagging on every export block.
+
+This does mean ADR gap #2 (cross-package unused subpath exports) is
+only partially enforced: declaring an `index.ts` as an entry silences
+unused-export reporting inside it, so an orphan subpath would not
+flag. The workspace-graph check still catches an entire unreferenced
+subpath (the entry file itself showing as unused), but individual
+symbols inside a referenced barrel are trusted to be intentional.
+Revisit with `includeEntryExports: true` + `@public` tags if the
+trust assumption breaks.
