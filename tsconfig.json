@@ -10,5 +10,6 @@
 		{ "path": "packages/vite-config" },
 		{ "path": "scripts" }
 	],
-	"files": []
+	"files": [],
+	"include": []
 }
