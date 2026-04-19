@@ -1,9 +1,17 @@
 import ts from "typescript";
 
 /**
+ * A file change the wrapper cannot translate into a mutation range:
+ * renames and binary blobs. Surfaced as hard errors. New files are
+ * handled normally — their `@@ -0,0 +1,N @@` hunk already covers the
+ * full added range, which Stryker accepts as the mutation window.
+ */
+type DiffReject = { from: string; kind: "rename"; to: string } | { kind: "binary"; path: string };
+
+/**
  * A contiguous range of modified lines within a file.
  */
-export interface Hunk {
+interface Hunk {
 	/** Last line in the modified range (inclusive, 1-indexed). */
 	endLine: number;
 	/** First line in the modified range (inclusive, 1-indexed). */
@@ -13,7 +21,7 @@ export interface Hunk {
 /**
  * Changes observed within a single file in the current `git diff HEAD`.
  */
-export interface FileChange {
+interface FileChange {
 	/** Per-hunk line ranges touched in this file. */
 	hunks: Array<Hunk>;
 	/** Repo-relative path to the file. */
@@ -21,20 +29,10 @@ export interface FileChange {
 }
 
 /**
- * A file change the wrapper cannot translate into a mutation range:
- * renames and binary blobs. Surfaced as hard errors. New files are
- * handled normally — their `@@ -0,0 +1,N @@` hunk already covers the
- * full added range, which Stryker accepts as the mutation window.
- */
-export type DiffReject =
-	| { from: string; kind: "rename"; to: string }
-	| { kind: "binary"; path: string };
-
-/**
  * Outcome of parsing `git diff HEAD`: either the per-file change set or
  * a list of reject reasons that prevent safe mutation scoping.
  */
-export type DiffResult =
+type DiffResult =
 	| { files: Array<FileChange>; kind: "changes" }
 	| { kind: "reject"; reasons: Array<DiffReject> };
 
