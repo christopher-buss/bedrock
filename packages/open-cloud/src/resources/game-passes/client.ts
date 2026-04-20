@@ -1,51 +1,33 @@
-import type { Except } from "type-fest";
-
-import type {
-	HttpClient,
-	HttpRequest,
-	OpenCloudClientOptions,
-	OpenCloudHooks,
-	RequestOptions,
-	SleepFunc,
-} from "../../client/types.ts";
+import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
-import { executeWithRetry } from "../../internal/http/execute.ts";
-import { type OperationLimit, RateLimitQueue } from "../../internal/http/rate-limit-queue.ts";
-import { resolveDependencies } from "../../internal/http/resolve-dependencies.ts";
-import {
-	CREATE_METHOD_DEFAULTS,
-	defaultRetryDelay,
-	IDEMPOTENT_METHOD_DEFAULTS,
-	mergeConfig,
-	type MethodKind,
-	type RetryResolvable,
-} from "../../internal/http/retry.ts";
+import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
+import { ResourceClient, type ResourceMethodSpec } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
 import { buildCreateRequest, buildGetRequest } from "./builders.ts";
 import { CREATE_OPERATION_LIMIT, GET_OPERATION_LIMIT } from "./operations.ts";
 import { parseGamePassResponse } from "./parsers.ts";
 import type { CreateGamePassParameters, GamePass, GetGamePassParameters } from "./types.ts";
 
-interface ExecuteCall {
-	readonly methodDefaults: Partial<RetryResolvable>;
-	readonly methodKind: MethodKind;
-	readonly operationLimit: OperationLimit;
-	readonly options: RequestOptions | undefined;
-	readonly request: HttpRequest;
-}
+const CREATE_SPEC: ResourceMethodSpec<CreateGamePassParameters, GamePass> = Object.freeze({
+	buildRequest: buildCreateRequest,
+	methodDefaults: CREATE_METHOD_DEFAULTS,
+	methodKind: "create",
+	operationLimit: CREATE_OPERATION_LIMIT,
+	parse: parseGamePassResponse,
+});
 
-const CLIENT_DEFAULTS = Object.freeze({
-	baseUrl: "https://apis.roblox.com",
-	maxRetries: 3,
-	retryableStatuses: IDEMPOTENT_METHOD_DEFAULTS.retryableStatuses,
-	retryDelay: defaultRetryDelay,
-	timeout: 30_000,
-} satisfies Except<RetryResolvable, "apiKey">);
+const GET_SPEC: ResourceMethodSpec<GetGamePassParameters, GamePass> = Object.freeze({
+	buildRequest: buildGetRequest,
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: GET_OPERATION_LIMIT,
+	parse: parseGamePassResponse,
+});
 
 /**
  * Public client for the Roblox Open Cloud Game Passes API.
  *
- * Wires request builders, the injected {@link HttpClient}, and response
+ * Wires request builders, the injected {@link OpenCloudClientOptions.httpClient}, and response
  * parsers into a single ergonomic surface. Every method returns a
  * {@link Result} so callers handle failure explicitly; no thrown
  * `OpenCloudError` ever escapes the client.
@@ -68,11 +50,7 @@ const CLIENT_DEFAULTS = Object.freeze({
  * ```
  */
 export class GamePassesClient {
-	readonly #config: Readonly<RetryResolvable>;
-	readonly #hooks: OpenCloudHooks;
-	readonly #httpClient: HttpClient;
-	readonly #queues = new Map<string, RateLimitQueue>();
-	readonly #sleep: SleepFunc;
+	readonly #inner: ResourceClient;
 
 	/**
 	 * Creates a new {@link GamePassesClient}. Configuration is frozen on
@@ -81,16 +59,7 @@ export class GamePassesClient {
 	 * @param options - Client-level configuration including the API key.
 	 */
 	constructor(options: OpenCloudClientOptions) {
-		const { apiKey, hooks, httpClient, sleep, ...overrides } = options;
-		const resolved = resolveDependencies({ httpClient, sleep });
-		this.#httpClient = resolved.httpClient;
-		this.#sleep = resolved.sleep;
-		this.#hooks = hooks ?? {};
-		this.#config = Object.freeze({
-			...CLIENT_DEFAULTS,
-			apiKey,
-			...overrides,
-		});
+		this.#inner = new ResourceClient(options);
 	}
 
 	/**
@@ -105,13 +74,7 @@ export class GamePassesClient {
 		parameters: CreateGamePassParameters,
 		options?: RequestOptions,
 	): Promise<Result<GamePass, OpenCloudError>> {
-		return this.#execute({
-			methodDefaults: CREATE_METHOD_DEFAULTS,
-			methodKind: "create",
-			operationLimit: CREATE_OPERATION_LIMIT,
-			options,
-			request: buildCreateRequest(parameters),
-		});
+		return this.#inner.execute({ options, parameters, spec: CREATE_SPEC });
 	}
 
 	/**
@@ -127,51 +90,6 @@ export class GamePassesClient {
 		parameters: GetGamePassParameters,
 		options?: RequestOptions,
 	): Promise<Result<GamePass, OpenCloudError>> {
-		return this.#execute({
-			methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
-			methodKind: "idempotent",
-			operationLimit: GET_OPERATION_LIMIT,
-			options,
-			request: buildGetRequest(parameters),
-		});
-	}
-
-	async #execute(call: ExecuteCall): Promise<Result<GamePass, OpenCloudError>> {
-		const merged = mergeConfig(this.#config, {
-			methodDefaults: call.methodDefaults,
-			methodKind: call.methodKind,
-			requestOptions: call.options ?? {},
-		});
-		const requestConfig = {
-			apiKey: merged.apiKey,
-			baseUrl: merged.baseUrl,
-			timeout: merged.timeout,
-		};
-		const queue = this.#getQueue(merged.apiKey, call.operationLimit);
-		const httpResult = await queue.acquire(async () => {
-			return executeWithRetry(call.request, {
-				config: merged,
-				hooks: this.#hooks,
-				send: async (toSend) => this.#httpClient.request(toSend, requestConfig),
-				sleep: this.#sleep,
-			});
-		});
-		if (!httpResult.success) {
-			return httpResult;
-		}
-
-		return parseGamePassResponse(httpResult.data.body, httpResult.data.status);
-	}
-
-	#getQueue(apiKey: string, limit: OperationLimit): RateLimitQueue {
-		const key = `${apiKey}::${limit.operationKey}`;
-		const existing = this.#queues.get(key);
-		if (existing !== undefined) {
-			return existing;
-		}
-
-		const queue = new RateLimitQueue(limit, this.#hooks, this.#sleep);
-		this.#queues.set(key, queue);
-		return queue;
+		return this.#inner.execute({ options, parameters, spec: GET_SPEC });
 	}
 }

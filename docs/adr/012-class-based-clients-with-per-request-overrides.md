@@ -389,6 +389,43 @@ half of the rejection; the ergonomic argument is secondary.
   "immutable configuration" principle; this ADR picks classes with
   `Object.freeze` as the specific mechanism for `@bedrock/open-cloud`.
 
+## Amendments
+
+### 2026-04-20: Per-instance state composed onto an internal `ResourceClient`
+
+Decision §Application today originally described every resource client as
+a class that owns its `config` field, its `Map<string, RateLimitQueue>`,
+and its retry orchestration directly. The shape worked for one resource
+but scaled multiplicatively: each new resource copied roughly 130 lines
+of plumbing out of `GamePassesClient`, and the Implementation Notes
+required every resource to re-assert the frozen-config and
+queue-per-effective-key invariants in its own spec.
+
+Landed: the plumbing moved onto a single internal `ResourceClient`
+(`packages/open-cloud/src/internal/resource-client.ts`). Resource classes
+compose one instance and declare per-method `ResourceMethodSpec` constants
+that bind a builder, a parser, a method kind, method defaults, and an
+operation limit. Public methods are one-line delegations to
+`ResourceClient.execute({ spec, parameters, options })`. `GamePassesClient`
+is the first and currently only consumer; future resource clients on the
+roadmap (Places, Developer Products, Thumbnails, Badges, Assets) adopt
+the same composition.
+
+The Decision and Principles are unchanged. The class-based shape, frozen
+config, per-request overrides, shallow-merge semantics, and effective-
+apiKey queue keying are all preserved. What moved is where the state
+lives: on the composed `ResourceClient` rather than on each resource
+class. The frozen-config and queue-keying invariant tests named in
+Implementation Notes now live once in
+`src/internal/resource-client.spec.ts` rather than once per resource.
+Resource-level specs cover resource-specific behaviour (URL shape, request
+body, parser integration) and no longer re-assert the cross-cutting
+invariants.
+
+`ResourceClient` is not exported from any package subpath. Consumers
+continue to import resource clients from their subpaths
+(`@bedrock/ocale/game-passes`, and so on).
+
 ## References
 
 - [OpenAI Node.js SDK](https://github.com/openai/openai-node) — canonical
