@@ -2,6 +2,7 @@
 import { expect, it } from "vitest";
 import {
   asResourceKey,
+  type BaseOperation,
   asSha256Hex,
   type CreateOperation,
   asRobloxAssetId,
@@ -11,6 +12,11 @@ import {
 } from 'bedrock'
 
 it('Example 1', () => {
+  const base: BaseOperation = { key: asResourceKey('vip-pass') }
+  expect(base.key).toBe('vip-pass')
+})
+
+it('Example 2', () => {
   const op: CreateOperation = {
     desired: {
       description: 'Grants VIP perks.',
@@ -30,7 +36,7 @@ it('Example 1', () => {
   expect(op.desired.kind).toBe('gamePass')
 })
 
-it('Example 2', () => {
+it('Example 3', () => {
   const op: UpdateOperation = {
     current: {
       description: 'Grants VIP perks.',
@@ -66,7 +72,7 @@ it('Example 2', () => {
   expect(op.current.outputs.assetId).toBe('9876543210')
 })
 
-it('Example 3', () => {
+it('Example 4', () => {
   const op: NoopOperation = {
     key: asResourceKey('vip-pass'),
     type: 'noop',
@@ -75,7 +81,7 @@ it('Example 3', () => {
   expect(op.key).toBe('vip-pass')
 })
 
-it('Example 4', () => {
+it('Example 5', () => {
   function describeOp(op: Operation): string {
     switch (op.type) {
       case 'create': {

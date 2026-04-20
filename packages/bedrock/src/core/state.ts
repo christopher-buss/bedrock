@@ -9,6 +9,42 @@ import type { ResourceCurrentState } from "./resources.ts";
  *
  * `version` is the literal `1` so a future breaking schema change is a
  * compile-time type shift rather than a silently accepted runtime value.
+ *
+ * @example
+ *
+ * ```ts
+ * import {
+ *     asResourceKey,
+ *     asRobloxAssetId,
+ *     asSha256Hex,
+ *     type BedrockState,
+ * } from "bedrock";
+ *
+ * const state: BedrockState = {
+ *     environment: "production",
+ *     resources: [
+ *         {
+ *             description: "Grants VIP perks.",
+ *             iconFileHash: asSha256Hex(
+ *                 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+ *             ),
+ *             iconFilePath: "assets/vip-icon.png",
+ *             key: asResourceKey("vip-pass"),
+ *             kind: "gamePass",
+ *             name: "VIP Pass",
+ *             outputs: {
+ *                 assetId: asRobloxAssetId("9876543210"),
+ *                 iconAssetId: asRobloxAssetId("1122334455"),
+ *             },
+ *             price: 500,
+ *         },
+ *     ],
+ *     version: 1,
+ * };
+ *
+ * expect(state.version).toBe(1);
+ * expect(state.resources).toHaveLength(1);
+ * ```
  */
 export interface BedrockState {
 	/** Environment name this snapshot belongs to (e.g. `"production"`, `"staging"`). */
@@ -26,6 +62,20 @@ export interface BedrockState {
  * The `kind` literal `"stateError"` is the discriminator for a future error
  * union that will carry sibling ports' failures; narrow on it, don't
  * `instanceof` it.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { StateError } from "bedrock";
+ *
+ * const err: StateError = {
+ *     file: ".bedrock/state/production.json",
+ *     kind: "stateError",
+ *     reason: "Corrupt JSON: unexpected token at line 1 column 5",
+ * };
+ *
+ * expect(err.kind).toBe("stateError");
+ * ```
  */
 export interface StateError {
 	/** Adapter-specific path or identifier of the file that failed to parse. */

@@ -5,6 +5,8 @@ import {
   asSha256Hex,
   type GamePassDesiredState,
   asRobloxAssetId,
+  type ResourceOutputsByKind,
+  type ResourceOutputs,
   type ResourceCurrentState,
 } from 'bedrock'
 
@@ -25,6 +27,22 @@ it('Example 1', () => {
 })
 
 it('Example 2', () => {
+  const outputs: ResourceOutputsByKind['gamePass'] = {
+    assetId: asRobloxAssetId('9876543210'),
+    iconAssetId: asRobloxAssetId('1122334455'),
+  }
+  expect(outputs.assetId).toBe('9876543210')
+})
+
+it('Example 3', () => {
+  const outputs: ResourceOutputs<'gamePass'> = {
+    assetId: asRobloxAssetId('9876543210'),
+    iconAssetId: asRobloxAssetId('1122334455'),
+  }
+  expect(outputs.iconAssetId).toBe('1122334455')
+})
+
+it('Example 4', () => {
   const current: ResourceCurrentState<'gamePass'> = {
     description: 'Grants VIP perks.',
     iconFileHash: asSha256Hex(

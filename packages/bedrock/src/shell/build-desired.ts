@@ -6,6 +6,22 @@ import { asSha256Hex, isResourceKey, type ResourceKey } from "../types/ids.ts";
 /**
  * Single game-pass entry the caller assembles by hand to drive
  * `buildDesired`. Interim scaffolding; not a stable public API.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { GamePassConfigInput } from "bedrock";
+ *
+ * const entry: GamePassConfigInput = {
+ *     description: "Grants VIP perks.",
+ *     iconFilePath: "assets/vip-icon.png",
+ *     key: "vip-pass",
+ *     name: "VIP Pass",
+ *     price: 500,
+ * };
+ *
+ * expect(entry.key).toBe("vip-pass");
+ * ```
  */
 export interface GamePassConfigInput {
 	/** User-supplied handle; validated against the `ResourceKey` brand regex. */
@@ -23,6 +39,26 @@ export interface GamePassConfigInput {
 /**
  * Top-level input shape for `buildDesired`. Interim scaffolding; not a
  * stable public API.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { Slice1ConfigInput } from "bedrock";
+ *
+ * const config: Slice1ConfigInput = {
+ *     gamePasses: [
+ *         {
+ *             description: "Grants VIP perks.",
+ *             iconFilePath: "assets/vip-icon.png",
+ *             key: "vip-pass",
+ *             name: "VIP Pass",
+ *             price: 500,
+ *         },
+ *     ],
+ * };
+ *
+ * expect(config.gamePasses).toHaveLength(1);
+ * ```
  */
 export interface Slice1ConfigInput {
 	/** Every game pass the caller wants reconciled. Order is preserved downstream. */
@@ -34,6 +70,27 @@ export interface Slice1ConfigInput {
  * normalized into `ResourceDesiredState`. Plain-data discriminated union
  * following the `StateError` pattern in `core/state.ts`; narrow on `kind`,
  * do not `instanceof` it.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { BuildDesiredError } from "bedrock";
+ *
+ * function describe(err: BuildDesiredError): string {
+ *     switch (err.kind) {
+ *         case "iconReadFailed": {
+ *             return `icon read failed for ${err.key}: ${err.reason}`;
+ *         }
+ *         case "invalidKey": {
+ *             return `invalid key: ${err.rawKey}`;
+ *         }
+ *     }
+ * }
+ *
+ * const err: BuildDesiredError = { kind: "invalidKey", rawKey: "BAD KEY" };
+ *
+ * expect(describe(err)).toBe("invalid key: BAD KEY");
+ * ```
  */
 export type BuildDesiredError =
 	| {

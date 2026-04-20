@@ -8,6 +8,30 @@ import type { ResourceKey } from "../types/ids.ts";
  * Failure surfaced by `applyOps` when an operation cannot be applied.
  * Plain-data discriminated union following the `StateError` pattern in
  * `core/state.ts`; narrow on `kind`, do not `instanceof` it.
+ *
+ * @example
+ *
+ * ```ts
+ * import { asResourceKey, type ApplyError } from "bedrock";
+ *
+ * function describe(err: ApplyError): string {
+ *     switch (err.kind) {
+ *         case "driverFailure": {
+ *             return `driver failed for ${err.key}: ${err.cause.message}`;
+ *         }
+ *         case "updateUnsupported": {
+ *             return `update not yet supported for ${err.key}`;
+ *         }
+ *     }
+ * }
+ *
+ * const err: ApplyError = {
+ *     key: asResourceKey("vip-pass"),
+ *     kind: "updateUnsupported",
+ * };
+ *
+ * expect(describe(err)).toBe("update not yet supported for vip-pass");
+ * ```
  */
 export type ApplyError =
 	| {
