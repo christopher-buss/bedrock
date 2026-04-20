@@ -78,6 +78,9 @@ export function buildFetchOptions(request: HttpRequest, config: RequestConfig): 
 
 	if (request.body instanceof FormData) {
 		options.body = request.body;
+	} else if (request.body instanceof Uint8Array) {
+		headers.set("content-type", "application/octet-stream");
+		options.body = request.body;
 	} else if (request.body !== undefined) {
 		headers.set("content-type", "application/json");
 		options.body = JSON.stringify(request.body);

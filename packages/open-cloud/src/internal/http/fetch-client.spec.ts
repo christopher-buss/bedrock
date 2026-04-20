@@ -223,6 +223,31 @@ describe(buildFetchOptions, () => {
 		expect(options.body).toBeUndefined();
 		expect(headers.get("content-type")).toBeNull();
 	});
+
+	it("should set Content-Type application/octet-stream for Uint8Array body", () => {
+		expect.assertions(1);
+
+		const body = new Uint8Array([1, 2, 3]);
+		const options = buildFetchOptions(
+			{ body, method: "POST", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+		const headers = new Headers(options.headers);
+
+		expect(headers.get("content-type")).toBe("application/octet-stream");
+	});
+
+	it("should pass Uint8Array body directly without copying or serialization", () => {
+		expect.assertions(1);
+
+		const body = new Uint8Array([1, 2, 3]);
+		const options = buildFetchOptions(
+			{ body, method: "POST", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		expect(options.body).toBe(body);
+	});
 });
 
 describe(createFetchHttpClient, () => {
