@@ -3,11 +3,12 @@ import { createFakeHttpClient, type FakeHttpClient } from "#tests/helpers/fake-h
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { assert, describe, expect, it, vi } from "vitest";
 
-import type { OpenCloudHooks } from "../client/types.ts";
+import type { HttpRequest, OpenCloudHooks } from "../client/types.ts";
 import { ApiError } from "../errors/api-error.ts";
+import { ValidationError } from "../errors/validation.ts";
 import type { Result } from "../types.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "./http/retry.ts";
-import { ResourceClient, type ResourceMethodSpec } from "./resource-client.ts";
+import { okRequest, ResourceClient, type ResourceMethodSpec } from "./resource-client.ts";
 
 interface TestParameters {
 	readonly id: string;
@@ -28,8 +29,12 @@ function parseTestResponse(response: { readonly status: number }): Result<TestRe
 	};
 }
 
+function buildTestPostRequest(parameters: TestParameters): HttpRequest {
+	return { body: { id: parameters.id }, method: "POST", url: "/test" };
+}
+
 const TEST_GET_SPEC: ResourceMethodSpec<TestParameters, TestResult> = {
-	buildRequest: (parameters) => ({ method: "GET", url: `/test/${parameters.id}` }),
+	buildRequest: (parameters) => okRequest({ method: "GET", url: `/test/${parameters.id}` }),
 	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 	methodKind: "idempotent",
 	operationLimit: Object.freeze({ maxPerSecond: 10, operationKey: "test.get" }),
@@ -37,9 +42,7 @@ const TEST_GET_SPEC: ResourceMethodSpec<TestParameters, TestResult> = {
 };
 
 const TEST_CREATE_SPEC: ResourceMethodSpec<TestParameters, TestResult> = {
-	buildRequest: (parameters) => {
-		return { body: { id: parameters.id }, method: "POST", url: "/test" };
-	},
+	buildRequest: (parameters) => okRequest(buildTestPostRequest(parameters)),
 	methodDefaults: CREATE_METHOD_DEFAULTS,
 	methodKind: "create",
 	operationLimit: Object.freeze({ maxPerSecond: 5, operationKey: "test.create" }),
@@ -55,6 +58,44 @@ function mockManyOk(fake: FakeHttpClient, count: number): FakeHttpClient {
 }
 
 describe(ResourceClient, () => {
+	describe("builder short-circuit", () => {
+		it("should return the builder error without acquiring the queue, hitting HTTP, or sleeping", async () => {
+			expect.assertions(4);
+
+			const builderError = new ValidationError("rejected by builder", { code: "empty_body" });
+			const httpClient = createFakeHttpClient();
+			const sleep = createFakeSleep();
+			const onRequest = vi.fn<NonNullable<OpenCloudHooks["onRequest"]>>();
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				hooks: { onRequest },
+				httpClient,
+				sleep,
+			});
+
+			const result = await client.execute({
+				parameters: { id: "1" },
+				spec: {
+					buildRequest: () => ({ err: builderError, success: false }),
+					methodDefaults: CREATE_METHOD_DEFAULTS,
+					methodKind: "create",
+					operationLimit: Object.freeze({
+						maxPerSecond: 1,
+						operationKey: "test.short-circuit",
+					}),
+					parse: parseTestResponse,
+				},
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBe(builderError);
+			expect(httpClient.requests).toHaveLength(0);
+			expect(sleep.waits).toStrictEqual([]);
+			expect(onRequest).not.toHaveBeenCalled();
+		});
+	});
+
 	describe("config semantics", () => {
 		it("should apply per-request overrides over the client config for apiKey, baseUrl, and timeout", async () => {
 			expect.assertions(1);
