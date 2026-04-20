@@ -299,6 +299,22 @@ describe(buildFetchOptions, () => {
 		expect(headers.get("x-trace-id")).toBe("abc123");
 		expect(headers.get("x-api-key")).toBe("key");
 	});
+
+	it("should preserve x-api-key from config against caller-supplied override", () => {
+		expect.assertions(1);
+
+		const options = buildFetchOptions(
+			{
+				headers: { "X-Api-Key": "caller-key" },
+				method: "GET",
+				url: "/test",
+			},
+			{ apiKey: "config-key", baseUrl: "https://example.com" },
+		);
+		const headers = new Headers(options.headers);
+
+		expect(headers.get("x-api-key")).toBe("config-key");
+	});
 });
 
 describe(createFetchHttpClient, () => {

@@ -88,6 +88,10 @@ export function buildFetchOptions(request: HttpRequest, config: RequestConfig): 
 
 	if (request.headers !== undefined) {
 		for (const [name, value] of Object.entries(request.headers)) {
+			if (name.toLowerCase() === "x-api-key") {
+				continue;
+			}
+
 			headers.set(name, value);
 		}
 	}
