@@ -58,6 +58,10 @@ export type ApplyError =
  * @param ops - Reconciliation operations produced by `diff`, applied in order.
  * @param registry - Per-kind driver table; dispatch uses `op.desired.kind` as the index.
  * @returns `Ok(undefined)` when every operation succeeds, or the first failure encountered.
+ * @throws Whatever the dispatched driver rejects with outside its `Result`
+ *   return — notably, `createGamePassDriver` propagates file-read rejections
+ *   from its injected `readFile`. Wrap the call site in a try/catch when the
+ *   file reader is not trusted.
  * @example
  *
  * ```ts
