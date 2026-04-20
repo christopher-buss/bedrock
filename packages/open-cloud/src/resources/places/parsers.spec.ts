@@ -91,6 +91,24 @@ describe(parsePublishResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
+	it("should reject an array body even when it carries a versionNumber property", () => {
+		expect.assertions(1);
+
+		// An array with `versionNumber` set as a property still has the
+		// JS class tag `[object Array]`, so the record discriminator
+		// rejects it before the field check.
+		const arrayWithProperty = Object.assign([0], { versionNumber: 42 });
+		const result = parsePublishResponse({
+			body: arrayWithProperty,
+			headers: {},
+			status: 200,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+	});
+
 	it("should propagate the response status code on the returned ApiError", () => {
 		expect.assertions(1);
 

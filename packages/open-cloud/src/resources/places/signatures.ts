@@ -34,10 +34,6 @@ export function matchesSignature(
 	body: Uint8Array,
 	signature: Readonly<Uint8Array<ArrayBuffer>>,
 ): boolean {
-	if (body.length < signature.length) {
-		return false;
-	}
-
 	for (const [index, expected] of signature.entries()) {
 		if (body[index] !== expected) {
 			return false;

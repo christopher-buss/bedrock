@@ -33,7 +33,7 @@ describe(buildPublishRequest, () => {
 		});
 
 		it("should return ValidationError format_mismatch for rbxl declared with rbxlx bytes", () => {
-			expect.assertions(2);
+			expect.assertions(3);
 
 			const result = buildPublishRequest(
 				makeParameters({ body: new Uint8Array(RBXLX_SIGNATURE), format: "rbxl" }),
@@ -44,6 +44,7 @@ describe(buildPublishRequest, () => {
 
 			expect(result.err).toBeInstanceOf(ValidationError);
 			expect(result.err.code).toBe("format_mismatch");
+			expect(result.err.message).toBe('Place body does not match the declared "rbxl" format');
 		});
 
 		it("should return ValidationError format_mismatch for rbxlx declared with rbxl bytes", () => {
