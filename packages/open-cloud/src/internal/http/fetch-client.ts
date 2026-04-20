@@ -86,6 +86,12 @@ export function buildFetchOptions(request: HttpRequest, config: RequestConfig): 
 		options.body = JSON.stringify(request.body);
 	}
 
+	if (request.headers !== undefined) {
+		for (const [name, value] of Object.entries(request.headers)) {
+			headers.set(name, value);
+		}
+	}
+
 	if (config.timeout !== undefined) {
 		options.signal = AbortSignal.timeout(config.timeout);
 	}

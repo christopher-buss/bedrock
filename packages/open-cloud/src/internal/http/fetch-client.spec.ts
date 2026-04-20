@@ -248,6 +248,74 @@ describe(buildFetchOptions, () => {
 
 		expect(options.body).toBe(body);
 	});
+
+	it("should apply caller-supplied headers last, overriding body-branch Content-Type", () => {
+		expect.assertions(1);
+
+		const options = buildFetchOptions(
+			{
+				body: { name: "Game Pass" },
+				headers: { "Content-Type": "application/xml" },
+				method: "POST",
+				url: "/test",
+			},
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+		const headers = new Headers(options.headers);
+
+		expect(headers.get("content-type")).toBe("application/xml");
+	});
+
+	it("should override octet-stream default when caller supplies Content-Type for Uint8Array body", () => {
+		expect.assertions(1);
+
+		const options = buildFetchOptions(
+			{
+				body: new Uint8Array([1, 2, 3]),
+				headers: { "content-type": "application/octet-stream; charset=binary" },
+				method: "POST",
+				url: "/test",
+			},
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+		const headers = new Headers(options.headers);
+
+		expect(headers.get("content-type")).toBe("application/octet-stream; charset=binary");
+	});
+
+	it("should apply caller-supplied headers case-insensitively", () => {
+		expect.assertions(1);
+
+		const options = buildFetchOptions(
+			{
+				body: { name: "Game Pass" },
+				headers: { "CoNtEnT-TyPe": "application/xml" },
+				method: "POST",
+				url: "/test",
+			},
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+		const headers = new Headers(options.headers);
+
+		expect(headers.get("content-type")).toBe("application/xml");
+	});
+
+	it("should add caller-supplied headers alongside x-api-key when no body-branch header is set", () => {
+		expect.assertions(2);
+
+		const options = buildFetchOptions(
+			{
+				headers: { "x-trace-id": "abc123" },
+				method: "GET",
+				url: "/test",
+			},
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+		const headers = new Headers(options.headers);
+
+		expect(headers.get("x-trace-id")).toBe("abc123");
+		expect(headers.get("x-api-key")).toBe("key");
+	});
 });
 
 describe(createFetchHttpClient, () => {

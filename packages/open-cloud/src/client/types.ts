@@ -27,6 +27,13 @@ export type HttpRequestBody =
 export interface HttpRequest {
 	/** The request body. */
 	readonly body?: HttpRequestBody;
+	/**
+	 * Caller-supplied request headers. Applied after the transport sets
+	 * `x-api-key` and any body-driven `Content-Type`, so a caller-supplied
+	 * header replaces the transport's default. Keys are treated
+	 * case-insensitively.
+	 */
+	readonly headers?: Readonly<Record<string, string>>;
 	/** The HTTP method. */
 	readonly method: "DELETE" | "GET" | "PATCH" | "POST";
 	/** Relative path, e.g. `/game-passes/v1/universes/123/...`. */
