@@ -90,6 +90,19 @@ export type ResourceKind = ResourceDesiredState["kind"];
  * or `ResourceOutputs<K>` is a compile error. Modelled as an interface (not a
  * type alias) so downstream packages can use declaration merging to register
  * outputs for new kinds without touching this module.
+ *
+ * @example
+ *
+ * ```ts
+ * import { asRobloxAssetId, type ResourceOutputsByKind } from "bedrock";
+ *
+ * const outputs: ResourceOutputsByKind["gamePass"] = {
+ *     assetId: asRobloxAssetId("9876543210"),
+ *     iconAssetId: asRobloxAssetId("1122334455"),
+ * };
+ *
+ * expect(outputs.assetId).toBe("9876543210");
+ * ```
  */
 export interface ResourceOutputsByKind {
 	/** Outputs returned by the Roblox API for a game-pass resource. */

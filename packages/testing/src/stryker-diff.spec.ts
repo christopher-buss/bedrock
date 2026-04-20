@@ -106,7 +106,7 @@ describe(parseDiff, () => {
 		});
 	});
 
-	it("should reject a rename with the old and new paths", () => {
+	it("should drop a pure rename since it has no hunks to mutate at the new path", () => {
 		expect.assertions(1);
 
 		const raw = [
@@ -118,9 +118,30 @@ describe(parseDiff, () => {
 
 		const result = parseDiff(raw);
 
+		expect(result).toStrictEqual({ files: [], kind: "changes" });
+	});
+
+	it("should collapse a rename with modifications to a change entry at the new path", () => {
+		expect.assertions(1);
+
+		const raw = [
+			"diff --git a/src/old.ts b/src/new.ts",
+			"similarity index 90%",
+			"rename from src/old.ts",
+			"rename to src/new.ts",
+			"index abc1234..def5678 100644",
+			"--- a/src/old.ts",
+			"+++ b/src/new.ts",
+			"@@ -3 +3 @@",
+			"-old",
+			"+new",
+		].join("\n");
+
+		const result = parseDiff(raw);
+
 		expect(result).toStrictEqual({
-			kind: "reject",
-			reasons: [{ from: "src/old.ts", kind: "rename", to: "src/new.ts" }],
+			files: [{ hunks: [{ endLine: 3, startLine: 3 }], path: "src/new.ts" }],
+			kind: "changes",
 		});
 	});
 
@@ -279,15 +300,15 @@ describe(groupByPackage, () => {
 
 		const files = [
 			{ hunks: [{ endLine: 5, startLine: 1 }], path: "packages/open-cloud/src/a.ts" },
-			{ hunks: [{ endLine: 3, startLine: 3 }], path: "packages/cli/src/b.ts" },
+			{ hunks: [{ endLine: 3, startLine: 3 }], path: "packages/bedrock/src/b.ts" },
 			{ hunks: [{ endLine: 2, startLine: 1 }], path: "packages/open-cloud/src/c.ts" },
 		];
 
-		const grouped = groupByPackage(files, ["packages/open-cloud", "packages/cli"]);
+		const grouped = groupByPackage(files, ["packages/open-cloud", "packages/bedrock"]);
 
 		expect(grouped).toStrictEqual(
 			new Map([
-				["packages/cli", [{ hunks: [{ endLine: 3, startLine: 3 }], path: "src/b.ts" }]],
+				["packages/bedrock", [{ hunks: [{ endLine: 3, startLine: 3 }], path: "src/b.ts" }]],
 				[
 					"packages/open-cloud",
 					[
@@ -304,14 +325,14 @@ describe(groupByPackage, () => {
 
 		const files = [
 			{ hunks: [{ endLine: 5, startLine: 1 }], path: "scripts/foo.ts" },
-			{ hunks: [{ endLine: 3, startLine: 3 }], path: "packages/cli/src/b.ts" },
+			{ hunks: [{ endLine: 3, startLine: 3 }], path: "packages/bedrock/src/b.ts" },
 		];
 
-		const grouped = groupByPackage(files, ["packages/cli"]);
+		const grouped = groupByPackage(files, ["packages/bedrock"]);
 
 		expect(grouped).toStrictEqual(
 			new Map([
-				["packages/cli", [{ hunks: [{ endLine: 3, startLine: 3 }], path: "src/b.ts" }]],
+				["packages/bedrock", [{ hunks: [{ endLine: 3, startLine: 3 }], path: "src/b.ts" }]],
 			]),
 		);
 	});

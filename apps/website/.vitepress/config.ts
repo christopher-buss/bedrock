@@ -17,13 +17,58 @@ export default defineConfig({
 	themeConfig: {
 		nav: [
 			{ link: "/", text: "Home" },
+			{ link: "/bedrock/guide/getting-started", text: "Bedrock" },
 			{ link: "/ocale/guide/getting-started", text: "Ocale" },
 		],
-		// Links into /ocale/api/** point at paths that typedoc-plugin-markdown
-		// generates from the ocale public API. If typedoc or the plugin is
-		// upgraded and changes its output layout, these links must be updated
-		// manually — there's no compile-time check that they resolve.
+		// Links into /ocale/api/** and /bedrock/api/** point at paths that
+		// typedoc-plugin-markdown generates from each package's public API. If
+		// typedoc or the plugin is upgraded and changes its output layout,
+		// these links must be updated manually — there's no compile-time check
+		// that they resolve.
 		sidebar: {
+			"/bedrock/": [
+				{
+					items: [{ link: "/bedrock/guide/getting-started", text: "Getting Started" }],
+					text: "Bedrock",
+				},
+				{
+					items: [
+						{ link: "/bedrock/api/functions/diff", text: "diff" },
+						{ link: "/bedrock/api/type-aliases/Operation", text: "Operation" },
+						{
+							link: "/bedrock/api/type-aliases/ResourceDesiredState",
+							text: "ResourceDesiredState",
+						},
+						{
+							link: "/bedrock/api/type-aliases/ResourceCurrentState",
+							text: "ResourceCurrentState",
+						},
+					],
+					text: "Core",
+				},
+				{
+					items: [
+						{
+							link: "/bedrock/api/interfaces/ResourceDriver",
+							text: "ResourceDriver",
+						},
+						{
+							link: "/bedrock/api/type-aliases/DriverRegistry",
+							text: "DriverRegistry",
+						},
+					],
+					text: "Ports",
+				},
+				{
+					items: [
+						{
+							link: "/bedrock/api/type-aliases/ResourceKey",
+							text: "Branded IDs",
+						},
+					],
+					text: "Types",
+				},
+			],
 			"/ocale/": [
 				{
 					items: [{ link: "/ocale/guide/getting-started", text: "Getting Started" }],

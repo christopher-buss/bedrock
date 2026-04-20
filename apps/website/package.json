@@ -11,8 +11,8 @@
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
 	"type": "module",
 	"scripts": {
-		"docs:build": "typedoc && vitepress build",
-		"docs:dev": "concurrently -k -n typedoc,vitepress -c magenta,cyan \"typedoc --watch\" \"vitepress dev\"",
+		"docs:build": "typedoc --options ./typedoc.json && typedoc --options ./typedoc.bedrock.json && vitepress build",
+		"docs:dev": "concurrently -k -n ocale,bedrock,vitepress -c magenta,blue,cyan \"typedoc --options ./typedoc.json --watch\" \"typedoc --options ./typedoc.bedrock.json --watch\" \"vitepress dev\"",
 		"lint": "eslint --cache .",
 		"preview": "vitepress preview"
 	},

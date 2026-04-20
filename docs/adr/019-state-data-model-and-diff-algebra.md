@@ -491,3 +491,14 @@ export type DriverRegistry = {
   `packages/cli/src/ports/`; `buildDesired` (which hashes files) lives in
   `packages/cli/src/shell/`. The I/O boundary established in ADR-018 is
   enforced by this ADR's type placement.
+
+## Amendments
+
+- **2026-04-19:** The `StatePort.read` sketch in the `StatePort` contract
+  section and in the "no state file" narrative uses `BedrockState | null` and
+  `Ok(null)`. In code this is modelled as `BedrockState | undefined` and
+  `Ok(undefined)`, because `null` is banned project-wide under the
+  `unicorn/no-null` ESLint rule. The contract is unchanged: "no state file
+  yet" stays a distinct success value from "file with empty resources list",
+  and a malformed file must still surface as `Err(StateError)` rather than
+  collapsing to that sentinel. See `packages/cli/src/ports/state-port.ts`.
