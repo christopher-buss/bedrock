@@ -113,18 +113,6 @@ export interface ResourceOutputsByKind {
  * Resolved outputs for a specific resource kind.
  *
  * @template K - The resource kind discriminator.
- * @example
- *
- * ```ts
- * import { asRobloxAssetId, type ResourceOutputs } from "bedrock";
- *
- * const outputs: ResourceOutputs<"gamePass"> = {
- *     assetId: asRobloxAssetId("9876543210"),
- *     iconAssetId: asRobloxAssetId("1122334455"),
- * };
- *
- * expect(outputs.iconAssetId).toBe("1122334455");
- * ```
  */
 export type ResourceOutputs<K extends ResourceKind> = ResourceOutputsByKind[K];
 

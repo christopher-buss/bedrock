@@ -14,6 +14,7 @@ import {
 	createGamePassDriver,
 	diff,
 	type DriverRegistry,
+	type Operation,
 	type ResourceCurrentState,
 	type Slice1ConfigInput,
 } from "bedrock";
@@ -21,11 +22,12 @@ import { assert, describe, expect, it } from "vitest";
 
 const ICON_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
+const VIP_PASS_KEY = "vip-pass";
 
 const SLICE_1_CONFIG: Slice1ConfigInput = {
 	gamePasses: [
 		{
-			key: "vip-pass",
+			key: VIP_PASS_KEY,
 			name: "VIP Pass",
 			description: "Grants VIP perks.",
 			iconFilePath: "assets/vip-icon.png",
@@ -33,6 +35,20 @@ const SLICE_1_CONFIG: Slice1ConfigInput = {
 		},
 	],
 };
+
+const trapRegistry: DriverRegistry = {
+	gamePass: {
+		create() {
+			throw new Error("GamePassDriver.create must not run for noop/update ops");
+		},
+	},
+};
+
+interface CreateFlowResult {
+	readonly applyOutcome: Awaited<ReturnType<typeof applyOps>>;
+	readonly httpClient: FakeHttpClient;
+	readonly opTypes: ReadonlyArray<Operation["type"]>;
+}
 
 async function readIcon(): Promise<Uint8Array> {
 	return ICON_BYTES;
@@ -45,7 +61,7 @@ async function sha256HexOf(bytes: Uint8Array): Promise<string> {
 	);
 }
 
-function makeRegistry(httpClient: FakeHttpClient): DriverRegistry {
+function makeLiveRegistry(httpClient: FakeHttpClient): DriverRegistry {
 	return {
 		gamePass: createGamePassDriver({
 			client: new GamePassesClient({
@@ -63,7 +79,7 @@ async function buildExistingPass(
 	overrides: Partial<ResourceCurrentState> = {},
 ): Promise<ResourceCurrentState> {
 	return {
-		key: asResourceKey("vip-pass"),
+		key: asResourceKey(VIP_PASS_KEY),
 		name: "VIP Pass",
 		description: "Grants VIP perks.",
 		iconFileHash: asSha256Hex(await sha256HexOf(ICON_BYTES)),
@@ -78,25 +94,21 @@ async function buildExistingPass(
 	};
 }
 
-async function runCreateFlow(): Promise<{
-	readonly didApply: boolean;
-	readonly httpClient: FakeHttpClient;
-	readonly opTypes: ReadonlyArray<string>;
-}> {
+async function runCreateFlow(): Promise<CreateFlowResult> {
 	const httpClient = createFakeHttpClient().mockResponse({
 		body: validGamePassBody(),
 		status: 200,
 	});
-	const registry = makeRegistry(httpClient);
+	const registry = makeLiveRegistry(httpClient);
 
 	const desiredResult = await buildDesired(SLICE_1_CONFIG, readIcon);
 	assert(desiredResult.success);
 
 	const ops = diff(desiredResult.data, []);
-	const applyResult = await applyOps(ops, registry);
+	const applyOutcome = await applyOps(ops, registry);
 
 	return {
-		didApply: applyResult.success,
+		applyOutcome,
 		httpClient,
 		opTypes: ops.map((op) => op.type),
 	};
@@ -106,39 +118,37 @@ describe("slice 1 end-to-end", () => {
 	it("should dispatch a create op to the ocale client's POST endpoint for a new game pass", async () => {
 		expect.assertions(4);
 
-		const { didApply, httpClient, opTypes } = await runCreateFlow();
+		const { applyOutcome, httpClient, opTypes } = await runCreateFlow();
 
 		expect(opTypes).toStrictEqual(["create"]);
-		expect(didApply).toBeTrue();
+		expect(applyOutcome.success).toBeTrue();
 
-		assert(httpClient.requests.length === 1);
-		const { request } = httpClient.requests[0]!;
+		const [first] = httpClient.requests;
+		assert(first);
 
-		expect(request.method).toBe("POST");
-		expect(request.url).toBe(`/game-passes/v1/universes/${UNIVERSE_ID}/game-passes`);
+		expect(first.request.method).toBe("POST");
+		expect(first.request.url).toBe(`/game-passes/v1/universes/${UNIVERSE_ID}/game-passes`);
 	});
 
 	it("should forward every declared game-pass field into the multipart body, including the icon bytes", async () => {
 		expect.assertions(4);
 
 		const { httpClient } = await runCreateFlow();
-		const { request } = httpClient.requests[0]!;
-		assert(request.body instanceof FormData);
+		const [first] = httpClient.requests;
+		assert(first);
+		assert(first.request.body instanceof FormData);
 
-		const imageFile = request.body.get("imageFile");
+		const imageFile = first.request.body.get("imageFile");
 		assert(imageFile instanceof Blob);
 
-		expect(request.body.get("name")).toBe("VIP Pass");
-		expect(request.body.get("description")).toBe("Grants VIP perks.");
-		expect(request.body.get("price")).toBe("500");
+		expect(first.request.body.get("name")).toBe("VIP Pass");
+		expect(first.request.body.get("description")).toBe("Grants VIP perks.");
+		expect(first.request.body.get("price")).toBe("500");
 		expect(imageFile.size).toBe(ICON_BYTES.byteLength);
 	});
 
-	it("should emit a noop and skip http calls when current state matches desired", async () => {
-		expect.assertions(3);
-
-		const httpClient = createFakeHttpClient();
-		const registry = makeRegistry(httpClient);
+	it("should emit a noop and skip driver dispatch when current state matches desired", async () => {
+		expect.assertions(2);
 
 		const desiredResult = await buildDesired(SLICE_1_CONFIG, readIcon);
 		assert(desiredResult.success);
@@ -147,17 +157,13 @@ describe("slice 1 end-to-end", () => {
 
 		expect(ops.map((op) => op.type)).toStrictEqual(["noop"]);
 
-		const applyResult = await applyOps(ops, registry);
+		const applyResult = await applyOps(ops, trapRegistry);
 
 		expect(applyResult.success).toBeTrue();
-		expect(httpClient.requests).toBeEmpty();
 	});
 
-	it("should reject drift with updateUnsupported and never hit the ocale client", async () => {
-		expect.assertions(3);
-
-		const httpClient = createFakeHttpClient();
-		const registry = makeRegistry(httpClient);
+	it("should reject drift with updateUnsupported and never dispatch to the driver", async () => {
+		expect.assertions(2);
 
 		const desiredResult = await buildDesired(SLICE_1_CONFIG, readIcon);
 		assert(desiredResult.success);
@@ -166,10 +172,9 @@ describe("slice 1 end-to-end", () => {
 
 		expect(ops.map((op) => op.type)).toStrictEqual(["update"]);
 
-		const applyResult = await applyOps(ops, registry);
+		const applyResult = await applyOps(ops, trapRegistry);
 		assert(!applyResult.success);
 
 		expect(applyResult.err.kind).toBe("updateUnsupported");
-		expect(httpClient.requests).toBeEmpty();
 	});
 });
