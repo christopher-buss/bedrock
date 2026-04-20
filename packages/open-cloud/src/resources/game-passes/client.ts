@@ -8,21 +8,21 @@ import { CREATE_OPERATION_LIMIT, GET_OPERATION_LIMIT } from "./operations.ts";
 import { parseGamePassResponse } from "./parsers.ts";
 import type { CreateGamePassParameters, GamePass, GetGamePassParameters } from "./types.ts";
 
-const CREATE_SPEC: ResourceMethodSpec<CreateGamePassParameters, GamePass> = {
+const CREATE_SPEC: ResourceMethodSpec<CreateGamePassParameters, GamePass> = Object.freeze({
 	buildRequest: buildCreateRequest,
 	methodDefaults: CREATE_METHOD_DEFAULTS,
 	methodKind: "create",
 	operationLimit: CREATE_OPERATION_LIMIT,
 	parse: parseGamePassResponse,
-};
+});
 
-const GET_SPEC: ResourceMethodSpec<GetGamePassParameters, GamePass> = {
+const GET_SPEC: ResourceMethodSpec<GetGamePassParameters, GamePass> = Object.freeze({
 	buildRequest: buildGetRequest,
 	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 	methodKind: "idempotent",
 	operationLimit: GET_OPERATION_LIMIT,
 	parse: parseGamePassResponse,
-};
+});
 
 /**
  * Public client for the Roblox Open Cloud Game Passes API.
