@@ -297,7 +297,7 @@ importers:
         version: link:../../packages/open-cloud
       bedrock:
         specifier: workspace:*
-        version: link:../../packages/cli
+        version: link:../../packages/bedrock
     devDependencies:
       '@bedrock/typescript-config':
         specifier: workspace:*
@@ -333,7 +333,7 @@ importers:
         specifier: catalog:docs
         version: 0.8.0(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(typescript@6.0.2))
 
-  packages/cli:
+  packages/bedrock:
     dependencies:
       '@bedrock/ocale':
         specifier: workspace:*

@@ -21,14 +21,19 @@ export interface FileChange {
 }
 
 /**
- * A file change the wrapper cannot translate into a mutation range:
- * renames and binary blobs. Surfaced as hard errors. New files are
- * handled normally — their `@@ -0,0 +1,N @@` hunk already covers the
- * full added range, which Stryker accepts as the mutation window.
+ * A file change the wrapper cannot translate into a mutation range.
+ * Currently only binary blobs; pure renames are dropped as zero-hunk
+ * entries and rename-with-modifications flows collapse to a normal
+ * change at the new path. New files are handled normally — their
+ * `@@ -0,0 +1,N @@` hunk already covers the full added range, which
+ * Stryker accepts as the mutation window.
  */
-export type DiffReject =
-	| { from: string; kind: "rename"; to: string }
-	| { kind: "binary"; path: string };
+export interface DiffReject {
+	/** Discriminator for the future reject union. */
+	kind: "binary";
+	/** Repo-relative path of the rejected file. */
+	path: string;
+}
 
 /**
  * Outcome of parsing `git diff HEAD`: either the per-file change set or
@@ -40,8 +45,6 @@ export type DiffResult =
 
 const DIFF_HEADER = /^diff --git a\/(.+) b\/(.+)$/;
 const HUNK_HEADER = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/;
-const RENAME_FROM = /^rename from (.+)$/;
-const RENAME_TO = /^rename to (.+)$/;
 const BINARY_MARKER = /^Binary files /;
 const DELETED_MARKER = /^deleted file mode /;
 
@@ -49,20 +52,21 @@ interface ParseState {
 	current: FileChange | undefined;
 	files: Array<FileChange>;
 	rejects: Array<DiffReject>;
-	renameFrom: string | undefined;
 }
 
 type LineHandler = (line: string, state: ParseState) => boolean;
 
 /**
  * Parse a unified-diff string (as produced by `git diff --unified=0 HEAD`)
- * into a per-file set of touched line ranges.
+ * into a per-file set of touched line ranges. Files with no hunks
+ * (e.g. Pure renames, deletion-only changes) are dropped from the
+ * returned set..
  *
  * @param raw - Unified diff text.
  * @returns Parsed per-file changes.
  */
 export function parseDiff(raw: string): DiffResult {
-	const state: ParseState = { current: undefined, files: [], rejects: [], renameFrom: undefined };
+	const state: ParseState = { current: undefined, files: [], rejects: [] };
 
 	for (const line of raw.split("\n")) {
 		handleDiffLine(line, state);
@@ -72,7 +76,7 @@ export function parseDiff(raw: string): DiffResult {
 		return { kind: "reject", reasons: state.rejects };
 	}
 
-	return { files: state.files, kind: "changes" };
+	return { files: state.files.filter((file) => file.hunks.length > 0), kind: "changes" };
 }
 
 /**
@@ -207,8 +211,6 @@ const HANDLERS: ReadonlyArray<LineHandler> = [
 	handleFileHeader,
 	handleBinary,
 	handleDeleted,
-	handleRenameFrom,
-	handleRenameTo,
 	handleHunk,
 ];
 
@@ -228,7 +230,6 @@ function handleFileHeader(line: string, state: ParseState): boolean {
 
 	state.current = { hunks: [], path: match[2] };
 	state.files.push(state.current);
-	state.renameFrom = undefined;
 	return true;
 }
 
@@ -250,29 +251,6 @@ function handleDeleted(line: string, state: ParseState): boolean {
 
 	state.files.pop();
 	state.current = undefined;
-	return true;
-}
-
-function handleRenameFrom(line: string, state: ParseState): boolean {
-	const match = RENAME_FROM.exec(line);
-	if (match?.[1] === undefined) {
-		return false;
-	}
-
-	state.renameFrom = match[1];
-	state.files.pop();
-	state.current = undefined;
-	return true;
-}
-
-function handleRenameTo(line: string, state: ParseState): boolean {
-	const match = RENAME_TO.exec(line);
-	if (match?.[1] === undefined || state.renameFrom === undefined) {
-		return false;
-	}
-
-	state.rejects.push({ from: state.renameFrom, kind: "rename", to: match[1] });
-	state.renameFrom = undefined;
 	return true;
 }
 

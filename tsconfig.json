@@ -5,7 +5,7 @@
 		"types": ["bun"]
 	},
 	"references": [
-		{ "path": "packages/cli" },
+		{ "path": "packages/bedrock" },
 		{ "path": "packages/open-cloud" },
 		{ "path": "packages/vite-config" },
 		{ "path": "scripts" }

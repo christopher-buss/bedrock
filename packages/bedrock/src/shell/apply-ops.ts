@@ -8,6 +8,30 @@ import type { ResourceKey } from "../types/ids.ts";
  * Failure surfaced by `applyOps` when an operation cannot be applied.
  * Plain-data discriminated union following the `StateError` pattern in
  * `core/state.ts`; narrow on `kind`, do not `instanceof` it.
+ *
+ * @example
+ *
+ * ```ts
+ * import { asResourceKey, type ApplyError } from "bedrock";
+ *
+ * function describe(err: ApplyError): string {
+ *     switch (err.kind) {
+ *         case "driverFailure": {
+ *             return `driver failed for ${err.key}: ${err.cause.message}`;
+ *         }
+ *         case "updateUnsupported": {
+ *             return `update not yet supported for ${err.key}`;
+ *         }
+ *     }
+ * }
+ *
+ * const err: ApplyError = {
+ *     key: asResourceKey("vip-pass"),
+ *     kind: "updateUnsupported",
+ * };
+ *
+ * expect(describe(err)).toBe("update not yet supported for vip-pass");
+ * ```
  */
 export type ApplyError =
 	| {
@@ -34,6 +58,10 @@ export type ApplyError =
  * @param ops - Reconciliation operations produced by `diff`, applied in order.
  * @param registry - Per-kind driver table; dispatch uses `op.desired.kind` as the index.
  * @returns `Ok(undefined)` when every operation succeeds, or the first failure encountered.
+ * @throws Whatever the dispatched driver rejects with outside its `Result`
+ *   return — notably, `createGamePassDriver` propagates file-read rejections
+ *   from its injected `readFile`. Wrap the call site in a try/catch when the
+ *   file reader is not trusted.
  * @example
  *
  * ```ts

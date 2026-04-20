@@ -2,6 +2,29 @@ import type { ResourceKey } from "../types/ids.ts";
 import type { ResourceCurrentState, ResourceDesiredState } from "./resources.ts";
 
 /**
+ * Fields shared by every operation variant.
+ *
+ * `key` is hoisted to op-level (rather than nested under `desired` or
+ * `current`) so callers can read it from any variant without first narrowing
+ * on the discriminator. `applyOps` and logging both rely on this uniform
+ * access pattern.
+ *
+ * @example
+ *
+ * ```ts
+ * import { asResourceKey, type BaseOperation } from "bedrock";
+ *
+ * const base: BaseOperation = { key: asResourceKey("vip-pass") };
+ *
+ * expect(base.key).toBe("vip-pass");
+ * ```
+ */
+export interface BaseOperation {
+	/** Resource key copied from the desired or current entry the op describes. */
+	readonly key: ResourceKey;
+}
+
+/**
  * Reconcile an absent resource: produced when a `desired` entry has no
  * matching `current` entry. The driver creates the resource and records the
  * Roblox-assigned outputs into state.
@@ -172,16 +195,3 @@ export interface NoopOperation extends BaseOperation {
  * ```
  */
 export type Operation = CreateOperation | NoopOperation | UpdateOperation;
-
-/**
- * Fields shared by every operation variant.
- *
- * `key` is hoisted to op-level (rather than nested under `desired` or
- * `current`) so callers can read it from any variant without first narrowing
- * on the discriminator. `applyOps` and logging both rely on this uniform
- * access pattern.
- */
-interface BaseOperation {
-	/** Resource key copied from the desired or current entry the op describes. */
-	readonly key: ResourceKey;
-}

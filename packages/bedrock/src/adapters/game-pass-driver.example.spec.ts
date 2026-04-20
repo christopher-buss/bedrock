@@ -3,13 +3,32 @@ import { expect, it } from "vitest";
 import type { HttpClient } from '@bedrock/ocale'
 import { GamePassesClient } from '@bedrock/ocale/game-passes'
 import {
-  asResourceKey,
   asRobloxAssetId,
+  type GamePassDriverDeps,
+  asResourceKey,
   asSha256Hex,
   createGamePassDriver,
 } from 'bedrock'
 
 it('Example 1', () => {
+  const httpClient: HttpClient = {
+    async request() {
+      return { data: { body: {}, headers: {}, status: 200 }, success: true }
+    },
+  }
+  const deps: GamePassDriverDeps = {
+    client: new GamePassesClient({
+      apiKey: 'rbx-your-key',
+      httpClient,
+      sleep: async () => {},
+    }),
+    readFile: async () => new Uint8Array([137, 80, 78, 71]),
+    universeId: asRobloxAssetId('1234567890'),
+  }
+  expect(deps.universeId).toBe('1234567890')
+})
+
+it('Example 2', () => {
   const httpClient: HttpClient = {
     async request() {
       return {

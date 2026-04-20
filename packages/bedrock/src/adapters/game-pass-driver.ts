@@ -10,6 +10,32 @@ import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
  * `GamePassDesiredState` so state files round-trip with Mantle's `PassInputs`
  * shape. `readFile` exists on the driver (not upstream in shell) because icon
  * hashes flow through `diff` but bytes do not.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { HttpClient } from "@bedrock/ocale";
+ * import { GamePassesClient } from "@bedrock/ocale/game-passes";
+ * import { asRobloxAssetId, type GamePassDriverDeps } from "bedrock";
+ *
+ * const httpClient: HttpClient = {
+ *     async request() {
+ *         return { data: { body: {}, headers: {}, status: 200 }, success: true };
+ *     },
+ * };
+ *
+ * const deps: GamePassDriverDeps = {
+ *     client: new GamePassesClient({
+ *         apiKey: "rbx-your-key",
+ *         httpClient,
+ *         sleep: async () => {},
+ *     }),
+ *     readFile: async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+ *     universeId: asRobloxAssetId("1234567890"),
+ * };
+ *
+ * expect(deps.universeId).toBe("1234567890");
+ * ```
  */
 export interface GamePassDriverDeps {
 	/** Configured game-passes client from `@bedrock/ocale/game-passes`. */

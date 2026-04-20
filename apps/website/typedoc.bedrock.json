@@ -1,9 +1,9 @@
 {
 	"$schema": "https://typedoc.org/schema.json",
-	"entryPoints": ["../../packages/cli/src/index.ts"],
+	"entryPoints": ["../../packages/bedrock/src/index.ts"],
 	"entryPointStrategy": "resolve",
 	"exclude": ["**/*.spec.ts", "**/*.spec-d.ts", "**/*.example.spec.ts", "**/*.example.test.ts"],
-	"tsconfig": "../../packages/cli/tsconfig.json",
+	"tsconfig": "../../packages/bedrock/tsconfig.json",
 	"out": "./docs/bedrock/api",
 	"plugin": ["typedoc-plugin-markdown", "typedoc-plugin-replace-text"],
 	"readme": "none",

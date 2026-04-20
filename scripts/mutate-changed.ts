@@ -49,12 +49,7 @@ function runStrykerForEach(
 	return statuses.some((status) => status !== 0);
 }
 
-function reportReject(reason: { from?: string; kind: string; path?: string; to?: string }): void {
-	if (reason.kind === "rename") {
-		console.error(`error: rename not supported (${reason.from} -> ${reason.to})`);
-		return;
-	}
-
+function reportReject(reason: { kind: string; path: string }): void {
 	console.error(`error: ${reason.kind} not supported (${reason.path})`);
 }
 
