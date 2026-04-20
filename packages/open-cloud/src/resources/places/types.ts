@@ -3,6 +3,20 @@
  * `PlacesClient`. Both methods take the same parameter shape; which
  * version-type query string is used is decided by the method, not the
  * caller.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { PublishParameters } from "@bedrock/ocale/places";
+ *
+ * const params: PublishParameters = {
+ *     body: new Uint8Array([0x3c, 0x72, 0x6f, 0x62, 0x6c, 0x6f, 0x78, 0x20]),
+ *     format: "rbxlx",
+ *     placeId: "456",
+ *     universeId: "123",
+ * };
+ * expect(params.format).toBe("rbxlx");
+ * ```
  */
 export interface PublishParameters {
 	/** Raw `.rbxl` or `.rbxlx` file bytes. Must be non-empty. */
@@ -22,6 +36,15 @@ export interface PublishParameters {
 
 /**
  * Successful response from publishing or saving a new place version.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { PlaceVersion } from "@bedrock/ocale/places";
+ *
+ * const version: PlaceVersion = { versionNumber: 42 };
+ * expect(version.versionNumber).toBeGreaterThan(0);
+ * ```
  */
 export interface PlaceVersion {
 	/**

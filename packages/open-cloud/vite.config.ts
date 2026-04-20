@@ -28,6 +28,7 @@ export default mergeConfig(sharedConfig, {
 		entry: {
 			"game-passes": "src/resources/game-passes/index.ts",
 			"index": "src/index.ts",
+			"places": "src/resources/places/index.ts",
 		},
 		exports: {
 			customExports: addTestingSubpath,

@@ -37,6 +37,15 @@ const SAVE_SPEC: ResourceMethodSpec<PublishParameters, PlaceVersion> = Object.fr
  * could publish a duplicate version unnoticed. Callers that *can* detect
  * duplicates externally may opt back into 5xx retry per-call by passing
  * `retryableStatuses` on the second argument.
+ *
+ * @example
+ *
+ * ```ts
+ * import { PlacesClient } from "@bedrock/ocale/places";
+ *
+ * const client = new PlacesClient({ apiKey: "your-key" });
+ * expect(client).toBeInstanceOf(PlacesClient);
+ * ```
  */
 export class PlacesClient {
 	readonly #inner: ResourceClient;
