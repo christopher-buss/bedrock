@@ -70,11 +70,12 @@ cannot fail.
 vocabulary a "driver port" is a PRIMARY port, so the name is the opposite of
 its hexagonal role. The clash is deliberate: "driver" follows the Terraform,
 Pulumi, and Mantle IaC convention for a component that talks to a specific
-resource API, which the target audience recognizes immediately. See
-ADR-018 for the full rationale.
+resource API, which the target audience recognizes immediately.
 
-Code comments on `ResourceDriver<K>` should carry the note:
-`// driven (secondary) port in hexagonal terms; named "driver" per IaC community convention (see ADR-018)`.
+Do not cite ADRs in code comments or JSDoc on `ResourceDriver<K>` (or anywhere
+else in `src/`). Rendered JSDoc ships to the public docs site; ADR numbers are
+internal governance. Keep the rationale here, in this CLAUDE.md, and in the
+ADRs themselves.
 
 ## Testing
 
