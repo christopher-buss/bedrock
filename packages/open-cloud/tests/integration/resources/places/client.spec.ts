@@ -2,6 +2,7 @@ import type { OpenCloudHooks } from "#src/client/types";
 import { ApiError } from "#src/errors/api-error";
 import { ValidationError } from "#src/errors/validation";
 import { PlacesClient } from "#src/resources/places/client";
+import { createFakeClock } from "#tests/helpers/fake-clock";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { rbxlBody, rbxlxBody, validPublishResponseBody } from "#tests/helpers/places";
@@ -234,6 +235,160 @@ describe(PlacesClient, () => {
 			);
 
 			expect(httpClient.requests[0]?.config.apiKey).toBe("override-key");
+		});
+	});
+
+	describe("save", () => {
+		it("should target the Saved query string and return a parsed PlaceVersion", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validPublishResponseBody({ versionNumber: 12 }),
+				status: 200,
+			});
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.save({
+				body: rbxlBody(),
+				format: "rbxl",
+				placeId: "456",
+				universeId: "123",
+			});
+
+			assert(result.success);
+
+			expect(result.data).toStrictEqual({ versionNumber: 12 });
+			expect(httpClient.requests[0]?.request.url).toEndWith("?versionType=Saved");
+		});
+
+		it("should short-circuit on a format mismatch without firing HTTP", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient();
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.save({
+				body: rbxlxBody(),
+				format: "rbxl",
+				placeId: "456",
+				universeId: "123",
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ValidationError);
+			expect(result.err).toHaveProperty("code", "format_mismatch");
+			expect(httpClient.requests).toHaveLength(0);
+		});
+
+		it("should not retry a 5xx so a transient save failure does not duplicate the version", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 503 });
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.save({
+				body: rbxlBody(),
+				format: "rbxl",
+				placeId: "456",
+				universeId: "123",
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toHaveProperty("statusCode", 503);
+			expect(httpClient.requests).toHaveLength(1);
+		});
+	});
+
+	describe("shared rate-limit bucket", () => {
+		it("should serialize publish and save through the same per-API-key queue", async () => {
+			expect.assertions(2);
+
+			// Against a single 0.5/sec queue, the first call pays a 1000ms
+			// init wait and leaves the bucket maxed out. The second call
+			// (the save) inherits that fully-drained bucket and pays a
+			// 2000ms wait — exposing the shared accounting. Two
+			// independent queues would each pay only their own 1000ms
+			// init and the second wait would be 1000ms.
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: validPublishResponseBody(), status: 200 })
+				.mockResponse({ body: validPublishResponseBody(), status: 200 });
+			const clock = createFakeClock();
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			await client.publish({
+				body: rbxlBody(),
+				format: "rbxl",
+				placeId: "1",
+				universeId: "2",
+			});
+			await client.save({
+				body: rbxlBody(),
+				format: "rbxl",
+				placeId: "1",
+				universeId: "2",
+			});
+
+			expect(httpClient.requests).toHaveLength(2);
+			expect(clock.waits).toStrictEqual([1000, 2000]);
+		});
+
+		it("should route a per-request apiKey override into a queue independent of the default key", async () => {
+			expect.assertions(2);
+
+			// First call drains the default-key queue (forces a 1000ms
+			// wait). The second call uses an apiKey override; if the
+			// override correctly routes to a fresh queue it pays only the
+			// queue-init wait (1000ms again), not a wait coordinated with
+			// the default-key queue.
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: validPublishResponseBody(), status: 200 })
+				.mockResponse({ body: validPublishResponseBody(), status: 200 });
+			const clock = createFakeClock();
+			const client = new PlacesClient({
+				apiKey: "default-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			await client.publish({
+				body: rbxlBody(),
+				format: "rbxl",
+				placeId: "1",
+				universeId: "2",
+			});
+			await client.publish(
+				{
+					body: rbxlBody(),
+					format: "rbxl",
+					placeId: "1",
+					universeId: "2",
+				},
+				{ apiKey: "override-key" },
+			);
+
+			expect(httpClient.requests.map((capture) => capture.config.apiKey)).toStrictEqual([
+				"default-key",
+				"override-key",
+			]);
+			expect(clock.waits).toStrictEqual([1000, 1000]);
 		});
 	});
 });
