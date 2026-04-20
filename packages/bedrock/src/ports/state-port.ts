@@ -8,9 +8,7 @@ import type { BedrockState, StateError } from "../core/state.ts";
  * and save its per-environment {@link BedrockState} snapshot.
  *
  * `StatePort` is a *driven* (secondary) port in hexagonal terms, following the
- * same naming convention as {@link "./resource-driver".ResourceDriver}. See
- * ADR-018 for the primary/driven distinction and ADR-019 for the state data
- * model this port operates over.
+ * same naming convention as {@link "./resource-driver".ResourceDriver}.
  *
  * @example
  *

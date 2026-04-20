@@ -6,8 +6,7 @@ import type { ResourceKey } from "../types/ids.ts";
 
 /**
  * Failure surfaced by `applyOps` when an operation cannot be applied.
- * Plain-data discriminated union following the `StateError` pattern in
- * `core/state.ts`; narrow on `kind`, do not `instanceof` it.
+ * Plain-data discriminated union; narrow on `kind`, do not `instanceof` it.
  *
  * @example
  *
@@ -20,7 +19,7 @@ import type { ResourceKey } from "../types/ids.ts";
  *             return `driver failed for ${err.key}: ${err.cause.message}`;
  *         }
  *         case "updateUnsupported": {
- *             return `update not yet supported for ${err.key}`;
+ *             return `update not supported for ${err.key}`;
  *         }
  *     }
  * }
@@ -30,7 +29,7 @@ import type { ResourceKey } from "../types/ids.ts";
  *     kind: "updateUnsupported",
  * };
  *
- * expect(describe(err)).toBe("update not yet supported for vip-pass");
+ * expect(describe(err)).toBe("update not supported for vip-pass");
  * ```
  */
 export type ApplyError =

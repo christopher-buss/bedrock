@@ -13,8 +13,7 @@ import type {
  *
  * `ResourceDriver<K>` is a *driven* (secondary) port in hexagonal terms; the
  * name "driver" follows Terraform, Pulumi, and Mantle IaC convention for a
- * component that talks to a specific resource API. See ADR-018 for the full
- * rationale.
+ * component that talks to a specific resource API.
  *
  * @template K - The {@link ResourceKind} discriminator this driver handles.
  *
