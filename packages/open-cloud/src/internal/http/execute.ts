@@ -5,13 +5,13 @@ import { computeRetryWaitMs, type RetryResolvable, shouldRetry } from "./retry.t
 import type { HttpRequest, HttpResponse, OpenCloudHooks } from "./types.ts";
 
 /** A transport callback: takes a request, returns a classified Result. */
-export type SendFunc = (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>>;
+type SendFunc = (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>>;
 
 /**
  * Inputs to {@link executeWithRetry} bundled as an options object to keep the
  * function signature narrow.
  */
-export interface ExecuteOptions {
+interface ExecuteOptions {
 	/** Fully-resolved retry config (post-merge). */
 	readonly config: RetryResolvable;
 	/** Client-level observability hooks. */

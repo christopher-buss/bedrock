@@ -63,6 +63,7 @@ catalogs:
     eslint-plugin-jest-extended: 3.0.1
     eslint-plugin-n: 17.24.0
     eslint-plugin-pnpm: 1.6.0
+    knip: 6.4.1
     publint: 0.3.18
   script:
     jiti: 2.6.1

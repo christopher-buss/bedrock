@@ -372,3 +372,58 @@ ADR-006 requires this ADR to be accepted before implementation begins.
 - [Knip plugin list](https://knip.dev/reference/plugins)
 - [unplugin-unused](https://github.com/unplugin/unplugin-unused)
 - [tsdown `unused` option](https://tsdown.dev/options/unused)
+
+## Amendments
+
+### 2026-04-19 — Config file switched from `knip.json` to `knip.ts`
+
+Decision §Config originally picked `knip.json` on the reasoning that
+`knip.ts` "is only needed when config is dynamically computed". Landed
+as `knip.ts` instead. The original reasoning missed two benefits that
+apply here:
+
+- Type checking on the config shape (via `KnipConfig` imported from
+  the `knip` package) catches typos in plugin names, workspace keys,
+  and option names at edit time rather than at knip-run time.
+- Extractable shared constants remove the three-way duplication of
+  plugin lists (e.g. `@stryker-mutator/*` across cli, open-cloud, and
+  testing). A later iteration hoisted those to root
+  `ignoreDependencies` so workspaces inherit them, which removes the
+  need for constants — but the capability is only available in the TS
+  form.
+
+Dynamic config remains unused; it is a latent affordance, not the
+reason.
+
+### 2026-04-19 — Hk `unused` step glob widened beyond `*.ts`/`*.tsx`
+
+Decision §Pre-push originally mirrored the `lint`/`typecheck` glob
+(`*.ts`/`*.tsx`). PR review caught that a change touching only
+`package.json` (e.g. adding an unused `devDependency`) would then slip
+past the pre-push gate and only surface in CI. Knip's remit covers
+manifest changes — missed deps, catalog drift — so the glob was
+widened to `*.ts`, `*.tsx`, `package.json`, `pnpm-workspace.yaml` in
+`hk.pkl`. CI remains authoritative via `hk check --all`, which runs
+every step regardless of changed files.
+
+### 2026-04-19 — Public-API surface marked via `index.ts` entries, not JSDoc tags
+
+Consequences §Negative anticipated "is this supposed to be public?"
+questions and suggested either JSDoc-tag allowlisting or entry-level
+exemption. The initial cleanup shipped with JSDoc `@public` tags on
+the library barrel re-exports plus `tags: ["-public"]` in config. A
+follow-up simplified this by declaring the barrel files themselves as
+entries (`src/index.ts` for cli, `src/**/index.ts` for open-cloud
+since it has nested subpath barrels). Knip does not report unused
+exports in entry files by default, which is exactly the semantics a
+public-API barrel wants and expresses the intent directly in config
+without mirror-tagging on every export block.
+
+This does mean ADR gap #2 (cross-package unused subpath exports) is
+only partially enforced: declaring an `index.ts` as an entry silences
+unused-export reporting inside it, so an orphan subpath would not
+flag. The workspace-graph check still catches an entire unreferenced
+subpath (the entry file itself showing as unused), but individual
+symbols inside a referenced barrel are trusted to be intentional.
+Revisit with `includeEntryExports: true` + `@public` tags if the
+trust assumption breaks.

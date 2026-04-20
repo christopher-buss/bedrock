@@ -4,30 +4,6 @@ import type { GamePass, GamePassPrice } from "./types.ts";
 import type { GamePassConfigV2, PriceInformationStructWire, PricingFeatureWire } from "./wire.ts";
 
 /**
- * Type guard confirming that a decoded JSON body matches the
- * `GamePassConfigV2` wire schema from the Roblox Open Cloud OpenAPI.
- *
- * @param body - The decoded response body to inspect.
- * @returns `true` if every required field is present with the expected type.
- */
-export function isGamePassConfigV2(body: unknown): body is GamePassConfigV2 {
-	if (!isRecord(body)) {
-		return false;
-	}
-
-	if (!hasRequiredPrimitiveFields(body)) {
-		return false;
-	}
-
-	const price = body["priceInformation"] ?? undefined;
-	if (price !== undefined && !isPriceInformationStructWire(price)) {
-		return false;
-	}
-
-	return true;
-}
-
-/**
  * Parses a successful Game Pass API response body into the public
  * `GamePass` shape, returning a `Result` so callers can handle malformed
  * payloads without exceptions.
@@ -110,6 +86,23 @@ function isPriceInformationStructWire(value: unknown): value is PriceInformation
 		if (!isPricingFeatureWire(feature)) {
 			return false;
 		}
+	}
+
+	return true;
+}
+
+function isGamePassConfigV2(body: unknown): body is GamePassConfigV2 {
+	if (!isRecord(body)) {
+		return false;
+	}
+
+	if (!hasRequiredPrimitiveFields(body)) {
+		return false;
+	}
+
+	const price = body["priceInformation"] ?? undefined;
+	if (price !== undefined && !isPriceInformationStructWire(price)) {
+		return false;
 	}
 
 	return true;

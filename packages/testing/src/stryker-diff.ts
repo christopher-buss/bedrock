@@ -3,7 +3,7 @@ import ts from "typescript";
 /**
  * A contiguous range of modified lines within a file.
  */
-export interface Hunk {
+interface Hunk {
 	/** Last line in the modified range (inclusive, 1-indexed). */
 	endLine: number;
 	/** First line in the modified range (inclusive, 1-indexed). */
@@ -13,7 +13,7 @@ export interface Hunk {
 /**
  * Changes observed within a single file in the current `git diff HEAD`.
  */
-export interface FileChange {
+interface FileChange {
 	/** Per-hunk line ranges touched in this file. */
 	hunks: Array<Hunk>;
 	/** Repo-relative path to the file. */
@@ -28,7 +28,7 @@ export interface FileChange {
  * `@@ -0,0 +1,N @@` hunk already covers the full added range, which
  * Stryker accepts as the mutation window.
  */
-export interface DiffReject {
+interface DiffReject {
 	/** Discriminator for the future reject union. */
 	kind: "binary";
 	/** Repo-relative path of the rejected file. */
@@ -39,7 +39,7 @@ export interface DiffReject {
  * Outcome of parsing `git diff HEAD`: either the per-file change set or
  * a list of reject reasons that prevent safe mutation scoping.
  */
-export type DiffResult =
+type DiffResult =
 	| { files: Array<FileChange>; kind: "changes" }
 	| { kind: "reject"; reasons: Array<DiffReject> };
 

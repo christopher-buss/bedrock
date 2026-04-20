@@ -43,16 +43,6 @@ export const CREATE_METHOD_DEFAULTS: Readonly<Pick<RetryResolvable, "retryableSt
 		retryableStatuses: Object.freeze([429] as const),
 	});
 
-/**
- * Options for {@link computeRetryWaitMs}.
- */
-export interface ComputeRetryWaitMsOptions {
-	/** Zero-indexed retry attempt number. */
-	readonly attempt: number;
-	/** Fallback delay function when no server hint is available. */
-	readonly retryDelay: (attempt: number) => number;
-}
-
 /** Kind of HTTP method the merge is being performed for. */
 export type MethodKind = "create" | "idempotent";
 
@@ -61,13 +51,23 @@ export type MethodKind = "create" | "idempotent";
  *
  * @template T - Concrete `RetryResolvable` subtype being merged.
  */
-export interface MergeConfigOptions<T> {
+interface MergeConfigOptions<T> {
 	/** Method-level defaults (e.g. {@link CREATE_METHOD_DEFAULTS}). */
 	readonly methodDefaults: Partial<T>;
 	/** Whether the method is a create or idempotent operation. */
 	readonly methodKind: MethodKind;
 	/** Optional per-request overrides; always win when provided. */
 	readonly requestOptions?: Partial<T>;
+}
+
+/**
+ * Options for {@link computeRetryWaitMs}.
+ */
+interface ComputeRetryWaitMsOptions {
+	/** Zero-indexed retry attempt number. */
+	readonly attempt: number;
+	/** Fallback delay function when no server hint is available. */
+	readonly retryDelay: (attempt: number) => number;
 }
 
 /**
