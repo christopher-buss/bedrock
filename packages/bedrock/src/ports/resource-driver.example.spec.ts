@@ -5,6 +5,7 @@ import {
   asRobloxAssetId,
   asSha256Hex,
   type ResourceDriver,
+  OpenCloudError,
   type DriverRegistry,
 } from 'bedrock'
 
@@ -47,7 +48,7 @@ it('Example 2', () => {
   const registry: DriverRegistry = {
     gamePass: {
       async create() {
-        return { err: new Error('not implemented'), success: false }
+        return { err: new OpenCloudError('not implemented'), success: false }
       },
     },
   }

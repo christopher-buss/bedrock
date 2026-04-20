@@ -83,12 +83,12 @@ export interface ResourceDriver<K extends ResourceKind> {
  * @example
  *
  * ```ts
- * import type { DriverRegistry } from "bedrock";
+ * import { OpenCloudError, type DriverRegistry } from "bedrock";
  *
  * const registry: DriverRegistry = {
  *     gamePass: {
  *         async create() {
- *             return { err: new Error("not implemented"), success: false };
+ *             return { err: new OpenCloudError("not implemented"), success: false };
  *         },
  *     },
  * };

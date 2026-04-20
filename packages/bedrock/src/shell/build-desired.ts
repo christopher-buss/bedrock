@@ -5,7 +5,7 @@ import { asSha256Hex, isResourceKey, type ResourceKey } from "../types/ids.ts";
 
 /**
  * Single game-pass entry the caller assembles by hand to drive
- * `buildDesired`. Interim scaffolding; not a stable public API.
+ * `buildDesired`.
  *
  * @example
  *
@@ -37,8 +37,7 @@ export interface GamePassConfigInput {
 }
 
 /**
- * Top-level input shape for `buildDesired`. Interim scaffolding; not a
- * stable public API.
+ * Top-level input shape for `buildDesired`.
  *
  * @example
  *
