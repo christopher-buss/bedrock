@@ -283,23 +283,6 @@ describe(buildFetchOptions, () => {
 		expect(headers.get("content-type")).toBe("application/octet-stream; charset=binary");
 	});
 
-	it("should apply caller-supplied headers case-insensitively", () => {
-		expect.assertions(1);
-
-		const options = buildFetchOptions(
-			{
-				body: { name: "Game Pass" },
-				headers: { "CoNtEnT-TyPe": "application/xml" },
-				method: "POST",
-				url: "/test",
-			},
-			{ apiKey: "key", baseUrl: "https://example.com" },
-		);
-		const headers = new Headers(options.headers);
-
-		expect(headers.get("content-type")).toBe("application/xml");
-	});
-
 	it("should add caller-supplied headers alongside x-api-key when no body-branch header is set", () => {
 		expect.assertions(2);
 

@@ -30,8 +30,7 @@ export interface HttpRequest {
 	/**
 	 * Caller-supplied request headers. Applied after the transport sets
 	 * `x-api-key` and any body-driven `Content-Type`, so a caller-supplied
-	 * header replaces the transport's default. Keys are treated
-	 * case-insensitively.
+	 * header replaces the transport's default.
 	 */
 	readonly headers?: Readonly<Record<string, string>>;
 	/** The HTTP method. */
