@@ -6,7 +6,7 @@
  */
 export interface PublishParameters {
 	/** Raw `.rbxl` or `.rbxlx` file bytes. Must be non-empty. */
-	readonly body: Uint8Array;
+	readonly body: Uint8Array<ArrayBuffer>;
 	/**
 	 * Whether `body` is the binary or XML place format. The transport
 	 * sends `application/octet-stream` for `"rbxl"` and `application/xml`
