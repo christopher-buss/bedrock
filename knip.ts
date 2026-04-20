@@ -30,6 +30,7 @@ const config: KnipConfig = {
 		"apps/website": {},
 		"packages/bedrock": {
 			entry: ["stryker.config.ts", "src/index.ts"],
+			ignoreDependencies: ["@bedrock/ocale"],
 		},
 		"packages/open-cloud": {
 			entry: [
