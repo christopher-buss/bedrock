@@ -1,6 +1,21 @@
 import ts from "typescript";
 
 /**
+ * A file change the wrapper cannot translate into a mutation range.
+ * Currently only binary blobs; pure renames are dropped as zero-hunk
+ * entries and rename-with-modifications flows collapse to a normal
+ * change at the new path. New files are handled normally — their
+ * `@@ -0,0 +1,N @@` hunk already covers the full added range, which
+ * Stryker accepts as the mutation window.
+ */
+interface DiffReject {
+	/** Discriminator for the future reject union. */
+	kind: "binary";
+	/** Repo-relative path of the rejected file. */
+	path: string;
+}
+
+/**
  * A contiguous range of modified lines within a file.
  */
 interface Hunk {
@@ -17,21 +32,6 @@ interface FileChange {
 	/** Per-hunk line ranges touched in this file. */
 	hunks: Array<Hunk>;
 	/** Repo-relative path to the file. */
-	path: string;
-}
-
-/**
- * A file change the wrapper cannot translate into a mutation range.
- * Currently only binary blobs; pure renames are dropped as zero-hunk
- * entries and rename-with-modifications flows collapse to a normal
- * change at the new path. New files are handled normally — their
- * `@@ -0,0 +1,N @@` hunk already covers the full added range, which
- * Stryker accepts as the mutation window.
- */
-interface DiffReject {
-	/** Discriminator for the future reject union. */
-	kind: "binary";
-	/** Repo-relative path of the rejected file. */
 	path: string;
 }
 
