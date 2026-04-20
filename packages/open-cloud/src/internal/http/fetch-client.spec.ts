@@ -223,6 +223,98 @@ describe(buildFetchOptions, () => {
 		expect(options.body).toBeUndefined();
 		expect(headers.get("content-type")).toBeNull();
 	});
+
+	it("should set Content-Type application/octet-stream for Uint8Array body", () => {
+		expect.assertions(1);
+
+		const body = new Uint8Array([1, 2, 3]);
+		const options = buildFetchOptions(
+			{ body, method: "POST", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+		const headers = new Headers(options.headers);
+
+		expect(headers.get("content-type")).toBe("application/octet-stream");
+	});
+
+	it("should pass Uint8Array body directly without copying or serialization", () => {
+		expect.assertions(1);
+
+		const body = new Uint8Array([1, 2, 3]);
+		const options = buildFetchOptions(
+			{ body, method: "POST", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		expect(options.body).toBe(body);
+	});
+
+	it("should apply caller-supplied headers last, overriding body-branch Content-Type", () => {
+		expect.assertions(1);
+
+		const options = buildFetchOptions(
+			{
+				body: { name: "Game Pass" },
+				headers: { "Content-Type": "application/xml" },
+				method: "POST",
+				url: "/test",
+			},
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+		const headers = new Headers(options.headers);
+
+		expect(headers.get("content-type")).toBe("application/xml");
+	});
+
+	it("should override octet-stream default when caller supplies Content-Type for Uint8Array body", () => {
+		expect.assertions(1);
+
+		const options = buildFetchOptions(
+			{
+				body: new Uint8Array([1, 2, 3]),
+				headers: { "content-type": "application/octet-stream; charset=binary" },
+				method: "POST",
+				url: "/test",
+			},
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+		const headers = new Headers(options.headers);
+
+		expect(headers.get("content-type")).toBe("application/octet-stream; charset=binary");
+	});
+
+	it("should add caller-supplied headers alongside x-api-key when no body-branch header is set", () => {
+		expect.assertions(2);
+
+		const options = buildFetchOptions(
+			{
+				headers: { "x-trace-id": "abc123" },
+				method: "GET",
+				url: "/test",
+			},
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+		const headers = new Headers(options.headers);
+
+		expect(headers.get("x-trace-id")).toBe("abc123");
+		expect(headers.get("x-api-key")).toBe("key");
+	});
+
+	it("should preserve x-api-key from config against caller-supplied override", () => {
+		expect.assertions(1);
+
+		const options = buildFetchOptions(
+			{
+				headers: { "X-Api-Key": "caller-key" },
+				method: "GET",
+				url: "/test",
+			},
+			{ apiKey: "config-key", baseUrl: "https://example.com" },
+		);
+		const headers = new Headers(options.headers);
+
+		expect(headers.get("x-api-key")).toBe("config-key");
+	});
 });
 
 describe(createFetchHttpClient, () => {
@@ -247,6 +339,29 @@ describe(createFetchHttpClient, () => {
 		expect(result.data.status).toBe(200);
 		expect(result.data.body).toStrictEqual({ id: "123" });
 		expect(result.data.headers["content-type"]).toBe("application/json");
+	});
+
+	it("should parse JSON body when response Content-Type is text/plain", async () => {
+		expect.assertions(3);
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response(JSON.stringify({ id: "123" }), {
+				headers: { "content-type": "text/plain" },
+				status: 200,
+			});
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "POST", url: "/publish" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(result.success);
+
+		expect(result.data.status).toBe(200);
+		expect(result.data.body).toStrictEqual({ id: "123" });
+		expect(result.data.headers["content-type"]).toBe("text/plain");
 	});
 
 	it("should return RateLimitError for 429 with x-ratelimit-reset header", async () => {

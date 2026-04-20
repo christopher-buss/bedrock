@@ -9,9 +9,17 @@ export type { SleepFunc } from "../internal/utils/sleep.ts";
  *
  * - `FormData` for multipart uploads (Content-Type set automatically by fetch).
  * - `Record<string, unknown>` for JSON bodies (serialized with `JSON.stringify`).
+ * - `Uint8Array<ArrayBuffer>` for raw binary uploads (default Content-Type is
+ *   `application/octet-stream`; override via {@link HttpRequest.headers}).
+ *   `SharedArrayBuffer`-backed views are not accepted by `fetch`; wrap them
+ *   via `new Uint8Array(bytes)` to obtain an `ArrayBuffer`-backed copy.
  * - `undefined` for requests without a body (GET, DELETE).
  */
-export type HttpRequestBody = FormData | Record<string, unknown> | undefined;
+export type HttpRequestBody =
+	| FormData
+	| Record<string, unknown>
+	| Uint8Array<ArrayBuffer>
+	| undefined;
 
 /**
  * A normalized HTTP request to send to the Roblox Open Cloud API.
@@ -19,6 +27,12 @@ export type HttpRequestBody = FormData | Record<string, unknown> | undefined;
 export interface HttpRequest {
 	/** The request body. */
 	readonly body?: HttpRequestBody;
+	/**
+	 * Caller-supplied request headers. Applied after the transport sets
+	 * `x-api-key` and any body-driven `Content-Type`, so a caller-supplied
+	 * header replaces the transport's default.
+	 */
+	readonly headers?: Readonly<Record<string, string>>;
 	/** The HTTP method. */
 	readonly method: "DELETE" | "GET" | "PATCH" | "POST";
 	/** Relative path, e.g. `/game-passes/v1/universes/123/...`. */

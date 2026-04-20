@@ -78,9 +78,22 @@ export function buildFetchOptions(request: HttpRequest, config: RequestConfig): 
 
 	if (request.body instanceof FormData) {
 		options.body = request.body;
+	} else if (request.body instanceof Uint8Array) {
+		headers.set("content-type", "application/octet-stream");
+		options.body = request.body;
 	} else if (request.body !== undefined) {
 		headers.set("content-type", "application/json");
 		options.body = JSON.stringify(request.body);
+	}
+
+	if (request.headers !== undefined) {
+		for (const [name, value] of Object.entries(request.headers)) {
+			if (name.toLowerCase() === "x-api-key") {
+				continue;
+			}
+
+			headers.set(name, value);
+		}
 	}
 
 	if (config.timeout !== undefined) {
