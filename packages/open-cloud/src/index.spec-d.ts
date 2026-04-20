@@ -16,6 +16,9 @@ import type {
 	RequestOptions,
 	Result,
 	SleepFunc,
+	ValidationError,
+	ValidationErrorCode,
+	ValidationErrorOptions,
 } from "./index.ts";
 
 describe("Result", () => {
@@ -105,6 +108,34 @@ describe("RateLimitErrorOptions", () => {
 
 	it("should extend ErrorOptions", () => {
 		expectTypeOf<RateLimitErrorOptions>().toExtend<ErrorOptions>();
+	});
+});
+
+describe("ValidationErrorCode", () => {
+	it("should equal the closed empty_body | format_mismatch union", () => {
+		expectTypeOf<ValidationErrorCode>().toEqualTypeOf<"empty_body" | "format_mismatch">();
+	});
+});
+
+describe("ValidationError", () => {
+	it("should be a subtype of OpenCloudError", () => {
+		expectTypeOf<ValidationError>().toExtend<OpenCloudError>();
+	});
+
+	it("should have code typed as ValidationErrorCode", () => {
+		expectTypeOf<ValidationError>().toHaveProperty("code").toEqualTypeOf<ValidationErrorCode>();
+	});
+});
+
+describe("ValidationErrorOptions", () => {
+	it("should require code as ValidationErrorCode", () => {
+		expectTypeOf<ValidationErrorOptions>()
+			.toHaveProperty("code")
+			.toEqualTypeOf<ValidationErrorCode>();
+	});
+
+	it("should inherit from ErrorOptions so cause flows through", () => {
+		expectTypeOf<ValidationErrorOptions>().toExtend<ErrorOptions>();
 	});
 });
 
