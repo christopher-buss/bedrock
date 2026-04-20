@@ -64,7 +64,7 @@ export interface ResourceMethodSpec<P, T> {
  * @template P - The resource-specific parameter shape the builder accepts.
  * @template T - The resource-specific parsed success type the parser produces.
  */
-export interface ExecuteCall<P, T> {
+interface ExecuteCall<P, T> {
 	/** Optional per-request config overrides. */
 	readonly options?: RequestOptions | undefined;
 	/** Resource-specific request parameters. */
