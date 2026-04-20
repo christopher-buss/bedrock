@@ -342,6 +342,29 @@ describe(createFetchHttpClient, () => {
 		expect(result.data.headers["content-type"]).toBe("application/json");
 	});
 
+	it("should parse JSON body when response Content-Type is text/plain", async () => {
+		expect.assertions(3);
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response(JSON.stringify({ id: "123" }), {
+				headers: { "content-type": "text/plain" },
+				status: 200,
+			});
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "POST", url: "/publish" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(result.success);
+
+		expect(result.data.status).toBe(200);
+		expect(result.data.body).toStrictEqual({ id: "123" });
+		expect(result.data.headers["content-type"]).toBe("text/plain");
+	});
+
 	it("should return RateLimitError for 429 with x-ratelimit-reset header", async () => {
 		expect.assertions(2);
 
