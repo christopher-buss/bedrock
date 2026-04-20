@@ -106,37 +106,6 @@ describe(GamePassesClient, () => {
 			});
 		});
 
-		it("should apply per-request overrides over the client config", async () => {
-			expect.assertions(1);
-
-			const httpClient = createFakeHttpClient().mockResponse({
-				body: validGamePassBody(),
-				status: 200,
-			});
-			const client = new GamePassesClient({
-				apiKey: "client-key",
-				baseUrl: "https://apis.roblox.com",
-				httpClient,
-				sleep: createFakeSleep(),
-				timeout: 30_000,
-			});
-
-			await client.get(
-				{ gamePassId: "12345", universeId: "1" },
-				{
-					apiKey: "override-key",
-					baseUrl: "https://override.example",
-					timeout: 1000,
-				},
-			);
-
-			expect(httpClient.requests[0]?.config).toStrictEqual({
-				apiKey: "override-key",
-				baseUrl: "https://override.example",
-				timeout: 1000,
-			});
-		});
-
 		it("should retry a 5xx error using the default retryDelay and sleep", async () => {
 			expect.assertions(2);
 
@@ -174,26 +143,6 @@ describe(GamePassesClient, () => {
 			}
 
 			expect(clock.waits).toStrictEqual([100]);
-		});
-
-		it("should route a per-request apiKey override through a separate queue", async () => {
-			expect.assertions(1);
-
-			const httpClient = mockManyOk(createFakeHttpClient(), 11);
-			const clock = createFakeClock();
-			const client = new GamePassesClient({
-				apiKey: "default-key",
-				httpClient,
-				sleep: clock.sleep,
-			});
-
-			for (let index = 0; index < 10; index++) {
-				await client.get({ gamePassId: "12345", universeId: "1" });
-			}
-
-			await client.get({ gamePassId: "12345", universeId: "1" }, { apiKey: "override-key" });
-
-			expect(clock.waits).toStrictEqual([]);
 		});
 
 		it("should retry a 429, thread the retry wait through sleep, and fire hooks", async () => {

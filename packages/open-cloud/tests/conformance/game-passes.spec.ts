@@ -40,7 +40,7 @@ describe("game-passes fixtures", () => {
 
 			const body = loadFixture("get-response.json");
 
-			const result = parseGamePassResponse(body, 200);
+			const result = parseGamePassResponse({ body, headers: {}, status: 200 });
 
 			assert(result.success);
 
@@ -65,7 +65,7 @@ describe("game-passes fixtures", () => {
 
 			const body = loadFixture("create-response.json");
 
-			const result = parseGamePassResponse(body, 200);
+			const result = parseGamePassResponse({ body, headers: {}, status: 200 });
 
 			assert(result.success);
 

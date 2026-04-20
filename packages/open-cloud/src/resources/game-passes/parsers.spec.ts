@@ -23,7 +23,7 @@ describe(parseGamePassResponse, () => {
 			updatedTimestamp: "2024-03-20T14:45:00.000Z",
 		} satisfies GamePassConfigV2;
 
-		const result = parseGamePassResponse(body, 200);
+		const result = parseGamePassResponse({ body, headers: {}, status: 200 });
 
 		assert(result.success);
 
@@ -61,7 +61,7 @@ describe(parseGamePassResponse, () => {
 			}`,
 		);
 
-		const result = parseGamePassResponse(body, 200);
+		const result = parseGamePassResponse({ body, headers: {}, status: 200 });
 
 		assert(result.success);
 
@@ -83,7 +83,7 @@ describe(parseGamePassResponse, () => {
 			}`,
 		);
 
-		const result = parseGamePassResponse(body, 422);
+		const result = parseGamePassResponse({ body, headers: {}, status: 422 });
 
 		assert(!result.success);
 
@@ -120,7 +120,7 @@ describe(parseGamePassResponse, () => {
 				}`,
 		);
 
-		const result = parseGamePassResponse(body, 502);
+		const result = parseGamePassResponse({ body, headers: {}, status: 502 });
 
 		assert(!result.success);
 
@@ -131,7 +131,7 @@ describe(parseGamePassResponse, () => {
 	it("should return an ApiError when the body is not an object", () => {
 		expect.assertions(1);
 
-		const result = parseGamePassResponse("not an object", 500);
+		const result = parseGamePassResponse({ body: "not an object", headers: {}, status: 500 });
 
 		assert(!result.success);
 
@@ -143,7 +143,11 @@ describe(parseGamePassResponse, () => {
 
 		// Without the top-level isRecord guard, `null["field"]` would throw;
 		// this test locks in the nullish rejection path.
-		const result = parseGamePassResponse(JSON.parse("null"), 500);
+		const result = parseGamePassResponse({
+			body: JSON.parse("null"),
+			headers: {},
+			status: 500,
+		});
 
 		assert(!result.success);
 
@@ -173,7 +177,7 @@ describe(parseGamePassResponse, () => {
 			updatedTimestamp: "2024-03-20T14:45:00.000Z",
 		};
 
-		const result = parseGamePassResponse(body, 500);
+		const result = parseGamePassResponse({ body, headers: {}, status: 500 });
 
 		assert(!result.success);
 
@@ -185,7 +189,7 @@ describe(parseGamePassResponse, () => {
 
 		const body = validGamePassBody({ createdTimestamp: "2024-05-01T08:00:00.000Z" });
 
-		const result = parseGamePassResponse(body, 200);
+		const result = parseGamePassResponse({ body, headers: {}, status: 200 });
 
 		assert(result.success);
 
@@ -197,7 +201,7 @@ describe(parseGamePassResponse, () => {
 
 		const body = validGamePassBody({ updatedTimestamp: "2024-07-14T18:30:00.000Z" });
 
-		const result = parseGamePassResponse(body, 200);
+		const result = parseGamePassResponse({ body, headers: {}, status: 200 });
 
 		assert(result.success);
 
@@ -209,7 +213,7 @@ describe(parseGamePassResponse, () => {
 
 		const body = validGamePassBody({ gamePassId: 987_654 });
 
-		const result = parseGamePassResponse(body, 200);
+		const result = parseGamePassResponse({ body, headers: {}, status: 200 });
 
 		assert(result.success);
 
@@ -221,7 +225,7 @@ describe(parseGamePassResponse, () => {
 
 		const body = validGamePassBody({ iconAssetId: 0 });
 
-		const result = parseGamePassResponse(body, 200);
+		const result = parseGamePassResponse({ body, headers: {}, status: 200 });
 
 		assert(result.success);
 
@@ -233,7 +237,7 @@ describe(parseGamePassResponse, () => {
 
 		const body = validGamePassBody({ iconAssetId: 55_555 });
 
-		const result = parseGamePassResponse(body, 200);
+		const result = parseGamePassResponse({ body, headers: {}, status: 200 });
 
 		assert(result.success);
 
@@ -250,7 +254,7 @@ describe(parseGamePassResponse, () => {
 			},
 		});
 
-		const result = parseGamePassResponse(body, 200);
+		const result = parseGamePassResponse({ body, headers: {}, status: 200 });
 
 		assert(result.success);
 		assert(result.data.price);
@@ -280,7 +284,7 @@ describe(parseGamePassResponse, () => {
 			}`,
 		);
 
-		const result = parseGamePassResponse(body, 200);
+		const result = parseGamePassResponse({ body, headers: {}, status: 200 });
 
 		assert(result.success);
 		assert(result.data.price);
@@ -321,7 +325,7 @@ describe(parseGamePassResponse, () => {
 			}`,
 		);
 
-		const result = parseGamePassResponse(body, 422);
+		const result = parseGamePassResponse({ body, headers: {}, status: 422 });
 
 		assert(!result.success);
 

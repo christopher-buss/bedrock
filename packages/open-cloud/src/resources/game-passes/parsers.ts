@@ -1,23 +1,23 @@
+import type { HttpResponse } from "../../client/types.ts";
 import { ApiError } from "../../errors/api-error.ts";
 import type { Result } from "../../types.ts";
 import type { GamePass, GamePassPrice } from "./types.ts";
 import type { GamePassConfigV2, PriceInformationStructWire, PricingFeatureWire } from "./wire.ts";
 
 /**
- * Parses a successful Game Pass API response body into the public
- * `GamePass` shape, returning a `Result` so callers can handle malformed
- * payloads without exceptions.
+ * Parses a successful Game Pass API response into the public `GamePass`
+ * shape, returning a `Result` so callers can handle malformed payloads
+ * without exceptions.
  *
- * @param body - The decoded response body from the Open Cloud API.
- * @param statusCode - The HTTP status code of the response; included on
- *   the returned `ApiError` when validation fails.
+ * @param response - The full {@link HttpResponse} from the Open Cloud API.
+ *   The status code is included on the returned `ApiError` when validation
+ *   fails; the headers are available for future parsers that need them.
  * @returns A success result wrapping the converted `GamePass`, or an
  *   `ApiError` when the body does not match the wire schema.
  */
-export function parseGamePassResponse(
-	body: unknown,
-	statusCode: number,
-): Result<GamePass, ApiError> {
+export function parseGamePassResponse(response: HttpResponse): Result<GamePass, ApiError> {
+	const { body, status: statusCode } = response;
+
 	if (!isGamePassConfigV2(body)) {
 		return {
 			err: new ApiError("Malformed game pass response", { statusCode }),
