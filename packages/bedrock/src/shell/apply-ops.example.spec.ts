@@ -17,7 +17,7 @@ it('Example 1', () => {
         return `driver failed for ${err.key}: ${err.cause.message}`
       }
       case 'updateUnsupported': {
-        return `update not yet supported for ${err.key}`
+        return `update not supported for ${err.key}`
       }
     }
   }
@@ -25,7 +25,7 @@ it('Example 1', () => {
     key: asResourceKey('vip-pass'),
     kind: 'updateUnsupported',
   }
-  expect(describe(err)).toBe('update not yet supported for vip-pass')
+  expect(describe(err)).toBe('update not supported for vip-pass')
 })
 
 it('Example 2', () => {

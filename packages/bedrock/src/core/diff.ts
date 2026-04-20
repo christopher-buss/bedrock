@@ -8,8 +8,7 @@ import type { ResourceCurrentState, ResourceDesiredState } from "./resources.ts"
  * Each entry in `desired` is matched to `current` by `key`. A key present only
  * in `desired` produces a `create` op; a key present in both produces an
  * `update` op if any declared field differs or a `noop` op if every field
- * matches. Keys present only in `current` (orphans) are not emitted in slice 1
- * per ADR-019; the `Operation` union has no `delete` variant yet.
+ * matches.
  *
  * Ops appear in the order their desired entries appear in the input array so
  * callers can rely on declaration order when logging or applying ops.

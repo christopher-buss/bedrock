@@ -70,10 +70,6 @@ export interface CreateOperation extends BaseOperation {
  * its matching `current` entry. Both states are carried so the driver can
  * compute the minimal patch.
  *
- * Defined in slice 1 for type completeness, but not yet handled at apply time:
- * `applyOps` returns an `unsupported` error when it encounters one until a
- * driver wires up update support in a later slice.
- *
  * @example
  *
  * ```ts
@@ -162,10 +158,8 @@ export interface NoopOperation extends BaseOperation {
  * `applyOps` consumes. The `type` field is the discriminator (`kind` is
  * reserved for the resource discriminator in `ResourceDesiredState`).
  *
- * Slice 1 ships three variants. A `delete` variant is intentionally absent:
- * resources removed from config are not reconciled until a future slice
- * introduces orphan handling. The `Operation` union is the canonical
- * statement of that product boundary.
+ * A `delete` variant is intentionally absent: resources present only in
+ * current state (orphans) are ignored, never reconciled.
  *
  * @example
  *

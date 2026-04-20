@@ -1,4 +1,4 @@
-import { ApiError, type Result } from "@bedrock/ocale";
+import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
 import type { GamePass, GamePassesClient } from "@bedrock/ocale/game-passes";
 
 import type { GamePassDesiredState, ResourceCurrentState } from "../core/resources.ts";
@@ -146,7 +146,7 @@ export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"
 function toCurrentState(
 	desired: GamePassDesiredState,
 	data: GamePass,
-): Result<ResourceCurrentState, ApiError> {
+): Result<ResourceCurrentState, OpenCloudError> {
 	const { id, iconAssetId } = data;
 	if (iconAssetId === undefined) {
 		return {

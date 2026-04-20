@@ -204,6 +204,17 @@ PR titles are linted by commitlint (`.github/workflows/lint-pr-title.yaml`) —
    `bedrock, e2e, global, ocale, testing, tsconfig, vite, website`. `ci`,
    `chore`, `docs`, `build`, `refactor` are **types, not scopes** — write
    `ci: …` with no scope, not `fix(ci): …`.
+3. **Consumer-useful subject**: PR titles become changelog entries for
+   people installing the published package. Write what *changed in the
+   package from the consumer's perspective*, not how the work was organised.
+   Internal terminology (`slice-1`, `post-merge cleanup`, `finalize`,
+   `wire up`, issue numbers, sub-task names) is meaningless in a
+   changelog. Prefer concrete, outcome-focused phrasing: `add game-passes
+   client` over `slice-1 client implementation`; `clean up public jsdoc`
+   over `post-merge cleanup`. If the change is invisible to consumers
+   (pure internal refactor, docs-only), say what actually changed
+   (`remove internal references from public jsdoc`) rather than labelling
+   the pass.
 
 ### Creating Issues
 

@@ -6,8 +6,7 @@ import type { ResourceKey } from "../types/ids.ts";
 
 /**
  * Failure surfaced by `applyOps` when an operation cannot be applied.
- * Plain-data discriminated union following the `StateError` pattern in
- * `core/state.ts`; narrow on `kind`, do not `instanceof` it.
+ * Plain-data discriminated union; narrow on `kind`, do not `instanceof` it.
  *
  * @example
  *
@@ -20,7 +19,7 @@ import type { ResourceKey } from "../types/ids.ts";
  *             return `driver failed for ${err.key}: ${err.cause.message}`;
  *         }
  *         case "updateUnsupported": {
- *             return `update not yet supported for ${err.key}`;
+ *             return `update not supported for ${err.key}`;
  *         }
  *     }
  * }
@@ -30,7 +29,7 @@ import type { ResourceKey } from "../types/ids.ts";
  *     kind: "updateUnsupported",
  * };
  *
- * expect(describe(err)).toBe("update not yet supported for vip-pass");
+ * expect(describe(err)).toBe("update not supported for vip-pass");
  * ```
  */
 export type ApplyError =
@@ -59,9 +58,10 @@ export type ApplyError =
  * @param registry - Per-kind driver table; dispatch uses `op.desired.kind` as the index.
  * @returns `Ok(undefined)` when every operation succeeds, or the first failure encountered.
  * @throws Whatever the dispatched driver rejects with outside its `Result`
- *   return — notably, `createGamePassDriver` propagates file-read rejections
- *   from its injected `readFile`. Wrap the call site in a try/catch when the
- *   file reader is not trusted.
+ *   return. A driver whose injected I/O (file reads, network calls, etc.)
+ *   throws will surface that rejection here rather than translating it into
+ *   a `Result` failure; wrap the call site in a try/catch when drivers are
+ *   not trusted to contain their own rejections.
  * @example
  *
  * ```ts
