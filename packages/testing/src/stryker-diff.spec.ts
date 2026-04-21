@@ -14,10 +14,10 @@ describe(parseDiff, () => {
 
 		const result = parseDiff("");
 
-		expect(result).toStrictEqual({ files: [], kind: "changes" });
+		expect(result).toStrictEqual({ files: [], kind: "changes", rejects: [] });
 	});
 
-	it("should reject a binary file change with its path", () => {
+	it("should report a binary file change as a reject without dropping mutable changes", () => {
 		expect.assertions(1);
 
 		const raw = [
@@ -29,8 +29,34 @@ describe(parseDiff, () => {
 		const result = parseDiff(raw);
 
 		expect(result).toStrictEqual({
-			kind: "reject",
-			reasons: [{ kind: "binary", path: "assets/logo.png" }],
+			files: [],
+			kind: "changes",
+			rejects: [{ kind: "binary", path: "assets/logo.png" }],
+		});
+	});
+
+	it("should keep mutable file changes alongside binary rejects in the same diff", () => {
+		expect.assertions(1);
+
+		const raw = [
+			"diff --git a/src/new.ts b/src/new.ts",
+			"new file mode 100644",
+			"index 0000000..abc1234",
+			"--- /dev/null",
+			"+++ b/src/new.ts",
+			"@@ -0,0 +1,1 @@",
+			"+x",
+			"diff --git a/assets/logo.png b/assets/logo.png",
+			"index abc1234..def5678 100644",
+			"Binary files a/assets/logo.png and b/assets/logo.png differ",
+		].join("\n");
+
+		const result = parseDiff(raw);
+
+		expect(result).toStrictEqual({
+			files: [{ hunks: [{ endLine: 1, startLine: 1 }], path: "src/new.ts" }],
+			kind: "changes",
+			rejects: [{ kind: "binary", path: "assets/logo.png" }],
 		});
 	});
 
@@ -54,6 +80,7 @@ describe(parseDiff, () => {
 		expect(result).toStrictEqual({
 			files: [{ hunks: [{ endLine: 3, startLine: 1 }], path: "src/new.ts" }],
 			kind: "changes",
+			rejects: [],
 		});
 	});
 
@@ -74,7 +101,7 @@ describe(parseDiff, () => {
 
 		const result = parseDiff(raw);
 
-		expect(result).toStrictEqual({ files: [], kind: "changes" });
+		expect(result).toStrictEqual({ files: [], kind: "changes", rejects: [] });
 	});
 
 	it("should drop only the deleted files and keep the surviving modifications", () => {
@@ -103,6 +130,7 @@ describe(parseDiff, () => {
 		expect(result).toStrictEqual({
 			files: [{ hunks: [{ endLine: 3, startLine: 3 }], path: "src/alive.ts" }],
 			kind: "changes",
+			rejects: [],
 		});
 	});
 
@@ -118,7 +146,7 @@ describe(parseDiff, () => {
 
 		const result = parseDiff(raw);
 
-		expect(result).toStrictEqual({ files: [], kind: "changes" });
+		expect(result).toStrictEqual({ files: [], kind: "changes", rejects: [] });
 	});
 
 	it("should collapse a rename with modifications to a change entry at the new path", () => {
@@ -142,6 +170,7 @@ describe(parseDiff, () => {
 		expect(result).toStrictEqual({
 			files: [{ hunks: [{ endLine: 3, startLine: 3 }], path: "src/new.ts" }],
 			kind: "changes",
+			rejects: [],
 		});
 	});
 
@@ -166,6 +195,7 @@ describe(parseDiff, () => {
 		expect(result).toStrictEqual({
 			files: [{ hunks: [{ endLine: 7, startLine: 5 }], path: "src/foo.ts" }],
 			kind: "changes",
+			rejects: [],
 		});
 	});
 
@@ -201,6 +231,7 @@ describe(parseDiff, () => {
 				},
 			],
 			kind: "changes",
+			rejects: [],
 		});
 	});
 
@@ -234,6 +265,7 @@ describe(parseDiff, () => {
 				{ hunks: [{ endLine: 8, startLine: 7 }], path: "src/b.ts" },
 			],
 			kind: "changes",
+			rejects: [],
 		});
 	});
 
@@ -259,6 +291,7 @@ describe(parseDiff, () => {
 		expect(result).toStrictEqual({
 			files: [{ hunks: [{ endLine: 18, startLine: 18 }], path: "src/foo.ts" }],
 			kind: "changes",
+			rejects: [],
 		});
 	});
 });

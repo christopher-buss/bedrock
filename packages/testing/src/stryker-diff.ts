@@ -36,12 +36,16 @@ interface FileChange {
 }
 
 /**
- * Outcome of parsing `git diff HEAD`: either the per-file change set or
- * a list of reject reasons that prevent safe mutation scoping.
+ * Outcome of parsing `git diff HEAD`: the per-file change set, plus
+ * any non-fatal reject reasons. Rejects (currently only binary blobs)
+ * are reported as informative metadata so callers can warn but
+ * continue when mutable files exist alongside them.
  */
-type DiffResult =
-	| { files: Array<FileChange>; kind: "changes" }
-	| { kind: "reject"; reasons: Array<DiffReject> };
+interface DiffResult {
+	readonly files: Array<FileChange>;
+	readonly kind: "changes";
+	readonly rejects: Array<DiffReject>;
+}
 
 const DIFF_HEADER = /^diff --git a\/(.+) b\/(.+)$/;
 const HUNK_HEADER = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/;
@@ -72,11 +76,11 @@ export function parseDiff(raw: string): DiffResult {
 		handleDiffLine(line, state);
 	}
 
-	if (state.rejects.length > 0) {
-		return { kind: "reject", reasons: state.rejects };
-	}
-
-	return { files: state.files.filter((file) => file.hunks.length > 0), kind: "changes" };
+	return {
+		files: state.files.filter((file) => file.hunks.length > 0),
+		kind: "changes",
+		rejects: state.rejects,
+	};
 }
 
 /**

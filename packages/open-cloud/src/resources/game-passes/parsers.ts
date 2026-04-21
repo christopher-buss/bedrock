@@ -1,5 +1,6 @@
 import type { HttpResponse } from "../../client/types.ts";
 import { ApiError } from "../../errors/api-error.ts";
+import { isRecord } from "../../internal/utils/is-record.ts";
 import type { Result } from "../../types.ts";
 import type { GamePass, GamePassPrice } from "./types.ts";
 import type { GamePassConfigV2, PriceInformationStructWire, PricingFeatureWire } from "./wire.ts";
@@ -40,10 +41,6 @@ export function parseGamePassResponse(response: HttpResponse): Result<GamePass, 
 		},
 		success: true,
 	};
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return Object.prototype.toString.call(value) === "[object Object]";
 }
 
 function hasRequiredPrimitiveFields(body: Record<string, unknown>): boolean {

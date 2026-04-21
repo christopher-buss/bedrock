@@ -35,8 +35,14 @@ import {
  *   produces.
  */
 export interface ResourceMethodSpec<P, T> {
-	/** Builds the pure {@link HttpRequest} for a single call. */
-	readonly buildRequest: (parameters: P) => HttpRequest;
+	/**
+	 * Builds the pure {@link HttpRequest} for a single call. Returns a
+	 * {@link Result} so a builder can short-circuit with a local error
+	 * (typically a {@link OpenCloudError} subclass such as `ValidationError`)
+	 * before any HTTP, queue, or retry work happens. Builders that cannot
+	 * fail wrap their return as `{ data: request, success: true }`.
+	 */
+	readonly buildRequest: (parameters: P) => Result<HttpRequest, OpenCloudError>;
 	/** Method-level retry defaults merged into the resolved config. */
 	readonly methodDefaults: Partial<RetryResolvable>;
 	/**
@@ -71,6 +77,19 @@ interface ExecuteCall<P, T> {
 	readonly parameters: P;
 	/** Per-method binding of builder, parser, method kind, and operation limit. */
 	readonly spec: ResourceMethodSpec<P, T>;
+}
+
+/**
+ * Wraps an infallible request build as a {@link Result}-returning
+ * `buildRequest` callback compatible with {@link ResourceMethodSpec}.
+ * Use from a resource client whose builder cannot fail; resource clients
+ * with local validation should construct the {@link Result} directly.
+ *
+ * @param request - The pre-built {@link HttpRequest}.
+ * @returns A success Result wrapping the request.
+ */
+export function okRequest(request: HttpRequest): Result<HttpRequest, OpenCloudError> {
+	return { data: request, success: true };
 }
 
 const CLIENT_DEFAULTS = Object.freeze({
@@ -137,15 +156,19 @@ export class ResourceClient {
 			methodKind: spec.methodKind,
 			requestOptions: options ?? {},
 		});
+		const requestResult = spec.buildRequest(parameters);
+		if (!requestResult.success) {
+			return requestResult;
+		}
+
 		const requestConfig = {
 			apiKey: merged.apiKey,
 			baseUrl: merged.baseUrl,
 			timeout: merged.timeout,
 		};
-		const request = spec.buildRequest(parameters);
 		const queue = this.#getQueue(merged.apiKey, spec.operationLimit);
 		const httpResult = await queue.acquire(async () => {
-			return executeWithRetry(request, {
+			return executeWithRetry(requestResult.data, {
 				config: merged,
 				hooks: this.#hooks,
 				send: async (toSend) => this.#httpClient.request(toSend, requestConfig),

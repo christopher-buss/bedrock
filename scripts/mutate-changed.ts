@@ -50,19 +50,15 @@ function runStrykerForEach(
 }
 
 function reportReject(reason: { kind: string; path: string }): void {
-	console.error(`error: ${reason.kind} not supported (${reason.path})`);
+	console.warn(`note: skipping ${reason.kind} file ${reason.path}`);
 }
 
 async function main(): Promise<void> {
 	const raw = readGitDiff();
 	const parsed = parseDiff(raw);
 
-	if (parsed.kind === "reject") {
-		for (const reason of parsed.reasons) {
-			reportReject(reason);
-		}
-
-		process.exit(2);
+	for (const reason of parsed.rejects) {
+		reportReject(reason);
 	}
 
 	const mutable = filterMutableFiles(parsed.files).filter((file) => {
