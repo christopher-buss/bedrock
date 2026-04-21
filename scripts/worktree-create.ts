@@ -52,7 +52,7 @@ function createWorktree(projectDirectory: string, name: string): number {
 	});
 	if (result.error !== undefined) {
 		console.error(
-			`worktree-create: failed to spawn wt (${result.error.message}); is worktrunk installed? see README`,
+			`worktree-create: failed to spawn wt (${result.error.message}); is worktrunk installed?`,
 		);
 	}
 

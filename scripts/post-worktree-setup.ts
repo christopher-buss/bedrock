@@ -115,7 +115,7 @@ function runSetup(worktree: string): number {
 	});
 	if (result.error !== undefined) {
 		console.error(
-			`post-worktree-setup: failed to spawn wt (${result.error.message}); is worktrunk installed? see README`,
+			`post-worktree-setup: failed to spawn wt (${result.error.message}); is worktrunk installed?`,
 		);
 	}
 
