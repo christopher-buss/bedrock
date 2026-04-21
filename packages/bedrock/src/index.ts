@@ -1,6 +1,11 @@
 export { createGamePassDriver, type GamePassDriverDeps } from "./adapters/game-pass-driver.ts";
 export type { ConfigError, ConfigValidationIssue } from "./core/config-error.ts";
 export { diff } from "./core/diff.ts";
+export {
+	flattenConfig,
+	type GamePassDesiredInput,
+	type ResourceDesiredInput,
+} from "./core/flatten.ts";
 export type {
 	BaseOperation,
 	CreateOperation,
