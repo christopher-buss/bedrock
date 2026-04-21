@@ -10,8 +10,8 @@ catalogs:
       specifier: 0.28.19
       version: 0.28.19
     typedoc-plugin-markdown:
-      specifier: 4.3.0
-      version: 4.3.0
+      specifier: 4.11.0
+      version: 4.11.0
     typedoc-plugin-replace-text:
       specifier: 4.2.0
       version: 4.2.0
@@ -328,7 +328,7 @@ importers:
         version: 0.28.19(typescript@6.0.2)
       typedoc-plugin-markdown:
         specifier: catalog:build
-        version: 4.3.0(typedoc@0.28.19(typescript@6.0.2))
+        version: 4.11.0(typedoc@0.28.19(typescript@6.0.2))
       typedoc-plugin-replace-text:
         specifier: catalog:build
         version: 4.2.0(typedoc@0.28.19(typescript@6.0.2))
@@ -6078,11 +6078,11 @@ packages:
     resolution: {integrity: sha512-FfBj5tjviexjIus3La4n4s9i+f81Zj7HU+lUlQWK219HMRfmzLsbIf4PZF2+X6EouJKyuANpvvef5VrUWM4AFw==}
     engines: {node: '>= 16.0.0'}
 
-  typedoc-plugin-markdown@4.3.0:
-    resolution: {integrity: sha512-yAR7+JGSwHWNzQhS8AFlGX6GmbWnK7/Q2Y8hHy5pkL/WB9ooJqhsI6B1abldhM3lOQCWqCdkzu9yFMPuvl2HUw==}
+  typedoc-plugin-markdown@4.11.0:
+    resolution: {integrity: sha512-2iunh2ALyfyh204OF7h2u0kuQ84xB3jFZtFyUr01nThJkLvR8oGGSSDlyt2gyO4kXhvUxDcVbO0y43+qX+wFbw==}
     engines: {node: '>= 18'}
     peerDependencies:
-      typedoc: 0.27.x
+      typedoc: 0.28.x
 
   typedoc-plugin-replace-text@4.2.0:
     resolution: {integrity: sha512-vmhpFKg75l0CfHO7n3bdf/wwSWH6hQQxaZTqZ5HDe5Xd40tkk6jkVkP6SWhDhntSIflREQqwneflGJG3bCqPEA==}
@@ -12058,7 +12058,7 @@ snapshots:
       tunnel: 0.0.6
       underscore: 1.13.8
 
-  typedoc-plugin-markdown@4.3.0(typedoc@0.28.19(typescript@6.0.2)):
+  typedoc-plugin-markdown@4.11.0(typedoc@0.28.19(typescript@6.0.2)):
     dependencies:
       typedoc: 0.28.19(typescript@6.0.2)
 
