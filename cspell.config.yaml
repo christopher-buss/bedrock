@@ -5,6 +5,7 @@ version: "0.2"
 language: en
 words:
   - arktype
+  - bedrockrc
   - monocart
   - retryable
   - ocale

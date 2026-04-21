@@ -67,6 +67,7 @@ catalogs:
     publint: 0.3.18
   runtime:
     arktype: 2.2.0
+    c12: 3.3.4
   script:
     jiti: 2.6.1
     std-env: 4.1.0
