@@ -10,7 +10,7 @@ catalogs:
       specifier: 0.28.19
       version: 0.28.19
     typedoc-plugin-markdown:
-      specifier: ^4.3.0
+      specifier: 4.11.0
       version: 4.11.0
     typedoc-plugin-replace-text:
       specifier: 4.2.0
@@ -23,8 +23,8 @@ catalogs:
       version: 0.1.18
   dev:
     concurrently:
-      specifier: ^9.1.0
-      version: 9.2.1
+      specifier: 9.1.0
+      version: 9.1.0
     eslint_d:
       specifier: 15.0.2
       version: 15.0.2
@@ -48,7 +48,7 @@ catalogs:
       specifier: 2.0.0-alpha.17
       version: 2.0.0-alpha.17
     vitepress-plugin-tabs:
-      specifier: ^0.8.0
+      specifier: 0.8.0
       version: 0.8.0
   lint:
     '@commitlint/cli':
@@ -158,7 +158,7 @@ catalogs:
       specifier: latest
       version: 7.0.0-dev.20251213.1
     type-fest:
-      specifier: ^5.6.0
+      specifier: 5.6.0
       version: 5.6.0
 
 overrides:
@@ -322,7 +322,7 @@ importers:
     devDependencies:
       concurrently:
         specifier: catalog:dev
-        version: 9.2.1
+        version: 9.1.0
       typedoc:
         specifier: catalog:build
         version: 0.28.19(typescript@6.0.2)
@@ -3764,8 +3764,8 @@ packages:
   concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
 
-  concurrently@9.2.1:
-    resolution: {integrity: sha512-fsfrO0MxV64Znoy8/l1vVIjjHa29SZyyqPgQBwhiDcaW8wJc2W3XWVOGx4M3oJBnv/zdUZIIp1gDeS98GzP8Ng==}
+  concurrently@9.1.0:
+    resolution: {integrity: sha512-VxkzwMAn4LP7WyMnJNbHN5mKV9L2IbyDjpzemKr99sXNR3GqRNMMHdm7prV1ws9wg7ETj6WUkNOigZVsptwbgg==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -5047,6 +5047,9 @@ packages:
 
   lodash.upperfirst@4.3.1:
     resolution: {integrity: sha512-sReKOYJIJf74dhJONhU4e0/shzi1trVbSWDOhKYE5XV2O+H7Sb2Dihwuc7xWxVl+DgFPyTqIN3zMfT9cq5iWDg==}
+
+  lodash@4.18.1:
+    resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
 
   log-symbols@4.1.0:
     resolution: {integrity: sha512-8XPvpAA8uyhfteu8pIvQxpJZ7SYYdpUivZpGy6sFsBuKRY/7rQGavedeB8aK+Zkyq6upMFVL/9AW6vOYzfRyLg==}
@@ -9226,9 +9229,10 @@ snapshots:
 
   concat-map@0.0.1: {}
 
-  concurrently@9.2.1:
+  concurrently@9.1.0:
     dependencies:
       chalk: 4.1.2
+      lodash: 4.18.1
       rxjs: 7.8.2
       shell-quote: 1.8.3
       supports-color: 8.1.1
@@ -10680,6 +10684,8 @@ snapshots:
   lodash.startcase@4.4.0: {}
 
   lodash.upperfirst@4.3.1: {}
+
+  lodash@4.18.1: {}
 
   log-symbols@4.1.0:
     dependencies:

@@ -1,4 +1,3 @@
-#!/usr/bin/env bun
 import { spawnSync } from "node:child_process";
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -110,21 +109,19 @@ function resolveWorktree(payload: HookPayload): string | undefined {
 }
 
 function runSetup(worktree: string): number {
-	const steps: Array<[string, Array<string>]> = [
-		["mise", ["trust"]],
-		["mise", ["install"]],
-		["pnpm", ["install"]],
-	];
-	for (const [command, args] of steps) {
-		const result = spawnSync(command, args, {
-			cwd: worktree,
-			shell: process.platform === "win32",
-			stdio: "inherit",
-		});
-		if (result.status !== 0) {
-			console.error(`post-worktree-setup: ${command} ${args.join(" ")} failed`);
-			return result.status ?? 1;
-		}
+	const result = spawnSync("wt", ["-C", worktree, "hook", "post-create", "--yes"], {
+		shell: process.platform === "win32",
+		stdio: "inherit",
+	});
+	if (result.error !== undefined) {
+		console.error(
+			`post-worktree-setup: failed to spawn wt (${result.error.message}); is worktrunk installed?`,
+		);
+	}
+
+	if (result.status !== 0) {
+		console.error("post-worktree-setup: wt hook post-create failed");
+		return result.status ?? 1;
 	}
 
 	return 0;

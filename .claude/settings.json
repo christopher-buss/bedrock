@@ -35,7 +35,18 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "bun ${CLAUDE_PROJECT_DIR}/.claude/hooks/post-worktree-setup.ts",
+						"command": "bun ${CLAUDE_PROJECT_DIR}/scripts/post-worktree-setup.ts",
+						"timeout": 300
+					}
+				]
+			}
+		],
+		"WorktreeCreate": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun ${CLAUDE_PROJECT_DIR}/scripts/worktree-create.ts",
 						"timeout": 300
 					}
 				]
