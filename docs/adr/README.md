@@ -29,6 +29,7 @@ things are the way they are.
 | [017](./017-product-framing-programmatic-iac-with-cli.md) | Product Framing: Programmatic IaC with CLI Convenience (Level 2 Hybrid) | Accepted | 2026-04-17 |
 | [018](./018-fcis-ports-with-primary-driven-distinction.md) | Architecture Refinement: FCIS + Ports with Explicit Primary/Driven Port Distinction | Accepted | 2026-04-17 |
 | [019](./019-state-data-model-and-diff-algebra.md) | State Data Model and Diff Algebra (Mantle Parity) | Accepted | 2026-04-17 |
+| [020](./020-project-config-definition.md) | Project Config Definition | Accepted | 2026-04-22 |
 
 ## Creating a New ADR
 
