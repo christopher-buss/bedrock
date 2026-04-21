@@ -11,7 +11,7 @@ function loadFixture(name: string): Uint8Array {
 	return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 }
 
-describe("rBXL_SIGNATURE", () => {
+describe("the rbxl signature constant", () => {
 	it("should match the leading bytes of a real rbxl fixture", () => {
 		expect.assertions(1);
 
@@ -23,7 +23,7 @@ describe("rBXL_SIGNATURE", () => {
 	});
 });
 
-describe("rBXLX_SIGNATURE", () => {
+describe("the rbxlx signature constant", () => {
 	it("should match the leading bytes of a real rbxlx fixture", () => {
 		expect.assertions(1);
 
