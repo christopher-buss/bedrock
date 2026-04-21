@@ -8,21 +8,21 @@ import { PUBLISH_OPERATION_LIMIT } from "./operations.ts";
 import { parsePublishResponse } from "./parsers.ts";
 import type { PlaceVersion, PublishParameters } from "./types.ts";
 
-const PUBLISH_SPEC: ResourceMethodSpec<PublishParameters, PlaceVersion> = Object.freeze({
-	buildRequest: (parameters: PublishParameters) => buildPublishRequest(parameters, "Published"),
-	methodDefaults: CREATE_METHOD_DEFAULTS,
-	methodKind: "create",
-	operationLimit: PUBLISH_OPERATION_LIMIT,
-	parse: parsePublishResponse,
-});
+function makeSpec(
+	versionType: "Published" | "Saved",
+): ResourceMethodSpec<PublishParameters, PlaceVersion> {
+	return Object.freeze({
+		buildRequest: (parameters: PublishParameters) =>
+			buildPublishRequest(parameters, versionType),
+		methodDefaults: CREATE_METHOD_DEFAULTS,
+		methodKind: "create",
+		operationLimit: PUBLISH_OPERATION_LIMIT,
+		parse: parsePublishResponse,
+	});
+}
 
-const SAVE_SPEC: ResourceMethodSpec<PublishParameters, PlaceVersion> = Object.freeze({
-	buildRequest: (parameters: PublishParameters) => buildPublishRequest(parameters, "Saved"),
-	methodDefaults: CREATE_METHOD_DEFAULTS,
-	methodKind: "create",
-	operationLimit: PUBLISH_OPERATION_LIMIT,
-	parse: parsePublishResponse,
-});
+const PUBLISH_SPEC = makeSpec("Published");
+const SAVE_SPEC = makeSpec("Saved");
 
 /**
  * Public client for the Roblox Open Cloud "publish place version"

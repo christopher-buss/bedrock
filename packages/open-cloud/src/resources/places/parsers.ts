@@ -1,5 +1,6 @@
 import type { HttpResponse } from "../../client/types.ts";
 import { ApiError } from "../../errors/api-error.ts";
+import { isRecord } from "../../internal/utils/is-record.ts";
 import type { Result } from "../../types.ts";
 import type { PlaceVersion } from "./types.ts";
 import type { PlaceVersionWire } from "./wire.ts";
@@ -50,10 +51,6 @@ function decodeBody(body: unknown, statusCode: number): Result<unknown, ApiError
 			success: false,
 		};
 	}
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return Object.prototype.toString.call(value) === "[object Object]";
 }
 
 function isPlaceVersionWire(value: unknown): value is PlaceVersionWire {
