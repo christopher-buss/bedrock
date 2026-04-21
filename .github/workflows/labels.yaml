@@ -1,0 +1,33 @@
+name: Sync Labels
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/labels.yaml
+      - .github/workflows/labels.yaml
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    name: Sync labels from .github/labels.yaml
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Sync labels
+        uses: EndBug/label-sync@52074158190acb45f3077f9099fea818aa43f97a # v2.3.3
+        with:
+          config-file: .github/labels.yaml
+          # Flip to true once .github/labels.yaml is the accepted source of
+          # truth. This deletes any label not listed in the config.
+          delete-other-labels: false
+    timeout-minutes: 5

@@ -1,0 +1,73 @@
+# GitHub issue / PR labels for bedrock.
+# Source of truth. Synced to the repo by .github/workflows/labels.yaml on
+# pushes to main that touch this file, and on manual workflow_dispatch.
+# Edit this file to add, remove, or recolor labels.
+
+# ---------------------------------------------------------------------------
+# Default labels (GitHub creates these on new repos; keep them here so the
+# sync does not prune them).
+# ---------------------------------------------------------------------------
+
+- name: bug
+  color: d73a4a
+  description: Something isn't working
+
+- name: documentation
+  color: 0075ca
+  description: Improvements or additions to documentation
+
+- name: duplicate
+  color: cfd3d7
+  description: This issue or pull request already exists
+
+- name: enhancement
+  color: a2eeef
+  description: New feature or request
+
+- name: good first issue
+  color: 7057ff
+  description: Good for newcomers
+
+- name: help wanted
+  color: 008672
+  description: Extra attention is needed
+
+- name: invalid
+  color: e4e669
+  description: This doesn't seem right
+
+- name: question
+  color: d876e3
+  description: Further information is requested
+
+- name: wontfix
+  color: ffffff
+  description: This will not be worked on
+
+# ---------------------------------------------------------------------------
+# Package scope labels. Mirror the commitlint scope-enum.
+# ---------------------------------------------------------------------------
+
+- name: pkg:bedrock
+  color: 1d76db
+  description: "Scope: @bedrock/bedrock package"
+
+- name: pkg:ocale
+  color: 1d76db
+  description: "Scope: @bedrock/ocale package"
+
+- name: pkg:testing
+  color: 1d76db
+  description: "Scope: @bedrock/testing package"
+
+- name: pkg:website
+  color: 1d76db
+  description: "Scope: docs website"
+
+# ---------------------------------------------------------------------------
+# Workflow labels.
+# ---------------------------------------------------------------------------
+
+- name: skip-review
+  color: "666666"
+  description: Skip Claude Code review for trivial changes
