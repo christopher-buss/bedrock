@@ -113,6 +113,7 @@ function runSetup(worktree: string): number {
 	const steps: Array<[string, Array<string>]> = [
 		["mise", ["trust"]],
 		["mise", ["install"]],
+		["hk", ["install", "--mise"]],
 		["pnpm", ["install"]],
 	];
 	for (const [command, args] of steps) {
