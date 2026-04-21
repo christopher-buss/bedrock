@@ -40,6 +40,17 @@
 					}
 				]
 			}
+		],
+		"WorktreeCreate": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun ${CLAUDE_PROJECT_DIR}/scripts/worktree-create.ts",
+						"timeout": 300
+					}
+				]
+			}
 		]
 	},
 	"extraKnownMarketplaces": {
