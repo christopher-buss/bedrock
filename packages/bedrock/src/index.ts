@@ -1,4 +1,5 @@
 export { createGamePassDriver, type GamePassDriverDeps } from "./adapters/game-pass-driver.ts";
+export type { ConfigError, ConfigValidationIssue } from "./core/config-error.ts";
 export { diff } from "./core/diff.ts";
 export type {
 	BaseOperation,
@@ -16,6 +17,7 @@ export type {
 	ResourceOutputs,
 	ResourceOutputsByKind,
 } from "./core/resources.ts";
+export { validateConfig, type Config } from "./core/schema.ts";
 export type { BedrockState, StateError } from "./core/state.ts";
 export type { DriverRegistry, ResourceDriver } from "./ports/resource-driver.ts";
 export type { StatePort } from "./ports/state-port.ts";

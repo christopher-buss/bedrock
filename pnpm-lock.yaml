@@ -99,6 +99,10 @@ catalogs:
     publint:
       specifier: 0.3.18
       version: 0.3.18
+  runtime:
+    arktype:
+      specifier: 2.2.0
+      version: 2.2.0
   script:
     jiti:
       specifier: 2.6.1
@@ -344,6 +348,9 @@ importers:
       '@bedrock/ocale':
         specifier: workspace:*
         version: link:../open-cloud
+      arktype:
+        specifier: catalog:runtime
+        version: 2.2.0
     devDependencies:
       '@bedrock/testing':
         specifier: workspace:*
@@ -490,6 +497,12 @@ packages:
 
   '@antfu/install-pkg@1.1.0':
     resolution: {integrity: sha512-MGQsmw10ZyI+EJo45CdSER4zEb+p31LpDAFp2Z3gkSd1yqVZGi0Ebx++YTEMonJy4oChEMLsxZ64j8FH6sSqtQ==}
+
+  '@ark/schema@0.56.0':
+    resolution: {integrity: sha512-ECg3hox/6Z/nLajxXqNhgPtNdHWC9zNsDyskwO28WinoFEnWow4IsERNz9AnXRhTZJnYIlAJ4uGn3nlLk65vZA==}
+
+  '@ark/util@0.56.0':
+    resolution: {integrity: sha512-BghfRC8b9pNs3vBoDJhcta0/c1J1rsoS1+HgVUreMFPdhz/CRAKReAu57YEllNaSy98rWAdY1gE+gFup7OXpgA==}
 
   '@babel/code-frame@7.29.0':
     resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
@@ -3544,6 +3557,12 @@ packages:
   argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
 
+  arkregex@0.0.5:
+    resolution: {integrity: sha512-ncYjBdLlh5/QnVsAA8De16Tc9EqmYM7y/WU9j+236KcyYNUXogpz3sC4ATIZYzzLxwI+0sEOaQLEmLmRleaEXw==}
+
+  arktype@2.2.0:
+    resolution: {integrity: sha512-t54MZ7ti5BhOEvzEkgKnWvqj+UbDfWig+DHr5I34xatymPusKLS0lQpNJd8M6DzmIto2QGszHfNKoFIT8tMCZQ==}
+
   array-ify@1.0.0:
     resolution: {integrity: sha512-c5AMf34bKdvPhQ7tBGhqkgKNUzMr4WUs+WDtC2ZUGOUncbxKMTvqxYctiseW3+L4bA8ec+GcZ6/A/FW4m8ukng==}
 
@@ -6393,6 +6412,12 @@ snapshots:
       package-manager-detector: 1.6.0
       tinyexec: 1.1.1
 
+  '@ark/schema@0.56.0':
+    dependencies:
+      '@ark/util': 0.56.0
+
+  '@ark/util@0.56.0': {}
+
   '@babel/code-frame@7.29.0':
     dependencies:
       '@babel/helper-validator-identifier': 7.28.5
@@ -9020,6 +9045,16 @@ snapshots:
   are-docs-informative@0.0.2: {}
 
   argparse@2.0.1: {}
+
+  arkregex@0.0.5:
+    dependencies:
+      '@ark/util': 0.56.0
+
+  arktype@2.2.0:
+    dependencies:
+      '@ark/schema': 0.56.0
+      '@ark/util': 0.56.0
+      arkregex: 0.0.5
 
   array-ify@1.0.0: {}
 
