@@ -33,11 +33,11 @@
 			"source": "./src/resources/game-passes/index.ts",
 			"default": "./dist/game-passes.mjs"
 		},
-		"./package.json": "./package.json",
 		"./places": {
 			"source": "./src/resources/places/index.ts",
 			"default": "./dist/places.mjs"
 		},
+		"./package.json": "./package.json",
 		"./testing": {
 			"default": "./tests/helpers/index.ts",
 			"source": "./tests/helpers/index.ts"
