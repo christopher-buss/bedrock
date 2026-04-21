@@ -34,6 +34,7 @@ export type {
 	GamePassConfigInput,
 	Slice1ConfigInput,
 } from "./shell/build-desired.ts";
+export { defineConfig, type ConfigContext, type ConfigInput } from "./shell/define-config.ts";
 export {
 	asResourceKey,
 	asRobloxAssetId,
