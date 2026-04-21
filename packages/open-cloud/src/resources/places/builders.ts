@@ -9,7 +9,7 @@ import type { PublishParameters } from "./types.ts";
  * version. Surfaces only as the `versionType` query string on the
  * underlying HTTP request.
  */
-export type VersionType = "Published" | "Saved";
+type VersionType = "Published" | "Saved";
 
 const CONTENT_TYPE_BY_FORMAT: Readonly<Record<PublishParameters["format"], string>> = {
 	rbxl: "application/octet-stream",

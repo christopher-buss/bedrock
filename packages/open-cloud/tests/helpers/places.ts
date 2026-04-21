@@ -1,22 +1,5 @@
 import { RBXL_SIGNATURE, RBXLX_SIGNATURE } from "#src/resources/places/signatures";
 import type { PlaceVersionWire } from "#src/resources/places/wire";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
-const FIXTURES_DIR = fileURLToPath(new URL("../fixtures/places/", import.meta.url));
-
-/**
- * Reads one of the binary place fixtures from `tests/fixtures/places/`.
- *
- * @param name - The fixture filename (e.g. `"minimal.rbxl"`).
- * @returns The fixture bytes as a fresh `Uint8Array`.
- */
-export function loadPlaceFixture(name: string): Uint8Array<ArrayBuffer> {
-	const buffer = readFileSync(`${FIXTURES_DIR}${name}`);
-	return new Uint8Array(
-		buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
-	);
-}
 
 /**
  * Returns a fresh, minimal `.rbxl`-formatted body whose magic bytes
