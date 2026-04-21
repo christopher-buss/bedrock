@@ -3,11 +3,6 @@
 # pushes to main that touch this file, and on manual workflow_dispatch.
 # Edit this file to add, remove, or recolor labels.
 
-# ---------------------------------------------------------------------------
-# Default labels (GitHub creates these on new repos; keep them here so the
-# sync does not prune them).
-# ---------------------------------------------------------------------------
-
 - name: bug
   color: d73a4a
   description: Something isn't working
@@ -44,10 +39,6 @@
   color: ffffff
   description: This will not be worked on
 
-# ---------------------------------------------------------------------------
-# Package scope labels. Mirror the commitlint scope-enum.
-# ---------------------------------------------------------------------------
-
 - name: pkg:bedrock
   color: 1d76db
   description: "Scope: @bedrock/bedrock package"
@@ -63,10 +54,6 @@
 - name: pkg:website
   color: 1d76db
   description: "Scope: docs website"
-
-# ---------------------------------------------------------------------------
-# Workflow labels.
-# ---------------------------------------------------------------------------
 
 - name: skip-review
   color: "666666"
