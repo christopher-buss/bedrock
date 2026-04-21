@@ -1,4 +1,3 @@
-#!/usr/bin/env bun
 import { spawnSync } from "node:child_process";
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -114,6 +113,12 @@ function runSetup(worktree: string): number {
 		shell: process.platform === "win32",
 		stdio: "inherit",
 	});
+	if (result.error !== undefined) {
+		console.error(
+			`post-worktree-setup: failed to spawn wt (${result.error.message}); is worktrunk installed? see README`,
+		);
+	}
+
 	if (result.status !== 0) {
 		console.error("post-worktree-setup: wt hook post-create failed");
 		return result.status ?? 1;

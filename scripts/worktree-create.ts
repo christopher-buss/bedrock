@@ -46,8 +46,16 @@ function createWorktree(projectDirectory: string, name: string): number {
 	const result = spawnSync("wt", ["switch", "--create", name, "--no-cd", "--yes"], {
 		cwd: projectDirectory,
 		shell: process.platform === "win32",
+		// Child stdout goes to our stderr so only the resolved worktree path
+		// reaches parent stdout.
 		stdio: ["ignore", 2, 2],
 	});
+	if (result.error !== undefined) {
+		console.error(
+			`worktree-create: failed to spawn wt (${result.error.message}); is worktrunk installed? see README`,
+		);
+	}
+
 	return result.status ?? 1;
 }
 
@@ -56,6 +64,11 @@ function findWorktreePath(projectDirectory: string, branch: string): string | un
 		cwd: projectDirectory,
 		encoding: "utf8",
 	});
+	if (result.error !== undefined) {
+		console.error(`worktree-create: failed to spawn git (${result.error.message})`);
+		return undefined;
+	}
+
 	if (result.status !== 0) {
 		return undefined;
 	}
