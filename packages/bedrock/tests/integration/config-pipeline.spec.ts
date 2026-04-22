@@ -125,6 +125,17 @@ describe("config pipeline end-to-end", () => {
 		},
 	);
 
+	it("should load a function-form typescript config, flatten it, and dispatch a create op for the declared game pass", async () => {
+		expect.assertions(2);
+
+		const { applyOutcome, opTypes } = await runPipelineFromFixture(
+			join(FIXTURES_ROOT, "typescript-function"),
+		);
+
+		expect(opTypes).toStrictEqual(["create"]);
+		expect(applyOutcome.success).toBeTrue();
+	});
+
 	it("should forward every declared game-pass field into the multipart body, including the icon bytes", async () => {
 		expect.assertions(4);
 
