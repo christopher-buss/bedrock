@@ -105,6 +105,7 @@ sharing it):
 git clone https://github.com/christopher-buss/bedrock.git
 cd bedrock
 pnpm install
+pnpm build
 pnpm test
 ```
 
