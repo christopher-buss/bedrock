@@ -61,6 +61,58 @@ describe(loadConfig, () => {
 		});
 	});
 
+	it("should load a TypeScript config declared with a synchronous defineConfig function", async () => {
+		expect.assertions(1);
+
+		await withTemporaryDirectory(async (cwd) => {
+			writeFixtureConfig(cwd, [
+				"import { defineConfig } from 'bedrock';",
+				"export default defineConfig(() => ({",
+				"  passes: {",
+				"    'vip-pass': {",
+				"      description: 'Grants VIP perks.',",
+				"      iconFilePath: 'assets/vip-icon.png',",
+				"      name: 'VIP Pass',",
+				"      price: 500,",
+				"    },",
+				"  },",
+				"}));",
+			]);
+
+			const result = await loadConfig({ cwd });
+
+			assert(result.success);
+
+			expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass");
+		});
+	});
+
+	it("should load a TypeScript config declared with an asynchronous defineConfig function", async () => {
+		expect.assertions(1);
+
+		await withTemporaryDirectory(async (cwd) => {
+			writeFixtureConfig(cwd, [
+				"import { defineConfig } from 'bedrock';",
+				"export default defineConfig(async () => ({",
+				"  passes: {",
+				"    'vip-pass': {",
+				"      description: 'Grants VIP perks.',",
+				"      iconFilePath: 'assets/vip-icon.png',",
+				"      name: 'VIP Pass (async)',",
+				"      price: 750,",
+				"    },",
+				"  },",
+				"}));",
+			]);
+
+			const result = await loadConfig({ cwd });
+
+			assert(result.success);
+
+			expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass (async)");
+		});
+	});
+
 	it("should return a fileNotFound error when no config file is present", async () => {
 		expect.assertions(2);
 
