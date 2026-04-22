@@ -1,7 +1,7 @@
 import type { Result } from "@bedrock/ocale";
 
 import { loadConfig as c12LoadConfig } from "c12";
-import { existsSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 
@@ -80,12 +80,13 @@ export async function loadConfig(
 }
 
 function discoverConfigFile(cwd: string): string | undefined {
-	for (const name of ["bedrock.config.json", "bedrock.config.yaml"]) {
-		const path = join(cwd, name);
-		if (existsSync(path)) {
-			return path;
-		}
+	let entries: ReadonlyArray<string>;
+	try {
+		entries = readdirSync(cwd);
+	} catch {
+		return undefined;
 	}
 
-	return undefined;
+	const match = entries.toSorted().find((entry) => entry.startsWith("bedrock.config."));
+	return match === undefined ? undefined : join(cwd, match);
 }

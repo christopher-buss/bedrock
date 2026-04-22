@@ -21,6 +21,7 @@ function writeFixtureConfig(directory: string, lines: ReadonlyArray<string>): vo
 async function expectParseFailed(filename: string, contents: string): Promise<void> {
 	await withTemporaryDirectory(async (cwd) => {
 		writeFileSync(join(cwd, filename), contents);
+		writeFileSync(join(cwd, "_decoy.txt"), "unrelated");
 
 		const result = await loadConfig({ cwd });
 
