@@ -1,0 +1,12 @@
+import { defineConfig } from "bedrock";
+
+export default defineConfig({
+	passes: {
+		"vip-pass": {
+			name: "VIP Pass",
+			description: "Grants VIP perks.",
+			iconFilePath: "assets/vip-icon.png",
+			price: 500,
+		},
+	},
+});

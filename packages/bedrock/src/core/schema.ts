@@ -1,39 +1,31 @@
 import type { Result } from "@bedrock/ocale";
 
-import { ArkErrors, type } from "arktype";
+import { ArkErrors, type, type Type } from "arktype";
 
 import type { ConfigError, ConfigValidationIssue } from "./config-error.ts";
 
-// Resource-kind entry schemas. Adding a new kind is two additions:
-// 1. Declare its entry schema and keyed-map collection below.
-// 2. Reference that collection as an optional property on `rootSchema`.
-// No existing entries change. The ResourceKey regex lives on the map key
-// signature so invalid identifiers surface as schema failures pointing at
-// the offending key, not as deferred errors downstream.
-const gamePassEntry = type({
-	"name": "string",
-	"description": "string",
-	"iconFilePath": "string",
-	"price?": "number | undefined",
-});
-
-const passesCollection = type({
-	"[/^[A-Za-z0-9_-]+$/]": gamePassEntry,
-}).onUndeclaredKey("reject");
-
-const rootSchema = type({
-	"environments?": "unknown",
-	"experience?": "unknown",
-	"extends?": "unknown",
-	"passes?": passesCollection,
-}).onUndeclaredKey("reject");
+/**
+ * Body of a single entry in the `passes` collection. Keys in the parent
+ * record are `ResourceKey`-shaped strings enforced at schema validation.
+ */
+export interface GamePassEntry {
+	/** Name shown on the Roblox storefront. */
+	name: string;
+	/** Description shown on the game-pass detail page. */
+	description: string;
+	/** Path to the icon file; handed to `readFile` verbatim by `buildDesired`. */
+	iconFilePath: string;
+	/** Robux price, or omitted / `undefined` for off-sale. */
+	price?: number | undefined;
+}
 
 /**
- * Validated, mutable project config as accepted by `loadConfig`.
+ * Validated project config as accepted by `loadConfig`. Plain mutable so
+ * users can adjust fields in a long-running script before deploying.
  *
- * Inferred from the runtime schema, so the TypeScript type and the validator
- * never drift apart. Adding a new resource kind to the schema widens this
- * type automatically.
+ * Shape matches the runtime schema declared below. `rootSchema` is typed
+ * against this interface via `Type<Config>`, so any drift between the two
+ * is a compile error at build time.
  *
  * @example
  *
@@ -54,7 +46,40 @@ const rootSchema = type({
  * expect(config.passes!["vip-pass"]!.name).toBe("VIP Pass");
  * ```
  */
-export type Config = typeof rootSchema.infer;
+export interface Config {
+	/** Reserved at the root for the per-environment modeling tracked in #110. */
+	environments?: unknown;
+	/** Reserved at the root for experience-level singleton metadata. */
+	experience?: unknown;
+	/** Reserved at the root for c12's config layering / overlay work. */
+	extends?: unknown;
+	/** Keyed-map collection of game-pass entries by user-supplied ResourceKey. */
+	passes?: Record<string, GamePassEntry>;
+}
+
+// Resource-kind entry schemas. Adding a new kind is two additions:
+// 1. Declare its entry schema and keyed-map collection below.
+// 2. Reference that collection as an optional property on `rootSchema`.
+// No existing entries change. The ResourceKey regex lives on the map key
+// signature so invalid identifiers surface as schema failures pointing at
+// the offending key, not as deferred errors downstream.
+const gamePassEntry = type({
+	"name": "string",
+	"description": "string",
+	"iconFilePath": "string",
+	"price?": "number | undefined",
+});
+
+const passesCollection = type({
+	"[/^[A-Za-z0-9_-]+$/]": gamePassEntry,
+}).onUndeclaredKey("reject");
+
+const rootSchema: Type<Config> = type({
+	"environments?": "unknown",
+	"experience?": "unknown",
+	"extends?": "unknown",
+	"passes?": passesCollection,
+}).onUndeclaredKey("reject");
 
 /**
  * Validate a parsed config value against the runtime schema. Returns the
