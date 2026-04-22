@@ -13,5 +13,5 @@ it('Example 1', () => {
       },
     },
   })
-  expect(config.passes?.['vip-pass']?.name).toBe('VIP Pass')
+  expect(config.passes!['vip-pass']!.name).toBe('VIP Pass')
 })

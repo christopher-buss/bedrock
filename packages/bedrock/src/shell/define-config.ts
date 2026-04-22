@@ -42,7 +42,7 @@ export type ConfigInput = ((ctx: ConfigContext) => Config | Promise<Config>) | C
  *     },
  * });
  *
- * expect(config.passes?.["vip-pass"]?.name).toBe("VIP Pass");
+ * expect(config.passes!["vip-pass"]!.name).toBe("VIP Pass");
  * ```
  */
 export function defineConfig<T extends ConfigInput>(config: T): T {

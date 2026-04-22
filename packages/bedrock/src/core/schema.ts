@@ -7,7 +7,9 @@ import type { ConfigError, ConfigValidationIssue } from "./config-error.ts";
 // Resource-kind entry schemas. Adding a new kind is two additions:
 // 1. Declare its entry schema and keyed-map collection below.
 // 2. Reference that collection as an optional property on `rootSchema`.
-// No existing entries change.
+// No existing entries change. The ResourceKey regex lives on the map key
+// signature so invalid identifiers surface as schema failures pointing at
+// the offending key, not as deferred errors downstream.
 const gamePassEntry = type({
 	"name": "string",
 	"description": "string",
@@ -49,7 +51,7 @@ const rootSchema = type({
  *     },
  * };
  *
- * expect(config.passes?.["vip-pass"]?.name).toBe("VIP Pass");
+ * expect(config.passes!["vip-pass"]!.name).toBe("VIP Pass");
  * ```
  */
 export type Config = typeof rootSchema.infer;

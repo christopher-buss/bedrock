@@ -61,7 +61,7 @@ describe(flattenConfig, () => {
 		);
 		assert(config.success);
 
-		expect(flattenConfig(config.data)[0]?.price).toBeUndefined();
+		expect(flattenConfig(config.data)[0]!.price).toBeUndefined();
 	});
 
 	it("should preserve the insertion order of passes entries", () => {

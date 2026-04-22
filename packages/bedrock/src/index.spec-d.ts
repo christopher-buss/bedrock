@@ -106,8 +106,8 @@ describe(buildDesired, () => {
 		>();
 	});
 
-	it("should discriminate BuildDesiredError on iconReadFailed and invalidKey kinds", () => {
-		expectTypeOf<BuildDesiredError["kind"]>().toEqualTypeOf<"iconReadFailed" | "invalidKey">();
+	it("should narrow BuildDesiredError to the iconReadFailed kind", () => {
+		expectTypeOf<BuildDesiredError["kind"]>().toEqualTypeOf<"iconReadFailed">();
 	});
 });
 

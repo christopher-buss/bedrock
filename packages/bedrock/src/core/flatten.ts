@@ -76,8 +76,8 @@ export type ResourceDesiredInput = GamePassDesiredInput;
  *
  * const inputs = flattenConfig(config);
  * expect(inputs).toHaveLength(1);
- * expect(inputs[0]?.kind).toBe("gamePass");
- * expect(inputs[0]?.key).toBe("vip-pass");
+ * expect(inputs[0]!.kind).toBe("gamePass");
+ * expect(inputs[0]!.key).toBe("vip-pass");
  * ```
  */
 export function flattenConfig(config: Config): ReadonlyArray<ResourceDesiredInput> {

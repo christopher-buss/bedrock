@@ -29,11 +29,7 @@ export type { StatePort } from "./ports/state-port.ts";
 export { applyOps } from "./shell/apply-ops.ts";
 export type { ApplyError } from "./shell/apply-ops.ts";
 export { buildDesired } from "./shell/build-desired.ts";
-export type {
-	BuildDesiredError,
-	GamePassConfigInput,
-	Slice1ConfigInput,
-} from "./shell/build-desired.ts";
+export type { BuildDesiredError } from "./shell/build-desired.ts";
 export { defineConfig, type ConfigContext, type ConfigInput } from "./shell/define-config.ts";
 export { loadConfig, type LoadConfigOptions } from "./shell/load-config.ts";
 export {

@@ -37,7 +37,7 @@ describe(validateConfig, () => {
 
 		expect(result.err.sourceFile).toBe(SOURCE);
 		expect(result.err.issues).toHaveLength(1);
-		expect(result.err.issues[0]?.path).toStrictEqual(["unexpected"]);
+		expect(result.err.issues[0]!.path).toStrictEqual(["unexpected"]);
 	});
 
 	it("should accept a passes collection with a valid game-pass entry", () => {
@@ -59,7 +59,7 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(result.data.passes?.["vip-pass"]?.price).toBe(500);
+		expect(result.data.passes!["vip-pass"]!.price).toBe(500);
 	});
 
 	it("should default price to undefined when omitted on a passes entry", () => {
@@ -80,7 +80,7 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(result.data.passes?.["free-pass"]?.price).toBeUndefined();
+		expect(result.data.passes!["free-pass"]!.price).toBeUndefined();
 	});
 
 	it("should reject a passes key that does not match the ResourceKey pattern and attribute the issue path to that key", () => {
@@ -102,7 +102,7 @@ describe(validateConfig, () => {
 		assert(!result.success);
 		assert(result.err.kind === "validationFailed");
 
-		expect(result.err.issues[0]?.path).toStrictEqual(["passes", "bad key!"]);
+		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "bad key!"]);
 	});
 
 	it("should reject a passes entry missing a required field and attribute the issue path to that field", () => {
@@ -123,7 +123,7 @@ describe(validateConfig, () => {
 		assert(!result.success);
 		assert(result.err.kind === "validationFailed");
 
-		expect(result.err.issues[0]?.path).toStrictEqual(["passes", "vip-pass", "iconFilePath"]);
+		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "iconFilePath"]);
 	});
 
 	it("should reject a wrongly-typed field and attribute the issue path to that field", () => {
@@ -146,6 +146,6 @@ describe(validateConfig, () => {
 		assert(!result.success);
 		assert(result.err.kind === "validationFailed");
 
-		expect(result.err.issues[0]?.path).toStrictEqual(["passes", "vip-pass", "price"]);
+		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "price"]);
 	});
 });

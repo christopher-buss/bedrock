@@ -40,7 +40,7 @@ describe(loadConfig, () => {
 
 			assert(result.success);
 
-			expect(result.data.passes?.["vip-pass"]?.name).toBe("VIP Pass");
+			expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass");
 		});
 	});
 
@@ -84,7 +84,7 @@ describe(loadConfig, () => {
 			assert(result.err.kind === "validationFailed");
 
 			expect(result.err.sourceFile).toMatch(/bedrock\.config\.ts$/);
-			expect(result.err.issues[0]?.path).toStrictEqual(["passes", "vip-pass", "price"]);
+			expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "price"]);
 		});
 	});
 
@@ -110,15 +110,12 @@ describe(loadConfig, () => {
 
 			const first = await loadConfig({ cwd });
 			assert(first.success);
-			assert(first.data.passes !== undefined);
-			const firstEntry = first.data.passes["vip-pass"];
-			assert(firstEntry !== undefined);
-			firstEntry.price = 9999;
+			first.data.passes!["vip-pass"]!.price = 9999;
 
 			const second = await loadConfig({ cwd });
 			assert(second.success);
 
-			expect(second.data.passes?.["vip-pass"]?.price).toBe(500);
+			expect(second.data.passes!["vip-pass"]!.price).toBe(500);
 		});
 	});
 });
