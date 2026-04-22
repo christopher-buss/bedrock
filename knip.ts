@@ -29,7 +29,7 @@ const config: KnipConfig = {
 		},
 		"apps/website": {},
 		"packages/bedrock": {
-			entry: ["stryker.config.ts", "src/index.ts"],
+			entry: ["stryker.config.ts", "src/index.ts", "tests/integration/fixtures/**/*.ts"],
 		},
 		"packages/open-cloud": {
 			entry: [

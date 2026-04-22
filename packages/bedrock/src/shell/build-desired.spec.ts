@@ -1,25 +1,28 @@
 import { assert, describe, expect, it, vi } from "vitest";
 
-import { buildDesired, type GamePassConfigInput } from "./build-desired.ts";
+import type { GamePassDesiredInput } from "../core/flatten.ts";
+import { asResourceKey } from "../types/ids.ts";
+import { buildDesired } from "./build-desired.ts";
 
-function gamePassConfig(overrides?: Partial<GamePassConfigInput>): GamePassConfigInput {
+function gamePassInput(overrides?: Partial<GamePassDesiredInput>): GamePassDesiredInput {
 	return {
-		key: "vip-pass",
+		key: asResourceKey("vip-pass"),
 		name: "VIP Pass",
 		description: "Grants VIP perks.",
 		iconFilePath: "assets/vip-icon.png",
+		kind: "gamePass",
 		price: 500,
 		...overrides,
 	};
 }
 
 describe(buildDesired, () => {
-	it("should return an empty Ok when the config has no game passes", async () => {
+	it("should return an empty Ok when given no inputs", async () => {
 		expect.assertions(2);
 
 		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>();
 
-		const result = await buildDesired({ gamePasses: [] }, readFile);
+		const result = await buildDesired([], readFile);
 
 		expect(result).toStrictEqual({ data: [], success: true });
 		expect(readFile).not.toHaveBeenCalled();
@@ -32,7 +35,7 @@ describe(buildDesired, () => {
 			.fn<(path: string) => Promise<Uint8Array>>()
 			.mockResolvedValue(new Uint8Array([1, 2, 3]));
 
-		const result = await buildDesired({ gamePasses: [gamePassConfig()] }, readFile);
+		const result = await buildDesired([gamePassInput()], readFile);
 
 		expect(result).toStrictEqual({
 			data: [
@@ -58,7 +61,7 @@ describe(buildDesired, () => {
 			.fn<(path: string) => Promise<Uint8Array>>()
 			.mockResolvedValue(new Uint8Array([0]));
 
-		const result = await buildDesired({ gamePasses: [gamePassConfig()] }, readFile);
+		const result = await buildDesired([gamePassInput()], readFile);
 
 		assert(result.success);
 
@@ -67,7 +70,7 @@ describe(buildDesired, () => {
 		);
 	});
 
-	it("should preserve input order across multiple game passes", async () => {
+	it("should preserve input order across multiple inputs", async () => {
 		expect.assertions(1);
 
 		const readFile = vi
@@ -75,12 +78,10 @@ describe(buildDesired, () => {
 			.mockResolvedValue(new Uint8Array([1, 2, 3]));
 
 		const result = await buildDesired(
-			{
-				gamePasses: [
-					gamePassConfig({ key: "first-pass" }),
-					gamePassConfig({ key: "second-pass" }),
-				],
-			},
+			[
+				gamePassInput({ key: asResourceKey("first-pass") }),
+				gamePassInput({ key: asResourceKey("second-pass") }),
+			],
 			readFile,
 		);
 
@@ -101,7 +102,7 @@ describe(buildDesired, () => {
 				.fn<(path: string) => Promise<Uint8Array>>()
 				.mockRejectedValueOnce(rejection);
 
-			const result = await buildDesired({ gamePasses: [gamePassConfig()] }, readFile);
+			const result = await buildDesired([gamePassInput()], readFile);
 
 			expect(result).toStrictEqual({
 				err: {
@@ -114,52 +115,4 @@ describe(buildDesired, () => {
 			});
 		},
 	);
-
-	it.for<[label: string, rawKey: string]>([
-		["empty string", ""],
-		["contains whitespace", "has space"],
-		["contains slash", "bad/slash"],
-	])(
-		"should return an invalidKey Err without any I/O when the raw key is %s",
-		async ([, rawKey]) => {
-			expect.assertions(2);
-
-			const readFile = vi.fn<(path: string) => Promise<Uint8Array>>();
-
-			const result = await buildDesired(
-				{ gamePasses: [gamePassConfig({ key: rawKey })] },
-				readFile,
-			);
-
-			expect(result).toStrictEqual({
-				err: { kind: "invalidKey", rawKey },
-				success: false,
-			});
-			expect(readFile).not.toHaveBeenCalled();
-		},
-	);
-
-	it("should validate every key before any icon read so a later invalid key skips earlier I/O", async () => {
-		expect.assertions(2);
-
-		const readFile = vi
-			.fn<(path: string) => Promise<Uint8Array>>()
-			.mockResolvedValue(new Uint8Array([1, 2, 3]));
-
-		const result = await buildDesired(
-			{
-				gamePasses: [
-					gamePassConfig({ key: "valid-first" }),
-					gamePassConfig({ key: "has space" }),
-				],
-			},
-			readFile,
-		);
-
-		expect(result).toStrictEqual({
-			err: { kind: "invalidKey", rawKey: "has space" },
-			success: false,
-		});
-		expect(readFile).not.toHaveBeenCalled();
-	});
 });

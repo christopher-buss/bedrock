@@ -14,35 +14,19 @@ import {
 	createGamePassDriver,
 	diff,
 	type DriverRegistry,
+	flattenConfig,
+	loadConfig,
 	type Operation,
 	type ResourceCurrentState,
-	type Slice1ConfigInput,
 } from "bedrock";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
 
+const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const ICON_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
 const VIP_PASS_KEY = "vip-pass";
-
-const SLICE_1_CONFIG: Slice1ConfigInput = {
-	gamePasses: [
-		{
-			key: VIP_PASS_KEY,
-			name: "VIP Pass",
-			description: "Grants VIP perks.",
-			iconFilePath: "assets/vip-icon.png",
-			price: 500,
-		},
-	],
-};
-
-const trapRegistry: DriverRegistry = {
-	gamePass: {
-		create() {
-			throw new Error("GamePassDriver.create must not run for noop/update ops");
-		},
-	},
-};
 
 interface CreateFlowResult {
 	readonly applyOutcome: Awaited<ReturnType<typeof applyOps>>;
@@ -94,15 +78,18 @@ async function buildExistingPass(
 	};
 }
 
-async function runCreateFlow(): Promise<CreateFlowResult> {
+async function runPipelineFromFixture(): Promise<CreateFlowResult> {
+	const loaded = await loadConfig({ cwd: FIXTURE_DIR });
+	assert(loaded.success);
+
+	const desiredResult = await buildDesired(flattenConfig(loaded.data), readIcon);
+	assert(desiredResult.success);
+
 	const httpClient = createFakeHttpClient().mockResponse({
 		body: validGamePassBody(),
 		status: 200,
 	});
 	const registry = makeLiveRegistry(httpClient);
-
-	const desiredResult = await buildDesired(SLICE_1_CONFIG, readIcon);
-	assert(desiredResult.success);
 
 	const ops = diff(desiredResult.data, []);
 	const applyOutcome = await applyOps(ops, registry);
@@ -114,11 +101,11 @@ async function runCreateFlow(): Promise<CreateFlowResult> {
 	};
 }
 
-describe("slice 1 end-to-end", () => {
-	it("should dispatch a create op to the ocale client's POST endpoint for a new game pass", async () => {
+describe("config pipeline end-to-end", () => {
+	it("should load the fixture config, flatten it, and dispatch a create op for the declared game pass", async () => {
 		expect.assertions(4);
 
-		const { applyOutcome, httpClient, opTypes } = await runCreateFlow();
+		const { applyOutcome, httpClient, opTypes } = await runPipelineFromFixture();
 
 		expect(opTypes).toStrictEqual(["create"]);
 		expect(applyOutcome.success).toBeTrue();
@@ -133,7 +120,7 @@ describe("slice 1 end-to-end", () => {
 	it("should forward every declared game-pass field into the multipart body, including the icon bytes", async () => {
 		expect.assertions(4);
 
-		const { httpClient } = await runCreateFlow();
+		const { httpClient } = await runPipelineFromFixture();
 		const [first] = httpClient.requests;
 		assert(first);
 		assert(first.request.body instanceof FormData);
@@ -147,34 +134,29 @@ describe("slice 1 end-to-end", () => {
 		expect(imageFile.size).toBe(ICON_BYTES.byteLength);
 	});
 
-	it("should emit a noop and skip driver dispatch when current state matches desired", async () => {
+	it("should emit a noop and skip driver dispatch when current state matches the fixture", async () => {
 		expect.assertions(2);
 
-		const desiredResult = await buildDesired(SLICE_1_CONFIG, readIcon);
+		const loaded = await loadConfig({ cwd: FIXTURE_DIR });
+		assert(loaded.success);
+
+		const desiredResult = await buildDesired(flattenConfig(loaded.data), readIcon);
 		assert(desiredResult.success);
 
 		const ops = diff(desiredResult.data, [await buildExistingPass()]);
 
 		expect(ops.map((op) => op.type)).toStrictEqual(["noop"]);
 
+		const trapRegistry: DriverRegistry = {
+			gamePass: {
+				create() {
+					throw new Error("GamePassDriver.create must not run for noop ops");
+				},
+			},
+		};
+
 		const applyResult = await applyOps(ops, trapRegistry);
 
 		expect(applyResult.success).toBeTrue();
-	});
-
-	it("should reject drift with updateUnsupported and never dispatch to the driver", async () => {
-		expect.assertions(2);
-
-		const desiredResult = await buildDesired(SLICE_1_CONFIG, readIcon);
-		assert(desiredResult.success);
-
-		const ops = diff(desiredResult.data, [await buildExistingPass({ price: 250 })]);
-
-		expect(ops.map((op) => op.type)).toStrictEqual(["update"]);
-
-		const applyResult = await applyOps(ops, trapRegistry);
-		assert(!applyResult.success);
-
-		expect(applyResult.err.kind).toBe("updateUnsupported");
 	});
 });

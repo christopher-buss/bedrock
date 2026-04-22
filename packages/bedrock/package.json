@@ -42,7 +42,9 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
-		"@bedrock/ocale": "workspace:*"
+		"@bedrock/ocale": "workspace:*",
+		"arktype": "catalog:runtime",
+		"c12": "catalog:runtime"
 	},
 	"devDependencies": {
 		"@bedrock/testing": "workspace:*",
