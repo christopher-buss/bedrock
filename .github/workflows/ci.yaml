@@ -42,6 +42,34 @@ jobs:
       - name: Run hk check
         run: hk check --all
 
+      - if: failure()
+        name: Debug lint failure
+        run: |
+          echo "=== hk output log ==="
+          if [ -f "$HOME/.local/state/hk/output.log" ]; then
+            cat "$HOME/.local/state/hk/output.log"
+          else
+            echo "(no hk log at $HOME/.local/state/hk/output.log)"
+            find "$HOME/.local/state" -name "output.log" 2>/dev/null || true
+          fi
+          echo ""
+          echo "=== typescript module resolution from repo root ==="
+          node -e "try { const ts = require('typescript'); console.log('version:', ts.version); console.log('keys count:', Object.keys(ts).length); } catch(e) { console.log('FAIL:', e.message); console.log(e.stack); }"
+          echo ""
+          echo "=== @typescript/typescript6 stub content ==="
+          cat node_modules/typescript/lib/typescript.js || true
+          echo ""
+          echo "=== node_modules/typescript symlink chain ==="
+          readlink -f node_modules/typescript || true
+          ls -la node_modules/typescript/ 2>/dev/null || true
+          echo ""
+          echo "=== sibling typescript for @typescript/typescript6 ==="
+          ls -la node_modules/.pnpm/@typescript+typescript6@6.0.0/node_modules/ 2>/dev/null || true
+          echo ""
+          echo "=== eslint --no-cache on single file (full untruncated error) ==="
+          pnpm exec eslint --no-cache apps/website/.vitepress/config.ts 2>&1 || true
+
+        shell: bash
       - if: always()
         name: Upload coverage
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
