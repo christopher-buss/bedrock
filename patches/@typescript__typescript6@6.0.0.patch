@@ -1,0 +1,15 @@
+diff --git a/lib/tsserverlibrary.d.ts b/lib/tsserverlibrary.d.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..79b28bc20a909ebc386854636b37b323a9d32e17
+--- /dev/null
++++ b/lib/tsserverlibrary.d.ts
+@@ -0,0 +1,2 @@
++import ts = require("./typescript.js");
++export = ts;
+diff --git a/lib/tsserverlibrary.js b/lib/tsserverlibrary.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..d41d73c5aa2a2aead957f589c11d9982308f8acd
+--- /dev/null
++++ b/lib/tsserverlibrary.js
+@@ -0,0 +1 @@
++module.exports = require("./typescript.js");
