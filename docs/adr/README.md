@@ -30,6 +30,7 @@ things are the way they are.
 | [018](./018-fcis-ports-with-primary-driven-distinction.md) | Architecture Refinement: FCIS + Ports with Explicit Primary/Driven Port Distinction | Accepted | 2026-04-17 |
 | [019](./019-state-data-model-and-diff-algebra.md) | State Data Model and Diff Algebra (Mantle Parity) | Accepted | 2026-04-17 |
 | [020](./020-project-config-definition.md) | Project Config Definition | Accepted | 2026-04-22 |
+| [021](./021-file-backed-resource-kinds.md) | Resource Update Capability for File-Backed Kinds | Accepted | 2026-04-22 |
 
 ## Creating a New ADR
 
