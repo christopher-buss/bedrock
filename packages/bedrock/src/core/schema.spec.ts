@@ -148,4 +148,30 @@ describe(validateConfig, () => {
 
 		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "price"]);
 	});
+
+	it("should accumulate every validation issue with its own attributed field path", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				passes: {
+					"vip-pass": {
+						name: 42,
+						description: "Two bad fields.",
+						iconFilePath: "assets/vip.png",
+						price: "oops",
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues.map((issue) => issue.path)).toStrictEqual([
+			["passes", "vip-pass", "name"],
+			["passes", "vip-pass", "price"],
+		]);
+	});
 });
