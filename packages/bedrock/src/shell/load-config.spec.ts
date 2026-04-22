@@ -130,7 +130,7 @@ describe(loadConfig, () => {
 			assert(result.err.kind === "configFunctionFailed");
 
 			expect(result.err.kind).toBe("configFunctionFailed");
-			expect(result.err.sourceFile).toMatch(/bedrock\.config\.ts$/);
+			expect(result.err.sourceFile).toMatch(/\/.+\/bedrock\.config\.ts$/);
 			expect(result.err.message).toBe("sync boom");
 		});
 	});
@@ -152,7 +152,7 @@ describe(loadConfig, () => {
 			assert(result.err.kind === "configFunctionFailed");
 
 			expect(result.err.kind).toBe("configFunctionFailed");
-			expect(result.err.sourceFile).toMatch(/bedrock\.config\.ts$/);
+			expect(result.err.sourceFile).toMatch(/\/.+\/bedrock\.config\.ts$/);
 			expect(result.err.message).toBe("async boom");
 		});
 	});
