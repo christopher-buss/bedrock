@@ -1,6 +1,8 @@
 import type { Result } from "@bedrock/ocale";
 
 import { loadConfig as c12LoadConfig } from "c12";
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import process from "node:process";
 
 import type { ConfigError } from "../core/config-error.ts";
@@ -28,6 +30,8 @@ export interface LoadConfigOptions {
  *
  * Errors return via `Result`:
  * - `fileNotFound` - no config file was discovered under the search path.
+ * - `parseFailed` - a config file was found but could not be parsed (for
+ *   example, malformed YAML or JSON).
  * - `validationFailed` - a file was found and parsed, but its content did
  *   not satisfy the runtime schema.
  *
@@ -50,7 +54,20 @@ export async function loadConfig(
 	options?: LoadConfigOptions,
 ): Promise<Result<Config, ConfigError>> {
 	const cwd = options?.cwd ?? process.cwd();
-	const resolved = await c12LoadConfig<Record<string, unknown>>({ name: "bedrock", cwd });
+
+	let resolved: Awaited<ReturnType<typeof c12LoadConfig<Record<string, unknown>>>>;
+	try {
+		resolved = await c12LoadConfig<Record<string, unknown>>({ name: "bedrock", cwd });
+	} catch (err) {
+		return {
+			err: {
+				kind: "parseFailed",
+				message: err instanceof Error ? err.message : String(err),
+				sourceFile: discoverConfigFile(cwd) ?? cwd,
+			},
+			success: false,
+		};
+	}
 
 	if (resolved._configFile === undefined) {
 		return {
@@ -60,4 +77,16 @@ export async function loadConfig(
 	}
 
 	return validateConfig(resolved.config, resolved._configFile);
+}
+
+function discoverConfigFile(cwd: string): string | undefined {
+	let entries: ReadonlyArray<string>;
+	try {
+		entries = readdirSync(cwd);
+	} catch {
+		return undefined;
+	}
+
+	const match = entries.toSorted().find((entry) => entry.startsWith("bedrock.config."));
+	return match === undefined ? undefined : join(cwd, match);
 }

@@ -31,12 +31,12 @@ export interface ConfigValidationIssue {
  * Current cases:
  * - `fileNotFound` - no `bedrock.config.*` (or other c12-discovered file)
  *   was found starting from the working directory.
+ * - `parseFailed` - a config file was found but could not be parsed (for
+ *   example, malformed YAML or JSON). `message` carries the underlying
+ *   parser message verbatim.
  * - `validationFailed` - a config file was found and parsed, but its content
  *   did not satisfy the runtime schema. `issues` attributes each problem to
  *   a field path so callers can point at the offending entry.
- *
- * Additional cases (distinct parse errors, config-function throws) land with
- * the issues that introduce those flows.
  *
  * @example
  *
@@ -47,6 +47,9 @@ export interface ConfigValidationIssue {
  *     switch (err.kind) {
  *         case "fileNotFound": {
  *             return `no bedrock config under ${err.searchedFrom}`;
+ *         }
+ *         case "parseFailed": {
+ *             return `${err.sourceFile}: ${err.message}`;
  *         }
  *         case "validationFailed": {
  *             const first = err.issues[0];
@@ -60,6 +63,13 @@ export interface ConfigValidationIssue {
  * expect(describe({ kind: "fileNotFound", searchedFrom: "/proj" })).toBe(
  *     "no bedrock config under /proj",
  * );
+ * expect(
+ *     describe({
+ *         kind: "parseFailed",
+ *         sourceFile: "bedrock.config.yaml",
+ *         message: "unexpected end of the stream",
+ *     }),
+ * ).toBe("bedrock.config.yaml: unexpected end of the stream");
  * expect(
  *     describe({
  *         kind: "validationFailed",
@@ -78,4 +88,9 @@ export type ConfigError =
 	| {
 			readonly kind: "fileNotFound";
 			readonly searchedFrom: string;
+	  }
+	| {
+			readonly kind: "parseFailed";
+			readonly message: string;
+			readonly sourceFile: string;
 	  };
