@@ -19,8 +19,8 @@
 export interface ConfigValidationIssue {
 	/** Human-readable explanation of why this field failed validation. */
 	readonly message: string;
-	/** Sequence of keys and indices from the config root to the offending field. */
-	readonly path: ReadonlyArray<number | string>;
+	/** Sequence of keys from the config root to the offending field. */
+	readonly path: ReadonlyArray<string>;
 }
 
 /**

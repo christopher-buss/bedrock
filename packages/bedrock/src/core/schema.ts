@@ -130,11 +130,7 @@ export function validateConfig(input: unknown, sourceFile: string): Result<Confi
 		for (const issue of validated) {
 			issues.push({
 				message: issue.message,
-				path: [...issue.path].map((segment) => {
-					return typeof segment === "number" || typeof segment === "string"
-						? segment
-						: String(segment);
-				}),
+				path: [...issue.path].map((segment) => String(segment)),
 			});
 		}
 
