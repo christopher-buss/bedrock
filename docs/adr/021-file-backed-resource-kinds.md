@@ -116,30 +116,35 @@ share an internal publish helper because the upstream call is identical either
 way. This is a driver-implementation detail; the `diff` algebra from ADR-019
 is unchanged.
 
-### `placeId` is an input, not an output
+### `PlaceDesiredState` and `PlaceOutputs` shape
 
-`PlaceDesiredState` carries a `placeId: RobloxAssetId` field supplied by the
-user in config. The Roblox publish response returns a `versionNumber`;
-`PlaceOutputs` carries that value:
+Consolidating what the preceding sections require:
 
 ```ts
+export interface PlaceDesiredState {
+	readonly key: ResourceKey;
+	readonly fileHash: Sha256Hex;
+	readonly filePath: string;
+	readonly kind: "place";
+	readonly placeId: RobloxAssetId;
+}
+
 export interface PlaceOutputs {
 	readonly versionNumber: number;
 }
 ```
 
+`key` is the user-supplied correlation handle shared by every resource kind.
+`placeId` is the Roblox identifier, supplied by the user per entry because
+Open Cloud cannot mint it. `filePath` and `fileHash` describe the local
+`.rbxl` or `.rbxlx` to publish. `versionNumber` is the Roblox-assigned value
+returned by the publish call. Per ADR-020, the wire-level schema of the
+`places` entry body (`placeId`, `filePath`) is owned by issue #99.
+
 ### Slice 1 scope
 
 Slice 1 ships publish only; save, place metadata (name, description, max
 players), and delete are deferred.
-
-### Public API impact
-
-The port change is additive. `update?` is optional; adding it to
-`ResourceDriver<K>` does not require existing implementations to add a method.
-`applyOps`'s new branch is additive behavior. The change warrants a
-minor-version bump under pre-1.0 semver (new capability, backwards-compatible)
-when shipped.
 
 ## Consequences
 
@@ -148,14 +153,13 @@ when shipped.
 - File-backed kinds (places, anticipated future assets) have a first-class
   driver contract. No workarounds, no special-cased `applyOps` branches per
   kind.
-- Existing drivers (game-pass) are unchanged. The optional method preserves
-  backwards compatibility for all current and future drivers that do not need
-  `update`.
+- The existing game-pass driver is unchanged. The optional method lets
+  create-only drivers remain valid without adding a no-op `update`.
 - `diff` algebra is unmodified. `create` / `update` / `noop` map to the same
   semantics regardless of kind; drivers absorb the per-kind interpretation.
-- Plugin authors implementing a new file-backed kind have a clear pattern to
-  follow: implement both `create` and `update`, delegate both to one internal
-  publish helper.
+- Contributors adding a new file-backed kind have a clear pattern to follow:
+  implement both `create` and `update`, delegate both to one internal publish
+  helper.
 - State-as-drift-source is simple and auditable. A `git diff` on the state
   file shows exactly which hash changed and when.
 
@@ -174,6 +178,11 @@ when shipped.
   relative to game-pass. Contributors encountering the first two resource
   kinds must learn that the pattern differs by kind. A code comment at the
   `PlaceDesiredState` declaration should explain why.
+- Renaming the `.rbxl` file without changing its contents (new `filePath`,
+  unchanged `fileHash`) produces an `update` op because `desiredFieldsEqual`
+  compares both fields. This matches ADR-019's treatment of `iconFilePath`
+  and is the intended behavior: the declared source-of-truth path changed,
+  so state should reflect the new path on the next apply.
 
 ## Alternatives Considered
 
@@ -182,10 +191,11 @@ when shipped.
 Make `update` a required method, with drivers that do not support it returning
 `updateUnsupported` from within their implementation.
 
-**Rejected.** The game-pass driver is a published plugin contract. Making
-`update` required would be a breaking change for all existing and future
-drivers that only support create. The optional approach leaves the contract
-additive while still enabling runtime dispatch.
+**Rejected.** The game-pass driver has no upstream `update` operation to map
+to. Making `update` mandatory would force every create-only driver to carry
+a no-op method returning `updateUnsupported` at runtime, duplicating the
+error-path logic that already lives in `applyOps`. The optional shape keeps
+the interface minimal for drivers whose upstream API is one-shot.
 
 ### Separate `FileBackedDriver<K>` interface extending `ResourceDriver<K>`
 
@@ -195,10 +205,10 @@ implement `FileBackedDriver<K>`; `applyOps` checks
 
 **Rejected.** `instanceof` is fragile across module boundaries (ESM, bundling).
 Duck-typing on `"update" in driver` achieves the same dispatch with less
-ceremony and no new public interface to maintain. A second interface in the
-public API also adds semver surface without a commensurate benefit: `update?`
-on the single interface is sufficient for both plugin authors and for `applyOps`
-dispatch.
+ceremony and no new public interface to maintain. A second interface would
+also multiply the export surface without adding capability: `update?` on the
+single interface is sufficient for both driver implementors and for
+`applyOps` dispatch.
 
 ### Use `GetPlace.updateTime` as the drift key
 
@@ -239,8 +249,10 @@ introduce GET-based drift once a suitable field is available.
 
 ## Related Decisions
 
-- ADR-017: Product Framing: `ResourceDriver<K>` and `update?` are public API;
-  the optional method is an additive minor-bump change under pre-1.0 semver.
+- ADR-017: Product Framing: `ResourceDriver<K>` and `update?` sit inside the
+  public API surface defined there; the optional method is additive for
+  in-repo code, and widening `ResourceKind` to `"place"` forces every
+  `DriverRegistry` construction site to supply a `place` driver.
 - ADR-018: FCIS Ports: `ResourceDriver<K>` is a driven port; `applyOps` is a
   shell function. Both are modified by this ADR within their established roles.
 - ADR-019: State Data Model: the `diff` algebra and `Operation` union are
