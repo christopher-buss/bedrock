@@ -65,8 +65,7 @@ export async function loadConfig(
 	try {
 		resolved = await c12LoadConfig<Record<string, unknown>>({ name: "bedrock", cwd });
 	} catch (err) {
-		const sourceFile = discoverConfigFile(cwd);
-		return { err: attributeLoadError(err, { cwd, sourceFile }), success: false };
+		return { err: attributeLoadError(err, cwd), success: false };
 	}
 
 	if (resolved._configFile === undefined) {
@@ -79,31 +78,26 @@ export async function loadConfig(
 	return validateConfig(resolved.config, resolved._configFile);
 }
 
-function stackHasUserFrame(stack: string | undefined, sourceFile: string): boolean {
-	if (stack === undefined) {
-		return false;
+const CONFIG_FILE_IN_FRAME = /[^\s():"']*bedrock\.config\.(?:ts|js|mjs|cjs|yaml|yml|json)/;
+
+function extractConfigFileFromStack(err: unknown): string | undefined {
+	if (!(err instanceof Error) || err.stack === undefined) {
+		return undefined;
 	}
 
-	return stack
-		.split("\n")
-		.some((line) => line.trimStart().startsWith("at ") && line.includes(sourceFile));
-}
+	for (const rawLine of err.stack.split("\n")) {
+		const line = rawLine.trimStart();
+		if (!line.startsWith("at ")) {
+			continue;
+		}
 
-function attributeLoadError(
-	err: unknown,
-	location: { cwd: string; sourceFile: string | undefined },
-): ConfigError {
-	const { cwd, sourceFile } = location;
-	const message = err instanceof Error ? err.message : String(err);
-	if (
-		sourceFile !== undefined &&
-		err instanceof Error &&
-		stackHasUserFrame(err.stack, sourceFile)
-	) {
-		return { kind: "configFunctionFailed", message, sourceFile };
+		const match = CONFIG_FILE_IN_FRAME.exec(line);
+		if (match !== null) {
+			return match[0];
+		}
 	}
 
-	return { kind: "parseFailed", message, sourceFile: sourceFile ?? cwd };
+	return undefined;
 }
 
 function discoverConfigFile(cwd: string): string | undefined {
@@ -116,4 +110,14 @@ function discoverConfigFile(cwd: string): string | undefined {
 
 	const match = entries.toSorted().find((entry) => entry.startsWith("bedrock.config."));
 	return match === undefined ? undefined : join(cwd, match);
+}
+
+function attributeLoadError(err: unknown, cwd: string): ConfigError {
+	const message = err instanceof Error ? err.message : String(err);
+	const frameFile = extractConfigFileFromStack(err);
+	if (frameFile !== undefined) {
+		return { kind: "configFunctionFailed", message, sourceFile: frameFile };
+	}
+
+	return { kind: "parseFailed", message, sourceFile: discoverConfigFile(cwd) ?? cwd };
 }
