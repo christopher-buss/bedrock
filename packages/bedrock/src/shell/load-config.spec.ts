@@ -61,6 +61,123 @@ describe(loadConfig, () => {
 		});
 	});
 
+	it("should load a TypeScript config declared with a synchronous defineConfig function", async () => {
+		expect.assertions(1);
+
+		await withTemporaryDirectory(async (cwd) => {
+			writeFixtureConfig(cwd, [
+				"import { defineConfig } from 'bedrock';",
+				"export default defineConfig(() => ({",
+				"  passes: {",
+				"    'vip-pass': {",
+				"      description: 'Grants VIP perks.',",
+				"      iconFilePath: 'assets/vip-icon.png',",
+				"      name: 'VIP Pass',",
+				"      price: 500,",
+				"    },",
+				"  },",
+				"}));",
+			]);
+
+			const result = await loadConfig({ cwd });
+
+			assert(result.success);
+
+			expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass");
+		});
+	});
+
+	it("should load a TypeScript config declared with an asynchronous defineConfig function", async () => {
+		expect.assertions(1);
+
+		await withTemporaryDirectory(async (cwd) => {
+			writeFixtureConfig(cwd, [
+				"import { defineConfig } from 'bedrock';",
+				"export default defineConfig(async () => ({",
+				"  passes: {",
+				"    'vip-pass': {",
+				"      description: 'Grants VIP perks.',",
+				"      iconFilePath: 'assets/vip-icon.png',",
+				"      name: 'VIP Pass (async)',",
+				"      price: 750,",
+				"    },",
+				"  },",
+				"}));",
+			]);
+
+			const result = await loadConfig({ cwd });
+
+			assert(result.success);
+
+			expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass (async)");
+		});
+	});
+
+	it("should return a configFunctionFailed error when a synchronous config function throws", async () => {
+		expect.assertions(3);
+
+		await withTemporaryDirectory(async (cwd) => {
+			writeFixtureConfig(cwd, [
+				"import { defineConfig } from 'bedrock';",
+				"export default defineConfig(() => {",
+				"  throw new Error('sync boom');",
+				"});",
+			]);
+
+			const result = await loadConfig({ cwd });
+
+			assert(!result.success);
+			assert(result.err.kind === "configFunctionFailed");
+
+			expect(result.err.kind).toBe("configFunctionFailed");
+			expect(result.err.sourceFile).toMatch(/\/.+\/bedrock\.config\.ts$/);
+			expect(result.err.message).toBe("sync boom");
+		});
+	});
+
+	it("should return a configFunctionFailed error when an asynchronous config function rejects", async () => {
+		expect.assertions(3);
+
+		await withTemporaryDirectory(async (cwd) => {
+			writeFixtureConfig(cwd, [
+				"import { defineConfig } from 'bedrock';",
+				"export default defineConfig(async () => {",
+				"  throw new Error('async boom');",
+				"});",
+			]);
+
+			const result = await loadConfig({ cwd });
+
+			assert(!result.success);
+			assert(result.err.kind === "configFunctionFailed");
+
+			expect(result.err.kind).toBe("configFunctionFailed");
+			expect(result.err.sourceFile).toMatch(/\/.+\/bedrock\.config\.ts$/);
+			expect(result.err.message).toBe("async boom");
+		});
+	});
+
+	it("should surface a non-Error throw from a config function as parseFailed", async () => {
+		expect.assertions(2);
+
+		await withTemporaryDirectory(async (cwd) => {
+			writeFixtureConfig(cwd, [
+				"import { defineConfig } from 'bedrock';",
+				"export default defineConfig(() => {",
+				"  throw 'bare string boom';",
+				"});",
+			]);
+
+			const result = await loadConfig({ cwd });
+
+			assert(!result.success);
+			assert(result.err.kind === "parseFailed");
+
+			expect(result.err.kind).toBe("parseFailed");
+			expect(result.err.message).toContain("bare string boom");
+		});
+	});
+
 	it("should return a fileNotFound error when no config file is present", async () => {
 		expect.assertions(2);
 

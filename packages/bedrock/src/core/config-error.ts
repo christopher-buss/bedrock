@@ -37,6 +37,9 @@ export interface ConfigValidationIssue {
  * - `validationFailed` - a config file was found and parsed, but its content
  *   did not satisfy the runtime schema. `issues` attributes each problem to
  *   a field path so callers can point at the offending entry.
+ * - `configFunctionFailed` - a function-form config threw or its returned
+ *   promise rejected while being invoked. `message` carries the thrown
+ *   error's message verbatim.
  *
  * @example
  *
@@ -50,6 +53,9 @@ export interface ConfigValidationIssue {
  *         }
  *         case "parseFailed": {
  *             return `${err.sourceFile}: ${err.message}`;
+ *         }
+ *         case "configFunctionFailed": {
+ *             return `${err.sourceFile}: config function threw: ${err.message}`;
  *         }
  *         case "validationFailed": {
  *             const first = err.issues[0];
@@ -72,6 +78,13 @@ export interface ConfigValidationIssue {
  * ).toBe("bedrock.config.yaml: unexpected end of the stream");
  * expect(
  *     describe({
+ *         kind: "configFunctionFailed",
+ *         sourceFile: "bedrock.config.ts",
+ *         message: "boom",
+ *     }),
+ * ).toBe("bedrock.config.ts: config function threw: boom");
+ * expect(
+ *     describe({
  *         kind: "validationFailed",
  *         sourceFile: "bedrock.config.ts",
  *         issues: [{ path: ["passes", "vip", "price"], message: "must be a number" }],
@@ -83,6 +96,11 @@ export type ConfigError =
 	| {
 			readonly issues: ReadonlyArray<ConfigValidationIssue>;
 			readonly kind: "validationFailed";
+			readonly sourceFile: string;
+	  }
+	| {
+			readonly kind: "configFunctionFailed";
+			readonly message: string;
 			readonly sourceFile: string;
 	  }
 	| {
