@@ -113,6 +113,50 @@ describe(loadConfig, () => {
 		});
 	});
 
+	it("should return a configFunctionFailed error when a synchronous config function throws", async () => {
+		expect.assertions(3);
+
+		await withTemporaryDirectory(async (cwd) => {
+			writeFixtureConfig(cwd, [
+				"import { defineConfig } from 'bedrock';",
+				"export default defineConfig(() => {",
+				"  throw new Error('sync boom');",
+				"});",
+			]);
+
+			const result = await loadConfig({ cwd });
+
+			assert(!result.success);
+			assert(result.err.kind === "configFunctionFailed");
+
+			expect(result.err.kind).toBe("configFunctionFailed");
+			expect(result.err.sourceFile).toMatch(/bedrock\.config\.ts$/);
+			expect(result.err.message).toBe("sync boom");
+		});
+	});
+
+	it("should return a configFunctionFailed error when an asynchronous config function rejects", async () => {
+		expect.assertions(3);
+
+		await withTemporaryDirectory(async (cwd) => {
+			writeFixtureConfig(cwd, [
+				"import { defineConfig } from 'bedrock';",
+				"export default defineConfig(async () => {",
+				"  throw new Error('async boom');",
+				"});",
+			]);
+
+			const result = await loadConfig({ cwd });
+
+			assert(!result.success);
+			assert(result.err.kind === "configFunctionFailed");
+
+			expect(result.err.kind).toBe("configFunctionFailed");
+			expect(result.err.sourceFile).toMatch(/bedrock\.config\.ts$/);
+			expect(result.err.message).toBe("async boom");
+		});
+	});
+
 	it("should return a fileNotFound error when no config file is present", async () => {
 		expect.assertions(2);
 

@@ -28,12 +28,18 @@ export interface LoadConfigOptions {
  * working directory). Returns a fresh, mutable `Config` on every call so
  * long-running scripts see up-to-date values.
  *
+ * When the exported default is a function (sync or async), `loadConfig`
+ * invokes it with an empty `ConfigContext` and awaits the result before
+ * validating.
+ *
  * Errors return via `Result`:
  * - `fileNotFound` - no config file was discovered under the search path.
  * - `parseFailed` - a config file was found but could not be parsed (for
  *   example, malformed YAML or JSON).
  * - `validationFailed` - a file was found and parsed, but its content did
  *   not satisfy the runtime schema.
+ * - `configFunctionFailed` - a function-form config threw or its returned
+ *   promise rejected while being invoked.
  *
  * @param options - Loader options (currently just `cwd`).
  * @returns `Ok` with the validated `Config`, or `Err` with a `ConfigError`.
@@ -59,14 +65,8 @@ export async function loadConfig(
 	try {
 		resolved = await c12LoadConfig<Record<string, unknown>>({ name: "bedrock", cwd });
 	} catch (err) {
-		return {
-			err: {
-				kind: "parseFailed",
-				message: err instanceof Error ? err.message : String(err),
-				sourceFile: discoverConfigFile(cwd) ?? cwd,
-			},
-			success: false,
-		};
+		const sourceFile = discoverConfigFile(cwd);
+		return { err: attributeLoadError(err, { cwd, sourceFile }), success: false };
 	}
 
 	if (resolved._configFile === undefined) {
@@ -77,6 +77,33 @@ export async function loadConfig(
 	}
 
 	return validateConfig(resolved.config, resolved._configFile);
+}
+
+function stackHasUserFrame(stack: string | undefined, sourceFile: string): boolean {
+	if (stack === undefined) {
+		return false;
+	}
+
+	return stack
+		.split("\n")
+		.some((line) => line.trimStart().startsWith("at ") && line.includes(sourceFile));
+}
+
+function attributeLoadError(
+	err: unknown,
+	location: { cwd: string; sourceFile: string | undefined },
+): ConfigError {
+	const { cwd, sourceFile } = location;
+	const message = err instanceof Error ? err.message : String(err);
+	if (
+		sourceFile !== undefined &&
+		err instanceof Error &&
+		stackHasUserFrame(err.stack, sourceFile)
+	) {
+		return { kind: "configFunctionFailed", message, sourceFile };
+	}
+
+	return { kind: "parseFailed", message, sourceFile: sourceFile ?? cwd };
 }
 
 function discoverConfigFile(cwd: string): string | undefined {

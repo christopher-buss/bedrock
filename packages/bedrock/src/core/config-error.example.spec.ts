@@ -19,6 +19,9 @@ it('Example 2', () => {
       case 'parseFailed': {
         return `${err.sourceFile}: ${err.message}`
       }
+      case 'configFunctionFailed': {
+        return `${err.sourceFile}: config function threw: ${err.message}`
+      }
       case 'validationFailed': {
         const first = err.issues[0]
         return first
@@ -37,6 +40,13 @@ it('Example 2', () => {
       message: 'unexpected end of the stream',
     }),
   ).toBe('bedrock.config.yaml: unexpected end of the stream')
+  expect(
+    describe({
+      kind: 'configFunctionFailed',
+      sourceFile: 'bedrock.config.ts',
+      message: 'boom',
+    }),
+  ).toBe('bedrock.config.ts: config function threw: boom')
   expect(
     describe({
       kind: 'validationFailed',
