@@ -43,8 +43,11 @@ function updateOp(key: ResourceKey): UpdateOperation {
 	return { key, current: currentFrom(desired), desired, type: "update" };
 }
 
-function registryWith(create: ResourceDriver<"gamePass">["create"]): DriverRegistry {
-	return { gamePass: { create } };
+function registryWith(
+	create: ResourceDriver<"gamePass">["create"],
+	update?: ResourceDriver<"gamePass">["update"],
+): DriverRegistry {
+	return { gamePass: update ? { create, update } : { create } };
 }
 
 describe(applyOps, () => {
@@ -138,7 +141,7 @@ describe(applyOps, () => {
 		]);
 	});
 
-	it("should return an updateUnsupported Err without dispatching when an update op is encountered", async () => {
+	it("should return an updateUnsupported Err when the driver has no update method", async () => {
 		expect.assertions(2);
 
 		const update = updateOp(asResourceKey("vip-pass"));
@@ -151,6 +154,43 @@ describe(applyOps, () => {
 
 		expect(result).toStrictEqual({
 			err: { key: update.key, kind: "updateUnsupported" },
+			success: false,
+		});
+		expect(create).not.toHaveBeenCalled();
+	});
+
+	it("should dispatch an update op to the driver's update method and return Ok on success", async () => {
+		expect.assertions(4);
+
+		const op = updateOp(asResourceKey("vip-pass"));
+		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
+		const update = vi
+			.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>()
+			.mockResolvedValue({ data: currentFrom(op.desired), success: true });
+
+		const result = await applyOps([op], registryWith(create, update));
+
+		expect(result).toStrictEqual({ data: undefined, success: true });
+		expect(update).toHaveBeenCalledOnce();
+		expect(update.mock.calls[0]![0]).toBe(op.current);
+		expect(update.mock.calls[0]![1]).toBe(op.desired);
+	});
+
+	it("should stop dispatching on the first update failure and wrap it in driverFailure Err", async () => {
+		expect.assertions(2);
+
+		const first = updateOp(asResourceKey("first-pass"));
+		const second = createOp(asResourceKey("second-pass"));
+		const cause = new OpenCloudError("boom");
+		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
+		const update = vi
+			.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>()
+			.mockResolvedValue({ err: cause, success: false });
+
+		const result = await applyOps([first, second], registryWith(create, update));
+
+		expect(result).toStrictEqual({
+			err: { key: first.key, cause, kind: "driverFailure" },
 			success: false,
 		});
 		expect(create).not.toHaveBeenCalled();

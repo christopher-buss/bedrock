@@ -51,9 +51,11 @@ export type ApplyError =
  *
  * Behaviour:
  * - `create` operations are routed to `registry[op.desired.kind].create`.
- * - `update` operations short-circuit to an `updateUnsupported` Err;
- *   no driver is invoked.
+ * - `update` operations are routed to `registry[op.desired.kind].update`
+ *   when the driver exposes it; otherwise they short-circuit to an
+ *   `updateUnsupported` Err without invoking the driver.
  * - `noop` operations are skipped entirely (no I/O, no dispatch).
+ *
  * @param ops - Reconciliation operations produced by `diff`, applied in order.
  * @param registry - Per-kind driver table; dispatch uses `op.desired.kind` as the index.
  * @returns `Ok(undefined)` when every operation succeeds, or the first failure encountered.
@@ -123,22 +125,30 @@ export async function applyOps(
 			continue;
 		}
 
+		const driver = registry[op.desired.kind];
+
 		if (op.type === "update") {
-			return {
-				err: { key: op.key, kind: "updateUnsupported" },
-				success: false,
-			};
+			if (driver.update === undefined) {
+				return { err: { key: op.key, kind: "updateUnsupported" }, success: false };
+			}
+
+			const updated = await driver.update(op.current, op.desired);
+			if (!updated.success) {
+				return driverFailure(op.key, updated.err);
+			}
+
+			continue;
 		}
 
-		const driver = registry[op.desired.kind];
-		const result = await driver.create(op.desired);
-		if (!result.success) {
-			return {
-				err: { key: op.key, cause: result.err, kind: "driverFailure" },
-				success: false,
-			};
+		const created = await driver.create(op.desired);
+		if (!created.success) {
+			return driverFailure(op.key, created.err);
 		}
 	}
 
 	return { data: undefined, success: true };
+}
+
+function driverFailure(key: ResourceKey, cause: OpenCloudError): Result<undefined, ApplyError> {
+	return { err: { key, cause, kind: "driverFailure" }, success: false };
 }
