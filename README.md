@@ -75,9 +75,12 @@ through [Vite+](./docs/adr/014-vite-plus-unified-toolchain.md).
 
 ## Contributing
 
-Contributions are welcome. Please read [CONTRIBUTING.md](./CONTRIBUTING.md)
-before opening a pull request; in particular, Bedrock is test-driven and
-every line of production code is written in response to a failing test.
+This is a solo-maintainer project with an inverted contribution model.
+External input runs through
+[Discussions](https://github.com/christopher-buss/bedrock/discussions) as
+**prompt requests**: share the prompt you would run rather than opening a
+PR, and I will run it myself if the idea lands. Issues are maintainer-only.
+Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening anything.
 
 By participating, you agree to abide by the [Code of Conduct](./CODE_OF_CONDUCT.md).
 
