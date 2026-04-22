@@ -44,6 +44,7 @@ export const sharedConfig = {
 		passWithNoTests: true,
 		setupFiles: ["@bedrock/testing/jest-extended"],
 		typecheck: {
+			checker: "tsgo",
 			enabled: process.env["VITEST_TYPECHECK"] !== "false",
 		},
 	},
