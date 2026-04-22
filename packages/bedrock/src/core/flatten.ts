@@ -1,14 +1,11 @@
 import { asResourceKey, type ResourceKey } from "../types/ids.ts";
-import type { Config } from "./schema.ts";
+import type { Config, GamePassEntry } from "./schema.ts";
 
 /**
- * Pre-I/O game-pass input the flattener emits. `buildDesired` consumes a
- * `ReadonlyArray<ResourceDesiredInput>` and layers on the fields that require
- * I/O (the SHA-256 digest of the icon file).
- *
- * Every field except `iconFileHash` on `GamePassDesiredState` is present at
- * this stage. Split out into its own shape so the schema and `buildDesired`
- * don't share a single "partially populated" type.
+ * Pre-I/O game-pass input the flattener emits. Extends the authored
+ * `GamePassEntry` with the tag discriminator and the `ResourceKey`-branded
+ * key so `buildDesired` can consume a flat tagged list and layer on the
+ * SHA-256 icon digest.
  *
  * @example
  *
@@ -27,19 +24,11 @@ import type { Config } from "./schema.ts";
  * expect(input.kind).toBe("gamePass");
  * ```
  */
-export interface GamePassDesiredInput {
+export interface GamePassDesiredInput extends Readonly<GamePassEntry> {
 	/** User-supplied handle, already validated against the `ResourceKey` brand. */
 	readonly key: ResourceKey;
-	/** Name shown on the Roblox storefront. */
-	readonly name: string;
-	/** Description shown on the game-pass detail page. */
-	readonly description: string;
-	/** Path to the icon file; handed to the injected `readFile` without resolution. */
-	readonly iconFilePath: string;
 	/** Discriminator tag for the `ResourceDesiredInput` union. */
 	readonly kind: "gamePass";
-	/** Robux price, or `undefined` for off-sale. */
-	readonly price: number | undefined;
 }
 
 /**

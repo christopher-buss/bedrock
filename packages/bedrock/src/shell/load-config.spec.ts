@@ -14,27 +14,28 @@ async function withTemporaryDirectory<T>(run: (directory: string) => Promise<T>)
 	}
 }
 
+function writeFixtureConfig(directory: string, lines: ReadonlyArray<string>): void {
+	writeFileSync(join(directory, "bedrock.config.ts"), lines.join("\n"));
+}
+
 describe(loadConfig, () => {
 	it("should load a TypeScript config file declared with defineConfig", async () => {
 		expect.assertions(1);
 
 		await withTemporaryDirectory(async (cwd) => {
-			writeFileSync(
-				join(cwd, "bedrock.config.ts"),
-				[
-					"import { defineConfig } from 'bedrock';",
-					"export default defineConfig({",
-					"  passes: {",
-					"    'vip-pass': {",
-					"      description: 'Grants VIP perks.',",
-					"      iconFilePath: 'assets/vip-icon.png',",
-					"      name: 'VIP Pass',",
-					"      price: 500,",
-					"    },",
-					"  },",
-					"});",
-				].join("\n"),
-			);
+			writeFixtureConfig(cwd, [
+				"import { defineConfig } from 'bedrock';",
+				"export default defineConfig({",
+				"  passes: {",
+				"    'vip-pass': {",
+				"      description: 'Grants VIP perks.',",
+				"      iconFilePath: 'assets/vip-icon.png',",
+				"      name: 'VIP Pass',",
+				"      price: 500,",
+				"    },",
+				"  },",
+				"});",
+			]);
 
 			const result = await loadConfig({ cwd });
 
@@ -62,21 +63,18 @@ describe(loadConfig, () => {
 		expect.assertions(2);
 
 		await withTemporaryDirectory(async (cwd) => {
-			writeFileSync(
-				join(cwd, "bedrock.config.ts"),
-				[
-					"export default {",
-					"  passes: {",
-					"    'vip-pass': {",
-					"      description: 'Bad price.',",
-					"      iconFilePath: 'assets/vip.png',",
-					"      name: 'VIP',",
-					"      price: 'oops',",
-					"    },",
-					"  },",
-					"};",
-				].join("\n"),
-			);
+			writeFixtureConfig(cwd, [
+				"export default {",
+				"  passes: {",
+				"    'vip-pass': {",
+				"      description: 'Bad price.',",
+				"      iconFilePath: 'assets/vip.png',",
+				"      name: 'VIP',",
+				"      price: 'oops',",
+				"    },",
+				"  },",
+				"};",
+			]);
 
 			const result = await loadConfig({ cwd });
 
@@ -92,21 +90,18 @@ describe(loadConfig, () => {
 		expect.assertions(1);
 
 		await withTemporaryDirectory(async (cwd) => {
-			writeFileSync(
-				join(cwd, "bedrock.config.ts"),
-				[
-					"export default {",
-					"  passes: {",
-					"    'vip-pass': {",
-					"      description: 'd',",
-					"      iconFilePath: 'p',",
-					"      name: 'VIP',",
-					"      price: 500,",
-					"    },",
-					"  },",
-					"};",
-				].join("\n"),
-			);
+			writeFixtureConfig(cwd, [
+				"export default {",
+				"  passes: {",
+				"    'vip-pass': {",
+				"      description: 'd',",
+				"      iconFilePath: 'p',",
+				"      name: 'VIP',",
+				"      price: 500,",
+				"    },",
+				"  },",
+				"};",
+			]);
 
 			const first = await loadConfig({ cwd });
 			assert(first.success);

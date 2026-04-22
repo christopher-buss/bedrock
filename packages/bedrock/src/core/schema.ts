@@ -2,6 +2,7 @@ import type { Result } from "@bedrock/ocale";
 
 import { ArkErrors, type, type Type } from "arktype";
 
+import { RESOURCE_KEY_PATTERN_SOURCE } from "../types/ids.ts";
 import type { ConfigError, ConfigValidationIssue } from "./config-error.ts";
 
 /**
@@ -71,7 +72,7 @@ const gamePassEntry = type({
 });
 
 const passesCollection = type({
-	"[/^[A-Za-z0-9_-]+$/]": gamePassEntry,
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: gamePassEntry,
 }).onUndeclaredKey("reject");
 
 const rootSchema: Type<Config> = type({

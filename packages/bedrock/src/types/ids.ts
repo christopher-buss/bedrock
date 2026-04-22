@@ -1,6 +1,13 @@
 import type { Tagged } from "type-fest";
 
-const RESOURCE_KEY_PATTERN = /^[A-Za-z0-9_-]+$/;
+/**
+ * Regex source shared by the `ResourceKey` brand validator and the runtime
+ * config schema. Kept as a string (not a `RegExp`) so arktype can consume it
+ * directly in keyed-map signatures without re-escaping.
+ */
+export const RESOURCE_KEY_PATTERN_SOURCE = "^[A-Za-z0-9_-]+$";
+
+const RESOURCE_KEY_PATTERN = new RegExp(RESOURCE_KEY_PATTERN_SOURCE);
 
 const ROBLOX_ASSET_ID_PATTERN = /^\d+$/;
 
