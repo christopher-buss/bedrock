@@ -18,6 +18,21 @@ function writeFixtureConfig(directory: string, lines: ReadonlyArray<string>): vo
 	writeFileSync(join(directory, "bedrock.config.ts"), lines.join("\n"));
 }
 
+async function expectParseFailed(filename: string, contents: string): Promise<void> {
+	await withTemporaryDirectory(async (cwd) => {
+		writeFileSync(join(cwd, filename), contents);
+
+		const result = await loadConfig({ cwd });
+
+		assert(!result.success);
+		assert(result.err.kind === "parseFailed");
+
+		expect(result.err.kind).toBe("parseFailed");
+		expect(result.err.sourceFile).toBe(join(cwd, filename));
+		expect(result.err.message.length).toBeGreaterThan(0);
+	});
+}
+
 describe(loadConfig, () => {
 	it("should load a TypeScript config file declared with defineConfig", async () => {
 		expect.assertions(1);
@@ -84,6 +99,24 @@ describe(loadConfig, () => {
 			expect(result.err.sourceFile).toMatch(/bedrock\.config\.ts$/);
 			expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "price"]);
 		});
+	});
+
+	it("should return a parseFailed error when a YAML config file is malformed", async () => {
+		expect.assertions(3);
+
+		await expectParseFailed(
+			"bedrock.config.yaml",
+			["passes:", "  vip-pass:", '    name: "VIP Pass', "    price: 500", ""].join("\n"),
+		);
+	});
+
+	it("should return a parseFailed error when a JSON config file is malformed", async () => {
+		expect.assertions(3);
+
+		await expectParseFailed(
+			"bedrock.config.json",
+			'{ "passes": { "vip-pass": { "name": "VIP Pass", } } }\n',
+		);
 	});
 
 	it("should return a fresh copy on each call so mutation does not leak between invocations", async () => {

@@ -23,10 +23,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
 
-const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
+const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
+const TYPESCRIPT_FIXTURE_DIR = join(FIXTURES_ROOT, "typescript");
 const ICON_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
 const VIP_PASS_KEY = "vip-pass";
+
+const SUPPORTED_FORMATS = ["typescript", "yaml", "json", "javascript"] as const;
 
 interface CreateFlowResult {
 	readonly applyOutcome: Awaited<ReturnType<typeof applyOps>>;
@@ -78,8 +81,8 @@ async function buildExistingPass(
 	};
 }
 
-async function runPipelineFromFixture(): Promise<CreateFlowResult> {
-	const loaded = await loadConfig({ cwd: FIXTURE_DIR });
+async function runPipelineFromFixture(cwd: string): Promise<CreateFlowResult> {
+	const loaded = await loadConfig({ cwd });
 	assert(loaded.success);
 
 	const desiredResult = await buildDesired(flattenConfig(loaded.data), readIcon);
@@ -102,25 +105,30 @@ async function runPipelineFromFixture(): Promise<CreateFlowResult> {
 }
 
 describe("config pipeline end-to-end", () => {
-	it("should load the fixture config, flatten it, and dispatch a create op for the declared game pass", async () => {
-		expect.assertions(4);
+	it.for(SUPPORTED_FORMATS)(
+		"should load a %s config, flatten it, and dispatch a create op for the declared game pass",
+		async (format) => {
+			expect.assertions(4);
 
-		const { applyOutcome, httpClient, opTypes } = await runPipelineFromFixture();
+			const { applyOutcome, httpClient, opTypes } = await runPipelineFromFixture(
+				join(FIXTURES_ROOT, format),
+			);
 
-		expect(opTypes).toStrictEqual(["create"]);
-		expect(applyOutcome.success).toBeTrue();
+			expect(opTypes).toStrictEqual(["create"]);
+			expect(applyOutcome.success).toBeTrue();
 
-		const [first] = httpClient.requests;
-		assert(first);
+			const [first] = httpClient.requests;
+			assert(first);
 
-		expect(first.request.method).toBe("POST");
-		expect(first.request.url).toBe(`/game-passes/v1/universes/${UNIVERSE_ID}/game-passes`);
-	});
+			expect(first.request.method).toBe("POST");
+			expect(first.request.url).toBe(`/game-passes/v1/universes/${UNIVERSE_ID}/game-passes`);
+		},
+	);
 
 	it("should forward every declared game-pass field into the multipart body, including the icon bytes", async () => {
 		expect.assertions(4);
 
-		const { httpClient } = await runPipelineFromFixture();
+		const { httpClient } = await runPipelineFromFixture(TYPESCRIPT_FIXTURE_DIR);
 		const [first] = httpClient.requests;
 		assert(first);
 		assert(first.request.body instanceof FormData);
@@ -137,7 +145,7 @@ describe("config pipeline end-to-end", () => {
 	it("should emit a noop and skip driver dispatch when current state matches the fixture", async () => {
 		expect.assertions(2);
 
-		const loaded = await loadConfig({ cwd: FIXTURE_DIR });
+		const loaded = await loadConfig({ cwd: TYPESCRIPT_FIXTURE_DIR });
 		assert(loaded.success);
 
 		const desiredResult = await buildDesired(flattenConfig(loaded.data), readIcon);

@@ -16,6 +16,9 @@ it('Example 2', () => {
       case 'fileNotFound': {
         return `no bedrock config under ${err.searchedFrom}`
       }
+      case 'parseFailed': {
+        return `${err.sourceFile}: ${err.message}`
+      }
       case 'validationFailed': {
         const first = err.issues[0]
         return first
@@ -27,6 +30,13 @@ it('Example 2', () => {
   expect(describe({ kind: 'fileNotFound', searchedFrom: '/proj' })).toBe(
     'no bedrock config under /proj',
   )
+  expect(
+    describe({
+      kind: 'parseFailed',
+      sourceFile: 'bedrock.config.yaml',
+      message: 'unexpected end of the stream',
+    }),
+  ).toBe('bedrock.config.yaml: unexpected end of the stream')
   expect(
     describe({
       kind: 'validationFailed',
