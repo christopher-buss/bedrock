@@ -157,6 +157,27 @@ describe(loadConfig, () => {
 		});
 	});
 
+	it("should surface a non-Error throw from a config function as parseFailed", async () => {
+		expect.assertions(2);
+
+		await withTemporaryDirectory(async (cwd) => {
+			writeFixtureConfig(cwd, [
+				"import { defineConfig } from 'bedrock';",
+				"export default defineConfig(() => {",
+				"  throw 'bare string boom';",
+				"});",
+			]);
+
+			const result = await loadConfig({ cwd });
+
+			assert(!result.success);
+			assert(result.err.kind === "parseFailed");
+
+			expect(result.err.kind).toBe("parseFailed");
+			expect(result.err.message).toContain("bare string boom");
+		});
+	});
+
 	it("should return a fileNotFound error when no config file is present", async () => {
 		expect.assertions(2);
 
