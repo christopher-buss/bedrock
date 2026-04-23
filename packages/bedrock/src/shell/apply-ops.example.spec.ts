@@ -71,6 +71,7 @@ it('Example 2', () => {
     },
   ]
   return applyOps(ops, registry).then((result) => {
-    expect(result).toStrictEqual({ data: undefined, success: true })
+    expect(result.success).toBe(true)
+    expect(result.success && result.data).toHaveLength(1)
   })
 })

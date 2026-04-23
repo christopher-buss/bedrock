@@ -1,7 +1,11 @@
 import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
 
 import type { Operation } from "../core/operations.ts";
-import type { GamePassDesiredState, PlaceDesiredState } from "../core/resources.ts";
+import type {
+	GamePassDesiredState,
+	PlaceDesiredState,
+	ResourceCurrentState,
+} from "../core/resources.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
 
@@ -61,9 +65,16 @@ type PlaceOp = NonNoopOp & { readonly desired: PlaceDesiredState };
  *   `updateUnsupported` Err without invoking the driver.
  * - `noop` operations are skipped entirely (no I/O, no dispatch).
  *
+ * On success the returned array carries the driver outputs for every
+ * non-noop op, in dispatched order. Noops are not represented; callers
+ * needing a full post-apply snapshot merge with the pre-apply current
+ * state keyed by `ResourceKey`.
+ *
  * @param ops - Reconciliation operations produced by `diff`, applied in order.
  * @param registry - Per-kind driver table; dispatch uses `op.desired.kind` as the index.
- * @returns `Ok(undefined)` when every operation succeeds, or the first failure encountered.
+ * @returns `Ok(state)` when every operation succeeds, where `state` holds
+ *   driver outputs for each non-noop op in dispatched order; or the first
+ *   failure encountered.
  * @throws Whatever the dispatched driver rejects with outside its `Result`
  *   return. A driver whose injected I/O (file reads, network calls, etc.)
  *   throws will surface that rejection here rather than translating it into
@@ -125,14 +136,17 @@ type PlaceOp = NonNoopOp & { readonly desired: PlaceDesiredState };
  * ];
  *
  * return applyOps(ops, registry).then((result) => {
- *     expect(result).toStrictEqual({ data: undefined, success: true });
+ *     expect(result.success).toBe(true);
+ *     expect(result.success && result.data).toHaveLength(1);
  * });
  * ```
  */
 export async function applyOps(
 	ops: ReadonlyArray<Operation>,
 	registry: DriverRegistry,
-): Promise<Result<undefined, ApplyError>> {
+): Promise<Result<ReadonlyArray<ResourceCurrentState>, ApplyError>> {
+	const applied: Array<ResourceCurrentState> = [];
+
 	for (const op of ops) {
 		if (op.type === "noop") {
 			continue;
@@ -144,16 +158,18 @@ export async function applyOps(
 		if (!outcome.success) {
 			return outcome;
 		}
+
+		applied.push(outcome.data);
 	}
 
-	return { data: undefined, success: true };
+	return { data: applied, success: true };
 }
 
 function isGamePassOp(op: NonNoopOp): op is GamePassOp {
 	return op.desired.kind === "gamePass";
 }
 
-function driverFailure(key: ResourceKey, cause: OpenCloudError): Result<undefined, ApplyError> {
+function driverFailure<T>(key: ResourceKey, cause: OpenCloudError): Result<T, ApplyError> {
 	return { err: { key, cause, kind: "driverFailure" }, success: false };
 }
 
@@ -167,12 +183,10 @@ function kindMismatch(key: ResourceKey, mismatch: { actual: string; expected: st
 async function applyGamePass(
 	op: GamePassOp,
 	driver: ResourceDriver<"gamePass">,
-): Promise<Result<undefined, ApplyError>> {
+): Promise<Result<ResourceCurrentState, ApplyError>> {
 	if (op.type === "create") {
 		const created = await driver.create(op.desired);
-		return created.success
-			? { data: undefined, success: true }
-			: driverFailure(op.key, created.err);
+		return created.success ? created : driverFailure(op.key, created.err);
 	}
 
 	if (driver.update === undefined) {
@@ -187,20 +201,16 @@ async function applyGamePass(
 	}
 
 	const updated = await driver.update(op.current, op.desired);
-	return updated.success
-		? { data: undefined, success: true }
-		: driverFailure(op.key, updated.err);
+	return updated.success ? updated : driverFailure(op.key, updated.err);
 }
 
 async function applyPlace(
 	op: PlaceOp,
 	driver: ResourceDriver<"place">,
-): Promise<Result<undefined, ApplyError>> {
+): Promise<Result<ResourceCurrentState, ApplyError>> {
 	if (op.type === "create") {
 		const created = await driver.create(op.desired);
-		return created.success
-			? { data: undefined, success: true }
-			: driverFailure(op.key, created.err);
+		return created.success ? created : driverFailure(op.key, created.err);
 	}
 
 	if (driver.update === undefined) {
@@ -215,9 +225,7 @@ async function applyPlace(
 	}
 
 	const updated = await driver.update(op.current, op.desired);
-	return updated.success
-		? { data: undefined, success: true }
-		: driverFailure(op.key, updated.err);
+	return updated.success ? updated : driverFailure(op.key, updated.err);
 }
 
 function toPlaceOp(op: NonNoopOp): PlaceOp {

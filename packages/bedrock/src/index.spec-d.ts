@@ -28,6 +28,7 @@ import type {
 	PlaceDriverDeps,
 	PlaceEntry,
 	PlaceOutputs,
+	ResourceCurrentState,
 	ResourceDesiredState,
 	ResourceKey,
 	RobloxAssetId,
@@ -156,9 +157,9 @@ describe(buildDesired, () => {
 });
 
 describe(applyOps, () => {
-	it("should resolve to a Result of undefined or ApplyError", () => {
+	it("should resolve to a Result of readonly current state or ApplyError", () => {
 		expectTypeOf<Awaited<ReturnType<typeof applyOps>>>().toEqualTypeOf<
-			Result<undefined, ApplyError>
+			Result<ReadonlyArray<ResourceCurrentState>, ApplyError>
 		>();
 	});
 

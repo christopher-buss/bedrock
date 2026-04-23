@@ -85,14 +85,14 @@ function registryWith(
 }
 
 describe(applyOps, () => {
-	it("should return Ok undefined and never invoke the driver when ops is empty", async () => {
+	it("should return Ok with an empty array and never invoke the driver when ops is empty", async () => {
 		expect.assertions(2);
 
 		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
 
 		const result = await applyOps([], registryWith(create));
 
-		expect(result).toStrictEqual({ data: undefined, success: true });
+		expect(result).toStrictEqual({ data: [], success: true });
 		expect(create).not.toHaveBeenCalled();
 	});
 
@@ -100,32 +100,37 @@ describe(applyOps, () => {
 		expect.assertions(3);
 
 		const op = createOp(asResourceKey("vip-pass"));
+		const created = currentFrom(op.desired);
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
-			.mockResolvedValue({ data: currentFrom(op.desired), success: true });
+			.mockResolvedValue({ data: created, success: true });
 
 		const result = await applyOps([op], registryWith(create));
 
-		expect(result).toStrictEqual({ data: undefined, success: true });
+		expect(result).toStrictEqual({ data: [created], success: true });
 		expect(create).toHaveBeenCalledOnce();
 		expect(create.mock.calls[0]![0]).toBe(op.desired);
 	});
 
-	it("should dispatch the create and skip the noop when mixed", async () => {
+	it("should return the driver outputs in dispatched order and skip noops", async () => {
 		expect.assertions(2);
 
-		const op = createOp(asResourceKey("vip-pass"));
+		const firstOp = createOp(asResourceKey("first-pass"));
+		const secondOp = createOp(asResourceKey("second-pass"));
+		const firstCurrent = currentFrom(firstOp.desired);
+		const secondCurrent = currentFrom(secondOp.desired);
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
-			.mockResolvedValue({ data: currentFrom(op.desired), success: true });
+			.mockResolvedValueOnce({ data: firstCurrent, success: true })
+			.mockResolvedValueOnce({ data: secondCurrent, success: true });
 
 		const result = await applyOps(
-			[op, { key: asResourceKey("sync-pass"), type: "noop" }],
+			[firstOp, { key: asResourceKey("sync-pass"), type: "noop" }, secondOp],
 			registryWith(create),
 		);
 
-		expect(result).toStrictEqual({ data: undefined, success: true });
-		expect(create).toHaveBeenCalledOnce();
+		expect(result).toStrictEqual({ data: [firstCurrent, secondCurrent], success: true });
+		expect(create).toHaveBeenCalledTimes(2);
 	});
 
 	it("should dispatch create ops in input order", async () => {
@@ -141,8 +146,8 @@ describe(applyOps, () => {
 			.mockImplementation(async (desired) => ({ data: currentFrom(desired), success: true }));
 
 		const result = await applyOps(ops, registryWith(create));
+		assert(result.success);
 
-		expect(result).toStrictEqual({ data: undefined, success: true });
 		expect(create.mock.calls.map((call) => call[0].key)).toStrictEqual([
 			"first-pass",
 			"second-pass",
@@ -197,14 +202,15 @@ describe(applyOps, () => {
 		expect.assertions(4);
 
 		const op = updateOp(asResourceKey("vip-pass"));
+		const updated = currentFrom(op.desired);
 		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
 		const update = vi
 			.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>()
-			.mockResolvedValue({ data: currentFrom(op.desired), success: true });
+			.mockResolvedValue({ data: updated, success: true });
 
 		const result = await applyOps([op], registryWith(create, update));
 
-		expect(result).toStrictEqual({ data: undefined, success: true });
+		expect(result).toStrictEqual({ data: [updated], success: true });
 		expect(update).toHaveBeenCalledOnce();
 		expect(update.mock.calls[0]![0]).toBe(op.current);
 		expect(update.mock.calls[0]![1]).toBe(op.desired);
@@ -264,13 +270,14 @@ describe(applyOps, () => {
 			expect.assertions(2);
 
 			const op = placeCreateOp(asResourceKey("start-place"));
+			const created = placeCurrentFrom(op.desired);
 			const create = vi
 				.fn<ResourceDriver<"place">["create"]>()
-				.mockResolvedValue({ data: placeCurrentFrom(op.desired), success: true });
+				.mockResolvedValue({ data: created, success: true });
 
 			const result = await applyOps([op], placeRegistry(create));
 
-			expect(result).toStrictEqual({ data: undefined, success: true });
+			expect(result).toStrictEqual({ data: [created], success: true });
 			expect(create).toHaveBeenCalledExactlyOnceWith(op.desired);
 		});
 
@@ -310,14 +317,15 @@ describe(applyOps, () => {
 			expect.assertions(3);
 
 			const op = placeUpdateOp(asResourceKey("start-place"));
+			const updated = placeCurrentFrom(op.desired);
 			const create = vi.fn<ResourceDriver<"place">["create"]>();
 			const update = vi
 				.fn<NonNullable<ResourceDriver<"place">["update"]>>()
-				.mockResolvedValue({ data: placeCurrentFrom(op.desired), success: true });
+				.mockResolvedValue({ data: updated, success: true });
 
 			const result = await applyOps([op], placeRegistry(create, update));
 
-			expect(result).toStrictEqual({ data: undefined, success: true });
+			expect(result).toStrictEqual({ data: [updated], success: true });
 			expect(update).toHaveBeenCalledExactlyOnceWith(op.current, op.desired);
 			expect(create).not.toHaveBeenCalled();
 		});
