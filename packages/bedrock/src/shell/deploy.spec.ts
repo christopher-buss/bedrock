@@ -41,33 +41,40 @@ function inMemoryStatePort(initial?: BedrockState): {
 	};
 }
 
+function vipPassConfig(): Config {
+	return {
+		passes: {
+			"vip-pass": {
+				name: "VIP Pass",
+				description: "Grants VIP perks.",
+				iconFilePath: "assets/vip-icon.png",
+				price: 500,
+			},
+		},
+	};
+}
+
+function vipPassCurrent() {
+	return {
+		key: asResourceKey("vip-pass"),
+		name: "VIP Pass",
+		description: "Grants VIP perks.",
+		iconFileHash: ICON_HASH,
+		iconFilePath: "assets/vip-icon.png",
+		kind: "gamePass" as const,
+		outputs: {
+			assetId: asRobloxAssetId("9876543210"),
+			iconAssetId: asRobloxAssetId("1122334455"),
+		},
+		price: 500,
+	};
+}
+
 describe(deploy, () => {
 	it("should reconcile a first deploy by creating the desired resource and persisting the new state", async () => {
 		expect.assertions(5);
 
-		const config: Config = {
-			passes: {
-				"vip-pass": {
-					name: "VIP Pass",
-					description: "Grants VIP perks.",
-					iconFilePath: "assets/vip-icon.png",
-					price: 500,
-				},
-			},
-		};
-		const created = {
-			key: asResourceKey("vip-pass"),
-			name: "VIP Pass",
-			description: "Grants VIP perks.",
-			iconFileHash: ICON_HASH,
-			iconFilePath: "assets/vip-icon.png",
-			kind: "gamePass" as const,
-			outputs: {
-				assetId: asRobloxAssetId("9876543210"),
-				iconAssetId: asRobloxAssetId("1122334455"),
-			},
-			price: 500,
-		};
+		const created = vipPassCurrent();
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValue({ data: created, success: true });
@@ -75,7 +82,7 @@ describe(deploy, () => {
 		const { port, writes } = inMemoryStatePort();
 
 		const result = await deploy({
-			config,
+			config: vipPassConfig(),
 			environment: "production",
 			readFile: readIcon,
 			registry,
@@ -87,5 +94,37 @@ describe(deploy, () => {
 		expect(writes[0]!.environment).toBe("production");
 		expect(writes[0]!.resources).toStrictEqual([created]);
 		expect(result).toStrictEqual({ data: writes[0], success: true });
+	});
+
+	it("should persist the unchanged snapshot and skip driver dispatch when desired matches current state", async () => {
+		expect.assertions(3);
+
+		const existing = vipPassCurrent();
+		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
+		const update = vi.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>();
+		const registry: DriverRegistry = {
+			gamePass: { create, update },
+			place: placeStub,
+		};
+		const { port } = inMemoryStatePort({
+			environment: "production",
+			resources: [existing],
+			version: 1,
+		});
+
+		const result = await deploy({
+			config: vipPassConfig(),
+			environment: "production",
+			readFile: readIcon,
+			registry,
+			statePort: port,
+		});
+
+		expect(create).not.toHaveBeenCalled();
+		expect(update).not.toHaveBeenCalled();
+		expect(result).toStrictEqual({
+			data: { environment: "production", resources: [existing], version: 1 },
+			success: true,
+		});
 	});
 });
