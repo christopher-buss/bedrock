@@ -33,9 +33,10 @@ const UPDATE_SPEC: ResourceMethodSpec<UpdatePlaceParameters, Place> = Object.fre
 });
 
 /**
- * Public client for the Roblox Open Cloud "publish place version"
- * endpoint. Wires the request builder, the injected
- * {@link OpenCloudClientOptions.httpClient}, and the response parser
+ * Public client for the Roblox Open Cloud `Place` resource. Covers
+ * place-version publishing (`publish`, `save`) and place-configuration
+ * updates (`update`). Wires the request builders, the injected
+ * {@link OpenCloudClientOptions.httpClient}, and the response parsers
  * into a single ergonomic surface. Every method returns a {@link Result}
  * so callers handle failure explicitly; no thrown {@link OpenCloudError}
  * ever escapes the client.
@@ -44,7 +45,8 @@ const UPDATE_SPEC: ResourceMethodSpec<UpdatePlaceParameters, Place> = Object.fre
  * automatically: Roblox does not support idempotency keys, so a retry
  * could publish a duplicate version unnoticed. Callers that *can* detect
  * duplicates externally may opt back into 5xx retry per-call by passing
- * `retryableStatuses` on the second argument.
+ * `retryableStatuses` on the second argument. The `update` method, by
+ * contrast, is idempotent and retries both 429 and 5xx automatically.
  *
  * @example
  *
