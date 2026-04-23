@@ -14,6 +14,11 @@ const JSON_MEDIA_TYPE = "application/json";
  * violations on `fake.schemaViolations` without throwing, for
  * incremental hardening. `"off"` disables checks entirely; use it for
  * fake-mechanics tests that exercise synthetic URLs.
+ *
+ * In `"strict"` mode, a request-side violation throws before the
+ * queued mock is consumed. A subsequent `request()` call will see
+ * that same mock at the head of the queue, which matters for any
+ * multi-request test that intentionally exercises a bad request.
  */
 export type SchemaValidationMode = "off" | "strict" | "warn";
 
@@ -83,7 +88,10 @@ export function validateRequestContract(request: HttpRequest): Array<SchemaViola
 /**
  * Validates a queued response body against the matched OpenAPI
  * operation's response schema for the response status code (falling
- * back to `default`).
+ * back to `default`). If no operation matches the request URL, an
+ * empty array is returned and no violation is raised; the request
+ * side (via {@link validateRequestContract}) is expected to have
+ * caught that case first.
  *
  * @param request - The outbound request the response answers.
  * @param response - The response being validated.

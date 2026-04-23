@@ -73,7 +73,7 @@ export interface FakeHttpClient extends HttpClient {
  * Options accepted by {@link createFakeHttpClient}.
  */
 export interface FakeHttpClientOptions {
-	/** How strictly to enforce the vendored OpenAPI spec. Defaults to `"off"`. */
+	/** How strictly to enforce the vendored OpenAPI spec. Defaults to `"strict"`. */
 	readonly schemaValidation?: SchemaValidationMode;
 }
 

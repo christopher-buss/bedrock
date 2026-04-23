@@ -258,6 +258,24 @@ describe("createFakeHttpClient schema validation", () => {
 			);
 		});
 
+		it("should throw on a request body that violates the operation schema", async () => {
+			expect.assertions(1);
+
+			const patchUniverse: HttpRequest = {
+				body: { displayName: 42 },
+				method: "PATCH",
+				url: "/cloud/v2/universes/42",
+			};
+			const fake = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
+				body: {},
+				status: 200,
+			});
+
+			await expect(fake.request(patchUniverse, config)).rejects.toMatchObject({
+				violation: { direction: "request" },
+			});
+		});
+
 		it("should throw on an unknown url with a helpful message", async () => {
 			expect.assertions(1);
 
