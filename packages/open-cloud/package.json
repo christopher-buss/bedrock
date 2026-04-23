@@ -54,6 +54,7 @@
 	"scripts": {
 		"build": "vp pack",
 		"dev": "vp pack --watch",
+		"refresh-openapi": "bun scripts/fetch-openapi.ts",
 		"test": "vp test",
 		"typecheck": "tsgo --noEmit"
 	},

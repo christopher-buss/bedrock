@@ -63,7 +63,7 @@ describe(ResourceClient, () => {
 			expect.assertions(4);
 
 			const builderError = new ValidationError("rejected by builder", { code: "empty_body" });
-			const httpClient = createFakeHttpClient();
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" });
 			const sleep = createFakeSleep();
 			const onRequest = vi.fn<NonNullable<OpenCloudHooks["onRequest"]>>();
 			const client = new ResourceClient({
@@ -100,7 +100,9 @@ describe(ResourceClient, () => {
 		it("should apply per-request overrides over the client config for apiKey, baseUrl, and timeout", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient().mockResponse({ status: 200 });
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				status: 200,
+			});
 			const client = new ResourceClient({
 				apiKey: "client-key",
 				baseUrl: "https://apis.roblox.com",
@@ -129,7 +131,7 @@ describe(ResourceClient, () => {
 		it("should leave the client config untouched after a call that used overrides", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient()
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
 				.mockResponse({ status: 200 })
 				.mockResponse({ status: 200 });
 			const client = new ResourceClient({
@@ -160,7 +162,7 @@ describe(ResourceClient, () => {
 			// Client default retries 5xx; the override narrows to 429 only.
 			// A 500 then 200 sequence proves the 500 isn't retried when the
 			// override replaces (not extends) the array.
-			const httpClient = createFakeHttpClient()
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
 				.mockApiError({ statusCode: 500 })
 				.mockResponse({ status: 200 });
 			const client = new ResourceClient({
@@ -187,7 +189,7 @@ describe(ResourceClient, () => {
 			// create-kind spec the method defaults (`[429]`) take precedence
 			// so the 500 is not retried: create-method safety cannot be
 			// relaxed silently from the client level.
-			const httpClient = createFakeHttpClient()
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
 				.mockApiError({ statusCode: 500 })
 				.mockResponse({ status: 200 });
 			const client = new ResourceClient({
@@ -212,7 +214,7 @@ describe(ResourceClient, () => {
 		it("should route a per-request apiKey override through a separate queue", async () => {
 			expect.assertions(1);
 
-			const httpClient = mockManyOk(createFakeHttpClient(), 11);
+			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "off" }), 11);
 			const clock = createFakeClock();
 			const client = new ResourceClient({
 				apiKey: "default-key",
@@ -239,7 +241,7 @@ describe(ResourceClient, () => {
 			// Eleven calls through the same effective apiKey exhaust the
 			// burst allowance and force a wait, proving every call routes
 			// through the same cached queue instance.
-			const httpClient = mockManyOk(createFakeHttpClient(), 11);
+			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "off" }), 11);
 			const clock = createFakeClock();
 			const client = new ResourceClient({
 				apiKey: "test-key",
@@ -259,7 +261,7 @@ describe(ResourceClient, () => {
 		it("should retry a 429 for idempotent-kind specs", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient()
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
 				.mockRateLimit({ retryAfterSeconds: 1 })
 				.mockResponse({ status: 200 });
 			const sleep = createFakeSleep();
@@ -283,7 +285,7 @@ describe(ResourceClient, () => {
 		it("should retry a 5xx for idempotent-kind specs", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient()
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
 				.mockApiError({ statusCode: 500 })
 				.mockResponse({ status: 200 });
 			const client = new ResourceClient({
@@ -305,7 +307,7 @@ describe(ResourceClient, () => {
 		it("should retry a 429 for create-kind specs", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient()
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
 				.mockRateLimit({ retryAfterSeconds: 1 })
 				.mockResponse({ status: 200 });
 			const client = new ResourceClient({
@@ -327,7 +329,7 @@ describe(ResourceClient, () => {
 		it("should not retry a 5xx for create-kind specs", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient()
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
 				.mockApiError({ statusCode: 500 })
 				.mockResponse({ status: 200 });
 			const client = new ResourceClient({
@@ -349,7 +351,9 @@ describe(ResourceClient, () => {
 		it("should surface a non-retryable error without further attempts", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 404 });
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockApiError({
+				statusCode: 404,
+			});
 			const client = new ResourceClient({
 				apiKey: "test-key",
 				httpClient,
@@ -372,7 +376,9 @@ describe(ResourceClient, () => {
 
 			// HTTP returns 201; the test spec's parser rejects anything
 			// other than 200 and wraps the status in an ApiError.
-			const httpClient = createFakeHttpClient().mockResponse({ status: 201 });
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				status: 201,
+			});
 			const client = new ResourceClient({
 				apiKey: "test-key",
 				httpClient,
@@ -395,7 +401,7 @@ describe(ResourceClient, () => {
 		it("should fire onRequest for every attempt including retries", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient()
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
 				.mockRateLimit({ retryAfterSeconds: 1 })
 				.mockResponse({ status: 200 });
 			const onRequest = vi.fn<NonNullable<OpenCloudHooks["onRequest"]>>();
@@ -414,7 +420,7 @@ describe(ResourceClient, () => {
 		it("should fire onRetry with the 1-indexed attempt before the retry sleep", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient()
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
 				.mockRateLimit({ retryAfterSeconds: 1 })
 				.mockResponse({ status: 200 });
 			const onRetry = vi.fn<NonNullable<OpenCloudHooks["onRetry"]>>();
@@ -433,7 +439,7 @@ describe(ResourceClient, () => {
 		it("should fire onRateLimit with the computed wait before sleeping on retry", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient()
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
 				.mockRateLimit({ retryAfterSeconds: 2 })
 				.mockResponse({ status: 200 });
 			const sleep = createFakeSleep();

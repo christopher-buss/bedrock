@@ -190,7 +190,9 @@ describe(PlacesClient, () => {
 			async (statusCode) => {
 				expect.assertions(2);
 
-				const httpClient = createFakeHttpClient().mockApiError({ statusCode });
+				const httpClient = createFakeHttpClient({
+					schemaValidation: "strict",
+				}).mockApiError({ statusCode });
 				const client = new PlacesClient({
 					apiKey: "test-key",
 					httpClient,
@@ -292,7 +294,9 @@ describe(PlacesClient, () => {
 		it("should not retry a 5xx so a transient save failure does not duplicate the version", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 503 });
+			const httpClient = createFakeHttpClient().mockApiError({
+				statusCode: 503,
+			});
 			const client = new PlacesClient({
 				apiKey: "test-key",
 				httpClient,

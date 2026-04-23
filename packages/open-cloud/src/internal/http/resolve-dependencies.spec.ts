@@ -7,7 +7,7 @@ describe(resolveDependencies, () => {
 	it("should use the provided httpClient when supplied", () => {
 		expect.assertions(1);
 
-		const httpClient = createFakeHttpClient();
+		const httpClient = createFakeHttpClient({ schemaValidation: "off" });
 
 		const resolved = resolveDependencies({ httpClient });
 

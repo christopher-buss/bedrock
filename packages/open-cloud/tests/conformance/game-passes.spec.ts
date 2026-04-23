@@ -1,7 +1,15 @@
 import { parseGamePassResponse } from "#src/resources/game-passes/parsers";
 import { assert, describe, expect, it } from "vitest";
 
-import { expectValid, getValidator, isRecord, loadFixture, nullableToUnion } from "./_helpers.ts";
+import {
+	dropReadOnlyFromRequired,
+	expectValid,
+	getAjv,
+	getValidator,
+	isRecord,
+	loadFixture,
+	nullableToUnion,
+} from "./_helpers.ts";
 
 describe("game-passes fixtures", () => {
 	it.for([
@@ -161,5 +169,121 @@ describe(isRecord, () => {
 		expect(isRecord(JSON.parse("null"))).toBeFalse();
 		expect(isRecord("hello")).toBeFalse();
 		expect(isRecord(42)).toBeFalse();
+	});
+});
+
+describe(dropReadOnlyFromRequired, () => {
+	it("should drop a readOnly field from required", () => {
+		expect.assertions(1);
+		expect(
+			dropReadOnlyFromRequired({
+				properties: {
+					id: { readOnly: true, type: "string" },
+					name: { type: "string" },
+				},
+				required: ["id", "name"],
+				type: "object",
+			}),
+		).toStrictEqual({
+			properties: {
+				id: { readOnly: true, type: "string" },
+				name: { type: "string" },
+			},
+			required: ["name"],
+			type: "object",
+		});
+	});
+
+	it("should remove the required key entirely when every required field is readOnly", () => {
+		expect.assertions(1);
+		expect(
+			dropReadOnlyFromRequired({
+				properties: {
+					id: { readOnly: true, type: "string" },
+				},
+				required: ["id"],
+				type: "object",
+			}),
+		).toStrictEqual({
+			properties: {
+				id: { readOnly: true, type: "string" },
+			},
+			type: "object",
+		});
+	});
+
+	it("should leave required unchanged when no field is readOnly", () => {
+		expect.assertions(1);
+		expect(
+			dropReadOnlyFromRequired({
+				properties: { name: { type: "string" } },
+				required: ["name"],
+				type: "object",
+			}),
+		).toStrictEqual({
+			properties: { name: { type: "string" } },
+			required: ["name"],
+			type: "object",
+		});
+	});
+
+	it("should not alter nodes without a properties + required pair", () => {
+		expect.assertions(1);
+		expect(
+			dropReadOnlyFromRequired({
+				required: ["id"],
+				type: "object",
+			}),
+		).toStrictEqual({
+			required: ["id"],
+			type: "object",
+		});
+	});
+
+	it("should recurse into nested schemas and arrays", () => {
+		expect.assertions(1);
+		expect(
+			dropReadOnlyFromRequired({
+				properties: {
+					child: {
+						properties: {
+							id: { readOnly: true, type: "string" },
+						},
+						required: ["id"],
+						type: "object",
+					},
+				},
+				type: "object",
+			}),
+		).toStrictEqual({
+			properties: {
+				child: {
+					properties: {
+						id: { readOnly: true, type: "string" },
+					},
+					type: "object",
+				},
+			},
+			type: "object",
+		});
+	});
+
+	it("should return primitives unchanged", () => {
+		expect.assertions(2);
+		expect(dropReadOnlyFromRequired("hello")).toBe("hello");
+		expect(dropReadOnlyFromRequired(42)).toBe(42);
+	});
+});
+
+describe(getAjv, () => {
+	it("should return distinct instances for response and request modes", () => {
+		expect.assertions(1);
+		expect(getAjv("response")).not.toBe(getAjv("request"));
+	});
+
+	it("should cache the instance per mode", () => {
+		expect.assertions(2);
+		expect(getAjv("response")).toBe(getAjv("response"));
+		expect(getAjv("request")).toBe(getAjv("request"));
 	});
 });
