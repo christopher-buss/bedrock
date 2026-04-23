@@ -1,7 +1,7 @@
 import { assert, describe, expect, it } from "vitest";
 
 import { ApiError } from "../../errors/api-error.ts";
-import { parseExperienceResponse } from "./parsers.ts";
+import { parseUniverseResponse } from "./parsers.ts";
 import type { UniverseWire } from "./wire.ts";
 
 function validUniverseBody(overrides: Partial<UniverseWire> = {}): UniverseWire {
@@ -9,9 +9,9 @@ function validUniverseBody(overrides: Partial<UniverseWire> = {}): UniverseWire 
 		ageRating: "AGE_RATING_13_PLUS",
 		consoleEnabled: false,
 		createTime: "2024-01-15T10:30:00.000Z",
-		description: "A sample experience.",
+		description: "A sample universe.",
 		desktopEnabled: true,
-		displayName: "My Experience",
+		displayName: "My Universe",
 		mobileEnabled: true,
 		path: "universes/12345",
 		privateServerPriceRobux: 25,
@@ -26,15 +26,15 @@ function validUniverseBody(overrides: Partial<UniverseWire> = {}): UniverseWire 
 	};
 }
 
-function okResponse(body: UniverseWire): Parameters<typeof parseExperienceResponse>[0] {
+function okResponse(body: UniverseWire): Parameters<typeof parseUniverseResponse>[0] {
 	return { body, headers: {}, status: 200 };
 }
 
-describe(parseExperienceResponse, () => {
-	it("should parse a full valid body into the public Experience shape", () => {
+describe(parseUniverseResponse, () => {
+	it("should parse a full valid body into the public Universe shape", () => {
 		expect.assertions(1);
 
-		const result = parseExperienceResponse(okResponse(validUniverseBody()));
+		const result = parseUniverseResponse(okResponse(validUniverseBody()));
 
 		assert(result.success);
 
@@ -43,10 +43,10 @@ describe(parseExperienceResponse, () => {
 			ageRating: "13Plus",
 			consoleEnabled: false,
 			createdAt: new Date("2024-01-15T10:30:00.000Z"),
-			description: "A sample experience.",
+			description: "A sample universe.",
 			desktopEnabled: true,
 			discordSocialLink: undefined,
-			displayName: "My Experience",
+			displayName: "My Universe",
 			facebookSocialLink: undefined,
 			guildedSocialLink: undefined,
 			mobileEnabled: true,
@@ -69,7 +69,7 @@ describe(parseExperienceResponse, () => {
 		it("should default missing playable-device booleans to false", () => {
 			expect.assertions(5);
 
-			const result = parseExperienceResponse(
+			const result = parseUniverseResponse(
 				okResponse(
 					validUniverseBody({
 						consoleEnabled: undefined,
@@ -93,7 +93,7 @@ describe(parseExperienceResponse, () => {
 		it("should default missing voiceChatEnabled to false", () => {
 			expect.assertions(1);
 
-			const result = parseExperienceResponse(
+			const result = parseUniverseResponse(
 				okResponse(validUniverseBody({ voiceChatEnabled: undefined })),
 			);
 
@@ -105,7 +105,7 @@ describe(parseExperienceResponse, () => {
 		it("should surface privateServerPriceRobux as undefined when omitted", () => {
 			expect.assertions(1);
 
-			const result = parseExperienceResponse(
+			const result = parseUniverseResponse(
 				okResponse(validUniverseBody({ privateServerPriceRobux: undefined })),
 			);
 
@@ -127,7 +127,7 @@ describe(parseExperienceResponse, () => {
 				privateServerPriceRobux: JSON.parse("null"),
 			};
 
-			const result = parseExperienceResponse({ body, headers: {}, status: 200 });
+			const result = parseUniverseResponse({ body, headers: {}, status: 200 });
 
 			assert(result.success);
 
@@ -137,7 +137,7 @@ describe(parseExperienceResponse, () => {
 		it("should surface rootPlaceId as undefined when rootPlace is omitted", () => {
 			expect.assertions(1);
 
-			const result = parseExperienceResponse(
+			const result = parseUniverseResponse(
 				okResponse(validUniverseBody({ rootPlace: undefined })),
 			);
 
@@ -149,7 +149,7 @@ describe(parseExperienceResponse, () => {
 		it("should surface each social link as its public shape when present", () => {
 			expect.assertions(2);
 
-			const result = parseExperienceResponse(
+			const result = parseUniverseResponse(
 				okResponse(
 					validUniverseBody({
 						discordSocialLink: { title: "Discord", uri: "https://discord.gg/example" },
@@ -178,7 +178,7 @@ describe(parseExperienceResponse, () => {
 		it("should extract the numeric universe ID from the resource path", () => {
 			expect.assertions(1);
 
-			const result = parseExperienceResponse(
+			const result = parseUniverseResponse(
 				okResponse(validUniverseBody({ path: "universes/99999999999" })),
 			);
 
@@ -190,7 +190,7 @@ describe(parseExperienceResponse, () => {
 		it("should extract the numeric root place ID from the rootPlace path", () => {
 			expect.assertions(1);
 
-			const result = parseExperienceResponse(
+			const result = parseUniverseResponse(
 				okResponse(
 					validUniverseBody({
 						rootPlace: "universes/123/places/456789",
@@ -206,14 +206,14 @@ describe(parseExperienceResponse, () => {
 		it("should reject a body whose path does not match the universes/{id} pattern", () => {
 			expect.assertions(2);
 
-			const result = parseExperienceResponse(
+			const result = parseUniverseResponse(
 				okResponse(validUniverseBody({ path: "places/123" })),
 			);
 
 			assert(!result.success);
 
 			expect(result.err).toBeInstanceOf(ApiError);
-			expect(result.err.message).toBe("Malformed experience response");
+			expect(result.err.message).toBe("Malformed universe response");
 		});
 	});
 
@@ -225,7 +225,7 @@ describe(parseExperienceResponse, () => {
 		])("should map visibility $wire to $expected", ({ expected, wire }) => {
 			expect.assertions(1);
 
-			const result = parseExperienceResponse(
+			const result = parseUniverseResponse(
 				okResponse(validUniverseBody({ visibility: wire })),
 			);
 
@@ -243,7 +243,7 @@ describe(parseExperienceResponse, () => {
 		])("should map ageRating $wire to $expected", ({ expected, wire }) => {
 			expect.assertions(1);
 
-			const result = parseExperienceResponse(
+			const result = parseUniverseResponse(
 				okResponse(validUniverseBody({ ageRating: wire })),
 			);
 
@@ -257,7 +257,7 @@ describe(parseExperienceResponse, () => {
 		it("should produce a user-kind owner when `user` is present", () => {
 			expect.assertions(1);
 
-			const result = parseExperienceResponse(
+			const result = parseUniverseResponse(
 				okResponse(validUniverseBody({ group: undefined, user: "users/999" })),
 			);
 
@@ -269,7 +269,7 @@ describe(parseExperienceResponse, () => {
 		it("should produce a group-kind owner when only `group` is present", () => {
 			expect.assertions(1);
 
-			const result = parseExperienceResponse(
+			const result = parseUniverseResponse(
 				okResponse(validUniverseBody({ group: "groups/42", user: undefined })),
 			);
 
@@ -281,7 +281,7 @@ describe(parseExperienceResponse, () => {
 		it("should reject a body with neither user nor group as malformed", () => {
 			expect.assertions(2);
 
-			const result = parseExperienceResponse(
+			const result = parseUniverseResponse(
 				okResponse(validUniverseBody({ group: undefined, user: undefined })),
 			);
 
@@ -294,7 +294,7 @@ describe(parseExperienceResponse, () => {
 		it("should reject an owner resource path that does not match users/{id} or groups/{id}", () => {
 			expect.assertions(1);
 
-			const result = parseExperienceResponse(
+			const result = parseUniverseResponse(
 				okResponse(validUniverseBody({ group: undefined, user: "accounts/7777" })),
 			);
 
@@ -306,7 +306,7 @@ describe(parseExperienceResponse, () => {
 		it("should prefer the user field over the group field when both are present", () => {
 			expect.assertions(1);
 
-			const result = parseExperienceResponse(
+			const result = parseUniverseResponse(
 				okResponse(validUniverseBody({ group: "groups/42", user: "users/999" })),
 			);
 
@@ -320,7 +320,7 @@ describe(parseExperienceResponse, () => {
 		it("should reject a non-record body", () => {
 			expect.assertions(2);
 
-			const result = parseExperienceResponse({
+			const result = parseUniverseResponse({
 				body: "not an object",
 				headers: {},
 				status: 200,
@@ -336,7 +336,7 @@ describe(parseExperienceResponse, () => {
 			expect.assertions(1);
 
 			const { path: _path, ...rest } = validUniverseBody();
-			const result = parseExperienceResponse({ body: rest, headers: {}, status: 200 });
+			const result = parseUniverseResponse({ body: rest, headers: {}, status: 200 });
 
 			assert(!result.success);
 
@@ -347,7 +347,7 @@ describe(parseExperienceResponse, () => {
 			expect.assertions(1);
 
 			const body = { ...validUniverseBody(), visibility: "SOMETHING_ELSE" };
-			const result = parseExperienceResponse({ body, headers: {}, status: 200 });
+			const result = parseUniverseResponse({ body, headers: {}, status: 200 });
 
 			assert(!result.success);
 
@@ -358,7 +358,7 @@ describe(parseExperienceResponse, () => {
 			expect.assertions(1);
 
 			const body = { ...validUniverseBody(), ageRating: "AGE_RATING_99_PLUS" };
-			const result = parseExperienceResponse({ body, headers: {}, status: 200 });
+			const result = parseUniverseResponse({ body, headers: {}, status: 200 });
 
 			assert(!result.success);
 
@@ -372,7 +372,7 @@ describe(parseExperienceResponse, () => {
 				...validUniverseBody(),
 				facebookSocialLink: { title: "Facebook", uri: 123 },
 			};
-			const result = parseExperienceResponse({ body, headers: {}, status: 200 });
+			const result = parseUniverseResponse({ body, headers: {}, status: 200 });
 
 			assert(!result.success);
 
@@ -383,7 +383,7 @@ describe(parseExperienceResponse, () => {
 			expect.assertions(1);
 
 			const body = { ...validUniverseBody(), privateServerPriceRobux: "free" };
-			const result = parseExperienceResponse({ body, headers: {}, status: 200 });
+			const result = parseUniverseResponse({ body, headers: {}, status: 200 });
 
 			assert(!result.success);
 
@@ -393,7 +393,7 @@ describe(parseExperienceResponse, () => {
 		it("should propagate the response status code on the returned ApiError", () => {
 			expect.assertions(1);
 
-			const result = parseExperienceResponse({ body: "nope", headers: {}, status: 502 });
+			const result = parseUniverseResponse({ body: "nope", headers: {}, status: 502 });
 
 			assert(!result.success);
 

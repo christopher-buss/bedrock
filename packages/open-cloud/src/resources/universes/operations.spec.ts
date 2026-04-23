@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { GET_OPERATION_LIMIT, UPDATE_OPERATION_LIMIT } from "./operations.ts";
 
-describe("experiences operation limits", () => {
+describe("universes operation limits", () => {
 	it("should cap the get endpoint at 100 requests per minute", () => {
 		expect.assertions(1);
 
 		expect(GET_OPERATION_LIMIT).toStrictEqual({
 			maxPerSecond: 100 / 60,
-			operationKey: "experiences.get",
+			operationKey: "universes.get",
 		});
 	});
 
@@ -17,7 +17,7 @@ describe("experiences operation limits", () => {
 
 		expect(UPDATE_OPERATION_LIMIT).toStrictEqual({
 			maxPerSecond: 100 / 60,
-			operationKey: "experiences.update",
+			operationKey: "universes.update",
 		});
 	});
 

@@ -1,9 +1,9 @@
-import { parseExperienceResponse } from "#src/resources/experiences/parsers";
+import { parseUniverseResponse } from "#src/resources/universes/parsers";
 import { assert, describe, expect, it } from "vitest";
 
 import { expectValid, getValidator, loadFixture } from "./_helpers.ts";
 
-describe("experiences fixtures", () => {
+describe("universes fixtures", () => {
 	it.for([
 		{ fixture: "get-response.json", schema: "Universe" },
 		{ fixture: "update-response.json", schema: "Universe" },
@@ -11,18 +11,18 @@ describe("experiences fixtures", () => {
 		expect.assertions(1);
 
 		const validator = getValidator(schema);
-		const body = loadFixture("experiences", fixture);
+		const body = loadFixture("universes", fixture);
 
 		expectValid(validator, body);
 	});
 
-	describe(parseExperienceResponse, () => {
-		it("should round-trip get-response.json into the public Experience shape", () => {
+	describe(parseUniverseResponse, () => {
+		it("should round-trip get-response.json into the public Universe shape", () => {
 			expect.assertions(1);
 
-			const body = loadFixture("experiences", "get-response.json");
+			const body = loadFixture("universes", "get-response.json");
 
-			const result = parseExperienceResponse({ body, headers: {}, status: 200 });
+			const result = parseUniverseResponse({ body, headers: {}, status: 200 });
 
 			assert(result.success);
 
@@ -56,9 +56,9 @@ describe("experiences fixtures", () => {
 		it("should round-trip update-response.json and produce a group-kind owner", () => {
 			expect.assertions(1);
 
-			const body = loadFixture("experiences", "update-response.json");
+			const body = loadFixture("universes", "update-response.json");
 
-			const result = parseExperienceResponse({ body, headers: {}, status: 200 });
+			const result = parseUniverseResponse({ body, headers: {}, status: 200 });
 
 			assert(result.success);
 

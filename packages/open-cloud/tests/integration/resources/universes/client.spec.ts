@@ -1,23 +1,23 @@
 import type { OpenCloudHooks } from "#src/client/types";
 import { ApiError } from "#src/errors/api-error";
 import { ValidationError } from "#src/errors/validation";
-import { ExperiencesClient } from "#src/resources/experiences/client";
-import { validUniverseBody } from "#tests/helpers/experiences";
+import { UniversesClient } from "#src/resources/universes/client";
 import { createFakeClock } from "#tests/helpers/fake-clock";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
+import { validUniverseBody } from "#tests/helpers/universes";
 import { assert, describe, expect, it, vi } from "vitest";
 
-describe(ExperiencesClient, () => {
+describe(UniversesClient, () => {
 	describe("get", () => {
-		it("should return a parsed Experience on a happy path", async () => {
+		it("should return a parsed Universe on a happy path", async () => {
 			expect.assertions(3);
 
 			const httpClient = createFakeHttpClient().mockResponse({
 				body: validUniverseBody({ path: "universes/42" }),
 				status: 200,
 			});
-			const client = new ExperiencesClient({
+			const client = new UniversesClient({
 				apiKey: "test-key",
 				httpClient,
 				sleep: createFakeSleep(),
@@ -28,7 +28,7 @@ describe(ExperiencesClient, () => {
 			assert(result.success);
 
 			expect(result.data.id).toBe("42");
-			expect(result.data.displayName).toBe("Test Experience");
+			expect(result.data.displayName).toBe("Test Universe");
 			expect(httpClient.requests).toHaveLength(1);
 		});
 
@@ -39,7 +39,7 @@ describe(ExperiencesClient, () => {
 				body: validUniverseBody({ path: "universes/111" }),
 				status: 200,
 			});
-			const client = new ExperiencesClient({
+			const client = new UniversesClient({
 				apiKey: "test-key",
 				httpClient,
 				sleep: createFakeSleep(),
@@ -64,7 +64,7 @@ describe(ExperiencesClient, () => {
 			const onRequest = vi.fn<NonNullable<OpenCloudHooks["onRequest"]>>();
 			const onRetry = vi.fn<NonNullable<OpenCloudHooks["onRetry"]>>();
 			const onRateLimit = vi.fn<NonNullable<OpenCloudHooks["onRateLimit"]>>();
-			const client = new ExperiencesClient({
+			const client = new UniversesClient({
 				apiKey: "test-key",
 				hooks: { onRateLimit, onRequest, onRetry },
 				httpClient,
@@ -87,7 +87,7 @@ describe(ExperiencesClient, () => {
 			const httpClient = createFakeHttpClient()
 				.mockApiError({ statusCode: 503 })
 				.mockResponse({ body: validUniverseBody(), status: 200 });
-			const client = new ExperiencesClient({
+			const client = new UniversesClient({
 				apiKey: "test-key",
 				httpClient,
 				sleep: createFakeSleep(),
@@ -107,7 +107,7 @@ describe(ExperiencesClient, () => {
 				expect.assertions(2);
 
 				const httpClient = createFakeHttpClient().mockApiError({ statusCode });
-				const client = new ExperiencesClient({
+				const client = new UniversesClient({
 					apiKey: "test-key",
 					httpClient,
 					sleep: createFakeSleep(),
@@ -129,7 +129,7 @@ describe(ExperiencesClient, () => {
 				body: validUniverseBody(),
 				status: 200,
 			});
-			const client = new ExperiencesClient({
+			const client = new UniversesClient({
 				apiKey: "default-key",
 				httpClient,
 				sleep: createFakeSleep(),
@@ -142,14 +142,14 @@ describe(ExperiencesClient, () => {
 	});
 
 	describe("update", () => {
-		it("should send a PATCH with a derived updateMask and return the parsed Experience", async () => {
+		it("should send a PATCH with a derived updateMask and return the parsed Universe", async () => {
 			expect.assertions(4);
 
 			const httpClient = createFakeHttpClient().mockResponse({
 				body: validUniverseBody({ voiceChatEnabled: true }),
 				status: 200,
 			});
-			const client = new ExperiencesClient({
+			const client = new UniversesClient({
 				apiKey: "test-key",
 				httpClient,
 				sleep: createFakeSleep(),
@@ -178,7 +178,7 @@ describe(ExperiencesClient, () => {
 
 			const httpClient = createFakeHttpClient();
 			const sleep = createFakeSleep();
-			const client = new ExperiencesClient({
+			const client = new UniversesClient({
 				apiKey: "test-key",
 				httpClient,
 				sleep,
@@ -200,7 +200,7 @@ describe(ExperiencesClient, () => {
 			const httpClient = createFakeHttpClient()
 				.mockApiError({ statusCode: 502 })
 				.mockResponse({ body: validUniverseBody(), status: 200 });
-			const client = new ExperiencesClient({
+			const client = new UniversesClient({
 				apiKey: "test-key",
 				httpClient,
 				sleep: createFakeSleep(),
@@ -224,7 +224,7 @@ describe(ExperiencesClient, () => {
 				body: validUniverseBody(),
 				status: 200,
 			});
-			const client = new ExperiencesClient({
+			const client = new UniversesClient({
 				apiKey: "default-key",
 				httpClient,
 				sleep: createFakeSleep(),
@@ -254,7 +254,7 @@ describe(ExperiencesClient, () => {
 				.mockResponse({ body: validUniverseBody(), status: 200 })
 				.mockResponse({ body: validUniverseBody(), status: 200 });
 			const clock = createFakeClock();
-			const client = new ExperiencesClient({
+			const client = new UniversesClient({
 				apiKey: "test-key",
 				httpClient,
 				sleep: clock.sleep,
