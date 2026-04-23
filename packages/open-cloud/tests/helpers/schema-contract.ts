@@ -97,20 +97,11 @@ export function validateResponseContract(
 		return [];
 	}
 
-	const method = request.method.toLowerCase();
-	const validator =
-		getValidatorAt({
-			keys: ["responses", String(response.status), "content", JSON_MEDIA_TYPE, "schema"],
-			match,
-			method,
-			mode: "response",
-		}) ??
-		getValidatorAt({
-			keys: ["responses", "default", "content", JSON_MEDIA_TYPE, "schema"],
-			match,
-			method,
-			mode: "response",
-		});
+	const validator = pickResponseValidator({
+		match,
+		method: request.method.toLowerCase(),
+		status: response.status,
+	});
 	return runValidator({
 		data: response.body,
 		direction: "response",
@@ -196,4 +187,26 @@ function noOperationViolation(request: HttpRequest): SchemaViolation {
 		pathTemplate: undefined,
 		url: request.url,
 	};
+}
+
+function pickResponseValidator(options: {
+	readonly match: OperationMatch;
+	readonly method: string;
+	readonly status: number;
+}): undefined | ValidateFunction {
+	const { match, method } = options;
+	return (
+		getValidatorAt({
+			keys: ["responses", String(options.status), "content", JSON_MEDIA_TYPE, "schema"],
+			match,
+			method,
+			mode: "response",
+		}) ??
+		getValidatorAt({
+			keys: ["responses", "default", "content", JSON_MEDIA_TYPE, "schema"],
+			match,
+			method,
+			mode: "response",
+		})
+	);
 }

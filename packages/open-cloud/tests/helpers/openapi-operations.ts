@@ -29,8 +29,6 @@ interface CompiledOperation {
 	readonly regex: RegExp;
 }
 
-const METHODS: ReadonlySet<OpenApiMethod> = new Set(["delete", "get", "patch", "post", "put"]);
-
 let cachedCompiledOperations: ReadonlyArray<CompiledOperation> | undefined;
 const matchCache = new Map<string, OperationMatch | undefined>();
 
@@ -98,15 +96,13 @@ function compileTemplate(pathTemplate: string): {
 }
 
 function isOpenApiMethod(value: string): value is OpenApiMethod {
-	// `Set.has` is typed against its generic element type, so narrow
-	// via an intermediate cast-free guard.
-	for (const method of METHODS) {
-		if (method === value) {
-			return true;
-		}
-	}
-
-	return false;
+	return (
+		value === "delete" ||
+		value === "get" ||
+		value === "patch" ||
+		value === "post" ||
+		value === "put"
+	);
 }
 
 function getCompiledOperations(): ReadonlyArray<CompiledOperation> {
