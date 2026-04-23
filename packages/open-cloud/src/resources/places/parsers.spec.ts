@@ -217,6 +217,36 @@ describe(parsePlaceResponse, () => {
 
 			expect(result.data.serverSize).toBeUndefined();
 		});
+
+		it("should normalize a JSON null root to false", () => {
+			expect.assertions(1);
+
+			const body: Record<string, unknown> = {
+				...validPlaceBody(),
+				root: JSON.parse("null"),
+			};
+
+			const result = parsePlaceResponse({ body, headers: {}, status: 200 });
+
+			assert(result.success);
+
+			expect(result.data.root).toBeFalse();
+		});
+
+		it("should normalize a JSON null universeRuntimeCreation to false", () => {
+			expect.assertions(1);
+
+			const body: Record<string, unknown> = {
+				...validPlaceBody(),
+				universeRuntimeCreation: JSON.parse("null"),
+			};
+
+			const result = parsePlaceResponse({ body, headers: {}, status: 200 });
+
+			assert(result.success);
+
+			expect(result.data.universeRuntimeCreation).toBeFalse();
+		});
 	});
 
 	describe("id extraction", () => {
@@ -245,6 +275,30 @@ describe(parsePlaceResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 			expect(result.err.message).toBe("Malformed place response");
 		});
+
+		it("should reject a path with trailing junk after the place id", () => {
+			expect.assertions(1);
+
+			const result = parsePlaceResponse(
+				okPlaceResponse(validPlaceBody({ path: "universes/123/places/456/extra" })),
+			);
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
+
+		it("should reject a path with leading junk before the universes segment", () => {
+			expect.assertions(1);
+
+			const result = parsePlaceResponse(
+				okPlaceResponse(validPlaceBody({ path: "prefix/universes/123/places/456" })),
+			);
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
 	});
 
 	describe("malformed bodies", () => {
@@ -263,11 +317,57 @@ describe(parsePlaceResponse, () => {
 			expect(result.err.statusCode).toBe(200);
 		});
 
-		it("should reject a body missing the required path field", () => {
+		it.for(["createTime", "description", "displayName", "path", "updateTime"] as const)(
+			"should reject a body missing the required %s field",
+			(field) => {
+				expect.assertions(1);
+
+				const { [field]: _removed, ...rest } = validPlaceBody();
+				const result = parsePlaceResponse({ body: rest, headers: {}, status: 200 });
+
+				assert(!result.success);
+
+				expect(result.err).toBeInstanceOf(ApiError);
+			},
+		);
+
+		it.for(["createTime", "description", "displayName", "updateTime"] as const)(
+			"should reject a body whose required %s field is not a string",
+			(field) => {
+				expect.assertions(1);
+
+				const body = { ...validPlaceBody(), [field]: 123 };
+				const result = parsePlaceResponse({ body, headers: {}, status: 200 });
+
+				assert(!result.success);
+
+				expect(result.err).toBeInstanceOf(ApiError);
+			},
+		);
+
+		it("should reject a body whose path is a non-string with a matching toString", () => {
+			// A toString() that matches the universes/{uid}/places/{pid}
+			// pattern would let regex.exec succeed on the coerced string,
+			// so this guards that the parser rejects by type before any
+			// regex coercion.
 			expect.assertions(1);
 
-			const { path: _path, ...rest } = validPlaceBody();
-			const result = parsePlaceResponse({ body: rest, headers: {}, status: 200 });
+			const body = {
+				...validPlaceBody(),
+				path: { toString: (): string => "universes/1/places/2" },
+			};
+			const result = parsePlaceResponse({ body, headers: {}, status: 200 });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
+
+		it("should reject an array body even when it carries a valid place shape", () => {
+			expect.assertions(1);
+
+			const arrayWithShape = Object.assign([0], validPlaceBody());
+			const result = parsePlaceResponse({ body: arrayWithShape, headers: {}, status: 200 });
 
 			assert(!result.success);
 
