@@ -177,3 +177,36 @@ line 51). Explicit, mandatory language like ADR-003.
 - [CLAUDE.md current "Making Decisions" section](../../CLAUDE.md)
 - [ADR template](../templates/adr.md)
 - [.claude/agents/adr.md custom agent](../../.claude/agents/adr.md)
+
+## Amendment: 2026-04-23, recalibrate the trigger bar
+
+The original Decision (Part 1) defines seven mandatory triggers broad enough
+that routine work falls inside them: every `pnpm add`, every new Open Cloud
+endpoint, every CI tweak. In practice this produces ceremony. ADRs 011 and
+012 were written retroactively to catch the log up rather than to decide
+anything, and the "if asking, it probably should be" rule of thumb biases
+toward ADRs for additions where no real alternative was considered.
+
+The seven trigger categories remain. Each tightens to require a real
+decision, not mere category membership:
+
+- A package addition triggers an ADR when alternatives were weighed
+  (c12 vs cosmiconfig, Stryker vs mutmut, hk vs husky). A utility with no
+  meaningful competitor does not qualify.
+- A dependency also triggers an ADR when it locks in a vendor or paradigm
+  whose removal would require redesign (Effect-TS, a DI container).
+- An integration triggers an ADR on a new category (auth flow, state
+  backend, API provider), not a new endpoint inside an existing client.
+- Developer workflow triggers an ADR on mandatory policy changes, not on
+  CI tweaks or retuning existing tooling.
+- "Breaking Changes" is inert until bedrock is published to npm. Before
+  that, downstream consumers do not exist.
+
+The rule of thumb "If asking 'should this be an ADR?' - it probably should
+be" is retired. The new default: no ADR unless a future maintainer could
+not reconstruct the *why* from the commit, PR body, and code. CLAUDE.md's
+"Making Architectural Decisions" section is rewritten with a gray-zone
+table rather than abstract categories.
+
+The Q&A process (Part 2) and the "Accepted before implementation" rule
+(Part 3) remain in effect for decisions that clear the narrower bar.
