@@ -20,7 +20,7 @@ describe(GamePassesClient, () => {
 		it("should return a parsed GamePass on success", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient().mockResponse({
+			const httpClient = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
 				body: validGamePassBody(),
 				status: 200,
 			});
@@ -41,7 +41,7 @@ describe(GamePassesClient, () => {
 		it("should propagate the http error when the request fails", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient().mockApiError({
+			const httpClient = createFakeHttpClient({ schemaValidation: "strict" }).mockApiError({
 				code: "NotFound",
 				message: "Game pass not found",
 				statusCode: 404,
@@ -63,7 +63,7 @@ describe(GamePassesClient, () => {
 		it("should build the request config with defaults when only apiKey is provided", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient().mockResponse({
+			const httpClient = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
 				body: validGamePassBody(),
 				status: 200,
 			});
@@ -85,7 +85,7 @@ describe(GamePassesClient, () => {
 		it("should forward the configured apiKey, baseUrl, and timeout to the request config", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient().mockResponse({
+			const httpClient = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
 				body: validGamePassBody(),
 				status: 200,
 			});
@@ -109,7 +109,7 @@ describe(GamePassesClient, () => {
 		it("should retry a 5xx error using the default retryDelay and sleep", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient()
+			const httpClient = createFakeHttpClient({ schemaValidation: "strict" })
 				.mockApiError({ statusCode: 500 })
 				.mockResponse({ body: validGamePassBody(), status: 200 });
 			const sleep = createFakeSleep();
@@ -130,7 +130,7 @@ describe(GamePassesClient, () => {
 		it("should sleep on the rate-limit queue once the burst allowance is exhausted", async () => {
 			expect.assertions(1);
 
-			const httpClient = mockManyOk(createFakeHttpClient(), 11);
+			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "strict" }), 11);
 			const clock = createFakeClock();
 			const client = new GamePassesClient({
 				apiKey: "test-key",
@@ -148,7 +148,7 @@ describe(GamePassesClient, () => {
 		it("should retry a 429, thread the retry wait through sleep, and fire hooks", async () => {
 			expect.assertions(5);
 
-			const httpClient = createFakeHttpClient()
+			const httpClient = createFakeHttpClient({ schemaValidation: "strict" })
 				.mockRateLimit({ retryAfterSeconds: 1 })
 				.mockResponse({ body: validGamePassBody(), status: 200 });
 			const sleep = createFakeSleep();
@@ -178,7 +178,7 @@ describe(GamePassesClient, () => {
 		it("should return a parsed GamePass and send a POST with a FormData body", async () => {
 			expect.assertions(3);
 
-			const httpClient = createFakeHttpClient().mockResponse({
+			const httpClient = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
 				body: validGamePassBody(),
 				status: 200,
 			});
@@ -203,7 +203,7 @@ describe(GamePassesClient, () => {
 		it("should use a queue independent of get() on the same client", async () => {
 			expect.assertions(1);
 
-			const httpClient = mockManyOk(createFakeHttpClient(), 11);
+			const httpClient = mockManyOk(createFakeHttpClient({ schemaValidation: "strict" }), 11);
 			const clock = createFakeClock();
 			const client = new GamePassesClient({
 				apiKey: "test-key",
@@ -223,7 +223,7 @@ describe(GamePassesClient, () => {
 		it("should not retry a 5xx so the request can't duplicate create work", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient()
+			const httpClient = createFakeHttpClient({ schemaValidation: "strict" })
 				.mockApiError({ statusCode: 500 })
 				.mockResponse({ body: validGamePassBody(), status: 200 });
 			const sleep = createFakeSleep();
