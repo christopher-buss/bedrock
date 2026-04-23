@@ -55,6 +55,12 @@ const PLACE_STUB: ResourceDriver<"place"> = {
 	},
 };
 
+const UNIVERSE_STUB: ResourceDriver<"universe"> = {
+	async create() {
+		throw new Error("UniverseDriver.create must not run for game-pass fixtures");
+	},
+};
+
 function makeLiveRegistry(httpClient: FakeHttpClient): DriverRegistry {
 	return {
 		gamePass: createGamePassDriver({
@@ -67,6 +73,7 @@ function makeLiveRegistry(httpClient: FakeHttpClient): DriverRegistry {
 			universeId: UNIVERSE_ID,
 		}),
 		place: PLACE_STUB,
+		universe: UNIVERSE_STUB,
 	};
 }
 
@@ -181,6 +188,7 @@ describe("config pipeline end-to-end", () => {
 				},
 			},
 			place: PLACE_STUB,
+			universe: UNIVERSE_STUB,
 		};
 
 		const applyResult = await applyOps(ops, trapRegistry);

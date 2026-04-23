@@ -11,6 +11,8 @@ import type {
 	ResourceKind,
 	ResourceOutputs,
 	ResourceOutputsByKind,
+	UniverseDesiredState,
+	UniverseOutputs,
 } from "./resources.ts";
 
 interface ExpectedPlaceDesiredState {
@@ -25,6 +27,17 @@ interface ExpectedPlaceOutputs {
 	readonly versionNumber: number;
 }
 
+interface ExpectedUniverseDesiredState {
+	readonly key: ResourceKey;
+	readonly kind: "universe";
+	readonly universeId: RobloxAssetId;
+	readonly voiceChatEnabled: boolean | undefined;
+}
+
+interface ExpectedUniverseOutputs {
+	readonly rootPlaceId: RobloxAssetId;
+}
+
 describe("PlaceDesiredState", () => {
 	it("should carry the file-backed fields under kind place", () => {
 		expectTypeOf<PlaceDesiredState>().toEqualTypeOf<ExpectedPlaceDesiredState>();
@@ -34,6 +47,18 @@ describe("PlaceDesiredState", () => {
 describe("PlaceOutputs", () => {
 	it("should carry only a readonly versionNumber", () => {
 		expectTypeOf<PlaceOutputs>().toEqualTypeOf<ExpectedPlaceOutputs>();
+	});
+});
+
+describe("UniverseDesiredState", () => {
+	it("should carry the singleton fields under kind universe", () => {
+		expectTypeOf<UniverseDesiredState>().toEqualTypeOf<ExpectedUniverseDesiredState>();
+	});
+});
+
+describe("UniverseOutputs", () => {
+	it("should carry only a readonly rootPlaceId", () => {
+		expectTypeOf<UniverseOutputs>().toEqualTypeOf<ExpectedUniverseOutputs>();
 	});
 });
 
@@ -50,16 +75,22 @@ describe("ResourceDesiredState", () => {
 		>().toEqualTypeOf<PlaceDesiredState>();
 	});
 
-	it("should be the union of GamePassDesiredState and PlaceDesiredState", () => {
+	it("should narrow to UniverseDesiredState when kind is universe", () => {
+		expectTypeOf<
+			Extract<ResourceDesiredState, { kind: "universe" }>
+		>().toEqualTypeOf<UniverseDesiredState>();
+	});
+
+	it("should be the union of every managed resource kind", () => {
 		expectTypeOf<ResourceDesiredState>().toEqualTypeOf<
-			GamePassDesiredState | PlaceDesiredState
+			GamePassDesiredState | PlaceDesiredState | UniverseDesiredState
 		>();
 	});
 });
 
 describe("ResourceKind", () => {
-	it("should include both gamePass and place", () => {
-		expectTypeOf<ResourceKind>().toEqualTypeOf<"gamePass" | "place">();
+	it("should include every managed discriminator", () => {
+		expectTypeOf<ResourceKind>().toEqualTypeOf<"gamePass" | "place" | "universe">();
 	});
 });
 
@@ -70,6 +101,10 @@ describe("ResourceOutputsByKind", () => {
 
 	it("should map the gamePass kind to GamePassOutputs", () => {
 		expectTypeOf<ResourceOutputsByKind["gamePass"]>().toEqualTypeOf<GamePassOutputs>();
+	});
+
+	it("should map the universe kind to UniverseOutputs", () => {
+		expectTypeOf<ResourceOutputsByKind["universe"]>().toEqualTypeOf<UniverseOutputs>();
 	});
 });
 
@@ -82,8 +117,12 @@ describe("ResourceOutputs", () => {
 		expectTypeOf<ResourceOutputs<"place">>().toEqualTypeOf<PlaceOutputs>();
 	});
 
+	it("should resolve universe to UniverseOutputs", () => {
+		expectTypeOf<ResourceOutputs<"universe">>().toEqualTypeOf<UniverseOutputs>();
+	});
+
 	it("should reject an unmapped resource kind at compile time", () => {
-		type UnmappedKind = "experience";
+		type UnmappedKind = "nonexistent";
 		// @ts-expect-error UnmappedKind does not extend ResourceKind, so the
 		// generic constraint on ResourceOutputs refuses the lookup.
 		expectTypeOf<ResourceOutputs<UnmappedKind>>().toBeObject();
@@ -105,9 +144,18 @@ describe("ResourceCurrentState", () => {
 		expectTypeOf<Current>().toExtend<PlaceDesiredState>();
 	});
 
+	it("should attach UniverseOutputs under outputs when narrowed to universe", () => {
+		type Current = ResourceCurrentState<"universe">;
+		expectTypeOf<Current["kind"]>().toEqualTypeOf<"universe">();
+		expectTypeOf<Current["outputs"]>().toEqualTypeOf<UniverseOutputs>();
+		expectTypeOf<Current>().toExtend<UniverseDesiredState>();
+	});
+
 	it("should distribute over K so the default union stays per-kind", () => {
 		expectTypeOf<ResourceCurrentState>().toEqualTypeOf<
-			ResourceCurrentState<"gamePass"> | ResourceCurrentState<"place">
+			| ResourceCurrentState<"gamePass">
+			| ResourceCurrentState<"place">
+			| ResourceCurrentState<"universe">
 		>();
 	});
 });

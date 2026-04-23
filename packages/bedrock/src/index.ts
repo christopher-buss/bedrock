@@ -15,16 +15,19 @@ export type {
 	Operation,
 	UpdateOperation,
 } from "./core/operations.ts";
-export type {
-	GamePassDesiredState,
-	GamePassOutputs,
-	PlaceDesiredState,
-	PlaceOutputs,
-	ResourceCurrentState,
-	ResourceDesiredState,
-	ResourceKind,
-	ResourceOutputs,
-	ResourceOutputsByKind,
+export {
+	UNIVERSE_SINGLETON_KEY,
+	type GamePassDesiredState,
+	type GamePassOutputs,
+	type PlaceDesiredState,
+	type PlaceOutputs,
+	type ResourceCurrentState,
+	type ResourceDesiredState,
+	type ResourceKind,
+	type ResourceOutputs,
+	type ResourceOutputsByKind,
+	type UniverseDesiredState,
+	type UniverseOutputs,
 } from "./core/resources.ts";
 export { validateConfig, type Config, type GamePassEntry, type PlaceEntry } from "./core/schema.ts";
 export type { BedrockState, StateError } from "./core/state.ts";

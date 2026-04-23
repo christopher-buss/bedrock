@@ -29,6 +29,11 @@ it('Example 1', () => {
         throw new Error('unreachable: empty config')
       },
     },
+    universe: {
+      create: async () => {
+        throw new Error('unreachable: empty config')
+      },
+    },
   }
   return deploy({
     config: { passes: {} },

@@ -1,5 +1,11 @@
 import type { Operation } from "./operations.ts";
-import type { ResourceCurrentState, ResourceDesiredState } from "./resources.ts";
+import type {
+	GamePassDesiredState,
+	PlaceDesiredState,
+	ResourceCurrentState,
+	ResourceDesiredState,
+	UniverseDesiredState,
+} from "./resources.ts";
 
 /**
  * Computes the operations required to reconcile `current` state with `desired`
@@ -110,31 +116,62 @@ export function diff(
 	return ops;
 }
 
+function gamePassFieldsEqual(
+	desired: GamePassDesiredState,
+	current: ResourceCurrentState<"gamePass">,
+): boolean {
+	return (
+		desired.name === current.name &&
+		desired.description === current.description &&
+		desired.iconFileHash === current.iconFileHash &&
+		desired.iconFilePath === current.iconFilePath &&
+		desired.price === current.price
+	);
+}
+
+function placeFieldsEqual(
+	desired: PlaceDesiredState,
+	current: ResourceCurrentState<"place">,
+): boolean {
+	return (
+		desired.placeId === current.placeId &&
+		desired.filePath === current.filePath &&
+		desired.fileHash === current.fileHash
+	);
+}
+
+function universeFieldsEqual(
+	desired: UniverseDesiredState,
+	current: ResourceCurrentState<"universe">,
+): boolean {
+	if (desired.universeId !== current.universeId) {
+		return false;
+	}
+
+	// Undeclared managed fields (`undefined` on desired) are treated as
+	// unmanaged: the server's value is not compared and therefore never
+	// counts as drift. Mirrors ocale's `updateMask` semantics and makes
+	// field-by-field adoption possible.
+	if (
+		desired.voiceChatEnabled !== undefined &&
+		desired.voiceChatEnabled !== current.voiceChatEnabled
+	) {
+		return false;
+	}
+
+	return true;
+}
+
 function desiredFieldsEqual(desired: ResourceDesiredState, current: ResourceCurrentState): boolean {
 	switch (desired.kind) {
 		case "gamePass": {
-			if (current.kind !== "gamePass") {
-				return false;
-			}
-
-			return (
-				desired.name === current.name &&
-				desired.description === current.description &&
-				desired.iconFileHash === current.iconFileHash &&
-				desired.iconFilePath === current.iconFilePath &&
-				desired.price === current.price
-			);
+			return current.kind === "gamePass" && gamePassFieldsEqual(desired, current);
 		}
 		case "place": {
-			if (current.kind !== "place") {
-				return false;
-			}
-
-			return (
-				desired.placeId === current.placeId &&
-				desired.filePath === current.filePath &&
-				desired.fileHash === current.fileHash
-			);
+			return current.kind === "place" && placeFieldsEqual(desired, current);
+		}
+		case "universe": {
+			return current.kind === "universe" && universeFieldsEqual(desired, current);
 		}
 	}
 }

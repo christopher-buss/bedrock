@@ -6,6 +6,8 @@ import {
   type GamePassDesiredState,
   asRobloxAssetId,
   type PlaceDesiredState,
+  UNIVERSE_SINGLETON_KEY,
+  type UniverseDesiredState,
   type ResourceOutputsByKind,
   type ResourceCurrentState,
 } from '@bedrock/core'
@@ -41,6 +43,17 @@ it('Example 2', () => {
 })
 
 it('Example 3', () => {
+  const universe: UniverseDesiredState = {
+    key: UNIVERSE_SINGLETON_KEY,
+    kind: 'universe',
+    universeId: asRobloxAssetId('1234567890'),
+    voiceChatEnabled: true,
+  }
+  expect(universe.kind).toBe('universe')
+  expect(universe.key).toBe('main')
+})
+
+it('Example 4', () => {
   const outputs: ResourceOutputsByKind['gamePass'] = {
     assetId: asRobloxAssetId('9876543210'),
     iconAssetId: asRobloxAssetId('1122334455'),
@@ -48,7 +61,7 @@ it('Example 3', () => {
   expect(outputs.assetId).toBe('9876543210')
 })
 
-it('Example 4', () => {
+it('Example 5', () => {
   const current: ResourceCurrentState<'gamePass'> = {
     description: 'Grants VIP perks.',
     iconFileHash: asSha256Hex(
@@ -66,4 +79,8 @@ it('Example 4', () => {
   }
   expect(current.outputs.assetId).toBe('9876543210')
   expect(current.kind).toBe('gamePass')
+})
+
+it('Example 6', () => {
+  expect(UNIVERSE_SINGLETON_KEY).toBe('main')
 })

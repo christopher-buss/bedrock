@@ -1,4 +1,9 @@
-import type { ResourceKey, RobloxAssetId, Sha256Hex } from "../types/ids.ts";
+import {
+	asResourceKey,
+	type ResourceKey,
+	type RobloxAssetId,
+	type Sha256Hex,
+} from "../types/ids.ts";
 
 /**
  * Desired state for a game pass, as declared in user config.
@@ -112,13 +117,53 @@ export interface PlaceOutputs {
 }
 
 /**
+ * Desired state for the singleton universe a config manages.
+ *
+ * The universe is adopted rather than provisioned: the user supplies an
+ * existing `universeId` (Open Cloud cannot mint universes) and bedrock
+ * reconciles the declared managed fields against it. Optional managed fields
+ * use `T | undefined` to mean "unmanaged" — the diff treats undefined as
+ * absent and the driver omits the field from the `updateMask`.
+ *
+ * @example
+ *
+ * ```ts
+ * import {
+ *     asRobloxAssetId,
+ *     UNIVERSE_SINGLETON_KEY,
+ *     type UniverseDesiredState,
+ * } from "bedrock";
+ *
+ * const universe: UniverseDesiredState = {
+ *     key: UNIVERSE_SINGLETON_KEY,
+ *     kind: "universe",
+ *     universeId: asRobloxAssetId("1234567890"),
+ *     voiceChatEnabled: true,
+ * };
+ *
+ * expect(universe.kind).toBe("universe");
+ * expect(universe.key).toBe("main");
+ * ```
+ */
+export interface UniverseDesiredState {
+	/** Fixed singleton key (`"main"`); bedrock synthesizes it in `flattenConfig`. */
+	readonly key: ResourceKey;
+	/** Discriminator tag for the `ResourceDesiredState` union. */
+	readonly kind: "universe";
+	/** User-supplied Roblox universe ID; the universe must already exist. */
+	readonly universeId: RobloxAssetId;
+	/** Whether voice chat is enabled; `undefined` leaves the server value untouched. */
+	readonly voiceChatEnabled: boolean | undefined;
+}
+
+/**
  * Discriminated union of every desired-state shape Bedrock manages.
  *
  * Extend by adding new members to this union; the mapped
  * `ResourceOutputsByKind` interface then forces a matching outputs entry for
  * the new kind at compile time.
  */
-export type ResourceDesiredState = GamePassDesiredState | PlaceDesiredState;
+export type ResourceDesiredState = GamePassDesiredState | PlaceDesiredState | UniverseDesiredState;
 
 /**
  * Roblox-returned identifiers produced by creating or updating a game pass.
@@ -132,6 +177,16 @@ export interface GamePassOutputs {
 	readonly assetId: RobloxAssetId;
 	/** Roblox asset ID of the uploaded icon image. */
 	readonly iconAssetId: RobloxAssetId;
+}
+
+/**
+ * Roblox-returned value produced by reconciling a universe. The root place
+ * ID is server-authoritative: bedrock cannot set it directly, but records it
+ * so a future places slice can cross-validate the declared start place.
+ */
+export interface UniverseOutputs {
+	/** Server-assigned root place ID for the universe. */
+	readonly rootPlaceId: RobloxAssetId;
 }
 
 /**
@@ -166,6 +221,8 @@ export interface ResourceOutputsByKind {
 	gamePass: GamePassOutputs;
 	/** Outputs returned by the Roblox API for a place publish. */
 	place: PlaceOutputs;
+	/** Outputs returned by the Roblox API for a universe reconcile. */
+	universe: UniverseOutputs;
 }
 
 /**
@@ -229,3 +286,18 @@ export type ResourceCurrentState<K extends ResourceKind = ResourceKind> = K exte
 	: never;
 
 type Prettify<T> = { readonly [K in keyof T]: T[K] };
+
+/**
+ * Fixed stable key for the singleton universe resource. `flattenConfig`
+ * stamps this onto the sole `UniverseDesiredInput` it emits; fixtures and
+ * state adapters share the constant so the invariant is encoded once.
+ *
+ * @example
+ *
+ * ```ts
+ * import { UNIVERSE_SINGLETON_KEY } from "bedrock";
+ *
+ * expect(UNIVERSE_SINGLETON_KEY).toBe("main");
+ * ```
+ */
+export const UNIVERSE_SINGLETON_KEY: ResourceKey = asResourceKey("main");
