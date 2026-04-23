@@ -396,6 +396,40 @@ describe(PlacesClient, () => {
 			expect(result.data).toBeDefined();
 		});
 
+		it("should retry a 429, thread the retry-after wait through sleep, and fire all hooks", async () => {
+			expect.assertions(4);
+
+			const httpClient = createFakeHttpClient()
+				.mockRateLimit({ retryAfterSeconds: 1 })
+				.mockResponse({ body: validPlaceBody(), status: 200 });
+			const sleep = createFakeSleep();
+			const onRequest = vi.fn<NonNullable<OpenCloudHooks["onRequest"]>>();
+			const onRetry = vi.fn<NonNullable<OpenCloudHooks["onRetry"]>>();
+			const onRateLimit = vi.fn<NonNullable<OpenCloudHooks["onRateLimit"]>>();
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				hooks: { onRateLimit, onRequest, onRetry },
+				httpClient,
+				sleep,
+			});
+
+			const result = await client.update({
+				description: "Retry test",
+				placeId: "456",
+				universeId: "123",
+			});
+
+			assert(result.success);
+
+			// The 100/min update queue has room on the first call and refills
+			// before the retry, so onRateLimit fires only for the retry-after
+			// delay surfaced by the 429.
+			expect(httpClient.requests).toHaveLength(2);
+			expect(onRequest).toHaveBeenCalledTimes(2);
+			expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, expect.any(Error));
+			expect(onRateLimit).toHaveBeenCalledExactlyOnceWith(1000);
+		});
+
 		it("should route a per-request apiKey override through the request config", async () => {
 			expect.assertions(1);
 
@@ -494,6 +528,43 @@ describe(PlacesClient, () => {
 				"override-key",
 			]);
 			expect(clock.waits).toStrictEqual([1000, 1000]);
+		});
+	});
+
+	describe("independent rate-limit buckets", () => {
+		it("should account update and publish against separate queues", async () => {
+			expect.assertions(2);
+
+			// Publish's 0.5/sec queue forces a 1000ms init wait on its
+			// first call. Update's 100/min queue (intervalMs=600ms, max
+			// bucket 1000ms) has room on its first call and sleeps zero.
+			// If update wrongly shared publish's queue, it would inherit
+			// the drained bucket and pay a 2000ms wait; independent
+			// queues leave the second call wait-free.
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: validPublishResponseBody(), status: 200 })
+				.mockResponse({ body: validPlaceBody(), status: 200 });
+			const clock = createFakeClock();
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			await client.publish({
+				body: rbxlBody(),
+				format: "rbxl",
+				placeId: "1",
+				universeId: "2",
+			});
+			await client.update({
+				description: "Isolation test",
+				placeId: "1",
+				universeId: "2",
+			});
+
+			expect(httpClient.requests).toHaveLength(2);
+			expect(clock.waits).toStrictEqual([1000]);
 		});
 	});
 });
