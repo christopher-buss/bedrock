@@ -2,11 +2,11 @@ import { ApiError } from "@bedrock/ocale";
 import { GamePassesClient } from "@bedrock/ocale/game-passes";
 import { createFakeHttpClient, validGamePassBody } from "@bedrock/ocale/testing";
 
+import { gamePassDesired } from "#tests/helpers/resources";
 import type { Except } from "type-fest";
 import { assert, describe, expect, it } from "vitest";
 
-import type { GamePassDesiredState } from "../core/resources.ts";
-import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
+import { asRobloxAssetId } from "../types/ids.ts";
 import { createGamePassDriver, type GamePassDriverDeps } from "./game-pass-driver.ts";
 
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
@@ -19,21 +19,6 @@ const WIRE_BODY = validGamePassBody({
 	iconAssetId: 1_122_334_455,
 	priceInformation: { defaultPriceInRobux: 500, enabledFeatures: [] },
 });
-
-function makeDesired(overrides?: Partial<GamePassDesiredState>): GamePassDesiredState {
-	return {
-		key: asResourceKey("vip-pass"),
-		name: "VIP Pass",
-		description: "Grants VIP perks.",
-		iconFileHash: asSha256Hex(
-			"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-		),
-		iconFilePath: "assets/vip-icon.png",
-		kind: "gamePass",
-		price: 500,
-		...overrides,
-	};
-}
 
 function makeDriver(overrides?: Partial<Except<GamePassDriverDeps, "client">>) {
 	const http = createFakeHttpClient();
@@ -71,7 +56,7 @@ describe(createGamePassDriver, () => {
 		const { driver, http } = makeDriver();
 		http.mockResponse({ body: WIRE_BODY, status: 200 });
 
-		const desired = makeDesired();
+		const desired = gamePassDesired();
 		const result = await driver.create(desired);
 
 		assert(result.success);
@@ -91,7 +76,7 @@ describe(createGamePassDriver, () => {
 		const { driver, http } = makeDriver();
 		http.mockResponse({ body: WIRE_BODY, status: 200 });
 
-		await driver.create(makeDesired());
+		await driver.create(gamePassDesired());
 
 		const captured = http.requests[0]!;
 
@@ -105,7 +90,7 @@ describe(createGamePassDriver, () => {
 		const { driver, http } = makeDriver();
 		http.mockResponse({ body: WIRE_BODY, status: 200 });
 
-		await driver.create(makeDesired());
+		await driver.create(gamePassDesired());
 
 		const captured = http.requests[0]!;
 
@@ -123,7 +108,7 @@ describe(createGamePassDriver, () => {
 		const { driver, http } = makeDriver();
 		http.mockResponse({ body: WIRE_BODY, status: 200 });
 
-		await driver.create(makeDesired({ price: undefined }));
+		await driver.create(gamePassDesired({ price: undefined }));
 
 		const captured = http.requests[0]!;
 		assert(captured.request.body instanceof FormData);
@@ -137,7 +122,7 @@ describe(createGamePassDriver, () => {
 		const { driver, http } = makeDriver();
 		http.mockApiError({ message: "boom", statusCode: 500 });
 
-		const result = await driver.create(makeDesired());
+		const result = await driver.create(gamePassDesired());
 
 		assert(!result.success);
 		assert(result.err instanceof ApiError);
@@ -155,7 +140,7 @@ describe(createGamePassDriver, () => {
 			status: 200,
 		});
 
-		const result = await driver.create(makeDesired());
+		const result = await driver.create(gamePassDesired());
 
 		assert(!result.success);
 
@@ -182,7 +167,7 @@ describe(createGamePassDriver, () => {
 			universeId: UNIVERSE_ID,
 		});
 
-		await expect(driver.create(makeDesired())).rejects.toBe(fsError);
+		await expect(driver.create(gamePassDesired())).rejects.toBe(fsError);
 		expect(http.requests).toBeEmpty();
 	});
 });

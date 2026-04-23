@@ -1,69 +1,17 @@
+import {
+	gamePassCurrent,
+	gamePassDesired,
+	placeCurrent,
+	placeDesired,
+} from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { diff } from "./diff.ts";
-import type { GamePassDesiredState, PlaceDesiredState, ResourceCurrentState } from "./resources.ts";
+import type { GamePassDesiredState, ResourceCurrentState } from "./resources.ts";
 
-const DEFAULT_HASH = asSha256Hex(
-	"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-);
 const ALT_HASH = asSha256Hex("a3f2c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852e1b0");
 const PLACE_KEY = asResourceKey("start-place");
-const PLACE_ID = asRobloxAssetId("4711");
-const PLACE_HASH = asSha256Hex("039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81");
-
-function placeDesired(overrides?: Partial<PlaceDesiredState>): PlaceDesiredState {
-	return {
-		key: PLACE_KEY,
-		fileHash: PLACE_HASH,
-		filePath: "places/start.rbxl",
-		kind: "place",
-		placeId: PLACE_ID,
-		...overrides,
-	};
-}
-
-function placeCurrent(
-	overrides?: Partial<ResourceCurrentState<"place">>,
-): ResourceCurrentState<"place"> {
-	return {
-		...placeDesired(),
-		outputs: { versionNumber: 1 },
-		...overrides,
-	};
-}
-
-function gamePassDesired(overrides?: Partial<GamePassDesiredState>): GamePassDesiredState {
-	return {
-		key: asResourceKey("vip-pass"),
-		name: "VIP Pass",
-		description: "Grants VIP perks.",
-		iconFileHash: DEFAULT_HASH,
-		iconFilePath: "assets/vip-icon.png",
-		kind: "gamePass",
-		price: 500,
-		...overrides,
-	};
-}
-
-function gamePassCurrent(
-	overrides?: Partial<ResourceCurrentState<"gamePass">>,
-): ResourceCurrentState<"gamePass"> {
-	return {
-		key: asResourceKey("vip-pass"),
-		name: "VIP Pass",
-		description: "Grants VIP perks.",
-		iconFileHash: DEFAULT_HASH,
-		iconFilePath: "assets/vip-icon.png",
-		kind: "gamePass",
-		outputs: {
-			assetId: asRobloxAssetId("9876543210"),
-			iconAssetId: asRobloxAssetId("1122334455"),
-		},
-		price: 500,
-		...overrides,
-	};
-}
 
 describe(diff, () => {
 	it("should return an empty list when both snapshots are empty", () => {
