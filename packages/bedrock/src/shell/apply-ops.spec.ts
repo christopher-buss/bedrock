@@ -1,63 +1,23 @@
 import { OpenCloudError } from "@bedrock/ocale";
 
+import {
+	gamePassCurrent,
+	gamePassDesired,
+	placeCurrent,
+	placeDesired,
+} from "#tests/helpers/resources";
 import { assert, describe, expect, it, vi } from "vitest";
 
 import type { CreateOperation, UpdateOperation } from "../core/operations.ts";
-import type {
-	GamePassDesiredState,
-	PlaceDesiredState,
-	ResourceCurrentState,
-} from "../core/resources.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
-import { asResourceKey, asRobloxAssetId, asSha256Hex, type ResourceKey } from "../types/ids.ts";
+import { asResourceKey, type ResourceKey } from "../types/ids.ts";
 import { applyOps } from "./apply-ops.ts";
-
-const ICON_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
-const PLACE_HASH = asSha256Hex("039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81");
-
-function gamePassDesired(overrides?: Partial<GamePassDesiredState>): GamePassDesiredState {
-	return {
-		key: asResourceKey("vip-pass"),
-		name: "VIP Pass",
-		description: "Grants VIP perks.",
-		iconFileHash: ICON_HASH,
-		iconFilePath: "assets/vip-icon.png",
-		kind: "gamePass",
-		price: 500,
-		...overrides,
-	};
-}
-
-function currentFrom(desired: GamePassDesiredState): ResourceCurrentState<"gamePass"> {
-	return {
-		...desired,
-		outputs: {
-			assetId: asRobloxAssetId("9876543210"),
-			iconAssetId: asRobloxAssetId("1122334455"),
-		},
-	};
-}
 
 const placeStub: ResourceDriver<"place"> = {
 	async create() {
 		return { err: new OpenCloudError("place stub"), success: false };
 	},
 };
-
-function placeDesired(overrides?: Partial<PlaceDesiredState>): PlaceDesiredState {
-	return {
-		key: asResourceKey("start-place"),
-		fileHash: PLACE_HASH,
-		filePath: "places/start.rbxl",
-		kind: "place",
-		placeId: asRobloxAssetId("4711"),
-		...overrides,
-	};
-}
-
-function placeCurrentFrom(desired: PlaceDesiredState): ResourceCurrentState<"place"> {
-	return { ...desired, outputs: { versionNumber: 1 } };
-}
 
 function createOp(key: ResourceKey) {
 	const desired = gamePassDesired({ key });
@@ -68,7 +28,7 @@ function updateOp(key: ResourceKey) {
 	const desired = gamePassDesired({ key });
 	return {
 		key,
-		current: currentFrom(desired),
+		current: gamePassCurrent({ ...desired }),
 		desired,
 		type: "update",
 	} as const satisfies UpdateOperation;
@@ -100,7 +60,7 @@ describe(applyOps, () => {
 		expect.assertions(3);
 
 		const op = createOp(asResourceKey("vip-pass"));
-		const created = currentFrom(op.desired);
+		const created = gamePassCurrent({ ...op.desired });
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValue({ data: created, success: true });
@@ -117,8 +77,8 @@ describe(applyOps, () => {
 
 		const firstOp = createOp(asResourceKey("first-pass"));
 		const secondOp = createOp(asResourceKey("second-pass"));
-		const firstCurrent = currentFrom(firstOp.desired);
-		const secondCurrent = currentFrom(secondOp.desired);
+		const firstCurrent = gamePassCurrent({ ...firstOp.desired });
+		const secondCurrent = gamePassCurrent({ ...secondOp.desired });
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValueOnce({ data: firstCurrent, success: true })
@@ -143,7 +103,9 @@ describe(applyOps, () => {
 		];
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
-			.mockImplementation(async (desired) => ({ data: currentFrom(desired), success: true }));
+			.mockImplementation(async (desired) => {
+				return { data: gamePassCurrent({ ...desired }), success: true };
+			});
 
 		const result = await applyOps(ops, registryWith(create));
 
@@ -161,7 +123,7 @@ describe(applyOps, () => {
 		const first = createOp(asResourceKey("first-pass"));
 		const second = createOp(asResourceKey("second-pass"));
 		const third = createOp(asResourceKey("third-pass"));
-		const firstCurrent = currentFrom(first.desired);
+		const firstCurrent = gamePassCurrent({ ...first.desired });
 		const cause = new OpenCloudError("boom");
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
@@ -208,7 +170,7 @@ describe(applyOps, () => {
 		expect.assertions(1);
 
 		const created = createOp(asResourceKey("first-pass"));
-		const createdCurrent = currentFrom(created.desired);
+		const createdCurrent = gamePassCurrent({ ...created.desired });
 		const update = updateOp(asResourceKey("vip-pass"));
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
@@ -226,7 +188,7 @@ describe(applyOps, () => {
 		expect.assertions(4);
 
 		const op = updateOp(asResourceKey("vip-pass"));
-		const updated = currentFrom(op.desired);
+		const updated = gamePassCurrent({ ...op.desired });
 		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
 		const update = vi
 			.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>()
@@ -284,7 +246,7 @@ describe(applyOps, () => {
 			const desired = placeDesired({ key });
 			return {
 				key,
-				current: placeCurrentFrom(desired),
+				current: placeCurrent({ ...desired }),
 				desired,
 				type: "update",
 			} as const satisfies UpdateOperation;
@@ -294,7 +256,7 @@ describe(applyOps, () => {
 			expect.assertions(2);
 
 			const op = placeCreateOp(asResourceKey("start-place"));
-			const created = placeCurrentFrom(op.desired);
+			const created = placeCurrent({ ...op.desired });
 			const create = vi
 				.fn<ResourceDriver<"place">["create"]>()
 				.mockResolvedValue({ data: created, success: true });
@@ -341,7 +303,7 @@ describe(applyOps, () => {
 			expect.assertions(3);
 
 			const op = placeUpdateOp(asResourceKey("start-place"));
-			const updated = placeCurrentFrom(op.desired);
+			const updated = placeCurrent({ ...op.desired });
 			const create = vi.fn<ResourceDriver<"place">["create"]>();
 			const update = vi
 				.fn<NonNullable<ResourceDriver<"place">["update"]>>()
@@ -376,10 +338,10 @@ describe(applyOps, () => {
 			expect.assertions(4);
 
 			const placeDesiredState = placeDesired();
-			const gamePassCurrent = currentFrom(gamePassDesired({ key: placeDesiredState.key }));
+			const crossKindCurrent = gamePassCurrent({ key: placeDesiredState.key });
 			const op: UpdateOperation = {
 				key: placeDesiredState.key,
-				current: gamePassCurrent,
+				current: crossKindCurrent,
 				desired: placeDesiredState,
 				type: "update",
 			};
@@ -402,20 +364,11 @@ describe(applyOps, () => {
 		it("should return driverFailure with a kind-mismatch message when op.current.kind does not match gamePass", async () => {
 			expect.assertions(4);
 
-			const placeCurrent: ResourceCurrentState<"place"> = {
-				key: asResourceKey("vip-pass"),
-				fileHash: asSha256Hex(
-					"039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
-				),
-				filePath: "places/start.rbxl",
-				kind: "place",
-				outputs: { versionNumber: 1 },
-				placeId: asRobloxAssetId("4711"),
-			};
+			const crossKindCurrent = placeCurrent({ key: asResourceKey("vip-pass") });
 			const op: UpdateOperation = {
-				key: placeCurrent.key,
-				current: placeCurrent,
-				desired: gamePassDesired({ key: placeCurrent.key }),
+				key: crossKindCurrent.key,
+				current: crossKindCurrent,
+				desired: gamePassDesired({ key: crossKindCurrent.key }),
 				type: "update",
 			};
 			const create = vi.fn<ResourceDriver<"gamePass">["create"]>();

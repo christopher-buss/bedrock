@@ -2,32 +2,19 @@ import { ApiError } from "@bedrock/ocale";
 import { PlacesClient } from "@bedrock/ocale/places";
 import { createFakeHttpClient } from "@bedrock/ocale/testing";
 
+import { placeCurrent, placeDesired } from "#tests/helpers/resources";
 import type { Except } from "type-fest";
 import { assert, describe, expect, it } from "vitest";
 
-import type { PlaceDesiredState, ResourceCurrentState } from "../core/resources.ts";
-import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
+import { asRobloxAssetId } from "../types/ids.ts";
 import { createPlaceDriver, type PlaceDriverDeps } from "./place-driver.ts";
 
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
 const PLACE_ID = asRobloxAssetId("4711");
-const PLACE_KEY = asResourceKey("start-place");
-const PLACE_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
 const RBXL_SIGNATURE = new Uint8Array([
 	0x3c, 0x72, 0x6f, 0x62, 0x6c, 0x6f, 0x78, 0x21, 0x89, 0xff, 0x0d, 0x0a, 0x1a, 0x0a,
 ]);
 const RBXLX_SIGNATURE = new Uint8Array([0x3c, 0x72, 0x6f, 0x62, 0x6c, 0x6f, 0x78, 0x20]);
-
-function makeDesired(overrides?: Partial<PlaceDesiredState>): PlaceDesiredState {
-	return {
-		key: PLACE_KEY,
-		fileHash: PLACE_HASH,
-		filePath: "places/start.rbxl",
-		kind: "place",
-		placeId: PLACE_ID,
-		...overrides,
-	};
-}
 
 function makeDriver(overrides?: Partial<Except<PlaceDriverDeps, "client">>) {
 	const http = createFakeHttpClient();
@@ -44,10 +31,6 @@ function makeDriver(overrides?: Partial<Except<PlaceDriverDeps, "client">>) {
 	return { driver, http };
 }
 
-function currentFrom(desired: PlaceDesiredState): ResourceCurrentState<"place"> {
-	return { ...desired, outputs: { versionNumber: 1 } };
-}
-
 describe(createPlaceDriver, () => {
 	it("should publish an rbxl place and return a PlaceOutputs-shaped current state", async () => {
 		expect.assertions(1);
@@ -55,7 +38,7 @@ describe(createPlaceDriver, () => {
 		const { driver, http } = makeDriver();
 		http.mockResponse({ body: { versionNumber: 3 }, status: 200 });
 
-		const desired = makeDesired();
+		const desired = placeDesired();
 		const result = await driver.create(desired);
 
 		assert(result.success);
@@ -72,7 +55,7 @@ describe(createPlaceDriver, () => {
 		const { driver, http } = makeDriver();
 		http.mockResponse({ body: { versionNumber: 1 }, status: 200 });
 
-		await driver.create(makeDesired());
+		await driver.create(placeDesired());
 
 		const captured = http.requests[0]!;
 
@@ -89,7 +72,7 @@ describe(createPlaceDriver, () => {
 		const { driver, http } = makeDriver({ readFile: async () => RBXLX_SIGNATURE });
 		http.mockResponse({ body: { versionNumber: 1 }, status: 200 });
 
-		await driver.create(makeDesired({ filePath: "places/start.rbxlx" }));
+		await driver.create(placeDesired({ filePath: "places/start.rbxlx" }));
 
 		expect(http.requests[0]!.request.headers?.["content-type"]).toBe("application/xml");
 	});
@@ -99,7 +82,7 @@ describe(createPlaceDriver, () => {
 
 		const { driver, http } = makeDriver();
 
-		const result = await driver.create(makeDesired({ filePath: "places/start.txt" }));
+		const result = await driver.create(placeDesired({ filePath: "places/start.txt" }));
 
 		assert(!result.success);
 
@@ -114,7 +97,7 @@ describe(createPlaceDriver, () => {
 		const { driver, http } = makeDriver();
 		http.mockApiError({ message: "boom", statusCode: 500 });
 
-		const result = await driver.create(makeDesired());
+		const result = await driver.create(placeDesired());
 
 		assert(!result.success);
 		assert(result.err instanceof ApiError);
@@ -133,7 +116,7 @@ describe(createPlaceDriver, () => {
 			},
 		});
 
-		await expect(driver.create(makeDesired())).rejects.toBe(fsError);
+		await expect(driver.create(placeDesired())).rejects.toBe(fsError);
 		expect(http.requests).toBeEmpty();
 	});
 
@@ -145,8 +128,8 @@ describe(createPlaceDriver, () => {
 
 		assert(driver.update !== undefined);
 
-		const desired = makeDesired();
-		const result = await driver.update(currentFrom(desired), desired);
+		const desired = placeDesired();
+		const result = await driver.update(placeCurrent({ ...desired }), desired);
 
 		assert(result.success);
 

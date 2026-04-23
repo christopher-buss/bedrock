@@ -6,6 +6,7 @@ language: en
 words:
   - arktype
   - bedrockrc
+  - guilded
   - monocart
   - retryable
   - ocale

@@ -1,0 +1,17 @@
+{
+	"path": "universes/54321",
+	"createTime": "2024-01-15T10:30:00.000Z",
+	"updateTime": "2024-12-20T12:00:00.000Z",
+	"displayName": "Group Arena",
+	"description": "Competitive matchmaking operated by the community group.",
+	"group": "groups/42",
+	"visibility": "PRIVATE",
+	"voiceChatEnabled": false,
+	"ageRating": "AGE_RATING_ALL",
+	"desktopEnabled": true,
+	"mobileEnabled": false,
+	"tabletEnabled": false,
+	"consoleEnabled": true,
+	"vrEnabled": false,
+	"rootPlace": "universes/54321/places/11111"
+}
