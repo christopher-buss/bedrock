@@ -155,22 +155,28 @@ describe(applyOps, () => {
 		]);
 	});
 
-	it("should stop dispatching on the first driver failure and wrap it in driverFailure Err", async () => {
+	it("should stop dispatching on the first driver failure and wrap it in driverFailure Err with appliedSoFar", async () => {
 		expect.assertions(3);
 
 		const first = createOp(asResourceKey("first-pass"));
 		const second = createOp(asResourceKey("second-pass"));
 		const third = createOp(asResourceKey("third-pass"));
+		const firstCurrent = currentFrom(first.desired);
 		const cause = new OpenCloudError("boom");
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
-			.mockResolvedValueOnce({ data: currentFrom(first.desired), success: true })
+			.mockResolvedValueOnce({ data: firstCurrent, success: true })
 			.mockResolvedValueOnce({ err: cause, success: false });
 
 		const result = await applyOps([first, second, third], registryWith(create));
 
 		expect(result).toStrictEqual({
-			err: { key: second.key, cause, kind: "driverFailure" },
+			err: {
+				key: second.key,
+				appliedSoFar: [firstCurrent],
+				cause,
+				kind: "driverFailure",
+			},
 			success: false,
 		});
 		expect(create).toHaveBeenCalledTimes(2);
@@ -230,7 +236,7 @@ describe(applyOps, () => {
 		const result = await applyOps([first, second], registryWith(create, update));
 
 		expect(result).toStrictEqual({
-			err: { key: first.key, cause, kind: "driverFailure" },
+			err: { key: first.key, appliedSoFar: [], cause, kind: "driverFailure" },
 			success: false,
 		});
 		expect(create).not.toHaveBeenCalled();
@@ -293,7 +299,7 @@ describe(applyOps, () => {
 			const result = await applyOps([op], placeRegistry(create));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, cause, kind: "driverFailure" },
+				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
 				success: false,
 			});
 		});
@@ -343,7 +349,7 @@ describe(applyOps, () => {
 			const result = await applyOps([op], placeRegistry(create, update));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, cause, kind: "driverFailure" },
+				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
 				success: false,
 			});
 		});

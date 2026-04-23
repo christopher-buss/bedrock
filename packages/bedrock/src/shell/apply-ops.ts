@@ -13,6 +13,11 @@ import type { ResourceKey } from "../types/ids.ts";
  * Failure surfaced by `applyOps` when an operation cannot be applied.
  * Plain-data discriminated union; narrow on `kind`, do not `instanceof` it.
  *
+ * `appliedSoFar` carries the driver outputs from operations that succeeded
+ * before the failing one, in dispatched order. Callers persist this so a
+ * follow-up reconcile does not duplicate Roblox-side resources that have
+ * already been created or updated.
+ *
  * @example
  *
  * ```ts
@@ -31,6 +36,7 @@ import type { ResourceKey } from "../types/ids.ts";
  *
  * const err: ApplyError = {
  *     key: asResourceKey("vip-pass"),
+ *     appliedSoFar: [],
  *     kind: "updateUnsupported",
  * };
  *
@@ -39,11 +45,13 @@ import type { ResourceKey } from "../types/ids.ts";
  */
 export type ApplyError =
 	| {
+			readonly appliedSoFar: ReadonlyArray<ResourceCurrentState>;
 			readonly cause: OpenCloudError;
 			readonly key: ResourceKey;
 			readonly kind: "driverFailure";
 	  }
 	| {
+			readonly appliedSoFar: ReadonlyArray<ResourceCurrentState>;
 			readonly key: ResourceKey;
 			readonly kind: "updateUnsupported";
 	  };
@@ -51,6 +59,10 @@ export type ApplyError =
 type NonNoopOp = Exclude<Operation, { readonly type: "noop" }>;
 type GamePassOp = NonNoopOp & { readonly desired: GamePassDesiredState };
 type PlaceOp = NonNoopOp & { readonly desired: PlaceDesiredState };
+
+type RawApplyError =
+	| { readonly cause: OpenCloudError; readonly key: ResourceKey; readonly kind: "driverFailure" }
+	| { readonly key: ResourceKey; readonly kind: "updateUnsupported" };
 
 /**
  * Dispatch each reconciliation operation to the matching resource driver
@@ -156,7 +168,7 @@ export async function applyOps(
 			? await applyGamePass(op, registry.gamePass)
 			: await applyPlace(toPlaceOp(op), registry.place);
 		if (!outcome.success) {
-			return outcome;
+			return { err: { ...outcome.err, appliedSoFar: applied }, success: false };
 		}
 
 		applied.push(outcome.data);
@@ -169,7 +181,10 @@ function isGamePassOp(op: NonNoopOp): op is GamePassOp {
 	return op.desired.kind === "gamePass";
 }
 
-function driverFailure<T>(key: ResourceKey, cause: OpenCloudError): Result<T, ApplyError> {
+function driverFailure(
+	key: ResourceKey,
+	cause: OpenCloudError,
+): Result<ResourceCurrentState, RawApplyError> {
 	return { err: { key, cause, kind: "driverFailure" }, success: false };
 }
 
@@ -183,7 +198,7 @@ function kindMismatch(key: ResourceKey, mismatch: { actual: string; expected: st
 async function applyGamePass(
 	op: GamePassOp,
 	driver: ResourceDriver<"gamePass">,
-): Promise<Result<ResourceCurrentState, ApplyError>> {
+): Promise<Result<ResourceCurrentState, RawApplyError>> {
 	if (op.type === "create") {
 		const created = await driver.create(op.desired);
 		return created.success ? created : driverFailure(op.key, created.err);
@@ -207,7 +222,7 @@ async function applyGamePass(
 async function applyPlace(
 	op: PlaceOp,
 	driver: ResourceDriver<"place">,
-): Promise<Result<ResourceCurrentState, ApplyError>> {
+): Promise<Result<ResourceCurrentState, RawApplyError>> {
 	if (op.type === "create") {
 		const created = await driver.create(op.desired);
 		return created.success ? created : driverFailure(op.key, created.err);
