@@ -91,11 +91,9 @@ export function buildUpdateRequest(
 		};
 	}
 
-	const body: Record<string, unknown> = {};
-	for (const key of fieldKeys) {
-		body[key] = Reflect.get(parameters, key);
-	}
-
+	const body = Object.fromEntries(
+		fieldKeys.map((key): readonly [string, unknown] => [key, Reflect.get(parameters, key)]),
+	);
 	const updateMask = fieldKeys.join(",");
 	const { placeId, universeId } = parameters;
 	return {
@@ -110,14 +108,5 @@ export function buildUpdateRequest(
 }
 
 function extractUpdateFieldKeys(parameters: UpdatePlaceParameters): ReadonlyArray<string> {
-	const keys: Array<string> = [];
-	for (const key of Object.keys(parameters)) {
-		if (NON_UPDATABLE_KEYS.has(key)) {
-			continue;
-		}
-
-		keys.push(key);
-	}
-
-	return keys;
+	return Object.keys(parameters).filter((key) => !NON_UPDATABLE_KEYS.has(key));
 }
