@@ -247,6 +247,61 @@ describe(deploy, () => {
 		});
 	});
 
+	it("should surface applyFailed and still attempt to persist the partial snapshot even when the write then rejects", async () => {
+		expect.assertions(3);
+
+		const alphaCurrent = alphaPassCurrent();
+		const cause = new OpenCloudError("create vip-pass: 503");
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockImplementation(async (desired) => {
+				if (desired.key === "alpha-pass") {
+					return { data: alphaCurrent, success: true };
+				}
+
+				return { err: cause, success: false };
+			});
+		const registry: DriverRegistry = { gamePass: { create }, place: placeStub };
+		const stateError = {
+			file: ".bedrock/state/production.json",
+			kind: "stateError" as const,
+			reason: "EACCES",
+		};
+		const writeAttempts: Array<BedrockState> = [];
+		const port: StatePort = {
+			async read() {
+				return { data: undefined, success: true };
+			},
+			async write(state) {
+				writeAttempts.push(state);
+				return { err: stateError, success: false };
+			},
+		};
+
+		const result = await deploy({
+			config: twoPassConfig(),
+			environment: "production",
+			readFile: readIcon,
+			registry,
+			statePort: port,
+		});
+
+		expect(writeAttempts).toHaveLength(1);
+		expect(writeAttempts[0]!.resources).toStrictEqual([alphaCurrent]);
+		expect(result).toStrictEqual({
+			err: {
+				cause: {
+					key: asResourceKey("vip-pass"),
+					appliedSoFar: [alphaCurrent],
+					cause,
+					kind: "driverFailure",
+				},
+				kind: "applyFailed",
+			},
+			success: false,
+		});
+	});
+
 	it("should surface stateWriteFailed with the unsaved snapshot when persistence fails after a successful apply", async () => {
 		expect.assertions(2);
 
