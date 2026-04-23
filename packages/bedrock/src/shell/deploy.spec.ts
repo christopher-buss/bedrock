@@ -9,7 +9,10 @@ import type { StatePort } from "../ports/state-port.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { deploy } from "./deploy.ts";
 
-const ICON_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+// Empty bytes hash to SHA-256 `e3b0c44...`; keeping readIcon in lockstep with
+// the hash constant lets the noop test assert "desired matches current" without
+// recomputing digests at runtime.
+const ICON_BYTES = new Uint8Array();
 const ICON_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
 
 async function readIcon(): Promise<Uint8Array> {
