@@ -31,3 +31,28 @@ export interface PlaceVersion {
 	 */
 	readonly versionNumber: number;
 }
+
+/**
+ * Parsed representation of a Roblox place's configuration, as returned
+ * by the Open Cloud `Cloud_GetPlace` and `Cloud_UpdatePlace` endpoints.
+ */
+export interface Place {
+	/** Stringified place ID, extracted from the wire `path`. */
+	readonly id: string;
+	/** Timestamp when the place was created. */
+	readonly createdAt: Date;
+	/** Long-form description of the place. */
+	readonly description: string;
+	/** Human-facing name of the place. */
+	readonly displayName: string;
+	/** Whether this place is the universe's root place. */
+	readonly root: boolean;
+	/** Maximum allowed users in a single server; `undefined` when unset. */
+	readonly serverSize: number | undefined;
+	/** Stringified universe ID, extracted from the wire `path`. */
+	readonly universeId: string;
+	/** Whether the place was created in-experience. */
+	readonly universeRuntimeCreation: boolean;
+	/** Timestamp of the most recent update. */
+	readonly updatedAt: Date;
+}
