@@ -10,12 +10,12 @@
 ### Refresh
 
 ```sh
-cd packages/open-cloud
-bun scripts/fetch-openapi.ts
+pnpm --filter @bedrock/ocale refresh-openapi
 ```
 
-After refreshing, diff the file against the previous version to review
-changes before committing.
+The script updates both `roblox-openapi.json` and the pinned commit
+SHA in this README. After refreshing, diff the file against the
+previous version to review changes before committing.
 
 ### Why pin? And why pinning is not protection
 

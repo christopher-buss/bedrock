@@ -31,7 +31,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Fetch upstream spec
-        run: cd packages/open-cloud && bun scripts/fetch-openapi.ts
+        run: pnpm --filter @bedrock/ocale refresh-openapi
 
       - id: diff
         name: Detect drift
