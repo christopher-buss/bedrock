@@ -128,6 +128,43 @@ describe(deploy, () => {
 		});
 	});
 
+	it("should surface stateReadFailed without dispatching drivers or writing state when StatePort.read returns Err", async () => {
+		expect.assertions(3);
+
+		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
+		const registry: DriverRegistry = { gamePass: { create }, place: placeStub };
+		const writes: Array<BedrockState> = [];
+		const stateError = {
+			file: ".bedrock/state/production.json",
+			kind: "stateError" as const,
+			reason: "Corrupt JSON: unexpected token",
+		};
+		const port: StatePort = {
+			async read() {
+				return { err: stateError, success: false };
+			},
+			async write(state) {
+				writes.push(state);
+				return { data: undefined, success: true };
+			},
+		};
+
+		const result = await deploy({
+			config: vipPassConfig(),
+			environment: "production",
+			readFile: readIcon,
+			registry,
+			statePort: port,
+		});
+
+		expect(create).not.toHaveBeenCalled();
+		expect(writes).toHaveLength(0);
+		expect(result).toStrictEqual({
+			err: { cause: stateError, kind: "stateReadFailed" },
+			success: false,
+		});
+	});
+
 	it("should surface buildDesiredFailed without dispatching drivers or writing state when readFile rejects", async () => {
 		expect.assertions(3);
 
