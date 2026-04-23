@@ -5,6 +5,7 @@ import { UniversesClient } from "@bedrock/ocale/universes";
 import { universeDesired } from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";
 
+import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import { createUniverseDriver } from "./universe-driver.ts";
 
 const UNIVERSE_ID = "1234567890";
@@ -111,7 +112,7 @@ describe(createUniverseDriver, () => {
 
 		expect(result.err.statusCode).toBe(404);
 		expect(result.err.message).toContain(UNIVERSE_ID);
-		expect(result.err.message).toContain("main");
+		expect(result.err.message).toContain(UNIVERSE_SINGLETON_KEY);
 		expect(result.err.message).toMatch(/adoption/i);
 	});
 

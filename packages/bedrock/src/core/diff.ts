@@ -88,32 +88,11 @@ export function diff(
 	current: ReadonlyArray<ResourceCurrentState>,
 ): ReadonlyArray<Operation> {
 	const currentByKey = new Map(current.map((entry) => [entry.key, entry]));
-	const ops: Array<Operation> = [];
-	for (const desiredEntry of desired) {
-		const currentEntry = currentByKey.get(desiredEntry.key);
-		if (currentEntry === undefined) {
-			ops.push({
-				key: desiredEntry.key,
-				desired: desiredEntry,
-				type: "create",
-			});
-			continue;
-		}
+	return desired.map((entry) => operationFor(entry, currentByKey.get(entry.key)));
+}
 
-		if (desiredFieldsEqual(desiredEntry, currentEntry)) {
-			ops.push({ key: desiredEntry.key, type: "noop" });
-			continue;
-		}
-
-		ops.push({
-			key: desiredEntry.key,
-			current: currentEntry,
-			desired: desiredEntry,
-			type: "update",
-		});
-	}
-
-	return ops;
+function hasNoManagedFields(desired: ResourceDesiredState): boolean {
+	return desired.kind === "universe" && desired.voiceChatEnabled === undefined;
 }
 
 function gamePassFieldsEqual(
@@ -148,10 +127,8 @@ function universeFieldsEqual(
 		return false;
 	}
 
-	// Undeclared managed fields (`undefined` on desired) are treated as
-	// unmanaged: the server's value is not compared and therefore never
-	// counts as drift. Mirrors ocale's `updateMask` semantics and makes
-	// field-by-field adoption possible.
+	// Undeclared (`undefined`) means unmanaged: skip comparison so the
+	// server's value can't register as drift. Mirrors ocale's `updateMask`.
 	if (
 		desired.voiceChatEnabled !== undefined &&
 		desired.voiceChatEnabled !== current.voiceChatEnabled
@@ -174,4 +151,23 @@ function desiredFieldsEqual(desired: ResourceDesiredState, current: ResourceCurr
 			return current.kind === "universe" && universeFieldsEqual(desired, current);
 		}
 	}
+}
+
+function operationFor(
+	desired: ResourceDesiredState,
+	current: ResourceCurrentState | undefined,
+): Operation {
+	if (hasNoManagedFields(desired)) {
+		return { key: desired.key, type: "noop" };
+	}
+
+	if (current === undefined) {
+		return { key: desired.key, desired, type: "create" };
+	}
+
+	if (desiredFieldsEqual(desired, current)) {
+		return { key: desired.key, type: "noop" };
+	}
+
+	return { key: desired.key, current, desired, type: "update" };
 }

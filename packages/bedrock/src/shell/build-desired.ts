@@ -174,8 +174,6 @@ async function normalizePlace(
 function normalizeUniverse(
 	input: Extract<ResourceDesiredInput, { kind: "universe" }>,
 ): Result<ResourceDesiredState, BuildDesiredError> {
-	// No file-backed field in Slice 1; the `readFile` seam on `buildDesired`
-	// is accepted for forward compatibility with Slice 2 (icon + thumbnails).
 	return {
 		data: {
 			key: input.key,

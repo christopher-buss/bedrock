@@ -279,15 +279,6 @@ async function applyUniverse(
 	return updated.success ? updated : driverFailure(op.key, updated.err);
 }
 
-function toUniverseOp(op: NonNoopOp): UniverseOp {
-	// Callers only reach this after `isGamePassOp(op) === false` and
-	// `isPlaceOp(op) === false`; by elimination across the `ResourceKind`
-	// union, `op` is necessarily a `UniverseOp`. TypeScript can't follow the
-	// narrowing cascade through custom type guards on a non-distributive
-	// union, so the assertion stands in for the proof.
-	return op as UniverseOp;
-}
-
 async function dispatchOp(
 	op: NonNoopOp,
 	registry: DriverRegistry,
@@ -300,5 +291,7 @@ async function dispatchOp(
 		return applyPlace(op, registry.place);
 	}
 
-	return applyUniverse(toUniverseOp(op), registry.universe);
+	// Remaining kind by elimination; custom type guards don't propagate
+	// narrowing through a non-distributive union, so the cast stands in.
+	return applyUniverse(op as UniverseOp, registry.universe);
 }

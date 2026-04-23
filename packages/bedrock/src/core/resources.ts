@@ -300,9 +300,6 @@ type Prettify<T> = { readonly [K in keyof T]: T[K] };
  * expect(UNIVERSE_SINGLETON_KEY).toBe("main");
  * ```
  */
-// Module-init const; `perTest` coverage does not attribute it to a test, so
-// the mutation "main" -> "" survives even though
-// `expect(UNIVERSE_SINGLETON_KEY).toBe("main")` in the example spec would
-// otherwise kill it.
+// Module-init const; perTest coverage can't attribute it to any test.
 // Stryker disable next-line all
 export const UNIVERSE_SINGLETON_KEY: ResourceKey = asResourceKey("main");

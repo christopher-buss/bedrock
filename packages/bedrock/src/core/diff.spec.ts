@@ -246,6 +246,16 @@ describe(diff, () => {
 			]);
 		});
 
+		it("should emit a noop on first apply when no managed fields are declared", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired();
+
+			expect(diff([desiredEntry], [])).toStrictEqual([
+				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+			]);
+		});
+
 		it("should emit a noop when universeId matches and no managed fields are declared", () => {
 			expect.assertions(1);
 
@@ -287,8 +297,11 @@ describe(diff, () => {
 		it("should emit an update op when universeId differs between desired and current", () => {
 			expect.assertions(1);
 
-			const desiredEntry = universeDesired({ universeId: asRobloxAssetId("9999") });
-			const currentEntry = universeCurrent();
+			const desiredEntry = universeDesired({
+				universeId: asRobloxAssetId("9999"),
+				voiceChatEnabled: true,
+			});
+			const currentEntry = universeCurrent({ voiceChatEnabled: true });
 
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 				{
@@ -303,7 +316,7 @@ describe(diff, () => {
 		it("should emit an update op when the key maps to a different kind in current state", () => {
 			expect.assertions(1);
 
-			const desiredEntry = universeDesired();
+			const desiredEntry = universeDesired({ voiceChatEnabled: true });
 			const currentEntry = gamePassCurrent({ key: UNIVERSE_SINGLETON_KEY });
 
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
