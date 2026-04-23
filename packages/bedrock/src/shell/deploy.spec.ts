@@ -247,6 +247,47 @@ describe(deploy, () => {
 		});
 	});
 
+	it("should surface stateWriteFailed with the unsaved snapshot when persistence fails after a successful apply", async () => {
+		expect.assertions(2);
+
+		const created = vipPassCurrent();
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockResolvedValue({ data: created, success: true });
+		const registry: DriverRegistry = { gamePass: { create }, place: placeStub };
+		const stateError = {
+			file: ".bedrock/state/production.json",
+			kind: "stateError" as const,
+			reason: "EACCES",
+		};
+		const port: StatePort = {
+			async read() {
+				return { data: undefined, success: true };
+			},
+			async write() {
+				return { err: stateError, success: false };
+			},
+		};
+
+		const result = await deploy({
+			config: vipPassConfig(),
+			environment: "production",
+			readFile: readIcon,
+			registry,
+			statePort: port,
+		});
+
+		expect(create).toHaveBeenCalledOnce();
+		expect(result).toStrictEqual({
+			err: {
+				cause: stateError,
+				kind: "stateWriteFailed",
+				unsavedState: { environment: "production", resources: [created], version: 1 },
+			},
+			success: false,
+		});
+	});
+
 	it("should surface buildDesiredFailed without dispatching drivers or writing state when readFile rejects", async () => {
 		expect.assertions(3);
 
