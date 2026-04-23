@@ -94,7 +94,7 @@ const passesCollection = type({
 
 const placeEntry = type({
 	filePath: "string",
-	placeId: "string",
+	placeId: "string.digits",
 }).onUndeclaredKey("reject");
 
 const placesCollection = type({

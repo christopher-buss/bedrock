@@ -79,8 +79,8 @@ export type ResourceDesiredInput = GamePassDesiredInput | PlaceDesiredInput;
  *
  * Pure and infallible: the schema has already enforced every invariant this
  * function relies on, so there is nothing left to fail. Entries appear in
- * the insertion order of each collection, and collections appear in the
- * order they are processed below (currently just `passes`).
+ * the insertion order of each collection; `passes` are emitted before
+ * `places`.
  *
  * @param config - Validated config from `loadConfig` or `validateConfig`.
  * @returns Flat tagged list ready for `buildDesired`.
@@ -98,12 +98,17 @@ export type ResourceDesiredInput = GamePassDesiredInput | PlaceDesiredInput;
  *             price: 500,
  *         },
  *     },
+ *     places: {
+ *         "start-place": {
+ *             filePath: "places/start.rbxl",
+ *             placeId: "4711",
+ *         },
+ *     },
  * };
  *
  * const inputs = flattenConfig(config);
- * expect(inputs).toHaveLength(1);
- * expect(inputs[0]!.kind).toBe("gamePass");
- * expect(inputs[0]!.key).toBe("vip-pass");
+ * expect(inputs.map((input) => input.kind)).toEqual(["gamePass", "place"]);
+ * expect(inputs.map((input) => input.key)).toEqual(["vip-pass", "start-place"]);
  * ```
  */
 export function flattenConfig(config: Config): ReadonlyArray<ResourceDesiredInput> {

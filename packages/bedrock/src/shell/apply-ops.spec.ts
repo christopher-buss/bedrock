@@ -1,14 +1,19 @@
 import { OpenCloudError } from "@bedrock/ocale";
 
-import { describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, vi } from "vitest";
 
 import type { CreateOperation, UpdateOperation } from "../core/operations.ts";
-import type { GamePassDesiredState, ResourceCurrentState } from "../core/resources.ts";
+import type {
+	GamePassDesiredState,
+	PlaceDesiredState,
+	ResourceCurrentState,
+} from "../core/resources.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex, type ResourceKey } from "../types/ids.ts";
 import { applyOps } from "./apply-ops.ts";
 
 const ICON_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+const PLACE_HASH = asSha256Hex("039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81");
 
 function gamePassDesired(overrides?: Partial<GamePassDesiredState>): GamePassDesiredState {
 	return {
@@ -38,6 +43,21 @@ const placeStub: ResourceDriver<"place"> = {
 		return { err: new OpenCloudError("place stub"), success: false };
 	},
 };
+
+function placeDesired(overrides?: Partial<PlaceDesiredState>): PlaceDesiredState {
+	return {
+		key: asResourceKey("start-place"),
+		fileHash: PLACE_HASH,
+		filePath: "places/start.rbxl",
+		kind: "place",
+		placeId: asRobloxAssetId("4711"),
+		...overrides,
+	};
+}
+
+function placeCurrentFrom(desired: PlaceDesiredState): ResourceCurrentState<"place"> {
+	return { ...desired, outputs: { versionNumber: 1 } };
+}
 
 function createOp(key: ResourceKey) {
 	const desired = gamePassDesired({ key });
@@ -208,5 +228,138 @@ describe(applyOps, () => {
 			success: false,
 		});
 		expect(create).not.toHaveBeenCalled();
+	});
+
+	describe("place kind", () => {
+		function placeRegistry(
+			create: ResourceDriver<"place">["create"],
+			update?: ResourceDriver<"place">["update"],
+		): DriverRegistry {
+			return {
+				gamePass: {
+					create() {
+						throw new Error("gamePass driver must not run for place ops");
+					},
+				},
+				place: update ? { create, update } : { create },
+			};
+		}
+
+		function placeCreateOp(key: ResourceKey) {
+			const desired = placeDesired({ key });
+			return { key, desired, type: "create" } as const satisfies CreateOperation;
+		}
+
+		function placeUpdateOp(key: ResourceKey) {
+			const desired = placeDesired({ key });
+			return {
+				key,
+				current: placeCurrentFrom(desired),
+				desired,
+				type: "update",
+			} as const satisfies UpdateOperation;
+		}
+
+		it("should dispatch a place create op to the driver and return Ok on success", async () => {
+			expect.assertions(2);
+
+			const op = placeCreateOp(asResourceKey("start-place"));
+			const create = vi
+				.fn<ResourceDriver<"place">["create"]>()
+				.mockResolvedValue({ data: placeCurrentFrom(op.desired), success: true });
+
+			const result = await applyOps([op], placeRegistry(create));
+
+			expect(result).toStrictEqual({ data: undefined, success: true });
+			expect(create).toHaveBeenCalledExactlyOnceWith(op.desired);
+		});
+
+		it("should wrap a place create failure in driverFailure Err", async () => {
+			expect.assertions(1);
+
+			const op = placeCreateOp(asResourceKey("start-place"));
+			const cause = new OpenCloudError("boom");
+			const create = vi
+				.fn<ResourceDriver<"place">["create"]>()
+				.mockResolvedValue({ err: cause, success: false });
+
+			const result = await applyOps([op], placeRegistry(create));
+
+			expect(result).toStrictEqual({
+				err: { key: op.key, cause, kind: "driverFailure" },
+				success: false,
+			});
+		});
+
+		it("should return updateUnsupported when the place driver has no update method", async () => {
+			expect.assertions(2);
+
+			const op = placeUpdateOp(asResourceKey("start-place"));
+			const create = vi.fn<ResourceDriver<"place">["create"]>();
+
+			const result = await applyOps([op], placeRegistry(create));
+
+			expect(result).toStrictEqual({
+				err: { key: op.key, kind: "updateUnsupported" },
+				success: false,
+			});
+			expect(create).not.toHaveBeenCalled();
+		});
+
+		it("should dispatch a place update op to the driver's update method and return Ok on success", async () => {
+			expect.assertions(3);
+
+			const op = placeUpdateOp(asResourceKey("start-place"));
+			const create = vi.fn<ResourceDriver<"place">["create"]>();
+			const update = vi
+				.fn<NonNullable<ResourceDriver<"place">["update"]>>()
+				.mockResolvedValue({ data: placeCurrentFrom(op.desired), success: true });
+
+			const result = await applyOps([op], placeRegistry(create, update));
+
+			expect(result).toStrictEqual({ data: undefined, success: true });
+			expect(update).toHaveBeenCalledExactlyOnceWith(op.current, op.desired);
+			expect(create).not.toHaveBeenCalled();
+		});
+
+		it("should wrap a place update failure in driverFailure Err", async () => {
+			expect.assertions(1);
+
+			const op = placeUpdateOp(asResourceKey("start-place"));
+			const cause = new OpenCloudError("boom");
+			const create = vi.fn<ResourceDriver<"place">["create"]>();
+			const update = vi
+				.fn<NonNullable<ResourceDriver<"place">["update"]>>()
+				.mockResolvedValue({ err: cause, success: false });
+
+			const result = await applyOps([op], placeRegistry(create, update));
+
+			expect(result).toStrictEqual({
+				err: { key: op.key, cause, kind: "driverFailure" },
+				success: false,
+			});
+		});
+
+		it("should return driverFailure when op.current.kind does not match desired.kind on a place update", async () => {
+			expect.assertions(2);
+
+			const placeDesiredState = placeDesired();
+			const gamePassCurrent = currentFrom(gamePassDesired({ key: placeDesiredState.key }));
+			const op: UpdateOperation = {
+				key: placeDesiredState.key,
+				current: gamePassCurrent,
+				desired: placeDesiredState,
+				type: "update",
+			};
+			const create = vi.fn<ResourceDriver<"place">["create"]>();
+			const update = vi.fn<NonNullable<ResourceDriver<"place">["update"]>>();
+
+			const result = await applyOps([op], placeRegistry(create, update));
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("driverFailure");
+			expect(update).not.toHaveBeenCalled();
+		});
 	});
 });

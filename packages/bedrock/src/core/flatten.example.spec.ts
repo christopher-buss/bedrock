@@ -41,9 +41,14 @@ it('Example 3', () => {
         price: 500,
       },
     },
+    places: {
+      'start-place': {
+        filePath: 'places/start.rbxl',
+        placeId: '4711',
+      },
+    },
   }
   const inputs = flattenConfig(config)
-  expect(inputs).toHaveLength(1)
-  expect(inputs[0]!.kind).toBe('gamePass')
-  expect(inputs[0]!.key).toBe('vip-pass')
+  expect(inputs.map((input) => input.kind)).toEqual(['gamePass', 'place'])
+  expect(inputs.map((input) => input.key)).toEqual(['vip-pass', 'start-place'])
 })

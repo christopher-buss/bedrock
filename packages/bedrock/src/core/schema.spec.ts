@@ -210,6 +210,28 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["places", "start-place", "unexpected"]);
 	});
 
+	it.for([
+		["trailing non-digits", "4711abc"],
+		["leading non-digits", "abc4711"],
+		["embedded non-digits", "47abc11"],
+	] as const)("should reject a place entry whose placeId has %s", ([, placeId]) => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				places: {
+					"start-place": { filePath: "places/start.rbxl", placeId },
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["places", "start-place", "placeId"]);
+	});
+
 	it("should reject a places key that does not match the ResourceKey pattern", () => {
 		expect.assertions(1);
 
