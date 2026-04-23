@@ -86,12 +86,17 @@ jobs:
 
           ${status}
 
+          Auto-merge is enabled: once \`ci.yaml\` on this PR turns
+          green, it will squash-merge into \`main\` without human
+          intervention. Disable auto-merge on the PR if you want to
+          review the diff manually before merging.
+
           ## What changed
 
           The upstream \`content/en-us/reference/cloud/openapi.json\` in
           [Roblox/creator-docs](https://github.com/Roblox/creator-docs) has
           diverged from our pinned copy. The diff in this PR is exactly
-          what \`bun packages/open-cloud/scripts/fetch-openapi.ts\` produced
+          what \`pnpm --filter @bedrock/ocale refresh-openapi\` produced
           against main.
 
           ## What to review
@@ -100,10 +105,9 @@ jobs:
             your integration tests exercise.
           - If the inline \`hk check --all\` run failed, that is a real
             signal: a fixture or parser needs to catch up. Fix it in this
-            same PR rather than merging known-broken spec. GitHub does
-            not auto-run \`ci.yaml\` on PRs opened with \`GITHUB_TOKEN\`,
-            so push a commit (or close/reopen this PR) to trigger it
-            once fixes are in.
+            same PR rather than merging known-broken spec. The
+            \`openapi-drift\` workflow dispatches \`ci.yaml\` against
+            this branch so status checks populate for auto-merge.
           - Check the updated \`vendor/README.md\` pinned-commit SHA
             matches the latest upstream commit touching the spec file.
 
@@ -115,4 +119,24 @@ jobs:
           EOF
           )"
           fi
+
+      # PRs opened with GITHUB_TOKEN do not auto-trigger other
+      # workflows, so dispatch ci.yaml explicitly against the drift
+      # branch. The resulting check runs attach to the branch head
+      # and show up on the PR, letting auto-merge wait on them.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        if: steps.diff.outputs.changed == 'true'
+        name: Trigger CI on the drift branch
+        run: gh workflow run ci.yaml --ref automation/refresh-openapi-spec
+
+      # Non-fatal: if the repo does not have auto-merge enabled or
+      # branch protection requires a check ci.yaml does not produce,
+      # the PR still stands open for a human merge.
+      - continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        if: steps.diff.outputs.changed == 'true'
+        name: Enable auto-merge on the drift PR
+        run: gh pr merge automation/refresh-openapi-spec --auto --squash
     timeout-minutes: 15
