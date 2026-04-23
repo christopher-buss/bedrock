@@ -1,3 +1,4 @@
+export { validUniverseBody } from "./experiences.ts";
 export {
 	type CapturedRequest,
 	createFakeHttpClient,

@@ -5,7 +5,7 @@ import { OpenCloudError } from "./base.ts";
  * exhaustively `switch` over this union so TypeScript will refuse to compile
  * if a new variant is added without a handler.
  */
-export type ValidationErrorCode = "empty_body" | "format_mismatch";
+export type ValidationErrorCode = "empty_body" | "empty_update" | "format_mismatch";
 
 /**
  * Options for constructing a {@link ValidationError}.
