@@ -106,9 +106,7 @@ describe(UniversesClient, () => {
 			async (statusCode) => {
 				expect.assertions(2);
 
-				const httpClient = createFakeHttpClient({
-					schemaValidation: "strict",
-				}).mockApiError({ statusCode });
+				const httpClient = createFakeHttpClient().mockApiError({ statusCode });
 				const client = new UniversesClient({
 					apiKey: "test-key",
 					httpClient,
