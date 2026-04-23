@@ -38,12 +38,15 @@ Drift is caught in three places, each with a different failure mode:
 
 1. **Build-time (active).** Ajv-based conformance tests under
    `tests/conformance/` validate every hand-crafted fixture against the
-   pinned schema. If a fixture and the schema disagree, CI fails on the
-   next `pnpm test` run. This is the only layer currently wired up.
-2. **Scheduled (deferred).** A future CI job will periodically diff the
-   upstream `openapi.json` against the pinned copy and open a PR when
-   they diverge, so schema drift is visible without waiting for a
-   contributor to notice. Not yet implemented.
+   pinned schema, and the `FakeHttpClient` in `tests/helpers/` runs
+   every integration-test request and response body through the same
+   spec. If a fixture, parser, or builder drifts from the schema, CI
+   fails on the next `pnpm test` run.
+2. **Scheduled (active).** The `openapi-drift` workflow in
+   `.github/workflows/` runs weekly, re-runs `scripts/fetch-openapi.ts`,
+   and opens (or updates) a PR when the upstream `openapi.json` or its
+   pinned commit SHA has diverged. Normal CI on that PR surfaces any
+   fixture or parser drift introduced by the new spec.
 3. **End-to-end (deferred).** Scenario tests that hit the real Open
    Cloud API with throwaway resources will catch runtime behavior that
    the schema cannot describe (e.g. silent field rename, changed error
