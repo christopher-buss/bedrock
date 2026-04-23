@@ -1,0 +1,206 @@
+import type { HttpResponse } from "../../client/types.ts";
+import { ApiError } from "../../errors/api-error.ts";
+import { isRecord } from "../../internal/utils/is-record.ts";
+import type { Result } from "../../types.ts";
+import type {
+	Experience,
+	ExperienceAgeRating,
+	ExperienceOwner,
+	ExperienceVisibility,
+	SocialLink,
+} from "./types.ts";
+import type { AgeRatingWire, SocialLinkWire, UniverseWire, VisibilityWire } from "./wire.ts";
+
+const VISIBILITY_MAP: Readonly<Record<VisibilityWire, ExperienceVisibility>> = {
+	PRIVATE: "private",
+	PUBLIC: "public",
+	VISIBILITY_UNSPECIFIED: "unspecified",
+};
+
+const AGE_RATING_MAP: Readonly<Record<AgeRatingWire, ExperienceAgeRating>> = {
+	AGE_RATING_9_PLUS: "9Plus",
+	AGE_RATING_13_PLUS: "13Plus",
+	AGE_RATING_17_PLUS: "17Plus",
+	AGE_RATING_ALL: "all",
+	AGE_RATING_UNSPECIFIED: "unspecified",
+};
+
+const MALFORMED_MESSAGE = "Malformed experience response";
+
+interface ToExperienceArgs {
+	readonly id: string;
+	readonly body: UniverseWire;
+	readonly owner: ExperienceOwner;
+}
+
+/**
+ * Parses a successful Open Cloud `Universe` response body into the
+ * public {@link Experience} shape.
+ *
+ * @param response - The full {@link HttpResponse} from the Open Cloud API.
+ * @returns A success result wrapping the parsed {@link Experience}, or
+ *   an {@link ApiError} when the body does not match the wire schema.
+ */
+export function parseExperienceResponse(response: HttpResponse): Result<Experience, ApiError> {
+	const { body, status: statusCode } = response;
+
+	if (!isUniverseWire(body)) {
+		return malformed(statusCode);
+	}
+
+	const ownerResult = resolveOwner(body);
+	if (!ownerResult.success) {
+		return malformed(statusCode);
+	}
+
+	const idMatch = /^universes\/(\d+)$/.exec(body.path);
+	const id = idMatch?.[1];
+	if (id === undefined) {
+		return malformed(statusCode);
+	}
+
+	return { data: toExperience({ id, body, owner: ownerResult.data }), success: true };
+}
+
+function malformed(statusCode: number): Result<Experience, ApiError> {
+	return {
+		err: new ApiError(MALFORMED_MESSAGE, { statusCode }),
+		success: false,
+	};
+}
+
+function extractRootPlaceId(rootPlace: string | undefined): string | undefined {
+	if (rootPlace === undefined) {
+		return undefined;
+	}
+
+	const match = /\/places\/(\d+)$/.exec(rootPlace);
+	return match?.[1] ?? undefined;
+}
+
+function toSocialLink(wire: SocialLinkWire | undefined): SocialLink | undefined {
+	if (wire === undefined) {
+		return undefined;
+	}
+
+	return { title: wire.title, uri: wire.uri };
+}
+
+function toExperience(args: ToExperienceArgs): Experience {
+	const { id, body, owner } = args;
+	return {
+		id,
+		ageRating: AGE_RATING_MAP[body.ageRating],
+		consoleEnabled: body.consoleEnabled ?? false,
+		createdAt: new Date(body.createTime),
+		description: body.description,
+		desktopEnabled: body.desktopEnabled ?? false,
+		discordSocialLink: toSocialLink(body.discordSocialLink),
+		displayName: body.displayName,
+		facebookSocialLink: toSocialLink(body.facebookSocialLink),
+		guildedSocialLink: toSocialLink(body.guildedSocialLink),
+		mobileEnabled: body.mobileEnabled ?? false,
+		owner,
+		privateServerPriceRobux: body.privateServerPriceRobux ?? undefined,
+		robloxGroupSocialLink: toSocialLink(body.robloxGroupSocialLink),
+		rootPlaceId: extractRootPlaceId(body.rootPlace),
+		tabletEnabled: body.tabletEnabled ?? false,
+		twitchSocialLink: toSocialLink(body.twitchSocialLink),
+		twitterSocialLink: toSocialLink(body.twitterSocialLink),
+		updatedAt: new Date(body.updateTime),
+		visibility: VISIBILITY_MAP[body.visibility],
+		voiceChatEnabled: body.voiceChatEnabled ?? false,
+		vrEnabled: body.vrEnabled ?? false,
+		youtubeSocialLink: toSocialLink(body.youtubeSocialLink),
+	};
+}
+
+function isVisibilityWire(value: unknown): value is VisibilityWire {
+	return value === "PRIVATE" || value === "PUBLIC" || value === "VISIBILITY_UNSPECIFIED";
+}
+
+function isAgeRatingWire(value: unknown): value is AgeRatingWire {
+	return (
+		value === "AGE_RATING_13_PLUS" ||
+		value === "AGE_RATING_17_PLUS" ||
+		value === "AGE_RATING_9_PLUS" ||
+		value === "AGE_RATING_ALL" ||
+		value === "AGE_RATING_UNSPECIFIED"
+	);
+}
+
+function hasValidRequiredFields(body: Record<string, unknown>): boolean {
+	return (
+		typeof body["path"] === "string" &&
+		typeof body["createTime"] === "string" &&
+		typeof body["updateTime"] === "string" &&
+		typeof body["displayName"] === "string" &&
+		typeof body["description"] === "string" &&
+		isVisibilityWire(body["visibility"]) &&
+		isAgeRatingWire(body["ageRating"])
+	);
+}
+
+function isSocialLinkWire(value: unknown): value is SocialLinkWire {
+	if (!isRecord(value)) {
+		return false;
+	}
+
+	return typeof value["title"] === "string" && typeof value["uri"] === "string";
+}
+
+function isOptionalSocialLink(value: unknown): boolean {
+	return value === undefined || value === null || isSocialLinkWire(value);
+}
+
+function isOptionalBoolean(value: unknown): boolean {
+	return value === undefined || value === null || typeof value === "boolean";
+}
+
+function hasValidOptionalFields(body: Record<string, unknown>): boolean {
+	const priceField = body["privateServerPriceRobux"] ?? undefined;
+	if (priceField !== undefined && typeof priceField !== "number") {
+		return false;
+	}
+
+	const rootPlace = body["rootPlace"] ?? undefined;
+	if (rootPlace !== undefined && typeof rootPlace !== "string") {
+		return false;
+	}
+
+	return (
+		isOptionalBoolean(body["voiceChatEnabled"]) &&
+		isOptionalBoolean(body["desktopEnabled"]) &&
+		isOptionalBoolean(body["mobileEnabled"]) &&
+		isOptionalBoolean(body["tabletEnabled"]) &&
+		isOptionalBoolean(body["consoleEnabled"]) &&
+		isOptionalBoolean(body["vrEnabled"]) &&
+		isOptionalSocialLink(body["facebookSocialLink"]) &&
+		isOptionalSocialLink(body["twitterSocialLink"]) &&
+		isOptionalSocialLink(body["youtubeSocialLink"]) &&
+		isOptionalSocialLink(body["twitchSocialLink"]) &&
+		isOptionalSocialLink(body["discordSocialLink"]) &&
+		isOptionalSocialLink(body["robloxGroupSocialLink"]) &&
+		isOptionalSocialLink(body["guildedSocialLink"])
+	);
+}
+
+function isUniverseWire(body: unknown): body is UniverseWire {
+	if (!isRecord(body)) {
+		return false;
+	}
+
+	return hasValidRequiredFields(body) && hasValidOptionalFields(body);
+}
+
+function resolveOwner(body: UniverseWire): Result<ExperienceOwner, undefined> {
+	if (typeof body.user === "string") {
+		return { data: { id: body.user, kind: "user" }, success: true };
+	}
+
+	if (typeof body.group === "string") {
+		return { data: { id: body.group, kind: "group" }, success: true };
+	}
+
+	return { err: undefined, success: false };
+}
