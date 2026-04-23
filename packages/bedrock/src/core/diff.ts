@@ -91,8 +91,28 @@ export function diff(
 	return desired.map((entry) => operationFor(entry, currentByKey.get(entry.key)));
 }
 
+// Keys on UniverseDesiredState that identify the resource rather than
+// represent a user-managed field. Everything NOT in this set is a managed
+// field the diff must consider, so new optional fields added to the
+// interface are automatically picked up here.
+const UNIVERSE_IDENTITY_KEYS: ReadonlySet<string> = new Set([
+	"key",
+	"kind",
+	"universeId",
+] satisfies Array<keyof UniverseDesiredState>);
+
 function hasNoManagedFields(desired: ResourceDesiredState): boolean {
-	return desired.kind === "universe" && desired.voiceChatEnabled === undefined;
+	if (desired.kind !== "universe") {
+		return false;
+	}
+
+	for (const [key, value] of Object.entries(desired)) {
+		if (!UNIVERSE_IDENTITY_KEYS.has(key) && value !== undefined) {
+			return false;
+		}
+	}
+
+	return true;
 }
 
 function gamePassFieldsEqual(

@@ -185,14 +185,6 @@ export async function applyOps(
 	return { data: applied, success: true };
 }
 
-function isGamePassOp(op: NonNoopOp): op is GamePassOp {
-	return op.desired.kind === "gamePass";
-}
-
-function isPlaceOp(op: NonNoopOp): op is PlaceOp {
-	return op.desired.kind === "place";
-}
-
 function driverFailure(
 	key: ResourceKey,
 	cause: OpenCloudError,
@@ -283,15 +275,18 @@ async function dispatchOp(
 	op: NonNoopOp,
 	registry: DriverRegistry,
 ): Promise<Result<ResourceCurrentState, RawApplyError>> {
-	if (isGamePassOp(op)) {
-		return applyGamePass(op, registry.gamePass);
+	// Exhaustive switch: adding a new ResourceKind is a compile error here
+	// until an arm lands. Each arm casts because custom type narrowing does
+	// not propagate through a non-distributive union.
+	switch (op.desired.kind) {
+		case "gamePass": {
+			return applyGamePass(op as GamePassOp, registry.gamePass);
+		}
+		case "place": {
+			return applyPlace(op as PlaceOp, registry.place);
+		}
+		case "universe": {
+			return applyUniverse(op as UniverseOp, registry.universe);
+		}
 	}
-
-	if (isPlaceOp(op)) {
-		return applyPlace(op, registry.place);
-	}
-
-	// Remaining kind by elimination; custom type guards don't propagate
-	// narrowing through a non-distributive union, so the cast stands in.
-	return applyUniverse(op as UniverseOp, registry.universe);
 }
