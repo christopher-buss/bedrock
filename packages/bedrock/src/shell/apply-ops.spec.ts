@@ -146,8 +146,8 @@ describe(applyOps, () => {
 			.mockImplementation(async (desired) => ({ data: currentFrom(desired), success: true }));
 
 		const result = await applyOps(ops, registryWith(create));
-		assert(result.success);
 
+		expect(result.success).toBeTrue();
 		expect(create.mock.calls.map((call) => call[0].key)).toStrictEqual([
 			"first-pass",
 			"second-pass",
