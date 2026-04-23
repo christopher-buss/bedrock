@@ -11,7 +11,7 @@ import type { GetExperienceParameters, UpdateExperienceParameters } from "./type
  * requires to clear a nullable field (for example disabling private
  * servers or removing a social link).
  */
-const NULL_SENTINEL: unknown = JSON.parse("null");
+const NULL_SENTINEL = JSON.parse("null");
 
 /**
  * Builds a `GET` request for the Open Cloud "get universe" endpoint.
