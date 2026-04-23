@@ -10,7 +10,7 @@ import type { ResourceKey, RobloxAssetId, Sha256Hex } from "../types/ids.ts";
  * @example
  *
  * ```ts
- * import { asResourceKey, asSha256Hex, type GamePassDesiredState } from "bedrock";
+ * import { asResourceKey, asSha256Hex, type GamePassDesiredState } from "@bedrock/core";
  *
  * const pass: GamePassDesiredState = {
  *     description: "Grants VIP perks.",
@@ -71,7 +71,7 @@ export interface GamePassDesiredState {
  *     asRobloxAssetId,
  *     asSha256Hex,
  *     type PlaceDesiredState,
- * } from "bedrock";
+ * } from "@bedrock/core";
  *
  * const place: PlaceDesiredState = {
  *     fileHash: asSha256Hex(
@@ -151,7 +151,7 @@ export type ResourceKind = ResourceDesiredState["kind"];
  * @example
  *
  * ```ts
- * import { asRobloxAssetId, type ResourceOutputsByKind } from "bedrock";
+ * import { asRobloxAssetId, type ResourceOutputsByKind } from "@bedrock/core";
  *
  * const outputs: ResourceOutputsByKind["gamePass"] = {
  *     assetId: asRobloxAssetId("9876543210"),
@@ -200,7 +200,7 @@ export type ResourceOutputs<K extends ResourceKind> = ResourceOutputsByKind[K];
  *     asRobloxAssetId,
  *     asSha256Hex,
  *     type ResourceCurrentState,
- * } from "bedrock";
+ * } from "@bedrock/core";
  *
  * const current: ResourceCurrentState<"gamePass"> = {
  *     description: "Grants VIP perks.",

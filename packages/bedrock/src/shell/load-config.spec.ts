@@ -40,7 +40,7 @@ describe(loadConfig, () => {
 
 		await withTemporaryDirectory(async (cwd) => {
 			writeFixtureConfig(cwd, [
-				"import { defineConfig } from 'bedrock';",
+				"import { defineConfig } from '@bedrock/core';",
 				"export default defineConfig({",
 				"  passes: {",
 				"    'vip-pass': {",
@@ -66,7 +66,7 @@ describe(loadConfig, () => {
 
 		await withTemporaryDirectory(async (cwd) => {
 			writeFixtureConfig(cwd, [
-				"import { defineConfig } from 'bedrock';",
+				"import { defineConfig } from '@bedrock/core';",
 				"export default defineConfig(() => ({",
 				"  passes: {",
 				"    'vip-pass': {",
@@ -92,7 +92,7 @@ describe(loadConfig, () => {
 
 		await withTemporaryDirectory(async (cwd) => {
 			writeFixtureConfig(cwd, [
-				"import { defineConfig } from 'bedrock';",
+				"import { defineConfig } from '@bedrock/core';",
 				"export default defineConfig(async () => ({",
 				"  passes: {",
 				"    'vip-pass': {",
@@ -118,7 +118,7 @@ describe(loadConfig, () => {
 
 		await withTemporaryDirectory(async (cwd) => {
 			writeFixtureConfig(cwd, [
-				"import { defineConfig } from 'bedrock';",
+				"import { defineConfig } from '@bedrock/core';",
 				"export default defineConfig(() => {",
 				"  throw new Error('sync boom');",
 				"});",
@@ -140,7 +140,7 @@ describe(loadConfig, () => {
 
 		await withTemporaryDirectory(async (cwd) => {
 			writeFixtureConfig(cwd, [
-				"import { defineConfig } from 'bedrock';",
+				"import { defineConfig } from '@bedrock/core';",
 				"export default defineConfig(async () => {",
 				"  throw new Error('async boom');",
 				"});",
@@ -162,7 +162,7 @@ describe(loadConfig, () => {
 
 		await withTemporaryDirectory(async (cwd) => {
 			writeFixtureConfig(cwd, [
-				"import { defineConfig } from 'bedrock';",
+				"import { defineConfig } from '@bedrock/core';",
 				"export default defineConfig(() => {",
 				"  throw 'bare string boom';",
 				"});",

@@ -6,7 +6,7 @@
  * @example
  *
  * ```ts
- * import type { ConfigValidationIssue } from "bedrock";
+ * import type { ConfigValidationIssue } from "@bedrock/core";
  *
  * const issue: ConfigValidationIssue = {
  *     message: "must be a number",
@@ -44,7 +44,7 @@ export interface ConfigValidationIssue {
  * @example
  *
  * ```ts
- * import type { ConfigError } from "bedrock";
+ * import type { ConfigError } from "@bedrock/core";
  *
  * function describe(err: ConfigError): string {
  *     switch (err.kind) {

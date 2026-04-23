@@ -34,7 +34,7 @@ It is a spiritual successor to [Mantle](https://github.com/blake-mealey/mantle)
 
 | Package                                               | Description                                      |
 | ----------------------------------------------------- | ------------------------------------------------ |
-| [`bedrock`](./packages/bedrock)                       | The deployment library and CLI.                  |
+| [`@bedrock/core`](./packages/bedrock)                 | The deployment library and CLI.                  |
 | [`@bedrock/ocale`](./packages/open-cloud)             | Standalone HTTP client for Roblox Open Cloud.    |
 
 ## Status

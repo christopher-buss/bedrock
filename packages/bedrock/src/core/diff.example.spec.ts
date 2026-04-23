@@ -7,7 +7,7 @@ import {
   diff,
   type GamePassDesiredState,
   type ResourceCurrentState,
-} from 'bedrock'
+} from '@bedrock/core'
 
 it('Example 1', () => {
   const hash = asSha256Hex(

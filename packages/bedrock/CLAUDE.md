@@ -5,7 +5,7 @@ code in this repository.
 
 ## Package Overview
 
-`bedrock` is the primary published package of the project: a programmatic
+`@bedrock/core` is the primary published package of the project: a programmatic
 TypeScript IaC library for Roblox, with a CLI wrapper as a convenience entry
 point. Every symbol exported from `src/index.ts` is public API subject to
 semver (see [ADR-017](../../docs/adr/017-product-framing-programmatic-iac-with-cli.md)).

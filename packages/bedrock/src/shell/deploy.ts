@@ -68,7 +68,7 @@ interface FinalizeInputs {
  * @example
  *
  * ```ts
- * import { deploy, type BedrockState, type DriverRegistry, type StatePort } from "bedrock";
+ * import { deploy, type BedrockState, type DriverRegistry, type StatePort } from "@bedrock/core";
  *
  * const store = new Map<string, BedrockState>();
  * const statePort: StatePort = {

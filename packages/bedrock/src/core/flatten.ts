@@ -15,7 +15,7 @@ import type { Config, GamePassEntry } from "./schema.ts";
  * @example
  *
  * ```ts
- * import { asResourceKey, type GamePassDesiredInput } from "bedrock";
+ * import { asResourceKey, type GamePassDesiredInput } from "@bedrock/core";
  *
  * const input: GamePassDesiredInput = {
  *     description: "Grants VIP perks.",
@@ -45,7 +45,7 @@ export interface GamePassDesiredInput extends Readonly<GamePassEntry> {
  * @example
  *
  * ```ts
- * import { asResourceKey, asRobloxAssetId, type PlaceDesiredInput } from "bedrock";
+ * import { asResourceKey, asRobloxAssetId, type PlaceDesiredInput } from "@bedrock/core";
  *
  * const input: PlaceDesiredInput = {
  *     filePath: "places/start.rbxl",
@@ -87,7 +87,7 @@ export type ResourceDesiredInput = GamePassDesiredInput | PlaceDesiredInput;
  * @example
  *
  * ```ts
- * import { flattenConfig, type Config } from "bedrock";
+ * import { flattenConfig, type Config } from "@bedrock/core";
  *
  * const config: Config = {
  *     passes: {

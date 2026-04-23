@@ -42,7 +42,7 @@ export type Sha256Hex = Tagged<string, "Sha256Hex">;
  * @example
  *
  * ```ts
- * import { isResourceKey } from "bedrock";
+ * import { isResourceKey } from "@bedrock/core";
  *
  * const valid = isResourceKey("vip-pass");
  * const invalid = isResourceKey("vip pass");
@@ -66,7 +66,7 @@ export function isResourceKey(raw: string): raw is ResourceKey {
  * @example
  *
  * ```ts
- * import { asResourceKey } from "bedrock";
+ * import { asResourceKey } from "@bedrock/core";
  *
  * const key = asResourceKey("vip-pass");
  *
@@ -105,7 +105,7 @@ export function asResourceKey(raw: string): ResourceKey {
  * @example
  *
  * ```ts
- * import { isRobloxAssetId } from "bedrock";
+ * import { isRobloxAssetId } from "@bedrock/core";
  *
  * const valid = isRobloxAssetId("12345");
  * const invalid = isRobloxAssetId("12345abc");
@@ -130,7 +130,7 @@ export function isRobloxAssetId(raw: string): raw is RobloxAssetId {
  * @example
  *
  * ```ts
- * import { asRobloxAssetId } from "bedrock";
+ * import { asRobloxAssetId } from "@bedrock/core";
  *
  * const id = asRobloxAssetId("12345");
  *
@@ -171,7 +171,7 @@ export function asRobloxAssetId(raw: string): RobloxAssetId {
  * @example
  *
  * ```ts
- * import { isSha256Hex } from "bedrock";
+ * import { isSha256Hex } from "@bedrock/core";
  *
  * const digest = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
  * const valid = isSha256Hex(digest);
@@ -197,7 +197,7 @@ export function isSha256Hex(raw: string): raw is Sha256Hex {
  * @example
  *
  * ```ts
- * import { asSha256Hex } from "bedrock";
+ * import { asSha256Hex } from "@bedrock/core";
  *
  * const digest = asSha256Hex(
  *     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",

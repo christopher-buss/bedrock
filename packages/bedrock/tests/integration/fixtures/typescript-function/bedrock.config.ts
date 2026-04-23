@@ -1,4 +1,4 @@
-import { defineConfig } from "bedrock";
+import { defineConfig } from "@bedrock/core";
 
 export default defineConfig(async () => {
 	return {

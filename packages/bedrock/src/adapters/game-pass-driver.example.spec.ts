@@ -8,7 +8,7 @@ import {
   asResourceKey,
   asSha256Hex,
   createGamePassDriver,
-} from 'bedrock'
+} from '@bedrock/core'
 
 it('Example 1', () => {
   const httpClient: HttpClient = {

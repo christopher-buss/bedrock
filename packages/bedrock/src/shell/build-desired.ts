@@ -14,7 +14,7 @@ import { asSha256Hex, type ResourceKey } from "../types/ids.ts";
  * @example
  *
  * ```ts
- * import { asResourceKey, type BuildDesiredError } from "bedrock";
+ * import { asResourceKey, type BuildDesiredError } from "@bedrock/core";
  *
  * const err: BuildDesiredError = {
  *     filePath: "assets/vip-icon.png",
@@ -54,7 +54,7 @@ export interface BuildDesiredError {
  * @example
  *
  * ```ts
- * import { asResourceKey, buildDesired } from "bedrock";
+ * import { asResourceKey, buildDesired } from "@bedrock/core";
  *
  * async function readFile(): Promise<Uint8Array> {
  *     return new Uint8Array([1, 2, 3]);

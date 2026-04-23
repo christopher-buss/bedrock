@@ -1,6 +1,3 @@
-import { PlacesClient } from "@bedrock/ocale/places";
-import { createFakeHttpClient } from "@bedrock/ocale/testing";
-
 import {
 	applyOps,
 	asRobloxAssetId,
@@ -11,7 +8,10 @@ import {
 	flattenConfig,
 	loadConfig,
 	type ResourceDriver,
-} from "bedrock";
+} from "@bedrock/core";
+import { PlacesClient } from "@bedrock/ocale/places";
+import { createFakeHttpClient } from "@bedrock/ocale/testing";
+
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";

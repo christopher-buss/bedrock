@@ -1,10 +1,3 @@
-import { GamePassesClient } from "@bedrock/ocale/game-passes";
-import {
-	createFakeHttpClient,
-	type FakeHttpClient,
-	validGamePassBody,
-} from "@bedrock/ocale/testing";
-
 import {
 	applyOps,
 	asResourceKey,
@@ -19,7 +12,14 @@ import {
 	type Operation,
 	type ResourceCurrentState,
 	type ResourceDriver,
-} from "bedrock";
+} from "@bedrock/core";
+import { GamePassesClient } from "@bedrock/ocale/game-passes";
+import {
+	createFakeHttpClient,
+	type FakeHttpClient,
+	validGamePassBody,
+} from "@bedrock/ocale/testing";
+
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";

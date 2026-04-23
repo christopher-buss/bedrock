@@ -46,7 +46,7 @@ export interface PlaceEntry {
  * @example
  *
  * ```ts
- * import type { Config } from "bedrock";
+ * import type { Config } from "@bedrock/core";
  *
  * const config: Config = {
  *     passes: {
@@ -124,7 +124,7 @@ const rootSchema: Type<Config> = type({
  * @example
  *
  * ```ts
- * import { validateConfig } from "bedrock";
+ * import { validateConfig } from "@bedrock/core";
  *
  * const ok = validateConfig(
  *     {

@@ -308,12 +308,12 @@ importers:
 
   apps/e2e:
     dependencies:
+      '@bedrock/core':
+        specifier: workspace:*
+        version: link:../../packages/bedrock
       '@bedrock/ocale':
         specifier: workspace:*
         version: link:../../packages/open-cloud
-      bedrock:
-        specifier: workspace:*
-        version: link:../../packages/bedrock
     devDependencies:
       '@bedrock/typescript-config':
         specifier: workspace:*
