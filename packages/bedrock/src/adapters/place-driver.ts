@@ -154,6 +154,8 @@ async function publishPlace(
 
 	const body = await deps.readFile(desired.filePath);
 	const result = await deps.client.publish({
+		// Narrows `Uint8Array<ArrayBufferLike>` to `Uint8Array<ArrayBuffer>`
+		// so the ocale wire type rejects SharedArrayBuffer at the call site.
 		body: Uint8Array.from(body),
 		format,
 		placeId: desired.placeId,

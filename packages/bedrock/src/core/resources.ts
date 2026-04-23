@@ -179,9 +179,10 @@ export type ResourceOutputs<K extends ResourceKind> = ResourceOutputsByKind[K];
  * Current (live) state for a resource kind.
  *
  * Composed from the matching desired-state shape plus a nested `outputs`
- * object carrying Roblox-assigned identifiers. `Simplify` flattens the
- * intersection so tooltips and error messages show a single flat type,
- * not `Desired<K> & { outputs: Outputs<K> }`.
+ * object carrying Roblox-assigned identifiers. The outer `K extends
+ * ResourceKind` conditional distributes `K` across the union so the default
+ * `ResourceCurrentState` resolves to a clean per-kind union rather than a
+ * cross-product intersection of every kind's fields.
  *
  * The `outputs` sub-object stays nested (rather than flattening into the
  * top level) to mirror Mantle's `{ inputs, outputs }` state layout,
