@@ -1,3 +1,5 @@
+import { OpenCloudError } from "@bedrock/ocale";
+
 import { describe, expect, it, vi } from "vitest";
 
 import type { Config } from "../core/schema.ts";
@@ -70,6 +72,44 @@ function vipPassCurrent() {
 	};
 }
 
+function twoPassConfig(): Config {
+	// Keys ordered for deterministic dispatch: lint sorts collection keys
+	// alphabetically, so alpha-pass runs first and vip-pass second. Tests
+	// rely on that order when asserting which dispatch failed.
+	return {
+		passes: {
+			"alpha-pass": {
+				name: "Alpha Pass",
+				description: "Grants alpha perks.",
+				iconFilePath: "assets/alpha-icon.png",
+				price: 250,
+			},
+			"vip-pass": {
+				name: "VIP Pass",
+				description: "Grants VIP perks.",
+				iconFilePath: "assets/vip-icon.png",
+				price: 500,
+			},
+		},
+	};
+}
+
+function alphaPassCurrent() {
+	return {
+		key: asResourceKey("alpha-pass"),
+		name: "Alpha Pass",
+		description: "Grants alpha perks.",
+		iconFileHash: ICON_HASH,
+		iconFilePath: "assets/alpha-icon.png",
+		kind: "gamePass" as const,
+		outputs: {
+			assetId: asRobloxAssetId("1111111111"),
+			iconAssetId: asRobloxAssetId("2222222222"),
+		},
+		price: 250,
+	};
+}
+
 describe(deploy, () => {
 	it("should reconcile a first deploy by creating the desired resource and persisting the new state", async () => {
 		expect.assertions(5);
@@ -125,6 +165,48 @@ describe(deploy, () => {
 		expect(result).toStrictEqual({
 			data: { environment: "production", resources: [existing], version: 1 },
 			success: true,
+		});
+	});
+
+	it("should persist the partial-apply snapshot and surface applyFailed when a driver fails mid-sequence", async () => {
+		expect.assertions(4);
+
+		const alphaCurrent = alphaPassCurrent();
+		const cause = new OpenCloudError("create vip-pass: 503");
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockImplementation(async (desired) => {
+				if (desired.key === "alpha-pass") {
+					return { data: alphaCurrent, success: true };
+				}
+
+				return { err: cause, success: false };
+			});
+		const registry: DriverRegistry = { gamePass: { create }, place: placeStub };
+		const { port, writes } = inMemoryStatePort();
+
+		const result = await deploy({
+			config: twoPassConfig(),
+			environment: "production",
+			readFile: readIcon,
+			registry,
+			statePort: port,
+		});
+
+		expect(create).toHaveBeenCalledTimes(2);
+		expect(writes).toHaveLength(1);
+		expect(writes[0]!.resources).toStrictEqual([alphaCurrent]);
+		expect(result).toStrictEqual({
+			err: {
+				cause: {
+					key: asResourceKey("vip-pass"),
+					appliedSoFar: [alphaCurrent],
+					cause,
+					kind: "driverFailure",
+				},
+				kind: "applyFailed",
+			},
+			success: false,
 		});
 	});
 
