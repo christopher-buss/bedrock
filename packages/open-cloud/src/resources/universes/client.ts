@@ -4,23 +4,23 @@ import { ResourceClient, type ResourceMethodSpec } from "../../internal/resource
 import type { Result } from "../../types.ts";
 import { buildGetRequest, buildUpdateRequest } from "./builders.ts";
 import { GET_OPERATION_LIMIT, UPDATE_OPERATION_LIMIT } from "./operations.ts";
-import { parseExperienceResponse } from "./parsers.ts";
-import type { Experience, GetExperienceParameters, UpdateExperienceParameters } from "./types.ts";
+import { parseUniverseResponse } from "./parsers.ts";
+import type { GetUniverseParameters, Universe, UpdateUniverseParameters } from "./types.ts";
 
-const GET_SPEC: ResourceMethodSpec<GetExperienceParameters, Experience> = Object.freeze({
+const GET_SPEC: ResourceMethodSpec<GetUniverseParameters, Universe> = Object.freeze({
 	buildRequest: buildGetRequest,
 	methodDefaults: {},
 	methodKind: "idempotent",
 	operationLimit: GET_OPERATION_LIMIT,
-	parse: parseExperienceResponse,
+	parse: parseUniverseResponse,
 });
 
-const UPDATE_SPEC: ResourceMethodSpec<UpdateExperienceParameters, Experience> = Object.freeze({
+const UPDATE_SPEC: ResourceMethodSpec<UpdateUniverseParameters, Universe> = Object.freeze({
 	buildRequest: buildUpdateRequest,
 	methodDefaults: {},
 	methodKind: "idempotent",
 	operationLimit: UPDATE_OPERATION_LIMIT,
-	parse: parseExperienceResponse,
+	parse: parseUniverseResponse,
 });
 
 /**
@@ -40,17 +40,17 @@ const UPDATE_SPEC: ResourceMethodSpec<UpdateExperienceParameters, Experience> = 
  * @example
  *
  * ```ts
- * import { ExperiencesClient } from "@bedrock/ocale/experiences";
+ * import { UniversesClient } from "@bedrock/ocale/universes";
  *
- * const client = new ExperiencesClient({ apiKey: "your-key" });
- * expect(client).toBeInstanceOf(ExperiencesClient);
+ * const client = new UniversesClient({ apiKey: "your-key" });
+ * expect(client).toBeInstanceOf(UniversesClient);
  * ```
  */
-export class ExperiencesClient {
+export class UniversesClient {
 	readonly #inner: ResourceClient;
 
 	/**
-	 * Creates a new {@link ExperiencesClient}. Configuration is frozen
+	 * Creates a new {@link UniversesClient}. Configuration is frozen
 	 * on construction; per-request overrides are accepted on each
 	 * method.
 	 *
@@ -61,23 +61,23 @@ export class ExperiencesClient {
 	}
 
 	/**
-	 * Fetches the current configuration of an experience.
+	 * Fetches the current configuration of a universe.
 	 *
 	 * @param parameters - The universe identifier.
 	 * @param options - Optional per-request overrides (e.g. A different
 	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
-	 * @returns A {@link Result} wrapping the parsed {@link Experience}
+	 * @returns A {@link Result} wrapping the parsed {@link Universe}
 	 *   or the {@link OpenCloudError} that caused the request to fail.
 	 */
 	public async get(
-		parameters: GetExperienceParameters,
+		parameters: GetUniverseParameters,
 		options?: RequestOptions,
-	): Promise<Result<Experience, OpenCloudError>> {
+	): Promise<Result<Universe, OpenCloudError>> {
 		return this.#inner.execute({ options, parameters, spec: GET_SPEC });
 	}
 
 	/**
-	 * Partially updates an experience's configuration. The fields
+	 * Partially updates a universe's configuration. The fields
 	 * supplied on `parameters` (excluding `universeId`) are forwarded
 	 * to the server via a Google-style `updateMask`; unmentioned
 	 * fields are left untouched.
@@ -86,13 +86,13 @@ export class ExperiencesClient {
 	 *   update. At least one updatable field must be supplied.
 	 * @param options - Optional per-request overrides (e.g. A different
 	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
-	 * @returns A {@link Result} wrapping the parsed {@link Experience}
+	 * @returns A {@link Result} wrapping the parsed {@link Universe}
 	 *   or the {@link OpenCloudError} that caused the request to fail.
 	 */
 	public async update(
-		parameters: UpdateExperienceParameters,
+		parameters: UpdateUniverseParameters,
 		options?: RequestOptions,
-	): Promise<Result<Experience, OpenCloudError>> {
+	): Promise<Result<Universe, OpenCloudError>> {
 		return this.#inner.execute({ options, parameters, spec: UPDATE_SPEC });
 	}
 }

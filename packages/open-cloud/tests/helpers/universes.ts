@@ -1,4 +1,4 @@
-import type { UniverseWire } from "#src/resources/experiences/wire";
+import type { UniverseWire } from "#src/resources/universes/wire";
 
 /**
  * Builds a minimally-valid {@link UniverseWire} body. Pass an
@@ -12,9 +12,9 @@ export function validUniverseBody(overrides: Partial<UniverseWire> = {}): Univer
 		ageRating: "AGE_RATING_13_PLUS",
 		consoleEnabled: false,
 		createTime: "2024-01-15T10:30:00.000Z",
-		description: "A sample experience for tests.",
+		description: "A sample universe for tests.",
 		desktopEnabled: true,
-		displayName: "Test Experience",
+		displayName: "Test Universe",
 		mobileEnabled: true,
 		path: "universes/12345",
 		rootPlace: "universes/12345/places/98765",

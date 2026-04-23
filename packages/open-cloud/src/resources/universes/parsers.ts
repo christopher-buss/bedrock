@@ -3,21 +3,21 @@ import { ApiError } from "../../errors/api-error.ts";
 import { isRecord } from "../../internal/utils/is-record.ts";
 import type { Result } from "../../types.ts";
 import type {
-	Experience,
-	ExperienceAgeRating,
-	ExperienceOwner,
-	ExperienceVisibility,
 	SocialLink,
+	Universe,
+	UniverseAgeRating,
+	UniverseOwner,
+	UniverseVisibility,
 } from "./types.ts";
 import type { AgeRatingWire, SocialLinkWire, UniverseWire, VisibilityWire } from "./wire.ts";
 
-const VISIBILITY_MAP: Readonly<Record<VisibilityWire, ExperienceVisibility>> = {
+const VISIBILITY_MAP: Readonly<Record<VisibilityWire, UniverseVisibility>> = {
 	PRIVATE: "private",
 	PUBLIC: "public",
 	VISIBILITY_UNSPECIFIED: "unspecified",
 };
 
-const AGE_RATING_MAP: Readonly<Record<AgeRatingWire, ExperienceAgeRating>> = {
+const AGE_RATING_MAP: Readonly<Record<AgeRatingWire, UniverseAgeRating>> = {
 	AGE_RATING_9_PLUS: "9Plus",
 	AGE_RATING_13_PLUS: "13Plus",
 	AGE_RATING_17_PLUS: "17Plus",
@@ -25,23 +25,23 @@ const AGE_RATING_MAP: Readonly<Record<AgeRatingWire, ExperienceAgeRating>> = {
 	AGE_RATING_UNSPECIFIED: "unspecified",
 };
 
-const MALFORMED_MESSAGE = "Malformed experience response";
+const MALFORMED_MESSAGE = "Malformed universe response";
 
-interface ToExperienceArgs {
+interface ToUniverseArgs {
 	readonly id: string;
 	readonly body: UniverseWire;
-	readonly owner: ExperienceOwner;
+	readonly owner: UniverseOwner;
 }
 
 /**
  * Parses a successful Open Cloud `Universe` response body into the
- * public {@link Experience} shape.
+ * public {@link Universe} shape.
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
- * @returns A success result wrapping the parsed {@link Experience}, or
+ * @returns A success result wrapping the parsed {@link Universe}, or
  *   an {@link ApiError} when the body does not match the wire schema.
  */
-export function parseExperienceResponse(response: HttpResponse): Result<Experience, ApiError> {
+export function parseUniverseResponse(response: HttpResponse): Result<Universe, ApiError> {
 	const { body, status: statusCode } = response;
 
 	if (!isUniverseWire(body)) {
@@ -59,10 +59,10 @@ export function parseExperienceResponse(response: HttpResponse): Result<Experien
 		return malformed(statusCode);
 	}
 
-	return { data: toExperience({ id, body, owner: ownerResult.data }), success: true };
+	return { data: toUniverse({ id, body, owner: ownerResult.data }), success: true };
 }
 
-function malformed(statusCode: number): Result<Experience, ApiError> {
+function malformed(statusCode: number): Result<Universe, ApiError> {
 	return {
 		err: new ApiError(MALFORMED_MESSAGE, { statusCode }),
 		success: false,
@@ -86,7 +86,7 @@ function toSocialLink(wire: SocialLinkWire | undefined): SocialLink | undefined 
 	return { title: wire.title, uri: wire.uri };
 }
 
-function toExperience(args: ToExperienceArgs): Experience {
+function toUniverse(args: ToUniverseArgs): Universe {
 	const { id, body, owner } = args;
 	return {
 		id,
@@ -198,7 +198,7 @@ function extractOwnerId(resourcePath: string): string | undefined {
 	return match?.[1];
 }
 
-function resolveOwner(body: UniverseWire): Result<ExperienceOwner, undefined> {
+function resolveOwner(body: UniverseWire): Result<UniverseOwner, undefined> {
 	if (typeof body.user === "string") {
 		const id = extractOwnerId(body.user);
 		if (id !== undefined) {

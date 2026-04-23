@@ -3,7 +3,7 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import { ValidationError } from "../../errors/validation.ts";
 import { okRequest } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import type { GetExperienceParameters, UpdateExperienceParameters } from "./types.ts";
+import type { GetUniverseParameters, UpdateUniverseParameters } from "./types.ts";
 
 /**
  * Dodges `unicorn/no-null` while still emitting a literal `null` onto
@@ -20,7 +20,7 @@ const NULL_SENTINEL = JSON.parse("null");
  * @returns A success result wrapping the request; the builder cannot fail.
  */
 export function buildGetRequest(
-	parameters: GetExperienceParameters,
+	parameters: GetUniverseParameters,
 ): Result<HttpRequest, OpenCloudError> {
 	return okRequest({
 		method: "GET",
@@ -40,7 +40,7 @@ export function buildGetRequest(
  *   {@link ValidationError} when no updatable fields were supplied.
  */
 export function buildUpdateRequest(
-	parameters: UpdateExperienceParameters,
+	parameters: UpdateUniverseParameters,
 ): Result<HttpRequest, ValidationError> {
 	const fieldKeys = extractUpdateFieldKeys(parameters);
 
@@ -71,7 +71,7 @@ export function buildUpdateRequest(
 	};
 }
 
-function extractUpdateFieldKeys(parameters: UpdateExperienceParameters): ReadonlyArray<string> {
+function extractUpdateFieldKeys(parameters: UpdateUniverseParameters): ReadonlyArray<string> {
 	const keys: Array<string> = [];
 	for (const key of Object.keys(parameters)) {
 		if (key === "universeId") {

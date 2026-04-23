@@ -29,10 +29,6 @@
 			"source": "./src/index.ts",
 			"default": "./dist/index.mjs"
 		},
-		"./experiences": {
-			"source": "./src/resources/experiences/index.ts",
-			"default": "./dist/experiences.mjs"
-		},
 		"./game-passes": {
 			"source": "./src/resources/game-passes/index.ts",
 			"default": "./dist/game-passes.mjs"
@@ -45,6 +41,10 @@
 		"./testing": {
 			"default": "./tests/helpers/index.ts",
 			"source": "./tests/helpers/index.ts"
+		},
+		"./universes": {
+			"source": "./src/resources/universes/index.ts",
+			"default": "./dist/universes.mjs"
 		}
 	},
 	"types": "./dist/index.d.mts",
@@ -80,10 +80,10 @@
 	"publishConfig": {
 		"exports": {
 			".": "./dist/index.mjs",
-			"./experiences": "./dist/experiences.mjs",
 			"./game-passes": "./dist/game-passes.mjs",
 			"./package.json": "./package.json",
-			"./places": "./dist/places.mjs"
+			"./places": "./dist/places.mjs",
+			"./universes": "./dist/universes.mjs"
 		}
 	}
 }

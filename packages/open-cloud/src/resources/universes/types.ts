@@ -1,13 +1,13 @@
 /**
- * Caller-supplied input for the `get` method on `ExperiencesClient`.
+ * Caller-supplied input for the `get` method on `UniversesClient`.
  */
-export interface GetExperienceParameters {
+export interface GetUniverseParameters {
 	/** Stringified ID of the universe to fetch. */
 	readonly universeId: string;
 }
 
 /**
- * A social link that may be associated with an experience.
+ * A social link that may be associated with a universe.
  */
 export interface SocialLink {
 	/** Display title of the link. */
@@ -17,7 +17,7 @@ export interface SocialLink {
 }
 
 /**
- * Caller-supplied input for the `update` method on `ExperiencesClient`.
+ * Caller-supplied input for the `update` method on `UniversesClient`.
  * Every writable field is optional; presence of a key drives the
  * `updateMask` query string that the server uses as the field-mask for
  * the partial update. Absent keys are left untouched server-side.
@@ -25,7 +25,7 @@ export interface SocialLink {
  * value (applicable to `privateServerPriceRobux` and each optional
  * social link).
  */
-export interface UpdateExperienceParameters {
+export interface UpdateUniverseParameters {
 	/** Whether console players can join. */
 	readonly consoleEnabled?: boolean;
 	/** Whether desktop players can join. */
@@ -59,9 +59,9 @@ export interface UpdateExperienceParameters {
 }
 
 /**
- * Discriminated-union representation of an experience's owner.
+ * Discriminated-union representation of a universe's owner.
  */
-export interface ExperienceOwner {
+export interface UniverseOwner {
 	/**
 	 * Stringified numeric owner ID, extracted from the wire
 	 * `users/{id}` or `groups/{id}` resource path.
@@ -72,30 +72,30 @@ export interface ExperienceOwner {
 }
 
 /** Public visibility classification. */
-export type ExperienceVisibility = "private" | "public" | "unspecified";
+export type UniverseVisibility = "private" | "public" | "unspecified";
 
 /** Public age-rating classification. */
-export type ExperienceAgeRating = "9Plus" | "13Plus" | "17Plus" | "all" | "unspecified";
+export type UniverseAgeRating = "9Plus" | "13Plus" | "17Plus" | "all" | "unspecified";
 
 /**
- * Parsed representation of a Roblox experience's configuration.
+ * Parsed representation of a Roblox universe's configuration.
  */
-export interface Experience {
+export interface Universe {
 	/** Stringified universe ID, extracted from the wire `path`. */
 	readonly id: string;
 	/** Age-rating classification. */
-	readonly ageRating: ExperienceAgeRating;
+	readonly ageRating: UniverseAgeRating;
 	/** Whether console players can join. */
 	readonly consoleEnabled: boolean;
 	/** Timestamp when the universe was created. */
 	readonly createdAt: Date;
-	/** Long-form description of the experience. */
+	/** Long-form description of the universe. */
 	readonly description: string;
 	/** Whether desktop players can join. */
 	readonly desktopEnabled: boolean;
 	/** Discord social link; `undefined` when absent. */
 	readonly discordSocialLink: SocialLink | undefined;
-	/** Display name of the experience. */
+	/** Display name of the universe. */
 	readonly displayName: string;
 	/** Facebook social link; `undefined` when absent. */
 	readonly facebookSocialLink: SocialLink | undefined;
@@ -104,7 +104,7 @@ export interface Experience {
 	/** Whether mobile players can join. */
 	readonly mobileEnabled: boolean;
 	/** Owner of the universe (user or group). */
-	readonly owner: ExperienceOwner;
+	readonly owner: UniverseOwner;
 	/** Private server price in Robux; `undefined` when not supported. */
 	readonly privateServerPriceRobux: number | undefined;
 	/** Roblox Group social link; `undefined` when absent. */
@@ -120,7 +120,7 @@ export interface Experience {
 	/** Timestamp of the most recent update. */
 	readonly updatedAt: Date;
 	/** Visibility classification. */
-	readonly visibility: ExperienceVisibility;
+	readonly visibility: UniverseVisibility;
 	/** Whether voice chat is enabled. */
 	readonly voiceChatEnabled: boolean;
 	/** Whether VR players can join. */

@@ -25,10 +25,10 @@ function addTestingSubpath(
 export default mergeConfig(sharedConfig, {
 	pack: {
 		entry: {
-			"experiences": "src/resources/experiences/index.ts",
 			"game-passes": "src/resources/game-passes/index.ts",
 			"index": "src/index.ts",
 			"places": "src/resources/places/index.ts",
+			"universes": "src/resources/universes/index.ts",
 		},
 		exports: {
 			customExports: addTestingSubpath,

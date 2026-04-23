@@ -8,11 +8,11 @@ describe(sortExports, () => {
 
 		const result = sortExports({
 			".": { default: "./dist/index.mjs" },
-			"./experiences": { default: "./dist/experiences.mjs" },
 			"./places": { default: "./dist/places.mjs" },
+			"./universes": { default: "./dist/universes.mjs" },
 		});
 
-		expect(Object.keys(result)).toStrictEqual([".", "./experiences", "./places"]);
+		expect(Object.keys(result)).toStrictEqual([".", "./places", "./universes"]);
 	});
 
 	it("should sort ./package.json before subpaths that follow it alphabetically", () => {
@@ -20,18 +20,18 @@ describe(sortExports, () => {
 
 		const result = sortExports({
 			".": { default: "./dist/index.mjs" },
-			"./experiences": { default: "./dist/experiences.mjs" },
 			"./game-passes": { default: "./dist/game-passes.mjs" },
 			"./package.json": "./package.json",
 			"./places": { default: "./dist/places.mjs" },
+			"./universes": { default: "./dist/universes.mjs" },
 		});
 
 		expect(Object.keys(result)).toStrictEqual([
 			".",
-			"./experiences",
 			"./game-passes",
 			"./package.json",
 			"./places",
+			"./universes",
 		]);
 	});
 
