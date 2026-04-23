@@ -1,0 +1,10 @@
+{
+	"path": "universes/12345/places/98765",
+	"createTime": "2023-06-10T09:15:42.000Z",
+	"updateTime": "2024-11-02T17:08:21.500Z",
+	"displayName": "Legendary Adventure",
+	"description": "Explore the realm with your friends.",
+	"serverSize": 50,
+	"root": true,
+	"universeRuntimeCreation": false
+}

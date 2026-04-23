@@ -1,5 +1,5 @@
 import { RBXL_SIGNATURE, RBXLX_SIGNATURE } from "#src/resources/places/signatures";
-import type { PlaceVersionWire } from "#src/resources/places/wire";
+import type { PlaceVersionWire, PlaceWire } from "#src/resources/places/wire";
 
 /**
  * Returns a fresh, minimal `.rbxl`-formatted body whose magic bytes
@@ -35,6 +35,27 @@ export function validPublishResponseBody(
 ): PlaceVersionWire {
 	return {
 		versionNumber: 1,
+		...overrides,
+	};
+}
+
+/**
+ * Builds a minimally-valid {@link PlaceWire} body. Pass an `overrides`
+ * object to tweak fields without re-stating the defaults.
+ *
+ * @param overrides - Fields to override on the default body.
+ * @returns A valid wire body with the overrides applied.
+ */
+export function validPlaceBody(overrides: Partial<PlaceWire> = {}): PlaceWire {
+	return {
+		createTime: "2024-01-15T10:30:00.000Z",
+		description: "A sample place.",
+		displayName: "Test Place",
+		path: "universes/123/places/456",
+		root: true,
+		serverSize: 30,
+		universeRuntimeCreation: false,
+		updateTime: "2024-11-02T17:08:21.500Z",
 		...overrides,
 	};
 }

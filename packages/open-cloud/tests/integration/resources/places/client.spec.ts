@@ -5,7 +5,12 @@ import { PlacesClient } from "#src/resources/places/client";
 import { createFakeClock } from "#tests/helpers/fake-clock";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
-import { rbxlBody, rbxlxBody, validPublishResponseBody } from "#tests/helpers/places";
+import {
+	rbxlBody,
+	rbxlxBody,
+	validPlaceBody,
+	validPublishResponseBody,
+} from "#tests/helpers/places";
 import { assert, describe, expect, it, vi } from "vitest";
 
 describe(PlacesClient, () => {
@@ -317,6 +322,140 @@ describe(PlacesClient, () => {
 		});
 	});
 
+	describe("update", () => {
+		it("should send a PATCH with a derived updateMask and return the parsed Place", async () => {
+			expect.assertions(4);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validPlaceBody({ description: "Updated" }),
+				status: 200,
+			});
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.update({
+				description: "Updated",
+				placeId: "456",
+				universeId: "123",
+			});
+
+			assert(result.success);
+
+			const captured = httpClient.requests[0];
+			assert(captured !== undefined);
+
+			expect(captured.request.method).toBe("PATCH");
+			expect(captured.request.url).toBe(
+				"/cloud/v2/universes/123/places/456?updateMask=description",
+			);
+			expect(captured.request.body).toStrictEqual({ description: "Updated" });
+			expect(result.data.description).toBe("Updated");
+		});
+
+		it("should short-circuit on an empty update with no HTTP traffic", async () => {
+			expect.assertions(4);
+
+			const httpClient = createFakeHttpClient();
+			const sleep = createFakeSleep();
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep,
+			});
+
+			const result = await client.update({ placeId: "456", universeId: "123" });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ValidationError);
+			expect(result.err).toHaveProperty("code", "empty_update");
+			expect(httpClient.requests).toHaveLength(0);
+			expect(sleep.waits).toStrictEqual([]);
+		});
+
+		it("should retry a 5xx since update is idempotent", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockApiError({ statusCode: 502 })
+				.mockResponse({ body: validPlaceBody(), status: 200 });
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.update({
+				description: "Retry test",
+				placeId: "456",
+				universeId: "123",
+			});
+
+			assert(result.success);
+
+			expect(httpClient.requests).toHaveLength(2);
+			expect(result.data).toBeDefined();
+		});
+
+		it("should retry a 429, thread the retry-after wait through sleep, and fire all hooks", async () => {
+			expect.assertions(4);
+
+			const httpClient = createFakeHttpClient()
+				.mockRateLimit({ retryAfterSeconds: 1 })
+				.mockResponse({ body: validPlaceBody(), status: 200 });
+			const sleep = createFakeSleep();
+			const onRequest = vi.fn<NonNullable<OpenCloudHooks["onRequest"]>>();
+			const onRetry = vi.fn<NonNullable<OpenCloudHooks["onRetry"]>>();
+			const onRateLimit = vi.fn<NonNullable<OpenCloudHooks["onRateLimit"]>>();
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				hooks: { onRateLimit, onRequest, onRetry },
+				httpClient,
+				sleep,
+			});
+
+			const result = await client.update({
+				description: "Retry test",
+				placeId: "456",
+				universeId: "123",
+			});
+
+			assert(result.success);
+
+			// The 100/min update queue has room on the first call and refills
+			// before the retry, so onRateLimit fires only for the retry-after
+			// delay surfaced by the 429.
+			expect(httpClient.requests).toHaveLength(2);
+			expect(onRequest).toHaveBeenCalledTimes(2);
+			expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, expect.any(Error));
+			expect(onRateLimit).toHaveBeenCalledExactlyOnceWith(1000);
+		});
+
+		it("should route a per-request apiKey override through the request config", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validPlaceBody(),
+				status: 200,
+			});
+			const client = new PlacesClient({
+				apiKey: "default-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.update(
+				{ description: "Override test", placeId: "456", universeId: "123" },
+				{ apiKey: "override-key" },
+			);
+
+			expect(httpClient.requests[0]?.config.apiKey).toBe("override-key");
+		});
+	});
+
 	describe("shared rate-limit bucket", () => {
 		it("should serialize publish and save through the same per-API-key queue", async () => {
 			expect.assertions(2);
@@ -393,6 +532,43 @@ describe(PlacesClient, () => {
 				"override-key",
 			]);
 			expect(clock.waits).toStrictEqual([1000, 1000]);
+		});
+	});
+
+	describe("independent rate-limit buckets", () => {
+		it("should account update and publish against separate queues", async () => {
+			expect.assertions(2);
+
+			// Publish's 0.5/sec queue forces a 1000ms init wait on its
+			// first call. Update's 100/min queue (intervalMs=600ms, max
+			// bucket 1000ms) has room on its first call and sleeps zero.
+			// If update wrongly shared publish's queue, it would inherit
+			// the drained bucket and pay a 2000ms wait; independent
+			// queues leave the second call wait-free.
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: validPublishResponseBody(), status: 200 })
+				.mockResponse({ body: validPlaceBody(), status: 200 });
+			const clock = createFakeClock();
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			await client.publish({
+				body: rbxlBody(),
+				format: "rbxl",
+				placeId: "1",
+				universeId: "2",
+			});
+			await client.update({
+				description: "Isolation test",
+				placeId: "1",
+				universeId: "2",
+			});
+
+			expect(httpClient.requests).toHaveLength(2);
+			expect(clock.waits).toStrictEqual([1000]);
 		});
 	});
 });
