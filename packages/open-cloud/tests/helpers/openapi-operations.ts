@@ -2,13 +2,6 @@ import { isRecord } from "#src/internal/utils/is-record";
 import { getOpenApiDocument } from "#tests/conformance/_helpers";
 
 /**
- * The HTTP methods an {@link OperationMatch} can carry. Mirrors the
- * OpenAPI 3 path-item method set; lowercased because spec keys are
- * lowercase.
- */
-export type OpenApiMethod = "delete" | "get" | "patch" | "post" | "put";
-
-/**
  * The result of matching a concrete `(method, url)` pair against the
  * templated paths in the vendored OpenAPI document.
  */
@@ -20,6 +13,13 @@ export interface OperationMatch {
 	/** The templated path the URL matched, e.g. `/foo/{bar}`. */
 	readonly pathTemplate: string;
 }
+
+/**
+ * The HTTP methods an {@link OperationMatch} can carry. Mirrors the
+ * OpenAPI 3 path-item method set; lowercased because spec keys are
+ * lowercase.
+ */
+type OpenApiMethod = "delete" | "get" | "patch" | "post" | "put";
 
 interface CompiledOperation {
 	readonly method: OpenApiMethod;

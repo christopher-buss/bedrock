@@ -67,18 +67,6 @@ export function nullableToUnion(node: unknown): unknown {
 }
 
 /**
- * Removes any field marked `writeOnly: true` from the `required`
- * array of its containing schema so read-response fixtures are not
- * rejected for omitting a create-only input.
- *
- * @param node - A node anywhere in the schema tree.
- * @returns The node with write-only fields elided from `required`.
- */
-export function dropWriteOnlyFromRequired(node: unknown): unknown {
-	return dropFlagFromRequired(node, "writeOnly");
-}
-
-/**
  * Removes any field marked `readOnly: true` from the `required` array
  * of its containing schema so request-body fixtures are not rejected
  * for omitting a server-assigned field like `id` or `createdAt`.
@@ -205,6 +193,18 @@ function dropFlagFromRequired(node: unknown, flag: "readOnly" | "writeOnly"): un
 	}
 
 	return pruneRequired(transformed, flag);
+}
+
+/**
+ * Removes any field marked `writeOnly: true` from the `required`
+ * array of its containing schema so read-response fixtures are not
+ * rejected for omitting a create-only input.
+ *
+ * @param node - A node anywhere in the schema tree.
+ * @returns The node with write-only fields elided from `required`.
+ */
+function dropWriteOnlyFromRequired(node: unknown): unknown {
+	return dropFlagFromRequired(node, "writeOnly");
 }
 
 let cachedRawDocument: Record<string, unknown> | undefined;
