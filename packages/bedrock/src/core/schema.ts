@@ -65,14 +65,14 @@ export interface PlaceEntry {
 export interface Config {
 	/** Reserved at the root for the per-environment modeling tracked in #110. */
 	environments?: unknown;
-	/** Reserved at the root for experience-level singleton metadata. */
-	experience?: unknown;
 	/** Reserved at the root for c12's config layering / overlay work. */
 	extends?: unknown;
 	/** Keyed-map collection of game-pass entries by user-supplied ResourceKey. */
 	passes?: Record<string, GamePassEntry>;
 	/** Keyed-map collection of place entries by user-supplied ResourceKey. */
 	places?: Record<string, PlaceEntry>;
+	/** Reserved at the root for universe-level singleton metadata. */
+	universe?: unknown;
 }
 
 // Resource-kind entry schemas. Adding a new kind is two additions:
@@ -103,10 +103,10 @@ const placesCollection = type({
 
 const rootSchema: Type<Config> = type({
 	"environments?": "unknown",
-	"experience?": "unknown",
 	"extends?": "unknown",
 	"passes?": passesCollection,
 	"places?": placesCollection,
+	"universe?": "unknown",
 }).onUndeclaredKey("reject");
 
 /**

@@ -16,9 +16,9 @@ describe(validateConfig, () => {
 	});
 
 	it.for([
-		["experience", { experience: { name: "My Game" } }],
 		["environments", { environments: { production: {} } }],
 		["extends", { extends: "./base.config.ts" }],
+		["universe", { universe: { name: "My Game" } }],
 	] as const)("should accept the reserved %s key at the root", ([, input]) => {
 		expect.assertions(1);
 

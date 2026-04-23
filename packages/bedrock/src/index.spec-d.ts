@@ -199,14 +199,14 @@ describe(deploy, () => {
 describe("Config", () => {
 	it("should expose exactly the five documented root fields", () => {
 		expectTypeOf<keyof Config>().toEqualTypeOf<
-			"environments" | "experience" | "extends" | "passes" | "places"
+			"environments" | "extends" | "passes" | "places" | "universe"
 		>();
 	});
 
-	it("should reserve environments, experience, and extends as unknown", () => {
+	it("should reserve environments, extends, and universe as unknown", () => {
 		expectTypeOf<Config["environments"]>().toEqualTypeOf<unknown>();
-		expectTypeOf<Config["experience"]>().toEqualTypeOf<unknown>();
 		expectTypeOf<Config["extends"]>().toEqualTypeOf<unknown>();
+		expectTypeOf<Config["universe"]>().toEqualTypeOf<unknown>();
 	});
 
 	it("should treat every root field as optional so an empty object satisfies Config", () => {
