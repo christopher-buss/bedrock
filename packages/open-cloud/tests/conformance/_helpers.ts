@@ -5,7 +5,17 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { assert, expect } from "vitest";
 
-let cachedAjv: Ajv | undefined;
+/**
+ * Normalization mode for the Ajv instance returned by {@link getAjv}.
+ *
+ * - `"response"` prunes `writeOnly` fields from `required`, so read-response
+ *   fixtures are not rejected for omitting a create-only input.
+ * - `"request"` prunes `readOnly` fields from `required`, so request-body
+ *   fixtures are not rejected for omitting a server-assigned field.
+ */
+export type OpenApiValidationMode = "request" | "response";
+
+const cachedAjv: Partial<Record<OpenApiValidationMode, Ajv>> = {};
 
 /**
  * Rewrites every OpenAPI 3.0 `nullable: true` annotation as a proper
@@ -57,15 +67,66 @@ export function nullableToUnion(node: unknown): unknown {
 }
 
 /**
+ * Removes any field marked `writeOnly: true` from the `required`
+ * array of its containing schema so read-response fixtures are not
+ * rejected for omitting a create-only input.
+ *
+ * @param node - A node anywhere in the schema tree.
+ * @returns The node with write-only fields elided from `required`.
+ */
+export function dropWriteOnlyFromRequired(node: unknown): unknown {
+	return dropFlagFromRequired(node, "writeOnly");
+}
+
+/**
+ * Removes any field marked `readOnly: true` from the `required` array
+ * of its containing schema so request-body fixtures are not rejected
+ * for omitting a server-assigned field like `id` or `createdAt`.
+ *
+ * @param node - A node anywhere in the schema tree.
+ * @returns The node with read-only fields elided from `required`.
+ */
+export function dropReadOnlyFromRequired(node: unknown): unknown {
+	return dropFlagFromRequired(node, "readOnly");
+}
+
+/**
+ * Returns the ajv instance pre-loaded with the vendored
+ * `roblox-openapi.json` schema and format keywords. Cached per mode
+ * for the lifetime of the test worker.
+ *
+ * `"response"` prunes `writeOnly` fields from `required`; `"request"`
+ * prunes `readOnly` fields from `required`. The two trees are
+ * independent Ajv instances.
+ *
+ * @param mode - Which normalization to apply to the schema tree.
+ * @returns The shared ajv instance for that mode.
+ */
+export function getAjv(mode: OpenApiValidationMode): Ajv {
+	const cached = cachedAjv[mode];
+	if (cached !== undefined) {
+		return cached;
+	}
+
+	const ajv = new Ajv({ allErrors: true, strict: false });
+	addFormats(ajv);
+	ajv.addSchema(loadOpenApiDocument(mode), "roblox-openapi");
+	cachedAjv[mode] = ajv;
+	return ajv;
+}
+
+/**
  * Returns the ajv validator for a named schema from the vendored
- * OpenAPI document.
+ * OpenAPI document, resolved against the response-mode schema tree.
  *
  * @param schemaName - Name of the schema under
  *   `#/components/schemas/`.
  * @returns The compiled validator.
  */
 export function getValidator(schemaName: string): ValidateFunction {
-	const validator = getAjv().getSchema(`roblox-openapi#/components/schemas/${schemaName}`);
+	const validator = getAjv("response").getSchema(
+		`roblox-openapi#/components/schemas/${schemaName}`,
+	);
 	assert(validator, `schema ${schemaName} not registered in vendor OpenAPI doc`);
 	return validator;
 }
@@ -100,22 +161,23 @@ export function loadFixture(subdir: string, name: string): JSONValue {
 	);
 }
 
-function isWriteOnlyProperty(properties: Record<string, unknown>, field: unknown): boolean {
-	if (typeof field !== "string") {
-		return false;
-	}
-
-	const propertyNode = properties[field];
-	return isRecord(propertyNode) && propertyNode["writeOnly"] === true;
-}
-
-function pruneWriteOnlyRequired(transformed: Record<string, unknown>): Record<string, unknown> {
+function pruneRequired(
+	transformed: Record<string, unknown>,
+	flag: "readOnly" | "writeOnly",
+): Record<string, unknown> {
 	const { properties, required } = transformed;
 	if (!isRecord(properties) || !Array.isArray(required)) {
 		return transformed;
 	}
 
-	const pruned = required.filter((field) => !isWriteOnlyProperty(properties, field));
+	const pruned = required.filter((field) => {
+		if (typeof field !== "string") {
+			return true;
+		}
+
+		const propertyNode = properties[field];
+		return !isRecord(propertyNode) || propertyNode[flag] !== true;
+	});
 	if (pruned.length === required.length) {
 		return transformed;
 	}
@@ -128,17 +190,9 @@ function pruneWriteOnlyRequired(transformed: Record<string, unknown>): Record<st
 	return { ...transformed, required: pruned };
 }
 
-/**
- * Removes any field marked `writeOnly: true` from the `required`
- * array of its containing schema so read-response fixtures are not
- * rejected for omitting a create-only input.
- *
- * @param node - A node anywhere in the schema tree.
- * @returns The node with write-only fields elided from `required`.
- */
-function dropWriteOnlyFromRequired(node: unknown): unknown {
+function dropFlagFromRequired(node: unknown, flag: "readOnly" | "writeOnly"): unknown {
 	if (Array.isArray(node)) {
-		return node.map(dropWriteOnlyFromRequired);
+		return node.map((child) => dropFlagFromRequired(child, flag));
 	}
 
 	if (!isRecord(node)) {
@@ -147,41 +201,26 @@ function dropWriteOnlyFromRequired(node: unknown): unknown {
 
 	const transformed: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(node)) {
-		transformed[key] = dropWriteOnlyFromRequired(value);
+		transformed[key] = dropFlagFromRequired(value, flag);
 	}
 
-	return pruneWriteOnlyRequired(transformed);
+	return pruneRequired(transformed, flag);
 }
 
-function loadOpenApiDocument(): Record<string, unknown> {
+function loadOpenApiDocument(mode: OpenApiValidationMode): Record<string, unknown> {
 	const raw = JSON.parse(
 		readFileSync(
 			fileURLToPath(new URL("../../vendor/roblox-openapi.json", import.meta.url)),
 			"utf8",
 		),
 	);
-	const normalized = dropWriteOnlyFromRequired(nullableToUnion(raw));
+	const nullFixed = nullableToUnion(raw);
+	const normalized =
+		mode === "response"
+			? dropWriteOnlyFromRequired(nullFixed)
+			: dropReadOnlyFromRequired(nullFixed);
 	assert(isRecord(normalized));
 	return normalized;
-}
-
-/**
- * Returns the ajv instance pre-loaded with the vendored
- * `roblox-openapi.json` schema and format keywords. Cached for the
- * lifetime of the test worker.
- *
- * @returns The shared ajv instance.
- */
-function getAjv(): Ajv {
-	if (cachedAjv !== undefined) {
-		return cachedAjv;
-	}
-
-	const ajv = new Ajv({ allErrors: true, strict: false });
-	addFormats(ajv);
-	ajv.addSchema(loadOpenApiDocument(), "roblox-openapi");
-	cachedAjv = ajv;
-	return ajv;
 }
 
 export { isRecord } from "#src/internal/utils/is-record";
