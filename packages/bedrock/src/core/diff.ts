@@ -91,23 +91,24 @@ export function diff(
 	return desired.map((entry) => operationFor(entry, currentByKey.get(entry.key)));
 }
 
-// Keys on UniverseDesiredState that identify the resource rather than
-// represent a user-managed field. Everything NOT in this set is a managed
-// field the diff must consider, so new optional fields added to the
-// interface are automatically picked up here.
-const UNIVERSE_IDENTITY_KEYS: ReadonlySet<string> = new Set([
+// Resource-kind identity keys. Every field on a `ResourceDesiredState`
+// that is not in this set is a user-managed field; `hasNoManagedFields`
+// returns true when no non-identity field has a declared value. Only
+// universe supports "all optional → noop on apply"; the other kinds'
+// required fields (name, description, filePath, etc.) are always defined,
+// so the loop naturally returns false for them without a kind guard.
+const IDENTITY_KEYS: ReadonlySet<string> = new Set([
 	"key",
 	"kind",
+	"placeId",
 	"universeId",
-] satisfies Array<keyof UniverseDesiredState>);
+] satisfies Array<
+	keyof GamePassDesiredState | keyof PlaceDesiredState | keyof UniverseDesiredState
+>);
 
 function hasNoManagedFields(desired: ResourceDesiredState): boolean {
-	if (desired.kind !== "universe") {
-		return false;
-	}
-
 	for (const [key, value] of Object.entries(desired)) {
-		if (!UNIVERSE_IDENTITY_KEYS.has(key) && value !== undefined) {
+		if (!IDENTITY_KEYS.has(key) && value !== undefined) {
 			return false;
 		}
 	}
@@ -143,20 +144,16 @@ function universeFieldsEqual(
 	desired: UniverseDesiredState,
 	current: ResourceCurrentState<"universe">,
 ): boolean {
-	if (desired.universeId !== current.universeId) {
-		return false;
-	}
-
-	// Undeclared (`undefined`) means unmanaged: skip comparison so the
-	// server's value can't register as drift. Mirrors ocale's `updateMask`.
-	if (
-		desired.voiceChatEnabled !== undefined &&
-		desired.voiceChatEnabled !== current.voiceChatEnabled
-	) {
-		return false;
-	}
-
-	return true;
+	// Reached only when `hasNoManagedFields` has already filtered out the
+	// no-declared-fields case, so every managed field is guaranteed defined
+	// here. When a second optional managed field lands on
+	// `UniverseDesiredState`, re-introduce the per-field `!== undefined`
+	// guard for fields that can still be legitimately unmanaged while others
+	// are declared.
+	return (
+		desired.universeId === current.universeId &&
+		desired.voiceChatEnabled === current.voiceChatEnabled
+	);
 }
 
 function desiredFieldsEqual(desired: ResourceDesiredState, current: ResourceCurrentState): boolean {
