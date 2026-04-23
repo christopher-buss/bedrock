@@ -109,19 +109,15 @@ function isOptionalBoolean(value: unknown): boolean {
 
 function hasValidPlaceOptional(body: Record<string, unknown>): boolean {
 	const serverSize = body["serverSize"] ?? undefined;
-	if (serverSize !== undefined && typeof serverSize !== "number") {
-		return false;
-	}
-
-	return isOptionalBoolean(body["root"]) && isOptionalBoolean(body["universeRuntimeCreation"]);
+	return (
+		(serverSize === undefined || typeof serverSize === "number") &&
+		isOptionalBoolean(body["root"]) &&
+		isOptionalBoolean(body["universeRuntimeCreation"])
+	);
 }
 
 function isPlaceWire(body: unknown): body is PlaceWire {
-	if (!isRecord(body)) {
-		return false;
-	}
-
-	return hasValidPlaceRequired(body) && hasValidPlaceOptional(body);
+	return isRecord(body) && hasValidPlaceRequired(body) && hasValidPlaceOptional(body);
 }
 
 function decodeBody(body: unknown, statusCode: number): Result<unknown, ApiError> {
