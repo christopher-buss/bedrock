@@ -57,25 +57,6 @@ export function nullableToUnion(node: unknown): unknown {
 }
 
 /**
- * Returns the ajv instance pre-loaded with the vendored
- * `roblox-openapi.json` schema and format keywords. Cached for the
- * lifetime of the test worker.
- *
- * @returns The shared ajv instance.
- */
-export function getAjv(): Ajv {
-	if (cachedAjv !== undefined) {
-		return cachedAjv;
-	}
-
-	const ajv = new Ajv({ allErrors: true, strict: false });
-	addFormats(ajv);
-	ajv.addSchema(loadOpenApiDocument(), "roblox-openapi");
-	cachedAjv = ajv;
-	return ajv;
-}
-
-/**
  * Returns the ajv validator for a named schema from the vendored
  * OpenAPI document.
  *
@@ -182,6 +163,25 @@ function loadOpenApiDocument(): Record<string, unknown> {
 	const normalized = dropWriteOnlyFromRequired(nullableToUnion(raw));
 	assert(isRecord(normalized));
 	return normalized;
+}
+
+/**
+ * Returns the ajv instance pre-loaded with the vendored
+ * `roblox-openapi.json` schema and format keywords. Cached for the
+ * lifetime of the test worker.
+ *
+ * @returns The shared ajv instance.
+ */
+function getAjv(): Ajv {
+	if (cachedAjv !== undefined) {
+		return cachedAjv;
+	}
+
+	const ajv = new Ajv({ allErrors: true, strict: false });
+	addFormats(ajv);
+	ajv.addSchema(loadOpenApiDocument(), "roblox-openapi");
+	cachedAjv = ajv;
+	return ajv;
 }
 
 export { isRecord } from "#src/internal/utils/is-record";
