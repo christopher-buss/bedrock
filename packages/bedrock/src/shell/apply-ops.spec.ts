@@ -45,14 +45,14 @@ function registryWith(
 }
 
 describe(applyOps, () => {
-	it("should return Ok undefined and never invoke the driver when ops is empty", async () => {
+	it("should return Ok with an empty array and never invoke the driver when ops is empty", async () => {
 		expect.assertions(2);
 
 		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
 
 		const result = await applyOps([], registryWith(create));
 
-		expect(result).toStrictEqual({ data: undefined, success: true });
+		expect(result).toStrictEqual({ data: [], success: true });
 		expect(create).not.toHaveBeenCalled();
 	});
 
@@ -60,32 +60,37 @@ describe(applyOps, () => {
 		expect.assertions(3);
 
 		const op = createOp(asResourceKey("vip-pass"));
+		const created = gamePassCurrent({ ...op.desired });
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
-			.mockResolvedValue({ data: gamePassCurrent({ ...op.desired }), success: true });
+			.mockResolvedValue({ data: created, success: true });
 
 		const result = await applyOps([op], registryWith(create));
 
-		expect(result).toStrictEqual({ data: undefined, success: true });
+		expect(result).toStrictEqual({ data: [created], success: true });
 		expect(create).toHaveBeenCalledOnce();
 		expect(create.mock.calls[0]![0]).toBe(op.desired);
 	});
 
-	it("should dispatch the create and skip the noop when mixed", async () => {
+	it("should return the driver outputs in dispatched order and skip noops", async () => {
 		expect.assertions(2);
 
-		const op = createOp(asResourceKey("vip-pass"));
+		const firstOp = createOp(asResourceKey("first-pass"));
+		const secondOp = createOp(asResourceKey("second-pass"));
+		const firstCurrent = gamePassCurrent({ ...firstOp.desired });
+		const secondCurrent = gamePassCurrent({ ...secondOp.desired });
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
-			.mockResolvedValue({ data: gamePassCurrent({ ...op.desired }), success: true });
+			.mockResolvedValueOnce({ data: firstCurrent, success: true })
+			.mockResolvedValueOnce({ data: secondCurrent, success: true });
 
 		const result = await applyOps(
-			[op, { key: asResourceKey("sync-pass"), type: "noop" }],
+			[firstOp, { key: asResourceKey("sync-pass"), type: "noop" }, secondOp],
 			registryWith(create),
 		);
 
-		expect(result).toStrictEqual({ data: undefined, success: true });
-		expect(create).toHaveBeenCalledOnce();
+		expect(result).toStrictEqual({ data: [firstCurrent, secondCurrent], success: true });
+		expect(create).toHaveBeenCalledTimes(2);
 	});
 
 	it("should dispatch create ops in input order", async () => {
@@ -104,7 +109,7 @@ describe(applyOps, () => {
 
 		const result = await applyOps(ops, registryWith(create));
 
-		expect(result).toStrictEqual({ data: undefined, success: true });
+		expect(result.success).toBeTrue();
 		expect(create.mock.calls.map((call) => call[0].key)).toStrictEqual([
 			"first-pass",
 			"second-pass",
@@ -112,22 +117,28 @@ describe(applyOps, () => {
 		]);
 	});
 
-	it("should stop dispatching on the first driver failure and wrap it in driverFailure Err", async () => {
+	it("should stop dispatching on the first driver failure and wrap it in driverFailure Err with appliedSoFar", async () => {
 		expect.assertions(3);
 
 		const first = createOp(asResourceKey("first-pass"));
 		const second = createOp(asResourceKey("second-pass"));
 		const third = createOp(asResourceKey("third-pass"));
+		const firstCurrent = gamePassCurrent({ ...first.desired });
 		const cause = new OpenCloudError("boom");
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
-			.mockResolvedValueOnce({ data: gamePassCurrent({ ...first.desired }), success: true })
+			.mockResolvedValueOnce({ data: firstCurrent, success: true })
 			.mockResolvedValueOnce({ err: cause, success: false });
 
 		const result = await applyOps([first, second, third], registryWith(create));
 
 		expect(result).toStrictEqual({
-			err: { key: second.key, cause, kind: "driverFailure" },
+			err: {
+				key: second.key,
+				appliedSoFar: [firstCurrent],
+				cause,
+				kind: "driverFailure",
+			},
 			success: false,
 		});
 		expect(create).toHaveBeenCalledTimes(2);
@@ -149,24 +160,43 @@ describe(applyOps, () => {
 		);
 
 		expect(result).toStrictEqual({
-			err: { key: update.key, kind: "updateUnsupported" },
+			err: { key: update.key, appliedSoFar: [], kind: "updateUnsupported" },
 			success: false,
 		});
 		expect(create).not.toHaveBeenCalled();
+	});
+
+	it("should carry preceding driver outputs in appliedSoFar on updateUnsupported", async () => {
+		expect.assertions(1);
+
+		const created = createOp(asResourceKey("first-pass"));
+		const createdCurrent = gamePassCurrent({ ...created.desired });
+		const update = updateOp(asResourceKey("vip-pass"));
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockResolvedValue({ data: createdCurrent, success: true });
+
+		const result = await applyOps([created, update], registryWith(create));
+
+		expect(result).toStrictEqual({
+			err: { key: update.key, appliedSoFar: [createdCurrent], kind: "updateUnsupported" },
+			success: false,
+		});
 	});
 
 	it("should dispatch an update op to the driver's update method and return Ok on success", async () => {
 		expect.assertions(4);
 
 		const op = updateOp(asResourceKey("vip-pass"));
+		const updated = gamePassCurrent({ ...op.desired });
 		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
 		const update = vi
 			.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>()
-			.mockResolvedValue({ data: gamePassCurrent({ ...op.desired }), success: true });
+			.mockResolvedValue({ data: updated, success: true });
 
 		const result = await applyOps([op], registryWith(create, update));
 
-		expect(result).toStrictEqual({ data: undefined, success: true });
+		expect(result).toStrictEqual({ data: [updated], success: true });
 		expect(update).toHaveBeenCalledOnce();
 		expect(update.mock.calls[0]![0]).toBe(op.current);
 		expect(update.mock.calls[0]![1]).toBe(op.desired);
@@ -186,7 +216,7 @@ describe(applyOps, () => {
 		const result = await applyOps([first, second], registryWith(create, update));
 
 		expect(result).toStrictEqual({
-			err: { key: first.key, cause, kind: "driverFailure" },
+			err: { key: first.key, appliedSoFar: [], cause, kind: "driverFailure" },
 			success: false,
 		});
 		expect(create).not.toHaveBeenCalled();
@@ -226,13 +256,14 @@ describe(applyOps, () => {
 			expect.assertions(2);
 
 			const op = placeCreateOp(asResourceKey("start-place"));
+			const created = placeCurrent({ ...op.desired });
 			const create = vi
 				.fn<ResourceDriver<"place">["create"]>()
-				.mockResolvedValue({ data: placeCurrent({ ...op.desired }), success: true });
+				.mockResolvedValue({ data: created, success: true });
 
 			const result = await applyOps([op], placeRegistry(create));
 
-			expect(result).toStrictEqual({ data: undefined, success: true });
+			expect(result).toStrictEqual({ data: [created], success: true });
 			expect(create).toHaveBeenCalledExactlyOnceWith(op.desired);
 		});
 
@@ -248,7 +279,7 @@ describe(applyOps, () => {
 			const result = await applyOps([op], placeRegistry(create));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, cause, kind: "driverFailure" },
+				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
 				success: false,
 			});
 		});
@@ -262,7 +293,7 @@ describe(applyOps, () => {
 			const result = await applyOps([op], placeRegistry(create));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, kind: "updateUnsupported" },
+				err: { key: op.key, appliedSoFar: [], kind: "updateUnsupported" },
 				success: false,
 			});
 			expect(create).not.toHaveBeenCalled();
@@ -272,14 +303,15 @@ describe(applyOps, () => {
 			expect.assertions(3);
 
 			const op = placeUpdateOp(asResourceKey("start-place"));
+			const updated = placeCurrent({ ...op.desired });
 			const create = vi.fn<ResourceDriver<"place">["create"]>();
 			const update = vi
 				.fn<NonNullable<ResourceDriver<"place">["update"]>>()
-				.mockResolvedValue({ data: placeCurrent({ ...op.desired }), success: true });
+				.mockResolvedValue({ data: updated, success: true });
 
 			const result = await applyOps([op], placeRegistry(create, update));
 
-			expect(result).toStrictEqual({ data: undefined, success: true });
+			expect(result).toStrictEqual({ data: [updated], success: true });
 			expect(update).toHaveBeenCalledExactlyOnceWith(op.current, op.desired);
 			expect(create).not.toHaveBeenCalled();
 		});
@@ -297,7 +329,7 @@ describe(applyOps, () => {
 			const result = await applyOps([op], placeRegistry(create, update));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, cause, kind: "driverFailure" },
+				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
 				success: false,
 			});
 		});

@@ -23,6 +23,7 @@ it('Example 1', () => {
   }
   const err: ApplyError = {
     key: asResourceKey('vip-pass'),
+    appliedSoFar: [],
     kind: 'updateUnsupported',
   }
   expect(describe(err)).toBe('update not supported for vip-pass')
@@ -71,6 +72,7 @@ it('Example 2', () => {
     },
   ]
   return applyOps(ops, registry).then((result) => {
-    expect(result).toStrictEqual({ data: undefined, success: true })
+    expect(result.success).toBe(true)
+    expect(result.success && result.data).toHaveLength(1)
   })
 })

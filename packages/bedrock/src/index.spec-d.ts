@@ -10,6 +10,7 @@ import {
 	buildDesired,
 	createPlaceDriver,
 	defineConfig,
+	deploy,
 	isResourceKey,
 	isRobloxAssetId,
 	isSha256Hex,
@@ -17,17 +18,21 @@ import {
 } from "./index.ts";
 import type {
 	ApplyError,
+	BedrockState,
 	BuildDesiredError,
 	Config,
 	ConfigContext,
 	ConfigError,
 	ConfigInput,
 	ConfigValidationIssue,
+	DeployError,
+	DeployOptions,
 	LoadConfigOptions,
 	PlaceDesiredState,
 	PlaceDriverDeps,
 	PlaceEntry,
 	PlaceOutputs,
+	ResourceCurrentState,
 	ResourceDesiredState,
 	ResourceKey,
 	RobloxAssetId,
@@ -156,14 +161,38 @@ describe(buildDesired, () => {
 });
 
 describe(applyOps, () => {
-	it("should resolve to a Result of undefined or ApplyError", () => {
+	it("should resolve to a Result of readonly current state or ApplyError", () => {
 		expectTypeOf<Awaited<ReturnType<typeof applyOps>>>().toEqualTypeOf<
-			Result<undefined, ApplyError>
+			Result<ReadonlyArray<ResourceCurrentState>, ApplyError>
 		>();
 	});
 
 	it("should discriminate ApplyError on driverFailure and updateUnsupported kinds", () => {
 		expectTypeOf<ApplyError["kind"]>().toEqualTypeOf<"driverFailure" | "updateUnsupported">();
+	});
+});
+
+describe(deploy, () => {
+	it("should accept a single DeployOptions argument", () => {
+		expectTypeOf(deploy).parameter(0).toEqualTypeOf<DeployOptions>();
+	});
+
+	it("should resolve to a Result of BedrockState or DeployError", () => {
+		expectTypeOf<Awaited<ReturnType<typeof deploy>>>().toEqualTypeOf<
+			Result<BedrockState, DeployError>
+		>();
+	});
+
+	it("should discriminate DeployError across the four failure stages", () => {
+		expectTypeOf<DeployError["kind"]>().toEqualTypeOf<
+			"applyFailed" | "buildDesiredFailed" | "stateReadFailed" | "stateWriteFailed"
+		>();
+	});
+
+	it("should attach unsavedState only to the stateWriteFailed variant", () => {
+		expectTypeOf<
+			Extract<DeployError, { kind: "stateWriteFailed" }>["unsavedState"]
+		>().toEqualTypeOf<BedrockState>();
 	});
 });
 
