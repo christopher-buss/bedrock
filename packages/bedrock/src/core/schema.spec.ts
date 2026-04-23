@@ -18,7 +18,6 @@ describe(validateConfig, () => {
 	it.for([
 		["environments", { environments: { production: {} } }],
 		["extends", { extends: "./base.config.ts" }],
-		["universe", { universe: { name: "My Game" } }],
 	] as const)("should accept the reserved %s key at the root", ([, input]) => {
 		expect.assertions(1);
 
@@ -248,6 +247,70 @@ describe(validateConfig, () => {
 		assert(result.err.kind === "validationFailed");
 
 		expect(result.err.issues[0]!.path).toStrictEqual(["places", "bad key!"]);
+	});
+
+	it("should accept a universe block declaring only universeId", () => {
+		expect.assertions(2);
+
+		const result = validateConfig({ universe: { universeId: "1234567890" } }, SOURCE);
+
+		assert(result.success);
+
+		expect(result.data.universe!.universeId).toBe("1234567890");
+		expect(result.data.universe!.voiceChatEnabled).toBeUndefined();
+	});
+
+	it("should accept a universe block with voiceChatEnabled declared", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{ universe: { universeId: "1234567890", voiceChatEnabled: true } },
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.universe!.voiceChatEnabled).toBeTrue();
+	});
+
+	it("should reject a universe block missing universeId", () => {
+		expect.assertions(1);
+
+		const result = validateConfig({ universe: { voiceChatEnabled: true } }, SOURCE);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "universeId"]);
+	});
+
+	it.for([
+		["trailing non-digits", "4711abc"],
+		["leading non-digits", "abc4711"],
+		["embedded non-digits", "47abc11"],
+	] as const)("should reject a universe whose universeId has %s", ([, universeId]) => {
+		expect.assertions(1);
+
+		const result = validateConfig({ universe: { universeId } }, SOURCE);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "universeId"]);
+	});
+
+	it("should reject an undeclared field on a universe block", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{ universe: { unexpected: "nope", universeId: "1234567890" } },
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "unexpected"]);
 	});
 
 	it("should accumulate every validation issue with its own attributed field path", () => {

@@ -36,6 +36,24 @@ export interface PlaceEntry {
 }
 
 /**
+ * Body of the singleton `universe` block. Bedrock synthesizes the
+ * `ResourceKey` (`"main"`) in `flattenConfig`, so user config supplies
+ * only the existing `universeId` plus any managed fields they want
+ * bedrock to own. Fields omitted here remain unmanaged (the diff treats
+ * them as non-drift and the driver omits them from the `updateMask`).
+ *
+ * `universeId` is user-supplied because Open Cloud cannot mint universes;
+ * the universe must already exist in Roblox before bedrock can reconcile
+ * its configuration.
+ */
+export interface UniverseEntry {
+	/** Existing Roblox universe ID. */
+	universeId: string;
+	/** Whether voice chat is enabled; omit or set `undefined` to leave unmanaged. */
+	voiceChatEnabled?: boolean | undefined;
+}
+
+/**
  * Validated project config as accepted by `loadConfig`. Plain mutable so
  * users can adjust fields in a long-running script before deploying.
  *
@@ -71,8 +89,8 @@ export interface Config {
 	passes?: Record<string, GamePassEntry>;
 	/** Keyed-map collection of place entries by user-supplied ResourceKey. */
 	places?: Record<string, PlaceEntry>;
-	/** Reserved at the root for universe-level singleton metadata. */
-	universe?: unknown;
+	/** Singleton universe block declaring the Roblox universe bedrock manages. */
+	universe?: UniverseEntry;
 }
 
 // Resource-kind entry schemas. Adding a new kind is two additions:
@@ -101,12 +119,17 @@ const placesCollection = type({
 	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: placeEntry,
 }).onUndeclaredKey("reject");
 
+const universeEntry = type({
+	"universeId": "string.digits",
+	"voiceChatEnabled?": "boolean | undefined",
+}).onUndeclaredKey("reject");
+
 const rootSchema: Type<Config> = type({
 	"environments?": "unknown",
 	"extends?": "unknown",
 	"passes?": passesCollection,
 	"places?": placesCollection,
-	"universe?": "unknown",
+	"universe?": universeEntry,
 }).onUndeclaredKey("reject");
 
 /**

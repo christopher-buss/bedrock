@@ -4,6 +4,7 @@ import {
 	type ResourceKey,
 	type RobloxAssetId,
 } from "../types/ids.ts";
+import { UNIVERSE_SINGLETON_KEY } from "./resources.ts";
 import type { Config, GamePassEntry } from "./schema.ts";
 
 /**
@@ -69,10 +70,43 @@ export interface PlaceDesiredInput {
 }
 
 /**
+ * Pre-I/O universe input the flattener emits. Carries the fixed singleton
+ * key (`"main"`) and the branded `universeId` so `buildDesired` can hand a
+ * single tagged record downstream without a shape divergence for the
+ * singleton kind.
+ *
+ * @example
+ *
+ * ```ts
+ * import { asRobloxAssetId, UNIVERSE_SINGLETON_KEY, type UniverseDesiredInput } from "bedrock";
+ *
+ * const input: UniverseDesiredInput = {
+ *     key: UNIVERSE_SINGLETON_KEY,
+ *     kind: "universe",
+ *     universeId: asRobloxAssetId("1234567890"),
+ *     voiceChatEnabled: true,
+ * };
+ *
+ * expect(input.kind).toBe("universe");
+ * expect(input.key).toBe("main");
+ * ```
+ */
+export interface UniverseDesiredInput {
+	/** Synthesized singleton key (`"main"`), already validated against the `ResourceKey` brand. */
+	readonly key: ResourceKey;
+	/** Discriminator tag for the `ResourceDesiredInput` union. */
+	readonly kind: "universe";
+	/** Existing Roblox universe ID, validated and branded at flatten time. */
+	readonly universeId: RobloxAssetId;
+	/** Whether voice chat is enabled; `undefined` leaves the server value untouched. */
+	readonly voiceChatEnabled: boolean | undefined;
+}
+
+/**
  * Flat tagged input for `buildDesired`. One member per resource kind; future
  * kinds widen this union as they land.
  */
-export type ResourceDesiredInput = GamePassDesiredInput | PlaceDesiredInput;
+export type ResourceDesiredInput = GamePassDesiredInput | PlaceDesiredInput | UniverseDesiredInput;
 
 /**
  * Turn a validated `Config` into a flat, tagged list of resource inputs.
@@ -130,6 +164,15 @@ export function flattenConfig(config: Config): ReadonlyArray<ResourceDesiredInpu
 			filePath: entry.filePath,
 			kind: "place",
 			placeId: asRobloxAssetId(entry.placeId),
+		});
+	}
+
+	if (config.universe !== undefined) {
+		out.push({
+			key: UNIVERSE_SINGLETON_KEY,
+			kind: "universe",
+			universeId: asRobloxAssetId(config.universe.universeId),
+			voiceChatEnabled: config.universe.voiceChatEnabled,
 		});
 	}
 

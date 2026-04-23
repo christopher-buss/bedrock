@@ -7,6 +7,7 @@ export {
 	type GamePassDesiredInput,
 	type PlaceDesiredInput,
 	type ResourceDesiredInput,
+	type UniverseDesiredInput,
 } from "./core/flatten.ts";
 export type {
 	BaseOperation,
@@ -29,7 +30,13 @@ export {
 	type UniverseDesiredState,
 	type UniverseOutputs,
 } from "./core/resources.ts";
-export { validateConfig, type Config, type GamePassEntry, type PlaceEntry } from "./core/schema.ts";
+export {
+	validateConfig,
+	type Config,
+	type GamePassEntry,
+	type PlaceEntry,
+	type UniverseEntry,
+} from "./core/schema.ts";
 export type { BedrockState, StateError } from "./core/state.ts";
 export type { DriverRegistry, ResourceDriver } from "./ports/resource-driver.ts";
 export type { StatePort } from "./ports/state-port.ts";
