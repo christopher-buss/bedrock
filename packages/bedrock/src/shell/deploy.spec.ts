@@ -127,4 +127,38 @@ describe(deploy, () => {
 			success: true,
 		});
 	});
+
+	it("should surface buildDesiredFailed without dispatching drivers or writing state when readFile rejects", async () => {
+		expect.assertions(3);
+
+		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
+		const registry: DriverRegistry = { gamePass: { create }, place: placeStub };
+		const { port, writes } = inMemoryStatePort();
+		const readFile = vi
+			.fn<(path: string) => Promise<Uint8Array>>()
+			.mockRejectedValue(new Error("ENOENT"));
+
+		const result = await deploy({
+			config: vipPassConfig(),
+			environment: "production",
+			readFile,
+			registry,
+			statePort: port,
+		});
+
+		expect(create).not.toHaveBeenCalled();
+		expect(writes).toHaveLength(0);
+		expect(result).toStrictEqual({
+			err: {
+				cause: {
+					key: asResourceKey("vip-pass"),
+					filePath: "assets/vip-icon.png",
+					kind: "fileReadFailed",
+					reason: "ENOENT",
+				},
+				kind: "buildDesiredFailed",
+			},
+			success: false,
+		});
+	});
 });
