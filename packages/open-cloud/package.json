@@ -82,8 +82,8 @@
 			".": "./dist/index.mjs",
 			"./experiences": "./dist/experiences.mjs",
 			"./game-passes": "./dist/game-passes.mjs",
-			"./places": "./dist/places.mjs",
-			"./package.json": "./package.json"
+			"./package.json": "./package.json",
+			"./places": "./dist/places.mjs"
 		}
 	}
 }
