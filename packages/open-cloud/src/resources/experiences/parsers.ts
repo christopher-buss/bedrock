@@ -75,7 +75,7 @@ function extractRootPlaceId(rootPlace: string | undefined): string | undefined {
 	}
 
 	const match = /\/places\/(\d+)$/.exec(rootPlace);
-	return match?.[1] ?? undefined;
+	return match?.[1];
 }
 
 function toSocialLink(wire: SocialLinkWire | undefined): SocialLink | undefined {
@@ -193,13 +193,24 @@ function isUniverseWire(body: unknown): body is UniverseWire {
 	return hasValidRequiredFields(body) && hasValidOptionalFields(body);
 }
 
+function extractOwnerId(resourcePath: string): string | undefined {
+	const match = /^(?:users|groups)\/(\d+)$/.exec(resourcePath);
+	return match?.[1];
+}
+
 function resolveOwner(body: UniverseWire): Result<ExperienceOwner, undefined> {
 	if (typeof body.user === "string") {
-		return { data: { id: body.user, kind: "user" }, success: true };
+		const id = extractOwnerId(body.user);
+		if (id !== undefined) {
+			return { data: { id, kind: "user" }, success: true };
+		}
 	}
 
 	if (typeof body.group === "string") {
-		return { data: { id: body.group, kind: "group" }, success: true };
+		const id = extractOwnerId(body.group);
+		if (id !== undefined) {
+			return { data: { id, kind: "group" }, success: true };
+		}
 	}
 
 	return { err: undefined, success: false };

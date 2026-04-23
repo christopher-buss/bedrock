@@ -50,7 +50,7 @@ describe(parseExperienceResponse, () => {
 			facebookSocialLink: undefined,
 			guildedSocialLink: undefined,
 			mobileEnabled: true,
-			owner: { id: "users/7777", kind: "user" },
+			owner: { id: "7777", kind: "user" },
 			privateServerPriceRobux: 25,
 			robloxGroupSocialLink: undefined,
 			rootPlaceId: "98765",
@@ -263,7 +263,7 @@ describe(parseExperienceResponse, () => {
 
 			assert(result.success);
 
-			expect(result.data.owner).toStrictEqual({ id: "users/999", kind: "user" });
+			expect(result.data.owner).toStrictEqual({ id: "999", kind: "user" });
 		});
 
 		it("should produce a group-kind owner when only `group` is present", () => {
@@ -275,7 +275,7 @@ describe(parseExperienceResponse, () => {
 
 			assert(result.success);
 
-			expect(result.data.owner).toStrictEqual({ id: "groups/42", kind: "group" });
+			expect(result.data.owner).toStrictEqual({ id: "42", kind: "group" });
 		});
 
 		it("should reject a body with neither user nor group as malformed", () => {
@@ -289,6 +289,18 @@ describe(parseExperienceResponse, () => {
 
 			expect(result.err).toBeInstanceOf(ApiError);
 			expect(result.err.statusCode).toBe(200);
+		});
+
+		it("should reject an owner resource path that does not match users/{id} or groups/{id}", () => {
+			expect.assertions(1);
+
+			const result = parseExperienceResponse(
+				okResponse(validUniverseBody({ group: undefined, user: "accounts/7777" })),
+			);
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
 		it("should prefer the user field over the group field when both are present", () => {

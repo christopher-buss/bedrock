@@ -62,7 +62,10 @@ export interface UpdateExperienceParameters {
  * Discriminated-union representation of an experience's owner.
  */
 export interface ExperienceOwner {
-	/** Stringified owner ID. */
+	/**
+	 * Stringified numeric owner ID, extracted from the wire
+	 * `users/{id}` or `groups/{id}` resource path.
+	 */
 	readonly id: string;
 	/** Whether the owner is a user or a group. */
 	readonly kind: "group" | "user";

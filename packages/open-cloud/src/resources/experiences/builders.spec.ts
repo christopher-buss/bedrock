@@ -127,7 +127,7 @@ describe(buildUpdateRequest, () => {
 			assert(result.success);
 
 			// JSON.parse("null") dodges the `unicorn/no-null` rule while
-			// still producing the literal null value the parser stored as
+			// still producing the literal null value the builder emits as
 			// its clear-the-field sentinel.
 			expect(result.data.body).toStrictEqual({
 				privateServerPriceRobux: JSON.parse("null"),
