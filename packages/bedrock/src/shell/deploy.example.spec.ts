@@ -20,18 +20,14 @@ it('Example 1', () => {
   }
   const registry: DriverRegistry = {
     gamePass: {
-      create: async () => ({
-        data: undefined as never,
-        success: false,
-        err: undefined as never,
-      }),
+      create: async () => {
+        throw new Error('unreachable: empty config')
+      },
     },
     place: {
-      create: async () => ({
-        data: undefined as never,
-        success: false,
-        err: undefined as never,
-      }),
+      create: async () => {
+        throw new Error('unreachable: empty config')
+      },
     },
   }
   return deploy({

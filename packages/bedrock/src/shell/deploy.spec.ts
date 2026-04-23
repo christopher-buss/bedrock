@@ -171,6 +171,48 @@ describe(deploy, () => {
 		});
 	});
 
+	it("should overwrite the prior resource with the applied version when the same key is updated", async () => {
+		expect.assertions(3);
+
+		const existing = vipPassCurrent();
+		const updated = { ...existing, price: 750 };
+		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
+		const update = vi
+			.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>()
+			.mockResolvedValue({ data: updated, success: true });
+		const registry: DriverRegistry = {
+			gamePass: { create, update },
+			place: placeStub,
+		};
+		const { port, writes } = inMemoryStatePort({
+			environment: "production",
+			resources: [existing],
+			version: 1,
+		});
+		const config: Config = {
+			passes: {
+				"vip-pass": {
+					name: "VIP Pass",
+					description: "Grants VIP perks.",
+					iconFilePath: "assets/vip-icon.png",
+					price: 750,
+				},
+			},
+		};
+
+		const result = await deploy({
+			config,
+			environment: "production",
+			readFile: readIcon,
+			registry,
+			statePort: port,
+		});
+
+		expect(update).toHaveBeenCalledOnce();
+		expect(writes[0]!.resources).toStrictEqual([updated]);
+		expect(result).toStrictEqual({ data: writes[0], success: true });
+	});
+
 	it("should persist the partial-apply snapshot and surface applyFailed when a driver fails mid-sequence", async () => {
 		expect.assertions(4);
 

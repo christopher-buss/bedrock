@@ -81,8 +81,8 @@ interface FinalizeInputs {
  *     },
  * };
  * const registry: DriverRegistry = {
- *     gamePass: { create: async () => ({ data: undefined as never, success: false, err: undefined as never }) },
- *     place: { create: async () => ({ data: undefined as never, success: false, err: undefined as never }) },
+ *     gamePass: { create: async () => { throw new Error("unreachable: empty config"); } },
+ *     place: { create: async () => { throw new Error("unreachable: empty config"); } },
  * };
  *
  * return deploy({
