@@ -498,6 +498,9 @@ importers:
       typescript:
         specifier: catalog:tsc
         version: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      vitest:
+        specifier: npm:@voidzero-dev/vite-plus-test@0.1.19
+        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
 
 packages:
 
