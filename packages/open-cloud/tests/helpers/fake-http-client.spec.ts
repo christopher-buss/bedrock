@@ -28,7 +28,7 @@ describe(createFakeHttpClient, () => {
 	it("should record both request and config on each call", async () => {
 		expect.assertions(1);
 
-		const fake = createFakeHttpClient()
+		const fake = createFakeHttpClient({ schemaValidation: "off" })
 			.mockResponse({ status: 200 })
 			.mockResponse({ status: 201 });
 
@@ -44,7 +44,9 @@ describe(createFakeHttpClient, () => {
 	it("should default mockResponse body and headers when omitted", async () => {
 		expect.assertions(1);
 
-		const fake = createFakeHttpClient().mockResponse({ status: 204 });
+		const fake = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+			status: 204,
+		});
 
 		const result = await fake.request(getRequest, config);
 
@@ -57,7 +59,7 @@ describe(createFakeHttpClient, () => {
 	it("should replay mockResponse with provided body and headers", async () => {
 		expect.assertions(1);
 
-		const fake = createFakeHttpClient().mockResponse({
+		const fake = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
 			body: { id: "abc" },
 			headers: { "x-custom": "1" },
 			status: 200,
@@ -75,7 +77,7 @@ describe(createFakeHttpClient, () => {
 		expect.assertions(1);
 
 		const error = new OpenCloudError("boom");
-		const fake = createFakeHttpClient().mockError(error);
+		const fake = createFakeHttpClient({ schemaValidation: "off" }).mockError(error);
 
 		const result = await fake.request(getRequest, config);
 
@@ -87,7 +89,7 @@ describe(createFakeHttpClient, () => {
 	it("should replay mockRateLimit as RateLimitError with retryAfterSeconds", async () => {
 		expect.assertions(2);
 
-		const fake = createFakeHttpClient()
+		const fake = createFakeHttpClient({ schemaValidation: "off" })
 			.mockRateLimit({ retryAfterSeconds: 2 })
 			.mockRateLimit({ message: "slow down", retryAfterSeconds: 5 });
 
@@ -106,7 +108,7 @@ describe(createFakeHttpClient, () => {
 	it("should replay mockApiError as ApiError with statusCode and optional code", async () => {
 		expect.assertions(3);
 
-		const fake = createFakeHttpClient()
+		const fake = createFakeHttpClient({ schemaValidation: "off" })
 			.mockApiError({ statusCode: 500 })
 			.mockApiError({ code: "BAD_INPUT", message: "bad input", statusCode: 400 });
 
@@ -128,7 +130,7 @@ describe(createFakeHttpClient, () => {
 		expect.assertions(3);
 
 		const cause = new Error("ECONNREFUSED");
-		const fake = createFakeHttpClient()
+		const fake = createFakeHttpClient({ schemaValidation: "off" })
 			.mockNetworkError()
 			.mockNetworkError({ cause, message: "dial failed" });
 
@@ -146,7 +148,7 @@ describe(createFakeHttpClient, () => {
 	it("should consume mocks FIFO across mixed error types", async () => {
 		expect.assertions(3);
 
-		const fake = createFakeHttpClient()
+		const fake = createFakeHttpClient({ schemaValidation: "off" })
 			.mockResponse({ status: 200 })
 			.mockApiError({ statusCode: 500 })
 			.mockRateLimit({ retryAfterSeconds: 1 })
@@ -168,7 +170,7 @@ describe(createFakeHttpClient, () => {
 	it("should reflect queue depth in pendingMocks", async () => {
 		expect.assertions(3);
 
-		const fake = createFakeHttpClient();
+		const fake = createFakeHttpClient({ schemaValidation: "off" });
 
 		expect(fake.pendingMocks).toBe(0);
 
@@ -184,7 +186,9 @@ describe(createFakeHttpClient, () => {
 	it("should throw FakeHttpClientError naming method, url, and consumed count when queue is empty", async () => {
 		expect.assertions(1);
 
-		const fake = createFakeHttpClient().mockResponse({ status: 200 });
+		const fake = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+			status: 200,
+		});
 		await fake.request(getRequest, config);
 
 		await expect(fake.request(postRequest, config)).rejects.toThrowWithMessage(
@@ -209,11 +213,11 @@ const gamePassGet: HttpRequest = {
 };
 
 describe("createFakeHttpClient schema validation", () => {
-	describe("off (default)", () => {
+	describe("off", () => {
 		it("should accept any body unchanged", async () => {
 			expect.assertions(2);
 
-			const fake = createFakeHttpClient().mockResponse({
+			const fake = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
 				body: { completely: "invalid" },
 				status: 200,
 			});
@@ -227,7 +231,20 @@ describe("createFakeHttpClient schema validation", () => {
 		});
 	});
 
-	describe("strict", () => {
+	describe("strict (default)", () => {
+		it("should reject an invalid body when no mode is passed", async () => {
+			expect.assertions(1);
+
+			const fake = createFakeHttpClient().mockResponse({
+				body: { completely: "invalid" },
+				status: 200,
+			});
+
+			await expect(fake.request(gamePassGet, config)).rejects.toBeInstanceOf(
+				FakeHttpClientContractError,
+			);
+		});
+
 		it("should throw on a response body that violates the operation schema", async () => {
 			expect.assertions(1);
 

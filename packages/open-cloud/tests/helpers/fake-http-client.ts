@@ -100,12 +100,17 @@ export class FakeHttpClientError extends Error {
  * {@link HttpClient} seam. Use for integration tests where you need to
  * assert per-request config (apiKey, baseUrl) flows through to HTTP.
  *
- * @param fakeOptions - Behaviour flags; `schemaValidation` opts in
- *   to contract checking against the vendored OpenAPI spec.
+ * Defaults to `"strict"` contract validation against the vendored
+ * OpenAPI spec so every new resource client inherits protection
+ * automatically. Pass `{ schemaValidation: "off" }` to opt out for
+ * tests that exercise the fake's own mechanics with synthetic URLs.
+ *
+ * @param fakeOptions - Behaviour flags; `schemaValidation` overrides
+ *   the default `"strict"` contract checking.
  * @returns A fresh fake with an empty mock queue.
  */
 export function createFakeHttpClient(fakeOptions: FakeHttpClientOptions = {}): FakeHttpClient {
-	const mode: SchemaValidationMode = fakeOptions.schemaValidation ?? "off";
+	const mode: SchemaValidationMode = fakeOptions.schemaValidation ?? "strict";
 	const state: FakeState = { captured: [], consumed: 0, queue: [], violations: [] };
 	function enqueue(result: Result<HttpResponse, OpenCloudError>): FakeHttpClient {
 		state.queue.push(result);

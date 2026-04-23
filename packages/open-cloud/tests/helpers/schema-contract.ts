@@ -8,11 +8,12 @@ import { findOperation, type OperationMatch } from "./openapi-operations.ts";
 const JSON_MEDIA_TYPE = "application/json";
 
 /**
- * Schema-validation mode for the fake HTTP client. `"off"` (the
- * default) preserves the fake's pre-schema behavior. `"strict"`
- * throws a contract error on the first violation. `"warn"` records
- * violations on `fake.schemaViolations` without throwing, so an
- * existing test can opt in to assertions incrementally.
+ * Schema-validation mode for the fake HTTP client. `"strict"` (the
+ * default) throws a contract error on the first violation so new
+ * resource tests inherit protection automatically. `"warn"` records
+ * violations on `fake.schemaViolations` without throwing, for
+ * incremental hardening. `"off"` disables checks entirely; use it for
+ * fake-mechanics tests that exercise synthetic URLs.
  */
 export type SchemaValidationMode = "off" | "strict" | "warn";
 

@@ -13,7 +13,7 @@ describe(PlacesClient, () => {
 		it("should return a parsed PlaceVersion on a happy path", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
+			const httpClient = createFakeHttpClient().mockResponse({
 				body: validPublishResponseBody({ versionNumber: 7 }),
 				status: 200,
 			});
@@ -39,7 +39,7 @@ describe(PlacesClient, () => {
 		it("should send a POST whose URL embeds the IDs and the Published query string", async () => {
 			expect.assertions(3);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
+			const httpClient = createFakeHttpClient().mockResponse({
 				body: validPublishResponseBody(),
 				status: 200,
 			});
@@ -71,7 +71,7 @@ describe(PlacesClient, () => {
 		it("should send the rbxlx Content-Type when the format is rbxlx", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
+			const httpClient = createFakeHttpClient().mockResponse({
 				body: validPublishResponseBody(),
 				status: 200,
 			});
@@ -96,7 +96,7 @@ describe(PlacesClient, () => {
 		it("should short-circuit on an empty body without firing HTTP, sleep, or hooks", async () => {
 			expect.assertions(5);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "strict" });
+			const httpClient = createFakeHttpClient();
 			const sleep = createFakeSleep();
 			const onRequest = vi.fn<NonNullable<OpenCloudHooks["onRequest"]>>();
 			const client = new PlacesClient({
@@ -125,7 +125,7 @@ describe(PlacesClient, () => {
 		it("should retry a 429, thread the retry-after wait through sleep, and fire all hooks", async () => {
 			expect.assertions(4);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "strict" })
+			const httpClient = createFakeHttpClient()
 				.mockRateLimit({ retryAfterSeconds: 1 })
 				.mockResponse({ body: validPublishResponseBody(), status: 200 });
 			const sleep = createFakeSleep();
@@ -162,7 +162,7 @@ describe(PlacesClient, () => {
 		it("should not retry a 5xx so a transient publish failure does not duplicate the version", async () => {
 			expect.assertions(3);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "strict" })
+			const httpClient = createFakeHttpClient()
 				.mockApiError({ statusCode: 500 })
 				.mockResponse({ body: validPublishResponseBody(), status: 200 });
 			const client = new PlacesClient({
@@ -216,7 +216,7 @@ describe(PlacesClient, () => {
 		it("should route a per-request apiKey override through the request config", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
+			const httpClient = createFakeHttpClient().mockResponse({
 				body: validPublishResponseBody(),
 				status: 200,
 			});
@@ -244,7 +244,7 @@ describe(PlacesClient, () => {
 		it("should target the Saved query string and return a parsed PlaceVersion", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
+			const httpClient = createFakeHttpClient().mockResponse({
 				body: validPublishResponseBody({ versionNumber: 12 }),
 				status: 200,
 			});
@@ -270,7 +270,7 @@ describe(PlacesClient, () => {
 		it("should short-circuit on a format mismatch without firing HTTP", async () => {
 			expect.assertions(3);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "strict" });
+			const httpClient = createFakeHttpClient();
 			const client = new PlacesClient({
 				apiKey: "test-key",
 				httpClient,
@@ -294,7 +294,7 @@ describe(PlacesClient, () => {
 		it("should not retry a 5xx so a transient save failure does not duplicate the version", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "strict" }).mockApiError({
+			const httpClient = createFakeHttpClient().mockApiError({
 				statusCode: 503,
 			});
 			const client = new PlacesClient({
@@ -327,7 +327,7 @@ describe(PlacesClient, () => {
 			// 2000ms wait — exposing the shared accounting. Two
 			// independent queues would each pay only their own 1000ms
 			// init and the second wait would be 1000ms.
-			const httpClient = createFakeHttpClient({ schemaValidation: "strict" })
+			const httpClient = createFakeHttpClient()
 				.mockResponse({ body: validPublishResponseBody(), status: 200 })
 				.mockResponse({ body: validPublishResponseBody(), status: 200 });
 			const clock = createFakeClock();
@@ -362,7 +362,7 @@ describe(PlacesClient, () => {
 			// override correctly routes to a fresh queue it pays only the
 			// queue-init wait (1000ms again), not a wait coordinated with
 			// the default-key queue.
-			const httpClient = createFakeHttpClient({ schemaValidation: "strict" })
+			const httpClient = createFakeHttpClient()
 				.mockResponse({ body: validPublishResponseBody(), status: 200 })
 				.mockResponse({ body: validPublishResponseBody(), status: 200 });
 			const clock = createFakeClock();
