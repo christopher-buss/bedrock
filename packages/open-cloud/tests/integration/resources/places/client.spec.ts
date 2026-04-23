@@ -5,7 +5,12 @@ import { PlacesClient } from "#src/resources/places/client";
 import { createFakeClock } from "#tests/helpers/fake-clock";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
-import { rbxlBody, rbxlxBody, validPublishResponseBody } from "#tests/helpers/places";
+import {
+	rbxlBody,
+	rbxlxBody,
+	validPlaceBody,
+	validPublishResponseBody,
+} from "#tests/helpers/places";
 import { assert, describe, expect, it, vi } from "vitest";
 
 describe(PlacesClient, () => {
@@ -310,6 +315,106 @@ describe(PlacesClient, () => {
 
 			expect(result.err).toHaveProperty("statusCode", 503);
 			expect(httpClient.requests).toHaveLength(1);
+		});
+	});
+
+	describe("update", () => {
+		it("should send a PATCH with a derived updateMask and return the parsed Place", async () => {
+			expect.assertions(4);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validPlaceBody({ description: "Updated" }),
+				status: 200,
+			});
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.update({
+				description: "Updated",
+				placeId: "456",
+				universeId: "123",
+			});
+
+			assert(result.success);
+
+			const captured = httpClient.requests[0];
+			assert(captured !== undefined);
+
+			expect(captured.request.method).toBe("PATCH");
+			expect(captured.request.url).toBe(
+				"/cloud/v2/universes/123/places/456?updateMask=description",
+			);
+			expect(captured.request.body).toStrictEqual({ description: "Updated" });
+			expect(result.data.description).toBe("Updated");
+		});
+
+		it("should short-circuit on an empty update with no HTTP traffic", async () => {
+			expect.assertions(4);
+
+			const httpClient = createFakeHttpClient();
+			const sleep = createFakeSleep();
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep,
+			});
+
+			const result = await client.update({ placeId: "456", universeId: "123" });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ValidationError);
+			expect(result.err).toHaveProperty("code", "empty_update");
+			expect(httpClient.requests).toHaveLength(0);
+			expect(sleep.waits).toStrictEqual([]);
+		});
+
+		it("should retry a 5xx since update is idempotent", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockApiError({ statusCode: 502 })
+				.mockResponse({ body: validPlaceBody(), status: 200 });
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.update({
+				description: "Retry test",
+				placeId: "456",
+				universeId: "123",
+			});
+
+			assert(result.success);
+
+			expect(httpClient.requests).toHaveLength(2);
+			expect(result.data).toBeDefined();
+		});
+
+		it("should route a per-request apiKey override through the request config", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validPlaceBody(),
+				status: 200,
+			});
+			const client = new PlacesClient({
+				apiKey: "default-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.update(
+				{ description: "Override test", placeId: "456", universeId: "123" },
+				{ apiKey: "override-key" },
+			);
+
+			expect(httpClient.requests[0]?.config.apiKey).toBe("override-key");
 		});
 	});
 

@@ -1,2 +1,2 @@
 export { PlacesClient } from "./client.ts";
-export type { PlaceVersion, PublishParameters } from "./types.ts";
+export type { Place, PlaceVersion, PublishParameters, UpdatePlaceParameters } from "./types.ts";
