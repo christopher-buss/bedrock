@@ -8,6 +8,7 @@ import {
 	asRobloxAssetId,
 	asSha256Hex,
 	buildDesired,
+	createPlaceDriver,
 	defineConfig,
 	isResourceKey,
 	isRobloxAssetId,
@@ -23,6 +24,10 @@ import type {
 	ConfigInput,
 	ConfigValidationIssue,
 	LoadConfigOptions,
+	PlaceDesiredState,
+	PlaceDriverDeps,
+	PlaceEntry,
+	PlaceOutputs,
 	ResourceDesiredState,
 	ResourceKey,
 	RobloxAssetId,
@@ -145,8 +150,8 @@ describe(buildDesired, () => {
 		>();
 	});
 
-	it("should narrow BuildDesiredError to the iconReadFailed kind", () => {
-		expectTypeOf<BuildDesiredError["kind"]>().toEqualTypeOf<"iconReadFailed">();
+	it("should narrow BuildDesiredError to the fileReadFailed kind", () => {
+		expectTypeOf<BuildDesiredError["kind"]>().toEqualTypeOf<"fileReadFailed">();
 	});
 });
 
@@ -163,9 +168,9 @@ describe(applyOps, () => {
 });
 
 describe("Config", () => {
-	it("should expose exactly the four documented root fields", () => {
+	it("should expose exactly the five documented root fields", () => {
 		expectTypeOf<keyof Config>().toEqualTypeOf<
-			"environments" | "experience" | "extends" | "passes"
+			"environments" | "experience" | "extends" | "passes" | "places"
 		>();
 	});
 
@@ -249,5 +254,45 @@ describe("ConfigError", () => {
 		expectTypeOf<
 			Extract<ConfigError, { kind: "validationFailed" }>
 		>().toEqualTypeOf<ExpectedValidationFailed>();
+	});
+});
+
+describe("PlaceEntry", () => {
+	it("should expose exactly placeId and filePath as strings", () => {
+		expectTypeOf<keyof PlaceEntry>().toEqualTypeOf<"filePath" | "placeId">();
+		expectTypeOf<PlaceEntry["placeId"]>().toEqualTypeOf<string>();
+		expectTypeOf<PlaceEntry["filePath"]>().toEqualTypeOf<string>();
+	});
+});
+
+describe("PlaceDesiredState", () => {
+	it("should carry the file-backed fields under kind place", () => {
+		expectTypeOf<PlaceDesiredState["kind"]>().toEqualTypeOf<"place">();
+		expectTypeOf<PlaceDesiredState["placeId"]>().toEqualTypeOf<RobloxAssetId>();
+		expectTypeOf<PlaceDesiredState["fileHash"]>().toEqualTypeOf<Sha256Hex>();
+		expectTypeOf<PlaceDesiredState["filePath"]>().toEqualTypeOf<string>();
+		expectTypeOf<PlaceDesiredState["key"]>().toEqualTypeOf<ResourceKey>();
+	});
+});
+
+describe("PlaceOutputs", () => {
+	it("should carry only a readonly versionNumber", () => {
+		expectTypeOf<keyof PlaceOutputs>().toEqualTypeOf<"versionNumber">();
+		expectTypeOf<PlaceOutputs["versionNumber"]>().toEqualTypeOf<number>();
+	});
+});
+
+describe("PlaceDriverDeps", () => {
+	it("should expose client, readFile, and universeId", () => {
+		expectTypeOf<keyof PlaceDriverDeps>().toEqualTypeOf<"client" | "readFile" | "universeId">();
+		expectTypeOf<PlaceDriverDeps["universeId"]>().toEqualTypeOf<RobloxAssetId>();
+	});
+});
+
+describe(createPlaceDriver, () => {
+	it("should return a ResourceDriver with create and an optional update", () => {
+		type Driver = ReturnType<typeof createPlaceDriver>;
+		expectTypeOf<Driver["create"]>().toBeFunction();
+		expectTypeOf<Driver["update"]>().not.toBeUndefined();
 	});
 });

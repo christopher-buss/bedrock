@@ -1,9 +1,11 @@
 export { createGamePassDriver, type GamePassDriverDeps } from "./adapters/game-pass-driver.ts";
+export { createPlaceDriver, type PlaceDriverDeps } from "./adapters/place-driver.ts";
 export type { ConfigError, ConfigValidationIssue } from "./core/config-error.ts";
 export { diff } from "./core/diff.ts";
 export {
 	flattenConfig,
 	type GamePassDesiredInput,
+	type PlaceDesiredInput,
 	type ResourceDesiredInput,
 } from "./core/flatten.ts";
 export type {
@@ -16,13 +18,15 @@ export type {
 export type {
 	GamePassDesiredState,
 	GamePassOutputs,
+	PlaceDesiredState,
+	PlaceOutputs,
 	ResourceCurrentState,
 	ResourceDesiredState,
 	ResourceKind,
 	ResourceOutputs,
 	ResourceOutputsByKind,
 } from "./core/resources.ts";
-export { validateConfig, type Config } from "./core/schema.ts";
+export { validateConfig, type Config, type GamePassEntry, type PlaceEntry } from "./core/schema.ts";
 export type { BedrockState, StateError } from "./core/state.ts";
 export type { DriverRegistry, ResourceDriver } from "./ports/resource-driver.ts";
 export type { StatePort } from "./ports/state-port.ts";

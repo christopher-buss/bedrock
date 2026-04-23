@@ -3,6 +3,8 @@ import { expect, it } from "vitest";
 import {
   asResourceKey,
   type GamePassDesiredInput,
+  asRobloxAssetId,
+  type PlaceDesiredInput,
   flattenConfig,
   type Config,
 } from 'bedrock'
@@ -20,6 +22,16 @@ it('Example 1', () => {
 })
 
 it('Example 2', () => {
+  const input: PlaceDesiredInput = {
+    filePath: 'places/start.rbxl',
+    key: asResourceKey('start-place'),
+    kind: 'place',
+    placeId: asRobloxAssetId('4711'),
+  }
+  expect(input.kind).toBe('place')
+})
+
+it('Example 3', () => {
   const config: Config = {
     passes: {
       'vip-pass': {
@@ -29,9 +41,14 @@ it('Example 2', () => {
         price: 500,
       },
     },
+    places: {
+      'start-place': {
+        filePath: 'places/start.rbxl',
+        placeId: '4711',
+      },
+    },
   }
   const inputs = flattenConfig(config)
-  expect(inputs).toHaveLength(1)
-  expect(inputs[0]!.kind).toBe('gamePass')
-  expect(inputs[0]!.key).toBe('vip-pass')
+  expect(inputs.map((input) => input.kind)).toEqual(['gamePass', 'place'])
+  expect(inputs.map((input) => input.key)).toEqual(['vip-pass', 'start-place'])
 })

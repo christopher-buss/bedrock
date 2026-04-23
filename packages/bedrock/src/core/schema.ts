@@ -21,6 +21,21 @@ export interface GamePassEntry {
 }
 
 /**
+ * Body of a single entry in the `places` collection. Keys in the parent
+ * record are `ResourceKey`-shaped strings enforced at schema validation.
+ *
+ * `placeId` is user-supplied because Open Cloud cannot mint places; the
+ * place must already exist in Roblox before Bedrock can publish versions
+ * to it.
+ */
+export interface PlaceEntry {
+	/** Path to the `.rbxl` or `.rbxlx` file; handed to `readFile` verbatim by `buildDesired`. */
+	filePath: string;
+	/** Existing Roblox place ID. */
+	placeId: string;
+}
+
+/**
  * Validated project config as accepted by `loadConfig`. Plain mutable so
  * users can adjust fields in a long-running script before deploying.
  *
@@ -56,6 +71,8 @@ export interface Config {
 	extends?: unknown;
 	/** Keyed-map collection of game-pass entries by user-supplied ResourceKey. */
 	passes?: Record<string, GamePassEntry>;
+	/** Keyed-map collection of place entries by user-supplied ResourceKey. */
+	places?: Record<string, PlaceEntry>;
 }
 
 // Resource-kind entry schemas. Adding a new kind is two additions:
@@ -75,11 +92,21 @@ const passesCollection = type({
 	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: gamePassEntry,
 }).onUndeclaredKey("reject");
 
+const placeEntry = type({
+	filePath: "string",
+	placeId: "string.digits",
+}).onUndeclaredKey("reject");
+
+const placesCollection = type({
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: placeEntry,
+}).onUndeclaredKey("reject");
+
 const rootSchema: Type<Config> = type({
 	"environments?": "unknown",
 	"experience?": "unknown",
 	"extends?": "unknown",
 	"passes?": passesCollection,
+	"places?": placesCollection,
 }).onUndeclaredKey("reject");
 
 /**

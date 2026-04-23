@@ -1,7 +1,7 @@
 import { assert, describe, expect, it, vi } from "vitest";
 
 import type { GamePassDesiredInput } from "../core/flatten.ts";
-import { asResourceKey } from "../types/ids.ts";
+import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import { buildDesired } from "./build-desired.ts";
 
 function gamePassInput(overrides?: Partial<GamePassDesiredInput>): GamePassDesiredInput {
@@ -65,7 +65,10 @@ describe(buildDesired, () => {
 
 		assert(result.success);
 
-		expect(result.data[0]!.iconFileHash).toBe(
+		const entry = result.data[0]!;
+		assert(entry.kind === "gamePass");
+
+		expect(entry.iconFileHash).toBe(
 			"6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
 		);
 	});
@@ -94,7 +97,7 @@ describe(buildDesired, () => {
 		["Error instance", new Error("ENOENT"), "ENOENT"],
 		["string rejection", "ENOENT", "ENOENT"],
 	])(
-		"should return an iconReadFailed Err when readFile rejects with %s",
+		"should return a fileReadFailed Err when readFile rejects with %s on a game-pass icon",
 		async ([, rejection, expectedReason]) => {
 			expect.assertions(1);
 
@@ -107,12 +110,100 @@ describe(buildDesired, () => {
 			expect(result).toStrictEqual({
 				err: {
 					key: "vip-pass",
-					iconFilePath: "assets/vip-icon.png",
-					kind: "iconReadFailed",
+					filePath: "assets/vip-icon.png",
+					kind: "fileReadFailed",
 					reason: expectedReason,
 				},
 				success: false,
 			});
 		},
 	);
+
+	it("should hash a place file and emit a PlaceDesiredState", async () => {
+		expect.assertions(1);
+
+		const readFile = vi
+			.fn<(path: string) => Promise<Uint8Array>>()
+			.mockResolvedValue(new Uint8Array([1, 2, 3]));
+
+		const result = await buildDesired(
+			[
+				{
+					key: asResourceKey("start-place"),
+					filePath: "places/start.rbxl",
+					kind: "place",
+					placeId: asRobloxAssetId("4711"),
+				},
+			],
+			readFile,
+		);
+
+		expect(result).toStrictEqual({
+			data: [
+				{
+					key: "start-place",
+					fileHash: "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
+					filePath: "places/start.rbxl",
+					kind: "place",
+					placeId: "4711",
+				},
+			],
+			success: true,
+		});
+	});
+
+	it("should return a fileReadFailed Err when readFile rejects on a place file", async () => {
+		expect.assertions(1);
+
+		const readFile = vi
+			.fn<(path: string) => Promise<Uint8Array>>()
+			.mockRejectedValueOnce(new Error("ENOENT"));
+
+		const result = await buildDesired(
+			[
+				{
+					key: asResourceKey("start-place"),
+					filePath: "places/start.rbxl",
+					kind: "place",
+					placeId: asRobloxAssetId("4711"),
+				},
+			],
+			readFile,
+		);
+
+		expect(result).toStrictEqual({
+			err: {
+				key: "start-place",
+				filePath: "places/start.rbxl",
+				kind: "fileReadFailed",
+				reason: "ENOENT",
+			},
+			success: false,
+		});
+	});
+
+	it("should emit game-pass and place entries in declaration order", async () => {
+		expect.assertions(1);
+
+		const readFile = vi
+			.fn<(path: string) => Promise<Uint8Array>>()
+			.mockResolvedValue(new Uint8Array([1, 2, 3]));
+
+		const result = await buildDesired(
+			[
+				gamePassInput(),
+				{
+					key: asResourceKey("start-place"),
+					filePath: "places/start.rbxl",
+					kind: "place",
+					placeId: asRobloxAssetId("4711"),
+				},
+			],
+			readFile,
+		);
+
+		assert(result.success);
+
+		expect(result.data.map((entry) => entry.kind)).toStrictEqual(["gamePass", "place"]);
+	});
 });

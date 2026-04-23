@@ -9,7 +9,7 @@ import { asSha256Hex, type ResourceKey } from "../types/ids.ts";
  * cannot complete. Validation and key-shape errors are caught upstream by
  * the schema (`validateConfig`); by the time inputs reach `buildDesired`
  * they are already well-formed, so the only remaining failure mode is
- * reading the icon bytes.
+ * reading the file bytes.
  *
  * @example
  *
@@ -17,38 +17,38 @@ import { asSha256Hex, type ResourceKey } from "../types/ids.ts";
  * import { asResourceKey, type BuildDesiredError } from "bedrock";
  *
  * const err: BuildDesiredError = {
- *     iconFilePath: "assets/vip-icon.png",
+ *     filePath: "assets/vip-icon.png",
  *     key: asResourceKey("vip-pass"),
- *     kind: "iconReadFailed",
+ *     kind: "fileReadFailed",
  *     reason: "ENOENT",
  * };
  *
- * expect(err.kind).toBe("iconReadFailed");
+ * expect(err.kind).toBe("fileReadFailed");
  * ```
  */
 export interface BuildDesiredError {
-	/** ResourceKey of the input whose icon failed to read. */
+	/** ResourceKey of the input whose file failed to read. */
 	readonly key: ResourceKey;
-	/** Path of the icon file that failed to read. */
-	readonly iconFilePath: string;
+	/** Path of the file that failed to read. */
+	readonly filePath: string;
 	/** Literal discriminator for narrowing. */
-	readonly kind: "iconReadFailed";
+	readonly kind: "fileReadFailed";
 	/** Human-readable explanation; typically the caught error message. */
 	readonly reason: string;
 }
 
 /**
- * Layer icon-file I/O onto a flat tagged list of resource inputs to produce
+ * Layer file I/O onto a flat tagged list of resource inputs to produce
  * `ResourceDesiredState`.
  *
- * For each input, reads the icon bytes via the injected `readFile`, computes
+ * For each input, reads the file bytes via the injected `readFile`, computes
  * the SHA-256 hex digest, and assembles the branded desired-state record
  * that `diff` consumes. Entries are processed sequentially so the first
  * failure's attribution is deterministic.
  *
  * @param inputs - Flat tagged resource inputs from `flattenConfig`.
- * @param readFile - Reads icon bytes for a given path; rejection becomes an
- * `iconReadFailed` Err.
+ * @param readFile - Reads file bytes for a given path; rejection becomes a
+ * `fileReadFailed` Err.
  * @returns `Ok` with the desired-state array (same length and order as
  * `inputs`), or `Err` with the first I/O failure.
  * @example
@@ -108,18 +108,18 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
 	);
 }
 
-async function readIconBytes(
-	input: ResourceDesiredInput,
+async function readBytes(
+	target: { filePath: string; key: ResourceKey },
 	readFile: (path: string) => Promise<Uint8Array>,
 ): Promise<Result<Uint8Array, BuildDesiredError>> {
 	try {
-		return { data: await readFile(input.iconFilePath), success: true };
+		return { data: await readFile(target.filePath), success: true };
 	} catch (err) {
 		return {
 			err: {
-				key: input.key,
-				iconFilePath: input.iconFilePath,
-				kind: "iconReadFailed",
+				key: target.key,
+				filePath: target.filePath,
+				kind: "fileReadFailed",
 				reason: err instanceof Error ? err.message : String(err),
 			},
 			success: false,
@@ -127,11 +127,11 @@ async function readIconBytes(
 	}
 }
 
-async function normalizeInput(
-	input: ResourceDesiredInput,
+async function normalizeGamePass(
+	input: Extract<ResourceDesiredInput, { kind: "gamePass" }>,
 	readFile: (path: string) => Promise<Uint8Array>,
 ): Promise<Result<ResourceDesiredState, BuildDesiredError>> {
-	const read = await readIconBytes(input, readFile);
+	const read = await readBytes({ key: input.key, filePath: input.iconFilePath }, readFile);
 	if (!read.success) {
 		return read;
 	}
@@ -148,4 +148,34 @@ async function normalizeInput(
 		},
 		success: true,
 	};
+}
+
+async function normalizePlace(
+	input: Extract<ResourceDesiredInput, { kind: "place" }>,
+	readFile: (path: string) => Promise<Uint8Array>,
+): Promise<Result<ResourceDesiredState, BuildDesiredError>> {
+	const read = await readBytes({ key: input.key, filePath: input.filePath }, readFile);
+	if (!read.success) {
+		return read;
+	}
+
+	return {
+		data: {
+			key: input.key,
+			fileHash: asSha256Hex(await sha256Hex(read.data)),
+			filePath: input.filePath,
+			kind: "place",
+			placeId: input.placeId,
+		},
+		success: true,
+	};
+}
+
+async function normalizeInput(
+	input: ResourceDesiredInput,
+	readFile: (path: string) => Promise<Uint8Array>,
+): Promise<Result<ResourceDesiredState, BuildDesiredError>> {
+	return input.kind === "gamePass"
+		? normalizeGamePass(input, readFile)
+		: normalizePlace(input, readFile);
 }

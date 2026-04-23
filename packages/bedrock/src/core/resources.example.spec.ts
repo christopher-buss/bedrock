@@ -5,6 +5,7 @@ import {
   asSha256Hex,
   type GamePassDesiredState,
   asRobloxAssetId,
+  type PlaceDesiredState,
   type ResourceOutputsByKind,
   type ResourceCurrentState,
 } from 'bedrock'
@@ -26,6 +27,20 @@ it('Example 1', () => {
 })
 
 it('Example 2', () => {
+  const place: PlaceDesiredState = {
+    fileHash: asSha256Hex(
+      'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    ),
+    filePath: 'places/start.rbxl',
+    key: asResourceKey('start-place'),
+    kind: 'place',
+    placeId: asRobloxAssetId('4711'),
+  }
+  expect(place.kind).toBe('place')
+  expect(place.placeId).toBe('4711')
+})
+
+it('Example 3', () => {
   const outputs: ResourceOutputsByKind['gamePass'] = {
     assetId: asRobloxAssetId('9876543210'),
     iconAssetId: asRobloxAssetId('1122334455'),
@@ -33,7 +48,7 @@ it('Example 2', () => {
   expect(outputs.assetId).toBe('9876543210')
 })
 
-it('Example 3', () => {
+it('Example 4', () => {
   const current: ResourceCurrentState<'gamePass'> = {
     description: 'Grants VIP perks.',
     iconFileHash: asSha256Hex(

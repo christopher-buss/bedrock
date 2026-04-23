@@ -70,6 +70,21 @@ export interface ResourceDriver<K extends ResourceKind> {
 	create(
 		desired: Extract<ResourceDesiredState, { kind: K }>,
 	): Promise<Result<ResourceCurrentState<K>, OpenCloudError>>;
+
+	/**
+	 * Reconcile an upstream resource whose managed content has drifted from its
+	 * desired state. Receives the last-known current state so the driver can
+	 * compute a minimal patch (or no-op upstream, for file-backed kinds where
+	 * republishing is unconditional).
+	 *
+	 * Optional. Drivers whose upstream API has no update operation omit this
+	 * method; `applyOps` surfaces an `updateUnsupported` error at dispatch time
+	 * instead.
+	 */
+	update?(
+		current: ResourceCurrentState<K>,
+		desired: Extract<ResourceDesiredState, { kind: K }>,
+	): Promise<Result<ResourceCurrentState<K>, OpenCloudError>>;
 }
 
 /**
@@ -86,6 +101,11 @@ export interface ResourceDriver<K extends ResourceKind> {
  *
  * const registry: DriverRegistry = {
  *     gamePass: {
+ *         async create() {
+ *             return { err: new OpenCloudError("not implemented"), success: false };
+ *         },
+ *     },
+ *     place: {
  *         async create() {
  *             return { err: new OpenCloudError("not implemented"), success: false };
  *         },

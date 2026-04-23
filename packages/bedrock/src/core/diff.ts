@@ -111,11 +111,30 @@ export function diff(
 }
 
 function desiredFieldsEqual(desired: ResourceDesiredState, current: ResourceCurrentState): boolean {
-	return (
-		desired.name === current.name &&
-		desired.description === current.description &&
-		desired.iconFileHash === current.iconFileHash &&
-		desired.iconFilePath === current.iconFilePath &&
-		desired.price === current.price
-	);
+	switch (desired.kind) {
+		case "gamePass": {
+			if (current.kind !== "gamePass") {
+				return false;
+			}
+
+			return (
+				desired.name === current.name &&
+				desired.description === current.description &&
+				desired.iconFileHash === current.iconFileHash &&
+				desired.iconFilePath === current.iconFilePath &&
+				desired.price === current.price
+			);
+		}
+		case "place": {
+			if (current.kind !== "place") {
+				return false;
+			}
+
+			return (
+				desired.placeId === current.placeId &&
+				desired.filePath === current.filePath &&
+				desired.fileHash === current.fileHash
+			);
+		}
+	}
 }

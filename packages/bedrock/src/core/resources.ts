@@ -1,5 +1,3 @@
-import type { Simplify } from "type-fest";
-
 import type { ResourceKey, RobloxAssetId, Sha256Hex } from "../types/ids.ts";
 
 /**
@@ -55,13 +53,72 @@ export interface GamePassDesiredState {
 }
 
 /**
+ * Desired state for a place, the `.rbxl` or `.rbxlx` file a universe serves
+ * as one of its levels.
+ *
+ * `placeId` sits on desired state (rather than on outputs like
+ * {@link GamePassOutputs.assetId}) because Roblox Open Cloud cannot mint
+ * places; the user supplies the existing place ID per entry. `filePath` and
+ * `fileHash` describe the local file the driver publishes; `buildDesired`
+ * computes `fileHash` from the file bytes so `diff` can detect drift without
+ * re-uploading unchanged content.
+ *
+ * @example
+ *
+ * ```ts
+ * import {
+ *     asResourceKey,
+ *     asRobloxAssetId,
+ *     asSha256Hex,
+ *     type PlaceDesiredState,
+ * } from "bedrock";
+ *
+ * const place: PlaceDesiredState = {
+ *     fileHash: asSha256Hex(
+ *         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+ *     ),
+ *     filePath: "places/start.rbxl",
+ *     key: asResourceKey("start-place"),
+ *     kind: "place",
+ *     placeId: asRobloxAssetId("4711"),
+ * };
+ *
+ * expect(place.kind).toBe("place");
+ * expect(place.placeId).toBe("4711");
+ * ```
+ */
+export interface PlaceDesiredState {
+	/** User-supplied key; stable across deploys; used to correlate desired with current. */
+	readonly key: ResourceKey;
+	/** SHA-256 hex digest of the place file, computed by `buildDesired` in shell. */
+	readonly fileHash: Sha256Hex;
+	/** Path to the `.rbxl` or `.rbxlx` file on disk, relative to the config file. */
+	readonly filePath: string;
+	/** Discriminator tag for the `ResourceDesiredState` union. */
+	readonly kind: "place";
+	/** Existing Roblox place ID; Open Cloud cannot create places, so this is an input, not an output. */
+	readonly placeId: RobloxAssetId;
+}
+
+/**
+ * Roblox-returned value produced by publishing a place version. The publish
+ * endpoint does not return an asset ID (the `placeId` is supplied by the
+ * caller); `versionNumber` is the only Roblox-assigned field the response
+ * carries.
+ */
+export interface PlaceOutputs {
+	/** Auto-incrementing version number assigned by Roblox on every publish. */
+	readonly versionNumber: number;
+}
+
+/**
  * Discriminated union of every desired-state shape Bedrock manages.
  *
  * Extend by adding new members to this union; the mapped
  * `ResourceOutputsByKind` interface then forces a matching outputs entry for
  * the new kind at compile time.
  */
-export type ResourceDesiredState = GamePassDesiredState;
+export type ResourceDesiredState = GamePassDesiredState | PlaceDesiredState;
 
 /**
  * Roblox-returned identifiers produced by creating or updating a game pass.
@@ -107,6 +164,8 @@ export type ResourceKind = ResourceDesiredState["kind"];
 export interface ResourceOutputsByKind {
 	/** Outputs returned by the Roblox API for a game-pass resource. */
 	gamePass: GamePassOutputs;
+	/** Outputs returned by the Roblox API for a place publish. */
+	place: PlaceOutputs;
 }
 
 /**
@@ -120,9 +179,10 @@ export type ResourceOutputs<K extends ResourceKind> = ResourceOutputsByKind[K];
  * Current (live) state for a resource kind.
  *
  * Composed from the matching desired-state shape plus a nested `outputs`
- * object carrying Roblox-assigned identifiers. `Simplify` flattens the
- * intersection so tooltips and error messages show a single flat type,
- * not `Desired<K> & { outputs: Outputs<K> }`.
+ * object carrying Roblox-assigned identifiers. The outer `K extends
+ * ResourceKind` conditional distributes `K` across the union so the default
+ * `ResourceCurrentState` resolves to a clean per-kind union rather than a
+ * cross-product intersection of every kind's fields.
  *
  * The `outputs` sub-object stays nested (rather than flattening into the
  * top level) to mirror Mantle's `{ inputs, outputs }` state layout,
@@ -162,6 +222,10 @@ export type ResourceOutputs<K extends ResourceKind> = ResourceOutputsByKind[K];
  * expect(current.kind).toBe("gamePass");
  * ```
  */
-export type ResourceCurrentState<K extends ResourceKind = ResourceKind> = Simplify<
-	Extract<ResourceDesiredState, { kind: K }> & { readonly outputs: ResourceOutputs<K> }
->;
+export type ResourceCurrentState<K extends ResourceKind = ResourceKind> = K extends ResourceKind
+	? Prettify<
+			Extract<ResourceDesiredState, { kind: K }> & { readonly outputs: ResourceOutputs<K> }
+		>
+	: never;
+
+type Prettify<T> = { readonly [K in keyof T]: T[K] };

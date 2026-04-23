@@ -149,6 +149,107 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "price"]);
 	});
 
+	it("should accept a places collection with a valid place entry", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				places: {
+					"start-place": {
+						filePath: "places/start.rbxl",
+						placeId: "4711",
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.places!["start-place"]!.placeId).toBe("4711");
+		expect(result.data.places!["start-place"]!.filePath).toBe("places/start.rbxl");
+	});
+
+	it("should reject a place entry missing placeId and attribute the issue path to that field", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				places: {
+					"start-place": { filePath: "places/start.rbxl" },
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["places", "start-place", "placeId"]);
+	});
+
+	it("should reject an undeclared field on a place entry", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				places: {
+					"start-place": {
+						filePath: "places/start.rbxl",
+						placeId: "4711",
+						unexpected: "nope",
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["places", "start-place", "unexpected"]);
+	});
+
+	it.for([
+		["trailing non-digits", "4711abc"],
+		["leading non-digits", "abc4711"],
+		["embedded non-digits", "47abc11"],
+	] as const)("should reject a place entry whose placeId has %s", ([, placeId]) => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				places: {
+					"start-place": { filePath: "places/start.rbxl", placeId },
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["places", "start-place", "placeId"]);
+	});
+
+	it("should reject a places key that does not match the ResourceKey pattern", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				places: {
+					"bad key!": { filePath: "places/start.rbxl", placeId: "4711" },
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["places", "bad key!"]);
+	});
+
 	it("should accumulate every validation issue with its own attributed field path", () => {
 		expect.assertions(1);
 

@@ -4,11 +4,38 @@ import type { ResourceKey, RobloxAssetId, Sha256Hex } from "../types/ids.ts";
 import type {
 	GamePassDesiredState,
 	GamePassOutputs,
+	PlaceDesiredState,
+	PlaceOutputs,
 	ResourceCurrentState,
 	ResourceDesiredState,
 	ResourceKind,
 	ResourceOutputs,
+	ResourceOutputsByKind,
 } from "./resources.ts";
+
+interface ExpectedPlaceDesiredState {
+	readonly key: ResourceKey;
+	readonly fileHash: Sha256Hex;
+	readonly filePath: string;
+	readonly kind: "place";
+	readonly placeId: RobloxAssetId;
+}
+
+interface ExpectedPlaceOutputs {
+	readonly versionNumber: number;
+}
+
+describe("PlaceDesiredState", () => {
+	it("should carry the file-backed fields under kind place", () => {
+		expectTypeOf<PlaceDesiredState>().toEqualTypeOf<ExpectedPlaceDesiredState>();
+	});
+});
+
+describe("PlaceOutputs", () => {
+	it("should carry only a readonly versionNumber", () => {
+		expectTypeOf<PlaceOutputs>().toEqualTypeOf<ExpectedPlaceOutputs>();
+	});
+});
 
 describe("ResourceDesiredState", () => {
 	it("should narrow to GamePassDesiredState when kind is gamePass", () => {
@@ -16,17 +43,43 @@ describe("ResourceDesiredState", () => {
 			Extract<ResourceDesiredState, { kind: "gamePass" }>
 		>().toEqualTypeOf<GamePassDesiredState>();
 	});
+
+	it("should narrow to PlaceDesiredState when kind is place", () => {
+		expectTypeOf<
+			Extract<ResourceDesiredState, { kind: "place" }>
+		>().toEqualTypeOf<PlaceDesiredState>();
+	});
+
+	it("should be the union of GamePassDesiredState and PlaceDesiredState", () => {
+		expectTypeOf<ResourceDesiredState>().toEqualTypeOf<
+			GamePassDesiredState | PlaceDesiredState
+		>();
+	});
 });
 
 describe("ResourceKind", () => {
-	it("should equal the gamePass discriminator literal", () => {
-		expectTypeOf<ResourceKind>().toEqualTypeOf<"gamePass">();
+	it("should include both gamePass and place", () => {
+		expectTypeOf<ResourceKind>().toEqualTypeOf<"gamePass" | "place">();
+	});
+});
+
+describe("ResourceOutputsByKind", () => {
+	it("should map the place kind to PlaceOutputs", () => {
+		expectTypeOf<ResourceOutputsByKind["place"]>().toEqualTypeOf<PlaceOutputs>();
+	});
+
+	it("should map the gamePass kind to GamePassOutputs", () => {
+		expectTypeOf<ResourceOutputsByKind["gamePass"]>().toEqualTypeOf<GamePassOutputs>();
 	});
 });
 
 describe("ResourceOutputs", () => {
 	it("should resolve gamePass to GamePassOutputs", () => {
 		expectTypeOf<ResourceOutputs<"gamePass">>().toEqualTypeOf<GamePassOutputs>();
+	});
+
+	it("should resolve place to PlaceOutputs", () => {
+		expectTypeOf<ResourceOutputs<"place">>().toEqualTypeOf<PlaceOutputs>();
 	});
 
 	it("should reject an unmapped resource kind at compile time", () => {
@@ -38,23 +91,23 @@ describe("ResourceOutputs", () => {
 });
 
 describe("ResourceCurrentState", () => {
-	it("should compose gamePass desired fields with a nested outputs object", () => {
-		expectTypeOf<ResourceCurrentState>().toEqualTypeOf<{
-			readonly description: string;
-			readonly iconFileHash: Sha256Hex;
-			readonly iconFilePath: string;
-			readonly key: ResourceKey;
-			readonly kind: "gamePass";
-			readonly name: string;
-			readonly outputs: {
-				readonly assetId: RobloxAssetId;
-				readonly iconAssetId: RobloxAssetId;
-			};
-			readonly price: number | undefined;
-		}>();
+	it("should attach GamePassOutputs under outputs when narrowed to gamePass", () => {
+		type Current = ResourceCurrentState<"gamePass">;
+		expectTypeOf<Current["kind"]>().toEqualTypeOf<"gamePass">();
+		expectTypeOf<Current["outputs"]>().toEqualTypeOf<GamePassOutputs>();
+		expectTypeOf<Current>().toExtend<GamePassDesiredState>();
 	});
 
-	it("should default K to the full ResourceKind union", () => {
-		expectTypeOf<ResourceCurrentState>().toEqualTypeOf<ResourceCurrentState>();
+	it("should attach PlaceOutputs under outputs when narrowed to place", () => {
+		type Current = ResourceCurrentState<"place">;
+		expectTypeOf<Current["kind"]>().toEqualTypeOf<"place">();
+		expectTypeOf<Current["outputs"]>().toEqualTypeOf<PlaceOutputs>();
+		expectTypeOf<Current>().toExtend<PlaceDesiredState>();
+	});
+
+	it("should distribute over K so the default union stays per-kind", () => {
+		expectTypeOf<ResourceCurrentState>().toEqualTypeOf<
+			ResourceCurrentState<"gamePass"> | ResourceCurrentState<"place">
+		>();
 	});
 });
