@@ -128,6 +128,59 @@ export function loadFixture(subdir: string, name: string): JSONValue {
 	);
 }
 
+function isWriteOnlyProperty(properties: Record<string, unknown>, field: unknown): boolean {
+	if (typeof field !== "string") {
+		return false;
+	}
+
+	const propertyNode = properties[field];
+	return isRecord(propertyNode) && propertyNode["writeOnly"] === true;
+}
+
+function pruneWriteOnlyRequired(transformed: Record<string, unknown>): Record<string, unknown> {
+	const { properties, required } = transformed;
+	if (!isRecord(properties) || !Array.isArray(required)) {
+		return transformed;
+	}
+
+	const pruned = required.filter((field) => !isWriteOnlyProperty(properties, field));
+	if (pruned.length === required.length) {
+		return transformed;
+	}
+
+	if (pruned.length === 0) {
+		const { required: _required, ...rest } = transformed;
+		return rest;
+	}
+
+	return { ...transformed, required: pruned };
+}
+
+/**
+ * Removes any field marked `writeOnly: true` from the `required`
+ * array of its containing schema so read-response fixtures are not
+ * rejected for omitting a create-only input.
+ *
+ * @param node - A node anywhere in the schema tree.
+ * @returns The node with write-only fields elided from `required`.
+ */
+function dropWriteOnlyFromRequired(node: unknown): unknown {
+	if (Array.isArray(node)) {
+		return node.map(dropWriteOnlyFromRequired);
+	}
+
+	if (!isRecord(node)) {
+		return node;
+	}
+
+	const transformed: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(node)) {
+		transformed[key] = dropWriteOnlyFromRequired(value);
+	}
+
+	return pruneWriteOnlyRequired(transformed);
+}
+
 function loadOpenApiDocument(): Record<string, unknown> {
 	const raw = JSON.parse(
 		readFileSync(
@@ -135,7 +188,7 @@ function loadOpenApiDocument(): Record<string, unknown> {
 			"utf8",
 		),
 	);
-	const normalized = nullableToUnion(raw);
+	const normalized = dropWriteOnlyFromRequired(nullableToUnion(raw));
 	assert(isRecord(normalized));
 	return normalized;
 }
