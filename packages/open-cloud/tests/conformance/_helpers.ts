@@ -207,14 +207,35 @@ function dropFlagFromRequired(node: unknown, flag: "readOnly" | "writeOnly"): un
 	return pruneRequired(transformed, flag);
 }
 
-function loadOpenApiDocument(mode: OpenApiValidationMode): Record<string, unknown> {
+let cachedRawDocument: Record<string, unknown> | undefined;
+
+/**
+ * Returns the untouched vendored OpenAPI document, cached for the
+ * lifetime of the test worker. Consumers that only need to walk
+ * `paths` and pluck operation metadata should use this instead of
+ * {@link getAjv}; validation-side refs resolve against the Ajv tree
+ * that matches their normalization mode.
+ *
+ * @returns The parsed OpenAPI document.
+ */
+export function getOpenApiDocument(): Record<string, unknown> {
+	if (cachedRawDocument !== undefined) {
+		return cachedRawDocument;
+	}
+
 	const raw = JSON.parse(
 		readFileSync(
 			fileURLToPath(new URL("../../vendor/roblox-openapi.json", import.meta.url)),
 			"utf8",
 		),
 	);
-	const nullFixed = nullableToUnion(raw);
+	assert(isRecord(raw));
+	cachedRawDocument = raw;
+	return raw;
+}
+
+function loadOpenApiDocument(mode: OpenApiValidationMode): Record<string, unknown> {
+	const nullFixed = nullableToUnion(getOpenApiDocument());
 	const normalized =
 		mode === "response"
 			? dropWriteOnlyFromRequired(nullFixed)
