@@ -1,3 +1,4 @@
+import { isRecord } from "#src/internal/utils/is-record";
 import Ajv, { type ValidateFunction } from "ajv";
 import addFormats from "ajv-formats";
 import { readFileSync } from "node:fs";
@@ -5,16 +6,6 @@ import { fileURLToPath } from "node:url";
 import { assert, expect } from "vitest";
 
 let cachedAjv: Ajv | undefined;
-
-/**
- * Narrow runtime record guard used by helpers in this module.
- *
- * @param value - The value to check.
- * @returns `true` when `value` is a plain-object record.
- */
-export function isRecord(value: unknown): value is Record<string, unknown> {
-	return Object.prototype.toString.call(value) === "[object Object]";
-}
 
 /**
  * Rewrites every OpenAPI 3.0 `nullable: true` annotation as a proper
@@ -192,3 +183,5 @@ function loadOpenApiDocument(): Record<string, unknown> {
 	assert(isRecord(normalized));
 	return normalized;
 }
+
+export { isRecord } from "#src/internal/utils/is-record";
