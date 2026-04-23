@@ -6,7 +6,7 @@ import {
   asSha256Hex,
   type BedrockState,
   type StateError,
-} from 'bedrock'
+} from '@bedrock/core'
 
 it('Example 1', () => {
   const state: BedrockState = {

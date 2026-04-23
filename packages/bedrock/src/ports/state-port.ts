@@ -13,7 +13,7 @@ import type { BedrockState, StateError } from "../core/state.ts";
  * @example
  *
  * ```ts
- * import type { BedrockState, StatePort } from "bedrock";
+ * import type { BedrockState, StatePort } from "@bedrock/core";
  *
  * const store = new Map<string, BedrockState>();
  *

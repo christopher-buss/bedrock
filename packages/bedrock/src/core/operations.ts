@@ -12,7 +12,7 @@ import type { ResourceCurrentState, ResourceDesiredState } from "./resources.ts"
  * @example
  *
  * ```ts
- * import { asResourceKey, type BaseOperation } from "bedrock";
+ * import { asResourceKey, type BaseOperation } from "@bedrock/core";
  *
  * const base: BaseOperation = { key: asResourceKey("vip-pass") };
  *
@@ -36,7 +36,7 @@ export interface BaseOperation {
  *     asResourceKey,
  *     asSha256Hex,
  *     type CreateOperation,
- * } from "bedrock";
+ * } from "@bedrock/core";
  *
  * const op: CreateOperation = {
  *     desired: {
@@ -78,7 +78,7 @@ export interface CreateOperation extends BaseOperation {
  *     asRobloxAssetId,
  *     asSha256Hex,
  *     type UpdateOperation,
- * } from "bedrock";
+ * } from "@bedrock/core";
  *
  * const op: UpdateOperation = {
  *     current: {
@@ -141,7 +141,7 @@ export interface UpdateOperation extends BaseOperation {
  * @example
  *
  * ```ts
- * import { asResourceKey, type NoopOperation } from "bedrock";
+ * import { asResourceKey, type NoopOperation } from "@bedrock/core";
  *
  * const op: NoopOperation = {
  *     key: asResourceKey("vip-pass"),
@@ -168,7 +168,7 @@ export interface NoopOperation extends BaseOperation {
  * @example
  *
  * ```ts
- * import { asResourceKey, type Operation } from "bedrock";
+ * import { asResourceKey, type Operation } from "@bedrock/core";
  *
  * function describeOp(op: Operation): string {
  *     switch (op.type) {

@@ -18,7 +18,7 @@ import type { ResourceCurrentState } from "./resources.ts";
  *     asRobloxAssetId,
  *     asSha256Hex,
  *     type BedrockState,
- * } from "bedrock";
+ * } from "@bedrock/core";
  *
  * const state: BedrockState = {
  *     environment: "production",
@@ -65,7 +65,7 @@ export interface BedrockState {
  * @example
  *
  * ```ts
- * import type { StateError } from "bedrock";
+ * import type { StateError } from "@bedrock/core";
  *
  * const err: StateError = {
  *     file: ".bedrock/state/production.json",

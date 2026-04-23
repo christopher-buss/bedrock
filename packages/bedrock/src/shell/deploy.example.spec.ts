@@ -5,7 +5,7 @@ import {
   type BedrockState,
   type DriverRegistry,
   type StatePort,
-} from 'bedrock'
+} from '@bedrock/core'
 
 it('Example 1', () => {
   const store = new Map<string, BedrockState>()

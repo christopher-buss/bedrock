@@ -23,7 +23,7 @@ import type { ResourceKey } from "../types/ids.ts";
  * @example
  *
  * ```ts
- * import { asResourceKey, type ApplyError } from "bedrock";
+ * import { asResourceKey, type ApplyError } from "@bedrock/core";
  *
  * function describe(err: ApplyError): string {
  *     switch (err.kind) {
@@ -102,7 +102,7 @@ type RawApplyError = DistributedOmit<ApplyError, "appliedSoFar">;
  *     asSha256Hex,
  *     type DriverRegistry,
  *     type Operation,
- * } from "bedrock";
+ * } from "@bedrock/core";
  *
  * const registry: DriverRegistry = {
  *     gamePass: {

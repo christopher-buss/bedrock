@@ -7,7 +7,7 @@ import {
   type PlaceDesiredInput,
   flattenConfig,
   type Config,
-} from 'bedrock'
+} from '@bedrock/core'
 
 it('Example 1', () => {
   const input: GamePassDesiredInput = {

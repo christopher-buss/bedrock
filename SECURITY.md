@@ -41,7 +41,7 @@ Please include:
 
 The following are in scope:
 
-- Vulnerabilities in published packages (`bedrock`, `@bedrock/ocale`).
+- Vulnerabilities in published packages (`@bedrock/core`, `@bedrock/ocale`).
 - Vulnerabilities in the deployment flow that could leak secrets, corrupt
   state, or cause unauthorized access to a Roblox experience the user
   controls.

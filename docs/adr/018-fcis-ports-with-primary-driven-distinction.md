@@ -109,7 +109,7 @@ is no folder to create.
 - Third-party plugin authors have a named contract (`ResourceDriver<K>`) with
   stable semantics. The driven-port vocabulary in code comments and CLAUDE.md
   gives contributors a precise frame for where new adapters belong.
-- The architecture is forward-compatible with the plugin system (ADR-017 ROADMAP
+- The architecture is forward-compatible with the plugin system (ADR-017,
   v0.3+) and with new state backends (S3, R2) without any structural change.
 - Full hexagonal's ceremony is explicitly off the table. Contributors arriving
   from enterprise TypeScript backgrounds cannot introduce application-service

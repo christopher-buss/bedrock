@@ -15,8 +15,8 @@
 		"test": "vitest"
 	},
 	"dependencies": {
-		"@bedrock/ocale": "workspace:*",
-		"bedrock": "workspace:*"
+		"@bedrock/core": "workspace:*",
+		"@bedrock/ocale": "workspace:*"
 	},
 	"devDependencies": {
 		"@bedrock/typescript-config": "workspace:*",

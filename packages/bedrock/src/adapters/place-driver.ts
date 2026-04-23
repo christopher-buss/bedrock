@@ -17,7 +17,7 @@ import type { RobloxAssetId } from "../types/ids.ts";
  * ```ts
  * import type { HttpClient } from "@bedrock/ocale";
  * import { PlacesClient } from "@bedrock/ocale/places";
- * import { asRobloxAssetId, type PlaceDriverDeps } from "bedrock";
+ * import { asRobloxAssetId, type PlaceDriverDeps } from "@bedrock/core";
  *
  * const httpClient: HttpClient = {
  *     async request() {
@@ -71,7 +71,7 @@ export interface PlaceDriverDeps {
  *     asRobloxAssetId,
  *     asSha256Hex,
  *     createPlaceDriver,
- * } from "bedrock";
+ * } from "@bedrock/core";
  *
  * const httpClient: HttpClient = {
  *     async request() {

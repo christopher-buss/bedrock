@@ -7,7 +7,7 @@ import {
   asRobloxAssetId,
   isSha256Hex,
   asSha256Hex,
-} from 'bedrock'
+} from '@bedrock/core'
 
 it('Example 1', () => {
   const valid = isResourceKey('vip-pass')

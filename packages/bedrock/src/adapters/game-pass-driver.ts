@@ -16,7 +16,7 @@ import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
  * ```ts
  * import type { HttpClient } from "@bedrock/ocale";
  * import { GamePassesClient } from "@bedrock/ocale/game-passes";
- * import { asRobloxAssetId, type GamePassDriverDeps } from "bedrock";
+ * import { asRobloxAssetId, type GamePassDriverDeps } from "@bedrock/core";
  *
  * const httpClient: HttpClient = {
  *     async request() {
@@ -70,7 +70,7 @@ export interface GamePassDriverDeps {
  *     asRobloxAssetId,
  *     asSha256Hex,
  *     createGamePassDriver,
- * } from "bedrock";
+ * } from "@bedrock/core";
  *
  * const httpClient: HttpClient = {
  *     async request() {

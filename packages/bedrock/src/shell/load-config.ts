@@ -46,7 +46,7 @@ export interface LoadConfigOptions {
  * @example
  *
  * ```ts
- * import { loadConfig } from "bedrock";
+ * import { loadConfig } from "@bedrock/core";
  *
  * return loadConfig({ cwd: "/path/that/does/not/have/a/config" }).then((result) => {
  *     expect(result.success).toBeFalse();

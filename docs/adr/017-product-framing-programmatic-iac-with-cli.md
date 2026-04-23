@@ -33,7 +33,7 @@ move is to import Bedrock as a library, not to shell out to its CLI. If that
 programmatic surface is an afterthought (undocumented internals, no stability
 commitment, no examples), the roblox-ts use cases are effectively locked out.
 
-The planned plugin system (ROADMAP v0.3+) makes the stakes concrete: plugins
+The planned plugin system (v0.3+) makes the stakes concrete: plugins
 will implement `ResourceDriver<K>` and call core functions like `diff` and
 `applyOps`. That plugin contract *is* a public API. Treating it as an escape
 hatch rather than a documented, stable product surface would mean shipping an
@@ -113,7 +113,7 @@ not change their experience.
 
 ### Positive
 
-- Plugin system (ROADMAP v0.3) has a stable, documented foundation to build on.
+- Plugin system (v0.3) has a stable, documented foundation to build on.
   `ResourceDriver<K>` is ready to be implemented by third parties before the
   plugin runtime ships.
 - Programmatic use cases (scheduled scripts, drift tests, orchestration) are
@@ -262,6 +262,4 @@ construction time. `bedrock.deploy()` flushes the registry.
   informed the rejection
 - [AWS CDK Level-3 Constructs](https://docs.aws.amazon.com/cdk/v2/guide/constructs.html) --
   Level 3 reference; documented friction informed the rejection
-- ROADMAP.md -- plugin system (v0.3+) and state backends (S3, R2) that depend
-  on the public API surface established here
 - ADR-004, ADR-005 -- documentation and example obligations extended by this ADR

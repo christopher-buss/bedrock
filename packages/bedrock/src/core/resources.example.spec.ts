@@ -8,7 +8,7 @@ import {
   type PlaceDesiredState,
   type ResourceOutputsByKind,
   type ResourceCurrentState,
-} from 'bedrock'
+} from '@bedrock/core'
 
 it('Example 1', () => {
   const pass: GamePassDesiredState = {

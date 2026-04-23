@@ -292,7 +292,6 @@ amendment recalibrating the bar.
 | Location          | Purpose                           |
 | ----------------- | --------------------------------- |
 | `README.md`       | Project introduction, quick start |
-| `ROADMAP.md`      | High-level vision and milestones  |
 | `docs/adr/`       | Why decisions were made           |
 | `docs/plans/`     | How features are implemented      |
 | `docs/templates/` | Reusable document templates       |

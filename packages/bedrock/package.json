@@ -1,5 +1,5 @@
 {
-	"name": "bedrock",
+	"name": "@bedrock/core",
 	"version": "0.0.1",
 	"description": "Infrastructure-as-Code deployment tool for Roblox",
 	"keywords": [

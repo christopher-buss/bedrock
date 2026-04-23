@@ -9,7 +9,7 @@ import {
   type UpdateOperation,
   type NoopOperation,
   type Operation,
-} from 'bedrock'
+} from '@bedrock/core'
 
 it('Example 1', () => {
   const base: BaseOperation = { key: asResourceKey('vip-pass') }

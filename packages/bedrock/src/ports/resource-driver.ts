@@ -25,7 +25,7 @@ import type {
  *     asRobloxAssetId,
  *     asSha256Hex,
  *     type ResourceDriver,
- * } from "bedrock";
+ * } from "@bedrock/core";
  *
  * const gamePassDriver: ResourceDriver<"gamePass"> = {
  *     async create(desired) {
@@ -97,7 +97,7 @@ export interface ResourceDriver<K extends ResourceKind> {
  * @example
  *
  * ```ts
- * import { OpenCloudError, type DriverRegistry } from "bedrock";
+ * import { OpenCloudError, type DriverRegistry } from "@bedrock/core";
  *
  * const registry: DriverRegistry = {
  *     gamePass: {
