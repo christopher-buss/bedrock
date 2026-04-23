@@ -1,5 +1,35 @@
 import process from "node:process";
 import type { ViteUserConfig } from "vite-plus";
+import type { ExportsOptions } from "vite-plus/pack";
+
+type ExportsMap = Parameters<
+	Extract<NonNullable<ExportsOptions["customExports"]>, (...args: never) => unknown>
+>[0];
+
+/**
+ * Tsdown appends `./package.json` after its alphabetical sort, so packages
+ * whose subpath entries sort after `package.json` (e.g. `./places`) end up
+ * with an order that diverges from `eslint-plugin-perfectionist`'s expected
+ * alphabetical layout. Re-sort in `customExports` (which runs last in
+ * tsdown's pipeline) so the emitted package.json is stable across builds.
+ * @param exportsMap - Map of subpath keys to export definitions that tsdown
+ * has already populated (sorted subpaths, `./package.json` appended last).
+ * @returns A new map with `.` first and remaining keys in locale order.
+ */
+export function sortExports(exportsMap: ExportsMap): ExportsMap {
+	const sorted = Object.entries(exportsMap).toSorted(([a], [b]) => {
+		if (a === ".") {
+			return -1;
+		}
+
+		if (b === ".") {
+			return 1;
+		}
+
+		return a.localeCompare(b);
+	});
+	return Object.fromEntries(sorted);
+}
 
 export const sharedConfig = {
 	pack: {
@@ -7,6 +37,7 @@ export const sharedConfig = {
 		dts: true,
 		entry: ["src/index.ts"],
 		exports: {
+			customExports: sortExports,
 			devExports: "source",
 		},
 		fixedExtension: true,
