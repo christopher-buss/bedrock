@@ -13,7 +13,7 @@ describe(UniversesClient, () => {
 		it("should return a parsed Universe on a happy path", async () => {
 			expect.assertions(3);
 
-			const httpClient = createFakeHttpClient().mockResponse({
+			const httpClient = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
 				body: validUniverseBody({ path: "universes/42" }),
 				status: 200,
 			});
@@ -35,7 +35,7 @@ describe(UniversesClient, () => {
 		it("should send a GET whose URL embeds the universeId", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient().mockResponse({
+			const httpClient = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
 				body: validUniverseBody({ path: "universes/111" }),
 				status: 200,
 			});
@@ -57,7 +57,7 @@ describe(UniversesClient, () => {
 		it("should retry a 429 then succeed, firing onRetry and onRateLimit hooks", async () => {
 			expect.assertions(4);
 
-			const httpClient = createFakeHttpClient()
+			const httpClient = createFakeHttpClient({ schemaValidation: "strict" })
 				.mockRateLimit({ retryAfterSeconds: 1 })
 				.mockResponse({ body: validUniverseBody(), status: 200 });
 			const sleep = createFakeSleep();
@@ -84,7 +84,7 @@ describe(UniversesClient, () => {
 		it("should retry a 5xx since get is idempotent", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient()
+			const httpClient = createFakeHttpClient({ schemaValidation: "strict" })
 				.mockApiError({ statusCode: 503 })
 				.mockResponse({ body: validUniverseBody(), status: 200 });
 			const client = new UniversesClient({
@@ -106,7 +106,9 @@ describe(UniversesClient, () => {
 			async (statusCode) => {
 				expect.assertions(2);
 
-				const httpClient = createFakeHttpClient().mockApiError({ statusCode });
+				const httpClient = createFakeHttpClient({
+					schemaValidation: "strict",
+				}).mockApiError({ statusCode });
 				const client = new UniversesClient({
 					apiKey: "test-key",
 					httpClient,
@@ -125,7 +127,7 @@ describe(UniversesClient, () => {
 		it("should route a per-request apiKey override through the request config", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient().mockResponse({
+			const httpClient = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
 				body: validUniverseBody(),
 				status: 200,
 			});
@@ -145,7 +147,7 @@ describe(UniversesClient, () => {
 		it("should send a PATCH with a derived updateMask and return the parsed Universe", async () => {
 			expect.assertions(4);
 
-			const httpClient = createFakeHttpClient().mockResponse({
+			const httpClient = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
 				body: validUniverseBody({ voiceChatEnabled: true }),
 				status: 200,
 			});
@@ -176,7 +178,7 @@ describe(UniversesClient, () => {
 		it("should short-circuit on an empty update with no HTTP traffic", async () => {
 			expect.assertions(4);
 
-			const httpClient = createFakeHttpClient();
+			const httpClient = createFakeHttpClient({ schemaValidation: "strict" });
 			const sleep = createFakeSleep();
 			const client = new UniversesClient({
 				apiKey: "test-key",
@@ -197,7 +199,7 @@ describe(UniversesClient, () => {
 		it("should retry a 5xx since update is idempotent", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient()
+			const httpClient = createFakeHttpClient({ schemaValidation: "strict" })
 				.mockApiError({ statusCode: 502 })
 				.mockResponse({ body: validUniverseBody(), status: 200 });
 			const client = new UniversesClient({
@@ -220,7 +222,7 @@ describe(UniversesClient, () => {
 		it("should route a per-request apiKey override through the request config", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient().mockResponse({
+			const httpClient = createFakeHttpClient({ schemaValidation: "strict" }).mockResponse({
 				body: validUniverseBody(),
 				status: 200,
 			});
@@ -248,7 +250,7 @@ describe(UniversesClient, () => {
 			// gets + two updates) would trigger three waits. Independent
 			// queues each pay only the second-call wait once, yielding a
 			// total of two.
-			const httpClient = createFakeHttpClient()
+			const httpClient = createFakeHttpClient({ schemaValidation: "strict" })
 				.mockResponse({ body: validUniverseBody(), status: 200 })
 				.mockResponse({ body: validUniverseBody(), status: 200 })
 				.mockResponse({ body: validUniverseBody(), status: 200 })

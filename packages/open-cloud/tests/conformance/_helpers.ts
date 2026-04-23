@@ -236,10 +236,15 @@ export function getOpenApiDocument(): Record<string, unknown> {
 
 function loadOpenApiDocument(mode: OpenApiValidationMode): Record<string, unknown> {
 	const nullFixed = nullableToUnion(getOpenApiDocument());
+	// Request-mode prunes BOTH readOnly and writeOnly from required:
+	// the Roblox spec reuses one schema for create and update, listing
+	// create-only writeOnly fields in `required`. A PATCH body cannot
+	// supply those fields, so they must not be required in request-
+	// mode validation. See the `templateRootPlace` field on `Universe`.
 	const normalized =
 		mode === "response"
 			? dropWriteOnlyFromRequired(nullFixed)
-			: dropReadOnlyFromRequired(nullFixed);
+			: dropWriteOnlyFromRequired(dropReadOnlyFromRequired(nullFixed));
 	assert(isRecord(normalized));
 	return normalized;
 }
