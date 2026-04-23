@@ -19,6 +19,7 @@
 	"main": "./src/index.ts",
 	"types": "./src/index.ts",
 	"scripts": {
+		"test": "vp test",
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
@@ -27,7 +28,8 @@
 	"devDependencies": {
 		"@bedrock/typescript-config": "workspace:*",
 		"@types/bun": "catalog:types",
-		"typescript": "catalog:tsc"
+		"typescript": "catalog:tsc",
+		"vitest": "catalog:test"
 	},
 	"engines": {
 		"bun": ">=1.0.0"
