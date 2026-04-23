@@ -5,7 +5,8 @@
 		"libReplacement": true,
 		"rootDir": ".",
 		"types": ["bun"],
-		"noEmit": false
+		"noEmit": false,
+		"outDir": "dist"
 	},
 	"include": ["*.ts"]
 }
