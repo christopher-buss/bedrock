@@ -3,6 +3,8 @@ import { expect, it } from "vitest";
 import {
   asResourceKey,
   type GamePassDesiredInput,
+  asRobloxAssetId,
+  type PlaceDesiredInput,
   flattenConfig,
   type Config,
 } from 'bedrock'
@@ -20,6 +22,16 @@ it('Example 1', () => {
 })
 
 it('Example 2', () => {
+  const input: PlaceDesiredInput = {
+    filePath: 'places/start.rbxl',
+    key: asResourceKey('start-place'),
+    kind: 'place',
+    placeId: asRobloxAssetId('4711'),
+  }
+  expect(input.kind).toBe('place')
+})
+
+it('Example 3', () => {
   const config: Config = {
     passes: {
       'vip-pass': {

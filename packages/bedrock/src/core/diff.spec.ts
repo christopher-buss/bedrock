@@ -2,12 +2,36 @@ import { assert, describe, expect, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { diff } from "./diff.ts";
-import type { GamePassDesiredState, ResourceCurrentState } from "./resources.ts";
+import type { GamePassDesiredState, PlaceDesiredState, ResourceCurrentState } from "./resources.ts";
 
 const DEFAULT_HASH = asSha256Hex(
 	"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 );
 const ALT_HASH = asSha256Hex("a3f2c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852e1b0");
+const PLACE_KEY = asResourceKey("start-place");
+const PLACE_ID = asRobloxAssetId("4711");
+const PLACE_HASH = asSha256Hex("039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81");
+
+function placeDesired(overrides?: Partial<PlaceDesiredState>): PlaceDesiredState {
+	return {
+		key: PLACE_KEY,
+		fileHash: PLACE_HASH,
+		filePath: "places/start.rbxl",
+		kind: "place",
+		placeId: PLACE_ID,
+		...overrides,
+	};
+}
+
+function placeCurrent(
+	overrides?: Partial<ResourceCurrentState<"place">>,
+): ResourceCurrentState<"place"> {
+	return {
+		...placeDesired(),
+		outputs: { versionNumber: 1 },
+		...overrides,
+	};
+}
 
 function gamePassDesired(overrides?: Partial<GamePassDesiredState>): GamePassDesiredState {
 	return {
@@ -176,5 +200,63 @@ describe(diff, () => {
 				type: "update",
 			},
 		]);
+	});
+
+	describe("place kind", () => {
+		it("should emit a noop when the place file hash matches", () => {
+			expect.assertions(1);
+
+			const desiredEntry = placeDesired();
+			const currentEntry = placeCurrent();
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{ key: PLACE_KEY, type: "noop" },
+			]);
+		});
+
+		it("should emit an update op when the place file hash differs", () => {
+			expect.assertions(1);
+
+			const desiredEntry = placeDesired({ fileHash: ALT_HASH });
+			const currentEntry = placeCurrent();
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{ key: PLACE_KEY, current: currentEntry, desired: desiredEntry, type: "update" },
+			]);
+		});
+
+		it("should emit an update op when placeId differs", () => {
+			expect.assertions(1);
+
+			const desiredEntry = placeDesired({ placeId: asRobloxAssetId("9999") });
+			const currentEntry = placeCurrent();
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{ key: PLACE_KEY, current: currentEntry, desired: desiredEntry, type: "update" },
+			]);
+		});
+
+		it("should emit a create op when the place is absent from current state", () => {
+			expect.assertions(1);
+
+			const desiredEntry = placeDesired();
+
+			expect(diff([desiredEntry], [])).toStrictEqual([
+				{ key: PLACE_KEY, desired: desiredEntry, type: "create" },
+			]);
+		});
+
+		it("should emit an update op when the key maps to a different kind in current state", () => {
+			expect.assertions(1);
+
+			const desiredEntry = placeDesired();
+			const currentEntry = gamePassCurrent({ key: PLACE_KEY });
+
+			const ops = diff([desiredEntry], [currentEntry]);
+
+			expect(ops).toStrictEqual([
+				{ key: PLACE_KEY, current: currentEntry, desired: desiredEntry, type: "update" },
+			]);
+		});
 	});
 });

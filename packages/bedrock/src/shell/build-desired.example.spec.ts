@@ -4,12 +4,12 @@ import { asResourceKey, type BuildDesiredError, buildDesired } from 'bedrock'
 
 it('Example 1', () => {
   const err: BuildDesiredError = {
-    iconFilePath: 'assets/vip-icon.png',
+    filePath: 'assets/vip-icon.png',
     key: asResourceKey('vip-pass'),
-    kind: 'iconReadFailed',
+    kind: 'fileReadFailed',
     reason: 'ENOENT',
   }
-  expect(err.kind).toBe('iconReadFailed')
+  expect(err.kind).toBe('fileReadFailed')
 })
 
 it('Example 2', () => {
