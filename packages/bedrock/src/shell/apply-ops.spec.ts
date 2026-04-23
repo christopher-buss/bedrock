@@ -198,10 +198,28 @@ describe(applyOps, () => {
 		);
 
 		expect(result).toStrictEqual({
-			err: { key: update.key, kind: "updateUnsupported" },
+			err: { key: update.key, appliedSoFar: [], kind: "updateUnsupported" },
 			success: false,
 		});
 		expect(create).not.toHaveBeenCalled();
+	});
+
+	it("should carry preceding driver outputs in appliedSoFar on updateUnsupported", async () => {
+		expect.assertions(1);
+
+		const created = createOp(asResourceKey("first-pass"));
+		const createdCurrent = currentFrom(created.desired);
+		const update = updateOp(asResourceKey("vip-pass"));
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockResolvedValue({ data: createdCurrent, success: true });
+
+		const result = await applyOps([created, update], registryWith(create));
+
+		expect(result).toStrictEqual({
+			err: { key: update.key, appliedSoFar: [createdCurrent], kind: "updateUnsupported" },
+			success: false,
+		});
 	});
 
 	it("should dispatch an update op to the driver's update method and return Ok on success", async () => {
@@ -313,7 +331,7 @@ describe(applyOps, () => {
 			const result = await applyOps([op], placeRegistry(create));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, kind: "updateUnsupported" },
+				err: { key: op.key, appliedSoFar: [], kind: "updateUnsupported" },
 				success: false,
 			});
 			expect(create).not.toHaveBeenCalled();
