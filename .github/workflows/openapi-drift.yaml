@@ -20,11 +20,15 @@ jobs:
   refresh:
     name: Refresh vendored openapi spec
     runs-on: ubuntu-latest
+    env:
+      DRIFT_BRANCH: automation/refresh-openapi-spec
+      DRIFT_TITLE: "build(ocale): refresh vendored openapi spec"
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup
@@ -42,49 +46,26 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      # Run the same checks as ci.yaml inline, because a PR opened with
-      # GITHUB_TOKEN will not trigger other workflows. Running them here
-      # gives us a direct pass/fail signal on drift. A failure does not
-      # block the PR from being opened - that IS the signal reviewers
-      # need to see.
-      - continue-on-error: true
-        id: checks
-        if: steps.diff.outputs.changed == 'true'
-        name: Run checks against drifted spec
-        run: hk check --all
-
-      - env:
-          CHECKS_OUTCOME: ${{ steps.checks.outcome }}
-          GH_TOKEN: ${{ github.token }}
-        if: steps.diff.outputs.changed == 'true'
+      - if: steps.diff.outputs.changed == 'true'
         name: Open or update drift PR
         run: |
           set -euo pipefail
-          branch="automation/refresh-openapi-spec"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -B "$branch"
+          git checkout -B "$DRIFT_BRANCH"
           git add packages/open-cloud/vendor/
-          git commit -m "build(ocale): refresh vendored openapi spec"
-          git push --force origin "$branch"
+          git commit -m "$DRIFT_TITLE"
+          git push --force origin "$DRIFT_BRANCH"
 
-          if [ "$CHECKS_OUTCOME" = "success" ]; then
-            status="✅ \`hk check --all\` passed against the drifted spec."
-          else
-            status="❌ \`hk check --all\` failed against the drifted spec. See the workflow run for details; a fixture or parser needs to catch up."
-          fi
-
-          if gh pr view "$branch" --json number >/dev/null 2>&1; then
-            gh pr comment "$branch" --body "Drift PR refreshed. ${status}"
+          if gh pr view "$DRIFT_BRANCH" --json number >/dev/null 2>&1; then
+            echo "existing drift PR refreshed with latest spec"
           else
             gh pr create \
-              --head "$branch" \
+              --head "$DRIFT_BRANCH" \
               --base main \
-              --title "build(ocale): refresh vendored openapi spec" \
+              --title "$DRIFT_TITLE" \
               --body "$(cat <<EOF
           Automated refresh of the vendored Roblox OpenAPI spec.
-
-          ${status}
 
           Auto-merge is enabled: once \`ci.yaml\` on this PR turns
           green, it will squash-merge into \`main\` without human
@@ -103,11 +84,9 @@ jobs:
 
           - Scan the spec diff for breaking shape changes to any schema
             your integration tests exercise.
-          - If the inline \`hk check --all\` run failed, that is a real
-            signal: a fixture or parser needs to catch up. Fix it in this
-            same PR rather than merging known-broken spec. The
-            \`openapi-drift\` workflow dispatches \`ci.yaml\` against
-            this branch so status checks populate for auto-merge.
+          - If CI on this PR fails, that is a real signal: a fixture or
+            parser needs to catch up. Fix it in this same PR rather
+            than merging known-broken spec.
           - Check the updated \`vendor/README.md\` pinned-commit SHA
             matches the latest upstream commit touching the spec file.
 
@@ -124,19 +103,15 @@ jobs:
       # workflows, so dispatch ci.yaml explicitly against the drift
       # branch. The resulting check runs attach to the branch head
       # and show up on the PR, letting auto-merge wait on them.
-      - env:
-          GH_TOKEN: ${{ github.token }}
-        if: steps.diff.outputs.changed == 'true'
+      - if: steps.diff.outputs.changed == 'true'
         name: Trigger CI on the drift branch
-        run: gh workflow run ci.yaml --ref automation/refresh-openapi-spec
+        run: gh workflow run ci.yaml --ref "$DRIFT_BRANCH"
 
       # Non-fatal: if the repo does not have auto-merge enabled or
       # branch protection requires a check ci.yaml does not produce,
       # the PR still stands open for a human merge.
       - continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
         if: steps.diff.outputs.changed == 'true'
         name: Enable auto-merge on the drift PR
-        run: gh pr merge automation/refresh-openapi-spec --auto --squash
+        run: gh pr merge "$DRIFT_BRANCH" --auto --squash
     timeout-minutes: 15

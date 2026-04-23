@@ -15,11 +15,9 @@ export interface OperationMatch {
 }
 
 /**
- * The HTTP methods an {@link OperationMatch} can carry. Covers the
- * methods the Roblox OpenAPI spec actually uses; `head`, `options`,
- * and `trace` are omitted because the spec does not define them and
- * the fake never needs to match them. Lowercased because spec keys
- * are lowercase.
+ * The HTTP methods the Roblox OpenAPI spec uses. `head`, `options`,
+ * and `trace` are omitted because the spec does not define them.
+ * Lowercased because spec keys are lowercase.
  */
 type OpenApiMethod = "delete" | "get" | "patch" | "post" | "put";
 
