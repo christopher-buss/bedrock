@@ -1,5 +1,7 @@
 import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
 
+import type { DistributedOmit } from "type-fest";
+
 import type { Operation } from "../core/operations.ts";
 import type {
 	GamePassDesiredState,
@@ -60,9 +62,7 @@ type NonNoopOp = Exclude<Operation, { readonly type: "noop" }>;
 type GamePassOp = NonNoopOp & { readonly desired: GamePassDesiredState };
 type PlaceOp = NonNoopOp & { readonly desired: PlaceDesiredState };
 
-type RawApplyError =
-	| { readonly cause: OpenCloudError; readonly key: ResourceKey; readonly kind: "driverFailure" }
-	| { readonly key: ResourceKey; readonly kind: "updateUnsupported" };
+type RawApplyError = DistributedOmit<ApplyError, "appliedSoFar">;
 
 /**
  * Dispatch each reconciliation operation to the matching resource driver
