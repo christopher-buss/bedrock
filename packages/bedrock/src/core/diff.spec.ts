@@ -22,7 +22,9 @@ function gamePassDesired(overrides?: Partial<GamePassDesiredState>): GamePassDes
 	};
 }
 
-function gamePassCurrent(overrides?: Partial<ResourceCurrentState>): ResourceCurrentState {
+function gamePassCurrent(
+	overrides?: Partial<ResourceCurrentState<"gamePass">>,
+): ResourceCurrentState<"gamePass"> {
 	return {
 		key: asResourceKey("vip-pass"),
 		name: "VIP Pass",
@@ -79,7 +81,7 @@ describe(diff, () => {
 		[
 			label: string,
 			desiredOverrides: Partial<GamePassDesiredState>,
-			currentOverrides: Partial<ResourceCurrentState>,
+			currentOverrides: Partial<ResourceCurrentState<"gamePass">>,
 		]
 	>([
 		["name", { name: "VIP Pass v2" }, {}],

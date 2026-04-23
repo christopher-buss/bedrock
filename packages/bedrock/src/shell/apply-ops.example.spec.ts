@@ -44,6 +44,14 @@ it('Example 2', () => {
         }
       },
     },
+    place: {
+      async create(desired) {
+        return {
+          data: { ...desired, outputs: { versionNumber: 1 } },
+          success: true,
+        }
+      },
+    },
   }
   const ops: ReadonlyArray<Operation> = [
     {

@@ -68,8 +68,12 @@ it('Example 3', () => {
     type: 'update',
   }
   expect(op.type).toBe('update')
-  expect(op.desired.price).toBe(750)
-  expect(op.current.outputs.assetId).toBe('9876543210')
+  if (op.desired.kind === 'gamePass') {
+    expect(op.desired.price).toBe(750)
+  }
+  if (op.current.kind === 'gamePass') {
+    expect(op.current.outputs.assetId).toBe('9876543210')
+  }
 })
 
 it('Example 4', () => {

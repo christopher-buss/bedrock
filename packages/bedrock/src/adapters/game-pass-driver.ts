@@ -146,7 +146,7 @@ export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"
 function toCurrentState(
 	desired: GamePassDesiredState,
 	data: GamePass,
-): Result<ResourceCurrentState, OpenCloudError> {
+): Result<ResourceCurrentState<"gamePass">, OpenCloudError> {
 	const { id, iconAssetId } = data;
 	if (iconAssetId === undefined) {
 		return {

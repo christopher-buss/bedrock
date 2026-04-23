@@ -112,8 +112,12 @@ export interface CreateOperation extends BaseOperation {
  * };
  *
  * expect(op.type).toBe("update");
- * expect(op.desired.price).toBe(750);
- * expect(op.current.outputs.assetId).toBe("9876543210");
+ * if (op.desired.kind === "gamePass") {
+ *     expect(op.desired.price).toBe(750);
+ * }
+ * if (op.current.kind === "gamePass") {
+ *     expect(op.current.outputs.assetId).toBe("9876543210");
+ * }
  * ```
  */
 export interface UpdateOperation extends BaseOperation {

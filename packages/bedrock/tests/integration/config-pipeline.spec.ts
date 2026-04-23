@@ -18,6 +18,7 @@ import {
 	loadConfig,
 	type Operation,
 	type ResourceCurrentState,
+	type ResourceDriver,
 } from "bedrock";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -48,6 +49,12 @@ async function sha256HexOf(bytes: Uint8Array): Promise<string> {
 	);
 }
 
+const PLACE_STUB: ResourceDriver<"place"> = {
+	async create() {
+		throw new Error("PlaceDriver.create must not run for game-pass fixtures");
+	},
+};
+
 function makeLiveRegistry(httpClient: FakeHttpClient): DriverRegistry {
 	return {
 		gamePass: createGamePassDriver({
@@ -59,12 +66,13 @@ function makeLiveRegistry(httpClient: FakeHttpClient): DriverRegistry {
 			readFile: readIcon,
 			universeId: UNIVERSE_ID,
 		}),
+		place: PLACE_STUB,
 	};
 }
 
 async function buildExistingPass(
-	overrides: Partial<ResourceCurrentState> = {},
-): Promise<ResourceCurrentState> {
+	overrides: Partial<ResourceCurrentState<"gamePass">> = {},
+): Promise<ResourceCurrentState<"gamePass">> {
 	return {
 		key: asResourceKey(VIP_PASS_KEY),
 		name: "VIP Pass",
@@ -172,6 +180,7 @@ describe("config pipeline end-to-end", () => {
 					throw new Error("GamePassDriver.create must not run for noop ops");
 				},
 			},
+			place: PLACE_STUB,
 		};
 
 		const applyResult = await applyOps(ops, trapRegistry);

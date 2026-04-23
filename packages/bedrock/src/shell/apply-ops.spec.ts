@@ -23,7 +23,7 @@ function gamePassDesired(overrides?: Partial<GamePassDesiredState>): GamePassDes
 	};
 }
 
-function currentFrom(desired: GamePassDesiredState): ResourceCurrentState {
+function currentFrom(desired: GamePassDesiredState): ResourceCurrentState<"gamePass"> {
 	return {
 		...desired,
 		outputs: {
@@ -33,21 +33,35 @@ function currentFrom(desired: GamePassDesiredState): ResourceCurrentState {
 	};
 }
 
-function createOp(key: ResourceKey): CreateOperation {
+const placeStub: ResourceDriver<"place"> = {
+	async create() {
+		return { err: new OpenCloudError("place stub"), success: false };
+	},
+};
+
+function createOp(key: ResourceKey) {
 	const desired = gamePassDesired({ key });
-	return { key, desired, type: "create" };
+	return { key, desired, type: "create" } as const satisfies CreateOperation;
 }
 
-function updateOp(key: ResourceKey): UpdateOperation {
+function updateOp(key: ResourceKey) {
 	const desired = gamePassDesired({ key });
-	return { key, current: currentFrom(desired), desired, type: "update" };
+	return {
+		key,
+		current: currentFrom(desired),
+		desired,
+		type: "update",
+	} as const satisfies UpdateOperation;
 }
 
 function registryWith(
 	create: ResourceDriver<"gamePass">["create"],
 	update?: ResourceDriver<"gamePass">["update"],
 ): DriverRegistry {
-	return { gamePass: update ? { create, update } : { create } };
+	return {
+		gamePass: update ? { create, update } : { create },
+		place: placeStub,
+	};
 }
 
 describe(applyOps, () => {

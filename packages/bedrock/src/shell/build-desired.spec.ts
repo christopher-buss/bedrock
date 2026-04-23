@@ -65,7 +65,10 @@ describe(buildDesired, () => {
 
 		assert(result.success);
 
-		expect(result.data[0]!.iconFileHash).toBe(
+		const entry = result.data[0]!;
+		assert(entry.kind === "gamePass");
+
+		expect(entry.iconFileHash).toBe(
 			"6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
 		);
 	});

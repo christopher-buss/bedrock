@@ -16,6 +16,8 @@ export type {
 export type {
 	GamePassDesiredState,
 	GamePassOutputs,
+	PlaceDesiredState,
+	PlaceOutputs,
 	ResourceCurrentState,
 	ResourceDesiredState,
 	ResourceKind,

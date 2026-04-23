@@ -1,7 +1,7 @@
-import type { OpenCloudError, Result } from "@bedrock/ocale";
+import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
 
 import type { Operation } from "../core/operations.ts";
-import type { DriverRegistry } from "../ports/resource-driver.ts";
+import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
 
 /**
@@ -42,6 +42,8 @@ export type ApplyError =
 			readonly key: ResourceKey;
 			readonly kind: "updateUnsupported";
 	  };
+
+type NonNoopOp = Exclude<Operation, { readonly type: "noop" }>;
 
 /**
  * Dispatch each reconciliation operation to the matching resource driver
@@ -91,6 +93,14 @@ export type ApplyError =
  *             };
  *         },
  *     },
+ *     place: {
+ *         async create(desired) {
+ *             return {
+ *                 data: { ...desired, outputs: { versionNumber: 1 } },
+ *                 success: true,
+ *             };
+ *         },
+ *     },
  * };
  *
  * const ops: ReadonlyArray<Operation> = [
@@ -125,24 +135,12 @@ export async function applyOps(
 			continue;
 		}
 
-		const driver = registry[op.desired.kind];
-
-		if (op.type === "update") {
-			if (driver.update === undefined) {
-				return { err: { key: op.key, kind: "updateUnsupported" }, success: false };
-			}
-
-			const updated = await driver.update(op.current, op.desired);
-			if (!updated.success) {
-				return driverFailure(op.key, updated.err);
-			}
-
-			continue;
-		}
-
-		const created = await driver.create(op.desired);
-		if (!created.success) {
-			return driverFailure(op.key, created.err);
+		const outcome =
+			op.desired.kind === "gamePass"
+				? await applyGamePass(op, registry.gamePass)
+				: await applyPlace(op, registry.place);
+		if (!outcome.success) {
+			return outcome;
 		}
 	}
 
@@ -151,4 +149,81 @@ export async function applyOps(
 
 function driverFailure(key: ResourceKey, cause: OpenCloudError): Result<undefined, ApplyError> {
 	return { err: { key, cause, kind: "driverFailure" }, success: false };
+}
+
+function kindMismatch(key: ResourceKey, mismatch: { actual: string; expected: string }): ApiError {
+	return new ApiError(
+		`internal: operation kind mismatch for ${key}: expected ${mismatch.expected}, got ${mismatch.actual}`,
+		{ statusCode: 0 },
+	);
+}
+
+async function applyGamePass(
+	op: NonNoopOp,
+	driver: ResourceDriver<"gamePass">,
+): Promise<Result<undefined, ApplyError>> {
+	if (op.desired.kind !== "gamePass") {
+		return driverFailure(
+			op.key,
+			kindMismatch(op.key, { actual: op.desired.kind, expected: "gamePass" }),
+		);
+	}
+
+	if (op.type === "create") {
+		const created = await driver.create(op.desired);
+		return created.success
+			? { data: undefined, success: true }
+			: driverFailure(op.key, created.err);
+	}
+
+	if (driver.update === undefined) {
+		return { err: { key: op.key, kind: "updateUnsupported" }, success: false };
+	}
+
+	if (op.current.kind !== "gamePass") {
+		return driverFailure(
+			op.key,
+			kindMismatch(op.key, { actual: op.current.kind, expected: "gamePass" }),
+		);
+	}
+
+	const updated = await driver.update(op.current, op.desired);
+	return updated.success
+		? { data: undefined, success: true }
+		: driverFailure(op.key, updated.err);
+}
+
+async function applyPlace(
+	op: NonNoopOp,
+	driver: ResourceDriver<"place">,
+): Promise<Result<undefined, ApplyError>> {
+	if (op.desired.kind !== "place") {
+		return driverFailure(
+			op.key,
+			kindMismatch(op.key, { actual: op.desired.kind, expected: "place" }),
+		);
+	}
+
+	if (op.type === "create") {
+		const created = await driver.create(op.desired);
+		return created.success
+			? { data: undefined, success: true }
+			: driverFailure(op.key, created.err);
+	}
+
+	if (driver.update === undefined) {
+		return { err: { key: op.key, kind: "updateUnsupported" }, success: false };
+	}
+
+	if (op.current.kind !== "place") {
+		return driverFailure(
+			op.key,
+			kindMismatch(op.key, { actual: op.current.kind, expected: "place" }),
+		);
+	}
+
+	const updated = await driver.update(op.current, op.desired);
+	return updated.success
+		? { data: undefined, success: true }
+		: driverFailure(op.key, updated.err);
 }
