@@ -3,7 +3,7 @@ import type { Result } from "@bedrock/ocale";
 import { ArkErrors, type, type Type } from "arktype";
 
 import { RESOURCE_KEY_PATTERN_SOURCE } from "../types/ids.ts";
-import type { ConfigError, ConfigValidationIssue } from "./config-error.ts";
+import type { ConfigError } from "./config-error.ts";
 
 /**
  * Body of a single entry in the `passes` collection. Keys in the parent
@@ -154,13 +154,12 @@ const rootSchema: Type<Config> = type({
 export function validateConfig(input: unknown, sourceFile: string): Result<Config, ConfigError> {
 	const validated = rootSchema(input);
 	if (validated instanceof ArkErrors) {
-		const issues: Array<ConfigValidationIssue> = [];
-		for (const issue of validated) {
-			issues.push({
+		const issues = Array.from(validated, (issue) => {
+			return {
 				message: issue.message,
 				path: [...issue.path].map((segment) => String(segment)),
-			});
-		}
+			};
+		});
 
 		return {
 			err: { issues, kind: "validationFailed", sourceFile },

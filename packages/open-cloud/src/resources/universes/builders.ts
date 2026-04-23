@@ -72,14 +72,5 @@ export function buildUpdateRequest(
 }
 
 function extractUpdateFieldKeys(parameters: UpdateUniverseParameters): ReadonlyArray<string> {
-	const keys: Array<string> = [];
-	for (const key of Object.keys(parameters)) {
-		if (key === "universeId") {
-			continue;
-		}
-
-		keys.push(key);
-	}
-
-	return keys;
+	return Object.keys(parameters).filter((key) => key !== "universeId");
 }
