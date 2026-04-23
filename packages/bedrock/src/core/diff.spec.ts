@@ -225,6 +225,17 @@ describe(diff, () => {
 			]);
 		});
 
+		it("should emit an update op when the place filePath differs", () => {
+			expect.assertions(1);
+
+			const desiredEntry = placeDesired({ filePath: "places/renamed.rbxl" });
+			const currentEntry = placeCurrent();
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{ key: PLACE_KEY, current: currentEntry, desired: desiredEntry, type: "update" },
+			]);
+		});
+
 		it("should emit an update op when placeId differs", () => {
 			expect.assertions(1);
 
@@ -251,6 +262,19 @@ describe(diff, () => {
 
 			const desiredEntry = placeDesired();
 			const currentEntry = gamePassCurrent({ key: PLACE_KEY });
+
+			const ops = diff([desiredEntry], [currentEntry]);
+
+			expect(ops).toStrictEqual([
+				{ key: PLACE_KEY, current: currentEntry, desired: desiredEntry, type: "update" },
+			]);
+		});
+
+		it("should emit an update op when a gamePass desired maps to a place current under the same key", () => {
+			expect.assertions(1);
+
+			const desiredEntry = gamePassDesired({ key: PLACE_KEY });
+			const currentEntry = placeCurrent();
 
 			const ops = diff([desiredEntry], [currentEntry]);
 

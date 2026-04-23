@@ -340,8 +340,8 @@ describe(applyOps, () => {
 			});
 		});
 
-		it("should return driverFailure when op.current.kind does not match desired.kind on a place update", async () => {
-			expect.assertions(2);
+		it("should return driverFailure with a kind-mismatch message when op.current.kind does not match place", async () => {
+			expect.assertions(4);
 
 			const placeDesiredState = placeDesired();
 			const gamePassCurrent = currentFrom(gamePassDesired({ key: placeDesiredState.key }));
@@ -357,8 +357,46 @@ describe(applyOps, () => {
 			const result = await applyOps([op], placeRegistry(create, update));
 
 			assert(!result.success);
+			assert(result.err.kind === "driverFailure");
 
-			expect(result.err.kind).toBe("driverFailure");
+			expect(result.err.cause.message).toContain("expected place");
+			expect(result.err.cause.message).toContain("got gamePass");
+			expect(result.err.cause.message).toContain(op.key);
+			expect(update).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("cross-kind current-state for gamePass update", () => {
+		it("should return driverFailure with a kind-mismatch message when op.current.kind does not match gamePass", async () => {
+			expect.assertions(4);
+
+			const placeCurrent: ResourceCurrentState<"place"> = {
+				key: asResourceKey("vip-pass"),
+				fileHash: asSha256Hex(
+					"039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
+				),
+				filePath: "places/start.rbxl",
+				kind: "place",
+				outputs: { versionNumber: 1 },
+				placeId: asRobloxAssetId("4711"),
+			};
+			const op: UpdateOperation = {
+				key: placeCurrent.key,
+				current: placeCurrent,
+				desired: gamePassDesired({ key: placeCurrent.key }),
+				type: "update",
+			};
+			const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
+			const update = vi.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>();
+
+			const result = await applyOps([op], registryWith(create, update));
+
+			assert(!result.success);
+			assert(result.err.kind === "driverFailure");
+
+			expect(result.err.cause.message).toContain("expected gamePass");
+			expect(result.err.cause.message).toContain("got place");
+			expect(result.err.cause.message).toContain(op.key);
 			expect(update).not.toHaveBeenCalled();
 		});
 	});

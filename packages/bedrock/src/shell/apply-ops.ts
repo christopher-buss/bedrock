@@ -1,6 +1,7 @@
 import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
 
 import type { Operation } from "../core/operations.ts";
+import type { GamePassDesiredState, PlaceDesiredState } from "../core/resources.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
 
@@ -44,6 +45,8 @@ export type ApplyError =
 	  };
 
 type NonNoopOp = Exclude<Operation, { readonly type: "noop" }>;
+type GamePassOp = NonNoopOp & { readonly desired: GamePassDesiredState };
+type PlaceOp = NonNoopOp & { readonly desired: PlaceDesiredState };
 
 /**
  * Dispatch each reconciliation operation to the matching resource driver
@@ -135,16 +138,19 @@ export async function applyOps(
 			continue;
 		}
 
-		const outcome =
-			op.desired.kind === "gamePass"
-				? await applyGamePass(op, registry.gamePass)
-				: await applyPlace(op, registry.place);
+		const outcome = isGamePassOp(op)
+			? await applyGamePass(op, registry.gamePass)
+			: await applyPlace(toPlaceOp(op), registry.place);
 		if (!outcome.success) {
 			return outcome;
 		}
 	}
 
 	return { data: undefined, success: true };
+}
+
+function isGamePassOp(op: NonNoopOp): op is GamePassOp {
+	return op.desired.kind === "gamePass";
 }
 
 function driverFailure(key: ResourceKey, cause: OpenCloudError): Result<undefined, ApplyError> {
@@ -159,16 +165,9 @@ function kindMismatch(key: ResourceKey, mismatch: { actual: string; expected: st
 }
 
 async function applyGamePass(
-	op: NonNoopOp,
+	op: GamePassOp,
 	driver: ResourceDriver<"gamePass">,
 ): Promise<Result<undefined, ApplyError>> {
-	if (op.desired.kind !== "gamePass") {
-		return driverFailure(
-			op.key,
-			kindMismatch(op.key, { actual: op.desired.kind, expected: "gamePass" }),
-		);
-	}
-
 	if (op.type === "create") {
 		const created = await driver.create(op.desired);
 		return created.success
@@ -194,16 +193,9 @@ async function applyGamePass(
 }
 
 async function applyPlace(
-	op: NonNoopOp,
+	op: PlaceOp,
 	driver: ResourceDriver<"place">,
 ): Promise<Result<undefined, ApplyError>> {
-	if (op.desired.kind !== "place") {
-		return driverFailure(
-			op.key,
-			kindMismatch(op.key, { actual: op.desired.kind, expected: "place" }),
-		);
-	}
-
 	if (op.type === "create") {
 		const created = await driver.create(op.desired);
 		return created.success
@@ -226,4 +218,12 @@ async function applyPlace(
 	return updated.success
 		? { data: undefined, success: true }
 		: driverFailure(op.key, updated.err);
+}
+
+function toPlaceOp(op: NonNoopOp): PlaceOp {
+	// Callers only reach this after `isGamePassOp(op) === false`, and
+	// `ResourceKind` is `"gamePass" | "place"`, so `op` is necessarily a
+	// `PlaceOp` here. TypeScript can't follow the narrowing cascade through a
+	// non-distributive union, so the assertion stands in for the proof.
+	return op as PlaceOp;
 }
