@@ -5,6 +5,16 @@ import { asRobloxAssetId } from "../../types/ids.ts";
 import { UNIVERSE_SINGLETON_KEY } from "../resources.ts";
 import { universeKind } from "./universe.ts";
 
+const BlankFlags = {
+	consoleEnabled: undefined,
+	desktopEnabled: undefined,
+	displayName: undefined,
+	mobileEnabled: undefined,
+	tabletEnabled: undefined,
+	visibility: undefined,
+	vrEnabled: undefined,
+} as const;
+
 describe("universeKind", () => {
 	it("should tag its kind discriminator as universe", () => {
 		expect.assertions(1);
@@ -22,6 +32,7 @@ describe("universeKind", () => {
 				}),
 			).toStrictEqual([
 				{
+					...BlankFlags,
 					key: UNIVERSE_SINGLETON_KEY,
 					kind: "universe",
 					universeId: asRobloxAssetId("1234567890"),
@@ -51,6 +62,7 @@ describe("universeKind", () => {
 
 			const result = await universeKind.normalize(
 				{
+					...BlankFlags,
 					key: UNIVERSE_SINGLETON_KEY,
 					kind: "universe",
 					universeId: asRobloxAssetId("1234567890"),
@@ -66,6 +78,7 @@ describe("universeKind", () => {
 			assert(result.success);
 
 			expect(result.data).toStrictEqual({
+				...BlankFlags,
 				key: UNIVERSE_SINGLETON_KEY,
 				kind: "universe",
 				universeId: asRobloxAssetId("1234567890"),
@@ -83,7 +96,6 @@ describe("universeKind", () => {
 
 		it.for<[label: string, currentOverrides: Partial<ResourceCurrentStateUniverse>]>([
 			["universeId", { universeId: asRobloxAssetId("9999999999") }],
-			["voiceChatEnabled", { voiceChatEnabled: true }],
 		])("should return false when %s differs", ([, overrides]) => {
 			expect.assertions(1);
 

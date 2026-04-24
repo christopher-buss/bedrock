@@ -1,14 +1,13 @@
-import type { SocialLink } from "@bedrock/ocale/universes";
-
+import { defaultKindRegistry } from "./kinds/index.ts";
+import type { ResourceKindModule } from "./kinds/module.ts";
 import type { Operation } from "./operations.ts";
 import {
 	type GamePassDesiredState,
 	type PlaceDesiredState,
 	type ResourceCurrentState,
 	type ResourceDesiredState,
+	type ResourceKind,
 	SOCIAL_LINK_FIELD_SET,
-	SOCIAL_LINK_FIELDS,
-	UNIVERSE_MANAGED_FLAGS,
 	type UniverseDesiredState,
 } from "./resources.ts";
 
@@ -135,107 +134,17 @@ function hasNoManagedFields(desired: ResourceDesiredState): boolean {
 	return true;
 }
 
-function gamePassFieldsEqual(
-	desired: GamePassDesiredState,
-	current: ResourceCurrentState<"gamePass">,
-): boolean {
-	return (
-		desired.name === current.name &&
-		desired.description === current.description &&
-		desired.iconFileHash === current.iconFileHash &&
-		desired.iconFilePath === current.iconFilePath &&
-		desired.price === current.price
-	);
-}
-
-function placeFieldsEqual(
-	desired: PlaceDesiredState,
-	current: ResourceCurrentState<"place">,
-): boolean {
-	return (
-		desired.placeId === current.placeId &&
-		desired.filePath === current.filePath &&
-		desired.fileHash === current.fileHash
-	);
-}
-
-function socialLinkEqual(a: SocialLink | undefined, b: SocialLink | undefined): boolean {
-	if (a === undefined) {
-		return b === undefined;
-	}
-
-	if (b === undefined) {
-		return false;
-	}
-
-	return a.title === b.title && a.uri === b.uri;
-}
-
-function declaredSocialLinksEqual(
-	desired: UniverseDesiredState,
-	current: ResourceCurrentState<"universe">,
-): boolean {
-	for (const field of SOCIAL_LINK_FIELDS) {
-		if (!(field in desired)) {
-			continue;
-		}
-
-		if (!socialLinkEqual(desired[field], current[field])) {
-			return false;
-		}
-	}
-
-	return true;
-}
-
-function universeFieldsEqual(
-	desired: UniverseDesiredState,
-	current: ResourceCurrentState<"universe">,
-): boolean {
-	if (desired.universeId !== current.universeId) {
-		return false;
-	}
-
-	// Only compare flags the user has declared. An undeclared flag stays
-	// owned by whoever else writes to the universe (Creator Hub, another
-	// tool), so a concrete current value for it is not drift.
-	for (const flag of UNIVERSE_MANAGED_FLAGS) {
-		const isDesiredEnabled = desired[flag];
-		if (isDesiredEnabled !== undefined && isDesiredEnabled !== current[flag]) {
-			return false;
-		}
-	}
-
-	if (desired.displayName !== undefined && desired.displayName !== current.displayName) {
-		return false;
-	}
-
-	if (desired.visibility !== undefined && desired.visibility !== current.visibility) {
-		return false;
-	}
-
-	if (
-		"privateServerPriceRobux" in desired &&
-		desired.privateServerPriceRobux !== current.privateServerPriceRobux
-	) {
-		return false;
-	}
-
-	return declaredSocialLinksEqual(desired, current);
-}
-
 function desiredFieldsEqual(desired: ResourceDesiredState, current: ResourceCurrentState): boolean {
-	switch (desired.kind) {
-		case "gamePass": {
-			return current.kind === "gamePass" && gamePassFieldsEqual(desired, current);
-		}
-		case "place": {
-			return current.kind === "place" && placeFieldsEqual(desired, current);
-		}
-		case "universe": {
-			return current.kind === "universe" && universeFieldsEqual(desired, current);
-		}
+	if (desired.kind !== current.kind) {
+		return false;
 	}
+
+	// Registry index returns a union of per-kind modules; widening its type
+	// parameter lets us call fieldsEqual without per-kind discriminator
+	// narrowing. Safe because the kind-equality check above has already
+	// pinned both sides to the same discriminator.
+	const module = defaultKindRegistry[desired.kind] as ResourceKindModule<ResourceKind>;
+	return module.fieldsEqual(desired, current);
 }
 
 function operationFor(
