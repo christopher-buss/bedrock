@@ -171,11 +171,33 @@ async function normalizePlace(
 	};
 }
 
+function normalizeUniverse(
+	input: Extract<ResourceDesiredInput, { kind: "universe" }>,
+): Result<ResourceDesiredState, BuildDesiredError> {
+	return {
+		data: {
+			key: input.key,
+			kind: "universe",
+			universeId: input.universeId,
+			voiceChatEnabled: input.voiceChatEnabled,
+		},
+		success: true,
+	};
+}
+
 async function normalizeInput(
 	input: ResourceDesiredInput,
 	readFile: (path: string) => Promise<Uint8Array>,
 ): Promise<Result<ResourceDesiredState, BuildDesiredError>> {
-	return input.kind === "gamePass"
-		? normalizeGamePass(input, readFile)
-		: normalizePlace(input, readFile);
+	switch (input.kind) {
+		case "gamePass": {
+			return normalizeGamePass(input, readFile);
+		}
+		case "place": {
+			return normalizePlace(input, readFile);
+		}
+		case "universe": {
+			return normalizeUniverse(input);
+		}
+	}
 }

@@ -1,6 +1,7 @@
 import { assert, describe, expect, it, vi } from "vitest";
 
 import type { GamePassDesiredInput } from "../core/flatten.ts";
+import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import { buildDesired } from "./build-desired.ts";
 
@@ -205,5 +206,59 @@ describe(buildDesired, () => {
 		assert(result.success);
 
 		expect(result.data.map((entry) => entry.kind)).toStrictEqual(["gamePass", "place"]);
+	});
+
+	it("should pass a universe input straight through without calling readFile", async () => {
+		expect.assertions(2);
+
+		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>();
+
+		const result = await buildDesired(
+			[
+				{
+					key: UNIVERSE_SINGLETON_KEY,
+					kind: "universe",
+					universeId: asRobloxAssetId("1234567890"),
+					voiceChatEnabled: true,
+				},
+			],
+			readFile,
+		);
+
+		expect(result).toStrictEqual({
+			data: [
+				{
+					key: UNIVERSE_SINGLETON_KEY,
+					kind: "universe",
+					universeId: asRobloxAssetId("1234567890"),
+					voiceChatEnabled: true,
+				},
+			],
+			success: true,
+		});
+		expect(readFile).not.toHaveBeenCalled();
+	});
+
+	it("should preserve undefined voiceChatEnabled on a universe input", async () => {
+		expect.assertions(1);
+
+		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>();
+
+		const result = await buildDesired(
+			[
+				{
+					key: UNIVERSE_SINGLETON_KEY,
+					kind: "universe",
+					universeId: asRobloxAssetId("1234567890"),
+					voiceChatEnabled: undefined,
+				},
+			],
+			readFile,
+		);
+
+		assert(result.success);
+		assert(result.data[0]!.kind === "universe");
+
+		expect(result.data[0]!.voiceChatEnabled).toBeUndefined();
 	});
 });

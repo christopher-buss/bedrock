@@ -2,7 +2,9 @@ import type {
 	GamePassDesiredState,
 	PlaceDesiredState,
 	ResourceCurrentState,
+	UniverseDesiredState,
 } from "#src/core/resources";
+import { UNIVERSE_SINGLETON_KEY } from "#src/core/resources";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "#src/types/ids";
 
 const ICON_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
@@ -82,6 +84,41 @@ export function placeCurrent(
 	return {
 		...placeDesired(),
 		outputs: { versionNumber: 1 },
+		...overrides,
+	};
+}
+
+/**
+ * Builds a default {@link UniverseDesiredState} fixture. Pass an `overrides`
+ * object to tweak individual fields without re-stating the defaults.
+ *
+ * @param overrides - Fields to override on the default fixture.
+ * @returns A desired-state fixture with the overrides applied.
+ */
+export function universeDesired(overrides?: Partial<UniverseDesiredState>): UniverseDesiredState {
+	return {
+		key: UNIVERSE_SINGLETON_KEY,
+		kind: "universe",
+		universeId: asRobloxAssetId("1234567890"),
+		voiceChatEnabled: undefined,
+		...overrides,
+	};
+}
+
+/**
+ * Builds a default {@link ResourceCurrentState} fixture for the `universe`
+ * kind. Pass an `overrides` object to tweak individual fields without
+ * re-stating the defaults.
+ *
+ * @param overrides - Fields to override on the default fixture.
+ * @returns A current-state fixture with the overrides applied.
+ */
+export function universeCurrent(
+	overrides?: Partial<ResourceCurrentState<"universe">>,
+): ResourceCurrentState<"universe"> {
+	return {
+		...universeDesired(),
+		outputs: { rootPlaceId: asRobloxAssetId("4711") },
 		...overrides,
 	};
 }

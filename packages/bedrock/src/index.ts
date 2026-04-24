@@ -1,5 +1,6 @@
 export { createGamePassDriver, type GamePassDriverDeps } from "./adapters/game-pass-driver.ts";
 export { createPlaceDriver, type PlaceDriverDeps } from "./adapters/place-driver.ts";
+export { createUniverseDriver, type UniverseDriverDeps } from "./adapters/universe-driver.ts";
 export type { ConfigError, ConfigValidationIssue } from "./core/config-error.ts";
 export { diff } from "./core/diff.ts";
 export {
@@ -7,6 +8,7 @@ export {
 	type GamePassDesiredInput,
 	type PlaceDesiredInput,
 	type ResourceDesiredInput,
+	type UniverseDesiredInput,
 } from "./core/flatten.ts";
 export type {
 	BaseOperation,
@@ -15,18 +17,27 @@ export type {
 	Operation,
 	UpdateOperation,
 } from "./core/operations.ts";
-export type {
-	GamePassDesiredState,
-	GamePassOutputs,
-	PlaceDesiredState,
-	PlaceOutputs,
-	ResourceCurrentState,
-	ResourceDesiredState,
-	ResourceKind,
-	ResourceOutputs,
-	ResourceOutputsByKind,
+export {
+	UNIVERSE_SINGLETON_KEY,
+	type GamePassDesiredState,
+	type GamePassOutputs,
+	type PlaceDesiredState,
+	type PlaceOutputs,
+	type ResourceCurrentState,
+	type ResourceDesiredState,
+	type ResourceKind,
+	type ResourceOutputs,
+	type ResourceOutputsByKind,
+	type UniverseDesiredState,
+	type UniverseOutputs,
 } from "./core/resources.ts";
-export { validateConfig, type Config, type GamePassEntry, type PlaceEntry } from "./core/schema.ts";
+export {
+	validateConfig,
+	type Config,
+	type GamePassEntry,
+	type PlaceEntry,
+	type UniverseEntry,
+} from "./core/schema.ts";
 export type { BedrockState, StateError } from "./core/state.ts";
 export type { DriverRegistry, ResourceDriver } from "./ports/resource-driver.ts";
 export type { StatePort } from "./ports/state-port.ts";

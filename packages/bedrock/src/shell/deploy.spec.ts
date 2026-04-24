@@ -25,6 +25,12 @@ const placeStub: ResourceDriver<"place"> = {
 	},
 };
 
+const universeStub: ResourceDriver<"universe"> = {
+	async create() {
+		throw new Error("universe driver must not run for this fixture");
+	},
+};
+
 function inMemoryStatePort(initial?: BedrockState): {
 	port: StatePort;
 	writes: Array<BedrockState>;
@@ -121,7 +127,11 @@ describe(deploy, () => {
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValue({ data: created, success: true });
-		const registry: DriverRegistry = { gamePass: { create }, place: placeStub };
+		const registry: DriverRegistry = {
+			gamePass: { create },
+			place: placeStub,
+			universe: universeStub,
+		};
 		const { port, writes } = inMemoryStatePort();
 
 		const result = await deploy({
@@ -148,6 +158,7 @@ describe(deploy, () => {
 		const registry: DriverRegistry = {
 			gamePass: { create, update },
 			place: placeStub,
+			universe: universeStub,
 		};
 		const { port } = inMemoryStatePort({
 			environment: "production",
@@ -183,6 +194,7 @@ describe(deploy, () => {
 		const registry: DriverRegistry = {
 			gamePass: { create, update },
 			place: placeStub,
+			universe: universeStub,
 		};
 		const { port, writes } = inMemoryStatePort({
 			environment: "production",
@@ -227,7 +239,11 @@ describe(deploy, () => {
 
 				return { err: cause, success: false };
 			});
-		const registry: DriverRegistry = { gamePass: { create }, place: placeStub };
+		const registry: DriverRegistry = {
+			gamePass: { create },
+			place: placeStub,
+			universe: universeStub,
+		};
 		const { port, writes } = inMemoryStatePort();
 
 		const result = await deploy({
@@ -259,7 +275,11 @@ describe(deploy, () => {
 		expect.assertions(3);
 
 		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
-		const registry: DriverRegistry = { gamePass: { create }, place: placeStub };
+		const registry: DriverRegistry = {
+			gamePass: { create },
+			place: placeStub,
+			universe: universeStub,
+		};
 		const writes: Array<BedrockState> = [];
 		const stateError = {
 			file: ".bedrock/state/production.json",
@@ -306,7 +326,11 @@ describe(deploy, () => {
 
 				return { err: cause, success: false };
 			});
-		const registry: DriverRegistry = { gamePass: { create }, place: placeStub };
+		const registry: DriverRegistry = {
+			gamePass: { create },
+			place: placeStub,
+			universe: universeStub,
+		};
 		const stateError = {
 			file: ".bedrock/state/production.json",
 			kind: "stateError" as const,
@@ -354,7 +378,11 @@ describe(deploy, () => {
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValue({ data: created, success: true });
-		const registry: DriverRegistry = { gamePass: { create }, place: placeStub };
+		const registry: DriverRegistry = {
+			gamePass: { create },
+			place: placeStub,
+			universe: universeStub,
+		};
 		const stateError = {
 			file: ".bedrock/state/production.json",
 			kind: "stateError" as const,
@@ -392,7 +420,11 @@ describe(deploy, () => {
 		expect.assertions(3);
 
 		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
-		const registry: DriverRegistry = { gamePass: { create }, place: placeStub };
+		const registry: DriverRegistry = {
+			gamePass: { create },
+			place: placeStub,
+			universe: universeStub,
+		};
 		const { port, writes } = inMemoryStatePort();
 		const readFile = vi
 			.fn<(path: string) => Promise<Uint8Array>>()

@@ -1,5 +1,11 @@
 import type { Operation } from "./operations.ts";
-import type { ResourceCurrentState, ResourceDesiredState } from "./resources.ts";
+import type {
+	GamePassDesiredState,
+	PlaceDesiredState,
+	ResourceCurrentState,
+	ResourceDesiredState,
+	UniverseDesiredState,
+} from "./resources.ts";
 
 /**
  * Computes the operations required to reconcile `current` state with `desired`
@@ -82,59 +88,103 @@ export function diff(
 	current: ReadonlyArray<ResourceCurrentState>,
 ): ReadonlyArray<Operation> {
 	const currentByKey = new Map(current.map((entry) => [entry.key, entry]));
-	const ops: Array<Operation> = [];
-	for (const desiredEntry of desired) {
-		const currentEntry = currentByKey.get(desiredEntry.key);
-		if (currentEntry === undefined) {
-			ops.push({
-				key: desiredEntry.key,
-				desired: desiredEntry,
-				type: "create",
-			});
-			continue;
-		}
+	return desired.map((entry) => operationFor(entry, currentByKey.get(entry.key)));
+}
 
-		if (desiredFieldsEqual(desiredEntry, currentEntry)) {
-			ops.push({ key: desiredEntry.key, type: "noop" });
-			continue;
-		}
+// Resource-kind identity keys. Every field on a `ResourceDesiredState`
+// that is not in this set is a user-managed field; `hasNoManagedFields`
+// returns true when no non-identity field has a declared value. Only
+// universe supports "all optional → noop on apply"; the other kinds'
+// required fields (name, description, filePath, etc.) are always defined,
+// so the loop naturally returns false for them without a kind guard.
+const IDENTITY_KEYS: ReadonlySet<string> = new Set([
+	"key",
+	"kind",
+	"placeId",
+	"universeId",
+] satisfies Array<
+	keyof GamePassDesiredState | keyof PlaceDesiredState | keyof UniverseDesiredState
+>);
 
-		ops.push({
-			key: desiredEntry.key,
-			current: currentEntry,
-			desired: desiredEntry,
-			type: "update",
-		});
+function hasNoManagedFields(desired: ResourceDesiredState): boolean {
+	for (const [key, value] of Object.entries(desired)) {
+		if (!IDENTITY_KEYS.has(key) && value !== undefined) {
+			return false;
+		}
 	}
 
-	return ops;
+	return true;
+}
+
+function gamePassFieldsEqual(
+	desired: GamePassDesiredState,
+	current: ResourceCurrentState<"gamePass">,
+): boolean {
+	return (
+		desired.name === current.name &&
+		desired.description === current.description &&
+		desired.iconFileHash === current.iconFileHash &&
+		desired.iconFilePath === current.iconFilePath &&
+		desired.price === current.price
+	);
+}
+
+function placeFieldsEqual(
+	desired: PlaceDesiredState,
+	current: ResourceCurrentState<"place">,
+): boolean {
+	return (
+		desired.placeId === current.placeId &&
+		desired.filePath === current.filePath &&
+		desired.fileHash === current.fileHash
+	);
+}
+
+function universeFieldsEqual(
+	desired: UniverseDesiredState,
+	current: ResourceCurrentState<"universe">,
+): boolean {
+	// Reached only when `hasNoManagedFields` has already filtered out the
+	// no-declared-fields case, so every managed field is guaranteed defined
+	// here. When a second optional managed field lands on
+	// `UniverseDesiredState`, re-introduce the per-field `!== undefined`
+	// guard for fields that can still be legitimately unmanaged while others
+	// are declared.
+	return (
+		desired.universeId === current.universeId &&
+		desired.voiceChatEnabled === current.voiceChatEnabled
+	);
 }
 
 function desiredFieldsEqual(desired: ResourceDesiredState, current: ResourceCurrentState): boolean {
 	switch (desired.kind) {
 		case "gamePass": {
-			if (current.kind !== "gamePass") {
-				return false;
-			}
-
-			return (
-				desired.name === current.name &&
-				desired.description === current.description &&
-				desired.iconFileHash === current.iconFileHash &&
-				desired.iconFilePath === current.iconFilePath &&
-				desired.price === current.price
-			);
+			return current.kind === "gamePass" && gamePassFieldsEqual(desired, current);
 		}
 		case "place": {
-			if (current.kind !== "place") {
-				return false;
-			}
-
-			return (
-				desired.placeId === current.placeId &&
-				desired.filePath === current.filePath &&
-				desired.fileHash === current.fileHash
-			);
+			return current.kind === "place" && placeFieldsEqual(desired, current);
+		}
+		case "universe": {
+			return current.kind === "universe" && universeFieldsEqual(desired, current);
 		}
 	}
+}
+
+function operationFor(
+	desired: ResourceDesiredState,
+	current: ResourceCurrentState | undefined,
+): Operation {
+	if (hasNoManagedFields(desired)) {
+		return { key: desired.key, type: "noop" };
+	}
+
+	if (current === undefined) {
+		return { key: desired.key, desired, type: "create" };
+	}
+
+	if (desiredFieldsEqual(desired, current)) {
+		return { key: desired.key, type: "noop" };
+	}
+
+	return { key: desired.key, current, desired, type: "update" };
 }

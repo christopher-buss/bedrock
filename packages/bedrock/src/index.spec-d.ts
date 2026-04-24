@@ -203,10 +203,9 @@ describe("Config", () => {
 		>();
 	});
 
-	it("should reserve environments, extends, and universe as unknown", () => {
+	it("should reserve environments and extends as unknown", () => {
 		expectTypeOf<Config["environments"]>().toEqualTypeOf<unknown>();
 		expectTypeOf<Config["extends"]>().toEqualTypeOf<unknown>();
-		expectTypeOf<Config["universe"]>().toEqualTypeOf<unknown>();
 	});
 
 	it("should treat every root field as optional so an empty object satisfies Config", () => {

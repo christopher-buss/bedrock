@@ -5,10 +5,13 @@ import {
 	gamePassDesired,
 	placeCurrent,
 	placeDesired,
+	universeCurrent,
+	universeDesired,
 } from "#tests/helpers/resources";
 import { assert, describe, expect, it, vi } from "vitest";
 
 import type { CreateOperation, UpdateOperation } from "../core/operations.ts";
+import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import { asResourceKey, type ResourceKey } from "../types/ids.ts";
 import { applyOps } from "./apply-ops.ts";
@@ -16,6 +19,12 @@ import { applyOps } from "./apply-ops.ts";
 const placeStub: ResourceDriver<"place"> = {
 	async create() {
 		return { err: new OpenCloudError("place stub"), success: false };
+	},
+};
+
+const universeStub: ResourceDriver<"universe"> = {
+	async create() {
+		return { err: new OpenCloudError("universe stub"), success: false };
 	},
 };
 
@@ -41,6 +50,7 @@ function registryWith(
 	return {
 		gamePass: update ? { create, update } : { create },
 		place: placeStub,
+		universe: universeStub,
 	};
 }
 
@@ -234,6 +244,7 @@ describe(applyOps, () => {
 					},
 				},
 				place: update ? { create, update } : { create },
+				universe: universeStub,
 			};
 		}
 
@@ -381,6 +392,149 @@ describe(applyOps, () => {
 
 			expect(result.err.cause.message).toContain("expected gamePass");
 			expect(result.err.cause.message).toContain("got place");
+			expect(result.err.cause.message).toContain(op.key);
+			expect(update).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("universe kind", () => {
+		function universeRegistry(
+			create: ResourceDriver<"universe">["create"],
+			update?: ResourceDriver<"universe">["update"],
+		): DriverRegistry {
+			return {
+				gamePass: {
+					create() {
+						throw new Error("gamePass driver must not run for universe ops");
+					},
+				},
+				place: placeStub,
+				universe: update ? { create, update } : { create },
+			};
+		}
+
+		function universeCreateOp() {
+			const desired = universeDesired({ voiceChatEnabled: true });
+			return {
+				key: UNIVERSE_SINGLETON_KEY,
+				desired,
+				type: "create",
+			} as const satisfies CreateOperation;
+		}
+
+		function universeUpdateOp() {
+			const desired = universeDesired({ voiceChatEnabled: true });
+			return {
+				key: UNIVERSE_SINGLETON_KEY,
+				current: universeCurrent({ ...desired, voiceChatEnabled: false }),
+				desired,
+				type: "update",
+			} as const satisfies UpdateOperation;
+		}
+
+		it("should dispatch a universe create op to the driver and return Ok on success", async () => {
+			expect.assertions(2);
+
+			const op = universeCreateOp();
+			const created = universeCurrent({ ...op.desired });
+			const create = vi
+				.fn<ResourceDriver<"universe">["create"]>()
+				.mockResolvedValue({ data: created, success: true });
+
+			const result = await applyOps([op], universeRegistry(create));
+
+			expect(result).toStrictEqual({ data: [created], success: true });
+			expect(create).toHaveBeenCalledExactlyOnceWith(op.desired);
+		});
+
+		it("should wrap a universe create failure in driverFailure Err", async () => {
+			expect.assertions(1);
+
+			const op = universeCreateOp();
+			const cause = new OpenCloudError("boom");
+			const create = vi
+				.fn<ResourceDriver<"universe">["create"]>()
+				.mockResolvedValue({ err: cause, success: false });
+
+			const result = await applyOps([op], universeRegistry(create));
+
+			expect(result).toStrictEqual({
+				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
+				success: false,
+			});
+		});
+
+		it("should return updateUnsupported when the universe driver has no update method", async () => {
+			expect.assertions(2);
+
+			const op = universeUpdateOp();
+			const create = vi.fn<ResourceDriver<"universe">["create"]>();
+
+			const result = await applyOps([op], universeRegistry(create));
+
+			expect(result).toStrictEqual({
+				err: { key: op.key, appliedSoFar: [], kind: "updateUnsupported" },
+				success: false,
+			});
+			expect(create).not.toHaveBeenCalled();
+		});
+
+		it("should dispatch a universe update op to the driver's update method and return Ok on success", async () => {
+			expect.assertions(3);
+
+			const op = universeUpdateOp();
+			const updated = universeCurrent({ ...op.desired });
+			const create = vi.fn<ResourceDriver<"universe">["create"]>();
+			const update = vi
+				.fn<NonNullable<ResourceDriver<"universe">["update"]>>()
+				.mockResolvedValue({ data: updated, success: true });
+
+			const result = await applyOps([op], universeRegistry(create, update));
+
+			expect(result).toStrictEqual({ data: [updated], success: true });
+			expect(update).toHaveBeenCalledExactlyOnceWith(op.current, op.desired);
+			expect(create).not.toHaveBeenCalled();
+		});
+
+		it("should wrap a universe update failure in driverFailure Err", async () => {
+			expect.assertions(1);
+
+			const op = universeUpdateOp();
+			const cause = new OpenCloudError("boom");
+			const create = vi.fn<ResourceDriver<"universe">["create"]>();
+			const update = vi
+				.fn<NonNullable<ResourceDriver<"universe">["update"]>>()
+				.mockResolvedValue({ err: cause, success: false });
+
+			const result = await applyOps([op], universeRegistry(create, update));
+
+			expect(result).toStrictEqual({
+				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
+				success: false,
+			});
+		});
+
+		it("should return driverFailure with a kind-mismatch message when op.current.kind does not match universe", async () => {
+			expect.assertions(4);
+
+			const universeDesiredState = universeDesired({ voiceChatEnabled: true });
+			const crossKindCurrent = gamePassCurrent({ key: universeDesiredState.key });
+			const op: UpdateOperation = {
+				key: universeDesiredState.key,
+				current: crossKindCurrent,
+				desired: universeDesiredState,
+				type: "update",
+			};
+			const create = vi.fn<ResourceDriver<"universe">["create"]>();
+			const update = vi.fn<NonNullable<ResourceDriver<"universe">["update"]>>();
+
+			const result = await applyOps([op], universeRegistry(create, update));
+
+			assert(!result.success);
+			assert(result.err.kind === "driverFailure");
+
+			expect(result.err.cause.message).toContain("expected universe");
+			expect(result.err.cause.message).toContain("got gamePass");
 			expect(result.err.cause.message).toContain(op.key);
 			expect(update).not.toHaveBeenCalled();
 		});

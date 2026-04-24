@@ -53,6 +53,17 @@ it('Example 2', () => {
         }
       },
     },
+    universe: {
+      async create(desired) {
+        return {
+          data: {
+            ...desired,
+            outputs: { rootPlaceId: asRobloxAssetId('4711') },
+          },
+          success: true,
+        }
+      },
+    },
   }
   const ops: ReadonlyArray<Operation> = [
     {

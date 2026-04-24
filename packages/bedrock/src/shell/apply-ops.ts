@@ -7,6 +7,7 @@ import type {
 	GamePassDesiredState,
 	PlaceDesiredState,
 	ResourceCurrentState,
+	UniverseDesiredState,
 } from "../core/resources.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
@@ -61,6 +62,7 @@ export type ApplyError =
 type NonNoopOp = Exclude<Operation, { readonly type: "noop" }>;
 type GamePassOp = NonNoopOp & { readonly desired: GamePassDesiredState };
 type PlaceOp = NonNoopOp & { readonly desired: PlaceDesiredState };
+type UniverseOp = NonNoopOp & { readonly desired: UniverseDesiredState };
 
 type RawApplyError = DistributedOmit<ApplyError, "appliedSoFar">;
 
@@ -127,6 +129,14 @@ type RawApplyError = DistributedOmit<ApplyError, "appliedSoFar">;
  *             };
  *         },
  *     },
+ *     universe: {
+ *         async create(desired) {
+ *             return {
+ *                 data: { ...desired, outputs: { rootPlaceId: asRobloxAssetId("4711") } },
+ *                 success: true,
+ *             };
+ *         },
+ *     },
  * };
  *
  * const ops: ReadonlyArray<Operation> = [
@@ -164,9 +174,7 @@ export async function applyOps(
 			continue;
 		}
 
-		const outcome = isGamePassOp(op)
-			? await applyGamePass(op, registry.gamePass)
-			: await applyPlace(toPlaceOp(op), registry.place);
+		const outcome = await dispatchOp(op, registry);
 		if (!outcome.success) {
 			return { err: { ...outcome.err, appliedSoFar: applied }, success: false };
 		}
@@ -175,10 +183,6 @@ export async function applyOps(
 	}
 
 	return { data: applied, success: true };
-}
-
-function isGamePassOp(op: NonNoopOp): op is GamePassOp {
-	return op.desired.kind === "gamePass";
 }
 
 function driverFailure(
@@ -243,10 +247,46 @@ async function applyPlace(
 	return updated.success ? updated : driverFailure(op.key, updated.err);
 }
 
-function toPlaceOp(op: NonNoopOp): PlaceOp {
-	// Callers only reach this after `isGamePassOp(op) === false`, and
-	// `ResourceKind` is `"gamePass" | "place"`, so `op` is necessarily a
-	// `PlaceOp` here. TypeScript can't follow the narrowing cascade through a
-	// non-distributive union, so the assertion stands in for the proof.
-	return op as PlaceOp;
+async function applyUniverse(
+	op: UniverseOp,
+	driver: ResourceDriver<"universe">,
+): Promise<Result<ResourceCurrentState, RawApplyError>> {
+	if (op.type === "create") {
+		const created = await driver.create(op.desired);
+		return created.success ? created : driverFailure(op.key, created.err);
+	}
+
+	if (driver.update === undefined) {
+		return { err: { key: op.key, kind: "updateUnsupported" }, success: false };
+	}
+
+	if (op.current.kind !== "universe") {
+		return driverFailure(
+			op.key,
+			kindMismatch(op.key, { actual: op.current.kind, expected: "universe" }),
+		);
+	}
+
+	const updated = await driver.update(op.current, op.desired);
+	return updated.success ? updated : driverFailure(op.key, updated.err);
+}
+
+async function dispatchOp(
+	op: NonNoopOp,
+	registry: DriverRegistry,
+): Promise<Result<ResourceCurrentState, RawApplyError>> {
+	// Exhaustive switch: adding a new ResourceKind is a compile error here
+	// until an arm lands. Each arm casts because custom type narrowing does
+	// not propagate through a non-distributive union.
+	switch (op.desired.kind) {
+		case "gamePass": {
+			return applyGamePass(op as GamePassOp, registry.gamePass);
+		}
+		case "place": {
+			return applyPlace(op as PlaceOp, registry.place);
+		}
+		case "universe": {
+			return applyUniverse(op as UniverseOp, registry.universe);
+		}
+	}
 }

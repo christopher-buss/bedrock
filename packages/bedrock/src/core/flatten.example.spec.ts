@@ -5,6 +5,8 @@ import {
   type GamePassDesiredInput,
   asRobloxAssetId,
   type PlaceDesiredInput,
+  UNIVERSE_SINGLETON_KEY,
+  type UniverseDesiredInput,
   flattenConfig,
   type Config,
 } from '@bedrock/core'
@@ -32,6 +34,17 @@ it('Example 2', () => {
 })
 
 it('Example 3', () => {
+  const input: UniverseDesiredInput = {
+    key: UNIVERSE_SINGLETON_KEY,
+    kind: 'universe',
+    universeId: asRobloxAssetId('1234567890'),
+    voiceChatEnabled: true,
+  }
+  expect(input.kind).toBe('universe')
+  expect(input.key).toBe('main')
+})
+
+it('Example 4', () => {
   const config: Config = {
     passes: {
       'vip-pass': {

@@ -30,6 +30,12 @@ const GAME_PASS_TRAP: ResourceDriver<"gamePass"> = {
 	},
 };
 
+const UNIVERSE_TRAP: ResourceDriver<"universe"> = {
+	create() {
+		throw new Error("UniverseDriver.create must not run for place fixtures");
+	},
+};
+
 async function readPlaceFile(): Promise<Uint8Array> {
 	return RBXL_BYTES;
 }
@@ -60,6 +66,7 @@ describe("places pipeline end-to-end", () => {
 				readFile: readPlaceFile,
 				universeId: UNIVERSE_ID,
 			}),
+			universe: UNIVERSE_TRAP,
 		};
 
 		const ops = diff(desiredResult.data, []);

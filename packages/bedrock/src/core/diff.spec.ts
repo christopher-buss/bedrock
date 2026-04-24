@@ -3,11 +3,14 @@ import {
 	gamePassDesired,
 	placeCurrent,
 	placeDesired,
+	universeCurrent,
+	universeDesired,
 } from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { diff } from "./diff.ts";
+import { UNIVERSE_SINGLETON_KEY } from "./resources.ts";
 import type { GamePassDesiredState, ResourceCurrentState } from "./resources.ts";
 
 const ALT_HASH = asSha256Hex("a3f2c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852e1b0");
@@ -228,6 +231,101 @@ describe(diff, () => {
 
 			expect(ops).toStrictEqual([
 				{ key: PLACE_KEY, current: currentEntry, desired: desiredEntry, type: "update" },
+			]);
+		});
+	});
+
+	describe("universe kind", () => {
+		it("should emit a create op when the universe is absent from current state", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired({ voiceChatEnabled: true });
+
+			expect(diff([desiredEntry], [])).toStrictEqual([
+				{ key: UNIVERSE_SINGLETON_KEY, desired: desiredEntry, type: "create" },
+			]);
+		});
+
+		it("should emit a noop on first apply when no managed fields are declared", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired();
+
+			expect(diff([desiredEntry], [])).toStrictEqual([
+				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+			]);
+		});
+
+		it("should emit a noop when universeId matches and no managed fields are declared", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired();
+			const currentEntry = universeCurrent({ voiceChatEnabled: false });
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+			]);
+		});
+
+		it("should emit a noop when a declared managed field matches current", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired({ voiceChatEnabled: true });
+			const currentEntry = universeCurrent({ voiceChatEnabled: true });
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+			]);
+		});
+
+		it("should emit an update op when a declared voiceChatEnabled differs from current", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired({ voiceChatEnabled: true });
+			const currentEntry = universeCurrent({ voiceChatEnabled: false });
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{
+					key: UNIVERSE_SINGLETON_KEY,
+					current: currentEntry,
+					desired: desiredEntry,
+					type: "update",
+				},
+			]);
+		});
+
+		it("should emit an update op when universeId differs between desired and current", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired({
+				universeId: asRobloxAssetId("9999"),
+				voiceChatEnabled: true,
+			});
+			const currentEntry = universeCurrent({ voiceChatEnabled: true });
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{
+					key: UNIVERSE_SINGLETON_KEY,
+					current: currentEntry,
+					desired: desiredEntry,
+					type: "update",
+				},
+			]);
+		});
+
+		it("should emit an update op when the key maps to a different kind in current state", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired({ voiceChatEnabled: true });
+			const currentEntry = gamePassCurrent({ key: UNIVERSE_SINGLETON_KEY });
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{
+					key: UNIVERSE_SINGLETON_KEY,
+					current: currentEntry,
+					desired: desiredEntry,
+					type: "update",
+				},
 			]);
 		});
 	});

@@ -2,6 +2,7 @@ import { assert, describe, expect, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import { flattenConfig } from "./flatten.ts";
+import { UNIVERSE_SINGLETON_KEY } from "./resources.ts";
 import { validateConfig } from "./schema.ts";
 
 describe(flattenConfig, () => {
@@ -148,5 +149,76 @@ describe(flattenConfig, () => {
 			"gamePass",
 			"place",
 		]);
+	});
+
+	it("should tag a universe block with the singleton key and brand universeId as a RobloxAssetId", () => {
+		expect.assertions(1);
+
+		const config = validateConfig(
+			{ universe: { universeId: "1234567890", voiceChatEnabled: true } },
+			"bedrock.config.ts",
+		);
+		assert(config.success);
+
+		expect(flattenConfig(config.data)).toStrictEqual([
+			{
+				key: UNIVERSE_SINGLETON_KEY,
+				kind: "universe",
+				universeId: asRobloxAssetId("1234567890"),
+				voiceChatEnabled: true,
+			},
+		]);
+	});
+
+	it("should emit the universe block after places when all three are declared", () => {
+		expect.assertions(1);
+
+		const config = validateConfig(
+			{
+				passes: {
+					"vip-pass": {
+						name: "VIP Pass",
+						description: "Grants VIP perks.",
+						iconFilePath: "assets/vip.png",
+					},
+				},
+				places: {
+					"start-place": { filePath: "places/start.rbxl", placeId: "4711" },
+				},
+				universe: { universeId: "1234567890" },
+			},
+			"bedrock.config.ts",
+		);
+		assert(config.success);
+
+		expect(flattenConfig(config.data).map((input) => input.kind)).toStrictEqual([
+			"gamePass",
+			"place",
+			"universe",
+		]);
+	});
+
+	it("should carry voiceChatEnabled as undefined when the universe entry omits it", () => {
+		expect.assertions(1);
+
+		const config = validateConfig(
+			{ universe: { universeId: "1234567890" } },
+			"bedrock.config.ts",
+		);
+		assert(config.success);
+
+		const input = flattenConfig(config.data)[0]!;
+		assert(input.kind === "universe");
+
+		expect(input.voiceChatEnabled).toBeUndefined();
+	});
+
+	it("should omit the universe block from output when the config has no universe", () => {
+		expect.assertions(1);
+
+		const config = validateConfig({}, "bedrock.config.ts");
+		assert(config.success);
+
+		expect(flattenConfig(config.data).some((input) => input.kind === "universe")).toBeFalse();
 	});
 });
