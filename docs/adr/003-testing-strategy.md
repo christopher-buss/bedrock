@@ -385,3 +385,38 @@ testing.
   threshold pattern
 - [Turborepo Test Organization](https://github.com/vercel/turborepo/discussions/2320)
 - [Testing Anti-Patterns](superpowers:testing-anti-patterns skill)
+
+## Amendment: 2026-04-24, distinguish drift detection from change verification
+
+The original CI Integration table pairs "nightly" with "E2E real APIs" under
+a single heading of "drift detection". That framing covers only one of the
+two reasons to call Roblox in CI. This amendment names the second and
+clarifies how both fit.
+
+Two categories of real-API tests exist:
+
+**Drift detection** (the original framing). Nightly, broad, catches changes
+on Roblox's side. Bedrock did not change; the world did. A failure opens an
+issue and is triaged against the latest Open Cloud release notes. It does
+not block merges because nothing in the PR caused it.
+
+**Change verification** (smoke). Runs on every PR and push to main. Narrow
+by design: one happy-path call per public surface, exercising the bedrock
+change against a real Roblox universe. Catches bedrock-side breakage that
+fakes and nock could not see -- wrong URL shape, wrong auth header, a
+response parser that agrees with its fixture but disagrees with Roblox.
+A failure blocks merge until the bedrock change is fixed.
+
+The two suites differ on cadence (per-PR vs nightly), scope (one path vs
+many), and failure semantics (blocker vs tracked issue). They are
+complements, not substitutes.
+
+Physical layout under `apps/e2e/`: change-verification tests live in
+`apps/e2e/tests/smoke/`. Drift-detection tests will land in
+`apps/e2e/tests/drift/` when that suite is built. The `scenarios/`
+placeholder in the original Directory Structure section is superseded by
+these two subfolders.
+
+The nightly drift suite remains future work. Nothing in the original
+Decision or Consequences sections is retracted; this amendment adds a
+category, it does not remove one.
