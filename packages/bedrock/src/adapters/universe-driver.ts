@@ -22,6 +22,10 @@ export interface UniverseDriverDeps {
 	readonly universes: UniversesClient;
 }
 
+interface ResolvedUniverse {
+	readonly rootPlaceId: string;
+}
+
 /**
  * Wraps {@link UniversesClient} as a `ResourceDriver<"universe">`. `create`
  * and `update` both delegate to a shared reconcile helper because Open
@@ -125,6 +129,29 @@ export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"
 	};
 }
 
+function toCurrentState(
+	desired: UniverseDesiredState,
+	rootPlaceId: string | undefined,
+): Result<ResourceCurrentState<"universe">, OpenCloudError> {
+	if (rootPlaceId === undefined) {
+		return {
+			err: new ApiError(
+				`Malformed universe response for ${desired.universeId}: rootPlaceId missing`,
+				{ statusCode: 200 },
+			),
+			success: false,
+		};
+	}
+
+	return {
+		data: {
+			...desired,
+			outputs: { rootPlaceId: asRobloxAssetId(rootPlaceId) },
+		},
+		success: true,
+	};
+}
+
 function buildParameters(desired: UniverseDesiredState): UpdateUniverseParameters {
 	const base = UNIVERSE_MANAGED_FLAGS.reduce<UpdateUniverseParameters>(
 		(accumulator, flag) => {
@@ -153,10 +180,31 @@ function wrapUpdateError(err: OpenCloudError, desired: UniverseDesiredState): Op
 	return err;
 }
 
-function toCurrentState(
+function hasUniverseLevelUpdate(desired: UniverseDesiredState): boolean {
+	if (UNIVERSE_MANAGED_FLAGS.some((flag) => desired[flag] !== undefined)) {
+		return true;
+	}
+
+	if (desired.visibility !== undefined) {
+		return true;
+	}
+
+	return "privateServerPriceRobux" in desired;
+}
+
+async function resolveUniverse(
+	deps: UniverseDriverDeps,
 	desired: UniverseDesiredState,
-	rootPlaceId: string | undefined,
-): Result<ResourceCurrentState<"universe">, OpenCloudError> {
+): Promise<Result<ResolvedUniverse, OpenCloudError>> {
+	const result = hasUniverseLevelUpdate(desired)
+		? await deps.universes.update(buildParameters(desired))
+		: await deps.universes.get({ universeId: desired.universeId });
+
+	if (!result.success) {
+		return { err: wrapUpdateError(result.err, desired), success: false };
+	}
+
+	const { rootPlaceId } = result.data;
 	if (rootPlaceId === undefined) {
 		return {
 			err: new ApiError(
@@ -167,23 +215,29 @@ function toCurrentState(
 		};
 	}
 
-	return {
-		data: {
-			...desired,
-			outputs: { rootPlaceId: asRobloxAssetId(rootPlaceId) },
-		},
-		success: true,
-	};
+	return { data: { rootPlaceId }, success: true };
 }
 
 async function reconcileUniverse(
 	deps: UniverseDriverDeps,
 	desired: UniverseDesiredState,
 ): Promise<Result<ResourceCurrentState<"universe">, OpenCloudError>> {
-	const result = await deps.universes.update(buildParameters(desired));
-	if (!result.success) {
-		return { err: wrapUpdateError(result.err, desired), success: false };
+	const universeResult = await resolveUniverse(deps, desired);
+	if (!universeResult.success) {
+		return universeResult;
 	}
 
-	return toCurrentState(desired, result.data.rootPlaceId);
+	const { rootPlaceId } = universeResult.data;
+	if (desired.displayName !== undefined) {
+		const placesResult = await deps.places.update({
+			displayName: desired.displayName,
+			placeId: rootPlaceId,
+			universeId: desired.universeId,
+		});
+		if (!placesResult.success) {
+			return { err: placesResult.err, success: false };
+		}
+	}
+
+	return toCurrentState(desired, rootPlaceId);
 }

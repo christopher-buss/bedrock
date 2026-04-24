@@ -1,6 +1,6 @@
 import { ApiError } from "@bedrock/ocale";
 import { PlacesClient } from "@bedrock/ocale/places";
-import { createFakeHttpClient, validUniverseBody } from "@bedrock/ocale/testing";
+import { createFakeHttpClient, validPlaceBody, validUniverseBody } from "@bedrock/ocale/testing";
 import { UniversesClient } from "@bedrock/ocale/universes";
 
 import { PLATFORM_FLAG_ROWS, universeDesired } from "#tests/helpers/resources";
@@ -10,6 +10,8 @@ import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import { createUniverseDriver } from "./universe-driver.ts";
 
 const UNIVERSE_ID = "1234567890";
+const ROOT_PLACE_ID = "4711";
+const ROOT_PLACE_PATH = `universes/${UNIVERSE_ID}/places/${ROOT_PLACE_ID}`;
 
 interface MakeDriverOptions {
 	readonly schemaValidation?: "off" | "strict" | "warn";
@@ -264,5 +266,98 @@ describe(createUniverseDriver, () => {
 		expect(result.err.statusCode).toBe(200);
 		expect(result.err.message).toMatch(/rootPlaceId missing/);
 		expect(result.err.message).toContain(UNIVERSE_ID);
+	});
+
+	describe("displayName routing", () => {
+		it("should route a declared displayName through the root place after a successful universe patch", async () => {
+			expect.assertions(4);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({
+				body: validUniverseBody({
+					path: `universes/${UNIVERSE_ID}`,
+					rootPlace: ROOT_PLACE_PATH,
+				}),
+				status: 200,
+			});
+			http.mockResponse({
+				body: validPlaceBody({
+					displayName: "Fun Universe",
+					path: ROOT_PLACE_PATH,
+				}),
+				status: 200,
+			});
+
+			const result = await driver.create(
+				universeDesired({ displayName: "Fun Universe", voiceChatEnabled: true }),
+			);
+
+			assert(result.success);
+
+			expect(http.requests).toHaveLength(2);
+			expect(http.requests[0]!.request.method).toBe("PATCH");
+			expect(http.requests[1]!.request.url).toBe(
+				`/cloud/v2/universes/${UNIVERSE_ID}/places/${ROOT_PLACE_ID}?updateMask=displayName`,
+			);
+			expect(http.requests[1]!.request.body).toStrictEqual({
+				displayName: "Fun Universe",
+			});
+		});
+
+		it("should fall back to universes.get when only displayName is declared", async () => {
+			expect.assertions(4);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({
+				body: validUniverseBody({
+					path: `universes/${UNIVERSE_ID}`,
+					rootPlace: ROOT_PLACE_PATH,
+				}),
+				status: 200,
+			});
+			http.mockResponse({
+				body: validPlaceBody({
+					displayName: "Fun Universe",
+					path: ROOT_PLACE_PATH,
+				}),
+				status: 200,
+			});
+
+			const result = await driver.create(universeDesired({ displayName: "Fun Universe" }));
+
+			assert(result.success);
+
+			expect(http.requests).toHaveLength(2);
+			expect(http.requests[0]!.request.method).toBe("GET");
+			expect(http.requests[0]!.request.url).toBe(`/cloud/v2/universes/${UNIVERSE_ID}`);
+			expect(http.requests[1]!.request.url).toBe(
+				`/cloud/v2/universes/${UNIVERSE_ID}/places/${ROOT_PLACE_ID}?updateMask=displayName`,
+			);
+		});
+
+		it("should surface a places.update failure without rolling back the universe patch", async () => {
+			expect.assertions(3);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({
+				body: validUniverseBody({
+					path: `universes/${UNIVERSE_ID}`,
+					rootPlace: ROOT_PLACE_PATH,
+				}),
+				status: 200,
+			});
+			http.mockApiError({ message: "forbidden", statusCode: 403 });
+
+			const result = await driver.create(
+				universeDesired({ displayName: "Fun Universe", voiceChatEnabled: true }),
+			);
+
+			assert(!result.success);
+			assert(result.err instanceof ApiError);
+
+			expect(result.err.statusCode).toBe(403);
+			expect(http.requests).toHaveLength(2);
+			expect(http.requests[0]!.request.method).toBe("PATCH");
+		});
 	});
 });
