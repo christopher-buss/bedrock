@@ -34,4 +34,10 @@ export default mergeConfig(sharedConfig, {
 			customExports: addTestingSubpath,
 		},
 	},
+	ssr: {
+		resolve: {
+			conditions: ["source", "module", "default"],
+			externalConditions: ["source", "module", "default"],
+		},
+	},
 });
