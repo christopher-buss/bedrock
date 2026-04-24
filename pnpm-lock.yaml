@@ -191,9 +191,6 @@ importers:
       '@bedrock/testing':
         specifier: workspace:*
         version: link:packages/testing
-      '@bedrock/typescript-config':
-        specifier: workspace:*
-        version: link:packages/typescript-config
       '@bedrock/vite-config':
         specifier: workspace:*
         version: link:packages/vite-config
