@@ -1,3 +1,5 @@
+import type { SocialLink } from "@bedrock/ocale/universes";
+
 import {
 	asResourceKey,
 	type ResourceKey,
@@ -122,12 +124,14 @@ export interface PlaceOutputs {
  *
  * The universe is adopted rather than provisioned: the user supplies an
  * existing `universeId` (Open Cloud cannot mint universes) and bedrock
- * reconciles the declared managed fields against it. Managed fields use
- * `T | undefined` to mean "unmanaged" - the diff treats undefined as
- * absent and the driver omits the field from the `updateMask`. The
- * `privateServerPriceRobux` field is additionally key-presence aware:
- * a present key with `undefined` tells the driver to clear the server
- * value rather than leave it untouched.
+ * reconciles the declared managed fields against it.
+ *
+ * Most managed fields use `T | undefined` to mean "unmanaged": the diff
+ * treats `undefined` as absent and the driver omits the field from the
+ * `updateMask`. The clearable fields (`privateServerPriceRobux` and each
+ * social link) are additionally key-presence aware: a present key with
+ * `undefined` tells the driver to clear the server value (ocale emits
+ * JSON `null`), while an absent key leaves the server value untouched.
  *
  * @example
  *
@@ -141,12 +145,14 @@ export interface PlaceOutputs {
  * const universe: UniverseDesiredState = {
  *     consoleEnabled: undefined,
  *     desktopEnabled: true,
+ *     discordSocialLink: { title: "Join our Discord", uri: "https://discord.gg/example" },
  *     displayName: "Fun Universe",
  *     key: UNIVERSE_SINGLETON_KEY,
  *     kind: "universe",
  *     mobileEnabled: false,
  *     privateServerPriceRobux: undefined,
  *     tabletEnabled: undefined,
+ *     twitterSocialLink: undefined,
  *     universeId: asRobloxAssetId("1234567890"),
  *     visibility: "public",
  *     voiceChatEnabled: true,
@@ -155,6 +161,8 @@ export interface PlaceOutputs {
  *
  * expect(universe.kind).toBe("universe");
  * expect("privateServerPriceRobux" in universe).toBeTrue();
+ * expect(universe.discordSocialLink?.title).toBe("Join our Discord");
+ * expect(universe.twitterSocialLink).toBeUndefined();
  * ```
  */
 export interface UniverseDesiredState {
@@ -164,6 +172,8 @@ export interface UniverseDesiredState {
 	readonly consoleEnabled: boolean | undefined;
 	/** Whether desktop players can join; `undefined` leaves the server value untouched. */
 	readonly desktopEnabled: boolean | undefined;
+	/** Discord social link; tri-state (absent/undefined/set) — see interface JSDoc. */
+	readonly discordSocialLink?: SocialLink | undefined;
 	/**
 	 * Display name for the universe. `undefined` leaves the server
 	 * value untouched. The driver routes declared updates through
@@ -171,6 +181,10 @@ export interface UniverseDesiredState {
 	 * `displayName` as read-only.
 	 */
 	readonly displayName: string | undefined;
+	/** Facebook social link; tri-state (absent/undefined/set) — see interface JSDoc. */
+	readonly facebookSocialLink?: SocialLink | undefined;
+	/** Guilded social link; tri-state (absent/undefined/set) — see interface JSDoc. */
+	readonly guildedSocialLink?: SocialLink | undefined;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
 	readonly kind: "universe";
 	/** Whether mobile players can join; `undefined` leaves the server value untouched. */
@@ -181,8 +195,14 @@ export interface UniverseDesiredState {
 	 * value untouched.
 	 */
 	readonly privateServerPriceRobux?: number | undefined;
+	/** Roblox Group social link; tri-state (absent/undefined/set) — see interface JSDoc. */
+	readonly robloxGroupSocialLink?: SocialLink | undefined;
 	/** Whether tablet players can join; `undefined` leaves the server value untouched. */
 	readonly tabletEnabled: boolean | undefined;
+	/** Twitch social link; tri-state (absent/undefined/set) — see interface JSDoc. */
+	readonly twitchSocialLink?: SocialLink | undefined;
+	/** Twitter social link; tri-state (absent/undefined/set) — see interface JSDoc. */
+	readonly twitterSocialLink?: SocialLink | undefined;
 	/** User-supplied Roblox universe ID; the universe must already exist. */
 	readonly universeId: RobloxAssetId;
 	/**
@@ -195,6 +215,8 @@ export interface UniverseDesiredState {
 	readonly voiceChatEnabled: boolean | undefined;
 	/** Whether VR players can join; `undefined` leaves the server value untouched. */
 	readonly vrEnabled: boolean | undefined;
+	/** YouTube social link; tri-state (absent/undefined/set) — see interface JSDoc. */
+	readonly youtubeSocialLink?: SocialLink | undefined;
 }
 
 /**
@@ -215,6 +237,32 @@ export const UNIVERSE_MANAGED_FLAGS = [
 
 /** Key of an optional boolean managed field on {@link UniverseDesiredState}. */
 export type UniverseManagedFlag = (typeof UNIVERSE_MANAGED_FLAGS)[number];
+
+/**
+ * Tuple of every social link field name on {@link UniverseDesiredState}.
+ * Iterated by flatten, driver, and diff to handle the tri-state clearable
+ * semantics uniformly across all seven fields.
+ */
+export const SOCIAL_LINK_FIELDS = [
+	"discordSocialLink",
+	"facebookSocialLink",
+	"guildedSocialLink",
+	"robloxGroupSocialLink",
+	"twitchSocialLink",
+	"twitterSocialLink",
+	"youtubeSocialLink",
+] as const satisfies ReadonlyArray<keyof UniverseDesiredState>;
+
+/** Union of the seven social link field names on {@link UniverseDesiredState}. */
+export type SocialLinkField = (typeof SOCIAL_LINK_FIELDS)[number];
+
+/**
+ * Set view of {@link SOCIAL_LINK_FIELDS} for O(1) membership checks when
+ * classifying arbitrary `Object.keys(...)` values (for example
+ * `hasNoManagedFields` in `diff`). Typed as a set of `string` so it can
+ * accept unverified keys without a narrowing step at the call site.
+ */
+export const SOCIAL_LINK_FIELD_SET: ReadonlySet<string> = new Set(SOCIAL_LINK_FIELDS);
 
 /**
  * Discriminated union of every desired-state shape Bedrock manages.
@@ -346,6 +394,32 @@ export type ResourceCurrentState<K extends ResourceKind = ResourceKind> = K exte
 	: never;
 
 type Prettify<T> = { readonly [K in keyof T]: T[K] };
+
+type WithOptionalSocialLinks = Readonly<Partial<Record<SocialLinkField, SocialLink | undefined>>>;
+
+/**
+ * Copy every social link field that is present as a key on `source`,
+ * preserving the tri-state distinction between "key absent" (unmanaged,
+ * omitted from result) and "key present with `undefined`" (cleared,
+ * forwarded as-is). Shared by flatten, build-desired, and the universe
+ * driver so all three layers propagate the same tri-state semantics.
+ *
+ * @param source - Object whose declared social link keys should be copied.
+ * @returns Partial record containing only the social link keys present on
+ *   `source`; absent keys stay absent.
+ */
+export function copyDeclaredSocialLinks(
+	source: WithOptionalSocialLinks,
+): Partial<Record<SocialLinkField, SocialLink | undefined>> {
+	const copied: Partial<Record<SocialLinkField, SocialLink | undefined>> = {};
+	for (const field of SOCIAL_LINK_FIELDS) {
+		if (field in source) {
+			copied[field] = source[field];
+		}
+	}
+
+	return copied;
+}
 
 /**
  * Fixed stable key for the singleton universe resource. `flattenConfig`

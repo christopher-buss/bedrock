@@ -1,6 +1,7 @@
 import { PLATFORM_FLAG_ROWS } from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";
 
+import { SOCIAL_LINK_FIELDS } from "./resources.ts";
 import { validateConfig } from "./schema.ts";
 
 const SOURCE = "bedrock.config.ts";
@@ -487,6 +488,121 @@ describe(validateConfig, () => {
 		assert(result.err.kind === "validationFailed");
 
 		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "unexpected"]);
+	});
+
+	it.for(SOCIAL_LINK_FIELDS)(
+		"should accept a universe block with %s declared as a SocialLink object",
+		(field) => {
+			expect.assertions(2);
+
+			const result = validateConfig(
+				{
+					universe: {
+						[field]: { title: "Join us", uri: "https://example.com/x" },
+						universeId: "1234567890",
+					},
+				},
+				SOURCE,
+			);
+
+			assert(result.success);
+
+			expect(result.data.universe).toContainKey(field);
+			expect(result.data.universe![field]).toStrictEqual({
+				title: "Join us",
+				uri: "https://example.com/x",
+			});
+		},
+	);
+
+	it.for(SOCIAL_LINK_FIELDS)(
+		"should accept a universe block with %s declared as undefined and preserve the key",
+		(field) => {
+			expect.assertions(2);
+
+			const result = validateConfig(
+				{ universe: { [field]: undefined, universeId: "1234567890" } },
+				SOURCE,
+			);
+
+			assert(result.success);
+
+			expect(result.data.universe).toContainKey(field);
+			expect(result.data.universe![field]).toBeUndefined();
+		},
+	);
+
+	it.for(SOCIAL_LINK_FIELDS)(
+		"should omit %s from validated data when the key is absent in the config",
+		(field) => {
+			expect.assertions(1);
+
+			const result = validateConfig({ universe: { universeId: "1234567890" } }, SOURCE);
+
+			assert(result.success);
+
+			expect(result.data.universe).not.toContainKey(field);
+		},
+	);
+
+	it.for(SOCIAL_LINK_FIELDS)(
+		"should reject a %s that is missing uri and attribute the issue path to the uri field",
+		(field) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					universe: {
+						[field]: { title: "Join us" },
+						universeId: "1234567890",
+					},
+				},
+				SOURCE,
+			);
+
+			assert(!result.success);
+			assert(result.err.kind === "validationFailed");
+
+			expect(result.err.issues[0]!.path).toStrictEqual(["universe", field, "uri"]);
+		},
+	);
+
+	it.for(SOCIAL_LINK_FIELDS)("should reject an undeclared field inside a %s block", (field) => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				universe: {
+					[field]: { extra: 1, title: "Join us", uri: "https://example.com/x" },
+					universeId: "1234567890",
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["universe", field, "extra"]);
+	});
+
+	it("should accept a universe block with all seven social links declared together", () => {
+		expect.assertions(7);
+
+		const entry: Record<string, unknown> = { universeId: "1234567890" };
+		for (const field of SOCIAL_LINK_FIELDS) {
+			entry[field] = { title: `t-${field}`, uri: `https://example.com/${field}` };
+		}
+
+		const result = validateConfig({ universe: entry }, SOURCE);
+		assert(result.success);
+
+		for (const field of SOCIAL_LINK_FIELDS) {
+			expect(result.data.universe![field]).toStrictEqual({
+				title: `t-${field}`,
+				uri: `https://example.com/${field}`,
+			});
+		}
 	});
 
 	it("should accumulate every validation issue with its own attributed field path", () => {

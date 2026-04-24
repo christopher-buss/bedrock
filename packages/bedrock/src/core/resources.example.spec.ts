@@ -46,12 +46,17 @@ it('Example 3', () => {
   const universe: UniverseDesiredState = {
     consoleEnabled: undefined,
     desktopEnabled: true,
+    discordSocialLink: {
+      title: 'Join our Discord',
+      uri: 'https://discord.gg/example',
+    },
     displayName: 'Fun Universe',
     key: UNIVERSE_SINGLETON_KEY,
     kind: 'universe',
     mobileEnabled: false,
     privateServerPriceRobux: undefined,
     tabletEnabled: undefined,
+    twitterSocialLink: undefined,
     universeId: asRobloxAssetId('1234567890'),
     visibility: 'public',
     voiceChatEnabled: true,
@@ -59,6 +64,8 @@ it('Example 3', () => {
   }
   expect(universe.kind).toBe('universe')
   expect('privateServerPriceRobux' in universe).toBeTrue()
+  expect(universe.discordSocialLink?.title).toBe('Join our Discord')
+  expect(universe.twitterSocialLink).toBeUndefined()
 })
 
 it('Example 4', () => {

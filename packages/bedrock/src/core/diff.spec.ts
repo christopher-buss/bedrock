@@ -11,7 +11,7 @@ import { assert, describe, expect, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { diff } from "./diff.ts";
-import { UNIVERSE_SINGLETON_KEY } from "./resources.ts";
+import { SOCIAL_LINK_FIELDS, UNIVERSE_SINGLETON_KEY } from "./resources.ts";
 import type {
 	GamePassDesiredState,
 	ResourceCurrentState,
@@ -576,6 +576,197 @@ describe(diff, () => {
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
 			]);
+		});
+
+		describe("social links", () => {
+			const sampleLink = { title: "Old", uri: "https://example.com/old" };
+
+			it.for(SOCIAL_LINK_FIELDS)(
+				"should emit a noop when a declared %s matches the current value",
+				(field) => {
+					expect.assertions(1);
+
+					const desiredEntry = universeDesired({ [field]: sampleLink });
+					const currentEntry = universeCurrent({ [field]: sampleLink });
+
+					expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+						{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+					]);
+				},
+			);
+
+			it.for(SOCIAL_LINK_FIELDS)(
+				"should emit an update op when %s title drifts between desired and current",
+				(field) => {
+					expect.assertions(1);
+
+					const desiredEntry = universeDesired({
+						[field]: { title: "New", uri: sampleLink.uri },
+					});
+					const currentEntry = universeCurrent({ [field]: sampleLink });
+
+					expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+						{
+							key: UNIVERSE_SINGLETON_KEY,
+							current: currentEntry,
+							desired: desiredEntry,
+							type: "update",
+						},
+					]);
+				},
+			);
+
+			it.for(SOCIAL_LINK_FIELDS)(
+				"should emit an update op when %s uri drifts between desired and current",
+				(field) => {
+					expect.assertions(1);
+
+					const desiredEntry = universeDesired({
+						[field]: { title: sampleLink.title, uri: "https://example.com/new" },
+					});
+					const currentEntry = universeCurrent({ [field]: sampleLink });
+
+					expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+						{
+							key: UNIVERSE_SINGLETON_KEY,
+							current: currentEntry,
+							desired: desiredEntry,
+							type: "update",
+						},
+					]);
+				},
+			);
+
+			it.for(SOCIAL_LINK_FIELDS)(
+				"should emit an update op when %s is declared undefined on desired and current holds a link",
+				(field) => {
+					expect.assertions(1);
+
+					const desiredEntry = universeDesired({ [field]: undefined });
+					const currentEntry = universeCurrent({ [field]: sampleLink });
+
+					expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+						{
+							key: UNIVERSE_SINGLETON_KEY,
+							current: currentEntry,
+							desired: desiredEntry,
+							type: "update",
+						},
+					]);
+				},
+			);
+
+			it.for(SOCIAL_LINK_FIELDS)(
+				"should emit an update op when %s is declared with a link on desired but current holds no value for it",
+				(field) => {
+					expect.assertions(1);
+
+					const desiredEntry = universeDesired({ [field]: sampleLink });
+					const currentEntry = universeCurrent();
+
+					expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+						{
+							key: UNIVERSE_SINGLETON_KEY,
+							current: currentEntry,
+							desired: desiredEntry,
+							type: "update",
+						},
+					]);
+				},
+			);
+
+			it.for(SOCIAL_LINK_FIELDS)(
+				"should emit a noop when %s is declared undefined on desired and current is also undefined",
+				(field) => {
+					expect.assertions(1);
+
+					const desiredEntry = universeDesired({ [field]: undefined });
+					const currentEntry = universeCurrent();
+
+					expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+						{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+					]);
+				},
+			);
+
+			it.for(SOCIAL_LINK_FIELDS)(
+				"should emit a noop when %s is absent on desired regardless of current value",
+				(field) => {
+					expect.assertions(1);
+
+					const desiredEntry = universeDesired();
+					const currentEntry = universeCurrent({ [field]: sampleLink });
+
+					expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+						{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+					]);
+				},
+			);
+
+			it.for(SOCIAL_LINK_FIELDS)(
+				"should emit a noop when %s is absent on desired even though another managed field is declared and current holds a link",
+				(field) => {
+					expect.assertions(1);
+
+					const desiredEntry = universeDesired({ voiceChatEnabled: true });
+					const currentEntry = universeCurrent({
+						[field]: sampleLink,
+						voiceChatEnabled: true,
+					});
+
+					expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+						{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+					]);
+				},
+			);
+
+			it("should emit a noop when voiceChatEnabled is unmanaged on desired but managed on current, and a declared social link matches", () => {
+				expect.assertions(1);
+
+				const desiredEntry = universeDesired({ discordSocialLink: sampleLink });
+				const currentEntry = universeCurrent({
+					discordSocialLink: sampleLink,
+					voiceChatEnabled: true,
+				});
+
+				expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+					{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+				]);
+			});
+
+			it("should emit a create op when only a cleared social link is declared and current state is empty", () => {
+				expect.assertions(1);
+
+				const desiredEntry = universeDesired({ discordSocialLink: undefined });
+
+				expect(diff([desiredEntry], [])).toStrictEqual([
+					{ key: UNIVERSE_SINGLETON_KEY, desired: desiredEntry, type: "create" },
+				]);
+			});
+
+			it("should emit an update op when only a declared social link drifts among seven declared together", () => {
+				expect.assertions(1);
+
+				const overrides: Record<string, unknown> = {};
+				for (const field of SOCIAL_LINK_FIELDS) {
+					overrides[field] = { title: `t-${field}`, uri: `https://example.com/${field}` };
+				}
+
+				const desiredEntry = universeDesired({
+					...overrides,
+					discordSocialLink: { title: "Drifted", uri: "https://discord.gg/drifted" },
+				});
+				const currentEntry = universeCurrent(overrides);
+
+				expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+					{
+						key: UNIVERSE_SINGLETON_KEY,
+						current: currentEntry,
+						desired: desiredEntry,
+						type: "update",
+					},
+				]);
+			});
 		});
 	});
 });

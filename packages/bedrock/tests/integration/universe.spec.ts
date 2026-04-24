@@ -39,9 +39,33 @@ async function readFileNever(): Promise<Uint8Array> {
 	throw new Error("readFile must not run for a universe-only config");
 }
 
+const DiscordLink = {
+	title: "Join our Discord",
+	uri: "https://discord.gg/example",
+} as const;
+
+function makeUniverseRegistry(httpClient: ReturnType<typeof createFakeHttpClient>): DriverRegistry {
+	return {
+		gamePass: GAME_PASS_TRAP,
+		place: PLACE_TRAP,
+		universe: createUniverseDriver({
+			places: new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: async () => {},
+			}),
+			universes: new UniversesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: async () => {},
+			}),
+		}),
+	};
+}
+
 describe("universe pipeline end-to-end", () => {
 	it("should reconcile a declared universe through the full loadConfig to applyOps pipeline", async () => {
-		expect.assertions(5);
+		expect.assertions(3);
 
 		const loaded = await loadConfig({ cwd: UNIVERSE_FIXTURE_DIR });
 		assert(loaded.success);
@@ -49,7 +73,11 @@ describe("universe pipeline end-to-end", () => {
 		const desiredResult = await buildDesired(flattenConfig(loaded.data), readFileNever);
 		assert(desiredResult.success);
 
-		const httpClient = createFakeHttpClient().mockResponse({
+		// `twitterSocialLink: undefined` in the fixture flows through as a
+		// wire-level clear (JSON null), which the vendored OpenAPI does not
+		// mark nullable. Opt out of strict contract validation so the
+		// clear-via-undefined path remains observable end-to-end.
+		const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
 			body: validUniverseBody({
 				path: `universes/${UNIVERSE_ID}`,
 				rootPlace: `universes/${UNIVERSE_ID}/places/${ROOT_PLACE_ID}`,
@@ -57,22 +85,7 @@ describe("universe pipeline end-to-end", () => {
 			status: 200,
 		});
 
-		const registry: DriverRegistry = {
-			gamePass: GAME_PASS_TRAP,
-			place: PLACE_TRAP,
-			universe: createUniverseDriver({
-				places: new PlacesClient({
-					apiKey: "test-key",
-					httpClient,
-					sleep: async () => {},
-				}),
-				universes: new UniversesClient({
-					apiKey: "test-key",
-					httpClient,
-					sleep: async () => {},
-				}),
-			}),
-		};
+		const registry = makeUniverseRegistry(httpClient);
 
 		const ops = diff(desiredResult.data, []);
 
@@ -87,25 +100,93 @@ describe("universe pipeline end-to-end", () => {
 			key: UNIVERSE_SINGLETON_KEY,
 			consoleEnabled: undefined,
 			desktopEnabled: false,
+			discordSocialLink: DiscordLink,
 			displayName: undefined,
 			kind: "universe",
 			mobileEnabled: undefined,
 			outputs: { rootPlaceId: ROOT_PLACE_ID },
 			tabletEnabled: undefined,
+			twitterSocialLink: undefined,
 			universeId: UNIVERSE_ID,
 			visibility: undefined,
 			voiceChatEnabled: true,
 			vrEnabled: undefined,
 		});
+	});
 
-		expect(httpClient.requests).toHaveLength(1);
+	it("should emit an updateMask covering voiceChatEnabled, the set social link, the cleared social link, and desktopEnabled", async () => {
+		expect.assertions(2);
+
+		const loaded = await loadConfig({ cwd: UNIVERSE_FIXTURE_DIR });
+		assert(loaded.success);
+
+		const desiredResult = await buildDesired(flattenConfig(loaded.data), readFileNever);
+		assert(desiredResult.success);
+
+		const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+			body: validUniverseBody({
+				path: `universes/${UNIVERSE_ID}`,
+				rootPlace: `universes/${UNIVERSE_ID}/places/${ROOT_PLACE_ID}`,
+			}),
+			status: 200,
+		});
+
+		const registry = makeUniverseRegistry(httpClient);
+
+		const applyResult = await applyOps(diff(desiredResult.data, []), registry);
+		assert(applyResult.success);
 
 		const [first] = httpClient.requests;
 		assert(first);
 
-		expect(first.request.url).toBe(
-			`/cloud/v2/universes/${UNIVERSE_ID}?updateMask=desktopEnabled,voiceChatEnabled`,
+		expect(httpClient.requests).toHaveLength(1);
+		expect(new Set(extractUpdateMask(first.request.url))).toStrictEqual(
+			new Set([
+				"desktopEnabled",
+				"discordSocialLink",
+				"twitterSocialLink",
+				"voiceChatEnabled",
+			]),
 		);
+	});
+
+	it("should emit a request body that sets discordSocialLink, clears twitterSocialLink, and forwards voiceChatEnabled", async () => {
+		expect.assertions(4);
+
+		const loaded = await loadConfig({ cwd: UNIVERSE_FIXTURE_DIR });
+		assert(loaded.success);
+
+		const desiredResult = await buildDesired(flattenConfig(loaded.data), readFileNever);
+		assert(desiredResult.success);
+
+		const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+			body: validUniverseBody({
+				path: `universes/${UNIVERSE_ID}`,
+				rootPlace: `universes/${UNIVERSE_ID}/places/${ROOT_PLACE_ID}`,
+			}),
+			status: 200,
+		});
+
+		const registry = makeUniverseRegistry(httpClient);
+
+		await applyOps(diff(desiredResult.data, []), registry);
+
+		const [first] = httpClient.requests;
+		assert(first);
+
+		const body = first.request.body as Record<string, unknown>;
+
+		expect(Object.keys(body).toSorted()).toStrictEqual(
+			[
+				"desktopEnabled",
+				"discordSocialLink",
+				"twitterSocialLink",
+				"voiceChatEnabled",
+			].toSorted(),
+		);
+		expect(body["discordSocialLink"]).toStrictEqual(DiscordLink);
+		expect(body["twitterSocialLink"]).toBeNull();
+		expect(body["voiceChatEnabled"]).toBeTrue();
 	});
 
 	it("should reconcile visibility and displayName through a universe PATCH followed by a place PATCH", async () => {
@@ -128,22 +209,7 @@ describe("universe pipeline end-to-end", () => {
 				status: 200,
 			});
 
-		const registry: DriverRegistry = {
-			gamePass: GAME_PASS_TRAP,
-			place: PLACE_TRAP,
-			universe: createUniverseDriver({
-				places: new PlacesClient({
-					apiKey: "test-key",
-					httpClient,
-					sleep: async () => {},
-				}),
-				universes: new UniversesClient({
-					apiKey: "test-key",
-					httpClient,
-					sleep: async () => {},
-				}),
-			}),
-		};
+		const registry = makeUniverseRegistry(httpClient);
 
 		const ops = diff(
 			[
@@ -196,11 +262,13 @@ describe("universe pipeline end-to-end", () => {
 				key: UNIVERSE_SINGLETON_KEY,
 				consoleEnabled: undefined,
 				desktopEnabled: false,
+				discordSocialLink: DiscordLink,
 				displayName: undefined,
 				kind: "universe",
 				mobileEnabled: undefined,
 				outputs: { rootPlaceId: ROOT_PLACE_ID },
 				tabletEnabled: undefined,
+				twitterSocialLink: undefined,
 				universeId: UNIVERSE_ID,
 				visibility: undefined,
 				voiceChatEnabled: true,
@@ -227,4 +295,47 @@ describe("universe pipeline end-to-end", () => {
 
 		expect(applyResult.success).toBeTrue();
 	});
+
+	it("should emit an update op when the stored discordSocialLink drifts from the fixture", async () => {
+		expect.assertions(2);
+
+		const loaded = await loadConfig({ cwd: UNIVERSE_FIXTURE_DIR });
+		assert(loaded.success);
+
+		const desiredResult = await buildDesired(flattenConfig(loaded.data), readFileNever);
+		assert(desiredResult.success);
+
+		const ops = diff(desiredResult.data, [
+			{
+				key: UNIVERSE_SINGLETON_KEY,
+				consoleEnabled: undefined,
+				desktopEnabled: false,
+				discordSocialLink: { title: "Old Discord", uri: "https://discord.gg/old" },
+				displayName: undefined,
+				kind: "universe",
+				mobileEnabled: undefined,
+				outputs: { rootPlaceId: ROOT_PLACE_ID },
+				tabletEnabled: undefined,
+				twitterSocialLink: undefined,
+				universeId: UNIVERSE_ID,
+				visibility: undefined,
+				voiceChatEnabled: true,
+				vrEnabled: undefined,
+			},
+		]);
+
+		expect(ops.map((op) => op.type)).toStrictEqual(["update"]);
+
+		const [op] = ops;
+		assert(op?.type === "update");
+
+		expect(op.desired).toBe(desiredResult.data[0]);
+	});
 });
+
+function extractUpdateMask(url: string): ReadonlyArray<string> {
+	const query = url.slice(url.indexOf("?") + 1);
+	const parameters = new URLSearchParams(query);
+	const mask = parameters.get("updateMask");
+	return mask === null ? [] : mask.split(",");
+}
