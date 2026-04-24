@@ -81,11 +81,13 @@ describe("universe pipeline end-to-end", () => {
 			key: UNIVERSE_SINGLETON_KEY,
 			consoleEnabled: undefined,
 			desktopEnabled: false,
+			displayName: undefined,
 			kind: "universe",
 			mobileEnabled: undefined,
 			outputs: { rootPlaceId: ROOT_PLACE_ID },
 			tabletEnabled: undefined,
 			universeId: UNIVERSE_ID,
+			visibility: undefined,
 			voiceChatEnabled: true,
 			vrEnabled: undefined,
 		});
