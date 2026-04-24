@@ -162,5 +162,26 @@ describe(buildUpdateRequest, () => {
 
 			expect(result.data.body).toStrictEqual({ privateServerPriceRobux: 25 });
 		});
+
+		it.for([
+			["private", "PRIVATE"],
+			["public", "PUBLIC"],
+			["unspecified", "VISIBILITY_UNSPECIFIED"],
+		] as const)(
+			"should translate visibility %s to wire enum %s in the body and mask",
+			([visibility, wire]) => {
+				expect.assertions(2);
+
+				const result = buildUpdateRequest({
+					universeId: "123",
+					visibility,
+				});
+
+				assert(result.success);
+
+				expect(result.data.body).toStrictEqual({ visibility: wire });
+				expect(result.data.url).toEndWith("?updateMask=visibility");
+			},
+		);
 	});
 });

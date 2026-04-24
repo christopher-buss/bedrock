@@ -366,6 +366,115 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "universeId"]);
 	});
 
+	it("should accept a universe block with all four optional managed fields declared", () => {
+		expect.assertions(4);
+
+		const result = validateConfig(
+			{
+				universe: {
+					displayName: "Fun Universe",
+					privateServerPriceRobux: 250,
+					universeId: "1234567890",
+					visibility: "public",
+					voiceChatEnabled: true,
+				},
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.universe!.displayName).toBe("Fun Universe");
+		expect(result.data.universe!.visibility).toBe("public");
+		expect(result.data.universe!.privateServerPriceRobux).toBe(250);
+		expect(result.data.universe!.voiceChatEnabled).toBeTrue();
+	});
+
+	it("should preserve key-presence when privateServerPriceRobux is declared as undefined", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				universe: {
+					privateServerPriceRobux: undefined,
+					universeId: "1234567890",
+				},
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect("privateServerPriceRobux" in result.data.universe!).toBeTrue();
+		expect(result.data.universe!.privateServerPriceRobux).toBeUndefined();
+	});
+
+	it("should omit privateServerPriceRobux when the user does not declare it", () => {
+		expect.assertions(1);
+
+		const result = validateConfig({ universe: { universeId: "1234567890" } }, SOURCE);
+
+		assert(result.success);
+
+		expect("privateServerPriceRobux" in result.data.universe!).toBeFalse();
+	});
+
+	it.for(["private", "public", "unspecified"] as const)(
+		"should accept visibility value %s",
+		(value) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{ universe: { universeId: "1234567890", visibility: value } },
+				SOURCE,
+			);
+
+			expect(result.success).toBeTrue();
+		},
+	);
+
+	it("should reject a visibility value outside the three-member union", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{ universe: { universeId: "1234567890", visibility: "internal" } },
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "visibility"]);
+	});
+
+	it("should reject a negative privateServerPriceRobux", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{ universe: { privateServerPriceRobux: -1, universeId: "1234567890" } },
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "privateServerPriceRobux"]);
+	});
+
+	it("should reject a non-integer privateServerPriceRobux", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{ universe: { privateServerPriceRobux: 12.5, universeId: "1234567890" } },
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "privateServerPriceRobux"]);
+	});
+
 	it("should reject an undeclared field on a universe block", () => {
 		expect.assertions(1);
 

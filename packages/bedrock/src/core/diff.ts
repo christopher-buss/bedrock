@@ -1,12 +1,12 @@
 import type { Operation } from "./operations.ts";
-import type {
-	GamePassDesiredState,
-	PlaceDesiredState,
-	ResourceCurrentState,
-	ResourceDesiredState,
-	UniverseDesiredState,
+import {
+	type GamePassDesiredState,
+	type PlaceDesiredState,
+	type ResourceCurrentState,
+	type ResourceDesiredState,
+	UNIVERSE_MANAGED_FLAGS,
+	type UniverseDesiredState,
 } from "./resources.ts";
-import { UNIVERSE_MANAGED_FLAGS } from "./resources.ts";
 
 /**
  * Computes the operations required to reconcile `current` state with `desired`
@@ -94,9 +94,9 @@ export function diff(
 
 // Resource-kind identity keys. Every field on a `ResourceDesiredState`
 // that is not in this set is a user-managed field; `hasNoManagedFields`
-// returns true when no non-identity field has a declared value. Only
+// returns true when no non-identity key is present on the object. Only
 // universe supports "all optional → noop on apply"; the other kinds'
-// required fields (name, description, filePath, etc.) are always defined,
+// required fields (name, description, filePath, etc.) are always present,
 // so the loop naturally returns false for them without a kind guard.
 const IDENTITY_KEYS: ReadonlySet<string> = new Set([
 	"key",
@@ -108,6 +108,10 @@ const IDENTITY_KEYS: ReadonlySet<string> = new Set([
 >);
 
 function hasNoManagedFields(desired: ResourceDesiredState): boolean {
+	if ("privateServerPriceRobux" in desired) {
+		return false;
+	}
+
 	for (const [key, value] of Object.entries(desired)) {
 		if (!IDENTITY_KEYS.has(key) && value !== undefined) {
 			return false;
@@ -157,6 +161,21 @@ function universeFieldsEqual(
 		if (isDesiredEnabled !== undefined && isDesiredEnabled !== current[flag]) {
 			return false;
 		}
+	}
+
+	if (desired.displayName !== undefined && desired.displayName !== current.displayName) {
+		return false;
+	}
+
+	if (desired.visibility !== undefined && desired.visibility !== current.visibility) {
+		return false;
+	}
+
+	if (
+		"privateServerPriceRobux" in desired &&
+		desired.privateServerPriceRobux !== current.privateServerPriceRobux
+	) {
+		return false;
 	}
 
 	return true;

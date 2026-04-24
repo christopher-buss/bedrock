@@ -1,4 +1,5 @@
 import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
+import type { PlacesClient } from "@bedrock/ocale/places";
 import type { UniversesClient, UpdateUniverseParameters } from "@bedrock/ocale/universes";
 
 import type { ResourceCurrentState, UniverseDesiredState } from "../core/resources.ts";
@@ -7,14 +8,22 @@ import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId } from "../types/ids.ts";
 
 /**
- * Dependencies of `createUniverseDriver`. The driver talks only to the
- * configured {@link UniversesClient}; there is no `universeId` at
- * construction time because the universe *is* the resource the driver
- * reconciles, so the ID rides along on each `UniverseDesiredState`.
+ * Dependencies of `createUniverseDriver`. The driver reconciles the
+ * universe singleton against both the universes endpoint and the root
+ * place (for fields Roblox marks read-only on the universe, like
+ * `displayName`). There is no `universeId` at construction time because
+ * the universe *is* the resource the driver reconciles, so the ID rides
+ * along on each `UniverseDesiredState`.
  */
 export interface UniverseDriverDeps {
+	/** Configured places client from `@bedrock/ocale/places`. */
+	readonly places: PlacesClient;
 	/** Configured universes client from `@bedrock/ocale/universes`. */
-	readonly client: UniversesClient;
+	readonly universes: UniversesClient;
+}
+
+interface ResolvedUniverse {
+	readonly rootPlaceId: string;
 }
 
 /**
@@ -30,12 +39,22 @@ export interface UniverseDriverDeps {
  * absent surfaces as an `ApiError` with status 200, mirroring the
  * malformed-response guard in `GamePassDriver`.
  *
- * @param deps - Injected ocale client.
+ * When `displayName` is declared, the driver routes that field through
+ * `PlacesClient.update` on the root place after the universe PATCH
+ * succeeds. A subsequent places failure surfaces to the caller as the
+ * driver's error result without rolling back the prior universe patch,
+ * so callers observing a partial failure should reconcile by
+ * reapplying rather than assuming the universe-level fields are
+ * unchanged.
+ *
+ * @param deps - Injected ocale clients (universes plus places for the
+ *   read-only universe fields Roblox derives from the root place).
  * @returns A driver indexable by `"universe"` in a `DriverRegistry`.
  *
  * @example
  *
  * ```ts
+ * import { PlacesClient } from "@bedrock/ocale/places";
  * import { UniversesClient } from "@bedrock/ocale/universes";
  * import { validUniverseBody } from "@bedrock/ocale/testing";
  * import {
@@ -45,7 +64,26 @@ export interface UniverseDriverDeps {
  * } from "@bedrock/core";
  *
  * const driver = createUniverseDriver({
- *     client: new UniversesClient({
+ *     places: new PlacesClient({
+ *         apiKey: "rbx-your-key",
+ *         httpClient: {
+ *             async request() {
+ *                 return {
+ *                     data: {
+ *                         body: validUniverseBody({
+ *                             path: "universes/1234567890",
+ *                             rootPlace: "universes/1234567890/places/4711",
+ *                         }),
+ *                         headers: {},
+ *                         status: 200,
+ *                     },
+ *                     success: true,
+ *                 };
+ *             },
+ *         },
+ *         sleep: async () => {},
+ *     }),
+ *     universes: new UniversesClient({
  *         apiKey: "rbx-your-key",
  *         httpClient: {
  *             async request() {
@@ -70,11 +108,14 @@ export interface UniverseDriverDeps {
  *     .create({
  *         consoleEnabled: undefined,
  *         desktopEnabled: true,
+ *         displayName: undefined,
  *         key: UNIVERSE_SINGLETON_KEY,
  *         kind: "universe",
  *         mobileEnabled: undefined,
+ *         privateServerPriceRobux: undefined,
  *         tabletEnabled: undefined,
  *         universeId: asRobloxAssetId("1234567890"),
+ *         visibility: "public",
  *         voiceChatEnabled: true,
  *         vrEnabled: undefined,
  *     })
@@ -97,14 +138,31 @@ export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"
 	};
 }
 
+function toCurrentState(
+	desired: UniverseDesiredState,
+	rootPlaceId: string,
+): ResourceCurrentState<"universe"> {
+	return {
+		...desired,
+		outputs: { rootPlaceId: asRobloxAssetId(rootPlaceId) },
+	};
+}
+
 function buildParameters(desired: UniverseDesiredState): UpdateUniverseParameters {
-	return UNIVERSE_MANAGED_FLAGS.reduce<UpdateUniverseParameters>(
+	const base = UNIVERSE_MANAGED_FLAGS.reduce<UpdateUniverseParameters>(
 		(accumulator, flag) => {
 			const isEnabled = desired[flag];
 			return isEnabled === undefined ? accumulator : { ...accumulator, [flag]: isEnabled };
 		},
 		{ universeId: desired.universeId },
 	);
+
+	const withVisibility =
+		desired.visibility === undefined ? base : { ...base, visibility: desired.visibility };
+
+	return "privateServerPriceRobux" in desired
+		? { ...withVisibility, privateServerPriceRobux: desired.privateServerPriceRobux }
+		: withVisibility;
 }
 
 function wrapUpdateError(err: OpenCloudError, desired: UniverseDesiredState): OpenCloudError {
@@ -118,10 +176,31 @@ function wrapUpdateError(err: OpenCloudError, desired: UniverseDesiredState): Op
 	return err;
 }
 
-function toCurrentState(
+function hasUniverseLevelUpdate(desired: UniverseDesiredState): boolean {
+	if (UNIVERSE_MANAGED_FLAGS.some((flag) => desired[flag] !== undefined)) {
+		return true;
+	}
+
+	if (desired.visibility !== undefined) {
+		return true;
+	}
+
+	return "privateServerPriceRobux" in desired;
+}
+
+async function resolveUniverse(
+	deps: UniverseDriverDeps,
 	desired: UniverseDesiredState,
-	rootPlaceId: string | undefined,
-): Result<ResourceCurrentState<"universe">, OpenCloudError> {
+): Promise<Result<ResolvedUniverse, OpenCloudError>> {
+	const result = hasUniverseLevelUpdate(desired)
+		? await deps.universes.update(buildParameters(desired))
+		: await deps.universes.get({ universeId: desired.universeId });
+
+	if (!result.success) {
+		return { err: wrapUpdateError(result.err, desired), success: false };
+	}
+
+	const { rootPlaceId } = result.data;
 	if (rootPlaceId === undefined) {
 		return {
 			err: new ApiError(
@@ -132,23 +211,29 @@ function toCurrentState(
 		};
 	}
 
-	return {
-		data: {
-			...desired,
-			outputs: { rootPlaceId: asRobloxAssetId(rootPlaceId) },
-		},
-		success: true,
-	};
+	return { data: { rootPlaceId }, success: true };
 }
 
 async function reconcileUniverse(
 	deps: UniverseDriverDeps,
 	desired: UniverseDesiredState,
 ): Promise<Result<ResourceCurrentState<"universe">, OpenCloudError>> {
-	const result = await deps.client.update(buildParameters(desired));
-	if (!result.success) {
-		return { err: wrapUpdateError(result.err, desired), success: false };
+	const universeResult = await resolveUniverse(deps, desired);
+	if (!universeResult.success) {
+		return universeResult;
 	}
 
-	return toCurrentState(desired, result.data.rootPlaceId);
+	const { rootPlaceId } = universeResult.data;
+	if (desired.displayName !== undefined) {
+		const placesResult = await deps.places.update({
+			displayName: desired.displayName,
+			placeId: rootPlaceId,
+			universeId: desired.universeId,
+		});
+		if (!placesResult.success) {
+			return { err: placesResult.err, success: false };
+		}
+	}
+
+	return { data: toCurrentState(desired, rootPlaceId), success: true };
 }

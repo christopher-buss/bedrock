@@ -4,6 +4,7 @@ import {
 	type RobloxAssetId,
 	type Sha256Hex,
 } from "../types/ids.ts";
+import type { UniverseVisibility } from "./schema.ts";
 
 /**
  * Desired state for a game pass, as declared in user config.
@@ -121,9 +122,12 @@ export interface PlaceOutputs {
  *
  * The universe is adopted rather than provisioned: the user supplies an
  * existing `universeId` (Open Cloud cannot mint universes) and bedrock
- * reconciles the declared managed fields against it. Optional managed fields
- * use `T | undefined` to mean "unmanaged" - the diff treats undefined as
- * absent and the driver omits the field from the `updateMask`.
+ * reconciles the declared managed fields against it. Managed fields use
+ * `T | undefined` to mean "unmanaged" - the diff treats undefined as
+ * absent and the driver omits the field from the `updateMask`. The
+ * `privateServerPriceRobux` field is additionally key-presence aware:
+ * a present key with `undefined` tells the driver to clear the server
+ * value rather than leave it untouched.
  *
  * @example
  *
@@ -137,20 +141,20 @@ export interface PlaceOutputs {
  * const universe: UniverseDesiredState = {
  *     consoleEnabled: undefined,
  *     desktopEnabled: true,
+ *     displayName: "Fun Universe",
  *     key: UNIVERSE_SINGLETON_KEY,
  *     kind: "universe",
  *     mobileEnabled: false,
+ *     privateServerPriceRobux: undefined,
  *     tabletEnabled: undefined,
  *     universeId: asRobloxAssetId("1234567890"),
+ *     visibility: "public",
  *     voiceChatEnabled: true,
  *     vrEnabled: undefined,
  * };
  *
  * expect(universe.kind).toBe("universe");
- * expect(universe.key).toBe("main");
- * expect(universe.desktopEnabled).toBeTrue();
- * expect(universe.mobileEnabled).toBeFalse();
- * expect(universe.consoleEnabled).toBeUndefined();
+ * expect("privateServerPriceRobux" in universe).toBeTrue();
  * ```
  */
 export interface UniverseDesiredState {
@@ -160,14 +164,33 @@ export interface UniverseDesiredState {
 	readonly consoleEnabled: boolean | undefined;
 	/** Whether desktop players can join; `undefined` leaves the server value untouched. */
 	readonly desktopEnabled: boolean | undefined;
+	/**
+	 * Display name for the universe. `undefined` leaves the server
+	 * value untouched. The driver routes declared updates through
+	 * `PlacesClient.update` because the universe PATCH endpoint treats
+	 * `displayName` as read-only.
+	 */
+	readonly displayName: string | undefined;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
 	readonly kind: "universe";
 	/** Whether mobile players can join; `undefined` leaves the server value untouched. */
 	readonly mobileEnabled: boolean | undefined;
+	/**
+	 * Private-server price in Robux. A present key with `undefined`
+	 * clears the server value on apply; an absent key leaves the server
+	 * value untouched.
+	 */
+	readonly privateServerPriceRobux?: number | undefined;
 	/** Whether tablet players can join; `undefined` leaves the server value untouched. */
 	readonly tabletEnabled: boolean | undefined;
 	/** User-supplied Roblox universe ID; the universe must already exist. */
 	readonly universeId: RobloxAssetId;
+	/**
+	 * Universe visibility. Declaring `"private"` immediately removes
+	 * active players from running servers; `undefined` leaves the
+	 * server value untouched.
+	 */
+	readonly visibility: undefined | UniverseVisibility;
 	/** Whether voice chat is enabled; `undefined` leaves the server value untouched. */
 	readonly voiceChatEnabled: boolean | undefined;
 	/** Whether VR players can join; `undefined` leaves the server value untouched. */

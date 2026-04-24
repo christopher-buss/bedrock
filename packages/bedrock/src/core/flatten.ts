@@ -5,7 +5,7 @@ import {
 	type RobloxAssetId,
 } from "../types/ids.ts";
 import { UNIVERSE_SINGLETON_KEY } from "./resources.ts";
-import type { Config, GamePassEntry } from "./schema.ts";
+import type { Config, GamePassEntry, UniverseVisibility } from "./schema.ts";
 
 /**
  * Pre-I/O game-pass input the flattener emits. Extends the authored
@@ -83,11 +83,13 @@ export interface PlaceDesiredInput {
  * const input: UniverseDesiredInput = {
  *     consoleEnabled: undefined,
  *     desktopEnabled: true,
+ *     displayName: undefined,
  *     key: UNIVERSE_SINGLETON_KEY,
  *     kind: "universe",
  *     mobileEnabled: undefined,
  *     tabletEnabled: undefined,
  *     universeId: asRobloxAssetId("1234567890"),
+ *     visibility: undefined,
  *     voiceChatEnabled: true,
  *     vrEnabled: undefined,
  * };
@@ -104,14 +106,33 @@ export interface UniverseDesiredInput {
 	readonly consoleEnabled: boolean | undefined;
 	/** Whether desktop players can join; `undefined` leaves the server value untouched. */
 	readonly desktopEnabled: boolean | undefined;
+	/**
+	 * Display name for the universe. `undefined` leaves the server value
+	 * untouched. The driver routes declared updates through
+	 * `PlacesClient.update` because the universe PATCH endpoint treats
+	 * `displayName` as read-only.
+	 */
+	readonly displayName: string | undefined;
 	/** Discriminator tag for the `ResourceDesiredInput` union. */
 	readonly kind: "universe";
 	/** Whether mobile players can join; `undefined` leaves the server value untouched. */
 	readonly mobileEnabled: boolean | undefined;
+	/**
+	 * Private-server price in Robux. A present key with `undefined`
+	 * clears the server value (ocale emits JSON `null`); an absent key
+	 * leaves the server value untouched.
+	 */
+	readonly privateServerPriceRobux?: number | undefined;
 	/** Whether tablet players can join; `undefined` leaves the server value untouched. */
 	readonly tabletEnabled: boolean | undefined;
 	/** Existing Roblox universe ID, validated and branded at flatten time. */
 	readonly universeId: RobloxAssetId;
+	/**
+	 * Universe visibility. Declaring `"private"` immediately removes
+	 * active players from running servers; `undefined` leaves the
+	 * server value untouched.
+	 */
+	readonly visibility: undefined | UniverseVisibility;
 	/** Whether voice chat is enabled; `undefined` leaves the server value untouched. */
 	readonly voiceChatEnabled: boolean | undefined;
 	/** Whether VR players can join; `undefined` leaves the server value untouched. */
@@ -191,15 +212,21 @@ export function flattenConfig(config: Config): ReadonlyArray<ResourceDesiredInpu
 }
 
 function universeInput(entry: NonNullable<Config["universe"]>): UniverseDesiredInput {
-	return {
+	const base: UniverseDesiredInput = {
 		key: UNIVERSE_SINGLETON_KEY,
 		consoleEnabled: entry.consoleEnabled,
 		desktopEnabled: entry.desktopEnabled,
+		displayName: entry.displayName,
 		kind: "universe",
 		mobileEnabled: entry.mobileEnabled,
 		tabletEnabled: entry.tabletEnabled,
 		universeId: asRobloxAssetId(entry.universeId),
+		visibility: entry.visibility,
 		voiceChatEnabled: entry.voiceChatEnabled,
 		vrEnabled: entry.vrEnabled,
 	};
+
+	return "privateServerPriceRobux" in entry
+		? { ...base, privateServerPriceRobux: entry.privateServerPriceRobux }
+		: base;
 }

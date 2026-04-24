@@ -37,6 +37,7 @@ export {
 	type GamePassEntry,
 	type PlaceEntry,
 	type UniverseEntry,
+	type UniverseVisibility,
 } from "./core/schema.ts";
 export type { BedrockState, StateError } from "./core/state.ts";
 export type { DriverRegistry, ResourceDriver } from "./ports/resource-driver.ts";

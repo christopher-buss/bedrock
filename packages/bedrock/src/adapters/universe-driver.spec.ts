@@ -1,5 +1,6 @@
 import { ApiError } from "@bedrock/ocale";
-import { createFakeHttpClient, validUniverseBody } from "@bedrock/ocale/testing";
+import { PlacesClient } from "@bedrock/ocale/places";
+import { createFakeHttpClient, validPlaceBody, validUniverseBody } from "@bedrock/ocale/testing";
 import { UniversesClient } from "@bedrock/ocale/universes";
 
 import { PLATFORM_FLAG_ROWS, universeDesired } from "#tests/helpers/resources";
@@ -9,11 +10,24 @@ import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import { createUniverseDriver } from "./universe-driver.ts";
 
 const UNIVERSE_ID = "1234567890";
+const ROOT_PLACE_ID = "4711";
+const ROOT_PLACE_PATH = `universes/${UNIVERSE_ID}/places/${ROOT_PLACE_ID}`;
 
-function makeDriver() {
-	const http = createFakeHttpClient();
+interface MakeDriverOptions {
+	readonly schemaValidation?: "off" | "strict" | "warn";
+}
+
+function makeDriver(options: MakeDriverOptions = {}) {
+	const http = createFakeHttpClient({
+		schemaValidation: options.schemaValidation ?? "strict",
+	});
 	const driver = createUniverseDriver({
-		client: new UniversesClient({
+		places: new PlacesClient({
+			apiKey: "test-api-key",
+			httpClient: http,
+			sleep: async () => {},
+		}),
+		universes: new UniversesClient({
 			apiKey: "test-api-key",
 			httpClient: http,
 			sleep: async () => {},
@@ -95,6 +109,63 @@ describe(createUniverseDriver, () => {
 		expect(http.requests[0]!.request.url).toBe(
 			`/cloud/v2/universes/${UNIVERSE_ID}?updateMask=desktopEnabled,mobileEnabled,tabletEnabled,consoleEnabled,vrEnabled,voiceChatEnabled`,
 		);
+	});
+
+	it("should translate visibility into the PATCH body and mask when declared", async () => {
+		expect.assertions(2);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: validUniverseBody(), status: 200 });
+
+		await driver.create(universeDesired({ visibility: "public" }));
+
+		expect(http.requests[0]!.request.body).toStrictEqual({ visibility: "PUBLIC" });
+		expect(http.requests[0]!.request.url).toBe(
+			`/cloud/v2/universes/${UNIVERSE_ID}?updateMask=visibility`,
+		);
+	});
+
+	it("should forward privateServerPriceRobux when declared with a numeric value", async () => {
+		expect.assertions(1);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: validUniverseBody(), status: 200 });
+
+		await driver.create(universeDesired({ privateServerPriceRobux: 250 }));
+
+		expect(http.requests[0]!.request.body).toStrictEqual({
+			privateServerPriceRobux: 250,
+		});
+	});
+
+	it("should emit JSON null for privateServerPriceRobux when declared as undefined", async () => {
+		expect.assertions(1);
+
+		// Roblox's OpenAPI spec omits `nullable: true` on
+		// `privateServerPriceRobux` even though the description documents
+		// null as the "clear" sentinel; the strict contract check enforces
+		// the declared integer type, so this scenario opts out to exercise
+		// the runtime-accepted null emission.
+		const { driver, http } = makeDriver({ schemaValidation: "off" });
+		http.mockResponse({ body: validUniverseBody(), status: 200 });
+
+		await driver.create(universeDesired({ privateServerPriceRobux: undefined }));
+
+		expect(http.requests[0]!.request.body).toStrictEqual({
+			privateServerPriceRobux: JSON.parse("null"),
+		});
+	});
+
+	it("should omit privateServerPriceRobux when the desired state does not declare it", async () => {
+		expect.assertions(2);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: validUniverseBody(), status: 200 });
+
+		await driver.create(universeDesired({ voiceChatEnabled: false }));
+
+		expect(http.requests[0]!.request.body).not.toHaveProperty("privateServerPriceRobux");
+		expect(http.requests[0]!.request.url).not.toContain("privateServerPriceRobux");
 	});
 
 	it("should return a current state carrying outputs.rootPlaceId extracted from the response", async () => {
@@ -195,5 +266,98 @@ describe(createUniverseDriver, () => {
 		expect(result.err.statusCode).toBe(200);
 		expect(result.err.message).toMatch(/rootPlaceId missing/);
 		expect(result.err.message).toContain(UNIVERSE_ID);
+	});
+
+	describe("displayName routing", () => {
+		it("should route a declared displayName through the root place after a successful universe patch", async () => {
+			expect.assertions(4);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({
+				body: validUniverseBody({
+					path: `universes/${UNIVERSE_ID}`,
+					rootPlace: ROOT_PLACE_PATH,
+				}),
+				status: 200,
+			});
+			http.mockResponse({
+				body: validPlaceBody({
+					displayName: "Fun Universe",
+					path: ROOT_PLACE_PATH,
+				}),
+				status: 200,
+			});
+
+			const result = await driver.create(
+				universeDesired({ displayName: "Fun Universe", voiceChatEnabled: true }),
+			);
+
+			assert(result.success);
+
+			expect(http.requests).toHaveLength(2);
+			expect(http.requests[0]!.request.method).toBe("PATCH");
+			expect(http.requests[1]!.request.url).toBe(
+				`/cloud/v2/universes/${UNIVERSE_ID}/places/${ROOT_PLACE_ID}?updateMask=displayName`,
+			);
+			expect(http.requests[1]!.request.body).toStrictEqual({
+				displayName: "Fun Universe",
+			});
+		});
+
+		it("should fall back to universes.get when only displayName is declared", async () => {
+			expect.assertions(4);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({
+				body: validUniverseBody({
+					path: `universes/${UNIVERSE_ID}`,
+					rootPlace: ROOT_PLACE_PATH,
+				}),
+				status: 200,
+			});
+			http.mockResponse({
+				body: validPlaceBody({
+					displayName: "Fun Universe",
+					path: ROOT_PLACE_PATH,
+				}),
+				status: 200,
+			});
+
+			const result = await driver.create(universeDesired({ displayName: "Fun Universe" }));
+
+			assert(result.success);
+
+			expect(http.requests).toHaveLength(2);
+			expect(http.requests[0]!.request.method).toBe("GET");
+			expect(http.requests[0]!.request.url).toBe(`/cloud/v2/universes/${UNIVERSE_ID}`);
+			expect(http.requests[1]!.request.url).toBe(
+				`/cloud/v2/universes/${UNIVERSE_ID}/places/${ROOT_PLACE_ID}?updateMask=displayName`,
+			);
+		});
+
+		it("should surface a places.update failure without rolling back the universe patch", async () => {
+			expect.assertions(3);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({
+				body: validUniverseBody({
+					path: `universes/${UNIVERSE_ID}`,
+					rootPlace: ROOT_PLACE_PATH,
+				}),
+				status: 200,
+			});
+			http.mockApiError({ message: "forbidden", statusCode: 403 });
+
+			const result = await driver.create(
+				universeDesired({ displayName: "Fun Universe", voiceChatEnabled: true }),
+			);
+
+			assert(!result.success);
+			assert(result.err instanceof ApiError);
+
+			expect(result.err.statusCode).toBe(403);
+			expect(http.requests).toHaveLength(2);
+			expect(http.requests[0]!.request.method).toBe("PATCH");
+		});
 	});
 });

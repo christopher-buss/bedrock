@@ -166,10 +166,12 @@ describe(flattenConfig, () => {
 				key: UNIVERSE_SINGLETON_KEY,
 				consoleEnabled: undefined,
 				desktopEnabled: undefined,
+				displayName: undefined,
 				kind: "universe",
 				mobileEnabled: undefined,
 				tabletEnabled: undefined,
 				universeId: asRobloxAssetId("1234567890"),
+				visibility: undefined,
 				voiceChatEnabled: true,
 				vrEnabled: undefined,
 			},
@@ -254,6 +256,69 @@ describe(flattenConfig, () => {
 			expect(input[flag]).toBeUndefined();
 		},
 	);
+
+	it("should carry every declared universe managed field onto the input", () => {
+		expect.assertions(5);
+
+		const config = validateConfig(
+			{
+				universe: {
+					displayName: "Fun Universe",
+					privateServerPriceRobux: 250,
+					universeId: "1234567890",
+					visibility: "public",
+					voiceChatEnabled: true,
+				},
+			},
+			"bedrock.config.ts",
+		);
+		assert(config.success);
+
+		const input = flattenConfig(config.data)[0]!;
+		assert(input.kind === "universe");
+
+		expect(input.displayName).toBe("Fun Universe");
+		expect(input.visibility).toBe("public");
+		expect(input.privateServerPriceRobux).toBe(250);
+		expect(input.voiceChatEnabled).toBeTrue();
+		expect(input.universeId).toBe(asRobloxAssetId("1234567890"));
+	});
+
+	it("should preserve key-presence when privateServerPriceRobux is declared as undefined", () => {
+		expect.assertions(2);
+
+		const config = validateConfig(
+			{
+				universe: {
+					privateServerPriceRobux: undefined,
+					universeId: "1234567890",
+				},
+			},
+			"bedrock.config.ts",
+		);
+		assert(config.success);
+
+		const input = flattenConfig(config.data)[0]!;
+		assert(input.kind === "universe");
+
+		expect("privateServerPriceRobux" in input).toBeTrue();
+		expect(input.privateServerPriceRobux).toBeUndefined();
+	});
+
+	it("should omit privateServerPriceRobux from the input when the user does not declare it", () => {
+		expect.assertions(1);
+
+		const config = validateConfig(
+			{ universe: { universeId: "1234567890" } },
+			"bedrock.config.ts",
+		);
+		assert(config.success);
+
+		const input = flattenConfig(config.data)[0]!;
+		assert(input.kind === "universe");
+
+		expect("privateServerPriceRobux" in input).toBeFalse();
+	});
 
 	it("should omit the universe block from output when the config has no universe", () => {
 		expect.assertions(1);

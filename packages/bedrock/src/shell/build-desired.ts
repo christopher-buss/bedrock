@@ -174,18 +174,25 @@ async function normalizePlace(
 function normalizeUniverse(
 	input: Extract<ResourceDesiredInput, { kind: "universe" }>,
 ): Result<ResourceDesiredState, BuildDesiredError> {
+	const base: ResourceDesiredState = {
+		key: input.key,
+		consoleEnabled: input.consoleEnabled,
+		desktopEnabled: input.desktopEnabled,
+		displayName: input.displayName,
+		kind: "universe",
+		mobileEnabled: input.mobileEnabled,
+		tabletEnabled: input.tabletEnabled,
+		universeId: input.universeId,
+		visibility: input.visibility,
+		voiceChatEnabled: input.voiceChatEnabled,
+		vrEnabled: input.vrEnabled,
+	};
+
 	return {
-		data: {
-			key: input.key,
-			consoleEnabled: input.consoleEnabled,
-			desktopEnabled: input.desktopEnabled,
-			kind: "universe",
-			mobileEnabled: input.mobileEnabled,
-			tabletEnabled: input.tabletEnabled,
-			universeId: input.universeId,
-			voiceChatEnabled: input.voiceChatEnabled,
-			vrEnabled: input.vrEnabled,
-		},
+		data:
+			"privateServerPriceRobux" in input
+				? { ...base, privateServerPriceRobux: input.privateServerPriceRobux }
+				: base,
 		success: true,
 	};
 }

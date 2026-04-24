@@ -441,5 +441,141 @@ describe(diff, () => {
 				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
 			]);
 		});
+
+		it("should emit an update op when a declared displayName differs from current", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired({ displayName: "New Name" });
+			const currentEntry = universeCurrent({ displayName: "Old Name" });
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{
+					key: UNIVERSE_SINGLETON_KEY,
+					current: currentEntry,
+					desired: desiredEntry,
+					type: "update",
+				},
+			]);
+		});
+
+		it("should emit an update op when a declared visibility differs from current", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired({ visibility: "private" });
+			const currentEntry = universeCurrent({ visibility: "public" });
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{
+					key: UNIVERSE_SINGLETON_KEY,
+					current: currentEntry,
+					desired: desiredEntry,
+					type: "update",
+				},
+			]);
+		});
+
+		it("should emit a noop when a declared displayName matches current", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired({ displayName: "Fun Universe" });
+			const currentEntry = universeCurrent({ displayName: "Fun Universe" });
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+			]);
+		});
+
+		it("should emit a noop when displayName is undefined in desired but current has a value alongside a matching managed flag", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired({ voiceChatEnabled: true });
+			const currentEntry = universeCurrent({
+				displayName: "Old Name",
+				voiceChatEnabled: true,
+			});
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+			]);
+		});
+
+		it("should emit a noop when a declared visibility matches current", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired({ visibility: "public" });
+			const currentEntry = universeCurrent({ visibility: "public" });
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+			]);
+		});
+
+		it("should emit a noop when visibility is undefined in desired but current has a value alongside a matching managed flag", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired({ voiceChatEnabled: true });
+			const currentEntry = universeCurrent({
+				visibility: "public",
+				voiceChatEnabled: true,
+			});
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+			]);
+		});
+
+		it("should emit an update op when a declared privateServerPriceRobux differs from current", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired({ privateServerPriceRobux: 250 });
+			const currentEntry = universeCurrent({ privateServerPriceRobux: 100 });
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{
+					key: UNIVERSE_SINGLETON_KEY,
+					current: currentEntry,
+					desired: desiredEntry,
+					type: "update",
+				},
+			]);
+		});
+
+		it("should emit an update op when privateServerPriceRobux is declared as undefined and current has a value", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired({ privateServerPriceRobux: undefined });
+			const currentEntry = universeCurrent({ privateServerPriceRobux: 100 });
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{
+					key: UNIVERSE_SINGLETON_KEY,
+					current: currentEntry,
+					desired: desiredEntry,
+					type: "update",
+				},
+			]);
+		});
+
+		it("should emit a noop when privateServerPriceRobux is omitted from desired and current has a value", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired();
+			const currentEntry = universeCurrent({ privateServerPriceRobux: 100 });
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+			]);
+		});
+
+		it("should emit a noop when privateServerPriceRobux is declared as undefined and current is also undefined", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired({ privateServerPriceRobux: undefined });
+			const currentEntry = universeCurrent({ privateServerPriceRobux: undefined });
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+			]);
+		});
 	});
 });

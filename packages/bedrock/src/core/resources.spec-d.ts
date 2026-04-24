@@ -14,6 +14,7 @@ import type {
 	UniverseDesiredState,
 	UniverseOutputs,
 } from "./resources.ts";
+import type { UniverseVisibility } from "./schema.ts";
 
 interface ExpectedPlaceDesiredState {
 	readonly key: ResourceKey;
@@ -31,10 +32,13 @@ interface ExpectedUniverseDesiredState {
 	readonly key: ResourceKey;
 	readonly consoleEnabled: boolean | undefined;
 	readonly desktopEnabled: boolean | undefined;
+	readonly displayName: string | undefined;
 	readonly kind: "universe";
 	readonly mobileEnabled: boolean | undefined;
+	readonly privateServerPriceRobux?: number | undefined;
 	readonly tabletEnabled: boolean | undefined;
 	readonly universeId: RobloxAssetId;
+	readonly visibility: undefined | UniverseVisibility;
 	readonly voiceChatEnabled: boolean | undefined;
 	readonly vrEnabled: boolean | undefined;
 }
