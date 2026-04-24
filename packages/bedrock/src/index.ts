@@ -1,4 +1,9 @@
 export { createGamePassDriver, type GamePassDriverDeps } from "./adapters/game-pass-driver.ts";
+export {
+	createGistStateAdapter,
+	type GistFetch,
+	type GistStateAdapterDeps,
+} from "./adapters/gist-state-adapter.ts";
 export { createPlaceDriver, type PlaceDriverDeps } from "./adapters/place-driver.ts";
 export { createUniverseDriver, type UniverseDriverDeps } from "./adapters/universe-driver.ts";
 export type { ConfigError, ConfigValidationIssue } from "./core/config-error.ts";
