@@ -39,6 +39,14 @@ interface ResolvedUniverse {
  * absent surfaces as an `ApiError` with status 200, mirroring the
  * malformed-response guard in `GamePassDriver`.
  *
+ * When `displayName` is declared, the driver routes that field through
+ * `PlacesClient.update` on the root place after the universe PATCH
+ * succeeds. A subsequent places failure surfaces to the caller as the
+ * driver's error result without rolling back the prior universe patch,
+ * so callers observing a partial failure should reconcile by
+ * reapplying rather than assuming the universe-level fields are
+ * unchanged.
+ *
  * @param deps - Injected ocale clients (universes plus places for the
  *   read-only universe fields Roblox derives from the root place).
  * @returns A driver indexable by `"universe"` in a `DriverRegistry`.
