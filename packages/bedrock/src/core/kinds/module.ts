@@ -116,17 +116,14 @@ export interface ResourceKindModule<K extends ResourceKind> {
 	 * inputs like `placeId` or `universeId`) are excluded by the
 	 * implementation; `diff` treats `true` as "no drift, emit noop".
 	 */
-	fieldsEqual(
-		desired: Extract<ResourceDesiredState, { kind: K }>,
-		current: ResourceCurrentState<K>,
-	): boolean;
+	fieldsEqual(desired: DesiredFor<K>, current: ResourceCurrentState<K>): boolean;
 
 	/**
 	 * Project a validated `Config` into a flat, tagged list of this kind's
 	 * pre-I/O inputs. Pure and infallible: the schema has already enforced
 	 * every invariant this function relies on.
 	 */
-	flatten(config: Config): ReadonlyArray<Extract<ResourceDesiredInput, { kind: K }>>;
+	flatten(config: Config): ReadonlyArray<InputFor<K>>;
 
 	/** Discriminator literal for this kind. */
 	readonly kind: K;
@@ -136,8 +133,39 @@ export interface ResourceKindModule<K extends ResourceKind> {
 	 * branded desired-state record. Rejections from `io.readFile` are caught
 	 * and surfaced as `fileReadFailed`.
 	 */
-	normalize(
-		input: Extract<ResourceDesiredInput, { kind: K }>,
-		io: KindIo,
-	): Promise<Result<Extract<ResourceDesiredState, { kind: K }>, BuildDesiredError>>;
+	normalize(input: InputFor<K>, io: KindIo): Promise<Result<DesiredFor<K>, BuildDesiredError>>;
 }
+
+/**
+ * Polymorphic dispatch table keyed by {@link ResourceKind}, mapping each
+ * kind to the {@link ResourceKindModule} that handles its domain surface.
+ * Adding a new kind to `ResourceKind` is a compile error at `KindRegistry`
+ * until a matching entry is supplied, matching how `DriverRegistry`
+ * enforces the same invariant on its I/O half.
+ *
+ * @example
+ *
+ * ```ts
+ * import { defaultKindRegistry, type KindRegistry } from "@bedrock/core";
+ *
+ * const registry: KindRegistry = defaultKindRegistry;
+ * expect(registry.gamePass.kind).toBe("gamePass");
+ * ```
+ */
+export type KindRegistry = {
+	[K in ResourceKind]: ResourceKindModule<K>;
+};
+
+/**
+ * Desired-state narrowed to a single resource kind.
+ *
+ * @template K - The resource-kind discriminator.
+ */
+type DesiredFor<K extends ResourceKind> = Extract<ResourceDesiredState, { readonly kind: K }>;
+
+/**
+ * Flat pre-I/O input narrowed to a single resource kind.
+ *
+ * @template K - The resource-kind discriminator.
+ */
+type InputFor<K extends ResourceKind> = Extract<ResourceDesiredInput, { readonly kind: K }>;

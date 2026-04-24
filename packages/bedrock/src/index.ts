@@ -10,7 +10,13 @@ export {
 	type ResourceDesiredInput,
 	type UniverseDesiredInput,
 } from "./core/flatten.ts";
-export type { BuildDesiredError, KindIo, ResourceKindModule } from "./core/kinds/module.ts";
+export { defaultKindRegistry } from "./core/kinds/index.ts";
+export type {
+	BuildDesiredError,
+	KindIo,
+	KindRegistry,
+	ResourceKindModule,
+} from "./core/kinds/module.ts";
 export type {
 	BaseOperation,
 	CreateOperation,

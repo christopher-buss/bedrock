@@ -6,6 +6,8 @@ import {
   type KindIo,
   asSha256Hex,
   type ResourceKindModule,
+  defaultKindRegistry,
+  type KindRegistry,
 } from '@bedrock/core'
 import { type } from 'arktype'
 
@@ -53,4 +55,9 @@ it('Example 3', () => {
     fieldsEqual: (desired, current) => desired.name === current.name,
   }
   expect(stubKind.kind).toBe('gamePass')
+})
+
+it('Example 4', () => {
+  const registry: KindRegistry = defaultKindRegistry
+  expect(registry.gamePass.kind).toBe('gamePass')
 })
