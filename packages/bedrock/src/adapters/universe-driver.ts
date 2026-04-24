@@ -140,24 +140,11 @@ export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"
 
 function toCurrentState(
 	desired: UniverseDesiredState,
-	rootPlaceId: string | undefined,
-): Result<ResourceCurrentState<"universe">, OpenCloudError> {
-	if (rootPlaceId === undefined) {
-		return {
-			err: new ApiError(
-				`Malformed universe response for ${desired.universeId}: rootPlaceId missing`,
-				{ statusCode: 200 },
-			),
-			success: false,
-		};
-	}
-
+	rootPlaceId: string,
+): ResourceCurrentState<"universe"> {
 	return {
-		data: {
-			...desired,
-			outputs: { rootPlaceId: asRobloxAssetId(rootPlaceId) },
-		},
-		success: true,
+		...desired,
+		outputs: { rootPlaceId: asRobloxAssetId(rootPlaceId) },
 	};
 }
 
@@ -248,5 +235,5 @@ async function reconcileUniverse(
 		}
 	}
 
-	return toCurrentState(desired, rootPlaceId);
+	return { data: toCurrentState(desired, rootPlaceId), success: true };
 }

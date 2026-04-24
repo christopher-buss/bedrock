@@ -312,4 +312,66 @@ describe(buildDesired, () => {
 			expect(result.data[0]![flag]).toBeTrue();
 		},
 	);
+
+	it("should carry a declared privateServerPriceRobux onto the universe desired state", async () => {
+		expect.assertions(2);
+
+		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>();
+
+		const result = await buildDesired(
+			[
+				{
+					key: UNIVERSE_SINGLETON_KEY,
+					consoleEnabled: undefined,
+					desktopEnabled: undefined,
+					displayName: undefined,
+					kind: "universe",
+					mobileEnabled: undefined,
+					privateServerPriceRobux: 250,
+					tabletEnabled: undefined,
+					universeId: asRobloxAssetId("1234567890"),
+					visibility: undefined,
+					voiceChatEnabled: undefined,
+					vrEnabled: undefined,
+				},
+			],
+			readFile,
+		);
+
+		assert(result.success);
+		assert(result.data[0]!.kind === "universe");
+
+		expect("privateServerPriceRobux" in result.data[0]!).toBeTrue();
+		expect(result.data[0]!.privateServerPriceRobux).toBe(250);
+	});
+
+	it("should omit privateServerPriceRobux from desired state when absent from the input", async () => {
+		expect.assertions(1);
+
+		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>();
+
+		const result = await buildDesired(
+			[
+				{
+					key: UNIVERSE_SINGLETON_KEY,
+					consoleEnabled: undefined,
+					desktopEnabled: undefined,
+					displayName: undefined,
+					kind: "universe",
+					mobileEnabled: undefined,
+					tabletEnabled: undefined,
+					universeId: asRobloxAssetId("1234567890"),
+					visibility: undefined,
+					voiceChatEnabled: undefined,
+					vrEnabled: undefined,
+				},
+			],
+			readFile,
+		);
+
+		assert(result.success);
+		assert(result.data[0]!.kind === "universe");
+
+		expect("privateServerPriceRobux" in result.data[0]!).toBeFalse();
+	});
 });
