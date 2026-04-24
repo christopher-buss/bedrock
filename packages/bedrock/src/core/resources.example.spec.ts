@@ -46,21 +46,19 @@ it('Example 3', () => {
   const universe: UniverseDesiredState = {
     consoleEnabled: undefined,
     desktopEnabled: true,
-    displayName: undefined,
+    displayName: 'Fun Universe',
     key: UNIVERSE_SINGLETON_KEY,
     kind: 'universe',
     mobileEnabled: false,
+    privateServerPriceRobux: undefined,
     tabletEnabled: undefined,
     universeId: asRobloxAssetId('1234567890'),
-    visibility: undefined,
+    visibility: 'public',
     voiceChatEnabled: true,
     vrEnabled: undefined,
   }
   expect(universe.kind).toBe('universe')
-  expect(universe.key).toBe('main')
-  expect(universe.desktopEnabled).toBeTrue()
-  expect(universe.mobileEnabled).toBeFalse()
-  expect(universe.consoleEnabled).toBeUndefined()
+  expect('privateServerPriceRobux' in universe).toBeTrue()
 })
 
 it('Example 4', () => {

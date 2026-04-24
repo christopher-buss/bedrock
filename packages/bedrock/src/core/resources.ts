@@ -122,9 +122,12 @@ export interface PlaceOutputs {
  *
  * The universe is adopted rather than provisioned: the user supplies an
  * existing `universeId` (Open Cloud cannot mint universes) and bedrock
- * reconciles the declared managed fields against it. Optional managed fields
- * use `T | undefined` to mean "unmanaged" - the diff treats undefined as
- * absent and the driver omits the field from the `updateMask`.
+ * reconciles the declared managed fields against it. Managed fields use
+ * `T | undefined` to mean "unmanaged" - the diff treats undefined as
+ * absent and the driver omits the field from the `updateMask`. The
+ * `privateServerPriceRobux` field is additionally key-presence aware:
+ * a present key with `undefined` tells the driver to clear the server
+ * value rather than leave it untouched.
  *
  * @example
  *
@@ -138,22 +141,20 @@ export interface PlaceOutputs {
  * const universe: UniverseDesiredState = {
  *     consoleEnabled: undefined,
  *     desktopEnabled: true,
- *     displayName: undefined,
+ *     displayName: "Fun Universe",
  *     key: UNIVERSE_SINGLETON_KEY,
  *     kind: "universe",
  *     mobileEnabled: false,
+ *     privateServerPriceRobux: undefined,
  *     tabletEnabled: undefined,
  *     universeId: asRobloxAssetId("1234567890"),
- *     visibility: undefined,
+ *     visibility: "public",
  *     voiceChatEnabled: true,
  *     vrEnabled: undefined,
  * };
  *
  * expect(universe.kind).toBe("universe");
- * expect(universe.key).toBe("main");
- * expect(universe.desktopEnabled).toBeTrue();
- * expect(universe.mobileEnabled).toBeFalse();
- * expect(universe.consoleEnabled).toBeUndefined();
+ * expect("privateServerPriceRobux" in universe).toBeTrue();
  * ```
  */
 export interface UniverseDesiredState {

@@ -11,7 +11,7 @@ import {
 	UNIVERSE_SINGLETON_KEY,
 } from "@bedrock/core";
 import { PlacesClient } from "@bedrock/ocale/places";
-import { createFakeHttpClient, validUniverseBody } from "@bedrock/ocale/testing";
+import { createFakeHttpClient, validPlaceBody, validUniverseBody } from "@bedrock/ocale/testing";
 import { UniversesClient } from "@bedrock/ocale/universes";
 
 import { dirname, join } from "node:path";
@@ -106,6 +106,80 @@ describe("universe pipeline end-to-end", () => {
 		expect(first.request.url).toBe(
 			`/cloud/v2/universes/${UNIVERSE_ID}?updateMask=desktopEnabled,voiceChatEnabled`,
 		);
+	});
+
+	it("should reconcile visibility and displayName through a universe PATCH followed by a place PATCH", async () => {
+		expect.assertions(5);
+
+		const httpClient = createFakeHttpClient()
+			.mockResponse({
+				body: validUniverseBody({
+					path: `universes/${UNIVERSE_ID}`,
+					rootPlace: `universes/${UNIVERSE_ID}/places/${ROOT_PLACE_ID}`,
+					visibility: "PUBLIC",
+				}),
+				status: 200,
+			})
+			.mockResponse({
+				body: validPlaceBody({
+					displayName: "Fun Universe",
+					path: `universes/${UNIVERSE_ID}/places/${ROOT_PLACE_ID}`,
+				}),
+				status: 200,
+			});
+
+		const registry: DriverRegistry = {
+			gamePass: GAME_PASS_TRAP,
+			place: PLACE_TRAP,
+			universe: createUniverseDriver({
+				places: new PlacesClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: async () => {},
+				}),
+				universes: new UniversesClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: async () => {},
+				}),
+			}),
+		};
+
+		const ops = diff(
+			[
+				{
+					key: UNIVERSE_SINGLETON_KEY,
+					consoleEnabled: undefined,
+					desktopEnabled: undefined,
+					displayName: "Fun Universe",
+					kind: "universe",
+					mobileEnabled: undefined,
+					tabletEnabled: undefined,
+					universeId: UNIVERSE_ID,
+					visibility: "public",
+					voiceChatEnabled: undefined,
+					vrEnabled: undefined,
+				},
+			],
+			[],
+		);
+
+		expect(ops.map((op) => op.type)).toStrictEqual(["create"]);
+
+		const applyResult = await applyOps(ops, registry);
+		assert(applyResult.success);
+
+		const [universePatch, placePatch] = httpClient.requests;
+		assert(universePatch && placePatch);
+
+		expect(universePatch.request.url).toBe(
+			`/cloud/v2/universes/${UNIVERSE_ID}?updateMask=visibility`,
+		);
+		expect(universePatch.request.body).toStrictEqual({ visibility: "PUBLIC" });
+		expect(placePatch.request.url).toBe(
+			`/cloud/v2/universes/${UNIVERSE_ID}/places/${ROOT_PLACE_ID}?updateMask=displayName`,
+		);
+		expect(placePatch.request.body).toStrictEqual({ displayName: "Fun Universe" });
 	});
 
 	it("should emit a noop and skip driver dispatch when current state matches the fixture", async () => {

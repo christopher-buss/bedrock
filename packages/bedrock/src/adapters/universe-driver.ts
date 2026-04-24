@@ -104,9 +104,10 @@ interface ResolvedUniverse {
  *         key: UNIVERSE_SINGLETON_KEY,
  *         kind: "universe",
  *         mobileEnabled: undefined,
+ *         privateServerPriceRobux: undefined,
  *         tabletEnabled: undefined,
  *         universeId: asRobloxAssetId("1234567890"),
- *         visibility: undefined,
+ *         visibility: "public",
  *         voiceChatEnabled: true,
  *         vrEnabled: undefined,
  *     })
