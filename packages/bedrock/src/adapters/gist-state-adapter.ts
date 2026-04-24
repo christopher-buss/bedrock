@@ -123,7 +123,7 @@ function fileName(environment: string): string {
 }
 
 function toGistFile(entry: unknown): GistFile | undefined {
-	if (entry === null || entry === undefined || typeof entry !== "object") {
+	if (typeof entry !== "object" || entry === null) {
 		return undefined;
 	}
 

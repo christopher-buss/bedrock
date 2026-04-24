@@ -64,6 +64,17 @@ describe(createGistStateAdapter, () => {
 			expect(headers.get("accept")).toBe("application/vnd.github+json");
 		});
 
+		it("should send a User-Agent header", async () => {
+			expect.assertions(1);
+
+			const { calls, fetchFn } = fakeFetch(() => okJson({ files: {} }));
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			await port.read("production");
+
+			expect(calls[0]!.headers.get("user-agent")).toBe("bedrock");
+		});
+
 		it("should return ok(undefined) when the environment file is absent", async () => {
 			expect.assertions(2);
 
@@ -107,7 +118,7 @@ describe(createGistStateAdapter, () => {
 		});
 
 		it("should err with a gist-not-found reason when the gist 404s", async () => {
-			expect.assertions(2);
+			expect.assertions(3);
 
 			const { fetchFn } = fakeFetch(() => emptyResponse(404));
 			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
@@ -119,6 +130,7 @@ describe(createGistStateAdapter, () => {
 			assert(!result.success);
 
 			expect(result.err.reason).toMatch(/gist .* not found/u);
+			expect(result.err.file).toBe(`gist:${GIST_ID}/state.production.json`);
 		});
 
 		it.for<[number]>([[401], [403]])(
