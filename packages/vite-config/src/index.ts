@@ -51,6 +51,12 @@ export const sharedConfig = {
 	resolve: {
 		conditions: ["source", "module", "default"],
 	},
+	ssr: {
+		resolve: {
+			conditions: ["source", "module", "default"],
+			externalConditions: ["source", "module", "default"],
+		},
+	},
 	test: {
 		coverage: {
 			exclude: [
