@@ -75,9 +75,31 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
+      - id: stryker-hash
+        name: Hash Stryker config inputs
+        run: echo "hash=${{ hashFiles('packages/testing/src/stryker.ts', 'packages/*/stryker.config.ts', 'packages/*/tsconfig.json', 'pnpm-lock.yaml') }}" >> "$GITHUB_OUTPUT"
+
+      - id: stryker-cache
+        name: Restore Stryker incremental cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          key: stryker-${{ runner.os }}-${{ steps.stryker-hash.outputs.hash }}-${{ github.head_ref }}-${{ github.sha }}
+          path: |
+            packages/*/reports/stryker-incremental.json
+          restore-keys: |
+            stryker-${{ runner.os }}-${{ steps.stryker-hash.outputs.hash }}-${{ github.head_ref }}-
+
       - env:
           MUTATE_BASE_REF: origin/${{ github.base_ref }}
           VITEST_TYPECHECK: "false"
         name: Mutation test changed files
         run: pnpm mutate:changed
+
+      - if: always() && steps.stryker-cache.outputs.cache-hit != 'true'
+        name: Save Stryker incremental cache
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          key: ${{ steps.stryker-cache.outputs.cache-primary-key }}
+          path: |
+            packages/*/reports/stryker-incremental.json
     timeout-minutes: 20
