@@ -269,7 +269,6 @@ const coverage = {
 | Trigger      | What runs                                     |
 | ------------ | --------------------------------------------- |
 | Every commit | Unit + Integration, coverage gate, type tests |
-| Per-PR       | Smoke with real APIs (change verification)    |
 | Nightly      | E2E with real APIs (drift detection)          |
 | Pre-release  | Full suite                                    |
 
