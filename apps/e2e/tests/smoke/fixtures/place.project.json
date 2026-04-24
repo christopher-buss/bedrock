@@ -1,0 +1,15 @@
+{
+	"name": "bedrock-smoke",
+	"tree": {
+		"$className": "DataModel",
+		"Workspace": {
+			"$className": "Workspace"
+		},
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage"
+		},
+		"ServerScriptService": {
+			"$className": "ServerScriptService"
+		}
+	}
+}
