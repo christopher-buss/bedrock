@@ -16,6 +16,9 @@ export interface SocialLink {
 	readonly uri: string;
 }
 
+/** Public visibility classification. */
+export type UniverseVisibility = "private" | "public" | "unspecified";
+
 /**
  * Caller-supplied input for the `update` method on `UniversesClient`.
  * Every writable field is optional; presence of a key drives the
@@ -50,6 +53,13 @@ export interface UpdateUniverseParameters {
 	readonly twitterSocialLink?: SocialLink | undefined;
 	/** Stringified ID of the universe to update. */
 	readonly universeId: string;
+	/**
+	 * Universe visibility. Roblox marks this field `readOnly` in the
+	 * OpenAPI spec, but the endpoint accepts updates to it -- sending
+	 * `"unspecified"` errors server-side, and `"private"` immediately
+	 * removes active players from running servers.
+	 */
+	readonly visibility?: UniverseVisibility;
 	/** Whether voice chat is enabled. */
 	readonly voiceChatEnabled?: boolean;
 	/** Whether VR players can join. */
@@ -70,9 +80,6 @@ export interface UniverseOwner {
 	/** Whether the owner is a user or a group. */
 	readonly kind: "group" | "user";
 }
-
-/** Public visibility classification. */
-export type UniverseVisibility = "private" | "public" | "unspecified";
 
 /** Public age-rating classification. */
 export type UniverseAgeRating = "9Plus" | "13Plus" | "17Plus" | "all" | "unspecified";
