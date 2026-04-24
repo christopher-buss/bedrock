@@ -12,7 +12,11 @@ import { assert, describe, expect, it } from "vitest";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { diff } from "./diff.ts";
 import { UNIVERSE_SINGLETON_KEY } from "./resources.ts";
-import type { GamePassDesiredState, ResourceCurrentState } from "./resources.ts";
+import type {
+	GamePassDesiredState,
+	ResourceCurrentState,
+	UniverseDesiredState,
+} from "./resources.ts";
 
 const ALT_HASH = asSha256Hex("a3f2c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852e1b0");
 const PLACE_KEY = asResourceKey("start-place");
@@ -387,7 +391,7 @@ describe(diff, () => {
 				tabletEnabled: true,
 				voiceChatEnabled: true,
 				vrEnabled: false,
-			};
+			} satisfies Partial<UniverseDesiredState>;
 			const desiredEntry = universeDesired(allFlags);
 			const currentEntry = universeCurrent(allFlags);
 

@@ -1,11 +1,7 @@
 import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
 import type { UniversesClient, UpdateUniverseParameters } from "@bedrock/ocale/universes";
 
-import type {
-	ResourceCurrentState,
-	UniverseDesiredState,
-	UniverseManagedFlag,
-} from "../core/resources.ts";
+import type { ResourceCurrentState, UniverseDesiredState } from "../core/resources.ts";
 import { UNIVERSE_MANAGED_FLAGS } from "../core/resources.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId } from "../types/ids.ts";
@@ -102,15 +98,13 @@ export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"
 }
 
 function buildParameters(desired: UniverseDesiredState): UpdateUniverseParameters {
-	const flags: Partial<Record<UniverseManagedFlag, boolean>> = {};
-	for (const flag of UNIVERSE_MANAGED_FLAGS) {
-		const isEnabled = desired[flag];
-		if (isEnabled !== undefined) {
-			flags[flag] = isEnabled;
-		}
-	}
-
-	return { universeId: desired.universeId, ...flags };
+	return UNIVERSE_MANAGED_FLAGS.reduce<UpdateUniverseParameters>(
+		(accumulator, flag) => {
+			const isEnabled = desired[flag];
+			return isEnabled === undefined ? accumulator : { ...accumulator, [flag]: isEnabled };
+		},
+		{ universeId: desired.universeId },
+	);
 }
 
 function wrapUpdateError(err: OpenCloudError, desired: UniverseDesiredState): OpenCloudError {
