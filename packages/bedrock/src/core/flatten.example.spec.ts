@@ -37,11 +37,13 @@ it('Example 3', () => {
   const input: UniverseDesiredInput = {
     consoleEnabled: undefined,
     desktopEnabled: true,
+    displayName: undefined,
     key: UNIVERSE_SINGLETON_KEY,
     kind: 'universe',
     mobileEnabled: undefined,
     tabletEnabled: undefined,
     universeId: asRobloxAssetId('1234567890'),
+    visibility: undefined,
     voiceChatEnabled: true,
     vrEnabled: undefined,
   }
