@@ -167,8 +167,8 @@ describe(parseStateFile, () => {
 		});
 	});
 
-	it("should err when the raw bytes are not valid json", () => {
-		expect.assertions(2);
+	it("should err with a malformed-json reason when the raw bytes are not valid json", () => {
+		expect.assertions(3);
 
 		const result = parseStateFile("{ not valid", SAMPLE_FILE);
 
@@ -177,10 +177,11 @@ describe(parseStateFile, () => {
 		assert(!result.success);
 
 		expect(result.err).toMatchObject({ file: SAMPLE_FILE, kind: "stateError" });
+		expect(result.err.reason).toMatch(/malformed JSON/u);
 	});
 
-	it("should err when the $bedrock envelope is missing", () => {
-		expect.assertions(1);
+	it("should err with an invalid-state-file reason when the $bedrock envelope is missing", () => {
+		expect.assertions(2);
 
 		const result = parseStateFile(
 			JSON.stringify({ environment: "production", resources: [] }),
@@ -188,6 +189,10 @@ describe(parseStateFile, () => {
 		);
 
 		expect(result.success).toBeFalse();
+
+		assert(!result.success);
+
+		expect(result.err.reason).toMatch(/invalid state file/u);
 	});
 
 	it("should err when the schema version is not 1", () => {

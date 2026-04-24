@@ -32,7 +32,7 @@ describe(validateEnvironmentName, () => {
 		["prod\nstaging", "contains a newline"],
 		["prod:staging", "contains a colon"],
 	])("should reject %s because it %s", ([name]) => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		const result = validateEnvironmentName(name);
 
@@ -41,5 +41,6 @@ describe(validateEnvironmentName, () => {
 		assert(!result.success);
 
 		expect(result.err).toMatchObject({ kind: "stateError" });
+		expect(result.err.reason).toMatch(/invalid environment name/u);
 	});
 });
