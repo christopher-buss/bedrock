@@ -66,8 +66,7 @@ export function buildUpdateRequest(
 
 	const body: Record<string, unknown> = {};
 	for (const key of fieldKeys) {
-		const value = Reflect.get(parameters, key);
-		body[key] = toWireValue(key, value);
+		body[key] = bodyValueFor(parameters, key);
 	}
 
 	const updateMask = fieldKeys.join(",");
@@ -86,18 +85,12 @@ function extractUpdateFieldKeys(parameters: UpdateUniverseParameters): ReadonlyA
 	return Object.keys(parameters).filter((key) => key !== "universeId");
 }
 
-function isVisibility(value: unknown): value is UniverseVisibility {
-	return value === "private" || value === "public" || value === "unspecified";
-}
-
-function toWireValue(key: string, value: unknown): unknown {
-	if (value === undefined) {
-		return NULL_SENTINEL;
+function bodyValueFor(parameters: UpdateUniverseParameters, key: string): unknown {
+	if (key === "visibility") {
+		const { visibility } = parameters;
+		return visibility === undefined ? NULL_SENTINEL : VISIBILITY_WIRE_MAP[visibility];
 	}
 
-	if (key === "visibility" && isVisibility(value)) {
-		return VISIBILITY_WIRE_MAP[value];
-	}
-
-	return value;
+	const value = Reflect.get(parameters, key);
+	return value === undefined ? NULL_SENTINEL : value;
 }
