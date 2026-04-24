@@ -111,20 +111,27 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toMatch(/gist .* not found/u);
 		});
 
-		it("should err with an auth reason on 401 or 403", async () => {
-			expect.assertions(2);
+		it.for<[number]>([[401], [403]])(
+			"should err with an auth reason on %i",
+			async ([status]) => {
+				expect.assertions(2);
 
-			const { fetchFn } = fakeFetch(() => emptyResponse(401));
-			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+				const { fetchFn } = fakeFetch(() => emptyResponse(status));
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					token: TOKEN,
+				});
 
-			const result = await port.read("production");
+				const result = await port.read("production");
 
-			expect(result.success).toBeFalse();
+				expect(result.success).toBeFalse();
 
-			assert(!result.success);
+				assert(!result.success);
 
-			expect(result.err.reason).toMatch(/auth failed/u);
-		});
+				expect(result.err.reason).toMatch(/auth failed/u);
+			},
+		);
 
 		it("should err with a network-error reason when fetch throws", async () => {
 			expect.assertions(2);
@@ -186,6 +193,40 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toMatch(/too large/u);
 		});
 
+		it("should follow raw_url for a truncated file between 1 MB and 10 MB", async () => {
+			expect.assertions(2);
+
+			const state: BedrockState = { environment: "production", resources: [], version: 1 };
+			const content = serializeStateFile(state);
+			const { fetchFn } = fakeFetch((request) => {
+				if (request.url.startsWith("https://api.github.com")) {
+					return okJson({
+						files: {
+							"state.production.json": {
+								content: "",
+								raw_url: "https://gist.example/raw/abc",
+								size: 2_000_000,
+								truncated: true,
+							},
+						},
+					});
+				}
+
+				return new Response(content, { status: 200 });
+			});
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.read("production");
+
+			expect(result.success).toBeTrue();
+
+			assert(result.success);
+
+			expect(result.data).toStrictEqual(state);
+		});
+	});
+
+	describe("write", () => {
 		it("should PATCH the gist with the serialized state file on write", async () => {
 			expect.assertions(5);
 
@@ -293,38 +334,6 @@ describe(createGistStateAdapter, () => {
 			assert(!result.success);
 
 			expect(result.err.reason).toMatch(/network error/u);
-		});
-
-		it("should follow raw_url for a truncated file between 1 MB and 10 MB", async () => {
-			expect.assertions(2);
-
-			const state: BedrockState = { environment: "production", resources: [], version: 1 };
-			const content = serializeStateFile(state);
-			const { fetchFn } = fakeFetch((request) => {
-				if (request.url.startsWith("https://api.github.com")) {
-					return okJson({
-						files: {
-							"state.production.json": {
-								content: "",
-								raw_url: "https://gist.example/raw/abc",
-								size: 2_000_000,
-								truncated: true,
-							},
-						},
-					});
-				}
-
-				return new Response(content, { status: 200 });
-			});
-			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
-
-			const result = await port.read("production");
-
-			expect(result.success).toBeTrue();
-
-			assert(result.success);
-
-			expect(result.data).toStrictEqual(state);
 		});
 	});
 });
