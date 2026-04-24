@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
-import { serializeStateFile } from "./state-file.ts";
+import { parseStateFile, serializeStateFile } from "./state-file.ts";
 import type { BedrockState } from "./state.ts";
 
 describe(serializeStateFile, () => {
@@ -78,5 +78,21 @@ describe(serializeStateFile, () => {
 		};
 
 		expect(serializeStateFile(state)).toContain("\n");
+	});
+});
+
+const SAMPLE_FILE = "gist:abc123/state.production.json";
+
+describe(parseStateFile, () => {
+	it("should return ok(undefined) when the input is undefined", () => {
+		expect.assertions(2);
+
+		const result = parseStateFile(undefined, SAMPLE_FILE);
+
+		expect(result.success).toBeTrue();
+
+		assert(result.success);
+
+		expect(result.data).toBeUndefined();
 	});
 });

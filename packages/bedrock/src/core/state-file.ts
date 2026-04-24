@@ -1,4 +1,6 @@
-import type { BedrockState } from "./state.ts";
+import type { Result } from "@bedrock/ocale";
+
+import type { BedrockState, StateError } from "./state.ts";
 
 /**
  * Serialize a {@link BedrockState} to the on-disk JSON representation used by
@@ -38,4 +40,44 @@ export function serializeStateFile(state: BedrockState): string {
 		resources: state.resources,
 	};
 	return JSON.stringify(envelope, undefined, 2);
+}
+
+/**
+ * Parse a raw on-disk state file into a {@link BedrockState}.
+ *
+ * A backend that reports "no state file for this environment yet" must pass
+ * `undefined`: that distinguishes a legitimate first deploy from a file that
+ * exists but cannot be trusted.
+ *
+ * @example
+ *
+ * ```ts
+ * import { parseStateFile } from "@bedrock/core";
+ *
+ * const freshStart = parseStateFile(undefined, "gist:abc123/state.production.json");
+ * expect(freshStart.success).toBeTrue();
+ * if (freshStart.success) {
+ *     expect(freshStart.data).toBeUndefined();
+ * }
+ * ```
+ *
+ * @param raw - Raw file contents as a string, or `undefined` when the
+ * backend reports no file exists yet.
+ * @param file - Adapter-specific identifier included in any `StateError`
+ * surfaced during parsing.
+ * @returns `Ok(undefined)` for a missing file, `Ok(state)` for a parseable
+ * file, or `Err(StateError)` for anything that cannot be trusted.
+ */
+export function parseStateFile(
+	raw: string | undefined,
+	file: string,
+): Result<BedrockState | undefined, StateError> {
+	if (raw === undefined) {
+		return { data: undefined, success: true };
+	}
+
+	return {
+		err: { file, kind: "stateError", reason: "state-file parsing not yet implemented" },
+		success: false,
+	};
 }

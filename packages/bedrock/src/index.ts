@@ -49,7 +49,7 @@ export {
 	type UniverseEntry,
 	type UniverseVisibility,
 } from "./core/schema.ts";
-export { serializeStateFile } from "./core/state-file.ts";
+export { parseStateFile, serializeStateFile } from "./core/state-file.ts";
 export type { BedrockState, StateError } from "./core/state.ts";
 export type { DriverRegistry, ResourceDriver } from "./ports/resource-driver.ts";
 export type { StatePort } from "./ports/state-port.ts";
