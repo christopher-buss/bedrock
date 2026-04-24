@@ -32,10 +32,15 @@ it('Example 1', () => {
   })
   return driver
     .create({
+      consoleEnabled: undefined,
+      desktopEnabled: true,
       key: UNIVERSE_SINGLETON_KEY,
       kind: 'universe',
+      mobileEnabled: undefined,
+      tabletEnabled: undefined,
       universeId: asRobloxAssetId('1234567890'),
       voiceChatEnabled: true,
+      vrEnabled: undefined,
     })
     .then((result) => {
       expect(result.success).toBeTrue()

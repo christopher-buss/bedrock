@@ -47,10 +47,20 @@ export interface PlaceEntry {
  * its configuration.
  */
 export interface UniverseEntry {
+	/** Whether console players can join; omit or set `undefined` to leave unmanaged. */
+	consoleEnabled?: boolean | undefined;
+	/** Whether desktop players can join; omit or set `undefined` to leave unmanaged. */
+	desktopEnabled?: boolean | undefined;
+	/** Whether mobile players can join; omit or set `undefined` to leave unmanaged. */
+	mobileEnabled?: boolean | undefined;
+	/** Whether tablet players can join; omit or set `undefined` to leave unmanaged. */
+	tabletEnabled?: boolean | undefined;
 	/** Existing Roblox universe ID. */
 	universeId: string;
 	/** Whether voice chat is enabled; omit or set `undefined` to leave unmanaged. */
 	voiceChatEnabled?: boolean | undefined;
+	/** Whether VR players can join; omit or set `undefined` to leave unmanaged. */
+	vrEnabled?: boolean | undefined;
 }
 
 /**
@@ -119,9 +129,16 @@ const placesCollection = type({
 	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: placeEntry,
 }).onUndeclaredKey("reject");
 
+const OPTIONAL_BOOLEAN = "boolean | undefined";
+
 const universeEntry = type({
+	"consoleEnabled?": OPTIONAL_BOOLEAN,
+	"desktopEnabled?": OPTIONAL_BOOLEAN,
+	"mobileEnabled?": OPTIONAL_BOOLEAN,
+	"tabletEnabled?": OPTIONAL_BOOLEAN,
 	"universeId": "string.digits",
-	"voiceChatEnabled?": "boolean | undefined",
+	"voiceChatEnabled?": OPTIONAL_BOOLEAN,
+	"vrEnabled?": OPTIONAL_BOOLEAN,
 }).onUndeclaredKey("reject");
 
 const rootSchema: Type<Config> = type({

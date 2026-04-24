@@ -81,25 +81,41 @@ export interface PlaceDesiredInput {
  * import { asRobloxAssetId, UNIVERSE_SINGLETON_KEY, type UniverseDesiredInput } from "@bedrock/core";
  *
  * const input: UniverseDesiredInput = {
+ *     consoleEnabled: undefined,
+ *     desktopEnabled: true,
  *     key: UNIVERSE_SINGLETON_KEY,
  *     kind: "universe",
+ *     mobileEnabled: undefined,
+ *     tabletEnabled: undefined,
  *     universeId: asRobloxAssetId("1234567890"),
  *     voiceChatEnabled: true,
+ *     vrEnabled: undefined,
  * };
  *
  * expect(input.kind).toBe("universe");
  * expect(input.key).toBe("main");
+ * expect(input.desktopEnabled).toBeTrue();
  * ```
  */
 export interface UniverseDesiredInput {
 	/** Synthesized singleton key (`"main"`), already validated against the `ResourceKey` brand. */
 	readonly key: ResourceKey;
+	/** Whether console players can join; `undefined` leaves the server value untouched. */
+	readonly consoleEnabled: boolean | undefined;
+	/** Whether desktop players can join; `undefined` leaves the server value untouched. */
+	readonly desktopEnabled: boolean | undefined;
 	/** Discriminator tag for the `ResourceDesiredInput` union. */
 	readonly kind: "universe";
+	/** Whether mobile players can join; `undefined` leaves the server value untouched. */
+	readonly mobileEnabled: boolean | undefined;
+	/** Whether tablet players can join; `undefined` leaves the server value untouched. */
+	readonly tabletEnabled: boolean | undefined;
 	/** Existing Roblox universe ID, validated and branded at flatten time. */
 	readonly universeId: RobloxAssetId;
 	/** Whether voice chat is enabled; `undefined` leaves the server value untouched. */
 	readonly voiceChatEnabled: boolean | undefined;
+	/** Whether VR players can join; `undefined` leaves the server value untouched. */
+	readonly vrEnabled: boolean | undefined;
 }
 
 /**
@@ -168,13 +184,22 @@ export function flattenConfig(config: Config): ReadonlyArray<ResourceDesiredInpu
 	}
 
 	if (config.universe !== undefined) {
-		out.push({
-			key: UNIVERSE_SINGLETON_KEY,
-			kind: "universe",
-			universeId: asRobloxAssetId(config.universe.universeId),
-			voiceChatEnabled: config.universe.voiceChatEnabled,
-		});
+		out.push(universeInput(config.universe));
 	}
 
 	return out;
+}
+
+function universeInput(entry: NonNullable<Config["universe"]>): UniverseDesiredInput {
+	return {
+		key: UNIVERSE_SINGLETON_KEY,
+		consoleEnabled: entry.consoleEnabled,
+		desktopEnabled: entry.desktopEnabled,
+		kind: "universe",
+		mobileEnabled: entry.mobileEnabled,
+		tabletEnabled: entry.tabletEnabled,
+		universeId: asRobloxAssetId(entry.universeId),
+		voiceChatEnabled: entry.voiceChatEnabled,
+		vrEnabled: entry.vrEnabled,
+	};
 }

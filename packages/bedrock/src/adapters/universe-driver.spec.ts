@@ -2,7 +2,7 @@ import { ApiError } from "@bedrock/ocale";
 import { createFakeHttpClient, validUniverseBody } from "@bedrock/ocale/testing";
 import { UniversesClient } from "@bedrock/ocale/universes";
 
-import { universeDesired } from "#tests/helpers/resources";
+import { PLATFORM_FLAG_ROWS, universeDesired } from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";
 
 import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
@@ -48,6 +48,53 @@ describe(createUniverseDriver, () => {
 		await driver.create(universeDesired({ voiceChatEnabled: true }));
 
 		expect(http.requests[0]!.request.body).toStrictEqual({ voiceChatEnabled: true });
+	});
+
+	it.for(PLATFORM_FLAG_ROWS)(
+		"should forward a declared %s in the request body and updateMask",
+		async ([flag]) => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({ body: validUniverseBody(), status: 200 });
+
+			await driver.create(universeDesired({ [flag]: false }));
+
+			expect(http.requests[0]!.request.body).toStrictEqual({ [flag]: false });
+			expect(http.requests[0]!.request.url).toBe(
+				`/cloud/v2/universes/${UNIVERSE_ID}?updateMask=${flag}`,
+			);
+		},
+	);
+
+	it("should forward every declared platform flag plus voiceChatEnabled in body and updateMask", async () => {
+		expect.assertions(2);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: validUniverseBody(), status: 200 });
+
+		await driver.create(
+			universeDesired({
+				consoleEnabled: true,
+				desktopEnabled: true,
+				mobileEnabled: false,
+				tabletEnabled: true,
+				voiceChatEnabled: false,
+				vrEnabled: true,
+			}),
+		);
+
+		expect(http.requests[0]!.request.body).toStrictEqual({
+			consoleEnabled: true,
+			desktopEnabled: true,
+			mobileEnabled: false,
+			tabletEnabled: true,
+			voiceChatEnabled: false,
+			vrEnabled: true,
+		});
+		expect(http.requests[0]!.request.url).toBe(
+			`/cloud/v2/universes/${UNIVERSE_ID}?updateMask=desktopEnabled,mobileEnabled,tabletEnabled,consoleEnabled,vrEnabled,voiceChatEnabled`,
+		);
 	});
 
 	it("should return a current state carrying outputs.rootPlaceId extracted from the response", async () => {

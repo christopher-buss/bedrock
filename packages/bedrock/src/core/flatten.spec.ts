@@ -1,3 +1,4 @@
+import { PLATFORM_FLAG_ROWS } from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
@@ -163,9 +164,14 @@ describe(flattenConfig, () => {
 		expect(flattenConfig(config.data)).toStrictEqual([
 			{
 				key: UNIVERSE_SINGLETON_KEY,
+				consoleEnabled: undefined,
+				desktopEnabled: undefined,
 				kind: "universe",
+				mobileEnabled: undefined,
+				tabletEnabled: undefined,
 				universeId: asRobloxAssetId("1234567890"),
 				voiceChatEnabled: true,
+				vrEnabled: undefined,
 			},
 		]);
 	});
@@ -212,6 +218,42 @@ describe(flattenConfig, () => {
 
 		expect(input.voiceChatEnabled).toBeUndefined();
 	});
+
+	it.for(PLATFORM_FLAG_ROWS)(
+		"should propagate a declared %s through to the universe input",
+		([flag]) => {
+			expect.assertions(1);
+
+			const config = validateConfig(
+				{ universe: { [flag]: true, universeId: "1234567890" } },
+				"bedrock.config.ts",
+			);
+			assert(config.success);
+
+			const input = flattenConfig(config.data)[0]!;
+			assert(input.kind === "universe");
+
+			expect(input[flag]).toBeTrue();
+		},
+	);
+
+	it.for(PLATFORM_FLAG_ROWS)(
+		"should carry %s as undefined when the universe entry omits it",
+		([flag]) => {
+			expect.assertions(1);
+
+			const config = validateConfig(
+				{ universe: { universeId: "1234567890" } },
+				"bedrock.config.ts",
+			);
+			assert(config.success);
+
+			const input = flattenConfig(config.data)[0]!;
+			assert(input.kind === "universe");
+
+			expect(input[flag]).toBeUndefined();
+		},
+	);
 
 	it("should omit the universe block from output when the config has no universe", () => {
 		expect.assertions(1);

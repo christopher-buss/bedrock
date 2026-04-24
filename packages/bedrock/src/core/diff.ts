@@ -6,6 +6,7 @@ import type {
 	ResourceDesiredState,
 	UniverseDesiredState,
 } from "./resources.ts";
+import { UNIVERSE_MANAGED_FLAGS } from "./resources.ts";
 
 /**
  * Computes the operations required to reconcile `current` state with `desired`
@@ -144,16 +145,21 @@ function universeFieldsEqual(
 	desired: UniverseDesiredState,
 	current: ResourceCurrentState<"universe">,
 ): boolean {
-	// Reached only when `hasNoManagedFields` has already filtered out the
-	// no-declared-fields case, so every managed field is guaranteed defined
-	// here. When a second optional managed field lands on
-	// `UniverseDesiredState`, re-introduce the per-field `!== undefined`
-	// guard for fields that can still be legitimately unmanaged while others
-	// are declared.
-	return (
-		desired.universeId === current.universeId &&
-		desired.voiceChatEnabled === current.voiceChatEnabled
-	);
+	if (desired.universeId !== current.universeId) {
+		return false;
+	}
+
+	// Only compare flags the user has declared. An undeclared flag stays
+	// owned by whoever else writes to the universe (Creator Hub, another
+	// tool), so a concrete current value for it is not drift.
+	for (const flag of UNIVERSE_MANAGED_FLAGS) {
+		const isDesiredEnabled = desired[flag];
+		if (isDesiredEnabled !== undefined && isDesiredEnabled !== current[flag]) {
+			return false;
+		}
+	}
+
+	return true;
 }
 
 function desiredFieldsEqual(desired: ResourceDesiredState, current: ResourceCurrentState): boolean {

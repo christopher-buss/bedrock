@@ -177,9 +177,14 @@ function normalizeUniverse(
 	return {
 		data: {
 			key: input.key,
+			consoleEnabled: input.consoleEnabled,
+			desktopEnabled: input.desktopEnabled,
 			kind: "universe",
+			mobileEnabled: input.mobileEnabled,
+			tabletEnabled: input.tabletEnabled,
 			universeId: input.universeId,
 			voiceChatEnabled: input.voiceChatEnabled,
+			vrEnabled: input.vrEnabled,
 		},
 		success: true,
 	};

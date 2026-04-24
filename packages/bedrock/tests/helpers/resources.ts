@@ -3,9 +3,20 @@ import type {
 	PlaceDesiredState,
 	ResourceCurrentState,
 	UniverseDesiredState,
+	UniverseManagedFlag,
 } from "#src/core/resources";
-import { UNIVERSE_SINGLETON_KEY } from "#src/core/resources";
+import { UNIVERSE_MANAGED_FLAGS, UNIVERSE_SINGLETON_KEY } from "#src/core/resources";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "#src/types/ids";
+
+/**
+ * `it.for` rows for every platform-availability flag on the universe kind.
+ * Derived from `UNIVERSE_MANAGED_FLAGS` so a newly-added managed flag is
+ * picked up automatically; only `voiceChatEnabled` is filtered out, since
+ * it is covered by its own explicit test cases.
+ */
+export const PLATFORM_FLAG_ROWS = UNIVERSE_MANAGED_FLAGS.filter(
+	(flag): flag is Exclude<UniverseManagedFlag, "voiceChatEnabled"> => flag !== "voiceChatEnabled",
+).map((flag) => [flag] as const);
 
 const ICON_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
 
@@ -98,9 +109,14 @@ export function placeCurrent(
 export function universeDesired(overrides?: Partial<UniverseDesiredState>): UniverseDesiredState {
 	return {
 		key: UNIVERSE_SINGLETON_KEY,
+		consoleEnabled: undefined,
+		desktopEnabled: undefined,
 		kind: "universe",
+		mobileEnabled: undefined,
+		tabletEnabled: undefined,
 		universeId: asRobloxAssetId("1234567890"),
 		voiceChatEnabled: undefined,
+		vrEnabled: undefined,
 		...overrides,
 	};
 }

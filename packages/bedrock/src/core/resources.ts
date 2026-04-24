@@ -122,7 +122,7 @@ export interface PlaceOutputs {
  * The universe is adopted rather than provisioned: the user supplies an
  * existing `universeId` (Open Cloud cannot mint universes) and bedrock
  * reconciles the declared managed fields against it. Optional managed fields
- * use `T | undefined` to mean "unmanaged" — the diff treats undefined as
+ * use `T | undefined` to mean "unmanaged" - the diff treats undefined as
  * absent and the driver omits the field from the `updateMask`.
  *
  * @example
@@ -135,26 +135,63 @@ export interface PlaceOutputs {
  * } from "@bedrock/core";
  *
  * const universe: UniverseDesiredState = {
+ *     consoleEnabled: undefined,
+ *     desktopEnabled: true,
  *     key: UNIVERSE_SINGLETON_KEY,
  *     kind: "universe",
+ *     mobileEnabled: false,
+ *     tabletEnabled: undefined,
  *     universeId: asRobloxAssetId("1234567890"),
  *     voiceChatEnabled: true,
+ *     vrEnabled: undefined,
  * };
  *
  * expect(universe.kind).toBe("universe");
  * expect(universe.key).toBe("main");
+ * expect(universe.desktopEnabled).toBeTrue();
+ * expect(universe.mobileEnabled).toBeFalse();
+ * expect(universe.consoleEnabled).toBeUndefined();
  * ```
  */
 export interface UniverseDesiredState {
 	/** Fixed singleton key (`"main"`); bedrock synthesizes it in `flattenConfig`. */
 	readonly key: ResourceKey;
+	/** Whether console players can join; `undefined` leaves the server value untouched. */
+	readonly consoleEnabled: boolean | undefined;
+	/** Whether desktop players can join; `undefined` leaves the server value untouched. */
+	readonly desktopEnabled: boolean | undefined;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
 	readonly kind: "universe";
+	/** Whether mobile players can join; `undefined` leaves the server value untouched. */
+	readonly mobileEnabled: boolean | undefined;
+	/** Whether tablet players can join; `undefined` leaves the server value untouched. */
+	readonly tabletEnabled: boolean | undefined;
 	/** User-supplied Roblox universe ID; the universe must already exist. */
 	readonly universeId: RobloxAssetId;
 	/** Whether voice chat is enabled; `undefined` leaves the server value untouched. */
 	readonly voiceChatEnabled: boolean | undefined;
+	/** Whether VR players can join; `undefined` leaves the server value untouched. */
+	readonly vrEnabled: boolean | undefined;
 }
+
+/**
+ * Ordered list of optional boolean managed fields on {@link UniverseDesiredState}.
+ *
+ * The driver translator and the diff's per-field equality guard both iterate
+ * this list so they cannot drift apart. Order drives `updateMask` sequence in
+ * generated requests.
+ */
+export const UNIVERSE_MANAGED_FLAGS = [
+	"desktopEnabled",
+	"mobileEnabled",
+	"tabletEnabled",
+	"consoleEnabled",
+	"vrEnabled",
+	"voiceChatEnabled",
+] as const satisfies ReadonlyArray<keyof UniverseDesiredState>;
+
+/** Key of an optional boolean managed field on {@link UniverseDesiredState}. */
+export type UniverseManagedFlag = (typeof UNIVERSE_MANAGED_FLAGS)[number];
 
 /**
  * Discriminated union of every desired-state shape Bedrock manages.

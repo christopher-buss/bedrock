@@ -3,6 +3,7 @@ import {
 	gamePassDesired,
 	placeCurrent,
 	placeDesired,
+	PLATFORM_FLAG_ROWS,
 	universeCurrent,
 	universeDesired,
 } from "#tests/helpers/resources";
@@ -11,7 +12,11 @@ import { assert, describe, expect, it } from "vitest";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { diff } from "./diff.ts";
 import { UNIVERSE_SINGLETON_KEY } from "./resources.ts";
-import type { GamePassDesiredState, ResourceCurrentState } from "./resources.ts";
+import type {
+	GamePassDesiredState,
+	ResourceCurrentState,
+	UniverseDesiredState,
+} from "./resources.ts";
 
 const ALT_HASH = asSha256Hex("a3f2c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852e1b0");
 const PLACE_KEY = asResourceKey("start-place");
@@ -326,6 +331,114 @@ describe(diff, () => {
 					desired: desiredEntry,
 					type: "update",
 				},
+			]);
+		});
+
+		it.for(PLATFORM_FLAG_ROWS)(
+			"should emit an update op when a declared %s differs from current",
+			([flag]) => {
+				expect.assertions(1);
+
+				const desiredEntry = universeDesired({ [flag]: true });
+				const currentEntry = universeCurrent({ [flag]: false });
+
+				expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+					{
+						key: UNIVERSE_SINGLETON_KEY,
+						current: currentEntry,
+						desired: desiredEntry,
+						type: "update",
+					},
+				]);
+			},
+		);
+
+		it.for(PLATFORM_FLAG_ROWS)(
+			"should emit a noop when a declared %s matches current",
+			([flag]) => {
+				expect.assertions(1);
+
+				const desiredEntry = universeDesired({ [flag]: true });
+				const currentEntry = universeCurrent({ [flag]: true });
+
+				expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+					{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+				]);
+			},
+		);
+
+		it.for(PLATFORM_FLAG_ROWS)(
+			"should not treat a concrete current %s as drift when the flag is undeclared but another is",
+			([flag]) => {
+				expect.assertions(1);
+
+				const desiredEntry = universeDesired({ voiceChatEnabled: true });
+				const currentEntry = universeCurrent({ [flag]: true, voiceChatEnabled: true });
+
+				expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+					{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+				]);
+			},
+		);
+
+		it("should emit a noop when every platform flag is declared and matches current", () => {
+			expect.assertions(1);
+
+			const allFlags = {
+				consoleEnabled: true,
+				desktopEnabled: true,
+				mobileEnabled: false,
+				tabletEnabled: true,
+				voiceChatEnabled: true,
+				vrEnabled: false,
+			} satisfies Partial<UniverseDesiredState>;
+			const desiredEntry = universeDesired(allFlags);
+			const currentEntry = universeCurrent(allFlags);
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+			]);
+		});
+
+		it("should emit an update op when one of several declared flags flips", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired({
+				desktopEnabled: true,
+				mobileEnabled: false,
+				voiceChatEnabled: true,
+			});
+			const currentEntry = universeCurrent({
+				desktopEnabled: true,
+				mobileEnabled: true,
+				voiceChatEnabled: true,
+			});
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{
+					key: UNIVERSE_SINGLETON_KEY,
+					current: currentEntry,
+					desired: desiredEntry,
+					type: "update",
+				},
+			]);
+		});
+
+		it("should emit a noop when declared subset matches and other flags hold concrete current values", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired({ desktopEnabled: true });
+			const currentEntry = universeCurrent({
+				consoleEnabled: false,
+				desktopEnabled: true,
+				mobileEnabled: true,
+				tabletEnabled: false,
+				voiceChatEnabled: true,
+				vrEnabled: true,
+			});
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
 			]);
 		});
 	});
