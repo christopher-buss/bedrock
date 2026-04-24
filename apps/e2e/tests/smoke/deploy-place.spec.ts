@@ -4,6 +4,8 @@ import {
 	createPlaceDriver,
 	deploy,
 	type DriverRegistry,
+	type ResourceDriver,
+	type ResourceKind,
 	type StatePort,
 } from "@bedrock/core";
 import { PlacesClient } from "@bedrock/ocale/places";
@@ -22,6 +24,14 @@ const PLACE_ID_ENV = process.env["ROBLOX_TEST_PLACE_ID"];
 
 const HAS_SECRETS =
 	API_KEY !== undefined && UNIVERSE_ID_ENV !== undefined && PLACE_ID_ENV !== undefined;
+
+function unreachableDriver<K extends ResourceKind>(label: string): ResourceDriver<K> {
+	return {
+		async create() {
+			throw new Error(`unreachable: smoke config declares no ${label}`);
+		},
+	};
+}
 
 describe("deploy place to real Roblox", () => {
 	it.skipIf(!HAS_SECRETS)(
@@ -58,17 +68,9 @@ describe("deploy place to real Roblox", () => {
 			});
 
 			const registry: DriverRegistry = {
-				gamePass: {
-					async create() {
-						throw new Error("unreachable: smoke config declares no game passes");
-					},
-				},
+				gamePass: unreachableDriver("game passes"),
 				place: placeDriver,
-				universe: {
-					async create() {
-						throw new Error("unreachable: smoke config declares no universe block");
-					},
-				},
+				universe: unreachableDriver("universe block"),
 			};
 
 			const result = await deploy({
