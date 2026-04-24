@@ -1,0 +1,48 @@
+# Smoke test: change-verification suite per ADR-003 amendment.
+# Runs `deploy()` against real Roblox Open Cloud on every PR and push to main.
+# Distinct from the planned nightly drift-detection e2e suite.
+
+name: Smoke
+
+on:
+  pull_request:
+    branches: [main]
+
+  push:
+    branches: [main]
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Smoke Test
+    # Fork PRs cannot access repository secrets, so skip cleanly rather than fail.
+    # Future work: a label-gated `pull_request_target` run so maintainers can opt
+    # a fork PR into the smoke suite after reviewing the diff for secret exfiltration.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - env:
+          ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+          ROBLOX_TEST_PLACE_ID: ${{ secrets.ROBLOX_TEST_PLACE_ID }}
+          ROBLOX_TEST_UNIVERSE_ID: ${{ secrets.ROBLOX_TEST_UNIVERSE_ID }}
+        name: Run smoke test
+        run: pnpm test:smoke
+    timeout-minutes: 10
