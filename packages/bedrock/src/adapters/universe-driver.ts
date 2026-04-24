@@ -2,8 +2,13 @@ import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
 import type { PlacesClient } from "@bedrock/ocale/places";
 import type { UniversesClient, UpdateUniverseParameters } from "@bedrock/ocale/universes";
 
-import type { ResourceCurrentState, UniverseDesiredState } from "../core/resources.ts";
-import { UNIVERSE_MANAGED_FLAGS } from "../core/resources.ts";
+import {
+	copyDeclaredSocialLinks,
+	type ResourceCurrentState,
+	SOCIAL_LINK_FIELDS,
+	UNIVERSE_MANAGED_FLAGS,
+	type UniverseDesiredState,
+} from "../core/resources.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId } from "../types/ids.ts";
 
@@ -160,9 +165,12 @@ function buildParameters(desired: UniverseDesiredState): UpdateUniverseParameter
 	const withVisibility =
 		desired.visibility === undefined ? base : { ...base, visibility: desired.visibility };
 
-	return "privateServerPriceRobux" in desired
-		? { ...withVisibility, privateServerPriceRobux: desired.privateServerPriceRobux }
-		: withVisibility;
+	const withPrice =
+		"privateServerPriceRobux" in desired
+			? { ...withVisibility, privateServerPriceRobux: desired.privateServerPriceRobux }
+			: withVisibility;
+
+	return { ...withPrice, ...copyDeclaredSocialLinks(desired) };
 }
 
 function wrapUpdateError(err: OpenCloudError, desired: UniverseDesiredState): OpenCloudError {
@@ -185,7 +193,11 @@ function hasUniverseLevelUpdate(desired: UniverseDesiredState): boolean {
 		return true;
 	}
 
-	return "privateServerPriceRobux" in desired;
+	if ("privateServerPriceRobux" in desired) {
+		return true;
+	}
+
+	return SOCIAL_LINK_FIELDS.some((field) => field in desired);
 }
 
 async function resolveUniverse(

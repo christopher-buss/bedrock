@@ -1,7 +1,7 @@
 import type { Result } from "@bedrock/ocale";
 
 import type { ResourceDesiredInput } from "../core/flatten.ts";
-import type { ResourceDesiredState } from "../core/resources.ts";
+import { copyDeclaredSocialLinks, type ResourceDesiredState } from "../core/resources.ts";
 import { asSha256Hex, type ResourceKey } from "../types/ids.ts";
 
 /**
@@ -186,6 +186,7 @@ function normalizeUniverse(
 		visibility: input.visibility,
 		voiceChatEnabled: input.voiceChatEnabled,
 		vrEnabled: input.vrEnabled,
+		...copyDeclaredSocialLinks(input),
 	};
 
 	return {

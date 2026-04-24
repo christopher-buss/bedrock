@@ -1,3 +1,5 @@
+import type { SocialLink } from "@bedrock/ocale/universes";
+
 import { describe, expectTypeOf, it } from "vitest";
 
 import type { ResourceKey, RobloxAssetId, Sha256Hex } from "../types/ids.ts";
@@ -32,15 +34,22 @@ interface ExpectedUniverseDesiredState {
 	readonly key: ResourceKey;
 	readonly consoleEnabled: boolean | undefined;
 	readonly desktopEnabled: boolean | undefined;
+	readonly discordSocialLink?: SocialLink | undefined;
 	readonly displayName: string | undefined;
+	readonly facebookSocialLink?: SocialLink | undefined;
+	readonly guildedSocialLink?: SocialLink | undefined;
 	readonly kind: "universe";
 	readonly mobileEnabled: boolean | undefined;
 	readonly privateServerPriceRobux?: number | undefined;
+	readonly robloxGroupSocialLink?: SocialLink | undefined;
 	readonly tabletEnabled: boolean | undefined;
+	readonly twitchSocialLink?: SocialLink | undefined;
+	readonly twitterSocialLink?: SocialLink | undefined;
 	readonly universeId: RobloxAssetId;
 	readonly visibility: undefined | UniverseVisibility;
 	readonly voiceChatEnabled: boolean | undefined;
 	readonly vrEnabled: boolean | undefined;
+	readonly youtubeSocialLink?: SocialLink | undefined;
 }
 
 interface ExpectedUniverseOutputs {

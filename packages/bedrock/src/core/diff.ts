@@ -1,9 +1,13 @@
+import type { SocialLink } from "@bedrock/ocale/universes";
+
 import type { Operation } from "./operations.ts";
 import {
 	type GamePassDesiredState,
 	type PlaceDesiredState,
 	type ResourceCurrentState,
 	type ResourceDesiredState,
+	SOCIAL_LINK_FIELD_SET,
+	SOCIAL_LINK_FIELDS,
 	UNIVERSE_MANAGED_FLAGS,
 	type UniverseDesiredState,
 } from "./resources.ts";
@@ -113,7 +117,17 @@ function hasNoManagedFields(desired: ResourceDesiredState): boolean {
 	}
 
 	for (const [key, value] of Object.entries(desired)) {
-		if (!IDENTITY_KEYS.has(key) && value !== undefined) {
+		if (IDENTITY_KEYS.has(key)) {
+			continue;
+		}
+
+		// Social links use tri-state clearable semantics: key presence is
+		// management intent (set-or-clear), irrespective of the value.
+		if (SOCIAL_LINK_FIELD_SET.has(key)) {
+			return false;
+		}
+
+		if (value !== undefined) {
 			return false;
 		}
 	}
@@ -143,6 +157,35 @@ function placeFieldsEqual(
 		desired.filePath === current.filePath &&
 		desired.fileHash === current.fileHash
 	);
+}
+
+function socialLinkEqual(a: SocialLink | undefined, b: SocialLink | undefined): boolean {
+	if (a === undefined) {
+		return b === undefined;
+	}
+
+	if (b === undefined) {
+		return false;
+	}
+
+	return a.title === b.title && a.uri === b.uri;
+}
+
+function declaredSocialLinksEqual(
+	desired: UniverseDesiredState,
+	current: ResourceCurrentState<"universe">,
+): boolean {
+	for (const field of SOCIAL_LINK_FIELDS) {
+		if (!(field in desired)) {
+			continue;
+		}
+
+		if (!socialLinkEqual(desired[field], current[field])) {
+			return false;
+		}
+	}
+
+	return true;
 }
 
 function universeFieldsEqual(
@@ -178,7 +221,7 @@ function universeFieldsEqual(
 		return false;
 	}
 
-	return true;
+	return declaredSocialLinksEqual(desired, current);
 }
 
 function desiredFieldsEqual(desired: ResourceDesiredState, current: ResourceCurrentState): boolean {

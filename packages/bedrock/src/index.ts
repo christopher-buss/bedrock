@@ -18,6 +18,7 @@ export type {
 	UpdateOperation,
 } from "./core/operations.ts";
 export {
+	SOCIAL_LINK_FIELDS,
 	UNIVERSE_SINGLETON_KEY,
 	type GamePassDesiredState,
 	type GamePassOutputs,
@@ -28,6 +29,7 @@ export {
 	type ResourceKind,
 	type ResourceOutputs,
 	type ResourceOutputsByKind,
+	type SocialLinkField,
 	type UniverseDesiredState,
 	type UniverseOutputs,
 } from "./core/resources.ts";
@@ -59,3 +61,4 @@ export {
 } from "./types/ids.ts";
 export type { ResourceKey, RobloxAssetId, Sha256Hex } from "./types/ids.ts";
 export { OpenCloudError, type Result } from "@bedrock/ocale";
+export type { SocialLink } from "@bedrock/ocale/universes";

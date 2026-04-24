@@ -6,7 +6,7 @@ import { UniversesClient } from "@bedrock/ocale/universes";
 import { PLATFORM_FLAG_ROWS, universeDesired } from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";
 
-import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
+import { SOCIAL_LINK_FIELDS, UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import { createUniverseDriver } from "./universe-driver.ts";
 
 const UNIVERSE_ID = "1234567890";
@@ -358,6 +358,88 @@ describe(createUniverseDriver, () => {
 			expect(result.err.statusCode).toBe(403);
 			expect(http.requests).toHaveLength(2);
 			expect(http.requests[0]!.request.method).toBe("PATCH");
+		});
+	});
+
+	describe("social links", () => {
+		it.for(SOCIAL_LINK_FIELDS)(
+			"should forward %s with its declared SocialLink value into the request body and updateMask",
+			async (field) => {
+				expect.assertions(2);
+
+				const { driver, http } = makeDriver();
+				http.mockResponse({ body: validUniverseBody(), status: 200 });
+
+				const value = { title: `t-${field}`, uri: `https://example.com/${field}` };
+				await driver.create(universeDesired({ [field]: value }));
+
+				expect(http.requests[0]!.request.body).toStrictEqual({ [field]: value });
+				expect(http.requests[0]!.request.url).toBe(
+					`/cloud/v2/universes/${UNIVERSE_ID}?updateMask=${field}`,
+				);
+			},
+		);
+
+		it.for(SOCIAL_LINK_FIELDS)(
+			"should emit JSON null in the request body for %s when declared as undefined and include it in the updateMask",
+			async (field) => {
+				expect.assertions(3);
+
+				// The Open Cloud spec does not mark social links as nullable, but
+				// the server accepts null as the clear sentinel. Bypass contract
+				// validation so the driver's clear-intent path is observable.
+				const { driver, http } = makeDriver({ schemaValidation: "off" });
+				http.mockResponse({ body: validUniverseBody(), status: 200 });
+
+				await driver.create(universeDesired({ [field]: undefined }));
+
+				const body = http.requests[0]!.request.body as Record<string, unknown>;
+
+				expect(body).toContainKey(field);
+				expect(body[field]).toBeNull();
+				expect(http.requests[0]!.request.url).toBe(
+					`/cloud/v2/universes/${UNIVERSE_ID}?updateMask=${field}`,
+				);
+			},
+		);
+
+		it.for(SOCIAL_LINK_FIELDS)(
+			"should omit %s from the request body and updateMask when the key is absent on desired",
+			async (field) => {
+				expect.assertions(2);
+
+				const { driver, http } = makeDriver();
+				http.mockResponse({ body: validUniverseBody(), status: 200 });
+
+				await driver.create(universeDesired({ voiceChatEnabled: true }));
+
+				expect(http.requests[0]!.request.body).not.toContainKey(field);
+				expect(http.requests[0]!.request.url).not.toContain(field);
+			},
+		);
+
+		it("should forward all seven social links plus voiceChatEnabled in one request when all are declared", async () => {
+			expect.assertions(8);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({ body: validUniverseBody(), status: 200 });
+
+			const overrides: Record<string, unknown> = { voiceChatEnabled: true };
+			for (const field of SOCIAL_LINK_FIELDS) {
+				overrides[field] = { title: `t-${field}`, uri: `https://example.com/${field}` };
+			}
+
+			await driver.create(universeDesired(overrides));
+
+			const body = http.requests[0]!.request.body as Record<string, unknown>;
+			for (const field of SOCIAL_LINK_FIELDS) {
+				expect(body[field]).toStrictEqual({
+					title: `t-${field}`,
+					uri: `https://example.com/${field}`,
+				});
+			}
+
+			expect(body).toContainEntry(["voiceChatEnabled", true]);
 		});
 	});
 });

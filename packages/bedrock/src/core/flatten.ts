@@ -1,10 +1,12 @@
+import type { SocialLink } from "@bedrock/ocale/universes";
+
 import {
 	asResourceKey,
 	asRobloxAssetId,
 	type ResourceKey,
 	type RobloxAssetId,
 } from "../types/ids.ts";
-import { UNIVERSE_SINGLETON_KEY } from "./resources.ts";
+import { copyDeclaredSocialLinks, UNIVERSE_SINGLETON_KEY } from "./resources.ts";
 import type { Config, GamePassEntry, UniverseVisibility } from "./schema.ts";
 
 /**
@@ -106,6 +108,8 @@ export interface UniverseDesiredInput {
 	readonly consoleEnabled: boolean | undefined;
 	/** Whether desktop players can join; `undefined` leaves the server value untouched. */
 	readonly desktopEnabled: boolean | undefined;
+	/** Discord social link; tri-state (absent/undefined/set) — see `UniverseDesiredState`. */
+	readonly discordSocialLink?: SocialLink | undefined;
 	/**
 	 * Display name for the universe. `undefined` leaves the server value
 	 * untouched. The driver routes declared updates through
@@ -113,6 +117,10 @@ export interface UniverseDesiredInput {
 	 * `displayName` as read-only.
 	 */
 	readonly displayName: string | undefined;
+	/** Facebook social link; tri-state (absent/undefined/set) — see `UniverseDesiredState`. */
+	readonly facebookSocialLink?: SocialLink | undefined;
+	/** Guilded social link; tri-state (absent/undefined/set) — see `UniverseDesiredState`. */
+	readonly guildedSocialLink?: SocialLink | undefined;
 	/** Discriminator tag for the `ResourceDesiredInput` union. */
 	readonly kind: "universe";
 	/** Whether mobile players can join; `undefined` leaves the server value untouched. */
@@ -123,8 +131,14 @@ export interface UniverseDesiredInput {
 	 * leaves the server value untouched.
 	 */
 	readonly privateServerPriceRobux?: number | undefined;
+	/** Roblox Group social link; tri-state (absent/undefined/set) — see `UniverseDesiredState`. */
+	readonly robloxGroupSocialLink?: SocialLink | undefined;
 	/** Whether tablet players can join; `undefined` leaves the server value untouched. */
 	readonly tabletEnabled: boolean | undefined;
+	/** Twitch social link; tri-state (absent/undefined/set) — see `UniverseDesiredState`. */
+	readonly twitchSocialLink?: SocialLink | undefined;
+	/** Twitter social link; tri-state (absent/undefined/set) — see `UniverseDesiredState`. */
+	readonly twitterSocialLink?: SocialLink | undefined;
 	/** Existing Roblox universe ID, validated and branded at flatten time. */
 	readonly universeId: RobloxAssetId;
 	/**
@@ -137,6 +151,8 @@ export interface UniverseDesiredInput {
 	readonly voiceChatEnabled: boolean | undefined;
 	/** Whether VR players can join; `undefined` leaves the server value untouched. */
 	readonly vrEnabled: boolean | undefined;
+	/** YouTube social link; tri-state (absent/undefined/set) — see `UniverseDesiredState`. */
+	readonly youtubeSocialLink?: SocialLink | undefined;
 }
 
 /**
@@ -224,6 +240,7 @@ function universeInput(entry: NonNullable<Config["universe"]>): UniverseDesiredI
 		visibility: entry.visibility,
 		voiceChatEnabled: entry.voiceChatEnabled,
 		vrEnabled: entry.vrEnabled,
+		...copyDeclaredSocialLinks(entry),
 	};
 
 	return "privateServerPriceRobux" in entry

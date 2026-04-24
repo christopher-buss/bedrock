@@ -3,7 +3,7 @@ import { assert, describe, expect, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import { flattenConfig } from "./flatten.ts";
-import { UNIVERSE_SINGLETON_KEY } from "./resources.ts";
+import { SOCIAL_LINK_FIELDS, UNIVERSE_SINGLETON_KEY } from "./resources.ts";
 import { validateConfig } from "./schema.ts";
 
 describe(flattenConfig, () => {
@@ -327,5 +327,87 @@ describe(flattenConfig, () => {
 		assert(config.success);
 
 		expect(flattenConfig(config.data).some((input) => input.kind === "universe")).toBeFalse();
+	});
+
+	it.for(SOCIAL_LINK_FIELDS)(
+		"should forward %s with its declared SocialLink value on the universe input",
+		(field) => {
+			expect.assertions(2);
+
+			const value = { title: `t-${field}`, uri: `https://example.com/${field}` };
+			const config = validateConfig(
+				{ universe: { [field]: value, universeId: "1234567890" } },
+				"bedrock.config.ts",
+			);
+			assert(config.success);
+
+			const input = flattenConfig(config.data)[0]!;
+			assert(input.kind === "universe");
+
+			expect(input).toContainKey(field);
+			expect(input[field]).toStrictEqual(value);
+		},
+	);
+
+	it.for(SOCIAL_LINK_FIELDS)(
+		"should forward %s declared as undefined and preserve the key on the universe input",
+		(field) => {
+			expect.assertions(2);
+
+			const config = validateConfig(
+				{ universe: { [field]: undefined, universeId: "1234567890" } },
+				"bedrock.config.ts",
+			);
+			assert(config.success);
+
+			const input = flattenConfig(config.data)[0]!;
+			assert(input.kind === "universe");
+
+			expect(input).toContainKey(field);
+			expect(input[field]).toBeUndefined();
+		},
+	);
+
+	it.for(SOCIAL_LINK_FIELDS)(
+		"should omit %s from the universe input when the key is absent in the config",
+		(field) => {
+			expect.assertions(1);
+
+			const config = validateConfig(
+				{ universe: { universeId: "1234567890" } },
+				"bedrock.config.ts",
+			);
+			assert(config.success);
+
+			const input = flattenConfig(config.data)[0]!;
+			assert(input.kind === "universe");
+
+			expect(input).not.toContainKey(field);
+		},
+	);
+
+	it("should forward a mix of declared and omitted social links on the universe input", () => {
+		expect.assertions(4);
+
+		const discord = { title: "Discord", uri: "https://discord.gg/example" };
+		const config = validateConfig(
+			{
+				universe: {
+					discordSocialLink: discord,
+					twitterSocialLink: undefined,
+					universeId: "1234567890",
+				},
+			},
+			"bedrock.config.ts",
+		);
+		assert(config.success);
+
+		const input = flattenConfig(config.data)[0]!;
+		assert(input.kind === "universe");
+
+		expect(input).toContainKey("discordSocialLink");
+		expect(input.discordSocialLink).toStrictEqual(discord);
+		expect(input).toContainKey("twitterSocialLink");
+		expect(input).not.toContainKey("facebookSocialLink");
 	});
 });

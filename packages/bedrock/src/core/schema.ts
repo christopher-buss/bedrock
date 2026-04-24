@@ -1,4 +1,5 @@
 import type { Result } from "@bedrock/ocale";
+import type { SocialLink } from "@bedrock/ocale/universes";
 
 import { ArkErrors, type, type Type } from "arktype";
 
@@ -59,11 +60,26 @@ export interface UniverseEntry {
 	/** Whether desktop players can join; omit or set `undefined` to leave unmanaged. */
 	desktopEnabled?: boolean | undefined;
 	/**
+	 * Discord social link; omit to leave the server value untouched, set to
+	 * `undefined` to clear it, or set to a `SocialLink` to update it.
+	 */
+	discordSocialLink?: SocialLink | undefined;
+	/**
 	 * Display name for the universe. Because Roblox derives this from
 	 * the root place's name, the driver routes the update through
 	 * `PlacesClient.update`; omit or set `undefined` to leave unmanaged.
 	 */
 	displayName?: string | undefined;
+	/**
+	 * Facebook social link; omit to leave the server value untouched, set to
+	 * `undefined` to clear it, or set to a `SocialLink` to update it.
+	 */
+	facebookSocialLink?: SocialLink | undefined;
+	/**
+	 * Guilded social link; omit to leave the server value untouched, set to
+	 * `undefined` to clear it, or set to a `SocialLink` to update it.
+	 */
+	guildedSocialLink?: SocialLink | undefined;
 	/** Whether mobile players can join; omit or set `undefined` to leave unmanaged. */
 	mobileEnabled?: boolean | undefined;
 	/**
@@ -72,8 +88,23 @@ export interface UniverseEntry {
 	 * server value untouched.
 	 */
 	privateServerPriceRobux?: number | undefined;
+	/**
+	 * Roblox Group social link; omit to leave the server value untouched, set
+	 * to `undefined` to clear it, or set to a `SocialLink` to update it.
+	 */
+	robloxGroupSocialLink?: SocialLink | undefined;
 	/** Whether tablet players can join; omit or set `undefined` to leave unmanaged. */
 	tabletEnabled?: boolean | undefined;
+	/**
+	 * Twitch social link; omit to leave the server value untouched, set to
+	 * `undefined` to clear it, or set to a `SocialLink` to update it.
+	 */
+	twitchSocialLink?: SocialLink | undefined;
+	/**
+	 * Twitter social link; omit to leave the server value untouched, set to
+	 * `undefined` to clear it, or set to a `SocialLink` to update it.
+	 */
+	twitterSocialLink?: SocialLink | undefined;
 	/** Existing Roblox universe ID. */
 	universeId: string;
 	/**
@@ -86,6 +117,11 @@ export interface UniverseEntry {
 	voiceChatEnabled?: boolean | undefined;
 	/** Whether VR players can join; omit or set `undefined` to leave unmanaged. */
 	vrEnabled?: boolean | undefined;
+	/**
+	 * YouTube social link; omit to leave the server value untouched, set to
+	 * `undefined` to clear it, or set to a `SocialLink` to update it.
+	 */
+	youtubeSocialLink?: SocialLink | undefined;
 }
 
 /**
@@ -156,17 +192,31 @@ const placesCollection = type({
 
 const OPTIONAL_BOOLEAN = "boolean | undefined";
 
+const socialLink = type({
+	title: "string",
+	uri: "string",
+}).onUndeclaredKey("reject");
+
+const socialLinkOrUndefined = socialLink.or("undefined");
+
 const universeEntry = type({
 	"consoleEnabled?": OPTIONAL_BOOLEAN,
 	"desktopEnabled?": OPTIONAL_BOOLEAN,
+	"discordSocialLink?": socialLinkOrUndefined,
 	"displayName?": "string | undefined",
+	"facebookSocialLink?": socialLinkOrUndefined,
+	"guildedSocialLink?": socialLinkOrUndefined,
 	"mobileEnabled?": OPTIONAL_BOOLEAN,
 	"privateServerPriceRobux?": "number.integer >= 0 | undefined",
+	"robloxGroupSocialLink?": socialLinkOrUndefined,
 	"tabletEnabled?": OPTIONAL_BOOLEAN,
+	"twitchSocialLink?": socialLinkOrUndefined,
+	"twitterSocialLink?": socialLinkOrUndefined,
 	"universeId": "string.digits",
 	"visibility?": "'private' | 'public' | 'unspecified' | undefined",
 	"voiceChatEnabled?": OPTIONAL_BOOLEAN,
 	"vrEnabled?": OPTIONAL_BOOLEAN,
+	"youtubeSocialLink?": socialLinkOrUndefined,
 }).onUndeclaredKey("reject");
 
 const rootSchema: Type<Config> = type({
