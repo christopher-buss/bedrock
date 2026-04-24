@@ -1,6 +1,3 @@
-import { createFakeHttpClient, validUniverseBody } from "@bedrock/ocale/testing";
-import { UniversesClient } from "@bedrock/ocale/universes";
-
 import {
 	applyOps,
 	asRobloxAssetId,
@@ -12,7 +9,10 @@ import {
 	loadConfig,
 	type ResourceDriver,
 	UNIVERSE_SINGLETON_KEY,
-} from "bedrock";
+} from "@bedrock/core";
+import { createFakeHttpClient, validUniverseBody } from "@bedrock/ocale/testing";
+import { UniversesClient } from "@bedrock/ocale/universes";
+
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";

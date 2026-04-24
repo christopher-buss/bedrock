@@ -6,7 +6,7 @@ import {
   asRobloxAssetId,
   createUniverseDriver,
   UNIVERSE_SINGLETON_KEY,
-} from 'bedrock'
+} from '@bedrock/core'
 
 it('Example 1', () => {
   const driver = createUniverseDriver({

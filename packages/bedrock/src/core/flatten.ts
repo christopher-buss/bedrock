@@ -78,7 +78,7 @@ export interface PlaceDesiredInput {
  * @example
  *
  * ```ts
- * import { asRobloxAssetId, UNIVERSE_SINGLETON_KEY, type UniverseDesiredInput } from "bedrock";
+ * import { asRobloxAssetId, UNIVERSE_SINGLETON_KEY, type UniverseDesiredInput } from "@bedrock/core";
  *
  * const input: UniverseDesiredInput = {
  *     key: UNIVERSE_SINGLETON_KEY,

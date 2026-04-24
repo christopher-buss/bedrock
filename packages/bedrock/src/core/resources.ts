@@ -132,7 +132,7 @@ export interface PlaceOutputs {
  *     asRobloxAssetId,
  *     UNIVERSE_SINGLETON_KEY,
  *     type UniverseDesiredState,
- * } from "bedrock";
+ * } from "@bedrock/core";
  *
  * const universe: UniverseDesiredState = {
  *     key: UNIVERSE_SINGLETON_KEY,
@@ -295,7 +295,7 @@ type Prettify<T> = { readonly [K in keyof T]: T[K] };
  * @example
  *
  * ```ts
- * import { UNIVERSE_SINGLETON_KEY } from "bedrock";
+ * import { UNIVERSE_SINGLETON_KEY } from "@bedrock/core";
  *
  * expect(UNIVERSE_SINGLETON_KEY).toBe("main");
  * ```

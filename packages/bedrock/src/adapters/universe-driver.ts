@@ -41,7 +41,7 @@ export interface UniverseDriverDeps {
  *     asRobloxAssetId,
  *     createUniverseDriver,
  *     UNIVERSE_SINGLETON_KEY,
- * } from "bedrock";
+ * } from "@bedrock/core";
  *
  * const driver = createUniverseDriver({
  *     client: new UniversesClient({
