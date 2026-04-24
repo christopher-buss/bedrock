@@ -25,12 +25,34 @@ const PLACE_ID_ENV = process.env["ROBLOX_TEST_PLACE_ID"];
 const HAS_SECRETS =
 	API_KEY !== undefined && UNIVERSE_ID_ENV !== undefined && PLACE_ID_ENV !== undefined;
 
+interface DiagnosticInputs {
+	readonly apiKey: string;
+	readonly placeId: string;
+	readonly universeId: string;
+}
+
 function unreachableDriver<K extends ResourceKind>(label: string): ResourceDriver<K> {
 	return {
 		async create() {
 			throw new Error(`unreachable: smoke config declares no ${label}`);
 		},
 	};
+}
+
+async function logDiagnosticPublish(inputs: DiagnosticInputs): Promise<void> {
+	const bytes = await readFile(FIXTURE_PATH);
+	const url = `https://apis.roblox.com/universes/v1/${inputs.universeId}/places/${inputs.placeId}/versions?versionType=Published`;
+	const response = await fetch(url, {
+		body: bytes,
+		headers: {
+			"Content-Type": "application/xml",
+			"x-api-key": inputs.apiKey,
+		},
+		method: "POST",
+	});
+	const bodyText = await response.text();
+
+	console.error(`diagnostic publish ${response.status}: ${bodyText}`);
 }
 
 describe("deploy place to real Roblox", () => {
@@ -48,6 +70,13 @@ describe("deploy place to real Roblox", () => {
 
 			const universeId = asRobloxAssetId(UNIVERSE_ID_ENV);
 			const placeId = asRobloxAssetId(PLACE_ID_ENV);
+
+			// Diagnostic pre-flight: the SDK strips response bodies from
+			// ApiError, so a publish failure shows only `statusCode: 400` with no
+			// detail from Roblox. Call the endpoint directly first and log the
+			// body regardless of status so CI logs carry the actual validation
+			// message. Remove once smoke passes reliably.
+			await logDiagnosticPublish({ apiKey: API_KEY, placeId, universeId });
 
 			const writes: Array<BedrockState> = [];
 			const statePort: StatePort = {
