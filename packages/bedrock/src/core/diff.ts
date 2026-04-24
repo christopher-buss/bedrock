@@ -135,14 +135,12 @@ function hasNoManagedFields(desired: ResourceDesiredState): boolean {
 }
 
 function desiredFieldsEqual(desired: ResourceDesiredState, current: ResourceCurrentState): boolean {
-	if (desired.kind !== current.kind) {
-		return false;
-	}
-
-	// Registry index returns a union of per-kind modules; widening its type
-	// parameter lets us call fieldsEqual without per-kind discriminator
-	// narrowing. Safe because the kind-equality check above has already
-	// pinned both sides to the same discriminator.
+	// Registry index returns a union of per-kind modules; widening its
+	// type parameter lets us call fieldsEqual without per-kind
+	// discriminator narrowing. When `desired.kind !== current.kind`
+	// the per-kind structural field comparison naturally returns false
+	// because every managed field read on the wrong side yields
+	// `undefined`, so no explicit kind guard is needed.
 	const module = defaultKindRegistry[desired.kind] as ResourceKindModule<ResourceKind>;
 	return module.fieldsEqual(desired, current);
 }
