@@ -1,41 +1,13 @@
 import type { Result } from "@bedrock/ocale";
 
 import type { ResourceDesiredInput } from "../core/flatten.ts";
+import { sha256Hex } from "../core/kinds/hash.ts";
+import type { BuildDesiredError } from "../core/kinds/module.ts";
+import { readBytes } from "../core/kinds/read-bytes.ts";
 import { copyDeclaredSocialLinks, type ResourceDesiredState } from "../core/resources.ts";
-import { asSha256Hex, type ResourceKey } from "../types/ids.ts";
+import { asSha256Hex } from "../types/ids.ts";
 
-/**
- * Failure surfaced by `buildDesired` when the I/O step for a resource input
- * cannot complete. Validation and key-shape errors are caught upstream by
- * the schema (`validateConfig`); by the time inputs reach `buildDesired`
- * they are already well-formed, so the only remaining failure mode is
- * reading the file bytes.
- *
- * @example
- *
- * ```ts
- * import { asResourceKey, type BuildDesiredError } from "@bedrock/core";
- *
- * const err: BuildDesiredError = {
- *     filePath: "assets/vip-icon.png",
- *     key: asResourceKey("vip-pass"),
- *     kind: "fileReadFailed",
- *     reason: "ENOENT",
- * };
- *
- * expect(err.kind).toBe("fileReadFailed");
- * ```
- */
-export interface BuildDesiredError {
-	/** ResourceKey of the input whose file failed to read. */
-	readonly key: ResourceKey;
-	/** Path of the file that failed to read. */
-	readonly filePath: string;
-	/** Literal discriminator for narrowing. */
-	readonly kind: "fileReadFailed";
-	/** Human-readable explanation; typically the caught error message. */
-	readonly reason: string;
-}
+export type { BuildDesiredError } from "../core/kinds/module.ts";
 
 /**
  * Layer file I/O onto a flat tagged list of resource inputs to produce
@@ -98,40 +70,11 @@ export async function buildDesired(
 	return { data: desired, success: true };
 }
 
-async function sha256Hex(bytes: Uint8Array): Promise<string> {
-	// `Uint8Array.from(bytes)` narrows `Uint8Array<ArrayBufferLike>` to
-	// `Uint8Array<ArrayBuffer>` for `crypto.subtle.digest`, which rejects the
-	// SharedArrayBuffer variant at the type level.
-	const buffer = await crypto.subtle.digest("SHA-256", Uint8Array.from(bytes));
-	return Array.from(new Uint8Array(buffer), (byte) => byte.toString(16).padStart(2, "0")).join(
-		"",
-	);
-}
-
-async function readBytes(
-	target: { filePath: string; key: ResourceKey },
-	readFile: (path: string) => Promise<Uint8Array>,
-): Promise<Result<Uint8Array, BuildDesiredError>> {
-	try {
-		return { data: await readFile(target.filePath), success: true };
-	} catch (err) {
-		return {
-			err: {
-				key: target.key,
-				filePath: target.filePath,
-				kind: "fileReadFailed",
-				reason: err instanceof Error ? err.message : String(err),
-			},
-			success: false,
-		};
-	}
-}
-
 async function normalizeGamePass(
 	input: Extract<ResourceDesiredInput, { kind: "gamePass" }>,
 	readFile: (path: string) => Promise<Uint8Array>,
 ): Promise<Result<ResourceDesiredState, BuildDesiredError>> {
-	const read = await readBytes({ key: input.key, filePath: input.iconFilePath }, readFile);
+	const read = await readBytes({ key: input.key, filePath: input.iconFilePath }, { readFile });
 	if (!read.success) {
 		return read;
 	}
@@ -154,7 +97,7 @@ async function normalizePlace(
 	input: Extract<ResourceDesiredInput, { kind: "place" }>,
 	readFile: (path: string) => Promise<Uint8Array>,
 ): Promise<Result<ResourceDesiredState, BuildDesiredError>> {
-	const read = await readBytes({ key: input.key, filePath: input.filePath }, readFile);
+	const read = await readBytes({ key: input.key, filePath: input.filePath }, { readFile });
 	if (!read.success) {
 		return read;
 	}
