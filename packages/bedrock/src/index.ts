@@ -1,8 +1,13 @@
 export { createGamePassDriver, type GamePassDriverDeps } from "./adapters/game-pass-driver.ts";
+export {
+	createGistStateAdapter,
+	type GistStateAdapterDeps,
+} from "./adapters/gist-state-adapter.ts";
 export { createPlaceDriver, type PlaceDriverDeps } from "./adapters/place-driver.ts";
 export { createUniverseDriver, type UniverseDriverDeps } from "./adapters/universe-driver.ts";
 export type { ConfigError, ConfigValidationIssue } from "./core/config-error.ts";
 export { diff } from "./core/diff.ts";
+export { validateEnvironmentName } from "./core/environment.ts";
 export {
 	flattenConfig,
 	type GamePassDesiredInput,
@@ -49,6 +54,7 @@ export {
 	type UniverseEntry,
 	type UniverseVisibility,
 } from "./core/schema.ts";
+export { parseStateFile, serializeStateFile } from "./core/state-file.ts";
 export type { BedrockState, StateError } from "./core/state.ts";
 export type { DriverRegistry, ResourceDriver } from "./ports/resource-driver.ts";
 export type { StatePort } from "./ports/state-port.ts";
