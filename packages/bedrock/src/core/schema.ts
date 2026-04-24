@@ -125,6 +125,37 @@ export interface UniverseEntry {
 }
 
 /**
+ * Per-kind entry registry. Each `ResourceKind` must have a matching entry
+ * type or `ResourceEntryByKind[K]` is a compile error. Modelled as an
+ * interface (not a type alias) so downstream resource kinds can declare
+ * their entry type alongside the kind's other domain types without
+ * touching this module.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { ResourceEntryByKind } from "@bedrock/core";
+ *
+ * const entry: ResourceEntryByKind["gamePass"] = {
+ *     description: "Grants VIP perks.",
+ *     iconFilePath: "assets/vip-icon.png",
+ *     name: "VIP Pass",
+ *     price: 500,
+ * };
+ *
+ * expect(entry.name).toBe("VIP Pass");
+ * ```
+ */
+export interface ResourceEntryByKind {
+	/** Authored entry body for a game-pass resource. */
+	gamePass: GamePassEntry;
+	/** Authored entry body for a place resource. */
+	place: PlaceEntry;
+	/** Authored entry body for a universe resource. */
+	universe: UniverseEntry;
+}
+
+/**
  * Validated project config as accepted by `loadConfig`. Plain mutable so
  * users can adjust fields in a long-running script before deploying.
  *

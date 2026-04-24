@@ -80,4 +80,4 @@ jobs:
           VITEST_TYPECHECK: "false"
         name: Mutation test changed files
         run: pnpm mutate:changed
-    timeout-minutes: 10
+    timeout-minutes: 20

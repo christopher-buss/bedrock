@@ -1,12 +1,9 @@
 import type { SocialLink } from "@bedrock/ocale/universes";
 
-import {
-	asResourceKey,
-	asRobloxAssetId,
-	type ResourceKey,
-	type RobloxAssetId,
-} from "../types/ids.ts";
-import { copyDeclaredSocialLinks, UNIVERSE_SINGLETON_KEY } from "./resources.ts";
+import type { ResourceKey, RobloxAssetId } from "../types/ids.ts";
+import { defaultKindRegistry } from "./kinds/index.ts";
+import type { ResourceKindModule } from "./kinds/module.ts";
+import type { ResourceKind } from "./resources.ts";
 import type { Config, GamePassEntry, UniverseVisibility } from "./schema.ts";
 
 /**
@@ -199,51 +196,8 @@ export type ResourceDesiredInput = GamePassDesiredInput | PlaceDesiredInput | Un
  * ```
  */
 export function flattenConfig(config: Config): ReadonlyArray<ResourceDesiredInput> {
-	const out: Array<ResourceDesiredInput> = [];
-	for (const [key, entry] of Object.entries(config.passes ?? {})) {
-		out.push({
-			key: asResourceKey(key),
-			name: entry.name,
-			description: entry.description,
-			iconFilePath: entry.iconFilePath,
-			kind: "gamePass",
-			price: entry.price,
-		});
-	}
-
-	for (const [key, entry] of Object.entries(config.places ?? {})) {
-		out.push({
-			key: asResourceKey(key),
-			filePath: entry.filePath,
-			kind: "place",
-			placeId: asRobloxAssetId(entry.placeId),
-		});
-	}
-
-	if (config.universe !== undefined) {
-		out.push(universeInput(config.universe));
-	}
-
-	return out;
-}
-
-function universeInput(entry: NonNullable<Config["universe"]>): UniverseDesiredInput {
-	const base: UniverseDesiredInput = {
-		key: UNIVERSE_SINGLETON_KEY,
-		consoleEnabled: entry.consoleEnabled,
-		desktopEnabled: entry.desktopEnabled,
-		displayName: entry.displayName,
-		kind: "universe",
-		mobileEnabled: entry.mobileEnabled,
-		tabletEnabled: entry.tabletEnabled,
-		universeId: asRobloxAssetId(entry.universeId),
-		visibility: entry.visibility,
-		voiceChatEnabled: entry.voiceChatEnabled,
-		vrEnabled: entry.vrEnabled,
-		...copyDeclaredSocialLinks(entry),
-	};
-
-	return "privateServerPriceRobux" in entry
-		? { ...base, privateServerPriceRobux: entry.privateServerPriceRobux }
-		: base;
+	const modules = Object.values(defaultKindRegistry) as ReadonlyArray<
+		ResourceKindModule<ResourceKind>
+	>;
+	return modules.flatMap((module) => module.flatten(config));
 }

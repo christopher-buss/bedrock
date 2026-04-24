@@ -7,6 +7,8 @@ import type {
 	GamePassDesiredState,
 	PlaceDesiredState,
 	ResourceCurrentState,
+	ResourceDesiredState,
+	ResourceKind,
 	UniverseDesiredState,
 } from "../core/resources.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
@@ -199,9 +201,9 @@ function kindMismatch(key: ResourceKey, mismatch: { actual: string; expected: st
 	);
 }
 
-async function applyGamePass(
-	op: GamePassOp,
-	driver: ResourceDriver<"gamePass">,
+async function applyOne<K extends ResourceKind>(
+	op: NonNoopOp & { readonly desired: Extract<ResourceDesiredState, { kind: K }> },
+	driver: ResourceDriver<K>,
 ): Promise<Result<ResourceCurrentState, RawApplyError>> {
 	if (op.type === "create") {
 		const created = await driver.create(op.desired);
@@ -212,62 +214,14 @@ async function applyGamePass(
 		return { err: { key: op.key, kind: "updateUnsupported" }, success: false };
 	}
 
-	if (op.current.kind !== "gamePass") {
+	if (op.current.kind !== op.desired.kind) {
 		return driverFailure(
 			op.key,
-			kindMismatch(op.key, { actual: op.current.kind, expected: "gamePass" }),
+			kindMismatch(op.key, { actual: op.current.kind, expected: op.desired.kind }),
 		);
 	}
 
-	const updated = await driver.update(op.current, op.desired);
-	return updated.success ? updated : driverFailure(op.key, updated.err);
-}
-
-async function applyPlace(
-	op: PlaceOp,
-	driver: ResourceDriver<"place">,
-): Promise<Result<ResourceCurrentState, RawApplyError>> {
-	if (op.type === "create") {
-		const created = await driver.create(op.desired);
-		return created.success ? created : driverFailure(op.key, created.err);
-	}
-
-	if (driver.update === undefined) {
-		return { err: { key: op.key, kind: "updateUnsupported" }, success: false };
-	}
-
-	if (op.current.kind !== "place") {
-		return driverFailure(
-			op.key,
-			kindMismatch(op.key, { actual: op.current.kind, expected: "place" }),
-		);
-	}
-
-	const updated = await driver.update(op.current, op.desired);
-	return updated.success ? updated : driverFailure(op.key, updated.err);
-}
-
-async function applyUniverse(
-	op: UniverseOp,
-	driver: ResourceDriver<"universe">,
-): Promise<Result<ResourceCurrentState, RawApplyError>> {
-	if (op.type === "create") {
-		const created = await driver.create(op.desired);
-		return created.success ? created : driverFailure(op.key, created.err);
-	}
-
-	if (driver.update === undefined) {
-		return { err: { key: op.key, kind: "updateUnsupported" }, success: false };
-	}
-
-	if (op.current.kind !== "universe") {
-		return driverFailure(
-			op.key,
-			kindMismatch(op.key, { actual: op.current.kind, expected: "universe" }),
-		);
-	}
-
-	const updated = await driver.update(op.current, op.desired);
+	const updated = await driver.update(op.current as ResourceCurrentState<K>, op.desired);
 	return updated.success ? updated : driverFailure(op.key, updated.err);
 }
 
@@ -280,13 +234,13 @@ async function dispatchOp(
 	// not propagate through a non-distributive union.
 	switch (op.desired.kind) {
 		case "gamePass": {
-			return applyGamePass(op as GamePassOp, registry.gamePass);
+			return applyOne(op as GamePassOp, registry.gamePass);
 		}
 		case "place": {
-			return applyPlace(op as PlaceOp, registry.place);
+			return applyOne(op as PlaceOp, registry.place);
 		}
 		case "universe": {
-			return applyUniverse(op as UniverseOp, registry.universe);
+			return applyOne(op as UniverseOp, registry.universe);
 		}
 	}
 }

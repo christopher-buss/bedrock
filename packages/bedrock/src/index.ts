@@ -10,6 +10,13 @@ export {
 	type ResourceDesiredInput,
 	type UniverseDesiredInput,
 } from "./core/flatten.ts";
+export { defaultKindRegistry } from "./core/kinds/index.ts";
+export type {
+	BuildDesiredError,
+	KindIo,
+	KindRegistry,
+	ResourceKindModule,
+} from "./core/kinds/module.ts";
 export type {
 	BaseOperation,
 	CreateOperation,
@@ -38,6 +45,7 @@ export {
 	type Config,
 	type GamePassEntry,
 	type PlaceEntry,
+	type ResourceEntryByKind,
 	type UniverseEntry,
 	type UniverseVisibility,
 } from "./core/schema.ts";
@@ -47,7 +55,6 @@ export type { StatePort } from "./ports/state-port.ts";
 export { applyOps } from "./shell/apply-ops.ts";
 export type { ApplyError } from "./shell/apply-ops.ts";
 export { buildDesired } from "./shell/build-desired.ts";
-export type { BuildDesiredError } from "./shell/build-desired.ts";
 export { defineConfig, type ConfigContext, type ConfigInput } from "./shell/define-config.ts";
 export { deploy, type DeployError, type DeployOptions } from "./shell/deploy.ts";
 export { loadConfig, type LoadConfigOptions } from "./shell/load-config.ts";
