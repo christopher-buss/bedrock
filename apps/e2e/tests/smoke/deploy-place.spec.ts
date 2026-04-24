@@ -16,7 +16,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
 
-const FIXTURE_PATH = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "place.rbxl");
+const FIXTURE_PATH = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "place.rbxlx");
 
 const API_KEY = process.env["ROBLOX_API_KEY"];
 const UNIVERSE_ID_ENV = process.env["ROBLOX_TEST_UNIVERSE_ID"];
