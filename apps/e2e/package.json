@@ -12,7 +12,8 @@
 	"type": "module",
 	"scripts": {
 		"lint": "eslint --cache .",
-		"test": "vitest"
+		"test": "vitest",
+		"test:smoke": "vp test run tests/smoke"
 	},
 	"dependencies": {
 		"@bedrock/core": "workspace:*",

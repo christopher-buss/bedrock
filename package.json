@@ -33,6 +33,7 @@
 		"test": "vp test",
 		"test:affected": "vp test",
 		"test:ci": "vp test --coverage && pnpm coverage:merge",
+		"test:smoke": "pnpm --filter @bedrock/e2e test:smoke",
 		"test:watch": "vp test --watch",
 		"typecheck": "vp run -r typecheck",
 		"typecheck:affected": "vp run -r typecheck"
