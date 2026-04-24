@@ -1,7 +1,7 @@
 import type { Result } from "@bedrock/ocale";
 
 import { validateEnvironmentName } from "../core/environment.ts";
-import { parseStateFile } from "../core/state-file.ts";
+import { parseStateFile, serializeStateFile } from "../core/state-file.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
 import type { StatePort } from "../ports/state-port.ts";
 
@@ -246,15 +246,45 @@ async function readPath(
 	return readGistContent({ entry, fetchFn: ctx.fetchFn, file });
 }
 
+async function sendPatch(ctx: AdapterContext, body: string): Promise<Response> {
+	const headers = buildHeaders(ctx.token);
+	headers.set("Content-Type", "application/json");
+	return ctx.fetchFn(`${GITHUB_API_BASE}/gists/${ctx.gistId}`, {
+		body,
+		headers,
+		method: "PATCH",
+	});
+}
+
 async function writePath(
 	ctx: AdapterContext,
 	state: BedrockState,
 ): Promise<Result<void, StateError>> {
 	const file = fileLabel(ctx.gistId, state.environment);
-	void ctx;
-	void state;
+	const body = JSON.stringify({
+		files: { [fileName(state.environment)]: { content: serializeStateFile(state) } },
+	});
+
+	let response: Response;
+	try {
+		response = await sendPatch(ctx, body);
+	} catch (err) {
+		return { err: networkError(err, file), success: false };
+	}
+
+	if (response.ok) {
+		return { data: undefined, success: true };
+	}
+
+	if (response.status === 422) {
+		return {
+			err: { file, kind: "stateError", reason: "invalid PATCH body sent to github" },
+			success: false,
+		};
+	}
+
 	return {
-		err: { file, kind: "stateError", reason: "write path not yet implemented" },
+		err: mapHttpError({ file, gistId: ctx.gistId, status: response.status }),
 		success: false,
 	};
 }

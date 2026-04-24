@@ -186,6 +186,115 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toMatch(/too large/u);
 		});
 
+		it("should PATCH the gist with the serialized state file on write", async () => {
+			expect.assertions(5);
+
+			const { calls, fetchFn } = fakeFetch(() => emptyResponse(200));
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.write({
+				environment: "production",
+				resources: [],
+				version: 1,
+			});
+
+			expect(result.success).toBeTrue();
+			expect(calls).toHaveLength(1);
+
+			const request = calls[0]!;
+
+			expect(request.method).toBe("PATCH");
+			expect(request.url).toBe(`https://api.github.com/gists/${GIST_ID}`);
+
+			const body = (await request.json()) as { files: Record<string, { content: string }> };
+
+			expect(JSON.parse(body.files["state.production.json"]!.content)).toStrictEqual({
+				$bedrock: { version: 1 },
+				environment: "production",
+				resources: [],
+			});
+		});
+
+		it("should err when writing with an unsafe environment name", async () => {
+			expect.assertions(2);
+
+			const { calls, fetchFn } = fakeFetch(() => emptyResponse(200));
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.write({
+				environment: "../escape",
+				resources: [],
+				version: 1,
+			});
+
+			expect(result.success).toBeFalse();
+			expect(calls).toBeEmpty();
+		});
+
+		it("should err with an invalid-PATCH-body reason on 422 from write", async () => {
+			expect.assertions(2);
+
+			const { fetchFn } = fakeFetch(() => emptyResponse(422));
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.write({
+				environment: "production",
+				resources: [],
+				version: 1,
+			});
+
+			expect(result.success).toBeFalse();
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/invalid PATCH body/u);
+		});
+
+		it("should err on auth failure during write", async () => {
+			expect.assertions(2);
+
+			const { fetchFn } = fakeFetch(() => emptyResponse(403));
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.write({
+				environment: "production",
+				resources: [],
+				version: 1,
+			});
+
+			expect(result.success).toBeFalse();
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/auth failed/u);
+		});
+
+		it("should err on network failure during write", async () => {
+			expect.assertions(2);
+
+			async function throwingFetch(): Promise<Response> {
+				throw new Error("connection reset");
+			}
+
+			const port = createGistStateAdapter({
+				fetch: throwingFetch,
+				gistId: GIST_ID,
+				token: TOKEN,
+			});
+
+			const result = await port.write({
+				environment: "production",
+				resources: [],
+				version: 1,
+			});
+
+			expect(result.success).toBeFalse();
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/network error/u);
+		});
+
 		it("should follow raw_url for a truncated file between 1 MB and 10 MB", async () => {
 			expect.assertions(2);
 
