@@ -96,6 +96,55 @@ describe(parseStateFile, () => {
 		expect(result.data).toBeUndefined();
 	});
 
+	it("should round-trip a populated state written by serializeStateFile", () => {
+		expect.assertions(2);
+
+		const state: BedrockState = {
+			environment: "staging",
+			resources: [
+				{
+					key: asResourceKey("vip-pass"),
+					name: "VIP Pass",
+					description: "Grants VIP perks.",
+					iconFileHash: asSha256Hex(
+						"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+					),
+					iconFilePath: "assets/vip-icon.png",
+					kind: "gamePass",
+					outputs: {
+						assetId: asRobloxAssetId("9876543210"),
+						iconAssetId: asRobloxAssetId("1122334455"),
+					},
+					price: 500,
+				},
+			],
+			version: 1,
+		};
+
+		const result = parseStateFile(serializeStateFile(state), SAMPLE_FILE);
+
+		expect(result.success).toBeTrue();
+
+		assert(result.success);
+
+		expect(result.data).toStrictEqual(state);
+	});
+
+	it("should err when a resource is missing its kind discriminator", () => {
+		expect.assertions(1);
+
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: { version: 1 },
+				environment: "production",
+				resources: [{ key: "vip-pass", outputs: {} }],
+			}),
+			SAMPLE_FILE,
+		);
+
+		expect(result.success).toBeFalse();
+	});
+
 	it("should round-trip an empty state written by serializeStateFile", () => {
 		expect.assertions(2);
 

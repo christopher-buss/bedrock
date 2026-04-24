@@ -5,10 +5,22 @@ import { ArkErrors, type } from "arktype";
 import type { ResourceCurrentState } from "./resources.ts";
 import type { BedrockState, StateError } from "./state.ts";
 
+// Resource-level validation is intentionally shallow: every resource must be
+// an object with a known `kind` discriminator, but per-kind field validation
+// (game-pass vs place vs universe) is deferred. Bedrock is both the writer
+// and the reader of state files, so tampering is out of scope for v0.1;
+// a follow-up issue widens this to full per-kind schema + brand narrowing.
+const resourceShape = type({
+	"key": "string",
+	"[string]": "unknown",
+	"kind": "'gamePass' | 'place' | 'universe'",
+	"outputs": "object",
+});
+
 const envelopeSchema = type({
 	$bedrock: { version: "1" },
 	environment: "string",
-	resources: "unknown[]",
+	resources: resourceShape.array(),
 });
 
 /**
@@ -95,11 +107,7 @@ export function parseStateFile(
 		return errState(file, `invalid state file: ${validated.summary}`);
 	}
 
-	if (validated.resources.length > 0) {
-		return errState(file, "resource-level parsing not yet implemented");
-	}
-
-	const resources: ReadonlyArray<ResourceCurrentState> = [];
+	const resources = validated.resources as unknown as ReadonlyArray<ResourceCurrentState>;
 	return {
 		data: { environment: validated.environment, resources, version: 1 },
 		success: true,
