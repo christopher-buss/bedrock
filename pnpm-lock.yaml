@@ -330,24 +330,39 @@ importers:
 
   apps/website:
     devDependencies:
+      '@bedrock/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      '@bedrock/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      '@bedrock/vite-config':
+        specifier: workspace:*
+        version: link:../../packages/vite-config
       concurrently:
         specifier: catalog:dev
         version: 9.1.0
       typedoc:
         specifier: catalog:build
-        version: 0.28.19(typescript@6.0.2)
+        version: 0.28.19(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
       typedoc-plugin-markdown:
         specifier: catalog:build
-        version: 4.11.0(typedoc@0.28.19(typescript@6.0.2))
+        version: 4.11.0(typedoc@0.28.19(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
       typedoc-plugin-replace-text:
         specifier: catalog:build
-        version: 4.2.0(typedoc@0.28.19(typescript@6.0.2))
+        version: 4.2.0(typedoc@0.28.19(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
+      typescript:
+        specifier: catalog:tsc
+        version: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
       vitepress:
         specifier: catalog:docs
-        version: 2.0.0-alpha.17(@types/node@24.10.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(yaml@2.8.3)
+        version: 2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)
       vitepress-plugin-tabs:
         specifier: catalog:docs
-        version: 0.8.0(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(typescript@6.0.2))
+        version: 0.8.0(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
+      vitest:
+        specifier: npm:@voidzero-dev/vite-plus-test@0.1.19
+        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
 
   packages/bedrock:
     dependencies:
@@ -8808,11 +8823,11 @@ snapshots:
 
   '@ungap/structured-clone@1.3.0': {}
 
-  '@vitejs/plugin-vue@6.0.6(@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(typescript@6.0.2))':
+  '@vitejs/plugin-vue@6.0.6(@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))':
     dependencies:
       '@rolldown/pluginutils': 1.0.0-rc.13
-      vite: '@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(yaml@2.8.3)'
-      vue: 3.5.32(typescript@6.0.2)
+      vite: '@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)'
+      vue: 3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
 
   '@vitest/coverage-v8@4.1.4(@voidzero-dev/vite-plus-test@0.1.19)':
     dependencies:
@@ -8864,23 +8879,6 @@ snapshots:
       publint: 0.3.18
       tsx: 4.21.0
       typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
-      unplugin-unused: 0.5.7
-      yaml: 2.8.3
-
-  '@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(yaml@2.8.3)':
-    dependencies:
-      '@oxc-project/runtime': 0.126.0
-      '@oxc-project/types': 0.126.0
-      lightningcss: 1.32.0
-      postcss: 8.5.9
-    optionalDependencies:
-      '@types/node': 24.10.1
-      esbuild: 0.27.7
-      fsevents: 2.3.3
-      jiti: 2.6.1
-      publint: 0.3.18
-      tsx: 4.21.0
-      typescript: 6.0.2
       unplugin-unused: 0.5.7
       yaml: 2.8.3
 
@@ -9012,35 +9010,35 @@ snapshots:
       '@vue/shared': 3.5.32
       csstype: 3.2.3
 
-  '@vue/server-renderer@3.5.32(vue@3.5.32(typescript@6.0.2))':
+  '@vue/server-renderer@3.5.32(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))':
     dependencies:
       '@vue/compiler-ssr': 3.5.32
       '@vue/shared': 3.5.32
-      vue: 3.5.32(typescript@6.0.2)
+      vue: 3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
 
   '@vue/shared@3.5.32': {}
 
-  '@vueuse/core@14.2.1(vue@3.5.32(typescript@6.0.2))':
+  '@vueuse/core@14.2.1(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))':
     dependencies:
       '@types/web-bluetooth': 0.0.21
       '@vueuse/metadata': 14.2.1
-      '@vueuse/shared': 14.2.1(vue@3.5.32(typescript@6.0.2))
-      vue: 3.5.32(typescript@6.0.2)
+      '@vueuse/shared': 14.2.1(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
+      vue: 3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
 
-  '@vueuse/integrations@14.2.1(change-case@5.4.4)(focus-trap@8.0.1)(vue@3.5.32(typescript@6.0.2))':
+  '@vueuse/integrations@14.2.1(change-case@5.4.4)(focus-trap@8.0.1)(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))':
     dependencies:
-      '@vueuse/core': 14.2.1(vue@3.5.32(typescript@6.0.2))
-      '@vueuse/shared': 14.2.1(vue@3.5.32(typescript@6.0.2))
-      vue: 3.5.32(typescript@6.0.2)
+      '@vueuse/core': 14.2.1(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
+      '@vueuse/shared': 14.2.1(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
+      vue: 3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
     optionalDependencies:
       change-case: 5.4.4
       focus-trap: 8.0.1
 
   '@vueuse/metadata@14.2.1': {}
 
-  '@vueuse/shared@14.2.1(vue@3.5.32(typescript@6.0.2))':
+  '@vueuse/shared@14.2.1(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))':
     dependencies:
-      vue: 3.5.32(typescript@6.0.2)
+      vue: 3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
 
   acorn-jsx@5.3.2(acorn@8.15.0):
     dependencies:
@@ -12194,21 +12192,21 @@ snapshots:
       tunnel: 0.0.6
       underscore: 1.13.8
 
-  typedoc-plugin-markdown@4.11.0(typedoc@0.28.19(typescript@6.0.2)):
+  typedoc-plugin-markdown@4.11.0(typedoc@0.28.19(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))):
     dependencies:
-      typedoc: 0.28.19(typescript@6.0.2)
+      typedoc: 0.28.19(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
 
-  typedoc-plugin-replace-text@4.2.0(typedoc@0.28.19(typescript@6.0.2)):
+  typedoc-plugin-replace-text@4.2.0(typedoc@0.28.19(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))):
     dependencies:
-      typedoc: 0.28.19(typescript@6.0.2)
+      typedoc: 0.28.19(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
 
-  typedoc@0.28.19(typescript@6.0.2):
+  typedoc@0.28.19(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)):
     dependencies:
       '@gerrit0/mini-shiki': 3.23.0
       lunr: 2.3.9
       markdown-it: 14.1.1
       minimatch: 10.2.5
-      typescript: 6.0.2
+      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
       yaml: 2.8.3
 
   typescript@5.9.3: {}
@@ -12370,12 +12368,12 @@ snapshots:
       tsx: 4.21.0
       yaml: 2.8.3
 
-  vitepress-plugin-tabs@0.8.0(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(typescript@6.0.2)):
+  vitepress-plugin-tabs@0.8.0(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))):
     dependencies:
-      vitepress: 2.0.0-alpha.17(@types/node@24.10.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(yaml@2.8.3)
-      vue: 3.5.32(typescript@6.0.2)
+      vitepress: 2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)
+      vue: 3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
 
-  vitepress@2.0.0-alpha.17(@types/node@24.10.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(yaml@2.8.3):
+  vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3):
     dependencies:
       '@docsearch/css': 4.6.2
       '@docsearch/js': 4.6.2
@@ -12385,17 +12383,17 @@ snapshots:
       '@shikijs/transformers': 3.23.0
       '@shikijs/types': 3.23.0
       '@types/markdown-it': 14.1.2
-      '@vitejs/plugin-vue': 6.0.6(@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(typescript@6.0.2))
+      '@vitejs/plugin-vue': 6.0.6(@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
       '@vue/devtools-api': 8.0.5
       '@vue/shared': 3.5.32
-      '@vueuse/core': 14.2.1(vue@3.5.32(typescript@6.0.2))
-      '@vueuse/integrations': 14.2.1(change-case@5.4.4)(focus-trap@8.0.1)(vue@3.5.32(typescript@6.0.2))
+      '@vueuse/core': 14.2.1(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
+      '@vueuse/integrations': 14.2.1(change-case@5.4.4)(focus-trap@8.0.1)(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
       focus-trap: 8.0.1
       mark.js: 8.11.1
       minisearch: 7.2.0
       shiki: 3.23.0
-      vite: '@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(typescript@6.0.2)(unplugin-unused@0.5.7)(yaml@2.8.3)'
-      vue: 3.5.32(typescript@6.0.2)
+      vite: '@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)'
+      vue: 3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
     optionalDependencies:
       oxc-minify: 0.125.0
       postcss: 8.5.9
@@ -12434,15 +12432,15 @@ snapshots:
 
   vscode-uri@3.1.0: {}
 
-  vue@3.5.32(typescript@6.0.2):
+  vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)):
     dependencies:
       '@vue/compiler-dom': 3.5.32
       '@vue/compiler-sfc': 3.5.32
       '@vue/runtime-dom': 3.5.32
-      '@vue/server-renderer': 3.5.32(vue@3.5.32(typescript@6.0.2))
+      '@vue/server-renderer': 3.5.32(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
       '@vue/shared': 3.5.32
     optionalDependencies:
-      typescript: 6.0.2
+      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
 
   walk-up-path@4.0.0: {}
 

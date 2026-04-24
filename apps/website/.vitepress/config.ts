@@ -1,5 +1,11 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vitepress";
 import { tabsMarkdownPlugin } from "vitepress-plugin-tabs";
+
+import { buildSidebarFromNavigation, type NavigationItem } from "./build-sidebar.ts";
+
+const navigationBedrock = loadNavigation("./docs/bedrock/api/navigation.json");
+const navigationOcale = loadNavigation("./docs/ocale/api/navigation.json");
 
 export default defineConfig({
 	cleanUrls: true,
@@ -20,11 +26,6 @@ export default defineConfig({
 			{ link: "/bedrock/guide/getting-started", text: "Bedrock" },
 			{ link: "/ocale/guide/getting-started", text: "Ocale" },
 		],
-		// Links into /ocale/api/** and /bedrock/api/** point at paths that
-		// typedoc-plugin-markdown generates from each package's public API. If
-		// typedoc or the plugin is upgraded and changes its output layout,
-		// these links must be updated manually — there's no compile-time check
-		// that they resolve.
 		sidebar: {
 			"/bedrock/": [
 				{
@@ -32,63 +33,23 @@ export default defineConfig({
 					text: "Bedrock",
 				},
 				{
-					items: [
-						{ link: "/bedrock/api/functions/diff", text: "diff" },
-						{ link: "/bedrock/api/type-aliases/Operation", text: "Operation" },
-						{
-							link: "/bedrock/api/type-aliases/ResourceDesiredState",
-							text: "ResourceDesiredState",
-						},
-						{
-							link: "/bedrock/api/type-aliases/ResourceCurrentState",
-							text: "ResourceCurrentState",
-						},
-					],
-					text: "Core",
-				},
-				{
-					items: [
-						{
-							link: "/bedrock/api/interfaces/ResourceDriver",
-							text: "ResourceDriver",
-						},
-						{
-							link: "/bedrock/api/type-aliases/DriverRegistry",
-							text: "DriverRegistry",
-						},
-					],
-					text: "Ports",
-				},
-				{
-					items: [
-						{
-							link: "/bedrock/api/type-aliases/ResourceKey",
-							text: "Branded IDs",
-						},
-					],
-					text: "Types",
+					collapsed: false,
+					items: buildSidebarFromNavigation(navigationBedrock, "/bedrock/api/"),
+					text: "API",
 				},
 			],
 			"/ocale/": [
 				{
-					items: [{ link: "/ocale/guide/getting-started", text: "Getting Started" }],
+					items: [
+						{ link: "/ocale/guide/getting-started", text: "Getting Started" },
+						{ link: "/ocale/guide/errors", text: "Errors" },
+					],
 					text: "Ocale",
 				},
 				{
-					items: [
-						{ link: "/ocale/guide/errors", text: "Errors" },
-						{ link: "/ocale/api/index/type-aliases/Result", text: "Result" },
-					],
-					text: "Core",
-				},
-				{
-					items: [
-						{
-							link: "/ocale/api/resources/game-passes/classes/GamePassesClient",
-							text: "Game Passes",
-						},
-					],
-					text: "Resources",
+					collapsed: false,
+					items: buildSidebarFromNavigation(navigationOcale, "/ocale/api/"),
+					text: "API",
 				},
 			],
 		},
@@ -96,3 +57,31 @@ export default defineConfig({
 	},
 	title: "Bedrock",
 });
+
+function toNavigationItem(value: JSONValue): NavigationItem | undefined {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) {
+		return undefined;
+	}
+
+	const { children, path, title } = value;
+	if (typeof title !== "string") {
+		return undefined;
+	}
+
+	return {
+		...(Array.isArray(children) && {
+			children: children.flatMap((child) => toNavigationItem(child) ?? []),
+		}),
+		...(typeof path === "string" && { path }),
+		title,
+	};
+}
+
+function loadNavigation(path: string): Array<NavigationItem> {
+	try {
+		const parsed = JSON.parse(readFileSync(path, "utf8"));
+		return Array.isArray(parsed) ? parsed.flatMap((item) => toNavigationItem(item) ?? []) : [];
+	} catch {
+		return [];
+	}
+}

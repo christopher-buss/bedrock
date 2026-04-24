@@ -8,6 +8,8 @@
 	"exclude": ["**/*.spec.ts", "**/*.spec-d.ts", "**/*.example.spec.ts", "**/*.example.test.ts"],
 	"tsconfig": "../../packages/open-cloud/tsconfig.json",
 	"out": "./docs/ocale/api",
+	"navigationJson": "./docs/ocale/api/navigation.json",
+	"pretty": true,
 	"plugin": ["typedoc-plugin-markdown", "typedoc-plugin-replace-text"],
 	"readme": "none",
 	"githubPages": false,
