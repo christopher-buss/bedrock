@@ -37,7 +37,7 @@ describe("deploy place to real Roblox", () => {
 	it.skipIf(!HAS_SECRETS)(
 		"should publish a place via deploy and report a positive versionNumber",
 		async () => {
-			expect.hasAssertions();
+			expect.assertions(5);
 
 			// The skipIf above guarantees these are defined at runtime, but the
 			// type system cannot see through that, so we re-assert here to keep
@@ -67,11 +67,11 @@ describe("deploy place to real Roblox", () => {
 				universeId,
 			});
 
-			const registry: DriverRegistry = {
+			const registry = {
 				gamePass: unreachableDriver("game passes"),
 				place: placeDriver,
 				universe: unreachableDriver("universe block"),
-			};
+			} satisfies DriverRegistry;
 
 			const result = await deploy({
 				config: {
