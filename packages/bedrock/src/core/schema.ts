@@ -36,6 +36,13 @@ export interface PlaceEntry {
 }
 
 /**
+ * Allowed visibility values in user config. Matches ocale's
+ * `UniverseVisibility` union; the universe driver translates these to
+ * the Roblox wire enum before sending the PATCH.
+ */
+export type UniverseVisibility = "private" | "public" | "unspecified";
+
+/**
  * Body of the singleton `universe` block. Bedrock synthesizes the
  * `ResourceKey` (`"main"`) in `flattenConfig`, so user config supplies
  * only the existing `universeId` plus any managed fields they want
@@ -51,12 +58,30 @@ export interface UniverseEntry {
 	consoleEnabled?: boolean | undefined;
 	/** Whether desktop players can join; omit or set `undefined` to leave unmanaged. */
 	desktopEnabled?: boolean | undefined;
+	/**
+	 * Display name for the universe. Because Roblox derives this from
+	 * the root place's name, the driver routes the update through
+	 * `PlacesClient.update`; omit or set `undefined` to leave unmanaged.
+	 */
+	displayName?: string | undefined;
 	/** Whether mobile players can join; omit or set `undefined` to leave unmanaged. */
 	mobileEnabled?: boolean | undefined;
+	/**
+	 * Private-server price in Robux. Declare as `undefined` to disable
+	 * private servers (cancels active subscriptions); omit to leave the
+	 * server value untouched.
+	 */
+	privateServerPriceRobux?: number | undefined;
 	/** Whether tablet players can join; omit or set `undefined` to leave unmanaged. */
 	tabletEnabled?: boolean | undefined;
 	/** Existing Roblox universe ID. */
 	universeId: string;
+	/**
+	 * Universe visibility. Declaring `"private"` immediately removes
+	 * active players from running servers; omit or set `undefined` to
+	 * leave unmanaged.
+	 */
+	visibility?: undefined | UniverseVisibility;
 	/** Whether voice chat is enabled; omit or set `undefined` to leave unmanaged. */
 	voiceChatEnabled?: boolean | undefined;
 	/** Whether VR players can join; omit or set `undefined` to leave unmanaged. */
@@ -134,9 +159,12 @@ const OPTIONAL_BOOLEAN = "boolean | undefined";
 const universeEntry = type({
 	"consoleEnabled?": OPTIONAL_BOOLEAN,
 	"desktopEnabled?": OPTIONAL_BOOLEAN,
+	"displayName?": "string | undefined",
 	"mobileEnabled?": OPTIONAL_BOOLEAN,
+	"privateServerPriceRobux?": "number.integer >= 0 | undefined",
 	"tabletEnabled?": OPTIONAL_BOOLEAN,
 	"universeId": "string.digits",
+	"visibility?": "'private' | 'public' | 'unspecified' | undefined",
 	"voiceChatEnabled?": OPTIONAL_BOOLEAN,
 	"vrEnabled?": OPTIONAL_BOOLEAN,
 }).onUndeclaredKey("reject");
