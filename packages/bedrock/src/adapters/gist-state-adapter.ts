@@ -11,9 +11,9 @@ const USER_AGENT = "bedrock";
 const MAX_INLINE_BYTES = 10_000_000;
 
 /**
- * Minimal `fetch`-compatible signature the adapter needs. Deliberately
- * narrower than `GistFetch` so test fakes do not have to stub
- * unused methods (e.g. `fetch.preconnect`).
+ * Minimal `fetch`-compatible signature the adapter needs, narrower than
+ * `typeof globalThis.fetch` so test fakes do not have to stub runtime
+ * extensions such as `fetch.preconnect`.
  */
 export type GistFetch = (
 	input: globalThis.Request | string | URL,
@@ -22,19 +22,6 @@ export type GistFetch = (
 
 /**
  * Configuration for {@link createGistStateAdapter}.
- *
- * @example
- *
- * ```ts
- * import type { GistStateAdapterDeps } from "@bedrock/core";
- *
- * const deps: GistStateAdapterDeps = {
- *     gistId: "abc123def456",
- *     token: "ghp_example",
- * };
- *
- * expect(deps.gistId).toBe("abc123def456");
- * ```
  */
 export interface GistStateAdapterDeps {
 	/** Injection seam for tests; defaults to `globalThis.fetch`. */
@@ -119,7 +106,7 @@ export function createGistStateAdapter(deps: GistStateAdapterDeps): StatePort {
 		async write(state) {
 			const safe = validateEnvironmentName(state.environment);
 			if (!safe.success) {
-				return { err: safe.err, success: false };
+				return safe;
 			}
 
 			return writePath(ctx, state);
@@ -199,27 +186,29 @@ async function fetchGistBody(
 	return { data: body, success: true };
 }
 
+function stateErr<T>(file: string, reason: string): Result<T, StateError> {
+	return { err: { file, kind: "stateError", reason }, success: false };
+}
+
 async function readGistContent({
 	entry,
 	fetchFn,
 	file,
 }: ReadContentParameters): Promise<Result<BedrockState | undefined, StateError>> {
 	if (entry.size > MAX_INLINE_BYTES) {
-		return {
-			err: { file, kind: "stateError", reason: `state file too large: ${entry.size} bytes` },
-			success: false,
-		};
+		return stateErr(file, `state file too large: ${entry.size} bytes`);
 	}
 
 	if (entry.isTruncated) {
 		if (entry.rawUrl === undefined) {
-			return {
-				err: { file, kind: "stateError", reason: "truncated gist file missing raw_url" },
-				success: false,
-			};
+			return stateErr(file, "truncated gist file missing raw_url");
 		}
 
 		const rawResponse = await fetchFn(entry.rawUrl);
+		if (!rawResponse.ok) {
+			return stateErr(file, `raw_url fetch returned ${rawResponse.status}`);
+		}
+
 		const raw = await rawResponse.text();
 		return parseStateFile(raw, file);
 	}
@@ -277,10 +266,7 @@ async function writePath(
 	}
 
 	if (response.status === 422) {
-		return {
-			err: { file, kind: "stateError", reason: "invalid PATCH body sent to github" },
-			success: false,
-		};
+		return stateErr(file, "invalid PATCH body sent to github");
 	}
 
 	return {

@@ -1,8 +1,15 @@
 import type { Result } from "@bedrock/ocale";
 
+import { RESOURCE_KEY_PATTERN_SOURCE } from "../types/ids.ts";
 import type { StateError } from "./state.ts";
 
-const ENVIRONMENT_NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+// Shares its character class with `RESOURCE_KEY_PATTERN_SOURCE` so the
+// "safe identifier" alphabet has one source of truth; an environment name
+// is not a `ResourceKey`, but both must be filesystem-safe, and diverging
+// the alphabets silently would let one kind of name collide where the
+// other is valid.
+const ENVIRONMENT_CHARACTER_CLASS = RESOURCE_KEY_PATTERN_SOURCE.replace(/^\^|\+\$$/gu, "");
+const ENVIRONMENT_NAME_PATTERN = new RegExp(`^${ENVIRONMENT_CHARACTER_CLASS}{1,64}$`, "u");
 
 /**
  * Validate an environment name at a state-adapter boundary.
