@@ -10,6 +10,7 @@ import {
 	type ResourceDriver,
 	UNIVERSE_SINGLETON_KEY,
 } from "@bedrock/core";
+import { PlacesClient } from "@bedrock/ocale/places";
 import { createFakeHttpClient, validUniverseBody } from "@bedrock/ocale/testing";
 import { UniversesClient } from "@bedrock/ocale/universes";
 
@@ -60,7 +61,12 @@ describe("universe pipeline end-to-end", () => {
 			gamePass: GAME_PASS_TRAP,
 			place: PLACE_TRAP,
 			universe: createUniverseDriver({
-				client: new UniversesClient({
+				places: new PlacesClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: async () => {},
+				}),
+				universes: new UniversesClient({
 					apiKey: "test-key",
 					httpClient,
 					sleep: async () => {},
