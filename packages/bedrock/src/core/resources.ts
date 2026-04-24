@@ -181,8 +181,6 @@ export interface UniverseDesiredState {
  * this list so they cannot drift apart. Order drives `updateMask` sequence in
  * generated requests.
  */
-// Module-init const; perTest coverage can't attribute it to any test.
-// Stryker disable next-line all
 export const UNIVERSE_MANAGED_FLAGS = [
 	"desktopEnabled",
 	"mobileEnabled",
