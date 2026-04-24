@@ -1,22 +1,10 @@
 import type { Tagged } from "type-fest";
 
 /**
- * Character class (no anchors, no quantifier) shared by `ResourceKey` and
- * adapter-boundary validators like `validateEnvironmentName`. Exposed
- * separately so callers can compose their own length / anchor requirements
- * without re-declaring the alphabet.
- */
-export const RESOURCE_KEY_CHARACTER_CLASS = "[A-Za-z0-9_-]";
-
-/**
  * Regex source shared by the `ResourceKey` brand validator and the runtime
  * config schema. Kept as a string (not a `RegExp`) so arktype can consume it
  * directly in keyed-map signatures without re-escaping.
  */
-// Kept as a plain string literal (not composed from RESOURCE_KEY_CHARACTER_CLASS)
-// so arktype's keyed-map inference preserves the exact regex pattern at the
-// type level; a template-literal composition would widen to `string` and break
-// the `Config` type annotation in schema.ts.
 export const RESOURCE_KEY_PATTERN_SOURCE = "^[A-Za-z0-9_-]+$";
 
 const RESOURCE_KEY_PATTERN = new RegExp(RESOURCE_KEY_PATTERN_SOURCE);

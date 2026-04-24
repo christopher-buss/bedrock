@@ -1,14 +1,13 @@
 import type { Result } from "@bedrock/ocale";
 
-import { RESOURCE_KEY_CHARACTER_CLASS } from "../types/ids.ts";
 import type { StateError } from "./state.ts";
 
-// Reuses `RESOURCE_KEY_CHARACTER_CLASS` so the "safe identifier" alphabet
-// has one source of truth across ResourceKey and environment names; the
-// two contracts are distinct (this one caps length) but diverging their
-// alphabets silently would let a name be valid in one and collide in the
-// other.
-const ENVIRONMENT_NAME_PATTERN = new RegExp(`^${RESOURCE_KEY_CHARACTER_CLASS}{1,64}$`);
+// Character class mirrors `RESOURCE_KEY_PATTERN_SOURCE` in types/ids.ts
+// (both are "safe identifier" alphabets). They're kept in separate literals
+// because the contracts are distinct: ResourceKey is unbounded, this one
+// caps length at 64 so adapter-stored filenames can't exceed filesystem
+// limits. If one alphabet changes, update the other deliberately.
+const ENVIRONMENT_NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
 /**
  * Validate an environment name at a state-adapter boundary.

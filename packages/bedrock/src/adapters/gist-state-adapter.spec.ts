@@ -36,8 +36,8 @@ function emptyResponse(status: number): Response {
 
 describe(createGistStateAdapter, () => {
 	describe("read", () => {
-		it("should send a GET to the gists endpoint with the correct headers", async () => {
-			expect.assertions(5);
+		it("should send a GET to the gists endpoint", async () => {
+			expect.assertions(3);
 
 			const { calls, fetchFn } = fakeFetch(() => okJson({ files: {} }));
 			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
@@ -45,13 +45,23 @@ describe(createGistStateAdapter, () => {
 			await port.read("production");
 
 			expect(calls).toHaveLength(1);
+			expect(calls[0]!.url).toBe(`https://api.github.com/gists/${GIST_ID}`);
+			expect(calls[0]!.method).toBe("GET");
+		});
 
-			const request = calls[0]!;
+		it("should include the expected auth, api-version, and accept headers", async () => {
+			expect.assertions(3);
 
-			expect(request.url).toBe(`https://api.github.com/gists/${GIST_ID}`);
-			expect(request.method).toBe("GET");
-			expect(request.headers.get("authorization")).toBe(`Bearer ${TOKEN}`);
-			expect(request.headers.get("x-github-api-version")).toBe("2026-03-10");
+			const { calls, fetchFn } = fakeFetch(() => okJson({ files: {} }));
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			await port.read("production");
+
+			const { headers } = calls[0]!;
+
+			expect(headers.get("authorization")).toBe(`Bearer ${TOKEN}`);
+			expect(headers.get("x-github-api-version")).toBe("2026-03-10");
+			expect(headers.get("accept")).toBe("application/vnd.github+json");
 		});
 
 		it("should return ok(undefined) when the environment file is absent", async () => {
@@ -153,6 +163,98 @@ describe(createGistStateAdapter, () => {
 			assert(!result.success);
 
 			expect(result.err.reason).toMatch(/network error/u);
+		});
+
+		it("should err with a github-returned-<status> reason on 500", async () => {
+			expect.assertions(2);
+
+			const { fetchFn } = fakeFetch(() => emptyResponse(500));
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/github returned 500/u);
+			expect(result.err.reason).not.toMatch(/auth failed|not found/u);
+		});
+
+		it("should return ok(undefined) when the files dict is missing on the gist response", async () => {
+			expect.assertions(2);
+
+			const { fetchFn } = fakeFetch(() => okJson({}));
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.read("production");
+
+			expect(result.success).toBeTrue();
+
+			assert(result.success);
+
+			expect(result.data).toBeUndefined();
+		});
+
+		it("should return ok(undefined) when the file entry is null in the gist response", async () => {
+			expect.assertions(2);
+
+			const { fetchFn } = fakeFetch(
+				() => new Response('{"files":{"state.production.json":null}}', { status: 200 }),
+			);
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.read("production");
+
+			expect(result.success).toBeTrue();
+
+			assert(result.success);
+
+			expect(result.data).toBeUndefined();
+		});
+
+		it("should return ok(undefined) when the file entry is a non-object primitive", async () => {
+			expect.assertions(2);
+
+			const { fetchFn } = fakeFetch(() => {
+				return okJson({ files: { "state.production.json": "not-an-object" } });
+			});
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.read("production");
+
+			expect(result.success).toBeTrue();
+
+			assert(result.success);
+
+			expect(result.data).toBeUndefined();
+		});
+
+		it("should err with a raw_url-fetch-returned reason when the cdn returns non-ok", async () => {
+			expect.assertions(2);
+
+			const { fetchFn } = fakeFetch((request) => {
+				if (request.url.startsWith("https://api.github.com")) {
+					return okJson({
+						files: {
+							"state.production.json": {
+								content: "",
+								raw_url: "https://gist.example/raw/abc",
+								size: 2_000_000,
+								truncated: true,
+							},
+						},
+					});
+				}
+
+				return emptyResponse(503);
+			});
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/raw_url fetch returned 503/u);
+			expect(result.err.reason).not.toBe("");
 		});
 
 		it("should err when the environment name contains unsafe characters", async () => {
@@ -280,7 +382,7 @@ describe(createGistStateAdapter, () => {
 
 	describe("write", () => {
 		it("should PATCH the gist with the serialized state file on write", async () => {
-			expect.assertions(5);
+			expect.assertions(4);
 
 			const { calls, fetchFn } = fakeFetch(() => emptyResponse(200));
 			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
@@ -297,7 +399,6 @@ describe(createGistStateAdapter, () => {
 			const request = calls[0]!;
 
 			expect(request.method).toBe("PATCH");
-			expect(request.url).toBe(`https://api.github.com/gists/${GIST_ID}`);
 
 			const body = (await request.json()) as { files: Record<string, { content: string }> };
 
@@ -306,6 +407,17 @@ describe(createGistStateAdapter, () => {
 				environment: "production",
 				resources: [],
 			});
+		});
+
+		it("should send a json content-type header on write", async () => {
+			expect.assertions(1);
+
+			const { calls, fetchFn } = fakeFetch(() => emptyResponse(200));
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			await port.write({ environment: "production", resources: [], version: 1 });
+
+			expect(calls[0]!.headers.get("content-type")).toBe("application/json");
 		});
 
 		it("should err when writing with an unsafe environment name", async () => {
