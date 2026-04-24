@@ -79,10 +79,15 @@ describe("universe pipeline end-to-end", () => {
 		expect(applyResult.data).toHaveLength(1);
 		expect(applyResult.data[0]).toStrictEqual({
 			key: UNIVERSE_SINGLETON_KEY,
+			consoleEnabled: undefined,
+			desktopEnabled: false,
 			kind: "universe",
+			mobileEnabled: undefined,
 			outputs: { rootPlaceId: ROOT_PLACE_ID },
+			tabletEnabled: undefined,
 			universeId: UNIVERSE_ID,
 			voiceChatEnabled: true,
+			vrEnabled: undefined,
 		});
 
 		expect(httpClient.requests).toHaveLength(1);
@@ -91,7 +96,7 @@ describe("universe pipeline end-to-end", () => {
 		assert(first);
 
 		expect(first.request.url).toBe(
-			`/cloud/v2/universes/${UNIVERSE_ID}?updateMask=voiceChatEnabled`,
+			`/cloud/v2/universes/${UNIVERSE_ID}?updateMask=desktopEnabled,voiceChatEnabled`,
 		);
 	});
 
@@ -107,10 +112,15 @@ describe("universe pipeline end-to-end", () => {
 		const ops = diff(desiredResult.data, [
 			{
 				key: UNIVERSE_SINGLETON_KEY,
+				consoleEnabled: undefined,
+				desktopEnabled: false,
 				kind: "universe",
+				mobileEnabled: undefined,
 				outputs: { rootPlaceId: ROOT_PLACE_ID },
+				tabletEnabled: undefined,
 				universeId: UNIVERSE_ID,
 				voiceChatEnabled: true,
+				vrEnabled: undefined,
 			},
 		]);
 

@@ -29,9 +29,14 @@ interface ExpectedPlaceOutputs {
 
 interface ExpectedUniverseDesiredState {
 	readonly key: ResourceKey;
+	readonly consoleEnabled: boolean | undefined;
+	readonly desktopEnabled: boolean | undefined;
 	readonly kind: "universe";
+	readonly mobileEnabled: boolean | undefined;
+	readonly tabletEnabled: boolean | undefined;
 	readonly universeId: RobloxAssetId;
 	readonly voiceChatEnabled: boolean | undefined;
+	readonly vrEnabled: boolean | undefined;
 }
 
 interface ExpectedUniverseOutputs {

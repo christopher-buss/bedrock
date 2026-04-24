@@ -1,3 +1,4 @@
+import { PLATFORM_FLAG_ROWS } from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";
 
 import { validateConfig } from "./schema.ts";
@@ -271,6 +272,72 @@ describe(validateConfig, () => {
 		assert(result.success);
 
 		expect(result.data.universe!.voiceChatEnabled).toBeTrue();
+	});
+
+	it.for(PLATFORM_FLAG_ROWS)("should accept a universe block with %s declared", ([flag]) => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{ universe: { [flag]: false, universeId: "1234567890" } },
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.universe![flag]).toBeFalse();
+	});
+
+	it.for(PLATFORM_FLAG_ROWS)(
+		"should default %s to undefined when the universe block omits it",
+		([flag]) => {
+			expect.assertions(1);
+
+			const result = validateConfig({ universe: { universeId: "1234567890" } }, SOURCE);
+
+			assert(result.success);
+
+			expect(result.data.universe![flag]).toBeUndefined();
+		},
+	);
+
+	it.for(PLATFORM_FLAG_ROWS)("should reject a non-boolean %s on a universe block", ([flag]) => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{ universe: { [flag]: "oops", universeId: "1234567890" } },
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["universe", flag]);
+	});
+
+	it("should accept a universe block with every platform flag declared", () => {
+		expect.assertions(5);
+
+		const result = validateConfig(
+			{
+				universe: {
+					consoleEnabled: false,
+					desktopEnabled: true,
+					mobileEnabled: false,
+					tabletEnabled: true,
+					universeId: "1234567890",
+					vrEnabled: false,
+				},
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.universe!.desktopEnabled).toBeTrue();
+		expect(result.data.universe!.mobileEnabled).toBeFalse();
+		expect(result.data.universe!.tabletEnabled).toBeTrue();
+		expect(result.data.universe!.consoleEnabled).toBeFalse();
+		expect(result.data.universe!.vrEnabled).toBeFalse();
 	});
 
 	it("should reject a universe block missing universeId", () => {

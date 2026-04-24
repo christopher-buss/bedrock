@@ -35,13 +35,19 @@ it('Example 2', () => {
 
 it('Example 3', () => {
   const input: UniverseDesiredInput = {
+    consoleEnabled: undefined,
+    desktopEnabled: true,
     key: UNIVERSE_SINGLETON_KEY,
     kind: 'universe',
+    mobileEnabled: undefined,
+    tabletEnabled: undefined,
     universeId: asRobloxAssetId('1234567890'),
     voiceChatEnabled: true,
+    vrEnabled: undefined,
   }
   expect(input.kind).toBe('universe')
   expect(input.key).toBe('main')
+  expect(input.desktopEnabled).toBeTrue()
 })
 
 it('Example 4', () => {

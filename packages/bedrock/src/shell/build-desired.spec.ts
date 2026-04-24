@@ -1,3 +1,4 @@
+import { PLATFORM_FLAG_ROWS } from "#tests/helpers/resources";
 import { assert, describe, expect, it, vi } from "vitest";
 
 import type { GamePassDesiredInput } from "../core/flatten.ts";
@@ -217,9 +218,14 @@ describe(buildDesired, () => {
 			[
 				{
 					key: UNIVERSE_SINGLETON_KEY,
+					consoleEnabled: undefined,
+					desktopEnabled: true,
 					kind: "universe",
+					mobileEnabled: undefined,
+					tabletEnabled: undefined,
 					universeId: asRobloxAssetId("1234567890"),
 					voiceChatEnabled: true,
+					vrEnabled: undefined,
 				},
 			],
 			readFile,
@@ -229,9 +235,14 @@ describe(buildDesired, () => {
 			data: [
 				{
 					key: UNIVERSE_SINGLETON_KEY,
+					consoleEnabled: undefined,
+					desktopEnabled: true,
 					kind: "universe",
+					mobileEnabled: undefined,
+					tabletEnabled: undefined,
 					universeId: asRobloxAssetId("1234567890"),
 					voiceChatEnabled: true,
+					vrEnabled: undefined,
 				},
 			],
 			success: true,
@@ -248,9 +259,14 @@ describe(buildDesired, () => {
 			[
 				{
 					key: UNIVERSE_SINGLETON_KEY,
+					consoleEnabled: undefined,
+					desktopEnabled: undefined,
 					kind: "universe",
+					mobileEnabled: undefined,
+					tabletEnabled: undefined,
 					universeId: asRobloxAssetId("1234567890"),
 					voiceChatEnabled: undefined,
+					vrEnabled: undefined,
 				},
 			],
 			readFile,
@@ -261,4 +277,31 @@ describe(buildDesired, () => {
 
 		expect(result.data[0]!.voiceChatEnabled).toBeUndefined();
 	});
+
+	it.for(PLATFORM_FLAG_ROWS)(
+		"should propagate a declared %s through to universe desired state",
+		async ([flag]) => {
+			expect.assertions(1);
+
+			const readFile = vi.fn<(path: string) => Promise<Uint8Array>>();
+
+			const baseInput = {
+				key: UNIVERSE_SINGLETON_KEY,
+				consoleEnabled: undefined,
+				desktopEnabled: undefined,
+				kind: "universe" as const,
+				mobileEnabled: undefined,
+				tabletEnabled: undefined,
+				universeId: asRobloxAssetId("1234567890"),
+				voiceChatEnabled: undefined,
+				vrEnabled: undefined,
+			};
+			const result = await buildDesired([{ ...baseInput, [flag]: true }], readFile);
+
+			assert(result.success);
+			assert(result.data[0]!.kind === "universe");
+
+			expect(result.data[0]![flag]).toBeTrue();
+		},
+	);
 });

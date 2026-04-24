@@ -3,9 +3,25 @@ import type {
 	PlaceDesiredState,
 	ResourceCurrentState,
 	UniverseDesiredState,
+	UniverseManagedFlag,
 } from "#src/core/resources";
 import { UNIVERSE_SINGLETON_KEY } from "#src/core/resources";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "#src/types/ids";
+
+/**
+ * `it.for` rows for every platform-availability flag on the universe kind;
+ * drops the repeated `[["desktopEnabled"], ["mobileEnabled"], ...]` literal
+ * from each spec file.
+ */
+export const PLATFORM_FLAG_ROWS = (
+	[
+		"desktopEnabled",
+		"mobileEnabled",
+		"tabletEnabled",
+		"consoleEnabled",
+		"vrEnabled",
+	] as const satisfies ReadonlyArray<UniverseManagedFlag>
+).map((flag) => [flag] as const);
 
 const ICON_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
 
@@ -98,9 +114,14 @@ export function placeCurrent(
 export function universeDesired(overrides?: Partial<UniverseDesiredState>): UniverseDesiredState {
 	return {
 		key: UNIVERSE_SINGLETON_KEY,
+		consoleEnabled: undefined,
+		desktopEnabled: undefined,
 		kind: "universe",
+		mobileEnabled: undefined,
+		tabletEnabled: undefined,
 		universeId: asRobloxAssetId("1234567890"),
 		voiceChatEnabled: undefined,
+		vrEnabled: undefined,
 		...overrides,
 	};
 }

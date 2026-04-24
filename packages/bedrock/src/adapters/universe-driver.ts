@@ -1,7 +1,12 @@
 import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
 import type { UniversesClient, UpdateUniverseParameters } from "@bedrock/ocale/universes";
 
-import type { ResourceCurrentState, UniverseDesiredState } from "../core/resources.ts";
+import type {
+	ResourceCurrentState,
+	UniverseDesiredState,
+	UniverseManagedFlag,
+} from "../core/resources.ts";
+import { UNIVERSE_MANAGED_FLAGS } from "../core/resources.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId } from "../types/ids.ts";
 
@@ -67,10 +72,15 @@ export interface UniverseDriverDeps {
  *
  * return driver
  *     .create({
+ *         consoleEnabled: undefined,
+ *         desktopEnabled: true,
  *         key: UNIVERSE_SINGLETON_KEY,
  *         kind: "universe",
+ *         mobileEnabled: undefined,
+ *         tabletEnabled: undefined,
  *         universeId: asRobloxAssetId("1234567890"),
  *         voiceChatEnabled: true,
+ *         vrEnabled: undefined,
  *     })
  *     .then((result) => {
  *         expect(result.success).toBeTrue();
@@ -92,12 +102,15 @@ export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"
 }
 
 function buildParameters(desired: UniverseDesiredState): UpdateUniverseParameters {
-	return {
-		universeId: desired.universeId,
-		...(desired.voiceChatEnabled !== undefined
-			? { voiceChatEnabled: desired.voiceChatEnabled }
-			: {}),
-	};
+	const flags: Partial<Record<UniverseManagedFlag, boolean>> = {};
+	for (const flag of UNIVERSE_MANAGED_FLAGS) {
+		const isEnabled = desired[flag];
+		if (isEnabled !== undefined) {
+			flags[flag] = isEnabled;
+		}
+	}
+
+	return { universeId: desired.universeId, ...flags };
 }
 
 function wrapUpdateError(err: OpenCloudError, desired: UniverseDesiredState): OpenCloudError {
