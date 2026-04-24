@@ -54,10 +54,9 @@ export interface UpdateUniverseParameters {
 	/** Stringified ID of the universe to update. */
 	readonly universeId: string;
 	/**
-	 * Universe visibility. Roblox marks this field `readOnly` in the
-	 * OpenAPI spec, but the endpoint accepts updates to it -- sending
-	 * `"unspecified"` errors server-side, and `"private"` immediately
-	 * removes active players from running servers.
+	 * Universe visibility. Declaring `"private"` immediately removes
+	 * active players from running servers; `"unspecified"` errors
+	 * server-side.
 	 */
 	readonly visibility?: UniverseVisibility;
 	/** Whether voice chat is enabled. */

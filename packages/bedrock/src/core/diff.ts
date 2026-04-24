@@ -1,12 +1,12 @@
 import type { Operation } from "./operations.ts";
-import type {
-	GamePassDesiredState,
-	PlaceDesiredState,
-	ResourceCurrentState,
-	ResourceDesiredState,
-	UniverseDesiredState,
+import {
+	type GamePassDesiredState,
+	type PlaceDesiredState,
+	type ResourceCurrentState,
+	type ResourceDesiredState,
+	UNIVERSE_MANAGED_FLAGS,
+	type UniverseDesiredState,
 } from "./resources.ts";
-import { UNIVERSE_MANAGED_FLAGS } from "./resources.ts";
 
 /**
  * Computes the operations required to reconcile `current` state with `desired`
