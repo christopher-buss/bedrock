@@ -1,6 +1,15 @@
 import type { Result } from "@bedrock/ocale";
 
+import { ArkErrors, type } from "arktype";
+
+import type { ResourceCurrentState } from "./resources.ts";
 import type { BedrockState, StateError } from "./state.ts";
+
+const envelopeSchema = type({
+	$bedrock: { version: "1" },
+	environment: "string",
+	resources: "unknown[]",
+});
 
 /**
  * Serialize a {@link BedrockState} to the on-disk JSON representation used by
@@ -76,8 +85,42 @@ export function parseStateFile(
 		return { data: undefined, success: true };
 	}
 
+	const parsed = parseJson(raw, file);
+	if (!parsed.success) {
+		return parsed;
+	}
+
+	const validated = envelopeSchema(parsed.data);
+	if (validated instanceof ArkErrors) {
+		return errState(file, `invalid state file: ${validated.summary}`);
+	}
+
+	if (validated.resources.length > 0) {
+		return errState(file, "resource-level parsing not yet implemented");
+	}
+
+	const resources: ReadonlyArray<ResourceCurrentState> = [];
 	return {
-		err: { file, kind: "stateError", reason: "state-file parsing not yet implemented" },
+		data: { environment: validated.environment, resources, version: 1 },
+		success: true,
+	};
+}
+
+function parseJson(raw: string, file: string): Result<JSONValue, StateError> {
+	try {
+		return { data: JSON.parse(raw), success: true };
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		return {
+			err: { file, kind: "stateError", reason: `malformed JSON: ${message}` },
+			success: false,
+		};
+	}
+}
+
+function errState(file: string, reason: string): Result<BedrockState | undefined, StateError> {
+	return {
+		err: { file, kind: "stateError", reason },
 		success: false,
 	};
 }

@@ -95,4 +95,86 @@ describe(parseStateFile, () => {
 
 		expect(result.data).toBeUndefined();
 	});
+
+	it("should round-trip an empty state written by serializeStateFile", () => {
+		expect.assertions(2);
+
+		const raw = serializeStateFile({
+			environment: "production",
+			resources: [],
+			version: 1,
+		});
+
+		const result = parseStateFile(raw, SAMPLE_FILE);
+
+		expect(result.success).toBeTrue();
+
+		assert(result.success);
+
+		expect(result.data).toStrictEqual({
+			environment: "production",
+			resources: [],
+			version: 1,
+		});
+	});
+
+	it("should err when the raw bytes are not valid json", () => {
+		expect.assertions(2);
+
+		const result = parseStateFile("{ not valid", SAMPLE_FILE);
+
+		expect(result.success).toBeFalse();
+
+		assert(!result.success);
+
+		expect(result.err).toMatchObject({ file: SAMPLE_FILE, kind: "stateError" });
+	});
+
+	it("should err when the $bedrock envelope is missing", () => {
+		expect.assertions(1);
+
+		const result = parseStateFile(
+			JSON.stringify({ environment: "production", resources: [] }),
+			SAMPLE_FILE,
+		);
+
+		expect(result.success).toBeFalse();
+	});
+
+	it("should err when the schema version is not 1", () => {
+		expect.assertions(1);
+
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: { version: 2 },
+				environment: "production",
+				resources: [],
+			}),
+			SAMPLE_FILE,
+		);
+
+		expect(result.success).toBeFalse();
+	});
+
+	it("should err when the environment is missing", () => {
+		expect.assertions(1);
+
+		const result = parseStateFile(
+			JSON.stringify({ $bedrock: { version: 1 }, resources: [] }),
+			SAMPLE_FILE,
+		);
+
+		expect(result.success).toBeFalse();
+	});
+
+	it("should err when resources is not an array", () => {
+		expect.assertions(1);
+
+		const result = parseStateFile(
+			JSON.stringify({ $bedrock: { version: 1 }, environment: "production", resources: {} }),
+			SAMPLE_FILE,
+		);
+
+		expect(result.success).toBeFalse();
+	});
 });
