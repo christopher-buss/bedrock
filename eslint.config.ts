@@ -27,6 +27,13 @@ export default isentinel(
 		},
 	},
 	{
+		name: "project/github-required-filenames",
+		files: [".github/FUNDING.{yml,yaml}"],
+		rules: {
+			"unicorn/filename-case": "off",
+		},
+	},
+	{
 		name: "project/src",
 		files: [`packages/*/*/${GLOB_SRC}`],
 		rules: {
