@@ -2,12 +2,16 @@
 	"$schema": "https://typedoc.org/schema.json",
 	"entryPoints": [
 		"../../packages/open-cloud/src/index.ts",
-		"../../packages/open-cloud/src/resources/game-passes/index.ts"
+		"../../packages/open-cloud/src/resources/game-passes/index.ts",
+		"../../packages/open-cloud/src/resources/places/index.ts",
+		"../../packages/open-cloud/src/resources/universes/index.ts"
 	],
 	"entryPointStrategy": "resolve",
 	"exclude": ["**/*.spec.ts", "**/*.spec-d.ts", "**/*.example.spec.ts", "**/*.example.test.ts"],
 	"tsconfig": "../../packages/open-cloud/tsconfig.json",
 	"out": "./docs/ocale/api",
+	"navigationJson": "./docs/ocale/api/navigation.json",
+	"pretty": true,
 	"plugin": ["typedoc-plugin-markdown", "typedoc-plugin-replace-text"],
 	"readme": "none",
 	"githubPages": false,

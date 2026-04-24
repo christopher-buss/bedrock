@@ -5,6 +5,8 @@
 	"exclude": ["**/*.spec.ts", "**/*.spec-d.ts", "**/*.example.spec.ts", "**/*.example.test.ts"],
 	"tsconfig": "../../packages/bedrock/tsconfig.json",
 	"out": "./docs/bedrock/api",
+	"navigationJson": "./docs/bedrock/api/navigation.json",
+	"pretty": true,
 	"plugin": ["typedoc-plugin-markdown", "typedoc-plugin-replace-text"],
 	"readme": "none",
 	"githubPages": false,

@@ -12,17 +12,24 @@
 	"type": "module",
 	"scripts": {
 		"docs:build": "typedoc --options ./typedoc.json && typedoc --options ./typedoc.bedrock.json && vitepress build",
-		"docs:dev": "concurrently -k -n ocale,bedrock,vitepress -c magenta,blue,cyan \"typedoc --options ./typedoc.json --watch\" \"typedoc --options ./typedoc.bedrock.json --watch\" \"vitepress dev\"",
+		"docs:dev": "typedoc --options ./typedoc.json && typedoc --options ./typedoc.bedrock.json && concurrently -k -n ocale,bedrock,vitepress -c magenta,blue,cyan \"typedoc --options ./typedoc.json --watch\" \"typedoc --options ./typedoc.bedrock.json --watch\" \"vitepress dev\"",
 		"lint": "eslint --cache .",
-		"preview": "vitepress preview"
+		"preview": "vitepress preview",
+		"test": "vp test",
+		"typecheck": "tsgo --noEmit"
 	},
 	"devDependencies": {
+		"@bedrock/testing": "workspace:*",
+		"@bedrock/typescript-config": "workspace:*",
+		"@bedrock/vite-config": "workspace:*",
 		"concurrently": "catalog:dev",
 		"typedoc": "catalog:build",
 		"typedoc-plugin-markdown": "catalog:build",
 		"typedoc-plugin-replace-text": "catalog:build",
+		"typescript": "catalog:tsc",
 		"vitepress": "catalog:docs",
-		"vitepress-plugin-tabs": "catalog:docs"
+		"vitepress-plugin-tabs": "catalog:docs",
+		"vitest": "catalog:test"
 	},
 	"engines": {
 		"bun": ">=1.0.0"
