@@ -294,3 +294,17 @@ pass it in). It does not require a DI container.
   zero-mock testing story. The pure core is tested without mocks; driven adapters
   are tested against fakes injected at the port boundary; shell functions are
   integration-tested with fake adapters.
+
+## Amendments
+
+- **2026-04-25:** The CLI primary-adapter folder is `packages/bedrock/src/cli/`.
+  The original Decision text places it at `packages/cli/src/bin/`; both segments
+  changed after this ADR was accepted. The package was renamed to
+  `@bedrock/core` (PR #163), making `packages/bedrock/` its working-tree path.
+  The `bin/` segment was renamed to `cli/` when the scaffolding landed (#184)
+  to align with the Node convention that `bin` names the published executable
+  entry (`dist/cli/run.mjs`, declared in `package.json` `bin`) rather than the
+  source folder. Source under `cli/` covers the program factory (`index.ts`),
+  the executable shim (`run.ts`), output port (`render.ts`), options parser
+  (`parse-options.ts`), and exit-code constants. Future command modules live
+  under `cli/commands/`.

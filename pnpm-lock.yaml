@@ -100,12 +100,18 @@ catalogs:
       specifier: 0.3.18
       version: 0.3.18
   runtime:
+    '@clack/prompts':
+      specifier: 1.2.0
+      version: 1.2.0
     arktype:
       specifier: 2.2.0
       version: 2.2.0
     c12:
       specifier: 3.3.4
       version: 3.3.4
+    sade:
+      specifier: 1.8.1
+      version: 1.8.1
   script:
     jiti:
       specifier: 2.6.1
@@ -366,12 +372,18 @@ importers:
       '@bedrock/ocale':
         specifier: workspace:*
         version: link:../open-cloud
+      '@clack/prompts':
+        specifier: catalog:runtime
+        version: 1.2.0
       arktype:
         specifier: catalog:runtime
         version: 2.2.0
       c12:
         specifier: catalog:runtime
         version: 3.3.4(magicast@0.5.2)
+      sade:
+        specifier: catalog:runtime
+        version: 1.8.1
     devDependencies:
       '@bedrock/testing':
         specifier: workspace:*

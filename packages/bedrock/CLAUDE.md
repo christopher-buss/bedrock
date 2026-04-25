@@ -28,8 +28,11 @@ Source layout under `src/`:
 | `adapters/` | Driven adapter implementations (`GamePassDriver` wrapping `@bedrock/ocale`, future state adapters). |
 | `shell/` | Use-case orchestration (`applyOps`, `buildDesired`, future `deploy`). Calls core with data pulled from adapters. |
 
-A `src/bin/` directory will land in a later slice for the CLI primary
-adapter. The programmatic primary surface is `src/index.ts` itself.
+The CLI primary adapter lives under `src/cli/` (program factory, executable
+shim, output port, options parser, exit codes). The folder name diverges
+from ADR-018's original `bin/` plan; the rename is recorded in a dated
+amendment to that ADR. The programmatic primary surface is `src/index.ts`
+itself.
 
 ## Design principles
 

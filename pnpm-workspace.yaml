@@ -67,8 +67,10 @@ catalogs:
     knip: 6.4.1
     publint: 0.3.18
   runtime:
+    "@clack/prompts": 1.2.0
     arktype: 2.2.0
     c12: 3.3.4
+    sade: 1.8.1
   script:
     jiti: 2.6.1
     std-env: 4.1.0
