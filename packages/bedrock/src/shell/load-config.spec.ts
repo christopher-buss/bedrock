@@ -1,9 +1,20 @@
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import process from "node:process";
 import { assert, describe, expect, it } from "vitest";
 
 import { loadConfig } from "./load-config.ts";
+
+const HAS_LUTE = (() => {
+	if ((process.env["BEDROCK_LUTE_PATH"] ?? "").length > 0) {
+		return true;
+	}
+
+	const lookup = process.platform === "win32" ? "where" : "which";
+	return spawnSync(lookup, ["lute"]).status === 0;
+})();
 
 async function withTemporaryDirectory<T>(run: (directory: string) => Promise<T>): Promise<T> {
 	const directory = mkdtempSync(join(tmpdir(), "bedrock-load-config-"));
@@ -319,6 +330,35 @@ describe(loadConfig, () => {
 			"bedrock.config.json",
 			'{ "passes": { "vip-pass": { "name": "VIP Pass", } } }\n',
 		);
+	});
+
+	it.skipIf(!HAS_LUTE)("should load a Luau config file via Lute", async () => {
+		expect.assertions(1);
+
+		await withTemporaryDirectory(async (cwd) => {
+			writeFileSync(
+				join(cwd, "bedrock.config.luau"),
+				[
+					"return {",
+					"  passes = {",
+					"    ['vip-pass'] = {",
+					"      description = 'Grants VIP perks.',",
+					"      iconFilePath = 'assets/vip-icon.png',",
+					"      name = 'VIP Pass',",
+					"      price = 500,",
+					"    },",
+					"  },",
+					"}",
+					"",
+				].join("\n"),
+			);
+
+			const result = await loadConfig({ cwd });
+
+			assert(result.success);
+
+			expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass");
+		});
 	});
 
 	it("should return a fresh copy on each call so mutation does not leak between invocations", async () => {
