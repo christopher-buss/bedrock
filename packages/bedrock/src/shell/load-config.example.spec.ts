@@ -3,12 +3,13 @@ import { expect, it } from "vitest";
 import { loadConfig } from '@bedrock/core'
 
 it('Example 1', () => {
-  return loadConfig({ cwd: '/path/that/does/not/have/a/config' }).then(
-    (result) => {
-      expect(result.success).toBeFalse()
-      if (!result.success) {
-        expect(result.err.kind).toBe('fileNotFound')
-      }
-    },
-  )
+  return loadConfig({
+    configFile: 'bedrock.staging.config',
+    cwd: '/path/that/does/not/have/a/config',
+  }).then((result) => {
+    expect(result.success).toBeFalse()
+    if (!result.success) {
+      expect(result.err.kind).toBe('fileNotFound')
+    }
+  })
 })

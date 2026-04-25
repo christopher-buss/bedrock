@@ -14,6 +14,12 @@ import { type Config, validateConfig } from "../core/schema.ts";
  */
 export interface LoadConfigOptions {
 	/**
+	 * Filename (without extension) of a specific config file to load. When
+	 * omitted, `loadConfig` discovers `bedrock.config.{ts,js,...}` from
+	 * `cwd`. Mirrors c12's `configFile` option.
+	 */
+	readonly configFile?: string;
+	/**
 	 * Directory to search from. Defaults to `process.cwd()` at call time, so
 	 * each invocation sees the current working directory.
 	 */
@@ -41,14 +47,17 @@ export interface LoadConfigOptions {
  * - `configFunctionFailed` - a function-form config threw or its returned
  *   promise rejected while being invoked.
  *
- * @param options - Loader options (currently just `cwd`).
+ * @param options - Loader options.
  * @returns `Ok` with the validated `Config`, or `Err` with a `ConfigError`.
  * @example
  *
  * ```ts
  * import { loadConfig } from "@bedrock/core";
  *
- * return loadConfig({ cwd: "/path/that/does/not/have/a/config" }).then((result) => {
+ * return loadConfig({
+ *     configFile: "bedrock.staging.config",
+ *     cwd: "/path/that/does/not/have/a/config",
+ * }).then((result) => {
  *     expect(result.success).toBeFalse();
  *     if (!result.success) {
  *         expect(result.err.kind).toBe("fileNotFound");
@@ -63,7 +72,11 @@ export async function loadConfig(
 
 	let resolved: Awaited<ReturnType<typeof c12LoadConfig<Record<string, unknown>>>>;
 	try {
-		resolved = await c12LoadConfig<Record<string, unknown>>({ name: "bedrock", cwd });
+		resolved = await c12LoadConfig<Record<string, unknown>>({
+			name: "bedrock",
+			cwd,
+			...(options?.configFile === undefined ? {} : { configFile: options.configFile }),
+		});
 	} catch (err) {
 		return { err: attributeLoadError(err, cwd), success: false };
 	}

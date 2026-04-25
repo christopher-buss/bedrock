@@ -192,6 +192,49 @@ describe(loadConfig, () => {
 		});
 	});
 
+	it("should load a config file named via configFile", async () => {
+		expect.assertions(1);
+
+		await withTemporaryDirectory(async (cwd) => {
+			writeFileSync(
+				join(cwd, "bedrock.staging.config.ts"),
+				[
+					"import { defineConfig } from '@bedrock/core';",
+					"export default defineConfig({",
+					"  passes: {",
+					"    'staging-pass': {",
+					"      description: 'Staging perks.',",
+					"      iconFilePath: 'assets/staging.png',",
+					"      name: 'Staging Pass',",
+					"      price: 100,",
+					"    },",
+					"  },",
+					"});",
+				].join("\n"),
+			);
+
+			const result = await loadConfig({ configFile: "bedrock.staging.config", cwd });
+
+			assert(result.success);
+
+			expect(result.data.passes!["staging-pass"]!.name).toBe("Staging Pass");
+		});
+	});
+
+	it("should return a fileNotFound error when configFile names a missing file", async () => {
+		expect.assertions(2);
+
+		await withTemporaryDirectory(async (cwd) => {
+			const result = await loadConfig({ configFile: "missing", cwd });
+
+			assert(!result.success);
+			assert(result.err.kind === "fileNotFound");
+
+			expect(result.err.kind).toBe("fileNotFound");
+			expect(result.err.searchedFrom).toBe(cwd);
+		});
+	});
+
 	it("should return a validationFailed error attributed to the config file when content is invalid", async () => {
 		expect.assertions(2);
 
