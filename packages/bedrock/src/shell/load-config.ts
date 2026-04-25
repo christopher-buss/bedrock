@@ -2,7 +2,7 @@ import type { Result } from "@bedrock/ocale";
 
 import { loadConfig as c12LoadConfig } from "c12";
 import { execFile } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve as resolvePath } from "node:path";
 import process from "node:process";
@@ -296,30 +296,35 @@ async function evaluateLuauConfig(absPath: string): Promise<Record<string, unkno
 	const base = basename(absPath);
 
 	const bootstrapDirectory = mkdtempSync(join(tmpdir(), "bedrock-lute-"));
-	const bootstrapPath = join(bootstrapDirectory, "bootstrap.luau");
-	writeFileSync(bootstrapPath, LUTE_BOOTSTRAP_LUAU);
-	// Lute resolves `require` relative to the calling script's directory, not
-	// the process cwd. The bootstrap lives in a temp dir, so we expose the
-	// user's directory via a `.luaurc` alias that the bootstrap requires by name.
-	writeFileSync(join(bootstrapDirectory, ".luaurc"), JSON.stringify({ aliases: { user: cwd } }));
-
-	let stdout: string;
 	try {
-		stdout = await runLuteBootstrap({
+		const bootstrapPath = join(bootstrapDirectory, "bootstrap.luau");
+		writeFileSync(bootstrapPath, LUTE_BOOTSTRAP_LUAU);
+		// Lute resolves `require` relative to the calling script's directory, not
+		// the process cwd. The bootstrap lives in a temp dir, so we expose the
+		// user's directory via a `.luaurc` alias that the bootstrap requires by
+		// name.
+		writeFileSync(
+			join(bootstrapDirectory, ".luaurc"),
+			JSON.stringify({ aliases: { user: cwd } }),
+		);
+
+		const stdout = await runLuteBootstrap({
 			bin: lute,
 			bootstrapPath,
 			cwd,
 			userBasename: base,
+		}).catch((err: unknown) => {
+			if (isEnoentError(err)) {
+				throw new LuauRuntimeMissingError(absPath, LUAU_RUNTIME_HINT);
+			}
+
+			throw err;
 		});
-	} catch (err) {
-		if (isEnoentError(err)) {
-			throw new LuauRuntimeMissingError(absPath, LUAU_RUNTIME_HINT);
-		}
 
-		throw err;
+		return parseBootstrapOutput(stdout);
+	} finally {
+		rmSync(bootstrapDirectory, { force: true, recursive: true });
 	}
-
-	return parseBootstrapOutput(stdout);
 }
 
 const OK_PREFIX = "__BEDROCK_LUAU_OK__";
