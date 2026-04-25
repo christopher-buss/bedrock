@@ -16,20 +16,6 @@ import type { MissingCredentialError } from "./build-state-port.ts";
  * field that is not present. The deploy boundary wraps this in a
  * `DeployError` so the caller sees a typed Result instead of a downstream
  * driver error.
- *
- * @example
- *
- * ```ts
- * import type { RegistryConfigError } from "@bedrock/core";
- *
- * const err: RegistryConfigError = {
- *     hint: "declare universe.universeId in bedrock.config.ts",
- *     kind: "registryConfigMissing",
- *     missing: "universeId",
- * };
- *
- * expect(err.kind).toBe("registryConfigMissing");
- * ```
  */
 export interface RegistryConfigError {
 	/** Suggested fix routed back to the caller. */
@@ -41,7 +27,7 @@ export interface RegistryConfigError {
 }
 
 /** Inputs for {@link buildDefaultRegistry}. */
-export interface BuildDefaultRegistryDeps {
+interface BuildDefaultRegistryDeps {
 	/** Validated project config; supplies `universe.universeId` and is read for nothing else. */
 	readonly config: Config;
 	/** Reads an environment variable; injected so tests stay free of `process.env`. */

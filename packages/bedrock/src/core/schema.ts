@@ -252,11 +252,10 @@ export interface Config {
  * ```
  *
  * @param config - Resolved state config to inspect.
- * @returns `true` when `config.backend === "gist"` and `gistId` is a
- * non-empty string; otherwise `false`.
+ * @returns `true` when `config.backend === "gist"`; otherwise `false`.
  */
 export function isGistStateConfig(config: StateConfig): config is GistStateConfig {
-	return config.backend === "gist" && "gistId" in config && typeof config.gistId === "string";
+	return config.backend === "gist";
 }
 
 // Resource-kind entry schemas. Adding a new kind is two additions:

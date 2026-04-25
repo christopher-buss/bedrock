@@ -90,8 +90,8 @@ describe(buildStatePort, () => {
 		expect(result.err.purpose).toBe("stateBackend");
 	});
 
-	it("should return Err(unsupportedBackend) when backend is not a known builtin and include the offending name and an opts.statePort hint", () => {
-		expect.assertions(2);
+	it("should return Err(unsupportedBackend) carrying the offending backend name when backend is not a known builtin", () => {
+		expect.assertions(1);
 
 		const result = buildStatePort({
 			fetch: neverFetch,
@@ -103,24 +103,21 @@ describe(buildStatePort, () => {
 		assert(result.err.kind === "unsupportedBackend");
 
 		expect(result.err.backend).toBe("s3");
-		expect(result.err.hint).toContain("opts.statePort");
 	});
 
-	it("should return Err(unsupportedBackend) when backend is gist but gistId is missing", () => {
+	it("should hint at opts.statePort as the escape hatch in the unsupportedBackend Err", () => {
 		expect.assertions(1);
-
-		const malformed = { backend: "gist" } as unknown as StateConfig;
 
 		const result = buildStatePort({
 			fetch: neverFetch,
 			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test" }),
-			stateConfig: malformed,
+			stateConfig: { backend: "s3" },
 		});
 
 		assert(!result.success);
 		assert(result.err.kind === "unsupportedBackend");
 
-		expect(result.err.backend).toBe("gist");
+		expect(result.err.hint).toContain("opts.statePort");
 	});
 
 	it("should construct the gist adapter without a fetch override when none is supplied", () => {

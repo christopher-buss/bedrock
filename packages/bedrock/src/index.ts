@@ -65,15 +65,10 @@ export type { DriverRegistry, ResourceDriver } from "./ports/resource-driver.ts"
 export type { StatePort } from "./ports/state-port.ts";
 export { applyOps } from "./shell/apply-ops.ts";
 export type { ApplyError } from "./shell/apply-ops.ts";
-export {
-	buildDefaultRegistry,
-	type BuildDefaultRegistryDeps,
-	type RegistryConfigError,
-} from "./shell/build-default-registry.ts";
+export { buildDefaultRegistry, type RegistryConfigError } from "./shell/build-default-registry.ts";
 export { buildDesired } from "./shell/build-desired.ts";
 export {
 	buildStatePort,
-	type BuildStatePortDeps,
 	type MissingCredentialError,
 	type UnsupportedBackendError,
 } from "./shell/build-state-port.ts";

@@ -13,20 +13,6 @@ import type { StatePort } from "../ports/state-port.ts";
  * required environment variable. The deploy boundary wraps this in a
  * `DeployError` so the caller sees a typed Result instead of an
  * exception or a confusing downstream HTTP error.
- *
- * @example
- *
- * ```ts
- * import type { MissingCredentialError } from "@bedrock/core";
- *
- * const err: MissingCredentialError = {
- *     kind: "missingCredential",
- *     purpose: "stateBackend",
- *     variable: "GITHUB_TOKEN",
- * };
- *
- * expect(err.kind).toBe("missingCredential");
- * ```
  */
 export interface MissingCredentialError {
 	/** Literal discriminator for narrowing. */
@@ -41,20 +27,6 @@ export interface MissingCredentialError {
  * Failure surfaced when the dispatch helper sees a `state.backend` value
  * it does not recognize. The hint points at `opts.statePort` so the
  * caller can pass a custom adapter as an escape hatch.
- *
- * @example
- *
- * ```ts
- * import type { UnsupportedBackendError } from "@bedrock/core";
- *
- * const err: UnsupportedBackendError = {
- *     backend: "s3",
- *     hint: "pass a custom statePort via opts.statePort",
- *     kind: "unsupportedBackend",
- * };
- *
- * expect(err.kind).toBe("unsupportedBackend");
- * ```
  */
 export interface UnsupportedBackendError {
 	/** Backend name read from `state.backend`. */
@@ -66,7 +38,7 @@ export interface UnsupportedBackendError {
 }
 
 /** Inputs for {@link buildStatePort}. */
-export interface BuildStatePortDeps {
+interface BuildStatePortDeps {
 	/** Optional `fetch` seam plumbed through to the gist adapter for tests. */
 	readonly fetch?: GistFetch;
 	/** Reads an environment variable; injected so tests stay free of `process.env`. */

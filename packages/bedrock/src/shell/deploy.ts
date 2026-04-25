@@ -49,9 +49,9 @@ export interface DeployOptions {
 }
 
 /**
- * Failure surfaced by `deploy`. Existing variants stage-tag failures
- * during reconciliation (`stateReadFailed`, `applyFailed`, etc.); new
- * variants surface failures during default-construction
+ * Failure surfaced by `deploy`. Stage-tagged so callers can branch on
+ * `kind` to distinguish reconciliation failures (`stateReadFailed`,
+ * `applyFailed`, ...) from default-construction failures
  * (`configLoadFailed`, `stateNotConfigured`, `missingCredential`,
  * `unsupportedBackend`, `registryConfigMissing`).
  */

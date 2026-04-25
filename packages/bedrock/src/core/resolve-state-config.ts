@@ -7,19 +7,6 @@ import type { Config, StateConfig } from "./schema.ts";
  * environment. The shell layer wraps this in a `DeployError` when default
  * state-port construction is requested but the project has not declared
  * where state should live.
- *
- * @example
- *
- * ```ts
- * import type { StateNotConfiguredError } from "@bedrock/core";
- *
- * const err: StateNotConfiguredError = {
- *     environment: "production",
- *     kind: "stateNotConfigured",
- * };
- *
- * expect(err.kind).toBe("stateNotConfigured");
- * ```
  */
 export interface StateNotConfiguredError {
 	/** Environment that the resolver was called against. */
