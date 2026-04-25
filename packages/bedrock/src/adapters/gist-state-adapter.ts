@@ -25,7 +25,7 @@ export type GistFetch = (
  */
 export interface GistStateAdapterDeps {
 	/** Injection seam for tests; defaults to `globalThis.fetch`. */
-	readonly fetch?: GistFetch;
+	readonly fetch?: GistFetch | undefined;
 	/** ID of an existing GitHub Gist that holds this project's state files. */
 	readonly gistId: string;
 	/** GitHub token (fine-grained PAT or classic PAT) with gist read/write scope. */

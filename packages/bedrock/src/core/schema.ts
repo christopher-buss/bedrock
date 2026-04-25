@@ -315,7 +315,7 @@ const universeEntry = type({
 
 const stateConfig = type({
 	"backend": "string",
-	"gistId?": "string",
+	"gistId?": "string > 0",
 }).onUndeclaredKey("reject");
 
 const environmentEntry = type({

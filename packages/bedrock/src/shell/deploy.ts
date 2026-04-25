@@ -89,6 +89,12 @@ interface ResolvedDeps {
 	readonly statePort: StatePort;
 }
 
+interface PickRegistryInputs {
+	readonly config: Config;
+	readonly options: DeployOptions;
+	readonly readFile: (path: string) => Promise<Uint8Array>;
+}
+
 /**
  * Run a full reconcile end-to-end. Default-constructs missing deps from
  * the project config and the environment variables `GITHUB_TOKEN` and
@@ -183,26 +189,22 @@ function pickStatePort(options: DeployOptions, config: Config): Result<StatePort
 		return { err: stateConfig.err, success: false };
 	}
 
-	return buildStatePort(
-		options.fetch === undefined
-			? { getEnv: getEnvironmentOf(options), stateConfig: stateConfig.data }
-			: {
-					fetch: options.fetch,
-					getEnv: getEnvironmentOf(options),
-					stateConfig: stateConfig.data,
-				},
-	);
+	return buildStatePort({
+		fetch: options.fetch,
+		getEnv: getEnvironmentOf(options),
+		stateConfig: stateConfig.data,
+	});
 }
 
-function pickRegistry(options: DeployOptions, config: Config): Result<DriverRegistry, DeployError> {
-	if (options.registry !== undefined) {
-		return { data: options.registry, success: true };
+function pickRegistry(inputs: PickRegistryInputs): Result<DriverRegistry, DeployError> {
+	if (inputs.options.registry !== undefined) {
+		return { data: inputs.options.registry, success: true };
 	}
 
 	return buildDefaultRegistry({
-		config,
-		getEnv: getEnvironmentOf(options),
-		readFile: options.readFile ?? nodeReadFile,
+		config: inputs.config,
+		getEnv: getEnvironmentOf(inputs.options),
+		readFile: inputs.readFile,
 	});
 }
 
@@ -212,12 +214,14 @@ async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDeps,
 		return config;
 	}
 
+	const readFile = options.readFile ?? nodeReadFile;
+
 	const statePort = pickStatePort(options, config.data);
 	if (!statePort.success) {
 		return statePort;
 	}
 
-	const registry = pickRegistry(options, config.data);
+	const registry = pickRegistry({ config: config.data, options, readFile });
 	if (!registry.success) {
 		return registry;
 	}
@@ -225,7 +229,7 @@ async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDeps,
 	return {
 		data: {
 			config: config.data,
-			readFile: options.readFile ?? nodeReadFile,
+			readFile,
 			registry: registry.data,
 			statePort: statePort.data,
 		},

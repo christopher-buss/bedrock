@@ -705,6 +705,17 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["state", "backend"]);
 	});
 
+	it("should reject a gist state block whose gistId is the empty string", () => {
+		expect.assertions(1);
+
+		const result = validateConfig({ state: { backend: "gist", gistId: "" } }, SOURCE);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["state", "gistId"]);
+	});
+
 	it("should accept a state block whose backend is an unrecognized string at the runtime layer", () => {
 		expect.assertions(1);
 

@@ -1,10 +1,6 @@
 import type { Result } from "@bedrock/ocale";
 
-import {
-	createGistStateAdapter,
-	type GistFetch,
-	type GistStateAdapterDeps,
-} from "../adapters/gist-state-adapter.ts";
+import { createGistStateAdapter, type GistFetch } from "../adapters/gist-state-adapter.ts";
 import { type GistStateConfig, isGistStateConfig, type StateConfig } from "../core/schema.ts";
 import type { StatePort } from "../ports/state-port.ts";
 
@@ -40,7 +36,7 @@ export interface UnsupportedBackendError {
 /** Inputs for {@link buildStatePort}. */
 interface BuildStatePortDeps {
 	/** Optional `fetch` seam plumbed through to the gist adapter for tests. */
-	readonly fetch?: GistFetch;
+	readonly fetch?: GistFetch | undefined;
 	/** Reads an environment variable; injected so tests stay free of `process.env`. */
 	readonly getEnv: (name: string) => string | undefined;
 	/** Resolved state configuration for the target environment. */
@@ -107,10 +103,12 @@ function buildGistStatePort(
 		};
 	}
 
-	const adapterDeps: GistStateAdapterDeps =
-		deps.fetch === undefined
-			? { gistId: stateConfig.gistId, token }
-			: { fetch: deps.fetch, gistId: stateConfig.gistId, token };
-
-	return { data: createGistStateAdapter(adapterDeps), success: true };
+	return {
+		data: createGistStateAdapter({
+			fetch: deps.fetch,
+			gistId: stateConfig.gistId,
+			token,
+		}),
+		success: true,
+	};
 }
