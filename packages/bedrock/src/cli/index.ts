@@ -1,7 +1,7 @@
-import { createRequire } from "node:module";
 import sade from "sade";
 import type { Sade } from "sade";
 
+import manifest from "../../package.json" with { type: "json" };
 import type { diff as defaultDiff } from "../core/diff.ts";
 import type { deploy as defaultDeploy } from "../shell/deploy.ts";
 import type { loadConfig as defaultLoadConfig } from "../shell/load-config.ts";
@@ -11,9 +11,6 @@ export { createClackPort } from "./render.ts";
 
 const PROGRAM_NAME = "bedrock";
 const PROGRAM_DESCRIBE = "Infrastructure-as-Code deployment tool for Roblox";
-
-const require = createRequire(import.meta.url);
-const manifest = require("../../package.json") as { readonly version: string };
 
 /**
  * Dependency seam for the bedrock CLI program. Every slot is optional;
