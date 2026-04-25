@@ -234,14 +234,36 @@ async function evaluateLuauConfig(absPath: string): Promise<Record<string, unkno
 		userBasename: base,
 	});
 
-	const okPrefix = "__BEDROCK_LUAU_OK__";
-	if (!stdout.startsWith(okPrefix)) {
+	return parseBootstrapOutput(stdout);
+}
+
+const OK_PREFIX = "__BEDROCK_LUAU_OK__";
+const ERR_PREFIX = "__BEDROCK_LUAU_ERR__";
+
+function isLuauErrorEnvelope(value: unknown): value is { readonly message: string } {
+	if (typeof value !== "object" || value === null) {
+		return false;
+	}
+
+	return "message" in value && typeof value.message === "string";
+}
+
+function parseBootstrapOutput(stdout: string): Record<string, unknown> {
+	if (stdout.startsWith(ERR_PREFIX)) {
+		const envelope = JSON.parse(stdout.slice(ERR_PREFIX.length));
+		const message = isLuauErrorEnvelope(envelope)
+			? envelope.message
+			: stdout.slice(ERR_PREFIX.length);
+		throw new Error(message);
+	}
+
+	if (!stdout.startsWith(OK_PREFIX)) {
 		throw new Error(
 			`Luau config evaluation produced unexpected output: ${stdout.slice(0, 200)}`,
 		);
 	}
 
-	const parsed = JSON.parse(stdout.slice(okPrefix.length));
+	const parsed = JSON.parse(stdout.slice(OK_PREFIX.length));
 
 	if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
 		throw new TypeError("Luau config must return a table at the root");

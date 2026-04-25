@@ -361,6 +361,35 @@ describe(loadConfig, () => {
 		});
 	});
 
+	it.skipIf(!HAS_LUTE)(
+		"should return a parseFailed error attributed to the file when a Luau config returns a non-serializable value",
+		async () => {
+			expect.assertions(3);
+
+			await withTemporaryDirectory(async (cwd) => {
+				writeFileSync(
+					join(cwd, "bedrock.config.luau"),
+					[
+						"return {",
+						"  -- Function-valued field cannot be JSON-encoded; bootstrap must fail loudly.",
+						"  computed = function() return 42 end,",
+						"}",
+						"",
+					].join("\n"),
+				);
+
+				const result = await loadConfig({ cwd });
+
+				assert(!result.success);
+				assert(result.err.kind === "parseFailed");
+
+				expect(result.err.sourceFile).toBe(join(cwd, "bedrock.config.luau"));
+				expect(result.err.message).toContain("Unknown value");
+				expect(result.err.message).not.toContain("__BEDROCK_LUAU_");
+			});
+		},
+	);
+
 	it("should return a fresh copy on each call so mutation does not leak between invocations", async () => {
 		expect.assertions(1);
 
