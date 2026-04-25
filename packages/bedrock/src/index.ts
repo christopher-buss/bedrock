@@ -59,6 +59,12 @@ export {
 	type UniverseEntry,
 	type UniverseVisibility,
 } from "./core/schema.ts";
+export {
+	selectEnvironment,
+	type EffectiveConfig,
+	type SelectEnvironmentError,
+	type UnknownEnvironmentError,
+} from "./core/select-environment.ts";
 export { parseStateFile, serializeStateFile } from "./core/state-file.ts";
 export type { BedrockState, StateError } from "./core/state.ts";
 export type { DriverRegistry, ResourceDriver } from "./ports/resource-driver.ts";

@@ -53,6 +53,7 @@
 		"@clack/prompts": "catalog:runtime",
 		"arktype": "catalog:runtime",
 		"c12": "catalog:runtime",
+		"defu": "catalog:runtime",
 		"sade": "catalog:runtime"
 	},
 	"devDependencies": {

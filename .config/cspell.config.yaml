@@ -6,6 +6,7 @@ language: en
 words:
   - arktype
   - bedrockrc
+  - defu
   - guilded
   - monocart
   - retryable
