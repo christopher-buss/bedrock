@@ -25,6 +25,28 @@ describe(parseCommonOptions, () => {
 		expect(result.err.flag).toBe("verbose");
 	});
 
+	it("should reject when --env carries a non-string value", () => {
+		expect.assertions(2);
+
+		const result = parseCommonOptions({ env: false });
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("invalidValue");
+		expect(result.err.flag).toBe("env");
+	});
+
+	it("should reject when one of multiple --env values is not a string", () => {
+		expect.assertions(2);
+
+		const result = parseCommonOptions({ env: ["staging", true] });
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("invalidValue");
+		expect(result.err.flag).toBe("env");
+	});
+
 	it("should normalize a single --env into a one-element environments array", () => {
 		expect.assertions(1);
 

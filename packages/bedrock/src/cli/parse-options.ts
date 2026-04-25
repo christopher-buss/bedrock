@@ -16,10 +16,11 @@ export interface CommonOptions {
 }
 
 /**
- * Failure modes surfaced by `parseCommonOptions`. Both variants name the
+ * Failure modes surfaced by `parseCommonOptions`. Every variant names the
  * offending flag so callers can render a precise diagnostic.
  */
 export type ParseOptionsError =
+	| { readonly flag: string; readonly kind: "invalidValue" }
 	| { readonly flag: string; readonly kind: "missingRequired" }
 	| { readonly flag: string; readonly kind: "unknownFlag" };
 
@@ -50,14 +51,10 @@ export function parseCommonOptions(
 		}
 	}
 
-	const environment = rawOptions["env"];
-	if (environment === undefined) {
-		return { err: { flag: "env", kind: "missingRequired" }, success: false };
+	const environments = resolveEnvironments(rawOptions["env"]);
+	if (!environments.success) {
+		return environments;
 	}
-
-	const environments = Array.isArray(environment)
-		? environment.map(String)
-		: [String(environment)];
 
 	const apiKey = pickString(rawOptions, "apiKey", "api-key");
 	const configFile = pickString(rawOptions, "config");
@@ -65,13 +62,31 @@ export function parseCommonOptions(
 
 	return {
 		data: {
-			environments,
+			environments: environments.data,
 			...(apiKey === undefined ? {} : { apiKey }),
 			...(configFile === undefined ? {} : { configFile }),
 			...(githubToken === undefined ? {} : { githubToken }),
 		},
 		success: true,
 	};
+}
+
+function resolveEnvironments(raw: unknown): Result<ReadonlyArray<string>, ParseOptionsError> {
+	if (raw === undefined) {
+		return { err: { flag: "env", kind: "missingRequired" }, success: false };
+	}
+
+	const candidates = Array.isArray(raw) ? raw : [raw];
+	const environments: Array<string> = [];
+	for (const candidate of candidates) {
+		if (typeof candidate !== "string") {
+			return { err: { flag: "env", kind: "invalidValue" }, success: false };
+		}
+
+		environments.push(candidate);
+	}
+
+	return { data: environments, success: true };
 }
 
 function pickString(
