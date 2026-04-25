@@ -646,6 +646,27 @@ describe(deploy, () => {
 		expect(result.err.cause).toStrictEqual(configError);
 	});
 
+	it("should default getEnv to process.env when getEnv is not supplied", async () => {
+		expect.assertions(1);
+
+		vi.stubEnv("ROBLOX_API_KEY", "rbx-stub");
+		try {
+			const result = await deploy({
+				config: {
+					state: { backend: "gist", gistId: "abc" },
+					universe: { universeId: "1234567890" },
+				},
+				environment: "production",
+				readFile: readIcon,
+				statePort: inMemoryStatePort().port,
+			});
+
+			expect(result.success).toBeTrue();
+		} finally {
+			vi.unstubAllEnvs();
+		}
+	});
+
 	it("should not invoke getEnv when statePort, registry, and config are all supplied", async () => {
 		expect.assertions(1);
 
