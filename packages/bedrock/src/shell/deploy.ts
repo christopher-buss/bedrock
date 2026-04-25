@@ -175,8 +175,12 @@ async function pickConfig(options: DeployOptions): Promise<Result<Config, Deploy
 	return { data: loaded.data, success: true };
 }
 
+function readProcessEnvironment(name: string): string | undefined {
+	return process.env[name];
+}
+
 function getEnvironmentOf(options: DeployOptions): (name: string) => string | undefined {
-	return options.getEnv ?? ((name) => process.env[name]);
+	return options.getEnv ?? readProcessEnvironment;
 }
 
 function pickStatePort(options: DeployOptions, config: Config): Result<StatePort, DeployError> {
