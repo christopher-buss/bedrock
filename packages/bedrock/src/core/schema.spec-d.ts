@@ -5,8 +5,13 @@ import type { Config, StateConfig } from "./schema.ts";
 const STATE: StateConfig = { backend: "gist", gistId: "test" };
 
 describe("Config", () => {
-	it("should accept Config with only root state and no environments", () => {
-		const config = { state: STATE } as const satisfies Config;
+	it("should require environments to be a Record of EnvironmentEntry rather than optional", () => {
+		expectTypeOf<Config["environments"]>().not.toBeUndefined();
+	});
+
+	it("should reject Config that omits the required environments field", () => {
+		// @ts-expect-error environments is required and must be present.
+		const config: Config = { state: STATE };
 		expectTypeOf(config).toExtend<Config>();
 	});
 

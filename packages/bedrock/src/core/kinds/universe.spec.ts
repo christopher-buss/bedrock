@@ -28,6 +28,7 @@ describe("universeKind", () => {
 
 			expect(
 				universeKind.flatten({
+					environments: { production: {} },
 					universe: { universeId: "1234567890", voiceChatEnabled: true },
 				}),
 			).toStrictEqual([
@@ -44,13 +45,16 @@ describe("universeKind", () => {
 		it("should emit an empty list when the config has no universe block", () => {
 			expect.assertions(1);
 
-			expect(universeKind.flatten({})).toBeEmpty();
+			expect(universeKind.flatten({ environments: { production: {} } })).toBeEmpty();
 		});
 
 		it("should pass voiceChatEnabled through as undefined when omitted", () => {
 			expect.assertions(1);
 
-			const inputs = universeKind.flatten({ universe: { universeId: "1234567890" } });
+			const inputs = universeKind.flatten({
+				environments: { production: {} },
+				universe: { universeId: "1234567890" },
+			});
 
 			expect(inputs[0]?.voiceChatEnabled).toBeUndefined();
 		});

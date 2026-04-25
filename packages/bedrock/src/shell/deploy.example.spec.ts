@@ -47,7 +47,11 @@ it('Example 2', () => {
     },
   }
   return deploy({
-    config: { state: { backend: 'gist', gistId: 'abc' }, passes: {} },
+    config: {
+      environments: { production: {} },
+      state: { backend: 'gist', gistId: 'abc' },
+      passes: {},
+    },
     environment: 'production',
     registry,
     statePort,

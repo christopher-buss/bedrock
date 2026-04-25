@@ -50,7 +50,7 @@ export function resolveStateConfig(
 	config: Config,
 	environment: string,
 ): Result<StateConfig, StateNotConfiguredError> {
-	const override = config.environments?.[environment]?.state;
+	const override = config.environments[environment]?.state;
 	if (override !== undefined) {
 		return { data: override, success: true };
 	}

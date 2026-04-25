@@ -5,6 +5,7 @@ import { ArkErrors, type, type Type } from "arktype";
 
 import { RESOURCE_KEY_PATTERN_SOURCE } from "../types/ids.ts";
 import type { ConfigError } from "./config-error.ts";
+import { ENV_NAME_PATTERN_SOURCE } from "./environment.ts";
 
 /**
  * Body of a single entry in the `passes` collection. Keys in the parent
@@ -203,6 +204,7 @@ export interface ResourceEntryByKind {
  * import type { Config } from "@bedrock/core";
  *
  * const config: Config = {
+ *     environments: { production: {} },
  *     state: { backend: "gist", gistId: "abc123def456" },
  *     passes: {
  *         "vip-pass": {
@@ -218,8 +220,13 @@ export interface ResourceEntryByKind {
  * ```
  */
 export interface Config {
-	/** Per-environment overrides keyed by environment name. */
-	environments?: Record<string, EnvironmentEntry>;
+	/**
+	 * Per-environment overrides keyed by environment name. Required and
+	 * non-empty: every project declares at least one environment, and
+	 * `deploy()` rejects any environment name that is not a key of this
+	 * record. Environment names match `[A-Za-z0-9_-]{1,64}`.
+	 */
+	environments: Record<string, EnvironmentEntry>;
 	/** Reserved at the root for c12's config layering / overlay work. */
 	extends?: unknown;
 	/** Keyed-map collection of game-pass entries by user-supplied ResourceKey. */
@@ -323,11 +330,19 @@ const environmentEntry = type({
 }).onUndeclaredKey("reject");
 
 const environmentsCollection = type({
-	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: environmentEntry,
-}).onUndeclaredKey("reject");
+	[`[/^${ENV_NAME_PATTERN_SOURCE}$/]`]: environmentEntry,
+})
+	.onUndeclaredKey("reject")
+	.narrow((value, ctx) => {
+		if (Object.keys(value).length === 0) {
+			return ctx.mustBe("a non-empty record of environment entries");
+		}
+
+		return true;
+	});
 
 const rootSchema: Type<Config> = type({
-	"environments?": environmentsCollection,
+	"environments": environmentsCollection,
 	"extends?": "unknown",
 	"passes?": passesCollection,
 	"places?": placesCollection,
@@ -354,6 +369,7 @@ const rootSchema: Type<Config> = type({
  *
  * const ok = validateConfig(
  *     {
+ *         environments: { production: {} },
  *         passes: {
  *             "vip-pass": {
  *                 description: "VIP perks.",
@@ -368,7 +384,7 @@ const rootSchema: Type<Config> = type({
  * expect(ok.success).toBeTrue();
  *
  * const err = validateConfig(
- *     { passes: { "vip-pass": { name: "VIP" } } },
+ *     { environments: { production: {} }, passes: { "vip-pass": { name: "VIP" } } },
  *     "bedrock.config.ts",
  * );
  * expect(err.success).toBeFalse();

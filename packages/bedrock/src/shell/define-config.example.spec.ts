@@ -4,6 +4,7 @@ import { defineConfig } from '@bedrock/core'
 
 it('Example 1', () => {
   const config = defineConfig({
+    environments: { production: {} },
     passes: {
       'vip-pass': {
         description: 'Grants VIP perks.',

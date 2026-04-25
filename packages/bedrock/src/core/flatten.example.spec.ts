@@ -54,6 +54,7 @@ it('Example 3', () => {
 
 it('Example 4', () => {
   const config: Config = {
+    environments: { production: {} },
     passes: {
       'vip-pass': {
         description: 'Grants VIP perks.',

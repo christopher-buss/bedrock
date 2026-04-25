@@ -19,6 +19,7 @@ describe("gamePassKind", () => {
 
 			expect(
 				gamePassKind.flatten({
+					environments: { production: {} },
 					passes: {
 						"vip-pass": {
 							name: "VIP",
@@ -43,13 +44,14 @@ describe("gamePassKind", () => {
 		it("should emit an empty list when the config has no passes", () => {
 			expect.assertions(1);
 
-			expect(gamePassKind.flatten({})).toBeEmpty();
+			expect(gamePassKind.flatten({ environments: { production: {} } })).toBeEmpty();
 		});
 
 		it("should preserve the insertion order of config.passes entries", () => {
 			expect.assertions(1);
 
 			const inputs = gamePassKind.flatten({
+				environments: { production: {} },
 				passes: {
 					"alpha-pass": { name: "Alpha", description: "a", iconFilePath: "a.png" },
 					"beta-pass": { name: "Beta", description: "b", iconFilePath: "b.png" },

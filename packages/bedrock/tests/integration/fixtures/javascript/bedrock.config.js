@@ -1,4 +1,5 @@
 export default {
+	environments: { production: {} },
 	passes: {
 		"vip-pass": {
 			name: "VIP Pass",

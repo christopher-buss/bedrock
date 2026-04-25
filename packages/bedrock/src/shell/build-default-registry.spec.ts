@@ -6,7 +6,11 @@ import { buildDefaultRegistry } from "./build-default-registry.ts";
 const STATE_CONFIG = { backend: "gist" as const, gistId: "abc123" };
 
 function configWithUniverse(): Config {
-	return { state: STATE_CONFIG, universe: { universeId: "1234567890" } };
+	return {
+		environments: { production: {} },
+		state: STATE_CONFIG,
+		universe: { universeId: "1234567890" },
+	};
 }
 
 function environmentFrom(values: Record<string, string>): (name: string) => string | undefined {
@@ -55,7 +59,7 @@ describe(buildDefaultRegistry, () => {
 		expect.assertions(3);
 
 		const result = buildDefaultRegistry({
-			config: { state: STATE_CONFIG },
+			config: { environments: { production: {} }, state: STATE_CONFIG },
 			getEnv: environmentFrom({ ROBLOX_API_KEY: "rbx-test" }),
 			readFile: neverReadFile,
 		});

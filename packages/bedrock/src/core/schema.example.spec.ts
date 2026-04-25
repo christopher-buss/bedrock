@@ -20,6 +20,7 @@ it('Example 1', () => {
 
 it('Example 2', () => {
   const config: Config = {
+    environments: { production: {} },
     state: { backend: 'gist', gistId: 'abc123def456' },
     passes: {
       'vip-pass': {
@@ -44,6 +45,7 @@ it('Example 3', () => {
 it('Example 4', () => {
   const ok = validateConfig(
     {
+      environments: { production: {} },
       passes: {
         'vip-pass': {
           description: 'VIP perks.',
@@ -57,7 +59,10 @@ it('Example 4', () => {
   )
   expect(ok.success).toBeTrue()
   const err = validateConfig(
-    { passes: { 'vip-pass': { name: 'VIP' } } },
+    {
+      environments: { production: {} },
+      passes: { 'vip-pass': { name: 'VIP' } },
+    },
     'bedrock.config.ts',
   )
   expect(err.success).toBeFalse()
