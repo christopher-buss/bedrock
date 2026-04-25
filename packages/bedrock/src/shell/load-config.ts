@@ -143,12 +143,36 @@ function locateLuauConfig(source: string, cwd: string): string | undefined {
 	}
 
 	if (source === ".") {
+		// Defer to c12's built-in resolution when a native-format config sits
+		// alongside the Luau one. This matches the documented precedence:
+		// TypeScript / JavaScript / JSON / YAML beat Luau when both are
+		// present. Only claim the Luau file when it's the sole candidate.
+		if (
+			NATIVE_CONFIG_EXTENSIONS.some((extension) =>
+				existsSync(join(cwd, `bedrock.config.${extension}`)),
+			)
+		) {
+			return undefined;
+		}
+
 		const candidate = join(cwd, LUAU_CONFIG_BASENAME);
 		return existsSync(candidate) ? candidate : undefined;
 	}
 
 	return undefined;
 }
+
+const NATIVE_CONFIG_EXTENSIONS = [
+	"ts",
+	"mts",
+	"cts",
+	"js",
+	"mjs",
+	"cjs",
+	"json",
+	"yaml",
+	"yml",
+] as const;
 
 function makeLuauResolver(
 	defaultCwd: string,

@@ -467,6 +467,50 @@ describe(loadConfig, () => {
 		},
 	);
 
+	it.skipIf(!HAS_LUTE)(
+		"should defer to a TypeScript sibling when both bedrock.config.ts and bedrock.config.luau exist",
+		async () => {
+			expect.assertions(1);
+
+			await withTemporaryDirectory(async (cwd) => {
+				writeFixtureConfig(cwd, [
+					"export default {",
+					"  passes: {",
+					"    'vip-pass': {",
+					"      description: 'TS wins.',",
+					"      iconFilePath: 'assets/vip-icon.png',",
+					"      name: 'TS Pass',",
+					"      price: 500,",
+					"    },",
+					"  },",
+					"};",
+				]);
+				writeFileSync(
+					join(cwd, "bedrock.config.luau"),
+					[
+						"return {",
+						"  passes = {",
+						"    ['vip-pass'] = {",
+						"      description = 'Luau loses.',",
+						"      iconFilePath = 'assets/vip-icon.png',",
+						"      name = 'Luau Pass',",
+						"      price = 500,",
+						"    },",
+						"  },",
+						"}",
+						"",
+					].join("\n"),
+				);
+
+				const result = await loadConfig({ cwd });
+
+				assert(result.success);
+
+				expect(result.data.passes!["vip-pass"]!.name).toBe("TS Pass");
+			});
+		},
+	);
+
 	it("should return a fresh copy on each call so mutation does not leak between invocations", async () => {
 		expect.assertions(1);
 
