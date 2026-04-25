@@ -1,8 +1,8 @@
 import type { Result } from "@bedrock/ocale";
 
 import { loadConfig as c12LoadConfig } from "c12";
-import { readdirSync } from "node:fs";
-import { join } from "node:path";
+import { readdirSync, statSync } from "node:fs";
+import { isAbsolute, join } from "node:path";
 import process from "node:process";
 
 import type { ConfigError } from "../core/config-error.ts";
@@ -13,6 +13,14 @@ import { type Config, validateConfig } from "../core/schema.ts";
  * additional fields land with the issues that introduce each flow.
  */
 export interface LoadConfigOptions {
+	/**
+	 * Path to a specific config file to load, including its extension.
+	 * Resolved relative to `cwd` when not absolute. Loaded as-is with no
+	 * extension search; if the file does not exist at the given path,
+	 * `loadConfig` returns `fileNotFound`. When omitted, `loadConfig`
+	 * discovers `bedrock.config.{ts,js,...}` from `cwd`.
+	 */
+	readonly configFile?: string;
 	/**
 	 * Directory to search from. Defaults to `process.cwd()` at call time, so
 	 * each invocation sees the current working directory.
@@ -41,14 +49,17 @@ export interface LoadConfigOptions {
  * - `configFunctionFailed` - a function-form config threw or its returned
  *   promise rejected while being invoked.
  *
- * @param options - Loader options (currently just `cwd`).
+ * @param options - Loader options.
  * @returns `Ok` with the validated `Config`, or `Err` with a `ConfigError`.
  * @example
  *
  * ```ts
  * import { loadConfig } from "@bedrock/core";
  *
- * return loadConfig({ cwd: "/path/that/does/not/have/a/config" }).then((result) => {
+ * return loadConfig({
+ *     configFile: "bedrock.staging.config.yaml",
+ *     cwd: "/path/that/does/not/have/a/config",
+ * }).then((result) => {
  *     expect(result.success).toBeFalse();
  *     if (!result.success) {
  *         expect(result.err.kind).toBe("fileNotFound");
@@ -60,22 +71,40 @@ export async function loadConfig(
 	options?: LoadConfigOptions,
 ): Promise<Result<Config, ConfigError>> {
 	const cwd = options?.cwd ?? process.cwd();
+	const configFile =
+		options?.configFile === undefined ? undefined : resolveConfigPath(cwd, options.configFile);
+	if (configFile !== undefined && !isExistingFile(configFile)) {
+		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
+	}
 
 	let resolved: Awaited<ReturnType<typeof c12LoadConfig<Record<string, unknown>>>>;
 	try {
-		resolved = await c12LoadConfig<Record<string, unknown>>({ name: "bedrock", cwd });
+		resolved = await c12LoadConfig<Record<string, unknown>>({
+			name: "bedrock",
+			cwd,
+			...(configFile === undefined ? {} : { configFile }),
+		});
 	} catch (err) {
 		return { err: attributeLoadError(err, cwd), success: false };
 	}
 
 	if (resolved._configFile === undefined) {
-		return {
-			err: { kind: "fileNotFound", searchedFrom: cwd },
-			success: false,
-		};
+		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
 	}
 
 	return validateConfig(resolved.config, resolved._configFile);
+}
+
+function resolveConfigPath(cwd: string, configFile: string): string {
+	return isAbsolute(configFile) ? configFile : join(cwd, configFile);
+}
+
+function isExistingFile(path: string): boolean {
+	try {
+		return statSync(path).isFile();
+	} catch {
+		return false;
+	}
 }
 
 const CONFIG_FILE_IN_FRAME = /[^\s():"']*bedrock\.config\.(?:ts|js|mjs|cjs|yaml|yml|json)/;

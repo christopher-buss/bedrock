@@ -251,6 +251,10 @@ describe(loadConfig, () => {
 			Result<Config, ConfigError>
 		>();
 	});
+
+	it("should expose configFile as an optional string on LoadConfigOptions", () => {
+		expectTypeOf<LoadConfigOptions["configFile"]>().toEqualTypeOf<string | undefined>();
+	});
 });
 
 describe("ConfigError", () => {
