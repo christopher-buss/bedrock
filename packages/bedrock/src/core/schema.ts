@@ -192,7 +192,10 @@ export interface ResourceEntryByKind {
  *
  * Shape matches the runtime schema declared below. `rootSchema` is typed
  * against this interface via `Type<Config>`, so any drift between the two
- * is a compile error at build time.
+ * is a compile error at build time. State must be configured at the
+ * root or under every entry of `environments`; `resolveStateConfig`
+ * surfaces the missing case at the deploy boundary as
+ * `stateNotConfigured`.
  *
  * @example
  *
@@ -200,6 +203,7 @@ export interface ResourceEntryByKind {
  * import type { Config } from "@bedrock/core";
  *
  * const config: Config = {
+ *     state: { backend: "gist", gistId: "abc123def456" },
  *     passes: {
  *         "vip-pass": {
  *             description: "Grants VIP perks.",
@@ -222,7 +226,7 @@ export interface Config {
 	passes?: Record<string, GamePassEntry>;
 	/** Keyed-map collection of place entries by user-supplied ResourceKey. */
 	places?: Record<string, PlaceEntry>;
-	/** Where Bedrock persists state for this project. */
+	/** Where Bedrock persists state for this project; required at deploy time. */
 	state?: StateConfig;
 	/** Singleton universe block declaring the Roblox universe bedrock manages. */
 	universe?: UniverseEntry;

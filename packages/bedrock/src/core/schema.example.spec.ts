@@ -18,6 +18,7 @@ it('Example 1', () => {
 
 it('Example 2', () => {
   const config: Config = {
+    state: { backend: 'gist', gistId: 'abc123def456' },
     passes: {
       'vip-pass': {
         description: 'Grants VIP perks.',
