@@ -390,6 +390,37 @@ describe(loadConfig, () => {
 		},
 	);
 
+	it("should return a luauRuntimeMissing error when no lute binary is reachable", async () => {
+		expect.assertions(3);
+
+		await withTemporaryDirectory(async (cwd) => {
+			writeFileSync(
+				join(cwd, "bedrock.config.luau"),
+				["return { passes = {} }", ""].join("\n"),
+			);
+
+			const previous = process.env["BEDROCK_LUTE_PATH"];
+			process.env["BEDROCK_LUTE_PATH"] = "/nonexistent/path/to/lute-binary-xyz";
+			let result: Awaited<ReturnType<typeof loadConfig>>;
+			try {
+				result = await loadConfig({ cwd });
+			} finally {
+				if (previous === undefined) {
+					delete process.env["BEDROCK_LUTE_PATH"];
+				} else {
+					process.env["BEDROCK_LUTE_PATH"] = previous;
+				}
+			}
+
+			assert(!result.success);
+			assert(result.err.kind === "luauRuntimeMissing");
+
+			expect(result.err.kind).toBe("luauRuntimeMissing");
+			expect(result.err.sourceFile).toBe(join(cwd, "bedrock.config.luau"));
+			expect(result.err.hint).toContain("BEDROCK_LUTE_PATH");
+		});
+	});
+
 	it("should return a fresh copy on each call so mutation does not leak between invocations", async () => {
 		expect.assertions(1);
 

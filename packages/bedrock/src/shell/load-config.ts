@@ -187,11 +187,34 @@ io.write("__BEDROCK_LUAU_OK__")
 io.write(encoded)
 `;
 
+class LuauRuntimeMissingError extends Error {
+	public readonly hint: string;
+	public override readonly name = "LuauRuntimeMissingError";
+	public readonly sourceFile: string;
+
+	constructor(sourceFile: string, hint: string) {
+		super(`Luau runtime missing: ${hint}`);
+		this.hint = hint;
+		this.sourceFile = sourceFile;
+	}
+}
+
+const LUAU_RUNTIME_HINT =
+	"install lute (e.g. `mise install` with `github:luau-lang/lute`) or set BEDROCK_LUTE_PATH to the binary.";
+
 interface LuteRunOptions {
 	readonly bin: string;
 	readonly bootstrapPath: string;
 	readonly cwd: string;
 	readonly userBasename: string;
+}
+
+function isEnoentError(error: unknown): boolean {
+	if (!(error instanceof Error) || !("code" in error)) {
+		return false;
+	}
+
+	return error.code === "ENOENT";
 }
 
 async function runLuteBootstrap(runOptions: LuteRunOptions): Promise<string> {
@@ -227,12 +250,21 @@ async function evaluateLuauConfig(absPath: string): Promise<Record<string, unkno
 	// user's directory via a `.luaurc` alias that the bootstrap requires by name.
 	writeFileSync(join(bootstrapDirectory, ".luaurc"), JSON.stringify({ aliases: { user: cwd } }));
 
-	const stdout = await runLuteBootstrap({
-		bin: lute,
-		bootstrapPath,
-		cwd,
-		userBasename: base,
-	});
+	let stdout: string;
+	try {
+		stdout = await runLuteBootstrap({
+			bin: lute,
+			bootstrapPath,
+			cwd,
+			userBasename: base,
+		});
+	} catch (err) {
+		if (isEnoentError(err)) {
+			throw new LuauRuntimeMissingError(absPath, LUAU_RUNTIME_HINT);
+		}
+
+		throw err;
+	}
 
 	return parseBootstrapOutput(stdout);
 }
@@ -307,6 +339,10 @@ function discoverConfigFile(cwd: string): string | undefined {
 }
 
 function attributeLoadError(err: unknown, cwd: string): ConfigError {
+	if (err instanceof LuauRuntimeMissingError) {
+		return { hint: err.hint, kind: "luauRuntimeMissing", sourceFile: err.sourceFile };
+	}
+
 	const message = err instanceof Error ? err.message : String(err);
 	const frameFile = extractConfigFileFromStack(err);
 	if (frameFile !== undefined) {

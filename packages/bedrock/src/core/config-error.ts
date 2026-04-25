@@ -40,6 +40,10 @@ export interface ConfigValidationIssue {
  * - `configFunctionFailed` - a function-form config threw or its returned
  *   promise rejected while being invoked. `message` carries the thrown
  *   error's message verbatim.
+ * - `luauRuntimeMissing` - a `bedrock.config.luau` file was found but the
+ *   `lute` runtime needed to evaluate it could not be located on PATH or
+ *   via the `BEDROCK_LUTE_PATH` environment variable. `hint` carries an
+ *   actionable install message.
  *
  * @example
  *
@@ -62,6 +66,9 @@ export interface ConfigValidationIssue {
  *             return first
  *                 ? `${err.sourceFile}: ${first.path.join(".")} ${first.message}`
  *                 : `${err.sourceFile}: invalid`;
+ *         }
+ *         case "luauRuntimeMissing": {
+ *             return `${err.sourceFile}: ${err.hint}`;
  *         }
  *     }
  * }
@@ -90,9 +97,21 @@ export interface ConfigValidationIssue {
  *         issues: [{ path: ["passes", "vip", "price"], message: "must be a number" }],
  *     }),
  * ).toBe("bedrock.config.ts: passes.vip.price must be a number");
+ * expect(
+ *     describe({
+ *         kind: "luauRuntimeMissing",
+ *         sourceFile: "bedrock.config.luau",
+ *         hint: "install lute via mise",
+ *     }),
+ * ).toBe("bedrock.config.luau: install lute via mise");
  * ```
  */
 export type ConfigError =
+	| {
+			readonly hint: string;
+			readonly kind: "luauRuntimeMissing";
+			readonly sourceFile: string;
+	  }
 	| {
 			readonly issues: ReadonlyArray<ConfigValidationIssue>;
 			readonly kind: "validationFailed";

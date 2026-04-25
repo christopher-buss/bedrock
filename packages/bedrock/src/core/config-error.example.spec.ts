@@ -28,6 +28,9 @@ it('Example 2', () => {
           ? `${err.sourceFile}: ${first.path.join('.')} ${first.message}`
           : `${err.sourceFile}: invalid`
       }
+      case 'luauRuntimeMissing': {
+        return `${err.sourceFile}: ${err.hint}`
+      }
     }
   }
   expect(describe({ kind: 'fileNotFound', searchedFrom: '/proj' })).toBe(
@@ -56,4 +59,11 @@ it('Example 2', () => {
       ],
     }),
   ).toBe('bedrock.config.ts: passes.vip.price must be a number')
+  expect(
+    describe({
+      kind: 'luauRuntimeMissing',
+      sourceFile: 'bedrock.config.luau',
+      hint: 'install lute via mise',
+    }),
+  ).toBe('bedrock.config.luau: install lute via mise')
 })

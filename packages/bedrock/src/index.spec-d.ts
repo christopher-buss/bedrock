@@ -62,6 +62,12 @@ interface ExpectedValidationFailed {
 	readonly sourceFile: string;
 }
 
+interface ExpectedLuauRuntimeMissing {
+	readonly hint: string;
+	readonly kind: "luauRuntimeMissing";
+	readonly sourceFile: string;
+}
+
 function syncConfigBuilder(_ctx: ConfigContext): Config {
 	return { environments: { production: {} }, passes: {} };
 }
@@ -270,13 +276,19 @@ describe(loadConfig, () => {
 	});
 });
 
-describe("ConfigError", () => {
-	it("should discriminate on kind across the four documented variants", () => {
+describe("ConfigError discriminant", () => {
+	it("should discriminate on kind across the five documented variants", () => {
 		expectTypeOf<ConfigError["kind"]>().toEqualTypeOf<
-			"configFunctionFailed" | "fileNotFound" | "parseFailed" | "validationFailed"
+			| "configFunctionFailed"
+			| "fileNotFound"
+			| "luauRuntimeMissing"
+			| "parseFailed"
+			| "validationFailed"
 		>();
 	});
+});
 
+describe("ConfigError variants", () => {
 	it("should narrow fileNotFound to carry only searchedFrom", () => {
 		expectTypeOf<
 			Extract<ConfigError, { kind: "fileNotFound" }>
@@ -299,6 +311,12 @@ describe("ConfigError", () => {
 		expectTypeOf<
 			Extract<ConfigError, { kind: "validationFailed" }>
 		>().toEqualTypeOf<ExpectedValidationFailed>();
+	});
+
+	it("should narrow luauRuntimeMissing to carry hint and sourceFile", () => {
+		expectTypeOf<
+			Extract<ConfigError, { kind: "luauRuntimeMissing" }>
+		>().toEqualTypeOf<ExpectedLuauRuntimeMissing>();
 	});
 });
 
