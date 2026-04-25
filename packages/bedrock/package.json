@@ -43,8 +43,10 @@
 	},
 	"dependencies": {
 		"@bedrock/ocale": "workspace:*",
+		"@clack/prompts": "catalog:runtime",
 		"arktype": "catalog:runtime",
-		"c12": "catalog:runtime"
+		"c12": "catalog:runtime",
+		"sade": "catalog:runtime"
 	},
 	"devDependencies": {
 		"@bedrock/testing": "workspace:*",
