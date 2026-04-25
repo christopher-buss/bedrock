@@ -37,12 +37,16 @@ function startCapture(): () => CapturedStreams {
 		.mockImplementation((...messages: ReadonlyArray<unknown>) => {
 			stderr.push(`${messages.map((message) => String(message)).join(" ")}\n`);
 		});
+	const exitSpy = vi.spyOn(process, "exit").mockImplementation((code): never => {
+		throw new Error(`unexpected process.exit(${String(code)}) during captured run`);
+	});
 
 	return () => {
 		stdoutSpy.mockRestore();
 		stderrSpy.mockRestore();
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
+		exitSpy.mockRestore();
 		return { stderr, stdout };
 	};
 }
