@@ -4,7 +4,7 @@ import { loadConfig as c12LoadConfig } from "c12";
 import { execFile } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, isAbsolute, join } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve as resolvePath } from "node:path";
 import process from "node:process";
 
 import type { ConfigError } from "../core/config-error.ts";
@@ -118,6 +118,38 @@ function isExistingFile(path: string): boolean {
 	}
 }
 
+/**
+ * Resolve a c12 `resolve` source string to an absolute path of a Luau
+ * config file, if one applies. Handles two shapes:
+ *
+ * - Explicit `.luau` paths (`extends: "./base.luau"` or absolute) - always
+ *   ours when the file exists.
+ * - The `"."` auto-discovery source - claim only when `bedrock.config.luau`
+ *   is present in the search directory.
+ *
+ * Returns `undefined` for every other shape so c12 falls through to its
+ * built-in resolution.
+ * @param source - The c12 `resolve` source string (`"."` for auto-discovery,
+ * or a relative or absolute path for explicit `extends` references).
+ * @param cwd - The directory to resolve relative paths against and to search
+ * for `bedrock.config.luau` in.
+ * @returns The absolute path of the matched Luau config, or `undefined` to
+ * defer to c12's built-in resolution.
+ */
+function locateLuauConfig(source: string, cwd: string): string | undefined {
+	if (source.endsWith(".luau")) {
+		const candidate = isAbsolute(source) ? source : resolvePath(cwd, source);
+		return existsSync(candidate) ? candidate : undefined;
+	}
+
+	if (source === ".") {
+		const candidate = join(cwd, LUAU_CONFIG_BASENAME);
+		return existsSync(candidate) ? candidate : undefined;
+	}
+
+	return undefined;
+}
+
 function makeLuauResolver(
 	defaultCwd: string,
 ): (
@@ -125,20 +157,17 @@ function makeLuauResolver(
 	c12Options: { readonly configFile?: string; readonly cwd?: string },
 ) => Promise<LuauResolveResult | undefined> {
 	return async (source, c12Options) => {
-		if (source !== ".") {
-			return;
-		}
-
-		// Defer to c12 when the caller named a specific configFile - their
-		// intent is to load that exact file, not whatever bedrock.config.luau
-		// happens to be sitting next to it.
-		if (c12Options.configFile !== undefined) {
+		// For auto-discovery (source === "."), defer when the caller named a
+		// specific configFile - their intent is to load that exact file, not
+		// whatever bedrock.config.luau happens to be sitting next to it.
+		// Explicit `.luau` paths (e.g. an extends clause) always go through us.
+		if (source === "." && c12Options.configFile !== undefined) {
 			return;
 		}
 
 		const cwd = c12Options.cwd ?? defaultCwd;
-		const luauPath = join(cwd, LUAU_CONFIG_BASENAME);
-		if (!existsSync(luauPath)) {
+		const luauPath = locateLuauConfig(source, cwd);
+		if (luauPath === undefined) {
 			return;
 		}
 

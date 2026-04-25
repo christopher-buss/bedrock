@@ -421,6 +421,52 @@ describe(loadConfig, () => {
 		});
 	});
 
+	it.skipIf(!HAS_LUTE)(
+		"should layer a Luau base config when the main TypeScript config extends it",
+		async () => {
+			expect.assertions(2);
+
+			await withTemporaryDirectory(async (cwd) => {
+				writeFileSync(
+					join(cwd, "base.luau"),
+					[
+						"return {",
+						"  passes = {",
+						"    ['vip-pass'] = {",
+						"      description = 'Grants VIP perks.',",
+						"      iconFilePath = 'assets/vip-icon.png',",
+						"      name = 'VIP Pass',",
+						"      price = 500,",
+						"    },",
+						"  },",
+						"}",
+						"",
+					].join("\n"),
+				);
+				writeFixtureConfig(cwd, [
+					"export default {",
+					"  extends: './base.luau',",
+					"  passes: {",
+					"    'gold-pass': {",
+					"      description: 'Gold tier perks.',",
+					"      iconFilePath: 'assets/gold-icon.png',",
+					"      name: 'Gold Pass',",
+					"      price: 1000,",
+					"    },",
+					"  },",
+					"};",
+				]);
+
+				const result = await loadConfig({ cwd });
+
+				assert(result.success);
+
+				expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass");
+				expect(result.data.passes!["gold-pass"]!.name).toBe("Gold Pass");
+			});
+		},
+	);
+
 	it("should return a fresh copy on each call so mutation does not leak between invocations", async () => {
 		expect.assertions(1);
 
