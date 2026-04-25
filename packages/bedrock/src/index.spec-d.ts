@@ -203,8 +203,7 @@ describe("Config", () => {
 		>();
 	});
 
-	it("should reserve environments and extends as unknown", () => {
-		expectTypeOf<Config["environments"]>().toEqualTypeOf<unknown>();
+	it("should reserve extends as unknown for c12 layering", () => {
 		expectTypeOf<Config["extends"]>().toEqualTypeOf<unknown>();
 	});
 

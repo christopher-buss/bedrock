@@ -48,6 +48,7 @@ export {
 export {
 	validateConfig,
 	type Config,
+	type EnvironmentEntry,
 	type GamePassEntry,
 	type GistStateConfig,
 	type PlaceEntry,

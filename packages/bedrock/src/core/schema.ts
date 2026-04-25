@@ -146,6 +146,16 @@ export interface GistStateConfig {
 export type StateConfig = GistStateConfig | { readonly backend: string & {} };
 
 /**
+ * Body of a single entry under `environments`. Per-environment overrides
+ * narrow root-level settings for that environment without redefining
+ * unrelated fields.
+ */
+export interface EnvironmentEntry {
+	/** Per-environment state override; takes precedence over root `state`. */
+	state?: StateConfig;
+}
+
+/**
  * Per-kind entry registry. Each `ResourceKind` must have a matching entry
  * type or `ResourceEntryByKind[K]` is a compile error. Modelled as an
  * interface (not a type alias) so downstream resource kinds can declare
@@ -204,8 +214,8 @@ export interface ResourceEntryByKind {
  * ```
  */
 export interface Config {
-	/** Reserved at the root for the per-environment modeling tracked in #110. */
-	environments?: unknown;
+	/** Per-environment overrides keyed by environment name. */
+	environments?: Record<string, EnvironmentEntry>;
 	/** Reserved at the root for c12's config layering / overlay work. */
 	extends?: unknown;
 	/** Keyed-map collection of game-pass entries by user-supplied ResourceKey. */
@@ -278,8 +288,16 @@ const stateConfig = type({
 	"gistId?": "string",
 }).onUndeclaredKey("reject");
 
+const environmentEntry = type({
+	"state?": stateConfig,
+}).onUndeclaredKey("reject");
+
+const environmentsCollection = type({
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: environmentEntry,
+}).onUndeclaredKey("reject");
+
 const rootSchema: Type<Config> = type({
-	"environments?": "unknown",
+	"environments?": environmentsCollection,
 	"extends?": "unknown",
 	"passes?": passesCollection,
 	"places?": placesCollection,
