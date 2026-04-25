@@ -94,6 +94,26 @@ describe(parseCommonOptions, () => {
 		expect(result.data.githubToken).toBe("ghp-456");
 	});
 
+	it("should fall back to the api-key alternate when only the kebab form is supplied", () => {
+		expect.assertions(1);
+
+		const result = parseCommonOptions({ "api-key": "kebab-key", "env": "production" });
+
+		assert(result.success);
+
+		expect(result.data.apiKey).toBe("kebab-key");
+	});
+
+	it("should fall back to the github-token alternate when only the kebab form is supplied", () => {
+		expect.assertions(1);
+
+		const result = parseCommonOptions({ "env": "production", "github-token": "kebab-token" });
+
+		assert(result.success);
+
+		expect(result.data.githubToken).toBe("kebab-token");
+	});
+
 	it("should ignore the sade-reserved help and version flag aliases", () => {
 		expect.assertions(1);
 
