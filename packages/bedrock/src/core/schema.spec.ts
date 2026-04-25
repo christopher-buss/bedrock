@@ -605,6 +605,139 @@ describe(validateConfig, () => {
 		}
 	});
 
+	it("should accept environments[name].state with the same shape as root state", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					production: { state: { backend: "gist", gistId: "prod-gist" } },
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.environments?.["production"]?.state).toContainEntry([
+			"gistId",
+			"prod-gist",
+		]);
+	});
+
+	it("should accept a config that declares only environments[name].state and no root state", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					production: { state: { backend: "gist", gistId: "prod-gist" } },
+					staging: { state: { backend: "gist", gistId: "staging-gist" } },
+				},
+			},
+			SOURCE,
+		);
+
+		expect(result.success).toBeTrue();
+	});
+
+	it("should reject an environments key that does not match the ResourceKey pattern", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: { "bad name!": {} },
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["environments", "bad name!"]);
+	});
+
+	it("should reject an undeclared field on an environments entry", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: { production: { unexpected: 1 } },
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"production",
+			"unexpected",
+		]);
+	});
+
+	it("should accept a config whose root state declares backend gist with a gistId", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{ state: { backend: "gist", gistId: "abc123def456" } },
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.state).toContainEntry(["backend", "gist"]);
+		expect(result.data.state).toContainEntry(["gistId", "abc123def456"]);
+	});
+
+	it("should reject a state block missing the backend field and attribute the issue path to backend", () => {
+		expect.assertions(1);
+
+		const result = validateConfig({ state: { gistId: "abc123" } }, SOURCE);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["state", "backend"]);
+	});
+
+	it("should reject a gist state block whose gistId is the empty string", () => {
+		expect.assertions(1);
+
+		const result = validateConfig({ state: { backend: "gist", gistId: "" } }, SOURCE);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["state", "gistId"]);
+	});
+
+	it("should accept a state block whose backend is an unrecognized string at the runtime layer", () => {
+		expect.assertions(1);
+
+		const result = validateConfig({ state: { backend: "future-backend" } }, SOURCE);
+
+		expect(result.success).toBeTrue();
+	});
+
+	it("should reject an undeclared field on a state block", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{ state: { backend: "gist", gistId: "abc123", unexpected: "nope" } },
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["state", "unexpected"]);
+	});
+
 	it("should accumulate every validation issue with its own attributed field path", () => {
 		expect.assertions(1);
 

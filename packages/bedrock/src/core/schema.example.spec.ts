@@ -3,6 +3,8 @@ import { expect, it } from "vitest";
 import {
   type ResourceEntryByKind,
   type Config,
+  isGistStateConfig,
+  type StateConfig,
   validateConfig,
 } from '@bedrock/core'
 
@@ -18,6 +20,7 @@ it('Example 1', () => {
 
 it('Example 2', () => {
   const config: Config = {
+    state: { backend: 'gist', gistId: 'abc123def456' },
     passes: {
       'vip-pass': {
         description: 'Grants VIP perks.',
@@ -31,6 +34,14 @@ it('Example 2', () => {
 })
 
 it('Example 3', () => {
+  const config: StateConfig = { backend: 'gist', gistId: 'abc' }
+  expect(isGistStateConfig(config)).toBeTrue()
+  if (isGistStateConfig(config)) {
+    expect(config.gistId).toBe('abc')
+  }
+})
+
+it('Example 4', () => {
   const ok = validateConfig(
     {
       passes: {

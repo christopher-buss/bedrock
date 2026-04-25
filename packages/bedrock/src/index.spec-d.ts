@@ -183,9 +183,17 @@ describe(deploy, () => {
 		>();
 	});
 
-	it("should discriminate DeployError across the four failure stages", () => {
+	it("should discriminate DeployError across the reconcile-stage and default-construction failure variants", () => {
 		expectTypeOf<DeployError["kind"]>().toEqualTypeOf<
-			"applyFailed" | "buildDesiredFailed" | "stateReadFailed" | "stateWriteFailed"
+			| "applyFailed"
+			| "buildDesiredFailed"
+			| "configLoadFailed"
+			| "missingCredential"
+			| "registryConfigMissing"
+			| "stateNotConfigured"
+			| "stateReadFailed"
+			| "stateWriteFailed"
+			| "unsupportedBackend"
 		>();
 	});
 
@@ -197,14 +205,13 @@ describe(deploy, () => {
 });
 
 describe("Config", () => {
-	it("should expose exactly the five documented root fields", () => {
+	it("should expose exactly the six documented root fields", () => {
 		expectTypeOf<keyof Config>().toEqualTypeOf<
-			"environments" | "extends" | "passes" | "places" | "universe"
+			"environments" | "extends" | "passes" | "places" | "state" | "universe"
 		>();
 	});
 
-	it("should reserve environments and extends as unknown", () => {
-		expectTypeOf<Config["environments"]>().toEqualTypeOf<unknown>();
+	it("should reserve extends as unknown for c12 layering", () => {
 		expectTypeOf<Config["extends"]>().toEqualTypeOf<unknown>();
 	});
 

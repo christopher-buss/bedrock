@@ -125,6 +125,37 @@ export interface UniverseEntry {
 }
 
 /**
+ * State configuration for the GitHub Gist backend. Holds the public gist
+ * ID; the GitHub token is read from `GITHUB_TOKEN` only when the library
+ * default-constructs the adapter.
+ */
+export interface GistStateConfig {
+	/** Discriminator selecting the gist adapter. */
+	readonly backend: "gist";
+	/** ID of an existing GitHub Gist that holds this project's state files. */
+	readonly gistId: string;
+}
+
+/**
+ * Tagged union describing where Bedrock persists its state. The `backend`
+ * tag is `"gist" | (string & {})` so unknown names autocomplete the
+ * builtins while permitting custom values for plugin scenarios. The
+ * dispatch path inside `deploy()` rejects unknown names with a typed
+ * `unsupportedBackend` error.
+ */
+export type StateConfig = GistStateConfig | { readonly backend: string & {} };
+
+/**
+ * Body of a single entry under `environments`. Per-environment overrides
+ * narrow root-level settings for that environment without redefining
+ * unrelated fields.
+ */
+export interface EnvironmentEntry {
+	/** Per-environment state override; takes precedence over root `state`. */
+	state?: StateConfig;
+}
+
+/**
  * Per-kind entry registry. Each `ResourceKind` must have a matching entry
  * type or `ResourceEntryByKind[K]` is a compile error. Modelled as an
  * interface (not a type alias) so downstream resource kinds can declare
@@ -161,7 +192,10 @@ export interface ResourceEntryByKind {
  *
  * Shape matches the runtime schema declared below. `rootSchema` is typed
  * against this interface via `Type<Config>`, so any drift between the two
- * is a compile error at build time.
+ * is a compile error at build time. State must be configured at the
+ * root or under every entry of `environments`; `resolveStateConfig`
+ * surfaces the missing case at the deploy boundary as
+ * `stateNotConfigured`.
  *
  * @example
  *
@@ -169,6 +203,7 @@ export interface ResourceEntryByKind {
  * import type { Config } from "@bedrock/core";
  *
  * const config: Config = {
+ *     state: { backend: "gist", gistId: "abc123def456" },
  *     passes: {
  *         "vip-pass": {
  *             description: "Grants VIP perks.",
@@ -183,16 +218,44 @@ export interface ResourceEntryByKind {
  * ```
  */
 export interface Config {
-	/** Reserved at the root for the per-environment modeling tracked in #110. */
-	environments?: unknown;
+	/** Per-environment overrides keyed by environment name. */
+	environments?: Record<string, EnvironmentEntry>;
 	/** Reserved at the root for c12's config layering / overlay work. */
 	extends?: unknown;
 	/** Keyed-map collection of game-pass entries by user-supplied ResourceKey. */
 	passes?: Record<string, GamePassEntry>;
 	/** Keyed-map collection of place entries by user-supplied ResourceKey. */
 	places?: Record<string, PlaceEntry>;
+	/** Where Bedrock persists state for this project; required at deploy time. */
+	state?: StateConfig;
 	/** Singleton universe block declaring the Roblox universe bedrock manages. */
 	universe?: UniverseEntry;
+}
+
+/**
+ * Narrow a `StateConfig` to the `GistStateConfig` arm. The `(string & {})`
+ * autocomplete idiom prevents TypeScript from narrowing on
+ * `backend === "gist"` alone, so dispatch sites use this guard to
+ * preserve the `gistId` field shape.
+ *
+ * @example
+ *
+ * ```ts
+ * import { isGistStateConfig, type StateConfig } from "@bedrock/core";
+ *
+ * const config: StateConfig = { backend: "gist", gistId: "abc" };
+ *
+ * expect(isGistStateConfig(config)).toBeTrue();
+ * if (isGistStateConfig(config)) {
+ *     expect(config.gistId).toBe("abc");
+ * }
+ * ```
+ *
+ * @param config - Resolved state config to inspect.
+ * @returns `true` when `config.backend === "gist"`; otherwise `false`.
+ */
+export function isGistStateConfig(config: StateConfig): config is GistStateConfig {
+	return config.backend === "gist";
 }
 
 // Resource-kind entry schemas. Adding a new kind is two additions:
@@ -250,11 +313,25 @@ const universeEntry = type({
 	"youtubeSocialLink?": socialLinkOrUndefined,
 }).onUndeclaredKey("reject");
 
+const stateConfig = type({
+	"backend": "string",
+	"gistId?": "string > 0",
+}).onUndeclaredKey("reject");
+
+const environmentEntry = type({
+	"state?": stateConfig,
+}).onUndeclaredKey("reject");
+
+const environmentsCollection = type({
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: environmentEntry,
+}).onUndeclaredKey("reject");
+
 const rootSchema: Type<Config> = type({
-	"environments?": "unknown",
+	"environments?": environmentsCollection,
 	"extends?": "unknown",
 	"passes?": passesCollection,
 	"places?": placesCollection,
+	"state?": stateConfig,
 	"universe?": universeEntry,
 }).onUndeclaredKey("reject");
 

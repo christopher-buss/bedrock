@@ -29,6 +29,7 @@ export type {
 	Operation,
 	UpdateOperation,
 } from "./core/operations.ts";
+export { resolveStateConfig, type StateNotConfiguredError } from "./core/resolve-state-config.ts";
 export {
 	SOCIAL_LINK_FIELDS,
 	UNIVERSE_SINGLETON_KEY,
@@ -46,11 +47,15 @@ export {
 	type UniverseOutputs,
 } from "./core/resources.ts";
 export {
+	isGistStateConfig,
 	validateConfig,
 	type Config,
+	type EnvironmentEntry,
 	type GamePassEntry,
+	type GistStateConfig,
 	type PlaceEntry,
 	type ResourceEntryByKind,
+	type StateConfig,
 	type UniverseEntry,
 	type UniverseVisibility,
 } from "./core/schema.ts";
@@ -60,7 +65,13 @@ export type { DriverRegistry, ResourceDriver } from "./ports/resource-driver.ts"
 export type { StatePort } from "./ports/state-port.ts";
 export { applyOps } from "./shell/apply-ops.ts";
 export type { ApplyError } from "./shell/apply-ops.ts";
+export { buildDefaultRegistry, type RegistryConfigError } from "./shell/build-default-registry.ts";
 export { buildDesired } from "./shell/build-desired.ts";
+export {
+	buildStatePort,
+	type MissingCredentialError,
+	type UnsupportedBackendError,
+} from "./shell/build-state-port.ts";
 export { defineConfig, type ConfigContext, type ConfigInput } from "./shell/define-config.ts";
 export { deploy, type DeployError, type DeployOptions } from "./shell/deploy.ts";
 export { loadConfig, type LoadConfigOptions } from "./shell/load-config.ts";
