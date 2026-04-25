@@ -183,9 +183,17 @@ describe(deploy, () => {
 		>();
 	});
 
-	it("should discriminate DeployError across the four failure stages", () => {
+	it("should discriminate DeployError across the reconcile-stage and default-construction failure variants", () => {
 		expectTypeOf<DeployError["kind"]>().toEqualTypeOf<
-			"applyFailed" | "buildDesiredFailed" | "stateReadFailed" | "stateWriteFailed"
+			| "applyFailed"
+			| "buildDesiredFailed"
+			| "configLoadFailed"
+			| "missingCredential"
+			| "registryConfigMissing"
+			| "stateNotConfigured"
+			| "stateReadFailed"
+			| "stateWriteFailed"
+			| "unsupportedBackend"
 		>();
 	});
 

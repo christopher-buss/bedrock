@@ -8,6 +8,17 @@ import {
 } from '@bedrock/core'
 
 it('Example 1', () => {
+  return deploy({ environment: 'production' }).then((result) => {
+    expect(result.success).toBeFalse()
+    if (!result.success) {
+      expect(['configLoadFailed', 'stateNotConfigured']).toContain(
+        result.err.kind,
+      )
+    }
+  })
+})
+
+it('Example 2', () => {
   const store = new Map<string, BedrockState>()
   const statePort: StatePort = {
     async read(environment) {
@@ -36,7 +47,7 @@ it('Example 1', () => {
     },
   }
   return deploy({
-    config: { passes: {} },
+    config: { state: { backend: 'gist', gistId: 'abc' }, passes: {} },
     environment: 'production',
     registry,
     statePort,

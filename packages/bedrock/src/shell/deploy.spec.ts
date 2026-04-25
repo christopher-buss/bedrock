@@ -1,7 +1,8 @@
 import { OpenCloudError } from "@bedrock/ocale";
 
-import { describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, vi } from "vitest";
 
+import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import type { Config } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
@@ -100,6 +101,49 @@ function twoPassConfig(): Config {
 				price: 500,
 			},
 		},
+	};
+}
+
+function configWithState(): Config {
+	return {
+		passes: {
+			"vip-pass": {
+				name: "VIP Pass",
+				description: "Grants VIP perks.",
+				iconFilePath: "assets/vip-icon.png",
+				price: 500,
+			},
+		},
+		state: { backend: "gist", gistId: "abc-test" },
+		universe: { universeId: "1234567890" },
+	};
+}
+
+function environmentFrom(values: Record<string, string>): (name: string) => string | undefined {
+	return (name) => values[name];
+}
+
+function stubRegistry(): DriverRegistry {
+	return {
+		gamePass: {
+			async create() {
+				throw new Error("game-pass driver must not run for this fixture");
+			},
+		},
+		place: placeStub,
+		universe: universeStub,
+	};
+}
+
+function stubRegistryWithVipCreate(): DriverRegistry {
+	return {
+		gamePass: {
+			async create() {
+				return { data: vipPassCurrent(), success: true };
+			},
+		},
+		place: placeStub,
+		universe: universeStub,
 	};
 }
 
@@ -414,6 +458,209 @@ describe(deploy, () => {
 			},
 			success: false,
 		});
+	});
+
+	it("should default-construct the state port from config.state when statePort is omitted", async () => {
+		expect.assertions(2);
+
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockResolvedValue({ data: vipPassCurrent(), success: true });
+		const registry: DriverRegistry = {
+			gamePass: { create },
+			place: placeStub,
+			universe: universeStub,
+		};
+
+		const fetchSpy = vi.fn<GistFetch>(async (_input, init) => {
+			if (init?.method === "PATCH") {
+				return new Response(JSON.stringify({ files: {} }), { status: 200 });
+			}
+
+			return new Response(JSON.stringify({ files: {} }), { status: 200 });
+		});
+
+		const result = await deploy({
+			config: configWithState(),
+			environment: "production",
+			fetch: fetchSpy,
+			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test" }),
+			readFile: readIcon,
+			registry,
+		});
+
+		assert(result.success);
+
+		expect(fetchSpy.mock.calls.length).toBeGreaterThan(0);
+		expect(result.data.environment).toBe("production");
+	});
+
+	it("should return Err(stateNotConfigured) when statePort is omitted and the config has no state for the environment", async () => {
+		expect.assertions(2);
+
+		const result = await deploy({
+			config: { passes: {} },
+			environment: "production",
+			getEnv: environmentFrom({}),
+			readFile: readIcon,
+			registry: stubRegistry(),
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "stateNotConfigured");
+
+		expect(result.err.kind).toBe("stateNotConfigured");
+		expect(result.err.environment).toBe("production");
+	});
+
+	it("should return Err(unsupportedBackend) when config.state.backend is not a builtin and statePort is omitted", async () => {
+		expect.assertions(2);
+
+		const result = await deploy({
+			config: { state: { backend: "s3" } },
+			environment: "production",
+			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test" }),
+			readFile: readIcon,
+			registry: stubRegistry(),
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "unsupportedBackend");
+
+		expect(result.err.kind).toBe("unsupportedBackend");
+		expect(result.err.backend).toBe("s3");
+	});
+
+	it("should return Err(missingCredential) when GITHUB_TOKEN is unset on the default-construction state-port path", async () => {
+		expect.assertions(2);
+
+		const result = await deploy({
+			config: configWithState(),
+			environment: "production",
+			getEnv: environmentFrom({}),
+			readFile: readIcon,
+			registry: stubRegistry(),
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "missingCredential");
+
+		expect(result.err.variable).toBe("GITHUB_TOKEN");
+		expect(result.err.purpose).toBe("stateBackend");
+	});
+
+	it("should default-construct the registry from ROBLOX_API_KEY when registry is omitted", async () => {
+		expect.assertions(1);
+
+		const { port } = inMemoryStatePort();
+
+		const result = await deploy({
+			config: { state: { backend: "gist", gistId: "abc" }, universe: { universeId: "1" } },
+			environment: "production",
+			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test", ROBLOX_API_KEY: "rbx-test" }),
+			readFile: readIcon,
+			statePort: port,
+		});
+
+		assert(result.success);
+
+		expect(result.data.environment).toBe("production");
+	});
+
+	it("should return Err(missingCredential) when ROBLOX_API_KEY is unset on the default-construction registry path", async () => {
+		expect.assertions(2);
+
+		const result = await deploy({
+			config: { state: { backend: "gist", gistId: "abc" }, universe: { universeId: "1" } },
+			environment: "production",
+			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test" }),
+			readFile: readIcon,
+			statePort: inMemoryStatePort().port,
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "missingCredential");
+
+		expect(result.err.variable).toBe("ROBLOX_API_KEY");
+		expect(result.err.purpose).toBe("registry");
+	});
+
+	it("should return Err(registryConfigMissing) when registry is omitted and config.universe is absent", async () => {
+		expect.assertions(2);
+
+		const result = await deploy({
+			config: { state: { backend: "gist", gistId: "abc" } },
+			environment: "production",
+			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test", ROBLOX_API_KEY: "rbx-test" }),
+			readFile: readIcon,
+			statePort: inMemoryStatePort().port,
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "registryConfigMissing");
+
+		expect(result.err.missing).toBe("universeId");
+		expect(result.err.kind).toBe("registryConfigMissing");
+	});
+
+	it("should call the loadConfig override when config is omitted and use the result", async () => {
+		expect.assertions(2);
+
+		const minimalConfig: Config = { state: { backend: "gist", gistId: "abc-test" } };
+		const loadConfigStub = vi.fn<() => Promise<{ data: Config; success: true }>>(async () => {
+			return { data: minimalConfig, success: true };
+		});
+
+		const result = await deploy({
+			environment: "production",
+			loadConfig: loadConfigStub,
+			readFile: readIcon,
+			registry: stubRegistry(),
+			statePort: inMemoryStatePort().port,
+		});
+
+		expect(loadConfigStub).toHaveBeenCalledOnce();
+		expect(result.success).toBeTrue();
+	});
+
+	it("should return Err(configLoadFailed) when the loadConfig override returns Err on the default-config path", async () => {
+		expect.assertions(2);
+
+		const configError = {
+			kind: "fileNotFound" as const,
+			searchedFrom: "/tmp",
+		};
+
+		const result = await deploy({
+			environment: "production",
+			loadConfig: async () => ({ err: configError, success: false }),
+			readFile: readIcon,
+			registry: stubRegistry(),
+			statePort: inMemoryStatePort().port,
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "configLoadFailed");
+
+		expect(result.err.kind).toBe("configLoadFailed");
+		expect(result.err.cause).toStrictEqual(configError);
+	});
+
+	it("should not invoke getEnv when statePort, registry, and config are all supplied", async () => {
+		expect.assertions(1);
+
+		const getEnvironment = vi.fn<(name: string) => string | undefined>();
+
+		await deploy({
+			config: vipPassConfig(),
+			environment: "production",
+			getEnv: getEnvironment,
+			readFile: readIcon,
+			registry: stubRegistryWithVipCreate(),
+			statePort: inMemoryStatePort().port,
+		});
+
+		expect(getEnvironment).not.toHaveBeenCalled();
 	});
 
 	it("should surface buildDesiredFailed without dispatching drivers or writing state when readFile rejects", async () => {
