@@ -605,6 +605,53 @@ describe(validateConfig, () => {
 		}
 	});
 
+	it("should accept a config whose root state declares backend gist with a gistId", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{ state: { backend: "gist", gistId: "abc123def456" } },
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.state).toContainEntry(["backend", "gist"]);
+		expect(result.data.state).toContainEntry(["gistId", "abc123def456"]);
+	});
+
+	it("should reject a state block missing the backend field and attribute the issue path to backend", () => {
+		expect.assertions(1);
+
+		const result = validateConfig({ state: { gistId: "abc123" } }, SOURCE);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["state", "backend"]);
+	});
+
+	it("should accept a state block whose backend is an unrecognized string at the runtime layer", () => {
+		expect.assertions(1);
+
+		const result = validateConfig({ state: { backend: "future-backend" } }, SOURCE);
+
+		expect(result.success).toBeTrue();
+	});
+
+	it("should reject an undeclared field on a state block", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{ state: { backend: "gist", gistId: "abc123", unexpected: "nope" } },
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["state", "unexpected"]);
+	});
+
 	it("should accumulate every validation issue with its own attributed field path", () => {
 		expect.assertions(1);
 

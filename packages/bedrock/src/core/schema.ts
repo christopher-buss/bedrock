@@ -125,6 +125,27 @@ export interface UniverseEntry {
 }
 
 /**
+ * State configuration for the GitHub Gist backend. Holds the public gist
+ * ID; the GitHub token is read from `GITHUB_TOKEN` only when the library
+ * default-constructs the adapter.
+ */
+export interface GistStateConfig {
+	/** Discriminator selecting the gist adapter. */
+	readonly backend: "gist";
+	/** ID of an existing GitHub Gist that holds this project's state files. */
+	readonly gistId: string;
+}
+
+/**
+ * Tagged union describing where Bedrock persists its state. The `backend`
+ * tag is `"gist" | (string & {})` so unknown names autocomplete the
+ * builtins while permitting custom values for plugin scenarios. The
+ * dispatch path inside `deploy()` rejects unknown names with a typed
+ * `unsupportedBackend` error.
+ */
+export type StateConfig = GistStateConfig | { readonly backend: string & {} };
+
+/**
  * Per-kind entry registry. Each `ResourceKind` must have a matching entry
  * type or `ResourceEntryByKind[K]` is a compile error. Modelled as an
  * interface (not a type alias) so downstream resource kinds can declare
@@ -191,6 +212,8 @@ export interface Config {
 	passes?: Record<string, GamePassEntry>;
 	/** Keyed-map collection of place entries by user-supplied ResourceKey. */
 	places?: Record<string, PlaceEntry>;
+	/** Where Bedrock persists state for this project. */
+	state?: StateConfig;
 	/** Singleton universe block declaring the Roblox universe bedrock manages. */
 	universe?: UniverseEntry;
 }
@@ -250,11 +273,17 @@ const universeEntry = type({
 	"youtubeSocialLink?": socialLinkOrUndefined,
 }).onUndeclaredKey("reject");
 
+const stateConfig = type({
+	"backend": "string",
+	"gistId?": "string",
+}).onUndeclaredKey("reject");
+
 const rootSchema: Type<Config> = type({
 	"environments?": "unknown",
 	"extends?": "unknown",
 	"passes?": passesCollection,
 	"places?": placesCollection,
+	"state?": stateConfig,
 	"universe?": universeEntry,
 }).onUndeclaredKey("reject");
 

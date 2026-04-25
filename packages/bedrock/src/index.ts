@@ -49,8 +49,10 @@ export {
 	validateConfig,
 	type Config,
 	type GamePassEntry,
+	type GistStateConfig,
 	type PlaceEntry,
 	type ResourceEntryByKind,
+	type StateConfig,
 	type UniverseEntry,
 	type UniverseVisibility,
 } from "./core/schema.ts";
