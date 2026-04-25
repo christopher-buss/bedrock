@@ -1,0 +1,76 @@
+import type { Result } from "@bedrock/ocale";
+
+import type { Config, StateConfig } from "./schema.ts";
+
+/**
+ * Failure surfaced when no `StateConfig` is configured for the requested
+ * environment. The shell layer wraps this in a `DeployError` when default
+ * state-port construction is requested but the project has not declared
+ * where state should live.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { StateNotConfiguredError } from "@bedrock/core";
+ *
+ * const err: StateNotConfiguredError = {
+ *     environment: "production",
+ *     kind: "stateNotConfigured",
+ * };
+ *
+ * expect(err.kind).toBe("stateNotConfigured");
+ * ```
+ */
+export interface StateNotConfiguredError {
+	/** Environment that the resolver was called against. */
+	readonly environment: string;
+	/** Literal discriminator for narrowing. */
+	readonly kind: "stateNotConfigured";
+}
+
+/**
+ * Pick the `StateConfig` that applies to `environment`. Per-environment
+ * overrides win over the root block; if neither is present, returns
+ * `Err(stateNotConfigured)` so the deploy boundary can surface a typed
+ * error instead of silently falling back.
+ *
+ * @param config - Validated project config.
+ * @param environment - Target environment name.
+ * @returns The resolved `StateConfig`, or `Err(stateNotConfigured)` when
+ * neither the environment override nor the root block is set.
+ * @example
+ *
+ * ```ts
+ * import { resolveStateConfig } from "@bedrock/core";
+ *
+ * const result = resolveStateConfig(
+ *     {
+ *         state: { backend: "gist", gistId: "root-gist" },
+ *         environments: {
+ *             production: { state: { backend: "gist", gistId: "prod-gist" } },
+ *         },
+ *     },
+ *     "production",
+ * );
+ *
+ * expect(result.success).toBeTrue();
+ * if (result.success) {
+ *     expect(result.data).toContainEntry(["gistId", "prod-gist"]);
+ * }
+ * ```
+ */
+export function resolveStateConfig(
+	config: Config,
+	environment: string,
+): Result<StateConfig, StateNotConfiguredError> {
+	const override = config.environments?.[environment]?.state;
+	if (override !== undefined) {
+		return { data: override, success: true };
+	}
+
+	if (config.state !== undefined) {
+		return { data: config.state, success: true };
+	}
+
+	return { err: { environment, kind: "stateNotConfigured" }, success: false };
+}
