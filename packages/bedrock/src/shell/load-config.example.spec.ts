@@ -4,7 +4,7 @@ import { loadConfig } from '@bedrock/core'
 
 it('Example 1', () => {
   return loadConfig({
-    configFile: 'bedrock.staging.config',
+    configFile: 'bedrock.staging.config.yaml',
     cwd: '/path/that/does/not/have/a/config',
   }).then((result) => {
     expect(result.success).toBeFalse()

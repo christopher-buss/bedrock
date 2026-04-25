@@ -192,28 +192,24 @@ describe(loadConfig, () => {
 		});
 	});
 
-	it("should load a config file named via configFile", async () => {
+	it("should load the config file at the path given via configFile", async () => {
 		expect.assertions(1);
 
 		await withTemporaryDirectory(async (cwd) => {
 			writeFileSync(
-				join(cwd, "bedrock.staging.config.ts"),
+				join(cwd, "bedrock.staging.config.yaml"),
 				[
-					"import { defineConfig } from '@bedrock/core';",
-					"export default defineConfig({",
-					"  passes: {",
-					"    'staging-pass': {",
-					"      description: 'Staging perks.',",
-					"      iconFilePath: 'assets/staging.png',",
-					"      name: 'Staging Pass',",
-					"      price: 100,",
-					"    },",
-					"  },",
-					"});",
+					"passes:",
+					"  staging-pass:",
+					"    description: Staging perks.",
+					"    iconFilePath: assets/staging.png",
+					"    name: Staging Pass",
+					"    price: 100",
+					"",
 				].join("\n"),
 			);
 
-			const result = await loadConfig({ configFile: "bedrock.staging.config", cwd });
+			const result = await loadConfig({ configFile: "bedrock.staging.config.yaml", cwd });
 
 			assert(result.success);
 
@@ -221,17 +217,55 @@ describe(loadConfig, () => {
 		});
 	});
 
-	it("should return a fileNotFound error when configFile names a missing file", async () => {
+	it("should resolve a relative configFile against cwd and not search alternate extensions", async () => {
 		expect.assertions(2);
 
 		await withTemporaryDirectory(async (cwd) => {
-			const result = await loadConfig({ configFile: "missing", cwd });
+			writeFileSync(
+				join(cwd, "bedrock.staging.config.ts"),
+				[
+					"import { defineConfig } from '@bedrock/core';",
+					"export default defineConfig({ passes: {} });",
+				].join("\n"),
+			);
+
+			const result = await loadConfig({ configFile: "bedrock.staging.config", cwd });
 
 			assert(!result.success);
 			assert(result.err.kind === "fileNotFound");
 
 			expect(result.err.kind).toBe("fileNotFound");
 			expect(result.err.searchedFrom).toBe(cwd);
+		});
+	});
+
+	it("should accept an absolute configFile path", async () => {
+		expect.assertions(1);
+
+		await withTemporaryDirectory(async (cwd) => {
+			const absolutePath = join(cwd, "elsewhere.config.ts");
+			writeFileSync(
+				absolutePath,
+				[
+					"import { defineConfig } from '@bedrock/core';",
+					"export default defineConfig({",
+					"  passes: {",
+					"    'absolute-pass': {",
+					"      description: 'Loaded by absolute path.',",
+					"      iconFilePath: 'assets/abs.png',",
+					"      name: 'Absolute Pass',",
+					"      price: 200,",
+					"    },",
+					"  },",
+					"});",
+				].join("\n"),
+			);
+
+			const result = await loadConfig({ configFile: absolutePath });
+
+			assert(result.success);
+
+			expect(result.data.passes!["absolute-pass"]!.name).toBe("Absolute Pass");
 		});
 	});
 

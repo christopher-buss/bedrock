@@ -1,8 +1,8 @@
 import type { Result } from "@bedrock/ocale";
 
 import { loadConfig as c12LoadConfig } from "c12";
-import { readdirSync } from "node:fs";
-import { join } from "node:path";
+import { readdirSync, statSync } from "node:fs";
+import { isAbsolute, join } from "node:path";
 import process from "node:process";
 
 import type { ConfigError } from "../core/config-error.ts";
@@ -14,9 +14,11 @@ import { type Config, validateConfig } from "../core/schema.ts";
  */
 export interface LoadConfigOptions {
 	/**
-	 * Filename (without extension) of a specific config file to load. When
-	 * omitted, `loadConfig` discovers `bedrock.config.{ts,js,...}` from
-	 * `cwd`. Mirrors c12's `configFile` option.
+	 * Path to a specific config file to load, including its extension.
+	 * Resolved relative to `cwd` when not absolute. Loaded as-is with no
+	 * extension search; if the file does not exist at the given path,
+	 * `loadConfig` returns `fileNotFound`. When omitted, `loadConfig`
+	 * discovers `bedrock.config.{ts,js,...}` from `cwd`.
 	 */
 	readonly configFile?: string;
 	/**
@@ -55,7 +57,7 @@ export interface LoadConfigOptions {
  * import { loadConfig } from "@bedrock/core";
  *
  * return loadConfig({
- *     configFile: "bedrock.staging.config",
+ *     configFile: "bedrock.staging.config.yaml",
  *     cwd: "/path/that/does/not/have/a/config",
  * }).then((result) => {
  *     expect(result.success).toBeFalse();
@@ -69,26 +71,40 @@ export async function loadConfig(
 	options?: LoadConfigOptions,
 ): Promise<Result<Config, ConfigError>> {
 	const cwd = options?.cwd ?? process.cwd();
+	const configFile =
+		options?.configFile === undefined ? undefined : resolveConfigPath(cwd, options.configFile);
+	if (configFile !== undefined && !isExistingFile(configFile)) {
+		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
+	}
 
 	let resolved: Awaited<ReturnType<typeof c12LoadConfig<Record<string, unknown>>>>;
 	try {
 		resolved = await c12LoadConfig<Record<string, unknown>>({
 			name: "bedrock",
 			cwd,
-			...(options?.configFile === undefined ? {} : { configFile: options.configFile }),
+			...(configFile === undefined ? {} : { configFile }),
 		});
 	} catch (err) {
 		return { err: attributeLoadError(err, cwd), success: false };
 	}
 
 	if (resolved._configFile === undefined) {
-		return {
-			err: { kind: "fileNotFound", searchedFrom: cwd },
-			success: false,
-		};
+		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
 	}
 
 	return validateConfig(resolved.config, resolved._configFile);
+}
+
+function resolveConfigPath(cwd: string, configFile: string): string {
+	return isAbsolute(configFile) ? configFile : join(cwd, configFile);
+}
+
+function isExistingFile(path: string): boolean {
+	try {
+		return statSync(path).isFile();
+	} catch {
+		return false;
+	}
 }
 
 const CONFIG_FILE_IN_FRAME = /[^\s():"']*bedrock\.config\.(?:ts|js|mjs|cjs|yaml|yml|json)/;
