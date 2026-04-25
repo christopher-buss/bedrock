@@ -61,7 +61,6 @@ export {
 } from "./core/schema.ts";
 export {
 	selectEnvironment,
-	type EffectiveConfig,
 	type SelectEnvironmentError,
 	type UnknownEnvironmentError,
 } from "./core/select-environment.ts";

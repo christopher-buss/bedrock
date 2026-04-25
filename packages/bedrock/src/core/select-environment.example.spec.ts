@@ -10,10 +10,10 @@ it('Example 1', () => {
     state: { backend: 'gist', gistId: 'abc123' },
     universe: { universeId: '111' },
   }
-  const effective = selectEnvironment(config, 'production')
-  expect(effective.success).toBeTrue()
-  if (effective.success) {
-    expect(effective.data.universe?.universeId).toBe('999')
-    expect(effective.data.state.backend).toBe('gist')
+  const result = selectEnvironment(config, 'production')
+  expect(result.success).toBeTrue()
+  if (result.success) {
+    expect(result.data.universe?.universeId).toBe('999')
+    expect(result.data.state?.backend).toBe('gist')
   }
 })

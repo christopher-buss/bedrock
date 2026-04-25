@@ -499,6 +499,24 @@ describe(deploy, () => {
 		expect(result.data.environment).toBe("production");
 	});
 
+	it("should return Err(unknownEnvironment) when the environment is not declared in the config", async () => {
+		expect.assertions(2);
+
+		const result = await deploy({
+			config: vipPassConfig(),
+			environment: "staging",
+			readFile: readIcon,
+			registry: stubRegistry(),
+			statePort: inMemoryStatePort().port,
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "unknownEnvironment");
+
+		expect(result.err.environment).toBe("staging");
+		expect(result.err.declared).toStrictEqual(["production"]);
+	});
+
 	it("should return Err(stateNotConfigured) when statePort is omitted and the config has no state for the environment", async () => {
 		expect.assertions(2);
 

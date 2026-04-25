@@ -10,6 +10,7 @@ import { flattenConfig } from "../core/flatten.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
+import { selectEnvironment, type UnknownEnvironmentError } from "../core/select-environment.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
@@ -52,13 +53,14 @@ export interface DeployOptions {
  * Failure surfaced by `deploy`. Stage-tagged so callers can branch on
  * `kind` to distinguish reconciliation failures (`stateReadFailed`,
  * `applyFailed`, ...) from default-construction failures
- * (`configLoadFailed`, `stateNotConfigured`, `missingCredential`,
- * `unsupportedBackend`, `registryConfigMissing`).
+ * (`configLoadFailed`, `stateNotConfigured`, `unknownEnvironment`,
+ * `missingCredential`, `unsupportedBackend`, `registryConfigMissing`).
  */
 export type DeployError =
 	| MissingCredentialError
 	| RegistryConfigError
 	| StateNotConfiguredError
+	| UnknownEnvironmentError
 	| UnsupportedBackendError
 	| { readonly cause: ApplyError; readonly kind: "applyFailed" }
 	| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" }
@@ -222,21 +224,27 @@ async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDeps,
 		return config;
 	}
 
+	const selected = selectEnvironment(config.data, options.environment);
+	if (!selected.success) {
+		return { err: selected.err, success: false };
+	}
+
+	const effective = selected.data;
 	const readFile = options.readFile ?? nodeReadFile;
 
-	const statePort = pickStatePort(options, config.data);
+	const statePort = pickStatePort(options, effective);
 	if (!statePort.success) {
 		return statePort;
 	}
 
-	const registry = pickRegistry({ config: config.data, options, readFile });
+	const registry = pickRegistry({ config: effective, options, readFile });
 	if (!registry.success) {
 		return registry;
 	}
 
 	return {
 		data: {
-			config: config.data,
+			config: effective,
 			readFile,
 			registry: registry.data,
 			statePort: statePort.data,
