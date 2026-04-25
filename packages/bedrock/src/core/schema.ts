@@ -232,6 +232,33 @@ export interface Config {
 	universe?: UniverseEntry;
 }
 
+/**
+ * Narrow a `StateConfig` to the `GistStateConfig` arm. The `(string & {})`
+ * autocomplete idiom prevents TypeScript from narrowing on
+ * `backend === "gist"` alone, so dispatch sites use this guard to
+ * preserve the `gistId` field shape.
+ *
+ * @example
+ *
+ * ```ts
+ * import { isGistStateConfig, type StateConfig } from "@bedrock/core";
+ *
+ * const config: StateConfig = { backend: "gist", gistId: "abc" };
+ *
+ * expect(isGistStateConfig(config)).toBeTrue();
+ * if (isGistStateConfig(config)) {
+ *     expect(config.gistId).toBe("abc");
+ * }
+ * ```
+ *
+ * @param config - Resolved state config to inspect.
+ * @returns `true` when `config.backend === "gist"` and `gistId` is a
+ * non-empty string; otherwise `false`.
+ */
+export function isGistStateConfig(config: StateConfig): config is GistStateConfig {
+	return config.backend === "gist" && "gistId" in config && typeof config.gistId === "string";
+}
+
 // Resource-kind entry schemas. Adding a new kind is two additions:
 // 1. Declare its entry schema and keyed-map collection below.
 // 2. Reference that collection as an optional property on `rootSchema`.

@@ -47,6 +47,7 @@ export {
 	type UniverseOutputs,
 } from "./core/resources.ts";
 export {
+	isGistStateConfig,
 	validateConfig,
 	type Config,
 	type EnvironmentEntry,
@@ -65,6 +66,12 @@ export type { StatePort } from "./ports/state-port.ts";
 export { applyOps } from "./shell/apply-ops.ts";
 export type { ApplyError } from "./shell/apply-ops.ts";
 export { buildDesired } from "./shell/build-desired.ts";
+export {
+	buildStatePort,
+	type BuildStatePortDeps,
+	type MissingCredentialError,
+	type UnsupportedBackendError,
+} from "./shell/build-state-port.ts";
 export { defineConfig, type ConfigContext, type ConfigInput } from "./shell/define-config.ts";
 export { deploy, type DeployError, type DeployOptions } from "./shell/deploy.ts";
 export { loadConfig, type LoadConfigOptions } from "./shell/load-config.ts";
