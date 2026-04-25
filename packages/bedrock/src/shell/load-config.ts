@@ -354,7 +354,7 @@ function parseBootstrapOutput(stdout: string): Record<string, unknown> {
 		throw new TypeError("Luau config must return a table at the root");
 	}
 
-	return parsed as Record<string, unknown>;
+	return parsed;
 }
 
 const CONFIG_FILE_IN_FRAME = /[^\s():"']*bedrock\.config\.(?:ts|js|mjs|cjs|yaml|yml|json)/;
