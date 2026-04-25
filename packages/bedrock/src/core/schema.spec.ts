@@ -756,6 +756,180 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["environments", tooLong]);
 	});
 
+	it("should accept a per-environment universe overlay declaring only universeId", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					production: { universe: { universeId: "9999999999" } },
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+				universe: { universeId: "1111111111" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.environments["production"]?.universe?.universeId).toBe("9999999999");
+	});
+
+	it("should reject a per-environment universe overlay missing universeId", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					production: { universe: { voiceChatEnabled: true } },
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"production",
+			"universe",
+			"universeId",
+		]);
+	});
+
+	it("should accept a per-environment places overlay that declares placeId without filePath", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: {
+						places: {
+							"start-place": { placeId: "5555" },
+						},
+					},
+				},
+				places: { "start-place": { filePath: "places/start.rbxl", placeId: "1111" } },
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.environments["staging"]?.places?.["start-place"]?.placeId).toBe("5555");
+	});
+
+	it("should reject a per-environment places overlay entry that omits placeId", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: {
+						places: {
+							"start-place": { filePath: "places/start-staging.rbxl" },
+						},
+					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"staging",
+			"places",
+			"start-place",
+			"placeId",
+		]);
+	});
+
+	it("should accept a per-environment passes overlay that omits every field as a no-op", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: { passes: { "vip-pass": {} } },
+				},
+				passes: {
+					"vip-pass": {
+						name: "VIP Pass",
+						description: "Grants VIP perks.",
+						iconFilePath: "assets/vip.png",
+						price: 500,
+					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		expect(result.success).toBeTrue();
+	});
+
+	it("should accept a per-environment passes overlay that supplies a partial subset of fields", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: { passes: { "vip-pass": { price: 250 } } },
+				},
+				passes: {
+					"vip-pass": {
+						name: "VIP Pass",
+						description: "Grants VIP perks.",
+						iconFilePath: "assets/vip.png",
+						price: 500,
+					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.environments["staging"]?.passes?.["vip-pass"]?.price).toBe(250);
+	});
+
+	it("should reject an undeclared field inside a per-environment places overlay entry", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: {
+						places: {
+							"start-place": { placeId: "5555", unexpected: "nope" },
+						},
+					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"staging",
+			"places",
+			"start-place",
+			"unexpected",
+		]);
+	});
+
 	it("should reject an undeclared field on an environments entry", () => {
 		expect.assertions(1);
 
