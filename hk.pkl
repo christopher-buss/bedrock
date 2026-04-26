@@ -72,6 +72,16 @@ local mutate = new Step {
     exclusive = true
 }
 
+// Pre-push variant of `mutate` that scopes against `origin/main`, mirroring
+// the CI mutation job. Pre-commit's `mutate` only sees the current slice; a
+// survivor exposed by a later slice's tests would slip past without this.
+local mutatePush = new Step {
+    glob = List("*.ts", "*.tsx")
+    check = "MUTATE_BASE_REF=origin/main pnpm mutate:changed"
+    shell = bash
+    exclusive = true
+}
+
 local unused = new Step {
     glob = List("*.ts", "*.tsx", "package.json", "pnpm-workspace.yaml")
     check = "pnpm lint:unused"
@@ -101,6 +111,7 @@ hooks {
             ["unused"] = unused
             ["build"] = build
             ["test"] = test
+            ["mutate"] = (mutatePush) { condition = isAgent }
         }
     }
     ["commit-msg"] {
