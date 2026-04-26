@@ -1,4 +1,4 @@
-import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
+import type { OpenCloudError, Result } from "@bedrock/ocale";
 import type { DeveloperProduct, DeveloperProductsClient } from "@bedrock/ocale/developer-products";
 
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../core/resources.ts";
@@ -141,16 +141,6 @@ function toCurrentState(
 	desired: DeveloperProductDesiredState,
 	data: DeveloperProduct,
 ): Result<ResourceCurrentState<"developerProduct">, OpenCloudError> {
-	const productIdRaw = data.id;
-	if (productIdRaw === "") {
-		return {
-			err: new ApiError("Malformed developer product response: productId missing", {
-				statusCode: 200,
-			}),
-			success: false,
-		};
-	}
-
 	const iconImageAssetId =
 		data.iconImageAssetId === undefined ? undefined : asRobloxAssetId(data.iconImageAssetId);
 
@@ -158,7 +148,7 @@ function toCurrentState(
 		data: {
 			...desired,
 			outputs: {
-				productId: asRobloxAssetId(productIdRaw),
+				productId: asRobloxAssetId(data.id),
 				...(iconImageAssetId === undefined ? {} : { iconImageAssetId }),
 			},
 		},

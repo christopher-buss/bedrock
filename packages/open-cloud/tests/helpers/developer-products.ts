@@ -3,7 +3,7 @@ import type { DeveloperProductConfigV2 } from "#src/resources/developer-products
 /**
  * Builds a minimally-valid {@link DeveloperProductConfigV2} wire body. Pass
  * an `overrides` object to tweak individual fields while keeping everything
- * else schema-compliant — useful for parser and integration tests that
+ * else schema-compliant; useful for parser and integration tests that
  * only care about one field at a time.
  *
  * @param overrides - Fields to override on the default body.

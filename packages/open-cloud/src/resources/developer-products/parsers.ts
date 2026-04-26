@@ -56,6 +56,9 @@ export function parseDeveloperProductResponse(
 function hasRequiredPrimitiveFields(body: Record<string, unknown>): boolean {
 	return (
 		typeof body["productId"] === "number" &&
+		// Roblox never assigns asset ID 0; a zero productId signals a
+		// malformed response, not a legitimate product.
+		body["productId"] !== 0 &&
 		typeof body["universeId"] === "number" &&
 		typeof body["name"] === "string" &&
 		typeof body["description"] === "string" &&

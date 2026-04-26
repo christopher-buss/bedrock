@@ -1,5 +1,5 @@
 // Mirrors DeveloperProductConfigV2 from vendor/roblox-openapi.json.
-// Internal to the subpath — not re-exported from index.ts.
+// Internal to the subpath; not re-exported from index.ts.
 //
 // Nullable-but-required OpenAPI fields are modelled as `T | undefined`
 // (value required, may be undefined) to comply with `unicorn/no-null`.
@@ -27,7 +27,7 @@ export interface DeveloperProductPriceInformationWire {
 }
 
 /**
- * Wire shape of `DeveloperProductConfigV2` — the response body returned by
+ * Wire shape of `DeveloperProductConfigV2`: the response body returned by
  * the developer-products read and create endpoints.
  */
 export interface DeveloperProductConfigV2 {

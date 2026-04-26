@@ -166,6 +166,18 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.err.statusCode).toBe(502);
 	});
 
+	it("should return an ApiError when productId is the sentinel 0", () => {
+		expect.assertions(1);
+
+		const body = validDeveloperProductBody({ productId: 0 });
+
+		const result = parseDeveloperProductResponse({ body, headers: {}, status: 200 });
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+	});
+
 	it("should return an ApiError when the body is not an object", () => {
 		expect.assertions(1);
 
