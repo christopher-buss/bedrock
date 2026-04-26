@@ -332,6 +332,7 @@ describe(loadConfig, () => {
 				join(cwd, "bedrock.config.luau"),
 				[
 					"return {",
+					"  environments = { production = {} },",
 					"  passes = {",
 					"    ['vip-pass'] = {",
 					"      description = 'Grants VIP perks.',",
@@ -438,6 +439,7 @@ describe(loadConfig, () => {
 				writeFixtureConfig(cwd, [
 					"export default {",
 					"  extends: './base.luau',",
+					"  environments: { production: {} },",
 					"  passes: {",
 					"    'gold-pass': {",
 					"      description: 'Gold tier perks.',",
@@ -467,6 +469,7 @@ describe(loadConfig, () => {
 			await withTemporaryDirectory(async (cwd) => {
 				writeFixtureConfig(cwd, [
 					"export default {",
+					"  environments: { production: {} },",
 					"  passes: {",
 					"    'vip-pass': {",
 					"      description: 'TS wins.',",
@@ -513,6 +516,7 @@ describe(loadConfig, () => {
 					join(cwd, "bedrock.staging.config.luau"),
 					[
 						"return {",
+						"  environments = { staging = {} },",
 						"  passes = {",
 						"    ['vip-pass'] = {",
 						"      description = 'Staging perks.',",
@@ -562,7 +566,7 @@ describe(loadConfig, () => {
 			await withTemporaryDirectory(async (cwd) => {
 				writeFileSync(
 					join(cwd, "bedrock.config.luau"),
-					["return { passes = {} }", ""].join("\n"),
+					["return { environments = { production = {} }, passes = {} }", ""].join("\n"),
 				);
 
 				const previous = process.env["BEDROCK_LUTE_PATH"];
@@ -692,6 +696,7 @@ describe(loadConfig, () => {
 					[
 						"return {",
 						"  extends = './base.luau',",
+						"  environments = { staging = {} },",
 						"  passes = {",
 						"    ['gold-pass'] = {",
 						"      description = 'Gold tier perks.',",
