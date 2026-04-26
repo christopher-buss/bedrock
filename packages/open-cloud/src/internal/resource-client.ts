@@ -92,6 +92,17 @@ export function okRequest(request: HttpRequest): Result<HttpRequest, OpenCloudEr
 	return { data: request, success: true };
 }
 
+/**
+ * A {@link ResourceMethodSpec.parse} implementation for endpoints that return
+ * no business payload on success (such as `DELETE` and reorder operations).
+ * Surfaces `undefined` data and never inspects the response body.
+ *
+ * @returns A success Result with `undefined` data.
+ */
+export function parseEmptyResponse(): Result<undefined, OpenCloudError> {
+	return { data: undefined, success: true };
+}
+
 const CLIENT_DEFAULTS = Object.freeze({
 	baseUrl: "https://apis.roblox.com",
 	maxRetries: 3,

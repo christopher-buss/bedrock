@@ -81,23 +81,19 @@ describe("bedrock diff bin against real gist + open cloud", () => {
 
 			const environment = `cli-diff-smoke-${String(Date.now())}`;
 			const project = await mkdtemp(join(tmpdir(), "bedrock-cli-diff-smoke-"));
-			const configPath = join(project, "bedrock.config.ts");
+			const configPath = join(project, "bedrock.config.json");
 
-			const configSource = [
-				'import { defineConfig } from "@bedrock/core";',
-				"",
-				"export default defineConfig({",
-				`    environments: { ${environment}: {} },`,
-				"    places: {",
-				'        "smoke-place": {',
-				`            filePath: ${JSON.stringify(FIXTURE_PLACE)},`,
-				`            placeId: "${PLACE_ID_ENV}",`,
-				"        },",
-				"    },",
-				`    state: { backend: "gist", gistId: "${GIST_ID}" },`,
-				"});",
-				"",
-			].join("\n");
+			const configSource = `${JSON.stringify(
+				{
+					environments: {
+						[environment]: { places: { "smoke-place": { placeId: PLACE_ID_ENV } } },
+					},
+					places: { "smoke-place": { filePath: FIXTURE_PLACE } },
+					state: { backend: "gist", gistId: GIST_ID },
+				},
+				undefined,
+				2,
+			)}\n`;
 			await writeFile(configPath, configSource, "utf8");
 
 			try {
@@ -106,7 +102,10 @@ describe("bedrock diff bin against real gist + open cloud", () => {
 					project,
 				);
 
-				expect(result.code).toBe(0);
+				expect(
+					result.code,
+					`bin exited ${String(result.code)}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+				).toBe(0);
 				expect(result.stdout).toContain(`Pending changes for "${environment}"`);
 				expect(result.stdout).toContain("+ place:smoke-place");
 			} finally {

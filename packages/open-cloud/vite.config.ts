@@ -25,6 +25,8 @@ function addTestingSubpath(
 export default mergeConfig(sharedConfig, {
 	pack: {
 		entry: {
+			"experience-icon": "src/resources/experience-icon/index.ts",
+			"experience-thumbnails": "src/resources/experience-thumbnails/index.ts",
 			"game-passes": "src/resources/game-passes/index.ts",
 			"index": "src/index.ts",
 			"places": "src/resources/places/index.ts",

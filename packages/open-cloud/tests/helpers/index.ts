@@ -1,3 +1,5 @@
+export { validIconListBody, validLocalizedIcon } from "./experience-icon.ts";
+export { validThumbnailUploadBody } from "./experience-thumbnails.ts";
 export {
 	type CapturedRequest,
 	createFakeHttpClient,
