@@ -23,6 +23,8 @@ export function buildUploadThumbnailRequest(
 	parameters: UploadExperienceThumbnailParameters,
 ): HttpRequest {
 	const body = new FormData();
+	// The legacy game-thumbnails endpoint reads the upload from
+	// `gameThumbnailRequest.files`, distinct from game-icon's `request.files`.
 	body.append("gameThumbnailRequest.files", toBlob(parameters.image));
 
 	return {

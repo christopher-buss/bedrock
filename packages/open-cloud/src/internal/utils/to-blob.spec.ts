@@ -33,4 +33,13 @@ describe(toBlob, () => {
 
 		expect(observed[0]).toBe(1);
 	});
+
+	it("should produce an empty Blob when wrapping a zero-length Uint8Array", () => {
+		expect.assertions(2);
+
+		const result = toBlob(new Uint8Array(0));
+
+		expect(result).toBeInstanceOf(Blob);
+		expect(result.size).toBe(0);
+	});
 });

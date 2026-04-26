@@ -59,6 +59,9 @@ const DELETE_SPEC: ResourceMethodSpec<DeleteExperienceThumbnailParameters, undef
 		parse: parseEmptyResponse,
 	});
 
+// `buildReorderThumbnailsRequest` already returns `Result<HttpRequest,
+// ValidationError>` so it satisfies the spec's `buildRequest` contract directly;
+// no `okRequest` wrapper is needed (unlike `UPLOAD_SPEC` and `DELETE_SPEC`).
 const REORDER_SPEC: ResourceMethodSpec<ReorderExperienceThumbnailsParameters, undefined> =
 	Object.freeze({
 		buildRequest: buildReorderThumbnailsRequest,

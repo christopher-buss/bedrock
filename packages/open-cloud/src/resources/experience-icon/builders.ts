@@ -20,6 +20,7 @@ import type {
  */
 export function buildUploadIconRequest(parameters: UploadExperienceIconParameters): HttpRequest {
 	const body = new FormData();
+	// The legacy game-icon endpoint reads the upload from `request.files`.
 	body.append("request.files", toBlob(parameters.image));
 
 	return {
