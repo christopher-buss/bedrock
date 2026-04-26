@@ -1,6 +1,3 @@
-// The legacy `{gameId}` URL segment is in fact the universe ID; the public API
-// takes `universeId` and substitutes it into the path.
-
 import { ValidationError } from "../../errors/validation.ts";
 import type { HttpRequest } from "../../internal/http/types.ts";
 import { toBlob } from "../../internal/utils/to-blob.ts";
@@ -10,6 +7,8 @@ import type {
 	ReorderExperienceThumbnailsParameters,
 	UploadExperienceThumbnailParameters,
 } from "./types.ts";
+
+type ParsedIdsResult = Result<ReadonlyArray<number>, ValidationError>;
 
 /**
  * Builds a `POST` request for the localized "upload experience thumbnail"
@@ -30,6 +29,8 @@ export function buildUploadThumbnailRequest(
 	return {
 		body,
 		method: "POST",
+		// The `{gameId}` URL segment in this legacy path is in fact the
+		// universe ID; the package surfaces only `universeId`.
 		url: `/legacy-game-internationalization/v1/game-thumbnails/games/${parameters.universeId}/language-codes/${parameters.languageCode}/image`,
 	};
 }
@@ -93,9 +94,26 @@ function parseImageId(value: string): number | undefined {
 	return parsed;
 }
 
-function parseOrderedImageIds(
-	orderedImageIds: ReadonlyArray<string>,
-): Result<ReadonlyArray<number>, ValidationError> {
+function appendParsedId(accumulator: ParsedIdsResult, id: string): ParsedIdsResult {
+	if (!accumulator.success) {
+		return accumulator;
+	}
+
+	const parsed = parseImageId(id);
+	if (parsed === undefined) {
+		return {
+			err: new ValidationError(
+				`orderedImageIds entry ${JSON.stringify(id)} is not a positive integer ID`,
+				{ code: "invalid_image_id" },
+			),
+			success: false,
+		};
+	}
+
+	return { data: [...accumulator.data, parsed], success: true };
+}
+
+function parseOrderedImageIds(orderedImageIds: ReadonlyArray<string>): ParsedIdsResult {
 	if (orderedImageIds.length === 0) {
 		return {
 			err: new ValidationError("orderedImageIds must contain at least one image ID", {
@@ -105,21 +123,5 @@ function parseOrderedImageIds(
 		};
 	}
 
-	const mediaAssetIds: Array<number> = [];
-	for (const id of orderedImageIds) {
-		const parsed = parseImageId(id);
-		if (parsed === undefined) {
-			return {
-				err: new ValidationError(
-					`orderedImageIds entry ${JSON.stringify(id)} is not a positive integer ID`,
-					{ code: "invalid_image_id" },
-				),
-				success: false,
-			};
-		}
-
-		mediaAssetIds.push(parsed);
-	}
-
-	return { data: mediaAssetIds, success: true };
+	return orderedImageIds.reduce<ParsedIdsResult>(appendParsedId, { data: [], success: true });
 }

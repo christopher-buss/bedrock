@@ -1,30 +1,14 @@
 import type { OperationLimit } from "../../internal/http/rate-limit-queue.ts";
 
-// Roblox does not publish per-second ceilings for the legacy
-// `gameinternationalization` endpoints. The values below are tuned to match
-// the conservative defaults used elsewhere in this package and should be
-// revisited if production traces show persistent 429s.
-
 /**
- * Per-second request ceiling for uploading an experience thumbnail.
+ * Per-second request ceiling for every method on
+ * `ExperienceThumbnailsClient`. The legacy `gameinternationalization`
+ * service caps each API key at 100 requests per minute *shared across the
+ * entire service* (see the `x-roblox-rate-limits` extension on every
+ * operation in the vendored Open Cloud spec), so all methods queue against
+ * the same operation key.
  */
-export const UPLOAD_OPERATION_LIMIT: OperationLimit = Object.freeze({
-	maxPerSecond: 5,
-	operationKey: "experience-thumbnails.upload",
-});
-
-/**
- * Per-second request ceiling for deleting an experience thumbnail.
- */
-export const DELETE_OPERATION_LIMIT: OperationLimit = Object.freeze({
-	maxPerSecond: 5,
-	operationKey: "experience-thumbnails.delete",
-});
-
-/**
- * Per-second request ceiling for reordering experience thumbnails.
- */
-export const REORDER_OPERATION_LIMIT: OperationLimit = Object.freeze({
-	maxPerSecond: 5,
-	operationKey: "experience-thumbnails.reorder",
+export const OPERATION_LIMIT: OperationLimit = Object.freeze({
+	maxPerSecond: 100 / 60,
+	operationKey: "experience-thumbnails",
 });

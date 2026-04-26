@@ -14,11 +14,7 @@ import {
 	buildReorderThumbnailsRequest,
 	buildUploadThumbnailRequest,
 } from "./builders.ts";
-import {
-	DELETE_OPERATION_LIMIT,
-	REORDER_OPERATION_LIMIT,
-	UPLOAD_OPERATION_LIMIT,
-} from "./operations.ts";
+import { OPERATION_LIMIT } from "./operations.ts";
 import { parseThumbnailUploadResponse } from "./parsers.ts";
 import type {
 	DeleteExperienceThumbnailParameters,
@@ -46,7 +42,7 @@ const UPLOAD_SPEC: ResourceMethodSpec<
 	buildRequest: buildUploadSpec,
 	methodDefaults: CREATE_METHOD_DEFAULTS,
 	methodKind: "create",
-	operationLimit: UPLOAD_OPERATION_LIMIT,
+	operationLimit: OPERATION_LIMIT,
 	parse: parseThumbnailUploadResponse,
 });
 
@@ -55,7 +51,7 @@ const DELETE_SPEC: ResourceMethodSpec<DeleteExperienceThumbnailParameters, undef
 		buildRequest: buildDeleteSpec,
 		methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 		methodKind: "idempotent",
-		operationLimit: DELETE_OPERATION_LIMIT,
+		operationLimit: OPERATION_LIMIT,
 		parse: parseEmptyResponse,
 	});
 
@@ -67,7 +63,7 @@ const REORDER_SPEC: ResourceMethodSpec<ReorderExperienceThumbnailsParameters, un
 		buildRequest: buildReorderThumbnailsRequest,
 		methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 		methodKind: "idempotent",
-		operationLimit: REORDER_OPERATION_LIMIT,
+		operationLimit: OPERATION_LIMIT,
 		parse: parseEmptyResponse,
 	});
 

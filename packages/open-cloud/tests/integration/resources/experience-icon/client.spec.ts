@@ -1,27 +1,16 @@
 import { ApiError } from "#src/errors/api-error";
 import { ExperienceIconClient } from "#src/resources/experience-icon/index";
-import {
-	validIconListBody,
-	validIconUploadBody,
-	validLocalizedIcon,
-} from "#tests/helpers/experience-icon";
+import { validIconListBody, validLocalizedIcon } from "#tests/helpers/experience-icon";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { assert, describe, expect, it } from "vitest";
 
-// The legacy `gameinternationalization` endpoints are not in the vendored
-// OpenAPI document, so the schema-validating fake HTTP client is run with
-// `schemaValidation: "off"` for this resource's tests.
-
 describe(ExperienceIconClient, () => {
 	describe("upload", () => {
-		it("should return a parsed UploadedExperienceIcon on success", async () => {
+		it("should return success with no payload when the server returns 200", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
-				body: validIconUploadBody({ mediaAssetId: 12_345 }),
-				status: 200,
-			});
+			const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
 			const client = new ExperienceIconClient({
 				apiKey: "test-key",
 				httpClient,
@@ -36,16 +25,13 @@ describe(ExperienceIconClient, () => {
 
 			assert(result.success);
 
-			expect(result.data).toStrictEqual({ mediaAssetId: "12345" });
+			expect(result.data).toBeUndefined();
 		});
 
 		it("should send a POST with a multipart FormData body to the localized icon URL", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
-				body: validIconUploadBody(),
-				status: 200,
-			});
+			const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
 			const client = new ExperienceIconClient({
 				apiKey: "test-key",
 				httpClient,
@@ -67,9 +53,9 @@ describe(ExperienceIconClient, () => {
 		it("should not retry a 5xx so a duplicate icon upload can't be created", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+			const httpClient = createFakeHttpClient()
 				.mockApiError({ statusCode: 500 })
-				.mockResponse({ body: validIconUploadBody(), status: 200 });
+				.mockResponse({ body: {}, status: 200 });
 			const client = new ExperienceIconClient({
 				apiKey: "test-key",
 				httpClient,
@@ -93,10 +79,7 @@ describe(ExperienceIconClient, () => {
 		it("should return success with undefined data when the server returns 200", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
-				body: {},
-				status: 200,
-			});
+			const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
 			const client = new ExperienceIconClient({
 				apiKey: "test-key",
 				httpClient,
@@ -116,10 +99,7 @@ describe(ExperienceIconClient, () => {
 		it("should send a DELETE to the localized icon URL", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
-				body: {},
-				status: 200,
-			});
+			const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
 			const client = new ExperienceIconClient({
 				apiKey: "test-key",
 				httpClient,
@@ -137,7 +117,7 @@ describe(ExperienceIconClient, () => {
 		it("should retry a 5xx because delete is idempotent", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+			const httpClient = createFakeHttpClient()
 				.mockApiError({ statusCode: 500 })
 				.mockResponse({ body: {}, status: 200 });
 			const client = new ExperienceIconClient({
@@ -159,11 +139,11 @@ describe(ExperienceIconClient, () => {
 		it("should return a parsed array of localized icons", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+			const httpClient = createFakeHttpClient().mockResponse({
 				body: validIconListBody({
 					data: [
-						validLocalizedIcon({ languageCode: "en-us", mediaAssetId: 1 }),
-						validLocalizedIcon({ languageCode: "fr-fr", mediaAssetId: 2 }),
+						validLocalizedIcon({ imageId: "1", languageCode: "en-us" }),
+						validLocalizedIcon({ imageId: "2", languageCode: "fr-fr" }),
 					],
 				}),
 				status: 200,
@@ -178,16 +158,13 @@ describe(ExperienceIconClient, () => {
 
 			assert(result.success);
 
-			expect(result.data).toStrictEqual([
-				{ languageCode: "en-us", mediaAssetId: "1" },
-				{ languageCode: "fr-fr", mediaAssetId: "2" },
-			]);
+			expect(result.data.map((icon) => icon.imageId)).toStrictEqual(["1", "2"]);
 		});
 
 		it("should send a GET to the universe-scoped icon URL", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+			const httpClient = createFakeHttpClient().mockResponse({
 				body: validIconListBody({ data: [] }),
 				status: 200,
 			});
@@ -208,7 +185,7 @@ describe(ExperienceIconClient, () => {
 		it("should propagate the http error when the request fails", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockApiError({
+			const httpClient = createFakeHttpClient().mockApiError({
 				message: "Not found",
 				statusCode: 404,
 			});

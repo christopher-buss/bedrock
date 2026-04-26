@@ -2,42 +2,12 @@ import type { HttpResponse } from "../../client/types.ts";
 import { ApiError } from "../../errors/api-error.ts";
 import { isRecord } from "../../internal/utils/is-record.ts";
 import type { Result } from "../../types.ts";
-import type { ExperienceIcon, UploadedExperienceIcon } from "./types.ts";
-import type { GameIconListWire, GameIconUploadWire, LocalizedGameIconWire } from "./wire.ts";
-
-/**
- * Parses a successful icon-upload response into the public
- * {@link UploadedExperienceIcon} shape, returning a {@link Result} so
- * callers can handle malformed payloads without exceptions.
- *
- * @param response - The full {@link HttpResponse} from the Open Cloud API.
- *   The status code is included on the returned `ApiError` when validation
- *   fails.
- * @returns A success result wrapping the converted upload, or an
- *   `ApiError` when the body does not match the wire schema.
- */
-export function parseIconUploadResponse(
-	response: HttpResponse,
-): Result<UploadedExperienceIcon, ApiError> {
-	const { body, status: statusCode } = response;
-
-	if (!isGameIconUploadWire(body)) {
-		return {
-			err: new ApiError("Malformed icon upload response", { statusCode }),
-			success: false,
-		};
-	}
-
-	return {
-		data: { mediaAssetId: String(body.mediaAssetId) },
-		success: true,
-	};
-}
+import type { ExperienceIcon } from "./types.ts";
+import type { GameIconListWire, GameIconState, GetGameIconResponseWire } from "./wire.ts";
 
 /**
  * Parses a successful icon-list response into a public array of
- * {@link ExperienceIcon} entries. Stringifies each int64 `mediaAssetId`
- * at the wire boundary.
+ * {@link ExperienceIcon} entries.
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
  * @returns A success result wrapping the converted icon list, or an
@@ -61,20 +31,27 @@ export function parseIconListResponse(
 	};
 }
 
-function isGameIconUploadWire(body: unknown): body is GameIconUploadWire {
-	if (!isRecord(body)) {
-		return false;
-	}
-
-	return typeof body["mediaAssetId"] === "number";
+function isGameIconState(value: unknown): value is GameIconState {
+	return (
+		value === "Approved" ||
+		value === "Error" ||
+		value === "PendingReview" ||
+		value === "Rejected" ||
+		value === "UnAvailable"
+	);
 }
 
-function isLocalizedGameIconWire(value: unknown): value is LocalizedGameIconWire {
+function isGetGameIconResponseWire(value: unknown): value is GetGameIconResponseWire {
 	if (!isRecord(value)) {
 		return false;
 	}
 
-	return typeof value["languageCode"] === "string" && typeof value["mediaAssetId"] === "number";
+	return (
+		typeof value["imageId"] === "string" &&
+		typeof value["imageUrl"] === "string" &&
+		typeof value["languageCode"] === "string" &&
+		isGameIconState(value["state"])
+	);
 }
 
 function isGameIconListWire(body: unknown): body is GameIconListWire {
@@ -87,18 +64,14 @@ function isGameIconListWire(body: unknown): body is GameIconListWire {
 		return false;
 	}
 
-	for (const entry of data) {
-		if (!isLocalizedGameIconWire(entry)) {
-			return false;
-		}
-	}
-
-	return true;
+	return data.every(isGetGameIconResponseWire);
 }
 
-function toExperienceIcon(wire: LocalizedGameIconWire): ExperienceIcon {
+function toExperienceIcon(wire: GetGameIconResponseWire): ExperienceIcon {
 	return {
+		imageId: wire.imageId,
+		imageUrl: wire.imageUrl,
 		languageCode: wire.languageCode,
-		mediaAssetId: String(wire.mediaAssetId),
+		state: wire.state,
 	};
 }

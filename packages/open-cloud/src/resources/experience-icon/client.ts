@@ -14,25 +14,14 @@ import {
 	buildListIconsRequest,
 	buildUploadIconRequest,
 } from "./builders.ts";
-import {
-	DELETE_OPERATION_LIMIT,
-	LIST_OPERATION_LIMIT,
-	UPLOAD_OPERATION_LIMIT,
-} from "./operations.ts";
-import { parseIconListResponse, parseIconUploadResponse } from "./parsers.ts";
+import { OPERATION_LIMIT } from "./operations.ts";
+import { parseIconListResponse } from "./parsers.ts";
 import type {
 	DeleteExperienceIconParameters,
 	ExperienceIcon,
 	ListExperienceIconsParameters,
-	UploadedExperienceIcon,
 	UploadExperienceIconParameters,
 } from "./types.ts";
-
-// The build* helpers below exist to dodge an oxfmt vs.
-// arrow-style/arrow-return-style conflict triggered by the longer type names in
-// this resource (the inline arrow pattern used in game-passes/client.ts cannot be
-// applied here without flipping between two mutually-rejected formats on every
-// save).
 
 function buildUploadSpec(
 	parameters: UploadExperienceIconParameters,
@@ -52,20 +41,19 @@ function buildListSpec(
 	return okRequest(buildListIconsRequest(parameters));
 }
 
-const UPLOAD_SPEC: ResourceMethodSpec<UploadExperienceIconParameters, UploadedExperienceIcon> =
-	Object.freeze({
-		buildRequest: buildUploadSpec,
-		methodDefaults: CREATE_METHOD_DEFAULTS,
-		methodKind: "create",
-		operationLimit: UPLOAD_OPERATION_LIMIT,
-		parse: parseIconUploadResponse,
-	});
+const UPLOAD_SPEC: ResourceMethodSpec<UploadExperienceIconParameters, undefined> = Object.freeze({
+	buildRequest: buildUploadSpec,
+	methodDefaults: CREATE_METHOD_DEFAULTS,
+	methodKind: "create",
+	operationLimit: OPERATION_LIMIT,
+	parse: parseEmptyResponse,
+});
 
 const DELETE_SPEC: ResourceMethodSpec<DeleteExperienceIconParameters, undefined> = Object.freeze({
 	buildRequest: buildDeleteSpec,
 	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 	methodKind: "idempotent",
-	operationLimit: DELETE_OPERATION_LIMIT,
+	operationLimit: OPERATION_LIMIT,
 	parse: parseEmptyResponse,
 });
 
@@ -76,7 +64,7 @@ const LIST_SPEC: ResourceMethodSpec<
 	buildRequest: buildListSpec,
 	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 	methodKind: "idempotent",
-	operationLimit: LIST_OPERATION_LIMIT,
+	operationLimit: OPERATION_LIMIT,
 	parse: parseIconListResponse,
 });
 
@@ -157,14 +145,13 @@ export class ExperienceIconClient {
 	 *   bytes to upload.
 	 * @param options - Optional per-request overrides (e.g. A different
 	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
-	 * @returns A {@link Result} wrapping the parsed
-	 *   {@link UploadedExperienceIcon} or the {@link OpenCloudError} that
-	 *   caused the request to fail.
+	 * @returns A success {@link Result} with no payload, or the
+	 *   {@link OpenCloudError} that caused the request to fail.
 	 */
 	public async upload(
 		parameters: UploadExperienceIconParameters,
 		options?: RequestOptions,
-	): Promise<Result<UploadedExperienceIcon, OpenCloudError>> {
+	): Promise<Result<undefined, OpenCloudError>> {
 		return this.#inner.execute({ options, parameters, spec: UPLOAD_SPEC });
 	}
 }

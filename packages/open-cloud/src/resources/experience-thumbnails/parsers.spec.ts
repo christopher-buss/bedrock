@@ -5,11 +5,11 @@ import { ApiError } from "../../errors/api-error.ts";
 import { parseThumbnailUploadResponse } from "./parsers.ts";
 
 describe(parseThumbnailUploadResponse, () => {
-	it("should return success with the stringified mediaAssetId for a valid body", () => {
+	it("should return success with the mediaAssetId for a valid body", () => {
 		expect.assertions(1);
 
 		const result = parseThumbnailUploadResponse({
-			body: validThumbnailUploadBody({ mediaAssetId: 67_890 }),
+			body: validThumbnailUploadBody({ mediaAssetId: "67890" }),
 			headers: {},
 			status: 200,
 		});
@@ -19,11 +19,11 @@ describe(parseThumbnailUploadResponse, () => {
 		expect(result.data).toStrictEqual({ mediaAssetId: "67890" });
 	});
 
-	it("should stringify a different mediaAssetId from the same body shape", () => {
+	it("should pass through a different mediaAssetId from the same body shape", () => {
 		expect.assertions(1);
 
 		const result = parseThumbnailUploadResponse({
-			body: validThumbnailUploadBody({ mediaAssetId: 999_999 }),
+			body: validThumbnailUploadBody({ mediaAssetId: "999999" }),
 			headers: {},
 			status: 200,
 		});
@@ -77,11 +77,11 @@ describe(parseThumbnailUploadResponse, () => {
 		expect(result.err.statusCode).toBe(502);
 	});
 
-	it("should return an ApiError when mediaAssetId is a string instead of a number", () => {
+	it("should return an ApiError when mediaAssetId is a number instead of a string", () => {
 		expect.assertions(1);
 
 		const result = parseThumbnailUploadResponse({
-			body: { mediaAssetId: "67890" },
+			body: { mediaAssetId: 67_890 },
 			headers: {},
 			status: 422,
 		});

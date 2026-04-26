@@ -27,7 +27,7 @@ export function parseThumbnailUploadResponse(
 	}
 
 	return {
-		data: { mediaAssetId: String(body.mediaAssetId) },
+		data: { mediaAssetId: body.mediaAssetId },
 		success: true,
 	};
 }
@@ -37,5 +37,5 @@ function isGameThumbnailUploadWire(body: unknown): body is GameThumbnailUploadWi
 		return false;
 	}
 
-	return typeof body["mediaAssetId"] === "number";
+	return typeof body["mediaAssetId"] === "string";
 }

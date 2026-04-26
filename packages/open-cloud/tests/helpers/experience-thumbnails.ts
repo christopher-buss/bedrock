@@ -12,5 +12,5 @@ import type { GameThumbnailUploadWire } from "#src/resources/experience-thumbnai
 export function validThumbnailUploadBody(
 	overrides: Partial<GameThumbnailUploadWire> = {},
 ): GameThumbnailUploadWire {
-	return { mediaAssetId: 67_890, ...overrides };
+	return { mediaAssetId: "67890", ...overrides };
 }

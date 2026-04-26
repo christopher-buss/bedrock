@@ -1,4 +1,4 @@
-export { validIconListBody, validIconUploadBody, validLocalizedIcon } from "./experience-icon.ts";
+export { validIconListBody, validLocalizedIcon } from "./experience-icon.ts";
 export { validThumbnailUploadBody } from "./experience-thumbnails.ts";
 export {
 	type CapturedRequest,

@@ -6,17 +6,13 @@ import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { assert, describe, expect, it } from "vitest";
 
-// The legacy `gameinternationalization` endpoints are not in the vendored
-// OpenAPI document, so the schema-validating fake HTTP client is run with
-// `schemaValidation: "off"` for this resource's tests.
-
 describe(ExperienceThumbnailsClient, () => {
 	describe("upload", () => {
 		it("should return a parsed UploadedExperienceThumbnail on success", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
-				body: validThumbnailUploadBody({ mediaAssetId: 67_890 }),
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validThumbnailUploadBody({ mediaAssetId: "67890" }),
 				status: 200,
 			});
 			const client = new ExperienceThumbnailsClient({
@@ -39,7 +35,7 @@ describe(ExperienceThumbnailsClient, () => {
 		it("should send a POST with multipart FormData to the localized thumbnail URL", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+			const httpClient = createFakeHttpClient().mockResponse({
 				body: validThumbnailUploadBody(),
 				status: 200,
 			});
@@ -64,7 +60,7 @@ describe(ExperienceThumbnailsClient, () => {
 		it("should not retry a 5xx so a duplicate carousel entry can't be created", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+			const httpClient = createFakeHttpClient()
 				.mockApiError({ statusCode: 500 })
 				.mockResponse({ body: validThumbnailUploadBody(), status: 200 });
 			const client = new ExperienceThumbnailsClient({
@@ -90,10 +86,7 @@ describe(ExperienceThumbnailsClient, () => {
 		it("should return success with undefined data when the server returns 200", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
-				body: {},
-				status: 200,
-			});
+			const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
 			const client = new ExperienceThumbnailsClient({
 				apiKey: "test-key",
 				httpClient,
@@ -114,10 +107,7 @@ describe(ExperienceThumbnailsClient, () => {
 		it("should send a DELETE to the imageId-scoped thumbnail URL", async () => {
 			expect.assertions(2);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
-				body: {},
-				status: 200,
-			});
+			const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
 			const client = new ExperienceThumbnailsClient({
 				apiKey: "test-key",
 				httpClient,
@@ -137,10 +127,7 @@ describe(ExperienceThumbnailsClient, () => {
 		it("should return success with undefined data when the server returns 200", async () => {
 			expect.assertions(1);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
-				body: {},
-				status: 200,
-			});
+			const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
 			const client = new ExperienceThumbnailsClient({
 				apiKey: "test-key",
 				httpClient,
@@ -161,10 +148,7 @@ describe(ExperienceThumbnailsClient, () => {
 		it("should send a JSON-bodied POST with parsed mediaAssetIds in the supplied order", async () => {
 			expect.assertions(3);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
-				body: {},
-				status: 200,
-			});
+			const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
 			const client = new ExperienceThumbnailsClient({
 				apiKey: "test-key",
 				httpClient,
@@ -189,7 +173,7 @@ describe(ExperienceThumbnailsClient, () => {
 		it("should reject locally when an image id is invalid without sending the request", async () => {
 			expect.assertions(3);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" });
+			const httpClient = createFakeHttpClient();
 			const client = new ExperienceThumbnailsClient({
 				apiKey: "test-key",
 				httpClient,

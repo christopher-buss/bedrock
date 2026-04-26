@@ -1,19 +1,19 @@
+import type { GameIconState } from "./wire.ts";
+
+export type { GameIconState } from "./wire.ts";
+
 /**
  * A localized icon entry returned by listing icons for an experience.
  */
 export interface ExperienceIcon {
+	/** Stringified ID of the uploaded icon image. */
+	readonly imageId: string;
+	/** CDN URL the icon can be loaded from. */
+	readonly imageUrl: string;
 	/** BCP-47 language code the icon is registered against (e.g. `en-us`). */
 	readonly languageCode: string;
-	/** Stringified media asset ID. The API returns an int64; always use this. */
-	readonly mediaAssetId: string;
-}
-
-/**
- * Result of uploading or replacing a localized experience icon.
- */
-export interface UploadedExperienceIcon {
-	/** Stringified media asset ID of the uploaded icon. */
-	readonly mediaAssetId: string;
+	/** Moderation state of the icon. */
+	readonly state: GameIconState;
 }
 
 /**
@@ -32,9 +32,7 @@ export interface UploadExperienceIconParameters {
 
 /**
  * Parameters for deleting the localized icon registered against a universe
- * for a given language. Removing the source-language icon is rejected
- * server-side; consumers must replace it via {@link UploadExperienceIconParameters}
- * instead.
+ * for a given language.
  */
 export interface DeleteExperienceIconParameters {
 	/** BCP-47 language code of the icon to delete. */

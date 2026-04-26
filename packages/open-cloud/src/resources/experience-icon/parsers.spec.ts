@@ -1,100 +1,8 @@
-import {
-	validIconListBody,
-	validIconUploadBody,
-	validLocalizedIcon,
-} from "#tests/helpers/experience-icon";
+import { validIconListBody, validLocalizedIcon } from "#tests/helpers/experience-icon";
 import { assert, describe, expect, it } from "vitest";
 
 import { ApiError } from "../../errors/api-error.ts";
-import { parseIconListResponse, parseIconUploadResponse } from "./parsers.ts";
-
-describe(parseIconUploadResponse, () => {
-	it("should return success with the stringified mediaAssetId for a valid body", () => {
-		expect.assertions(1);
-
-		const result = parseIconUploadResponse({
-			body: validIconUploadBody({ mediaAssetId: 12_345 }),
-			headers: {},
-			status: 200,
-		});
-
-		assert(result.success);
-
-		expect(result.data).toStrictEqual({ mediaAssetId: "12345" });
-	});
-
-	it("should stringify a different mediaAssetId from the same body shape", () => {
-		expect.assertions(1);
-
-		const result = parseIconUploadResponse({
-			body: validIconUploadBody({ mediaAssetId: 987_654 }),
-			headers: {},
-			status: 200,
-		});
-
-		assert(result.success);
-
-		expect(result.data.mediaAssetId).toBe("987654");
-	});
-
-	it("should return an ApiError when the body is not an object", () => {
-		expect.assertions(2);
-
-		const result = parseIconUploadResponse({
-			body: "not an object",
-			headers: {},
-			status: 500,
-		});
-
-		assert(!result.success);
-
-		expect(result.err).toBeInstanceOf(ApiError);
-		expect(result.err.message).toBe("Malformed icon upload response");
-	});
-
-	it("should return an ApiError when the body is JSON null", () => {
-		expect.assertions(1);
-
-		const result = parseIconUploadResponse({
-			body: JSON.parse("null"),
-			headers: {},
-			status: 500,
-		});
-
-		assert(!result.success);
-
-		expect(result.err).toBeInstanceOf(ApiError);
-	});
-
-	it("should return an ApiError surfacing the response status when mediaAssetId is missing", () => {
-		expect.assertions(2);
-
-		const result = parseIconUploadResponse({
-			body: {},
-			headers: {},
-			status: 502,
-		});
-
-		assert(!result.success);
-
-		expect(result.err).toBeInstanceOf(ApiError);
-		expect(result.err.statusCode).toBe(502);
-	});
-
-	it("should return an ApiError when mediaAssetId is a string instead of a number", () => {
-		expect.assertions(1);
-
-		const result = parseIconUploadResponse({
-			body: { mediaAssetId: "12345" },
-			headers: {},
-			status: 422,
-		});
-
-		assert(!result.success);
-
-		expect(result.err).toBeInstanceOf(ApiError);
-	});
-});
+import { parseIconListResponse } from "./parsers.ts";
 
 describe(parseIconListResponse, () => {
 	it("should return success with a single converted entry for a valid body", () => {
@@ -108,7 +16,14 @@ describe(parseIconListResponse, () => {
 
 		assert(result.success);
 
-		expect(result.data).toStrictEqual([{ languageCode: "en-us", mediaAssetId: "12345" }]);
+		expect(result.data).toStrictEqual([
+			{
+				imageId: "12345",
+				imageUrl: "https://t1.rbxcdn.com/icon/12345",
+				languageCode: "en-us",
+				state: "Approved",
+			},
+		]);
 	});
 
 	it("should preserve the order of entries returned by the API", () => {
@@ -117,9 +32,9 @@ describe(parseIconListResponse, () => {
 		const result = parseIconListResponse({
 			body: validIconListBody({
 				data: [
-					validLocalizedIcon({ languageCode: "en-us", mediaAssetId: 1 }),
-					validLocalizedIcon({ languageCode: "fr-fr", mediaAssetId: 2 }),
-					validLocalizedIcon({ languageCode: "es-es", mediaAssetId: 3 }),
+					validLocalizedIcon({ imageId: "1", languageCode: "en-us" }),
+					validLocalizedIcon({ imageId: "2", languageCode: "fr-fr" }),
+					validLocalizedIcon({ imageId: "3", languageCode: "es-es" }),
 				],
 			}),
 			headers: {},
@@ -135,23 +50,24 @@ describe(parseIconListResponse, () => {
 		]);
 	});
 
-	it("should stringify each entry's int64 mediaAssetId", () => {
+	it.for<["Approved" | "Error" | "PendingReview" | "Rejected" | "UnAvailable"]>([
+		["Approved"],
+		["Error"],
+		["PendingReview"],
+		["Rejected"],
+		["UnAvailable"],
+	])("should accept the %s state value", ([state]) => {
 		expect.assertions(1);
 
 		const result = parseIconListResponse({
-			body: validIconListBody({
-				data: [
-					validLocalizedIcon({ mediaAssetId: 1 }),
-					validLocalizedIcon({ mediaAssetId: 999_999 }),
-				],
-			}),
+			body: validIconListBody({ data: [validLocalizedIcon({ state })] }),
 			headers: {},
 			status: 200,
 		});
 
 		assert(result.success);
 
-		expect(result.data.map((entry) => entry.mediaAssetId)).toStrictEqual(["1", "999999"]);
+		expect(result.data[0]?.state).toBe(state);
 	});
 
 	it("should return success with an empty array when the API returns no entries", () => {
@@ -228,15 +144,45 @@ describe(parseIconListResponse, () => {
 	it.for([
 		{ badEntry: "null", label: "an entry is JSON null" },
 		{ badEntry: '"plain string"', label: "an entry is not an object" },
-		{ badEntry: '{ "languageCode": "en-us" }', label: "an entry is missing mediaAssetId" },
-		{ badEntry: '{ "mediaAssetId": 1 }', label: "an entry is missing languageCode" },
 		{
-			badEntry: '{ "languageCode": 42, "mediaAssetId": 1 }',
+			badEntry: '{ "imageUrl": "u", "languageCode": "en-us", "state": "Approved" }',
+			label: "an entry is missing imageId",
+		},
+		{
+			badEntry: '{ "imageId": "1", "languageCode": "en-us", "state": "Approved" }',
+			label: "an entry is missing imageUrl",
+		},
+		{
+			badEntry: '{ "imageId": "1", "imageUrl": "u", "state": "Approved" }',
+			label: "an entry is missing languageCode",
+		},
+		{
+			badEntry: '{ "imageId": "1", "imageUrl": "u", "languageCode": "en-us" }',
+			label: "an entry is missing state",
+		},
+		{
+			badEntry:
+				'{ "imageId": 1, "imageUrl": "u", "languageCode": "en-us", "state": "Approved" }',
+			label: "imageId has the wrong type",
+		},
+		{
+			badEntry:
+				'{ "imageId": "1", "imageUrl": 2, "languageCode": "en-us", "state": "Approved" }',
+			label: "imageUrl has the wrong type",
+		},
+		{
+			badEntry:
+				'{ "imageId": "1", "imageUrl": "u", "languageCode": 42, "state": "Approved" }',
 			label: "languageCode has the wrong type",
 		},
 		{
-			badEntry: '{ "languageCode": "en-us", "mediaAssetId": "1" }',
-			label: "mediaAssetId has the wrong type",
+			badEntry:
+				'{ "imageId": "1", "imageUrl": "u", "languageCode": "en-us", "state": "Unknown" }',
+			label: "state is not a recognized value",
+		},
+		{
+			badEntry: '{ "imageId": "1", "imageUrl": "u", "languageCode": "en-us", "state": 0 }',
+			label: "state has the wrong type",
 		},
 	])("should return an ApiError when $label", ({ badEntry }) => {
 		expect.assertions(1);
