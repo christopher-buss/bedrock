@@ -11,8 +11,6 @@ import type { ProgDeps } from "../index.ts";
 import { type CommonOptions, parseCommonOptions } from "../parse-options.ts";
 import { type ClackPort, createClackPort, renderDeployError, renderParseError } from "../render.ts";
 
-const DEPLOY_FAILED_MESSAGE = "deploy failed";
-
 interface ResolvedDeploy {
 	readonly clack: ClackPort;
 	readonly deploy: typeof defaultDeploy;
@@ -97,6 +95,10 @@ function buildGetEnvironment(parsed: CommonOptions): (name: string) => string | 
 	};
 }
 
+function cancelAsFailed(clack: ClackPort): void {
+	clack.cancel("deploy failed");
+}
+
 async function runDeploy(
 	rawOptions: Record<string, unknown>,
 	resolved: ResolvedDeploy,
@@ -106,14 +108,14 @@ async function runDeploy(
 	const parsed = parseCommonOptions(rawOptions);
 	if (!parsed.success) {
 		renderParseError(parsed.err, resolved.clack);
-		resolved.clack.cancel(DEPLOY_FAILED_MESSAGE);
+		cancelAsFailed(resolved.clack);
 		return EXIT_ERROR;
 	}
 
 	const loaded = await resolved.loadConfig(loadOptionsFor(parsed.data));
 	if (!loaded.success) {
 		renderDeployError({ cause: loaded.err, kind: "configLoadFailed" }, resolved.clack);
-		resolved.clack.cancel(DEPLOY_FAILED_MESSAGE);
+		cancelAsFailed(resolved.clack);
 		return EXIT_ERROR;
 	}
 
@@ -124,7 +126,7 @@ async function runDeploy(
 		resolved,
 	});
 	if (failures.length > 0) {
-		resolved.clack.cancel(DEPLOY_FAILED_MESSAGE);
+		cancelAsFailed(resolved.clack);
 		return EXIT_ERROR;
 	}
 
