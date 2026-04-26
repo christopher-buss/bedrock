@@ -1,6 +1,7 @@
 import {
 	buildMutateArgs,
 	filterMutableFiles,
+	findPackagesWithChangedSpecs,
 	groupByPackage,
 	isTypesOnlyModule,
 	parseDiff,
@@ -37,14 +38,21 @@ function runStrykerForEach(
 		string,
 		Array<{ hunks: Array<{ endLine: number; startLine: number }>; path: string }>
 	>,
+	packagesWithSpecChanges: ReadonlySet<string>,
 ): boolean {
 	const statuses = Array.from(grouped, ([packageDirectory, files]) => {
 		const args = buildMutateArgs(files);
-		console.log(`\n→ Running Stryker in ${packageDirectory}`);
-		return spawnSync("pnpm", ["exec", "stryker", "run", "stryker.config.ts", ...args], {
-			cwd: packageDirectory,
-			stdio: "inherit",
-		}).status;
+		const force = packagesWithSpecChanges.has(packageDirectory) ? ["--force"] : [];
+		const note = force.length > 0 ? " (--force: specs changed)" : "";
+		console.log(`\n→ Running Stryker in ${packageDirectory}${note}`);
+		return spawnSync(
+			"pnpm",
+			["exec", "stryker", "run", "stryker.config.ts", ...force, ...args],
+			{
+				cwd: packageDirectory,
+				stdio: "inherit",
+			},
+		).status;
 	});
 	return statuses.some((status) => status !== 0);
 }
@@ -77,7 +85,8 @@ async function main(): Promise<void> {
 		return;
 	}
 
-	const hasFailed = runStrykerForEach(grouped);
+	const packagesWithSpecChanges = findPackagesWithChangedSpecs(parsed.files, packageDirectories);
+	const hasFailed = runStrykerForEach(grouped, packagesWithSpecChanges);
 	if (hasFailed) {
 		process.exit(1);
 	}

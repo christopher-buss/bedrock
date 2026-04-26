@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	buildMutateArgs,
 	filterMutableFiles,
+	findPackagesWithChangedSpecs,
 	groupByPackage,
 	isTypesOnlyModule,
 	parseDiff,
@@ -368,6 +369,64 @@ describe(groupByPackage, () => {
 				["packages/bedrock", [{ hunks: [{ endLine: 3, startLine: 3 }], path: "src/b.ts" }]],
 			]),
 		);
+	});
+});
+
+describe(findPackagesWithChangedSpecs, () => {
+	it("should return an empty set when no files changed", () => {
+		expect.assertions(1);
+
+		expect(findPackagesWithChangedSpecs([], ["packages/foo"])).toStrictEqual(new Set());
+	});
+
+	it.for<[label: string, path: string]>([
+		[".spec.ts", "packages/foo/src/a.spec.ts"],
+		[".test.ts", "packages/foo/src/a.test.ts"],
+	])(
+		"should mark a package as having changed runtime tests when a %s file in it changes",
+		([, path]) => {
+			expect.assertions(1);
+
+			const files = [{ hunks: [{ endLine: 1, startLine: 1 }], path }];
+
+			expect(findPackagesWithChangedSpecs(files, ["packages/foo"])).toStrictEqual(
+				new Set(["packages/foo"]),
+			);
+		},
+	);
+
+	it.for<[label: string, path: string]>([
+		["a .spec-d.ts type-only test", "packages/foo/src/a.spec-d.ts"],
+		["a plain source .ts file", "packages/foo/src/a.ts"],
+		["a .d.ts declaration", "packages/foo/src/a.d.ts"],
+	])("should not mark the package when only %s changes", ([, path]) => {
+		expect.assertions(1);
+
+		const files = [{ hunks: [{ endLine: 1, startLine: 1 }], path }];
+
+		expect(findPackagesWithChangedSpecs(files, ["packages/foo"])).toStrictEqual(new Set());
+	});
+
+	it("should ignore spec changes outside any known package directory", () => {
+		expect.assertions(1);
+
+		const files = [{ hunks: [{ endLine: 1, startLine: 1 }], path: "scripts/foo.spec.ts" }];
+
+		expect(findPackagesWithChangedSpecs(files, ["packages/foo"])).toStrictEqual(new Set());
+	});
+
+	it("should collect every package whose specs changed across a multi-package diff", () => {
+		expect.assertions(1);
+
+		const files = [
+			{ hunks: [{ endLine: 1, startLine: 1 }], path: "packages/foo/src/a.spec.ts" },
+			{ hunks: [{ endLine: 2, startLine: 2 }], path: "packages/bar/src/b.test.ts" },
+			{ hunks: [{ endLine: 3, startLine: 3 }], path: "packages/baz/src/c.ts" },
+		];
+
+		expect(
+			findPackagesWithChangedSpecs(files, ["packages/foo", "packages/bar", "packages/baz"]),
+		).toStrictEqual(new Set(["packages/bar", "packages/foo"]));
 	});
 });
 
