@@ -92,7 +92,7 @@ export async function loadConfig(
 		resolved = await c12LoadConfig<Record<string, unknown>>({
 			name: "bedrock",
 			cwd,
-			resolve: makeLuauResolver(cwd),
+			resolve: makeLuauResolver(cwd, configFile !== undefined),
 			...(configFile === undefined ? {} : { configFile }),
 		});
 	} catch (err) {
@@ -176,16 +176,20 @@ const NATIVE_CONFIG_EXTENSIONS = [
 
 function makeLuauResolver(
 	defaultCwd: string,
+	callerSetConfigFile: boolean,
 ): (
 	source: string,
-	c12Options: { readonly configFile?: string; readonly cwd?: string },
+	c12Options: { readonly cwd?: string },
 ) => Promise<LuauResolveResult | undefined> {
 	return async (source, c12Options) => {
 		// For auto-discovery (source === "."), defer when the caller named a
 		// specific configFile - their intent is to load that exact file, not
 		// whatever bedrock.config.luau happens to be sitting next to it.
+		// Note: c12 normalizes options.configFile to "bedrock.config" by default,
+		// so we cannot inspect c12Options here; the caller-set flag is captured
+		// from loadConfig's own options before c12 sees them.
 		// Explicit `.luau` paths (e.g. an extends clause) always go through us.
-		if (source === "." && c12Options.configFile !== undefined) {
+		if (source === "." && callerSetConfigFile) {
 			return;
 		}
 

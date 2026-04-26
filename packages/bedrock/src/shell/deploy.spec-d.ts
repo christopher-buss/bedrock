@@ -50,7 +50,11 @@ describe("DeployError - registry and config variants", () => {
 		expectTypeOf<
 			Extract<DeployError, { kind: "configLoadFailed" }>["cause"]["kind"]
 		>().toEqualTypeOf<
-			"configFunctionFailed" | "fileNotFound" | "parseFailed" | "validationFailed"
+			| "configFunctionFailed"
+			| "fileNotFound"
+			| "luauRuntimeMissing"
+			| "parseFailed"
+			| "validationFailed"
 		>();
 	});
 });
