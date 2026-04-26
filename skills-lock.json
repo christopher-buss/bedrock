@@ -6,6 +6,11 @@
 			"sourceType": "github",
 			"computedHash": "885b05367fb1cf61a1e27e0d50f14d2502a05c1fa276c6e9ea050ce6a90e7095"
 		},
+		"domain-model": {
+			"source": "mattpocock/skills",
+			"sourceType": "github",
+			"computedHash": "4d91ed2249dbf6f96f7aa5b9fca069c8a3837b6dea3c06620335efbc0f7971e3"
+		},
 		"grill-me": {
 			"source": "mattpocock/skills",
 			"sourceType": "github",
@@ -19,7 +24,7 @@
 		"improve-codebase-architecture": {
 			"source": "mattpocock/skills",
 			"sourceType": "github",
-			"computedHash": "76d07c4c0bebc162cc76ca7494bfe7a90e279f35832f7ce6dfc4ce16518fd560"
+			"computedHash": "b627d5ecf36847d678b470aa87f46da602ee1013af8c97cd26ad4d005e59662d"
 		},
 		"isentinel": {
 			"source": "christopher-buss/skills",
@@ -61,6 +66,16 @@
 			"sourceType": "github",
 			"computedHash": "0b09231cf8bdbccff2efdfa367a3e1162f22693636bb48ae3e690f013443727e"
 		},
+		"to-issues": {
+			"source": "mattpocock/skills",
+			"sourceType": "github",
+			"computedHash": "2db47f0db7e6975486cd28bc6744f1358b47a434fb98df5b6ad507b6c3685b6a"
+		},
+		"to-prd": {
+			"source": "mattpocock/skills",
+			"sourceType": "github",
+			"computedHash": "8351452ad372ea4f839d3f7b951927b417851ffa49e7e6af28ea0f0ae111dca8"
+		},
 		"tsdown": {
 			"source": "antfu/skills",
 			"sourceType": "github",
@@ -69,7 +84,7 @@
 		"ubiquitous-language": {
 			"source": "mattpocock/skills",
 			"sourceType": "github",
-			"computedHash": "32f8a3426cb2d2c3db05977369e70d793e342c38ea87f5447eb22108c03c8d7a"
+			"computedHash": "c8968b02b83c365bc81d85cc17fb4c8854b80f5b6dece322164fff5b00142231"
 		},
 		"vercel-cli": {
 			"source": "vercel/vercel",
@@ -95,6 +110,11 @@
 			"source": "mattpocock/skills",
 			"sourceType": "github",
 			"computedHash": "d03d51db8cfd3dd5c27f9b8e1ffe61686391fdbd62bf4cb2f47db7e62ee68cd2"
+		},
+		"zoom-out": {
+			"source": "mattpocock/skills",
+			"sourceType": "github",
+			"computedHash": "b549a5421e015c19eaac2131056a77d2d61adcd192760c3000dba8a824132970"
 		}
 	}
 }
