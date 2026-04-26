@@ -169,14 +169,18 @@ function mergeEntry<Resolved extends object>(
 	overlay: Partial<Resolved>,
 	base: Partial<Resolved> | undefined,
 ): Resolved {
+	// Precondition for the cast: every public success path of
+	// `selectEnvironment` MUST run completeness validation (today only
+	// `findIncompletePlace`) before exposing the merged record to a caller.
+	// The cast trades compile-time soundness for the freedom to surface
+	// partial entries to a validator that can attribute the missing field to
+	// a typed error. New resource kinds that adopt this merge pattern owe
+	// their own `findIncomplete<Kind>Entry` validator before returning.
+	//
 	// defu treats `undefined` as the empty object, so an overlay-only entry
-	// (no matching root) flows through unchanged. Required fields the overlay
-	// omits and the base lacks are caught by post-merge validation
-	// (`incompletePlaceEntry` for places). defu's return type is
+	// (no matching root) flows through unchanged. defu's return type is
 	// `MergeObjects<Partial<Resolved>, Partial<Resolved>>` which the compiler
-	// cannot prove equals `Resolved`; the merge is structurally correct when
-	// the union of overlay + base fields covers every required field of
-	// `Resolved`.
+	// cannot prove equals `Resolved`.
 	return defu(overlay, base ?? {}) as Resolved;
 }
 
