@@ -586,28 +586,28 @@ describe(loadConfig, () => {
 		},
 	);
 
-	it.skipIf(!HAS_LUTE)(
-		"should remove the bootstrap temp directory after evaluating a Luau config",
-		async () => {
-			expect.assertions(1);
+	// Not gated on HAS_LUTE: the cleanup runs in `finally` whether lute spawns
+	// successfully or fails with ENOENT, so the test exercises the same
+	// behaviour either way.
+	it("should remove the bootstrap temp directory after evaluating a Luau config", async () => {
+		expect.assertions(1);
 
-			await withTemporaryDirectory(async (cwd) => {
-				writeFileSync(
-					join(cwd, "bedrock.config.luau"),
-					["return { passes = {} }", ""].join("\n"),
-				);
+		await withTemporaryDirectory(async (cwd) => {
+			writeFileSync(
+				join(cwd, "bedrock.config.luau"),
+				["return { passes = {} }", ""].join("\n"),
+			);
 
-				const before = new Set(readdirSync(tmpdir()));
+			const before = new Set(readdirSync(tmpdir()));
 
-				await loadConfig({ cwd });
+			await loadConfig({ cwd });
 
-				const after = readdirSync(tmpdir());
-				const leaked = after.filter((entry) => !before.has(entry));
+			const after = readdirSync(tmpdir());
+			const leaked = after.filter((entry) => !before.has(entry));
 
-				expect(leaked).toStrictEqual([]);
-			});
-		},
-	);
+			expect(leaked).toStrictEqual([]);
+		});
+	});
 
 	it.skipIf(!HAS_LUTE)(
 		"should bound a hanging Luau config with the bootstrap timeout",
