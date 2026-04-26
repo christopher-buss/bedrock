@@ -33,6 +33,18 @@ describe(getEnvironment, () => {
 		expect(result.data).toBe("staging");
 	});
 
+	it("should let --env win over BEDROCK_ENVIRONMENT when both are present", () => {
+		expect.assertions(2);
+
+		const result = getEnvironment(["--env", "production"], () => "staging");
+
+		expect(result.success).toBeTrue();
+
+		assert(result.success);
+
+		expect(result.data).toBe("production");
+	});
+
 	it("should return the missingEnvironment error when no --env flag and no env-var binding", () => {
 		expect.assertions(2);
 
