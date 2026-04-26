@@ -2,9 +2,9 @@ import sade from "sade";
 import type { Sade } from "sade";
 
 import manifest from "../../package.json" with { type: "json" };
-import type { diff as defaultDiff } from "../core/diff.ts";
 import type { deploy as defaultDeploy } from "../shell/deploy.ts";
 import type { loadConfig as defaultLoadConfig } from "../shell/load-config.ts";
+import type { previewDiff as defaultPreviewDiff } from "../shell/preview-diff.ts";
 import { deployCommand } from "./commands/deploy.ts";
 import type { ClackPort } from "./render.ts";
 
@@ -22,12 +22,12 @@ export interface ProgDeps {
 	readonly clack?: ClackPort;
 	/** Reconciles config to live state; defaults to the public `deploy`. */
 	readonly deploy?: typeof defaultDeploy;
-	/** Pure desired-vs-current operation list builder; defaults to the public `diff`. */
-	readonly diff?: typeof defaultDiff;
 	/** Process exit handle; defaults to `process.exit` so tests can intercept termination. The production default never returns; test stubs are free to return void. */
 	readonly exit?: (code: number) => void;
 	/** Project config loader; defaults to the public `loadConfig`. */
 	readonly loadConfig?: typeof defaultLoadConfig;
+	/** Read-only preview of operations; defaults to the internal `previewDiff` shell helper. */
+	readonly previewDiff?: typeof defaultPreviewDiff;
 }
 
 /**
