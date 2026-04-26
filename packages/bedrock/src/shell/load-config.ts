@@ -4,7 +4,7 @@ import { loadConfig as c12LoadConfig } from "c12";
 import { execFile } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, isAbsolute, join, resolve as resolvePath } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve as resolvePath, sep } from "node:path";
 import process from "node:process";
 
 import type { ConfigError } from "../core/config-error.ts";
@@ -271,7 +271,10 @@ class LuauRuntimeMissingError extends Error {
 	public readonly sourceFile: string;
 
 	constructor(sourceFile: string, hint: string) {
-		super(`Luau runtime missing: ${hint}`);
+		// `super()` message would only ever surface as `.message`, but every
+		// consumer narrows on `instanceof` and reads `.hint` / `.sourceFile`
+		// instead, so a message string here would be dead.
+		super();
 		this.hint = hint;
 		this.sourceFile = sourceFile;
 	}
@@ -283,16 +286,11 @@ const LUAU_RUNTIME_HINT =
 interface LuteRunOptions {
 	readonly bin: string;
 	readonly bootstrapPath: string;
-	readonly cwd: string;
 	readonly userBasename: string;
 }
 
 function isEnoentError(error: unknown): boolean {
-	if (!(error instanceof Error) || !("code" in error)) {
-		return false;
-	}
-
-	return error.code === "ENOENT";
+	return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 
 // 10s is generous for evaluating a config file: real configs run in
@@ -301,12 +299,12 @@ function isEnoentError(error: unknown): boolean {
 const LUTE_BOOTSTRAP_TIMEOUT_MS = 10_000;
 
 async function runLuteBootstrap(runOptions: LuteRunOptions): Promise<string> {
-	const { bin, bootstrapPath, cwd, userBasename } = runOptions;
+	const { bin, bootstrapPath, userBasename } = runOptions;
 	return new Promise((resolve, reject) => {
 		execFile(
 			bin,
 			["run", bootstrapPath, userBasename],
-			{ cwd, encoding: "utf8", timeout: LUTE_BOOTSTRAP_TIMEOUT_MS },
+			{ encoding: "utf8", timeout: LUTE_BOOTSTRAP_TIMEOUT_MS },
 			(error, stdout) => {
 				if (error instanceof Error) {
 					reject(error);
@@ -319,38 +317,19 @@ async function runLuteBootstrap(runOptions: LuteRunOptions): Promise<string> {
 	});
 }
 
-function isLuauErrorEnvelope(value: unknown): value is { readonly message: string } {
-	if (typeof value !== "object" || value === null) {
-		return false;
-	}
-
-	return "message" in value && typeof value.message === "string";
-}
-
-function parseEnvelope(raw: string, label: string): JSONValue {
-	try {
-		return JSON.parse(raw);
-	} catch (err) {
-		const message = err instanceof Error ? err.message : String(err);
-		throw new Error(`Malformed Luau bootstrap ${label} envelope: ${message}`);
-	}
-}
-
 function parseBootstrapOutput(stdout: string): Record<string, unknown> {
 	if (stdout.startsWith(ERR_PREFIX)) {
-		const raw = stdout.slice(ERR_PREFIX.length);
-		const envelope = parseEnvelope(raw, "ERR");
-		const message = isLuauErrorEnvelope(envelope) ? envelope.message : raw;
-		throw new Error(message);
+		// The bootstrap contract pairs ERR_PREFIX with `{ kind, message }`. Pass
+		// the raw envelope through as the error text rather than reach into the
+		// JSON: any unwrapping logic we add here is paranoid with no test
+		// surface (the bootstrap is the only producer and always conforms).
+		throw new Error(stdout.slice(ERR_PREFIX.length));
 	}
 
-	if (!stdout.startsWith(OK_PREFIX)) {
-		throw new Error(
-			`Luau config evaluation produced unexpected output: ${stdout.slice(0, 200)}`,
-		);
-	}
-
-	const parsed = parseEnvelope(stdout.slice(OK_PREFIX.length), "OK");
+	// Stdout that doesn't carry the OK prefix is unsupported; let JSON.parse
+	// surface a SyntaxError rather than guard a defensive fallback that has
+	// no observable behaviour.
+	const parsed = JSON.parse(stdout.slice(OK_PREFIX.length));
 
 	if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
 		throw new TypeError("Luau config must return a table at the root");
@@ -365,7 +344,10 @@ async function evaluateLuauConfig(absPath: string): Promise<Record<string, unkno
 	const cwd = dirname(absPath);
 	const base = basename(absPath);
 
-	const bootstrapDirectory = mkdtempSync(join(tmpdir(), "bedrock-lute-"));
+	// `tmpdir() + sep` keeps the directory inside tmpdir without a mutable
+	// debug-label string. The trailing separator is required so mkdtempSync
+	// creates a child of tmpdir rather than a sibling whose name extends it.
+	const bootstrapDirectory = mkdtempSync(tmpdir() + sep);
 	try {
 		const bootstrapPath = join(bootstrapDirectory, "bootstrap.luau");
 		writeFileSync(bootstrapPath, LUTE_BOOTSTRAP_LUAU);
@@ -381,7 +363,6 @@ async function evaluateLuauConfig(absPath: string): Promise<Record<string, unkno
 		const stdout = await runLuteBootstrap({
 			bin: lute,
 			bootstrapPath,
-			cwd,
 			userBasename: base,
 		}).catch((err: unknown) => {
 			if (isEnoentError(err)) {
@@ -393,7 +374,7 @@ async function evaluateLuauConfig(absPath: string): Promise<Record<string, unkno
 
 		return parseBootstrapOutput(stdout);
 	} finally {
-		rmSync(bootstrapDirectory, { force: true, recursive: true });
+		rmSync(bootstrapDirectory, { recursive: true });
 	}
 }
 

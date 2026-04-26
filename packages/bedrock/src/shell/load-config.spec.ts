@@ -1,6 +1,6 @@
 import { HAS_LUTE } from "@bedrock/testing/lute";
 
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -534,6 +534,186 @@ describe(loadConfig, () => {
 				assert(result.success);
 
 				expect(result.data.passes!["vip-pass"]!.name).toBe("Staging Pass");
+			});
+		},
+	);
+
+	it.skipIf(!HAS_LUTE)("should reject a Luau config that returns a non-table value", async () => {
+		expect.assertions(2);
+
+		await withTemporaryDirectory(async (cwd) => {
+			writeFileSync(join(cwd, "bedrock.config.luau"), "return 42\n");
+
+			const result = await loadConfig({ cwd });
+
+			assert(!result.success);
+			assert(result.err.kind === "parseFailed");
+
+			expect(result.err.sourceFile).toBe(join(cwd, "bedrock.config.luau"));
+			expect(result.err.message).toContain("table at the root");
+		});
+	});
+
+	it.skipIf(!HAS_LUTE)(
+		"should fall back to the PATH lute when BEDROCK_LUTE_PATH is set to an empty string",
+		async () => {
+			expect.assertions(1);
+
+			await withTemporaryDirectory(async (cwd) => {
+				writeFileSync(
+					join(cwd, "bedrock.config.luau"),
+					["return { passes = {} }", ""].join("\n"),
+				);
+
+				const previous = process.env["BEDROCK_LUTE_PATH"];
+				process.env["BEDROCK_LUTE_PATH"] = "";
+				let result: Awaited<ReturnType<typeof loadConfig>>;
+				try {
+					result = await loadConfig({ cwd });
+				} finally {
+					if (previous === undefined) {
+						delete process.env["BEDROCK_LUTE_PATH"];
+					} else {
+						process.env["BEDROCK_LUTE_PATH"] = previous;
+					}
+				}
+
+				// An empty override must be treated as "not set" so the loader
+				// falls through to `lute` on PATH; gating on `length > 0` is what
+				// makes that fallback observable.
+				expect(result.success).toBeTrue();
+			});
+		},
+	);
+
+	it.skipIf(!HAS_LUTE)(
+		"should remove the bootstrap temp directory after evaluating a Luau config",
+		async () => {
+			expect.assertions(1);
+
+			await withTemporaryDirectory(async (cwd) => {
+				writeFileSync(
+					join(cwd, "bedrock.config.luau"),
+					["return { passes = {} }", ""].join("\n"),
+				);
+
+				const before = new Set(readdirSync(tmpdir()));
+
+				await loadConfig({ cwd });
+
+				const after = readdirSync(tmpdir());
+				const leaked = after.filter((entry) => !before.has(entry));
+
+				expect(leaked).toStrictEqual([]);
+			});
+		},
+	);
+
+	it.skipIf(!HAS_LUTE)(
+		"should bound a hanging Luau config with the bootstrap timeout",
+		async () => {
+			expect.assertions(1);
+
+			await withTemporaryDirectory(async (cwd) => {
+				writeFileSync(
+					join(cwd, "bedrock.config.luau"),
+					["while true do end", ""].join("\n"),
+				);
+
+				const result = await loadConfig({ cwd });
+
+				assert(!result.success);
+
+				expect(result.err.kind).toBe("parseFailed");
+			});
+		},
+		15_000,
+	);
+
+	it.skipIf(!HAS_LUTE)(
+		"should surface a non-ENOENT spawn failure as parseFailed rather than luauRuntimeMissing",
+		async () => {
+			expect.assertions(1);
+
+			await withTemporaryDirectory(async (cwd) => {
+				writeFileSync(
+					join(cwd, "bedrock.config.luau"),
+					["return { passes = {} }", ""].join("\n"),
+				);
+
+				const previous = process.env["BEDROCK_LUTE_PATH"];
+				// Pointing at the directory itself (not a binary inside it) makes
+				// execFile fail with EACCES/EISDIR, not ENOENT - the loader must
+				// fall through to parseFailed instead of claiming the runtime is
+				// missing.
+				process.env["BEDROCK_LUTE_PATH"] = cwd;
+				let result: Awaited<ReturnType<typeof loadConfig>>;
+				try {
+					result = await loadConfig({ cwd });
+				} finally {
+					if (previous === undefined) {
+						delete process.env["BEDROCK_LUTE_PATH"];
+					} else {
+						process.env["BEDROCK_LUTE_PATH"] = previous;
+					}
+				}
+
+				assert(!result.success);
+
+				expect(result.err.kind).toBe("parseFailed");
+			});
+		},
+	);
+
+	it.skipIf(!HAS_LUTE)(
+		"should layer extends from a Luau configFile when it references another Luau file",
+		async () => {
+			expect.assertions(2);
+
+			await withTemporaryDirectory(async (cwd) => {
+				writeFileSync(
+					join(cwd, "base.luau"),
+					[
+						"return {",
+						"  passes = {",
+						"    ['vip-pass'] = {",
+						"      description = 'VIP perks.',",
+						"      iconFilePath = 'assets/vip.png',",
+						"      name = 'VIP Pass',",
+						"      price = 500,",
+						"    },",
+						"  },",
+						"}",
+						"",
+					].join("\n"),
+				);
+				writeFileSync(
+					join(cwd, "bedrock.staging.config.luau"),
+					[
+						"return {",
+						"  extends = './base.luau',",
+						"  passes = {",
+						"    ['gold-pass'] = {",
+						"      description = 'Gold tier perks.',",
+						"      iconFilePath = 'assets/gold.png',",
+						"      name = 'Gold Pass',",
+						"      price = 1000,",
+						"    },",
+						"  },",
+						"}",
+						"",
+					].join("\n"),
+				);
+
+				const result = await loadConfig({
+					configFile: "bedrock.staging.config.luau",
+					cwd,
+				});
+
+				assert(result.success);
+
+				expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass");
+				expect(result.data.passes!["gold-pass"]!.name).toBe("Gold Pass");
 			});
 		},
 	);
