@@ -75,11 +75,14 @@ describe("deploy place to real Roblox", () => {
 
 			const result = await deploy({
 				config: {
-					environments: { smoke: {} },
+					environments: {
+						smoke: {
+							places: { "smoke-place": { placeId } },
+						},
+					},
 					places: {
 						"smoke-place": {
 							filePath: FIXTURE_PATH,
-							placeId,
 						},
 					},
 				},
