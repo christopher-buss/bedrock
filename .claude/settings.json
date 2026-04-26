@@ -35,7 +35,7 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "${CLAUDE_PROJECT_DIR}/scripts/session-start-worktree-setup.sh",
+						"command": "bun ${CLAUDE_PROJECT_DIR}/scripts/session-start-worktree-setup.ts",
 						"timeout": 300
 					}
 				]
