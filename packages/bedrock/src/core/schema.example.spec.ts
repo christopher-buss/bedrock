@@ -3,6 +3,8 @@ import { expect, it } from "vitest";
 import {
   type ResourceEntryByKind,
   type Config,
+  selectEnvironment,
+  type ResolvedConfig,
   isGistStateConfig,
   type StateConfig,
   validateConfig,
@@ -35,6 +37,22 @@ it('Example 2', () => {
 })
 
 it('Example 3', () => {
+  const config: Config = {
+    environments: {
+      production: { places: { 'start-place': { placeId: '4711' } } },
+    },
+    places: { 'start-place': { filePath: 'places/start.rbxl' } },
+    state: { backend: 'gist', gistId: 'abc' },
+  }
+  const result = selectEnvironment(config, 'production')
+  expect(result.success).toBeTrue()
+  if (result.success) {
+    const resolved: ResolvedConfig = result.data
+    expect(resolved.places?.['start-place']?.placeId).toBe('4711')
+  }
+})
+
+it('Example 4', () => {
   const config: StateConfig = { backend: 'gist', gistId: 'abc' }
   expect(isGistStateConfig(config)).toBeTrue()
   if (isGistStateConfig(config)) {
@@ -42,7 +60,7 @@ it('Example 3', () => {
   }
 })
 
-it('Example 4', () => {
+it('Example 5', () => {
   const ok = validateConfig(
     {
       environments: { production: {} },

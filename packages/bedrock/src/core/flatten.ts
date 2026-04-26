@@ -4,7 +4,7 @@ import type { ResourceKey, RobloxAssetId } from "../types/ids.ts";
 import { defaultKindRegistry } from "./kinds/index.ts";
 import type { ResourceKindModule } from "./kinds/module.ts";
 import type { ResourceKind } from "./resources.ts";
-import type { Config, GamePassEntry, UniverseVisibility } from "./schema.ts";
+import type { GamePassEntry, ResolvedConfig, UniverseVisibility } from "./schema.ts";
 
 /**
  * Pre-I/O game-pass input the flattener emits. Extends the authored
@@ -37,10 +37,11 @@ export interface GamePassDesiredInput extends Readonly<GamePassEntry> {
 }
 
 /**
- * Pre-I/O place input the flattener emits. Extends the authored
- * `PlaceEntry` with the tag discriminator, the `ResourceKey`-branded key,
- * and the `RobloxAssetId`-branded `placeId` so `buildDesired` can consume
- * a flat tagged list and layer on the SHA-256 file digest.
+ * Pre-I/O place input the flattener emits. Carries the resolved place
+ * fields (`filePath` from the root, `placeId` from the per-environment
+ * overlay) plus the tag discriminator and the `ResourceKey`-branded key,
+ * so `buildDesired` can consume a flat tagged list and layer on the
+ * SHA-256 file digest.
  *
  * @example
  *
@@ -159,22 +160,25 @@ export interface UniverseDesiredInput {
 export type ResourceDesiredInput = GamePassDesiredInput | PlaceDesiredInput | UniverseDesiredInput;
 
 /**
- * Turn a validated `Config` into a flat, tagged list of resource inputs.
+ * Turn a resolved `Config` into a flat, tagged list of resource inputs.
  *
- * Pure and infallible: the schema has already enforced every invariant this
- * function relies on, so there is nothing left to fail. Entries appear in
- * the insertion order of each collection; `passes` are emitted before
- * `places`.
+ * Pure and infallible: validation and per-environment overlay merging
+ * have already happened upstream (typically via `selectEnvironment`), so
+ * every invariant this function relies on is guaranteed by the input
+ * shape. Entries appear in the insertion order of each collection;
+ * `passes` are emitted before `places`.
  *
- * @param config - Validated config from `loadConfig` or `validateConfig`.
+ * @param config - Resolved config returned by `selectEnvironment`.
  * @returns Flat tagged list ready for `buildDesired`.
  * @example
  *
  * ```ts
- * import { flattenConfig, type Config } from "@bedrock/core";
+ * import { flattenConfig, selectEnvironment, type Config } from "@bedrock/core";
  *
  * const config: Config = {
- *     environments: { production: {} },
+ *     environments: {
+ *         production: { places: { "start-place": { placeId: "4711" } } },
+ *     },
  *     passes: {
  *         "vip-pass": {
  *             description: "Grants VIP perks.",
@@ -183,20 +187,19 @@ export type ResourceDesiredInput = GamePassDesiredInput | PlaceDesiredInput | Un
  *             price: 500,
  *         },
  *     },
- *     places: {
- *         "start-place": {
- *             filePath: "places/start.rbxl",
- *             placeId: "4711",
- *         },
- *     },
+ *     places: { "start-place": { filePath: "places/start.rbxl" } },
  * };
  *
- * const inputs = flattenConfig(config);
- * expect(inputs.map((input) => input.kind)).toEqual(["gamePass", "place"]);
- * expect(inputs.map((input) => input.key)).toEqual(["vip-pass", "start-place"]);
+ * const resolved = selectEnvironment(config, "production");
+ * expect(resolved.success).toBeTrue();
+ * if (resolved.success) {
+ *     const inputs = flattenConfig(resolved.data);
+ *     expect(inputs.map((input) => input.kind)).toEqual(["gamePass", "place"]);
+ *     expect(inputs.map((input) => input.key)).toEqual(["vip-pass", "start-place"]);
+ * }
  * ```
  */
-export function flattenConfig(config: Config): ReadonlyArray<ResourceDesiredInput> {
+export function flattenConfig(config: ResolvedConfig): ReadonlyArray<ResourceDesiredInput> {
 	const modules = Object.values(defaultKindRegistry) as ReadonlyArray<
 		ResourceKindModule<ResourceKind>
 	>;

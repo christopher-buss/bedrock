@@ -3,7 +3,13 @@ import type { Result } from "@bedrock/ocale";
 import { defu } from "defu";
 import type { SetRequired } from "type-fest";
 
-import type { Config, GamePassEntry, PlaceEntry, UniverseEntry } from "./schema.ts";
+import type {
+	Config,
+	GamePassEntry,
+	ResolvedConfig,
+	ResolvedPlaceEntry,
+	UniverseEntry,
+} from "./schema.ts";
 
 /**
  * Failure surfaced when `selectEnvironment` is asked for an environment
@@ -20,8 +26,28 @@ export interface UnknownEnvironmentError {
 	readonly kind: "unknownEnvironment";
 }
 
+/**
+ * Failure surfaced when a merged place entry is missing a required field.
+ * Two paths reach this error: a root place declared without a matching
+ * per-environment overlay supplying `placeId`, and an overlay-only place
+ * declared under `environments.X.places` with no matching root entry to
+ * supply `filePath`. Surfacing both at the resolution boundary attributes
+ * the missing field to the offending entry's key instead of letting
+ * `buildDesired` crash with a generic `fileReadFailed` later on.
+ */
+export interface IncompletePlaceEntryError {
+	/** ResourceKey of the place entry that is missing a required field. */
+	readonly key: string;
+	/** Environment whose overlay was projected onto the config. */
+	readonly environment: string;
+	/** Literal discriminator for narrowing. */
+	readonly kind: "incompletePlaceEntry";
+	/** Field that the merged entry lacks. */
+	readonly missingField: "filePath" | "placeId";
+}
+
 /** Failure modes returned by {@link selectEnvironment}. */
-export type SelectEnvironmentError = UnknownEnvironmentError;
+export type SelectEnvironmentError = IncompletePlaceEntryError | UnknownEnvironmentError;
 
 interface ProjectInputs {
 	readonly config: Config;
@@ -35,12 +61,13 @@ interface ProjectInputs {
  * and applies the env-level state override when present (the env entry's
  * `state` field wins; otherwise the root `state` flows through).
  *
- * Pure: no I/O. Returns a `Config` ready to feed into downstream
- * functions that already accept `Config` (`flattenConfig`,
- * `buildDefaultRegistry`, `resolveStateConfig`) without signature
- * changes. `environments` and `extends` are passed through unchanged
- * because they preserve the shape relationship to `Config`; downstream
- * consumers do not read them post-merge.
+ * Pure: no I/O. Returns a `ResolvedConfig` ready to feed into downstream
+ * functions (`flattenConfig`, `buildDefaultRegistry`, `resolveStateConfig`).
+ * The post-merge view promotes `places` from `Record<string, PlaceEntry>`
+ * (root: file-paths only) to `Record<string, ResolvedPlaceEntry>` (root +
+ * overlay merged). `environments` and `extends` are passed through
+ * unchanged because they preserve the shape relationship to `Config`;
+ * downstream consumers do not read them post-merge.
  *
  * Defu's merge semantics are deliberate: keyed-map collections merge by
  * key (so a place declared in both root and overlay produces a single
@@ -56,13 +83,13 @@ interface ProjectInputs {
  * route through `resolveStateConfig` or `buildStatePort`; the absent
  * case surfaces as a typed `stateNotConfigured` there.
  *
- * Limitation in v1: a per-environment overlay that introduces a brand-new
- * place or universe overlay key (one not declared at the root) may still
- * have optional fields missing, since the overlay type only requires the
- * identity-bearing key. The resolver surfaces the entry as-is; downstream
- * consumers (`buildDesired`, the universe driver) report the missing
- * field when they try to consume the entry. Post-merge schema validation
- * is deferred to a follow-up that wires it through `validateConfig`.
+ * Limitation in v1: a per-environment universe overlay that introduces a
+ * brand-new universe block may still have optional fields missing, since
+ * the overlay type only requires the identity-bearing key. The resolver
+ * surfaces the entry as-is; the universe driver reports the missing
+ * field when it tries to consume the entry. Universe is a singleton with
+ * 20+ optional fields, so the same `incompletePlaceEntry`-style validation
+ * is deferred to a separate follow-up.
  *
  * @example
  *
@@ -90,49 +117,100 @@ interface ProjectInputs {
  * environment under `environments`.
  * @param environment - Environment name to project onto. Must be a key
  * of `config.environments`.
- * @returns `Ok(Config)` with the merged resource fields and the resolved
- * state, or `Err(SelectEnvironmentError)` describing why the projection
- * failed.
+ * @returns `Ok(ResolvedConfig)` with the merged resource fields and the
+ * resolved state, or `Err(SelectEnvironmentError)` describing why the
+ * projection failed.
  */
 export function selectEnvironment(
 	config: Config,
 	environment: string,
-): Result<Config, SelectEnvironmentError> {
+): Result<ResolvedConfig, SelectEnvironmentError> {
 	const entry = config.environments[environment];
 	if (entry === undefined) {
 		return { err: unknownEnvironment(config, environment), success: false };
 	}
 
-	return {
-		data: projectConfig({ config, entry }),
-		success: true,
-	};
+	const projected = projectConfig({ config, entry });
+	const incomplete = findIncompletePlace(projected, environment);
+	if (incomplete !== undefined) {
+		return { err: incomplete, success: false };
+	}
+
+	return { data: projected, success: true };
 }
 
-function mergeEntry<Base extends object>(overlay: Partial<Base>, base: Base | undefined): Base {
-	// New overlay-only entries are surfaced as-is; the overlay type guarantees
-	// its identity-bearing key, and required base fields the overlay omits
-	// surface downstream as typed errors. defu's own return type is
-	// `MergeObjects<Partial<Base>, Base>` which the compiler cannot prove
-	// equals `Base` for an arbitrary `Base extends object`, but the merge is
-	// structurally correct because deep-merging a partial onto a complete
-	// entry yields a complete entry.
-	return base === undefined ? (overlay as Base) : (defu(overlay, base) as Base);
+function findIncompletePlace(
+	projected: ResolvedConfig,
+	environment: string,
+): IncompletePlaceEntryError | undefined {
+	const { places } = projected;
+	if (places === undefined) {
+		return undefined;
+	}
+
+	// `places` is typed as `Record<string, ResolvedPlaceEntry>` because the
+	// merge boundary already promised completeness; this routine exists to
+	// honour that promise at runtime, so it widens the view back to
+	// `Partial<ResolvedPlaceEntry>` for the duration of the check.
+	const candidates: Record<string, Partial<ResolvedPlaceEntry>> = places;
+	for (const [key, entry] of Object.entries(candidates)) {
+		if (entry.placeId === undefined) {
+			return {
+				key,
+				environment,
+				kind: "incompletePlaceEntry",
+				missingField: "placeId",
+			};
+		}
+
+		if (entry.filePath === undefined) {
+			return {
+				key,
+				environment,
+				kind: "incompletePlaceEntry",
+				missingField: "filePath",
+			};
+		}
+	}
+
+	return undefined;
 }
 
-function mergeKeyedRecord<Base extends object>(
-	overlay: Record<string, Partial<Base>> | undefined,
-	base: Record<string, Base> | undefined,
-): Record<string, Base> | undefined {
+function mergeEntry<Resolved extends object>(
+	overlay: Partial<Resolved>,
+	base: Partial<Resolved> | undefined,
+): Resolved {
+	// Precondition for the cast: every public success path of
+	// `selectEnvironment` MUST run completeness validation (today only
+	// `findIncompletePlace`) before exposing the merged record to a caller.
+	// The cast trades compile-time soundness for the freedom to surface
+	// partial entries to a validator that can attribute the missing field to
+	// a typed error. New resource kinds that adopt this merge pattern owe
+	// their own `findIncomplete<Kind>Entry` validator before returning.
+	//
+	// defu treats `undefined` as the empty object, so an overlay-only entry
+	// (no matching root) flows through unchanged. defu's return type is
+	// `MergeObjects<Partial<Resolved>, Partial<Resolved>>` which the compiler
+	// cannot prove equals `Resolved`.
+	return defu(overlay, base ?? {}) as Resolved;
+}
+
+function mergeKeyedRecord<Resolved extends object>(
+	overlay: Record<string, Partial<Resolved>> | undefined,
+	base: Record<string, Partial<Resolved>> | undefined,
+): Record<string, Resolved> | undefined {
 	if (overlay === undefined) {
-		return base;
+		// Same precondition as `mergeEntry`: passing the base record straight
+		// through is sound only when the caller validates completeness on the
+		// returned record before publishing it.
+		return base as Record<string, Resolved> | undefined;
 	}
 
 	return {
-		...(base ?? {}),
+		...((base ?? {}) as Record<string, Resolved>),
 		...Object.fromEntries(
 			Object.entries(overlay).map(([key, partial]) => {
-				return [key, mergeEntry(partial, base?.[key])];
+				return [key, mergeEntry<Resolved>(partial, base?.[key])];
 			}),
 		),
 	};
@@ -149,15 +227,17 @@ function mergeUniverse(
 	return mergeEntry(overlay, base);
 }
 
-function projectConfig(inputs: ProjectInputs): Config {
+function projectConfig(inputs: ProjectInputs): ResolvedConfig {
 	const { config, entry } = inputs;
 	const passes = mergeKeyedRecord<GamePassEntry>(entry.passes, config.passes);
-	const places = mergeKeyedRecord<PlaceEntry>(entry.places, config.places);
+	const places = mergeKeyedRecord<ResolvedPlaceEntry>(entry.places, config.places);
 	const universe = mergeUniverse(entry.universe, config.universe);
 	const state = entry.state ?? config.state;
 
+	const { places: _placesRoot, ...rest } = config;
+
 	return {
-		...config,
+		...rest,
 		...(passes === undefined ? {} : { passes }),
 		...(places === undefined ? {} : { places }),
 		...(state === undefined ? {} : { state }),

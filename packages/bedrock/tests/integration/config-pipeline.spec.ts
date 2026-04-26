@@ -12,6 +12,7 @@ import {
 	type Operation,
 	type ResourceCurrentState,
 	type ResourceDriver,
+	selectEnvironment,
 } from "@bedrock/core";
 import { GamePassesClient } from "@bedrock/ocale/game-passes";
 import {
@@ -105,7 +106,10 @@ async function runPipelineFromFixture(cwd: string): Promise<CreateFlowResult> {
 	const loaded = await loadConfig({ cwd });
 	assert(loaded.success);
 
-	const desiredResult = await buildDesired(flattenConfig(loaded.data), readIcon);
+	const resolved = selectEnvironment(loaded.data, "production");
+	assert(resolved.success);
+
+	const desiredResult = await buildDesired(flattenConfig(resolved.data), readIcon);
 	assert(desiredResult.success);
 
 	const httpClient = createFakeHttpClient().mockResponse({
@@ -179,7 +183,10 @@ describe("config pipeline end-to-end", () => {
 		const loaded = await loadConfig({ cwd: TYPESCRIPT_FIXTURE_DIR });
 		assert(loaded.success);
 
-		const desiredResult = await buildDesired(flattenConfig(loaded.data), readIcon);
+		const resolved = selectEnvironment(loaded.data, "production");
+		assert(resolved.success);
+
+		const desiredResult = await buildDesired(flattenConfig(resolved.data), readIcon);
 		assert(desiredResult.success);
 
 		const ops = diff(desiredResult.data, [await buildExistingPass()]);

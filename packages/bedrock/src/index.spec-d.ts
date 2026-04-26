@@ -31,6 +31,8 @@ import type {
 	PlaceDriverDeps,
 	PlaceEntry,
 	PlaceOutputs,
+	ResolvedConfig,
+	ResolvedPlaceEntry,
 	ResourceCurrentState,
 	ResourceDesiredState,
 	ResourceKey,
@@ -164,6 +166,7 @@ describe(deploy, () => {
 			| "applyFailed"
 			| "buildDesiredFailed"
 			| "configLoadFailed"
+			| "incompletePlaceEntry"
 			| "missingCredential"
 			| "registryConfigMissing"
 			| "stateNotConfigured"
@@ -247,10 +250,27 @@ describe(loadConfig, () => {
 });
 
 describe("PlaceEntry", () => {
-	it("should expose exactly placeId and filePath as strings", () => {
-		expectTypeOf<keyof PlaceEntry>().toEqualTypeOf<"filePath" | "placeId">();
-		expectTypeOf<PlaceEntry["placeId"]>().toEqualTypeOf<string>();
+	it("should expose only filePath at the root entry level", () => {
+		expectTypeOf<keyof PlaceEntry>().toEqualTypeOf<"filePath">();
 		expectTypeOf<PlaceEntry["filePath"]>().toEqualTypeOf<string>();
+	});
+});
+
+describe("ResolvedPlaceEntry", () => {
+	it("should expose filePath and placeId as the post-merge invariant", () => {
+		expectTypeOf<keyof ResolvedPlaceEntry>().toEqualTypeOf<"filePath" | "placeId">();
+		expectTypeOf<ResolvedPlaceEntry["filePath"]>().toEqualTypeOf<string>();
+		expectTypeOf<ResolvedPlaceEntry["placeId"]>().toEqualTypeOf<string>();
+	});
+});
+
+describe("ResolvedConfig", () => {
+	it("should narrow places to ResolvedPlaceEntry while keeping every other Config field", () => {
+		expectTypeOf<ResolvedConfig["places"]>().toEqualTypeOf<
+			Record<string, ResolvedPlaceEntry> | undefined
+		>();
+		expectTypeOf<ResolvedConfig["environments"]>().toEqualTypeOf<Config["environments"]>();
+		expectTypeOf<ResolvedConfig["state"]>().toEqualTypeOf<Config["state"]>();
 	});
 });
 

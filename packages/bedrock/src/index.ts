@@ -54,6 +54,8 @@ export {
 	type GamePassEntry,
 	type GistStateConfig,
 	type PlaceEntry,
+	type ResolvedConfig,
+	type ResolvedPlaceEntry,
 	type ResourceEntryByKind,
 	type StateConfig,
 	type UniverseEntry,
@@ -61,6 +63,7 @@ export {
 } from "./core/schema.ts";
 export {
 	selectEnvironment,
+	type IncompletePlaceEntryError,
 	type SelectEnvironmentError,
 	type UnknownEnvironmentError,
 } from "./core/select-environment.ts";

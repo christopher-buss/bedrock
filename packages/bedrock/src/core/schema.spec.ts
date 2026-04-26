@@ -182,29 +182,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "price"]);
 	});
 
-	it("should accept a places collection with a valid place entry", () => {
-		expect.assertions(2);
-
-		const result = validateConfig(
-			{
-				environments: MinEnvironments,
-				places: {
-					"start-place": {
-						filePath: "places/start.rbxl",
-						placeId: "4711",
-					},
-				},
-			},
-			SOURCE,
-		);
-
-		assert(result.success);
-
-		expect(result.data.places!["start-place"]!.placeId).toBe("4711");
-		expect(result.data.places!["start-place"]!.filePath).toBe("places/start.rbxl");
-	});
-
-	it("should reject a place entry missing placeId and attribute the issue path to that field", () => {
+	it("should accept a root places collection that declares only filePath", () => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -217,13 +195,31 @@ describe(validateConfig, () => {
 			SOURCE,
 		);
 
+		assert(result.success);
+
+		expect(result.data.places!["start-place"]!.filePath).toBe("places/start.rbxl");
+	});
+
+	it("should reject a placeId declared on a root place entry and attribute the issue to that field", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				places: {
+					"start-place": { filePath: "places/start.rbxl", placeId: "4711" },
+				},
+			},
+			SOURCE,
+		);
+
 		assert(!result.success);
 		assert(result.err.kind === "validationFailed");
 
 		expect(result.err.issues[0]!.path).toStrictEqual(["places", "start-place", "placeId"]);
 	});
 
-	it("should reject an undeclared field on a place entry", () => {
+	it("should reject an undeclared field on a root place entry", () => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -232,7 +228,6 @@ describe(validateConfig, () => {
 				places: {
 					"start-place": {
 						filePath: "places/start.rbxl",
-						placeId: "4711",
 						unexpected: "nope",
 					},
 				},
@@ -250,15 +245,17 @@ describe(validateConfig, () => {
 		["trailing non-digits", "4711abc"],
 		["leading non-digits", "abc4711"],
 		["embedded non-digits", "47abc11"],
-	] as const)("should reject a place entry whose placeId has %s", ([, placeId]) => {
+	] as const)("should reject an env-overlay placeId that has %s", ([, placeId]) => {
 		expect.assertions(1);
 
 		const result = validateConfig(
 			{
-				environments: MinEnvironments,
-				places: {
-					"start-place": { filePath: "places/start.rbxl", placeId },
+				environments: {
+					production: {
+						places: { "start-place": { placeId } },
+					},
 				},
+				places: { "start-place": { filePath: "places/start.rbxl" } },
 			},
 			SOURCE,
 		);
@@ -266,7 +263,13 @@ describe(validateConfig, () => {
 		assert(!result.success);
 		assert(result.err.kind === "validationFailed");
 
-		expect(result.err.issues[0]!.path).toStrictEqual(["places", "start-place", "placeId"]);
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"production",
+			"places",
+			"start-place",
+			"placeId",
+		]);
 	});
 
 	it("should reject a places key that does not match the ResourceKey pattern", () => {
@@ -276,7 +279,7 @@ describe(validateConfig, () => {
 			{
 				environments: MinEnvironments,
 				places: {
-					"bad key!": { filePath: "places/start.rbxl", placeId: "4711" },
+					"bad key!": { filePath: "places/start.rbxl" },
 				},
 			},
 			SOURCE,
@@ -814,7 +817,7 @@ describe(validateConfig, () => {
 						},
 					},
 				},
-				places: { "start-place": { filePath: "places/start.rbxl", placeId: "1111" } },
+				places: { "start-place": { filePath: "places/start.rbxl" } },
 				state: { backend: "gist", gistId: "root-gist" },
 			},
 			SOURCE,

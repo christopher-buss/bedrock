@@ -8,6 +8,7 @@ import {
   UNIVERSE_SINGLETON_KEY,
   type UniverseDesiredInput,
   flattenConfig,
+  selectEnvironment,
   type Config,
 } from '@bedrock/core'
 
@@ -54,7 +55,9 @@ it('Example 3', () => {
 
 it('Example 4', () => {
   const config: Config = {
-    environments: { production: {} },
+    environments: {
+      production: { places: { 'start-place': { placeId: '4711' } } },
+    },
     passes: {
       'vip-pass': {
         description: 'Grants VIP perks.',
@@ -63,14 +66,16 @@ it('Example 4', () => {
         price: 500,
       },
     },
-    places: {
-      'start-place': {
-        filePath: 'places/start.rbxl',
-        placeId: '4711',
-      },
-    },
+    places: { 'start-place': { filePath: 'places/start.rbxl' } },
   }
-  const inputs = flattenConfig(config)
-  expect(inputs.map((input) => input.kind)).toEqual(['gamePass', 'place'])
-  expect(inputs.map((input) => input.key)).toEqual(['vip-pass', 'start-place'])
+  const resolved = selectEnvironment(config, 'production')
+  expect(resolved.success).toBeTrue()
+  if (resolved.success) {
+    const inputs = flattenConfig(resolved.data)
+    expect(inputs.map((input) => input.kind)).toEqual(['gamePass', 'place'])
+    expect(inputs.map((input) => input.key)).toEqual([
+      'vip-pass',
+      'start-place',
+    ])
+  }
 })

@@ -6,7 +6,7 @@ import { UniversesClient } from "@bedrock/ocale/universes";
 import { createGamePassDriver } from "../adapters/game-pass-driver.ts";
 import { createPlaceDriver } from "../adapters/place-driver.ts";
 import { createUniverseDriver } from "../adapters/universe-driver.ts";
-import type { Config } from "../core/schema.ts";
+import type { ResolvedConfig } from "../core/schema.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import { asRobloxAssetId } from "../types/ids.ts";
 import type { MissingCredentialError } from "./build-state-port.ts";
@@ -28,8 +28,8 @@ export interface RegistryConfigError {
 
 /** Inputs for {@link buildDefaultRegistry}. */
 interface BuildDefaultRegistryDeps {
-	/** Validated project config; supplies `universe.universeId` and is read for nothing else. */
-	readonly config: Config;
+	/** Resolved project config; supplies `universe.universeId` and is read for nothing else. */
+	readonly config: ResolvedConfig;
 	/** Reads an environment variable; injected so tests stay free of `process.env`. */
 	readonly getEnv: (name: string) => string | undefined;
 	/** Reader plumbed into kind-specific drivers that ingest file bytes. */

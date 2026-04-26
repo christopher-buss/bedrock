@@ -13,7 +13,7 @@ import {
 	UNIVERSE_SINGLETON_KEY,
 	type UniverseDesiredState,
 } from "../resources.ts";
-import type { Config } from "../schema.ts";
+import type { ResolvedConfig } from "../schema.ts";
 import type { BuildDesiredError, ResourceKindModule } from "./module.ts";
 
 const OPTIONAL_BOOLEAN = "boolean | undefined";
@@ -45,7 +45,7 @@ const entrySchema = type({
 	"youtubeSocialLink?": socialLinkOrUndefined,
 }).onUndeclaredKey("reject");
 
-function flatten(config: Config): ReadonlyArray<UniverseDesiredInput> {
+function flatten(config: ResolvedConfig): ReadonlyArray<UniverseDesiredInput> {
 	const entry = config.universe;
 	if (entry === undefined) {
 		return [];

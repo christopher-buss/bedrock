@@ -2,7 +2,7 @@ import type { Result } from "@bedrock/ocale";
 import type { SocialLink } from "@bedrock/ocale/universes";
 
 import { ArkErrors, type, type Type } from "arktype";
-import type { SetRequired } from "type-fest";
+import type { Except, SetRequired } from "type-fest";
 
 import { RESOURCE_KEY_PATTERN_SOURCE } from "../types/ids.ts";
 import type { ConfigError } from "./config-error.ts";
@@ -24,14 +24,28 @@ export interface GamePassEntry {
 }
 
 /**
- * Body of a single entry in the `places` collection. Keys in the parent
- * record are `ResourceKey`-shaped strings enforced at schema validation.
+ * Body of a single entry under the root `places` collection. Carries only
+ * the file-path that environments share. The Roblox `placeId` is
+ * environment-specific and lives on each per-environment overlay so the
+ * same `.rbxl` file can publish to different places across staging,
+ * production, and so on.
+ */
+export interface PlaceEntry {
+	/** Path to the `.rbxl` or `.rbxlx` file; handed to `readFile` verbatim by `buildDesired`. */
+	filePath: string;
+}
+
+/**
+ * Body of a places entry after `selectEnvironment` has merged the
+ * matching per-environment overlay onto the root entry. Both fields are
+ * present: `filePath` flows from the root (or an overlay override) and
+ * `placeId` is supplied by the per-environment overlay.
  *
  * `placeId` is user-supplied because Open Cloud cannot mint places; the
  * place must already exist in Roblox before Bedrock can publish versions
  * to it.
  */
-export interface PlaceEntry {
+export interface ResolvedPlaceEntry {
 	/** Path to the `.rbxl` or `.rbxlx` file; handed to `readFile` verbatim by `buildDesired`. */
 	filePath: string;
 	/** Existing Roblox place ID. */
@@ -172,10 +186,10 @@ export interface EnvironmentEntry {
 	passes?: Record<string, Partial<GamePassEntry>>;
 	/**
 	 * Per-environment places overlay. `placeId` is required on every
-	 * declared entry; other fields fall through to the matching root
-	 * `places` entry when omitted.
+	 * declared entry; `filePath` is optional and falls through to the
+	 * matching root `places` entry when omitted.
 	 */
-	places?: Record<string, Overlay<PlaceEntry, "placeId">>;
+	places?: Record<string, Overlay<ResolvedPlaceEntry, "placeId">>;
 	/** Per-environment state override; takes precedence over root `state`. */
 	state?: StateConfig;
 	/**
@@ -211,8 +225,8 @@ export interface EnvironmentEntry {
 export interface ResourceEntryByKind {
 	/** Authored entry body for a game-pass resource. */
 	gamePass: GamePassEntry;
-	/** Authored entry body for a place resource. */
-	place: PlaceEntry;
+	/** Post-merge entry body for a place resource (root + env overlay). */
+	place: ResolvedPlaceEntry;
 	/** Authored entry body for a universe resource. */
 	universe: UniverseEntry;
 }
@@ -267,6 +281,42 @@ export interface Config {
 	state?: StateConfig;
 	/** Singleton universe block declaring the Roblox universe bedrock manages. */
 	universe?: UniverseEntry;
+}
+
+/**
+ * Project config after `selectEnvironment` has merged a single
+ * environment's overlays onto the root. The shape mirrors `Config`
+ * except `places` carries `ResolvedPlaceEntry` (both `filePath` and
+ * `placeId`), since the resolver fails before this point if an entry is
+ * missing its environment-supplied `placeId`. Downstream consumers
+ * (`flattenConfig`, `buildDefaultRegistry`, the deploy pipeline) accept
+ * this shape rather than `Config` so the post-merge invariant is visible
+ * in the type system.
+ *
+ * @example
+ *
+ * ```ts
+ * import { selectEnvironment, type Config, type ResolvedConfig } from "@bedrock/core";
+ *
+ * const config: Config = {
+ *     environments: {
+ *         production: { places: { "start-place": { placeId: "4711" } } },
+ *     },
+ *     places: { "start-place": { filePath: "places/start.rbxl" } },
+ *     state: { backend: "gist", gistId: "abc" },
+ * };
+ *
+ * const result = selectEnvironment(config, "production");
+ * expect(result.success).toBeTrue();
+ * if (result.success) {
+ *     const resolved: ResolvedConfig = result.data;
+ *     expect(resolved.places?.["start-place"]?.placeId).toBe("4711");
+ * }
+ * ```
+ */
+export interface ResolvedConfig extends Except<Config, "places"> {
+	/** Keyed-map collection of resolved place entries; both `filePath` and `placeId` are present. */
+	places?: Record<string, ResolvedPlaceEntry>;
 }
 
 /**
@@ -328,7 +378,6 @@ const ROBLOX_ID_DIGITS = "string.digits";
 
 const placeEntry = type({
 	filePath: "string",
-	placeId: ROBLOX_ID_DIGITS,
 }).onUndeclaredKey("reject");
 
 const placesCollection = type({

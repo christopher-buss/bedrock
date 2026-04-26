@@ -1,11 +1,11 @@
 import { assert, describe, expect, it } from "vitest";
 
-import type { Config } from "../core/schema.ts";
+import type { ResolvedConfig } from "../core/schema.ts";
 import { buildDefaultRegistry } from "./build-default-registry.ts";
 
 const STATE_CONFIG = { backend: "gist" as const, gistId: "abc123" };
 
-function configWithUniverse(): Config {
+function configWithUniverse(): ResolvedConfig {
 	return {
 		environments: { production: {} },
 		state: STATE_CONFIG,

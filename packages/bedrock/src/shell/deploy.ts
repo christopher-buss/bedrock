@@ -9,8 +9,12 @@ import { diff } from "../core/diff.ts";
 import { flattenConfig } from "../core/flatten.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
-import type { Config } from "../core/schema.ts";
-import { selectEnvironment, type UnknownEnvironmentError } from "../core/select-environment.ts";
+import type { Config, ResolvedConfig } from "../core/schema.ts";
+import {
+	type IncompletePlaceEntryError,
+	selectEnvironment,
+	type UnknownEnvironmentError,
+} from "../core/select-environment.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
@@ -54,9 +58,11 @@ export interface DeployOptions {
  * `kind` to distinguish reconciliation failures (`stateReadFailed`,
  * `applyFailed`, ...) from default-construction failures
  * (`configLoadFailed`, `stateNotConfigured`, `unknownEnvironment`,
- * `missingCredential`, `unsupportedBackend`, `registryConfigMissing`).
+ * `incompletePlaceEntry`, `missingCredential`, `unsupportedBackend`,
+ * `registryConfigMissing`).
  */
 export type DeployError =
+	| IncompletePlaceEntryError
 	| MissingCredentialError
 	| RegistryConfigError
 	| StateNotConfiguredError
@@ -85,14 +91,14 @@ interface FinalizeInputs {
 }
 
 interface ResolvedDeps {
-	readonly config: Config;
+	readonly config: ResolvedConfig;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly registry: DriverRegistry;
 	readonly statePort: StatePort;
 }
 
 interface PickRegistryInputs {
-	readonly config: Config;
+	readonly config: ResolvedConfig;
 	readonly options: DeployOptions;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 }
@@ -189,7 +195,10 @@ function getEnvironmentOf(options: DeployOptions): (name: string) => string | un
 	return options.getEnv ?? readProcessEnvironment;
 }
 
-function pickStatePort(options: DeployOptions, config: Config): Result<StatePort, DeployError> {
+function pickStatePort(
+	options: DeployOptions,
+	config: ResolvedConfig,
+): Result<StatePort, DeployError> {
 	if (options.statePort !== undefined) {
 		return { data: options.statePort, success: true };
 	}
