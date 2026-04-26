@@ -19,11 +19,26 @@ export function getEnvironment(
 	argv: ReadonlyArray<string>,
 	readEnvironment: (name: string) => string | undefined,
 ): Result<string, GetEnvironmentError> {
-	const flagIndex = argv.indexOf("--env");
-	const value = flagIndex === -1 ? readEnvironment("BEDROCK_ENVIRONMENT") : argv[flagIndex + 1];
+	const flagged = collectFlagValues(argv);
+	if (flagged.length > 1) {
+		return { err: { kind: "multipleEnvironments", values: flagged }, success: false };
+	}
+
+	const value = flagged[0] ?? readEnvironment("BEDROCK_ENVIRONMENT");
 	if (value === undefined) {
 		return { err: { kind: "missingEnvironment" }, success: false };
 	}
 
 	return { data: value, success: true };
+}
+
+function collectFlagValues(argv: ReadonlyArray<string>): ReadonlyArray<string> {
+	return argv.flatMap((token, index) => {
+		if (token !== "--env") {
+			return [];
+		}
+
+		const next = argv[index + 1];
+		return next === undefined ? [] : [next];
+	});
 }

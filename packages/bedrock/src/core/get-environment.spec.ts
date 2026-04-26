@@ -56,4 +56,34 @@ describe(getEnvironment, () => {
 
 		expect(result.err).toStrictEqual({ kind: "missingEnvironment" });
 	});
+
+	it("should ignore a trailing --env with no following value and report missingEnvironment", () => {
+		expect.assertions(2);
+
+		const result = getEnvironment(["--env"], empty);
+
+		expect(result.success).toBeFalse();
+
+		assert(!result.success);
+
+		expect(result.err).toStrictEqual({ kind: "missingEnvironment" });
+	});
+
+	it("should return the multipleEnvironments error carrying every --env value when more than one is supplied", () => {
+		expect.assertions(2);
+
+		const result = getEnvironment(
+			["--env", "production", "--env", "staging", "--env", "preview"],
+			empty,
+		);
+
+		expect(result.success).toBeFalse();
+
+		assert(!result.success);
+
+		expect(result.err).toStrictEqual({
+			kind: "multipleEnvironments",
+			values: ["production", "staging", "preview"],
+		});
+	});
 });
