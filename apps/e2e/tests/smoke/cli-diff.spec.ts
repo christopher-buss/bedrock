@@ -111,7 +111,10 @@ describe("bedrock diff bin against real gist + open cloud", () => {
 					project,
 				);
 
-				expect(result.code).toBe(0);
+				expect(
+					result.code,
+					`bin exited ${String(result.code)}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+				).toBe(0);
 				expect(result.stdout).toContain(`Pending changes for "${environment}"`);
 				expect(result.stdout).toContain("+ place:smoke-place");
 			} finally {
