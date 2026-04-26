@@ -17,6 +17,7 @@ experimental = true
 "npm:vercel" = "latest"
 bun = "1.3.12"
 hk = { version = "1.42.0", postinstall = "if [ -z \"$CI\" ]; then hk install --mise; fi" }
+"github:luau-lang/lute" = "1.0.0"
 node = { version = "lts", postinstall = "corepack enable" }
 pkl = "latest"
 

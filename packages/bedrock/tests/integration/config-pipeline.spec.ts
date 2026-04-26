@@ -19,6 +19,7 @@ import {
 	type FakeHttpClient,
 	validGamePassBody,
 } from "@bedrock/ocale/testing";
+import { HAS_LUTE } from "@bedrock/testing/lute";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,7 +31,11 @@ const ICON_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
 const VIP_PASS_KEY = "vip-pass";
 
-const SUPPORTED_FORMATS = ["typescript", "yaml", "json", "javascript"] as const;
+const SUPPORTED_FORMATS = (
+	HAS_LUTE
+		? (["typescript", "yaml", "json", "javascript", "luau"] as const)
+		: (["typescript", "yaml", "json", "javascript"] as const)
+) satisfies ReadonlyArray<string>;
 
 interface CreateFlowResult {
 	readonly applyOutcome: Awaited<ReturnType<typeof applyOps>>;

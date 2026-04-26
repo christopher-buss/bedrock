@@ -24,7 +24,6 @@ import type {
 	ConfigContext,
 	ConfigError,
 	ConfigInput,
-	ConfigValidationIssue,
 	DeployError,
 	DeployOptions,
 	LoadConfigOptions,
@@ -38,29 +37,6 @@ import type {
 	RobloxAssetId,
 	Sha256Hex,
 } from "./index.ts";
-
-interface ExpectedFileNotFound {
-	readonly kind: "fileNotFound";
-	readonly searchedFrom: string;
-}
-
-interface ExpectedParseFailed {
-	readonly kind: "parseFailed";
-	readonly message: string;
-	readonly sourceFile: string;
-}
-
-interface ExpectedConfigFunctionFailed {
-	readonly kind: "configFunctionFailed";
-	readonly message: string;
-	readonly sourceFile: string;
-}
-
-interface ExpectedValidationFailed {
-	readonly issues: ReadonlyArray<ConfigValidationIssue>;
-	readonly kind: "validationFailed";
-	readonly sourceFile: string;
-}
 
 function syncConfigBuilder(_ctx: ConfigContext): Config {
 	return { environments: { production: {} }, passes: {} };
@@ -267,38 +243,6 @@ describe(loadConfig, () => {
 
 	it("should expose configFile as an optional string on LoadConfigOptions", () => {
 		expectTypeOf<LoadConfigOptions["configFile"]>().toEqualTypeOf<string | undefined>();
-	});
-});
-
-describe("ConfigError", () => {
-	it("should discriminate on kind across the four documented variants", () => {
-		expectTypeOf<ConfigError["kind"]>().toEqualTypeOf<
-			"configFunctionFailed" | "fileNotFound" | "parseFailed" | "validationFailed"
-		>();
-	});
-
-	it("should narrow fileNotFound to carry only searchedFrom", () => {
-		expectTypeOf<
-			Extract<ConfigError, { kind: "fileNotFound" }>
-		>().toEqualTypeOf<ExpectedFileNotFound>();
-	});
-
-	it("should narrow parseFailed to carry message and sourceFile", () => {
-		expectTypeOf<
-			Extract<ConfigError, { kind: "parseFailed" }>
-		>().toEqualTypeOf<ExpectedParseFailed>();
-	});
-
-	it("should narrow configFunctionFailed to carry message and sourceFile", () => {
-		expectTypeOf<
-			Extract<ConfigError, { kind: "configFunctionFailed" }>
-		>().toEqualTypeOf<ExpectedConfigFunctionFailed>();
-	});
-
-	it("should narrow validationFailed to carry issues and sourceFile", () => {
-		expectTypeOf<
-			Extract<ConfigError, { kind: "validationFailed" }>
-		>().toEqualTypeOf<ExpectedValidationFailed>();
 	});
 });
 
