@@ -201,9 +201,11 @@ PR titles are linted by commitlint (`.github/workflows/lint-pr-title.yaml`) —
    `type(scope):`, including code identifiers (`mergeConfig` → `merge-config`,
    `GamePassesClient` → `game-passes-client`).
 2. **Scope-enum**: if a scope is present it MUST be one of
-   `bedrock, e2e, global, ocale, testing, tsconfig, vite, website`. `ci`,
-   `chore`, `docs`, `build`, `refactor` are **types, not scopes** — write
-   `ci: …` with no scope, not `fix(ci): …`.
+   `core, deps, e2e, global, ocale, testing, tsconfig, vite, website`.
+   The `bedrock` package was renamed to `@bedrock/core`, so changes in
+   `packages/bedrock/` take the `core` scope. `ci`, `chore`, `docs`,
+   `build`, `refactor` are **types, not scopes** — write `ci: …` with no
+   scope, not `fix(ci): …`.
 3. **Consumer-useful subject**: PR titles become changelog entries for
    people installing the published package. Write what *changed in the
    package from the consumer's perspective*, not how the work was organised.
