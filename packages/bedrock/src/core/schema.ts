@@ -412,7 +412,7 @@ const environmentsCollection = type({
 	.onUndeclaredKey("reject")
 	.narrow((value, ctx) => {
 		if (Object.keys(value).length === 0) {
-			return ctx.mustBe("a non-empty record of environment entries");
+			return ctx.mustBe("an environments record with at least one declared environment");
 		}
 
 		return true;
