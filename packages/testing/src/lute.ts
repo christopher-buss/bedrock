@@ -26,6 +26,10 @@ export const HAS_LUTE: boolean = (() => {
 		return false;
 	}
 
+	// Assumes `lute --version` prints a bare semver string like "1.0.0", which
+	// is the v1.0.0 binary's actual format. A future build that prepends a
+	// label (e.g. "lute 1.0.0") would parse to NaN here and the gate would
+	// silently skip Luau tests on a perfectly good runtime.
 	const major = Number.parseInt(result.stdout.trim().split(".")[0] ?? "", 10);
 	return Number.isFinite(major) && major >= MIN_MAJOR_VERSION;
 })();

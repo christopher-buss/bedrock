@@ -92,7 +92,7 @@ export async function loadConfig(
 		resolved = await c12LoadConfig<Record<string, unknown>>({
 			name: "bedrock",
 			cwd,
-			resolve: makeLuauResolver(cwd, configFile !== undefined),
+			resolve: makeLuauResolver(cwd, configFile),
 			...(configFile === undefined ? {} : { configFile }),
 		});
 	} catch (err) {
@@ -174,27 +174,44 @@ const NATIVE_CONFIG_EXTENSIONS = [
 	"yml",
 ] as const;
 
+interface PickLuauTargetContext {
+	readonly callerConfigFile: string | undefined;
+	readonly cwd: string;
+}
+
+/**
+ * Decide which Luau file the resolver should evaluate for a given c12 source,
+ * or `undefined` to defer to c12's built-in loaders.
+ *
+ * When the caller named a specific configFile, c12 always invokes us with
+ * source === "." for the main config (and normalizes its own
+ * options.configFile to "bedrock.config", so we cannot inspect it). Route
+ * the explicit path through our evaluator if it points at a `.luau` file;
+ * otherwise defer.
+ * @param source - The c12 `resolve` source string.
+ * @param context - Caller-side state: the resolved cwd to search in, and the
+ * caller's configFile path (or undefined when no explicit path was supplied).
+ * @returns The absolute path of the Luau file to evaluate, or `undefined`.
+ */
+function pickLuauTarget(source: string, context: PickLuauTargetContext): string | undefined {
+	const { callerConfigFile, cwd } = context;
+	if (source === "." && callerConfigFile !== undefined) {
+		return callerConfigFile.endsWith(".luau") ? callerConfigFile : undefined;
+	}
+
+	return locateLuauConfig(source, cwd);
+}
+
 function makeLuauResolver(
 	defaultCwd: string,
-	callerSetConfigFile: boolean,
+	callerConfigFile: string | undefined,
 ): (
 	source: string,
 	c12Options: { readonly cwd?: string },
 ) => Promise<LuauResolveResult | undefined> {
 	return async (source, c12Options) => {
-		// For auto-discovery (source === "."), defer when the caller named a
-		// specific configFile - their intent is to load that exact file, not
-		// whatever bedrock.config.luau happens to be sitting next to it.
-		// Note: c12 normalizes options.configFile to "bedrock.config" by default,
-		// so we cannot inspect c12Options here; the caller-set flag is captured
-		// from loadConfig's own options before c12 sees them.
-		// Explicit `.luau` paths (e.g. an extends clause) always go through us.
-		if (source === "." && callerSetConfigFile) {
-			return;
-		}
-
 		const cwd = c12Options.cwd ?? defaultCwd;
-		const luauPath = locateLuauConfig(source, cwd);
+		const luauPath = pickLuauTarget(source, { callerConfigFile, cwd });
 		if (luauPath === undefined) {
 			return;
 		}
@@ -278,13 +295,18 @@ function isEnoentError(error: unknown): boolean {
 	return error.code === "ENOENT";
 }
 
+// 10s is generous for evaluating a config file: real configs run in
+// milliseconds, and a value this high is meant to catch infinite loops in
+// user code (or a hung lute) without surprising slow-startup environments.
+const LUTE_BOOTSTRAP_TIMEOUT_MS = 10_000;
+
 async function runLuteBootstrap(runOptions: LuteRunOptions): Promise<string> {
 	const { bin, bootstrapPath, cwd, userBasename } = runOptions;
 	return new Promise((resolve, reject) => {
 		execFile(
 			bin,
 			["run", bootstrapPath, userBasename],
-			{ cwd, encoding: "utf8" },
+			{ cwd, encoding: "utf8", timeout: LUTE_BOOTSTRAP_TIMEOUT_MS },
 			(error, stdout) => {
 				if (error instanceof Error) {
 					reject(error);
@@ -305,12 +327,20 @@ function isLuauErrorEnvelope(value: unknown): value is { readonly message: strin
 	return "message" in value && typeof value.message === "string";
 }
 
+function parseEnvelope(raw: string, label: string): JSONValue {
+	try {
+		return JSON.parse(raw);
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		throw new Error(`Malformed Luau bootstrap ${label} envelope: ${message}`);
+	}
+}
+
 function parseBootstrapOutput(stdout: string): Record<string, unknown> {
 	if (stdout.startsWith(ERR_PREFIX)) {
-		const envelope = JSON.parse(stdout.slice(ERR_PREFIX.length));
-		const message = isLuauErrorEnvelope(envelope)
-			? envelope.message
-			: stdout.slice(ERR_PREFIX.length);
+		const raw = stdout.slice(ERR_PREFIX.length);
+		const envelope = parseEnvelope(raw, "ERR");
+		const message = isLuauErrorEnvelope(envelope) ? envelope.message : raw;
 		throw new Error(message);
 	}
 
@@ -320,7 +350,7 @@ function parseBootstrapOutput(stdout: string): Record<string, unknown> {
 		);
 	}
 
-	const parsed = JSON.parse(stdout.slice(OK_PREFIX.length));
+	const parsed = parseEnvelope(stdout.slice(OK_PREFIX.length), "OK");
 
 	if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
 		throw new TypeError("Luau config must return a table at the root");
@@ -367,6 +397,9 @@ async function evaluateLuauConfig(absPath: string): Promise<Record<string, unkno
 	}
 }
 
+// `.luau` is intentionally absent: Luau errors travel through the bootstrap
+// ERR sentinel, not JS stack frames, so the file path is attributed by
+// `discoverConfigFile` rather than scraped from the throw site.
 const CONFIG_FILE_IN_FRAME = /[^\s():"']*bedrock\.config\.(?:ts|js|mjs|cjs|yaml|yml|json)/;
 
 function extractConfigFileFromStack(err: unknown): string | undefined {

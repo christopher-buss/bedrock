@@ -503,6 +503,41 @@ describe(loadConfig, () => {
 		},
 	);
 
+	it.skipIf(!HAS_LUTE)(
+		"should evaluate a Luau file when configFile names it explicitly",
+		async () => {
+			expect.assertions(1);
+
+			await withTemporaryDirectory(async (cwd) => {
+				writeFileSync(
+					join(cwd, "bedrock.staging.config.luau"),
+					[
+						"return {",
+						"  passes = {",
+						"    ['vip-pass'] = {",
+						"      description = 'Staging perks.',",
+						"      iconFilePath = 'assets/staging.png',",
+						"      name = 'Staging Pass',",
+						"      price = 100,",
+						"    },",
+						"  },",
+						"}",
+						"",
+					].join("\n"),
+				);
+
+				const result = await loadConfig({
+					configFile: "bedrock.staging.config.luau",
+					cwd,
+				});
+
+				assert(result.success);
+
+				expect(result.data.passes!["vip-pass"]!.name).toBe("Staging Pass");
+			});
+		},
+	);
+
 	it("should return a fresh copy on each call so mutation does not leak between invocations", async () => {
 		expect.assertions(1);
 
