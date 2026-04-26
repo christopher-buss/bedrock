@@ -8,6 +8,7 @@ import {
 	flattenConfig,
 	loadConfig,
 	type ResourceDriver,
+	selectEnvironment,
 } from "@bedrock/core";
 import { PlacesClient } from "@bedrock/ocale/places";
 import { createFakeHttpClient } from "@bedrock/ocale/testing";
@@ -47,7 +48,10 @@ describe("places pipeline end-to-end", () => {
 		const loaded = await loadConfig({ cwd: PLACES_FIXTURE_DIR });
 		assert(loaded.success);
 
-		const desiredResult = await buildDesired(flattenConfig(loaded.data), readPlaceFile);
+		const resolved = selectEnvironment(loaded.data, "production");
+		assert(resolved.success);
+
+		const desiredResult = await buildDesired(flattenConfig(resolved.data), readPlaceFile);
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient().mockResponse({

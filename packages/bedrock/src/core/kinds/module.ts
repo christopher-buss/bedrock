@@ -5,7 +5,7 @@ import type { Type } from "arktype";
 import type { ResourceKey } from "../../types/ids.ts";
 import type { ResourceDesiredInput } from "../flatten.ts";
 import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "../resources.ts";
-import type { Config, ResourceEntryByKind } from "../schema.ts";
+import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
 
 /**
  * Failure surfaced during desired-state normalization when the pre-I/O
@@ -119,11 +119,12 @@ export interface ResourceKindModule<K extends ResourceKind> {
 	fieldsEqual(desired: DesiredFor<K>, current: ResourceCurrentState<K>): boolean;
 
 	/**
-	 * Project a validated `Config` into a flat, tagged list of this kind's
-	 * pre-I/O inputs. Pure and infallible: the schema has already enforced
-	 * every invariant this function relies on.
+	 * Project a resolved `Config` into a flat, tagged list of this kind's
+	 * pre-I/O inputs. Pure and infallible: validation and per-environment
+	 * overlay merging have already happened upstream, so every invariant
+	 * this function relies on is guaranteed by the input shape.
 	 */
-	flatten(config: Config): ReadonlyArray<InputFor<K>>;
+	flatten(config: ResolvedConfig): ReadonlyArray<InputFor<K>>;
 
 	/** Discriminator literal for this kind. */
 	readonly kind: K;

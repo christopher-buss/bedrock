@@ -4,7 +4,7 @@ import { assert, describe, expect, it } from "vitest";
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import { flattenConfig } from "./flatten.ts";
 import { SOCIAL_LINK_FIELDS, UNIVERSE_SINGLETON_KEY } from "./resources.ts";
-import { validateConfig } from "./schema.ts";
+import type { ResolvedConfig } from "./schema.ts";
 
 const MinimumEnvironments = { production: {} } as const;
 
@@ -12,32 +12,27 @@ describe(flattenConfig, () => {
 	it("should return an empty array for a config without resource collections", () => {
 		expect.assertions(1);
 
-		const config = validateConfig({ environments: MinimumEnvironments }, "bedrock.config.ts");
-		assert(config.success);
+		const config: ResolvedConfig = { environments: MinimumEnvironments };
 
-		expect(flattenConfig(config.data)).toStrictEqual([]);
+		expect(flattenConfig(config)).toStrictEqual([]);
 	});
 
 	it("should tag a passes entry with kind gamePass and the ResourceKey-branded key", () => {
 		expect.assertions(1);
 
-		const config = validateConfig(
-			{
-				environments: MinimumEnvironments,
-				passes: {
-					"vip-pass": {
-						name: "VIP Pass",
-						description: "Grants VIP perks.",
-						iconFilePath: "assets/vip-icon.png",
-						price: 500,
-					},
+		const config: ResolvedConfig = {
+			environments: MinimumEnvironments,
+			passes: {
+				"vip-pass": {
+					name: "VIP Pass",
+					description: "Grants VIP perks.",
+					iconFilePath: "assets/vip-icon.png",
+					price: 500,
 				},
 			},
-			"bedrock.config.ts",
-		);
-		assert(config.success);
+		};
 
-		expect(flattenConfig(config.data)).toStrictEqual([
+		expect(flattenConfig(config)).toStrictEqual([
 			{
 				key: asResourceKey("vip-pass"),
 				name: "VIP Pass",
@@ -52,22 +47,18 @@ describe(flattenConfig, () => {
 	it("should carry price as undefined when the entry omits it", () => {
 		expect.assertions(1);
 
-		const config = validateConfig(
-			{
-				environments: MinimumEnvironments,
-				passes: {
-					"free-pass": {
-						name: "Free",
-						description: "Free pass.",
-						iconFilePath: "assets/free.png",
-					},
+		const config: ResolvedConfig = {
+			environments: MinimumEnvironments,
+			passes: {
+				"free-pass": {
+					name: "Free",
+					description: "Free pass.",
+					iconFilePath: "assets/free.png",
 				},
 			},
-			"bedrock.config.ts",
-		);
-		assert(config.success);
+		};
 
-		const input = flattenConfig(config.data)[0]!;
+		const input = flattenConfig(config)[0]!;
 		assert(input.kind === "gamePass");
 
 		expect(input.price).toBeUndefined();
@@ -76,32 +67,16 @@ describe(flattenConfig, () => {
 	it("should preserve the insertion order of passes entries", () => {
 		expect.assertions(1);
 
-		const config = validateConfig(
-			{
-				environments: MinimumEnvironments,
-				passes: {
-					alpha: {
-						name: "A",
-						description: "A.",
-						iconFilePath: "a.png",
-					},
-					beta: {
-						name: "B",
-						description: "B.",
-						iconFilePath: "b.png",
-					},
-					gamma: {
-						name: "G",
-						description: "G.",
-						iconFilePath: "g.png",
-					},
-				},
+		const config: ResolvedConfig = {
+			environments: MinimumEnvironments,
+			passes: {
+				alpha: { name: "A", description: "A.", iconFilePath: "a.png" },
+				beta: { name: "B", description: "B.", iconFilePath: "b.png" },
+				gamma: { name: "G", description: "G.", iconFilePath: "g.png" },
 			},
-			"bedrock.config.ts",
-		);
-		assert(config.success);
+		};
 
-		expect(flattenConfig(config.data).map((input) => input.key)).toStrictEqual([
+		expect(flattenConfig(config).map((input) => input.key)).toStrictEqual([
 			"alpha",
 			"beta",
 			"gamma",
@@ -111,18 +86,14 @@ describe(flattenConfig, () => {
 	it("should tag a places entry with kind place and brand placeId as a RobloxAssetId", () => {
 		expect.assertions(1);
 
-		const config = validateConfig(
-			{
-				environments: MinimumEnvironments,
-				places: {
-					"start-place": { filePath: "places/start.rbxl", placeId: "4711" },
-				},
+		const config: ResolvedConfig = {
+			environments: MinimumEnvironments,
+			places: {
+				"start-place": { filePath: "places/start.rbxl", placeId: "4711" },
 			},
-			"bedrock.config.ts",
-		);
-		assert(config.success);
+		};
 
-		expect(flattenConfig(config.data)).toStrictEqual([
+		expect(flattenConfig(config)).toStrictEqual([
 			{
 				key: asResourceKey("start-place"),
 				filePath: "places/start.rbxl",
@@ -135,25 +106,21 @@ describe(flattenConfig, () => {
 	it("should emit passes before places when both collections are declared", () => {
 		expect.assertions(1);
 
-		const config = validateConfig(
-			{
-				environments: MinimumEnvironments,
-				passes: {
-					"vip-pass": {
-						name: "VIP Pass",
-						description: "Grants VIP perks.",
-						iconFilePath: "assets/vip.png",
-					},
-				},
-				places: {
-					"start-place": { filePath: "places/start.rbxl", placeId: "4711" },
+		const config: ResolvedConfig = {
+			environments: MinimumEnvironments,
+			passes: {
+				"vip-pass": {
+					name: "VIP Pass",
+					description: "Grants VIP perks.",
+					iconFilePath: "assets/vip.png",
 				},
 			},
-			"bedrock.config.ts",
-		);
-		assert(config.success);
+			places: {
+				"start-place": { filePath: "places/start.rbxl", placeId: "4711" },
+			},
+		};
 
-		expect(flattenConfig(config.data).map((input) => input.kind)).toStrictEqual([
+		expect(flattenConfig(config).map((input) => input.kind)).toStrictEqual([
 			"gamePass",
 			"place",
 		]);
@@ -162,16 +129,12 @@ describe(flattenConfig, () => {
 	it("should tag a universe block with the singleton key and brand universeId as a RobloxAssetId", () => {
 		expect.assertions(1);
 
-		const config = validateConfig(
-			{
-				environments: MinimumEnvironments,
-				universe: { universeId: "1234567890", voiceChatEnabled: true },
-			},
-			"bedrock.config.ts",
-		);
-		assert(config.success);
+		const config: ResolvedConfig = {
+			environments: MinimumEnvironments,
+			universe: { universeId: "1234567890", voiceChatEnabled: true },
+		};
 
-		expect(flattenConfig(config.data)).toStrictEqual([
+		expect(flattenConfig(config)).toStrictEqual([
 			{
 				key: UNIVERSE_SINGLETON_KEY,
 				consoleEnabled: undefined,
@@ -191,26 +154,22 @@ describe(flattenConfig, () => {
 	it("should emit the universe block after places when all three are declared", () => {
 		expect.assertions(1);
 
-		const config = validateConfig(
-			{
-				environments: MinimumEnvironments,
-				passes: {
-					"vip-pass": {
-						name: "VIP Pass",
-						description: "Grants VIP perks.",
-						iconFilePath: "assets/vip.png",
-					},
+		const config: ResolvedConfig = {
+			environments: MinimumEnvironments,
+			passes: {
+				"vip-pass": {
+					name: "VIP Pass",
+					description: "Grants VIP perks.",
+					iconFilePath: "assets/vip.png",
 				},
-				places: {
-					"start-place": { filePath: "places/start.rbxl", placeId: "4711" },
-				},
-				universe: { universeId: "1234567890" },
 			},
-			"bedrock.config.ts",
-		);
-		assert(config.success);
+			places: {
+				"start-place": { filePath: "places/start.rbxl", placeId: "4711" },
+			},
+			universe: { universeId: "1234567890" },
+		};
 
-		expect(flattenConfig(config.data).map((input) => input.kind)).toStrictEqual([
+		expect(flattenConfig(config).map((input) => input.kind)).toStrictEqual([
 			"gamePass",
 			"place",
 			"universe",
@@ -220,13 +179,12 @@ describe(flattenConfig, () => {
 	it("should carry voiceChatEnabled as undefined when the universe entry omits it", () => {
 		expect.assertions(1);
 
-		const config = validateConfig(
-			{ environments: MinimumEnvironments, universe: { universeId: "1234567890" } },
-			"bedrock.config.ts",
-		);
-		assert(config.success);
+		const config: ResolvedConfig = {
+			environments: MinimumEnvironments,
+			universe: { universeId: "1234567890" },
+		};
 
-		const input = flattenConfig(config.data)[0]!;
+		const input = flattenConfig(config)[0]!;
 		assert(input.kind === "universe");
 
 		expect(input.voiceChatEnabled).toBeUndefined();
@@ -237,16 +195,12 @@ describe(flattenConfig, () => {
 		([flag]) => {
 			expect.assertions(1);
 
-			const config = validateConfig(
-				{
-					environments: MinimumEnvironments,
-					universe: { [flag]: true, universeId: "1234567890" },
-				},
-				"bedrock.config.ts",
-			);
-			assert(config.success);
+			const config: ResolvedConfig = {
+				environments: MinimumEnvironments,
+				universe: { [flag]: true, universeId: "1234567890" },
+			};
 
-			const input = flattenConfig(config.data)[0]!;
+			const input = flattenConfig(config)[0]!;
 			assert(input.kind === "universe");
 
 			expect(input[flag]).toBeTrue();
@@ -258,13 +212,12 @@ describe(flattenConfig, () => {
 		([flag]) => {
 			expect.assertions(1);
 
-			const config = validateConfig(
-				{ environments: MinimumEnvironments, universe: { universeId: "1234567890" } },
-				"bedrock.config.ts",
-			);
-			assert(config.success);
+			const config: ResolvedConfig = {
+				environments: MinimumEnvironments,
+				universe: { universeId: "1234567890" },
+			};
 
-			const input = flattenConfig(config.data)[0]!;
+			const input = flattenConfig(config)[0]!;
 			assert(input.kind === "universe");
 
 			expect(input[flag]).toBeUndefined();
@@ -274,22 +227,18 @@ describe(flattenConfig, () => {
 	it("should carry every declared universe managed field onto the input", () => {
 		expect.assertions(5);
 
-		const config = validateConfig(
-			{
-				environments: MinimumEnvironments,
-				universe: {
-					displayName: "Fun Universe",
-					privateServerPriceRobux: 250,
-					universeId: "1234567890",
-					visibility: "public",
-					voiceChatEnabled: true,
-				},
+		const config: ResolvedConfig = {
+			environments: MinimumEnvironments,
+			universe: {
+				displayName: "Fun Universe",
+				privateServerPriceRobux: 250,
+				universeId: "1234567890",
+				visibility: "public",
+				voiceChatEnabled: true,
 			},
-			"bedrock.config.ts",
-		);
-		assert(config.success);
+		};
 
-		const input = flattenConfig(config.data)[0]!;
+		const input = flattenConfig(config)[0]!;
 		assert(input.kind === "universe");
 
 		expect(input.displayName).toBe("Fun Universe");
@@ -302,19 +251,15 @@ describe(flattenConfig, () => {
 	it("should preserve key-presence when privateServerPriceRobux is declared as undefined", () => {
 		expect.assertions(2);
 
-		const config = validateConfig(
-			{
-				environments: MinimumEnvironments,
-				universe: {
-					privateServerPriceRobux: undefined,
-					universeId: "1234567890",
-				},
+		const config: ResolvedConfig = {
+			environments: MinimumEnvironments,
+			universe: {
+				privateServerPriceRobux: undefined,
+				universeId: "1234567890",
 			},
-			"bedrock.config.ts",
-		);
-		assert(config.success);
+		};
 
-		const input = flattenConfig(config.data)[0]!;
+		const input = flattenConfig(config)[0]!;
 		assert(input.kind === "universe");
 
 		expect("privateServerPriceRobux" in input).toBeTrue();
@@ -324,13 +269,12 @@ describe(flattenConfig, () => {
 	it("should omit privateServerPriceRobux from the input when the user does not declare it", () => {
 		expect.assertions(1);
 
-		const config = validateConfig(
-			{ environments: MinimumEnvironments, universe: { universeId: "1234567890" } },
-			"bedrock.config.ts",
-		);
-		assert(config.success);
+		const config: ResolvedConfig = {
+			environments: MinimumEnvironments,
+			universe: { universeId: "1234567890" },
+		};
 
-		const input = flattenConfig(config.data)[0]!;
+		const input = flattenConfig(config)[0]!;
 		assert(input.kind === "universe");
 
 		expect("privateServerPriceRobux" in input).toBeFalse();
@@ -339,10 +283,9 @@ describe(flattenConfig, () => {
 	it("should omit the universe block from output when the config has no universe", () => {
 		expect.assertions(1);
 
-		const config = validateConfig({ environments: MinimumEnvironments }, "bedrock.config.ts");
-		assert(config.success);
+		const config: ResolvedConfig = { environments: MinimumEnvironments };
 
-		expect(flattenConfig(config.data).some((input) => input.kind === "universe")).toBeFalse();
+		expect(flattenConfig(config).some((input) => input.kind === "universe")).toBeFalse();
 	});
 
 	it.for(SOCIAL_LINK_FIELDS)(
@@ -351,16 +294,12 @@ describe(flattenConfig, () => {
 			expect.assertions(2);
 
 			const value = { title: `t-${field}`, uri: `https://example.com/${field}` };
-			const config = validateConfig(
-				{
-					environments: MinimumEnvironments,
-					universe: { [field]: value, universeId: "1234567890" },
-				},
-				"bedrock.config.ts",
-			);
-			assert(config.success);
+			const config: ResolvedConfig = {
+				environments: MinimumEnvironments,
+				universe: { [field]: value, universeId: "1234567890" },
+			};
 
-			const input = flattenConfig(config.data)[0]!;
+			const input = flattenConfig(config)[0]!;
 			assert(input.kind === "universe");
 
 			expect(input).toContainKey(field);
@@ -373,16 +312,12 @@ describe(flattenConfig, () => {
 		(field) => {
 			expect.assertions(2);
 
-			const config = validateConfig(
-				{
-					environments: MinimumEnvironments,
-					universe: { [field]: undefined, universeId: "1234567890" },
-				},
-				"bedrock.config.ts",
-			);
-			assert(config.success);
+			const config: ResolvedConfig = {
+				environments: MinimumEnvironments,
+				universe: { [field]: undefined, universeId: "1234567890" },
+			};
 
-			const input = flattenConfig(config.data)[0]!;
+			const input = flattenConfig(config)[0]!;
 			assert(input.kind === "universe");
 
 			expect(input).toContainKey(field);
@@ -395,13 +330,12 @@ describe(flattenConfig, () => {
 		(field) => {
 			expect.assertions(1);
 
-			const config = validateConfig(
-				{ environments: MinimumEnvironments, universe: { universeId: "1234567890" } },
-				"bedrock.config.ts",
-			);
-			assert(config.success);
+			const config: ResolvedConfig = {
+				environments: MinimumEnvironments,
+				universe: { universeId: "1234567890" },
+			};
 
-			const input = flattenConfig(config.data)[0]!;
+			const input = flattenConfig(config)[0]!;
 			assert(input.kind === "universe");
 
 			expect(input).not.toContainKey(field);
@@ -412,20 +346,16 @@ describe(flattenConfig, () => {
 		expect.assertions(4);
 
 		const discord = { title: "Discord", uri: "https://discord.gg/example" };
-		const config = validateConfig(
-			{
-				environments: MinimumEnvironments,
-				universe: {
-					discordSocialLink: discord,
-					twitterSocialLink: undefined,
-					universeId: "1234567890",
-				},
+		const config: ResolvedConfig = {
+			environments: MinimumEnvironments,
+			universe: {
+				discordSocialLink: discord,
+				twitterSocialLink: undefined,
+				universeId: "1234567890",
 			},
-			"bedrock.config.ts",
-		);
-		assert(config.success);
+		};
 
-		const input = flattenConfig(config.data)[0]!;
+		const input = flattenConfig(config)[0]!;
 		assert(input.kind === "universe");
 
 		expect(input).toContainKey("discordSocialLink");

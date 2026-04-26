@@ -5,6 +5,7 @@ import type {
 	EnvironmentEntry,
 	GamePassEntry,
 	PlaceEntry,
+	ResolvedPlaceEntry,
 	StateConfig,
 	UniverseEntry,
 } from "./schema.ts";
@@ -83,12 +84,30 @@ describe("EnvironmentEntry overlay derivation", () => {
 		expectTypeOf<keyof PassesOverlayEntry>().toEqualTypeOf<keyof GamePassEntry>();
 	});
 
-	it("should match the keys of PlaceEntry on a places overlay entry", () => {
-		expectTypeOf<keyof PlaceOverlayEntry>().toEqualTypeOf<keyof PlaceEntry>();
+	it("should match the keys of ResolvedPlaceEntry on a places overlay entry", () => {
+		expectTypeOf<keyof PlaceOverlayEntry>().toEqualTypeOf<keyof ResolvedPlaceEntry>();
 	});
 
 	it("should match the keys of UniverseEntry on a universe overlay", () => {
 		expectTypeOf<keyof UniverseOverlayEntry>().toEqualTypeOf<keyof UniverseEntry>();
+	});
+});
+
+describe("PlaceEntry / ResolvedPlaceEntry split", () => {
+	it("should expose only filePath at the root PlaceEntry level", () => {
+		expectTypeOf<keyof PlaceEntry>().toEqualTypeOf<"filePath">();
+		expectTypeOf<PlaceEntry["filePath"]>().toEqualTypeOf<string>();
+	});
+
+	it("should expose filePath and placeId on ResolvedPlaceEntry as the post-merge invariant", () => {
+		expectTypeOf<keyof ResolvedPlaceEntry>().toEqualTypeOf<"filePath" | "placeId">();
+		expectTypeOf<ResolvedPlaceEntry["filePath"]>().toEqualTypeOf<string>();
+		expectTypeOf<ResolvedPlaceEntry["placeId"]>().toEqualTypeOf<string>();
+	});
+
+	it("should make ResolvedPlaceEntry assignable to PlaceEntry but not the reverse", () => {
+		expectTypeOf<ResolvedPlaceEntry>().toExtend<PlaceEntry>();
+		expectTypeOf<PlaceEntry>().not.toExtend<ResolvedPlaceEntry>();
 	});
 });
 

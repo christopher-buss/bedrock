@@ -8,6 +8,7 @@ import {
 	flattenConfig,
 	loadConfig,
 	type ResourceDriver,
+	selectEnvironment,
 	UNIVERSE_SINGLETON_KEY,
 } from "@bedrock/core";
 import { PlacesClient } from "@bedrock/ocale/places";
@@ -70,7 +71,10 @@ describe("universe pipeline end-to-end", () => {
 		const loaded = await loadConfig({ cwd: UNIVERSE_FIXTURE_DIR });
 		assert(loaded.success);
 
-		const desiredResult = await buildDesired(flattenConfig(loaded.data), readFileNever);
+		const resolved = selectEnvironment(loaded.data, "production");
+		assert(resolved.success);
+
+		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFileNever);
 		assert(desiredResult.success);
 
 		// `twitterSocialLink: undefined` in the fixture flows through as a
@@ -120,7 +124,10 @@ describe("universe pipeline end-to-end", () => {
 		const loaded = await loadConfig({ cwd: UNIVERSE_FIXTURE_DIR });
 		assert(loaded.success);
 
-		const desiredResult = await buildDesired(flattenConfig(loaded.data), readFileNever);
+		const resolved = selectEnvironment(loaded.data, "production");
+		assert(resolved.success);
+
+		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFileNever);
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
@@ -156,7 +163,10 @@ describe("universe pipeline end-to-end", () => {
 		const loaded = await loadConfig({ cwd: UNIVERSE_FIXTURE_DIR });
 		assert(loaded.success);
 
-		const desiredResult = await buildDesired(flattenConfig(loaded.data), readFileNever);
+		const resolved = selectEnvironment(loaded.data, "production");
+		assert(resolved.success);
+
+		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFileNever);
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
@@ -254,7 +264,10 @@ describe("universe pipeline end-to-end", () => {
 		const loaded = await loadConfig({ cwd: UNIVERSE_FIXTURE_DIR });
 		assert(loaded.success);
 
-		const desiredResult = await buildDesired(flattenConfig(loaded.data), readFileNever);
+		const resolved = selectEnvironment(loaded.data, "production");
+		assert(resolved.success);
+
+		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFileNever);
 		assert(desiredResult.success);
 
 		const ops = diff(desiredResult.data, [
@@ -302,7 +315,10 @@ describe("universe pipeline end-to-end", () => {
 		const loaded = await loadConfig({ cwd: UNIVERSE_FIXTURE_DIR });
 		assert(loaded.success);
 
-		const desiredResult = await buildDesired(flattenConfig(loaded.data), readFileNever);
+		const resolved = selectEnvironment(loaded.data, "production");
+		assert(resolved.success);
+
+		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFileNever);
 		assert(desiredResult.success);
 
 		const ops = diff(desiredResult.data, [

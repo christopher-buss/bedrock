@@ -54,6 +54,8 @@ export {
 	type GamePassEntry,
 	type GistStateConfig,
 	type PlaceEntry,
+	type ResolvedConfig,
+	type ResolvedPlaceEntry,
 	type ResourceEntryByKind,
 	type StateConfig,
 	type UniverseEntry,

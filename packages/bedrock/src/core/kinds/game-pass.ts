@@ -5,7 +5,7 @@ import { type } from "arktype";
 import { asResourceKey, asSha256Hex } from "../../types/ids.ts";
 import type { GamePassDesiredInput } from "../flatten.ts";
 import type { GamePassDesiredState, ResourceCurrentState } from "../resources.ts";
-import type { Config } from "../schema.ts";
+import type { ResolvedConfig } from "../schema.ts";
 import { sha256Hex } from "./hash.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
 import { readBytes } from "./read-bytes.ts";
@@ -17,7 +17,7 @@ const entrySchema = type({
 	"price?": "number | undefined",
 });
 
-function flatten(config: Config): ReadonlyArray<GamePassDesiredInput> {
+function flatten(config: ResolvedConfig): ReadonlyArray<GamePassDesiredInput> {
 	return Object.entries(config.passes ?? {}).map<GamePassDesiredInput>(([key, entry]) => {
 		return {
 			key: asResourceKey(key),

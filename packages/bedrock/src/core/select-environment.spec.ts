@@ -15,7 +15,6 @@ const VIP_PASS: GamePassEntry = {
 
 const START_PLACE: PlaceEntry = {
 	filePath: "places/start.rbxl",
-	placeId: "1111",
 };
 
 describe(selectEnvironment, () => {
@@ -126,7 +125,7 @@ describe(selectEnvironment, () => {
 				staging: { places: { "start-place": { placeId: "5555" } } },
 			},
 			places: {
-				"lobby": { filePath: "places/lobby.rbxl", placeId: "2222" },
+				"lobby": { filePath: "places/lobby.rbxl" },
 				"start-place": START_PLACE,
 			},
 			state: ROOT_STATE,
@@ -139,7 +138,6 @@ describe(selectEnvironment, () => {
 		expect(result.data.places?.["start-place"]?.placeId).toBe("5555");
 		expect(result.data.places?.["lobby"]).toStrictEqual({
 			filePath: "places/lobby.rbxl",
-			placeId: "2222",
 		});
 	});
 

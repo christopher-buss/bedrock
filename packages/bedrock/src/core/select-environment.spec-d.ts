@@ -2,7 +2,7 @@ import type { Result } from "@bedrock/ocale";
 
 import { describe, expectTypeOf, it } from "vitest";
 
-import type { Config } from "./schema.ts";
+import type { Config, ResolvedConfig } from "./schema.ts";
 import {
 	selectEnvironment,
 	type SelectEnvironmentError,
@@ -15,9 +15,9 @@ describe("selectEnvironment signature", () => {
 		expectTypeOf(selectEnvironment).parameter(1).toEqualTypeOf<string>();
 	});
 
-	it("should return a Result of Config or SelectEnvironmentError so downstream functions consume it as Config", () => {
+	it("should return a Result of ResolvedConfig or SelectEnvironmentError so downstream functions consume the post-merge view", () => {
 		expectTypeOf<ReturnType<typeof selectEnvironment>>().toEqualTypeOf<
-			Result<Config, SelectEnvironmentError>
+			Result<ResolvedConfig, SelectEnvironmentError>
 		>();
 	});
 
