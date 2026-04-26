@@ -109,6 +109,9 @@ catalogs:
     c12:
       specifier: 3.3.4
       version: 3.3.4
+    defu:
+      specifier: 6.1.7
+      version: 6.1.7
     sade:
       specifier: 1.8.1
       version: 1.8.1
@@ -381,6 +384,9 @@ importers:
       c12:
         specifier: catalog:runtime
         version: 3.3.4(magicast@0.5.2)
+      defu:
+        specifier: catalog:runtime
+        version: 6.1.7
       sade:
         specifier: catalog:runtime
         version: 1.8.1
