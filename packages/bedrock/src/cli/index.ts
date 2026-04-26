@@ -45,8 +45,8 @@ export function createProg(deps: ProgDeps = {}): Sade {
 
 	prog.command("deploy")
 		.describe("Reconcile a project's resources against the configured environment(s)")
-		.option("-e, --env", "Target environment (repeat for multiple)")
-		.option("-c, --config", "Config file path (overrides discovery)")
+		.option("--env", "Target environment (repeat for multiple)")
+		.option("--config", "Config file path (overrides discovery)")
 		.option("--api-key", "Override the ROBLOX_API_KEY environment variable")
 		.option("--github-token", "Override the GITHUB_TOKEN environment variable")
 		.action(deployCommand(deps));
