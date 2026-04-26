@@ -207,13 +207,17 @@ function makeLuauResolver(
 
 const LUAU_CONFIG_BASENAME = "bedrock.config.luau";
 
+const SENTINEL_BASE = "__BEDROCK_LUAU_";
+const OK_PREFIX = `${SENTINEL_BASE}OK__`;
+const ERR_PREFIX = `${SENTINEL_BASE}ERR__`;
+
 const LUTE_BOOTSTRAP_LUAU = `--!strict
 local json = require("@std/json")
 local process = require("@std/process")
 local io = require("@std/io")
 
 local function emit(kind, payload)
-    io.write("__BEDROCK_LUAU_" .. kind .. "__")
+    io.write("${SENTINEL_BASE}" .. kind .. "__")
     io.write(json.serialize(payload))
 end
 
@@ -236,7 +240,7 @@ if not encOk then
     return
 end
 
-io.write("__BEDROCK_LUAU_OK__")
+io.write("${OK_PREFIX}")
 io.write(encoded)
 `;
 
@@ -289,6 +293,38 @@ async function runLuteBootstrap(runOptions: LuteRunOptions): Promise<string> {
 	});
 }
 
+function isLuauErrorEnvelope(value: unknown): value is { readonly message: string } {
+	if (typeof value !== "object" || value === null) {
+		return false;
+	}
+
+	return "message" in value && typeof value.message === "string";
+}
+
+function parseBootstrapOutput(stdout: string): Record<string, unknown> {
+	if (stdout.startsWith(ERR_PREFIX)) {
+		const envelope = JSON.parse(stdout.slice(ERR_PREFIX.length));
+		const message = isLuauErrorEnvelope(envelope)
+			? envelope.message
+			: stdout.slice(ERR_PREFIX.length);
+		throw new Error(message);
+	}
+
+	if (!stdout.startsWith(OK_PREFIX)) {
+		throw new Error(
+			`Luau config evaluation produced unexpected output: ${stdout.slice(0, 200)}`,
+		);
+	}
+
+	const parsed = JSON.parse(stdout.slice(OK_PREFIX.length));
+
+	if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+		throw new TypeError("Luau config must return a table at the root");
+	}
+
+	return parsed;
+}
+
 async function evaluateLuauConfig(absPath: string): Promise<Record<string, unknown>> {
 	const overridePath = process.env["BEDROCK_LUTE_PATH"];
 	const lute = overridePath !== undefined && overridePath.length > 0 ? overridePath : "lute";
@@ -325,41 +361,6 @@ async function evaluateLuauConfig(absPath: string): Promise<Record<string, unkno
 	} finally {
 		rmSync(bootstrapDirectory, { force: true, recursive: true });
 	}
-}
-
-const OK_PREFIX = "__BEDROCK_LUAU_OK__";
-const ERR_PREFIX = "__BEDROCK_LUAU_ERR__";
-
-function isLuauErrorEnvelope(value: unknown): value is { readonly message: string } {
-	if (typeof value !== "object" || value === null) {
-		return false;
-	}
-
-	return "message" in value && typeof value.message === "string";
-}
-
-function parseBootstrapOutput(stdout: string): Record<string, unknown> {
-	if (stdout.startsWith(ERR_PREFIX)) {
-		const envelope = JSON.parse(stdout.slice(ERR_PREFIX.length));
-		const message = isLuauErrorEnvelope(envelope)
-			? envelope.message
-			: stdout.slice(ERR_PREFIX.length);
-		throw new Error(message);
-	}
-
-	if (!stdout.startsWith(OK_PREFIX)) {
-		throw new Error(
-			`Luau config evaluation produced unexpected output: ${stdout.slice(0, 200)}`,
-		);
-	}
-
-	const parsed = JSON.parse(stdout.slice(OK_PREFIX.length));
-
-	if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-		throw new TypeError("Luau config must return a table at the root");
-	}
-
-	return parsed;
 }
 
 const CONFIG_FILE_IN_FRAME = /[^\s():"']*bedrock\.config\.(?:ts|js|mjs|cjs|yaml|yml|json)/;
