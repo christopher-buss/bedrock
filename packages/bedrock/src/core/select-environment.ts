@@ -27,21 +27,23 @@ export interface UnknownEnvironmentError {
 }
 
 /**
- * Failure surfaced when post-merge a place entry has no `placeId`. The
- * root collection holds only `filePath`, so every place must receive its
- * `placeId` from the per-environment overlay; a place declared at the
- * root with no matching overlay key produces this error rather than
- * surfacing as a downstream driver failure.
+ * Failure surfaced when a merged place entry is missing a required field.
+ * Two paths reach this error: a root place declared without a matching
+ * per-environment overlay supplying `placeId`, and an overlay-only place
+ * declared under `environments.X.places` with no matching root entry to
+ * supply `filePath`. Surfacing both at the resolution boundary attributes
+ * the missing field to the offending entry's key instead of letting
+ * `buildDesired` crash with a generic `fileReadFailed` later on.
  */
 export interface IncompletePlaceEntryError {
-	/** ResourceKey of the place entry that is missing `placeId`. */
+	/** ResourceKey of the place entry that is missing a required field. */
 	readonly key: string;
 	/** Environment whose overlay was projected onto the config. */
 	readonly environment: string;
 	/** Literal discriminator for narrowing. */
 	readonly kind: "incompletePlaceEntry";
-	/** Field that the merged entry lacks; always `"placeId"` today. */
-	readonly missingField: "placeId";
+	/** Field that the merged entry lacks. */
+	readonly missingField: "filePath" | "placeId";
 }
 
 /** Failure modes returned by {@link selectEnvironment}. */
@@ -160,6 +162,15 @@ function findIncompletePlace(
 				missingField: "placeId",
 			};
 		}
+
+		if (entry.filePath === undefined) {
+			return {
+				key,
+				environment,
+				kind: "incompletePlaceEntry",
+				missingField: "filePath",
+			};
+		}
 	}
 
 	return undefined;
@@ -189,6 +200,9 @@ function mergeKeyedRecord<Resolved extends object>(
 	base: Record<string, Partial<Resolved>> | undefined,
 ): Record<string, Resolved> | undefined {
 	if (overlay === undefined) {
+		// Same precondition as `mergeEntry`: passing the base record straight
+		// through is sound only when the caller validates completeness on the
+		// returned record before publishing it.
 		return base as Record<string, Resolved> | undefined;
 	}
 

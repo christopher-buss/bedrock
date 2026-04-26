@@ -165,8 +165,30 @@ describe(selectEnvironment, () => {
 		expect(result.data.passes?.["vip-pass"]?.name).toBe("VIP Pass");
 	});
 
-	it("should surface a brand-new overlay-only place entry when root has no matching key", () => {
-		expect.assertions(1);
+	it("should accept a brand-new overlay-only place entry when the overlay declares both filePath and placeId", () => {
+		expect.assertions(2);
+
+		const config: Config = {
+			environments: {
+				staging: {
+					places: {
+						"debug-place": { filePath: "places/debug.rbxl", placeId: "9999" },
+					},
+				},
+			},
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.places?.["debug-place"]?.placeId).toBe("9999");
+		expect(result.data.places?.["debug-place"]?.filePath).toBe("places/debug.rbxl");
+	});
+
+	it("should return Err(incompletePlaceEntry) for an overlay-only place that omits filePath", () => {
+		expect.assertions(4);
 
 		const config: Config = {
 			environments: {
@@ -177,9 +199,13 @@ describe(selectEnvironment, () => {
 
 		const result = selectEnvironment(config, "staging");
 
-		assert(result.success);
+		assert(!result.success);
+		assert(result.err.kind === "incompletePlaceEntry");
 
-		expect(result.data.places?.["debug-place"]).toStrictEqual({ placeId: "9999" });
+		expect(result.err.environment).toBe("staging");
+		expect(result.err.key).toBe("debug-place");
+		expect(result.err.missingField).toBe("filePath");
+		expect(result.err.kind).toBe("incompletePlaceEntry");
 	});
 
 	it("should surface an env-only universe entry when root has no universe block", () => {
