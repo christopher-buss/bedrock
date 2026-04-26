@@ -83,6 +83,7 @@ adds value for that slice.
 - Writing implementation before tests
 - Testing mock behavior instead of real behavior
 - Mocking without understanding dependencies
+- Suppressing surviving mutants with `Stryker disable` directives. Kill the mutation with a test or refactor the code so a test can observe it.
 
 ### Public API examples
 

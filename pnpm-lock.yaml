@@ -186,6 +186,9 @@ overrides:
   vitest: npm:@voidzero-dev/vite-plus-test@0.1.19
 
 patchedDependencies:
+  '@stryker-mutator/vitest-runner@9.6.1':
+    hash: da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63
+    path: patches/@stryker-mutator__vitest-runner@9.6.1.patch
   '@typescript/typescript6@6.0.0':
     hash: 5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4
     path: patches/@typescript__typescript6@6.0.0.patch
@@ -411,7 +414,7 @@ importers:
         version: 9.6.1(@stryker-mutator/core@9.6.1(@types/node@24.10.1))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
-        version: 9.6.1(@stryker-mutator/core@9.6.1(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19)
+        version: 9.6.1(patch_hash=da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63)(@stryker-mutator/core@9.6.1(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19)
       '@types/bun':
         specifier: catalog:types
         version: 1.3.4
@@ -450,7 +453,7 @@ importers:
         version: 9.6.1(@stryker-mutator/core@9.6.1(@types/node@24.10.1))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
-        version: 9.6.1(@stryker-mutator/core@9.6.1(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19)
+        version: 9.6.1(patch_hash=da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63)(@stryker-mutator/core@9.6.1(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19)
       '@types/bun':
         specifier: catalog:types
         version: 1.3.4
@@ -496,7 +499,7 @@ importers:
         version: 9.6.1(@stryker-mutator/core@9.6.1(@types/node@24.10.1))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
-        version: 9.6.1(@stryker-mutator/core@9.6.1(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19)
+        version: 9.6.1(patch_hash=da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63)(@stryker-mutator/core@9.6.1(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19)
       '@types/bun':
         specifier: catalog:types
         version: 1.3.4
@@ -8583,7 +8586,7 @@ snapshots:
 
   '@stryker-mutator/util@9.6.1': {}
 
-  '@stryker-mutator/vitest-runner@9.6.1(@stryker-mutator/core@9.6.1(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19)':
+  '@stryker-mutator/vitest-runner@9.6.1(patch_hash=da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63)(@stryker-mutator/core@9.6.1(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19)':
     dependencies:
       '@stryker-mutator/api': 9.6.1
       '@stryker-mutator/core': 9.6.1(@types/node@24.10.1)

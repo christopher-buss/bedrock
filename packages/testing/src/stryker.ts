@@ -9,6 +9,7 @@ interface TypescriptCheckerPluginOptions {
 export const sharedStrykerConfig = {
 	checkers: ["typescript"],
 	coverageAnalysis: "perTest",
+	ignoreStatic: true,
 	incremental: true,
 	incrementalFile: "reports/stryker-incremental.json",
 	mutate: ["src/**/*.ts", "!src/**/*.d.ts", "!src/**/*.spec.ts", "!src/**/*.spec-d.ts"],
