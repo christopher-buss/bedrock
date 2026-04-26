@@ -112,9 +112,13 @@ describe("RateLimitErrorOptions", () => {
 });
 
 describe("ValidationErrorCode", () => {
-	it("should equal the closed empty_body | empty_update | format_mismatch union", () => {
+	it("should equal the closed union of every supported validation code", () => {
 		expectTypeOf<ValidationErrorCode>().toEqualTypeOf<
-			"empty_body" | "empty_update" | "format_mismatch"
+			| "empty_body"
+			| "empty_image_ids"
+			| "empty_update"
+			| "format_mismatch"
+			| "invalid_image_id"
 		>();
 	});
 });
