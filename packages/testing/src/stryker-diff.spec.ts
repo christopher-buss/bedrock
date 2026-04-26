@@ -354,6 +354,25 @@ describe(groupByPackage, () => {
 		);
 	});
 
+	it("should accept package directories with Windows separators", () => {
+		expect.assertions(1);
+
+		const files = [
+			{ hunks: [{ endLine: 3, startLine: 3 }], path: "packages/bedrock/src/schema.ts" },
+		];
+
+		const grouped = groupByPackage(files, ["packages\\bedrock"]);
+
+		expect(grouped).toStrictEqual(
+			new Map([
+				[
+					"packages/bedrock",
+					[{ hunks: [{ endLine: 3, startLine: 3 }], path: "src/schema.ts" }],
+				],
+			]),
+		);
+	});
+
 	it("should drop files that fall outside every known package", () => {
 		expect.assertions(1);
 
@@ -427,6 +446,18 @@ describe(findPackagesWithChangedSpecs, () => {
 		expect(
 			findPackagesWithChangedSpecs(files, ["packages/foo", "packages/bar", "packages/baz"]),
 		).toStrictEqual(new Set(["packages/bar", "packages/foo"]));
+	});
+
+	it("should accept package directories with Windows separators when specs change", () => {
+		expect.assertions(1);
+
+		const files = [
+			{ hunks: [{ endLine: 1, startLine: 1 }], path: "packages/foo/src/a.spec.ts" },
+		];
+
+		expect(findPackagesWithChangedSpecs(files, ["packages\\foo"])).toStrictEqual(
+			new Set(["packages/foo"]),
+		);
 	});
 });
 

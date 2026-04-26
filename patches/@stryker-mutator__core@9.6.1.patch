@@ -1,0 +1,17 @@
+diff --git a/dist/src/mutants/mutant-test-planner.js b/dist/src/mutants/mutant-test-planner.js
+index 78a25f2c2f0f0f63e8d7b00c0ef58a40de67f6cf..e4a39172140e5142b4b219dd50431a489c214f7d 100644
+--- a/dist/src/mutants/mutant-test-planner.js
++++ b/dist/src/mutants/mutant-test-planner.js
+@@ -68,9 +68,9 @@ export class MutantTestPlanner {
+             // If there was coverage information (coverageAnalysis not "off")
+             const tests = this.testCoverage.testsByMutantId.get(mutant.id) ?? [];
+             const coveredBy = toTestIds(tests);
+-            if (!isStatic || (this.options.ignoreStatic && coveredBy.length)) {
+-                // If not static, or it was "hybrid" (both static and perTest coverage) and ignoreStatic is on.
+-                // Only run covered tests with mutant active during runtime
++            if (!isStatic) {
++                // Only run covered tests with mutant active during runtime. Static mutants
++                // execute during module loading, so runtime activation cannot observe them.
+                 const netTime = calculateTotalTime(tests);
+                 return this.createMutantRunPlan(mutant, {
+                     netTime,
