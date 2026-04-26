@@ -154,17 +154,26 @@ function createRateLimitError(response: Response): RateLimitError {
 	});
 }
 
+async function readResponseBody(response: Response): Promise<Result<unknown, OpenCloudError>> {
+	try {
+		const text = await response.text();
+		return { data: text === "" ? undefined : JSON.parse(text), success: true };
+	} catch {
+		return {
+			err: new ApiError("Failed to parse response body", { statusCode: response.status }),
+			success: false,
+		};
+	}
+}
+
 async function classifyResponse(response: Response): Promise<Result<HttpResponse, OpenCloudError>> {
 	if (response.status === 429) {
 		return { err: createRateLimitError(response), success: false };
 	}
 
-	const bodyResult = await tryCatch(response.json());
+	const bodyResult = await readResponseBody(response);
 	if (!bodyResult.success) {
-		return {
-			err: new ApiError("Failed to parse response body", { statusCode: response.status }),
-			success: false,
-		};
+		return bodyResult;
 	}
 
 	if (response.status >= 300) {
