@@ -1,6 +1,7 @@
 import type { Result } from "@bedrock/ocale";
 
 import { fakeClackPort } from "#tests/helpers/clack";
+import process from "node:process";
 import { assert, describe, expect, it, vi } from "vitest";
 
 import type { ResourceCurrentState } from "../../core/resources.ts";
@@ -212,26 +213,100 @@ describe(deployCommand, () => {
 	});
 
 	it("should thread --api-key and --github-token through getEnv into deploy", async () => {
+		expect.assertions(4);
+
+		vi.stubEnv("UNRELATED_VAR", "from-process-unrelated");
+
+		try {
+			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+			const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
+			const deps = makeDeps({ deploy, loadConfig });
+
+			await deployCommand(deps)({
+				"api-key": "ROBLOX_OVERRIDE",
+				"env": "production",
+				"github-token": "GH_OVERRIDE",
+			});
+
+			expect(deploy).toHaveBeenCalledOnce();
+
+			const firstCall = vi.mocked(deploy).mock.calls[0];
+			assert(firstCall !== undefined);
+
+			const [call] = firstCall;
+
+			expect(call.getEnv?.("ROBLOX_API_KEY")).toBe("ROBLOX_OVERRIDE");
+			expect(call.getEnv?.("GITHUB_TOKEN")).toBe("GH_OVERRIDE");
+			expect(call.getEnv?.("UNRELATED_VAR")).toBe("from-process-unrelated");
+		} finally {
+			vi.unstubAllEnvs();
+		}
+	});
+
+	it("should overlay each credential flag only on its named slot, not the other", async () => {
 		expect.assertions(3);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
-		const deps = makeDeps({ deploy, loadConfig });
+		vi.stubEnv("ROBLOX_API_KEY", "from-process-roblox");
+		vi.stubEnv("GITHUB_TOKEN", "from-process-github");
 
-		await deployCommand(deps)({
-			"api-key": "ROBLOX_OVERRIDE",
-			"env": "production",
-			"github-token": "GH_OVERRIDE",
-		});
+		try {
+			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+			const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
+			const deps = makeDeps({ deploy, loadConfig });
 
-		expect(deploy).toHaveBeenCalledOnce();
+			await deployCommand(deps)({ "api-key": "FLAG_ROBLOX", "env": "production" });
 
-		const firstCall = vi.mocked(deploy).mock.calls[0];
-		assert(firstCall !== undefined);
+			const firstCall = vi.mocked(deploy).mock.calls[0];
+			assert(firstCall !== undefined);
 
-		const [call] = firstCall;
+			const [call] = firstCall;
 
-		expect(call.getEnv?.("ROBLOX_API_KEY")).toBe("ROBLOX_OVERRIDE");
-		expect(call.getEnv?.("GITHUB_TOKEN")).toBe("GH_OVERRIDE");
+			expect(call.getEnv?.("ROBLOX_API_KEY")).toBe("FLAG_ROBLOX");
+			expect(call.getEnv?.("GITHUB_TOKEN")).toBe("from-process-github");
+			expect(call.getEnv?.("UNRELATED_VAR")).toBeUndefined();
+		} finally {
+			vi.unstubAllEnvs();
+		}
+	});
+
+	it("should fall back to process.env when neither --api-key nor --github-token is supplied", async () => {
+		expect.assertions(2);
+
+		vi.stubEnv("ROBLOX_API_KEY", "process-roblox");
+		vi.stubEnv("GITHUB_TOKEN", "process-github");
+
+		try {
+			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+			const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
+			const deps = makeDeps({ deploy, loadConfig });
+
+			await deployCommand(deps)({ env: "production" });
+
+			const firstCall = vi.mocked(deploy).mock.calls[0];
+			assert(firstCall !== undefined);
+
+			const [call] = firstCall;
+
+			expect(call.getEnv?.("ROBLOX_API_KEY")).toBe("process-roblox");
+			expect(call.getEnv?.("GITHUB_TOKEN")).toBe("process-github");
+		} finally {
+			vi.unstubAllEnvs();
+		}
+	});
+
+	it("should default to process.exit when no exit slot is provided", async () => {
+		expect.assertions(1);
+
+		const exitSpy = vi
+			.spyOn(process, "exit")
+			.mockImplementation((() => {}) as typeof process.exit);
+
+		try {
+			await deployCommand({ clack: fakeClackPort() })({});
+
+			expect(exitSpy).toHaveBeenCalledExactlyOnceWith(1);
+		} finally {
+			exitSpy.mockRestore();
+		}
 	});
 });
