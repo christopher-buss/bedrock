@@ -1,10 +1,21 @@
+import { createProg } from "#src/cli/index";
 import { Buffer } from "node:buffer";
+import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
 const manifest = require("../../../package.json") as { readonly version: string };
+
+// Static import keeps the CLI module's evaluation out of any individual
+// test's per-test coverage map. A `vi.resetModules() + await import(...)`
+// or even a plain dynamic import inside a test would attribute every
+// transitively-imported top-level statement to that test, classifying
+// genuinely-static schema mutants as "covered" (and surviving) instead
+// of "ignored" by `ignoreStatic`.
+const CLI_ENTRY = fileURLToPath(new URL("../../../src/cli/index.ts", import.meta.url));
 
 interface CapturedStreams {
 	readonly stderr: ReadonlyArray<string>;
@@ -52,25 +63,30 @@ function startCapture(): () => CapturedStreams {
 }
 
 describe("cli program factory", () => {
-	it("should not produce stdout or stderr writes during module evaluation", async () => {
-		expect.assertions(2);
+	// Spawn `bun` to import the CLI module in a fresh process so the test
+	// captures real side-effects of module evaluation. An in-process
+	// `vi.resetModules()` + dynamic import would attribute every
+	// transitively-imported top-level statement to this test under
+	// stryker's per-test coverage, classifying genuinely-static mutants
+	// (e.g. schema collection regex literals) as "covered" and surfacing
+	// them as Survived instead of Ignored.
+	it("should not produce stdout or stderr writes during module evaluation", () => {
+		expect.assertions(3);
 
-		vi.resetModules();
-		const collect = startCapture();
-		try {
-			await import("#src/cli/index");
-		} finally {
-			const { stderr, stdout } = collect();
+		const result = spawnSync(
+			"bun",
+			["--conditions", "source", "-e", `await import(${JSON.stringify(CLI_ENTRY)})`],
+			{ encoding: "utf8" },
+		);
 
-			expect(stdout.join("")).toBe("");
-			expect(stderr.join("")).toBe("");
-		}
+		expect(result.status).toBe(0);
+		expect(result.stdout).toBe("");
+		expect(result.stderr).toBe("");
 	});
 
-	it("should print 'bedrock, <pkg.version>' when --version is parsed", async () => {
+	it("should print 'bedrock, <pkg.version>' when --version is parsed", () => {
 		expect.assertions(2);
 
-		const { createProg } = await import("#src/cli/index");
 		const prog = createProg();
 
 		const collect = startCapture();
@@ -85,10 +101,9 @@ describe("cli program factory", () => {
 		}
 	});
 
-	it("should describe the program in --help output", async () => {
+	it("should describe the program in --help output", () => {
 		expect.assertions(2);
 
-		const { createProg } = await import("#src/cli/index");
 		const prog = createProg();
 
 		const collect = startCapture();
@@ -103,10 +118,9 @@ describe("cli program factory", () => {
 		}
 	});
 
-	it("should describe the deploy subcommand and each of its flags in 'deploy --help' output", async () => {
+	it("should describe the deploy subcommand and each of its flags in 'deploy --help' output", () => {
 		expect.assertions(5);
 
-		const { createProg } = await import("#src/cli/index");
 		const prog = createProg();
 
 		const collect = startCapture();
@@ -124,10 +138,9 @@ describe("cli program factory", () => {
 		}
 	});
 
-	it("should describe the diff subcommand and each of its flags in 'diff --help' output", async () => {
+	it("should describe the diff subcommand and each of its flags in 'diff --help' output", () => {
 		expect.assertions(5);
 
-		const { createProg } = await import("#src/cli/index");
 		const prog = createProg();
 
 		const collect = startCapture();
