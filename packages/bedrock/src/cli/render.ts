@@ -74,7 +74,7 @@ export function createClackPort(): ClackPort {
 	};
 }
 
-/* eslint-disable-next-line max-lines-per-function -- single exhaustive switch over ten DeployError variants is clearer than splitting into a wrapped-vs-unwrapped predicate plus a parallel prefix table. */
+/* eslint-disable-next-line max-lines-per-function -- single exhaustive switch over every DeployError variant is clearer than splitting into a wrapped-vs-unwrapped predicate plus a parallel prefix table. */
 function deployErrorMessage(err: DeployError): string {
 	switch (err.kind) {
 		case "applyFailed": {
@@ -85,6 +85,9 @@ function deployErrorMessage(err: DeployError): string {
 		}
 		case "configLoadFailed": {
 			return `config load failed (${err.cause.kind})`;
+		}
+		case "incompletePlaceEntry": {
+			return `place '${err.key}' is missing '${err.missingField}' under environment '${err.environment}'`;
 		}
 		case "missingCredential": {
 			return `missing credential: environment variable ${err.variable} is not set`;

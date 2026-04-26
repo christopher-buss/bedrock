@@ -194,6 +194,15 @@ describe(renderDeployError, () => {
 			},
 			expected: "apply failed (updateUnsupported)",
 		},
+		{
+			err: {
+				key: "main-place",
+				environment: "production",
+				kind: "incompletePlaceEntry",
+				missingField: "placeId",
+			},
+			expected: "place 'main-place' is missing 'placeId' under environment 'production'",
+		},
 	])("should render $err.kind via logError with a kind-specific message", ({ err, expected }) => {
 		expect.assertions(1);
 
