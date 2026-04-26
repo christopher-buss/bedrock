@@ -20,7 +20,7 @@ const START_PLACE: PlaceEntry = {
 
 describe(selectEnvironment, () => {
 	it("should return Err(unknownEnvironment) when the env name is not declared", () => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		const config: Config = {
 			environments: { production: {} },
@@ -30,25 +30,25 @@ describe(selectEnvironment, () => {
 		const result = selectEnvironment(config, "staging");
 
 		assert(!result.success);
-		assert(result.err.kind === "unknownEnvironment");
 
+		expect(result.err.kind).toBe("unknownEnvironment");
 		expect(result.err.environment).toBe("staging");
 		expect(result.err.declared).toStrictEqual(["production"]);
 	});
 
-	it("should propagate Err(stateNotConfigured) when neither env nor root provides state", () => {
+	it("should leave state absent when neither env nor root declares it", () => {
 		expect.assertions(1);
 
 		const config: Config = { environments: { production: {} } };
 
 		const result = selectEnvironment(config, "production");
 
-		assert(!result.success);
+		assert(result.success);
 
-		expect(result.err.kind).toBe("stateNotConfigured");
+		expect(result.data.state).toBeUndefined();
 	});
 
-	it("should resolve state from the env override when both root and env declare state", () => {
+	it("should prefer the env state override when both root and env declare state", () => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -214,7 +214,7 @@ describe(selectEnvironment, () => {
 		expect(result.data.places).toStrictEqual({ "start-place": START_PLACE });
 	});
 
-	it("should strip environments and extends from the EffectiveConfig output", () => {
+	it("should preserve environments and extends so the returned shape stays assignable to Config", () => {
 		expect.assertions(2);
 
 		const config: Config = {
@@ -227,7 +227,7 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data).not.toContainKey("environments");
-		expect(result.data).not.toContainKey("extends");
+		expect(result.data.environments).toContainKey("production");
+		expect(result.data.extends).toBe("./base.config.ts");
 	});
 });

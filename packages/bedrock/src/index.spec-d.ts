@@ -193,6 +193,7 @@ describe(deploy, () => {
 			| "stateNotConfigured"
 			| "stateReadFailed"
 			| "stateWriteFailed"
+			| "unknownEnvironment"
 			| "unsupportedBackend"
 		>();
 	});
