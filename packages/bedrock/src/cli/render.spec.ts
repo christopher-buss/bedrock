@@ -6,7 +6,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { DeployError } from "../shell/deploy.ts";
 import { asResourceKey } from "../types/ids.ts";
-import { type ClackPort, createClackPort, renderDeployError } from "./render.ts";
+import type { ParseOptionsError } from "./parse-options.ts";
+import { type ClackPort, createClackPort, renderDeployError, renderParseError } from "./render.ts";
 
 interface CapturedOutput {
 	readonly text: string;
@@ -209,6 +210,31 @@ describe(renderDeployError, () => {
 		const port = fakeClackPort();
 
 		renderDeployError(err, port);
+
+		expect(port.logError).toHaveBeenCalledExactlyOnceWith(expected);
+	});
+});
+
+describe(renderParseError, () => {
+	it.for<{ err: ParseOptionsError; expected: string }>([
+		{
+			err: { flag: "env", kind: "missingRequired" },
+			expected: "missing required flag --env",
+		},
+		{
+			err: { flag: "verbose", kind: "unknownFlag" },
+			expected: "unknown flag '--verbose'",
+		},
+		{
+			err: { flag: "env", kind: "invalidValue" },
+			expected: "invalid value for flag '--env' (expected a string)",
+		},
+	])("should render $err.kind via logError with a flag-specific message", ({ err, expected }) => {
+		expect.assertions(1);
+
+		const port = fakeClackPort();
+
+		renderParseError(err, port);
 
 		expect(port.logError).toHaveBeenCalledExactlyOnceWith(expected);
 	});

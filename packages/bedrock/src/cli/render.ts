@@ -1,6 +1,7 @@
 import { cancel, intro, log, outro } from "@clack/prompts";
 
 import type { DeployError } from "../shell/deploy.ts";
+import type { ParseOptionsError } from "./parse-options.ts";
 
 /**
  * Output port the CLI renders through. Mirrors the subset of `@clack/prompts`
@@ -37,6 +38,17 @@ export function renderDeployError(err: DeployError, port: ClackPort): void {
 }
 
 /**
+ * Render a `ParseOptionsError` to the supplied `ClackPort` as a single
+ * error line. Each variant names the offending flag so the diagnostic
+ * pinpoints what the caller needs to change.
+ * @param err - The parse error to describe.
+ * @param port - The output port the diagnostic is written to.
+ */
+export function renderParseError(err: ParseOptionsError, port: ClackPort): void {
+	port.logError(parseErrorMessage(err));
+}
+
+/**
  * Construct a `ClackPort` whose methods delegate to `@clack/prompts`. The
  * resulting port writes to `process.stdout` via clack's defaults.
  * @returns A port whose six methods each invoke the matching clack helper.
@@ -62,6 +74,24 @@ export function createClackPort(): ClackPort {
 			outro(message);
 		},
 	};
+}
+
+function parseErrorMessage(err: ParseOptionsError): string {
+	switch (err.kind) {
+		case "invalidValue": {
+			return `invalid value for flag '--${err.flag}' (expected a string)`;
+		}
+		case "missingRequired": {
+			return `missing required flag --${err.flag}`;
+		}
+		case "unknownFlag": {
+			return `unknown flag '--${err.flag}'`;
+		}
+		default: {
+			const exhaustive: never = err;
+			return exhaustive;
+		}
+	}
 }
 
 function formatUnknownEnvironment(environment: string, declared: ReadonlyArray<string>): string {
