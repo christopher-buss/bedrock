@@ -182,6 +182,93 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "price"]);
 	});
 
+	it("should accept a products collection with a valid developer-product entry", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				products: {
+					"gem-pack": {
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.products!["gem-pack"]!.name).toBe("Gem Pack");
+	});
+
+	it("should reject a products key that does not match the ResourceKey pattern and attribute the issue path to that key", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				products: {
+					"bad key!": {
+						name: "Bad",
+						description: "Invalid key.",
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["products", "bad key!"]);
+	});
+
+	it("should reject a products entry missing a required field and attribute the issue path to that field", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				products: {
+					"gem-pack": {
+						name: "Gem Pack",
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["products", "gem-pack", "description"]);
+	});
+
+	it("should reject an undeclared field on a root products entry", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				products: {
+					"gem-pack": {
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+						price: 100,
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["products", "gem-pack", "price"]);
+	});
+
 	it("should accept a root places collection that declares only filePath", () => {
 		expect.assertions(1);
 
@@ -879,6 +966,87 @@ describe(validateConfig, () => {
 		);
 
 		expect(result.success).toBeTrue();
+	});
+
+	it("should accept a per-environment products overlay that supplies a partial subset of fields", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: { products: { "gem-pack": { name: "Staging Gem Pack" } } },
+				},
+				products: {
+					"gem-pack": {
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.environments["staging"]?.products?.["gem-pack"]?.name).toBe(
+			"Staging Gem Pack",
+		);
+	});
+
+	it("should reject an undeclared field inside a per-environment products overlay entry", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: {
+						products: {
+							"gem-pack": { name: "Gem Pack", price: 100 },
+						},
+					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"staging",
+			"products",
+			"gem-pack",
+			"price",
+		]);
+	});
+
+	it("should reject a per-environment products overlay key that does not match the ResourceKey pattern", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: {
+						products: { "bad key!": { name: "Bad" } },
+					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"staging",
+			"products",
+			"bad key!",
+		]);
 	});
 
 	it("should accept a per-environment passes overlay that supplies a partial subset of fields", () => {

@@ -64,7 +64,7 @@ describe(createDeveloperProductDriver, () => {
 		});
 	});
 
-	it("should populate iconImageAssetId only when the response carries one", async () => {
+	it("should omit iconImageAssetId from the outputs key set when the response carries no icon", async () => {
 		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
@@ -81,8 +81,11 @@ describe(createDeveloperProductDriver, () => {
 
 		assert(result.success);
 
-		expect(result.data.outputs.productId).toBeDefined();
-		expect(result.data.outputs.iconImageAssetId).toBeUndefined();
+		// `toStrictEqual` distinguishes a missing key from a key present
+		// with undefined value; the driver must produce the former so
+		// state-file diffs do not record a phantom iconImageAssetId.
+		expect(result.data.outputs).toStrictEqual({ productId: String(noIconBody.productId) });
+		expect("iconImageAssetId" in result.data.outputs).toBeFalse();
 	});
 
 	it("should POST to the Open Cloud create-developer-product endpoint for the configured universe", async () => {
