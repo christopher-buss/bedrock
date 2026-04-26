@@ -1,5 +1,7 @@
 import { cancel, intro, log, outro } from "@clack/prompts";
 
+import type { DeployError } from "../shell/deploy.ts";
+
 /**
  * Output port the CLI renders through. Mirrors the subset of `@clack/prompts`
  * the bedrock CLI uses today; tests inject a fake to assert what was rendered.
@@ -17,6 +19,21 @@ export interface ClackPort {
 	logSuccess(message: string): void;
 	/** Close the current framed section with a final message. */
 	outro(message: string): void;
+}
+
+type WrappedDeployError = Extract<DeployError, { readonly cause: { readonly kind: string } }>;
+
+/**
+ * Render a `DeployError` to the supplied `ClackPort` as a single error line.
+ * Each variant produces a distinct, terse diagnostic; wrapped variants
+ * (`applyFailed`, `buildDesiredFailed`, `configLoadFailed`, `stateReadFailed`,
+ * `stateWriteFailed`) include the inner cause's `kind` so the reader can
+ * distinguish the failing stage without inspecting the full cause.
+ * @param err - The deploy error to describe.
+ * @param port - The output port the diagnostic is written to.
+ */
+export function renderDeployError(err: DeployError, port: ClackPort): void {
+	port.logError(deployErrorMessage(err));
 }
 
 /**
@@ -45,4 +62,54 @@ export function createClackPort(): ClackPort {
 			outro(message);
 		},
 	};
+}
+
+function formatUnknownEnvironment(environment: string, declared: ReadonlyArray<string>): string {
+	return `unknown environment '${environment}' (declared: ${declared.join(", ")})`;
+}
+
+function isWrappedDeployError(err: DeployError): err is WrappedDeployError {
+	return (
+		err.kind === "applyFailed" ||
+		err.kind === "buildDesiredFailed" ||
+		err.kind === "configLoadFailed" ||
+		err.kind === "stateReadFailed" ||
+		err.kind === "stateWriteFailed"
+	);
+}
+
+const WRAPPED_PREFIX: Record<WrappedDeployError["kind"], string> = {
+	applyFailed: "apply failed",
+	buildDesiredFailed: "build desired state failed",
+	configLoadFailed: "config load failed",
+	stateReadFailed: "state read failed",
+	stateWriteFailed: "state write failed",
+};
+
+function deployErrorMessage(err: DeployError): string {
+	if (isWrappedDeployError(err)) {
+		return `${WRAPPED_PREFIX[err.kind]} (${err.cause.kind})`;
+	}
+
+	switch (err.kind) {
+		case "missingCredential": {
+			return `missing credential: environment variable ${err.variable} is not set`;
+		}
+		case "registryConfigMissing": {
+			return `registry config missing '${err.missing}' (${err.hint})`;
+		}
+		case "stateNotConfigured": {
+			return `state not configured for environment '${err.environment}'`;
+		}
+		case "unknownEnvironment": {
+			return formatUnknownEnvironment(err.environment, err.declared);
+		}
+		case "unsupportedBackend": {
+			return `unsupported state backend '${err.backend}' (${err.hint})`;
+		}
+		default: {
+			const exhaustive: never = err;
+			return exhaustive;
+		}
+	}
 }

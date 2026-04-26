@@ -4,10 +4,23 @@ import { Buffer } from "node:buffer";
 import process from "node:process";
 import { describe, expect, it, vi } from "vitest";
 
-import { type ClackPort, createClackPort } from "./render.ts";
+import type { DeployError } from "../shell/deploy.ts";
+import { asResourceKey } from "../types/ids.ts";
+import { type ClackPort, createClackPort, renderDeployError } from "./render.ts";
 
 interface CapturedOutput {
 	readonly text: string;
+}
+
+function fakeClackPort(): ClackPort {
+	return {
+		cancel: vi.fn<ClackPort["cancel"]>(),
+		intro: vi.fn<ClackPort["intro"]>(),
+		logError: vi.fn<ClackPort["logError"]>(),
+		logMessage: vi.fn<ClackPort["logMessage"]>(),
+		logSuccess: vi.fn<ClackPort["logSuccess"]>(),
+		outro: vi.fn<ClackPort["outro"]>(),
+	};
 }
 
 function captureWith(act: (port: ClackPort) => void): CapturedOutput {
@@ -103,5 +116,100 @@ describe(createClackPort, () => {
 		expect(text).not.toContain(S_SUCCESS);
 		expect(text).not.toContain(S_ERROR);
 		expect(text).not.toContain(S_BAR_END);
+	});
+});
+
+describe(renderDeployError, () => {
+	it.for<{ err: DeployError; expected: string }>([
+		{
+			err: {
+				declared: ["production", "staging"],
+				environment: "foo",
+				kind: "unknownEnvironment",
+			},
+			expected: "unknown environment 'foo' (declared: production, staging)",
+		},
+		{
+			err: { environment: "production", kind: "stateNotConfigured" },
+			expected: "state not configured for environment 'production'",
+		},
+		{
+			err: {
+				kind: "missingCredential",
+				purpose: "stateBackend",
+				variable: "GITHUB_TOKEN",
+			},
+			expected: "missing credential: environment variable GITHUB_TOKEN is not set",
+		},
+		{
+			err: {
+				backend: "s3",
+				hint: "pass a custom statePort via opts.statePort",
+				kind: "unsupportedBackend",
+			},
+			expected: "unsupported state backend 's3' (pass a custom statePort via opts.statePort)",
+		},
+		{
+			err: {
+				hint: "set universe.universeId in your bedrock config",
+				kind: "registryConfigMissing",
+				missing: "universeId",
+			},
+			expected:
+				"registry config missing 'universeId' (set universe.universeId in your bedrock config)",
+		},
+		{
+			err: {
+				cause: { kind: "fileNotFound", searchedFrom: "/projects/example" },
+				kind: "configLoadFailed",
+			},
+			expected: "config load failed (fileNotFound)",
+		},
+		{
+			err: {
+				cause: {
+					key: asResourceKey("main-place"),
+					filePath: "/projects/example/place.rbxl",
+					kind: "fileReadFailed",
+					reason: "ENOENT",
+				},
+				kind: "buildDesiredFailed",
+			},
+			expected: "build desired state failed (fileReadFailed)",
+		},
+		{
+			err: {
+				cause: { file: "state.json", kind: "stateError", reason: "invalid json" },
+				kind: "stateReadFailed",
+			},
+			expected: "state read failed (stateError)",
+		},
+		{
+			err: {
+				cause: { file: "state.json", kind: "stateError", reason: "network error" },
+				kind: "stateWriteFailed",
+				unsavedState: { environment: "production", resources: [], version: 1 },
+			},
+			expected: "state write failed (stateError)",
+		},
+		{
+			err: {
+				cause: {
+					key: asResourceKey("vip-pass"),
+					appliedSoFar: [],
+					kind: "updateUnsupported",
+				},
+				kind: "applyFailed",
+			},
+			expected: "apply failed (updateUnsupported)",
+		},
+	])("should render $err.kind via logError with a kind-specific message", ({ err, expected }) => {
+		expect.assertions(1);
+
+		const port = fakeClackPort();
+
+		renderDeployError(err, port);
+
+		expect(port.logError).toHaveBeenCalledExactlyOnceWith(expected);
 	});
 });
