@@ -91,3 +91,36 @@ describe("EnvironmentEntry overlay derivation", () => {
 		expectTypeOf<keyof UniverseOverlayEntry>().toEqualTypeOf<keyof UniverseEntry>();
 	});
 });
+
+// Two Config keys are deliberately not environment-overridable. Adding to or
+// removing from this union is the explicit way to opt new fields out of the
+// per-environment overlay surface.
+type NonOverridableConfigKey = "environments" | "extends";
+type OverridableConfigKey = Exclude<keyof Config, NonOverridableConfigKey>;
+type EnvironmentEntryKey = keyof Required<EnvironmentEntry>;
+
+type MissingOverlayKeys = Exclude<OverridableConfigKey, EnvironmentEntryKey>;
+type ExtraOverlayKeys = Exclude<EnvironmentEntryKey, OverridableConfigKey>;
+
+// Compile-time assertions surface as descriptive string-literal types when
+// they fail. `MissingOverlayKeys` and `ExtraOverlayKeys` should both be
+// `never`; if a contributor adds a Config field without declaring an
+// overlay for it (or vice versa), the assertion's failed type names the
+// offending key directly in the error message.
+type AssertNoMissingOverlay = [MissingOverlayKeys] extends [never]
+	? true
+	: `EnvironmentEntry is missing an overlay field for Config keys: ${Extract<MissingOverlayKeys, string>}. Add the field with the correct overlay shape, or add the key name to NonOverridableConfigKey if it should be deliberately excluded.`;
+
+type AssertNoExtraOverlay = [ExtraOverlayKeys] extends [never]
+	? true
+	: `EnvironmentEntry declares overlay fields for keys not present in Config's overridable set: ${Extract<ExtraOverlayKeys, string>}. Either remove the field, add the corresponding Config field, or move the key out of NonOverridableConfigKey.`;
+
+describe("EnvironmentEntry exhaustiveness", () => {
+	it("should declare an overlay field for every overridable Config key", () => {
+		expectTypeOf<AssertNoMissingOverlay>().toEqualTypeOf<true>();
+	});
+
+	it("should not declare overlay fields for keys outside Config's overridable set", () => {
+		expectTypeOf<AssertNoExtraOverlay>().toEqualTypeOf<true>();
+	});
+});
