@@ -19,10 +19,9 @@ import {
 	type FakeHttpClient,
 	validGamePassBody,
 } from "@bedrock/ocale/testing";
+import { HAS_LUTE } from "@bedrock/testing/lute";
 
-import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
-import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
 
@@ -31,15 +30,6 @@ const TYPESCRIPT_FIXTURE_DIR = join(FIXTURES_ROOT, "typescript");
 const ICON_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
 const VIP_PASS_KEY = "vip-pass";
-
-const HAS_LUTE = (() => {
-	if ((process.env["BEDROCK_LUTE_PATH"] ?? "").length > 0) {
-		return true;
-	}
-
-	const lookup = process.platform === "win32" ? "where" : "which";
-	return spawnSync(lookup, ["lute"]).status === 0;
-})();
 
 const SUPPORTED_FORMATS = (
 	HAS_LUTE

@@ -12,6 +12,7 @@
 	"type": "module",
 	"exports": {
 		"./jest-extended": "./src/jest-extended.ts",
+		"./lute": "./src/lute.ts",
 		"./stryker": "./src/stryker.ts",
 		"./stryker-diff": "./src/stryker-diff.ts"
 	},

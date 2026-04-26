@@ -1,4 +1,5 @@
-import { spawnSync } from "node:child_process";
+import { HAS_LUTE } from "@bedrock/testing/lute";
+
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,15 +7,6 @@ import process from "node:process";
 import { assert, describe, expect, it } from "vitest";
 
 import { loadConfig } from "./load-config.ts";
-
-const HAS_LUTE = (() => {
-	if ((process.env["BEDROCK_LUTE_PATH"] ?? "").length > 0) {
-		return true;
-	}
-
-	const lookup = process.platform === "win32" ? "where" : "which";
-	return spawnSync(lookup, ["lute"]).status === 0;
-})();
 
 async function withTemporaryDirectory<T>(run: (directory: string) => Promise<T>): Promise<T> {
 	const directory = mkdtempSync(join(tmpdir(), "bedrock-load-config-"));
