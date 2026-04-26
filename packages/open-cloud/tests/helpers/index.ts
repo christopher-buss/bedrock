@@ -1,3 +1,4 @@
+export { validDeveloperProductBody } from "./developer-products.ts";
 export { validIconListBody, validLocalizedIcon } from "./experience-icon.ts";
 export { validThumbnailUploadBody } from "./experience-thumbnails.ts";
 export {
