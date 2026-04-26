@@ -4,6 +4,8 @@ import { describe, expectTypeOf, it } from "vitest";
 
 import type { ResourceKey, RobloxAssetId, Sha256Hex } from "../types/ids.ts";
 import type {
+	DeveloperProductDesiredState,
+	DeveloperProductOutputs,
 	GamePassDesiredState,
 	GamePassOutputs,
 	PlaceDesiredState,
@@ -99,20 +101,37 @@ describe("ResourceDesiredState", () => {
 		>().toEqualTypeOf<UniverseDesiredState>();
 	});
 
+	it("should narrow to DeveloperProductDesiredState when kind is developerProduct", () => {
+		expectTypeOf<
+			Extract<ResourceDesiredState, { kind: "developerProduct" }>
+		>().toEqualTypeOf<DeveloperProductDesiredState>();
+	});
+
 	it("should be the union of every managed resource kind", () => {
 		expectTypeOf<ResourceDesiredState>().toEqualTypeOf<
-			GamePassDesiredState | PlaceDesiredState | UniverseDesiredState
+			| DeveloperProductDesiredState
+			| GamePassDesiredState
+			| PlaceDesiredState
+			| UniverseDesiredState
 		>();
 	});
 });
 
 describe("ResourceKind", () => {
 	it("should include every managed discriminator", () => {
-		expectTypeOf<ResourceKind>().toEqualTypeOf<"gamePass" | "place" | "universe">();
+		expectTypeOf<ResourceKind>().toEqualTypeOf<
+			"developerProduct" | "gamePass" | "place" | "universe"
+		>();
 	});
 });
 
 describe("ResourceOutputsByKind", () => {
+	it("should map the developerProduct kind to DeveloperProductOutputs", () => {
+		expectTypeOf<
+			ResourceOutputsByKind["developerProduct"]
+		>().toEqualTypeOf<DeveloperProductOutputs>();
+	});
+
 	it("should map the place kind to PlaceOutputs", () => {
 		expectTypeOf<ResourceOutputsByKind["place"]>().toEqualTypeOf<PlaceOutputs>();
 	});
@@ -127,6 +146,12 @@ describe("ResourceOutputsByKind", () => {
 });
 
 describe("ResourceOutputs", () => {
+	it("should resolve developerProduct to DeveloperProductOutputs", () => {
+		expectTypeOf<
+			ResourceOutputs<"developerProduct">
+		>().toEqualTypeOf<DeveloperProductOutputs>();
+	});
+
 	it("should resolve gamePass to GamePassOutputs", () => {
 		expectTypeOf<ResourceOutputs<"gamePass">>().toEqualTypeOf<GamePassOutputs>();
 	});
@@ -147,7 +172,14 @@ describe("ResourceOutputs", () => {
 	});
 });
 
-describe("ResourceCurrentState", () => {
+describe("ResourceCurrentState per-kind narrowing", () => {
+	it("should attach DeveloperProductOutputs under outputs when narrowed to developerProduct", () => {
+		type Current = ResourceCurrentState<"developerProduct">;
+		expectTypeOf<Current["kind"]>().toEqualTypeOf<"developerProduct">();
+		expectTypeOf<Current["outputs"]>().toEqualTypeOf<DeveloperProductOutputs>();
+		expectTypeOf<Current>().toExtend<DeveloperProductDesiredState>();
+	});
+
 	it("should attach GamePassOutputs under outputs when narrowed to gamePass", () => {
 		type Current = ResourceCurrentState<"gamePass">;
 		expectTypeOf<Current["kind"]>().toEqualTypeOf<"gamePass">();
@@ -168,9 +200,12 @@ describe("ResourceCurrentState", () => {
 		expectTypeOf<Current["outputs"]>().toEqualTypeOf<UniverseOutputs>();
 		expectTypeOf<Current>().toExtend<UniverseDesiredState>();
 	});
+});
 
+describe("ResourceCurrentState distribution", () => {
 	it("should distribute over K so the default union stays per-kind", () => {
 		expectTypeOf<ResourceCurrentState>().toEqualTypeOf<
+			| ResourceCurrentState<"developerProduct">
 			| ResourceCurrentState<"gamePass">
 			| ResourceCurrentState<"place">
 			| ResourceCurrentState<"universe">

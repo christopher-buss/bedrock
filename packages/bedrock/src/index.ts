@@ -1,3 +1,7 @@
+export {
+	createDeveloperProductDriver,
+	type DeveloperProductDriverDeps,
+} from "./adapters/developer-product-driver.ts";
 export { createGamePassDriver, type GamePassDriverDeps } from "./adapters/game-pass-driver.ts";
 export {
 	createGistStateAdapter,
@@ -10,6 +14,7 @@ export { diff } from "./core/diff.ts";
 export { validateEnvironmentName } from "./core/environment.ts";
 export {
 	flattenConfig,
+	type DeveloperProductDesiredInput,
 	type GamePassDesiredInput,
 	type PlaceDesiredInput,
 	type ResourceDesiredInput,
@@ -33,6 +38,8 @@ export { resolveStateConfig, type StateNotConfiguredError } from "./core/resolve
 export {
 	SOCIAL_LINK_FIELDS,
 	UNIVERSE_SINGLETON_KEY,
+	type DeveloperProductDesiredState,
+	type DeveloperProductOutputs,
 	type GamePassDesiredState,
 	type GamePassOutputs,
 	type PlaceDesiredState,
@@ -50,6 +57,7 @@ export {
 	isGistStateConfig,
 	validateConfig,
 	type Config,
+	type DeveloperProductEntry,
 	type EnvironmentEntry,
 	type GamePassEntry,
 	type GistStateConfig,

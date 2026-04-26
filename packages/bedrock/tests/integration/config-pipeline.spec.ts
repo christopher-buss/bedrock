@@ -67,8 +67,15 @@ const UNIVERSE_STUB: ResourceDriver<"universe"> = {
 	},
 };
 
+const DEVELOPER_PRODUCT_STUB: ResourceDriver<"developerProduct"> = {
+	async create() {
+		throw new Error("DeveloperProductDriver.create must not run for game-pass fixtures");
+	},
+};
+
 function makeLiveRegistry(httpClient: FakeHttpClient): DriverRegistry {
 	return {
+		developerProduct: DEVELOPER_PRODUCT_STUB,
 		gamePass: createGamePassDriver({
 			client: new GamePassesClient({
 				apiKey: "test-key",
@@ -194,6 +201,7 @@ describe("config pipeline end-to-end", () => {
 		expect(ops.map((op) => op.type)).toStrictEqual(["noop"]);
 
 		const trapRegistry: DriverRegistry = {
+			developerProduct: DEVELOPER_PRODUCT_STUB,
 			gamePass: {
 				create() {
 					throw new Error("GamePassDriver.create must not run for noop ops");

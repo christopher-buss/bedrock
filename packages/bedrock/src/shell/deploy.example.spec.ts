@@ -30,6 +30,11 @@ it('Example 2', () => {
     },
   }
   const registry: DriverRegistry = {
+    developerProduct: {
+      create: async () => {
+        throw new Error('unreachable: empty config')
+      },
+    },
     gamePass: {
       create: async () => {
         throw new Error('unreachable: empty config')

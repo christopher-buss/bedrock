@@ -25,6 +25,12 @@ const RBXL_BYTES = new Uint8Array([
 	0x3c, 0x72, 0x6f, 0x62, 0x6c, 0x6f, 0x78, 0x21, 0x89, 0xff, 0x0d, 0x0a, 0x1a, 0x0a,
 ]);
 
+const DEVELOPER_PRODUCT_TRAP: ResourceDriver<"developerProduct"> = {
+	create() {
+		throw new Error("DeveloperProductDriver.create must not run for place fixtures");
+	},
+};
+
 const GAME_PASS_TRAP: ResourceDriver<"gamePass"> = {
 	create() {
 		throw new Error("GamePassDriver.create must not run for place fixtures");
@@ -60,6 +66,7 @@ describe("places pipeline end-to-end", () => {
 		});
 
 		const registry: DriverRegistry = {
+			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: GAME_PASS_TRAP,
 			place: createPlaceDriver({
 				client: new PlacesClient({

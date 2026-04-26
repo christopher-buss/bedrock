@@ -1,4 +1,5 @@
 import type {
+	DeveloperProductDesiredState,
 	GamePassDesiredState,
 	PlaceDesiredState,
 	ResourceCurrentState,
@@ -95,6 +96,44 @@ export function placeCurrent(
 	return {
 		...placeDesired(),
 		outputs: { versionNumber: 1 },
+		...overrides,
+	};
+}
+
+/**
+ * Builds a default {@link DeveloperProductDesiredState} fixture. Pass an
+ * `overrides` object to tweak individual fields without re-stating the
+ * defaults.
+ *
+ * @param overrides - Fields to override on the default fixture.
+ * @returns A desired-state fixture with the overrides applied.
+ */
+export function developerProductDesired(
+	overrides?: Partial<DeveloperProductDesiredState>,
+): DeveloperProductDesiredState {
+	return {
+		key: asResourceKey("gem-pack"),
+		name: "Gem Pack",
+		description: "Stocks the player up with 1,000 premium gems.",
+		kind: "developerProduct",
+		...overrides,
+	};
+}
+
+/**
+ * Builds a default {@link ResourceCurrentState} fixture for the
+ * `developerProduct` kind. Pass an `overrides` object to tweak individual
+ * fields without re-stating the defaults.
+ *
+ * @param overrides - Fields to override on the default fixture.
+ * @returns A current-state fixture with the overrides applied.
+ */
+export function developerProductCurrent(
+	overrides?: Partial<ResourceCurrentState<"developerProduct">>,
+): ResourceCurrentState<"developerProduct"> {
+	return {
+		...developerProductDesired(),
+		outputs: { productId: asRobloxAssetId("8172635495") },
 		...overrides,
 	};
 }

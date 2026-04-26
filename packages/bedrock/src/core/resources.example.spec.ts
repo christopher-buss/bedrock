@@ -8,6 +8,7 @@ import {
   type PlaceDesiredState,
   UNIVERSE_SINGLETON_KEY,
   type UniverseDesiredState,
+  type DeveloperProductDesiredState,
   type ResourceOutputsByKind,
   type ResourceCurrentState,
 } from '@bedrock/core'
@@ -69,6 +70,17 @@ it('Example 3', () => {
 })
 
 it('Example 4', () => {
+  const product: DeveloperProductDesiredState = {
+    description: 'Stocks the player up with 1,000 premium gems.',
+    key: asResourceKey('gem-pack'),
+    kind: 'developerProduct',
+    name: 'Gem Pack',
+  }
+  expect(product.kind).toBe('developerProduct')
+  expect(product.name).toBe('Gem Pack')
+})
+
+it('Example 5', () => {
   const outputs: ResourceOutputsByKind['gamePass'] = {
     assetId: asRobloxAssetId('9876543210'),
     iconAssetId: asRobloxAssetId('1122334455'),
@@ -76,7 +88,7 @@ it('Example 4', () => {
   expect(outputs.assetId).toBe('9876543210')
 })
 
-it('Example 5', () => {
+it('Example 6', () => {
   const current: ResourceCurrentState<'gamePass'> = {
     description: 'Grants VIP perks.',
     iconFileHash: asSha256Hex(
@@ -96,6 +108,6 @@ it('Example 5', () => {
   expect(current.kind).toBe('gamePass')
 })
 
-it('Example 6', () => {
+it('Example 7', () => {
   expect(UNIVERSE_SINGLETON_KEY).toBe('main')
 })

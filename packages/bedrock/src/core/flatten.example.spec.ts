@@ -7,6 +7,7 @@ import {
   type PlaceDesiredInput,
   UNIVERSE_SINGLETON_KEY,
   type UniverseDesiredInput,
+  type DeveloperProductDesiredInput,
   flattenConfig,
   selectEnvironment,
   type Config,
@@ -54,6 +55,16 @@ it('Example 3', () => {
 })
 
 it('Example 4', () => {
+  const input: DeveloperProductDesiredInput = {
+    description: 'Stocks the player up with 1,000 premium gems.',
+    key: asResourceKey('gem-pack'),
+    kind: 'developerProduct',
+    name: 'Gem Pack',
+  }
+  expect(input.kind).toBe('developerProduct')
+})
+
+it('Example 5', () => {
   const config: Config = {
     environments: {
       production: { places: { 'start-place': { placeId: '4711' } } },

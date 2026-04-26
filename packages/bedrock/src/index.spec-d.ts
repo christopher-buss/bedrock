@@ -185,9 +185,9 @@ describe(deploy, () => {
 });
 
 describe("Config", () => {
-	it("should expose exactly the six documented root fields", () => {
+	it("should expose exactly the seven documented root fields", () => {
 		expectTypeOf<keyof Config>().toEqualTypeOf<
-			"environments" | "extends" | "passes" | "places" | "state" | "universe"
+			"environments" | "extends" | "passes" | "places" | "products" | "state" | "universe"
 		>();
 	});
 

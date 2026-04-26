@@ -24,6 +24,21 @@ export interface GamePassEntry {
 }
 
 /**
+ * Body of a single entry in the `products` collection. Keys in the parent
+ * record are `ResourceKey`-shaped strings enforced at schema validation.
+ *
+ * Slice 1 of #113 ships `name` and `description` only. Subsequent slices
+ * widen this shape with `iconFilePath`, `price`, `isRegionalPricingEnabled`,
+ * and `storePageEnabled` per the parent PRD.
+ */
+export interface DeveloperProductEntry {
+	/** Name shown on the Roblox storefront. */
+	name: string;
+	/** Description shown on the developer-product detail page. */
+	description: string;
+}
+
+/**
  * Body of a single entry under the root `places` collection. Carries only
  * the file-path that environments share. The Roblox `placeId` is
  * environment-specific and lives on each per-environment overlay so the
@@ -190,6 +205,14 @@ export interface EnvironmentEntry {
 	 * matching root `places` entry when omitted.
 	 */
 	places?: Record<string, Overlay<ResolvedPlaceEntry, "placeId">>;
+	/**
+	 * Per-environment developer-product overlay. Every field is optional;
+	 * missing fields fall through to the matching root `products` entry at
+	 * merge time. Mirrors the `passes` shape because developer products
+	 * also have no user-supplied identity key (Open Cloud mints the
+	 * `productId`).
+	 */
+	products?: Record<string, Partial<DeveloperProductEntry>>;
 	/** Per-environment state override; takes precedence over root `state`. */
 	state?: StateConfig;
 	/**
@@ -223,6 +246,8 @@ export interface EnvironmentEntry {
  * ```
  */
 export interface ResourceEntryByKind {
+	/** Authored entry body for a developer-product resource. */
+	developerProduct: DeveloperProductEntry;
 	/** Authored entry body for a game-pass resource. */
 	gamePass: GamePassEntry;
 	/** Post-merge entry body for a place resource (root + env overlay). */
@@ -277,6 +302,8 @@ export interface Config {
 	passes?: Record<string, GamePassEntry>;
 	/** Keyed-map collection of place entries by user-supplied ResourceKey. */
 	places?: Record<string, PlaceEntry>;
+	/** Keyed-map collection of developer-product entries by user-supplied ResourceKey. */
+	products?: Record<string, DeveloperProductEntry>;
 	/** Where Bedrock persists state for this project; required at deploy time. */
 	state?: StateConfig;
 	/** Singleton universe block declaring the Roblox universe bedrock manages. */
@@ -374,6 +401,15 @@ const passesCollection = type({
 	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: gamePassEntry,
 }).onUndeclaredKey("reject");
 
+const developerProductEntry = type({
+	name: "string",
+	description: "string",
+}).onUndeclaredKey("reject");
+
+const productsCollection = type({
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: developerProductEntry,
+}).onUndeclaredKey("reject");
+
 const ROBLOX_ID_DIGITS = "string.digits";
 
 const placeEntry = type({
@@ -433,6 +469,15 @@ const passesOverlayCollection = type({
 	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: gamePassOverlay,
 }).onUndeclaredKey("reject");
 
+const developerProductOverlay = type({
+	"description?": "string",
+	"name?": "string",
+}).onUndeclaredKey("reject");
+
+const productsOverlayCollection = type({
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: developerProductOverlay,
+}).onUndeclaredKey("reject");
+
 const placeOverlay = type({
 	"filePath?": "string",
 	"placeId": ROBLOX_ID_DIGITS,
@@ -451,6 +496,7 @@ const universeOverlay = universeEntry;
 const environmentEntry: Type<EnvironmentEntry> = type({
 	"passes?": passesOverlayCollection,
 	"places?": placesOverlayCollection,
+	"products?": productsOverlayCollection,
 	"state?": stateConfig,
 	"universe?": universeOverlay,
 }).onUndeclaredKey("reject");
@@ -472,6 +518,7 @@ const rootSchema: Type<Config> = type({
 	"extends?": "unknown",
 	"passes?": passesCollection,
 	"places?": placesCollection,
+	"products?": productsCollection,
 	"state?": stateConfig,
 	"universe?": universeEntry,
 }).onUndeclaredKey("reject");

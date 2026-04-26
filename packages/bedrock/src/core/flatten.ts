@@ -4,7 +4,12 @@ import type { ResourceKey, RobloxAssetId } from "../types/ids.ts";
 import { defaultKindRegistry } from "./kinds/index.ts";
 import type { ResourceKindModule } from "./kinds/module.ts";
 import type { ResourceKind } from "./resources.ts";
-import type { GamePassEntry, ResolvedConfig, UniverseVisibility } from "./schema.ts";
+import type {
+	DeveloperProductEntry,
+	GamePassEntry,
+	ResolvedConfig,
+	UniverseVisibility,
+} from "./schema.ts";
 
 /**
  * Pre-I/O game-pass input the flattener emits. Extends the authored
@@ -154,10 +159,43 @@ export interface UniverseDesiredInput {
 }
 
 /**
+ * Pre-I/O developer-product input the flattener emits. Extends the authored
+ * `DeveloperProductEntry` with the tag discriminator and the
+ * `ResourceKey`-branded key so `buildDesired` can consume a flat tagged
+ * list. Slice 1 of #113 has no I/O work for this kind because the entry
+ * does not (yet) reference a local file.
+ *
+ * @example
+ *
+ * ```ts
+ * import { asResourceKey, type DeveloperProductDesiredInput } from "@bedrock/core";
+ *
+ * const input: DeveloperProductDesiredInput = {
+ *     description: "Stocks the player up with 1,000 premium gems.",
+ *     key: asResourceKey("gem-pack"),
+ *     kind: "developerProduct",
+ *     name: "Gem Pack",
+ * };
+ *
+ * expect(input.kind).toBe("developerProduct");
+ * ```
+ */
+export interface DeveloperProductDesiredInput extends Readonly<DeveloperProductEntry> {
+	/** User-supplied handle, already validated against the `ResourceKey` brand. */
+	readonly key: ResourceKey;
+	/** Discriminator tag for the `ResourceDesiredInput` union. */
+	readonly kind: "developerProduct";
+}
+
+/**
  * Flat tagged input for `buildDesired`. One member per resource kind; future
  * kinds widen this union as they land.
  */
-export type ResourceDesiredInput = GamePassDesiredInput | PlaceDesiredInput | UniverseDesiredInput;
+export type ResourceDesiredInput =
+	| DeveloperProductDesiredInput
+	| GamePassDesiredInput
+	| PlaceDesiredInput
+	| UniverseDesiredInput;
 
 /**
  * Turn a resolved `Config` into a flat, tagged list of resource inputs.

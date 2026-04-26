@@ -265,13 +265,52 @@ export type SocialLinkField = (typeof SOCIAL_LINK_FIELDS)[number];
 export const SOCIAL_LINK_FIELD_SET: ReadonlySet<string> = new Set(SOCIAL_LINK_FIELDS);
 
 /**
+ * Desired state for a developer product, the consumable a player can buy via
+ * `MarketplaceService:PromptProductPurchase`.
+ *
+ * Slice 1 of #113 ships only the foundation: `name` and `description`.
+ * Subsequent slices widen this shape with `iconFilePath`, `price`,
+ * `isRegionalPricingEnabled`, and `storePageEnabled`.
+ *
+ * @example
+ *
+ * ```ts
+ * import { asResourceKey, type DeveloperProductDesiredState } from "@bedrock/core";
+ *
+ * const product: DeveloperProductDesiredState = {
+ *     description: "Stocks the player up with 1,000 premium gems.",
+ *     key: asResourceKey("gem-pack"),
+ *     kind: "developerProduct",
+ *     name: "Gem Pack",
+ * };
+ *
+ * expect(product.kind).toBe("developerProduct");
+ * expect(product.name).toBe("Gem Pack");
+ * ```
+ */
+export interface DeveloperProductDesiredState {
+	/** User-supplied key; stable across deploys; used to correlate desired with current. */
+	readonly key: ResourceKey;
+	/** User-facing developer product name as shown on the storefront. */
+	readonly name: string;
+	/** User-facing description shown on the developer product detail page. */
+	readonly description: string;
+	/** Discriminator tag for the `ResourceDesiredState` union. */
+	readonly kind: "developerProduct";
+}
+
+/**
  * Discriminated union of every desired-state shape Bedrock manages.
  *
  * Extend by adding new members to this union; the mapped
  * `ResourceOutputsByKind` interface then forces a matching outputs entry for
  * the new kind at compile time.
  */
-export type ResourceDesiredState = GamePassDesiredState | PlaceDesiredState | UniverseDesiredState;
+export type ResourceDesiredState =
+	| DeveloperProductDesiredState
+	| GamePassDesiredState
+	| PlaceDesiredState
+	| UniverseDesiredState;
 
 /**
  * Roblox-returned identifiers produced by creating or updating a game pass.
@@ -285,6 +324,20 @@ export interface GamePassOutputs {
 	readonly assetId: RobloxAssetId;
 	/** Roblox asset ID of the uploaded icon image. */
 	readonly iconAssetId: RobloxAssetId;
+}
+
+/**
+ * Roblox-returned identifiers produced by creating or updating a developer
+ * product. `productId` is what `MarketplaceService:PromptProductPurchase`
+ * accepts and is stable across re-deploys. `iconImageAssetId` is optional
+ * because the wire returns it as nullable when no icon is uploaded; slice 1
+ * never populates it because icon support lands in a later slice.
+ */
+export interface DeveloperProductOutputs {
+	/** Roblox asset ID of the uploaded icon image; `undefined` when no icon is uploaded. */
+	readonly iconImageAssetId?: RobloxAssetId | undefined;
+	/** Roblox-assigned developer product ID; stable across re-deploys. */
+	readonly productId: RobloxAssetId;
 }
 
 /**
@@ -325,6 +378,8 @@ export type ResourceKind = ResourceDesiredState["kind"];
  * ```
  */
 export interface ResourceOutputsByKind {
+	/** Outputs returned by the Roblox API for a developer-product resource. */
+	developerProduct: DeveloperProductOutputs;
 	/** Outputs returned by the Roblox API for a game-pass resource. */
 	gamePass: GamePassOutputs;
 	/** Outputs returned by the Roblox API for a place publish. */

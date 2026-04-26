@@ -16,6 +16,12 @@ import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts
 import { asResourceKey, type ResourceKey } from "../types/ids.ts";
 import { applyOps } from "./apply-ops.ts";
 
+const developerProductStub: ResourceDriver<"developerProduct"> = {
+	async create() {
+		return { err: new OpenCloudError("developerProduct stub"), success: false };
+	},
+};
+
 const placeStub: ResourceDriver<"place"> = {
 	async create() {
 		return { err: new OpenCloudError("place stub"), success: false };
@@ -48,6 +54,7 @@ function registryWith(
 	update?: ResourceDriver<"gamePass">["update"],
 ): DriverRegistry {
 	return {
+		developerProduct: developerProductStub,
 		gamePass: update ? { create, update } : { create },
 		place: placeStub,
 		universe: universeStub,
@@ -238,6 +245,7 @@ describe(applyOps, () => {
 			update?: ResourceDriver<"place">["update"],
 		): DriverRegistry {
 			return {
+				developerProduct: developerProductStub,
 				gamePass: {
 					create() {
 						throw new Error("gamePass driver must not run for place ops");
@@ -403,6 +411,7 @@ describe(applyOps, () => {
 			update?: ResourceDriver<"universe">["update"],
 		): DriverRegistry {
 			return {
+				developerProduct: developerProductStub,
 				gamePass: {
 					create() {
 						throw new Error("gamePass driver must not run for universe ops");

@@ -4,6 +4,7 @@ import type { DistributedOmit } from "type-fest";
 
 import type { Operation } from "../core/operations.ts";
 import type {
+	DeveloperProductDesiredState,
 	GamePassDesiredState,
 	PlaceDesiredState,
 	ResourceCurrentState,
@@ -62,6 +63,7 @@ export type ApplyError =
 	  };
 
 type NonNoopOp = Exclude<Operation, { readonly type: "noop" }>;
+type DeveloperProductOp = NonNoopOp & { readonly desired: DeveloperProductDesiredState };
 type GamePassOp = NonNoopOp & { readonly desired: GamePassDesiredState };
 type PlaceOp = NonNoopOp & { readonly desired: PlaceDesiredState };
 type UniverseOp = NonNoopOp & { readonly desired: UniverseDesiredState };
@@ -135,6 +137,17 @@ type RawApplyError = DistributedOmit<ApplyError, "appliedSoFar">;
  *         async create(desired) {
  *             return {
  *                 data: { ...desired, outputs: { rootPlaceId: asRobloxAssetId("4711") } },
+ *                 success: true,
+ *             };
+ *         },
+ *     },
+ *     developerProduct: {
+ *         async create(desired) {
+ *             return {
+ *                 data: {
+ *                     ...desired,
+ *                     outputs: { productId: asRobloxAssetId("8172635495") },
+ *                 },
  *                 success: true,
  *             };
  *         },
@@ -233,6 +246,9 @@ async function dispatchOp(
 	// until an arm lands. Each arm casts because custom type narrowing does
 	// not propagate through a non-distributive union.
 	switch (op.desired.kind) {
+		case "developerProduct": {
+			return applyOne(op as DeveloperProductOp, registry.developerProduct);
+		}
 		case "gamePass": {
 			return applyOne(op as GamePassOp, registry.gamePass);
 		}
