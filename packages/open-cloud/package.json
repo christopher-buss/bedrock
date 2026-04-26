@@ -29,6 +29,10 @@
 			"source": "./src/index.ts",
 			"default": "./dist/index.mjs"
 		},
+		"./experience-icon": {
+			"source": "./src/resources/experience-icon/index.ts",
+			"default": "./dist/experience-icon.mjs"
+		},
 		"./game-passes": {
 			"source": "./src/resources/game-passes/index.ts",
 			"default": "./dist/game-passes.mjs"
@@ -81,6 +85,7 @@
 	"publishConfig": {
 		"exports": {
 			".": "./dist/index.mjs",
+			"./experience-icon": "./dist/experience-icon.mjs",
 			"./game-passes": "./dist/game-passes.mjs",
 			"./package.json": "./package.json",
 			"./places": "./dist/places.mjs",

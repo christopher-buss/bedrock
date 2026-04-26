@@ -1,0 +1,229 @@
+import { ApiError } from "#src/errors/api-error";
+import { ExperienceIconClient } from "#src/resources/experience-icon/index";
+import {
+	validIconListBody,
+	validIconUploadBody,
+	validLocalizedIcon,
+} from "#tests/helpers/experience-icon";
+import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
+import { createFakeSleep } from "#tests/helpers/fake-sleep";
+import { assert, describe, expect, it } from "vitest";
+
+// The legacy `gameinternationalization` endpoints are not in the vendored
+// OpenAPI document, so the schema-validating fake HTTP client is run with
+// `schemaValidation: "off"` for this resource's tests.
+
+describe(ExperienceIconClient, () => {
+	describe("upload", () => {
+		it("should return a parsed UploadedExperienceIcon on success", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				body: validIconUploadBody({ mediaAssetId: 12_345 }),
+				status: 200,
+			});
+			const client = new ExperienceIconClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.upload({
+				image: new Uint8Array([1, 2, 3]),
+				languageCode: "en-us",
+				universeId: "1",
+			});
+
+			assert(result.success);
+
+			expect(result.data).toStrictEqual({ mediaAssetId: "12345" });
+		});
+
+		it("should send a POST with a multipart FormData body to the localized icon URL", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				body: validIconUploadBody(),
+				status: 200,
+			});
+			const client = new ExperienceIconClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.upload({
+				image: new Uint8Array([1, 2, 3]),
+				languageCode: "en-us",
+				universeId: "1",
+			});
+
+			expect(httpClient.requests[0]?.request.method).toBe("POST");
+			expect(httpClient.requests[0]?.request.url).toBe(
+				"/legacy-game-internationalization/v1/game-icon/games/1/language-codes/en-us",
+			);
+		});
+
+		it("should not retry a 5xx so a duplicate icon upload can't be created", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockApiError({ statusCode: 500 })
+				.mockResponse({ body: validIconUploadBody(), status: 200 });
+			const client = new ExperienceIconClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.upload({
+				image: new Uint8Array([1, 2, 3]),
+				languageCode: "en-us",
+				universeId: "1",
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(httpClient.requests).toHaveLength(1);
+		});
+	});
+
+	describe("delete", () => {
+		it("should return success with undefined data when the server returns 200", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				body: {},
+				status: 200,
+			});
+			const client = new ExperienceIconClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.delete({
+				languageCode: "fr-fr",
+				universeId: "1",
+			});
+
+			assert(result.success);
+
+			expect(result.data).toBeUndefined();
+		});
+
+		it("should send a DELETE to the localized icon URL", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				body: {},
+				status: 200,
+			});
+			const client = new ExperienceIconClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.delete({ languageCode: "fr-fr", universeId: "1" });
+
+			expect(httpClient.requests[0]?.request.method).toBe("DELETE");
+			expect(httpClient.requests[0]?.request.url).toBe(
+				"/legacy-game-internationalization/v1/game-icon/games/1/language-codes/fr-fr",
+			);
+		});
+
+		it("should retry a 5xx because delete is idempotent", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockApiError({ statusCode: 500 })
+				.mockResponse({ body: {}, status: 200 });
+			const client = new ExperienceIconClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.delete({ languageCode: "fr-fr", universeId: "1" });
+
+			assert(result.success);
+
+			expect(result.data).toBeUndefined();
+			expect(httpClient.requests).toHaveLength(2);
+		});
+	});
+
+	describe("list", () => {
+		it("should return a parsed array of localized icons", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				body: validIconListBody({
+					data: [
+						validLocalizedIcon({ languageCode: "en-us", mediaAssetId: 1 }),
+						validLocalizedIcon({ languageCode: "fr-fr", mediaAssetId: 2 }),
+					],
+				}),
+				status: 200,
+			});
+			const client = new ExperienceIconClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.list({ universeId: "1" });
+
+			assert(result.success);
+
+			expect(result.data).toStrictEqual([
+				{ languageCode: "en-us", mediaAssetId: "1" },
+				{ languageCode: "fr-fr", mediaAssetId: "2" },
+			]);
+		});
+
+		it("should send a GET to the universe-scoped icon URL", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				body: validIconListBody({ data: [] }),
+				status: 200,
+			});
+			const client = new ExperienceIconClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.list({ universeId: "67890" });
+
+			expect(httpClient.requests[0]?.request.method).toBe("GET");
+			expect(httpClient.requests[0]?.request.url).toBe(
+				"/legacy-game-internationalization/v1/game-icon/games/67890",
+			);
+		});
+
+		it("should propagate the http error when the request fails", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockApiError({
+				message: "Not found",
+				statusCode: 404,
+			});
+			const client = new ExperienceIconClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.list({ universeId: "1" });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toHaveProperty("statusCode", 404);
+		});
+	});
+});
