@@ -11,12 +11,14 @@ const TOKEN = process.env["GITHUB_TOKEN"];
 const API_KEY = process.env["ROBLOX_API_KEY"];
 const GIST_ID = process.env["BEDROCK_TEST_GIST_ID"];
 const PLACE_ID_ENV = process.env["ROBLOX_TEST_PLACE_ID"];
+const UNIVERSE_ID_ENV = process.env["ROBLOX_TEST_UNIVERSE_ID"];
 
 const HAS_SECRETS =
 	TOKEN !== undefined &&
 	API_KEY !== undefined &&
 	GIST_ID !== undefined &&
-	PLACE_ID_ENV !== undefined;
+	PLACE_ID_ENV !== undefined &&
+	UNIVERSE_ID_ENV !== undefined;
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE_PLACE = join(HERE, "fixtures", "place.rbxlx");
@@ -78,26 +80,24 @@ describe("bedrock deploy bin against real gist + open cloud", () => {
 			assert(API_KEY !== undefined);
 			assert(GIST_ID !== undefined);
 			assert(PLACE_ID_ENV !== undefined);
+			assert(UNIVERSE_ID_ENV !== undefined);
 
 			const environment = `cli-smoke-${String(Date.now())}`;
 			const project = await mkdtemp(join(tmpdir(), "bedrock-cli-smoke-"));
-			const configPath = join(project, "bedrock.config.ts");
+			const configPath = join(project, "bedrock.config.json");
 
-			const configSource = [
-				'import { defineConfig } from "@bedrock/core";',
-				"",
-				"export default defineConfig({",
-				`    environments: { ${environment}: {} },`,
-				"    places: {",
-				'        "smoke-place": {',
-				`            filePath: ${JSON.stringify(FIXTURE_PLACE)},`,
-				`            placeId: "${PLACE_ID_ENV}",`,
-				"        },",
-				"    },",
-				`    state: { backend: "gist", gistId: "${GIST_ID}" },`,
-				"});",
-				"",
-			].join("\n");
+			const configSource = `${JSON.stringify(
+				{
+					environments: {
+						[environment]: { places: { "smoke-place": { placeId: PLACE_ID_ENV } } },
+					},
+					places: { "smoke-place": { filePath: FIXTURE_PLACE } },
+					state: { backend: "gist", gistId: GIST_ID },
+					universe: { universeId: UNIVERSE_ID_ENV },
+				},
+				undefined,
+				2,
+			)}\n`;
 			await writeFile(configPath, configSource, "utf8");
 
 			try {
@@ -106,7 +106,10 @@ describe("bedrock deploy bin against real gist + open cloud", () => {
 					project,
 				);
 
-				expect(result.code).toBe(0);
+				expect(
+					result.code,
+					`bin exited ${String(result.code)}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+				).toBe(0);
 				expect(result.stdout).toContain(environment);
 				expect(result.stdout).toMatch(/\d+ resources reconciled/);
 			} finally {
