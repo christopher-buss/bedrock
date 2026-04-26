@@ -87,10 +87,6 @@ function parseErrorMessage(err: ParseOptionsError): string {
 		case "unknownFlag": {
 			return `unknown flag '--${err.flag}'`;
 		}
-		default: {
-			const exhaustive: never = err;
-			return exhaustive;
-		}
 	}
 }
 
@@ -136,10 +132,6 @@ function deployErrorMessage(err: DeployError): string {
 		}
 		case "unsupportedBackend": {
 			return `unsupported state backend '${err.backend}' (${err.hint})`;
-		}
-		default: {
-			const exhaustive: never = err;
-			return exhaustive;
 		}
 	}
 }
