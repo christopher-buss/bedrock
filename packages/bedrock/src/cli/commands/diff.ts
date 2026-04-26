@@ -26,6 +26,11 @@ interface DispatchInputs {
 	readonly resolved: ResolvedDiff;
 }
 
+interface DispatchOutcome {
+	readonly failed: ReadonlyArray<string>;
+	readonly hasDrift: boolean;
+}
+
 /**
  * Build the sade action for `bedrock diff`. The returned function consumes
  * the raw options object sade hands the action callback, parses it via
@@ -94,22 +99,25 @@ function isDriftOp(op: Operation): op is CreateOperation | UpdateOperation {
 	return op.type !== "noop";
 }
 
-function renderPreview(preview: DiffPreview, clack: ClackPort): void {
+function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 	const drift = preview.ops.filter(isDriftOp);
 	if (drift.length === 0) {
 		clack.logSuccess(`No drift for "${preview.environment}"`);
-		return;
+		return false;
 	}
 
 	clack.logMessage(`Pending changes for "${preview.environment}":`);
 	for (const op of drift) {
 		clack.logMessage(describeOp(op));
 	}
+
+	return true;
 }
 
-async function dispatchEnvironments(inputs: DispatchInputs): Promise<ReadonlyArray<string>> {
+async function dispatchEnvironments(inputs: DispatchInputs): Promise<DispatchOutcome> {
 	const { config, environments, getEnv, resolved } = inputs;
 	const failed: Array<string> = [];
+	let hasDrift = false;
 	for (const environment of environments) {
 		const result = await resolved.previewDiff({
 			config,
@@ -117,14 +125,22 @@ async function dispatchEnvironments(inputs: DispatchInputs): Promise<ReadonlyArr
 			getEnv,
 		});
 		if (result.success) {
-			renderPreview(result.data, resolved.clack);
+			if (renderPreview(result.data, resolved.clack)) {
+				hasDrift = true;
+			}
 		} else {
 			renderDeployError(result.err, resolved.clack);
 			failed.push(environment);
 		}
 	}
 
-	return failed;
+	return { failed, hasDrift };
+}
+
+function outroFor(hasDrift: boolean): string {
+	return hasDrift
+		? "run bedrock deploy to apply pending changes"
+		: "all environments are up to date";
 }
 
 async function runDiff(
@@ -147,17 +163,17 @@ async function runDiff(
 		return EXIT_ERROR;
 	}
 
-	const failures = await dispatchEnvironments({
+	const outcome = await dispatchEnvironments({
 		config: loaded.data,
 		environments: parsed.data.environments,
 		getEnv: buildGetEnvironment(parsed.data),
 		resolved,
 	});
-	if (failures.length > 0) {
+	if (outcome.failed.length > 0) {
 		cancelAsFailed(resolved.clack);
 		return EXIT_ERROR;
 	}
 
-	resolved.clack.outro("run bedrock deploy to apply pending changes");
+	resolved.clack.outro(outroFor(outcome.hasDrift));
 	return EXIT_OK;
 }

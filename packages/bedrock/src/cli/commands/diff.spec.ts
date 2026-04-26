@@ -160,7 +160,9 @@ describe(diffCommand, () => {
 		await diffCommand(deps)({ env: "production" });
 
 		expect(deps.clack?.logSuccess).toHaveBeenCalledExactlyOnceWith('No drift for "production"');
-		expect(deps.clack?.outro).toHaveBeenCalledOnce();
+		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+			"all environments are up to date",
+		);
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
@@ -214,7 +216,7 @@ describe(diffCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should call previewDiff once per --env in order and exit 0 when all succeed", async () => {
+	it("should call previewDiff once per --env and outro up-to-date when no env has drift", async () => {
 		expect.assertions(3);
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
@@ -224,7 +226,27 @@ describe(diffCommand, () => {
 		await diffCommand(deps)({ env: ["production", "staging"] });
 
 		expect(previewDiff).toHaveBeenCalledTimes(2);
-		expect(deps.clack?.outro).toHaveBeenCalledOnce();
+		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+			"all environments are up to date",
+		);
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should outro suggesting deploy when at least one env has drift across multiple envs", async () => {
+		expect.assertions(2);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const previewDiff = fakePreview([
+			preview("production", [noopOp("vip-pass")]),
+			preview("staging", [createGamePassOp("beta-pass")]),
+		]);
+		const deps = makeDeps({ loadConfig, previewDiff });
+
+		await diffCommand(deps)({ env: ["production", "staging"] });
+
+		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+			"run bedrock deploy to apply pending changes",
+		);
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
