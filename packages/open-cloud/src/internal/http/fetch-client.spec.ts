@@ -489,6 +489,52 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.statusCode).toBe(200);
 	});
 
+	it.for([{ status: 204 }, { status: 200 }])(
+		"should return success with undefined body for empty-body $status responses",
+		async ({ status }) => {
+			expect.assertions(2);
+
+			async function fakeFetch(): Promise<Response> {
+				return new Response(undefined, { status });
+			}
+
+			const client = createFetchHttpClient(fakeFetch);
+			const result = await client.request(
+				{ method: "DELETE", url: "/test" },
+				{ apiKey: "key", baseUrl: "https://example.com" },
+			);
+
+			assert(result.success);
+
+			expect(result.data.status).toBe(status);
+			expect(result.data.body).toBeUndefined();
+		},
+	);
+
+	it.for([{ status: 404 }, { status: 500 }])(
+		"should return ApiError preserving status for empty-body $status responses",
+		async ({ status }) => {
+			expect.assertions(3);
+
+			async function fakeFetch(): Promise<Response> {
+				return new Response(undefined, { status });
+			}
+
+			const client = createFetchHttpClient(fakeFetch);
+			const result = await client.request(
+				{ method: "DELETE", url: "/test" },
+				{ apiKey: "key", baseUrl: "https://example.com" },
+			);
+
+			assert(!result.success);
+			assert(result.err instanceof ApiError);
+
+			expect(result.err.statusCode).toBe(status);
+			expect(result.err.message).toBe(`HTTP ${status}`);
+			expect(result.err.code).toBeUndefined();
+		},
+	);
+
 	it("should return NetworkError when fetch throws TypeError", async () => {
 		expect.assertions(2);
 

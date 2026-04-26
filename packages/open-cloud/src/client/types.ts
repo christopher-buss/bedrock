@@ -43,7 +43,11 @@ export interface HttpRequest {
  * A normalized HTTP response from the Roblox Open Cloud API.
  */
 export interface HttpResponse {
-	/** The parsed response body. */
+	/**
+	 * The parsed response body. `undefined` when the response had an empty
+	 * body (for example HTTP 204 No Content, or any other status where the
+	 * server returned no payload).
+	 */
 	readonly body: unknown;
 	/** Response headers with lowercased keys. */
 	readonly headers: Readonly<Record<string, string>>;
