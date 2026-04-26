@@ -1,12 +1,11 @@
 import {
 	asRobloxAssetId,
-	type BedrockState,
+	createGistStateAdapter,
 	createPlaceDriver,
 	deploy,
 	type DriverRegistry,
 	type ResourceDriver,
 	type ResourceKind,
-	type StatePort,
 } from "@bedrock/core";
 import { PlacesClient } from "@bedrock/ocale/places";
 
@@ -21,9 +20,15 @@ const FIXTURE_PATH = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "
 const API_KEY = process.env["ROBLOX_API_KEY"];
 const UNIVERSE_ID_ENV = process.env["ROBLOX_TEST_UNIVERSE_ID"];
 const PLACE_ID_ENV = process.env["ROBLOX_TEST_PLACE_ID"];
+const TOKEN = process.env["GITHUB_TOKEN"];
+const GIST_ID = process.env["BEDROCK_TEST_GIST_ID"];
 
 const HAS_SECRETS =
-	API_KEY !== undefined && UNIVERSE_ID_ENV !== undefined && PLACE_ID_ENV !== undefined;
+	API_KEY !== undefined &&
+	UNIVERSE_ID_ENV !== undefined &&
+	PLACE_ID_ENV !== undefined &&
+	TOKEN !== undefined &&
+	GIST_ID !== undefined;
 
 function unreachableDriver<K extends ResourceKind>(label: string): ResourceDriver<K> {
 	return {
@@ -33,11 +38,27 @@ function unreachableDriver<K extends ResourceKind>(label: string): ResourceDrive
 	};
 }
 
+async function deleteGistFile(filename: string): Promise<void> {
+	assert(TOKEN !== undefined);
+	assert(GIST_ID !== undefined);
+	await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+		body: JSON.stringify({ files: { [filename]: null } }),
+		headers: {
+			"Accept": "application/vnd.github+json",
+			"Authorization": `Bearer ${TOKEN}`,
+			"Content-Type": "application/json",
+			"User-Agent": "bedrock",
+			"X-GitHub-Api-Version": "2026-03-10",
+		},
+		method: "PATCH",
+	});
+}
+
 describe("deploy place to real Roblox", () => {
 	it.skipIf(!HAS_SECRETS)(
-		"should publish a place via deploy and report a positive versionNumber",
+		"should publish a place via deploy and persist state to a real gist",
 		async () => {
-			expect.assertions(5);
+			expect.assertions(4);
 
 			// The skipIf above guarantees these are defined at runtime, but the
 			// type system cannot see through that, so we re-assert here to keep
@@ -45,20 +66,14 @@ describe("deploy place to real Roblox", () => {
 			assert(API_KEY !== undefined, "ROBLOX_API_KEY must be set");
 			assert(UNIVERSE_ID_ENV !== undefined, "ROBLOX_TEST_UNIVERSE_ID must be set");
 			assert(PLACE_ID_ENV !== undefined, "ROBLOX_TEST_PLACE_ID must be set");
+			assert(TOKEN !== undefined, "GITHUB_TOKEN must be set");
+			assert(GIST_ID !== undefined, "BEDROCK_TEST_GIST_ID must be set");
 
 			const universeId = asRobloxAssetId(UNIVERSE_ID_ENV);
 			const placeId = asRobloxAssetId(PLACE_ID_ENV);
 
-			const writes: Array<BedrockState> = [];
-			const statePort: StatePort = {
-				async read() {
-					return { data: undefined, success: true };
-				},
-				async write(state) {
-					writes.push(state);
-					return { data: undefined, success: true };
-				},
-			};
+			const environment = `place-smoke-${String(Date.now())}`;
+			const statePort = createGistStateAdapter({ gistId: GIST_ID, token: TOKEN });
 
 			const placesClient = new PlacesClient({ apiKey: API_KEY });
 			const placeDriver = createPlaceDriver({
@@ -73,44 +88,53 @@ describe("deploy place to real Roblox", () => {
 				universe: unreachableDriver("universe block"),
 			} satisfies DriverRegistry;
 
-			const result = await deploy({
-				config: {
-					environments: {
-						smoke: {
-							places: { "smoke-place": { placeId } },
+			try {
+				const result = await deploy({
+					config: {
+						environments: {
+							[environment]: {
+								places: { "smoke-place": { placeId } },
+							},
+						},
+						places: {
+							"smoke-place": {
+								filePath: FIXTURE_PATH,
+							},
 						},
 					},
-					places: {
-						"smoke-place": {
-							filePath: FIXTURE_PATH,
-						},
-					},
-				},
-				environment: "smoke",
-				readFile,
-				registry,
-				statePort,
-			});
+					environment,
+					readFile,
+					registry,
+					statePort,
+				});
 
-			assert(
-				result.success,
-				`deploy failed: ${JSON.stringify(result.success ? null : result.err)}`,
-			);
+				assert(
+					result.success,
+					`deploy failed: ${JSON.stringify(result.success ? null : result.err)}`,
+				);
 
-			expect(writes).toHaveLength(1);
+				const persistedRead = await statePort.read(environment);
+				assert(
+					persistedRead.success,
+					`read failed: ${JSON.stringify(persistedRead.success ? undefined : persistedRead.err)}`,
+				);
 
-			const persisted = writes[0];
-			assert(persisted !== undefined);
+				const persisted = persistedRead.data;
+				assert(persisted !== undefined);
 
-			expect(persisted.environment).toBe("smoke");
-			expect(persisted.resources).toHaveLength(1);
+				expect(persisted.environment).toBe(environment);
+				expect(persisted.resources).toHaveLength(1);
 
-			const resource = persisted.resources[0];
-			assert(resource !== undefined);
-			assert(resource.kind === "place");
+				const resource = persisted.resources[0];
+				assert(resource !== undefined);
+				assert(resource.kind === "place");
 
-			expect(resource.placeId).toBe(placeId);
-			expect(resource.outputs.versionNumber).toBeGreaterThan(0);
+				expect(resource.placeId).toBe(placeId);
+				expect(resource.outputs.versionNumber).toBeGreaterThan(0);
+			} finally {
+				await deleteGistFile(`state.${environment}.json`);
+			}
 		},
+		60_000,
 	);
 });
