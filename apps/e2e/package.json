@@ -13,7 +13,8 @@
 	"scripts": {
 		"lint": "eslint --cache .",
 		"test": "vitest",
-		"test:smoke": "vp test run tests/smoke"
+		"test:smoke": "vp test run tests/smoke",
+		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
 		"@bedrock/core": "workspace:*",
