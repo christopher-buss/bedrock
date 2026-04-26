@@ -44,5 +44,15 @@ jobs:
           ROBLOX_TEST_PLACE_ID: ${{ secrets.ROBLOX_TEST_PLACE_ID }}
           ROBLOX_TEST_UNIVERSE_ID: ${{ secrets.ROBLOX_TEST_UNIVERSE_ID }}
         name: Run smoke test
-        run: pnpm test:smoke
+        run: pnpm test:smoke --reporter=verbose --reporter=json --outputFile=smoke-results.json
+
+      - if: always()
+        name: Fail if any smoke test was skipped
+        run: |
+          SKIPPED=$(jq '(.numPendingTests // 0) + (.numTodoTests // 0)' apps/e2e/smoke-results.json)
+          echo "Skipped tests: $SKIPPED"
+          if [ "$SKIPPED" -ne 0 ]; then
+            echo "::error::$SKIPPED smoke test(s) were skipped; likely missing repo secrets"
+            exit 1
+          fi
     timeout-minutes: 10
