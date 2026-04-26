@@ -35,8 +35,8 @@ describe("ProgDeps", () => {
 		expectTypeOf<NonNullable<ProgDeps["clack"]>>().toEqualTypeOf<ClackPort>();
 	});
 
-	it("should accept a never-returning exit handle in the exit slot", () => {
-		expectTypeOf<NonNullable<ProgDeps["exit"]>>().toEqualTypeOf<(code: number) => never>();
+	it("should accept a void-returning exit handle so test stubs can intercept termination", () => {
+		expectTypeOf<NonNullable<ProgDeps["exit"]>>().toEqualTypeOf<(code: number) => void>();
 	});
 });
 
