@@ -83,6 +83,7 @@ describe("deploy place to real Roblox", () => {
 			});
 
 			const registry = {
+				developerProduct: unreachableDriver("developer products"),
 				gamePass: unreachableDriver("game passes"),
 				place: placeDriver,
 				universe: unreachableDriver("universe block"),
