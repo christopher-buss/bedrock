@@ -8,16 +8,20 @@ import type { StateError } from "./state.ts";
 // caps length at 64 so adapter-stored filenames can't exceed filesystem
 // limits. If one alphabet changes, update the other deliberately.
 /**
- * Source pattern for environment names. Letters, digits, `-`, `_`, length 1-64.
+ * Source pattern for environment names, including `^` and `$` anchors.
+ * Letters, digits, `-`, `_`, length 1-64.
  *
  * Exported so the config schema can validate `environments` keys against
  * the same alphabet and length cap that adapters enforce on storage
  * identifiers. Single source of truth: changing the alphabet here changes
  * both the runtime check and the schema-level key constraint.
+ *
+ * Anchors are embedded so callers do not have to re-add them, matching
+ * the `RESOURCE_KEY_PATTERN_SOURCE` convention in `types/ids.ts`.
  */
-export const ENV_NAME_PATTERN_SOURCE = "[A-Za-z0-9_-]{1,64}";
+export const ENV_NAME_PATTERN_SOURCE = "^[A-Za-z0-9_-]{1,64}$";
 
-const ENVIRONMENT_NAME_PATTERN = new RegExp(`^${ENV_NAME_PATTERN_SOURCE}$`);
+const ENVIRONMENT_NAME_PATTERN = new RegExp(ENV_NAME_PATTERN_SOURCE);
 
 /**
  * Validate an environment name at a state-adapter boundary.

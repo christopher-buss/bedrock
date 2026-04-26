@@ -163,6 +163,11 @@ export interface EnvironmentEntry {
 	/**
 	 * Per-environment game-pass overlay. Every field is optional; missing
 	 * fields fall through to the matching root `passes` entry at merge time.
+	 *
+	 * Uses `Partial<GamePassEntry>` directly rather than `Overlay<T, K>`
+	 * because game passes have no user-supplied identity key (Open Cloud
+	 * mints the asset ID). The other overlay fields use `Overlay<T, K>`
+	 * to keep their identity-bearing key required.
 	 */
 	passes?: Record<string, Partial<GamePassEntry>>;
 	/**
@@ -402,7 +407,7 @@ const environmentEntry: Type<EnvironmentEntry> = type({
 }).onUndeclaredKey("reject");
 
 const environmentsCollection = type({
-	[`[/^${ENV_NAME_PATTERN_SOURCE}$/]`]: environmentEntry,
+	[`[/${ENV_NAME_PATTERN_SOURCE}/]`]: environmentEntry,
 })
 	.onUndeclaredKey("reject")
 	.narrow((value, ctx) => {

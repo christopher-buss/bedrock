@@ -93,19 +93,4 @@ describe(resolveStateConfig, () => {
 		expect(result.err.kind).toBe("stateNotConfigured");
 		expect(result.err.environment).toBe("production");
 	});
-
-	it("should return Err(stateNotConfigured) when the matching environment lacks state and no root state exists", () => {
-		expect.assertions(2);
-
-		const config: Config = {
-			environments: { production: {} },
-		};
-
-		const result = resolveStateConfig(config, "production");
-
-		assert(!result.success);
-
-		expect(result.err.kind).toBe("stateNotConfigured");
-		expect(result.err.environment).toBe("production");
-	});
 });

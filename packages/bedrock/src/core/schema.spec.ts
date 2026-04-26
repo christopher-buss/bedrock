@@ -21,7 +21,7 @@ describe(validateConfig, () => {
 	});
 
 	it("should reject a config whose environments collection is empty", () => {
-		expect.assertions(1);
+		expect.assertions(2);
 
 		const result = validateConfig({ environments: {} }, SOURCE);
 
@@ -29,6 +29,7 @@ describe(validateConfig, () => {
 		assert(result.err.kind === "validationFailed");
 
 		expect(result.err.issues[0]!.path).toStrictEqual(["environments"]);
+		expect(result.err.issues[0]!.message).toContain("non-empty record of environment entries");
 	});
 
 	it("should accept a minimal config that declares only environments", () => {
