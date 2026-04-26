@@ -63,6 +63,7 @@ export {
 } from "./core/schema.ts";
 export {
 	selectEnvironment,
+	type IncompletePlaceEntryError,
 	type SelectEnvironmentError,
 	type UnknownEnvironmentError,
 } from "./core/select-environment.ts";

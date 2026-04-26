@@ -29,6 +29,7 @@ describe(selectEnvironment, () => {
 		const result = selectEnvironment(config, "staging");
 
 		assert(!result.success);
+		assert(result.err.kind === "unknownEnvironment");
 
 		expect(result.err.kind).toBe("unknownEnvironment");
 		expect(result.err.environment).toBe("staging");
@@ -117,12 +118,17 @@ describe(selectEnvironment, () => {
 		expect(result.data.places?.["start-place"]?.filePath).toBe("places/start.rbxl");
 	});
 
-	it("should preserve root entries that the overlay does not mention", () => {
-		expect.assertions(2);
+	it("should preserve every root place that the overlay declares alongside the one it touches", () => {
+		expect.assertions(3);
 
 		const config: Config = {
 			environments: {
-				staging: { places: { "start-place": { placeId: "5555" } } },
+				staging: {
+					places: {
+						"lobby": { placeId: "2222" },
+						"start-place": { placeId: "5555" },
+					},
+				},
 			},
 			places: {
 				"lobby": { filePath: "places/lobby.rbxl" },
@@ -136,9 +142,8 @@ describe(selectEnvironment, () => {
 		assert(result.success);
 
 		expect(result.data.places?.["start-place"]?.placeId).toBe("5555");
-		expect(result.data.places?.["lobby"]).toStrictEqual({
-			filePath: "places/lobby.rbxl",
-		});
+		expect(result.data.places?.["lobby"]?.placeId).toBe("2222");
+		expect(result.data.places?.["lobby"]?.filePath).toBe("places/lobby.rbxl");
 	});
 
 	it("should overlay partial pass fields onto matching root entries by key", () => {
@@ -198,7 +203,12 @@ describe(selectEnvironment, () => {
 		expect.assertions(2);
 
 		const config: Config = {
-			environments: { production: { state: PROD_STATE } },
+			environments: {
+				production: {
+					places: { "start-place": { placeId: "1111" } },
+					state: PROD_STATE,
+				},
+			},
 			passes: { "vip-pass": VIP_PASS },
 			places: { "start-place": START_PLACE },
 			state: ROOT_STATE,
@@ -209,7 +219,69 @@ describe(selectEnvironment, () => {
 		assert(result.success);
 
 		expect(result.data.passes).toStrictEqual({ "vip-pass": VIP_PASS });
-		expect(result.data.places).toStrictEqual({ "start-place": START_PLACE });
+		expect(result.data.places).toStrictEqual({
+			"start-place": { ...START_PLACE, placeId: "1111" },
+		});
+	});
+
+	it("should return Err(incompletePlaceEntry) when a root place has no overlay supplying placeId", () => {
+		expect.assertions(4);
+
+		const config: Config = {
+			environments: { production: {} },
+			places: { "start-place": START_PLACE },
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "production");
+
+		assert(!result.success);
+		assert(result.err.kind === "incompletePlaceEntry");
+
+		expect(result.err.kind).toBe("incompletePlaceEntry");
+		expect(result.err.environment).toBe("production");
+		expect(result.err.key).toBe("start-place");
+		expect(result.err.missingField).toBe("placeId");
+	});
+
+	it("should return Err(incompletePlaceEntry) for the first incomplete place when several root entries lack overlays", () => {
+		expect.assertions(2);
+
+		const config: Config = {
+			environments: { production: {} },
+			places: {
+				alpha: { filePath: "places/alpha.rbxl" },
+				beta: { filePath: "places/beta.rbxl" },
+			},
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "production");
+
+		assert(!result.success);
+		assert(result.err.kind === "incompletePlaceEntry");
+
+		expect(result.err.key).toBe("alpha");
+		expect(result.err.missingField).toBe("placeId");
+	});
+
+	it("should accept a root place when the requested environment overlays it with a placeId", () => {
+		expect.assertions(2);
+
+		const config: Config = {
+			environments: {
+				production: { places: { "start-place": { placeId: "1111" } } },
+			},
+			places: { "start-place": START_PLACE },
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "production");
+
+		assert(result.success);
+
+		expect(result.data.places?.["start-place"]?.placeId).toBe("1111");
+		expect(result.data.places?.["start-place"]?.filePath).toBe("places/start.rbxl");
 	});
 
 	it("should preserve environments and extends so the returned shape stays assignable to Config", () => {

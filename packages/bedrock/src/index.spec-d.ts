@@ -166,6 +166,7 @@ describe(deploy, () => {
 			| "applyFailed"
 			| "buildDesiredFailed"
 			| "configLoadFailed"
+			| "incompletePlaceEntry"
 			| "missingCredential"
 			| "registryConfigMissing"
 			| "stateNotConfigured"

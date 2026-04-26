@@ -26,8 +26,26 @@ export interface UnknownEnvironmentError {
 	readonly kind: "unknownEnvironment";
 }
 
+/**
+ * Failure surfaced when post-merge a place entry has no `placeId`. The
+ * root collection holds only `filePath`, so every place must receive its
+ * `placeId` from the per-environment overlay; a place declared at the
+ * root with no matching overlay key produces this error rather than
+ * surfacing as a downstream driver failure.
+ */
+export interface IncompletePlaceEntryError {
+	/** ResourceKey of the place entry that is missing `placeId`. */
+	readonly key: string;
+	/** Environment whose overlay was projected onto the config. */
+	readonly environment: string;
+	/** Literal discriminator for narrowing. */
+	readonly kind: "incompletePlaceEntry";
+	/** Field that the merged entry lacks; always `"placeId"` today. */
+	readonly missingField: "placeId";
+}
+
 /** Failure modes returned by {@link selectEnvironment}. */
-export type SelectEnvironmentError = UnknownEnvironmentError;
+export type SelectEnvironmentError = IncompletePlaceEntryError | UnknownEnvironmentError;
 
 interface ProjectInputs {
 	readonly config: Config;
@@ -64,12 +82,12 @@ interface ProjectInputs {
  * case surfaces as a typed `stateNotConfigured` there.
  *
  * Limitation in v1: a per-environment universe overlay that introduces a
- * brand-new universe block (one not declared at the root) may still have
- * optional fields missing, since the overlay type only requires the
- * identity-bearing key. The resolver surfaces the entry as-is; the
- * universe driver reports the missing field when it tries to consume the
- * entry. The matching gap for `places` is closed: post-merge entries
- * without a `placeId` are rejected as `incompletePlaceEntry` here.
+ * brand-new universe block may still have optional fields missing, since
+ * the overlay type only requires the identity-bearing key. The resolver
+ * surfaces the entry as-is; the universe driver reports the missing
+ * field when it tries to consume the entry. Universe is a singleton with
+ * 20+ optional fields, so the same `incompletePlaceEntry`-style validation
+ * is deferred to a separate follow-up.
  *
  * @example
  *
@@ -110,10 +128,41 @@ export function selectEnvironment(
 		return { err: unknownEnvironment(config, environment), success: false };
 	}
 
-	return {
-		data: projectConfig({ config, entry }),
-		success: true,
-	};
+	const projected = projectConfig({ config, entry });
+	const incomplete = findIncompletePlace(projected, environment);
+	if (incomplete !== undefined) {
+		return { err: incomplete, success: false };
+	}
+
+	return { data: projected, success: true };
+}
+
+function findIncompletePlace(
+	projected: ResolvedConfig,
+	environment: string,
+): IncompletePlaceEntryError | undefined {
+	const { places } = projected;
+	if (places === undefined) {
+		return undefined;
+	}
+
+	// `places` is typed as `Record<string, ResolvedPlaceEntry>` because the
+	// merge boundary already promised completeness; this routine exists to
+	// honour that promise at runtime, so it widens the view back to
+	// `Partial<ResolvedPlaceEntry>` for the duration of the check.
+	const candidates: Record<string, Partial<ResolvedPlaceEntry>> = places;
+	for (const [key, entry] of Object.entries(candidates)) {
+		if (entry.placeId === undefined) {
+			return {
+				key,
+				environment,
+				kind: "incompletePlaceEntry",
+				missingField: "placeId",
+			};
+		}
+	}
+
+	return undefined;
 }
 
 function mergeEntry<Resolved extends object>(

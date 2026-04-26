@@ -10,7 +10,11 @@ import { flattenConfig } from "../core/flatten.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
-import { selectEnvironment, type UnknownEnvironmentError } from "../core/select-environment.ts";
+import {
+	type IncompletePlaceEntryError,
+	selectEnvironment,
+	type UnknownEnvironmentError,
+} from "../core/select-environment.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
@@ -54,9 +58,11 @@ export interface DeployOptions {
  * `kind` to distinguish reconciliation failures (`stateReadFailed`,
  * `applyFailed`, ...) from default-construction failures
  * (`configLoadFailed`, `stateNotConfigured`, `unknownEnvironment`,
- * `missingCredential`, `unsupportedBackend`, `registryConfigMissing`).
+ * `incompletePlaceEntry`, `missingCredential`, `unsupportedBackend`,
+ * `registryConfigMissing`).
  */
 export type DeployError =
+	| IncompletePlaceEntryError
 	| MissingCredentialError
 	| RegistryConfigError
 	| StateNotConfiguredError

@@ -21,8 +21,10 @@ describe("selectEnvironment signature", () => {
 		>();
 	});
 
-	it("should constrain SelectEnvironmentError to the unknownEnvironment kind", () => {
-		expectTypeOf<SelectEnvironmentError["kind"]>().toEqualTypeOf<"unknownEnvironment">();
+	it("should discriminate SelectEnvironmentError across the unknownEnvironment and incompletePlaceEntry kinds", () => {
+		expectTypeOf<SelectEnvironmentError["kind"]>().toEqualTypeOf<
+			"incompletePlaceEntry" | "unknownEnvironment"
+		>();
 	});
 });
 
