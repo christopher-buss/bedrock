@@ -1,9 +1,9 @@
-// The Roblox `gameinternationalization` paths use a `{gameId}` URL segment
-// that is in fact the universe ID. The package surfaces only `universeId` and
-// these builders perform the substitution at the wire boundary.
+// The legacy `{gameId}` URL segment is in fact the universe ID; the public API
+// takes `universeId` and substitutes it into the path.
 
 import { ValidationError } from "../../errors/validation.ts";
 import type { HttpRequest } from "../../internal/http/types.ts";
+import { toBlob } from "../../internal/utils/to-blob.ts";
 import type { Result } from "../../types.ts";
 import type {
 	DeleteExperienceThumbnailParameters,
@@ -76,14 +76,6 @@ export function buildReorderThumbnailsRequest(
 		},
 		success: true,
 	};
-}
-
-function toBlob(value: Blob | Uint8Array): Blob {
-	if (value instanceof Blob) {
-		return value;
-	}
-
-	return new Blob([new Uint8Array(value)]);
 }
 
 function parseImageId(value: string): number | undefined {

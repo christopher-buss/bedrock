@@ -35,17 +35,6 @@ export function parseIconUploadResponse(
 }
 
 /**
- * Parses a successful icon-delete response. The endpoint returns no
- * business payload on success; this parser only confirms the response
- * arrived and surfaces `undefined` data.
- *
- * @returns A success result with `undefined` data.
- */
-export function parseIconDeleteResponse(): Result<undefined, ApiError> {
-	return { data: undefined, success: true };
-}
-
-/**
  * Parses a successful icon-list response into a public array of
  * {@link ExperienceIcon} entries. Stringifies each int64 `mediaAssetId`
  * at the wire boundary.

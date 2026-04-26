@@ -1,4 +1,5 @@
 import type { HttpRequest } from "../../internal/http/types.ts";
+import { toBlob } from "../../internal/utils/to-blob.ts";
 import type { CreateGamePassParameters, GetGamePassParameters } from "./types.ts";
 
 /**
@@ -50,12 +51,4 @@ export function buildCreateRequest(parameters: CreateGamePassParameters): HttpRe
 		method: "POST",
 		url: `/game-passes/v1/universes/${parameters.universeId}/game-passes`,
 	};
-}
-
-function toBlob(value: Blob | Uint8Array): Blob {
-	if (value instanceof Blob) {
-		return value;
-	}
-
-	return new Blob([new Uint8Array(value)]);
 }

@@ -4,6 +4,7 @@ import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../intern
 import type { HttpRequest } from "../../internal/http/types.ts";
 import {
 	okRequest,
+	parseEmptyResponse,
 	ResourceClient,
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
@@ -18,11 +19,7 @@ import {
 	LIST_OPERATION_LIMIT,
 	UPLOAD_OPERATION_LIMIT,
 } from "./operations.ts";
-import {
-	parseIconDeleteResponse,
-	parseIconListResponse,
-	parseIconUploadResponse,
-} from "./parsers.ts";
+import { parseIconListResponse, parseIconUploadResponse } from "./parsers.ts";
 import type {
 	DeleteExperienceIconParameters,
 	ExperienceIcon,
@@ -69,7 +66,7 @@ const DELETE_SPEC: ResourceMethodSpec<DeleteExperienceIconParameters, undefined>
 	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 	methodKind: "idempotent",
 	operationLimit: DELETE_OPERATION_LIMIT,
-	parse: parseIconDeleteResponse,
+	parse: parseEmptyResponse,
 });
 
 const LIST_SPEC: ResourceMethodSpec<
@@ -85,23 +82,14 @@ const LIST_SPEC: ResourceMethodSpec<
 
 /**
  * Public client for managing the localized icon registered against a Roblox
- * experience. Wires the request builders, the injected
- * {@link OpenCloudClientOptions.httpClient}, and the response parsers into a
+ * experience. Wires request builders, the injected
+ * {@link OpenCloudClientOptions.httpClient}, and response parsers into a
  * single ergonomic surface. Every method returns a {@link Result} so callers
  * handle failure explicitly; no thrown {@link OpenCloudError} ever escapes
  * the client.
  *
  * Targets the legacy `gameinternationalization` service proxied through Open
- * Cloud at `apis.roblox.com/legacy-game-internationalization/v1/...`. Auth
- * uses the standard Open Cloud `x-api-key` header; no cookie auth is
- * involved.
- *
- * Uploading a 5xx-failed icon is not retried automatically: the upload is a
- * create operation and Roblox does not support idempotency keys, so a retry
- * could double-write asset moderation work. Callers that *can* detect
- * duplicates externally may opt back into 5xx retry per-call by passing
- * `retryableStatuses` on the second argument. The `delete` and `list`
- * methods retry both 429 and 5xx automatically.
+ * Cloud; auth uses the standard `x-api-key` header.
  *
  * @example
  *

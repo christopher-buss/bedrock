@@ -6,11 +6,7 @@ import {
 import { assert, describe, expect, it } from "vitest";
 
 import { ApiError } from "../../errors/api-error.ts";
-import {
-	parseIconDeleteResponse,
-	parseIconListResponse,
-	parseIconUploadResponse,
-} from "./parsers.ts";
+import { parseIconListResponse, parseIconUploadResponse } from "./parsers.ts";
 
 describe(parseIconUploadResponse, () => {
 	it("should return success with the stringified mediaAssetId for a valid body", () => {
@@ -97,19 +93,6 @@ describe(parseIconUploadResponse, () => {
 		assert(!result.success);
 
 		expect(result.err).toBeInstanceOf(ApiError);
-	});
-});
-
-describe(parseIconDeleteResponse, () => {
-	it("should return success with undefined data", () => {
-		expect.assertions(2);
-
-		const result = parseIconDeleteResponse();
-
-		assert(result.success);
-
-		expect(result.data).toBeUndefined();
-		expect(result.success).toBeTrue();
 	});
 });
 

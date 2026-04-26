@@ -1,8 +1,8 @@
-// The Roblox `gameinternationalization` paths use a `{gameId}` URL segment
-// that is in fact the universe ID. The package surfaces only `universeId` and
-// these builders perform the substitution at the wire boundary.
+// The legacy `{gameId}` URL segment is in fact the universe ID; the public API
+// takes `universeId` and substitutes it into the path.
 
 import type { HttpRequest } from "../../internal/http/types.ts";
+import { toBlob } from "../../internal/utils/to-blob.ts";
 import type {
 	DeleteExperienceIconParameters,
 	ListExperienceIconsParameters,
@@ -57,12 +57,4 @@ export function buildListIconsRequest(parameters: ListExperienceIconsParameters)
 		method: "GET",
 		url: `/legacy-game-internationalization/v1/game-icon/games/${parameters.universeId}`,
 	};
-}
-
-function toBlob(value: Blob | Uint8Array): Blob {
-	if (value instanceof Blob) {
-		return value;
-	}
-
-	return new Blob([new Uint8Array(value)]);
 }

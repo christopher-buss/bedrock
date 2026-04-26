@@ -32,26 +32,6 @@ export function parseThumbnailUploadResponse(
 	};
 }
 
-/**
- * Parses a successful thumbnail-delete response. The endpoint returns no
- * business payload on success; this parser only surfaces `undefined` data.
- *
- * @returns A success result with `undefined` data.
- */
-export function parseThumbnailDeleteResponse(): Result<undefined, ApiError> {
-	return { data: undefined, success: true };
-}
-
-/**
- * Parses a successful thumbnail-reorder response. The endpoint returns no
- * business payload on success; this parser only surfaces `undefined` data.
- *
- * @returns A success result with `undefined` data.
- */
-export function parseThumbnailReorderResponse(): Result<undefined, ApiError> {
-	return { data: undefined, success: true };
-}
-
 function isGameThumbnailUploadWire(body: unknown): body is GameThumbnailUploadWire {
 	if (!isRecord(body)) {
 		return false;

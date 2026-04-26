@@ -4,6 +4,7 @@ import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../intern
 import type { HttpRequest } from "../../internal/http/types.ts";
 import {
 	okRequest,
+	parseEmptyResponse,
 	ResourceClient,
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
@@ -18,11 +19,7 @@ import {
 	REORDER_OPERATION_LIMIT,
 	UPLOAD_OPERATION_LIMIT,
 } from "./operations.ts";
-import {
-	parseThumbnailDeleteResponse,
-	parseThumbnailReorderResponse,
-	parseThumbnailUploadResponse,
-} from "./parsers.ts";
+import { parseThumbnailUploadResponse } from "./parsers.ts";
 import type {
 	DeleteExperienceThumbnailParameters,
 	ReorderExperienceThumbnailsParameters,
@@ -59,7 +56,7 @@ const DELETE_SPEC: ResourceMethodSpec<DeleteExperienceThumbnailParameters, undef
 		methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 		methodKind: "idempotent",
 		operationLimit: DELETE_OPERATION_LIMIT,
-		parse: parseThumbnailDeleteResponse,
+		parse: parseEmptyResponse,
 	});
 
 const REORDER_SPEC: ResourceMethodSpec<ReorderExperienceThumbnailsParameters, undefined> =
@@ -68,32 +65,21 @@ const REORDER_SPEC: ResourceMethodSpec<ReorderExperienceThumbnailsParameters, un
 		methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 		methodKind: "idempotent",
 		operationLimit: REORDER_OPERATION_LIMIT,
-		parse: parseThumbnailReorderResponse,
+		parse: parseEmptyResponse,
 	});
 
 /**
  * Public client for managing the localized screenshot carousel registered
- * against a Roblox experience. Wires the request builders, the injected
- * {@link OpenCloudClientOptions.httpClient}, and the response parsers into a
+ * against a Roblox experience. Wires request builders, the injected
+ * {@link OpenCloudClientOptions.httpClient}, and response parsers into a
  * single ergonomic surface. Every method returns a {@link Result} so callers
  * handle failure explicitly; no thrown {@link OpenCloudError} ever escapes
  * the client.
  *
  * Targets the legacy `gameinternationalization` service proxied through Open
- * Cloud at `apis.roblox.com/legacy-game-internationalization/v1/...`. Auth
- * uses the standard Open Cloud `x-api-key` header; no cookie auth is
- * involved.
- *
- * Uploading a 5xx-failed thumbnail is not retried automatically: the upload
- * is a create operation and Roblox does not support idempotency keys, so a
- * retry could append a duplicate carousel entry. Callers that *can* detect
- * duplicates externally may opt back into 5xx retry per-call by passing
- * `retryableStatuses` on the second argument. The `delete` and `reorder`
- * methods retry both 429 and 5xx automatically.
- *
- * Open Cloud does not bridge a list-thumbnails endpoint for this service.
- * Consumers that need to reconcile against existing carousel state must
- * track uploaded `mediaAssetId`s in their own state store.
+ * Cloud; auth uses the standard `x-api-key` header. No list-thumbnails
+ * endpoint is bridged; consumers must track uploaded `mediaAssetId`s in
+ * their own state store to reconcile against the existing carousel.
  *
  * @example
  *

@@ -2,11 +2,7 @@ import { validThumbnailUploadBody } from "#tests/helpers/experience-thumbnails";
 import { assert, describe, expect, it } from "vitest";
 
 import { ApiError } from "../../errors/api-error.ts";
-import {
-	parseThumbnailDeleteResponse,
-	parseThumbnailReorderResponse,
-	parseThumbnailUploadResponse,
-} from "./parsers.ts";
+import { parseThumbnailUploadResponse } from "./parsers.ts";
 
 describe(parseThumbnailUploadResponse, () => {
 	it("should return success with the stringified mediaAssetId for a valid body", () => {
@@ -93,31 +89,5 @@ describe(parseThumbnailUploadResponse, () => {
 		assert(!result.success);
 
 		expect(result.err).toBeInstanceOf(ApiError);
-	});
-});
-
-describe(parseThumbnailDeleteResponse, () => {
-	it("should return success with undefined data", () => {
-		expect.assertions(2);
-
-		const result = parseThumbnailDeleteResponse();
-
-		assert(result.success);
-
-		expect(result.data).toBeUndefined();
-		expect(result.success).toBeTrue();
-	});
-});
-
-describe(parseThumbnailReorderResponse, () => {
-	it("should return success with undefined data", () => {
-		expect.assertions(2);
-
-		const result = parseThumbnailReorderResponse();
-
-		assert(result.success);
-
-		expect(result.data).toBeUndefined();
-		expect(result.success).toBeTrue();
 	});
 });
