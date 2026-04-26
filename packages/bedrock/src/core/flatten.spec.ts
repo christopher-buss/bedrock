@@ -6,11 +6,13 @@ import { flattenConfig } from "./flatten.ts";
 import { SOCIAL_LINK_FIELDS, UNIVERSE_SINGLETON_KEY } from "./resources.ts";
 import { validateConfig } from "./schema.ts";
 
+const MinimumEnvironments = { production: {} } as const;
+
 describe(flattenConfig, () => {
 	it("should return an empty array for a config without resource collections", () => {
 		expect.assertions(1);
 
-		const config = validateConfig({}, "bedrock.config.ts");
+		const config = validateConfig({ environments: MinimumEnvironments }, "bedrock.config.ts");
 		assert(config.success);
 
 		expect(flattenConfig(config.data)).toStrictEqual([]);
@@ -21,6 +23,7 @@ describe(flattenConfig, () => {
 
 		const config = validateConfig(
 			{
+				environments: MinimumEnvironments,
 				passes: {
 					"vip-pass": {
 						name: "VIP Pass",
@@ -51,6 +54,7 @@ describe(flattenConfig, () => {
 
 		const config = validateConfig(
 			{
+				environments: MinimumEnvironments,
 				passes: {
 					"free-pass": {
 						name: "Free",
@@ -74,6 +78,7 @@ describe(flattenConfig, () => {
 
 		const config = validateConfig(
 			{
+				environments: MinimumEnvironments,
 				passes: {
 					alpha: {
 						name: "A",
@@ -108,6 +113,7 @@ describe(flattenConfig, () => {
 
 		const config = validateConfig(
 			{
+				environments: MinimumEnvironments,
 				places: {
 					"start-place": { filePath: "places/start.rbxl", placeId: "4711" },
 				},
@@ -131,6 +137,7 @@ describe(flattenConfig, () => {
 
 		const config = validateConfig(
 			{
+				environments: MinimumEnvironments,
 				passes: {
 					"vip-pass": {
 						name: "VIP Pass",
@@ -156,7 +163,10 @@ describe(flattenConfig, () => {
 		expect.assertions(1);
 
 		const config = validateConfig(
-			{ universe: { universeId: "1234567890", voiceChatEnabled: true } },
+			{
+				environments: MinimumEnvironments,
+				universe: { universeId: "1234567890", voiceChatEnabled: true },
+			},
 			"bedrock.config.ts",
 		);
 		assert(config.success);
@@ -183,6 +193,7 @@ describe(flattenConfig, () => {
 
 		const config = validateConfig(
 			{
+				environments: MinimumEnvironments,
 				passes: {
 					"vip-pass": {
 						name: "VIP Pass",
@@ -210,7 +221,7 @@ describe(flattenConfig, () => {
 		expect.assertions(1);
 
 		const config = validateConfig(
-			{ universe: { universeId: "1234567890" } },
+			{ environments: MinimumEnvironments, universe: { universeId: "1234567890" } },
 			"bedrock.config.ts",
 		);
 		assert(config.success);
@@ -227,7 +238,10 @@ describe(flattenConfig, () => {
 			expect.assertions(1);
 
 			const config = validateConfig(
-				{ universe: { [flag]: true, universeId: "1234567890" } },
+				{
+					environments: MinimumEnvironments,
+					universe: { [flag]: true, universeId: "1234567890" },
+				},
 				"bedrock.config.ts",
 			);
 			assert(config.success);
@@ -245,7 +259,7 @@ describe(flattenConfig, () => {
 			expect.assertions(1);
 
 			const config = validateConfig(
-				{ universe: { universeId: "1234567890" } },
+				{ environments: MinimumEnvironments, universe: { universeId: "1234567890" } },
 				"bedrock.config.ts",
 			);
 			assert(config.success);
@@ -262,6 +276,7 @@ describe(flattenConfig, () => {
 
 		const config = validateConfig(
 			{
+				environments: MinimumEnvironments,
 				universe: {
 					displayName: "Fun Universe",
 					privateServerPriceRobux: 250,
@@ -289,6 +304,7 @@ describe(flattenConfig, () => {
 
 		const config = validateConfig(
 			{
+				environments: MinimumEnvironments,
 				universe: {
 					privateServerPriceRobux: undefined,
 					universeId: "1234567890",
@@ -309,7 +325,7 @@ describe(flattenConfig, () => {
 		expect.assertions(1);
 
 		const config = validateConfig(
-			{ universe: { universeId: "1234567890" } },
+			{ environments: MinimumEnvironments, universe: { universeId: "1234567890" } },
 			"bedrock.config.ts",
 		);
 		assert(config.success);
@@ -323,7 +339,7 @@ describe(flattenConfig, () => {
 	it("should omit the universe block from output when the config has no universe", () => {
 		expect.assertions(1);
 
-		const config = validateConfig({}, "bedrock.config.ts");
+		const config = validateConfig({ environments: MinimumEnvironments }, "bedrock.config.ts");
 		assert(config.success);
 
 		expect(flattenConfig(config.data).some((input) => input.kind === "universe")).toBeFalse();
@@ -336,7 +352,10 @@ describe(flattenConfig, () => {
 
 			const value = { title: `t-${field}`, uri: `https://example.com/${field}` };
 			const config = validateConfig(
-				{ universe: { [field]: value, universeId: "1234567890" } },
+				{
+					environments: MinimumEnvironments,
+					universe: { [field]: value, universeId: "1234567890" },
+				},
 				"bedrock.config.ts",
 			);
 			assert(config.success);
@@ -355,7 +374,10 @@ describe(flattenConfig, () => {
 			expect.assertions(2);
 
 			const config = validateConfig(
-				{ universe: { [field]: undefined, universeId: "1234567890" } },
+				{
+					environments: MinimumEnvironments,
+					universe: { [field]: undefined, universeId: "1234567890" },
+				},
 				"bedrock.config.ts",
 			);
 			assert(config.success);
@@ -374,7 +396,7 @@ describe(flattenConfig, () => {
 			expect.assertions(1);
 
 			const config = validateConfig(
-				{ universe: { universeId: "1234567890" } },
+				{ environments: MinimumEnvironments, universe: { universeId: "1234567890" } },
 				"bedrock.config.ts",
 			);
 			assert(config.success);
@@ -392,6 +414,7 @@ describe(flattenConfig, () => {
 		const discord = { title: "Discord", uri: "https://discord.gg/example" };
 		const config = validateConfig(
 			{
+				environments: MinimumEnvironments,
 				universe: {
 					discordSocialLink: discord,
 					twitterSocialLink: undefined,

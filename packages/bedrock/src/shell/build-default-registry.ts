@@ -55,6 +55,7 @@ interface AssembleRegistryInputs {
  *
  * const registry = buildDefaultRegistry({
  *     config: {
+ *         environments: { production: {} },
  *         state: { backend: "gist", gistId: "abc" },
  *         universe: { universeId: "1234567890" },
  *     },

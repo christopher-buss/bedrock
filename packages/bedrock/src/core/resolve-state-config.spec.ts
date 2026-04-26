@@ -10,7 +10,10 @@ describe(resolveStateConfig, () => {
 	it("should return the root state when no per-environment override exists", () => {
 		expect.assertions(1);
 
-		const config: Config = { state: ROOT_STATE };
+		const config: Config = {
+			environments: { production: {} },
+			state: ROOT_STATE,
+		};
 
 		const result = resolveStateConfig(config, "production");
 
@@ -81,20 +84,7 @@ describe(resolveStateConfig, () => {
 	it("should return Err(stateNotConfigured) when neither root nor environment provides state", () => {
 		expect.assertions(2);
 
-		const result = resolveStateConfig({}, "production");
-
-		assert(!result.success);
-
-		expect(result.err.kind).toBe("stateNotConfigured");
-		expect(result.err.environment).toBe("production");
-	});
-
-	it("should return Err(stateNotConfigured) when the matching environment lacks state and no root state exists", () => {
-		expect.assertions(2);
-
-		const config: Config = {
-			environments: { production: {} },
-		};
+		const config: Config = { environments: { production: {} } };
 
 		const result = resolveStateConfig(config, "production");
 

@@ -4,6 +4,7 @@ import type { Config } from "../core/schema.ts";
 import { defineConfig } from "./define-config.ts";
 
 const BASE_CONFIG: Config = {
+	environments: { production: {} },
 	passes: {
 		"vip-pass": {
 			name: "VIP Pass",

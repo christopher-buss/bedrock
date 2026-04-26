@@ -2,9 +2,11 @@ import type { Result } from "@bedrock/ocale";
 import type { SocialLink } from "@bedrock/ocale/universes";
 
 import { ArkErrors, type, type Type } from "arktype";
+import type { SetRequired } from "type-fest";
 
 import { RESOURCE_KEY_PATTERN_SOURCE } from "../types/ids.ts";
 import type { ConfigError } from "./config-error.ts";
+import { ENV_NAME_PATTERN_SOURCE } from "./environment.ts";
 
 /**
  * Body of a single entry in the `passes` collection. Keys in the parent
@@ -148,11 +150,40 @@ export type StateConfig = GistStateConfig | { readonly backend: string & {} };
 /**
  * Body of a single entry under `environments`. Per-environment overrides
  * narrow root-level settings for that environment without redefining
- * unrelated fields.
+ * unrelated fields. Resource overlays (`passes`, `places`, `universe`)
+ * derive their field shapes from the matching root entry types so adding
+ * a field to a base entry surfaces on the overlay automatically.
+ *
+ * `placeId` and `universeId` stay required when the matching overlay is
+ * present because each environment targets its own Roblox object: an
+ * overlay that mentions a place or universe must re-assert which Roblox
+ * resource it points at.
  */
 export interface EnvironmentEntry {
+	/**
+	 * Per-environment game-pass overlay. Every field is optional; missing
+	 * fields fall through to the matching root `passes` entry at merge time.
+	 *
+	 * Uses `Partial<GamePassEntry>` directly rather than `Overlay<T, K>`
+	 * because game passes have no user-supplied identity key (Open Cloud
+	 * mints the asset ID). The other overlay fields use `Overlay<T, K>`
+	 * to keep their identity-bearing key required.
+	 */
+	passes?: Record<string, Partial<GamePassEntry>>;
+	/**
+	 * Per-environment places overlay. `placeId` is required on every
+	 * declared entry; other fields fall through to the matching root
+	 * `places` entry when omitted.
+	 */
+	places?: Record<string, Overlay<PlaceEntry, "placeId">>;
 	/** Per-environment state override; takes precedence over root `state`. */
 	state?: StateConfig;
+	/**
+	 * Per-environment universe overlay. `universeId` is required when the
+	 * overlay is present; other fields fall through to the root `universe`
+	 * block when omitted.
+	 */
+	universe?: Overlay<UniverseEntry, "universeId">;
 }
 
 /**
@@ -203,6 +234,7 @@ export interface ResourceEntryByKind {
  * import type { Config } from "@bedrock/core";
  *
  * const config: Config = {
+ *     environments: { production: {} },
  *     state: { backend: "gist", gistId: "abc123def456" },
  *     passes: {
  *         "vip-pass": {
@@ -218,8 +250,13 @@ export interface ResourceEntryByKind {
  * ```
  */
 export interface Config {
-	/** Per-environment overrides keyed by environment name. */
-	environments?: Record<string, EnvironmentEntry>;
+	/**
+	 * Per-environment overrides keyed by environment name. Required and
+	 * non-empty: every project declares at least one environment, and
+	 * `deploy()` rejects any environment name that is not a key of this
+	 * record. Environment names match `[A-Za-z0-9_-]{1,64}`.
+	 */
+	environments: Record<string, EnvironmentEntry>;
 	/** Reserved at the root for c12's config layering / overlay work. */
 	extends?: unknown;
 	/** Keyed-map collection of game-pass entries by user-supplied ResourceKey. */
@@ -231,6 +268,18 @@ export interface Config {
 	/** Singleton universe block declaring the Roblox universe bedrock manages. */
 	universe?: UniverseEntry;
 }
+
+/**
+ * Overlay shape used by per-environment entries: every field of `T`
+ * becomes optional, except `RequiredKey`, which stays required so the
+ * overlay still re-asserts the identity-bearing field of its target
+ * resource.
+ *
+ * @template T - Base entry type whose field shapes the overlay derives from.
+ * @template RequiredKey - Identity-bearing key on `T` that the overlay must
+ * still declare (for example `"placeId"` or `"universeId"`).
+ */
+type Overlay<T, RequiredKey extends keyof T> = SetRequired<Partial<T>, RequiredKey>;
 
 /**
  * Narrow a `StateConfig` to the `GistStateConfig` arm. The `(string & {})`
@@ -275,9 +324,11 @@ const passesCollection = type({
 	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: gamePassEntry,
 }).onUndeclaredKey("reject");
 
+const ROBLOX_ID_DIGITS = "string.digits";
+
 const placeEntry = type({
 	filePath: "string",
-	placeId: "string.digits",
+	placeId: ROBLOX_ID_DIGITS,
 }).onUndeclaredKey("reject");
 
 const placesCollection = type({
@@ -306,7 +357,7 @@ const universeEntry = type({
 	"tabletEnabled?": OPTIONAL_BOOLEAN,
 	"twitchSocialLink?": socialLinkOrUndefined,
 	"twitterSocialLink?": socialLinkOrUndefined,
-	"universeId": "string.digits",
+	"universeId": ROBLOX_ID_DIGITS,
 	"visibility?": "'private' | 'public' | 'unspecified' | undefined",
 	"voiceChatEnabled?": OPTIONAL_BOOLEAN,
 	"vrEnabled?": OPTIONAL_BOOLEAN,
@@ -318,16 +369,57 @@ const stateConfig = type({
 	"gistId?": "string > 0",
 }).onUndeclaredKey("reject");
 
-const environmentEntry = type({
+// Overlay schemas mirror the base entry schemas but with every field
+// optional, except the identity-bearing key (`placeId`, `universeId`)
+// which stays required. Game passes have no user-supplied identity, so
+// the overlay is fully partial.
+const gamePassOverlay = type({
+	"description?": "string",
+	"iconFilePath?": "string",
+	"name?": "string",
+	"price?": "number | undefined",
+}).onUndeclaredKey("reject");
+
+const passesOverlayCollection = type({
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: gamePassOverlay,
+}).onUndeclaredKey("reject");
+
+const placeOverlay = type({
+	"filePath?": "string",
+	"placeId": ROBLOX_ID_DIGITS,
+}).onUndeclaredKey("reject");
+
+const placesOverlayCollection = type({
+	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: placeOverlay,
+}).onUndeclaredKey("reject");
+
+// `Overlay<UniverseEntry, "universeId">` is structurally equal to
+// `UniverseEntry` itself: the base type already has every field except
+// `universeId` declared as optional. Reusing `universeEntry` here keeps
+// the field set in lockstep and avoids a parallel declaration to drift.
+const universeOverlay = universeEntry;
+
+const environmentEntry: Type<EnvironmentEntry> = type({
+	"passes?": passesOverlayCollection,
+	"places?": placesOverlayCollection,
 	"state?": stateConfig,
+	"universe?": universeOverlay,
 }).onUndeclaredKey("reject");
 
 const environmentsCollection = type({
-	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: environmentEntry,
-}).onUndeclaredKey("reject");
+	[`[/${ENV_NAME_PATTERN_SOURCE}/]`]: environmentEntry,
+})
+	.onUndeclaredKey("reject")
+	.narrow((value, ctx) => {
+		if (Object.keys(value).length === 0) {
+			return ctx.mustBe("an environments record with at least one declared environment");
+		}
+
+		return true;
+	});
 
 const rootSchema: Type<Config> = type({
-	"environments?": environmentsCollection,
+	"environments": environmentsCollection,
 	"extends?": "unknown",
 	"passes?": passesCollection,
 	"places?": placesCollection,
@@ -354,6 +446,7 @@ const rootSchema: Type<Config> = type({
  *
  * const ok = validateConfig(
  *     {
+ *         environments: { production: {} },
  *         passes: {
  *             "vip-pass": {
  *                 description: "VIP perks.",
@@ -368,7 +461,7 @@ const rootSchema: Type<Config> = type({
  * expect(ok.success).toBeTrue();
  *
  * const err = validateConfig(
- *     { passes: { "vip-pass": { name: "VIP" } } },
+ *     { environments: { production: {} }, passes: { "vip-pass": { name: "VIP" } } },
  *     "bedrock.config.ts",
  * );
  * expect(err.success).toBeFalse();

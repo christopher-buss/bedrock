@@ -32,6 +32,7 @@ export type ConfigInput = ((ctx: ConfigContext) => Config | Promise<Config>) | C
  * import { defineConfig } from "@bedrock/core";
  *
  * const config = defineConfig({
+ *     environments: { production: {} },
  *     passes: {
  *         "vip-pass": {
  *             description: "Grants VIP perks.",

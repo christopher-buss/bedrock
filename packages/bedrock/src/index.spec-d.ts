@@ -63,11 +63,11 @@ interface ExpectedValidationFailed {
 }
 
 function syncConfigBuilder(_ctx: ConfigContext): Config {
-	return { passes: {} };
+	return { environments: { production: {} }, passes: {} };
 }
 
 async function asyncConfigBuilder(_ctx: ConfigContext): Promise<Config> {
-	return { passes: {} };
+	return { environments: { production: {} }, passes: {} };
 }
 
 const brandShapeCases: ReadonlyArray<readonly [name: string, assertShape: () => void]> = [
@@ -215,14 +215,19 @@ describe("Config", () => {
 		expectTypeOf<Config["extends"]>().toEqualTypeOf<unknown>();
 	});
 
-	it("should treat every root field as optional so an empty object satisfies Config", () => {
-		expectTypeOf<Record<string, never>>().toExtend<Config>();
+	it("should require the environments field so an empty object does not satisfy Config", () => {
+		expectTypeOf<Record<string, never>>().not.toExtend<Config>();
+	});
+
+	it("should treat every root field except environments as optional", () => {
+		expectTypeOf<{ environments: Record<string, never> }>().toExtend<Config>();
 	});
 });
 
 describe(defineConfig, () => {
 	it("should preserve the literal type when given a plain object", () => {
 		const literal = {
+			environments: { production: {} },
 			passes: {
 				"vip-pass": {
 					name: "VIP Pass",

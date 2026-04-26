@@ -55,6 +55,7 @@ function inMemoryStatePort(initial?: BedrockState): {
 
 function vipPassConfig(): Config {
 	return {
+		environments: { production: {} },
 		passes: {
 			"vip-pass": {
 				name: "VIP Pass",
@@ -87,6 +88,7 @@ function twoPassConfig(): Config {
 	// alphabetically, so alpha-pass runs first and vip-pass second. Tests
 	// rely on that order when asserting which dispatch failed.
 	return {
+		environments: { production: {} },
 		passes: {
 			"alpha-pass": {
 				name: "Alpha Pass",
@@ -106,6 +108,7 @@ function twoPassConfig(): Config {
 
 function configWithState(): Config {
 	return {
+		environments: { production: {} },
 		passes: {
 			"vip-pass": {
 				name: "VIP Pass",
@@ -246,6 +249,7 @@ describe(deploy, () => {
 			version: 1,
 		});
 		const config: Config = {
+			environments: { production: {} },
 			passes: {
 				"vip-pass": {
 					name: "VIP Pass",
@@ -499,7 +503,7 @@ describe(deploy, () => {
 		expect.assertions(2);
 
 		const result = await deploy({
-			config: { passes: {} },
+			config: { environments: { production: {} }, passes: {} },
 			environment: "production",
 			getEnv: environmentFrom({}),
 			readFile: readIcon,
@@ -517,7 +521,7 @@ describe(deploy, () => {
 		expect.assertions(2);
 
 		const result = await deploy({
-			config: { state: { backend: "s3" } },
+			config: { environments: { production: {} }, state: { backend: "s3" } },
 			environment: "production",
 			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test" }),
 			readFile: readIcon,
@@ -555,7 +559,11 @@ describe(deploy, () => {
 		const { port } = inMemoryStatePort();
 
 		const result = await deploy({
-			config: { state: { backend: "gist", gistId: "abc" }, universe: { universeId: "1" } },
+			config: {
+				environments: { production: {} },
+				state: { backend: "gist", gistId: "abc" },
+				universe: { universeId: "1" },
+			},
 			environment: "production",
 			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test", ROBLOX_API_KEY: "rbx-test" }),
 			readFile: readIcon,
@@ -571,7 +579,11 @@ describe(deploy, () => {
 		expect.assertions(2);
 
 		const result = await deploy({
-			config: { state: { backend: "gist", gistId: "abc" }, universe: { universeId: "1" } },
+			config: {
+				environments: { production: {} },
+				state: { backend: "gist", gistId: "abc" },
+				universe: { universeId: "1" },
+			},
 			environment: "production",
 			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test" }),
 			readFile: readIcon,
@@ -589,7 +601,10 @@ describe(deploy, () => {
 		expect.assertions(2);
 
 		const result = await deploy({
-			config: { state: { backend: "gist", gistId: "abc" } },
+			config: {
+				environments: { production: {} },
+				state: { backend: "gist", gistId: "abc" },
+			},
 			environment: "production",
 			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test", ROBLOX_API_KEY: "rbx-test" }),
 			readFile: readIcon,
@@ -606,7 +621,10 @@ describe(deploy, () => {
 	it("should call the loadConfig override when config is omitted and use the result", async () => {
 		expect.assertions(2);
 
-		const minimalConfig: Config = { state: { backend: "gist", gistId: "abc-test" } };
+		const minimalConfig: Config = {
+			environments: { production: {} },
+			state: { backend: "gist", gistId: "abc-test" },
+		};
 		const loadConfigStub = vi.fn<() => Promise<{ data: Config; success: true }>>(async () => {
 			return { data: minimalConfig, success: true };
 		});
@@ -653,6 +671,7 @@ describe(deploy, () => {
 		try {
 			const result = await deploy({
 				config: {
+					environments: { production: {} },
 					state: { backend: "gist", gistId: "abc" },
 					universe: { universeId: "1234567890" },
 				},

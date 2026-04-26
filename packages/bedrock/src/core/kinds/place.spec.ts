@@ -19,6 +19,7 @@ describe("placeKind", () => {
 
 			expect(
 				placeKind.flatten({
+					environments: { production: {} },
 					places: {
 						"start-place": { filePath: "places/start.rbxl", placeId: "4711" },
 					},
@@ -36,7 +37,7 @@ describe("placeKind", () => {
 		it("should emit an empty list when the config has no places", () => {
 			expect.assertions(1);
 
-			expect(placeKind.flatten({})).toBeEmpty();
+			expect(placeKind.flatten({ environments: { production: {} } })).toBeEmpty();
 		});
 	});
 

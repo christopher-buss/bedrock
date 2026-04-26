@@ -5,6 +5,7 @@ import { buildDefaultRegistry } from '@bedrock/core'
 it('Example 1', () => {
   const registry = buildDefaultRegistry({
     config: {
+      environments: { production: {} },
       state: { backend: 'gist', gistId: 'abc' },
       universe: { universeId: '1234567890' },
     },

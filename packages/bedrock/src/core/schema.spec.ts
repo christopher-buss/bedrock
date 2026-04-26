@@ -6,24 +6,51 @@ import { validateConfig } from "./schema.ts";
 
 const SOURCE = "bedrock.config.ts";
 
+const MinEnvironments = { production: {} } as const;
+
 describe(validateConfig, () => {
-	it("should accept an empty config", () => {
+	it("should reject a config missing the required environments collection", () => {
 		expect.assertions(1);
 
 		const result = validateConfig({}, SOURCE);
 
-		assert(result.success);
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
 
-		expect(result.data).toStrictEqual({});
+		expect(result.err.issues[0]!.path).toStrictEqual(["environments"]);
 	});
 
-	it.for([
-		["environments", { environments: { production: {} } }],
-		["extends", { extends: "./base.config.ts" }],
-	] as const)("should accept the reserved %s key at the root", ([, input]) => {
+	it("should reject a config whose environments collection is empty", () => {
+		expect.assertions(2);
+
+		const result = validateConfig({ environments: {} }, SOURCE);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["environments"]);
+		expect(result.err.issues[0]!.message).toContain(
+			"environments record with at least one declared environment",
+		);
+	});
+
+	it("should accept a minimal config that declares only environments", () => {
 		expect.assertions(1);
 
-		const result = validateConfig(input, SOURCE);
+		const result = validateConfig({ environments: MinEnvironments }, SOURCE);
+
+		assert(result.success);
+
+		expect(result.data.environments).toContainKey("production");
+	});
+
+	it("should accept the reserved extends key at the root", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{ environments: MinEnvironments, extends: "./base.config.ts" },
+			SOURCE,
+		);
 
 		expect(result.success).toBeTrue();
 	});
@@ -31,7 +58,7 @@ describe(validateConfig, () => {
 	it("should reject unknown top-level keys and point the issue path at the offending key", () => {
 		expect.assertions(3);
 
-		const result = validateConfig({ unexpected: {} }, SOURCE);
+		const result = validateConfig({ environments: MinEnvironments, unexpected: {} }, SOURCE);
 
 		assert(!result.success);
 		assert(result.err.kind === "validationFailed");
@@ -46,6 +73,7 @@ describe(validateConfig, () => {
 
 		const result = validateConfig(
 			{
+				environments: MinEnvironments,
 				passes: {
 					"vip-pass": {
 						name: "VIP Pass",
@@ -68,6 +96,7 @@ describe(validateConfig, () => {
 
 		const result = validateConfig(
 			{
+				environments: MinEnvironments,
 				passes: {
 					"free-pass": {
 						name: "Free Pass",
@@ -89,6 +118,7 @@ describe(validateConfig, () => {
 
 		const result = validateConfig(
 			{
+				environments: MinEnvironments,
 				passes: {
 					"bad key!": {
 						name: "Bad",
@@ -111,6 +141,7 @@ describe(validateConfig, () => {
 
 		const result = validateConfig(
 			{
+				environments: MinEnvironments,
 				passes: {
 					"vip-pass": {
 						name: "VIP",
@@ -132,6 +163,7 @@ describe(validateConfig, () => {
 
 		const result = validateConfig(
 			{
+				environments: MinEnvironments,
 				passes: {
 					"vip-pass": {
 						name: "VIP",
@@ -155,6 +187,7 @@ describe(validateConfig, () => {
 
 		const result = validateConfig(
 			{
+				environments: MinEnvironments,
 				places: {
 					"start-place": {
 						filePath: "places/start.rbxl",
@@ -176,6 +209,7 @@ describe(validateConfig, () => {
 
 		const result = validateConfig(
 			{
+				environments: MinEnvironments,
 				places: {
 					"start-place": { filePath: "places/start.rbxl" },
 				},
@@ -194,6 +228,7 @@ describe(validateConfig, () => {
 
 		const result = validateConfig(
 			{
+				environments: MinEnvironments,
 				places: {
 					"start-place": {
 						filePath: "places/start.rbxl",
@@ -220,6 +255,7 @@ describe(validateConfig, () => {
 
 		const result = validateConfig(
 			{
+				environments: MinEnvironments,
 				places: {
 					"start-place": { filePath: "places/start.rbxl", placeId },
 				},
@@ -238,6 +274,7 @@ describe(validateConfig, () => {
 
 		const result = validateConfig(
 			{
+				environments: MinEnvironments,
 				places: {
 					"bad key!": { filePath: "places/start.rbxl", placeId: "4711" },
 				},
@@ -254,7 +291,10 @@ describe(validateConfig, () => {
 	it("should accept a universe block declaring only universeId", () => {
 		expect.assertions(2);
 
-		const result = validateConfig({ universe: { universeId: "1234567890" } }, SOURCE);
+		const result = validateConfig(
+			{ environments: MinEnvironments, universe: { universeId: "1234567890" } },
+			SOURCE,
+		);
 
 		assert(result.success);
 
@@ -266,7 +306,10 @@ describe(validateConfig, () => {
 		expect.assertions(1);
 
 		const result = validateConfig(
-			{ universe: { universeId: "1234567890", voiceChatEnabled: true } },
+			{
+				environments: MinEnvironments,
+				universe: { universeId: "1234567890", voiceChatEnabled: true },
+			},
 			SOURCE,
 		);
 
@@ -279,7 +322,10 @@ describe(validateConfig, () => {
 		expect.assertions(1);
 
 		const result = validateConfig(
-			{ universe: { [flag]: false, universeId: "1234567890" } },
+			{
+				environments: MinEnvironments,
+				universe: { [flag]: false, universeId: "1234567890" },
+			},
 			SOURCE,
 		);
 
@@ -293,7 +339,10 @@ describe(validateConfig, () => {
 		([flag]) => {
 			expect.assertions(1);
 
-			const result = validateConfig({ universe: { universeId: "1234567890" } }, SOURCE);
+			const result = validateConfig(
+				{ environments: MinEnvironments, universe: { universeId: "1234567890" } },
+				SOURCE,
+			);
 
 			assert(result.success);
 
@@ -305,7 +354,10 @@ describe(validateConfig, () => {
 		expect.assertions(1);
 
 		const result = validateConfig(
-			{ universe: { [flag]: "oops", universeId: "1234567890" } },
+			{
+				environments: MinEnvironments,
+				universe: { [flag]: "oops", universeId: "1234567890" },
+			},
 			SOURCE,
 		);
 
@@ -320,6 +372,7 @@ describe(validateConfig, () => {
 
 		const result = validateConfig(
 			{
+				environments: MinEnvironments,
 				universe: {
 					consoleEnabled: false,
 					desktopEnabled: true,
@@ -344,7 +397,10 @@ describe(validateConfig, () => {
 	it("should reject a universe block missing universeId", () => {
 		expect.assertions(1);
 
-		const result = validateConfig({ universe: { voiceChatEnabled: true } }, SOURCE);
+		const result = validateConfig(
+			{ environments: MinEnvironments, universe: { voiceChatEnabled: true } },
+			SOURCE,
+		);
 
 		assert(!result.success);
 		assert(result.err.kind === "validationFailed");
@@ -359,7 +415,10 @@ describe(validateConfig, () => {
 	] as const)("should reject a universe whose universeId has %s", ([, universeId]) => {
 		expect.assertions(1);
 
-		const result = validateConfig({ universe: { universeId } }, SOURCE);
+		const result = validateConfig(
+			{ environments: MinEnvironments, universe: { universeId } },
+			SOURCE,
+		);
 
 		assert(!result.success);
 		assert(result.err.kind === "validationFailed");
@@ -372,6 +431,7 @@ describe(validateConfig, () => {
 
 		const result = validateConfig(
 			{
+				environments: MinEnvironments,
 				universe: {
 					displayName: "Fun Universe",
 					privateServerPriceRobux: 250,
@@ -396,6 +456,7 @@ describe(validateConfig, () => {
 
 		const result = validateConfig(
 			{
+				environments: MinEnvironments,
 				universe: {
 					privateServerPriceRobux: undefined,
 					universeId: "1234567890",
@@ -413,7 +474,10 @@ describe(validateConfig, () => {
 	it("should omit privateServerPriceRobux when the user does not declare it", () => {
 		expect.assertions(1);
 
-		const result = validateConfig({ universe: { universeId: "1234567890" } }, SOURCE);
+		const result = validateConfig(
+			{ environments: MinEnvironments, universe: { universeId: "1234567890" } },
+			SOURCE,
+		);
 
 		assert(result.success);
 
@@ -426,7 +490,10 @@ describe(validateConfig, () => {
 			expect.assertions(1);
 
 			const result = validateConfig(
-				{ universe: { universeId: "1234567890", visibility: value } },
+				{
+					environments: MinEnvironments,
+					universe: { universeId: "1234567890", visibility: value },
+				},
 				SOURCE,
 			);
 
@@ -438,7 +505,10 @@ describe(validateConfig, () => {
 		expect.assertions(1);
 
 		const result = validateConfig(
-			{ universe: { universeId: "1234567890", visibility: "internal" } },
+			{
+				environments: MinEnvironments,
+				universe: { universeId: "1234567890", visibility: "internal" },
+			},
 			SOURCE,
 		);
 
@@ -452,7 +522,10 @@ describe(validateConfig, () => {
 		expect.assertions(1);
 
 		const result = validateConfig(
-			{ universe: { privateServerPriceRobux: -1, universeId: "1234567890" } },
+			{
+				environments: MinEnvironments,
+				universe: { privateServerPriceRobux: -1, universeId: "1234567890" },
+			},
 			SOURCE,
 		);
 
@@ -466,7 +539,10 @@ describe(validateConfig, () => {
 		expect.assertions(1);
 
 		const result = validateConfig(
-			{ universe: { privateServerPriceRobux: 12.5, universeId: "1234567890" } },
+			{
+				environments: MinEnvironments,
+				universe: { privateServerPriceRobux: 12.5, universeId: "1234567890" },
+			},
 			SOURCE,
 		);
 
@@ -480,7 +556,10 @@ describe(validateConfig, () => {
 		expect.assertions(1);
 
 		const result = validateConfig(
-			{ universe: { unexpected: "nope", universeId: "1234567890" } },
+			{
+				environments: MinEnvironments,
+				universe: { unexpected: "nope", universeId: "1234567890" },
+			},
 			SOURCE,
 		);
 
@@ -497,6 +576,7 @@ describe(validateConfig, () => {
 
 			const result = validateConfig(
 				{
+					environments: MinEnvironments,
 					universe: {
 						[field]: { title: "Join us", uri: "https://example.com/x" },
 						universeId: "1234567890",
@@ -521,7 +601,10 @@ describe(validateConfig, () => {
 			expect.assertions(2);
 
 			const result = validateConfig(
-				{ universe: { [field]: undefined, universeId: "1234567890" } },
+				{
+					environments: MinEnvironments,
+					universe: { [field]: undefined, universeId: "1234567890" },
+				},
 				SOURCE,
 			);
 
@@ -537,7 +620,10 @@ describe(validateConfig, () => {
 		(field) => {
 			expect.assertions(1);
 
-			const result = validateConfig({ universe: { universeId: "1234567890" } }, SOURCE);
+			const result = validateConfig(
+				{ environments: MinEnvironments, universe: { universeId: "1234567890" } },
+				SOURCE,
+			);
 
 			assert(result.success);
 
@@ -552,6 +638,7 @@ describe(validateConfig, () => {
 
 			const result = validateConfig(
 				{
+					environments: MinEnvironments,
 					universe: {
 						[field]: { title: "Join us" },
 						universeId: "1234567890",
@@ -572,6 +659,7 @@ describe(validateConfig, () => {
 
 		const result = validateConfig(
 			{
+				environments: MinEnvironments,
 				universe: {
 					[field]: { extra: 1, title: "Join us", uri: "https://example.com/x" },
 					universeId: "1234567890",
@@ -594,7 +682,7 @@ describe(validateConfig, () => {
 			entry[field] = { title: `t-${field}`, uri: `https://example.com/${field}` };
 		}
 
-		const result = validateConfig({ universe: entry }, SOURCE);
+		const result = validateConfig({ environments: MinEnvironments, universe: entry }, SOURCE);
 		assert(result.success);
 
 		for (const field of SOCIAL_LINK_FIELDS) {
@@ -620,7 +708,7 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(result.data.environments?.["production"]?.state).toContainEntry([
+		expect(result.data.environments["production"]?.state).toContainEntry([
 			"gistId",
 			"prod-gist",
 		]);
@@ -642,7 +730,7 @@ describe(validateConfig, () => {
 		expect(result.success).toBeTrue();
 	});
 
-	it("should reject an environments key that does not match the ResourceKey pattern", () => {
+	it("should reject an environments key that does not match the environment-name pattern", () => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -657,6 +745,192 @@ describe(validateConfig, () => {
 		assert(result.err.kind === "validationFailed");
 
 		expect(result.err.issues[0]!.path).toStrictEqual(["environments", "bad name!"]);
+	});
+
+	it("should reject an environments key that exceeds the 64-character length cap", () => {
+		expect.assertions(1);
+
+		const tooLong = "a".repeat(65);
+		const result = validateConfig({ environments: { [tooLong]: {} } }, SOURCE);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["environments", tooLong]);
+	});
+
+	it("should accept a per-environment universe overlay declaring only universeId", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					production: { universe: { universeId: "9999999999" } },
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+				universe: { universeId: "1111111111" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.environments["production"]?.universe?.universeId).toBe("9999999999");
+	});
+
+	it("should reject a per-environment universe overlay missing universeId", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					production: { universe: { voiceChatEnabled: true } },
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"production",
+			"universe",
+			"universeId",
+		]);
+	});
+
+	it("should accept a per-environment places overlay that declares placeId without filePath", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: {
+						places: {
+							"start-place": { placeId: "5555" },
+						},
+					},
+				},
+				places: { "start-place": { filePath: "places/start.rbxl", placeId: "1111" } },
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.environments["staging"]?.places?.["start-place"]?.placeId).toBe("5555");
+	});
+
+	it("should reject a per-environment places overlay entry that omits placeId", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: {
+						places: {
+							"start-place": { filePath: "places/start-staging.rbxl" },
+						},
+					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"staging",
+			"places",
+			"start-place",
+			"placeId",
+		]);
+	});
+
+	it("should accept a per-environment passes overlay that omits every field as a no-op", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: { passes: { "vip-pass": {} } },
+				},
+				passes: {
+					"vip-pass": {
+						name: "VIP Pass",
+						description: "Grants VIP perks.",
+						iconFilePath: "assets/vip.png",
+						price: 500,
+					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		expect(result.success).toBeTrue();
+	});
+
+	it("should accept a per-environment passes overlay that supplies a partial subset of fields", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: { passes: { "vip-pass": { price: 250 } } },
+				},
+				passes: {
+					"vip-pass": {
+						name: "VIP Pass",
+						description: "Grants VIP perks.",
+						iconFilePath: "assets/vip.png",
+						price: 500,
+					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.environments["staging"]?.passes?.["vip-pass"]?.price).toBe(250);
+	});
+
+	it("should reject an undeclared field inside a per-environment places overlay entry", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: {
+						places: {
+							"start-place": { placeId: "5555", unexpected: "nope" },
+						},
+					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"staging",
+			"places",
+			"start-place",
+			"unexpected",
+		]);
 	});
 
 	it("should reject an undeclared field on an environments entry", () => {
@@ -684,7 +958,7 @@ describe(validateConfig, () => {
 		expect.assertions(2);
 
 		const result = validateConfig(
-			{ state: { backend: "gist", gistId: "abc123def456" } },
+			{ environments: MinEnvironments, state: { backend: "gist", gistId: "abc123def456" } },
 			SOURCE,
 		);
 
@@ -697,7 +971,10 @@ describe(validateConfig, () => {
 	it("should reject a state block missing the backend field and attribute the issue path to backend", () => {
 		expect.assertions(1);
 
-		const result = validateConfig({ state: { gistId: "abc123" } }, SOURCE);
+		const result = validateConfig(
+			{ environments: MinEnvironments, state: { gistId: "abc123" } },
+			SOURCE,
+		);
 
 		assert(!result.success);
 		assert(result.err.kind === "validationFailed");
@@ -708,7 +985,10 @@ describe(validateConfig, () => {
 	it("should reject a gist state block whose gistId is the empty string", () => {
 		expect.assertions(1);
 
-		const result = validateConfig({ state: { backend: "gist", gistId: "" } }, SOURCE);
+		const result = validateConfig(
+			{ environments: MinEnvironments, state: { backend: "gist", gistId: "" } },
+			SOURCE,
+		);
 
 		assert(!result.success);
 		assert(result.err.kind === "validationFailed");
@@ -719,7 +999,10 @@ describe(validateConfig, () => {
 	it("should accept a state block whose backend is an unrecognized string at the runtime layer", () => {
 		expect.assertions(1);
 
-		const result = validateConfig({ state: { backend: "future-backend" } }, SOURCE);
+		const result = validateConfig(
+			{ environments: MinEnvironments, state: { backend: "future-backend" } },
+			SOURCE,
+		);
 
 		expect(result.success).toBeTrue();
 	});
@@ -728,7 +1011,10 @@ describe(validateConfig, () => {
 		expect.assertions(1);
 
 		const result = validateConfig(
-			{ state: { backend: "gist", gistId: "abc123", unexpected: "nope" } },
+			{
+				environments: MinEnvironments,
+				state: { backend: "gist", gistId: "abc123", unexpected: "nope" },
+			},
 			SOURCE,
 		);
 
@@ -743,6 +1029,7 @@ describe(validateConfig, () => {
 
 		const result = validateConfig(
 			{
+				environments: MinEnvironments,
 				passes: {
 					"vip-pass": {
 						name: 42,

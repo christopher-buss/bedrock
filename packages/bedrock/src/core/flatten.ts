@@ -174,6 +174,7 @@ export type ResourceDesiredInput = GamePassDesiredInput | PlaceDesiredInput | Un
  * import { flattenConfig, type Config } from "@bedrock/core";
  *
  * const config: Config = {
+ *     environments: { production: {} },
  *     passes: {
  *         "vip-pass": {
  *             description: "Grants VIP perks.",

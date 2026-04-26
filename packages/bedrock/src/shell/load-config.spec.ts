@@ -42,6 +42,7 @@ describe(loadConfig, () => {
 			writeFixtureConfig(cwd, [
 				"import { defineConfig } from '@bedrock/core';",
 				"export default defineConfig({",
+				"  environments: { production: {} },",
 				"  passes: {",
 				"    'vip-pass': {",
 				"      description: 'Grants VIP perks.',",
@@ -68,6 +69,7 @@ describe(loadConfig, () => {
 			writeFixtureConfig(cwd, [
 				"import { defineConfig } from '@bedrock/core';",
 				"export default defineConfig(() => ({",
+				"  environments: { production: {} },",
 				"  passes: {",
 				"    'vip-pass': {",
 				"      description: 'Grants VIP perks.',",
@@ -94,6 +96,7 @@ describe(loadConfig, () => {
 			writeFixtureConfig(cwd, [
 				"import { defineConfig } from '@bedrock/core';",
 				"export default defineConfig(async () => ({",
+				"  environments: { production: {} },",
 				"  passes: {",
 				"    'vip-pass': {",
 				"      description: 'Grants VIP perks.',",
@@ -199,6 +202,8 @@ describe(loadConfig, () => {
 			writeFileSync(
 				join(cwd, "bedrock.staging.config.yaml"),
 				[
+					"environments:",
+					"  staging: {}",
 					"passes:",
 					"  staging-pass:",
 					"    description: Staging perks.",
@@ -249,6 +254,7 @@ describe(loadConfig, () => {
 				[
 					"import { defineConfig } from '@bedrock/core';",
 					"export default defineConfig({",
+					"  environments: { production: {} },",
 					"  passes: {",
 					"    'absolute-pass': {",
 					"      description: 'Loaded by absolute path.',",
@@ -275,6 +281,7 @@ describe(loadConfig, () => {
 		await withTemporaryDirectory(async (cwd) => {
 			writeFixtureConfig(cwd, [
 				"export default {",
+				"  environments: { production: {} },",
 				"  passes: {",
 				"    'vip-pass': {",
 				"      description: 'Bad price.',",
@@ -320,6 +327,7 @@ describe(loadConfig, () => {
 		await withTemporaryDirectory(async (cwd) => {
 			writeFixtureConfig(cwd, [
 				"export default {",
+				"  environments: { production: {} },",
 				"  passes: {",
 				"    'vip-pass': {",
 				"      description: 'd',",
