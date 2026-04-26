@@ -6,6 +6,7 @@ import type { deploy as defaultDeploy } from "../shell/deploy.ts";
 import type { loadConfig as defaultLoadConfig } from "../shell/load-config.ts";
 import type { previewDiff as defaultPreviewDiff } from "../shell/preview-diff.ts";
 import { deployCommand } from "./commands/deploy.ts";
+import { diffCommand } from "./commands/diff.ts";
 import type { ClackPort } from "./render.ts";
 
 export { createClackPort } from "./render.ts";
@@ -38,7 +39,7 @@ export interface ProgDeps {
  *   resolves its own defaults from any omitted slots.
  * @returns A configured sade program with the bedrock name, description, and
  *   the currently installed `@bedrock/core` version, plus the registered
- *   `deploy` command.
+ *   `deploy` and `diff` commands.
  */
 export function createProg(deps: ProgDeps = {}): Sade {
 	const prog = sade(PROGRAM_NAME).describe(PROGRAM_DESCRIBE).version(manifest.version);
@@ -50,6 +51,14 @@ export function createProg(deps: ProgDeps = {}): Sade {
 		.option("--api-key", "Override the ROBLOX_API_KEY environment variable")
 		.option("--github-token", "Override the GITHUB_TOKEN environment variable")
 		.action(deployCommand(deps));
+
+	prog.command("diff")
+		.describe("Preview the operations a deploy would apply, without writing state")
+		.option("--env", "Target environment (repeat for multiple)")
+		.option("--config", "Config file path (overrides discovery)")
+		.option("--api-key", "Override the ROBLOX_API_KEY environment variable")
+		.option("--github-token", "Override the GITHUB_TOKEN environment variable")
+		.action(diffCommand(deps));
 
 	return prog;
 }
