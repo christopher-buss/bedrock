@@ -1,9 +1,9 @@
 import type { Sade } from "sade";
 import { describe, expectTypeOf, it } from "vitest";
 
-import type { diff } from "../core/diff.ts";
 import type { deploy } from "../shell/deploy.ts";
 import type { loadConfig } from "../shell/load-config.ts";
+import type { previewDiff } from "../shell/preview-diff.ts";
 import type { ProgDeps } from "./index.ts";
 import { createProg } from "./index.ts";
 import type { ClackPort } from "./render.ts";
@@ -11,7 +11,7 @@ import type { ClackPort } from "./render.ts";
 describe("ProgDeps", () => {
 	it("should expose exactly the five injection slots", () => {
 		expectTypeOf<keyof ProgDeps>().toEqualTypeOf<
-			"clack" | "deploy" | "diff" | "exit" | "loadConfig"
+			"clack" | "deploy" | "exit" | "loadConfig" | "previewDiff"
 		>();
 	});
 
@@ -23,8 +23,8 @@ describe("ProgDeps", () => {
 		expectTypeOf<NonNullable<ProgDeps["deploy"]>>().toEqualTypeOf<typeof deploy>();
 	});
 
-	it("should accept the real diff signature in the diff slot", () => {
-		expectTypeOf<NonNullable<ProgDeps["diff"]>>().toEqualTypeOf<typeof diff>();
+	it("should accept the real previewDiff signature in the previewDiff slot", () => {
+		expectTypeOf<NonNullable<ProgDeps["previewDiff"]>>().toEqualTypeOf<typeof previewDiff>();
 	});
 
 	it("should accept the real loadConfig signature in the loadConfig slot", () => {
