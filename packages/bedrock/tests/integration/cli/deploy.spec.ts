@@ -1,15 +1,15 @@
 import type { Result } from "@bedrock/ocale";
 
 import { createProg, type ProgDeps } from "#src/cli/index";
-import type { ConfigError } from "#src/core/config-error";
 import type { Config } from "#src/core/schema";
 import type { BedrockState } from "#src/core/state";
-import type { DeployError, DeployOptions } from "#src/shell/deploy";
-import type { LoadConfigOptions } from "#src/shell/load-config";
+import type { DeployError } from "#src/shell/deploy";
+import { fakeClackPort } from "#tests/helpers/clack";
 import { describe, expect, it, vi } from "vitest";
 
-type LoadConfigFunc = (options?: LoadConfigOptions) => Promise<Result<Config, ConfigError>>;
-type DeployFunc = (options: DeployOptions) => Promise<Result<BedrockState, DeployError>>;
+type LoadConfigFunc = NonNullable<ProgDeps["loadConfig"]>;
+type DeployFunc = NonNullable<ProgDeps["deploy"]>;
+type ExitFunc = NonNullable<ProgDeps["exit"]>;
 
 const fakeConfig: Config = {
 	environments: { production: {}, staging: {} },
@@ -22,21 +22,8 @@ interface DeployHarness {
 	readonly prog: ReturnType<typeof createProg>;
 }
 
-type ClackPort = NonNullable<ProgDeps["clack"]>;
-
 function emptyState(environment: string): BedrockState {
 	return { environment, resources: [], version: 1 };
-}
-
-function silentClack(): ClackPort {
-	return {
-		cancel: vi.fn<ClackPort["cancel"]>(),
-		intro: vi.fn<ClackPort["intro"]>(),
-		logError: vi.fn<ClackPort["logError"]>(),
-		logMessage: vi.fn<ClackPort["logMessage"]>(),
-		logSuccess: vi.fn<ClackPort["logSuccess"]>(),
-		outro: vi.fn<ClackPort["outro"]>(),
-	};
 }
 
 function buildHarness(
@@ -46,9 +33,9 @@ function buildHarness(
 	const exitPromise = new Promise<number>((resolve) => {
 		resolveExit = resolve;
 	});
-	const exit = vi.fn<(code: number) => never>().mockImplementation(((code: number) => {
+	const exit = vi.fn<ExitFunc>((code) => {
 		resolveExit(code);
-	}) as (code: number) => never);
+	});
 
 	let callIndex = 0;
 	const deploy = vi.fn<DeployFunc>(async () => {
@@ -62,7 +49,7 @@ function buildHarness(
 	});
 	const loadConfig = vi.fn<LoadConfigFunc>(async () => ({ data: fakeConfig, success: true }));
 
-	const prog = createProg({ clack: silentClack(), deploy, exit, loadConfig });
+	const prog = createProg({ clack: fakeClackPort(), deploy, exit, loadConfig });
 	return { deploy, exitPromise, loadConfig, prog };
 }
 

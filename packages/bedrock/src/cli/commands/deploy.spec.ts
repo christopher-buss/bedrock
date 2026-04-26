@@ -1,36 +1,25 @@
 import type { Result } from "@bedrock/ocale";
 
+import { fakeClackPort } from "#tests/helpers/clack";
 import { assert, describe, expect, it, vi } from "vitest";
 
-import type { ConfigError } from "../../core/config-error.ts";
 import type { ResourceCurrentState } from "../../core/resources.ts";
 import type { Config } from "../../core/schema.ts";
 import type { BedrockState } from "../../core/state.ts";
-import type { DeployError, DeployOptions } from "../../shell/deploy.ts";
-import type { LoadConfigOptions } from "../../shell/load-config.ts";
+import type { DeployError } from "../../shell/deploy.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import type { ProgDeps } from "../index.ts";
-import type { ClackPort } from "../render.ts";
 import { deployCommand } from "./deploy.ts";
 
-type LoadConfigFunc = (options?: LoadConfigOptions) => Promise<Result<Config, ConfigError>>;
-type DeployFunc = (options: DeployOptions) => Promise<Result<BedrockState, DeployError>>;
-
-function fakeClackPort(): ClackPort {
-	return {
-		cancel: vi.fn<ClackPort["cancel"]>(),
-		intro: vi.fn<ClackPort["intro"]>(),
-		logError: vi.fn<ClackPort["logError"]>(),
-		logMessage: vi.fn<ClackPort["logMessage"]>(),
-		logSuccess: vi.fn<ClackPort["logSuccess"]>(),
-		outro: vi.fn<ClackPort["outro"]>(),
-	};
-}
+type LoadConfigFunc = NonNullable<ProgDeps["loadConfig"]>;
+type LoadConfigResult = Awaited<ReturnType<LoadConfigFunc>>;
+type DeployFunc = NonNullable<ProgDeps["deploy"]>;
+type ExitFunc = NonNullable<ProgDeps["exit"]>;
 
 function makeDeps(overrides: Partial<ProgDeps> = {}): ProgDeps {
 	return {
 		clack: fakeClackPort(),
-		exit: vi.fn<(code: number) => never>(),
+		exit: vi.fn<ExitFunc>(),
 		...overrides,
 	};
 }
@@ -63,7 +52,7 @@ function bedrockState(environment: string, resourceCount = 0): BedrockState {
 	return { environment, resources, version: 1 };
 }
 
-function fakeLoad(result: Result<Config, ConfigError>): LoadConfigFunc {
+function fakeLoad(result: LoadConfigResult): LoadConfigFunc {
 	return vi.fn<LoadConfigFunc>(async () => result);
 }
 

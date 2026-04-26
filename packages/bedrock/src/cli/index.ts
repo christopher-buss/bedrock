@@ -24,8 +24,8 @@ export interface ProgDeps {
 	readonly deploy?: typeof defaultDeploy;
 	/** Pure desired-vs-current operation list builder; defaults to the public `diff`. */
 	readonly diff?: typeof defaultDiff;
-	/** Process exit handle; defaults to `process.exit` so tests can intercept termination. */
-	readonly exit?: (code: number) => never;
+	/** Process exit handle; defaults to `process.exit` so tests can intercept termination. The production default never returns; test stubs are free to return void. */
+	readonly exit?: (code: number) => void;
 	/** Project config loader; defaults to the public `loadConfig`. */
 	readonly loadConfig?: typeof defaultLoadConfig;
 }

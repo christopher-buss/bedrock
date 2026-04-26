@@ -16,7 +16,7 @@ const DEPLOY_FAILED_MESSAGE = "deploy failed";
 interface ResolvedDeploy {
 	readonly clack: ClackPort;
 	readonly deploy: typeof defaultDeploy;
-	readonly exit: (code: number) => never;
+	readonly exit: (code: number) => void;
 	readonly loadConfig: typeof defaultLoadConfig;
 }
 

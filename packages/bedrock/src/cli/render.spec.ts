@@ -1,5 +1,6 @@
 import { S_BAR, S_BAR_END, S_BAR_START, S_ERROR, S_SUCCESS } from "@clack/prompts";
 
+import { fakeClackPort } from "#tests/helpers/clack";
 import { Buffer } from "node:buffer";
 import process from "node:process";
 import { describe, expect, it, vi } from "vitest";
@@ -11,17 +12,6 @@ import { type ClackPort, createClackPort, renderDeployError, renderParseError } 
 
 interface CapturedOutput {
 	readonly text: string;
-}
-
-function fakeClackPort(): ClackPort {
-	return {
-		cancel: vi.fn<ClackPort["cancel"]>(),
-		intro: vi.fn<ClackPort["intro"]>(),
-		logError: vi.fn<ClackPort["logError"]>(),
-		logMessage: vi.fn<ClackPort["logMessage"]>(),
-		logSuccess: vi.fn<ClackPort["logSuccess"]>(),
-		outro: vi.fn<ClackPort["outro"]>(),
-	};
 }
 
 function captureWith(act: (port: ClackPort) => void): CapturedOutput {
