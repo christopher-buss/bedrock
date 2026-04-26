@@ -1,6 +1,8 @@
 import { OpenCloudError } from "@bedrock/ocale";
 
 import {
+	developerProductCurrent,
+	developerProductDesired,
 	gamePassCurrent,
 	gamePassDesired,
 	placeCurrent,
@@ -15,6 +17,12 @@ import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import { asResourceKey, type ResourceKey } from "../types/ids.ts";
 import { applyOps } from "./apply-ops.ts";
+
+const developerProductStub: ResourceDriver<"developerProduct"> = {
+	async create() {
+		return { err: new OpenCloudError("developerProduct stub"), success: false };
+	},
+};
 
 const placeStub: ResourceDriver<"place"> = {
 	async create() {
@@ -48,6 +56,7 @@ function registryWith(
 	update?: ResourceDriver<"gamePass">["update"],
 ): DriverRegistry {
 	return {
+		developerProduct: developerProductStub,
 		gamePass: update ? { create, update } : { create },
 		place: placeStub,
 		universe: universeStub,
@@ -232,12 +241,92 @@ describe(applyOps, () => {
 		expect(create).not.toHaveBeenCalled();
 	});
 
+	describe("developerProduct kind", () => {
+		function developerProductRegistry(
+			create: ResourceDriver<"developerProduct">["create"],
+		): DriverRegistry {
+			return {
+				developerProduct: { create },
+				gamePass: {
+					create() {
+						throw new Error("gamePass driver must not run for developerProduct ops");
+					},
+				},
+				place: placeStub,
+				universe: universeStub,
+			};
+		}
+
+		function developerProductCreateOp(key: ResourceKey) {
+			const desired = developerProductDesired({ key });
+			return { key, desired, type: "create" } as const satisfies CreateOperation;
+		}
+
+		function developerProductUpdateOp(key: ResourceKey) {
+			const desired = developerProductDesired({ key });
+			return {
+				key,
+				current: developerProductCurrent({ ...desired }),
+				desired,
+				type: "update",
+			} as const satisfies UpdateOperation;
+		}
+
+		it("should dispatch a developerProduct create op to the driver and return Ok on success", async () => {
+			expect.assertions(2);
+
+			const op = developerProductCreateOp(asResourceKey("gem-pack"));
+			const created = developerProductCurrent({ ...op.desired });
+			const create = vi
+				.fn<ResourceDriver<"developerProduct">["create"]>()
+				.mockResolvedValue({ data: created, success: true });
+
+			const result = await applyOps([op], developerProductRegistry(create));
+
+			expect(result).toStrictEqual({ data: [created], success: true });
+			expect(create).toHaveBeenCalledExactlyOnceWith(op.desired);
+		});
+
+		it("should wrap a developerProduct create failure in driverFailure Err", async () => {
+			expect.assertions(1);
+
+			const op = developerProductCreateOp(asResourceKey("gem-pack"));
+			const cause = new OpenCloudError("boom");
+			const create = vi
+				.fn<ResourceDriver<"developerProduct">["create"]>()
+				.mockResolvedValue({ err: cause, success: false });
+
+			const result = await applyOps([op], developerProductRegistry(create));
+
+			expect(result).toStrictEqual({
+				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
+				success: false,
+			});
+		});
+
+		it("should return updateUnsupported when the developerProduct driver has no update method", async () => {
+			expect.assertions(2);
+
+			const op = developerProductUpdateOp(asResourceKey("gem-pack"));
+			const create = vi.fn<ResourceDriver<"developerProduct">["create"]>();
+
+			const result = await applyOps([op], developerProductRegistry(create));
+
+			expect(result).toStrictEqual({
+				err: { key: op.key, appliedSoFar: [], kind: "updateUnsupported" },
+				success: false,
+			});
+			expect(create).not.toHaveBeenCalled();
+		});
+	});
+
 	describe("place kind", () => {
 		function placeRegistry(
 			create: ResourceDriver<"place">["create"],
 			update?: ResourceDriver<"place">["update"],
 		): DriverRegistry {
 			return {
+				developerProduct: developerProductStub,
 				gamePass: {
 					create() {
 						throw new Error("gamePass driver must not run for place ops");
@@ -403,6 +492,7 @@ describe(applyOps, () => {
 			update?: ResourceDriver<"universe">["update"],
 		): DriverRegistry {
 			return {
+				developerProduct: developerProductStub,
 				gamePass: {
 					create() {
 						throw new Error("gamePass driver must not run for universe ops");

@@ -1,0 +1,16 @@
+{
+	"productId": 81726354,
+	"name": "Premium Gem Pack",
+	"description": "Stocks the player up with 1,000 premium gems.",
+	"isForSale": true,
+	"isImmutable": false,
+	"iconImageAssetId": 14502339875,
+	"universeId": 4567890123,
+	"storePageEnabled": true,
+	"createdTimestamp": "2023-07-22T11:48:03.000Z",
+	"updatedTimestamp": "2024-09-14T05:33:10.250Z",
+	"priceInformation": {
+		"defaultPriceInRobux": 99,
+		"enabledFeatures": ["RegionalPricing"]
+	}
+}

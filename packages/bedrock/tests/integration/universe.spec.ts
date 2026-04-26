@@ -36,6 +36,12 @@ const PLACE_TRAP: ResourceDriver<"place"> = {
 	},
 };
 
+const DEVELOPER_PRODUCT_TRAP: ResourceDriver<"developerProduct"> = {
+	create() {
+		throw new Error("DeveloperProductDriver.create must not run for universe fixtures");
+	},
+};
+
 async function readFileNever(): Promise<Uint8Array> {
 	throw new Error("readFile must not run for a universe-only config");
 }
@@ -47,6 +53,7 @@ const DiscordLink = {
 
 function makeUniverseRegistry(httpClient: ReturnType<typeof createFakeHttpClient>): DriverRegistry {
 	return {
+		developerProduct: DEVELOPER_PRODUCT_TRAP,
 		gamePass: GAME_PASS_TRAP,
 		place: PLACE_TRAP,
 		universe: createUniverseDriver({
@@ -292,6 +299,7 @@ describe("universe pipeline end-to-end", () => {
 		expect(ops.map((op) => op.type)).toStrictEqual(["noop"]);
 
 		const trapRegistry: DriverRegistry = {
+			developerProduct: DEVELOPER_PRODUCT_TRAP,
 			gamePass: GAME_PASS_TRAP,
 			place: PLACE_TRAP,
 			universe: {

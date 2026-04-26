@@ -18,10 +18,11 @@ describe("defaultKindRegistry", () => {
 		expect(mismatches).toBeEmpty();
 	});
 
-	it("should cover every ResourceKind (gamePass, place, universe)", () => {
+	it("should cover every ResourceKind (developerProduct, gamePass, place, universe)", () => {
 		expect.assertions(1);
 
 		expect(Object.keys(defaultKindRegistry).toSorted()).toStrictEqual([
+			"developerProduct",
 			"gamePass",
 			"place",
 			"universe",

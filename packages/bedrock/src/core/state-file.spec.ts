@@ -130,6 +130,34 @@ describe(parseStateFile, () => {
 		expect(result.data).toStrictEqual(state);
 	});
 
+	it("should round-trip a developer-product resource through serialize and parse", () => {
+		expect.assertions(2);
+
+		const state: BedrockState = {
+			environment: "production",
+			resources: [
+				{
+					key: asResourceKey("gem-pack"),
+					name: "Gem Pack",
+					description: "Stocks the player up with 1,000 premium gems.",
+					kind: "developerProduct",
+					outputs: {
+						productId: asRobloxAssetId("8172635495"),
+					},
+				},
+			],
+			version: 1,
+		};
+
+		const result = parseStateFile(serializeStateFile(state), SAMPLE_FILE);
+
+		expect(result.success).toBeTrue();
+
+		assert(result.success);
+
+		expect(result.data).toStrictEqual(state);
+	});
+
 	it("should err when a resource is missing its kind discriminator", () => {
 		expect.assertions(1);
 

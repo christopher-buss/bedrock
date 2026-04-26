@@ -61,6 +61,11 @@ it('Example 2', () => {
         return { err: new OpenCloudError('not implemented'), success: false }
       },
     },
+    developerProduct: {
+      async create() {
+        return { err: new OpenCloudError('not implemented'), success: false }
+      },
+    },
   }
   expect(registry.gamePass).toBeObject()
 })

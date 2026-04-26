@@ -20,6 +20,12 @@ async function readIcon(): Promise<Uint8Array> {
 	return ICON_BYTES;
 }
 
+const developerProductStub: ResourceDriver<"developerProduct"> = {
+	async create() {
+		throw new Error("developerProduct driver must not run for this fixture");
+	},
+};
+
 const placeStub: ResourceDriver<"place"> = {
 	async create() {
 		throw new Error("place driver must not run for this fixture");
@@ -128,6 +134,7 @@ function environmentFrom(values: Record<string, string>): (name: string) => stri
 
 function stubRegistry(): DriverRegistry {
 	return {
+		developerProduct: developerProductStub,
 		gamePass: {
 			async create() {
 				throw new Error("game-pass driver must not run for this fixture");
@@ -140,6 +147,7 @@ function stubRegistry(): DriverRegistry {
 
 function stubRegistryWithVipCreate(): DriverRegistry {
 	return {
+		developerProduct: developerProductStub,
 		gamePass: {
 			async create() {
 				return { data: vipPassCurrent(), success: true };
@@ -175,6 +183,7 @@ describe(deploy, () => {
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValue({ data: created, success: true });
 		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
 			gamePass: { create },
 			place: placeStub,
 			universe: universeStub,
@@ -203,6 +212,7 @@ describe(deploy, () => {
 		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
 		const update = vi.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>();
 		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
 			gamePass: { create, update },
 			place: placeStub,
 			universe: universeStub,
@@ -239,6 +249,7 @@ describe(deploy, () => {
 			.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>()
 			.mockResolvedValue({ data: updated, success: true });
 		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
 			gamePass: { create, update },
 			place: placeStub,
 			universe: universeStub,
@@ -288,6 +299,7 @@ describe(deploy, () => {
 				return { err: cause, success: false };
 			});
 		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
 			gamePass: { create },
 			place: placeStub,
 			universe: universeStub,
@@ -324,6 +336,7 @@ describe(deploy, () => {
 
 		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
 		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
 			gamePass: { create },
 			place: placeStub,
 			universe: universeStub,
@@ -375,6 +388,7 @@ describe(deploy, () => {
 				return { err: cause, success: false };
 			});
 		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
 			gamePass: { create },
 			place: placeStub,
 			universe: universeStub,
@@ -427,6 +441,7 @@ describe(deploy, () => {
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValue({ data: created, success: true });
 		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
 			gamePass: { create },
 			place: placeStub,
 			universe: universeStub,
@@ -471,6 +486,7 @@ describe(deploy, () => {
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValue({ data: vipPassCurrent(), success: true });
 		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
 			gamePass: { create },
 			place: placeStub,
 			universe: universeStub,
@@ -726,6 +742,7 @@ describe(deploy, () => {
 
 		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
 		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
 			gamePass: { create },
 			place: placeStub,
 			universe: universeStub,

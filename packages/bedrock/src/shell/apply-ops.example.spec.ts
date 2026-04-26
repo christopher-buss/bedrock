@@ -64,6 +64,17 @@ it('Example 2', () => {
         }
       },
     },
+    developerProduct: {
+      async create(desired) {
+        return {
+          data: {
+            ...desired,
+            outputs: { productId: asRobloxAssetId('8172635495') },
+          },
+          success: true,
+        }
+      },
+    },
   }
   const ops: ReadonlyArray<Operation> = [
     {

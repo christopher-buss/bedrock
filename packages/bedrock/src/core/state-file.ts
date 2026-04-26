@@ -13,7 +13,7 @@ import type { BedrockState, StateError } from "./state.ts";
 const resourceShape = type({
 	"key": "string",
 	"[string]": "unknown",
-	"kind": "'gamePass' | 'place' | 'universe'",
+	"kind": "'developerProduct' | 'gamePass' | 'place' | 'universe'",
 	"outputs": "object",
 });
 
