@@ -182,7 +182,7 @@ describe(buildReorderThumbnailsRequest, () => {
 	});
 
 	it("should reject an empty orderedImageIds array with code empty_image_ids", () => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		const parameters = {
 			languageCode: "en-us",
@@ -196,6 +196,7 @@ describe(buildReorderThumbnailsRequest, () => {
 
 		expect(result.err).toBeInstanceOf(ValidationError);
 		expect(result.err.code).toBe("empty_image_ids");
+		expect(result.err.message).toBe("orderedImageIds must contain at least one image ID");
 	});
 
 	it.for([
@@ -209,7 +210,7 @@ describe(buildReorderThumbnailsRequest, () => {
 		{ id: "1e3", label: "scientific notation" },
 		{ id: "9007199254740993", label: "value beyond MAX_SAFE_INTEGER" },
 	])("should reject $label with code invalid_image_id", ({ id }) => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		const parameters = {
 			languageCode: "en-us",
@@ -223,6 +224,9 @@ describe(buildReorderThumbnailsRequest, () => {
 
 		expect(result.err).toBeInstanceOf(ValidationError);
 		expect(result.err.code).toBe("invalid_image_id");
+		expect(result.err.message).toBe(
+			`orderedImageIds entry ${JSON.stringify(id)} is not a positive integer ID`,
+		);
 	});
 
 	it("should reject the first invalid id even when later ids are valid", () => {
