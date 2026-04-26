@@ -8,7 +8,7 @@ import type { OperationLimit } from "../../internal/http/rate-limit-queue.ts";
 /**
  * Per-second request ceiling for uploading an experience icon.
  */
-export const UPLOAD_ICON_OPERATION_LIMIT: OperationLimit = Object.freeze({
+export const UPLOAD_OPERATION_LIMIT: OperationLimit = Object.freeze({
 	maxPerSecond: 5,
 	operationKey: "experience-icon.upload",
 });
@@ -16,7 +16,7 @@ export const UPLOAD_ICON_OPERATION_LIMIT: OperationLimit = Object.freeze({
 /**
  * Per-second request ceiling for deleting a localized experience icon.
  */
-export const DELETE_ICON_OPERATION_LIMIT: OperationLimit = Object.freeze({
+export const DELETE_OPERATION_LIMIT: OperationLimit = Object.freeze({
 	maxPerSecond: 5,
 	operationKey: "experience-icon.delete",
 });
@@ -24,7 +24,7 @@ export const DELETE_ICON_OPERATION_LIMIT: OperationLimit = Object.freeze({
 /**
  * Per-second request ceiling for listing localized experience icons.
  */
-export const LIST_ICONS_OPERATION_LIMIT: OperationLimit = Object.freeze({
+export const LIST_OPERATION_LIMIT: OperationLimit = Object.freeze({
 	maxPerSecond: 10,
 	operationKey: "experience-icon.list",
 });

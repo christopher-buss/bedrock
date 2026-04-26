@@ -14,9 +14,9 @@ import {
 	buildUploadIconRequest,
 } from "./builders.ts";
 import {
-	DELETE_ICON_OPERATION_LIMIT,
-	LIST_ICONS_OPERATION_LIMIT,
-	UPLOAD_ICON_OPERATION_LIMIT,
+	DELETE_OPERATION_LIMIT,
+	LIST_OPERATION_LIMIT,
+	UPLOAD_OPERATION_LIMIT,
 } from "./operations.ts";
 import {
 	parseIconDeleteResponse,
@@ -30,6 +30,12 @@ import type {
 	UploadedExperienceIcon,
 	UploadExperienceIconParameters,
 } from "./types.ts";
+
+// The build* helpers below exist to dodge an oxfmt vs.
+// arrow-style/arrow-return-style conflict triggered by the longer type names in
+// this resource (the inline arrow pattern used in game-passes/client.ts cannot be
+// applied here without flipping between two mutually-rejected formats on every
+// save).
 
 function buildUploadSpec(
 	parameters: UploadExperienceIconParameters,
@@ -54,7 +60,7 @@ const UPLOAD_SPEC: ResourceMethodSpec<UploadExperienceIconParameters, UploadedEx
 		buildRequest: buildUploadSpec,
 		methodDefaults: CREATE_METHOD_DEFAULTS,
 		methodKind: "create",
-		operationLimit: UPLOAD_ICON_OPERATION_LIMIT,
+		operationLimit: UPLOAD_OPERATION_LIMIT,
 		parse: parseIconUploadResponse,
 	});
 
@@ -62,7 +68,7 @@ const DELETE_SPEC: ResourceMethodSpec<DeleteExperienceIconParameters, undefined>
 	buildRequest: buildDeleteSpec,
 	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 	methodKind: "idempotent",
-	operationLimit: DELETE_ICON_OPERATION_LIMIT,
+	operationLimit: DELETE_OPERATION_LIMIT,
 	parse: parseIconDeleteResponse,
 });
 
@@ -73,7 +79,7 @@ const LIST_SPEC: ResourceMethodSpec<
 	buildRequest: buildListSpec,
 	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 	methodKind: "idempotent",
-	operationLimit: LIST_ICONS_OPERATION_LIMIT,
+	operationLimit: LIST_OPERATION_LIMIT,
 	parse: parseIconListResponse,
 });
 
