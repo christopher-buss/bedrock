@@ -434,6 +434,4 @@ export function copyDeclaredSocialLinks(
  * expect(UNIVERSE_SINGLETON_KEY).toBe("main");
  * ```
  */
-// Module-init const; perTest coverage can't attribute it to any test.
-// Stryker disable next-line all
 export const UNIVERSE_SINGLETON_KEY: ResourceKey = asResourceKey("main");
