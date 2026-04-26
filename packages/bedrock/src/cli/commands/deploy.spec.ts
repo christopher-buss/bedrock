@@ -1,6 +1,6 @@
 import type { Result } from "@bedrock/ocale";
 
-import { describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, vi } from "vitest";
 
 import type { ConfigError } from "../../core/config-error.ts";
 import type { ResourceCurrentState } from "../../core/resources.ts";
@@ -220,5 +220,29 @@ describe(deployCommand, () => {
 		);
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should thread --api-key and --github-token through getEnv into deploy", async () => {
+		expect.assertions(3);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
+		const deps = makeDeps({ deploy, loadConfig });
+
+		await deployCommand(deps)({
+			"api-key": "ROBLOX_OVERRIDE",
+			"env": "production",
+			"github-token": "GH_OVERRIDE",
+		});
+
+		expect(deploy).toHaveBeenCalledOnce();
+
+		const firstCall = vi.mocked(deploy).mock.calls[0];
+		assert(firstCall !== undefined);
+
+		const [call] = firstCall;
+
+		expect(call.getEnv?.("ROBLOX_API_KEY")).toBe("ROBLOX_OVERRIDE");
+		expect(call.getEnv?.("GITHUB_TOKEN")).toBe("GH_OVERRIDE");
 	});
 });

@@ -23,6 +23,7 @@ interface ResolvedDeploy {
 interface DispatchInputs {
 	readonly config: Config;
 	readonly environments: ReadonlyArray<string>;
+	readonly getEnv: (name: string) => string | undefined;
 	readonly resolved: ResolvedDeploy;
 }
 
@@ -60,18 +61,14 @@ function loadOptionsFor(parsed: CommonOptions): LoadConfigOptions | undefined {
 	return parsed.configFile === undefined ? undefined : { configFile: parsed.configFile };
 }
 
-function readEnvironmentVariable(name: string): string | undefined {
-	return process.env[name];
-}
-
 async function dispatchEnvironments(inputs: DispatchInputs): Promise<ReadonlyArray<string>> {
-	const { config, environments, resolved } = inputs;
+	const { config, environments, getEnv, resolved } = inputs;
 	const failed: Array<string> = [];
 	for (const environment of environments) {
 		const result = await resolved.deploy({
 			config,
 			environment,
-			getEnv: readEnvironmentVariable,
+			getEnv,
 		});
 		if (result.success) {
 			resolved.clack.logSuccess(
@@ -84,6 +81,20 @@ async function dispatchEnvironments(inputs: DispatchInputs): Promise<ReadonlyArr
 	}
 
 	return failed;
+}
+
+function buildGetEnvironment(parsed: CommonOptions): (name: string) => string | undefined {
+	return (name) => {
+		if (name === "ROBLOX_API_KEY" && parsed.apiKey !== undefined) {
+			return parsed.apiKey;
+		}
+
+		if (name === "GITHUB_TOKEN" && parsed.githubToken !== undefined) {
+			return parsed.githubToken;
+		}
+
+		return process.env[name];
+	};
 }
 
 async function runDeploy(
@@ -109,6 +120,7 @@ async function runDeploy(
 	const failures = await dispatchEnvironments({
 		config: loaded.data,
 		environments: parsed.data.environments,
+		getEnv: buildGetEnvironment(parsed.data),
 		resolved,
 	});
 	if (failures.length > 0) {
