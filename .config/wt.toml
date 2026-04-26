@@ -1,4 +1,5 @@
-[post-create]
+[pre-start]
 mise-trust = "mise trust"
 mise-install = "mise install"
 pnpm-install = "pnpm install"
+build = "nr build"
