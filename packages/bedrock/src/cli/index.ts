@@ -2,9 +2,11 @@ import sade from "sade";
 import type { Sade } from "sade";
 
 import manifest from "../../package.json" with { type: "json" };
-import type { diff as defaultDiff } from "../core/diff.ts";
 import type { deploy as defaultDeploy } from "../shell/deploy.ts";
 import type { loadConfig as defaultLoadConfig } from "../shell/load-config.ts";
+import type { previewDiff as defaultPreviewDiff } from "../shell/preview-diff.ts";
+import { deployCommand } from "./commands/deploy.ts";
+import { diffCommand } from "./commands/diff.ts";
 import type { ClackPort } from "./render.ts";
 
 export { createClackPort } from "./render.ts";
@@ -21,24 +23,42 @@ export interface ProgDeps {
 	readonly clack?: ClackPort;
 	/** Reconciles config to live state; defaults to the public `deploy`. */
 	readonly deploy?: typeof defaultDeploy;
-	/** Pure desired-vs-current operation list builder; defaults to the public `diff`. */
-	readonly diff?: typeof defaultDiff;
-	/** Process exit handle; defaults to `process.exit` so tests can intercept termination. */
-	readonly exit?: (code: number) => never;
+	/** Process exit handle; defaults to `process.exit` so tests can intercept termination. The production default never returns; test stubs are free to return void. */
+	readonly exit?: (code: number) => void;
 	/** Project config loader; defaults to the public `loadConfig`. */
 	readonly loadConfig?: typeof defaultLoadConfig;
+	/** Read-only preview of operations; defaults to the internal `previewDiff` shell helper. */
+	readonly previewDiff?: typeof defaultPreviewDiff;
 }
 
 /**
  * Construct the bedrock CLI program. Pure factory: no `process.argv` parsing,
  * no clack output, no exits. Callers (the `run.ts` shim, integration tests)
  * call `.parse()` on the returned sade instance.
- * @param _deps - Dependency overrides for command actions. Reserved for the
- *   `bedrock deploy` and `bedrock diff` slices; unused while no commands are
- *   registered.
+ * @param deps - Dependency overrides for command actions. Each command
+ *   resolves its own defaults from any omitted slots.
  * @returns A configured sade program with the bedrock name, description, and
- *   the currently installed `@bedrock/core` version.
+ *   the currently installed `@bedrock/core` version, plus the registered
+ *   `deploy` and `diff` commands.
  */
-export function createProg(_deps?: ProgDeps): Sade {
-	return sade(PROGRAM_NAME).describe(PROGRAM_DESCRIBE).version(manifest.version);
+export function createProg(deps: ProgDeps = {}): Sade {
+	const prog = sade(PROGRAM_NAME).describe(PROGRAM_DESCRIBE).version(manifest.version);
+
+	prog.command("deploy")
+		.describe("Reconcile a project's resources against the configured environment(s)")
+		.option("--env", "Target environment (repeat for multiple)")
+		.option("--config", "Config file path (overrides discovery)")
+		.option("--api-key", "Override the ROBLOX_API_KEY environment variable")
+		.option("--github-token", "Override the GITHUB_TOKEN environment variable")
+		.action(deployCommand(deps));
+
+	prog.command("diff")
+		.describe("Preview the operations a deploy would apply, without writing state")
+		.option("--env", "Target environment (repeat for multiple)")
+		.option("--config", "Config file path (overrides discovery)")
+		.option("--api-key", "Override the ROBLOX_API_KEY environment variable")
+		.option("--github-token", "Override the GITHUB_TOKEN environment variable")
+		.action(diffCommand(deps));
+
+	return prog;
 }

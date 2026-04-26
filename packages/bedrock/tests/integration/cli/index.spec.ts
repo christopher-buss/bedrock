@@ -102,4 +102,46 @@ describe("cli program factory", () => {
 			expect(captured).toContain("Roblox");
 		}
 	});
+
+	it("should describe the deploy subcommand and each of its flags in 'deploy --help' output", async () => {
+		expect.assertions(5);
+
+		const { createProg } = await import("#src/cli/index");
+		const prog = createProg();
+
+		const collect = startCapture();
+		try {
+			prog.parse(["node", "bedrock", "deploy", "--help"]);
+		} finally {
+			const { stdout } = collect();
+			const captured = stdout.join("");
+
+			expect(captured).toContain("Reconcile");
+			expect(captured).toContain("Target environment");
+			expect(captured).toContain("Config file path");
+			expect(captured).toContain("ROBLOX_API_KEY");
+			expect(captured).toContain("GITHUB_TOKEN");
+		}
+	});
+
+	it("should describe the diff subcommand and each of its flags in 'diff --help' output", async () => {
+		expect.assertions(5);
+
+		const { createProg } = await import("#src/cli/index");
+		const prog = createProg();
+
+		const collect = startCapture();
+		try {
+			prog.parse(["node", "bedrock", "diff", "--help"]);
+		} finally {
+			const { stdout } = collect();
+			const captured = stdout.join("");
+
+			expect(captured).toContain("Preview the operations");
+			expect(captured).toContain("Target environment");
+			expect(captured).toContain("Config file path");
+			expect(captured).toContain("ROBLOX_API_KEY");
+			expect(captured).toContain("GITHUB_TOKEN");
+		}
+	});
 });

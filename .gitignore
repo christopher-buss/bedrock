@@ -7,6 +7,7 @@ node_modules
 coverage
 reports
 .stryker-tmp
+smoke-results.json
 
 # Build outputs
 dist
