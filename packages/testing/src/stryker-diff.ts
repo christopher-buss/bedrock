@@ -103,6 +103,7 @@ export function buildMutateArgs(files: ReadonlyArray<FileChange>): Array<string>
 
 const MUTABLE_SUFFIXES: ReadonlyArray<string> = [".ts", ".tsx"];
 const NON_MUTABLE_SUFFIXES: ReadonlyArray<string> = [".spec.ts", ".spec-d.ts", ".test.ts", ".d.ts"];
+const RUNTIME_SPEC_SUFFIXES: ReadonlyArray<string> = [".spec.ts", ".test.ts"];
 const SRC_SEGMENT = /(?:^|\/)src\//;
 
 /**
@@ -152,6 +153,35 @@ export function isTypesOnlyModule(source: string): boolean {
 		ts.ScriptKind.TS,
 	);
 	return sourceFile.statements.every(isErasableStatement);
+}
+
+/**
+ * Identify packages whose runtime test files changed in the diff.
+ * Stryker's vitest-runner has limited test-change detection in
+ * incremental mode, so callers must force a clean re-run for any
+ * package whose specs changed; otherwise the cache will return prior
+ * survivors even when newly-added tests would now kill them.
+ *
+ * Type-only spec files (`*.spec-d.ts`) are ignored: they exercise the
+ * type system, not runtime behaviour, and don't influence mutation
+ * outcomes.
+ *
+ * @param files - Parsed file changes from {@link parseDiff}.
+ * @param packageDirectories - Repo-relative package directories.
+ * @returns Set of package directories whose runtime tests changed.
+ */
+export function findPackagesWithChangedSpecs(
+	files: ReadonlyArray<FileChange>,
+	packageDirectories: ReadonlyArray<string>,
+): Set<string> {
+	return new Set(
+		files
+			.filter((file) => RUNTIME_SPEC_SUFFIXES.some((suffix) => file.path.endsWith(suffix)))
+			.map((file) =>
+				packageDirectories.find((directory) => file.path.startsWith(`${directory}/`)),
+			)
+			.filter((directory): directory is string => directory !== undefined),
+	);
 }
 
 /**
