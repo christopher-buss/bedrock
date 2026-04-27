@@ -59,9 +59,9 @@ export function buildState(inputs: BuildStateInputs): BedrockState {
 		([key, entry]) => placeResource(key, entry),
 	);
 
-	const passResources: ReadonlyArray<ResourceCurrentState> = folded.passes.map((entry) =>
-		passResource(entry, iconHashesByKey.get(entry.key) ?? entry.mantleIconFileHash),
-	);
+	const passResources: ReadonlyArray<ResourceCurrentState> = folded.passes.map((entry) => {
+		return passResource(entry, iconHashesByKey.get(entry.key) ?? entry.mantleIconFileHash);
+	});
 
 	return {
 		environment,

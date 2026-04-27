@@ -1,12 +1,10 @@
 import type { Result } from "@bedrock/ocale";
 
 import { readFile as nodeReadFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 
-import { sha256Hex } from "../core/kinds/hash.ts";
 import { buildState } from "../core/migrate/build-state.ts";
 import { type EnvironmentFoldResult, foldEnvironment } from "../core/migrate/fold-environment.ts";
-import type { PassFoldEntry } from "../core/migrate/fold-passes.ts";
 import type { PlaceFoldEntry } from "../core/migrate/fold-places.ts";
 import type {
 	MigrateError,
@@ -25,7 +23,8 @@ import {
 	validateConfig,
 } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
-import { asSha256Hex, type ResourceKey, type Sha256Hex } from "../types/ids.ts";
+import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
+import { type IconHashRecomputation, recomputeIconHashes } from "./recompute-icon-hashes.ts";
 
 type ConfigFormat = "typescript" | "yaml";
 type PlaceOverlayEntry = NonNullable<EnvironmentEntry["places"]>[string];
@@ -75,17 +74,6 @@ interface EnvironmentOverlayContext {
 interface PlaceOverlayContext {
 	readonly fold: PlaceFoldEntry;
 	readonly primary: PlaceFoldEntry | undefined;
-}
-
-interface IconHashRecomputation {
-	readonly hashesByEnvironment: ReadonlyMap<string, ReadonlyMap<ResourceKey, Sha256Hex>>;
-	readonly warnings: ReadonlyArray<MigrationWarning>;
-}
-
-interface RecomputeIconHashesInputs {
-	readonly folds: ReadonlyMap<string, EnvironmentFoldResult>;
-	readonly readFile: (path: string) => Promise<Uint8Array>;
-	readonly stateFileDirectory: string;
 }
 
 interface FinalizeReportInputs {
@@ -194,50 +182,6 @@ export async function migrateMantleState(
 	});
 }
 
-async function tryRecomputeHash(
-	readFile: (path: string) => Promise<Uint8Array>,
-	path: string,
-): Promise<Sha256Hex | undefined> {
-	try {
-		const bytes = await readFile(path);
-		return asSha256Hex(await sha256Hex(bytes));
-	} catch {
-		return undefined;
-	}
-}
-
-function buildAmbiguousIconWarning(entry: PassFoldEntry, resolvedPath: string): MigrationWarning {
-	return {
-		hint: `Could not read icon file at ${resolvedPath}; verify the file's location relative to the state file or correct the iconFilePath before re-running.`,
-		kind: "ambiguous",
-		mantlePath: entry.mantlePath,
-	};
-}
-
-async function recomputeIconHashes(
-	inputs: RecomputeIconHashesInputs,
-): Promise<IconHashRecomputation> {
-	const warnings: Array<MigrationWarning> = [];
-	const hashesByEnvironment = new Map<string, ReadonlyMap<ResourceKey, Sha256Hex>>();
-
-	for (const [environment, folded] of inputs.folds) {
-		const perKey = new Map<ResourceKey, Sha256Hex>();
-		for (const passEntry of folded.passes) {
-			const resolved = join(inputs.stateFileDirectory, passEntry.entry.iconFilePath);
-			const recomputed = await tryRecomputeHash(inputs.readFile, resolved);
-			if (recomputed === undefined) {
-				warnings.push(prefixMantlePath(buildAmbiguousIconWarning(passEntry, resolved), environment));
-			} else {
-				perKey.set(passEntry.key, recomputed);
-			}
-		}
-
-		hashesByEnvironment.set(environment, perKey);
-	}
-
-	return { hashesByEnvironment, warnings };
-}
-
 function pickPrimary(
 	available: ReadonlyArray<string>,
 	requested: string | undefined,
@@ -283,7 +227,7 @@ function buildPassesRecord(
 		return undefined;
 	}
 
-	return Object.fromEntries(entries.map(({ entry, key }) => [key, entry]));
+	return Object.fromEntries(entries.map(({ key, entry }) => [key, entry]));
 }
 
 function buildPlaceOverlayEntry(context: PlaceOverlayContext): PlaceOverlayEntry {
@@ -367,14 +311,16 @@ function buildStatesByEnvironment(
 	hashesByEnvironment: ReadonlyMap<string, ReadonlyMap<ResourceKey, Sha256Hex>>,
 ): Readonly<Record<string, BedrockState>> {
 	return Object.fromEntries(
-		[...folds.entries()].map(([name, folded]): [string, BedrockState] => [
-			name,
-			buildState({
-				environment: name,
-				folded,
-				iconHashesByKey: hashesByEnvironment.get(name) ?? new Map(),
-			}),
-		]),
+		[...folds.entries()].map(([name, folded]): [string, BedrockState] => {
+			return [
+				name,
+				buildState({
+					environment: name,
+					folded,
+					iconHashesByKey: hashesByEnvironment.get(name) ?? new Map(),
+				}),
+			];
+		}),
 	);
 }
 
@@ -385,9 +331,9 @@ function prefixMantlePath(warning: MigrationWarning, environmentName: string): M
 function collectFoldWarnings(
 	folds: ReadonlyMap<string, EnvironmentFoldResult>,
 ): ReadonlyArray<MigrationWarning> {
-	return [...folds.entries()].flatMap(([name, fold]) =>
-		fold.warnings.map((warning) => prefixMantlePath(warning, name)),
-	);
+	return [...folds.entries()].flatMap(([name, fold]) => {
+		return fold.warnings.map((warning) => prefixMantlePath(warning, name));
+	});
 }
 
 function finalizeReport(inputs: FinalizeReportInputs): Result<MigrationReport, MigrateError> {

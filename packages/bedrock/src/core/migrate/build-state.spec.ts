@@ -226,7 +226,10 @@ describe(buildState, () => {
 		});
 
 		expect(state.resources).toHaveLength(2);
-		expect(state.resources.map((resource) => resource.kind)).toStrictEqual(["universe", "place"]);
+		expect(state.resources.map((resource) => resource.kind)).toStrictEqual([
+			"universe",
+			"place",
+		]);
 	});
 
 	it("should emit a gamePass ResourceCurrentState per folded pass entry", () => {
