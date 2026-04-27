@@ -13,6 +13,26 @@ function experience(): MantleResource {
 	};
 }
 
+function place(): MantleResource {
+	return {
+		key: "start",
+		dependencies: [],
+		inputs: { isStart: true },
+		kind: "place",
+		outputs: { assetId: 17613681043 },
+	};
+}
+
+function placeFile(): MantleResource {
+	return {
+		key: "start",
+		dependencies: [],
+		inputs: { fileHash: "h1", filePath: "place.rbxl" },
+		kind: "placeFile",
+		outputs: { version: 53 },
+	};
+}
+
 describe(foldEnvironment, () => {
 	it("should expose the folded universe entry when an experience is present", () => {
 		expect.assertions(1);
@@ -56,5 +76,38 @@ describe(foldEnvironment, () => {
 		const result = foldEnvironment([]);
 
 		expect(result.warnings).toStrictEqual([]);
+	});
+
+	it("should expose folded place entries when a matched place pair is present", () => {
+		expect.assertions(2);
+
+		const result = foldEnvironment([experience(), place(), placeFile()]);
+
+		const start = result.places.get("start");
+		assert(start !== undefined);
+
+		expect(start.entry).toStrictEqual({ filePath: "place.rbxl" });
+		expect(start.placeId).toBe("17613681043");
+	});
+
+	it("should expose an empty places map when no place resources are present", () => {
+		expect.assertions(1);
+
+		const result = foldEnvironment([experience()]);
+
+		expect(result.places.size).toBe(0);
+	});
+
+	it("should aggregate place ambiguous warnings into the warnings list", () => {
+		expect.assertions(2);
+
+		const result = foldEnvironment([experience(), place()]);
+
+		expect(result.warnings).toHaveLength(1);
+
+		const [warning] = result.warnings;
+		assert(warning?.kind === "ambiguous");
+
+		expect(warning.mantlePath).toBe("place_start");
 	});
 });

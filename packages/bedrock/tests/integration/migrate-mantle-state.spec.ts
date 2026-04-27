@@ -1,4 +1,4 @@
-import { loadConfig, migrateMantleState } from "@bedrock/core";
+import { loadConfig, migrateMantleState, selectEnvironment } from "@bedrock/core";
 
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -82,5 +82,54 @@ describe(migrateMantleState, () => {
 		assert(universe?.kind === "universe");
 
 		expect(universe.outputs.rootPlaceId).toBe("17834656300");
+	});
+
+	it("should round-trip the migrated places block through selectEnvironment per environment", async () => {
+		expect.assertions(4);
+
+		const result = await migrateMantleState({
+			outputFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
+
+		const production = selectEnvironment(result.data.config, "production");
+		assert(production.success);
+
+		const development = selectEnvironment(result.data.config, "development");
+		assert(development.success);
+
+		expect(production.data.places?.["start"]?.placeId).toBe("17834656300");
+		expect(production.data.places?.["start"]?.filePath).toBe("place.rbxlx");
+		expect(development.data.places?.["start"]?.placeId).toBe("17613681043");
+		expect(development.data.places?.["start"]?.filePath).toBe("place.rbxl");
+	});
+
+	it("should emit one place ResourceCurrentState per environment from the real fixture", async () => {
+		expect.assertions(4);
+
+		const result = await migrateMantleState({
+			outputFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
+
+		const { development, production } = result.data.statesByEnvironment;
+		assert(development !== undefined && production !== undefined);
+
+		const developmentPlace = development.resources.find(
+			(resource) => resource.kind === "place",
+		);
+		const productionPlace = production.resources.find((resource) => resource.kind === "place");
+		assert(developmentPlace?.kind === "place" && productionPlace?.kind === "place");
+
+		expect(developmentPlace.placeId).toBe("17613681043");
+		expect(developmentPlace.outputs.versionNumber).toBe(53);
+		expect(productionPlace.placeId).toBe("17834656300");
+		expect(productionPlace.outputs.versionNumber).toBe(12);
 	});
 });
