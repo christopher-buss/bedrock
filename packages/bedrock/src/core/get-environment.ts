@@ -12,12 +12,31 @@ export type GetEnvironmentError =
 /**
  * Resolve the deploy environment for an override script invocation.
  *
+ * Reads `--env <name>` from the supplied argv first, falls back to
+ * `BEDROCK_ENVIRONMENT` from the supplied env reader. Returns
+ * `missingEnvironment` when neither is present and `multipleEnvironments`
+ * (with every offending value) when argv contains more than one `--env`
+ * flag. Both inputs default to the running process so override scripts
+ * under `.bedrock/` can call `getEnvironment()` with no arguments.
+ *
  * @param argv - Argument list to scan for `--env <name>` flags. Defaults to
  * `process.argv.slice(2)` when omitted.
  * @param readEnvironment - Reads an environment variable; consulted as a
  * fallback when no `--env` flag is present. Defaults to a `process.env`
  * reader when omitted.
  * @returns `Ok(environment)` on success, `Err(GetEnvironmentError)` otherwise.
+ * @example
+ *
+ * ```ts
+ * import { getEnvironment } from "@bedrock/core";
+ *
+ * const result = getEnvironment(["--env", "production"], () => undefined);
+ *
+ * expect(result.success).toBeTrue();
+ * if (result.success) {
+ *     expect(result.data).toBe("production");
+ * }
+ * ```
  */
 export function getEnvironment(
 	argv?: ReadonlyArray<string>,

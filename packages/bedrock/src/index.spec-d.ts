@@ -11,6 +11,7 @@ import {
 	createPlaceDriver,
 	defineConfig,
 	deploy,
+	getEnvironment,
 	isResourceKey,
 	isRobloxAssetId,
 	isSha256Hex,
@@ -26,6 +27,7 @@ import type {
 	ConfigInput,
 	DeployError,
 	DeployOptions,
+	GetEnvironmentError,
 	LoadConfigOptions,
 	PlaceDesiredState,
 	PlaceDriverDeps,
@@ -303,5 +305,34 @@ describe(createPlaceDriver, () => {
 		type Driver = ReturnType<typeof createPlaceDriver>;
 		expectTypeOf<Driver["create"]>().toBeFunction();
 		expectTypeOf<Driver["update"]>().not.toBeUndefined();
+	});
+});
+
+describe(getEnvironment, () => {
+	it("should accept an optional argv array and an optional reader function", () => {
+		expectTypeOf(getEnvironment)
+			.parameter(0)
+			.toEqualTypeOf<ReadonlyArray<string> | undefined>();
+		expectTypeOf(getEnvironment)
+			.parameter(1)
+			.toEqualTypeOf<((name: string) => string | undefined) | undefined>();
+	});
+
+	it("should return a Result of the environment name or GetEnvironmentError", () => {
+		expectTypeOf<ReturnType<typeof getEnvironment>>().toEqualTypeOf<
+			Result<string, GetEnvironmentError>
+		>();
+	});
+
+	it("should discriminate GetEnvironmentError across the missing and multiple variants", () => {
+		expectTypeOf<GetEnvironmentError["kind"]>().toEqualTypeOf<
+			"missingEnvironment" | "multipleEnvironments"
+		>();
+	});
+
+	it("should attach values only to the multipleEnvironments variant", () => {
+		expectTypeOf<
+			Extract<GetEnvironmentError, { kind: "multipleEnvironments" }>["values"]
+		>().toEqualTypeOf<ReadonlyArray<string>>();
 	});
 });
