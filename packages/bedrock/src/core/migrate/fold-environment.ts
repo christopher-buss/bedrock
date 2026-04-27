@@ -1,5 +1,6 @@
 import type { UniverseOutputs } from "../resources.ts";
 import type { UniverseEntry } from "../schema.ts";
+import { foldPlaces, type PlaceFoldEntry } from "./fold-places.ts";
 import { foldUniverse } from "./fold-universe.ts";
 import type { MigrationWarning } from "./migration-report.ts";
 import type { MantleResource } from "./types.ts";
@@ -10,10 +11,16 @@ import type { MantleResource } from "./types.ts";
  * an experience resource yields `universe: undefined`, signalling that
  * the bedrock `Config` for this environment carries no `universe` block.
  *
- * Skeleton: only the universe branch is wired. Future slices add `places`,
- * `passes`, and the deferred / blocked / interpretive warning categories.
+ * `places` is always present (potentially empty) so the orchestrator does
+ * not have to special-case "no places" against "places not yet wired";
+ * orphan resources surface as `ambiguous` warnings on `warnings`.
+ *
+ * Skeleton: universe and place branches are wired. Future slices add
+ * `passes` and the deferred / blocked / interpretive warning categories.
  */
 export interface EnvironmentFoldResult {
+	/** Folded place entries for this environment, keyed by Mantle's place key. */
+	readonly places: ReadonlyMap<string, PlaceFoldEntry>;
 	/** Folded universe data for this environment, or `undefined` when no experience is present. */
 	readonly universe:
 		| undefined
@@ -28,8 +35,8 @@ export interface EnvironmentFoldResult {
 /**
  * Orchestrate the per-kind folds for one Mantle environment, gathering
  * the results and warnings into a single `EnvironmentFoldResult`. Pure;
- * delegates to `foldUniverse` and (in future slices) the matching place,
- * pass, and unsupported folders.
+ * delegates to `foldUniverse`, `foldPlaces`, and (in future slices) the
+ * matching pass and unsupported folders.
  *
  * @param resources - Mantle resource list for one environment.
  * @returns The folded per-kind data plus aggregated warnings.
@@ -41,7 +48,9 @@ export function foldEnvironment(resources: ReadonlyArray<MantleResource>): Envir
 			? undefined
 			: { entry: universeResult.entry, outputs: universeResult.outputs };
 
-	const warnings = universeResult?.warnings ?? [];
+	const placesResult = foldPlaces(resources);
 
-	return { universe, warnings };
+	const warnings = [...(universeResult?.warnings ?? []), ...placesResult.warnings];
+
+	return { places: placesResult.entries, universe, warnings };
 }

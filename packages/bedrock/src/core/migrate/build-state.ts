@@ -1,4 +1,4 @@
-import { asRobloxAssetId } from "../../types/ids.ts";
+import { asResourceKey, asRobloxAssetId } from "../../types/ids.ts";
 import {
 	type ResourceCurrentState,
 	UNIVERSE_SINGLETON_KEY,
@@ -7,28 +7,39 @@ import {
 import type { UniverseEntry } from "../schema.ts";
 import type { BedrockState } from "../state.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
+import type { PlaceFoldEntry } from "./fold-places.ts";
 
 /**
  * Compose one environment's folded data into the on-disk `BedrockState`
  * snapshot the migrator's caller writes per environment.
  *
- * Skeleton: only universe folding is wired. The resulting state carries
- * one `kind: "universe"` resource whose declared fields mirror the folded
- * `UniverseEntry` and whose `outputs` carries the Roblox-assigned
- * `rootPlaceId` recovered from Mantle. Future slices append game-pass and
- * place resources alongside.
+ * Skeleton: universe and place folds are wired. The resulting state
+ * carries one `kind: "universe"` resource (when an experience folded) and
+ * one `kind: "place"` resource per matched place pair, in declaration
+ * order. Each resource's declared fields mirror its fold output and the
+ * `outputs` field carries the Mantle-recorded identifiers (universe
+ * `rootPlaceId`, place `versionNumber`). Future slices append game-pass
+ * resources alongside.
  *
  * @param environment - Environment name; written verbatim onto the state.
  * @param folded - Per-kind fold results for this environment.
  * @returns A `BedrockState` populated with one resource per folded kind.
  */
 export function buildState(environment: string, folded: EnvironmentFoldResult): BedrockState {
-	const resources: ReadonlyArray<ResourceCurrentState> =
+	const universeResources: ReadonlyArray<ResourceCurrentState> =
 		folded.universe === undefined
 			? []
 			: [universeResource(folded.universe.entry, folded.universe.outputs)];
 
-	return { environment, resources, version: 1 };
+	const placeResources: ReadonlyArray<ResourceCurrentState> = [...folded.places.entries()].map(
+		([key, entry]) => placeResource(key, entry),
+	);
+
+	return {
+		environment,
+		resources: [...universeResources, ...placeResources],
+		version: 1,
+	};
 }
 
 function universeResource(
@@ -48,5 +59,16 @@ function universeResource(
 		visibility: entry.visibility,
 		voiceChatEnabled: entry.voiceChatEnabled,
 		vrEnabled: entry.vrEnabled,
+	};
+}
+
+function placeResource(key: string, fold: PlaceFoldEntry): ResourceCurrentState<"place"> {
+	return {
+		key: asResourceKey(key),
+		fileHash: fold.fileHash,
+		filePath: fold.entry.filePath,
+		kind: "place",
+		outputs: fold.outputs,
+		placeId: asRobloxAssetId(fold.placeId),
 	};
 }

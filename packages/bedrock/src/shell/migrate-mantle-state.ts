@@ -4,6 +4,7 @@ import { readFile as nodeReadFile } from "node:fs/promises";
 
 import { buildState } from "../core/migrate/build-state.ts";
 import { type EnvironmentFoldResult, foldEnvironment } from "../core/migrate/fold-environment.ts";
+import type { PlaceFoldEntry } from "../core/migrate/fold-places.ts";
 import type {
 	MigrateError,
 	MigrationReport,
@@ -13,8 +14,15 @@ import { parseState } from "../core/migrate/parse-state.ts";
 import { serializeConfig } from "../core/migrate/serialize-config.ts";
 import { summarizeWarnings } from "../core/migrate/summarize-warnings.ts";
 import type { MantleStateV6 } from "../core/migrate/types.ts";
-import { type Config, validateConfig } from "../core/schema.ts";
+import {
+	type Config,
+	type EnvironmentEntry,
+	type PlaceEntry,
+	validateConfig,
+} from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
+
+type PlaceOverlayEntry = NonNullable<EnvironmentEntry["places"]>[string];
 
 const FILE_MISSING_CODES = new Set(["ENOENT"]);
 
@@ -50,18 +58,28 @@ export interface MigrateMantleStateDeps {
 	readonly stateFilePath: string;
 }
 
+interface EnvironmentOverlayContext {
+	readonly fold: EnvironmentFoldResult;
+	readonly primary: EnvironmentFoldResult | undefined;
+}
+
+interface PlaceOverlayContext {
+	readonly fold: PlaceFoldEntry;
+	readonly primary: PlaceFoldEntry | undefined;
+}
+
 /**
  * Read a Mantle state file and produce a `MigrationReport` containing a
  * bedrock config, per-environment `BedrockState`s, and a structured list
  * of fields that did not migrate verbatim.
  *
- * Skeleton: handles a single-environment, universe-only state. The
- * primary environment auto-picks when only one environment is present;
- * multi-environment inputs without an explicit `primaryEnvironment`
- * return `Err({ kind: "primaryEnvironmentRequired", available })` so the
+ * Skeleton: handles single-environment or multi-environment states with
+ * universe and place resources. The primary environment auto-picks when
+ * only one environment is present; multi-environment inputs without an
+ * explicit `primaryEnvironment` return
+ * `Err({ kind: "primaryEnvironmentRequired", available })` so the
  * migrator never silently picks a winner. Future slices fold game
- * passes, places, social links, and the deferred / blocked warning
- * categories.
+ * passes, social links, and the deferred / blocked warning categories.
  *
  * @param deps - Inputs for the migration.
  * @returns `Ok` with a `MigrationReport` on success, or `Err` with a
@@ -161,16 +179,87 @@ function pickPrimary(
 	return { data: requested, success: true };
 }
 
-function buildConfig(
-	environmentNames: ReadonlyArray<string>,
+function buildRootPlaces(
 	primaryFold: EnvironmentFoldResult | undefined,
-): Config {
-	const environments = Object.fromEntries(environmentNames.map((name) => [name, {}]));
-	if (primaryFold?.universe === undefined) {
-		return { environments };
+): Record<string, PlaceEntry> | undefined {
+	if (primaryFold === undefined || primaryFold.places.size === 0) {
+		return undefined;
 	}
 
-	return { environments, universe: primaryFold.universe.entry };
+	return Object.fromEntries(
+		[...primaryFold.places.entries()].map(([key, fold]) => [key, { ...fold.entry }]),
+	);
+}
+
+function buildPlaceOverlayEntry(context: PlaceOverlayContext): PlaceOverlayEntry {
+	const { fold, primary } = context;
+	if (primary === undefined || primary.entry.filePath === fold.entry.filePath) {
+		return { placeId: fold.placeId };
+	}
+
+	return { filePath: fold.entry.filePath, placeId: fold.placeId };
+}
+
+function buildPlacesOverlay(
+	context: EnvironmentOverlayContext,
+): Record<string, PlaceOverlayEntry> | undefined {
+	const { fold, primary } = context;
+	if (fold.places.size === 0) {
+		return undefined;
+	}
+
+	const overlay: Record<string, PlaceOverlayEntry> = {};
+	for (const [key, foldEntry] of fold.places) {
+		overlay[key] = buildPlaceOverlayEntry({
+			fold: foldEntry,
+			primary: primary?.places.get(key),
+		});
+	}
+
+	return overlay;
+}
+
+function buildEnvironmentEntry(context: EnvironmentOverlayContext): EnvironmentEntry {
+	const places = buildPlacesOverlay(context);
+	if (places === undefined) {
+		return {};
+	}
+
+	return { places };
+}
+
+function buildEnvironmentEntries(
+	folds: ReadonlyMap<string, EnvironmentFoldResult>,
+	primaryName: string,
+): Record<string, EnvironmentEntry> {
+	const primaryFold = folds.get(primaryName);
+	const entries: Record<string, EnvironmentEntry> = {};
+	for (const [name, fold] of folds) {
+		entries[name] = buildEnvironmentEntry({ fold, primary: primaryFold });
+	}
+
+	return entries;
+}
+
+function buildConfig(
+	folds: ReadonlyMap<string, EnvironmentFoldResult>,
+	primaryName: string,
+): Config {
+	const primaryFold = folds.get(primaryName);
+	const environments = buildEnvironmentEntries(folds, primaryName);
+	const places = buildRootPlaces(primaryFold);
+	const universe = primaryFold?.universe?.entry;
+
+	const config: Config = { environments };
+	if (places !== undefined) {
+		config.places = places;
+	}
+
+	if (universe !== undefined) {
+		config.universe = universe;
+	}
+
+	return config;
 }
 
 function buildStatesByEnvironment(
@@ -182,6 +271,18 @@ function buildStatesByEnvironment(
 			buildState(name, folded),
 		]),
 	);
+}
+
+function prefixMantlePath(warning: MigrationWarning, environmentName: string): MigrationWarning {
+	return { ...warning, mantlePath: `${environmentName}.${warning.mantlePath}` };
+}
+
+function collectWarnings(
+	folds: ReadonlyMap<string, EnvironmentFoldResult>,
+): ReadonlyArray<MigrationWarning> {
+	return [...folds.entries()].flatMap(([name, fold]) => {
+		return fold.warnings.map((warning) => prefixMantlePath(warning, name));
+	});
 }
 
 function finalizeReport(
@@ -200,7 +301,7 @@ function finalizeReport(
 		};
 	}
 
-	const warnings: ReadonlyArray<MigrationWarning> = [];
+	const warnings = collectWarnings(folds);
 	return {
 		data: {
 			config: validated.data,
@@ -226,7 +327,7 @@ function assembleReport(
 	const folds: ReadonlyMap<string, EnvironmentFoldResult> = new Map(
 		available.map((name) => [name, foldEnvironment(state.environments[name] ?? [])]),
 	);
-	return finalizeReport(buildConfig(available, folds.get(primaryResult.data)), folds);
+	return finalizeReport(buildConfig(folds, primaryResult.data), folds);
 }
 
 function isFileMissing(err: unknown): boolean {

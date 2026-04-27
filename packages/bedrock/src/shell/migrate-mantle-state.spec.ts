@@ -2,6 +2,9 @@ import { assert, describe, expect, it } from "vitest";
 
 import { migrateMantleState } from "./migrate-mantle-state.ts";
 
+const VALID_HASH = "908498abb7f4fca2b7d2b050bfe7c48c009202fabd85f489b03bb19ac6e0b1d9";
+const PROD_HASH = "804a980a447b7fb258cb2d64b8e3e4bbf323ea76b203510457a14cfd536c1970";
+
 const SINGLE_ENV_YAML = `
 version: "6"
 environments:
@@ -14,6 +17,182 @@ environments:
         experience:
           assetId: 6031475575
           startPlaceId: 17613681043
+      dependencies: []
+`;
+
+const SINGLE_ENV_WITH_PLACE_YAML = `
+version: "6"
+environments:
+  production:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 6031475575
+          startPlaceId: 17613681043
+      dependencies: []
+    - id: place_start
+      inputs:
+        place:
+          isStart: true
+      outputs:
+        place:
+          assetId: 17613681043
+      dependencies:
+        - experience_singleton
+    - id: placeFile_start
+      inputs:
+        placeFile:
+          filePath: place.rbxl
+          fileHash: ${VALID_HASH}
+      outputs:
+        placeFile:
+          version: 53
+      dependencies:
+        - place_start
+        - experience_singleton
+`;
+
+const TWO_ENV_PLACE_YAML = `
+version: "6"
+environments:
+  development:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 1111111111
+          startPlaceId: 2222222222
+      dependencies: []
+    - id: place_start
+      inputs:
+        place:
+          isStart: true
+      outputs:
+        place:
+          assetId: 2222222222
+      dependencies: []
+    - id: placeFile_start
+      inputs:
+        placeFile:
+          filePath: place.rbxl
+          fileHash: ${VALID_HASH}
+      outputs:
+        placeFile:
+          version: 7
+      dependencies: []
+  production:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 6031475575
+          startPlaceId: 17613681043
+      dependencies: []
+    - id: place_start
+      inputs:
+        place:
+          isStart: true
+      outputs:
+        place:
+          assetId: 17613681043
+      dependencies: []
+    - id: placeFile_start
+      inputs:
+        placeFile:
+          filePath: place.rbxlx
+          fileHash: ${PROD_HASH}
+      outputs:
+        placeFile:
+          version: 12
+      dependencies: []
+`;
+
+const TWO_ENV_PLACE_SAME_PATH_YAML = `
+version: "6"
+environments:
+  development:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 1111111111
+          startPlaceId: 2222222222
+      dependencies: []
+    - id: place_start
+      inputs:
+        place:
+          isStart: true
+      outputs:
+        place:
+          assetId: 2222222222
+      dependencies: []
+    - id: placeFile_start
+      inputs:
+        placeFile:
+          filePath: place.rbxl
+          fileHash: ${VALID_HASH}
+      outputs:
+        placeFile:
+          version: 7
+      dependencies: []
+  production:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 6031475575
+          startPlaceId: 17613681043
+      dependencies: []
+    - id: place_start
+      inputs:
+        place:
+          isStart: true
+      outputs:
+        place:
+          assetId: 17613681043
+      dependencies: []
+    - id: placeFile_start
+      inputs:
+        placeFile:
+          filePath: place.rbxl
+          fileHash: ${VALID_HASH}
+      outputs:
+        placeFile:
+          version: 12
+      dependencies: []
+`;
+
+const ORPHAN_PLACE_YAML = `
+version: "6"
+environments:
+  production:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 6031475575
+          startPlaceId: 17613681043
+      dependencies: []
+    - id: place_orphan
+      inputs:
+        place:
+          isStart: false
+      outputs:
+        place:
+          assetId: 9999999999
       dependencies: []
 `;
 
@@ -387,5 +566,155 @@ environments:
 		});
 
 		await expect(promise).rejects.toBe(numeric);
+	});
+
+	it("should fold a matched place pair into the root config places block", async () => {
+		expect.assertions(1);
+
+		const result = await migrateMantleState({
+			outputFormat: "typescript",
+			readFile: fakeReadFile(SINGLE_ENV_WITH_PLACE_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.config.places).toStrictEqual({ start: { filePath: "place.rbxl" } });
+	});
+
+	it("should put the placeId on the primary environment overlay", async () => {
+		expect.assertions(1);
+
+		const result = await migrateMantleState({
+			outputFormat: "typescript",
+			readFile: fakeReadFile(SINGLE_ENV_WITH_PLACE_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.config.environments["production"]?.places).toStrictEqual({
+			start: { placeId: "17613681043" },
+		});
+	});
+
+	it("should emit a place ResourceCurrentState carrying the Mantle-recorded place version", async () => {
+		expect.assertions(4);
+
+		const result = await migrateMantleState({
+			outputFormat: "typescript",
+			readFile: fakeReadFile(SINGLE_ENV_WITH_PLACE_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		assert(state !== undefined);
+
+		const placeResource = state.resources.find((resource) => resource.kind === "place");
+		assert(placeResource?.kind === "place");
+
+		expect(placeResource.key).toBe("start");
+		expect(placeResource.placeId).toBe("17613681043");
+		expect(placeResource.filePath).toBe("place.rbxl");
+		expect(placeResource.outputs.versionNumber).toBe(53);
+	});
+
+	it("should emit an ambiguous warning prefixed by the environment for an orphan place", async () => {
+		expect.assertions(3);
+
+		const result = await migrateMantleState({
+			outputFormat: "typescript",
+			readFile: fakeReadFile(ORPHAN_PLACE_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.warnings).toHaveLength(1);
+
+		const [warning] = result.data.warnings;
+		assert(warning?.kind === "ambiguous");
+
+		expect(warning.mantlePath).toBe("production.place_orphan");
+		expect(result.data.summary.ambiguousCount).toBe(1);
+	});
+
+	it("should override filePath on a non-primary overlay when it diverges from the primary", async () => {
+		expect.assertions(3);
+
+		const result = await migrateMantleState({
+			outputFormat: "typescript",
+			primaryEnvironment: "production",
+			readFile: fakeReadFile(TWO_ENV_PLACE_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.config.places?.["start"]?.filePath).toBe("place.rbxlx");
+		expect(result.data.config.environments["production"]?.places).toStrictEqual({
+			start: { placeId: "17613681043" },
+		});
+		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+			start: { filePath: "place.rbxl", placeId: "2222222222" },
+		});
+	});
+
+	it("should keep each environment's BedrockState place resource truthful to its own values", async () => {
+		expect.assertions(2);
+
+		const result = await migrateMantleState({
+			outputFormat: "typescript",
+			primaryEnvironment: "production",
+			readFile: fakeReadFile(TWO_ENV_PLACE_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const { development, production } = result.data.statesByEnvironment;
+		assert(development !== undefined && production !== undefined);
+
+		const developmentPlace = development.resources.find(
+			(resource) => resource.kind === "place",
+		);
+		const productionPlace = production.resources.find((resource) => resource.kind === "place");
+		assert(developmentPlace?.kind === "place" && productionPlace?.kind === "place");
+
+		expect(developmentPlace.placeId).toBe("2222222222");
+		expect(productionPlace.placeId).toBe("17613681043");
+	});
+
+	it("should omit the root places block when the primary environment has no place resources", async () => {
+		expect.assertions(1);
+
+		const result = await migrateMantleState({
+			outputFormat: "typescript",
+			readFile: fakeReadFile(SINGLE_ENV_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.config.places).toBeUndefined();
+	});
+
+	it("should omit filePath from a non-primary overlay when it matches the primary's filePath", async () => {
+		expect.assertions(1);
+
+		const result = await migrateMantleState({
+			outputFormat: "typescript",
+			primaryEnvironment: "production",
+			readFile: fakeReadFile(TWO_ENV_PLACE_SAME_PATH_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+			start: { placeId: "2222222222" },
+		});
 	});
 });
