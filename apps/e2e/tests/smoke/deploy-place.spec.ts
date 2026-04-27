@@ -15,6 +15,8 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
 
+import { pruneStateGist } from "../helpers/prune-state-gist.ts";
+
 const FIXTURE_PATH = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "place.rbxlx");
 
 const API_KEY = process.env["ROBLOX_API_KEY"];
@@ -36,22 +38,6 @@ function unreachableDriver<K extends ResourceKind>(label: string): ResourceDrive
 			throw new Error(`unreachable: smoke config declares no ${label}`);
 		},
 	};
-}
-
-async function deleteGistFile(filename: string): Promise<void> {
-	assert(TOKEN !== undefined);
-	assert(GIST_ID !== undefined);
-	await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-		body: JSON.stringify({ files: { [filename]: null } }),
-		headers: {
-			"Accept": "application/vnd.github+json",
-			"Authorization": `Bearer ${TOKEN}`,
-			"Content-Type": "application/json",
-			"User-Agent": "bedrock",
-			"X-GitHub-Api-Version": "2026-03-10",
-		},
-		method: "PATCH",
-	});
 }
 
 describe("deploy place to real Roblox", () => {
@@ -133,7 +119,12 @@ describe("deploy place to real Roblox", () => {
 				expect(resource.placeId).toBe(placeId);
 				expect(resource.outputs.versionNumber).toBeGreaterThan(0);
 			} finally {
-				await deleteGistFile(`state.${environment}.json`);
+				await pruneStateGist({
+					filenamePrefix: "state.place-smoke-",
+					gistId: GIST_ID,
+					keep: 3,
+					token: TOKEN,
+				});
 			}
 		},
 		60_000,

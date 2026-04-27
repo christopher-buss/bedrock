@@ -7,6 +7,8 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
 
+import { pruneStateGist } from "../helpers/prune-state-gist.ts";
+
 const TOKEN = process.env["GITHUB_TOKEN"];
 const API_KEY = process.env["ROBLOX_API_KEY"];
 const GIST_ID = process.env["BEDROCK_TEST_GIST_ID"];
@@ -54,22 +56,6 @@ async function runBin(args: ReadonlyArray<string>, cwd: string): Promise<SpawnRe
 	});
 }
 
-async function deleteGistFile(filename: string): Promise<void> {
-	assert(TOKEN !== undefined);
-	assert(GIST_ID !== undefined);
-	await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-		body: JSON.stringify({ files: { [filename]: null } }),
-		headers: {
-			"Accept": "application/vnd.github+json",
-			"Authorization": `Bearer ${TOKEN}`,
-			"Content-Type": "application/json",
-			"User-Agent": "bedrock",
-			"X-GitHub-Api-Version": "2026-03-10",
-		},
-		method: "PATCH",
-	});
-}
-
 describe("bedrock deploy bin against real gist + open cloud", () => {
 	it.skipIf(!HAS_SECRETS)(
 		"should reconcile a place end-to-end and exit 0 with a success line",
@@ -113,8 +99,15 @@ describe("bedrock deploy bin against real gist + open cloud", () => {
 				expect(result.stdout).toContain(environment);
 				expect(result.stdout).toMatch(/\d+ resources reconciled/);
 			} finally {
-				await deleteGistFile(`state.${environment}.json`);
-				await rm(project, { force: true, recursive: true });
+				await Promise.all([
+					pruneStateGist({
+						filenamePrefix: "state.cli-smoke-",
+						gistId: GIST_ID,
+						keep: 3,
+						token: TOKEN,
+					}),
+					rm(project, { force: true, recursive: true }),
+				]);
 			}
 		},
 		120_000,
