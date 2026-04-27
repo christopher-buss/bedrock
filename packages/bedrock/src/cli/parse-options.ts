@@ -38,8 +38,10 @@ const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set([
 const SADE_RESERVED: ReadonlySet<string> = new Set(["--", "_", "h", "help", "v", "version"]);
 
 /**
- * Translate the raw sade options POJO into a typed `CommonOptions`. Pure: no
- * I/O, no clack, no sade types. Reused by `bedrock deploy` and `bedrock diff`.
+ * Translate the raw sade options POJO into a typed `CommonOptions`. Reads
+ * `BEDROCK_ENVIRONMENT` from `process.env` as a fallback when `--env` is
+ * absent; inject `getEnvironment` to redirect or isolate the lookup. No
+ * clack, no sade types. Reused by `bedrock deploy` and `bedrock diff`.
  * @param rawOptions - The options object sade hands the action callback.
  * @param getEnvironment - Reads an environment variable; consulted as a
  *   fallback for `--env` when no flag was supplied. Defaults to a
