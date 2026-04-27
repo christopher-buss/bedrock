@@ -98,6 +98,11 @@ describe(diffCommand, () => {
 	])("should surface a $label parse error and exit with code 1", async ({ rawOptions }) => {
 		expect.assertions(4);
 
+		onTestFinished(() => {
+			vi.unstubAllEnvs();
+		});
+		vi.stubEnv("BEDROCK_ENVIRONMENT", undefined);
+
 		const deps = makeDeps();
 
 		await diffCommand(deps)(rawOptions);
