@@ -149,4 +149,21 @@ describe(parseCommonOptions, () => {
 
 		expect(result.success).toBeTrue();
 	});
+
+	it("should fall back to BEDROCK_ENVIRONMENT when --env is absent", () => {
+		expect.assertions(1);
+
+		const readEnvironment = bindEnvironment({ BEDROCK_ENVIRONMENT: "staging" });
+		const result = parseCommonOptions({}, readEnvironment);
+
+		assert(result.success);
+
+		expect(result.data.environments).toStrictEqual(["staging"]);
+	});
 });
+
+function bindEnvironment(
+	bindings: Readonly<Record<string, string>>,
+): (name: string) => string | undefined {
+	return (name) => bindings[name];
+}
