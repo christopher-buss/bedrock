@@ -1,5 +1,6 @@
 import { assert, describe, expect, it } from "vitest";
 
+import manifest from "../../package.json" with { type: "json" };
 import { migrateMantleState } from "./migrate-mantle-state.ts";
 
 const VALID_HASH = "908498abb7f4fca2b7d2b050bfe7c48c009202fabd85f489b03bb19ac6e0b1d9";
@@ -234,7 +235,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: readFileMissing,
 			stateFilePath: "/tmp/missing.mantle-state.yml",
 		});
@@ -250,7 +251,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(":\nthis is: : invalid yaml ::"),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -266,7 +267,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile('version: "5"\nenvironments:\n  production: []\n'),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -282,7 +283,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(SINGLE_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -297,7 +298,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(4);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(SINGLE_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -321,7 +322,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(SINGLE_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -341,7 +342,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(SINGLE_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -359,7 +360,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(SINGLE_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -373,7 +374,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile('version: "6"\nenvironments: {}\n'),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -389,7 +390,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(TWO_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -405,7 +406,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			primaryEnvironment: "staging",
 			readFile: fakeReadFile(TWO_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
@@ -423,7 +424,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			primaryEnvironment: "development",
 			readFile: fakeReadFile(TWO_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
@@ -442,7 +443,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			primaryEnvironment: "production",
 			readFile: fakeReadFile(TWO_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
@@ -479,7 +480,7 @@ environments:
 `;
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(yamlWithInvalidEnvironmentName),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -498,7 +499,7 @@ environments:
 
 		const denied = Object.assign(new Error("denied"), { code: "EPERM" });
 		const promise = migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: async () => {
 				throw denied;
 			},
@@ -512,7 +513,7 @@ environments:
 		expect.assertions(1);
 
 		const promise = migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: async () => {
 				// eslint-disable-next-line ts/only-throw-error -- testing the non-object branch of isFileMissing
 				throw "string-shaped failure";
@@ -527,7 +528,7 @@ environments:
 		expect.assertions(1);
 
 		const promise = migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: async () => {
 				// eslint-disable-next-line unicorn/no-null, ts/only-throw-error -- testing the null branch of isFileMissing
 				throw null;
@@ -543,7 +544,7 @@ environments:
 
 		const bare = new Error("bare error without code");
 		const promise = migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: async () => {
 				throw bare;
 			},
@@ -558,7 +559,7 @@ environments:
 
 		const numeric = Object.assign(new Error("numeric code"), { code: 42 });
 		const promise = migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: async () => {
 				throw numeric;
 			},
@@ -572,7 +573,7 @@ environments:
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(SINGLE_ENV_WITH_PLACE_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -586,7 +587,7 @@ environments:
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(SINGLE_ENV_WITH_PLACE_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -602,7 +603,7 @@ environments:
 		expect.assertions(4);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(SINGLE_ENV_WITH_PLACE_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -625,7 +626,7 @@ environments:
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(ORPHAN_PLACE_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -645,7 +646,7 @@ environments:
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			primaryEnvironment: "production",
 			readFile: fakeReadFile(TWO_ENV_PLACE_YAML),
 			stateFilePath: ".mantle-state.yml",
@@ -666,7 +667,7 @@ environments:
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			primaryEnvironment: "production",
 			readFile: fakeReadFile(TWO_ENV_PLACE_YAML),
 			stateFilePath: ".mantle-state.yml",
@@ -691,7 +692,7 @@ environments:
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(SINGLE_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -705,7 +706,7 @@ environments:
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			primaryEnvironment: "production",
 			readFile: fakeReadFile(TWO_ENV_PLACE_SAME_PATH_YAML),
 			stateFilePath: ".mantle-state.yml",
@@ -716,5 +717,68 @@ environments:
 		expect(result.data.config.environments["development"]?.places).toStrictEqual({
 			start: { placeId: "2222222222" },
 		});
+	});
+
+	it("should stamp the source state path and the now()-supplied timestamp into the TypeScript header", async () => {
+		expect.assertions(3);
+
+		const generatedAt = new Date("2026-04-27T03:12:00.000Z");
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			now: () => generatedAt,
+			readFile: fakeReadFile(SINGLE_ENV_YAML),
+			stateFilePath: "/work/.mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.configFileContent).toStartWith(
+			`// Generated by bedrock migrate v${manifest.version} from /work/.mantle-state.yml at 2026-04-27T03:12:00.000Z`,
+		);
+		expect(result.data.configFileContent).toContain("/work/.mantle-state.yml");
+		expect(result.data.configFileContent).toContain("2026-04-27T03:12:00.000Z");
+	});
+
+	it("should emit a YAML configFileContent when configFormat is yaml", async () => {
+		expect.assertions(4);
+
+		const generatedAt = new Date("2026-04-27T03:12:00.000Z");
+		const result = await migrateMantleState({
+			configFormat: "yaml",
+			now: () => generatedAt,
+			readFile: fakeReadFile(SINGLE_ENV_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.configFileContent).toStartWith(
+			`# Generated by bedrock migrate v${manifest.version} from .mantle-state.yml at 2026-04-27T03:12:00.000Z`,
+		);
+		expect(result.data.configFileContent).toContain("2026-04-27T03:12:00.000Z");
+		expect(result.data.configFileContent).toContain("universeId: '6031475575'");
+		expect(result.data.configFileContent).not.toContain("defineConfig");
+	});
+
+	it("should default the now supplier to a fresh Date when the caller omits it", async () => {
+		expect.assertions(1);
+
+		const before = Date.now();
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeReadFile(SINGLE_ENV_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+		const after = Date.now();
+
+		assert(result.success);
+
+		const match = /at (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)/.exec(
+			result.data.configFileContent,
+		);
+		assert(match !== null);
+		const stamped = Date.parse(match[1]!);
+
+		expect(stamped).toBeWithin(before, after + 1);
 	});
 });

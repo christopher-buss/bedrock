@@ -22,7 +22,7 @@ it('Example 1', () => {
     return new TextEncoder().encode(yaml)
   }
   return migrateMantleState({
-    outputFormat: 'typescript',
+    configFormat: 'typescript',
     readFile,
     stateFilePath: '.mantle-state.yml',
   }).then((result) => {

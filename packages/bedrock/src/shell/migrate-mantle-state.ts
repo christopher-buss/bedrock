@@ -2,6 +2,7 @@ import type { Result } from "@bedrock/ocale";
 
 import { readFile as nodeReadFile } from "node:fs/promises";
 
+import manifest from "../../package.json" with { type: "json" };
 import { buildState } from "../core/migrate/build-state.ts";
 import { type EnvironmentFoldResult, foldEnvironment } from "../core/migrate/fold-environment.ts";
 import type { PlaceFoldEntry } from "../core/migrate/fold-places.ts";
@@ -32,15 +33,24 @@ const FILE_MISSING_CODES = new Set(["ENOENT"]);
  * inject in-memory fixtures from tests and the JSDoc `@example` block
  * stays self-contained.
  *
- * `outputFormat` is locked to `"typescript"` in v0.1; the YAML output
- * lands in a follow-up issue that widens the literal.
+ * `configFormat` selects the output shape: `"typescript"` emits a
+ * `bedrock.config.ts` with `defineConfig({...})`; `"yaml"` emits a
+ * `bedrock.config.yaml` body. Both shapes round-trip through
+ * `loadConfig` cleanly.
  */
 export interface MigrateMantleStateDeps {
 	/**
-	 * Output format for the emitted bedrock config file. V0.1 ships
-	 * TypeScript (`bedrock.config.ts` with `defineConfig({...})`).
+	 * Output format for the emitted bedrock config file. `"typescript"`
+	 * produces a `defineConfig({...})` module; `"yaml"` produces a YAML
+	 * body whose keys match the `Config` schema.
 	 */
-	readonly outputFormat: "typescript";
+	readonly configFormat: "typescript" | "yaml";
+	/**
+	 * Wall-clock supplier stamped into the generated-file header on the
+	 * emitted config. Defaults to `() => new Date()`; tests inject a
+	 * fixed `Date` so the header is byte-stable.
+	 */
+	readonly now?: () => Date;
 	/**
 	 * Environment in the input state file whose resolved values seed
 	 * the root config. Required when the state file declares more than
@@ -66,6 +76,20 @@ interface EnvironmentOverlayContext {
 interface PlaceOverlayContext {
 	readonly fold: PlaceFoldEntry;
 	readonly primary: PlaceFoldEntry | undefined;
+}
+
+interface AssembleReportContext {
+	readonly configFormat: "typescript" | "yaml";
+	readonly generatedAt: Date;
+	readonly primaryEnvironment: string | undefined;
+	readonly sourceStatePath: string;
+}
+
+interface FinalizeReportContext {
+	readonly configFormat: "typescript" | "yaml";
+	readonly folds: ReadonlyMap<string, EnvironmentFoldResult>;
+	readonly generatedAt: Date;
+	readonly sourceStatePath: string;
 }
 
 /**
@@ -114,7 +138,7 @@ interface PlaceOverlayContext {
  * }
  *
  * return migrateMantleState({
- *     outputFormat: "typescript",
+ *     configFormat: "typescript",
  *     readFile,
  *     stateFilePath: ".mantle-state.yml",
  * }).then((result) => {
@@ -129,6 +153,7 @@ export async function migrateMantleState(
 	deps: MigrateMantleStateDeps,
 ): Promise<Result<MigrationReport, MigrateError>> {
 	const readFile = deps.readFile ?? nodeReadFile;
+	const now = deps.now ?? defaultNow;
 
 	let bytes: Uint8Array;
 	try {
@@ -150,7 +175,16 @@ export async function migrateMantleState(
 		return parsed;
 	}
 
-	return assembleReport(parsed.data, deps.primaryEnvironment);
+	return assembleReport(parsed.data, {
+		configFormat: deps.configFormat,
+		generatedAt: now(),
+		primaryEnvironment: deps.primaryEnvironment,
+		sourceStatePath: deps.stateFilePath,
+	});
+}
+
+function defaultNow(): Date {
+	return new Date();
 }
 
 function pickPrimary(
@@ -285,9 +319,26 @@ function collectWarnings(
 	});
 }
 
+function buildSuccessfulReport(validated: Config, context: FinalizeReportContext): MigrationReport {
+	const warnings = collectWarnings(context.folds);
+	return {
+		config: validated,
+		configFileContent: serializeConfig({
+			config: validated,
+			configFormat: context.configFormat,
+			generatedAt: context.generatedAt,
+			migratorVersion: manifest.version,
+			sourceStatePath: context.sourceStatePath,
+		}),
+		statesByEnvironment: buildStatesByEnvironment(context.folds),
+		summary: summarizeWarnings(warnings),
+		warnings,
+	};
+}
+
 function finalizeReport(
 	config: Config,
-	folds: ReadonlyMap<string, EnvironmentFoldResult>,
+	context: FinalizeReportContext,
 ): Result<MigrationReport, MigrateError> {
 	const validated = validateConfig(config, "<migrate-mantle-state>");
 	if (!validated.success) {
@@ -301,25 +352,15 @@ function finalizeReport(
 		};
 	}
 
-	const warnings = collectWarnings(folds);
-	return {
-		data: {
-			config: validated.data,
-			configFileContent: serializeConfig(validated.data),
-			statesByEnvironment: buildStatesByEnvironment(folds),
-			summary: summarizeWarnings(warnings),
-			warnings,
-		},
-		success: true,
-	};
+	return { data: buildSuccessfulReport(validated.data, context), success: true };
 }
 
 function assembleReport(
 	state: MantleStateV6,
-	primaryEnvironment: string | undefined,
+	context: AssembleReportContext,
 ): Result<MigrationReport, MigrateError> {
 	const available = Object.keys(state.environments);
-	const primaryResult = pickPrimary(available, primaryEnvironment);
+	const primaryResult = pickPrimary(available, context.primaryEnvironment);
 	if (!primaryResult.success) {
 		return primaryResult;
 	}
@@ -327,7 +368,12 @@ function assembleReport(
 	const folds: ReadonlyMap<string, EnvironmentFoldResult> = new Map(
 		available.map((name) => [name, foldEnvironment(state.environments[name] ?? [])]),
 	);
-	return finalizeReport(buildConfig(folds, primaryResult.data), folds);
+	return finalizeReport(buildConfig(folds, primaryResult.data), {
+		configFormat: context.configFormat,
+		folds,
+		generatedAt: context.generatedAt,
+		sourceStatePath: context.sourceStatePath,
+	});
 }
 
 function isFileMissing(err: unknown): boolean {
