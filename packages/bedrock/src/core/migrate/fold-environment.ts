@@ -3,6 +3,7 @@ import type { UniverseEntry } from "../schema.ts";
 import { foldPasses, type PassFoldEntry } from "./fold-passes.ts";
 import { foldPlaces, type PlaceFoldEntry } from "./fold-places.ts";
 import { foldUniverse } from "./fold-universe.ts";
+import { foldUnsupported } from "./fold-unsupported.ts";
 import type { MigrationWarning } from "./migration-report.ts";
 import type { MantleResource } from "./types.ts";
 
@@ -15,10 +16,11 @@ import type { MantleResource } from "./types.ts";
  * `places` and `passes` are always present (potentially empty) so the
  * orchestrator does not have to special-case "no <kind>" against
  * "<kind> not yet wired"; orphan place resources surface as `ambiguous`
- * warnings on `warnings`.
+ * warnings on `warnings`. Resources of kinds bedrock plans to support
+ * but does not yet model surface as `deferred` warnings.
  *
- * Skeleton: universe, place, and pass branches are wired. Future slices
- * add the deferred / blocked / interpretive warning categories.
+ * Skeleton: universe, place, pass, and deferred branches are wired.
+ * Future slices add the blocked / interpretive warning categories.
  */
 export interface EnvironmentFoldResult {
 	/** Folded pass entries for this environment, in declaration order. */
@@ -39,8 +41,10 @@ export interface EnvironmentFoldResult {
 /**
  * Orchestrate the per-kind folds for one Mantle environment, gathering
  * the results and warnings into a single `EnvironmentFoldResult`. Pure;
- * delegates to `foldUniverse`, `foldPlaces`, `foldPasses`, and (in
- * future slices) the matching unsupported folders.
+ * delegates to `foldUniverse`, `foldPlaces`, `foldPasses`, and
+ * `foldUnsupported`. Warning paths emitted here are resource-rooted; the
+ * shell prefixes them with the environment name when flattening warnings
+ * across environments.
  *
  * @param resources - Mantle resource list for one environment.
  * @returns The folded per-kind data plus aggregated warnings.
@@ -59,6 +63,7 @@ export function foldEnvironment(resources: ReadonlyArray<MantleResource>): Envir
 		...(universeResult?.warnings ?? []),
 		...placesResult.warnings,
 		...passesResult.warnings,
+		...foldUnsupported(resources),
 	];
 
 	return {

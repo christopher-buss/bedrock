@@ -53,6 +53,16 @@ function pass(key: string): MantleResource {
 	};
 }
 
+function deferredResource(kind: string, key: string): MantleResource {
+	return {
+		key,
+		dependencies: [],
+		inputs: {},
+		kind,
+		outputs: undefined,
+	};
+}
+
 describe(foldEnvironment, () => {
 	it("should expose the folded universe entry when an experience is present", () => {
 		expect.assertions(1);
@@ -82,7 +92,7 @@ describe(foldEnvironment, () => {
 		expect(result.universe).toBeUndefined();
 	});
 
-	it("should aggregate an empty warnings list in the skeleton", () => {
+	it("should aggregate an empty warnings list when only an experience is present", () => {
 		expect.assertions(1);
 
 		const result = foldEnvironment([experience()]);
@@ -90,7 +100,7 @@ describe(foldEnvironment, () => {
 		expect(result.warnings).toStrictEqual([]);
 	});
 
-	it("should produce empty warnings even when no experience is present", () => {
+	it("should produce empty warnings when the resource list is empty", () => {
 		expect.assertions(1);
 
 		const result = foldEnvironment([]);
@@ -145,5 +155,40 @@ describe(foldEnvironment, () => {
 		const result = foldEnvironment([experience()]);
 
 		expect(result.passes).toStrictEqual([]);
+	});
+
+	it("should aggregate deferred warnings from unsupported Mantle kinds", () => {
+		expect.assertions(2);
+
+		const result = foldEnvironment([
+			experience(),
+			deferredResource("badge", "first-win"),
+			deferredResource("product", "starter"),
+		]);
+
+		expect(result.warnings).toHaveLength(2);
+		expect(result.warnings.map((warning) => warning.kind)).toStrictEqual([
+			"deferred",
+			"deferred",
+		]);
+	});
+
+	it("should root deferred warnings at the resource for the shell to prefix", () => {
+		expect.assertions(1);
+
+		const result = foldEnvironment([deferredResource("badge", "first-win")]);
+
+		expect(result.warnings.map((warning) => warning.mantlePath)).toStrictEqual([
+			"badge_first-win",
+		]);
+	});
+
+	it("should emit deferred warnings even when no experience is present", () => {
+		expect.assertions(2);
+
+		const result = foldEnvironment([deferredResource("experienceIcon", "singleton")]);
+
+		expect(result.universe).toBeUndefined();
+		expect(result.warnings).toHaveLength(1);
 	});
 });
