@@ -15,7 +15,7 @@ const EXPERIENCE_KIND = "experience";
  * `warnings` accumulates per-rule diagnostics; the skeleton emits an
  * empty list because no interpretive rules have landed yet.
  */
-export interface UniverseFoldResult {
+interface UniverseFoldResult {
 	/** Bedrock `Config.universe` block populated from the experience resource. */
 	readonly entry: UniverseEntry;
 	/** Roblox-assigned identifiers carried into `BedrockState.resources[*].outputs`. */
