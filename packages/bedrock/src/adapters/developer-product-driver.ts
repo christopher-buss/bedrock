@@ -51,13 +51,13 @@ interface UpdateInputs {
 
 /**
  * Wraps {@link DeveloperProductsClient} as a `ResourceDriver<"developerProduct">`
- * that maps a desired-state entry to an ocale create call and the response
- * back to a `ResourceCurrentState<"developerProduct">`.
- *
- * Slice 1 of #113 ships create only with `name` and `description`.
- * Subsequent slices add `update`, the icon hash-diff cost-gate, the
- * Mantle-style `price` semantics, and the `storePageEnabled` POST→PATCH
- * dance.
+ * that maps a desired-state entry to an ocale create or update call and the
+ * response back to a `ResourceCurrentState<"developerProduct">`. The
+ * `update` path consumes the upstream `204 No Content` response and
+ * synthesizes the post-update `ResourceCurrentState` from `desired` plus
+ * the existing `current.outputs`, carrying `iconImageAssetId` forward when
+ * present. Subsequent slices add the `iconFilePath` cost-gate and the
+ * `isRegionalPricingEnabled` / `storePageEnabled` toggles.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.
  *
