@@ -17,6 +17,31 @@ environments:
       dependencies: []
 `;
 
+const TWO_ENV_YAML = `
+version: "6"
+environments:
+  development:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 1111111111
+          startPlaceId: 2222222222
+      dependencies: []
+  production:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 6031475575
+          startPlaceId: 17613681043
+      dependencies: []
+`;
+
 function fakeReadFile(content: string): (path: string) => Promise<Uint8Array> {
 	return async () => new TextEncoder().encode(content);
 }
@@ -89,8 +114,8 @@ describe(migrateMantleState, () => {
 		expect(result.data.config.environments["production"]).toStrictEqual({});
 	});
 
-	it("should produce one placeholder BedrockState per environment", async () => {
-		expect.assertions(3);
+	it("should produce a BedrockState carrying the folded universe resource per environment", async () => {
+		expect.assertions(4);
 
 		const result = await migrateMantleState({
 			outputFormat: "typescript",
@@ -103,13 +128,18 @@ describe(migrateMantleState, () => {
 		const state = result.data.statesByEnvironment["production"];
 		assert(state !== undefined);
 
+		const [resource] = state.resources;
+		assert(resource !== undefined);
+		assert(resource.kind === "universe");
+
 		expect(state.environment).toBe("production");
 		expect(state.version).toBe(1);
-		expect(state.resources).toStrictEqual([]);
+		expect(resource.universeId).toBe("6031475575");
+		expect(resource.outputs.rootPlaceId).toBe("17613681043");
 	});
 
-	it("should emit zero warnings, a zeroed summary, and an empty configFileContent in the skeleton", async () => {
-		expect.assertions(3);
+	it("should emit zero warnings and a zeroed summary in the skeleton", async () => {
+		expect.assertions(2);
 
 		const result = await migrateMantleState({
 			outputFormat: "typescript",
@@ -126,7 +156,146 @@ describe(migrateMantleState, () => {
 			deferredCount: 0,
 			interpretiveCount: 0,
 		});
-		expect(result.data.configFileContent).toBe("");
+	});
+
+	it("should serialize the folded config as a defineConfig TypeScript module", async () => {
+		expect.assertions(3);
+
+		const result = await migrateMantleState({
+			outputFormat: "typescript",
+			readFile: fakeReadFile(SINGLE_ENV_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.configFileContent).toContain(
+			'import { defineConfig } from "@bedrock/core"',
+		);
+		expect(result.data.configFileContent).toContain("export default defineConfig({");
+		expect(result.data.configFileContent).toContain('"universeId": "6031475575"');
+	});
+
+	it("should expose universe.universeId on the resolved Config", async () => {
+		expect.assertions(1);
+
+		const result = await migrateMantleState({
+			outputFormat: "typescript",
+			readFile: fakeReadFile(SINGLE_ENV_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.config.universe?.universeId).toBe("6031475575");
+	});
+
+	it("should require primaryEnvironment when the input declares more than one environment", async () => {
+		expect.assertions(2);
+
+		const result = await migrateMantleState({
+			outputFormat: "typescript",
+			readFile: fakeReadFile(TWO_ENV_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "primaryEnvironmentRequired");
+
+		expect(result.err.kind).toBe("primaryEnvironmentRequired");
+		expect(result.err.available).toStrictEqual(["development", "production"]);
+	});
+
+	it("should reject a primaryEnvironment that is not present in the input", async () => {
+		expect.assertions(3);
+
+		const result = await migrateMantleState({
+			outputFormat: "typescript",
+			primaryEnvironment: "staging",
+			readFile: fakeReadFile(TWO_ENV_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "primaryEnvironmentNotFound");
+
+		expect(result.err.kind).toBe("primaryEnvironmentNotFound");
+		expect(result.err.requested).toBe("staging");
+		expect(result.err.available).toStrictEqual(["development", "production"]);
+	});
+
+	it("should seed the root config from the explicitly chosen primary environment", async () => {
+		expect.assertions(2);
+
+		const result = await migrateMantleState({
+			outputFormat: "typescript",
+			primaryEnvironment: "development",
+			readFile: fakeReadFile(TWO_ENV_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.config.universe?.universeId).toBe("1111111111");
+		expect(Object.keys(result.data.statesByEnvironment)).toStrictEqual([
+			"development",
+			"production",
+		]);
+	});
+
+	it("should keep each environment's BedrockState truthful to its own deployed values", async () => {
+		expect.assertions(2);
+
+		const result = await migrateMantleState({
+			outputFormat: "typescript",
+			primaryEnvironment: "production",
+			readFile: fakeReadFile(TWO_ENV_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const { development, production } = result.data.statesByEnvironment;
+		assert(development !== undefined && production !== undefined);
+
+		const [developmentUniverse] = development.resources;
+		const [productionUniverse] = production.resources;
+		assert(developmentUniverse?.kind === "universe" && productionUniverse?.kind === "universe");
+
+		expect(developmentUniverse.universeId).toBe("1111111111");
+		expect(productionUniverse.universeId).toBe("6031475575");
+	});
+
+	it("should surface internalError when validateConfig rejects a migrator-emitted config", async () => {
+		expect.assertions(3);
+
+		const yamlWithInvalidEnvironmentName = `
+version: "6"
+environments:
+  "has spaces":
+    - id: experience_singleton
+      inputs:
+        experience: {}
+      outputs:
+        experience:
+          assetId: 1
+          startPlaceId: 2
+      dependencies: []
+`;
+
+		const result = await migrateMantleState({
+			outputFormat: "typescript",
+			readFile: fakeReadFile(yamlWithInvalidEnvironmentName),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "internalError");
+		assert(result.err.cause.kind === "validationFailed");
+
+		expect(result.err.cause.kind).toBe("validationFailed");
+		expect(result.err.cause.sourceFile).toBe("<migrate-mantle-state>");
+		expect(result.err.reason).toBe("migrator emitted a config that failed validateConfig");
 	});
 
 	it("should re-throw a non-missing-file readFile error so callers see permission failures", async () => {

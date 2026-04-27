@@ -28,9 +28,7 @@ it('Example 1', () => {
   }).then((result) => {
     expect(result.success).toBeTrue()
     if (result.success) {
-      expect(Object.keys(result.data.config.environments)).toStrictEqual([
-        'production',
-      ])
+      expect(result.data.config.universe?.universeId).toBe('6031475575')
     }
   })
 })

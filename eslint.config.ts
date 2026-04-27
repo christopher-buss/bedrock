@@ -4,7 +4,13 @@ export default isentinel(
 	{
 		name: "bedrock/root",
 		flawless: true,
-		ignores: ["!.claude", "!.claude/hooks/**", "**/vendor/**", "**/*.example.spec.ts"],
+		ignores: [
+			"!.claude",
+			"!.claude/hooks/**",
+			"**/vendor/**",
+			"**/*.example.spec.ts",
+			"packages/bedrock/tests/fixtures/**/*.yml",
+		],
 		namedConfigs: true,
 		pnpm: true,
 		roblox: false,

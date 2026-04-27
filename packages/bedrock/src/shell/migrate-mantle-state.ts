@@ -2,10 +2,13 @@ import type { Result } from "@bedrock/ocale";
 
 import { readFile as nodeReadFile } from "node:fs/promises";
 
+import { buildState } from "../core/migrate/build-state.ts";
+import { type EnvironmentFoldResult, foldEnvironment } from "../core/migrate/fold-environment.ts";
 import type { MigrateError, MigrationReport } from "../core/migrate/migration-report.ts";
 import { parseState } from "../core/migrate/parse-state.ts";
+import { serializeConfig } from "../core/migrate/serialize-config.ts";
 import type { MantleStateV6 } from "../core/migrate/types.ts";
-import type { Config } from "../core/schema.ts";
+import { type Config, validateConfig } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
 
 const FILE_MISSING_CODES = new Set(["ENOENT"]);
@@ -47,11 +50,13 @@ export interface MigrateMantleStateDeps {
  * bedrock config, per-environment `BedrockState`s, and a structured list
  * of fields that did not migrate verbatim.
  *
- * Skeleton: returns a placeholder report whose `config` declares each
- * environment from the state file as an empty `EnvironmentEntry`, and
- * whose `statesByEnvironment` carries one empty `BedrockState` per
- * environment. Resource-folding, factorization, hash recomputation, and
- * TypeScript source emission ship in follow-up slices.
+ * Skeleton: handles a single-environment, universe-only state. The
+ * primary environment auto-picks when only one environment is present;
+ * multi-environment inputs without an explicit `primaryEnvironment`
+ * return `Err({ kind: "primaryEnvironmentRequired", available })` so the
+ * migrator never silently picks a winner. Future slices fold game
+ * passes, places, social links, and the deferred / blocked warning
+ * categories.
  *
  * @param deps - Inputs for the migration.
  * @returns `Ok` with a `MigrationReport` on success, or `Err` with a
@@ -92,9 +97,7 @@ export interface MigrateMantleStateDeps {
  * }).then((result) => {
  *     expect(result.success).toBeTrue();
  *     if (result.success) {
- *         expect(Object.keys(result.data.config.environments)).toStrictEqual([
- *             "production",
- *         ]);
+ *         expect(result.data.config.universe?.universeId).toBe("6031475575");
  *     }
  * });
  * ```
@@ -124,31 +127,100 @@ export async function migrateMantleState(
 		return parsed;
 	}
 
+	return assembleReport(parsed.data, deps.primaryEnvironment);
+}
+
+function pickPrimary(
+	available: ReadonlyArray<string>,
+	requested: string | undefined,
+): Result<string, MigrateError> {
+	if (requested === undefined) {
+		const [only, ...rest] = available;
+		if (only === undefined || rest.length > 0) {
+			return {
+				err: { available, kind: "primaryEnvironmentRequired" },
+				success: false,
+			};
+		}
+
+		return { data: only, success: true };
+	}
+
+	if (!available.includes(requested)) {
+		return {
+			err: { available, kind: "primaryEnvironmentNotFound", requested },
+			success: false,
+		};
+	}
+
+	return { data: requested, success: true };
+}
+
+function buildConfig(
+	environmentNames: ReadonlyArray<string>,
+	primaryFold: EnvironmentFoldResult | undefined,
+): Config {
+	const environments = Object.fromEntries(environmentNames.map((name) => [name, {}]));
+	if (primaryFold?.universe === undefined) {
+		return { environments };
+	}
+
+	return { environments, universe: primaryFold.universe.entry };
+}
+
+function buildStatesByEnvironment(
+	folds: ReadonlyMap<string, EnvironmentFoldResult>,
+): Readonly<Record<string, BedrockState>> {
+	return Object.fromEntries(
+		[...folds.entries()].map(([name, folded]): [string, BedrockState] => [
+			name,
+			buildState(name, folded),
+		]),
+	);
+}
+
+function finalizeReport(
+	config: Config,
+	folds: ReadonlyMap<string, EnvironmentFoldResult>,
+): Result<MigrationReport, MigrateError> {
+	const validated = validateConfig(config, "<migrate-mantle-state>");
+	if (!validated.success) {
+		return {
+			err: {
+				cause: validated.err,
+				kind: "internalError",
+				reason: "migrator emitted a config that failed validateConfig",
+			},
+			success: false,
+		};
+	}
+
 	return {
-		data: buildPlaceholderReport(parsed.data),
+		data: {
+			config: validated.data,
+			configFileContent: serializeConfig(validated.data),
+			statesByEnvironment: buildStatesByEnvironment(folds),
+			summary: { ambiguousCount: 0, blockedCount: 0, deferredCount: 0, interpretiveCount: 0 },
+			warnings: [],
+		},
 		success: true,
 	};
 }
 
-function buildPlaceholderReport(state: MantleStateV6): MigrationReport {
-	const environmentNames = Object.keys(state.environments);
-	const config: Config = {
-		environments: Object.fromEntries(environmentNames.map((name) => [name, {}])),
-	};
-	const statesByEnvironment: Readonly<Record<string, BedrockState>> = Object.fromEntries(
-		environmentNames.map((name): [string, BedrockState] => [
-			name,
-			{ environment: name, resources: [], version: 1 },
-		]),
-	);
+function assembleReport(
+	state: MantleStateV6,
+	primaryEnvironment: string | undefined,
+): Result<MigrationReport, MigrateError> {
+	const available = Object.keys(state.environments);
+	const primaryResult = pickPrimary(available, primaryEnvironment);
+	if (!primaryResult.success) {
+		return primaryResult;
+	}
 
-	return {
-		config,
-		configFileContent: "",
-		statesByEnvironment,
-		summary: { ambiguousCount: 0, blockedCount: 0, deferredCount: 0, interpretiveCount: 0 },
-		warnings: [],
-	};
+	const folds: ReadonlyMap<string, EnvironmentFoldResult> = new Map(
+		available.map((name) => [name, foldEnvironment(state.environments[name] ?? [])]),
+	);
+	return finalizeReport(buildConfig(available, folds.get(primaryResult.data)), folds);
 }
 
 function isFileMissing(err: unknown): boolean {
