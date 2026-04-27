@@ -80,11 +80,14 @@ export function createClackPort(): ClackPort {
 }
 
 function applyCauseDetail(cause: ApplyError): string {
-	if (cause.kind === "updateUnsupported") {
-		return "update not supported";
+	switch (cause.kind) {
+		case "driverFailure": {
+			return cause.cause.message;
+		}
+		case "updateUnsupported": {
+			return "update not supported";
+		}
 	}
-
-	return cause.cause.message;
 }
 
 function buildDesiredDetail(cause: BuildDesiredError): string {
