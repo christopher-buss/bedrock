@@ -1,4 +1,5 @@
 import { asResourceKey, asRobloxAssetId } from "../../types/ids.ts";
+import type { ResourceKey, Sha256Hex } from "../../types/ids.ts";
 import {
 	type ResourceCurrentState,
 	UNIVERSE_SINGLETON_KEY,
@@ -7,25 +8,48 @@ import {
 import type { UniverseEntry } from "../schema.ts";
 import type { BedrockState } from "../state.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
+import type { PassFoldEntry } from "./fold-passes.ts";
 import type { PlaceFoldEntry } from "./fold-places.ts";
+
+/**
+ * Inputs to {@link buildState}. Bundled into one object because the
+ * call site already groups these per-environment values together (the
+ * shell threads them in lockstep) and named fields read better than a
+ * three-positional-argument signature.
+ */
+export interface BuildStateInputs {
+	/** Environment name; written verbatim onto the state. */
+	readonly environment: string;
+	/** Per-kind fold results for this environment. */
+	readonly folded: EnvironmentFoldResult;
+	/**
+	 * Per-pass-key icon hashes recomputed from disk by the shell. Keys
+	 * absent from the map fall back to `mantleIconFileHash` from the
+	 * matching fold entry.
+	 */
+	readonly iconHashesByKey: ReadonlyMap<ResourceKey, Sha256Hex>;
+}
 
 /**
  * Compose one environment's folded data into the on-disk `BedrockState`
  * snapshot the migrator's caller writes per environment.
  *
- * Skeleton: universe and place folds are wired. The resulting state
- * carries one `kind: "universe"` resource (when an experience folded) and
- * one `kind: "place"` resource per matched place pair, in declaration
- * order. Each resource's declared fields mirror its fold output and the
- * `outputs` field carries the Mantle-recorded identifiers (universe
- * `rootPlaceId`, place `versionNumber`). Future slices append game-pass
- * resources alongside.
+ * The resulting state carries one `kind: "universe"` resource (when an
+ * experience folded), followed by one `kind: "place"` resource per
+ * matched place pair, then one `kind: "gamePass"` resource per folded
+ * pass entry, in declaration order. Each resource's declared fields
+ * mirror its fold output; pass resources receive their `iconFileHash`
+ * from `iconHashesByKey` (computed by the shell from the icon file's
+ * bytes) and fall back to the Mantle-recorded hash when the map omits
+ * the key. The `outputs` field carries the Mantle-recorded identifiers
+ * (universe `rootPlaceId`, place `versionNumber`, pass `assetId` and
+ * `iconAssetId`).
  *
- * @param environment - Environment name; written verbatim onto the state.
- * @param folded - Per-kind fold results for this environment.
+ * @param inputs - Folded data plus recomputed hashes for this environment.
  * @returns A `BedrockState` populated with one resource per folded kind.
  */
-export function buildState(environment: string, folded: EnvironmentFoldResult): BedrockState {
+export function buildState(inputs: BuildStateInputs): BedrockState {
+	const { environment, folded, iconHashesByKey } = inputs;
 	const universeResources: ReadonlyArray<ResourceCurrentState> =
 		folded.universe === undefined
 			? []
@@ -35,9 +59,13 @@ export function buildState(environment: string, folded: EnvironmentFoldResult): 
 		([key, entry]) => placeResource(key, entry),
 	);
 
+	const passResources: ReadonlyArray<ResourceCurrentState> = folded.passes.map((entry) =>
+		passResource(entry, iconHashesByKey.get(entry.key) ?? entry.mantleIconFileHash),
+	);
+
 	return {
 		environment,
-		resources: [...universeResources, ...placeResources],
+		resources: [...universeResources, ...placeResources, ...passResources],
 		version: 1,
 	};
 }
@@ -70,5 +98,21 @@ function placeResource(key: string, fold: PlaceFoldEntry): ResourceCurrentState<
 		kind: "place",
 		outputs: fold.outputs,
 		placeId: asRobloxAssetId(fold.placeId),
+	};
+}
+
+function passResource(
+	fold: PassFoldEntry,
+	iconFileHash: Sha256Hex,
+): ResourceCurrentState<"gamePass"> {
+	return {
+		key: fold.key,
+		name: fold.entry.name,
+		description: fold.entry.description,
+		iconFileHash,
+		iconFilePath: fold.entry.iconFilePath,
+		kind: "gamePass",
+		outputs: fold.outputs,
+		price: fold.entry.price,
 	};
 }
