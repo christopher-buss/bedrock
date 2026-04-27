@@ -23,7 +23,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			primaryEnvironment: "production",
 			stateFilePath: REAL_FIXTURE,
 		});
@@ -41,11 +41,40 @@ describe(migrateMantleState, () => {
 		});
 	});
 
+	it("should produce a config that round-trips through loadConfig from the emitted YAML", async () => {
+		expect.assertions(3);
+
+		const typescriptRun = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+		const yamlRun = await migrateMantleState({
+			configFormat: "yaml",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(typescriptRun.success);
+		assert(yamlRun.success);
+
+		await withTemporaryDirectory(async (directory) => {
+			writeFileSync(join(directory, "bedrock.config.yaml"), yamlRun.data.configFileContent);
+			const loaded = await loadConfig({ cwd: directory });
+
+			assert(loaded.success);
+
+			expect(loaded.data).toStrictEqual(yamlRun.data.config);
+			expect(loaded.data).toStrictEqual(typescriptRun.data.config);
+			expect(loaded.data.universe?.universeId).toBe("6110424408");
+		});
+	});
+
 	it("should produce one BedrockState per Mantle environment with the universe resource folded", async () => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			primaryEnvironment: "production",
 			stateFilePath: REAL_FIXTURE,
 		});
@@ -68,7 +97,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			primaryEnvironment: "production",
 			stateFilePath: REAL_FIXTURE,
 		});
