@@ -28,6 +28,13 @@ export type {
 	ResourceKindModule,
 } from "./core/kinds/module.ts";
 export type {
+	MigrateError,
+	MigrationReport,
+	MigrationSummary,
+	MigrationWarning,
+	StatesByEnvironment,
+} from "./core/migrate/migration-report.ts";
+export type {
 	BaseOperation,
 	CreateOperation,
 	NoopOperation,
@@ -91,6 +98,7 @@ export {
 export { defineConfig, type ConfigContext, type ConfigInput } from "./shell/define-config.ts";
 export { deploy, type DeployError, type DeployOptions } from "./shell/deploy.ts";
 export { loadConfig, type LoadConfigOptions } from "./shell/load-config.ts";
+export { migrateMantleState, type MigrateMantleStateDeps } from "./shell/migrate-mantle-state.ts";
 export {
 	asResourceKey,
 	asRobloxAssetId,
