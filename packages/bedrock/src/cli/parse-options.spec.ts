@@ -160,6 +160,17 @@ describe(parseCommonOptions, () => {
 
 		expect(result.data.environments).toStrictEqual(["staging"]);
 	});
+
+	it("should let --env win over BEDROCK_ENVIRONMENT when both are present", () => {
+		expect.assertions(1);
+
+		const readEnvironment = bindEnvironment({ BEDROCK_ENVIRONMENT: "staging" });
+		const result = parseCommonOptions({ env: "production" }, readEnvironment);
+
+		assert(result.success);
+
+		expect(result.data.environments).toStrictEqual(["production"]);
+	});
 });
 
 function bindEnvironment(
