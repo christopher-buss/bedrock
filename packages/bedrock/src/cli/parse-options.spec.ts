@@ -6,7 +6,18 @@ describe(parseCommonOptions, () => {
 	it("should reject when --env is missing", () => {
 		expect.assertions(2);
 
-		const result = parseCommonOptions({ "--": [], "_": [] });
+		const result = parseCommonOptions({ "--": [], "_": [] }, empty);
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("missingRequired");
+		expect(result.err.flag).toBe("env");
+	});
+
+	it("should report missingRequired when --env is absent and BEDROCK_ENVIRONMENT is unset", () => {
+		expect.assertions(2);
+
+		const result = parseCommonOptions({}, empty);
 
 		assert(!result.success);
 
@@ -177,4 +188,8 @@ function bindEnvironment(
 	bindings: Readonly<Record<string, string>>,
 ): (name: string) => string | undefined {
 	return (name) => bindings[name];
+}
+
+function empty(): string | undefined {
+	return undefined;
 }
