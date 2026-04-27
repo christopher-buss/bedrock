@@ -9,8 +9,9 @@ import type { ResolvedConfig } from "../schema.ts";
 import type { BuildDesiredError, ResourceKindModule } from "./module.ts";
 
 const entrySchema = type({
-	name: "string",
-	description: "string",
+	"name": "string",
+	"description": "string",
+	"price?": "number | undefined",
 });
 
 function flatten(config: ResolvedConfig): ReadonlyArray<DeveloperProductDesiredInput> {
@@ -21,6 +22,7 @@ function flatten(config: ResolvedConfig): ReadonlyArray<DeveloperProductDesiredI
 				name: entry.name,
 				description: entry.description,
 				kind: "developerProduct",
+				price: entry.price,
 			};
 		},
 	);
@@ -35,6 +37,7 @@ async function normalize(
 			name: input.name,
 			description: input.description,
 			kind: "developerProduct",
+			price: input.price,
 		},
 		success: true,
 	};
@@ -44,7 +47,11 @@ function fieldsEqual(
 	desired: DeveloperProductDesiredState,
 	current: ResourceCurrentState<"developerProduct">,
 ): boolean {
-	return desired.description === current.description && desired.name === current.name;
+	return (
+		desired.description === current.description &&
+		desired.name === current.name &&
+		desired.price === current.price
+	);
 }
 
 /**

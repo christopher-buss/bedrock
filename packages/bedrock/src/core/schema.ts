@@ -36,6 +36,11 @@ export interface DeveloperProductEntry {
 	name: string;
 	/** Description shown on the developer-product detail page. */
 	description: string;
+	/**
+	 * Robux price. Omit (or set `undefined`) for an off-sale product;
+	 * re-adding the field puts the product back on sale on the next deploy.
+	 */
+	price?: number | undefined;
 }
 
 /**
@@ -384,6 +389,9 @@ export function isGistStateConfig(config: StateConfig): config is GistStateConfi
 	return config.backend === "gist";
 }
 
+const OPTIONAL_BOOLEAN = "boolean | undefined";
+const OPTIONAL_NUMBER = "number | undefined";
+
 // Resource-kind entry schemas. Adding a new kind is two additions:
 // 1. Declare its entry schema and keyed-map collection below.
 // 2. Reference that collection as an optional property on `rootSchema`.
@@ -394,7 +402,7 @@ const gamePassEntry = type({
 	"name": "string",
 	"description": "string",
 	"iconFilePath": "string",
-	"price?": "number | undefined",
+	"price?": OPTIONAL_NUMBER,
 });
 
 const passesCollection = type({
@@ -402,8 +410,9 @@ const passesCollection = type({
 }).onUndeclaredKey("reject");
 
 const developerProductEntry = type({
-	name: "string",
-	description: "string",
+	"name": "string",
+	"description": "string",
+	"price?": OPTIONAL_NUMBER,
 }).onUndeclaredKey("reject");
 
 const productsCollection = type({
@@ -419,8 +428,6 @@ const placeEntry = type({
 const placesCollection = type({
 	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: placeEntry,
 }).onUndeclaredKey("reject");
-
-const OPTIONAL_BOOLEAN = "boolean | undefined";
 
 const socialLink = type({
 	title: "string",
@@ -462,7 +469,7 @@ const gamePassOverlay = type({
 	"description?": "string",
 	"iconFilePath?": "string",
 	"name?": "string",
-	"price?": "number | undefined",
+	"price?": OPTIONAL_NUMBER,
 }).onUndeclaredKey("reject");
 
 const passesOverlayCollection = type({
@@ -472,6 +479,7 @@ const passesOverlayCollection = type({
 const developerProductOverlay = type({
 	"description?": "string",
 	"name?": "string",
+	"price?": OPTIONAL_NUMBER,
 }).onUndeclaredKey("reject");
 
 const productsOverlayCollection = type({

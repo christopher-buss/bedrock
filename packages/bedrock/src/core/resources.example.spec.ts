@@ -75,9 +75,10 @@ it('Example 4', () => {
     key: asResourceKey('gem-pack'),
     kind: 'developerProduct',
     name: 'Gem Pack',
+    price: 100,
   }
   expect(product.kind).toBe('developerProduct')
-  expect(product.name).toBe('Gem Pack')
+  expect(product.price).toBe(100)
 })
 
 it('Example 5', () => {

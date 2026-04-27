@@ -246,7 +246,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["products", "gem-pack", "description"]);
 	});
 
-	it("should reject an undeclared field on a root products entry", () => {
+	it("should accept a products entry that declares an optional price", () => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -263,10 +263,55 @@ describe(validateConfig, () => {
 			SOURCE,
 		);
 
+		assert(result.success);
+
+		expect(result.data.products!["gem-pack"]!.price).toBe(100);
+	});
+
+	it("should reject a wrongly-typed price on a root products entry", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				products: {
+					"gem-pack": {
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+						price: "oops",
+					},
+				},
+			},
+			SOURCE,
+		);
+
 		assert(!result.success);
 		assert(result.err.kind === "validationFailed");
 
 		expect(result.err.issues[0]!.path).toStrictEqual(["products", "gem-pack", "price"]);
+	});
+
+	it("should reject an undeclared field on a root products entry", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				products: {
+					"gem-pack": {
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+						isForSale: true,
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["products", "gem-pack", "isForSale"]);
 	});
 
 	it("should accept a root places collection that declares only filePath", () => {
@@ -994,7 +1039,7 @@ describe(validateConfig, () => {
 		);
 	});
 
-	it("should reject an undeclared field inside a per-environment products overlay entry", () => {
+	it("should accept a per-environment products overlay that declares a price", () => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1011,6 +1056,28 @@ describe(validateConfig, () => {
 			SOURCE,
 		);
 
+		assert(result.success);
+
+		expect(result.data.environments["staging"]?.products?.["gem-pack"]?.price).toBe(100);
+	});
+
+	it("should reject an undeclared field inside a per-environment products overlay entry", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: {
+						products: {
+							"gem-pack": { name: "Gem Pack", isForSale: true },
+						},
+					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
 		assert(!result.success);
 		assert(result.err.kind === "validationFailed");
 
@@ -1019,7 +1086,7 @@ describe(validateConfig, () => {
 			"staging",
 			"products",
 			"gem-pack",
-			"price",
+			"isForSale",
 		]);
 	});
 

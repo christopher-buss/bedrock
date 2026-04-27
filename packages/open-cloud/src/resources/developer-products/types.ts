@@ -77,3 +77,30 @@ export interface GetDeveloperProductParameters {
 	/** Stringified ID of the universe that owns the developer product. */
 	readonly universeId: string;
 }
+
+/**
+ * Parameters for partially updating an existing developer product. Every
+ * field except the identifiers is optional; omitted fields are not included
+ * in the multipart PATCH body so the server leaves their current values
+ * untouched.
+ */
+export interface UpdateDeveloperProductParameters {
+	/** Optional new display name. */
+	readonly name?: string;
+	/** Optional new consumer-facing description. */
+	readonly description?: string;
+	/** Optional replacement icon image upload. */
+	readonly imageFile?: Blob | Uint8Array;
+	/** Optional flag toggling whether the product is purchasable. */
+	readonly isForSale?: boolean;
+	/** Optional flag toggling regional pricing. */
+	readonly isRegionalPricingEnabled?: boolean;
+	/** Optional new default price in Robux. */
+	readonly price?: number;
+	/** Stringified ID of the developer product to update. */
+	readonly productId: string;
+	/** Optional flag toggling visibility on the external store page. */
+	readonly storePageEnabled?: boolean;
+	/** Stringified ID of the universe that owns the developer product. */
+	readonly universeId: string;
+}

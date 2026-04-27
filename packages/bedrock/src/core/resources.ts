@@ -268,8 +268,7 @@ export const SOCIAL_LINK_FIELD_SET: ReadonlySet<string> = new Set(SOCIAL_LINK_FI
  * Desired state for a developer product, the consumable a player can buy via
  * `MarketplaceService:PromptProductPurchase`.
  *
- * Slice 1 of #113 ships only the foundation: `name` and `description`.
- * Subsequent slices widen this shape with `iconFilePath`, `price`,
+ * Subsequent slices widen this shape with `iconFilePath`,
  * `isRegionalPricingEnabled`, and `storePageEnabled`.
  *
  * @example
@@ -282,10 +281,11 @@ export const SOCIAL_LINK_FIELD_SET: ReadonlySet<string> = new Set(SOCIAL_LINK_FI
  *     key: asResourceKey("gem-pack"),
  *     kind: "developerProduct",
  *     name: "Gem Pack",
+ *     price: 100,
  * };
  *
  * expect(product.kind).toBe("developerProduct");
- * expect(product.name).toBe("Gem Pack");
+ * expect(product.price).toBe(100);
  * ```
  */
 export interface DeveloperProductDesiredState {
@@ -297,6 +297,12 @@ export interface DeveloperProductDesiredState {
 	readonly description: string;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
 	readonly kind: "developerProduct";
+	/**
+	 * Robux price. `undefined` means off-sale; removing the field from config
+	 * takes the product off-sale on the next deploy, re-adding puts it back
+	 * on sale.
+	 */
+	readonly price: number | undefined;
 }
 
 /**

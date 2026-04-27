@@ -1,5 +1,6 @@
 import {
 	applyOps,
+	asResourceKey,
 	asRobloxAssetId,
 	buildDesired,
 	createDeveloperProductDriver,
@@ -7,6 +8,7 @@ import {
 	type DriverRegistry,
 	flattenConfig,
 	loadConfig,
+	type ResourceCurrentState,
 	type ResourceDriver,
 	selectEnvironment,
 } from "@bedrock/core";
@@ -106,5 +108,110 @@ describe("developer-products pipeline end-to-end", () => {
 		assert(created.kind === "developerProduct");
 
 		expect(created.outputs.productId).toBe("8172635495");
+	});
+
+	it("should re-deploy as a noop when desired matches the persisted state", async () => {
+		expect.assertions(2);
+
+		const loaded = await loadConfig({ cwd: PRODUCTS_FIXTURE_DIR });
+		assert(loaded.success);
+
+		const resolved = selectEnvironment(loaded.data, "production");
+		assert(resolved.success);
+
+		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFileNever);
+		assert(desiredResult.success);
+
+		const httpClient = createFakeHttpClient();
+		const registry: DriverRegistry = {
+			developerProduct: createDeveloperProductDriver({
+				client: new DeveloperProductsClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: async () => {},
+				}),
+				universeId: UNIVERSE_ID,
+			}),
+			gamePass: GAME_PASS_TRAP,
+			place: PLACE_TRAP,
+			universe: UNIVERSE_TRAP,
+		};
+
+		const persisted: ResourceCurrentState<"developerProduct"> = {
+			key: asResourceKey("gem-pack"),
+			name: "Gem Pack",
+			description: "Stocks the player up with 1,000 premium gems.",
+			kind: "developerProduct",
+			outputs: { productId: asRobloxAssetId("8172635495") },
+			price: undefined,
+		};
+
+		const ops = diff(desiredResult.data, [persisted]);
+
+		expect(ops.every((op) => op.type === "noop")).toBeTrue();
+
+		const applyResult = await applyOps(ops, registry);
+
+		assert(applyResult.success);
+
+		expect(httpClient.requests).toBeEmpty();
+	});
+
+	it("should PATCH once when the desired entry drifts from persisted state", async () => {
+		expect.assertions(4);
+
+		const loaded = await loadConfig({ cwd: PRODUCTS_FIXTURE_DIR });
+		assert(loaded.success);
+
+		const resolved = selectEnvironment(loaded.data, "production");
+		assert(resolved.success);
+
+		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFileNever);
+		assert(desiredResult.success);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: undefined,
+			status: 204,
+		});
+		const registry: DriverRegistry = {
+			developerProduct: createDeveloperProductDriver({
+				client: new DeveloperProductsClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: async () => {},
+				}),
+				universeId: UNIVERSE_ID,
+			}),
+			gamePass: GAME_PASS_TRAP,
+			place: PLACE_TRAP,
+			universe: UNIVERSE_TRAP,
+		};
+
+		const persisted: ResourceCurrentState<"developerProduct"> = {
+			key: asResourceKey("gem-pack"),
+			name: "Gem Pack",
+			description: "Old description before edit.",
+			kind: "developerProduct",
+			outputs: { productId: asRobloxAssetId("8172635495") },
+			price: undefined,
+		};
+
+		const ops = diff(desiredResult.data, [persisted]);
+
+		expect(ops.map((op) => op.type).filter((type) => type !== "noop")).toStrictEqual([
+			"update",
+		]);
+
+		const applyResult = await applyOps(ops, registry);
+
+		assert(applyResult.success);
+
+		expect(httpClient.requests).toHaveLength(1);
+		expect(httpClient.requests[0]?.request.method).toBe("PATCH");
+
+		const updated = applyResult.data[0]!;
+		assert(updated.kind === "developerProduct");
+
+		expect(updated.outputs.productId).toBe("8172635495");
 	});
 });

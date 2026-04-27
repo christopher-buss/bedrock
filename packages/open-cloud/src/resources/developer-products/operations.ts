@@ -17,3 +17,15 @@ export const CREATE_OPERATION_LIMIT: OperationLimit = Object.freeze({
 	maxPerSecond: 3,
 	operationKey: "developer-products.create",
 });
+
+/**
+ * Per-second request ceiling for updating a developer product, from the
+ * Open Cloud OpenAPI schema. Keyed independently from
+ * {@link CREATE_OPERATION_LIMIT} so create and update do not share a queue,
+ * since Roblox does not document the per-minute quota as shared between
+ * the POST and PATCH endpoints.
+ */
+export const UPDATE_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	maxPerSecond: 3,
+	operationKey: "developer-products.update",
+});

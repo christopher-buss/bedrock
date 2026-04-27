@@ -1,6 +1,12 @@
 import { assert, describe, expect, it } from "vitest";
 
-import type { Config, GamePassEntry, PlaceEntry, StateConfig } from "./schema.ts";
+import type {
+	Config,
+	DeveloperProductEntry,
+	GamePassEntry,
+	PlaceEntry,
+	StateConfig,
+} from "./schema.ts";
 import { selectEnvironment } from "./select-environment.ts";
 
 const ROOT_STATE: StateConfig = { backend: "gist", gistId: "root-gist" };
@@ -11,6 +17,12 @@ const VIP_PASS: GamePassEntry = {
 	description: "Grants VIP perks.",
 	iconFilePath: "assets/vip.png",
 	price: 500,
+};
+
+const GEM_PACK: DeveloperProductEntry = {
+	name: "Gem Pack",
+	description: "Stocks the player up with 1,000 premium gems.",
+	price: 100,
 };
 
 const START_PLACE: PlaceEntry = {
@@ -163,6 +175,63 @@ describe(selectEnvironment, () => {
 
 		expect(result.data.passes?.["vip-pass"]?.price).toBe(250);
 		expect(result.data.passes?.["vip-pass"]?.name).toBe("VIP Pass");
+	});
+
+	it("should overlay partial product fields onto matching root entries by key", () => {
+		expect.assertions(2);
+
+		const config: Config = {
+			environments: {
+				staging: { products: { "gem-pack": { price: 250 } } },
+			},
+			products: { "gem-pack": GEM_PACK },
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.products?.["gem-pack"]?.price).toBe(250);
+		expect(result.data.products?.["gem-pack"]?.name).toBe("Gem Pack");
+	});
+
+	it("should pass a brand-new overlay-only product entry through the projection", () => {
+		expect.assertions(2);
+
+		const config: Config = {
+			environments: {
+				staging: {
+					products: {
+						"new-pack": { name: "New Pack", description: "Fresh." },
+					},
+				},
+			},
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.products?.["new-pack"]?.name).toBe("New Pack");
+		expect(result.data.products?.["new-pack"]?.description).toBe("Fresh.");
+	});
+
+	it("should leave root products intact when the env entry has no products overlay", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: { production: {} },
+			products: { "gem-pack": GEM_PACK },
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "production");
+
+		assert(result.success);
+
+		expect(result.data.products).toStrictEqual({ "gem-pack": GEM_PACK });
 	});
 
 	it("should accept a brand-new overlay-only place entry when the overlay declares both filePath and placeId", () => {

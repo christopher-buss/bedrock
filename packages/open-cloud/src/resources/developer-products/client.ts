@@ -1,19 +1,25 @@
-import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
+import type { HttpRequest, OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
 	okRequest,
+	parseEmptyResponse,
 	ResourceClient,
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import { buildCreateRequest, buildGetRequest } from "./builders.ts";
-import { CREATE_OPERATION_LIMIT, GET_OPERATION_LIMIT } from "./operations.ts";
+import { buildCreateRequest, buildGetRequest, buildUpdateRequest } from "./builders.ts";
+import {
+	CREATE_OPERATION_LIMIT,
+	GET_OPERATION_LIMIT,
+	UPDATE_OPERATION_LIMIT,
+} from "./operations.ts";
 import { parseDeveloperProductResponse } from "./parsers.ts";
 import type {
 	CreateDeveloperProductParameters,
 	DeveloperProduct,
 	GetDeveloperProductParameters,
+	UpdateDeveloperProductParameters,
 } from "./types.ts";
 
 function makeSpec<P>(
@@ -36,6 +42,20 @@ const GET_SPEC = makeSpec<GetDeveloperProductParameters>({
 	methodKind: "idempotent",
 	operationLimit: GET_OPERATION_LIMIT,
 	parse: parseDeveloperProductResponse,
+});
+
+function buildUpdateOkRequest(
+	parameters: UpdateDeveloperProductParameters,
+): Result<HttpRequest, OpenCloudError> {
+	return okRequest(buildUpdateRequest(parameters));
+}
+
+const UPDATE_SPEC: ResourceMethodSpec<UpdateDeveloperProductParameters, undefined> = Object.freeze({
+	buildRequest: buildUpdateOkRequest,
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: UPDATE_OPERATION_LIMIT,
+	parse: parseEmptyResponse,
 });
 
 /**
@@ -105,5 +125,25 @@ export class DeveloperProductsClient {
 		options?: RequestOptions,
 	): Promise<Result<DeveloperProduct, OpenCloudError>> {
 		return this.#inner.execute({ options, parameters, spec: GET_SPEC });
+	}
+
+	/**
+	 * Partially updates an existing developer product. Mirrors the upstream
+	 * `204 No Content` response: a successful update yields `undefined` data.
+	 * Callers that need the post-update state (for example to observe a
+	 * server-derived `updatedTimestamp`) chain {@link DeveloperProductsClient.get}
+	 * themselves so the GET only fires when actually needed.
+	 *
+	 * @param parameters - The universe and product identifiers and the
+	 *   fields to update. Only fields explicitly provided are forwarded.
+	 * @param options - Optional per-request overrides.
+	 * @returns A success {@link Result} with no payload, or the
+	 *   {@link OpenCloudError} that caused the request to fail.
+	 */
+	public async update(
+		parameters: UpdateDeveloperProductParameters,
+		options?: RequestOptions,
+	): Promise<Result<undefined, OpenCloudError>> {
+		return this.#inner.execute({ options, parameters, spec: UPDATE_SPEC });
 	}
 }
