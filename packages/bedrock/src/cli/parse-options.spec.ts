@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { parseCommonOptions } from "./parse-options.ts";
 
@@ -181,6 +181,21 @@ describe(parseCommonOptions, () => {
 		assert(result.success);
 
 		expect(result.data.environments).toStrictEqual(["production"]);
+	});
+
+	it("should default to a process.env reader when getEnvironment is omitted", () => {
+		expect.assertions(1);
+
+		onTestFinished(() => {
+			vi.unstubAllEnvs();
+		});
+		vi.stubEnv("BEDROCK_ENVIRONMENT", "from-env");
+
+		const result = parseCommonOptions({});
+
+		assert(result.success);
+
+		expect(result.data.environments).toStrictEqual(["from-env"]);
 	});
 });
 
