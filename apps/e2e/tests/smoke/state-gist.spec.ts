@@ -1,7 +1,7 @@
 import { type BedrockState, createGistStateAdapter } from "@bedrock/core";
 
 import process from "node:process";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it, onTestFinished } from "vitest";
 
 import { pruneStateGist } from "../helpers/prune-state-gist.ts";
 
@@ -19,6 +19,15 @@ describe("gist state adapter against real github", () => {
 			assert(TOKEN !== undefined, "GITHUB_TOKEN must be set");
 			assert(GIST_ID !== undefined, "BEDROCK_TEST_GIST_ID must be set");
 
+			onTestFinished(async () => {
+				await pruneStateGist({
+					filenamePrefix: "state.smoke-",
+					gistId: GIST_ID,
+					keep: 3,
+					token: TOKEN,
+				});
+			});
+
 			const environment = `smoke-${Date.now()}`;
 			const port = createGistStateAdapter({ gistId: GIST_ID, token: TOKEN });
 
@@ -28,29 +37,20 @@ describe("gist state adapter against real github", () => {
 				version: 1,
 			};
 
-			try {
-				const firstRead = await port.read(environment);
+			const firstRead = await port.read(environment);
 
-				expect(firstRead).toStrictEqual({ data: undefined, success: true });
+			expect(firstRead).toStrictEqual({ data: undefined, success: true });
 
-				const writeResult = await port.write(state);
-				assert(
-					writeResult.success,
-					`write failed: ${JSON.stringify(writeResult.success ? undefined : writeResult.err)}`,
-				);
+			const writeResult = await port.write(state);
+			assert(
+				writeResult.success,
+				`write failed: ${JSON.stringify(writeResult.success ? undefined : writeResult.err)}`,
+			);
 
-				const secondRead = await port.read(environment);
-				assert(secondRead.success);
+			const secondRead = await port.read(environment);
+			assert(secondRead.success);
 
-				expect(secondRead.data).toStrictEqual(state);
-			} finally {
-				await pruneStateGist({
-					filenamePrefix: "state.smoke-",
-					gistId: GIST_ID,
-					keep: 3,
-					token: TOKEN,
-				});
-			}
+			expect(secondRead.data).toStrictEqual(state);
 		},
 		30_000,
 	);
