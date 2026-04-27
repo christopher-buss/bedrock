@@ -2,7 +2,7 @@ import type { Result } from "@bedrock/ocale";
 
 import { fakeClackPort } from "#tests/helpers/clack";
 import process from "node:process";
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import type { Operation } from "../../core/operations.ts";
 import type { Config } from "../../core/schema.ts";
@@ -97,6 +97,11 @@ describe(diffCommand, () => {
 		{ label: "invalidValue", rawOptions: { env: false } },
 	])("should surface a $label parse error and exit with code 1", async ({ rawOptions }) => {
 		expect.assertions(4);
+
+		onTestFinished(() => {
+			vi.unstubAllEnvs();
+		});
+		vi.stubEnv("BEDROCK_ENVIRONMENT", undefined);
 
 		const deps = makeDeps();
 
@@ -351,6 +356,26 @@ describe(diffCommand, () => {
 		} finally {
 			vi.unstubAllEnvs();
 		}
+	});
+
+	it("should preview with BEDROCK_ENVIRONMENT when --env is omitted", async () => {
+		expect.assertions(2);
+
+		onTestFinished(() => {
+			vi.unstubAllEnvs();
+		});
+		vi.stubEnv("BEDROCK_ENVIRONMENT", "production");
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const previewDiff = fakePreview([preview("production", [])]);
+		const deps = makeDeps({ loadConfig, previewDiff });
+
+		await diffCommand(deps)({});
+
+		expect(previewDiff).toHaveBeenCalledExactlyOnceWith(
+			expect.objectContaining({ config: sampleConfig, environment: "production" }),
+		);
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
 	it("should default to process.exit when no exit slot is provided", async () => {

@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { parseCommonOptions } from "./parse-options.ts";
 
@@ -6,7 +6,18 @@ describe(parseCommonOptions, () => {
 	it("should reject when --env is missing", () => {
 		expect.assertions(2);
 
-		const result = parseCommonOptions({ "--": [], "_": [] });
+		const result = parseCommonOptions({ "--": [], "_": [] }, empty);
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("missingRequired");
+		expect(result.err.flag).toBe("env");
+	});
+
+	it("should report missingRequired when --env is absent and BEDROCK_ENVIRONMENT is unset", () => {
+		expect.assertions(2);
+
+		const result = parseCommonOptions({}, empty);
 
 		assert(!result.success);
 
@@ -149,4 +160,51 @@ describe(parseCommonOptions, () => {
 
 		expect(result.success).toBeTrue();
 	});
+
+	it("should fall back to BEDROCK_ENVIRONMENT when --env is absent", () => {
+		expect.assertions(1);
+
+		const readEnvironment = bindEnvironment({ BEDROCK_ENVIRONMENT: "staging" });
+		const result = parseCommonOptions({}, readEnvironment);
+
+		assert(result.success);
+
+		expect(result.data.environments).toStrictEqual(["staging"]);
+	});
+
+	it("should let --env win over BEDROCK_ENVIRONMENT when both are present", () => {
+		expect.assertions(1);
+
+		const readEnvironment = bindEnvironment({ BEDROCK_ENVIRONMENT: "staging" });
+		const result = parseCommonOptions({ env: "production" }, readEnvironment);
+
+		assert(result.success);
+
+		expect(result.data.environments).toStrictEqual(["production"]);
+	});
+
+	it("should default to a process.env reader when getEnvironment is omitted", () => {
+		expect.assertions(1);
+
+		onTestFinished(() => {
+			vi.unstubAllEnvs();
+		});
+		vi.stubEnv("BEDROCK_ENVIRONMENT", "from-env");
+
+		const result = parseCommonOptions({});
+
+		assert(result.success);
+
+		expect(result.data.environments).toStrictEqual(["from-env"]);
+	});
 });
+
+function bindEnvironment(
+	bindings: Readonly<Record<string, string>>,
+): (name: string) => string | undefined {
+	return (name) => bindings[name];
+}
+
+function empty(): string | undefined {
+	return undefined;
+}

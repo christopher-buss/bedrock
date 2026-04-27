@@ -1,5 +1,7 @@
 import type { Result } from "@bedrock/ocale";
 
+import process from "node:process";
+
 /**
  * Typed shape command actions consume after the raw sade options object has
  * been validated and normalized.
@@ -36,14 +38,20 @@ const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set([
 const SADE_RESERVED: ReadonlySet<string> = new Set(["--", "_", "h", "help", "v", "version"]);
 
 /**
- * Translate the raw sade options POJO into a typed `CommonOptions`. Pure: no
- * I/O, no clack, no sade types. Reused by `bedrock deploy` and `bedrock diff`.
+ * Translate the raw sade options POJO into a typed `CommonOptions`. Reads
+ * `BEDROCK_ENVIRONMENT` from `process.env` as a fallback when `--env` is
+ * absent; inject `getEnvironment` to redirect or isolate the lookup. No
+ * clack, no sade types. Reused by `bedrock deploy` and `bedrock diff`.
  * @param rawOptions - The options object sade hands the action callback.
+ * @param getEnvironment - Reads an environment variable; consulted as a
+ *   fallback for `--env` when no flag was supplied. Defaults to a
+ *   `process.env` reader.
  * @returns `Ok(CommonOptions)` on success, or `Err(ParseOptionsError)` when a
  *   required flag is missing or an unrecognized flag was supplied.
  */
 export function parseCommonOptions(
 	rawOptions: Readonly<Record<string, unknown>>,
+	getEnvironment: (name: string) => string | undefined = readProcessEnvironment,
 ): Result<CommonOptions, ParseOptionsError> {
 	for (const key of Object.keys(rawOptions)) {
 		if (!RECOGNIZED_FLAGS.has(key) && !SADE_RESERVED.has(key)) {
@@ -51,7 +59,7 @@ export function parseCommonOptions(
 		}
 	}
 
-	const environments = resolveEnvironments(rawOptions["env"]);
+	const environments = resolveEnvironments(rawOptions["env"], getEnvironment);
 	if (!environments.success) {
 		return environments;
 	}
@@ -71,9 +79,17 @@ export function parseCommonOptions(
 	};
 }
 
-function resolveEnvironments(raw: unknown): Result<ReadonlyArray<string>, ParseOptionsError> {
+function resolveEnvironments(
+	raw: unknown,
+	getEnvironment: (name: string) => string | undefined,
+): Result<ReadonlyArray<string>, ParseOptionsError> {
 	if (raw === undefined) {
-		return { err: { flag: "env", kind: "missingRequired" }, success: false };
+		const fallback = getEnvironment("BEDROCK_ENVIRONMENT");
+		if (fallback === undefined) {
+			return { err: { flag: "env", kind: "missingRequired" }, success: false };
+		}
+
+		return { data: [fallback], success: true };
 	}
 
 	const candidates = Array.isArray(raw) ? raw : [raw];
@@ -87,6 +103,10 @@ function resolveEnvironments(raw: unknown): Result<ReadonlyArray<string>, ParseO
 	}
 
 	return { data: environments, success: true };
+}
+
+function readProcessEnvironment(name: string): string | undefined {
+	return process.env[name];
 }
 
 function pickString(

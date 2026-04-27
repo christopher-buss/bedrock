@@ -38,4 +38,10 @@ describe(parseCommonOptions, () => {
 			Result<CommonOptions, ParseOptionsError>
 		>();
 	});
+
+	it("should accept an optional env reader as the second positional argument", () => {
+		expectTypeOf<Parameters<typeof parseCommonOptions>[1]>().toEqualTypeOf<
+			((name: string) => string | undefined) | undefined
+		>();
+	});
 });
