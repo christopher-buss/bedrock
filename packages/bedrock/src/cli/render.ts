@@ -1,5 +1,9 @@
 import { cancel, intro, log, outro } from "@clack/prompts";
 
+import type { ConfigError } from "../core/config-error.ts";
+import type { StateError } from "../core/state.ts";
+import type { ApplyError } from "../shell/apply-ops.ts";
+import type { BuildDesiredError } from "../shell/build-desired.ts";
 import type { DeployError } from "../shell/deploy.ts";
 import type { ParseOptionsError } from "./parse-options.ts";
 
@@ -26,8 +30,9 @@ export interface ClackPort {
  * Render a `DeployError` to the supplied `ClackPort` as a single error line.
  * Each variant produces a distinct, terse diagnostic; wrapped variants
  * (`applyFailed`, `buildDesiredFailed`, `configLoadFailed`, `stateReadFailed`,
- * `stateWriteFailed`) include the inner cause's `kind` so the reader can
- * distinguish the failing stage without inspecting the full cause.
+ * `stateWriteFailed`) surface the inner cause's actionable detail (file path,
+ * resource key, parser message, HTTP failure, validator issue) so the reader
+ * does not have to inspect the full cause to act.
  * @param err - The deploy error to describe.
  * @param port - The output port the diagnostic is written to.
  */
@@ -74,17 +79,56 @@ export function createClackPort(): ClackPort {
 	};
 }
 
+function applyCauseDetail(cause: ApplyError): string {
+	if (cause.kind === "updateUnsupported") {
+		return "update not supported";
+	}
+
+	return cause.cause.message;
+}
+
+function buildDesiredDetail(cause: BuildDesiredError): string {
+	return `(${cause.filePath}): ${cause.reason}`;
+}
+
+function configErrorDetail(err: ConfigError): string {
+	switch (err.kind) {
+		case "configFunctionFailed": {
+			return `${err.sourceFile}: config function threw: ${err.message}`;
+		}
+		case "fileNotFound": {
+			return `no bedrock config under ${err.searchedFrom}`;
+		}
+		case "luauRuntimeMissing": {
+			return `${err.sourceFile}: ${err.hint}`;
+		}
+		case "parseFailed": {
+			return `${err.sourceFile}: ${err.message}`;
+		}
+		case "validationFailed": {
+			const first = err.issues[0];
+			return first === undefined
+				? `${err.sourceFile}: invalid`
+				: `${err.sourceFile}: ${first.path.join(".")} ${first.message}`;
+		}
+	}
+}
+
+function stateErrorDetail(cause: StateError): string {
+	return `(${cause.file}): ${cause.reason}`;
+}
+
 /* eslint-disable-next-line max-lines-per-function -- single exhaustive switch over every DeployError variant is clearer than splitting into a wrapped-vs-unwrapped predicate plus a parallel prefix table. */
 function deployErrorMessage(err: DeployError): string {
 	switch (err.kind) {
 		case "applyFailed": {
-			return `apply failed (${err.cause.kind})`;
+			return `apply failed for '${err.cause.key}': ${applyCauseDetail(err.cause)}`;
 		}
 		case "buildDesiredFailed": {
-			return `build desired state failed (${err.cause.kind})`;
+			return `build desired state failed for '${err.cause.key}' ${buildDesiredDetail(err.cause)}`;
 		}
 		case "configLoadFailed": {
-			return `config load failed (${err.cause.kind})`;
+			return `config load failed: ${configErrorDetail(err.cause)}`;
 		}
 		case "incompletePlaceEntry": {
 			return `place '${err.key}' is missing '${err.missingField}' under environment '${err.environment}'`;
@@ -99,10 +143,10 @@ function deployErrorMessage(err: DeployError): string {
 			return `state not configured for environment '${err.environment}'`;
 		}
 		case "stateReadFailed": {
-			return `state read failed (${err.cause.kind})`;
+			return `state read failed ${stateErrorDetail(err.cause)}`;
 		}
 		case "stateWriteFailed": {
-			return `state write failed (${err.cause.kind})`;
+			return `state write failed ${stateErrorDetail(err.cause)}`;
 		}
 		case "unknownEnvironment": {
 			return `unknown environment '${err.environment}' (declared: ${err.declared.join(", ")})`;
