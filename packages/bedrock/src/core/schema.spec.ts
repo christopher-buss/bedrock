@@ -1,4 +1,4 @@
-import { PLATFORM_FLAG_ROWS } from "#tests/helpers/resources";
+import { INVALID_ROBUX_PRICES, PLATFORM_FLAG_ROWS } from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";
 
 import { SOCIAL_LINK_FIELDS } from "./resources.ts";
@@ -7,13 +7,6 @@ import { validateConfig } from "./schema.ts";
 const SOURCE = "bedrock.config.ts";
 
 const MinEnvironments = { production: {} } as const;
-
-const INVALID_ROBUX_PRICES = [
-	["a negative integer", -1],
-	["a fractional value", 99.5],
-	["NaN", Number.NaN],
-	["Infinity", Number.POSITIVE_INFINITY],
-] as const;
 
 describe(validateConfig, () => {
 	it("should reject a config missing the required environments collection", () => {

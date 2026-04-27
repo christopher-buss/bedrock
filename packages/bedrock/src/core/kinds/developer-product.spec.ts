@@ -1,21 +1,14 @@
-import { developerProductCurrent, developerProductDesired } from "#tests/helpers/resources";
+import {
+	developerProductCurrent,
+	developerProductDesired,
+	INVALID_ROBUX_PRICES,
+	ValidDeveloperProductEntry,
+} from "#tests/helpers/resources";
 import { ArkErrors } from "arktype";
 import { assert, describe, expect, it } from "vitest";
 
 import { asResourceKey } from "../../types/ids.ts";
 import { developerProductKind } from "./developer-product.ts";
-
-const INVALID_ROBUX_PRICES = [
-	["a negative integer", -1],
-	["a fractional value", 99.5],
-	["NaN", Number.NaN],
-	["Infinity", Number.POSITIVE_INFINITY],
-] as const;
-
-const ValidDeveloperProduct = {
-	name: "Gem Pack",
-	description: "Stocks the player up with 1,000 premium gems.",
-} as const;
 
 describe("developerProductKind", () => {
 	it("should tag its kind discriminator as developerProduct", () => {
@@ -28,7 +21,7 @@ describe("developerProductKind", () => {
 		it("should accept a valid entry that omits price", () => {
 			expect.assertions(1);
 
-			expect(developerProductKind.entrySchema(ValidDeveloperProduct)).not.toBeInstanceOf(
+			expect(developerProductKind.entrySchema(ValidDeveloperProductEntry)).not.toBeInstanceOf(
 				ArkErrors,
 			);
 		});
@@ -37,7 +30,7 @@ describe("developerProductKind", () => {
 			expect.assertions(1);
 
 			expect(
-				developerProductKind.entrySchema({ ...ValidDeveloperProduct, price: 100 }),
+				developerProductKind.entrySchema({ ...ValidDeveloperProductEntry, price: 100 }),
 			).not.toBeInstanceOf(ArkErrors);
 		});
 
@@ -45,7 +38,7 @@ describe("developerProductKind", () => {
 			expect.assertions(1);
 
 			expect(
-				developerProductKind.entrySchema({ ...ValidDeveloperProduct, price }),
+				developerProductKind.entrySchema({ ...ValidDeveloperProductEntry, price }),
 			).toBeInstanceOf(ArkErrors);
 		});
 	});

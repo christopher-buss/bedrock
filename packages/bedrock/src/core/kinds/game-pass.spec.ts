@@ -1,4 +1,9 @@
-import { gamePassCurrent, gamePassDesired } from "#tests/helpers/resources";
+import {
+	gamePassCurrent,
+	gamePassDesired,
+	INVALID_ROBUX_PRICES,
+	ValidGamePassEntry,
+} from "#tests/helpers/resources";
 import { ArkErrors } from "arktype";
 import { assert, describe, expect, it } from "vitest";
 
@@ -6,19 +11,6 @@ import { asResourceKey, asSha256Hex } from "../../types/ids.ts";
 import { gamePassKind } from "./game-pass.ts";
 
 const ALT_HASH = asSha256Hex("a3f2c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852e1b0");
-
-const INVALID_ROBUX_PRICES = [
-	["a negative integer", -1],
-	["a fractional value", 99.5],
-	["NaN", Number.NaN],
-	["Infinity", Number.POSITIVE_INFINITY],
-] as const;
-
-const ValidGamePass = {
-	name: "VIP Pass",
-	description: "Grants VIP perks.",
-	iconFilePath: "assets/vip.png",
-} as const;
 
 describe("gamePassKind", () => {
 	it("should tag its kind discriminator as gamePass", () => {
@@ -31,21 +23,23 @@ describe("gamePassKind", () => {
 		it("should accept a valid entry that omits price", () => {
 			expect.assertions(1);
 
-			expect(gamePassKind.entrySchema(ValidGamePass)).not.toBeInstanceOf(ArkErrors);
+			expect(gamePassKind.entrySchema(ValidGamePassEntry)).not.toBeInstanceOf(ArkErrors);
 		});
 
 		it("should accept a valid entry with a non-negative integer price", () => {
 			expect.assertions(1);
 
-			expect(gamePassKind.entrySchema({ ...ValidGamePass, price: 100 })).not.toBeInstanceOf(
-				ArkErrors,
-			);
+			expect(
+				gamePassKind.entrySchema({ ...ValidGamePassEntry, price: 100 }),
+			).not.toBeInstanceOf(ArkErrors);
 		});
 
 		it.for(INVALID_ROBUX_PRICES)("should reject %s as a price", ([, price]) => {
 			expect.assertions(1);
 
-			expect(gamePassKind.entrySchema({ ...ValidGamePass, price })).toBeInstanceOf(ArkErrors);
+			expect(gamePassKind.entrySchema({ ...ValidGamePassEntry, price })).toBeInstanceOf(
+				ArkErrors,
+			);
 		});
 	});
 

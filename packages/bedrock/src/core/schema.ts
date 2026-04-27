@@ -390,7 +390,17 @@ export function isGistStateConfig(config: StateConfig): config is GistStateConfi
 }
 
 const OPTIONAL_BOOLEAN = "boolean | undefined";
-const OPTIONAL_ROBUX_PRICE = "number.integer >= 0 | undefined";
+
+/**
+ * Shared arktype constraint for any optional Robux-price field. The schema
+ * rejects negatives, fractional values, `NaN`, and `Infinity` at config
+ * validation time so a malformed price surfaces with a path attributing the
+ * failure to the offending field, rather than slipping through to the
+ * Roblox API and surfacing as an opaque error at apply time. Per-kind entry
+ * schemas reuse this constant so all Robux-price fields validate
+ * identically.
+ */
+export const OPTIONAL_ROBUX_PRICE = "number.integer >= 0 | undefined";
 
 // Resource-kind entry schemas. Adding a new kind is two additions:
 // 1. Declare its entry schema and keyed-map collection below.
