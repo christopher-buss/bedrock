@@ -37,7 +37,7 @@ export interface PlaceFoldEntry {
  * versa) emit one `ambiguous` warning each instead of being projected into
  * `entries`.
  */
-export interface PlaceFoldResult {
+interface PlaceFoldResult {
 	/** Folded entries keyed by Mantle's place key (the suffix after the first `_`). */
 	readonly entries: ReadonlyMap<string, PlaceFoldEntry>;
 	/** Per-rule diagnostics: orphan resources surface as `ambiguous` warnings. */
