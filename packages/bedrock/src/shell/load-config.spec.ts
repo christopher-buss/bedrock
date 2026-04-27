@@ -651,11 +651,8 @@ describe(loadConfig, () => {
 				);
 
 				const previous = process.env["BEDROCK_LUTE_PATH"];
-				// Pointing at the directory itself (not a binary inside it) makes
-				// execFile fail with EACCES/EISDIR, not ENOENT - the loader must
-				// fall through to parseFailed instead of claiming the runtime is
-				// missing.
-				process.env["BEDROCK_LUTE_PATH"] = cwd;
+				// Runtime binary exists, then exits non-zero for Lute args.
+				process.env["BEDROCK_LUTE_PATH"] = process.execPath;
 				let result: Awaited<ReturnType<typeof loadConfig>>;
 				try {
 					result = await loadConfig({ cwd });
