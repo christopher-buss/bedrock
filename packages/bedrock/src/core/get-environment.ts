@@ -1,5 +1,7 @@
 import type { Result } from "@bedrock/ocale";
 
+import process from "node:process";
+
 /**
  * Failure modes returned by {@link getEnvironment}.
  */
@@ -10,16 +12,19 @@ export type GetEnvironmentError =
 /**
  * Resolve the deploy environment for an override script invocation.
  *
- * @param argv - Argument list to scan for `--env <name>` flags.
+ * @param argv - Argument list to scan for `--env <name>` flags. Defaults to
+ * `process.argv.slice(2)` when omitted.
  * @param readEnvironment - Reads an environment variable; consulted as a
- * fallback when no `--env` flag is present.
+ * fallback when no `--env` flag is present. Defaults to a `process.env`
+ * reader when omitted.
  * @returns `Ok(environment)` on success, `Err(GetEnvironmentError)` otherwise.
  */
 export function getEnvironment(
-	argv: ReadonlyArray<string>,
-	readEnvironment: (name: string) => string | undefined,
+	argv?: ReadonlyArray<string>,
+	readEnvironment: (name: string) => string | undefined = readProcessEnvironment,
 ): Result<string, GetEnvironmentError> {
-	const flagged = collectFlagValues(argv);
+	const tokens = argv ?? process.argv.slice(2);
+	const flagged = collectFlagValues(tokens);
 	if (flagged.length > 1) {
 		return { err: { kind: "multipleEnvironments", values: flagged }, success: false };
 	}
@@ -41,4 +46,8 @@ function collectFlagValues(argv: ReadonlyArray<string>): ReadonlyArray<string> {
 		const next = argv[index + 1];
 		return next === undefined ? [] : [next];
 	});
+}
+
+function readProcessEnvironment(name: string): string | undefined {
+	return process.env[name];
 }

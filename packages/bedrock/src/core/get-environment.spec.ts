@@ -1,4 +1,5 @@
-import { assert, describe, expect, it } from "vitest";
+import process from "node:process";
+import { assert, describe, expect, it, vi } from "vitest";
 
 import { getEnvironment } from "./get-environment.ts";
 
@@ -85,5 +86,47 @@ describe(getEnvironment, () => {
 			kind: "multipleEnvironments",
 			values: ["production", "staging", "preview"],
 		});
+	});
+
+	it("should source argv from process.argv.slice(2) when argv is omitted", () => {
+		expect.assertions(2);
+
+		const originalArgv = process.argv;
+		// Leading `--env` lives in the runner positions (node + script path) and
+		// must be skipped; only the second `--env` belongs to the script.
+		process.argv = ["node", "--env", "trap", "--env", "preview"];
+
+		try {
+			const result = getEnvironment();
+
+			expect(result.success).toBeTrue();
+
+			assert(result.success);
+
+			expect(result.data).toBe("preview");
+		} finally {
+			process.argv = originalArgv;
+		}
+	});
+
+	it("should source the env reader from process.env when readEnvironment is omitted", () => {
+		expect.assertions(2);
+
+		const originalArgv = process.argv;
+		process.argv = ["node", "script"];
+		vi.stubEnv("BEDROCK_ENVIRONMENT", "from-env");
+
+		try {
+			const result = getEnvironment();
+
+			expect(result.success).toBeTrue();
+
+			assert(result.success);
+
+			expect(result.data).toBe("from-env");
+		} finally {
+			process.argv = originalArgv;
+			vi.unstubAllEnvs();
+		}
 	});
 });
