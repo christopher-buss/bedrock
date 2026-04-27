@@ -6,9 +6,8 @@ import { join } from "node:path";
 import process from "node:process";
 import { assert, describe, expect, it } from "vitest";
 
+import { LUAU_BOOTSTRAP_TEMP_PREFIX } from "./load-config-internal.ts";
 import { loadConfig } from "./load-config.ts";
-
-const LUAU_BOOTSTRAP_TEMP_PREFIX = "bedrock-luau-bootstrap-";
 
 async function withTemporaryDirectory<T>(run: (directory: string) => Promise<T>): Promise<T> {
 	const directory = mkdtempSync(join(tmpdir(), "bedrock-load-config-"));

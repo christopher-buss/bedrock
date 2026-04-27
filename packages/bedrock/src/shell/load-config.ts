@@ -9,6 +9,7 @@ import process from "node:process";
 
 import type { ConfigError } from "../core/config-error.ts";
 import { type Config, validateConfig } from "../core/schema.ts";
+import { LUAU_BOOTSTRAP_TEMP_PREFIX } from "./load-config-internal.ts";
 
 /**
  * Options for {@link loadConfig}. Matches a subset of c12's loader options;
@@ -227,7 +228,6 @@ function makeLuauResolver(
 }
 
 const LUAU_CONFIG_BASENAME = "bedrock.config.luau";
-const LUAU_BOOTSTRAP_TEMP_PREFIX = "bedrock-luau-bootstrap-";
 
 const SENTINEL_BASE = "__BEDROCK_LUAU_";
 const OK_PREFIX = `${SENTINEL_BASE}OK__`;

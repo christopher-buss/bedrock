@@ -130,6 +130,8 @@ function isPlannerModule(value: unknown): value is PlannerModule {
 
 async function loadPlannerModule(): Promise<PlannerModule> {
 	const packageJsonPath = require.resolve("@stryker-mutator/core/package.json");
+	// Stryker does not expose the planner publicly; this test verifies our pnpm
+	// patch against the exact internal file it modifies.
 	const plannerPath = join(dirname(packageJsonPath), "dist/src/mutants/mutant-test-planner.js");
 	const module: unknown = await import(pathToFileURL(plannerPath).href);
 
