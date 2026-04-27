@@ -1,13 +1,10 @@
 import type { HttpResponse } from "../../client/types.ts";
 import { ApiError } from "../../errors/api-error.ts";
+import { copyPriceInformation, isPriceInformationLike } from "../../internal/price-information.ts";
 import { isRecord } from "../../internal/utils/is-record.ts";
 import type { Result } from "../../types.ts";
-import type { DeveloperProduct, DeveloperProductPrice } from "./types.ts";
-import type {
-	DeveloperProductConfigV2,
-	DeveloperProductPriceInformationWire,
-	DeveloperProductPricingFeatureWire,
-} from "./wire.ts";
+import type { DeveloperProduct } from "./types.ts";
+import type { DeveloperProductConfigV2, DeveloperProductPricingFeatureWire } from "./wire.ts";
 
 /**
  * Parses a successful Developer Products API response into the public
@@ -44,7 +41,7 @@ export function parseDeveloperProductResponse(
 			iconImageAssetId: iconAssetId === undefined ? undefined : String(iconAssetId),
 			isForSale: body.isForSale,
 			isImmutable: body.isImmutable,
-			price: priceWire === undefined ? undefined : toDeveloperProductPrice(priceWire),
+			price: priceWire === undefined ? undefined : copyPriceInformation(priceWire),
 			storePageEnabled: body.storePageEnabled,
 			universeId: String(body.universeId),
 			updatedAt: new Date(body.updatedTimestamp),
@@ -79,30 +76,6 @@ function isPricingFeatureWire(value: unknown): value is DeveloperProductPricingF
 	);
 }
 
-function isPriceInformationWire(value: unknown): value is DeveloperProductPriceInformationWire {
-	if (!isRecord(value)) {
-		return false;
-	}
-
-	const defaultPrice = value["defaultPriceInRobux"] ?? undefined;
-	if (defaultPrice !== undefined && typeof defaultPrice !== "number") {
-		return false;
-	}
-
-	const features = value["enabledFeatures"];
-	if (!Array.isArray(features)) {
-		return false;
-	}
-
-	for (const feature of features) {
-		if (!isPricingFeatureWire(feature)) {
-			return false;
-		}
-	}
-
-	return true;
-}
-
 function isDeveloperProductConfigV2(body: unknown): body is DeveloperProductConfigV2 {
 	if (!isRecord(body)) {
 		return false;
@@ -118,18 +91,9 @@ function isDeveloperProductConfigV2(body: unknown): body is DeveloperProductConf
 	}
 
 	const price = body["priceInformation"] ?? undefined;
-	if (price !== undefined && !isPriceInformationWire(price)) {
+	if (price !== undefined && !isPriceInformationLike(price, isPricingFeatureWire)) {
 		return false;
 	}
 
 	return true;
-}
-
-function toDeveloperProductPrice(
-	wire: DeveloperProductPriceInformationWire,
-): DeveloperProductPrice {
-	return {
-		defaultPriceInRobux: wire.defaultPriceInRobux ?? undefined,
-		enabledFeatures: [...wire.enabledFeatures],
-	};
 }

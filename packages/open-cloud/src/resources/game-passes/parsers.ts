@@ -1,9 +1,10 @@
 import type { HttpResponse } from "../../client/types.ts";
 import { ApiError } from "../../errors/api-error.ts";
+import { copyPriceInformation, isPriceInformationLike } from "../../internal/price-information.ts";
 import { isRecord } from "../../internal/utils/is-record.ts";
 import type { Result } from "../../types.ts";
-import type { GamePass, GamePassPrice } from "./types.ts";
-import type { GamePassConfigV2, PriceInformationStructWire, PricingFeatureWire } from "./wire.ts";
+import type { GamePass } from "./types.ts";
+import type { GamePassConfigV2, PricingFeatureWire } from "./wire.ts";
 
 /**
  * Parses a successful Game Pass API response into the public `GamePass`
@@ -36,7 +37,7 @@ export function parseGamePassResponse(response: HttpResponse): Result<GamePass, 
 			description: body.description,
 			iconAssetId: body.iconAssetId === 0 ? undefined : String(body.iconAssetId),
 			isForSale: body.isForSale,
-			price: priceWire === undefined ? undefined : toGamePassPrice(priceWire),
+			price: priceWire === undefined ? undefined : copyPriceInformation(priceWire),
 			updatedAt: new Date(body.updatedTimestamp),
 		},
 		success: true,
@@ -64,30 +65,6 @@ function isPricingFeatureWire(value: unknown): value is PricingFeatureWire {
 	);
 }
 
-function isPriceInformationStructWire(value: unknown): value is PriceInformationStructWire {
-	if (!isRecord(value)) {
-		return false;
-	}
-
-	const defaultPrice = value["defaultPriceInRobux"] ?? undefined;
-	if (defaultPrice !== undefined && typeof defaultPrice !== "number") {
-		return false;
-	}
-
-	const features = value["enabledFeatures"];
-	if (!Array.isArray(features)) {
-		return false;
-	}
-
-	for (const feature of features) {
-		if (!isPricingFeatureWire(feature)) {
-			return false;
-		}
-	}
-
-	return true;
-}
-
 function isGamePassConfigV2(body: unknown): body is GamePassConfigV2 {
 	if (!isRecord(body)) {
 		return false;
@@ -98,16 +75,9 @@ function isGamePassConfigV2(body: unknown): body is GamePassConfigV2 {
 	}
 
 	const price = body["priceInformation"] ?? undefined;
-	if (price !== undefined && !isPriceInformationStructWire(price)) {
+	if (price !== undefined && !isPriceInformationLike(price, isPricingFeatureWire)) {
 		return false;
 	}
 
 	return true;
-}
-
-function toGamePassPrice(wire: PriceInformationStructWire): GamePassPrice {
-	return {
-		defaultPriceInRobux: wire.defaultPriceInRobux ?? undefined,
-		enabledFeatures: [...wire.enabledFeatures],
-	};
 }

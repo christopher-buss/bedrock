@@ -7,6 +7,8 @@
 // `null` values to `undefined` at validation time so callers only ever
 // observe `undefined`.
 
+import type { PriceInformationLike } from "../../internal/price-information.ts";
+
 /**
  * Wire-level pricing feature flag, mirroring `DeveloperProducts.PricingFeature`.
  */
@@ -19,12 +21,8 @@ export type DeveloperProductPricingFeatureWire =
 /**
  * Wire shape of `DeveloperProducts.PriceInformationStruct`.
  */
-export interface DeveloperProductPriceInformationWire {
-	/** Default Robux price; `undefined` when the schema returns null. */
-	readonly defaultPriceInRobux: number | undefined;
-	/** Enabled pricing feature flags, in the order returned by the API. */
-	readonly enabledFeatures: ReadonlyArray<DeveloperProductPricingFeatureWire>;
-}
+export type DeveloperProductPriceInformationWire =
+	PriceInformationLike<DeveloperProductPricingFeatureWire>;
 
 /**
  * Wire shape of `DeveloperProductConfigV2`: the response body returned by
