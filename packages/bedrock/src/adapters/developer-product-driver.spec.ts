@@ -2,7 +2,7 @@ import { ApiError } from "@bedrock/ocale";
 import { DeveloperProductsClient } from "@bedrock/ocale/developer-products";
 import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock/ocale/testing";
 
-import { developerProductDesired } from "#tests/helpers/resources";
+import { developerProductCurrent, developerProductDesired } from "#tests/helpers/resources";
 import type { Except } from "type-fest";
 import { assert, describe, expect, it } from "vitest";
 
@@ -13,6 +13,7 @@ import {
 } from "./developer-product-driver.ts";
 
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
+const PRODUCT_ID = asRobloxAssetId("8172635495");
 
 const WIRE_BODY = validDeveloperProductBody({
 	name: "Gem Pack",
@@ -120,6 +121,37 @@ describe(createDeveloperProductDriver, () => {
 		);
 	});
 
+	it("should send isForSale=false in the multipart body when no price is declared", async () => {
+		expect.assertions(2);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: WIRE_BODY, status: 200 });
+
+		await driver.create(developerProductDesired({ price: undefined }));
+
+		const captured = http.requests[0]!;
+
+		expect(readFormString(captured.request.body, "isForSale")).toBe("false");
+
+		assert(captured.request.body instanceof FormData);
+
+		expect(captured.request.body.has("price")).toBeFalse();
+	});
+
+	it("should send isForSale=true and the declared price when price is set", async () => {
+		expect.assertions(2);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: WIRE_BODY, status: 200 });
+
+		await driver.create(developerProductDesired({ price: 250 }));
+
+		const captured = http.requests[0]!;
+
+		expect(readFormString(captured.request.body, "isForSale")).toBe("true");
+		expect(readFormString(captured.request.body, "price")).toBe("250");
+	});
+
 	it("should pass through an OpenCloudError when the ocale client returns an error", async () => {
 		expect.assertions(2);
 
@@ -133,5 +165,139 @@ describe(createDeveloperProductDriver, () => {
 
 		expect(result.err.message).toBe("boom");
 		expect(result.err.statusCode).toBe(500);
+	});
+
+	describe("update", () => {
+		function mockPatchOk(http: ReturnType<typeof createFakeHttpClient>) {
+			http.mockResponse({ body: undefined, status: 204 });
+		}
+
+		it("should PATCH the developer-product endpoint with the productId from current outputs", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			mockPatchOk(http);
+
+			await driver.update!(
+				developerProductCurrent({ outputs: { productId: PRODUCT_ID } }),
+				developerProductDesired(),
+			);
+
+			const captured = http.requests[0]!;
+
+			expect(captured.request.method).toBe("PATCH");
+			expect(captured.request.url).toBe(
+				`/developer-products/v2/universes/${UNIVERSE_ID}/developer-products/${PRODUCT_ID}`,
+			);
+		});
+
+		it("should re-send name and description on every update", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			mockPatchOk(http);
+
+			await driver.update!(
+				developerProductCurrent(),
+				developerProductDesired({
+					name: "Mega Gem Pack",
+					description: "Stocks the player up with 5,000 premium gems.",
+				}),
+			);
+
+			const captured = http.requests[0]!;
+
+			expect(readFormString(captured.request.body, "name")).toBe("Mega Gem Pack");
+			expect(readFormString(captured.request.body, "description")).toBe(
+				"Stocks the player up with 5,000 premium gems.",
+			);
+		});
+
+		it("should send isForSale=true and price when desired.price is defined", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			mockPatchOk(http);
+
+			await driver.update!(
+				developerProductCurrent({ price: undefined }),
+				developerProductDesired({ price: 250 }),
+			);
+
+			const captured = http.requests[0]!;
+
+			expect(readFormString(captured.request.body, "isForSale")).toBe("true");
+			expect(readFormString(captured.request.body, "price")).toBe("250");
+		});
+
+		it("should send isForSale=false and omit price when desired.price is undefined", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			mockPatchOk(http);
+
+			await driver.update!(
+				developerProductCurrent({ price: 100 }),
+				developerProductDesired({ price: undefined }),
+			);
+
+			const captured = http.requests[0]!;
+
+			expect(readFormString(captured.request.body, "isForSale")).toBe("false");
+
+			assert(captured.request.body instanceof FormData);
+
+			expect(captured.request.body.has("price")).toBeFalse();
+		});
+
+		it("should issue exactly one PATCH and no follow-up GET", async () => {
+			expect.assertions(1);
+
+			const { driver, http } = makeDriver();
+			mockPatchOk(http);
+
+			await driver.update!(developerProductCurrent(), developerProductDesired());
+
+			expect(http.requests).toHaveLength(1);
+		});
+
+		it("should compose post-update state from the desired entry and the carried-over outputs", async () => {
+			expect.assertions(1);
+
+			const { driver, http } = makeDriver();
+			mockPatchOk(http);
+
+			const carriedOutputs = {
+				iconImageAssetId: asRobloxAssetId("1122334455"),
+				productId: PRODUCT_ID,
+			};
+			const desired = developerProductDesired({ price: 250 });
+			const result = await driver.update!(
+				developerProductCurrent({ outputs: carriedOutputs }),
+				desired,
+			);
+
+			assert(result.success);
+
+			expect(result.data).toStrictEqual({ ...desired, outputs: carriedOutputs });
+		});
+
+		it("should propagate the OpenCloudError when the PATCH fails", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			http.mockApiError({ message: "not found", statusCode: 404 });
+
+			const result = await driver.update!(
+				developerProductCurrent(),
+				developerProductDesired(),
+			);
+
+			assert(!result.success);
+			assert(result.err instanceof ApiError);
+
+			expect(result.err.message).toBe("not found");
+			expect(result.err.statusCode).toBe(404);
+		});
 	});
 });

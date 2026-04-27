@@ -144,6 +144,7 @@ describe(parseStateFile, () => {
 					outputs: {
 						productId: asRobloxAssetId("8172635495"),
 					},
+					price: 100,
 				},
 			],
 			version: 1,

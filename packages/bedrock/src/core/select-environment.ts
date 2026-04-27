@@ -5,6 +5,7 @@ import type { SetRequired } from "type-fest";
 
 import type {
 	Config,
+	DeveloperProductEntry,
 	GamePassEntry,
 	ResolvedConfig,
 	ResolvedPlaceEntry,
@@ -231,15 +232,17 @@ function projectConfig(inputs: ProjectInputs): ResolvedConfig {
 	const { config, entry } = inputs;
 	const passes = mergeKeyedRecord<GamePassEntry>(entry.passes, config.passes);
 	const places = mergeKeyedRecord<ResolvedPlaceEntry>(entry.places, config.places);
+	const products = mergeKeyedRecord<DeveloperProductEntry>(entry.products, config.products);
 	const universe = mergeUniverse(entry.universe, config.universe);
 	const state = entry.state ?? config.state;
 
-	const { places: _placesRoot, ...rest } = config;
+	const { places: _placesRoot, products: _productsRoot, ...rest } = config;
 
 	return {
 		...rest,
 		...(passes === undefined ? {} : { passes }),
 		...(places === undefined ? {} : { places }),
+		...(products === undefined ? {} : { products }),
 		...(state === undefined ? {} : { state }),
 		...(universe === undefined ? {} : { universe }),
 	};

@@ -116,6 +116,7 @@ export function developerProductDesired(
 		name: "Gem Pack",
 		description: "Stocks the player up with 1,000 premium gems.",
 		kind: "developerProduct",
+		price: undefined,
 		...overrides,
 	};
 }

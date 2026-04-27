@@ -244,9 +244,10 @@ describe(applyOps, () => {
 	describe("developerProduct kind", () => {
 		function developerProductRegistry(
 			create: ResourceDriver<"developerProduct">["create"],
+			update?: ResourceDriver<"developerProduct">["update"],
 		): DriverRegistry {
 			return {
-				developerProduct: { create },
+				developerProduct: update ? { create, update } : { create },
 				gamePass: {
 					create() {
 						throw new Error("gamePass driver must not run for developerProduct ops");
@@ -317,6 +318,41 @@ describe(applyOps, () => {
 				success: false,
 			});
 			expect(create).not.toHaveBeenCalled();
+		});
+
+		it("should dispatch a developerProduct update op to the driver's update method and return Ok on success", async () => {
+			expect.assertions(3);
+
+			const op = developerProductUpdateOp(asResourceKey("gem-pack"));
+			const updated = developerProductCurrent({ ...op.desired });
+			const create = vi.fn<ResourceDriver<"developerProduct">["create"]>();
+			const update = vi
+				.fn<NonNullable<ResourceDriver<"developerProduct">["update"]>>()
+				.mockResolvedValue({ data: updated, success: true });
+
+			const result = await applyOps([op], developerProductRegistry(create, update));
+
+			expect(result).toStrictEqual({ data: [updated], success: true });
+			expect(update).toHaveBeenCalledExactlyOnceWith(op.current, op.desired);
+			expect(create).not.toHaveBeenCalled();
+		});
+
+		it("should wrap a developerProduct update failure in driverFailure Err", async () => {
+			expect.assertions(1);
+
+			const op = developerProductUpdateOp(asResourceKey("gem-pack"));
+			const cause = new OpenCloudError("boom");
+			const create = vi.fn<ResourceDriver<"developerProduct">["create"]>();
+			const update = vi
+				.fn<NonNullable<ResourceDriver<"developerProduct">["update"]>>()
+				.mockResolvedValue({ err: cause, success: false });
+
+			const result = await applyOps([op], developerProductRegistry(create, update));
+
+			expect(result).toStrictEqual({
+				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
+				success: false,
+			});
 		});
 	});
 

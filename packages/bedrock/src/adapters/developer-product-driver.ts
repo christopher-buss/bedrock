@@ -1,6 +1,7 @@
 import type { OpenCloudError, Result } from "@bedrock/ocale";
 import type { DeveloperProduct, DeveloperProductsClient } from "@bedrock/ocale/developer-products";
 
+import { derivePriceFields } from "../core/derive-price-fields.ts";
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
@@ -43,15 +44,20 @@ export interface DeveloperProductDriverDeps {
 	readonly universeId: RobloxAssetId;
 }
 
+interface UpdateInputs {
+	readonly current: ResourceCurrentState<"developerProduct">;
+	readonly desired: DeveloperProductDesiredState;
+}
+
 /**
  * Wraps {@link DeveloperProductsClient} as a `ResourceDriver<"developerProduct">`
- * that maps a desired-state entry to an ocale create call and the response
- * back to a `ResourceCurrentState<"developerProduct">`.
- *
- * Slice 1 of #113 ships create only with `name` and `description`.
- * Subsequent slices add `update`, the icon hash-diff cost-gate, the
- * Mantle-style `price` semantics, and the `storePageEnabled` POST→PATCH
- * dance.
+ * that maps a desired-state entry to an ocale create or update call and the
+ * response back to a `ResourceCurrentState<"developerProduct">`. The
+ * `update` path consumes the upstream `204 No Content` response and
+ * synthesizes the post-update `ResourceCurrentState` from `desired` plus
+ * the existing `current.outputs`, carrying `iconImageAssetId` forward when
+ * present. Subsequent slices add the `iconFilePath` cost-gate and the
+ * `isRegionalPricingEnabled` / `storePageEnabled` toggles.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.
  *
@@ -109,6 +115,7 @@ export interface DeveloperProductDriverDeps {
  *         key: asResourceKey("gem-pack"),
  *         kind: "developerProduct",
  *         name: "Gem Pack",
+ *         price: undefined,
  *     })
  *     .then((result) => {
  *         expect(result.success).toBeTrue();
@@ -123,16 +130,10 @@ export function createDeveloperProductDriver(
 ): ResourceDriver<"developerProduct"> {
 	return {
 		async create(desired) {
-			const result = await deps.client.create({
-				name: desired.name,
-				description: desired.description,
-				universeId: deps.universeId,
-			});
-			if (!result.success) {
-				return result;
-			}
-
-			return toCurrentState(desired, result.data);
+			return createOne(deps, desired);
+		},
+		async update(current, desired) {
+			return updateOne(deps, { current, desired });
 		},
 	};
 }
@@ -154,4 +155,41 @@ function toCurrentState(
 		},
 		success: true,
 	};
+}
+
+async function createOne(
+	deps: DeveloperProductDriverDeps,
+	desired: DeveloperProductDesiredState,
+): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
+	const result = await deps.client.create({
+		name: desired.name,
+		description: desired.description,
+		universeId: deps.universeId,
+		...derivePriceFields(desired),
+	});
+	if (!result.success) {
+		return result;
+	}
+
+	return toCurrentState(desired, result.data);
+}
+
+async function updateOne(
+	deps: DeveloperProductDriverDeps,
+	{ current, desired }: UpdateInputs,
+): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
+	const result = await deps.client.update({
+		name: desired.name,
+		description: desired.description,
+		productId: current.outputs.productId,
+		universeId: deps.universeId,
+		...derivePriceFields(desired),
+	});
+	if (!result.success) {
+		return result;
+	}
+
+	// The PATCH endpoint returns 204; the post-update state is the desired
+	// entry composed with the existing Roblox-assigned outputs.
+	return { data: { ...desired, outputs: current.outputs }, success: true };
 }

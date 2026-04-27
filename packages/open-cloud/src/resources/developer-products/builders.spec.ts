@@ -1,7 +1,11 @@
 import { assert, describe, expect, it } from "vitest";
 
-import { buildCreateRequest, buildGetRequest } from "./builders.ts";
-import type { CreateDeveloperProductParameters, GetDeveloperProductParameters } from "./types.ts";
+import { buildCreateRequest, buildGetRequest, buildUpdateRequest } from "./builders.ts";
+import type {
+	CreateDeveloperProductParameters,
+	GetDeveloperProductParameters,
+	UpdateDeveloperProductParameters,
+} from "./types.ts";
 
 describe(buildGetRequest, () => {
 	it("should use the GET method", () => {
@@ -270,5 +274,135 @@ describe(buildCreateRequest, () => {
 		assert(request.body instanceof FormData);
 
 		expect(request.body.has("imageFile")).toBeFalse();
+	});
+});
+
+describe(buildUpdateRequest, () => {
+	it("should use the PATCH method", () => {
+		expect.assertions(1);
+
+		const parameters = {
+			productId: "12345",
+			universeId: "67890",
+		} satisfies UpdateDeveloperProductParameters;
+
+		const request = buildUpdateRequest(parameters);
+
+		expect(request.method).toBe("PATCH");
+	});
+
+	it("should interpolate universeId and productId into the URL", () => {
+		expect.assertions(1);
+
+		const parameters = {
+			productId: "12345",
+			universeId: "67890",
+		} satisfies UpdateDeveloperProductParameters;
+
+		const request = buildUpdateRequest(parameters);
+
+		expect(request.url).toBe("/developer-products/v2/universes/67890/developer-products/12345");
+	});
+
+	it("should produce an empty FormData body when only identifiers are supplied", () => {
+		expect.assertions(2);
+
+		const parameters = {
+			productId: "12345",
+			universeId: "67890",
+		} satisfies UpdateDeveloperProductParameters;
+
+		const request = buildUpdateRequest(parameters);
+
+		assert(request.body instanceof FormData);
+
+		expect([...request.body.keys()]).toBeEmpty();
+		expect(request.body.has("name")).toBeFalse();
+	});
+
+	it.for<[field: keyof UpdateDeveloperProductParameters, value: unknown, expected: string]>([
+		["name", "Gem Pack", "Gem Pack"],
+		["description", "Premium gems", "Premium gems"],
+		["isForSale", true, "true"],
+		["isForSale", false, "false"],
+		["price", 250, "250"],
+		["isRegionalPricingEnabled", true, "true"],
+		["storePageEnabled", false, "false"],
+	])("should append %s=%j to the form body when provided", ([field, value, expected]) => {
+		expect.assertions(1);
+
+		const parameters = {
+			[field]: value,
+			productId: "12345",
+			universeId: "67890",
+		} satisfies UpdateDeveloperProductParameters;
+
+		const request = buildUpdateRequest(parameters);
+
+		assert(request.body instanceof FormData);
+
+		expect(request.body.get(field)).toBe(expected);
+	});
+
+	it.for<[field: keyof UpdateDeveloperProductParameters]>([
+		["name"],
+		["description"],
+		["isForSale"],
+		["price"],
+		["isRegionalPricingEnabled"],
+		["storePageEnabled"],
+		["imageFile"],
+	])("should omit %s from the form body when not provided", ([field]) => {
+		expect.assertions(1);
+
+		const parameters = {
+			productId: "12345",
+			universeId: "67890",
+		} satisfies UpdateDeveloperProductParameters;
+
+		const request = buildUpdateRequest(parameters);
+
+		assert(request.body instanceof FormData);
+
+		expect(request.body.has(field)).toBeFalse();
+	});
+
+	it("should wrap a Uint8Array imageFile into a Blob preserving its bytes", () => {
+		expect.assertions(2);
+
+		const imageFile = new Uint8Array([1, 2, 3, 4]);
+		const parameters = {
+			imageFile,
+			productId: "12345",
+			universeId: "67890",
+		} satisfies UpdateDeveloperProductParameters;
+
+		const request = buildUpdateRequest(parameters);
+
+		assert(request.body instanceof FormData);
+		const appended = request.body.get("imageFile");
+		assert(appended instanceof Blob);
+
+		expect(appended).toBeInstanceOf(Blob);
+		expect(appended.size).toBe(imageFile.byteLength);
+	});
+
+	it("should preserve the MIME type of a Blob imageFile", () => {
+		expect.assertions(1);
+
+		const imageFile = new Blob([new Uint8Array([1, 2, 3, 4])], { type: "image/png" });
+		const parameters = {
+			imageFile,
+			productId: "12345",
+			universeId: "67890",
+		} satisfies UpdateDeveloperProductParameters;
+
+		const request = buildUpdateRequest(parameters);
+
+		assert(request.body instanceof FormData);
+		const appended = request.body.get("imageFile");
+		assert(appended instanceof Blob);
+
+		expect(appended.type).toBe("image/png");
 	});
 });

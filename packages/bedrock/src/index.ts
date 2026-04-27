@@ -10,6 +10,7 @@ export {
 export { createPlaceDriver, type PlaceDriverDeps } from "./adapters/place-driver.ts";
 export { createUniverseDriver, type UniverseDriverDeps } from "./adapters/universe-driver.ts";
 export type { ConfigError, ConfigValidationIssue } from "./core/config-error.ts";
+export { derivePriceFields, type PriceFields } from "./core/derive-price-fields.ts";
 export { diff } from "./core/diff.ts";
 export { validateEnvironmentName } from "./core/environment.ts";
 export {

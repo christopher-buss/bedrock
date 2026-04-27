@@ -65,6 +65,7 @@ it('Example 2', () => {
       key: asResourceKey('gem-pack'),
       kind: 'developerProduct',
       name: 'Gem Pack',
+      price: undefined,
     })
     .then((result) => {
       expect(result.success).toBeTrue()

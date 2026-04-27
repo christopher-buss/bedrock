@@ -195,4 +195,108 @@ describe(DeveloperProductsClient, () => {
 			expect(httpClient.requests).toHaveLength(1);
 		});
 	});
+
+	describe("update", () => {
+		it("should PATCH with a FormData body and resolve to undefined data on 204", async () => {
+			expect.assertions(5);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: undefined,
+				status: 204,
+			});
+			const client = new DeveloperProductsClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.update({
+				name: "Gem Pack",
+				description: "Premium gems",
+				isForSale: true,
+				price: 250,
+				productId: "12345",
+				universeId: "999",
+			});
+
+			assert(result.success);
+
+			expect(result.data).toBeUndefined();
+			expect(httpClient.requests).toHaveLength(1);
+			expect(httpClient.requests[0]?.request.method).toBe("PATCH");
+			expect(httpClient.requests[0]?.request.body).toBeInstanceOf(FormData);
+			expect(httpClient.requests[0]?.request.url).toBe(
+				"/developer-products/v2/universes/999/developer-products/12345",
+			);
+		});
+
+		it("should propagate the http error when the PATCH fails", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient().mockApiError({
+				statusCode: 404,
+			});
+			const client = new DeveloperProductsClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.update({ productId: "12345", universeId: "999" });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).toHaveProperty("statusCode", 404);
+			expect(httpClient.requests).toHaveLength(1);
+		});
+
+		it("should retry a 5xx PATCH because update is idempotent", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient()
+				.mockApiError({ statusCode: 500 })
+				.mockResponse({ body: undefined, status: 204 });
+			const sleep = createFakeSleep();
+			const client = new DeveloperProductsClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep,
+			});
+
+			const result = await client.update({ productId: "12345", universeId: "999" });
+
+			assert(result.success);
+
+			expect(result.data).toBeUndefined();
+			expect(httpClient.requests).toHaveLength(2);
+			expect(sleep.waits).toStrictEqual([1000]);
+		});
+
+		it("should use a queue independent of create() on the same client", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient();
+			for (let index = 0; index < 3; index++) {
+				httpClient.mockResponse({ body: validDeveloperProductBody(), status: 200 });
+			}
+
+			httpClient.mockResponse({ body: undefined, status: 204 });
+
+			const clock = createFakeClock();
+			const client = new DeveloperProductsClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			for (let index = 0; index < 3; index++) {
+				await client.create({ name: "Gem Pack", universeId: "999" });
+			}
+
+			await client.update({ productId: "12345", universeId: "999" });
+
+			expect(clock.waits).toStrictEqual([]);
+		});
+	});
 });

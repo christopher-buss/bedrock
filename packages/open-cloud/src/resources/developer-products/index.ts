@@ -5,4 +5,5 @@ export type {
 	DeveloperProductPrice,
 	DeveloperProductPricingFeature,
 	GetDeveloperProductParameters,
+	UpdateDeveloperProductParameters,
 } from "./types.ts";

@@ -1,4 +1,6 @@
 import {
+	developerProductCurrent,
+	developerProductDesired,
 	gamePassCurrent,
 	gamePassDesired,
 	placeCurrent,
@@ -156,6 +158,83 @@ describe(diff, () => {
 				type: "update",
 			},
 		]);
+	});
+
+	describe("developerProduct kind", () => {
+		it("should emit a noop when name, description, and price all match", () => {
+			expect.assertions(1);
+
+			const desiredEntry = developerProductDesired({ price: 100 });
+			const currentEntry = developerProductCurrent({ price: 100 });
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{ key: desiredEntry.key, type: "noop" },
+			]);
+		});
+
+		it("should emit an update op when name differs", () => {
+			expect.assertions(1);
+
+			const desiredEntry = developerProductDesired({ name: "Mega Gem Pack" });
+			const currentEntry = developerProductCurrent();
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{
+					key: desiredEntry.key,
+					current: currentEntry,
+					desired: desiredEntry,
+					type: "update",
+				},
+			]);
+		});
+
+		it("should emit an update op when price flips from undefined to a number", () => {
+			expect.assertions(1);
+
+			const desiredEntry = developerProductDesired({ price: 100 });
+			const currentEntry = developerProductCurrent({ price: undefined });
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{
+					key: desiredEntry.key,
+					current: currentEntry,
+					desired: desiredEntry,
+					type: "update",
+				},
+			]);
+		});
+
+		it("should emit an update op when price flips from a number to undefined", () => {
+			expect.assertions(1);
+
+			const desiredEntry = developerProductDesired({ price: undefined });
+			const currentEntry = developerProductCurrent({ price: 100 });
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{
+					key: desiredEntry.key,
+					current: currentEntry,
+					desired: desiredEntry,
+					type: "update",
+				},
+			]);
+		});
+
+		it("should emit an update op when both prices are defined but different", () => {
+			expect.assertions(1);
+
+			const desiredEntry = developerProductDesired({ price: 250 });
+			const currentEntry = developerProductCurrent({ price: 100 });
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{
+					key: desiredEntry.key,
+					current: currentEntry,
+					desired: desiredEntry,
+					type: "update",
+				},
+			]);
+		});
 	});
 
 	describe("place kind", () => {

@@ -22,6 +22,7 @@ describe("developerProductKind", () => {
 						"gem-pack": {
 							name: "Gem Pack",
 							description: "Stocks the player up with 1,000 premium gems.",
+							price: 100,
 						},
 					},
 				}),
@@ -31,6 +32,31 @@ describe("developerProductKind", () => {
 					name: "Gem Pack",
 					description: "Stocks the player up with 1,000 premium gems.",
 					kind: "developerProduct",
+					price: 100,
+				},
+			]);
+		});
+
+		it("should pass price through as undefined when the entry omits it", () => {
+			expect.assertions(1);
+
+			expect(
+				developerProductKind.flatten({
+					environments: { production: {} },
+					products: {
+						"gem-pack": {
+							name: "Gem Pack",
+							description: "Stocks the player up with 1,000 premium gems.",
+						},
+					},
+				}),
+			).toStrictEqual([
+				{
+					key: asResourceKey("gem-pack"),
+					name: "Gem Pack",
+					description: "Stocks the player up with 1,000 premium gems.",
+					kind: "developerProduct",
+					price: undefined,
 				},
 			]);
 		});
@@ -69,6 +95,7 @@ describe("developerProductKind", () => {
 					name: "Gem Pack",
 					description: "Stocks the player up with 1,000 premium gems.",
 					kind: "developerProduct",
+					price: 100,
 				},
 				{ readFile: async () => new Uint8Array() },
 			);
@@ -80,7 +107,27 @@ describe("developerProductKind", () => {
 				name: "Gem Pack",
 				description: "Stocks the player up with 1,000 premium gems.",
 				kind: "developerProduct",
+				price: 100,
 			});
+		});
+
+		it("should pass an undefined price through to the desired state", async () => {
+			expect.assertions(1);
+
+			const result = await developerProductKind.normalize(
+				{
+					key: asResourceKey("gem-pack"),
+					name: "Gem Pack",
+					description: "Stocks the player up with 1,000 premium gems.",
+					kind: "developerProduct",
+					price: undefined,
+				},
+				{ readFile: async () => new Uint8Array() },
+			);
+
+			assert(result.success);
+
+			expect(result.data.price).toBeUndefined();
 		});
 	});
 
@@ -99,6 +146,7 @@ describe("developerProductKind", () => {
 		it.for<[label: string, currentOverrides: Partial<ResourceCurrentStateDeveloperProduct>]>([
 			["name", { name: "Other Name" }],
 			["description", { description: "Other description" }],
+			["price (undefined to defined)", { price: 100 }],
 		])("should return false when %s differs", ([, overrides]) => {
 			expect.assertions(1);
 
@@ -108,6 +156,39 @@ describe("developerProductKind", () => {
 					developerProductCurrent(overrides),
 				),
 			).toBeFalse();
+		});
+
+		it("should return false when price differs from defined to undefined", () => {
+			expect.assertions(1);
+
+			expect(
+				developerProductKind.fieldsEqual(
+					developerProductDesired({ price: undefined }),
+					developerProductCurrent({ price: 100 }),
+				),
+			).toBeFalse();
+		});
+
+		it("should return false when both prices are defined but different", () => {
+			expect.assertions(1);
+
+			expect(
+				developerProductKind.fieldsEqual(
+					developerProductDesired({ price: 100 }),
+					developerProductCurrent({ price: 200 }),
+				),
+			).toBeFalse();
+		});
+
+		it("should return true when both prices are the same defined value", () => {
+			expect.assertions(1);
+
+			expect(
+				developerProductKind.fieldsEqual(
+					developerProductDesired({ price: 100 }),
+					developerProductCurrent({ price: 100 }),
+				),
+			).toBeTrue();
 		});
 	});
 });
