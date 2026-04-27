@@ -6,6 +6,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { assert, describe, expect, it } from "vitest";
 
+import { LUAU_BOOTSTRAP_TEMP_PREFIX } from "./load-config-internal.ts";
 import { loadConfig } from "./load-config.ts";
 
 async function withTemporaryDirectory<T>(run: (directory: string) => Promise<T>): Promise<T> {
@@ -19,6 +20,10 @@ async function withTemporaryDirectory<T>(run: (directory: string) => Promise<T>)
 
 function writeFixtureConfig(directory: string, lines: ReadonlyArray<string>): void {
 	writeFileSync(join(directory, "bedrock.config.ts"), lines.join("\n"));
+}
+
+function readBootstrapDirectories(): Array<string> {
+	return readdirSync(tmpdir()).filter((entry) => entry.startsWith(LUAU_BOOTSTRAP_TEMP_PREFIX));
 }
 
 async function expectParseFailed(filename: string, contents: string): Promise<void> {
@@ -602,11 +607,11 @@ describe(loadConfig, () => {
 				["return { passes = {} }", ""].join("\n"),
 			);
 
-			const before = new Set(readdirSync(tmpdir()));
+			const before = new Set(readBootstrapDirectories());
 
 			await loadConfig({ cwd });
 
-			const after = readdirSync(tmpdir());
+			const after = readBootstrapDirectories();
 			const leaked = after.filter((entry) => !before.has(entry));
 
 			expect(leaked).toStrictEqual([]);

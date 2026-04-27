@@ -4,11 +4,12 @@ import { loadConfig as c12LoadConfig } from "c12";
 import { execFile } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, dirname, isAbsolute, join, resolve as resolvePath, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve as resolvePath } from "node:path";
 import process from "node:process";
 
 import type { ConfigError } from "../core/config-error.ts";
 import { type Config, validateConfig } from "../core/schema.ts";
+import { LUAU_BOOTSTRAP_TEMP_PREFIX } from "./load-config-internal.ts";
 
 /**
  * Options for {@link loadConfig}. Matches a subset of c12's loader options;
@@ -344,10 +345,7 @@ async function evaluateLuauConfig(absPath: string): Promise<Record<string, unkno
 	const cwd = dirname(absPath);
 	const base = basename(absPath);
 
-	// `tmpdir() + sep` keeps the directory inside tmpdir without a mutable
-	// debug-label string. The trailing separator is required so mkdtempSync
-	// creates a child of tmpdir rather than a sibling whose name extends it.
-	const bootstrapDirectory = mkdtempSync(tmpdir() + sep);
+	const bootstrapDirectory = mkdtempSync(join(tmpdir(), LUAU_BOOTSTRAP_TEMP_PREFIX));
 	try {
 		const bootstrapPath = join(bootstrapDirectory, "bootstrap.luau");
 		writeFileSync(bootstrapPath, LUTE_BOOTSTRAP_LUAU);

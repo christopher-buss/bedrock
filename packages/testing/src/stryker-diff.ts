@@ -174,14 +174,24 @@ export function findPackagesWithChangedSpecs(
 	files: ReadonlyArray<FileChange>,
 	packageDirectories: ReadonlyArray<string>,
 ): Set<string> {
-	return new Set(
-		files
-			.filter((file) => RUNTIME_SPEC_SUFFIXES.some((suffix) => file.path.endsWith(suffix)))
-			.map((file) =>
-				packageDirectories.find((directory) => file.path.startsWith(`${directory}/`)),
-			)
-			.filter((directory): directory is string => directory !== undefined),
-	);
+	const normalizedPackageDirectories = packageDirectories.map(normalizePath);
+	const packagesWithChangedSpecs = new Set<string>();
+
+	for (const file of files) {
+		const filePath = normalizePath(file.path);
+		if (!RUNTIME_SPEC_SUFFIXES.some((suffix) => filePath.endsWith(suffix))) {
+			continue;
+		}
+
+		for (const packageDirectory of normalizedPackageDirectories) {
+			if (filePath.startsWith(`${packageDirectory}/`)) {
+				packagesWithChangedSpecs.add(packageDirectory);
+				break;
+			}
+		}
+	}
+
+	return packagesWithChangedSpecs;
 }
 
 /**
@@ -199,16 +209,18 @@ export function groupByPackage(
 	packageDirectories: ReadonlyArray<string>,
 ): Map<string, Array<FileChange>> {
 	const grouped = new Map<string, Array<FileChange>>();
+	const normalizedPackageDirectories = packageDirectories.map(normalizePath);
 
 	for (const file of files) {
-		const packageDirectory = packageDirectories.find((directory) => {
-			return file.path.startsWith(`${directory}/`);
+		const filePath = normalizePath(file.path);
+		const packageDirectory = normalizedPackageDirectories.find((directory) => {
+			return filePath.startsWith(`${directory}/`);
 		});
 		if (packageDirectory === undefined) {
 			continue;
 		}
 
-		const relativePath = file.path.slice(packageDirectory.length + 1);
+		const relativePath = filePath.slice(packageDirectory.length + 1);
 		const bucket = grouped.get(packageDirectory) ?? [];
 		bucket.push({ hunks: file.hunks, path: relativePath });
 		grouped.set(packageDirectory, bucket);
@@ -239,6 +251,10 @@ function isErasableStatement(statement: ts.Statement): boolean {
 	}
 
 	return false;
+}
+
+function normalizePath(filePath: string): string {
+	return filePath.replaceAll("\\", "/");
 }
 
 const HANDLERS: ReadonlyArray<LineHandler> = [
