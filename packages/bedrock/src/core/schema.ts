@@ -390,7 +390,17 @@ export function isGistStateConfig(config: StateConfig): config is GistStateConfi
 }
 
 const OPTIONAL_BOOLEAN = "boolean | undefined";
-const OPTIONAL_NUMBER = "number | undefined";
+
+/**
+ * Shared arktype constraint for any optional Robux-price field. The schema
+ * rejects negatives, fractional values, `NaN`, and `Infinity` at config
+ * validation time so a malformed price surfaces with a path attributing the
+ * failure to the offending field, rather than slipping through to the
+ * Roblox API and surfacing as an opaque error at apply time. Per-kind entry
+ * schemas reuse this constant so all Robux-price fields validate
+ * identically.
+ */
+export const OPTIONAL_ROBUX_PRICE = "number.integer >= 0 | undefined";
 
 // Resource-kind entry schemas. Adding a new kind is two additions:
 // 1. Declare its entry schema and keyed-map collection below.
@@ -402,7 +412,7 @@ const gamePassEntry = type({
 	"name": "string",
 	"description": "string",
 	"iconFilePath": "string",
-	"price?": OPTIONAL_NUMBER,
+	"price?": OPTIONAL_ROBUX_PRICE,
 });
 
 const passesCollection = type({
@@ -412,7 +422,7 @@ const passesCollection = type({
 const developerProductEntry = type({
 	"name": "string",
 	"description": "string",
-	"price?": OPTIONAL_NUMBER,
+	"price?": OPTIONAL_ROBUX_PRICE,
 }).onUndeclaredKey("reject");
 
 const productsCollection = type({
@@ -444,7 +454,7 @@ const universeEntry = type({
 	"facebookSocialLink?": socialLinkOrUndefined,
 	"guildedSocialLink?": socialLinkOrUndefined,
 	"mobileEnabled?": OPTIONAL_BOOLEAN,
-	"privateServerPriceRobux?": "number.integer >= 0 | undefined",
+	"privateServerPriceRobux?": OPTIONAL_ROBUX_PRICE,
 	"robloxGroupSocialLink?": socialLinkOrUndefined,
 	"tabletEnabled?": OPTIONAL_BOOLEAN,
 	"twitchSocialLink?": socialLinkOrUndefined,
@@ -469,7 +479,7 @@ const gamePassOverlay = type({
 	"description?": "string",
 	"iconFilePath?": "string",
 	"name?": "string",
-	"price?": OPTIONAL_NUMBER,
+	"price?": OPTIONAL_ROBUX_PRICE,
 }).onUndeclaredKey("reject");
 
 const passesOverlayCollection = type({
@@ -479,7 +489,7 @@ const passesOverlayCollection = type({
 const developerProductOverlay = type({
 	"description?": "string",
 	"name?": "string",
-	"price?": OPTIONAL_NUMBER,
+	"price?": OPTIONAL_ROBUX_PRICE,
 }).onUndeclaredKey("reject");
 
 const productsOverlayCollection = type({

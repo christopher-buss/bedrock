@@ -5,7 +5,7 @@ import { type } from "arktype";
 import { asResourceKey, asSha256Hex } from "../../types/ids.ts";
 import type { GamePassDesiredInput } from "../flatten.ts";
 import type { GamePassDesiredState, ResourceCurrentState } from "../resources.ts";
-import type { ResolvedConfig } from "../schema.ts";
+import { OPTIONAL_ROBUX_PRICE, type ResolvedConfig } from "../schema.ts";
 import { sha256Hex } from "./hash.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
 import { readBytes } from "./read-bytes.ts";
@@ -14,7 +14,7 @@ const entrySchema = type({
 	"name": "string",
 	"description": "string",
 	"iconFilePath": "string",
-	"price?": "number | undefined",
+	"price?": OPTIONAL_ROBUX_PRICE,
 });
 
 function flatten(config: ResolvedConfig): ReadonlyArray<GamePassDesiredInput> {

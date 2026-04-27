@@ -19,6 +19,42 @@ export const PLATFORM_FLAG_ROWS = UNIVERSE_MANAGED_FLAGS.filter(
 	(flag): flag is Exclude<UniverseManagedFlag, "voiceChatEnabled"> => flag !== "voiceChatEnabled",
 ).map((flag) => [flag] as const);
 
+/**
+ * `it.for` rows covering every value the Robux-price schema must reject:
+ * negative integers, fractional values, `NaN`, and `Infinity`. Shared by
+ * the schema validation and per-kind entry-schema specs so a newly-added
+ * rejection case lands in every consumer.
+ */
+export const INVALID_ROBUX_PRICES = [
+	["a negative integer", -1],
+	["a fractional value", 99.5],
+	["NaN", Number.NaN],
+	["Infinity", Number.POSITIVE_INFINITY],
+] as const;
+
+/**
+ * Minimal valid `gamePass` entry shape (the user-facing fields, without the
+ * derived `key`/`kind`/`iconFileHash` that the desired-state fixture carries).
+ * Spread into per-test inputs to exercise the entry schema without
+ * re-stating the required fields.
+ */
+export const ValidGamePassEntry = {
+	name: "VIP Pass",
+	description: "Grants VIP perks.",
+	iconFilePath: "assets/vip.png",
+} as const;
+
+/**
+ * Minimal valid `developerProduct` entry shape (the user-facing fields,
+ * without the derived `key`/`kind` that the desired-state fixture carries).
+ * Spread into per-test inputs to exercise the entry schema without
+ * re-stating the required fields.
+ */
+export const ValidDeveloperProductEntry = {
+	name: "Gem Pack",
+	description: "Stocks the player up with 1,000 premium gems.",
+} as const;
+
 const ICON_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
 
 const PLACE_HASH = asSha256Hex("039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81");

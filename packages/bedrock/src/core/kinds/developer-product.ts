@@ -5,13 +5,13 @@ import { type } from "arktype";
 import { asResourceKey } from "../../types/ids.ts";
 import type { DeveloperProductDesiredInput } from "../flatten.ts";
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../resources.ts";
-import type { ResolvedConfig } from "../schema.ts";
+import { OPTIONAL_ROBUX_PRICE, type ResolvedConfig } from "../schema.ts";
 import type { BuildDesiredError, ResourceKindModule } from "./module.ts";
 
 const entrySchema = type({
 	"name": "string",
 	"description": "string",
-	"price?": "number | undefined",
+	"price?": OPTIONAL_ROBUX_PRICE,
 });
 
 function flatten(config: ResolvedConfig): ReadonlyArray<DeveloperProductDesiredInput> {

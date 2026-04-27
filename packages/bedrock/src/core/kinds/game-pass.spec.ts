@@ -1,4 +1,10 @@
-import { gamePassCurrent, gamePassDesired } from "#tests/helpers/resources";
+import {
+	gamePassCurrent,
+	gamePassDesired,
+	INVALID_ROBUX_PRICES,
+	ValidGamePassEntry,
+} from "#tests/helpers/resources";
+import { ArkErrors } from "arktype";
 import { assert, describe, expect, it } from "vitest";
 
 import { asResourceKey, asSha256Hex } from "../../types/ids.ts";
@@ -11,6 +17,30 @@ describe("gamePassKind", () => {
 		expect.assertions(1);
 
 		expect(gamePassKind.kind).toBe("gamePass");
+	});
+
+	describe("entrySchema", () => {
+		it("should accept a valid entry that omits price", () => {
+			expect.assertions(1);
+
+			expect(gamePassKind.entrySchema(ValidGamePassEntry)).not.toBeInstanceOf(ArkErrors);
+		});
+
+		it("should accept a valid entry with a non-negative integer price", () => {
+			expect.assertions(1);
+
+			expect(
+				gamePassKind.entrySchema({ ...ValidGamePassEntry, price: 100 }),
+			).not.toBeInstanceOf(ArkErrors);
+		});
+
+		it.for(INVALID_ROBUX_PRICES)("should reject %s as a price", ([, price]) => {
+			expect.assertions(1);
+
+			expect(gamePassKind.entrySchema({ ...ValidGamePassEntry, price })).toBeInstanceOf(
+				ArkErrors,
+			);
+		});
 	});
 
 	describe("flatten", () => {

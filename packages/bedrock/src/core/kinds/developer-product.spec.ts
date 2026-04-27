@@ -1,4 +1,10 @@
-import { developerProductCurrent, developerProductDesired } from "#tests/helpers/resources";
+import {
+	developerProductCurrent,
+	developerProductDesired,
+	INVALID_ROBUX_PRICES,
+	ValidDeveloperProductEntry,
+} from "#tests/helpers/resources";
+import { ArkErrors } from "arktype";
 import { assert, describe, expect, it } from "vitest";
 
 import { asResourceKey } from "../../types/ids.ts";
@@ -9,6 +15,32 @@ describe("developerProductKind", () => {
 		expect.assertions(1);
 
 		expect(developerProductKind.kind).toBe("developerProduct");
+	});
+
+	describe("entrySchema", () => {
+		it("should accept a valid entry that omits price", () => {
+			expect.assertions(1);
+
+			expect(developerProductKind.entrySchema(ValidDeveloperProductEntry)).not.toBeInstanceOf(
+				ArkErrors,
+			);
+		});
+
+		it("should accept a valid entry with a non-negative integer price", () => {
+			expect.assertions(1);
+
+			expect(
+				developerProductKind.entrySchema({ ...ValidDeveloperProductEntry, price: 100 }),
+			).not.toBeInstanceOf(ArkErrors);
+		});
+
+		it.for(INVALID_ROBUX_PRICES)("should reject %s as a price", ([, price]) => {
+			expect.assertions(1);
+
+			expect(
+				developerProductKind.entrySchema({ ...ValidDeveloperProductEntry, price }),
+			).toBeInstanceOf(ArkErrors);
+		});
 	});
 
 	describe("flatten", () => {
