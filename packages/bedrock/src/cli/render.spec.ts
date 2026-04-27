@@ -1,3 +1,4 @@
+import { ApiError } from "@bedrock/ocale";
 import { S_BAR, S_BAR_END, S_BAR_START, S_ERROR, S_SUCCESS } from "@clack/prompts";
 
 import { fakeClackPort } from "#tests/helpers/clack";
@@ -154,7 +155,7 @@ describe(renderDeployError, () => {
 				cause: { kind: "fileNotFound", searchedFrom: "/projects/example" },
 				kind: "configLoadFailed",
 			},
-			expected: "config load failed (fileNotFound)",
+			expected: "config load failed: no bedrock config under /projects/example",
 		},
 		{
 			err: {
@@ -166,14 +167,15 @@ describe(renderDeployError, () => {
 				},
 				kind: "buildDesiredFailed",
 			},
-			expected: "build desired state failed (fileReadFailed)",
+			expected:
+				"build desired state failed for 'main-place' (/projects/example/place.rbxl): ENOENT",
 		},
 		{
 			err: {
 				cause: { file: "state.json", kind: "stateError", reason: "invalid json" },
 				kind: "stateReadFailed",
 			},
-			expected: "state read failed (stateError)",
+			expected: "state read failed (state.json): invalid json",
 		},
 		{
 			err: {
@@ -181,7 +183,7 @@ describe(renderDeployError, () => {
 				kind: "stateWriteFailed",
 				unsavedState: { environment: "production", resources: [], version: 1 },
 			},
-			expected: "state write failed (stateError)",
+			expected: "state write failed (state.json): network error",
 		},
 		{
 			err: {
@@ -192,7 +194,74 @@ describe(renderDeployError, () => {
 				},
 				kind: "applyFailed",
 			},
-			expected: "apply failed (updateUnsupported)",
+			expected: "apply failed for 'vip-pass': update not supported",
+		},
+		{
+			err: {
+				cause: {
+					key: asResourceKey("main-place"),
+					appliedSoFar: [],
+					cause: new ApiError("auth failed (401)", { statusCode: 401 }),
+					kind: "driverFailure",
+				},
+				kind: "applyFailed",
+			},
+			expected: "apply failed for 'main-place': auth failed (401)",
+		},
+		{
+			err: {
+				cause: {
+					kind: "parseFailed",
+					message: "unexpected end of the stream",
+					sourceFile: "bedrock.config.yaml",
+				},
+				kind: "configLoadFailed",
+			},
+			expected: "config load failed: bedrock.config.yaml: unexpected end of the stream",
+		},
+		{
+			err: {
+				cause: {
+					issues: [{ message: "must be a number", path: ["passes", "vip", "price"] }],
+					kind: "validationFailed",
+					sourceFile: "bedrock.config.ts",
+				},
+				kind: "configLoadFailed",
+			},
+			expected: "config load failed: bedrock.config.ts: passes.vip.price must be a number",
+		},
+		{
+			err: {
+				cause: {
+					issues: [],
+					kind: "validationFailed",
+					sourceFile: "bedrock.config.ts",
+				},
+				kind: "configLoadFailed",
+			},
+			expected: "config load failed: bedrock.config.ts: invalid",
+		},
+		{
+			err: {
+				cause: {
+					kind: "configFunctionFailed",
+					message: "boom",
+					sourceFile: "bedrock.config.ts",
+				},
+				kind: "configLoadFailed",
+			},
+			expected: "config load failed: bedrock.config.ts: config function threw: boom",
+		},
+		{
+			err: {
+				cause: {
+					hint: "install lute via mise",
+					kind: "luauRuntimeMissing",
+					sourceFile: "bedrock.config.luau",
+				},
+				kind: "configLoadFailed",
+			},
+			expected: "config load failed: bedrock.config.luau: install lute via mise",
 		},
 		{
 			err: {
