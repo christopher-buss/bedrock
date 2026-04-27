@@ -177,6 +177,54 @@ function alphaPassCurrent() {
 }
 
 describe(deploy, () => {
+	it("should persist a universe-only-id alongside a place sharing the singleton key as separate state entries", async () => {
+		expect.assertions(3);
+
+		const placeIdValue = asRobloxAssetId("84607999013117");
+		const universeCreated = universeCurrent();
+		const placeCreated = placeCurrent({
+			key: UNIVERSE_SINGLETON_KEY,
+			placeId: placeIdValue,
+		});
+		const universeCreate = vi
+			.fn<ResourceDriver<"universe">["create"]>()
+			.mockResolvedValue({ data: universeCreated, success: true });
+		const placeCreate = vi
+			.fn<ResourceDriver<"place">["create"]>()
+			.mockResolvedValue({ data: placeCreated, success: true });
+		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
+			gamePass: {
+				create() {
+					throw new Error("gamePass driver must not run for this fixture");
+				},
+			},
+			place: { create: placeCreate },
+			universe: { create: universeCreate },
+		};
+		const { port, writes } = inMemoryStatePort();
+
+		const result = await deploy({
+			config: {
+				environments: {
+					production: { places: { main: { placeId: placeIdValue } } },
+				},
+				places: { main: { filePath: "anime-rush.rbxl" } },
+				universe: { universeId: "1234567890" },
+			},
+			environment: "production",
+			readFile: readIcon,
+			registry,
+			statePort: port,
+		});
+
+		assert(result.success);
+
+		expect(universeCreate).toHaveBeenCalledOnce();
+		expect(placeCreate).toHaveBeenCalledOnce();
+		expect(writes[0]!.resources).toStrictEqual([placeCreated, universeCreated]);
+	});
+
 	it("should preserve prior resources of distinct kinds that share a key when desired is empty", async () => {
 		expect.assertions(2);
 
@@ -512,11 +560,16 @@ describe(deploy, () => {
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValue({ data: vipPassCurrent(), success: true });
+		const universeCreatedFixture = universeCurrent();
 		const registry: DriverRegistry = {
 			developerProduct: developerProductStub,
 			gamePass: { create },
 			place: placeStub,
-			universe: universeStub,
+			universe: {
+				async create() {
+					return { data: universeCreatedFixture, success: true };
+				},
+			},
 		};
 
 		const fetchSpy = vi.fn<GistFetch>(async (_input, init) => {
@@ -617,7 +670,14 @@ describe(deploy, () => {
 	it("should default-construct the registry from ROBLOX_API_KEY when registry is omitted", async () => {
 		expect.assertions(1);
 
-		const { port } = inMemoryStatePort();
+		// Provide prior universe state so the diff is a noop and the real
+		// universe driver default-constructed by the registry path never
+		// reaches Open Cloud.
+		const { port } = inMemoryStatePort({
+			environment: "production",
+			resources: [universeCurrent({ universeId: asRobloxAssetId("1") })],
+			version: 1,
+		});
 
 		const result = await deploy({
 			config: {
@@ -730,6 +790,13 @@ describe(deploy, () => {
 
 		vi.stubEnv("ROBLOX_API_KEY", "rbx-stub");
 		try {
+			// Prior universe state keeps the diff at noop so the
+			// default-constructed universe driver never hits Open Cloud.
+			const { port } = inMemoryStatePort({
+				environment: "production",
+				resources: [universeCurrent()],
+				version: 1,
+			});
 			const result = await deploy({
 				config: {
 					environments: { production: {} },
@@ -738,7 +805,7 @@ describe(deploy, () => {
 				},
 				environment: "production",
 				readFile: readIcon,
-				statePort: inMemoryStatePort().port,
+				statePort: port,
 			});
 
 			expect(result.success).toBeTrue();

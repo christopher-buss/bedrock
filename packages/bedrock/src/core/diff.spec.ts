@@ -345,13 +345,29 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit a noop on first apply when no managed fields are declared", () => {
+		it("should emit a create op on first apply when only universeId is declared", () => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired();
 
 			expect(diff([desiredEntry], [])).toStrictEqual([
-				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+				{ key: UNIVERSE_SINGLETON_KEY, desired: desiredEntry, type: "create" },
+			]);
+		});
+
+		it("should emit an update op when only universeId is declared and current holds a different universeId", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired({ universeId: asRobloxAssetId("9999") });
+			const currentEntry = universeCurrent();
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{
+					key: UNIVERSE_SINGLETON_KEY,
+					current: currentEntry,
+					desired: desiredEntry,
+					type: "update",
+				},
 			]);
 		});
 

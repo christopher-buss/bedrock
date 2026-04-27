@@ -11,6 +11,7 @@ import {
 	type ResourceCurrentState,
 	type ResourceDriver,
 	selectEnvironment,
+	UNIVERSE_SINGLETON_KEY,
 } from "@bedrock/core";
 import { DeveloperProductsClient } from "@bedrock/ocale/developer-products";
 import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock/ocale/testing";
@@ -22,6 +23,7 @@ import { assert, describe, expect, it } from "vitest";
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const PRODUCTS_FIXTURE_DIR = join(FIXTURES_ROOT, "developer-products");
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
+const ROOT_PLACE_ID = asRobloxAssetId("4711");
 
 const GAME_PASS_TRAP: ResourceDriver<"gamePass"> = {
 	create() {
@@ -35,9 +37,32 @@ const PLACE_TRAP: ResourceDriver<"place"> = {
 	},
 };
 
+const UNIVERSE_ADOPTED: ResourceCurrentState<"universe"> = {
+	key: UNIVERSE_SINGLETON_KEY,
+	consoleEnabled: undefined,
+	desktopEnabled: undefined,
+	displayName: undefined,
+	kind: "universe",
+	mobileEnabled: undefined,
+	outputs: { rootPlaceId: ROOT_PLACE_ID },
+	tabletEnabled: undefined,
+	universeId: UNIVERSE_ID,
+	visibility: undefined,
+	voiceChatEnabled: undefined,
+	vrEnabled: undefined,
+};
+
+const UNIVERSE_DRIVER: ResourceDriver<"universe"> = {
+	async create() {
+		return { data: UNIVERSE_ADOPTED, success: true };
+	},
+};
+
 const UNIVERSE_TRAP: ResourceDriver<"universe"> = {
 	create() {
-		throw new Error("UniverseDriver.create must not run for developer-product fixtures");
+		throw new Error(
+			"UniverseDriver.create must not run when current state already adopts the universe",
+		);
 	},
 };
 
@@ -79,22 +104,18 @@ describe("developer-products pipeline end-to-end", () => {
 			}),
 			gamePass: GAME_PASS_TRAP,
 			place: PLACE_TRAP,
-			universe: UNIVERSE_TRAP,
+			universe: UNIVERSE_DRIVER,
 		};
 
 		const ops = diff(desiredResult.data, []);
 
-		// Universe declared but with no managed fields produces a noop
-		// alongside the developer-product create.
-		expect(ops.map((op) => op.type).filter((type) => type !== "noop")).toStrictEqual([
-			"create",
-		]);
+		expect(ops.map((op) => op.type)).toStrictEqual(["create", "create"]);
 
 		const applyResult = await applyOps(ops, registry);
 
 		assert(applyResult.success);
 
-		expect(applyResult.data).toHaveLength(1);
+		expect(applyResult.data).toHaveLength(2);
 		expect(httpClient.requests).toHaveLength(1);
 
 		const [first] = httpClient.requests;
@@ -104,8 +125,8 @@ describe("developer-products pipeline end-to-end", () => {
 			`/developer-products/v2/universes/${UNIVERSE_ID}/developer-products`,
 		);
 
-		const created = applyResult.data[0]!;
-		assert(created.kind === "developerProduct");
+		const created = applyResult.data.find((entry) => entry.kind === "developerProduct");
+		assert(created !== undefined);
 
 		expect(created.outputs.productId).toBe("8172635495");
 	});
@@ -146,7 +167,7 @@ describe("developer-products pipeline end-to-end", () => {
 			price: undefined,
 		};
 
-		const ops = diff(desiredResult.data, [persisted]);
+		const ops = diff(desiredResult.data, [persisted, UNIVERSE_ADOPTED]);
 
 		expect(ops.every((op) => op.type === "noop")).toBeTrue();
 
@@ -187,7 +208,7 @@ describe("developer-products pipeline end-to-end", () => {
 			universe: UNIVERSE_TRAP,
 		};
 
-		const persisted: ResourceCurrentState<"developerProduct"> = {
+		const persistedProduct: ResourceCurrentState<"developerProduct"> = {
 			key: asResourceKey("gem-pack"),
 			name: "Gem Pack",
 			description: "Old description before edit.",
@@ -196,7 +217,7 @@ describe("developer-products pipeline end-to-end", () => {
 			price: undefined,
 		};
 
-		const ops = diff(desiredResult.data, [persisted]);
+		const ops = diff(desiredResult.data, [persistedProduct, UNIVERSE_ADOPTED]);
 
 		expect(ops.map((op) => op.type).filter((type) => type !== "noop")).toStrictEqual([
 			"update",
