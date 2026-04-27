@@ -20,6 +20,7 @@ export {
 	type ResourceDesiredInput,
 	type UniverseDesiredInput,
 } from "./core/flatten.ts";
+export { getEnvironment, type GetEnvironmentError } from "./core/get-environment.ts";
 export { defaultKindRegistry } from "./core/kinds/index.ts";
 export type {
 	BuildDesiredError,
