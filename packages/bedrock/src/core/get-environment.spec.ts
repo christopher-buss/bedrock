@@ -1,5 +1,5 @@
 import process from "node:process";
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { getEnvironment } from "./get-environment.ts";
 
@@ -92,41 +92,39 @@ describe(getEnvironment, () => {
 		expect.assertions(2);
 
 		const originalArgv = process.argv;
+		onTestFinished(() => {
+			process.argv = originalArgv;
+		});
 		// Leading `--env` lives in the runner positions (node + script path) and
 		// must be skipped; only the second `--env` belongs to the script.
 		process.argv = ["node", "--env", "trap", "--env", "preview"];
 
-		try {
-			const result = getEnvironment();
+		const result = getEnvironment();
 
-			expect(result.success).toBeTrue();
+		expect(result.success).toBeTrue();
 
-			assert(result.success);
+		assert(result.success);
 
-			expect(result.data).toBe("preview");
-		} finally {
-			process.argv = originalArgv;
-		}
+		expect(result.data).toBe("preview");
 	});
 
 	it("should source the env reader from process.env when readEnvironment is omitted", () => {
 		expect.assertions(2);
 
 		const originalArgv = process.argv;
+		onTestFinished(() => {
+			process.argv = originalArgv;
+			vi.unstubAllEnvs();
+		});
 		process.argv = ["node", "script"];
 		vi.stubEnv("BEDROCK_ENVIRONMENT", "from-env");
 
-		try {
-			const result = getEnvironment();
+		const result = getEnvironment();
 
-			expect(result.success).toBeTrue();
+		expect(result.success).toBeTrue();
 
-			assert(result.success);
+		assert(result.success);
 
-			expect(result.data).toBe("from-env");
-		} finally {
-			process.argv = originalArgv;
-			vi.unstubAllEnvs();
-		}
+		expect(result.data).toBe("from-env");
 	});
 });
