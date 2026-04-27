@@ -237,6 +237,25 @@ describe(diff, () => {
 		});
 	});
 
+	it("should match same-key entries to their same-kind current state when kinds collide on key", () => {
+		expect.assertions(1);
+
+		const universeDesiredEntry = universeDesired({ voiceChatEnabled: true });
+		const placeDesiredEntry = placeDesired({ key: UNIVERSE_SINGLETON_KEY });
+		const universeCurrentEntry = universeCurrent({ voiceChatEnabled: true });
+		const placeCurrentEntry = placeCurrent({ key: UNIVERSE_SINGLETON_KEY });
+
+		const ops = diff(
+			[universeDesiredEntry, placeDesiredEntry],
+			[universeCurrentEntry, placeCurrentEntry],
+		);
+
+		expect(ops).toStrictEqual([
+			{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+			{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+		]);
+	});
+
 	describe("place kind", () => {
 		it("should emit a noop when the place file hash matches", () => {
 			expect.assertions(1);
@@ -292,7 +311,7 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit an update op when the key maps to a different kind in current state", () => {
+		it("should emit a create op for a place when current holds a gamePass under the same key", () => {
 			expect.assertions(1);
 
 			const desiredEntry = placeDesired();
@@ -300,12 +319,10 @@ describe(diff, () => {
 
 			const ops = diff([desiredEntry], [currentEntry]);
 
-			expect(ops).toStrictEqual([
-				{ key: PLACE_KEY, current: currentEntry, desired: desiredEntry, type: "update" },
-			]);
+			expect(ops).toStrictEqual([{ key: PLACE_KEY, desired: desiredEntry, type: "create" }]);
 		});
 
-		it("should emit an update op when a gamePass desired maps to a place current under the same key", () => {
+		it("should emit a create op for a gamePass when current holds a place under the same key", () => {
 			expect.assertions(1);
 
 			const desiredEntry = gamePassDesired({ key: PLACE_KEY });
@@ -313,9 +330,7 @@ describe(diff, () => {
 
 			const ops = diff([desiredEntry], [currentEntry]);
 
-			expect(ops).toStrictEqual([
-				{ key: PLACE_KEY, current: currentEntry, desired: desiredEntry, type: "update" },
-			]);
+			expect(ops).toStrictEqual([{ key: PLACE_KEY, desired: desiredEntry, type: "create" }]);
 		});
 	});
 
@@ -330,13 +345,29 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit a noop on first apply when no managed fields are declared", () => {
+		it("should emit a create op on first apply when only universeId is declared", () => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired();
 
 			expect(diff([desiredEntry], [])).toStrictEqual([
-				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+				{ key: UNIVERSE_SINGLETON_KEY, desired: desiredEntry, type: "create" },
+			]);
+		});
+
+		it("should emit an update op when only universeId is declared and current holds a different universeId", () => {
+			expect.assertions(1);
+
+			const desiredEntry = universeDesired({ universeId: asRobloxAssetId("9999") });
+			const currentEntry = universeCurrent();
+
+			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+				{
+					key: UNIVERSE_SINGLETON_KEY,
+					current: currentEntry,
+					desired: desiredEntry,
+					type: "update",
+				},
 			]);
 		});
 
@@ -397,19 +428,14 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit an update op when the key maps to a different kind in current state", () => {
+		it("should emit a create op when current holds a different kind under the universe key", () => {
 			expect.assertions(1);
 
 			const desiredEntry = universeDesired({ voiceChatEnabled: true });
 			const currentEntry = gamePassCurrent({ key: UNIVERSE_SINGLETON_KEY });
 
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-				{
-					key: UNIVERSE_SINGLETON_KEY,
-					current: currentEntry,
-					desired: desiredEntry,
-					type: "update",
-				},
+				{ key: UNIVERSE_SINGLETON_KEY, desired: desiredEntry, type: "create" },
 			]);
 		});
 

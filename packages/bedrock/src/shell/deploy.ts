@@ -18,7 +18,6 @@ import {
 import type { BedrockState, StateError } from "../core/state.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
-import type { ResourceKey } from "../types/ids.ts";
 import { type ApplyError, applyOps } from "./apply-ops.ts";
 import { buildDefaultRegistry, type RegistryConfigError } from "./build-default-registry.ts";
 import { buildDesired, type BuildDesiredError } from "./build-desired.ts";
@@ -269,13 +268,13 @@ function mergeResources(
 	pre: ReadonlyArray<ResourceCurrentState>,
 	applied: ReadonlyArray<ResourceCurrentState>,
 ): ReadonlyArray<ResourceCurrentState> {
-	const byKey = new Map<ResourceKey, ResourceCurrentState>();
+	const byKey = new Map<string, ResourceCurrentState>();
 	for (const resource of pre) {
-		byKey.set(resource.key, resource);
+		byKey.set(`${resource.kind}:${resource.key}`, resource);
 	}
 
 	for (const resource of applied) {
-		byKey.set(resource.key, resource);
+		byKey.set(`${resource.kind}:${resource.key}`, resource);
 	}
 
 	return [...byKey.values()];

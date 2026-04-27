@@ -257,14 +257,6 @@ export const SOCIAL_LINK_FIELDS = [
 export type SocialLinkField = (typeof SOCIAL_LINK_FIELDS)[number];
 
 /**
- * Set view of {@link SOCIAL_LINK_FIELDS} for O(1) membership checks when
- * classifying arbitrary `Object.keys(...)` values (for example
- * `hasNoManagedFields` in `diff`). Typed as a set of `string` so it can
- * accept unverified keys without a narrowing step at the call site.
- */
-export const SOCIAL_LINK_FIELD_SET: ReadonlySet<string> = new Set(SOCIAL_LINK_FIELDS);
-
-/**
  * Desired state for a developer product, the consumable a player can buy via
  * `MarketplaceService:PromptProductPurchase`.
  *

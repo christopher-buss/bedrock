@@ -1,22 +1,16 @@
 import { defaultKindRegistry } from "./kinds/index.ts";
 import type { ResourceKindModule } from "./kinds/module.ts";
 import type { Operation } from "./operations.ts";
-import {
-	type GamePassDesiredState,
-	type PlaceDesiredState,
-	type ResourceCurrentState,
-	type ResourceDesiredState,
-	type ResourceKind,
-	SOCIAL_LINK_FIELD_SET,
-	type UniverseDesiredState,
-} from "./resources.ts";
+import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "./resources.ts";
 
 /**
  * Computes the operations required to reconcile `current` state with `desired`
  * state. Pure and synchronous: no I/O, no side effects, no `Result` wrapper.
  *
- * Each entry in `desired` is matched to `current` by `key`. A key present only
- * in `desired` produces a `create` op; a key present in both produces an
+ * Each entry in `desired` is matched to `current` by `(kind, key)`: resources
+ * are uniquely identified by that pair, so a `place` and a `universe` keyed
+ * `"main"` are independent slots. A `(kind, key)` pair present only in
+ * `desired` produces a `create` op; a pair present in both produces an
  * `update` op if any declared field differs or a `noop` op if every field
  * matches.
  *
@@ -91,56 +85,17 @@ export function diff(
 	desired: ReadonlyArray<ResourceDesiredState>,
 	current: ReadonlyArray<ResourceCurrentState>,
 ): ReadonlyArray<Operation> {
-	const currentByKey = new Map(current.map((entry) => [entry.key, entry]));
-	return desired.map((entry) => operationFor(entry, currentByKey.get(entry.key)));
+	const currentByKey = new Map(current.map((entry) => [compositeKey(entry), entry]));
+	return desired.map((entry) => operationFor(entry, currentByKey.get(compositeKey(entry))));
 }
 
-// Resource-kind identity keys. Every field on a `ResourceDesiredState`
-// that is not in this set is a user-managed field; `hasNoManagedFields`
-// returns true when no non-identity key is present on the object. Only
-// universe supports "all optional → noop on apply"; the other kinds'
-// required fields (name, description, filePath, etc.) are always present,
-// so the loop naturally returns false for them without a kind guard.
-const IDENTITY_KEYS: ReadonlySet<string> = new Set([
-	"key",
-	"kind",
-	"placeId",
-	"universeId",
-] satisfies Array<
-	keyof GamePassDesiredState | keyof PlaceDesiredState | keyof UniverseDesiredState
->);
-
-function hasNoManagedFields(desired: ResourceDesiredState): boolean {
-	if ("privateServerPriceRobux" in desired) {
-		return false;
-	}
-
-	for (const [key, value] of Object.entries(desired)) {
-		if (IDENTITY_KEYS.has(key)) {
-			continue;
-		}
-
-		// Social links use tri-state clearable semantics: key presence is
-		// management intent (set-or-clear), irrespective of the value.
-		if (SOCIAL_LINK_FIELD_SET.has(key)) {
-			return false;
-		}
-
-		if (value !== undefined) {
-			return false;
-		}
-	}
-
-	return true;
+function compositeKey(resource: { readonly key: string; readonly kind: ResourceKind }): string {
+	return `${resource.kind}:${resource.key}`;
 }
 
 function desiredFieldsEqual(desired: ResourceDesiredState, current: ResourceCurrentState): boolean {
-	// Registry index returns a union of per-kind modules; widening its
-	// type parameter lets us call fieldsEqual without per-kind
-	// discriminator narrowing. When `desired.kind !== current.kind`
-	// the per-kind structural field comparison naturally returns false
-	// because every managed field read on the wrong side yields
-	// `undefined`, so no explicit kind guard is needed.
+	// Composite-key matching guarantees `desired.kind === current.kind`,
+	// so the per-kind module is consulted directly without a kind guard.
 	const module = defaultKindRegistry[desired.kind] as ResourceKindModule<ResourceKind>;
 	return module.fieldsEqual(desired, current);
 }
@@ -149,10 +104,6 @@ function operationFor(
 	desired: ResourceDesiredState,
 	current: ResourceCurrentState | undefined,
 ): Operation {
-	if (hasNoManagedFields(desired)) {
-		return { key: desired.key, type: "noop" };
-	}
-
 	if (current === undefined) {
 		return { key: desired.key, desired, type: "create" };
 	}
