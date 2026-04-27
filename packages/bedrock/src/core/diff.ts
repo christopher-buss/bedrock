@@ -15,8 +15,10 @@ import {
  * Computes the operations required to reconcile `current` state with `desired`
  * state. Pure and synchronous: no I/O, no side effects, no `Result` wrapper.
  *
- * Each entry in `desired` is matched to `current` by `key`. A key present only
- * in `desired` produces a `create` op; a key present in both produces an
+ * Each entry in `desired` is matched to `current` by `(kind, key)`: resources
+ * are uniquely identified by that pair, so a `place` and a `universe` keyed
+ * `"main"` are independent slots. A `(kind, key)` pair present only in
+ * `desired` produces a `create` op; a pair present in both produces an
  * `update` op if any declared field differs or a `noop` op if every field
  * matches.
  *
@@ -91,8 +93,12 @@ export function diff(
 	desired: ReadonlyArray<ResourceDesiredState>,
 	current: ReadonlyArray<ResourceCurrentState>,
 ): ReadonlyArray<Operation> {
-	const currentByKey = new Map(current.map((entry) => [entry.key, entry]));
-	return desired.map((entry) => operationFor(entry, currentByKey.get(entry.key)));
+	const currentByKey = new Map(current.map((entry) => [compositeKey(entry), entry]));
+	return desired.map((entry) => operationFor(entry, currentByKey.get(compositeKey(entry))));
+}
+
+function compositeKey(resource: { readonly key: string; readonly kind: ResourceKind }): string {
+	return `${resource.kind}:${resource.key}`;
 }
 
 // Resource-kind identity keys. Every field on a `ResourceDesiredState`

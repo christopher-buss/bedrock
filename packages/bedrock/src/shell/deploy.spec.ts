@@ -1,8 +1,10 @@
 import { OpenCloudError } from "@bedrock/ocale";
 
+import { placeCurrent, universeCurrent } from "#tests/helpers/resources";
 import { assert, describe, expect, it, vi } from "vitest";
 
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
+import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
@@ -175,6 +177,31 @@ function alphaPassCurrent() {
 }
 
 describe(deploy, () => {
+	it("should preserve prior resources of distinct kinds that share a key when desired is empty", async () => {
+		expect.assertions(2);
+
+		const priorUniverse = universeCurrent();
+		const priorPlace = placeCurrent({ key: UNIVERSE_SINGLETON_KEY });
+		const { port, writes } = inMemoryStatePort({
+			environment: "production",
+			resources: [priorUniverse, priorPlace],
+			version: 1,
+		});
+
+		const result = await deploy({
+			config: { environments: { production: {} }, passes: {} },
+			environment: "production",
+			readFile: readIcon,
+			registry: stubRegistry(),
+			statePort: port,
+		});
+
+		assert(result.success);
+
+		expect(writes).toHaveLength(1);
+		expect(writes[0]!.resources).toStrictEqual([priorUniverse, priorPlace]);
+	});
+
 	it("should reconcile a first deploy by creating the desired resource and persisting the new state", async () => {
 		expect.assertions(5);
 
