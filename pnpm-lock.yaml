@@ -329,6 +329,9 @@ importers:
       '@bedrock/ocale':
         specifier: workspace:*
         version: link:../../packages/open-cloud
+      arktype:
+        specifier: catalog:runtime
+        version: 2.2.0
     devDependencies:
       '@bedrock/typescript-config':
         specifier: workspace:*

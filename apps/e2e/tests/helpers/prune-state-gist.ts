@@ -1,3 +1,11 @@
+import { ArkErrors, type } from "arktype";
+
+const gistResponse = type({
+	files: {
+		"[string]": "unknown",
+	},
+});
+
 /**
  * Options controlling a smoke-test gist prune call.
  */
@@ -84,18 +92,13 @@ async function listGistFilenames(
 		return [];
 	}
 
-	const body: unknown = await response.json();
-	if (
-		typeof body === "object" &&
-		body !== null &&
-		"files" in body &&
-		typeof body.files === "object" &&
-		body.files !== null
-	) {
-		return Object.keys(body.files);
+	const body = (await response.json()) as JSONValue;
+	const parsed = gistResponse(body);
+	if (parsed instanceof ArkErrors) {
+		return [];
 	}
 
-	return [];
+	return Object.keys(parsed.files);
 }
 
 /**
