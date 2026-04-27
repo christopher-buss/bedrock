@@ -4,9 +4,14 @@ import { readFile as nodeReadFile } from "node:fs/promises";
 
 import { buildState } from "../core/migrate/build-state.ts";
 import { type EnvironmentFoldResult, foldEnvironment } from "../core/migrate/fold-environment.ts";
-import type { MigrateError, MigrationReport } from "../core/migrate/migration-report.ts";
+import type {
+	MigrateError,
+	MigrationReport,
+	MigrationWarning,
+} from "../core/migrate/migration-report.ts";
 import { parseState } from "../core/migrate/parse-state.ts";
 import { serializeConfig } from "../core/migrate/serialize-config.ts";
+import { summarizeWarnings } from "../core/migrate/summarize-warnings.ts";
 import type { MantleStateV6 } from "../core/migrate/types.ts";
 import { type Config, validateConfig } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
@@ -195,13 +200,14 @@ function finalizeReport(
 		};
 	}
 
+	const warnings: ReadonlyArray<MigrationWarning> = [];
 	return {
 		data: {
 			config: validated.data,
 			configFileContent: serializeConfig(validated.data),
 			statesByEnvironment: buildStatesByEnvironment(folds),
-			summary: { ambiguousCount: 0, blockedCount: 0, deferredCount: 0, interpretiveCount: 0 },
-			warnings: [],
+			summary: summarizeWarnings(warnings),
+			warnings,
 		},
 		success: true,
 	};

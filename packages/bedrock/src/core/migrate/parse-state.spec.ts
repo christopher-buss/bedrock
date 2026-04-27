@@ -166,6 +166,17 @@ describe("parseState - malformed input", () => {
 		expect(result.err.reason).toBe("expected array, got string");
 	});
 
+	it("should accept an unquoted integer version field as the v6 literal", () => {
+		expect.assertions(1);
+
+		const yaml = "version: 6\nenvironments:\n  production: []\n";
+		const result = parseState(yaml, ".mantle-state.yml");
+
+		assert(result.success);
+
+		expect(result.data.version).toBe("6");
+	});
+
 	it("should report 'got null' when environments is YAML null", () => {
 		expect.assertions(1);
 

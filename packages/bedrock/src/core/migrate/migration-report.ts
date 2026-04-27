@@ -61,8 +61,10 @@ export type MigrationWarning =
  * Failure surfaced by `migrateMantleState`. Plain-data discriminated
  * union; narrow on `kind` rather than using `instanceof`.
  *
- * - `stateFileNotFound` - `deps.readFile` reported the YAML file is missing
- *   or unreadable at the supplied path.
+ * - `stateFileNotFound` - `deps.readFile` threw with `code: "ENOENT"`;
+ *   the file does not exist at the supplied path. Permission failures
+ *   (`EACCES`, `EPERM`) and other I/O errors are re-thrown rather than
+ *   wrapped here, so callers see the original code on the rejection.
  * - `stateParseFailed` - the YAML parser refused the file's contents.
  * - `unsupportedMantleStateVersion` - the parsed file's `version` field is
  *   not one of the values in `supported`. V0.1 supports `"6"` only; older

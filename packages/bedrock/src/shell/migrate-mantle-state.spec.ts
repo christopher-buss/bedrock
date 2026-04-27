@@ -190,6 +190,22 @@ describe(migrateMantleState, () => {
 		expect(result.data.config.universe?.universeId).toBe("6031475575");
 	});
 
+	it("should return primaryEnvironmentRequired with an empty available list when no environments are declared", async () => {
+		expect.assertions(2);
+
+		const result = await migrateMantleState({
+			outputFormat: "typescript",
+			readFile: fakeReadFile('version: "6"\nenvironments: {}\n'),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "primaryEnvironmentRequired");
+
+		expect(result.err.kind).toBe("primaryEnvironmentRequired");
+		expect(result.err.available).toStrictEqual([]);
+	});
+
 	it("should require primaryEnvironment when the input declares more than one environment", async () => {
 		expect.assertions(2);
 
