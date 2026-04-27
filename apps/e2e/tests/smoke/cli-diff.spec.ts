@@ -95,13 +95,15 @@ describe("bedrock diff bin against real gist + open cloud", () => {
 				expect(result.stdout).toContain(`Pending changes for "${environment}"`);
 				expect(result.stdout).toContain("+ place:smoke-place");
 			} finally {
-				await pruneStateGist({
-					filenamePrefix: "state.cli-diff-smoke-",
-					gistId: GIST_ID,
-					keep: 3,
-					token: TOKEN,
-				});
-				await rm(project, { force: true, recursive: true });
+				await Promise.all([
+					pruneStateGist({
+						filenamePrefix: "state.cli-diff-smoke-",
+						gistId: GIST_ID,
+						keep: 3,
+						token: TOKEN,
+					}),
+					rm(project, { force: true, recursive: true }),
+				]);
 			}
 		},
 		120_000,

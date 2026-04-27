@@ -99,13 +99,15 @@ describe("bedrock deploy bin against real gist + open cloud", () => {
 				expect(result.stdout).toContain(environment);
 				expect(result.stdout).toMatch(/\d+ resources reconciled/);
 			} finally {
-				await pruneStateGist({
-					filenamePrefix: "state.cli-smoke-",
-					gistId: GIST_ID,
-					keep: 3,
-					token: TOKEN,
-				});
-				await rm(project, { force: true, recursive: true });
+				await Promise.all([
+					pruneStateGist({
+						filenamePrefix: "state.cli-smoke-",
+						gistId: GIST_ID,
+						keep: 3,
+						token: TOKEN,
+					}),
+					rm(project, { force: true, recursive: true }),
+				]);
 			}
 		},
 		120_000,
