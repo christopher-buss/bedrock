@@ -8,6 +8,13 @@ const SOURCE = "bedrock.config.ts";
 
 const MinEnvironments = { production: {} } as const;
 
+const INVALID_ROBUX_PRICES = [
+	["a negative integer", -1],
+	["a fractional value", 99.5],
+	["NaN", Number.NaN],
+	["Infinity", Number.POSITIVE_INFINITY],
+] as const;
+
 describe(validateConfig, () => {
 	it("should reject a config missing the required environments collection", () => {
 		expect.assertions(1);
@@ -182,6 +189,33 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "price"]);
 	});
 
+	it.for(INVALID_ROBUX_PRICES)(
+		"should reject %s as a passes price and attribute the issue path to that field",
+		([, price]) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					environments: MinEnvironments,
+					passes: {
+						"vip-pass": {
+							name: "VIP Pass",
+							description: "Grants VIP perks.",
+							iconFilePath: "assets/vip.png",
+							price,
+						},
+					},
+				},
+				SOURCE,
+			);
+
+			assert(!result.success);
+			assert(result.err.kind === "validationFailed");
+
+			expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "price"]);
+		},
+	);
+
 	it("should accept a products collection with a valid developer-product entry", () => {
 		expect.assertions(1);
 
@@ -290,6 +324,32 @@ describe(validateConfig, () => {
 
 		expect(result.err.issues[0]!.path).toStrictEqual(["products", "gem-pack", "price"]);
 	});
+
+	it.for(INVALID_ROBUX_PRICES)(
+		"should reject %s as a products price and attribute the issue path to that field",
+		([, price]) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					environments: MinEnvironments,
+					products: {
+						"gem-pack": {
+							name: "Gem Pack",
+							description: "Stocks the player up with 1,000 premium gems.",
+							price,
+						},
+					},
+				},
+				SOURCE,
+			);
+
+			assert(!result.success);
+			assert(result.err.kind === "validationFailed");
+
+			expect(result.err.issues[0]!.path).toStrictEqual(["products", "gem-pack", "price"]);
+		},
+	);
 
 	it("should reject an undeclared field on a root products entry", () => {
 		expect.assertions(1);
@@ -1061,6 +1121,34 @@ describe(validateConfig, () => {
 		expect(result.data.environments["staging"]?.products?.["gem-pack"]?.price).toBe(100);
 	});
 
+	it.for(INVALID_ROBUX_PRICES)(
+		"should reject %s as a per-environment products overlay price",
+		([, price]) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					environments: {
+						staging: { products: { "gem-pack": { price } } },
+					},
+					state: { backend: "gist", gistId: "root-gist" },
+				},
+				SOURCE,
+			);
+
+			assert(!result.success);
+			assert(result.err.kind === "validationFailed");
+
+			expect(result.err.issues[0]!.path).toStrictEqual([
+				"environments",
+				"staging",
+				"products",
+				"gem-pack",
+				"price",
+			]);
+		},
+	);
+
 	it("should reject an undeclared field inside a per-environment products overlay entry", () => {
 		expect.assertions(1);
 
@@ -1115,6 +1203,34 @@ describe(validateConfig, () => {
 			"bad key!",
 		]);
 	});
+
+	it.for(INVALID_ROBUX_PRICES)(
+		"should reject %s as a per-environment passes overlay price",
+		([, price]) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					environments: {
+						staging: { passes: { "vip-pass": { price } } },
+					},
+					state: { backend: "gist", gistId: "root-gist" },
+				},
+				SOURCE,
+			);
+
+			assert(!result.success);
+			assert(result.err.kind === "validationFailed");
+
+			expect(result.err.issues[0]!.path).toStrictEqual([
+				"environments",
+				"staging",
+				"passes",
+				"vip-pass",
+				"price",
+			]);
+		},
+	);
 
 	it("should accept a per-environment passes overlay that supplies a partial subset of fields", () => {
 		expect.assertions(1);

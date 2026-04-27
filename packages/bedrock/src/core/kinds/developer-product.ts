@@ -11,7 +11,7 @@ import type { BuildDesiredError, ResourceKindModule } from "./module.ts";
 const entrySchema = type({
 	"name": "string",
 	"description": "string",
-	"price?": "number | undefined",
+	"price?": "number.integer >= 0 | undefined",
 });
 
 function flatten(config: ResolvedConfig): ReadonlyArray<DeveloperProductDesiredInput> {

@@ -1,14 +1,53 @@
 import { developerProductCurrent, developerProductDesired } from "#tests/helpers/resources";
+import { ArkErrors } from "arktype";
 import { assert, describe, expect, it } from "vitest";
 
 import { asResourceKey } from "../../types/ids.ts";
 import { developerProductKind } from "./developer-product.ts";
+
+const INVALID_ROBUX_PRICES = [
+	["a negative integer", -1],
+	["a fractional value", 99.5],
+	["NaN", Number.NaN],
+	["Infinity", Number.POSITIVE_INFINITY],
+] as const;
+
+const ValidDeveloperProduct = {
+	name: "Gem Pack",
+	description: "Stocks the player up with 1,000 premium gems.",
+} as const;
 
 describe("developerProductKind", () => {
 	it("should tag its kind discriminator as developerProduct", () => {
 		expect.assertions(1);
 
 		expect(developerProductKind.kind).toBe("developerProduct");
+	});
+
+	describe("entrySchema", () => {
+		it("should accept a valid entry that omits price", () => {
+			expect.assertions(1);
+
+			expect(developerProductKind.entrySchema(ValidDeveloperProduct)).not.toBeInstanceOf(
+				ArkErrors,
+			);
+		});
+
+		it("should accept a valid entry with a non-negative integer price", () => {
+			expect.assertions(1);
+
+			expect(
+				developerProductKind.entrySchema({ ...ValidDeveloperProduct, price: 100 }),
+			).not.toBeInstanceOf(ArkErrors);
+		});
+
+		it.for(INVALID_ROBUX_PRICES)("should reject %s as a price", ([, price]) => {
+			expect.assertions(1);
+
+			expect(
+				developerProductKind.entrySchema({ ...ValidDeveloperProduct, price }),
+			).toBeInstanceOf(ArkErrors);
+		});
 	});
 
 	describe("flatten", () => {
