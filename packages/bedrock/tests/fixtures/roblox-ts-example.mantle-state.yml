@@ -284,6 +284,19 @@ environments:
           iconAssetId: 18109390296
       dependencies:
         - experience_singleton
+    - id: pass_2-missing
+      inputs:
+        pass:
+          name: Stub Pass
+          description: Pass whose icon file is intentionally absent on disk.
+          iconFilePath: assets/marketing/missing-icon.png
+          iconFileHash: 86890ed405cabad0fcdabf52225d528981790fa551e915c070348761c28373c1
+      outputs:
+        pass:
+          assetId: 838516504
+          iconAssetId: 18109390297
+      dependencies:
+        - experience_singleton
     - id: experienceIcon_singleton
       inputs:
         experienceIcon:

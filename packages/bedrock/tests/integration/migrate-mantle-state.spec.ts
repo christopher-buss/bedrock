@@ -8,6 +8,8 @@ import { assert, describe, expect, it } from "vitest";
 
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures");
 const REAL_FIXTURE = join(FIXTURES_ROOT, "roblox-ts-example.mantle-state.yml");
+const ICON_FILE_SHA256 = "c2d4b446a44ce54fab8e01150e24dd24f3d850c7c14dcfe31f6321341dd86874";
+const MANTLE_RECORDED_HASH = "86890ed405cabad0fcdabf52225d528981790fa551e915c070348761c28373c1";
 
 async function withTemporaryDirectory<T>(run: (directory: string) => Promise<T>): Promise<T> {
 	const directory = mkdtempSync(join(tmpdir(), "bedrock-migrate-"));
@@ -160,5 +162,61 @@ describe(migrateMantleState, () => {
 		expect(developmentPlace.outputs.versionNumber).toBe(53);
 		expect(productionPlace.placeId).toBe("17834656300");
 		expect(productionPlace.outputs.versionNumber).toBe(12);
+	});
+
+	it("should recompute the icon hash from disk for an on-sale pass", async () => {
+		expect.assertions(3);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
+
+		const productionState = result.data.statesByEnvironment["production"];
+		assert(productionState !== undefined);
+
+		const onSale = productionState.resources.find(
+			(resource) => resource.kind === "gamePass" && resource.key === "1-example",
+		);
+		assert(onSale?.kind === "gamePass");
+
+		expect(onSale.iconFileHash).toBe(ICON_FILE_SHA256);
+		expect(onSale.outputs.assetId).toBe("838516503");
+		expect(onSale.price).toBe(5);
+	});
+
+	it("should fall back to the Mantle hash and emit an ambiguous warning for a missing icon", async () => {
+		expect.assertions(4);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
+
+		const productionState = result.data.statesByEnvironment["production"];
+		assert(productionState !== undefined);
+
+		const stub = productionState.resources.find(
+			(resource) => resource.kind === "gamePass" && resource.key === "2-missing",
+		);
+		assert(stub?.kind === "gamePass");
+
+		expect(stub.iconFileHash).toBe(MANTLE_RECORDED_HASH);
+
+		const ambiguous = result.data.warnings.filter(
+			(warning) =>
+				warning.kind === "ambiguous" && warning.mantlePath === "production.pass_2-missing",
+		);
+		assert(ambiguous[0]?.kind === "ambiguous");
+
+		expect(ambiguous).toHaveLength(1);
+		expect(ambiguous[0].hint).toContain("missing-icon.png");
+		expect(result.data.summary.ambiguousCount).toBeGreaterThanOrEqual(1);
 	});
 });
