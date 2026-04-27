@@ -651,7 +651,7 @@ describe(loadConfig, () => {
 				);
 
 				const previous = process.env["BEDROCK_LUTE_PATH"];
-				// Node spawns, then exits non-zero for Lute args.
+				// Runtime binary exists, then exits non-zero for Lute args.
 				process.env["BEDROCK_LUTE_PATH"] = process.execPath;
 				let result: Awaited<ReturnType<typeof loadConfig>>;
 				try {
