@@ -1,12 +1,12 @@
 import { assert, describe, expect, it } from "vitest";
 
-import { asRobloxAssetId } from "../../types/ids.ts";
+import { asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import { UNIVERSE_SINGLETON_KEY } from "../resources.ts";
 import { buildState } from "./build-state.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
 import type { PlaceFoldEntry } from "./fold-places.ts";
 
-const VALID_HASH = "908498abb7f4fca2b7d2b050bfe7c48c009202fabd85f489b03bb19ac6e0b1d9";
+const VALID_HASH = asSha256Hex("908498abb7f4fca2b7d2b050bfe7c48c009202fabd85f489b03bb19ac6e0b1d9");
 
 const FOLDED_UNIVERSE: EnvironmentFoldResult = {
 	places: new Map(),

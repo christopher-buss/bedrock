@@ -219,6 +219,22 @@ describe(foldPlaces, () => {
 		expect(result.warnings).toStrictEqual([]);
 	});
 
+	it("should not produce an entry when placeFile inputs carries a malformed fileHash", () => {
+		expect.assertions(2);
+
+		const result = foldPlaces([
+			place({ key: "start", outputs: { assetId: 17613681043 } }),
+			placeFile({
+				key: "start",
+				inputs: { fileHash: "abc", filePath: "place.rbxl" },
+				outputs: { version: 53 },
+			}),
+		]);
+
+		expect(result.entries.size).toBe(0);
+		expect(result.warnings).toStrictEqual([]);
+	});
+
 	it("should not produce an entry when place outputs is null", () => {
 		expect.assertions(2);
 

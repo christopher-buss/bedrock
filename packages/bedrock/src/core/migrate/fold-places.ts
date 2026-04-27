@@ -1,3 +1,4 @@
+import { isSha256Hex, type Sha256Hex } from "../../types/ids.ts";
 import type { PlaceOutputs } from "../resources.ts";
 import type { PlaceEntry } from "../schema.ts";
 import type { MigrationWarning } from "./migration-report.ts";
@@ -23,7 +24,7 @@ export interface PlaceFoldEntry {
 	/** Bedrock root `Config.places.<key>` body (currently `filePath` only). */
 	readonly entry: PlaceEntry;
 	/** Mantle-recorded SHA-256 hex digest of the place file (fallback for hash recomputation). */
-	readonly fileHash: string;
+	readonly fileHash: Sha256Hex;
 	/** Roblox-assigned identifiers carried into `BedrockState.resources[*].outputs`. */
 	readonly outputs: PlaceOutputs;
 	/** Roblox-assigned place ID copied from `place_<key>.outputs.assetId`. */
@@ -49,7 +50,7 @@ interface PlaceOutputsRaw {
 }
 
 interface PlaceFileInputsRaw {
-	readonly fileHash: string;
+	readonly fileHash: Sha256Hex;
 	readonly filePath: string;
 }
 
@@ -64,6 +65,12 @@ interface PlaceFileOutputsRaw {
  * either side emits an `ambiguous` warning carrying the orphan's
  * `mantlePath` and a hint instructing the user to verify their Mantle
  * state.
+ *
+ * Matched pairs whose payloads fail shape validation (missing or
+ * non-numeric `assetId`, missing `filePath`, malformed `fileHash`, etc.)
+ * are dropped silently rather than surfacing as warnings, mirroring the
+ * malformed-input handling in `foldUniverse`. A `malformed` warning kind
+ * spanning the per-kind folds is left to a follow-up slice.
  *
  * @param resources - Mantle resource list for one environment.
  * @returns The folded entries plus orphan warnings.
@@ -149,7 +156,7 @@ function readPlaceFileInputs(resource: MantleResource): PlaceFileInputsRaw | und
 	}
 
 	const { fileHash, filePath } = inputs;
-	if (typeof filePath !== "string" || typeof fileHash !== "string") {
+	if (typeof filePath !== "string" || typeof fileHash !== "string" || !isSha256Hex(fileHash)) {
 		return undefined;
 	}
 
@@ -191,7 +198,7 @@ function mergeMatchedPair(
 
 function orphanWarning(kind: string, key: string): MigrationWarning {
 	return {
-		hint: "Verify your Mantle state file: a place_<k> resource must be paired with a matching placeFile_<k> resource.",
+		hint: "Verify your Mantle state file: each place_<k> resource must be paired with a matching placeFile_<k>, and vice versa.",
 		kind: "ambiguous",
 		mantlePath: `${kind}_${key}`,
 	};

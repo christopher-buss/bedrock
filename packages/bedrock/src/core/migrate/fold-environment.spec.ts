@@ -3,6 +3,8 @@ import { assert, describe, expect, it } from "vitest";
 import { foldEnvironment } from "./fold-environment.ts";
 import type { MantleResource } from "./types.ts";
 
+const VALID_HASH = "908498abb7f4fca2b7d2b050bfe7c48c009202fabd85f489b03bb19ac6e0b1d9";
+
 function experience(): MantleResource {
 	return {
 		key: "singleton",
@@ -27,7 +29,7 @@ function placeFile(): MantleResource {
 	return {
 		key: "start",
 		dependencies: [],
-		inputs: { fileHash: "h1", filePath: "place.rbxl" },
+		inputs: { fileHash: VALID_HASH, filePath: "place.rbxl" },
 		kind: "placeFile",
 		outputs: { version: 53 },
 	};

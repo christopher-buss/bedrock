@@ -1,4 +1,4 @@
-import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
+import { asResourceKey, asRobloxAssetId } from "../../types/ids.ts";
 import {
 	type ResourceCurrentState,
 	UNIVERSE_SINGLETON_KEY,
@@ -65,7 +65,7 @@ function universeResource(
 function placeResource(key: string, fold: PlaceFoldEntry): ResourceCurrentState<"place"> {
 	return {
 		key: asResourceKey(key),
-		fileHash: asSha256Hex(fold.fileHash),
+		fileHash: fold.fileHash,
 		filePath: fold.entry.filePath,
 		kind: "place",
 		outputs: fold.outputs,
