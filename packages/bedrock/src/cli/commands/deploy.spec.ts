@@ -2,7 +2,7 @@ import type { Result } from "@bedrock/ocale";
 
 import { fakeClackPort } from "#tests/helpers/clack";
 import process from "node:process";
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import type { ResourceCurrentState } from "../../core/resources.ts";
 import type { Config } from "../../core/schema.ts";
@@ -292,6 +292,26 @@ describe(deployCommand, () => {
 		} finally {
 			vi.unstubAllEnvs();
 		}
+	});
+
+	it("should deploy with BEDROCK_ENVIRONMENT when --env is omitted", async () => {
+		expect.assertions(2);
+
+		onTestFinished(() => {
+			vi.unstubAllEnvs();
+		});
+		vi.stubEnv("BEDROCK_ENVIRONMENT", "production");
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
+		const deps = makeDeps({ deploy, loadConfig });
+
+		await deployCommand(deps)({});
+
+		expect(deploy).toHaveBeenCalledExactlyOnceWith(
+			expect.objectContaining({ config: sampleConfig, environment: "production" }),
+		);
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
 	it("should default to process.exit when no exit slot is provided", async () => {
