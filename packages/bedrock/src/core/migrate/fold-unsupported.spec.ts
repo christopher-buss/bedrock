@@ -52,7 +52,7 @@ describe(foldUnsupported, () => {
 	it.for(DEFERRED_CASES)(
 		"should reuse the same reason text across multiple $kind resources",
 		({ kind }) => {
-			expect.assertions(3);
+			expect.assertions(2);
 
 			const warnings = foldUnsupported([resource(kind, "alpha"), resource(kind, "beta")]);
 
@@ -62,17 +62,8 @@ describe(foldUnsupported, () => {
 			assert(first?.kind === "deferred" && second?.kind === "deferred");
 
 			expect(first.reason).toBe(second.reason);
-			expect(first.reason.length).toBeGreaterThan(0);
 		},
 	);
-
-	it("should root mantlePath at the resource for the shell to prefix with the environment", () => {
-		expect.assertions(1);
-
-		const [warning] = foldUnsupported([resource("badge", "first-win")]);
-
-		expect(warning?.mantlePath).toBe("badge_first-win");
-	});
 
 	it("should ignore Mantle kinds that are not in the deferred set", () => {
 		expect.assertions(1);

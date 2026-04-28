@@ -173,7 +173,7 @@ describe(foldEnvironment, () => {
 		]);
 	});
 
-	it("should root deferred warnings at the resource for the shell to prefix", () => {
+	it("should emit deferred warnings with resource-rooted mantlePath", () => {
 		expect.assertions(1);
 
 		const result = foldEnvironment([deferredResource("badge", "first-win")]);
