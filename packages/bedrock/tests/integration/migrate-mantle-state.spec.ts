@@ -219,4 +219,110 @@ describe(migrateMantleState, () => {
 		expect(ambiguous[0].hint).toContain("missing-icon.png");
 		expect(result.data.summary.ambiguousCount).toBeGreaterThanOrEqual(1);
 	});
+
+	it("should fold every interpretive universe rule for the production primary", async () => {
+		expect.assertions(1);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
+
+		expect(result.data.config.universe).toMatchObject({
+			consoleEnabled: true,
+			desktopEnabled: true,
+			discordSocialLink: { title: "Join our Discord", uri: "https://discord.gg/example" },
+			displayName: "roblox-ts Project Template",
+			mobileEnabled: true,
+			privateServerPriceRobux: 0,
+			tabletEnabled: true,
+			twitterSocialLink: {
+				title: "Follow us on Twitter",
+				uri: "https://twitter.com/example",
+			},
+			universeId: "6110424408",
+			visibility: "public",
+			voiceChatEnabled: true,
+		});
+	});
+
+	it("should fold the development primary into a separate universe shape with visibility omitted", async () => {
+		expect.assertions(3);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "development",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
+
+		expect(result.data.config.universe).toMatchObject({
+			consoleEnabled: true,
+			desktopEnabled: true,
+			discordSocialLink: { title: "Join our Discord", uri: "https://discord.gg/example" },
+			displayName: "[DEVELOPMENT] roblox-ts Project Template",
+			mobileEnabled: true,
+			privateServerPriceRobux: 0,
+			tabletEnabled: true,
+			universeId: "6031475575",
+			voiceChatEnabled: true,
+		});
+
+		expect(result.data.config.universe?.visibility).toBeUndefined();
+		expect(result.data.config.universe?.twitterSocialLink).toBeUndefined();
+	});
+
+	it("should emit an ambiguous warning rooted at development.experienceActivation_singleton.isActive", async () => {
+		expect.assertions(2);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
+
+		const ambiguous = result.data.warnings.find((warning) => {
+			return (
+				warning.kind === "ambiguous" &&
+				warning.mantlePath === "development.experienceActivation_singleton.isActive"
+			);
+		});
+		assert(ambiguous?.kind === "ambiguous");
+
+		expect(ambiguous.hint).toMatch(/dashboard/i);
+		expect(result.data.summary.ambiguousCount).toBeGreaterThanOrEqual(1);
+	});
+
+	it("should report interpretive warnings for every universe fold rule applied", async () => {
+		expect.assertions(2);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
+
+		const interpretiveRules = result.data.warnings
+			.filter((warning) => warning.kind === "interpretive")
+			.map((warning) => warning.rule);
+
+		expect(interpretiveRules).toIncludeAllMembers([
+			"active-public-combo",
+			"domain-to-field",
+			"list-to-flag",
+			"private-servers-priced",
+			"start-place-name-to-display-name",
+			"voice-chat-enabled",
+		]);
+
+		expect(result.data.summary.interpretiveCount).toBeGreaterThan(0);
+	});
 });
