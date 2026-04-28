@@ -1482,6 +1482,111 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["state", "unexpected"]);
 	});
 
+	it("should accept a non-empty string label on an environment entry", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: { staging: { label: "Staging" } },
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.environments["staging"]?.label).toBe("Staging");
+	});
+
+	it("should reject a non-string label on an environment entry", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: { staging: { label: 42 } },
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["environments", "staging", "label"]);
+	});
+
+	it("should accept a displayNamePrefix block declaring enabled and format together", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				displayNamePrefix: { enabled: false, format: "<{label}> " },
+				environments: MinEnvironments,
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.displayNamePrefix?.enabled).toBeFalse();
+		expect(result.data.displayNamePrefix?.format).toBe("<{label}> ");
+	});
+
+	it("should reject a non-boolean enabled on displayNamePrefix", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				displayNamePrefix: { enabled: "yes" },
+				environments: MinEnvironments,
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["displayNamePrefix", "enabled"]);
+	});
+
+	it("should reject a non-string format on displayNamePrefix", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				displayNamePrefix: { format: 42 },
+				environments: MinEnvironments,
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["displayNamePrefix", "format"]);
+	});
+
+	it("should reject an undeclared field on displayNamePrefix", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				displayNamePrefix: { unexpected: 1 },
+				environments: MinEnvironments,
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["displayNamePrefix", "unexpected"]);
+	});
+
 	it("should accumulate every validation issue with its own attributed field path", () => {
 		expect.assertions(1);
 

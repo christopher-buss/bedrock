@@ -208,6 +208,14 @@ export type StateConfig = GistStateConfig | { readonly backend: string & {} };
  */
 export interface EnvironmentEntry {
 	/**
+	 * Human-readable label fed to the project-level
+	 * {@link DisplayNamePrefixConfig.format | displayNamePrefix.format}
+	 * template. An environment without a label (or with an empty string)
+	 * is implicitly excluded from prefixing even when the project enables
+	 * it.
+	 */
+	label?: string | undefined;
+	/**
 	 * Per-environment game-pass overlay. Every field is optional; missing
 	 * fields fall through to the matching root `passes` entry at merge time.
 	 *
@@ -275,6 +283,33 @@ export interface ResourceEntryByKind {
 }
 
 /**
+ * Project-level prefixing policy for universe and place display names.
+ * Each environment's `label` flows through `format` to render a prefix
+ * that `selectEnvironment` prepends to every declared display name.
+ *
+ * Defaults: `enabled` is `true`; `format` is `"[{LABEL}] "`.
+ */
+export interface DisplayNamePrefixConfig {
+	/**
+	 * Whether the project applies environment-label prefixing. Treat
+	 * `undefined` as enabled; set `false` to opt out across the project.
+	 */
+	enabled?: boolean | undefined;
+	/**
+	 * Template string applied to each environment's `label`. Placeholders:
+	 *
+	 * - `{label}`: label as written.
+	 * - `{LABEL}`: upper-cased label.
+	 * - `{Label}`: capitalized label (first character upper, rest as
+	 *   written).
+	 *
+	 * Any other characters in the template flow through verbatim. The
+	 * rendered string is prepended to each declared `displayName`.
+	 */
+	format?: string | undefined;
+}
+
+/**
  * Validated project config as accepted by `loadConfig`. Plain mutable so
  * users can adjust fields in a long-running script before deploying.
  *
@@ -307,6 +342,13 @@ export interface ResourceEntryByKind {
  * ```
  */
 export interface Config {
+	/**
+	 * Project-level prefixing of universe and place display names with the
+	 * environment label. Default behaviour (when omitted) is enabled with a
+	 * `"[{LABEL}] "` template; set `enabled: false` to opt out, or set
+	 * `format` to a custom template.
+	 */
+	displayNamePrefix?: DisplayNamePrefixConfig;
 	/**
 	 * Per-environment overrides keyed by environment name. Required and
 	 * non-empty: every project declares at least one environment, and
@@ -542,11 +584,17 @@ const placesOverlayCollection = type({
 const universeOverlay = universeEntry;
 
 const environmentEntry: Type<EnvironmentEntry> = type({
+	"label?": OPTIONAL_STRING,
 	"passes?": passesOverlayCollection,
 	"places?": placesOverlayCollection,
 	"products?": productsOverlayCollection,
 	"state?": stateConfig,
 	"universe?": universeOverlay,
+}).onUndeclaredKey("reject");
+
+const displayNamePrefix: Type<DisplayNamePrefixConfig> = type({
+	"enabled?": OPTIONAL_BOOLEAN,
+	"format?": OPTIONAL_STRING,
 }).onUndeclaredKey("reject");
 
 const environmentsCollection = type({
@@ -562,6 +610,7 @@ const environmentsCollection = type({
 	});
 
 const rootSchema: Type<Config> = type({
+	"displayNamePrefix?": displayNamePrefix,
 	"environments": environmentsCollection,
 	"extends?": "unknown",
 	"passes?": passesCollection,

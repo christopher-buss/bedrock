@@ -67,6 +67,7 @@ export {
 	validateConfig,
 	type Config,
 	type DeveloperProductEntry,
+	type DisplayNamePrefixConfig,
 	type EnvironmentEntry,
 	type GamePassEntry,
 	type GistStateConfig,
