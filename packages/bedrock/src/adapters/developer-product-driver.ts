@@ -56,7 +56,7 @@ interface UpdateInputs {
  * `update` path consumes the upstream `204 No Content` response and
  * synthesizes the post-update `ResourceCurrentState` from `desired` plus
  * the existing `current.outputs`, carrying `iconImageAssetId` forward when
- * present. Subsequent slices add the `iconFilePath` cost-gate and the
+ * present. Subsequent slices add the `icon` cost-gate and the
  * `isRegionalPricingEnabled` / `storePageEnabled` toggles.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.

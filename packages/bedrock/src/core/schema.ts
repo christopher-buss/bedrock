@@ -17,8 +17,13 @@ export interface GamePassEntry {
 	name: string;
 	/** Description shown on the game-pass detail page. */
 	description: string;
-	/** Path to the icon file; handed to `readFile` verbatim by `buildDesired`. */
-	iconFilePath: string;
+	/**
+	 * Locale-keyed icon paths. The map shape mirrors `UniverseEntry.icon`
+	 * so authors see a single vocabulary across icon-bearing kinds; v1
+	 * only accepts the `"en-us"` key. The Roblox game-pass API is
+	 * monolingual, so the `"en-us"` icon is the only one ever uploaded.
+	 */
+	icon: Record<"en-us", string>;
 	/** Robux price, or omitted / `undefined` for off-sale. */
 	price?: number | undefined;
 }
@@ -28,7 +33,7 @@ export interface GamePassEntry {
  * record are `ResourceKey`-shaped strings enforced at schema validation.
  *
  * Slice 1 of #113 ships `name` and `description` only. Subsequent slices
- * widen this shape with `iconFilePath`, `price`, `isRegionalPricingEnabled`,
+ * widen this shape with `icon`, `price`, `isRegionalPricingEnabled`,
  * and `storePageEnabled` per the parent PRD.
  */
 export interface DeveloperProductEntry {
@@ -262,7 +267,7 @@ export interface EnvironmentEntry {
  *
  * const entry: ResourceEntryByKind["gamePass"] = {
  *     description: "Grants VIP perks.",
- *     iconFilePath: "assets/vip-icon.png",
+ *     icon: { "en-us": "assets/vip-icon.png" },
  *     name: "VIP Pass",
  *     price: 500,
  * };
@@ -303,7 +308,7 @@ export interface ResourceEntryByKind {
  *     passes: {
  *         "vip-pass": {
  *             description: "Grants VIP perks.",
- *             iconFilePath: "assets/vip-icon.png",
+ *             icon: { "en-us": "assets/vip-icon.png" },
  *             name: "VIP Pass",
  *             price: 500,
  *         },
@@ -433,6 +438,10 @@ export const OPTIONAL_POSITIVE_INTEGER = "(number.integer >= 1) | undefined";
  */
 export const OPTIONAL_ROBUX_PRICE = "number.integer >= 0 | undefined";
 
+const iconMap = type({
+	"en-us": "string",
+}).onUndeclaredKey("reject");
+
 // Resource-kind entry schemas. Adding a new kind is two additions:
 // 1. Declare its entry schema and keyed-map collection below.
 // 2. Reference that collection as an optional property on `rootSchema`.
@@ -442,7 +451,7 @@ export const OPTIONAL_ROBUX_PRICE = "number.integer >= 0 | undefined";
 const gamePassEntry = type({
 	"name": "string",
 	"description": "string",
-	"iconFilePath": "string",
+	"icon": iconMap,
 	"price?": OPTIONAL_ROBUX_PRICE,
 });
 
@@ -480,10 +489,6 @@ const socialLink = type({
 
 const socialLinkOrUndefined = socialLink.or("undefined");
 
-const iconMap = type({
-	"en-us": "string",
-}).onUndeclaredKey("reject");
-
 const universeEntry = type({
 	"consoleEnabled?": OPTIONAL_BOOLEAN,
 	"desktopEnabled?": OPTIONAL_BOOLEAN,
@@ -516,7 +521,7 @@ const stateConfig = type({
 // the overlay is fully partial.
 const gamePassOverlay = type({
 	"description?": "string",
-	"iconFilePath?": "string",
+	"icon?": iconMap,
 	"name?": "string",
 	"price?": OPTIONAL_ROBUX_PRICE,
 }).onUndeclaredKey("reject");
@@ -606,7 +611,7 @@ const rootSchema: Type<Config> = type({
  *         passes: {
  *             "vip-pass": {
  *                 description: "VIP perks.",
- *                 iconFilePath: "assets/vip.png",
+ *                 icon: { "en-us": "assets/vip.png" },
  *                 name: "VIP Pass",
  *                 price: 500,
  *             },

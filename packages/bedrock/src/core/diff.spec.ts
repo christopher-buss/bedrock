@@ -69,8 +69,8 @@ describe(diff, () => {
 	>([
 		["name", { name: "VIP Pass v2" }, {}],
 		["description", { description: "Grants VIP perks plus emote." }, {}],
-		["iconFileHash", { iconFileHash: ALT_HASH }, {}],
-		["iconFilePath", { iconFilePath: "assets/vip-icon-v2.png" }, {}],
+		["iconFileHashes", { iconFileHashes: { "en-us": ALT_HASH } }, {}],
+		["icon", { icon: { "en-us": "assets/vip-icon-v2.png" } }, {}],
 		["price", { price: 750 }, {}],
 		["price undefined vs number", { price: undefined }, { price: 0 }],
 	])(

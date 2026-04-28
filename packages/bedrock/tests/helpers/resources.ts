@@ -34,14 +34,14 @@ export const INVALID_ROBUX_PRICES = [
 
 /**
  * Minimal valid `gamePass` entry shape (the user-facing fields, without the
- * derived `key`/`kind`/`iconFileHash` that the desired-state fixture carries).
+ * derived `key`/`kind`/`iconFileHashes` that the desired-state fixture carries).
  * Spread into per-test inputs to exercise the entry schema without
  * re-stating the required fields.
  */
 export const ValidGamePassEntry = {
 	name: "VIP Pass",
 	description: "Grants VIP perks.",
-	iconFilePath: "assets/vip.png",
+	icon: { "en-us": "assets/vip.png" },
 } as const;
 
 /**
@@ -71,8 +71,8 @@ export function gamePassDesired(overrides?: Partial<GamePassDesiredState>): Game
 		key: asResourceKey("vip-pass"),
 		name: "VIP Pass",
 		description: "Grants VIP perks.",
-		iconFileHash: ICON_HASH,
-		iconFilePath: "assets/vip-icon.png",
+		icon: { "en-us": "assets/vip-icon.png" },
+		iconFileHashes: { "en-us": ICON_HASH },
 		kind: "gamePass",
 		price: 500,
 		...overrides,
@@ -94,7 +94,7 @@ export function gamePassCurrent(
 		...gamePassDesired(),
 		outputs: {
 			assetId: asRobloxAssetId("9876543210"),
-			iconAssetId: asRobloxAssetId("1122334455"),
+			iconAssetIds: { "en-us": asRobloxAssetId("1122334455") },
 		},
 		...overrides,
 	};

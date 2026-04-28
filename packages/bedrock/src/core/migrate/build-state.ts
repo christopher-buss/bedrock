@@ -23,11 +23,11 @@ interface BuildStateInputs {
 	/** Per-kind fold results for this environment. */
 	readonly folded: EnvironmentFoldResult;
 	/**
-	 * Per-pass-key icon hashes recomputed from disk by the shell. Keys
-	 * absent from the map fall back to `mantleIconFileHash` from the
-	 * matching fold entry.
+	 * Per-pass-key locale-keyed icon hashes recomputed from disk by the
+	 * shell. Keys absent from the map fall back to `mantleIconFileHashes`
+	 * from the matching fold entry.
 	 */
-	readonly iconHashesByKey: ReadonlyMap<ResourceKey, Sha256Hex>;
+	readonly iconHashesByKey: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>;
 }
 
 /**
@@ -38,12 +38,12 @@ interface BuildStateInputs {
  * experience folded), followed by one `kind: "place"` resource per
  * matched place pair, then one `kind: "gamePass"` resource per folded
  * pass entry, in declaration order. Each resource's declared fields
- * mirror its fold output; pass resources receive their `iconFileHash`
+ * mirror its fold output; pass resources receive their `iconFileHashes`
  * from `iconHashesByKey` (computed by the shell from the icon file's
- * bytes) and fall back to the Mantle-recorded hash when the map omits
+ * bytes) and fall back to the Mantle-recorded hashes when the map omits
  * the key. The `outputs` field carries the Mantle-recorded identifiers
  * (universe `rootPlaceId`, place `versionNumber`, pass `assetId` and
- * `iconAssetId`).
+ * `iconAssetIds`).
  *
  * @param inputs - Folded data plus recomputed hashes for this environment.
  * @returns A `BedrockState` populated with one resource per folded kind.
@@ -60,7 +60,7 @@ export function buildState(inputs: BuildStateInputs): BedrockState {
 	);
 
 	const passResources: ReadonlyArray<ResourceCurrentState> = folded.passes.map((entry) => {
-		return passResource(entry, iconHashesByKey.get(entry.key) ?? entry.mantleIconFileHash);
+		return passResource(entry, iconHashesByKey.get(entry.key) ?? entry.mantleIconFileHashes);
 	});
 
 	return {
@@ -106,14 +106,14 @@ function placeResource(key: string, fold: PlaceFoldEntry): ResourceCurrentState<
 
 function passResource(
 	fold: PassFoldEntry,
-	iconFileHash: Sha256Hex,
+	iconFileHashes: Record<"en-us", Sha256Hex>,
 ): ResourceCurrentState<"gamePass"> {
 	return {
 		key: fold.key,
 		name: fold.entry.name,
 		description: fold.entry.description,
-		iconFileHash,
-		iconFilePath: fold.entry.iconFilePath,
+		icon: fold.entry.icon,
+		iconFileHashes,
 		kind: "gamePass",
 		outputs: fold.outputs,
 		price: fold.entry.price,

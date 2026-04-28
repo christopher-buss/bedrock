@@ -16,7 +16,7 @@ import {
 it('Example 1', () => {
   const input: GamePassDesiredInput = {
     description: 'Grants VIP perks.',
-    iconFilePath: 'assets/vip-icon.png',
+    icon: { 'en-us': 'assets/vip-icon.png' },
     key: asResourceKey('vip-pass'),
     kind: 'gamePass',
     name: 'VIP Pass',
@@ -76,7 +76,7 @@ it('Example 5', () => {
     passes: {
       'vip-pass': {
         description: 'Grants VIP perks.',
-        iconFilePath: 'assets/vip-icon.png',
+        icon: { 'en-us': 'assets/vip-icon.png' },
         name: 'VIP Pass',
         price: 500,
       },

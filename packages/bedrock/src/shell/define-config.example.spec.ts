@@ -8,7 +8,7 @@ it('Example 1', () => {
     passes: {
       'vip-pass': {
         description: 'Grants VIP perks.',
-        iconFilePath: 'assets/vip-icon.png',
+        icon: { 'en-us': 'assets/vip-icon.png' },
         name: 'VIP Pass',
         price: 500,
       },

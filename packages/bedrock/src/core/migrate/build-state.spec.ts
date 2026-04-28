@@ -14,7 +14,7 @@ const RECOMPUTED_HASH = asSha256Hex(
 	"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
 );
 
-const NO_HASHES: ReadonlyMap<ResourceKey, Sha256Hex> = new Map();
+const NO_HASHES: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>> = new Map();
 
 const FOLDED_UNIVERSE: EnvironmentFoldResult = {
 	passes: [],
@@ -42,14 +42,14 @@ function passEntry(key: string): PassFoldEntry {
 		entry: {
 			name: "Example Pass",
 			description: "This is an example pass.",
-			iconFilePath: "assets/marketing/example-icon.png",
+			icon: { "en-us": "assets/marketing/example-icon.png" },
 			price: 5,
 		},
-		mantleIconFileHash: SAMPLE_HASH,
+		mantleIconFileHashes: { "en-us": SAMPLE_HASH },
 		mantlePath: `pass_${key}`,
 		outputs: {
 			assetId: asRobloxAssetId("838509486"),
-			iconAssetId: asRobloxAssetId("18109205439"),
+			iconAssetIds: { "en-us": asRobloxAssetId("18109205439") },
 		},
 	};
 }
@@ -241,8 +241,8 @@ describe(buildState, () => {
 			universe: undefined,
 			warnings: [],
 		};
-		const hashes = new Map<ResourceKey, Sha256Hex>([
-			[asResourceKey("1-example"), RECOMPUTED_HASH],
+		const hashes = new Map<ResourceKey, Record<"en-us", Sha256Hex>>([
+			[asResourceKey("1-example"), { "en-us": RECOMPUTED_HASH }],
 		]);
 
 		const state = buildState({
@@ -257,10 +257,10 @@ describe(buildState, () => {
 
 		expect(resource.kind).toBe("gamePass");
 		expect(resource.key).toBe(asResourceKey("1-example"));
-		expect(resource.iconFileHash).toBe(RECOMPUTED_HASH);
+		expect(resource.iconFileHashes).toStrictEqual({ "en-us": RECOMPUTED_HASH });
 		expect(resource.outputs).toStrictEqual({
 			assetId: asRobloxAssetId("838509486"),
-			iconAssetId: asRobloxAssetId("18109205439"),
+			iconAssetIds: { "en-us": asRobloxAssetId("18109205439") },
 		});
 		expect(resource.price).toBe(5);
 	});
@@ -284,7 +284,7 @@ describe(buildState, () => {
 		const [resource] = state.resources;
 		assert(resource?.kind === "gamePass");
 
-		expect(resource.iconFileHash).toBe(SAMPLE_HASH);
+		expect(resource.iconFileHashes).toStrictEqual({ "en-us": SAMPLE_HASH });
 	});
 
 	it("should preserve the universe resource alongside emitted gamePass resources", () => {
@@ -317,7 +317,7 @@ describe(buildState, () => {
 			entry: {
 				name: offSale.entry.name,
 				description: offSale.entry.description,
-				iconFilePath: offSale.entry.iconFilePath,
+				icon: offSale.entry.icon,
 			},
 		};
 		const folded: EnvironmentFoldResult = {

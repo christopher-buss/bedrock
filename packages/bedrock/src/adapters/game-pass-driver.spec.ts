@@ -65,7 +65,7 @@ describe(createGamePassDriver, () => {
 			...desired,
 			outputs: {
 				assetId: "9876543210",
-				iconAssetId: "1122334455",
+				iconAssetIds: { "en-us": "1122334455" },
 			},
 		});
 	});
@@ -148,6 +148,30 @@ describe(createGamePassDriver, () => {
 		expect(result.err.message).toBe(
 			"Malformed game pass response: iconAssetId missing after icon upload",
 		);
+	});
+
+	it("should read the icon bytes from the en-us locale path declared on desired state", async () => {
+		expect.assertions(1);
+
+		const http = createFakeHttpClient();
+		http.mockResponse({ body: WIRE_BODY, status: 200 });
+		const seenPaths: Array<string> = [];
+		const driver = createGamePassDriver({
+			client: new GamePassesClient({
+				apiKey: "test-api-key",
+				httpClient: http,
+				sleep: async () => {},
+			}),
+			readFile: async (path) => {
+				seenPaths.push(path);
+				return ICON_BYTES;
+			},
+			universeId: UNIVERSE_ID,
+		});
+
+		await driver.create(gamePassDesired({ icon: { "en-us": "assets/locale-aware.png" } }));
+
+		expect(seenPaths).toStrictEqual(["assets/locale-aware.png"]);
 	});
 
 	it("should propagate readFile rejections without calling ocale", async () => {

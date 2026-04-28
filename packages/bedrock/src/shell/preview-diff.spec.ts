@@ -42,7 +42,7 @@ function vipPassConfig(): Config {
 			"vip-pass": {
 				name: "VIP Pass",
 				description: "Grants VIP perks.",
-				iconFilePath: "assets/vip-icon.png",
+				icon: { "en-us": "assets/vip-icon.png" },
 				price: 500,
 			},
 		},
@@ -54,12 +54,12 @@ function vipPassCurrent() {
 		key: asResourceKey("vip-pass"),
 		name: "VIP Pass",
 		description: "Grants VIP perks.",
-		iconFileHash: ICON_HASH,
-		iconFilePath: "assets/vip-icon.png",
+		icon: { "en-us": "assets/vip-icon.png" },
+		iconFileHashes: { "en-us": ICON_HASH },
 		kind: "gamePass" as const,
 		outputs: {
 			assetId: asRobloxAssetId("9876543210"),
-			iconAssetId: asRobloxAssetId("1122334455"),
+			iconAssetIds: { "en-us": asRobloxAssetId("1122334455") },
 		},
 		price: 500,
 	};

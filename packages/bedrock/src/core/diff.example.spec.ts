@@ -15,8 +15,8 @@ it('Example 1', () => {
   )
   const unchanged: GamePassDesiredState = {
     description: 'Grants VIP perks.',
-    iconFileHash: hash,
-    iconFilePath: 'assets/vip-icon.png',
+    icon: { 'en-us': 'assets/vip-icon.png' },
+    iconFileHashes: { 'en-us': hash },
     key: asResourceKey('vip-pass'),
     kind: 'gamePass',
     name: 'VIP Pass',
@@ -37,7 +37,7 @@ it('Example 1', () => {
       ...unchanged,
       outputs: {
         assetId: asRobloxAssetId('111'),
-        iconAssetId: asRobloxAssetId('222'),
+        iconAssetIds: { 'en-us': asRobloxAssetId('222') },
       },
     },
     {
@@ -45,7 +45,7 @@ it('Example 1', () => {
       name: 'Legend Pass',
       outputs: {
         assetId: asRobloxAssetId('333'),
-        iconAssetId: asRobloxAssetId('444'),
+        iconAssetIds: { 'en-us': asRobloxAssetId('444') },
       },
     },
   ]

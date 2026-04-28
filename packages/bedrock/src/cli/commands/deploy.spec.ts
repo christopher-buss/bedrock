@@ -34,12 +34,12 @@ function gamePassResource(suffix: number): ResourceCurrentState {
 		key: asResourceKey(`pass-${String(suffix)}`),
 		name: `Pass ${String(suffix)}`,
 		description: "Sample pass.",
-		iconFileHash: SAMPLE_HASH,
-		iconFilePath: "assets/icon.png",
+		icon: { "en-us": "assets/icon.png" },
+		iconFileHashes: { "en-us": SAMPLE_HASH },
 		kind: "gamePass",
 		outputs: {
 			assetId: asRobloxAssetId(String(1_000_000 + suffix)),
-			iconAssetId: asRobloxAssetId(String(2_000_000 + suffix)),
+			iconAssetIds: { "en-us": asRobloxAssetId(String(2_000_000 + suffix)) },
 		},
 		price: undefined,
 	};

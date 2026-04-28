@@ -237,7 +237,7 @@ describe(migrateMantleState, () => {
 		);
 		assert(onSale?.kind === "gamePass");
 
-		expect(onSale.iconFileHash).toBe(ICON_FILE_SHA256);
+		expect(onSale.iconFileHashes).toStrictEqual({ "en-us": ICON_FILE_SHA256 });
 		expect(onSale.outputs.assetId).toBe("838516503");
 		expect(onSale.price).toBe(5);
 	});
@@ -358,7 +358,7 @@ describe(migrateMantleState, () => {
 		);
 		assert(stub?.kind === "gamePass");
 
-		expect(stub.iconFileHash).toBe(MANTLE_RECORDED_HASH);
+		expect(stub.iconFileHashes).toStrictEqual({ "en-us": MANTLE_RECORDED_HASH });
 
 		const ambiguous = result.data.warnings.filter(
 			(warning) =>

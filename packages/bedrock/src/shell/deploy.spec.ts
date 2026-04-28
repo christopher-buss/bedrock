@@ -68,7 +68,7 @@ function vipPassConfig(): Config {
 			"vip-pass": {
 				name: "VIP Pass",
 				description: "Grants VIP perks.",
-				iconFilePath: "assets/vip-icon.png",
+				icon: { "en-us": "assets/vip-icon.png" },
 				price: 500,
 			},
 		},
@@ -80,12 +80,12 @@ function vipPassCurrent() {
 		key: asResourceKey("vip-pass"),
 		name: "VIP Pass",
 		description: "Grants VIP perks.",
-		iconFileHash: ICON_HASH,
-		iconFilePath: "assets/vip-icon.png",
+		icon: { "en-us": "assets/vip-icon.png" },
+		iconFileHashes: { "en-us": ICON_HASH },
 		kind: "gamePass" as const,
 		outputs: {
 			assetId: asRobloxAssetId("9876543210"),
-			iconAssetId: asRobloxAssetId("1122334455"),
+			iconAssetIds: { "en-us": asRobloxAssetId("1122334455") },
 		},
 		price: 500,
 	};
@@ -101,13 +101,13 @@ function twoPassConfig(): Config {
 			"alpha-pass": {
 				name: "Alpha Pass",
 				description: "Grants alpha perks.",
-				iconFilePath: "assets/alpha-icon.png",
+				icon: { "en-us": "assets/alpha-icon.png" },
 				price: 250,
 			},
 			"vip-pass": {
 				name: "VIP Pass",
 				description: "Grants VIP perks.",
-				iconFilePath: "assets/vip-icon.png",
+				icon: { "en-us": "assets/vip-icon.png" },
 				price: 500,
 			},
 		},
@@ -121,7 +121,7 @@ function configWithState(): Config {
 			"vip-pass": {
 				name: "VIP Pass",
 				description: "Grants VIP perks.",
-				iconFilePath: "assets/vip-icon.png",
+				icon: { "en-us": "assets/vip-icon.png" },
 				price: 500,
 			},
 		},
@@ -165,12 +165,12 @@ function alphaPassCurrent() {
 		key: asResourceKey("alpha-pass"),
 		name: "Alpha Pass",
 		description: "Grants alpha perks.",
-		iconFileHash: ICON_HASH,
-		iconFilePath: "assets/alpha-icon.png",
+		icon: { "en-us": "assets/alpha-icon.png" },
+		iconFileHashes: { "en-us": ICON_HASH },
 		kind: "gamePass" as const,
 		outputs: {
 			assetId: asRobloxAssetId("1111111111"),
-			iconAssetId: asRobloxAssetId("2222222222"),
+			iconAssetIds: { "en-us": asRobloxAssetId("2222222222") },
 		},
 		price: 250,
 	};
@@ -340,7 +340,7 @@ describe(deploy, () => {
 				"vip-pass": {
 					name: "VIP Pass",
 					description: "Grants VIP perks.",
-					iconFilePath: "assets/vip-icon.png",
+					icon: { "en-us": "assets/vip-icon.png" },
 					price: 750,
 				},
 			},

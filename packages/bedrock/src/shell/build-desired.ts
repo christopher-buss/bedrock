@@ -34,7 +34,7 @@ export type { BuildDesiredError } from "../core/kinds/module.ts";
  *     [
  *         {
  *             description: "Grants VIP perks.",
- *             iconFilePath: "assets/vip-icon.png",
+ *             icon: { "en-us": "assets/vip-icon.png" },
  *             key: asResourceKey("vip-pass"),
  *             kind: "gamePass",
  *             name: "VIP Pass",

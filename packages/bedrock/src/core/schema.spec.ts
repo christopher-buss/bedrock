@@ -78,7 +78,7 @@ describe(validateConfig, () => {
 					"vip-pass": {
 						name: "VIP Pass",
 						description: "Grants VIP perks.",
-						iconFilePath: "assets/vip.png",
+						icon: { "en-us": "assets/vip.png" },
 						price: 500,
 					},
 				},
@@ -101,7 +101,7 @@ describe(validateConfig, () => {
 					"free-pass": {
 						name: "Free Pass",
 						description: "Free pass.",
-						iconFilePath: "assets/free.png",
+						icon: { "en-us": "assets/free.png" },
 					},
 				},
 			},
@@ -123,7 +123,7 @@ describe(validateConfig, () => {
 					"bad key!": {
 						name: "Bad",
 						description: "Invalid key.",
-						iconFilePath: "assets/bad.png",
+						icon: { "en-us": "assets/bad.png" },
 					},
 				},
 			},
@@ -136,7 +136,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "bad key!"]);
 	});
 
-	it("should reject a passes entry missing a required field and attribute the issue path to that field", () => {
+	it("should reject a passes entry missing a required icon field and attribute the issue path to that field", () => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -145,7 +145,7 @@ describe(validateConfig, () => {
 				passes: {
 					"vip-pass": {
 						name: "VIP",
-						description: "Missing iconFilePath.",
+						description: "Missing icon.",
 					},
 				},
 			},
@@ -155,7 +155,53 @@ describe(validateConfig, () => {
 		assert(!result.success);
 		assert(result.err.kind === "validationFailed");
 
-		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "iconFilePath"]);
+		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "icon"]);
+	});
+
+	it("should reject a passes icon map declaring a locale other than 'en-us'", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				passes: {
+					"vip-pass": {
+						name: "VIP",
+						description: "Grants VIP perks.",
+						icon: { "en-us": "assets/en.png", "fr-fr": "assets/fr.png" },
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "icon", "fr-fr"]);
+	});
+
+	it("should reject a passes icon map missing the 'en-us' key", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				passes: {
+					"vip-pass": {
+						name: "VIP",
+						description: "Grants VIP perks.",
+						icon: {},
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "icon", "en-us"]);
 	});
 
 	it("should reject a wrongly-typed field and attribute the issue path to that field", () => {
@@ -168,7 +214,7 @@ describe(validateConfig, () => {
 					"vip-pass": {
 						name: "VIP",
 						description: "Bad price.",
-						iconFilePath: "assets/vip.png",
+						icon: { "en-us": "assets/vip.png" },
 						price: "oops",
 					},
 				},
@@ -194,7 +240,7 @@ describe(validateConfig, () => {
 						"vip-pass": {
 							name: "VIP Pass",
 							description: "Grants VIP perks.",
-							iconFilePath: "assets/vip.png",
+							icon: { "en-us": "assets/vip.png" },
 							price,
 						},
 					},
@@ -1224,7 +1270,7 @@ describe(validateConfig, () => {
 					"vip-pass": {
 						name: "VIP Pass",
 						description: "Grants VIP perks.",
-						iconFilePath: "assets/vip.png",
+						icon: { "en-us": "assets/vip.png" },
 						price: 500,
 					},
 				},
@@ -1407,7 +1453,7 @@ describe(validateConfig, () => {
 					"vip-pass": {
 						name: "VIP Pass",
 						description: "Grants VIP perks.",
-						iconFilePath: "assets/vip.png",
+						icon: { "en-us": "assets/vip.png" },
 						price: 500,
 					},
 				},
@@ -1551,7 +1597,7 @@ describe(validateConfig, () => {
 					"vip-pass": {
 						name: 42,
 						description: "Two bad fields.",
-						iconFilePath: "assets/vip.png",
+						icon: { "en-us": "assets/vip.png" },
 						price: "oops",
 					},
 				},

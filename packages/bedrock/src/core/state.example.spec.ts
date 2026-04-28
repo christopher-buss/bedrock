@@ -14,16 +14,18 @@ it('Example 1', () => {
     resources: [
       {
         description: 'Grants VIP perks.',
-        iconFileHash: asSha256Hex(
-          'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-        ),
-        iconFilePath: 'assets/vip-icon.png',
+        icon: { 'en-us': 'assets/vip-icon.png' },
+        iconFileHashes: {
+          'en-us': asSha256Hex(
+            'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+          ),
+        },
         key: asResourceKey('vip-pass'),
         kind: 'gamePass',
         name: 'VIP Pass',
         outputs: {
           assetId: asRobloxAssetId('9876543210'),
-          iconAssetId: asRobloxAssetId('1122334455'),
+          iconAssetIds: { 'en-us': asRobloxAssetId('1122334455') },
         },
         price: 500,
       },

@@ -15,7 +15,7 @@ const PROD_STATE: StateConfig = { backend: "gist", gistId: "prod-gist" };
 const VIP_PASS: GamePassEntry = {
 	name: "VIP Pass",
 	description: "Grants VIP perks.",
-	iconFilePath: "assets/vip.png",
+	icon: { "en-us": "assets/vip.png" },
 	price: 500,
 };
 

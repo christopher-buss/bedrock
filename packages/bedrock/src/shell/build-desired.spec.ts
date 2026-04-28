@@ -11,7 +11,7 @@ function gamePassInput(overrides?: Partial<GamePassDesiredInput>): GamePassDesir
 		key: asResourceKey("vip-pass"),
 		name: "VIP Pass",
 		description: "Grants VIP perks.",
-		iconFilePath: "assets/vip-icon.png",
+		icon: { "en-us": "assets/vip-icon.png" },
 		kind: "gamePass",
 		price: 500,
 		...overrides,
@@ -45,9 +45,10 @@ describe(buildDesired, () => {
 					key: "vip-pass",
 					name: "VIP Pass",
 					description: "Grants VIP perks.",
-					iconFileHash:
-						"039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
-					iconFilePath: "assets/vip-icon.png",
+					icon: { "en-us": "assets/vip-icon.png" },
+					iconFileHashes: {
+						"en-us": "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
+					},
 					kind: "gamePass",
 					price: 500,
 				},
@@ -70,9 +71,9 @@ describe(buildDesired, () => {
 		const entry = result.data[0]!;
 		assert(entry.kind === "gamePass");
 
-		expect(entry.iconFileHash).toBe(
-			"6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
-		);
+		expect(entry.iconFileHashes).toStrictEqual({
+			"en-us": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+		});
 	});
 
 	it("should preserve input order across multiple inputs", async () => {

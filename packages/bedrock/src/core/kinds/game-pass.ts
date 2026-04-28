@@ -10,10 +10,14 @@ import { sha256Hex } from "./hash.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
 import { readBytes } from "./read-bytes.ts";
 
+const iconMap = type({
+	"en-us": "string",
+}).onUndeclaredKey("reject");
+
 const entrySchema = type({
 	"name": "string",
 	"description": "string",
-	"iconFilePath": "string",
+	"icon": iconMap,
 	"price?": OPTIONAL_ROBUX_PRICE,
 });
 
@@ -23,7 +27,7 @@ function flatten(config: ResolvedConfig): ReadonlyArray<GamePassDesiredInput> {
 			key: asResourceKey(key),
 			name: entry.name,
 			description: entry.description,
-			iconFilePath: entry.iconFilePath,
+			icon: entry.icon,
 			kind: "gamePass",
 			price: entry.price,
 		};
@@ -34,7 +38,7 @@ async function normalize(
 	input: GamePassDesiredInput,
 	io: KindIo,
 ): Promise<Result<GamePassDesiredState, BuildDesiredError>> {
-	const read = await readBytes({ key: input.key, filePath: input.iconFilePath }, io);
+	const read = await readBytes({ key: input.key, filePath: input.icon["en-us"] }, io);
 	if (!read.success) {
 		return read;
 	}
@@ -44,8 +48,8 @@ async function normalize(
 			key: input.key,
 			name: input.name,
 			description: input.description,
-			iconFileHash: asSha256Hex(await sha256Hex(read.data)),
-			iconFilePath: input.iconFilePath,
+			icon: input.icon,
+			iconFileHashes: { "en-us": asSha256Hex(await sha256Hex(read.data)) },
 			kind: "gamePass",
 			price: input.price,
 		},
@@ -59,8 +63,8 @@ function fieldsEqual(
 ): boolean {
 	return (
 		desired.description === current.description &&
-		desired.iconFileHash === current.iconFileHash &&
-		desired.iconFilePath === current.iconFilePath &&
+		desired.icon["en-us"] === current.icon["en-us"] &&
+		desired.iconFileHashes["en-us"] === current.iconFileHashes["en-us"] &&
 		desired.name === current.name &&
 		desired.price === current.price
 	);

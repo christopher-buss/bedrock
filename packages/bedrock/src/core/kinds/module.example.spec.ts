@@ -33,7 +33,7 @@ it('Example 3', () => {
     kind: 'gamePass',
     entrySchema: type({
       description: 'string',
-      iconFilePath: 'string',
+      icon: type({ 'en-us': 'string' }).onUndeclaredKey('reject'),
       name: 'string',
       'price?': 'number | undefined',
     }),
@@ -41,10 +41,12 @@ it('Example 3', () => {
     normalize: async (input) => ({
       data: {
         description: input.description,
-        iconFileHash: asSha256Hex(
-          'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-        ),
-        iconFilePath: input.iconFilePath,
+        icon: input.icon,
+        iconFileHashes: {
+          'en-us': asSha256Hex(
+            'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+          ),
+        },
         key: input.key,
         kind: 'gamePass',
         name: input.name,
