@@ -1,6 +1,7 @@
 import { asRobloxAssetId } from "../../types/ids.ts";
 import type { UniverseOutputs } from "../resources.ts";
 import type { UniverseEntry } from "../schema.ts";
+import { foldBlockedExperienceFields } from "./fold-blocked-experience-fields.ts";
 import { foldDisplayName } from "./fold-display-name.ts";
 import { foldSocialLinks } from "./fold-social-links.ts";
 import {
@@ -77,14 +78,7 @@ export function foldUniverse(
 		return undefined;
 	}
 
-	const fragments: ReadonlyArray<FoldFragment> = [
-		foldPlayableDevices(resources),
-		foldPrivateServers(resources),
-		foldVoiceChat(resources),
-		foldVisibility(resources),
-		foldSocialLinks(resources),
-		foldDisplayName(resources),
-	];
+	const fragments = collectUniverseFragments(resources);
 
 	const entry: UniverseEntry = fragments.reduce<UniverseEntry>(
 		(accumulator, fragment) => ({ ...accumulator, ...fragment.entryFragment }),
@@ -98,6 +92,20 @@ export function foldUniverse(
 		outputs: { rootPlaceId: asRobloxAssetId(outputs.startPlaceId) },
 		warnings,
 	};
+}
+
+function collectUniverseFragments(
+	resources: ReadonlyArray<MantleResource>,
+): ReadonlyArray<FoldFragment> {
+	return [
+		foldPlayableDevices(resources),
+		foldPrivateServers(resources),
+		foldVoiceChat(resources),
+		foldVisibility(resources),
+		foldSocialLinks(resources),
+		foldDisplayName(resources),
+		foldBlockedExperienceFields(resources),
+	];
 }
 
 function coerceRobloxId(value: unknown): string | undefined {

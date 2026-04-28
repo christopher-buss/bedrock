@@ -373,7 +373,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ genre: "All" }),
+				experienceConfiguration({ allowPrivateServers: undefined }),
 			]);
 
 			assert(result !== undefined);
@@ -1137,6 +1137,125 @@ describe(foldUniverse, () => {
 					mantlePath: "placeConfiguration_start.name",
 				},
 			]);
+		});
+	});
+
+	describe("blocked experienceConfiguration fields fold", () => {
+		it.for<[label: string, field: string, value: unknown, reason: string]>([
+			["genre", "genre", "All", "Roblox does not expose `genre` via Open Cloud"],
+			["isForSale", "isForSale", false, "paid-access flag has no Open Cloud equivalent"],
+			["price", "price", 25, "paid-access flag has no Open Cloud equivalent"],
+			[
+				"studioAccessToApisAllowed",
+				"studioAccessToApisAllowed",
+				true,
+				"Open Cloud does not currently expose a write endpoint for studio API access",
+			],
+			[
+				"permissions",
+				"permissions",
+				{ IsThirdPartyTeleportAllowed: false },
+				"experienceConfiguration.permissions has no Open Cloud equivalent",
+			],
+			["isArchived", "isArchived", false, "isArchived has no Open Cloud equivalent"],
+		])("should emit a blocked warning when %s is set", ([, field, value, reason]) => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({ [field]: value }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.warnings).toStrictEqual([
+				{
+					kind: "blocked",
+					mantlePath: `experienceConfiguration_singleton.${field}`,
+					reason,
+				},
+			]);
+		});
+
+		it("should emit no warning for a tracked field whose value is undefined", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({ genre: undefined, isArchived: undefined }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should emit one warning per tracked field when several are populated together", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({
+					genre: "All",
+					isArchived: false,
+					isForSale: false,
+				}),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.warnings).toIncludeAllPartialMembers([
+				{ kind: "blocked", mantlePath: "experienceConfiguration_singleton.genre" },
+				{ kind: "blocked", mantlePath: "experienceConfiguration_singleton.isForSale" },
+				{ kind: "blocked", mantlePath: "experienceConfiguration_singleton.isArchived" },
+			]);
+		});
+
+		it("should emit no warning when no experienceConfiguration is present", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([experience(DEFAULT_EXPERIENCE_OUTPUTS)]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should emit no warning when experienceConfiguration inputs is not an object", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration("not-an-object"),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should not double-emit a blocked for isFriendsOnly when foldVisibility owns it", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceActivation({ isActive: true }),
+				experienceConfiguration({ isFriendsOnly: true }),
+			]);
+
+			assert(result !== undefined);
+
+			const friendsOnlyBlocked = result.warnings.filter((warning) => {
+				return (
+					warning.kind === "blocked" &&
+					warning.mantlePath === "experienceConfiguration_singleton.isFriendsOnly"
+				);
+			});
+
+			expect(friendsOnlyBlocked).toHaveLength(1);
 		});
 	});
 });
