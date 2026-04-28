@@ -68,9 +68,10 @@ export function factorizeEnvironments(
 	const primaryName = primaryResult.data;
 	const primaryFold = inputs.folds.get(primaryName);
 	const config = buildConfig(inputs.folds, primaryFold);
+	const warnings = collectMissingResourceWarnings(inputs.folds, primaryName);
 
 	return {
-		data: { config, primaryEnvironment: primaryName, warnings: [] },
+		data: { config, primaryEnvironment: primaryName, warnings },
 		success: true,
 	};
 }
@@ -271,4 +272,98 @@ function buildConfig(
 	}
 
 	return config;
+}
+
+const RESOURCE_MISSING_RULE = "factorize-environments/resource-missing-from-env";
+
+interface AsymmetryContext {
+	readonly environmentName: string;
+	readonly fold: EnvironmentFoldResult;
+	readonly primary: EnvironmentFoldResult;
+}
+
+interface MissingResourcePaths {
+	readonly bedrockSegment: string;
+	readonly environmentName: string;
+	readonly mantleSegment: string;
+}
+
+function missingResourceWarning(paths: MissingResourcePaths): MigrationWarning {
+	return {
+		bedrockPath: `environments.${paths.environmentName}.${paths.bedrockSegment}`,
+		kind: "interpretive",
+		mantlePath: `${paths.environmentName}.${paths.mantleSegment}`,
+		rule: RESOURCE_MISSING_RULE,
+	};
+}
+
+function universeAsymmetryWarnings(context: AsymmetryContext): ReadonlyArray<MigrationWarning> {
+	const hasEnvironmentUniverse = context.fold.universe !== undefined;
+	const hasPrimaryUniverse = context.primary.universe !== undefined;
+	if (hasEnvironmentUniverse === hasPrimaryUniverse) {
+		return [];
+	}
+
+	return [
+		missingResourceWarning({
+			bedrockSegment: "universe",
+			environmentName: context.environmentName,
+			mantleSegment: "experience_singleton",
+		}),
+	];
+}
+
+function asymmetricKeys(
+	environmentKeys: ReadonlyArray<string>,
+	primaryKeys: ReadonlyArray<string>,
+): ReadonlyArray<string> {
+	const environmentSet = new Set(environmentKeys);
+	const primarySet = new Set(primaryKeys);
+	const onlyInEnvironment = environmentKeys.filter((key) => !primarySet.has(key));
+	const onlyInPrimary = primaryKeys.filter((key) => !environmentSet.has(key));
+	return [...onlyInEnvironment, ...onlyInPrimary];
+}
+
+function placeAsymmetryWarnings(context: AsymmetryContext): ReadonlyArray<MigrationWarning> {
+	return asymmetricKeys([...context.fold.places.keys()], [...context.primary.places.keys()]).map(
+		(key) => {
+			return missingResourceWarning({
+				bedrockSegment: `places.${key}`,
+				environmentName: context.environmentName,
+				mantleSegment: `place_${key}`,
+			});
+		},
+	);
+}
+
+function passAsymmetryWarnings(context: AsymmetryContext): ReadonlyArray<MigrationWarning> {
+	return asymmetricKeys(
+		context.fold.passes.map(({ key }) => key),
+		context.primary.passes.map(({ key }) => key),
+	).map((key) => {
+		return missingResourceWarning({
+			bedrockSegment: `passes.${key}`,
+			environmentName: context.environmentName,
+			mantleSegment: `pass_${key}`,
+		});
+	});
+}
+
+function collectMissingResourceWarnings(
+	folds: ReadonlyMap<string, EnvironmentFoldResult>,
+	primaryName: string,
+): ReadonlyArray<MigrationWarning> {
+	const primary = folds.get(primaryName);
+	if (primary === undefined) {
+		return [];
+	}
+
+	return [...folds.entries()].flatMap(([name, fold]): ReadonlyArray<MigrationWarning> => {
+		const context: AsymmetryContext = { environmentName: name, fold, primary };
+		return [
+			...universeAsymmetryWarnings(context),
+			...placeAsymmetryWarnings(context),
+			...passAsymmetryWarnings(context),
+		];
+	});
 }

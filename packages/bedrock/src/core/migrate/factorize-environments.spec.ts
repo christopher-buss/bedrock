@@ -503,6 +503,157 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
+	it("should emit a resource-missing-from-env interpretive warning when the primary has a universe the env lacks", () => {
+		expect.assertions(2);
+
+		const folds = new Map([
+			["development", fold()],
+			[
+				"production",
+				fold({
+					universe: {
+						entry: { universeId: "6031475575" },
+						outputs: { rootPlaceId: asRobloxAssetId("17613681043") },
+					},
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.warnings).toHaveLength(1);
+		expect(result.data.warnings[0]).toStrictEqual({
+			bedrockPath: "environments.development.universe",
+			kind: "interpretive",
+			mantlePath: "development.experience_singleton",
+			rule: "factorize-environments/resource-missing-from-env",
+		});
+	});
+
+	it("should emit a resource-missing-from-env interpretive warning when the env has a universe the primary lacks", () => {
+		expect.assertions(2);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					universe: {
+						entry: { universeId: "1111111111" },
+						outputs: { rootPlaceId: asRobloxAssetId("2222222222") },
+					},
+				}),
+			],
+			["production", fold()],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.warnings).toHaveLength(1);
+		expect(result.data.warnings[0]).toStrictEqual({
+			bedrockPath: "environments.development.universe",
+			kind: "interpretive",
+			mantlePath: "development.experience_singleton",
+			rule: "factorize-environments/resource-missing-from-env",
+		});
+	});
+
+	it("should emit a resource-missing-from-env interpretive warning for a place the env lacks", () => {
+		expect.assertions(1);
+
+		const folds = new Map([
+			["development", fold()],
+			["production", fold({ places: new Map([["start", placeFold()]]) })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.warnings).toContainEqual({
+			bedrockPath: "environments.development.places.start",
+			kind: "interpretive",
+			mantlePath: "development.place_start",
+			rule: "factorize-environments/resource-missing-from-env",
+		});
+	});
+
+	it("should emit a resource-missing-from-env interpretive warning for a pass the env lacks", () => {
+		expect.assertions(1);
+
+		const folds = new Map([
+			["development", fold()],
+			["production", fold({ passes: [passFold("vip")] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.warnings).toContainEqual({
+			bedrockPath: "environments.development.passes.vip",
+			kind: "interpretive",
+			mantlePath: "development.pass_vip",
+			rule: "factorize-environments/resource-missing-from-env",
+		});
+	});
+
+	it("should emit a resource-missing-from-env interpretive warning for a pass that exists only on a non-primary env", () => {
+		expect.assertions(1);
+
+		const folds = new Map([
+			["development", fold({ passes: [passFold("dev-only")] })],
+			["production", fold()],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.warnings).toContainEqual({
+			bedrockPath: "environments.development.passes.dev-only",
+			kind: "interpretive",
+			mantlePath: "development.pass_dev-only",
+			rule: "factorize-environments/resource-missing-from-env",
+		});
+	});
+
+	it("should emit zero warnings when every environment has the same resource set", () => {
+		expect.assertions(1);
+
+		const universeBlock = {
+			entry: { universeId: "6031475575" },
+			outputs: { rootPlaceId: asRobloxAssetId("17613681043") },
+		};
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					passes: [passFold("vip")],
+					places: new Map([["start", placeFold()]]),
+					universe: universeBlock,
+				}),
+			],
+			[
+				"production",
+				fold({
+					passes: [passFold("vip")],
+					places: new Map([["start", placeFold()]]),
+					universe: universeBlock,
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.warnings).toStrictEqual([]);
+	});
+
 	it("should emit zero warnings on a clean primary-pick happy path", () => {
 		expect.assertions(1);
 
