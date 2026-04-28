@@ -518,6 +518,29 @@ describe(selectEnvironment, () => {
 		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Start Place");
 	});
 
+	it("should apply the prefix to a displayName declared on the per-environment overlay rather than the root", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: {
+				staging: {
+					label: "staging",
+					places: {
+						"start-place": { displayName: "Dev Lobby", placeId: "5555" },
+					},
+				},
+			},
+			places: { "start-place": { filePath: "places/start.rbxl" } },
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Dev Lobby");
+	});
+
 	it("should leave a place's displayName untouched when that place declares no displayName", () => {
 		expect.assertions(2);
 
