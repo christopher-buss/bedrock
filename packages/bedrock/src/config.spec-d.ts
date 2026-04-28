@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, it } from "vitest";
 
-import * as ConfigModule from "./config.ts";
+import { defineConfig } from "./config.ts";
 import type {
 	Config,
 	ConfigContext,
@@ -17,66 +17,82 @@ import type {
 	UniverseEntry,
 	UniverseVisibility,
 } from "./config.ts";
-import type * as Schema from "./core/schema.ts";
-import type * as DefineConfig from "./shell/define-config.ts";
+import type {
+	Config as ConfigSource,
+	DeveloperProductEntry as DeveloperProductEntrySource,
+	EnvironmentEntry as EnvironmentEntrySource,
+	GamePassEntry as GamePassEntrySource,
+	GistStateConfig as GistStateConfigSource,
+	PlaceEntry as PlaceEntrySource,
+	ResolvedPlaceEntry as ResolvedPlaceEntrySource,
+	ResourceEntryByKind as ResourceEntryByKindSource,
+	StateConfig as StateConfigSource,
+	UniverseEntry as UniverseEntrySource,
+	UniverseVisibility as UniverseVisibilitySource,
+} from "./core/schema.ts";
+import type {
+	ConfigContext as ConfigContextSource,
+	ConfigInput as ConfigInputSource,
+	defineConfig as defineConfigSource,
+} from "./shell/define-config.ts";
 
 describe("@bedrock/core/config resource-entry re-exports", () => {
 	it("should re-export Config with the same identity as core/schema", () => {
-		expectTypeOf<Config>().toEqualTypeOf<Schema.Config>();
+		expectTypeOf<Config>().toEqualTypeOf<ConfigSource>();
 	});
 
 	it("should re-export EnvironmentEntry with the same identity as core/schema", () => {
-		expectTypeOf<EnvironmentEntry>().toEqualTypeOf<Schema.EnvironmentEntry>();
+		expectTypeOf<EnvironmentEntry>().toEqualTypeOf<EnvironmentEntrySource>();
 	});
 
 	it("should re-export GamePassEntry with the same identity as core/schema", () => {
-		expectTypeOf<GamePassEntry>().toEqualTypeOf<Schema.GamePassEntry>();
+		expectTypeOf<GamePassEntry>().toEqualTypeOf<GamePassEntrySource>();
 	});
 
 	it("should re-export DeveloperProductEntry with the same identity as core/schema", () => {
-		expectTypeOf<DeveloperProductEntry>().toEqualTypeOf<Schema.DeveloperProductEntry>();
+		expectTypeOf<DeveloperProductEntry>().toEqualTypeOf<DeveloperProductEntrySource>();
 	});
 
 	it("should re-export PlaceEntry with the same identity as core/schema", () => {
-		expectTypeOf<PlaceEntry>().toEqualTypeOf<Schema.PlaceEntry>();
+		expectTypeOf<PlaceEntry>().toEqualTypeOf<PlaceEntrySource>();
 	});
 
 	it("should re-export ResolvedPlaceEntry with the same identity as core/schema", () => {
-		expectTypeOf<ResolvedPlaceEntry>().toEqualTypeOf<Schema.ResolvedPlaceEntry>();
+		expectTypeOf<ResolvedPlaceEntry>().toEqualTypeOf<ResolvedPlaceEntrySource>();
 	});
 
 	it("should re-export UniverseEntry with the same identity as core/schema", () => {
-		expectTypeOf<UniverseEntry>().toEqualTypeOf<Schema.UniverseEntry>();
+		expectTypeOf<UniverseEntry>().toEqualTypeOf<UniverseEntrySource>();
 	});
 
 	it("should re-export UniverseVisibility with the same identity as core/schema", () => {
-		expectTypeOf<UniverseVisibility>().toEqualTypeOf<Schema.UniverseVisibility>();
+		expectTypeOf<UniverseVisibility>().toEqualTypeOf<UniverseVisibilitySource>();
 	});
 
 	it("should re-export ResourceEntryByKind with the same identity as core/schema", () => {
-		expectTypeOf<ResourceEntryByKind>().toEqualTypeOf<Schema.ResourceEntryByKind>();
+		expectTypeOf<ResourceEntryByKind>().toEqualTypeOf<ResourceEntryByKindSource>();
 	});
 });
 
 describe("@bedrock/core/config state and define-config re-exports", () => {
 	it("should re-export GistStateConfig with the same identity as core/schema", () => {
-		expectTypeOf<GistStateConfig>().toEqualTypeOf<Schema.GistStateConfig>();
+		expectTypeOf<GistStateConfig>().toEqualTypeOf<GistStateConfigSource>();
 	});
 
 	it("should re-export StateConfig with the same identity as core/schema", () => {
-		expectTypeOf<StateConfig>().toEqualTypeOf<Schema.StateConfig>();
+		expectTypeOf<StateConfig>().toEqualTypeOf<StateConfigSource>();
 	});
 
 	it("should re-export ConfigContext with the same identity as shell/define-config", () => {
-		expectTypeOf<ConfigContext>().toEqualTypeOf<DefineConfig.ConfigContext>();
+		expectTypeOf<ConfigContext>().toEqualTypeOf<ConfigContextSource>();
 	});
 
 	it("should re-export ConfigInput with the same identity as shell/define-config", () => {
-		expectTypeOf<ConfigInput>().toEqualTypeOf<DefineConfig.ConfigInput>();
+		expectTypeOf<ConfigInput>().toEqualTypeOf<ConfigInputSource>();
 	});
 
 	it("should re-export defineConfig with the same function signature", () => {
-		expectTypeOf(ConfigModule.defineConfig).toEqualTypeOf<typeof DefineConfig.defineConfig>();
+		expectTypeOf(defineConfig).toEqualTypeOf<typeof defineConfigSource>();
 	});
 
 	it("should re-export SocialLink so universe social-link fields type-check", () => {
@@ -87,13 +103,15 @@ describe("@bedrock/core/config state and define-config re-exports", () => {
 });
 
 describe("@bedrock/core/config runtime surface", () => {
-	it("should expose defineConfig as the only runtime export", () => {
-		expectTypeOf<keyof typeof ConfigModule>().toEqualTypeOf<"defineConfig">();
-	});
-
-	it("should not leak programmatic-api runtime values such as deploy or loadConfig", () => {
-		expectTypeOf<keyof typeof ConfigModule>().not.toExtend<
-			"applyOps" | "buildDesired" | "deploy" | "flattenConfig" | "loadConfig"
-		>();
+	it("should not leak programmatic-api symbols such as deploy or loadConfig", () => {
+		type ProgrammaticApi =
+			| "applyOps"
+			| "buildDesired"
+			| "deploy"
+			| "flattenConfig"
+			| "loadConfig"
+			| "migrateMantleState";
+		type ConfigKeys = keyof typeof import("./config.ts");
+		expectTypeOf<Extract<ConfigKeys, ProgrammaticApi>>().toEqualTypeOf<never>();
 	});
 });
