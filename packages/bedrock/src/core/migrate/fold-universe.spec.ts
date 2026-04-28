@@ -37,6 +37,16 @@ function spatialVoice(inputs: unknown): MantleResource {
 	};
 }
 
+function experienceActivation(inputs: unknown): MantleResource {
+	return {
+		key: "singleton",
+		dependencies: [],
+		inputs,
+		kind: "experienceActivation",
+		outputs: undefined,
+	};
+}
+
 describe(foldUniverse, () => {
 	it("should map experience.outputs.assetId to universe.universeId", () => {
 		expect.assertions(1);
@@ -555,6 +565,149 @@ describe(foldUniverse, () => {
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
 				spatialVoice({ enabled: "yes" }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+	});
+
+	describe("visibility cross-fold", () => {
+		it.for<[label: string, isFriendsOnly: boolean | undefined]>([
+			["isFriendsOnly false", false],
+			["isFriendsOnly undefined", undefined],
+		])("should set visibility to public when isActive is true and %s", ([, isFriendsOnly]) => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceActivation({ isActive: true }),
+				experienceConfiguration({ isFriendsOnly }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({
+				universeId: "1",
+				visibility: "public",
+			});
+		});
+
+		it("should emit one interpretive warning for the active-public combo", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceActivation({ isActive: true }),
+				experienceConfiguration({ isFriendsOnly: false }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.warnings).toStrictEqual([
+				{
+					bedrockPath: "universe.visibility",
+					kind: "interpretive",
+					mantlePath: "experienceActivation_singleton.isActive",
+					rule: "active-public-combo",
+				},
+			]);
+		});
+
+		it("should set visibility to public when experienceConfiguration is absent and isActive is true", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceActivation({ isActive: true }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({
+				universeId: "1",
+				visibility: "public",
+			});
+		});
+
+		it("should omit visibility and emit ambiguous when isActive is false", () => {
+			expect.assertions(4);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceActivation({ isActive: false }),
+				experienceConfiguration({ isFriendsOnly: false }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toHaveLength(1);
+
+			const [warning] = result.warnings;
+			assert(warning?.kind === "ambiguous");
+
+			expect(warning.mantlePath).toBe("experienceActivation_singleton.isActive");
+			expect(warning.hint).toMatch(/dashboard/i);
+		});
+
+		it("should omit visibility and emit blocked when isFriendsOnly is true", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceActivation({ isActive: true }),
+				experienceConfiguration({ isFriendsOnly: true }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([
+				{
+					kind: "blocked",
+					mantlePath: "experienceConfiguration_singleton.isFriendsOnly",
+					reason: "isFriendsOnly has no Open Cloud equivalent",
+				},
+			]);
+		});
+
+		it("should leave the entry untouched when experienceActivation is absent", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({ isFriendsOnly: false }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should leave the entry untouched when experienceActivation.isActive is non-boolean", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceActivation({ isActive: "maybe" }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should leave the entry untouched when experienceActivation inputs is not an object", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceActivation("not-an-object"),
 			]);
 
 			assert(result !== undefined);

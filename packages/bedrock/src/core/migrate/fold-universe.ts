@@ -5,6 +5,7 @@ import type { MigrationWarning } from "./migration-report.ts";
 import type { MantleResource } from "./types.ts";
 
 const EXPERIENCE_KIND = "experience";
+const EXPERIENCE_ACTIVATION_KIND = "experienceActivation";
 const EXPERIENCE_CONFIGURATION_KIND = "experienceConfiguration";
 const SPATIAL_VOICE_KIND = "spatialVoice";
 
@@ -74,6 +75,7 @@ export function foldUniverse(
 		foldPlayableDevices(resources),
 		foldPrivateServers(resources),
 		foldVoiceChat(resources),
+		foldVisibility(resources),
 	];
 
 	const entry: UniverseEntry = fragments.reduce<UniverseEntry>(
@@ -199,6 +201,78 @@ function pricedPrivateServersFragment(price: number): FoldFragment {
 			},
 		],
 	};
+}
+
+const VISIBILITY_PUBLIC_FRAGMENT: FoldFragment = {
+	entryFragment: { visibility: "public" },
+	warnings: [
+		{
+			bedrockPath: "universe.visibility",
+			kind: "interpretive",
+			mantlePath: "experienceActivation_singleton.isActive",
+			rule: "active-public-combo",
+		},
+	],
+};
+
+const VISIBILITY_AMBIGUOUS: FoldFragment = {
+	entryFragment: {},
+	warnings: [
+		{
+			hint: "Set visibility manually or deactivate the universe in the Roblox dashboard; auto-mapping isActive=false to visibility=private would kick live players.",
+			kind: "ambiguous",
+			mantlePath: "experienceActivation_singleton.isActive",
+		},
+	],
+};
+
+const VISIBILITY_FRIENDS_BLOCKED: FoldFragment = {
+	entryFragment: {},
+	warnings: [
+		{
+			kind: "blocked",
+			mantlePath: "experienceConfiguration_singleton.isFriendsOnly",
+			reason: "isFriendsOnly has no Open Cloud equivalent",
+		},
+	],
+};
+
+function readIsActive(resources: ReadonlyArray<MantleResource>): boolean | undefined {
+	const activation = resources.find((resource) => resource.kind === EXPERIENCE_ACTIVATION_KIND);
+	if (activation === undefined || !isObjectPayload(activation.inputs)) {
+		return undefined;
+	}
+
+	const { isActive } = activation.inputs;
+	return typeof isActive === "boolean" ? isActive : undefined;
+}
+
+function readIsFriendsOnly(resources: ReadonlyArray<MantleResource>): boolean | undefined {
+	const config = resources.find((resource) => resource.kind === EXPERIENCE_CONFIGURATION_KIND);
+	if (config === undefined || !isObjectPayload(config.inputs)) {
+		return undefined;
+	}
+
+	const { isFriendsOnly } = config.inputs;
+	return typeof isFriendsOnly === "boolean" ? isFriendsOnly : undefined;
+}
+
+function foldVisibility(resources: ReadonlyArray<MantleResource>): FoldFragment {
+	const isActive = readIsActive(resources);
+	if (isActive === undefined) {
+		return EMPTY_FRAGMENT;
+	}
+
+	if (!isActive) {
+		return VISIBILITY_AMBIGUOUS;
+	}
+
+	const isFriendsOnly = readIsFriendsOnly(resources);
+	if (isFriendsOnly === true) {
+		return VISIBILITY_FRIENDS_BLOCKED;
+	}
+
+	return VISIBILITY_PUBLIC_FRAGMENT;
 }
 
 function foldVoiceChat(resources: ReadonlyArray<MantleResource>): FoldFragment {
