@@ -42,7 +42,7 @@ interface ToCurrentStateInputs {
 	readonly rootPlaceId: string;
 }
 
-interface ReconcileIconInputs {
+interface ReconcileInputs {
 	readonly current: ResourceCurrentState<"universe"> | undefined;
 	readonly deps: UniverseDriverDeps;
 	readonly desired: UniverseDesiredState;
@@ -272,7 +272,7 @@ async function deleteRemovedIcon(
 }
 
 async function reconcileIcon(
-	inputs: ReconcileIconInputs,
+	inputs: ReconcileInputs,
 ): Promise<Result<Record<"en-us", RobloxAssetId> | undefined, OpenCloudError>> {
 	const { current, deps, desired } = inputs;
 	if (desired.icon === undefined) {
@@ -301,7 +301,7 @@ async function reconcileIcon(
 }
 
 async function reconcileUniverse(
-	inputs: ReconcileIconInputs,
+	inputs: ReconcileInputs,
 ): Promise<Result<ResourceCurrentState<"universe">, OpenCloudError>> {
 	const { current, deps, desired } = inputs;
 	const universeResult = await resolveUniverse(deps, desired);

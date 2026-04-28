@@ -3,7 +3,7 @@ import type { SocialLink } from "@bedrock/ocale/universes";
 
 import { type } from "arktype";
 
-import { asRobloxAssetId, asSha256Hex, type Sha256Hex } from "../../types/ids.ts";
+import { asRobloxAssetId, asSha256Hex, type ResourceKey, type Sha256Hex } from "../../types/ids.ts";
 import type { UniverseDesiredInput } from "../flatten.ts";
 import {
 	copyDeclaredSocialLinks,
@@ -82,7 +82,7 @@ function flatten(config: ResolvedConfig): ReadonlyArray<UniverseDesiredInput> {
 }
 
 async function hashIconLocales(
-	input: UniverseDesiredInput & { readonly icon: Record<"en-us", string> },
+	input: { readonly icon: Record<"en-us", string>; readonly key: ResourceKey },
 	io: KindIo,
 ): Promise<Result<Record<"en-us", Sha256Hex>, BuildDesiredError>> {
 	const read = await readBytes({ key: input.key, filePath: input.icon["en-us"] }, io);
