@@ -131,7 +131,9 @@ The framing narrows:
 
 ### Empirical re-validation
 
-A spike against the current CLI bundle on macOS arm64 (2026-04-28):
+A spike against the current CLI bundle on macOS arm64 (2026-04-28).
+Startup is measured as the compiled binary cold-starting and returning from
+`--help`, not the bare runtime startup quoted earlier in this ADR:
 
 | Technique                      | Binary size | Cold startup (median of 5) |
 | ------------------------------ | ----------- | -------------------------- |
