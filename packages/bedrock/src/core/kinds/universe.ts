@@ -5,6 +5,7 @@ import { type } from "arktype";
 
 import { asRobloxAssetId, asSha256Hex, type ResourceKey, type Sha256Hex } from "../../types/ids.ts";
 import type { UniverseDesiredInput } from "../flatten.ts";
+import { iconHashesEqual } from "../icons.ts";
 import {
 	copyDeclaredSocialLinks,
 	type ResourceCurrentState,
@@ -167,21 +168,6 @@ function declaredSocialLinksEqual(
 	return true;
 }
 
-function iconHashesEqual(
-	desired: UniverseDesiredState,
-	current: ResourceCurrentState<"universe">,
-): boolean {
-	if (desired.iconFileHashes === undefined) {
-		return current.iconFileHashes === undefined;
-	}
-
-	if (current.iconFileHashes === undefined) {
-		return false;
-	}
-
-	return desired.iconFileHashes["en-us"] === current.iconFileHashes["en-us"];
-}
-
 function fieldsEqual(
 	desired: UniverseDesiredState,
 	current: ResourceCurrentState<"universe">,
@@ -215,7 +201,7 @@ function fieldsEqual(
 		return false;
 	}
 
-	if (!iconHashesEqual(desired, current)) {
+	if (!iconHashesEqual(desired.iconFileHashes, current.iconFileHashes)) {
 		return false;
 	}
 
