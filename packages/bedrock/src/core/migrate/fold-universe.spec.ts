@@ -58,6 +58,26 @@ function socialLink(domain: string, inputs: unknown): MantleResource {
 	};
 }
 
+function place(key: string, inputs: unknown): MantleResource {
+	return {
+		key,
+		dependencies: [],
+		inputs,
+		kind: "place",
+		outputs: { assetId: 17613681043 },
+	};
+}
+
+function placeConfiguration(key: string, inputs: unknown): MantleResource {
+	return {
+		key,
+		dependencies: [],
+		inputs,
+		kind: "placeConfiguration",
+		outputs: undefined,
+	};
+}
+
 describe(foldUniverse, () => {
 	it("should map experience.outputs.assetId to universe.universeId", () => {
 		expect.assertions(1);
@@ -890,6 +910,200 @@ describe(foldUniverse, () => {
 
 			expect(result.entry).toStrictEqual({ universeId: "1" });
 			expect(result.warnings).toStrictEqual([]);
+		});
+	});
+
+	describe("displayName cross-fold", () => {
+		it("should fold the start place's placeConfiguration.name into universe.displayName", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				place("start", { isStart: true }),
+				placeConfiguration("start", { name: "My Place" }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({
+				displayName: "My Place",
+				universeId: "1",
+			});
+		});
+
+		it("should emit one interpretive warning for the displayName mapping", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				place("start", { isStart: true }),
+				placeConfiguration("start", { name: "My Place" }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.warnings).toStrictEqual([
+				{
+					bedrockPath: "universe.displayName",
+					kind: "interpretive",
+					mantlePath: "placeConfiguration_start.name",
+					rule: "start-place-name-to-display-name",
+				},
+			]);
+		});
+
+		it("should emit blocked for non-start placeConfiguration.name and not include it in displayName", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				place("start", { isStart: true }),
+				place("lobby", { isStart: false }),
+				placeConfiguration("start", { name: "My Place" }),
+				placeConfiguration("lobby", { name: "Lobby" }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry.displayName).toBe("My Place");
+			expect(result.warnings).toIncludeAllPartialMembers([
+				{
+					kind: "blocked",
+					mantlePath: "placeConfiguration_lobby.name",
+					reason: "non-start placeConfiguration.name has no Open Cloud equivalent",
+				},
+			]);
+		});
+
+		it("should leave displayName untouched when no places have isStart true", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				place("start", { isStart: false }),
+				placeConfiguration("start", { name: "My Place" }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry.displayName).toBeNil();
+			expect(result.warnings).toStrictEqual([
+				{
+					kind: "blocked",
+					mantlePath: "placeConfiguration_start.name",
+					reason: "non-start placeConfiguration.name has no Open Cloud equivalent",
+				},
+			]);
+		});
+
+		it("should not treat isStart=true on a non-place resource as a start place", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({ isStart: true }),
+				place("start", { isStart: true }),
+				placeConfiguration("start", { name: "My Place" }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry.displayName).toBe("My Place");
+			expect(result.warnings).toStrictEqual([
+				{
+					bedrockPath: "universe.displayName",
+					kind: "interpretive",
+					mantlePath: "placeConfiguration_start.name",
+					rule: "start-place-name-to-display-name",
+				},
+			]);
+		});
+
+		it("should leave displayName untouched when no placeConfiguration matches the start key", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				place("start", { isStart: true }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should omit displayName and emit ambiguous when multiple places have isStart true", () => {
+			expect.assertions(3);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				place("start", { isStart: true }),
+				place("alt-start", { isStart: true }),
+				placeConfiguration("start", { name: "Primary" }),
+				placeConfiguration("alt-start", { name: "Alternate" }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry.displayName).toBeNil();
+			expect(result.warnings).toIncludeAllPartialMembers([
+				{
+					kind: "ambiguous",
+					mantlePath: "place_*.isStart",
+				},
+			]);
+			expect(result.warnings.filter((warning) => warning.kind === "blocked")).toHaveLength(2);
+		});
+
+		it("should silently skip a placeConfiguration whose name is non-string", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				place("start", { isStart: true }),
+				placeConfiguration("start", { name: 42 }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should silently skip a placeConfiguration whose inputs is not an object", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				place("start", { isStart: true }),
+				placeConfiguration("start", "not-an-object"),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should silently skip a place resource whose inputs is not an object", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				place("start", "not-an-object"),
+				placeConfiguration("start", { name: "My Place" }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toIncludeAllPartialMembers([
+				{
+					kind: "blocked",
+					mantlePath: "placeConfiguration_start.name",
+				},
+			]);
 		});
 	});
 });

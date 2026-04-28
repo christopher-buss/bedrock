@@ -1,6 +1,7 @@
 import { asRobloxAssetId } from "../../types/ids.ts";
 import type { UniverseOutputs } from "../resources.ts";
 import type { UniverseEntry } from "../schema.ts";
+import { foldDisplayName } from "./fold-display-name.ts";
 import { foldSocialLinks } from "./fold-social-links.ts";
 import {
 	EMPTY_FRAGMENT,
@@ -79,6 +80,7 @@ export function foldUniverse(
 		foldVoiceChat(resources),
 		foldVisibility(resources),
 		foldSocialLinks(resources),
+		foldDisplayName(resources),
 	];
 
 	const entry: UniverseEntry = fragments.reduce<UniverseEntry>(
