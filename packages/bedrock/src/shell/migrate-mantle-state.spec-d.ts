@@ -51,10 +51,6 @@ describe("MigrateMantleStateDeps", () => {
 			((path: string) => Promise<Uint8Array>) | undefined
 		>();
 	});
-
-	it("should accept an optional now supplier returning a Date", () => {
-		expectTypeOf<MigrateMantleStateDeps["now"]>().toEqualTypeOf<(() => Date) | undefined>();
-	});
 });
 
 describe("MigrationReport", () => {
@@ -68,7 +64,7 @@ describe("MigrationReport", () => {
 		expectTypeOf<MigrationReport["config"]>().toEqualTypeOf<Config>();
 	});
 
-	it("should carry a string for the rendered TypeScript source", () => {
+	it("should carry a string for the rendered config file content", () => {
 		expectTypeOf<MigrationReport["configFileContent"]>().toEqualTypeOf<string>();
 	});
 
