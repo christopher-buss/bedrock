@@ -20,6 +20,11 @@ type PassOverlayEntry = NonNullable<EnvironmentEntry["passes"]>[string];
 type PlaceOverlayEntry = NonNullable<EnvironmentEntry["places"]>[string];
 type UniverseOverlay = NonNullable<EnvironmentEntry["universe"]>;
 
+interface ResolvedPrimary {
+	readonly name: string;
+	readonly fold: EnvironmentFoldResult;
+}
+
 /**
  * Project per-environment fold results into a single bedrock `Config` by
  * factoring the chosen primary environment's resolved values up to the root
@@ -39,70 +44,63 @@ type UniverseOverlay = NonNullable<EnvironmentEntry["universe"]>;
 export function factorizeEnvironments(
 	inputs: FactorizeInputs,
 ): Result<FactorizeResult, MigrateError> {
-	const available = [...inputs.folds.keys()];
-	const primaryResult = pickPrimary(available, inputs.primaryEnvironment);
+	const primaryResult = pickPrimary(inputs.folds, inputs.primaryEnvironment);
 	if (!primaryResult.success) {
 		return primaryResult;
 	}
 
-	const primaryName = primaryResult.data;
-	const primaryFold = inputs.folds.get(primaryName);
-	const config = buildConfig(inputs.folds, primaryFold);
-	const warnings = collectMissingResourceWarnings(inputs.folds, primaryName);
-
+	const primary = primaryResult.data;
 	return {
-		data: { config, primaryEnvironment: primaryName, warnings },
+		data: {
+			config: buildConfig(inputs.folds, primary.fold),
+			primaryEnvironment: primary.name,
+			warnings: collectMissingResourceWarnings({ folds: inputs.folds, primary }),
+		},
 		success: true,
 	};
 }
 
 function pickPrimary(
-	available: ReadonlyArray<string>,
+	folds: ReadonlyMap<string, EnvironmentFoldResult>,
 	primary: string | undefined,
-): Result<string, MigrateError> {
-	if (primary === undefined) {
-		const [only, ...rest] = available;
-		if (only === undefined || rest.length > 0) {
-			return {
-				err: { available, kind: "primaryEnvironmentRequired" },
-				success: false,
-			};
-		}
-
-		return { data: only, success: true };
+): Result<ResolvedPrimary, MigrateError> {
+	const available = [...folds.keys()];
+	const requested = primary ?? (available.length === 1 ? available[0] : undefined);
+	if (requested === undefined) {
+		return { err: { available, kind: "primaryEnvironmentRequired" }, success: false };
 	}
 
-	if (!available.includes(primary)) {
+	const fold = folds.get(requested);
+	if (fold === undefined) {
 		return {
-			err: { available, kind: "primaryEnvironmentNotFound", primary },
+			err: { available, kind: "primaryEnvironmentNotFound", primary: requested },
 			success: false,
 		};
 	}
 
-	return { data: primary, success: true };
+	return { data: { name: requested, fold }, success: true };
 }
 
 function buildRootPlaces(
-	primaryFold: EnvironmentFoldResult | undefined,
+	primaryFold: EnvironmentFoldResult,
 ): Record<string, PlaceEntry> | undefined {
-	if (primaryFold === undefined || primaryFold.places.size === 0) {
+	if (primaryFold.places.size === 0) {
 		return undefined;
 	}
 
 	return Object.fromEntries(
-		[...primaryFold.places.entries()].map(([key, fold]) => [key, { ...fold.entry }]),
+		[...primaryFold.places.entries()].map(([key, fold]) => [key, fold.entry]),
 	);
 }
 
 function buildRootPasses(
-	primaryFold: EnvironmentFoldResult | undefined,
+	primaryFold: EnvironmentFoldResult,
 ): Record<string, GamePassEntry> | undefined {
-	const passes = primaryFold?.passes ?? [];
-	if (passes.length === 0) {
+	if (primaryFold.passes.length === 0) {
 		return undefined;
 	}
 
-	return Object.fromEntries(passes.map(({ key, entry }) => [key, entry]));
+	return Object.fromEntries(primaryFold.passes.map(({ key, entry }) => [key, entry]));
 }
 
 function buildPlaceOverlayEntry(
@@ -219,7 +217,7 @@ function buildEnvironmentEntry(
 
 function buildEnvironmentEntries(
 	folds: ReadonlyMap<string, EnvironmentFoldResult>,
-	primaryFold: EnvironmentFoldResult | undefined,
+	primaryFold: EnvironmentFoldResult,
 ): Record<string, EnvironmentEntry> {
 	const entries: Record<string, EnvironmentEntry> = {};
 	for (const [name, fold] of folds) {
@@ -231,12 +229,12 @@ function buildEnvironmentEntries(
 
 function buildConfig(
 	folds: ReadonlyMap<string, EnvironmentFoldResult>,
-	primaryFold: EnvironmentFoldResult | undefined,
+	primaryFold: EnvironmentFoldResult,
 ): Config {
 	const environments = buildEnvironmentEntries(folds, primaryFold);
 	const places = buildRootPlaces(primaryFold);
 	const passes = buildRootPasses(primaryFold);
-	const universe = primaryFold?.universe?.entry;
+	const universe = primaryFold.universe?.entry;
 
 	const config: Config = { environments };
 	if (passes !== undefined) {
@@ -266,6 +264,11 @@ interface MissingResourcePaths {
 	readonly bedrockSegment: string;
 	readonly environmentName: string;
 	readonly mantleSegment: string;
+}
+
+interface MissingResourceInputs {
+	readonly folds: ReadonlyMap<string, EnvironmentFoldResult>;
+	readonly primary: ResolvedPrimary;
 }
 
 function missingResourceWarning(paths: MissingResourcePaths): MigrationWarning {
@@ -330,16 +333,11 @@ function passAsymmetryWarnings(context: AsymmetryContext): ReadonlyArray<Migrati
 }
 
 function collectMissingResourceWarnings(
-	folds: ReadonlyMap<string, EnvironmentFoldResult>,
-	primaryName: string,
+	inputs: MissingResourceInputs,
 ): ReadonlyArray<MigrationWarning> {
-	const primary = folds.get(primaryName);
-	if (primary === undefined) {
-		return [];
-	}
-
-	return [...folds.entries()].flatMap(([name, fold]): ReadonlyArray<MigrationWarning> => {
-		const context: AsymmetryContext = { environmentName: name, fold, primary };
+	const primaryFold = inputs.primary.fold;
+	return [...inputs.folds.entries()].flatMap(([name, fold]): ReadonlyArray<MigrationWarning> => {
+		const context: AsymmetryContext = { environmentName: name, fold, primary: primaryFold };
 		return [
 			...universeAsymmetryWarnings(context),
 			...placeAsymmetryWarnings(context),
