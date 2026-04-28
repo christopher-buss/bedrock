@@ -614,6 +614,25 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "universeId"]);
 	});
 
+	it("should accept a universe block with icon: { 'en-us': string }", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				universe: {
+					icon: { "en-us": "assets/icon.png" },
+					universeId: "1234567890",
+				},
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.universe!.icon).toStrictEqual({ "en-us": "assets/icon.png" });
+	});
+
 	it("should accept a universe block with all four optional managed fields declared", () => {
 		expect.assertions(4);
 
