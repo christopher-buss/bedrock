@@ -404,6 +404,34 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
+	it("should carry every divergent pass field on a non-primary overlay when several diverge at once", () => {
+		expect.assertions(1);
+
+		const primaryEntry = {
+			name: "Example Pass",
+			description: "This is an example pass.",
+			iconFilePath: "assets/marketing/example-icon.png",
+			price: 5,
+		};
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					passes: [passWithEntry("vip", { ...primaryEntry, name: "Dev VIP", price: 10 })],
+				}),
+			],
+			["production", fold({ passes: [passWithEntry("vip", primaryEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.passes).toStrictEqual({
+			vip: { name: "Dev VIP", price: 10 },
+		});
+	});
+
 	it("should omit the passes overlay when every pass field matches the primary's pass", () => {
 		expect.assertions(1);
 
