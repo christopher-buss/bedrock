@@ -1257,5 +1257,57 @@ describe(foldUniverse, () => {
 
 			expect(friendsOnlyBlocked).toHaveLength(1);
 		});
+
+		it.for<[label: string, key: string]>([
+			["universeAvatarType", "universeAvatarType"],
+			["universeAvatarMinScales", "universeAvatarMinScales"],
+			["universeAvatarMaxScales", "universeAvatarMaxScales"],
+			["universeAvatarAssetOverrides", "universeAvatarAssetOverrides"],
+			["a forward-looking universeAvatarFoo", "universeAvatarFoo"],
+		])("should emit a blocked warning for the %s glob match", ([, key]) => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({ [key]: "PlayerChoice" }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.warnings).toStrictEqual([
+				{
+					kind: "blocked",
+					mantlePath: `experienceConfiguration_singleton.${key}`,
+					reason: "avatar configuration has no Open Cloud equivalent",
+				},
+			]);
+		});
+
+		it("should not glob-match keys that lack the universeAvatar prefix", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({ universeAnimationType: "PlayerChoice" }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should skip a universeAvatar key whose value is undefined", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({ universeAvatarType: undefined }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.warnings).toStrictEqual([]);
+		});
 	});
 });

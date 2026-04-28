@@ -8,6 +8,8 @@ import type { MigrationWarning } from "./migration-report.ts";
 import type { MantleResource } from "./types.ts";
 
 const EXPERIENCE_CONFIGURATION_KIND = "experienceConfiguration";
+const UNIVERSE_AVATAR_PREFIX = "universeAvatar";
+const UNIVERSE_AVATAR_REASON = "avatar configuration has no Open Cloud equivalent";
 
 interface BlockedFieldRule {
 	readonly field: string;
@@ -58,7 +60,7 @@ export function foldBlockedExperienceFields(
 	}
 
 	const { inputs } = config;
-	const warnings: ReadonlyArray<MigrationWarning> = BLOCKED_FIELDS.flatMap((rule) => {
+	const staticWarnings: ReadonlyArray<MigrationWarning> = BLOCKED_FIELDS.flatMap((rule) => {
 		if (inputs[rule.field] === undefined) {
 			return [];
 		}
@@ -66,5 +68,11 @@ export function foldBlockedExperienceFields(
 		return [blockedWarning(`experienceConfiguration_singleton.${rule.field}`, rule.reason)];
 	});
 
-	return { entryFragment: {}, warnings };
+	const avatarWarnings: ReadonlyArray<MigrationWarning> = Object.keys(inputs)
+		.filter((key) => key.startsWith(UNIVERSE_AVATAR_PREFIX) && inputs[key] !== undefined)
+		.map((key) =>
+			blockedWarning(`experienceConfiguration_singleton.${key}`, UNIVERSE_AVATAR_REASON),
+		);
+
+	return { entryFragment: {}, warnings: [...staticWarnings, ...avatarWarnings] };
 }
