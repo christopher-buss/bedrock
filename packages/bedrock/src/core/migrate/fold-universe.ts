@@ -6,6 +6,7 @@ import type { MantleResource } from "./types.ts";
 
 const EXPERIENCE_KIND = "experience";
 const EXPERIENCE_CONFIGURATION_KIND = "experienceConfiguration";
+const SPATIAL_VOICE_KIND = "spatialVoice";
 
 const PLAYABLE_DEVICE_TO_FLAG: Readonly<
 	Record<string, "consoleEnabled" | "desktopEnabled" | "mobileEnabled" | "tabletEnabled">
@@ -72,6 +73,7 @@ export function foldUniverse(
 	const fragments: ReadonlyArray<FoldFragment> = [
 		foldPlayableDevices(resources),
 		foldPrivateServers(resources),
+		foldVoiceChat(resources),
 	];
 
 	const entry: UniverseEntry = fragments.reduce<UniverseEntry>(
@@ -194,6 +196,30 @@ function pricedPrivateServersFragment(price: number): FoldFragment {
 				kind: "interpretive",
 				mantlePath: "experienceConfiguration_singleton.privateServerPrice",
 				rule: "private-servers-priced",
+			},
+		],
+	};
+}
+
+function foldVoiceChat(resources: ReadonlyArray<MantleResource>): FoldFragment {
+	const voice = resources.find((resource) => resource.kind === SPATIAL_VOICE_KIND);
+	if (voice === undefined || !isObjectPayload(voice.inputs)) {
+		return EMPTY_FRAGMENT;
+	}
+
+	const { enabled } = voice.inputs;
+	if (typeof enabled !== "boolean") {
+		return EMPTY_FRAGMENT;
+	}
+
+	return {
+		entryFragment: { voiceChatEnabled: enabled },
+		warnings: [
+			{
+				bedrockPath: "universe.voiceChatEnabled",
+				kind: "interpretive",
+				mantlePath: "spatialVoice_singleton.enabled",
+				rule: "voice-chat-enabled",
 			},
 		],
 	};

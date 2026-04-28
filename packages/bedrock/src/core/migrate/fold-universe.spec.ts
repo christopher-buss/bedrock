@@ -27,6 +27,16 @@ function experienceConfiguration(inputs: unknown): MantleResource {
 	};
 }
 
+function spatialVoice(inputs: unknown): MantleResource {
+	return {
+		key: "singleton",
+		dependencies: [],
+		inputs,
+		kind: "spatialVoice",
+		outputs: undefined,
+	};
+}
+
 describe(foldUniverse, () => {
 	it("should map experience.outputs.assetId to universe.universeId", () => {
 		expect.assertions(1);
@@ -65,7 +75,7 @@ describe(foldUniverse, () => {
 		expect(result.outputs.rootPlaceId).toBe("17613681043");
 	});
 
-	it("should emit no warnings in the skeleton", () => {
+	it("should emit no warnings when only the experience resource is present", () => {
 		expect.assertions(1);
 
 		const result = foldUniverse([
@@ -77,25 +87,6 @@ describe(foldUniverse, () => {
 		expect(result.warnings).toStrictEqual([]);
 	});
 
-	it("should ignore other Mantle kinds and only consume experience", () => {
-		expect.assertions(1);
-
-		const result = foldUniverse([
-			{
-				key: "singleton",
-				dependencies: [],
-				inputs: { enabled: true },
-				kind: "spatialVoice",
-				outputs: undefined,
-			},
-			experience({ assetId: 1, startPlaceId: 2 }),
-		]);
-
-		assert(result !== undefined);
-
-		expect(result.entry).toStrictEqual({ universeId: "1" });
-	});
-
 	it("should return undefined when no experience resource is present", () => {
 		expect.assertions(1);
 
@@ -103,8 +94,8 @@ describe(foldUniverse, () => {
 			{
 				key: "singleton",
 				dependencies: [],
-				inputs: { enabled: true },
-				kind: "spatialVoice",
+				inputs: { filePath: "icon.png" },
+				kind: "experienceIcon",
 				outputs: undefined,
 			},
 		]);
@@ -484,6 +475,86 @@ describe(foldUniverse, () => {
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
 				experienceConfiguration({ privateServerPrice: 25 }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+	});
+
+	describe("voiceChat fold", () => {
+		it.for<[label: string, enabled: boolean]>([
+			["enabled true", true],
+			["enabled false", false],
+		])("should fold spatialVoice with %s into voiceChatEnabled", ([, enabled]) => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				spatialVoice({ enabled }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({
+				universeId: "1",
+				voiceChatEnabled: enabled,
+			});
+		});
+
+		it("should emit one interpretive warning when voice chat is folded", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				spatialVoice({ enabled: true }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.warnings).toStrictEqual([
+				{
+					bedrockPath: "universe.voiceChatEnabled",
+					kind: "interpretive",
+					mantlePath: "spatialVoice_singleton.enabled",
+					rule: "voice-chat-enabled",
+				},
+			]);
+		});
+
+		it("should leave the entry untouched when no spatialVoice resource is present", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([experience(DEFAULT_EXPERIENCE_OUTPUTS)]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should leave the entry untouched when spatialVoice inputs is not an object", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				spatialVoice("not-an-object"),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should leave the entry untouched when spatialVoice.enabled is non-boolean", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				spatialVoice({ enabled: "yes" }),
 			]);
 
 			assert(result !== undefined);
