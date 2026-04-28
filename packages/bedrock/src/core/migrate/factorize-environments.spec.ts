@@ -122,7 +122,7 @@ describe(factorizeEnvironments, () => {
 		assert(result.err.kind === "primaryEnvironmentNotFound");
 
 		expect(result.err.kind).toBe("primaryEnvironmentNotFound");
-		expect(result.err.requested).toBe("staging");
+		expect(result.err.primary).toBe("staging");
 		expect(result.err.available).toStrictEqual(["development", "production"]);
 	});
 

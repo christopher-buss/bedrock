@@ -75,9 +75,9 @@ export function factorizeEnvironments(
 
 function pickPrimary(
 	available: ReadonlyArray<string>,
-	requested: string | undefined,
+	primary: string | undefined,
 ): Result<string, MigrateError> {
-	if (requested === undefined) {
+	if (primary === undefined) {
 		const [only, ...rest] = available;
 		if (only === undefined || rest.length > 0) {
 			return {
@@ -89,14 +89,14 @@ function pickPrimary(
 		return { data: only, success: true };
 	}
 
-	if (!available.includes(requested)) {
+	if (!available.includes(primary)) {
 		return {
-			err: { available, kind: "primaryEnvironmentNotFound", requested },
+			err: { available, kind: "primaryEnvironmentNotFound", primary },
 			success: false,
 		};
 	}
 
-	return { data: requested, success: true };
+	return { data: primary, success: true };
 }
 
 function buildRootPlaces(
