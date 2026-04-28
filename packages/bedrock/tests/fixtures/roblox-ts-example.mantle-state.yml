@@ -199,6 +199,17 @@ environments:
           assetId: 17622418492
       dependencies:
         - badge_1-example
+    - id: socialLink_discord.gg
+      inputs:
+        socialLink:
+          title: Join our Discord
+          url: https://discord.gg/example
+          linkType: Discord
+      outputs:
+        socialLink:
+          assetId: 4567890123
+      dependencies:
+        - experience_singleton
   production:
     - id: experience_singleton
       inputs:
@@ -405,3 +416,25 @@ environments:
           assetId: 17834657184
       dependencies:
         - badge_1-example
+    - id: socialLink_discord.gg
+      inputs:
+        socialLink:
+          title: Join our Discord
+          url: https://discord.gg/example
+          linkType: Discord
+      outputs:
+        socialLink:
+          assetId: 4567890456
+      dependencies:
+        - experience_singleton
+    - id: socialLink_twitter.com
+      inputs:
+        socialLink:
+          title: Follow us on Twitter
+          url: https://twitter.com/example
+          linkType: Twitter
+      outputs:
+        socialLink:
+          assetId: 4567890457
+      dependencies:
+        - experience_singleton
