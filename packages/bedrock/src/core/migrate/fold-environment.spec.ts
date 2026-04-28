@@ -2,6 +2,7 @@ import { assert, describe, expect, it } from "vitest";
 
 import { asResourceKey } from "../../types/ids.ts";
 import { foldEnvironment } from "./fold-environment.ts";
+import { mantleResource } from "./mantle-resource-fixture.ts";
 import type { MantleResource } from "./types.ts";
 
 const VALID_HASH = "908498abb7f4fca2b7d2b050bfe7c48c009202fabd85f489b03bb19ac6e0b1d9";
@@ -50,16 +51,6 @@ function pass(key: string): MantleResource {
 		},
 		kind: "pass",
 		outputs: { assetId: 838509486, iconAssetId: 18109205439 },
-	};
-}
-
-function deferredResource(kind: string, key: string): MantleResource {
-	return {
-		key,
-		dependencies: [],
-		inputs: {},
-		kind,
-		outputs: undefined,
 	};
 }
 
@@ -162,8 +153,8 @@ describe(foldEnvironment, () => {
 
 		const result = foldEnvironment([
 			experience(),
-			deferredResource("badge", "first-win"),
-			deferredResource("product", "starter"),
+			mantleResource("badge", "first-win"),
+			mantleResource("product", "starter"),
 		]);
 
 		expect(result.warnings).toHaveLength(2);
@@ -176,7 +167,7 @@ describe(foldEnvironment, () => {
 	it("should emit deferred warnings with resource-rooted mantlePath", () => {
 		expect.assertions(1);
 
-		const result = foldEnvironment([deferredResource("badge", "first-win")]);
+		const result = foldEnvironment([mantleResource("badge", "first-win")]);
 
 		expect(result.warnings.map((warning) => warning.mantlePath)).toStrictEqual([
 			"badge_first-win",
@@ -186,7 +177,7 @@ describe(foldEnvironment, () => {
 	it("should emit deferred warnings even when no experience is present", () => {
 		expect.assertions(2);
 
-		const result = foldEnvironment([deferredResource("experienceIcon", "singleton")]);
+		const result = foldEnvironment([mantleResource("experienceIcon", "singleton")]);
 
 		expect(result.universe).toBeUndefined();
 		expect(result.warnings).toHaveLength(1);
@@ -198,7 +189,7 @@ describe(foldEnvironment, () => {
 		const result = foldEnvironment([
 			experience(),
 			place(),
-			deferredResource("badge", "first-win"),
+			mantleResource("badge", "first-win"),
 		]);
 
 		expect(result.warnings.map((warning) => warning.kind)).toStrictEqual([

@@ -1,21 +1,11 @@
 import { assert, describe, expect, it } from "vitest";
 
 import { foldUnsupported } from "./fold-unsupported.ts";
-import type { MantleResource } from "./types.ts";
+import { mantleResource } from "./mantle-resource-fixture.ts";
 
 interface DeferredCase {
 	readonly humanName: string;
 	readonly kind: string;
-}
-
-function resource(kind: string, key: string): MantleResource {
-	return {
-		key,
-		dependencies: [],
-		inputs: {},
-		kind,
-		outputs: undefined,
-	};
 }
 
 const DEFERRED_CASES: ReadonlyArray<DeferredCase> = [
@@ -38,7 +28,7 @@ describe(foldUnsupported, () => {
 		({ humanName, kind }) => {
 			expect.assertions(2);
 
-			const warnings = foldUnsupported([resource(kind, "alpha")]);
+			const warnings = foldUnsupported([mantleResource(kind, "alpha")]);
 
 			expect(warnings).toHaveLength(1);
 			expect(warnings[0]).toStrictEqual({
@@ -54,7 +44,10 @@ describe(foldUnsupported, () => {
 		({ kind }) => {
 			expect.assertions(2);
 
-			const warnings = foldUnsupported([resource(kind, "alpha"), resource(kind, "beta")]);
+			const warnings = foldUnsupported([
+				mantleResource(kind, "alpha"),
+				mantleResource(kind, "beta"),
+			]);
 
 			expect(warnings).toHaveLength(2);
 
@@ -69,9 +62,9 @@ describe(foldUnsupported, () => {
 		expect.assertions(1);
 
 		const warnings = foldUnsupported([
-			resource("experience", "singleton"),
-			resource("place", "start"),
-			resource("gamePass", "vip"),
+			mantleResource("experience", "singleton"),
+			mantleResource("place", "start"),
+			mantleResource("gamePass", "vip"),
 		]);
 
 		expect(warnings).toStrictEqual([]);
@@ -81,9 +74,9 @@ describe(foldUnsupported, () => {
 		expect.assertions(2);
 
 		const warnings = foldUnsupported([
-			resource("badge", "first-win"),
-			resource("product", "starter-pack"),
-			resource("experienceIcon", "singleton"),
+			mantleResource("badge", "first-win"),
+			mantleResource("product", "starter-pack"),
+			mantleResource("experienceIcon", "singleton"),
 		]);
 
 		expect(warnings).toHaveLength(3);
@@ -98,9 +91,9 @@ describe(foldUnsupported, () => {
 		expect.assertions(1);
 
 		const warnings = foldUnsupported([
-			resource("audioAsset", "theme"),
-			resource("imageAsset", "logo"),
-			resource("badge", "first-win"),
+			mantleResource("audioAsset", "theme"),
+			mantleResource("imageAsset", "logo"),
+			mantleResource("badge", "first-win"),
 		]);
 
 		expect(warnings.map((warning) => warning.mantlePath)).toStrictEqual([
