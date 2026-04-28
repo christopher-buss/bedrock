@@ -238,7 +238,7 @@ export interface EnvironmentEntry {
  * @example
  *
  * ```ts
- * import type { ResourceEntryByKind } from "@bedrock/core";
+ * import type { ResourceEntryByKind } from "@bedrock/core/config";
  *
  * const entry: ResourceEntryByKind["gamePass"] = {
  *     description: "Grants VIP perks.",
@@ -275,7 +275,7 @@ export interface ResourceEntryByKind {
  * @example
  *
  * ```ts
- * import type { Config } from "@bedrock/core";
+ * import type { Config } from "@bedrock/core/config";
  *
  * const config: Config = {
  *     environments: { production: {} },
@@ -328,7 +328,8 @@ export interface Config {
  * @example
  *
  * ```ts
- * import { selectEnvironment, type Config, type ResolvedConfig } from "@bedrock/core";
+ * import { selectEnvironment, type ResolvedConfig } from "@bedrock/core";
+ * import type { Config } from "@bedrock/core/config";
  *
  * const config: Config = {
  *     environments: {
@@ -372,7 +373,8 @@ type Overlay<T, RequiredKey extends keyof T> = SetRequired<Partial<T>, RequiredK
  * @example
  *
  * ```ts
- * import { isGistStateConfig, type StateConfig } from "@bedrock/core";
+ * import { isGistStateConfig } from "@bedrock/core";
+ * import type { StateConfig } from "@bedrock/core/config";
  *
  * const config: StateConfig = { backend: "gist", gistId: "abc" };
  *

@@ -95,7 +95,8 @@ interface ProjectInputs {
  * @example
  *
  * ```ts
- * import { selectEnvironment, type Config } from "@bedrock/core";
+ * import { selectEnvironment } from "@bedrock/core";
+ * import type { Config } from "@bedrock/core/config";
  *
  * const config: Config = {
  *     environments: {
