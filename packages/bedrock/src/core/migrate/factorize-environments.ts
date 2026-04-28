@@ -37,6 +37,7 @@ export interface FactorizeResult {
 }
 
 type PlaceOverlayEntry = NonNullable<EnvironmentEntry["places"]>[string];
+type UniverseOverlay = NonNullable<EnvironmentEntry["universe"]>;
 
 /**
  * Project per-environment fold results into a single bedrock `Config` by
@@ -149,16 +150,40 @@ function buildPlacesOverlay(
 	return overlay;
 }
 
+function buildUniverseOverlay(
+	fold: EnvironmentFoldResult,
+	primary: EnvironmentFoldResult | undefined,
+): undefined | UniverseOverlay {
+	const foldUniverse = fold.universe;
+	if (foldUniverse === undefined) {
+		return undefined;
+	}
+
+	const primaryUniverseId = primary?.universe?.entry.universeId;
+	if (primaryUniverseId === foldUniverse.entry.universeId) {
+		return undefined;
+	}
+
+	return { universeId: foldUniverse.entry.universeId };
+}
+
 function buildEnvironmentEntry(
 	fold: EnvironmentFoldResult,
 	primary: EnvironmentFoldResult | undefined,
 ): EnvironmentEntry {
 	const places = buildPlacesOverlay(fold, primary);
-	if (places === undefined) {
-		return {};
+	const universe = buildUniverseOverlay(fold, primary);
+
+	const entry: EnvironmentEntry = {};
+	if (places !== undefined) {
+		entry.places = places;
 	}
 
-	return { places };
+	if (universe !== undefined) {
+		entry.universe = universe;
+	}
+
+	return entry;
 }
 
 function buildEnvironmentEntries(

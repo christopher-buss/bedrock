@@ -172,6 +172,70 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.universe?.universeId).toBe("6031475575");
 	});
 
+	it("should override universeId on a non-primary overlay when it diverges from the primary", () => {
+		expect.assertions(1);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					universe: {
+						entry: { universeId: "1111111111" },
+						outputs: { rootPlaceId: asRobloxAssetId("2222222222") },
+					},
+				}),
+			],
+			[
+				"production",
+				fold({
+					universe: {
+						entry: { universeId: "6031475575" },
+						outputs: { rootPlaceId: asRobloxAssetId("17613681043") },
+					},
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.universe).toStrictEqual({
+			universeId: "1111111111",
+		});
+	});
+
+	it("should omit the universe overlay when the env's universe matches the primary's", () => {
+		expect.assertions(1);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					universe: {
+						entry: { universeId: "6031475575" },
+						outputs: { rootPlaceId: asRobloxAssetId("17613681043") },
+					},
+				}),
+			],
+			[
+				"production",
+				fold({
+					universe: {
+						entry: { universeId: "6031475575" },
+						outputs: { rootPlaceId: asRobloxAssetId("17613681043") },
+					},
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.universe).toBeUndefined();
+	});
+
 	it("should seed the root config from the chosen primary's pass entries", () => {
 		expect.assertions(2);
 
