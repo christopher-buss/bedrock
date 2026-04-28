@@ -5,34 +5,14 @@ import type { EnvironmentFoldResult } from "./fold-environment.ts";
 import type { PlaceFoldEntry } from "./fold-places.ts";
 import type { MigrateError, MigrationWarning } from "./migration-report.ts";
 
-/**
- * Inputs for {@link factorizeEnvironments}. The fold map is keyed by
- * environment name and iterates in insertion order (the order the
- * environments appeared in the original Mantle state file).
- */
-export interface FactorizeInputs {
-	/** Per-environment fold results keyed by environment name. */
+interface FactorizeInputs {
 	readonly folds: ReadonlyMap<string, EnvironmentFoldResult>;
-	/**
-	 * Caller-supplied primary environment hint. When omitted and the input
-	 * declares exactly one environment, that environment is auto-picked;
-	 * any other shape returns `Err({ kind: "primaryEnvironmentRequired" })`.
-	 */
 	readonly primaryEnvironment: string | undefined;
 }
 
-/**
- * Successful output of {@link factorizeEnvironments}: the bedrock config
- * with primary's resolved values at the root and per-environment overlays
- * carrying the fields that diverge, plus the resolved primary name and an
- * aggregated warnings list.
- */
-export interface FactorizeResult {
-	/** Bedrock config carrying primary's resolved values and per-environment overlays. */
+interface FactorizeResult {
 	readonly config: Config;
-	/** Primary environment that seeded the root (auto-picked or echoed back). */
 	readonly primaryEnvironment: string;
-	/** Warnings discovered during factorization; empty in this slice. */
 	readonly warnings: ReadonlyArray<MigrationWarning>;
 }
 
