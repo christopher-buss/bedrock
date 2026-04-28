@@ -191,4 +191,19 @@ describe(foldEnvironment, () => {
 		expect(result.universe).toBeUndefined();
 		expect(result.warnings).toHaveLength(1);
 	});
+
+	it("should append deferred warnings after place ambiguous warnings", () => {
+		expect.assertions(1);
+
+		const result = foldEnvironment([
+			experience(),
+			place(),
+			deferredResource("badge", "first-win"),
+		]);
+
+		expect(result.warnings.map((warning) => warning.kind)).toStrictEqual([
+			"ambiguous",
+			"deferred",
+		]);
+	});
 });
