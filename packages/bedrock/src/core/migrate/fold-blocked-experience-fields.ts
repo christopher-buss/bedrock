@@ -1,15 +1,12 @@
-import {
-	blockedWarning,
-	EMPTY_FRAGMENT,
-	type FoldFragment,
-	isObjectPayload,
-} from "./fold-universe-shared.ts";
+import { blockedWarning, type FoldFragment, isObjectPayload } from "./fold-universe-shared.ts";
 import type { MigrationWarning } from "./migration-report.ts";
 import type { MantleResource } from "./types.ts";
 
+const EXPERIENCE_KIND = "experience";
 const EXPERIENCE_CONFIGURATION_KIND = "experienceConfiguration";
 const UNIVERSE_AVATAR_PREFIX = "universeAvatar";
 const UNIVERSE_AVATAR_REASON = "avatar configuration has no Open Cloud equivalent";
+const GROUP_ID_REASON = "Open Cloud does not support transferring experience ownership";
 
 interface BlockedFieldRule {
 	readonly field: string;
@@ -39,14 +36,16 @@ const BLOCKED_FIELDS: ReadonlyArray<BlockedFieldRule> = [
 ];
 
 /**
- * Emit one `blocked` `MigrationWarning` per non-`undefined` field of
- * `experienceConfiguration_singleton.inputs` that has no Open Cloud
- * writable endpoint. The Mantle null sentinel (`~`) is normalized to
- * `undefined` by `parseState`, so absent and null fields both skip.
+ * Emit one `blocked` `MigrationWarning` per non-`undefined` legacy-only
+ * field on the experience-side Mantle resources: every entry in the
+ * static `BLOCKED_FIELDS` table on `experienceConfiguration_singleton`,
+ * any key under the `universeAvatar` prefix, and `groupId` on
+ * `experience_singleton`. The Mantle null sentinel (`~`) is normalized
+ * to `undefined` by `parseState`, so absent and null fields both skip.
  *
- * Returns `EMPTY_FRAGMENT` when no `experienceConfiguration` resource is
- * present or its `inputs` payload is not a plain object. The fragment's
- * `entryFragment` is always empty; this fold contributes only warnings.
+ * The fragment's `entryFragment` is always empty; this fold contributes
+ * only warnings, and the `warnings` array is empty when none of the
+ * watched resources have a populated blocked field.
  *
  * @param resources - Mantle resource list for one environment.
  * @returns A fragment whose warnings list every blocked field present.
@@ -54,25 +53,52 @@ const BLOCKED_FIELDS: ReadonlyArray<BlockedFieldRule> = [
 export function foldBlockedExperienceFields(
 	resources: ReadonlyArray<MantleResource>,
 ): FoldFragment {
-	const config = resources.find((resource) => resource.kind === EXPERIENCE_CONFIGURATION_KIND);
-	if (config === undefined || !isObjectPayload(config.inputs)) {
-		return EMPTY_FRAGMENT;
+	return {
+		entryFragment: {},
+		warnings: [...configurationWarnings(resources), ...groupIdWarnings(resources)],
+	};
+}
+
+function groupIdWarnings(
+	resources: ReadonlyArray<MantleResource>,
+): ReadonlyArray<MigrationWarning> {
+	const experience = resources.find((resource) => resource.kind === EXPERIENCE_KIND);
+	if (
+		experience === undefined ||
+		!isObjectPayload(experience.inputs) ||
+		experience.inputs["groupId"] === undefined
+	) {
+		return [];
 	}
 
-	const { inputs } = config;
-	const staticWarnings: ReadonlyArray<MigrationWarning> = BLOCKED_FIELDS.flatMap((rule) => {
+	return [blockedWarning("experience_singleton.groupId", GROUP_ID_REASON)];
+}
+
+function staticFieldWarnings(inputs: Record<string, unknown>): ReadonlyArray<MigrationWarning> {
+	return BLOCKED_FIELDS.flatMap((rule) => {
 		if (inputs[rule.field] === undefined) {
 			return [];
 		}
 
 		return [blockedWarning(`experienceConfiguration_singleton.${rule.field}`, rule.reason)];
 	});
+}
 
-	const avatarWarnings: ReadonlyArray<MigrationWarning> = Object.keys(inputs)
+function avatarFieldWarnings(inputs: Record<string, unknown>): ReadonlyArray<MigrationWarning> {
+	return Object.keys(inputs)
 		.filter((key) => key.startsWith(UNIVERSE_AVATAR_PREFIX) && inputs[key] !== undefined)
 		.map((key) =>
 			blockedWarning(`experienceConfiguration_singleton.${key}`, UNIVERSE_AVATAR_REASON),
 		);
+}
 
-	return { entryFragment: {}, warnings: [...staticWarnings, ...avatarWarnings] };
+function configurationWarnings(
+	resources: ReadonlyArray<MantleResource>,
+): ReadonlyArray<MigrationWarning> {
+	const config = resources.find((resource) => resource.kind === EXPERIENCE_CONFIGURATION_KIND);
+	if (config === undefined || !isObjectPayload(config.inputs)) {
+		return [];
+	}
+
+	return [...staticFieldWarnings(config.inputs), ...avatarFieldWarnings(config.inputs)];
 }

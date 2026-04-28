@@ -1309,5 +1309,71 @@ describe(foldUniverse, () => {
 
 			expect(result.warnings).toStrictEqual([]);
 		});
+
+		it("should emit a blocked warning when experience.inputs.groupId is set", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				{
+					key: "singleton",
+					dependencies: [],
+					inputs: { groupId: 12345 },
+					kind: "experience",
+					outputs: DEFAULT_EXPERIENCE_OUTPUTS,
+				},
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.warnings).toStrictEqual([
+				{
+					kind: "blocked",
+					mantlePath: "experience_singleton.groupId",
+					reason: "Open Cloud does not support transferring experience ownership",
+				},
+			]);
+		});
+
+		it("should not emit a groupId blocked warning when groupId is undefined", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([experience(DEFAULT_EXPERIENCE_OUTPUTS)]);
+
+			assert(result !== undefined);
+
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should read groupId from the experience resource even when other resources precede it", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experienceConfiguration({ allowPrivateServers: undefined }),
+				{
+					key: "singleton",
+					dependencies: [],
+					inputs: { groupId: 12345 },
+					kind: "experience",
+					outputs: DEFAULT_EXPERIENCE_OUTPUTS,
+				},
+			]);
+
+			assert(result !== undefined);
+
+			const groupIdBlocked = result.warnings.filter((warning) => {
+				return (
+					warning.kind === "blocked" &&
+					warning.mantlePath === "experience_singleton.groupId"
+				);
+			});
+
+			expect(groupIdBlocked).toHaveLength(1);
+
+			assert(groupIdBlocked[0]?.kind === "blocked");
+
+			expect(groupIdBlocked[0].reason).toBe(
+				"Open Cloud does not support transferring experience ownership",
+			);
+		});
 	});
 });
