@@ -1,5 +1,6 @@
 import { assert, describe, expect, it } from "vitest";
 
+import type { SocialLinkField } from "../resources.ts";
 import { foldUniverse } from "./fold-universe.ts";
 import type { MantleResource } from "./types.ts";
 
@@ -44,6 +45,16 @@ function experienceActivation(inputs: unknown): MantleResource {
 		inputs,
 		kind: "experienceActivation",
 		outputs: undefined,
+	};
+}
+
+function socialLink(domain: string, inputs: unknown): MantleResource {
+	return {
+		key: domain,
+		dependencies: [],
+		inputs,
+		kind: "socialLink",
+		outputs: { assetId: 1234567890 },
 	};
 }
 
@@ -709,6 +720,171 @@ describe(foldUniverse, () => {
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
 				experienceActivation("not-an-object"),
 			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+	});
+
+	describe("socialLink fold", () => {
+		it.for<[label: string, domain: string, field: SocialLinkField]>([
+			["facebook", "facebook.com", "facebookSocialLink"],
+			["twitter", "twitter.com", "twitterSocialLink"],
+			["youtube", "youtube.com", "youtubeSocialLink"],
+			["twitch", "twitch.tv", "twitchSocialLink"],
+			["discord", "discord.gg", "discordSocialLink"],
+			["roblox group via roblox.com", "roblox.com", "robloxGroupSocialLink"],
+			["roblox group via www.roblox.com", "www.roblox.com", "robloxGroupSocialLink"],
+			["guilded", "guilded.gg", "guildedSocialLink"],
+		])("should fold the %s domain into the matching universe field", ([, domain, field]) => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				socialLink(domain, {
+					linkType: "Discord",
+					title: "Join us",
+					url: `https://${domain}/example`,
+				}),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({
+				[field]: { title: "Join us", uri: `https://${domain}/example` },
+				universeId: "1",
+			});
+		});
+
+		it("should rename mantle 'url' onto bedrock 'uri' on the SocialLink", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				socialLink("discord.gg", {
+					linkType: "Discord",
+					title: "Join our Discord",
+					url: "https://discord.gg/example",
+				}),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry.discordSocialLink).toStrictEqual({
+				title: "Join our Discord",
+				uri: "https://discord.gg/example",
+			});
+		});
+
+		it("should emit one interpretive warning per matched social link", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				socialLink("discord.gg", {
+					linkType: "Discord",
+					title: "Join our Discord",
+					url: "https://discord.gg/example",
+				}),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.warnings).toStrictEqual([
+				{
+					bedrockPath: "universe.discordSocialLink",
+					kind: "interpretive",
+					mantlePath: "socialLink_discord.gg",
+					rule: "domain-to-field",
+				},
+			]);
+		});
+
+		it("should drop unknown-domain socialLink resources and emit blocked", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				socialLink("tiktok.com", {
+					linkType: "TikTok",
+					title: "Follow us",
+					url: "https://tiktok.com/example",
+				}),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([
+				{
+					kind: "blocked",
+					mantlePath: "socialLink_tiktok.com",
+					reason: "Unknown socialLink domain: tiktok.com",
+				},
+			]);
+		});
+
+		it("should fold multiple known-domain socialLink resources into distinct fields", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				socialLink("discord.gg", {
+					linkType: "Discord",
+					title: "Discord",
+					url: "https://discord.gg/a",
+				}),
+				socialLink("twitter.com", {
+					linkType: "Twitter",
+					title: "Twitter",
+					url: "https://twitter.com/a",
+				}),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({
+				discordSocialLink: { title: "Discord", uri: "https://discord.gg/a" },
+				twitterSocialLink: { title: "Twitter", uri: "https://twitter.com/a" },
+				universeId: "1",
+			});
+		});
+
+		it("should drop a socialLink resource whose title or url is non-string", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				socialLink("discord.gg", { linkType: "Discord", title: 1, url: "https://x" }),
+				socialLink("twitter.com", { linkType: "Twitter", title: "x", url: 2 }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should drop a socialLink resource whose inputs is not an object", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				socialLink("discord.gg", "not-an-object"),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should leave the entry untouched when no socialLink resources are present", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([experience(DEFAULT_EXPERIENCE_OUTPUTS)]);
 
 			assert(result !== undefined);
 

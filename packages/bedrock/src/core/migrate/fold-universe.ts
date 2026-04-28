@@ -1,6 +1,13 @@
 import { asRobloxAssetId } from "../../types/ids.ts";
 import type { UniverseOutputs } from "../resources.ts";
 import type { UniverseEntry } from "../schema.ts";
+import { foldSocialLinks } from "./fold-social-links.ts";
+import {
+	EMPTY_FRAGMENT,
+	type FoldFragment,
+	isObjectPayload,
+	mergeFragment,
+} from "./fold-universe-shared.ts";
 import type { MigrationWarning } from "./migration-report.ts";
 import type { MantleResource } from "./types.ts";
 
@@ -17,11 +24,6 @@ const PLAYABLE_DEVICE_TO_FLAG: Readonly<
 	Phone: "mobileEnabled",
 	Tablet: "tabletEnabled",
 };
-
-interface FoldFragment {
-	readonly entryFragment: Partial<UniverseEntry>;
-	readonly warnings: ReadonlyArray<MigrationWarning>;
-}
 
 /**
  * Output of folding the experience-related Mantle resources of one
@@ -76,6 +78,7 @@ export function foldUniverse(
 		foldPrivateServers(resources),
 		foldVoiceChat(resources),
 		foldVisibility(resources),
+		foldSocialLinks(resources),
 	];
 
 	const entry: UniverseEntry = fragments.reduce<UniverseEntry>(
@@ -102,10 +105,6 @@ function coerceRobloxId(value: unknown): string | undefined {
 	}
 
 	return undefined;
-}
-
-function isObjectPayload(value: unknown): value is Record<string, unknown> {
-	return Object.prototype.toString.call(value) === "[object Object]";
 }
 
 function readExperienceOutputs(resource: MantleResource): ExperienceOutputs | undefined {
@@ -150,13 +149,6 @@ function mapPlayableDevice(raw: unknown): FoldFragment {
 				rule: "list-to-flag",
 			},
 		],
-	};
-}
-
-function mergeFragment(left: FoldFragment, right: FoldFragment): FoldFragment {
-	return {
-		entryFragment: { ...left.entryFragment, ...right.entryFragment },
-		warnings: [...left.warnings, ...right.warnings],
 	};
 }
 
@@ -316,5 +308,3 @@ function foldPrivateServers(resources: ReadonlyArray<MantleResource>): FoldFragm
 
 	return pricedPrivateServersFragment(privateServerPrice);
 }
-
-const EMPTY_FRAGMENT: FoldFragment = { entryFragment: {}, warnings: [] };
