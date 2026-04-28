@@ -234,7 +234,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: readFileMissing,
 			stateFilePath: "/tmp/missing.mantle-state.yml",
 		});
@@ -250,7 +250,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(":\nthis is: : invalid yaml ::"),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -266,7 +266,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile('version: "5"\nenvironments:\n  production: []\n'),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -282,7 +282,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(SINGLE_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -297,7 +297,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(4);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(SINGLE_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -321,7 +321,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(SINGLE_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -341,7 +341,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(SINGLE_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -359,7 +359,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(SINGLE_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -373,7 +373,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile('version: "6"\nenvironments: {}\n'),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -389,7 +389,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(TWO_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -405,7 +405,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			primaryEnvironment: "staging",
 			readFile: fakeReadFile(TWO_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
@@ -423,7 +423,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			primaryEnvironment: "development",
 			readFile: fakeReadFile(TWO_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
@@ -442,7 +442,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			primaryEnvironment: "production",
 			readFile: fakeReadFile(TWO_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
@@ -479,7 +479,7 @@ environments:
 `;
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(yamlWithInvalidEnvironmentName),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -498,7 +498,7 @@ environments:
 
 		const denied = Object.assign(new Error("denied"), { code: "EPERM" });
 		const promise = migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: async () => {
 				throw denied;
 			},
@@ -512,7 +512,7 @@ environments:
 		expect.assertions(1);
 
 		const promise = migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: async () => {
 				// eslint-disable-next-line ts/only-throw-error -- testing the non-object branch of isFileMissing
 				throw "string-shaped failure";
@@ -527,7 +527,7 @@ environments:
 		expect.assertions(1);
 
 		const promise = migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: async () => {
 				// eslint-disable-next-line unicorn/no-null, ts/only-throw-error -- testing the null branch of isFileMissing
 				throw null;
@@ -543,7 +543,7 @@ environments:
 
 		const bare = new Error("bare error without code");
 		const promise = migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: async () => {
 				throw bare;
 			},
@@ -558,7 +558,7 @@ environments:
 
 		const numeric = Object.assign(new Error("numeric code"), { code: 42 });
 		const promise = migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: async () => {
 				throw numeric;
 			},
@@ -572,7 +572,7 @@ environments:
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(SINGLE_ENV_WITH_PLACE_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -586,7 +586,7 @@ environments:
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(SINGLE_ENV_WITH_PLACE_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -602,7 +602,7 @@ environments:
 		expect.assertions(4);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(SINGLE_ENV_WITH_PLACE_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -625,7 +625,7 @@ environments:
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(ORPHAN_PLACE_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -645,7 +645,7 @@ environments:
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			primaryEnvironment: "production",
 			readFile: fakeReadFile(TWO_ENV_PLACE_YAML),
 			stateFilePath: ".mantle-state.yml",
@@ -666,7 +666,7 @@ environments:
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			primaryEnvironment: "production",
 			readFile: fakeReadFile(TWO_ENV_PLACE_YAML),
 			stateFilePath: ".mantle-state.yml",
@@ -691,7 +691,7 @@ environments:
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			readFile: fakeReadFile(SINGLE_ENV_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
@@ -705,7 +705,7 @@ environments:
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			primaryEnvironment: "production",
 			readFile: fakeReadFile(TWO_ENV_PLACE_SAME_PATH_YAML),
 			stateFilePath: ".mantle-state.yml",
@@ -716,5 +716,20 @@ environments:
 		expect(result.data.config.environments["development"]?.places).toStrictEqual({
 			start: { placeId: "2222222222" },
 		});
+	});
+
+	it("should emit a YAML configFileContent when configFormat is yaml", async () => {
+		expect.assertions(2);
+
+		const result = await migrateMantleState({
+			configFormat: "yaml",
+			readFile: fakeReadFile(SINGLE_ENV_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.configFileContent).toContain("universeId: '6031475575'");
+		expect(result.data.configFileContent).not.toContain("defineConfig");
 	});
 });

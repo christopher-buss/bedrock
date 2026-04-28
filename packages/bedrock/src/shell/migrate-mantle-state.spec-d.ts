@@ -27,15 +27,17 @@ describe(migrateMantleState, () => {
 });
 
 describe("MigrateMantleStateDeps", () => {
-	it("should require stateFilePath and outputFormat as the only non-optional fields", () => {
+	it("should require stateFilePath and configFormat as the only non-optional fields", () => {
 		expectTypeOf<{
-			outputFormat: "typescript";
+			configFormat: "typescript" | "yaml";
 			stateFilePath: string;
 		}>().toExtend<MigrateMantleStateDeps>();
 	});
 
-	it("should lock outputFormat to the typescript literal", () => {
-		expectTypeOf<MigrateMantleStateDeps["outputFormat"]>().toEqualTypeOf<"typescript">();
+	it("should accept the typescript and yaml literals on configFormat", () => {
+		expectTypeOf<MigrateMantleStateDeps["configFormat"]>().toEqualTypeOf<
+			"typescript" | "yaml"
+		>();
 	});
 
 	it("should expose primaryEnvironment as an optional string", () => {
@@ -62,7 +64,7 @@ describe("MigrationReport", () => {
 		expectTypeOf<MigrationReport["config"]>().toEqualTypeOf<Config>();
 	});
 
-	it("should carry a string for the rendered TypeScript source", () => {
+	it("should carry a string for the rendered config file content", () => {
 		expectTypeOf<MigrationReport["configFileContent"]>().toEqualTypeOf<string>();
 	});
 

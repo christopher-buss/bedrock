@@ -1,23 +1,40 @@
+import { stringifyYAML } from "confbox";
+
 import type { Config } from "../schema.ts";
 
 /**
- * Render a bedrock `Config` as TypeScript source text, using
- * `defineConfig({...})` so the output is loadable by `loadConfig` and
- * carries the same type-checking ergonomics a hand-authored
- * `bedrock.config.ts` would.
- *
- * Hand-rolls a `JSON.stringify`-based emitter (no AST library): the
- * formatter quotes every property name, which is valid TypeScript and
- * sidesteps the need for an identifier-vs-quoted heuristic. `undefined`
- * fields are dropped because the bedrock schema treats absent and
- * `undefined` interchangeably for managed fields, and the `defineConfig`
- * loader accepts either shape.
- *
- * @param config - Validated bedrock config to render.
- * @returns A UTF-8 TypeScript source string ending with a trailing newline.
+ * Inputs for {@link serializeConfig}. Format dispatch lives on
+ * `configFormat` so a single function shape covers both TypeScript and
+ * YAML output.
  */
-export function serializeConfig(config: Config): string {
-	const body = JSON.stringify(config, undefined, 2);
+export interface SerializeConfigOptions {
+	/** Validated bedrock config to render. */
+	readonly config: Config;
+	/** Output format. TypeScript emits `defineConfig({...})`; YAML emits a `bedrock.config.yaml` body. */
+	readonly configFormat: "typescript" | "yaml";
+}
+
+/**
+ * Render a bedrock `Config` as the source text of a `bedrock.config.{ts,yaml}`
+ * file the user can write straight to disk.
+ *
+ * The TypeScript branch hand-rolls a `JSON.stringify`-based emitter (no
+ * AST library): the formatter quotes every property name, which is valid
+ * TypeScript and sidesteps the need for an identifier-vs-quoted
+ * heuristic. The YAML branch delegates to `stringifyYAML`, which already
+ * drops `undefined`-valued properties so the output never surfaces
+ * `null` or `~` for absent managed fields. Both shapes round-trip
+ * through `loadConfig` cleanly.
+ *
+ * @param options - Render inputs.
+ * @returns A UTF-8 source string ending with a trailing newline.
+ */
+export function serializeConfig(options: SerializeConfigOptions): string {
+	if (options.configFormat === "yaml") {
+		return `${stringifyYAML(options.config)}\n`;
+	}
+
+	const body = JSON.stringify(options.config, undefined, 2);
 	return [
 		'import { defineConfig } from "@bedrock/core";',
 		"",

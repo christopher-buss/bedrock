@@ -22,6 +22,7 @@ import {
 } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
 
+type ConfigFormat = "typescript" | "yaml";
 type PlaceOverlayEntry = NonNullable<EnvironmentEntry["places"]>[string];
 
 const FILE_MISSING_CODES = new Set(["ENOENT"]);
@@ -32,15 +33,18 @@ const FILE_MISSING_CODES = new Set(["ENOENT"]);
  * inject in-memory fixtures from tests and the JSDoc `@example` block
  * stays self-contained.
  *
- * `outputFormat` is locked to `"typescript"` in v0.1; the YAML output
- * lands in a follow-up issue that widens the literal.
+ * `configFormat` selects the output shape: `"typescript"` emits a
+ * `bedrock.config.ts` with `defineConfig({...})`; `"yaml"` emits a
+ * `bedrock.config.yaml` body. Both shapes round-trip through
+ * `loadConfig` cleanly.
  */
 export interface MigrateMantleStateDeps {
 	/**
-	 * Output format for the emitted bedrock config file. V0.1 ships
-	 * TypeScript (`bedrock.config.ts` with `defineConfig({...})`).
+	 * Output format for the emitted bedrock config file. `"typescript"`
+	 * produces a `defineConfig({...})` module; `"yaml"` produces a YAML
+	 * body whose keys match the `Config` schema.
 	 */
-	readonly outputFormat: "typescript";
+	readonly configFormat: ConfigFormat;
 	/**
 	 * Environment in the input state file whose resolved values seed
 	 * the root config. Required when the state file declares more than
@@ -66,6 +70,11 @@ interface EnvironmentOverlayContext {
 interface PlaceOverlayContext {
 	readonly fold: PlaceFoldEntry;
 	readonly primary: PlaceFoldEntry | undefined;
+}
+
+interface FinalizeReportContext {
+	readonly configFormat: ConfigFormat;
+	readonly folds: ReadonlyMap<string, EnvironmentFoldResult>;
 }
 
 /**
@@ -114,7 +123,7 @@ interface PlaceOverlayContext {
  * }
  *
  * return migrateMantleState({
- *     outputFormat: "typescript",
+ *     configFormat: "typescript",
  *     readFile,
  *     stateFilePath: ".mantle-state.yml",
  * }).then((result) => {
@@ -150,7 +159,7 @@ export async function migrateMantleState(
 		return parsed;
 	}
 
-	return assembleReport(parsed.data, deps.primaryEnvironment);
+	return assembleReport(parsed.data, deps);
 }
 
 function pickPrimary(
@@ -285,9 +294,23 @@ function collectWarnings(
 	});
 }
 
+function buildSuccessfulReport(validated: Config, context: FinalizeReportContext): MigrationReport {
+	const warnings = collectWarnings(context.folds);
+	return {
+		config: validated,
+		configFileContent: serializeConfig({
+			config: validated,
+			configFormat: context.configFormat,
+		}),
+		statesByEnvironment: buildStatesByEnvironment(context.folds),
+		summary: summarizeWarnings(warnings),
+		warnings,
+	};
+}
+
 function finalizeReport(
 	config: Config,
-	folds: ReadonlyMap<string, EnvironmentFoldResult>,
+	context: FinalizeReportContext,
 ): Result<MigrationReport, MigrateError> {
 	const validated = validateConfig(config, "<migrate-mantle-state>");
 	if (!validated.success) {
@@ -301,25 +324,15 @@ function finalizeReport(
 		};
 	}
 
-	const warnings = collectWarnings(folds);
-	return {
-		data: {
-			config: validated.data,
-			configFileContent: serializeConfig(validated.data),
-			statesByEnvironment: buildStatesByEnvironment(folds),
-			summary: summarizeWarnings(warnings),
-			warnings,
-		},
-		success: true,
-	};
+	return { data: buildSuccessfulReport(validated.data, context), success: true };
 }
 
 function assembleReport(
 	state: MantleStateV6,
-	primaryEnvironment: string | undefined,
+	deps: Pick<MigrateMantleStateDeps, "configFormat" | "primaryEnvironment">,
 ): Result<MigrationReport, MigrateError> {
 	const available = Object.keys(state.environments);
-	const primaryResult = pickPrimary(available, primaryEnvironment);
+	const primaryResult = pickPrimary(available, deps.primaryEnvironment);
 	if (!primaryResult.success) {
 		return primaryResult;
 	}
@@ -327,7 +340,10 @@ function assembleReport(
 	const folds: ReadonlyMap<string, EnvironmentFoldResult> = new Map(
 		available.map((name) => [name, foldEnvironment(state.environments[name] ?? [])]),
 	);
-	return finalizeReport(buildConfig(folds, primaryResult.data), folds);
+	return finalizeReport(buildConfig(folds, primaryResult.data), {
+		configFormat: deps.configFormat,
+		folds,
+	});
 }
 
 function isFileMissing(err: unknown): boolean {
