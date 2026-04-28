@@ -33,6 +33,10 @@
 			"source": "./src/cli/run.ts",
 			"default": "./dist/cli/run.mjs"
 		},
+		"./config": {
+			"source": "./src/config.ts",
+			"default": "./dist/config.mjs"
+		},
 		"./package.json": "./package.json"
 	},
 	"types": "./dist/index.d.mts",
@@ -79,6 +83,7 @@
 		"exports": {
 			".": "./dist/index.mjs",
 			"./cli/run": "./dist/cli/run.mjs",
+			"./config": "./dist/config.mjs",
 			"./package.json": "./package.json"
 		}
 	},

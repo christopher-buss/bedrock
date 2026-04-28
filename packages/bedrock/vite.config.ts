@@ -4,7 +4,7 @@ import { mergeConfig } from "vite-plus";
 
 export default mergeConfig(sharedConfig, {
 	pack: {
-		entry: ["src/index.ts", "src/cli/run.ts"],
+		entry: ["src/index.ts", "src/cli/run.ts", "src/config.ts"],
 	},
 	test: {
 		coverage: {
