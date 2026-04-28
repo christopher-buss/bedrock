@@ -17,7 +17,7 @@ import type { PlaceFoldEntry } from "./fold-places.ts";
  * shell threads them in lockstep) and named fields read better than a
  * three-positional-argument signature.
  */
-export interface BuildStateInputs {
+interface BuildStateInputs {
 	/** Environment name; written verbatim onto the state. */
 	readonly environment: string;
 	/** Per-kind fold results for this environment. */

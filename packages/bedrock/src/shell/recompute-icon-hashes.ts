@@ -22,7 +22,7 @@ export interface IconHashRecomputation {
 }
 
 /** Inputs for {@link recomputeIconHashes}. */
-export interface RecomputeIconHashesInputs {
+interface RecomputeIconHashesInputs {
 	/** Per-environment fold results carrying pass entries to walk. */
 	readonly folds: ReadonlyMap<string, EnvironmentFoldResult>;
 	/** Reads file bytes; same shape as `MigrateMantleStateDeps.readFile`. */

@@ -41,7 +41,7 @@ export interface PassFoldEntry {
  * per-rule diagnostics; the slice emits an empty list because no
  * interpretive rules have been wired yet.
  */
-export interface PassesFoldResult {
+interface PassesFoldResult {
 	/** One folded entry per well-formed Mantle `pass_<k>` resource. */
 	readonly passes: ReadonlyArray<PassFoldEntry>;
 	/** Per-rule diagnostics; empty in this slice, populated as rules land. */
