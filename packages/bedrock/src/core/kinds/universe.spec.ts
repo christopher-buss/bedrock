@@ -58,6 +58,31 @@ describe("universeKind", () => {
 
 			expect(inputs[0]?.voiceChatEnabled).toBeUndefined();
 		});
+
+		it("should propagate icon onto the flattened input when declared", () => {
+			expect.assertions(1);
+
+			const inputs = universeKind.flatten({
+				environments: { production: {} },
+				universe: {
+					icon: { "en-us": "assets/icon.png" },
+					universeId: "1234567890",
+				},
+			});
+
+			expect(inputs[0]?.icon).toStrictEqual({ "en-us": "assets/icon.png" });
+		});
+
+		it("should omit icon from the flattened input when not declared", () => {
+			expect.assertions(1);
+
+			const inputs = universeKind.flatten({
+				environments: { production: {} },
+				universe: { universeId: "1234567890" },
+			});
+
+			expect(inputs[0]).not.toContainKey("icon");
+		});
 	});
 
 	describe("normalize", () => {

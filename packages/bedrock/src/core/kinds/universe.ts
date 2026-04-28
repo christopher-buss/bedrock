@@ -66,11 +66,12 @@ function flatten(config: ResolvedConfig): ReadonlyArray<UniverseDesiredInput> {
 		...copyDeclaredSocialLinks(entry),
 	};
 
-	return [
+	const withPrice =
 		"privateServerPriceRobux" in entry
 			? { ...base, privateServerPriceRobux: entry.privateServerPriceRobux }
-			: base,
-	];
+			: base;
+
+	return [entry.icon === undefined ? withPrice : { ...withPrice, icon: entry.icon }];
 }
 
 async function normalize(
