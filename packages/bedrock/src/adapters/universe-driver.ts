@@ -261,12 +261,24 @@ async function captureUploadedIconAssetId(
 	return { data: { "en-us": asRobloxAssetId(enUs.imageId) }, success: true };
 }
 
+async function deleteRemovedIcon(
+	deps: UniverseDriverDeps,
+	desired: UniverseDesiredState,
+): Promise<Result<undefined, OpenCloudError>> {
+	return deps.experienceIcons.delete({
+		languageCode: "en-us",
+		universeId: desired.universeId,
+	});
+}
+
 async function reconcileIcon(
 	inputs: ReconcileIconInputs,
 ): Promise<Result<Record<"en-us", RobloxAssetId> | undefined, OpenCloudError>> {
 	const { current, deps, desired } = inputs;
 	if (desired.icon === undefined) {
-		return { data: undefined, success: true };
+		return current?.icon === undefined
+			? { data: undefined, success: true }
+			: deleteRemovedIcon(deps, desired);
 	}
 
 	const desiredHash = desired.iconFileHashes?.["en-us"];

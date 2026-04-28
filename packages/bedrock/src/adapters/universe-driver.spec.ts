@@ -630,6 +630,80 @@ describe(createUniverseDriver, () => {
 			expect(result.data.outputs.iconAssetIds).toStrictEqual({ "en-us": "88888" });
 		});
 
+		it("should DELETE the en-us icon when desired removes a locale that current still has", async () => {
+			expect.assertions(3);
+
+			const { driver, http } = makeDriver({ schemaValidation: "off" });
+			assert(driver.update !== undefined);
+			http.mockResponse({ body: validUniverseBody(), status: 200 });
+			http.mockResponse({ body: undefined, status: 200 });
+
+			const desired = universeDesired({ voiceChatEnabled: true });
+			const current = universeCurrent({
+				icon: { "en-us": "assets/icon.png" },
+				iconFileHashes: { "en-us": ICON_HASH_A },
+				outputs: {
+					iconAssetIds: { "en-us": asRobloxAssetId("88888") },
+					rootPlaceId: asRobloxAssetId(ROOT_PLACE_ID),
+				},
+			});
+
+			const result = await driver.update(current, desired);
+
+			assert(result.success);
+
+			expect(http.requests).toHaveLength(2);
+			expect(http.requests[1]!.request.method).toBe("DELETE");
+			expect(http.requests[1]!.request.url).toBe(
+				`/legacy-game-internationalization/v1/game-icon/games/${UNIVERSE_ID}/language-codes/en-us`,
+			);
+		});
+
+		it("should propagate a DELETE failure to the caller", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver({ schemaValidation: "off" });
+			assert(driver.update !== undefined);
+			http.mockResponse({ body: validUniverseBody(), status: 200 });
+			http.mockApiError({ message: "delete forbidden", statusCode: 403 });
+
+			const result = await driver.update(
+				universeCurrent({
+					icon: { "en-us": "assets/icon.png" },
+					iconFileHashes: { "en-us": ICON_HASH_A },
+					outputs: {
+						iconAssetIds: { "en-us": asRobloxAssetId("88888") },
+						rootPlaceId: asRobloxAssetId(ROOT_PLACE_ID),
+					},
+				}),
+				universeDesired({ voiceChatEnabled: true }),
+			);
+
+			assert(!result.success);
+			assert(result.err instanceof ApiError);
+
+			expect(result.err.statusCode).toBe(403);
+			expect(http.requests[1]!.request.method).toBe("DELETE");
+		});
+
+		it("should not call DELETE when neither current nor desired declare an icon", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			assert(driver.update !== undefined);
+			http.mockResponse({ body: validUniverseBody(), status: 200 });
+
+			const result = await driver.update(
+				universeCurrent(),
+				universeDesired({ voiceChatEnabled: true }),
+			);
+
+			assert(result.success);
+
+			expect(http.requests).toHaveLength(1);
+			expect(http.requests[0]!.request.method).toBe("PATCH");
+		});
+
 		it("should re-upload on update when desired hash differs from current hash", async () => {
 			expect.assertions(3);
 
