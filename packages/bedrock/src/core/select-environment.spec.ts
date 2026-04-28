@@ -407,6 +407,261 @@ describe(selectEnvironment, () => {
 		expect(result.data.places?.["start-place"]?.filePath).toBe("places/start.rbxl");
 	});
 
+	it("should prefix universe.displayName with the default template when an environment declares a label", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: { staging: { label: "staging" } },
+			state: ROOT_STATE,
+			universe: { displayName: "Anime Rush", universeId: "1234567890" },
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.universe?.displayName).toBe("[STAGING] Anime Rush");
+	});
+
+	it("should prefix universe.displayName with the project-supplied custom format", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			displayNamePrefix: { format: "{Label} - " },
+			environments: { production: { label: "production" } },
+			state: ROOT_STATE,
+			universe: { displayName: "Anime Rush", universeId: "1234567890" },
+		};
+
+		const result = selectEnvironment(config, "production");
+
+		assert(result.success);
+
+		expect(result.data.universe?.displayName).toBe("Production - Anime Rush");
+	});
+
+	it("should not prefix universe.displayName when the project disables displayNamePrefix", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			displayNamePrefix: { enabled: false },
+			environments: { staging: { label: "staging" } },
+			state: ROOT_STATE,
+			universe: { displayName: "Anime Rush", universeId: "1234567890" },
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.universe?.displayName).toBe("Anime Rush");
+	});
+
+	it("should not prefix universe.displayName when the environment has no label", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: { staging: {} },
+			state: ROOT_STATE,
+			universe: { displayName: "Anime Rush", universeId: "1234567890" },
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.universe?.displayName).toBe("Anime Rush");
+	});
+
+	it("should treat an empty-string label as opting out of prefixing", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: { staging: { label: "" } },
+			state: ROOT_STATE,
+			universe: { displayName: "Anime Rush", universeId: "1234567890" },
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.universe?.displayName).toBe("Anime Rush");
+	});
+
+	it("should leave the universe block untouched when displayName is not declared even with a label", () => {
+		expect.assertions(2);
+
+		const config: Config = {
+			environments: { staging: { label: "staging" } },
+			state: ROOT_STATE,
+			universe: { universeId: "1234567890" },
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.universe?.universeId).toBe("1234567890");
+		expect(result.data.universe?.displayName).toBeUndefined();
+	});
+
+	it("should leave universe absent when no universe block exists, even with prefixing enabled and a label declared", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: { staging: { label: "staging" } },
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.universe).toBeUndefined();
+	});
+
+	it("should prefix every declared place displayName with the rendered template", () => {
+		expect.assertions(2);
+
+		const config: Config = {
+			environments: {
+				staging: {
+					label: "staging",
+					places: { "lobby": { placeId: "2222" }, "start-place": { placeId: "5555" } },
+				},
+			},
+			places: {
+				"lobby": { displayName: "Lobby", filePath: "places/lobby.rbxl" },
+				"start-place": { displayName: "Start Place", filePath: "places/start.rbxl" },
+			},
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.places?.["lobby"]?.displayName).toBe("[STAGING] Lobby");
+		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Start Place");
+	});
+
+	it("should apply the prefix to a displayName declared on the per-environment overlay rather than the root", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: {
+				staging: {
+					label: "staging",
+					places: {
+						"start-place": { displayName: "Dev Lobby", placeId: "5555" },
+					},
+				},
+			},
+			places: { "start-place": { filePath: "places/start.rbxl" } },
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Dev Lobby");
+	});
+
+	it("should leave a place's displayName untouched when that place declares no displayName", () => {
+		expect.assertions(2);
+
+		const config: Config = {
+			environments: {
+				staging: {
+					label: "staging",
+					places: { "lobby": { placeId: "2222" }, "start-place": { placeId: "5555" } },
+				},
+			},
+			places: {
+				"lobby": { filePath: "places/lobby.rbxl" },
+				"start-place": { displayName: "Start Place", filePath: "places/start.rbxl" },
+			},
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.places?.["lobby"]?.displayName).toBeUndefined();
+		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Start Place");
+	});
+
+	it("should not prefix any place displayName when displayNamePrefix.enabled is false", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			displayNamePrefix: { enabled: false },
+			environments: {
+				staging: {
+					label: "staging",
+					places: { "start-place": { placeId: "5555" } },
+				},
+			},
+			places: {
+				"start-place": { displayName: "Start Place", filePath: "places/start.rbxl" },
+			},
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.places?.["start-place"]?.displayName).toBe("Start Place");
+	});
+
+	it("should not prefix place displayNames when the environment has no label", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: {
+				staging: { places: { "start-place": { placeId: "5555" } } },
+			},
+			places: {
+				"start-place": { displayName: "Start Place", filePath: "places/start.rbxl" },
+			},
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.places?.["start-place"]?.displayName).toBe("Start Place");
+	});
+
+	it("should apply the project-supplied custom format to every declared place displayName", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			displayNamePrefix: { format: "{Label}: " },
+			environments: {
+				production: {
+					label: "production",
+					places: { "start-place": { placeId: "5555" } },
+				},
+			},
+			places: {
+				"start-place": { displayName: "Start Place", filePath: "places/start.rbxl" },
+			},
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "production");
+
+		assert(result.success);
+
+		expect(result.data.places?.["start-place"]?.displayName).toBe("Production: Start Place");
+	});
+
 	it("should preserve environments and extends so the returned shape stays assignable to Config", () => {
 		expect.assertions(2);
 

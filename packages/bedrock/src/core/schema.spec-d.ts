@@ -118,12 +118,14 @@ describe("PlaceEntry / ResolvedPlaceEntry split", () => {
 	});
 });
 
-// Two Config keys are deliberately not environment-overridable. Adding to or
-// removing from this union is the explicit way to opt new fields out of the
-// per-environment overlay surface.
-type NonOverridableConfigKey = "environments" | "extends";
+// Some Config keys are deliberately not environment-overridable, and some
+// EnvironmentEntry fields carry environment-only metadata that has no Config
+// counterpart. Adding to or removing from these unions is the explicit way to
+// opt new fields out of the symmetric overlay surface.
+type NonOverridableConfigKey = "displayNamePrefix" | "environments" | "extends";
+type EnvironmentMetadataKey = "label";
 type OverridableConfigKey = Exclude<keyof Config, NonOverridableConfigKey>;
-type EnvironmentEntryKey = keyof Required<EnvironmentEntry>;
+type EnvironmentEntryKey = Exclude<keyof Required<EnvironmentEntry>, EnvironmentMetadataKey>;
 
 type MissingOverlayKeys = Exclude<OverridableConfigKey, EnvironmentEntryKey>;
 type ExtraOverlayKeys = Exclude<EnvironmentEntryKey, OverridableConfigKey>;
@@ -139,7 +141,7 @@ type AssertNoMissingOverlay = [MissingOverlayKeys] extends [never]
 
 type AssertNoExtraOverlay = [ExtraOverlayKeys] extends [never]
 	? true
-	: `EnvironmentEntry declares overlay fields for keys not present in Config's overridable set: ${Extract<ExtraOverlayKeys, string>}. Either remove the field, add the corresponding Config field, or move the key out of NonOverridableConfigKey.`;
+	: `EnvironmentEntry declares overlay fields for keys not present in Config's overridable set: ${Extract<ExtraOverlayKeys, string>}. Either remove the field, add the corresponding Config field, or add the key name to EnvironmentMetadataKey if it should be deliberately excluded as environment-only metadata.`;
 
 describe("EnvironmentEntry exhaustiveness", () => {
 	it("should declare an overlay field for every overridable Config key", () => {

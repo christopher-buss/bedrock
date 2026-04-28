@@ -187,21 +187,19 @@ describe(deploy, () => {
 });
 
 describe("Config", () => {
-	it("should expose exactly the seven documented root fields", () => {
+	it("should expose the eight root fields with environments required and extends typed as unknown", () => {
 		expectTypeOf<keyof Config>().toEqualTypeOf<
-			"environments" | "extends" | "passes" | "places" | "products" | "state" | "universe"
+			| "displayNamePrefix"
+			| "environments"
+			| "extends"
+			| "passes"
+			| "places"
+			| "products"
+			| "state"
+			| "universe"
 		>();
-	});
-
-	it("should reserve extends as unknown for c12 layering", () => {
 		expectTypeOf<Config["extends"]>().toEqualTypeOf<unknown>();
-	});
-
-	it("should require the environments field so an empty object does not satisfy Config", () => {
 		expectTypeOf<Record<string, never>>().not.toExtend<Config>();
-	});
-
-	it("should treat every root field except environments as optional", () => {
 		expectTypeOf<{ environments: Record<string, never> }>().toExtend<Config>();
 	});
 });

@@ -3,9 +3,11 @@ import type { Result } from "@bedrock/ocale";
 import { defu } from "defu";
 import type { SetRequired } from "type-fest";
 
+import { renderDisplayNamePrefix } from "./display-name-prefix.ts";
 import type {
 	Config,
 	DeveloperProductEntry,
+	EnvironmentEntry,
 	GamePassEntry,
 	ResolvedConfig,
 	ResolvedPlaceEntry,
@@ -91,6 +93,14 @@ interface ProjectInputs {
  * field when it tries to consume the entry. Universe is a singleton with
  * 20+ optional fields, so the same `incompletePlaceEntry`-style validation
  * is deferred to a separate follow-up.
+ *
+ * When the project sets a `displayNamePrefix` (or omits it, in which case
+ * prefixing defaults to enabled) and the chosen environment declares a
+ * non-empty `label`, the resolver renders the configured template via
+ * `renderDisplayNamePrefix` and prepends the result to `universe.displayName`
+ * and every declared place `displayName`. An undeclared `displayName`, an
+ * empty/absent label, or an explicit `displayNamePrefix.enabled: false` all
+ * skip prefixing for the affected fields.
  *
  * @example
  *
@@ -229,12 +239,58 @@ function mergeUniverse(
 	return mergeEntry(overlay, base);
 }
 
+function resolvePrefix(config: Config, entry: EnvironmentEntry): string | undefined {
+	if (config.displayNamePrefix?.enabled === false) {
+		return undefined;
+	}
+
+	const { label } = entry;
+	if (label === undefined || label === "") {
+		return undefined;
+	}
+
+	return renderDisplayNamePrefix(label, config.displayNamePrefix?.format);
+}
+
+function applyUniversePrefix(
+	universe: undefined | UniverseEntry,
+	prefix: string | undefined,
+): undefined | UniverseEntry {
+	if (universe === undefined || prefix === undefined || universe.displayName === undefined) {
+		return universe;
+	}
+
+	return { ...universe, displayName: prefix + universe.displayName };
+}
+
+function applyPlacesPrefix(
+	places: Record<string, ResolvedPlaceEntry> | undefined,
+	prefix: string | undefined,
+): Record<string, ResolvedPlaceEntry> | undefined {
+	if (places === undefined || prefix === undefined) {
+		return places;
+	}
+
+	return Object.fromEntries(
+		Object.entries(places).map(([key, place]) => {
+			if (place.displayName === undefined) {
+				return [key, place];
+			}
+
+			return [key, { ...place, displayName: prefix + place.displayName }];
+		}),
+	);
+}
+
 function projectConfig(inputs: ProjectInputs): ResolvedConfig {
 	const { config, entry } = inputs;
 	const passes = mergeKeyedRecord<GamePassEntry>(entry.passes, config.passes);
-	const places = mergeKeyedRecord<ResolvedPlaceEntry>(entry.places, config.places);
+	const mergedPlaces = mergeKeyedRecord<ResolvedPlaceEntry>(entry.places, config.places);
 	const products = mergeKeyedRecord<DeveloperProductEntry>(entry.products, config.products);
-	const universe = mergeUniverse(entry.universe, config.universe);
+	const merged = mergeUniverse(entry.universe, config.universe);
+	const prefix = resolvePrefix(config, entry);
+	const universe = applyUniversePrefix(merged, prefix);
+	const places = applyPlacesPrefix(mergedPlaces, prefix);
 	const state = entry.state ?? config.state;
 
 	const { places: _placesRoot, products: _productsRoot, ...rest } = config;

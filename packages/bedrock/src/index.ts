@@ -12,6 +12,7 @@ export { createUniverseDriver, type UniverseDriverDeps } from "./adapters/univer
 export type { ConfigError, ConfigValidationIssue } from "./core/config-error.ts";
 export { derivePriceFields, type PriceFields } from "./core/derive-price-fields.ts";
 export { diff } from "./core/diff.ts";
+export { DEFAULT_PREFIX_FORMAT, renderDisplayNamePrefix } from "./core/display-name-prefix.ts";
 export { validateEnvironmentName } from "./core/environment.ts";
 export {
 	flattenConfig,
@@ -67,6 +68,7 @@ export {
 	validateConfig,
 	type Config,
 	type DeveloperProductEntry,
+	type DisplayNamePrefixConfig,
 	type EnvironmentEntry,
 	type GamePassEntry,
 	type GistStateConfig,
