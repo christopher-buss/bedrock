@@ -5,7 +5,7 @@ import { type } from "arktype";
 
 import { asRobloxAssetId } from "../../types/ids.ts";
 import type { UniverseDesiredInput } from "../flatten.ts";
-import { hashIconLocales, iconHashesEqual } from "../icons.ts";
+import { hashIconLocales, iconHashesEqual, iconMap } from "../icons.ts";
 import {
 	copyDeclaredSocialLinks,
 	type ResourceCurrentState,
@@ -25,10 +25,6 @@ const socialLink = type({
 }).onUndeclaredKey("reject");
 
 const socialLinkOrUndefined = socialLink.or("undefined");
-
-const iconMap = type({
-	"en-us": "string",
-}).onUndeclaredKey("reject");
 
 const entrySchema = type({
 	"consoleEnabled?": OPTIONAL_BOOLEAN,

@@ -4,14 +4,10 @@ import { type } from "arktype";
 
 import { asResourceKey } from "../../types/ids.ts";
 import type { GamePassDesiredInput } from "../flatten.ts";
-import { hashIconLocales, iconHashesEqual } from "../icons.ts";
+import { hashIconLocales, iconHashesEqual, iconMap } from "../icons.ts";
 import type { GamePassDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_ROBUX_PRICE, type ResolvedConfig } from "../schema.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
-
-const iconMap = type({
-	"en-us": "string",
-}).onUndeclaredKey("reject");
 
 const entrySchema = type({
 	"name": "string",

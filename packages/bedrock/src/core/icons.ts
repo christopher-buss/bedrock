@@ -1,9 +1,22 @@
 import type { Result } from "@bedrock/ocale";
 
+import { type, type Type } from "arktype";
+
 import { asSha256Hex, type ResourceKey, type Sha256Hex } from "../types/ids.ts";
 import { sha256Hex } from "./kinds/hash.ts";
 import type { BuildDesiredError, KindIo } from "./kinds/module.ts";
 import { readBytes } from "./kinds/read-bytes.ts";
+
+/**
+ * ArkType schema for the locale-keyed icon path map. Today the only
+ * accepted locale is `"en-us"`; declaring any other locale fails
+ * validation. Shared by every icon-bearing entry schema (passes,
+ * universe, and any future kind that adopts the same shape) so all
+ * locale-rejection messages attribute the issue path identically.
+ */
+export const iconMap: Type<Record<"en-us", string>> = type({
+	"en-us": "string",
+}).onUndeclaredKey("reject");
 
 /**
  * Read one icon file via the injected I/O surface and return its branded
