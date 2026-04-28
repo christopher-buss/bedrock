@@ -25,14 +25,14 @@ function passFold(key: string, overrides: Partial<PassFoldEntry> = {}): PassFold
 		entry: {
 			name: "Example Pass",
 			description: "This is an example pass.",
-			iconFilePath: "assets/marketing/example-icon.png",
+			icon: { "en-us": "assets/marketing/example-icon.png" },
 			price: 5,
 		},
-		mantleIconFileHash: SAMPLE_HASH,
+		mantleIconFileHashes: { "en-us": SAMPLE_HASH },
 		mantlePath: `pass_${key}`,
 		outputs: {
 			assetId: asRobloxAssetId("838509486"),
-			iconAssetId: asRobloxAssetId("18109205439"),
+			iconAssetIds: { "en-us": asRobloxAssetId("18109205439") },
 		},
 		...overrides,
 	};
@@ -274,7 +274,7 @@ describe(factorizeEnvironments, () => {
 		const primaryEntry = {
 			name: "Example Pass",
 			description: "This is an example pass.",
-			iconFilePath: "assets/marketing/example-icon.png",
+			icon: { "en-us": "assets/marketing/example-icon.png" },
 			price: 5,
 		};
 		const folds = new Map([
@@ -300,7 +300,7 @@ describe(factorizeEnvironments, () => {
 		const primaryEntry = {
 			name: "Example Pass",
 			description: "This is an example pass.",
-			iconFilePath: "assets/marketing/example-icon.png",
+			icon: { "en-us": "assets/marketing/example-icon.png" },
 			price: 5,
 		};
 		const folds = new Map([
@@ -322,13 +322,13 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should override only the divergent pass iconFilePath on a non-primary overlay", () => {
+	it("should override only the divergent pass icon on a non-primary overlay", () => {
 		expect.assertions(1);
 
 		const primaryEntry = {
 			name: "Example Pass",
 			description: "This is an example pass.",
-			iconFilePath: "assets/marketing/example-icon.png",
+			icon: { "en-us": "assets/marketing/example-icon.png" },
 			price: 5,
 		};
 		const folds = new Map([
@@ -338,7 +338,7 @@ describe(factorizeEnvironments, () => {
 					passes: [
 						passWithEntry("vip", {
 							...primaryEntry,
-							iconFilePath: "assets/dev-icon.png",
+							icon: { "en-us": "assets/dev-icon.png" },
 						}),
 					],
 				}),
@@ -351,7 +351,7 @@ describe(factorizeEnvironments, () => {
 		assert(result.success);
 
 		expect(result.data.config.environments["development"]?.passes).toStrictEqual({
-			vip: { iconFilePath: "assets/dev-icon.png" },
+			vip: { icon: { "en-us": "assets/dev-icon.png" } },
 		});
 	});
 
@@ -361,7 +361,7 @@ describe(factorizeEnvironments, () => {
 		const primaryEntry = {
 			name: "Example Pass",
 			description: "This is an example pass.",
-			iconFilePath: "assets/marketing/example-icon.png",
+			icon: { "en-us": "assets/marketing/example-icon.png" },
 			price: 5,
 		};
 		const folds = new Map([
@@ -387,7 +387,7 @@ describe(factorizeEnvironments, () => {
 		const developmentOnlyEntry = {
 			name: "Dev Only Pass",
 			description: "Only available in development.",
-			iconFilePath: "assets/dev-only.png",
+			icon: { "en-us": "assets/dev-only.png" },
 			price: 25,
 		};
 		const folds = new Map([
@@ -410,7 +410,7 @@ describe(factorizeEnvironments, () => {
 		const primaryEntry = {
 			name: "Example Pass",
 			description: "This is an example pass.",
-			iconFilePath: "assets/marketing/example-icon.png",
+			icon: { "en-us": "assets/marketing/example-icon.png" },
 			price: 5,
 		};
 		const folds = new Map([
@@ -438,7 +438,7 @@ describe(factorizeEnvironments, () => {
 		const primaryEntry = {
 			name: "Example Pass",
 			description: "This is an example pass.",
-			iconFilePath: "assets/marketing/example-icon.png",
+			icon: { "en-us": "assets/marketing/example-icon.png" },
 			price: 5,
 		};
 		const folds = new Map([

@@ -8,15 +8,19 @@ import { asSha256Hex, type ResourceKey, type Sha256Hex } from "../types/ids.ts";
 
 /**
  * Result of walking each environment's pass entries and recomputing the
- * SHA-256 digest of every `iconFilePath` from disk. `hashesByEnvironment`
- * carries the recomputed digests keyed by environment then by pass key;
+ * SHA-256 digest of every locale-keyed icon path from disk.
+ * `hashesByEnvironment` carries the recomputed digests keyed by environment
+ * then by pass key; the inner record mirrors `GamePassDesiredState.iconFileHashes`.
  * `warnings` carries one `kind: "ambiguous"` warning per pass whose icon
  * could not be read so the caller can fall back to the Mantle-recorded
- * hash without losing the diagnostic.
+ * hashes without losing the diagnostic.
  */
 export interface IconHashRecomputation {
 	/** Recomputed digests keyed by environment then by pass key. */
-	readonly hashesByEnvironment: ReadonlyMap<string, ReadonlyMap<ResourceKey, Sha256Hex>>;
+	readonly hashesByEnvironment: ReadonlyMap<
+		string,
+		ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>
+	>;
 	/** One ambiguous warning per pass whose icon could not be read. */
 	readonly warnings: ReadonlyArray<MigrationWarning>;
 }
@@ -27,7 +31,7 @@ interface RecomputeIconHashesInputs {
 	readonly folds: ReadonlyMap<string, EnvironmentFoldResult>;
 	/** Reads file bytes; same shape as `MigrateMantleStateDeps.readFile`. */
 	readonly readFile: (path: string) => Promise<Uint8Array>;
-	/** Directory the state file lives in; relative `iconFilePath`s resolve against it. */
+	/** Directory the state file lives in; relative icon paths resolve against it. */
 	readonly stateFileDirectory: string;
 }
 
@@ -38,12 +42,12 @@ interface AmbiguousIconWarningInputs {
 }
 
 /**
- * Walk each environment's folded pass entries, resolve the
- * `iconFilePath` against `stateFileDirectory`, read the bytes via the
+ * Walk each environment's folded pass entries, resolve the locale-keyed
+ * `entry.icon` paths against `stateFileDirectory`, read the bytes via the
  * injected `readFile`, and compute the SHA-256 hex digest. Files that
  * cannot be read surface as `ambiguous` `MigrationWarning`s with the
  * environment-prefixed `mantlePath` and a hint pointing at the resolved
- * path; the caller carries the Mantle-recorded hash forward as a
+ * path; the caller carries the Mantle-recorded hashes forward as a
  * fallback.
  *
  * @param inputs - Per-environment fold results plus I/O dependencies.
@@ -54,12 +58,15 @@ export async function recomputeIconHashes(
 	inputs: RecomputeIconHashesInputs,
 ): Promise<IconHashRecomputation> {
 	const warnings: Array<MigrationWarning> = [];
-	const hashesByEnvironment = new Map<string, ReadonlyMap<ResourceKey, Sha256Hex>>();
+	const hashesByEnvironment = new Map<
+		string,
+		ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>
+	>();
 
 	for (const [environment, folded] of inputs.folds) {
-		const perKey = new Map<ResourceKey, Sha256Hex>();
+		const perKey = new Map<ResourceKey, Record<"en-us", Sha256Hex>>();
 		for (const passEntry of folded.passes) {
-			const resolved = join(inputs.stateFileDirectory, passEntry.entry.iconFilePath);
+			const resolved = join(inputs.stateFileDirectory, passEntry.entry.icon["en-us"]);
 			const recomputed = await tryRecomputeHash(inputs.readFile, resolved);
 			if (recomputed === undefined) {
 				warnings.push(
@@ -70,7 +77,7 @@ export async function recomputeIconHashes(
 					}),
 				);
 			} else {
-				perKey.set(passEntry.key, recomputed);
+				perKey.set(passEntry.key, { "en-us": recomputed });
 			}
 		}
 
@@ -94,7 +101,7 @@ async function tryRecomputeHash(
 
 function buildAmbiguousIconWarning(inputs: AmbiguousIconWarningInputs): MigrationWarning {
 	return {
-		hint: `Could not read icon file at ${inputs.resolvedPath}; verify the file's location relative to the state file or correct the iconFilePath before re-running.`,
+		hint: `Could not read icon file at ${inputs.resolvedPath}; verify the file's location relative to the state file or correct the icon entry before re-running.`,
 		kind: "ambiguous",
 		mantlePath: `${inputs.environmentName}.${inputs.entry.mantlePath}`,
 	};

@@ -673,7 +673,7 @@ environments:
 			"1-example": {
 				name: "Example Pass",
 				description: "This is an example pass.",
-				iconFilePath: "assets/marketing/example-icon.png",
+				icon: { "en-us": "assets/marketing/example-icon.png" },
 				price: 5,
 			},
 		});
@@ -702,12 +702,12 @@ environments:
 		assert(pass?.kind === "gamePass");
 
 		expect(pass.key).toBe("1-example");
-		expect(pass.iconFileHash).toBe(ICON_BYTES_SHA256);
+		expect(pass.iconFileHashes).toStrictEqual({ "en-us": ICON_BYTES_SHA256 });
 		expect(pass.outputs.assetId).toBe("838509486");
 		expect(result.data.warnings).toStrictEqual([]);
 	});
 
-	it("should resolve iconFilePath relative to the state file's directory", async () => {
+	it("should resolve the icon path relative to the state file's directory", async () => {
 		expect.assertions(1);
 
 		const files = new Map<string, "missing" | Uint8Array>([
@@ -727,7 +727,7 @@ environments:
 		const pass = state?.resources.find((resource) => resource.kind === "gamePass");
 		assert(pass?.kind === "gamePass");
 
-		expect(pass.iconFileHash).toBe(ICON_BYTES_SHA256);
+		expect(pass.iconFileHashes).toStrictEqual({ "en-us": ICON_BYTES_SHA256 });
 	});
 
 	it("should emit an ambiguous warning and fall back to the Mantle hash when an icon is missing", async () => {
@@ -750,7 +750,7 @@ environments:
 		const pass = state?.resources.find((resource) => resource.kind === "gamePass");
 		assert(pass?.kind === "gamePass");
 
-		expect(pass.iconFileHash).toBe(SAMPLE_HASH);
+		expect(pass.iconFileHashes).toStrictEqual({ "en-us": SAMPLE_HASH });
 		expect(result.data.warnings).toHaveLength(1);
 
 		const [warning] = result.data.warnings;
@@ -786,7 +786,7 @@ environments:
 		const pass = state?.resources.find((resource) => resource.kind === "gamePass");
 		assert(pass?.kind === "gamePass");
 
-		expect(pass.iconFileHash).toBe(SAMPLE_HASH);
+		expect(pass.iconFileHashes).toStrictEqual({ "en-us": SAMPLE_HASH });
 		expect(result.data.summary.ambiguousCount).toBe(1);
 	});
 

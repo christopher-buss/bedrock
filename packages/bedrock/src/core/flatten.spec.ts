@@ -26,7 +26,7 @@ describe(flattenConfig, () => {
 				"vip-pass": {
 					name: "VIP Pass",
 					description: "Grants VIP perks.",
-					iconFilePath: "assets/vip-icon.png",
+					icon: { "en-us": "assets/vip-icon.png" },
 					price: 500,
 				},
 			},
@@ -37,7 +37,7 @@ describe(flattenConfig, () => {
 				key: asResourceKey("vip-pass"),
 				name: "VIP Pass",
 				description: "Grants VIP perks.",
-				iconFilePath: "assets/vip-icon.png",
+				icon: { "en-us": "assets/vip-icon.png" },
 				kind: "gamePass",
 				price: 500,
 			},
@@ -53,7 +53,7 @@ describe(flattenConfig, () => {
 				"free-pass": {
 					name: "Free",
 					description: "Free pass.",
-					iconFilePath: "assets/free.png",
+					icon: { "en-us": "assets/free.png" },
 				},
 			},
 		};
@@ -70,9 +70,9 @@ describe(flattenConfig, () => {
 		const config: ResolvedConfig = {
 			environments: MinimumEnvironments,
 			passes: {
-				alpha: { name: "A", description: "A.", iconFilePath: "a.png" },
-				beta: { name: "B", description: "B.", iconFilePath: "b.png" },
-				gamma: { name: "G", description: "G.", iconFilePath: "g.png" },
+				alpha: { name: "A", description: "A.", icon: { "en-us": "a.png" } },
+				beta: { name: "B", description: "B.", icon: { "en-us": "b.png" } },
+				gamma: { name: "G", description: "G.", icon: { "en-us": "g.png" } },
 			},
 		};
 
@@ -115,7 +115,7 @@ describe(flattenConfig, () => {
 				"vip-pass": {
 					name: "VIP Pass",
 					description: "Grants VIP perks.",
-					iconFilePath: "assets/vip.png",
+					icon: { "en-us": "assets/vip.png" },
 				},
 			},
 			places: {
@@ -163,7 +163,7 @@ describe(flattenConfig, () => {
 				"vip-pass": {
 					name: "VIP Pass",
 					description: "Grants VIP perks.",
-					iconFilePath: "assets/vip.png",
+					icon: { "en-us": "assets/vip.png" },
 				},
 			},
 			places: {

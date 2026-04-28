@@ -58,7 +58,7 @@ function fieldsEqual(
  * Resource-kind module for Roblox developer products. Owns the entry
  * schema, flattening, drift-equality, and the pass-through normalize
  * step for the `developerProduct` kind. Subsequent slices widen the entry
- * schema with `iconFilePath`, `isRegionalPricingEnabled`, and
+ * schema with `icon`, `isRegionalPricingEnabled`, and
  * `storePageEnabled`.
  */
 export const developerProductKind: ResourceKindModule<"developerProduct"> = {

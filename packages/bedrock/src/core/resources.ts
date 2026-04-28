@@ -22,10 +22,12 @@ import type { UniverseVisibility } from "./schema.ts";
  *
  * const pass: GamePassDesiredState = {
  *     description: "Grants VIP perks.",
- *     iconFileHash: asSha256Hex(
- *         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
- *     ),
- *     iconFilePath: "assets/vip-icon.png",
+ *     icon: { "en-us": "assets/vip-icon.png" },
+ *     iconFileHashes: {
+ *         "en-us": asSha256Hex(
+ *             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+ *         ),
+ *     },
  *     key: asResourceKey("vip-pass"),
  *     kind: "gamePass",
  *     name: "VIP Pass",
@@ -44,12 +46,18 @@ export interface GamePassDesiredState {
 	/** User-facing description shown on the game-pass detail page. */
 	readonly description: string;
 	/**
-	 * SHA-256 hex digest of the icon file, computed by `buildDesired` in shell.
-	 * Used by `diff` to detect icon changes without re-uploading unchanged files.
+	 * Locale-keyed icon paths declared on the authored config. The Roblox
+	 * game-pass API is monolingual, so only the `"en-us"` icon is ever
+	 * uploaded; the map shape mirrors `UniverseDesiredState.icon` for
+	 * cross-kind parity.
 	 */
-	readonly iconFileHash: Sha256Hex;
-	/** Path to the icon file on disk, relative to the config file. */
-	readonly iconFilePath: string;
+	readonly icon: Record<"en-us", string>;
+	/**
+	 * SHA-256 digests of the local icon files keyed by the same locales as
+	 * the icon map. The diff compares this map against the prior current
+	 * state so the driver re-uploads only when a file's bytes change.
+	 */
+	readonly iconFileHashes: Record<"en-us", Sha256Hex>;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
 	readonly kind: "gamePass";
 	/**
@@ -296,7 +304,7 @@ export type SocialLinkField = (typeof SOCIAL_LINK_FIELDS)[number];
  * Desired state for a developer product, the consumable a player can buy via
  * `MarketplaceService:PromptProductPurchase`.
  *
- * Subsequent slices widen this shape with `iconFilePath`,
+ * Subsequent slices widen this shape with `icon`,
  * `isRegionalPricingEnabled`, and `storePageEnabled`.
  *
  * @example
@@ -356,8 +364,12 @@ export type ResourceDesiredState =
 export interface GamePassOutputs {
 	/** Primary Roblox asset ID for the game pass itself. */
 	readonly assetId: RobloxAssetId;
-	/** Roblox asset ID of the uploaded icon image. */
-	readonly iconAssetId: RobloxAssetId;
+	/**
+	 * Locale-keyed Roblox-assigned image IDs for the game-pass icons.
+	 * Mirrors `UniverseOutputs.iconAssetIds` for cross-kind shape parity;
+	 * the Roblox game-pass API only ever populates the `"en-us"` entry.
+	 */
+	readonly iconAssetIds: Record<"en-us", RobloxAssetId>;
 }
 
 /**
@@ -412,7 +424,7 @@ export type ResourceKind = ResourceDesiredState["kind"];
  *
  * const outputs: ResourceOutputsByKind["gamePass"] = {
  *     assetId: asRobloxAssetId("9876543210"),
- *     iconAssetId: asRobloxAssetId("1122334455"),
+ *     iconAssetIds: { "en-us": asRobloxAssetId("1122334455") },
  * };
  *
  * expect(outputs.assetId).toBe("9876543210");
@@ -465,16 +477,18 @@ export type ResourceOutputs<K extends ResourceKind> = ResourceOutputsByKind[K];
  *
  * const current: ResourceCurrentState<"gamePass"> = {
  *     description: "Grants VIP perks.",
- *     iconFileHash: asSha256Hex(
- *         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
- *     ),
- *     iconFilePath: "assets/vip-icon.png",
+ *     icon: { "en-us": "assets/vip-icon.png" },
+ *     iconFileHashes: {
+ *         "en-us": asSha256Hex(
+ *             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+ *         ),
+ *     },
  *     key: asResourceKey("vip-pass"),
  *     kind: "gamePass",
  *     name: "VIP Pass",
  *     outputs: {
  *         assetId: asRobloxAssetId("9876543210"),
- *         iconAssetId: asRobloxAssetId("1122334455"),
+ *         iconAssetIds: { "en-us": asRobloxAssetId("1122334455") },
  *     },
  *     price: 500,
  * };

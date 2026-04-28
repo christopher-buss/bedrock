@@ -36,7 +36,7 @@ export type ConfigInput = ((ctx: ConfigContext) => Config | Promise<Config>) | C
  *     passes: {
  *         "vip-pass": {
  *             description: "Grants VIP perks.",
- *             iconFilePath: "assets/vip-icon.png",
+ *             icon: { "en-us": "assets/vip-icon.png" },
  *             name: "VIP Pass",
  *             price: 500,
  *         },

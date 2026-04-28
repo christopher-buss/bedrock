@@ -41,6 +41,17 @@ describe("gamePassKind", () => {
 				ArkErrors,
 			);
 		});
+
+		it("should reject an icon map declaring a locale other than 'en-us'", () => {
+			expect.assertions(1);
+
+			expect(
+				gamePassKind.entrySchema({
+					...ValidGamePassEntry,
+					icon: { "en-us": "assets/en.png", "fr-fr": "assets/fr.png" },
+				}),
+			).toBeInstanceOf(ArkErrors);
+		});
 	});
 
 	describe("flatten", () => {
@@ -54,7 +65,7 @@ describe("gamePassKind", () => {
 						"vip-pass": {
 							name: "VIP",
 							description: "Perks",
-							iconFilePath: "assets/vip.png",
+							icon: { "en-us": "assets/vip.png" },
 							price: 500,
 						},
 					},
@@ -64,7 +75,7 @@ describe("gamePassKind", () => {
 					key: asResourceKey("vip-pass"),
 					name: "VIP",
 					description: "Perks",
-					iconFilePath: "assets/vip.png",
+					icon: { "en-us": "assets/vip.png" },
 					kind: "gamePass",
 					price: 500,
 				},
@@ -83,8 +94,16 @@ describe("gamePassKind", () => {
 			const inputs = gamePassKind.flatten({
 				environments: { production: {} },
 				passes: {
-					"alpha-pass": { name: "Alpha", description: "a", iconFilePath: "a.png" },
-					"beta-pass": { name: "Beta", description: "b", iconFilePath: "b.png" },
+					"alpha-pass": {
+						name: "Alpha",
+						description: "a",
+						icon: { "en-us": "a.png" },
+					},
+					"beta-pass": {
+						name: "Beta",
+						description: "b",
+						icon: { "en-us": "b.png" },
+					},
 				},
 			});
 
@@ -96,7 +115,7 @@ describe("gamePassKind", () => {
 	});
 
 	describe("normalize", () => {
-		it("should layer a sha256 hex digest of the icon bytes onto the desired state", async () => {
+		it("should layer locale-keyed sha256 hex digests of the icon bytes onto the desired state", async () => {
 			expect.assertions(2);
 
 			const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
@@ -105,7 +124,7 @@ describe("gamePassKind", () => {
 					key: asResourceKey("vip-pass"),
 					name: "VIP",
 					description: "Perks",
-					iconFilePath: "assets/vip.png",
+					icon: { "en-us": "assets/vip.png" },
 					kind: "gamePass",
 					price: 500,
 				},
@@ -114,7 +133,7 @@ describe("gamePassKind", () => {
 
 			assert(result.success);
 
-			expect(result.data.iconFileHash).toHaveLength(64);
+			expect(result.data.iconFileHashes["en-us"]).toHaveLength(64);
 			expect(result.data.kind).toBe("gamePass");
 		});
 
@@ -126,7 +145,7 @@ describe("gamePassKind", () => {
 					key: asResourceKey("vip-pass"),
 					name: "VIP",
 					description: "Perks",
-					iconFilePath: "assets/vip.png",
+					icon: { "en-us": "assets/vip.png" },
 					kind: "gamePass",
 					price: undefined,
 				},
@@ -158,8 +177,8 @@ describe("gamePassKind", () => {
 		it.for<[label: string, currentOverrides: Partial<ResourceCurrentStateGamePass>]>([
 			["name", { name: "Other Name" }],
 			["description", { description: "Other" }],
-			["iconFileHash", { iconFileHash: ALT_HASH }],
-			["iconFilePath", { iconFilePath: "assets/other.png" }],
+			["iconFileHashes", { iconFileHashes: { "en-us": ALT_HASH } }],
+			["icon", { icon: { "en-us": "assets/other.png" } }],
 			["price", { price: 999 }],
 		])("should return false when %s differs", ([, overrides]) => {
 			expect.assertions(1);

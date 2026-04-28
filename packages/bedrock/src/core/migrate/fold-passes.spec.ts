@@ -43,7 +43,7 @@ function fixture(inputs?: unknown, outputs?: unknown): PassFixture {
 }
 
 describe(foldPasses, () => {
-	it("should map pass.inputs.{name, description, iconFilePath} to a GamePassEntry", () => {
+	it("should map pass.inputs.{name, description, iconFilePath} to a GamePassEntry with a locale-keyed icon", () => {
 		expect.assertions(1);
 
 		const result = foldPasses([pass("1-example", fixture())]);
@@ -53,7 +53,7 @@ describe(foldPasses, () => {
 		expect(entry.entry).toStrictEqual({
 			name: "Example Pass",
 			description: "This is an example pass.",
-			iconFilePath: "assets/marketing/example-icon.png",
+			icon: { "en-us": "assets/marketing/example-icon.png" },
 			price: 5,
 		});
 	});
@@ -67,7 +67,7 @@ describe(foldPasses, () => {
 
 		expect(entry.outputs).toStrictEqual({
 			assetId: "838509486",
-			iconAssetId: "18109205439",
+			iconAssetIds: { "en-us": "18109205439" },
 		});
 	});
 
@@ -81,14 +81,14 @@ describe(foldPasses, () => {
 		expect(entry.key).toBe(asResourceKey("1-example"));
 	});
 
-	it("should preserve the Mantle-recorded iconFileHash for downstream use", () => {
+	it("should preserve the Mantle-recorded iconFileHash under the locale key for downstream use", () => {
 		expect.assertions(1);
 
 		const result = foldPasses([pass("1-example", fixture())]);
 		const [entry] = result.passes;
 		assert(entry !== undefined);
 
-		expect(entry.mantleIconFileHash).toBe(asSha256Hex(SAMPLE_HASH));
+		expect(entry.mantleIconFileHashes).toStrictEqual({ "en-us": asSha256Hex(SAMPLE_HASH) });
 	});
 
 	it("should expose the per-resource mantlePath rooted at pass_<k>", () => {
@@ -142,7 +142,7 @@ describe(foldPasses, () => {
 		assert(entry !== undefined);
 
 		expect(entry.outputs.assetId).toBe("838509486");
-		expect(entry.outputs.iconAssetId).toBe("18109205439");
+		expect(entry.outputs.iconAssetIds["en-us"]).toBe("18109205439");
 	});
 
 	it("should ignore Mantle resources whose kind is not pass even when their payload is pass-shaped", () => {

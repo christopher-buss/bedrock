@@ -11,10 +11,10 @@ const PASS_KIND = "pass";
  * Folded representation of one Mantle `pass_<k>` resource.
  *
  * `entry` carries the bedrock `Config.passes[<k>]` shape (omitting
- * `iconFileHash` because the hash is recomputed from disk by the shell
- * before it lands on state). `outputs` carries the Roblox-assigned
- * identifiers for the pass and its icon. `mantleIconFileHash` preserves
- * the hash recorded by Mantle so the shell can fall back to it when the
+ * `iconFileHashes` because the hashes are recomputed from disk by the shell
+ * before they land on state). `outputs` carries the Roblox-assigned
+ * identifiers for the pass and its icon. `mantleIconFileHashes` preserves
+ * the hashes recorded by Mantle so the shell can fall back to them when the
  * icon file is missing on disk. `mantlePath` roots warnings at the
  * resource so the report is searchable.
  */
@@ -23,8 +23,8 @@ export interface PassFoldEntry {
 	readonly key: ResourceKey;
 	/** Bedrock `Config.passes[<k>]` block populated from the pass resource. */
 	readonly entry: GamePassEntry;
-	/** Mantle-recorded icon hash; retained as a fallback for hash recomputation. */
-	readonly mantleIconFileHash: Sha256Hex;
+	/** Locale-keyed Mantle-recorded icon hashes; retained as a fallback for hash recomputation. */
+	readonly mantleIconFileHashes: Record<"en-us", Sha256Hex>;
 	/** Resource-rooted Mantle path (`pass_<k>`) used to anchor warnings. */
 	readonly mantlePath: string;
 	/** Roblox-assigned identifiers carried into `BedrockState.resources[*].outputs`. */
@@ -97,7 +97,7 @@ function buildEntry(inputs: PassInputs): GamePassEntry {
 	const base = {
 		name: inputs.name,
 		description: inputs.description,
-		iconFilePath: inputs.iconFilePath,
+		icon: { "en-us": inputs.iconFilePath },
 	};
 
 	return inputs.price === undefined ? base : { ...base, price: inputs.price };
@@ -184,11 +184,11 @@ function foldOnePass(resource: MantleResource): PassFoldEntry | undefined {
 	return {
 		key: asResourceKey(resource.key),
 		entry: buildEntry(inputs),
-		mantleIconFileHash: inputs.iconFileHash,
+		mantleIconFileHashes: { "en-us": inputs.iconFileHash },
 		mantlePath: `${PASS_KIND}_${resource.key}`,
 		outputs: {
 			assetId: asRobloxAssetId(outputs.assetId),
-			iconAssetId: asRobloxAssetId(outputs.iconAssetId),
+			iconAssetIds: { "en-us": asRobloxAssetId(outputs.iconAssetId) },
 		},
 	};
 }

@@ -15,7 +15,7 @@ import {
 it('Example 1', () => {
   const entry: ResourceEntryByKind['gamePass'] = {
     description: 'Grants VIP perks.',
-    iconFilePath: 'assets/vip-icon.png',
+    icon: { 'en-us': 'assets/vip-icon.png' },
     name: 'VIP Pass',
     price: 500,
   }
@@ -29,7 +29,7 @@ it('Example 2', () => {
     passes: {
       'vip-pass': {
         description: 'Grants VIP perks.',
-        iconFilePath: 'assets/vip-icon.png',
+        icon: { 'en-us': 'assets/vip-icon.png' },
         name: 'VIP Pass',
         price: 500,
       },
@@ -69,7 +69,7 @@ it('Example 5', () => {
       passes: {
         'vip-pass': {
           description: 'VIP perks.',
-          iconFilePath: 'assets/vip.png',
+          icon: { 'en-us': 'assets/vip.png' },
           name: 'VIP Pass',
           price: 500,
         },

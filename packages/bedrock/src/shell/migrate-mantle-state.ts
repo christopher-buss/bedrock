@@ -168,7 +168,7 @@ export async function migrateMantleState(
 
 function buildStatesByEnvironment(
 	folds: ReadonlyMap<string, EnvironmentFoldResult>,
-	hashesByEnvironment: ReadonlyMap<string, ReadonlyMap<ResourceKey, Sha256Hex>>,
+	hashesByEnvironment: ReadonlyMap<string, ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>>,
 ): Readonly<Record<string, BedrockState>> {
 	return Object.fromEntries(
 		[...folds.entries()].map(([name, folded]): [string, BedrockState] => {

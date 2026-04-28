@@ -160,8 +160,8 @@ function buildPassOverlayEntry(
 		overlay.description = entry.description;
 	}
 
-	if (!Object.is(primary.iconFilePath, entry.iconFilePath)) {
-		overlay.iconFilePath = entry.iconFilePath;
+	if (!Object.is(primary.icon["en-us"], entry.icon["en-us"])) {
+		overlay.icon = entry.icon;
 	}
 
 	if (!Object.is(primary.price, entry.price)) {

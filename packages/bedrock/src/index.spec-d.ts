@@ -212,7 +212,7 @@ describe(defineConfig, () => {
 				"vip-pass": {
 					name: "VIP Pass",
 					description: "Grants VIP perks.",
-					iconFilePath: "assets/vip-icon.png",
+					icon: { "en-us": "assets/vip-icon.png" },
 					price: 500,
 				},
 			},
