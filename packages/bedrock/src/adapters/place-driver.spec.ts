@@ -33,7 +33,7 @@ function makeDriver(overrides?: Partial<Except<PlaceDriverDeps, "client">>) {
 
 describe(createPlaceDriver, () => {
 	it("should publish an rbxl place and return a PlaceOutputs-shaped current state", async () => {
-		expect.assertions(1);
+		expect.assertions(2);
 
 		const { driver, http } = makeDriver();
 		http.mockResponse({ body: { versionNumber: 3 }, status: 200 });
@@ -47,6 +47,7 @@ describe(createPlaceDriver, () => {
 			...desired,
 			outputs: { versionNumber: 3 },
 		});
+		expect(http.requests).toHaveLength(1);
 	});
 
 	it("should POST to the place publish endpoint with content-type application/octet-stream for rbxl", async () => {
