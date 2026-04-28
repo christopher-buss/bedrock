@@ -106,3 +106,48 @@ community.
 - Verified: Rokit/Foreman support non-Rust binaries
 - Benchmark: Bun binary = 57 MB, Node.js SEA = 104 MB (tested)
 - Pattern: esbuild and Biome use dual npm + binary distribution
+
+## Amendment 2026-04-28: Runtime contract vs binary host
+
+The original Decision conflated two roles for Bun: the runtime (which APIs
+shipped code may call) and the binary host (the executable wrapper for
+Rokit/Aftman/Foreman distribution). Bedrock has separated them in practice
+since ADR-014 moved dev tooling to Vite+ (Node-based). Library code under
+`packages/*/src/` calls no Bun-specific APIs; the only `Bun.*` calls in the
+repo are in build-time scripts.
+
+The framing narrows:
+
+- **Runtime contract for shipped library code**: Node 24.12+ or Bun 1.3+.
+  Both runtimes declared in `engines`. Source uses only standard web APIs.
+  Capability gaps Node has but Bun ships natively (e.g. YAML parsing) are
+  filled by runtime dependencies that work on both, such as `confbox`.
+- **Binary host**: `bun build --compile --minify` wraps the `vp pack` output
+  (`dist/cli/run.mjs`) as a self-contained executable. Bun is the wrapper,
+  not the runtime contract.
+- **Dev tooling**: Vite+ for build, test, and task orchestration (ADR-014).
+  Bun runs ad-hoc workspace scripts. Dev tooling has no runtime contract
+  obligation.
+
+### Empirical re-validation
+
+A spike against the current CLI bundle on macOS arm64 (2026-04-28):
+
+| Technique                      | Binary size | Cold startup (median of 5) |
+| ------------------------------ | ----------- | -------------------------- |
+| `bun build --compile --minify` | 62 MB       | 491 ms                     |
+| `@yao-pkg/pkg`                 | 67 MB       | 471 ms                     |
+| Node 24 SEA                    | 120 MB      | 501 ms                     |
+| Node 25 SEA                    | 133 MB      | 563 ms                     |
+
+Bun's 2x lead over SEA from the original spike held; Node 25 regressed SEA
+further. `@yao-pkg/pkg` matched Bun's size class, but it is the community
+fork after Vercel archived `vercel/pkg` in 2024, and pkg cannot bundle
+workspace ESM without a Bun-produced CJS pre-bundle. Bun wins on both size
+and pipeline simplicity. Wiring the binary release into CI (with the
+mandatory `codesign -s -` step on macOS arm64) is tracked as follow-up work.
+
+### Related
+
+- **ADR-014** moved dev tooling to Node-based Vite+. This amendment names
+  the runtime contract ADR-014 left implicit.
