@@ -117,7 +117,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(4);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			primaryEnvironment: "production",
 			stateFilePath: REAL_FIXTURE,
 		});
@@ -140,7 +140,7 @@ describe(migrateMantleState, () => {
 		expect.assertions(4);
 
 		const result = await migrateMantleState({
-			outputFormat: "typescript",
+			configFormat: "typescript",
 			primaryEnvironment: "production",
 			stateFilePath: REAL_FIXTURE,
 		});
