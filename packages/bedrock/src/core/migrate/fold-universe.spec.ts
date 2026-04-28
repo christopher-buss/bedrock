@@ -13,6 +13,20 @@ function experience(outputs: unknown): MantleResource {
 	};
 }
 
+const DEFAULT_EXPERIENCE_OUTPUTS = { assetId: 1, startPlaceId: 2 };
+
+type DeviceFlag = "consoleEnabled" | "desktopEnabled" | "mobileEnabled" | "tabletEnabled";
+
+function experienceConfiguration(inputs: unknown): MantleResource {
+	return {
+		key: "singleton",
+		dependencies: [],
+		inputs,
+		kind: "experienceConfiguration",
+		outputs: undefined,
+	};
+}
+
 describe(foldUniverse, () => {
 	it("should map experience.outputs.assetId to universe.universeId", () => {
 		expect.assertions(1);
@@ -137,5 +151,217 @@ describe(foldUniverse, () => {
 		expect(
 			foldUniverse([experience({ assetId: { nested: 1 }, startPlaceId: 2 })]),
 		).toBeUndefined();
+	});
+
+	describe("playableDevices fold", () => {
+		it.for<[label: string, device: string, flag: DeviceFlag]>([
+			["desktop", "Computer", "desktopEnabled"],
+			["console", "Console", "consoleEnabled"],
+			["mobile", "Phone", "mobileEnabled"],
+			["tablet", "Tablet", "tabletEnabled"],
+		])("should fold the %s device into its enabled flag", ([, device, flag]) => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({ playableDevices: [device] }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry[flag]).toBeTrue();
+			expect(result.entry).toStrictEqual({ [flag]: true, universeId: "1" });
+		});
+
+		it("should fold every known device into its enabled flag for the full list", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({
+					playableDevices: ["Computer", "Console", "Phone", "Tablet"],
+				}),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({
+				consoleEnabled: true,
+				desktopEnabled: true,
+				mobileEnabled: true,
+				tabletEnabled: true,
+				universeId: "1",
+			});
+		});
+
+		it("should leave other device flags omitted for a subset list", () => {
+			expect.assertions(3);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({ playableDevices: ["Computer"] }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry.desktopEnabled).toBeTrue();
+			expect(result.entry.consoleEnabled).toBeNil();
+			expect(result.entry.mobileEnabled).toBeNil();
+		});
+
+		it("should emit one interpretive warning per matched device flag", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({ playableDevices: ["Computer", "Console"] }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.warnings).toHaveLength(2);
+			expect(result.warnings).toIncludeAllPartialMembers([
+				{
+					bedrockPath: "universe.desktopEnabled",
+					kind: "interpretive",
+					mantlePath: "experienceConfiguration_singleton.playableDevices",
+					rule: "list-to-flag",
+				},
+				{
+					bedrockPath: "universe.consoleEnabled",
+					kind: "interpretive",
+					mantlePath: "experienceConfiguration_singleton.playableDevices",
+					rule: "list-to-flag",
+				},
+			]);
+		});
+
+		it("should emit a blocked warning for an unknown device string", () => {
+			expect.assertions(3);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({ playableDevices: ["Toaster"] }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toHaveLength(1);
+
+			const [warning] = result.warnings;
+			assert(warning?.kind === "blocked");
+
+			expect(warning).toStrictEqual({
+				kind: "blocked",
+				mantlePath: "experienceConfiguration_singleton.playableDevices",
+				reason: "Unknown playableDevices value: Toaster",
+			});
+		});
+
+		it("should emit a blocked warning for a non-string entry in playableDevices", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({ playableDevices: [42] }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.warnings).toHaveLength(1);
+
+			const [warning] = result.warnings;
+			assert(warning?.kind === "blocked");
+
+			expect(warning.reason).toMatch(/Unknown playableDevices value/);
+		});
+
+		it("should fold known devices and warn on unknowns in a mixed list", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({
+					playableDevices: ["Computer", "Toaster", "Tablet"],
+				}),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({
+				desktopEnabled: true,
+				tabletEnabled: true,
+				universeId: "1",
+			});
+			expect(result.warnings).toHaveLength(3);
+		});
+
+		it("should leave the entry untouched when no experienceConfiguration is present", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([experience(DEFAULT_EXPERIENCE_OUTPUTS)]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should ignore an experienceConfiguration whose inputs is not an object", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration("not-an-object"),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should ignore an experienceConfiguration whose playableDevices is not an array", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({ playableDevices: "Computer" }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should ignore an experienceConfiguration with no playableDevices field", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({ genre: "All" }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should produce no warnings when playableDevices is an empty array", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({ playableDevices: [] }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
 	});
 });

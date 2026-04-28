@@ -5,6 +5,21 @@ import type { MigrationWarning } from "./migration-report.ts";
 import type { MantleResource } from "./types.ts";
 
 const EXPERIENCE_KIND = "experience";
+const EXPERIENCE_CONFIGURATION_KIND = "experienceConfiguration";
+
+const PLAYABLE_DEVICE_TO_FLAG: Readonly<
+	Record<string, "consoleEnabled" | "desktopEnabled" | "mobileEnabled" | "tabletEnabled">
+> = {
+	Computer: "desktopEnabled",
+	Console: "consoleEnabled",
+	Phone: "mobileEnabled",
+	Tablet: "tabletEnabled",
+};
+
+interface FoldFragment {
+	readonly entryFragment: Partial<UniverseEntry>;
+	readonly warnings: ReadonlyArray<MigrationWarning>;
+}
 
 /**
  * Output of folding the experience-related Mantle resources of one
@@ -33,13 +48,6 @@ interface ExperienceOutputs {
  * Fold the universe-contributing Mantle resources of one environment
  * into a `UniverseEntry` plus matching `UniverseOutputs`.
  *
- * Skeleton: only the `experience_singleton` resource is consumed.
- * `experience.outputs.assetId` becomes `universe.universeId`;
- * `experience.outputs.startPlaceId` becomes the bedrock state's
- * `outputs.rootPlaceId`. Future slices fold `experienceConfiguration`,
- * `experienceActivation`, `spatialVoice`, `socialLink_*`, and the start
- * place's `placeConfiguration.name` into the same entry.
- *
  * Returns `undefined` when no `experience_singleton` resource is present;
  * the caller treats that as "this environment has no universe to migrate"
  * and omits the `universe` field from the resulting `Config`.
@@ -61,10 +69,19 @@ export function foldUniverse(
 		return undefined;
 	}
 
+	const fragments: ReadonlyArray<FoldFragment> = [foldPlayableDevices(resources)];
+
+	const entry: UniverseEntry = fragments.reduce<UniverseEntry>(
+		(accumulator, fragment) => ({ ...accumulator, ...fragment.entryFragment }),
+		{ universeId: outputs.assetId },
+	);
+
+	const warnings = fragments.flatMap((fragment) => fragment.warnings);
+
 	return {
-		entry: { universeId: outputs.assetId },
+		entry,
 		outputs: { rootPlaceId: asRobloxAssetId(outputs.startPlaceId) },
-		warnings: [],
+		warnings,
 	};
 }
 
@@ -80,17 +97,77 @@ function coerceRobloxId(value: unknown): string | undefined {
 	return undefined;
 }
 
+function isObjectPayload(value: unknown): value is Record<string, unknown> {
+	return Object.prototype.toString.call(value) === "[object Object]";
+}
+
 function readExperienceOutputs(resource: MantleResource): ExperienceOutputs | undefined {
 	const raw = resource.outputs;
-	if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+	if (!isObjectPayload(raw)) {
 		return undefined;
 	}
 
-	const assetId = coerceRobloxId((raw as { assetId?: unknown }).assetId);
-	const startPlaceId = coerceRobloxId((raw as { startPlaceId?: unknown }).startPlaceId);
+	const assetId = coerceRobloxId(raw["assetId"]);
+	const startPlaceId = coerceRobloxId(raw["startPlaceId"]);
 	if (assetId === undefined || startPlaceId === undefined) {
 		return undefined;
 	}
 
 	return { assetId, startPlaceId };
 }
+
+const PLAYABLE_DEVICES_PATH = "experienceConfiguration_singleton.playableDevices";
+
+function mapPlayableDevice(raw: unknown): FoldFragment {
+	const flag = typeof raw === "string" ? PLAYABLE_DEVICE_TO_FLAG[raw] : undefined;
+	if (flag === undefined) {
+		return {
+			entryFragment: {},
+			warnings: [
+				{
+					kind: "blocked",
+					mantlePath: PLAYABLE_DEVICES_PATH,
+					reason: `Unknown playableDevices value: ${String(raw)}`,
+				},
+			],
+		};
+	}
+
+	return {
+		entryFragment: { [flag]: true },
+		warnings: [
+			{
+				bedrockPath: `universe.${flag}`,
+				kind: "interpretive",
+				mantlePath: PLAYABLE_DEVICES_PATH,
+				rule: "list-to-flag",
+			},
+		],
+	};
+}
+
+function mergeFragment(left: FoldFragment, right: FoldFragment): FoldFragment {
+	return {
+		entryFragment: { ...left.entryFragment, ...right.entryFragment },
+		warnings: [...left.warnings, ...right.warnings],
+	};
+}
+
+function foldPlayableDevices(resources: ReadonlyArray<MantleResource>): FoldFragment {
+	const config = resources.find((resource) => resource.kind === EXPERIENCE_CONFIGURATION_KIND);
+	if (config === undefined || !isObjectPayload(config.inputs)) {
+		return EMPTY_FRAGMENT;
+	}
+
+	const { playableDevices } = config.inputs;
+	if (!Array.isArray(playableDevices)) {
+		return EMPTY_FRAGMENT;
+	}
+
+	return playableDevices.reduce<FoldFragment>(
+		(accumulator, raw) => mergeFragment(accumulator, mapPlayableDevice(raw)),
+		EMPTY_FRAGMENT,
+	);
+}
+
+const EMPTY_FRAGMENT: FoldFragment = { entryFragment: {}, warnings: [] };
