@@ -1,7 +1,7 @@
 import { universeCurrent, universeDesired } from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";
 
-import { asRobloxAssetId } from "../../types/ids.ts";
+import { asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import { UNIVERSE_SINGLETON_KEY } from "../resources.ts";
 import { universeKind } from "./universe.ts";
 
@@ -180,6 +180,86 @@ describe("universeKind", () => {
 
 			expect(
 				universeKind.fieldsEqual(universeDesired(), universeCurrent(overrides)),
+			).toBeFalse();
+		});
+
+		it("should return true when icon and iconFileHashes match across both sides", () => {
+			expect.assertions(1);
+
+			const Overrides = {
+				icon: { "en-us": "assets/icon.png" },
+				iconFileHashes: {
+					"en-us": asSha256Hex(
+						"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+					),
+				},
+			} as const;
+
+			expect(
+				universeKind.fieldsEqual(universeDesired(Overrides), universeCurrent(Overrides)),
+			).toBeTrue();
+		});
+
+		it("should return false when desired declares icon but current does not", () => {
+			expect.assertions(1);
+
+			expect(
+				universeKind.fieldsEqual(
+					universeDesired({
+						icon: { "en-us": "assets/icon.png" },
+						iconFileHashes: {
+							"en-us": asSha256Hex(
+								"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+							),
+						},
+					}),
+					universeCurrent(),
+				),
+			).toBeFalse();
+		});
+
+		it("should return false when current declares icon but desired does not", () => {
+			expect.assertions(1);
+
+			expect(
+				universeKind.fieldsEqual(
+					universeDesired(),
+					universeCurrent({
+						icon: { "en-us": "assets/icon.png" },
+						iconFileHashes: {
+							"en-us": asSha256Hex(
+								"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+							),
+						},
+					}),
+				),
+			).toBeFalse();
+		});
+
+		it("should return false when the en-us icon hash differs across sides", () => {
+			expect.assertions(1);
+
+			const SharedIcon = { "en-us": "assets/icon.png" } as const;
+
+			expect(
+				universeKind.fieldsEqual(
+					universeDesired({
+						icon: SharedIcon,
+						iconFileHashes: {
+							"en-us": asSha256Hex(
+								"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+							),
+						},
+					}),
+					universeCurrent({
+						icon: SharedIcon,
+						iconFileHashes: {
+							"en-us": asSha256Hex(
+								"2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+							),
+						},
+					}),
+				),
 			).toBeFalse();
 		});
 	});

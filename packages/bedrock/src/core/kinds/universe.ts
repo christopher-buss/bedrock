@@ -162,6 +162,21 @@ function declaredSocialLinksEqual(
 	return true;
 }
 
+function iconHashesEqual(
+	desired: UniverseDesiredState,
+	current: ResourceCurrentState<"universe">,
+): boolean {
+	if (desired.iconFileHashes === undefined) {
+		return current.iconFileHashes === undefined;
+	}
+
+	if (current.iconFileHashes === undefined) {
+		return false;
+	}
+
+	return desired.iconFileHashes["en-us"] === current.iconFileHashes["en-us"];
+}
+
 function fieldsEqual(
 	desired: UniverseDesiredState,
 	current: ResourceCurrentState<"universe">,
@@ -192,6 +207,10 @@ function fieldsEqual(
 		"privateServerPriceRobux" in desired &&
 		desired.privateServerPriceRobux !== current.privateServerPriceRobux
 	) {
+		return false;
+	}
+
+	if (!iconHashesEqual(desired, current)) {
 		return false;
 	}
 
