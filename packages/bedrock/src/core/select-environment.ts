@@ -98,8 +98,9 @@ interface ProjectInputs {
  * prefixing defaults to enabled) and the chosen environment declares a
  * non-empty `label`, the resolver renders the configured template via
  * `renderDisplayNamePrefix` and prepends the result to `universe.displayName`
- * if it is declared. An undeclared `displayName`, an empty/absent label, or
- * an explicit `displayNamePrefix.enabled: false` all skip prefixing.
+ * and every declared place `displayName`. An undeclared `displayName`, an
+ * empty/absent label, or an explicit `displayNamePrefix.enabled: false` all
+ * skip prefixing for the affected fields.
  *
  * @example
  *
@@ -262,14 +263,34 @@ function applyUniversePrefix(
 	return { ...universe, displayName: prefix + universe.displayName };
 }
 
+function applyPlacesPrefix(
+	places: Record<string, ResolvedPlaceEntry> | undefined,
+	prefix: string | undefined,
+): Record<string, ResolvedPlaceEntry> | undefined {
+	if (places === undefined || prefix === undefined) {
+		return places;
+	}
+
+	return Object.fromEntries(
+		Object.entries(places).map(([key, place]) => {
+			if (place.displayName === undefined) {
+				return [key, place];
+			}
+
+			return [key, { ...place, displayName: prefix + place.displayName }];
+		}),
+	);
+}
+
 function projectConfig(inputs: ProjectInputs): ResolvedConfig {
 	const { config, entry } = inputs;
 	const passes = mergeKeyedRecord<GamePassEntry>(entry.passes, config.passes);
-	const places = mergeKeyedRecord<ResolvedPlaceEntry>(entry.places, config.places);
+	const mergedPlaces = mergeKeyedRecord<ResolvedPlaceEntry>(entry.places, config.places);
 	const products = mergeKeyedRecord<DeveloperProductEntry>(entry.products, config.products);
 	const merged = mergeUniverse(entry.universe, config.universe);
 	const prefix = resolvePrefix(config, entry);
 	const universe = applyUniversePrefix(merged, prefix);
+	const places = applyPlacesPrefix(mergedPlaces, prefix);
 	const state = entry.state ?? config.state;
 
 	const { places: _placesRoot, products: _productsRoot, ...rest } = config;
