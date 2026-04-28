@@ -633,6 +633,46 @@ describe(validateConfig, () => {
 		expect(result.data.universe!.icon).toStrictEqual({ "en-us": "assets/icon.png" });
 	});
 
+	it("should reject a universe icon map that declares a locale other than 'en-us'", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				universe: {
+					icon: { "en-us": "assets/en.png", "fr-fr": "assets/fr.png" },
+					universeId: "1234567890",
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "icon", "fr-fr"]);
+	});
+
+	it("should reject a universe icon map missing the 'en-us' key", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				universe: {
+					icon: {},
+					universeId: "1234567890",
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "icon", "en-us"]);
+	});
+
 	it("should accept a universe block with all four optional managed fields declared", () => {
 		expect.assertions(4);
 
