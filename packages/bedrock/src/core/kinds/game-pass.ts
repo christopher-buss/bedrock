@@ -4,6 +4,7 @@ import { type } from "arktype";
 
 import { asResourceKey, asSha256Hex } from "../../types/ids.ts";
 import type { GamePassDesiredInput } from "../flatten.ts";
+import { iconHashesEqual } from "../icons.ts";
 import type { GamePassDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_ROBUX_PRICE, type ResolvedConfig } from "../schema.ts";
 import { sha256Hex } from "./hash.ts";
@@ -64,7 +65,7 @@ function fieldsEqual(
 	return (
 		desired.description === current.description &&
 		desired.icon["en-us"] === current.icon["en-us"] &&
-		desired.iconFileHashes["en-us"] === current.iconFileHashes["en-us"] &&
+		iconHashesEqual(desired.iconFileHashes, current.iconFileHashes) &&
 		desired.name === current.name &&
 		desired.price === current.price
 	);
