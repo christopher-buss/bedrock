@@ -30,6 +30,30 @@ export async function hashIconFile(
 }
 
 /**
+ * Hash every locale entry on a declared icon map, producing a hash map
+ * keyed by the same locales. Iterates `hashIconFile` per locale so each
+ * read failure surfaces the offending file's path verbatim. Stamped onto
+ * desired-state entries by per-kind `normalize` implementations.
+ *
+ * @param input - Declared icon paths plus the resource key blamed on
+ *   read failure.
+ * @param io - I/O surface carrying the injected `readFile`.
+ * @returns `Ok` with hashes mirroring the locale shape of the input, or
+ *   `Err` from the first locale whose file could not be read.
+ */
+export async function hashIconLocales(
+	input: { readonly icon: Record<"en-us", string>; readonly key: ResourceKey },
+	io: KindIo,
+): Promise<Result<Record<"en-us", Sha256Hex>, BuildDesiredError>> {
+	const enUs = await hashIconFile({ key: input.key, filePath: input.icon["en-us"] }, io);
+	if (!enUs.success) {
+		return enUs;
+	}
+
+	return { data: { "en-us": enUs.data }, success: true };
+}
+
+/**
  * Locale-aware tri-state equality on icon-file hash maps. Used by per-kind
  * `fieldsEqual` implementations to detect drift on resources that carry an
  * optional locale-keyed icon (universe, game-pass, and any future kind that
