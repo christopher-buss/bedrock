@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import process from "node:process";
 import { defineConfig } from "vitepress";
 import { tabsMarkdownPlugin } from "vitepress-plugin-tabs";
 
@@ -6,6 +7,8 @@ import { buildSidebarFromNavigation, type NavigationItem } from "./build-sidebar
 
 const navigationBedrock = loadNavigation("./docs/bedrock/api/navigation.json");
 const navigationOcale = loadNavigation("./docs/ocale/api/navigation.json");
+
+const IS_PREVIEW_CHANNEL = process.env["BEDROCK_DOCS_CHANNEL"] === "next";
 
 export default defineConfig({
 	cleanUrls: true,
@@ -25,6 +28,9 @@ export default defineConfig({
 			{ link: "/", text: "Home" },
 			{ link: "/bedrock/guide/getting-started", text: "Bedrock" },
 			{ link: "/ocale/guide/getting-started", text: "Ocale" },
+			...(IS_PREVIEW_CHANNEL
+				? [{ link: "https://bedrock-livid.vercel.app/", text: "Latest release" }]
+				: []),
 		],
 		sidebar: {
 			"/bedrock/": [
@@ -55,7 +61,7 @@ export default defineConfig({
 		},
 		socialLinks: [{ icon: "github", link: "https://github.com/christopher-buss/bedrock" }],
 	},
-	title: "Bedrock",
+	title: IS_PREVIEW_CHANNEL ? "Bedrock (preview)" : "Bedrock",
 });
 
 function toNavigationItem(value: JSONValue): NavigationItem | undefined {
