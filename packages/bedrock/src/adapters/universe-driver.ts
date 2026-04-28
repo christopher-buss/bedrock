@@ -42,6 +42,12 @@ interface ToCurrentStateInputs {
 	readonly rootPlaceId: string;
 }
 
+interface ReconcileIconInputs {
+	readonly current: ResourceCurrentState<"universe"> | undefined;
+	readonly deps: UniverseDriverDeps;
+	readonly desired: UniverseDesiredState;
+}
+
 /**
  * Wraps {@link UniversesClient} as a `ResourceDriver<"universe">`. `create`
  * and `update` both delegate to a shared reconcile helper because Open
@@ -142,10 +148,10 @@ interface ToCurrentStateInputs {
 export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"universe"> {
 	return {
 		async create(desired) {
-			return reconcileUniverse(deps, desired);
+			return reconcileUniverse({ current: undefined, deps, desired });
 		},
-		async update(_current, desired) {
-			return reconcileUniverse(deps, desired);
+		async update(current, desired) {
+			return reconcileUniverse({ current, deps, desired });
 		},
 	};
 }
@@ -256,11 +262,17 @@ async function captureUploadedIconAssetId(
 }
 
 async function reconcileIcon(
-	deps: UniverseDriverDeps,
-	desired: UniverseDesiredState,
+	inputs: ReconcileIconInputs,
 ): Promise<Result<Record<"en-us", RobloxAssetId> | undefined, OpenCloudError>> {
+	const { current, deps, desired } = inputs;
 	if (desired.icon === undefined) {
 		return { data: undefined, success: true };
+	}
+
+	const desiredHash = desired.iconFileHashes?.["en-us"];
+	const currentHash = current?.iconFileHashes?.["en-us"];
+	if (desiredHash === currentHash) {
+		return { data: current?.outputs.iconAssetIds, success: true };
 	}
 
 	const bytes = await deps.readFile(desired.icon["en-us"]);
@@ -277,9 +289,9 @@ async function reconcileIcon(
 }
 
 async function reconcileUniverse(
-	deps: UniverseDriverDeps,
-	desired: UniverseDesiredState,
+	inputs: ReconcileIconInputs,
 ): Promise<Result<ResourceCurrentState<"universe">, OpenCloudError>> {
+	const { current, deps, desired } = inputs;
 	const universeResult = await resolveUniverse(deps, desired);
 	if (!universeResult.success) {
 		return universeResult;
@@ -297,7 +309,7 @@ async function reconcileUniverse(
 		}
 	}
 
-	const iconResult = await reconcileIcon(deps, desired);
+	const iconResult = await reconcileIcon({ current, deps, desired });
 	if (!iconResult.success) {
 		return iconResult;
 	}

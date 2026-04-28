@@ -10,17 +10,18 @@ import {
 } from "@bedrock/ocale/testing";
 import { UniversesClient } from "@bedrock/ocale/universes";
 
-import { PLATFORM_FLAG_ROWS, universeDesired } from "#tests/helpers/resources";
+import { PLATFORM_FLAG_ROWS, universeCurrent, universeDesired } from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";
 
 import { SOCIAL_LINK_FIELDS, UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
-import { asSha256Hex } from "../types/ids.ts";
+import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { createUniverseDriver } from "./universe-driver.ts";
 
 const UNIVERSE_ID = "1234567890";
 const ROOT_PLACE_ID = "4711";
 const ROOT_PLACE_PATH = `universes/${UNIVERSE_ID}/places/${ROOT_PLACE_ID}`;
 const ICON_HASH_A = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+const ICON_HASH_B = asSha256Hex("2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881");
 
 interface MakeDriverOptions {
 	readonly schemaValidation?: "off" | "strict" | "warn";
@@ -597,6 +598,73 @@ describe(createUniverseDriver, () => {
 
 			expect(result.err.statusCode).toBe(200);
 			expect(result.err.message).toContain("en-us");
+		});
+
+		it("should skip upload+list on update when current and desired hashes match", async () => {
+			expect.assertions(3);
+
+			const { driver, http } = makeDriver();
+			assert(driver.update !== undefined);
+			http.mockResponse({ body: validUniverseBody(), status: 200 });
+
+			const desired = universeDesired({
+				icon: { "en-us": "assets/icon.png" },
+				iconFileHashes: { "en-us": ICON_HASH_A },
+				voiceChatEnabled: true,
+			});
+			const current = universeCurrent({
+				icon: { "en-us": "assets/icon.png" },
+				iconFileHashes: { "en-us": ICON_HASH_A },
+				outputs: {
+					iconAssetIds: { "en-us": asRobloxAssetId("88888") },
+					rootPlaceId: asRobloxAssetId(ROOT_PLACE_ID),
+				},
+			});
+
+			const result = await driver.update(current, desired);
+
+			assert(result.success);
+
+			expect(http.requests).toHaveLength(1);
+			expect(http.requests[0]!.request.method).toBe("PATCH");
+			expect(result.data.outputs.iconAssetIds).toStrictEqual({ "en-us": "88888" });
+		});
+
+		it("should re-upload on update when desired hash differs from current hash", async () => {
+			expect.assertions(3);
+
+			const { driver, http } = makeDriver({ schemaValidation: "off" });
+			assert(driver.update !== undefined);
+			http.mockResponse({ body: validUniverseBody(), status: 200 });
+			http.mockResponse({ body: undefined, status: 200 });
+			http.mockResponse({
+				body: validIconListBody({
+					data: [validLocalizedIcon({ imageId: "99999" })],
+				}),
+				status: 200,
+			});
+
+			const desired = universeDesired({
+				icon: { "en-us": "assets/icon.png" },
+				iconFileHashes: { "en-us": ICON_HASH_B },
+				voiceChatEnabled: true,
+			});
+			const current = universeCurrent({
+				icon: { "en-us": "assets/icon.png" },
+				iconFileHashes: { "en-us": ICON_HASH_A },
+				outputs: {
+					iconAssetIds: { "en-us": asRobloxAssetId("88888") },
+					rootPlaceId: asRobloxAssetId(ROOT_PLACE_ID),
+				},
+			});
+
+			const result = await driver.update(current, desired);
+
+			assert(result.success);
+
+			expect(http.requests).toHaveLength(3);
+			expect(http.requests[1]!.request.method).toBe("POST");
+			expect(result.data.outputs.iconAssetIds).toStrictEqual({ "en-us": "99999" });
 		});
 	});
 });
