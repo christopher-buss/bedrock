@@ -40,6 +40,8 @@ interface ExpectedUniverseDesiredState {
 	readonly displayName: string | undefined;
 	readonly facebookSocialLink?: SocialLink | undefined;
 	readonly guildedSocialLink?: SocialLink | undefined;
+	readonly icon?: Record<"en-us", string>;
+	readonly iconFileHashes?: Record<"en-us", Sha256Hex>;
 	readonly kind: "universe";
 	readonly mobileEnabled: boolean | undefined;
 	readonly privateServerPriceRobux?: number | undefined;

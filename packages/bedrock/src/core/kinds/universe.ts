@@ -3,7 +3,7 @@ import type { SocialLink } from "@bedrock/ocale/universes";
 
 import { type } from "arktype";
 
-import { asRobloxAssetId } from "../../types/ids.ts";
+import { asRobloxAssetId, asSha256Hex, type Sha256Hex } from "../../types/ids.ts";
 import type { UniverseDesiredInput } from "../flatten.ts";
 import {
 	copyDeclaredSocialLinks,
@@ -14,7 +14,9 @@ import {
 	type UniverseDesiredState,
 } from "../resources.ts";
 import type { ResolvedConfig } from "../schema.ts";
-import type { BuildDesiredError, ResourceKindModule } from "./module.ts";
+import { sha256Hex } from "./hash.ts";
+import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
+import { readBytes } from "./read-bytes.ts";
 
 const OPTIONAL_BOOLEAN = "boolean | undefined";
 
@@ -74,9 +76,22 @@ function flatten(config: ResolvedConfig): ReadonlyArray<UniverseDesiredInput> {
 	return [entry.icon === undefined ? withPrice : { ...withPrice, icon: entry.icon }];
 }
 
-async function normalize(
-	input: UniverseDesiredInput,
-): Promise<Result<UniverseDesiredState, BuildDesiredError>> {
+async function hashIconLocales(
+	input: UniverseDesiredInput & { readonly icon: Record<"en-us", string> },
+	io: KindIo,
+): Promise<Result<Record<"en-us", Sha256Hex>, BuildDesiredError>> {
+	const read = await readBytes({ key: input.key, filePath: input.icon["en-us"] }, io);
+	if (!read.success) {
+		return read;
+	}
+
+	return {
+		data: { "en-us": asSha256Hex(await sha256Hex(read.data)) },
+		success: true,
+	};
+}
+
+function buildBaseDesired(input: UniverseDesiredInput): UniverseDesiredState {
 	const base: UniverseDesiredState = {
 		key: input.key,
 		consoleEnabled: input.consoleEnabled,
@@ -92,11 +107,28 @@ async function normalize(
 		...copyDeclaredSocialLinks(input),
 	};
 
+	return "privateServerPriceRobux" in input
+		? { ...base, privateServerPriceRobux: input.privateServerPriceRobux }
+		: base;
+}
+
+async function normalize(
+	input: UniverseDesiredInput,
+	io: KindIo,
+): Promise<Result<UniverseDesiredState, BuildDesiredError>> {
+	const withPrice = buildBaseDesired(input);
+
+	if (input.icon === undefined) {
+		return { data: withPrice, success: true };
+	}
+
+	const hashes = await hashIconLocales({ ...input, icon: input.icon }, io);
+	if (!hashes.success) {
+		return hashes;
+	}
+
 	return {
-		data:
-			"privateServerPriceRobux" in input
-				? { ...base, privateServerPriceRobux: input.privateServerPriceRobux }
-				: base,
+		data: { ...withPrice, icon: input.icon, iconFileHashes: hashes.data },
 		success: true,
 	};
 }

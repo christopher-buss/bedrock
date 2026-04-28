@@ -86,7 +86,7 @@ describe("universeKind", () => {
 	});
 
 	describe("normalize", () => {
-		it("should return the input's fields unchanged without touching I/O", async () => {
+		it("should return the input's fields unchanged without touching I/O when no icon is declared", async () => {
 			expect.assertions(1);
 
 			const result = await universeKind.normalize(
@@ -99,7 +99,7 @@ describe("universeKind", () => {
 				},
 				{
 					readFile: async () => {
-						throw new Error("normalize should not read files for universe");
+						throw new Error("normalize should not read files when icon is absent");
 					},
 				},
 			);
@@ -112,6 +112,56 @@ describe("universeKind", () => {
 				kind: "universe",
 				universeId: asRobloxAssetId("1234567890"),
 				voiceChatEnabled: true,
+			});
+		});
+
+		it("should attach a sha256 hex digest under iconFileHashes for each declared locale", async () => {
+			expect.assertions(3);
+
+			const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+			const result = await universeKind.normalize(
+				{
+					...BlankFlags,
+					key: UNIVERSE_SINGLETON_KEY,
+					icon: { "en-us": "assets/icon.png" },
+					kind: "universe",
+					universeId: asRobloxAssetId("1234567890"),
+					voiceChatEnabled: undefined,
+				},
+				{ readFile: async () => bytes },
+			);
+
+			assert(result.success);
+
+			expect(result.data.icon).toStrictEqual({ "en-us": "assets/icon.png" });
+			expect(result.data.iconFileHashes).toContainKey("en-us");
+			expect(result.data.iconFileHashes!["en-us"]).toHaveLength(64);
+		});
+
+		it("should surface a fileReadFailed error carrying the icon path when readFile rejects", async () => {
+			expect.assertions(1);
+
+			const result = await universeKind.normalize(
+				{
+					...BlankFlags,
+					key: UNIVERSE_SINGLETON_KEY,
+					icon: { "en-us": "assets/missing.png" },
+					kind: "universe",
+					universeId: asRobloxAssetId("1234567890"),
+					voiceChatEnabled: undefined,
+				},
+				{
+					readFile: async () => {
+						throw new Error("ENOENT");
+					},
+				},
+			);
+
+			assert(!result.success);
+
+			expect(result.err).toMatchObject({
+				filePath: "assets/missing.png",
+				kind: "fileReadFailed",
 			});
 		});
 	});
