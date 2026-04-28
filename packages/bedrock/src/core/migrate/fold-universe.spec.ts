@@ -364,4 +364,132 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 	});
+
+	describe("privateServerPrice fold", () => {
+		it.for<[label: string, price: number]>([
+			["a non-zero price", 25],
+			["a zero price", 0],
+		])("should fold %s into privateServerPriceRobux", ([, price]) => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({
+					allowPrivateServers: true,
+					privateServerPrice: price,
+				}),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({
+				privateServerPriceRobux: price,
+				universeId: "1",
+			});
+		});
+
+		it("should emit one interpretive warning when private servers are priced", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({
+					allowPrivateServers: true,
+					privateServerPrice: 50,
+				}),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.warnings).toStrictEqual([
+				{
+					bedrockPath: "universe.privateServerPriceRobux",
+					kind: "interpretive",
+					mantlePath: "experienceConfiguration_singleton.privateServerPrice",
+					rule: "private-servers-priced",
+				},
+			]);
+		});
+
+		it("should omit privateServerPriceRobux when allowPrivateServers is false", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({
+					allowPrivateServers: false,
+					privateServerPrice: 25,
+				}),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+		});
+
+		it("should emit one interpretive omission warning when private servers are disabled", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({ allowPrivateServers: false }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.warnings).toStrictEqual([
+				{
+					bedrockPath: "universe.privateServerPriceRobux",
+					kind: "interpretive",
+					mantlePath: "experienceConfiguration_singleton.allowPrivateServers",
+					rule: "private-servers-disabled-omitted",
+				},
+			]);
+		});
+
+		it("should leave the entry untouched when allowPrivateServers is true but the price is missing", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({ allowPrivateServers: true }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should leave the entry untouched when the price is non-numeric", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({
+					allowPrivateServers: true,
+					privateServerPrice: "free",
+				}),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should leave the entry untouched when allowPrivateServers is missing", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceConfiguration({ privateServerPrice: 25 }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.warnings).toStrictEqual([]);
+		});
+	});
 });

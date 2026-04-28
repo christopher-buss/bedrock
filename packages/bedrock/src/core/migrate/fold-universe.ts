@@ -69,7 +69,10 @@ export function foldUniverse(
 		return undefined;
 	}
 
-	const fragments: ReadonlyArray<FoldFragment> = [foldPlayableDevices(resources)];
+	const fragments: ReadonlyArray<FoldFragment> = [
+		foldPlayableDevices(resources),
+		foldPrivateServers(resources),
+	];
 
 	const entry: UniverseEntry = fragments.reduce<UniverseEntry>(
 		(accumulator, fragment) => ({ ...accumulator, ...fragment.entryFragment }),
@@ -168,6 +171,50 @@ function foldPlayableDevices(resources: ReadonlyArray<MantleResource>): FoldFrag
 		(accumulator, raw) => mergeFragment(accumulator, mapPlayableDevice(raw)),
 		EMPTY_FRAGMENT,
 	);
+}
+
+const PRIVATE_SERVERS_DISABLED: FoldFragment = {
+	entryFragment: {},
+	warnings: [
+		{
+			bedrockPath: "universe.privateServerPriceRobux",
+			kind: "interpretive",
+			mantlePath: "experienceConfiguration_singleton.allowPrivateServers",
+			rule: "private-servers-disabled-omitted",
+		},
+	],
+};
+
+function pricedPrivateServersFragment(price: number): FoldFragment {
+	return {
+		entryFragment: { privateServerPriceRobux: price },
+		warnings: [
+			{
+				bedrockPath: "universe.privateServerPriceRobux",
+				kind: "interpretive",
+				mantlePath: "experienceConfiguration_singleton.privateServerPrice",
+				rule: "private-servers-priced",
+			},
+		],
+	};
+}
+
+function foldPrivateServers(resources: ReadonlyArray<MantleResource>): FoldFragment {
+	const config = resources.find((resource) => resource.kind === EXPERIENCE_CONFIGURATION_KIND);
+	if (config === undefined || !isObjectPayload(config.inputs)) {
+		return EMPTY_FRAGMENT;
+	}
+
+	const { allowPrivateServers, privateServerPrice } = config.inputs;
+	if (allowPrivateServers === false) {
+		return PRIVATE_SERVERS_DISABLED;
+	}
+
+	if (allowPrivateServers !== true || typeof privateServerPrice !== "number") {
+		return EMPTY_FRAGMENT;
+	}
+
+	return pricedPrivateServersFragment(privateServerPrice);
 }
 
 const EMPTY_FRAGMENT: FoldFragment = { entryFragment: {}, warnings: [] };
