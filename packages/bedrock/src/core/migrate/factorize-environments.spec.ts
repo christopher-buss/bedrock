@@ -38,6 +38,10 @@ function passFold(key: string, overrides: Partial<PassFoldEntry> = {}): PassFold
 	};
 }
 
+function passWithEntry(key: string, entry: PassFoldEntry["entry"]): PassFoldEntry {
+	return passFold(key, { entry });
+}
+
 function fold(overrides: Partial<EnvironmentFoldResult> = {}): EnvironmentFoldResult {
 	return {
 		passes: [],
@@ -262,6 +266,163 @@ describe(factorizeEnvironments, () => {
 		assert(result.success);
 
 		expect(result.data.config.passes).toBeUndefined();
+	});
+
+	it("should override only the divergent pass name on a non-primary overlay", () => {
+		expect.assertions(1);
+
+		const primaryEntry = {
+			name: "Example Pass",
+			description: "This is an example pass.",
+			iconFilePath: "assets/marketing/example-icon.png",
+			price: 5,
+		};
+		const folds = new Map([
+			[
+				"development",
+				fold({ passes: [passWithEntry("vip", { ...primaryEntry, name: "Dev VIP" })] }),
+			],
+			["production", fold({ passes: [passWithEntry("vip", primaryEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.passes).toStrictEqual({
+			vip: { name: "Dev VIP" },
+		});
+	});
+
+	it("should override only the divergent pass description on a non-primary overlay", () => {
+		expect.assertions(1);
+
+		const primaryEntry = {
+			name: "Example Pass",
+			description: "This is an example pass.",
+			iconFilePath: "assets/marketing/example-icon.png",
+			price: 5,
+		};
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					passes: [passWithEntry("vip", { ...primaryEntry, description: "Dev only." })],
+				}),
+			],
+			["production", fold({ passes: [passWithEntry("vip", primaryEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.passes).toStrictEqual({
+			vip: { description: "Dev only." },
+		});
+	});
+
+	it("should override only the divergent pass iconFilePath on a non-primary overlay", () => {
+		expect.assertions(1);
+
+		const primaryEntry = {
+			name: "Example Pass",
+			description: "This is an example pass.",
+			iconFilePath: "assets/marketing/example-icon.png",
+			price: 5,
+		};
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					passes: [
+						passWithEntry("vip", {
+							...primaryEntry,
+							iconFilePath: "assets/dev-icon.png",
+						}),
+					],
+				}),
+			],
+			["production", fold({ passes: [passWithEntry("vip", primaryEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.passes).toStrictEqual({
+			vip: { iconFilePath: "assets/dev-icon.png" },
+		});
+	});
+
+	it("should override only the divergent pass price on a non-primary overlay", () => {
+		expect.assertions(1);
+
+		const primaryEntry = {
+			name: "Example Pass",
+			description: "This is an example pass.",
+			iconFilePath: "assets/marketing/example-icon.png",
+			price: 5,
+		};
+		const folds = new Map([
+			[
+				"development",
+				fold({ passes: [passWithEntry("vip", { ...primaryEntry, price: 10 })] }),
+			],
+			["production", fold({ passes: [passWithEntry("vip", primaryEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.passes).toStrictEqual({
+			vip: { price: 10 },
+		});
+	});
+
+	it("should carry the full pass entry on a non-primary overlay when the primary lacks the key", () => {
+		expect.assertions(1);
+
+		const developmentOnlyEntry = {
+			name: "Dev Only Pass",
+			description: "Only available in development.",
+			iconFilePath: "assets/dev-only.png",
+			price: 25,
+		};
+		const folds = new Map([
+			["development", fold({ passes: [passWithEntry("dev-only", developmentOnlyEntry)] })],
+			["production", fold({ passes: [] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.passes).toStrictEqual({
+			"dev-only": developmentOnlyEntry,
+		});
+	});
+
+	it("should omit the passes overlay when every pass field matches the primary's pass", () => {
+		expect.assertions(1);
+
+		const primaryEntry = {
+			name: "Example Pass",
+			description: "This is an example pass.",
+			iconFilePath: "assets/marketing/example-icon.png",
+			price: 5,
+		};
+		const folds = new Map([
+			["development", fold({ passes: [passWithEntry("vip", primaryEntry)] })],
+			["production", fold({ passes: [passWithEntry("vip", primaryEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.passes).toBeUndefined();
 	});
 
 	it("should seed the root places block from the primary's place folds", () => {

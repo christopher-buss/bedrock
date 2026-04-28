@@ -36,6 +36,7 @@ export interface FactorizeResult {
 	readonly warnings: ReadonlyArray<MigrationWarning>;
 }
 
+type PassOverlayEntry = NonNullable<EnvironmentEntry["passes"]>[string];
 type PlaceOverlayEntry = NonNullable<EnvironmentEntry["places"]>[string];
 type UniverseOverlay = NonNullable<EnvironmentEntry["universe"]>;
 
@@ -167,14 +168,63 @@ function buildUniverseOverlay(
 	return { universeId: foldUniverse.entry.universeId };
 }
 
+function buildPassOverlayEntry(
+	entry: GamePassEntry,
+	primary: GamePassEntry,
+): PassOverlayEntry | undefined {
+	const overlay: PassOverlayEntry = {};
+	if (!Object.is(primary.name, entry.name)) {
+		overlay.name = entry.name;
+	}
+
+	if (!Object.is(primary.description, entry.description)) {
+		overlay.description = entry.description;
+	}
+
+	if (!Object.is(primary.iconFilePath, entry.iconFilePath)) {
+		overlay.iconFilePath = entry.iconFilePath;
+	}
+
+	if (!Object.is(primary.price, entry.price)) {
+		overlay.price = entry.price;
+	}
+
+	return Object.keys(overlay).length === 0 ? undefined : overlay;
+}
+
+function buildPassesOverlay(
+	fold: EnvironmentFoldResult,
+	primary: EnvironmentFoldResult | undefined,
+): Record<string, PassOverlayEntry> | undefined {
+	const primaryByKey = new Map<string, GamePassEntry>(
+		primary?.passes.map(({ key, entry }) => [key, entry]),
+	);
+	const overlay: Record<string, PassOverlayEntry> = {};
+	for (const { key, entry } of fold.passes) {
+		const primaryEntry = primaryByKey.get(key);
+		const passOverlay =
+			primaryEntry === undefined ? { ...entry } : buildPassOverlayEntry(entry, primaryEntry);
+		if (passOverlay !== undefined) {
+			overlay[key] = passOverlay;
+		}
+	}
+
+	return Object.keys(overlay).length === 0 ? undefined : overlay;
+}
+
 function buildEnvironmentEntry(
 	fold: EnvironmentFoldResult,
 	primary: EnvironmentFoldResult | undefined,
 ): EnvironmentEntry {
+	const passes = buildPassesOverlay(fold, primary);
 	const places = buildPlacesOverlay(fold, primary);
 	const universe = buildUniverseOverlay(fold, primary);
 
 	const entry: EnvironmentEntry = {};
+	if (passes !== undefined) {
+		entry.passes = passes;
+	}
+
 	if (places !== undefined) {
 		entry.places = places;
 	}
