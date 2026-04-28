@@ -355,6 +355,13 @@ export interface DeveloperProductOutputs {
  * so a future places slice can cross-validate the declared start place.
  */
 export interface UniverseOutputs {
+	/**
+	 * Locale-keyed Roblox-assigned image IDs for the experience icons. Only
+	 * populated for locales whose icon was uploaded by the universe driver;
+	 * the entry persists across re-deploys until the locale is removed from
+	 * the authored config.
+	 */
+	readonly iconAssetIds?: Record<"en-us", RobloxAssetId>;
 	/** Server-assigned root place ID for the universe. */
 	readonly rootPlaceId: RobloxAssetId;
 }

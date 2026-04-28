@@ -11,6 +11,7 @@ import {
 	selectEnvironment,
 	UNIVERSE_SINGLETON_KEY,
 } from "@bedrock/core";
+import { ExperienceIconClient } from "@bedrock/ocale/experience-icon";
 import { PlacesClient } from "@bedrock/ocale/places";
 import { createFakeHttpClient, validPlaceBody, validUniverseBody } from "@bedrock/ocale/testing";
 import { UniversesClient } from "@bedrock/ocale/universes";
@@ -57,11 +58,17 @@ function makeUniverseRegistry(httpClient: ReturnType<typeof createFakeHttpClient
 		gamePass: GAME_PASS_TRAP,
 		place: PLACE_TRAP,
 		universe: createUniverseDriver({
+			experienceIcons: new ExperienceIconClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: async () => {},
+			}),
 			places: new PlacesClient({
 				apiKey: "test-key",
 				httpClient,
 				sleep: async () => {},
 			}),
+			readFile: readFileNever,
 			universes: new UniversesClient({
 				apiKey: "test-key",
 				httpClient,

@@ -57,6 +57,7 @@ interface ExpectedUniverseDesiredState {
 }
 
 interface ExpectedUniverseOutputs {
+	readonly iconAssetIds?: Record<"en-us", RobloxAssetId>;
 	readonly rootPlaceId: RobloxAssetId;
 }
 

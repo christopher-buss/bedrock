@@ -1,17 +1,26 @@
 import { ApiError } from "@bedrock/ocale";
+import { ExperienceIconClient } from "@bedrock/ocale/experience-icon";
 import { PlacesClient } from "@bedrock/ocale/places";
-import { createFakeHttpClient, validPlaceBody, validUniverseBody } from "@bedrock/ocale/testing";
+import {
+	createFakeHttpClient,
+	validIconListBody,
+	validLocalizedIcon,
+	validPlaceBody,
+	validUniverseBody,
+} from "@bedrock/ocale/testing";
 import { UniversesClient } from "@bedrock/ocale/universes";
 
 import { PLATFORM_FLAG_ROWS, universeDesired } from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";
 
 import { SOCIAL_LINK_FIELDS, UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
+import { asSha256Hex } from "../types/ids.ts";
 import { createUniverseDriver } from "./universe-driver.ts";
 
 const UNIVERSE_ID = "1234567890";
 const ROOT_PLACE_ID = "4711";
 const ROOT_PLACE_PATH = `universes/${UNIVERSE_ID}/places/${ROOT_PLACE_ID}`;
+const ICON_HASH_A = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
 
 interface MakeDriverOptions {
 	readonly schemaValidation?: "off" | "strict" | "warn";
@@ -22,11 +31,17 @@ function makeDriver(options: MakeDriverOptions = {}) {
 		schemaValidation: options.schemaValidation ?? "strict",
 	});
 	const driver = createUniverseDriver({
+		experienceIcons: new ExperienceIconClient({
+			apiKey: "test-api-key",
+			httpClient: http,
+			sleep: async () => {},
+		}),
 		places: new PlacesClient({
 			apiKey: "test-api-key",
 			httpClient: http,
 			sleep: async () => {},
 		}),
+		readFile: async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
 		universes: new UniversesClient({
 			apiKey: "test-api-key",
 			httpClient: http,
@@ -440,6 +455,148 @@ describe(createUniverseDriver, () => {
 			}
 
 			expect(body).toContainEntry(["voiceChatEnabled", true]);
+		});
+	});
+
+	describe("experience icon", () => {
+		it("should POST the icon to the upload endpoint with languageCode 'en-us' when icon is declared on create", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver({ schemaValidation: "off" });
+			http.mockResponse({ body: validUniverseBody(), status: 200 });
+			http.mockResponse({ body: undefined, status: 200 });
+			http.mockResponse({ body: validIconListBody(), status: 200 });
+
+			await driver.create(
+				universeDesired({
+					icon: { "en-us": "assets/icon.png" },
+					iconFileHashes: { "en-us": ICON_HASH_A },
+					voiceChatEnabled: true,
+				}),
+			);
+
+			const uploadRequest = http.requests[1]!.request;
+
+			expect(uploadRequest.method).toBe("POST");
+			expect(uploadRequest.url).toBe(
+				`/legacy-game-internationalization/v1/game-icon/games/${UNIVERSE_ID}/language-codes/en-us`,
+			);
+		});
+
+		it("should call list after upload and capture the en-us imageId on outputs.iconAssetIds", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver({ schemaValidation: "off" });
+			http.mockResponse({ body: validUniverseBody(), status: 200 });
+			http.mockResponse({ body: undefined, status: 200 });
+			http.mockResponse({
+				body: validIconListBody({
+					data: [validLocalizedIcon({ imageId: "98765432101" })],
+				}),
+				status: 200,
+			});
+
+			const result = await driver.create(
+				universeDesired({
+					icon: { "en-us": "assets/icon.png" },
+					iconFileHashes: { "en-us": ICON_HASH_A },
+					voiceChatEnabled: true,
+				}),
+			);
+
+			assert(result.success);
+
+			expect(http.requests[2]!.request.method).toBe("GET");
+			expect(result.data.outputs.iconAssetIds).toStrictEqual({ "en-us": "98765432101" });
+		});
+
+		it("should not call upload or list when no icon is declared", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({ body: validUniverseBody(), status: 200 });
+
+			const result = await driver.create(universeDesired({ voiceChatEnabled: true }));
+
+			assert(result.success);
+
+			expect(http.requests).toHaveLength(1);
+			expect(result.data.outputs.iconAssetIds).toBeUndefined();
+		});
+
+		it("should pick the en-us imageId even when the list also includes other locales", async () => {
+			expect.assertions(1);
+
+			const { driver, http } = makeDriver({ schemaValidation: "off" });
+			http.mockResponse({ body: validUniverseBody(), status: 200 });
+			http.mockResponse({ body: undefined, status: 200 });
+			http.mockResponse({
+				body: validIconListBody({
+					data: [
+						validLocalizedIcon({ imageId: "111111", languageCode: "fr-fr" }),
+						validLocalizedIcon({ imageId: "98765432101", languageCode: "en-us" }),
+					],
+				}),
+				status: 200,
+			});
+
+			const result = await driver.create(
+				universeDesired({
+					icon: { "en-us": "assets/icon.png" },
+					iconFileHashes: { "en-us": ICON_HASH_A },
+					voiceChatEnabled: true,
+				}),
+			);
+
+			assert(result.success);
+
+			expect(result.data.outputs.iconAssetIds).toStrictEqual({ "en-us": "98765432101" });
+		});
+
+		it("should propagate an upload failure without calling list", async () => {
+			expect.assertions(3);
+
+			const { driver, http } = makeDriver({ schemaValidation: "off" });
+			http.mockResponse({ body: validUniverseBody(), status: 200 });
+			http.mockApiError({ message: "rejected", statusCode: 422 });
+
+			const result = await driver.create(
+				universeDesired({
+					icon: { "en-us": "assets/icon.png" },
+					iconFileHashes: { "en-us": ICON_HASH_A },
+					voiceChatEnabled: true,
+				}),
+			);
+
+			assert(!result.success);
+			assert(result.err instanceof ApiError);
+
+			expect(result.err.statusCode).toBe(422);
+			expect(http.requests).toHaveLength(2);
+			expect(http.requests[1]!.request.method).toBe("POST");
+		});
+
+		it("should surface a malformed list response that omits the en-us entry as an ApiError", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver({ schemaValidation: "off" });
+			http.mockResponse({ body: validUniverseBody(), status: 200 });
+			http.mockResponse({ body: undefined, status: 200 });
+			http.mockResponse({ body: validIconListBody({ data: [] }), status: 200 });
+
+			const result = await driver.create(
+				universeDesired({
+					icon: { "en-us": "assets/icon.png" },
+					iconFileHashes: { "en-us": ICON_HASH_A },
+					voiceChatEnabled: true,
+				}),
+			);
+
+			assert(!result.success);
+			assert(result.err instanceof ApiError);
+
+			expect(result.err.statusCode).toBe(200);
+			expect(result.err.message).toContain("en-us");
 		});
 	});
 });
