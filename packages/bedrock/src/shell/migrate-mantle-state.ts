@@ -1,6 +1,7 @@
 import type { Result } from "@bedrock/ocale";
 
 import { readFile as nodeReadFile } from "node:fs/promises";
+import { dirname } from "node:path";
 
 import { buildState } from "../core/migrate/build-state.ts";
 import { type EnvironmentFoldResult, foldEnvironment } from "../core/migrate/fold-environment.ts";
@@ -17,10 +18,13 @@ import type { MantleStateV6 } from "../core/migrate/types.ts";
 import {
 	type Config,
 	type EnvironmentEntry,
+	type GamePassEntry,
 	type PlaceEntry,
 	validateConfig,
 } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
+import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
+import { type IconHashRecomputation, recomputeIconHashes } from "./recompute-icon-hashes.ts";
 
 type ConfigFormat = "typescript" | "yaml";
 type PlaceOverlayEntry = NonNullable<EnvironmentEntry["places"]>[string];
@@ -72,9 +76,19 @@ interface PlaceOverlayContext {
 	readonly primary: PlaceFoldEntry | undefined;
 }
 
-interface FinalizeReportContext {
+interface FinalizeReportInputs {
+	readonly config: Config;
 	readonly configFormat: ConfigFormat;
 	readonly folds: ReadonlyMap<string, EnvironmentFoldResult>;
+	readonly iconRecomputation: IconHashRecomputation;
+}
+
+interface AssembleReportInputs {
+	readonly configFormat: ConfigFormat;
+	readonly primaryEnvironment: string | undefined;
+	readonly readFile: (path: string) => Promise<Uint8Array>;
+	readonly state: MantleStateV6;
+	readonly stateFilePath: string;
 }
 
 /**
@@ -83,12 +97,12 @@ interface FinalizeReportContext {
  * of fields that did not migrate verbatim.
  *
  * Skeleton: handles single-environment or multi-environment states with
- * universe and place resources. The primary environment auto-picks when
- * only one environment is present; multi-environment inputs without an
- * explicit `primaryEnvironment` return
+ * universe, place, and game-pass resources. The primary environment
+ * auto-picks when only one environment is present; multi-environment
+ * inputs without an explicit `primaryEnvironment` return
  * `Err({ kind: "primaryEnvironmentRequired", available })` so the
- * migrator never silently picks a winner. Future slices fold game
- * passes, social links, and the deferred / blocked warning categories.
+ * migrator never silently picks a winner. Future slices add social
+ * links and the deferred / blocked warning categories.
  *
  * @param deps - Inputs for the migration.
  * @returns `Ok` with a `MigrationReport` on success, or `Err` with a
@@ -159,7 +173,13 @@ export async function migrateMantleState(
 		return parsed;
 	}
 
-	return assembleReport(parsed.data, deps);
+	return assembleReport({
+		configFormat: deps.configFormat,
+		primaryEnvironment: deps.primaryEnvironment,
+		readFile,
+		state: parsed.data,
+		stateFilePath: deps.stateFilePath,
+	});
 }
 
 function pickPrimary(
@@ -198,6 +218,16 @@ function buildRootPlaces(
 	return Object.fromEntries(
 		[...primaryFold.places.entries()].map(([key, fold]) => [key, { ...fold.entry }]),
 	);
+}
+
+function buildPassesRecord(
+	entries: ReadonlyArray<{ readonly entry: GamePassEntry; readonly key: string }>,
+): Record<string, GamePassEntry> | undefined {
+	if (entries.length === 0) {
+		return undefined;
+	}
+
+	return Object.fromEntries(entries.map(({ key, entry }) => [key, entry]));
 }
 
 function buildPlaceOverlayEntry(context: PlaceOverlayContext): PlaceOverlayEntry {
@@ -257,9 +287,14 @@ function buildConfig(
 	const primaryFold = folds.get(primaryName);
 	const environments = buildEnvironmentEntries(folds, primaryName);
 	const places = buildRootPlaces(primaryFold);
+	const passes = buildPassesRecord(primaryFold?.passes ?? []);
 	const universe = primaryFold?.universe?.entry;
 
 	const config: Config = { environments };
+	if (passes !== undefined) {
+		config.passes = passes;
+	}
+
 	if (places !== undefined) {
 		config.places = places;
 	}
@@ -273,12 +308,19 @@ function buildConfig(
 
 function buildStatesByEnvironment(
 	folds: ReadonlyMap<string, EnvironmentFoldResult>,
+	hashesByEnvironment: ReadonlyMap<string, ReadonlyMap<ResourceKey, Sha256Hex>>,
 ): Readonly<Record<string, BedrockState>> {
 	return Object.fromEntries(
-		[...folds.entries()].map(([name, folded]): [string, BedrockState] => [
-			name,
-			buildState(name, folded),
-		]),
+		[...folds.entries()].map(([name, folded]): [string, BedrockState] => {
+			return [
+				name,
+				buildState({
+					environment: name,
+					folded,
+					iconHashesByKey: hashesByEnvironment.get(name) ?? new Map(),
+				}),
+			];
+		}),
 	);
 }
 
@@ -286,7 +328,7 @@ function prefixMantlePath(warning: MigrationWarning, environmentName: string): M
 	return { ...warning, mantlePath: `${environmentName}.${warning.mantlePath}` };
 }
 
-function collectWarnings(
+function collectFoldWarnings(
 	folds: ReadonlyMap<string, EnvironmentFoldResult>,
 ): ReadonlyArray<MigrationWarning> {
 	return [...folds.entries()].flatMap(([name, fold]) => {
@@ -294,25 +336,8 @@ function collectWarnings(
 	});
 }
 
-function buildSuccessfulReport(validated: Config, context: FinalizeReportContext): MigrationReport {
-	const warnings = collectWarnings(context.folds);
-	return {
-		config: validated,
-		configFileContent: serializeConfig({
-			config: validated,
-			configFormat: context.configFormat,
-		}),
-		statesByEnvironment: buildStatesByEnvironment(context.folds),
-		summary: summarizeWarnings(warnings),
-		warnings,
-	};
-}
-
-function finalizeReport(
-	config: Config,
-	context: FinalizeReportContext,
-): Result<MigrationReport, MigrateError> {
-	const validated = validateConfig(config, "<migrate-mantle-state>");
+function finalizeReport(inputs: FinalizeReportInputs): Result<MigrationReport, MigrateError> {
+	const validated = validateConfig(inputs.config, "<migrate-mantle-state>");
 	if (!validated.success) {
 		return {
 			err: {
@@ -324,25 +349,45 @@ function finalizeReport(
 		};
 	}
 
-	return { data: buildSuccessfulReport(validated.data, context), success: true };
+	const { hashesByEnvironment, warnings: iconWarnings } = inputs.iconRecomputation;
+	const warnings = [...collectFoldWarnings(inputs.folds), ...iconWarnings];
+	return {
+		data: {
+			config: validated.data,
+			configFileContent: serializeConfig({
+				config: validated.data,
+				configFormat: inputs.configFormat,
+			}),
+			statesByEnvironment: buildStatesByEnvironment(inputs.folds, hashesByEnvironment),
+			summary: summarizeWarnings(warnings),
+			warnings,
+		},
+		success: true,
+	};
 }
 
-function assembleReport(
-	state: MantleStateV6,
-	deps: Pick<MigrateMantleStateDeps, "configFormat" | "primaryEnvironment">,
-): Result<MigrationReport, MigrateError> {
-	const available = Object.keys(state.environments);
-	const primaryResult = pickPrimary(available, deps.primaryEnvironment);
+async function assembleReport(
+	inputs: AssembleReportInputs,
+): Promise<Result<MigrationReport, MigrateError>> {
+	const available = Object.keys(inputs.state.environments);
+	const primaryResult = pickPrimary(available, inputs.primaryEnvironment);
 	if (!primaryResult.success) {
 		return primaryResult;
 	}
 
 	const folds: ReadonlyMap<string, EnvironmentFoldResult> = new Map(
-		available.map((name) => [name, foldEnvironment(state.environments[name] ?? [])]),
+		available.map((name) => [name, foldEnvironment(inputs.state.environments[name] ?? [])]),
 	);
-	return finalizeReport(buildConfig(folds, primaryResult.data), {
-		configFormat: deps.configFormat,
+	const iconRecomputation = await recomputeIconHashes({
 		folds,
+		readFile: inputs.readFile,
+		stateFileDirectory: dirname(inputs.stateFilePath),
+	});
+	return finalizeReport({
+		config: buildConfig(folds, primaryResult.data),
+		configFormat: inputs.configFormat,
+		folds,
+		iconRecomputation,
 	});
 }
 

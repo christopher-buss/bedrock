@@ -1,9 +1,11 @@
 import { assert, describe, expect, it } from "vitest";
 
+import { asResourceKey } from "../../types/ids.ts";
 import { foldEnvironment } from "./fold-environment.ts";
 import type { MantleResource } from "./types.ts";
 
 const VALID_HASH = "908498abb7f4fca2b7d2b050bfe7c48c009202fabd85f489b03bb19ac6e0b1d9";
+const SAMPLE_HASH = "86890ed405cabad0fcdabf52225d528981790fa551e915c070348761c28373c1";
 
 function experience(): MantleResource {
 	return {
@@ -32,6 +34,22 @@ function placeFile(): MantleResource {
 		inputs: { fileHash: VALID_HASH, filePath: "place.rbxl" },
 		kind: "placeFile",
 		outputs: { version: 53 },
+	};
+}
+
+function pass(key: string): MantleResource {
+	return {
+		key,
+		dependencies: [],
+		inputs: {
+			name: "Example Pass",
+			description: "This is an example pass.",
+			iconFileHash: SAMPLE_HASH,
+			iconFilePath: "assets/marketing/example-icon.png",
+			price: 5,
+		},
+		kind: "pass",
+		outputs: { assetId: 838509486, iconAssetId: 18109205439 },
 	};
 }
 
@@ -111,5 +129,21 @@ describe(foldEnvironment, () => {
 		assert(warning?.kind === "ambiguous");
 
 		expect(warning.mantlePath).toBe("place_start");
+	});
+
+	it("should expose folded passes when pass resources are present", () => {
+		expect.assertions(1);
+
+		const result = foldEnvironment([experience(), pass("1-example")]);
+
+		expect(result.passes.map((entry) => entry.key)).toStrictEqual([asResourceKey("1-example")]);
+	});
+
+	it("should expose an empty passes array when no pass resources are present", () => {
+		expect.assertions(1);
+
+		const result = foldEnvironment([experience()]);
+
+		expect(result.passes).toStrictEqual([]);
 	});
 });

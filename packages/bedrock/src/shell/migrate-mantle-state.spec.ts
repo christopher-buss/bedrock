@@ -4,6 +4,7 @@ import { migrateMantleState } from "./migrate-mantle-state.ts";
 
 const VALID_HASH = "908498abb7f4fca2b7d2b050bfe7c48c009202fabd85f489b03bb19ac6e0b1d9";
 const PROD_HASH = "804a980a447b7fb258cb2d64b8e3e4bbf323ea76b203510457a14cfd536c1970";
+const SAMPLE_HASH = "86890ed405cabad0fcdabf52225d528981790fa551e915c070348761c28373c1";
 
 const SINGLE_ENV_YAML = `
 version: "6"
@@ -52,6 +53,35 @@ environments:
           version: 53
       dependencies:
         - place_start
+        - experience_singleton
+`;
+
+const PASS_YAML = `
+version: "6"
+environments:
+  production:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 6031475575
+          startPlaceId: 17613681043
+      dependencies: []
+    - id: pass_1-example
+      inputs:
+        pass:
+          name: Example Pass
+          description: This is an example pass.
+          price: 5
+          iconFilePath: assets/marketing/example-icon.png
+          iconFileHash: ${SAMPLE_HASH}
+      outputs:
+        pass:
+          assetId: 838509486
+          iconAssetId: 18109205439
+      dependencies:
         - experience_singleton
 `;
 
@@ -225,9 +255,25 @@ function fakeReadFile(content: string): (path: string) => Promise<Uint8Array> {
 	return async () => new TextEncoder().encode(content);
 }
 
+function fakeFs(
+	files: ReadonlyMap<string, "missing" | Uint8Array>,
+): (path: string) => Promise<Uint8Array> {
+	return async (filePath) => {
+		const entry = files.get(filePath);
+		if (entry === undefined || entry === "missing") {
+			throw Object.assign(new Error(`not found: ${filePath}`), { code: "ENOENT" });
+		}
+
+		return entry;
+	};
+}
+
 async function readFileMissing(): Promise<Uint8Array> {
 	throw Object.assign(new Error("not found"), { code: "ENOENT" });
 }
+
+const ICON_BYTES = new TextEncoder().encode("a");
+const ICON_BYTES_SHA256 = "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb";
 
 describe(migrateMantleState, () => {
 	it("should return stateFileNotFound when readFile reports the file is missing", async () => {
@@ -551,6 +597,152 @@ environments:
 		});
 
 		await expect(promise).rejects.toBe(bare);
+	});
+
+	it("should project pass resources into the resolved Config.passes record", async () => {
+		expect.assertions(1);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeReadFile(PASS_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.config.passes).toStrictEqual({
+			"1-example": {
+				name: "Example Pass",
+				description: "This is an example pass.",
+				iconFilePath: "assets/marketing/example-icon.png",
+				price: 5,
+			},
+		});
+	});
+
+	it("should emit a kind: gamePass resource carrying the recomputed icon hash from disk", async () => {
+		expect.assertions(4);
+
+		const files = new Map<string, "missing" | Uint8Array>([
+			[".mantle-state.yml", new TextEncoder().encode(PASS_YAML)],
+			["assets/marketing/example-icon.png", ICON_BYTES],
+		]);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFs(files),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		assert(state !== undefined);
+
+		const pass = state.resources.find((resource) => resource.kind === "gamePass");
+		assert(pass?.kind === "gamePass");
+
+		expect(pass.key).toBe("1-example");
+		expect(pass.iconFileHash).toBe(ICON_BYTES_SHA256);
+		expect(pass.outputs.assetId).toBe("838509486");
+		expect(result.data.warnings).toStrictEqual([]);
+	});
+
+	it("should resolve iconFilePath relative to the state file's directory", async () => {
+		expect.assertions(1);
+
+		const files = new Map<string, "missing" | Uint8Array>([
+			["/tmp/project/.mantle-state.yml", new TextEncoder().encode(PASS_YAML)],
+			["/tmp/project/assets/marketing/example-icon.png", ICON_BYTES],
+		]);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFs(files),
+			stateFilePath: "/tmp/project/.mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		const pass = state?.resources.find((resource) => resource.kind === "gamePass");
+		assert(pass?.kind === "gamePass");
+
+		expect(pass.iconFileHash).toBe(ICON_BYTES_SHA256);
+	});
+
+	it("should emit an ambiguous warning and fall back to the Mantle hash when an icon is missing", async () => {
+		expect.assertions(5);
+
+		const files = new Map<string, "missing" | Uint8Array>([
+			[".mantle-state.yml", new TextEncoder().encode(PASS_YAML)],
+			["assets/marketing/example-icon.png", "missing"],
+		]);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFs(files),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		const pass = state?.resources.find((resource) => resource.kind === "gamePass");
+		assert(pass?.kind === "gamePass");
+
+		expect(pass.iconFileHash).toBe(SAMPLE_HASH);
+		expect(result.data.warnings).toHaveLength(1);
+
+		const [warning] = result.data.warnings;
+		assert(warning?.kind === "ambiguous");
+
+		expect(warning.kind).toBe("ambiguous");
+		expect(warning.mantlePath).toBe("production.pass_1-example");
+		expect(warning.hint).toContain("assets/marketing/example-icon.png");
+	});
+
+	it("should fall back to the Mantle hash for any readFile rejection, not just ENOENT", async () => {
+		expect.assertions(2);
+
+		const yamlBytes = new TextEncoder().encode(PASS_YAML);
+		async function readFile(path: string): Promise<Uint8Array> {
+			if (path === ".mantle-state.yml") {
+				return yamlBytes;
+			}
+
+			// eslint-disable-next-line ts/only-throw-error -- exercising the non-Error rejection branch
+			throw "permission denied";
+		}
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile,
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		const pass = state?.resources.find((resource) => resource.kind === "gamePass");
+		assert(pass?.kind === "gamePass");
+
+		expect(pass.iconFileHash).toBe(SAMPLE_HASH);
+		expect(result.data.summary.ambiguousCount).toBe(1);
+	});
+
+	it("should omit Config.passes entirely when no pass resources are present", async () => {
+		expect.assertions(1);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeReadFile(SINGLE_ENV_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect("passes" in result.data.config).toBeFalse();
 	});
 
 	it("should re-throw a readFile rejection whose code is not a string", async () => {
