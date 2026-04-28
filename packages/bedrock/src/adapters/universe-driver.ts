@@ -3,6 +3,7 @@ import type { ExperienceIconClient } from "@bedrock/ocale/experience-icon";
 import type { PlacesClient } from "@bedrock/ocale/places";
 import type { UniversesClient, UpdateUniverseParameters } from "@bedrock/ocale/universes";
 
+import { shouldReuploadIcon } from "../core/icons.ts";
 import {
 	copyDeclaredSocialLinks,
 	type ResourceCurrentState,
@@ -281,9 +282,7 @@ async function reconcileIcon(
 			: deleteRemovedIcon(deps, desired);
 	}
 
-	const desiredHash = desired.iconFileHashes?.["en-us"];
-	const currentHash = current?.iconFileHashes?.["en-us"];
-	if (desiredHash === currentHash) {
+	if (!shouldReuploadIcon(current?.iconFileHashes, desired.iconFileHashes)) {
 		return { data: current?.outputs.iconAssetIds, success: true };
 	}
 
