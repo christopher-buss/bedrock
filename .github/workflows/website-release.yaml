@@ -1,0 +1,47 @@
+# Production docs deploy. Fires on a release tag matching the Changesets
+# default for `@bedrock/core`, builds TypeDoc + VitePress against the tagged
+# source, and ships the output to the production Vercel project.
+# A separate Vercel project (configured via the dashboard) tracks `main` for
+# unreleased preview docs and is not driven by this workflow.
+
+name: Website Release
+
+on:
+  push:
+    tags: ["@bedrock/core@*"]
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-release
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy production docs
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Build with Vercel
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy to production
+        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+    timeout-minutes: 15
