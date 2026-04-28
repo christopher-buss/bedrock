@@ -87,3 +87,44 @@ export function iconHashesEqual(
 
 	return desired["en-us"] === current["en-us"];
 }
+
+/**
+ * Cost-gate for icon re-uploads. Returns `true` when the locally-hashed
+ * desired icon differs from the hash recorded on the prior current-state
+ * entry, signalling that the driver must re-upload before reconciling.
+ * Returns `false` when the hashes match (no re-upload needed) or when both
+ * sides report no icon (precondition: the caller has already short-circuited
+ * the no-icon-declared case before consulting this helper).
+ *
+ * The signature takes hash maps directly (not whole-state) so the helper
+ * is independent of any specific resource-kind shape; every icon-bearing
+ * driver projects its own `iconFileHashes` and `outputs.iconFileHashes`
+ * fields before calling.
+ *
+ * @param currentHashes - Hashes recorded on the prior current-state entry.
+ * @param desiredHashes - Hashes layered onto the desired-state entry by
+ *   `normalize` from the local icon file's bytes.
+ * @returns `true` when the driver should re-upload the icon.
+ *
+ * @example
+ *
+ * ```ts
+ * import { asSha256Hex, shouldReuploadIcon } from "@bedrock/core";
+ *
+ * const previous = asSha256Hex(
+ *     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+ * );
+ * const fresh = asSha256Hex(
+ *     "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+ * );
+ *
+ * expect(shouldReuploadIcon({ "en-us": previous }, { "en-us": previous })).toBe(false);
+ * expect(shouldReuploadIcon({ "en-us": previous }, { "en-us": fresh })).toBe(true);
+ * ```
+ */
+export function shouldReuploadIcon(
+	currentHashes: Record<"en-us", Sha256Hex> | undefined,
+	desiredHashes: Record<"en-us", Sha256Hex> | undefined,
+): boolean {
+	return !iconHashesEqual(desiredHashes, currentHashes);
+}
