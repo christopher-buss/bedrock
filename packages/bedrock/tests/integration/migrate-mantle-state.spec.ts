@@ -231,7 +231,7 @@ describe(migrateMantleState, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.universe).toMatchObject({
+		expect(result.data.config.universe).toStrictEqual({
 			consoleEnabled: true,
 			desktopEnabled: true,
 			discordSocialLink: { title: "Join our Discord", uri: "https://discord.gg/example" },
@@ -250,7 +250,7 @@ describe(migrateMantleState, () => {
 	});
 
 	it("should fold the development primary into a separate universe shape with visibility omitted", async () => {
-		expect.assertions(3);
+		expect.assertions(1);
 
 		const result = await migrateMantleState({
 			configFormat: "typescript",
@@ -260,7 +260,7 @@ describe(migrateMantleState, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.universe).toMatchObject({
+		expect(result.data.config.universe).toStrictEqual({
 			consoleEnabled: true,
 			desktopEnabled: true,
 			discordSocialLink: { title: "Join our Discord", uri: "https://discord.gg/example" },
@@ -271,9 +271,6 @@ describe(migrateMantleState, () => {
 			universeId: "6031475575",
 			voiceChatEnabled: true,
 		});
-
-		expect(result.data.config.universe?.visibility).toBeUndefined();
-		expect(result.data.config.universe?.twitterSocialLink).toBeUndefined();
 	});
 
 	it("should emit an ambiguous warning rooted at development.experienceActivation_singleton.isActive", async () => {

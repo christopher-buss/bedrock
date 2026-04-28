@@ -35,15 +35,15 @@ const PLAYABLE_DEVICE_TO_FLAG: Readonly<
  *
  * `entry` populates the bedrock `Config.universe` block. `outputs`
  * populates the matching `BedrockState` resource's `outputs` field.
- * `warnings` accumulates per-rule diagnostics; the skeleton emits an
- * empty list because no interpretive rules have landed yet.
+ * `warnings` carries per-rule diagnostics that the migration report
+ * presents to the user.
  */
 interface UniverseFoldResult {
 	/** Bedrock `Config.universe` block populated from the experience resource. */
 	readonly entry: UniverseEntry;
 	/** Roblox-assigned identifiers carried into `BedrockState.resources[*].outputs`. */
 	readonly outputs: UniverseOutputs;
-	/** Per-rule diagnostics; empty in the skeleton, populated as rules land. */
+	/** Per-rule diagnostics emitted while folding this environment's resources. */
 	readonly warnings: ReadonlyArray<MigrationWarning>;
 }
 

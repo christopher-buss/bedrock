@@ -911,6 +911,39 @@ describe(foldUniverse, () => {
 			expect(result.entry).toStrictEqual({ universeId: "1" });
 			expect(result.warnings).toStrictEqual([]);
 		});
+
+		it("should let the later resource win when two domains map to the same universe field", () => {
+			expect.assertions(2);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				socialLink("roblox.com", {
+					linkType: "RobloxGroup",
+					title: "Bare",
+					url: "https://roblox.com/group/1",
+				}),
+				socialLink("www.roblox.com", {
+					linkType: "RobloxGroup",
+					title: "WWW",
+					url: "https://www.roblox.com/group/1",
+				}),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry.robloxGroupSocialLink).toStrictEqual({
+				title: "WWW",
+				uri: "https://www.roblox.com/group/1",
+			});
+			expect(
+				result.warnings.filter((warning) => {
+					return (
+						warning.kind === "interpretive" &&
+						warning.bedrockPath === "universe.robloxGroupSocialLink"
+					);
+				}),
+			).toHaveLength(2);
+		});
 	});
 
 	describe("displayName cross-fold", () => {
