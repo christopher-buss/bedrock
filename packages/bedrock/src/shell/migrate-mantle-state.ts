@@ -4,8 +4,8 @@ import { readFile as nodeReadFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 import { buildState } from "../core/migrate/build-state.ts";
+import { factorizeEnvironments } from "../core/migrate/factorize-environments.ts";
 import { type EnvironmentFoldResult, foldEnvironment } from "../core/migrate/fold-environment.ts";
-import type { PlaceFoldEntry } from "../core/migrate/fold-places.ts";
 import type {
 	MigrateError,
 	MigrationReport,
@@ -15,19 +15,12 @@ import { parseState } from "../core/migrate/parse-state.ts";
 import { serializeConfig } from "../core/migrate/serialize-config.ts";
 import { summarizeWarnings } from "../core/migrate/summarize-warnings.ts";
 import type { MantleStateV6 } from "../core/migrate/types.ts";
-import {
-	type Config,
-	type EnvironmentEntry,
-	type GamePassEntry,
-	type PlaceEntry,
-	validateConfig,
-} from "../core/schema.ts";
+import { type Config, validateConfig } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
 import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
 import { type IconHashRecomputation, recomputeIconHashes } from "./recompute-icon-hashes.ts";
 
 type ConfigFormat = "typescript" | "yaml";
-type PlaceOverlayEntry = NonNullable<EnvironmentEntry["places"]>[string];
 
 const FILE_MISSING_CODES = new Set(["ENOENT"]);
 
@@ -66,19 +59,10 @@ export interface MigrateMantleStateDeps {
 	readonly stateFilePath: string;
 }
 
-interface EnvironmentOverlayContext {
-	readonly fold: EnvironmentFoldResult;
-	readonly primary: EnvironmentFoldResult | undefined;
-}
-
-interface PlaceOverlayContext {
-	readonly fold: PlaceFoldEntry;
-	readonly primary: PlaceFoldEntry | undefined;
-}
-
 interface FinalizeReportInputs {
 	readonly config: Config;
 	readonly configFormat: ConfigFormat;
+	readonly factorizeWarnings: ReadonlyArray<MigrationWarning>;
 	readonly folds: ReadonlyMap<string, EnvironmentFoldResult>;
 	readonly iconRecomputation: IconHashRecomputation;
 }
@@ -182,130 +166,6 @@ export async function migrateMantleState(
 	});
 }
 
-function pickPrimary(
-	available: ReadonlyArray<string>,
-	requested: string | undefined,
-): Result<string, MigrateError> {
-	if (requested === undefined) {
-		const [only, ...rest] = available;
-		if (only === undefined || rest.length > 0) {
-			return {
-				err: { available, kind: "primaryEnvironmentRequired" },
-				success: false,
-			};
-		}
-
-		return { data: only, success: true };
-	}
-
-	if (!available.includes(requested)) {
-		return {
-			err: { available, kind: "primaryEnvironmentNotFound", requested },
-			success: false,
-		};
-	}
-
-	return { data: requested, success: true };
-}
-
-function buildRootPlaces(
-	primaryFold: EnvironmentFoldResult | undefined,
-): Record<string, PlaceEntry> | undefined {
-	if (primaryFold === undefined || primaryFold.places.size === 0) {
-		return undefined;
-	}
-
-	return Object.fromEntries(
-		[...primaryFold.places.entries()].map(([key, fold]) => [key, { ...fold.entry }]),
-	);
-}
-
-function buildPassesRecord(
-	entries: ReadonlyArray<{ readonly entry: GamePassEntry; readonly key: string }>,
-): Record<string, GamePassEntry> | undefined {
-	if (entries.length === 0) {
-		return undefined;
-	}
-
-	return Object.fromEntries(entries.map(({ key, entry }) => [key, entry]));
-}
-
-function buildPlaceOverlayEntry(context: PlaceOverlayContext): PlaceOverlayEntry {
-	const { fold, primary } = context;
-	if (primary === undefined || primary.entry.filePath === fold.entry.filePath) {
-		return { placeId: fold.placeId };
-	}
-
-	return { filePath: fold.entry.filePath, placeId: fold.placeId };
-}
-
-function buildPlacesOverlay(
-	context: EnvironmentOverlayContext,
-): Record<string, PlaceOverlayEntry> | undefined {
-	const { fold, primary } = context;
-	if (fold.places.size === 0) {
-		return undefined;
-	}
-
-	const overlay: Record<string, PlaceOverlayEntry> = {};
-	for (const [key, foldEntry] of fold.places) {
-		overlay[key] = buildPlaceOverlayEntry({
-			fold: foldEntry,
-			primary: primary?.places.get(key),
-		});
-	}
-
-	return overlay;
-}
-
-function buildEnvironmentEntry(context: EnvironmentOverlayContext): EnvironmentEntry {
-	const places = buildPlacesOverlay(context);
-	if (places === undefined) {
-		return {};
-	}
-
-	return { places };
-}
-
-function buildEnvironmentEntries(
-	folds: ReadonlyMap<string, EnvironmentFoldResult>,
-	primaryName: string,
-): Record<string, EnvironmentEntry> {
-	const primaryFold = folds.get(primaryName);
-	const entries: Record<string, EnvironmentEntry> = {};
-	for (const [name, fold] of folds) {
-		entries[name] = buildEnvironmentEntry({ fold, primary: primaryFold });
-	}
-
-	return entries;
-}
-
-function buildConfig(
-	folds: ReadonlyMap<string, EnvironmentFoldResult>,
-	primaryName: string,
-): Config {
-	const primaryFold = folds.get(primaryName);
-	const environments = buildEnvironmentEntries(folds, primaryName);
-	const places = buildRootPlaces(primaryFold);
-	const passes = buildPassesRecord(primaryFold?.passes ?? []);
-	const universe = primaryFold?.universe?.entry;
-
-	const config: Config = { environments };
-	if (passes !== undefined) {
-		config.passes = passes;
-	}
-
-	if (places !== undefined) {
-		config.places = places;
-	}
-
-	if (universe !== undefined) {
-		config.universe = universe;
-	}
-
-	return config;
-}
-
 function buildStatesByEnvironment(
 	folds: ReadonlyMap<string, EnvironmentFoldResult>,
 	hashesByEnvironment: ReadonlyMap<string, ReadonlyMap<ResourceKey, Sha256Hex>>,
@@ -336,6 +196,25 @@ function collectFoldWarnings(
 	});
 }
 
+function buildReport(inputs: FinalizeReportInputs, validated: Config): MigrationReport {
+	const { hashesByEnvironment, warnings: iconWarnings } = inputs.iconRecomputation;
+	const warnings = [
+		...collectFoldWarnings(inputs.folds),
+		...inputs.factorizeWarnings,
+		...iconWarnings,
+	];
+	return {
+		config: validated,
+		configFileContent: serializeConfig({
+			config: validated,
+			configFormat: inputs.configFormat,
+		}),
+		statesByEnvironment: buildStatesByEnvironment(inputs.folds, hashesByEnvironment),
+		summary: summarizeWarnings(warnings),
+		warnings,
+	};
+}
+
 function finalizeReport(inputs: FinalizeReportInputs): Result<MigrationReport, MigrateError> {
 	const validated = validateConfig(inputs.config, "<migrate-mantle-state>");
 	if (!validated.success) {
@@ -349,43 +228,33 @@ function finalizeReport(inputs: FinalizeReportInputs): Result<MigrationReport, M
 		};
 	}
 
-	const { hashesByEnvironment, warnings: iconWarnings } = inputs.iconRecomputation;
-	const warnings = [...collectFoldWarnings(inputs.folds), ...iconWarnings];
-	return {
-		data: {
-			config: validated.data,
-			configFileContent: serializeConfig({
-				config: validated.data,
-				configFormat: inputs.configFormat,
-			}),
-			statesByEnvironment: buildStatesByEnvironment(inputs.folds, hashesByEnvironment),
-			summary: summarizeWarnings(warnings),
-			warnings,
-		},
-		success: true,
-	};
+	return { data: buildReport(inputs, validated.data), success: true };
 }
 
 async function assembleReport(
 	inputs: AssembleReportInputs,
 ): Promise<Result<MigrationReport, MigrateError>> {
 	const available = Object.keys(inputs.state.environments);
-	const primaryResult = pickPrimary(available, inputs.primaryEnvironment);
-	if (!primaryResult.success) {
-		return primaryResult;
-	}
-
 	const folds: ReadonlyMap<string, EnvironmentFoldResult> = new Map(
 		available.map((name) => [name, foldEnvironment(inputs.state.environments[name] ?? [])]),
 	);
+	const factorized = factorizeEnvironments({
+		folds,
+		primaryEnvironment: inputs.primaryEnvironment,
+	});
+	if (!factorized.success) {
+		return factorized;
+	}
+
 	const iconRecomputation = await recomputeIconHashes({
 		folds,
 		readFile: inputs.readFile,
 		stateFileDirectory: dirname(inputs.stateFilePath),
 	});
 	return finalizeReport({
-		config: buildConfig(folds, primaryResult.data),
+		config: factorized.data.config,
 		configFormat: inputs.configFormat,
+		factorizeWarnings: factorized.data.warnings,
 		folds,
 		iconRecomputation,
 	});
