@@ -19,17 +19,17 @@ function resource(kind: string, key: string): MantleResource {
 }
 
 const DEFERRED_CASES: ReadonlyArray<DeferredCase> = [
-	{ humanName: "developer products", kind: "product" },
-	{ humanName: "developer-product icons", kind: "productIcon" },
+	{ humanName: "asset aliases", kind: "assetAlias" },
+	{ humanName: "audio assets", kind: "audioAsset" },
 	{ humanName: "badges", kind: "badge" },
 	{ humanName: "badge icons", kind: "badgeIcon" },
-	{ humanName: "image assets", kind: "imageAsset" },
-	{ humanName: "audio assets", kind: "audioAsset" },
-	{ humanName: "asset aliases", kind: "assetAlias" },
-	{ humanName: "experience notifications", kind: "notification" },
 	{ humanName: "experience icons", kind: "experienceIcon" },
 	{ humanName: "experience thumbnails", kind: "experienceThumbnail" },
 	{ humanName: "experience thumbnail ordering", kind: "experienceThumbnailOrder" },
+	{ humanName: "image assets", kind: "imageAsset" },
+	{ humanName: "experience notifications", kind: "notification" },
+	{ humanName: "developer products", kind: "product" },
+	{ humanName: "developer-product icons", kind: "productIcon" },
 ];
 
 describe(foldUnsupported, () => {
