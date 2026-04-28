@@ -1,5 +1,6 @@
 import type { Result } from "@bedrock/ocale";
 import { DeveloperProductsClient } from "@bedrock/ocale/developer-products";
+import { ExperienceIconClient } from "@bedrock/ocale/experience-icon";
 import { GamePassesClient } from "@bedrock/ocale/game-passes";
 import { PlacesClient } from "@bedrock/ocale/places";
 import { UniversesClient } from "@bedrock/ocale/universes";
@@ -120,6 +121,7 @@ function missingUniverseId(): Result<DriverRegistry, RegistryConfigError> {
 function assembleRegistry(inputs: AssembleRegistryInputs): DriverRegistry {
 	const { apiKey, readFile, universeId } = inputs;
 	const developerProducts = new DeveloperProductsClient({ apiKey });
+	const experienceIcons = new ExperienceIconClient({ apiKey });
 	const gamePasses = new GamePassesClient({ apiKey });
 	const places = new PlacesClient({ apiKey });
 	const universes = new UniversesClient({ apiKey });
@@ -128,6 +130,6 @@ function assembleRegistry(inputs: AssembleRegistryInputs): DriverRegistry {
 		developerProduct: createDeveloperProductDriver({ client: developerProducts, universeId }),
 		gamePass: createGamePassDriver({ client: gamePasses, readFile, universeId }),
 		place: createPlaceDriver({ client: places, readFile, universeId }),
-		universe: createUniverseDriver({ places, universes }),
+		universe: createUniverseDriver({ experienceIcons, places, readFile, universes }),
 	};
 }

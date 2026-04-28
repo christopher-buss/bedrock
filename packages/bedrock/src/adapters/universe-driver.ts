@@ -1,4 +1,5 @@
 import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
+import type { ExperienceIconClient } from "@bedrock/ocale/experience-icon";
 import type { PlacesClient } from "@bedrock/ocale/places";
 import type { UniversesClient, UpdateUniverseParameters } from "@bedrock/ocale/universes";
 
@@ -10,7 +11,7 @@ import {
 	type UniverseDesiredState,
 } from "../core/resources.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
-import { asRobloxAssetId } from "../types/ids.ts";
+import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
 
 /**
  * Dependencies of `createUniverseDriver`. The driver reconciles the
@@ -21,14 +22,30 @@ import { asRobloxAssetId } from "../types/ids.ts";
  * along on each `UniverseDesiredState`.
  */
 export interface UniverseDriverDeps {
+	/** Configured experience-icon client from `@bedrock/ocale/experience-icon`. */
+	readonly experienceIcons: ExperienceIconClient;
 	/** Configured places client from `@bedrock/ocale/places`. */
 	readonly places: PlacesClient;
+	/** Reads icon bytes for upload; rejections propagate out of `create`/`update`. */
+	readonly readFile: (path: string) => Promise<Uint8Array>;
 	/** Configured universes client from `@bedrock/ocale/universes`. */
 	readonly universes: UniversesClient;
 }
 
 interface ResolvedUniverse {
 	readonly rootPlaceId: string;
+}
+
+interface ToCurrentStateInputs {
+	readonly desired: UniverseDesiredState;
+	readonly iconAssetIds: Record<"en-us", RobloxAssetId> | undefined;
+	readonly rootPlaceId: string;
+}
+
+interface ReconcileInputs {
+	readonly current: ResourceCurrentState<"universe"> | undefined;
+	readonly deps: UniverseDriverDeps;
+	readonly desired: UniverseDesiredState;
 }
 
 /**
@@ -59,6 +76,8 @@ interface ResolvedUniverse {
  * @example
  *
  * ```ts
+ * import type { HttpClient } from "@bedrock/ocale";
+ * import { ExperienceIconClient } from "@bedrock/ocale/experience-icon";
  * import { PlacesClient } from "@bedrock/ocale/places";
  * import { UniversesClient } from "@bedrock/ocale/universes";
  * import { validUniverseBody } from "@bedrock/ocale/testing";
@@ -68,43 +87,37 @@ interface ResolvedUniverse {
  *     UNIVERSE_SINGLETON_KEY,
  * } from "@bedrock/core";
  *
- * const driver = createUniverseDriver({
- *     places: new PlacesClient({
- *         apiKey: "rbx-your-key",
- *         httpClient: {
- *             async request() {
- *                 return {
- *                     data: {
- *                         body: validUniverseBody({
- *                             path: "universes/1234567890",
- *                             rootPlace: "universes/1234567890/places/4711",
- *                         }),
- *                         headers: {},
- *                         status: 200,
- *                     },
- *                     success: true,
- *                 };
+ * const universeBodyHttpClient: HttpClient = {
+ *     async request() {
+ *         return {
+ *             data: {
+ *                 body: validUniverseBody({
+ *                     path: "universes/1234567890",
+ *                     rootPlace: "universes/1234567890/places/4711",
+ *                 }),
+ *                 headers: {},
+ *                 status: 200,
  *             },
- *         },
+ *             success: true,
+ *         };
+ *     },
+ * };
+ *
+ * const driver = createUniverseDriver({
+ *     experienceIcons: new ExperienceIconClient({
+ *         apiKey: "rbx-your-key",
+ *         httpClient: universeBodyHttpClient,
  *         sleep: async () => {},
  *     }),
+ *     places: new PlacesClient({
+ *         apiKey: "rbx-your-key",
+ *         httpClient: universeBodyHttpClient,
+ *         sleep: async () => {},
+ *     }),
+ *     readFile: async () => new Uint8Array(),
  *     universes: new UniversesClient({
  *         apiKey: "rbx-your-key",
- *         httpClient: {
- *             async request() {
- *                 return {
- *                     data: {
- *                         body: validUniverseBody({
- *                             path: "universes/1234567890",
- *                             rootPlace: "universes/1234567890/places/4711",
- *                         }),
- *                         headers: {},
- *                         status: 200,
- *                     },
- *                     success: true,
- *                 };
- *             },
- *         },
+ *         httpClient: universeBodyHttpClient,
  *         sleep: async () => {},
  *     }),
  * });
@@ -135,21 +148,20 @@ interface ResolvedUniverse {
 export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"universe"> {
 	return {
 		async create(desired) {
-			return reconcileUniverse(deps, desired);
+			return reconcileUniverse({ current: undefined, deps, desired });
 		},
-		async update(_current, desired) {
-			return reconcileUniverse(deps, desired);
+		async update(current, desired) {
+			return reconcileUniverse({ current, deps, desired });
 		},
 	};
 }
 
-function toCurrentState(
-	desired: UniverseDesiredState,
-	rootPlaceId: string,
-): ResourceCurrentState<"universe"> {
+function toCurrentState(inputs: ToCurrentStateInputs): ResourceCurrentState<"universe"> {
+	const { desired, iconAssetIds, rootPlaceId } = inputs;
+	const baseOutputs = { rootPlaceId: asRobloxAssetId(rootPlaceId) };
 	return {
 		...desired,
-		outputs: { rootPlaceId: asRobloxAssetId(rootPlaceId) },
+		outputs: iconAssetIds === undefined ? baseOutputs : { ...baseOutputs, iconAssetIds },
 	};
 }
 
@@ -226,10 +238,72 @@ async function resolveUniverse(
 	return { data: { rootPlaceId }, success: true };
 }
 
-async function reconcileUniverse(
+async function captureUploadedIconAssetId(
 	deps: UniverseDriverDeps,
 	desired: UniverseDesiredState,
+): Promise<Result<Record<"en-us", RobloxAssetId>, OpenCloudError>> {
+	const listed = await deps.experienceIcons.list({ universeId: desired.universeId });
+	if (!listed.success) {
+		return listed;
+	}
+
+	const enUs = listed.data.find((entry) => entry.languageCode === "en-us");
+	if (enUs === undefined) {
+		return {
+			err: new ApiError(
+				`Malformed experience-icon list for ${desired.universeId}: en-us entry missing after upload`,
+				{ statusCode: 200 },
+			),
+			success: false,
+		};
+	}
+
+	return { data: { "en-us": asRobloxAssetId(enUs.imageId) }, success: true };
+}
+
+async function deleteRemovedIcon(
+	deps: UniverseDriverDeps,
+	desired: UniverseDesiredState,
+): Promise<Result<undefined, OpenCloudError>> {
+	return deps.experienceIcons.delete({
+		languageCode: "en-us",
+		universeId: desired.universeId,
+	});
+}
+
+async function reconcileIcon(
+	inputs: ReconcileInputs,
+): Promise<Result<Record<"en-us", RobloxAssetId> | undefined, OpenCloudError>> {
+	const { current, deps, desired } = inputs;
+	if (desired.icon === undefined) {
+		return current?.icon === undefined
+			? { data: undefined, success: true }
+			: deleteRemovedIcon(deps, desired);
+	}
+
+	const desiredHash = desired.iconFileHashes?.["en-us"];
+	const currentHash = current?.iconFileHashes?.["en-us"];
+	if (desiredHash === currentHash) {
+		return { data: current?.outputs.iconAssetIds, success: true };
+	}
+
+	const bytes = await deps.readFile(desired.icon["en-us"]);
+	const uploaded = await deps.experienceIcons.upload({
+		image: bytes,
+		languageCode: "en-us",
+		universeId: desired.universeId,
+	});
+	if (!uploaded.success) {
+		return uploaded;
+	}
+
+	return captureUploadedIconAssetId(deps, desired);
+}
+
+async function reconcileUniverse(
+	inputs: ReconcileInputs,
 ): Promise<Result<ResourceCurrentState<"universe">, OpenCloudError>> {
+	const { current, deps, desired } = inputs;
 	const universeResult = await resolveUniverse(deps, desired);
 	if (!universeResult.success) {
 		return universeResult;
@@ -247,5 +321,13 @@ async function reconcileUniverse(
 		}
 	}
 
-	return { data: toCurrentState(desired, rootPlaceId), success: true };
+	const iconResult = await reconcileIcon({ current, deps, desired });
+	if (!iconResult.success) {
+		return iconResult;
+	}
+
+	return {
+		data: toCurrentState({ desired, iconAssetIds: iconResult.data, rootPlaceId }),
+		success: true,
+	};
 }

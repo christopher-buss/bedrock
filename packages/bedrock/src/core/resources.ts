@@ -210,6 +210,17 @@ export interface UniverseDesiredState {
 	readonly facebookSocialLink?: SocialLink | undefined;
 	/** Guilded social link; tri-state (absent/undefined/set) — see interface JSDoc. */
 	readonly guildedSocialLink?: SocialLink | undefined;
+	/**
+	 * Locale-keyed experience-icon paths declared on the authored config.
+	 * Absent when the user did not declare an icon block.
+	 */
+	readonly icon?: Record<"en-us", string>;
+	/**
+	 * SHA-256 digests of the local icon files keyed by the same locales as
+	 * the icon map. The diff compares this map against the prior current
+	 * state so the driver re-uploads only when a file's bytes change.
+	 */
+	readonly iconFileHashes?: Record<"en-us", Sha256Hex>;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
 	readonly kind: "universe";
 	/** Whether mobile players can join; `undefined` leaves the server value untouched. */
@@ -369,6 +380,13 @@ export interface DeveloperProductOutputs {
  * so a future places slice can cross-validate the declared start place.
  */
 export interface UniverseOutputs {
+	/**
+	 * Locale-keyed Roblox-assigned image IDs for the experience icons. Only
+	 * populated for locales whose icon was uploaded by the universe driver;
+	 * the entry persists across re-deploys until the locale is removed from
+	 * the authored config.
+	 */
+	readonly iconAssetIds?: Record<"en-us", RobloxAssetId>;
 	/** Server-assigned root place ID for the universe. */
 	readonly rootPlaceId: RobloxAssetId;
 }

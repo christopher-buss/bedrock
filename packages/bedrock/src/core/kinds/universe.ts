@@ -3,7 +3,7 @@ import type { SocialLink } from "@bedrock/ocale/universes";
 
 import { type } from "arktype";
 
-import { asRobloxAssetId } from "../../types/ids.ts";
+import { asRobloxAssetId, asSha256Hex, type ResourceKey, type Sha256Hex } from "../../types/ids.ts";
 import type { UniverseDesiredInput } from "../flatten.ts";
 import {
 	copyDeclaredSocialLinks,
@@ -14,7 +14,9 @@ import {
 	type UniverseDesiredState,
 } from "../resources.ts";
 import type { ResolvedConfig } from "../schema.ts";
-import type { BuildDesiredError, ResourceKindModule } from "./module.ts";
+import { sha256Hex } from "./hash.ts";
+import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
+import { readBytes } from "./read-bytes.ts";
 
 const OPTIONAL_BOOLEAN = "boolean | undefined";
 
@@ -25,6 +27,10 @@ const socialLink = type({
 
 const socialLinkOrUndefined = socialLink.or("undefined");
 
+const iconMap = type({
+	"en-us": "string",
+}).onUndeclaredKey("reject");
+
 const entrySchema = type({
 	"consoleEnabled?": OPTIONAL_BOOLEAN,
 	"desktopEnabled?": OPTIONAL_BOOLEAN,
@@ -32,6 +38,7 @@ const entrySchema = type({
 	"displayName?": "string | undefined",
 	"facebookSocialLink?": socialLinkOrUndefined,
 	"guildedSocialLink?": socialLinkOrUndefined,
+	"icon?": iconMap,
 	"mobileEnabled?": OPTIONAL_BOOLEAN,
 	"privateServerPriceRobux?": "number.integer >= 0 | undefined",
 	"robloxGroupSocialLink?": socialLinkOrUndefined,
@@ -66,16 +73,30 @@ function flatten(config: ResolvedConfig): ReadonlyArray<UniverseDesiredInput> {
 		...copyDeclaredSocialLinks(entry),
 	};
 
-	return [
+	const withPrice =
 		"privateServerPriceRobux" in entry
 			? { ...base, privateServerPriceRobux: entry.privateServerPriceRobux }
-			: base,
-	];
+			: base;
+
+	return [entry.icon === undefined ? withPrice : { ...withPrice, icon: entry.icon }];
 }
 
-async function normalize(
-	input: UniverseDesiredInput,
-): Promise<Result<UniverseDesiredState, BuildDesiredError>> {
+async function hashIconLocales(
+	input: { readonly icon: Record<"en-us", string>; readonly key: ResourceKey },
+	io: KindIo,
+): Promise<Result<Record<"en-us", Sha256Hex>, BuildDesiredError>> {
+	const read = await readBytes({ key: input.key, filePath: input.icon["en-us"] }, io);
+	if (!read.success) {
+		return read;
+	}
+
+	return {
+		data: { "en-us": asSha256Hex(await sha256Hex(read.data)) },
+		success: true,
+	};
+}
+
+function buildBaseDesired(input: UniverseDesiredInput): UniverseDesiredState {
 	const base: UniverseDesiredState = {
 		key: input.key,
 		consoleEnabled: input.consoleEnabled,
@@ -91,11 +112,28 @@ async function normalize(
 		...copyDeclaredSocialLinks(input),
 	};
 
+	return "privateServerPriceRobux" in input
+		? { ...base, privateServerPriceRobux: input.privateServerPriceRobux }
+		: base;
+}
+
+async function normalize(
+	input: UniverseDesiredInput,
+	io: KindIo,
+): Promise<Result<UniverseDesiredState, BuildDesiredError>> {
+	const withPrice = buildBaseDesired(input);
+
+	if (input.icon === undefined) {
+		return { data: withPrice, success: true };
+	}
+
+	const hashes = await hashIconLocales({ ...input, icon: input.icon }, io);
+	if (!hashes.success) {
+		return hashes;
+	}
+
 	return {
-		data:
-			"privateServerPriceRobux" in input
-				? { ...base, privateServerPriceRobux: input.privateServerPriceRobux }
-				: base,
+		data: { ...withPrice, icon: input.icon, iconFileHashes: hashes.data },
 		success: true,
 	};
 }
@@ -129,6 +167,21 @@ function declaredSocialLinksEqual(
 	return true;
 }
 
+function iconHashesEqual(
+	desired: UniverseDesiredState,
+	current: ResourceCurrentState<"universe">,
+): boolean {
+	if (desired.iconFileHashes === undefined) {
+		return current.iconFileHashes === undefined;
+	}
+
+	if (current.iconFileHashes === undefined) {
+		return false;
+	}
+
+	return desired.iconFileHashes["en-us"] === current.iconFileHashes["en-us"];
+}
+
 function fieldsEqual(
 	desired: UniverseDesiredState,
 	current: ResourceCurrentState<"universe">,
@@ -159,6 +212,10 @@ function fieldsEqual(
 		"privateServerPriceRobux" in desired &&
 		desired.privateServerPriceRobux !== current.privateServerPriceRobux
 	) {
+		return false;
+	}
+
+	if (!iconHashesEqual(desired, current)) {
 		return false;
 	}
 

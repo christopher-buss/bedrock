@@ -134,6 +134,11 @@ export interface UniverseDesiredInput {
 	readonly facebookSocialLink?: SocialLink | undefined;
 	/** Guilded social link; tri-state (absent/undefined/set) — see `UniverseDesiredState`. */
 	readonly guildedSocialLink?: SocialLink | undefined;
+	/**
+	 * Locale-keyed experience-icon paths copied from the user-supplied
+	 * `UniverseEntry`. Absent when the user did not declare an icon block.
+	 */
+	readonly icon?: Record<"en-us", string>;
 	/** Discriminator tag for the `ResourceDesiredInput` union. */
 	readonly kind: "universe";
 	/** Whether mobile players can join; `undefined` leaves the server value untouched. */

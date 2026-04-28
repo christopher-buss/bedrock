@@ -129,6 +129,13 @@ export interface UniverseEntry {
 	 * `undefined` to clear it, or set to a `SocialLink` to update it.
 	 */
 	guildedSocialLink?: SocialLink | undefined;
+	/**
+	 * Locale-keyed experience-icon paths. The map shape teaches that icons
+	 * are per-locale; v1 only accepts the `"en-us"` key. Omit to leave the
+	 * server icon unmanaged; remove a previously declared locale to delete
+	 * its icon on the next deploy.
+	 */
+	icon?: Record<"en-us", string>;
 	/** Whether mobile players can join; omit or set `undefined` to leave unmanaged. */
 	mobileEnabled?: boolean | undefined;
 	/**
@@ -473,6 +480,10 @@ const socialLink = type({
 
 const socialLinkOrUndefined = socialLink.or("undefined");
 
+const iconMap = type({
+	"en-us": "string",
+}).onUndeclaredKey("reject");
+
 const universeEntry = type({
 	"consoleEnabled?": OPTIONAL_BOOLEAN,
 	"desktopEnabled?": OPTIONAL_BOOLEAN,
@@ -480,6 +491,7 @@ const universeEntry = type({
 	"displayName?": OPTIONAL_STRING,
 	"facebookSocialLink?": socialLinkOrUndefined,
 	"guildedSocialLink?": socialLinkOrUndefined,
+	"icon?": iconMap,
 	"mobileEnabled?": OPTIONAL_BOOLEAN,
 	"privateServerPriceRobux?": OPTIONAL_ROBUX_PRICE,
 	"robloxGroupSocialLink?": socialLinkOrUndefined,
