@@ -184,9 +184,9 @@ describe("MigrateError - environment-selection variants", () => {
 		>().toEqualTypeOf<ReadonlyArray<string>>();
 	});
 
-	it("should narrow primaryEnvironmentNotFound to expose requested and available", () => {
+	it("should narrow primaryEnvironmentNotFound to expose primary and available", () => {
 		expectTypeOf<
-			Extract<MigrateError, { kind: "primaryEnvironmentNotFound" }>["requested"]
+			Extract<MigrateError, { kind: "primaryEnvironmentNotFound" }>["primary"]
 		>().toEqualTypeOf<string>();
 		expectTypeOf<
 			Extract<MigrateError, { kind: "primaryEnvironmentNotFound" }>["available"]

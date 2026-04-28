@@ -83,7 +83,7 @@ export type MigrateError =
 	| {
 			readonly available: ReadonlyArray<string>;
 			readonly kind: "primaryEnvironmentNotFound";
-			readonly requested: string;
+			readonly primary: string;
 	  }
 	| { readonly available: ReadonlyArray<string>; readonly kind: "primaryEnvironmentRequired" }
 	| { readonly cause: ConfigError; readonly kind: "internalError"; readonly reason: string }

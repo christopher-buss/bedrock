@@ -11,6 +11,60 @@ const REAL_FIXTURE = join(FIXTURES_ROOT, "roblox-ts-example.mantle-state.yml");
 const ICON_FILE_SHA256 = "c2d4b446a44ce54fab8e01150e24dd24f3d850c7c14dcfe31f6321341dd86874";
 const MANTLE_RECORDED_HASH = "86890ed405cabad0fcdabf52225d528981790fa551e915c070348761c28373c1";
 
+const TWO_ENV_DIVERGENT_PASS_YAML = [
+	'version: "6"',
+	"environments:",
+	"  development:",
+	"    - id: experience_singleton",
+	"      inputs:",
+	"        experience:",
+	"          groupId: ~",
+	"      outputs:",
+	"        experience:",
+	"          assetId: 1111111111",
+	"          startPlaceId: 2222222222",
+	"      dependencies: []",
+	"    - id: pass_vip",
+	"      inputs:",
+	"        pass:",
+	"          name: VIP Pass",
+	"          description: Grants VIP perks.",
+	"          price: 99",
+	"          iconFilePath: assets/marketing/example-icon.png",
+	`          iconFileHash: ${MANTLE_RECORDED_HASH}`,
+	"      outputs:",
+	"        pass:",
+	"          assetId: 100",
+	"          iconAssetId: 200",
+	"      dependencies:",
+	"        - experience_singleton",
+	"  production:",
+	"    - id: experience_singleton",
+	"      inputs:",
+	"        experience:",
+	"          groupId: ~",
+	"      outputs:",
+	"        experience:",
+	"          assetId: 6031475575",
+	"          startPlaceId: 17613681043",
+	"      dependencies: []",
+	"    - id: pass_vip",
+	"      inputs:",
+	"        pass:",
+	"          name: VIP Pass",
+	"          description: Grants VIP perks.",
+	"          price: 500",
+	"          iconFilePath: assets/marketing/example-icon.png",
+	`          iconFileHash: ${MANTLE_RECORDED_HASH}`,
+	"      outputs:",
+	"        pass:",
+	"          assetId: 838516503",
+	"          iconAssetId: 18109390296",
+	"      dependencies:",
+	"        - experience_singleton",
+	"",
+].join("\n");
+
 async function withTemporaryDirectory<T>(run: (directory: string) => Promise<T>): Promise<T> {
 	const directory = mkdtempSync(join(tmpdir(), "bedrock-migrate-"));
 	try {
@@ -186,6 +240,103 @@ describe(migrateMantleState, () => {
 		expect(onSale.iconFileHash).toBe(ICON_FILE_SHA256);
 		expect(onSale.outputs.assetId).toBe("838516503");
 		expect(onSale.price).toBe(5);
+	});
+
+	it("should round-trip the universe overlay through selectEnvironment per environment", async () => {
+		expect.assertions(2);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
+
+		const production = selectEnvironment(result.data.config, "production");
+		const development = selectEnvironment(result.data.config, "development");
+		assert(production.success);
+		assert(development.success);
+
+		expect(production.data.universe?.universeId).toBe("6110424408");
+		expect(development.data.universe?.universeId).toBe("6031475575");
+	});
+
+	it("should round-trip a per-environment universe overlay through loadConfig", async () => {
+		expect.assertions(2);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
+
+		await withTemporaryDirectory(async (directory) => {
+			writeFileSync(join(directory, "bedrock.config.ts"), result.data.configFileContent);
+			const loaded = await loadConfig({ cwd: directory });
+
+			assert(loaded.success);
+
+			const development = selectEnvironment(loaded.data, "development");
+			assert(development.success);
+
+			expect(loaded.data.environments["development"]?.universe?.universeId).toBe(
+				"6031475575",
+			);
+			expect(development.data.universe?.universeId).toBe("6031475575");
+		});
+	});
+
+	it("should emit a resource-missing-from-env warning for a pass present only in one environment", async () => {
+		expect.assertions(1);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
+
+		expect(result.data.warnings).toContainEqual({
+			bedrockPath: "environments.development.passes.2-missing",
+			kind: "interpretive",
+			mantlePath: "development.pass_2-missing",
+			rule: "factorize-environments/resource-missing-from-env",
+		});
+	});
+
+	it("should round-trip a per-environment pass-field overlay through loadConfig and selectEnvironment", async () => {
+		expect.assertions(3);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			readFile: async () => new TextEncoder().encode(TWO_ENV_DIVERGENT_PASS_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		await withTemporaryDirectory(async (directory) => {
+			writeFileSync(join(directory, "bedrock.config.ts"), result.data.configFileContent);
+			const loaded = await loadConfig({ cwd: directory });
+
+			assert(loaded.success);
+
+			const production = selectEnvironment(loaded.data, "production");
+			const development = selectEnvironment(loaded.data, "development");
+			assert(production.success);
+			assert(development.success);
+
+			expect(loaded.data.environments["development"]?.passes).toStrictEqual({
+				vip: { price: 99 },
+			});
+			expect(production.data.passes?.["vip"]?.price).toBe(500);
+			expect(development.data.passes?.["vip"]?.price).toBe(99);
+		});
 	});
 
 	it("should fall back to the Mantle hash and emit an ambiguous warning for a missing icon", async () => {
