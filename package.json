@@ -39,6 +39,7 @@
 		"typecheck:affected": "vp run -r typecheck"
 	},
 	"devDependencies": {
+		"@bedrock/core": "workspace:*",
 		"@bedrock/testing": "workspace:*",
 		"@bedrock/vite-config": "workspace:*",
 		"@commitlint/cli": "catalog:lint",
