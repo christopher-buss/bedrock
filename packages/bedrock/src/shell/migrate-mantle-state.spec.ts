@@ -251,6 +251,65 @@ environments:
       dependencies: []
 `;
 
+const DEFERRED_KIND_YAML = `
+version: "6"
+environments:
+  production:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 6031475575
+          startPlaceId: 17613681043
+      dependencies: []
+    - id: product_starter
+      inputs:
+        product: {}
+      dependencies: []
+    - id: productIcon_starter
+      inputs:
+        productIcon: {}
+      dependencies: []
+    - id: badge_first-win
+      inputs:
+        badge: {}
+      dependencies: []
+    - id: badgeIcon_first-win
+      inputs:
+        badgeIcon: {}
+      dependencies: []
+    - id: imageAsset_logo
+      inputs:
+        imageAsset: {}
+      dependencies: []
+    - id: audioAsset_theme
+      inputs:
+        audioAsset: {}
+      dependencies: []
+    - id: assetAlias_logo
+      inputs:
+        assetAlias: {}
+      dependencies: []
+    - id: notification_welcome
+      inputs:
+        notification: {}
+      dependencies: []
+    - id: experienceIcon_singleton
+      inputs:
+        experienceIcon: {}
+      dependencies: []
+    - id: experienceThumbnail_hero
+      inputs:
+        experienceThumbnail: {}
+      dependencies: []
+    - id: experienceThumbnailOrder_singleton
+      inputs:
+        experienceThumbnailOrder: {}
+      dependencies: []
+`;
+
 function fakeReadFile(content: string): (path: string) => Promise<Uint8Array> {
 	return async () => new TextEncoder().encode(content);
 }
@@ -923,5 +982,82 @@ environments:
 
 		expect(result.data.configFileContent).toContain("universeId: '6031475575'");
 		expect(result.data.configFileContent).not.toContain("defineConfig");
+	});
+
+	it("should emit one deferred warning per Mantle resource of every reserved kind", async () => {
+		expect.assertions(2);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeReadFile(DEFERRED_KIND_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.warnings).toHaveLength(11);
+		expect(new Set(result.data.warnings.map((warning) => warning.kind))).toStrictEqual(
+			new Set(["deferred"]),
+		);
+	});
+
+	it("should reflect the deferred warning count in summary.deferredCount", async () => {
+		expect.assertions(1);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeReadFile(DEFERRED_KIND_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.summary).toStrictEqual({
+			ambiguousCount: 0,
+			blockedCount: 0,
+			deferredCount: 11,
+			interpretiveCount: 0,
+		});
+	});
+
+	it("should root each deferred warning's mantlePath at the environment name", async () => {
+		expect.assertions(1);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeReadFile(DEFERRED_KIND_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.warnings.map((warning) => warning.mantlePath)).toStrictEqual([
+			"production.product_starter",
+			"production.productIcon_starter",
+			"production.badge_first-win",
+			"production.badgeIcon_first-win",
+			"production.imageAsset_logo",
+			"production.audioAsset_theme",
+			"production.assetAlias_logo",
+			"production.notification_welcome",
+			"production.experienceIcon_singleton",
+			"production.experienceThumbnail_hero",
+			"production.experienceThumbnailOrder_singleton",
+		]);
+	});
+
+	it("should produce zero config entries for deferred Mantle kinds", async () => {
+		expect.assertions(2);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeReadFile(DEFERRED_KIND_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.config.passes).toBeUndefined();
+		expect(result.data.config.products).toBeUndefined();
 	});
 });

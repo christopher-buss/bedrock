@@ -2,6 +2,7 @@ import { assert, describe, expect, it } from "vitest";
 
 import { asResourceKey } from "../../types/ids.ts";
 import { foldEnvironment } from "./fold-environment.ts";
+import { mantleResource } from "./mantle-resource-fixture.ts";
 import type { MantleResource } from "./types.ts";
 
 const VALID_HASH = "908498abb7f4fca2b7d2b050bfe7c48c009202fabd85f489b03bb19ac6e0b1d9";
@@ -82,7 +83,7 @@ describe(foldEnvironment, () => {
 		expect(result.universe).toBeUndefined();
 	});
 
-	it("should aggregate an empty warnings list in the skeleton", () => {
+	it("should aggregate an empty warnings list when only an experience is present", () => {
 		expect.assertions(1);
 
 		const result = foldEnvironment([experience()]);
@@ -90,7 +91,7 @@ describe(foldEnvironment, () => {
 		expect(result.warnings).toStrictEqual([]);
 	});
 
-	it("should produce empty warnings even when no experience is present", () => {
+	it("should produce empty warnings when the resource list is empty", () => {
 		expect.assertions(1);
 
 		const result = foldEnvironment([]);
@@ -145,5 +146,55 @@ describe(foldEnvironment, () => {
 		const result = foldEnvironment([experience()]);
 
 		expect(result.passes).toStrictEqual([]);
+	});
+
+	it("should aggregate deferred warnings from unsupported Mantle kinds", () => {
+		expect.assertions(2);
+
+		const result = foldEnvironment([
+			experience(),
+			mantleResource("badge", "first-win"),
+			mantleResource("product", "starter"),
+		]);
+
+		expect(result.warnings).toHaveLength(2);
+		expect(result.warnings.map((warning) => warning.kind)).toStrictEqual([
+			"deferred",
+			"deferred",
+		]);
+	});
+
+	it("should emit deferred warnings with resource-rooted mantlePath", () => {
+		expect.assertions(1);
+
+		const result = foldEnvironment([mantleResource("badge", "first-win")]);
+
+		expect(result.warnings.map((warning) => warning.mantlePath)).toStrictEqual([
+			"badge_first-win",
+		]);
+	});
+
+	it("should emit deferred warnings even when no experience is present", () => {
+		expect.assertions(2);
+
+		const result = foldEnvironment([mantleResource("experienceIcon", "singleton")]);
+
+		expect(result.universe).toBeUndefined();
+		expect(result.warnings).toHaveLength(1);
+	});
+
+	it("should append deferred warnings after place ambiguous warnings", () => {
+		expect.assertions(1);
+
+		const result = foldEnvironment([
+			experience(),
+			place(),
+			mantleResource("badge", "first-win"),
+		]);
+
+		expect(result.warnings.map((warning) => warning.kind)).toStrictEqual([
+			"ambiguous",
+			"deferred",
+		]);
 	});
 });
