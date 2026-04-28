@@ -27,6 +27,10 @@ const socialLink = type({
 
 const socialLinkOrUndefined = socialLink.or("undefined");
 
+const iconMap = type({
+	"en-us": "string",
+}).onUndeclaredKey("reject");
+
 const entrySchema = type({
 	"consoleEnabled?": OPTIONAL_BOOLEAN,
 	"desktopEnabled?": OPTIONAL_BOOLEAN,
@@ -34,6 +38,7 @@ const entrySchema = type({
 	"displayName?": "string | undefined",
 	"facebookSocialLink?": socialLinkOrUndefined,
 	"guildedSocialLink?": socialLinkOrUndefined,
+	"icon?": iconMap,
 	"mobileEnabled?": OPTIONAL_BOOLEAN,
 	"privateServerPriceRobux?": "number.integer >= 0 | undefined",
 	"robloxGroupSocialLink?": socialLinkOrUndefined,

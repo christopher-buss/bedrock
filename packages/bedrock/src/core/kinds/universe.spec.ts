@@ -1,4 +1,5 @@
 import { universeCurrent, universeDesired } from "#tests/helpers/resources";
+import { ArkErrors } from "arktype";
 import { assert, describe, expect, it } from "vitest";
 
 import { asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
@@ -20,6 +21,38 @@ describe("universeKind", () => {
 		expect.assertions(1);
 
 		expect(universeKind.kind).toBe("universe");
+	});
+
+	describe("entrySchema", () => {
+		it("should accept an entry declaring an icon with the en-us key", () => {
+			expect.assertions(1);
+
+			expect(
+				universeKind.entrySchema({
+					icon: { "en-us": "assets/icon.png" },
+					universeId: "1234567890",
+				}),
+			).not.toBeInstanceOf(ArkErrors);
+		});
+
+		it("should accept an entry that omits icon", () => {
+			expect.assertions(1);
+
+			expect(universeKind.entrySchema({ universeId: "1234567890" })).not.toBeInstanceOf(
+				ArkErrors,
+			);
+		});
+
+		it("should reject an icon map declaring a locale other than en-us", () => {
+			expect.assertions(1);
+
+			expect(
+				universeKind.entrySchema({
+					icon: { "en-us": "assets/en.png", "fr-fr": "assets/fr.png" },
+					universeId: "1234567890",
+				}),
+			).toBeInstanceOf(ArkErrors);
+		});
 	});
 
 	describe("flatten", () => {
