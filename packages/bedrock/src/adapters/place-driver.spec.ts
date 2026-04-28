@@ -1,6 +1,6 @@
 import { ApiError } from "@bedrock/ocale";
 import { PlacesClient } from "@bedrock/ocale/places";
-import { createFakeHttpClient } from "@bedrock/ocale/testing";
+import { createFakeHttpClient, validPlaceBody } from "@bedrock/ocale/testing";
 
 import { placeCurrent, placeDesired } from "#tests/helpers/resources";
 import type { Except } from "type-fest";
@@ -135,5 +135,102 @@ describe(createPlaceDriver, () => {
 
 		expect(result.data.outputs.versionNumber).toBe(7);
 		expect(http.requests).toHaveLength(1);
+	});
+
+	it("should issue a PATCH with displayName only after publish when only displayName is declared", async () => {
+		expect.assertions(4);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: { versionNumber: 1 }, status: 200 });
+		http.mockResponse({
+			body: validPlaceBody({ displayName: "Lobby" }),
+			status: 200,
+		});
+
+		const result = await driver.create(placeDesired({ displayName: "Lobby" }));
+
+		assert(result.success);
+
+		expect(http.requests).toHaveLength(2);
+		expect(http.requests[1]!.request.method).toBe("PATCH");
+		expect(http.requests[1]!.request.url).toBe(
+			`/cloud/v2/universes/${UNIVERSE_ID}/places/${PLACE_ID}?updateMask=displayName`,
+		);
+		expect(http.requests[1]!.request.body).toStrictEqual({ displayName: "Lobby" });
+	});
+
+	it("should forward every declared metadata field in the PATCH body and updateMask", async () => {
+		expect.assertions(2);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: { versionNumber: 1 }, status: 200 });
+		http.mockResponse({
+			body: validPlaceBody({
+				description: "Updated body.",
+				displayName: "Lobby v2",
+				serverSize: 25,
+			}),
+			status: 200,
+		});
+
+		assert(driver.update !== undefined);
+
+		await driver.update(
+			placeCurrent(),
+			placeDesired({
+				description: "Updated body.",
+				displayName: "Lobby v2",
+				serverSize: 25,
+			}),
+		);
+
+		expect(http.requests[1]!.request.url).toBe(
+			`/cloud/v2/universes/${UNIVERSE_ID}/places/${PLACE_ID}?updateMask=displayName,description,serverSize`,
+		);
+		expect(http.requests[1]!.request.body).toStrictEqual({
+			description: "Updated body.",
+			displayName: "Lobby v2",
+			serverSize: 25,
+		});
+	});
+
+	it("should still PATCH metadata when only description differs and the file hash is unchanged", async () => {
+		expect.assertions(3);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: { versionNumber: 2 }, status: 200 });
+		http.mockResponse({
+			body: validPlaceBody({ description: "Updated body." }),
+			status: 200,
+		});
+
+		assert(driver.update !== undefined);
+
+		await driver.update(placeCurrent(), placeDesired({ description: "Updated body." }));
+
+		expect(http.requests).toHaveLength(2);
+		expect(http.requests[1]!.request.url).toBe(
+			`/cloud/v2/universes/${UNIVERSE_ID}/places/${PLACE_ID}?updateMask=description`,
+		);
+		expect(http.requests[1]!.request.body).toStrictEqual({ description: "Updated body." });
+	});
+
+	it("should surface a Result.err when the metadata PATCH fails after a successful publish", async () => {
+		expect.assertions(2);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: { versionNumber: 1 }, status: 200 });
+		http.mockApiError({
+			code: "INVALID_ARGUMENT",
+			message: "displayName too long",
+			statusCode: 400,
+		});
+
+		const result = await driver.create(placeDesired({ displayName: "X" }));
+
+		assert(!result.success);
+
+		expect(http.requests).toHaveLength(2);
+		expect(result.err.message).toContain("displayName too long");
 	});
 });

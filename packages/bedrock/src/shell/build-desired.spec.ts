@@ -132,9 +132,12 @@ describe(buildDesired, () => {
 			[
 				{
 					key: asResourceKey("start-place"),
+					description: undefined,
+					displayName: undefined,
 					filePath: "places/start.rbxl",
 					kind: "place",
 					placeId: asRobloxAssetId("4711"),
+					serverSize: undefined,
 				},
 			],
 			readFile,
@@ -144,10 +147,13 @@ describe(buildDesired, () => {
 			data: [
 				{
 					key: "start-place",
+					description: undefined,
+					displayName: undefined,
 					fileHash: "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",
 					filePath: "places/start.rbxl",
 					kind: "place",
 					placeId: "4711",
+					serverSize: undefined,
 				},
 			],
 			success: true,
@@ -165,9 +171,12 @@ describe(buildDesired, () => {
 			[
 				{
 					key: asResourceKey("start-place"),
+					description: undefined,
+					displayName: undefined,
 					filePath: "places/start.rbxl",
 					kind: "place",
 					placeId: asRobloxAssetId("4711"),
+					serverSize: undefined,
 				},
 			],
 			readFile,
@@ -196,9 +205,12 @@ describe(buildDesired, () => {
 				gamePassInput(),
 				{
 					key: asResourceKey("start-place"),
+					description: undefined,
+					displayName: undefined,
 					filePath: "places/start.rbxl",
 					kind: "place",
 					placeId: asRobloxAssetId("4711"),
+					serverSize: undefined,
 				},
 			],
 			readFile,

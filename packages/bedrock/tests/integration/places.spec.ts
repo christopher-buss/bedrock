@@ -11,7 +11,7 @@ import {
 	selectEnvironment,
 } from "@bedrock/core";
 import { PlacesClient } from "@bedrock/ocale/places";
-import { createFakeHttpClient } from "@bedrock/ocale/testing";
+import { createFakeHttpClient, validPlaceBody } from "@bedrock/ocale/testing";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,6 +19,7 @@ import { assert, describe, expect, it } from "vitest";
 
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const PLACES_FIXTURE_DIR = join(FIXTURES_ROOT, "places");
+const PLACES_METADATA_FIXTURE_DIR = join(FIXTURES_ROOT, "places-metadata");
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
 const PLACE_ID = asRobloxAssetId("4711");
 const RBXL_BYTES = new Uint8Array([
@@ -95,5 +96,61 @@ describe("places pipeline end-to-end", () => {
 		expect(first.request.url).toBe(
 			`/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published`,
 		);
+	});
+
+	it("should issue a metadata PATCH after publish when displayName, description, and serverSize are declared", async () => {
+		expect.assertions(4);
+
+		const loaded = await loadConfig({ cwd: PLACES_METADATA_FIXTURE_DIR });
+		assert(loaded.success);
+
+		const resolved = selectEnvironment(loaded.data, "production");
+		assert(resolved.success);
+
+		const desiredResult = await buildDesired(flattenConfig(resolved.data), readPlaceFile);
+		assert(desiredResult.success);
+
+		const httpClient = createFakeHttpClient()
+			.mockResponse({ body: { versionNumber: 1 }, status: 200 })
+			.mockResponse({
+				body: validPlaceBody({
+					description: "The lobby place.",
+					displayName: "Start Place",
+					serverSize: 50,
+				}),
+				status: 200,
+			});
+
+		const registry: DriverRegistry = {
+			developerProduct: DEVELOPER_PRODUCT_TRAP,
+			gamePass: GAME_PASS_TRAP,
+			place: createPlaceDriver({
+				client: new PlacesClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: async () => {},
+				}),
+				readFile: readPlaceFile,
+				universeId: UNIVERSE_ID,
+			}),
+			universe: UNIVERSE_TRAP,
+		};
+
+		const applyResult = await applyOps(diff(desiredResult.data, []), registry);
+
+		expect(applyResult.success).toBeTrue();
+		expect(httpClient.requests).toHaveLength(2);
+
+		const [, second] = httpClient.requests;
+		assert(second);
+
+		expect(second.request.url).toBe(
+			`/cloud/v2/universes/${UNIVERSE_ID}/places/${PLACE_ID}?updateMask=displayName,description,serverSize`,
+		);
+		expect(second.request.body).toStrictEqual({
+			description: "The lobby place.",
+			displayName: "Start Place",
+			serverSize: 50,
+		});
 	});
 });

@@ -44,32 +44,45 @@ export interface DeveloperProductEntry {
 }
 
 /**
- * Body of a single entry under the root `places` collection. Carries only
- * the file-path that environments share. The Roblox `placeId` is
- * environment-specific and lives on each per-environment overlay so the
- * same `.rbxl` file can publish to different places across staging,
- * production, and so on.
+ * Body of a single entry under the root `places` collection. Carries the
+ * file-path environments share plus the optional Open-Cloud-supported
+ * metadata fields. The Roblox `placeId` is environment-specific and lives
+ * on each per-environment overlay so the same `.rbxl` file can publish to
+ * different places across staging, production, and so on.
  */
 export interface PlaceEntry {
+	/** User-facing description shown on the place's detail page. */
+	description?: string | undefined;
+	/** User-facing place name shown on the Roblox storefront. */
+	displayName?: string | undefined;
 	/** Path to the `.rbxl` or `.rbxlx` file; handed to `readFile` verbatim by `buildDesired`. */
 	filePath: string;
+	/** Maximum players per server; positive integer. */
+	serverSize?: number | undefined;
 }
 
 /**
  * Body of a places entry after `selectEnvironment` has merged the
- * matching per-environment overlay onto the root entry. Both fields are
- * present: `filePath` flows from the root (or an overlay override) and
- * `placeId` is supplied by the per-environment overlay.
+ * matching per-environment overlay onto the root entry. `filePath` flows
+ * from the root (or an overlay override), `placeId` is supplied by the
+ * per-environment overlay, and the optional metadata fields fall through
+ * from the root unless overridden per-environment.
  *
  * `placeId` is user-supplied because Open Cloud cannot mint places; the
  * place must already exist in Roblox before Bedrock can publish versions
  * to it.
  */
 export interface ResolvedPlaceEntry {
+	/** User-facing description shown on the place's detail page. */
+	description?: string | undefined;
+	/** User-facing place name shown on the Roblox storefront. */
+	displayName?: string | undefined;
 	/** Path to the `.rbxl` or `.rbxlx` file; handed to `readFile` verbatim by `buildDesired`. */
 	filePath: string;
 	/** Existing Roblox place ID. */
 	placeId: string;
+	/** Maximum players per server; positive integer. */
+	serverSize?: number | undefined;
 }
 
 /**
@@ -391,6 +404,15 @@ export function isGistStateConfig(config: StateConfig): config is GistStateConfi
 
 const OPTIONAL_BOOLEAN = "boolean | undefined";
 
+const OPTIONAL_STRING = "string | undefined";
+
+/**
+ * Shared arktype constraint for any optional positive-integer field.
+ * Reused by per-kind entry schemas so positive-integer fields validate
+ * identically.
+ */
+export const OPTIONAL_POSITIVE_INTEGER = "(number.integer >= 1) | undefined";
+
 /**
  * Shared arktype constraint for any optional Robux-price field. The schema
  * rejects negatives, fractional values, `NaN`, and `Infinity` at config
@@ -432,7 +454,10 @@ const productsCollection = type({
 const ROBLOX_ID_DIGITS = "string.digits";
 
 const placeEntry = type({
-	filePath: "string",
+	"description?": OPTIONAL_STRING,
+	"displayName?": OPTIONAL_STRING,
+	"filePath": "string",
+	"serverSize?": OPTIONAL_POSITIVE_INTEGER,
 }).onUndeclaredKey("reject");
 
 const placesCollection = type({
@@ -450,7 +475,7 @@ const universeEntry = type({
 	"consoleEnabled?": OPTIONAL_BOOLEAN,
 	"desktopEnabled?": OPTIONAL_BOOLEAN,
 	"discordSocialLink?": socialLinkOrUndefined,
-	"displayName?": "string | undefined",
+	"displayName?": OPTIONAL_STRING,
 	"facebookSocialLink?": socialLinkOrUndefined,
 	"guildedSocialLink?": socialLinkOrUndefined,
 	"mobileEnabled?": OPTIONAL_BOOLEAN,
@@ -497,8 +522,11 @@ const productsOverlayCollection = type({
 }).onUndeclaredKey("reject");
 
 const placeOverlay = type({
+	"description?": OPTIONAL_STRING,
+	"displayName?": OPTIONAL_STRING,
 	"filePath?": "string",
 	"placeId": ROBLOX_ID_DIGITS,
+	"serverSize?": OPTIONAL_POSITIVE_INTEGER,
 }).onUndeclaredKey("reject");
 
 const placesOverlayCollection = type({

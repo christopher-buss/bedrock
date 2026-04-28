@@ -4,24 +4,32 @@ import { type } from "arktype";
 
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import type { PlaceDesiredInput } from "../flatten.ts";
+import { PLACE_MANAGED_METADATA_FIELDS } from "../resources.ts";
 import type { PlaceDesiredState, ResourceCurrentState } from "../resources.ts";
+import { OPTIONAL_POSITIVE_INTEGER } from "../schema.ts";
 import type { ResolvedConfig } from "../schema.ts";
 import { sha256Hex } from "./hash.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
 import { readBytes } from "./read-bytes.ts";
 
 const entrySchema = type({
-	filePath: "string",
-	placeId: "string.digits",
+	"description?": "string | undefined",
+	"displayName?": "string | undefined",
+	"filePath": "string",
+	"placeId": "string.digits",
+	"serverSize?": OPTIONAL_POSITIVE_INTEGER,
 }).onUndeclaredKey("reject");
 
 function flatten(config: ResolvedConfig): ReadonlyArray<PlaceDesiredInput> {
 	return Object.entries(config.places ?? {}).map<PlaceDesiredInput>(([key, entry]) => {
 		return {
 			key: asResourceKey(key),
+			description: entry.description,
+			displayName: entry.displayName,
 			filePath: entry.filePath,
 			kind: "place",
 			placeId: asRobloxAssetId(entry.placeId),
+			serverSize: entry.serverSize,
 		};
 	});
 }
@@ -38,21 +46,31 @@ async function normalize(
 	return {
 		data: {
 			key: input.key,
+			description: input.description,
+			displayName: input.displayName,
 			fileHash: asSha256Hex(await sha256Hex(read.data)),
 			filePath: input.filePath,
 			kind: "place",
 			placeId: input.placeId,
+			serverSize: input.serverSize,
 		},
 		success: true,
 	};
 }
 
 function fieldsEqual(desired: PlaceDesiredState, current: ResourceCurrentState<"place">): boolean {
-	return (
-		desired.fileHash === current.fileHash &&
-		desired.filePath === current.filePath &&
-		desired.placeId === current.placeId
-	);
+	if (
+		desired.fileHash !== current.fileHash ||
+		desired.filePath !== current.filePath ||
+		desired.placeId !== current.placeId
+	) {
+		return false;
+	}
+
+	return PLACE_MANAGED_METADATA_FIELDS.every((field) => {
+		const desiredValue = desired[field];
+		return desiredValue === undefined || desiredValue === current[field];
+	});
 }
 
 /**

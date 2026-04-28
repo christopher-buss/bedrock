@@ -27,12 +27,16 @@ it('Example 1', () => {
 
 it('Example 2', () => {
   const input: PlaceDesiredInput = {
+    description: undefined,
+    displayName: 'Start Place',
     filePath: 'places/start.rbxl',
     key: asResourceKey('start-place'),
     kind: 'place',
     placeId: asRobloxAssetId('4711'),
+    serverSize: 50,
   }
   expect(input.kind).toBe('place')
+  expect(input.displayName).toBe('Start Place')
 })
 
 it('Example 3', () => {

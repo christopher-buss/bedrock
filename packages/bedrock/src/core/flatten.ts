@@ -44,9 +44,9 @@ export interface GamePassDesiredInput extends Readonly<GamePassEntry> {
 /**
  * Pre-I/O place input the flattener emits. Carries the resolved place
  * fields (`filePath` from the root, `placeId` from the per-environment
- * overlay) plus the tag discriminator and the `ResourceKey`-branded key,
- * so `buildDesired` can consume a flat tagged list and layer on the
- * SHA-256 file digest.
+ * overlay) plus the optional metadata fields and the tag discriminator and
+ * the `ResourceKey`-branded key, so `buildDesired` can consume a flat
+ * tagged list and layer on the SHA-256 file digest.
  *
  * @example
  *
@@ -54,24 +54,34 @@ export interface GamePassDesiredInput extends Readonly<GamePassEntry> {
  * import { asResourceKey, asRobloxAssetId, type PlaceDesiredInput } from "@bedrock/core";
  *
  * const input: PlaceDesiredInput = {
+ *     description: undefined,
+ *     displayName: "Start Place",
  *     filePath: "places/start.rbxl",
  *     key: asResourceKey("start-place"),
  *     kind: "place",
  *     placeId: asRobloxAssetId("4711"),
+ *     serverSize: 50,
  * };
  *
  * expect(input.kind).toBe("place");
+ * expect(input.displayName).toBe("Start Place");
  * ```
  */
 export interface PlaceDesiredInput {
 	/** User-supplied handle, already validated against the `ResourceKey` brand. */
 	readonly key: ResourceKey;
+	/** User-facing place description; `undefined` leaves the server value untouched. */
+	readonly description: string | undefined;
+	/** User-facing place name; `undefined` leaves the server value untouched. */
+	readonly displayName: string | undefined;
 	/** Path to the `.rbxl` or `.rbxlx` file; read by `buildDesired`. */
 	readonly filePath: string;
 	/** Discriminator tag for the `ResourceDesiredInput` union. */
 	readonly kind: "place";
 	/** Existing Roblox place ID, validated and branded at flatten time. */
 	readonly placeId: RobloxAssetId;
+	/** Maximum players per server; `undefined` leaves the server value untouched. */
+	readonly serverSize: number | undefined;
 }
 
 /**

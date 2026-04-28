@@ -21,15 +21,47 @@ describe("placeKind", () => {
 				placeKind.flatten({
 					environments: { production: {} },
 					places: {
+						"start-place": {
+							description: "The lobby place.",
+							displayName: "Start Place",
+							filePath: "places/start.rbxl",
+							placeId: "4711",
+							serverSize: 50,
+						},
+					},
+				}),
+			).toStrictEqual([
+				{
+					key: asResourceKey("start-place"),
+					description: "The lobby place.",
+					displayName: "Start Place",
+					filePath: "places/start.rbxl",
+					kind: "place",
+					placeId: asRobloxAssetId("4711"),
+					serverSize: 50,
+				},
+			]);
+		});
+
+		it("should propagate undefined for metadata fields the user did not declare", () => {
+			expect.assertions(1);
+
+			expect(
+				placeKind.flatten({
+					environments: { production: {} },
+					places: {
 						"start-place": { filePath: "places/start.rbxl", placeId: "4711" },
 					},
 				}),
 			).toStrictEqual([
 				{
 					key: asResourceKey("start-place"),
+					description: undefined,
+					displayName: undefined,
 					filePath: "places/start.rbxl",
 					kind: "place",
 					placeId: asRobloxAssetId("4711"),
+					serverSize: undefined,
 				},
 			]);
 		});
@@ -49,9 +81,12 @@ describe("placeKind", () => {
 			const result = await placeKind.normalize(
 				{
 					key: asResourceKey("start-place"),
+					description: undefined,
+					displayName: undefined,
 					filePath: "places/start.rbxl",
 					kind: "place",
 					placeId: asRobloxAssetId("4711"),
+					serverSize: undefined,
 				},
 				{ readFile: async () => bytes },
 			);
@@ -61,15 +96,42 @@ describe("placeKind", () => {
 			expect(result.data.fileHash).toHaveLength(64);
 		});
 
+		it("should propagate declared metadata fields onto the desired state", async () => {
+			expect.assertions(3);
+
+			const bytes = new Uint8Array([0x3c, 0x72, 0x6f, 0x62]);
+			const result = await placeKind.normalize(
+				{
+					key: asResourceKey("start-place"),
+					description: "Lobby description.",
+					displayName: "Start Place",
+					filePath: "places/start.rbxl",
+					kind: "place",
+					placeId: asRobloxAssetId("4711"),
+					serverSize: 50,
+				},
+				{ readFile: async () => bytes },
+			);
+
+			assert(result.success);
+
+			expect(result.data.displayName).toBe("Start Place");
+			expect(result.data.description).toBe("Lobby description.");
+			expect(result.data.serverSize).toBe(50);
+		});
+
 		it("should surface a fileReadFailed error when readFile rejects", async () => {
 			expect.assertions(1);
 
 			const result = await placeKind.normalize(
 				{
 					key: asResourceKey("start-place"),
+					description: undefined,
+					displayName: undefined,
 					filePath: "places/start.rbxl",
 					kind: "place",
 					placeId: asRobloxAssetId("4711"),
+					serverSize: undefined,
 				},
 				{
 					readFile: async () => {
@@ -105,7 +167,67 @@ describe("placeKind", () => {
 
 			expect(placeKind.fieldsEqual(placeDesired(), placeCurrent(overrides))).toBeFalse();
 		});
+
+		it.for<
+			[
+				label: string,
+				desiredOverrides: Partial<PlaceDesiredStateOnly>,
+				currentOverrides: Partial<ResourceCurrentStatePlace>,
+			]
+		>([
+			["displayName", { displayName: "New Name" }, { displayName: "Old Name" }],
+			["description", { description: "New body." }, { description: "Old body." }],
+			["serverSize", { serverSize: 25 }, { serverSize: 50 }],
+		])(
+			"should return false when desired declares a different %s than current",
+			([, desiredOverrides, currentOverrides]) => {
+				expect.assertions(1);
+
+				expect(
+					placeKind.fieldsEqual(
+						placeDesired(desiredOverrides),
+						placeCurrent(currentOverrides),
+					),
+				).toBeFalse();
+			},
+		);
+
+		it.for<[label: string, currentOverrides: Partial<ResourceCurrentStatePlace>]>([
+			["displayName", { displayName: "Server Owned" }],
+			["description", { description: "Server owned body." }],
+			["serverSize", { serverSize: 100 }],
+		])(
+			"should return true when desired leaves %s unmanaged but current carries a value",
+			([, currentOverrides]) => {
+				expect.assertions(1);
+
+				expect(
+					placeKind.fieldsEqual(placeDesired(), placeCurrent(currentOverrides)),
+				).toBeTrue();
+			},
+		);
+
+		it.for<
+			[
+				label: string,
+				overrides: Partial<PlaceDesiredStateOnly> & Partial<ResourceCurrentStatePlace>,
+			]
+		>([
+			["displayName", { displayName: "Lobby" }],
+			["description", { description: "Lobby body." }],
+			["serverSize", { serverSize: 50 }],
+		])(
+			"should return true when desired declares %s and current carries the same value",
+			([, overrides]) => {
+				expect.assertions(1);
+
+				expect(
+					placeKind.fieldsEqual(placeDesired(overrides), placeCurrent(overrides)),
+				).toBeTrue();
+			},
+		);
 	});
 });
 
 type ResourceCurrentStatePlace = Parameters<typeof placeKind.fieldsEqual>[1];
+type PlaceDesiredStateOnly = Parameters<typeof placeKind.fieldsEqual>[0];

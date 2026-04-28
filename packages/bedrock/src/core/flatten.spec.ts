@@ -96,9 +96,12 @@ describe(flattenConfig, () => {
 		expect(flattenConfig(config)).toStrictEqual([
 			{
 				key: asResourceKey("start-place"),
+				description: undefined,
+				displayName: undefined,
 				filePath: "places/start.rbxl",
 				kind: "place",
 				placeId: asRobloxAssetId("4711"),
+				serverSize: undefined,
 			},
 		]);
 	});

@@ -69,7 +69,9 @@ export interface GamePassDesiredState {
  * places; the user supplies the existing place ID per entry. `filePath` and
  * `fileHash` describe the local file the driver publishes; `buildDesired`
  * computes `fileHash` from the file bytes so `diff` can detect drift without
- * re-uploading unchanged content.
+ * re-uploading unchanged content. `displayName`, `description`, and
+ * `serverSize` are optional metadata fields routed through
+ * `PlacesClient.update`; `undefined` leaves the server value untouched.
  *
  * @example
  *
@@ -82,6 +84,8 @@ export interface GamePassDesiredState {
  * } from "@bedrock/core";
  *
  * const place: PlaceDesiredState = {
+ *     description: undefined,
+ *     displayName: "Start Place",
  *     fileHash: asSha256Hex(
  *         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
  *     ),
@@ -89,15 +93,22 @@ export interface GamePassDesiredState {
  *     key: asResourceKey("start-place"),
  *     kind: "place",
  *     placeId: asRobloxAssetId("4711"),
+ *     serverSize: 50,
  * };
  *
  * expect(place.kind).toBe("place");
- * expect(place.placeId).toBe("4711");
+ * expect(place.displayName).toBe("Start Place");
+ * expect(place.description).toBeUndefined();
+ * expect(place.serverSize).toBe(50);
  * ```
  */
 export interface PlaceDesiredState {
 	/** User-supplied key; stable across deploys; used to correlate desired with current. */
 	readonly key: ResourceKey;
+	/** User-facing place description; `undefined` leaves the server value untouched. */
+	readonly description: string | undefined;
+	/** User-facing place name; `undefined` leaves the server value untouched. */
+	readonly displayName: string | undefined;
 	/** SHA-256 hex digest of the place file, computed by `buildDesired` in shell. */
 	readonly fileHash: Sha256Hex;
 	/** Path to the `.rbxl` or `.rbxlx` file on disk, relative to the config file. */
@@ -106,7 +117,21 @@ export interface PlaceDesiredState {
 	readonly kind: "place";
 	/** Existing Roblox place ID; Open Cloud cannot create places, so this is an input, not an output. */
 	readonly placeId: RobloxAssetId;
+	/** Maximum players per server; positive integer. `undefined` leaves the server value untouched. */
+	readonly serverSize: number | undefined;
 }
+
+/**
+ * Ordered list of optional metadata fields the driver routes through
+ * `PlacesClient.update`. Iterated by `placeKind.fieldsEqual` and the place
+ * driver's parameter translator so drift detection and the constructed
+ * `updateMask` cannot drift apart.
+ */
+export const PLACE_MANAGED_METADATA_FIELDS = [
+	"displayName",
+	"description",
+	"serverSize",
+] as const satisfies ReadonlyArray<keyof PlaceDesiredState>;
 
 /**
  * Roblox-returned value produced by publishing a place version. The publish
