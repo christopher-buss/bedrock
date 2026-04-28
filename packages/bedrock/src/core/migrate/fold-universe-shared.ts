@@ -17,6 +17,19 @@ export interface FoldFragment {
 export const EMPTY_FRAGMENT: FoldFragment = { entryFragment: {}, warnings: [] };
 
 /**
+ * Required fields for an `interpretive` warning, gathered as a single
+ * argument so this builder stays under the project's max-params cap.
+ */
+interface InterpretiveWarningSpec {
+	/** Path the migrator wrote in the bedrock config. */
+	readonly bedrockPath: string;
+	/** Resource-rooted Mantle path the rule consumed. */
+	readonly mantlePath: string;
+	/** Stable rule identifier audited in the migration report. */
+	readonly rule: string;
+}
+
+/**
  * Narrow a value to a plain object payload (rejects arrays, null, primitives).
  *
  * @param value - Value to test.
@@ -39,4 +52,44 @@ export function mergeFragment(left: FoldFragment, right: FoldFragment): FoldFrag
 		entryFragment: { ...left.entryFragment, ...right.entryFragment },
 		warnings: [...left.warnings, ...right.warnings],
 	};
+}
+
+/**
+ * Build an `interpretive` `MigrationWarning`. Used by every fold rule that
+ * applies a documented mapping; the report consumer narrows on `kind`.
+ *
+ * @param spec - The bedrock path, mantle path, and rule identifier.
+ * @returns A `MigrationWarning` with `kind: "interpretive"`.
+ */
+export function interpretiveWarning(spec: InterpretiveWarningSpec): MigrationWarning {
+	return {
+		bedrockPath: spec.bedrockPath,
+		kind: "interpretive",
+		mantlePath: spec.mantlePath,
+		rule: spec.rule,
+	};
+}
+
+/**
+ * Build a `blocked` `MigrationWarning`. Used when no Open Cloud writable
+ * endpoint exists for the field the migrator encountered.
+ *
+ * @param mantlePath - Resource-rooted Mantle path of the blocked field.
+ * @param reason - Human-readable reason describing what is unsupported.
+ * @returns A `MigrationWarning` with `kind: "blocked"`.
+ */
+export function blockedWarning(mantlePath: string, reason: string): MigrationWarning {
+	return { kind: "blocked", mantlePath, reason };
+}
+
+/**
+ * Build an `ambiguous` `MigrationWarning`. Used when a value is mappable
+ * but unsafe to act on without user input; the hint guides the next step.
+ *
+ * @param mantlePath - Resource-rooted Mantle path of the ambiguous field.
+ * @param hint - Human-readable suggestion for resolving the ambiguity.
+ * @returns A `MigrationWarning` with `kind: "ambiguous"`.
+ */
+export function ambiguousWarning(mantlePath: string, hint: string): MigrationWarning {
+	return { hint, kind: "ambiguous", mantlePath };
 }

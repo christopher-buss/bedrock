@@ -1,7 +1,9 @@
 import type { SocialLinkField } from "../resources.ts";
 import {
+	blockedWarning,
 	EMPTY_FRAGMENT,
 	type FoldFragment,
+	interpretiveWarning,
 	isObjectPayload,
 	mergeFragment,
 } from "./fold-universe-shared.ts";
@@ -49,12 +51,11 @@ function knownFragment(known: KnownSocialLink): FoldFragment {
 	return {
 		entryFragment: { [known.field]: { title: known.title, uri: known.url } },
 		warnings: [
-			{
+			interpretiveWarning({
 				bedrockPath: `universe.${known.field}`,
-				kind: "interpretive",
 				mantlePath: known.mantlePath,
 				rule: "domain-to-field",
-			},
+			}),
 		],
 	};
 }
@@ -63,8 +64,10 @@ function mapSocialLink(resource: MantleResource): FoldFragment {
 	const mantlePath = `${SOCIAL_LINK_KIND}_${resource.key}`;
 	const field = SOCIAL_LINK_DOMAIN_TO_FIELD[resource.key];
 	if (field === undefined) {
-		const reason = `Unknown socialLink domain: ${resource.key}`;
-		return { entryFragment: {}, warnings: [{ kind: "blocked", mantlePath, reason }] };
+		return {
+			entryFragment: {},
+			warnings: [blockedWarning(mantlePath, `Unknown socialLink domain: ${resource.key}`)],
+		};
 	}
 
 	if (!isObjectPayload(resource.inputs)) {

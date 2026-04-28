@@ -1,6 +1,9 @@
 import {
+	ambiguousWarning,
+	blockedWarning,
 	EMPTY_FRAGMENT,
 	type FoldFragment,
+	interpretiveWarning,
 	isObjectPayload,
 	mergeFragment,
 } from "./fold-universe-shared.ts";
@@ -39,11 +42,10 @@ function blockedFragment(key: string): FoldFragment {
 	return {
 		entryFragment: {},
 		warnings: [
-			{
-				kind: "blocked",
-				mantlePath: `${PLACE_CONFIGURATION_KIND}_${key}.name`,
-				reason: "non-start placeConfiguration.name has no Open Cloud equivalent",
-			},
+			blockedWarning(
+				`${PLACE_CONFIGURATION_KIND}_${key}.name`,
+				"non-start placeConfiguration.name has no Open Cloud equivalent",
+			),
 		],
 	};
 }
@@ -52,12 +54,11 @@ function interpretiveFragment(named: NamedPlaceConfig): FoldFragment {
 	return {
 		entryFragment: { displayName: named.name },
 		warnings: [
-			{
+			interpretiveWarning({
 				bedrockPath: "universe.displayName",
-				kind: "interpretive",
 				mantlePath: `${PLACE_CONFIGURATION_KIND}_${named.key}.name`,
 				rule: "start-place-name-to-display-name",
-			},
+			}),
 		],
 	};
 }
@@ -65,11 +66,10 @@ function interpretiveFragment(named: NamedPlaceConfig): FoldFragment {
 const AMBIGUOUS_MULTIPLE_STARTS: FoldFragment = {
 	entryFragment: {},
 	warnings: [
-		{
-			hint: "Multiple place_<k> resources have inputs.isStart=true; pick one as the canonical start place.",
-			kind: "ambiguous",
-			mantlePath: "place_*.isStart",
-		},
+		ambiguousWarning(
+			"place_*.isStart",
+			"Multiple place_<k> resources have inputs.isStart=true; pick one as the canonical start place.",
+		),
 	],
 };
 

@@ -4,8 +4,11 @@ import type { UniverseEntry } from "../schema.ts";
 import { foldDisplayName } from "./fold-display-name.ts";
 import { foldSocialLinks } from "./fold-social-links.ts";
 import {
+	ambiguousWarning,
+	blockedWarning,
 	EMPTY_FRAGMENT,
 	type FoldFragment,
+	interpretiveWarning,
 	isObjectPayload,
 	mergeFragment,
 } from "./fold-universe-shared.ts";
@@ -132,11 +135,10 @@ function mapPlayableDevice(raw: unknown): FoldFragment {
 		return {
 			entryFragment: {},
 			warnings: [
-				{
-					kind: "blocked",
-					mantlePath: PLAYABLE_DEVICES_PATH,
-					reason: `Unknown playableDevices value: ${String(raw)}`,
-				},
+				blockedWarning(
+					PLAYABLE_DEVICES_PATH,
+					`Unknown playableDevices value: ${String(raw)}`,
+				),
 			],
 		};
 	}
@@ -144,12 +146,11 @@ function mapPlayableDevice(raw: unknown): FoldFragment {
 	return {
 		entryFragment: { [flag]: true },
 		warnings: [
-			{
+			interpretiveWarning({
 				bedrockPath: `universe.${flag}`,
-				kind: "interpretive",
 				mantlePath: PLAYABLE_DEVICES_PATH,
 				rule: "list-to-flag",
-			},
+			}),
 		],
 	};
 }
@@ -174,12 +175,11 @@ function foldPlayableDevices(resources: ReadonlyArray<MantleResource>): FoldFrag
 const PRIVATE_SERVERS_DISABLED: FoldFragment = {
 	entryFragment: {},
 	warnings: [
-		{
+		interpretiveWarning({
 			bedrockPath: "universe.privateServerPriceRobux",
-			kind: "interpretive",
 			mantlePath: "experienceConfiguration_singleton.allowPrivateServers",
 			rule: "private-servers-disabled-omitted",
-		},
+		}),
 	],
 };
 
@@ -187,12 +187,11 @@ function pricedPrivateServersFragment(price: number): FoldFragment {
 	return {
 		entryFragment: { privateServerPriceRobux: price },
 		warnings: [
-			{
+			interpretiveWarning({
 				bedrockPath: "universe.privateServerPriceRobux",
-				kind: "interpretive",
 				mantlePath: "experienceConfiguration_singleton.privateServerPrice",
 				rule: "private-servers-priced",
-			},
+			}),
 		],
 	};
 }
@@ -200,34 +199,31 @@ function pricedPrivateServersFragment(price: number): FoldFragment {
 const VISIBILITY_PUBLIC_FRAGMENT: FoldFragment = {
 	entryFragment: { visibility: "public" },
 	warnings: [
-		{
+		interpretiveWarning({
 			bedrockPath: "universe.visibility",
-			kind: "interpretive",
 			mantlePath: "experienceActivation_singleton.isActive",
 			rule: "active-public-combo",
-		},
+		}),
 	],
 };
 
 const VISIBILITY_AMBIGUOUS: FoldFragment = {
 	entryFragment: {},
 	warnings: [
-		{
-			hint: "Set visibility manually or deactivate the universe in the Roblox dashboard; auto-mapping isActive=false to visibility=private would kick live players.",
-			kind: "ambiguous",
-			mantlePath: "experienceActivation_singleton.isActive",
-		},
+		ambiguousWarning(
+			"experienceActivation_singleton.isActive",
+			"Set visibility manually or deactivate the universe in the Roblox dashboard; auto-mapping isActive=false to visibility=private would kick live players.",
+		),
 	],
 };
 
 const VISIBILITY_FRIENDS_BLOCKED: FoldFragment = {
 	entryFragment: {},
 	warnings: [
-		{
-			kind: "blocked",
-			mantlePath: "experienceConfiguration_singleton.isFriendsOnly",
-			reason: "isFriendsOnly has no Open Cloud equivalent",
-		},
+		blockedWarning(
+			"experienceConfiguration_singleton.isFriendsOnly",
+			"isFriendsOnly has no Open Cloud equivalent",
+		),
 	],
 };
 
@@ -283,12 +279,11 @@ function foldVoiceChat(resources: ReadonlyArray<MantleResource>): FoldFragment {
 	return {
 		entryFragment: { voiceChatEnabled: enabled },
 		warnings: [
-			{
+			interpretiveWarning({
 				bedrockPath: "universe.voiceChatEnabled",
-				kind: "interpretive",
 				mantlePath: "spatialVoice_singleton.enabled",
 				rule: "voice-chat-enabled",
-			},
+			}),
 		],
 	};
 }
