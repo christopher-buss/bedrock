@@ -44,7 +44,7 @@ describe(foldUnsupported, () => {
 			expect(warnings[0]).toStrictEqual({
 				kind: "deferred",
 				mantlePath: `${kind}_alpha`,
-				reason: `${humanName} are not yet modeled in bedrock and will surface once the relevant kind ships`,
+				reason: `${humanName}: not yet modeled in bedrock; will surface once the relevant kind ships`,
 			});
 		},
 	);

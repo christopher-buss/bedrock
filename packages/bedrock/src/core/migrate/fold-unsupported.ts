@@ -48,7 +48,7 @@ export function foldUnsupported(
 			{
 				kind: "deferred",
 				mantlePath: `${resource.kind}_${resource.key}`,
-				reason: `${humanName} are not yet modeled in bedrock and will surface once the relevant kind ships`,
+				reason: `${humanName}: not yet modeled in bedrock; will surface once the relevant kind ships`,
 			},
 		];
 	});
