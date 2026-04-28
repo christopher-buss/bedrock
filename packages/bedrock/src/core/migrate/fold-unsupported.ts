@@ -3,11 +3,9 @@ import type { MantleResource } from "./types.ts";
 
 /**
  * Mantle resource kinds bedrock plans to support but does not yet model.
- * Each entry maps the wire-form Mantle discriminator to the human-readable
- * noun used in the emitted `deferred` warning's `reason`. Reasons are
- * shared across all resources of the same kind so a downstream report
- * presenter can group identical messages without string-comparing
- * substrings.
+ * Maps the wire-form discriminator to the human-readable noun used in
+ * each emitted `deferred` warning's `reason`. The reason string is
+ * shared across all resources of the same kind.
  */
 const DEFERRED_KIND_REASONS: Readonly<Record<string, string>> = {
 	assetAlias: "asset aliases",
@@ -26,11 +24,8 @@ const DEFERRED_KIND_REASONS: Readonly<Record<string, string>> = {
 /**
  * Emit one `deferred` `MigrationWarning` per Mantle resource whose kind
  * bedrock has reserved for a future slice. The warning's `mantlePath` is
- * resource-rooted (`<kind>_<key>`); the shell prefixes it with the
- * environment name when flattening warnings across environments, matching
- * the convention used by the other fold modules. Resources whose kind is
- * not in the deferred set are passed over silently; other fold modules
- * are responsible for those.
+ * resource-rooted (`<kind>_<key>`). Resources whose kind is not in the
+ * deferred set are passed over silently.
  *
  * @param resources - Mantle resource list for one environment.
  * @returns One warning per deferred-kind resource, in the input order.

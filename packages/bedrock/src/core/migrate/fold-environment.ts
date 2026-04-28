@@ -9,18 +9,14 @@ import type { MantleResource } from "./types.ts";
 
 /**
  * Result of folding one Mantle environment's resource list into bedrock
- * shapes. Each per-kind branch is optional: a Mantle environment without
- * an experience resource yields `universe: undefined`, signalling that
- * the bedrock `Config` for this environment carries no `universe` block.
- *
- * `places` and `passes` are always present (potentially empty) so the
- * orchestrator does not have to special-case "no <kind>" against
- * "<kind> not yet wired"; orphan place resources surface as `ambiguous`
- * warnings on `warnings`. Resources of kinds bedrock plans to support
- * but does not yet model surface as `deferred` warnings.
- *
- * Skeleton: universe, place, pass, and deferred branches are wired.
- * Future slices add the blocked / interpretive warning categories.
+ * shapes. A Mantle environment without an experience resource yields
+ * `universe: undefined`, signalling that the bedrock `Config` for this
+ * environment carries no `universe` block. `places` and `passes` are
+ * always present (potentially empty) so the orchestrator does not have
+ * to special-case "no <kind>" against "<kind> not yet wired"; orphan
+ * place resources surface as `ambiguous` warnings, and resources of
+ * kinds bedrock plans to support but does not yet model surface as
+ * `deferred` warnings.
  */
 export interface EnvironmentFoldResult {
 	/** Folded pass entries for this environment, in declaration order. */
@@ -42,9 +38,7 @@ export interface EnvironmentFoldResult {
  * Orchestrate the per-kind folds for one Mantle environment, gathering
  * the results and warnings into a single `EnvironmentFoldResult`. Pure;
  * delegates to `foldUniverse`, `foldPlaces`, `foldPasses`, and
- * `foldUnsupported`. Warning paths emitted here are resource-rooted; the
- * shell prefixes them with the environment name when flattening warnings
- * across environments.
+ * `foldUnsupported`. Emitted warning paths are resource-rooted.
  *
  * @param resources - Mantle resource list for one environment.
  * @returns The folded per-kind data plus aggregated warnings.
