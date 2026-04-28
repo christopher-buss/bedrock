@@ -252,16 +252,20 @@ describe(loadConfig, () => {
 });
 
 describe("PlaceEntry", () => {
-	it("should expose only filePath at the root entry level", () => {
-		expectTypeOf<keyof PlaceEntry>().toEqualTypeOf<"filePath">();
+	it("should expose filePath plus the optional metadata fields at the root entry level", () => {
+		expectTypeOf<keyof PlaceEntry>().toEqualTypeOf<
+			"description" | "displayName" | "filePath" | "serverSize"
+		>();
 		expectTypeOf<PlaceEntry["filePath"]>().toEqualTypeOf<string>();
+		expectTypeOf<PlaceEntry["serverSize"]>().toEqualTypeOf<number | undefined>();
 	});
 });
 
 describe("ResolvedPlaceEntry", () => {
-	it("should expose filePath and placeId as the post-merge invariant", () => {
-		expectTypeOf<keyof ResolvedPlaceEntry>().toEqualTypeOf<"filePath" | "placeId">();
-		expectTypeOf<ResolvedPlaceEntry["filePath"]>().toEqualTypeOf<string>();
+	it("should add placeId as the post-merge invariant alongside the optional metadata fields", () => {
+		expectTypeOf<keyof ResolvedPlaceEntry>().toEqualTypeOf<
+			"description" | "displayName" | "filePath" | "placeId" | "serverSize"
+		>();
 		expectTypeOf<ResolvedPlaceEntry["placeId"]>().toEqualTypeOf<string>();
 	});
 });

@@ -51,6 +51,8 @@ it('Example 2', () => {
   })
   return driver
     .create({
+      description: undefined,
+      displayName: undefined,
       fileHash: asSha256Hex(
         'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
       ),
@@ -58,6 +60,7 @@ it('Example 2', () => {
       key: asResourceKey('start-place'),
       kind: 'place',
       placeId: asRobloxAssetId('4711'),
+      serverSize: undefined,
     })
     .then((result) => {
       expect(result.success).toBeTrue()

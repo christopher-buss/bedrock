@@ -22,10 +22,13 @@ import type { UniverseVisibility } from "./schema.ts";
 
 interface ExpectedPlaceDesiredState {
 	readonly key: ResourceKey;
+	readonly description: string | undefined;
+	readonly displayName: string | undefined;
 	readonly fileHash: Sha256Hex;
 	readonly filePath: string;
 	readonly kind: "place";
 	readonly placeId: RobloxAssetId;
+	readonly serverSize: number | undefined;
 }
 
 interface ExpectedPlaceOutputs {

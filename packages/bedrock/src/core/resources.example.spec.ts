@@ -31,6 +31,8 @@ it('Example 1', () => {
 
 it('Example 2', () => {
   const place: PlaceDesiredState = {
+    description: undefined,
+    displayName: 'Start Place',
     fileHash: asSha256Hex(
       'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
     ),
@@ -38,9 +40,12 @@ it('Example 2', () => {
     key: asResourceKey('start-place'),
     kind: 'place',
     placeId: asRobloxAssetId('4711'),
+    serverSize: 50,
   }
   expect(place.kind).toBe('place')
-  expect(place.placeId).toBe('4711')
+  expect(place.displayName).toBe('Start Place')
+  expect(place.description).toBeUndefined()
+  expect(place.serverSize).toBe(50)
 })
 
 it('Example 3', () => {

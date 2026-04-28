@@ -51,10 +51,13 @@ function createGamePassOp(key: string): Operation {
 function updatePlaceOp(key: string): Operation {
 	const desired = {
 		key: asResourceKey(key),
+		description: undefined,
+		displayName: undefined,
 		fileHash: SAMPLE_HASH,
 		filePath: "places/start.rbxl",
 		kind: "place" as const,
 		placeId: asResourceKey("4711") as never,
+		serverSize: undefined,
 	};
 	return {
 		key: asResourceKey(key),

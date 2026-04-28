@@ -110,10 +110,13 @@ export function gamePassCurrent(
 export function placeDesired(overrides?: Partial<PlaceDesiredState>): PlaceDesiredState {
 	return {
 		key: asResourceKey("start-place"),
+		description: undefined,
+		displayName: undefined,
 		fileHash: PLACE_HASH,
 		filePath: "places/start.rbxl",
 		kind: "place",
 		placeId: asRobloxAssetId("4711"),
+		serverSize: undefined,
 		...overrides,
 	};
 }

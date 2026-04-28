@@ -94,13 +94,20 @@ describe("EnvironmentEntry overlay derivation", () => {
 });
 
 describe("PlaceEntry / ResolvedPlaceEntry split", () => {
-	it("should expose only filePath at the root PlaceEntry level", () => {
-		expectTypeOf<keyof PlaceEntry>().toEqualTypeOf<"filePath">();
+	it("should expose filePath plus the optional metadata fields at the root PlaceEntry level", () => {
+		expectTypeOf<keyof PlaceEntry>().toEqualTypeOf<
+			"description" | "displayName" | "filePath" | "serverSize"
+		>();
 		expectTypeOf<PlaceEntry["filePath"]>().toEqualTypeOf<string>();
+		expectTypeOf<PlaceEntry["displayName"]>().toEqualTypeOf<string | undefined>();
+		expectTypeOf<PlaceEntry["description"]>().toEqualTypeOf<string | undefined>();
+		expectTypeOf<PlaceEntry["serverSize"]>().toEqualTypeOf<number | undefined>();
 	});
 
-	it("should expose filePath and placeId on ResolvedPlaceEntry as the post-merge invariant", () => {
-		expectTypeOf<keyof ResolvedPlaceEntry>().toEqualTypeOf<"filePath" | "placeId">();
+	it("should add placeId on ResolvedPlaceEntry as the post-merge invariant alongside the metadata fields", () => {
+		expectTypeOf<keyof ResolvedPlaceEntry>().toEqualTypeOf<
+			"description" | "displayName" | "filePath" | "placeId" | "serverSize"
+		>();
 		expectTypeOf<ResolvedPlaceEntry["filePath"]>().toEqualTypeOf<string>();
 		expectTypeOf<ResolvedPlaceEntry["placeId"]>().toEqualTypeOf<string>();
 	});

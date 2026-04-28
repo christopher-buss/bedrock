@@ -1,7 +1,8 @@
 import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
-import type { PlacesClient } from "@bedrock/ocale/places";
+import type { PlacesClient, UpdatePlaceParameters } from "@bedrock/ocale/places";
 
-import type { PlaceDesiredState, ResourceCurrentState } from "../core/resources.ts";
+import type { PlaceDesiredState, PlaceOutputs, ResourceCurrentState } from "../core/resources.ts";
+import { PLACE_MANAGED_METADATA_FIELDS } from "../core/resources.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import type { RobloxAssetId } from "../types/ids.ts";
 
@@ -98,6 +99,8 @@ export interface PlaceDriverDeps {
  *
  * return driver
  *     .create({
+ *         description: undefined,
+ *         displayName: undefined,
  *         fileHash: asSha256Hex(
  *             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
  *         ),
@@ -105,6 +108,7 @@ export interface PlaceDriverDeps {
  *         key: asResourceKey("start-place"),
  *         kind: "place",
  *         placeId: asRobloxAssetId("4711"),
+ *         serverSize: undefined,
  *     })
  *     .then((result) => {
  *         expect(result.success).toBeTrue();
@@ -125,6 +129,25 @@ export function createPlaceDriver(deps: PlaceDriverDeps): ResourceDriver<"place"
 	};
 }
 
+function buildMetadataParameters(
+	universeId: RobloxAssetId,
+	desired: PlaceDesiredState,
+): undefined | UpdatePlaceParameters {
+	const metadata = PLACE_MANAGED_METADATA_FIELDS.reduce<Partial<UpdatePlaceParameters>>(
+		(accumulator, field) => {
+			const value = desired[field];
+			return value === undefined ? accumulator : { ...accumulator, [field]: value };
+		},
+		{},
+	);
+
+	if (Object.keys(metadata).length === 0) {
+		return undefined;
+	}
+
+	return { ...metadata, placeId: desired.placeId, universeId };
+}
+
 function detectFormat(filePath: string): "rbxl" | "rbxlx" | undefined {
 	if (filePath.endsWith(".rbxlx")) {
 		return "rbxlx";
@@ -137,10 +160,10 @@ function detectFormat(filePath: string): "rbxl" | "rbxlx" | undefined {
 	return undefined;
 }
 
-async function publishPlace(
+async function publishVersion(
 	deps: PlaceDriverDeps,
 	desired: PlaceDesiredState,
-): Promise<Result<ResourceCurrentState<"place">, OpenCloudError>> {
+): Promise<Result<PlaceOutputs, OpenCloudError>> {
 	const format = detectFormat(desired.filePath);
 	if (format === undefined) {
 		return {
@@ -153,7 +176,7 @@ async function publishPlace(
 	}
 
 	const body = await deps.readFile(desired.filePath);
-	const result = await deps.client.publish({
+	return deps.client.publish({
 		// Narrows `Uint8Array<ArrayBufferLike>` to `Uint8Array<ArrayBuffer>`
 		// so the ocale wire type rejects SharedArrayBuffer at the call site.
 		body: Uint8Array.from(body),
@@ -161,12 +184,24 @@ async function publishPlace(
 		placeId: desired.placeId,
 		universeId: deps.universeId,
 	});
-	if (!result.success) {
-		return result;
+}
+
+async function publishPlace(
+	deps: PlaceDriverDeps,
+	desired: PlaceDesiredState,
+): Promise<Result<ResourceCurrentState<"place">, OpenCloudError>> {
+	const publishResult = await publishVersion(deps, desired);
+	if (!publishResult.success) {
+		return publishResult;
 	}
 
-	return {
-		data: { ...desired, outputs: { versionNumber: result.data.versionNumber } },
-		success: true,
-	};
+	const metadataParameters = buildMetadataParameters(deps.universeId, desired);
+	if (metadataParameters !== undefined) {
+		const metadataResult = await deps.client.update(metadataParameters);
+		if (!metadataResult.success) {
+			return metadataResult;
+		}
+	}
+
+	return { data: { ...desired, outputs: publishResult.data }, success: true };
 }

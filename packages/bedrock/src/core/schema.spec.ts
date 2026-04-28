@@ -457,6 +457,117 @@ describe(validateConfig, () => {
 		]);
 	});
 
+	it("should accept a root places entry that declares displayName, description, and serverSize", () => {
+		expect.assertions(3);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				places: {
+					"start-place": {
+						description: "The lobby place.",
+						displayName: "Start Place",
+						filePath: "places/start.rbxl",
+						serverSize: 50,
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.places!["start-place"]!.displayName).toBe("Start Place");
+		expect(result.data.places!["start-place"]!.description).toBe("The lobby place.");
+		expect(result.data.places!["start-place"]!.serverSize).toBe(50);
+	});
+
+	it.for([
+		["a non-string displayName", { displayName: 42 }, "displayName"],
+		["a non-string description", { description: 99 }, "description"],
+		["a zero serverSize", { serverSize: 0 }, "serverSize"],
+		["a negative serverSize", { serverSize: -10 }, "serverSize"],
+		["a non-integer serverSize", { serverSize: 12.5 }, "serverSize"],
+	] as const)("should reject %s on a root place entry", ([, override, expectedField]) => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				places: {
+					"start-place": { filePath: "places/start.rbxl", ...override },
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["places", "start-place", expectedField]);
+	});
+
+	it("should accept a per-environment places overlay that declares displayName, description, and serverSize", () => {
+		expect.assertions(3);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: {
+						places: {
+							"start-place": {
+								description: "Staging lobby.",
+								displayName: "Staging Start",
+								placeId: "5555",
+								serverSize: 12,
+							},
+						},
+					},
+				},
+				places: { "start-place": { filePath: "places/start.rbxl" } },
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		const overlay = result.data.environments["staging"]?.places?.["start-place"];
+
+		expect(overlay?.displayName).toBe("Staging Start");
+		expect(overlay?.description).toBe("Staging lobby.");
+		expect(overlay?.serverSize).toBe(12);
+	});
+
+	it("should reject a non-positive serverSize on a per-environment places overlay", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: {
+						places: {
+							"start-place": { placeId: "5555", serverSize: 0 },
+						},
+					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"staging",
+			"places",
+			"start-place",
+			"serverSize",
+		]);
+	});
+
 	it("should reject a places key that does not match the ResourceKey pattern", () => {
 		expect.assertions(1);
 

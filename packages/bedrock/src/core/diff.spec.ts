@@ -16,6 +16,7 @@ import { diff } from "./diff.ts";
 import { SOCIAL_LINK_FIELDS, UNIVERSE_SINGLETON_KEY } from "./resources.ts";
 import type {
 	GamePassDesiredState,
+	PlaceDesiredState,
 	ResourceCurrentState,
 	UniverseDesiredState,
 } from "./resources.ts";
@@ -300,6 +301,35 @@ describe(diff, () => {
 				{ key: PLACE_KEY, current: currentEntry, desired: desiredEntry, type: "update" },
 			]);
 		});
+
+		it.for<
+			[
+				label: string,
+				desiredOverrides: Partial<PlaceDesiredState>,
+				currentOverrides: Partial<ResourceCurrentState<"place">>,
+			]
+		>([
+			["displayName", { displayName: "Lobby v2" }, { displayName: "Lobby" }],
+			["description", { description: "Updated body." }, { description: "Original body." }],
+			["serverSize", { serverSize: 25 }, { serverSize: 50 }],
+		])(
+			"should emit an update op when the place %s differs",
+			([, desiredOverrides, currentOverrides]) => {
+				expect.assertions(1);
+
+				const desiredEntry = placeDesired(desiredOverrides);
+				const currentEntry = placeCurrent(currentOverrides);
+
+				expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
+					{
+						key: PLACE_KEY,
+						current: currentEntry,
+						desired: desiredEntry,
+						type: "update",
+					},
+				]);
+			},
+		);
 
 		it("should emit a create op when the place is absent from current state", () => {
 			expect.assertions(1);
