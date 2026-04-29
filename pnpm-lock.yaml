@@ -333,6 +333,9 @@ importers:
         specifier: catalog:runtime
         version: 2.2.0
     devDependencies:
+      '@bedrock/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
       '@bedrock/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config

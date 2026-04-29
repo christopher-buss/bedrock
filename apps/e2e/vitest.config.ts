@@ -6,8 +6,6 @@ import { mergeConfig } from "vite-plus";
 // is tighter than publish-round-trip latency under retry. Coverage thresholds
 // from the shared config are not meaningful here: this package has no
 // production source, only scenario tests, so forcing 100 % would block CI.
-// Jest-extended matchers are not wired in because the e2e package does not
-// depend on @bedrock/testing.
 //
 // The `ssr.resolve.conditions` override mirrors packages/bedrock/vite.config.ts:
 // workspace imports such as `@bedrock/core` must resolve via the `source`
@@ -24,7 +22,6 @@ export default mergeConfig(sharedConfig, {
 		coverage: {
 			thresholds: undefined,
 		},
-		setupFiles: [],
 		testTimeout: 60_000,
 	},
 });

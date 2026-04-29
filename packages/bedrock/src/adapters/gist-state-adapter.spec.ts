@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { serializeStateFile } from "../core/state-file.ts";
 import type { BedrockState } from "../core/state.ts";
@@ -10,6 +10,11 @@ const TOKEN = "ghp_example_token";
 interface FakeFetch {
 	readonly calls: Array<Request>;
 	readonly fetchFn: GistFetch;
+}
+
+interface FakeSleep {
+	readonly calls: Array<number>;
+	readonly sleep: (ms: number) => Promise<void>;
 }
 
 function fakeFetch(responder: (request: Request) => Promise<Response> | Response): FakeFetch {
@@ -24,6 +29,28 @@ function fakeFetch(responder: (request: Request) => Promise<Response> | Response
 	}
 
 	return { calls, fetchFn: fetchFunc };
+}
+
+function fakeFetchSequence(responses: ReadonlyArray<Response>): FakeFetch {
+	let index = 0;
+	return fakeFetch(() => {
+		const response = responses[index];
+		if (response === undefined) {
+			throw new Error(`fakeFetchSequence: no response queued for call ${String(index + 1)}`);
+		}
+
+		index += 1;
+		return response;
+	});
+}
+
+function fakeSleep(): FakeSleep {
+	const calls: Array<number> = [];
+	async function sleep(ms: number): Promise<void> {
+		calls.push(ms);
+	}
+
+	return { calls, sleep };
 }
 
 function okJson(body: unknown): Response {
@@ -177,6 +204,39 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toMatch(/network error/u);
 		});
 
+		it("should err with a network-error reason when the raw_url fetch throws", async () => {
+			expect.assertions(2);
+
+			const { fetchFn } = fakeFetch((request) => {
+				if (request.url.startsWith("https://api.github.com")) {
+					return okJson({
+						files: {
+							"state.production.json": {
+								content: "",
+								raw_url: "https://gist.example/raw/abc",
+								size: 2_000_000,
+								truncated: true,
+							},
+						},
+					});
+				}
+
+				throw new Error("connection reset");
+			});
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				token: TOKEN,
+			});
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/network error/u);
+			expect(result.err.file).toBe(`gist:${GIST_ID}/state.production.json`);
+		});
+
 		it("should err with a github-returned-<status> reason on 500", async () => {
 			expect.assertions(2);
 
@@ -259,7 +319,13 @@ describe(createGistStateAdapter, () => {
 
 				return emptyResponse(503);
 			});
-			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
 
 			const result = await port.read("production");
 
@@ -390,6 +456,72 @@ describe(createGistStateAdapter, () => {
 
 			expect(result.data).toStrictEqual(state);
 		});
+
+		it.for<[number]>([[502], [503], [504]])(
+			"should retry the read GET on %i and succeed on the second attempt",
+			async ([status]) => {
+				expect.assertions(3);
+
+				const { calls, fetchFn } = fakeFetchSequence([
+					emptyResponse(status),
+					okJson({ files: {} }),
+				]);
+				const sleepFake = fakeSleep();
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					sleep: sleepFake.sleep,
+					token: TOKEN,
+				});
+
+				const result = await port.read("production");
+
+				expect(result.success).toBeTrue();
+				expect(calls).toHaveLength(2);
+				expect(sleepFake.calls).toStrictEqual([1000]);
+			},
+		);
+
+		it.for<[number]>([[502], [503], [504]])(
+			"should retry the raw_url fetch on %i and succeed on the second attempt",
+			async ([status]) => {
+				expect.assertions(3);
+
+				const state: BedrockState = {
+					environment: "production",
+					resources: [],
+					version: 1,
+				};
+				const content = serializeStateFile(state);
+				const { calls, fetchFn } = fakeFetchSequence([
+					okJson({
+						files: {
+							"state.production.json": {
+								content: "",
+								raw_url: "https://gist.example/raw/abc",
+								size: 2_000_000,
+								truncated: true,
+							},
+						},
+					}),
+					emptyResponse(status),
+					new Response(content, { status: 200 }),
+				]);
+				const sleepFake = fakeSleep();
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					sleep: sleepFake.sleep,
+					token: TOKEN,
+				});
+
+				const result = await port.read("production");
+
+				expect(result.success).toBeTrue();
+				expect(calls).toHaveLength(3);
+				expect(sleepFake.calls).toStrictEqual([1000]);
+			},
+		);
 	});
 
 	describe("write", () => {
@@ -511,5 +643,154 @@ describe(createGistStateAdapter, () => {
 
 			expect(result.err.reason).toMatch(/network error/u);
 		});
+
+		it("should retry the PATCH on 409 and succeed on the second attempt", async () => {
+			expect.assertions(3);
+
+			const { calls, fetchFn } = fakeFetchSequence([emptyResponse(409), emptyResponse(200)]);
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			const result = await port.write({
+				environment: "production",
+				resources: [],
+				version: 1,
+			});
+
+			expect(result.success).toBeTrue();
+			expect(calls).toHaveLength(2);
+			expect(sleepFake.calls).toStrictEqual([1000]);
+		});
+
+		it("should err with the github-returned-409 reason after exhausting the retry budget", async () => {
+			expect.assertions(4);
+
+			const { calls, fetchFn } = fakeFetchSequence([
+				emptyResponse(409),
+				emptyResponse(409),
+				emptyResponse(409),
+				emptyResponse(409),
+			]);
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			const result = await port.write({
+				environment: "production",
+				resources: [],
+				version: 1,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/github returned 409/u);
+			expect(result.err.file).toBe(`gist:${GIST_ID}/state.production.json`);
+			expect(calls).toHaveLength(4);
+			expect(sleepFake.calls).toStrictEqual([1000, 2000, 4000]);
+		});
+
+		it("should sleep using setTimeout by default when sleep is not injected", async () => {
+			expect.assertions(3);
+
+			vi.useFakeTimers();
+			onTestFinished(() => {
+				vi.useRealTimers();
+			});
+
+			const { calls, fetchFn } = fakeFetchSequence([emptyResponse(409), emptyResponse(200)]);
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				token: TOKEN,
+			});
+
+			const writePromise = port.write({
+				environment: "production",
+				resources: [],
+				version: 1,
+			});
+
+			await vi.advanceTimersByTimeAsync(0);
+
+			expect(calls).toHaveLength(1);
+
+			await vi.advanceTimersByTimeAsync(1000);
+
+			const result = await writePromise;
+
+			expect(result.success).toBeTrue();
+			expect(calls).toHaveLength(2);
+		});
+
+		it.for<[number, RegExp]>([
+			[401, /auth failed/u],
+			[403, /auth failed/u],
+			[404, /not found/u],
+			[422, /invalid PATCH body/u],
+		])(
+			"should not retry write on %i and surface the error in a single attempt",
+			async ([status, reasonPattern]) => {
+				expect.assertions(3);
+
+				const { calls, fetchFn } = fakeFetch(() => emptyResponse(status));
+				const sleepFake = fakeSleep();
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					sleep: sleepFake.sleep,
+					token: TOKEN,
+				});
+
+				const result = await port.write({
+					environment: "production",
+					resources: [],
+					version: 1,
+				});
+
+				assert(!result.success);
+
+				expect(result.err.reason).toMatch(reasonPattern);
+				expect(calls).toHaveLength(1);
+				expect(sleepFake.calls).toBeEmpty();
+			},
+		);
+
+		it.for<[number]>([[502], [503], [504]])(
+			"should retry the PATCH on %i and succeed on the second attempt",
+			async ([status]) => {
+				expect.assertions(3);
+
+				const { calls, fetchFn } = fakeFetchSequence([
+					emptyResponse(status),
+					emptyResponse(200),
+				]);
+				const sleepFake = fakeSleep();
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					sleep: sleepFake.sleep,
+					token: TOKEN,
+				});
+
+				const result = await port.write({
+					environment: "production",
+					resources: [],
+					version: 1,
+				});
+
+				expect(result.success).toBeTrue();
+				expect(calls).toHaveLength(2);
+				expect(sleepFake.calls).toStrictEqual([1000]);
+			},
+		);
 	});
 });

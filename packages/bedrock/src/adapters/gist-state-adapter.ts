@@ -9,6 +9,8 @@ const GITHUB_API_BASE = "https://api.github.com";
 const GITHUB_API_VERSION = "2026-03-10";
 const USER_AGENT = "bedrock";
 const MAX_INLINE_BYTES = 10_000_000;
+const MAX_RETRIES = 3;
+const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([409, 502, 503, 504]);
 
 /**
  * Minimal `fetch`-compatible signature the adapter needs, narrower than
@@ -28,6 +30,11 @@ export interface GistStateAdapterDeps {
 	readonly fetch?: GistFetch | undefined;
 	/** ID of an existing GitHub Gist that holds this project's state files. */
 	readonly gistId: string;
+	/**
+	 * Injection seam for retry backoff timing; defaults to a `setTimeout`-based
+	 * promise. Tests pass a fake to keep retry assertions deterministic.
+	 */
+	readonly sleep?: ((ms: number) => Promise<void>) | undefined;
 	/** GitHub token (fine-grained PAT or classic PAT) with gist read/write scope. */
 	readonly token: string;
 }
@@ -35,6 +42,7 @@ export interface GistStateAdapterDeps {
 interface AdapterContext {
 	readonly fetchFn: GistFetch;
 	readonly gistId: string;
+	readonly sleep: (ms: number) => Promise<void>;
 	readonly token: string;
 }
 
@@ -55,6 +63,7 @@ interface ReadContentParameters {
 	readonly entry: GistFile;
 	readonly fetchFn: GistFetch;
 	readonly file: string;
+	readonly sleep: (ms: number) => Promise<void>;
 }
 
 /**
@@ -91,6 +100,7 @@ export function createGistStateAdapter(deps: GistStateAdapterDeps): StatePort {
 	const ctx: AdapterContext = {
 		fetchFn: deps.fetch ?? globalThis.fetch.bind(globalThis),
 		gistId: deps.gistId,
+		sleep: deps.sleep ?? defaultSleep,
 		token: deps.token,
 	};
 
@@ -114,6 +124,12 @@ export function createGistStateAdapter(deps: GistStateAdapterDeps): StatePort {
 	};
 }
 
+async function defaultSleep(ms: number): Promise<void> {
+	await new Promise<void>((resolve) => {
+		setTimeout(resolve, ms);
+	});
+}
+
 function fileLabel(gistId: string, environment: string): string {
 	return `gist:${gistId}/state.${environment}.json`;
 }
@@ -135,15 +151,6 @@ function toGistFile(entry: unknown): GistFile | undefined {
 	return { content, isTruncated, rawUrl, size };
 }
 
-function buildHeaders(token: string): Headers {
-	const headers = new Headers();
-	headers.set("Accept", "application/vnd.github+json");
-	headers.set("Authorization", `Bearer ${token}`);
-	headers.set("User-Agent", USER_AGENT);
-	headers.set("X-GitHub-Api-Version", GITHUB_API_VERSION);
-	return headers;
-}
-
 function mapHttpError({ file, gistId, status }: HttpFailure): StateError {
 	if (status === 404) {
 		return { file, kind: "stateError", reason: `gist ${gistId} not found: check gistId` };
@@ -161,16 +168,54 @@ function networkError(error: unknown, file: string): StateError {
 	return { file, kind: "stateError", reason: `network error: ${message}` };
 }
 
+function buildHeaders(token: string): Headers {
+	const headers = new Headers();
+	headers.set("Accept", "application/vnd.github+json");
+	headers.set("Authorization", `Bearer ${token}`);
+	headers.set("User-Agent", USER_AGENT);
+	headers.set("X-GitHub-Api-Version", GITHUB_API_VERSION);
+	return headers;
+}
+
+async function sendGet(ctx: AdapterContext): Promise<Response> {
+	return ctx.fetchFn(`${GITHUB_API_BASE}/gists/${ctx.gistId}`, {
+		headers: buildHeaders(ctx.token),
+		method: "GET",
+	});
+}
+
+function isRetryableStatus(status: number): boolean {
+	return RETRYABLE_STATUSES.has(status);
+}
+
+function backoffMs(attempt: number): number {
+	return 1000 * 2 ** attempt;
+}
+
+async function withRetry(
+	sleep: (ms: number) => Promise<void>,
+	operation: () => Promise<Response>,
+): Promise<Response> {
+	let response = await operation();
+	for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
+		if (response.ok || !isRetryableStatus(response.status)) {
+			return response;
+		}
+
+		await sleep(backoffMs(attempt));
+		response = await operation();
+	}
+
+	return response;
+}
+
 async function fetchGistBody(
 	ctx: AdapterContext,
 	file: string,
 ): Promise<Result<Record<string, unknown>, StateError>> {
 	let response: Response;
 	try {
-		response = await ctx.fetchFn(`${GITHUB_API_BASE}/gists/${ctx.gistId}`, {
-			headers: buildHeaders(ctx.token),
-			method: "GET",
-		});
+		response = await withRetry(ctx.sleep, async () => sendGet(ctx));
 	} catch (err) {
 		return { err: networkError(err, file), success: false };
 	}
@@ -194,6 +239,7 @@ async function readGistContent({
 	entry,
 	fetchFn,
 	file,
+	sleep,
 }: ReadContentParameters): Promise<Result<BedrockState | undefined, StateError>> {
 	if (entry.size > MAX_INLINE_BYTES) {
 		return stateErr(file, `state file too large: ${entry.size} bytes`);
@@ -204,7 +250,14 @@ async function readGistContent({
 			return stateErr(file, "truncated gist file missing raw_url");
 		}
 
-		const rawResponse = await fetchFn(entry.rawUrl);
+		const { rawUrl } = entry;
+		let rawResponse: Response;
+		try {
+			rawResponse = await withRetry(sleep, async () => fetchFn(rawUrl));
+		} catch (err) {
+			return { err: networkError(err, file), success: false };
+		}
+
 		if (!rawResponse.ok) {
 			return stateErr(file, `raw_url fetch returned ${rawResponse.status}`);
 		}
@@ -232,7 +285,7 @@ async function readPath(
 		return { data: undefined, success: true };
 	}
 
-	return readGistContent({ entry, fetchFn: ctx.fetchFn, file });
+	return readGistContent({ entry, fetchFn: ctx.fetchFn, file, sleep: ctx.sleep });
 }
 
 async function sendPatch(ctx: AdapterContext, body: string): Promise<Response> {
@@ -256,7 +309,7 @@ async function writePath(
 
 	let response: Response;
 	try {
-		response = await sendPatch(ctx, body);
+		response = await withRetry(ctx.sleep, async () => sendPatch(ctx, body));
 	} catch (err) {
 		return { err: networkError(err, file), success: false };
 	}
