@@ -19,11 +19,6 @@ export type PricingFeatureWire =
 	| "UserFixedPrice";
 
 /**
- * Wire shape of `GamePasses.PriceInformationStruct`.
- */
-export type PriceInformationStructWire = PriceInformationLike<PricingFeatureWire>;
-
-/**
  * Wire shape of `GamePassConfigV2` — the response body returned by the
  * Game Passes read endpoint.
  */
@@ -45,3 +40,8 @@ export interface GamePassConfigV2 {
 	/** ISO timestamp of the most recent update (`date-time`). */
 	readonly updatedTimestamp: string;
 }
+
+/**
+ * Wire shape of `GamePasses.PriceInformationStruct`.
+ */
+type PriceInformationStructWire = PriceInformationLike<PricingFeatureWire>;

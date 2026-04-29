@@ -19,12 +19,6 @@ export type DeveloperProductPricingFeatureWire =
 	| "UserFixedPrice";
 
 /**
- * Wire shape of `DeveloperProducts.PriceInformationStruct`.
- */
-export type DeveloperProductPriceInformationWire =
-	PriceInformationLike<DeveloperProductPricingFeatureWire>;
-
-/**
  * Wire shape of `DeveloperProductConfigV2`: the response body returned by
  * the developer-products read and create endpoints.
  */
@@ -52,3 +46,9 @@ export interface DeveloperProductConfigV2 {
 	/** ISO timestamp of the most recent update (`date-time`). */
 	readonly updatedTimestamp: string;
 }
+
+/**
+ * Wire shape of `DeveloperProducts.PriceInformationStruct`.
+ */
+type DeveloperProductPriceInformationWire =
+	PriceInformationLike<DeveloperProductPricingFeatureWire>;
