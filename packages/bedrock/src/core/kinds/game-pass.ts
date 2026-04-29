@@ -59,7 +59,7 @@ function fieldsEqual(
 	return (
 		desired.description === current.description &&
 		desired.icon["en-us"] === current.icon["en-us"] &&
-		iconHashesEqual(desired.iconFileHashes, current.iconFileHashes) &&
+		iconHashesEqual(current.iconFileHashes, desired.iconFileHashes) &&
 		desired.name === current.name &&
 		desired.price === current.price
 	);

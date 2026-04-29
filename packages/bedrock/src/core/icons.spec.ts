@@ -8,7 +8,7 @@ const HASH_B = asSha256Hex("2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db0225
 
 describe(hashIconFile, () => {
 	it("should return the branded sha256 hex digest of the icon bytes", async () => {
-		expect.assertions(2);
+		expect.assertions(1);
 
 		const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
 		const result = await hashIconFile(
@@ -18,8 +18,9 @@ describe(hashIconFile, () => {
 
 		assert(result.success);
 
-		expect(result.data).toHaveLength(64);
-		expect(result.data).toMatch(/^[0-9a-f]{64}$/);
+		expect(result.data).toBe(
+			asSha256Hex("0f4636c78f65d3639ece5a064b5ae753e3408614a14fb18ab4d7540d2c248543"),
+		);
 	});
 
 	it("should surface a fileReadFailed error carrying the file path and key when readFile rejects", async () => {
@@ -105,13 +106,13 @@ describe(iconHashesEqual, () => {
 	it("should return false when desired is undefined and current is present", () => {
 		expect.assertions(1);
 
-		expect(iconHashesEqual(undefined, { "en-us": HASH_A })).toBeFalse();
+		expect(iconHashesEqual({ "en-us": HASH_A }, undefined)).toBeFalse();
 	});
 
 	it("should return false when current is undefined and desired is present", () => {
 		expect.assertions(1);
 
-		expect(iconHashesEqual({ "en-us": HASH_A }, undefined)).toBeFalse();
+		expect(iconHashesEqual(undefined, { "en-us": HASH_A })).toBeFalse();
 	});
 
 	it("should return true when both sides carry the same en-us hash", () => {
@@ -152,7 +153,7 @@ describe(shouldReuploadIcon, () => {
 		expect(shouldReuploadIcon({ "en-us": HASH_A }, undefined)).toBeTrue();
 	});
 
-	it("should return false when both sides are undefined (no-icon precondition consistency)", () => {
+	it("should return false when both sides are undefined", () => {
 		expect.assertions(1);
 
 		expect(shouldReuploadIcon(undefined, undefined)).toBeFalse();

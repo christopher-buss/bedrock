@@ -74,7 +74,9 @@ export async function hashIconLocales(
  *
  * The signature widens from kind-typed inputs to hash maps so the helper
  * does not couple to any specific resource-kind shape; callers project the
- * `iconFileHashes` field off their own desired/current values.
+ * `iconFileHashes` field off their own current/desired values. Parameter
+ * order mirrors `shouldReuploadIcon` so the two helpers can be read side
+ * by side without re-orienting at each call.
  *
  * Tri-state semantics:
  *
@@ -82,32 +84,31 @@ export async function hashIconLocales(
  * - one `undefined`, the other present: `false`.
  * - both present: per-locale hash equality on the `"en-us"` key.
  *
- * @param desired - Hashes layered onto the desired-state entry by `normalize`.
  * @param current - Hashes recorded on the prior current-state entry.
+ * @param desired - Hashes layered onto the desired-state entry by `normalize`.
  * @returns `true` when no re-upload is implied by the hash comparison.
  */
 export function iconHashesEqual(
-	desired: Record<"en-us", Sha256Hex> | undefined,
 	current: Record<"en-us", Sha256Hex> | undefined,
+	desired: Record<"en-us", Sha256Hex> | undefined,
 ): boolean {
-	if (desired === undefined) {
-		return current === undefined;
+	if (current === undefined) {
+		return desired === undefined;
 	}
 
-	if (current === undefined) {
+	if (desired === undefined) {
 		return false;
 	}
 
-	return desired["en-us"] === current["en-us"];
+	return current["en-us"] === desired["en-us"];
 }
 
 /**
  * Cost-gate for icon re-uploads. Returns `true` when the locally-hashed
  * desired icon differs from the hash recorded on the prior current-state
  * entry, signalling that the driver must re-upload before reconciling.
- * Returns `false` when the hashes match (no re-upload needed) or when both
- * sides report no icon (precondition: the caller has already short-circuited
- * the no-icon-declared case before consulting this helper).
+ * Returns `false` when the hashes match (no re-upload needed) and when
+ * both sides report no icon.
  *
  * The signature takes hash maps directly (not whole-state) so the helper
  * is independent of any specific resource-kind shape; every icon-bearing
@@ -139,5 +140,5 @@ export function shouldReuploadIcon(
 	currentHashes: Record<"en-us", Sha256Hex> | undefined,
 	desiredHashes: Record<"en-us", Sha256Hex> | undefined,
 ): boolean {
-	return !iconHashesEqual(desiredHashes, currentHashes);
+	return !iconHashesEqual(currentHashes, desiredHashes);
 }

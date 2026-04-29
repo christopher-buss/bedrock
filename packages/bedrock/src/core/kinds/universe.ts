@@ -107,7 +107,7 @@ async function normalize(
 		return { data: withPrice, success: true };
 	}
 
-	const hashes = await hashIconLocales({ ...input, icon: input.icon }, io);
+	const hashes = await hashIconLocales({ key: input.key, icon: input.icon }, io);
 	if (!hashes.success) {
 		return hashes;
 	}
@@ -180,7 +180,7 @@ function fieldsEqual(
 		return false;
 	}
 
-	if (!iconHashesEqual(desired.iconFileHashes, current.iconFileHashes)) {
+	if (!iconHashesEqual(current.iconFileHashes, desired.iconFileHashes)) {
 		return false;
 	}
 
