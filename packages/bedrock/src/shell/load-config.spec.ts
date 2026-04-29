@@ -7,7 +7,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
 
-import { LUAU_BOOTSTRAP_TEMP_PREFIX } from "./load-config-internal.ts";
+import { bootstrapDirectoryPrefix } from "./load-config-internal.ts";
 import { loadConfig } from "./load-config.ts";
 
 // Walking up from a temp file inside the workspace tree finds @bedrock/core
@@ -35,7 +35,8 @@ function writeFixtureConfig(directory: string, lines: ReadonlyArray<string>): vo
 }
 
 function readBootstrapDirectories(): Array<string> {
-	return readdirSync(tmpdir()).filter((entry) => entry.startsWith(LUAU_BOOTSTRAP_TEMP_PREFIX));
+	const selfPrefix = bootstrapDirectoryPrefix(process.pid);
+	return readdirSync(tmpdir()).filter((entry) => entry.startsWith(selfPrefix));
 }
 
 async function expectParseFailed(filename: string, contents: string): Promise<void> {
@@ -765,5 +766,19 @@ describe(loadConfig, () => {
 
 			expect(second.data.passes!["vip-pass"]!.price).toBe(500);
 		});
+	});
+});
+
+describe(bootstrapDirectoryPrefix, () => {
+	it("should embed the supplied pid between the shared prefix and a trailing separator", () => {
+		expect.assertions(1);
+
+		expect(bootstrapDirectoryPrefix(12_345)).toBe("bedrock-luau-bootstrap-12345-");
+	});
+
+	it("should produce distinct prefixes for distinct process ids so parallel workers cannot collide", () => {
+		expect.assertions(1);
+
+		expect(bootstrapDirectoryPrefix(1)).not.toBe(bootstrapDirectoryPrefix(2));
 	});
 });

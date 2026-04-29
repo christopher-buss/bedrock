@@ -9,7 +9,7 @@ import process from "node:process";
 
 import type { ConfigError } from "../core/config-error.ts";
 import { type Config, validateConfig } from "../core/schema.ts";
-import { LUAU_BOOTSTRAP_TEMP_PREFIX } from "./load-config-internal.ts";
+import { bootstrapDirectoryPrefix } from "./load-config-internal.ts";
 
 /**
  * Options for {@link loadConfig}. Matches a subset of c12's loader options;
@@ -345,7 +345,7 @@ async function evaluateLuauConfig(absPath: string): Promise<Record<string, unkno
 	const cwd = dirname(absPath);
 	const base = basename(absPath);
 
-	const bootstrapDirectory = mkdtempSync(join(tmpdir(), LUAU_BOOTSTRAP_TEMP_PREFIX));
+	const bootstrapDirectory = mkdtempSync(join(tmpdir(), bootstrapDirectoryPrefix(process.pid)));
 	try {
 		const bootstrapPath = join(bootstrapDirectory, "bootstrap.luau");
 		writeFileSync(bootstrapPath, LUTE_BOOTSTRAP_LUAU);
