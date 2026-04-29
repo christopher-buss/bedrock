@@ -9,15 +9,6 @@ import type { ParseOptionsError } from "./parse-options.ts";
  */
 export const SUPPORTED_MIGRATION_SOURCES = ["mantle"] as const;
 
-/** One element of {@link SUPPORTED_MIGRATION_SOURCES}. */
-export type MigrationSource = (typeof SUPPORTED_MIGRATION_SOURCES)[number];
-
-/** Typed shape the migrate command consumes after `--from` has been validated. */
-export interface MigrateOptions {
-	/** Validated source to migrate from. */
-	readonly from: MigrationSource;
-}
-
 /**
  * Failure surfaced by `parseMigrateOptions`. Reuses the three flag-shape
  * variants from `ParseOptionsError` (so the existing `renderParseError`
@@ -31,6 +22,15 @@ export type ParseMigrateError =
 			readonly received: string;
 			readonly supported: ReadonlyArray<string>;
 	  };
+
+/** One element of {@link SUPPORTED_MIGRATION_SOURCES}. */
+type MigrationSource = (typeof SUPPORTED_MIGRATION_SOURCES)[number];
+
+/** Typed shape the migrate command consumes after `--from` has been validated. */
+interface MigrateOptions {
+	/** Validated source to migrate from. */
+	readonly from: MigrationSource;
+}
 
 const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set(["from"]);
 

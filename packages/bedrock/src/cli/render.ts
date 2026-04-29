@@ -30,7 +30,7 @@ export interface ClackPort {
 }
 
 /** Inputs for {@link renderStateWriteError}. */
-export interface StateWriteErrorRender {
+interface StateWriteErrorRender {
 	/** Environment whose state could not be written. */
 	readonly environment: string;
 	/** The state-error returned by the adapter. */
