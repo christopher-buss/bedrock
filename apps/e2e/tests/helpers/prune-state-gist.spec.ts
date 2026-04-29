@@ -241,7 +241,7 @@ describe(pruneStateGist, () => {
 			});
 
 			expect(calls).toHaveLength(1);
-			expect(sleepFake.calls).toStrictEqual([]);
+			expect(sleepFake.calls).toBeEmpty();
 		},
 	);
 });
