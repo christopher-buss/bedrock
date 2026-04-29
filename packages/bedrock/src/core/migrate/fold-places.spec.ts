@@ -45,6 +45,16 @@ function defaultPlaceFile(key: string): MantleResource {
 	});
 }
 
+function placeConfiguration(key: string, inputs: unknown): MantleResource {
+	return {
+		key,
+		dependencies: [],
+		inputs,
+		kind: "placeConfiguration",
+		outputs: undefined,
+	};
+}
+
 describe(foldPlaces, () => {
 	it("should fold a matched place and placeFile pair into one entry", () => {
 		expect.assertions(2);
@@ -276,5 +286,119 @@ describe(foldPlaces, () => {
 		expect(start.placeId).toBe("17613681043");
 		expect(lobby.placeId).toBe("17613681044");
 		expect(lobby.entry).toStrictEqual({ filePath: "lobby.rbxl" });
+	});
+
+	describe("blocked placeConfiguration fields", () => {
+		it.for<[label: string, field: string, value: unknown, reason: string]>([
+			[
+				"description",
+				"description",
+				"A project template",
+				"placeConfiguration.description has no Open Cloud equivalent",
+			],
+			[
+				"maxPlayerCount",
+				"maxPlayerCount",
+				700,
+				"placeConfiguration.maxPlayerCount has no Open Cloud equivalent",
+			],
+			[
+				"allowCopying",
+				"allowCopying",
+				true,
+				"placeConfiguration.allowCopying has no Open Cloud equivalent",
+			],
+			[
+				"socialSlotType",
+				"socialSlotType",
+				"Automatic",
+				"placeConfiguration social-slot config has no Open Cloud equivalent",
+			],
+			[
+				"customSocialSlotsCount",
+				"customSocialSlotsCount",
+				4,
+				"placeConfiguration social-slot config has no Open Cloud equivalent",
+			],
+		])("should emit a blocked warning when %s is set", ([, field, value, reason]) => {
+			expect.assertions(1);
+
+			const result = foldPlaces([placeConfiguration("start", { [field]: value })]);
+
+			expect(result.warnings).toStrictEqual([
+				{
+					kind: "blocked",
+					mantlePath: `placeConfiguration_start.${field}`,
+					reason,
+				},
+			]);
+		});
+
+		it("should emit no warning for a tracked field whose value is undefined", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				placeConfiguration("start", {
+					allowCopying: undefined,
+					description: undefined,
+				}),
+			]);
+
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should emit one warning per tracked field per placeConfiguration resource", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				placeConfiguration("start", {
+					allowCopying: true,
+					description: "Start place",
+					maxPlayerCount: 50,
+				}),
+				placeConfiguration("lobby", { socialSlotType: "Empty" }),
+			]);
+
+			expect(result.warnings).toIncludeAllPartialMembers([
+				{ kind: "blocked", mantlePath: "placeConfiguration_start.description" },
+				{ kind: "blocked", mantlePath: "placeConfiguration_start.maxPlayerCount" },
+				{ kind: "blocked", mantlePath: "placeConfiguration_start.allowCopying" },
+				{ kind: "blocked", mantlePath: "placeConfiguration_lobby.socialSlotType" },
+			]);
+		});
+
+		it("should emit no blocked warning when no placeConfiguration resource is present", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+			]);
+
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should skip a placeConfiguration whose inputs is not an object", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([placeConfiguration("start", "not-an-object")]);
+
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should not emit a blocked warning for the name field (foldDisplayName owns it)", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([placeConfiguration("start", { name: "My Place" })]);
+
+			expect(
+				result.warnings.filter((warning) => {
+					return (
+						warning.kind === "blocked" &&
+						warning.mantlePath === "placeConfiguration_start.name"
+					);
+				}),
+			).toStrictEqual([]);
+		});
 	});
 });

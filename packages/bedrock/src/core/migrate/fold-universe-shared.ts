@@ -17,6 +17,19 @@ export interface FoldFragment {
 export const EMPTY_FRAGMENT: FoldFragment = { entryFragment: {}, warnings: [] };
 
 /**
+ * One row in a static blocked-field table: the Mantle field name and the
+ * upstream limitation reason that the migrator surfaces verbatim in the
+ * warning's `reason` slot. Used by folds that emit one `blocked`
+ * `MigrationWarning` per non-`undefined` legacy-only field.
+ */
+export interface BlockedFieldRule {
+	/** Mantle input key to test for non-`undefined`. */
+	readonly field: string;
+	/** Human-readable reason naming the upstream limitation. */
+	readonly reason: string;
+}
+
+/**
  * Required fields for an `interpretive` warning, gathered as a single
  * argument so this builder stays under the project's max-params cap.
  */

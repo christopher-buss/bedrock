@@ -1,6 +1,7 @@
 import { isSha256Hex, type Sha256Hex } from "../../types/ids.ts";
 import type { PlaceOutputs } from "../resources.ts";
 import type { PlaceEntry } from "../schema.ts";
+import { foldBlockedPlaceFields } from "./fold-blocked-place-fields.ts";
 import type { MigrationWarning } from "./migration-report.ts";
 import type { MantleResource } from "./types.ts";
 
@@ -99,7 +100,7 @@ export function foldPlaces(resources: ReadonlyArray<MantleResource>): PlaceFoldR
 		}
 	}
 
-	return { entries, warnings };
+	return { entries, warnings: [...warnings, ...foldBlockedPlaceFields(resources)] };
 }
 
 function bucketByKind(resources: ReadonlyArray<MantleResource>): {
