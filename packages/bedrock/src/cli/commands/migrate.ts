@@ -24,12 +24,22 @@ import {
 	renderBuildStatePortError,
 	renderMigrateError,
 	renderMigrateParseError,
+	renderMigrationSummary,
 	renderStateWriteError,
 } from "../render.ts";
 
 const FAILED_OUTRO = "migrate failed";
 
 const CANCELLED_OUTRO = "migrate cancelled";
+
+/**
+ * Sentinel returned by inner orchestration helpers when they could not
+ * produce a `MigrationReport`. `cancelled` means the user aborted a
+ * prompt; `rendered` means the failure was already described to the
+ * user via `renderMigrateError` and the caller should exit
+ * unconditionally without re-rendering.
+ */
+type MigrateRunError = "cancelled" | "rendered";
 
 interface ResolvedMigrate {
 	readonly buildStatePort: typeof defaultBuildStatePort;
@@ -109,10 +119,15 @@ function cancel(resolved: ResolvedMigrate): number {
 	return EXIT_ERROR;
 }
 
+function failAfterRender(resolved: ResolvedMigrate): number {
+	resolved.clack.cancel(FAILED_OUTRO);
+	return EXIT_ERROR;
+}
+
 function renderedFailure(
 	err: MigrateError,
 	resolved: ResolvedMigrate,
-): Result<MigrationReport, "rendered"> {
+): Result<MigrationReport, MigrateRunError> {
 	renderMigrateError(err, resolved.clack);
 	resolved.clack.cancel(FAILED_OUTRO);
 	return { err: "rendered", success: false };
@@ -133,7 +148,7 @@ async function callMigrator(
 
 async function runMigratorWithPrompt(
 	inputs: RunMigratorInputs,
-): Promise<Result<MigrationReport, "cancelled" | "rendered">> {
+): Promise<Result<MigrationReport, MigrateRunError>> {
 	const first = await callMigrator(inputs);
 	if (first.success) {
 		return { data: first.data, success: true };
@@ -186,25 +201,6 @@ async function writeStates(inputs: WriteStatesInputs): Promise<Result<void, void
 	return { data: undefined, success: true };
 }
 
-function renderWarningSummary(report: MigrationReport, clack: ClackPort): void {
-	const { ambiguousCount, blockedCount, deferredCount, interpretiveCount } = report.summary;
-	if (interpretiveCount > 0) {
-		clack.logMessage(`interpretive mappings: ${String(interpretiveCount)}`);
-	}
-
-	if (deferredCount > 0) {
-		clack.logMessage(`deferred fields: ${String(deferredCount)}`);
-	}
-
-	if (blockedCount > 0) {
-		clack.logMessage(`blocked fields: ${String(blockedCount)}`);
-	}
-
-	if (ambiguousCount > 0) {
-		clack.logMessage(`ambiguous fields: ${String(ambiguousCount)}`);
-	}
-}
-
 async function finalize(inputs: FinalizeInputs): Promise<number> {
 	const { configFilePath, configFormat, report, resolved, stateConfig } = inputs;
 	const portResult = resolved.buildStatePort({
@@ -213,8 +209,7 @@ async function finalize(inputs: FinalizeInputs): Promise<number> {
 	});
 	if (!portResult.success) {
 		renderBuildStatePortError(portResult.err, resolved.clack);
-		resolved.clack.cancel(FAILED_OUTRO);
-		return EXIT_ERROR;
+		return failAfterRender(resolved);
 	}
 
 	const writes = await writeStates({
@@ -223,15 +218,14 @@ async function finalize(inputs: FinalizeInputs): Promise<number> {
 		statesByEnvironment: report.statesByEnvironment,
 	});
 	if (!writes.success) {
-		resolved.clack.cancel(FAILED_OUTRO);
-		return EXIT_ERROR;
+		return failAfterRender(resolved);
 	}
 
 	const enrichedConfig: Config = { ...report.config, state: stateConfig };
 	const enrichedBytes = serializeConfig({ config: enrichedConfig, configFormat });
 	await resolved.writeFile(configFilePath, enrichedBytes);
 	resolved.clack.logSuccess(`wrote ${configFilePath}`);
-	renderWarningSummary(report, resolved.clack);
+	renderMigrationSummary(report.summary, resolved.clack);
 	resolved.clack.outro("migrate succeeded");
 	return EXIT_OK;
 }
@@ -296,8 +290,7 @@ async function runMigrate(inputs: RunMigrateInputs): Promise<number> {
 	const parsed = parseMigrateOptions(rawOptions);
 	if (!parsed.success) {
 		renderMigrateParseError(parsed.err, resolved.clack);
-		resolved.clack.cancel(FAILED_OUTRO);
-		return EXIT_ERROR;
+		return failAfterRender(resolved);
 	}
 
 	const stateFilePath = await resolveStateFilePath(pathArg, resolved);

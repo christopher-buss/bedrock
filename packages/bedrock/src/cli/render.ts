@@ -1,7 +1,7 @@
 import { cancel, intro, log, outro } from "@clack/prompts";
 
 import type { ConfigError } from "../core/config-error.ts";
-import type { MigrateError } from "../core/migrate/migration-report.ts";
+import type { MigrateError, MigrationSummary } from "../core/migrate/migration-report.ts";
 import type { StateError } from "../core/state.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
 import type { BuildDesiredError } from "../shell/build-desired.ts";
@@ -125,6 +125,32 @@ export function renderBuildStatePortError(
 	port: ClackPort,
 ): void {
 	port.logError(buildStatePortErrorMessage(err));
+}
+
+/** Pairing of a migration warning kind with the per-line label rendered by {@link renderMigrationSummary}. */
+const MIGRATION_SUMMARY_LINES: ReadonlyArray<{
+	readonly count: keyof MigrationSummary;
+	readonly label: string;
+}> = [
+	{ count: "interpretiveCount", label: "interpretive mappings" },
+	{ count: "deferredCount", label: "deferred fields" },
+	{ count: "blockedCount", label: "blocked fields" },
+	{ count: "ambiguousCount", label: "ambiguous fields" },
+];
+
+/**
+ * Render every non-zero `MigrationSummary` count to the supplied
+ * `ClackPort` as a single message line. Categories with a zero count
+ * are skipped so a clean migration produces no output.
+ * @param summary - Aggregate counts from a `MigrationReport`.
+ * @param port - The output port the lines are written to.
+ */
+export function renderMigrationSummary(summary: MigrationSummary, port: ClackPort): void {
+	for (const { count, label } of MIGRATION_SUMMARY_LINES) {
+		if (summary[count] > 0) {
+			port.logMessage(`${label}: ${String(summary[count])}`);
+		}
+	}
 }
 
 /**
