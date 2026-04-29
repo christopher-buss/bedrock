@@ -55,7 +55,3 @@
 - name: pkg:website
   color: 1d76db
   description: "Scope: docs website"
-
-- name: skip-review
-  color: "666666"
-  description: Skip Claude Code review for trivial changes
