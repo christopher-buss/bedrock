@@ -1,4 +1,4 @@
-export const LUAU_BOOTSTRAP_TEMP_PREFIX = "bedrock-luau-bootstrap-";
+const LUAU_BOOTSTRAP_TEMP_PREFIX = "bedrock-luau-bootstrap-";
 
 /**
  * Build the `mkdtempSync` prefix used for Luau bootstrap directories.
