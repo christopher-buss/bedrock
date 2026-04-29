@@ -1,4 +1,9 @@
-import { blockedWarning, type FoldFragment, isObjectPayload } from "./fold-universe-shared.ts";
+import {
+	type BlockedFieldRule,
+	blockedWarning,
+	type FoldFragment,
+	isObjectPayload,
+} from "./fold-universe-shared.ts";
 import type { MigrationWarning } from "./migration-report.ts";
 import type { MantleResource } from "./types.ts";
 
@@ -7,11 +12,6 @@ const EXPERIENCE_CONFIGURATION_KIND = "experienceConfiguration";
 const UNIVERSE_AVATAR_PREFIX = "universeAvatar";
 const UNIVERSE_AVATAR_REASON = "avatar configuration has no Open Cloud equivalent";
 const GROUP_ID_REASON = "Open Cloud does not support transferring experience ownership";
-
-interface BlockedFieldRule {
-	readonly field: string;
-	readonly reason: string;
-}
 
 /**
  * `experienceConfiguration_singleton` fields with no Open Cloud writable

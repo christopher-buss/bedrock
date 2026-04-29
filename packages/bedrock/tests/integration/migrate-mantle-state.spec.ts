@@ -487,14 +487,9 @@ describe(migrateMantleState, () => {
 
 		const blocked = result.data.warnings.filter((warning) => warning.kind === "blocked");
 
-		// 9 experienceConfiguration fields (genre, isForSale,
-		// studioAccessToApisAllowed, permissions, isArchived, universeAvatarType,
-		// universeAvatarMinScales, universeAvatarMaxScales,
-		// universeAvatarAssetOverrides) plus 4 placeConfiguration fields
-		// (description, maxPlayerCount, allowCopying, socialSlotType) per
-		// environment. price and customSocialSlotsCount use the null sentinel;
-		// isFriendsOnly is owned by foldVisibility; experience.groupId is null in
-		// both environments.
+		// 13 fields per environment × 2 environments. Excluded: price and
+		// customSocialSlotsCount (null sentinel); isFriendsOnly (foldVisibility
+		// owns it); experience.groupId (null in both environments).
 		expect(blocked).toHaveLength(26);
 		expect(result.data.summary.blockedCount).toBe(26);
 

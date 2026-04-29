@@ -1,13 +1,8 @@
-import { blockedWarning, isObjectPayload } from "./fold-universe-shared.ts";
+import { type BlockedFieldRule, blockedWarning, isObjectPayload } from "./fold-universe-shared.ts";
 import type { MigrationWarning } from "./migration-report.ts";
 import type { MantleResource } from "./types.ts";
 
 const PLACE_CONFIGURATION_KIND = "placeConfiguration";
-
-interface BlockedFieldRule {
-	readonly field: string;
-	readonly reason: string;
-}
 
 /**
  * `placeConfiguration_<k>` fields with no Open Cloud writable endpoint.
