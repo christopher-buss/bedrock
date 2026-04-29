@@ -1,12 +1,20 @@
 import { loadConfig, migrateMantleState, selectEnvironment } from "@bedrock/core";
 
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
 
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures");
+// Walking up from a temp file inside the workspace tree finds @bedrock/core
+// via the workspace root's node_modules, regardless of pnpm's hoist decisions.
+// node_modules/.cache is the conventional location for tool ephemera and is
+// already gitignored.
+const WORKSPACE_TEMP_ROOT = join(
+	dirname(dirname(dirname(fileURLToPath(import.meta.url)))),
+	"node_modules",
+	".cache",
+);
 const REAL_FIXTURE = join(FIXTURES_ROOT, "roblox-ts-example.mantle-state.yml");
 const ICON_FILE_SHA256 = "c2d4b446a44ce54fab8e01150e24dd24f3d850c7c14dcfe31f6321341dd86874";
 const MANTLE_RECORDED_HASH = "86890ed405cabad0fcdabf52225d528981790fa551e915c070348761c28373c1";
@@ -66,7 +74,8 @@ const TWO_ENV_DIVERGENT_PASS_YAML = [
 ].join("\n");
 
 async function withTemporaryDirectory<T>(run: (directory: string) => Promise<T>): Promise<T> {
-	const directory = mkdtempSync(join(tmpdir(), "bedrock-migrate-"));
+	mkdirSync(WORKSPACE_TEMP_ROOT, { recursive: true });
+	const directory = mkdtempSync(join(WORKSPACE_TEMP_ROOT, "bedrock-migrate-"));
 	try {
 		return await run(directory);
 	} finally {
