@@ -7,6 +7,7 @@ import type { Except, SetRequired } from "type-fest";
 import { RESOURCE_KEY_PATTERN_SOURCE } from "../types/ids.ts";
 import type { ConfigError } from "./config-error.ts";
 import { ENV_NAME_PATTERN_SOURCE } from "./environment.ts";
+import { iconMap } from "./icons.ts";
 
 /**
  * Body of a single entry in the `passes` collection. Keys in the parent
@@ -479,10 +480,6 @@ export const OPTIONAL_POSITIVE_INTEGER = "(number.integer >= 1) | undefined";
  * identically.
  */
 export const OPTIONAL_ROBUX_PRICE = "number.integer >= 0 | undefined";
-
-const iconMap = type({
-	"en-us": "string",
-}).onUndeclaredKey("reject");
 
 // Resource-kind entry schemas. Adding a new kind is two additions:
 // 1. Declare its entry schema and keyed-map collection below.

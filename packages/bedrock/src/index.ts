@@ -23,6 +23,7 @@ export {
 	type UniverseDesiredInput,
 } from "./core/flatten.ts";
 export { getEnvironment, type GetEnvironmentError } from "./core/get-environment.ts";
+export { shouldReuploadIcon } from "./core/icons.ts";
 export { defaultKindRegistry } from "./core/kinds/index.ts";
 export type {
 	BuildDesiredError,

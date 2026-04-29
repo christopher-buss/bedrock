@@ -3,8 +3,9 @@ import type { SocialLink } from "@bedrock/ocale/universes";
 
 import { type } from "arktype";
 
-import { asRobloxAssetId, asSha256Hex, type ResourceKey, type Sha256Hex } from "../../types/ids.ts";
+import { asRobloxAssetId } from "../../types/ids.ts";
 import type { UniverseDesiredInput } from "../flatten.ts";
+import { hashIconLocales, iconHashesEqual, iconMap } from "../icons.ts";
 import {
 	copyDeclaredSocialLinks,
 	type ResourceCurrentState,
@@ -14,9 +15,7 @@ import {
 	type UniverseDesiredState,
 } from "../resources.ts";
 import type { ResolvedConfig } from "../schema.ts";
-import { sha256Hex } from "./hash.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
-import { readBytes } from "./read-bytes.ts";
 
 const OPTIONAL_BOOLEAN = "boolean | undefined";
 
@@ -26,10 +25,6 @@ const socialLink = type({
 }).onUndeclaredKey("reject");
 
 const socialLinkOrUndefined = socialLink.or("undefined");
-
-const iconMap = type({
-	"en-us": "string",
-}).onUndeclaredKey("reject");
 
 const entrySchema = type({
 	"consoleEnabled?": OPTIONAL_BOOLEAN,
@@ -81,21 +76,6 @@ function flatten(config: ResolvedConfig): ReadonlyArray<UniverseDesiredInput> {
 	return [entry.icon === undefined ? withPrice : { ...withPrice, icon: entry.icon }];
 }
 
-async function hashIconLocales(
-	input: { readonly icon: Record<"en-us", string>; readonly key: ResourceKey },
-	io: KindIo,
-): Promise<Result<Record<"en-us", Sha256Hex>, BuildDesiredError>> {
-	const read = await readBytes({ key: input.key, filePath: input.icon["en-us"] }, io);
-	if (!read.success) {
-		return read;
-	}
-
-	return {
-		data: { "en-us": asSha256Hex(await sha256Hex(read.data)) },
-		success: true,
-	};
-}
-
 function buildBaseDesired(input: UniverseDesiredInput): UniverseDesiredState {
 	const base: UniverseDesiredState = {
 		key: input.key,
@@ -127,7 +107,7 @@ async function normalize(
 		return { data: withPrice, success: true };
 	}
 
-	const hashes = await hashIconLocales({ ...input, icon: input.icon }, io);
+	const hashes = await hashIconLocales({ key: input.key, icon: input.icon }, io);
 	if (!hashes.success) {
 		return hashes;
 	}
@@ -167,21 +147,6 @@ function declaredSocialLinksEqual(
 	return true;
 }
 
-function iconHashesEqual(
-	desired: UniverseDesiredState,
-	current: ResourceCurrentState<"universe">,
-): boolean {
-	if (desired.iconFileHashes === undefined) {
-		return current.iconFileHashes === undefined;
-	}
-
-	if (current.iconFileHashes === undefined) {
-		return false;
-	}
-
-	return desired.iconFileHashes["en-us"] === current.iconFileHashes["en-us"];
-}
-
 function fieldsEqual(
 	desired: UniverseDesiredState,
 	current: ResourceCurrentState<"universe">,
@@ -215,7 +180,7 @@ function fieldsEqual(
 		return false;
 	}
 
-	if (!iconHashesEqual(desired, current)) {
+	if (!iconHashesEqual(current.iconFileHashes, desired.iconFileHashes)) {
 		return false;
 	}
 
