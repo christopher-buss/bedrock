@@ -60,8 +60,8 @@ interface HttpFailure {
 }
 
 interface ReadContentParameters {
+	readonly ctx: AdapterContext;
 	readonly entry: GistFile;
-	readonly fetchFn: GistFetch;
 	readonly file: string;
 }
 
@@ -235,8 +235,8 @@ function stateErr<T>(file: string, reason: string): Result<T, StateError> {
 }
 
 async function readGistContent({
+	ctx,
 	entry,
-	fetchFn,
 	file,
 }: ReadContentParameters): Promise<Result<BedrockState | undefined, StateError>> {
 	if (entry.size > MAX_INLINE_BYTES) {
@@ -248,7 +248,8 @@ async function readGistContent({
 			return stateErr(file, "truncated gist file missing raw_url");
 		}
 
-		const rawResponse = await fetchFn(entry.rawUrl);
+		const { rawUrl } = entry;
+		const rawResponse = await withRetry(ctx, async () => ctx.fetchFn(rawUrl));
 		if (!rawResponse.ok) {
 			return stateErr(file, `raw_url fetch returned ${rawResponse.status}`);
 		}
@@ -276,7 +277,7 @@ async function readPath(
 		return { data: undefined, success: true };
 	}
 
-	return readGistContent({ entry, fetchFn: ctx.fetchFn, file });
+	return readGistContent({ ctx, entry, file });
 }
 
 async function sendPatch(ctx: AdapterContext, body: string): Promise<Response> {

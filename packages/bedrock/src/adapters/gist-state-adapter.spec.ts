@@ -286,7 +286,13 @@ describe(createGistStateAdapter, () => {
 
 				return emptyResponse(503);
 			});
-			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
 
 			const result = await port.read("production");
 
@@ -439,6 +445,47 @@ describe(createGistStateAdapter, () => {
 
 				expect(result.success).toBeTrue();
 				expect(calls).toHaveLength(2);
+				expect(sleepFake.calls).toStrictEqual([1000]);
+			},
+		);
+
+		it.for<[number]>([[502], [503], [504]])(
+			"should retry the raw_url fetch on %i and succeed on the second attempt",
+			async ([status]) => {
+				expect.assertions(3);
+
+				const state: BedrockState = {
+					environment: "production",
+					resources: [],
+					version: 1,
+				};
+				const content = serializeStateFile(state);
+				const { calls, fetchFn } = fakeFetchSequence([
+					okJson({
+						files: {
+							"state.production.json": {
+								content: "",
+								raw_url: "https://gist.example/raw/abc",
+								size: 2_000_000,
+								truncated: true,
+							},
+						},
+					}),
+					emptyResponse(status),
+					new Response(content, { status: 200 }),
+				]);
+				const sleepFake = fakeSleep();
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					sleep: sleepFake.sleep,
+					token: TOKEN,
+				});
+
+				const result = await port.read("production");
+
+				expect(result.success).toBeTrue();
+				expect(calls).toHaveLength(3);
 				expect(sleepFake.calls).toStrictEqual([1000]);
 			},
 		);
