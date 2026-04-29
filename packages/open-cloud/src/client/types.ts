@@ -5,23 +5,6 @@ import type { Result } from "../types.ts";
 export type { SleepFunc } from "../internal/utils/sleep.ts";
 
 /**
- * Supported request body types.
- *
- * - `FormData` for multipart uploads (Content-Type set automatically by fetch).
- * - `Record<string, unknown>` for JSON bodies (serialized with `JSON.stringify`).
- * - `Uint8Array<ArrayBuffer>` for raw binary uploads (default Content-Type is
- *   `application/octet-stream`; override via {@link HttpRequest.headers}).
- *   `SharedArrayBuffer`-backed views are not accepted by `fetch`; wrap them
- *   via `new Uint8Array(bytes)` to obtain an `ArrayBuffer`-backed copy.
- * - `undefined` for requests without a body (GET, DELETE).
- */
-export type HttpRequestBody =
-	| FormData
-	| Record<string, unknown>
-	| Uint8Array<ArrayBuffer>
-	| undefined;
-
-/**
  * A normalized HTTP request to send to the Roblox Open Cloud API.
  */
 export interface HttpRequest {
@@ -143,3 +126,16 @@ export type RequestOptions = Partial<
 		"apiKey" | "baseUrl" | "maxRetries" | "retryableStatuses" | "retryDelay" | "timeout"
 	>
 >;
+
+/**
+ * Supported request body types.
+ *
+ * - `FormData` for multipart uploads (Content-Type set automatically by fetch).
+ * - `Record<string, unknown>` for JSON bodies (serialized with `JSON.stringify`).
+ * - `Uint8Array<ArrayBuffer>` for raw binary uploads (default Content-Type is
+ *   `application/octet-stream`; override via {@link HttpRequest.headers}).
+ *   `SharedArrayBuffer`-backed views are not accepted by `fetch`; wrap them
+ *   via `new Uint8Array(bytes)` to obtain an `ArrayBuffer`-backed copy.
+ * - `undefined` for requests without a body (GET, DELETE).
+ */
+type HttpRequestBody = FormData | Record<string, unknown> | Uint8Array<ArrayBuffer> | undefined;

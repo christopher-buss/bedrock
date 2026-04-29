@@ -1,16 +1,28 @@
 import { HAS_LUTE } from "@bedrock/testing/lute";
 
-import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
 
 import { LUAU_BOOTSTRAP_TEMP_PREFIX } from "./load-config-internal.ts";
 import { loadConfig } from "./load-config.ts";
 
+// Walking up from a temp file inside the workspace tree finds @bedrock/core
+// via the workspace root's node_modules, regardless of pnpm's hoist decisions.
+// node_modules/.cache is the conventional location for tool ephemera and is
+// already gitignored.
+const WORKSPACE_TEMP_ROOT = join(
+	dirname(dirname(dirname(fileURLToPath(import.meta.url)))),
+	"node_modules",
+	".cache",
+);
+
 async function withTemporaryDirectory<T>(run: (directory: string) => Promise<T>): Promise<T> {
-	const directory = mkdtempSync(join(tmpdir(), "bedrock-load-config-"));
+	mkdirSync(WORKSPACE_TEMP_ROOT, { recursive: true });
+	const directory = mkdtempSync(join(WORKSPACE_TEMP_ROOT, "bedrock-load-config-"));
 	try {
 		return await run(directory);
 	} finally {

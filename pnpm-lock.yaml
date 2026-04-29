@@ -38,8 +38,8 @@ catalogs:
       specifier: 8.0.0
       version: 8.0.0
     oxc-minify:
-      specifier: 0.125.0
-      version: 0.125.0
+      specifier: 0.128.0
+      version: 0.128.0
     pncat:
       specifier: 0.11.1
       version: 0.11.1
@@ -52,17 +52,17 @@ catalogs:
       version: 0.8.0
   lint:
     '@commitlint/cli':
-      specifier: 20.5.0
-      version: 20.5.0
+      specifier: 20.5.2
+      version: 20.5.2
     '@commitlint/config-conventional':
       specifier: 20.5.0
       version: 20.5.0
     '@commitlint/config-pnpm-scopes':
-      specifier: 20.4.3
-      version: 20.4.3
+      specifier: 20.5.2
+      version: 20.5.2
     '@commitlint/prompt-cli':
-      specifier: 20.5.0
-      version: 20.5.0
+      specifier: 20.5.2
+      version: 20.5.2
     '@commitlint/types':
       specifier: 20.5.0
       version: 20.5.0
@@ -82,8 +82,8 @@ catalogs:
       specifier: 9.39.2
       version: 9.39.2
     eslint-plugin-erasable-syntax-only:
-      specifier: 0.4.0
-      version: 0.4.0
+      specifier: 0.4.1
+      version: 0.4.1
     eslint-plugin-jest-extended:
       specifier: 3.0.1
       version: 3.0.1
@@ -94,8 +94,8 @@ catalogs:
       specifier: 1.6.0
       version: 1.6.0
     knip:
-      specifier: 6.4.1
-      version: 6.4.1
+      specifier: 6.7.0
+      version: 6.7.0
     publint:
       specifier: 0.3.18
       version: 0.3.18
@@ -142,8 +142,8 @@ catalogs:
       specifier: 9.6.1
       version: 9.6.1
     '@vitest/coverage-v8':
-      specifier: 4.1.4
-      version: 4.1.4
+      specifier: 4.1.5
+      version: 4.1.5
     ajv:
       specifier: 8.18.0
       version: 8.18.0
@@ -157,8 +157,8 @@ catalogs:
       specifier: 7.0.0
       version: 7.0.0
     monocart-coverage-reports:
-      specifier: 2.12.10
-      version: 2.12.10
+      specifier: 2.12.11
+      version: 2.12.11
   tsc:
     '@isentinel/tsconfig':
       specifier: 1.2.0
@@ -167,15 +167,15 @@ catalogs:
       specifier: 2.12.0
       version: 2.12.0
     typescript:
-      specifier: npm:@typescript/typescript6@6.0.0
-      version: 6.0.0
+      specifier: npm:@typescript/typescript6@6.0.1
+      version: 6.0.1
   types:
     '@types/bun':
-      specifier: 1.3.4
-      version: 1.3.4
+      specifier: 1.3.13
+      version: 1.3.13
     '@typescript/native-preview':
-      specifier: 7.0.0-dev.20260421.2
-      version: 7.0.0-dev.20260421.2
+      specifier: 7.0.0-dev.20260428.1
+      version: 7.0.0-dev.20260428.1
     type-fest:
       specifier: 5.6.0
       version: 5.6.0
@@ -195,9 +195,6 @@ patchedDependencies:
   '@stryker-mutator/vitest-runner@9.6.1':
     hash: da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63
     path: patches/@stryker-mutator__vitest-runner@9.6.1.patch
-  '@typescript/typescript6@6.0.0':
-    hash: 5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4
-    path: patches/@typescript__typescript6@6.0.0.patch
   generate-jsdoc-example-tests:
     hash: a8344a1c43e398b3146cd7ec6cd783c14a200e7987277a41dd6cefd6581f86b4
     path: patches/generate-jsdoc-example-tests.patch
@@ -206,6 +203,9 @@ importers:
 
   .:
     devDependencies:
+      '@bedrock/core':
+        specifier: workspace:*
+        version: link:packages/bedrock
       '@bedrock/testing':
         specifier: workspace:*
         version: link:packages/testing
@@ -214,16 +214,16 @@ importers:
         version: link:packages/vite-config
       '@commitlint/cli':
         specifier: catalog:lint
-        version: 20.5.0(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(conventional-commits-parser@6.4.0)
+        version: 20.5.2(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(conventional-commits-parser@6.4.0)
       '@commitlint/config-conventional':
         specifier: catalog:lint
         version: 20.5.0
       '@commitlint/config-pnpm-scopes':
         specifier: catalog:lint
-        version: 20.4.3
+        version: 20.5.2
       '@commitlint/prompt-cli':
         specifier: catalog:lint
-        version: 20.5.0(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+        version: 20.5.2(@types/node@24.10.1)(@typescript/typescript6@6.0.1)
       '@commitlint/types':
         specifier: catalog:lint
         version: 20.5.0
@@ -232,40 +232,40 @@ importers:
         version: 1.5.0(eslint@9.39.2(jiti@2.6.1))
       '@isentinel/eslint-config':
         specifier: catalog:lint
-        version: 5.0.0-beta.11(26149d1647b7fef798bb1e5f8e7751dd)
+        version: 5.0.0-beta.11(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/estree@1.0.8)(@typescript-eslint/utils@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(@vitest/eslint-plugin@1.6.16(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(@voidzero-dev/vite-plus-test@0.1.19)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-eslint-plugin@7.0.0(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-jest-extended@3.0.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-n@17.24.0(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-react-naming-convention@2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))
       '@isentinel/hooks':
         specifier: catalog:lint
-        version: 1.3.0(@typescript/native-preview@7.0.0-dev.20260421.2)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(jiti@2.6.1)
+        version: 1.3.0(@typescript/native-preview@7.0.0-dev.20260428.1)(@typescript/typescript6@6.0.1)(jiti@2.6.1)
       '@isentinel/tsconfig':
         specifier: catalog:tsc
-        version: 1.2.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+        version: 1.2.0(@typescript/typescript6@6.0.1)
       '@types/bun':
         specifier: catalog:types
-        version: 1.3.4
+        version: 1.3.13
       '@typescript/native-preview':
         specifier: catalog:types
-        version: 7.0.0-dev.20260421.2
+        version: 7.0.0-dev.20260428.1
       '@vitest/coverage-v8':
         specifier: catalog:test
-        version: 4.1.4(@voidzero-dev/vite-plus-test@0.1.19)
+        version: 4.1.5(@voidzero-dev/vite-plus-test@0.1.19)
       '@vitest/eslint-plugin':
         specifier: catalog:lint
-        version: 1.6.16(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@voidzero-dev/vite-plus-test@0.1.19)(eslint@9.39.2(jiti@2.6.1))
+        version: 1.6.16(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(@voidzero-dev/vite-plus-test@0.1.19)(eslint@9.39.2(jiti@2.6.1))
       better-typescript-lib:
         specifier: catalog:tsc
-        version: 2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+        version: 2.12.0(@typescript/typescript6@6.0.1)
       eslint:
         specifier: catalog:lint
         version: 9.39.2(jiti@2.6.1)
       eslint-plugin-erasable-syntax-only:
         specifier: catalog:lint
-        version: 0.4.0(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+        version: 0.4.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-jest-extended:
         specifier: catalog:lint
-        version: 3.0.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+        version: 3.0.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-n:
         specifier: catalog:lint
-        version: 17.24.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+        version: 17.24.0(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-pnpm:
         specifier: catalog:lint
         version: 1.6.0(eslint@9.39.2(jiti@2.6.1))
@@ -286,16 +286,16 @@ importers:
         version: 2.6.1
       knip:
         specifier: catalog:lint
-        version: 6.4.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
+        version: 6.7.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
       madge:
         specifier: catalog:dev
-        version: 8.0.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+        version: 8.0.0(@typescript/typescript6@6.0.1)
       monocart-coverage-reports:
         specifier: catalog:test
-        version: 2.12.10
+        version: 2.12.11
       oxc-minify:
         specifier: catalog:dev
-        version: 0.125.0
+        version: 0.128.0
       pncat:
         specifier: catalog:dev
         version: 0.11.1
@@ -310,16 +310,16 @@ importers:
         version: 4.21.0
       typescript:
         specifier: catalog:tsc
-        version: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+        version: '@typescript/typescript6@6.0.1'
       unplugin-unused:
         specifier: catalog:build
         version: 0.5.7
       vite-plus:
         specifier: catalog:build
-        version: 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+        version: 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@0.1.19
-        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
 
   apps/e2e:
     dependencies:
@@ -344,10 +344,10 @@ importers:
         version: link:../../packages/vite-config
       typescript:
         specifier: catalog:tsc
-        version: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+        version: '@typescript/typescript6@6.0.1'
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@0.1.19
-        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
 
   apps/website:
     devDependencies:
@@ -365,25 +365,25 @@ importers:
         version: 9.1.0
       typedoc:
         specifier: catalog:build
-        version: 0.28.19(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+        version: 0.28.19(@typescript/typescript6@6.0.1)
       typedoc-plugin-markdown:
         specifier: catalog:build
-        version: 4.11.0(typedoc@0.28.19(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
+        version: 4.11.0(typedoc@0.28.19(@typescript/typescript6@6.0.1))
       typedoc-plugin-replace-text:
         specifier: catalog:build
-        version: 4.2.0(typedoc@0.28.19(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
+        version: 4.2.0(typedoc@0.28.19(@typescript/typescript6@6.0.1))
       typescript:
         specifier: catalog:tsc
-        version: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+        version: '@typescript/typescript6@6.0.1'
       vitepress:
         specifier: catalog:docs
-        version: 2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)
+        version: 2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.128.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)
       vitepress-plugin-tabs:
         specifier: catalog:docs
-        version: 0.8.0(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
+        version: 0.8.0(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.128.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(@typescript/typescript6@6.0.1))
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@0.1.19
-        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
 
   packages/bedrock:
     dependencies:
@@ -426,25 +426,25 @@ importers:
         version: 9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1)
       '@stryker-mutator/typescript-checker':
         specifier: catalog:test
-        version: 9.6.1(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+        version: 9.6.1(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
         version: 9.6.1(patch_hash=da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63)(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19)
       '@types/bun':
         specifier: catalog:types
-        version: 1.3.4
+        version: 1.3.13
       oxc-minify:
         specifier: catalog:dev
-        version: 0.125.0
+        version: 0.128.0
       type-fest:
         specifier: catalog:types
         version: 5.6.0
       typescript:
         specifier: catalog:tsc
-        version: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+        version: '@typescript/typescript6@6.0.1'
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@0.1.19
-        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
 
   packages/open-cloud:
     devDependencies:
@@ -465,13 +465,13 @@ importers:
         version: 9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1)
       '@stryker-mutator/typescript-checker':
         specifier: catalog:test
-        version: 9.6.1(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+        version: 9.6.1(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
         version: 9.6.1(patch_hash=da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63)(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19)
       '@types/bun':
         specifier: catalog:types
-        version: 1.3.4
+        version: 1.3.13
       ajv:
         specifier: catalog:test
         version: 8.18.0
@@ -480,22 +480,22 @@ importers:
         version: 3.0.1(ajv@8.18.0)
       oxc-minify:
         specifier: catalog:dev
-        version: 0.125.0
+        version: 0.128.0
       type-fest:
         specifier: catalog:types
         version: 5.6.0
       typescript:
         specifier: catalog:tsc
-        version: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+        version: '@typescript/typescript6@6.0.1'
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@0.1.19
-        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
 
   packages/testing:
     dependencies:
       jest-extended:
         specifier: catalog:test
-        version: 7.0.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+        version: 7.0.0(@typescript/typescript6@6.0.1)
     devDependencies:
       '@bedrock/typescript-config':
         specifier: workspace:*
@@ -511,19 +511,19 @@ importers:
         version: 9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1)
       '@stryker-mutator/typescript-checker':
         specifier: catalog:test
-        version: 9.6.1(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+        version: 9.6.1(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
         version: 9.6.1(patch_hash=da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63)(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19)
       '@types/bun':
         specifier: catalog:types
-        version: 1.3.4
+        version: 1.3.13
       typescript:
         specifier: catalog:tsc
-        version: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+        version: '@typescript/typescript6@6.0.1'
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@0.1.19
-        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
 
   packages/typescript-config:
     devDependencies:
@@ -535,20 +535,20 @@ importers:
     dependencies:
       vite-plus:
         specifier: catalog:build
-        version: 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+        version: 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
     devDependencies:
       '@bedrock/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
       '@types/bun':
         specifier: catalog:types
-        version: 1.3.4
+        version: 1.3.13
       typescript:
         specifier: catalog:tsc
-        version: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+        version: '@typescript/typescript6@6.0.1'
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@0.1.19
-        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
 
 packages:
 
@@ -824,8 +824,8 @@ packages:
   '@clack/prompts@1.2.0':
     resolution: {integrity: sha512-4jmztR9fMqPMjz6H/UZXj0zEmE43ha1euENwkckKKel4XpSfokExPo5AiVStdHSAlHekz4d0CA/r45Ok1E4D3w==}
 
-  '@commitlint/cli@20.5.0':
-    resolution: {integrity: sha512-yNkyN/tuKTJS3wdVfsZ2tXDM4G4Gi7z+jW54Cki8N8tZqwKBltbIvUUrSbT4hz1bhW/h0CdR+5sCSpXD+wMKaQ==}
+  '@commitlint/cli@20.5.2':
+    resolution: {integrity: sha512-IXr5xd3IX8SEG936P8gcpozRplkDeDSwJlt8UvoY1winwIy2udTbQ/cOCgbaaxcjdDqVoS29VUcz/wkwnSozbA==}
     engines: {node: '>=v18'}
     hasBin: true
 
@@ -833,8 +833,8 @@ packages:
     resolution: {integrity: sha512-t3Ni88rFw1XMa4nZHgOKJ8fIAT9M2j5TnKyTqJzsxea7FUetlNdYFus9dz+MhIRZmc16P0PPyEfh6X2d/qw8SA==}
     engines: {node: '>=v18'}
 
-  '@commitlint/config-pnpm-scopes@20.4.3':
-    resolution: {integrity: sha512-rDDhFdZrK1iHlqCrmbVrdU+jan7zh0v2Ki145hviKIjHI24sglw2AwSJyctjLR4OhBp+YFqcu4n4O2TbuTPThQ==}
+  '@commitlint/config-pnpm-scopes@20.5.2':
+    resolution: {integrity: sha512-PupZhPg0ppFIfZ5zDKgk97KIKMDHMqGiq4CeSAl/3vPuELBNI8CLgjXhOXtPHuaTGvlGueLSVi3MI36VUnRURg==}
     engines: {node: '>=v18'}
 
   '@commitlint/config-validator@20.5.0':
@@ -861,8 +861,8 @@ packages:
     resolution: {integrity: sha512-jiM3hNUdu04jFBf1VgPdjtIPvbuVfDTBAc6L98AWcoLjF5sYqkulBHBzlVWll4rMF1T5zeQFB6r//a+s+BBKlA==}
     engines: {node: '>=v18'}
 
-  '@commitlint/load@20.5.0':
-    resolution: {integrity: sha512-sLhhYTL/KxeOTZjjabKDhwidGZan84XKK1+XFkwDYL/4883kIajcz/dZFAhBJmZPtL8+nBx6bnkzA95YxPeDPw==}
+  '@commitlint/load@20.5.2':
+    resolution: {integrity: sha512-zmr0RGDz7vThxW1I8ohb9yBjnGuH9mqwJpn21hInjGla+IlLOkS9ey0+dD5HlkzFlY0lX2NYdA2lDW6/0rO7Gw==}
     engines: {node: '>=v18'}
 
   '@commitlint/message@20.4.3':
@@ -873,21 +873,21 @@ packages:
     resolution: {integrity: sha512-SeKWHBMk7YOTnnEWUhx+d1a9vHsjjuo6Uo1xRfPNfeY4bdYFasCH1dDpAv13Lyn+dDPOels+jP6D2GRZqzc5fA==}
     engines: {node: '>=v18'}
 
-  '@commitlint/prompt-cli@20.5.0':
-    resolution: {integrity: sha512-8AM6hlDq+w7c+n7JBkPGhmv6nu8KF4rmf2N+IF0BkaOQYNi3qO8Kq0HF+GBqnFfUxsqRCdHTL0u9hOADNVtABA==}
+  '@commitlint/prompt-cli@20.5.2':
+    resolution: {integrity: sha512-rvCbV9S5IcgGjamyz/sXabpcM6v1JLBTlSTRSHXlAOX6VyN4qup+JeOb7yrEJ0UHebswzmriQT5cRKDb7OdpBA==}
     engines: {node: '>=v18'}
     hasBin: true
 
-  '@commitlint/prompt@20.5.0':
-    resolution: {integrity: sha512-5Y9Mvx25v3VEv57HWrWft6dqn43VJHR9+5pY5pOM/zLHdQb4jQCpQmV/RENZMyR+IQ8IaT+2T62RpInzlD/8ow==}
+  '@commitlint/prompt@20.5.2':
+    resolution: {integrity: sha512-BO/xHu7uvuzSjGy1wux/v+D+Ra5cI8+HzjmTll8u4lX0yMDhZjrNgasuXFNtcj++m+o1BAmbZfsxTi6/5NIjyg==}
     engines: {node: '>=v18'}
 
   '@commitlint/read@20.5.0':
     resolution: {integrity: sha512-JDEIJ2+GnWpK8QqwfmW7O42h0aycJEWNqcdkJnyzLD11nf9dW2dWLTVEa8Wtlo4IZFGLPATjR5neA5QlOvIH1w==}
     engines: {node: '>=v18'}
 
-  '@commitlint/resolve-extends@20.5.0':
-    resolution: {integrity: sha512-3SHPWUW2v0tyspCTcfSsYml0gses92l6TlogwzvM2cbxDgmhSRc+fldDjvGkCXJrjSM87BBaWYTPWwwyASZRrg==}
+  '@commitlint/resolve-extends@20.5.2':
+    resolution: {integrity: sha512-8EhSCU9eNos/5cI1yg64GW79UH1c64O69AfStCsj4zqy6An/qIphVEXj4/+2M6056T8coz00f+UXFn4WUUP1HQ==}
     engines: {node: '>=v18'}
 
   '@commitlint/rules@20.5.0':
@@ -1163,8 +1163,14 @@ packages:
   '@docsearch/sidepanel-js@4.6.2':
     resolution: {integrity: sha512-Pni85AP/GwRj7fFg8cBJp0U04tzbueBvWSd3gysgnOsVnQVSZwSYncfErUScLE1CAtR+qocPDFjmYR9AMRNJtQ==}
 
+  '@emnapi/core@1.10.0':
+    resolution: {integrity: sha512-yq6OkJ4p82CAfPl0u9mQebQHKPJkY7WrIuk205cTYnYe+k2Z8YBh11FrbRG/H6ihirqcacOgl2BIO8oyMQLeXw==}
+
   '@emnapi/core@1.9.2':
     resolution: {integrity: sha512-UC+ZhH3XtczQYfOlu3lNEkdW/p4dsJ1r/bP7H8+rhao3TTTMO1ATq/4DdIi23XuGoFY+Cz0JmCbdVl0hz9jZcA==}
+
+  '@emnapi/runtime@1.10.0':
+    resolution: {integrity: sha512-ewvYlk86xUoGI0zQRNq/mC+16R1QeDlKQy21Ki3oSYXNgLb45GV1P6A0M+/s6nyCuNDqe5VpaY84BzXGwVbwFA==}
 
   '@emnapi/runtime@1.9.2':
     resolution: {integrity: sha512-3U4+MIWHImeyu1wnmVygh5WlgfYDtyf0k8AbLhMFxOipihf6nrWC4syIm/SwEeec0mNSafiiNnMJwbza/Is6Lw==}
@@ -1898,6 +1904,12 @@ packages:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
 
+  '@napi-rs/wasm-runtime@1.1.4':
+    resolution: {integrity: sha512-3NQNNgA1YSlJb/kMH1ildASP9HW7/7kYnRI2szWJaofaS1hWmbGI4H+d3+22aGzXXN9IJ+n+GiFVcGipJP18ow==}
+    peerDependencies:
+      '@emnapi/core': ^1.7.1
+      '@emnapi/runtime': ^1.7.1
+
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
     engines: {node: '>= 8'}
@@ -1914,129 +1926,129 @@ packages:
     resolution: {integrity: sha512-Jgp8rBprSMIDY0IuokbESFozd5SSa/LZsQ9/xiNooDdiy+WK2LlA51f+GjgBKq8CE4YpfK5kdBjNtbwlThApoQ==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
 
-  '@oxc-minify/binding-android-arm-eabi@0.125.0':
-    resolution: {integrity: sha512-ZgtxGA/5dkYPTyXYr2lK1q0tAT6ZXEULSf59hZ8hc2PuYSaVVaQQsIDO1BomLMD+gOzcPMZb8ofzNrD3F4DB5A==}
+  '@oxc-minify/binding-android-arm-eabi@0.128.0':
+    resolution: {integrity: sha512-EwdDhZLRmXxSnfy0v9gdOru7TutM8ItRg1Xv8e2B4boWMnHlFCIH38JfwgQnenbkF8SVTwVJtDCkmwEzN4q3xA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm]
     os: [android]
 
-  '@oxc-minify/binding-android-arm64@0.125.0':
-    resolution: {integrity: sha512-1o2A9ZdVUdEAszP6MZ5Op6hkgFBzqFz6ux/Tqxf+WGCT6fljCiW5f8gIkHBB2Q8IYfrCtb0vMD7tfpmmLdl/iQ==}
+  '@oxc-minify/binding-android-arm64@0.128.0':
+    resolution: {integrity: sha512-kwJ8YxWTzty8hD36jXxKiB+Po/ecmHZvT1xAYklkATbr0A4NUqV32sV+3Wfm8TecdA6jX34/mc+4CKK2+Hha2Q==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [android]
 
-  '@oxc-minify/binding-darwin-arm64@0.125.0':
-    resolution: {integrity: sha512-tez+f838Gw+TJAdbxf1fIa4l2paDsuZ42CAMimJuKarGIP9wUxVa7jh5M5nskQR6a+6lERFpARWQzgntVLw+Yw==}
+  '@oxc-minify/binding-darwin-arm64@0.128.0':
+    resolution: {integrity: sha512-WBV8j5EZ7/3rvFbiJ8LxowmobR/XH+l2iRzkE7zRYLD5VC+TvZayYGrVGGDXQvXm6cGED0B1NweByTmeT4lpGQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [darwin]
 
-  '@oxc-minify/binding-darwin-x64@0.125.0':
-    resolution: {integrity: sha512-Atf1RYU2pwdGgJim6JBf8k6dReWRJhkLl0a1ZZPsd2k8Bl1ngGkJ3ywsJFZbifKmXerow8I3Dsa273fjNly1cQ==}
+  '@oxc-minify/binding-darwin-x64@0.128.0':
+    resolution: {integrity: sha512-U4k1CSBsY1uf6yHE+vCNJp0mHzjsUUXgOZXMyhRN3sE2ovBDT9Gl8oACmLWPjg0R68jwP+1vhnNPsSqpTEOycg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [darwin]
 
-  '@oxc-minify/binding-freebsd-x64@0.125.0':
-    resolution: {integrity: sha512-0BvIR9OsMQZOCT9LYIsP/0leQXjBe8w2rTSS2H4LISMC7PFGz6iRsU6vttjwnnvH3rowBc2eniOEtUsNbNDvKg==}
+  '@oxc-minify/binding-freebsd-x64@0.128.0':
+    resolution: {integrity: sha512-NT1GtcWpX4sOuU5dMdSNpdXJRpk9BGAHHnKc42IUId8E+jEhZUrg9vqIRIlspZG5O9Y7FjO2r6GBK93bpyIIUg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [freebsd]
 
-  '@oxc-minify/binding-linux-arm-gnueabihf@0.125.0':
-    resolution: {integrity: sha512-mkrBEVh9gRpTV01W/mF+yFe4D6itsFedDtnr+Ymx9tGFYzAmzpuprRzrYup/YI45sN6Js55ZMja0AB8h9AWeuQ==}
+  '@oxc-minify/binding-linux-arm-gnueabihf@0.128.0':
+    resolution: {integrity: sha512-OskPMYMH2KtkqvRMULF2/+55hFo/qmRz2p/g7Cp7XNiqdjZ/DvQDiVbME63rVoX3dYjgS15DolGbo54mHTyA9w==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm]
     os: [linux]
 
-  '@oxc-minify/binding-linux-arm-musleabihf@0.125.0':
-    resolution: {integrity: sha512-beVMSc1Z+aGXpm/A+jT9KCq3SQ1ymABHFbcRqjYA3KdE3RPKk1dc0SlGZ/xO+elw9Jsf1i8UTgvSKLVGyv7w5g==}
+  '@oxc-minify/binding-linux-arm-musleabihf@0.128.0':
+    resolution: {integrity: sha512-fKUY7Y1vb8CYlGnS5FzqTeeM5zQz1Fleyaqz/T9iNHYAYNJ0Os9iT0rACLfAVCQKP9yOqPSwZ80xgZdVVGD61w==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm]
     os: [linux]
 
-  '@oxc-minify/binding-linux-arm64-gnu@0.125.0':
-    resolution: {integrity: sha512-3s0L6l+5P10Z6YBVvZqDZDhXNCImadI/TrEs9yfUu7RH8SvPu5clPVawkYqo2Du9ZlSlcEU2cT+pcTl0dQiSAA==}
+  '@oxc-minify/binding-linux-arm64-gnu@0.128.0':
+    resolution: {integrity: sha512-T+CQQZ3BoWY/TxQk9LZsXZYj3madR/5tCErV6wzphTYZJfVjvKmQxnxMaT+TKE40Jha6+iGgwzxwcYWJfltULQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@oxc-minify/binding-linux-arm64-musl@0.125.0':
-    resolution: {integrity: sha512-A1EpHjDPNc+67TMoU/KdIhwLEl8Zyq4VCbg4kntPEMPT80nF6lBYKoWQpFWsKcEmYQR61x59CTs+9738fssy+A==}
+  '@oxc-minify/binding-linux-arm64-musl@0.128.0':
+    resolution: {integrity: sha512-F6RkJ90S1Xt25Mk7/wPUmddsE4RZ7Nei+HlEa2FAjfhpoaTciOwV6E/Gtp7wPIYbwft7UfhMYwuEuZiZQytVWw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
 
-  '@oxc-minify/binding-linux-ppc64-gnu@0.125.0':
-    resolution: {integrity: sha512-ljNsvldyJFKD2YUcqe+oY+cBurz1LQdicF0Kf2YLZRw2ecylthabfBCo0++zywDRbmq/FNQbJLe8ZEdsK4snuQ==}
+  '@oxc-minify/binding-linux-ppc64-gnu@0.128.0':
+    resolution: {integrity: sha512-0HP2FBGMlquLjShIIJvS4cebc6sdRRYL04GtxVpg96MtpejrkHYI2gQWcezsTUaGgg+eNRsuv2tdZPENu5+iWA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [ppc64]
     os: [linux]
     libc: [glibc]
 
-  '@oxc-minify/binding-linux-riscv64-gnu@0.125.0':
-    resolution: {integrity: sha512-8wymgi60u0VLHh1IZV14Vb9D4j80eNEFK2QmITpB2+gdcSAiPPXGiBJtAcAL7nMkH8vXa2QPWgKujenaiLtuoA==}
+  '@oxc-minify/binding-linux-riscv64-gnu@0.128.0':
+    resolution: {integrity: sha512-2j6Bd340IZqZbu4KUI28z87Ao9aHhq56HH1Qz5/+EdE732ajFYIoDF3z+QcxHXY0CFOG/Ur1ZOKTBEIWQ6BYIw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [riscv64]
     os: [linux]
     libc: [glibc]
 
-  '@oxc-minify/binding-linux-riscv64-musl@0.125.0':
-    resolution: {integrity: sha512-b1Ou3jteYcpm0SMfJlO9Scvst//QD8l8uoDQDQK09H3OSht3H0fhSD91OQNC1Y7UqAGGFzgxHic8dHtZ6seyXw==}
+  '@oxc-minify/binding-linux-riscv64-musl@0.128.0':
+    resolution: {integrity: sha512-z5HSppdxNwB6//3Eo7mDWbTrLeyuTKvL/iLXaKEgocrJg1MhZLbRR7P5ore9gKvS4lF4EtEpA24xzilFxQK0iw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [riscv64]
     os: [linux]
     libc: [musl]
 
-  '@oxc-minify/binding-linux-s390x-gnu@0.125.0':
-    resolution: {integrity: sha512-cSnl+Z/tzTbQPLAMGiXeyeE1Yr0oOb3czTQrPd/deQUH3jVQ1QD4A57Wz8xMF4TEOcdyzi6TYaZ7RIGe5pEqqw==}
+  '@oxc-minify/binding-linux-s390x-gnu@0.128.0':
+    resolution: {integrity: sha512-9rxYqH7P8NiYqRlLxlnNjJSF8BYADOmihM5ZHVkmlE4tqjHkoLNevdAyAP2ZBkL8QJflm1WGOXFWmFnWA54EvA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [s390x]
     os: [linux]
     libc: [glibc]
 
-  '@oxc-minify/binding-linux-x64-gnu@0.125.0':
-    resolution: {integrity: sha512-IDahOBkZFeMIlHOpZBKXOeUTg2tDFDfFZd7OgL1wsfAwBxl4buVwsaNkWweiF6BMkL8lcNphUi0B4eZzb7Js4w==}
+  '@oxc-minify/binding-linux-x64-gnu@0.128.0':
+    resolution: {integrity: sha512-sy5+4Oamw6Ly5gUNUIDQ7346Lryt7AhqjKhOtWl5dzYZnTIwwoI0V2DeIl3bR/vU8D629ZMYQOqhquRtSyBUOA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@oxc-minify/binding-linux-x64-musl@0.125.0':
-    resolution: {integrity: sha512-O0eEhMp8NdNWXd00KWdoBKNMFeHHf8CIF96J4NCjyhDwEBsPdbW8JSpAH8YTAxpJajq87DJP0culNcCm/96y4g==}
+  '@oxc-minify/binding-linux-x64-musl@0.128.0':
+    resolution: {integrity: sha512-59Cxvjppy09TsaB15gr6rA9Bf87rm9t0bD1EW9dCZsdxWElnAC+TvWZ7v9dFUIeYeZUkhAAMPtpdqa3Y9CI2zA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
     libc: [musl]
 
-  '@oxc-minify/binding-openharmony-arm64@0.125.0':
-    resolution: {integrity: sha512-78xXtK9T/NfGLG9L3olsCaaSf5iVZBXdp/YYfTCpYrEZuXGPDM9arkTchrrwuJcAJcLDNsKmSPK+g/PPRztETA==}
+  '@oxc-minify/binding-openharmony-arm64@0.128.0':
+    resolution: {integrity: sha512-XGa03zmiYpD7Kf1aXy6vjgkjfaCR90qH0TzGplnUXo6FF6gNe6sH9Zgneo9kxOyYt8CKKzXYD4VudT/nDTXq8Q==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [openharmony]
 
-  '@oxc-minify/binding-wasm32-wasi@0.125.0':
-    resolution: {integrity: sha512-nByxlScJnkkC0FPCQYb46jHyz20slevimdZKfOwQIlqmykshnYHSwxNziJG1SUWiTfuL5gHaIztEW+0OjaIrwA==}
-    engines: {node: '>=14.0.0'}
+  '@oxc-minify/binding-wasm32-wasi@0.128.0':
+    resolution: {integrity: sha512-W+fK3cWhu/cUgx3NIAmDYcAyJs01aULlr3E3n/ZN79Q1/CX+FS+yWfwt/IysIi4FhpVL7z58azbJHDzhEx4X4g==}
+    engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [wasm32]
 
-  '@oxc-minify/binding-win32-arm64-msvc@0.125.0':
-    resolution: {integrity: sha512-c7uUkgK9tm7mdACPFFDdmgvYmNSwpJ1Z9bC3Q7tJrA0OIcTe7kGxudHxvseUpWyXCtDSjIumVxw+QhOHbSPLTg==}
+  '@oxc-minify/binding-win32-arm64-msvc@0.128.0':
+    resolution: {integrity: sha512-pwMZd27FF+j4tHLYKtu4QBl6KI0gkt6xTNGLffs8VlH5vfDPHUvLo/AS6y66tdEjQ3chhs8OGg1mAFhPoQldDw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [win32]
 
-  '@oxc-minify/binding-win32-ia32-msvc@0.125.0':
-    resolution: {integrity: sha512-/iHSLFliDybCsfAzW2owR0r6rwagP/pS/II/ZnoVoYnweNGdpgvEaeFzLm+GEcapEdz0mhrz7f7A+FCn8EhvmQ==}
+  '@oxc-minify/binding-win32-ia32-msvc@0.128.0':
+    resolution: {integrity: sha512-GskPdx/Fsn3ttkJbzxh51LYhla4N4p1sMufJKgf6PHupt5RukBaHI/GKM/2ni6ObxUI0b9UK37fROdV+5ekpMQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [ia32]
     os: [win32]
 
-  '@oxc-minify/binding-win32-x64-msvc@0.125.0':
-    resolution: {integrity: sha512-5svxnWmQ2rhGpc3QOUv4aI4BoNZQZflKoABtujRoPau4U93Gv62lzid5dNUhNfy6c7N/cUEcfgcQ27T68lFipg==}
+  '@oxc-minify/binding-win32-x64-msvc@0.128.0':
+    resolution: {integrity: sha512-m8oakspZCbCod3WuY0U9DvwQlhMYaU31bK+Way1Rb+JGs455WLtkebEie/luSuN5DeF+aZyRH/zt1AY4weKQQg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [win32]
@@ -2047,8 +2059,8 @@ packages:
     cpu: [arm]
     os: [android]
 
-  '@oxc-parser/binding-android-arm-eabi@0.121.0':
-    resolution: {integrity: sha512-n07FQcySwOlzap424/PLMtOkbS7xOu8nsJduKL8P3COGHKgKoDYXwoAHCbChfgFpHnviehrLWIPX0lKGtbEk/A==}
+  '@oxc-parser/binding-android-arm-eabi@0.127.0':
+    resolution: {integrity: sha512-0LC7ye4hvqbIKxAzThzvswgHLFu2AURKzYLeSVvLdu2TBOYWQDmHnTqPLeA597BcUCxiLqLsS4CJ5uoI5WYWCQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm]
     os: [android]
@@ -2059,8 +2071,8 @@ packages:
     cpu: [arm64]
     os: [android]
 
-  '@oxc-parser/binding-android-arm64@0.121.0':
-    resolution: {integrity: sha512-/Dd1xIXboYAicw+twT2utxPD7bL8qh7d3ej0qvaYIMj3/EgIrGR+tSnjCUkiCT6g6uTC0neSS4JY8LxhdSU/sA==}
+  '@oxc-parser/binding-android-arm64@0.127.0':
+    resolution: {integrity: sha512-b5jtVTH6AU5CJXHNdj7Jj9IEiR9yVjjnwHzPJhGyHGPdcsZSzBCkS9GBbV33niRMvKthDwQRFRJfI4a+k4PvYg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [android]
@@ -2071,8 +2083,8 @@ packages:
     cpu: [arm64]
     os: [darwin]
 
-  '@oxc-parser/binding-darwin-arm64@0.121.0':
-    resolution: {integrity: sha512-A0jNEvv7QMtCO1yk205t3DWU9sWUjQ2KNF0hSVO5W9R9r/R1BIvzG01UQAfmtC0dQm7sCrs5puixurKSfr2bRQ==}
+  '@oxc-parser/binding-darwin-arm64@0.127.0':
+    resolution: {integrity: sha512-obCE8B7ISKkJidjlhv9xRGJPOSDG2Yu6PRga9Ruaz35uintHxbp1Ki/Yc71wx4rj3Edrm0a1kzG1TAwit0wFpg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [darwin]
@@ -2083,8 +2095,8 @@ packages:
     cpu: [x64]
     os: [darwin]
 
-  '@oxc-parser/binding-darwin-x64@0.121.0':
-    resolution: {integrity: sha512-SsHzipdxTKUs3I9EOAPmnIimEeJOemqRlRDOp9LIj+96wtxZejF51gNibmoGq8KoqbT1ssAI5po/E3J+vEtXGA==}
+  '@oxc-parser/binding-darwin-x64@0.127.0':
+    resolution: {integrity: sha512-JL6Xb5IwPQT8rUzlpsX7E+AgfcdNklXNPFp8pjCQQ5MQOQo5rtEB2ui+3Hgg9Sn7Y9Egj6YOLLiHhLpdAe12Aw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [darwin]
@@ -2095,8 +2107,8 @@ packages:
     cpu: [x64]
     os: [freebsd]
 
-  '@oxc-parser/binding-freebsd-x64@0.121.0':
-    resolution: {integrity: sha512-v1APOTkCp+RWOIDAHRoaeW/UoaHF15a60E8eUL6kUQXh+i4K7PBwq2Wi7jm8p0ymID5/m/oC1w3W31Z/+r7HQw==}
+  '@oxc-parser/binding-freebsd-x64@0.127.0':
+    resolution: {integrity: sha512-SDQ/3MQFw58fqQz3Z1PhSKFF3JoCF4gmlNjziDm8X02tTahCw0qJbd7FGPDKw1i4VTBZene9JPyC3mHtSvi+wA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [freebsd]
@@ -2107,8 +2119,8 @@ packages:
     cpu: [arm]
     os: [linux]
 
-  '@oxc-parser/binding-linux-arm-gnueabihf@0.121.0':
-    resolution: {integrity: sha512-PmqPQuqHZyFVWA4ycr0eu4VnTMmq9laOHZd+8R359w6kzuNZPvmmunmNJ8ybkm769A0nCoVp3TJ6dUz7B3FYIQ==}
+  '@oxc-parser/binding-linux-arm-gnueabihf@0.127.0':
+    resolution: {integrity: sha512-Av+D1MIqzV0YMGPT9we2SIZaMKD7Cxs4CvXSx/yxaWHewZjYEjScpOf5igc8IILASViw4WTnjlwUdI1KzVtDHQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm]
     os: [linux]
@@ -2119,8 +2131,8 @@ packages:
     cpu: [arm]
     os: [linux]
 
-  '@oxc-parser/binding-linux-arm-musleabihf@0.121.0':
-    resolution: {integrity: sha512-vF24htj+MOH+Q7y9A8NuC6pUZu8t/C2Fr/kDOi2OcNf28oogr2xadBPXAbml802E8wRAVfbta6YLDQTearz+jw==}
+  '@oxc-parser/binding-linux-arm-musleabihf@0.127.0':
+    resolution: {integrity: sha512-Cs2fdJ8cPpFdeebj6p4dag8A4+56hPvZ0AhQQzlaLswGz1tz7bXt1nETLeorrM9+AMcWFFkqxcXwDGfTVidY8g==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm]
     os: [linux]
@@ -2132,8 +2144,8 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@oxc-parser/binding-linux-arm64-gnu@0.121.0':
-    resolution: {integrity: sha512-wjH8cIG2Lu/3d64iZpbYr73hREMgKAfu7fqpXjgM2S16y2zhTfDIp8EQjxO8vlDtKP5Rc7waZW72lh8nZtWrpA==}
+  '@oxc-parser/binding-linux-arm64-gnu@0.127.0':
+    resolution: {integrity: sha512-qdOfTcT6SY8gsJrrV92uyEUyjqMGPpIB5JZUG6QN5dukYd+7/j0kX6MwK1DgQj39jtUYixxPiaRUiEN1+0CXgQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
@@ -2146,8 +2158,8 @@ packages:
     os: [linux]
     libc: [musl]
 
-  '@oxc-parser/binding-linux-arm64-musl@0.121.0':
-    resolution: {integrity: sha512-qT663J/W8yQFw3dtscbEi9LKJevr20V7uWs2MPGTnvNZ3rm8anhhE16gXGpxDOHeg9raySaSHKhd4IGa3YZvuw==}
+  '@oxc-parser/binding-linux-arm64-musl@0.127.0':
+    resolution: {integrity: sha512-EoTCZneNFU/P2qrpEM+RHmQwt+CvDkyGESG6qhr7KaegXLZwePfbrkCDfAk8/rhxbDUVGsZILX+2tqPzFtoFWA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
@@ -2160,8 +2172,8 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@oxc-parser/binding-linux-ppc64-gnu@0.121.0':
-    resolution: {integrity: sha512-mYNe4NhVvDBbPkAP8JaVS8lC1dsoJZWH5WCjpw5E+sjhk1R08wt3NnXYUzum7tIiWPfgQxbCMcoxgeemFASbRw==}
+  '@oxc-parser/binding-linux-ppc64-gnu@0.127.0':
+    resolution: {integrity: sha512-zALjmZYgxFLHjXeudcDF0xFGNydTAtkAeXAr2EuC17ywCyFxcmQra4w0BMde0Yi/re4Bi4iwEoEXtYN7l6eBLQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [ppc64]
     os: [linux]
@@ -2174,8 +2186,8 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@oxc-parser/binding-linux-riscv64-gnu@0.121.0':
-    resolution: {integrity: sha512-+QiFoGxhAbaI/amqX567784cDyyuZIpinBrJNxUzb+/L2aBRX67mN6Jv40pqduHf15yYByI+K5gUEygCuv0z9w==}
+  '@oxc-parser/binding-linux-riscv64-gnu@0.127.0':
+    resolution: {integrity: sha512-fPP8M6zQLS7Jz7o9d5ArUSuAuSK3e+WCYVrCpdzeCOejidtZExJ9tjhDrAd3HEPqARBCPmdpqxESPFqy44vkBQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [riscv64]
     os: [linux]
@@ -2188,8 +2200,8 @@ packages:
     os: [linux]
     libc: [musl]
 
-  '@oxc-parser/binding-linux-riscv64-musl@0.121.0':
-    resolution: {integrity: sha512-9ykEgyTa5JD/Uhv2sttbKnCfl2PieUfOjyxJC/oDL2UO0qtXOtjPLl7H8Kaj5G7p3hIvFgu3YWvAxvE0sqY+hQ==}
+  '@oxc-parser/binding-linux-riscv64-musl@0.127.0':
+    resolution: {integrity: sha512-7IcC4Ao02oGpfnjt+X/oF4U2mllo2qoSkw5xxiXNKL9MCTsTiAC6616beOuehdxGcnz1bRoPC1RQ2f1GQDdN+g==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [riscv64]
     os: [linux]
@@ -2202,8 +2214,8 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@oxc-parser/binding-linux-s390x-gnu@0.121.0':
-    resolution: {integrity: sha512-DB1EW5VHZdc1lIRjOI3bW/wV6R6y0xlfvdVrqj6kKi7Ayu2U3UqUBdq9KviVkcUGd5Oq+dROqvUEEFRXGAM7EQ==}
+  '@oxc-parser/binding-linux-s390x-gnu@0.127.0':
+    resolution: {integrity: sha512-pbXIhiNFHoqWeqDNLiJ9JkpHz1IM9k4DXa66x+1GTWMG7iLxtkXgE53iiuKSXwmk3zIYmaPVfBvgcAhS583K4Q==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [s390x]
     os: [linux]
@@ -2216,8 +2228,8 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@oxc-parser/binding-linux-x64-gnu@0.121.0':
-    resolution: {integrity: sha512-s4lfobX9p4kPTclvMiH3gcQUd88VlnkMTF6n2MTMDAyX5FPNRhhRSFZK05Ykhf8Zy5NibV4PbGR6DnK7FGNN6A==}
+  '@oxc-parser/binding-linux-x64-gnu@0.127.0':
+    resolution: {integrity: sha512-MYCguB9RvBvlSd6gbuNI7QwiLoCCAlGnlRJFPrzLI6U1/9wkC/WK6LtBAUln55H1Ctqw45PWmqrobKoMhsYQzQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
@@ -2230,8 +2242,8 @@ packages:
     os: [linux]
     libc: [musl]
 
-  '@oxc-parser/binding-linux-x64-musl@0.121.0':
-    resolution: {integrity: sha512-P9KlyTpuBuMi3NRGpJO8MicuGZfOoqZVRP1WjOecwx8yk4L/+mrCRNc5egSi0byhuReblBF2oVoDSMgV9Bj4Hw==}
+  '@oxc-parser/binding-linux-x64-musl@0.127.0':
+    resolution: {integrity: sha512-5eY0B/bxf1xIUxb4NOTvOI3KWtBQfPWYyKAzgcrCt0mDibSZygVpO1Pz8bkeiSZ5Jj9+M09dkggG3H8I5d0Uyg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
@@ -2243,8 +2255,8 @@ packages:
     cpu: [arm64]
     os: [openharmony]
 
-  '@oxc-parser/binding-openharmony-arm64@0.121.0':
-    resolution: {integrity: sha512-R+4jrWOfF2OAPPhj3Eb3U5CaKNAH9/btMveMULIrcNW/hjfysFQlF8wE0GaVBr81dWz8JLgQlsxwctoL78JwXw==}
+  '@oxc-parser/binding-openharmony-arm64@0.127.0':
+    resolution: {integrity: sha512-Gld0ajrFTUXNtdw20fVBuTQx66FA75nIVg+//pPfR3sXkuABB4mTBhl3r9JNzrJpgW//qiwxf0nWXUWGJSL3UQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [openharmony]
@@ -2254,9 +2266,9 @@ packages:
     engines: {node: '>=14.0.0'}
     cpu: [wasm32]
 
-  '@oxc-parser/binding-wasm32-wasi@0.121.0':
-    resolution: {integrity: sha512-5TFISkPTymKvsmIlKasPVTPuWxzCcrT8pM+p77+mtQbIZDd1UC8zww4CJcRI46kolmgrEX6QpKO8AvWMVZ+ifw==}
-    engines: {node: '>=14.0.0'}
+  '@oxc-parser/binding-wasm32-wasi@0.127.0':
+    resolution: {integrity: sha512-T6KVD7rhLzFlwGRXMnxUFfkCZD8FHnb968wVXW1mXzgRFc5RNXOBY2mPPDZ77x5Ln76ltLMgtPg0cOkU1NSrEQ==}
+    engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [wasm32]
 
   '@oxc-parser/binding-win32-arm64-msvc@0.112.0':
@@ -2265,8 +2277,8 @@ packages:
     cpu: [arm64]
     os: [win32]
 
-  '@oxc-parser/binding-win32-arm64-msvc@0.121.0':
-    resolution: {integrity: sha512-V0pxh4mql4XTt3aiEtRNUeBAUFOw5jzZNxPABLaOKAWrVzSr9+XUaB095lY7jqMf5t8vkfh8NManGB28zanYKw==}
+  '@oxc-parser/binding-win32-arm64-msvc@0.127.0':
+    resolution: {integrity: sha512-Ujvw4X+LD1CCGULcsQcvb4YNVoBGqt+JHgNNzGGaCImELiZLk477ifUH53gIbE7EKd933NdTi25JWEr9K2HwXw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [win32]
@@ -2277,8 +2289,8 @@ packages:
     cpu: [ia32]
     os: [win32]
 
-  '@oxc-parser/binding-win32-ia32-msvc@0.121.0':
-    resolution: {integrity: sha512-4Ob1qvYMPnlF2N9rdmKdkQFdrq16QVcQwBsO8yiPZXof0fHKFF+LmQV501XFbi7lHyrKm8rlJRfQ/M8bZZPVLw==}
+  '@oxc-parser/binding-win32-ia32-msvc@0.127.0':
+    resolution: {integrity: sha512-0cwxKO7KHQQQfo4Uf4B2SQrhgm+cJaP9OvFFhx52Tkg4bezsacu83GB2/In5bC415Ueeym+kXdnge/57rbSfTw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [ia32]
     os: [win32]
@@ -2289,8 +2301,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@oxc-parser/binding-win32-x64-msvc@0.121.0':
-    resolution: {integrity: sha512-BOp1KCzdboB1tPqoCPXgntgFs0jjeSyOXHzgxVFR7B/qfr3F8r4YDacHkTOUNXtDgM8YwKnkf3rE5gwALYX7NA==}
+  '@oxc-parser/binding-win32-x64-msvc@0.127.0':
+    resolution: {integrity: sha512-rOrnSQSCbhI2kowr9XxE7m9a8oQXnBHjnS6j95LxxAnEZ0+Fz20WlRXG4ondQb+ejjt2KOsa65sE6++L6kUd+w==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [win32]
@@ -2302,11 +2314,11 @@ packages:
   '@oxc-project/types@0.112.0':
     resolution: {integrity: sha512-m6RebKHIRsax2iCwVpYW2ErQwa4ywHJrE4sCK3/8JK8ZZAWOKXaRJFl/uP51gaVyyXlaS4+chU1nSCdzYf6QqQ==}
 
-  '@oxc-project/types@0.121.0':
-    resolution: {integrity: sha512-CGtOARQb9tyv7ECgdAlFxi0Fv7lmzvmlm2rpD/RdijOO9rfk/JvB1CjT8EnoD+tjna/IYgKKw3IV7objRb+aYw==}
-
   '@oxc-project/types@0.126.0':
     resolution: {integrity: sha512-oGfVtjAgwQVVpfBrbtk4e1XDyWHRFta6BS3GWVzrF8xYBT2VGQAk39yJS/wFSMrZqoiCU4oghT3Ch0HaHGIHcQ==}
+
+  '@oxc-project/types@0.127.0':
+    resolution: {integrity: sha512-aIYXQBo4lCbO4z0R3FHeucQHpF46l2LbMdxRvqvuRuW2OxdnSkcng5B8+K12spgLDj93rtN3+J2Vac/TIO+ciQ==}
 
   '@oxc-resolver/binding-android-arm-eabi@11.19.1':
     resolution: {integrity: sha512-aUs47y+xyXHUKlbhqHUjBABjvycq6YSD7bpxSW7vplUmdzAlJ93yXY6ZR0c1o1x5A/QKbENCvs3+NlY8IpIVzg==}
@@ -3097,8 +3109,8 @@ packages:
   '@tybys/wasm-util@0.10.1':
     resolution: {integrity: sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==}
 
-  '@types/bun@1.3.4':
-    resolution: {integrity: sha512-EEPTKXHP+zKGPkhRLv+HI0UEX8/o+65hqARxLy8Ov5rIxMBPNTjeZww00CIihrIQGEQBYg+0roO5qOnS/7boGA==}
+  '@types/bun@1.3.13':
+    resolution: {integrity: sha512-9fqXWk5YIHGGnUau9TEi+qdlTYDAnOj+xLCmSTwXfAIqXr2x4tytJb43E9uCvt09zJURKXwAtkoH4nLQfzeTXw==}
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
@@ -3216,47 +3228,55 @@ packages:
     resolution: {integrity: sha512-y+vH7QE8ycjoa0bWciFg7OpFcipUuem1ujhrdLtq1gByKwfbC7bPeKsiny9e0urg93DqwGcHey+bGRKCnF1nZQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260421.2':
-    resolution: {integrity: sha512-fHv1r3ZmVo6zxuAIFmuX3w9QxbcauoG0SsWhmDwm6VmRubLlOJIcmTtlmV3JAb9oOnq8LuzZljzT7Q39fSMQDw==}
+  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260428.1':
+    resolution: {integrity: sha512-Lll6WmXfgTEj1G3QBIoHlabQwUtJiyhlRgSLksa06QFL5BoA7V+Lu1waa9PtPNZbGsXLDMHodtk/bRQABKuPiw==}
+    engines: {node: '>=16.20.0'}
     cpu: [arm64]
     os: [darwin]
 
-  '@typescript/native-preview-darwin-x64@7.0.0-dev.20260421.2':
-    resolution: {integrity: sha512-KWTR6xbW9t+JS7D5DQIzo75pqVXVWUxF9PMv/+S6xsnOjCVd6g0ixHcFpFMJMKSUQpGPr8Z5f7b8ks6LHW01jg==}
+  '@typescript/native-preview-darwin-x64@7.0.0-dev.20260428.1':
+    resolution: {integrity: sha512-WbsBNSHlo+4sGrTxDWdmI7r8x48tCtSCuKdmK62FvVOq58UWAs6sL13Z4Rev4ohLcGHdXC5E/8AIdpLPqDYQpw==}
+    engines: {node: '>=16.20.0'}
     cpu: [x64]
     os: [darwin]
 
-  '@typescript/native-preview-linux-arm64@7.0.0-dev.20260421.2':
-    resolution: {integrity: sha512-VLMEuml3BhUb+jaL0TXQ4xvVODxJF+RhkI+tBWvlynsJI4khTXEiwWh+wPOJrsfBRYFRMXEu28Odl/HXkYze8w==}
+  '@typescript/native-preview-linux-arm64@7.0.0-dev.20260428.1':
+    resolution: {integrity: sha512-cgcBX/ZBMdepkamLT8g8jQdHe7DZS/s6zTZRof6mvcrnJHlMeUnKoC9UO8/c22IrUMV3n0XPh7R8FYjUP0ll+Q==}
+    engines: {node: '>=16.20.0'}
     cpu: [arm64]
     os: [linux]
 
-  '@typescript/native-preview-linux-arm@7.0.0-dev.20260421.2':
-    resolution: {integrity: sha512-BWLQO3nemLDSV5PoE5GPHe1dU9Dth77Kv8/cle9Ujcp4LhPo0KincdPqFH/qKeU/xvW25mgFueflZ1nc4rKuww==}
+  '@typescript/native-preview-linux-arm@7.0.0-dev.20260428.1':
+    resolution: {integrity: sha512-/d/NnZFvEJU67L5mHh+cO3gsfwNCvJ9HGtxGq1KGz1VwTabOIcwLdpTpfsAR39WXzzfh9GJHL28n6GSGZInPow==}
+    engines: {node: '>=16.20.0'}
     cpu: [arm]
     os: [linux]
 
-  '@typescript/native-preview-linux-x64@7.0.0-dev.20260421.2':
-    resolution: {integrity: sha512-qUrJWTB5/wv4wnRG0TRXElAxc2kykNiRNyEIEqBbLmzDlrcvAW7RRy8MXoY1ZyTiKGMu14itZ3x9oW6+blFpRw==}
+  '@typescript/native-preview-linux-x64@7.0.0-dev.20260428.1':
+    resolution: {integrity: sha512-4gJCE7wzenx1BH2Vtx2uKWUo8rFxnhGkxNEH1zxbYy/6ASwo+PnOPYmKHAzNE1C3yB5lzw71/vR5p5zyO57Y4A==}
+    engines: {node: '>=16.20.0'}
     cpu: [x64]
     os: [linux]
 
-  '@typescript/native-preview-win32-arm64@7.0.0-dev.20260421.2':
-    resolution: {integrity: sha512-Rc6NsWlZmCs5YUKVzKgwoBOoRUGsPzct4BDMRX0csD1devLBBc4AbUXWKsJRbpwIAnqMO1ld4sNHEb+wXgfNHQ==}
+  '@typescript/native-preview-win32-arm64@7.0.0-dev.20260428.1':
+    resolution: {integrity: sha512-yn6Rzbn62L4QTWrp0QgG8al6l/VG7PCPRdbE0vuGDSlKhInlC+Flo4QSc1qA8KHTbpHgl+nEsq9DymiitI4G4g==}
+    engines: {node: '>=16.20.0'}
     cpu: [arm64]
     os: [win32]
 
-  '@typescript/native-preview-win32-x64@7.0.0-dev.20260421.2':
-    resolution: {integrity: sha512-GQv1+dya1t6EqF2Cpsb+xoozovdX10JUSf6Kl/8xNkTapzmlHd+uMr+8ku3jIASTxoRGn0Mklgjj3MDKrOTuLg==}
+  '@typescript/native-preview-win32-x64@7.0.0-dev.20260428.1':
+    resolution: {integrity: sha512-T9z13mcMowXmwGjprA2FIR2EEdYZxgqH8+qk7dFZVBlo5vfk41AN/qJfAdN7IsAhEb640MJ8cMN/aiczweZKmA==}
+    engines: {node: '>=16.20.0'}
     cpu: [x64]
     os: [win32]
 
-  '@typescript/native-preview@7.0.0-dev.20260421.2':
-    resolution: {integrity: sha512-CmajHI25HpVWE9R1XFoxr+cphJPxoYD3eFioQtAvXYkMFKnLdICMS9pXre9Pybizb75ejRxjKD5/CVG055rEIg==}
+  '@typescript/native-preview@7.0.0-dev.20260428.1':
+    resolution: {integrity: sha512-JiM4PYWDGs57TT0mV2KArmaW7BnTkk3XRid79NdG17tfvDbRyg4hBCpKI7vARiQPtxjKrHlxyzxOGDpv5W5T7Q==}
+    engines: {node: '>=16.20.0'}
     hasBin: true
 
-  '@typescript/typescript6@6.0.0':
-    resolution: {integrity: sha512-lPkLZmYG9nNF0Y07ET9arSHw+EWy2TsXZ12SsiV/1SeI1/AzeAhkMzEmR729ExtaBvYEA87C3ga9YB8NE0AbFA==}
+  '@typescript/typescript6@6.0.1':
+    resolution: {integrity: sha512-JbesA1Y3wSOYpcw4b4XvG8KCk9AaStATxk1Vmc1qY0Y30fjovvcuRXX2fJ8eC2JRycKQi7V1VYKUljSVBJUzZA==}
     hasBin: true
 
   '@ungap/structured-clone@1.3.0':
@@ -3274,6 +3294,15 @@ packages:
     peerDependencies:
       '@vitest/browser': 4.1.4
       vitest: 4.1.4
+    peerDependenciesMeta:
+      '@vitest/browser':
+        optional: true
+
+  '@vitest/coverage-v8@4.1.5':
+    resolution: {integrity: sha512-38C0/Ddb7HcRG0Z4/DUem8x57d2p9jYgp18mkaYswEOQBGsI1CG4f/hjm0ZCeaJfWhSZ4k7jgs29V1Zom7Ki9A==}
+    peerDependencies:
+      '@vitest/browser': 4.1.5
+      vitest: 4.1.5
     peerDependenciesMeta:
       '@vitest/browser':
         optional: true
@@ -3297,8 +3326,14 @@ packages:
   '@vitest/pretty-format@4.1.4':
     resolution: {integrity: sha512-ddmDHU0gjEUyEVLxtZa7xamrpIefdEETu3nZjWtHeZX4QxqJ7tRxSteHVXJOcr8jhiLoGAhkK4WJ3WqBpjx42A==}
 
+  '@vitest/pretty-format@4.1.5':
+    resolution: {integrity: sha512-7I3q6l5qr03dVfMX2wCo9FxwSJbPdwKjy2uu/YPpU3wfHvIL4QHwVRp57OfGrDFeUJ8/8QdfBKIV12FTtLn00g==}
+
   '@vitest/utils@4.1.4':
     resolution: {integrity: sha512-13QMT+eysM5uVGa1rG4kegGYNp6cnQcsTc67ELFbhNLQO+vgsygtYJx2khvdt4gVQqSSpC/KT5FZZxUpP3Oatw==}
+
+  '@vitest/utils@4.1.5':
+    resolution: {integrity: sha512-76wdkrmfXfqGjueGgnb45ITPyUi1ycZ4IHgC2bhPDUfWHklY/q3MdLOAB+TF1e6xfl8NxNY0ZYaPCFNWSsw3Ug==}
 
   '@voidzero-dev/vite-plus-core@0.1.19':
     resolution: {integrity: sha512-BTmz50juSDolIN4Vtu5iVaPONV1XSrMB5V+9IoBhhxdogfvp7PBhaHuAcPjTN2RTVowhLZXoo8mn+aHjq//bkw==}
@@ -3699,8 +3734,8 @@ packages:
     resolution: {integrity: sha512-bkXY9WsVpY7CvMhKSR6pZilZu9Ln5WDrKVBUXf2S443etkmEO4V58heTecXcUIsNsi4Rx8JUO4NfX1IcQl4deg==}
     engines: {node: '>=18.20'}
 
-  bun-types@1.3.4:
-    resolution: {integrity: sha512-5ua817+BZPZOlNaRgGBpZJOSAQ9RQ17pkwPD0yR7CfJg+r8DgIILByFifDTa+IPDDxzf5VNhtNlcKqFzDgJvlQ==}
+  bun-types@1.3.13:
+    resolution: {integrity: sha512-QXKeHLlOLqQX9LgYaHJfzdBaV21T63HhFJnvuRCcjZiaUDpbs5ED1MgxbMra71CsryN/1dAoXuJJJwIv/2drVA==}
 
   bundle-require@5.1.0:
     resolution: {integrity: sha512-3WrrOuZiyaaZPWiEt4G3+IffISVC9HYlWueJEBWED4ZH4aIAC2PnkdnuRrR94M+w6yGWn4AglWtJtBI8YqvgoA==}
@@ -3731,8 +3766,8 @@ packages:
   cacheable@2.3.4:
     resolution: {integrity: sha512-djgxybDbw9fL/ZWMI3+CE8ZilNxcwFkVtDc1gJ+IlOSSWkSMPQabhV/XCHTQ6pwwN6aivXPZ43omTooZiX06Ew==}
 
-  cached-factory@0.1.0:
-    resolution: {integrity: sha512-IGOSWu+NuED5UzCRmBeqQPZ8z7SkgrD/nN67W2iY1Qv83CVhevyMexkGclJ86saXisIqxoOnbeiTWvsCHRqJBw==}
+  cached-factory@0.2.0:
+    resolution: {integrity: sha512-6XGkilRVhace8gARfWVvkjyWoazCp21VUQXdDyWEcAz3sHSwXji76srbLfJ6BcHRAZveW9ICYprhqsdoRYZ+YQ==}
     engines: {node: '>=18'}
 
   call-bind-apply-helpers@1.0.2:
@@ -4244,8 +4279,8 @@ packages:
     peerDependencies:
       eslint: '>=8.0.0'
 
-  eslint-plugin-erasable-syntax-only@0.4.0:
-    resolution: {integrity: sha512-7dx2gpfVn0FFEGukLqsF/izW4hGvSaySNOkcuSCO4q6Khh0ecOGYlRhW9hhDUtNryuKc+cXd1WFiQdpae3xzaQ==}
+  eslint-plugin-erasable-syntax-only@0.4.1:
+    resolution: {integrity: sha512-6KWtNpFe/d5vU/gx5mdvARr0W1ADIwGkbgIo+6xUPmNVin1rAKcWjKMAy5soDJurRB8fj0PrrC7Em0xRua4yNg==}
     engines: {node: '>=20.18.0'}
     peerDependencies:
       '@typescript-eslint/parser': 8.58.1
@@ -4663,9 +4698,6 @@ packages:
     resolution: {integrity: sha512-kVCxPF3vQM/N0B1PmoqVUqgHP+EeVjmZSQn+1oCRPxd2P21P2F19lIgbR3HBosbB1PUhOAoctJnfEn2GbN2eZA==}
     engines: {node: '>=18'}
 
-  get-tsconfig@4.13.7:
-    resolution: {integrity: sha512-7tN6rFgBlMgpBML5j8typ92BKFi2sFQvIdpAqLA2beia5avZDrMs0FLZiM5etShWq5irVyGcGMEA1jcDaK7A/Q==}
-
   get-tsconfig@4.14.0:
     resolution: {integrity: sha512-yTb+8DXzDREzgvYmh6s9vHsSVCHeC0G3PI5bEXNBHtmshPnO+S5O7qgLEOn0I5QvMy6kpZN8K1NKGyilLb93wA==}
 
@@ -4691,10 +4723,6 @@ packages:
   glob-parent@6.0.2:
     resolution: {integrity: sha512-XxwI8EOhVQgWp6iDL+3b0r86f4d6AX6zSU55HfB4ydCEuXLXc5FcYeOu+nnGftS4TEju/11rt4KJPTMgbfmv4A==}
     engines: {node: '>=10.13.0'}
-
-  global-directory@4.0.1:
-    resolution: {integrity: sha512-wHTUcDUoZ1H5/0iVqEudYW4/kAlN5cZ3j/bXn0Dpbizl9iaUVeWSHqiOjsgk6OW2bkLclbBjzewBz6weQ1zA2Q==}
-    engines: {node: '>=18'}
 
   global-directory@5.0.0:
     resolution: {integrity: sha512-1pgFdhK3J2LeM+dVf2Pd424yHx2ou338lC0ErNP2hPx4j8eW1Sp0XqSjNxtk6Tc4Kr5wlWtSvz8cn2yb7/SG/w==}
@@ -4813,10 +4841,6 @@ packages:
 
   ini@1.3.8:
     resolution: {integrity: sha512-JV/yugV2uzW5iMRSiZAyDtQd+nxtUnjeLt0acNdw98kKLrvuRVyB80tsREOE7yvGVgalhZ6RNXCmEHkUKBKxew==}
-
-  ini@4.1.1:
-    resolution: {integrity: sha512-QQnnxNyfvmHFIsj7gkPcYymR8Jdw/o7mp5ZFihxn6h8Ci6fh3Dx4E1gPjpQEpIuPo9XVNY/ZUwh4BPMjGyL01g==}
-    engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
 
   ini@6.0.0:
     resolution: {integrity: sha512-IBTdIkzZNOpqm7q3dRqJvMaldXjDHWkEDfrwGEQTs5eaQMWV+djAhR+wahyNNMAa+qpbDUhBMVt4ZKNwpPm7xQ==}
@@ -5010,8 +5034,8 @@ packages:
   keyv@5.6.0:
     resolution: {integrity: sha512-CYDD3SOtsHtyXeEORYRx2qBtpDJFjRTGXUtmNEMGyzYOKj1TE3tycdlho7kA1Ufx9OYWZzg52QFBGALTirzDSw==}
 
-  knip@6.4.1:
-    resolution: {integrity: sha512-Ry+ywmDFSZvKp/jx7LxMgsZWRTs931alV84e60lh0Stf6kSRYqSIUTkviyyDFRcSO3yY1Kpbi83OirN+4lA2Xw==}
+  knip@6.7.0:
+    resolution: {integrity: sha512-ckL51NDH1YJxnv1kNB0iUdDngB4f/e9Igz8uIqYfmNDoyOFmmk1V0WFv3LQ7/hzC63b2Z9X41gGUE9eOWrZpaA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
 
@@ -5381,8 +5405,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  monocart-coverage-reports@2.12.10:
-    resolution: {integrity: sha512-veL2la1QlqS4aPn1m5X+AjPtyK5SP72p/mypf7qRC2Yy0E/ba3gzOFYFMAcAp5Y5pgmSlkTa2SCfrOgUqPmc7g==}
+  monocart-coverage-reports@2.12.11:
+    resolution: {integrity: sha512-yo4/FdUdFIWoc9OjhBZCNXM95tYHS4e8nov9Q3AGbpvteT/W5aQSc4B+Q0nhmedZFvjvm3BUH/Xu9GT2n/0wkw==}
     hasBin: true
 
   monocart-locator@1.0.3:
@@ -5477,16 +5501,16 @@ packages:
     resolution: {integrity: sha512-5b6Y85tPxZZ7QytO+BQzysW31HJku27cRIlkbAXaNx+BdcVi+LlRFmVXzeF6a7JCwJpyw5c4b+YSVImQIrBpuQ==}
     engines: {node: '>=10'}
 
-  oxc-minify@0.125.0:
-    resolution: {integrity: sha512-xOmqaUG+zxCEq98fsEnLODO05HmnyQM4tkwKFKtELfHCZFOAoI9U4x8hdNeeWQvrVb/BXu6cr8zPbhixRYo3tA==}
+  oxc-minify@0.128.0:
+    resolution: {integrity: sha512-VIXQO2W886aB+N17yV55Sack6aCpbUqtuNAYhNcPV6dFiWIZ5+kwOjvvw36igWwoljfjWhasu99CQ5wtvPJDYg==}
     engines: {node: ^20.19.0 || >=22.12.0}
 
   oxc-parser@0.112.0:
     resolution: {integrity: sha512-7rQ3QdJwobMQLMZwQaPuPYMEF2fDRZwf51lZ//V+bA37nejjKW5ifMHbbCwvA889Y4RLhT+/wLJpPRhAoBaZYw==}
     engines: {node: ^20.19.0 || >=22.12.0}
 
-  oxc-parser@0.121.0:
-    resolution: {integrity: sha512-ek9o58+SCv6AV7nchiAcUJy1DNE2CC5WRdBcO0mF+W4oRjNQfPO7b3pLjTHSFECpHkKGOZSQxx3hk8viIL5YCg==}
+  oxc-parser@0.127.0:
+    resolution: {integrity: sha512-bkgD4qHlN7WxLdX8bLXdaU54TtQtAIg/ZBAfm0aje/mo3MRDo3P0hZSgr4U7O3xfX+fQmR5AP04JS/TGcZLcFA==}
     engines: {node: ^20.19.0 || >=22.12.0}
 
   oxc-resolver@11.19.1:
@@ -6220,8 +6244,8 @@ packages:
   ufo@1.6.3:
     resolution: {integrity: sha512-yDJTmhydvl5lJzBmy/hyOAA0d+aqCBuwl818haVdYCRrWV84o7YyeVm4QlVHStqNrrJSTb6jKuFAVqAFsr+K3Q==}
 
-  unbash@2.2.0:
-    resolution: {integrity: sha512-X2wH19RAPZE3+ldGicOkoj/SIA83OIxcJ6Cuaw23hf8Xc6fQpvZXY0SftE2JgS0QhYLUG4uwodSI3R53keyh7w==}
+  unbash@3.0.0:
+    resolution: {integrity: sha512-FeFPZ/WFT0mbRCuydiZzpPFlrYN8ZUpphQKoq4EeElVIYjYyGzPMxQR/simUwCOJIyVhpFk4RbtyO7RuMpMnHA==}
     engines: {node: '>=14'}
 
   unconfig-core@7.5.0:
@@ -6725,73 +6749,73 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
-  '@better-typescript-lib/decorators@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@better-typescript-lib/decorators@2.12.0(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
-  '@better-typescript-lib/dom@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@better-typescript-lib/dom@2.12.0(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
-  '@better-typescript-lib/es2015@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@better-typescript-lib/es2015@2.12.0(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
-  '@better-typescript-lib/es2016@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@better-typescript-lib/es2016@2.12.0(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
-  '@better-typescript-lib/es2017@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@better-typescript-lib/es2017@2.12.0(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
-  '@better-typescript-lib/es2018@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@better-typescript-lib/es2018@2.12.0(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
-  '@better-typescript-lib/es2019@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@better-typescript-lib/es2019@2.12.0(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
-  '@better-typescript-lib/es2020@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@better-typescript-lib/es2020@2.12.0(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
-  '@better-typescript-lib/es2021@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@better-typescript-lib/es2021@2.12.0(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
-  '@better-typescript-lib/es2022@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@better-typescript-lib/es2022@2.12.0(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
-  '@better-typescript-lib/es2023@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@better-typescript-lib/es2023@2.12.0(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
-  '@better-typescript-lib/es2024@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@better-typescript-lib/es2024@2.12.0(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
-  '@better-typescript-lib/es5@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@better-typescript-lib/es5@2.12.0(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
-  '@better-typescript-lib/es6@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@better-typescript-lib/es6@2.12.0(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
-  '@better-typescript-lib/esnext@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@better-typescript-lib/esnext@2.12.0(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
-  '@better-typescript-lib/scripthost@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@better-typescript-lib/scripthost@2.12.0(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
-  '@better-typescript-lib/webworker@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@better-typescript-lib/webworker@2.12.0(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
   '@cacheable/memory@2.0.8':
     dependencies:
@@ -6828,11 +6852,11 @@ snapshots:
       fast-wrap-ansi: 0.1.6
       sisteransi: 1.0.5
 
-  '@commitlint/cli@20.5.0(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(conventional-commits-parser@6.4.0)':
+  '@commitlint/cli@20.5.2(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(conventional-commits-parser@6.4.0)':
     dependencies:
       '@commitlint/format': 20.5.0
       '@commitlint/lint': 20.5.0
-      '@commitlint/load': 20.5.0(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      '@commitlint/load': 20.5.2(@types/node@24.10.1)(@typescript/typescript6@6.0.1)
       '@commitlint/read': 20.5.0(conventional-commits-parser@6.4.0)
       '@commitlint/types': 20.5.0
       tinyexec: 1.1.1
@@ -6848,7 +6872,7 @@ snapshots:
       '@commitlint/types': 20.5.0
       conventional-changelog-conventionalcommits: 9.3.1
 
-  '@commitlint/config-pnpm-scopes@20.4.3':
+  '@commitlint/config-pnpm-scopes@20.5.2':
     dependencies:
       '@pnpm/read-project-manifest': 5.0.11
       fast-glob: 3.3.3
@@ -6887,14 +6911,14 @@ snapshots:
       '@commitlint/rules': 20.5.0
       '@commitlint/types': 20.5.0
 
-  '@commitlint/load@20.5.0(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@commitlint/load@20.5.2(@types/node@24.10.1)(@typescript/typescript6@6.0.1)':
     dependencies:
       '@commitlint/config-validator': 20.5.0
       '@commitlint/execute-rule': 20.0.0
-      '@commitlint/resolve-extends': 20.5.0
+      '@commitlint/resolve-extends': 20.5.2
       '@commitlint/types': 20.5.0
-      cosmiconfig: 9.0.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
-      cosmiconfig-typescript-loader: 6.3.0(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(cosmiconfig@9.0.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
+      cosmiconfig: 9.0.1(@typescript/typescript6@6.0.1)
+      cosmiconfig-typescript-loader: 6.3.0(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(cosmiconfig@9.0.1(@typescript/typescript6@6.0.1))
       is-plain-obj: 4.1.0
       lodash.mergewith: 4.6.2
       picocolors: 1.1.1
@@ -6910,19 +6934,19 @@ snapshots:
       conventional-changelog-angular: 8.3.1
       conventional-commits-parser: 6.4.0
 
-  '@commitlint/prompt-cli@20.5.0(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@commitlint/prompt-cli@20.5.2(@types/node@24.10.1)(@typescript/typescript6@6.0.1)':
     dependencies:
-      '@commitlint/prompt': 20.5.0(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      '@commitlint/prompt': 20.5.2(@types/node@24.10.1)(@typescript/typescript6@6.0.1)
       inquirer: 9.3.8(@types/node@24.10.1)
       tinyexec: 1.1.1
     transitivePeerDependencies:
       - '@types/node'
       - typescript
 
-  '@commitlint/prompt@20.5.0(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@commitlint/prompt@20.5.2(@types/node@24.10.1)(@typescript/typescript6@6.0.1)':
     dependencies:
       '@commitlint/ensure': 20.5.0
-      '@commitlint/load': 20.5.0(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      '@commitlint/load': 20.5.2(@types/node@24.10.1)(@typescript/typescript6@6.0.1)
       '@commitlint/types': 20.5.0
       inquirer: 9.3.8(@types/node@24.10.1)
       picocolors: 1.1.1
@@ -6941,11 +6965,11 @@ snapshots:
       - conventional-commits-filter
       - conventional-commits-parser
 
-  '@commitlint/resolve-extends@20.5.0':
+  '@commitlint/resolve-extends@20.5.2':
     dependencies:
       '@commitlint/config-validator': 20.5.0
       '@commitlint/types': 20.5.0
-      global-directory: 4.0.1
+      global-directory: 5.0.0
       import-meta-resolve: 4.2.0
       lodash.mergewith: 4.6.2
       resolve-from: 5.0.0
@@ -7209,9 +7233,20 @@ snapshots:
 
   '@docsearch/sidepanel-js@4.6.2': {}
 
+  '@emnapi/core@1.10.0':
+    dependencies:
+      '@emnapi/wasi-threads': 1.2.1
+      tslib: 2.8.1
+    optional: true
+
   '@emnapi/core@1.9.2':
     dependencies:
       '@emnapi/wasi-threads': 1.2.1
+      tslib: 2.8.1
+    optional: true
+
+  '@emnapi/runtime@1.10.0':
+    dependencies:
       tslib: 2.8.1
     optional: true
 
@@ -7414,57 +7449,57 @@ snapshots:
 
   '@eslint-community/regexpp@4.12.2': {}
 
-  '@eslint-react/ast@2.3.9(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))':
+  '@eslint-react/ast@2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))':
     dependencies:
       '@eslint-react/eff': 2.3.9
       '@typescript-eslint/types': 8.58.1
-      '@typescript-eslint/typescript-estree': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
-      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/typescript-estree': 8.58.1(@typescript/typescript6@6.0.1)
+      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       eslint: 9.39.2(jiti@2.6.1)
       string-ts: 2.3.1
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
     transitivePeerDependencies:
       - supports-color
 
-  '@eslint-react/core@2.3.9(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))':
+  '@eslint-react/core@2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))':
     dependencies:
-      '@eslint-react/ast': 2.3.9(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@eslint-react/ast': 2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       '@eslint-react/eff': 2.3.9
-      '@eslint-react/shared': 2.3.9(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
-      '@eslint-react/var': 2.3.9(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@eslint-react/shared': 2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
+      '@eslint-react/var': 2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       '@typescript-eslint/scope-manager': 8.58.1
       '@typescript-eslint/types': 8.58.1
-      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       birecord: 0.1.1
       eslint: 9.39.2(jiti@2.6.1)
       ts-pattern: 5.9.0
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
     transitivePeerDependencies:
       - supports-color
 
   '@eslint-react/eff@2.3.9': {}
 
-  '@eslint-react/shared@2.3.9(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))':
+  '@eslint-react/shared@2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))':
     dependencies:
       '@eslint-react/eff': 2.3.9
-      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       eslint: 9.39.2(jiti@2.6.1)
       ts-pattern: 5.9.0
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
       zod: 4.1.13
     transitivePeerDependencies:
       - supports-color
 
-  '@eslint-react/var@2.3.9(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))':
+  '@eslint-react/var@2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))':
     dependencies:
-      '@eslint-react/ast': 2.3.9(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@eslint-react/ast': 2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       '@eslint-react/eff': 2.3.9
       '@typescript-eslint/scope-manager': 8.58.1
       '@typescript-eslint/types': 8.58.1
-      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       eslint: 9.39.2(jiti@2.6.1)
       ts-pattern: 5.9.0
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
     transitivePeerDependencies:
       - supports-color
 
@@ -7729,7 +7764,7 @@ snapshots:
 
   '@isentinel/dict-roblox@1.0.3': {}
 
-  '@isentinel/eslint-config@5.0.0-beta.11(26149d1647b7fef798bb1e5f8e7751dd)':
+  '@isentinel/eslint-config@5.0.0-beta.11(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/estree@1.0.8)(@typescript-eslint/utils@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(@vitest/eslint-plugin@1.6.16(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(@voidzero-dev/vite-plus-test@0.1.19)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-eslint-plugin@7.0.0(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-jest-extended@3.0.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-n@17.24.0(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-react-naming-convention@2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))':
     dependencies:
       '@antfu/install-pkg': 1.1.0
       '@clack/prompts': 1.0.1
@@ -7739,11 +7774,11 @@ snapshots:
       '@eslint/markdown': 7.5.1
       '@isentinel/dict-rbxts': 1.0.1
       '@isentinel/dict-roblox': 1.0.3
-      '@isentinel/eslint-plugin-comment-length': 2.2.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
-      '@pobammer-ts/eslint-cease-nonsense-rules': 1.30.0(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(@typescript-eslint/utils@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))(oxfmt@0.35.0)
+      '@isentinel/eslint-plugin-comment-length': 2.2.0(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
+      '@pobammer-ts/eslint-cease-nonsense-rules': 1.30.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript-eslint/utils@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))(oxfmt@0.35.0)
       '@stylistic/eslint-plugin': 5.9.0(eslint@9.39.2(jiti@2.6.1))
-      '@typescript-eslint/eslint-plugin': 8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
-      '@typescript-eslint/parser': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/eslint-plugin': 8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/parser': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       ansis: 4.2.0
       eslint: 9.39.2(jiti@2.6.1)
       eslint-config-flat-gitignore: 2.2.1(eslint@9.39.2(jiti@2.6.1))
@@ -7751,26 +7786,26 @@ snapshots:
       eslint-flat-config-utils: 3.0.1
       eslint-merge-processors: 2.0.0(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-antfu: 3.2.2(eslint@9.39.2(jiti@2.6.1))
-      eslint-plugin-arrow-return-style-x: 1.2.6(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))(prettier@3.8.1)
+      eslint-plugin-arrow-return-style-x: 1.2.6(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))(prettier@3.8.1)
       eslint-plugin-better-max-params: 1.0.0(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-de-morgan: 2.0.0(eslint@9.39.2(jiti@2.6.1))
-      eslint-plugin-flawless: 0.1.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      eslint-plugin-flawless: 0.1.0(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-format-lua: 1.0.1-beta.2(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-import-lite: 0.5.2(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-jsdoc: 62.7.1(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-jsonc: 3.0.0(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-oxfmt: 0.1.0(eslint@9.39.2(jiti@2.6.1))(oxfmt@0.35.0)
       eslint-plugin-package-json: 0.89.1(@types/estree@1.0.8)(eslint@9.39.2(jiti@2.6.1))(jsonc-eslint-parser@3.1.0)
-      eslint-plugin-perfectionist: 5.6.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      eslint-plugin-perfectionist: 5.6.0(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-pnpm: 1.5.0(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-promise: 7.2.1(eslint@9.39.2(jiti@2.6.1))
-      eslint-plugin-react-naming-convention: 2.3.9(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
-      eslint-plugin-roblox-ts: 1.4.0(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
-      eslint-plugin-sentinel: 0.1.2(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      eslint-plugin-react-naming-convention: 2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
+      eslint-plugin-roblox-ts: 1.4.0(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
+      eslint-plugin-sentinel: 0.1.2(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-sonarjs: 4.0.0(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-toml: 1.1.1(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-unicorn: 63.0.0(eslint@9.39.2(jiti@2.6.1))
-      eslint-plugin-unused-imports: 4.4.1(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))
+      eslint-plugin-unused-imports: 4.4.1(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-yml: 3.2.1(eslint@9.39.2(jiti@2.6.1))
       find-up-simple: 1.0.1
       globals: 17.3.0
@@ -7782,10 +7817,10 @@ snapshots:
       yaml-eslint-parser: 2.0.0
       yargs: 18.0.0
     optionalDependencies:
-      '@vitest/eslint-plugin': 1.6.16(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@voidzero-dev/vite-plus-test@0.1.19)(eslint@9.39.2(jiti@2.6.1))
+      '@vitest/eslint-plugin': 1.6.16(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(@voidzero-dev/vite-plus-test@0.1.19)(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-eslint-plugin: 7.0.0(eslint@9.39.2(jiti@2.6.1))
-      eslint-plugin-jest-extended: 3.0.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
-      eslint-plugin-n: 17.24.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      eslint-plugin-jest-extended: 3.0.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
+      eslint-plugin-n: 17.24.0(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -7795,22 +7830,22 @@ snapshots:
       - supports-color
       - typescript
 
-  '@isentinel/eslint-plugin-comment-length@2.2.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))':
+  '@isentinel/eslint-plugin-comment-length@2.2.0(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))':
     dependencies:
-      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       eslint: 9.39.2(jiti@2.6.1)
     transitivePeerDependencies:
       - supports-color
       - typescript
 
-  '@isentinel/hooks@1.3.0(@typescript/native-preview@7.0.0-dev.20260421.2)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(jiti@2.6.1)':
+  '@isentinel/hooks@1.3.0(@typescript/native-preview@7.0.0-dev.20260428.1)(@typescript/typescript6@6.0.1)(jiti@2.6.1)':
     dependencies:
       eslint_d: 15.0.2(jiti@2.6.1)
       file-entry-cache: 11.1.2
       get-tsconfig: 4.14.0
-      madge: 8.0.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      madge: 8.0.0(@typescript/typescript6@6.0.1)
     optionalDependencies:
-      '@typescript/native-preview': 7.0.0-dev.20260421.2
+      '@typescript/native-preview': 7.0.0-dev.20260428.1
     transitivePeerDependencies:
       - jiti
       - supports-color
@@ -7820,9 +7855,9 @@ snapshots:
     dependencies:
       rollup: 4.53.3
 
-  '@isentinel/tsconfig@1.2.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@isentinel/tsconfig@1.2.0(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
   '@isentinel/tsconfig@1.2.0(typescript@6.0.2)':
     dependencies:
@@ -7865,7 +7900,21 @@ snapshots:
 
   '@microsoft/tsdoc@0.15.1': {}
 
-  '@napi-rs/wasm-runtime@1.1.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)':
+  '@napi-rs/wasm-runtime@1.1.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
+    dependencies:
+      '@emnapi/core': 1.10.0
+      '@emnapi/runtime': 1.10.0
+      '@tybys/wasm-util': 0.10.1
+    optional: true
+
+  '@napi-rs/wasm-runtime@1.1.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
+    dependencies:
+      '@emnapi/core': 1.10.0
+      '@emnapi/runtime': 1.10.0
+      '@tybys/wasm-util': 0.10.1
+    optional: true
+
+  '@napi-rs/wasm-runtime@1.1.4(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)':
     dependencies:
       '@emnapi/core': 1.9.2
       '@emnapi/runtime': 1.9.2
@@ -7886,207 +7935,206 @@ snapshots:
 
   '@ota-meshi/ast-token-store@0.2.3': {}
 
-  '@oxc-minify/binding-android-arm-eabi@0.125.0':
+  '@oxc-minify/binding-android-arm-eabi@0.128.0':
     optional: true
 
-  '@oxc-minify/binding-android-arm64@0.125.0':
+  '@oxc-minify/binding-android-arm64@0.128.0':
     optional: true
 
-  '@oxc-minify/binding-darwin-arm64@0.125.0':
+  '@oxc-minify/binding-darwin-arm64@0.128.0':
     optional: true
 
-  '@oxc-minify/binding-darwin-x64@0.125.0':
+  '@oxc-minify/binding-darwin-x64@0.128.0':
     optional: true
 
-  '@oxc-minify/binding-freebsd-x64@0.125.0':
+  '@oxc-minify/binding-freebsd-x64@0.128.0':
     optional: true
 
-  '@oxc-minify/binding-linux-arm-gnueabihf@0.125.0':
+  '@oxc-minify/binding-linux-arm-gnueabihf@0.128.0':
     optional: true
 
-  '@oxc-minify/binding-linux-arm-musleabihf@0.125.0':
+  '@oxc-minify/binding-linux-arm-musleabihf@0.128.0':
     optional: true
 
-  '@oxc-minify/binding-linux-arm64-gnu@0.125.0':
+  '@oxc-minify/binding-linux-arm64-gnu@0.128.0':
     optional: true
 
-  '@oxc-minify/binding-linux-arm64-musl@0.125.0':
+  '@oxc-minify/binding-linux-arm64-musl@0.128.0':
     optional: true
 
-  '@oxc-minify/binding-linux-ppc64-gnu@0.125.0':
+  '@oxc-minify/binding-linux-ppc64-gnu@0.128.0':
     optional: true
 
-  '@oxc-minify/binding-linux-riscv64-gnu@0.125.0':
+  '@oxc-minify/binding-linux-riscv64-gnu@0.128.0':
     optional: true
 
-  '@oxc-minify/binding-linux-riscv64-musl@0.125.0':
+  '@oxc-minify/binding-linux-riscv64-musl@0.128.0':
     optional: true
 
-  '@oxc-minify/binding-linux-s390x-gnu@0.125.0':
+  '@oxc-minify/binding-linux-s390x-gnu@0.128.0':
     optional: true
 
-  '@oxc-minify/binding-linux-x64-gnu@0.125.0':
+  '@oxc-minify/binding-linux-x64-gnu@0.128.0':
     optional: true
 
-  '@oxc-minify/binding-linux-x64-musl@0.125.0':
+  '@oxc-minify/binding-linux-x64-musl@0.128.0':
     optional: true
 
-  '@oxc-minify/binding-openharmony-arm64@0.125.0':
+  '@oxc-minify/binding-openharmony-arm64@0.128.0':
     optional: true
 
-  '@oxc-minify/binding-wasm32-wasi@0.125.0':
+  '@oxc-minify/binding-wasm32-wasi@0.128.0':
     dependencies:
-      '@emnapi/core': 1.9.2
-      '@emnapi/runtime': 1.9.2
-      '@napi-rs/wasm-runtime': 1.1.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
+      '@emnapi/core': 1.10.0
+      '@emnapi/runtime': 1.10.0
+      '@napi-rs/wasm-runtime': 1.1.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
     optional: true
 
-  '@oxc-minify/binding-win32-arm64-msvc@0.125.0':
+  '@oxc-minify/binding-win32-arm64-msvc@0.128.0':
     optional: true
 
-  '@oxc-minify/binding-win32-ia32-msvc@0.125.0':
+  '@oxc-minify/binding-win32-ia32-msvc@0.128.0':
     optional: true
 
-  '@oxc-minify/binding-win32-x64-msvc@0.125.0':
+  '@oxc-minify/binding-win32-x64-msvc@0.128.0':
     optional: true
 
   '@oxc-parser/binding-android-arm-eabi@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-android-arm-eabi@0.121.0':
+  '@oxc-parser/binding-android-arm-eabi@0.127.0':
     optional: true
 
   '@oxc-parser/binding-android-arm64@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-android-arm64@0.121.0':
+  '@oxc-parser/binding-android-arm64@0.127.0':
     optional: true
 
   '@oxc-parser/binding-darwin-arm64@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-darwin-arm64@0.121.0':
+  '@oxc-parser/binding-darwin-arm64@0.127.0':
     optional: true
 
   '@oxc-parser/binding-darwin-x64@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-darwin-x64@0.121.0':
+  '@oxc-parser/binding-darwin-x64@0.127.0':
     optional: true
 
   '@oxc-parser/binding-freebsd-x64@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-freebsd-x64@0.121.0':
+  '@oxc-parser/binding-freebsd-x64@0.127.0':
     optional: true
 
   '@oxc-parser/binding-linux-arm-gnueabihf@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-linux-arm-gnueabihf@0.121.0':
+  '@oxc-parser/binding-linux-arm-gnueabihf@0.127.0':
     optional: true
 
   '@oxc-parser/binding-linux-arm-musleabihf@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-linux-arm-musleabihf@0.121.0':
+  '@oxc-parser/binding-linux-arm-musleabihf@0.127.0':
     optional: true
 
   '@oxc-parser/binding-linux-arm64-gnu@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-linux-arm64-gnu@0.121.0':
+  '@oxc-parser/binding-linux-arm64-gnu@0.127.0':
     optional: true
 
   '@oxc-parser/binding-linux-arm64-musl@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-linux-arm64-musl@0.121.0':
+  '@oxc-parser/binding-linux-arm64-musl@0.127.0':
     optional: true
 
   '@oxc-parser/binding-linux-ppc64-gnu@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-linux-ppc64-gnu@0.121.0':
+  '@oxc-parser/binding-linux-ppc64-gnu@0.127.0':
     optional: true
 
   '@oxc-parser/binding-linux-riscv64-gnu@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-linux-riscv64-gnu@0.121.0':
+  '@oxc-parser/binding-linux-riscv64-gnu@0.127.0':
     optional: true
 
   '@oxc-parser/binding-linux-riscv64-musl@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-linux-riscv64-musl@0.121.0':
+  '@oxc-parser/binding-linux-riscv64-musl@0.127.0':
     optional: true
 
   '@oxc-parser/binding-linux-s390x-gnu@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-linux-s390x-gnu@0.121.0':
+  '@oxc-parser/binding-linux-s390x-gnu@0.127.0':
     optional: true
 
   '@oxc-parser/binding-linux-x64-gnu@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-linux-x64-gnu@0.121.0':
+  '@oxc-parser/binding-linux-x64-gnu@0.127.0':
     optional: true
 
   '@oxc-parser/binding-linux-x64-musl@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-linux-x64-musl@0.121.0':
+  '@oxc-parser/binding-linux-x64-musl@0.127.0':
     optional: true
 
   '@oxc-parser/binding-openharmony-arm64@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-openharmony-arm64@0.121.0':
+  '@oxc-parser/binding-openharmony-arm64@0.127.0':
     optional: true
 
-  '@oxc-parser/binding-wasm32-wasi@0.112.0(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)':
+  '@oxc-parser/binding-wasm32-wasi@0.112.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
     dependencies:
-      '@napi-rs/wasm-runtime': 1.1.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
+      '@napi-rs/wasm-runtime': 1.1.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
     optional: true
 
-  '@oxc-parser/binding-wasm32-wasi@0.121.0(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)':
+  '@oxc-parser/binding-wasm32-wasi@0.127.0':
     dependencies:
-      '@napi-rs/wasm-runtime': 1.1.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
-    transitivePeerDependencies:
-      - '@emnapi/core'
-      - '@emnapi/runtime'
+      '@emnapi/core': 1.9.2
+      '@emnapi/runtime': 1.9.2
+      '@napi-rs/wasm-runtime': 1.1.4(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
     optional: true
 
   '@oxc-parser/binding-win32-arm64-msvc@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-win32-arm64-msvc@0.121.0':
+  '@oxc-parser/binding-win32-arm64-msvc@0.127.0':
     optional: true
 
   '@oxc-parser/binding-win32-ia32-msvc@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-win32-ia32-msvc@0.121.0':
+  '@oxc-parser/binding-win32-ia32-msvc@0.127.0':
     optional: true
 
   '@oxc-parser/binding-win32-x64-msvc@0.112.0':
     optional: true
 
-  '@oxc-parser/binding-win32-x64-msvc@0.121.0':
+  '@oxc-parser/binding-win32-x64-msvc@0.127.0':
     optional: true
 
   '@oxc-project/runtime@0.126.0': {}
 
   '@oxc-project/types@0.112.0': {}
 
-  '@oxc-project/types@0.121.0': {}
-
   '@oxc-project/types@0.126.0': {}
+
+  '@oxc-project/types@0.127.0': {}
 
   '@oxc-resolver/binding-android-arm-eabi@11.19.1':
     optional: true
@@ -8136,9 +8184,9 @@ snapshots:
   '@oxc-resolver/binding-openharmony-arm64@11.19.1':
     optional: true
 
-  '@oxc-resolver/binding-wasm32-wasi@11.19.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)':
+  '@oxc-resolver/binding-wasm32-wasi@11.19.1(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
     dependencies:
-      '@napi-rs/wasm-runtime': 1.1.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
+      '@napi-rs/wasm-runtime': 1.1.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -8385,14 +8433,14 @@ snapshots:
       write-file-atomic: 5.0.1
       write-yaml-file: 5.0.0
 
-  '@pobammer-ts/eslint-cease-nonsense-rules@1.30.0(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(@typescript-eslint/utils@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))(oxfmt@0.35.0)':
+  '@pobammer-ts/eslint-cease-nonsense-rules@1.30.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript-eslint/utils@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))(oxfmt@0.35.0)':
     dependencies:
-      '@typescript-eslint/parser': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
-      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/parser': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       eslint: 9.39.2(jiti@2.6.1)
       fast-diff: 1.3.0
-      oxc-parser: 0.112.0(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
-      oxc-resolver: 11.19.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
+      oxc-parser: 0.112.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
+      oxc-resolver: 11.19.1(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
       typebox: 1.1.23
     optionalDependencies:
       oxfmt: 0.35.0
@@ -8588,13 +8636,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@stryker-mutator/typescript-checker@9.6.1(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@stryker-mutator/typescript-checker@9.6.1(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)':
     dependencies:
       '@stryker-mutator/api': 9.6.1
       '@stryker-mutator/core': 9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1)
       '@stryker-mutator/util': 9.6.1
       semver: 7.7.4
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
   '@stryker-mutator/util@9.6.1': {}
 
@@ -8605,7 +8653,7 @@ snapshots:
       '@stryker-mutator/util': 9.6.1
       semver: 7.7.4
       tslib: 2.8.1
-      vitest: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+      vitest: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
 
   '@stylistic/eslint-plugin@5.9.0(eslint@9.39.2(jiti@2.6.1))':
     dependencies:
@@ -8637,9 +8685,9 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
-  '@types/bun@1.3.4':
+  '@types/bun@1.3.13':
     dependencies:
-      bun-types: 1.3.4
+      bun-types: 1.3.13
 
   '@types/chai@5.2.3':
     dependencies:
@@ -8685,40 +8733,40 @@ snapshots:
 
   '@types/web-bluetooth@0.0.21': {}
 
-  '@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))':
+  '@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))':
     dependencies:
       '@eslint-community/regexpp': 4.12.2
-      '@typescript-eslint/parser': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/parser': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       '@typescript-eslint/scope-manager': 8.58.1
-      '@typescript-eslint/type-utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
-      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/type-utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       '@typescript-eslint/visitor-keys': 8.58.1
       eslint: 9.39.2(jiti@2.6.1)
       ignore: 7.0.5
       natural-compare: 1.4.0
-      ts-api-utils: 2.5.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      ts-api-utils: 2.5.0(@typescript/typescript6@6.0.1)
+      typescript: '@typescript/typescript6@6.0.1'
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))':
+  '@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))':
     dependencies:
       '@typescript-eslint/scope-manager': 8.58.1
       '@typescript-eslint/types': 8.58.1
-      '@typescript-eslint/typescript-estree': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      '@typescript-eslint/typescript-estree': 8.58.1(@typescript/typescript6@6.0.1)
       '@typescript-eslint/visitor-keys': 8.58.1
       debug: 4.4.3(supports-color@10.2.2)
       eslint: 9.39.2(jiti@2.6.1)
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/project-service@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@typescript-eslint/project-service@8.58.1(@typescript/typescript6@6.0.1)':
     dependencies:
-      '@typescript-eslint/tsconfig-utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      '@typescript-eslint/tsconfig-utils': 8.58.1(@typescript/typescript6@6.0.1)
       '@typescript-eslint/types': 8.58.1
       debug: 4.4.3(supports-color@10.2.2)
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
     transitivePeerDependencies:
       - supports-color
 
@@ -8741,23 +8789,23 @@ snapshots:
       '@typescript-eslint/types': 8.58.1
       '@typescript-eslint/visitor-keys': 8.58.1
 
-  '@typescript-eslint/tsconfig-utils@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@typescript-eslint/tsconfig-utils@8.58.1(@typescript/typescript6@6.0.1)':
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
   '@typescript-eslint/tsconfig-utils@8.58.1(typescript@5.9.3)':
     dependencies:
       typescript: 5.9.3
 
-  '@typescript-eslint/type-utils@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))':
+  '@typescript-eslint/type-utils@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))':
     dependencies:
       '@typescript-eslint/types': 8.58.1
-      '@typescript-eslint/typescript-estree': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
-      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/typescript-estree': 8.58.1(@typescript/typescript6@6.0.1)
+      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       debug: 4.4.3(supports-color@10.2.2)
       eslint: 9.39.2(jiti@2.6.1)
-      ts-api-utils: 2.5.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      ts-api-utils: 2.5.0(@typescript/typescript6@6.0.1)
+      typescript: '@typescript/typescript6@6.0.1'
     transitivePeerDependencies:
       - supports-color
 
@@ -8765,18 +8813,18 @@ snapshots:
 
   '@typescript-eslint/types@8.58.1': {}
 
-  '@typescript-eslint/typescript-estree@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))':
+  '@typescript-eslint/typescript-estree@8.58.1(@typescript/typescript6@6.0.1)':
     dependencies:
-      '@typescript-eslint/project-service': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
-      '@typescript-eslint/tsconfig-utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      '@typescript-eslint/project-service': 8.58.1(@typescript/typescript6@6.0.1)
+      '@typescript-eslint/tsconfig-utils': 8.58.1(@typescript/typescript6@6.0.1)
       '@typescript-eslint/types': 8.58.1
       '@typescript-eslint/visitor-keys': 8.58.1
       debug: 4.4.3(supports-color@10.2.2)
       minimatch: 10.2.5
       semver: 7.7.4
       tinyglobby: 0.2.16
-      ts-api-utils: 2.5.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      ts-api-utils: 2.5.0(@typescript/typescript6@6.0.1)
+      typescript: '@typescript/typescript6@6.0.1'
     transitivePeerDependencies:
       - supports-color
 
@@ -8795,14 +8843,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/utils@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))':
+  '@typescript-eslint/utils@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))':
     dependencies:
       '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.2(jiti@2.6.1))
       '@typescript-eslint/scope-manager': 8.58.1
       '@typescript-eslint/types': 8.58.1
-      '@typescript-eslint/typescript-estree': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      '@typescript-eslint/typescript-estree': 8.58.1(@typescript/typescript6@6.0.1)
       eslint: 9.39.2(jiti@2.6.1)
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
     transitivePeerDependencies:
       - supports-color
 
@@ -8816,48 +8864,48 @@ snapshots:
       '@typescript-eslint/types': 8.58.1
       eslint-visitor-keys: 5.0.1
 
-  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260421.2':
+  '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260428.1':
     optional: true
 
-  '@typescript/native-preview-darwin-x64@7.0.0-dev.20260421.2':
+  '@typescript/native-preview-darwin-x64@7.0.0-dev.20260428.1':
     optional: true
 
-  '@typescript/native-preview-linux-arm64@7.0.0-dev.20260421.2':
+  '@typescript/native-preview-linux-arm64@7.0.0-dev.20260428.1':
     optional: true
 
-  '@typescript/native-preview-linux-arm@7.0.0-dev.20260421.2':
+  '@typescript/native-preview-linux-arm@7.0.0-dev.20260428.1':
     optional: true
 
-  '@typescript/native-preview-linux-x64@7.0.0-dev.20260421.2':
+  '@typescript/native-preview-linux-x64@7.0.0-dev.20260428.1':
     optional: true
 
-  '@typescript/native-preview-win32-arm64@7.0.0-dev.20260421.2':
+  '@typescript/native-preview-win32-arm64@7.0.0-dev.20260428.1':
     optional: true
 
-  '@typescript/native-preview-win32-x64@7.0.0-dev.20260421.2':
+  '@typescript/native-preview-win32-x64@7.0.0-dev.20260428.1':
     optional: true
 
-  '@typescript/native-preview@7.0.0-dev.20260421.2':
+  '@typescript/native-preview@7.0.0-dev.20260428.1':
     optionalDependencies:
-      '@typescript/native-preview-darwin-arm64': 7.0.0-dev.20260421.2
-      '@typescript/native-preview-darwin-x64': 7.0.0-dev.20260421.2
-      '@typescript/native-preview-linux-arm': 7.0.0-dev.20260421.2
-      '@typescript/native-preview-linux-arm64': 7.0.0-dev.20260421.2
-      '@typescript/native-preview-linux-x64': 7.0.0-dev.20260421.2
-      '@typescript/native-preview-win32-arm64': 7.0.0-dev.20260421.2
-      '@typescript/native-preview-win32-x64': 7.0.0-dev.20260421.2
+      '@typescript/native-preview-darwin-arm64': 7.0.0-dev.20260428.1
+      '@typescript/native-preview-darwin-x64': 7.0.0-dev.20260428.1
+      '@typescript/native-preview-linux-arm': 7.0.0-dev.20260428.1
+      '@typescript/native-preview-linux-arm64': 7.0.0-dev.20260428.1
+      '@typescript/native-preview-linux-x64': 7.0.0-dev.20260428.1
+      '@typescript/native-preview-win32-arm64': 7.0.0-dev.20260428.1
+      '@typescript/native-preview-win32-x64': 7.0.0-dev.20260428.1
 
-  '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)':
+  '@typescript/typescript6@6.0.1':
     dependencies:
       typescript: 6.0.2
 
   '@ungap/structured-clone@1.3.0': {}
 
-  '@vitejs/plugin-vue@6.0.6(@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))':
+  '@vitejs/plugin-vue@6.0.6(@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(@typescript/typescript6@6.0.1))':
     dependencies:
       '@rolldown/pluginutils': 1.0.0-rc.13
-      vite: '@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)'
-      vue: 3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      vite: '@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)'
+      vue: 3.5.32(@typescript/typescript6@6.0.1)
 
   '@vitest/coverage-v8@4.1.4(@voidzero-dev/vite-plus-test@0.1.19)':
     dependencies:
@@ -8871,21 +8919,41 @@ snapshots:
       obug: 2.1.1
       std-env: 4.1.0
       tinyrainbow: 3.1.0
-      vitest: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+      vitest: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+    optional: true
 
-  '@vitest/eslint-plugin@1.6.16(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@voidzero-dev/vite-plus-test@0.1.19)(eslint@9.39.2(jiti@2.6.1))':
+  '@vitest/coverage-v8@4.1.5(@voidzero-dev/vite-plus-test@0.1.19)':
+    dependencies:
+      '@bcoe/v8-coverage': 1.0.2
+      '@vitest/utils': 4.1.5
+      ast-v8-to-istanbul: 1.0.0
+      istanbul-lib-coverage: 3.2.2
+      istanbul-lib-report: 3.0.1
+      istanbul-reports: 3.2.0
+      magicast: 0.5.2
+      obug: 2.1.1
+      std-env: 4.1.0
+      tinyrainbow: 3.1.0
+      vitest: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+
+  '@vitest/eslint-plugin@1.6.16(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(@voidzero-dev/vite-plus-test@0.1.19)(eslint@9.39.2(jiti@2.6.1))':
     dependencies:
       '@typescript-eslint/scope-manager': 8.58.1
-      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       eslint: 9.39.2(jiti@2.6.1)
     optionalDependencies:
-      '@typescript-eslint/eslint-plugin': 8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
-      vitest: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+      '@typescript-eslint/eslint-plugin': 8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
+      typescript: '@typescript/typescript6@6.0.1'
+      vitest: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
     transitivePeerDependencies:
       - supports-color
 
   '@vitest/pretty-format@4.1.4':
+    dependencies:
+      tinyrainbow: 3.1.0
+    optional: true
+
+  '@vitest/pretty-format@4.1.5':
     dependencies:
       tinyrainbow: 3.1.0
 
@@ -8894,8 +8962,15 @@ snapshots:
       '@vitest/pretty-format': 4.1.4
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.0
+    optional: true
 
-  '@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)':
+  '@vitest/utils@4.1.5':
+    dependencies:
+      '@vitest/pretty-format': 4.1.5
+      convert-source-map: 2.0.0
+      tinyrainbow: 3.1.0
+
+  '@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)':
     dependencies:
       '@oxc-project/runtime': 0.126.0
       '@oxc-project/types': 0.126.0
@@ -8908,7 +8983,7 @@ snapshots:
       jiti: 2.6.1
       publint: 0.3.18
       tsx: 4.21.0
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
       unplugin-unused: 0.5.7
       yaml: 2.8.3
 
@@ -8930,11 +9005,11 @@ snapshots:
   '@voidzero-dev/vite-plus-linux-x64-musl@0.1.19':
     optional: true
 
-  '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)':
+  '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@types/chai': 5.2.3
-      '@voidzero-dev/vite-plus-core': 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)
+      '@voidzero-dev/vite-plus-core': 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)
       es-module-lexer: 1.7.0
       obug: 2.1.1
       pixelmatch: 7.1.0
@@ -8949,6 +9024,46 @@ snapshots:
     optionalDependencies:
       '@types/node': 24.10.1
       '@vitest/coverage-v8': 4.1.4(@voidzero-dev/vite-plus-test@0.1.19)
+    transitivePeerDependencies:
+      - '@arethetypeswrong/core'
+      - '@tsdown/css'
+      - '@tsdown/exe'
+      - '@vitejs/devtools'
+      - bufferutil
+      - esbuild
+      - jiti
+      - less
+      - publint
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - typescript
+      - unplugin-unused
+      - utf-8-validate
+      - yaml
+
+  '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)':
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@types/chai': 5.2.3
+      '@voidzero-dev/vite-plus-core': 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)
+      es-module-lexer: 1.7.0
+      obug: 2.1.1
+      pixelmatch: 7.1.0
+      pngjs: 7.0.0
+      sirv: 3.0.2
+      std-env: 4.1.0
+      tinybench: 2.9.0
+      tinyexec: 1.1.1
+      tinyglobby: 0.2.16
+      vite: 7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3)
+      ws: 8.20.0
+    optionalDependencies:
+      '@types/node': 24.10.1
+      '@vitest/coverage-v8': 4.1.5(@voidzero-dev/vite-plus-test@0.1.19)
     transitivePeerDependencies:
       - '@arethetypeswrong/core'
       - '@tsdown/css'
@@ -9040,35 +9155,35 @@ snapshots:
       '@vue/shared': 3.5.32
       csstype: 3.2.3
 
-  '@vue/server-renderer@3.5.32(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))':
+  '@vue/server-renderer@3.5.32(vue@3.5.32(@typescript/typescript6@6.0.1))':
     dependencies:
       '@vue/compiler-ssr': 3.5.32
       '@vue/shared': 3.5.32
-      vue: 3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      vue: 3.5.32(@typescript/typescript6@6.0.1)
 
   '@vue/shared@3.5.32': {}
 
-  '@vueuse/core@14.2.1(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))':
+  '@vueuse/core@14.2.1(vue@3.5.32(@typescript/typescript6@6.0.1))':
     dependencies:
       '@types/web-bluetooth': 0.0.21
       '@vueuse/metadata': 14.2.1
-      '@vueuse/shared': 14.2.1(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
-      vue: 3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      '@vueuse/shared': 14.2.1(vue@3.5.32(@typescript/typescript6@6.0.1))
+      vue: 3.5.32(@typescript/typescript6@6.0.1)
 
-  '@vueuse/integrations@14.2.1(change-case@5.4.4)(focus-trap@8.0.1)(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))':
+  '@vueuse/integrations@14.2.1(change-case@5.4.4)(focus-trap@8.0.1)(vue@3.5.32(@typescript/typescript6@6.0.1))':
     dependencies:
-      '@vueuse/core': 14.2.1(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
-      '@vueuse/shared': 14.2.1(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
-      vue: 3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      '@vueuse/core': 14.2.1(vue@3.5.32(@typescript/typescript6@6.0.1))
+      '@vueuse/shared': 14.2.1(vue@3.5.32(@typescript/typescript6@6.0.1))
+      vue: 3.5.32(@typescript/typescript6@6.0.1)
     optionalDependencies:
       change-case: 5.4.4
       focus-trap: 8.0.1
 
   '@vueuse/metadata@14.2.1': {}
 
-  '@vueuse/shared@14.2.1(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))':
+  '@vueuse/shared@14.2.1(vue@3.5.32(@typescript/typescript6@6.0.1))':
     dependencies:
-      vue: 3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      vue: 3.5.32(@typescript/typescript6@6.0.1)
 
   acorn-jsx@5.3.2(acorn@8.15.0):
     dependencies:
@@ -9175,26 +9290,26 @@ snapshots:
 
   baseline-browser-mapping@2.8.32: {}
 
-  better-typescript-lib@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)):
+  better-typescript-lib@2.12.0(@typescript/typescript6@6.0.1):
     dependencies:
-      '@typescript/lib-decorators': '@better-typescript-lib/decorators@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))'
-      '@typescript/lib-dom': '@better-typescript-lib/dom@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))'
-      '@typescript/lib-es2015': '@better-typescript-lib/es2015@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))'
-      '@typescript/lib-es2016': '@better-typescript-lib/es2016@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))'
-      '@typescript/lib-es2017': '@better-typescript-lib/es2017@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))'
-      '@typescript/lib-es2018': '@better-typescript-lib/es2018@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))'
-      '@typescript/lib-es2019': '@better-typescript-lib/es2019@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))'
-      '@typescript/lib-es2020': '@better-typescript-lib/es2020@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))'
-      '@typescript/lib-es2021': '@better-typescript-lib/es2021@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))'
-      '@typescript/lib-es2022': '@better-typescript-lib/es2022@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))'
-      '@typescript/lib-es2023': '@better-typescript-lib/es2023@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))'
-      '@typescript/lib-es2024': '@better-typescript-lib/es2024@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))'
-      '@typescript/lib-es5': '@better-typescript-lib/es5@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))'
-      '@typescript/lib-es6': '@better-typescript-lib/es6@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))'
-      '@typescript/lib-esnext': '@better-typescript-lib/esnext@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))'
-      '@typescript/lib-scripthost': '@better-typescript-lib/scripthost@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))'
-      '@typescript/lib-webworker': '@better-typescript-lib/webworker@2.12.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))'
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      '@typescript/lib-decorators': '@better-typescript-lib/decorators@2.12.0(@typescript/typescript6@6.0.1)'
+      '@typescript/lib-dom': '@better-typescript-lib/dom@2.12.0(@typescript/typescript6@6.0.1)'
+      '@typescript/lib-es2015': '@better-typescript-lib/es2015@2.12.0(@typescript/typescript6@6.0.1)'
+      '@typescript/lib-es2016': '@better-typescript-lib/es2016@2.12.0(@typescript/typescript6@6.0.1)'
+      '@typescript/lib-es2017': '@better-typescript-lib/es2017@2.12.0(@typescript/typescript6@6.0.1)'
+      '@typescript/lib-es2018': '@better-typescript-lib/es2018@2.12.0(@typescript/typescript6@6.0.1)'
+      '@typescript/lib-es2019': '@better-typescript-lib/es2019@2.12.0(@typescript/typescript6@6.0.1)'
+      '@typescript/lib-es2020': '@better-typescript-lib/es2020@2.12.0(@typescript/typescript6@6.0.1)'
+      '@typescript/lib-es2021': '@better-typescript-lib/es2021@2.12.0(@typescript/typescript6@6.0.1)'
+      '@typescript/lib-es2022': '@better-typescript-lib/es2022@2.12.0(@typescript/typescript6@6.0.1)'
+      '@typescript/lib-es2023': '@better-typescript-lib/es2023@2.12.0(@typescript/typescript6@6.0.1)'
+      '@typescript/lib-es2024': '@better-typescript-lib/es2024@2.12.0(@typescript/typescript6@6.0.1)'
+      '@typescript/lib-es5': '@better-typescript-lib/es5@2.12.0(@typescript/typescript6@6.0.1)'
+      '@typescript/lib-es6': '@better-typescript-lib/es6@2.12.0(@typescript/typescript6@6.0.1)'
+      '@typescript/lib-esnext': '@better-typescript-lib/esnext@2.12.0(@typescript/typescript6@6.0.1)'
+      '@typescript/lib-scripthost': '@better-typescript-lib/scripthost@2.12.0(@typescript/typescript6@6.0.1)'
+      '@typescript/lib-webworker': '@better-typescript-lib/webworker@2.12.0(@typescript/typescript6@6.0.1)'
+      typescript: '@typescript/typescript6@6.0.1'
 
   birecord@0.1.1: {}
 
@@ -9236,7 +9351,7 @@ snapshots:
 
   builtin-modules@5.0.0: {}
 
-  bun-types@1.3.4:
+  bun-types@1.3.13:
     dependencies:
       '@types/node': 24.10.1
 
@@ -9276,7 +9391,7 @@ snapshots:
       keyv: 5.6.0
       qified: 0.9.1
 
-  cached-factory@0.1.0: {}
+  cached-factory@0.2.0: {}
 
   call-bind-apply-helpers@1.0.2:
     dependencies:
@@ -9419,21 +9534,21 @@ snapshots:
     dependencies:
       browserslist: 4.28.0
 
-  cosmiconfig-typescript-loader@6.3.0(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(cosmiconfig@9.0.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))):
+  cosmiconfig-typescript-loader@6.3.0(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(cosmiconfig@9.0.1(@typescript/typescript6@6.0.1)):
     dependencies:
       '@types/node': 24.10.1
-      cosmiconfig: 9.0.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      cosmiconfig: 9.0.1(@typescript/typescript6@6.0.1)
       jiti: 2.6.1
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
-  cosmiconfig@9.0.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)):
+  cosmiconfig@9.0.1(@typescript/typescript6@6.0.1):
     dependencies:
       env-paths: 2.2.1
       import-fresh: 3.3.1
       js-yaml: 4.1.1
       parse-json: 5.2.0
     optionalDependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
   cross-spawn@7.0.6:
     dependencies:
@@ -9794,9 +9909,9 @@ snapshots:
     dependencies:
       eslint: 9.39.2(jiti@2.6.1)
 
-  eslint-plugin-arrow-return-style-x@1.2.6(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))(prettier@3.8.1):
+  eslint-plugin-arrow-return-style-x@1.2.6(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))(prettier@3.8.1):
     dependencies:
-      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       detect-indent: 7.0.1
       eslint: 9.39.2(jiti@2.6.1)
       synckit: 0.11.11
@@ -9814,13 +9929,13 @@ snapshots:
     dependencies:
       eslint: 9.39.2(jiti@2.6.1)
 
-  eslint-plugin-erasable-syntax-only@0.4.0(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)):
+  eslint-plugin-erasable-syntax-only@0.4.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)):
     dependencies:
-      '@typescript-eslint/parser': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
-      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
-      cached-factory: 0.1.0
+      '@typescript-eslint/parser': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
+      cached-factory: 0.2.0
       eslint: 9.39.2(jiti@2.6.1)
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
     transitivePeerDependencies:
       - supports-color
 
@@ -9838,11 +9953,11 @@ snapshots:
       estraverse: 5.3.0
     optional: true
 
-  eslint-plugin-flawless@0.1.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)):
+  eslint-plugin-flawless@0.1.0(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)):
     dependencies:
       '@typescript-eslint/scope-manager': 8.44.0
-      '@typescript-eslint/type-utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
-      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/type-utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       eslint: 9.39.2(jiti@2.6.1)
     transitivePeerDependencies:
       - supports-color
@@ -9859,9 +9974,9 @@ snapshots:
     dependencies:
       eslint: 9.39.2(jiti@2.6.1)
 
-  eslint-plugin-jest-extended@3.0.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)):
+  eslint-plugin-jest-extended@3.0.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)):
     dependencies:
-      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       eslint: 9.39.2(jiti@2.6.1)
     transitivePeerDependencies:
       - supports-color
@@ -9902,7 +10017,7 @@ snapshots:
     transitivePeerDependencies:
       - '@eslint/json'
 
-  eslint-plugin-n@17.24.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)):
+  eslint-plugin-n@17.24.0(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)):
     dependencies:
       '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.2(jiti@2.6.1))
       enhanced-resolve: 5.18.3
@@ -9913,7 +10028,7 @@ snapshots:
       globrex: 0.1.2
       ignore: 5.3.2
       semver: 7.7.4
-      ts-declaration-location: 1.0.7(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      ts-declaration-location: 1.0.7(@typescript/typescript6@6.0.1)
     transitivePeerDependencies:
       - typescript
 
@@ -9943,9 +10058,9 @@ snapshots:
     transitivePeerDependencies:
       - '@types/estree'
 
-  eslint-plugin-perfectionist@5.6.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)):
+  eslint-plugin-perfectionist@5.6.0(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)):
     dependencies:
-      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       eslint: 9.39.2(jiti@2.6.1)
       natural-orderby: 5.0.0
     transitivePeerDependencies:
@@ -9979,39 +10094,39 @@ snapshots:
       '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.2(jiti@2.6.1))
       eslint: 9.39.2(jiti@2.6.1)
 
-  eslint-plugin-react-naming-convention@2.3.9(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)):
+  eslint-plugin-react-naming-convention@2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)):
     dependencies:
-      '@eslint-react/ast': 2.3.9(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
-      '@eslint-react/core': 2.3.9(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@eslint-react/ast': 2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
+      '@eslint-react/core': 2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       '@eslint-react/eff': 2.3.9
-      '@eslint-react/shared': 2.3.9(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
-      '@eslint-react/var': 2.3.9(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@eslint-react/shared': 2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
+      '@eslint-react/var': 2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       '@typescript-eslint/scope-manager': 8.58.1
-      '@typescript-eslint/type-utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/type-utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       '@typescript-eslint/types': 8.58.1
-      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       eslint: 9.39.2(jiti@2.6.1)
       string-ts: 2.3.1
       ts-pattern: 5.9.0
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-roblox-ts@1.4.0(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)):
+  eslint-plugin-roblox-ts@1.4.0(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)):
     dependencies:
       '@roblox-ts/luau-ast': 2.0.1
-      '@typescript-eslint/parser': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
-      '@typescript-eslint/type-utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
-      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/parser': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/type-utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/utils': 8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       eslint: 9.39.2(jiti@2.6.1)
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-sentinel@0.1.2(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)):
+  eslint-plugin-sentinel@0.1.2(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)):
     dependencies:
       eslint: 9.39.2(jiti@2.6.1)
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
   eslint-plugin-sonarjs@4.0.0(eslint@9.39.2(jiti@2.6.1)):
     dependencies:
@@ -10060,11 +10175,11 @@ snapshots:
       semver: 7.7.4
       strip-indent: 4.1.1
 
-  eslint-plugin-unused-imports@4.4.1(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1)):
+  eslint-plugin-unused-imports@4.4.1(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1)):
     dependencies:
       eslint: 9.39.2(jiti@2.6.1)
     optionalDependencies:
-      '@typescript-eslint/eslint-plugin': 8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(eslint@9.39.2(jiti@2.6.1))
+      '@typescript-eslint/eslint-plugin': 8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
 
   eslint-plugin-yml@3.2.1(eslint@9.39.2(jiti@2.6.1)):
     dependencies:
@@ -10428,10 +10543,6 @@ snapshots:
       '@sec-ant/readable-stream': 0.4.1
       is-stream: 4.0.1
 
-  get-tsconfig@4.13.7:
-    dependencies:
-      resolve-pkg-maps: 1.0.0
-
   get-tsconfig@4.14.0:
     dependencies:
       resolve-pkg-maps: 1.0.0
@@ -10457,10 +10568,6 @@ snapshots:
   glob-parent@6.0.2:
     dependencies:
       is-glob: 4.0.3
-
-  global-directory@4.0.1:
-    dependencies:
-      ini: 4.1.1
 
   global-directory@5.0.0:
     dependencies:
@@ -10565,8 +10672,6 @@ snapshots:
 
   ini@1.3.8: {}
 
-  ini@4.1.1: {}
-
   ini@6.0.0: {}
 
   inquirer@9.3.8(@types/node@24.10.1):
@@ -10658,10 +10763,10 @@ snapshots:
       chalk: 4.1.2
       pretty-format: 30.3.0
 
-  jest-extended@7.0.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)):
+  jest-extended@7.0.0(@typescript/typescript6@6.0.1):
     dependencies:
       jest-diff: 30.3.0
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
   jiti@2.6.1: {}
 
@@ -10718,21 +10823,20 @@ snapshots:
     dependencies:
       '@keyv/serialize': 1.1.1
 
-  knip@6.4.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2):
+  knip@6.7.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0):
     dependencies:
-      '@nodelib/fs.walk': 1.2.8
-      fast-glob: 3.3.3
+      fdir: 6.5.0(picomatch@4.0.4)
       formatly: 0.3.0
-      get-tsconfig: 4.13.7
+      get-tsconfig: 4.14.0
       jiti: 2.6.1
       minimist: 1.2.8
-      oxc-parser: 0.121.0(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
-      oxc-resolver: 11.19.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
-      picocolors: 1.1.1
+      oxc-parser: 0.127.0
+      oxc-resolver: 11.19.1(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
       picomatch: 4.0.4
       smol-toml: 1.6.1
       strip-json-comments: 5.0.3
-      unbash: 2.2.0
+      tinyglobby: 0.2.16
+      unbash: 3.0.0
       yaml: 2.8.3
       zod: 4.1.13
     transitivePeerDependencies:
@@ -10855,7 +10959,7 @@ snapshots:
 
   lz-utils@2.1.1: {}
 
-  madge@8.0.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)):
+  madge@8.0.0(@typescript/typescript6@6.0.1):
     dependencies:
       chalk: 4.1.2
       commander: 7.2.0
@@ -10870,7 +10974,7 @@ snapshots:
       ts-graphviz: 2.1.6
       walkdir: 0.4.1
     optionalDependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
     transitivePeerDependencies:
       - supports-color
 
@@ -11277,7 +11381,7 @@ snapshots:
       requirejs: 2.3.8
       requirejs-config-file: 4.0.0
 
-  monocart-coverage-reports@2.12.10:
+  monocart-coverage-reports@2.12.11:
     dependencies:
       acorn: 8.16.0
       acorn-loose: 8.5.2
@@ -11376,30 +11480,30 @@ snapshots:
       strip-ansi: 6.0.1
       wcwidth: 1.0.1
 
-  oxc-minify@0.125.0:
+  oxc-minify@0.128.0:
     optionalDependencies:
-      '@oxc-minify/binding-android-arm-eabi': 0.125.0
-      '@oxc-minify/binding-android-arm64': 0.125.0
-      '@oxc-minify/binding-darwin-arm64': 0.125.0
-      '@oxc-minify/binding-darwin-x64': 0.125.0
-      '@oxc-minify/binding-freebsd-x64': 0.125.0
-      '@oxc-minify/binding-linux-arm-gnueabihf': 0.125.0
-      '@oxc-minify/binding-linux-arm-musleabihf': 0.125.0
-      '@oxc-minify/binding-linux-arm64-gnu': 0.125.0
-      '@oxc-minify/binding-linux-arm64-musl': 0.125.0
-      '@oxc-minify/binding-linux-ppc64-gnu': 0.125.0
-      '@oxc-minify/binding-linux-riscv64-gnu': 0.125.0
-      '@oxc-minify/binding-linux-riscv64-musl': 0.125.0
-      '@oxc-minify/binding-linux-s390x-gnu': 0.125.0
-      '@oxc-minify/binding-linux-x64-gnu': 0.125.0
-      '@oxc-minify/binding-linux-x64-musl': 0.125.0
-      '@oxc-minify/binding-openharmony-arm64': 0.125.0
-      '@oxc-minify/binding-wasm32-wasi': 0.125.0
-      '@oxc-minify/binding-win32-arm64-msvc': 0.125.0
-      '@oxc-minify/binding-win32-ia32-msvc': 0.125.0
-      '@oxc-minify/binding-win32-x64-msvc': 0.125.0
+      '@oxc-minify/binding-android-arm-eabi': 0.128.0
+      '@oxc-minify/binding-android-arm64': 0.128.0
+      '@oxc-minify/binding-darwin-arm64': 0.128.0
+      '@oxc-minify/binding-darwin-x64': 0.128.0
+      '@oxc-minify/binding-freebsd-x64': 0.128.0
+      '@oxc-minify/binding-linux-arm-gnueabihf': 0.128.0
+      '@oxc-minify/binding-linux-arm-musleabihf': 0.128.0
+      '@oxc-minify/binding-linux-arm64-gnu': 0.128.0
+      '@oxc-minify/binding-linux-arm64-musl': 0.128.0
+      '@oxc-minify/binding-linux-ppc64-gnu': 0.128.0
+      '@oxc-minify/binding-linux-riscv64-gnu': 0.128.0
+      '@oxc-minify/binding-linux-riscv64-musl': 0.128.0
+      '@oxc-minify/binding-linux-s390x-gnu': 0.128.0
+      '@oxc-minify/binding-linux-x64-gnu': 0.128.0
+      '@oxc-minify/binding-linux-x64-musl': 0.128.0
+      '@oxc-minify/binding-openharmony-arm64': 0.128.0
+      '@oxc-minify/binding-wasm32-wasi': 0.128.0
+      '@oxc-minify/binding-win32-arm64-msvc': 0.128.0
+      '@oxc-minify/binding-win32-ia32-msvc': 0.128.0
+      '@oxc-minify/binding-win32-x64-msvc': 0.128.0
 
-  oxc-parser@0.112.0(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2):
+  oxc-parser@0.112.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0):
     dependencies:
       '@oxc-project/types': 0.112.0
     optionalDependencies:
@@ -11419,7 +11523,7 @@ snapshots:
       '@oxc-parser/binding-linux-x64-gnu': 0.112.0
       '@oxc-parser/binding-linux-x64-musl': 0.112.0
       '@oxc-parser/binding-openharmony-arm64': 0.112.0
-      '@oxc-parser/binding-wasm32-wasi': 0.112.0(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
+      '@oxc-parser/binding-wasm32-wasi': 0.112.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
       '@oxc-parser/binding-win32-arm64-msvc': 0.112.0
       '@oxc-parser/binding-win32-ia32-msvc': 0.112.0
       '@oxc-parser/binding-win32-x64-msvc': 0.112.0
@@ -11427,35 +11531,32 @@ snapshots:
       - '@emnapi/core'
       - '@emnapi/runtime'
 
-  oxc-parser@0.121.0(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2):
+  oxc-parser@0.127.0:
     dependencies:
-      '@oxc-project/types': 0.121.0
+      '@oxc-project/types': 0.127.0
     optionalDependencies:
-      '@oxc-parser/binding-android-arm-eabi': 0.121.0
-      '@oxc-parser/binding-android-arm64': 0.121.0
-      '@oxc-parser/binding-darwin-arm64': 0.121.0
-      '@oxc-parser/binding-darwin-x64': 0.121.0
-      '@oxc-parser/binding-freebsd-x64': 0.121.0
-      '@oxc-parser/binding-linux-arm-gnueabihf': 0.121.0
-      '@oxc-parser/binding-linux-arm-musleabihf': 0.121.0
-      '@oxc-parser/binding-linux-arm64-gnu': 0.121.0
-      '@oxc-parser/binding-linux-arm64-musl': 0.121.0
-      '@oxc-parser/binding-linux-ppc64-gnu': 0.121.0
-      '@oxc-parser/binding-linux-riscv64-gnu': 0.121.0
-      '@oxc-parser/binding-linux-riscv64-musl': 0.121.0
-      '@oxc-parser/binding-linux-s390x-gnu': 0.121.0
-      '@oxc-parser/binding-linux-x64-gnu': 0.121.0
-      '@oxc-parser/binding-linux-x64-musl': 0.121.0
-      '@oxc-parser/binding-openharmony-arm64': 0.121.0
-      '@oxc-parser/binding-wasm32-wasi': 0.121.0(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
-      '@oxc-parser/binding-win32-arm64-msvc': 0.121.0
-      '@oxc-parser/binding-win32-ia32-msvc': 0.121.0
-      '@oxc-parser/binding-win32-x64-msvc': 0.121.0
-    transitivePeerDependencies:
-      - '@emnapi/core'
-      - '@emnapi/runtime'
+      '@oxc-parser/binding-android-arm-eabi': 0.127.0
+      '@oxc-parser/binding-android-arm64': 0.127.0
+      '@oxc-parser/binding-darwin-arm64': 0.127.0
+      '@oxc-parser/binding-darwin-x64': 0.127.0
+      '@oxc-parser/binding-freebsd-x64': 0.127.0
+      '@oxc-parser/binding-linux-arm-gnueabihf': 0.127.0
+      '@oxc-parser/binding-linux-arm-musleabihf': 0.127.0
+      '@oxc-parser/binding-linux-arm64-gnu': 0.127.0
+      '@oxc-parser/binding-linux-arm64-musl': 0.127.0
+      '@oxc-parser/binding-linux-ppc64-gnu': 0.127.0
+      '@oxc-parser/binding-linux-riscv64-gnu': 0.127.0
+      '@oxc-parser/binding-linux-riscv64-musl': 0.127.0
+      '@oxc-parser/binding-linux-s390x-gnu': 0.127.0
+      '@oxc-parser/binding-linux-x64-gnu': 0.127.0
+      '@oxc-parser/binding-linux-x64-musl': 0.127.0
+      '@oxc-parser/binding-openharmony-arm64': 0.127.0
+      '@oxc-parser/binding-wasm32-wasi': 0.127.0
+      '@oxc-parser/binding-win32-arm64-msvc': 0.127.0
+      '@oxc-parser/binding-win32-ia32-msvc': 0.127.0
+      '@oxc-parser/binding-win32-x64-msvc': 0.127.0
 
-  oxc-resolver@11.19.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2):
+  oxc-resolver@11.19.1(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0):
     optionalDependencies:
       '@oxc-resolver/binding-android-arm-eabi': 11.19.1
       '@oxc-resolver/binding-android-arm64': 11.19.1
@@ -11473,7 +11574,7 @@ snapshots:
       '@oxc-resolver/binding-linux-x64-gnu': 11.19.1
       '@oxc-resolver/binding-linux-x64-musl': 11.19.1
       '@oxc-resolver/binding-openharmony-arm64': 11.19.1
-      '@oxc-resolver/binding-wasm32-wasi': 11.19.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
+      '@oxc-resolver/binding-wasm32-wasi': 11.19.1(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
       '@oxc-resolver/binding-win32-arm64-msvc': 11.19.1
       '@oxc-resolver/binding-win32-ia32-msvc': 11.19.1
       '@oxc-resolver/binding-win32-x64-msvc': 11.19.1
@@ -12159,18 +12260,18 @@ snapshots:
     dependencies:
       typescript: 6.0.2
 
-  ts-api-utils@2.5.0(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)):
+  ts-api-utils@2.5.0(@typescript/typescript6@6.0.1):
     dependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
   ts-api-utils@2.5.0(typescript@5.9.3):
     dependencies:
       typescript: 5.9.3
 
-  ts-declaration-location@1.0.7(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)):
+  ts-declaration-location@1.0.7(@typescript/typescript6@6.0.1):
     dependencies:
       picomatch: 4.0.4
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
   ts-graphviz@2.1.6:
     dependencies:
@@ -12220,21 +12321,21 @@ snapshots:
       tunnel: 0.0.6
       underscore: 1.13.8
 
-  typedoc-plugin-markdown@4.11.0(typedoc@0.28.19(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))):
+  typedoc-plugin-markdown@4.11.0(typedoc@0.28.19(@typescript/typescript6@6.0.1)):
     dependencies:
-      typedoc: 0.28.19(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      typedoc: 0.28.19(@typescript/typescript6@6.0.1)
 
-  typedoc-plugin-replace-text@4.2.0(typedoc@0.28.19(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))):
+  typedoc-plugin-replace-text@4.2.0(typedoc@0.28.19(@typescript/typescript6@6.0.1)):
     dependencies:
-      typedoc: 0.28.19(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      typedoc: 0.28.19(@typescript/typescript6@6.0.1)
 
-  typedoc@0.28.19(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)):
+  typedoc@0.28.19(@typescript/typescript6@6.0.1):
     dependencies:
       '@gerrit0/mini-shiki': 3.23.0
       lunr: 2.3.9
       markdown-it: 14.1.1
       minimatch: 10.2.5
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
       yaml: 2.8.3
 
   typescript@5.9.3: {}
@@ -12245,7 +12346,7 @@ snapshots:
 
   ufo@1.6.3: {}
 
-  unbash@2.2.0: {}
+  unbash@3.0.0: {}
 
   unconfig-core@7.5.0:
     dependencies:
@@ -12333,11 +12434,58 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vite-plus@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3):
+  vite-plus@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3):
     dependencies:
       '@oxc-project/types': 0.126.0
-      '@voidzero-dev/vite-plus-core': 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)
-      '@voidzero-dev/vite-plus-test': 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+      '@voidzero-dev/vite-plus-core': 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)
+      '@voidzero-dev/vite-plus-test': 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+      oxfmt: 0.45.0
+      oxlint: 1.60.0(oxlint-tsgolint@0.21.1)
+      oxlint-tsgolint: 0.21.1
+    optionalDependencies:
+      '@voidzero-dev/vite-plus-darwin-arm64': 0.1.19
+      '@voidzero-dev/vite-plus-darwin-x64': 0.1.19
+      '@voidzero-dev/vite-plus-linux-arm64-gnu': 0.1.19
+      '@voidzero-dev/vite-plus-linux-arm64-musl': 0.1.19
+      '@voidzero-dev/vite-plus-linux-x64-gnu': 0.1.19
+      '@voidzero-dev/vite-plus-linux-x64-musl': 0.1.19
+      '@voidzero-dev/vite-plus-win32-arm64-msvc': 0.1.19
+      '@voidzero-dev/vite-plus-win32-x64-msvc': 0.1.19
+    transitivePeerDependencies:
+      - '@arethetypeswrong/core'
+      - '@edge-runtime/vm'
+      - '@opentelemetry/api'
+      - '@tsdown/css'
+      - '@tsdown/exe'
+      - '@types/node'
+      - '@vitejs/devtools'
+      - '@vitest/coverage-istanbul'
+      - '@vitest/coverage-v8'
+      - '@vitest/ui'
+      - bufferutil
+      - esbuild
+      - happy-dom
+      - jiti
+      - jsdom
+      - less
+      - publint
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - typescript
+      - unplugin-unused
+      - utf-8-validate
+      - vite
+      - yaml
+
+  vite-plus@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3):
+    dependencies:
+      '@oxc-project/types': 0.126.0
+      '@voidzero-dev/vite-plus-core': 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)
+      '@voidzero-dev/vite-plus-test': 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
       oxfmt: 0.45.0
       oxlint: 1.60.0(oxlint-tsgolint@0.21.1)
       oxlint-tsgolint: 0.21.1
@@ -12396,12 +12544,12 @@ snapshots:
       tsx: 4.21.0
       yaml: 2.8.3
 
-  vitepress-plugin-tabs@0.8.0(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))):
+  vitepress-plugin-tabs@0.8.0(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.128.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(@typescript/typescript6@6.0.1)):
     dependencies:
-      vitepress: 2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)
-      vue: 3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      vitepress: 2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.128.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)
+      vue: 3.5.32(@typescript/typescript6@6.0.1)
 
-  vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.125.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3):
+  vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.128.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3):
     dependencies:
       '@docsearch/css': 4.6.2
       '@docsearch/js': 4.6.2
@@ -12411,19 +12559,19 @@ snapshots:
       '@shikijs/transformers': 3.23.0
       '@shikijs/types': 3.23.0
       '@types/markdown-it': 14.1.2
-      '@vitejs/plugin-vue': 6.0.6(@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
+      '@vitejs/plugin-vue': 6.0.6(@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(@typescript/typescript6@6.0.1))
       '@vue/devtools-api': 8.0.5
       '@vue/shared': 3.5.32
-      '@vueuse/core': 14.2.1(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
-      '@vueuse/integrations': 14.2.1(change-case@5.4.4)(focus-trap@8.0.1)(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
+      '@vueuse/core': 14.2.1(vue@3.5.32(@typescript/typescript6@6.0.1))
+      '@vueuse/integrations': 14.2.1(change-case@5.4.4)(focus-trap@8.0.1)(vue@3.5.32(@typescript/typescript6@6.0.1))
       focus-trap: 8.0.1
       mark.js: 8.11.1
       minisearch: 7.2.0
       shiki: 3.23.0
-      vite: '@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)'
-      vue: 3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4))
+      vite: '@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)'
+      vue: 3.5.32(@typescript/typescript6@6.0.1)
     optionalDependencies:
-      oxc-minify: 0.125.0
+      oxc-minify: 0.128.0
       postcss: 8.5.9
     transitivePeerDependencies:
       - '@arethetypeswrong/core'
@@ -12460,15 +12608,15 @@ snapshots:
 
   vscode-uri@3.1.0: {}
 
-  vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)):
+  vue@3.5.32(@typescript/typescript6@6.0.1):
     dependencies:
       '@vue/compiler-dom': 3.5.32
       '@vue/compiler-sfc': 3.5.32
       '@vue/runtime-dom': 3.5.32
-      '@vue/server-renderer': 3.5.32(vue@3.5.32(@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)))
+      '@vue/server-renderer': 3.5.32(vue@3.5.32(@typescript/typescript6@6.0.1))
       '@vue/shared': 3.5.32
     optionalDependencies:
-      typescript: '@typescript/typescript6@6.0.0(patch_hash=5394e3586481834969e11b1ae283aa51712b4e70a5b7a3ce1557472ae43062f4)'
+      typescript: '@typescript/typescript6@6.0.1'
 
   walk-up-path@4.0.0: {}
 
