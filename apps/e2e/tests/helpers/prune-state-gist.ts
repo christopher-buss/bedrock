@@ -136,12 +136,6 @@ async function withRetry(
 	return response;
 }
 
-/**
- * GET the gist and return the filenames currently stored in it. Returns an
- * empty list when the request fails or the response shape is unexpected.
- * @param ctx - Pre-resolved fetch implementation, retry sleep, gist URL, and request headers.
- * @returns Filenames present in the gist, or `[]` on error.
- */
 async function listGistFilenames(ctx: PruneRequestContext): Promise<ReadonlyArray<string>> {
 	async function sendList(): Promise<Response> {
 		return ctx.fetchFn(ctx.url, { headers: ctx.headers });
@@ -149,6 +143,8 @@ async function listGistFilenames(ctx: PruneRequestContext): Promise<ReadonlyArra
 
 	const response = await withRetry(ctx.sleep, sendList);
 	if (!response.ok) {
+		// Return [] rather than throwing so a transient gist hiccup cannot flip
+		// an otherwise-passing smoke test to failed.
 		console.warn(`pruneStateGist: list failed with status ${String(response.status)}`);
 		return [];
 	}
@@ -162,23 +158,18 @@ async function listGistFilenames(ctx: PruneRequestContext): Promise<ReadonlyArra
 	return Object.keys(parsed.files);
 }
 
-/**
- * PATCH the gist to delete every named file in a single request.
- * @param ctx - Pre-resolved fetch implementation, retry sleep, gist URL, and request headers.
- * @param names - Filenames to delete; must be non-empty.
- */
 async function deleteGistFiles(
 	ctx: PruneRequestContext,
 	names: ReadonlyArray<string>,
 ): Promise<void> {
 	const filesPayload = Object.fromEntries(names.map((name): [string, null] => [name, null]));
-	const response = await withRetry(ctx.sleep, async () => {
-		return ctx.fetchFn(ctx.url, {
-			body: JSON.stringify({ files: filesPayload }),
-			headers: { ...ctx.headers, "Content-Type": "application/json" },
-			method: "PATCH",
-		});
-	});
+	const body = JSON.stringify({ files: filesPayload });
+	const headers = { ...ctx.headers, "Content-Type": "application/json" };
+	async function sendDelete(): Promise<Response> {
+		return ctx.fetchFn(ctx.url, { body, headers, method: "PATCH" });
+	}
+
+	const response = await withRetry(ctx.sleep, sendDelete);
 	if (!response.ok) {
 		console.warn(`pruneStateGist: prune failed with status ${String(response.status)}`);
 	}
