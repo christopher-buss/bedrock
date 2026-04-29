@@ -9,6 +9,8 @@ const GITHUB_API_BASE = "https://api.github.com";
 const GITHUB_API_VERSION = "2026-03-10";
 const USER_AGENT = "bedrock";
 const MAX_INLINE_BYTES = 10_000_000;
+const MAX_RETRIES = 3;
+const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([409]);
 
 /**
  * Minimal `fetch`-compatible signature the adapter needs, narrower than
@@ -28,6 +30,11 @@ export interface GistStateAdapterDeps {
 	readonly fetch?: GistFetch | undefined;
 	/** ID of an existing GitHub Gist that holds this project's state files. */
 	readonly gistId: string;
+	/**
+	 * Injection seam for retry backoff timing; defaults to a `setTimeout`-based
+	 * promise. Tests pass a fake to keep retry assertions deterministic.
+	 */
+	readonly sleep?: ((ms: number) => Promise<void>) | undefined;
 	/** GitHub token (fine-grained PAT or classic PAT) with gist read/write scope. */
 	readonly token: string;
 }
@@ -35,6 +42,7 @@ export interface GistStateAdapterDeps {
 interface AdapterContext {
 	readonly fetchFn: GistFetch;
 	readonly gistId: string;
+	readonly sleep: (ms: number) => Promise<void>;
 	readonly token: string;
 }
 
@@ -91,6 +99,7 @@ export function createGistStateAdapter(deps: GistStateAdapterDeps): StatePort {
 	const ctx: AdapterContext = {
 		fetchFn: deps.fetch ?? globalThis.fetch.bind(globalThis),
 		gistId: deps.gistId,
+		sleep: deps.sleep ?? defaultSleep,
 		token: deps.token,
 	};
 
@@ -112,6 +121,12 @@ export function createGistStateAdapter(deps: GistStateAdapterDeps): StatePort {
 			return writePath(ctx, state);
 		},
 	};
+}
+
+async function defaultSleep(ms: number): Promise<void> {
+	await new Promise<void>((resolve) => {
+		setTimeout(resolve, ms);
+	});
 }
 
 function fileLabel(gistId: string, environment: string): string {
@@ -245,6 +260,31 @@ async function sendPatch(ctx: AdapterContext, body: string): Promise<Response> {
 	});
 }
 
+function isRetryableStatus(status: number): boolean {
+	return RETRYABLE_STATUSES.has(status);
+}
+
+function backoffMs(attempt: number): number {
+	return 1000 * 2 ** attempt;
+}
+
+async function withRetry(
+	ctx: AdapterContext,
+	operation: () => Promise<Response>,
+): Promise<Response> {
+	let response = await operation();
+	for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
+		if (response.ok || !isRetryableStatus(response.status)) {
+			return response;
+		}
+
+		await ctx.sleep(backoffMs(attempt));
+		response = await operation();
+	}
+
+	return response;
+}
+
 async function writePath(
 	ctx: AdapterContext,
 	state: BedrockState,
@@ -256,7 +296,7 @@ async function writePath(
 
 	let response: Response;
 	try {
-		response = await sendPatch(ctx, body);
+		response = await withRetry(ctx, async () => sendPatch(ctx, body));
 	} catch (err) {
 		return { err: networkError(err, file), success: false };
 	}

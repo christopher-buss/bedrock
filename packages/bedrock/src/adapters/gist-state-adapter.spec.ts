@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { serializeStateFile } from "../core/state-file.ts";
 import type { BedrockState } from "../core/state.ts";
@@ -10,6 +10,11 @@ const TOKEN = "ghp_example_token";
 interface FakeFetch {
 	readonly calls: Array<Request>;
 	readonly fetchFn: GistFetch;
+}
+
+interface FakeSleep {
+	readonly calls: Array<number>;
+	readonly sleep: (ms: number) => Promise<void>;
 }
 
 function fakeFetch(responder: (request: Request) => Promise<Response> | Response): FakeFetch {
@@ -24,6 +29,28 @@ function fakeFetch(responder: (request: Request) => Promise<Response> | Response
 	}
 
 	return { calls, fetchFn: fetchFunc };
+}
+
+function fakeFetchSequence(responses: ReadonlyArray<Response>): FakeFetch {
+	let index = 0;
+	return fakeFetch(() => {
+		const response = responses[index];
+		if (response === undefined) {
+			throw new Error(`fakeFetchSequence: no response queued for call ${String(index + 1)}`);
+		}
+
+		index += 1;
+		return response;
+	});
+}
+
+function fakeSleep(): FakeSleep {
+	const calls: Array<number> = [];
+	async function sleep(ms: number): Promise<void> {
+		calls.push(ms);
+	}
+
+	return { calls, sleep };
 }
 
 function okJson(body: unknown): Response {
@@ -510,6 +537,93 @@ describe(createGistStateAdapter, () => {
 			assert(!result.success);
 
 			expect(result.err.reason).toMatch(/network error/u);
+		});
+
+		it("should retry the PATCH on 409 and succeed on the second attempt", async () => {
+			expect.assertions(3);
+
+			const { calls, fetchFn } = fakeFetchSequence([emptyResponse(409), emptyResponse(200)]);
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			const result = await port.write({
+				environment: "production",
+				resources: [],
+				version: 1,
+			});
+
+			expect(result.success).toBeTrue();
+			expect(calls).toHaveLength(2);
+			expect(sleepFake.calls).toStrictEqual([1000]);
+		});
+
+		it("should err with the github-returned-409 reason after exhausting the retry budget", async () => {
+			expect.assertions(4);
+
+			const { calls, fetchFn } = fakeFetchSequence([
+				emptyResponse(409),
+				emptyResponse(409),
+				emptyResponse(409),
+				emptyResponse(409),
+			]);
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			const result = await port.write({
+				environment: "production",
+				resources: [],
+				version: 1,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/github returned 409/u);
+			expect(result.err.file).toBe(`gist:${GIST_ID}/state.production.json`);
+			expect(calls).toHaveLength(4);
+			expect(sleepFake.calls).toStrictEqual([1000, 2000, 4000]);
+		});
+
+		it("should sleep using setTimeout by default when sleep is not injected", async () => {
+			expect.assertions(3);
+
+			vi.useFakeTimers();
+			onTestFinished(() => {
+				vi.useRealTimers();
+			});
+
+			const { calls, fetchFn } = fakeFetchSequence([emptyResponse(409), emptyResponse(200)]);
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				token: TOKEN,
+			});
+
+			const writePromise = port.write({
+				environment: "production",
+				resources: [],
+				version: 1,
+			});
+
+			await vi.advanceTimersByTimeAsync(0);
+
+			expect(calls).toHaveLength(1);
+
+			await vi.advanceTimersByTimeAsync(1000);
+
+			const result = await writePromise;
+
+			expect(result.success).toBeTrue();
+			expect(calls).toHaveLength(2);
 		});
 	});
 });
