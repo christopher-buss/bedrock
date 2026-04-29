@@ -177,6 +177,81 @@ describe(migrateCommand, () => {
 		expect(firstCall?.getEnv("GITHUB_TOKEN")).toBe("from-process");
 	});
 
+	it("should render an io error and exit 1 when the migrator throws (e.g. EACCES)", async () => {
+		expect.assertions(3);
+
+		const migrateMantleState = vi.fn<MigrateFunc>(async () => {
+			throw new Error("EACCES: permission denied");
+		});
+		const deps = makeDeps({ migrateMantleState });
+		scriptHappyPrompts(deps);
+
+		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+			"failed to read Mantle state file '/projects/example/.mantle-state.yml': EACCES: permission denied",
+		);
+		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should describe a non-Error throw value via String(value)", async () => {
+		expect.assertions(1);
+
+		const migrateMantleState = vi.fn<MigrateFunc>();
+		migrateMantleState.mockRejectedValueOnce("raw-string-failure");
+		const deps = makeDeps({ migrateMantleState });
+		scriptHappyPrompts(deps);
+
+		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+			"failed to read Mantle state file '/projects/example/.mantle-state.yml': raw-string-failure",
+		);
+	});
+
+	it("should render an io error from the second migrator pass (multi-env retry)", async () => {
+		expect.assertions(2);
+
+		const migrateMantleState = vi
+			.fn<MigrateFunc>()
+			.mockResolvedValueOnce({
+				err: { available: ["production", "staging"], kind: "primaryEnvironmentRequired" },
+				success: false,
+			})
+			.mockRejectedValueOnce(new Error("ENOSPC: no space left on device"));
+		const deps = makeDeps({ migrateMantleState });
+		scriptHappyPrompts(deps);
+		vi.mocked(deps.migratePromptPort!.promptPrimaryEnvironment).mockResolvedValueOnce({
+			data: "production",
+			success: true,
+		});
+
+		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+			"failed to read Mantle state file '/projects/example/.mantle-state.yml': ENOSPC: no space left on device",
+		);
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should render a config-write error and exit 1 when writeFile rejects", async () => {
+		expect.assertions(3);
+
+		const writeFile = vi.fn<WriteFileFunc>();
+		writeFile.mockRejectedValueOnce(new Error("EROFS: read-only file system"));
+		const deps = makeDeps({ writeFile });
+		scriptHappyPrompts(deps);
+
+		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+			"config file write failed (/projects/example/bedrock.config.ts): EROFS: read-only file system",
+		);
+		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
 	it("should fall back to clack.text when the positional path is omitted", async () => {
 		expect.assertions(2);
 
@@ -336,20 +411,50 @@ describe(migrateCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it.for<{ method: "promptConfigFormat" | "promptGistId" | "promptStateBackend" }>([
-		{ method: "promptConfigFormat" },
-		{ method: "promptStateBackend" },
-		{ method: "promptGistId" },
-	])("should cancel cleanly when the user aborts $method", async ({ method }) => {
+	it("should cancel cleanly when the user aborts the config-format prompt", async () => {
 		expect.assertions(2);
 
 		const deps = makeDeps();
 		scriptHappyPrompts(deps);
-		vi.mocked(deps.migratePromptPort![method]).mockReset();
-		vi.mocked(deps.migratePromptPort![method]).mockResolvedValueOnce({
+		vi.mocked(deps.migratePromptPort!.promptConfigFormat).mockReset();
+		vi.mocked(deps.migratePromptPort!.promptConfigFormat).mockResolvedValueOnce({
 			err: { kind: "cancelled" },
 			success: false,
-		} as never);
+		});
+
+		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
+
+		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should cancel cleanly when the user aborts the state-backend prompt", async () => {
+		expect.assertions(2);
+
+		const deps = makeDeps();
+		scriptHappyPrompts(deps);
+		vi.mocked(deps.migratePromptPort!.promptStateBackend).mockReset();
+		vi.mocked(deps.migratePromptPort!.promptStateBackend).mockResolvedValueOnce({
+			err: { kind: "cancelled" },
+			success: false,
+		});
+
+		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
+
+		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should cancel cleanly when the user aborts the gist-id prompt", async () => {
+		expect.assertions(2);
+
+		const deps = makeDeps();
+		scriptHappyPrompts(deps);
+		vi.mocked(deps.migratePromptPort!.promptGistId).mockReset();
+		vi.mocked(deps.migratePromptPort!.promptGistId).mockResolvedValueOnce({
+			err: { kind: "cancelled" },
+			success: false,
+		});
 
 		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
 

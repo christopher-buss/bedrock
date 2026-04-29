@@ -293,9 +293,12 @@ function migrateErrorMessage(err: MigrateError): string {
 }
 
 function buildStatePortErrorMessage(err: MissingCredentialError | UnsupportedBackendError): string {
-	if (err.kind === "missingCredential") {
-		return `missing credential: environment variable ${err.variable} is not set`;
+	switch (err.kind) {
+		case "missingCredential": {
+			return `missing credential: environment variable ${err.variable} is not set`;
+		}
+		case "unsupportedBackend": {
+			return `unsupported state backend '${err.backend}' (${err.hint})`;
+		}
 	}
-
-	return `unsupported state backend '${err.backend}' (${err.hint})`;
 }

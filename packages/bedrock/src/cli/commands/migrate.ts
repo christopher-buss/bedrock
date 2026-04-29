@@ -7,7 +7,6 @@ import process from "node:process";
 import type { MigrateError, MigrationReport } from "../../core/migrate/migration-report.ts";
 import { serializeConfig } from "../../core/migrate/serialize-config.ts";
 import type { Config, GistStateConfig } from "../../core/schema.ts";
-import type { BedrockState, StateError } from "../../core/state.ts";
 import { buildStatePort as defaultBuildStatePort } from "../../shell/build-state-port.ts";
 import {
 	migrateMantleState as defaultMigrateMantleState,
@@ -17,7 +16,7 @@ import { createDefaultMigratePromptPort } from "../default-migrate-prompt-port.t
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps } from "../index.ts";
 import type { MigrateConfigFormat, MigratePromptPort } from "../migrate-prompt-port.ts";
-import { parseMigrateOptions } from "../parse-migrate-options.ts";
+import { type MigrationSource, parseMigrateOptions } from "../parse-migrate-options.ts";
 import {
 	type ClackPort,
 	createClackPort,
@@ -70,10 +69,16 @@ interface RunMigratorInputs {
 	readonly stateFilePath: string;
 }
 
-interface WriteStatesInputs {
-	readonly clack: ClackPort;
-	readonly statePort: { write: (state: BedrockState) => Promise<Result<void, StateError>> };
-	readonly statesByEnvironment: Readonly<Record<string, BedrockState>>;
+interface MigratorIoError {
+	readonly cause: unknown;
+	readonly kind: "ioError";
+	readonly path: string;
+}
+
+interface DispatchInputs {
+	readonly resolved: ResolvedMigrate;
+	readonly source: MigrationSource;
+	readonly stateFilePath: string;
 }
 
 /**
@@ -124,6 +129,22 @@ function failAfterRender(resolved: ResolvedMigrate): number {
 	return EXIT_ERROR;
 }
 
+async function resolveStateFilePath(
+	pathArgument: string | undefined,
+	resolved: ResolvedMigrate,
+): Promise<Result<string, "cancelled">> {
+	if (pathArgument !== undefined) {
+		return { data: pathArgument, success: true };
+	}
+
+	const promptResult = await resolved.promptPort.promptStateFilePath();
+	if (!promptResult.success) {
+		return { err: "cancelled", success: false };
+	}
+
+	return { data: promptResult.data, success: true };
+}
+
 function renderedFailure(
 	err: MigrateError,
 	resolved: ResolvedMigrate,
@@ -135,7 +156,7 @@ function renderedFailure(
 
 async function callMigrator(
 	inputs: RunMigratorInputs & { readonly primaryEnvironment?: string },
-): Promise<Result<MigrationReport, MigrateError>> {
+): Promise<Result<MigrationReport, MigrateError | MigratorIoError>> {
 	const callDeps: MigrateMantleStateDeps = {
 		configFormat: inputs.configFormat,
 		stateFilePath: inputs.stateFilePath,
@@ -143,7 +164,26 @@ async function callMigrator(
 			? {}
 			: { primaryEnvironment: inputs.primaryEnvironment }),
 	};
-	return inputs.resolved.migrateMantleState(callDeps);
+	try {
+		return await inputs.resolved.migrateMantleState(callDeps);
+	} catch (err) {
+		return { err: { cause: err, kind: "ioError", path: inputs.stateFilePath }, success: false };
+	}
+}
+
+function describeUnknown(value: unknown): string {
+	return value instanceof Error ? value.message : String(value);
+}
+
+function renderIoFailure(
+	err: MigratorIoError,
+	resolved: ResolvedMigrate,
+): Result<MigrationReport, MigrateRunError> {
+	resolved.clack.logError(
+		`failed to read Mantle state file '${err.path}': ${describeUnknown(err.cause)}`,
+	);
+	resolved.clack.cancel(FAILED_OUTRO);
+	return { err: "rendered", success: false };
 }
 
 async function runMigratorWithPrompt(
@@ -152,6 +192,10 @@ async function runMigratorWithPrompt(
 	const first = await callMigrator(inputs);
 	if (first.success) {
 		return { data: first.data, success: true };
+	}
+
+	if (first.err.kind === "ioError") {
+		return renderIoFailure(first.err, inputs.resolved);
 	}
 
 	if (first.err.kind !== "primaryEnvironmentRequired") {
@@ -164,11 +208,15 @@ async function runMigratorWithPrompt(
 	}
 
 	const second = await callMigrator({ ...inputs, primaryEnvironment: primary.data });
-	if (!second.success) {
-		return renderedFailure(second.err, inputs.resolved);
+	if (second.success) {
+		return { data: second.data, success: true };
 	}
 
-	return { data: second.data, success: true };
+	if (second.err.kind === "ioError") {
+		return renderIoFailure(second.err, inputs.resolved);
+	}
+
+	return renderedFailure(second.err, inputs.resolved);
 }
 
 async function promptForStateConfig(
@@ -187,44 +235,59 @@ async function promptForStateConfig(
 	return { data: { backend: backend.data, gistId: gistId.data }, success: true };
 }
 
-async function writeStates(inputs: WriteStatesInputs): Promise<Result<void, void>> {
-	for (const [environment, state] of Object.entries(inputs.statesByEnvironment)) {
-		const writeResult = await inputs.statePort.write(state);
-		if (!writeResult.success) {
-			renderStateWriteError({ environment, err: writeResult.err }, inputs.clack);
-			return { err: undefined, success: false };
-		}
-
-		inputs.clack.logSuccess(`${environment}: ${state.resources.length} resources migrated`);
-	}
-
-	return { data: undefined, success: true };
-}
-
-async function finalize(inputs: FinalizeInputs): Promise<number> {
-	const { configFilePath, configFormat, report, resolved, stateConfig } = inputs;
+async function writeMigratedStates(inputs: FinalizeInputs): Promise<Result<void, void>> {
+	const { report, resolved, stateConfig } = inputs;
 	const portResult = resolved.buildStatePort({
 		getEnv: (name) => process.env[name],
 		stateConfig,
 	});
 	if (!portResult.success) {
 		renderBuildStatePortError(portResult.err, resolved.clack);
-		return failAfterRender(resolved);
+		return { err: undefined, success: false };
 	}
 
-	const writes = await writeStates({
-		clack: resolved.clack,
-		statePort: portResult.data,
-		statesByEnvironment: report.statesByEnvironment,
-	});
-	if (!writes.success) {
-		return failAfterRender(resolved);
+	for (const [environment, state] of Object.entries(report.statesByEnvironment)) {
+		const writeResult = await portResult.data.write(state);
+		if (!writeResult.success) {
+			renderStateWriteError({ environment, err: writeResult.err }, resolved.clack);
+			return { err: undefined, success: false };
+		}
+
+		resolved.clack.logSuccess(`${environment}: ${state.resources.length} resources migrated`);
 	}
 
+	return { data: undefined, success: true };
+}
+
+async function writeBedrockConfig(inputs: FinalizeInputs): Promise<Result<void, void>> {
+	const { configFilePath, configFormat, report, resolved, stateConfig } = inputs;
 	const enrichedConfig: Config = { ...report.config, state: stateConfig };
 	const enrichedBytes = serializeConfig({ config: enrichedConfig, configFormat });
-	await resolved.writeFile(configFilePath, enrichedBytes);
+	try {
+		await resolved.writeFile(configFilePath, enrichedBytes);
+	} catch (err) {
+		resolved.clack.logError(
+			`config file write failed (${configFilePath}): ${describeUnknown(err)}`,
+		);
+		return { err: undefined, success: false };
+	}
+
 	resolved.clack.logSuccess(`wrote ${configFilePath}`);
+	return { data: undefined, success: true };
+}
+
+async function finalize(inputs: FinalizeInputs): Promise<number> {
+	const { report, resolved } = inputs;
+	const stateWritten = await writeMigratedStates(inputs);
+	if (!stateWritten.success) {
+		return failAfterRender(resolved);
+	}
+
+	const written = await writeBedrockConfig(inputs);
+	if (!written.success) {
+		return failAfterRender(resolved);
+	}
+
 	renderMigrationSummary(report.summary, resolved.clack);
 	resolved.clack.outro("migrate succeeded");
 	return EXIT_OK;
@@ -267,20 +330,13 @@ async function runWithStateFilePath(
 	});
 }
 
-async function resolveStateFilePath(
-	pathArgument: string | undefined,
-	resolved: ResolvedMigrate,
-): Promise<Result<string, "cancelled">> {
-	if (pathArgument !== undefined) {
-		return { data: pathArgument, success: true };
-	}
-
-	const promptResult = await resolved.promptPort.promptStateFilePath();
-	if (!promptResult.success) {
-		return { err: "cancelled", success: false };
-	}
-
-	return { data: promptResult.data, success: true };
+async function dispatchBySource(inputs: DispatchInputs): Promise<number> {
+	const { resolved, source, stateFilePath } = inputs;
+	const dispatch: Record<MigrationSource, () => Promise<number>> = {
+		mantle: async () => runWithStateFilePath(stateFilePath, resolved),
+	};
+	const handler = dispatch[source];
+	return handler();
 }
 
 async function runMigrate(inputs: RunMigrateInputs): Promise<number> {
@@ -298,5 +354,9 @@ async function runMigrate(inputs: RunMigrateInputs): Promise<number> {
 		return cancel(resolved);
 	}
 
-	return runWithStateFilePath(stateFilePath.data, resolved);
+	return dispatchBySource({
+		resolved,
+		source: parsed.data.from,
+		stateFilePath: stateFilePath.data,
+	});
 }

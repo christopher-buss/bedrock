@@ -51,7 +51,7 @@ export interface ProgDeps {
  *   resolves its own defaults from any omitted slots.
  * @returns A configured sade program with the bedrock name, description, and
  *   the currently installed `@bedrock/core` version, plus the registered
- *   `deploy` and `diff` commands.
+ *   `deploy`, `diff`, and `migrate` commands.
  */
 export function createProg(deps: ProgDeps = {}): Sade {
 	const prog = sade(PROGRAM_NAME).describe(PROGRAM_DESCRIBE).version(manifest.version);

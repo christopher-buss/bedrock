@@ -24,7 +24,7 @@ export type ParseMigrateError =
 	  };
 
 /** One element of {@link SUPPORTED_MIGRATION_SOURCES}. */
-type MigrationSource = (typeof SUPPORTED_MIGRATION_SOURCES)[number];
+export type MigrationSource = (typeof SUPPORTED_MIGRATION_SOURCES)[number];
 
 /** Typed shape the migrate command consumes after `--from` has been validated. */
 interface MigrateOptions {

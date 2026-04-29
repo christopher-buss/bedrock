@@ -15,15 +15,6 @@ export type MigrateConfigFormat = "typescript" | "yaml";
 export type MigrateStateBackend = "gist";
 
 /**
- * Failure surfaced when the user aborts a `MigratePromptPort` prompt
- * (Ctrl-C, Esc). Plain data; narrow on `kind`.
- */
-export interface MigratePromptCancelled {
-	/** Literal discriminator for narrowing. */
-	readonly kind: "cancelled";
-}
-
-/**
  * Result returned by every method on {@link MigratePromptPort}.
  *
  * @template T - The data type returned on a successful prompt.
@@ -56,4 +47,13 @@ export interface MigratePromptPort {
 	promptStateBackend(): Promise<MigratePromptResult<MigrateStateBackend>>;
 	/** Ask for the path to the input Mantle state file. */
 	promptStateFilePath(): Promise<MigratePromptResult<string>>;
+}
+
+/**
+ * Failure surfaced when the user aborts a `MigratePromptPort` prompt
+ * (Ctrl-C, Esc). Plain data; narrow on `kind`.
+ */
+interface MigratePromptCancelled {
+	/** Literal discriminator for narrowing. */
+	readonly kind: "cancelled";
 }
