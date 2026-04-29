@@ -417,6 +417,31 @@ describe(createGistStateAdapter, () => {
 
 			expect(result.data).toStrictEqual(state);
 		});
+
+		it.for<[number]>([[502], [503], [504]])(
+			"should retry the read GET on %i and succeed on the second attempt",
+			async ([status]) => {
+				expect.assertions(3);
+
+				const { calls, fetchFn } = fakeFetchSequence([
+					emptyResponse(status),
+					okJson({ files: {} }),
+				]);
+				const sleepFake = fakeSleep();
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					sleep: sleepFake.sleep,
+					token: TOKEN,
+				});
+
+				const result = await port.read("production");
+
+				expect(result.success).toBeTrue();
+				expect(calls).toHaveLength(2);
+				expect(sleepFake.calls).toStrictEqual([1000]);
+			},
+		);
 	});
 
 	describe("write", () => {

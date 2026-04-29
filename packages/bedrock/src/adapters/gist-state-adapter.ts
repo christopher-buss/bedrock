@@ -150,15 +150,6 @@ function toGistFile(entry: unknown): GistFile | undefined {
 	return { content, isTruncated, rawUrl, size };
 }
 
-function buildHeaders(token: string): Headers {
-	const headers = new Headers();
-	headers.set("Accept", "application/vnd.github+json");
-	headers.set("Authorization", `Bearer ${token}`);
-	headers.set("User-Agent", USER_AGENT);
-	headers.set("X-GitHub-Api-Version", GITHUB_API_VERSION);
-	return headers;
-}
-
 function mapHttpError({ file, gistId, status }: HttpFailure): StateError {
 	if (status === 404) {
 		return { file, kind: "stateError", reason: `gist ${gistId} not found: check gistId` };
@@ -176,16 +167,54 @@ function networkError(error: unknown, file: string): StateError {
 	return { file, kind: "stateError", reason: `network error: ${message}` };
 }
 
+function buildHeaders(token: string): Headers {
+	const headers = new Headers();
+	headers.set("Accept", "application/vnd.github+json");
+	headers.set("Authorization", `Bearer ${token}`);
+	headers.set("User-Agent", USER_AGENT);
+	headers.set("X-GitHub-Api-Version", GITHUB_API_VERSION);
+	return headers;
+}
+
+async function sendGet(ctx: AdapterContext): Promise<Response> {
+	return ctx.fetchFn(`${GITHUB_API_BASE}/gists/${ctx.gistId}`, {
+		headers: buildHeaders(ctx.token),
+		method: "GET",
+	});
+}
+
+function isRetryableStatus(status: number): boolean {
+	return RETRYABLE_STATUSES.has(status);
+}
+
+function backoffMs(attempt: number): number {
+	return 1000 * 2 ** attempt;
+}
+
+async function withRetry(
+	ctx: AdapterContext,
+	operation: () => Promise<Response>,
+): Promise<Response> {
+	let response = await operation();
+	for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
+		if (response.ok || !isRetryableStatus(response.status)) {
+			return response;
+		}
+
+		await ctx.sleep(backoffMs(attempt));
+		response = await operation();
+	}
+
+	return response;
+}
+
 async function fetchGistBody(
 	ctx: AdapterContext,
 	file: string,
 ): Promise<Result<Record<string, unknown>, StateError>> {
 	let response: Response;
 	try {
-		response = await ctx.fetchFn(`${GITHUB_API_BASE}/gists/${ctx.gistId}`, {
-			headers: buildHeaders(ctx.token),
-			method: "GET",
-		});
+		response = await withRetry(ctx, async () => sendGet(ctx));
 	} catch (err) {
 		return { err: networkError(err, file), success: false };
 	}
@@ -258,31 +287,6 @@ async function sendPatch(ctx: AdapterContext, body: string): Promise<Response> {
 		headers,
 		method: "PATCH",
 	});
-}
-
-function isRetryableStatus(status: number): boolean {
-	return RETRYABLE_STATUSES.has(status);
-}
-
-function backoffMs(attempt: number): number {
-	return 1000 * 2 ** attempt;
-}
-
-async function withRetry(
-	ctx: AdapterContext,
-	operation: () => Promise<Response>,
-): Promise<Response> {
-	let response = await operation();
-	for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
-		if (response.ok || !isRetryableStatus(response.status)) {
-			return response;
-		}
-
-		await ctx.sleep(backoffMs(attempt));
-		response = await operation();
-	}
-
-	return response;
 }
 
 async function writePath(
