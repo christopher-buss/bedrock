@@ -22,6 +22,7 @@
 		"arktype": "catalog:runtime"
 	},
 	"devDependencies": {
+		"@bedrock/testing": "workspace:*",
 		"@bedrock/typescript-config": "workspace:*",
 		"@bedrock/vite-config": "workspace:*",
 		"typescript": "catalog:tsc",

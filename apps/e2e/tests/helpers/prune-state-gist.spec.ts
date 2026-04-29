@@ -217,4 +217,31 @@ describe(pruneStateGist, () => {
 		expect(sleepFake.calls).toStrictEqual([1000, 2000, 4000]);
 		expect(warnSpy).toHaveBeenCalledWith("pruneStateGist: prune failed with status 409");
 	});
+
+	it.for<[number]>([[401], [403], [404], [422]])(
+		"should not retry the list GET on %i and surface the warn in a single attempt",
+		async ([status]) => {
+			expect.assertions(2);
+
+			const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+			onTestFinished(() => {
+				warnSpy.mockRestore();
+			});
+
+			const { calls, fetchFn } = fakeFetchSequence([new Response("", { status })]);
+			const sleepFake = fakeSleep();
+
+			await pruneStateGist({
+				fetch: fetchFn,
+				filenamePrefix: "state.smoke-",
+				gistId: GIST_ID,
+				keep: 3,
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			expect(calls).toHaveLength(1);
+			expect(sleepFake.calls).toStrictEqual([]);
+		},
+	);
 });
