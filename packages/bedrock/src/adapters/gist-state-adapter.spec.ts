@@ -625,5 +625,38 @@ describe(createGistStateAdapter, () => {
 			expect(result.success).toBeTrue();
 			expect(calls).toHaveLength(2);
 		});
+
+		it.for<[number, RegExp]>([
+			[401, /auth failed/u],
+			[403, /auth failed/u],
+			[404, /not found/u],
+			[422, /invalid PATCH body/u],
+		])(
+			"should not retry write on %i and surface the error in a single attempt",
+			async ([status, reasonPattern]) => {
+				expect.assertions(3);
+
+				const { calls, fetchFn } = fakeFetch(() => emptyResponse(status));
+				const sleepFake = fakeSleep();
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					sleep: sleepFake.sleep,
+					token: TOKEN,
+				});
+
+				const result = await port.write({
+					environment: "production",
+					resources: [],
+					version: 1,
+				});
+
+				assert(!result.success);
+
+				expect(result.err.reason).toMatch(reasonPattern);
+				expect(calls).toHaveLength(1);
+				expect(sleepFake.calls).toBeEmpty();
+			},
+		);
 	});
 });
