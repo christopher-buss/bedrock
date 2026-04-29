@@ -473,4 +473,88 @@ describe(migrateMantleState, () => {
 
 		expect(result.data.summary.interpretiveCount).toBeGreaterThan(0);
 	});
+
+	it("should emit one blocked warning per legacy field per environment in the real fixture", async () => {
+		expect.assertions(3);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
+
+		const blocked = result.data.warnings.filter((warning) => warning.kind === "blocked");
+
+		// 9 experienceConfiguration fields (genre, isForSale,
+		// studioAccessToApisAllowed, permissions, isArchived, universeAvatarType,
+		// universeAvatarMinScales, universeAvatarMaxScales,
+		// universeAvatarAssetOverrides) plus 4 placeConfiguration fields
+		// (description, maxPlayerCount, allowCopying, socialSlotType) per
+		// environment. price and customSocialSlotsCount use the null sentinel;
+		// isFriendsOnly is owned by foldVisibility; experience.groupId is null in
+		// both environments.
+		expect(blocked).toHaveLength(26);
+		expect(result.data.summary.blockedCount).toBe(26);
+
+		const paths = blocked.map((warning) => warning.mantlePath);
+
+		expect(paths).toIncludeAllMembers([
+			"development.experienceConfiguration_singleton.genre",
+			"production.experienceConfiguration_singleton.genre",
+			"production.experienceConfiguration_singleton.universeAvatarType",
+			"production.placeConfiguration_start.description",
+			"production.placeConfiguration_start.allowCopying",
+		]);
+	});
+
+	it("should root every blocked warning's mantlePath at an environment name", async () => {
+		expect.assertions(2);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
+
+		const paths = result.data.warnings
+			.filter((warning) => warning.kind === "blocked")
+			.map((warning) => warning.mantlePath);
+		const missingPrefix = paths.filter(
+			(path) => !path.startsWith("development.") && !path.startsWith("production."),
+		);
+
+		expect(missingPrefix).toStrictEqual([]);
+		expect(paths.length).toBeGreaterThan(0);
+	});
+
+	it("should suppress blocked emission for fields owned by interpretive folds or set to the null sentinel", async () => {
+		expect.assertions(3);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
+
+		const paths = result.data.warnings
+			.filter((warning) => warning.kind === "blocked")
+			.map((warning) => warning.mantlePath);
+
+		// isFriendsOnly: foldVisibility owns it (production sets isFriendsOnly:
+		// false + isActive: true → public visibility, no blocked).
+		expect(paths.filter((path) => path.endsWith(".isFriendsOnly"))).toStrictEqual([]);
+
+		// customSocialSlotsCount and price use the YAML null sentinel (~) so
+		// parseState strips them to undefined before the fold runs.
+		expect(paths.filter((path) => path.endsWith(".customSocialSlotsCount"))).toStrictEqual([]);
+
+		// experience.groupId is also null in both environments.
+		expect(paths.filter((path) => path.endsWith(".groupId"))).toStrictEqual([]);
+	});
 });
