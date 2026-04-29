@@ -215,7 +215,9 @@ describe(pruneStateGist, () => {
 
 		expect(calls).toHaveLength(5);
 		expect(sleepFake.calls).toStrictEqual([1000, 2000, 4000]);
-		expect(warnSpy).toHaveBeenCalledWith("pruneStateGist: prune failed with status 409");
+		expect(warnSpy).toHaveBeenCalledExactlyOnceWith(
+			"pruneStateGist: prune failed with status 409",
+		);
 	});
 
 	it.for<[number]>([[401], [403], [404], [422]])(
