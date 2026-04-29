@@ -60,9 +60,10 @@ interface HttpFailure {
 }
 
 interface ReadContentParameters {
-	readonly ctx: AdapterContext;
 	readonly entry: GistFile;
+	readonly fetchFn: GistFetch;
 	readonly file: string;
+	readonly sleep: (ms: number) => Promise<void>;
 }
 
 /**
@@ -192,7 +193,7 @@ function backoffMs(attempt: number): number {
 }
 
 async function withRetry(
-	ctx: AdapterContext,
+	sleep: (ms: number) => Promise<void>,
 	operation: () => Promise<Response>,
 ): Promise<Response> {
 	let response = await operation();
@@ -201,7 +202,7 @@ async function withRetry(
 			return response;
 		}
 
-		await ctx.sleep(backoffMs(attempt));
+		await sleep(backoffMs(attempt));
 		response = await operation();
 	}
 
@@ -214,7 +215,7 @@ async function fetchGistBody(
 ): Promise<Result<Record<string, unknown>, StateError>> {
 	let response: Response;
 	try {
-		response = await withRetry(ctx, async () => sendGet(ctx));
+		response = await withRetry(ctx.sleep, async () => sendGet(ctx));
 	} catch (err) {
 		return { err: networkError(err, file), success: false };
 	}
@@ -235,9 +236,10 @@ function stateErr<T>(file: string, reason: string): Result<T, StateError> {
 }
 
 async function readGistContent({
-	ctx,
 	entry,
+	fetchFn,
 	file,
+	sleep,
 }: ReadContentParameters): Promise<Result<BedrockState | undefined, StateError>> {
 	if (entry.size > MAX_INLINE_BYTES) {
 		return stateErr(file, `state file too large: ${entry.size} bytes`);
@@ -249,7 +251,7 @@ async function readGistContent({
 		}
 
 		const { rawUrl } = entry;
-		const rawResponse = await withRetry(ctx, async () => ctx.fetchFn(rawUrl));
+		const rawResponse = await withRetry(sleep, async () => fetchFn(rawUrl));
 		if (!rawResponse.ok) {
 			return stateErr(file, `raw_url fetch returned ${rawResponse.status}`);
 		}
@@ -277,7 +279,7 @@ async function readPath(
 		return { data: undefined, success: true };
 	}
 
-	return readGistContent({ ctx, entry, file });
+	return readGistContent({ entry, fetchFn: ctx.fetchFn, file, sleep: ctx.sleep });
 }
 
 async function sendPatch(ctx: AdapterContext, body: string): Promise<Response> {
@@ -301,7 +303,7 @@ async function writePath(
 
 	let response: Response;
 	try {
-		response = await withRetry(ctx, async () => sendPatch(ctx, body));
+		response = await withRetry(ctx.sleep, async () => sendPatch(ctx, body));
 	} catch (err) {
 		return { err: networkError(err, file), success: false };
 	}
