@@ -10,7 +10,7 @@ const GITHUB_API_VERSION = "2026-03-10";
 const USER_AGENT = "bedrock";
 const MAX_INLINE_BYTES = 10_000_000;
 const MAX_RETRIES = 3;
-const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([409]);
+const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([409, 502, 503, 504]);
 
 /**
  * Minimal `fetch`-compatible signature the adapter needs, narrower than
