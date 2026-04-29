@@ -6,18 +6,37 @@ const gistResponse = type({
 	},
 });
 
+const MAX_RETRIES = 3;
+const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([409, 502, 503, 504]);
+
 /**
  * Options controlling a smoke-test gist prune call.
  */
 export interface PruneStateGistOptions {
+	/** Injection seam for tests; defaults to `globalThis.fetch`. */
+	readonly fetch?: Fetch | undefined;
 	/** Filename prefix (e.g. `state.cli-smoke-`) that scopes the prune. */
 	readonly filenamePrefix: string;
 	/** Identifier of the gist holding smoke-test state files. */
 	readonly gistId: string;
 	/** Number of newest matching files to retain. */
 	readonly keep: number;
+	/**
+	 * Injection seam for retry backoff timing; defaults to a `setTimeout`-based
+	 * promise. Tests pass a fake to keep retry assertions deterministic.
+	 */
+	readonly sleep?: ((ms: number) => Promise<void>) | undefined;
 	/** GitHub token with write access to the gist. */
 	readonly token: string;
+}
+
+type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
+
+interface PruneRequestContext {
+	readonly fetchFn: Fetch;
+	readonly headers: Record<string, string>;
+	readonly sleep: (ms: number) => Promise<void>;
+	readonly url: string;
 }
 
 /**
@@ -49,21 +68,38 @@ export function selectFilesToDelete(
  * @param options - Prune target, retention count, and credentials.
  */
 export async function pruneStateGist(options: PruneStateGistOptions): Promise<void> {
-	const { filenamePrefix, gistId, keep, token } = options;
-	const url = `https://api.github.com/gists/${gistId}`;
-	const headers = gistHeaders(token);
+	const {
+		fetch: fetchFunc = globalThis.fetch.bind(globalThis),
+		filenamePrefix,
+		gistId,
+		keep,
+		sleep = defaultSleep,
+		token,
+	} = options;
+	const ctx: PruneRequestContext = {
+		fetchFn: fetchFunc,
+		headers: gistHeaders(token),
+		sleep,
+		url: `https://api.github.com/gists/${gistId}`,
+	};
 
 	try {
-		const filenames = await listGistFilenames(url, headers);
+		const filenames = await listGistFilenames(ctx);
 		const toDelete = selectFilesToDelete(filenames, filenamePrefix, keep);
 		if (toDelete.length === 0) {
 			return;
 		}
 
-		await deleteGistFiles(url, headers, toDelete);
+		await deleteGistFiles(ctx, toDelete);
 	} catch (err) {
 		console.warn(`pruneStateGist: ${String(err)}`);
 	}
+}
+
+async function defaultSleep(ms: number): Promise<void> {
+	await new Promise<void>((resolve) => {
+		setTimeout(resolve, ms);
+	});
 }
 
 function gistHeaders(token: string): Record<string, string> {
@@ -75,18 +111,43 @@ function gistHeaders(token: string): Record<string, string> {
 	};
 }
 
+function isRetryableStatus(status: number): boolean {
+	return RETRYABLE_STATUSES.has(status);
+}
+
+function backoffMs(attempt: number): number {
+	return 1000 * 2 ** attempt;
+}
+
+async function withRetry(
+	sleep: (ms: number) => Promise<void>,
+	operation: () => Promise<Response>,
+): Promise<Response> {
+	let response = await operation();
+	for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
+		if (response.ok || !isRetryableStatus(response.status)) {
+			return response;
+		}
+
+		await sleep(backoffMs(attempt));
+		response = await operation();
+	}
+
+	return response;
+}
+
 /**
  * GET the gist and return the filenames currently stored in it. Returns an
  * empty list when the request fails or the response shape is unexpected.
- * @param url - The full gist URL (including ID).
- * @param headers - Authenticated request headers from {@link gistHeaders}.
+ * @param ctx - Pre-resolved fetch implementation, retry sleep, gist URL, and request headers.
  * @returns Filenames present in the gist, or `[]` on error.
  */
-async function listGistFilenames(
-	url: string,
-	headers: Record<string, string>,
-): Promise<ReadonlyArray<string>> {
-	const response = await fetch(url, { headers });
+async function listGistFilenames(ctx: PruneRequestContext): Promise<ReadonlyArray<string>> {
+	async function sendList(): Promise<Response> {
+		return ctx.fetchFn(ctx.url, { headers: ctx.headers });
+	}
+
+	const response = await withRetry(ctx.sleep, sendList);
 	if (!response.ok) {
 		console.warn(`pruneStateGist: list failed with status ${String(response.status)}`);
 		return [];
@@ -103,20 +164,20 @@ async function listGistFilenames(
 
 /**
  * PATCH the gist to delete every named file in a single request.
- * @param url - The full gist URL (including ID).
- * @param headers - Authenticated request headers from {@link gistHeaders}.
+ * @param ctx - Pre-resolved fetch implementation, retry sleep, gist URL, and request headers.
  * @param names - Filenames to delete; must be non-empty.
  */
 async function deleteGistFiles(
-	url: string,
-	headers: Record<string, string>,
+	ctx: PruneRequestContext,
 	names: ReadonlyArray<string>,
 ): Promise<void> {
 	const filesPayload = Object.fromEntries(names.map((name): [string, null] => [name, null]));
-	const response = await fetch(url, {
-		body: JSON.stringify({ files: filesPayload }),
-		headers: { ...headers, "Content-Type": "application/json" },
-		method: "PATCH",
+	const response = await withRetry(ctx.sleep, async () => {
+		return ctx.fetchFn(ctx.url, {
+			body: JSON.stringify({ files: filesPayload }),
+			headers: { ...ctx.headers, "Content-Type": "application/json" },
+			method: "PATCH",
+		});
 	});
 	if (!response.ok) {
 		console.warn(`pruneStateGist: prune failed with status ${String(response.status)}`);
