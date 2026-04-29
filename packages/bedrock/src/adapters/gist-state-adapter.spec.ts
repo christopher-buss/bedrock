@@ -204,6 +204,39 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toMatch(/network error/u);
 		});
 
+		it("should err with a network-error reason when the raw_url fetch throws", async () => {
+			expect.assertions(2);
+
+			const { fetchFn } = fakeFetch((request) => {
+				if (request.url.startsWith("https://api.github.com")) {
+					return okJson({
+						files: {
+							"state.production.json": {
+								content: "",
+								raw_url: "https://gist.example/raw/abc",
+								size: 2_000_000,
+								truncated: true,
+							},
+						},
+					});
+				}
+
+				throw new Error("connection reset");
+			});
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				token: TOKEN,
+			});
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/network error/u);
+			expect(result.err.file).toBe(`gist:${GIST_ID}/state.production.json`);
+		});
+
 		it("should err with a github-returned-<status> reason on 500", async () => {
 			expect.assertions(2);
 

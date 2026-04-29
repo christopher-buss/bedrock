@@ -251,7 +251,13 @@ async function readGistContent({
 		}
 
 		const { rawUrl } = entry;
-		const rawResponse = await withRetry(sleep, async () => fetchFn(rawUrl));
+		let rawResponse: Response;
+		try {
+			rawResponse = await withRetry(sleep, async () => fetchFn(rawUrl));
+		} catch (err) {
+			return { err: networkError(err, file), success: false };
+		}
+
 		if (!rawResponse.ok) {
 			return stateErr(file, `raw_url fetch returned ${rawResponse.status}`);
 		}
