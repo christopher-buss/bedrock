@@ -90,7 +90,7 @@ export type MigrateError =
 	| {
 			readonly found: string;
 			readonly kind: "unsupportedMantleStateVersion";
-			readonly supported: ReadonlyArray<"6">;
+			readonly supported: ReadonlyArray<string>;
 	  }
 	| { readonly kind: "stateFileNotFound"; readonly path: string }
 	| { readonly kind: "stateParseFailed"; readonly path: string; readonly reason: string };

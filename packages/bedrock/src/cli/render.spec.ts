@@ -6,10 +6,22 @@ import { Buffer } from "node:buffer";
 import process from "node:process";
 import { describe, expect, it, vi } from "vitest";
 
+import type { MigrateError } from "../core/migrate/migration-report.ts";
+import type { MissingCredentialError, UnsupportedBackendError } from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
 import { asResourceKey } from "../types/ids.ts";
+import type { ParseMigrateError } from "./parse-migrate-options.ts";
 import type { ParseOptionsError } from "./parse-options.ts";
-import { type ClackPort, createClackPort, renderDeployError, renderParseError } from "./render.ts";
+import {
+	type ClackPort,
+	createClackPort,
+	renderBuildStatePortError,
+	renderDeployError,
+	renderMigrateError,
+	renderMigrateParseError,
+	renderParseError,
+	renderStateWriteError,
+} from "./render.ts";
 
 interface CapturedOutput {
 	readonly text: string;
@@ -305,5 +317,133 @@ describe(renderParseError, () => {
 		renderParseError(err, port);
 
 		expect(port.logError).toHaveBeenCalledExactlyOnceWith(expected);
+	});
+});
+
+describe(renderMigrateParseError, () => {
+	it.for<{ err: ParseMigrateError; expected: string }>([
+		{
+			err: { flag: "from", kind: "missingRequired" },
+			expected: "missing required flag --from",
+		},
+		{
+			err: {
+				kind: "unknownSource",
+				received: "x",
+				supported: ["mantle", "universe"],
+			},
+			expected: "unknown migration source 'x' (supported: mantle, universe)",
+		},
+	])(
+		"should render $err.kind via logError with a migrate-specific message",
+		({ err, expected }) => {
+			expect.assertions(1);
+
+			const port = fakeClackPort();
+
+			renderMigrateParseError(err, port);
+
+			expect(port.logError).toHaveBeenCalledExactlyOnceWith(expected);
+		},
+	);
+});
+
+describe(renderMigrateError, () => {
+	it.for<{ err: MigrateError; expected: string }>([
+		{
+			err: { kind: "stateFileNotFound", path: "./.mantle-state.yml" },
+			expected: "Mantle state file not found at './.mantle-state.yml'",
+		},
+		{
+			err: {
+				kind: "stateParseFailed",
+				path: "./.mantle-state.yml",
+				reason: "unexpected end of stream",
+			},
+			expected:
+				"Mantle state file at './.mantle-state.yml' could not be parsed: unexpected end of stream",
+		},
+		{
+			err: {
+				found: "5",
+				kind: "unsupportedMantleStateVersion",
+				supported: ["6", "7"],
+			},
+			expected: "unsupported Mantle state version '5' (supported: 6, 7)",
+		},
+		{
+			err: { available: ["production", "staging"], kind: "primaryEnvironmentRequired" },
+			expected: "primary environment required (available: production, staging)",
+		},
+		{
+			err: {
+				available: ["production", "staging"],
+				kind: "primaryEnvironmentNotFound",
+				primary: "ghost",
+			},
+			expected: "primary environment 'ghost' not found (available: production, staging)",
+		},
+		{
+			err: {
+				cause: { kind: "fileNotFound", searchedFrom: "/projects/example" },
+				kind: "internalError",
+				reason: "config validation failed",
+			},
+			expected:
+				"migrate internal error: config validation failed (no bedrock config under /projects/example)",
+		},
+	])("should render $err.kind via logError with a kind-specific message", ({ err, expected }) => {
+		expect.assertions(1);
+
+		const port = fakeClackPort();
+
+		renderMigrateError(err, port);
+
+		expect(port.logError).toHaveBeenCalledExactlyOnceWith(expected);
+	});
+});
+
+describe(renderBuildStatePortError, () => {
+	it.for<{ err: MissingCredentialError | UnsupportedBackendError; expected: string }>([
+		{
+			err: { kind: "missingCredential", purpose: "stateBackend", variable: "GITHUB_TOKEN" },
+			expected: "missing credential: environment variable GITHUB_TOKEN is not set",
+		},
+		{
+			err: { backend: "s3", hint: "pass a custom statePort", kind: "unsupportedBackend" },
+			expected: "unsupported state backend 's3' (pass a custom statePort)",
+		},
+	])("should render $err.kind via logError with a kind-specific message", ({ err, expected }) => {
+		expect.assertions(1);
+
+		const port = fakeClackPort();
+
+		renderBuildStatePortError(err, port);
+
+		expect(port.logError).toHaveBeenCalledExactlyOnceWith(expected);
+	});
+});
+
+describe(renderStateWriteError, () => {
+	it("should render the environment, file path, and reason in one logError line", () => {
+		expect.assertions(1);
+
+		const port = fakeClackPort();
+
+		renderStateWriteError(
+			{
+				environment: "production",
+				err: {
+					file: "gist:abc/state.production.json",
+					kind: "stateError",
+					reason: "auth 401",
+				},
+			},
+			port,
+		);
+
+		expect(port.logError).toHaveBeenCalledExactlyOnceWith(
+			"state write failed for 'production' (gist:abc/state.production.json): auth 401",
+		);
 	});
 });

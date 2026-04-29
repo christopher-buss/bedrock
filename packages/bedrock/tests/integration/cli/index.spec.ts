@@ -157,4 +157,22 @@ describe("cli program factory", () => {
 			expect(captured).toContain("GITHUB_TOKEN");
 		}
 	});
+
+	it("should describe the migrate subcommand and its --from flag in 'migrate --help' output", () => {
+		expect.assertions(3);
+
+		const prog = createProg();
+
+		const collect = startCapture();
+		try {
+			prog.parse(["node", "bedrock", "migrate", "--help"]);
+		} finally {
+			const { stdout } = collect();
+			const captured = stdout.join("");
+
+			expect(captured).toContain("Translate a state file from another tool");
+			expect(captured).toContain("--from");
+			expect(captured).toContain("Source format to migrate from");
+		}
+	});
 });

@@ -29,7 +29,7 @@ export type ParseMigrateError =
 	| {
 			readonly kind: "unknownSource";
 			readonly received: string;
-			readonly supported: ReadonlyArray<MigrationSource>;
+			readonly supported: ReadonlyArray<string>;
 	  };
 
 const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set(["from"]);
