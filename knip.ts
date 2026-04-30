@@ -3,6 +3,7 @@
 import type { KnipConfig } from "knip";
 
 const config: KnipConfig = {
+	ignore: [".sandcastle/worktrees/**"],
 	ignoreDependencies: [
 		"@stryker-mutator/core",
 		"@stryker-mutator/typescript-checker",
