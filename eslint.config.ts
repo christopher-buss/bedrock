@@ -7,10 +7,10 @@ export default isentinel(
 		ignores: [
 			"!.claude",
 			"!.claude/hooks/**",
-			"**/vendor/**",
 			"**/*.example.spec.ts",
-			"packages/bedrock/tests/fixtures/**/*.yml",
+			"**/vendor/**",
 			".sandcastle/worktrees/**",
+			"packages/bedrock/tests/fixtures/**/*.yml",
 		],
 		namedConfigs: true,
 		pnpm: true,
