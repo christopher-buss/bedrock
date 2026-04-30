@@ -1,5 +1,4 @@
 import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
-import type { ExperienceIconClient } from "@bedrock/ocale/experience-icon";
 import type { PlacesClient } from "@bedrock/ocale/places";
 import type { UniversesClient, UpdateUniverseParameters } from "@bedrock/ocale/universes";
 
@@ -23,13 +22,14 @@ import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
  * along on each `UniverseDesiredState`.
  */
 export interface UniverseDriverDeps {
-	/** Configured experience-icon client from `@bedrock/ocale/experience-icon`. */
-	readonly experienceIcons: ExperienceIconClient;
 	/** Configured places client from `@bedrock/ocale/places`. */
 	readonly places: PlacesClient;
 	/** Reads icon bytes for upload; rejections propagate out of `create`/`update`. */
 	readonly readFile: (path: string) => Promise<Uint8Array>;
-	/** Configured universes client from `@bedrock/ocale/universes`. */
+	/**
+	 * Configured universes client from `@bedrock/ocale/universes`. Localized
+	 * experience-icon Operations are reached through `universes.icon.*`.
+	 */
 	readonly universes: UniversesClient;
 }
 
@@ -78,7 +78,6 @@ interface ReconcileInputs {
  *
  * ```ts
  * import type { HttpClient } from "@bedrock/ocale";
- * import { ExperienceIconClient } from "@bedrock/ocale/experience-icon";
  * import { PlacesClient } from "@bedrock/ocale/places";
  * import { UniversesClient } from "@bedrock/ocale/universes";
  * import { validUniverseBody } from "@bedrock/ocale/testing";
@@ -105,11 +104,6 @@ interface ReconcileInputs {
  * };
  *
  * const driver = createUniverseDriver({
- *     experienceIcons: new ExperienceIconClient({
- *         apiKey: "rbx-your-key",
- *         httpClient: universeBodyHttpClient,
- *         sleep: async () => {},
- *     }),
  *     places: new PlacesClient({
  *         apiKey: "rbx-your-key",
  *         httpClient: universeBodyHttpClient,
@@ -243,7 +237,7 @@ async function captureUploadedIconAssetId(
 	deps: UniverseDriverDeps,
 	desired: UniverseDesiredState,
 ): Promise<Result<Record<"en-us", RobloxAssetId>, OpenCloudError>> {
-	const listed = await deps.experienceIcons.list({ universeId: desired.universeId });
+	const listed = await deps.universes.icon.list({ universeId: desired.universeId });
 	if (!listed.success) {
 		return listed;
 	}
@@ -266,7 +260,7 @@ async function deleteRemovedIcon(
 	deps: UniverseDriverDeps,
 	desired: UniverseDesiredState,
 ): Promise<Result<undefined, OpenCloudError>> {
-	return deps.experienceIcons.delete({
+	return deps.universes.icon.delete({
 		languageCode: "en-us",
 		universeId: desired.universeId,
 	});
@@ -287,7 +281,7 @@ async function reconcileIcon(
 	}
 
 	const bytes = await deps.readFile(desired.icon["en-us"]);
-	const uploaded = await deps.experienceIcons.upload({
+	const uploaded = await deps.universes.icon.upload({
 		image: bytes,
 		languageCode: "en-us",
 		universeId: desired.universeId,

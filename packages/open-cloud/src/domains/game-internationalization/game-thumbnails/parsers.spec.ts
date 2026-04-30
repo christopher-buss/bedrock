@@ -1,7 +1,7 @@
-import { validThumbnailUploadBody } from "#tests/helpers/experience-thumbnails";
+import { validThumbnailUploadBody } from "#tests/helpers/game-thumbnails";
 import { assert, describe, expect, it } from "vitest";
 
-import { ApiError } from "../../errors/api-error.ts";
+import { ApiError } from "../../../errors/api-error.ts";
 import { parseThumbnailUploadResponse } from "./parsers.ts";
 
 describe(parseThumbnailUploadResponse, () => {

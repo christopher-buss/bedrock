@@ -1,4 +1,4 @@
-import type { GameThumbnailUploadWire } from "#src/resources/experience-thumbnails/wire";
+import type { GameThumbnailUploadWire } from "#src/domains/game-internationalization/game-thumbnails/wire";
 
 /**
  * Builds a minimally-valid {@link GameThumbnailUploadWire} body. Pass an

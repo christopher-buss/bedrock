@@ -1,8 +1,8 @@
 // The legacy `{gameId}` URL segment is in fact the universe ID; the public API
 // takes `universeId` and substitutes it into the path.
 
-import type { HttpRequest } from "../../internal/http/types.ts";
-import { toBlob } from "../../internal/utils/to-blob.ts";
+import type { HttpRequest } from "../../../internal/http/types.ts";
+import { toBlob } from "../../../internal/utils/to-blob.ts";
 import type {
 	DeleteExperienceIconParameters,
 	ListExperienceIconsParameters,

@@ -1,7 +1,7 @@
 import type {
 	GameIconListWire,
 	GetGameIconResponseWire,
-} from "#src/resources/experience-icon/wire";
+} from "#src/domains/game-internationalization/game-icon/wire";
 
 /**
  * Builds a minimally-valid {@link GetGameIconResponseWire} entry. Pass an

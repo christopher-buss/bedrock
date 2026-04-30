@@ -1,6 +1,6 @@
 import { assert, describe, expect, it } from "vitest";
 
-import { ValidationError } from "../../errors/validation.ts";
+import { ValidationError } from "../../../errors/validation.ts";
 import {
 	buildDeleteThumbnailRequest,
 	buildReorderThumbnailsRequest,

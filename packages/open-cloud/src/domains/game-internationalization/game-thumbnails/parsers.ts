@@ -1,7 +1,7 @@
-import type { HttpResponse } from "../../client/types.ts";
-import { ApiError } from "../../errors/api-error.ts";
-import { isRecord } from "../../internal/utils/is-record.ts";
-import type { Result } from "../../types.ts";
+import type { HttpResponse } from "../../../client/types.ts";
+import { ApiError } from "../../../errors/api-error.ts";
+import { isRecord } from "../../../internal/utils/is-record.ts";
+import type { Result } from "../../../types.ts";
 import type { UploadedExperienceThumbnail } from "./types.ts";
 import type { GameThumbnailUploadWire } from "./wire.ts";
 
