@@ -26,16 +26,32 @@ Pay extra attention to test files that touch the relevant parts of the code.
 
 ## EXECUTION
 
-If applicable, use RGR to complete the task.
+Use TDD per `CLAUDE.md` and `docs/adr/003-testing-strategy.md`.
 
-1. RED: write one test
-2. GREEN: write the implementation to pass that test
-3. REPEAT until done
-4. REFACTOR the code
+1. RED: write one failing test for the next behaviour slice
+2. GREEN: write the minimum implementation to pass it
+3. Commit RED + GREEN together as one commit (the pre-commit hook `hk`
+   rejects pure-RED, so they must land in the same commit)
+4. REFACTOR as a separate commit only when it adds value for that slice
+5. REPEAT for the next slice
+
+Every line of production code in a commit must be exercised by a test in
+that same commit. No premature scaffolding.
 
 ## FEEDBACK LOOPS
 
-Before committing, run `npm run typecheck` and `npm run test` to ensure the tests pass.
+Before committing, run:
+
+- `pnpm gen:example-tests` if you touched any `@example` JSDoc blocks on
+  symbols exported from a package's `src/index.ts`
+- `pnpm lint`
+- `pnpm typecheck`
+- `pnpm test`
+- `pnpm mutate:changed` if you touched files under `src/**` (no
+  surviving mutants; never silence with `// Stryker disable`)
+
+The pre-commit hook runs lint, typecheck, test, and build, so a failing
+gate blocks the commit.
 
 ## COMMIT
 
