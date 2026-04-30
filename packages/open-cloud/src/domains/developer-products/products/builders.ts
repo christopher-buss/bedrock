@@ -1,4 +1,5 @@
-import type { HttpRequest } from "../../internal/http/types.ts";
+import type { HttpRequest } from "../../../internal/http/types.ts";
+import { toBlob } from "../../../internal/utils/to-blob.ts";
 import type {
 	CreateDeveloperProductParameters,
 	GetDeveloperProductParameters,
@@ -102,12 +103,4 @@ export function buildUpdateRequest(parameters: UpdateDeveloperProductParameters)
 		method: "PATCH",
 		url: `/developer-products/v2/universes/${parameters.universeId}/developer-products/${parameters.productId}`,
 	};
-}
-
-function toBlob(value: Blob | Uint8Array): Blob {
-	if (value instanceof Blob) {
-		return value;
-	}
-
-	return new Blob([new Uint8Array(value)]);
 }

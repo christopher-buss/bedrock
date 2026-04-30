@@ -1,4 +1,3 @@
-export { DeveloperProductsClient } from "./client.ts";
 export type {
 	CreateDeveloperProductParameters,
 	DeveloperProduct,
@@ -6,4 +5,5 @@ export type {
 	DeveloperProductPricingFeature,
 	GetDeveloperProductParameters,
 	UpdateDeveloperProductParameters,
-} from "./types.ts";
+} from "../../domains/developer-products/products/types.ts";
+export { DeveloperProductsClient } from "./client.ts";

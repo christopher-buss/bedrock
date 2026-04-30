@@ -7,7 +7,7 @@
 // `null` values to `undefined` at validation time so callers only ever
 // observe `undefined`.
 
-import type { PriceInformationLike } from "../../internal/price-information.ts";
+import type { PriceInformationLike } from "../../../internal/price-information.ts";
 
 /**
  * Wire-level pricing feature flag, mirroring `DeveloperProducts.PricingFeature`.

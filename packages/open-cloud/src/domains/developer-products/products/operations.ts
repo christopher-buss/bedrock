@@ -1,4 +1,4 @@
-import type { OperationLimit } from "../../internal/http/rate-limit-queue.ts";
+import type { OperationLimit } from "../../../internal/http/rate-limit-queue.ts";
 
 /**
  * Per-second request ceiling for reading a single developer product, from

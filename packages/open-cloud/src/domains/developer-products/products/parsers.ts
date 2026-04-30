@@ -1,8 +1,11 @@
-import type { HttpResponse } from "../../client/types.ts";
-import { ApiError } from "../../errors/api-error.ts";
-import { copyPriceInformation, isPriceInformationLike } from "../../internal/price-information.ts";
-import { isRecord } from "../../internal/utils/is-record.ts";
-import type { Result } from "../../types.ts";
+import type { HttpResponse } from "../../../client/types.ts";
+import { ApiError } from "../../../errors/api-error.ts";
+import {
+	copyPriceInformation,
+	isPriceInformationLike,
+} from "../../../internal/price-information.ts";
+import { isRecord } from "../../../internal/utils/is-record.ts";
+import type { Result } from "../../../types.ts";
 import type { DeveloperProduct } from "./types.ts";
 import type { DeveloperProductConfigV2, DeveloperProductPricingFeatureWire } from "./wire.ts";
 

@@ -1,4 +1,4 @@
-import { parseDeveloperProductResponse } from "#src/resources/developer-products/parsers";
+import { parseDeveloperProductResponse } from "#src/domains/developer-products/products/parsers";
 import { assert, describe, expect, it } from "vitest";
 
 import { expectValid, getValidator, loadFixture } from "./_helpers.ts";

@@ -1,4 +1,21 @@
 import type { HttpRequest, OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
+import {
+	buildCreateRequest,
+	buildGetRequest,
+	buildUpdateRequest,
+} from "../../domains/developer-products/products/builders.ts";
+import {
+	CREATE_OPERATION_LIMIT,
+	GET_OPERATION_LIMIT,
+	UPDATE_OPERATION_LIMIT,
+} from "../../domains/developer-products/products/operations.ts";
+import { parseDeveloperProductResponse } from "../../domains/developer-products/products/parsers.ts";
+import type {
+	CreateDeveloperProductParameters,
+	DeveloperProduct,
+	GetDeveloperProductParameters,
+	UpdateDeveloperProductParameters,
+} from "../../domains/developer-products/products/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
@@ -8,19 +25,6 @@ import {
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import { buildCreateRequest, buildGetRequest, buildUpdateRequest } from "./builders.ts";
-import {
-	CREATE_OPERATION_LIMIT,
-	GET_OPERATION_LIMIT,
-	UPDATE_OPERATION_LIMIT,
-} from "./operations.ts";
-import { parseDeveloperProductResponse } from "./parsers.ts";
-import type {
-	CreateDeveloperProductParameters,
-	DeveloperProduct,
-	GetDeveloperProductParameters,
-	UpdateDeveloperProductParameters,
-} from "./types.ts";
 
 function makeSpec<P>(
 	spec: ResourceMethodSpec<P, DeveloperProduct>,
