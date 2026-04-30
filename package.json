@@ -30,6 +30,7 @@
 		"lint:affected": "eslint --cache .",
 		"lint:unused": "knip --cache",
 		"mutate:changed": "bun scripts/mutate-changed.ts",
+		"sandcastle": "node .sandcastle/main.ts",
 		"test": "vp test",
 		"test:affected": "vp test",
 		"test:ci": "vp test --coverage && pnpm coverage:merge",
@@ -39,6 +40,7 @@
 		"typecheck:affected": "vp run -r typecheck"
 	},
 	"devDependencies": {
+		"@ai-hero/sandcastle": "catalog:dev",
 		"@bedrock/core": "workspace:*",
 		"@bedrock/testing": "workspace:*",
 		"@bedrock/vite-config": "workspace:*",

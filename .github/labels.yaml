@@ -59,3 +59,7 @@
 - name: skip-review
   color: "666666"
   description: Skip Claude Code review for trivial changes
+
+- name: sandcastle
+  color: f9a825
+  description: Issues for Sandcastle to work on
