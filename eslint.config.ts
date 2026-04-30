@@ -74,4 +74,12 @@ export default isentinel(
 			],
 		},
 	},
+	{
+		name: "project/sandcastle",
+		files: [".sandcastle/**/*.ts"],
+		rules: {
+			"antfu/no-top-level-await": "off",
+			"no-console": "off",
+		},
+	},
 );
