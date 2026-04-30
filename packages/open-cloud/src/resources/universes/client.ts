@@ -56,19 +56,19 @@ const UPDATE_SPEC: ResourceMethodSpec<UpdateUniverseParameters, Universe> = Obje
 	parse: parseUniverseResponse,
 });
 
-function buildIconUploadSpec(
+function buildIconUploadOkRequest(
 	parameters: UploadExperienceIconParameters,
 ): Result<HttpRequest, OpenCloudError> {
 	return okRequest(buildUploadIconRequest(parameters));
 }
 
-function buildIconDeleteSpec(
+function buildIconDeleteOkRequest(
 	parameters: DeleteExperienceIconParameters,
 ): Result<HttpRequest, OpenCloudError> {
 	return okRequest(buildDeleteIconRequest(parameters));
 }
 
-function buildIconListSpec(
+function buildIconListOkRequest(
 	parameters: ListExperienceIconsParameters,
 ): Result<HttpRequest, OpenCloudError> {
 	return okRequest(buildListIconsRequest(parameters));
@@ -76,7 +76,7 @@ function buildIconListSpec(
 
 const ICON_UPLOAD_SPEC: ResourceMethodSpec<UploadExperienceIconParameters, undefined> =
 	Object.freeze({
-		buildRequest: buildIconUploadSpec,
+		buildRequest: buildIconUploadOkRequest,
 		methodDefaults: CREATE_METHOD_DEFAULTS,
 		methodKind: "create",
 		operationLimit: ICON_OPERATION_LIMIT,
@@ -85,7 +85,7 @@ const ICON_UPLOAD_SPEC: ResourceMethodSpec<UploadExperienceIconParameters, undef
 
 const ICON_DELETE_SPEC: ResourceMethodSpec<DeleteExperienceIconParameters, undefined> =
 	Object.freeze({
-		buildRequest: buildIconDeleteSpec,
+		buildRequest: buildIconDeleteOkRequest,
 		methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 		methodKind: "idempotent",
 		operationLimit: ICON_OPERATION_LIMIT,
@@ -96,20 +96,20 @@ const ICON_LIST_SPEC: ResourceMethodSpec<
 	ListExperienceIconsParameters,
 	ReadonlyArray<ExperienceIcon>
 > = Object.freeze({
-	buildRequest: buildIconListSpec,
+	buildRequest: buildIconListOkRequest,
 	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 	methodKind: "idempotent",
 	operationLimit: ICON_OPERATION_LIMIT,
 	parse: parseIconListResponse,
 });
 
-function buildThumbnailUploadSpec(
+function buildThumbnailUploadOkRequest(
 	parameters: UploadExperienceThumbnailParameters,
 ): Result<HttpRequest, OpenCloudError> {
 	return okRequest(buildUploadThumbnailRequest(parameters));
 }
 
-function buildThumbnailDeleteSpec(
+function buildThumbnailDeleteOkRequest(
 	parameters: DeleteExperienceThumbnailParameters,
 ): Result<HttpRequest, OpenCloudError> {
 	return okRequest(buildDeleteThumbnailRequest(parameters));
@@ -119,7 +119,7 @@ const THUMBNAIL_UPLOAD_SPEC: ResourceMethodSpec<
 	UploadExperienceThumbnailParameters,
 	UploadedExperienceThumbnail
 > = Object.freeze({
-	buildRequest: buildThumbnailUploadSpec,
+	buildRequest: buildThumbnailUploadOkRequest,
 	methodDefaults: CREATE_METHOD_DEFAULTS,
 	methodKind: "create",
 	operationLimit: THUMBNAILS_OPERATION_LIMIT,
@@ -128,16 +128,13 @@ const THUMBNAIL_UPLOAD_SPEC: ResourceMethodSpec<
 
 const THUMBNAIL_DELETE_SPEC: ResourceMethodSpec<DeleteExperienceThumbnailParameters, undefined> =
 	Object.freeze({
-		buildRequest: buildThumbnailDeleteSpec,
+		buildRequest: buildThumbnailDeleteOkRequest,
 		methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 		methodKind: "idempotent",
 		operationLimit: THUMBNAILS_OPERATION_LIMIT,
 		parse: parseEmptyResponse,
 	});
 
-// `buildReorderThumbnailsRequest` already returns `Result<HttpRequest,
-// ValidationError>` so it satisfies the spec's `buildRequest` contract directly;
-// no `okRequest` wrapper is needed (unlike the upload and delete specs).
 const THUMBNAIL_REORDER_SPEC: ResourceMethodSpec<ReorderExperienceThumbnailsParameters, undefined> =
 	Object.freeze({
 		buildRequest: buildReorderThumbnailsRequest,
@@ -147,13 +144,6 @@ const THUMBNAIL_REORDER_SPEC: ResourceMethodSpec<ReorderExperienceThumbnailsPara
 		parse: parseEmptyResponse,
 	});
 
-/**
- * Operation Group exposing the localized experience-icon Operations
- * (`upload`, `delete`, `list`) sourced from the
- * `legacy-game-internationalization` domain. Shares its parent
- * {@link UniversesClient}'s {@link ResourceClient} so rate-limit queues,
- * retries, and per-request overrides flow through one wire surface.
- */
 interface UniverseIconHandle {
 	/**
 	 * Deletes the localized icon registered against a universe for a given
@@ -203,16 +193,6 @@ interface UniverseIconHandle {
 	) => Promise<Result<undefined, OpenCloudError>>;
 }
 
-/**
- * Operation Group exposing the localized experience-thumbnail Operations
- * (`upload`, `delete`, `reorder`) sourced from the
- * `legacy-game-internationalization` domain. No list-thumbnails
- * endpoint is bridged; consumers must track uploaded `mediaAssetId`s in
- * their own state store to reconcile against the existing carousel.
- * Shares its parent {@link UniversesClient}'s {@link ResourceClient} so
- * rate-limit queues, retries, and per-request overrides flow through one
- * wire surface.
- */
 interface UniverseThumbnailsHandle {
 	/**
 	 * Deletes a single thumbnail by media asset ID. Idempotent: deleting an
@@ -278,9 +258,9 @@ interface UniverseThumbnailsHandle {
  * corresponding value.
  *
  * Localized experience-icon and experience-thumbnail Operations are
- * bound on the {@link UniverseIconHandle} and
- * {@link UniverseThumbnailsHandle} reachable via `client.icon.*` and
- * `client.thumbnails.*` so callers reach for one client per universe.
+ * bound on the {@link UniversesClient.icon} and
+ * {@link UniversesClient.thumbnails} Operation Groups so callers reach
+ * for one client per universe.
  *
  * @example
  *
@@ -304,8 +284,11 @@ export class UniversesClient {
 	/**
 	 * Operation Group exposing the localized experience-thumbnail
 	 * Operations (`upload`, `delete`, `reorder`) backed by the
-	 * `legacy-game-internationalization` domain. Shares the parent
-	 * client's HTTP, rate-limit, and retry plumbing.
+	 * `legacy-game-internationalization` domain. No list-thumbnails
+	 * endpoint is bridged; consumers must track uploaded
+	 * `mediaAssetId`s in their own state store to reconcile against
+	 * the existing carousel. Shares the parent client's HTTP,
+	 * rate-limit, and retry plumbing.
 	 */
 	public readonly thumbnails: UniverseThumbnailsHandle;
 
