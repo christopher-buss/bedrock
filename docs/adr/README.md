@@ -31,6 +31,7 @@ things are the way they are.
 | [019](./019-state-data-model-and-diff-algebra.md) | State Data Model and Diff Algebra (Mantle Parity) | Accepted | 2026-04-17 |
 | [020](./020-project-config-definition.md) | Project Config Definition | Accepted | 2026-04-22 |
 | [021](./021-file-backed-resource-kinds.md) | Resource Update Capability for File-Backed Kinds | Accepted | 2026-04-22 |
+| [022](./022-by-domain-folder-layout-for-ocale.md) | By-Domain Folder Layout for `@bedrock/ocale` | Accepted | 2026-04-30 |
 
 ## Creating a New ADR
 
