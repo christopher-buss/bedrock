@@ -28,8 +28,10 @@ RUN useradd --create-home --uid 1000 --shell /bin/bash agent
 USER agent
 WORKDIR /home/agent
 
-# Install mise (single-user install under /home/agent/.local).
-RUN curl https://mise.run | sh
+# Install mise (single-user install under /home/agent/.local). -fsSL makes
+# curl fail loudly on HTTP errors so the build does not pipe a non-script
+# response (404 HTML, 5xx page) into sh.
+RUN curl -fsSL https://mise.run | sh
 
 ENV MISE_DATA_DIR="/home/agent/.local/share/mise"
 ENV PATH="/home/agent/.local/bin:/home/agent/.local/share/mise/shims:$PATH"
@@ -78,14 +80,16 @@ RUN curl -fsSL https://claude.ai/install.sh | bash
 # so git config, mise state, and Claude Code state can persist when sandcastle
 # runs the container as the host UID (501 on macOS, 1000 on most Linux hosts).
 #
-# Also relax /etc/passwd & /etc/group permissions so a runtime hook can
-# register that host UID as a real user. Without an entry, libc's
-# getpwuid() returns NULL and tools that resolve "user.home" via getpwuid
-# (notably pkl, when invoked transitively by `hk install --mise`) fall back
-# to a literal `?` path and create a `?/.pkl/cache` directory in cwd.
+# Also relax /etc/passwd permissions so a runtime hook can register that
+# host UID as a real user. Without an entry, libc's getpwuid() returns NULL
+# and tools that resolve "user.home" via getpwuid (notably pkl, when invoked
+# transitively by `hk install --mise`) fall back to a literal `?` path and
+# create a `?/.pkl/cache` directory in cwd. /etc/group is left read-only:
+# the runtime hook only writes to /etc/passwd, and a writable group
+# database would expand the sandbox's blast radius for no benefit.
 USER root
 RUN chmod -R a+rwX /home/agent \
-  && chmod a+rw /etc/passwd /etc/group
+  && chmod a+rw /etc/passwd
 USER agent
 
 # In worktree sandbox mode, sandcastle bind-mounts the git worktree at
