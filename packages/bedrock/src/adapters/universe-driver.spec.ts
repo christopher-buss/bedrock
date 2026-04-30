@@ -1,5 +1,4 @@
 import { ApiError } from "@bedrock/ocale";
-import { ExperienceIconClient } from "@bedrock/ocale/experience-icon";
 import { PlacesClient } from "@bedrock/ocale/places";
 import {
 	createFakeHttpClient,
@@ -32,11 +31,6 @@ function makeDriver(options: MakeDriverOptions = {}) {
 		schemaValidation: options.schemaValidation ?? "strict",
 	});
 	const driver = createUniverseDriver({
-		experienceIcons: new ExperienceIconClient({
-			apiKey: "test-api-key",
-			httpClient: http,
-			sleep: async () => {},
-		}),
 		places: new PlacesClient({
 			apiKey: "test-api-key",
 			httpClient: http,

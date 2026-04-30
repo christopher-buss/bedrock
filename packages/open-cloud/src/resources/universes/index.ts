@@ -1,3 +1,10 @@
+export type {
+	DeleteExperienceIconParameters,
+	ExperienceIcon,
+	GameIconState,
+	ListExperienceIconsParameters,
+	UploadExperienceIconParameters,
+} from "../../domains/game-internationalization/game-icon/types.ts";
 export { UniversesClient } from "./client.ts";
 export type {
 	GetUniverseParameters,

@@ -1,7 +1,7 @@
-import { validIconListBody, validLocalizedIcon } from "#tests/helpers/experience-icon";
+import { validIconListBody, validLocalizedIcon } from "#tests/helpers/game-icon";
 import { assert, describe, expect, it } from "vitest";
 
-import { ApiError } from "../../errors/api-error.ts";
+import { ApiError } from "../../../errors/api-error.ts";
 import { parseIconListResponse } from "./parsers.ts";
 
 describe(parseIconListResponse, () => {
