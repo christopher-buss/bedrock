@@ -10,6 +10,7 @@ export default isentinel(
 			"**/vendor/**",
 			"**/*.example.spec.ts",
 			"packages/bedrock/tests/fixtures/**/*.yml",
+			".sandcastle/worktrees/**",
 		],
 		namedConfigs: true,
 		pnpm: true,

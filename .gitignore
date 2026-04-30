@@ -33,3 +33,7 @@ apps/website/docs/bedrock/api/
 !.claude/sentinel.local.md
 .claude/state
 .claude/worktrees
+
+# Sandcastle: defensive ignore in case pnpm ever falls back to an in-tree
+# store (the configured store lives in ~/.cache/sandcastle-pnpm-store).
+.pnpm-store/
