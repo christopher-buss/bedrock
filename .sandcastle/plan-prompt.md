@@ -11,7 +11,7 @@ Here are the open issues in the repo:
 ## OPEN SANDCASTLE PRS
 
 Here are the open PRs already opened by sandcastle (these are still in
-flight — do not pick the issues they reference, even if those issues are
+flight; do not pick the issues they reference, even if those issues are
 still open):
 
 <open-prs-json>

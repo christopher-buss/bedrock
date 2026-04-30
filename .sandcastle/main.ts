@@ -1,4 +1,4 @@
-// Parallel Planner with Review — three-phase orchestration loop
+// Parallel Planner with Review: two-phase orchestration loop
 //
 // This template drives a multi-phase workflow:
 //   Phase 1 (Plan):             An opus agent analyzes open issues, builds a
@@ -6,12 +6,14 @@
 //                               listing unblocked issues with branch names.
 //   Phase 2 (Execute + Review): For each issue, a sandbox is created via
 //                               createSandbox(). The implementer runs first
-//                               (100 iterations). If it produces commits, a
-//                               reviewer runs in the same sandbox on the same
-//                               branch (1 iteration). All issue pipelines run
-//                               concurrently via Promise.allSettled().
-//                               Implementers push their branches and open PRs
-//                               directly; there is no local merge phase.
+//                               (up to 100 iterations). If it produces
+//                               commits, a reviewer runs in the same sandbox
+//                               on the same branch (up to 5 iterations, to
+//                               leave room for CI fix-and-push cycles). All
+//                               issue pipelines run concurrently via
+//                               Promise.allSettled(). Implementers push their
+//                               branches and open PRs directly; there is no
+//                               local merge phase.
 //
 // The outer loop repeats up to MAX_ITERATIONS times so that newly unblocked
 // issues are picked up after each round of PRs.
@@ -60,7 +62,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 	// builds a dependency graph, and selects the issues that can be worked in
 	// parallel right now (i.e., no blocking dependencies on other open issues).
 	//
-	// It outputs a <plan> JSON block — we parse that to drive Phase 2.
+	// It outputs a <plan> JSON block that we parse to drive Phase 2.
 	// -------------------------------------------------------------------------
 	const plan = await sandcastle.run({
 		name: "planner",
@@ -89,7 +91,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 	};
 
 	if (issues.length === 0) {
-		// No unblocked work — either everything is done or everything is blocked.
+		// No unblocked work: either everything is done or everything is blocked.
 		console.log("No unblocked issues to work on. Exiting.");
 		break;
 	}
