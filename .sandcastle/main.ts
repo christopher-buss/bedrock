@@ -1,4 +1,4 @@
-// Parallel Planner with Review — four-phase orchestration loop
+// Parallel Planner with Review — three-phase orchestration loop
 //
 // This template drives a multi-phase workflow:
 //   Phase 1 (Plan):             An opus agent analyzes open issues, builds a
@@ -10,11 +10,11 @@
 //                               reviewer runs in the same sandbox on the same
 //                               branch (1 iteration). All issue pipelines run
 //                               concurrently via Promise.allSettled().
-//   Phase 3 (Merge):            A single agent merges all completed branches
-//                               into the current branch.
+//                               Implementers push their branches and open PRs
+//                               directly; there is no local merge phase.
 //
 // The outer loop repeats up to MAX_ITERATIONS times so that newly unblocked
-// issues are picked up after each round of merges.
+// issues are picked up after each round of PRs.
 //
 // Usage:
 //   npx tsx .sandcastle/main.ts
@@ -30,10 +30,10 @@ import assert from "node:assert";
 // Configuration
 // ---------------------------------------------------------------------------
 
-// Maximum number of plan→execute→merge cycles before stopping.
+// Maximum number of plan→execute cycles before stopping.
 // Raise this if your backlog is large; lower it for a quick smoke-test run.
 const MAX_ITERATIONS = 10;
-const AGENT_MODEL = "claude-opus-4-6";
+const AGENT_MODEL = "claude-opus-4-7[1m]";
 
 // Hooks run inside the sandbox before the agent starts each iteration.
 // pnpm install ensures the sandbox always has fresh dependencies.
@@ -138,16 +138,18 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 					const review = await sandbox.run({
 						name: "reviewer",
 						agent: sandcastle.claudeCode(AGENT_MODEL),
-						maxIterations: 1,
+						// Reviewer also waits on CI and may need to push fixes
+						// across multiple turns if checks fail.
+						maxIterations: 5,
 						promptArgs: {
 							BRANCH: issue.branch,
 						},
 						promptFile: "./.sandcastle/review-prompt.md",
 					});
 
-					// Merge commits from both runs so the merge phase sees all
-					// of them. Each sandbox.run() only returns commits from its
-					// own run.
+					// Combine commits from both runs so the post-execution
+					// completed-branches log reflects all work on the branch.
+					// Each sandbox.run() only returns commits from its own run.
 					return {
 						...review,
 						commits: [...implement.commits, ...review.commits],
@@ -171,54 +173,20 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 		}
 	}
 
-	// Only pass branches that actually produced commits to the merge phase.
-	// An agent that ran successfully but made no commits has nothing to merge.
-	const completedIssues = settled
+	// Log completed branches. Implementers are responsible for pushing and
+	// opening PRs; nothing is merged locally.
+	const completedBranches = settled
 		// eslint-disable-next-line ts/no-non-null-assertion -- Guaranteed
 		.map((outcome, index) => ({ issue: issues[index]!, outcome }))
 		.filter((entry) => {
 			return entry.outcome.status === "fulfilled" && entry.outcome.value.commits.length > 0;
 		})
-		.map((entry) => entry.issue);
-
-	const completedBranches = completedIssues.map((index) => index.branch);
+		.map((entry) => entry.issue.branch);
 
 	console.log(`\nExecution complete. ${completedBranches.length} branch(es) with commits:`);
 	for (const branch of completedBranches) {
 		console.log(`  ${branch}`);
 	}
-
-	if (completedBranches.length === 0) {
-		// All agents ran but none made commits — nothing to merge this cycle.
-		console.log("No commits produced. Nothing to merge.");
-		continue;
-	}
-
-	// -------------------------------------------------------------------------
-	// Phase 3: Merge
-	//
-	// One agent merges all completed branches into the current branch,
-	// resolving any conflicts and running tests to confirm everything works.
-	//
-	// The {{BRANCHES}} and {{ISSUES}} prompt arguments are lists that the agent
-	// uses to know which branches to merge and which issues to close.
-	// -------------------------------------------------------------------------
-	await sandcastle.run({
-		name: "merger",
-		agent: sandcastle.claudeCode(AGENT_MODEL),
-		hooks,
-		maxIterations: 1,
-		promptArgs: {
-			// A markdown list of branch names, one per line.
-			BRANCHES: completedBranches.map((b) => `- ${b}`).join("\n"),
-			// A markdown list of issue IDs and titles, one per line.
-			ISSUES: completedIssues.map((index) => `- ${index.id}: ${index.title}`).join("\n"),
-		},
-		promptFile: "./.sandcastle/merge-prompt.md",
-		sandbox: docker(),
-	});
-
-	console.log("\nBranches merged.");
 }
 
 console.log("\nAll done.");

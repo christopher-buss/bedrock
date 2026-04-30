@@ -73,6 +73,10 @@ jobs:
             - Comment-only changes
             - CI/workflow file changes
 
+            Also add "skip-review" if the PR already has the "sandcastle"
+            label. Sandcastle PRs went through an in-sandbox review stage
+            before being opened, so a second review here would be redundant.
+
             Do NOT add skip-review for:
             - New features
             - Bug fixes in application code

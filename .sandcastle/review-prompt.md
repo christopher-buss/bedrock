@@ -49,8 +49,22 @@ If you find improvements to make:
 1. Make the changes directly on this branch
 2. Run `pnpm lint`, `pnpm typecheck`, and `pnpm test` to ensure nothing
    is broken
-3. Commit describing the refinements
+3. Commit describing the refinements (follow the bedrock
+   conventional-commit rules in `CLAUDE.md`)
+4. Push the changes to update the existing PR: `git push`
 
-If the code is already clean and well-structured, do nothing.
+If the code is already clean and well-structured, skip to CI VERIFICATION.
+
+## CI VERIFICATION
+
+Before declaring the work complete, verify CI is green on the PR:
+
+1. Find the PR for this branch: `gh pr view --json number,url`
+2. Wait for checks to finish: `gh pr checks --watch`
+3. If any check fails, diagnose the failure (`gh run view <id> --log-failed`),
+   fix it, run the local feedback loop above, commit the fix, and
+   `git push`. Repeat until all checks pass.
+
+Do not output COMPLETE until CI is fully green.
 
 Once complete, output <promise>COMPLETE</promise>.
