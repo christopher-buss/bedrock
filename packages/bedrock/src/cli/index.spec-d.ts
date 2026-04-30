@@ -1,24 +1,37 @@
 import type { Sade } from "sade";
 import { describe, expectTypeOf, it } from "vitest";
 
+import type { buildStatePort } from "../shell/build-state-port.ts";
 import type { deploy } from "../shell/deploy.ts";
 import type { loadConfig } from "../shell/load-config.ts";
+import type { migrateMantleState } from "../shell/migrate-mantle-state.ts";
 import type { previewDiff } from "../shell/preview-diff.ts";
 import type { ProgDeps } from "./index.ts";
 import { createProg } from "./index.ts";
+import type { MigratePromptPort } from "./migrate-prompt-port.ts";
 import type { ClackPort } from "./render.ts";
 
-describe("ProgDeps", () => {
-	it("should expose exactly the five injection slots", () => {
+describe("ProgDeps shape", () => {
+	it("should expose exactly the configured injection slots", () => {
 		expectTypeOf<keyof ProgDeps>().toEqualTypeOf<
-			"clack" | "deploy" | "exit" | "loadConfig" | "previewDiff"
+			| "buildStatePort"
+			| "clack"
+			| "deploy"
+			| "exit"
+			| "loadConfig"
+			| "migrateMantleState"
+			| "migratePromptPort"
+			| "previewDiff"
+			| "writeFile"
 		>();
 	});
 
 	it("should mark every slot as optional so an empty deps object satisfies ProgDeps", () => {
 		expectTypeOf<Record<string, never>>().toExtend<ProgDeps>();
 	});
+});
 
+describe("ProgDeps deploy/diff slots", () => {
 	it("should accept the real deploy signature in the deploy slot", () => {
 		expectTypeOf<NonNullable<ProgDeps["deploy"]>>().toEqualTypeOf<typeof deploy>();
 	});
@@ -30,7 +43,35 @@ describe("ProgDeps", () => {
 	it("should accept the real loadConfig signature in the loadConfig slot", () => {
 		expectTypeOf<NonNullable<ProgDeps["loadConfig"]>>().toEqualTypeOf<typeof loadConfig>();
 	});
+});
 
+describe("ProgDeps migrate slots", () => {
+	it("should accept the real buildStatePort signature in the buildStatePort slot", () => {
+		expectTypeOf<NonNullable<ProgDeps["buildStatePort"]>>().toEqualTypeOf<
+			typeof buildStatePort
+		>();
+	});
+
+	it("should accept the real migrateMantleState signature in the migrateMantleState slot", () => {
+		expectTypeOf<NonNullable<ProgDeps["migrateMantleState"]>>().toEqualTypeOf<
+			typeof migrateMantleState
+		>();
+	});
+
+	it("should accept the MigratePromptPort interface in the migratePromptPort slot", () => {
+		expectTypeOf<
+			NonNullable<ProgDeps["migratePromptPort"]>
+		>().toEqualTypeOf<MigratePromptPort>();
+	});
+
+	it("should accept a (path, contents) writeFile signature in the writeFile slot", () => {
+		expectTypeOf<NonNullable<ProgDeps["writeFile"]>>().toEqualTypeOf<
+			(path: string, contents: string) => Promise<void>
+		>();
+	});
+});
+
+describe("ProgDeps render slots", () => {
 	it("should accept the ClackPort interface in the clack slot", () => {
 		expectTypeOf<NonNullable<ProgDeps["clack"]>>().toEqualTypeOf<ClackPort>();
 	});

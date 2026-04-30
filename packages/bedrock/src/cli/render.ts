@@ -1,10 +1,13 @@
 import { cancel, intro, log, outro } from "@clack/prompts";
 
 import type { ConfigError } from "../core/config-error.ts";
+import type { MigrateError, MigrationSummary } from "../core/migrate/migration-report.ts";
 import type { StateError } from "../core/state.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
 import type { BuildDesiredError } from "../shell/build-desired.ts";
+import type { MissingCredentialError, UnsupportedBackendError } from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
+import type { ParseMigrateError } from "./parse-migrate-options.ts";
 import type { ParseOptionsError } from "./parse-options.ts";
 
 /**
@@ -24,6 +27,14 @@ export interface ClackPort {
 	logSuccess(message: string): void;
 	/** Close the current framed section with a final message. */
 	outro(message: string): void;
+}
+
+/** Inputs for {@link renderStateWriteError}. */
+interface StateWriteErrorRender {
+	/** Environment whose state could not be written. */
+	readonly environment: string;
+	/** The state-error returned by the adapter. */
+	readonly err: StateError;
 }
 
 /**
@@ -77,6 +88,82 @@ export function createClackPort(): ClackPort {
 			outro(message);
 		},
 	};
+}
+
+/**
+ * Render a `ParseMigrateError` to the supplied `ClackPort`. Reuses
+ * `parseErrorMessage` for the three flag-shape variants and adds a
+ * dedicated message for `unknownSource` listing the supported sources.
+ * @param err - The parse error to describe.
+ * @param port - The output port the diagnostic is written to.
+ */
+export function renderMigrateParseError(err: ParseMigrateError, port: ClackPort): void {
+	port.logError(migrateParseErrorMessage(err));
+}
+
+/**
+ * Render a `MigrateError` to the supplied `ClackPort` as a single error
+ * line. Each variant points at the offending Mantle state file path,
+ * primary-environment input, or wrapped `ConfigError` so the reader can
+ * act without inspecting the raw error object.
+ * @param err - The migrate error to describe.
+ * @param port - The output port the diagnostic is written to.
+ */
+export function renderMigrateError(err: MigrateError, port: ClackPort): void {
+	port.logError(migrateErrorMessage(err));
+}
+
+/**
+ * Render a `MissingCredentialError` or `UnsupportedBackendError`
+ * surfaced when the migrate command tried to default-construct the
+ * configured `StatePort` and was missing its inputs.
+ * @param err - The error returned by `buildStatePort`.
+ * @param port - The output port the diagnostic is written to.
+ */
+export function renderBuildStatePortError(
+	err: MissingCredentialError | UnsupportedBackendError,
+	port: ClackPort,
+): void {
+	port.logError(buildStatePortErrorMessage(err));
+}
+
+/** Pairing of a migration warning kind with the per-line label rendered by {@link renderMigrationSummary}. */
+const MIGRATION_SUMMARY_LINES: ReadonlyArray<{
+	readonly count: keyof MigrationSummary;
+	readonly label: string;
+}> = [
+	{ count: "interpretiveCount", label: "interpretive mappings" },
+	{ count: "deferredCount", label: "deferred fields" },
+	{ count: "blockedCount", label: "blocked fields" },
+	{ count: "ambiguousCount", label: "ambiguous fields" },
+];
+
+/**
+ * Render every non-zero `MigrationSummary` count to the supplied
+ * `ClackPort` as a single message line. Categories with a zero count
+ * are skipped so a clean migration produces no output.
+ * @param summary - Aggregate counts from a `MigrationReport`.
+ * @param port - The output port the lines are written to.
+ */
+export function renderMigrationSummary(summary: MigrationSummary, port: ClackPort): void {
+	for (const { count, label } of MIGRATION_SUMMARY_LINES) {
+		if (summary[count] > 0) {
+			port.logMessage(`${label}: ${String(summary[count])}`);
+		}
+	}
+}
+
+/**
+ * Render a `StateError` produced when the migrator wrote a per-environment
+ * state through the `StatePort`. Names the environment alongside the
+ * adapter's failure reason so the reader knows which write failed.
+ * @param input - Environment + state-error to describe.
+ * @param port - The output port the diagnostic is written to.
+ */
+export function renderStateWriteError(input: StateWriteErrorRender, port: ClackPort): void {
+	port.logError(
+		`state write failed for '${input.environment}' (${input.err.file}): ${input.err.reason}`,
+	);
 }
 
 function applyCauseDetail(cause: ApplyError): string {
@@ -170,6 +257,48 @@ function parseErrorMessage(err: ParseOptionsError): string {
 		}
 		case "unknownFlag": {
 			return `unknown flag '--${err.flag}'`;
+		}
+	}
+}
+
+function migrateParseErrorMessage(err: ParseMigrateError): string {
+	if (err.kind === "unknownSource") {
+		return `unknown migration source '${err.received}' (supported: ${err.supported.join(", ")})`;
+	}
+
+	return parseErrorMessage(err);
+}
+
+function migrateErrorMessage(err: MigrateError): string {
+	switch (err.kind) {
+		case "internalError": {
+			return `migrate internal error: ${err.reason} (${configErrorDetail(err.cause)})`;
+		}
+		case "primaryEnvironmentNotFound": {
+			return `primary environment '${err.primary}' not found (available: ${err.available.join(", ")})`;
+		}
+		case "primaryEnvironmentRequired": {
+			return `primary environment required (available: ${err.available.join(", ")})`;
+		}
+		case "stateFileNotFound": {
+			return `Mantle state file not found at '${err.path}'`;
+		}
+		case "stateParseFailed": {
+			return `Mantle state file at '${err.path}' could not be parsed: ${err.reason}`;
+		}
+		case "unsupportedMantleStateVersion": {
+			return `unsupported Mantle state version '${err.found}' (supported: ${err.supported.join(", ")})`;
+		}
+	}
+}
+
+function buildStatePortErrorMessage(err: MissingCredentialError | UnsupportedBackendError): string {
+	switch (err.kind) {
+		case "missingCredential": {
+			return `missing credential: environment variable ${err.variable} is not set`;
+		}
+		case "unsupportedBackend": {
+			return `unsupported state backend '${err.backend}' (${err.hint})`;
 		}
 	}
 }

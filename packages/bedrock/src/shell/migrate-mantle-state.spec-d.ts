@@ -169,10 +169,10 @@ describe("MigrateError - state-file variants", () => {
 });
 
 describe("MigrateError - environment-selection variants", () => {
-	it("should lock unsupportedMantleStateVersion's supported list to the v6 literal", () => {
+	it("should expose unsupportedMantleStateVersion's supported list as a string list", () => {
 		expectTypeOf<
 			Extract<MigrateError, { kind: "unsupportedMantleStateVersion" }>["supported"]
-		>().toEqualTypeOf<ReadonlyArray<"6">>();
+		>().toEqualTypeOf<ReadonlyArray<string>>();
 		expectTypeOf<
 			Extract<MigrateError, { kind: "unsupportedMantleStateVersion" }>["found"]
 		>().toEqualTypeOf<string>();
