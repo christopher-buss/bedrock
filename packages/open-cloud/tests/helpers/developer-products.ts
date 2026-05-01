@@ -1,4 +1,4 @@
-import type { DeveloperProductConfigV2 } from "#src/resources/developer-products/wire";
+import type { DeveloperProductConfigV2 } from "#src/domains/developer-products/products/wire";
 
 /**
  * Builds a minimally-valid {@link DeveloperProductConfigV2} wire body. Pass
