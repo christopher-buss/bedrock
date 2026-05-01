@@ -1,7 +1,9 @@
 import {
 	isCancel as defaultIsCancel,
+	path as defaultPath,
 	select as defaultSelect,
 	text as defaultText,
+	type PathOptions,
 	type SelectOptions,
 	type TextOptions,
 } from "@clack/prompts";
@@ -28,6 +30,11 @@ import type { MigrationSource } from "./parse-migrate-options.ts";
 export interface MigratePromptClackHelpers {
 	/** Cancel predicate; defaults to `@clack/prompts`'s `isCancel`. */
 	readonly isCancel: (value: unknown) => value is symbol;
+	/**
+	 * Path-prompt fn with filesystem tab-completion; defaults to
+	 * `@clack/prompts`'s `path`.
+	 */
+	readonly path: (options: PathOptions) => Promise<string | symbol>;
 	/** Select-prompt fn; defaults to `@clack/prompts`'s `select`. */
 	readonly select: (options: SelectOptions<string>) => Promise<string | symbol>;
 	/** Text-prompt fn; defaults to `@clack/prompts`'s `text`. */
@@ -50,6 +57,7 @@ const SOURCE_LABELS: Record<MigrationSource, string> = {
 
 const defaultHelpers: MigratePromptClackHelpers = {
 	isCancel: defaultIsCancel,
+	path: defaultPath,
 	select: defaultSelect,
 	text: defaultText,
 };
@@ -177,12 +185,24 @@ async function promptStateBackendFrom(
 	});
 }
 
+async function fromPath(
+	helpers: MigratePromptClackHelpers,
+	options: PathOptions,
+): Promise<MigratePromptResult<string>> {
+	const result = await helpers.path(options);
+	if (helpers.isCancel(result)) {
+		return { err: { kind: "cancelled" }, success: false };
+	}
+
+	return { data: result, success: true };
+}
+
 async function promptStateFilePathFrom(
 	helpers: MigratePromptClackHelpers,
 ): Promise<MigratePromptResult<string>> {
-	return fromText(helpers, {
+	return fromPath(helpers, {
+		initialValue: ".mantle-state.yml",
 		message: "Path to the Mantle state file?",
-		placeholder: ".mantle-state.yml",
 		validate: validateNonEmpty,
 	});
 }
