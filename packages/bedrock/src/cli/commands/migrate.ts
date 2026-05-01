@@ -207,10 +207,11 @@ async function runMigratorWithPrompt(
 
 async function writeBedrockConfig(inputs: FinalizeInputs): Promise<Result<void, void>> {
 	const { configFilePath, configFormat, report, resolved, target } = inputs;
+	const { state: _ignoredState, ...configWithoutState } = report.config;
 	const enrichedConfig: Config =
 		target.backend === "gist"
-			? { ...report.config, state: target.stateConfig }
-			: { ...report.config };
+			? { ...configWithoutState, state: target.stateConfig }
+			: configWithoutState;
 	const enrichedBytes = serializeConfig({ config: enrichedConfig, configFormat });
 	try {
 		await resolved.writeFile(configFilePath, enrichedBytes);

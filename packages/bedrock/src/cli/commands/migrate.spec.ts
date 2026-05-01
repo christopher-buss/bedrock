@@ -715,18 +715,7 @@ describe(migrateCommand, () => {
 		const writeFile = vi.fn<WriteFileFunc>();
 		writeFile.mockRejectedValueOnce(new Error("EROFS: read-only file system"));
 		const deps = makeDeps({ writeFile });
-		vi.mocked(deps.migratePromptPort!.promptStateFilePath).mockResolvedValueOnce({
-			data: "/projects/example/.mantle-state.yml",
-			success: true,
-		});
-		vi.mocked(deps.migratePromptPort!.promptConfigFormat).mockResolvedValueOnce({
-			data: "typescript",
-			success: true,
-		});
-		vi.mocked(deps.migratePromptPort!.promptStateBackend).mockResolvedValueOnce({
-			data: "local",
-			success: true,
-		});
+		scriptLocalBackendPrompts(deps, "/projects/example/.mantle-state.yml");
 
 		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
 
@@ -735,6 +724,31 @@ describe(migrateCommand, () => {
 		);
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should drop a pre-existing state field from the bedrock config when 'local' is picked", async () => {
+		expect.assertions(1);
+
+		const reportWithState: MigrationReport = {
+			...SAMPLE_REPORT,
+			config: {
+				...SAMPLE_CONFIG,
+				state: { backend: "gist", gistId: "leftover-from-source" },
+			},
+		};
+		const migrate = vi.fn<MigrateFunc>();
+		migrate.mockResolvedValue({ data: reportWithState, success: true });
+		const writeFile = vi.fn<WriteFileFunc>();
+		writeFile.mockResolvedValue();
+		const deps = makeDeps({ migrateMantleState: migrate, writeFile });
+		scriptLocalBackendPrompts(deps, "/projects/example/.mantle-state.yml");
+
+		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+
+		expect(writeFile).toHaveBeenCalledWith(
+			"/projects/example/bedrock.config.ts",
+			expect.not.stringContaining("leftover-from-source"),
+		);
 	});
 
 	it("should default to process.exit when no exit slot is provided", async () => {
