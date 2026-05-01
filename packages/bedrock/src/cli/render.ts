@@ -139,18 +139,35 @@ const MIGRATION_SUMMARY_LINES: ReadonlyArray<{
 	{ count: "ambiguousCount", label: "ambiguous fields" },
 ];
 
+/** Inputs for {@link renderMigrationSummary}. */
+interface MigrationSummaryRender {
+	/** Path to the Markdown report on disk. Rendered as a `report:` line when any warnings exist. */
+	readonly reportPath: string;
+	/** Aggregate counts from a `MigrationReport`. */
+	readonly summary: MigrationSummary;
+}
+
 /**
  * Render every non-zero `MigrationSummary` count to the supplied
  * `ClackPort` as a single message line. Categories with a zero count
- * are skipped so a clean migration produces no output.
- * @param summary - Aggregate counts from a `MigrationReport`.
+ * are skipped so a clean migration produces no output. When any kind
+ * has a non-zero count, an additional line points the user at the
+ * Markdown report on disk so they can drill into the entries.
+ * @param input - Counts plus the path of the Markdown report.
  * @param port - The output port the lines are written to.
  */
-export function renderMigrationSummary(summary: MigrationSummary, port: ClackPort): void {
+export function renderMigrationSummary(input: MigrationSummaryRender, port: ClackPort): void {
+	let total = 0;
 	for (const { count, label } of MIGRATION_SUMMARY_LINES) {
-		if (summary[count] > 0) {
-			port.logMessage(`${label}: ${String(summary[count])}`);
+		const value = input.summary[count];
+		if (value > 0) {
+			port.logMessage(`${label}: ${String(value)}`);
+			total += value;
 		}
+	}
+
+	if (total > 0) {
+		port.logMessage(`report: ${input.reportPath}`);
 	}
 }
 

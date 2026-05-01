@@ -175,7 +175,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
 
-		expect(writeFile).toHaveBeenCalledExactlyOnceWith(
+		expect(writeFile).toHaveBeenCalledWith(
 			"/projects/example/bedrock.config.ts",
 			expect.any(String),
 		);
@@ -183,6 +183,89 @@ describe(migrateCommand, () => {
 			"wrote /projects/example/bedrock.config.ts",
 		);
 		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith("migrate succeeded");
+	});
+
+	it("should write the migration report json and markdown alongside the state files", async () => {
+		expect.assertions(3);
+
+		const writeFile = vi.fn<WriteFileFunc>();
+		writeFile.mockResolvedValue();
+		const mkdir = vi.fn<MkdirFunc>();
+		mkdir.mockResolvedValue();
+		const deps = makeDeps({ mkdir, writeFile });
+		scriptHappyPrompts(deps);
+
+		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+
+		expect(mkdir).toHaveBeenCalledWith("/projects/example/.bedrock");
+		expect(writeFile).toHaveBeenCalledWith(
+			"/projects/example/.bedrock/migration-report.json",
+			expect.stringContaining('"summary"'),
+		);
+		expect(writeFile).toHaveBeenCalledWith(
+			"/projects/example/.bedrock/migration-report.md",
+			expect.stringContaining("# Migration report"),
+		);
+	});
+
+	it("should render an error and exit 1 when the report directory mkdir rejects", async () => {
+		expect.assertions(3);
+
+		const mkdir = vi.fn<MkdirFunc>();
+		// First call (writeMigratedStates is gist-backend so doesn't mkdir)
+		// goes to the migration-report directory.
+		mkdir.mockRejectedValueOnce(new Error("EACCES: permission denied"));
+		const deps = makeDeps({ mkdir });
+		scriptHappyPrompts(deps);
+
+		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+			"migration report directory create failed (/projects/example/.bedrock): EACCES: permission denied",
+		);
+		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should render an error and exit 1 when the migration report json write rejects", async () => {
+		expect.assertions(3);
+
+		// First write is the bedrock config; second is migration-report.json.
+		const writeFile = vi
+			.fn<WriteFileFunc>()
+			.mockResolvedValueOnce()
+			.mockRejectedValueOnce(new Error("EROFS: read-only file system"));
+		const deps = makeDeps({ writeFile });
+		scriptHappyPrompts(deps);
+
+		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+			"migration report write failed (/projects/example/.bedrock/migration-report.json): EROFS: read-only file system",
+		);
+		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should render an error and exit 1 when the migration report markdown write rejects", async () => {
+		expect.assertions(3);
+
+		// 1: bedrock config (ok). 2: migration-report.json (ok). 3: .md (reject).
+		const writeFile = vi
+			.fn<WriteFileFunc>()
+			.mockResolvedValueOnce()
+			.mockResolvedValueOnce()
+			.mockRejectedValueOnce(new Error("ENOSPC: no space left on device"));
+		const deps = makeDeps({ writeFile });
+		scriptHappyPrompts(deps);
+
+		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+			"migration report write failed (/projects/example/.bedrock/migration-report.md): ENOSPC: no space left on device",
+		);
+		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should pass process.env through getEnv when constructing the StatePort", async () => {
@@ -537,7 +620,7 @@ describe(migrateCommand, () => {
 	});
 
 	it("should render every warning category present in the report summary", async () => {
-		expect.assertions(4);
+		expect.assertions(5);
 
 		const reportWithWarnings: MigrationReport = {
 			...SAMPLE_REPORT,
@@ -560,6 +643,9 @@ describe(migrateCommand, () => {
 		expect(deps.clack?.logMessage).toHaveBeenCalledWith("deferred fields: 2");
 		expect(deps.clack?.logMessage).toHaveBeenCalledWith("blocked fields: 3");
 		expect(deps.clack?.logMessage).toHaveBeenCalledWith("ambiguous fields: 4");
+		expect(deps.clack?.logMessage).toHaveBeenCalledWith(
+			expect.stringMatching(/^report: .*\.bedrock\/migration-report\.md$/),
+		);
 	});
 
 	it("should write a yaml config when the user picks yaml format", async () => {
@@ -586,7 +672,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(deps)(undefined, { from: "mantle" });
 
-		expect(writeFile).toHaveBeenCalledExactlyOnceWith(
+		expect(writeFile).toHaveBeenCalledWith(
 			"/projects/example/bedrock.config.yaml",
 			expect.any(String),
 		);
@@ -652,7 +738,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
 
-		expect(mkdir).toHaveBeenCalledExactlyOnceWith("/projects/example/.bedrock/state");
+		expect(mkdir).toHaveBeenCalledWith("/projects/example/.bedrock/state");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
