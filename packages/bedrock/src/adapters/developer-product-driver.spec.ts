@@ -584,6 +584,50 @@ describe(createDeveloperProductDriver, () => {
 			);
 		});
 
+		it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
+			"should send %s in the PATCH body when set on desired",
+			async ([flag]) => {
+				expect.assertions(2);
+
+				const { driver, http } = makeDriver();
+				mockPatchOk(http);
+
+				await driver.update!(
+					developerProductCurrent(),
+					developerProductDesired({ [flag]: true }),
+				);
+
+				const captured = http.requests[0]!;
+
+				expect(readFormString(captured.request.body, flag)).toBe("true");
+
+				assert(captured.request.body instanceof FormData);
+
+				expect(captured.request.body.has(flag)).toBeTrue();
+			},
+		);
+
+		it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
+			"should omit %s from the PATCH body when desired has it undefined",
+			async ([flag]) => {
+				expect.assertions(1);
+
+				const { driver, http } = makeDriver();
+				mockPatchOk(http);
+
+				await driver.update!(
+					developerProductCurrent(),
+					developerProductDesired({ [flag]: undefined }),
+				);
+
+				const captured = http.requests[0]!;
+
+				assert(captured.request.body instanceof FormData);
+
+				expect(captured.request.body.has(flag)).toBeFalse();
+			},
+		);
+
 		it("should propagate the OpenCloudError when the PATCH fails", async () => {
 			expect.assertions(2);
 
