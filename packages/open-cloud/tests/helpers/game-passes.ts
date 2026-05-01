@@ -1,4 +1,4 @@
-import type { GamePassConfigV2 } from "#src/resources/game-passes/wire";
+import type { GamePassConfigV2 } from "#src/domains/game-passes/game-passes/wire";
 
 /**
  * Builds a minimally-valid {@link GamePassConfigV2} wire body. Pass an
