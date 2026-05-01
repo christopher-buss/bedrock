@@ -117,6 +117,30 @@ describe(buildCreateRequest, () => {
 });
 ```
 
+### Writable-keys conformance pins
+
+Update and create operations whose request body is a JSON `$ref` to a
+component schema shared with the response (Roblox's pattern for most
+`Cloud_Update*` operations) must add a writable-keys pin under
+`tests/conformance/`. The spec relies on `readOnly: true` to flag fields the
+server silently drops from PATCH bodies, and the pin keeps the parameter
+interface and the spec in sync at typecheck and test time.
+
+Templates:
+[tests/conformance/universes-writable-keys.spec.ts](tests/conformance/universes-writable-keys.spec.ts) and
+[tests/conformance/places-writable-keys.spec.ts](tests/conformance/places-writable-keys.spec.ts).
+
+Each pin:
+
+1. Declares a const array of writable keys (`as const`).
+2. Asserts at module scope that the array equals the parameter interface keys
+   minus the URL fields, via `expectTypeOf<...>().toEqualTypeOf<...>()`.
+3. Asserts at test time that every entry is non-readOnly on the named OpenAPI
+   schema, via `it.for(KEYS)(... listWritablePropertyNames("X") ...)`.
+
+The pin does not apply to `multipart/form-data` bodies (developer-products,
+game-passes); those use request-only inline schemas with no `readOnly` flags.
+
 ## Type System Guidelines
 
 1. TypeScript-first: camelCase in the public API (not snake_case like the raw
