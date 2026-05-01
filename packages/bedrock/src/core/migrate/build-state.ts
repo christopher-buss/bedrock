@@ -84,7 +84,6 @@ function universeResource(
 		outputs,
 		tabletEnabled: entry.tabletEnabled,
 		universeId: asRobloxAssetId(entry.universeId),
-		visibility: entry.visibility,
 		voiceChatEnabled: entry.voiceChatEnabled,
 		vrEnabled: entry.vrEnabled,
 	};

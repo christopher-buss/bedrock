@@ -18,7 +18,6 @@ export type {
 	ResourceEntryByKind,
 	StateConfig,
 	UniverseEntry,
-	UniverseVisibility,
 } from "./core/schema.ts";
 export { defineConfig, type ConfigContext, type ConfigInput } from "./shell/define-config.ts";
 export type { SocialLink } from "@bedrock/ocale/universes";

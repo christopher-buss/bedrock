@@ -121,20 +121,6 @@ describe(createUniverseDriver, () => {
 		);
 	});
 
-	it("should translate visibility into the PATCH body and mask when declared", async () => {
-		expect.assertions(2);
-
-		const { driver, http } = makeDriver();
-		http.mockResponse({ body: validUniverseBody(), status: 200 });
-
-		await driver.create(universeDesired({ visibility: "public" }));
-
-		expect(http.requests[0]!.request.body).toStrictEqual({ visibility: "PUBLIC" });
-		expect(http.requests[0]!.request.url).toBe(
-			`/cloud/v2/universes/${UNIVERSE_ID}?updateMask=visibility`,
-		);
-	});
-
 	it("should forward privateServerPriceRobux when declared with a numeric value", async () => {
 		expect.assertions(1);
 

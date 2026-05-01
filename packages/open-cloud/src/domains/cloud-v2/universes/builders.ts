@@ -3,12 +3,7 @@ import type { OpenCloudError } from "../../../errors/base.ts";
 import { ValidationError } from "../../../errors/validation.ts";
 import { okRequest } from "../../../internal/resource-client.ts";
 import type { Result } from "../../../types.ts";
-import type {
-	GetUniverseParameters,
-	UniverseVisibility,
-	UpdateUniverseParameters,
-} from "./types.ts";
-import type { VisibilityWire } from "./wire.ts";
+import type { GetUniverseParameters, UpdateUniverseParameters } from "./types.ts";
 
 /**
  * Dodges `unicorn/no-null` while still emitting a literal `null` onto
@@ -17,12 +12,6 @@ import type { VisibilityWire } from "./wire.ts";
  * servers or removing a social link).
  */
 const NULL_SENTINEL = JSON.parse("null");
-
-const VISIBILITY_WIRE_MAP: Readonly<Record<UniverseVisibility, VisibilityWire>> = {
-	private: "PRIVATE",
-	public: "PUBLIC",
-	unspecified: "VISIBILITY_UNSPECIFIED",
-};
 
 /**
  * Builds a `GET` request for the Open Cloud "get universe" endpoint.
@@ -86,11 +75,6 @@ function extractUpdateFieldKeys(parameters: UpdateUniverseParameters): ReadonlyA
 }
 
 function bodyValueFor(parameters: UpdateUniverseParameters, key: string): unknown {
-	if (key === "visibility") {
-		const { visibility } = parameters;
-		return visibility === undefined ? NULL_SENTINEL : VISIBILITY_WIRE_MAP[visibility];
-	}
-
 	const value = Reflect.get(parameters, key);
 	return value === undefined ? NULL_SENTINEL : value;
 }

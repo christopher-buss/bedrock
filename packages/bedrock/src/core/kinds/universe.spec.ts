@@ -12,7 +12,6 @@ const BlankFlags = {
 	displayName: undefined,
 	mobileEnabled: undefined,
 	tabletEnabled: undefined,
-	visibility: undefined,
 	vrEnabled: undefined,
 } as const;
 

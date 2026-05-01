@@ -238,33 +238,6 @@ describe(UniversesClient, () => {
 
 			expect(httpClient.requests[0]?.config.apiKey).toBe("override-key");
 		});
-
-		it("should translate visibility to the wire enum and include it in the mask", async () => {
-			expect.assertions(2);
-
-			const httpClient = createFakeHttpClient().mockResponse({
-				body: validUniverseBody({ visibility: "PRIVATE" }),
-				status: 200,
-			});
-			const client = new UniversesClient({
-				apiKey: "test-key",
-				httpClient,
-				sleep: createFakeSleep(),
-			});
-
-			const result = await client.update({
-				universeId: "12345",
-				visibility: "private",
-			});
-
-			assert(result.success);
-
-			const captured = httpClient.requests[0];
-			assert(captured !== undefined);
-
-			expect(captured.request.url).toBe("/cloud/v2/universes/12345?updateMask=visibility");
-			expect(captured.request.body).toStrictEqual({ visibility: "PRIVATE" });
-		});
 	});
 
 	describe("independent rate-limit buckets", () => {

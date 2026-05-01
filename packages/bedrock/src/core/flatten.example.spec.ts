@@ -49,7 +49,6 @@ it('Example 3', () => {
     mobileEnabled: undefined,
     tabletEnabled: undefined,
     universeId: asRobloxAssetId('1234567890'),
-    visibility: undefined,
     voiceChatEnabled: true,
     vrEnabled: undefined,
   }

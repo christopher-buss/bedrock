@@ -53,12 +53,6 @@ export interface UpdateUniverseParameters {
 	readonly twitterSocialLink?: SocialLink | undefined;
 	/** Stringified ID of the universe to update. */
 	readonly universeId: string;
-	/**
-	 * Universe visibility. Declaring `"private"` immediately removes
-	 * active players from running servers; `"unspecified"` errors
-	 * server-side.
-	 */
-	readonly visibility?: UniverseVisibility;
 	/** Whether voice chat is enabled. */
 	readonly voiceChatEnabled?: boolean;
 	/** Whether VR players can join. */

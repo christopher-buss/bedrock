@@ -41,7 +41,6 @@ const entrySchema = type({
 	"twitchSocialLink?": socialLinkOrUndefined,
 	"twitterSocialLink?": socialLinkOrUndefined,
 	"universeId": "string.digits",
-	"visibility?": "'private' | 'public' | 'unspecified' | undefined",
 	"voiceChatEnabled?": OPTIONAL_BOOLEAN,
 	"vrEnabled?": OPTIONAL_BOOLEAN,
 	"youtubeSocialLink?": socialLinkOrUndefined,
@@ -62,7 +61,6 @@ function flatten(config: ResolvedConfig): ReadonlyArray<UniverseDesiredInput> {
 		mobileEnabled: entry.mobileEnabled,
 		tabletEnabled: entry.tabletEnabled,
 		universeId: asRobloxAssetId(entry.universeId),
-		visibility: entry.visibility,
 		voiceChatEnabled: entry.voiceChatEnabled,
 		vrEnabled: entry.vrEnabled,
 		...copyDeclaredSocialLinks(entry),
@@ -86,7 +84,6 @@ function buildBaseDesired(input: UniverseDesiredInput): UniverseDesiredState {
 		mobileEnabled: input.mobileEnabled,
 		tabletEnabled: input.tabletEnabled,
 		universeId: input.universeId,
-		visibility: input.visibility,
 		voiceChatEnabled: input.voiceChatEnabled,
 		vrEnabled: input.vrEnabled,
 		...copyDeclaredSocialLinks(input),
@@ -166,10 +163,6 @@ function fieldsEqual(
 	}
 
 	if (desired.displayName !== undefined && desired.displayName !== current.displayName) {
-		return false;
-	}
-
-	if (desired.visibility !== undefined && desired.visibility !== current.visibility) {
 		return false;
 	}
 

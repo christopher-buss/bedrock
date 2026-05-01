@@ -79,6 +79,34 @@ export function dropReadOnlyFromRequired(node: unknown): unknown {
 }
 
 /**
+ * Replaces every property marked `readOnly: true` with the never-match
+ * schema `{ not: {} }`, and removes the property from any enclosing
+ * `required` array. The OpenAPI spec defines `readOnly: true` as
+ * "MUST NOT be sent in request bodies" but Ajv treats the keyword as
+ * pure metadata; without this rewrite a request validator accepts
+ * readOnly fields it should reject.
+ *
+ * @param node - A node anywhere in the schema tree.
+ * @returns The node with readOnly properties rewritten to `{ not: {} }`.
+ */
+export function forbidReadOnlyProperties(node: unknown): unknown {
+	if (Array.isArray(node)) {
+		return node.map(forbidReadOnlyProperties);
+	}
+
+	if (!isRecord(node)) {
+		return node;
+	}
+
+	const transformed: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(node)) {
+		transformed[key] = forbidReadOnlyProperties(value);
+	}
+
+	return rewriteReadOnlyProperties(transformed);
+}
+
+/**
  * Returns the ajv instance pre-loaded with the vendored
  * `roblox-openapi.json` schema and format keywords. Cached per mode
  * for the lifetime of the test worker.
@@ -195,6 +223,55 @@ function dropFlagFromRequired(node: unknown, flag: "readOnly" | "writeOnly"): un
 	return pruneRequired(transformed, flag);
 }
 
+function pruneRequiredKeys(
+	node: Record<string, unknown>,
+	keysToRemove: ReadonlySet<string>,
+): Record<string, unknown> {
+	const { required } = node;
+	if (!Array.isArray(required)) {
+		return node;
+	}
+
+	const pruned = required.filter(
+		(field) => typeof field !== "string" || !keysToRemove.has(field),
+	);
+	if (pruned.length === required.length) {
+		return node;
+	}
+
+	if (pruned.length === 0) {
+		const { required: _required, ...rest } = node;
+		return rest;
+	}
+
+	return { ...node, required: pruned };
+}
+
+function rewriteReadOnlyProperties(node: Record<string, unknown>): Record<string, unknown> {
+	const { properties } = node;
+	if (!isRecord(properties)) {
+		return node;
+	}
+
+	const rewrittenProperties: Record<string, unknown> = {};
+	const readOnlyKeys = new Set<string>();
+	for (const [propertyKey, propertyNode] of Object.entries(properties)) {
+		if (isRecord(propertyNode) && propertyNode["readOnly"] === true) {
+			readOnlyKeys.add(propertyKey);
+			rewrittenProperties[propertyKey] = { not: {} };
+			continue;
+		}
+
+		rewrittenProperties[propertyKey] = propertyNode;
+	}
+
+	if (readOnlyKeys.size === 0) {
+		return node;
+	}
+
+	return pruneRequiredKeys({ ...node, properties: rewrittenProperties }, readOnlyKeys);
+}
+
 /**
  * Removes any field marked `writeOnly: true` from the `required`
  * array of its containing schema so read-response fixtures are not
@@ -234,17 +311,55 @@ export function getOpenApiDocument(): Record<string, unknown> {
 	return raw;
 }
 
+/**
+ * Returns the property names on the named OpenAPI component schema
+ * that are not marked `readOnly: true`. The vendored Roblox spec uses
+ * one shared `$ref` for both request and response bodies on most
+ * Cloud_Update* operations, so the set of "writable" keys equals the
+ * set of non-readOnly properties on the resource schema.
+ *
+ * Pair the result with a hand-mirrored `keyof UpdateXParameters`
+ * array to assert that no parameter input names a server-side
+ * readOnly field (the regression behind the silently-dropped
+ * `visibility` write-path).
+ *
+ * Only handles schemas with a flat `properties` object. Schemas that
+ * compose properties through `$ref`, `allOf`, or `anyOf` will trip
+ * the `properties` assertion below; extend the walker if Roblox
+ * starts shipping composed resource schemas.
+ *
+ * @param schemaName - Name of the schema under
+ *   `#/components/schemas/`.
+ * @returns The property names that may legally appear in a request
+ *   body for that schema.
+ */
+export function listWritablePropertyNames(schemaName: string): ReadonlyArray<string> {
+	const { components } = getOpenApiDocument();
+	assert(isRecord(components), "OpenAPI document missing components");
+	const { schemas } = components;
+	assert(isRecord(schemas), "OpenAPI document missing components.schemas");
+	const schema = schemas[schemaName];
+	assert(isRecord(schema), `schema ${schemaName} not registered in vendor OpenAPI doc`);
+	const { properties } = schema;
+	assert(isRecord(properties), `schema ${schemaName} has no properties`);
+
+	return Object.entries(properties)
+		.filter(([, value]) => !isRecord(value) || value["readOnly"] !== true)
+		.map(([key]) => key);
+}
+
 function loadOpenApiDocument(mode: OpenApiValidationMode): Record<string, unknown> {
 	const nullFixed = nullableToUnion(getOpenApiDocument());
-	// Request-mode prunes BOTH readOnly and writeOnly from required:
-	// the Roblox spec reuses one schema for create and update, listing
-	// create-only writeOnly fields in `required`. A PATCH body cannot
-	// supply those fields, so they must not be required in request-
-	// mode validation. See the `templateRootPlace` field on `Universe`.
+	// Request-mode rewrites readOnly properties into the never-match
+	// schema `{ not: {} }` so a request body that includes them fails
+	// validation, and strips writeOnly fields from `required` because
+	// the Roblox spec reuses one schema for create and update (a PATCH
+	// body cannot supply create-only writeOnly fields like
+	// `templateRootPlace`).
 	const normalized =
 		mode === "response"
 			? dropWriteOnlyFromRequired(nullFixed)
-			: dropWriteOnlyFromRequired(dropReadOnlyFromRequired(nullFixed));
+			: dropWriteOnlyFromRequired(forbidReadOnlyProperties(nullFixed));
 	assert(isRecord(normalized));
 	return normalized;
 }

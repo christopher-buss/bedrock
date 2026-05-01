@@ -6,7 +6,6 @@ import {
 	type RobloxAssetId,
 	type Sha256Hex,
 } from "../types/ids.ts";
-import type { UniverseVisibility } from "./schema.ts";
 
 /**
  * Desired state for a game pass, as declared in user config.
@@ -187,7 +186,6 @@ export interface PlaceOutputs {
  *     tabletEnabled: undefined,
  *     twitterSocialLink: undefined,
  *     universeId: asRobloxAssetId("1234567890"),
- *     visibility: "public",
  *     voiceChatEnabled: true,
  *     vrEnabled: undefined,
  * };
@@ -249,12 +247,6 @@ export interface UniverseDesiredState {
 	readonly twitterSocialLink?: SocialLink | undefined;
 	/** User-supplied Roblox universe ID; the universe must already exist. */
 	readonly universeId: RobloxAssetId;
-	/**
-	 * Universe visibility. Declaring `"private"` immediately removes
-	 * active players from running servers; `undefined` leaves the
-	 * server value untouched.
-	 */
-	readonly visibility: undefined | UniverseVisibility;
 	/** Whether voice chat is enabled; `undefined` leaves the server value untouched. */
 	readonly voiceChatEnabled: boolean | undefined;
 	/** Whether VR players can join; `undefined` leaves the server value untouched. */
