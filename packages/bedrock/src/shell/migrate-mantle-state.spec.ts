@@ -454,10 +454,10 @@ describe(migrateMantleState, () => {
 		assert(result.success);
 
 		expect(result.data.configFileContent).toContain(
-			'import { defineConfig } from "@bedrock/core"',
+			'import { defineConfig } from "@bedrock/core/config"',
 		);
 		expect(result.data.configFileContent).toContain("export default defineConfig({");
-		expect(result.data.configFileContent).toContain('"universeId": "6031475575"');
+		expect(result.data.configFileContent).toContain('universeId: "6031475575"');
 	});
 
 	it("should expose universe.universeId on the resolved Config", async () => {

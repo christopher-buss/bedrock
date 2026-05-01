@@ -2,6 +2,8 @@ import { stringifyYAML } from "confbox";
 
 import type { Config } from "../schema.ts";
 
+const IDENTIFIER_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+
 /**
  * Inputs for {@link serializeConfig}. Format dispatch lives on
  * `configFormat` so a single function shape covers both TypeScript and
@@ -18,12 +20,11 @@ export interface SerializeConfigOptions {
  * Render a bedrock `Config` as the source text of a `bedrock.config.{ts,yaml}`
  * file the user can write straight to disk.
  *
- * The TypeScript branch hand-rolls a `JSON.stringify`-based emitter (no
- * AST library): the formatter quotes every property name, which is valid
- * TypeScript and sidesteps the need for an identifier-vs-quoted
- * heuristic. The YAML branch delegates to `stringifyYAML`, which already
- * drops `undefined`-valued properties so the output never surfaces
- * `null` or `~` for absent managed fields. Both shapes round-trip
+ * The TypeScript branch emits a hand-authored object literal: tab-indented,
+ * with double-quoted string values and unquoted keys for valid identifier
+ * names (quoted otherwise). The YAML branch delegates to `stringifyYAML`,
+ * which already drops `undefined`-valued properties so the output never
+ * surfaces `null` or `~` for absent managed fields. Both shapes round-trip
  * through `loadConfig` cleanly.
  *
  * @param options - Render inputs.
@@ -34,11 +35,53 @@ export function serializeConfig(options: SerializeConfigOptions): string {
 		return `${stringifyYAML(options.config)}\n`;
 	}
 
-	const body = JSON.stringify(options.config, undefined, 2);
+	const body = renderObjectLiteral(options.config, 0);
 	return [
-		'import { defineConfig } from "@bedrock/core";',
+		'import { defineConfig } from "@bedrock/core/config";',
 		"",
 		`export default defineConfig(${body});`,
 		"",
 	].join("\n");
+}
+
+function renderValue(value: unknown, depth: number): string {
+	if (Array.isArray(value)) {
+		return renderArrayLiteral(value, depth);
+	}
+
+	if (value !== null && typeof value === "object") {
+		return renderObjectLiteral(value, depth);
+	}
+
+	if (typeof value === "string") {
+		return JSON.stringify(value);
+	}
+
+	return String(value);
+}
+
+function renderObjectLiteral(value: object, depth: number): string {
+	const entries = Object.entries(value).filter(([, fieldValue]) => fieldValue !== undefined);
+	if (entries.length === 0) {
+		return "{}";
+	}
+
+	const innerIndent = "\t".repeat(depth + 1);
+	const closeIndent = "\t".repeat(depth);
+	const lines = entries.map(([key, fieldValue]) => {
+		const renderedKey = IDENTIFIER_PATTERN.test(key) ? key : JSON.stringify(key);
+		return `${innerIndent}${renderedKey}: ${renderValue(fieldValue, depth + 1)}`;
+	});
+	return `{\n${lines.join(",\n")}\n${closeIndent}}`;
+}
+
+function renderArrayLiteral(value: ReadonlyArray<unknown>, depth: number): string {
+	if (value.length === 0) {
+		return "[]";
+	}
+
+	const innerIndent = "\t".repeat(depth + 1);
+	const closeIndent = "\t".repeat(depth);
+	const lines = value.map((item) => `${innerIndent}${renderValue(item, depth + 1)}`);
+	return `[\n${lines.join(",\n")}\n${closeIndent}]`;
 }
