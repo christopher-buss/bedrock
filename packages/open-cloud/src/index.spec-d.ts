@@ -10,6 +10,8 @@ import type {
 	OpenCloudClientOptions,
 	OpenCloudError,
 	OpenCloudHooks,
+	PermissionError,
+	PermissionErrorOptions,
 	RateLimitError,
 	RateLimitErrorOptions,
 	RequestConfig,
@@ -88,6 +90,38 @@ describe("ApiErrorOptions", () => {
 describe("NetworkError", () => {
 	it("should be assignable to OpenCloudError", () => {
 		expectTypeOf<NetworkError>().toExtend<OpenCloudError>();
+	});
+});
+
+describe("PermissionError", () => {
+	it("should be a subtype of ApiError", () => {
+		expectTypeOf<PermissionError>().toExtend<ApiError>();
+	});
+
+	it("should have requiredScopes as a readonly string array", () => {
+		expectTypeOf<PermissionError>()
+			.toHaveProperty("requiredScopes")
+			.toEqualTypeOf<ReadonlyArray<string>>();
+	});
+
+	it("should have operationKey as a string", () => {
+		expectTypeOf<PermissionError>().toHaveProperty("operationKey").toBeString();
+	});
+});
+
+describe("PermissionErrorOptions", () => {
+	it("should require requiredScopes as a readonly string array", () => {
+		expectTypeOf<PermissionErrorOptions>()
+			.toHaveProperty("requiredScopes")
+			.toEqualTypeOf<ReadonlyArray<string>>();
+	});
+
+	it("should require operationKey as a string", () => {
+		expectTypeOf<PermissionErrorOptions>().toHaveProperty("operationKey").toBeString();
+	});
+
+	it("should extend ApiErrorOptions", () => {
+		expectTypeOf<PermissionErrorOptions>().toExtend<ApiErrorOptions>();
 	});
 });
 
