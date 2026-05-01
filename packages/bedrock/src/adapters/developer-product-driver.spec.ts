@@ -350,6 +350,52 @@ describe(createDeveloperProductDriver, () => {
 
 			expect(http.requests).toHaveLength(1);
 		});
+
+		it("should return success when the follow-up PATCH fails so the post-create state still persists", async () => {
+			expect.assertions(1);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({
+				body: validDeveloperProductBody({
+					productId: 8_172_635_495,
+					storePageEnabled: false,
+				}),
+				status: 200,
+			});
+			http.mockApiError({ message: "patch boom", statusCode: 403 });
+
+			const result = await driver.create(
+				developerProductDesired({ price: 250, storePageEnabled: true }),
+			);
+
+			expect(result.success).toBeTrue();
+		});
+
+		it("should record the create response storePageEnabled (not desired) so the next deploy's diff retries the PATCH", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({
+				body: validDeveloperProductBody({
+					productId: 8_172_635_495,
+					storePageEnabled: false,
+				}),
+				status: 200,
+			});
+			http.mockApiError({ message: "patch boom", statusCode: 403 });
+
+			const result = await driver.create(
+				developerProductDesired({ price: 250, storePageEnabled: true }),
+			);
+
+			assert(result.success);
+
+			// Wire-reported value, not desired — so fieldsEqual surfaces drift on
+			// the next deploy and re-issues the PATCH.
+			expect(result.data.storePageEnabled).toBeFalse();
+			// Other fields still reflect desired because the POST applied them.
+			expect(result.data.price).toBe(250);
+		});
 	});
 
 	describe("update", () => {

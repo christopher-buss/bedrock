@@ -184,11 +184,15 @@ async function applyFollowUpPatch(
 		universeId: deps.universeId,
 		...followUp,
 	});
-	if (!patched.success) {
-		return patched;
+	if (patched.success) {
+		return toCurrentState(desired, created);
 	}
 
-	return toCurrentState(desired, created);
+	// PATCH failed but the POST persisted the resource. Surface success
+	// carrying the wire-reported storePageEnabled so state captures what
+	// actually exists; the next deploy's diff sees the desired/current
+	// mismatch and retries the PATCH (self-heal).
+	return toCurrentState({ ...desired, storePageEnabled: created.storePageEnabled }, created);
 }
 
 async function createOne(
