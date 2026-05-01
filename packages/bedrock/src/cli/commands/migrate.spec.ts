@@ -175,10 +175,13 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
 
-		expect(writeFile).toHaveBeenCalledWith(
-			"/projects/example/bedrock.config.ts",
-			expect.any(String),
-		);
+		const configWrites = vi
+			.mocked(writeFile)
+			.mock.calls.filter(([path]) => path === "/projects/example/bedrock.config.ts");
+
+		expect(configWrites).toStrictEqual([
+			["/projects/example/bedrock.config.ts", expect.any(String)],
+		]);
 		expect(deps.clack?.logSuccess).toHaveBeenCalledWith(
 			"wrote /projects/example/bedrock.config.ts",
 		);
@@ -707,10 +710,13 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(deps)(undefined, { from: "mantle" });
 
-		expect(writeFile).toHaveBeenCalledWith(
-			"/projects/example/bedrock.config.yaml",
-			expect.any(String),
-		);
+		const configWrites = vi
+			.mocked(writeFile)
+			.mock.calls.filter(([path]) => path === "/projects/example/bedrock.config.yaml");
+
+		expect(configWrites).toStrictEqual([
+			["/projects/example/bedrock.config.yaml", expect.any(String)],
+		]);
 	});
 
 	function scriptLocalBackendPrompts(deps: ProgDeps, stateFilePath: string): void {
