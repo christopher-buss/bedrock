@@ -8,38 +8,6 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
 import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
 
 /**
- * `BuildDesiredError` variant emitted when a kind module's `normalize`
- * cannot read the file bytes it depends on (an icon path, a `.rbxl`
- * source, etc.).
- */
-export interface FileReadFailedError {
-	/** ResourceKey of the input whose file failed to read. */
-	readonly key: ResourceKey;
-	/** Path of the file that failed to read. */
-	readonly filePath: string;
-	/** Literal discriminator for narrowing. */
-	readonly kind: "fileReadFailed";
-	/** Human-readable explanation; typically the caught error message. */
-	readonly reason: string;
-}
-
-/**
- * `BuildDesiredError` variant emitted when `validatePlan` sees a kind
- * whose prior current state recorded an icon that the desired state no
- * longer declares, on a kind whose upstream API has no documented unset
- * path. Surfaced at plan time so the user gets a clear rejection rather
- * than silent loss of the icon.
- */
-export interface IconRemovalRejectedError {
-	/** ResourceKey of the entry whose icon is being removed. */
-	readonly key: ResourceKey;
-	/** Literal discriminator for narrowing. */
-	readonly kind: "iconRemovalRejected";
-	/** Human-readable explanation naming the resource and the invariant. */
-	readonly message: string;
-}
-
-/**
  * Failure surfaced during desired-state preparation. Two variants today:
  *
  * - `fileReadFailed`: a kind module's `normalize` could not read a file
@@ -66,7 +34,25 @@ export interface IconRemovalRejectedError {
  * expect(err.kind).toBe("fileReadFailed");
  * ```
  */
-export type BuildDesiredError = FileReadFailedError | IconRemovalRejectedError;
+export type BuildDesiredError =
+	| {
+			/** Path of the file that failed to read. */
+			readonly filePath: string;
+			/** ResourceKey of the input whose file failed to read. */
+			readonly key: ResourceKey;
+			/** Literal discriminator for narrowing. */
+			readonly kind: "fileReadFailed";
+			/** Human-readable explanation; typically the caught error message. */
+			readonly reason: string;
+	  }
+	| {
+			/** ResourceKey of the entry whose icon is being removed. */
+			readonly key: ResourceKey;
+			/** Literal discriminator for narrowing. */
+			readonly kind: "iconRemovalRejected";
+			/** Human-readable explanation naming the resource and the invariant. */
+			readonly message: string;
+	  };
 
 /**
  * I/O surface the shell injects into kind-module `normalize` calls. Carries
