@@ -5,6 +5,7 @@ import { assert, describe, expect, it, vi } from "vitest";
 
 import type { HttpRequest, OpenCloudHooks } from "../client/types.ts";
 import { ApiError } from "../errors/api-error.ts";
+import { PermissionError } from "../errors/permission-error.ts";
 import { ValidationError } from "../errors/validation.ts";
 import type { Result } from "../types.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "./http/retry.ts";
@@ -394,6 +395,147 @@ describe(ResourceClient, () => {
 			assert(result.err instanceof ApiError);
 
 			expect(result.err.statusCode).toBe(201);
+		});
+	});
+
+	describe("permission upgrade", () => {
+		it("should upgrade a 401 ApiError to PermissionError when the spec declares scopes", async () => {
+			expect.assertions(4);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockApiError({
+				statusCode: 401,
+			});
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.execute({
+				parameters: { id: "1" },
+				spec: {
+					...TEST_GET_SPEC,
+					operationLimit: Object.freeze({
+						maxPerSecond: 10,
+						operationKey: "test.scoped-get",
+					}),
+					requiredScopes: ["test:read"],
+				},
+			});
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.statusCode).toBe(401);
+			expect(result.err.requiredScopes).toStrictEqual(["test:read"]);
+			expect(result.err.operationKey).toBe("test.scoped-get");
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
+
+		it("should upgrade a 403 ApiError to PermissionError when the spec declares scopes", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockApiError({
+				statusCode: 403,
+			});
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.execute({
+				parameters: { id: "1" },
+				spec: {
+					...TEST_CREATE_SPEC,
+					requiredScopes: ["test:write"],
+				},
+			});
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.statusCode).toBe(403);
+			expect(result.err.requiredScopes).toStrictEqual(["test:write"]);
+		});
+
+		it("should preserve message, code, and cause from the original ApiError on upgrade", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockApiError({
+				code: "INSUFFICIENT_SCOPE",
+				message: "missing scope",
+				statusCode: 403,
+			});
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.execute({
+				parameters: { id: "1" },
+				spec: {
+					...TEST_GET_SPEC,
+					requiredScopes: ["test:read"],
+				},
+			});
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.message).toBe("missing scope");
+			expect(result.err.code).toBe("INSUFFICIENT_SCOPE");
+			expect(result.err.name).toBe("PermissionError");
+		});
+
+		it("should leave a 401 ApiError unchanged when the spec declares no scopes", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockApiError({
+				statusCode: 401,
+			});
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.execute({
+				parameters: { id: "1" },
+				spec: TEST_GET_SPEC,
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).not.toBeInstanceOf(PermissionError);
+		});
+
+		it("should leave a non-permission status unchanged even when the spec declares scopes", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockApiError({
+				statusCode: 404,
+			});
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.execute({
+				parameters: { id: "1" },
+				spec: {
+					...TEST_GET_SPEC,
+					requiredScopes: ["test:read"],
+				},
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).not.toBeInstanceOf(PermissionError);
 		});
 	});
 
