@@ -45,6 +45,10 @@ export function serializeConfig(options: SerializeConfigOptions): string {
 }
 
 function renderValue(value: unknown, depth: number): string {
+	if (Array.isArray(value)) {
+		return renderArrayLiteral(value, depth);
+	}
+
 	if (value !== null && typeof value === "object") {
 		return renderObjectLiteral(value, depth);
 	}
@@ -69,4 +73,15 @@ function renderObjectLiteral(value: object, depth: number): string {
 		return `${innerIndent}${renderedKey}: ${renderValue(fieldValue, depth + 1)}`;
 	});
 	return `{\n${lines.join(",\n")}\n${closeIndent}}`;
+}
+
+function renderArrayLiteral(value: ReadonlyArray<unknown>, depth: number): string {
+	if (value.length === 0) {
+		return "[]";
+	}
+
+	const innerIndent = "\t".repeat(depth + 1);
+	const closeIndent = "\t".repeat(depth);
+	const lines = value.map((item) => `${innerIndent}${renderValue(item, depth + 1)}`);
+	return `[\n${lines.join(",\n")}\n${closeIndent}]`;
 }

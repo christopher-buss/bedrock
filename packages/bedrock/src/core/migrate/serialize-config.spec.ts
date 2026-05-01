@@ -112,6 +112,51 @@ describe(serializeConfig, () => {
 			expect(source).not.toContain('consoleEnabled: "true"');
 		});
 
+		it("should render non-empty array values as multi-line array literals", () => {
+			expect.assertions(2);
+
+			const config: Config = {
+				environments: { production: {} },
+				extends: ["./base.config.ts", "./shared.config.ts"],
+				universe: { universeId: "1234567890" },
+			};
+
+			const source = serializeConfig(makeOptions({ config }));
+
+			expect(source).toContain(
+				'extends: [\n\t\t"./base.config.ts",\n\t\t"./shared.config.ts"\n\t]',
+			);
+			expect(source).not.toContain("extends: {");
+		});
+
+		it("should render empty array values as bare []", () => {
+			expect.assertions(1);
+
+			const config: Config = {
+				environments: { production: {} },
+				extends: [],
+				universe: { universeId: "1234567890" },
+			};
+
+			const source = serializeConfig(makeOptions({ config }));
+
+			expect(source).toContain("extends: []");
+		});
+
+		it("should indent objects nested inside array elements relative to the array depth", () => {
+			expect.assertions(1);
+
+			const config: Config = {
+				environments: { production: {} },
+				extends: [{ name: "base" }],
+				universe: { universeId: "1234567890" },
+			};
+
+			const source = serializeConfig(makeOptions({ config }));
+
+			expect(source).toContain('extends: [\n\t\t{\n\t\t\tname: "base"\n\t\t}\n\t]');
+		});
+
 		it("should omit keys whose value is undefined rather than emit them", () => {
 			expect.assertions(2);
 
