@@ -1,5 +1,5 @@
 // Wire-level shapes for responses returned by the legacy
-// `/universes/v1/.../versions` place-publishing endpoint. Internal to
+// `/universes/v1/.../versions` publish-version endpoint. Internal to
 // the subpath; not re-exported.
 
 /**
