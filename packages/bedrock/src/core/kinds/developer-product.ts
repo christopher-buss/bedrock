@@ -4,7 +4,7 @@ import { type } from "arktype";
 
 import { asResourceKey } from "../../types/ids.ts";
 import type { DeveloperProductDesiredInput } from "../flatten.ts";
-import { hashIconLocales, iconMap } from "../icons.ts";
+import { hashIconLocales, iconHashesEqual, iconMap } from "../icons.ts";
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_ROBUX_PRICE, type ResolvedConfig } from "../schema.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
@@ -64,6 +64,8 @@ function fieldsEqual(
 ): boolean {
 	return (
 		desired.description === current.description &&
+		desired.icon?.["en-us"] === current.icon?.["en-us"] &&
+		iconHashesEqual(current.iconFileHashes, desired.iconFileHashes) &&
 		desired.name === current.name &&
 		desired.price === current.price
 	);

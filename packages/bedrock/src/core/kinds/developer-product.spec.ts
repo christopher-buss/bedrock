@@ -7,8 +7,13 @@ import {
 import { ArkErrors } from "arktype";
 import { assert, describe, expect, it } from "vitest";
 
-import { asResourceKey } from "../../types/ids.ts";
+import { asResourceKey, asSha256Hex } from "../../types/ids.ts";
 import { developerProductKind } from "./developer-product.ts";
+
+const ICON_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+const ALT_ICON_HASH = asSha256Hex(
+	"a3f2c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852e1b0",
+);
 
 describe("developerProductKind", () => {
 	it("should tag its kind discriminator as developerProduct", () => {
@@ -351,6 +356,86 @@ describe("developerProductKind", () => {
 					developerProductCurrent({ price: 100 }),
 				),
 			).toBeTrue();
+		});
+
+		it("should return true when icon and iconFileHashes match across both sides", () => {
+			expect.assertions(1);
+
+			const SharedIcon = { "en-us": "assets/gem-pack.png" } as const;
+			const sharedHashes = { "en-us": ICON_HASH };
+
+			expect(
+				developerProductKind.fieldsEqual(
+					developerProductDesired({ icon: SharedIcon, iconFileHashes: sharedHashes }),
+					developerProductCurrent({ icon: SharedIcon, iconFileHashes: sharedHashes }),
+				),
+			).toBeTrue();
+		});
+
+		it("should return false when desired declares icon but current does not", () => {
+			expect.assertions(1);
+
+			expect(
+				developerProductKind.fieldsEqual(
+					developerProductDesired({
+						icon: { "en-us": "assets/gem-pack.png" },
+						iconFileHashes: { "en-us": ICON_HASH },
+					}),
+					developerProductCurrent(),
+				),
+			).toBeFalse();
+		});
+
+		it("should return false when current declares icon but desired does not", () => {
+			expect.assertions(1);
+
+			expect(
+				developerProductKind.fieldsEqual(
+					developerProductDesired(),
+					developerProductCurrent({
+						icon: { "en-us": "assets/gem-pack.png" },
+						iconFileHashes: { "en-us": ICON_HASH },
+					}),
+				),
+			).toBeFalse();
+		});
+
+		it("should return false when the en-us icon hash differs across sides", () => {
+			expect.assertions(1);
+
+			const SharedIcon = { "en-us": "assets/gem-pack.png" } as const;
+
+			expect(
+				developerProductKind.fieldsEqual(
+					developerProductDesired({
+						icon: SharedIcon,
+						iconFileHashes: { "en-us": ICON_HASH },
+					}),
+					developerProductCurrent({
+						icon: SharedIcon,
+						iconFileHashes: { "en-us": ALT_ICON_HASH },
+					}),
+				),
+			).toBeFalse();
+		});
+
+		it("should return false when the en-us icon path differs across sides", () => {
+			expect.assertions(1);
+
+			const sharedHashes = { "en-us": ICON_HASH };
+
+			expect(
+				developerProductKind.fieldsEqual(
+					developerProductDesired({
+						icon: { "en-us": "assets/gem-pack.png" },
+						iconFileHashes: sharedHashes,
+					}),
+					developerProductCurrent({
+						icon: { "en-us": "assets/other.png" },
+						iconFileHashes: sharedHashes,
+					}),
+				),
+			).toBeFalse();
 		});
 	});
 });
