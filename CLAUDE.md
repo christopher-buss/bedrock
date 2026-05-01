@@ -10,8 +10,6 @@ tool no longer maintained).
 
 - **Language**: TypeScript (ES modules)
 - **Runtime**: Bun
-- **Config**: c12-based multi-format support (TS, JS, YAML, JSON)
-- **State**: GitHub Gists (default), extensible backends
 - **Auth**: Roblox Open Cloud APIs only (no ROBLOSECURITY)
 - **Toolchain**: Vite+ (`vp pack` builds, `vp test` runs Vitest, `vp run` orchestrates tasks)
 - **Lint**: eslint from monorepo root only (`pnpm lint`), no per-package lint scripts
@@ -71,7 +69,7 @@ adds value for that slice.
 | -------- | ----------------- | ------------- |
 | Core     | Unit tests        | None needed   |
 | Shell    | Integration tests | Fake adapters |
-| Adapters | Adapter tests     | nock for HTTP |
+| Adapters | Adapter tests     | Injected fake transport (e.g. `fakeFetch`, `@bedrock/ocale/testing`) |
 | E2E      | Scenario tests    | Real APIs     |
 
 **Coverage**: 100% required (statements, branches, functions, lines)
@@ -162,7 +160,6 @@ See `docs/adr/` for full Architecture Decision Records.
 ```bash
 pnpm install           # Install dependencies
 pnpm build             # Build for production
-pnpm dev               # Watch mode
 pnpm test              # Run tests
 pnpm lint              # Check/fix linting
 pnpm typecheck         # TypeScript validation
@@ -298,3 +295,17 @@ amendment recalibrating the bar.
 | `docs/adr/`       | Why decisions were made           |
 | `docs/plans/`     | How features are implemented      |
 | `docs/templates/` | Reusable document templates       |
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues at `christopher-buss/bedrock` via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical defaults (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). Source of truth for label definitions: `.github/labels.yaml`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Multi-context monorepo. Per-package `CONTEXT.md` under `packages/<pkg>/`, system-wide ADRs at `docs/adr/`. Pointer index at `CONTEXT-MAP.md`. See `docs/agents/domain.md`.

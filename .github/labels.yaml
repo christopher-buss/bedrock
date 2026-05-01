@@ -60,6 +60,18 @@
   color: "666666"
   description: Skip Claude Code review for trivial changes
 
-- name: sandcastle
+- name: needs-triage
+  color: fbca04
+  description: Maintainer needs to evaluate this issue
+
+- name: needs-info
+  color: d4c5f9
+  description: Waiting on reporter for more information
+
+- name: ready-for-agent
   color: f9a825
-  description: Issues for Sandcastle to work on
+  description: Fully specified, AFK-ready for an agent to pick up
+
+- name: ready-for-human
+  color: 0e8a16
+  description: Needs human implementation
