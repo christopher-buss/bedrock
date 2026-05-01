@@ -618,7 +618,7 @@ describe(migrateCommand, () => {
 		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
 
 		expect(writeFile).toHaveBeenCalledWith(
-			"/projects/example/bedrock-state/production.json",
+			"/projects/example/.bedrock/state/production.json",
 			expect.stringContaining('"environment": "production"'),
 		);
 		expect(writeFile).toHaveBeenCalledWith(
@@ -652,7 +652,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
 
-		expect(mkdir).toHaveBeenCalledExactlyOnceWith("/projects/example/bedrock-state");
+		expect(mkdir).toHaveBeenCalledExactlyOnceWith("/projects/example/.bedrock/state");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
@@ -667,7 +667,7 @@ describe(migrateCommand, () => {
 		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
 
 		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
-			"local state directory create failed (/projects/example/bedrock-state): EACCES: permission denied",
+			"local state directory create failed (/projects/example/.bedrock/state): EACCES: permission denied",
 		);
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
@@ -705,7 +705,9 @@ describe(migrateCommand, () => {
 			migratePromptPort: promptPort,
 		})(stateFilePath, { from: "mantle" });
 
-		expect(existsSync(join(temporaryDirectory, "missing-parent", "bedrock-state"))).toBeTrue();
+		expect(
+			existsSync(join(temporaryDirectory, "missing-parent", ".bedrock", "state")),
+		).toBeTrue();
 		expect(exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
@@ -720,7 +722,7 @@ describe(migrateCommand, () => {
 		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
 
 		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
-			"local state write failed (/projects/example/bedrock-state/production.json): EROFS: read-only file system",
+			"local state write failed (/projects/example/.bedrock/state/production.json): EROFS: read-only file system",
 		);
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);

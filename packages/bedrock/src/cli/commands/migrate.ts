@@ -268,7 +268,10 @@ async function promptForStateTarget(
 
 	if (backend.data === "local") {
 		return {
-			data: { backend: "local", outputDir: join(dirname(stateFilePath), "bedrock-state") },
+			data: {
+				backend: "local",
+				outputDir: join(dirname(stateFilePath), ".bedrock", "state"),
+			},
 			success: true,
 		};
 	}

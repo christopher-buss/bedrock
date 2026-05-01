@@ -51,7 +51,7 @@ const BACKEND_OPTIONS: ReadonlyArray<{ hint?: string; label: string; value: Migr
 	[
 		{ label: "GitHub Gist", value: "gist" },
 		{
-			hint: "writes bedrock-state/<env>.json next to bedrock.config",
+			hint: "writes .bedrock/state/<env>.json next to bedrock.config",
 			label: "Local files",
 			value: "local",
 		},
