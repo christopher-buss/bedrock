@@ -79,15 +79,35 @@ function scriptHappyPrompts(deps: ProgDeps): void {
 }
 
 describe(migrateCommand, () => {
-	it("should surface a parse error and exit 1 when --from is missing", async () => {
+	it("should prompt for the migration source when --from is omitted", async () => {
 		expect.assertions(3);
 
 		const deps = makeDeps();
+		scriptHappyPrompts(deps);
+		vi.mocked(deps.migratePromptPort!.promptMigrationSource).mockResolvedValueOnce({
+			data: "mantle",
+			success: true,
+		});
 
-		await migrateCommand(deps)(undefined, {});
+		await migrateCommand(deps)("./.mantle-state.yml", {});
 
-		expect(deps.clack?.logError).toHaveBeenCalledOnce();
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(deps.migratePromptPort?.promptMigrationSource).toHaveBeenCalledOnce();
+		expect(deps.migrateMantleState).toHaveBeenCalledOnce();
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should cancel cleanly when the user aborts the migration-source prompt", async () => {
+		expect.assertions(2);
+
+		const deps = makeDeps();
+		vi.mocked(deps.migratePromptPort!.promptMigrationSource).mockResolvedValueOnce({
+			err: { kind: "cancelled" },
+			success: false,
+		});
+
+		await migrateCommand(deps)("./.mantle-state.yml", {});
+
+		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -575,7 +595,7 @@ describe(migrateCommand, () => {
 			.spyOn(process, "exit")
 			.mockImplementation((() => {}) as typeof process.exit);
 
-		await migrateCommand({ clack: fakeClackPort() })(undefined, {});
+		await migrateCommand({ clack: fakeClackPort() })(undefined, { from: "universe" });
 
 		expect(exitSpy).toHaveBeenCalledExactlyOnceWith(1);
 	});

@@ -74,7 +74,7 @@ export function createProg(deps: ProgDeps = {}): Sade {
 
 	prog.command("migrate [stateFilePath]")
 		.describe("Translate a state file from another tool into a bedrock project")
-		.option("--from", "Source format to migrate from (mantle)")
+		.option("--from", "Source format to migrate from (prompted if omitted)")
 		.action(migrateCommand(deps));
 
 	return prog;

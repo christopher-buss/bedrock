@@ -23,12 +23,15 @@ describe(parseMigrateOptions, () => {
 		expect(result).toStrictEqual({ data: { from: "mantle" }, success: true });
 	});
 
+	it("should return Ok with from: undefined when --from is omitted", () => {
+		expect.assertions(1);
+
+		const result = parseMigrateOptions({});
+
+		expect(result).toStrictEqual({ data: { from: undefined }, success: true });
+	});
+
 	it.for<{ expected: ParseMigrateError; label: string; rawOptions: Record<string, unknown> }>([
-		{
-			expected: { flag: "from", kind: "missingRequired" },
-			label: "missing --from",
-			rawOptions: {},
-		},
 		{
 			expected: { flag: "from", kind: "invalidValue" },
 			label: "non-string --from",

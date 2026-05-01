@@ -26,6 +26,7 @@ import {
 	renderMigrationSummary,
 	renderStateWriteError,
 } from "../render.ts";
+import { resolveMigrationSource, resolveStateFilePath } from "./resolve-migrate-inputs.ts";
 
 const FAILED_OUTRO = "migrate failed";
 
@@ -127,22 +128,6 @@ function cancel(resolved: ResolvedMigrate): number {
 function failAfterRender(resolved: ResolvedMigrate): number {
 	resolved.clack.cancel(FAILED_OUTRO);
 	return EXIT_ERROR;
-}
-
-async function resolveStateFilePath(
-	pathArgument: string | undefined,
-	resolved: ResolvedMigrate,
-): Promise<Result<string, "cancelled">> {
-	if (pathArgument !== undefined) {
-		return { data: pathArgument, success: true };
-	}
-
-	const promptResult = await resolved.promptPort.promptStateFilePath();
-	if (!promptResult.success) {
-		return { err: "cancelled", success: false };
-	}
-
-	return { data: promptResult.data, success: true };
 }
 
 function renderedFailure(
@@ -349,14 +334,19 @@ async function runMigrate(inputs: RunMigrateInputs): Promise<number> {
 		return failAfterRender(resolved);
 	}
 
-	const stateFilePath = await resolveStateFilePath(pathArg, resolved);
+	const source = await resolveMigrationSource(parsed.data.from, resolved.promptPort);
+	if (!source.success) {
+		return cancel(resolved);
+	}
+
+	const stateFilePath = await resolveStateFilePath(pathArg, resolved.promptPort);
 	if (!stateFilePath.success) {
 		return cancel(resolved);
 	}
 
 	return dispatchBySource({
 		resolved,
-		source: parsed.data.from,
+		source: source.data,
 		stateFilePath: stateFilePath.data,
 	});
 }

@@ -15,6 +15,7 @@ export function fakeMigratePromptPort(): MigratePromptPort {
 	return {
 		promptConfigFormat: vi.fn<MigratePromptPort["promptConfigFormat"]>(),
 		promptGistId: vi.fn<MigratePromptPort["promptGistId"]>(),
+		promptMigrationSource: vi.fn<MigratePromptPort["promptMigrationSource"]>(),
 		promptPrimaryEnvironment: vi.fn<MigratePromptPort["promptPrimaryEnvironment"]>(),
 		promptStateBackend: vi.fn<MigratePromptPort["promptStateBackend"]>(),
 		promptStateFilePath: vi.fn<MigratePromptPort["promptStateFilePath"]>(),
