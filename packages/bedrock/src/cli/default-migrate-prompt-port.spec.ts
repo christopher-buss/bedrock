@@ -16,6 +16,7 @@ function makeHelpers(
 ): MigratePromptClackHelpers {
 	return {
 		isCancel: fakeIsCancel,
+		path: vi.fn<MigratePromptClackHelpers["path"]>(),
 		select: vi.fn<MigratePromptClackHelpers["select"]>(),
 		text: vi.fn<MigratePromptClackHelpers["text"]>(),
 		...overrides,
@@ -108,20 +109,20 @@ describe(createDefaultMigratePromptPort, () => {
 		expect(Object.hasOwn(passedOptions?.options[0] ?? {}, "hint")).toBeFalse();
 	});
 
-	it("should resolve promptStateFilePath with the typed path", async () => {
+	it("should resolve promptStateFilePath via the path prompt with filesystem completion", async () => {
 		expect.assertions(4);
 
-		const text = vi.fn<MigratePromptClackHelpers["text"]>(async () => "./.mantle-state.yml");
-		const port = createDefaultMigratePromptPort(makeHelpers({ text }));
+		const path = vi.fn<MigratePromptClackHelpers["path"]>(async () => "./.mantle-state.yml");
+		const port = createDefaultMigratePromptPort(makeHelpers({ path }));
 
 		const result = await port.promptStateFilePath();
 
 		expect(result).toStrictEqual({ data: "./.mantle-state.yml", success: true });
 
-		const firstCall = vi.mocked(text).mock.calls[0];
+		const firstCall = vi.mocked(path).mock.calls[0];
 
 		expect(firstCall?.[0]?.message).toBe("Path to the Mantle state file?");
-		expect(firstCall?.[0]?.placeholder).toBe(".mantle-state.yml");
+		expect(firstCall?.[0]?.initialValue).toBe(".mantle-state.yml");
 		expect(firstCall?.[0]?.validate).toBeFunction();
 	});
 
@@ -145,12 +146,12 @@ describe(createDefaultMigratePromptPort, () => {
 	it("should reject empty input on prompts that require a value via the validator", async () => {
 		expect.assertions(4);
 
-		const text = vi.fn<MigratePromptClackHelpers["text"]>(async () => "x");
-		const port = createDefaultMigratePromptPort(makeHelpers({ text }));
+		const path = vi.fn<MigratePromptClackHelpers["path"]>(async () => "x");
+		const port = createDefaultMigratePromptPort(makeHelpers({ path }));
 
 		await port.promptStateFilePath();
 
-		const firstCall = vi.mocked(text).mock.calls[0];
+		const firstCall = vi.mocked(path).mock.calls[0];
 		const validate = firstCall?.[0]?.validate;
 
 		expect(validate?.("")).toBe("Required");
@@ -194,8 +195,8 @@ describe(createDefaultMigratePromptPort, () => {
 	it("should map a clack cancel into Err({ kind: 'cancelled' }) on promptStateFilePath", async () => {
 		expect.assertions(1);
 
-		const text = vi.fn<MigratePromptClackHelpers["text"]>(async () => CANCEL_SENTINEL);
-		const port = createDefaultMigratePromptPort(makeHelpers({ text }));
+		const path = vi.fn<MigratePromptClackHelpers["path"]>(async () => CANCEL_SENTINEL);
+		const port = createDefaultMigratePromptPort(makeHelpers({ path }));
 
 		const result = await port.promptStateFilePath();
 
