@@ -29,3 +29,23 @@ export const UPDATE_OPERATION_LIMIT: OperationLimit = Object.freeze({
 	maxPerSecond: 3,
 	operationKey: "developer-products.update",
 });
+
+/**
+ * Scopes the API key or OAuth token must carry to read a developer product,
+ * sourced from `x-roblox-scopes` on the `DeveloperProducts_GetDeveloperProductConfigV2`
+ * operation in the vendored OpenAPI schema.
+ */
+export const GET_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
+	"developer-product:read",
+]);
+
+/**
+ * Scopes the API key or OAuth token must carry to create or update a developer
+ * product, sourced from `x-roblox-scopes` on the
+ * `DeveloperProducts_CreateDeveloperProductV2` and
+ * `DeveloperProducts_UpdateDeveloperProductV2` operations in the vendored
+ * OpenAPI schema.
+ */
+export const WRITE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
+	"developer-product:write",
+]);

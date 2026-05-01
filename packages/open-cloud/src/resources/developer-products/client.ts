@@ -7,7 +7,9 @@ import {
 import {
 	CREATE_OPERATION_LIMIT,
 	GET_OPERATION_LIMIT,
+	GET_REQUIRED_SCOPES,
 	UPDATE_OPERATION_LIMIT,
+	WRITE_REQUIRED_SCOPES,
 } from "../../domains/developer-products/products/operations.ts";
 import { parseDeveloperProductResponse } from "../../domains/developer-products/products/parsers.ts";
 import type {
@@ -38,6 +40,7 @@ const CREATE_SPEC = makeSpec<CreateDeveloperProductParameters>({
 	methodKind: "create",
 	operationLimit: CREATE_OPERATION_LIMIT,
 	parse: parseDeveloperProductResponse,
+	requiredScopes: WRITE_REQUIRED_SCOPES,
 });
 
 const GET_SPEC = makeSpec<GetDeveloperProductParameters>({
@@ -46,6 +49,7 @@ const GET_SPEC = makeSpec<GetDeveloperProductParameters>({
 	methodKind: "idempotent",
 	operationLimit: GET_OPERATION_LIMIT,
 	parse: parseDeveloperProductResponse,
+	requiredScopes: GET_REQUIRED_SCOPES,
 });
 
 function buildUpdateOkRequest(
@@ -60,6 +64,7 @@ const UPDATE_SPEC: ResourceMethodSpec<UpdateDeveloperProductParameters, undefine
 	methodKind: "idempotent",
 	operationLimit: UPDATE_OPERATION_LIMIT,
 	parse: parseEmptyResponse,
+	requiredScopes: WRITE_REQUIRED_SCOPES,
 });
 
 /**
