@@ -1,6 +1,6 @@
 import { assert, describe, expect, it } from "vitest";
 
-import { ApiError } from "../../errors/api-error.ts";
+import { ApiError } from "../../../errors/api-error.ts";
 import { parseUniverseResponse } from "./parsers.ts";
 import type { UniverseWire } from "./wire.ts";
 

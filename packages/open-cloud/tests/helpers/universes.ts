@@ -1,4 +1,4 @@
-import type { UniverseWire } from "#src/resources/universes/wire";
+import type { UniverseWire } from "#src/domains/cloud-v2/universes/wire";
 
 /**
  * Builds a minimally-valid {@link UniverseWire} body. Pass an

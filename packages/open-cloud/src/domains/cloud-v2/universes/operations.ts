@@ -1,4 +1,4 @@
-import type { OperationLimit } from "../../internal/http/rate-limit-queue.ts";
+import type { OperationLimit } from "../../../internal/http/rate-limit-queue.ts";
 
 const PER_MINUTE = 100;
 const SECONDS_PER_MINUTE = 60;
