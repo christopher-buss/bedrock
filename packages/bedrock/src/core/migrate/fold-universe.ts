@@ -5,7 +5,6 @@ import { foldBlockedExperienceFields } from "./fold-blocked-experience-fields.ts
 import { foldDisplayName } from "./fold-display-name.ts";
 import { foldSocialLinks } from "./fold-social-links.ts";
 import {
-	ambiguousWarning,
 	blockedWarning,
 	EMPTY_FRAGMENT,
 	type FoldFragment,
@@ -101,7 +100,7 @@ function collectUniverseFragments(
 		foldPlayableDevices(resources),
 		foldPrivateServers(resources),
 		foldVoiceChat(resources),
-		foldVisibility(resources),
+		foldExperienceActivation(resources),
 		foldSocialLinks(resources),
 		foldDisplayName(resources),
 		foldBlockedExperienceFields(resources),
@@ -204,33 +203,12 @@ function pricedPrivateServersFragment(price: number): FoldFragment {
 	};
 }
 
-const VISIBILITY_PUBLIC_FRAGMENT: FoldFragment = {
-	entryFragment: { visibility: "public" },
-	warnings: [
-		interpretiveWarning({
-			bedrockPath: "universe.visibility",
-			mantlePath: "experienceActivation_singleton.isActive",
-			rule: "active-public-combo",
-		}),
-	],
-};
-
-const VISIBILITY_AMBIGUOUS: FoldFragment = {
-	entryFragment: {},
-	warnings: [
-		ambiguousWarning(
-			"experienceActivation_singleton.isActive",
-			"Set visibility manually or deactivate the universe in the Roblox dashboard; auto-mapping isActive=false to visibility=private would kick live players.",
-		),
-	],
-};
-
-const VISIBILITY_FRIENDS_BLOCKED: FoldFragment = {
+const EXPERIENCE_ACTIVATION_BLOCKED: FoldFragment = {
 	entryFragment: {},
 	warnings: [
 		blockedWarning(
-			"experienceConfiguration_singleton.isFriendsOnly",
-			"isFriendsOnly has no Open Cloud equivalent",
+			"experienceActivation_singleton.isActive",
+			"isActive has no Open Cloud equivalent",
 		),
 	],
 };
@@ -245,32 +223,12 @@ function readIsActive(resources: ReadonlyArray<MantleResource>): boolean | undef
 	return typeof isActive === "boolean" ? isActive : undefined;
 }
 
-function readIsFriendsOnly(resources: ReadonlyArray<MantleResource>): boolean | undefined {
-	const config = resources.find((resource) => resource.kind === EXPERIENCE_CONFIGURATION_KIND);
-	if (config === undefined || !isObjectPayload(config.inputs)) {
-		return undefined;
-	}
-
-	const { isFriendsOnly } = config.inputs;
-	return typeof isFriendsOnly === "boolean" ? isFriendsOnly : undefined;
-}
-
-function foldVisibility(resources: ReadonlyArray<MantleResource>): FoldFragment {
-	const isActive = readIsActive(resources);
-	if (isActive === undefined) {
+function foldExperienceActivation(resources: ReadonlyArray<MantleResource>): FoldFragment {
+	if (readIsActive(resources) === undefined) {
 		return EMPTY_FRAGMENT;
 	}
 
-	if (!isActive) {
-		return VISIBILITY_AMBIGUOUS;
-	}
-
-	const isFriendsOnly = readIsFriendsOnly(resources);
-	if (isFriendsOnly === true) {
-		return VISIBILITY_FRIENDS_BLOCKED;
-	}
-
-	return VISIBILITY_PUBLIC_FRAGMENT;
+	return EXPERIENCE_ACTIVATION_BLOCKED;
 }
 
 function foldVoiceChat(resources: ReadonlyArray<MantleResource>): FoldFragment {

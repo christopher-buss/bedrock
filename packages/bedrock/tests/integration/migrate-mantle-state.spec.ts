@@ -404,12 +404,11 @@ describe(migrateMantleState, () => {
 				uri: "https://twitter.com/example",
 			},
 			universeId: "6110424408",
-			visibility: "public",
 			voiceChatEnabled: true,
 		});
 	});
 
-	it("should fold the development primary into a separate universe shape with visibility omitted", async () => {
+	it("should fold the development primary into a separate universe shape", async () => {
 		expect.assertions(1);
 
 		const result = await migrateMantleState({
@@ -433,7 +432,7 @@ describe(migrateMantleState, () => {
 		});
 	});
 
-	it("should emit an ambiguous warning rooted at development.experienceActivation_singleton.isActive", async () => {
+	it("should emit a blocked warning rooted at every environment's experienceActivation_singleton.isActive", async () => {
 		expect.assertions(2);
 
 		const result = await migrateMantleState({
@@ -444,16 +443,18 @@ describe(migrateMantleState, () => {
 
 		assert(result.success);
 
-		const ambiguous = result.data.warnings.find((warning) => {
+		const isActiveBlocked = result.data.warnings.filter((warning) => {
 			return (
-				warning.kind === "ambiguous" &&
-				warning.mantlePath === "development.experienceActivation_singleton.isActive"
+				warning.kind === "blocked" &&
+				warning.mantlePath.endsWith(".experienceActivation_singleton.isActive")
 			);
 		});
-		assert(ambiguous?.kind === "ambiguous");
 
-		expect(ambiguous.hint).toMatch(/dashboard/i);
-		expect(result.data.summary.ambiguousCount).toBeGreaterThanOrEqual(1);
+		expect(isActiveBlocked.map((warning) => warning.mantlePath)).toIncludeAllMembers([
+			"development.experienceActivation_singleton.isActive",
+			"production.experienceActivation_singleton.isActive",
+		]);
+		expect(result.data.summary.blockedCount).toBeGreaterThanOrEqual(2);
 	});
 
 	it("should report interpretive warnings for every universe fold rule applied", async () => {
@@ -472,7 +473,6 @@ describe(migrateMantleState, () => {
 			.map((warning) => warning.rule);
 
 		expect(interpretiveRules).toIncludeAllMembers([
-			"active-public-combo",
 			"domain-to-field",
 			"list-to-flag",
 			"private-servers-priced",
@@ -496,11 +496,12 @@ describe(migrateMantleState, () => {
 
 		const blocked = result.data.warnings.filter((warning) => warning.kind === "blocked");
 
-		// 13 fields per environment × 2 environments. Excluded: price and
-		// customSocialSlotsCount (null sentinel); isFriendsOnly (foldVisibility
-		// owns it); experience.groupId (null in both environments).
-		expect(blocked).toHaveLength(26);
-		expect(result.data.summary.blockedCount).toBe(26);
+		// 14 fields per environment × 2 environments + 1 isFriendsOnly only
+		// in production (development uses the YAML null sentinel).
+		// Excluded: price and customSocialSlotsCount (null sentinel);
+		// experience.groupId (null in both environments).
+		expect(blocked).toHaveLength(29);
+		expect(result.data.summary.blockedCount).toBe(29);
 
 		const paths = blocked.map((warning) => warning.mantlePath);
 
@@ -535,8 +536,8 @@ describe(migrateMantleState, () => {
 		expect(paths.length).toBeGreaterThan(0);
 	});
 
-	it("should suppress blocked emission for fields owned by interpretive folds or set to the null sentinel", async () => {
-		expect.assertions(3);
+	it("should suppress blocked emission for fields set to the YAML null sentinel", async () => {
+		expect.assertions(2);
 
 		const result = await migrateMantleState({
 			configFormat: "typescript",
@@ -549,10 +550,6 @@ describe(migrateMantleState, () => {
 		const paths = result.data.warnings
 			.filter((warning) => warning.kind === "blocked")
 			.map((warning) => warning.mantlePath);
-
-		// isFriendsOnly: foldVisibility owns it (production sets isFriendsOnly:
-		// false + isActive: true → public visibility, no blocked).
-		expect(paths.filter((path) => path.endsWith(".isFriendsOnly"))).toStrictEqual([]);
 
 		// customSocialSlotsCount and price use the YAML null sentinel (~) so
 		// parseState strips them to undefined before the fold runs.

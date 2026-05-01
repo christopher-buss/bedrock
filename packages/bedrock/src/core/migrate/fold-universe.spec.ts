@@ -605,92 +605,16 @@ describe(foldUniverse, () => {
 		});
 	});
 
-	describe("visibility cross-fold", () => {
-		it.for<[label: string, isFriendsOnly: boolean | undefined]>([
-			["isFriendsOnly false", false],
-			["isFriendsOnly undefined", undefined],
-		])("should set visibility to public when isActive is true and %s", ([, isFriendsOnly]) => {
-			expect.assertions(1);
-
-			const result = foldUniverse([
-				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceActivation({ isActive: true }),
-				experienceConfiguration({ isFriendsOnly }),
-			]);
-
-			assert(result !== undefined);
-
-			expect(result.entry).toStrictEqual({
-				universeId: "1",
-				visibility: "public",
-			});
-		});
-
-		it("should emit one interpretive warning for the active-public combo", () => {
-			expect.assertions(1);
-
-			const result = foldUniverse([
-				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceActivation({ isActive: true }),
-				experienceConfiguration({ isFriendsOnly: false }),
-			]);
-
-			assert(result !== undefined);
-
-			expect(result.warnings).toStrictEqual([
-				{
-					bedrockPath: "universe.visibility",
-					kind: "interpretive",
-					mantlePath: "experienceActivation_singleton.isActive",
-					rule: "active-public-combo",
-				},
-			]);
-		});
-
-		it("should set visibility to public when experienceConfiguration is absent and isActive is true", () => {
-			expect.assertions(1);
-
-			const result = foldUniverse([
-				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceActivation({ isActive: true }),
-			]);
-
-			assert(result !== undefined);
-
-			expect(result.entry).toStrictEqual({
-				universeId: "1",
-				visibility: "public",
-			});
-		});
-
-		it("should omit visibility and emit ambiguous when isActive is false", () => {
-			expect.assertions(4);
-
-			const result = foldUniverse([
-				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceActivation({ isActive: false }),
-				experienceConfiguration({ isFriendsOnly: false }),
-			]);
-
-			assert(result !== undefined);
-
-			expect(result.entry).toStrictEqual({ universeId: "1" });
-			expect(result.warnings).toHaveLength(1);
-
-			const [warning] = result.warnings;
-			assert(warning?.kind === "ambiguous");
-
-			expect(warning.mantlePath).toBe("experienceActivation_singleton.isActive");
-			expect(warning.hint).toMatch(/dashboard/i);
-		});
-
-		it("should omit visibility and emit blocked when isFriendsOnly is true", () => {
+	describe("experienceActivation fold", () => {
+		it.for<[label: string, isActive: boolean]>([
+			["isActive true", true],
+			["isActive false", false],
+		])("should emit a blocked warning when %s", ([, isActive]) => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceActivation({ isActive: true }),
-				experienceConfiguration({ isFriendsOnly: true }),
+				experienceActivation({ isActive }),
 			]);
 
 			assert(result !== undefined);
@@ -699,10 +623,24 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toStrictEqual([
 				{
 					kind: "blocked",
-					mantlePath: "experienceConfiguration_singleton.isFriendsOnly",
-					reason: "isFriendsOnly has no Open Cloud equivalent",
+					mantlePath: "experienceActivation_singleton.isActive",
+					reason: "isActive has no Open Cloud equivalent",
 				},
 			]);
+		});
+
+		it("should never set universe.visibility from isActive", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceActivation({ isActive: true }),
+				experienceConfiguration({ isFriendsOnly: false }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).not.toContainKey("visibility");
 		});
 
 		it("should leave the entry untouched when experienceActivation is absent", () => {
@@ -716,7 +654,11 @@ describe(foldUniverse, () => {
 			assert(result !== undefined);
 
 			expect(result.entry).toStrictEqual({ universeId: "1" });
-			expect(result.warnings).toStrictEqual([]);
+			expect(
+				result.warnings.filter(
+					(warning) => warning.mantlePath === "experienceActivation_singleton.isActive",
+				),
+			).toStrictEqual([]);
 		});
 
 		it("should leave the entry untouched when experienceActivation.isActive is non-boolean", () => {
@@ -1158,6 +1100,7 @@ describe(foldUniverse, () => {
 				"experienceConfiguration.permissions has no Open Cloud equivalent",
 			],
 			["isArchived", "isArchived", false, "isArchived has no Open Cloud equivalent"],
+			["isFriendsOnly", "isFriendsOnly", true, "isFriendsOnly has no Open Cloud equivalent"],
 		])("should emit a blocked warning when %s is set", ([, field, value, reason]) => {
 			expect.assertions(1);
 
@@ -1235,27 +1178,6 @@ describe(foldUniverse, () => {
 
 			expect(result.entry).toStrictEqual({ universeId: "1" });
 			expect(result.warnings).toStrictEqual([]);
-		});
-
-		it("should not double-emit a blocked for isFriendsOnly when foldVisibility owns it", () => {
-			expect.assertions(1);
-
-			const result = foldUniverse([
-				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceActivation({ isActive: true }),
-				experienceConfiguration({ isFriendsOnly: true }),
-			]);
-
-			assert(result !== undefined);
-
-			const friendsOnlyBlocked = result.warnings.filter((warning) => {
-				return (
-					warning.kind === "blocked" &&
-					warning.mantlePath === "experienceConfiguration_singleton.isFriendsOnly"
-				);
-			});
-
-			expect(friendsOnlyBlocked).toHaveLength(1);
 		});
 
 		it.for<[label: string, key: string]>([
