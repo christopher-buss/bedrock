@@ -1,3 +1,4 @@
+import { PermissionError } from "@bedrock/ocale";
 import { cancel, intro, log, outro } from "@clack/prompts";
 
 import type { ConfigError } from "../core/config-error.ts";
@@ -169,12 +170,24 @@ export function renderStateWriteError(input: StateWriteErrorRender, port: ClackP
 function applyCauseDetail(cause: ApplyError): string {
 	switch (cause.kind) {
 		case "driverFailure": {
+			if (cause.cause instanceof PermissionError) {
+				return permissionDetail(cause.cause);
+			}
+
 			return cause.cause.message;
 		}
 		case "updateUnsupported": {
 			return "update not supported";
 		}
 	}
+}
+
+function permissionDetail(err: PermissionError): string {
+	const isPlural = err.requiredScopes.length > 1;
+	const label = isPlural ? "scopes" : "scope";
+	const pronoun = isPlural ? "them" : "it";
+	const scopeList = err.requiredScopes.map((scope) => `'${scope}'`).join(", ");
+	return `${err.message} on ${err.operationKey}: missing required ${label} ${scopeList}. Grant ${pronoun} on the API key at https://create.roblox.com/credentials`;
 }
 
 function buildDesiredDetail(cause: BuildDesiredError): string {
