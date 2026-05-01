@@ -4,7 +4,7 @@ import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock/ocale/
 
 import { developerProductCurrent, developerProductDesired } from "#tests/helpers/resources";
 import type { Except } from "type-fest";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it, vi } from "vitest";
 
 import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import {
@@ -16,6 +16,9 @@ const UNIVERSE_ID = asRobloxAssetId("1234567890");
 const PRODUCT_ID = asRobloxAssetId("8172635495");
 const ICON_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
 const ICON_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+const ALT_ICON_HASH = asSha256Hex(
+	"a3f2c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852e1b0",
+);
 
 const WIRE_BODY = validDeveloperProductBody({
 	name: "Gem Pack",
@@ -328,6 +331,77 @@ describe(createDeveloperProductDriver, () => {
 			assert(result.success);
 
 			expect(result.data).toStrictEqual({ ...desired, outputs: carriedOutputs });
+		});
+
+		it("should omit imageFile from the PATCH body when icon hashes match across desired and current", async () => {
+			expect.assertions(2);
+
+			const readFile = vi.fn<DeveloperProductDriverDeps["readFile"]>(async () => ICON_BYTES);
+			const { driver, http } = makeDriver({ readFile });
+			mockPatchOk(http);
+
+			const desired = developerProductDesired({
+				icon: { "en-us": "assets/gem-pack.png" },
+				iconFileHashes: { "en-us": ICON_HASH },
+			});
+			await driver.update!(
+				developerProductCurrent({
+					icon: { "en-us": "assets/gem-pack.png" },
+					iconFileHashes: { "en-us": ICON_HASH },
+				}),
+				desired,
+			);
+
+			const captured = http.requests[0]!;
+			assert(captured.request.body instanceof FormData);
+
+			expect(captured.request.body.has("imageFile")).toBeFalse();
+			expect(readFile).not.toHaveBeenCalled();
+		});
+
+		it("should attach imageFile to the PATCH body when icon hashes drift across desired and current", async () => {
+			expect.assertions(1);
+
+			const { driver, http } = makeDriver({ readFile: async () => ICON_BYTES });
+			mockPatchOk(http);
+
+			await driver.update!(
+				developerProductCurrent({
+					icon: { "en-us": "assets/gem-pack.png" },
+					iconFileHashes: { "en-us": ALT_ICON_HASH },
+				}),
+				developerProductDesired({
+					icon: { "en-us": "assets/gem-pack.png" },
+					iconFileHashes: { "en-us": ICON_HASH },
+				}),
+			);
+
+			const captured = http.requests[0]!;
+
+			await expect(readFormBytes(captured.request.body, "imageFile")).resolves.toStrictEqual(
+				ICON_BYTES,
+			);
+		});
+
+		it("should attach imageFile to the PATCH body when desired adds an icon that current did not record", async () => {
+			expect.assertions(1);
+
+			const { driver, http } = makeDriver({ readFile: async () => ICON_BYTES });
+			mockPatchOk(http);
+
+			await driver.update!(
+				developerProductCurrent(),
+				developerProductDesired({
+					icon: { "en-us": "assets/gem-pack.png" },
+					iconFileHashes: { "en-us": ICON_HASH },
+				}),
+			);
+
+			const captured = http.requests[0]!;
+
+			await expect(readFormBytes(captured.request.body, "imageFile")).resolves.toStrictEqual(
+				ICON_BYTES,
+			);
 		});
 
 		it("should propagate the OpenCloudError when the PATCH fails", async () => {

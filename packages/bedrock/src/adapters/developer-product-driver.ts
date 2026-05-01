@@ -2,6 +2,7 @@ import type { OpenCloudError, Result } from "@bedrock/ocale";
 import type { DeveloperProduct, DeveloperProductsClient } from "@bedrock/ocale/developer-products";
 
 import { derivePriceFields } from "../core/derive-price-fields.ts";
+import { shouldReuploadIcon } from "../core/icons.ts";
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
@@ -186,11 +187,17 @@ async function updateOne(
 	deps: DeveloperProductDriverDeps,
 	{ current, desired }: UpdateInputs,
 ): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
+	const imageFile =
+		desired.icon !== undefined &&
+		shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes)
+			? await deps.readFile(desired.icon["en-us"])
+			: undefined;
 	const result = await deps.client.update({
 		name: desired.name,
 		description: desired.description,
 		productId: current.outputs.productId,
 		universeId: deps.universeId,
+		...(imageFile === undefined ? {} : { imageFile }),
 		...derivePriceFields(desired),
 	});
 	if (!result.success) {
