@@ -311,6 +311,38 @@ export function getOpenApiDocument(): Record<string, unknown> {
 	return raw;
 }
 
+/**
+ * Returns the property names on the named OpenAPI component schema
+ * that are not marked `readOnly: true`. The vendored Roblox spec uses
+ * one shared `$ref` for both request and response bodies on most
+ * Cloud_Update* operations, so the set of "writable" keys equals the
+ * set of non-readOnly properties on the resource schema.
+ *
+ * Pair the result with a hand-mirrored `keyof UpdateXParameters`
+ * array to assert that no parameter input names a server-side
+ * readOnly field (the regression behind the silently-dropped
+ * `visibility` write-path).
+ *
+ * @param schemaName - Name of the schema under
+ *   `#/components/schemas/`.
+ * @returns The property names that may legally appear in a request
+ *   body for that schema.
+ */
+export function listWritablePropertyNames(schemaName: string): ReadonlyArray<string> {
+	const { components } = getOpenApiDocument();
+	assert(isRecord(components), "OpenAPI document missing components");
+	const { schemas } = components;
+	assert(isRecord(schemas), "OpenAPI document missing components.schemas");
+	const schema = schemas[schemaName];
+	assert(isRecord(schema), `schema ${schemaName} not registered in vendor OpenAPI doc`);
+	const { properties } = schema;
+	assert(isRecord(properties), `schema ${schemaName} has no properties`);
+
+	return Object.entries(properties)
+		.filter(([, value]) => !isRecord(value) || value["readOnly"] !== true)
+		.map(([key]) => key);
+}
+
 function loadOpenApiDocument(mode: OpenApiValidationMode): Record<string, unknown> {
 	const nullFixed = nullableToUnion(getOpenApiDocument());
 	// Request-mode rewrites readOnly properties into the never-match
