@@ -19,6 +19,7 @@ import {
 	renderDeployError,
 	renderMigrateError,
 	renderMigrateParseError,
+	renderMigrationSummary,
 	renderParseError,
 	renderStateWriteError,
 } from "./render.ts";
@@ -479,5 +480,104 @@ describe(renderStateWriteError, () => {
 		expect(port.logError).toHaveBeenCalledExactlyOnceWith(
 			"state write failed for 'production' (gist:abc/state.production.json): auth 401",
 		);
+	});
+});
+
+describe(renderMigrationSummary, () => {
+	const reportPath = "/projects/example/.bedrock/migration-report.md";
+
+	it("should emit an action-required logError naming the ambiguous count and report path", () => {
+		expect.assertions(2);
+
+		const port = fakeClackPort();
+
+		renderMigrationSummary(
+			{
+				reportPath,
+				summary: {
+					ambiguousCount: 4,
+					blockedCount: 2,
+					deferredCount: 1,
+					interpretiveCount: 1,
+				},
+			},
+			port,
+		);
+
+		expect(port.logError).toHaveBeenCalledExactlyOnceWith(
+			`action required: 4 fields need your input. See ${reportPath}`,
+		);
+		expect(port.logSuccess).not.toHaveBeenCalled();
+	});
+
+	it("should emit a review-needed logSuccess when only non-ambiguous warnings exist", () => {
+		expect.assertions(2);
+
+		const port = fakeClackPort();
+
+		renderMigrationSummary(
+			{
+				reportPath,
+				summary: {
+					ambiguousCount: 0,
+					blockedCount: 5,
+					deferredCount: 3,
+					interpretiveCount: 2,
+				},
+			},
+			port,
+		);
+
+		expect(port.logSuccess).toHaveBeenCalledExactlyOnceWith(
+			`migration complete; see ${reportPath} for 10 auto-mapped or skipped fields`,
+		);
+		expect(port.logError).not.toHaveBeenCalled();
+	});
+
+	it("should stay silent when every count is zero", () => {
+		expect.assertions(3);
+
+		const port = fakeClackPort();
+
+		renderMigrationSummary(
+			{
+				reportPath,
+				summary: {
+					ambiguousCount: 0,
+					blockedCount: 0,
+					deferredCount: 0,
+					interpretiveCount: 0,
+				},
+			},
+			port,
+		);
+
+		expect(port.logError).not.toHaveBeenCalled();
+		expect(port.logSuccess).not.toHaveBeenCalled();
+		expect(port.logMessage).not.toHaveBeenCalled();
+	});
+
+	it("should suppress the review-needed line when only ambiguous warnings exist", () => {
+		expect.assertions(2);
+
+		const port = fakeClackPort();
+
+		renderMigrationSummary(
+			{
+				reportPath,
+				summary: {
+					ambiguousCount: 1,
+					blockedCount: 0,
+					deferredCount: 0,
+					interpretiveCount: 0,
+				},
+			},
+			port,
+		);
+
+		expect(port.logError).toHaveBeenCalledExactlyOnceWith(
+			`action required: 1 fields need your input. See ${reportPath}`,
+		);
+		expect(port.logSuccess).not.toHaveBeenCalled();
 	});
 });

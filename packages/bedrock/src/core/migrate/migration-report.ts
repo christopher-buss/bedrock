@@ -125,3 +125,17 @@ export interface MigrationReport {
 	/** One entry per non-trivial mapping or skipped Mantle field. */
 	readonly warnings: ReadonlyArray<MigrationWarning>;
 }
+
+/**
+ * Subset of {@link MigrationReport} written to disk as
+ * `.bedrock/migration-report.json`. Both the JSON serializer and the
+ * Markdown renderer consume this exact shape, so the Markdown view
+ * round-trips through the JSON file: anyone parsing the JSON receives an
+ * equivalent value the renderer can re-render.
+ */
+export interface MigrationReportFile {
+	/** Aggregate counts by warning kind. */
+	readonly summary: MigrationSummary;
+	/** Every warning the migrator emitted, in input order. */
+	readonly warnings: ReadonlyArray<MigrationWarning>;
+}

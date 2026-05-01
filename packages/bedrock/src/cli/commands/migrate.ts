@@ -5,8 +5,6 @@ import { dirname, join } from "node:path";
 import process from "node:process";
 
 import type { MigrateError, MigrationReport } from "../../core/migrate/migration-report.ts";
-import { serializeConfig } from "../../core/migrate/serialize-config.ts";
-import type { Config } from "../../core/schema.ts";
 import { buildStatePort as defaultBuildStatePort } from "../../shell/build-state-port.ts";
 import {
 	migrateMantleState as defaultMigrateMantleState,
@@ -24,8 +22,10 @@ import {
 	renderMigrateParseError,
 	renderMigrationSummary,
 } from "../render.ts";
+import { describeUnknown } from "./describe-unknown.ts";
+import { type FinalizeDeps, type FinalizeInputs, persistMigration } from "./finalize-migration.ts";
 import { resolveMigrationSource, resolveStateFilePath } from "./resolve-migrate-inputs.ts";
-import { type ResolvedStateTarget, writeMigratedStates } from "./write-migrated-states.ts";
+import type { ResolvedStateTarget } from "./write-migrated-states.ts";
 
 const FAILED_OUTRO = "migrate failed";
 
@@ -54,14 +54,6 @@ interface RunMigrateInputs {
 	readonly pathArg: string | undefined;
 	readonly rawOptions: Readonly<Record<string, unknown>>;
 	readonly resolved: ResolvedMigrate;
-}
-
-interface FinalizeInputs {
-	readonly configFilePath: string;
-	readonly configFormat: MigrateConfigFormat;
-	readonly report: MigrationReport;
-	readonly resolved: ResolvedMigrate;
-	readonly target: ResolvedStateTarget;
 }
 
 interface RunMigratorInputs {
@@ -157,10 +149,6 @@ async function callMigrator(
 	}
 }
 
-function describeUnknown(value: unknown): string {
-	return value instanceof Error ? value.message : String(value);
-}
-
 function renderIoFailure(
 	err: MigratorIoError,
 	resolved: ResolvedMigrate,
@@ -205,50 +193,18 @@ async function runMigratorWithPrompt(
 	return renderedFailure(second.err, inputs.resolved);
 }
 
-async function writeBedrockConfig(inputs: FinalizeInputs): Promise<Result<void, void>> {
-	const { configFilePath, configFormat, report, resolved, target } = inputs;
-	const { state: _ignoredState, ...configWithoutState } = report.config;
-	const enrichedConfig: Config =
-		target.backend === "gist"
-			? { ...configWithoutState, state: target.stateConfig }
-			: configWithoutState;
-	const enrichedBytes = serializeConfig({ config: enrichedConfig, configFormat });
-	try {
-		await resolved.writeFile(configFilePath, enrichedBytes);
-	} catch (err) {
-		resolved.clack.logError(
-			`config file write failed (${configFilePath}): ${describeUnknown(err)}`,
-		);
-		return { err: undefined, success: false };
-	}
-
-	resolved.clack.logSuccess(`wrote ${configFilePath}`);
-	return { data: undefined, success: true };
-}
-
 async function finalize(inputs: FinalizeInputs): Promise<number> {
-	const { report, resolved, target } = inputs;
-	const stateWritten = await writeMigratedStates({
-		deps: {
-			buildStatePort: resolved.buildStatePort,
-			clack: resolved.clack,
-			mkdir: resolved.mkdir,
-			writeFile: resolved.writeFile,
-		},
-		report,
-		target,
-	});
-	if (!stateWritten.success) {
-		return failAfterRender(resolved);
+	const persisted = await persistMigration(inputs);
+	if (!persisted.success) {
+		inputs.deps.clack.cancel(FAILED_OUTRO);
+		return EXIT_ERROR;
 	}
 
-	const written = await writeBedrockConfig(inputs);
-	if (!written.success) {
-		return failAfterRender(resolved);
-	}
-
-	renderMigrationSummary(report.summary, resolved.clack);
-	resolved.clack.outro("migrate succeeded");
+	renderMigrationSummary(
+		{ reportPath: persisted.data, summary: inputs.report.summary },
+		inputs.deps.clack,
+	);
+	inputs.deps.clack.outro("migrate succeeded");
 	return EXIT_OK;
 }
 
@@ -287,6 +243,15 @@ async function promptForStateTarget(
 	};
 }
 
+function finalizeDeps(resolved: ResolvedMigrate): FinalizeDeps {
+	return {
+		buildStatePort: resolved.buildStatePort,
+		clack: resolved.clack,
+		mkdir: resolved.mkdir,
+		writeFile: resolved.writeFile,
+	};
+}
+
 async function runWithStateFilePath(
 	stateFilePath: string,
 	resolved: ResolvedMigrate,
@@ -313,8 +278,9 @@ async function runWithStateFilePath(
 	return finalize({
 		configFilePath: configFileFor(stateFilePath, formatResult.data),
 		configFormat: formatResult.data,
+		deps: finalizeDeps(resolved),
 		report: reportResult.data,
-		resolved,
+		stateFilePath,
 		target: targetResult.data,
 	});
 }
