@@ -4,7 +4,12 @@ import { CREATE_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import { ResourceClient, type ResourceMethodSpec } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
 import { buildPublishRequest, buildUpdateRequest } from "./builders.ts";
-import { PUBLISH_OPERATION_LIMIT, UPDATE_OPERATION_LIMIT } from "./operations.ts";
+import {
+	PUBLISH_OPERATION_LIMIT,
+	PUBLISH_REQUIRED_SCOPES,
+	UPDATE_OPERATION_LIMIT,
+	UPDATE_REQUIRED_SCOPES,
+} from "./operations.ts";
 import { parsePlaceResponse, parsePublishResponse } from "./parsers.ts";
 import type { Place, PlaceVersion, PublishParameters, UpdatePlaceParameters } from "./types.ts";
 
@@ -18,6 +23,7 @@ function makeSpec(
 		methodKind: "create",
 		operationLimit: PUBLISH_OPERATION_LIMIT,
 		parse: parsePublishResponse,
+		requiredScopes: PUBLISH_REQUIRED_SCOPES,
 	});
 }
 
@@ -30,6 +36,7 @@ const UPDATE_SPEC: ResourceMethodSpec<UpdatePlaceParameters, Place> = Object.fre
 	methodKind: "idempotent",
 	operationLimit: UPDATE_OPERATION_LIMIT,
 	parse: parsePlaceResponse,
+	requiredScopes: UPDATE_REQUIRED_SCOPES,
 });
 
 /**

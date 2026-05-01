@@ -1,5 +1,6 @@
 import type { OpenCloudHooks } from "#src/client/types";
 import { ApiError } from "#src/errors/api-error";
+import { PermissionError } from "#src/errors/permission-error";
 import { ValidationError } from "#src/errors/validation";
 import { PlacesClient } from "#src/resources/places/client";
 import { createFakeClock } from "#tests/helpers/fake-clock";
@@ -569,6 +570,78 @@ describe(PlacesClient, () => {
 
 			expect(httpClient.requests).toHaveLength(2);
 			expect(clock.waits).toStrictEqual([1000]);
+		});
+	});
+
+	describe("permission errors", () => {
+		it("should surface a 403 on publish as a PermissionError naming universe-places:write", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.publish({
+				body: rbxlBody(),
+				format: "rbxl",
+				placeId: "456",
+				universeId: "123",
+			});
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.requiredScopes).toStrictEqual(["universe-places:write"]);
+			expect(result.err.operationKey).toBe("places.publishVersion");
+		});
+
+		it("should surface a 401 on save as a PermissionError naming universe-places:write", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 401 });
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.save({
+				body: rbxlBody(),
+				format: "rbxl",
+				placeId: "456",
+				universeId: "123",
+			});
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.requiredScopes).toStrictEqual(["universe-places:write"]);
+		});
+
+		it("should surface a 403 on update as a PermissionError naming universe.place:write", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.update({
+				description: "blocked",
+				placeId: "456",
+				universeId: "123",
+			});
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.requiredScopes).toStrictEqual(["universe.place:write"]);
+			expect(result.err.operationKey).toBe("places.update");
 		});
 	});
 });

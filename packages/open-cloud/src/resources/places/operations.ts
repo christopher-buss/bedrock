@@ -28,3 +28,21 @@ export const UPDATE_OPERATION_LIMIT: OperationLimit = Object.freeze({
 	maxPerSecond: UPDATE_PER_MINUTE / SECONDS_PER_MINUTE,
 	operationKey: "places.update",
 });
+
+/**
+ * Scopes required to publish or save a place version, sourced from
+ * `x-roblox-scopes` on the `Places_CreatePlaceVersionApiKey` operation
+ * in the vendored OpenAPI schema.
+ */
+export const PUBLISH_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
+	"universe-places:write",
+]);
+
+/**
+ * Scopes required to update a place's metadata, sourced from
+ * `x-roblox-scopes` on the `Cloud_UpdatePlace` operation in the vendored
+ * OpenAPI schema.
+ */
+export const UPDATE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
+	"universe.place:write",
+]);
