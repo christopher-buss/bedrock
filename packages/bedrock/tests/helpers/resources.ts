@@ -154,8 +154,10 @@ export function developerProductDesired(
 		key: asResourceKey("gem-pack"),
 		name: "Gem Pack",
 		description: "Stocks the player up with 1,000 premium gems.",
+		isRegionalPricingEnabled: undefined,
 		kind: "developerProduct",
 		price: undefined,
+		storePageEnabled: undefined,
 		...overrides,
 	};
 }

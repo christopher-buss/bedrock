@@ -12,10 +12,12 @@ it('Example 1', () => {
     [
       {
         description: 'Stocks the player up with 1,000 premium gems.',
+        isRegionalPricingEnabled: undefined,
         key: asResourceKey('gem-pack'),
         kind: 'developerProduct',
         name: 'Gem Pack',
         price: undefined,
+        storePageEnabled: undefined,
       },
     ],
     [
@@ -27,11 +29,13 @@ it('Example 1', () => {
             'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
           ),
         },
+        isRegionalPricingEnabled: undefined,
         key: asResourceKey('gem-pack'),
         kind: 'developerProduct',
         name: 'Gem Pack',
         outputs: { productId: asRobloxAssetId('9876543210') },
         price: undefined,
+        storePageEnabled: undefined,
       },
     ],
   )

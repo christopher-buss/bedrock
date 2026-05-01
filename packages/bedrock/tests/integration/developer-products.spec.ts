@@ -163,9 +163,11 @@ describe("developer-products pipeline end-to-end", () => {
 			key: asResourceKey("gem-pack"),
 			name: "Gem Pack",
 			description: "Stocks the player up with 1,000 premium gems.",
+			isRegionalPricingEnabled: undefined,
 			kind: "developerProduct",
 			outputs: { productId: asRobloxAssetId("8172635495") },
 			price: undefined,
+			storePageEnabled: undefined,
 		};
 
 		const ops = diff(desiredResult.data, [persisted, UNIVERSE_ADOPTED]);
@@ -214,9 +216,11 @@ describe("developer-products pipeline end-to-end", () => {
 			key: asResourceKey("gem-pack"),
 			name: "Gem Pack",
 			description: "Old description before edit.",
+			isRegionalPricingEnabled: undefined,
 			kind: "developerProduct",
 			outputs: { productId: asRobloxAssetId("8172635495") },
 			price: undefined,
+			storePageEnabled: undefined,
 		};
 
 		const ops = diff(desiredResult.data, [persistedProduct, UNIVERSE_ADOPTED]);

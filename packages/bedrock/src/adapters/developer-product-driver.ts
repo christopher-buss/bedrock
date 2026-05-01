@@ -61,8 +61,7 @@ interface UpdateInputs {
  * `update` path consumes the upstream `204 No Content` response and
  * synthesizes the post-update `ResourceCurrentState` from `desired` plus
  * the existing `current.outputs`, carrying `iconImageAssetId` forward when
- * present. Subsequent slices add the `icon` cost-gate and the
- * `isRegionalPricingEnabled` / `storePageEnabled` toggles.
+ * present.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.
  *
@@ -118,10 +117,12 @@ interface UpdateInputs {
  * return driver
  *     .create({
  *         description: "Stocks the player up with 1,000 premium gems.",
+ *         isRegionalPricingEnabled: undefined,
  *         key: asResourceKey("gem-pack"),
  *         kind: "developerProduct",
  *         name: "Gem Pack",
  *         price: undefined,
+ *         storePageEnabled: undefined,
  *     })
  *     .then((result) => {
  *         expect(result.success).toBeTrue();

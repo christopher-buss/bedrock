@@ -145,11 +145,13 @@ describe(parseStateFile, () => {
 					key: asResourceKey("gem-pack"),
 					name: "Gem Pack",
 					description: "Stocks the player up with 1,000 premium gems.",
+					isRegionalPricingEnabled: true,
 					kind: "developerProduct",
 					outputs: {
 						productId: asRobloxAssetId("8172635495"),
 					},
 					price: 100,
+					storePageEnabled: false,
 				},
 			],
 			version: 1,
