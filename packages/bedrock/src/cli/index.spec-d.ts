@@ -21,6 +21,7 @@ describe("ProgDeps shape", () => {
 			| "loadConfig"
 			| "migrateMantleState"
 			| "migratePromptPort"
+			| "mkdir"
 			| "previewDiff"
 			| "writeFile"
 		>();
@@ -67,6 +68,12 @@ describe("ProgDeps migrate slots", () => {
 	it("should accept a (path, contents) writeFile signature in the writeFile slot", () => {
 		expectTypeOf<NonNullable<ProgDeps["writeFile"]>>().toEqualTypeOf<
 			(path: string, contents: string) => Promise<void>
+		>();
+	});
+
+	it("should accept a (path) mkdir signature in the mkdir slot", () => {
+		expectTypeOf<NonNullable<ProgDeps["mkdir"]>>().toEqualTypeOf<
+			(path: string) => Promise<void>
 		>();
 	});
 });

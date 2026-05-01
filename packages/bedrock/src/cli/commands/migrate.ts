@@ -1,12 +1,12 @@
 import type { Result } from "@bedrock/ocale";
 
-import { writeFile as nodeWriteFile } from "node:fs/promises";
+import { mkdir as nodeMkdir, writeFile as nodeWriteFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import process from "node:process";
 
 import type { MigrateError, MigrationReport } from "../../core/migrate/migration-report.ts";
 import { serializeConfig } from "../../core/migrate/serialize-config.ts";
-import type { Config, GistStateConfig } from "../../core/schema.ts";
+import type { Config } from "../../core/schema.ts";
 import { buildStatePort as defaultBuildStatePort } from "../../shell/build-state-port.ts";
 import {
 	migrateMantleState as defaultMigrateMantleState,
@@ -20,13 +20,12 @@ import { type MigrationSource, parseMigrateOptions } from "../parse-migrate-opti
 import {
 	type ClackPort,
 	createClackPort,
-	renderBuildStatePortError,
 	renderMigrateError,
 	renderMigrateParseError,
 	renderMigrationSummary,
-	renderStateWriteError,
 } from "../render.ts";
 import { resolveMigrationSource, resolveStateFilePath } from "./resolve-migrate-inputs.ts";
+import { type ResolvedStateTarget, writeMigratedStates } from "./write-migrated-states.ts";
 
 const FAILED_OUTRO = "migrate failed";
 
@@ -46,6 +45,7 @@ interface ResolvedMigrate {
 	readonly clack: ClackPort;
 	readonly exit: (code: number) => void;
 	readonly migrateMantleState: typeof defaultMigrateMantleState;
+	readonly mkdir: (path: string) => Promise<void>;
 	readonly promptPort: MigratePromptPort;
 	readonly writeFile: (path: string, contents: string) => Promise<void>;
 }
@@ -61,7 +61,7 @@ interface FinalizeInputs {
 	readonly configFormat: MigrateConfigFormat;
 	readonly report: MigrationReport;
 	readonly resolved: ResolvedMigrate;
-	readonly stateConfig: GistStateConfig;
+	readonly target: ResolvedStateTarget;
 }
 
 interface RunMigratorInputs {
@@ -114,6 +114,7 @@ function resolveMigrate(deps: ProgDeps): ResolvedMigrate {
 		clack: deps.clack ?? createClackPort(),
 		exit: deps.exit ?? ((code) => process.exit(code)),
 		migrateMantleState: deps.migrateMantleState ?? defaultMigrateMantleState,
+		mkdir: deps.mkdir ?? (async (path) => void (await nodeMkdir(path, { recursive: true }))),
 		promptPort: deps.migratePromptPort ?? createDefaultMigratePromptPort(),
 		writeFile:
 			deps.writeFile ?? (async (path, contents) => nodeWriteFile(path, contents, "utf8")),
@@ -204,49 +205,12 @@ async function runMigratorWithPrompt(
 	return renderedFailure(second.err, inputs.resolved);
 }
 
-async function promptForStateConfig(
-	resolved: ResolvedMigrate,
-): Promise<Result<GistStateConfig, "cancelled">> {
-	const backend = await resolved.promptPort.promptStateBackend();
-	if (!backend.success) {
-		return { err: "cancelled", success: false };
-	}
-
-	const gistId = await resolved.promptPort.promptGistId();
-	if (!gistId.success) {
-		return { err: "cancelled", success: false };
-	}
-
-	return { data: { backend: backend.data, gistId: gistId.data }, success: true };
-}
-
-async function writeMigratedStates(inputs: FinalizeInputs): Promise<Result<void, void>> {
-	const { report, resolved, stateConfig } = inputs;
-	const portResult = resolved.buildStatePort({
-		getEnv: (name) => process.env[name],
-		stateConfig,
-	});
-	if (!portResult.success) {
-		renderBuildStatePortError(portResult.err, resolved.clack);
-		return { err: undefined, success: false };
-	}
-
-	for (const [environment, state] of Object.entries(report.statesByEnvironment)) {
-		const writeResult = await portResult.data.write(state);
-		if (!writeResult.success) {
-			renderStateWriteError({ environment, err: writeResult.err }, resolved.clack);
-			return { err: undefined, success: false };
-		}
-
-		resolved.clack.logSuccess(`${environment}: ${state.resources.length} resources migrated`);
-	}
-
-	return { data: undefined, success: true };
-}
-
 async function writeBedrockConfig(inputs: FinalizeInputs): Promise<Result<void, void>> {
-	const { configFilePath, configFormat, report, resolved, stateConfig } = inputs;
-	const enrichedConfig: Config = { ...report.config, state: stateConfig };
+	const { configFilePath, configFormat, report, resolved, target } = inputs;
+	const enrichedConfig: Config =
+		target.backend === "gist"
+			? { ...report.config, state: target.stateConfig }
+			: { ...report.config };
 	const enrichedBytes = serializeConfig({ config: enrichedConfig, configFormat });
 	try {
 		await resolved.writeFile(configFilePath, enrichedBytes);
@@ -262,8 +226,17 @@ async function writeBedrockConfig(inputs: FinalizeInputs): Promise<Result<void, 
 }
 
 async function finalize(inputs: FinalizeInputs): Promise<number> {
-	const { report, resolved } = inputs;
-	const stateWritten = await writeMigratedStates(inputs);
+	const { report, resolved, target } = inputs;
+	const stateWritten = await writeMigratedStates({
+		deps: {
+			buildStatePort: resolved.buildStatePort,
+			clack: resolved.clack,
+			mkdir: resolved.mkdir,
+			writeFile: resolved.writeFile,
+		},
+		report,
+		target,
+	});
 	if (!stateWritten.success) {
 		return failAfterRender(resolved);
 	}
@@ -281,6 +254,33 @@ async function finalize(inputs: FinalizeInputs): Promise<number> {
 function configFileFor(stateFilePath: string, format: MigrateConfigFormat): string {
 	const extension = format === "typescript" ? "ts" : "yaml";
 	return join(dirname(stateFilePath), `bedrock.config.${extension}`);
+}
+
+async function promptForStateTarget(
+	resolved: ResolvedMigrate,
+	stateFilePath: string,
+): Promise<Result<ResolvedStateTarget, "cancelled">> {
+	const backend = await resolved.promptPort.promptStateBackend();
+	if (!backend.success) {
+		return { err: "cancelled", success: false };
+	}
+
+	if (backend.data === "local") {
+		return {
+			data: { backend: "local", outputDir: join(dirname(stateFilePath), "bedrock-state") },
+			success: true,
+		};
+	}
+
+	const gistId = await resolved.promptPort.promptGistId();
+	if (!gistId.success) {
+		return { err: "cancelled", success: false };
+	}
+
+	return {
+		data: { backend: "gist", stateConfig: { backend: "gist", gistId: gistId.data } },
+		success: true,
+	};
 }
 
 async function runWithStateFilePath(
@@ -301,8 +301,8 @@ async function runWithStateFilePath(
 		return reportResult.err === "cancelled" ? cancel(resolved) : EXIT_ERROR;
 	}
 
-	const stateConfigResult = await promptForStateConfig(resolved);
-	if (!stateConfigResult.success) {
+	const targetResult = await promptForStateTarget(resolved, stateFilePath);
+	if (!targetResult.success) {
 		return cancel(resolved);
 	}
 
@@ -311,7 +311,7 @@ async function runWithStateFilePath(
 		configFormat: formatResult.data,
 		report: reportResult.data,
 		resolved,
-		stateConfig: stateConfigResult.data,
+		target: targetResult.data,
 	});
 }
 

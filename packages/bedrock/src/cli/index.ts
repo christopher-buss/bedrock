@@ -37,6 +37,8 @@ export interface ProgDeps {
 	readonly migrateMantleState?: typeof defaultMigrateMantleState;
 	/** Domain-specific prompt port for the migrate command; defaults to `createDefaultMigratePromptPort()`. */
 	readonly migratePromptPort?: MigratePromptPort;
+	/** Directory-create seam used by the migrate command for the local-dump backend; defaults to `node:fs/promises.mkdir` with `recursive: true`. */
+	readonly mkdir?: (path: string) => Promise<void>;
 	/** Read-only preview of operations; defaults to the internal `previewDiff` shell helper. */
 	readonly previewDiff?: typeof defaultPreviewDiff;
 	/** File-write seam used by the migrate command to emit the bedrock config file; defaults to `node:fs/promises.writeFile`. */

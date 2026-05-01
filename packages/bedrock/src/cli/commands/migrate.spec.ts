@@ -1,5 +1,8 @@
 import { fakeClackPort } from "#tests/helpers/clack";
 import { fakeMigratePromptPort } from "#tests/helpers/migrate-prompt-port";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
@@ -12,6 +15,7 @@ import { migrateCommand } from "./migrate.ts";
 
 type ExitFunc = NonNullable<ProgDeps["exit"]>;
 type WriteFileFunc = NonNullable<ProgDeps["writeFile"]>;
+type MkdirFunc = NonNullable<ProgDeps["mkdir"]>;
 type MigrateFunc = NonNullable<ProgDeps["migrateMantleState"]>;
 type BuildStatePortFunc = NonNullable<ProgDeps["buildStatePort"]>;
 
@@ -52,12 +56,15 @@ function makeDeps(overrides: Partial<ProgDeps> = {}): ProgDeps {
 	migrate.mockResolvedValue({ data: SAMPLE_REPORT, success: true });
 	const writeFile = vi.fn<WriteFileFunc>();
 	writeFile.mockResolvedValue();
+	const mkdir = vi.fn<MkdirFunc>();
+	mkdir.mockResolvedValue();
 	return {
 		buildStatePort: vi.fn<BuildStatePortFunc>(() => ({ data: happyPort(), success: true })),
 		clack: fakeClackPort(),
 		exit: vi.fn<ExitFunc>(),
 		migrateMantleState: migrate,
 		migratePromptPort: fakeMigratePromptPort(),
+		mkdir,
 		writeFile,
 		...overrides,
 	};
@@ -583,6 +590,151 @@ describe(migrateCommand, () => {
 			"/projects/example/bedrock.config.yaml",
 			expect.any(String),
 		);
+	});
+
+	function scriptLocalBackendPrompts(deps: ProgDeps, stateFilePath: string): void {
+		vi.mocked(deps.migratePromptPort!.promptStateFilePath).mockResolvedValueOnce({
+			data: stateFilePath,
+			success: true,
+		});
+		vi.mocked(deps.migratePromptPort!.promptConfigFormat).mockResolvedValueOnce({
+			data: "typescript",
+			success: true,
+		});
+		vi.mocked(deps.migratePromptPort!.promptStateBackend).mockResolvedValueOnce({
+			data: "local",
+			success: true,
+		});
+	}
+
+	it("should dump per-env state JSON beside bedrock.config when 'local' backend is picked", async () => {
+		expect.assertions(3);
+
+		const writeFile = vi.fn<WriteFileFunc>();
+		writeFile.mockResolvedValue();
+		const deps = makeDeps({ writeFile });
+		scriptLocalBackendPrompts(deps, "/projects/example/.mantle-state.yml");
+
+		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+
+		expect(writeFile).toHaveBeenCalledWith(
+			"/projects/example/bedrock-state/production.json",
+			expect.stringContaining('"environment": "production"'),
+		);
+		expect(writeFile).toHaveBeenCalledWith(
+			"/projects/example/bedrock.config.ts",
+			expect.not.stringContaining('"state"'),
+		);
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should skip the gist-id prompt and buildStatePort when 'local' backend is picked", async () => {
+		expect.assertions(3);
+
+		const buildStatePort = vi.fn<BuildStatePortFunc>(() => happyPortResult());
+		const deps = makeDeps({ buildStatePort });
+		scriptLocalBackendPrompts(deps, "/projects/example/.mantle-state.yml");
+
+		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+
+		expect(deps.migratePromptPort?.promptGistId).not.toHaveBeenCalled();
+		expect(buildStatePort).not.toHaveBeenCalled();
+		expect(deps.clack?.logSuccess).toHaveBeenCalledWith("production: 0 resources migrated");
+	});
+
+	it("should create the local-dump output directory before writing per-env state files", async () => {
+		expect.assertions(2);
+
+		const mkdir = vi.fn<MkdirFunc>();
+		mkdir.mockResolvedValue();
+		const deps = makeDeps({ mkdir });
+		scriptLocalBackendPrompts(deps, "/projects/example/.mantle-state.yml");
+
+		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+
+		expect(mkdir).toHaveBeenCalledExactlyOnceWith("/projects/example/bedrock-state");
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should render an error and exit 1 when the local-dump mkdir rejects", async () => {
+		expect.assertions(3);
+
+		const mkdir = vi.fn<MkdirFunc>();
+		mkdir.mockRejectedValueOnce(new Error("EACCES: permission denied"));
+		const deps = makeDeps({ mkdir });
+		scriptLocalBackendPrompts(deps, "/projects/example/.mantle-state.yml");
+
+		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+			"local state directory create failed (/projects/example/bedrock-state): EACCES: permission denied",
+		);
+		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should default to recursive node mkdir when no mkdir slot is provided", async () => {
+		expect.assertions(2);
+
+		const temporaryDirectory = mkdtempSync(join(tmpdir(), "bedrock-migrate-local-"));
+		onTestFinished(() => {
+			rmSync(temporaryDirectory, { force: true, recursive: true });
+		});
+		const stateFilePath = join(temporaryDirectory, "missing-parent", ".mantle-state.yml");
+		const exit = vi.fn<ExitFunc>();
+		const migrate = vi.fn<MigrateFunc>();
+		migrate.mockResolvedValue({ data: SAMPLE_REPORT, success: true });
+		const promptPort = fakeMigratePromptPort();
+		vi.mocked(promptPort.promptStateFilePath).mockResolvedValueOnce({
+			data: stateFilePath,
+			success: true,
+		});
+		vi.mocked(promptPort.promptConfigFormat).mockResolvedValueOnce({
+			data: "typescript",
+			success: true,
+		});
+		vi.mocked(promptPort.promptStateBackend).mockResolvedValueOnce({
+			data: "local",
+			success: true,
+		});
+
+		await migrateCommand({
+			clack: fakeClackPort(),
+			exit,
+			migrateMantleState: migrate,
+			migratePromptPort: promptPort,
+		})(stateFilePath, { from: "mantle" });
+
+		expect(existsSync(join(temporaryDirectory, "missing-parent", "bedrock-state"))).toBeTrue();
+		expect(exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should render an error and exit 1 when the local-dump writeFile rejects", async () => {
+		expect.assertions(3);
+
+		const writeFile = vi.fn<WriteFileFunc>();
+		writeFile.mockRejectedValueOnce(new Error("EROFS: read-only file system"));
+		const deps = makeDeps({ writeFile });
+		vi.mocked(deps.migratePromptPort!.promptStateFilePath).mockResolvedValueOnce({
+			data: "/projects/example/.mantle-state.yml",
+			success: true,
+		});
+		vi.mocked(deps.migratePromptPort!.promptConfigFormat).mockResolvedValueOnce({
+			data: "typescript",
+			success: true,
+		});
+		vi.mocked(deps.migratePromptPort!.promptStateBackend).mockResolvedValueOnce({
+			data: "local",
+			success: true,
+		});
+
+		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+			"local state write failed (/projects/example/bedrock-state/production.json): EROFS: read-only file system",
+		);
+		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should default to process.exit when no exit slot is provided", async () => {
