@@ -502,7 +502,9 @@ describe(ResourceClient, () => {
 				requiredScopes: ["upstream:read"],
 				statusCode: 403,
 			});
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockError(existing);
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockError(
+				existing,
+			);
 			const client = new ResourceClient({
 				apiKey: "test-key",
 				httpClient,
