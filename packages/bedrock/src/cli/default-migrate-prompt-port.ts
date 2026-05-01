@@ -47,9 +47,15 @@ const FORMAT_OPTIONS: ReadonlyArray<{ hint?: string; label: string; value: Migra
 		{ label: "YAML", value: "yaml" },
 	];
 
-const BACKEND_OPTIONS: ReadonlyArray<{ label: string; value: MigrateStateBackend }> = [
-	{ label: "GitHub Gist", value: "gist" },
-];
+const BACKEND_OPTIONS: ReadonlyArray<{ hint?: string; label: string; value: MigrateStateBackend }> =
+	[
+		{ label: "GitHub Gist", value: "gist" },
+		{
+			hint: "writes .bedrock/state/<env>.json next to bedrock.config",
+			label: "Local files",
+			value: "local",
+		},
+	];
 
 const SOURCE_LABELS: Record<MigrationSource, string> = {
 	mantle: "Mantle",

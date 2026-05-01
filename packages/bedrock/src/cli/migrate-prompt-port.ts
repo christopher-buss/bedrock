@@ -11,10 +11,12 @@ export type MigrateConfigFormat = "typescript" | "yaml";
 
 /**
  * State backend kind the user picks via `MigratePromptPort.promptStateBackend`.
- * Single-option today; the union exists so adding a new backend kind widens
- * one tuple without reshaping the prompt port.
+ * `gist` writes through the GitHub Gist `StatePort` adapter; `local` is a
+ * migrate-only dump that writes each environment's state JSON to disk
+ * beside the generated `bedrock.config` and leaves the config's `state:`
+ * field unset for the user to fill in later.
  */
-export type MigrateStateBackend = "gist";
+export type MigrateStateBackend = "gist" | "local";
 
 /**
  * Result returned by every method on {@link MigratePromptPort}.
