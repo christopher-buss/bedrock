@@ -15,10 +15,7 @@ const GROUP_ID_REASON = "Open Cloud does not support transferring experience own
 
 /**
  * `experienceConfiguration_singleton` fields with no Open Cloud writable
- * endpoint. `isFriendsOnly` is intentionally omitted: `foldVisibility`
- * already owns it, and listing it here would double-emit when
- * `experienceActivation_singleton.isActive` is `true` and the cross-fold
- * blocks the public-friends combo.
+ * endpoint.
  */
 const BLOCKED_FIELDS: ReadonlyArray<BlockedFieldRule> = [
 	{ field: "genre", reason: "Roblox does not expose `genre` via Open Cloud" },
@@ -33,6 +30,7 @@ const BLOCKED_FIELDS: ReadonlyArray<BlockedFieldRule> = [
 		reason: "experienceConfiguration.permissions has no Open Cloud equivalent",
 	},
 	{ field: "isArchived", reason: "isArchived has no Open Cloud equivalent" },
+	{ field: "isFriendsOnly", reason: "isFriendsOnly has no Open Cloud equivalent" },
 ];
 
 /**
