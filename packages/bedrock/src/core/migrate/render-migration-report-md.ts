@@ -95,7 +95,7 @@ function renderBlocked(warnings: ReadonlyArray<MigrationWarning>): string {
 	return renderSection({
 		entry: (warning) => warning.mantlePath,
 		groupKey: (warning) => warning.reason,
-		title: "Blocked",
+		title: "Won't migrate (no Open Cloud equivalent)",
 		warnings: warnings.filter(
 			(warning): warning is Extract<MigrationWarning, { kind: "blocked" }> => {
 				return warning.kind === "blocked";
@@ -108,7 +108,7 @@ function renderDeferred(warnings: ReadonlyArray<MigrationWarning>): string {
 	return renderSection({
 		entry: (warning) => warning.mantlePath,
 		groupKey: (warning) => warning.reason,
-		title: "Deferred",
+		title: "Coming later (skipped for now)",
 		warnings: warnings.filter(
 			(warning): warning is Extract<MigrationWarning, { kind: "deferred" }> => {
 				return warning.kind === "deferred";
@@ -121,7 +121,7 @@ function renderInterpretive(warnings: ReadonlyArray<MigrationWarning>): string {
 	return renderSection({
 		entry: (warning) => `${warning.mantlePath} -> ${warning.bedrockPath}`,
 		groupKey: (warning) => warning.rule,
-		title: "Interpretive",
+		title: "Auto-mapped (please verify)",
 		warnings: warnings.filter(
 			(warning): warning is Extract<MigrationWarning, { kind: "interpretive" }> => {
 				return warning.kind === "interpretive";

@@ -89,7 +89,7 @@ describe(renderMigrationReportMarkdown, () => {
 		expect(md.indexOf("### second")).toBeLessThan(md.indexOf("### first"));
 	});
 
-	it("should render blocked warnings under Blocked grouped by reason", () => {
+	it("should render blocked warnings under 'Won't migrate' grouped by reason", () => {
 		expect.assertions(3);
 
 		const md = renderMigrationReportMarkdown(
@@ -100,23 +100,23 @@ describe(renderMigrationReportMarkdown, () => {
 			]),
 		);
 
-		expect(md).toContain("## Blocked");
+		expect(md).toContain("## Won't migrate (no Open Cloud equivalent)");
 		expect(md).toContain("### no equivalent");
 		expect(md).toContain("### different reason");
 	});
 
-	it("should render deferred warnings under Deferred grouped by reason", () => {
+	it("should render deferred warnings under 'Coming later' grouped by reason", () => {
 		expect.assertions(2);
 
 		const md = renderMigrationReportMarkdown(
 			fileWith([{ kind: "deferred", mantlePath: "p.x", reason: "kind not yet supported" }]),
 		);
 
-		expect(md).toContain("## Deferred");
+		expect(md).toContain("## Coming later (skipped for now)");
 		expect(md).toContain("### kind not yet supported");
 	});
 
-	it("should render interpretive warnings under Interpretive grouped by rule with arrow paths", () => {
+	it("should render interpretive warnings under 'Auto-mapped' grouped by rule with arrow paths", () => {
 		expect.assertions(3);
 
 		const md = renderMigrationReportMarkdown(
@@ -130,7 +130,7 @@ describe(renderMigrationReportMarkdown, () => {
 			]),
 		);
 
-		expect(md).toContain("## Interpretive");
+		expect(md).toContain("## Auto-mapped (please verify)");
 		expect(md).toContain("### list-to-flag");
 		expect(md).toContain(
 			"- p.experienceConfiguration_singleton.playableDevices -> universe.desktopEnabled",
@@ -145,8 +145,8 @@ describe(renderMigrationReportMarkdown, () => {
 		);
 
 		expect(md).not.toContain("## Action required");
-		expect(md).not.toContain("## Deferred");
-		expect(md).not.toContain("## Interpretive");
+		expect(md).not.toContain("## Coming later");
+		expect(md).not.toContain("## Auto-mapped");
 	});
 
 	it("should order sections action-required, blocked, deferred, interpretive", () => {
@@ -166,9 +166,9 @@ describe(renderMigrationReportMarkdown, () => {
 			]),
 		);
 
-		expect(md.indexOf("## Action required")).toBeLessThan(md.indexOf("## Blocked"));
-		expect(md.indexOf("## Blocked")).toBeLessThan(md.indexOf("## Deferred"));
-		expect(md.indexOf("## Deferred")).toBeLessThan(md.indexOf("## Interpretive"));
+		expect(md.indexOf("## Action required")).toBeLessThan(md.indexOf("## Won't migrate"));
+		expect(md.indexOf("## Won't migrate")).toBeLessThan(md.indexOf("## Coming later"));
+		expect(md.indexOf("## Coming later")).toBeLessThan(md.indexOf("## Auto-mapped"));
 	});
 
 	it("should reflect the per-kind counts from the file summary in the header", () => {
@@ -223,19 +223,19 @@ describe(renderMigrationReportMarkdown, () => {
 				"- development.pass_x",
 				"- production.pass_x",
 				"",
-				"## Blocked",
+				"## Won't migrate (no Open Cloud equivalent)",
 				"",
 				"### no equivalent",
 				"",
 				"- production.x.genre",
 				"",
-				"## Deferred",
+				"## Coming later (skipped for now)",
 				"",
 				"### kind not yet supported",
 				"",
 				"- production.y",
 				"",
-				"## Interpretive",
+				"## Auto-mapped (please verify)",
 				"",
 				"### list-to-flag",
 				"",
@@ -256,7 +256,7 @@ describe(renderMigrationReportMarkdown, () => {
 		);
 
 		const actionStart = md.indexOf("## Action required");
-		const blockedStart = md.indexOf("## Blocked");
+		const blockedStart = md.indexOf("## Won't migrate");
 		const actionRequiredBody = md.slice(actionStart, blockedStart);
 
 		expect(actionRequiredBody).not.toContain("- p.b");
