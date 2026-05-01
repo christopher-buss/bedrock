@@ -3,6 +3,7 @@ import type { DeveloperProduct, DeveloperProductsClient } from "@bedrock/ocale/d
 
 import { derivePriceFields } from "../core/derive-price-fields.ts";
 import { shouldReuploadIcon } from "../core/icons.ts";
+import { planFollowUpPatch } from "../core/plan-follow-up-patch.ts";
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
@@ -51,6 +52,11 @@ export interface DeveloperProductDriverDeps {
 
 interface UpdateInputs {
 	readonly current: ResourceCurrentState<"developerProduct">;
+	readonly desired: DeveloperProductDesiredState;
+}
+
+interface FollowUpPatchInputs {
+	readonly created: DeveloperProduct;
 	readonly desired: DeveloperProductDesiredState;
 }
 
@@ -164,13 +170,34 @@ function toCurrentState(
 	};
 }
 
+async function applyFollowUpPatch(
+	deps: DeveloperProductDriverDeps,
+	{ created, desired }: FollowUpPatchInputs,
+): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
+	const followUp = planFollowUpPatch(desired, created);
+	if (followUp === undefined) {
+		return toCurrentState(desired, created);
+	}
+
+	const patched = await deps.client.update({
+		productId: asRobloxAssetId(created.id),
+		universeId: deps.universeId,
+		...followUp,
+	});
+	if (!patched.success) {
+		return patched;
+	}
+
+	return toCurrentState(desired, created);
+}
+
 async function createOne(
 	deps: DeveloperProductDriverDeps,
 	desired: DeveloperProductDesiredState,
 ): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
 	const imageFile =
 		desired.icon === undefined ? undefined : await deps.readFile(desired.icon["en-us"]);
-	const result = await deps.client.create({
+	const created = await deps.client.create({
 		name: desired.name,
 		description: desired.description,
 		universeId: deps.universeId,
@@ -180,11 +207,11 @@ async function createOne(
 			? {}
 			: { isRegionalPricingEnabled: desired.isRegionalPricingEnabled }),
 	});
-	if (!result.success) {
-		return result;
+	if (!created.success) {
+		return created;
 	}
 
-	return toCurrentState(desired, result.data);
+	return applyFollowUpPatch(deps, { created: created.data, desired });
 }
 
 async function updateOne(

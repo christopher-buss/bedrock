@@ -251,6 +251,107 @@ describe(createDeveloperProductDriver, () => {
 		expect(result.err.statusCode).toBe(500);
 	});
 
+	describe("create follow-up PATCH for storePageEnabled", () => {
+		it("should issue a follow-up PATCH carrying storePageEnabled when desired differs from the create response", async () => {
+			expect.assertions(4);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({
+				body: validDeveloperProductBody({
+					productId: 8_172_635_495,
+					storePageEnabled: false,
+				}),
+				status: 200,
+			});
+			http.mockResponse({ body: undefined, status: 204 });
+
+			await driver.create(developerProductDesired({ storePageEnabled: true }));
+
+			expect(http.requests).toHaveLength(2);
+
+			const post = http.requests[0]!;
+			const patch = http.requests[1]!;
+
+			expect(post.request.method).toBe("POST");
+			expect(patch.request.method).toBe("PATCH");
+			expect(patch.request.url).toBe(
+				`/developer-products/v2/universes/${UNIVERSE_ID}/developer-products/${PRODUCT_ID}`,
+			);
+		});
+
+		it("should send only storePageEnabled in the follow-up PATCH multipart body", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({
+				body: validDeveloperProductBody({
+					productId: 8_172_635_495,
+					storePageEnabled: false,
+				}),
+				status: 200,
+			});
+			http.mockResponse({ body: undefined, status: 204 });
+
+			await driver.create(developerProductDesired({ storePageEnabled: true }));
+
+			const patch = http.requests[1]!;
+			assert(patch.request.body instanceof FormData);
+
+			expect(readFormString(patch.request.body, "storePageEnabled")).toBe("true");
+			expect([...patch.request.body.keys()]).toStrictEqual(["storePageEnabled"]);
+		});
+
+		it("should compose post-create state with desired.storePageEnabled when the follow-up PATCH succeeds", async () => {
+			expect.assertions(1);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({
+				body: validDeveloperProductBody({
+					productId: 8_172_635_495,
+					storePageEnabled: false,
+				}),
+				status: 200,
+			});
+			http.mockResponse({ body: undefined, status: 204 });
+
+			const desired = developerProductDesired({ storePageEnabled: true });
+			const result = await driver.create(desired);
+
+			assert(result.success);
+
+			expect(result.data.storePageEnabled).toBeTrue();
+		});
+
+		it("should issue only the create POST when desired.storePageEnabled matches the create response", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({
+				body: validDeveloperProductBody({
+					productId: 8_172_635_495,
+					storePageEnabled: true,
+				}),
+				status: 200,
+			});
+
+			await driver.create(developerProductDesired({ storePageEnabled: true }));
+
+			expect(http.requests).toHaveLength(1);
+			expect(http.requests[0]!.request.method).toBe("POST");
+		});
+
+		it("should issue only the create POST when desired.storePageEnabled is undefined", async () => {
+			expect.assertions(1);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({ body: WIRE_BODY, status: 200 });
+
+			await driver.create(developerProductDesired({ storePageEnabled: undefined }));
+
+			expect(http.requests).toHaveLength(1);
+		});
+	});
+
 	describe("update", () => {
 		function mockPatchOk(http: ReturnType<typeof createFakeHttpClient>) {
 			http.mockResponse({ body: undefined, status: 204 });
