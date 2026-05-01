@@ -1,4 +1,4 @@
-import { ApiError } from "@bedrock/ocale";
+import { ApiError, PermissionError } from "@bedrock/ocale";
 import { S_BAR, S_BAR_END, S_BAR_START, S_ERROR, S_SUCCESS } from "@clack/prompts";
 
 import { fakeClackPort } from "#tests/helpers/clack";
@@ -219,6 +219,40 @@ describe(renderDeployError, () => {
 				kind: "applyFailed",
 			},
 			expected: "apply failed for 'main-place': auth failed (401)",
+		},
+		{
+			err: {
+				cause: {
+					key: asResourceKey("gem-pack"),
+					appliedSoFar: [],
+					cause: new PermissionError("HTTP 403", {
+						operationKey: "developer-products.create",
+						requiredScopes: ["developer-product:write"],
+						statusCode: 403,
+					}),
+					kind: "driverFailure",
+				},
+				kind: "applyFailed",
+			},
+			expected:
+				"apply failed for 'gem-pack': HTTP 403 on developer-products.create: missing required scope 'developer-product:write'. Grant it on the API key at https://create.roblox.com/credentials",
+		},
+		{
+			err: {
+				cause: {
+					key: asResourceKey("main-place"),
+					appliedSoFar: [],
+					cause: new PermissionError("HTTP 401", {
+						operationKey: "places.publishVersion",
+						requiredScopes: ["universe-places:write", "universe.place:write"],
+						statusCode: 401,
+					}),
+					kind: "driverFailure",
+				},
+				kind: "applyFailed",
+			},
+			expected:
+				"apply failed for 'main-place': HTTP 401 on places.publishVersion: missing required scopes 'universe-places:write', 'universe.place:write'. Grant them on the API key at https://create.roblox.com/credentials",
 		},
 		{
 			err: {

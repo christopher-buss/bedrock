@@ -9,7 +9,9 @@ import type {
 	RequestOptions,
 	SleepFunc,
 } from "../client/types.ts";
+import { ApiError } from "../errors/api-error.ts";
 import type { OpenCloudError } from "../errors/base.ts";
+import { PermissionError } from "../errors/permission-error.ts";
 import type { Result } from "../types.ts";
 import { executeWithRetry } from "./http/execute.ts";
 import { type OperationLimit, RateLimitQueue } from "./http/rate-limit-queue.ts";
@@ -60,6 +62,16 @@ export interface ResourceMethodSpec<P, T> {
 	 * future parsers can read headers without widening the signature.
 	 */
 	readonly parse: (response: HttpResponse) => Result<T, OpenCloudError>;
+	/**
+	 * Open Cloud scopes the API key or OAuth token must carry for this
+	 * method, sourced from the vendored OpenAPI schema's `x-roblox-scopes`.
+	 * When set, a 401 or 403 ApiError from the upstream call is upgraded to
+	 * a {@link PermissionError} carrying these scopes alongside
+	 * {@link OperationLimit.operationKey}, so callers can name the missing
+	 * scope instead of just the HTTP status. Optional so test specs and
+	 * not-yet-wired resources can opt out.
+	 */
+	readonly requiredScopes?: ReadonlyArray<string>;
 }
 
 /**
@@ -187,7 +199,7 @@ export class ResourceClient {
 			});
 		});
 		if (!httpResult.success) {
-			return httpResult;
+			return { err: enrichPermissionError(httpResult.err, spec), success: false };
 		}
 
 		return spec.parse(httpResult.data);
@@ -204,4 +216,33 @@ export class ResourceClient {
 		this.#queues.set(key, queue);
 		return queue;
 	}
+}
+
+function enrichPermissionError<P, T>(
+	err: OpenCloudError,
+	spec: ResourceMethodSpec<P, T>,
+): OpenCloudError {
+	if (spec.requiredScopes === undefined) {
+		return err;
+	}
+
+	if (err instanceof PermissionError) {
+		return err;
+	}
+
+	if (!(err instanceof ApiError)) {
+		return err;
+	}
+
+	if (err.statusCode !== 401 && err.statusCode !== 403) {
+		return err;
+	}
+
+	return new PermissionError(err.message, {
+		cause: err.cause,
+		code: err.code,
+		operationKey: spec.operationLimit.operationKey,
+		requiredScopes: spec.requiredScopes,
+		statusCode: err.statusCode,
+	});
 }

@@ -1,5 +1,6 @@
 import type { OpenCloudHooks } from "#src/client/types";
 import { ApiError } from "#src/errors/api-error";
+import { PermissionError } from "#src/errors/permission-error";
 import { GamePassesClient } from "#src/resources/game-passes/index";
 import { createFakeClock } from "#tests/helpers/fake-clock";
 import { createFakeHttpClient, type FakeHttpClient } from "#tests/helpers/fake-http-client";
@@ -239,6 +240,46 @@ describe(GamePassesClient, () => {
 
 			expect(result.err).toBeInstanceOf(ApiError);
 			expect(httpClient.requests).toHaveLength(1);
+		});
+	});
+
+	describe("permission errors", () => {
+		it("should surface a 403 on get as a PermissionError naming game-pass:read", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
+			const client = new GamePassesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.get({ gamePassId: "12345", universeId: "1" });
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.requiredScopes).toStrictEqual(["game-pass:read"]);
+			expect(result.err.operationKey).toBe("game-passes.get");
+		});
+
+		it("should surface a 401 on create as a PermissionError naming game-pass:write", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 401 });
+			const client = new GamePassesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.create({ name: "Epic Pass", universeId: "1" });
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.requiredScopes).toStrictEqual(["game-pass:write"]);
+			expect(result.err.operationKey).toBe("game-passes.create");
 		});
 	});
 });

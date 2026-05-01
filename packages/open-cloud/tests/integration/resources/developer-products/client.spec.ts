@@ -1,5 +1,6 @@
 import type { OpenCloudHooks } from "#src/client/types";
 import { ApiError } from "#src/errors/api-error";
+import { PermissionError } from "#src/errors/permission-error";
 import { DeveloperProductsClient } from "#src/resources/developer-products/index";
 import { validDeveloperProductBody } from "#tests/helpers/developer-products";
 import { createFakeClock } from "#tests/helpers/fake-clock";
@@ -297,6 +298,66 @@ describe(DeveloperProductsClient, () => {
 			await client.update({ productId: "12345", universeId: "999" });
 
 			expect(clock.waits).toStrictEqual([]);
+		});
+	});
+
+	describe("permission errors", () => {
+		it("should surface a 403 on get as a PermissionError naming developer-product:read", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
+			const client = new DeveloperProductsClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.get({ productId: "12345", universeId: "999" });
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.statusCode).toBe(403);
+			expect(result.err.requiredScopes).toStrictEqual(["developer-product:read"]);
+			expect(result.err.operationKey).toBe("developer-products.get");
+		});
+
+		it("should surface a 401 on create as a PermissionError naming developer-product:write", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 401 });
+			const client = new DeveloperProductsClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.create({ name: "Gem Pack", universeId: "999" });
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.requiredScopes).toStrictEqual(["developer-product:write"]);
+			expect(result.err.operationKey).toBe("developer-products.create");
+		});
+
+		it("should surface a 403 on update as a PermissionError naming developer-product:write", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
+			const client = new DeveloperProductsClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.update({ productId: "12345", universeId: "999" });
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.requiredScopes).toStrictEqual(["developer-product:write"]);
+			expect(result.err.operationKey).toBe("developer-products.update");
 		});
 	});
 });

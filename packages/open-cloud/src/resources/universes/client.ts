@@ -3,6 +3,7 @@ import { buildGetRequest, buildUpdateRequest } from "../../domains/cloud-v2/univ
 import {
 	GET_OPERATION_LIMIT,
 	UPDATE_OPERATION_LIMIT,
+	UPDATE_REQUIRED_SCOPES,
 } from "../../domains/cloud-v2/universes/operations.ts";
 import { parseUniverseResponse } from "../../domains/cloud-v2/universes/parsers.ts";
 import type {
@@ -15,7 +16,10 @@ import {
 	buildListIconsRequest,
 	buildUploadIconRequest,
 } from "../../domains/game-internationalization/game-icon/builders.ts";
-import { ICON_OPERATION_LIMIT } from "../../domains/game-internationalization/game-icon/operations.ts";
+import {
+	ICON_OPERATION_LIMIT,
+	ICON_REQUIRED_SCOPES,
+} from "../../domains/game-internationalization/game-icon/operations.ts";
 import { parseIconListResponse } from "../../domains/game-internationalization/game-icon/parsers.ts";
 import type {
 	DeleteExperienceIconParameters,
@@ -28,7 +32,10 @@ import {
 	buildReorderThumbnailsRequest,
 	buildUploadThumbnailRequest,
 } from "../../domains/game-internationalization/game-thumbnails/builders.ts";
-import { THUMBNAILS_OPERATION_LIMIT } from "../../domains/game-internationalization/game-thumbnails/operations.ts";
+import {
+	THUMBNAILS_OPERATION_LIMIT,
+	THUMBNAILS_REQUIRED_SCOPES,
+} from "../../domains/game-internationalization/game-thumbnails/operations.ts";
 import { parseThumbnailUploadResponse } from "../../domains/game-internationalization/game-thumbnails/parsers.ts";
 import type {
 	DeleteExperienceThumbnailParameters,
@@ -61,6 +68,7 @@ const UPDATE_SPEC: ResourceMethodSpec<UpdateUniverseParameters, Universe> = Obje
 	methodKind: "idempotent",
 	operationLimit: UPDATE_OPERATION_LIMIT,
 	parse: parseUniverseResponse,
+	requiredScopes: UPDATE_REQUIRED_SCOPES,
 });
 
 function buildIconUploadOkRequest(
@@ -88,6 +96,7 @@ const ICON_UPLOAD_SPEC: ResourceMethodSpec<UploadExperienceIconParameters, undef
 		methodKind: "create",
 		operationLimit: ICON_OPERATION_LIMIT,
 		parse: parseEmptyResponse,
+		requiredScopes: ICON_REQUIRED_SCOPES,
 	});
 
 const ICON_DELETE_SPEC: ResourceMethodSpec<DeleteExperienceIconParameters, undefined> =
@@ -97,6 +106,7 @@ const ICON_DELETE_SPEC: ResourceMethodSpec<DeleteExperienceIconParameters, undef
 		methodKind: "idempotent",
 		operationLimit: ICON_OPERATION_LIMIT,
 		parse: parseEmptyResponse,
+		requiredScopes: ICON_REQUIRED_SCOPES,
 	});
 
 const ICON_LIST_SPEC: ResourceMethodSpec<
@@ -108,6 +118,7 @@ const ICON_LIST_SPEC: ResourceMethodSpec<
 	methodKind: "idempotent",
 	operationLimit: ICON_OPERATION_LIMIT,
 	parse: parseIconListResponse,
+	requiredScopes: ICON_REQUIRED_SCOPES,
 });
 
 function buildThumbnailUploadOkRequest(
@@ -131,6 +142,7 @@ const THUMBNAIL_UPLOAD_SPEC: ResourceMethodSpec<
 	methodKind: "create",
 	operationLimit: THUMBNAILS_OPERATION_LIMIT,
 	parse: parseThumbnailUploadResponse,
+	requiredScopes: THUMBNAILS_REQUIRED_SCOPES,
 });
 
 const THUMBNAIL_DELETE_SPEC: ResourceMethodSpec<DeleteExperienceThumbnailParameters, undefined> =
@@ -140,6 +152,7 @@ const THUMBNAIL_DELETE_SPEC: ResourceMethodSpec<DeleteExperienceThumbnailParamet
 		methodKind: "idempotent",
 		operationLimit: THUMBNAILS_OPERATION_LIMIT,
 		parse: parseEmptyResponse,
+		requiredScopes: THUMBNAILS_REQUIRED_SCOPES,
 	});
 
 const THUMBNAIL_REORDER_SPEC: ResourceMethodSpec<ReorderExperienceThumbnailsParameters, undefined> =
@@ -149,6 +162,7 @@ const THUMBNAIL_REORDER_SPEC: ResourceMethodSpec<ReorderExperienceThumbnailsPara
 		methodKind: "idempotent",
 		operationLimit: THUMBNAILS_OPERATION_LIMIT,
 		parse: parseEmptyResponse,
+		requiredScopes: THUMBNAILS_REQUIRED_SCOPES,
 	});
 
 interface UniverseIconHandle {

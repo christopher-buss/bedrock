@@ -5,7 +5,9 @@ import {
 } from "../../domains/game-passes/game-passes/builders.ts";
 import {
 	CREATE_OPERATION_LIMIT,
+	CREATE_REQUIRED_SCOPES,
 	GET_OPERATION_LIMIT,
+	GET_REQUIRED_SCOPES,
 } from "../../domains/game-passes/game-passes/operations.ts";
 import { parseGamePassResponse } from "../../domains/game-passes/game-passes/parsers.ts";
 import type {
@@ -29,6 +31,7 @@ const CREATE_SPEC: ResourceMethodSpec<CreateGamePassParameters, GamePass> = Obje
 	methodKind: "create",
 	operationLimit: CREATE_OPERATION_LIMIT,
 	parse: parseGamePassResponse,
+	requiredScopes: CREATE_REQUIRED_SCOPES,
 });
 
 const GET_SPEC: ResourceMethodSpec<GetGamePassParameters, GamePass> = Object.freeze({
@@ -37,6 +40,7 @@ const GET_SPEC: ResourceMethodSpec<GetGamePassParameters, GamePass> = Object.fre
 	methodKind: "idempotent",
 	operationLimit: GET_OPERATION_LIMIT,
 	parse: parseGamePassResponse,
+	requiredScopes: GET_REQUIRED_SCOPES,
 });
 
 /**

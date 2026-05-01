@@ -12,3 +12,12 @@ export const ICON_OPERATION_LIMIT: OperationLimit = Object.freeze({
 	maxPerSecond: 100 / 60,
 	operationKey: "experience-icon",
 });
+
+/**
+ * Scopes required for every game-icon operation, sourced from
+ * `x-roblox-scopes` on the legacy `gameinternationalization` icon
+ * endpoints in the vendored OpenAPI schema.
+ */
+export const ICON_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
+	"legacy-universe:manage",
+]);
