@@ -6,14 +6,20 @@ import {
 } from "../../domains/cloud-v2/places/operations.ts";
 import { parsePlaceResponse } from "../../domains/cloud-v2/places/parsers.ts";
 import type { Place, UpdatePlaceParameters } from "../../domains/cloud-v2/places/types.ts";
+import { buildPublishRequest } from "../../domains/place-publishing/places/builders.ts";
+import {
+	PUBLISH_OPERATION_LIMIT,
+	PUBLISH_REQUIRED_SCOPES,
+} from "../../domains/place-publishing/places/operations.ts";
+import { parsePublishResponse } from "../../domains/place-publishing/places/parsers.ts";
+import type {
+	PlaceVersion,
+	PublishParameters,
+} from "../../domains/place-publishing/places/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import { ResourceClient, type ResourceMethodSpec } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import { buildPublishRequest } from "./builders.ts";
-import { PUBLISH_OPERATION_LIMIT, PUBLISH_REQUIRED_SCOPES } from "./operations.ts";
-import { parsePublishResponse } from "./parsers.ts";
-import type { PlaceVersion, PublishParameters } from "./types.ts";
 
 function makeSpec(
 	versionType: "Published" | "Saved",

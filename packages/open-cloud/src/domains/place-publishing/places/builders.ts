@@ -1,6 +1,6 @@
-import type { HttpRequest } from "../../client/types.ts";
-import { ValidationError } from "../../errors/validation.ts";
-import type { Result } from "../../types.ts";
+import type { HttpRequest } from "../../../client/types.ts";
+import { ValidationError } from "../../../errors/validation.ts";
+import type { Result } from "../../../types.ts";
 import { matchesSignature, RBXL_SIGNATURE, RBXLX_SIGNATURE } from "./signatures.ts";
 import type { PublishParameters } from "./types.ts";
 

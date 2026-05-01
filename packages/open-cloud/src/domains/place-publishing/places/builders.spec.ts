@@ -1,6 +1,6 @@
 import { assert, describe, expect, it } from "vitest";
 
-import { ValidationError } from "../../errors/validation.ts";
+import { ValidationError } from "../../../errors/validation.ts";
 import { buildPublishRequest } from "./builders.ts";
 import { RBXL_SIGNATURE, RBXLX_SIGNATURE } from "./signatures.ts";
 import type { PublishParameters } from "./types.ts";
