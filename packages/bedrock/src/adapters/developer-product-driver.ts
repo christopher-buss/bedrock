@@ -176,6 +176,9 @@ async function createOne(
 		universeId: deps.universeId,
 		...(imageFile === undefined ? {} : { imageFile }),
 		...derivePriceFields(desired),
+		...(desired.isRegionalPricingEnabled === undefined
+			? {}
+			: { isRegionalPricingEnabled: desired.isRegionalPricingEnabled }),
 	});
 	if (!result.success) {
 		return result;

@@ -203,6 +203,39 @@ describe(createDeveloperProductDriver, () => {
 		expect(captured.request.body.has("imageFile")).toBeFalse();
 	});
 
+	it.for([[true], [false]] as const)(
+		"should send isRegionalPricingEnabled=%s in the multipart body when it is set on desired",
+		async ([flag]) => {
+			expect.assertions(1);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({ body: WIRE_BODY, status: 200 });
+
+			await driver.create(developerProductDesired({ isRegionalPricingEnabled: flag }));
+
+			const captured = http.requests[0]!;
+
+			expect(readFormString(captured.request.body, "isRegionalPricingEnabled")).toBe(
+				String(flag),
+			);
+		},
+	);
+
+	it("should omit isRegionalPricingEnabled from the body when desired leaves it undefined", async () => {
+		expect.assertions(1);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: WIRE_BODY, status: 200 });
+
+		await driver.create(developerProductDesired({ isRegionalPricingEnabled: undefined }));
+
+		const captured = http.requests[0]!;
+
+		assert(captured.request.body instanceof FormData);
+
+		expect(captured.request.body.has("isRegionalPricingEnabled")).toBeFalse();
+	});
+
 	it("should pass through an OpenCloudError when the ocale client returns an error", async () => {
 		expect.assertions(2);
 
