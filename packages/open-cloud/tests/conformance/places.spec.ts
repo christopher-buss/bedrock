@@ -1,4 +1,4 @@
-import { parsePlaceResponse } from "#src/resources/places/parsers";
+import { parsePlaceResponse } from "#src/domains/cloud-v2/places/parsers";
 import { assert, describe, expect, it } from "vitest";
 
 import { expectValid, getValidator, loadFixture } from "./_helpers.ts";

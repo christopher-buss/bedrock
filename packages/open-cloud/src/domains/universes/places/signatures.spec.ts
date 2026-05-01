@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { matchesSignature, RBXL_SIGNATURE, RBXLX_SIGNATURE } from "./signatures.ts";
 
-const FIXTURES = fileURLToPath(new URL("../../../tests/fixtures/places/", import.meta.url));
+const FIXTURES = fileURLToPath(new URL("../../../../tests/fixtures/places/", import.meta.url));
 
 function loadFixture(name: string): Uint8Array {
 	const buffer = readFileSync(`${FIXTURES}${name}`);

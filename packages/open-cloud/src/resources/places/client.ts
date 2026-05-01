@@ -1,17 +1,22 @@
 import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
+import { buildUpdateRequest } from "../../domains/cloud-v2/places/builders.ts";
+import {
+	UPDATE_OPERATION_LIMIT,
+	UPDATE_REQUIRED_SCOPES,
+} from "../../domains/cloud-v2/places/operations.ts";
+import { parsePlaceResponse } from "../../domains/cloud-v2/places/parsers.ts";
+import type { Place, UpdatePlaceParameters } from "../../domains/cloud-v2/places/types.ts";
+import { buildPublishRequest } from "../../domains/universes/places/builders.ts";
+import {
+	PUBLISH_OPERATION_LIMIT,
+	PUBLISH_REQUIRED_SCOPES,
+} from "../../domains/universes/places/operations.ts";
+import { parsePublishResponse } from "../../domains/universes/places/parsers.ts";
+import type { PlaceVersion, PublishParameters } from "../../domains/universes/places/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import { ResourceClient, type ResourceMethodSpec } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import { buildPublishRequest, buildUpdateRequest } from "./builders.ts";
-import {
-	PUBLISH_OPERATION_LIMIT,
-	PUBLISH_REQUIRED_SCOPES,
-	UPDATE_OPERATION_LIMIT,
-	UPDATE_REQUIRED_SCOPES,
-} from "./operations.ts";
-import { parsePlaceResponse, parsePublishResponse } from "./parsers.ts";
-import type { Place, PlaceVersion, PublishParameters, UpdatePlaceParameters } from "./types.ts";
 
 function makeSpec(
 	versionType: "Published" | "Saved",

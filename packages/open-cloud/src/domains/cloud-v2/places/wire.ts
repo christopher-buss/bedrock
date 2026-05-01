@@ -1,13 +1,5 @@
-// Wire-level shapes for responses returned by the Open Cloud place
-// endpoints. Internal to the subpath; not re-exported.
-
-/**
- * Wire shape of the publish-version success response body.
- */
-export interface PlaceVersionWire {
-	/** Auto-incrementing version number assigned by Roblox. */
-	readonly versionNumber: number;
-}
+// Wire-level shapes for responses returned by the Open Cloud
+// `cloud/v2` place endpoints. Internal to the sub-tree; not re-exported.
 
 /**
  * Wire shape of the `Place` resource -- the response body returned by

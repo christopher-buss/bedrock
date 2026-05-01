@@ -1,2 +1,3 @@
+export type { Place, UpdatePlaceParameters } from "../../domains/cloud-v2/places/types.ts";
+export type { PlaceVersion, PublishParameters } from "../../domains/universes/places/types.ts";
 export { PlacesClient } from "./client.ts";
-export type { Place, PlaceVersion, PublishParameters, UpdatePlaceParameters } from "./types.ts";

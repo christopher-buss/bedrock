@@ -1,5 +1,6 @@
-import { RBXL_SIGNATURE, RBXLX_SIGNATURE } from "#src/resources/places/signatures";
-import type { PlaceVersionWire, PlaceWire } from "#src/resources/places/wire";
+import type { PlaceWire } from "#src/domains/cloud-v2/places/wire";
+import { RBXL_SIGNATURE, RBXLX_SIGNATURE } from "#src/domains/universes/places/signatures";
+import type { PlaceVersionWire } from "#src/domains/universes/places/wire";
 
 /**
  * Returns a fresh, minimal `.rbxl`-formatted body whose magic bytes
