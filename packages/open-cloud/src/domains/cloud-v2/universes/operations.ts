@@ -24,3 +24,12 @@ export const UPDATE_OPERATION_LIMIT: OperationLimit = Object.freeze({
 	maxPerSecond: PER_MINUTE / SECONDS_PER_MINUTE,
 	operationKey: "universes.update",
 });
+
+/**
+ * Scopes required to update a universe, sourced from `x-roblox-scopes`
+ * on the `Cloud_UpdateUniverse` operation in the vendored OpenAPI schema.
+ * `Cloud_GetUniverse` declares no scope, so the GET method intentionally
+ * does not declare `requiredScopes` and a 401/403 there surfaces as a
+ * generic ApiError.
+ */
+export const UPDATE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze(["universe:write"]);

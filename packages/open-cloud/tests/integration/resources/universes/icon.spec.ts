@@ -1,4 +1,5 @@
 import { ApiError } from "#src/errors/api-error";
+import { PermissionError } from "#src/errors/permission-error";
 import { UniversesClient } from "#src/resources/universes/index";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
@@ -202,6 +203,70 @@ describe(UniversesClient, () => {
 
 				expect(result.err).toBeInstanceOf(ApiError);
 				expect(result.err).toHaveProperty("statusCode", 404);
+			});
+		});
+
+		describe("permission errors", () => {
+			it("should surface a 403 on icon.upload as a PermissionError naming legacy-universe:manage", async () => {
+				expect.assertions(2);
+
+				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
+				const client = new UniversesClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: createFakeSleep(),
+				});
+
+				const result = await client.icon.upload({
+					image: new Uint8Array([1, 2, 3]),
+					languageCode: "en-us",
+					universeId: "1",
+				});
+
+				assert(!result.success);
+				assert(result.err instanceof PermissionError);
+
+				expect(result.err.requiredScopes).toStrictEqual(["legacy-universe:manage"]);
+				expect(result.err.operationKey).toBe("experience-icon");
+			});
+
+			it("should surface a 401 on icon.delete as a PermissionError", async () => {
+				expect.assertions(1);
+
+				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 401 });
+				const client = new UniversesClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: createFakeSleep(),
+				});
+
+				const result = await client.icon.delete({
+					languageCode: "en-us",
+					universeId: "1",
+				});
+
+				assert(!result.success);
+				assert(result.err instanceof PermissionError);
+
+				expect(result.err.requiredScopes).toStrictEqual(["legacy-universe:manage"]);
+			});
+
+			it("should surface a 403 on icon.list as a PermissionError", async () => {
+				expect.assertions(1);
+
+				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
+				const client = new UniversesClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: createFakeSleep(),
+				});
+
+				const result = await client.icon.list({ universeId: "1" });
+
+				assert(!result.success);
+				assert(result.err instanceof PermissionError);
+
+				expect(result.err.requiredScopes).toStrictEqual(["legacy-universe:manage"]);
 			});
 		});
 	});

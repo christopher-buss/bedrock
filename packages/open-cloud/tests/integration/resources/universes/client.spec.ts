@@ -1,5 +1,6 @@
 import type { OpenCloudHooks } from "#src/client/types";
 import { ApiError } from "#src/errors/api-error";
+import { PermissionError } from "#src/errors/permission-error";
 import { ValidationError } from "#src/errors/validation";
 import { UniversesClient } from "#src/resources/universes/client";
 import { createFakeClock } from "#tests/helpers/fake-clock";
@@ -294,6 +295,45 @@ describe(UniversesClient, () => {
 
 			expect(httpClient.requests).toHaveLength(4);
 			expect(clock.waits).toHaveLength(2);
+		});
+	});
+
+	describe("permission errors", () => {
+		it("should leave a 403 on get as a generic ApiError when no scope is documented", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
+			const client = new UniversesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.get({ universeId: "42" });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err).not.toBeInstanceOf(PermissionError);
+		});
+
+		it("should surface a 403 on update as a PermissionError naming universe:write", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
+			const client = new UniversesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.update({ universeId: "42", voiceChatEnabled: true });
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.requiredScopes).toStrictEqual(["universe:write"]);
+			expect(result.err.operationKey).toBe("universes.update");
 		});
 	});
 });
