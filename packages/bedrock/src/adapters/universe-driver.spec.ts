@@ -121,17 +121,19 @@ describe(createUniverseDriver, () => {
 		);
 	});
 
-	it("should translate visibility into the PATCH body and mask when declared", async () => {
-		expect.assertions(2);
+	// Visibility is `readOnly: true` on the Universe schema; the request
+	// boundary now rejects it. The driver still routes the field, so the
+	// driver invocation throws the contract error before the wire ever
+	// emits. The visibility write-path is removed in a follow-up slice;
+	// this guard pins the boundary rejection until then.
+	it("should reject a visibility update at the contract boundary", async () => {
+		expect.assertions(1);
 
 		const { driver, http } = makeDriver();
 		http.mockResponse({ body: validUniverseBody(), status: 200 });
 
-		await driver.create(universeDesired({ visibility: "public" }));
-
-		expect(http.requests[0]!.request.body).toStrictEqual({ visibility: "PUBLIC" });
-		expect(http.requests[0]!.request.url).toBe(
-			`/cloud/v2/universes/${UNIVERSE_ID}?updateMask=visibility`,
+		await expect(driver.create(universeDesired({ visibility: "public" }))).rejects.toThrow(
+			/request contract violated.*\/visibility/,
 		);
 	});
 
