@@ -43,7 +43,7 @@ describe(renderMigrationReportMarkdown, () => {
 		);
 	});
 
-	it("should render a single ambiguous warning under Action required with hint as heading", () => {
+	it("should render a single ambiguous warning with the env appended in parens", () => {
 		expect.assertions(3);
 
 		const md = renderMigrationReportMarkdown(
@@ -54,10 +54,10 @@ describe(renderMigrationReportMarkdown, () => {
 
 		expect(md).toContain("## Action required");
 		expect(md).toContain("### fix the path");
-		expect(md).toContain("- production.pass_x");
+		expect(md).toContain("- pass_x (production)");
 	});
 
-	it("should group ambiguous warnings sharing a hint under one heading", () => {
+	it("should collapse the same suffix across envs into one bullet listing every env", () => {
 		expect.assertions(3);
 
 		const md = renderMigrationReportMarkdown(
@@ -71,8 +71,60 @@ describe(renderMigrationReportMarkdown, () => {
 		const headings = md.match(/^### missing icon$/gm) ?? [];
 
 		expect(headings).toHaveLength(1);
-		expect(md).toContain("- development.pass_x");
-		expect(md).toContain("- staging.pass_x");
+		expect(md).toContain("- pass_x (development, production, staging)");
+		expect(md).not.toContain("- development.pass_x");
+	});
+
+	it("should list a strict subset of envs explicitly when only some envs share the suffix", () => {
+		expect.assertions(1);
+
+		const md = renderMigrationReportMarkdown(
+			fileWith([
+				{ hint: "missing icon", kind: "ambiguous", mantlePath: "production.pass_x" },
+				{ hint: "missing icon", kind: "ambiguous", mantlePath: "staging.pass_x" },
+			]),
+		);
+
+		expect(md).toContain("- pass_x (production, staging)");
+	});
+
+	it("should list distinct suffixes within one group as separate bullets", () => {
+		expect.assertions(2);
+
+		const md = renderMigrationReportMarkdown(
+			fileWith([
+				{ hint: "missing icon", kind: "ambiguous", mantlePath: "production.pass_x" },
+				{ hint: "missing icon", kind: "ambiguous", mantlePath: "production.pass_y" },
+			]),
+		);
+
+		expect(md).toContain("- pass_x (production)");
+		expect(md).toContain("- pass_y (production)");
+	});
+
+	it("should render the full mantle-path and no parens when the path has no env prefix", () => {
+		expect.assertions(2);
+
+		const md = renderMigrationReportMarkdown(
+			fileWith([{ hint: "h", kind: "ambiguous", mantlePath: "singleton" }]),
+		);
+
+		expect(md).toContain("- singleton");
+		expect(md).not.toContain("- singleton (");
+	});
+
+	it("should preserve first-appearance env order within the bullet's parens", () => {
+		expect.assertions(1);
+
+		const md = renderMigrationReportMarkdown(
+			fileWith([
+				{ hint: "h", kind: "ambiguous", mantlePath: "staging.pass_x" },
+				{ hint: "h", kind: "ambiguous", mantlePath: "development.pass_x" },
+				{ hint: "h", kind: "ambiguous", mantlePath: "production.pass_x" },
+			]),
+		);
+
+		expect(md).toContain("- pass_x (staging, development, production)");
 	});
 
 	it("should preserve first-appearance order for groups within a section", () => {
@@ -80,9 +132,9 @@ describe(renderMigrationReportMarkdown, () => {
 
 		const md = renderMigrationReportMarkdown(
 			fileWith([
-				{ hint: "second", kind: "ambiguous", mantlePath: "a" },
-				{ hint: "first", kind: "ambiguous", mantlePath: "b" },
-				{ hint: "second", kind: "ambiguous", mantlePath: "c" },
+				{ hint: "second", kind: "ambiguous", mantlePath: "production.a" },
+				{ hint: "first", kind: "ambiguous", mantlePath: "production.b" },
+				{ hint: "second", kind: "ambiguous", mantlePath: "production.c" },
 			]),
 		);
 
@@ -94,9 +146,17 @@ describe(renderMigrationReportMarkdown, () => {
 
 		const md = renderMigrationReportMarkdown(
 			fileWith([
-				{ kind: "blocked", mantlePath: "p.x", reason: "no equivalent" },
-				{ kind: "blocked", mantlePath: "p.y", reason: "no equivalent" },
-				{ kind: "blocked", mantlePath: "p.z", reason: "different reason" },
+				{ kind: "blocked", mantlePath: "production.x.genre", reason: "no equivalent" },
+				{
+					kind: "blocked",
+					mantlePath: "production.x.permissions",
+					reason: "no equivalent",
+				},
+				{
+					kind: "blocked",
+					mantlePath: "production.x.isArchived",
+					reason: "different reason",
+				},
 			]),
 		);
 
@@ -109,14 +169,20 @@ describe(renderMigrationReportMarkdown, () => {
 		expect.assertions(2);
 
 		const md = renderMigrationReportMarkdown(
-			fileWith([{ kind: "deferred", mantlePath: "p.x", reason: "kind not yet supported" }]),
+			fileWith([
+				{
+					kind: "deferred",
+					mantlePath: "production.product_x",
+					reason: "kind not yet supported",
+				},
+			]),
 		);
 
 		expect(md).toContain("## Coming later (skipped for now)");
 		expect(md).toContain("### kind not yet supported");
 	});
 
-	it("should render interpretive warnings under 'Auto-mapped' grouped by rule with arrow paths", () => {
+	it("should render interpretive warnings with arrow paths and the env in parens", () => {
 		expect.assertions(3);
 
 		const md = renderMigrationReportMarkdown(
@@ -124,7 +190,7 @@ describe(renderMigrationReportMarkdown, () => {
 				{
 					bedrockPath: "universe.desktopEnabled",
 					kind: "interpretive",
-					mantlePath: "p.experienceConfiguration_singleton.playableDevices",
+					mantlePath: "production.experienceConfiguration_singleton.playableDevices",
 					rule: "list-to-flag",
 				},
 			]),
@@ -133,15 +199,45 @@ describe(renderMigrationReportMarkdown, () => {
 		expect(md).toContain("## Auto-mapped (please verify)");
 		expect(md).toContain("### list-to-flag");
 		expect(md).toContain(
-			"- p.experienceConfiguration_singleton.playableDevices -> universe.desktopEnabled",
+			"- experienceConfiguration_singleton.playableDevices -> universe.desktopEnabled (production)",
 		);
+	});
+
+	it("should collapse interpretive entries by both mantle suffix and bedrock path", () => {
+		expect.assertions(2);
+
+		const md = renderMigrationReportMarkdown(
+			fileWith([
+				{
+					bedrockPath: "universe.desktopEnabled",
+					kind: "interpretive",
+					mantlePath: "development.experienceConfiguration_singleton.playableDevices",
+					rule: "list-to-flag",
+				},
+				{
+					bedrockPath: "universe.desktopEnabled",
+					kind: "interpretive",
+					mantlePath: "production.experienceConfiguration_singleton.playableDevices",
+					rule: "list-to-flag",
+				},
+			]),
+		);
+
+		expect(md).toContain(
+			"- experienceConfiguration_singleton.playableDevices -> universe.desktopEnabled (development, production)",
+		);
+
+		// Bullet should appear exactly once.
+		const bullets = md.match(/^- experienceConfiguration_singleton/gm) ?? [];
+
+		expect(bullets).toHaveLength(1);
 	});
 
 	it("should omit sections that have no matching warnings", () => {
 		expect.assertions(3);
 
 		const md = renderMigrationReportMarkdown(
-			fileWith([{ kind: "blocked", mantlePath: "p.x", reason: "any" }]),
+			fileWith([{ kind: "blocked", mantlePath: "production.x", reason: "any" }]),
 		);
 
 		expect(md).not.toContain("## Action required");
@@ -157,12 +253,12 @@ describe(renderMigrationReportMarkdown, () => {
 				{
 					bedrockPath: "u.x",
 					kind: "interpretive",
-					mantlePath: "p.x",
+					mantlePath: "production.x",
 					rule: "r",
 				},
-				{ kind: "deferred", mantlePath: "p.y", reason: "later" },
-				{ kind: "blocked", mantlePath: "p.z", reason: "no equivalent" },
-				{ hint: "fix it", kind: "ambiguous", mantlePath: "p.q" },
+				{ kind: "deferred", mantlePath: "production.y", reason: "later" },
+				{ kind: "blocked", mantlePath: "production.z", reason: "no equivalent" },
+				{ hint: "fix it", kind: "ambiguous", mantlePath: "production.q" },
 			]),
 		);
 
@@ -176,10 +272,15 @@ describe(renderMigrationReportMarkdown, () => {
 
 		const md = renderMigrationReportMarkdown(
 			fileWith([
-				{ hint: "h", kind: "ambiguous", mantlePath: "p1" },
-				{ kind: "blocked", mantlePath: "p2", reason: "r" },
-				{ kind: "deferred", mantlePath: "p3", reason: "r" },
-				{ bedrockPath: "b", kind: "interpretive", mantlePath: "p4", rule: "rule" },
+				{ hint: "h", kind: "ambiguous", mantlePath: "production.p1" },
+				{ kind: "blocked", mantlePath: "production.p2", reason: "r" },
+				{ kind: "deferred", mantlePath: "production.p3", reason: "r" },
+				{
+					bedrockPath: "b",
+					kind: "interpretive",
+					mantlePath: "production.p4",
+					rule: "rule",
+				},
 			]),
 		);
 
@@ -220,26 +321,25 @@ describe(renderMigrationReportMarkdown, () => {
 				"",
 				"### missing icon",
 				"",
-				"- development.pass_x",
-				"- production.pass_x",
+				"- pass_x (development, production)",
 				"",
 				"## Won't migrate (no Open Cloud equivalent)",
 				"",
 				"### no equivalent",
 				"",
-				"- production.x.genre",
+				"- x.genre (production)",
 				"",
 				"## Coming later (skipped for now)",
 				"",
 				"### kind not yet supported",
 				"",
-				"- production.y",
+				"- y (production)",
 				"",
 				"## Auto-mapped (please verify)",
 				"",
 				"### list-to-flag",
 				"",
-				"- production.z.playableDevices -> universe.desktopEnabled",
+				"- z.playableDevices -> universe.desktopEnabled (production)",
 				"",
 			].join("\n"),
 		);
@@ -250,8 +350,8 @@ describe(renderMigrationReportMarkdown, () => {
 
 		const md = renderMigrationReportMarkdown(
 			fileWith([
-				{ hint: "fix the path", kind: "ambiguous", mantlePath: "p.a" },
-				{ kind: "blocked", mantlePath: "p.b", reason: "no equivalent" },
+				{ hint: "fix the path", kind: "ambiguous", mantlePath: "production.a" },
+				{ kind: "blocked", mantlePath: "production.b", reason: "no equivalent" },
 			]),
 		);
 
@@ -259,7 +359,7 @@ describe(renderMigrationReportMarkdown, () => {
 		const blockedStart = md.indexOf("## Won't migrate");
 		const actionRequiredBody = md.slice(actionStart, blockedStart);
 
-		expect(actionRequiredBody).not.toContain("- p.b");
+		expect(actionRequiredBody).not.toContain("- b ");
 	});
 
 	it("should not double-count a path under both its group heading and a sibling group", () => {
@@ -267,15 +367,15 @@ describe(renderMigrationReportMarkdown, () => {
 
 		const md = renderMigrationReportMarkdown(
 			fileWith([
-				{ hint: "first", kind: "ambiguous", mantlePath: "p.a" },
-				{ hint: "second", kind: "ambiguous", mantlePath: "p.b" },
+				{ hint: "first", kind: "ambiguous", mantlePath: "production.a" },
+				{ hint: "second", kind: "ambiguous", mantlePath: "production.b" },
 			]),
 		);
 
 		const firstGroup = md.slice(md.indexOf("### first"), md.indexOf("### second"));
 		const secondGroup = md.slice(md.indexOf("### second"));
 
-		expect(firstGroup).not.toContain("- p.b");
-		expect(secondGroup).not.toContain("- p.a");
+		expect(firstGroup).not.toContain("- b ");
+		expect(secondGroup).not.toContain("- a ");
 	});
 });

@@ -1,8 +1,13 @@
 import type { MigrationReportFile, MigrationWarning } from "./migration-report.ts";
 
-interface SectionInput<W> {
-	readonly entry: (warning: W) => string;
+interface SectionInput<W extends { readonly mantlePath: string }> {
 	readonly groupKey: (warning: W) => string;
+	/**
+	 * Subject the entry collapses by. For ambiguous/blocked/deferred this is
+	 * the mantle-path suffix (env stripped); for interpretive it is suffix
+	 * plus `-> bedrockPath` so distinct mappings remain distinct bullets.
+	 */
+	readonly subject: (warning: W) => string;
 	readonly title: string;
 	readonly warnings: ReadonlyArray<W>;
 }
@@ -51,6 +56,11 @@ function renderHeader(file: MigrationReportFile): string {
 	].join("\n");
 }
 
+function suffixOf(mantlePath: string): string {
+	// `indexOf(".") === -1` becomes `slice(0)` so no branch is needed.
+	return mantlePath.slice(mantlePath.indexOf(".") + 1);
+}
+
 function groupByKey<W>(
 	warnings: ReadonlyArray<W>,
 	key: (warning: W) => string,
@@ -64,15 +74,40 @@ function groupByKey<W>(
 	);
 }
 
-function renderSection<W>(input: SectionInput<W>): string {
+function environmentOf(mantlePath: string): string | undefined {
+	const dot = mantlePath.indexOf(".");
+	return dot === -1 ? undefined : mantlePath.slice(0, dot);
+}
+
+function environmentsOf(
+	members: ReadonlyArray<{ readonly mantlePath: string }>,
+): ReadonlyArray<string> {
+	const environments = members
+		.map((warning) => environmentOf(warning.mantlePath))
+		.filter((environment): environment is string => environment !== undefined);
+	return [...new Set(environments)];
+}
+
+function renderBullet(
+	subject: string,
+	members: ReadonlyArray<{ readonly mantlePath: string }>,
+): string {
+	const environments = environmentsOf(members);
+	return environments.length === 0 ? `- ${subject}` : `- ${subject} (${environments.join(", ")})`;
+}
+
+function renderSection<W extends { readonly mantlePath: string }>(input: SectionInput<W>): string {
 	if (input.warnings.length === 0) {
 		return "";
 	}
 
 	const groups = groupByKey(input.warnings, input.groupKey);
-	const blocks = [...groups].map(([key, members]) => {
-		const lines = members.map((warning) => `- ${input.entry(warning)}`);
-		return [`### ${key}`, "", ...lines, ""].join("\n");
+	const blocks = [...groups].map(([heading, members]) => {
+		const bySubject = groupByKey(members, input.subject);
+		const lines = [...bySubject].map(([key, subjectMembers]) =>
+			renderBullet(key, subjectMembers),
+		);
+		return [`### ${heading}`, "", ...lines, ""].join("\n");
 	});
 
 	return [`## ${input.title}`, "", ...blocks].join("\n");
@@ -80,8 +115,8 @@ function renderSection<W>(input: SectionInput<W>): string {
 
 function renderActionRequired(warnings: ReadonlyArray<MigrationWarning>): string {
 	return renderSection({
-		entry: (warning) => warning.mantlePath,
 		groupKey: (warning) => warning.hint,
+		subject: (warning) => suffixOf(warning.mantlePath),
 		title: "Action required",
 		warnings: warnings.filter(
 			(warning): warning is Extract<MigrationWarning, { kind: "ambiguous" }> => {
@@ -93,8 +128,8 @@ function renderActionRequired(warnings: ReadonlyArray<MigrationWarning>): string
 
 function renderBlocked(warnings: ReadonlyArray<MigrationWarning>): string {
 	return renderSection({
-		entry: (warning) => warning.mantlePath,
 		groupKey: (warning) => warning.reason,
+		subject: (warning) => suffixOf(warning.mantlePath),
 		title: "Won't migrate (no Open Cloud equivalent)",
 		warnings: warnings.filter(
 			(warning): warning is Extract<MigrationWarning, { kind: "blocked" }> => {
@@ -106,8 +141,8 @@ function renderBlocked(warnings: ReadonlyArray<MigrationWarning>): string {
 
 function renderDeferred(warnings: ReadonlyArray<MigrationWarning>): string {
 	return renderSection({
-		entry: (warning) => warning.mantlePath,
 		groupKey: (warning) => warning.reason,
+		subject: (warning) => suffixOf(warning.mantlePath),
 		title: "Coming later (skipped for now)",
 		warnings: warnings.filter(
 			(warning): warning is Extract<MigrationWarning, { kind: "deferred" }> => {
@@ -119,8 +154,8 @@ function renderDeferred(warnings: ReadonlyArray<MigrationWarning>): string {
 
 function renderInterpretive(warnings: ReadonlyArray<MigrationWarning>): string {
 	return renderSection({
-		entry: (warning) => `${warning.mantlePath} -> ${warning.bedrockPath}`,
 		groupKey: (warning) => warning.rule,
+		subject: (warning) => `${suffixOf(warning.mantlePath)} -> ${warning.bedrockPath}`,
 		title: "Auto-mapped (please verify)",
 		warnings: warnings.filter(
 			(warning): warning is Extract<MigrationWarning, { kind: "interpretive" }> => {
