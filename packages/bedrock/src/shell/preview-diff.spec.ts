@@ -273,6 +273,49 @@ describe(previewDiff, () => {
 		});
 	});
 
+	it("should surface buildDesiredFailed with iconRemovalRejected when prior state recorded a developer-product icon dropped from config", async () => {
+		expect.assertions(3);
+
+		const priorProduct = {
+			key: asResourceKey("gem-pack"),
+			name: "Gem Pack",
+			description: "Stocks the player up with 1,000 premium gems.",
+			icon: { "en-us": "assets/gem-pack.png" },
+			iconFileHashes: { "en-us": ICON_HASH },
+			kind: "developerProduct" as const,
+			outputs: { productId: asRobloxAssetId("8172635495") },
+			price: undefined,
+		};
+		const { port } = inMemoryStatePort({
+			environment: "production",
+			resources: [priorProduct],
+			version: 1,
+		});
+
+		const result = await previewDiff({
+			config: {
+				environments: { production: {} },
+				products: {
+					"gem-pack": {
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+					},
+				},
+			},
+			environment: "production",
+			readFile: readIcon,
+			statePort: port,
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "buildDesiredFailed");
+		assert(result.err.cause.kind === "iconRemovalRejected");
+
+		expect(result.err.cause.key).toBe(priorProduct.key);
+		expect(result.err.cause.message).toContain(priorProduct.key);
+		expect(result.err.cause.message).toContain("icon");
+	});
+
 	it("should surface buildDesiredFailed when readFile rejects", async () => {
 		expect.assertions(1);
 

@@ -205,7 +205,14 @@ function applyCauseDetail(cause: ApplyError): string {
 }
 
 function buildDesiredDetail(cause: BuildDesiredError): string {
-	return `(${cause.filePath}): ${cause.reason}`;
+	switch (cause.kind) {
+		case "fileReadFailed": {
+			return `(${cause.filePath}): ${cause.reason}`;
+		}
+		case "iconRemovalRejected": {
+			return `: ${cause.message}`;
+		}
+	}
 }
 
 function configErrorDetail(err: ConfigError): string {

@@ -133,10 +133,8 @@ describe(buildDesired, () => {
 		expectTypeOf<Awaited<ReturnType<typeof buildDesired>>>().toEqualTypeOf<
 			Result<ReadonlyArray<ResourceDesiredState>, BuildDesiredError>
 		>();
-	});
-
-	it("should narrow BuildDesiredError to the fileReadFailed kind", () => {
-		expectTypeOf<BuildDesiredError["kind"]>().toEqualTypeOf<"fileReadFailed">();
+		type Kinds = BuildDesiredError["kind"];
+		expectTypeOf<Kinds>().toEqualTypeOf<"fileReadFailed" | "iconRemovalRejected">();
 	});
 });
 
