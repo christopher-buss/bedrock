@@ -9,6 +9,7 @@ import { serializeStateFile } from "../../core/state-file.ts";
 import type { buildStatePort as defaultBuildStatePort } from "../../shell/build-state-port.ts";
 import type { ClackPort } from "../render.ts";
 import { renderBuildStatePortError, renderStateWriteError } from "../render.ts";
+import { describeUnknown } from "./describe-unknown.ts";
 
 /**
  * Where the migrate command persists per-environment states. The `gist`
@@ -78,10 +79,6 @@ async function writeStatesToGist(
 	}
 
 	return { data: undefined, success: true };
-}
-
-function describeUnknown(value: unknown): string {
-	return value instanceof Error ? value.message : String(value);
 }
 
 async function writeStatesToLocal(

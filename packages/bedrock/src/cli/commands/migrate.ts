@@ -22,6 +22,7 @@ import {
 	renderMigrateParseError,
 	renderMigrationSummary,
 } from "../render.ts";
+import { describeUnknown } from "./describe-unknown.ts";
 import { type FinalizeDeps, type FinalizeInputs, persistMigration } from "./finalize-migration.ts";
 import { resolveMigrationSource, resolveStateFilePath } from "./resolve-migrate-inputs.ts";
 import type { ResolvedStateTarget } from "./write-migrated-states.ts";
@@ -146,10 +147,6 @@ async function callMigrator(
 	} catch (err) {
 		return { err: { cause: err, kind: "ioError", path: inputs.stateFilePath }, success: false };
 	}
-}
-
-function describeUnknown(value: unknown): string {
-	return value instanceof Error ? value.message : String(value);
 }
 
 function renderIoFailure(

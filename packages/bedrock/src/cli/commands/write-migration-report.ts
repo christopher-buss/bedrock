@@ -6,6 +6,7 @@ import type { MigrationReport } from "../../core/migrate/migration-report.ts";
 import { renderMigrationReportMarkdown } from "../../core/migrate/render-migration-report-md.ts";
 import { serializeMigrationReport } from "../../core/migrate/serialize-migration-report.ts";
 import type { ClackPort } from "../render.ts";
+import { describeUnknown } from "./describe-unknown.ts";
 
 const REPORT_DIR_NAME = ".bedrock";
 const JSON_FILE_NAME = "migration-report.json";
@@ -77,8 +78,4 @@ export async function writeMigrationReport(
 	}
 
 	return { data: { jsonPath, mdPath }, success: true };
-}
-
-function describeUnknown(value: unknown): string {
-	return value instanceof Error ? value.message : String(value);
 }

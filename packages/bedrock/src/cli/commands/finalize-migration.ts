@@ -6,6 +6,7 @@ import type { Config } from "../../core/schema.ts";
 import type { buildStatePort as defaultBuildStatePort } from "../../shell/build-state-port.ts";
 import type { MigrateConfigFormat } from "../migrate-prompt-port.ts";
 import type { ClackPort } from "../render.ts";
+import { describeUnknown } from "./describe-unknown.ts";
 import { type ResolvedStateTarget, writeMigratedStates } from "./write-migrated-states.ts";
 import { writeMigrationReport } from "./write-migration-report.ts";
 
@@ -68,10 +69,6 @@ export async function persistMigration(inputs: FinalizeInputs): Promise<Result<s
 	return reportPaths.success
 		? { data: reportPaths.data.mdPath, success: true }
 		: { err: undefined, success: false };
-}
-
-function describeUnknown(value: unknown): string {
-	return value instanceof Error ? value.message : String(value);
 }
 
 async function writeBedrockConfig(inputs: FinalizeInputs): Promise<Result<void, void>> {
