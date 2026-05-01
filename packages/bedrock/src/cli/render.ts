@@ -38,6 +38,14 @@ interface StateWriteErrorRender {
 	readonly err: StateError;
 }
 
+/** Inputs for {@link renderMigrationSummary}. */
+interface MigrationSummaryRender {
+	/** Path to the Markdown report on disk. Pointed at from the action-required and review-needed lines. */
+	readonly reportPath: string;
+	/** Aggregate counts from a `MigrationReport`. */
+	readonly summary: MigrationSummary;
+}
+
 /**
  * Render a `DeployError` to the supplied `ClackPort` as a single error line.
  * Each variant produces a distinct, terse diagnostic; wrapped variants
@@ -128,46 +136,35 @@ export function renderBuildStatePortError(
 	port.logError(buildStatePortErrorMessage(err));
 }
 
-/** Pairing of a migration warning kind with the per-line label rendered by {@link renderMigrationSummary}. */
-const MIGRATION_SUMMARY_LINES: ReadonlyArray<{
-	readonly count: keyof MigrationSummary;
-	readonly label: string;
-}> = [
-	{ count: "interpretiveCount", label: "interpretive mappings" },
-	{ count: "deferredCount", label: "deferred fields" },
-	{ count: "blockedCount", label: "blocked fields" },
-	{ count: "ambiguousCount", label: "ambiguous fields" },
-];
-
-/** Inputs for {@link renderMigrationSummary}. */
-interface MigrationSummaryRender {
-	/** Path to the Markdown report on disk. Rendered as a `report:` line when any warnings exist. */
-	readonly reportPath: string;
-	/** Aggregate counts from a `MigrationReport`. */
-	readonly summary: MigrationSummary;
-}
-
 /**
- * Render every non-zero `MigrationSummary` count to the supplied
- * `ClackPort` as a single message line. Categories with a zero count
- * are skipped so a clean migration produces no output. When any kind
- * has a non-zero count, an additional line points the user at the
- * Markdown report on disk so they can drill into the entries.
+ * Render the post-migrate review prompt to the supplied `ClackPort`.
+ * Three outcomes:
+ *
+ * - Any `ambiguous` warnings exist: emit a single error line directing
+ *   the user to the report. The migration ran but there are decisions
+ *   the user still needs to make before deploy will be meaningful.
+ * - No `ambiguous` warnings but non-zero `blocked` / `deferred` /
+ *   `interpretive`: emit a single success line pointing at the report
+ *   for auditing.
+ * - All counts zero: silent. The closing `outro("migrate succeeded")`
+ *   already speaks for the run.
  * @param input - Counts plus the path of the Markdown report.
- * @param port - The output port the lines are written to.
+ * @param port - The output port the line is written to.
  */
 export function renderMigrationSummary(input: MigrationSummaryRender, port: ClackPort): void {
-	let total = 0;
-	for (const { count, label } of MIGRATION_SUMMARY_LINES) {
-		const value = input.summary[count];
-		if (value > 0) {
-			port.logMessage(`${label}: ${String(value)}`);
-			total += value;
-		}
+	const { ambiguousCount, blockedCount, deferredCount, interpretiveCount } = input.summary;
+	if (ambiguousCount > 0) {
+		port.logError(
+			`action required: ${String(ambiguousCount)} fields need your input. See ${input.reportPath}`,
+		);
+		return;
 	}
 
-	if (total > 0) {
-		port.logMessage(`report: ${input.reportPath}`);
+	const reviewable = blockedCount + deferredCount + interpretiveCount;
+	if (reviewable > 0) {
+		port.logSuccess(
+			`migration complete; see ${input.reportPath} for ${String(reviewable)} auto-mapped or skipped fields`,
+		);
 	}
 }
 

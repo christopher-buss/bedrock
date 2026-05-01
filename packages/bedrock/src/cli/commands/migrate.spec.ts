@@ -608,21 +608,26 @@ describe(migrateCommand, () => {
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
 	});
 
-	it("should skip every warning category whose summary count is zero", async () => {
-		expect.assertions(1);
+	it("should stay silent in the summary when every warning count is zero", async () => {
+		expect.assertions(2);
 
 		const deps = makeDeps();
 		scriptHappyPrompts(deps);
 
 		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(deps.clack?.logMessage).not.toHaveBeenCalled();
+		expect(deps.clack?.logError).not.toHaveBeenCalled();
+		// logSuccess fires for state and config writes; assert only that the
+		// review-prompt success line does not.
+		expect(deps.clack?.logSuccess).not.toHaveBeenCalledWith(
+			expect.stringContaining("auto-mapped or skipped fields"),
+		);
 	});
 
-	it("should render every warning category present in the report summary", async () => {
-		expect.assertions(5);
+	it("should emit an action-required error line when ambiguous warnings exist", async () => {
+		expect.assertions(2);
 
-		const reportWithWarnings: MigrationReport = {
+		const reportWithAmbiguous: MigrationReport = {
 			...SAMPLE_REPORT,
 			summary: {
 				ambiguousCount: 4,
@@ -632,20 +637,50 @@ describe(migrateCommand, () => {
 			},
 		};
 		const migrateMantleState = vi.fn<MigrateFunc>(async () => {
-			return { data: reportWithWarnings, success: true };
+			return { data: reportWithAmbiguous, success: true };
 		});
 		const deps = makeDeps({ migrateMantleState });
 		scriptHappyPrompts(deps);
 
 		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(deps.clack?.logMessage).toHaveBeenCalledWith("interpretive mappings: 1");
-		expect(deps.clack?.logMessage).toHaveBeenCalledWith("deferred fields: 2");
-		expect(deps.clack?.logMessage).toHaveBeenCalledWith("blocked fields: 3");
-		expect(deps.clack?.logMessage).toHaveBeenCalledWith("ambiguous fields: 4");
-		expect(deps.clack?.logMessage).toHaveBeenCalledWith(
-			expect.stringMatching(/^report: .*\.bedrock\/migration-report\.md$/),
+		expect(deps.clack?.logError).toHaveBeenCalledWith(
+			expect.stringMatching(
+				/^action required: 4 fields need your input\. See .*\.bedrock\/migration-report\.md$/,
+			),
 		);
+		// Auto-mapped success line should not fire when ambiguous > 0.
+		expect(deps.clack?.logSuccess).not.toHaveBeenCalledWith(
+			expect.stringContaining("auto-mapped or skipped fields"),
+		);
+	});
+
+	it("should emit a review-needed success line when only non-ambiguous warnings exist", async () => {
+		expect.assertions(2);
+
+		const reportWithoutAmbiguous: MigrationReport = {
+			...SAMPLE_REPORT,
+			summary: {
+				ambiguousCount: 0,
+				blockedCount: 3,
+				deferredCount: 2,
+				interpretiveCount: 1,
+			},
+		};
+		const migrateMantleState = vi.fn<MigrateFunc>(async () => {
+			return { data: reportWithoutAmbiguous, success: true };
+		});
+		const deps = makeDeps({ migrateMantleState });
+		scriptHappyPrompts(deps);
+
+		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
+
+		expect(deps.clack?.logSuccess).toHaveBeenCalledWith(
+			expect.stringMatching(
+				/^migration complete; see .*\.bedrock\/migration-report\.md for 6 auto-mapped or skipped fields$/,
+			),
+		);
+		expect(deps.clack?.logError).not.toHaveBeenCalled();
 	});
 
 	it("should write a yaml config when the user picks yaml format", async () => {
