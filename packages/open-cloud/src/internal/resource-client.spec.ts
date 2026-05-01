@@ -460,13 +460,17 @@ describe(ResourceClient, () => {
 		});
 
 		it("should preserve message, code, and cause from the original ApiError on upgrade", async () => {
-			expect.assertions(3);
+			expect.assertions(4);
 
-			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockApiError({
+			const upstream = new Error("upstream-failure");
+			const original = new ApiError("missing scope", {
+				cause: upstream,
 				code: "INSUFFICIENT_SCOPE",
-				message: "missing scope",
 				statusCode: 403,
 			});
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockError(
+				original,
+			);
 			const client = new ResourceClient({
 				apiKey: "test-key",
 				httpClient,
@@ -486,7 +490,36 @@ describe(ResourceClient, () => {
 
 			expect(result.err.message).toBe("missing scope");
 			expect(result.err.code).toBe("INSUFFICIENT_SCOPE");
+			expect(result.err.cause).toBe(upstream);
 			expect(result.err.name).toBe("PermissionError");
+		});
+
+		it("should return an existing PermissionError unchanged instead of re-wrapping it", async () => {
+			expect.assertions(1);
+
+			const existing = new PermissionError("already enriched", {
+				operationKey: "upstream.scoped",
+				requiredScopes: ["upstream:read"],
+				statusCode: 403,
+			});
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockError(existing);
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.execute({
+				parameters: { id: "1" },
+				spec: {
+					...TEST_GET_SPEC,
+					requiredScopes: ["test:read"],
+				},
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBe(existing);
 		});
 
 		it("should leave a 401 ApiError unchanged when the spec declares no scopes", async () => {

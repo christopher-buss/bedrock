@@ -226,7 +226,11 @@ function enrichPermissionError<P, T>(
 		return err;
 	}
 
-	if (!(err instanceof ApiError) || err instanceof PermissionError) {
+	if (err instanceof PermissionError) {
+		return err;
+	}
+
+	if (!(err instanceof ApiError)) {
 		return err;
 	}
 
