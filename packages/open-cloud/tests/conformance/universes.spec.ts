@@ -1,4 +1,4 @@
-import { parseUniverseResponse } from "#src/resources/universes/parsers";
+import { parseUniverseResponse } from "#src/domains/cloud-v2/universes/parsers";
 import { assert, describe, expect, it } from "vitest";
 
 import { expectValid, getValidator, loadFixture } from "./_helpers.ts";

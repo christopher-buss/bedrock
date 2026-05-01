@@ -1,8 +1,8 @@
-import type { HttpRequest } from "../../client/types.ts";
-import type { OpenCloudError } from "../../errors/base.ts";
-import { ValidationError } from "../../errors/validation.ts";
-import { okRequest } from "../../internal/resource-client.ts";
-import type { Result } from "../../types.ts";
+import type { HttpRequest } from "../../../client/types.ts";
+import type { OpenCloudError } from "../../../errors/base.ts";
+import { ValidationError } from "../../../errors/validation.ts";
+import { okRequest } from "../../../internal/resource-client.ts";
+import type { Result } from "../../../types.ts";
 import type {
 	GetUniverseParameters,
 	UniverseVisibility,

@@ -1,4 +1,13 @@
 export type {
+	GetUniverseParameters,
+	SocialLink,
+	Universe,
+	UniverseAgeRating,
+	UniverseOwner,
+	UniverseVisibility,
+	UpdateUniverseParameters,
+} from "../../domains/cloud-v2/universes/types.ts";
+export type {
 	DeleteExperienceIconParameters,
 	ExperienceIcon,
 	GameIconState,
@@ -12,12 +21,3 @@ export type {
 	UploadExperienceThumbnailParameters,
 } from "../../domains/game-internationalization/game-thumbnails/types.ts";
 export { UniversesClient } from "./client.ts";
-export type {
-	GetUniverseParameters,
-	SocialLink,
-	Universe,
-	UniverseAgeRating,
-	UniverseOwner,
-	UniverseVisibility,
-	UpdateUniverseParameters,
-} from "./types.ts";

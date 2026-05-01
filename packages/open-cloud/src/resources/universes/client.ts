@@ -1,4 +1,15 @@
 import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
+import { buildGetRequest, buildUpdateRequest } from "../../domains/cloud-v2/universes/builders.ts";
+import {
+	GET_OPERATION_LIMIT,
+	UPDATE_OPERATION_LIMIT,
+} from "../../domains/cloud-v2/universes/operations.ts";
+import { parseUniverseResponse } from "../../domains/cloud-v2/universes/parsers.ts";
+import type {
+	GetUniverseParameters,
+	Universe,
+	UpdateUniverseParameters,
+} from "../../domains/cloud-v2/universes/types.ts";
 import {
 	buildDeleteIconRequest,
 	buildListIconsRequest,
@@ -35,10 +46,6 @@ import {
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import { buildGetRequest, buildUpdateRequest } from "./builders.ts";
-import { GET_OPERATION_LIMIT, UPDATE_OPERATION_LIMIT } from "./operations.ts";
-import { parseUniverseResponse } from "./parsers.ts";
-import type { GetUniverseParameters, Universe, UpdateUniverseParameters } from "./types.ts";
 
 const GET_SPEC: ResourceMethodSpec<GetUniverseParameters, Universe> = Object.freeze({
 	buildRequest: buildGetRequest,
