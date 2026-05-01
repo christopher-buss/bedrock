@@ -296,9 +296,6 @@ export type SocialLinkField = (typeof SOCIAL_LINK_FIELDS)[number];
  * Desired state for a developer product, the consumable a player can buy via
  * `MarketplaceService:PromptProductPurchase`.
  *
- * Subsequent slices widen this shape with `icon`,
- * `isRegionalPricingEnabled`, and `storePageEnabled`.
- *
  * @example
  *
  * ```ts
@@ -323,6 +320,20 @@ export interface DeveloperProductDesiredState {
 	readonly name: string;
 	/** User-facing description shown on the developer product detail page. */
 	readonly description: string;
+	/**
+	 * Locale-keyed icon paths declared on the authored config. Absent when
+	 * the user did not declare an icon block. The Roblox developer-product
+	 * API is monolingual, so only the `"en-us"` icon is ever uploaded; the
+	 * map shape mirrors `GamePassDesiredState.icon` for cross-kind parity.
+	 */
+	readonly icon?: Record<"en-us", string>;
+	/**
+	 * SHA-256 digests of the local icon files keyed by the same locales as
+	 * the icon map. The diff compares this map against the prior current
+	 * state so the driver re-uploads only when a file's bytes change. Absent
+	 * when `icon` is absent.
+	 */
+	readonly iconFileHashes?: Record<"en-us", Sha256Hex>;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
 	readonly kind: "developerProduct";
 	/**

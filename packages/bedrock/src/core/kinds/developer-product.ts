@@ -4,10 +4,10 @@ import { type } from "arktype";
 
 import { asResourceKey } from "../../types/ids.ts";
 import type { DeveloperProductDesiredInput } from "../flatten.ts";
-import { iconMap } from "../icons.ts";
+import { hashIconLocales, iconMap } from "../icons.ts";
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_ROBUX_PRICE, type ResolvedConfig } from "../schema.ts";
-import type { BuildDesiredError, ResourceKindModule } from "./module.ts";
+import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
 
 const entrySchema = type({
 	"name": "string",
@@ -33,15 +33,27 @@ function flatten(config: ResolvedConfig): ReadonlyArray<DeveloperProductDesiredI
 
 async function normalize(
 	input: DeveloperProductDesiredInput,
+	io: KindIo,
 ): Promise<Result<DeveloperProductDesiredState, BuildDesiredError>> {
+	const base: DeveloperProductDesiredState = {
+		key: input.key,
+		name: input.name,
+		description: input.description,
+		kind: "developerProduct",
+		price: input.price,
+	};
+
+	if (input.icon === undefined) {
+		return { data: base, success: true };
+	}
+
+	const hashes = await hashIconLocales({ key: input.key, icon: input.icon }, io);
+	if (!hashes.success) {
+		return hashes;
+	}
+
 	return {
-		data: {
-			key: input.key,
-			name: input.name,
-			description: input.description,
-			kind: "developerProduct",
-			price: input.price,
-		},
+		data: { ...base, icon: input.icon, iconFileHashes: hashes.data },
 		success: true,
 	};
 }
@@ -59,10 +71,8 @@ function fieldsEqual(
 
 /**
  * Resource-kind module for Roblox developer products. Owns the entry
- * schema, flattening, drift-equality, and the pass-through normalize
- * step for the `developerProduct` kind. Subsequent slices widen the entry
- * schema with `icon`, `isRegionalPricingEnabled`, and
- * `storePageEnabled`.
+ * schema, flattening, icon-hash normalization, and drift-equality for the
+ * `developerProduct` kind.
  */
 export const developerProductKind: ResourceKindModule<"developerProduct"> = {
 	entrySchema,

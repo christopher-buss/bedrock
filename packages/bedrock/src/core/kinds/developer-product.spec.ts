@@ -216,6 +216,81 @@ describe("developerProductKind", () => {
 
 			expect(result.data.price).toBeUndefined();
 		});
+
+		it("should not read files when icon is absent", async () => {
+			expect.assertions(1);
+
+			const result = await developerProductKind.normalize(
+				{
+					key: asResourceKey("gem-pack"),
+					name: "Gem Pack",
+					description: "Stocks the player up with 1,000 premium gems.",
+					kind: "developerProduct",
+					price: 100,
+				},
+				{
+					readFile: async () => {
+						throw new Error("normalize should not read files when icon is absent");
+					},
+				},
+			);
+
+			assert(result.success);
+
+			expect(result.data).not.toContainKey("icon");
+		});
+
+		it("should layer locale-keyed sha256 hex digests of the icon bytes onto the desired state", async () => {
+			expect.assertions(3);
+
+			const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+			const result = await developerProductKind.normalize(
+				{
+					key: asResourceKey("gem-pack"),
+					name: "Gem Pack",
+					description: "Stocks the player up with 1,000 premium gems.",
+					icon: { "en-us": "assets/gem-pack.png" },
+					kind: "developerProduct",
+					price: 100,
+				},
+				{ readFile: async () => bytes },
+			);
+
+			assert(result.success);
+
+			expect(result.data.icon).toStrictEqual({ "en-us": "assets/gem-pack.png" });
+			expect(result.data.iconFileHashes).toContainKey("en-us");
+			expect(result.data.iconFileHashes!["en-us"]).toHaveLength(64);
+		});
+
+		it("should surface a fileReadFailed error carrying the icon path when readFile rejects", async () => {
+			expect.assertions(1);
+
+			const result = await developerProductKind.normalize(
+				{
+					key: asResourceKey("gem-pack"),
+					name: "Gem Pack",
+					description: "Stocks the player up with 1,000 premium gems.",
+					icon: { "en-us": "assets/missing.png" },
+					kind: "developerProduct",
+					price: undefined,
+				},
+				{
+					readFile: async () => {
+						throw new Error("ENOENT");
+					},
+				},
+			);
+
+			assert(!result.success);
+
+			expect(result.err).toStrictEqual({
+				key: asResourceKey("gem-pack"),
+				filePath: "assets/missing.png",
+				kind: "fileReadFailed",
+				reason: "ENOENT",
+			});
+		});
 	});
 
 	describe("fieldsEqual", () => {
