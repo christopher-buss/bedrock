@@ -125,7 +125,11 @@ function assembleRegistry(inputs: AssembleRegistryInputs): DriverRegistry {
 	const universes = new UniversesClient({ apiKey });
 
 	return {
-		developerProduct: createDeveloperProductDriver({ client: developerProducts, universeId }),
+		developerProduct: createDeveloperProductDriver({
+			client: developerProducts,
+			readFile,
+			universeId,
+		}),
 		gamePass: createGamePassDriver({ client: gamePasses, readFile, universeId }),
 		place: createPlaceDriver({ client: places, readFile, universeId }),
 		universe: createUniverseDriver({ places, readFile, universes }),

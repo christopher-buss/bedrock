@@ -6,7 +6,7 @@ import { developerProductCurrent, developerProductDesired } from "#tests/helpers
 import type { Except } from "type-fest";
 import { assert, describe, expect, it } from "vitest";
 
-import { asRobloxAssetId } from "../types/ids.ts";
+import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import {
 	createDeveloperProductDriver,
 	type DeveloperProductDriverDeps,
@@ -14,6 +14,8 @@ import {
 
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
 const PRODUCT_ID = asRobloxAssetId("8172635495");
+const ICON_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+const ICON_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
 
 const WIRE_BODY = validDeveloperProductBody({
 	name: "Gem Pack",
@@ -31,6 +33,7 @@ function makeDriver(overrides?: Partial<Except<DeveloperProductDriverDeps, "clie
 			httpClient: http,
 			sleep: async () => {},
 		}),
+		readFile: async () => ICON_BYTES,
 		universeId: UNIVERSE_ID,
 		...overrides,
 	});
@@ -42,6 +45,13 @@ function readFormString(body: unknown, key: string): string {
 	const value = body.get(key);
 	assert(typeof value === "string");
 	return value;
+}
+
+async function readFormBytes(body: unknown, key: string): Promise<Uint8Array> {
+	assert(body instanceof FormData);
+	const value = body.get(key);
+	assert(value instanceof Blob);
+	return new Uint8Array(await value.arrayBuffer());
 }
 
 describe(createDeveloperProductDriver, () => {
@@ -150,6 +160,44 @@ describe(createDeveloperProductDriver, () => {
 
 		expect(readFormString(captured.request.body, "isForSale")).toBe("true");
 		expect(readFormString(captured.request.body, "price")).toBe("250");
+	});
+
+	it("should attach the icon bytes as imageFile when desired declares an icon", async () => {
+		expect.assertions(1);
+
+		const { driver, http } = makeDriver({ readFile: async () => ICON_BYTES });
+		http.mockResponse({ body: WIRE_BODY, status: 200 });
+
+		await driver.create(
+			developerProductDesired({
+				icon: { "en-us": "assets/gem-pack.png" },
+				iconFileHashes: { "en-us": ICON_HASH },
+			}),
+		);
+
+		const captured = http.requests[0]!;
+
+		await expect(readFormBytes(captured.request.body, "imageFile")).resolves.toStrictEqual(
+			ICON_BYTES,
+		);
+	});
+
+	it("should omit imageFile from the multipart body when desired has no icon", async () => {
+		expect.assertions(1);
+
+		async function readFile(): Promise<Uint8Array> {
+			throw new Error("readFile must not run when icon is absent");
+		}
+
+		const { driver, http } = makeDriver({ readFile });
+		http.mockResponse({ body: WIRE_BODY, status: 200 });
+
+		await driver.create(developerProductDesired());
+
+		const captured = http.requests[0]!;
+		assert(captured.request.body instanceof FormData);
+
+		expect(captured.request.body.has("imageFile")).toBeFalse();
 	});
 
 	it("should pass through an OpenCloudError when the ocale client returns an error", async () => {

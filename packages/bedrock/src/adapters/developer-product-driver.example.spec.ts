@@ -21,6 +21,7 @@ it('Example 1', () => {
       httpClient,
       sleep: async () => {},
     }),
+    readFile: async () => new Uint8Array([137, 80, 78, 71]),
     universeId: asRobloxAssetId('1234567890'),
   }
   expect(deps.universeId).toBe('1234567890')
@@ -57,6 +58,7 @@ it('Example 2', () => {
       httpClient,
       sleep: async () => {},
     }),
+    readFile: async () => new Uint8Array([137, 80, 78, 71]),
     universeId: asRobloxAssetId('1234567890'),
   })
   return driver

@@ -10,7 +10,8 @@ import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
  * Dependencies of `createDeveloperProductDriver`. `universeId` is captured
  * at construction time (matching `GamePassDriverDeps`) so each driver
  * instance is bound to a single universe; multi-universe deploys construct
- * one driver per universe.
+ * one driver per universe. `readFile` exists on the driver (not upstream
+ * in shell) because icon hashes flow through `diff` but bytes do not.
  *
  * @example
  *
@@ -31,6 +32,7 @@ import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
  *         httpClient,
  *         sleep: async () => {},
  *     }),
+ *     readFile: async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
  *     universeId: asRobloxAssetId("1234567890"),
  * };
  *
@@ -40,6 +42,8 @@ import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
 export interface DeveloperProductDriverDeps {
 	/** Configured developer-products client from `@bedrock/ocale/developer-products`. */
 	readonly client: DeveloperProductsClient;
+	/** Reads icon bytes for upload; rejections propagate out of `create`. */
+	readonly readFile: (path: string) => Promise<Uint8Array>;
 	/** Universe that owns every developer product this driver creates. */
 	readonly universeId: RobloxAssetId;
 }
@@ -106,6 +110,7 @@ interface UpdateInputs {
  *         httpClient,
  *         sleep: async () => {},
  *     }),
+ *     readFile: async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
  *     universeId: asRobloxAssetId("1234567890"),
  * });
  *
@@ -161,10 +166,13 @@ async function createOne(
 	deps: DeveloperProductDriverDeps,
 	desired: DeveloperProductDesiredState,
 ): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
+	const imageFile =
+		desired.icon === undefined ? undefined : await deps.readFile(desired.icon["en-us"]);
 	const result = await deps.client.create({
 		name: desired.name,
 		description: desired.description,
 		universeId: deps.universeId,
+		...(imageFile === undefined ? {} : { imageFile }),
 		...derivePriceFields(desired),
 	});
 	if (!result.success) {
