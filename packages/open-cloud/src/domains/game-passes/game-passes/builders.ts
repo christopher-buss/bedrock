@@ -1,5 +1,5 @@
-import type { HttpRequest } from "../../internal/http/types.ts";
-import { toBlob } from "../../internal/utils/to-blob.ts";
+import type { HttpRequest } from "../../../internal/http/types.ts";
+import { toBlob } from "../../../internal/utils/to-blob.ts";
 import type { CreateGamePassParameters, GetGamePassParameters } from "./types.ts";
 
 /**

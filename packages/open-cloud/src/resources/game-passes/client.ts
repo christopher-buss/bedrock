@@ -1,4 +1,18 @@
 import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
+import {
+	buildCreateRequest,
+	buildGetRequest,
+} from "../../domains/game-passes/game-passes/builders.ts";
+import {
+	CREATE_OPERATION_LIMIT,
+	GET_OPERATION_LIMIT,
+} from "../../domains/game-passes/game-passes/operations.ts";
+import { parseGamePassResponse } from "../../domains/game-passes/game-passes/parsers.ts";
+import type {
+	CreateGamePassParameters,
+	GamePass,
+	GetGamePassParameters,
+} from "../../domains/game-passes/game-passes/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
@@ -7,10 +21,6 @@ import {
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import { buildCreateRequest, buildGetRequest } from "./builders.ts";
-import { CREATE_OPERATION_LIMIT, GET_OPERATION_LIMIT } from "./operations.ts";
-import { parseGamePassResponse } from "./parsers.ts";
-import type { CreateGamePassParameters, GamePass, GetGamePassParameters } from "./types.ts";
 
 const CREATE_SPEC: ResourceMethodSpec<CreateGamePassParameters, GamePass> = Object.freeze({
 	buildRequest: (parameters: CreateGamePassParameters) =>
