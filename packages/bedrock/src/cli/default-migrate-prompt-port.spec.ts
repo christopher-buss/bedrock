@@ -42,6 +42,33 @@ describe(createDefaultMigratePromptPort, () => {
 		});
 	});
 
+	it("should resolve promptMigrationSource with the picked source and preselect the first option", async () => {
+		expect.assertions(2);
+
+		const select = vi.fn<MigratePromptClackHelpers["select"]>(async () => "mantle");
+		const port = createDefaultMigratePromptPort(makeHelpers({ select }));
+
+		const result = await port.promptMigrationSource(["mantle"]);
+
+		expect(result).toStrictEqual({ data: "mantle", success: true });
+		expect(select).toHaveBeenCalledExactlyOnceWith({
+			initialValue: "mantle",
+			message: "Migrate from?",
+			options: [{ label: "Mantle", value: "mantle" }],
+		});
+	});
+
+	it("should map a clack cancel into Err({ kind: 'cancelled' }) on promptMigrationSource", async () => {
+		expect.assertions(1);
+
+		const select = vi.fn<MigratePromptClackHelpers["select"]>(async () => CANCEL_SENTINEL);
+		const port = createDefaultMigratePromptPort(makeHelpers({ select }));
+
+		const result = await port.promptMigrationSource(["mantle"]);
+
+		expect(result).toStrictEqual({ err: { kind: "cancelled" }, success: false });
+	});
+
 	it("should resolve promptStateBackend with the picked backend and forward the prompt shape", async () => {
 		expect.assertions(2);
 

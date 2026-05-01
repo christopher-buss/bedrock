@@ -28,8 +28,12 @@ export type MigrationSource = (typeof SUPPORTED_MIGRATION_SOURCES)[number];
 
 /** Typed shape the migrate command consumes after `--from` has been validated. */
 interface MigrateOptions {
-	/** Validated source to migrate from. */
-	readonly from: MigrationSource;
+	/**
+	 * Validated source to migrate from, or `undefined` when the flag was
+	 * omitted. The command falls back to an interactive picker in that
+	 * case, mirroring how the positional state-file path is handled.
+	 */
+	readonly from: MigrationSource | undefined;
 }
 
 const RECOGNIZED_FLAGS: ReadonlySet<string> = new Set(["from"]);
@@ -41,7 +45,8 @@ const SADE_RESERVED: ReadonlySet<string> = new Set(["--", "_", "h", "help", "v",
  * positional `<stateFilePath>` argument is not handled here: sade hands
  * positional values to the action callback ahead of the options object,
  * and the migrate command falls back to an interactive prompt when it
- * is absent. This parser only covers the `--from` flag.
+ * is absent. This parser only covers the `--from` flag, which is also
+ * optional and prompted for when omitted.
  *
  * @param rawOptions - The options object sade hands the action callback.
  * @returns `Ok(MigrateOptions)` on success, or `Err(ParseMigrateError)`
@@ -58,7 +63,7 @@ export function parseMigrateOptions(
 
 	const fromRaw = rawOptions["from"];
 	if (fromRaw === undefined) {
-		return { err: { flag: "from", kind: "missingRequired" }, success: false };
+		return { data: { from: undefined }, success: true };
 	}
 
 	if (typeof fromRaw !== "string") {

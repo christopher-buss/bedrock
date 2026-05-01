@@ -12,6 +12,7 @@ import type {
 	MigratePromptResult,
 	MigrateStateBackend,
 } from "./migrate-prompt-port.ts";
+import type { MigrationSource } from "./parse-migrate-options.ts";
 
 /**
  * Test seam for {@link createDefaultMigratePromptPort}. Production callers
@@ -43,6 +44,10 @@ const BACKEND_OPTIONS: ReadonlyArray<{ label: string; value: MigrateStateBackend
 	{ label: "GitHub Gist", value: "gist" },
 ];
 
+const SOURCE_LABELS: Record<MigrationSource, string> = {
+	mantle: "Mantle",
+};
+
 const defaultHelpers: MigratePromptClackHelpers = {
 	isCancel: defaultIsCancel,
 	select: defaultSelect,
@@ -71,6 +76,7 @@ export function createDefaultMigratePromptPort(
 	return {
 		promptConfigFormat: async () => promptConfigFormatFrom(helpers),
 		promptGistId: async () => promptGistIdFrom(helpers),
+		promptMigrationSource: async (sources) => selectMigrationSource(helpers, sources),
 		promptPrimaryEnvironment: async (environments) =>
 			selectPrimaryEnvironment(helpers, environments),
 		promptStateBackend: async () => promptStateBackendFrom(helpers),
@@ -98,6 +104,17 @@ async function fromSelect<T extends string>(
 	}
 
 	return { data: result as T, success: true };
+}
+
+async function selectMigrationSource(
+	helpers: MigratePromptClackHelpers,
+	sources: readonly [MigrationSource, ...ReadonlyArray<MigrationSource>],
+): Promise<MigratePromptResult<MigrationSource>> {
+	return fromSelect<MigrationSource>(helpers, {
+		initialValue: sources[0],
+		message: "Migrate from?",
+		options: sources.map((source) => ({ label: SOURCE_LABELS[source], value: source })),
+	});
 }
 
 async function promptConfigFormatFrom(

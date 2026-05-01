@@ -1,5 +1,7 @@
 import type { Result } from "@bedrock/ocale";
 
+import type { MigrationSource } from "./parse-migrate-options.ts";
+
 /**
  * Output config format the user picks via `MigratePromptPort.promptConfigFormat`.
  * The migrator already supports both formats; this union just constrains
@@ -36,6 +38,15 @@ export interface MigratePromptPort {
 	promptConfigFormat(): Promise<MigratePromptResult<MigrateConfigFormat>>;
 	/** Ask for the GitHub Gist ID that will hold the migrated state files. */
 	promptGistId(): Promise<MigratePromptResult<string>>;
+	/**
+	 * Pick which source format to migrate from when `--from` was omitted.
+	 * Caller passes the supported source list so adding a new source
+	 * widens the picker without reshaping the port. The tuple type
+	 * encodes that the list is non-empty, which the picker requires.
+	 */
+	promptMigrationSource(
+		sources: readonly [MigrationSource, ...ReadonlyArray<MigrationSource>],
+	): Promise<MigratePromptResult<MigrationSource>>;
 	/**
 	 * Pick the primary environment from a Mantle state file that declares
 	 * more than one. Caller passes the available environment names.
