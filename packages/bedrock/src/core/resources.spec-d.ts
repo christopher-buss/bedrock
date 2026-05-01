@@ -18,7 +18,6 @@ import type {
 	UniverseDesiredState,
 	UniverseOutputs,
 } from "./resources.ts";
-import type { UniverseVisibility } from "./schema.ts";
 
 interface ExpectedPlaceDesiredState {
 	readonly key: ResourceKey;
@@ -53,7 +52,6 @@ interface ExpectedUniverseDesiredState {
 	readonly twitchSocialLink?: SocialLink | undefined;
 	readonly twitterSocialLink?: SocialLink | undefined;
 	readonly universeId: RobloxAssetId;
-	readonly visibility: undefined | UniverseVisibility;
 	readonly voiceChatEnabled: boolean | undefined;
 	readonly vrEnabled: boolean | undefined;
 	readonly youtubeSocialLink?: SocialLink | undefined;

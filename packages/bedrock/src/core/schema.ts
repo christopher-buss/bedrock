@@ -92,13 +92,6 @@ export interface ResolvedPlaceEntry {
 }
 
 /**
- * Allowed visibility values in user config. Matches ocale's
- * `UniverseVisibility` union; the universe driver translates these to
- * the Roblox wire enum before sending the PATCH.
- */
-export type UniverseVisibility = "private" | "public" | "unspecified";
-
-/**
  * Body of the singleton `universe` block. Bedrock synthesizes the
  * `ResourceKey` (`"main"`) in `flattenConfig`, so user config supplies
  * only the existing `universeId` plus any managed fields they want
@@ -169,12 +162,6 @@ export interface UniverseEntry {
 	twitterSocialLink?: SocialLink | undefined;
 	/** Existing Roblox universe ID. */
 	universeId: string;
-	/**
-	 * Universe visibility. Declaring `"private"` immediately removes
-	 * active players from running servers; omit or set `undefined` to
-	 * leave unmanaged.
-	 */
-	visibility?: undefined | UniverseVisibility;
 	/** Whether voice chat is enabled; omit or set `undefined` to leave unmanaged. */
 	voiceChatEnabled?: boolean | undefined;
 	/** Whether VR players can join; omit or set `undefined` to leave unmanaged. */
@@ -543,7 +530,6 @@ const universeEntry = type({
 	"twitchSocialLink?": socialLinkOrUndefined,
 	"twitterSocialLink?": socialLinkOrUndefined,
 	"universeId": ROBLOX_ID_DIGITS,
-	"visibility?": "'private' | 'public' | 'unspecified' | undefined",
 	"voiceChatEnabled?": OPTIONAL_BOOLEAN,
 	"vrEnabled?": OPTIONAL_BOOLEAN,
 	"youtubeSocialLink?": socialLinkOrUndefined,

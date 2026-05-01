@@ -195,7 +195,6 @@ export function universeDesired(overrides?: Partial<UniverseDesiredState>): Univ
 		mobileEnabled: undefined,
 		tabletEnabled: undefined,
 		universeId: asRobloxAssetId("1234567890"),
-		visibility: undefined,
 		voiceChatEnabled: undefined,
 		vrEnabled: undefined,
 		...overrides,

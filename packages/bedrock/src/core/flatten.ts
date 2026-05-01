@@ -4,12 +4,7 @@ import type { ResourceKey, RobloxAssetId } from "../types/ids.ts";
 import { defaultKindRegistry } from "./kinds/index.ts";
 import type { ResourceKindModule } from "./kinds/module.ts";
 import type { ResourceKind } from "./resources.ts";
-import type {
-	DeveloperProductEntry,
-	GamePassEntry,
-	ResolvedConfig,
-	UniverseVisibility,
-} from "./schema.ts";
+import type { DeveloperProductEntry, GamePassEntry, ResolvedConfig } from "./schema.ts";
 
 /**
  * Pre-I/O game-pass input the flattener emits. Extends the authored
@@ -104,7 +99,6 @@ export interface PlaceDesiredInput {
  *     mobileEnabled: undefined,
  *     tabletEnabled: undefined,
  *     universeId: asRobloxAssetId("1234567890"),
- *     visibility: undefined,
  *     voiceChatEnabled: true,
  *     vrEnabled: undefined,
  * };
@@ -159,12 +153,6 @@ export interface UniverseDesiredInput {
 	readonly twitterSocialLink?: SocialLink | undefined;
 	/** Existing Roblox universe ID, validated and branded at flatten time. */
 	readonly universeId: RobloxAssetId;
-	/**
-	 * Universe visibility. Declaring `"private"` immediately removes
-	 * active players from running servers; `undefined` leaves the
-	 * server value untouched.
-	 */
-	readonly visibility: undefined | UniverseVisibility;
 	/** Whether voice chat is enabled; `undefined` leaves the server value untouched. */
 	readonly voiceChatEnabled: boolean | undefined;
 	/** Whether VR players can join; `undefined` leaves the server value untouched. */

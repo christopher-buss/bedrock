@@ -47,7 +47,6 @@ const UNIVERSE_ADOPTED: ResourceCurrentState<"universe"> = {
 	outputs: { rootPlaceId: ROOT_PLACE_ID },
 	tabletEnabled: undefined,
 	universeId: UNIVERSE_ID,
-	visibility: undefined,
 	voiceChatEnabled: undefined,
 	vrEnabled: undefined,
 };

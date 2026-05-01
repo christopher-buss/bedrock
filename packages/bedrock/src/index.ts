@@ -79,7 +79,6 @@ export {
 	type ResourceEntryByKind,
 	type StateConfig,
 	type UniverseEntry,
-	type UniverseVisibility,
 } from "./core/schema.ts";
 export {
 	selectEnvironment,

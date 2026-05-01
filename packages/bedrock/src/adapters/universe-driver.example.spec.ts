@@ -50,7 +50,6 @@ it('Example 1', () => {
       privateServerPriceRobux: undefined,
       tabletEnabled: undefined,
       universeId: asRobloxAssetId('1234567890'),
-      visibility: 'public',
       voiceChatEnabled: true,
       vrEnabled: undefined,
     })

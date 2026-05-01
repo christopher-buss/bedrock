@@ -147,7 +147,6 @@ describe(flattenConfig, () => {
 				mobileEnabled: undefined,
 				tabletEnabled: undefined,
 				universeId: asRobloxAssetId("1234567890"),
-				visibility: undefined,
 				voiceChatEnabled: true,
 				vrEnabled: undefined,
 			},
@@ -228,7 +227,7 @@ describe(flattenConfig, () => {
 	);
 
 	it("should carry every declared universe managed field onto the input", () => {
-		expect.assertions(5);
+		expect.assertions(4);
 
 		const config: ResolvedConfig = {
 			environments: MinimumEnvironments,
@@ -236,7 +235,6 @@ describe(flattenConfig, () => {
 				displayName: "Fun Universe",
 				privateServerPriceRobux: 250,
 				universeId: "1234567890",
-				visibility: "public",
 				voiceChatEnabled: true,
 			},
 		};
@@ -245,7 +243,6 @@ describe(flattenConfig, () => {
 		assert(input.kind === "universe");
 
 		expect(input.displayName).toBe("Fun Universe");
-		expect(input.visibility).toBe("public");
 		expect(input.privateServerPriceRobux).toBe(250);
 		expect(input.voiceChatEnabled).toBeTrue();
 		expect(input.universeId).toBe(asRobloxAssetId("1234567890"));

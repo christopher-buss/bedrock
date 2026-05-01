@@ -135,8 +135,8 @@ describe(buildState, () => {
 		expect(resource.vrEnabled).toBeUndefined();
 	});
 
-	it("should leave voice chat and visibility undefined when the entry omits them", () => {
-		expect.assertions(2);
+	it("should leave voice chat undefined when the entry omits it", () => {
+		expect.assertions(1);
 
 		const state = buildState({
 			environment: "production",
@@ -149,7 +149,6 @@ describe(buildState, () => {
 		assert(resource.kind === "universe");
 
 		expect(resource.voiceChatEnabled).toBeUndefined();
-		expect(resource.visibility).toBeUndefined();
 	});
 
 	it("should emit an empty resources array when the fold yielded no universe", () => {

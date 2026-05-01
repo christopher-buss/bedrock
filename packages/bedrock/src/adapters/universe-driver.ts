@@ -128,7 +128,6 @@ interface ReconcileInputs {
  *         privateServerPriceRobux: undefined,
  *         tabletEnabled: undefined,
  *         universeId: asRobloxAssetId("1234567890"),
- *         visibility: "public",
  *         voiceChatEnabled: true,
  *         vrEnabled: undefined,
  *     })
@@ -169,13 +168,10 @@ function buildParameters(desired: UniverseDesiredState): UpdateUniverseParameter
 		{ universeId: desired.universeId },
 	);
 
-	const withVisibility =
-		desired.visibility === undefined ? base : { ...base, visibility: desired.visibility };
-
 	const withPrice =
 		"privateServerPriceRobux" in desired
-			? { ...withVisibility, privateServerPriceRobux: desired.privateServerPriceRobux }
-			: withVisibility;
+			? { ...base, privateServerPriceRobux: desired.privateServerPriceRobux }
+			: base;
 
 	return { ...withPrice, ...copyDeclaredSocialLinks(desired) };
 }
@@ -193,10 +189,6 @@ function wrapUpdateError(err: OpenCloudError, desired: UniverseDesiredState): Op
 
 function hasUniverseLevelUpdate(desired: UniverseDesiredState): boolean {
 	if (UNIVERSE_MANAGED_FLAGS.some((flag) => desired[flag] !== undefined)) {
-		return true;
-	}
-
-	if (desired.visibility !== undefined) {
 		return true;
 	}
 

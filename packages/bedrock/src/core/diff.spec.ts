@@ -593,22 +593,6 @@ describe(diff, () => {
 			]);
 		});
 
-		it("should emit an update op when a declared visibility differs from current", () => {
-			expect.assertions(1);
-
-			const desiredEntry = universeDesired({ visibility: "private" });
-			const currentEntry = universeCurrent({ visibility: "public" });
-
-			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-				{
-					key: UNIVERSE_SINGLETON_KEY,
-					current: currentEntry,
-					desired: desiredEntry,
-					type: "update",
-				},
-			]);
-		});
-
 		it("should emit a noop when a declared displayName matches current", () => {
 			expect.assertions(1);
 
@@ -626,31 +610,6 @@ describe(diff, () => {
 			const desiredEntry = universeDesired({ voiceChatEnabled: true });
 			const currentEntry = universeCurrent({
 				displayName: "Old Name",
-				voiceChatEnabled: true,
-			});
-
-			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
-			]);
-		});
-
-		it("should emit a noop when a declared visibility matches current", () => {
-			expect.assertions(1);
-
-			const desiredEntry = universeDesired({ visibility: "public" });
-			const currentEntry = universeCurrent({ visibility: "public" });
-
-			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
-			]);
-		});
-
-		it("should emit a noop when visibility is undefined in desired but current has a value alongside a matching managed flag", () => {
-			expect.assertions(1);
-
-			const desiredEntry = universeDesired({ voiceChatEnabled: true });
-			const currentEntry = universeCurrent({
-				visibility: "public",
 				voiceChatEnabled: true,
 			});
 

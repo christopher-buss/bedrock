@@ -121,22 +121,6 @@ describe(createUniverseDriver, () => {
 		);
 	});
 
-	// Visibility is `readOnly: true` on the Universe schema; the request
-	// boundary now rejects it. The driver still routes the field, so the
-	// driver invocation throws the contract error before the wire ever
-	// emits. The visibility write-path is removed in a follow-up slice;
-	// this guard pins the boundary rejection until then.
-	it("should reject a visibility update at the contract boundary", async () => {
-		expect.assertions(1);
-
-		const { driver, http } = makeDriver();
-		http.mockResponse({ body: validUniverseBody(), status: 200 });
-
-		await expect(driver.create(universeDesired({ visibility: "public" }))).rejects.toThrow(
-			/request contract violated.*\/visibility/,
-		);
-	});
-
 	it("should forward privateServerPriceRobux when declared with a numeric value", async () => {
 		expect.assertions(1);
 

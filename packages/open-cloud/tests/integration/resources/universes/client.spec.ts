@@ -4,7 +4,7 @@ import { PermissionError } from "#src/errors/permission-error";
 import { ValidationError } from "#src/errors/validation";
 import { UniversesClient } from "#src/resources/universes/client";
 import { createFakeClock } from "#tests/helpers/fake-clock";
-import { createFakeHttpClient, FakeHttpClientContractError } from "#tests/helpers/fake-http-client";
+import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { validUniverseBody } from "#tests/helpers/universes";
 import { assert, describe, expect, it, vi } from "vitest";
@@ -237,34 +237,6 @@ describe(UniversesClient, () => {
 			);
 
 			expect(httpClient.requests[0]?.config.apiKey).toBe("override-key");
-		});
-
-		// Sending `visibility` in an update body violates the OpenAPI
-		// contract (the field is `readOnly: true` on the Universe schema)
-		// and is silently dropped server-side; live-API verification is
-		// captured in the spike that produced this guard. The visibility
-		// write-path is removed in a follow-up slice; this test pins the
-		// behaviour until then so the regression cannot be reintroduced.
-		it("should reject a visibility update at the contract boundary", async () => {
-			expect.assertions(2);
-
-			const httpClient = createFakeHttpClient().mockResponse({
-				body: validUniverseBody({ visibility: "PRIVATE" }),
-				status: 200,
-			});
-			const client = new UniversesClient({
-				apiKey: "test-key",
-				httpClient,
-				sleep: createFakeSleep(),
-			});
-
-			await expect(
-				client.update({ universeId: "12345", visibility: "private" }),
-			).rejects.toThrowWithMessage(
-				FakeHttpClientContractError,
-				/request contract violated.*\/visibility/,
-			);
-			expect(httpClient.requests).toHaveLength(1);
 		});
 	});
 

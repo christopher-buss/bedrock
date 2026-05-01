@@ -15,7 +15,6 @@ import type {
 	SocialLink,
 	StateConfig,
 	UniverseEntry,
-	UniverseVisibility,
 } from "./config.ts";
 import type {
 	Config as ConfigSource,
@@ -28,7 +27,6 @@ import type {
 	ResourceEntryByKind as ResourceEntryByKindSource,
 	StateConfig as StateConfigSource,
 	UniverseEntry as UniverseEntrySource,
-	UniverseVisibility as UniverseVisibilitySource,
 } from "./core/schema.ts";
 import type {
 	ConfigContext as ConfigContextSource,
@@ -63,10 +61,6 @@ describe("@bedrock/core/config resource-entry re-exports", () => {
 
 	it("should re-export UniverseEntry with the same identity as core/schema", () => {
 		expectTypeOf<UniverseEntry>().toEqualTypeOf<UniverseEntrySource>();
-	});
-
-	it("should re-export UniverseVisibility with the same identity as core/schema", () => {
-		expectTypeOf<UniverseVisibility>().toEqualTypeOf<UniverseVisibilitySource>();
 	});
 
 	it("should re-export ResourceEntryByKind with the same identity as core/schema", () => {

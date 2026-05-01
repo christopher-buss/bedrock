@@ -66,7 +66,6 @@ it('Example 3', () => {
     tabletEnabled: undefined,
     twitterSocialLink: undefined,
     universeId: asRobloxAssetId('1234567890'),
-    visibility: 'public',
     voiceChatEnabled: true,
     vrEnabled: undefined,
   }

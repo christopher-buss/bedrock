@@ -120,7 +120,6 @@ describe("universe pipeline end-to-end", () => {
 			tabletEnabled: undefined,
 			twitterSocialLink: undefined,
 			universeId: UNIVERSE_ID,
-			visibility: undefined,
 			voiceChatEnabled: true,
 			vrEnabled: undefined,
 		});
@@ -207,51 +206,6 @@ describe("universe pipeline end-to-end", () => {
 		expect(body["voiceChatEnabled"]).toBeTrue();
 	});
 
-	// Visibility is `readOnly: true` on the Universe schema; the request
-	// boundary now rejects it before any wire emission. The pipeline
-	// still routes the field through `applyOps`, so the contract error
-	// surfaces from there. The visibility write-path is removed in a
-	// follow-up slice; this guard pins the boundary rejection until then.
-	it("should reject a visibility update at the contract boundary", async () => {
-		expect.assertions(2);
-
-		const httpClient = createFakeHttpClient().mockResponse({
-			body: validUniverseBody({
-				path: `universes/${UNIVERSE_ID}`,
-				rootPlace: `universes/${UNIVERSE_ID}/places/${ROOT_PLACE_ID}`,
-				visibility: "PUBLIC",
-			}),
-			status: 200,
-		});
-
-		const registry = makeUniverseRegistry(httpClient);
-
-		const ops = diff(
-			[
-				{
-					key: UNIVERSE_SINGLETON_KEY,
-					consoleEnabled: undefined,
-					desktopEnabled: undefined,
-					displayName: "Fun Universe",
-					kind: "universe",
-					mobileEnabled: undefined,
-					tabletEnabled: undefined,
-					universeId: UNIVERSE_ID,
-					visibility: "public",
-					voiceChatEnabled: undefined,
-					vrEnabled: undefined,
-				},
-			],
-			[],
-		);
-
-		expect(ops.map((op) => op.type)).toStrictEqual(["create"]);
-
-		await expect(applyOps(ops, registry)).rejects.toThrow(
-			/request contract violated.*\/visibility/,
-		);
-	});
-
 	it("should emit a noop and skip driver dispatch when current state matches the fixture", async () => {
 		expect.assertions(2);
 
@@ -277,7 +231,6 @@ describe("universe pipeline end-to-end", () => {
 				tabletEnabled: undefined,
 				twitterSocialLink: undefined,
 				universeId: UNIVERSE_ID,
-				visibility: undefined,
 				voiceChatEnabled: true,
 				vrEnabled: undefined,
 			},
@@ -329,7 +282,6 @@ describe("universe pipeline end-to-end", () => {
 				tabletEnabled: undefined,
 				twitterSocialLink: undefined,
 				universeId: UNIVERSE_ID,
-				visibility: undefined,
 				voiceChatEnabled: true,
 				vrEnabled: undefined,
 			},
