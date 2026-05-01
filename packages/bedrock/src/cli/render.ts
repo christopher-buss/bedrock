@@ -167,6 +167,14 @@ export function renderStateWriteError(input: StateWriteErrorRender, port: ClackP
 	);
 }
 
+function permissionDetail(err: PermissionError): string {
+	const isPlural = err.requiredScopes.length > 1;
+	const label = isPlural ? "scopes" : "scope";
+	const pronoun = isPlural ? "them" : "it";
+	const scopeList = err.requiredScopes.map((scope) => `'${scope}'`).join(", ");
+	return `${err.message} on ${err.operationKey}: missing required ${label} ${scopeList}. Grant ${pronoun} on the API key at https://create.roblox.com/credentials`;
+}
+
 function applyCauseDetail(cause: ApplyError): string {
 	switch (cause.kind) {
 		case "driverFailure": {
@@ -180,14 +188,6 @@ function applyCauseDetail(cause: ApplyError): string {
 			return "update not supported";
 		}
 	}
-}
-
-function permissionDetail(err: PermissionError): string {
-	const isPlural = err.requiredScopes.length > 1;
-	const label = isPlural ? "scopes" : "scope";
-	const pronoun = isPlural ? "them" : "it";
-	const scopeList = err.requiredScopes.map((scope) => `'${scope}'`).join(", ");
-	return `${err.message} on ${err.operationKey}: missing required ${label} ${scopeList}. Grant ${pronoun} on the API key at https://create.roblox.com/credentials`;
 }
 
 function buildDesiredDetail(cause: BuildDesiredError): string {
