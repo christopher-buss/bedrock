@@ -1,22 +1,9 @@
+import { validPlaceBody } from "#tests/helpers/places";
 import { assert, describe, expect, it } from "vitest";
 
 import { ApiError } from "../../../errors/api-error.ts";
 import { parsePlaceResponse } from "./parsers.ts";
 import type { PlaceWire } from "./wire.ts";
-
-function validPlaceBody(overrides: Partial<PlaceWire> = {}): PlaceWire {
-	return {
-		createTime: "2024-01-15T10:30:00.000Z",
-		description: "A sample place.",
-		displayName: "Test Place",
-		path: "universes/123/places/456",
-		root: true,
-		serverSize: 30,
-		universeRuntimeCreation: false,
-		updateTime: "2024-11-02T17:08:21.500Z",
-		...overrides,
-	};
-}
 
 function okPlaceResponse(body: PlaceWire): Parameters<typeof parsePlaceResponse>[0] {
 	return { body, headers: {}, status: 200 };
