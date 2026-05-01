@@ -41,6 +41,28 @@ describe("developerProductKind", () => {
 				developerProductKind.entrySchema({ ...ValidDeveloperProductEntry, price }),
 			).toBeInstanceOf(ArkErrors);
 		});
+
+		it("should accept an entry declaring an icon with the en-us key", () => {
+			expect.assertions(1);
+
+			expect(
+				developerProductKind.entrySchema({
+					...ValidDeveloperProductEntry,
+					icon: { "en-us": "assets/gem-pack.png" },
+				}),
+			).not.toBeInstanceOf(ArkErrors);
+		});
+
+		it("should reject an icon map declaring a locale other than en-us", () => {
+			expect.assertions(1);
+
+			expect(
+				developerProductKind.entrySchema({
+					...ValidDeveloperProductEntry,
+					icon: { "en-us": "assets/en.png", "fr-fr": "assets/fr.png" },
+				}),
+			).toBeInstanceOf(ArkErrors);
+		});
 	});
 
 	describe("flatten", () => {
@@ -114,6 +136,39 @@ describe("developerProductKind", () => {
 				asResourceKey("coin-pack"),
 				asResourceKey("gem-pack"),
 			]);
+		});
+
+		it("should propagate icon onto the flattened input when declared", () => {
+			expect.assertions(1);
+
+			const inputs = developerProductKind.flatten({
+				environments: { production: {} },
+				products: {
+					"gem-pack": {
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+						icon: { "en-us": "assets/gem-pack.png" },
+					},
+				},
+			});
+
+			expect(inputs[0]?.icon).toStrictEqual({ "en-us": "assets/gem-pack.png" });
+		});
+
+		it("should omit icon from the flattened input when not declared", () => {
+			expect.assertions(1);
+
+			const inputs = developerProductKind.flatten({
+				environments: { production: {} },
+				products: {
+					"gem-pack": {
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+					},
+				},
+			});
+
+			expect(inputs[0]).not.toContainKey("icon");
 		});
 	});
 

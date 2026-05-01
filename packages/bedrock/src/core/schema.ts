@@ -32,16 +32,18 @@ export interface GamePassEntry {
 /**
  * Body of a single entry in the `products` collection. Keys in the parent
  * record are `ResourceKey`-shaped strings enforced at schema validation.
- *
- * Slice 1 of #113 ships `name` and `description` only. Subsequent slices
- * widen this shape with `icon`, `price`, `isRegionalPricingEnabled`,
- * and `storePageEnabled` per the parent PRD.
  */
 export interface DeveloperProductEntry {
 	/** Name shown on the Roblox storefront. */
 	name: string;
 	/** Description shown on the developer-product detail page. */
 	description: string;
+	/**
+	 * Locale-keyed icon paths. Mirrors `GamePassEntry.icon` and
+	 * `UniverseEntry.icon`; the Roblox developer-product API is monolingual,
+	 * so the `"en-us"` icon is the only one ever uploaded.
+	 */
+	icon?: Record<"en-us", string>;
 	/**
 	 * Robux price. Omit (or set `undefined`) for an off-sale product;
 	 * re-adding the field puts the product back on sale on the next deploy.
@@ -488,6 +490,7 @@ const passesCollection = type({
 const developerProductEntry = type({
 	"name": "string",
 	"description": "string",
+	"icon?": iconMap,
 	"price?": OPTIONAL_ROBUX_PRICE,
 }).onUndeclaredKey("reject");
 
@@ -557,6 +560,7 @@ const passesOverlayCollection = type({
 
 const developerProductOverlay = type({
 	"description?": "string",
+	"icon?": iconMap,
 	"name?": "string",
 	"price?": OPTIONAL_ROBUX_PRICE,
 }).onUndeclaredKey("reject");

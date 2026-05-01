@@ -4,6 +4,7 @@ import { type } from "arktype";
 
 import { asResourceKey } from "../../types/ids.ts";
 import type { DeveloperProductDesiredInput } from "../flatten.ts";
+import { iconMap } from "../icons.ts";
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_ROBUX_PRICE, type ResolvedConfig } from "../schema.ts";
 import type { BuildDesiredError, ResourceKindModule } from "./module.ts";
@@ -11,19 +12,21 @@ import type { BuildDesiredError, ResourceKindModule } from "./module.ts";
 const entrySchema = type({
 	"name": "string",
 	"description": "string",
+	"icon?": iconMap,
 	"price?": OPTIONAL_ROBUX_PRICE,
 });
 
 function flatten(config: ResolvedConfig): ReadonlyArray<DeveloperProductDesiredInput> {
 	return Object.entries(config.products ?? {}).map<DeveloperProductDesiredInput>(
 		([key, entry]) => {
-			return {
+			const base: DeveloperProductDesiredInput = {
 				key: asResourceKey(key),
 				name: entry.name,
 				description: entry.description,
 				kind: "developerProduct",
 				price: entry.price,
 			};
+			return entry.icon === undefined ? base : { ...base, icon: entry.icon };
 		},
 	);
 }
