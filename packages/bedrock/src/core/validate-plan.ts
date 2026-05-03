@@ -10,7 +10,7 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
  * kind module's optional `assertReconcilable` hook so kind-specific
  * rejections (e.g. Removing a developer-product icon, which the upstream
  * API has no documented unset path for) surface as typed errors before
- * any I/O is attempted.
+ * `diff` runs and before any apply-side driver I/O is attempted.
  *
  * Pure and synchronous. Current-only entries (no matching desired) are
  * ignored: their reconciliation is `diff`'s concern, not this seam's.

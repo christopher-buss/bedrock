@@ -128,8 +128,9 @@ export interface ResourceKindModule<K extends ResourceKind> {
 	 * Optional plan-time invariant check called by `validatePlan` for every
 	 * `(kind, key)` pair that exists on both sides. Surfaces kind-specific
 	 * rejections (e.g. Removing a developer-product icon, which the upstream
-	 * API has no documented unset path for) before any I/O happens. Kinds
-	 * without plan-level invariants omit this hook.
+	 * API has no documented unset path for) before `diff` runs and before
+	 * any apply-side driver I/O is attempted. Kinds without plan-level
+	 * invariants omit this hook.
 	 */
 	readonly assertReconcilable?: (
 		current: ResourceCurrentState<K>,

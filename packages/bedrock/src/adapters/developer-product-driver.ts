@@ -43,7 +43,7 @@ import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
 export interface DeveloperProductDriverDeps {
 	/** Configured developer-products client from `@bedrock/ocale/developer-products`. */
 	readonly client: DeveloperProductsClient;
-	/** Reads icon bytes for upload; rejections propagate out of `create`. */
+	/** Reads icon bytes for upload; rejections propagate out of `create` and `update`. */
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	/** Universe that owns every developer product this driver creates. */
 	readonly universeId: RobloxAssetId;
