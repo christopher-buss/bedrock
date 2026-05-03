@@ -8,7 +8,7 @@ import type { DeveloperProductDesiredState } from "./resources.ts";
  * state. The Roblox v2 create endpoint does not accept `storePageEnabled`,
  * so the driver applies the flag in a PATCH after the POST returns.
  */
-export interface FollowUpPatchBody {
+interface FollowUpPatchBody {
 	/** The `storePageEnabled` value the driver should apply via PATCH. */
 	readonly storePageEnabled: boolean;
 }
