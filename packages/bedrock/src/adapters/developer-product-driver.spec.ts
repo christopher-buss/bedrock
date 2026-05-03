@@ -390,7 +390,7 @@ describe(createDeveloperProductDriver, () => {
 
 			assert(result.success);
 
-			// Wire-reported value, not desired — so fieldsEqual surfaces drift on
+			// Wire-reported value, not desired, so fieldsEqual surfaces drift on
 			// the next deploy and re-issues the PATCH.
 			expect(result.data.storePageEnabled).toBeFalse();
 			// Other fields still reflect desired because the POST applied them.
