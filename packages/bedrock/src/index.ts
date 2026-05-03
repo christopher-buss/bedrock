@@ -45,7 +45,6 @@ export type {
 	Operation,
 	UpdateOperation,
 } from "./core/operations.ts";
-export { planFollowUpPatch, type FollowUpPatchBody } from "./core/plan-follow-up-patch.ts";
 export { resolveStateConfig, type StateNotConfiguredError } from "./core/resolve-state-config.ts";
 export {
 	SOCIAL_LINK_FIELDS,

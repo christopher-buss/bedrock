@@ -22,28 +22,6 @@ export interface FollowUpPatchBody {
  * @param desired - Desired state for the developer product being created.
  * @param createResponse - The `storePageEnabled` value reported by the create POST response.
  * @returns The PATCH body to issue, or `undefined` when no follow-up is needed.
- *
- * @example
- *
- * ```ts
- * import { asResourceKey, planFollowUpPatch } from "@bedrock/core";
- *
- * const desired = {
- *     description: "Stocks the player up with 1,000 premium gems.",
- *     isRegionalPricingEnabled: undefined,
- *     key: asResourceKey("gem-pack"),
- *     kind: "developerProduct" as const,
- *     name: "Gem Pack",
- *     price: undefined,
- *     storePageEnabled: true,
- * };
- *
- * expect(planFollowUpPatch(desired, { storePageEnabled: false })).toStrictEqual({
- *     storePageEnabled: true,
- * });
- *
- * expect(planFollowUpPatch(desired, { storePageEnabled: true })).toBeUndefined();
- * ```
  */
 export function planFollowUpPatch(
 	desired: DeveloperProductDesiredState,
