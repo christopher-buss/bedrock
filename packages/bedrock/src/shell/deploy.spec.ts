@@ -831,6 +831,62 @@ describe(deploy, () => {
 		expect(getEnvironment).not.toHaveBeenCalled();
 	});
 
+	it("should surface buildDesiredFailed with iconRemovalRejected when prior state recorded a developer-product icon dropped from config", async () => {
+		expect.assertions(4);
+
+		const create = vi.fn<ResourceDriver<"developerProduct">["create"]>();
+		const registry: DriverRegistry = {
+			developerProduct: { create },
+			gamePass: {
+				create() {
+					throw new Error("gamePass driver must not run for this fixture");
+				},
+			},
+			place: placeStub,
+			universe: universeStub,
+		};
+		const priorProduct = {
+			key: asResourceKey("gem-pack"),
+			name: "Gem Pack",
+			description: "Stocks the player up with 1,000 premium gems.",
+			icon: { "en-us": "assets/gem-pack.png" },
+			iconFileHashes: { "en-us": ICON_HASH },
+			kind: "developerProduct" as const,
+			outputs: { productId: asRobloxAssetId("8172635495") },
+			price: undefined,
+		};
+		const { port, writes } = inMemoryStatePort({
+			environment: "production",
+			resources: [priorProduct],
+			version: 1,
+		});
+
+		const result = await deploy({
+			config: {
+				environments: { production: {} },
+				products: {
+					"gem-pack": {
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+					},
+				},
+			},
+			environment: "production",
+			readFile: readIcon,
+			registry,
+			statePort: port,
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "buildDesiredFailed");
+		assert(result.err.cause.kind === "iconRemovalRejected");
+
+		expect(result.err.cause.key).toBe(priorProduct.key);
+		expect(result.err.cause.message).toContain(priorProduct.key);
+		expect(create).not.toHaveBeenCalled();
+		expect(writes).toHaveLength(0);
+	});
+
 	it("should surface buildDesiredFailed without dispatching drivers or writing state when readFile rejects", async () => {
 		expect.assertions(3);
 

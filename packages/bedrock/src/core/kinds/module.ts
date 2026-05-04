@@ -8,11 +8,16 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
 import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
 
 /**
- * Failure surfaced during desired-state normalization when the pre-I/O
- * phase for a resource input cannot complete. Validation and key-shape
- * errors are caught upstream by the schema (`validateConfig`); by the time
- * inputs reach a kind module they are already well-formed, so the only
- * remaining failure mode is reading the file bytes the kind depends on.
+ * Failure surfaced during desired-state preparation. Two variants today:
+ *
+ * - `fileReadFailed`: a kind module's `normalize` could not read a file
+ *   the input declared (e.g. An icon path that is missing on disk).
+ * - `iconRemovalRejected`: `validatePlan` saw a kind whose prior current
+ *   state recorded an icon that the desired state no longer declares,
+ *   and the kind has no documented unset path on the upstream API.
+ *
+ * Both variants carry the offending `key` so the CLI can attribute the
+ * failure to a single resource entry.
  *
  * @example
  *
@@ -29,16 +34,25 @@ import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
  * expect(err.kind).toBe("fileReadFailed");
  * ```
  */
-export interface BuildDesiredError {
-	/** ResourceKey of the input whose file failed to read. */
-	readonly key: ResourceKey;
-	/** Path of the file that failed to read. */
-	readonly filePath: string;
-	/** Literal discriminator for narrowing. */
-	readonly kind: "fileReadFailed";
-	/** Human-readable explanation; typically the caught error message. */
-	readonly reason: string;
-}
+export type BuildDesiredError =
+	| {
+			/** Path of the file that failed to read. */
+			readonly filePath: string;
+			/** ResourceKey of the input whose file failed to read. */
+			readonly key: ResourceKey;
+			/** Literal discriminator for narrowing. */
+			readonly kind: "fileReadFailed";
+			/** Human-readable explanation; typically the caught error message. */
+			readonly reason: string;
+	  }
+	| {
+			/** ResourceKey of the entry whose icon is being removed. */
+			readonly key: ResourceKey;
+			/** Literal discriminator for narrowing. */
+			readonly kind: "iconRemovalRejected";
+			/** Human-readable explanation naming the resource and the invariant. */
+			readonly message: string;
+	  };
 
 /**
  * I/O surface the shell injects into kind-module `normalize` calls. Carries
@@ -110,6 +124,19 @@ export interface KindIo {
  * ```
  */
 export interface ResourceKindModule<K extends ResourceKind> {
+	/**
+	 * Optional plan-time invariant check called by `validatePlan` for every
+	 * `(kind, key)` pair that exists on both sides. Surfaces kind-specific
+	 * rejections (e.g. Removing a developer-product icon, which the upstream
+	 * API has no documented unset path for) before `diff` runs and before
+	 * any apply-side driver I/O is attempted. Kinds without plan-level
+	 * invariants omit this hook.
+	 */
+	readonly assertReconcilable?: (
+		current: ResourceCurrentState<K>,
+		desired: DesiredFor<K>,
+	) => Result<undefined, BuildDesiredError>;
+
 	/** ArkType schema for the authored entry body of this kind. */
 	readonly entrySchema: Type<ResourceEntryByKind[K]>;
 

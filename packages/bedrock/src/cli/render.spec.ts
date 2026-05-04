@@ -185,6 +185,19 @@ describe(renderDeployError, () => {
 		},
 		{
 			err: {
+				cause: {
+					key: asResourceKey("gem-pack"),
+					kind: "iconRemovalRejected",
+					message:
+						"developer product 'gem-pack' had an icon recorded in state, but the desired entry no longer declares one.",
+				},
+				kind: "buildDesiredFailed",
+			},
+			expected:
+				"build desired state failed for 'gem-pack' : developer product 'gem-pack' had an icon recorded in state, but the desired entry no longer declares one.",
+		},
+		{
+			err: {
 				cause: { file: "state.json", kind: "stateError", reason: "invalid json" },
 				kind: "stateReadFailed",
 			},

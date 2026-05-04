@@ -16,6 +16,7 @@ import {
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
 import type { StateError } from "../core/state.ts";
+import { validatePlan } from "../core/validate-plan.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { buildDesired, type BuildDesiredError } from "./build-desired.ts";
 import {
@@ -187,6 +188,11 @@ async function runPreview(
 	}
 
 	const priorResources = prior.data?.resources ?? [];
+	const validated = validatePlan(desired.data, priorResources);
+	if (!validated.success) {
+		return { err: { cause: validated.err, kind: "buildDesiredFailed" }, success: false };
+	}
+
 	const ops = diff(desired.data, priorResources);
 	return { data: { environment, ops }, success: true };
 }
