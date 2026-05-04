@@ -6,6 +6,7 @@ export default isentinel(
 		flawless: true,
 		ignores: [
 			"!.claude",
+			"!.claude/settings.json",
 			"!.claude/hooks/**",
 			"**/*.example.spec.ts",
 			"**/vendor/**",

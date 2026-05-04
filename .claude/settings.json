@@ -24,10 +24,6 @@
 		"deny": [],
 		"defaultMode": "plan"
 	},
-	"enabledPlugins": {
-		"sentinel@isentinel": true,
-		"worktrunk@worktrunk": true
-	},
 	"hooks": {
 		"SessionStart": [
 			{
@@ -53,12 +49,18 @@
 			}
 		]
 	},
+	"enabledPlugins": {
+		"sentinel@isentinel": true,
+		"typescript-lsp@claude-plugins-official": true,
+		"worktrunk@worktrunk": true
+	},
 	"extraKnownMarketplaces": {
 		"isentinel": {
 			"source": {
 				"source": "github",
 				"repo": "christopher-buss/skills"
-			}
+			},
+			"autoUpdate": true
 		},
 		"worktrunk": {
 			"source": {
