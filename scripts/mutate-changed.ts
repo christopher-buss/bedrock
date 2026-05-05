@@ -14,6 +14,8 @@ import path from "node:path";
 import process from "node:process";
 
 function readGitDiff(): string {
+	// The remote-offload runner ships a precomputed diff via this env
+	// var so the receiving container does not need a working `.git`.
 	const inputFile = process.env["BEDROCK_DIFF_INPUT_FILE"];
 	if (inputFile !== undefined && inputFile !== "") {
 		return readFileSync(inputFile, "utf8");

@@ -1,3 +1,37 @@
+/**
+ * Offloads `pnpm mutate:changed` to a remote host over SSH. Invoked by
+ * the dispatch hook in `mutate-changed.ts` when
+ * `BEDROCK_REMOTE_MUTATE_HOST` is set; absent that env var, mutation
+ * runs in process and this script is never spawned.
+ *
+ * Per invocation: probe a long-running Docker container on the host,
+ * rsync the working tree to a per-worktree staging dir, stream the
+ * pre-computed git diff into the container via tee, run the mutation
+ * inside the container, and rsync `packages/*\/reports/` back. Falls
+ * back to the in-process mutation script if the probe fails so a
+ * sleeping host never blocks a commit hook. Each local worktree maps
+ * to its own remote staging dir (basename of cwd), so concurrent
+ * agents on the same host don't clobber each other.
+ *
+ * The diff is computed locally and shipped as a file because git
+ * worktrees use a `.git` file pointing at a path that only exists on
+ * the local machine; the remote does not need a working `.git`.
+ *
+ * Configuration env vars (typically set in `~/.zshenv` so
+ * non-interactive shells like hk inherit them):
+ *
+ * - `BEDROCK_REMOTE_MUTATE_HOST`: SSH target. Required to enable
+ *   offload.
+ * - `BEDROCK_REMOTE_MUTATE_STAGE`: base directory on the remote.
+ *   Defaults to `~/bedrock-stage`.
+ * - `BEDROCK_REMOTE_MUTATE_CONTAINER`: container name. Defaults to
+ *   `bedrock-mutate-server`.
+ * - `BEDROCK_REMOTE_MUTATE_RSYNC_PATH`: passed to `rsync --rsync-path`
+ *   when the remote SSH default shell does not reach rsync directly.
+ *   For a Windows host whose sshd uses `cmd.exe` but whose stage path
+ *   lives in WSL2, use `"wsl rsync"`.
+ */
+
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
