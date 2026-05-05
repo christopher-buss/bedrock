@@ -18,4 +18,4 @@ export {
 	type ValidationErrorCode,
 	type ValidationErrorOptions,
 } from "./errors/validation.ts";
-export type { Result } from "./types.ts";
+export type { Page, Result } from "./types.ts";

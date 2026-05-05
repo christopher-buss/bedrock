@@ -33,3 +33,36 @@
  * ```
  */
 export type Result<T, E = Error> = { data: T; success: true } | { err: E; success: false };
+
+/**
+ * One page of a cursor-paginated SDK response.
+ *
+ * `list`-style methods on resource clients (for example
+ * `GamePassesClient.list`) return a {@link Result} wrapping a `Page<T>`.
+ * `nextPageToken` carries the cursor for the next page when one exists,
+ * or `undefined` on the last page; the SDK normalizes the wire's
+ * `null`-vs-absent variants to `undefined` so callers only ever see one
+ * shape.
+ *
+ * @template T - The public item type for the listed resource.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { Page } from "@bedrock/ocale";
+ *
+ * const middle: Page<string> = { items: ["a", "b"], nextPageToken: "cursor" };
+ * expect(middle.items).toEqual(["a", "b"]);
+ * expect(middle.nextPageToken).toBe("cursor");
+ *
+ * const last: Page<string> = { items: ["c"], nextPageToken: undefined };
+ * expect(last.items).toEqual(["c"]);
+ * expect(last.nextPageToken).toBeUndefined();
+ * ```
+ */
+export interface Page<T> {
+	/** Items in this page, in the order returned by the API. */
+	readonly items: ReadonlyArray<T>;
+	/** Cursor for the next page; `undefined` on the last page. */
+	readonly nextPageToken: string | undefined;
+}
