@@ -12,6 +12,7 @@ import type { ResourceCurrentState } from "../core/resources.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
 import {
 	type IncompletePlaceEntryError,
+	type IncompleteUniverseEntryError,
 	selectEnvironment,
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
@@ -58,11 +59,12 @@ export interface DeployOptions {
  * `kind` to distinguish reconciliation failures (`stateReadFailed`,
  * `applyFailed`, ...) from default-construction failures
  * (`configLoadFailed`, `stateNotConfigured`, `unknownEnvironment`,
- * `incompletePlaceEntry`, `missingCredential`, `unsupportedBackend`,
- * `registryConfigMissing`).
+ * `incompletePlaceEntry`, `incompleteUniverseEntry`, `missingCredential`,
+ * `unsupportedBackend`, `registryConfigMissing`).
  */
 export type DeployError =
 	| IncompletePlaceEntryError
+	| IncompleteUniverseEntryError
 	| MissingCredentialError
 	| RegistryConfigError
 	| StateNotConfiguredError

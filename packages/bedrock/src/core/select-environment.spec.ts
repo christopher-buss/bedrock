@@ -95,18 +95,22 @@ describe(selectEnvironment, () => {
 
 		const config: Config = {
 			environments: {
-				production: { universe: { universeId: "9999999999" } },
+				production: { universe: { voiceChatEnabled: false } },
 			},
 			state: ROOT_STATE,
-			universe: { universeId: "1111111111", voiceChatEnabled: true },
+			universe: {
+				desktopEnabled: true,
+				universeId: "1111111111",
+				voiceChatEnabled: true,
+			},
 		};
 
 		const result = selectEnvironment(config, "production");
 
 		assert(result.success);
 
-		expect(result.data.universe?.universeId).toBe("9999999999");
-		expect(result.data.universe?.voiceChatEnabled).toBeTrue();
+		expect(result.data.universe?.voiceChatEnabled).toBeFalse();
+		expect(result.data.universe?.desktopEnabled).toBeTrue();
 	});
 
 	it("should let an environment universe overlay override the en-us icon path while inheriting unrelated root fields", () => {
@@ -117,7 +121,6 @@ describe(selectEnvironment, () => {
 				staging: {
 					universe: {
 						icon: { "en-us": "assets/staging-icon.png" },
-						universeId: "1111111111",
 					},
 				},
 			},
@@ -405,6 +408,24 @@ describe(selectEnvironment, () => {
 
 		expect(result.data.places?.["start-place"]?.placeId).toBe("1111");
 		expect(result.data.places?.["start-place"]?.filePath).toBe("places/start.rbxl");
+	});
+
+	it("should return Err(incompleteUniverseEntry) when neither root nor env overlay supplies universeId", () => {
+		expect.assertions(3);
+
+		const config: Config = {
+			environments: { production: { universe: { voiceChatEnabled: true } } },
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "production");
+
+		assert(!result.success);
+		assert(result.err.kind === "incompleteUniverseEntry");
+
+		expect(result.err.kind).toBe("incompleteUniverseEntry");
+		expect(result.err.missingField).toBe("universeId");
+		expect(result.err.environment).toBe("production");
 	});
 
 	it("should prefix universe.displayName with the default template when an environment declares a label", () => {

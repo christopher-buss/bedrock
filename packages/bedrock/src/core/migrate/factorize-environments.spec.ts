@@ -168,7 +168,39 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.primaryEnvironment).toBe("development");
 	});
 
-	it("should seed the root config from the chosen primary's universe entry", () => {
+	it("should seed the root universeId from the chosen primary when every environment shares the same universe", () => {
+		expect.assertions(2);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					universe: {
+						entry: { universeId: "6031475575" },
+						outputs: { rootPlaceId: asRobloxAssetId("17613681043") },
+					},
+				}),
+			],
+			[
+				"production",
+				fold({
+					universe: {
+						entry: { universeId: "6031475575" },
+						outputs: { rootPlaceId: asRobloxAssetId("17613681043") },
+					},
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.universe?.universeId).toBe("6031475575");
+		expect(result.data.config.environments["development"]?.universe).toBeUndefined();
+	});
+
+	it("should omit universeId from the root universe block when universes diverge across environments", () => {
 		expect.assertions(1);
 
 		const folds = new Map([
@@ -196,11 +228,11 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.universe?.universeId).toBe("6031475575");
+		expect(result.data.config.universe).toBeUndefined();
 	});
 
-	it("should override universeId on a non-primary overlay when it diverges from the primary", () => {
-		expect.assertions(1);
+	it("should write a per-environment universeId overlay for every environment when universes diverge", () => {
+		expect.assertions(2);
 
 		const folds = new Map([
 			[
@@ -230,9 +262,68 @@ describe(factorizeEnvironments, () => {
 		expect(result.data.config.environments["development"]?.universe).toStrictEqual({
 			universeId: "1111111111",
 		});
+		expect(result.data.config.environments["production"]?.universe).toStrictEqual({
+			universeId: "6031475575",
+		});
 	});
 
-	it("should omit the universe overlay when the env's universe matches the primary's", () => {
+	it("should keep universeId on the root when one env has the universe and another env has no universe at all", () => {
+		expect.assertions(2);
+
+		const folds = new Map([
+			["development", fold()],
+			[
+				"production",
+				fold({
+					universe: {
+						entry: { universeId: "6031475575" },
+						outputs: { rootPlaceId: asRobloxAssetId("17613681043") },
+					},
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.universe?.universeId).toBe("6031475575");
+		expect(result.data.config.environments["production"]?.universe).toBeUndefined();
+	});
+
+	it("should preserve shared root universe fields while omitting universeId when universes diverge", () => {
+		expect.assertions(2);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					universe: {
+						entry: { displayName: "Shared Name", universeId: "1111111111" },
+						outputs: { rootPlaceId: asRobloxAssetId("2222222222") },
+					},
+				}),
+			],
+			[
+				"production",
+				fold({
+					universe: {
+						entry: { displayName: "Shared Name", universeId: "6031475575" },
+						outputs: { rootPlaceId: asRobloxAssetId("17613681043") },
+					},
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.universe?.displayName).toBe("Shared Name");
+		expect(result.data.config.universe?.universeId).toBeUndefined();
+	});
+
+	it("should omit the universe overlay when the env's universe matches the primary's and every env shares the same universe", () => {
 		expect.assertions(1);
 
 		const folds = new Map([

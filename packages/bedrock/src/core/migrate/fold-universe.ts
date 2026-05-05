@@ -1,6 +1,6 @@
 import { asRobloxAssetId } from "../../types/ids.ts";
 import type { UniverseOutputs } from "../resources.ts";
-import type { UniverseEntry } from "../schema.ts";
+import type { ResolvedUniverseEntry } from "../schema.ts";
 import { foldBlockedExperienceFields } from "./fold-blocked-experience-fields.ts";
 import { foldDisplayName } from "./fold-display-name.ts";
 import { foldExperienceIcon } from "./fold-experience-icon.ts";
@@ -40,8 +40,13 @@ const PLAYABLE_DEVICE_TO_FLAG: Readonly<
  * presents to the user.
  */
 interface UniverseFoldResult {
-	/** Bedrock `Config.universe` block populated from the experience resource. */
-	readonly entry: UniverseEntry;
+	/**
+	 * Bedrock universe entry populated from the experience resource. Carries
+	 * `universeId` because the Mantle state always knows which universe the
+	 * environment targets; downstream consumers rely on the post-merge
+	 * invariant that `universeId` is present.
+	 */
+	readonly entry: ResolvedUniverseEntry;
 	/** Roblox-assigned identifiers carried into `BedrockState.resources[*].outputs`. */
 	readonly outputs: UniverseOutputs;
 	/** Per-rule diagnostics emitted while folding this environment's resources. */
@@ -80,7 +85,7 @@ export function foldUniverse(
 
 	const fragments = collectUniverseFragments(resources);
 
-	const entry: UniverseEntry = fragments.reduce<UniverseEntry>(
+	const entry: ResolvedUniverseEntry = fragments.reduce<ResolvedUniverseEntry>(
 		(accumulator, fragment) => ({ ...accumulator, ...fragment.entryFragment }),
 		{ universeId: outputs.assetId },
 	);

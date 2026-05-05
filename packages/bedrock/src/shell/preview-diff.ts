@@ -12,6 +12,7 @@ import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolv
 import type { Config, ResolvedConfig } from "../core/schema.ts";
 import {
 	type IncompletePlaceEntryError,
+	type IncompleteUniverseEntryError,
 	selectEnvironment,
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
@@ -57,6 +58,7 @@ export interface PreviewDiffOptions {
  */
 export type PreviewDiffError =
 	| IncompletePlaceEntryError
+	| IncompleteUniverseEntryError
 	| MissingCredentialError
 	| StateNotConfiguredError
 	| UnknownEnvironmentError

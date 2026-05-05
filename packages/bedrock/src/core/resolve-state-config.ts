@@ -1,6 +1,6 @@
 import type { Result } from "@bedrock/ocale";
 
-import type { Config, StateConfig } from "./schema.ts";
+import type { StateConfig } from "./schema.ts";
 
 /**
  * Failure surfaced when no `StateConfig` is configured for the requested
@@ -13,6 +13,17 @@ export interface StateNotConfiguredError {
 	readonly environment: string;
 	/** Literal discriminator for narrowing. */
 	readonly kind: "stateNotConfigured";
+}
+
+/**
+ * Minimal structural input the state resolver needs. Both `Config`
+ * (pre-merge, discriminated XOR union) and `ResolvedConfig` (post-merge)
+ * satisfy this shape, so callers can route either in without coupling
+ * the resolver to the discriminated-union arms.
+ */
+interface StateResolutionInputs {
+	readonly environments: Record<string, undefined | { readonly state?: StateConfig }>;
+	readonly state?: StateConfig;
 }
 
 /**
@@ -47,7 +58,7 @@ export interface StateNotConfiguredError {
  * ```
  */
 export function resolveStateConfig(
-	config: Config,
+	config: StateResolutionInputs,
 	environment: string,
 ): Result<StateConfig, StateNotConfiguredError> {
 	const override = config.environments[environment]?.state;

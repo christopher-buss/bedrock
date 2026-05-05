@@ -2,12 +2,13 @@ import type { Result } from "@bedrock/ocale";
 import type { SocialLink } from "@bedrock/ocale/universes";
 
 import { ArkErrors, type, type Type } from "arktype";
-import type { Except, SetRequired } from "type-fest";
+import type { SetRequired } from "type-fest";
 
 import { RESOURCE_KEY_PATTERN_SOURCE } from "../types/ids.ts";
 import type { ConfigError } from "./config-error.ts";
 import { ENV_NAME_PATTERN_SOURCE } from "./environment.ts";
 import { iconMap } from "./icons.ts";
+import { collectUniverseIdIssues } from "./validate-universe-xor.ts";
 
 /**
  * Body of a single entry in the `passes` collection. Keys in the parent
@@ -115,7 +116,11 @@ export interface ResolvedPlaceEntry {
  *
  * `universeId` is user-supplied because Open Cloud cannot mint universes;
  * the universe must already exist in Roblox before bedrock can reconcile
- * its configuration.
+ * its configuration. Declare `universeId` either here at the root (which
+ * applies to every environment) or under each `environments[name].universe`
+ * overlay, but never both: the schema rejects a config that sets it in
+ * both places, and rejects a `universe` block without a resolvable
+ * `universeId`.
  */
 export interface UniverseEntry {
 	/** Whether console players can join; omit or set `undefined` to leave unmanaged. */
@@ -175,8 +180,13 @@ export interface UniverseEntry {
 	 * `undefined` to clear it, or set to a `SocialLink` to update it.
 	 */
 	twitterSocialLink?: SocialLink | undefined;
-	/** Existing Roblox universe ID. */
-	universeId: string;
+	/**
+	 * Existing Roblox universe ID. Optional in this entry shape because
+	 * authors may declare it here (root-authoritative, single universe) or
+	 * on each `environments[name].universe` overlay (per-environment
+	 * universes), but never both.
+	 */
+	universeId?: string | undefined;
 	/** Whether voice chat is enabled; omit or set `undefined` to leave unmanaged. */
 	voiceChatEnabled?: boolean | undefined;
 	/** Whether VR players can join; omit or set `undefined` to leave unmanaged. */
@@ -216,10 +226,12 @@ export type StateConfig = GistStateConfig | { readonly backend: string & {} };
  * derive their field shapes from the matching root entry types so adding
  * a field to a base entry surfaces on the overlay automatically.
  *
- * `placeId` and `universeId` stay required when the matching overlay is
- * present because each environment targets its own Roblox object: an
- * overlay that mentions a place or universe must re-assert which Roblox
- * resource it points at.
+ * `placeId` stays required when the matching `places` overlay is present
+ * because each environment targets its own Roblox place. `universeId` is
+ * optional on the `universe` overlay because authors may declare it
+ * either at the root (root-authoritative) or per environment, but never
+ * both: the schema enforces this XOR at validation time, attributing the
+ * failure to the offending field's path.
  */
 export interface EnvironmentEntry {
 	/**
@@ -257,11 +269,12 @@ export interface EnvironmentEntry {
 	/** Per-environment state override; takes precedence over root `state`. */
 	state?: StateConfig;
 	/**
-	 * Per-environment universe overlay. `universeId` is required when the
-	 * overlay is present; other fields fall through to the root `universe`
-	 * block when omitted.
+	 * Per-environment universe overlay. Every field is optional, including
+	 * `universeId`: the schema-level XOR rule requires `universeId` here if
+	 * and only if the root `universe` block does not declare one. Other
+	 * fields fall through to the root `universe` block when omitted.
 	 */
-	universe?: Overlay<UniverseEntry, "universeId">;
+	universe?: Partial<UniverseEntry>;
 }
 
 /**
@@ -325,15 +338,90 @@ export interface DisplayNamePrefixConfig {
 }
 
 /**
+ * Per-environment universe overlay shape that forbids `universeId`.
+ * Used by {@link ConfigRootUniverseId}: when the root universe block
+ * declares `universeId`, no per-env overlay may redeclare it.
+ */
+export type UniverseOverlayWithoutId = Partial<WithoutKey<UniverseEntry, "universeId">> & {
+	universeId?: never;
+};
+
+/**
+ * Per-environment universe overlay shape that requires `universeId`.
+ * Used by {@link ConfigEnvironmentUniverseId}: when the root universe
+ * block does not declare `universeId`, every env that declares a
+ * `universe` overlay must supply one of its own.
+ */
+export type UniverseOverlayWithId = Partial<WithoutKey<UniverseEntry, "universeId">> & {
+	universeId: string;
+};
+
+/**
+ * Variant of `Config` where the root `universe` block declares
+ * `universeId`. Per-environment universe overlays may carry shared
+ * fields (device flags, social links, display name, icon) but cannot
+ * redeclare `universeId`; the schema rejects any env overlay that
+ * does. The runtime `selectEnvironment` merges shared-field overlays
+ * onto the root and inherits `universeId` from the root unchanged.
+ */
+export type ConfigRootUniverseId = ConfigBase & {
+	/**
+	 * Per-environment overrides keyed by environment name. Required and
+	 * non-empty; environment names match `[A-Za-z0-9_-]{1,64}`. Each env
+	 * entry's `universe` overlay forbids `universeId` because the root
+	 * declares it.
+	 */
+	environments: Record<
+		string,
+		WithoutKey<EnvironmentEntry, "universe"> & { universe?: UniverseOverlayWithoutId }
+	>;
+	/**
+	 * Singleton universe block declaring the Roblox universe bedrock
+	 * manages. `universeId` is required in this variant because no
+	 * per-environment overlay may supply one.
+	 */
+	universe?: UniverseEntry & { universeId: string };
+};
+
+/**
+ * Variant of `Config` where the root `universe` block omits
+ * `universeId`. Every env that declares a `universe` overlay must
+ * supply its own `universeId`; envs that omit the overlay deploy no
+ * universe at all. The root may still carry shared fields (device
+ * flags, social links, display name, icon) which `selectEnvironment`
+ * merges onto each env's overlay at resolution time.
+ */
+export type ConfigEnvironmentUniverseId = ConfigBase & {
+	/**
+	 * Per-environment overrides keyed by environment name. Required and
+	 * non-empty; environment names match `[A-Za-z0-9_-]{1,64}`. Every
+	 * env that declares a `universe` overlay must include `universeId`
+	 * because the root universe block does not provide one.
+	 */
+	environments: Record<
+		string,
+		WithoutKey<EnvironmentEntry, "universe"> & { universe?: UniverseOverlayWithId }
+	>;
+	/**
+	 * Singleton universe block declaring the Roblox universe bedrock
+	 * manages. `universeId` is forbidden in this variant because every
+	 * environment supplies its own.
+	 */
+	universe?: UniverseEntry & { universeId?: never };
+};
+
+/**
  * Validated project config as accepted by `loadConfig`. Plain mutable so
  * users can adjust fields in a long-running script before deploying.
  *
- * Shape matches the runtime schema declared below. `rootSchema` is typed
- * against this interface via `Type<Config>`, so any drift between the two
- * is a compile error at build time. State must be configured at the
- * root or under every entry of `environments`; `resolveStateConfig`
- * surfaces the missing case at the deploy boundary as
- * `stateNotConfigured`.
+ * Discriminated union over the location of `universeId`: it lives at the
+ * root universe block ({@link ConfigRootUniverseId}) or on every
+ * environment universe overlay ({@link ConfigEnvironmentUniverseId}), but never
+ * both. The TypeScript types reject the both-set case at compile time,
+ * and the arktype runtime narrow rejects every offending field path at
+ * `validateConfig` time. State must be configured at the root or under
+ * every entry of `environments`; `resolveStateConfig` surfaces the
+ * missing case at the deploy boundary as `stateNotConfigured`.
  *
  * @example
  *
@@ -356,33 +444,23 @@ export interface DisplayNamePrefixConfig {
  * expect(config.passes!["vip-pass"]!.name).toBe("VIP Pass");
  * ```
  */
-export interface Config {
-	/**
-	 * Project-level prefixing of universe and place display names with the
-	 * environment label. Default behaviour (when omitted) is enabled with a
-	 * `"[{LABEL}] "` template; set `enabled: false` to opt out, or set
-	 * `format` to a custom template.
-	 */
-	displayNamePrefix?: DisplayNamePrefixConfig;
-	/**
-	 * Per-environment overrides keyed by environment name. Required and
-	 * non-empty: every project declares at least one environment, and
-	 * `deploy()` rejects any environment name that is not a key of this
-	 * record. Environment names match `[A-Za-z0-9_-]{1,64}`.
-	 */
-	environments: Record<string, EnvironmentEntry>;
-	/** Reserved at the root for c12's config layering / overlay work. */
-	extends?: unknown;
-	/** Keyed-map collection of game-pass entries by user-supplied ResourceKey. */
-	passes?: Record<string, GamePassEntry>;
-	/** Keyed-map collection of place entries by user-supplied ResourceKey. */
-	places?: Record<string, PlaceEntry>;
-	/** Keyed-map collection of developer-product entries by user-supplied ResourceKey. */
-	products?: Record<string, DeveloperProductEntry>;
-	/** Where Bedrock persists state for this project; required at deploy time. */
-	state?: StateConfig;
-	/** Singleton universe block declaring the Roblox universe bedrock manages. */
-	universe?: UniverseEntry;
+export type Config = ConfigEnvironmentUniverseId | ConfigRootUniverseId;
+
+/**
+ * Body of the singleton `universe` block after `selectEnvironment` has
+ * merged a per-environment overlay onto the root. Identical to
+ * {@link UniverseEntry} except `universeId` is required: the schema-level
+ * XOR rule ensures every projected universe carries a resolved
+ * `universeId`. Resource drivers consume this shape rather than
+ * `UniverseEntry` so the post-merge invariant is visible in the type
+ * system.
+ */
+export interface ResolvedUniverseEntry extends Pick<
+	UniverseEntry,
+	Exclude<keyof UniverseEntry, "universeId">
+> {
+	/** Existing Roblox universe ID, resolved from the root or per-environment overlay. */
+	universeId: string;
 }
 
 /**
@@ -417,9 +495,22 @@ export interface Config {
  * }
  * ```
  */
-export interface ResolvedConfig extends Except<Config, "places"> {
+export interface ResolvedConfig extends Pick<ConfigBase, Exclude<keyof ConfigBase, "places">> {
+	/**
+	 * Per-environment overrides preserved from the source `Config`.
+	 * Carried for downstream context; `selectEnvironment` does not read
+	 * other environments after resolving the requested one.
+	 */
+	environments: Record<string, EnvironmentEntry>;
 	/** Keyed-map collection of resolved place entries; both `filePath` and `placeId` are present. */
 	places?: Record<string, ResolvedPlaceEntry>;
+	/**
+	 * Singleton universe block after `selectEnvironment` has resolved the
+	 * XOR between root and per-environment `universeId`. The schema narrow
+	 * rejects any config that would leave `universeId` unresolved, so the
+	 * post-merge invariant promotes `universeId` from optional to required.
+	 */
+	universe?: ResolvedUniverseEntry;
 }
 
 /**
@@ -433,6 +524,42 @@ export interface ResolvedConfig extends Except<Config, "places"> {
  * still declare (for example `"placeId"` or `"universeId"`).
  */
 type Overlay<T, RequiredKey extends keyof T> = SetRequired<Partial<T>, RequiredKey>;
+
+/**
+ * Helper that produces a shallow `Omit<T, K>` without using TypeScript's
+ * built-in `Omit` (deprecated under the project's lint rules because of
+ * its lossy interaction with mapped types).
+ *
+ * @template T - Source type to project keys away from.
+ * @template Key - Key (or union of keys) on `T` to remove.
+ */
+type WithoutKey<T, Key extends keyof T> = Pick<T, Exclude<keyof T, Key>>;
+
+/**
+ * Fields shared by every {@link Config} variant. The discriminated
+ * `Config` union narrows `universe` and `environments` to enforce the
+ * `universeId` XOR rule between the root and per-environment overlays;
+ * everything else lives here.
+ */
+interface ConfigBase {
+	/**
+	 * Project-level prefixing of universe and place display names with the
+	 * environment label. Default behaviour (when omitted) is enabled with a
+	 * `"[{LABEL}] "` template; set `enabled: false` to opt out, or set
+	 * `format` to a custom template.
+	 */
+	displayNamePrefix?: DisplayNamePrefixConfig;
+	/** Reserved at the root for c12's config layering / overlay work. */
+	extends?: unknown;
+	/** Keyed-map collection of game-pass entries by user-supplied ResourceKey. */
+	passes?: Record<string, GamePassEntry>;
+	/** Keyed-map collection of place entries by user-supplied ResourceKey. */
+	places?: Record<string, PlaceEntry>;
+	/** Keyed-map collection of developer-product entries by user-supplied ResourceKey. */
+	products?: Record<string, DeveloperProductEntry>;
+	/** Where Bedrock persists state for this project; required at deploy time. */
+	state?: StateConfig;
+}
 
 /**
  * Narrow a `StateConfig` to the `GistStateConfig` arm. The `(string & {})`
@@ -547,7 +674,7 @@ const universeEntry = type({
 	"tabletEnabled?": OPTIONAL_BOOLEAN,
 	"twitchSocialLink?": socialLinkOrUndefined,
 	"twitterSocialLink?": socialLinkOrUndefined,
-	"universeId": ROBLOX_ID_DIGITS,
+	"universeId?": ROBLOX_ID_DIGITS,
 	"voiceChatEnabled?": OPTIONAL_BOOLEAN,
 	"vrEnabled?": OPTIONAL_BOOLEAN,
 	"youtubeSocialLink?": socialLinkOrUndefined,
@@ -598,10 +725,12 @@ const placesOverlayCollection = type({
 	[`[/${RESOURCE_KEY_PATTERN_SOURCE}/]`]: placeOverlay,
 }).onUndeclaredKey("reject");
 
-// `Overlay<UniverseEntry, "universeId">` is structurally equal to
-// `UniverseEntry` itself: the base type already has every field except
-// `universeId` declared as optional. Reusing `universeEntry` here keeps
-// the field set in lockstep and avoids a parallel declaration to drift.
+// `Partial<UniverseEntry>` is structurally equal to `UniverseEntry`
+// itself because every field on `UniverseEntry` is optional. Reusing
+// `universeEntry` here keeps the field set in lockstep and avoids a
+// parallel declaration to drift. The XOR rule that ties root and
+// per-environment `universeId` together lives on `rootSchema` below,
+// where both sides of the relationship are in scope.
 const universeOverlay = universeEntry;
 
 const environmentEntry: Type<EnvironmentEntry> = type({
@@ -630,7 +759,16 @@ const environmentsCollection = type({
 		return true;
 	});
 
-const rootSchema: Type<Config> = type({
+// `rootSchema` is intentionally not annotated `Type<Config>` because
+// `Config` is a discriminated union enforcing the universeId XOR rule
+// at the type level. The arktype schema describes the loose
+// authored-shape that's structurally a supertype of every union arm;
+// the runtime narrow rejects any value that doesn't satisfy one arm so
+// `validateConfig` can cast the result to `Config` safely. Splitting
+// the schema into two `.or()` variants would mirror the type union but
+// duplicate every field declaration without buying additional runtime
+// coverage on top of the narrow.
+const rootSchema = type({
 	"displayNamePrefix?": displayNamePrefix,
 	"environments": environmentsCollection,
 	"extends?": "unknown",
@@ -639,7 +777,16 @@ const rootSchema: Type<Config> = type({
 	"products?": productsCollection,
 	"state?": stateConfig,
 	"universe?": universeEntry,
-}).onUndeclaredKey("reject");
+})
+	.onUndeclaredKey("reject")
+	.narrow((value, ctx) => {
+		// `ctx.reject` returns `false` for every issue and `reduce` walks the
+		// whole list so every offending field gets attributed; the seeded
+		// `true` flips to `false` on the first issue.
+		return collectUniverseIdIssues(value).reduce<boolean>((_accumulator, issue) => {
+			return ctx.reject({ message: issue.message, path: [...issue.path] });
+		}, true);
+	});
 
 /**
  * Validate a parsed config value against the runtime schema. Returns the
@@ -700,5 +847,11 @@ export function validateConfig(input: unknown, sourceFile: string): Result<Confi
 		};
 	}
 
-	return { data: validated, success: true };
+	// Precondition for the cast: the runtime narrow rejects every value
+	// that violates the universeId XOR rule, so a successful validation
+	// always lands in one arm of the discriminated `Config` union. The
+	// schema's inferred type is the structurally loose authored-shape
+	// (universeId optional in both root and per-env overlays); the cast
+	// collapses it to the strict union without loss of safety.
+	return { data: validated as unknown as Config, success: true };
 }

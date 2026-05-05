@@ -14,13 +14,27 @@ import type { MigrationWarning } from "./migration-report.ts";
  * `warnings` because no rule that uses it currently produces outputs.
  */
 export interface FoldFragment {
-	/** Subset of universe fields this rule populated (empty when the rule did not fire). */
-	readonly entryFragment: Partial<UniverseEntry>;
+	/**
+	 * Subset of universe fields this rule populated (empty when the rule
+	 * did not fire). `universeId` is excluded because the orchestrator
+	 * seeds it from the experience resource's outputs; no fold rule
+	 * contributes to it.
+	 */
+	readonly entryFragment: UniverseEntryFragment;
 	/** Subset of universe outputs this rule populated; absent when the rule contributes no Roblox-assigned identifiers. */
 	readonly outputsFragment?: Partial<UniverseOutputs>;
 	/** Diagnostics this rule emitted. */
 	readonly warnings: ReadonlyArray<MigrationWarning>;
 }
+
+/**
+ * Subset of {@link UniverseEntry} that any individual fold rule may
+ * populate. `universeId` is excluded because the orchestrator seeds it
+ * from the experience resource's outputs; no fold rule contributes to it.
+ */
+type UniverseEntryFragment = {
+	readonly [Key in Exclude<keyof UniverseEntry, "universeId">]?: UniverseEntry[Key];
+};
 
 /** Sentinel value for fold rules that produced neither output nor warnings. */
 export const EMPTY_FRAGMENT: FoldFragment = { entryFragment: {}, warnings: [] };

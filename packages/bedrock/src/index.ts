@@ -68,6 +68,8 @@ export {
 	isGistStateConfig,
 	validateConfig,
 	type Config,
+	type ConfigEnvironmentUniverseId,
+	type ConfigRootUniverseId,
 	type DeveloperProductEntry,
 	type DisplayNamePrefixConfig,
 	type EnvironmentEntry,
@@ -76,13 +78,17 @@ export {
 	type PlaceEntry,
 	type ResolvedConfig,
 	type ResolvedPlaceEntry,
+	type ResolvedUniverseEntry,
 	type ResourceEntryByKind,
 	type StateConfig,
 	type UniverseEntry,
+	type UniverseOverlayWithId,
+	type UniverseOverlayWithoutId,
 } from "./core/schema.ts";
 export {
 	selectEnvironment,
 	type IncompletePlaceEntryError,
+	type IncompleteUniverseEntryError,
 	type SelectEnvironmentError,
 	type UnknownEnvironmentError,
 } from "./core/select-environment.ts";

@@ -6,6 +6,7 @@ import type {
 	GamePassEntry,
 	PlaceEntry,
 	ResolvedPlaceEntry,
+	ResolvedUniverseEntry,
 	StateConfig,
 	UniverseEntry,
 } from "./schema.ts";
@@ -62,14 +63,18 @@ describe("EnvironmentEntry overlay shapes", () => {
 		expectTypeOf(overlay).toExtend<PlaceOverlayEntry>();
 	});
 
-	it("should require universeId on a universe overlay while making other fields optional", () => {
+	it("should accept a universe overlay declaring only universeId", () => {
 		const overlay = { universeId: "9999999999" } as const satisfies UniverseOverlayEntry;
 		expectTypeOf(overlay).toExtend<UniverseOverlayEntry>();
 	});
 
-	it("should reject a universe overlay that omits universeId", () => {
-		// @ts-expect-error universeId is required on a universe overlay.
-		const overlay: UniverseOverlayEntry = { voiceChatEnabled: true };
+	it("should accept a universe overlay that omits universeId in favour of root authority", () => {
+		const overlay = { voiceChatEnabled: true } as const satisfies UniverseOverlayEntry;
+		expectTypeOf(overlay).toExtend<UniverseOverlayEntry>();
+	});
+
+	it("should keep every universe overlay field optional so the runtime XOR rule decides whether universeId must appear", () => {
+		const overlay = {} as const satisfies UniverseOverlayEntry;
 		expectTypeOf(overlay).toExtend<UniverseOverlayEntry>();
 	});
 
@@ -90,6 +95,91 @@ describe("EnvironmentEntry overlay derivation", () => {
 
 	it("should match the keys of UniverseEntry on a universe overlay", () => {
 		expectTypeOf<keyof UniverseOverlayEntry>().toEqualTypeOf<keyof UniverseEntry>();
+	});
+});
+
+describe("Config XOR — accepted root shapes", () => {
+	it("should accept a config that declares universeId on the root universe block only", () => {
+		const config = {
+			environments: { production: {} },
+			universe: { universeId: "111" },
+		} as const satisfies Config;
+		expectTypeOf(config).toExtend<Config>();
+	});
+
+	it("should accept a config that omits the universe block at the root and on every environment", () => {
+		const config = {
+			environments: { production: {} },
+		} as const satisfies Config;
+		expectTypeOf(config).toExtend<Config>();
+	});
+});
+
+describe("Config XOR — accepted env shapes", () => {
+	it("should accept a config that declares universeId on every environment overlay only", () => {
+		const config = {
+			environments: {
+				production: { universe: { universeId: "111" } },
+				staging: { universe: { universeId: "222" } },
+			},
+		} as const satisfies Config;
+		expectTypeOf(config).toExtend<Config>();
+	});
+
+	it("should accept a root universe block carrying shared fields without universeId when every env supplies one", () => {
+		const config = {
+			environments: {
+				production: { universe: { universeId: "111" } },
+			},
+			universe: { desktopEnabled: true, voiceChatEnabled: true },
+		} as const satisfies Config;
+		expectTypeOf(config).toExtend<Config>();
+	});
+});
+
+describe("Config XOR — rejected shapes", () => {
+	it("should reject a config that declares universeId on both the root and an environment overlay", () => {
+		// @ts-expect-error universeId on root and per-env overlay must not
+		// coexist.
+		const config: Config = {
+			environments: { production: { universe: { universeId: "999" } } },
+			universe: { universeId: "111" },
+		};
+		expectTypeOf(config).toExtend<Config>();
+	});
+
+	it("should reject root universeId paired with an env overlay that also declares one in any other environment slot", () => {
+		// @ts-expect-error universeId on root and per-env overlay must not
+		// coexist.
+		const config: Config = {
+			environments: {
+				staging: { universe: { universeId: "222" } },
+			},
+			universe: { universeId: "111" },
+		};
+		expectTypeOf(config).toExtend<Config>();
+	});
+});
+
+describe("UniverseEntry / ResolvedUniverseEntry split", () => {
+	it("should expose universeId as optional on the authored UniverseEntry so authors can supply it per-environment", () => {
+		expectTypeOf<UniverseEntry["universeId"]>().toEqualTypeOf<string | undefined>();
+	});
+
+	it("should require universeId on the post-merge ResolvedUniverseEntry as the resolution-boundary invariant", () => {
+		expectTypeOf<ResolvedUniverseEntry["universeId"]>().toEqualTypeOf<string>();
+	});
+
+	it("should make ResolvedUniverseEntry assignable to UniverseEntry but not the reverse", () => {
+		expectTypeOf<ResolvedUniverseEntry>().toExtend<UniverseEntry>();
+		expectTypeOf<UniverseEntry>().not.toExtend<ResolvedUniverseEntry>();
+	});
+
+	it("should leave every non-identity universe field optional on both sides of the split", () => {
+		expectTypeOf<UniverseEntry["voiceChatEnabled"]>().toEqualTypeOf<boolean | undefined>();
+		expectTypeOf<ResolvedUniverseEntry["voiceChatEnabled"]>().toEqualTypeOf<
+			boolean | undefined
+		>();
 	});
 });
 
