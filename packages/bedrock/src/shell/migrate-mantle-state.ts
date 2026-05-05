@@ -178,6 +178,7 @@ interface BuildStatesByEnvironmentInputs {
 		string,
 		ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>
 	>;
+	readonly universeHashByEnvironment: ReadonlyMap<string, Record<"en-us", Sha256Hex>>;
 }
 
 function buildStatesByEnvironment(
@@ -193,6 +194,7 @@ function buildStatesByEnvironment(
 					passIconHashesByKey: inputs.passHashesByEnvironment.get(name) ?? EMPTY_HASHES,
 					productIconHashesByKey:
 						inputs.productHashesByEnvironment.get(name) ?? EMPTY_HASHES,
+					universeIconHashes: inputs.universeHashByEnvironment.get(name),
 				}),
 			];
 		}),
@@ -215,6 +217,7 @@ function buildReport(inputs: FinalizeReportInputs, validated: Config): Migration
 	const {
 		passHashesByEnvironment,
 		productHashesByEnvironment,
+		universeHashByEnvironment,
 		warnings: iconWarnings,
 	} = inputs.iconRecomputation;
 	const warnings = [
@@ -232,6 +235,7 @@ function buildReport(inputs: FinalizeReportInputs, validated: Config): Migration
 			folds: inputs.folds,
 			passHashesByEnvironment,
 			productHashesByEnvironment,
+			universeHashByEnvironment,
 		}),
 		summary: summarizeWarnings(warnings),
 		warnings,

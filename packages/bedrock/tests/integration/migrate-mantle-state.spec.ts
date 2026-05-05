@@ -301,6 +301,28 @@ describe(migrateMantleState, () => {
 		expect(onSale.price).toBe(5);
 	});
 
+	it("should recompute the experienceIcon hash from disk and carry it onto the universe resource", async () => {
+		expect.assertions(3);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
+
+		const productionState = result.data.statesByEnvironment["production"];
+		assert(productionState !== undefined);
+
+		const [universe] = productionState.resources;
+		assert(universe?.kind === "universe");
+
+		expect(universe.icon).toStrictEqual({ "en-us": "assets/marketing/example-icon.png" });
+		expect(universe.iconFileHashes).toStrictEqual({ "en-us": ICON_FILE_SHA256 });
+		expect(universe.outputs.iconAssetIds).toStrictEqual({ "en-us": "2712537313290602" });
+	});
+
 	it("should round-trip the universe overlay through selectEnvironment per environment", async () => {
 		expect.assertions(2);
 
