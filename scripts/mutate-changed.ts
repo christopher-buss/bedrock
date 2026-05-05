@@ -62,6 +62,12 @@ function reportReject(reason: { kind: string; path: string }): void {
 }
 
 async function main(): Promise<void> {
+	const remoteHost = process.env["BEDROCK_REMOTE_MUTATE_HOST"];
+	if (remoteHost !== undefined && remoteHost !== "") {
+		const result = spawnSync("bun", ["scripts/mutate-remote.ts"], { stdio: "inherit" });
+		process.exit(result.status ?? 1);
+	}
+
 	const raw = readGitDiff();
 	const parsed = parseDiff(raw);
 
