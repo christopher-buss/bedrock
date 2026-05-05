@@ -177,7 +177,7 @@ async function selectPrimaryEnvironment(
 ): Promise<MigratePromptResult<string>> {
 	return fromSelect(helpers, {
 		message:
-			"Primary environment?\nIts config becomes the root; other environments only specify what differs.",
+			"Which environment should be the primary?\nIts settings become the defaults, so other environments only need to list what's different.",
 		options: environments.map((name) => ({ label: name, value: name })),
 	});
 }
