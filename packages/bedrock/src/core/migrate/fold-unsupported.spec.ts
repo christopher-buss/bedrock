@@ -13,7 +13,6 @@ const DEFERRED_CASES: ReadonlyArray<DeferredCase> = [
 	{ humanName: "audio assets", kind: "audioAsset" },
 	{ humanName: "badges", kind: "badge" },
 	{ humanName: "badge icons", kind: "badgeIcon" },
-	{ humanName: "experience icons", kind: "experienceIcon" },
 	{ humanName: "experience thumbnails", kind: "experienceThumbnail" },
 	{ humanName: "experience thumbnail ordering", kind: "experienceThumbnailOrder" },
 	{ humanName: "image assets", kind: "imageAsset" },
@@ -76,7 +75,7 @@ describe(foldUnsupported, () => {
 		const warnings = foldUnsupported([
 			mantleResource("badge", "first-win"),
 			mantleResource("product", "starter-pack"),
-			mantleResource("experienceIcon", "singleton"),
+			mantleResource("experienceThumbnail", "singleton"),
 		]);
 
 		expect(warnings).toHaveLength(3);

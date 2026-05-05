@@ -78,6 +78,16 @@ function placeConfiguration(key: string, inputs: unknown): MantleResource {
 	};
 }
 
+function experienceIcon(inputs: unknown, outputs: unknown): MantleResource {
+	return {
+		key: "singleton",
+		dependencies: [],
+		inputs,
+		kind: "experienceIcon",
+		outputs,
+	};
+}
+
 describe(foldUniverse, () => {
 	it("should map experience.outputs.assetId to universe.universeId", () => {
 		expect.assertions(1);
@@ -885,6 +895,144 @@ describe(foldUniverse, () => {
 					);
 				}),
 			).toHaveLength(2);
+		});
+	});
+
+	describe("experienceIcon fold", () => {
+		it("should map experienceIcon.inputs.filePath to universe.icon under the en-us locale", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceIcon({ filePath: "marketing/icon.png" }, { assetId: 18109205439 }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry.icon).toStrictEqual({ "en-us": "marketing/icon.png" });
+		});
+
+		it("should map experienceIcon.outputs.assetId to outputs.iconAssetIds under the en-us locale", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceIcon({ filePath: "marketing/icon.png" }, { assetId: 18109205439 }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.outputs.iconAssetIds).toStrictEqual({ "en-us": "18109205439" });
+		});
+
+		it("should accept a string-formatted assetId in experienceIcon outputs", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceIcon({ filePath: "icon.png" }, { assetId: "18109205439" }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.outputs.iconAssetIds).toStrictEqual({ "en-us": "18109205439" });
+		});
+
+		it("should emit one interpretive warning recording the implicit en-us locale assignment", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceIcon({ filePath: "icon.png" }, { assetId: 1 }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.warnings).toStrictEqual([
+				{
+					bedrockPath: "universe.icon",
+					kind: "interpretive",
+					mantlePath: "experienceIcon_singleton",
+					rule: "experience-icon-to-en-us-locale",
+				},
+			]);
+		});
+
+		it("should leave the entry untouched when no experienceIcon resource is present", () => {
+			expect.assertions(3);
+
+			const result = foldUniverse([experience(DEFAULT_EXPERIENCE_OUTPUTS)]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.outputs.iconAssetIds).toBeNil();
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should silently drop an experienceIcon whose inputs is not an object", () => {
+			expect.assertions(3);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceIcon("not-an-object", { assetId: 1 }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.outputs.iconAssetIds).toBeNil();
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should silently drop an experienceIcon whose filePath is non-string", () => {
+			expect.assertions(3);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceIcon({ filePath: 42 }, { assetId: 1 }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.outputs.iconAssetIds).toBeNil();
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should silently drop an experienceIcon whose outputs is not an object", () => {
+			expect.assertions(3);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceIcon({ filePath: "icon.png" }, undefined),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry).toStrictEqual({ universeId: "1" });
+			expect(result.outputs.iconAssetIds).toBeNil();
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should silently drop an experienceIcon whose assetId is missing or non-coercible", () => {
+			expect.assertions(2);
+
+			const missing = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceIcon({ filePath: "icon.png" }, {}),
+			]);
+			assert(missing !== undefined);
+
+			expect(missing.entry).toStrictEqual({ universeId: "1" });
+
+			const nonInteger = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceIcon({ filePath: "icon.png" }, { assetId: 1.5 }),
+			]);
+			assert(nonInteger !== undefined);
+
+			expect(nonInteger.entry).toStrictEqual({ universeId: "1" });
 		});
 	});
 

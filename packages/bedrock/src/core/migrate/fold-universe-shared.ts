@@ -1,14 +1,20 @@
+import type { UniverseOutputs } from "../resources.ts";
 import type { UniverseEntry } from "../schema.ts";
 import type { MigrationWarning } from "./migration-report.ts";
 
 /**
  * Output of one fold rule contributing to the eventual `UniverseEntry`.
- * Fragments compose by spreading `entryFragment` into the final entry and
- * concatenating `warnings`.
+ * Fragments compose by spreading `entryFragment` into the final entry,
+ * spreading `outputsFragment` into the matching `BedrockState` resource's
+ * `outputs`, and concatenating `warnings`. Most rules contribute only to
+ * the entry; rules that also carry Roblox-assigned identifiers (icons,
+ * thumbnails) fill `outputsFragment`.
  */
 export interface FoldFragment {
 	/** Subset of universe fields this rule populated (empty when the rule did not fire). */
 	readonly entryFragment: Partial<UniverseEntry>;
+	/** Subset of universe outputs this rule populated; absent when the rule contributes no Roblox-assigned identifiers. */
+	readonly outputsFragment?: Partial<UniverseOutputs>;
 	/** Diagnostics this rule emitted. */
 	readonly warnings: ReadonlyArray<MigrationWarning>;
 }
