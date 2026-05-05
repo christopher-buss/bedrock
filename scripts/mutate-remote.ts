@@ -8,7 +8,6 @@ const RSYNC_EXCLUDES = [
 	"--exclude=.git",
 	"--exclude=node_modules",
 	"--exclude=.stryker-tmp",
-	"--exclude=dist",
 	"--exclude=reports",
 	"--exclude=.cache",
 	"--exclude=.turbo",
