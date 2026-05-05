@@ -927,27 +927,28 @@ describe(foldUniverse, () => {
 			]);
 		});
 
-		it("should emit blocked for non-start placeConfiguration.name and not include it in displayName", () => {
+		it("should leave non-start placeConfiguration.name out of universe.displayName", () => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
 				place("start", { isStart: true }),
 				place("lobby", { isStart: false }),
-				placeConfiguration("start", { name: "My Place" }),
 				placeConfiguration("lobby", { name: "Lobby" }),
+				placeConfiguration("start", { name: "My Place" }),
 			]);
 
 			assert(result !== undefined);
 
 			expect(result.entry.displayName).toBe("My Place");
-			expect(result.warnings).toIncludeAllPartialMembers([
-				{
-					kind: "blocked",
-					mantlePath: "placeConfiguration_lobby.name",
-					reason: "non-start placeConfiguration.name has no Open Cloud equivalent",
-				},
-			]);
+			expect(
+				result.warnings.filter((warning) => {
+					return (
+						warning.kind === "blocked" &&
+						warning.mantlePath === "placeConfiguration_lobby.name"
+					);
+				}),
+			).toStrictEqual([]);
 		});
 
 		it("should leave displayName untouched when no places have isStart true", () => {
@@ -962,13 +963,7 @@ describe(foldUniverse, () => {
 			assert(result !== undefined);
 
 			expect(result.entry.displayName).toBeNil();
-			expect(result.warnings).toStrictEqual([
-				{
-					kind: "blocked",
-					mantlePath: "placeConfiguration_start.name",
-					reason: "non-start placeConfiguration.name has no Open Cloud equivalent",
-				},
-			]);
+			expect(result.warnings).toStrictEqual([]);
 		});
 
 		it("should not treat isStart=true on a non-place resource as a start place", () => {
@@ -1009,7 +1004,7 @@ describe(foldUniverse, () => {
 		});
 
 		it("should omit displayName and emit ambiguous when multiple places have isStart true", () => {
-			expect.assertions(3);
+			expect.assertions(2);
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
@@ -1028,7 +1023,6 @@ describe(foldUniverse, () => {
 					mantlePath: "place_*.isStart",
 				},
 			]);
-			expect(result.warnings.filter((warning) => warning.kind === "blocked")).toHaveLength(2);
 		});
 
 		it("should silently skip a placeConfiguration whose name is non-string", () => {
@@ -1073,12 +1067,14 @@ describe(foldUniverse, () => {
 			assert(result !== undefined);
 
 			expect(result.entry).toStrictEqual({ universeId: "1" });
-			expect(result.warnings).toIncludeAllPartialMembers([
-				{
-					kind: "blocked",
-					mantlePath: "placeConfiguration_start.name",
-				},
-			]);
+			expect(
+				result.warnings.filter((warning) => {
+					return (
+						warning.kind === "blocked" &&
+						warning.mantlePath === "placeConfiguration_start.name"
+					);
+				}),
+			).toStrictEqual([]);
 		});
 	});
 

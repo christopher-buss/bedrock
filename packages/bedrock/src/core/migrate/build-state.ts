@@ -92,14 +92,14 @@ function universeResource(
 function placeResource(key: string, fold: PlaceFoldEntry): ResourceCurrentState<"place"> {
 	return {
 		key: asResourceKey(key),
-		description: undefined,
-		displayName: undefined,
+		description: fold.entry.description,
+		displayName: fold.entry.displayName,
 		fileHash: fold.fileHash,
 		filePath: fold.entry.filePath,
 		kind: "place",
 		outputs: fold.outputs,
 		placeId: asRobloxAssetId(fold.placeId),
-		serverSize: undefined,
+		serverSize: fold.entry.serverSize,
 	};
 }
 

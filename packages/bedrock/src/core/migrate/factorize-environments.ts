@@ -1,8 +1,8 @@
 import type { Result } from "@bedrock/ocale";
 
 import type { Config, EnvironmentEntry, GamePassEntry, PlaceEntry } from "../schema.ts";
+import { buildPlacesOverlay, buildRootPlaces } from "./factorize-places.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
-import type { PlaceFoldEntry } from "./fold-places.ts";
 import type { MigrateError, MigrationWarning } from "./migration-report.ts";
 
 interface FactorizeInputs {
@@ -17,12 +17,16 @@ interface FactorizeResult {
 }
 
 type PassOverlayEntry = NonNullable<EnvironmentEntry["passes"]>[string];
-type PlaceOverlayEntry = NonNullable<EnvironmentEntry["places"]>[string];
 type UniverseOverlay = NonNullable<EnvironmentEntry["universe"]>;
 
 interface ResolvedPrimary {
 	readonly name: string;
 	readonly fold: EnvironmentFoldResult;
+}
+
+interface OverlayContext {
+	readonly primary: EnvironmentFoldResult | undefined;
+	readonly rootPlaces: Record<string, PlaceEntry> | undefined;
 }
 
 /**
@@ -81,18 +85,6 @@ function pickPrimary(
 	return { data: { name: requested, fold }, success: true };
 }
 
-function buildRootPlaces(
-	primaryFold: EnvironmentFoldResult,
-): Record<string, PlaceEntry> | undefined {
-	if (primaryFold.places.size === 0) {
-		return undefined;
-	}
-
-	return Object.fromEntries(
-		[...primaryFold.places.entries()].map(([key, fold]) => [key, fold.entry]),
-	);
-}
-
 function buildRootPasses(
 	primaryFold: EnvironmentFoldResult,
 ): Record<string, GamePassEntry> | undefined {
@@ -101,33 +93,6 @@ function buildRootPasses(
 	}
 
 	return Object.fromEntries(primaryFold.passes.map(({ key, entry }) => [key, entry]));
-}
-
-function buildPlaceOverlayEntry(
-	fold: PlaceFoldEntry,
-	primary: PlaceFoldEntry | undefined,
-): PlaceOverlayEntry {
-	if (primary === undefined || primary.entry.filePath === fold.entry.filePath) {
-		return { placeId: fold.placeId };
-	}
-
-	return { filePath: fold.entry.filePath, placeId: fold.placeId };
-}
-
-function buildPlacesOverlay(
-	fold: EnvironmentFoldResult,
-	primary: EnvironmentFoldResult | undefined,
-): Record<string, PlaceOverlayEntry> | undefined {
-	if (fold.places.size === 0) {
-		return undefined;
-	}
-
-	const overlay: Record<string, PlaceOverlayEntry> = {};
-	for (const [key, foldEntry] of fold.places) {
-		overlay[key] = buildPlaceOverlayEntry(foldEntry, primary?.places.get(key));
-	}
-
-	return overlay;
 }
 
 function buildUniverseOverlay(
@@ -193,11 +158,11 @@ function buildPassesOverlay(
 
 function buildEnvironmentEntry(
 	fold: EnvironmentFoldResult,
-	primary: EnvironmentFoldResult | undefined,
+	context: OverlayContext,
 ): EnvironmentEntry {
-	const passes = buildPassesOverlay(fold, primary);
-	const places = buildPlacesOverlay(fold, primary);
-	const universe = buildUniverseOverlay(fold, primary);
+	const passes = buildPassesOverlay(fold, context.primary);
+	const places = buildPlacesOverlay(fold, context.rootPlaces);
+	const universe = buildUniverseOverlay(fold, context.primary);
 
 	const entry: EnvironmentEntry = {};
 	if (passes !== undefined) {
@@ -217,11 +182,11 @@ function buildEnvironmentEntry(
 
 function buildEnvironmentEntries(
 	folds: ReadonlyMap<string, EnvironmentFoldResult>,
-	primaryFold: EnvironmentFoldResult,
+	context: OverlayContext,
 ): Record<string, EnvironmentEntry> {
 	const entries: Record<string, EnvironmentEntry> = {};
 	for (const [name, fold] of folds) {
-		entries[name] = buildEnvironmentEntry(fold, primaryFold);
+		entries[name] = buildEnvironmentEntry(fold, context);
 	}
 
 	return entries;
@@ -231,8 +196,11 @@ function buildConfig(
 	folds: ReadonlyMap<string, EnvironmentFoldResult>,
 	primaryFold: EnvironmentFoldResult,
 ): Config {
-	const environments = buildEnvironmentEntries(folds, primaryFold);
-	const places = buildRootPlaces(primaryFold);
+	const places = buildRootPlaces(folds, primaryFold);
+	const environments = buildEnvironmentEntries(folds, {
+		primary: primaryFold,
+		rootPlaces: places,
+	});
 	const passes = buildRootPasses(primaryFold);
 	const universe = primaryFold.universe?.entry;
 

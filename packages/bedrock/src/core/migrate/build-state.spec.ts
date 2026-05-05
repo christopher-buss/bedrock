@@ -210,6 +210,64 @@ describe(buildState, () => {
 		expect(resource.fileHash).toBe(VALID_HASH);
 	});
 
+	it("should propagate folded description, displayName, and serverSize onto the place resource", () => {
+		expect.assertions(3);
+
+		const state = buildState({
+			environment: "production",
+			folded: {
+				passes: [],
+				places: new Map([
+					[
+						"start",
+						placeFold({
+							entry: {
+								description: "A welcoming start place",
+								displayName: "Atrium",
+								filePath: "place.rbxl",
+								serverSize: 32,
+							},
+						}),
+					],
+				]),
+				universe: undefined,
+				warnings: [],
+			},
+			iconHashesByKey: NO_HASHES,
+		});
+
+		const [resource] = state.resources;
+		assert(resource !== undefined);
+		assert(resource.kind === "place");
+
+		expect(resource.description).toBe("A welcoming start place");
+		expect(resource.displayName).toBe("Atrium");
+		expect(resource.serverSize).toBe(32);
+	});
+
+	it("should leave description, displayName, and serverSize undefined when the folded entry omits them", () => {
+		expect.assertions(3);
+
+		const state = buildState({
+			environment: "production",
+			folded: {
+				passes: [],
+				places: new Map([["start", placeFold()]]),
+				universe: undefined,
+				warnings: [],
+			},
+			iconHashesByKey: NO_HASHES,
+		});
+
+		const [resource] = state.resources;
+		assert(resource !== undefined);
+		assert(resource.kind === "place");
+
+		expect(resource.description).toBeUndefined();
+		expect(resource.displayName).toBeUndefined();
+		expect(resource.serverSize).toBeUndefined();
+	});
+
 	it("should emit place resources after the universe resource", () => {
 		expect.assertions(2);
 

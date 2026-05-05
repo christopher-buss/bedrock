@@ -288,20 +288,248 @@ describe(foldPlaces, () => {
 		expect(lobby.entry).toStrictEqual({ filePath: "lobby.rbxl" });
 	});
 
+	describe("placeConfiguration.description fold", () => {
+		it("should fold description onto the matched entry", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", { description: "A project template" }),
+			]);
+
+			const entry = result.entries.get("start");
+			assert(entry !== undefined);
+
+			expect(entry.entry.description).toBe("A project template");
+		});
+
+		it("should emit one interpretive warning for the description fold", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", { description: "A project template" }),
+			]);
+
+			expect(result.warnings).toStrictEqual([
+				{
+					bedrockPath: "places.start.description",
+					kind: "interpretive",
+					mantlePath: "placeConfiguration_start.description",
+					rule: "place-description",
+				},
+			]);
+		});
+
+		it("should silently skip a non-string description", () => {
+			expect.assertions(2);
+
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", { description: 42 }),
+			]);
+
+			const entry = result.entries.get("start");
+			assert(entry !== undefined);
+
+			expect(entry.entry.description).toBeNil();
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should emit an ambiguous warning when a placeConfiguration has no matching place or placeFile", () => {
+			expect.assertions(4);
+
+			const result = foldPlaces([placeConfiguration("orphan", { description: "Stranded" })]);
+
+			expect(result.entries.size).toBe(0);
+			expect(result.warnings).toHaveLength(1);
+
+			const [warning] = result.warnings;
+			assert(warning?.kind === "ambiguous");
+
+			expect(warning.mantlePath).toBe("placeConfiguration_orphan");
+			expect(warning.hint).toMatch(/verify your mantle state/i);
+		});
+
+		it("should emit a placeConfiguration orphan warning alongside the place orphan warning when only the placeFile is missing", () => {
+			expect.assertions(2);
+
+			const result = foldPlaces([
+				place({ key: "lonely", outputs: { assetId: 17613681043 } }),
+				placeConfiguration("lonely", { description: "Stranded" }),
+			]);
+
+			expect(result.entries.size).toBe(0);
+			expect(result.warnings).toIncludeAllPartialMembers([
+				{ kind: "ambiguous", mantlePath: "place_lonely" },
+				{ kind: "ambiguous", mantlePath: "placeConfiguration_lonely" },
+			]);
+		});
+
+		it("should emit a placeConfiguration orphan warning alongside the placeFile orphan warning when only the place is missing", () => {
+			expect.assertions(2);
+
+			const result = foldPlaces([
+				defaultPlaceFile("lonely"),
+				placeConfiguration("lonely", { description: "Stranded" }),
+			]);
+
+			expect(result.entries.size).toBe(0);
+			expect(result.warnings).toIncludeAllPartialMembers([
+				{ kind: "ambiguous", mantlePath: "placeFile_lonely" },
+				{ kind: "ambiguous", mantlePath: "placeConfiguration_lonely" },
+			]);
+		});
+	});
+
+	describe("placeConfiguration.maxPlayerCount fold", () => {
+		it("should fold maxPlayerCount onto entry.serverSize", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", { maxPlayerCount: 700 }),
+			]);
+
+			const entry = result.entries.get("start");
+			assert(entry !== undefined);
+
+			expect(entry.entry.serverSize).toBe(700);
+		});
+
+		it("should emit one interpretive warning for the serverSize rename", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", { maxPlayerCount: 700 }),
+			]);
+
+			expect(result.warnings).toStrictEqual([
+				{
+					bedrockPath: "places.start.serverSize",
+					kind: "interpretive",
+					mantlePath: "placeConfiguration_start.maxPlayerCount",
+					rule: "max-player-count-to-server-size",
+				},
+			]);
+		});
+
+		it.for<[label: string, value: unknown]>([
+			["zero", 0],
+			["negative", -3],
+			["fractional", 1.5],
+			["string", "700"],
+		])("should silently skip a %s maxPlayerCount", ([, value]) => {
+			expect.assertions(2);
+
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", { maxPlayerCount: value }),
+			]);
+
+			const entry = result.entries.get("start");
+			assert(entry !== undefined);
+
+			expect(entry.entry.serverSize).toBeNil();
+			expect(result.warnings).toStrictEqual([]);
+		});
+	});
+
+	describe("placeConfiguration.name fold for non-start places", () => {
+		it("should fold a non-start placeConfiguration name onto entry.displayName", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				place({ key: "start", inputs: { isStart: true }, outputs: { assetId: 1 } }),
+				place({ key: "lobby", inputs: { isStart: false }, outputs: { assetId: 2 } }),
+				defaultPlaceFile("start"),
+				defaultPlaceFile("lobby"),
+				placeConfiguration("lobby", { name: "Lobby" }),
+			]);
+
+			const entry = result.entries.get("lobby");
+			assert(entry !== undefined);
+
+			expect(entry.entry.displayName).toBe("Lobby");
+		});
+
+		it("should emit one interpretive warning for the non-start name fold", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				place({ key: "start", inputs: { isStart: true }, outputs: { assetId: 1 } }),
+				place({ key: "lobby", inputs: { isStart: false }, outputs: { assetId: 2 } }),
+				defaultPlaceFile("start"),
+				defaultPlaceFile("lobby"),
+				placeConfiguration("lobby", { name: "Lobby" }),
+			]);
+
+			expect(result.warnings).toIncludeAllPartialMembers([
+				{
+					bedrockPath: "places.lobby.displayName",
+					kind: "interpretive",
+					mantlePath: "placeConfiguration_lobby.name",
+					rule: "place-name-to-display-name",
+				},
+			]);
+		});
+
+		it("should leave the start place's displayName unset on entry.displayName", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				place({ key: "start", inputs: { isStart: true }, outputs: { assetId: 1 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", { name: "Start" }),
+			]);
+
+			const entry = result.entries.get("start");
+			assert(entry !== undefined);
+
+			expect(entry.entry.displayName).toBeNil();
+		});
+
+		it("should silently skip a non-string name", () => {
+			expect.assertions(2);
+
+			const result = foldPlaces([
+				place({ key: "lobby", inputs: { isStart: false }, outputs: { assetId: 2 } }),
+				defaultPlaceFile("lobby"),
+				placeConfiguration("lobby", { name: 42 }),
+			]);
+
+			const entry = result.entries.get("lobby");
+			assert(entry !== undefined);
+
+			expect(entry.entry.displayName).toBeNil();
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should treat a place resource with non-object inputs as non-start", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				place({ key: "lobby", inputs: "not-an-object", outputs: { assetId: 2 } }),
+				defaultPlaceFile("lobby"),
+				placeConfiguration("lobby", { name: "Lobby" }),
+			]);
+
+			const entry = result.entries.get("lobby");
+			assert(entry !== undefined);
+
+			expect(entry.entry.displayName).toBe("Lobby");
+		});
+	});
+
 	describe("blocked placeConfiguration fields", () => {
 		it.for<[label: string, field: string, value: unknown, reason: string]>([
-			[
-				"description",
-				"description",
-				"A project template",
-				"placeConfiguration.description has no Open Cloud equivalent",
-			],
-			[
-				"maxPlayerCount",
-				"maxPlayerCount",
-				700,
-				"placeConfiguration.maxPlayerCount has no Open Cloud equivalent",
-			],
 			[
 				"allowCopying",
 				"allowCopying",
@@ -323,7 +551,11 @@ describe(foldPlaces, () => {
 		])("should emit a blocked warning when %s is set", ([, field, value, reason]) => {
 			expect.assertions(1);
 
-			const result = foldPlaces([placeConfiguration("start", { [field]: value })]);
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", { [field]: value }),
+			]);
 
 			expect(result.warnings).toStrictEqual([
 				{
@@ -338,6 +570,8 @@ describe(foldPlaces, () => {
 			expect.assertions(1);
 
 			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
 				placeConfiguration("start", {
 					allowCopying: undefined,
 					description: undefined,
@@ -351,18 +585,20 @@ describe(foldPlaces, () => {
 			expect.assertions(1);
 
 			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				place({ key: "lobby", outputs: { assetId: 17613681044 } }),
+				defaultPlaceFile("lobby"),
 				placeConfiguration("start", {
 					allowCopying: true,
-					description: "Start place",
-					maxPlayerCount: 50,
+					customSocialSlotsCount: 4,
 				}),
 				placeConfiguration("lobby", { socialSlotType: "Empty" }),
 			]);
 
 			expect(result.warnings).toIncludeAllPartialMembers([
-				{ kind: "blocked", mantlePath: "placeConfiguration_start.description" },
-				{ kind: "blocked", mantlePath: "placeConfiguration_start.maxPlayerCount" },
 				{ kind: "blocked", mantlePath: "placeConfiguration_start.allowCopying" },
+				{ kind: "blocked", mantlePath: "placeConfiguration_start.customSocialSlotsCount" },
 				{ kind: "blocked", mantlePath: "placeConfiguration_lobby.socialSlotType" },
 			]);
 		});
@@ -381,7 +617,11 @@ describe(foldPlaces, () => {
 		it("should skip a placeConfiguration whose inputs is not an object", () => {
 			expect.assertions(1);
 
-			const result = foldPlaces([placeConfiguration("start", "not-an-object")]);
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", "not-an-object"),
+			]);
 
 			expect(result.warnings).toStrictEqual([]);
 		});
@@ -389,7 +629,11 @@ describe(foldPlaces, () => {
 		it("should not emit a blocked warning for the name field (foldDisplayName owns it)", () => {
 			expect.assertions(1);
 
-			const result = foldPlaces([placeConfiguration("start", { name: "My Place" })]);
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", { name: "My Place" }),
+			]);
 
 			expect(
 				result.warnings.filter((warning) => {

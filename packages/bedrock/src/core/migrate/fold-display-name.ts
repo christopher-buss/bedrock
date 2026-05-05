@@ -1,11 +1,9 @@
 import {
 	ambiguousWarning,
-	blockedWarning,
 	EMPTY_FRAGMENT,
 	type FoldFragment,
 	interpretiveWarning,
 	isObjectPayload,
-	mergeFragment,
 } from "./fold-universe-shared.ts";
 import type { MantleResource } from "./types.ts";
 
@@ -38,18 +36,6 @@ function startKeys(resources: ReadonlyArray<MantleResource>): ReadonlyArray<stri
 	return resources.filter(isStartPlace).map((resource) => resource.key);
 }
 
-function blockedFragment(key: string): FoldFragment {
-	return {
-		entryFragment: {},
-		warnings: [
-			blockedWarning(
-				`${PLACE_CONFIGURATION_KIND}_${key}.name`,
-				"non-start placeConfiguration.name has no Open Cloud equivalent",
-			),
-		],
-	};
-}
-
 function interpretiveFragment(named: NamedPlaceConfig): FoldFragment {
 	return {
 		entryFragment: { displayName: named.name },
@@ -75,50 +61,27 @@ const AMBIGUOUS_MULTIPLE_STARTS: FoldFragment = {
 
 /**
  * Fold the start place's `placeConfiguration_<k>.name` into
- * `universe.displayName`. Non-start places' names emit `blocked` warnings;
- * multiple `isStart: true` places emit one `ambiguous` warning and skip
- * the displayName mapping (every placeConfiguration name is blocked in
- * that case).
+ * `universe.displayName`. Non-start places' names are folded onto each
+ * place's `displayName` by `foldPlaces`; multiple `isStart: true` places
+ * emit one `ambiguous` warning and skip the displayName mapping.
  *
  * @param resources - Mantle resource list for one environment.
  * @returns The folded displayName plus per-rule diagnostics.
  */
 export function foldDisplayName(resources: ReadonlyArray<MantleResource>): FoldFragment {
-	const namedConfigs = resources
-		.filter((resource) => resource.kind === PLACE_CONFIGURATION_KIND)
-		.flatMap((resource) => {
-			const named = readPlaceConfigName(resource);
-			return named === undefined ? [] : [named];
-		});
-
 	const starts = startKeys(resources);
 	if (starts.length >= 2) {
-		return mergeFragment(AMBIGUOUS_MULTIPLE_STARTS, foldAllBlocked(namedConfigs));
+		return AMBIGUOUS_MULTIPLE_STARTS;
 	}
 
 	const [startKey] = starts;
-	if (startKey === undefined) {
-		return foldAllBlocked(namedConfigs);
+	const startConfigResource = resources.findLast((resource) => {
+		return resource.kind === PLACE_CONFIGURATION_KIND && resource.key === startKey;
+	});
+	if (startConfigResource === undefined) {
+		return EMPTY_FRAGMENT;
 	}
 
-	return foldFromSingleStart(startKey, namedConfigs);
-}
-
-function foldFromSingleStart(
-	startKey: string,
-	namedConfigs: ReadonlyArray<NamedPlaceConfig>,
-): FoldFragment {
-	return namedConfigs.reduce<FoldFragment>((accumulator, named) => {
-		return mergeFragment(
-			accumulator,
-			named.key === startKey ? interpretiveFragment(named) : blockedFragment(named.key),
-		);
-	}, EMPTY_FRAGMENT);
-}
-
-function foldAllBlocked(namedConfigs: ReadonlyArray<NamedPlaceConfig>): FoldFragment {
-	return namedConfigs.reduce<FoldFragment>(
-		(accumulator, named) => mergeFragment(accumulator, blockedFragment(named.key)),
-		EMPTY_FRAGMENT,
-	);
+	const named = readPlaceConfigName(startConfigResource);
+	return named === undefined ? EMPTY_FRAGMENT : interpretiveFragment(named);
 }
