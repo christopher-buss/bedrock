@@ -1,4 +1,4 @@
-import type { HttpRequest, OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
+import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
 import {
 	buildCreateRequest,
 	buildGetRequest,
@@ -18,6 +18,14 @@ import type {
 	GetDeveloperProductParameters,
 	UpdateDeveloperProductParameters,
 } from "../../domains/developer-products/products/types.ts";
+import { buildUploadIconRequest } from "../../domains/game-internationalization/developer-product-icon/builders.ts";
+import type { UploadDeveloperProductIconParameters } from "../../domains/game-internationalization/developer-product-icon/types.ts";
+import { buildUpdateRequest as buildLocaleNameDescRequest } from "../../domains/game-internationalization/developer-product-name-description/builders.ts";
+import {
+	LOCALIZATION_OPERATION_LIMIT,
+	LOCALIZATION_REQUIRED_SCOPES,
+} from "../../domains/game-internationalization/developer-product-name-description/operations.ts";
+import type { UpdateDeveloperProductNameDescriptionParameters } from "../../domains/game-internationalization/developer-product-name-description/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
@@ -28,9 +36,9 @@ import {
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
 
-function makeSpec<P>(
-	spec: ResourceMethodSpec<P, DeveloperProduct>,
-): ResourceMethodSpec<P, DeveloperProduct> {
+function makeSpec<P, R = DeveloperProduct>(
+	spec: ResourceMethodSpec<P, R>,
+): ResourceMethodSpec<P, R> {
 	return Object.freeze(spec);
 }
 
@@ -52,20 +60,71 @@ const GET_SPEC = makeSpec<GetDeveloperProductParameters>({
 	requiredScopes: GET_REQUIRED_SCOPES,
 });
 
-function buildUpdateOkRequest(
-	parameters: UpdateDeveloperProductParameters,
-): Result<HttpRequest, OpenCloudError> {
-	return okRequest(buildUpdateRequest(parameters));
-}
-
-const UPDATE_SPEC: ResourceMethodSpec<UpdateDeveloperProductParameters, undefined> = Object.freeze({
-	buildRequest: buildUpdateOkRequest,
+const UPDATE_SPEC = makeSpec<UpdateDeveloperProductParameters, undefined>({
+	buildRequest: (parameters) => okRequest(buildUpdateRequest(parameters)),
 	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 	methodKind: "idempotent",
 	operationLimit: UPDATE_OPERATION_LIMIT,
 	parse: parseEmptyResponse,
 	requiredScopes: WRITE_REQUIRED_SCOPES,
 });
+
+const UPDATE_NAME_DESCRIPTION_SPEC = makeSpec<
+	UpdateDeveloperProductNameDescriptionParameters,
+	undefined
+>({
+	buildRequest: (parameters) => okRequest(buildLocaleNameDescRequest(parameters)),
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: LOCALIZATION_OPERATION_LIMIT,
+	parse: parseEmptyResponse,
+	requiredScopes: LOCALIZATION_REQUIRED_SCOPES,
+});
+
+const UPLOAD_ICON_SPEC = makeSpec<UploadDeveloperProductIconParameters, undefined>({
+	buildRequest: (parameters) => okRequest(buildUploadIconRequest(parameters)),
+	methodDefaults: CREATE_METHOD_DEFAULTS,
+	methodKind: "create",
+	operationLimit: LOCALIZATION_OPERATION_LIMIT,
+	parse: parseEmptyResponse,
+	requiredScopes: LOCALIZATION_REQUIRED_SCOPES,
+});
+
+interface DeveloperProductLocalizationHandle {
+	/**
+	 * Updates the per-locale display name and/or description registered against
+	 * a developer product. Either `name`, `description`, or both may be
+	 * supplied; omitted fields are not forwarded so the server leaves the
+	 * existing value for that locale untouched. Mirrors the upstream `200 OK`
+	 * echo body as `undefined` data.
+	 *
+	 * @param parameters - Product and language identifiers plus the optional
+	 *   replacement values.
+	 * @param options - Optional per-request overrides.
+	 * @returns A success {@link Result} with no payload, or the
+	 *   {@link OpenCloudError} that caused the request to fail.
+	 */
+	updateNameDescription: (
+		parameters: UpdateDeveloperProductNameDescriptionParameters,
+		options?: RequestOptions,
+	) => Promise<Result<undefined, OpenCloudError>>;
+	/**
+	 * Uploads or replaces the per-locale icon for a developer product. A
+	 * subsequent upload for the same `(productId, languageCode)` pair replaces
+	 * the existing icon for that locale. Does not retry on 5xx so a duplicate
+	 * upload cannot be created if the server fails mid-write.
+	 *
+	 * @param parameters - Product and language identifiers plus the image
+	 *   bytes to upload.
+	 * @param options - Optional per-request overrides.
+	 * @returns A success {@link Result} with no payload, or the
+	 *   {@link OpenCloudError} that caused the request to fail.
+	 */
+	uploadIcon: (
+		parameters: UploadDeveloperProductIconParameters,
+		options?: RequestOptions,
+	) => Promise<Result<undefined, OpenCloudError>>;
+}
 
 /**
  * Public client for the Roblox Open Cloud Developer Products API.
@@ -96,6 +155,16 @@ export class DeveloperProductsClient {
 	readonly #inner: ResourceClient;
 
 	/**
+	 * Operation Group exposing per-locale localization Operations
+	 * (`updateNameDescription`, `uploadIcon`) backed by the
+	 * `legacy-game-internationalization` domain. Source-language values
+	 * remain on {@link DeveloperProductsClient.update}; methods on this
+	 * group set per-locale overlays on top. Shares the parent client's
+	 * HTTP, rate-limit, and retry plumbing.
+	 */
+	public readonly localization: DeveloperProductLocalizationHandle;
+
+	/**
 	 * Creates a new {@link DeveloperProductsClient}. Configuration is frozen
 	 * on construction; per-request overrides are accepted on each method.
 	 *
@@ -103,6 +172,7 @@ export class DeveloperProductsClient {
 	 */
 	constructor(options: OpenCloudClientOptions) {
 		this.#inner = new ResourceClient(options);
+		this.localization = createLocalizationHandle(this.#inner);
 	}
 
 	/**
@@ -155,4 +225,15 @@ export class DeveloperProductsClient {
 	): Promise<Result<undefined, OpenCloudError>> {
 		return this.#inner.execute({ options, parameters, spec: UPDATE_SPEC });
 	}
+}
+
+function createLocalizationHandle(inner: ResourceClient): DeveloperProductLocalizationHandle {
+	return {
+		async updateNameDescription(parameters, options) {
+			return inner.execute({ options, parameters, spec: UPDATE_NAME_DESCRIPTION_SPEC });
+		},
+		async uploadIcon(parameters, options) {
+			return inner.execute({ options, parameters, spec: UPLOAD_ICON_SPEC });
+		},
+	};
 }
