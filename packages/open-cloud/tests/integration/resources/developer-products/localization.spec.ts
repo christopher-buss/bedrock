@@ -137,5 +137,135 @@ describe(DeveloperProductsClient, () => {
 				expect(result.err).toHaveProperty("statusCode", 404);
 			});
 		});
+
+		describe("uploadIcon", () => {
+			it("should return success with no payload when the server returns 200", async () => {
+				expect.assertions(1);
+
+				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
+				const client = new DeveloperProductsClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: createFakeSleep(),
+				});
+
+				const result = await client.localization.uploadIcon({
+					image: new Uint8Array([1, 2, 3]),
+					languageCode: "fr-fr",
+					productId: "12345",
+				});
+
+				assert(result.success);
+
+				expect(result.data).toBeUndefined();
+			});
+
+			it("should send a POST with multipart FormData to the localized icon URL", async () => {
+				expect.assertions(3);
+
+				const httpClient = createFakeHttpClient().mockResponse({ body: {}, status: 200 });
+				const client = new DeveloperProductsClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: createFakeSleep(),
+				});
+
+				await client.localization.uploadIcon({
+					image: new Uint8Array([1, 2, 3]),
+					languageCode: "fr-fr",
+					productId: "12345",
+				});
+
+				expect(httpClient.requests[0]?.request.method).toBe("POST");
+				expect(httpClient.requests[0]?.request.url).toBe(
+					"/legacy-game-internationalization/v1/developer-products/12345/icons/language-codes/fr-fr",
+				);
+				expect(httpClient.requests[0]?.request.body).toBeInstanceOf(FormData);
+			});
+
+			it("should not retry a 5xx so a duplicate icon upload can't be created", async () => {
+				expect.assertions(2);
+
+				const httpClient = createFakeHttpClient()
+					.mockApiError({ statusCode: 500 })
+					.mockResponse({ body: {}, status: 200 });
+				const client = new DeveloperProductsClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: createFakeSleep(),
+				});
+
+				const result = await client.localization.uploadIcon({
+					image: new Uint8Array([1, 2, 3]),
+					languageCode: "fr-fr",
+					productId: "12345",
+				});
+
+				assert(!result.success);
+
+				expect(result.err).toBeInstanceOf(ApiError);
+				expect(httpClient.requests).toHaveLength(1);
+			});
+
+			it("should surface a 403 as a PermissionError naming legacy-developer-product:manage", async () => {
+				expect.assertions(2);
+
+				const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
+				const client = new DeveloperProductsClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: createFakeSleep(),
+				});
+
+				const result = await client.localization.uploadIcon({
+					image: new Uint8Array([1, 2, 3]),
+					languageCode: "fr-fr",
+					productId: "12345",
+				});
+
+				assert(!result.success);
+				assert(result.err instanceof PermissionError);
+
+				expect(result.err.requiredScopes).toStrictEqual([
+					"legacy-developer-product:manage",
+				]);
+				expect(result.err.operationKey).toBe("developer-product-localization");
+			});
+		});
+
+		describe("rate limit", () => {
+			it("should account updateNameDescription and uploadIcon against one shared bucket", async () => {
+				expect.assertions(1);
+
+				const httpClient = createFakeHttpClient();
+				for (let index = 0; index < 11; index++) {
+					httpClient.mockResponse({ body: {}, status: 200 });
+				}
+
+				const client = new DeveloperProductsClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: createFakeSleep(),
+				});
+
+				for (let index = 0; index < 11; index++) {
+					if (index % 2 === 0) {
+						await client.localization.updateNameDescription({
+							name: "Gem Pack",
+							languageCode: "fr-fr",
+							productId: "12345",
+						});
+					} else {
+						await client.localization.uploadIcon({
+							image: new Uint8Array([1, 2, 3]),
+							languageCode: "fr-fr",
+							productId: "12345",
+						});
+					}
+				}
+
+				expect(httpClient.requests).toHaveLength(11);
+			});
+		});
 	});
 });

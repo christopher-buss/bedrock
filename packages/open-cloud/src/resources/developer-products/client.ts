@@ -18,6 +18,8 @@ import type {
 	GetDeveloperProductParameters,
 	UpdateDeveloperProductParameters,
 } from "../../domains/developer-products/products/types.ts";
+import { buildUploadIconRequest } from "../../domains/game-internationalization/developer-product-icon/builders.ts";
+import type { UploadDeveloperProductIconParameters } from "../../domains/game-internationalization/developer-product-icon/types.ts";
 import { buildUpdateRequest as buildLocaleNameDescRequest } from "../../domains/game-internationalization/developer-product-name-description/builders.ts";
 import {
 	LOCALIZATION_OPERATION_LIMIT,
@@ -91,6 +93,22 @@ const UPDATE_NAME_DESCRIPTION_SPEC: ResourceMethodSpec<
 	requiredScopes: LOCALIZATION_REQUIRED_SCOPES,
 });
 
+function buildUploadIconOkRequest(
+	parameters: UploadDeveloperProductIconParameters,
+): Result<HttpRequest, OpenCloudError> {
+	return okRequest(buildUploadIconRequest(parameters));
+}
+
+const UPLOAD_ICON_SPEC: ResourceMethodSpec<UploadDeveloperProductIconParameters, undefined> =
+	Object.freeze({
+		buildRequest: buildUploadIconOkRequest,
+		methodDefaults: CREATE_METHOD_DEFAULTS,
+		methodKind: "create",
+		operationLimit: LOCALIZATION_OPERATION_LIMIT,
+		parse: parseEmptyResponse,
+		requiredScopes: LOCALIZATION_REQUIRED_SCOPES,
+	});
+
 interface DeveloperProductLocalizationHandle {
 	/**
 	 * Updates the per-locale display name and/or description registered against
@@ -108,6 +126,22 @@ interface DeveloperProductLocalizationHandle {
 	 */
 	updateNameDescription: (
 		parameters: UpdateDeveloperProductNameDescriptionParameters,
+		options?: RequestOptions,
+	) => Promise<Result<undefined, OpenCloudError>>;
+	/**
+	 * Uploads or replaces the per-locale icon for a developer product. A
+	 * subsequent upload for the same `(productId, languageCode)` pair replaces
+	 * the existing icon for that locale. Does not retry on 5xx so a duplicate
+	 * upload cannot be created if the server fails mid-write.
+	 *
+	 * @param parameters - Product and language identifiers plus the image
+	 *   bytes to upload.
+	 * @param options - Optional per-request overrides.
+	 * @returns A success {@link Result} with no payload, or the
+	 *   {@link OpenCloudError} that caused the request to fail.
+	 */
+	uploadIcon: (
+		parameters: UploadDeveloperProductIconParameters,
 		options?: RequestOptions,
 	) => Promise<Result<undefined, OpenCloudError>>;
 }
@@ -142,7 +176,7 @@ export class DeveloperProductsClient {
 
 	/**
 	 * Operation Group exposing per-locale localization Operations
-	 * (`updateNameDescription`) backed by the
+	 * (`updateNameDescription`, `uploadIcon`) backed by the
 	 * `legacy-game-internationalization` domain. Source-language values
 	 * remain on {@link DeveloperProductsClient.update}; methods on this
 	 * group set per-locale overlays on top. Shares the parent client's
@@ -217,6 +251,9 @@ function createLocalizationHandle(inner: ResourceClient): DeveloperProductLocali
 	return {
 		async updateNameDescription(parameters, options) {
 			return inner.execute({ options, parameters, spec: UPDATE_NAME_DESCRIPTION_SPEC });
+		},
+		async uploadIcon(parameters, options) {
+			return inner.execute({ options, parameters, spec: UPLOAD_ICON_SPEC });
 		},
 	};
 }
