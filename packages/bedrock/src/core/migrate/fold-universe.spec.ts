@@ -1416,7 +1416,7 @@ describe(foldUniverse, () => {
 				{
 					kind: "blocked",
 					mantlePath: "experience_singleton.groupId",
-					reason: "Open Cloud does not support transferring experience ownership",
+					reason: "Mantle used `groupId` to set the owning group when creating the experience. Bedrock requires pre-existing universe and place IDs and does not use this field.",
 				},
 			]);
 		});
@@ -1459,7 +1459,7 @@ describe(foldUniverse, () => {
 			assert(groupIdBlocked[0]?.kind === "blocked");
 
 			expect(groupIdBlocked[0].reason).toBe(
-				"Open Cloud does not support transferring experience ownership",
+				"Mantle used `groupId` to set the owning group when creating the experience. Bedrock requires pre-existing universe and place IDs and does not use this field.",
 			);
 		});
 	});
