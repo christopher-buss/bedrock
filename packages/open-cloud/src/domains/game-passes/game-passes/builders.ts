@@ -3,6 +3,7 @@ import { toBlob } from "../../../internal/utils/to-blob.ts";
 import type {
 	CreateGamePassParameters,
 	GetGamePassParameters,
+	ListGamePassesParameters,
 	UpdateGamePassParameters,
 } from "./types.ts";
 
@@ -17,6 +18,32 @@ export function buildGetRequest(parameters: GetGamePassParameters): HttpRequest 
 	return {
 		method: "GET",
 		url: `/game-passes/v1/universes/${parameters.universeId}/game-passes/${parameters.gamePassId}/creator`,
+	};
+}
+
+/**
+ * Builds a `GET` request for the Open Cloud "list game passes" endpoint.
+ * Optional `pageSize` and `pageToken` are appended to the query string only
+ * when defined so the server applies its own defaults for omitted fields.
+ *
+ * @param parameters - Universe identifier plus optional pagination cursors.
+ * @returns A pure {@link HttpRequest} describing the list call.
+ */
+export function buildListRequest(parameters: ListGamePassesParameters): HttpRequest {
+	const query = new URLSearchParams();
+	if (parameters.pageSize !== undefined) {
+		query.append("pageSize", String(parameters.pageSize));
+	}
+
+	if (parameters.pageToken !== undefined) {
+		query.append("pageToken", parameters.pageToken);
+	}
+
+	const queryString = query.toString();
+	const base = `/game-passes/v1/universes/${parameters.universeId}/game-passes/creator`;
+	return {
+		method: "GET",
+		url: queryString === "" ? base : `${base}?${queryString}`,
 	};
 }
 

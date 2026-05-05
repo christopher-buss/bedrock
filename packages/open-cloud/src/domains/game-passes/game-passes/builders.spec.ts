@@ -1,9 +1,15 @@
 import { assert, describe, expect, it } from "vitest";
 
-import { buildCreateRequest, buildGetRequest, buildUpdateRequest } from "./builders.ts";
+import {
+	buildCreateRequest,
+	buildGetRequest,
+	buildListRequest,
+	buildUpdateRequest,
+} from "./builders.ts";
 import type {
 	CreateGamePassParameters,
 	GetGamePassParameters,
+	ListGamePassesParameters,
 	UpdateGamePassParameters,
 } from "./types.ts";
 
@@ -400,5 +406,81 @@ describe(buildUpdateRequest, () => {
 		assert(appended instanceof Blob);
 
 		expect(appended.type).toBe("image/png");
+	});
+});
+
+describe(buildListRequest, () => {
+	it("should use the GET method", () => {
+		expect.assertions(1);
+
+		const parameters = { universeId: "67890" } satisfies ListGamePassesParameters;
+
+		const request = buildListRequest(parameters);
+
+		expect(request.method).toBe("GET");
+	});
+
+	it("should target the creator list URL with no query string when no cursors are provided", () => {
+		expect.assertions(1);
+
+		const parameters = { universeId: "67890" } satisfies ListGamePassesParameters;
+
+		const request = buildListRequest(parameters);
+
+		expect(request.url).toBe("/game-passes/v1/universes/67890/game-passes/creator");
+	});
+
+	it("should not set a body", () => {
+		expect.assertions(1);
+
+		const parameters = { universeId: "67890" } satisfies ListGamePassesParameters;
+
+		const request = buildListRequest(parameters);
+
+		expect(request.body).toBeUndefined();
+	});
+
+	it("should append pageSize when provided", () => {
+		expect.assertions(1);
+
+		const parameters = {
+			pageSize: 25,
+			universeId: "67890",
+		} satisfies ListGamePassesParameters;
+
+		const request = buildListRequest(parameters);
+
+		expect(request.url).toBe("/game-passes/v1/universes/67890/game-passes/creator?pageSize=25");
+	});
+
+	it("should append pageToken when provided", () => {
+		expect.assertions(1);
+
+		const parameters = {
+			pageToken: "cursor",
+			universeId: "67890",
+		} satisfies ListGamePassesParameters;
+
+		const request = buildListRequest(parameters);
+
+		expect(request.url).toBe(
+			"/game-passes/v1/universes/67890/game-passes/creator?pageToken=cursor",
+		);
+	});
+
+	it("should append both pageSize and pageToken when both are provided", () => {
+		expect.assertions(1);
+
+		const parameters = {
+			pageSize: 10,
+			pageToken: "cursor",
+			universeId: "67890",
+		} satisfies ListGamePassesParameters;
+
+		const request = buildListRequest(parameters);
+
+		expect(request.url).toBe(
+			"/game-passes/v1/universes/67890/game-passes/creator?pageSize=10&pageToken=cursor",
+		);
 	});
 });

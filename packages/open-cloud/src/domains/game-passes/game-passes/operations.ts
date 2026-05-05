@@ -31,6 +31,15 @@ export const UPDATE_OPERATION_LIMIT: OperationLimit = Object.freeze({
 });
 
 /**
+ * Per-second request ceiling for listing game passes for a universe,
+ * from the Open Cloud OpenAPI schema.
+ */
+export const LIST_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	maxPerSecond: 10,
+	operationKey: "game-passes.list",
+});
+
+/**
  * Scopes required to read a game pass, sourced from `x-roblox-scopes`
  * on the `GamePasses_GetGamePassConfig` operation in the vendored
  * OpenAPI schema.
@@ -50,3 +59,10 @@ export const CREATE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze(["gam
  * schema.
  */
 export const UPDATE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze(["game-pass:write"]);
+
+/**
+ * Scopes required to list game passes for a universe, sourced from
+ * `x-roblox-scopes` on the `GamePasses_ListGamePassConfigsByUniverse`
+ * operation in the vendored OpenAPI schema.
+ */
+export const LIST_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze(["game-pass:read"]);

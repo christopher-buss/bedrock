@@ -1,8 +1,13 @@
 import { describe, expectTypeOf, it } from "vitest";
 
 import type { OpenCloudError } from "../../errors/base.ts";
-import type { Result } from "../../types.ts";
-import type { GamePass, GamePassesClient, UpdateGamePassParameters } from "./index.ts";
+import type { Page, Result } from "../../types.ts";
+import type {
+	GamePass,
+	GamePassesClient,
+	ListGamePassesParameters,
+	UpdateGamePassParameters,
+} from "./index.ts";
 
 describe("UpdateGamePassParameters", () => {
 	it("should require gamePassId and universeId", () => {
@@ -42,10 +47,38 @@ describe("GamePass", () => {
 	});
 });
 
+describe("ListGamePassesParameters", () => {
+	it("should require universeId", () => {
+		expectTypeOf<ListGamePassesParameters>().toExtend<{ universeId: string }>();
+	});
+
+	it("should accept just the universeId without cursors", () => {
+		const parameters: ListGamePassesParameters = { universeId: "67890" };
+
+		expectTypeOf(parameters).toExtend<ListGamePassesParameters>();
+	});
+
+	it("should accept pageSize and pageToken as optional", () => {
+		const parameters: ListGamePassesParameters = {
+			pageSize: 25,
+			pageToken: "cursor",
+			universeId: "67890",
+		};
+
+		expectTypeOf(parameters).toExtend<ListGamePassesParameters>();
+	});
+});
+
 describe("GamePassesClient", () => {
 	it("should resolve update() to Result<undefined, OpenCloudError>", () => {
 		expectTypeOf<GamePassesClient["update"]>().returns.resolves.toEqualTypeOf<
 			Result<undefined, OpenCloudError>
+		>();
+	});
+
+	it("should resolve list() to Result<Page<GamePass>, OpenCloudError>", () => {
+		expectTypeOf<GamePassesClient["list"]>().returns.resolves.toEqualTypeOf<
+			Result<Page<GamePass>, OpenCloudError>
 		>();
 	});
 });

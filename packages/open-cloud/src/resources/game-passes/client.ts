@@ -2,6 +2,7 @@ import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.
 import {
 	buildCreateRequest,
 	buildGetRequest,
+	buildListRequest,
 	buildUpdateRequest,
 } from "../../domains/game-passes/game-passes/builders.ts";
 import {
@@ -9,14 +10,20 @@ import {
 	CREATE_REQUIRED_SCOPES,
 	GET_OPERATION_LIMIT,
 	GET_REQUIRED_SCOPES,
+	LIST_OPERATION_LIMIT,
+	LIST_REQUIRED_SCOPES,
 	UPDATE_OPERATION_LIMIT,
 	UPDATE_REQUIRED_SCOPES,
 } from "../../domains/game-passes/game-passes/operations.ts";
-import { parseGamePassResponse } from "../../domains/game-passes/game-passes/parsers.ts";
+import {
+	parseGamePassesListResponse,
+	parseGamePassResponse,
+} from "../../domains/game-passes/game-passes/parsers.ts";
 import type {
 	CreateGamePassParameters,
 	GamePass,
 	GetGamePassParameters,
+	ListGamePassesParameters,
 	UpdateGamePassParameters,
 } from "../../domains/game-passes/game-passes/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
@@ -27,7 +34,7 @@ import {
 	ResourceClient,
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
-import type { Result } from "../../types.ts";
+import type { Page, Result } from "../../types.ts";
 
 function makeSpec<P, R>(spec: ResourceMethodSpec<P, R>): ResourceMethodSpec<P, R> {
 	return Object.freeze(spec);
@@ -60,6 +67,15 @@ const UPDATE_SPEC = makeSpec<UpdateGamePassParameters, undefined>({
 	requiredScopes: UPDATE_REQUIRED_SCOPES,
 });
 
+const LIST_SPEC = makeSpec<ListGamePassesParameters, Page<GamePass>>({
+	buildRequest: (parameters) => okRequest(buildListRequest(parameters)),
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: LIST_OPERATION_LIMIT,
+	parse: parseGamePassesListResponse,
+	requiredScopes: LIST_REQUIRED_SCOPES,
+});
+
 /**
  * Public client for the Roblox Open Cloud Game Passes API.
  *
@@ -83,6 +99,25 @@ const UPDATE_SPEC = makeSpec<UpdateGamePassParameters, undefined>({
  * } else {
  *     console.error(result.err.message);
  * }
+ * ```
+ *
+ * Listing is cursor-paginated — drive the loop on `nextPageToken`:
+ *
+ * ```ts
+ * let pageToken: string | undefined;
+ * do {
+ *     const page = await client.list({ universeId: "1234567890", pageToken });
+ *     if (!page.success) {
+ *         console.error(page.err.message);
+ *         break;
+ *     }
+ *
+ *     for (const pass of page.data.items) {
+ *         console.log(`${pass.name} (${pass.id})`);
+ *     }
+ *
+ *     pageToken = page.data.nextPageToken;
+ * } while (pageToken !== undefined);
  * ```
  */
 export class GamePassesClient {
@@ -127,6 +162,23 @@ export class GamePassesClient {
 		options?: RequestOptions,
 	): Promise<Result<GamePass, OpenCloudError>> {
 		return this.#inner.execute({ options, parameters, spec: GET_SPEC });
+	}
+
+	/**
+	 * Lists one page of game passes for the supplied universe. Pagination is
+	 * cursor-based: omit `pageToken` for the first page, then thread the
+	 * previous response's `nextPageToken` back in until it is `undefined`.
+	 *
+	 * @param parameters - Universe identifier and optional page cursors.
+	 * @param options - Optional per-request overrides.
+	 * @returns A {@link Result} wrapping a {@link Page} of {@link GamePass},
+	 *   or the {@link OpenCloudError} that caused the request to fail.
+	 */
+	public async list(
+		parameters: ListGamePassesParameters,
+		options?: RequestOptions,
+	): Promise<Result<Page<GamePass>, OpenCloudError>> {
+		return this.#inner.execute({ options, parameters, spec: LIST_SPEC });
 	}
 
 	/**

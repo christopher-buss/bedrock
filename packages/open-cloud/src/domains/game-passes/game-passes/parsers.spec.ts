@@ -1,8 +1,8 @@
-import { validGamePassBody } from "#tests/helpers/game-passes";
+import { validGamePassBody, validListGamePassesBody } from "#tests/helpers/game-passes";
 import { assert, describe, expect, it } from "vitest";
 
 import { ApiError } from "../../../errors/api-error.ts";
-import { parseGamePassResponse } from "./parsers.ts";
+import { parseGamePassesListResponse, parseGamePassResponse } from "./parsers.ts";
 import type { GamePassConfigV2 } from "./wire.ts";
 
 describe(parseGamePassResponse, () => {
@@ -326,6 +326,143 @@ describe(parseGamePassResponse, () => {
 		);
 
 		const result = parseGamePassResponse({ body, headers: {}, status: 422 });
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+	});
+});
+
+describe(parseGamePassesListResponse, () => {
+	it("should return a Page wrapping the converted gamePasses items", () => {
+		expect.assertions(2);
+
+		const body = validListGamePassesBody({
+			gamePasses: [
+				validGamePassBody({ name: "First", gamePassId: 1 }),
+				validGamePassBody({ name: "Second", gamePassId: 2 }),
+			],
+			nextPageToken: "cursor",
+		});
+
+		const result = parseGamePassesListResponse({ body, headers: {}, status: 200 });
+
+		assert(result.success);
+
+		expect(result.data.items.map((item) => item.id)).toStrictEqual(["1", "2"]);
+		expect(result.data.nextPageToken).toBe("cursor");
+	});
+
+	it("should return undefined nextPageToken when the wire field is omitted", () => {
+		expect.assertions(1);
+
+		const body = JSON.parse(
+			`{
+				"gamePasses": []
+			}`,
+		);
+
+		const result = parseGamePassesListResponse({ body, headers: {}, status: 200 });
+
+		assert(result.success);
+
+		expect(result.data.nextPageToken).toBeUndefined();
+	});
+
+	it("should normalize a JSON null nextPageToken to undefined", () => {
+		expect.assertions(1);
+
+		const body = JSON.parse(
+			`{
+				"gamePasses": [],
+				"nextPageToken": null
+			}`,
+		);
+
+		const result = parseGamePassesListResponse({ body, headers: {}, status: 200 });
+
+		assert(result.success);
+
+		expect(result.data.nextPageToken).toBeUndefined();
+	});
+
+	it("should return an empty page when the wire returns no items", () => {
+		expect.assertions(2);
+
+		const body = validListGamePassesBody({ gamePasses: [] });
+
+		const result = parseGamePassesListResponse({ body, headers: {}, status: 200 });
+
+		assert(result.success);
+
+		expect(result.data.items).toStrictEqual([]);
+		expect(result.data.nextPageToken).toBeUndefined();
+	});
+
+	it("should return an ApiError when the body is not an object", () => {
+		expect.assertions(2);
+
+		const result = parseGamePassesListResponse({
+			body: "not an object",
+			headers: {},
+			status: 500,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err.message).toBe("Malformed game passes list response");
+	});
+
+	it("should return an ApiError when gamePasses is missing", () => {
+		expect.assertions(1);
+
+		const result = parseGamePassesListResponse({
+			body: { nextPageToken: "cursor" },
+			headers: {},
+			status: 500,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+	});
+
+	it("should return an ApiError when gamePasses is not an array", () => {
+		expect.assertions(1);
+
+		const result = parseGamePassesListResponse({
+			body: { gamePasses: "nope", nextPageToken: undefined },
+			headers: {},
+			status: 500,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+	});
+
+	it("should return an ApiError when an item in gamePasses is malformed", () => {
+		expect.assertions(1);
+
+		const body = {
+			gamePasses: [validGamePassBody(), { not: "a-game-pass" }],
+			nextPageToken: undefined,
+		};
+
+		const result = parseGamePassesListResponse({ body, headers: {}, status: 500 });
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+	});
+
+	it("should return an ApiError when nextPageToken is not a string", () => {
+		expect.assertions(1);
+
+		const body = { gamePasses: [], nextPageToken: 42 };
+
+		const result = parseGamePassesListResponse({ body, headers: {}, status: 500 });
 
 		assert(!result.success);
 

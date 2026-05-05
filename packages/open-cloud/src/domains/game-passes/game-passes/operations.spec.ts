@@ -5,6 +5,8 @@ import {
 	CREATE_REQUIRED_SCOPES,
 	GET_OPERATION_LIMIT,
 	GET_REQUIRED_SCOPES,
+	LIST_OPERATION_LIMIT,
+	LIST_REQUIRED_SCOPES,
 	UPDATE_OPERATION_LIMIT,
 	UPDATE_REQUIRED_SCOPES,
 } from "./operations.ts";
@@ -36,6 +38,15 @@ describe("game-passes operation limits", () => {
 			operationKey: "game-passes.update",
 		});
 	});
+
+	it("should cap the list endpoint at 10 requests per second", () => {
+		expect.assertions(1);
+
+		expect(LIST_OPERATION_LIMIT).toStrictEqual({
+			maxPerSecond: 10,
+			operationKey: "game-passes.list",
+		});
+	});
 });
 
 describe("game-passes required scopes", () => {
@@ -55,5 +66,11 @@ describe("game-passes required scopes", () => {
 		expect.assertions(1);
 
 		expect(UPDATE_REQUIRED_SCOPES).toStrictEqual(["game-pass:write"]);
+	});
+
+	it("should require game-pass:read for the list endpoint", () => {
+		expect.assertions(1);
+
+		expect(LIST_REQUIRED_SCOPES).toStrictEqual(["game-pass:read"]);
 	});
 });

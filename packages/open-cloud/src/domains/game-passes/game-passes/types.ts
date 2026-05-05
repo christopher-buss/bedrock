@@ -73,6 +73,21 @@ export interface GetGamePassParameters {
 }
 
 /**
+ * Parameters for listing the game passes registered against a universe.
+ * Pagination is cursor-based: omit `pageToken` to fetch the first page,
+ * then thread the previous response's `nextPageToken` back in until it
+ * is `undefined`.
+ */
+export interface ListGamePassesParameters {
+	/** Optional page size; the server defaults to 50 when omitted. */
+	readonly pageSize?: number;
+	/** Optional cursor returned by a previous page; omit for the first page. */
+	readonly pageToken?: string;
+	/** Stringified ID of the universe whose game passes to list. */
+	readonly universeId: string;
+}
+
+/**
  * Parameters for partially updating an existing game pass. Every field
  * except the identifiers is optional; omitted fields are not included
  * in the multipart body so the server leaves their current values
