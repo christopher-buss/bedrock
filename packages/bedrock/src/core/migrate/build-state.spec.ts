@@ -263,9 +263,9 @@ describe(buildState, () => {
 		assert(resource !== undefined);
 		assert(resource.kind === "place");
 
-		expect(resource.description).toBeNil();
-		expect(resource.displayName).toBeNil();
-		expect(resource.serverSize).toBeNil();
+		expect(resource.description).toBeUndefined();
+		expect(resource.displayName).toBeUndefined();
+		expect(resource.serverSize).toBeUndefined();
 	});
 
 	it("should emit place resources after the universe resource", () => {
