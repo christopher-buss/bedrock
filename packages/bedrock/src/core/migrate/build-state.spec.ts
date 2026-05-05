@@ -20,6 +20,9 @@ const PRODUCT_MANTLE_HASH = asSha256Hex(
 const PRODUCT_RECOMPUTED_HASH = asSha256Hex(
 	"e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3",
 );
+const UNIVERSE_RECOMPUTED_HASH = asSha256Hex(
+	"f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4",
+);
 
 const NO_HASHES: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>> = new Map();
 
@@ -30,6 +33,23 @@ const FOLDED_UNIVERSE = {
 	universe: {
 		entry: { universeId: "6031475575" },
 		outputs: { rootPlaceId: asRobloxAssetId("17613681043") },
+	},
+	warnings: [],
+} satisfies EnvironmentFoldResult;
+
+const FOLDED_UNIVERSE_WITH_ICON = {
+	passes: [],
+	places: new Map(),
+	products: [],
+	universe: {
+		entry: {
+			icon: { "en-us": "assets/marketing/example-icon.png" },
+			universeId: "6031475575",
+		},
+		outputs: {
+			iconAssetIds: { "en-us": asRobloxAssetId("707633946677216") },
+			rootPlaceId: asRobloxAssetId("17613681043"),
+		},
 	},
 	warnings: [],
 } satisfies EnvironmentFoldResult;
@@ -788,5 +808,74 @@ describe(buildState, () => {
 			"gamePass",
 			"developerProduct",
 		]);
+	});
+
+	it("should emit universe icon and iconFileHashes when the fold carries an icon and the recomputed hash is supplied", () => {
+		expect.assertions(2);
+
+		const state = buildState({
+			environment: "production",
+			folded: FOLDED_UNIVERSE_WITH_ICON,
+			passIconHashesByKey: NO_HASHES,
+			productIconHashesByKey: NO_HASHES,
+			universeIconHashes: { "en-us": UNIVERSE_RECOMPUTED_HASH },
+		});
+
+		const [resource] = state.resources;
+		assert(resource?.kind === "universe");
+
+		expect(resource.icon).toStrictEqual({ "en-us": "assets/marketing/example-icon.png" });
+		expect(resource.iconFileHashes).toStrictEqual({ "en-us": UNIVERSE_RECOMPUTED_HASH });
+	});
+
+	it("should preserve outputs.iconAssetIds on the universe resource when the fold carries them", () => {
+		expect.assertions(1);
+
+		const state = buildState({
+			environment: "production",
+			folded: FOLDED_UNIVERSE_WITH_ICON,
+			passIconHashesByKey: NO_HASHES,
+			productIconHashesByKey: NO_HASHES,
+			universeIconHashes: { "en-us": UNIVERSE_RECOMPUTED_HASH },
+		});
+
+		const [resource] = state.resources;
+		assert(resource?.kind === "universe");
+
+		expect(resource.outputs.iconAssetIds).toStrictEqual({ "en-us": "707633946677216" });
+	});
+
+	it("should omit universe icon and iconFileHashes when the fold has no icon", () => {
+		expect.assertions(2);
+
+		const state = buildState({
+			environment: "production",
+			folded: FOLDED_UNIVERSE,
+			passIconHashesByKey: NO_HASHES,
+			productIconHashesByKey: NO_HASHES,
+		});
+
+		const [resource] = state.resources;
+		assert(resource?.kind === "universe");
+
+		expect("icon" in resource).toBeFalse();
+		expect("iconFileHashes" in resource).toBeFalse();
+	});
+
+	it("should omit universe icon and iconFileHashes when the fold has an icon but no recomputed hash is supplied", () => {
+		expect.assertions(2);
+
+		const state = buildState({
+			environment: "production",
+			folded: FOLDED_UNIVERSE_WITH_ICON,
+			passIconHashesByKey: NO_HASHES,
+			productIconHashesByKey: NO_HASHES,
+		});
+
+		const [resource] = state.resources;
+		assert(resource?.kind === "universe");
+
+		expect("icon" in resource).toBeFalse();
+		expect("iconFileHashes" in resource).toBeFalse();
 	});
 });

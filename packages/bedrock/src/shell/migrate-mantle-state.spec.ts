@@ -85,6 +85,31 @@ environments:
         - experience_singleton
 `;
 
+const UNIVERSE_ICON_YAML = `
+version: "6"
+environments:
+  production:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 6031475575
+          startPlaceId: 17613681043
+      dependencies: []
+    - id: experienceIcon_singleton
+      inputs:
+        experienceIcon:
+          filePath: assets/marketing/icon.png
+          fileHash: ${SAMPLE_HASH}
+      outputs:
+        experienceIcon:
+          assetId: 707633946677216
+      dependencies:
+        - experience_singleton
+`;
+
 const PRODUCT_WITH_ICON_YAML = `
 version: "6"
 environments:
@@ -965,6 +990,68 @@ environments:
 		assert(result.success);
 
 		expect("passes" in result.data.config).toBeFalse();
+	});
+
+	it("should emit a kind: universe resource carrying the recomputed icon hash from disk", async () => {
+		expect.assertions(4);
+
+		const files = new Map<string, "missing" | Uint8Array>([
+			[".mantle-state.yml", new TextEncoder().encode(UNIVERSE_ICON_YAML)],
+			["assets/marketing/icon.png", ICON_BYTES],
+		]);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFs(files),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		const universe = state?.resources.find((resource) => resource.kind === "universe");
+		assert(universe?.kind === "universe");
+
+		expect(universe.icon).toStrictEqual({ "en-us": "assets/marketing/icon.png" });
+		expect(universe.iconFileHashes).toStrictEqual({ "en-us": ICON_BYTES_SHA256 });
+		expect(universe.outputs.iconAssetIds).toStrictEqual({ "en-us": "707633946677216" });
+		expect(
+			result.data.warnings.filter((warning) => warning.kind === "ambiguous"),
+		).toStrictEqual([]);
+	});
+
+	it("should emit an ambiguous warning and omit universe icon fields when the experienceIcon file is missing", async () => {
+		expect.assertions(5);
+
+		const files = new Map<string, "missing" | Uint8Array>([
+			[".mantle-state.yml", new TextEncoder().encode(UNIVERSE_ICON_YAML)],
+			["assets/marketing/icon.png", "missing"],
+		]);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFs(files),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		const universe = state?.resources.find((resource) => resource.kind === "universe");
+		assert(universe?.kind === "universe");
+
+		expect("icon" in universe).toBeFalse();
+		expect("iconFileHashes" in universe).toBeFalse();
+
+		const ambiguous = result.data.warnings.filter((warning) => warning.kind === "ambiguous");
+
+		expect(ambiguous).toHaveLength(1);
+
+		const [warning] = ambiguous;
+		assert(warning?.kind === "ambiguous");
+
+		expect(warning.mantlePath).toBe("production.experienceIcon_singleton");
+		expect(warning.hint).toContain("assets/marketing/icon.png");
 	});
 
 	it("should recompute icon hashes for products with icons", async () => {
