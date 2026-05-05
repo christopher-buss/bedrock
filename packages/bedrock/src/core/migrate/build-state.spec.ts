@@ -23,7 +23,7 @@ const PRODUCT_RECOMPUTED_HASH = asSha256Hex(
 
 const NO_HASHES: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>> = new Map();
 
-const FOLDED_UNIVERSE: EnvironmentFoldResult = {
+const FOLDED_UNIVERSE = {
 	passes: [],
 	places: new Map(),
 	products: [],
@@ -32,7 +32,7 @@ const FOLDED_UNIVERSE: EnvironmentFoldResult = {
 		outputs: { rootPlaceId: asRobloxAssetId("17613681043") },
 	},
 	warnings: [],
-};
+} satisfies EnvironmentFoldResult;
 
 function placeFold(overrides: Partial<PlaceFoldEntry> = {}): PlaceFoldEntry {
 	return {
@@ -357,13 +357,13 @@ describe(buildState, () => {
 	it("should emit a gamePass ResourceCurrentState per folded pass entry", () => {
 		expect.assertions(5);
 
-		const folded: EnvironmentFoldResult = {
+		const folded = {
 			passes: [passEntry("1-example")],
 			places: new Map(),
 			products: [],
 			universe: undefined,
 			warnings: [],
-		};
+		} satisfies EnvironmentFoldResult;
 		const hashes = new Map<ResourceKey, Record<"en-us", Sha256Hex>>([
 			[asResourceKey("1-example"), { "en-us": RECOMPUTED_HASH }],
 		]);
@@ -392,13 +392,13 @@ describe(buildState, () => {
 	it("should fall back to the Mantle-recorded hash when passIconHashesByKey omits a pass key", () => {
 		expect.assertions(1);
 
-		const folded: EnvironmentFoldResult = {
+		const folded = {
 			passes: [passEntry("1-example")],
 			places: new Map(),
 			products: [],
 			universe: undefined,
 			warnings: [],
-		};
+		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
 			environment: "production",
@@ -416,13 +416,13 @@ describe(buildState, () => {
 	it("should preserve the universe resource alongside emitted gamePass resources", () => {
 		expect.assertions(3);
 
-		const folded: EnvironmentFoldResult = {
+		const folded = {
 			passes: [passEntry("1-example")],
 			places: new Map(),
 			products: [],
 			universe: FOLDED_UNIVERSE.universe,
 			warnings: [],
-		};
+		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
 			environment: "production",
@@ -440,21 +440,21 @@ describe(buildState, () => {
 		expect.assertions(1);
 
 		const offSale = passEntry("1-example");
-		const offSaleEntry: PassFoldEntry = {
+		const offSaleEntry = {
 			...offSale,
 			entry: {
 				name: offSale.entry.name,
 				description: offSale.entry.description,
 				icon: offSale.entry.icon,
 			},
-		};
-		const folded: EnvironmentFoldResult = {
+		} satisfies PassFoldEntry;
+		const folded = {
 			passes: [offSaleEntry],
 			places: new Map(),
 			products: [],
 			universe: undefined,
 			warnings: [],
-		};
+		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
 			environment: "production",
@@ -472,13 +472,13 @@ describe(buildState, () => {
 	it("should emit one developerProduct resource per folded product entry", () => {
 		expect.assertions(2);
 
-		const folded: EnvironmentFoldResult = {
+		const folded = {
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack"), productEntryWithoutIcon("coin-pack")],
 			universe: undefined,
 			warnings: [],
-		};
+		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
 			environment: "production",
@@ -497,13 +497,13 @@ describe(buildState, () => {
 	it("should preserve productId on the developer-product resource outputs", () => {
 		expect.assertions(1);
 
-		const folded: EnvironmentFoldResult = {
+		const folded = {
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],
 			universe: undefined,
 			warnings: [],
-		};
+		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
 			environment: "production",
@@ -521,13 +521,13 @@ describe(buildState, () => {
 	it("should emit icon and iconFileHashes when the fold entry carries an icon", () => {
 		expect.assertions(2);
 
-		const folded: EnvironmentFoldResult = {
+		const folded = {
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],
 			universe: undefined,
 			warnings: [],
-		};
+		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
 			environment: "production",
@@ -546,13 +546,13 @@ describe(buildState, () => {
 	it("should omit icon and iconFileHashes when the fold entry has no icon", () => {
 		expect.assertions(4);
 
-		const folded: EnvironmentFoldResult = {
+		const folded = {
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithoutIcon("coin-pack")],
 			universe: undefined,
 			warnings: [],
-		};
+		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
 			environment: "production",
@@ -573,13 +573,13 @@ describe(buildState, () => {
 	it("should prefer recomputed icon hashes over the mantle-recorded fallback", () => {
 		expect.assertions(1);
 
-		const folded: EnvironmentFoldResult = {
+		const folded = {
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],
 			universe: undefined,
 			warnings: [],
-		};
+		} satisfies EnvironmentFoldResult;
 		const productHashes = new Map<ResourceKey, Record<"en-us", Sha256Hex>>([
 			[asResourceKey("gem-pack"), { "en-us": PRODUCT_RECOMPUTED_HASH }],
 		]);
@@ -600,13 +600,13 @@ describe(buildState, () => {
 	it("should fall back to mantleIconFileHashes when productIconHashesByKey omits the key", () => {
 		expect.assertions(1);
 
-		const folded: EnvironmentFoldResult = {
+		const folded = {
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],
 			universe: undefined,
 			warnings: [],
-		};
+		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
 			environment: "production",
@@ -624,13 +624,13 @@ describe(buildState, () => {
 	it("should set isRegionalPricingEnabled and storePageEnabled to undefined", () => {
 		expect.assertions(2);
 
-		const folded: EnvironmentFoldResult = {
+		const folded = {
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],
 			universe: undefined,
 			warnings: [],
-		};
+		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
 			environment: "production",
@@ -649,13 +649,13 @@ describe(buildState, () => {
 	it("should preserve iconImageAssetId on outputs when the fold entry has an icon", () => {
 		expect.assertions(1);
 
-		const folded: EnvironmentFoldResult = {
+		const folded = {
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],
 			universe: undefined,
 			warnings: [],
-		};
+		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
 			environment: "production",
@@ -673,13 +673,13 @@ describe(buildState, () => {
 	it("should leave iconImageAssetId undefined on outputs when the fold entry has no icon", () => {
 		expect.assertions(1);
 
-		const folded: EnvironmentFoldResult = {
+		const folded = {
 			passes: [],
 			places: new Map(),
 			products: [productEntryWithoutIcon("coin-pack")],
 			universe: undefined,
 			warnings: [],
-		};
+		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
 			environment: "production",
@@ -698,19 +698,19 @@ describe(buildState, () => {
 		expect.assertions(2);
 
 		const malformed = productEntryWithIcon("gem-pack");
-		const malformedEntry: ProductFoldEntry = {
+		const malformedEntry = {
 			key: malformed.key,
 			entry: malformed.entry,
 			mantlePath: malformed.mantlePath,
 			outputs: malformed.outputs,
-		};
-		const folded: EnvironmentFoldResult = {
+		} satisfies ProductFoldEntry;
+		const folded = {
 			passes: [],
 			places: new Map(),
 			products: [malformedEntry],
 			universe: undefined,
 			warnings: [],
-		};
+		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
 			environment: "production",
@@ -729,7 +729,7 @@ describe(buildState, () => {
 	it("should omit icon when the fold entry has mantle hashes but no icon path", () => {
 		expect.assertions(2);
 
-		const folded: EnvironmentFoldResult = {
+		const folded = {
 			passes: [],
 			places: new Map(),
 			products: [
@@ -750,7 +750,7 @@ describe(buildState, () => {
 			],
 			universe: undefined,
 			warnings: [],
-		};
+		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
 			environment: "production",
@@ -769,13 +769,13 @@ describe(buildState, () => {
 	it("should emit developer-product resources after the pass resources", () => {
 		expect.assertions(1);
 
-		const folded: EnvironmentFoldResult = {
+		const folded = {
 			passes: [passEntry("1-example")],
 			places: new Map(),
 			products: [productEntryWithIcon("gem-pack")],
 			universe: undefined,
 			warnings: [],
-		};
+		} satisfies EnvironmentFoldResult;
 
 		const state = buildState({
 			environment: "production",
