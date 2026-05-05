@@ -1,3 +1,4 @@
+export { validBadgeBody } from "./badges.ts";
 export { validDeveloperProductBody } from "./developer-products.ts";
 export {
 	type CapturedRequest,
