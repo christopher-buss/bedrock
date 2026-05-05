@@ -1,4 +1,4 @@
-import type { HttpRequest } from "../../../client/types.ts";
+import type { HttpRequest } from "../../../internal/http/types.ts";
 import { toBlob } from "../../../internal/utils/to-blob.ts";
 import type { UploadDeveloperProductIconParameters } from "./types.ts";
 

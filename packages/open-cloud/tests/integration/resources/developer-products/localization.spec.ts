@@ -1,6 +1,7 @@
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
 import { DeveloperProductsClient } from "#src/resources/developer-products/index";
+import { createFakeClock } from "#tests/helpers/fake-clock";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { assert, describe, expect, it } from "vitest";
@@ -233,38 +234,39 @@ describe(DeveloperProductsClient, () => {
 			});
 		});
 
-		describe("rate limit", () => {
-			it("should account updateNameDescription and uploadIcon against one shared bucket", async () => {
-				expect.assertions(1);
+		describe("shared rate-limit bucket", () => {
+			it("should serialize updateNameDescription and uploadIcon through the same per-API-key queue", async () => {
+				expect.assertions(2);
 
-				const httpClient = createFakeHttpClient();
-				for (let index = 0; index < 11; index++) {
-					httpClient.mockResponse({ body: {}, status: 200 });
-				}
-
+				// At 100/60 per second the bucket holds one full token (600ms
+				// of latency budget) of headroom, so the first call goes
+				// through immediately and the second pays a 200ms wait
+				// against the drained shared bucket. Two independent buckets
+				// would each go through wait-free, so the recorded wait
+				// proves the methods queue against one operationKey.
+				const httpClient = createFakeHttpClient()
+					.mockResponse({ body: VALID_NAME_DESCRIPTION_BODY, status: 200 })
+					.mockResponse({ body: {}, status: 200 });
+				const clock = createFakeClock();
 				const client = new DeveloperProductsClient({
 					apiKey: "test-key",
 					httpClient,
-					sleep: createFakeSleep(),
+					sleep: clock.sleep,
 				});
 
-				for (let index = 0; index < 11; index++) {
-					if (index % 2 === 0) {
-						await client.localization.updateNameDescription({
-							name: "Gem Pack",
-							languageCode: "fr-fr",
-							productId: "12345",
-						});
-					} else {
-						await client.localization.uploadIcon({
-							image: new Uint8Array([1, 2, 3]),
-							languageCode: "fr-fr",
-							productId: "12345",
-						});
-					}
-				}
+				await client.localization.updateNameDescription({
+					name: "Gem Pack",
+					languageCode: "fr-fr",
+					productId: "12345",
+				});
+				await client.localization.uploadIcon({
+					image: new Uint8Array([1, 2, 3]),
+					languageCode: "fr-fr",
+					productId: "12345",
+				});
 
-				expect(httpClient.requests).toHaveLength(11);
+				expect(httpClient.requests).toHaveLength(2);
+				expect(clock.waits).toStrictEqual([200]);
 			});
 		});
 	});

@@ -1,4 +1,4 @@
-import type { HttpRequest } from "../../../client/types.ts";
+import type { HttpRequest } from "../../../internal/http/types.ts";
 import type { UpdateDeveloperProductNameDescriptionParameters } from "./types.ts";
 
 /**

@@ -96,8 +96,7 @@ interface DeveloperProductLocalizationHandle {
 	 * a developer product. Either `name`, `description`, or both may be
 	 * supplied; omitted fields are not forwarded so the server leaves the
 	 * existing value for that locale untouched. Mirrors the upstream `200 OK`
-	 * echo body as `undefined` data; callers that need the saved values can
-	 * chain {@link DeveloperProductsClient.get} themselves.
+	 * echo body as `undefined` data.
 	 *
 	 * @param parameters - Product and language identifiers plus the optional
 	 *   replacement values.
