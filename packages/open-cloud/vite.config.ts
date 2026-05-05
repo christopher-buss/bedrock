@@ -25,6 +25,7 @@ function addTestingSubpath(
 export default mergeConfig(sharedConfig, {
 	pack: {
 		entry: {
+			"badges": "src/resources/badges/index.ts",
 			"developer-products": "src/resources/developer-products/index.ts",
 			"game-passes": "src/resources/game-passes/index.ts",
 			"index": "src/index.ts",
