@@ -2,7 +2,7 @@ import { isSha256Hex, type Sha256Hex } from "../../types/ids.ts";
 import type { PlaceOutputs } from "../resources.ts";
 import type { PlaceEntry } from "../schema.ts";
 import { foldBlockedPlaceFields } from "./fold-blocked-place-fields.ts";
-import { interpretiveWarning } from "./fold-universe-shared.ts";
+import { interpretiveWarning, isObjectPayload } from "./fold-universe-shared.ts";
 import type { MigrationWarning } from "./migration-report.ts";
 import type { MantleResource } from "./types.ts";
 
@@ -197,10 +197,6 @@ function bucketByKind(resources: ReadonlyArray<MantleResource>): PlaceBuckets {
 	}
 
 	return { placeConfigurations, placeFiles, places };
-}
-
-function isObjectPayload(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function readString(value: unknown): string | undefined {
