@@ -1,4 +1,4 @@
-import { asRobloxAssetId } from "../../types/ids.ts";
+import { isRobloxAssetId, type RobloxAssetId } from "../../types/ids.ts";
 import {
 	EMPTY_FRAGMENT,
 	type FoldFragment,
@@ -10,7 +10,7 @@ import type { MantleResource } from "./types.ts";
 const EXPERIENCE_ICON_KIND = "experienceIcon";
 
 interface ExperienceIconParts {
-	readonly assetId: string;
+	readonly assetId: RobloxAssetId;
 	readonly filePath: string;
 }
 
@@ -43,7 +43,7 @@ export function foldExperienceIcon(resources: ReadonlyArray<MantleResource>): Fo
 	return {
 		entryFragment: { icon: { "en-us": parts.filePath } },
 		outputsFragment: {
-			iconAssetIds: { "en-us": asRobloxAssetId(parts.assetId) },
+			iconAssetIds: { "en-us": parts.assetId },
 		},
 		warnings: [
 			interpretiveWarning({
@@ -55,16 +55,9 @@ export function foldExperienceIcon(resources: ReadonlyArray<MantleResource>): Fo
 	};
 }
 
-function coerceRobloxId(value: unknown): string | undefined {
-	if (typeof value === "string") {
-		return value;
-	}
-
-	if (Number.isInteger(value)) {
-		return String(value);
-	}
-
-	return undefined;
+function coerceRobloxId(value: unknown): RobloxAssetId | undefined {
+	const candidate = String(value);
+	return isRobloxAssetId(candidate) ? candidate : undefined;
 }
 
 function readParts(resource: MantleResource): ExperienceIconParts | undefined {

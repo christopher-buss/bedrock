@@ -1034,6 +1034,27 @@ describe(foldUniverse, () => {
 
 			expect(nonInteger.entry).toStrictEqual({ universeId: "1" });
 		});
+
+		it("should silently drop an experienceIcon whose assetId is a string that is not a Roblox asset ID", () => {
+			expect.assertions(3);
+
+			const nonDigit = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceIcon({ filePath: "icon.png" }, { assetId: "12345abc" }),
+			]);
+			assert(nonDigit !== undefined);
+
+			expect(nonDigit.entry).toStrictEqual({ universeId: "1" });
+			expect(nonDigit.outputs.iconAssetIds).toBeNil();
+
+			const empty = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				experienceIcon({ filePath: "icon.png" }, { assetId: "" }),
+			]);
+			assert(empty !== undefined);
+
+			expect(empty.outputs.iconAssetIds).toBeNil();
+		});
 	});
 
 	describe("displayName cross-fold", () => {
