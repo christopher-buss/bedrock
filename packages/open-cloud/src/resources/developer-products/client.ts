@@ -18,6 +18,12 @@ import type {
 	GetDeveloperProductParameters,
 	UpdateDeveloperProductParameters,
 } from "../../domains/developer-products/products/types.ts";
+import { buildUpdateRequest as buildLocaleNameDescRequest } from "../../domains/game-internationalization/developer-product-name-description/builders.ts";
+import {
+	LOCALIZATION_OPERATION_LIMIT,
+	LOCALIZATION_REQUIRED_SCOPES,
+} from "../../domains/game-internationalization/developer-product-name-description/operations.ts";
+import type { UpdateDeveloperProductNameDescriptionParameters } from "../../domains/game-internationalization/developer-product-name-description/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
@@ -67,6 +73,45 @@ const UPDATE_SPEC: ResourceMethodSpec<UpdateDeveloperProductParameters, undefine
 	requiredScopes: WRITE_REQUIRED_SCOPES,
 });
 
+function buildLocaleNameDescOkRequest(
+	parameters: UpdateDeveloperProductNameDescriptionParameters,
+): Result<HttpRequest, OpenCloudError> {
+	return okRequest(buildLocaleNameDescRequest(parameters));
+}
+
+const UPDATE_NAME_DESCRIPTION_SPEC: ResourceMethodSpec<
+	UpdateDeveloperProductNameDescriptionParameters,
+	undefined
+> = Object.freeze({
+	buildRequest: buildLocaleNameDescOkRequest,
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: LOCALIZATION_OPERATION_LIMIT,
+	parse: parseEmptyResponse,
+	requiredScopes: LOCALIZATION_REQUIRED_SCOPES,
+});
+
+interface DeveloperProductLocalizationHandle {
+	/**
+	 * Updates the per-locale display name and/or description registered against
+	 * a developer product. Either `name`, `description`, or both may be
+	 * supplied; omitted fields are not forwarded so the server leaves the
+	 * existing value for that locale untouched. Mirrors the upstream `200 OK`
+	 * echo body as `undefined` data; callers that need the saved values can
+	 * chain {@link DeveloperProductsClient.get} themselves.
+	 *
+	 * @param parameters - Product and language identifiers plus the optional
+	 *   replacement values.
+	 * @param options - Optional per-request overrides.
+	 * @returns A success {@link Result} with no payload, or the
+	 *   {@link OpenCloudError} that caused the request to fail.
+	 */
+	updateNameDescription: (
+		parameters: UpdateDeveloperProductNameDescriptionParameters,
+		options?: RequestOptions,
+	) => Promise<Result<undefined, OpenCloudError>>;
+}
+
 /**
  * Public client for the Roblox Open Cloud Developer Products API.
  *
@@ -96,6 +141,16 @@ export class DeveloperProductsClient {
 	readonly #inner: ResourceClient;
 
 	/**
+	 * Operation Group exposing per-locale localization Operations
+	 * (`updateNameDescription`) backed by the
+	 * `legacy-game-internationalization` domain. Source-language values
+	 * remain on {@link DeveloperProductsClient.update}; methods on this
+	 * group set per-locale overlays on top. Shares the parent client's
+	 * HTTP, rate-limit, and retry plumbing.
+	 */
+	public readonly localization: DeveloperProductLocalizationHandle;
+
+	/**
 	 * Creates a new {@link DeveloperProductsClient}. Configuration is frozen
 	 * on construction; per-request overrides are accepted on each method.
 	 *
@@ -103,6 +158,7 @@ export class DeveloperProductsClient {
 	 */
 	constructor(options: OpenCloudClientOptions) {
 		this.#inner = new ResourceClient(options);
+		this.localization = createLocalizationHandle(this.#inner);
 	}
 
 	/**
@@ -155,4 +211,12 @@ export class DeveloperProductsClient {
 	): Promise<Result<undefined, OpenCloudError>> {
 		return this.#inner.execute({ options, parameters, spec: UPDATE_SPEC });
 	}
+}
+
+function createLocalizationHandle(inner: ResourceClient): DeveloperProductLocalizationHandle {
+	return {
+		async updateNameDescription(parameters, options) {
+			return inner.execute({ options, parameters, spec: UPDATE_NAME_DESCRIPTION_SPEC });
+		},
+	};
 }
