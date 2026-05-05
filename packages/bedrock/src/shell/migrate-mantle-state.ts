@@ -166,6 +166,8 @@ export async function migrateMantleState(
 	});
 }
 
+const EMPTY_HASHES: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>> = new Map();
+
 function buildStatesByEnvironment(
 	folds: ReadonlyMap<string, EnvironmentFoldResult>,
 	hashesByEnvironment: ReadonlyMap<string, ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>>,
@@ -177,7 +179,8 @@ function buildStatesByEnvironment(
 				buildState({
 					environment: name,
 					folded,
-					iconHashesByKey: hashesByEnvironment.get(name) ?? new Map(),
+					passIconHashesByKey: hashesByEnvironment.get(name) ?? EMPTY_HASHES,
+					productIconHashesByKey: EMPTY_HASHES,
 				}),
 			];
 		}),
