@@ -14,6 +14,13 @@ import path from "node:path";
 import process from "node:process";
 
 function readGitDiff(): string {
+	// The remote-offload runner ships a precomputed diff via this env
+	// var so the receiving container does not need a working `.git`.
+	const inputFile = process.env["BEDROCK_DIFF_INPUT_FILE"];
+	if (inputFile !== undefined && inputFile !== "") {
+		return readFileSync(inputFile, "utf8");
+	}
+
 	const baseRef = process.env["MUTATE_BASE_REF"];
 	const diffTarget = baseRef === undefined || baseRef === "" ? "HEAD" : `${baseRef}...HEAD`;
 	const result = spawnSync("git", ["diff", "--unified=0", diffTarget], { encoding: "utf8" });
@@ -62,6 +69,12 @@ function reportReject(reason: { kind: string; path: string }): void {
 }
 
 async function main(): Promise<void> {
+	const remoteHost = process.env["BEDROCK_REMOTE_MUTATE_HOST"];
+	if (remoteHost !== undefined && remoteHost !== "") {
+		const result = spawnSync("bun", ["scripts/mutate-remote.ts"], { stdio: "inherit" });
+		process.exit(result.status ?? 1);
+	}
+
 	const raw = readGitDiff();
 	const parsed = parseDiff(raw);
 
