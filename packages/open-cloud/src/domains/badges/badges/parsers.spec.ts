@@ -316,11 +316,6 @@ describe(parseBadgeResponse, () => {
 	it("should reject an awarder that is an array with look-alike named properties", () => {
 		expect.assertions(1);
 
-		// Adversarial input: JavaScript arrays can carry named properties
-		// alongside their numeric indices. The inner isRecord guard is what
-		// distinguishes a legitimate record from such an array; this test
-		// locks in that the guard still fires even when every field-level
-		// check would otherwise accept the value.
 		const awarder = Object.assign([], { id: 222, name: "Lobby", type: 1 });
 		const body = { ...validBadgeBody(), awarder };
 

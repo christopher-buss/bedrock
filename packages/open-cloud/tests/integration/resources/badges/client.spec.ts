@@ -134,9 +134,6 @@ describe(BadgesClient, () => {
 		it("should sleep on the rate-limit queue once the burst allowance is exhausted", async () => {
 			expect.assertions(1);
 
-			// At 100/60 per second the bucket holds one full token (600ms
-			// of latency budget), so the first call goes through immediately
-			// and the second pays a 200ms wait against the drained bucket.
 			const httpClient = mockManyOk(createFakeHttpClient(), 2);
 			const clock = createFakeClock();
 			const client = new BadgesClient({

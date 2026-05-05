@@ -26,7 +26,7 @@ export function buildCreateRequest(parameters: CreateBadgeParameters): HttpReque
 	}
 
 	if (parameters.paymentSource !== undefined) {
-		body.append("paymentSourceType", String(toPaymentSourceWire(parameters.paymentSource)));
+		body.append("paymentSourceType", toPaymentSourceWire(parameters.paymentSource));
 	}
 
 	return {
@@ -65,6 +65,6 @@ export function buildUpdateRequest(parameters: UpdateBadgeParameters): HttpReque
 	};
 }
 
-function toPaymentSourceWire(source: BadgePaymentSource): 1 | 2 {
-	return source === "User" ? 1 : 2;
+function toPaymentSourceWire(source: BadgePaymentSource): "1" | "2" {
+	return source === "User" ? "1" : "2";
 }

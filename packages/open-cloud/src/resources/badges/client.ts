@@ -70,10 +70,6 @@ const UPLOAD_ICON_SPEC = makeSpec<UploadBadgeIconParameters, undefined>({
  * callers handle failure explicitly; no thrown {@link OpenCloudError}
  * ever escapes the client.
  *
- * Per-locale name, description, and icon overlays via
- * `legacy-game-internationalization` are out of scope until the umbrella
- * localization work for badges is in place.
- *
  * @example
  *
  * ```ts
@@ -97,10 +93,7 @@ export class BadgesClient {
 	}
 
 	/**
-	 * Creates a new badge under the supplied universe. Mirrors the upstream
-	 * `200 OK` response: a successful create yields the parsed
-	 * {@link Badge} as data. Does not retry on 5xx so a duplicate badge
-	 * cannot be created if the server fails mid-write.
+	 * Creates a new badge under the supplied universe.
 	 *
 	 * @param parameters - Creation fields including the universe, name, and
 	 *   icon image.
