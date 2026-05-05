@@ -19,6 +19,19 @@ type MkdirFunc = NonNullable<ProgDeps["mkdir"]>;
 type MigrateFunc = NonNullable<ProgDeps["migrateMantleState"]>;
 type BuildStatePortFunc = NonNullable<ProgDeps["buildStatePort"]>;
 
+// Platform-correct expected paths the migrate command builds via `node:path`.
+// On Windows these resolve with backslashes; on POSIX with forward slashes.
+// The state-file input stays as a POSIX-style string because `dirname`
+// preserves the separator the caller supplied; `join` does not.
+const STATE_FILE_PATH = "/projects/example/.mantle-state.yml";
+const CONFIG_TS_PATH = join("/projects/example", "bedrock.config.ts");
+const CONFIG_YAML_PATH = join("/projects/example", "bedrock.config.yaml");
+const REPORT_DIRECTORY = join("/projects/example", ".bedrock");
+const REPORT_JSON_PATH = join(REPORT_DIRECTORY, "migration-report.json");
+const REPORT_MD_PATH = join(REPORT_DIRECTORY, "migration-report.md");
+const LOCAL_STATE_DIRECTORY = join(REPORT_DIRECTORY, "state");
+const LOCAL_STATE_JSON_PATH = join(LOCAL_STATE_DIRECTORY, "production.json");
+
 const SAMPLE_CONFIG: Config = {
 	environments: { production: {} },
 	universe: { universeId: "12345" },
@@ -137,12 +150,12 @@ describe(migrateCommand, () => {
 		const deps = makeDeps();
 		scriptHappyPrompts(deps);
 
-		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(deps.clack?.intro).toHaveBeenCalledExactlyOnceWith("bedrock migrate");
 		expect(deps.migrateMantleState).toHaveBeenCalledExactlyOnceWith({
 			configFormat: "typescript",
-			stateFilePath: "/projects/example/.mantle-state.yml",
+			stateFilePath: STATE_FILE_PATH,
 		});
 
 		const firstCallDeps = vi.mocked(deps.migrateMantleState!).mock.calls[0]?.[0];
@@ -158,7 +171,7 @@ describe(migrateCommand, () => {
 		const deps = makeDeps({ buildStatePort });
 		scriptHappyPrompts(deps);
 
-		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(writeSpy).toHaveBeenCalledExactlyOnceWith(SAMPLE_STATE);
 		expect(deps.clack?.logSuccess).toHaveBeenCalledWith("production: 0 resources migrated");
@@ -173,18 +186,14 @@ describe(migrateCommand, () => {
 		const deps = makeDeps({ writeFile });
 		scriptHappyPrompts(deps);
 
-		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
 
 		const configWrites = vi
 			.mocked(writeFile)
-			.mock.calls.filter(([path]) => path === "/projects/example/bedrock.config.ts");
+			.mock.calls.filter(([path]) => path === CONFIG_TS_PATH);
 
-		expect(configWrites).toStrictEqual([
-			["/projects/example/bedrock.config.ts", expect.any(String)],
-		]);
-		expect(deps.clack?.logSuccess).toHaveBeenCalledWith(
-			"wrote /projects/example/bedrock.config.ts",
-		);
+		expect(configWrites).toStrictEqual([[CONFIG_TS_PATH, expect.any(String)]]);
+		expect(deps.clack?.logSuccess).toHaveBeenCalledWith(`wrote ${CONFIG_TS_PATH}`);
 		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith("migrate succeeded");
 	});
 
@@ -198,15 +207,15 @@ describe(migrateCommand, () => {
 		const deps = makeDeps({ mkdir, writeFile });
 		scriptHappyPrompts(deps);
 
-		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(mkdir).toHaveBeenCalledWith("/projects/example/.bedrock");
+		expect(mkdir).toHaveBeenCalledWith(REPORT_DIRECTORY);
 		expect(writeFile).toHaveBeenCalledWith(
-			"/projects/example/.bedrock/migration-report.json",
+			REPORT_JSON_PATH,
 			expect.stringContaining('"summary"'),
 		);
 		expect(writeFile).toHaveBeenCalledWith(
-			"/projects/example/.bedrock/migration-report.md",
+			REPORT_MD_PATH,
 			expect.stringContaining("# Migration report"),
 		);
 	});
@@ -221,10 +230,10 @@ describe(migrateCommand, () => {
 		const deps = makeDeps({ mkdir });
 		scriptHappyPrompts(deps);
 
-		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
-			"migration report directory create failed (/projects/example/.bedrock): EACCES: permission denied",
+			`migration report directory create failed (${REPORT_DIRECTORY}): EACCES: permission denied`,
 		);
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
@@ -241,10 +250,10 @@ describe(migrateCommand, () => {
 		const deps = makeDeps({ writeFile });
 		scriptHappyPrompts(deps);
 
-		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
-			"migration report write failed (/projects/example/.bedrock/migration-report.json): EROFS: read-only file system",
+			`migration report write failed (${REPORT_JSON_PATH}): EROFS: read-only file system`,
 		);
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
@@ -262,10 +271,10 @@ describe(migrateCommand, () => {
 		const deps = makeDeps({ writeFile });
 		scriptHappyPrompts(deps);
 
-		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
-			"migration report write failed (/projects/example/.bedrock/migration-report.md): ENOSPC: no space left on device",
+			`migration report write failed (${REPORT_MD_PATH}): ENOSPC: no space left on device`,
 		);
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
@@ -299,10 +308,10 @@ describe(migrateCommand, () => {
 		const deps = makeDeps({ migrateMantleState });
 		scriptHappyPrompts(deps);
 
-		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
-			"failed to read Mantle state file '/projects/example/.mantle-state.yml': EACCES: permission denied",
+			`failed to read Mantle state file '${STATE_FILE_PATH}': EACCES: permission denied`,
 		);
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
@@ -316,10 +325,10 @@ describe(migrateCommand, () => {
 		const deps = makeDeps({ migrateMantleState });
 		scriptHappyPrompts(deps);
 
-		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
-			"failed to read Mantle state file '/projects/example/.mantle-state.yml': raw-string-failure",
+			`failed to read Mantle state file '${STATE_FILE_PATH}': raw-string-failure`,
 		);
 	});
 
@@ -340,10 +349,10 @@ describe(migrateCommand, () => {
 			success: true,
 		});
 
-		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
-			"failed to read Mantle state file '/projects/example/.mantle-state.yml': ENOSPC: no space left on device",
+			`failed to read Mantle state file '${STATE_FILE_PATH}': ENOSPC: no space left on device`,
 		);
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
@@ -356,10 +365,10 @@ describe(migrateCommand, () => {
 		const deps = makeDeps({ writeFile });
 		scriptHappyPrompts(deps);
 
-		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
-			"config file write failed (/projects/example/bedrock.config.ts): EROFS: read-only file system",
+			`config file write failed (${CONFIG_TS_PATH}): EROFS: read-only file system`,
 		);
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
@@ -649,7 +658,7 @@ describe(migrateCommand, () => {
 
 		expect(deps.clack?.logError).toHaveBeenCalledWith(
 			expect.stringMatching(
-				/^action required: 4 fields need your input\. See .*\.bedrock\/migration-report\.md$/,
+				/^action required: 4 fields need your input\. See .*\.bedrock[\\/]migration-report\.md$/,
 			),
 		);
 		// Auto-mapped success line should not fire when ambiguous > 0.
@@ -680,7 +689,7 @@ describe(migrateCommand, () => {
 
 		expect(deps.clack?.logSuccess).toHaveBeenCalledWith(
 			expect.stringMatching(
-				/^migration complete; see .*\.bedrock\/migration-report\.md for 6 auto-mapped or skipped fields$/,
+				/^migration complete; see .*\.bedrock[\\/]migration-report\.md for 6 auto-mapped or skipped fields$/,
 			),
 		);
 		expect(deps.clack?.logError).not.toHaveBeenCalled();
@@ -692,7 +701,7 @@ describe(migrateCommand, () => {
 		const writeFile = vi.fn<WriteFileFunc>(async () => {});
 		const deps = makeDeps({ writeFile });
 		vi.mocked(deps.migratePromptPort!.promptStateFilePath).mockResolvedValueOnce({
-			data: "/projects/example/.mantle-state.yml",
+			data: STATE_FILE_PATH,
 			success: true,
 		});
 		vi.mocked(deps.migratePromptPort!.promptConfigFormat).mockResolvedValueOnce({
@@ -712,11 +721,9 @@ describe(migrateCommand, () => {
 
 		const configWrites = vi
 			.mocked(writeFile)
-			.mock.calls.filter(([path]) => path === "/projects/example/bedrock.config.yaml");
+			.mock.calls.filter(([path]) => path === CONFIG_YAML_PATH);
 
-		expect(configWrites).toStrictEqual([
-			["/projects/example/bedrock.config.yaml", expect.any(String)],
-		]);
+		expect(configWrites).toStrictEqual([[CONFIG_YAML_PATH, expect.any(String)]]);
 	});
 
 	function scriptLocalBackendPrompts(deps: ProgDeps, stateFilePath: string): void {
@@ -740,16 +747,16 @@ describe(migrateCommand, () => {
 		const writeFile = vi.fn<WriteFileFunc>();
 		writeFile.mockResolvedValue();
 		const deps = makeDeps({ writeFile });
-		scriptLocalBackendPrompts(deps, "/projects/example/.mantle-state.yml");
+		scriptLocalBackendPrompts(deps, STATE_FILE_PATH);
 
-		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(writeFile).toHaveBeenCalledWith(
-			"/projects/example/.bedrock/state/production.json",
+			LOCAL_STATE_JSON_PATH,
 			expect.stringContaining('"environment": "production"'),
 		);
 		expect(writeFile).toHaveBeenCalledWith(
-			"/projects/example/bedrock.config.ts",
+			CONFIG_TS_PATH,
 			expect.not.stringContaining('"state"'),
 		);
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
@@ -760,9 +767,9 @@ describe(migrateCommand, () => {
 
 		const buildStatePort = vi.fn<BuildStatePortFunc>(() => happyPortResult());
 		const deps = makeDeps({ buildStatePort });
-		scriptLocalBackendPrompts(deps, "/projects/example/.mantle-state.yml");
+		scriptLocalBackendPrompts(deps, STATE_FILE_PATH);
 
-		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(deps.migratePromptPort?.promptGistId).not.toHaveBeenCalled();
 		expect(buildStatePort).not.toHaveBeenCalled();
@@ -775,11 +782,11 @@ describe(migrateCommand, () => {
 		const mkdir = vi.fn<MkdirFunc>();
 		mkdir.mockResolvedValue();
 		const deps = makeDeps({ mkdir });
-		scriptLocalBackendPrompts(deps, "/projects/example/.mantle-state.yml");
+		scriptLocalBackendPrompts(deps, STATE_FILE_PATH);
 
-		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(mkdir).toHaveBeenCalledWith("/projects/example/.bedrock/state");
+		expect(mkdir).toHaveBeenCalledWith(LOCAL_STATE_DIRECTORY);
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
@@ -789,12 +796,12 @@ describe(migrateCommand, () => {
 		const mkdir = vi.fn<MkdirFunc>();
 		mkdir.mockRejectedValueOnce(new Error("EACCES: permission denied"));
 		const deps = makeDeps({ mkdir });
-		scriptLocalBackendPrompts(deps, "/projects/example/.mantle-state.yml");
+		scriptLocalBackendPrompts(deps, STATE_FILE_PATH);
 
-		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
-			"local state directory create failed (/projects/example/.bedrock/state): EACCES: permission denied",
+			`local state directory create failed (${LOCAL_STATE_DIRECTORY}): EACCES: permission denied`,
 		);
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
@@ -844,12 +851,12 @@ describe(migrateCommand, () => {
 		const writeFile = vi.fn<WriteFileFunc>();
 		writeFile.mockRejectedValueOnce(new Error("EROFS: read-only file system"));
 		const deps = makeDeps({ writeFile });
-		scriptLocalBackendPrompts(deps, "/projects/example/.mantle-state.yml");
+		scriptLocalBackendPrompts(deps, STATE_FILE_PATH);
 
-		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
-			"local state write failed (/projects/example/.bedrock/state/production.json): EROFS: read-only file system",
+			`local state write failed (${LOCAL_STATE_JSON_PATH}): EROFS: read-only file system`,
 		);
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
@@ -870,12 +877,12 @@ describe(migrateCommand, () => {
 		const writeFile = vi.fn<WriteFileFunc>();
 		writeFile.mockResolvedValue();
 		const deps = makeDeps({ migrateMantleState: migrate, writeFile });
-		scriptLocalBackendPrompts(deps, "/projects/example/.mantle-state.yml");
+		scriptLocalBackendPrompts(deps, STATE_FILE_PATH);
 
-		await migrateCommand(deps)("/projects/example/.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(writeFile).toHaveBeenCalledWith(
-			"/projects/example/bedrock.config.ts",
+			CONFIG_TS_PATH,
 			expect.not.stringContaining("leftover-from-source"),
 		);
 	});

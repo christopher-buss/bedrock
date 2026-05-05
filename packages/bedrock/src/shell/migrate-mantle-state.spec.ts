@@ -1,3 +1,4 @@
+import { dirname, join } from "node:path";
 import { assert, describe, expect, it } from "vitest";
 
 import { migrateMantleState } from "./migrate-mantle-state.ts";
@@ -522,6 +523,22 @@ async function readFileMissing(): Promise<Uint8Array> {
 const ICON_BYTES = new TextEncoder().encode("a");
 const ICON_BYTES_SHA256 = "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb";
 
+/**
+ * Resolve `iconPath` against the directory holding `stateFilePath` the same
+ * way `recomputeIconHashes` does so the fakeFs Map keys match on every
+ * platform. On Windows `path.join` produces backslash-separated paths;
+ * encoding the expected key here keeps the test fixtures cross-platform
+ * without forcing production code to pick a single separator.
+ *
+ * @param stateFilePath - State-file path the migrator was invoked with.
+ * @param iconPath - Icon path as recorded in the Mantle state YAML.
+ * @returns Platform-native absolute key the production code passes to
+ *   `readFile`.
+ */
+function iconFsKey(stateFilePath: string, iconPath: string): string {
+	return join(dirname(stateFilePath), iconPath);
+}
+
 describe(migrateMantleState, () => {
 	it("should return stateFileNotFound when readFile reports the file is missing", async () => {
 		expect.assertions(2);
@@ -872,7 +889,7 @@ environments:
 
 		const files = new Map<string, "missing" | Uint8Array>([
 			[".mantle-state.yml", new TextEncoder().encode(PASS_YAML)],
-			["assets/marketing/example-icon.png", ICON_BYTES],
+			[iconFsKey(".mantle-state.yml", "assets/marketing/example-icon.png"), ICON_BYTES],
 		]);
 
 		const result = await migrateMantleState({
@@ -900,7 +917,10 @@ environments:
 
 		const files = new Map<string, "missing" | Uint8Array>([
 			["/tmp/project/.mantle-state.yml", new TextEncoder().encode(PASS_YAML)],
-			["/tmp/project/assets/marketing/example-icon.png", ICON_BYTES],
+			[
+				iconFsKey("/tmp/project/.mantle-state.yml", "assets/marketing/example-icon.png"),
+				ICON_BYTES,
+			],
 		]);
 
 		const result = await migrateMantleState({
@@ -923,7 +943,7 @@ environments:
 
 		const files = new Map<string, "missing" | Uint8Array>([
 			[".mantle-state.yml", new TextEncoder().encode(PASS_YAML)],
-			["assets/marketing/example-icon.png", "missing"],
+			[iconFsKey(".mantle-state.yml", "assets/marketing/example-icon.png"), "missing"],
 		]);
 
 		const result = await migrateMantleState({
@@ -946,7 +966,9 @@ environments:
 
 		expect(warning.kind).toBe("ambiguous");
 		expect(warning.mantlePath).toBe("production.pass_1-example");
-		expect(warning.hint).toContain("assets/marketing/example-icon.png");
+		expect(warning.hint).toContain(
+			iconFsKey(".mantle-state.yml", "assets/marketing/example-icon.png"),
+		);
 	});
 
 	it("should fall back to the Mantle hash for any readFile rejection, not just ENOENT", async () => {
@@ -997,7 +1019,7 @@ environments:
 
 		const files = new Map<string, "missing" | Uint8Array>([
 			[".mantle-state.yml", new TextEncoder().encode(UNIVERSE_ICON_YAML)],
-			["assets/marketing/icon.png", ICON_BYTES],
+			[iconFsKey(".mantle-state.yml", "assets/marketing/icon.png"), ICON_BYTES],
 		]);
 
 		const result = await migrateMantleState({
@@ -1025,7 +1047,7 @@ environments:
 
 		const files = new Map<string, "missing" | Uint8Array>([
 			[".mantle-state.yml", new TextEncoder().encode(UNIVERSE_ICON_YAML)],
-			["assets/marketing/icon.png", "missing"],
+			[iconFsKey(".mantle-state.yml", "assets/marketing/icon.png"), "missing"],
 		]);
 
 		const result = await migrateMantleState({
@@ -1051,7 +1073,7 @@ environments:
 		assert(warning?.kind === "ambiguous");
 
 		expect(warning.mantlePath).toBe("production.experienceIcon_singleton");
-		expect(warning.hint).toContain("assets/marketing/icon.png");
+		expect(warning.hint).toContain(iconFsKey(".mantle-state.yml", "assets/marketing/icon.png"));
 	});
 
 	it("should recompute icon hashes for products with icons", async () => {
@@ -1059,7 +1081,7 @@ environments:
 
 		const files = new Map<string, "missing" | Uint8Array>([
 			[".mantle-state.yml", new TextEncoder().encode(PRODUCT_WITH_ICON_YAML)],
-			["assets/marketing/gem-pack.png", ICON_BYTES],
+			[iconFsKey(".mantle-state.yml", "assets/marketing/gem-pack.png"), ICON_BYTES],
 		]);
 
 		const result = await migrateMantleState({
@@ -1103,7 +1125,7 @@ environments:
 
 		const files = new Map<string, "missing" | Uint8Array>([
 			[".mantle-state.yml", new TextEncoder().encode(PRODUCT_WITH_ICON_YAML)],
-			["assets/marketing/gem-pack.png", "missing"],
+			[iconFsKey(".mantle-state.yml", "assets/marketing/gem-pack.png"), "missing"],
 		]);
 
 		const result = await migrateMantleState({
@@ -1126,7 +1148,7 @@ environments:
 
 		const files = new Map<string, "missing" | Uint8Array>([
 			[".mantle-state.yml", new TextEncoder().encode(PRODUCT_WITH_ICON_YAML)],
-			["assets/marketing/gem-pack.png", "missing"],
+			[iconFsKey(".mantle-state.yml", "assets/marketing/gem-pack.png"), "missing"],
 		]);
 
 		const result = await migrateMantleState({
@@ -1143,7 +1165,9 @@ environments:
 		assert(warning?.kind === "ambiguous");
 
 		expect(warning.mantlePath).toBe("production.product_1-gem-pack");
-		expect(warning.hint).toContain("assets/marketing/gem-pack.png");
+		expect(warning.hint).toContain(
+			iconFsKey(".mantle-state.yml", "assets/marketing/gem-pack.png"),
+		);
 	});
 
 	it("should expose a product with an icon on the resolved Config.products record", async () => {
@@ -1151,7 +1175,7 @@ environments:
 
 		const files = new Map<string, "missing" | Uint8Array>([
 			[".mantle-state.yml", new TextEncoder().encode(PRODUCT_WITH_ICON_YAML)],
-			["assets/marketing/gem-pack.png", ICON_BYTES],
+			[iconFsKey(".mantle-state.yml", "assets/marketing/gem-pack.png"), ICON_BYTES],
 		]);
 
 		const result = await migrateMantleState({
@@ -1179,7 +1203,7 @@ environments:
 
 		const files = new Map<string, "missing" | Uint8Array>([
 			[".mantle-state.yml", new TextEncoder().encode(PRODUCT_WITH_ICON_YAML)],
-			["assets/marketing/gem-pack.png", ICON_BYTES],
+			[iconFsKey(".mantle-state.yml", "assets/marketing/gem-pack.png"), ICON_BYTES],
 		]);
 
 		const result = await migrateMantleState({
