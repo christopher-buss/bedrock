@@ -343,6 +343,43 @@ describe(migrateMantleState, () => {
 		expect(development.data.universe?.universeId).toBe("6031475575");
 	});
 
+	it("should set environment.label on environments mantle stamped with bracketed display-name prefixes", async () => {
+		expect.assertions(2);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.label).toBe("development");
+		expect(result.data.config.environments["production"]?.label).toBeUndefined();
+	});
+
+	it("should reapply the environment-label prefix to displayName via selectEnvironment after migration", async () => {
+		expect.assertions(2);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
+
+		const production = selectEnvironment(result.data.config, "production");
+		const development = selectEnvironment(result.data.config, "development");
+		assert(production.success);
+		assert(development.success);
+
+		expect(production.data.universe?.displayName).toBe("roblox-ts Project Template");
+		expect(development.data.universe?.displayName).toBe(
+			"[DEVELOPMENT] roblox-ts Project Template",
+		);
+	});
+
 	it("should round-trip a per-environment universe overlay through loadConfig", async () => {
 		expect.assertions(2);
 
@@ -525,7 +562,7 @@ describe(migrateMantleState, () => {
 			consoleEnabled: true,
 			desktopEnabled: true,
 			discordSocialLink: { title: "Join our Discord", uri: "https://discord.gg/example" },
-			displayName: "[DEVELOPMENT] roblox-ts Project Template",
+			displayName: "roblox-ts Project Template",
 			icon: { "en-us": "assets/marketing/example-icon.png" },
 			mobileEnabled: true,
 			privateServerPriceRobux: 0,
