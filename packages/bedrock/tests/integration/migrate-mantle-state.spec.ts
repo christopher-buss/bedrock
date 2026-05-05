@@ -525,7 +525,7 @@ describe(migrateMantleState, () => {
 			consoleEnabled: true,
 			desktopEnabled: true,
 			discordSocialLink: { title: "Join our Discord", uri: "https://discord.gg/example" },
-			displayName: "[DEVELOPMENT] roblox-ts Project Template",
+			displayName: "roblox-ts Project Template",
 			icon: { "en-us": "assets/marketing/example-icon.png" },
 			mobileEnabled: true,
 			privateServerPriceRobux: 0,

@@ -974,6 +974,72 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
+	it("should preserve the universe displayName verbatim when the primary environment has no label", () => {
+		expect.assertions(2);
+
+		const folds = new Map([
+			[
+				"production",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({ entry: { displayName: "Lobby", filePath: "place.rbxl" } }),
+						],
+					]),
+					universe: {
+						entry: { displayName: "[BETA] My Game", universeId: "1234567890" },
+						outputs: { rootPlaceId: asRobloxAssetId("17613681043") },
+					},
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.universe?.displayName).toBe("[BETA] My Game");
+		expect(result.data.config.environments["production"]?.label).toBeUndefined();
+	});
+
+	it("should strip the primary environment's display-name prefix from the root universe entry when the env has a label", () => {
+		expect.assertions(2);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({
+								entry: {
+									displayName: "[DEVELOPMENT] Lobby",
+									filePath: "place.rbxl",
+								},
+							}),
+						],
+					]),
+					universe: {
+						entry: {
+							displayName: "[DEVELOPMENT] My Game",
+							universeId: "1111111111",
+						},
+						outputs: { rootPlaceId: asRobloxAssetId("2222222222") },
+					},
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "development" });
+
+		assert(result.success);
+
+		expect(result.data.config.universe?.displayName).toBe("My Game");
+		expect(result.data.config.environments["development"]?.label).toBe("development");
+	});
+
 	it("should land serverSize on root and omit the place overlay when both environments share the same serverSize", () => {
 		expect.assertions(2);
 

@@ -8,6 +8,8 @@ import type {
 	PlaceEntry,
 } from "../schema.ts";
 import { computeEnvironmentLabel } from "./environment-label.ts";
+import { extractDisplayNamePrefix } from "./extract-display-name-prefix.ts";
+import { collectMissingResourceWarnings } from "./factorize-environments-warnings.ts";
 import { buildPlacesOverlay, buildRootPlaces } from "./factorize-places.ts";
 import { buildProductsOverlay, buildRootProducts } from "./factorize-products.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
@@ -45,6 +47,12 @@ interface EnvironmentEntryInputs {
 	readonly label: string | undefined;
 }
 
+interface BuildConfigInputs {
+	readonly folds: ReadonlyMap<string, EnvironmentFoldResult>;
+	readonly primaryFold: EnvironmentFoldResult;
+	readonly primaryName: string;
+}
+
 /**
  * Project per-environment fold results into a single bedrock `Config` by
  * factoring the chosen primary environment's resolved values up to the root
@@ -72,7 +80,11 @@ export function factorizeEnvironments(
 	const primary = primaryResult.data;
 	return {
 		data: {
-			config: buildConfig(inputs.folds, primary.fold),
+			config: buildConfig({
+				folds: inputs.folds,
+				primaryFold: primary.fold,
+				primaryName: primary.name,
+			}),
 			primaryEnvironment: primary.name,
 			warnings: collectMissingResourceWarnings({ folds: inputs.folds, primary }),
 		},
@@ -210,10 +222,20 @@ function buildEnvironmentLabels(
 	return labels;
 }
 
-function buildConfig(
-	folds: ReadonlyMap<string, EnvironmentFoldResult>,
+function resolveRootUniverse(
 	primaryFold: EnvironmentFoldResult,
-): Config {
+	label: string | undefined,
+): Config["universe"] {
+	const entry = primaryFold.universe?.entry;
+	if (entry === undefined || label === undefined || entry.displayName === undefined) {
+		return entry;
+	}
+
+	return { ...entry, displayName: extractDisplayNamePrefix(entry.displayName).body };
+}
+
+function buildConfig(inputs: BuildConfigInputs): Config {
+	const { folds, primaryFold, primaryName } = inputs;
 	const labels = buildEnvironmentLabels(folds);
 	const places = buildRootPlaces({ folds, labels, primaryFold });
 	const products = buildRootProducts(folds, primaryFold);
@@ -224,131 +246,12 @@ function buildConfig(
 		rootProducts: products,
 	});
 	const passes = buildRootPasses(primaryFold);
-	const universe = primaryFold.universe?.entry;
-
-	const config: Config = { environments };
-	if (passes !== undefined) {
-		config.passes = passes;
-	}
-
-	if (places !== undefined) {
-		config.places = places;
-	}
-
-	if (products !== undefined) {
-		config.products = products;
-	}
-
-	if (universe !== undefined) {
-		config.universe = universe;
-	}
-
-	return config;
-}
-
-const RESOURCE_MISSING_RULE = "factorize-environments/resource-missing-from-env";
-
-interface AsymmetryContext {
-	readonly environmentName: string;
-	readonly fold: EnvironmentFoldResult;
-	readonly primary: EnvironmentFoldResult;
-}
-
-interface MissingResourcePaths {
-	readonly bedrockSegment: string;
-	readonly environmentName: string;
-	readonly mantleSegment: string;
-}
-
-interface MissingResourceInputs {
-	readonly folds: ReadonlyMap<string, EnvironmentFoldResult>;
-	readonly primary: ResolvedPrimary;
-}
-
-interface KeyedAsymmetrySpec {
-	readonly bedrockPrefix: string;
-	readonly mantlePrefix: string;
-	readonly readKeys: (fold: EnvironmentFoldResult) => ReadonlyArray<string>;
-}
-
-function missingResourceWarning(paths: MissingResourcePaths): MigrationWarning {
+	const universe = resolveRootUniverse(primaryFold, labels.get(primaryName));
 	return {
-		bedrockPath: `environments.${paths.environmentName}.${paths.bedrockSegment}`,
-		kind: "interpretive",
-		mantlePath: `${paths.environmentName}.${paths.mantleSegment}`,
-		rule: RESOURCE_MISSING_RULE,
+		environments,
+		...(passes !== undefined && { passes }),
+		...(places !== undefined && { places }),
+		...(products !== undefined && { products }),
+		...(universe !== undefined && { universe }),
 	};
-}
-
-function universeAsymmetryWarnings(context: AsymmetryContext): ReadonlyArray<MigrationWarning> {
-	const hasEnvironmentUniverse = context.fold.universe !== undefined;
-	const hasPrimaryUniverse = context.primary.universe !== undefined;
-	if (hasEnvironmentUniverse === hasPrimaryUniverse) {
-		return [];
-	}
-
-	return [
-		missingResourceWarning({
-			bedrockSegment: "universe",
-			environmentName: context.environmentName,
-			mantleSegment: "experience_singleton",
-		}),
-	];
-}
-
-function asymmetricKeys(
-	environmentKeys: ReadonlyArray<string>,
-	primaryKeys: ReadonlyArray<string>,
-): ReadonlyArray<string> {
-	const environmentSet = new Set(environmentKeys);
-	const primarySet = new Set(primaryKeys);
-	const onlyInEnvironment = environmentKeys.filter((key) => !primarySet.has(key));
-	const onlyInPrimary = primaryKeys.filter((key) => !environmentSet.has(key));
-	return [...onlyInEnvironment, ...onlyInPrimary];
-}
-
-const KEYED_ASYMMETRY_SPECS: ReadonlyArray<KeyedAsymmetrySpec> = [
-	{
-		bedrockPrefix: "places",
-		mantlePrefix: "place_",
-		readKeys: (fold) => [...fold.places.keys()],
-	},
-	{
-		bedrockPrefix: "passes",
-		mantlePrefix: "pass_",
-		readKeys: (fold) => fold.passes.map(({ key }) => key),
-	},
-	{
-		bedrockPrefix: "products",
-		mantlePrefix: "product_",
-		readKeys: (fold) => fold.products.map(({ key }) => key),
-	},
-];
-
-function keyedAsymmetryWarnings(
-	context: AsymmetryContext,
-	spec: KeyedAsymmetrySpec,
-): ReadonlyArray<MigrationWarning> {
-	return asymmetricKeys(spec.readKeys(context.fold), spec.readKeys(context.primary)).map(
-		(key) => {
-			return missingResourceWarning({
-				bedrockSegment: `${spec.bedrockPrefix}.${key}`,
-				environmentName: context.environmentName,
-				mantleSegment: `${spec.mantlePrefix}${key}`,
-			});
-		},
-	);
-}
-
-function collectMissingResourceWarnings(
-	inputs: MissingResourceInputs,
-): ReadonlyArray<MigrationWarning> {
-	const primaryFold = inputs.primary.fold;
-	return [...inputs.folds.entries()].flatMap(([name, fold]): ReadonlyArray<MigrationWarning> => {
-		const context: AsymmetryContext = { environmentName: name, fold, primary: primaryFold };
-		return [
-			...universeAsymmetryWarnings(context),
-			...KEYED_ASYMMETRY_SPECS.flatMap((spec) => keyedAsymmetryWarnings(context, spec)),
-		];
-	});
 }
