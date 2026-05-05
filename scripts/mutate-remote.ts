@@ -16,6 +16,7 @@ const RSYNC_EXCLUDES = [
 interface RemoteConfig {
 	container: string;
 	host: string;
+	rsyncPath: string | undefined;
 	stage: string;
 	worktree: string;
 }
@@ -26,12 +27,18 @@ function readConfig(): RemoteConfig | undefined {
 		return undefined;
 	}
 
+	const rsyncPath = process.env["BEDROCK_REMOTE_MUTATE_RSYNC_PATH"];
 	return {
 		container: process.env["BEDROCK_REMOTE_MUTATE_CONTAINER"] ?? "bedrock-mutate-server",
 		host,
+		rsyncPath: rsyncPath !== undefined && rsyncPath !== "" ? rsyncPath : undefined,
 		stage: process.env["BEDROCK_REMOTE_MUTATE_STAGE"] ?? "~/bedrock-stage",
 		worktree: path.basename(process.cwd()),
 	};
+}
+
+function rsyncPathArgument(config: RemoteConfig): Array<string> {
+	return config.rsyncPath === undefined ? [] : [`--rsync-path=${config.rsyncPath}`];
 }
 
 function probe(config: RemoteConfig): boolean {
@@ -53,9 +60,11 @@ function probe(config: RemoteConfig): boolean {
 
 function rsyncUp(config: RemoteConfig): number {
 	const remote = `${config.host}:${config.stage}/${config.worktree}/`;
-	const result = spawnSync("rsync", ["-az", "--delete", ...RSYNC_EXCLUDES, "./", remote], {
-		stdio: "inherit",
-	});
+	const result = spawnSync(
+		"rsync",
+		["-az", "--delete", ...rsyncPathArgument(config), ...RSYNC_EXCLUDES, "./", remote],
+		{ stdio: "inherit" },
+	);
 	return result.status ?? 1;
 }
 
@@ -65,6 +74,7 @@ function rsyncReportsDown(config: RemoteConfig): number {
 		"rsync",
 		[
 			"-az",
+			...rsyncPathArgument(config),
 			"--include=packages/",
 			"--include=packages/*/",
 			"--include=packages/*/reports/",
