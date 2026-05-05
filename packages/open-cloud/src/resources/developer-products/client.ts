@@ -1,4 +1,4 @@
-import type { HttpRequest, OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
+import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
 import {
 	buildCreateRequest,
 	buildGetRequest,
@@ -36,9 +36,9 @@ import {
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
 
-function makeSpec<P>(
-	spec: ResourceMethodSpec<P, DeveloperProduct>,
-): ResourceMethodSpec<P, DeveloperProduct> {
+function makeSpec<P, R = DeveloperProduct>(
+	spec: ResourceMethodSpec<P, R>,
+): ResourceMethodSpec<P, R> {
 	return Object.freeze(spec);
 }
 
@@ -60,14 +60,8 @@ const GET_SPEC = makeSpec<GetDeveloperProductParameters>({
 	requiredScopes: GET_REQUIRED_SCOPES,
 });
 
-function buildUpdateOkRequest(
-	parameters: UpdateDeveloperProductParameters,
-): Result<HttpRequest, OpenCloudError> {
-	return okRequest(buildUpdateRequest(parameters));
-}
-
-const UPDATE_SPEC: ResourceMethodSpec<UpdateDeveloperProductParameters, undefined> = Object.freeze({
-	buildRequest: buildUpdateOkRequest,
+const UPDATE_SPEC = makeSpec<UpdateDeveloperProductParameters, undefined>({
+	buildRequest: (parameters) => okRequest(buildUpdateRequest(parameters)),
 	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 	methodKind: "idempotent",
 	operationLimit: UPDATE_OPERATION_LIMIT,
@@ -75,17 +69,11 @@ const UPDATE_SPEC: ResourceMethodSpec<UpdateDeveloperProductParameters, undefine
 	requiredScopes: WRITE_REQUIRED_SCOPES,
 });
 
-function buildLocaleNameDescOkRequest(
-	parameters: UpdateDeveloperProductNameDescriptionParameters,
-): Result<HttpRequest, OpenCloudError> {
-	return okRequest(buildLocaleNameDescRequest(parameters));
-}
-
-const UPDATE_NAME_DESCRIPTION_SPEC: ResourceMethodSpec<
+const UPDATE_NAME_DESCRIPTION_SPEC = makeSpec<
 	UpdateDeveloperProductNameDescriptionParameters,
 	undefined
-> = Object.freeze({
-	buildRequest: buildLocaleNameDescOkRequest,
+>({
+	buildRequest: (parameters) => okRequest(buildLocaleNameDescRequest(parameters)),
 	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 	methodKind: "idempotent",
 	operationLimit: LOCALIZATION_OPERATION_LIMIT,
@@ -93,21 +81,14 @@ const UPDATE_NAME_DESCRIPTION_SPEC: ResourceMethodSpec<
 	requiredScopes: LOCALIZATION_REQUIRED_SCOPES,
 });
 
-function buildUploadIconOkRequest(
-	parameters: UploadDeveloperProductIconParameters,
-): Result<HttpRequest, OpenCloudError> {
-	return okRequest(buildUploadIconRequest(parameters));
-}
-
-const UPLOAD_ICON_SPEC: ResourceMethodSpec<UploadDeveloperProductIconParameters, undefined> =
-	Object.freeze({
-		buildRequest: buildUploadIconOkRequest,
-		methodDefaults: CREATE_METHOD_DEFAULTS,
-		methodKind: "create",
-		operationLimit: LOCALIZATION_OPERATION_LIMIT,
-		parse: parseEmptyResponse,
-		requiredScopes: LOCALIZATION_REQUIRED_SCOPES,
-	});
+const UPLOAD_ICON_SPEC = makeSpec<UploadDeveloperProductIconParameters, undefined>({
+	buildRequest: (parameters) => okRequest(buildUploadIconRequest(parameters)),
+	methodDefaults: CREATE_METHOD_DEFAULTS,
+	methodKind: "create",
+	operationLimit: LOCALIZATION_OPERATION_LIMIT,
+	parse: parseEmptyResponse,
+	requiredScopes: LOCALIZATION_REQUIRED_SCOPES,
+});
 
 interface DeveloperProductLocalizationHandle {
 	/**
