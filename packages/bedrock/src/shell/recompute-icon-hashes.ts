@@ -91,35 +91,9 @@ interface WalkEnvironmentResult {
 	readonly warnings: ReadonlyArray<MigrationWarning>;
 }
 
-interface UniverseIconWalkInputs {
-	readonly environmentName: string;
-	readonly folded: EnvironmentFoldResult;
-	readonly readFile: (path: string) => Promise<Uint8Array>;
-	readonly stateFileDirectory: string;
-}
-
 interface UniverseIconWalkResult {
 	readonly hash: Record<"en-us", Sha256Hex> | undefined;
 	readonly warnings: ReadonlyArray<MigrationWarning>;
-}
-
-interface RecomputationAccumulator {
-	readonly passHashesByEnvironment: Map<
-		string,
-		ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>
-	>;
-	readonly productHashesByEnvironment: Map<
-		string,
-		ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>
-	>;
-	readonly universeHashByEnvironment: Map<string, Record<"en-us", Sha256Hex>>;
-	readonly warnings: Array<MigrationWarning>;
-}
-
-interface MergeWalkedEnvironmentInputs {
-	readonly accumulator: RecomputationAccumulator;
-	readonly environment: string;
-	readonly walked: WalkEnvironmentResult;
 }
 
 /**
@@ -141,35 +115,40 @@ interface MergeWalkedEnvironmentInputs {
 export async function recomputeIconHashes(
 	inputs: RecomputeIconHashesInputs,
 ): Promise<IconHashRecomputation> {
-	const accumulator: RecomputationAccumulator = {
-		passHashesByEnvironment: new Map(),
-		productHashesByEnvironment: new Map(),
-		universeHashByEnvironment: new Map(),
-		warnings: [],
-	};
+	const walked = await Promise.all(
+		[...inputs.folds.entries()].map(async ([environment, folded]) => {
+			const result = await walkEnvironment({
+				environmentName: environment,
+				folded,
+				readFile: inputs.readFile,
+				stateFileDirectory: inputs.stateFileDirectory,
+			});
+			return [environment, result] as const;
+		}),
+	);
 
-	for (const [environment, folded] of inputs.folds) {
-		const walked = await walkEnvironment({
-			environmentName: environment,
-			folded,
-			readFile: inputs.readFile,
-			stateFileDirectory: inputs.stateFileDirectory,
-		});
-		mergeWalkedEnvironment({ accumulator, environment, walked });
-	}
-
-	return accumulator;
+	return collectRecomputation(walked);
 }
 
-function mergeWalkedEnvironment(inputs: MergeWalkedEnvironmentInputs): void {
-	const { accumulator, environment, walked } = inputs;
-	accumulator.passHashesByEnvironment.set(environment, walked.passHashes);
-	accumulator.productHashesByEnvironment.set(environment, walked.productHashes);
-	if (walked.universeHash !== undefined) {
-		accumulator.universeHashByEnvironment.set(environment, walked.universeHash);
-	}
-
-	accumulator.warnings.push(...walked.warnings);
+function collectRecomputation(
+	walked: ReadonlyArray<readonly [string, WalkEnvironmentResult]>,
+): IconHashRecomputation {
+	return {
+		passHashesByEnvironment: new Map(
+			walked.map(([environment, walk]) => [environment, walk.passHashes]),
+		),
+		productHashesByEnvironment: new Map(
+			walked.map(([environment, walk]) => [environment, walk.productHashes]),
+		),
+		universeHashByEnvironment: new Map(
+			walked.flatMap(([environment, walk]) => {
+				return walk.universeHash === undefined
+					? []
+					: [[environment, walk.universeHash] as const];
+			}),
+		),
+		warnings: walked.flatMap(([, walk]) => walk.warnings),
+	};
 }
 
 function passWalkEntry(entry: PassFoldEntry): IconWalkEntry {
@@ -236,7 +215,7 @@ async function walkIconEntries(inputs: IconWalkInputs): Promise<IconWalkResult> 
 	return { perKey, warnings };
 }
 
-async function walkUniverseIcon(inputs: UniverseIconWalkInputs): Promise<UniverseIconWalkResult> {
+async function walkUniverseIcon(inputs: WalkEnvironmentInputs): Promise<UniverseIconWalkResult> {
 	const iconPath = inputs.folded.universe?.entry.icon?.["en-us"];
 	if (iconPath === undefined) {
 		return { hash: undefined, warnings: [] };
