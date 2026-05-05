@@ -85,6 +85,70 @@ environments:
         - experience_singleton
 `;
 
+const PRODUCT_WITH_ICON_YAML = `
+version: "6"
+environments:
+  production:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 6031475575
+          startPlaceId: 17613681043
+      dependencies: []
+    - id: product_1-gem-pack
+      inputs:
+        product:
+          name: Gem Pack
+          description: Stocks the player up with 1,000 premium gems.
+          price: 100
+      outputs:
+        product:
+          assetId: 1835296153
+          productId: 58109926
+      dependencies:
+        - experience_singleton
+    - id: productIcon_1-gem-pack
+      inputs:
+        productIcon:
+          filePath: assets/marketing/gem-pack.png
+          fileHash: ${SAMPLE_HASH}
+      outputs:
+        productIcon:
+          assetId: 18280868488
+      dependencies:
+        - product_1-gem-pack
+`;
+
+const PRODUCT_WITHOUT_ICON_YAML = `
+version: "6"
+environments:
+  production:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 6031475575
+          startPlaceId: 17613681043
+      dependencies: []
+    - id: product_1-coin-pack
+      inputs:
+        product:
+          name: Coin Pack
+          description: Adds 500 coins to the player's wallet.
+          price: 50
+      outputs:
+        product:
+          assetId: 1835296153
+          productId: 58109926
+      dependencies:
+        - experience_singleton
+`;
+
 const TWO_ENV_PLACE_YAML = `
 version: "6"
 environments:
@@ -790,6 +854,98 @@ environments:
 		assert(result.success);
 
 		expect("passes" in result.data.config).toBeFalse();
+	});
+
+	it("should recompute icon hashes for products with icons", async () => {
+		expect.assertions(2);
+
+		const files = new Map<string, "missing" | Uint8Array>([
+			[".mantle-state.yml", new TextEncoder().encode(PRODUCT_WITH_ICON_YAML)],
+			["assets/marketing/gem-pack.png", ICON_BYTES],
+		]);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFs(files),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		const product = state?.resources.find((resource) => resource.kind === "developerProduct");
+		assert(product?.kind === "developerProduct");
+
+		expect(product.iconFileHashes).toStrictEqual({ "en-us": ICON_BYTES_SHA256 });
+		expect(result.data.warnings).toStrictEqual([]);
+	});
+
+	it("should omit products without icons from the recomputed product map", async () => {
+		expect.assertions(3);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeReadFile(PRODUCT_WITHOUT_ICON_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		const product = state?.resources.find((resource) => resource.kind === "developerProduct");
+		assert(product?.kind === "developerProduct");
+
+		expect(product.iconFileHashes).toBeUndefined();
+		expect(product.icon).toBeUndefined();
+		expect(result.data.warnings).toStrictEqual([]);
+	});
+
+	it("should fall back to the mantle-recorded hash when a product icon file is missing", async () => {
+		expect.assertions(1);
+
+		const files = new Map<string, "missing" | Uint8Array>([
+			[".mantle-state.yml", new TextEncoder().encode(PRODUCT_WITH_ICON_YAML)],
+			["assets/marketing/gem-pack.png", "missing"],
+		]);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFs(files),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		const product = state?.resources.find((resource) => resource.kind === "developerProduct");
+		assert(product?.kind === "developerProduct");
+
+		expect(product.iconFileHashes).toStrictEqual({ "en-us": SAMPLE_HASH });
+	});
+
+	it("should emit an ambiguous warning for a missing product icon file", async () => {
+		expect.assertions(3);
+
+		const files = new Map<string, "missing" | Uint8Array>([
+			[".mantle-state.yml", new TextEncoder().encode(PRODUCT_WITH_ICON_YAML)],
+			["assets/marketing/gem-pack.png", "missing"],
+		]);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFs(files),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.warnings).toHaveLength(1);
+
+		const [warning] = result.data.warnings;
+		assert(warning?.kind === "ambiguous");
+
+		expect(warning.mantlePath).toBe("production.product_1-gem-pack");
+		expect(warning.hint).toContain("assets/marketing/gem-pack.png");
 	});
 
 	it("should re-throw a readFile rejection whose code is not a string", async () => {
