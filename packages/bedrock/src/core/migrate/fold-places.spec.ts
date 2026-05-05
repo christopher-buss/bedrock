@@ -406,6 +406,92 @@ describe(foldPlaces, () => {
 		});
 	});
 
+	describe("placeConfiguration.name fold for non-start places", () => {
+		it("should fold a non-start placeConfiguration name onto entry.displayName", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				place({ key: "start", inputs: { isStart: true }, outputs: { assetId: 1 } }),
+				place({ key: "lobby", inputs: { isStart: false }, outputs: { assetId: 2 } }),
+				defaultPlaceFile("start"),
+				defaultPlaceFile("lobby"),
+				placeConfiguration("lobby", { name: "Lobby" }),
+			]);
+
+			const entry = result.entries.get("lobby");
+			assert(entry !== undefined);
+
+			expect(entry.entry.displayName).toBe("Lobby");
+		});
+
+		it("should emit one interpretive warning for the non-start name fold", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				place({ key: "start", inputs: { isStart: true }, outputs: { assetId: 1 } }),
+				place({ key: "lobby", inputs: { isStart: false }, outputs: { assetId: 2 } }),
+				defaultPlaceFile("start"),
+				defaultPlaceFile("lobby"),
+				placeConfiguration("lobby", { name: "Lobby" }),
+			]);
+
+			expect(result.warnings).toIncludeAllPartialMembers([
+				{
+					bedrockPath: "places.lobby.displayName",
+					kind: "interpretive",
+					mantlePath: "placeConfiguration_lobby.name",
+					rule: "place-name-to-display-name",
+				},
+			]);
+		});
+
+		it("should leave the start place's displayName unset on entry.displayName", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				place({ key: "start", inputs: { isStart: true }, outputs: { assetId: 1 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", { name: "Start" }),
+			]);
+
+			const entry = result.entries.get("start");
+			assert(entry !== undefined);
+
+			expect(entry.entry.displayName).toBeNil();
+		});
+
+		it("should silently skip a non-string name", () => {
+			expect.assertions(2);
+
+			const result = foldPlaces([
+				place({ key: "lobby", inputs: { isStart: false }, outputs: { assetId: 2 } }),
+				defaultPlaceFile("lobby"),
+				placeConfiguration("lobby", { name: 42 }),
+			]);
+
+			const entry = result.entries.get("lobby");
+			assert(entry !== undefined);
+
+			expect(entry.entry.displayName).toBeNil();
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should treat a place resource with non-object inputs as non-start", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				place({ key: "lobby", inputs: "not-an-object", outputs: { assetId: 2 } }),
+				defaultPlaceFile("lobby"),
+				placeConfiguration("lobby", { name: "Lobby" }),
+			]);
+
+			const entry = result.entries.get("lobby");
+			assert(entry !== undefined);
+
+			expect(entry.entry.displayName).toBe("Lobby");
+		});
+	});
+
 	describe("blocked placeConfiguration fields", () => {
 		it.for<[label: string, field: string, value: unknown, reason: string]>([
 			[

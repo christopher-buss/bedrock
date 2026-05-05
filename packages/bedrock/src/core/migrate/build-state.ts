@@ -93,7 +93,7 @@ function placeResource(key: string, fold: PlaceFoldEntry): ResourceCurrentState<
 	return {
 		key: asResourceKey(key),
 		description: fold.entry.description,
-		displayName: undefined,
+		displayName: fold.entry.displayName,
 		fileHash: fold.fileHash,
 		filePath: fold.entry.filePath,
 		kind: "place",

@@ -70,6 +70,7 @@ interface ApplyPlaceConfigFieldsInputs {
 	readonly key: string;
 	readonly configResource: MantleResource | undefined;
 	readonly folded: PlaceFoldEntry;
+	readonly isStart: boolean;
 }
 
 interface PlaceConfigFragmentRule {
@@ -81,6 +82,13 @@ interface PlaceConfigFragmentRule {
 interface PlaceConfigFragment {
 	readonly entry: Partial<PlaceEntry>;
 	readonly warnings: ReadonlyArray<PlaceConfigFragmentRule>;
+}
+
+interface PlaceConfigRule {
+	readonly bedrockField: keyof PlaceEntry;
+	readonly mantleField: string;
+	readonly read: (value: unknown) => number | string | undefined;
+	readonly rule: string;
 }
 
 /**
@@ -121,6 +129,7 @@ export function foldPlaces(resources: ReadonlyArray<MantleResource>): PlaceFoldR
 			key,
 			configResource: placeConfigurations.get(key),
 			folded,
+			isStart: isStartPlace(placeResource),
 		});
 		entries.set(key, configFold.entry);
 		warnings.push(...configFold.warnings);
@@ -183,12 +192,7 @@ function readPositiveInteger(value: unknown): number | undefined {
 	return value;
 }
 
-const PLACE_CONFIG_RULES: ReadonlyArray<{
-	readonly bedrockField: keyof PlaceEntry;
-	readonly mantleField: string;
-	readonly read: (value: unknown) => number | string | undefined;
-	readonly rule: string;
-}> = [
+const ALWAYS_RULES: ReadonlyArray<PlaceConfigRule> = [
 	{
 		bedrockField: "description",
 		mantleField: "description",
@@ -203,8 +207,24 @@ const PLACE_CONFIG_RULES: ReadonlyArray<{
 	},
 ];
 
-function readPlaceConfigFragment(inputs: Record<string, unknown>): PlaceConfigFragment {
-	return PLACE_CONFIG_RULES.reduce<{
+const NON_START_RULES: ReadonlyArray<PlaceConfigRule> = [
+	{
+		bedrockField: "displayName",
+		mantleField: "name",
+		read: readString,
+		rule: "place-name-to-display-name",
+	},
+];
+
+function placeConfigRules(isStart: boolean): ReadonlyArray<PlaceConfigRule> {
+	return isStart ? ALWAYS_RULES : [...ALWAYS_RULES, ...NON_START_RULES];
+}
+
+function readPlaceConfigFragment(
+	inputs: Record<string, unknown>,
+	rules: ReadonlyArray<PlaceConfigRule>,
+): PlaceConfigFragment {
+	return rules.reduce<{
 		entry: Partial<PlaceEntry>;
 		warnings: Array<PlaceConfigFragmentRule>;
 	}>(
@@ -231,12 +251,12 @@ function readPlaceConfigFragment(inputs: Record<string, unknown>): PlaceConfigFr
 }
 
 function applyPlaceConfigFields(inputs: ApplyPlaceConfigFieldsInputs): PlaceConfigFoldResult {
-	const { key, configResource, folded } = inputs;
+	const { key, configResource, folded, isStart } = inputs;
 	if (configResource === undefined || !isObjectPayload(configResource.inputs)) {
 		return { entry: folded, warnings: [] };
 	}
 
-	const fragment = readPlaceConfigFragment(configResource.inputs);
+	const fragment = readPlaceConfigFragment(configResource.inputs, placeConfigRules(isStart));
 	const entry: PlaceFoldEntry = {
 		...folded,
 		entry: { ...folded.entry, ...fragment.entry },
@@ -252,6 +272,14 @@ function applyPlaceConfigFields(inputs: ApplyPlaceConfigFieldsInputs): PlaceConf
 			});
 		}),
 	};
+}
+
+function isStartPlace(resource: MantleResource): boolean {
+	if (!isObjectPayload(resource.inputs)) {
+		return false;
+	}
+
+	return resource.inputs["isStart"] === true;
 }
 
 function coerceRobloxId(value: unknown): string | undefined {
