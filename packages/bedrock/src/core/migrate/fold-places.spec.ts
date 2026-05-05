@@ -339,13 +339,49 @@ describe(foldPlaces, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
-		it("should not synthesize an entry for an unmatched placeConfiguration", () => {
-			expect.assertions(2);
+		it("should emit an ambiguous warning when a placeConfiguration has no matching place or placeFile", () => {
+			expect.assertions(4);
 
 			const result = foldPlaces([placeConfiguration("orphan", { description: "Stranded" })]);
 
 			expect(result.entries.size).toBe(0);
-			expect(result.warnings).toStrictEqual([]);
+			expect(result.warnings).toHaveLength(1);
+
+			const [warning] = result.warnings;
+			assert(warning?.kind === "ambiguous");
+
+			expect(warning.mantlePath).toBe("placeConfiguration_orphan");
+			expect(warning.hint).toMatch(/verify your mantle state/i);
+		});
+
+		it("should emit a placeConfiguration orphan warning alongside the place orphan warning when only the placeFile is missing", () => {
+			expect.assertions(2);
+
+			const result = foldPlaces([
+				place({ key: "lonely", outputs: { assetId: 17613681043 } }),
+				placeConfiguration("lonely", { description: "Stranded" }),
+			]);
+
+			expect(result.entries.size).toBe(0);
+			expect(result.warnings).toIncludeAllPartialMembers([
+				{ kind: "ambiguous", mantlePath: "place_lonely" },
+				{ kind: "ambiguous", mantlePath: "placeConfiguration_lonely" },
+			]);
+		});
+
+		it("should emit a placeConfiguration orphan warning alongside the placeFile orphan warning when only the place is missing", () => {
+			expect.assertions(2);
+
+			const result = foldPlaces([
+				defaultPlaceFile("lonely"),
+				placeConfiguration("lonely", { description: "Stranded" }),
+			]);
+
+			expect(result.entries.size).toBe(0);
+			expect(result.warnings).toIncludeAllPartialMembers([
+				{ kind: "ambiguous", mantlePath: "placeFile_lonely" },
+				{ kind: "ambiguous", mantlePath: "placeConfiguration_lonely" },
+			]);
 		});
 	});
 
@@ -515,7 +551,11 @@ describe(foldPlaces, () => {
 		])("should emit a blocked warning when %s is set", ([, field, value, reason]) => {
 			expect.assertions(1);
 
-			const result = foldPlaces([placeConfiguration("start", { [field]: value })]);
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", { [field]: value }),
+			]);
 
 			expect(result.warnings).toStrictEqual([
 				{
@@ -530,6 +570,8 @@ describe(foldPlaces, () => {
 			expect.assertions(1);
 
 			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
 				placeConfiguration("start", {
 					allowCopying: undefined,
 					description: undefined,
@@ -543,6 +585,10 @@ describe(foldPlaces, () => {
 			expect.assertions(1);
 
 			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				place({ key: "lobby", outputs: { assetId: 17613681044 } }),
+				defaultPlaceFile("lobby"),
 				placeConfiguration("start", {
 					allowCopying: true,
 					customSocialSlotsCount: 4,
@@ -571,7 +617,11 @@ describe(foldPlaces, () => {
 		it("should skip a placeConfiguration whose inputs is not an object", () => {
 			expect.assertions(1);
 
-			const result = foldPlaces([placeConfiguration("start", "not-an-object")]);
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", "not-an-object"),
+			]);
 
 			expect(result.warnings).toStrictEqual([]);
 		});
@@ -579,7 +629,11 @@ describe(foldPlaces, () => {
 		it("should not emit a blocked warning for the name field (foldDisplayName owns it)", () => {
 			expect.assertions(1);
 
-			const result = foldPlaces([placeConfiguration("start", { name: "My Place" })]);
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", { name: "My Place" }),
+			]);
 
 			expect(
 				result.warnings.filter((warning) => {

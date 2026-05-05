@@ -91,6 +91,12 @@ interface PlaceConfigRule {
 	readonly rule: string;
 }
 
+interface PlaceBuckets {
+	readonly placeConfigurations: Map<string, MantleResource>;
+	readonly placeFiles: Map<string, MantleResource>;
+	readonly places: Map<string, MantleResource>;
+}
+
 /**
  * Fold the place-related Mantle resources of one environment into a map of
  * `PlaceFoldEntry` plus accompanying warnings. Pairs each `place_<k>`
@@ -109,10 +115,19 @@ interface PlaceConfigRule {
  * @returns The folded entries plus orphan warnings.
  */
 export function foldPlaces(resources: ReadonlyArray<MantleResource>): PlaceFoldResult {
-	const { placeConfigurations, placeFiles, places } = bucketByKind(resources);
+	const buckets = bucketByKind(resources);
+	const matched = collectMatchedFolds(buckets);
+	const orphans = collectOrphanWarnings(buckets);
+	return {
+		entries: matched.entries,
+		warnings: [...matched.warnings, ...orphans, ...foldBlockedPlaceFields(resources)],
+	};
+}
+
+function collectMatchedFolds(buckets: PlaceBuckets): PlaceFoldResult {
+	const { placeConfigurations, placeFiles, places } = buckets;
 	const entries = new Map<string, PlaceFoldEntry>();
 	const warnings: Array<MigrationWarning> = [];
-
 	for (const [key, placeResource] of places) {
 		const fileResource = placeFiles.get(key);
 		if (fileResource === undefined) {
@@ -135,20 +150,28 @@ export function foldPlaces(resources: ReadonlyArray<MantleResource>): PlaceFoldR
 		warnings.push(...configFold.warnings);
 	}
 
+	return { entries, warnings };
+}
+
+function collectOrphanWarnings(buckets: PlaceBuckets): ReadonlyArray<MigrationWarning> {
+	const { placeConfigurations, placeFiles, places } = buckets;
+	const warnings: Array<MigrationWarning> = [];
 	for (const [key] of placeFiles) {
 		if (!places.has(key)) {
 			warnings.push(orphanWarning(PLACE_FILE_KIND, key));
 		}
 	}
 
-	return { entries, warnings: [...warnings, ...foldBlockedPlaceFields(resources)] };
+	for (const [key] of placeConfigurations) {
+		if (!places.has(key) || !placeFiles.has(key)) {
+			warnings.push(placeConfigOrphanWarning(key));
+		}
+	}
+
+	return warnings;
 }
 
-function bucketByKind(resources: ReadonlyArray<MantleResource>): {
-	readonly placeConfigurations: Map<string, MantleResource>;
-	readonly placeFiles: Map<string, MantleResource>;
-	readonly places: Map<string, MantleResource>;
-} {
+function bucketByKind(resources: ReadonlyArray<MantleResource>): PlaceBuckets {
 	const places = new Map<string, MantleResource>();
 	const placeFiles = new Map<string, MantleResource>();
 	const placeConfigurations = new Map<string, MantleResource>();
@@ -360,5 +383,13 @@ function orphanWarning(kind: string, key: string): MigrationWarning {
 		hint: "Verify your Mantle state file: each place_<k> resource must be paired with a matching placeFile_<k>, and vice versa.",
 		kind: "ambiguous",
 		mantlePath: `${kind}_${key}`,
+	};
+}
+
+function placeConfigOrphanWarning(key: string): MigrationWarning {
+	return {
+		hint: "Verify your Mantle state file: each placeConfiguration_<k> requires a matching place_<k>+placeFile_<k> pair to fold its data into the bedrock config.",
+		kind: "ambiguous",
+		mantlePath: `${PLACE_CONFIGURATION_KIND}_${key}`,
 	};
 }
