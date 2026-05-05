@@ -16,7 +16,6 @@ const DEFERRED_KIND_REASONS: Readonly<Record<string, string>> = {
 	experienceThumbnailOrder: "experience thumbnail ordering",
 	imageAsset: "image assets",
 	notification: "experience notifications",
-	product: "developer products",
 	productIcon: "developer-product icons",
 };
 

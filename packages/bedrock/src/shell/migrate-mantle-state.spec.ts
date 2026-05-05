@@ -264,10 +264,6 @@ environments:
           assetId: 6031475575
           startPlaceId: 17613681043
       dependencies: []
-    - id: product_starter
-      inputs:
-        product: {}
-      dependencies: []
     - id: productIcon_starter
       inputs:
         productIcon: {}
@@ -1028,7 +1024,6 @@ environments:
 		assert(result.success);
 
 		expect(result.data.warnings.map((warning) => warning.mantlePath)).toStrictEqual([
-			"production.product_starter",
 			"production.productIcon_starter",
 			"production.badge_first-win",
 			"production.badgeIcon_first-win",

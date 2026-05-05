@@ -19,6 +19,7 @@ const NO_HASHES: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>> = new Map(
 const FOLDED_UNIVERSE: EnvironmentFoldResult = {
 	passes: [],
 	places: new Map(),
+	products: [],
 	universe: {
 		entry: { universeId: "6031475575" },
 		outputs: { rootPlaceId: asRobloxAssetId("17613681043") },
@@ -156,7 +157,13 @@ describe(buildState, () => {
 
 		const state = buildState({
 			environment: "production",
-			folded: { passes: [], places: new Map(), universe: undefined, warnings: [] },
+			folded: {
+				passes: [],
+				places: new Map(),
+				products: [],
+				universe: undefined,
+				warnings: [],
+			},
 			iconHashesByKey: NO_HASHES,
 		});
 
@@ -171,6 +178,7 @@ describe(buildState, () => {
 			folded: {
 				passes: [],
 				places: new Map([["start", placeFold()]]),
+				products: [],
 				universe: undefined,
 				warnings: [],
 			},
@@ -197,6 +205,7 @@ describe(buildState, () => {
 			folded: {
 				passes: [],
 				places: new Map([["start", placeFold()]]),
+				products: [],
 				universe: undefined,
 				warnings: [],
 			},
@@ -276,6 +285,7 @@ describe(buildState, () => {
 			folded: {
 				passes: [],
 				places: new Map([["start", placeFold()]]),
+				products: [],
 				universe: FOLDED_UNIVERSE.universe,
 				warnings: [],
 			},
@@ -295,6 +305,7 @@ describe(buildState, () => {
 		const folded: EnvironmentFoldResult = {
 			passes: [passEntry("1-example")],
 			places: new Map(),
+			products: [],
 			universe: undefined,
 			warnings: [],
 		};
@@ -328,6 +339,7 @@ describe(buildState, () => {
 		const folded: EnvironmentFoldResult = {
 			passes: [passEntry("1-example")],
 			places: new Map(),
+			products: [],
 			universe: undefined,
 			warnings: [],
 		};
@@ -350,6 +362,7 @@ describe(buildState, () => {
 		const folded: EnvironmentFoldResult = {
 			passes: [passEntry("1-example")],
 			places: new Map(),
+			products: [],
 			universe: FOLDED_UNIVERSE.universe,
 			warnings: [],
 		};
@@ -380,6 +393,7 @@ describe(buildState, () => {
 		const folded: EnvironmentFoldResult = {
 			passes: [offSaleEntry],
 			places: new Map(),
+			products: [],
 			universe: undefined,
 			warnings: [],
 		};

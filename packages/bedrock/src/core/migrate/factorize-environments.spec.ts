@@ -46,6 +46,7 @@ function fold(overrides: Partial<EnvironmentFoldResult> = {}): EnvironmentFoldRe
 	return {
 		passes: [],
 		places: new Map(),
+		products: [],
 		universe: undefined,
 		warnings: [],
 		...overrides,

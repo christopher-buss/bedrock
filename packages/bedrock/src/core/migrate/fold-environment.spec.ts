@@ -54,6 +54,20 @@ function pass(key: string): MantleResource {
 	};
 }
 
+function product(key: string): MantleResource {
+	return {
+		key,
+		dependencies: [],
+		inputs: {
+			name: "Example Product",
+			description: "This is an example product.",
+			price: 5,
+		},
+		kind: "product",
+		outputs: { assetId: 1835296153, productId: 58109926 },
+	};
+}
+
 describe(foldEnvironment, () => {
 	it("should expose the folded universe entry when an experience is present", () => {
 		expect.assertions(1);
@@ -154,7 +168,7 @@ describe(foldEnvironment, () => {
 		const result = foldEnvironment([
 			experience(),
 			mantleResource("badge", "first-win"),
-			mantleResource("product", "starter"),
+			mantleResource("audioAsset", "theme"),
 		]);
 
 		expect(result.warnings).toHaveLength(2);
@@ -162,6 +176,37 @@ describe(foldEnvironment, () => {
 			"deferred",
 			"deferred",
 		]);
+	});
+
+	it("should expose folded products when product resources are present", () => {
+		expect.assertions(2);
+
+		const result = foldEnvironment([experience(), product("1-example")]);
+
+		expect(result.products.map((entry) => entry.key)).toStrictEqual([
+			asResourceKey("1-example"),
+		]);
+		expect(result.products[0]?.entry).toStrictEqual({
+			name: "Example Product",
+			description: "This is an example product.",
+			price: 5,
+		});
+	});
+
+	it("should expose an empty products array when no product resources are present", () => {
+		expect.assertions(1);
+
+		const result = foldEnvironment([experience()]);
+
+		expect(result.products).toStrictEqual([]);
+	});
+
+	it("should not emit a deferred warning for a product resource", () => {
+		expect.assertions(1);
+
+		const result = foldEnvironment([experience(), product("1-example")]);
+
+		expect(result.warnings).toStrictEqual([]);
 	});
 
 	it("should emit deferred warnings with resource-rooted mantlePath", () => {
