@@ -928,6 +928,50 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
+	it("should lift the shared body to root and label each environment when every env carries a different bracketed prefix on the same body", () => {
+		expect.assertions(4);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({
+								entry: { displayName: "[DEV] Lobby", filePath: "place.rbxl" },
+							}),
+						],
+					]),
+				}),
+			],
+			[
+				"staging",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({
+								entry: { displayName: "[STAGING] Lobby", filePath: "place.rbxl" },
+							}),
+						],
+					]),
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "staging" });
+
+		assert(result.success);
+
+		expect(result.data.config.places?.["start"]?.displayName).toBe("Lobby");
+		expect(result.data.config.environments["development"]?.label).toBe("dev");
+		expect(result.data.config.environments["staging"]?.label).toBe("staging");
+		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+			start: { placeId: "17613681043" },
+		});
+	});
+
 	it("should put stripped per-environment overlays on each labeled environment when stripped bodies disagree across envs", () => {
 		expect.assertions(4);
 
