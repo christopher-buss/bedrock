@@ -11,7 +11,8 @@ const EXPERIENCE_KIND = "experience";
 const EXPERIENCE_CONFIGURATION_KIND = "experienceConfiguration";
 const UNIVERSE_AVATAR_PREFIX = "universeAvatar";
 const UNIVERSE_AVATAR_REASON = "avatar configuration has no Open Cloud equivalent";
-const GROUP_ID_REASON = "Open Cloud does not support transferring experience ownership";
+const GROUP_ID_REASON =
+	"Mantle used `groupId` to set the owning group when creating the experience. Bedrock requires pre-existing universe and place IDs and does not use this field.";
 
 /**
  * `experienceConfiguration_singleton` fields with no Open Cloud writable
