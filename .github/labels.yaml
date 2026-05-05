@@ -75,3 +75,7 @@
 - name: ready-for-human
   color: 0e8a16
   description: Needs human implementation
+
+- name: sandcastle
+  color: 5319e7
+  description: PR opened by the sandcastle agent (already reviewed in-sandbox)
