@@ -63,12 +63,12 @@ export function buildPlacesOverlay(
 		return undefined;
 	}
 
-	const overlay: Record<string, PlaceOverlayEntry> = {};
-	for (const [placeKey, foldEntry] of fold.places) {
-		overlay[placeKey] = buildPlaceOverlayEntry(foldEntry, rootPlaces?.[placeKey]);
-	}
-
-	return overlay;
+	return Object.fromEntries(
+		[...fold.places.entries()].map(([placeKey, foldEntry]) => [
+			placeKey,
+			buildPlaceOverlayEntry(foldEntry, rootPlaces?.[placeKey]),
+		]),
+	);
 }
 
 function placeFieldConsensus<F extends OptionalPlaceField>(
@@ -101,46 +101,27 @@ function buildRootPlaceEntry(
 		readonly placeKey: string;
 	},
 ): PlaceEntry {
-	const entry: PlaceEntry = { filePath: primary.entry.filePath };
 	const description = placeFieldConsensus({ ...consensusBase, field: "description" });
-	if (description !== undefined) {
-		entry.description = description;
-	}
-
 	const displayName = placeFieldConsensus({ ...consensusBase, field: "displayName" });
-	if (displayName !== undefined) {
-		entry.displayName = displayName;
-	}
-
 	const serverSize = placeFieldConsensus({ ...consensusBase, field: "serverSize" });
-	if (serverSize !== undefined) {
-		entry.serverSize = serverSize;
-	}
-
-	return entry;
+	return {
+		filePath: primary.entry.filePath,
+		...(description !== undefined && { description }),
+		...(displayName !== undefined && { displayName }),
+		...(serverSize !== undefined && { serverSize }),
+	};
 }
 
 function buildPlaceOverlayEntry(
 	fold: PlaceFoldEntry,
 	rootEntry: PlaceEntry | undefined,
 ): PlaceOverlayEntry {
-	const overlay: PlaceOverlayEntry = { placeId: fold.placeId };
-	if (fold.entry.filePath !== rootEntry?.filePath) {
-		overlay.filePath = fold.entry.filePath;
-	}
-
-	const { description, displayName, serverSize } = fold.entry;
-	if (!Object.is(rootEntry?.description, description)) {
-		overlay.description = description;
-	}
-
-	if (!Object.is(rootEntry?.displayName, displayName)) {
-		overlay.displayName = displayName;
-	}
-
-	if (!Object.is(rootEntry?.serverSize, serverSize)) {
-		overlay.serverSize = serverSize;
-	}
-
-	return overlay;
+	const { description, displayName, filePath, serverSize } = fold.entry;
+	return {
+		placeId: fold.placeId,
+		...(filePath !== rootEntry?.filePath && { filePath }),
+		...(!Object.is(rootEntry?.description, description) && { description }),
+		...(!Object.is(rootEntry?.displayName, displayName) && { displayName }),
+		...(!Object.is(rootEntry?.serverSize, serverSize) && { serverSize }),
+	};
 }
