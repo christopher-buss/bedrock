@@ -347,13 +347,12 @@ describe(buildUpdateRequest, () => {
 		expect(request.body.get(field)).toBe(expected);
 	});
 
-	it.for<[field: keyof UpdateGamePassParameters]>([
+	it.for<[field: Exclude<keyof UpdateGamePassParameters, "imageFile">]>([
 		["name"],
 		["description"],
 		["isForSale"],
 		["price"],
 		["isRegionalPricingEnabled"],
-		["imageFile"],
 	])("should omit %s from the form body when not provided", ([field]) => {
 		expect.assertions(1);
 
@@ -369,6 +368,40 @@ describe(buildUpdateRequest, () => {
 		expect(request.body.has(field)).toBeFalse();
 	});
 
+	it("should omit the wire `file` field when imageFile is not provided", () => {
+		expect.assertions(2);
+
+		const parameters = {
+			gamePassId: "12345",
+			universeId: "67890",
+		} satisfies UpdateGamePassParameters;
+
+		const request = buildUpdateRequest(parameters);
+
+		assert(request.body instanceof FormData);
+
+		expect(request.body.has("file")).toBeFalse();
+		expect(request.body.has("imageFile")).toBeFalse();
+	});
+
+	it("should append imageFile under the wire's `file` multipart field name", () => {
+		expect.assertions(2);
+
+		const imageFile = new Uint8Array([1, 2, 3, 4]);
+		const parameters = {
+			gamePassId: "12345",
+			imageFile,
+			universeId: "67890",
+		} satisfies UpdateGamePassParameters;
+
+		const request = buildUpdateRequest(parameters);
+
+		assert(request.body instanceof FormData);
+
+		expect(request.body.has("file")).toBeTrue();
+		expect(request.body.has("imageFile")).toBeFalse();
+	});
+
 	it("should wrap a Uint8Array imageFile into a Blob preserving its bytes", () => {
 		expect.assertions(2);
 
@@ -382,7 +415,7 @@ describe(buildUpdateRequest, () => {
 		const request = buildUpdateRequest(parameters);
 
 		assert(request.body instanceof FormData);
-		const appended = request.body.get("imageFile");
+		const appended = request.body.get("file");
 		assert(appended instanceof Blob);
 
 		expect(appended).toBeInstanceOf(Blob);
@@ -390,7 +423,7 @@ describe(buildUpdateRequest, () => {
 	});
 
 	it("should preserve the MIME type of a Blob imageFile", () => {
-		expect.assertions(1);
+		expect.assertions(2);
 
 		const imageFile = new Blob([new Uint8Array([1, 2, 3, 4])], { type: "image/png" });
 		const parameters = {
@@ -402,9 +435,10 @@ describe(buildUpdateRequest, () => {
 		const request = buildUpdateRequest(parameters);
 
 		assert(request.body instanceof FormData);
-		const appended = request.body.get("imageFile");
+		const appended = request.body.get("file");
 		assert(appended instanceof Blob);
 
+		expect(appended).toBeInstanceOf(Blob);
 		expect(appended.type).toBe("image/png");
 	});
 });

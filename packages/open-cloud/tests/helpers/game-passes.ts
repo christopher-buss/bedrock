@@ -1,7 +1,17 @@
-import type {
-	GamePassConfigV2,
-	ListGamePassConfigsByUniverseResponseWire,
-} from "#src/domains/game-passes/game-passes/wire";
+import type { GamePassConfigV2 } from "#src/domains/game-passes/game-passes/wire";
+
+/**
+ * Test-only wire shape for the list response. Mirrors the OpenAPI
+ * schema, which marks `nextPageToken` as required and nullable, so
+ * fixtures can carry the literal JSON `null` the API sends on the last
+ * page without leaking `null` into the production wire type (which
+ * exposes a post-normalization view of `string | undefined`).
+ */
+interface ListGamePassesWireBody {
+	readonly gamePasses: ReadonlyArray<GamePassConfigV2>;
+
+	readonly nextPageToken: null | string;
+}
 
 /**
  * Builds a minimally-valid {@link GamePassConfigV2} wire body. Pass an
@@ -27,26 +37,24 @@ export function validGamePassBody(overrides: Partial<GamePassConfigV2> = {}): Ga
 }
 
 /**
- * Builds a minimally-valid {@link ListGamePassConfigsByUniverseResponseWire}
- * body. By default the page contains one game pass and the cursor is the
- * literal JSON `null` the API sends on the last page; `overrides` lets
+ * Builds a minimally-valid wire body for the "list game passes" endpoint.
+ * By default the page contains one game pass and `nextPageToken` is the
+ * literal JSON `null` the API sends on the last page; `overrides` let
  * parser and integration tests tweak the items array or the cursor
  * without rebuilding the whole shape.
  *
  * @param overrides - Fields to override on the default body.
  * @returns A valid wire body with the overrides applied. `nextPageToken`
- *   carries the wire's literal `null` rather than `undefined` so the
- *   contract validator on the fake HTTP client sees the required
- *   property as present.
+ *   defaults to the wire's literal `null`, which the response parser
+ *   normalizes to `undefined` at the boundary.
  */
 export function validListGamePassesBody(
-	overrides: Partial<ListGamePassConfigsByUniverseResponseWire> = {},
-): ListGamePassConfigsByUniverseResponseWire {
-	const body = {
+	overrides: Partial<ListGamePassesWireBody> = {},
+): ListGamePassesWireBody {
+	return {
 		gamePasses: [validGamePassBody()],
-		// eslint-disable-next-line unicorn/no-null -- mirrors the literal JSON null the API sends on the last page; the parser normalizes it away.
+		// eslint-disable-next-line unicorn/no-null -- API sends null on the last page; parser normalizes to undefined.
 		nextPageToken: null,
 		...overrides,
 	};
-	return body as unknown as ListGamePassConfigsByUniverseResponseWire;
 }

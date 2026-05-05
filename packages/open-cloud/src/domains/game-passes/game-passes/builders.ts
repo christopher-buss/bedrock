@@ -90,6 +90,12 @@ export function buildCreateRequest(parameters: CreateGamePassParameters): HttpRe
  * omitted fields are not appended to the multipart body so the server
  * leaves their current values unchanged.
  *
+ * The public parameter `imageFile` is mapped to the wire's `file`
+ * multipart field name, matching the OpenAPI schema for this endpoint
+ * (the create endpoint uses `imageFile`, but the update endpoint uses
+ * `file`). Public consumers stay with one ergonomic name across both
+ * methods.
+ *
  * @param parameters - Identifiers plus fields to update.
  * @returns A pure {@link HttpRequest} describing the update call.
  */
@@ -116,7 +122,7 @@ export function buildUpdateRequest(parameters: UpdateGamePassParameters): HttpRe
 	}
 
 	if (parameters.imageFile !== undefined) {
-		body.append("imageFile", toBlob(parameters.imageFile));
+		body.append("file", toBlob(parameters.imageFile));
 	}
 
 	return {

@@ -101,7 +101,7 @@ const LIST_SPEC = makeSpec<ListGamePassesParameters, Page<GamePass>>({
  * }
  * ```
  *
- * Listing is cursor-paginated — drive the loop on `nextPageToken`:
+ * Listing is cursor-paginated; drive the loop on `nextPageToken`:
  *
  * ```ts
  * let pageToken: string | undefined;
