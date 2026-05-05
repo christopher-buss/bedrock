@@ -23,7 +23,9 @@
  * - `BEDROCK_REMOTE_MUTATE_HOST`: SSH target. Required to enable
  *   offload.
  * - `BEDROCK_REMOTE_MUTATE_STAGE`: base directory on the remote.
- *   Defaults to `~/bedrock-stage`.
+ *   Defaults to `~/bedrock-stage`. Must be an absolute path when
+ *   `BEDROCK_REMOTE_MUTATE_RSYNC_PATH` is set, since the alternate
+ *   rsync path runs outside a POSIX shell and will not expand `~`.
  * - `BEDROCK_REMOTE_MUTATE_CONTAINER`: container name. Defaults to
  *   `bedrock-mutate-server`.
  * - `BEDROCK_REMOTE_MUTATE_RSYNC_PATH`: passed to `rsync --rsync-path`
@@ -36,7 +38,9 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
 
-const SSH_PROBE_OPTS = ["-o", "ConnectTimeout=2", "-o", "BatchMode=yes"];
+const SSH_OPTS = ["-o", "ConnectTimeout=2", "-o", "BatchMode=yes"];
+const RSYNC_RSH = `ssh ${SSH_OPTS.join(" ")}`;
+const SAFE_WORKTREE_NAME = /^[A-Za-z0-9._-]+$/;
 
 const RSYNC_EXCLUDES = [
 	"--exclude=.git",
@@ -65,12 +69,19 @@ function readConfig(): RemoteConfig | undefined {
 	}
 
 	const rsyncPath = process.env["BEDROCK_REMOTE_MUTATE_RSYNC_PATH"];
+	const worktree = path.basename(process.cwd());
+	if (!SAFE_WORKTREE_NAME.test(worktree)) {
+		throw new Error(
+			`worktree name ${JSON.stringify(worktree)} contains characters unsafe for shell interpolation; offload requires [A-Za-z0-9._-]`,
+		);
+	}
+
 	return {
 		container: process.env["BEDROCK_REMOTE_MUTATE_CONTAINER"] ?? "bedrock-mutate-server",
 		host,
 		rsyncPath: rsyncPath !== undefined && rsyncPath !== "" ? rsyncPath : undefined,
 		stage: process.env["BEDROCK_REMOTE_MUTATE_STAGE"] ?? "~/bedrock-stage",
-		worktree: path.basename(process.cwd()),
+		worktree,
 	};
 }
 
@@ -97,6 +108,7 @@ function writeFileToContainer(
 	const result = spawnSync(
 		"ssh",
 		[
+			...SSH_OPTS,
 			config.host,
 			"docker",
 			"exec",
@@ -114,7 +126,7 @@ function probe(config: RemoteConfig): boolean {
 	const result = spawnSync(
 		"ssh",
 		[
-			...SSH_PROBE_OPTS,
+			...SSH_OPTS,
 			config.host,
 			"docker",
 			"inspect",
@@ -131,18 +143,29 @@ function rsyncUp(config: RemoteConfig): number {
 	const remote = `${config.host}:${config.stage}/${config.worktree}/`;
 	const result = spawnSync(
 		"rsync",
-		["-az", "--delete", ...rsyncPathArgument(config), ...RSYNC_EXCLUDES, "./", remote],
+		[
+			"-az",
+			"-e",
+			RSYNC_RSH,
+			"--delete",
+			...rsyncPathArgument(config),
+			...RSYNC_EXCLUDES,
+			"./",
+			remote,
+		],
 		{ stdio: "inherit" },
 	);
 	return result.status ?? 1;
 }
 
-function rsyncReportsDown(config: RemoteConfig): number {
+function rsyncReportsDown(config: RemoteConfig): void {
 	const remote = `${config.host}:${config.stage}/${config.worktree}/`;
 	const result = spawnSync(
 		"rsync",
 		[
 			"-az",
+			"-e",
+			RSYNC_RSH,
 			...rsyncPathArgument(config),
 			"--include=packages/",
 			"--include=packages/*/",
@@ -154,7 +177,11 @@ function rsyncReportsDown(config: RemoteConfig): number {
 		],
 		{ stdio: "inherit" },
 	);
-	return result.status ?? 1;
+	if ((result.status ?? 1) !== 0) {
+		console.warn(
+			`note: failed to sync reports back from ${config.host}; local reports may be stale`,
+		);
+	}
 }
 
 function buildRemoteScript(config: RemoteConfig): string {
@@ -178,7 +205,7 @@ function execMutate(config: RemoteConfig): number {
 	const result = spawnSync(
 		"ssh",
 		[
-			"-t",
+			...SSH_OPTS,
 			config.host,
 			"docker",
 			"exec",
