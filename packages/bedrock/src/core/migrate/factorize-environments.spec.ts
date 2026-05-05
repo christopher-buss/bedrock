@@ -5,6 +5,7 @@ import { factorizeEnvironments } from "./factorize-environments.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
 import type { PassFoldEntry } from "./fold-passes.ts";
 import type { PlaceFoldEntry } from "./fold-places.ts";
+import type { ProductFoldEntry } from "./fold-products.ts";
 
 const SAMPLE_HASH = asSha256Hex("86890ed405cabad0fcdabf52225d528981790fa551e915c070348761c28373c1");
 const VALID_HASH = asSha256Hex("908498abb7f4fca2b7d2b050bfe7c48c009202fabd85f489b03bb19ac6e0b1d9");
@@ -40,6 +41,27 @@ function passFold(key: string, overrides: Partial<PassFoldEntry> = {}): PassFold
 
 function passWithEntry(key: string, entry: PassFoldEntry["entry"]): PassFoldEntry {
 	return passFold(key, { entry });
+}
+
+function productFold(key: string, overrides: Partial<ProductFoldEntry> = {}): ProductFoldEntry {
+	return {
+		key: asResourceKey(key),
+		entry: {
+			name: "Example Product",
+			description: "This is an example product.",
+			price: 100,
+		},
+		mantlePath: `product_${key}`,
+		outputs: {
+			iconImageAssetId: undefined,
+			productId: asRobloxAssetId("987654321"),
+		},
+		...overrides,
+	};
+}
+
+function productWithEntry(key: string, entry: ProductFoldEntry["entry"]): ProductFoldEntry {
+	return productFold(key, { entry });
 }
 
 function fold(overrides: Partial<EnvironmentFoldResult> = {}): EnvironmentFoldResult {
@@ -1043,5 +1065,337 @@ describe(factorizeEnvironments, () => {
 		assert(result.success);
 
 		expect(result.data.warnings).toStrictEqual([]);
+	});
+
+	it("should expose folded products on the root config when only one environment exists", () => {
+		expect.assertions(2);
+
+		const folds = new Map([["production", fold({ products: [productFold("starter-pack")] })]]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: undefined });
+
+		assert(result.success);
+
+		expect(result.data.config.products).toBeDefined();
+		expect(result.data.config.products?.["starter-pack"]?.name).toBe("Example Product");
+	});
+
+	it("should hoist a product identical across all environments to the root only", () => {
+		expect.assertions(2);
+
+		const primaryEntry = {
+			name: "Example Product",
+			description: "This is an example product.",
+			price: 100,
+		};
+		const folds = new Map([
+			["development", fold({ products: [productWithEntry("starter-pack", primaryEntry)] })],
+			["production", fold({ products: [productWithEntry("starter-pack", primaryEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.products?.["starter-pack"]).toStrictEqual(primaryEntry);
+		expect(result.data.config.environments["development"]?.products).toBeUndefined();
+	});
+
+	it("should emit a per-environment overlay carrying only the diverging fields", () => {
+		expect.assertions(1);
+
+		const primaryEntry = {
+			name: "Example Product",
+			description: "This is an example product.",
+			price: 100,
+		};
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					products: [productWithEntry("starter-pack", { ...primaryEntry, price: 50 })],
+				}),
+			],
+			["production", fold({ products: [productWithEntry("starter-pack", primaryEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.products).toStrictEqual({
+			"starter-pack": { price: 50 },
+		});
+	});
+
+	it("should diff icon paths via icon[en-us] when the primary product has an icon", () => {
+		expect.assertions(1);
+
+		const primaryEntry = {
+			name: "Example Product",
+			description: "This is an example product.",
+			icon: { "en-us": "assets/marketing/product-icon.png" },
+			price: 100,
+		};
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					products: [
+						productWithEntry("starter-pack", {
+							...primaryEntry,
+							icon: { "en-us": "assets/dev-product-icon.png" },
+						}),
+					],
+				}),
+			],
+			["production", fold({ products: [productWithEntry("starter-pack", primaryEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.products).toStrictEqual({
+			"starter-pack": { icon: { "en-us": "assets/dev-product-icon.png" } },
+		});
+	});
+
+	it("should treat a primary without an icon and an overlay with an icon as a divergence", () => {
+		expect.assertions(1);
+
+		const primaryEntry = {
+			name: "Example Product",
+			description: "This is an example product.",
+			price: 100,
+		};
+		const overlayEntry = {
+			...primaryEntry,
+			icon: { "en-us": "assets/dev-product-icon.png" },
+		};
+		const folds = new Map([
+			["development", fold({ products: [productWithEntry("starter-pack", overlayEntry)] })],
+			["production", fold({ products: [productWithEntry("starter-pack", primaryEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.products).toStrictEqual({
+			"starter-pack": { icon: { "en-us": "assets/dev-product-icon.png" } },
+		});
+	});
+
+	it("should emit a `factorize-environments/resource-missing-from-env` warning when a product is missing in a non-primary environment", () => {
+		expect.assertions(1);
+
+		const folds = new Map([
+			["development", fold()],
+			["production", fold({ products: [productFold("starter-pack")] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.warnings).toContainEqual({
+			bedrockPath: "environments.development.products.starter-pack",
+			kind: "interpretive",
+			mantlePath: "development.product_starter-pack",
+			rule: "factorize-environments/resource-missing-from-env",
+		});
+	});
+
+	it("should emit the same warning when a product is present only in a non-primary environment", () => {
+		expect.assertions(1);
+
+		const folds = new Map([
+			["development", fold({ products: [productFold("dev-only")] })],
+			["production", fold()],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.warnings).toContainEqual({
+			bedrockPath: "environments.development.products.dev-only",
+			kind: "interpretive",
+			mantlePath: "development.product_dev-only",
+			rule: "factorize-environments/resource-missing-from-env",
+		});
+	});
+
+	it("should pass through unchanged products without emitting an empty overlay", () => {
+		expect.assertions(1);
+
+		const primaryEntry = {
+			name: "Example Product",
+			description: "This is an example product.",
+			price: 100,
+		};
+		const folds = new Map([
+			["development", fold({ products: [productWithEntry("starter-pack", primaryEntry)] })],
+			["production", fold({ products: [productWithEntry("starter-pack", primaryEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.products).toBeUndefined();
+	});
+
+	it("should override only the divergent product name on a non-primary overlay", () => {
+		expect.assertions(1);
+
+		const primaryEntry = {
+			name: "Example Product",
+			description: "This is an example product.",
+			price: 100,
+		};
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					products: [
+						productWithEntry("starter-pack", { ...primaryEntry, name: "Dev Pack" }),
+					],
+				}),
+			],
+			["production", fold({ products: [productWithEntry("starter-pack", primaryEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.products).toStrictEqual({
+			"starter-pack": { name: "Dev Pack" },
+		});
+	});
+
+	it("should override only the divergent product description on a non-primary overlay", () => {
+		expect.assertions(1);
+
+		const primaryEntry = {
+			name: "Example Product",
+			description: "This is an example product.",
+			price: 100,
+		};
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					products: [
+						productWithEntry("starter-pack", {
+							...primaryEntry,
+							description: "Dev only.",
+						}),
+					],
+				}),
+			],
+			["production", fold({ products: [productWithEntry("starter-pack", primaryEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.products).toStrictEqual({
+			"starter-pack": { description: "Dev only." },
+		});
+	});
+
+	it("should override only the divergent isRegionalPricingEnabled on a non-primary overlay", () => {
+		expect.assertions(1);
+
+		const primaryEntry = {
+			name: "Example Product",
+			description: "This is an example product.",
+			isRegionalPricingEnabled: false,
+			price: 100,
+		};
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					products: [
+						productWithEntry("starter-pack", {
+							...primaryEntry,
+							isRegionalPricingEnabled: true,
+						}),
+					],
+				}),
+			],
+			["production", fold({ products: [productWithEntry("starter-pack", primaryEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.products).toStrictEqual({
+			"starter-pack": { isRegionalPricingEnabled: true },
+		});
+	});
+
+	it("should override only the divergent storePageEnabled on a non-primary overlay", () => {
+		expect.assertions(1);
+
+		const primaryEntry = {
+			name: "Example Product",
+			description: "This is an example product.",
+			price: 100,
+			storePageEnabled: false,
+		};
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					products: [
+						productWithEntry("starter-pack", {
+							...primaryEntry,
+							storePageEnabled: true,
+						}),
+					],
+				}),
+			],
+			["production", fold({ products: [productWithEntry("starter-pack", primaryEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.products).toStrictEqual({
+			"starter-pack": { storePageEnabled: true },
+		});
+	});
+
+	it("should carry the full product entry on a non-primary overlay when the primary lacks the key", () => {
+		expect.assertions(1);
+
+		const developmentOnlyEntry = {
+			name: "Dev Only Product",
+			description: "Only available in development.",
+			price: 25,
+		};
+		const folds = new Map([
+			[
+				"development",
+				fold({ products: [productWithEntry("dev-only", developmentOnlyEntry)] }),
+			],
+			["production", fold({ products: [] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.products).toStrictEqual({
+			"dev-only": developmentOnlyEntry,
+		});
 	});
 });
