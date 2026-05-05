@@ -338,13 +338,16 @@ export interface DisplayNamePrefixConfig {
 }
 
 /**
- * Per-environment universe overlay shape that forbids `universeId`.
+ * Per-environment universe overlay shape that prevents `universeId` from
+ * being redeclared alongside a root-authoritative `universeId`.
  * Used by {@link ConfigRootUniverseId}: when the root universe block
- * declares `universeId`, no per-env overlay may redeclare it.
+ * declares `universeId`, no per-env overlay may redeclare it. Setting
+ * `universeId` here produces a descriptive type error pointing at this
+ * field rather than the opaque `never` message.
  */
-export type UniverseOverlayWithoutId = Partial<WithoutKey<UniverseEntry, "universeId">> & {
-	universeId?: never;
-};
+export type UniverseOverlayWithoutId = {
+	universeId?: "universeId is already declared on the root universe block — remove it from this environment overlay, or remove it from root and declare it on every environment overlay instead";
+} & Partial<WithoutKey<UniverseEntry, "universeId">>;
 
 /**
  * Per-environment universe overlay shape that requires `universeId`.
@@ -404,10 +407,13 @@ export type ConfigEnvironmentUniverseId = ConfigBase & {
 	>;
 	/**
 	 * Singleton universe block declaring the Roblox universe bedrock
-	 * manages. `universeId` is forbidden in this variant because every
-	 * environment supplies its own.
+	 * manages. `universeId` is not permitted here in this variant because
+	 * every environment supplies its own; setting it produces a descriptive
+	 * type error rather than the opaque `never` message.
 	 */
-	universe?: UniverseEntry & { universeId?: never };
+	universe?: {
+		universeId?: "universeId is already declared per environment — remove it from the root universe block, or remove it from every environment overlay and declare it here instead";
+	} & WithoutKey<UniverseEntry, "universeId">;
 };
 
 /**
