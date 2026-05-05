@@ -176,7 +176,8 @@ async function selectPrimaryEnvironment(
 	environments: ReadonlyArray<string>,
 ): Promise<MigratePromptResult<string>> {
 	return fromSelect(helpers, {
-		message: "Primary environment?",
+		message:
+			"Which environment should be the primary?\nThe migrator uses it as the baseline for the generated config.",
 		options: environments.map((name) => ({ label: name, value: name })),
 	});
 }

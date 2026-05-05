@@ -103,7 +103,8 @@ describe(createDefaultMigratePromptPort, () => {
 
 		expect(result).toStrictEqual({ data: "production", success: true });
 		expect(select).toHaveBeenCalledExactlyOnceWith({
-			message: "Primary environment?",
+			message:
+				"Which environment should be the primary?\nThe migrator uses it as the baseline for the generated config.",
 			options: [
 				{ label: "production", value: "production" },
 				{ label: "staging", value: "staging" },
