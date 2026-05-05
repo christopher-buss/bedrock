@@ -6,7 +6,7 @@ import type { PlaceFoldEntry } from "./fold-places.ts";
 /**
  * Inputs to {@link buildRootPlaces}.
  */
-export interface BuildRootPlacesInputs {
+interface BuildRootPlacesInputs {
 	/** Per-environment fold results, keyed by environment name. */
 	readonly folds: ReadonlyMap<string, EnvironmentFoldResult>;
 	/**
@@ -22,7 +22,7 @@ export interface BuildRootPlacesInputs {
 /**
  * Inputs to {@link buildPlacesOverlay}.
  */
-export interface BuildPlacesOverlayInputs {
+interface BuildPlacesOverlayInputs {
 	/** The per-environment fold whose places are being overlaid. */
 	readonly fold: EnvironmentFoldResult;
 	/** The environment's label (or `undefined`); enables prefix-stripping on the overlay's `displayName`. */

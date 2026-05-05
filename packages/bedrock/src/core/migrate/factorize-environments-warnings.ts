@@ -6,7 +6,7 @@ const RESOURCE_MISSING_RULE = "factorize-environments/resource-missing-from-env"
 /**
  * Inputs to {@link collectMissingResourceWarnings}.
  */
-export interface MissingResourceInputs {
+interface MissingResourceInputs {
 	/** Per-environment fold results, keyed by environment name. */
 	readonly folds: ReadonlyMap<string, EnvironmentFoldResult>;
 	/** The chosen primary environment, used as the symmetry baseline. */

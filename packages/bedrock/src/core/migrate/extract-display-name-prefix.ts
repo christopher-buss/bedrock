@@ -3,7 +3,7 @@
  * `label` is `undefined` when the input does not match the bracketed-prefix
  * shape Mantle emits; in that case `body` echoes the input unchanged.
  */
-export interface ExtractedDisplayName {
+interface ExtractedDisplayName {
 	/** Display name with the bracketed prefix and trailing whitespace stripped, or the input verbatim when no prefix matched. */
 	readonly body: string;
 	/** Captured label from the bracketed prefix, or `undefined` when the input did not match. */
