@@ -5,7 +5,7 @@ import {
 	UNIVERSE_SINGLETON_KEY,
 	type UniverseOutputs,
 } from "../resources.ts";
-import type { UniverseEntry } from "../schema.ts";
+import type { ResolvedUniverseEntry } from "../schema.ts";
 import type { BedrockState } from "../state.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
 import type { PassFoldEntry } from "./fold-passes.ts";
@@ -47,7 +47,7 @@ interface BuildStateInputs {
 }
 
 interface UniverseResourceInputs {
-	readonly entry: UniverseEntry;
+	readonly entry: ResolvedUniverseEntry;
 	readonly iconHashes: Record<"en-us", Sha256Hex> | undefined;
 	readonly outputs: UniverseOutputs;
 }

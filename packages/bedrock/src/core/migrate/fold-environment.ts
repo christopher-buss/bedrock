@@ -1,5 +1,5 @@
 import type { UniverseOutputs } from "../resources.ts";
-import type { UniverseEntry } from "../schema.ts";
+import type { ResolvedUniverseEntry } from "../schema.ts";
 import { foldPasses, type PassFoldEntry } from "./fold-passes.ts";
 import { foldPlaces, type PlaceFoldEntry } from "./fold-places.ts";
 import { foldProducts, type ProductFoldEntry } from "./fold-products.ts";
@@ -30,7 +30,7 @@ export interface EnvironmentFoldResult {
 	readonly universe:
 		| undefined
 		| {
-				readonly entry: UniverseEntry;
+				readonly entry: ResolvedUniverseEntry;
 				readonly outputs: UniverseOutputs;
 		  };
 	/** Per-rule diagnostics aggregated across all per-kind folds. */

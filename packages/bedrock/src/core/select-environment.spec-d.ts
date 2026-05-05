@@ -21,9 +21,9 @@ describe("selectEnvironment signature", () => {
 		>();
 	});
 
-	it("should discriminate SelectEnvironmentError across the unknownEnvironment and incompletePlaceEntry kinds", () => {
+	it("should discriminate SelectEnvironmentError across the unknownEnvironment, incompletePlaceEntry, and incompleteUniverseEntry kinds", () => {
 		expectTypeOf<SelectEnvironmentError["kind"]>().toEqualTypeOf<
-			"incompletePlaceEntry" | "unknownEnvironment"
+			"incompletePlaceEntry" | "incompleteUniverseEntry" | "unknownEnvironment"
 		>();
 	});
 });

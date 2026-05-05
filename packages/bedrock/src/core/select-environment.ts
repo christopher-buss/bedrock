@@ -1,7 +1,6 @@
 import type { Result } from "@bedrock/ocale";
 
 import { defu } from "defu";
-import type { SetRequired } from "type-fest";
 
 import { renderDisplayNamePrefix } from "./display-name-prefix.ts";
 import type {
@@ -11,6 +10,7 @@ import type {
 	GamePassEntry,
 	ResolvedConfig,
 	ResolvedPlaceEntry,
+	ResolvedUniverseEntry,
 	UniverseEntry,
 } from "./schema.ts";
 
@@ -49,8 +49,27 @@ export interface IncompletePlaceEntryError {
 	readonly missingField: "filePath" | "placeId";
 }
 
+/**
+ * Failure surfaced when a merged `universe` block lacks `universeId`.
+ * The schema-level XOR rule normally prevents this by requiring
+ * `universeId` either at the root or on every per-environment overlay;
+ * this error remains as a typed safety net for callers that bypass
+ * `validateConfig` and hand a `Config` to `selectEnvironment` directly.
+ */
+export interface IncompleteUniverseEntryError {
+	/** Environment whose overlay was projected onto the config. */
+	readonly environment: string;
+	/** Literal discriminator for narrowing. */
+	readonly kind: "incompleteUniverseEntry";
+	/** Field that the merged entry lacks. V1 only surfaces `"universeId"`. */
+	readonly missingField: "universeId";
+}
+
 /** Failure modes returned by {@link selectEnvironment}. */
-export type SelectEnvironmentError = IncompletePlaceEntryError | UnknownEnvironmentError;
+export type SelectEnvironmentError =
+	| IncompletePlaceEntryError
+	| IncompleteUniverseEntryError
+	| UnknownEnvironmentError;
 
 interface ProjectInputs {
 	readonly config: Config;
@@ -113,7 +132,7 @@ interface ProjectInputs {
  *         production: { universe: { universeId: "999" } },
  *     },
  *     state: { backend: "gist", gistId: "abc123" },
- *     universe: { universeId: "111" },
+ *     universe: { voiceChatEnabled: true },
  * };
  *
  * const result = selectEnvironment(config, "production");
@@ -121,6 +140,7 @@ interface ProjectInputs {
  * expect(result.success).toBeTrue();
  * if (result.success) {
  *     expect(result.data.universe?.universeId).toBe("999");
+ *     expect(result.data.universe?.voiceChatEnabled).toBeTrue();
  *     expect(result.data.state?.backend).toBe("gist");
  * }
  * ```
@@ -143,12 +163,38 @@ export function selectEnvironment(
 	}
 
 	const projected = projectConfig({ config, entry });
-	const incomplete = findIncompletePlace(projected, environment);
-	if (incomplete !== undefined) {
-		return { err: incomplete, success: false };
+	const incompletePlace = findIncompletePlace(projected, environment);
+	if (incompletePlace !== undefined) {
+		return { err: incompletePlace, success: false };
+	}
+
+	const incompleteUniverse = findIncompleteUniverse(projected, environment);
+	if (incompleteUniverse !== undefined) {
+		return { err: incompleteUniverse, success: false };
 	}
 
 	return { data: projected, success: true };
+}
+
+function findIncompleteUniverse(
+	projected: ResolvedConfig,
+	environment: string,
+): IncompleteUniverseEntryError | undefined {
+	const { universe } = projected;
+	if (universe === undefined) {
+		return undefined;
+	}
+
+	// `universe` is typed as `ResolvedUniverseEntry` (universeId required)
+	// because the merge boundary already promised completeness; this routine
+	// exists to honour that promise at runtime, so it widens the view back to
+	// `Partial<ResolvedUniverseEntry>` for the duration of the check.
+	const candidate: Partial<ResolvedUniverseEntry> = universe;
+	if (candidate.universeId === undefined) {
+		return { environment, kind: "incompleteUniverseEntry", missingField: "universeId" };
+	}
+
+	return undefined;
 }
 
 function findIncompletePlace(
@@ -229,14 +275,20 @@ function mergeKeyedRecord<Resolved extends object>(
 }
 
 function mergeUniverse(
-	overlay: SetRequired<Partial<UniverseEntry>, "universeId"> | undefined,
+	overlay: Partial<UniverseEntry> | undefined,
 	base: undefined | UniverseEntry,
-): undefined | UniverseEntry {
-	if (overlay === undefined) {
-		return base;
+): ResolvedUniverseEntry | undefined {
+	if (overlay === undefined && base === undefined) {
+		return undefined;
 	}
 
-	return mergeEntry(overlay, base);
+	// Precondition for the cast: see `mergeEntry`. The schema-level XOR rule
+	// guarantees a present `universeId` post-merge whenever the result is
+	// non-empty, and `findIncompleteUniverse` re-verifies the invariant on
+	// the success path. The `defu` call type-resolves to a wider partial
+	// because both sides declare `universeId` as optional; the cast collapses
+	// it to the resolved shape.
+	return defu(overlay ?? {}, base ?? {}) as ResolvedUniverseEntry;
 }
 
 function resolvePrefix(config: Config, entry: EnvironmentEntry): string | undefined {
@@ -253,9 +305,9 @@ function resolvePrefix(config: Config, entry: EnvironmentEntry): string | undefi
 }
 
 function applyUniversePrefix(
-	universe: undefined | UniverseEntry,
+	universe: ResolvedUniverseEntry | undefined,
 	prefix: string | undefined,
-): undefined | UniverseEntry {
+): ResolvedUniverseEntry | undefined {
 	if (universe === undefined || prefix === undefined || universe.displayName === undefined) {
 		return universe;
 	}
@@ -293,7 +345,12 @@ function projectConfig(inputs: ProjectInputs): ResolvedConfig {
 	const places = applyPlacesPrefix(mergedPlaces, prefix);
 	const state = entry.state ?? config.state;
 
-	const { places: _placesRoot, products: _productsRoot, ...rest } = config;
+	const {
+		places: _placesRoot,
+		products: _productsRoot,
+		universe: _universeRoot,
+		...rest
+	} = config;
 
 	return {
 		...rest,

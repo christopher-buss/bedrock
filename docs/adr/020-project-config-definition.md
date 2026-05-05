@@ -222,6 +222,41 @@ so freezing our return would risk incompatibility with c12 utilities.
 - The `bedrock migrate` command (tracked in #104) performs the Mantle
   transform described above.
 
+## Amendments
+
+### 2026-05-05 — universeId XOR between root and per-environment
+
+The root `universe` block and each `environments[name].universe` overlay
+both carry a `universeId` slot. When both are populated for the same
+deploy, the two values disagree on which Roblox universe an environment
+targets. The runtime path resolved this ambiguity by letting the
+per-environment overlay win, but the resolution was implicit and
+hand-written configs frequently set both fields to the same value
+defensively, which a future change to the resolution rule would silently
+break.
+
+The schema now enforces XOR between the two slots: `universeId` must
+appear at the root *or* on every environment overlay that declares a
+`universe` block, never both. The arktype validator's runtime narrow
+rejects coexistence, rejects a per-environment overlay that omits
+`universeId` when the root block does not provide one, and rejects a
+root `universe` block that lacks `universeId` when no environment
+supplies one. Each rejection attributes the failure to the offending
+field path so authors see the conflict at validation time rather than
+during deploy.
+
+The migrator (`bedrock migrate`) honours the same rule: when the source
+state declares a single distinct `universeId` across environments it
+lands at the root unchanged, but when environments diverge the migrator
+omits `universeId` from the root universe block and writes it on every
+environment overlay. Other root universe fields (device flags, social
+links, display name, icon) continue to cascade root → per-env in both
+cases.
+
+This is a wire-contract change for hand-written configs that previously
+set both fields. Pre-1.0 and unpublished, so the schema breaks the
+combination outright with no compatibility shim; no codemod ships.
+
 ## Related Decisions
 
 - ADR-017 — Product Framing: establishes the programmatic-primary,

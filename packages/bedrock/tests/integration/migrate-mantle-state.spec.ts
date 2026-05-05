@@ -152,7 +152,7 @@ describe(migrateMantleState, () => {
 			assert(loaded.success);
 
 			expect(loaded.data).toStrictEqual(result.data.config);
-			expect(loaded.data.universe?.universeId).toBe("6110424408");
+			expect(loaded.data.environments["production"]?.universe?.universeId).toBe("6110424408");
 		});
 	});
 
@@ -181,7 +181,7 @@ describe(migrateMantleState, () => {
 
 			expect(loaded.data).toStrictEqual(yamlRun.data.config);
 			expect(loaded.data).toStrictEqual(typescriptRun.data.config);
-			expect(loaded.data.universe?.universeId).toBe("6110424408");
+			expect(loaded.data.environments["production"]?.universe?.universeId).toBe("6110424408");
 		});
 	});
 
@@ -518,8 +518,8 @@ describe(migrateMantleState, () => {
 		expect(result.data.summary.ambiguousCount).toBeGreaterThanOrEqual(1);
 	});
 
-	it("should fold every interpretive universe rule for the production primary", async () => {
-		expect.assertions(1);
+	it("should fold every interpretive universe rule for the production primary while leaving universeId on per-environment overlays", async () => {
+		expect.assertions(2);
 
 		const result = await migrateMantleState({
 			configFormat: "typescript",
@@ -542,13 +542,15 @@ describe(migrateMantleState, () => {
 				title: "Follow us on Twitter",
 				uri: "https://twitter.com/example",
 			},
-			universeId: "6110424408",
 			voiceChatEnabled: true,
+		});
+		expect(result.data.config.environments["production"]?.universe).toStrictEqual({
+			universeId: "6110424408",
 		});
 	});
 
-	it("should fold the development primary into a separate universe shape", async () => {
-		expect.assertions(1);
+	it("should fold the development primary into a separate universe shape while leaving universeId on per-environment overlays", async () => {
+		expect.assertions(2);
 
 		const result = await migrateMantleState({
 			configFormat: "typescript",
@@ -567,8 +569,10 @@ describe(migrateMantleState, () => {
 			mobileEnabled: true,
 			privateServerPriceRobux: 0,
 			tabletEnabled: true,
-			universeId: "6031475575",
 			voiceChatEnabled: true,
+		});
+		expect(result.data.config.environments["development"]?.universe).toStrictEqual({
+			universeId: "6031475575",
 		});
 	});
 

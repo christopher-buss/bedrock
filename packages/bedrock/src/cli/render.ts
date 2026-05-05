@@ -257,6 +257,9 @@ function deployErrorMessage(err: DeployError): string {
 		case "incompletePlaceEntry": {
 			return `place '${err.key}' is missing '${err.missingField}' under environment '${err.environment}'`;
 		}
+		case "incompleteUniverseEntry": {
+			return `universe is missing '${err.missingField}' under environment '${err.environment}'`;
+		}
 		case "missingCredential": {
 			return `missing credential: environment variable ${err.variable} is not set`;
 		}

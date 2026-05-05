@@ -9,12 +9,13 @@ it('Example 1', () => {
       production: { universe: { universeId: '999' } },
     },
     state: { backend: 'gist', gistId: 'abc123' },
-    universe: { universeId: '111' },
+    universe: { voiceChatEnabled: true },
   }
   const result = selectEnvironment(config, 'production')
   expect(result.success).toBeTrue()
   if (result.success) {
     expect(result.data.universe?.universeId).toBe('999')
+    expect(result.data.universe?.voiceChatEnabled).toBeTrue()
     expect(result.data.state?.backend).toBe('gist')
   }
 })

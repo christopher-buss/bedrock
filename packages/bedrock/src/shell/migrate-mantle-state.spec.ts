@@ -729,8 +729,8 @@ describe(migrateMantleState, () => {
 		expect(result.err.available).toStrictEqual(["development", "production"]);
 	});
 
-	it("should seed the root config from the explicitly chosen primary environment", async () => {
-		expect.assertions(2);
+	it("should write per-environment universeId overlays for every environment when universes diverge across the input", async () => {
+		expect.assertions(3);
 
 		const result = await migrateMantleState({
 			configFormat: "typescript",
@@ -741,11 +741,13 @@ describe(migrateMantleState, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.universe?.universeId).toBe("1111111111");
-		expect(Object.keys(result.data.statesByEnvironment)).toStrictEqual([
-			"development",
-			"production",
-		]);
+		expect(result.data.config.universe?.universeId).toBeUndefined();
+		expect(result.data.config.environments["development"]?.universe?.universeId).toBe(
+			"1111111111",
+		);
+		expect(result.data.config.environments["production"]?.universe?.universeId).toBe(
+			"6031475575",
+		);
 	});
 
 	it("should keep each environment's BedrockState truthful to its own deployed values", async () => {

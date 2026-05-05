@@ -150,6 +150,20 @@ describe(applyOps, () => {
 	});
 });
 
+type ExpectedDeployErrorKind =
+	| "applyFailed"
+	| "buildDesiredFailed"
+	| "configLoadFailed"
+	| "incompletePlaceEntry"
+	| "incompleteUniverseEntry"
+	| "missingCredential"
+	| "registryConfigMissing"
+	| "stateNotConfigured"
+	| "stateReadFailed"
+	| "stateWriteFailed"
+	| "unknownEnvironment"
+	| "unsupportedBackend";
+
 describe(deploy, () => {
 	it("should accept a single DeployOptions argument", () => {
 		expectTypeOf(deploy).parameter(0).toEqualTypeOf<DeployOptions>();
@@ -162,19 +176,7 @@ describe(deploy, () => {
 	});
 
 	it("should discriminate DeployError across the reconcile-stage and default-construction failure variants", () => {
-		expectTypeOf<DeployError["kind"]>().toEqualTypeOf<
-			| "applyFailed"
-			| "buildDesiredFailed"
-			| "configLoadFailed"
-			| "incompletePlaceEntry"
-			| "missingCredential"
-			| "registryConfigMissing"
-			| "stateNotConfigured"
-			| "stateReadFailed"
-			| "stateWriteFailed"
-			| "unknownEnvironment"
-			| "unsupportedBackend"
-		>();
+		expectTypeOf<DeployError["kind"]>().toEqualTypeOf<ExpectedDeployErrorKind>();
 	});
 
 	it("should attach unsavedState only to the stateWriteFailed variant", () => {
@@ -267,11 +269,10 @@ describe("ResolvedPlaceEntry", () => {
 });
 
 describe("ResolvedConfig", () => {
-	it("should narrow places to ResolvedPlaceEntry while keeping every other Config field", () => {
+	it("should narrow places to ResolvedPlaceEntry while keeping the loose authored shape on the other passthrough fields", () => {
 		expectTypeOf<ResolvedConfig["places"]>().toEqualTypeOf<
 			Record<string, ResolvedPlaceEntry> | undefined
 		>();
-		expectTypeOf<ResolvedConfig["environments"]>().toEqualTypeOf<Config["environments"]>();
 		expectTypeOf<ResolvedConfig["state"]>().toEqualTypeOf<Config["state"]>();
 	});
 });

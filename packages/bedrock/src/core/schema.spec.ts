@@ -1177,7 +1177,7 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["environments", tooLong]);
 	});
 
-	it("should accept a per-environment universe overlay declaring only universeId", () => {
+	it("should accept a per-environment universe overlay declaring universeId when no root universe block exists", () => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1186,7 +1186,6 @@ describe(validateConfig, () => {
 					production: { universe: { universeId: "9999999999" } },
 				},
 				state: { backend: "gist", gistId: "root-gist" },
-				universe: { universeId: "1111111111" },
 			},
 			SOURCE,
 		);
@@ -1196,7 +1195,28 @@ describe(validateConfig, () => {
 		expect(result.data.environments["production"]?.universe?.universeId).toBe("9999999999");
 	});
 
-	it("should reject a per-environment universe overlay missing universeId", () => {
+	it("should accept a per-environment universe overlay declaring universeId when the root universe block carries shared fields without universeId", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: {
+					production: { universe: { universeId: "9999999999" } },
+					staging: { universe: { universeId: "5555555555" } },
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+				universe: { desktopEnabled: true, voiceChatEnabled: true },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.universe?.desktopEnabled).toBeTrue();
+		expect(result.data.environments["production"]?.universe?.universeId).toBe("9999999999");
+	});
+
+	it("should reject a per-environment universe overlay missing universeId when no root universeId is declared", () => {
 		expect.assertions(1);
 
 		const result = validateConfig(
@@ -1218,6 +1238,186 @@ describe(validateConfig, () => {
 			"universe",
 			"universeId",
 		]);
+	});
+
+	it("should reject a config that declares universeId at the root and on a per-environment overlay", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					production: { universe: { universeId: "9999999999" } },
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+				universe: { universeId: "1111111111" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"production",
+			"universe",
+			"universeId",
+		]);
+	});
+
+	it("should reject a root universe block missing universeId when no environment supplies one", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: { production: {} },
+				state: { backend: "gist", gistId: "root-gist" },
+				universe: { desktopEnabled: true },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["universe", "universeId"]);
+		expect(result.err.issues[0]!.message).toContain(
+			"universeId must be declared on the root universe block",
+		);
+	});
+
+	it("should accept a config where root has universeId and an env declares a universe overlay carrying only shared fields", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					production: { universe: { voiceChatEnabled: false } },
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+				universe: { universeId: "1234567890", voiceChatEnabled: true },
+			},
+			SOURCE,
+		);
+
+		expect(result.success).toBeTrue();
+	});
+
+	it("should accept a config where root has universeId and one env supplies its own while another only carries shared fields", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: {
+					production: { universe: { voiceChatEnabled: false } },
+					staging: {},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+				universe: { universeId: "1234567890" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.universe?.universeId).toBe("1234567890");
+		expect(result.data.environments["production"]?.universe?.voiceChatEnabled).toBeFalse();
+	});
+
+	it("should attribute the both-set rejection to the offending env's universeId path with a descriptive message", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: { production: { universe: { universeId: "9999999999" } } },
+				state: { backend: "gist", gistId: "root-gist" },
+				universe: { universeId: "1111111111" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"production",
+			"universe",
+			"universeId",
+		]);
+		expect(result.err.issues[0]!.message).toContain(
+			"universeId is declared at the root universe block",
+		);
+	});
+
+	it("should attribute the missing-env-universeId rejection with a descriptive message naming the root-must-supply requirement", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: { production: { universe: { voiceChatEnabled: true } } },
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"production",
+			"universe",
+			"universeId",
+		]);
+		expect(result.err.issues[0]!.message).toContain("root universe block does not provide one");
+	});
+
+	it("should accept a config where the root carries shared universe fields without universeId, one env supplies its own, and another env omits the universe overlay entirely", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: {
+					production: { universe: { universeId: "9999999999" } },
+					staging: {},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+				universe: { desktopEnabled: true },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.universe?.desktopEnabled).toBeTrue();
+		expect(result.data.environments["production"]?.universe?.universeId).toBe("9999999999");
+	});
+
+	it("should reject a config where one env supplies universeId and another env declares a universe overlay without one", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: {
+					production: { universe: { universeId: "9999999999" } },
+					staging: { universe: { voiceChatEnabled: true } },
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"staging",
+			"universe",
+			"universeId",
+		]);
+		expect(result.err.issues[0]!.message).toContain("root universe block does not provide one");
 	});
 
 	it("should accept a per-environment places overlay that declares placeId without filePath", () => {

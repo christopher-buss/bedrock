@@ -332,6 +332,14 @@ describe(renderDeployError, () => {
 			},
 			expected: "place 'main-place' is missing 'placeId' under environment 'production'",
 		},
+		{
+			err: {
+				environment: "production",
+				kind: "incompleteUniverseEntry",
+				missingField: "universeId",
+			},
+			expected: "universe is missing 'universeId' under environment 'production'",
+		},
 	])("should render $err.kind via logError with a kind-specific message", ({ err, expected }) => {
 		expect.assertions(1);
 
