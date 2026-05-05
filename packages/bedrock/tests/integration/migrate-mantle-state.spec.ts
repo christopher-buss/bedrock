@@ -343,8 +343,8 @@ describe(migrateMantleState, () => {
 		expect(development.data.universe?.universeId).toBe("6031475575");
 	});
 
-	it("should set environment.label and round-trip mantle's bracketed display-name prefix through selectEnvironment", async () => {
-		expect.assertions(4);
+	it("should set environment.label on environments mantle stamped with bracketed display-name prefixes", async () => {
+		expect.assertions(2);
 
 		const result = await migrateMantleState({
 			configFormat: "typescript",
@@ -356,6 +356,18 @@ describe(migrateMantleState, () => {
 
 		expect(result.data.config.environments["development"]?.label).toBe("development");
 		expect(result.data.config.environments["production"]?.label).toBeUndefined();
+	});
+
+	it("should reapply the environment-label prefix to displayName via selectEnvironment after migration", async () => {
+		expect.assertions(2);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
 
 		const production = selectEnvironment(result.data.config, "production");
 		const development = selectEnvironment(result.data.config, "development");
