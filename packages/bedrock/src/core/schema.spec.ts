@@ -413,6 +413,56 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["products", "gem-pack", "isForSale"]);
 	});
 
+	it("should accept a products entry that declares isRegionalPricingEnabled and storePageEnabled", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				products: {
+					"gem-pack": {
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+						isRegionalPricingEnabled: true,
+						storePageEnabled: false,
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.products!["gem-pack"]!.isRegionalPricingEnabled).toBeTrue();
+		expect(result.data.products!["gem-pack"]!.storePageEnabled).toBeFalse();
+	});
+
+	it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
+		"should reject a non-boolean %s on a root products entry and attribute the issue path to that field",
+		([flag]) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					environments: MinEnvironments,
+					products: {
+						"gem-pack": {
+							name: "Gem Pack",
+							description: "Stocks the player up with 1,000 premium gems.",
+							[flag]: "yes",
+						},
+					},
+				},
+				SOURCE,
+			);
+
+			assert(!result.success);
+			assert(result.err.kind === "validationFailed");
+
+			expect(result.err.issues[0]!.path).toStrictEqual(["products", "gem-pack", flag]);
+		},
+	);
+
 	it("should accept a root places collection that declares only filePath", () => {
 		expect.assertions(1);
 
@@ -1321,6 +1371,36 @@ describe(validateConfig, () => {
 			]);
 		},
 	);
+
+	it("should accept a per-environment products overlay that declares isRegionalPricingEnabled and storePageEnabled", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: {
+						products: {
+							"gem-pack": {
+								isRegionalPricingEnabled: true,
+								storePageEnabled: false,
+							},
+						},
+					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(
+			result.data.environments["staging"]?.products?.["gem-pack"]?.isRegionalPricingEnabled,
+		).toBeTrue();
+		expect(
+			result.data.environments["staging"]?.products?.["gem-pack"]?.storePageEnabled,
+		).toBeFalse();
+	});
 
 	it("should reject an undeclared field inside a per-environment products overlay entry", () => {
 		expect.assertions(1);

@@ -3,6 +3,7 @@ import type { DeveloperProduct, DeveloperProductsClient } from "@bedrock/ocale/d
 
 import { derivePriceFields } from "../core/derive-price-fields.ts";
 import { shouldReuploadIcon } from "../core/icons.ts";
+import { planFollowUpPatch } from "../core/plan-follow-up-patch.ts";
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
@@ -54,6 +55,11 @@ interface UpdateInputs {
 	readonly desired: DeveloperProductDesiredState;
 }
 
+interface FollowUpPatchInputs {
+	readonly created: DeveloperProduct;
+	readonly desired: DeveloperProductDesiredState;
+}
+
 /**
  * Wraps {@link DeveloperProductsClient} as a `ResourceDriver<"developerProduct">`
  * that maps a desired-state entry to an ocale create or update call and the
@@ -61,8 +67,7 @@ interface UpdateInputs {
  * `update` path consumes the upstream `204 No Content` response and
  * synthesizes the post-update `ResourceCurrentState` from `desired` plus
  * the existing `current.outputs`, carrying `iconImageAssetId` forward when
- * present. Subsequent slices add the `icon` cost-gate and the
- * `isRegionalPricingEnabled` / `storePageEnabled` toggles.
+ * present.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.
  *
@@ -118,10 +123,12 @@ interface UpdateInputs {
  * return driver
  *     .create({
  *         description: "Stocks the player up with 1,000 premium gems.",
+ *         isRegionalPricingEnabled: undefined,
  *         key: asResourceKey("gem-pack"),
  *         kind: "developerProduct",
  *         name: "Gem Pack",
  *         price: undefined,
+ *         storePageEnabled: undefined,
  *     })
  *     .then((result) => {
  *         expect(result.success).toBeTrue();
@@ -163,24 +170,52 @@ function toCurrentState(
 	};
 }
 
+async function applyFollowUpPatch(
+	deps: DeveloperProductDriverDeps,
+	{ created, desired }: FollowUpPatchInputs,
+): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
+	const followUp = planFollowUpPatch(desired, created);
+	if (followUp === undefined) {
+		return toCurrentState(desired, created);
+	}
+
+	const patched = await deps.client.update({
+		productId: asRobloxAssetId(created.id),
+		universeId: deps.universeId,
+		...followUp,
+	});
+	if (patched.success) {
+		return toCurrentState(desired, created);
+	}
+
+	// PATCH failed but the POST persisted the resource. Surface success
+	// carrying the wire-reported storePageEnabled so state captures what
+	// actually exists; the next deploy's diff sees the desired/current
+	// mismatch and retries the PATCH (self-heal).
+	return toCurrentState({ ...desired, storePageEnabled: created.storePageEnabled }, created);
+}
+
 async function createOne(
 	deps: DeveloperProductDriverDeps,
 	desired: DeveloperProductDesiredState,
 ): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
 	const imageFile =
 		desired.icon === undefined ? undefined : await deps.readFile(desired.icon["en-us"]);
-	const result = await deps.client.create({
+	const created = await deps.client.create({
 		name: desired.name,
 		description: desired.description,
 		universeId: deps.universeId,
 		...(imageFile === undefined ? {} : { imageFile }),
 		...derivePriceFields(desired),
+		...(desired.isRegionalPricingEnabled === undefined
+			? {}
+			: { isRegionalPricingEnabled: desired.isRegionalPricingEnabled }),
 	});
-	if (!result.success) {
-		return result;
+	if (!created.success) {
+		return created;
 	}
 
-	return toCurrentState(desired, result.data);
+	return applyFollowUpPatch(deps, { created: created.data, desired });
 }
 
 async function updateOne(
@@ -199,6 +234,12 @@ async function updateOne(
 		universeId: deps.universeId,
 		...(imageFile === undefined ? {} : { imageFile }),
 		...derivePriceFields(desired),
+		...(desired.isRegionalPricingEnabled === undefined
+			? {}
+			: { isRegionalPricingEnabled: desired.isRegionalPricingEnabled }),
+		...(desired.storePageEnabled === undefined
+			? {}
+			: { storePageEnabled: desired.storePageEnabled }),
 	});
 	if (!result.success) {
 		return result;

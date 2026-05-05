@@ -78,10 +78,12 @@ it('Example 3', () => {
 it('Example 4', () => {
   const product: DeveloperProductDesiredState = {
     description: 'Stocks the player up with 1,000 premium gems.',
+    isRegionalPricingEnabled: true,
     key: asResourceKey('gem-pack'),
     kind: 'developerProduct',
     name: 'Gem Pack',
     price: 100,
+    storePageEnabled: true,
   }
   expect(product.kind).toBe('developerProduct')
   expect(product.price).toBe(100)

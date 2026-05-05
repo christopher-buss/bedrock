@@ -165,8 +165,7 @@ export interface UniverseDesiredInput {
  * Pre-I/O developer-product input the flattener emits. Extends the authored
  * `DeveloperProductEntry` with the tag discriminator and the
  * `ResourceKey`-branded key so `buildDesired` can consume a flat tagged
- * list. Slice 1 of #113 has no I/O work for this kind because the entry
- * does not (yet) reference a local file.
+ * list.
  *
  * @example
  *

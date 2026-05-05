@@ -4,6 +4,7 @@ import {
 	asRobloxAssetId,
 	buildDesired,
 	createDeveloperProductDriver,
+	defineConfig,
 	diff,
 	type DriverRegistry,
 	flattenConfig,
@@ -163,9 +164,11 @@ describe("developer-products pipeline end-to-end", () => {
 			key: asResourceKey("gem-pack"),
 			name: "Gem Pack",
 			description: "Stocks the player up with 1,000 premium gems.",
+			isRegionalPricingEnabled: undefined,
 			kind: "developerProduct",
 			outputs: { productId: asRobloxAssetId("8172635495") },
 			price: undefined,
+			storePageEnabled: undefined,
 		};
 
 		const ops = diff(desiredResult.data, [persisted, UNIVERSE_ADOPTED]);
@@ -214,9 +217,11 @@ describe("developer-products pipeline end-to-end", () => {
 			key: asResourceKey("gem-pack"),
 			name: "Gem Pack",
 			description: "Old description before edit.",
+			isRegionalPricingEnabled: undefined,
 			kind: "developerProduct",
 			outputs: { productId: asRobloxAssetId("8172635495") },
 			price: undefined,
+			storePageEnabled: undefined,
 		};
 
 		const ops = diff(desiredResult.data, [persistedProduct, UNIVERSE_ADOPTED]);
@@ -236,5 +241,105 @@ describe("developer-products pipeline end-to-end", () => {
 		assert(updated.kind === "developerProduct");
 
 		expect(updated.outputs.productId).toBe("8172635495");
+	});
+
+	it("should self-heal a failed follow-up patch on the next deploy by retrying the store-page update", async () => {
+		expect.assertions(6);
+
+		const config = defineConfig({
+			environments: { production: {} },
+			products: {
+				"gem-pack": {
+					name: "Gem Pack",
+					description: "Stocks the player up with 1,000 premium gems.",
+					storePageEnabled: true,
+				},
+			},
+		});
+
+		const resolved = selectEnvironment(config, "production");
+		assert(resolved.success);
+
+		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFileNever);
+		assert(desiredResult.success);
+
+		// First deploy: POST persists the product, PATCH fails. The driver
+		// returns success so applyOps writes a current state whose
+		// `storePageEnabled` reflects the wire-reported default (false), not
+		// the desired value (true).
+		const firstHttpClient = createFakeHttpClient()
+			.mockResponse({
+				body: validDeveloperProductBody({
+					name: "Gem Pack",
+					description: "Stocks the player up with 1,000 premium gems.",
+					productId: 8_172_635_495,
+					storePageEnabled: false,
+					universeId: 1_234_567_890,
+				}),
+				status: 200,
+			})
+			.mockApiError({ message: "patch boom", statusCode: 403 });
+
+		const firstRegistry: DriverRegistry = {
+			developerProduct: createDeveloperProductDriver({
+				client: new DeveloperProductsClient({
+					apiKey: "test-key",
+					httpClient: firstHttpClient,
+					sleep: async () => {},
+				}),
+				readFile: readFileNever,
+				universeId: UNIVERSE_ID,
+			}),
+			gamePass: GAME_PASS_TRAP,
+			place: PLACE_TRAP,
+			universe: UNIVERSE_DRIVER,
+		};
+
+		const firstApply = await applyOps(diff(desiredResult.data, []), firstRegistry);
+		assert(firstApply.success);
+
+		const persistedProduct = firstApply.data.find((entry) => entry.kind === "developerProduct");
+		assert(persistedProduct !== undefined);
+
+		expect(persistedProduct.storePageEnabled).toBeFalse();
+		expect(firstHttpClient.requests).toHaveLength(2);
+
+		// Second deploy with the same config: diff should see the store-page
+		// mismatch and dispatch an update op that re-issues the PATCH.
+		const secondHttpClient = createFakeHttpClient().mockResponse({
+			body: undefined,
+			status: 204,
+		});
+		const secondRegistry: DriverRegistry = {
+			developerProduct: createDeveloperProductDriver({
+				client: new DeveloperProductsClient({
+					apiKey: "test-key",
+					httpClient: secondHttpClient,
+					sleep: async () => {},
+				}),
+				readFile: readFileNever,
+				universeId: UNIVERSE_ID,
+			}),
+			gamePass: GAME_PASS_TRAP,
+			place: PLACE_TRAP,
+			universe: UNIVERSE_TRAP,
+		};
+
+		const secondOps = diff(desiredResult.data, [persistedProduct, UNIVERSE_ADOPTED]);
+
+		expect(secondOps.map((op) => op.type).filter((type) => type !== "noop")).toStrictEqual([
+			"update",
+		]);
+
+		const secondApply = await applyOps(secondOps, secondRegistry);
+		assert(secondApply.success);
+
+		expect(secondHttpClient.requests).toHaveLength(1);
+
+		const retried = secondHttpClient.requests[0]!;
+		assert(retried.request.body instanceof FormData);
+
+		expect(retried.request.method).toBe("PATCH");
+		expect(retried.request.body.get("storePageEnabled")).toBe("true");
 	});
 });

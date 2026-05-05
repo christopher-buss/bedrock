@@ -303,10 +303,12 @@ export type SocialLinkField = (typeof SOCIAL_LINK_FIELDS)[number];
  *
  * const product: DeveloperProductDesiredState = {
  *     description: "Stocks the player up with 1,000 premium gems.",
+ *     isRegionalPricingEnabled: true,
  *     key: asResourceKey("gem-pack"),
  *     kind: "developerProduct",
  *     name: "Gem Pack",
  *     price: 100,
+ *     storePageEnabled: true,
  * };
  *
  * expect(product.kind).toBe("developerProduct");
@@ -334,6 +336,12 @@ export interface DeveloperProductDesiredState {
 	 * when `icon` is absent.
 	 */
 	readonly iconFileHashes?: Record<"en-us", Sha256Hex>;
+	/**
+	 * Whether Roblox-managed regional pricing applies to the product.
+	 * Tri-state: `undefined` means the flag is unmanaged (the diff ignores
+	 * it); a defined value is propagated to Roblox on every deploy.
+	 */
+	readonly isRegionalPricingEnabled: boolean | undefined;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
 	readonly kind: "developerProduct";
 	/**
@@ -342,6 +350,13 @@ export interface DeveloperProductDesiredState {
 	 * on sale.
 	 */
 	readonly price: number | undefined;
+	/**
+	 * Whether the product appears on the universe's external store page.
+	 * Tri-state: `undefined` means the flag is unmanaged. A defined value is
+	 * applied via a follow-up PATCH after the create POST because the v2
+	 * create endpoint does not accept this field.
+	 */
+	readonly storePageEnabled: boolean | undefined;
 }
 
 /**

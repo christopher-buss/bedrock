@@ -282,9 +282,11 @@ describe(previewDiff, () => {
 			description: "Stocks the player up with 1,000 premium gems.",
 			icon: { "en-us": "assets/gem-pack.png" },
 			iconFileHashes: { "en-us": ICON_HASH },
+			isRegionalPricingEnabled: undefined,
 			kind: "developerProduct" as const,
 			outputs: { productId: asRobloxAssetId("8172635495") },
 			price: undefined,
+			storePageEnabled: undefined,
 		};
 		const { port } = inMemoryStatePort({
 			environment: "production",

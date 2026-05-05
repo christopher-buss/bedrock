@@ -45,10 +45,23 @@ export interface DeveloperProductEntry {
 	 */
 	icon?: Record<"en-us", string>;
 	/**
+	 * Whether Roblox-managed regional pricing applies to the product.
+	 * Tri-state: omit (or set `undefined`) to leave the flag unmanaged;
+	 * setting `true` or `false` is propagated to Roblox on every deploy.
+	 */
+	isRegionalPricingEnabled?: boolean | undefined;
+	/**
 	 * Robux price. Omit (or set `undefined`) for an off-sale product;
 	 * re-adding the field puts the product back on sale on the next deploy.
 	 */
 	price?: number | undefined;
+	/**
+	 * Whether the product appears on the universe's external store page.
+	 * Tri-state: omit (or set `undefined`) to leave the flag unmanaged.
+	 * The Roblox v2 create endpoint does not accept this field, so the
+	 * driver applies it via a follow-up PATCH after the create POST.
+	 */
+	storePageEnabled?: boolean | undefined;
 }
 
 /**
@@ -491,7 +504,9 @@ const developerProductEntry = type({
 	"name": "string",
 	"description": "string",
 	"icon?": iconMap,
+	"isRegionalPricingEnabled?": OPTIONAL_BOOLEAN,
 	"price?": OPTIONAL_ROBUX_PRICE,
+	"storePageEnabled?": OPTIONAL_BOOLEAN,
 }).onUndeclaredKey("reject");
 
 const productsCollection = type({
@@ -561,8 +576,10 @@ const passesOverlayCollection = type({
 const developerProductOverlay = type({
 	"description?": "string",
 	"icon?": iconMap,
+	"isRegionalPricingEnabled?": OPTIONAL_BOOLEAN,
 	"name?": "string",
 	"price?": OPTIONAL_ROBUX_PRICE,
+	"storePageEnabled?": OPTIONAL_BOOLEAN,
 }).onUndeclaredKey("reject");
 
 const productsOverlayCollection = type({

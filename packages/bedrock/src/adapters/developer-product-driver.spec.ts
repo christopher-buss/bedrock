@@ -203,6 +203,39 @@ describe(createDeveloperProductDriver, () => {
 		expect(captured.request.body.has("imageFile")).toBeFalse();
 	});
 
+	it.for([[true], [false]] as const)(
+		"should send isRegionalPricingEnabled=%s in the multipart body when it is set on desired",
+		async ([flag]) => {
+			expect.assertions(1);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({ body: WIRE_BODY, status: 200 });
+
+			await driver.create(developerProductDesired({ isRegionalPricingEnabled: flag }));
+
+			const captured = http.requests[0]!;
+
+			expect(readFormString(captured.request.body, "isRegionalPricingEnabled")).toBe(
+				String(flag),
+			);
+		},
+	);
+
+	it("should omit isRegionalPricingEnabled from the body when desired leaves it undefined", async () => {
+		expect.assertions(1);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: WIRE_BODY, status: 200 });
+
+		await driver.create(developerProductDesired({ isRegionalPricingEnabled: undefined }));
+
+		const captured = http.requests[0]!;
+
+		assert(captured.request.body instanceof FormData);
+
+		expect(captured.request.body.has("isRegionalPricingEnabled")).toBeFalse();
+	});
+
 	it("should pass through an OpenCloudError when the ocale client returns an error", async () => {
 		expect.assertions(2);
 
@@ -216,6 +249,153 @@ describe(createDeveloperProductDriver, () => {
 
 		expect(result.err.message).toBe("boom");
 		expect(result.err.statusCode).toBe(500);
+	});
+
+	describe("create follow-up PATCH for storePageEnabled", () => {
+		it("should issue a follow-up PATCH carrying storePageEnabled when desired differs from the create response", async () => {
+			expect.assertions(4);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({
+				body: validDeveloperProductBody({
+					productId: 8_172_635_495,
+					storePageEnabled: false,
+				}),
+				status: 200,
+			});
+			http.mockResponse({ body: undefined, status: 204 });
+
+			await driver.create(developerProductDesired({ storePageEnabled: true }));
+
+			expect(http.requests).toHaveLength(2);
+
+			const post = http.requests[0]!;
+			const patch = http.requests[1]!;
+
+			expect(post.request.method).toBe("POST");
+			expect(patch.request.method).toBe("PATCH");
+			expect(patch.request.url).toBe(
+				`/developer-products/v2/universes/${UNIVERSE_ID}/developer-products/${PRODUCT_ID}`,
+			);
+		});
+
+		it("should send only storePageEnabled in the follow-up PATCH multipart body", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({
+				body: validDeveloperProductBody({
+					productId: 8_172_635_495,
+					storePageEnabled: false,
+				}),
+				status: 200,
+			});
+			http.mockResponse({ body: undefined, status: 204 });
+
+			await driver.create(developerProductDesired({ storePageEnabled: true }));
+
+			const patch = http.requests[1]!;
+			assert(patch.request.body instanceof FormData);
+
+			expect(readFormString(patch.request.body, "storePageEnabled")).toBe("true");
+			expect([...patch.request.body.keys()]).toStrictEqual(["storePageEnabled"]);
+		});
+
+		it("should compose post-create state with desired.storePageEnabled when the follow-up PATCH succeeds", async () => {
+			expect.assertions(1);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({
+				body: validDeveloperProductBody({
+					productId: 8_172_635_495,
+					storePageEnabled: false,
+				}),
+				status: 200,
+			});
+			http.mockResponse({ body: undefined, status: 204 });
+
+			const desired = developerProductDesired({ storePageEnabled: true });
+			const result = await driver.create(desired);
+
+			assert(result.success);
+
+			expect(result.data.storePageEnabled).toBeTrue();
+		});
+
+		it("should issue only the create POST when desired.storePageEnabled matches the create response", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({
+				body: validDeveloperProductBody({
+					productId: 8_172_635_495,
+					storePageEnabled: true,
+				}),
+				status: 200,
+			});
+
+			await driver.create(developerProductDesired({ storePageEnabled: true }));
+
+			expect(http.requests).toHaveLength(1);
+			expect(http.requests[0]!.request.method).toBe("POST");
+		});
+
+		it("should issue only the create POST when desired.storePageEnabled is undefined", async () => {
+			expect.assertions(1);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({ body: WIRE_BODY, status: 200 });
+
+			await driver.create(developerProductDesired({ storePageEnabled: undefined }));
+
+			expect(http.requests).toHaveLength(1);
+		});
+
+		it("should return success when the follow-up PATCH fails so the post-create state still persists", async () => {
+			expect.assertions(1);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({
+				body: validDeveloperProductBody({
+					productId: 8_172_635_495,
+					storePageEnabled: false,
+				}),
+				status: 200,
+			});
+			http.mockApiError({ message: "patch boom", statusCode: 403 });
+
+			const result = await driver.create(
+				developerProductDesired({ price: 250, storePageEnabled: true }),
+			);
+
+			expect(result.success).toBeTrue();
+		});
+
+		it("should record the create response storePageEnabled (not desired) so the next deploy's diff retries the PATCH", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({
+				body: validDeveloperProductBody({
+					productId: 8_172_635_495,
+					storePageEnabled: false,
+				}),
+				status: 200,
+			});
+			http.mockApiError({ message: "patch boom", statusCode: 403 });
+
+			const result = await driver.create(
+				developerProductDesired({ price: 250, storePageEnabled: true }),
+			);
+
+			assert(result.success);
+
+			// Wire-reported value, not desired, so fieldsEqual surfaces drift on
+			// the next deploy and re-issues the PATCH.
+			expect(result.data.storePageEnabled).toBeFalse();
+			// Other fields still reflect desired because the POST applied them.
+			expect(result.data.price).toBe(250);
+		});
 	});
 
 	describe("update", () => {
@@ -403,6 +583,50 @@ describe(createDeveloperProductDriver, () => {
 				ICON_BYTES,
 			);
 		});
+
+		it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
+			"should send %s in the PATCH body when set on desired",
+			async ([flag]) => {
+				expect.assertions(2);
+
+				const { driver, http } = makeDriver();
+				mockPatchOk(http);
+
+				await driver.update!(
+					developerProductCurrent(),
+					developerProductDesired({ [flag]: true }),
+				);
+
+				const captured = http.requests[0]!;
+
+				expect(readFormString(captured.request.body, flag)).toBe("true");
+
+				assert(captured.request.body instanceof FormData);
+
+				expect(captured.request.body.has(flag)).toBeTrue();
+			},
+		);
+
+		it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(
+			"should omit %s from the PATCH body when desired has it undefined",
+			async ([flag]) => {
+				expect.assertions(1);
+
+				const { driver, http } = makeDriver();
+				mockPatchOk(http);
+
+				await driver.update!(
+					developerProductCurrent(),
+					developerProductDesired({ [flag]: undefined }),
+				);
+
+				const captured = http.requests[0]!;
+
+				assert(captured.request.body instanceof FormData);
+
+				expect(captured.request.body.has(flag)).toBeFalse();
+			},
+		);
 
 		it("should propagate the OpenCloudError when the PATCH fails", async () => {
 			expect.assertions(2);
