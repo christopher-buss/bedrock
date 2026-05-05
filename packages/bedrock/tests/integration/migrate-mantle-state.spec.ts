@@ -343,6 +343,31 @@ describe(migrateMantleState, () => {
 		expect(development.data.universe?.universeId).toBe("6031475575");
 	});
 
+	it("should set environment.label and round-trip mantle's bracketed display-name prefix through selectEnvironment", async () => {
+		expect.assertions(4);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			stateFilePath: REAL_FIXTURE,
+		});
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.label).toBe("development");
+		expect(result.data.config.environments["production"]?.label).toBeUndefined();
+
+		const production = selectEnvironment(result.data.config, "production");
+		const development = selectEnvironment(result.data.config, "development");
+		assert(production.success);
+		assert(development.success);
+
+		expect(production.data.universe?.displayName).toBe("roblox-ts Project Template");
+		expect(development.data.universe?.displayName).toBe(
+			"[DEVELOPMENT] roblox-ts Project Template",
+		);
+	});
+
 	it("should round-trip a per-environment universe overlay through loadConfig", async () => {
 		expect.assertions(2);
 
