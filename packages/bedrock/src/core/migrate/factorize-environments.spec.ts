@@ -531,6 +531,335 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
+	it("should land description on root and omit the place overlay when both environments share the same description", () => {
+		expect.assertions(2);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({
+								entry: { description: "Shared place.", filePath: "place.rbxl" },
+							}),
+						],
+					]),
+				}),
+			],
+			[
+				"production",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({
+								entry: { description: "Shared place.", filePath: "place.rbxl" },
+							}),
+						],
+					]),
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.places?.["start"]?.description).toBe("Shared place.");
+		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+			start: { placeId: "17613681043" },
+		});
+	});
+
+	it("should override description on a non-primary place overlay when it diverges from the primary", () => {
+		expect.assertions(2);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({
+								entry: { description: "Dev place.", filePath: "place.rbxl" },
+							}),
+						],
+					]),
+				}),
+			],
+			[
+				"production",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({
+								entry: { description: "Prod place.", filePath: "place.rbxl" },
+							}),
+						],
+					]),
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.places?.["start"]?.description).toBe("Prod place.");
+		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+			start: { description: "Dev place.", placeId: "17613681043" },
+		});
+	});
+
+	it("should override description on a non-primary place overlay when the primary has it and the env omits it", () => {
+		expect.assertions(1);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					places: new Map([["start", placeFold({ entry: { filePath: "place.rbxl" } })]]),
+				}),
+			],
+			[
+				"production",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({
+								entry: { description: "Prod place.", filePath: "place.rbxl" },
+							}),
+						],
+					]),
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+			start: { description: undefined, placeId: "17613681043" },
+		});
+	});
+
+	it("should land displayName on root and omit the place overlay when both environments share the same displayName", () => {
+		expect.assertions(2);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({
+								entry: { displayName: "Shared Name", filePath: "place.rbxl" },
+							}),
+						],
+					]),
+				}),
+			],
+			[
+				"production",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({
+								entry: { displayName: "Shared Name", filePath: "place.rbxl" },
+							}),
+						],
+					]),
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.places?.["start"]?.displayName).toBe("Shared Name");
+		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+			start: { placeId: "17613681043" },
+		});
+	});
+
+	it("should override displayName on a non-primary place overlay when it diverges from the primary", () => {
+		expect.assertions(2);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({
+								entry: { displayName: "Dev Name", filePath: "place.rbxl" },
+							}),
+						],
+					]),
+				}),
+			],
+			[
+				"production",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({
+								entry: { displayName: "Prod Name", filePath: "place.rbxl" },
+							}),
+						],
+					]),
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.places?.["start"]?.displayName).toBe("Prod Name");
+		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+			start: { displayName: "Dev Name", placeId: "17613681043" },
+		});
+	});
+
+	it("should override displayName on a non-primary place overlay when the primary has it and the env omits it", () => {
+		expect.assertions(1);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					places: new Map([["start", placeFold({ entry: { filePath: "place.rbxl" } })]]),
+				}),
+			],
+			[
+				"production",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({
+								entry: { displayName: "Prod Name", filePath: "place.rbxl" },
+							}),
+						],
+					]),
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+			start: { displayName: undefined, placeId: "17613681043" },
+		});
+	});
+
+	it("should land serverSize on root and omit the place overlay when both environments share the same serverSize", () => {
+		expect.assertions(2);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					places: new Map([
+						["start", placeFold({ entry: { filePath: "place.rbxl", serverSize: 50 } })],
+					]),
+				}),
+			],
+			[
+				"production",
+				fold({
+					places: new Map([
+						["start", placeFold({ entry: { filePath: "place.rbxl", serverSize: 50 } })],
+					]),
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.places?.["start"]?.serverSize).toBe(50);
+		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+			start: { placeId: "17613681043" },
+		});
+	});
+
+	it("should override serverSize on a non-primary place overlay when it diverges from the primary", () => {
+		expect.assertions(2);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					places: new Map([
+						["start", placeFold({ entry: { filePath: "place.rbxl", serverSize: 25 } })],
+					]),
+				}),
+			],
+			[
+				"production",
+				fold({
+					places: new Map([
+						["start", placeFold({ entry: { filePath: "place.rbxl", serverSize: 50 } })],
+					]),
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.places?.["start"]?.serverSize).toBe(50);
+		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+			start: { placeId: "17613681043", serverSize: 25 },
+		});
+	});
+
+	it("should override serverSize on a non-primary place overlay when the primary has it and the env omits it", () => {
+		expect.assertions(1);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					places: new Map([["start", placeFold({ entry: { filePath: "place.rbxl" } })]]),
+				}),
+			],
+			[
+				"production",
+				fold({
+					places: new Map([
+						["start", placeFold({ entry: { filePath: "place.rbxl", serverSize: 50 } })],
+					]),
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+			start: { placeId: "17613681043", serverSize: undefined },
+		});
+	});
+
 	it("should emit a resource-missing-from-env interpretive warning when the primary has a universe the env lacks", () => {
 		expect.assertions(2);
 

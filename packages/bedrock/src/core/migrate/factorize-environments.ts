@@ -107,11 +107,28 @@ function buildPlaceOverlayEntry(
 	fold: PlaceFoldEntry,
 	primary: PlaceFoldEntry | undefined,
 ): PlaceOverlayEntry {
-	if (primary === undefined || primary.entry.filePath === fold.entry.filePath) {
-		return { placeId: fold.placeId };
+	const overlay: PlaceOverlayEntry = { placeId: fold.placeId };
+	if (primary === undefined) {
+		return overlay;
 	}
 
-	return { filePath: fold.entry.filePath, placeId: fold.placeId };
+	if (primary.entry.filePath !== fold.entry.filePath) {
+		overlay.filePath = fold.entry.filePath;
+	}
+
+	if (!Object.is(primary.entry.description, fold.entry.description)) {
+		overlay.description = fold.entry.description;
+	}
+
+	if (!Object.is(primary.entry.displayName, fold.entry.displayName)) {
+		overlay.displayName = fold.entry.displayName;
+	}
+
+	if (!Object.is(primary.entry.serverSize, fold.entry.serverSize)) {
+		overlay.serverSize = fold.entry.serverSize;
+	}
+
+	return overlay;
 }
 
 function buildPlacesOverlay(
