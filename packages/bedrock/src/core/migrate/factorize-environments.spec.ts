@@ -804,6 +804,176 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
+	it("should land displayName on root when only one environment has the place and that env's entry carries a displayName", () => {
+		expect.assertions(1);
+
+		const folds = new Map([
+			["development", fold()],
+			[
+				"production",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({
+								entry: { displayName: "Solo Name", filePath: "place.rbxl" },
+							}),
+						],
+					]),
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.places?.["start"]?.displayName).toBe("Solo Name");
+	});
+
+	it("should lift the unprefixed displayName to root and label the environment when every place in an env shares a bracketed prefix", () => {
+		expect.assertions(4);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({
+								entry: {
+									displayName: "[DEVELOPMENT] Anime Rush Match",
+									filePath: "game.rbxl",
+								},
+							}),
+						],
+					]),
+				}),
+			],
+			[
+				"production",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({
+								entry: { displayName: "Anime Rush Match", filePath: "game.rbxl" },
+							}),
+						],
+					]),
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.places?.["start"]?.displayName).toBe("Anime Rush Match");
+		expect(result.data.config.environments["development"]?.label).toBe("development");
+		expect(result.data.config.environments["production"]?.label).toBeUndefined();
+		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+			start: { placeId: "17613681043" },
+		});
+	});
+
+	it("should keep the raw displayName on the env overlay when an environment mixes prefixed and unprefixed display names", () => {
+		expect.assertions(3);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					places: new Map([
+						[
+							"game",
+							placeFold({
+								entry: { displayName: "[DEV] Match", filePath: "place.rbxl" },
+							}),
+						],
+						[
+							"start",
+							placeFold({ entry: { displayName: "Lobby", filePath: "place.rbxl" } }),
+						],
+					]),
+				}),
+			],
+			[
+				"production",
+				fold({
+					places: new Map([
+						[
+							"game",
+							placeFold({ entry: { displayName: "Match", filePath: "place.rbxl" } }),
+						],
+						[
+							"start",
+							placeFold({ entry: { displayName: "Lobby", filePath: "place.rbxl" } }),
+						],
+					]),
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.environments["development"]?.label).toBeUndefined();
+		expect(result.data.config.places?.["game"]?.displayName).toBeUndefined();
+		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+			game: { displayName: "[DEV] Match", placeId: "17613681043" },
+			start: { placeId: "17613681043" },
+		});
+	});
+
+	it("should put stripped per-environment overlays on each labeled environment when stripped bodies disagree across envs", () => {
+		expect.assertions(4);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({
+								entry: { displayName: "[DEV] Lobby", filePath: "place.rbxl" },
+							}),
+						],
+					]),
+				}),
+			],
+			[
+				"staging",
+				fold({
+					places: new Map([
+						[
+							"start",
+							placeFold({
+								entry: { displayName: "[STAGING] Foyer", filePath: "place.rbxl" },
+							}),
+						],
+					]),
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "staging" });
+
+		assert(result.success);
+
+		expect(result.data.config.places?.["start"]?.displayName).toBeUndefined();
+		expect(result.data.config.environments["development"]?.label).toBe("dev");
+		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+			start: { displayName: "Lobby", placeId: "17613681043" },
+		});
+		expect(result.data.config.environments["staging"]?.places).toStrictEqual({
+			start: { displayName: "Foyer", placeId: "17613681043" },
+		});
+	});
+
 	it("should land serverSize on root and omit the place overlay when both environments share the same serverSize", () => {
 		expect.assertions(2);
 

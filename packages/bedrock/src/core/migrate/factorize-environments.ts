@@ -7,6 +7,7 @@ import type {
 	GamePassEntry,
 	PlaceEntry,
 } from "../schema.ts";
+import { computeEnvironmentLabel } from "./environment-label.ts";
 import { buildPlacesOverlay, buildRootPlaces } from "./factorize-places.ts";
 import { buildProductsOverlay, buildRootProducts } from "./factorize-products.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
@@ -32,9 +33,16 @@ interface ResolvedPrimary {
 }
 
 interface OverlayContext {
+	readonly labels: ReadonlyMap<string, string | undefined>;
 	readonly primary: EnvironmentFoldResult | undefined;
 	readonly rootPlaces: Record<string, PlaceEntry> | undefined;
 	readonly rootProducts: Record<string, DeveloperProductEntry> | undefined;
+}
+
+interface EnvironmentEntryInputs {
+	readonly context: OverlayContext;
+	readonly fold: EnvironmentFoldResult;
+	readonly label: string | undefined;
 }
 
 /**
@@ -164,33 +172,19 @@ function buildPassesOverlay(
 	return Object.keys(overlay).length === 0 ? undefined : overlay;
 }
 
-function buildEnvironmentEntry(
-	fold: EnvironmentFoldResult,
-	context: OverlayContext,
-): EnvironmentEntry {
+function buildEnvironmentEntry(inputs: EnvironmentEntryInputs): EnvironmentEntry {
+	const { context, fold, label } = inputs;
 	const passes = buildPassesOverlay(fold, context.primary);
-	const places = buildPlacesOverlay(fold, context.rootPlaces);
+	const places = buildPlacesOverlay({ fold, label, rootPlaces: context.rootPlaces });
 	const products = buildProductsOverlay(fold, context.rootProducts);
 	const universe = buildUniverseOverlay(fold, context.primary);
-
-	const entry: EnvironmentEntry = {};
-	if (passes !== undefined) {
-		entry.passes = passes;
-	}
-
-	if (places !== undefined) {
-		entry.places = places;
-	}
-
-	if (products !== undefined) {
-		entry.products = products;
-	}
-
-	if (universe !== undefined) {
-		entry.universe = universe;
-	}
-
-	return entry;
+	return {
+		...(label !== undefined && { label }),
+		...(passes !== undefined && { passes }),
+		...(places !== undefined && { places }),
+		...(products !== undefined && { products }),
+		...(universe !== undefined && { universe }),
+	};
 }
 
 function buildEnvironmentEntries(
@@ -199,19 +193,32 @@ function buildEnvironmentEntries(
 ): Record<string, EnvironmentEntry> {
 	const entries: Record<string, EnvironmentEntry> = {};
 	for (const [name, fold] of folds) {
-		entries[name] = buildEnvironmentEntry(fold, context);
+		entries[name] = buildEnvironmentEntry({ context, fold, label: context.labels.get(name) });
 	}
 
 	return entries;
+}
+
+function buildEnvironmentLabels(
+	folds: ReadonlyMap<string, EnvironmentFoldResult>,
+): ReadonlyMap<string, string | undefined> {
+	const labels = new Map<string, string | undefined>();
+	for (const [name, fold] of folds) {
+		labels.set(name, computeEnvironmentLabel(fold));
+	}
+
+	return labels;
 }
 
 function buildConfig(
 	folds: ReadonlyMap<string, EnvironmentFoldResult>,
 	primaryFold: EnvironmentFoldResult,
 ): Config {
-	const places = buildRootPlaces(folds, primaryFold);
+	const labels = buildEnvironmentLabels(folds);
+	const places = buildRootPlaces({ folds, labels, primaryFold });
 	const products = buildRootProducts(folds, primaryFold);
 	const environments = buildEnvironmentEntries(folds, {
+		labels,
 		primary: primaryFold,
 		rootPlaces: places,
 		rootProducts: products,
