@@ -573,8 +573,8 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should override description on a non-primary place overlay when it diverges from the primary", () => {
-		expect.assertions(2);
+	it("should omit description from root and put each env's value on its overlay when description diverges across environments", () => {
+		expect.assertions(3);
 
 		const folds = new Map([
 			[
@@ -609,14 +609,17 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.places?.["start"]?.description).toBe("Prod place.");
+		expect(result.data.config.places?.["start"]?.description).toBeUndefined();
 		expect(result.data.config.environments["development"]?.places).toStrictEqual({
 			start: { description: "Dev place.", placeId: "17613681043" },
 		});
+		expect(result.data.config.environments["production"]?.places).toStrictEqual({
+			start: { description: "Prod place.", placeId: "17613681043" },
+		});
 	});
 
-	it("should override description on a non-primary place overlay when the primary has it and the env omits it", () => {
-		expect.assertions(1);
+	it("should omit description from root and from the omitting env's overlay when the primary has it and another env lacks it", () => {
+		expect.assertions(3);
 
 		const folds = new Map([
 			[
@@ -644,8 +647,12 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
+		expect(result.data.config.places?.["start"]?.description).toBeUndefined();
 		expect(result.data.config.environments["development"]?.places).toStrictEqual({
-			start: { description: undefined, placeId: "17613681043" },
+			start: { placeId: "17613681043" },
+		});
+		expect(result.data.config.environments["production"]?.places).toStrictEqual({
+			start: { description: "Prod place.", placeId: "17613681043" },
 		});
 	});
 
@@ -691,8 +698,8 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should override displayName on a non-primary place overlay when it diverges from the primary", () => {
-		expect.assertions(2);
+	it("should omit displayName from root and put each env's value on its overlay when displayName diverges across environments", () => {
+		expect.assertions(3);
 
 		const folds = new Map([
 			[
@@ -727,14 +734,17 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.places?.["start"]?.displayName).toBe("Prod Name");
+		expect(result.data.config.places?.["start"]?.displayName).toBeUndefined();
 		expect(result.data.config.environments["development"]?.places).toStrictEqual({
 			start: { displayName: "Dev Name", placeId: "17613681043" },
 		});
+		expect(result.data.config.environments["production"]?.places).toStrictEqual({
+			start: { displayName: "Prod Name", placeId: "17613681043" },
+		});
 	});
 
-	it("should override displayName on a non-primary place overlay when the primary has it and the env omits it", () => {
-		expect.assertions(1);
+	it("should omit displayName from root and from the omitting env's overlay when the primary has it and another env lacks it", () => {
+		expect.assertions(3);
 
 		const folds = new Map([
 			[
@@ -762,8 +772,12 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
+		expect(result.data.config.places?.["start"]?.displayName).toBeUndefined();
 		expect(result.data.config.environments["development"]?.places).toStrictEqual({
-			start: { displayName: undefined, placeId: "17613681043" },
+			start: { placeId: "17613681043" },
+		});
+		expect(result.data.config.environments["production"]?.places).toStrictEqual({
+			start: { displayName: "Prod Name", placeId: "17613681043" },
 		});
 	});
 
@@ -799,8 +813,8 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
-	it("should override serverSize on a non-primary place overlay when it diverges from the primary", () => {
-		expect.assertions(2);
+	it("should omit serverSize from root and put each env's value on its overlay when serverSize diverges across environments", () => {
+		expect.assertions(3);
 
 		const folds = new Map([
 			[
@@ -825,14 +839,17 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.places?.["start"]?.serverSize).toBe(50);
+		expect(result.data.config.places?.["start"]?.serverSize).toBeUndefined();
 		expect(result.data.config.environments["development"]?.places).toStrictEqual({
 			start: { placeId: "17613681043", serverSize: 25 },
 		});
+		expect(result.data.config.environments["production"]?.places).toStrictEqual({
+			start: { placeId: "17613681043", serverSize: 50 },
+		});
 	});
 
-	it("should override serverSize on a non-primary place overlay when the primary has it and the env omits it", () => {
-		expect.assertions(1);
+	it("should omit serverSize from root and from the omitting env's overlay when the primary has it and another env lacks it", () => {
+		expect.assertions(3);
 
 		const folds = new Map([
 			[
@@ -855,8 +872,12 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
+		expect(result.data.config.places?.["start"]?.serverSize).toBeUndefined();
 		expect(result.data.config.environments["development"]?.places).toStrictEqual({
-			start: { placeId: "17613681043", serverSize: undefined },
+			start: { placeId: "17613681043" },
+		});
+		expect(result.data.config.environments["production"]?.places).toStrictEqual({
+			start: { placeId: "17613681043", serverSize: 50 },
 		});
 	});
 
