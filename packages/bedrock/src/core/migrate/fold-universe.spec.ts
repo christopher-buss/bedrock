@@ -989,6 +989,21 @@ describe(foldUniverse, () => {
 			]);
 		});
 
+		it("should resolve duplicate start-key placeConfiguration records via last-wins", () => {
+			expect.assertions(1);
+
+			const result = foldUniverse([
+				experience(DEFAULT_EXPERIENCE_OUTPUTS),
+				place("start", { isStart: true }),
+				placeConfiguration("start", { name: "Earlier" }),
+				placeConfiguration("start", { name: "Later" }),
+			]);
+
+			assert(result !== undefined);
+
+			expect(result.entry.displayName).toBe("Later");
+		});
+
 		it("should leave displayName untouched when no placeConfiguration matches the start key", () => {
 			expect.assertions(2);
 
