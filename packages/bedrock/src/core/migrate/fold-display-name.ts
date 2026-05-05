@@ -75,10 +75,6 @@ export function foldDisplayName(resources: ReadonlyArray<MantleResource>): FoldF
 	}
 
 	const [startKey] = starts;
-	if (startKey === undefined) {
-		return EMPTY_FRAGMENT;
-	}
-
 	const startConfigResource = resources.findLast((resource) => {
 		return resource.kind === PLACE_CONFIGURATION_KIND && resource.key === startKey;
 	});
