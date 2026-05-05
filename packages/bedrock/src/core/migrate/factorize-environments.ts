@@ -203,23 +203,18 @@ function buildEnvironmentEntries(
 	folds: ReadonlyMap<string, EnvironmentFoldResult>,
 	context: OverlayContext,
 ): Record<string, EnvironmentEntry> {
-	const entries: Record<string, EnvironmentEntry> = {};
-	for (const [name, fold] of folds) {
-		entries[name] = buildEnvironmentEntry({ context, fold, label: context.labels.get(name) });
-	}
-
-	return entries;
+	return Object.fromEntries(
+		[...folds].map(([name, fold]) => [
+			name,
+			buildEnvironmentEntry({ context, fold, label: context.labels.get(name) }),
+		]),
+	);
 }
 
 function buildEnvironmentLabels(
 	folds: ReadonlyMap<string, EnvironmentFoldResult>,
 ): ReadonlyMap<string, string | undefined> {
-	const labels = new Map<string, string | undefined>();
-	for (const [name, fold] of folds) {
-		labels.set(name, computeEnvironmentLabel(fold));
-	}
-
-	return labels;
+	return new Map([...folds].map(([name, fold]) => [name, computeEnvironmentLabel(fold)]));
 }
 
 function resolveRootUniverse(

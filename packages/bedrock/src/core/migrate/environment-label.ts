@@ -16,19 +16,13 @@ import type { EnvironmentFoldResult } from "./fold-environment.ts";
  *   bracketed prefix; `undefined` otherwise.
  */
 export function computeEnvironmentLabel(fold: EnvironmentFoldResult): string | undefined {
-	const labels = new Set<string | undefined>();
-	const universeDisplayName = fold.universe?.entry.displayName;
-	if (universeDisplayName !== undefined) {
-		labels.add(extractDisplayNamePrefix(universeDisplayName).label);
-	}
-
-	for (const place of fold.places.values()) {
-		const placeDisplayName = place.entry.displayName;
-		if (placeDisplayName !== undefined) {
-			labels.add(extractDisplayNamePrefix(placeDisplayName).label);
-		}
-	}
-
+	const displayNames = [
+		fold.universe?.entry.displayName,
+		...[...fold.places.values()].map(({ entry }) => entry.displayName),
+	].filter((displayName): displayName is string => displayName !== undefined);
+	const labels = new Set(
+		displayNames.map((displayName) => extractDisplayNamePrefix(displayName).label),
+	);
 	if (labels.size !== 1) {
 		return undefined;
 	}
