@@ -74,24 +74,13 @@ export function buildPlacesOverlay(
 function placeFieldConsensus<F extends OptionalPlaceField>(
 	inputs: ConsensusInputs<F>,
 ): PlaceEntry[F] | undefined {
-	let agreed: PlaceEntry[F] | undefined;
-	let hasSeen = false;
-	for (const fold of inputs.folds) {
+	const values = inputs.folds.flatMap((fold) => {
 		const entry = fold.places.get(inputs.placeKey)?.entry;
-		if (entry === undefined) {
-			continue;
-		}
+		return entry === undefined ? [] : [entry[inputs.field]];
+	});
 
-		const value = entry[inputs.field];
-		if (!hasSeen) {
-			agreed = value;
-			hasSeen = true;
-		} else if (!Object.is(agreed, value)) {
-			return undefined;
-		}
-	}
-
-	return agreed;
+	const [first] = values;
+	return values.every((value) => Object.is(first, value)) ? first : undefined;
 }
 
 function buildRootPlaceEntry(
