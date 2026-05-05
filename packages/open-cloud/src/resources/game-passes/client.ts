@@ -2,31 +2,39 @@ import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.
 import {
 	buildCreateRequest,
 	buildGetRequest,
+	buildUpdateRequest,
 } from "../../domains/game-passes/game-passes/builders.ts";
 import {
 	CREATE_OPERATION_LIMIT,
 	CREATE_REQUIRED_SCOPES,
 	GET_OPERATION_LIMIT,
 	GET_REQUIRED_SCOPES,
+	UPDATE_OPERATION_LIMIT,
+	UPDATE_REQUIRED_SCOPES,
 } from "../../domains/game-passes/game-passes/operations.ts";
 import { parseGamePassResponse } from "../../domains/game-passes/game-passes/parsers.ts";
 import type {
 	CreateGamePassParameters,
 	GamePass,
 	GetGamePassParameters,
+	UpdateGamePassParameters,
 } from "../../domains/game-passes/game-passes/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
 	okRequest,
+	parseEmptyResponse,
 	ResourceClient,
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
 
-const CREATE_SPEC: ResourceMethodSpec<CreateGamePassParameters, GamePass> = Object.freeze({
-	buildRequest: (parameters: CreateGamePassParameters) =>
-		okRequest(buildCreateRequest(parameters)),
+function makeSpec<P, R>(spec: ResourceMethodSpec<P, R>): ResourceMethodSpec<P, R> {
+	return Object.freeze(spec);
+}
+
+const CREATE_SPEC = makeSpec<CreateGamePassParameters, GamePass>({
+	buildRequest: (parameters) => okRequest(buildCreateRequest(parameters)),
 	methodDefaults: CREATE_METHOD_DEFAULTS,
 	methodKind: "create",
 	operationLimit: CREATE_OPERATION_LIMIT,
@@ -34,13 +42,22 @@ const CREATE_SPEC: ResourceMethodSpec<CreateGamePassParameters, GamePass> = Obje
 	requiredScopes: CREATE_REQUIRED_SCOPES,
 });
 
-const GET_SPEC: ResourceMethodSpec<GetGamePassParameters, GamePass> = Object.freeze({
-	buildRequest: (parameters: GetGamePassParameters) => okRequest(buildGetRequest(parameters)),
+const GET_SPEC = makeSpec<GetGamePassParameters, GamePass>({
+	buildRequest: (parameters) => okRequest(buildGetRequest(parameters)),
 	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
 	methodKind: "idempotent",
 	operationLimit: GET_OPERATION_LIMIT,
 	parse: parseGamePassResponse,
 	requiredScopes: GET_REQUIRED_SCOPES,
+});
+
+const UPDATE_SPEC = makeSpec<UpdateGamePassParameters, undefined>({
+	buildRequest: (parameters) => okRequest(buildUpdateRequest(parameters)),
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: UPDATE_OPERATION_LIMIT,
+	parse: parseEmptyResponse,
+	requiredScopes: UPDATE_REQUIRED_SCOPES,
 });
 
 /**
@@ -110,5 +127,26 @@ export class GamePassesClient {
 		options?: RequestOptions,
 	): Promise<Result<GamePass, OpenCloudError>> {
 		return this.#inner.execute({ options, parameters, spec: GET_SPEC });
+	}
+
+	/**
+	 * Partially updates an existing game pass. Mirrors the upstream
+	 * `204 No Content` response: a successful update yields `undefined`
+	 * data. Callers that need the post-update state (for example to
+	 * observe a server-derived `updatedAt`) chain
+	 * {@link GamePassesClient.get} themselves so the GET only fires when
+	 * actually needed.
+	 *
+	 * @param parameters - The universe and game pass identifiers and the
+	 *   fields to update. Only fields explicitly provided are forwarded.
+	 * @param options - Optional per-request overrides.
+	 * @returns A success {@link Result} with no payload, or the
+	 *   {@link OpenCloudError} that caused the request to fail.
+	 */
+	public async update(
+		parameters: UpdateGamePassParameters,
+		options?: RequestOptions,
+	): Promise<Result<undefined, OpenCloudError>> {
+		return this.#inner.execute({ options, parameters, spec: UPDATE_SPEC });
 	}
 }

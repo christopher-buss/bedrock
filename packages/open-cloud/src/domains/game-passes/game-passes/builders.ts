@@ -1,6 +1,10 @@
 import type { HttpRequest } from "../../../internal/http/types.ts";
 import { toBlob } from "../../../internal/utils/to-blob.ts";
-import type { CreateGamePassParameters, GetGamePassParameters } from "./types.ts";
+import type {
+	CreateGamePassParameters,
+	GetGamePassParameters,
+	UpdateGamePassParameters,
+} from "./types.ts";
 
 /**
  * Builds a `GET` request for the Open Cloud "read game pass" endpoint.
@@ -50,5 +54,47 @@ export function buildCreateRequest(parameters: CreateGamePassParameters): HttpRe
 		body,
 		method: "POST",
 		url: `/game-passes/v1/universes/${parameters.universeId}/game-passes`,
+	};
+}
+
+/**
+ * Builds a `PATCH` request for the Open Cloud "update game pass" endpoint.
+ * Every field on `parameters` except the identifiers is optional;
+ * omitted fields are not appended to the multipart body so the server
+ * leaves their current values unchanged.
+ *
+ * @param parameters - Identifiers plus fields to update.
+ * @returns A pure {@link HttpRequest} describing the update call.
+ */
+export function buildUpdateRequest(parameters: UpdateGamePassParameters): HttpRequest {
+	const body = new FormData();
+	if (parameters.name !== undefined) {
+		body.append("name", parameters.name);
+	}
+
+	if (parameters.description !== undefined) {
+		body.append("description", parameters.description);
+	}
+
+	if (parameters.isForSale !== undefined) {
+		body.append("isForSale", String(parameters.isForSale));
+	}
+
+	if (parameters.price !== undefined) {
+		body.append("price", String(parameters.price));
+	}
+
+	if (parameters.isRegionalPricingEnabled !== undefined) {
+		body.append("isRegionalPricingEnabled", String(parameters.isRegionalPricingEnabled));
+	}
+
+	if (parameters.imageFile !== undefined) {
+		body.append("imageFile", toBlob(parameters.imageFile));
+	}
+
+	return {
+		body,
+		method: "PATCH",
+		url: `/game-passes/v1/universes/${parameters.universeId}/game-passes/${parameters.gamePassId}`,
 	};
 }

@@ -71,3 +71,28 @@ export interface GetGamePassParameters {
 	/** Stringified ID of the universe that owns the game pass. */
 	readonly universeId: string;
 }
+
+/**
+ * Parameters for partially updating an existing game pass. Every field
+ * except the identifiers is optional; omitted fields are not included
+ * in the multipart body so the server leaves their current values
+ * untouched.
+ */
+export interface UpdateGamePassParameters {
+	/** Optional new display name for the game pass. */
+	readonly name?: string;
+	/** Optional new consumer-facing description shown on the store listing. */
+	readonly description?: string;
+	/** Stringified ID of the game pass to update. */
+	readonly gamePassId: string;
+	/** Optional replacement icon image. */
+	readonly imageFile?: Blob | Uint8Array;
+	/** Optional new value for whether the game pass is purchasable. */
+	readonly isForSale?: boolean;
+	/** Optional new value for whether regional pricing is enabled. */
+	readonly isRegionalPricingEnabled?: boolean;
+	/** Optional new default price in Robux. */
+	readonly price?: number;
+	/** Stringified ID of the universe that owns the game pass. */
+	readonly universeId: string;
+}
