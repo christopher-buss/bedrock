@@ -1,5 +1,3 @@
-experimental_monorepo_root = true
-
 [env]
 _.file = { path = ".env", redact = true }
 _.path = [
@@ -9,15 +7,16 @@ _.path = [
 
 [settings]
 experimental = true
+lockfile = true
 
 [tools]
+"github:luau-lang/lute" = "1.0.0"
 "npm:@antfu/ni" = "latest"
 "npm:eslint_d" = "latest"
 "npm:pncat" = "latest"
 "npm:vercel" = "latest"
-bun = "1.3.12"
-hk = { version = "1.42.0", postinstall = "if [ -z \"$CI\" ]; then hk install --mise; fi" }
-"github:luau-lang/lute" = "1.0.0"
+bun = "1.3.13"
+hk = { version = "1.45.0", postinstall = 'if [ -z "$CI" ]; then hk install --mise; fi' }
 node = { version = "lts", postinstall = "corepack enable" }
 pkl = "latest"
 
