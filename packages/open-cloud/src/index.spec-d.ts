@@ -10,6 +10,7 @@ import type {
 	OpenCloudClientOptions,
 	OpenCloudError,
 	OpenCloudHooks,
+	Page,
 	PermissionError,
 	PermissionErrorOptions,
 	RateLimitError,
@@ -50,6 +51,29 @@ describe("Result", () => {
 		expectTypeOf<Result<string, OpenCloudError>>().toEqualTypeOf<
 			{ data: string; success: true } | { err: OpenCloudError; success: false }
 		>();
+	});
+});
+
+describe("Page", () => {
+	it("should expose items as a readonly array of the item type", () => {
+		expectTypeOf<Page<string>>().toHaveProperty("items").toEqualTypeOf<ReadonlyArray<string>>();
+	});
+
+	it("should expose nextPageToken as string or undefined", () => {
+		expectTypeOf<Page<string>>()
+			.toHaveProperty("nextPageToken")
+			.toEqualTypeOf<string | undefined>();
+	});
+
+	it("should propagate the item type parameter", () => {
+		interface Item {
+			readonly id: string;
+		}
+
+		expectTypeOf<Page<Item>>().toEqualTypeOf<{
+			readonly items: ReadonlyArray<Item>;
+			readonly nextPageToken: string | undefined;
+		}>();
 	});
 });
 

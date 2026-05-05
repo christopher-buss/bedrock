@@ -42,6 +42,20 @@ export interface GamePassConfigV2 {
 }
 
 /**
+ * Wire shape of `ListGamePassConfigsByUniverseResponse`: the response
+ * body returned by the Game Passes list endpoint. The OpenAPI schema
+ * marks `nextPageToken` as required and nullable; the parser normalizes
+ * any JSON `null` to `undefined` at the wire boundary so callers only
+ * ever observe `undefined`.
+ */
+export interface ListGamePassConfigsByUniverseResponseWire {
+	/** The page of game pass configurations. */
+	readonly gamePasses: ReadonlyArray<GamePassConfigV2>;
+	/** Cursor for the next page; `undefined` after wire-null normalization. */
+	readonly nextPageToken: string | undefined;
+}
+
+/**
  * Wire shape of `GamePasses.PriceInformationStruct`.
  */
 type PriceInformationStructWire = PriceInformationLike<PricingFeatureWire>;
