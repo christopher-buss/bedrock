@@ -296,10 +296,6 @@ environments:
       inputs:
         notification: {}
       dependencies: []
-    - id: experienceIcon_singleton
-      inputs:
-        experienceIcon: {}
-      dependencies: []
     - id: experienceThumbnail_hero
       inputs:
         experienceThumbnail: {}
@@ -995,7 +991,7 @@ environments:
 
 		assert(result.success);
 
-		expect(result.data.warnings).toHaveLength(11);
+		expect(result.data.warnings).toHaveLength(10);
 		expect(new Set(result.data.warnings.map((warning) => warning.kind))).toStrictEqual(
 			new Set(["deferred"]),
 		);
@@ -1015,7 +1011,7 @@ environments:
 		expect(result.data.summary).toStrictEqual({
 			ambiguousCount: 0,
 			blockedCount: 0,
-			deferredCount: 11,
+			deferredCount: 10,
 			interpretiveCount: 0,
 		});
 	});
@@ -1040,7 +1036,6 @@ environments:
 			"production.audioAsset_theme",
 			"production.assetAlias_logo",
 			"production.notification_welcome",
-			"production.experienceIcon_singleton",
 			"production.experienceThumbnail_hero",
 			"production.experienceThumbnailOrder_singleton",
 		]);

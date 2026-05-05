@@ -12,7 +12,6 @@ const DEFERRED_KIND_REASONS: Readonly<Record<string, string>> = {
 	audioAsset: "audio assets",
 	badge: "badges",
 	badgeIcon: "badge icons",
-	experienceIcon: "experience icons",
 	experienceThumbnail: "experience thumbnails",
 	experienceThumbnailOrder: "experience thumbnail ordering",
 	imageAsset: "image assets",

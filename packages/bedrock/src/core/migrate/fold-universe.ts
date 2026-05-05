@@ -3,6 +3,7 @@ import type { UniverseOutputs } from "../resources.ts";
 import type { UniverseEntry } from "../schema.ts";
 import { foldBlockedExperienceFields } from "./fold-blocked-experience-fields.ts";
 import { foldDisplayName } from "./fold-display-name.ts";
+import { foldExperienceIcon } from "./fold-experience-icon.ts";
 import { foldSocialLinks } from "./fold-social-links.ts";
 import {
 	blockedWarning,
@@ -84,11 +85,16 @@ export function foldUniverse(
 		{ universeId: outputs.assetId },
 	);
 
+	const universeOutputs: UniverseOutputs = fragments.reduce<UniverseOutputs>(
+		(accumulator, fragment) => ({ ...accumulator, ...fragment.outputsFragment }),
+		{ rootPlaceId: asRobloxAssetId(outputs.startPlaceId) },
+	);
+
 	const warnings = fragments.flatMap((fragment) => fragment.warnings);
 
 	return {
 		entry,
-		outputs: { rootPlaceId: asRobloxAssetId(outputs.startPlaceId) },
+		outputs: universeOutputs,
 		warnings,
 	};
 }
@@ -103,6 +109,7 @@ function collectUniverseFragments(
 		foldExperienceActivation(resources),
 		foldSocialLinks(resources),
 		foldDisplayName(resources),
+		foldExperienceIcon(resources),
 		foldBlockedExperienceFields(resources),
 	];
 }

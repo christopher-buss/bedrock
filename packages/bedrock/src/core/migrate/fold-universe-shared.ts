@@ -1,14 +1,23 @@
+import type { UniverseOutputs } from "../resources.ts";
 import type { UniverseEntry } from "../schema.ts";
 import type { MigrationWarning } from "./migration-report.ts";
 
 /**
  * Output of one fold rule contributing to the eventual `UniverseEntry`.
- * Fragments compose by spreading `entryFragment` into the final entry and
- * concatenating `warnings`.
+ * The orchestrator (`foldUniverse`) composes fragments by spreading
+ * `entryFragment` into the final entry, spreading `outputsFragment` into
+ * the matching `BedrockState` resource's `outputs`, and concatenating
+ * `warnings`. Most rules contribute only to the entry; rules that also
+ * carry Roblox-assigned identifiers (icons, thumbnails) fill
+ * `outputsFragment`. The `mergeFragment` helper, used inside individual
+ * fold modules to combine sub-fragments, only merges `entryFragment` and
+ * `warnings` because no rule that uses it currently produces outputs.
  */
 export interface FoldFragment {
 	/** Subset of universe fields this rule populated (empty when the rule did not fire). */
 	readonly entryFragment: Partial<UniverseEntry>;
+	/** Subset of universe outputs this rule populated; absent when the rule contributes no Roblox-assigned identifiers. */
+	readonly outputsFragment?: Partial<UniverseOutputs>;
 	/** Diagnostics this rule emitted. */
 	readonly warnings: ReadonlyArray<MigrationWarning>;
 }
@@ -55,6 +64,8 @@ export function isObjectPayload(value: unknown): value is Record<string, unknown
 /**
  * Combine two fragments, with the right-hand side overriding overlapping
  * `entryFragment` keys and its `warnings` appended after the left's.
+ * Does not merge `outputsFragment`; outputs composition is handled by
+ * `foldUniverse` across the whole fragment list, not by this helper.
  *
  * @param left - Earlier fragment.
  * @param right - Later fragment whose entry-fragment keys win on conflict.

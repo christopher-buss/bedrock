@@ -177,7 +177,7 @@ describe(foldEnvironment, () => {
 	it("should emit deferred warnings even when no experience is present", () => {
 		expect.assertions(2);
 
-		const result = foldEnvironment([mantleResource("experienceIcon", "singleton")]);
+		const result = foldEnvironment([mantleResource("experienceThumbnail", "singleton")]);
 
 		expect(result.universe).toBeUndefined();
 		expect(result.warnings).toHaveLength(1);
