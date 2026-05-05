@@ -62,6 +62,26 @@ export function isObjectPayload(value: unknown): value is Record<string, unknown
 }
 
 /**
+ * Coerce a Mantle-recorded Roblox identifier to a string. YAML can carry
+ * IDs as either a quoted string or a bare integer; both are accepted.
+ * Anything else (null, float, object) returns `undefined`.
+ *
+ * @param value - Raw value pulled from a Mantle resource's outputs.
+ * @returns The stringified ID, or `undefined` when the value is not a valid wire shape.
+ */
+export function coerceRobloxId(value: unknown): string | undefined {
+	if (typeof value === "string") {
+		return value;
+	}
+
+	if (Number.isInteger(value)) {
+		return String(value);
+	}
+
+	return undefined;
+}
+
+/**
  * Combine two fragments, with the right-hand side overriding overlapping
  * `entryFragment` keys and its `warnings` appended after the left's.
  * Does not merge `outputsFragment`; outputs composition is handled by

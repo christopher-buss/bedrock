@@ -2,6 +2,7 @@ import { asResourceKey, asRobloxAssetId, asSha256Hex, isSha256Hex } from "../../
 import type { ResourceKey, Sha256Hex } from "../../types/ids.ts";
 import type { DeveloperProductOutputs } from "../resources.ts";
 import type { DeveloperProductEntry } from "../schema.ts";
+import { coerceRobloxId, isObjectPayload } from "./fold-universe-shared.ts";
 import type { MigrationWarning } from "./migration-report.ts";
 import type { MantleResource } from "./types.ts";
 
@@ -133,10 +134,6 @@ function buildEntry(
 	return icon === undefined ? withPrice : { ...withPrice, icon };
 }
 
-function isObjectPayload(value: unknown): value is Record<string, unknown> {
-	return Object.prototype.toString.call(value) === "[object Object]";
-}
-
 function readString(value: unknown): string | undefined {
 	return typeof value === "string" ? value : undefined;
 }
@@ -158,18 +155,6 @@ function readProductInputs(raw: unknown): ProductInputs | undefined {
 	}
 
 	return { name, description, price: readPrice(raw) };
-}
-
-function coerceRobloxId(value: unknown): string | undefined {
-	if (typeof value === "string") {
-		return value;
-	}
-
-	if (Number.isInteger(value)) {
-		return String(value);
-	}
-
-	return undefined;
 }
 
 function readProductOutputs(raw: unknown): ProductOutputsRaw | undefined {

@@ -1424,7 +1424,7 @@ environments:
 
 		assert(result.success);
 
-		expect(result.data.warnings).toHaveLength(9);
+		expect(result.data.warnings).toHaveLength(8);
 		expect(new Set(result.data.warnings.map((warning) => warning.kind))).toStrictEqual(
 			new Set(["deferred"]),
 		);
@@ -1444,7 +1444,7 @@ environments:
 		expect(result.data.summary).toStrictEqual({
 			ambiguousCount: 0,
 			blockedCount: 0,
-			deferredCount: 9,
+			deferredCount: 8,
 			interpretiveCount: 0,
 		});
 	});

@@ -289,10 +289,12 @@ describe(buildState, () => {
 						}),
 					],
 				]),
+				products: [],
 				universe: undefined,
 				warnings: [],
 			},
-			iconHashesByKey: NO_HASHES,
+			passIconHashesByKey: NO_HASHES,
+			productIconHashesByKey: NO_HASHES,
 		});
 
 		const [resource] = state.resources;
@@ -312,10 +314,12 @@ describe(buildState, () => {
 			folded: {
 				passes: [],
 				places: new Map([["start", placeFold()]]),
+				products: [],
 				universe: undefined,
 				warnings: [],
 			},
-			iconHashesByKey: NO_HASHES,
+			passIconHashesByKey: NO_HASHES,
+			productIconHashesByKey: NO_HASHES,
 		});
 
 		const [resource] = state.resources;
