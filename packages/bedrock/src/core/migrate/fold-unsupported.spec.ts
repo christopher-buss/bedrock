@@ -17,7 +17,6 @@ const DEFERRED_CASES: ReadonlyArray<DeferredCase> = [
 	{ humanName: "experience thumbnail ordering", kind: "experienceThumbnailOrder" },
 	{ humanName: "image assets", kind: "imageAsset" },
 	{ humanName: "experience notifications", kind: "notification" },
-	{ humanName: "developer-product icons", kind: "productIcon" },
 ];
 
 describe(foldUnsupported, () => {

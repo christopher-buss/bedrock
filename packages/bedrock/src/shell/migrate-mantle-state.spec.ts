@@ -264,10 +264,6 @@ environments:
           assetId: 6031475575
           startPlaceId: 17613681043
       dependencies: []
-    - id: productIcon_starter
-      inputs:
-        productIcon: {}
-      dependencies: []
     - id: badge_first-win
       inputs:
         badge: {}
@@ -987,7 +983,7 @@ environments:
 
 		assert(result.success);
 
-		expect(result.data.warnings).toHaveLength(10);
+		expect(result.data.warnings).toHaveLength(9);
 		expect(new Set(result.data.warnings.map((warning) => warning.kind))).toStrictEqual(
 			new Set(["deferred"]),
 		);
@@ -1007,7 +1003,7 @@ environments:
 		expect(result.data.summary).toStrictEqual({
 			ambiguousCount: 0,
 			blockedCount: 0,
-			deferredCount: 10,
+			deferredCount: 9,
 			interpretiveCount: 0,
 		});
 	});
@@ -1024,7 +1020,6 @@ environments:
 		assert(result.success);
 
 		expect(result.data.warnings.map((warning) => warning.mantlePath)).toStrictEqual([
-			"production.productIcon_starter",
 			"production.badge_first-win",
 			"production.badgeIcon_first-win",
 			"production.imageAsset_logo",

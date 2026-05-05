@@ -1,8 +1,10 @@
 import { assert, describe, expect, it } from "vitest";
 
-import { asResourceKey } from "../../types/ids.ts";
+import { asResourceKey, asSha256Hex } from "../../types/ids.ts";
 import { foldProducts } from "./fold-products.ts";
 import type { MantleResource } from "./types.ts";
+
+const SAMPLE_HASH = "86890ed405cabad0fcdabf52225d528981790fa551e915c070348761c28373c1";
 
 interface ProductFixture {
 	readonly inputs: unknown;
@@ -19,6 +21,16 @@ function product(key: string, payload: ProductFixture): MantleResource {
 	};
 }
 
+function productIcon(key: string, payload: ProductFixture): MantleResource {
+	return {
+		key,
+		dependencies: [],
+		inputs: payload.inputs,
+		kind: "productIcon",
+		outputs: payload.outputs,
+	};
+}
+
 function onSaleInputs(): Record<string, unknown> {
 	return {
 		name: "Example Product",
@@ -31,10 +43,28 @@ function productOutputs(): Record<string, unknown> {
 	return { assetId: 1835296153, productId: 58109926 };
 }
 
+function productIconInputs(): Record<string, unknown> {
+	return {
+		fileHash: SAMPLE_HASH,
+		filePath: "assets/marketing/example-icon.png",
+	};
+}
+
+function productIconOutputs(): Record<string, unknown> {
+	return { assetId: 18280868488 };
+}
+
 function fixture(inputs?: unknown, outputs?: unknown): ProductFixture {
 	return {
 		inputs: inputs === undefined ? onSaleInputs() : inputs,
 		outputs: outputs === undefined ? productOutputs() : outputs,
+	};
+}
+
+function iconFixture(inputs?: unknown, outputs?: unknown): ProductFixture {
+	return {
+		inputs: inputs === undefined ? productIconInputs() : inputs,
+		outputs: outputs === undefined ? productIconOutputs() : outputs,
 	};
 }
 
@@ -53,7 +83,10 @@ describe(foldProducts, () => {
 			description: "This is an example product.",
 			price: 5,
 		});
-		expect(entry.outputs).toStrictEqual({ productId: "58109926" });
+		expect(entry.outputs).toStrictEqual({
+			iconImageAssetId: undefined,
+			productId: "58109926",
+		});
 	});
 
 	it("should preserve price when set to a positive integer", () => {
@@ -174,5 +207,80 @@ describe(foldProducts, () => {
 		assert(entry !== undefined);
 
 		expect(entry.outputs.productId).toBe("58109926");
+	});
+
+	it("should pair a productIcon resource with its product by key", () => {
+		expect.assertions(3);
+
+		const result = foldProducts([
+			product("1-example", fixture()),
+			productIcon("1-example", iconFixture()),
+		]);
+		const [entry] = result.products;
+		assert(entry !== undefined);
+
+		expect(entry.entry.icon).toStrictEqual({
+			"en-us": "assets/marketing/example-icon.png",
+		});
+		expect(entry.outputs.iconImageAssetId).toBe("18280868488");
+		expect(result.warnings).toStrictEqual([]);
+	});
+
+	it("should preserve the mantle-recorded icon file hash on the fold entry", () => {
+		expect.assertions(1);
+
+		const result = foldProducts([
+			product("1-example", fixture()),
+			productIcon("1-example", iconFixture()),
+		]);
+		const [entry] = result.products;
+		assert(entry !== undefined);
+
+		expect(entry.mantleIconFileHashes).toStrictEqual({ "en-us": asSha256Hex(SAMPLE_HASH) });
+	});
+
+	it("should fold a product without a productIcon as an entry without icon fields", () => {
+		expect.assertions(3);
+
+		const result = foldProducts([product("1-example", fixture())]);
+		const [entry] = result.products;
+		assert(entry !== undefined);
+
+		expect(entry.entry.icon).toBeNil();
+		expect(entry.outputs.iconImageAssetId).toBeNil();
+		expect(entry.mantleIconFileHashes).toBeNil();
+	});
+
+	it("should emit an ambiguous warning for an orphan productIcon resource", () => {
+		expect.assertions(2);
+
+		const result = foldProducts([productIcon("1-example", iconFixture())]);
+
+		expect(result.products).toStrictEqual([]);
+		expect(result.warnings).toStrictEqual([
+			{
+				hint: "Verify your Mantle state file: each productIcon_<k> resource must be paired with a matching product_<k>.",
+				kind: "ambiguous",
+				mantlePath: "productIcon_1-example",
+			},
+		]);
+	});
+
+	it("should drop a productIcon resource with a malformed file hash", () => {
+		expect.assertions(3);
+
+		const malformedInputs = productIconInputs();
+		malformedInputs["fileHash"] = "not-a-real-hash";
+
+		const result = foldProducts([
+			product("1-example", fixture()),
+			productIcon("1-example", iconFixture(malformedInputs)),
+		]);
+		const [entry] = result.products;
+		assert(entry !== undefined);
+
+		expect(entry.entry.icon).toBeNil();
+		expect(entry.outputs.iconImageAssetId).toBeNil();
+		expect(entry.mantleIconFileHashes).toBeNil();
 	});
 });
