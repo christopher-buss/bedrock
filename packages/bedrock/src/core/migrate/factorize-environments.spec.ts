@@ -1398,4 +1398,203 @@ describe(factorizeEnvironments, () => {
 			"dev-only": developmentOnlyEntry,
 		});
 	});
+
+	it("should keep a divergent optional field off root so non-primary envs that omit it stay omitted after merge", () => {
+		expect.assertions(2);
+
+		const primaryEntry = {
+			name: "Example Product",
+			description: "This is an example product.",
+			price: 100,
+		};
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					products: [
+						productWithEntry("starter-pack", {
+							name: "Example Product",
+							description: "This is an example product.",
+						}),
+					],
+				}),
+			],
+			["production", fold({ products: [productWithEntry("starter-pack", primaryEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.products?.["starter-pack"]).toStrictEqual({
+			name: "Example Product",
+			description: "This is an example product.",
+		});
+		expect(result.data.config.environments["production"]?.products).toStrictEqual({
+			"starter-pack": { price: 100 },
+		});
+	});
+
+	it("should hoist a product icon to root when every environment shares the same icon path", () => {
+		expect.assertions(2);
+
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					products: [
+						productWithEntry("starter-pack", {
+							name: "Example Product",
+							description: "This is an example product.",
+							icon: { "en-us": "assets/marketing/product-icon.png" },
+							price: 100,
+						}),
+					],
+				}),
+			],
+			[
+				"production",
+				fold({
+					products: [
+						productWithEntry("starter-pack", {
+							name: "Example Product",
+							description: "This is an example product.",
+							icon: { "en-us": "assets/marketing/product-icon.png" },
+							price: 100,
+						}),
+					],
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.products?.["starter-pack"]?.icon).toStrictEqual({
+			"en-us": "assets/marketing/product-icon.png",
+		});
+		expect(result.data.config.environments["development"]?.products).toBeUndefined();
+	});
+
+	it("should hoist a shared isRegionalPricingEnabled flag to root when every environment agrees", () => {
+		expect.assertions(2);
+
+		const sharedEntry = {
+			name: "Example Product",
+			description: "This is an example product.",
+			isRegionalPricingEnabled: true,
+			price: 100,
+		};
+		const folds = new Map([
+			["development", fold({ products: [productWithEntry("starter-pack", sharedEntry)] })],
+			["production", fold({ products: [productWithEntry("starter-pack", sharedEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.products?.["starter-pack"]?.isRegionalPricingEnabled).toBeTrue();
+		expect(result.data.config.environments["development"]?.products).toBeUndefined();
+	});
+
+	it("should hoist a shared storePageEnabled flag to root when every environment agrees", () => {
+		expect.assertions(2);
+
+		const sharedEntry = {
+			name: "Example Product",
+			description: "This is an example product.",
+			price: 100,
+			storePageEnabled: false,
+		};
+		const folds = new Map([
+			["development", fold({ products: [productWithEntry("starter-pack", sharedEntry)] })],
+			["production", fold({ products: [productWithEntry("starter-pack", sharedEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.products?.["starter-pack"]?.storePageEnabled).toBeFalse();
+		expect(result.data.config.environments["development"]?.products).toBeUndefined();
+	});
+
+	it("should compute consensus per product key when an environment has multiple products", () => {
+		expect.assertions(2);
+
+		const alphaEntry = {
+			name: "Alpha Pack",
+			description: "Alpha description.",
+			price: 10,
+		};
+		const betaEntry = {
+			name: "Beta Pack",
+			description: "Beta description.",
+			price: 200,
+		};
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					products: [
+						productWithEntry("alpha", alphaEntry),
+						productWithEntry("beta", betaEntry),
+					],
+				}),
+			],
+			[
+				"production",
+				fold({
+					products: [
+						productWithEntry("alpha", alphaEntry),
+						productWithEntry("beta", betaEntry),
+					],
+				}),
+			],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.products?.["alpha"]?.price).toBe(10);
+		expect(result.data.config.products?.["beta"]?.price).toBe(200);
+	});
+
+	it("should keep a divergent icon off root so a non-primary env without one does not inherit it", () => {
+		expect.assertions(2);
+
+		const primaryEntry = {
+			name: "Example Product",
+			description: "This is an example product.",
+			icon: { "en-us": "assets/marketing/product-icon.png" },
+			price: 100,
+		};
+		const folds = new Map([
+			[
+				"development",
+				fold({
+					products: [
+						productWithEntry("starter-pack", {
+							name: "Example Product",
+							description: "This is an example product.",
+							price: 100,
+						}),
+					],
+				}),
+			],
+			["production", fold({ products: [productWithEntry("starter-pack", primaryEntry)] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		expect(result.data.config.products?.["starter-pack"]?.icon).toBeUndefined();
+		expect(result.data.config.environments["production"]?.products).toStrictEqual({
+			"starter-pack": { icon: { "en-us": "assets/marketing/product-icon.png" } },
+		});
+	});
 });

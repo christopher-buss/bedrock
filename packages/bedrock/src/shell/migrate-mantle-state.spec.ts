@@ -1189,7 +1189,7 @@ environments:
 	});
 
 	it("should factorize products across multi-environment migrations", async () => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		const result = await migrateMantleState({
 			configFormat: "typescript",
@@ -1204,12 +1204,15 @@ environments:
 			"1-gem-pack": {
 				name: "Gem Pack",
 				description: "Stocks the player up with 1,000 premium gems.",
-				price: 100,
 			},
 		});
 
 		expect(result.data.config.environments["development"]?.products).toStrictEqual({
 			"1-gem-pack": { price: 50 },
+		});
+
+		expect(result.data.config.environments["production"]?.products).toStrictEqual({
+			"1-gem-pack": { price: 100 },
 		});
 	});
 

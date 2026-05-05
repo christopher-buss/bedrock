@@ -1,6 +1,12 @@
 import type { Result } from "@bedrock/ocale";
 
-import type { Config, EnvironmentEntry, GamePassEntry, PlaceEntry } from "../schema.ts";
+import type {
+	Config,
+	DeveloperProductEntry,
+	EnvironmentEntry,
+	GamePassEntry,
+	PlaceEntry,
+} from "../schema.ts";
 import { buildPlacesOverlay, buildRootPlaces } from "./factorize-places.ts";
 import { buildProductsOverlay, buildRootProducts } from "./factorize-products.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
@@ -28,6 +34,7 @@ interface ResolvedPrimary {
 interface OverlayContext {
 	readonly primary: EnvironmentFoldResult | undefined;
 	readonly rootPlaces: Record<string, PlaceEntry> | undefined;
+	readonly rootProducts: Record<string, DeveloperProductEntry> | undefined;
 }
 
 /**
@@ -163,7 +170,7 @@ function buildEnvironmentEntry(
 ): EnvironmentEntry {
 	const passes = buildPassesOverlay(fold, context.primary);
 	const places = buildPlacesOverlay(fold, context.rootPlaces);
-	const products = buildProductsOverlay(fold, context.primary);
+	const products = buildProductsOverlay(fold, context.rootProducts);
 	const universe = buildUniverseOverlay(fold, context.primary);
 
 	const entry: EnvironmentEntry = {};
@@ -203,12 +210,13 @@ function buildConfig(
 	primaryFold: EnvironmentFoldResult,
 ): Config {
 	const places = buildRootPlaces(folds, primaryFold);
+	const products = buildRootProducts(folds, primaryFold);
 	const environments = buildEnvironmentEntries(folds, {
 		primary: primaryFold,
 		rootPlaces: places,
+		rootProducts: products,
 	});
 	const passes = buildRootPasses(primaryFold);
-	const products = buildRootProducts(primaryFold);
 	const universe = primaryFold.universe?.entry;
 
 	const config: Config = { environments };

@@ -19,6 +19,56 @@ const REAL_FIXTURE = join(FIXTURES_ROOT, "roblox-ts-example.mantle-state.yml");
 const ICON_FILE_SHA256 = "c2d4b446a44ce54fab8e01150e24dd24f3d850c7c14dcfe31f6321341dd86874";
 const MANTLE_RECORDED_HASH = "86890ed405cabad0fcdabf52225d528981790fa551e915c070348761c28373c1";
 
+const TWO_ENV_DIVERGENT_PRODUCT_YAML = [
+	'version: "6"',
+	"environments:",
+	"  development:",
+	"    - id: experience_singleton",
+	"      inputs:",
+	"        experience:",
+	"          groupId: ~",
+	"      outputs:",
+	"        experience:",
+	"          assetId: 1111111111",
+	"          startPlaceId: 2222222222",
+	"      dependencies: []",
+	"    - id: product_gem-pack",
+	"      inputs:",
+	"        product:",
+	"          name: Gem Pack",
+	"          description: Stocks the player up with 1,000 premium gems.",
+	"          price: ~",
+	"      outputs:",
+	"        product:",
+	"          assetId: 1000",
+	"          productId: 2000",
+	"      dependencies:",
+	"        - experience_singleton",
+	"  production:",
+	"    - id: experience_singleton",
+	"      inputs:",
+	"        experience:",
+	"          groupId: ~",
+	"      outputs:",
+	"        experience:",
+	"          assetId: 6031475575",
+	"          startPlaceId: 17613681043",
+	"      dependencies: []",
+	"    - id: product_gem-pack",
+	"      inputs:",
+	"        product:",
+	"          name: Gem Pack",
+	"          description: Stocks the player up with 1,000 premium gems.",
+	"          price: 100",
+	"      outputs:",
+	"        product:",
+	"          assetId: 3000",
+	"          productId: 4000",
+	"      dependencies:",
+	"        - experience_singleton",
+	"",
+].join("\n");
+
 const TWO_ENV_DIVERGENT_PASS_YAML = [
 	'version: "6"',
 	"environments:",
@@ -345,6 +395,35 @@ describe(migrateMantleState, () => {
 			});
 			expect(production.data.passes?.["vip"]?.price).toBe(500);
 			expect(development.data.passes?.["vip"]?.price).toBe(99);
+		});
+	});
+
+	it("should round-trip a per-environment product price overlay through loadConfig and selectEnvironment", async () => {
+		expect.assertions(3);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			readFile: async () => new TextEncoder().encode(TWO_ENV_DIVERGENT_PRODUCT_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		await withTemporaryDirectory(async (directory) => {
+			writeFileSync(join(directory, "bedrock.config.ts"), result.data.configFileContent);
+			const loaded = await loadConfig({ cwd: directory });
+
+			assert(loaded.success);
+
+			const production = selectEnvironment(loaded.data, "production");
+			const development = selectEnvironment(loaded.data, "development");
+			assert(production.success);
+			assert(development.success);
+
+			expect(production.data.products?.["gem-pack"]?.price).toBe(100);
+			expect(development.data.products?.["gem-pack"]?.price).toBeUndefined();
+			expect(loaded.data.products?.["gem-pack"]?.price).toBeUndefined();
 		});
 	});
 

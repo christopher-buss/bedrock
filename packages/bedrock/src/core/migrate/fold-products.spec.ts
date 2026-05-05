@@ -106,7 +106,10 @@ describe(foldProducts, () => {
 		expect.assertions(1);
 
 		const inputs = onSaleInputs();
-		inputs["price"] = undefined;
+		// Mantle YAML emits `price: ~` for off-sale products, which the parser
+		// surfaces as a literal `null` in the wire payload before this fold runs.
+		// eslint-disable-next-line unicorn/no-null -- exercise the wire-data null path
+		inputs["price"] = null;
 
 		const result = foldProducts([product("1-example", fixture(inputs))]);
 		const [entry] = result.products;
