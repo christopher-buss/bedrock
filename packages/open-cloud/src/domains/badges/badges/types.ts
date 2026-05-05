@@ -32,6 +32,47 @@ export interface BadgeStatistics {
 }
 
 /**
+ * Source of funds for the Robux fee charged on badge creation.
+ */
+export type BadgePaymentSource = "Group" | "User";
+
+/**
+ * Parameters for creating a new badge under a universe.
+ */
+export interface CreateBadgeParameters {
+	/** Display name of the new badge. */
+	readonly name: string;
+	/** Optional source-language description. */
+	readonly description?: string;
+	/** Optional confirmation of the Robux cost the caller expects to pay. */
+	readonly expectedCost?: number;
+	/** Icon image to upload as the badge's source-language icon. */
+	readonly icon: Blob | Uint8Array;
+	/** Whether the badge should be created in the active state. */
+	readonly isActive?: boolean;
+	/** Account that funds the badge creation fee. Defaults to user funds server-side. */
+	readonly paymentSource?: BadgePaymentSource;
+	/** Stringified ID of the universe that owns the badge. */
+	readonly universeId: string;
+}
+
+/**
+ * Parameters for partially updating an existing badge. Every field
+ * except the identifier is optional; omitted fields are not included
+ * in the JSON body so the server leaves their current values untouched.
+ */
+export interface UpdateBadgeParameters {
+	/** Optional new source-language display name. */
+	readonly name?: string;
+	/** Stringified ID of the badge to update. */
+	readonly badgeId: string;
+	/** Optional new source-language description. */
+	readonly description?: string;
+	/** Optional new enabled flag. */
+	readonly enabled?: boolean;
+}
+
+/**
  * A Roblox badge as exposed to SDK consumers. Fields use DX-friendly
  * names and types (stringified IDs, `Date` timestamps) rather than the
  * raw wire representation.
