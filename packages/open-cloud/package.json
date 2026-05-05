@@ -29,6 +29,10 @@
 			"source": "./src/index.ts",
 			"default": "./dist/index.mjs"
 		},
+		"./badges": {
+			"source": "./src/resources/badges/index.ts",
+			"default": "./dist/badges.mjs"
+		},
 		"./developer-products": {
 			"source": "./src/resources/developer-products/index.ts",
 			"default": "./dist/developer-products.mjs"
@@ -85,6 +89,7 @@
 	"publishConfig": {
 		"exports": {
 			".": "./dist/index.mjs",
+			"./badges": "./dist/badges.mjs",
 			"./developer-products": "./dist/developer-products.mjs",
 			"./game-passes": "./dist/game-passes.mjs",
 			"./package.json": "./package.json",
