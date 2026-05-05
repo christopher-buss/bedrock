@@ -10,6 +10,7 @@ import type { BedrockState } from "../state.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
 import type { PassFoldEntry } from "./fold-passes.ts";
 import type { PlaceFoldEntry } from "./fold-places.ts";
+import type { ProductFoldEntry } from "./fold-products.ts";
 
 /**
  * Inputs to {@link buildState}. Bundled into one object because the
@@ -27,7 +28,14 @@ interface BuildStateInputs {
 	 * shell. Keys absent from the map fall back to `mantleIconFileHashes`
 	 * from the matching fold entry.
 	 */
-	readonly iconHashesByKey: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>;
+	readonly passIconHashesByKey: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>;
+	/**
+	 * Per-product-key locale-keyed icon hashes recomputed from disk by the
+	 * shell. Keys absent from the map fall back to `mantleIconFileHashes`
+	 * from the matching fold entry; products without any icon partner emit
+	 * resources without `iconFileHashes`.
+	 */
+	readonly productIconHashesByKey: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>;
 }
 
 /**
@@ -37,19 +45,22 @@ interface BuildStateInputs {
  * The resulting state carries one `kind: "universe"` resource (when an
  * experience folded), followed by one `kind: "place"` resource per
  * matched place pair, then one `kind: "gamePass"` resource per folded
- * pass entry, in declaration order. Each resource's declared fields
- * mirror its fold output; pass resources receive their `iconFileHashes`
- * from `iconHashesByKey` (computed by the shell from the icon file's
- * bytes) and fall back to the Mantle-recorded hashes when the map omits
- * the key. The `outputs` field carries the Mantle-recorded identifiers
- * (universe `rootPlaceId`, place `versionNumber`, pass `assetId` and
- * `iconAssetIds`).
+ * pass entry, then one `kind: "developerProduct"` resource per folded
+ * product entry, in declaration order. Each resource's declared fields
+ * mirror its fold output; pass and product resources receive their
+ * `iconFileHashes` from the matching `*IconHashesByKey` map (computed by
+ * the shell from the icon file's bytes) and fall back to the
+ * Mantle-recorded hashes when the map omits the key. Product resources
+ * without an icon partner omit `icon` and `iconFileHashes` entirely. The
+ * `outputs` field carries the Mantle-recorded identifiers (universe
+ * `rootPlaceId`, place `versionNumber`, pass `assetId` and
+ * `iconAssetIds`, product `productId` and optional `iconImageAssetId`).
  *
  * @param inputs - Folded data plus recomputed hashes for this environment.
  * @returns A `BedrockState` populated with one resource per folded kind.
  */
 export function buildState(inputs: BuildStateInputs): BedrockState {
-	const { environment, folded, iconHashesByKey } = inputs;
+	const { environment, folded, passIconHashesByKey, productIconHashesByKey } = inputs;
 	const universeResources: ReadonlyArray<ResourceCurrentState> =
 		folded.universe === undefined
 			? []
@@ -60,12 +71,19 @@ export function buildState(inputs: BuildStateInputs): BedrockState {
 	);
 
 	const passResources: ReadonlyArray<ResourceCurrentState> = folded.passes.map((entry) => {
-		return passResource(entry, iconHashesByKey.get(entry.key) ?? entry.mantleIconFileHashes);
+		return passResource(
+			entry,
+			passIconHashesByKey.get(entry.key) ?? entry.mantleIconFileHashes,
+		);
+	});
+
+	const productResources: ReadonlyArray<ResourceCurrentState> = folded.products.map((entry) => {
+		return productResource(entry, productIconHashesByKey);
 	});
 
 	return {
 		environment,
-		resources: [...universeResources, ...placeResources, ...passResources],
+		resources: [...universeResources, ...placeResources, ...passResources, ...productResources],
 		version: 1,
 	};
 }
@@ -116,5 +134,31 @@ function passResource(
 		kind: "gamePass",
 		outputs: fold.outputs,
 		price: fold.entry.price,
+	};
+}
+
+function productResource(
+	fold: ProductFoldEntry,
+	productIconHashesByKey: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>,
+): ResourceCurrentState<"developerProduct"> {
+	const base: ResourceCurrentState<"developerProduct"> = {
+		key: fold.key,
+		name: fold.entry.name,
+		description: fold.entry.description,
+		isRegionalPricingEnabled: undefined,
+		kind: "developerProduct",
+		outputs: fold.outputs,
+		price: fold.entry.price,
+		storePageEnabled: undefined,
+	};
+
+	if (fold.entry.icon === undefined || fold.mantleIconFileHashes === undefined) {
+		return base;
+	}
+
+	return {
+		...base,
+		icon: fold.entry.icon,
+		iconFileHashes: productIconHashesByKey.get(fold.key) ?? fold.mantleIconFileHashes,
 	};
 }

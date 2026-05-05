@@ -85,6 +85,181 @@ environments:
         - experience_singleton
 `;
 
+const PRODUCT_WITH_ICON_YAML = `
+version: "6"
+environments:
+  production:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 6031475575
+          startPlaceId: 17613681043
+      dependencies: []
+    - id: product_1-gem-pack
+      inputs:
+        product:
+          name: Gem Pack
+          description: Stocks the player up with 1,000 premium gems.
+          price: 100
+      outputs:
+        product:
+          assetId: 1835296153
+          productId: 58109926
+      dependencies:
+        - experience_singleton
+    - id: productIcon_1-gem-pack
+      inputs:
+        productIcon:
+          filePath: assets/marketing/gem-pack.png
+          fileHash: ${SAMPLE_HASH}
+      outputs:
+        productIcon:
+          assetId: 18280868488
+      dependencies:
+        - product_1-gem-pack
+`;
+
+const PRODUCT_WITHOUT_ICON_YAML = `
+version: "6"
+environments:
+  production:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 6031475575
+          startPlaceId: 17613681043
+      dependencies: []
+    - id: product_1-coin-pack
+      inputs:
+        product:
+          name: Coin Pack
+          description: Adds 500 coins to the player's wallet.
+          price: 50
+      outputs:
+        product:
+          assetId: 1835296153
+          productId: 58109926
+      dependencies:
+        - experience_singleton
+`;
+
+const ORPHAN_PRODUCT_ICON_YAML = `
+version: "6"
+environments:
+  production:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 6031475575
+          startPlaceId: 17613681043
+      dependencies: []
+    - id: productIcon_1-orphan
+      inputs:
+        productIcon:
+          filePath: assets/marketing/orphan.png
+          fileHash: ${SAMPLE_HASH}
+      outputs:
+        productIcon:
+          assetId: 18280868488
+      dependencies:
+        - experience_singleton
+`;
+
+const TWO_ENV_PRODUCT_PRICE_YAML = `
+version: "6"
+environments:
+  development:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 1111111111
+          startPlaceId: 2222222222
+      dependencies: []
+    - id: product_1-gem-pack
+      inputs:
+        product:
+          name: Gem Pack
+          description: Stocks the player up with 1,000 premium gems.
+          price: 50
+      outputs:
+        product:
+          assetId: 1835296153
+          productId: 58109901
+      dependencies:
+        - experience_singleton
+  production:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 6031475575
+          startPlaceId: 17613681043
+      dependencies: []
+    - id: product_1-gem-pack
+      inputs:
+        product:
+          name: Gem Pack
+          description: Stocks the player up with 1,000 premium gems.
+          price: 100
+      outputs:
+        product:
+          assetId: 1835296153
+          productId: 58109926
+      dependencies:
+        - experience_singleton
+`;
+
+const TWO_ENV_PRODUCT_MISSING_YAML = `
+version: "6"
+environments:
+  development:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 1111111111
+          startPlaceId: 2222222222
+      dependencies: []
+  production:
+    - id: experience_singleton
+      inputs:
+        experience:
+          groupId: ~
+      outputs:
+        experience:
+          assetId: 6031475575
+          startPlaceId: 17613681043
+      dependencies: []
+    - id: product_1-gem-pack
+      inputs:
+        product:
+          name: Gem Pack
+          description: Stocks the player up with 1,000 premium gems.
+          price: 100
+      outputs:
+        product:
+          assetId: 1835296153
+          productId: 58109926
+      dependencies:
+        - experience_singleton
+`;
+
 const TWO_ENV_PLACE_YAML = `
 version: "6"
 environments:
@@ -263,14 +438,6 @@ environments:
         experience:
           assetId: 6031475575
           startPlaceId: 17613681043
-      dependencies: []
-    - id: product_starter
-      inputs:
-        product: {}
-      dependencies: []
-    - id: productIcon_starter
-      inputs:
-        productIcon: {}
       dependencies: []
     - id: badge_first-win
       inputs:
@@ -800,6 +967,275 @@ environments:
 		expect("passes" in result.data.config).toBeFalse();
 	});
 
+	it("should recompute icon hashes for products with icons", async () => {
+		expect.assertions(2);
+
+		const files = new Map<string, "missing" | Uint8Array>([
+			[".mantle-state.yml", new TextEncoder().encode(PRODUCT_WITH_ICON_YAML)],
+			["assets/marketing/gem-pack.png", ICON_BYTES],
+		]);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFs(files),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		const product = state?.resources.find((resource) => resource.kind === "developerProduct");
+		assert(product?.kind === "developerProduct");
+
+		expect(product.iconFileHashes).toStrictEqual({ "en-us": ICON_BYTES_SHA256 });
+		expect(result.data.warnings).toStrictEqual([]);
+	});
+
+	it("should omit products without icons from the recomputed product map", async () => {
+		expect.assertions(3);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeReadFile(PRODUCT_WITHOUT_ICON_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		const product = state?.resources.find((resource) => resource.kind === "developerProduct");
+		assert(product?.kind === "developerProduct");
+
+		expect(product.iconFileHashes).toBeUndefined();
+		expect(product.icon).toBeUndefined();
+		expect(result.data.warnings).toStrictEqual([]);
+	});
+
+	it("should fall back to the mantle-recorded hash when a product icon file is missing", async () => {
+		expect.assertions(1);
+
+		const files = new Map<string, "missing" | Uint8Array>([
+			[".mantle-state.yml", new TextEncoder().encode(PRODUCT_WITH_ICON_YAML)],
+			["assets/marketing/gem-pack.png", "missing"],
+		]);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFs(files),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		const product = state?.resources.find((resource) => resource.kind === "developerProduct");
+		assert(product?.kind === "developerProduct");
+
+		expect(product.iconFileHashes).toStrictEqual({ "en-us": SAMPLE_HASH });
+	});
+
+	it("should emit an ambiguous warning for a missing product icon file", async () => {
+		expect.assertions(3);
+
+		const files = new Map<string, "missing" | Uint8Array>([
+			[".mantle-state.yml", new TextEncoder().encode(PRODUCT_WITH_ICON_YAML)],
+			["assets/marketing/gem-pack.png", "missing"],
+		]);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFs(files),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.warnings).toHaveLength(1);
+
+		const [warning] = result.data.warnings;
+		assert(warning?.kind === "ambiguous");
+
+		expect(warning.mantlePath).toBe("production.product_1-gem-pack");
+		expect(warning.hint).toContain("assets/marketing/gem-pack.png");
+	});
+
+	it("should expose a product with an icon on the resolved Config.products record", async () => {
+		expect.assertions(2);
+
+		const files = new Map<string, "missing" | Uint8Array>([
+			[".mantle-state.yml", new TextEncoder().encode(PRODUCT_WITH_ICON_YAML)],
+			["assets/marketing/gem-pack.png", ICON_BYTES],
+		]);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFs(files),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.config.products).toStrictEqual({
+			"1-gem-pack": {
+				name: "Gem Pack",
+				description: "Stocks the player up with 1,000 premium gems.",
+				icon: { "en-us": "assets/marketing/gem-pack.png" },
+				price: 100,
+			},
+		});
+
+		expect(result.data.warnings).toStrictEqual([]);
+	});
+
+	it("should emit a developerProduct resource with recomputed icon hash and Mantle outputs", async () => {
+		expect.assertions(5);
+
+		const files = new Map<string, "missing" | Uint8Array>([
+			[".mantle-state.yml", new TextEncoder().encode(PRODUCT_WITH_ICON_YAML)],
+			["assets/marketing/gem-pack.png", ICON_BYTES],
+		]);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeFs(files),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const state = result.data.statesByEnvironment["production"];
+		const product = state?.resources.find((resource) => resource.kind === "developerProduct");
+		assert(product?.kind === "developerProduct");
+
+		expect(product.key).toBe("1-gem-pack");
+		expect(product.outputs.productId).toBe("58109926");
+		expect(product.outputs.iconImageAssetId).toBe("18280868488");
+		expect(product.iconFileHashes).toStrictEqual({ "en-us": ICON_BYTES_SHA256 });
+		expect(product.iconFileHashes?.["en-us"]).not.toBe(SAMPLE_HASH);
+	});
+
+	it("should migrate a product without an icon end-to-end", async () => {
+		expect.assertions(4);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeReadFile(PRODUCT_WITHOUT_ICON_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.config.products).toStrictEqual({
+			"1-coin-pack": {
+				name: "Coin Pack",
+				description: "Adds 500 coins to the player's wallet.",
+				price: 50,
+			},
+		});
+
+		const state = result.data.statesByEnvironment["production"];
+		const product = state?.resources.find((resource) => resource.kind === "developerProduct");
+		assert(product?.kind === "developerProduct");
+
+		expect(product.icon).toBeUndefined();
+		expect(product.iconFileHashes).toBeUndefined();
+		expect(product.outputs.iconImageAssetId).toBeUndefined();
+	});
+
+	it("should emit an ambiguous warning for an orphan productIcon resource", async () => {
+		expect.assertions(3);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeReadFile(ORPHAN_PRODUCT_ICON_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const ambiguous = result.data.warnings.filter((warning) => warning.kind === "ambiguous");
+
+		expect(ambiguous).toHaveLength(1);
+
+		const [warning] = ambiguous;
+		assert(warning?.kind === "ambiguous");
+
+		expect(warning.mantlePath).toBe("production.productIcon_1-orphan");
+		expect(result.data.summary.ambiguousCount).toBe(1);
+	});
+
+	it("should not emit deferred warnings for product or productIcon resources", async () => {
+		expect.assertions(1);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: fakeReadFile(PRODUCT_WITH_ICON_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const productKindDeferred = result.data.warnings.filter((warning) => {
+			if (warning.kind !== "deferred") {
+				return false;
+			}
+
+			const segments = warning.mantlePath.split(".");
+			const last = segments[segments.length - 1] ?? "";
+			return last.startsWith("product_") || last.startsWith("productIcon_");
+		});
+
+		expect(productKindDeferred).toStrictEqual([]);
+	});
+
+	it("should factorize products across multi-environment migrations", async () => {
+		expect.assertions(3);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			readFile: fakeReadFile(TWO_ENV_PRODUCT_PRICE_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.config.products).toStrictEqual({
+			"1-gem-pack": {
+				name: "Gem Pack",
+				description: "Stocks the player up with 1,000 premium gems.",
+			},
+		});
+
+		expect(result.data.config.environments["development"]?.products).toStrictEqual({
+			"1-gem-pack": { price: 50 },
+		});
+
+		expect(result.data.config.environments["production"]?.products).toStrictEqual({
+			"1-gem-pack": { price: 100 },
+		});
+	});
+
+	it("should emit a missing-resource warning when a product is absent in a non-primary environment", async () => {
+		expect.assertions(1);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			readFile: fakeReadFile(TWO_ENV_PRODUCT_MISSING_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.warnings).toContainEqual({
+			bedrockPath: "environments.development.products.1-gem-pack",
+			kind: "interpretive",
+			mantlePath: "development.product_1-gem-pack",
+			rule: "factorize-environments/resource-missing-from-env",
+		});
+	});
+
 	it("should re-throw a readFile rejection whose code is not a string", async () => {
 		expect.assertions(1);
 
@@ -991,7 +1427,7 @@ environments:
 
 		assert(result.success);
 
-		expect(result.data.warnings).toHaveLength(10);
+		expect(result.data.warnings).toHaveLength(8);
 		expect(new Set(result.data.warnings.map((warning) => warning.kind))).toStrictEqual(
 			new Set(["deferred"]),
 		);
@@ -1011,7 +1447,7 @@ environments:
 		expect(result.data.summary).toStrictEqual({
 			ambiguousCount: 0,
 			blockedCount: 0,
-			deferredCount: 10,
+			deferredCount: 8,
 			interpretiveCount: 0,
 		});
 	});
@@ -1028,8 +1464,6 @@ environments:
 		assert(result.success);
 
 		expect(result.data.warnings.map((warning) => warning.mantlePath)).toStrictEqual([
-			"production.product_starter",
-			"production.productIcon_starter",
 			"production.badge_first-win",
 			"production.badgeIcon_first-win",
 			"production.imageAsset_logo",

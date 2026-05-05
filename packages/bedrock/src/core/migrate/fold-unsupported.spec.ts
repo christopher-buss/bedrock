@@ -17,8 +17,6 @@ const DEFERRED_CASES: ReadonlyArray<DeferredCase> = [
 	{ humanName: "experience thumbnail ordering", kind: "experienceThumbnailOrder" },
 	{ humanName: "image assets", kind: "imageAsset" },
 	{ humanName: "experience notifications", kind: "notification" },
-	{ humanName: "developer products", kind: "product" },
-	{ humanName: "developer-product icons", kind: "productIcon" },
 ];
 
 describe(foldUnsupported, () => {
@@ -74,7 +72,7 @@ describe(foldUnsupported, () => {
 
 		const warnings = foldUnsupported([
 			mantleResource("badge", "first-win"),
-			mantleResource("product", "starter-pack"),
+			mantleResource("audioAsset", "theme"),
 			mantleResource("experienceThumbnail", "singleton"),
 		]);
 

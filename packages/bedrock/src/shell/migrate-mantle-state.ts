@@ -166,18 +166,33 @@ export async function migrateMantleState(
 	});
 }
 
+const EMPTY_HASHES: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>> = new Map();
+
+interface BuildStatesByEnvironmentInputs {
+	readonly folds: ReadonlyMap<string, EnvironmentFoldResult>;
+	readonly passHashesByEnvironment: ReadonlyMap<
+		string,
+		ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>
+	>;
+	readonly productHashesByEnvironment: ReadonlyMap<
+		string,
+		ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>
+	>;
+}
+
 function buildStatesByEnvironment(
-	folds: ReadonlyMap<string, EnvironmentFoldResult>,
-	hashesByEnvironment: ReadonlyMap<string, ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>>,
+	inputs: BuildStatesByEnvironmentInputs,
 ): Readonly<Record<string, BedrockState>> {
 	return Object.fromEntries(
-		[...folds.entries()].map(([name, folded]): [string, BedrockState] => {
+		[...inputs.folds.entries()].map(([name, folded]): [string, BedrockState] => {
 			return [
 				name,
 				buildState({
 					environment: name,
 					folded,
-					iconHashesByKey: hashesByEnvironment.get(name) ?? new Map(),
+					passIconHashesByKey: inputs.passHashesByEnvironment.get(name) ?? EMPTY_HASHES,
+					productIconHashesByKey:
+						inputs.productHashesByEnvironment.get(name) ?? EMPTY_HASHES,
 				}),
 			];
 		}),
@@ -197,7 +212,11 @@ function collectFoldWarnings(
 }
 
 function buildReport(inputs: FinalizeReportInputs, validated: Config): MigrationReport {
-	const { hashesByEnvironment, warnings: iconWarnings } = inputs.iconRecomputation;
+	const {
+		passHashesByEnvironment,
+		productHashesByEnvironment,
+		warnings: iconWarnings,
+	} = inputs.iconRecomputation;
 	const warnings = [
 		...collectFoldWarnings(inputs.folds),
 		...inputs.factorizeWarnings,
@@ -209,7 +228,11 @@ function buildReport(inputs: FinalizeReportInputs, validated: Config): Migration
 			config: validated,
 			configFormat: inputs.configFormat,
 		}),
-		statesByEnvironment: buildStatesByEnvironment(inputs.folds, hashesByEnvironment),
+		statesByEnvironment: buildStatesByEnvironment({
+			folds: inputs.folds,
+			passHashesByEnvironment,
+			productHashesByEnvironment,
+		}),
 		summary: summarizeWarnings(warnings),
 		warnings,
 	};

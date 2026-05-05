@@ -1,7 +1,14 @@
 import type { Result } from "@bedrock/ocale";
 
-import type { Config, EnvironmentEntry, GamePassEntry, PlaceEntry } from "../schema.ts";
+import type {
+	Config,
+	DeveloperProductEntry,
+	EnvironmentEntry,
+	GamePassEntry,
+	PlaceEntry,
+} from "../schema.ts";
 import { buildPlacesOverlay, buildRootPlaces } from "./factorize-places.ts";
+import { buildProductsOverlay, buildRootProducts } from "./factorize-products.ts";
 import type { EnvironmentFoldResult } from "./fold-environment.ts";
 import type { MigrateError, MigrationWarning } from "./migration-report.ts";
 
@@ -27,6 +34,7 @@ interface ResolvedPrimary {
 interface OverlayContext {
 	readonly primary: EnvironmentFoldResult | undefined;
 	readonly rootPlaces: Record<string, PlaceEntry> | undefined;
+	readonly rootProducts: Record<string, DeveloperProductEntry> | undefined;
 }
 
 /**
@@ -162,6 +170,7 @@ function buildEnvironmentEntry(
 ): EnvironmentEntry {
 	const passes = buildPassesOverlay(fold, context.primary);
 	const places = buildPlacesOverlay(fold, context.rootPlaces);
+	const products = buildProductsOverlay(fold, context.rootProducts);
 	const universe = buildUniverseOverlay(fold, context.primary);
 
 	const entry: EnvironmentEntry = {};
@@ -171,6 +180,10 @@ function buildEnvironmentEntry(
 
 	if (places !== undefined) {
 		entry.places = places;
+	}
+
+	if (products !== undefined) {
+		entry.products = products;
 	}
 
 	if (universe !== undefined) {
@@ -197,9 +210,11 @@ function buildConfig(
 	primaryFold: EnvironmentFoldResult,
 ): Config {
 	const places = buildRootPlaces(folds, primaryFold);
+	const products = buildRootProducts(folds, primaryFold);
 	const environments = buildEnvironmentEntries(folds, {
 		primary: primaryFold,
 		rootPlaces: places,
+		rootProducts: products,
 	});
 	const passes = buildRootPasses(primaryFold);
 	const universe = primaryFold.universe?.entry;
@@ -211,6 +226,10 @@ function buildConfig(
 
 	if (places !== undefined) {
 		config.places = places;
+	}
+
+	if (products !== undefined) {
+		config.products = products;
 	}
 
 	if (universe !== undefined) {
@@ -237,6 +256,12 @@ interface MissingResourcePaths {
 interface MissingResourceInputs {
 	readonly folds: ReadonlyMap<string, EnvironmentFoldResult>;
 	readonly primary: ResolvedPrimary;
+}
+
+interface KeyedAsymmetrySpec {
+	readonly bedrockPrefix: string;
+	readonly mantlePrefix: string;
+	readonly readKeys: (fold: EnvironmentFoldResult) => ReadonlyArray<string>;
 }
 
 function missingResourceWarning(paths: MissingResourcePaths): MigrationWarning {
@@ -275,29 +300,37 @@ function asymmetricKeys(
 	return [...onlyInEnvironment, ...onlyInPrimary];
 }
 
-function placeAsymmetryWarnings(context: AsymmetryContext): ReadonlyArray<MigrationWarning> {
-	return asymmetricKeys([...context.fold.places.keys()], [...context.primary.places.keys()]).map(
+const KEYED_ASYMMETRY_SPECS: ReadonlyArray<KeyedAsymmetrySpec> = [
+	{
+		bedrockPrefix: "places",
+		mantlePrefix: "place_",
+		readKeys: (fold) => [...fold.places.keys()],
+	},
+	{
+		bedrockPrefix: "passes",
+		mantlePrefix: "pass_",
+		readKeys: (fold) => fold.passes.map(({ key }) => key),
+	},
+	{
+		bedrockPrefix: "products",
+		mantlePrefix: "product_",
+		readKeys: (fold) => fold.products.map(({ key }) => key),
+	},
+];
+
+function keyedAsymmetryWarnings(
+	context: AsymmetryContext,
+	spec: KeyedAsymmetrySpec,
+): ReadonlyArray<MigrationWarning> {
+	return asymmetricKeys(spec.readKeys(context.fold), spec.readKeys(context.primary)).map(
 		(key) => {
 			return missingResourceWarning({
-				bedrockSegment: `places.${key}`,
+				bedrockSegment: `${spec.bedrockPrefix}.${key}`,
 				environmentName: context.environmentName,
-				mantleSegment: `place_${key}`,
+				mantleSegment: `${spec.mantlePrefix}${key}`,
 			});
 		},
 	);
-}
-
-function passAsymmetryWarnings(context: AsymmetryContext): ReadonlyArray<MigrationWarning> {
-	return asymmetricKeys(
-		context.fold.passes.map(({ key }) => key),
-		context.primary.passes.map(({ key }) => key),
-	).map((key) => {
-		return missingResourceWarning({
-			bedrockSegment: `passes.${key}`,
-			environmentName: context.environmentName,
-			mantleSegment: `pass_${key}`,
-		});
-	});
 }
 
 function collectMissingResourceWarnings(
@@ -308,8 +341,7 @@ function collectMissingResourceWarnings(
 		const context: AsymmetryContext = { environmentName: name, fold, primary: primaryFold };
 		return [
 			...universeAsymmetryWarnings(context),
-			...placeAsymmetryWarnings(context),
-			...passAsymmetryWarnings(context),
+			...KEYED_ASYMMETRY_SPECS.flatMap((spec) => keyedAsymmetryWarnings(context, spec)),
 		];
 	});
 }
