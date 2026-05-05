@@ -349,6 +349,63 @@ describe(foldPlaces, () => {
 		});
 	});
 
+	describe("placeConfiguration.maxPlayerCount fold", () => {
+		it("should fold maxPlayerCount onto entry.serverSize", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", { maxPlayerCount: 700 }),
+			]);
+
+			const entry = result.entries.get("start");
+			assert(entry !== undefined);
+
+			expect(entry.entry.serverSize).toBe(700);
+		});
+
+		it("should emit one interpretive warning for the serverSize rename", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", { maxPlayerCount: 700 }),
+			]);
+
+			expect(result.warnings).toStrictEqual([
+				{
+					bedrockPath: "places.start.serverSize",
+					kind: "interpretive",
+					mantlePath: "placeConfiguration_start.maxPlayerCount",
+					rule: "max-player-count-to-server-size",
+				},
+			]);
+		});
+
+		it.for<[label: string, value: unknown]>([
+			["zero", 0],
+			["negative", -3],
+			["fractional", 1.5],
+			["string", "700"],
+		])("should silently skip a %s maxPlayerCount", ([, value]) => {
+			expect.assertions(2);
+
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", { maxPlayerCount: value }),
+			]);
+
+			const entry = result.entries.get("start");
+			assert(entry !== undefined);
+
+			expect(entry.entry.serverSize).toBeNil();
+			expect(result.warnings).toStrictEqual([]);
+		});
+	});
+
 	describe("blocked placeConfiguration fields", () => {
 		it.for<[label: string, field: string, value: unknown, reason: string]>([
 			[

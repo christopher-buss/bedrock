@@ -72,6 +72,17 @@ interface ApplyPlaceConfigFieldsInputs {
 	readonly folded: PlaceFoldEntry;
 }
 
+interface PlaceConfigFragmentRule {
+	readonly bedrockField: string;
+	readonly mantleField: string;
+	readonly rule: string;
+}
+
+interface PlaceConfigFragment {
+	readonly entry: Partial<PlaceEntry>;
+	readonly warnings: ReadonlyArray<PlaceConfigFragmentRule>;
+}
+
 /**
  * Fold the place-related Mantle resources of one environment into a map of
  * `PlaceFoldEntry` plus accompanying warnings. Pairs each `place_<k>`
@@ -160,26 +171,86 @@ function isObjectPayload(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function readString(value: unknown): string | undefined {
+	return typeof value === "string" ? value : undefined;
+}
+
+function readPositiveInteger(value: unknown): number | undefined {
+	if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
+		return undefined;
+	}
+
+	return value;
+}
+
+const PLACE_CONFIG_RULES: ReadonlyArray<{
+	readonly bedrockField: keyof PlaceEntry;
+	readonly mantleField: string;
+	readonly read: (value: unknown) => number | string | undefined;
+	readonly rule: string;
+}> = [
+	{
+		bedrockField: "description",
+		mantleField: "description",
+		read: readString,
+		rule: "place-description",
+	},
+	{
+		bedrockField: "serverSize",
+		mantleField: "maxPlayerCount",
+		read: readPositiveInteger,
+		rule: "max-player-count-to-server-size",
+	},
+];
+
+function readPlaceConfigFragment(inputs: Record<string, unknown>): PlaceConfigFragment {
+	return PLACE_CONFIG_RULES.reduce<{
+		entry: Partial<PlaceEntry>;
+		warnings: Array<PlaceConfigFragmentRule>;
+	}>(
+		(accumulator, rule) => {
+			const value = rule.read(inputs[rule.mantleField]);
+			if (value === undefined) {
+				return accumulator;
+			}
+
+			return {
+				entry: { ...accumulator.entry, [rule.bedrockField]: value },
+				warnings: [
+					...accumulator.warnings,
+					{
+						bedrockField: rule.bedrockField,
+						mantleField: rule.mantleField,
+						rule: rule.rule,
+					},
+				],
+			};
+		},
+		{ entry: {}, warnings: [] },
+	);
+}
+
 function applyPlaceConfigFields(inputs: ApplyPlaceConfigFieldsInputs): PlaceConfigFoldResult {
 	const { key, configResource, folded } = inputs;
 	if (configResource === undefined || !isObjectPayload(configResource.inputs)) {
 		return { entry: folded, warnings: [] };
 	}
 
-	const { description } = configResource.inputs;
-	if (typeof description !== "string") {
-		return { entry: folded, warnings: [] };
-	}
+	const fragment = readPlaceConfigFragment(configResource.inputs);
+	const entry: PlaceFoldEntry = {
+		...folded,
+		entry: { ...folded.entry, ...fragment.entry },
+	};
 
 	return {
-		entry: { ...folded, entry: { ...folded.entry, description } },
-		warnings: [
-			interpretiveWarning({
-				bedrockPath: `places.${key}.description`,
-				mantlePath: `${PLACE_CONFIGURATION_KIND}_${key}.description`,
-				rule: "place-description",
-			}),
-		],
+		entry,
+		warnings: fragment.warnings.map((rule) => {
+			return interpretiveWarning({
+				bedrockPath: `places.${key}.${rule.bedrockField}`,
+				mantlePath: `${PLACE_CONFIGURATION_KIND}_${key}.${rule.mantleField}`,
+				rule: rule.rule,
+			});
+		}),
 	};
 }
 

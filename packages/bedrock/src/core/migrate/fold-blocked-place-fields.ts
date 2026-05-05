@@ -6,14 +6,10 @@ const PLACE_CONFIGURATION_KIND = "placeConfiguration";
 
 /**
  * `placeConfiguration_<k>` fields with no Open Cloud writable endpoint.
- * `name` and `description` are intentionally omitted: `foldDisplayName`
- * and `foldPlaces` fold them into the bedrock config.
+ * `name`, `description`, and `maxPlayerCount` are intentionally omitted:
+ * `foldDisplayName` and `foldPlaces` fold them into the bedrock config.
  */
 const BLOCKED_FIELDS: ReadonlyArray<BlockedFieldRule> = [
-	{
-		field: "maxPlayerCount",
-		reason: "placeConfiguration.maxPlayerCount has no Open Cloud equivalent",
-	},
 	{
 		field: "allowCopying",
 		reason: "placeConfiguration.allowCopying has no Open Cloud equivalent",

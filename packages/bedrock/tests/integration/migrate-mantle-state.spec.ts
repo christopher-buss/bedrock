@@ -496,12 +496,12 @@ describe(migrateMantleState, () => {
 
 		const blocked = result.data.warnings.filter((warning) => warning.kind === "blocked");
 
-		// 13 fields per environment × 2 environments + 1 isFriendsOnly only
+		// 12 fields per environment × 2 environments + 1 isFriendsOnly only
 		// in production (development uses the YAML null sentinel).
 		// Excluded: price and customSocialSlotsCount (null sentinel);
 		// experience.groupId (null in both environments).
-		expect(blocked).toHaveLength(27);
-		expect(result.data.summary.blockedCount).toBe(27);
+		expect(blocked).toHaveLength(25);
+		expect(result.data.summary.blockedCount).toBe(25);
 
 		const paths = blocked.map((warning) => warning.mantlePath);
 
@@ -509,7 +509,6 @@ describe(migrateMantleState, () => {
 			"development.experienceConfiguration_singleton.genre",
 			"production.experienceConfiguration_singleton.genre",
 			"production.experienceConfiguration_singleton.universeAvatarType",
-			"production.placeConfiguration_start.maxPlayerCount",
 			"production.placeConfiguration_start.allowCopying",
 		]);
 	});

@@ -99,7 +99,7 @@ function placeResource(key: string, fold: PlaceFoldEntry): ResourceCurrentState<
 		kind: "place",
 		outputs: fold.outputs,
 		placeId: asRobloxAssetId(fold.placeId),
-		serverSize: undefined,
+		serverSize: fold.entry.serverSize,
 	};
 }
 
