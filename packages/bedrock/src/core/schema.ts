@@ -345,9 +345,11 @@ export interface DisplayNamePrefixConfig {
  * `universeId` here produces a descriptive type error pointing at this
  * field rather than the opaque `never` message.
  */
-export type UniverseOverlayWithoutId = {
-	universeId?: "universeId is already declared on the root universe block — remove it from this environment overlay, or remove it from root and declare it on every environment overlay instead";
-} & Partial<WithoutKey<UniverseEntry, "universeId">>;
+export type UniverseOverlayWithoutId = Partial<WithoutKey<UniverseEntry, "universeId">> & {
+	universeId?: "universeId is already declared on the root universe block; remove it from this environment overlay, or remove it from root and declare it on every environment overlay instead" & {
+		readonly errorBrand: never;
+	};
+};
 
 /**
  * Per-environment universe overlay shape that requires `universeId`.
@@ -411,9 +413,11 @@ export type ConfigEnvironmentUniverseId = ConfigBase & {
 	 * every environment supplies its own; setting it produces a descriptive
 	 * type error rather than the opaque `never` message.
 	 */
-	universe?: {
-		universeId?: "universeId is already declared per environment — remove it from the root universe block, or remove it from every environment overlay and declare it here instead";
-	} & WithoutKey<UniverseEntry, "universeId">;
+	universe?: WithoutKey<UniverseEntry, "universeId"> & {
+		universeId?: "universeId is already declared per environment; remove it from the root universe block, or remove it from every environment overlay and declare it here instead" & {
+			readonly errorBrand: never;
+		};
+	};
 };
 
 /**
