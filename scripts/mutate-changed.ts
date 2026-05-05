@@ -14,6 +14,11 @@ import path from "node:path";
 import process from "node:process";
 
 function readGitDiff(): string {
+	const inputFile = process.env["BEDROCK_DIFF_INPUT_FILE"];
+	if (inputFile !== undefined && inputFile !== "") {
+		return readFileSync(inputFile, "utf8");
+	}
+
 	const baseRef = process.env["MUTATE_BASE_REF"];
 	const diffTarget = baseRef === undefined || baseRef === "" ? "HEAD" : `${baseRef}...HEAD`;
 	const result = spawnSync("git", ["diff", "--unified=0", diffTarget], { encoding: "utf8" });

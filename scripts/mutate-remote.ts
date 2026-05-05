@@ -5,6 +5,7 @@ import process from "node:process";
 const SSH_PROBE_OPTS = ["-o", "ConnectTimeout=2", "-o", "BatchMode=yes"];
 
 const RSYNC_EXCLUDES = [
+	"--exclude=.git",
 	"--exclude=node_modules",
 	"--exclude=.stryker-tmp",
 	"--exclude=dist",
@@ -12,6 +13,9 @@ const RSYNC_EXCLUDES = [
 	"--exclude=.cache",
 	"--exclude=.turbo",
 ];
+
+const REMOTE_DIFF_PATH = ".bedrock-diff.patch";
+const REMOTE_SCRIPT_PATH = ".bedrock-mutate.sh";
 
 interface RemoteConfig {
 	container: string;
@@ -39,6 +43,38 @@ function readConfig(): RemoteConfig | undefined {
 
 function rsyncPathArgument(config: RemoteConfig): Array<string> {
 	return config.rsyncPath === undefined ? [] : [`--rsync-path=${config.rsyncPath}`];
+}
+
+function computeDiff(): string {
+	const baseRef = process.env["MUTATE_BASE_REF"];
+	const diffTarget = baseRef === undefined || baseRef === "" ? "HEAD" : `${baseRef}...HEAD`;
+	const result = spawnSync("git", ["diff", "--unified=0", diffTarget], { encoding: "utf8" });
+	if (result.status !== 0) {
+		throw new Error(`git diff failed with status ${String(result.status)}: ${result.stderr}`);
+	}
+
+	return result.stdout;
+}
+
+function writeFileToContainer(
+	config: RemoteConfig,
+	contents: string,
+	relativePath: string,
+): number {
+	const result = spawnSync(
+		"ssh",
+		[
+			config.host,
+			"docker",
+			"exec",
+			"-i",
+			config.container,
+			"tee",
+			`/data/worktrees/${config.worktree}/${relativePath}`,
+		],
+		{ input: contents, stdio: ["pipe", "ignore", "inherit"] },
+	);
+	return result.status ?? 1;
 }
 
 function probe(config: RemoteConfig): boolean {
@@ -88,19 +124,36 @@ function rsyncReportsDown(config: RemoteConfig): number {
 	return result.status ?? 1;
 }
 
-function execMutate(config: RemoteConfig): number {
-	const baseRef = process.env["MUTATE_BASE_REF"];
-	const baseEnvironment =
-		baseRef !== undefined && baseRef !== "" ? `MUTATE_BASE_REF=${baseRef} ` : "";
-	const remoteScript = [
+function buildRemoteScript(config: RemoteConfig): string {
+	return [
+		"#!/usr/bin/env bash",
+		"set -eu",
 		`cd /data/worktrees/${config.worktree}`,
 		"pnpm install --frozen-lockfile --store-dir=/data/pnpm-store",
-		`${baseEnvironment}pnpm mutate:changed`,
-	].join(" && ");
+		`BEDROCK_DIFF_INPUT_FILE=${REMOTE_DIFF_PATH} pnpm mutate:changed`,
+		"",
+	].join("\n");
+}
+
+function execMutate(config: RemoteConfig): number {
+	const writeStatus = writeFileToContainer(config, buildRemoteScript(config), REMOTE_SCRIPT_PATH);
+	if (writeStatus !== 0) {
+		console.error(`failed to write run script to ${config.container}`);
+		return writeStatus;
+	}
 
 	const result = spawnSync(
 		"ssh",
-		["-t", config.host, "docker", "exec", "-i", config.container, "bash", "-lc", remoteScript],
+		[
+			"-t",
+			config.host,
+			"docker",
+			"exec",
+			"-i",
+			config.container,
+			"bash",
+			`/data/worktrees/${config.worktree}/${REMOTE_SCRIPT_PATH}`,
+		],
 		{ stdio: "inherit" },
 	);
 	return result.status ?? 1;
@@ -129,10 +182,18 @@ function main(): number {
 		return runLocal();
 	}
 
+	const diff = computeDiff();
+
 	const upStatus = rsyncUp(config);
 	if (upStatus !== 0) {
 		console.error(`rsync to ${config.host} failed; aborting offload`);
 		return upStatus;
+	}
+
+	const diffStatus = writeFileToContainer(config, diff, REMOTE_DIFF_PATH);
+	if (diffStatus !== 0) {
+		console.error(`failed to write diff to ${config.container}; aborting offload`);
+		return diffStatus;
 	}
 
 	const execStatus = execMutate(config);
