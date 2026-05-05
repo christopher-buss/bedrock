@@ -208,7 +208,8 @@ describe(createGistStateAdapter, () => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeFetch((request) => {
-				if (request.url.startsWith("https://api.github.com")) {
+				const url = new URL(request.url);
+				if (url.protocol === "https:" && url.hostname === "api.github.com") {
 					return okJson({
 						files: {
 							"state.production.json": {
@@ -304,7 +305,8 @@ describe(createGistStateAdapter, () => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeFetch((request) => {
-				if (request.url.startsWith("https://api.github.com")) {
+				const url = new URL(request.url);
+				if (url.protocol === "https:" && url.hostname === "api.github.com") {
 					return okJson({
 						files: {
 							"state.production.json": {
@@ -379,7 +381,8 @@ describe(createGistStateAdapter, () => {
 			const state: BedrockState = { environment: "production", resources: [], version: 1 };
 			const content = serializeStateFile(state);
 			const { fetchFn } = fakeFetch((request) => {
-				if (request.url.startsWith("https://api.github.com")) {
+				const url = new URL(request.url);
+				if (url.protocol === "https:" && url.hostname === "api.github.com") {
 					return okJson({
 						files: {
 							"state.production.json": {
@@ -431,7 +434,8 @@ describe(createGistStateAdapter, () => {
 			const state: BedrockState = { environment: "production", resources: [], version: 1 };
 			const content = serializeStateFile(state);
 			const { fetchFn } = fakeFetch((request) => {
-				if (request.url.startsWith("https://api.github.com")) {
+				const url = new URL(request.url);
+				if (url.protocol === "https:" && url.hostname === "api.github.com") {
 					return okJson({
 						files: {
 							"state.production.json": {
