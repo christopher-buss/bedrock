@@ -92,7 +92,7 @@ function universeResource(
 function placeResource(key: string, fold: PlaceFoldEntry): ResourceCurrentState<"place"> {
 	return {
 		key: asResourceKey(key),
-		description: undefined,
+		description: fold.entry.description,
 		displayName: undefined,
 		fileHash: fold.fileHash,
 		filePath: fold.entry.filePath,

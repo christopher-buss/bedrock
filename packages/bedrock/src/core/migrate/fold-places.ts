@@ -2,11 +2,13 @@ import { isSha256Hex, type Sha256Hex } from "../../types/ids.ts";
 import type { PlaceOutputs } from "../resources.ts";
 import type { PlaceEntry } from "../schema.ts";
 import { foldBlockedPlaceFields } from "./fold-blocked-place-fields.ts";
+import { interpretiveWarning } from "./fold-universe-shared.ts";
 import type { MigrationWarning } from "./migration-report.ts";
 import type { MantleResource } from "./types.ts";
 
 const PLACE_KIND = "place";
 const PLACE_FILE_KIND = "placeFile";
+const PLACE_CONFIGURATION_KIND = "placeConfiguration";
 
 /**
  * Folded place data for one Mantle resource key.
@@ -59,6 +61,17 @@ interface PlaceFileOutputsRaw {
 	readonly version: number;
 }
 
+interface PlaceConfigFoldResult {
+	readonly entry: PlaceFoldEntry;
+	readonly warnings: ReadonlyArray<MigrationWarning>;
+}
+
+interface ApplyPlaceConfigFieldsInputs {
+	readonly key: string;
+	readonly configResource: MantleResource | undefined;
+	readonly folded: PlaceFoldEntry;
+}
+
 /**
  * Fold the place-related Mantle resources of one environment into a map of
  * `PlaceFoldEntry` plus accompanying warnings. Pairs each `place_<k>`
@@ -77,7 +90,7 @@ interface PlaceFileOutputsRaw {
  * @returns The folded entries plus orphan warnings.
  */
 export function foldPlaces(resources: ReadonlyArray<MantleResource>): PlaceFoldResult {
-	const { placeFiles, places } = bucketByKind(resources);
+	const { placeConfigurations, placeFiles, places } = bucketByKind(resources);
 	const entries = new Map<string, PlaceFoldEntry>();
 	const warnings: Array<MigrationWarning> = [];
 
@@ -89,9 +102,17 @@ export function foldPlaces(resources: ReadonlyArray<MantleResource>): PlaceFoldR
 		}
 
 		const folded = mergeMatchedPair(placeResource, fileResource);
-		if (folded !== undefined) {
-			entries.set(key, folded);
+		if (folded === undefined) {
+			continue;
 		}
+
+		const configFold = applyPlaceConfigFields({
+			key,
+			configResource: placeConfigurations.get(key),
+			folded,
+		});
+		entries.set(key, configFold.entry);
+		warnings.push(...configFold.warnings);
 	}
 
 	for (const [key] of placeFiles) {
@@ -104,20 +125,62 @@ export function foldPlaces(resources: ReadonlyArray<MantleResource>): PlaceFoldR
 }
 
 function bucketByKind(resources: ReadonlyArray<MantleResource>): {
+	readonly placeConfigurations: Map<string, MantleResource>;
 	readonly placeFiles: Map<string, MantleResource>;
 	readonly places: Map<string, MantleResource>;
 } {
 	const places = new Map<string, MantleResource>();
 	const placeFiles = new Map<string, MantleResource>();
+	const placeConfigurations = new Map<string, MantleResource>();
 	for (const resource of resources) {
-		if (resource.kind === PLACE_KIND) {
-			places.set(resource.key, resource);
-		} else if (resource.kind === PLACE_FILE_KIND) {
-			placeFiles.set(resource.key, resource);
+		switch (resource.kind) {
+			case PLACE_CONFIGURATION_KIND: {
+				placeConfigurations.set(resource.key, resource);
+
+				break;
+			}
+			case PLACE_FILE_KIND: {
+				placeFiles.set(resource.key, resource);
+
+				break;
+			}
+			case PLACE_KIND: {
+				places.set(resource.key, resource);
+
+				break;
+			}
+			// No default
 		}
 	}
 
-	return { placeFiles, places };
+	return { placeConfigurations, placeFiles, places };
+}
+
+function isObjectPayload(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function applyPlaceConfigFields(inputs: ApplyPlaceConfigFieldsInputs): PlaceConfigFoldResult {
+	const { key, configResource, folded } = inputs;
+	if (configResource === undefined || !isObjectPayload(configResource.inputs)) {
+		return { entry: folded, warnings: [] };
+	}
+
+	const { description } = configResource.inputs;
+	if (typeof description !== "string") {
+		return { entry: folded, warnings: [] };
+	}
+
+	return {
+		entry: { ...folded, entry: { ...folded.entry, description } },
+		warnings: [
+			interpretiveWarning({
+				bedrockPath: `places.${key}.description`,
+				mantlePath: `${PLACE_CONFIGURATION_KIND}_${key}.description`,
+				rule: "place-description",
+			}),
+		],
+	};
 }
 
 function coerceRobloxId(value: unknown): string | undefined {
@@ -130,10 +193,6 @@ function coerceRobloxId(value: unknown): string | undefined {
 	}
 
 	return undefined;
-}
-
-function isObjectPayload(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function readPlaceOutputs(resource: MantleResource): PlaceOutputsRaw | undefined {

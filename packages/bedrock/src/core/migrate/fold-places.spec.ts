@@ -288,20 +288,69 @@ describe(foldPlaces, () => {
 		expect(lobby.entry).toStrictEqual({ filePath: "lobby.rbxl" });
 	});
 
+	describe("placeConfiguration.description fold", () => {
+		it("should fold description onto the matched entry", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", { description: "A project template" }),
+			]);
+
+			const entry = result.entries.get("start");
+			assert(entry !== undefined);
+
+			expect(entry.entry.description).toBe("A project template");
+		});
+
+		it("should emit one interpretive warning for the description fold", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", { description: "A project template" }),
+			]);
+
+			expect(result.warnings).toStrictEqual([
+				{
+					bedrockPath: "places.start.description",
+					kind: "interpretive",
+					mantlePath: "placeConfiguration_start.description",
+					rule: "place-description",
+				},
+			]);
+		});
+
+		it("should silently skip a non-string description", () => {
+			expect.assertions(2);
+
+			const result = foldPlaces([
+				place({ key: "start", outputs: { assetId: 17613681043 } }),
+				defaultPlaceFile("start"),
+				placeConfiguration("start", { description: 42 }),
+			]);
+
+			const entry = result.entries.get("start");
+			assert(entry !== undefined);
+
+			expect(entry.entry.description).toBeNil();
+			expect(result.warnings).toStrictEqual([]);
+		});
+
+		it("should not synthesize an entry for an unmatched placeConfiguration", () => {
+			expect.assertions(2);
+
+			const result = foldPlaces([placeConfiguration("orphan", { description: "Stranded" })]);
+
+			expect(result.entries.size).toBe(0);
+			expect(result.warnings).toStrictEqual([]);
+		});
+	});
+
 	describe("blocked placeConfiguration fields", () => {
 		it.for<[label: string, field: string, value: unknown, reason: string]>([
-			[
-				"description",
-				"description",
-				"A project template",
-				"placeConfiguration.description has no Open Cloud equivalent",
-			],
-			[
-				"maxPlayerCount",
-				"maxPlayerCount",
-				700,
-				"placeConfiguration.maxPlayerCount has no Open Cloud equivalent",
-			],
 			[
 				"allowCopying",
 				"allowCopying",
@@ -353,16 +402,14 @@ describe(foldPlaces, () => {
 			const result = foldPlaces([
 				placeConfiguration("start", {
 					allowCopying: true,
-					description: "Start place",
-					maxPlayerCount: 50,
+					customSocialSlotsCount: 4,
 				}),
 				placeConfiguration("lobby", { socialSlotType: "Empty" }),
 			]);
 
 			expect(result.warnings).toIncludeAllPartialMembers([
-				{ kind: "blocked", mantlePath: "placeConfiguration_start.description" },
-				{ kind: "blocked", mantlePath: "placeConfiguration_start.maxPlayerCount" },
 				{ kind: "blocked", mantlePath: "placeConfiguration_start.allowCopying" },
+				{ kind: "blocked", mantlePath: "placeConfiguration_start.customSocialSlotsCount" },
 				{ kind: "blocked", mantlePath: "placeConfiguration_lobby.socialSlotType" },
 			]);
 		});
