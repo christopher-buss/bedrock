@@ -6,6 +6,12 @@ import type { Result } from "../../types.ts";
 import { tryCatch } from "../utils/try-catch.ts";
 import type { HttpClient, HttpRequest, HttpResponse, RequestConfig } from "./types.ts";
 
+interface ApiErrorMessageParts {
+	readonly code: string | undefined;
+	readonly message: string | undefined;
+	readonly status: number;
+}
+
 /**
  * Converts a `Headers` object to a plain record with lowercased keys.
  *
@@ -17,11 +23,16 @@ export function headersToRecord(headers: Headers): Record<string, string> {
 }
 
 /**
- * Permissively extracts a top-level `errorCode` string field from a
- * response body.
+ * Permissively extracts a machine-readable error code from a response body.
+ *
+ * Modern Open Cloud responses use `{ errorCode: string, message: string }`;
+ * the legacy game-internationalization endpoints use
+ * `{ errors: [{ code: number, message: string }, ...] }`. Both shapes are
+ * checked; numeric legacy codes are returned as strings so callers see one
+ * consistent type.
  *
  * @param body - The parsed response body (unknown shape).
- * @returns The `errorCode` string if present, otherwise `undefined`.
+ * @returns The error code if present, otherwise `undefined`.
  */
 export function extractErrorCode(body: unknown): string | undefined {
 	if (body === null || typeof body !== "object") {
@@ -29,7 +40,33 @@ export function extractErrorCode(body: unknown): string | undefined {
 	}
 
 	const errorCode: unknown = Reflect.get(body, "errorCode");
-	return typeof errorCode === "string" ? errorCode : undefined;
+	if (typeof errorCode === "string") {
+		return errorCode;
+	}
+
+	return extractLegacyCode(body);
+}
+
+/**
+ * Permissively extracts a human-readable error message from a response body.
+ *
+ * Modern Open Cloud responses expose `message` at the top level; the legacy
+ * game-internationalization endpoints nest it under `errors[0].message`.
+ *
+ * @param body - The parsed response body (unknown shape).
+ * @returns The message if present, otherwise `undefined`.
+ */
+export function extractErrorMessage(body: unknown): string | undefined {
+	if (body === null || typeof body !== "object") {
+		return undefined;
+	}
+
+	const message: unknown = Reflect.get(body, "message");
+	if (typeof message === "string") {
+		return message;
+	}
+
+	return extractLegacyMessage(body);
 }
 
 /**
@@ -133,9 +170,68 @@ export function createFetchHttpClient(
 	};
 }
 
+function readLegacyErrorEntry(body: object): object | undefined {
+	const errors: unknown = Reflect.get(body, "errors");
+	if (!Array.isArray(errors)) {
+		return undefined;
+	}
+
+	const [first] = errors;
+	if (typeof first !== "object" || first === null) {
+		return undefined;
+	}
+
+	return first;
+}
+
+function extractLegacyCode(body: object): string | undefined {
+	const first = readLegacyErrorEntry(body);
+	if (first === undefined) {
+		return undefined;
+	}
+
+	const code: unknown = Reflect.get(first, "code");
+	if (typeof code === "string") {
+		return code;
+	}
+
+	return typeof code === "number" ? String(code) : undefined;
+}
+
+function extractLegacyMessage(body: object): string | undefined {
+	const first = readLegacyErrorEntry(body);
+	if (first === undefined) {
+		return undefined;
+	}
+
+	const message: unknown = Reflect.get(first, "message");
+	return typeof message === "string" ? message : undefined;
+}
+
+function formatApiErrorMessage(parts: ApiErrorMessageParts): string {
+	const { code, message, status } = parts;
+	const base = `HTTP ${status}`;
+	if (message === undefined && code === undefined) {
+		return base;
+	}
+
+	if (message === undefined) {
+		return `${base} (code ${code})`;
+	}
+
+	if (code === undefined) {
+		return `${base}: ${message}`;
+	}
+
+	return `${base}: ${message} (code ${code})`;
+}
+
 function createApiError(status: number, body: unknown): ApiError {
-	return new ApiError(`HTTP ${status}`, {
-		code: extractErrorCode(body),
+	const code = extractErrorCode(body);
+	const message = extractErrorMessage(body);
+	return new ApiError(formatApiErrorMessage({ code, message, status }), {
+		code,
+		details: body,
 		statusCode: status,
 	});
 }
