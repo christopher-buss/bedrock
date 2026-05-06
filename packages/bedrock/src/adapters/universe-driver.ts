@@ -2,7 +2,6 @@ import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
 import type { PlacesClient } from "@bedrock/ocale/places";
 import type { UniversesClient, UpdateUniverseParameters } from "@bedrock/ocale/universes";
 
-import { shouldReuploadIcon } from "../core/icons.ts";
 import {
 	copyDeclaredSocialLinks,
 	type ResourceCurrentState,
@@ -11,7 +10,7 @@ import {
 	type UniverseDesiredState,
 } from "../core/resources.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
-import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
+import { asRobloxAssetId } from "../types/ids.ts";
 
 /**
  * Dependencies of `createUniverseDriver`. The driver reconciles the
@@ -24,12 +23,7 @@ import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
 export interface UniverseDriverDeps {
 	/** Configured places client from `@bedrock/ocale/places`. */
 	readonly places: PlacesClient;
-	/** Reads icon bytes for upload; rejections propagate out of `create`/`update`. */
-	readonly readFile: (path: string) => Promise<Uint8Array>;
-	/**
-	 * Configured universes client from `@bedrock/ocale/universes`. Localized
-	 * experience-icon Operations are reached through `universes.icon.*`.
-	 */
+	/** Configured universes client from `@bedrock/ocale/universes`. */
 	readonly universes: UniversesClient;
 }
 
@@ -37,14 +31,7 @@ interface ResolvedUniverse {
 	readonly rootPlaceId: string;
 }
 
-interface ToCurrentStateInputs {
-	readonly desired: UniverseDesiredState;
-	readonly iconAssetIds: Record<"en-us", RobloxAssetId> | undefined;
-	readonly rootPlaceId: string;
-}
-
 interface ReconcileInputs {
-	readonly current: ResourceCurrentState<"universe"> | undefined;
 	readonly deps: UniverseDriverDeps;
 	readonly desired: UniverseDesiredState;
 }
@@ -109,7 +96,6 @@ interface ReconcileInputs {
  *         httpClient: universeBodyHttpClient,
  *         sleep: async () => {},
  *     }),
- *     readFile: async () => new Uint8Array(),
  *     universes: new UniversesClient({
  *         apiKey: "rbx-your-key",
  *         httpClient: universeBodyHttpClient,
@@ -142,20 +128,21 @@ interface ReconcileInputs {
 export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"universe"> {
 	return {
 		async create(desired) {
-			return reconcileUniverse({ current: undefined, deps, desired });
+			return reconcileUniverse({ deps, desired });
 		},
-		async update(current, desired) {
-			return reconcileUniverse({ current, deps, desired });
+		async update(_current, desired) {
+			return reconcileUniverse({ deps, desired });
 		},
 	};
 }
 
-function toCurrentState(inputs: ToCurrentStateInputs): ResourceCurrentState<"universe"> {
-	const { desired, iconAssetIds, rootPlaceId } = inputs;
-	const baseOutputs = { rootPlaceId: asRobloxAssetId(rootPlaceId) };
+function toCurrentState(
+	desired: UniverseDesiredState,
+	rootPlaceId: string,
+): ResourceCurrentState<"universe"> {
 	return {
 		...desired,
-		outputs: iconAssetIds === undefined ? baseOutputs : { ...baseOutputs, iconAssetIds },
+		outputs: { rootPlaceId: asRobloxAssetId(rootPlaceId) },
 	};
 }
 
@@ -225,70 +212,10 @@ async function resolveUniverse(
 	return { data: { rootPlaceId }, success: true };
 }
 
-async function captureUploadedIconAssetId(
-	deps: UniverseDriverDeps,
-	desired: UniverseDesiredState,
-): Promise<Result<Record<"en-us", RobloxAssetId>, OpenCloudError>> {
-	const listed = await deps.universes.icon.list({ universeId: desired.universeId });
-	if (!listed.success) {
-		return listed;
-	}
-
-	const enUs = listed.data.find((entry) => entry.languageCode === "en-us");
-	if (enUs === undefined) {
-		return {
-			err: new ApiError(
-				`Malformed experience-icon list for ${desired.universeId}: en-us entry missing after upload`,
-				{ statusCode: 200 },
-			),
-			success: false,
-		};
-	}
-
-	return { data: { "en-us": asRobloxAssetId(enUs.imageId) }, success: true };
-}
-
-async function deleteRemovedIcon(
-	deps: UniverseDriverDeps,
-	desired: UniverseDesiredState,
-): Promise<Result<undefined, OpenCloudError>> {
-	return deps.universes.icon.delete({
-		languageCode: "en-us",
-		universeId: desired.universeId,
-	});
-}
-
-async function reconcileIcon(
-	inputs: ReconcileInputs,
-): Promise<Result<Record<"en-us", RobloxAssetId> | undefined, OpenCloudError>> {
-	const { current, deps, desired } = inputs;
-	if (desired.icon === undefined) {
-		return current?.icon === undefined
-			? { data: undefined, success: true }
-			: deleteRemovedIcon(deps, desired);
-	}
-
-	if (!shouldReuploadIcon(current?.iconFileHashes, desired.iconFileHashes)) {
-		return { data: current?.outputs.iconAssetIds, success: true };
-	}
-
-	const bytes = await deps.readFile(desired.icon["en-us"]);
-	const uploaded = await deps.universes.icon.upload({
-		image: bytes,
-		languageCode: "en-us",
-		universeId: desired.universeId,
-	});
-	if (!uploaded.success) {
-		return uploaded;
-	}
-
-	return captureUploadedIconAssetId(deps, desired);
-}
-
 async function reconcileUniverse(
 	inputs: ReconcileInputs,
 ): Promise<Result<ResourceCurrentState<"universe">, OpenCloudError>> {
-	const { current, deps, desired } = inputs;
+	const { deps, desired } = inputs;
 	const universeResult = await resolveUniverse(deps, desired);
 	if (!universeResult.success) {
 		return universeResult;
@@ -306,13 +233,5 @@ async function reconcileUniverse(
 		}
 	}
 
-	const iconResult = await reconcileIcon({ current, deps, desired });
-	if (!iconResult.success) {
-		return iconResult;
-	}
-
-	return {
-		data: toCurrentState({ desired, iconAssetIds: iconResult.data, rootPlaceId }),
-		success: true,
-	};
+	return { data: toCurrentState(desired, rootPlaceId), success: true };
 }

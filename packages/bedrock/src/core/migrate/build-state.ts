@@ -36,19 +36,10 @@ interface BuildStateInputs {
 	 * resources without `iconFileHashes`.
 	 */
 	readonly productIconHashesByKey: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>;
-	/**
-	 * Locale-keyed icon hashes recomputed from disk by the shell for this
-	 * environment's experience icon. Absent when the fold did not produce a
-	 * universe icon path or when the shell could not read the file (the
-	 * shell emits an `ambiguous` warning in the latter case); the universe
-	 * resource then omits both `icon` and `iconFileHashes`.
-	 */
-	readonly universeIconHashes?: Record<"en-us", Sha256Hex> | undefined;
 }
 
 interface UniverseResourceInputs {
 	readonly entry: ResolvedUniverseEntry;
-	readonly iconHashes: Record<"en-us", Sha256Hex> | undefined;
 	readonly outputs: UniverseOutputs;
 }
 
@@ -66,14 +57,9 @@ interface UniverseResourceInputs {
  * the shell from the icon file's bytes) and fall back to the
  * Mantle-recorded hashes when the map omits the key. Product resources
  * without an icon partner omit `icon` and `iconFileHashes` entirely. The
- * universe resource attaches `icon` and `iconFileHashes` only when the
- * fold produced an icon path and the shell supplied a recomputed hash;
- * folds without an experience icon, and folds whose icon file could not
- * be read (the shell emits an `ambiguous` warning), surface a universe
- * resource without those fields. The `outputs` field carries the
- * Mantle-recorded identifiers (universe `rootPlaceId` and optional
- * `iconAssetIds`, place `versionNumber`, pass `assetId` and
- * `iconAssetIds`, product `productId` and optional `iconImageAssetId`).
+ * `outputs` field carries the Mantle-recorded identifiers (universe
+ * `rootPlaceId`, place `versionNumber`, pass `assetId` and `iconAssetIds`,
+ * product `productId` and optional `iconImageAssetId`).
  *
  * @param inputs - Folded data plus recomputed hashes for this environment.
  * @returns A `BedrockState` populated with one resource per folded kind.
@@ -87,8 +73,8 @@ export function buildState(inputs: BuildStateInputs): BedrockState {
 }
 
 function universeResource(inputs: UniverseResourceInputs): ResourceCurrentState<"universe"> {
-	const { entry, iconHashes, outputs } = inputs;
-	const base: ResourceCurrentState<"universe"> = {
+	const { entry, outputs } = inputs;
+	return {
 		key: UNIVERSE_SINGLETON_KEY,
 		consoleEnabled: entry.consoleEnabled,
 		desktopEnabled: entry.desktopEnabled,
@@ -101,12 +87,6 @@ function universeResource(inputs: UniverseResourceInputs): ResourceCurrentState<
 		voiceChatEnabled: entry.voiceChatEnabled,
 		vrEnabled: entry.vrEnabled,
 	};
-
-	if (entry.icon === undefined || iconHashes === undefined) {
-		return base;
-	}
-
-	return { ...base, icon: entry.icon, iconFileHashes: iconHashes };
 }
 
 function placeResource(key: string, fold: PlaceFoldEntry): ResourceCurrentState<"place"> {
@@ -166,14 +146,13 @@ function productResource(
 }
 
 function composeResources(inputs: BuildStateInputs): ReadonlyArray<ResourceCurrentState> {
-	const { folded, passIconHashesByKey, productIconHashesByKey, universeIconHashes } = inputs;
+	const { folded, passIconHashesByKey, productIconHashesByKey } = inputs;
 	const universeResources: ReadonlyArray<ResourceCurrentState> =
 		folded.universe === undefined
 			? []
 			: [
 					universeResource({
 						entry: folded.universe.entry,
-						iconHashes: universeIconHashes,
 						outputs: folded.universe.outputs,
 					}),
 				];

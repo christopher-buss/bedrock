@@ -132,6 +132,6 @@ function assembleRegistry(inputs: AssembleRegistryInputs): DriverRegistry {
 		}),
 		gamePass: createGamePassDriver({ client: gamePasses, readFile, universeId }),
 		place: createPlaceDriver({ client: places, readFile, universeId }),
-		universe: createUniverseDriver({ places, readFile, universes }),
+		universe: createUniverseDriver({ places, universes }),
 	};
 }

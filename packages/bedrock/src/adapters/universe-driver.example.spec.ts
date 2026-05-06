@@ -32,7 +32,6 @@ it('Example 1', () => {
       httpClient: universeBodyHttpClient,
       sleep: async () => {},
     }),
-    readFile: async () => new Uint8Array(),
     universes: new UniversesClient({
       apiKey: 'rbx-your-key',
       httpClient: universeBodyHttpClient,

@@ -113,33 +113,6 @@ describe(selectEnvironment, () => {
 		expect(result.data.universe?.desktopEnabled).toBeTrue();
 	});
 
-	it("should let an environment universe overlay override the en-us icon path while inheriting unrelated root fields", () => {
-		expect.assertions(2);
-
-		const config: Config = {
-			environments: {
-				staging: {
-					universe: {
-						icon: { "en-us": "assets/staging-icon.png" },
-					},
-				},
-			},
-			state: ROOT_STATE,
-			universe: {
-				icon: { "en-us": "assets/base-icon.png" },
-				universeId: "1111111111",
-				voiceChatEnabled: true,
-			},
-		};
-
-		const result = selectEnvironment(config, "staging");
-
-		assert(result.success);
-
-		expect(result.data.universe?.icon).toStrictEqual({ "en-us": "assets/staging-icon.png" });
-		expect(result.data.universe?.voiceChatEnabled).toBeTrue();
-	});
-
 	it("should overlay places onto matching root entries by key while preserving root fields", () => {
 		expect.assertions(2);
 
