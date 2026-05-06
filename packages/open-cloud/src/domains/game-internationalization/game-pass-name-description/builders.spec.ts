@@ -22,7 +22,7 @@ describe(buildUpdateRequest, () => {
 		expect.assertions(1);
 
 		const parameters = {
-			name: "Pass Épique",
+			name: "Epic Pass FR",
 			gamePassId: "12345",
 			languageCode: "fr-fr",
 		} satisfies UpdateGamePassNameDescriptionParameters;
@@ -41,7 +41,11 @@ describe(buildUpdateRequest, () => {
 			expected: Record<string, string>,
 		]
 	>([
-		["Epic Pass", "Unlocks epic stuff", { name: "Epic Pass", description: "Unlocks epic stuff" }],
+		[
+			"Epic Pass",
+			"Unlocks epic stuff",
+			{ name: "Epic Pass", description: "Unlocks epic stuff" },
+		],
 		["Epic Pass", undefined, { name: "Epic Pass" }],
 		[undefined, "Unlocks epic stuff", { description: "Unlocks epic stuff" }],
 		[undefined, undefined, {}],
