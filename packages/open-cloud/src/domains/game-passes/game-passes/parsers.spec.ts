@@ -154,6 +154,25 @@ describe(parseGamePassResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
+	it.for([
+		{ field: "createdTimestamp" as const },
+		{ field: "updatedTimestamp" as const },
+	])(
+		"should return an ApiError when $field is a string that does not parse to a Date",
+		({ field }) => {
+			expect.assertions(2);
+
+			const body = validGamePassBody({ [field]: "not-a-date" });
+
+			const result = parseGamePassResponse({ body, headers: {}, status: 502 });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err.message).toBe("Malformed game pass response");
+		},
+	);
+
 	it("should reject priceInformation that is an array with look-alike named properties", () => {
 		expect.assertions(1);
 

@@ -4,6 +4,7 @@ import {
 	copyPriceInformation,
 	isPriceInformationLike,
 } from "../../../internal/price-information.ts";
+import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import type { Page, Result } from "../../../types.ts";
 import type { GamePass } from "./types.ts";
@@ -89,8 +90,8 @@ function hasRequiredPrimitiveFields(body: Record<string, unknown>): boolean {
 		typeof body["description"] === "string" &&
 		typeof body["isForSale"] === "boolean" &&
 		typeof body["iconAssetId"] === "number" &&
-		typeof body["createdTimestamp"] === "string" &&
-		typeof body["updatedTimestamp"] === "string"
+		isDateTimeString(body["createdTimestamp"]) &&
+		isDateTimeString(body["updatedTimestamp"])
 	);
 }
 
