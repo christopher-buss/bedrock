@@ -166,6 +166,25 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.err.statusCode).toBe(502);
 	});
 
+	it.for([
+		{ field: "createdTimestamp" as const },
+		{ field: "updatedTimestamp" as const },
+	])(
+		"should return an ApiError when $field is a string that does not parse to a Date",
+		({ field }) => {
+			expect.assertions(2);
+
+			const body = validDeveloperProductBody({ [field]: "not-a-date" });
+
+			const result = parseDeveloperProductResponse({ body, headers: {}, status: 502 });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err.message).toBe("Malformed developer product response");
+		},
+	);
+
 	it("should return an ApiError when productId is the sentinel 0", () => {
 		expect.assertions(1);
 
