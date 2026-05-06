@@ -83,7 +83,7 @@ async function dispatchEnvironments(inputs: DispatchInputs): Promise<ReadonlyArr
 
 function buildGetEnvironment(parsed: CommonOptions): (name: string) => string | undefined {
 	return (name) => {
-		if (name === "ROBLOX_API_KEY" && parsed.apiKey !== undefined) {
+		if (name === "BEDROCK_API_KEY" && parsed.apiKey !== undefined) {
 			return parsed.apiKey;
 		}
 

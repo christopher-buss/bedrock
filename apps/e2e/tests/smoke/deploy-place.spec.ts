@@ -19,7 +19,7 @@ import { pruneStateGist } from "../helpers/prune-state-gist.ts";
 
 const FIXTURE_PATH = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "place.rbxlx");
 
-const API_KEY = process.env["ROBLOX_API_KEY"];
+const API_KEY = process.env["BEDROCK_API_KEY"];
 const UNIVERSE_ID_ENV = process.env["ROBLOX_TEST_UNIVERSE_ID"];
 const PLACE_ID_ENV = process.env["ROBLOX_TEST_PLACE_ID"];
 const TOKEN = process.env["GITHUB_TOKEN"];
@@ -49,7 +49,7 @@ describe("deploy place to real Roblox", () => {
 			// The skipIf above guarantees these are defined at runtime, but the
 			// type system cannot see through that, so we re-assert here to keep
 			// the rest of the test free of non-null assertions or casts.
-			assert(API_KEY !== undefined, "ROBLOX_API_KEY must be set");
+			assert(API_KEY !== undefined, "BEDROCK_API_KEY must be set");
 			assert(UNIVERSE_ID_ENV !== undefined, "ROBLOX_TEST_UNIVERSE_ID must be set");
 			assert(PLACE_ID_ENV !== undefined, "ROBLOX_TEST_PLACE_ID must be set");
 			assert(TOKEN !== undefined, "GITHUB_TOKEN must be set");

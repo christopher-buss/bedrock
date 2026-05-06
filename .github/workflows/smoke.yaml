@@ -38,9 +38,9 @@ jobs:
         uses: ./.github/actions/setup
 
       - env:
+          BEDROCK_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
           BEDROCK_TEST_GIST_ID: ${{ secrets.BEDROCK_TEST_GIST_ID }}
           GITHUB_TOKEN: ${{ secrets.GIST_TOKEN }}
-          ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
           ROBLOX_TEST_PLACE_ID: ${{ secrets.ROBLOX_TEST_PLACE_ID }}
           ROBLOX_TEST_UNIVERSE_ID: ${{ secrets.ROBLOX_TEST_UNIVERSE_ID }}
         name: Run smoke test
