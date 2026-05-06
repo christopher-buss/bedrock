@@ -211,6 +211,21 @@ describe(parsePlaceResponse, () => {
 			},
 		);
 
+		it.for(["createTime", "updateTime"] as const)(
+			"should reject a body whose %s is a string that does not parse to a Date",
+			(field) => {
+				expect.assertions(2);
+
+				const body = { ...validPlaceBody(), [field]: "not-a-date" };
+				const result = parsePlaceResponse({ body, headers: {}, status: 200 });
+
+				assert(!result.success);
+
+				expect(result.err).toBeInstanceOf(ApiError);
+				expect(result.err.message).toBe("Malformed place response");
+			},
+		);
+
 		it("should reject a body whose path is a non-string with a matching toString", () => {
 			// A toString() that matches the universes/{uid}/places/{pid}
 			// pattern would let regex.exec succeed on the coerced string,
