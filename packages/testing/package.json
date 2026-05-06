@@ -1,5 +1,5 @@
 {
-	"name": "@bedrock/testing",
+	"name": "@bedrock-rbx/testing",
 	"version": "0.0.0",
 	"private": true,
 	"description": "Shared testing utilities for Bedrock packages",
@@ -24,8 +24,8 @@
 		"jest-extended": "catalog:test"
 	},
 	"devDependencies": {
-		"@bedrock/typescript-config": "workspace:*",
-		"@bedrock/vite-config": "workspace:*",
+		"@bedrock-rbx/typescript-config": "workspace:*",
+		"@bedrock-rbx/vite-config": "workspace:*",
 		"@stryker-mutator/api": "catalog:test",
 		"@stryker-mutator/core": "catalog:test",
 		"@stryker-mutator/typescript-checker": "catalog:test",

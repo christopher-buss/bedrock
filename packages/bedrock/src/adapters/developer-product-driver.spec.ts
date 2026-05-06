@@ -1,6 +1,6 @@
-import { ApiError } from "@bedrock/ocale";
-import { DeveloperProductsClient } from "@bedrock/ocale/developer-products";
-import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock/ocale/testing";
+import { ApiError } from "@bedrock-rbx/ocale";
+import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
+import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock-rbx/ocale/testing";
 
 import { developerProductCurrent, developerProductDesired } from "#tests/helpers/resources";
 import type { Except } from "type-fest";

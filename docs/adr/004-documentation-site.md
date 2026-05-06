@@ -9,7 +9,7 @@ Decision Makers: Maintainer Tags: documentation, vitepress, typedoc, vercel
 Bedrock requires documentation for two distinct packages:
 
 1. **Bedrock CLI** - User guides, configuration reference, deployment workflows
-2. **@bedrock/open-cloud** - SDK for Roblox Open Cloud APIs, usable
+2. **@bedrock-rbx/open-cloud** - SDK for Roblox Open Cloud APIs, usable
    independently
 
 Primary audience is Roblox developers deploying games. Internationalization
@@ -136,15 +136,15 @@ reviewing documentation changes before merge.
 
 ## Amendments
 
-- **2026-04-17:** The `@bedrock/open-cloud` package was renamed to
-  `@bedrock/ocale`. URL path is now `/ocale/` (not `/open-cloud/`) and TypeDoc
+- **2026-04-17:** The `@bedrock-rbx/open-cloud` package was renamed to
+  `@bedrock-rbx/ocale`. URL path is now `/ocale/` (not `/open-cloud/`) and TypeDoc
   emits to `apps/website/docs/ocale/api/`. The directory `packages/open-cloud/`
   retains its original name.
 
 - **2026-04-29:** Production docs deploy on release tags, not `main`. The
   Vercel project at `bedrock-livid.vercel.app` is driven by
   `.github/workflows/website-release.yaml`, which fires on push of a tag
-  matching `@bedrock/core@*` (the Changesets default), checks out the tagged
+  matching `@bedrock-rbx/core@*` (the Changesets default), checks out the tagged
   commit, and runs `vercel pull` / `vercel build --prod` /
   `vercel deploy --prebuilt --prod`. Required repo secrets: `VERCEL_TOKEN`,
   `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`. The dashboard's git integration for

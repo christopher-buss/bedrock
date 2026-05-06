@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import { ArkErrors, type } from "arktype";
 
@@ -35,7 +35,7 @@ const envelopeSchema = type({
  * @example
  *
  * ```ts
- * import { serializeStateFile, type BedrockState } from "@bedrock/core";
+ * import { serializeStateFile, type BedrockState } from "@bedrock-rbx/core";
  *
  * const state: BedrockState = {
  *     environment: "production",
@@ -73,7 +73,7 @@ export function serializeStateFile(state: BedrockState): string {
  * @example
  *
  * ```ts
- * import { parseStateFile } from "@bedrock/core";
+ * import { parseStateFile } from "@bedrock-rbx/core";
  *
  * const freshStart = parseStateFile(undefined, "gist:abc123/state.production.json");
  * expect(freshStart.success).toBeTrue();

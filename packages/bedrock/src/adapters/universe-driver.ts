@@ -1,6 +1,6 @@
-import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
-import type { PlacesClient } from "@bedrock/ocale/places";
-import type { UniversesClient, UpdateUniverseParameters } from "@bedrock/ocale/universes";
+import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
+import type { PlacesClient } from "@bedrock-rbx/ocale/places";
+import type { UniversesClient, UpdateUniverseParameters } from "@bedrock-rbx/ocale/universes";
 
 import { shouldReuploadIcon } from "../core/icons.ts";
 import {
@@ -22,12 +22,12 @@ import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
  * along on each `UniverseDesiredState`.
  */
 export interface UniverseDriverDeps {
-	/** Configured places client from `@bedrock/ocale/places`. */
+	/** Configured places client from `@bedrock-rbx/ocale/places`. */
 	readonly places: PlacesClient;
 	/** Reads icon bytes for upload; rejections propagate out of `create`/`update`. */
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	/**
-	 * Configured universes client from `@bedrock/ocale/universes`. Localized
+	 * Configured universes client from `@bedrock-rbx/ocale/universes`. Localized
 	 * experience-icon Operations are reached through `universes.icon.*`.
 	 */
 	readonly universes: UniversesClient;
@@ -77,15 +77,15 @@ interface ReconcileInputs {
  * @example
  *
  * ```ts
- * import type { HttpClient } from "@bedrock/ocale";
- * import { PlacesClient } from "@bedrock/ocale/places";
- * import { UniversesClient } from "@bedrock/ocale/universes";
- * import { validUniverseBody } from "@bedrock/ocale/testing";
+ * import type { HttpClient } from "@bedrock-rbx/ocale";
+ * import { PlacesClient } from "@bedrock-rbx/ocale/places";
+ * import { UniversesClient } from "@bedrock-rbx/ocale/universes";
+ * import { validUniverseBody } from "@bedrock-rbx/ocale/testing";
  * import {
  *     asRobloxAssetId,
  *     createUniverseDriver,
  *     UNIVERSE_SINGLETON_KEY,
- * } from "@bedrock/core";
+ * } from "@bedrock-rbx/core";
  *
  * const universeBodyHttpClient: HttpClient = {
  *     async request() {

@@ -17,7 +17,7 @@ export interface ApiErrorOptions extends ErrorOptions {
  * @example
  *
  * ```ts
- * import { ApiError } from "@bedrock/ocale";
+ * import { ApiError } from "@bedrock-rbx/ocale";
  *
  * const error = new ApiError("Game pass not found", {
  *     code: "NotFound",

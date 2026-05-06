@@ -15,7 +15,7 @@ described the CLI package, but its monorepo diagram placed `packages/open-cloud/
 alongside `packages/cli/` under the same umbrella without distinguishing them.
 Readers reasonably concluded FCIS + Ports applied to every package.
 
-Building `@bedrock/open-cloud` revealed that conclusion is wrong for HTTP client
+Building `@bedrock-rbx/open-cloud` revealed that conclusion is wrong for HTTP client
 libraries. FCIS exists to separate pure business logic from I/O so the logic can
 be tested without mocks. An HTTP client library has no pure business logic to
 separate — the package *is* the I/O layer for something else. Its only "pure"
@@ -24,7 +24,7 @@ reasonable implementation. Forcing FCIS vocabulary onto such a package produces
 "Ports" with exactly one implementation, which is ceremony rather than
 architecture.
 
-The `@bedrock/open-cloud` package was restructured to use the simplified
+The `@bedrock-rbx/open-cloud` package was restructured to use the simplified
 pattern in commit `fa173bc`. This ADR catches the decision log up to what
 already exists on disk and establishes a general rule so future packages can
 make the same determination consistently.
@@ -98,11 +98,11 @@ Folder layout is the package's own concern and is not prescribed by this ADR.
 
 ### Application today
 
-- **`@bedrock/open-cloud`** — satisfies all five criteria; uses the simplified
+- **`@bedrock-rbx/open-cloud`** — satisfies all five criteria; uses the simplified
   pattern. The package's folder layout (`resources/`, `internal/`, `errors/`,
   `client/`) is a package-level concern; see the package source for current
   structure.
-- **`@bedrock/cli` (planned)** — fails criteria 2, 3, 4, and 5 (substantive
+- **`@bedrock-rbx/cli` (planned)** — fails criteria 2, 3, 4, and 5 (substantive
   deployment logic and validation, pluggable state backends, business logic
   separable from I/O, real swappability across Gist/S3/R2); uses FCIS + Ports
   per ADR-002.
@@ -115,7 +115,7 @@ Folder layout is the package's own concern and is not prescribed by this ADR.
   that have exactly one implementation.
 - **Mechanical decision rule** — new packages run the five criteria and get a
   clear answer, rather than arguing "is this a library?"
-- **Matches industry conventions** — aligns `@bedrock/open-cloud` with the
+- **Matches industry conventions** — aligns `@bedrock-rbx/open-cloud` with the
   structure of AWS SDK v3, OpenAI SDK, and other modern TypeScript SDKs,
   lowering the learning curve for external contributors.
 - **Preserves FCIS where it helps** — ADR-002 remains the default, so packages
@@ -133,7 +133,7 @@ Folder layout is the package's own concern and is not prescribed by this ADR.
   pattern onto a package that genuinely needs FCIS. Mitigated by the
   "all five must hold" rule, which biases toward FCIS in ambiguous cases.
 - **Generalization from one package** — the pattern is currently validated by
-  a single package (`@bedrock/open-cloud`). Future library packages may reveal
+  a single package (`@bedrock-rbx/open-cloud`). Future library packages may reveal
   additional considerations that require revisiting this ADR.
 
 ### Neutral
@@ -211,13 +211,13 @@ that gap retroactively.
   and the injectable HTTP seam.
 - **ADR-006**: ADR enforcement — this ADR is the retroactive record required
   by ADR-006 for the simplified-architecture decision already implemented in
-  `@bedrock/open-cloud`.
-- **ADR-008**: Zero runtime dependencies — scoped to `@bedrock/open-cloud` and
+  `@bedrock-rbx/open-cloud`.
+- **ADR-008**: Zero runtime dependencies — scoped to `@bedrock-rbx/open-cloud` and
   compatible with the simplified pattern.
 - **ADR-009**: Result types over exceptions — required at method boundaries in
   the simplified pattern as well as in FCIS code.
 - **ADR-010**: SDK-managed rate limiting and retry — scoped to
-  `@bedrock/open-cloud` and implemented within the simplified pattern.
+  `@bedrock-rbx/open-cloud` and implemented within the simplified pattern.
 
 ## References
 

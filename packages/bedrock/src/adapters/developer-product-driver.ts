@@ -1,5 +1,8 @@
-import type { OpenCloudError, Result } from "@bedrock/ocale";
-import type { DeveloperProduct, DeveloperProductsClient } from "@bedrock/ocale/developer-products";
+import type { OpenCloudError, Result } from "@bedrock-rbx/ocale";
+import type {
+	DeveloperProduct,
+	DeveloperProductsClient,
+} from "@bedrock-rbx/ocale/developer-products";
 
 import { derivePriceFields } from "../core/derive-price-fields.ts";
 import { shouldReuploadIcon } from "../core/icons.ts";
@@ -18,9 +21,9 @@ import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
  * @example
  *
  * ```ts
- * import type { HttpClient } from "@bedrock/ocale";
- * import { DeveloperProductsClient } from "@bedrock/ocale/developer-products";
- * import { asRobloxAssetId, type DeveloperProductDriverDeps } from "@bedrock/core";
+ * import type { HttpClient } from "@bedrock-rbx/ocale";
+ * import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
+ * import { asRobloxAssetId, type DeveloperProductDriverDeps } from "@bedrock-rbx/core";
  *
  * const httpClient: HttpClient = {
  *     async request() {
@@ -42,7 +45,7 @@ import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
  * ```
  */
 export interface DeveloperProductDriverDeps {
-	/** Configured developer-products client from `@bedrock/ocale/developer-products`. */
+	/** Configured developer-products client from `@bedrock-rbx/ocale/developer-products`. */
 	readonly client: DeveloperProductsClient;
 	/** Reads icon bytes for upload; rejections propagate out of `create` and `update`. */
 	readonly readFile: (path: string) => Promise<Uint8Array>;
@@ -77,13 +80,13 @@ interface FollowUpPatchInputs {
  * @example
  *
  * ```ts
- * import type { HttpClient } from "@bedrock/ocale";
- * import { DeveloperProductsClient } from "@bedrock/ocale/developer-products";
+ * import type { HttpClient } from "@bedrock-rbx/ocale";
+ * import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
  * import {
  *     asResourceKey,
  *     asRobloxAssetId,
  *     createDeveloperProductDriver,
- * } from "@bedrock/core";
+ * } from "@bedrock-rbx/core";
  *
  * const httpClient: HttpClient = {
  *     async request() {

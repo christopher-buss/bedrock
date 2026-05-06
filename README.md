@@ -34,15 +34,15 @@ It is a spiritual successor to [Mantle](https://github.com/blake-mealey/mantle)
 
 | Package                                               | Description                                      |
 | ----------------------------------------------------- | ------------------------------------------------ |
-| [`@bedrock/core`](./packages/bedrock)                 | The deployment library and CLI.                  |
-| [`@bedrock/ocale`](./packages/open-cloud)             | Standalone HTTP client for Roblox Open Cloud.    |
+| [`@bedrock-rbx/core`](./packages/bedrock)                 | The deployment library and CLI.                  |
+| [`@bedrock-rbx/ocale`](./packages/open-cloud)             | Standalone HTTP client for Roblox Open Cloud.    |
 
 ## Status
 
 Bedrock is in active development ahead of a first public release. Core
 pieces in place today:
 
-- Open Cloud client (`@bedrock/ocale`) with game-pass and place resources,
+- Open Cloud client (`@bedrock-rbx/ocale`) with game-pass and place resources,
   built-in rate limiting, retries, and 100% test coverage.
 - State data model and diff algebra ([ADR-019](./docs/adr/019-state-data-model-and-diff-algebra.md)).
 - FCIS + Ports architecture with explicit primary/driven port distinction

@@ -1,5 +1,5 @@
-import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
-import type { PlacesClient, UpdatePlaceParameters } from "@bedrock/ocale/places";
+import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
+import type { PlacesClient, UpdatePlaceParameters } from "@bedrock-rbx/ocale/places";
 
 import type { PlaceDesiredState, PlaceOutputs, ResourceCurrentState } from "../core/resources.ts";
 import { PLACE_MANAGED_METADATA_FIELDS } from "../core/resources.ts";
@@ -16,9 +16,9 @@ import type { RobloxAssetId } from "../types/ids.ts";
  * @example
  *
  * ```ts
- * import type { HttpClient } from "@bedrock/ocale";
- * import { PlacesClient } from "@bedrock/ocale/places";
- * import { asRobloxAssetId, type PlaceDriverDeps } from "@bedrock/core";
+ * import type { HttpClient } from "@bedrock-rbx/ocale";
+ * import { PlacesClient } from "@bedrock-rbx/ocale/places";
+ * import { asRobloxAssetId, type PlaceDriverDeps } from "@bedrock-rbx/core";
  *
  * const httpClient: HttpClient = {
  *     async request() {
@@ -40,7 +40,7 @@ import type { RobloxAssetId } from "../types/ids.ts";
  * ```
  */
 export interface PlaceDriverDeps {
-	/** Configured places client from `@bedrock/ocale/places`. */
+	/** Configured places client from `@bedrock-rbx/ocale/places`. */
 	readonly client: PlacesClient;
 	/** Reads place-file bytes for upload; rejections propagate out of the driver. */
 	readonly readFile: (path: string) => Promise<Uint8Array>;
@@ -65,14 +65,14 @@ export interface PlaceDriverDeps {
  * @example
  *
  * ```ts
- * import type { HttpClient } from "@bedrock/ocale";
- * import { PlacesClient } from "@bedrock/ocale/places";
+ * import type { HttpClient } from "@bedrock-rbx/ocale";
+ * import { PlacesClient } from "@bedrock-rbx/ocale/places";
  * import {
  *     asResourceKey,
  *     asRobloxAssetId,
  *     asSha256Hex,
  *     createPlaceDriver,
- * } from "@bedrock/core";
+ * } from "@bedrock-rbx/core";
  *
  * const httpClient: HttpClient = {
  *     async request() {

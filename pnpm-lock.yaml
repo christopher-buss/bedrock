@@ -209,13 +209,13 @@ importers:
       '@ai-hero/sandcastle':
         specifier: catalog:dev
         version: 0.5.6(@effect/cluster@0.57.0(@effect/platform@0.95.0(effect@3.21.2))(@effect/rpc@0.74.0(@effect/platform@0.95.0(effect@3.21.2))(effect@3.21.2))(@effect/sql@0.50.0(@effect/experimental@0.59.0(@effect/platform@0.95.0(effect@3.21.2))(effect@3.21.2))(@effect/platform@0.95.0(effect@3.21.2))(effect@3.21.2))(@effect/workflow@0.17.0(@effect/experimental@0.59.0(@effect/platform@0.95.0(effect@3.21.2))(effect@3.21.2))(@effect/platform@0.95.0(effect@3.21.2))(@effect/rpc@0.74.0(@effect/platform@0.95.0(effect@3.21.2))(effect@3.21.2))(effect@3.21.2))(effect@3.21.2))(@effect/rpc@0.74.0(@effect/platform@0.95.0(effect@3.21.2))(effect@3.21.2))(@effect/sql@0.50.0(@effect/experimental@0.59.0(@effect/platform@0.95.0(effect@3.21.2))(effect@3.21.2))(@effect/platform@0.95.0(effect@3.21.2))(effect@3.21.2))(@effect/typeclass@0.39.0(effect@3.21.2))
-      '@bedrock/core':
+      '@bedrock-rbx/core':
         specifier: workspace:*
         version: link:packages/bedrock
-      '@bedrock/testing':
+      '@bedrock-rbx/testing':
         specifier: workspace:*
         version: link:packages/testing
-      '@bedrock/vite-config':
+      '@bedrock-rbx/vite-config':
         specifier: workspace:*
         version: link:packages/vite-config
       '@commitlint/cli':
@@ -329,23 +329,23 @@ importers:
 
   apps/e2e:
     dependencies:
-      '@bedrock/core':
+      '@bedrock-rbx/core':
         specifier: workspace:*
         version: link:../../packages/bedrock
-      '@bedrock/ocale':
+      '@bedrock-rbx/ocale':
         specifier: workspace:*
         version: link:../../packages/open-cloud
       arktype:
         specifier: catalog:runtime
         version: 2.2.0
     devDependencies:
-      '@bedrock/testing':
+      '@bedrock-rbx/testing':
         specifier: workspace:*
         version: link:../../packages/testing
-      '@bedrock/typescript-config':
+      '@bedrock-rbx/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
-      '@bedrock/vite-config':
+      '@bedrock-rbx/vite-config':
         specifier: workspace:*
         version: link:../../packages/vite-config
       typescript:
@@ -357,13 +357,13 @@ importers:
 
   apps/website:
     devDependencies:
-      '@bedrock/testing':
+      '@bedrock-rbx/testing':
         specifier: workspace:*
         version: link:../../packages/testing
-      '@bedrock/typescript-config':
+      '@bedrock-rbx/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config
-      '@bedrock/vite-config':
+      '@bedrock-rbx/vite-config':
         specifier: workspace:*
         version: link:../../packages/vite-config
       concurrently:
@@ -393,7 +393,7 @@ importers:
 
   packages/bedrock:
     dependencies:
-      '@bedrock/ocale':
+      '@bedrock-rbx/ocale':
         specifier: workspace:*
         version: link:../open-cloud
       '@clack/prompts':
@@ -415,13 +415,13 @@ importers:
         specifier: catalog:runtime
         version: 1.8.1
     devDependencies:
-      '@bedrock/testing':
+      '@bedrock-rbx/testing':
         specifier: workspace:*
         version: link:../testing
-      '@bedrock/typescript-config':
+      '@bedrock-rbx/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
-      '@bedrock/vite-config':
+      '@bedrock-rbx/vite-config':
         specifier: workspace:*
         version: link:../vite-config
       '@stryker-mutator/api':
@@ -454,13 +454,13 @@ importers:
 
   packages/open-cloud:
     devDependencies:
-      '@bedrock/testing':
+      '@bedrock-rbx/testing':
         specifier: workspace:*
         version: link:../testing
-      '@bedrock/typescript-config':
+      '@bedrock-rbx/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
-      '@bedrock/vite-config':
+      '@bedrock-rbx/vite-config':
         specifier: workspace:*
         version: link:../vite-config
       '@stryker-mutator/api':
@@ -503,10 +503,10 @@ importers:
         specifier: catalog:test
         version: 7.0.0(@typescript/typescript6@6.0.1)
     devDependencies:
-      '@bedrock/typescript-config':
+      '@bedrock-rbx/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
-      '@bedrock/vite-config':
+      '@bedrock-rbx/vite-config':
         specifier: workspace:*
         version: link:../vite-config
       '@stryker-mutator/api':
@@ -543,7 +543,7 @@ importers:
         specifier: catalog:build
         version: 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
     devDependencies:
-      '@bedrock/typescript-config':
+      '@bedrock-rbx/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
       '@types/bun':

@@ -9,9 +9,9 @@ import {
 	loadConfig,
 	type ResourceDriver,
 	selectEnvironment,
-} from "@bedrock/core";
-import { PlacesClient } from "@bedrock/ocale/places";
-import { createFakeHttpClient, validPlaceBody } from "@bedrock/ocale/testing";
+} from "@bedrock-rbx/core";
+import { PlacesClient } from "@bedrock-rbx/ocale/places";
+import { createFakeHttpClient, validPlaceBody } from "@bedrock-rbx/ocale/testing";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

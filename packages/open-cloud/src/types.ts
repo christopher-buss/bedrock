@@ -10,7 +10,7 @@
  * @example
  *
  * ```ts
- * import type { Result } from "@bedrock/ocale";
+ * import type { Result } from "@bedrock-rbx/ocale";
  *
  * function parseAge(input: string): Result<number, Error> {
  *     const age = Number(input);
@@ -49,7 +49,7 @@ export type Result<T, E = Error> = { data: T; success: true } | { err: E; succes
  * @example
  *
  * ```ts
- * import type { Page } from "@bedrock/ocale";
+ * import type { Page } from "@bedrock-rbx/ocale";
  *
  * const middle: Page<string> = { items: ["a", "b"], nextPageToken: "cursor" };
  * expect(middle.items).toEqual(["a", "b"]);

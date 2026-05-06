@@ -1,4 +1,4 @@
-import type { SocialLink } from "@bedrock/ocale/universes";
+import type { SocialLink } from "@bedrock-rbx/ocale/universes";
 
 import type { ResourceKey, RobloxAssetId } from "../types/ids.ts";
 import { defaultKindRegistry } from "./kinds/index.ts";
@@ -15,7 +15,7 @@ import type { DeveloperProductEntry, GamePassEntry, ResolvedConfig } from "./sch
  * @example
  *
  * ```ts
- * import { asResourceKey, type GamePassDesiredInput } from "@bedrock/core";
+ * import { asResourceKey, type GamePassDesiredInput } from "@bedrock-rbx/core";
  *
  * const input: GamePassDesiredInput = {
  *     description: "Grants VIP perks.",
@@ -46,7 +46,7 @@ export interface GamePassDesiredInput extends Readonly<GamePassEntry> {
  * @example
  *
  * ```ts
- * import { asResourceKey, asRobloxAssetId, type PlaceDesiredInput } from "@bedrock/core";
+ * import { asResourceKey, asRobloxAssetId, type PlaceDesiredInput } from "@bedrock-rbx/core";
  *
  * const input: PlaceDesiredInput = {
  *     description: undefined,
@@ -88,7 +88,7 @@ export interface PlaceDesiredInput {
  * @example
  *
  * ```ts
- * import { asRobloxAssetId, UNIVERSE_SINGLETON_KEY, type UniverseDesiredInput } from "@bedrock/core";
+ * import { asRobloxAssetId, UNIVERSE_SINGLETON_KEY, type UniverseDesiredInput } from "@bedrock-rbx/core";
  *
  * const input: UniverseDesiredInput = {
  *     consoleEnabled: undefined,
@@ -170,7 +170,7 @@ export interface UniverseDesiredInput {
  * @example
  *
  * ```ts
- * import { asResourceKey, type DeveloperProductDesiredInput } from "@bedrock/core";
+ * import { asResourceKey, type DeveloperProductDesiredInput } from "@bedrock-rbx/core";
  *
  * const input: DeveloperProductDesiredInput = {
  *     description: "Stocks the player up with 1,000 premium gems.",
@@ -213,7 +213,7 @@ export type ResourceDesiredInput =
  * @example
  *
  * ```ts
- * import { flattenConfig, selectEnvironment, type Config } from "@bedrock/core";
+ * import { flattenConfig, selectEnvironment, type Config } from "@bedrock-rbx/core";
  *
  * const config: Config = {
  *     environments: {

@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import { createGistStateAdapter, type GistFetch } from "../adapters/gist-state-adapter.ts";
 import { type GistStateConfig, isGistStateConfig, type StateConfig } from "../core/schema.ts";
@@ -54,7 +54,7 @@ const STATE_PORT_HINT = "pass a custom statePort via opts.statePort";
  * @example
  *
  * ```ts
- * import { buildStatePort } from "@bedrock/core";
+ * import { buildStatePort } from "@bedrock-rbx/core";
  *
  * const port = buildStatePort({
  *     fetch: async () =>

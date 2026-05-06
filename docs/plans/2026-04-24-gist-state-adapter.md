@@ -1,6 +1,6 @@
 # Gist State Adapter Implementation Plan
 
-**Goal:** Ship the default `StatePort` adapter, backing deploy state against a GitHub Gist. Unblocks a real-backend smoke test for `deploy()` and lays the pattern for future `@bedrock/s3` and `@bedrock/r2` adapters.
+**Goal:** Ship the default `StatePort` adapter, backing deploy state against a GitHub Gist. Unblocks a real-backend smoke test for `deploy()` and lays the pattern for future `@bedrock-rbx/s3` and `@bedrock-rbx/r2` adapters.
 
 **Tracking:** [#101](https://github.com/christopher-buss/bedrock/issues/101). Follow-up: [#169](https://github.com/christopher-buss/bedrock/issues/169) (rewire the existing place-deploy smoke to use the new adapter).
 
@@ -20,8 +20,8 @@
 | 2 | Shared adapter work lives as pure helpers in `core/`, not as a base class or mixin. | `packages/bedrock/CLAUDE.md` bans factory classes. Shared logic keeps the pure/IO split ADR-018 mandates and prevents each third-party adapter from re-implementing the `$bedrock.version` guard (the exact ADR-019 data-loss scenario). |
 | 3 | Single gist holds one file per environment (`state.<env>.json`). | Mirrors ADR-019's "one file per environment" wording. Aligns with S3/R2's "one bucket, one object per env" model so adapter factories stay symmetric. |
 | 4 | Unsafe environment names are rejected at the adapter boundary with `StateError`. | Silent sanitisation would collide `prod` and `prod/`. Validation rule: letters, digits, `-`, `_`, length 1..64. |
-| 5 | HTTP layer is native `fetch` with an injectable seam (`fetch?` on the deps). Defaults to `globalThis.fetch`. | Two endpoints do not warrant octokit or a shared HTTP layer. Injection matches ocale's `httpClient` pattern, keeps tests linear, and honours the zero-dependency posture of `@bedrock/core`. |
-| 6 | Gist adapter ships bundled inside `@bedrock/core`. Future S3 and R2 adapters ship as `@bedrock/s3` and `@bedrock/r2`. | Gist is 80 LOC with zero runtime deps, so it belongs with the default. SDK-weight adapters stay opt-in installs. The cross-package pattern earns an ADR once the second adapter is actually being written. |
+| 5 | HTTP layer is native `fetch` with an injectable seam (`fetch?` on the deps). Defaults to `globalThis.fetch`. | Two endpoints do not warrant octokit or a shared HTTP layer. Injection matches ocale's `httpClient` pattern, keeps tests linear, and honours the zero-dependency posture of `@bedrock-rbx/core`. |
+| 6 | Gist adapter ships bundled inside `@bedrock-rbx/core`. Future S3 and R2 adapters ship as `@bedrock-rbx/s3` and `@bedrock-rbx/r2`. | Gist is 80 LOC with zero runtime deps, so it belongs with the default. SDK-weight adapters stay opt-in installs. The cross-package pattern earns an ADR once the second adapter is actually being written. |
 | 7 | Writes use single-file PATCH (`PATCH /gists/{id}` with one entry in `files`). No read-modify-write. No ETag. | GitHub PATCH is additive at the file level, so per-env writes cannot corrupt sibling envs. Gists do not support `If-Match`; concurrency belongs in [#122](https://github.com/christopher-buss/bedrock/issues/122). |
 | 8 | Exported public API: `createGistStateAdapter`, `GistStateAdapterDeps`, `serializeStateFile`, `parseStateFile`, `validateEnvironmentName`. | The helpers are the plugin contract (ADR-017): third-party adapters compose them to inherit envelope, version-guard, brand re-validation, and env-name rules. |
 
@@ -139,7 +139,7 @@ Each lands with a JSDoc `@example` block, per ADR-005. `parseStateFile` carries 
 ## Follow-up
 
 - [#169](https://github.com/christopher-buss/bedrock/issues/169): replace the in-memory `StatePort` in `apps/e2e/tests/smoke/deploy-place.spec.ts` with `createGistStateAdapter`. Ships as a separate PR after this one lands.
-- Adapter-packaging ADR: draft when `@bedrock/s3` starts. The cross-package pattern ("defaults in core, SDK-weight adapters as their own packages") is real but needs a second concrete case before it earns an ADR.
+- Adapter-packaging ADR: draft when `@bedrock-rbx/s3` starts. The cross-package pattern ("defaults in core, SDK-weight adapters as their own packages") is real but needs a second concrete case before it earns an ADR.
 
 ## Related decisions
 

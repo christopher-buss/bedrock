@@ -16,7 +16,7 @@ OpenCloudError
 ## Narrow with `instanceof`
 
 ```ts
-import { ApiError, NetworkError, RateLimitError } from "@bedrock/ocale";
+import { ApiError, NetworkError, RateLimitError } from "@bedrock-rbx/ocale";
 
 if (!result.success) {
 	if (result.err instanceof RateLimitError) {

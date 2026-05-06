@@ -135,7 +135,7 @@ interface DeveloperProductLocalizationHandle {
  * `OpenCloudError` ever escapes the client.
  *
  * ```ts
- * import { DeveloperProductsClient } from "@bedrock/ocale/developer-products";
+ * import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
  *
  * const client = new DeveloperProductsClient({ apiKey: process.env.ROBLOX_API_KEY! });
  *

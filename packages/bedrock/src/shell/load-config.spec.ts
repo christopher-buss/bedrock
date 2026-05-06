@@ -1,4 +1,4 @@
-import { HAS_LUTE } from "@bedrock/testing/lute";
+import { HAS_LUTE } from "@bedrock-rbx/testing/lute";
 
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -10,7 +10,7 @@ import { assert, describe, expect, it } from "vitest";
 import { bootstrapDirectoryPrefix } from "./load-config-internal.ts";
 import { loadConfig } from "./load-config.ts";
 
-// Walking up from a temp file inside the workspace tree finds @bedrock/core
+// Walking up from a temp file inside the workspace tree finds @bedrock-rbx/core
 // via the workspace root's node_modules, regardless of pnpm's hoist decisions.
 // node_modules/.cache is the conventional location for tool ephemera and is
 // already gitignored.
@@ -61,7 +61,7 @@ describe(loadConfig, () => {
 
 		await withTemporaryDirectory(async (cwd) => {
 			writeFixtureConfig(cwd, [
-				"import { defineConfig } from '@bedrock/core';",
+				"import { defineConfig } from '@bedrock-rbx/core';",
 				"export default defineConfig({",
 				"  environments: { production: {} },",
 				"  passes: {",
@@ -88,7 +88,7 @@ describe(loadConfig, () => {
 
 		await withTemporaryDirectory(async (cwd) => {
 			writeFixtureConfig(cwd, [
-				"import { defineConfig } from '@bedrock/core';",
+				"import { defineConfig } from '@bedrock-rbx/core';",
 				"export default defineConfig(() => ({",
 				"  environments: { production: {} },",
 				"  passes: {",
@@ -115,7 +115,7 @@ describe(loadConfig, () => {
 
 		await withTemporaryDirectory(async (cwd) => {
 			writeFixtureConfig(cwd, [
-				"import { defineConfig } from '@bedrock/core';",
+				"import { defineConfig } from '@bedrock-rbx/core';",
 				"export default defineConfig(async () => ({",
 				"  environments: { production: {} },",
 				"  passes: {",
@@ -142,7 +142,7 @@ describe(loadConfig, () => {
 
 		await withTemporaryDirectory(async (cwd) => {
 			writeFixtureConfig(cwd, [
-				"import { defineConfig } from '@bedrock/core';",
+				"import { defineConfig } from '@bedrock-rbx/core';",
 				"export default defineConfig(() => {",
 				"  throw new Error('sync boom');",
 				"});",
@@ -164,7 +164,7 @@ describe(loadConfig, () => {
 
 		await withTemporaryDirectory(async (cwd) => {
 			writeFixtureConfig(cwd, [
-				"import { defineConfig } from '@bedrock/core';",
+				"import { defineConfig } from '@bedrock-rbx/core';",
 				"export default defineConfig(async () => {",
 				"  throw new Error('async boom');",
 				"});",
@@ -186,7 +186,7 @@ describe(loadConfig, () => {
 
 		await withTemporaryDirectory(async (cwd) => {
 			writeFixtureConfig(cwd, [
-				"import { defineConfig } from '@bedrock/core';",
+				"import { defineConfig } from '@bedrock-rbx/core';",
 				"export default defineConfig(() => {",
 				"  throw 'bare string boom';",
 				"});",
@@ -251,7 +251,7 @@ describe(loadConfig, () => {
 			writeFileSync(
 				join(cwd, "bedrock.staging.config.ts"),
 				[
-					"import { defineConfig } from '@bedrock/core';",
+					"import { defineConfig } from '@bedrock-rbx/core';",
 					"export default defineConfig({ passes: {} });",
 				].join("\n"),
 			);
@@ -274,7 +274,7 @@ describe(loadConfig, () => {
 			writeFileSync(
 				absolutePath,
 				[
-					"import { defineConfig } from '@bedrock/core';",
+					"import { defineConfig } from '@bedrock-rbx/core';",
 					"export default defineConfig({",
 					"  environments: { production: {} },",
 					"  passes: {",

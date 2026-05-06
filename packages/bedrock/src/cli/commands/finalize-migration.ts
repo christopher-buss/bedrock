@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import type { MigrationReport } from "../../core/migrate/migration-report.ts";
 import { serializeConfig } from "../../core/migrate/serialize-config.ts";

@@ -5,13 +5,13 @@ code in this repository.
 
 ## Package Overview
 
-`@bedrock/core` is the primary published package of the project: a programmatic
+`@bedrock-rbx/core` is the primary published package of the project: a programmatic
 TypeScript IaC library for Roblox, with a CLI wrapper as a convenience entry
 point. Every symbol exported from `src/index.ts` is public API subject to
 semver (see [ADR-017](../../docs/adr/017-product-framing-programmatic-iac-with-cli.md)).
 
 Roblox Open Cloud access comes from
-[`@bedrock/ocale`](../open-cloud/CLAUDE.md), which this package consumes as
+[`@bedrock-rbx/ocale`](../open-cloud/CLAUDE.md), which this package consumes as
 a workspace dependency. Bedrock does not talk to HTTP directly.
 
 ## Architecture
@@ -25,7 +25,7 @@ Source layout under `src/`:
 | `types/` | Branded primitives (`ResourceKey`, `RobloxAssetId`, `Sha256Hex`) and shared type definitions. |
 | `core/` | Pure domain: data contracts, `diff`, desired-state normalization. No I/O. |
 | `ports/` | Driven port interfaces (`ResourceDriver<K>`, `StatePort`). The contracts external systems are reached through. |
-| `adapters/` | Driven adapter implementations (`GamePassDriver` wrapping `@bedrock/ocale`, future state adapters). |
+| `adapters/` | Driven adapter implementations (`GamePassDriver` wrapping `@bedrock-rbx/ocale`, future state adapters). |
 | `shell/` | Use-case orchestration (`applyOps`, `buildDesired`, future `deploy`). Calls core with data pulled from adapters. |
 
 The CLI primary adapter lives under `src/cli/` (program factory, executable
@@ -90,7 +90,7 @@ Layout:
 
 - Unit tests live colocated as `*.spec.ts` alongside their subject in `src/`.
 - Integration tests live in `tests/integration/` and consume the fake HTTP
-  client from `@bedrock/ocale/testing` (the subpath is only resolvable in
+  client from `@bedrock-rbx/ocale/testing` (the subpath is only resolvable in
   workspace dev/test flows under `--conditions source`, never from npm
   consumers).
 - Type-level tests for public API live in `*.spec-d.ts` files using
@@ -99,7 +99,7 @@ Layout:
 ## Related documentation
 
 - Root [CLAUDE.md](../../CLAUDE.md)
-- [`@bedrock/ocale` CLAUDE.md](../open-cloud/CLAUDE.md)
+- [`@bedrock-rbx/ocale` CLAUDE.md](../open-cloud/CLAUDE.md)
 - [ADR-002](../../docs/adr/002-monorepo-fcis-architecture.md): FCIS + Ports (ADR-018 is the refinement).
 - [ADR-003](../../docs/adr/003-testing-strategy.md): testing strategy, TDD, 100% coverage.
 - [ADR-005](../../docs/adr/005-jsdoc-example-testing.md): public API `@example` obligation.

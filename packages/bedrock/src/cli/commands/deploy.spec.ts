@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import { fakeClackPort } from "#tests/helpers/clack";
 import process from "node:process";

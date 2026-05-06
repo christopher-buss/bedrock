@@ -41,7 +41,7 @@ Please include:
 
 The following are in scope:
 
-- Vulnerabilities in published packages (`@bedrock/core`, `@bedrock/ocale`).
+- Vulnerabilities in published packages (`@bedrock-rbx/core`, `@bedrock-rbx/ocale`).
 - Vulnerabilities in the deployment flow that could leak secrets, corrupt
   state, or cause unauthorized access to a Roblox experience the user
   controls.
@@ -62,6 +62,6 @@ The following are out of scope:
   [ADR-007](./docs/adr/007-open-cloud-only.md)).
 - State files are stored in GitHub Gists and contain only resource IDs
   (public data). Secrets are never written to state.
-- `@bedrock/ocale` has zero runtime dependencies (see
+- `@bedrock-rbx/ocale` has zero runtime dependencies (see
   [ADR-008](./docs/adr/008-zero-runtime-dependencies.md)) to minimise
   supply-chain surface area.

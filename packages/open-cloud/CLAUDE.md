@@ -5,7 +5,7 @@ code in this repository.
 
 ## Package Overview
 
-`@bedrock/ocale` is a standalone TypeScript HTTP client for Roblox Open Cloud
+`@bedrock-rbx/ocale` is a standalone TypeScript HTTP client for Roblox Open Cloud
 APIs. It is designed to be publishable to npm and usable independently of the
 Bedrock CLI.
 
@@ -59,12 +59,12 @@ Import from subpaths, not the root:
 
 ```typescript
 // Root export only exposes shared utilities
-import { RateLimitError, type Result } from "@bedrock/ocale";
+import { RateLimitError, type Result } from "@bedrock-rbx/ocale";
 // Resource clients live on subpaths
-import { GamePassesClient } from "@bedrock/ocale/game-passes";
+import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 ```
 
-The root `@bedrock/ocale` entry point deliberately does not re-export resource
+The root `@bedrock-rbx/ocale` entry point deliberately does not re-export resource
 clients; consumers pay only for the services they import.
 
 ### 4. Rate Limiting and Retries Built-In

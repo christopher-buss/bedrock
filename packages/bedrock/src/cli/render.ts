@@ -1,4 +1,4 @@
-import { PermissionError } from "@bedrock/ocale";
+import { PermissionError } from "@bedrock-rbx/ocale";
 import { cancel, intro, log, outro } from "@clack/prompts";
 
 import type { ConfigError } from "../core/config-error.ts";

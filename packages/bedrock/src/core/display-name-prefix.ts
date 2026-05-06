@@ -26,7 +26,7 @@ const PLACEHOLDER_PATTERN = /\{(LABEL|Label|label)\}/g;
  * @example
  *
  * ```ts
- * import { renderDisplayNamePrefix } from "@bedrock/core";
+ * import { renderDisplayNamePrefix } from "@bedrock-rbx/core";
  *
  * expect(renderDisplayNamePrefix("staging")).toBe("[STAGING] ");
  * expect(renderDisplayNamePrefix("staging", "{Label}: ")).toBe("Staging: ");

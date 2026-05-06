@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import { type, type Type } from "arktype";
 
@@ -123,7 +123,7 @@ export function iconHashesEqual(
  * @example
  *
  * ```ts
- * import { asSha256Hex, shouldReuploadIcon } from "@bedrock/core";
+ * import { asSha256Hex, shouldReuploadIcon } from "@bedrock-rbx/core";
  *
  * const previous = asSha256Hex(
  *     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",

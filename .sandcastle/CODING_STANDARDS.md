@@ -33,7 +33,7 @@ that are easy to miss from a diff alone.
   `it.each`. Collapse truth-table tests where the contract is one rule.
 - Use jest-extended matchers (`toThrowWithMessage`, `toBeFunction`,
   `toBeTrue`/`toBeFalse`, `toBeNil`) over verbose built-ins. Wire via
-  `@bedrock/testing/jest-extended`, not the package directly.
+  `@bedrock-rbx/testing/jest-extended`, not the package directly.
 - Use `assert()` from vitest to narrow `Result` unions in tests; do not
   reach for `as` casts.
 - Cleanup uses vitest `onTestFinished`, not `try/finally`. Register the

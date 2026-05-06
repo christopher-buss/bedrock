@@ -10,7 +10,7 @@
 ### Refresh
 
 ```sh
-pnpm --filter @bedrock/ocale refresh-openapi
+pnpm --filter @bedrock-rbx/ocale refresh-openapi
 ```
 
 The script updates both `roblox-openapi.json` and the pinned commit

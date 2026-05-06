@@ -146,8 +146,8 @@ not change their experience.
 
 ### Neutral
 
-- Package structure (single `bedrock` package vs. split `@bedrock/core` +
-  `@bedrock/cli`) is not resolved by this ADR. Splitting is deferred until
+- Package structure (single `bedrock` package vs. split `@bedrock-rbx/core` +
+  `@bedrock-rbx/cli`) is not resolved by this ADR. Splitting is deferred until
   concrete demand arises. A future ADR will define the split criteria if needed.
 - ADR-002's FCIS + Ports architecture is unaffected by this decision. Level 2
   is a product framing, not an architecture-pattern change. ADR-018 (planned)
@@ -160,7 +160,7 @@ This ADR should be reopened if any of the following occur:
 
 - **Package split demand emerges.** Concrete pressure -- bundle-size complaints,
   versioning divergence between core and CLI, or an external embedder explicitly
-  requesting a standalone `@bedrock/core` -- upgrades the package-structure
+  requesting a standalone `@bedrock-rbx/core` -- upgrades the package-structure
   question from "neutral/deferred" to an active decision.
 - **1.0 planning begins.** The semver obligations deferred here (deprecation
   notice period, release cadence) must be decided before strict
@@ -248,9 +248,9 @@ construction time. `bedrock.deploy()` flushes the registry.
 - **ADR-007**: Open Cloud APIs Only -- unaffected. The constraint applies to
   Bedrock's own adapters. Third-party plugin authors are not bound by it.
 - **ADR-009**: Result Types Over Exceptions -- public API functions follow the
-  same `Promise<Result<T, E>>` convention established for `@bedrock/open-cloud`.
+  same `Promise<Result<T, E>>` convention established for `@bedrock-rbx/open-cloud`.
 - **ADR-011**: Simplified Architecture for Library Packages -- the five-criteria
-  opt-out check applies if a future `@bedrock/core` split is proposed. The CLI
+  opt-out check applies if a future `@bedrock-rbx/core` split is proposed. The CLI
   package (which contains deployment logic) continues to fail criteria 2, 3, 4,
   and 5 and must use FCIS + Ports.
 

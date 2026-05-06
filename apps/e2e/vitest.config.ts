@@ -1,4 +1,4 @@
-import { sharedConfig } from "@bedrock/vite-config";
+import { sharedConfig } from "@bedrock-rbx/vite-config";
 
 import { mergeConfig } from "vite-plus";
 
@@ -8,7 +8,7 @@ import { mergeConfig } from "vite-plus";
 // production source, only scenario tests, so forcing 100 % would block CI.
 //
 // The `ssr.resolve.conditions` override mirrors packages/bedrock/vite.config.ts:
-// workspace imports such as `@bedrock/core` must resolve via the `source`
+// workspace imports such as `@bedrock-rbx/core` must resolve via the `source`
 // export condition so tests run against TypeScript source rather than a
 // built `dist/` that only exists post-`pnpm build`.
 export default mergeConfig(sharedConfig, {

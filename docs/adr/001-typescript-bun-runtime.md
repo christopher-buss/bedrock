@@ -92,7 +92,7 @@ community.
 - pnpm workspaces if monorepo structure needed
 - Target: Bun 1.x stable
 - Binary distribution: GitHub Releases + Rokit/Foreman registries
-- npm distribution: `@bedrock/cli` package
+- npm distribution: `@bedrock-rbx/cli` package
 
 ## Related Decisions
 

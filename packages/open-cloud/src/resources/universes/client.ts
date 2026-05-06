@@ -286,7 +286,7 @@ interface UniverseThumbnailsHandle {
  * @example
  *
  * ```ts
- * import { UniversesClient } from "@bedrock/ocale/universes";
+ * import { UniversesClient } from "@bedrock-rbx/ocale/universes";
  *
  * const client = new UniversesClient({ apiKey: "your-key" });
  * expect(client).toBeInstanceOf(UniversesClient);

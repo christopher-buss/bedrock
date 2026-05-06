@@ -1,4 +1,4 @@
-import { sharedConfig } from "@bedrock/vite-config";
+import { sharedConfig } from "@bedrock-rbx/vite-config";
 
 import { mergeConfig } from "vite-plus";
 

@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import { readFile as nodeReadFile } from "node:fs/promises";
 import process from "node:process";

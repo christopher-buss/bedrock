@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import { createProg, type ProgDeps } from "#src/cli/index";
 import type { Config } from "#src/core/schema";

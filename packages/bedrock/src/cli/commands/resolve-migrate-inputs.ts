@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import type { MigratePromptPort } from "../migrate-prompt-port.ts";
 import { type MigrationSource, SUPPORTED_MIGRATION_SOURCES } from "../parse-migrate-options.ts";

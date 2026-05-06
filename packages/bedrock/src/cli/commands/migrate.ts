@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import { mkdir as nodeMkdir, writeFile as nodeWriteFile } from "node:fs/promises";
 import { dirname, join } from "node:path";

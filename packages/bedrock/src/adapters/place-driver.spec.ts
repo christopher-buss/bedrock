@@ -1,6 +1,6 @@
-import { ApiError } from "@bedrock/ocale";
-import { PlacesClient } from "@bedrock/ocale/places";
-import { createFakeHttpClient, validPlaceBody } from "@bedrock/ocale/testing";
+import { ApiError } from "@bedrock-rbx/ocale";
+import { PlacesClient } from "@bedrock-rbx/ocale/places";
+import { createFakeHttpClient, validPlaceBody } from "@bedrock-rbx/ocale/testing";
 
 import { placeCurrent, placeDesired } from "#tests/helpers/resources";
 import type { Except } from "type-fest";

@@ -52,7 +52,7 @@ export interface ProgDeps {
  * @param deps - Dependency overrides for command actions. Each command
  *   resolves its own defaults from any omitted slots.
  * @returns A configured sade program with the bedrock name, description, and
- *   the currently installed `@bedrock/core` version, plus the registered
+ *   the currently installed `@bedrock-rbx/core` version, plus the registered
  *   `deploy`, `diff`, and `migrate` commands.
  */
 export function createProg(deps: ProgDeps = {}): Sade {

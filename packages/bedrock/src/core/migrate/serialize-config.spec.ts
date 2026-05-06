@@ -20,13 +20,13 @@ function makeOptions(overrides?: Partial<SerializeConfigOptions>): SerializeConf
 
 describe(serializeConfig, () => {
 	describe("typescript output", () => {
-		it("should place the @bedrock/core/config defineConfig import at the top of the file", () => {
+		it("should place the @bedrock-rbx/core/config defineConfig import at the top of the file", () => {
 			expect.assertions(1);
 
 			const source = serializeConfig(makeOptions());
 
 			expect(
-				source.startsWith('import { defineConfig } from "@bedrock/core/config";\n'),
+				source.startsWith('import { defineConfig } from "@bedrock-rbx/core/config";\n'),
 			).toBeTrue();
 		});
 
@@ -200,7 +200,7 @@ describe(serializeConfig, () => {
 			const source = serializeConfig(makeOptions());
 
 			expect(source).toMatchInlineSnapshot(`
-			  "import { defineConfig } from "@bedrock/core/config";
+			  "import { defineConfig } from "@bedrock-rbx/core/config";
 
 			  export default defineConfig({
 			  	environments: {

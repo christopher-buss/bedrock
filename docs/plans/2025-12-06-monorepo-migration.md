@@ -150,7 +150,7 @@ git commit -m "chore: create monorepo directory structure with .gitkeep files"
 
 ---
 
-## Task 4: Create @bedrock/open-cloud package.json
+## Task 4: Create @bedrock-rbx/open-cloud package.json
 
 **Files:**
 
@@ -160,7 +160,7 @@ git commit -m "chore: create monorepo directory structure with .gitkeep files"
 
 ```json
 {
-	"name": "@bedrock/open-cloud",
+	"name": "@bedrock-rbx/open-cloud",
 	"version": "0.0.1",
 	"description": "Roblox Open Cloud API client",
 	"type": "module",
@@ -191,7 +191,7 @@ git commit -m "chore: create monorepo directory structure with .gitkeep files"
 
 ---
 
-## Task 5: Create @bedrock/open-cloud tsconfig.json
+## Task 5: Create @bedrock-rbx/open-cloud tsconfig.json
 
 **Files:**
 
@@ -213,7 +213,7 @@ git commit -m "chore: create monorepo directory structure with .gitkeep files"
 
 ---
 
-## Task 6: Create @bedrock/open-cloud tsdown.config.ts
+## Task 6: Create @bedrock-rbx/open-cloud tsdown.config.ts
 
 **Files:**
 
@@ -237,7 +237,7 @@ export default defineConfig({
 
 ---
 
-## Task 7: Create @bedrock/open-cloud entry point
+## Task 7: Create @bedrock-rbx/open-cloud entry point
 
 **Files:**
 
@@ -253,7 +253,7 @@ export {};
 
 ```bash
 git add packages/open-cloud/
-git commit -m "chore: add @bedrock/open-cloud package scaffold"
+git commit -m "chore: add @bedrock-rbx/open-cloud package scaffold"
 ```
 
 ---
@@ -289,7 +289,7 @@ git commit -m "chore: add @bedrock/open-cloud package scaffold"
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@bedrock/open-cloud": "workspace:*"
+		"@bedrock-rbx/open-cloud": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/bun": "catalog:types",
@@ -379,7 +379,7 @@ git commit -m "chore: add bedrock CLI package scaffold"
 
 ```json
 {
-	"name": "@bedrock/website",
+	"name": "@bedrock-rbx/website",
 	"version": "0.0.1",
 	"private": true,
 	"description": "Bedrock documentation website",
@@ -399,7 +399,7 @@ git commit -m "chore: add bedrock CLI package scaffold"
 
 ```bash
 git add apps/website/
-git commit -m "chore: add @bedrock/website package scaffold"
+git commit -m "chore: add @bedrock-rbx/website package scaffold"
 ```
 
 ---
@@ -414,7 +414,7 @@ git commit -m "chore: add @bedrock/website package scaffold"
 
 ```json
 {
-	"name": "@bedrock/e2e",
+	"name": "@bedrock-rbx/e2e",
 	"version": "0.0.1",
 	"private": true,
 	"description": "Bedrock E2E scenario tests",
@@ -423,7 +423,7 @@ git commit -m "chore: add @bedrock/website package scaffold"
 		"test": "vitest"
 	},
 	"dependencies": {
-		"@bedrock/open-cloud": "workspace:*",
+		"@bedrock-rbx/open-cloud": "workspace:*",
 		"bedrock": "workspace:*"
 	},
 	"devDependencies": {
@@ -436,7 +436,7 @@ git commit -m "chore: add @bedrock/website package scaffold"
 
 ```bash
 git add apps/e2e/
-git commit -m "chore: add @bedrock/e2e package scaffold"
+git commit -m "chore: add @bedrock-rbx/e2e package scaffold"
 ```
 
 ---
@@ -500,8 +500,8 @@ git commit -m "chore: update root package.json for monorepo"
 		"libReplacement": true,
 		"baseUrl": ".",
 		"paths": {
-			"@bedrock/open-cloud": ["packages/open-cloud/src"],
-			"@bedrock/open-cloud/*": ["packages/open-cloud/src/*"]
+			"@bedrock-rbx/open-cloud": ["packages/open-cloud/src"],
+			"@bedrock-rbx/open-cloud/*": ["packages/open-cloud/src/*"]
 		},
 		"types": ["bun"]
 	},
@@ -593,4 +593,4 @@ git commit -m "chore: complete monorepo migration (ADR-002)"
 - [ ] `pnpm build` builds all packages
 - [ ] `pnpm lint` passes
 - [ ] `pnpm typecheck` passes
-- [ ] `@bedrock/open-cloud` dependency works in CLI package
+- [ ] `@bedrock-rbx/open-cloud` dependency works in CLI package

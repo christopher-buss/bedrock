@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import { loadConfig as c12LoadConfig } from "c12";
 import { execFile } from "node:child_process";
@@ -65,7 +65,7 @@ interface LuauResolveResult {
  * @example
  *
  * ```ts
- * import { loadConfig } from "@bedrock/core";
+ * import { loadConfig } from "@bedrock-rbx/core";
  *
  * return loadConfig({
  *     configFile: "bedrock.staging.config.yaml",

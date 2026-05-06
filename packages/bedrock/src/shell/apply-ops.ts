@@ -1,4 +1,4 @@
-import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
+import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 
 import type { DistributedOmit } from "type-fest";
 
@@ -27,7 +27,7 @@ import type { ResourceKey } from "../types/ids.ts";
  * @example
  *
  * ```ts
- * import { asResourceKey, type ApplyError } from "@bedrock/core";
+ * import { asResourceKey, type ApplyError } from "@bedrock-rbx/core";
  *
  * function describe(err: ApplyError): string {
  *     switch (err.kind) {
@@ -108,7 +108,7 @@ type RawApplyError = DistributedOmit<ApplyError, "appliedSoFar">;
  *     asSha256Hex,
  *     type DriverRegistry,
  *     type Operation,
- * } from "@bedrock/core";
+ * } from "@bedrock-rbx/core";
  *
  * const registry: DriverRegistry = {
  *     gamePass: {

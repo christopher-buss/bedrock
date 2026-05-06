@@ -11,7 +11,7 @@ import {
   type DeveloperProductDesiredState,
   type ResourceOutputsByKind,
   type ResourceCurrentState,
-} from '@bedrock/core'
+} from '@bedrock-rbx/core'
 
 it('Example 1', () => {
   const pass: GamePassDesiredState = {

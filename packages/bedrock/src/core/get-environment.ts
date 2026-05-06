@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import process from "node:process";
 
@@ -28,7 +28,7 @@ export type GetEnvironmentError =
  * @example
  *
  * ```ts
- * import { getEnvironment } from "@bedrock/core";
+ * import { getEnvironment } from "@bedrock-rbx/core";
  *
  * const result = getEnvironment(["--env", "production"], () => undefined);
  *

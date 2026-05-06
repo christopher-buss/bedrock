@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import type { BedrockState, StateError } from "../core/state.ts";
 
@@ -13,7 +13,7 @@ import type { BedrockState, StateError } from "../core/state.ts";
  * @example
  *
  * ```ts
- * import type { BedrockState, StatePort } from "@bedrock/core";
+ * import type { BedrockState, StatePort } from "@bedrock-rbx/core";
  *
  * const store = new Map<string, BedrockState>();
  *

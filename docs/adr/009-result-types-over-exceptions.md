@@ -1,4 +1,4 @@
-# ADR-009: Result Types Over Exceptions in `@bedrock/open-cloud`
+# ADR-009: Result Types Over Exceptions in `@bedrock-rbx/open-cloud`
 
 **Date:** 2026-04-12 **Status:** Accepted
 
@@ -7,7 +7,7 @@ functional, api-design
 
 ## Context
 
-`@bedrock/open-cloud` is a standalone TypeScript HTTP client library for Roblox
+`@bedrock-rbx/open-cloud` is a standalone TypeScript HTTP client library for Roblox
 Open Cloud APIs. As a library with a public API surface, it defines the contract
 between SDK internals and all consumers (Bedrock CLI, third-party users).
 
@@ -30,7 +30,7 @@ question is whether errors appear in the return type or only at runtime.
 
 ## Decision
 
-`@bedrock/open-cloud` uses **discriminated union Result types** for all client
+`@bedrock-rbx/open-cloud` uses **discriminated union Result types** for all client
 method return values.
 
 ```typescript
@@ -41,7 +41,7 @@ export type Result<T, E = Error> = { data: T; success: true } | { err: E; succes
 Every SDK client method returns `Promise<Result<T, OpenCloudError>>`. Errors are
 never thrown from client methods — they are returned as `{ err, success: false }`.
 
-The `Result` type lives in `src/types.ts` within `@bedrock/open-cloud` itself
+The `Result` type lives in `src/types.ts` within `@bedrock-rbx/open-cloud` itself
 and is exported from the package root. No commitment is made to project-wide
 adoption; the Bedrock CLI and other packages decide their own error handling
 independently.
@@ -77,7 +77,7 @@ independently.
 - Project-wide adoption is intentionally deferred — the rest of the Bedrock
   project can decide independently
 - The `Result` type is exported; consumers who want to use it project-wide can
-  import it from `@bedrock/open-cloud`
+  import it from `@bedrock-rbx/open-cloud`
 
 ## Alternatives Considered
 

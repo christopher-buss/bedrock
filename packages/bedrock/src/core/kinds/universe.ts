@@ -1,5 +1,5 @@
-import type { Result } from "@bedrock/ocale";
-import type { SocialLink } from "@bedrock/ocale/universes";
+import type { Result } from "@bedrock-rbx/ocale";
+import type { SocialLink } from "@bedrock-rbx/ocale/universes";
 
 import { type } from "arktype";
 

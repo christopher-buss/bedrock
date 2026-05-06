@@ -2,7 +2,7 @@
 
 Bedrock is an Infrastructure-as-Code library for Roblox. You declare the
 resources you want. Bedrock reconciles them against the live state through
-[`@bedrock/ocale`](/ocale/guide/getting-started) and reports what changed.
+[`@bedrock-rbx/ocale`](/ocale/guide/getting-started) and reports what changed.
 
 This guide walks through the programmatic pipeline as of the first slice:
 `config → buildDesired → diff → applyOps`. The `bedrock` CLI binary and
@@ -113,7 +113,7 @@ compile-time-checked dispatch table: every `ResourceKind` must map to a
 driver or the registry fails to type-check.
 
 ```ts
-import { GamePassesClient } from "@bedrock/ocale/game-passes";
+import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 
 import { applyOps, type DriverRegistry } from "bedrock";
 
@@ -141,7 +141,7 @@ Pulumi behave.
 
 ## Handle the result
 
-Bedrock follows the same `Result` discipline as `@bedrock/ocale`: errors are
+Bedrock follows the same `Result` discipline as `@bedrock-rbx/ocale`: errors are
 returned, not thrown. Narrow on `result.success` to reach either the new
 current state or the error:
 
@@ -153,7 +153,7 @@ if (!result.success) {
 ```
 
 `result.err` is an [`OpenCloudError`](/ocale/guide/errors) re-exported from
-`@bedrock/ocale`; see the ocale error guide for the hierarchy and
+`@bedrock-rbx/ocale`; see the ocale error guide for the hierarchy and
 `instanceof` narrowing patterns.
 
 ## Reference

@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import type { StateError } from "./state.ts";
 
@@ -36,7 +36,7 @@ const ENVIRONMENT_NAME_PATTERN = new RegExp(ENV_NAME_PATTERN_SOURCE);
  * @example
  *
  * ```ts
- * import { validateEnvironmentName } from "@bedrock/core";
+ * import { validateEnvironmentName } from "@bedrock-rbx/core";
  *
  * const ok = validateEnvironmentName("production");
  * expect(ok.success).toBeTrue();

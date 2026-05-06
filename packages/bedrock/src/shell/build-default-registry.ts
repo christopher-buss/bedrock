@@ -1,8 +1,8 @@
-import type { Result } from "@bedrock/ocale";
-import { DeveloperProductsClient } from "@bedrock/ocale/developer-products";
-import { GamePassesClient } from "@bedrock/ocale/game-passes";
-import { PlacesClient } from "@bedrock/ocale/places";
-import { UniversesClient } from "@bedrock/ocale/universes";
+import type { Result } from "@bedrock-rbx/ocale";
+import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
+import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
+import { PlacesClient } from "@bedrock-rbx/ocale/places";
+import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
 import { createDeveloperProductDriver } from "../adapters/developer-product-driver.ts";
 import { createGamePassDriver } from "../adapters/game-pass-driver.ts";
@@ -53,7 +53,7 @@ interface AssembleRegistryInputs {
  * @example
  *
  * ```ts
- * import { buildDefaultRegistry } from "@bedrock/core";
+ * import { buildDefaultRegistry } from "@bedrock-rbx/core";
  *
  * const registry = buildDefaultRegistry({
  *     config: {

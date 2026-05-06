@@ -1,4 +1,4 @@
-# ADR-010: SDK-Managed Rate Limiting and Retry in `@bedrock/open-cloud`
+# ADR-010: SDK-Managed Rate Limiting and Retry in `@bedrock-rbx/open-cloud`
 
 **Date:** 2026-04-12 **Status:** Accepted
 
@@ -7,7 +7,7 @@ idempotency, observability
 
 ## Context
 
-`@bedrock/open-cloud` is a standalone TypeScript HTTP client for Roblox Open
+`@bedrock-rbx/open-cloud` is a standalone TypeScript HTTP client for Roblox Open
 Cloud APIs, consumed primarily by the Bedrock CLI shell layer.
 
 Deploying a game through the Bedrock CLI may issue dozens of concurrent
