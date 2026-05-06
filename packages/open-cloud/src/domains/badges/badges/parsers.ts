@@ -1,5 +1,6 @@
 import type { HttpResponse } from "../../../client/types.ts";
 import { ApiError } from "../../../errors/api-error.ts";
+import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import type { Result } from "../../../types.ts";
 import type { Badge, BadgeAwarder, BadgeStatistics } from "./types.ts";
@@ -68,8 +69,8 @@ function hasRequiredPrimitiveFields(body: Record<string, unknown>): boolean {
 		typeof body["enabled"] === "boolean" &&
 		typeof body["iconImageId"] === "number" &&
 		typeof body["displayIconImageId"] === "number" &&
-		typeof body["created"] === "string" &&
-		typeof body["updated"] === "string"
+		isDateTimeString(body["created"]) &&
+		isDateTimeString(body["updated"])
 	);
 }
 
