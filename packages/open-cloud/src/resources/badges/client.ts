@@ -12,6 +12,14 @@ import type {
 	CreateBadgeParameters,
 	UpdateBadgeParameters,
 } from "../../domains/badges/badges/types.ts";
+import { buildUploadIconRequest as buildLocaleUploadIconRequest } from "../../domains/game-internationalization/badge-icon/builders.ts";
+import type { UploadBadgeIconLocalizationParameters } from "../../domains/game-internationalization/badge-icon/types.ts";
+import { buildUpdateRequest as buildLocaleNameDescRequest } from "../../domains/game-internationalization/badge-name-description/builders.ts";
+import {
+	LOCALIZATION_OPERATION_LIMIT,
+	LOCALIZATION_REQUIRED_SCOPES,
+} from "../../domains/game-internationalization/badge-name-description/operations.ts";
+import type { UpdateBadgeNameDescriptionParameters } from "../../domains/game-internationalization/badge-name-description/types.ts";
 import { buildUploadIconRequest } from "../../domains/publish/badge-icon/builders.ts";
 import {
 	UPLOAD_ICON_OPERATION_LIMIT,
@@ -59,6 +67,61 @@ const UPLOAD_ICON_SPEC = makeSpec<UploadBadgeIconParameters, undefined>({
 	requiredScopes: UPLOAD_ICON_REQUIRED_SCOPES,
 });
 
+const UPDATE_NAME_DESCRIPTION_SPEC = makeSpec<UpdateBadgeNameDescriptionParameters, undefined>({
+	buildRequest: (parameters) => okRequest(buildLocaleNameDescRequest(parameters)),
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: LOCALIZATION_OPERATION_LIMIT,
+	parse: parseEmptyResponse,
+	requiredScopes: LOCALIZATION_REQUIRED_SCOPES,
+});
+
+const UPLOAD_LOCALIZED_ICON_SPEC = makeSpec<UploadBadgeIconLocalizationParameters, undefined>({
+	buildRequest: (parameters) => okRequest(buildLocaleUploadIconRequest(parameters)),
+	methodDefaults: CREATE_METHOD_DEFAULTS,
+	methodKind: "create",
+	operationLimit: LOCALIZATION_OPERATION_LIMIT,
+	parse: parseEmptyResponse,
+	requiredScopes: LOCALIZATION_REQUIRED_SCOPES,
+});
+
+interface BadgeLocalizationHandle {
+	/**
+	 * Updates the per-locale display name and/or description registered against
+	 * a badge. Either `name`, `description`, or both may be supplied; omitted
+	 * fields are not forwarded so the server leaves the existing value for
+	 * that locale untouched. Mirrors the upstream `200 OK` echo body as
+	 * `undefined` data.
+	 *
+	 * @param parameters - Badge and language identifiers plus the optional
+	 *   replacement values.
+	 * @param options - Optional per-request overrides.
+	 * @returns A success {@link Result} with no payload, or the
+	 *   {@link OpenCloudError} that caused the request to fail.
+	 */
+	updateNameDescription: (
+		parameters: UpdateBadgeNameDescriptionParameters,
+		options?: RequestOptions,
+	) => Promise<Result<undefined, OpenCloudError>>;
+	/**
+	 * Uploads or replaces the per-locale icon for a badge. A subsequent
+	 * upload for the same `(badgeId, languageCode)` pair replaces the
+	 * existing icon for that locale. Does not retry on 5xx so a duplicate
+	 * upload cannot be created if the server fails mid-write. Source-language
+	 * icons remain on {@link BadgesClient.uploadIcon}.
+	 *
+	 * @param parameters - Badge and language identifiers plus the image bytes
+	 *   to upload.
+	 * @param options - Optional per-request overrides.
+	 * @returns A success {@link Result} with no payload, or the
+	 *   {@link OpenCloudError} that caused the request to fail.
+	 */
+	uploadIcon: (
+		parameters: UploadBadgeIconLocalizationParameters,
+		options?: RequestOptions,
+	) => Promise<Result<undefined, OpenCloudError>>;
+}
+
 /**
  * Public client for the Roblox Open Cloud Badges API. Covers programmatic
  * badge creation under a universe, partial updates of badge configuration
@@ -83,6 +146,17 @@ export class BadgesClient {
 	readonly #inner: ResourceClient;
 
 	/**
+	 * Operation Group exposing per-locale localization Operations
+	 * (`updateNameDescription`, `uploadIcon`) backed by the
+	 * `legacy-game-internationalization` domain. Source-language values
+	 * remain on {@link BadgesClient.update} and
+	 * {@link BadgesClient.uploadIcon}; methods on this group set per-locale
+	 * overlays on top. Shares the parent client's HTTP, rate-limit, and
+	 * retry plumbing.
+	 */
+	public readonly localization: BadgeLocalizationHandle;
+
+	/**
 	 * Creates a new {@link BadgesClient}. Configuration is frozen on
 	 * construction; per-request overrides are accepted on each method.
 	 *
@@ -90,6 +164,7 @@ export class BadgesClient {
 	 */
 	constructor(options: OpenCloudClientOptions) {
 		this.#inner = new ResourceClient(options);
+		this.localization = createLocalizationHandle(this.#inner);
 	}
 
 	/**
@@ -143,4 +218,15 @@ export class BadgesClient {
 	): Promise<Result<undefined, OpenCloudError>> {
 		return this.#inner.execute({ options, parameters, spec: UPLOAD_ICON_SPEC });
 	}
+}
+
+function createLocalizationHandle(inner: ResourceClient): BadgeLocalizationHandle {
+	return {
+		async updateNameDescription(parameters, options) {
+			return inner.execute({ options, parameters, spec: UPDATE_NAME_DESCRIPTION_SPEC });
+		},
+		async uploadIcon(parameters, options) {
+			return inner.execute({ options, parameters, spec: UPLOAD_LOCALIZED_ICON_SPEC });
+		},
+	};
 }
