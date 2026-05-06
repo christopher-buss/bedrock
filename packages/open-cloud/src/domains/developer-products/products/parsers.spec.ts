@@ -166,12 +166,9 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.err.statusCode).toBe(502);
 	});
 
-	it.for([
-		{ field: "createdTimestamp" as const },
-		{ field: "updatedTimestamp" as const },
-	])(
-		"should return an ApiError when $field is a string that does not parse to a Date",
-		({ field }) => {
+	it.for(["createdTimestamp", "updatedTimestamp"] as const)(
+		"should return an ApiError when %s is a string that does not parse to a Date",
+		(field) => {
 			expect.assertions(2);
 
 			const body = validDeveloperProductBody({ [field]: "not-a-date" });

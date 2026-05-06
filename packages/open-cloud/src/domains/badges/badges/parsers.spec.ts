@@ -313,12 +313,9 @@ describe(parseBadgeResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it.for([
-		{ field: "created" as const },
-		{ field: "updated" as const },
-	])(
-		"should return an ApiError when $field is a string that does not parse to a Date",
-		({ field }) => {
+	it.for(["created", "updated"] as const)(
+		"should return an ApiError when %s is a string that does not parse to a Date",
+		(field) => {
 			expect.assertions(2);
 
 			const body = validBadgeBody({ [field]: "not-a-date" });
