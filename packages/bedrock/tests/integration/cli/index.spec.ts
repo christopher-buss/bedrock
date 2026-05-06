@@ -133,7 +133,7 @@ describe("cli program factory", () => {
 			expect(captured).toContain("Reconcile");
 			expect(captured).toContain("Target environment");
 			expect(captured).toContain("Config file path");
-			expect(captured).toContain("ROBLOX_API_KEY");
+			expect(captured).toContain("BEDROCK_API_KEY");
 			expect(captured).toContain("GITHUB_TOKEN");
 		}
 	});
@@ -153,7 +153,7 @@ describe("cli program factory", () => {
 			expect(captured).toContain("Preview the operations");
 			expect(captured).toContain("Target environment");
 			expect(captured).toContain("Config file path");
-			expect(captured).toContain("ROBLOX_API_KEY");
+			expect(captured).toContain("BEDROCK_API_KEY");
 			expect(captured).toContain("GITHUB_TOKEN");
 		}
 	});

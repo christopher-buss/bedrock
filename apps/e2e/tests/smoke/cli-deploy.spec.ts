@@ -10,7 +10,7 @@ import { assert, describe, expect, it } from "vitest";
 import { pruneStateGist } from "../helpers/prune-state-gist.ts";
 
 const TOKEN = process.env["GITHUB_TOKEN"];
-const API_KEY = process.env["ROBLOX_API_KEY"];
+const API_KEY = process.env["BEDROCK_API_KEY"];
 const GIST_ID = process.env["BEDROCK_TEST_GIST_ID"];
 const PLACE_ID_ENV = process.env["ROBLOX_TEST_PLACE_ID"];
 const UNIVERSE_ID_ENV = process.env["ROBLOX_TEST_UNIVERSE_ID"];

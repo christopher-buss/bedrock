@@ -22,12 +22,12 @@ async function neverReadFile(): Promise<Uint8Array> {
 }
 
 describe(buildDefaultRegistry, () => {
-	it("should construct gamePass, place, and universe drivers when ROBLOX_API_KEY and config.universe.universeId are present", () => {
+	it("should construct gamePass, place, and universe drivers when BEDROCK_API_KEY and config.universe.universeId are present", () => {
 		expect.assertions(3);
 
 		const result = buildDefaultRegistry({
 			config: configWithUniverse(),
-			getEnv: environmentFrom({ ROBLOX_API_KEY: "rbx-test" }),
+			getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test" }),
 			readFile: neverReadFile,
 		});
 
@@ -38,7 +38,7 @@ describe(buildDefaultRegistry, () => {
 		expect(result.data.universe).toBeObject();
 	});
 
-	it("should return Err(missingCredential) when ROBLOX_API_KEY is unset", () => {
+	it("should return Err(missingCredential) when BEDROCK_API_KEY is unset", () => {
 		expect.assertions(3);
 
 		const result = buildDefaultRegistry({
@@ -51,7 +51,7 @@ describe(buildDefaultRegistry, () => {
 		assert(result.err.kind === "missingCredential");
 
 		expect(result.err.kind).toBe("missingCredential");
-		expect(result.err.variable).toBe("ROBLOX_API_KEY");
+		expect(result.err.variable).toBe("BEDROCK_API_KEY");
 		expect(result.err.purpose).toBe("registry");
 	});
 
@@ -60,7 +60,7 @@ describe(buildDefaultRegistry, () => {
 
 		const result = buildDefaultRegistry({
 			config: { environments: { production: {} }, state: STATE_CONFIG },
-			getEnv: environmentFrom({ ROBLOX_API_KEY: "rbx-test" }),
+			getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test" }),
 			readFile: neverReadFile,
 		});
 
@@ -72,7 +72,7 @@ describe(buildDefaultRegistry, () => {
 		expect(result.err.kind).toBe("registryConfigMissing");
 	});
 
-	it("should not invoke getEnv beyond ROBLOX_API_KEY on the happy path", () => {
+	it("should not invoke getEnv beyond BEDROCK_API_KEY on the happy path", () => {
 		expect.assertions(2);
 
 		const reads: Array<string> = [];
@@ -80,14 +80,14 @@ describe(buildDefaultRegistry, () => {
 			config: configWithUniverse(),
 			getEnv: (name) => {
 				reads.push(name);
-				return name === "ROBLOX_API_KEY" ? "rbx-test" : undefined;
+				return name === "BEDROCK_API_KEY" ? "rbx-test" : undefined;
 			},
 			readFile: neverReadFile,
 		});
 
 		assert(result.success);
 
-		expect(reads).toStrictEqual(["ROBLOX_API_KEY"]);
+		expect(reads).toStrictEqual(["BEDROCK_API_KEY"]);
 		expect(result.data).toBeObject();
 	});
 });

@@ -46,7 +46,7 @@ interface AssembleRegistryInputs {
 
 /**
  * Construct the default `DriverRegistry` from `config.universe.universeId`
- * and `ROBLOX_API_KEY`. Reads the API key via the injected `getEnv` seam
+ * and `BEDROCK_API_KEY`. Reads the API key via the injected `getEnv` seam
  * and surfaces `missingCredential` or `registryConfigMissing` as typed
  * Results instead of throwing.
  *
@@ -75,7 +75,7 @@ interface AssembleRegistryInputs {
 export function buildDefaultRegistry(
 	deps: BuildDefaultRegistryDeps,
 ): Result<DriverRegistry, MissingCredentialError | RegistryConfigError> {
-	const apiKey = deps.getEnv("ROBLOX_API_KEY");
+	const apiKey = deps.getEnv("BEDROCK_API_KEY");
 	if (apiKey === undefined) {
 		return missingApiKey();
 	}
@@ -100,7 +100,7 @@ function missingApiKey(): Result<DriverRegistry, MissingCredentialError> {
 		err: {
 			kind: "missingCredential",
 			purpose: "registry",
-			variable: "ROBLOX_API_KEY",
+			variable: "BEDROCK_API_KEY",
 		},
 		success: false,
 	};

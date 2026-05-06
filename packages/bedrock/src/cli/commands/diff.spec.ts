@@ -290,7 +290,7 @@ describe(diffCommand, () => {
 			const deps = makeDeps({ loadConfig, previewDiff });
 
 			await diffCommand(deps)({
-				"api-key": "ROBLOX_OVERRIDE",
+				"api-key": "BEDROCK_OVERRIDE",
 				"env": "production",
 				"github-token": "GH_OVERRIDE",
 			});
@@ -302,7 +302,7 @@ describe(diffCommand, () => {
 
 			const [call] = firstCall;
 
-			expect(call.getEnv?.("ROBLOX_API_KEY")).toBe("ROBLOX_OVERRIDE");
+			expect(call.getEnv?.("BEDROCK_API_KEY")).toBe("BEDROCK_OVERRIDE");
 			expect(call.getEnv?.("GITHUB_TOKEN")).toBe("GH_OVERRIDE");
 			expect(call.getEnv?.("UNRELATED_VAR")).toBe("from-process-unrelated");
 		} finally {
@@ -313,7 +313,7 @@ describe(diffCommand, () => {
 	it("should overlay each credential flag only on its named slot, not the other", async () => {
 		expect.assertions(3);
 
-		vi.stubEnv("ROBLOX_API_KEY", "from-process-roblox");
+		vi.stubEnv("BEDROCK_API_KEY", "from-process-bedrock");
 		vi.stubEnv("GITHUB_TOKEN", "from-process-github");
 
 		try {
@@ -321,14 +321,14 @@ describe(diffCommand, () => {
 			const previewDiff = fakePreview([preview("production", [])]);
 			const deps = makeDeps({ loadConfig, previewDiff });
 
-			await diffCommand(deps)({ "api-key": "FLAG_ROBLOX", "env": "production" });
+			await diffCommand(deps)({ "api-key": "FLAG_BEDROCK", "env": "production" });
 
 			const firstCall = vi.mocked(previewDiff).mock.calls[0];
 			assert(firstCall !== undefined);
 
 			const [call] = firstCall;
 
-			expect(call.getEnv?.("ROBLOX_API_KEY")).toBe("FLAG_ROBLOX");
+			expect(call.getEnv?.("BEDROCK_API_KEY")).toBe("FLAG_BEDROCK");
 			expect(call.getEnv?.("GITHUB_TOKEN")).toBe("from-process-github");
 			expect(call.getEnv?.("UNRELATED_VAR")).toBeUndefined();
 		} finally {
@@ -339,7 +339,7 @@ describe(diffCommand, () => {
 	it("should fall back to process.env when neither --api-key nor --github-token is supplied", async () => {
 		expect.assertions(2);
 
-		vi.stubEnv("ROBLOX_API_KEY", "process-roblox");
+		vi.stubEnv("BEDROCK_API_KEY", "process-bedrock");
 		vi.stubEnv("GITHUB_TOKEN", "process-github");
 
 		try {
@@ -354,7 +354,7 @@ describe(diffCommand, () => {
 
 			const [call] = firstCall;
 
-			expect(call.getEnv?.("ROBLOX_API_KEY")).toBe("process-roblox");
+			expect(call.getEnv?.("BEDROCK_API_KEY")).toBe("process-bedrock");
 			expect(call.getEnv?.("GITHUB_TOKEN")).toBe("process-github");
 		} finally {
 			vi.unstubAllEnvs();
