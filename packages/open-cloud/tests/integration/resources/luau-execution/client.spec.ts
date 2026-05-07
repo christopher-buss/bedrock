@@ -34,4 +34,36 @@ describe(LuauExecutionClient, () => {
 			);
 		});
 	});
+
+	describe("tasks.submit at a specific version", () => {
+		it("should POST to the version URL when versionId is supplied", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validInProgressTaskBody({
+					path: "universes/123/places/456/versions/789/luau-execution-session-tasks/task-2",
+				}),
+				status: 200,
+			});
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.tasks.submit({
+				placeId: "456",
+				script: "return 1",
+				universeId: "123",
+				versionId: "789",
+			});
+
+			assert(result.success);
+
+			expect(result.data.ref.versionId).toBe("789");
+			expect(httpClient.requests[0]?.request.url).toBe(
+				"/cloud/v2/universes/123/places/456/versions/789/luau-execution-session-tasks",
+			);
+		});
+	});
 });
