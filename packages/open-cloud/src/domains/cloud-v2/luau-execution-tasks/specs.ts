@@ -32,8 +32,7 @@ function makeSpec<P>(
  * Per-method dispatch spec for submitting a Luau execution task at a
  * place's head version. Frozen at module scope so both the top-level
  * `LuauExecutionClient` and the `luauExecution` Operation Group on
- * `PlacesClient` share the same instance reference (asserted in the
- * conformance tests).
+ * `PlacesClient` share the same instance reference.
  */
 export const SUBMIT_HEAD_SPEC = makeSpec<SubmitAtHeadParameters>({
 	buildRequest: (parameters) => okRequest(buildSubmitAtHeadRequest(parameters)),

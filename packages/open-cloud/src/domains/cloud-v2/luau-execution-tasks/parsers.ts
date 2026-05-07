@@ -34,10 +34,8 @@ interface ParseVariantArgs {
 /**
  * Parses a successful Open Cloud `LuauExecutionSessionTask` response
  * body into the public {@link LuauExecutionTask} discriminated union.
- * Slice 6 handles every supported task state (in-progress, COMPLETE,
- * FAILED) over the simplest x-aep-resource path format
- * (`universes/{u}/places/{p}/luau-execution-session-tasks/{t}`); a
- * later slice widens the path-format coverage.
+ * Handles every supported task state (in-progress, COMPLETE, FAILED)
+ * across all four x-aep-resource path shapes the server returns.
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud
  *   API.
