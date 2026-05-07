@@ -11,8 +11,18 @@ import type {
 
 const MALFORMED_TASK_MESSAGE = "Malformed luau-execution-session-task response";
 
-const PATH_FORMAT_PLAIN_TASK =
-	/^universes\/(\d+)\/places\/(\d+)\/luau-execution-session-tasks\/([^/]+)$/;
+// Matches any of the four x-aep-resource path formats for a luau
+// execution session task.
+//
+// Capture groups:
+// 1. universeId
+// 2. placeId
+// 3. versionId (when `/versions/{v}/` segment is present, else undefined)
+// 4. sessionId (when `/luau-execution-sessions/{s}/tasks/...` branch matched)
+// 5. taskId (when `/luau-execution-sessions/.../tasks/{t}` branch matched)
+// 6. taskId (when `/luau-execution-session-tasks/{t}` branch matched)
+const PATH_PATTERN =
+	/^universes\/(\d+)\/places\/(\d+)(?:\/versions\/(\d+))?(?:\/luau-execution-sessions\/([^/]+)\/tasks\/([^/]+)|\/luau-execution-session-tasks\/([^/]+))$/;
 
 interface ParseVariantArgs {
 	readonly body: LuauExecutionTaskWire;
@@ -189,21 +199,16 @@ function parseFailedTask(args: ParseVariantArgs): Result<LuauExecutionTask, ApiE
 }
 
 function parseTaskRef(path: string): LuauExecutionTaskRef | undefined {
-	const match = PATH_FORMAT_PLAIN_TASK.exec(path);
+	const match = PATH_PATTERN.exec(path);
 	if (match === null) {
 		return undefined;
 	}
 
-	const [, universeId, placeId, taskId] = match;
+	const [, universeId, placeId, versionId, sessionId, sessionTaskId, plainTaskId] = match;
+	const taskId = sessionTaskId ?? plainTaskId;
 	if (universeId === undefined || placeId === undefined || taskId === undefined) {
 		return undefined;
 	}
 
-	return {
-		placeId,
-		sessionId: undefined,
-		taskId,
-		universeId,
-		versionId: undefined,
-	};
+	return { placeId, sessionId, taskId, universeId, versionId };
 }

@@ -263,6 +263,67 @@ describe(parseLuauExecutionTaskResponse, () => {
 		expect(result.err.message).toContain("Malformed");
 	});
 
+	describe("ref extraction across x-aep-resource path formats", () => {
+		it.for([
+			[
+				"format 1: no version, no session",
+				"universes/123/places/456/luau-execution-session-tasks/task-1",
+				{
+					placeId: "456",
+					sessionId: undefined,
+					taskId: "task-1",
+					universeId: "123",
+					versionId: undefined,
+				},
+			],
+			[
+				"format 2: with version, no session",
+				"universes/123/places/456/versions/789/luau-execution-session-tasks/task-1",
+				{
+					placeId: "456",
+					sessionId: undefined,
+					taskId: "task-1",
+					universeId: "123",
+					versionId: "789",
+				},
+			],
+			[
+				"format 3: no version, with session",
+				"universes/123/places/456/luau-execution-sessions/session-1/tasks/task-1",
+				{
+					placeId: "456",
+					sessionId: "session-1",
+					taskId: "task-1",
+					universeId: "123",
+					versionId: undefined,
+				},
+			],
+			[
+				"format 4: with version and session",
+				"universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
+				{
+					placeId: "456",
+					sessionId: "session-1",
+					taskId: "task-1",
+					universeId: "123",
+					versionId: "789",
+				},
+			],
+		] as const)("should extract ref from %s", ([, path, expected]) => {
+			expect.assertions(1);
+
+			const result = parseLuauExecutionTaskResponse({
+				body: validInProgressBody({ path }),
+				headers: {},
+				status: 200,
+			});
+
+			assert(result.success);
+
+			expect(result.data.ref).toStrictEqual(expected);
+		});
+	});
+
 	it("should return ApiError when the path does not match a supported x-aep-resource format", () => {
 		expect.assertions(1);
 
