@@ -29,7 +29,7 @@ describe(foldExperienceIcon, () => {
 	});
 
 	it("should emit one blocked warning per experienceIcon resource with a readable payload", () => {
-		expect.assertions(1);
+		expect.assertions(2);
 
 		const result = foldExperienceIcon([
 			experienceIcon("singleton", { filePath: "assets/marketing/icon.png" }),
@@ -48,6 +48,7 @@ describe(foldExperienceIcon, () => {
 				reason: BLOCKED_REASON,
 			},
 		]);
+		expect(result.entryFragment).toStrictEqual({});
 	});
 
 	it("should silently skip an experienceIcon resource whose inputs is not an object", () => {
