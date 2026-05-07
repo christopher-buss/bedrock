@@ -8,19 +8,15 @@ import type { MigrationWarning } from "../core/migrate/migration-report.ts";
 import { asSha256Hex, type ResourceKey, type Sha256Hex } from "../types/ids.ts";
 
 /**
- * Result of walking each environment's pass, product, and universe entries
- * and recomputing the SHA-256 digest of every locale-keyed icon path from
- * disk. `passHashesByEnvironment` and `productHashesByEnvironment` carry the
- * recomputed digests keyed by environment then by resource key; the inner
- * record mirrors `GamePassDesiredState.iconFileHashes` /
- * `DeveloperProductDesiredState.iconFileHashes`.
- * `universeHashByEnvironment` carries the per-environment digest of the
- * experience-icon singleton; environments without an experience icon, and
- * environments whose icon file could not be read, are absent from the map.
- * `warnings` carries one `kind: "ambiguous"` warning per resource whose icon
- * could not be read so the caller can fall back to the Mantle-recorded
- * hashes (passes / products) or omit the icon (universe) without losing the
- * diagnostic.
+ * Result of walking each environment's pass and product entries and
+ * recomputing the SHA-256 digest of every locale-keyed icon path from
+ * disk. `passHashesByEnvironment` and `productHashesByEnvironment` carry
+ * the recomputed digests keyed by environment then by resource key; the
+ * inner record mirrors `GamePassDesiredState.iconFileHashes` /
+ * `DeveloperProductDesiredState.iconFileHashes`. `warnings` carries one
+ * `kind: "ambiguous"` warning per resource whose icon could not be read so
+ * the caller can fall back to the Mantle-recorded hashes without losing
+ * the diagnostic.
  */
 export interface IconHashRecomputation {
 	/** Recomputed pass-icon digests keyed by environment then by pass key. */
@@ -33,12 +29,6 @@ export interface IconHashRecomputation {
 		string,
 		ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>
 	>;
-	/**
-	 * Recomputed experience-icon digest keyed by environment. Absent when
-	 * the environment has no experience-icon resource or when the icon file
-	 * could not be read.
-	 */
-	readonly universeHashByEnvironment: ReadonlyMap<string, Record<"en-us", Sha256Hex>>;
 	/** One ambiguous warning per resource whose icon could not be read. */
 	readonly warnings: ReadonlyArray<MigrationWarning>;
 }
@@ -87,30 +77,21 @@ interface WalkEnvironmentInputs {
 interface WalkEnvironmentResult {
 	readonly passHashes: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>;
 	readonly productHashes: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>;
-	readonly universeHash: Record<"en-us", Sha256Hex> | undefined;
-	readonly warnings: ReadonlyArray<MigrationWarning>;
-}
-
-interface UniverseIconWalkResult {
-	readonly hash: Record<"en-us", Sha256Hex> | undefined;
 	readonly warnings: ReadonlyArray<MigrationWarning>;
 }
 
 /**
- * Walk each environment's folded pass, product, and universe entries,
- * resolve the locale-keyed icon paths against `stateFileDirectory`, read
- * the bytes via the injected `readFile`, and compute the SHA-256 hex
- * digest. Files that cannot be read surface as `ambiguous`
- * `MigrationWarning`s with the environment-prefixed `mantlePath` and a
- * hint pointing at the resolved path; the caller carries the
- * Mantle-recorded hashes forward as a fallback for passes and products,
- * and omits the icon entirely on the universe resource. Products without
- * an icon partner and environments without an experience icon are
- * silently skipped.
+ * Walk each environment's folded pass and product entries, resolve the
+ * locale-keyed icon paths against `stateFileDirectory`, read the bytes via
+ * the injected `readFile`, and compute the SHA-256 hex digest. Files that
+ * cannot be read surface as `ambiguous` `MigrationWarning`s with the
+ * environment-prefixed `mantlePath` and a hint pointing at the resolved
+ * path; the caller carries the Mantle-recorded hashes forward as a
+ * fallback. Products without an icon partner are silently skipped.
  *
  * @param inputs - Per-environment fold results plus I/O dependencies.
- * @returns Per-environment recomputed pass, product, and universe hashes
- *   plus accumulated ambiguous warnings.
+ * @returns Per-environment recomputed pass and product hashes plus
+ *   accumulated ambiguous warnings.
  */
 export async function recomputeIconHashes(
 	inputs: RecomputeIconHashesInputs,
@@ -139,13 +120,6 @@ function collectRecomputation(
 		),
 		productHashesByEnvironment: new Map(
 			walked.map(([environment, walk]) => [environment, walk.productHashes]),
-		),
-		universeHashByEnvironment: new Map(
-			walked.flatMap(([environment, walk]) => {
-				return walk.universeHash === undefined
-					? []
-					: [[environment, walk.universeHash] as const];
-			}),
 		),
 		warnings: walked.flatMap(([, walk]) => walk.warnings),
 	};
@@ -215,30 +189,6 @@ async function walkIconEntries(inputs: IconWalkInputs): Promise<IconWalkResult> 
 	return { perKey, warnings };
 }
 
-async function walkUniverseIcon(inputs: WalkEnvironmentInputs): Promise<UniverseIconWalkResult> {
-	const iconPath = inputs.folded.universe?.entry.icon?.["en-us"];
-	if (iconPath === undefined) {
-		return { hash: undefined, warnings: [] };
-	}
-
-	const resolved = join(inputs.stateFileDirectory, iconPath);
-	const recomputed = await tryRecomputeHash(inputs.readFile, resolved);
-	if (recomputed === undefined) {
-		return {
-			hash: undefined,
-			warnings: [
-				buildAmbiguousIconWarning({
-					environmentName: inputs.environmentName,
-					mantlePath: "experienceIcon_singleton",
-					resolvedPath: resolved,
-				}),
-			],
-		};
-	}
-
-	return { hash: { "en-us": recomputed }, warnings: [] };
-}
-
 async function walkEnvironment(inputs: WalkEnvironmentInputs): Promise<WalkEnvironmentResult> {
 	const passWalk = await walkIconEntries({
 		entries: inputs.folded.passes.map(passWalkEntry),
@@ -252,16 +202,9 @@ async function walkEnvironment(inputs: WalkEnvironmentInputs): Promise<WalkEnvir
 		readFile: inputs.readFile,
 		stateFileDirectory: inputs.stateFileDirectory,
 	});
-	const universeWalk = await walkUniverseIcon({
-		environmentName: inputs.environmentName,
-		folded: inputs.folded,
-		readFile: inputs.readFile,
-		stateFileDirectory: inputs.stateFileDirectory,
-	});
 	return {
 		passHashes: passWalk.perKey,
 		productHashes: productWalk.perKey,
-		universeHash: universeWalk.hash,
-		warnings: [...passWalk.warnings, ...productWalk.warnings, ...universeWalk.warnings],
+		warnings: [...passWalk.warnings, ...productWalk.warnings],
 	};
 }

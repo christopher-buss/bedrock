@@ -62,7 +62,6 @@ function makeUniverseRegistry(httpClient: ReturnType<typeof createFakeHttpClient
 				httpClient,
 				sleep: async () => {},
 			}),
-			readFile: readFileNever,
 			universes: new UniversesClient({
 				apiKey: "test-key",
 				httpClient,

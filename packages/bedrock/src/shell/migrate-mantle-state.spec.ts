@@ -1016,7 +1016,7 @@ environments:
 		expect("passes" in result.data.config).toBeFalse();
 	});
 
-	it("should emit a kind: universe resource carrying the recomputed icon hash from disk", async () => {
+	it("should emit a blocked warning per experienceIcon resource and leave universe icon fields absent", async () => {
 		expect.assertions(4);
 
 		const files = new Map<string, "missing" | Uint8Array>([
@@ -1036,46 +1036,21 @@ environments:
 		const universe = state?.resources.find((resource) => resource.kind === "universe");
 		assert(universe?.kind === "universe");
 
-		expect(universe.icon).toStrictEqual({ "en-us": "assets/marketing/icon.png" });
-		expect(universe.iconFileHashes).toStrictEqual({ "en-us": ICON_BYTES_SHA256 });
-		expect(universe.outputs.iconAssetIds).toStrictEqual({ "en-us": "707633946677216" });
-		expect(
-			result.data.warnings.filter((warning) => warning.kind === "ambiguous"),
-		).toStrictEqual([]);
-	});
-
-	it("should emit an ambiguous warning and omit universe icon fields when the experienceIcon file is missing", async () => {
-		expect.assertions(5);
-
-		const files = new Map<string, "missing" | Uint8Array>([
-			[".mantle-state.yml", new TextEncoder().encode(UNIVERSE_ICON_YAML)],
-			[iconFsKey(".mantle-state.yml", "assets/marketing/icon.png"), "missing"],
-		]);
-
-		const result = await migrateMantleState({
-			configFormat: "typescript",
-			readFile: fakeFs(files),
-			stateFilePath: ".mantle-state.yml",
-		});
-
-		assert(result.success);
-
-		const state = result.data.statesByEnvironment["production"];
-		const universe = state?.resources.find((resource) => resource.kind === "universe");
-		assert(universe?.kind === "universe");
-
 		expect("icon" in universe).toBeFalse();
 		expect("iconFileHashes" in universe).toBeFalse();
 
-		const ambiguous = result.data.warnings.filter((warning) => warning.kind === "ambiguous");
+		const blocked = result.data.warnings.filter((warning) => warning.kind === "blocked");
 
-		expect(ambiguous).toHaveLength(1);
-
-		const [warning] = ambiguous;
-		assert(warning?.kind === "ambiguous");
-
-		expect(warning.mantlePath).toBe("production.experienceIcon_singleton");
-		expect(warning.hint).toContain(iconFsKey(".mantle-state.yml", "assets/marketing/icon.png"));
+		expect(blocked).toStrictEqual([
+			{
+				kind: "blocked",
+				mantlePath: "production.experienceIcon_singleton",
+				reason: "Open Cloud has no route to set a universe's source-language game icon; configure it via the Roblox creator portal.",
+			},
+		]);
+		expect(
+			result.data.warnings.filter((warning) => warning.kind === "ambiguous"),
+		).toStrictEqual([]);
 	});
 
 	it("should recompute icon hashes for products with icons", async () => {
