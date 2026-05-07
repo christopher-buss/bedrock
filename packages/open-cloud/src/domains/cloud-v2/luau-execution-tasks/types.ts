@@ -72,3 +72,37 @@ export interface GetParameters {
 	 */
 	readonly view?: "BASIC" | "FULL";
 }
+
+/**
+ * Discriminated variant carrying every state in which the task has not
+ * yet produced output or an error: queued for execution, currently
+ * executing, or cancelled by the caller.
+ */
+export interface InProgressTask extends LuauExecutionTaskBase {
+	/** Discriminator: the task is queued, processing, or cancelled. */
+	readonly state: "CANCELLED" | "PROCESSING" | "QUEUED";
+}
+
+/**
+ * Public, discriminated representation of a Luau Execution session
+ * task. Later slices widen the union with COMPLETE (carrying typed
+ * `output.results`) and FAILED (carrying typed `error.code` and
+ * `error.message`) variants.
+ */
+export type LuauExecutionTask = InProgressTask;
+
+/**
+ * Common fields surfaced on every {@link LuauExecutionTask} variant.
+ * Variant-specific fields (`output` for COMPLETE, `error` for FAILED)
+ * live on the variants themselves.
+ */
+interface LuauExecutionTaskBase {
+	/** Timestamp when the task was created. */
+	readonly createdAt: Date;
+	/** Round-trip-safe reference to this task. */
+	readonly ref: LuauExecutionTaskRef;
+	/** Timestamp of the most recent state change. */
+	readonly updatedAt: Date;
+	/** Identifier of the user that owns the API key used to create this task. */
+	readonly user: string;
+}
