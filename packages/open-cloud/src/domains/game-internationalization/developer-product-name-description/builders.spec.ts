@@ -9,7 +9,7 @@ describe(buildUpdateRequest, () => {
 
 		const parameters = {
 			name: "Gem Pack",
-			languageCode: "en-us",
+			languageCode: "en_us",
 			productId: "12345",
 		} satisfies UpdateDeveloperProductNameDescriptionParameters;
 
@@ -23,14 +23,14 @@ describe(buildUpdateRequest, () => {
 
 		const parameters = {
 			name: "Gold Coin",
-			languageCode: "fr-fr",
+			languageCode: "fr_fr",
 			productId: "12345",
 		} satisfies UpdateDeveloperProductNameDescriptionParameters;
 
 		const request = buildUpdateRequest(parameters);
 
 		expect(request.url).toBe(
-			"/legacy-game-internationalization/v1/developer-products/12345/name-description/language-codes/fr-fr",
+			"/legacy-game-internationalization/v1/developer-products/12345/name-description/language-codes/fr_fr",
 		);
 	});
 
@@ -51,7 +51,7 @@ describe(buildUpdateRequest, () => {
 			expect.assertions(1);
 
 			const parameters = {
-				languageCode: "en-us",
+				languageCode: "en_us",
 				productId: "12345",
 				...(name === undefined ? {} : { name }),
 				...(description === undefined ? {} : { description }),
@@ -68,7 +68,7 @@ describe(buildUpdateRequest, () => {
 
 		const parameters = {
 			name: "Gem Pack",
-			languageCode: "en-us",
+			languageCode: "en_us",
 			productId: "12345",
 		} satisfies UpdateDeveloperProductNameDescriptionParameters;
 

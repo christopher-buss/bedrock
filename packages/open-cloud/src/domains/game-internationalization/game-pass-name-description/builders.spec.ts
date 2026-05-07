@@ -10,7 +10,7 @@ describe(buildUpdateRequest, () => {
 		const parameters = {
 			name: "Epic Pass",
 			gamePassId: "12345",
-			languageCode: "en-us",
+			languageCode: "en_us",
 		} satisfies UpdateGamePassNameDescriptionParameters;
 
 		const request = buildUpdateRequest(parameters);
@@ -24,13 +24,13 @@ describe(buildUpdateRequest, () => {
 		const parameters = {
 			name: "Epic Pass FR",
 			gamePassId: "12345",
-			languageCode: "fr-fr",
+			languageCode: "fr_fr",
 		} satisfies UpdateGamePassNameDescriptionParameters;
 
 		const request = buildUpdateRequest(parameters);
 
 		expect(request.url).toBe(
-			"/legacy-game-internationalization/v1/game-passes/12345/name-description/language-codes/fr-fr",
+			"/legacy-game-internationalization/v1/game-passes/12345/name-description/language-codes/fr_fr",
 		);
 	});
 
@@ -56,7 +56,7 @@ describe(buildUpdateRequest, () => {
 
 			const parameters = {
 				gamePassId: "12345",
-				languageCode: "en-us",
+				languageCode: "en_us",
 				...(name === undefined ? {} : { name }),
 				...(description === undefined ? {} : { description }),
 			} satisfies UpdateGamePassNameDescriptionParameters;
@@ -73,7 +73,7 @@ describe(buildUpdateRequest, () => {
 		const parameters = {
 			name: "Epic Pass",
 			gamePassId: "12345",
-			languageCode: "en-us",
+			languageCode: "en_us",
 		} satisfies UpdateGamePassNameDescriptionParameters;
 
 		const request = buildUpdateRequest(parameters);

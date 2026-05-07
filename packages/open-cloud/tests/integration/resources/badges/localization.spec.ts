@@ -30,7 +30,7 @@ describe(BadgesClient, () => {
 				const result = await client.localization.updateNameDescription({
 					name: "First Goal",
 					badgeId: "12345",
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				assert(result.success);
@@ -55,12 +55,12 @@ describe(BadgesClient, () => {
 					name: "First Goal",
 					badgeId: "12345",
 					description: "Awarded on first login.",
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				expect(httpClient.requests[0]?.request.method).toBe("PATCH");
 				expect(httpClient.requests[0]?.request.url).toBe(
-					"/legacy-game-internationalization/v1/badges/12345/name-description/language-codes/fr-fr",
+					"/legacy-game-internationalization/v1/badges/12345/name-description/language-codes/fr_fr",
 				);
 				expect(httpClient.requests[0]?.request.body).toStrictEqual({
 					name: "First Goal",
@@ -83,7 +83,7 @@ describe(BadgesClient, () => {
 				const result = await client.localization.updateNameDescription({
 					name: "First Goal",
 					badgeId: "12345",
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				assert(result.success);
@@ -104,7 +104,7 @@ describe(BadgesClient, () => {
 				const result = await client.localization.updateNameDescription({
 					name: "First Goal",
 					badgeId: "12345",
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				assert(!result.success);
@@ -130,7 +130,7 @@ describe(BadgesClient, () => {
 				const result = await client.localization.updateNameDescription({
 					name: "First Goal",
 					badgeId: "12345",
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				assert(!result.success);
@@ -154,7 +154,7 @@ describe(BadgesClient, () => {
 				const result = await client.localization.uploadIcon({
 					badgeId: "12345",
 					image: new Uint8Array([1, 2, 3]),
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				assert(result.success);
@@ -175,12 +175,12 @@ describe(BadgesClient, () => {
 				await client.localization.uploadIcon({
 					badgeId: "12345",
 					image: new Uint8Array([1, 2, 3]),
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				expect(httpClient.requests[0]?.request.method).toBe("POST");
 				expect(httpClient.requests[0]?.request.url).toBe(
-					"/legacy-game-internationalization/v1/badges/12345/icons/language-codes/fr-fr",
+					"/legacy-game-internationalization/v1/badges/12345/icons/language-codes/fr_fr",
 				);
 				expect(httpClient.requests[0]?.request.body).toBeInstanceOf(FormData);
 			});
@@ -200,7 +200,7 @@ describe(BadgesClient, () => {
 				const result = await client.localization.uploadIcon({
 					badgeId: "12345",
 					image: new Uint8Array([1, 2, 3]),
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				assert(!result.success);
@@ -222,7 +222,7 @@ describe(BadgesClient, () => {
 				const result = await client.localization.uploadIcon({
 					badgeId: "12345",
 					image: new Uint8Array([1, 2, 3]),
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				assert(!result.success);
@@ -256,12 +256,12 @@ describe(BadgesClient, () => {
 				await client.localization.updateNameDescription({
 					name: "First Goal",
 					badgeId: "12345",
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 				await client.localization.uploadIcon({
 					badgeId: "12345",
 					image: new Uint8Array([1, 2, 3]),
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				expect(httpClient.requests).toHaveLength(2);

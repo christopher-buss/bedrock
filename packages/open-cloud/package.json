@@ -41,6 +41,10 @@
 			"source": "./src/resources/game-passes/index.ts",
 			"default": "./dist/game-passes.mjs"
 		},
+		"./locales": {
+			"source": "./src/locales/index.ts",
+			"default": "./dist/locales.mjs"
+		},
 		"./package.json": "./package.json",
 		"./places": {
 			"source": "./src/resources/places/index.ts",
@@ -62,6 +66,7 @@
 	"scripts": {
 		"build": "vp pack",
 		"dev": "vp pack --watch",
+		"refresh-locales": "bun scripts/fetch-locales.ts",
 		"refresh-openapi": "bun scripts/fetch-openapi.ts",
 		"test": "vp test",
 		"typecheck": "tsgo --noEmit"
@@ -92,6 +97,7 @@
 			"./badges": "./dist/badges.mjs",
 			"./developer-products": "./dist/developer-products.mjs",
 			"./game-passes": "./dist/game-passes.mjs",
+			"./locales": "./dist/locales.mjs",
 			"./package.json": "./package.json",
 			"./places": "./dist/places.mjs",
 			"./universes": "./dist/universes.mjs"

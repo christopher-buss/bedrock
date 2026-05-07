@@ -82,7 +82,7 @@ describe("UpdateGamePassNameDescriptionParameters", () => {
 	it("should accept identifiers without name or description", () => {
 		const parameters: UpdateGamePassNameDescriptionParameters = {
 			gamePassId: "12345",
-			languageCode: "fr-fr",
+			languageCode: "fr_fr",
 		};
 
 		expectTypeOf(parameters).toExtend<UpdateGamePassNameDescriptionParameters>();
@@ -93,7 +93,7 @@ describe("UpdateGamePassNameDescriptionParameters", () => {
 			name: "Epic Pass",
 			description: "Unlocks epic stuff",
 			gamePassId: "12345",
-			languageCode: "fr-fr",
+			languageCode: "fr_fr",
 		};
 
 		expectTypeOf(parameters).toExtend<UpdateGamePassNameDescriptionParameters>();

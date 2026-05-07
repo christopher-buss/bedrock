@@ -91,7 +91,7 @@ describe("UpdateBadgeNameDescriptionParameters", () => {
 	it("should accept identifiers without name or description", () => {
 		const parameters: UpdateBadgeNameDescriptionParameters = {
 			badgeId: "12345",
-			languageCode: "fr-fr",
+			languageCode: "fr_fr",
 		};
 
 		expectTypeOf(parameters).toExtend<UpdateBadgeNameDescriptionParameters>();
@@ -102,7 +102,7 @@ describe("UpdateBadgeNameDescriptionParameters", () => {
 			name: "Localized Goal",
 			badgeId: "12345",
 			description: "Awarded on first login.",
-			languageCode: "fr-fr",
+			languageCode: "fr_fr",
 		};
 
 		expectTypeOf(parameters).toExtend<UpdateBadgeNameDescriptionParameters>();

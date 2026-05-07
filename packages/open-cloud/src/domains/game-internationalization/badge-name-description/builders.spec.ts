@@ -10,7 +10,7 @@ describe(buildUpdateRequest, () => {
 		const parameters = {
 			name: "First Goal",
 			badgeId: "12345",
-			languageCode: "en-us",
+			languageCode: "en_us",
 		} satisfies UpdateBadgeNameDescriptionParameters;
 
 		const request = buildUpdateRequest(parameters);
@@ -24,13 +24,13 @@ describe(buildUpdateRequest, () => {
 		const parameters = {
 			name: "First Goal",
 			badgeId: "12345",
-			languageCode: "fr-fr",
+			languageCode: "fr_fr",
 		} satisfies UpdateBadgeNameDescriptionParameters;
 
 		const request = buildUpdateRequest(parameters);
 
 		expect(request.url).toBe(
-			"/legacy-game-internationalization/v1/badges/12345/name-description/language-codes/fr-fr",
+			"/legacy-game-internationalization/v1/badges/12345/name-description/language-codes/fr_fr",
 		);
 	});
 
@@ -56,7 +56,7 @@ describe(buildUpdateRequest, () => {
 
 			const parameters = {
 				badgeId: "12345",
-				languageCode: "en-us",
+				languageCode: "en_us",
 				...(name === undefined ? {} : { name }),
 				...(description === undefined ? {} : { description }),
 			} satisfies UpdateBadgeNameDescriptionParameters;
@@ -73,7 +73,7 @@ describe(buildUpdateRequest, () => {
 		const parameters = {
 			name: "First Goal",
 			badgeId: "12345",
-			languageCode: "en-us",
+			languageCode: "en_us",
 		} satisfies UpdateBadgeNameDescriptionParameters;
 
 		const request = buildUpdateRequest(parameters);

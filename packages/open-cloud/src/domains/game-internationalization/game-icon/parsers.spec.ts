@@ -20,7 +20,7 @@ describe(parseIconListResponse, () => {
 			{
 				imageId: "12345",
 				imageUrl: "https://t1.rbxcdn.com/icon/12345",
-				languageCode: "en-us",
+				languageCode: "en_us",
 				state: "Approved",
 			},
 		]);
@@ -32,9 +32,9 @@ describe(parseIconListResponse, () => {
 		const result = parseIconListResponse({
 			body: validIconListBody({
 				data: [
-					validLocalizedIcon({ imageId: "1", languageCode: "en-us" }),
-					validLocalizedIcon({ imageId: "2", languageCode: "fr-fr" }),
-					validLocalizedIcon({ imageId: "3", languageCode: "es-es" }),
+					validLocalizedIcon({ imageId: "1", languageCode: "en_us" }),
+					validLocalizedIcon({ imageId: "2", languageCode: "fr_fr" }),
+					validLocalizedIcon({ imageId: "3", languageCode: "es_es" }),
 				],
 			}),
 			headers: {},
@@ -44,9 +44,9 @@ describe(parseIconListResponse, () => {
 		assert(result.success);
 
 		expect(result.data.map((entry) => entry.languageCode)).toStrictEqual([
-			"en-us",
-			"fr-fr",
-			"es-es",
+			"en_us",
+			"fr_fr",
+			"es_es",
 		]);
 	});
 
@@ -145,11 +145,11 @@ describe(parseIconListResponse, () => {
 		{ badEntry: "null", label: "an entry is JSON null" },
 		{ badEntry: '"plain string"', label: "an entry is not an object" },
 		{
-			badEntry: '{ "imageUrl": "u", "languageCode": "en-us", "state": "Approved" }',
+			badEntry: '{ "imageUrl": "u", "languageCode": "en_us", "state": "Approved" }',
 			label: "an entry is missing imageId",
 		},
 		{
-			badEntry: '{ "imageId": "1", "languageCode": "en-us", "state": "Approved" }',
+			badEntry: '{ "imageId": "1", "languageCode": "en_us", "state": "Approved" }',
 			label: "an entry is missing imageUrl",
 		},
 		{
@@ -157,17 +157,17 @@ describe(parseIconListResponse, () => {
 			label: "an entry is missing languageCode",
 		},
 		{
-			badEntry: '{ "imageId": "1", "imageUrl": "u", "languageCode": "en-us" }',
+			badEntry: '{ "imageId": "1", "imageUrl": "u", "languageCode": "en_us" }',
 			label: "an entry is missing state",
 		},
 		{
 			badEntry:
-				'{ "imageId": 1, "imageUrl": "u", "languageCode": "en-us", "state": "Approved" }',
+				'{ "imageId": 1, "imageUrl": "u", "languageCode": "en_us", "state": "Approved" }',
 			label: "imageId has the wrong type",
 		},
 		{
 			badEntry:
-				'{ "imageId": "1", "imageUrl": 2, "languageCode": "en-us", "state": "Approved" }',
+				'{ "imageId": "1", "imageUrl": 2, "languageCode": "en_us", "state": "Approved" }',
 			label: "imageUrl has the wrong type",
 		},
 		{
@@ -177,11 +177,11 @@ describe(parseIconListResponse, () => {
 		},
 		{
 			badEntry:
-				'{ "imageId": "1", "imageUrl": "u", "languageCode": "en-us", "state": "Unknown" }',
+				'{ "imageId": "1", "imageUrl": "u", "languageCode": "en_us", "state": "Unknown" }',
 			label: "state is not a recognized value",
 		},
 		{
-			badEntry: '{ "imageId": "1", "imageUrl": "u", "languageCode": "en-us", "state": 0 }',
+			badEntry: '{ "imageId": "1", "imageUrl": "u", "languageCode": "en_us", "state": 0 }',
 			label: "state has the wrong type",
 		},
 	])("should return an ApiError when $label", ({ badEntry }) => {

@@ -21,7 +21,7 @@ describe(UniversesClient, () => {
 
 				const result = await client.icon.upload({
 					image: new Uint8Array([1, 2, 3]),
-					languageCode: "en-us",
+					languageCode: "en_us",
 					universeId: "1",
 				});
 
@@ -42,13 +42,13 @@ describe(UniversesClient, () => {
 
 				await client.icon.upload({
 					image: new Uint8Array([1, 2, 3]),
-					languageCode: "en-us",
+					languageCode: "en_us",
 					universeId: "1",
 				});
 
 				expect(httpClient.requests[0]?.request.method).toBe("POST");
 				expect(httpClient.requests[0]?.request.url).toBe(
-					"/legacy-game-internationalization/v1/game-icon/games/1/language-codes/en-us",
+					"/legacy-game-internationalization/v1/game-icon/games/1/language-codes/en_us",
 				);
 			});
 
@@ -66,7 +66,7 @@ describe(UniversesClient, () => {
 
 				const result = await client.icon.upload({
 					image: new Uint8Array([1, 2, 3]),
-					languageCode: "en-us",
+					languageCode: "en_us",
 					universeId: "1",
 				});
 
@@ -89,7 +89,7 @@ describe(UniversesClient, () => {
 				});
 
 				const result = await client.icon.delete({
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 					universeId: "1",
 				});
 
@@ -108,11 +108,11 @@ describe(UniversesClient, () => {
 					sleep: createFakeSleep(),
 				});
 
-				await client.icon.delete({ languageCode: "fr-fr", universeId: "1" });
+				await client.icon.delete({ languageCode: "fr_fr", universeId: "1" });
 
 				expect(httpClient.requests[0]?.request.method).toBe("DELETE");
 				expect(httpClient.requests[0]?.request.url).toBe(
-					"/legacy-game-internationalization/v1/game-icon/games/1/language-codes/fr-fr",
+					"/legacy-game-internationalization/v1/game-icon/games/1/language-codes/fr_fr",
 				);
 			});
 
@@ -128,7 +128,7 @@ describe(UniversesClient, () => {
 					sleep: createFakeSleep(),
 				});
 
-				const result = await client.icon.delete({ languageCode: "fr-fr", universeId: "1" });
+				const result = await client.icon.delete({ languageCode: "fr_fr", universeId: "1" });
 
 				assert(result.success);
 
@@ -144,8 +144,8 @@ describe(UniversesClient, () => {
 				const httpClient = createFakeHttpClient().mockResponse({
 					body: validIconListBody({
 						data: [
-							validLocalizedIcon({ imageId: "1", languageCode: "en-us" }),
-							validLocalizedIcon({ imageId: "2", languageCode: "fr-fr" }),
+							validLocalizedIcon({ imageId: "1", languageCode: "en_us" }),
+							validLocalizedIcon({ imageId: "2", languageCode: "fr_fr" }),
 						],
 					}),
 					status: 200,
@@ -219,7 +219,7 @@ describe(UniversesClient, () => {
 
 				const result = await client.icon.upload({
 					image: new Uint8Array([1, 2, 3]),
-					languageCode: "en-us",
+					languageCode: "en_us",
 					universeId: "1",
 				});
 
@@ -241,7 +241,7 @@ describe(UniversesClient, () => {
 				});
 
 				const result = await client.icon.delete({
-					languageCode: "en-us",
+					languageCode: "en_us",
 					universeId: "1",
 				});
 

@@ -10,7 +10,7 @@ describe(buildUploadIconRequest, () => {
 		const parameters = {
 			gamePassId: "12345",
 			image: new Uint8Array([1, 2, 3]),
-			languageCode: "en-us",
+			languageCode: "en_us",
 		} satisfies UploadGamePassIconParameters;
 
 		const request = buildUploadIconRequest(parameters);
@@ -24,13 +24,13 @@ describe(buildUploadIconRequest, () => {
 		const parameters = {
 			gamePassId: "12345",
 			image: new Uint8Array([1, 2, 3]),
-			languageCode: "fr-fr",
+			languageCode: "fr_fr",
 		} satisfies UploadGamePassIconParameters;
 
 		const request = buildUploadIconRequest(parameters);
 
 		expect(request.url).toBe(
-			"/legacy-game-internationalization/v1/game-passes/12345/icons/language-codes/fr-fr",
+			"/legacy-game-internationalization/v1/game-passes/12345/icons/language-codes/fr_fr",
 		);
 	});
 
@@ -40,7 +40,7 @@ describe(buildUploadIconRequest, () => {
 		const parameters = {
 			gamePassId: "12345",
 			image: new Uint8Array([1, 2, 3]),
-			languageCode: "en-us",
+			languageCode: "en_us",
 		} satisfies UploadGamePassIconParameters;
 
 		const request = buildUploadIconRequest(parameters);
@@ -57,7 +57,7 @@ describe(buildUploadIconRequest, () => {
 		const parameters = {
 			gamePassId: "12345",
 			image,
-			languageCode: "en-us",
+			languageCode: "en_us",
 		} satisfies UploadGamePassIconParameters;
 
 		const request = buildUploadIconRequest(parameters);
@@ -78,7 +78,7 @@ describe(buildUploadIconRequest, () => {
 		const parameters = {
 			gamePassId: "12345",
 			image,
-			languageCode: "en-us",
+			languageCode: "en_us",
 		} satisfies UploadGamePassIconParameters;
 
 		const request = buildUploadIconRequest(parameters);

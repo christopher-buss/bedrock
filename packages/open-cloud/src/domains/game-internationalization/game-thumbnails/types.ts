@@ -1,3 +1,5 @@
+import type { RobloxLanguageCode, RobloxLocale } from "#src/locales/data.generated";
+
 /**
  * Result of uploading a localized experience thumbnail.
  */
@@ -14,8 +16,12 @@ export interface UploadedExperienceThumbnail {
 export interface UploadExperienceThumbnailParameters {
 	/** Image bytes to upload. PNG and JPEG are accepted by the server. */
 	readonly image: Blob | Uint8Array;
-	/** BCP-47 language code the thumbnail is being uploaded for (e.g. `en-us`). */
-	readonly languageCode: string;
+	/**
+	 * Roblox wire form the thumbnail is being uploaded for. Either the
+	 * Language form (e.g. `en`, `fil`, `zh-hans`) or the Locale form
+	 * (e.g. `en_us`, `pt_br`, `ar_001`) -- not BCP-47.
+	 */
+	readonly languageCode: RobloxLanguageCode | RobloxLocale;
 	/** Stringified ID of the universe whose carousel is being appended to. */
 	readonly universeId: string;
 }
@@ -26,8 +32,11 @@ export interface UploadExperienceThumbnailParameters {
 export interface DeleteExperienceThumbnailParameters {
 	/** Stringified media asset ID of the thumbnail to delete. */
 	readonly imageId: string;
-	/** BCP-47 language code of the thumbnail to delete. */
-	readonly languageCode: string;
+	/**
+	 * Roblox wire form of the thumbnail to delete. Either the Language
+	 * form (e.g. `en`) or the Locale form (e.g. `en_us`) -- not BCP-47.
+	 */
+	readonly languageCode: RobloxLanguageCode | RobloxLocale;
 	/** Stringified ID of the universe whose carousel is being modified. */
 	readonly universeId: string;
 }
@@ -37,8 +46,12 @@ export interface DeleteExperienceThumbnailParameters {
  * `orderedImageIds` describes the new display order from first to last.
  */
 export interface ReorderExperienceThumbnailsParameters {
-	/** BCP-47 language code of the carousel being reordered. */
-	readonly languageCode: string;
+	/**
+	 * Roblox wire form of the carousel being reordered. Either the
+	 * Language form (e.g. `en`) or the Locale form (e.g. `en_us`)
+	 * -- not BCP-47.
+	 */
+	readonly languageCode: RobloxLanguageCode | RobloxLocale;
 	/** Stringified media asset IDs in the desired display order. */
 	readonly orderedImageIds: ReadonlyArray<string>;
 	/** Stringified ID of the universe whose carousel is being reordered. */

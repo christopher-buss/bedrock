@@ -1,3 +1,5 @@
+import type { RobloxLanguageCode, RobloxLocale } from "#src/locales/data.generated";
+
 /**
  * Parameters for updating the per-locale name and/or description registered
  * against a game pass. Both `name` and `description` are optional; fields
@@ -11,6 +13,10 @@ export interface UpdateGamePassNameDescriptionParameters {
 	readonly description?: string;
 	/** Stringified ID of the game pass whose localization is being updated. */
 	readonly gamePassId: string;
-	/** BCP-47 language code being updated (e.g. `fr-fr`). */
-	readonly languageCode: string;
+	/**
+	 * Roblox wire form being updated. Either the Language form (e.g.
+	 * `en`, `fil`, `zh-hans`) or the Locale form (e.g. `en_us`, `pt_br`,
+	 * `ar_001`) -- not BCP-47.
+	 */
+	readonly languageCode: RobloxLanguageCode | RobloxLocale;
 }

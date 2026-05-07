@@ -1,3 +1,5 @@
+import type { RobloxLanguageCode, RobloxLocale } from "#src/locales/data.generated";
+
 /**
  * Parameters for updating the per-locale name and/or description registered
  * against a badge. Both `name` and `description` are optional; fields omitted
@@ -11,6 +13,10 @@ export interface UpdateBadgeNameDescriptionParameters {
 	readonly badgeId: string;
 	/** Replacement description for the supplied locale. */
 	readonly description?: string;
-	/** BCP-47 language code being updated (e.g. `fr-fr`). */
-	readonly languageCode: string;
+	/**
+	 * Roblox wire form being updated. Either the Language form (e.g.
+	 * `en`, `fil`, `zh-hans`) or the Locale form (e.g. `en_us`, `pt_br`,
+	 * `ar_001`) -- not BCP-47.
+	 */
+	readonly languageCode: RobloxLanguageCode | RobloxLocale;
 }

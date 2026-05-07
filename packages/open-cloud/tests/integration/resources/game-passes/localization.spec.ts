@@ -27,7 +27,7 @@ describe(GamePassesClient, () => {
 				const result = await client.localization.updateNameDescription({
 					name: "Epic Pass",
 					gamePassId: "12345",
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				assert(result.success);
@@ -52,12 +52,12 @@ describe(GamePassesClient, () => {
 					name: "Epic Pass",
 					description: "Unlocks epic stuff",
 					gamePassId: "12345",
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				expect(httpClient.requests[0]?.request.method).toBe("PATCH");
 				expect(httpClient.requests[0]?.request.url).toBe(
-					"/legacy-game-internationalization/v1/game-passes/12345/name-description/language-codes/fr-fr",
+					"/legacy-game-internationalization/v1/game-passes/12345/name-description/language-codes/fr_fr",
 				);
 				expect(httpClient.requests[0]?.request.body).toStrictEqual({
 					name: "Epic Pass",
@@ -80,7 +80,7 @@ describe(GamePassesClient, () => {
 				const result = await client.localization.updateNameDescription({
 					name: "Epic Pass",
 					gamePassId: "12345",
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				assert(result.success);
@@ -101,7 +101,7 @@ describe(GamePassesClient, () => {
 				const result = await client.localization.updateNameDescription({
 					name: "Epic Pass",
 					gamePassId: "12345",
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				assert(!result.success);
@@ -127,7 +127,7 @@ describe(GamePassesClient, () => {
 				const result = await client.localization.updateNameDescription({
 					name: "Epic Pass",
 					gamePassId: "12345",
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				assert(!result.success);
@@ -151,7 +151,7 @@ describe(GamePassesClient, () => {
 				const result = await client.localization.uploadIcon({
 					gamePassId: "12345",
 					image: new Uint8Array([1, 2, 3]),
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				assert(result.success);
@@ -172,12 +172,12 @@ describe(GamePassesClient, () => {
 				await client.localization.uploadIcon({
 					gamePassId: "12345",
 					image: new Uint8Array([1, 2, 3]),
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				expect(httpClient.requests[0]?.request.method).toBe("POST");
 				expect(httpClient.requests[0]?.request.url).toBe(
-					"/legacy-game-internationalization/v1/game-passes/12345/icons/language-codes/fr-fr",
+					"/legacy-game-internationalization/v1/game-passes/12345/icons/language-codes/fr_fr",
 				);
 				expect(httpClient.requests[0]?.request.body).toBeInstanceOf(FormData);
 			});
@@ -197,7 +197,7 @@ describe(GamePassesClient, () => {
 				const result = await client.localization.uploadIcon({
 					gamePassId: "12345",
 					image: new Uint8Array([1, 2, 3]),
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				assert(!result.success);
@@ -219,7 +219,7 @@ describe(GamePassesClient, () => {
 				const result = await client.localization.uploadIcon({
 					gamePassId: "12345",
 					image: new Uint8Array([1, 2, 3]),
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				assert(!result.success);
@@ -253,12 +253,12 @@ describe(GamePassesClient, () => {
 				await client.localization.updateNameDescription({
 					name: "Epic Pass",
 					gamePassId: "12345",
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 				await client.localization.uploadIcon({
 					gamePassId: "12345",
 					image: new Uint8Array([1, 2, 3]),
-					languageCode: "fr-fr",
+					languageCode: "fr_fr",
 				});
 
 				expect(httpClient.requests).toHaveLength(2);

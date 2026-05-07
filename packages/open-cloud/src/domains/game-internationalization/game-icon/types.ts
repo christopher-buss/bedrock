@@ -1,3 +1,5 @@
+import type { RobloxLanguageCode, RobloxLocale } from "#src/locales/data.generated";
+
 import type { GameIconState } from "./wire.ts";
 
 export type { GameIconState } from "./wire.ts";
@@ -10,8 +12,12 @@ export interface ExperienceIcon {
 	readonly imageId: string;
 	/** CDN URL the icon can be loaded from. */
 	readonly imageUrl: string;
-	/** BCP-47 language code the icon is registered against (e.g. `en-us`). */
-	readonly languageCode: string;
+	/**
+	 * Roblox wire form the icon is registered against. Either the
+	 * Language form (e.g. `en`, `fil`, `zh-hans`) or the Locale form
+	 * (e.g. `en_us`, `pt_br`, `ar_001`) -- not BCP-47.
+	 */
+	readonly languageCode: RobloxLanguageCode | RobloxLocale;
 	/** Moderation state of the icon. */
 	readonly state: GameIconState;
 }
@@ -24,8 +30,13 @@ export interface ExperienceIcon {
 export interface UploadExperienceIconParameters {
 	/** Image bytes to upload. PNG and JPEG are accepted by the server. */
 	readonly image: Blob | Uint8Array;
-	/** BCP-47 language code the icon is being uploaded for (e.g. `en-us`). */
-	readonly languageCode: string;
+	/**
+	 * Roblox wire form the icon is being uploaded for. Either the
+	 * Language form (e.g. `en`, `fil`, `zh-hans`) or the Locale form
+	 * (e.g. `en_us`, `pt_br`, `ar_001`) -- not BCP-47. The endpoint
+	 * rejects any other shape with `code 22` (Invalid language code).
+	 */
+	readonly languageCode: RobloxLanguageCode | RobloxLocale;
 	/** Stringified ID of the universe whose icon is being uploaded. */
 	readonly universeId: string;
 }
@@ -35,8 +46,12 @@ export interface UploadExperienceIconParameters {
  * for a given language.
  */
 export interface DeleteExperienceIconParameters {
-	/** BCP-47 language code of the icon to delete. */
-	readonly languageCode: string;
+	/**
+	 * Roblox wire form of the icon to delete. Either the Language form
+	 * (e.g. `en`, `fil`, `zh-hans`) or the Locale form (e.g. `en_us`,
+	 * `pt_br`, `ar_001`) -- not BCP-47.
+	 */
+	readonly languageCode: RobloxLanguageCode | RobloxLocale;
 	/** Stringified ID of the universe whose icon is being deleted. */
 	readonly universeId: string;
 }
