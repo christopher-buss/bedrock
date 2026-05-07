@@ -67,3 +67,68 @@ describe(LuauExecutionClient, () => {
 		});
 	});
 });
+
+describe(`${LuauExecutionClient.name} tasks.get`, () => {
+	it("should GET the maximal URL and parse the response into a task", async () => {
+		expect.assertions(2);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: validInProgressTaskBody({
+				path: "universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
+				state: "PROCESSING",
+			}),
+			status: 200,
+		});
+		const client = new LuauExecutionClient({
+			apiKey: "test-key",
+			httpClient,
+			sleep: createFakeSleep(),
+		});
+
+		const result = await client.tasks.get({
+			ref: {
+				placeId: "456",
+				sessionId: "session-1",
+				taskId: "task-1",
+				universeId: "123",
+				versionId: "789",
+			},
+		});
+
+		assert(result.success);
+
+		expect(result.data.state).toBe("PROCESSING");
+		expect(httpClient.requests[0]?.request.url).toBe(
+			"/cloud/v2/universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
+		);
+	});
+
+	it("should append ?view=FULL when view is FULL", async () => {
+		expect.assertions(1);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: validInProgressTaskBody({
+				path: "universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
+			}),
+			status: 200,
+		});
+		const client = new LuauExecutionClient({
+			apiKey: "test-key",
+			httpClient,
+			sleep: createFakeSleep(),
+		});
+
+		await client.tasks.get({
+			ref: {
+				placeId: "456",
+				sessionId: "session-1",
+				taskId: "task-1",
+				universeId: "123",
+				versionId: "789",
+			},
+			view: "FULL",
+		});
+
+		expect(httpClient.requests[0]?.request.url).toEndWith("?view=FULL");
+	});
+});
