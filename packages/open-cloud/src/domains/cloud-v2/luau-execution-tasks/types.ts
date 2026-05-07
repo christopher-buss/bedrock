@@ -37,3 +37,38 @@ export interface SubmitAtVersionParameters {
 	/** Stringified ID of the place version the script targets. */
 	readonly versionId: string;
 }
+
+/**
+ * Five-field reference to a Luau Execution session task. The parser
+ * extracts this from any of the four x-aep-resource `path` formats
+ * returned by the server, and the get builder consumes it to construct
+ * the maximal GET URL. `versionId` and `sessionId` are `undefined` when
+ * the response `path` did not include those segments.
+ */
+export interface LuauExecutionTaskRef {
+	/** Stringified place ID. */
+	readonly placeId: string;
+	/** Stringified luau-execution-session ID, when carried by the path. */
+	readonly sessionId?: string | undefined;
+	/** Stringified luau-execution-session-task ID. */
+	readonly taskId: string;
+	/** Stringified universe ID. */
+	readonly universeId: string;
+	/** Stringified place version ID, when carried by the path. */
+	readonly versionId?: string | undefined;
+}
+
+/**
+ * Caller-supplied input for fetching a Luau Execution task's current
+ * state.
+ */
+export interface GetParameters {
+	/** Reference to the task to fetch, typically returned by submit. */
+	readonly ref: LuauExecutionTaskRef;
+	/**
+	 * View controls how much of the task body the server returns. The
+	 * server defaults to BASIC (excludes `script`) when no view is sent;
+	 * `FULL` includes every field.
+	 */
+	readonly view?: "BASIC" | "FULL";
+}
