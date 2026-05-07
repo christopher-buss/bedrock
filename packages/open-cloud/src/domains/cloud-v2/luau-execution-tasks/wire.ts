@@ -56,6 +56,11 @@ export interface LuauExecutionTaskWire {
 	 * validator rejects it.
 	 */
 	readonly state: "CANCELLED" | "COMPLETE" | "FAILED" | "PROCESSING" | "QUEUED";
+	/**
+	 * Server-side duration string in `"<n>s"` form. Optional; when
+	 * absent, the server applies its 5-minute default.
+	 */
+	readonly timeout?: string | undefined;
 	/** ISO timestamp of the most recent state change. */
 	readonly updateTime: string;
 	/** Identifier of the user that owns the API key used to create this task. */

@@ -187,6 +187,67 @@ describe(parseLuauExecutionTaskResponse, () => {
 		});
 	});
 
+	describe("timeout roundtrip", () => {
+		it("should convert wire timeout '300s' to timeoutSeconds 300", () => {
+			expect.assertions(1);
+
+			const result = parseLuauExecutionTaskResponse({
+				body: validInProgressBody({ timeout: "300s" }),
+				headers: {},
+				status: 200,
+			});
+
+			assert(result.success);
+
+			expect(result.data.timeoutSeconds).toBe(300);
+		});
+
+		it("should surface timeoutSeconds as undefined when wire timeout is absent", () => {
+			expect.assertions(1);
+
+			const result = parseLuauExecutionTaskResponse({
+				body: validInProgressBody(),
+				headers: {},
+				status: 200,
+			});
+
+			assert(result.success);
+
+			expect(result.data.timeoutSeconds).toBeUndefined();
+		});
+
+		it.for(["300", "5m", "abc", ""] as const)(
+			"should reject a body whose wire timeout %s is not in <n>s form",
+			(timeout) => {
+				expect.assertions(1);
+
+				const result = parseLuauExecutionTaskResponse({
+					body: validInProgressBody({ timeout }),
+					headers: {},
+					status: 200,
+				});
+
+				assert(!result.success);
+
+				expect(result.err).toBeInstanceOf(ApiError);
+			},
+		);
+
+		it("should reject a body whose wire timeout is not a string", () => {
+			expect.assertions(1);
+
+			const result = parseLuauExecutionTaskResponse({
+				body: validInProgressBody({ timeout: 300 }),
+				headers: {},
+				status: 200,
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
+	});
+
 	it("should return ApiError when the wire state is STATE_UNSPECIFIED", () => {
 		expect.assertions(2);
 

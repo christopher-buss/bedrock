@@ -143,6 +143,12 @@ interface LuauExecutionTaskBase {
 	readonly createdAt: Date;
 	/** Round-trip-safe reference to this task. */
 	readonly ref: LuauExecutionTaskRef;
+	/**
+	 * Wall-clock execution limit in seconds, as supplied at submit time.
+	 * Surfaces `undefined` when the request did not set a timeout (the
+	 * server applies its 5-minute default in that case).
+	 */
+	readonly timeoutSeconds?: number | undefined;
 	/** Timestamp of the most recent state change. */
 	readonly updatedAt: Date;
 	/** Identifier of the user that owns the API key used to create this task. */

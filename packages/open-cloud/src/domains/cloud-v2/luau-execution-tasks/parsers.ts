@@ -18,6 +18,7 @@ interface ParseVariantArgs {
 	readonly body: LuauExecutionTaskWire;
 	readonly ref: LuauExecutionTaskRef;
 	readonly statusCode: number;
+	readonly timeoutSeconds: number | undefined;
 }
 
 /**
@@ -47,12 +48,14 @@ export function parseLuauExecutionTaskResponse(
 		return malformed(statusCode);
 	}
 
+	const timeoutSeconds = parseTimeoutSeconds(body.timeout);
+
 	if (body.state === "COMPLETE") {
-		return parseCompleteTask({ body, ref, statusCode });
+		return parseCompleteTask({ body, ref, statusCode, timeoutSeconds });
 	}
 
 	if (body.state === "FAILED") {
-		return parseFailedTask({ body, ref, statusCode });
+		return parseFailedTask({ body, ref, statusCode, timeoutSeconds });
 	}
 
 	return {
@@ -60,6 +63,7 @@ export function parseLuauExecutionTaskResponse(
 			createdAt: new Date(body.createTime),
 			ref,
 			state: body.state,
+			timeoutSeconds,
 			updatedAt: new Date(body.updateTime),
 			user: body.user,
 		},
@@ -115,8 +119,29 @@ function isLuauExecutionTaskWire(body: unknown): body is LuauExecutionTaskWire {
 		isAcceptedWireState(body["state"]) &&
 		typeof body["user"] === "string" &&
 		isOptionalOutputWire(body["output"]) &&
-		isOptionalErrorWire(body["error"])
+		isOptionalErrorWire(body["error"]) &&
+		isOptionalDurationWire(body["timeout"])
 	);
+}
+
+const DURATION_PATTERN = /^(\d+)s$/;
+
+function isOptionalDurationWire(value: unknown): value is string | undefined {
+	return value === undefined || (typeof value === "string" && DURATION_PATTERN.test(value));
+}
+
+function parseTimeoutSeconds(value: string | undefined): number | undefined {
+	if (value === undefined) {
+		return undefined;
+	}
+
+	const match = DURATION_PATTERN.exec(value);
+	const seconds = match?.[1];
+	if (seconds === undefined) {
+		return undefined;
+	}
+
+	return Number.parseInt(seconds, 10);
 }
 
 function malformed(statusCode: number): Result<LuauExecutionTask, ApiError> {
@@ -124,7 +149,7 @@ function malformed(statusCode: number): Result<LuauExecutionTask, ApiError> {
 }
 
 function parseCompleteTask(args: ParseVariantArgs): Result<LuauExecutionTask, ApiError> {
-	const { body, ref, statusCode } = args;
+	const { body, ref, statusCode, timeoutSeconds } = args;
 	if (body.output === undefined) {
 		return malformed(statusCode);
 	}
@@ -135,6 +160,7 @@ function parseCompleteTask(args: ParseVariantArgs): Result<LuauExecutionTask, Ap
 			output: { results: body.output.results },
 			ref,
 			state: "COMPLETE",
+			timeoutSeconds,
 			updatedAt: new Date(body.updateTime),
 			user: body.user,
 		},
@@ -143,7 +169,7 @@ function parseCompleteTask(args: ParseVariantArgs): Result<LuauExecutionTask, Ap
 }
 
 function parseFailedTask(args: ParseVariantArgs): Result<LuauExecutionTask, ApiError> {
-	const { body, ref, statusCode } = args;
+	const { body, ref, statusCode, timeoutSeconds } = args;
 	if (body.error === undefined) {
 		return malformed(statusCode);
 	}
@@ -154,6 +180,7 @@ function parseFailedTask(args: ParseVariantArgs): Result<LuauExecutionTask, ApiE
 			error: { code: body.error.code, message: body.error.message },
 			ref,
 			state: "FAILED",
+			timeoutSeconds,
 			updatedAt: new Date(body.updateTime),
 			user: body.user,
 		},
