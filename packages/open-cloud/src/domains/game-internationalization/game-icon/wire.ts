@@ -1,5 +1,3 @@
-import type { RobloxLanguageCode, RobloxLocale } from "#src/locales/data.generated";
-
 /**
  * Image moderation state returned alongside each localized icon.
  */
@@ -16,11 +14,13 @@ export interface GetGameIconResponseWire {
 	/** CDN URL the icon can be loaded from. */
 	readonly imageUrl: string;
 	/**
-	 * Roblox wire form the icon is registered against. Either the
-	 * Language form (e.g. `en`, `fil`, `zh-hans`) or the Locale form
-	 * (e.g. `en_us`, `pt_br`, `ar_001`) -- not BCP-47.
+	 * Roblox wire form the icon is registered against -- the Language
+	 * form (e.g. `en`, `fil`, `zh-hans`) or the Locale form (e.g.
+	 * `en_us`, `pt_br`, `ar_001`), not BCP-47. Typed as `string` rather
+	 * than the locale union because the API can return entries for
+	 * locales added after our last vendor refresh.
 	 */
-	readonly languageCode: RobloxLanguageCode | RobloxLocale;
+	readonly languageCode: string;
 	/** Moderation state of the icon. */
 	readonly state: GameIconState;
 }

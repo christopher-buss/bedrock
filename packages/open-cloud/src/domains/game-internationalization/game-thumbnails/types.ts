@@ -34,7 +34,8 @@ export interface DeleteExperienceThumbnailParameters {
 	readonly imageId: string;
 	/**
 	 * Roblox wire form of the thumbnail to delete. Either the Language
-	 * form (e.g. `en`) or the Locale form (e.g. `en_us`) -- not BCP-47.
+	 * form (e.g. `en`, `fil`, `zh-hans`) or the Locale form (e.g.
+	 * `en_us`, `pt_br`, `ar_001`) -- not BCP-47.
 	 */
 	readonly languageCode: RobloxLanguageCode | RobloxLocale;
 	/** Stringified ID of the universe whose carousel is being modified. */
@@ -48,8 +49,8 @@ export interface DeleteExperienceThumbnailParameters {
 export interface ReorderExperienceThumbnailsParameters {
 	/**
 	 * Roblox wire form of the carousel being reordered. Either the
-	 * Language form (e.g. `en`) or the Locale form (e.g. `en_us`)
-	 * -- not BCP-47.
+	 * Language form (e.g. `en`, `fil`, `zh-hans`) or the Locale form
+	 * (e.g. `en_us`, `pt_br`, `ar_001`) -- not BCP-47.
 	 */
 	readonly languageCode: RobloxLanguageCode | RobloxLocale;
 	/** Stringified media asset IDs in the desired display order. */

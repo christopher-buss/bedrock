@@ -40,13 +40,26 @@ interface VendoredEntry {
 	readonly nativeName: string;
 }
 
+function isUpstreamPayload(value: unknown): value is UpstreamPayload {
+	if (typeof value !== "object" || value === null || !("data" in value)) {
+		return false;
+	}
+
+	return Array.isArray(value.data);
+}
+
 async function fetchUpstream(): Promise<UpstreamPayload> {
 	const response = await fetch(UPSTREAM_URL);
 	if (!response.ok) {
 		throw new Error(`failed to fetch creator locales: ${String(response.status)}`);
 	}
 
-	return (await response.json()) as UpstreamPayload;
+	const raw = JSON.parse(await response.text());
+	if (!isUpstreamPayload(raw)) {
+		throw new Error("upstream creator-locales payload missing data array");
+	}
+
+	return raw;
 }
 
 function projectEntry(entry: UpstreamEntry): VendoredEntry {
@@ -143,8 +156,13 @@ async function refreshPinnedDate(): Promise<void> {
 	await Bun.write(README_PATH, updated);
 }
 
+function byLocaleAsc(a: { locale: { locale: string } }, b: { locale: { locale: string } }): number {
+	return a.locale.locale.localeCompare(b.locale.locale);
+}
+
 const upstream = await fetchUpstream();
-const entries = upstream.data.map(projectEntry);
-await Bun.write(VENDOR_JSON_PATH, `${JSON.stringify(upstream, undefined, "\t")}\n`);
+const sorted: UpstreamPayload = { data: [...upstream.data].sort(byLocaleAsc) };
+const entries = sorted.data.map(projectEntry);
+await Bun.write(VENDOR_JSON_PATH, `${JSON.stringify(sorted, undefined, "\t")}\n`);
 await Bun.write(GENERATED_TS_PATH, renderModule(entries));
 await refreshPinnedDate();
