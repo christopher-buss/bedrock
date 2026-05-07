@@ -46,11 +46,77 @@ describe(parseLuauExecutionTaskResponse, () => {
 		},
 	);
 
-	it("should return ApiError when the wire state is not one of the supported in-progress states", () => {
+	describe("with state COMPLETE", () => {
+		it("should parse a COMPLETE state with output.results into a CompleteTask", () => {
+			expect.assertions(2);
+
+			const result = parseLuauExecutionTaskResponse({
+				body: validInProgressBody({
+					output: { results: ["hello", 42, true] },
+					state: "COMPLETE",
+				}),
+				headers: {},
+				status: 200,
+			});
+
+			assert(result.success);
+			assert(result.data.state === "COMPLETE");
+
+			expect(result.data.state).toBe("COMPLETE");
+			expect(result.data.output.results).toStrictEqual(["hello", 42, true]);
+		});
+
+		it("should reject a COMPLETE response that is missing the output field", () => {
+			expect.assertions(1);
+
+			const result = parseLuauExecutionTaskResponse({
+				body: validInProgressBody({ state: "COMPLETE" }),
+				headers: {},
+				status: 200,
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
+
+		it("should reject a COMPLETE response whose output.results is not an array", () => {
+			expect.assertions(1);
+
+			const result = parseLuauExecutionTaskResponse({
+				body: validInProgressBody({
+					output: { results: "not-an-array" },
+					state: "COMPLETE",
+				}),
+				headers: {},
+				status: 200,
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
+
+		it("should reject a COMPLETE response whose output is not a record", () => {
+			expect.assertions(1);
+
+			const result = parseLuauExecutionTaskResponse({
+				body: validInProgressBody({ output: 123, state: "COMPLETE" }),
+				headers: {},
+				status: 200,
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
+	});
+
+	it("should return ApiError when the wire state is not yet supported (e.g. FAILED)", () => {
 		expect.assertions(2);
 
 		const result = parseLuauExecutionTaskResponse({
-			body: validInProgressBody({ state: "COMPLETE" }),
+			body: validInProgressBody({ state: "FAILED" }),
 			headers: {},
 			status: 200,
 		});

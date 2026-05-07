@@ -84,12 +84,28 @@ export interface InProgressTask extends LuauExecutionTaskBase {
 }
 
 /**
- * Public, discriminated representation of a Luau Execution session
- * task. Later slices widen the union with COMPLETE (carrying typed
- * `output.results`) and FAILED (carrying typed `error.code` and
- * `error.message`) variants.
+ * Discriminated variant carrying the script's return values. The
+ * server populates `output.results` with the Luau `return` values from
+ * the script run, serialized as JSON; entries that were not
+ * JSON-serializable (e.g., Roblox `Instance`s) appear as `null`.
  */
-export type LuauExecutionTask = InProgressTask;
+export interface CompleteTask extends LuauExecutionTaskBase {
+	/**
+	 * JSON projection of the script's return values, in order. The total
+	 * serialized size of this array is bounded by the server-enforced
+	 * 4 MB output limit.
+	 */
+	readonly output: { readonly results: ReadonlyArray<JSONValue> };
+	/** Discriminator: the task ran to completion and produced output. */
+	readonly state: "COMPLETE";
+}
+
+/**
+ * Public, discriminated representation of a Luau Execution session
+ * task. A later slice widens the union with FAILED (carrying typed
+ * `error.code` and `error.message`).
+ */
+export type LuauExecutionTask = CompleteTask | InProgressTask;
 
 /**
  * Common fields surfaced on every {@link LuauExecutionTask} variant.
