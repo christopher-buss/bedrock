@@ -101,11 +101,37 @@ export interface CompleteTask extends LuauExecutionTaskBase {
 }
 
 /**
- * Public, discriminated representation of a Luau Execution session
- * task. A later slice widens the union with FAILED (carrying typed
- * `error.code` and `error.message`).
+ * Discriminated variant carrying the categorical error code and a
+ * human-readable message describing the failure. The
+ * `ERROR_CODE_UNSPECIFIED` wire sentinel is rejected by the parser, so
+ * `code` is narrowed here to the four substantive error categories.
  */
-export type LuauExecutionTask = CompleteTask | InProgressTask;
+export interface FailedTask extends LuauExecutionTaskBase {
+	/** The categorical error code and message that caused the task to fail. */
+	readonly error: {
+		/**
+		 * `SCRIPT_ERROR` for unhandled Luau errors, `DEADLINE_EXCEEDED`
+		 * when the script outran its timeout, `OUTPUT_SIZE_LIMIT_EXCEEDED`
+		 * when the return values exceeded 4 MB, or `INTERNAL_ERROR` for
+		 * server-side faults.
+		 */
+		readonly code:
+			| "DEADLINE_EXCEEDED"
+			| "INTERNAL_ERROR"
+			| "OUTPUT_SIZE_LIMIT_EXCEEDED"
+			| "SCRIPT_ERROR";
+		/** Human-readable description of the failure. */
+		readonly message: string;
+	};
+	/** Discriminator: the task ran but failed before producing output. */
+	readonly state: "FAILED";
+}
+
+/**
+ * Public, discriminated representation of a Luau Execution session
+ * task. The variants are mutually exclusive on `state`.
+ */
+export type LuauExecutionTask = CompleteTask | FailedTask | InProgressTask;
 
 /**
  * Common fields surfaced on every {@link LuauExecutionTask} variant.

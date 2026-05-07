@@ -112,11 +112,86 @@ describe(parseLuauExecutionTaskResponse, () => {
 		});
 	});
 
-	it("should return ApiError when the wire state is not yet supported (e.g. FAILED)", () => {
+	describe("with state FAILED", () => {
+		it.for([
+			"DEADLINE_EXCEEDED",
+			"INTERNAL_ERROR",
+			"OUTPUT_SIZE_LIMIT_EXCEEDED",
+			"SCRIPT_ERROR",
+		] as const)("should parse a FAILED task whose error.code is %s", (code) => {
+			expect.assertions(3);
+
+			const result = parseLuauExecutionTaskResponse({
+				body: validInProgressBody({
+					error: { code, message: "the script blew up" },
+					state: "FAILED",
+				}),
+				headers: {},
+				status: 200,
+			});
+
+			assert(result.success);
+			assert(result.data.state === "FAILED");
+
+			expect(result.data.state).toBe("FAILED");
+			expect(result.data.error.code).toBe(code);
+			expect(result.data.error.message).toBe("the script blew up");
+		});
+
+		it("should reject a FAILED response that is missing the error field", () => {
+			expect.assertions(1);
+
+			const result = parseLuauExecutionTaskResponse({
+				body: validInProgressBody({ state: "FAILED" }),
+				headers: {},
+				status: 200,
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
+
+		it("should reject a FAILED response whose error.code is not one of the supported codes", () => {
+			expect.assertions(1);
+
+			const result = parseLuauExecutionTaskResponse({
+				body: validInProgressBody({
+					error: { code: "BOGUS", message: "x" },
+					state: "FAILED",
+				}),
+				headers: {},
+				status: 200,
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
+
+		it("should reject a FAILED response whose error.message is not a string", () => {
+			expect.assertions(1);
+
+			const result = parseLuauExecutionTaskResponse({
+				body: validInProgressBody({
+					error: { code: "SCRIPT_ERROR", message: 42 },
+					state: "FAILED",
+				}),
+				headers: {},
+				status: 200,
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
+	});
+
+	it("should return ApiError when the wire state is STATE_UNSPECIFIED", () => {
 		expect.assertions(2);
 
 		const result = parseLuauExecutionTaskResponse({
-			body: validInProgressBody({ state: "FAILED" }),
+			body: validInProgressBody({ state: "STATE_UNSPECIFIED" }),
 			headers: {},
 			status: 200,
 		});
