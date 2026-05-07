@@ -14,7 +14,7 @@ export interface UploadGamePassIconParameters {
 	/**
 	 * Roblox wire form the icon is being uploaded for. Either the
 	 * Language form (e.g. `en`, `fil`, `zh-hans`) or the Locale form
-	 * (e.g. `en_us`, `pt_br`, `ar_001`) -- not BCP-47.
+	 * (e.g. `en_us`, `pt_br`, `ar_001`).
 	 */
 	readonly languageCode: RobloxLanguageCode | RobloxLocale;
 }

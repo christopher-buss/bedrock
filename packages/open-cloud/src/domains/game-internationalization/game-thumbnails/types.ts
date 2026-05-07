@@ -19,7 +19,7 @@ export interface UploadExperienceThumbnailParameters {
 	/**
 	 * Roblox wire form the thumbnail is being uploaded for. Either the
 	 * Language form (e.g. `en`, `fil`, `zh-hans`) or the Locale form
-	 * (e.g. `en_us`, `pt_br`, `ar_001`) -- not BCP-47.
+	 * (e.g. `en_us`, `pt_br`, `ar_001`).
 	 */
 	readonly languageCode: RobloxLanguageCode | RobloxLocale;
 	/** Stringified ID of the universe whose carousel is being appended to. */
@@ -35,7 +35,7 @@ export interface DeleteExperienceThumbnailParameters {
 	/**
 	 * Roblox wire form of the thumbnail to delete. Either the Language
 	 * form (e.g. `en`, `fil`, `zh-hans`) or the Locale form (e.g.
-	 * `en_us`, `pt_br`, `ar_001`) -- not BCP-47.
+	 * `en_us`, `pt_br`, `ar_001`).
 	 */
 	readonly languageCode: RobloxLanguageCode | RobloxLocale;
 	/** Stringified ID of the universe whose carousel is being modified. */
@@ -50,7 +50,7 @@ export interface ReorderExperienceThumbnailsParameters {
 	/**
 	 * Roblox wire form of the carousel being reordered. Either the
 	 * Language form (e.g. `en`, `fil`, `zh-hans`) or the Locale form
-	 * (e.g. `en_us`, `pt_br`, `ar_001`) -- not BCP-47.
+	 * (e.g. `en_us`, `pt_br`, `ar_001`).
 	 */
 	readonly languageCode: RobloxLanguageCode | RobloxLocale;
 	/** Stringified media asset IDs in the desired display order. */

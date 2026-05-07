@@ -13,11 +13,9 @@ export interface ExperienceIcon {
 	/** CDN URL the icon can be loaded from. */
 	readonly imageUrl: string;
 	/**
-	 * Roblox wire form the icon is registered against -- the Language
-	 * form (e.g. `en`, `fil`, `zh-hans`) or the Locale form (e.g.
-	 * `en_us`, `pt_br`, `ar_001`), not BCP-47. Typed as `string` rather
-	 * than the locale union because the API can return entries for
-	 * locales added after our last vendor refresh.
+	 * Roblox wire form the icon is registered against. Either the
+	 * Language form (e.g. `en`, `fil`, `zh-hans`) or the Locale form
+	 * (e.g. `en_us`, `pt_br`, `ar_001`).
 	 */
 	readonly languageCode: string;
 	/** Moderation state of the icon. */
@@ -35,8 +33,7 @@ export interface UploadExperienceIconParameters {
 	/**
 	 * Roblox wire form the icon is being uploaded for. Either the
 	 * Language form (e.g. `en`, `fil`, `zh-hans`) or the Locale form
-	 * (e.g. `en_us`, `pt_br`, `ar_001`) -- not BCP-47. The endpoint
-	 * rejects any other shape with `code 22` (Invalid language code).
+	 * (e.g. `en_us`, `pt_br`, `ar_001`).
 	 */
 	readonly languageCode: RobloxLanguageCode | RobloxLocale;
 	/** Stringified ID of the universe whose icon is being uploaded. */
@@ -51,7 +48,7 @@ export interface DeleteExperienceIconParameters {
 	/**
 	 * Roblox wire form of the icon to delete. Either the Language form
 	 * (e.g. `en`, `fil`, `zh-hans`) or the Locale form (e.g. `en_us`,
-	 * `pt_br`, `ar_001`) -- not BCP-47.
+	 * `pt_br`, `ar_001`).
 	 */
 	readonly languageCode: RobloxLanguageCode | RobloxLocale;
 	/** Stringified ID of the universe whose icon is being deleted. */

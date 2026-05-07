@@ -14,11 +14,9 @@ export interface GetGameIconResponseWire {
 	/** CDN URL the icon can be loaded from. */
 	readonly imageUrl: string;
 	/**
-	 * Roblox wire form the icon is registered against -- the Language
-	 * form (e.g. `en`, `fil`, `zh-hans`) or the Locale form (e.g.
-	 * `en_us`, `pt_br`, `ar_001`), not BCP-47. Typed as `string` rather
-	 * than the locale union because the API can return entries for
-	 * locales added after our last vendor refresh.
+	 * Roblox wire form the icon is registered against. Either the
+	 * Language form (e.g. `en`, `fil`, `zh-hans`) or the Locale form
+	 * (e.g. `en_us`, `pt_br`, `ar_001`).
 	 */
 	readonly languageCode: string;
 	/** Moderation state of the icon. */
