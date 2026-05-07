@@ -39,7 +39,7 @@ export function extractErrorCode(body: unknown): string | undefined {
 		return undefined;
 	}
 
-	const errorCode: unknown = Reflect.get(body, "errorCode");
+	const errorCode = Reflect.get(body, "errorCode");
 	if (typeof errorCode === "string") {
 		return errorCode;
 	}
@@ -61,7 +61,7 @@ export function extractErrorMessage(body: unknown): string | undefined {
 		return undefined;
 	}
 
-	const message: unknown = Reflect.get(body, "message");
+	const message = Reflect.get(body, "message");
 	if (typeof message === "string") {
 		return message;
 	}
@@ -171,7 +171,7 @@ export function createFetchHttpClient(
 }
 
 function readLegacyErrorEntry(body: object): object | undefined {
-	const errors: unknown = Reflect.get(body, "errors");
+	const errors = Reflect.get(body, "errors");
 	if (!Array.isArray(errors)) {
 		return undefined;
 	}
@@ -190,7 +190,7 @@ function extractLegacyCode(body: object): string | undefined {
 		return undefined;
 	}
 
-	const code: unknown = Reflect.get(first, "code");
+	const code = Reflect.get(first, "code");
 	if (typeof code === "string") {
 		return code;
 	}
@@ -204,7 +204,7 @@ function extractLegacyMessage(body: object): string | undefined {
 		return undefined;
 	}
 
-	const message: unknown = Reflect.get(first, "message");
+	const message = Reflect.get(first, "message");
 	return typeof message === "string" ? message : undefined;
 }
 
