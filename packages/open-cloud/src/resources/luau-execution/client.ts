@@ -14,11 +14,43 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import { ResourceClient } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
 
-interface TasksHandle {
+/**
+ * Operation handle exposed by {@link LuauExecutionClient} as the
+ * `tasks` namespace. Provides `submit` to queue a Luau script and
+ * `get` to fetch a task's current state.
+ */
+export interface TasksHandle {
+	/**
+	 * Fetches the current state of a previously-submitted Luau
+	 * execution task. Uses idempotent retry semantics for both 429 and
+	 * 5xx.
+	 *
+	 * @param parameters - The task ref plus an optional `view` selector.
+	 * @param options - Optional per-request overrides (e.g. A different
+	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 * @returns A {@link Result} wrapping the parsed
+	 *   {@link LuauExecutionTask} or the {@link OpenCloudError} that
+	 *   caused the request to fail.
+	 */
 	get(
 		parameters: GetParameters,
 		options?: RequestOptions,
 	): Promise<Result<LuauExecutionTask, OpenCloudError>>;
+	/**
+	 * Submits a Luau script for execution against a place. Dispatches
+	 * to the head-version URL when `versionId` is omitted, or to the
+	 * specific-version URL when one is supplied. Both URL shapes share
+	 * one rate-limit queue and one required-scope set.
+	 *
+	 * @param parameters - The universe and place identifiers, the
+	 *   script to run, an optional `versionId`, and any other writable
+	 *   submit fields.
+	 * @param options - Optional per-request overrides (e.g. A different
+	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 * @returns A {@link Result} wrapping the parsed
+	 *   {@link LuauExecutionTask} or the {@link OpenCloudError} that
+	 *   caused the request to fail.
+	 */
 	submit(
 		parameters: SubmitAtHeadParameters | SubmitAtVersionParameters,
 		options?: RequestOptions,
