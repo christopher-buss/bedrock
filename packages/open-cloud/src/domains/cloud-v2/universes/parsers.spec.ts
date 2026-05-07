@@ -379,6 +379,21 @@ describe(parseUniverseResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
+		it.for(["createTime", "updateTime"] as const)(
+			"should reject a body whose %s is a string that does not parse to a Date",
+			(field) => {
+				expect.assertions(2);
+
+				const body = { ...validUniverseBody(), [field]: "not-a-date" };
+				const result = parseUniverseResponse({ body, headers: {}, status: 200 });
+
+				assert(!result.success);
+
+				expect(result.err).toBeInstanceOf(ApiError);
+				expect(result.err.message).toBe("Malformed universe response");
+			},
+		);
+
 		it("should reject a body whose privateServerPriceRobux is not a number", () => {
 			expect.assertions(1);
 
