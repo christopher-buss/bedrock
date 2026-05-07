@@ -7,7 +7,7 @@ export interface ApiErrorOptions extends ErrorOptions {
 	/** Optional machine-readable error code from the API. */
 	code?: string | undefined;
 	/** Parsed response body, when present. */
-	details?: unknown;
+	details?: JSONValue | undefined;
 	/** HTTP status code from the API response. */
 	statusCode: number;
 }
@@ -38,7 +38,7 @@ export interface ApiErrorOptions extends ErrorOptions {
  */
 export class ApiError extends OpenCloudError {
 	public readonly code: string | undefined;
-	public readonly details: unknown;
+	public readonly details: JSONValue | undefined;
 	public override readonly name: string = "ApiError";
 	public readonly statusCode: number;
 

@@ -226,7 +226,7 @@ function formatApiErrorMessage(parts: ApiErrorMessageParts): string {
 	return `${base}: ${message} (code ${code})`;
 }
 
-function createApiError(status: number, body: unknown): ApiError {
+function createApiError(status: number, body: JSONValue | undefined): ApiError {
 	const code = extractErrorCode(body);
 	const message = extractErrorMessage(body);
 	return new ApiError(formatApiErrorMessage({ code, message, status }), {
@@ -244,7 +244,9 @@ function createRateLimitError(response: Response): RateLimitError {
 	});
 }
 
-async function readResponseBody(response: Response): Promise<Result<unknown, OpenCloudError>> {
+async function readResponseBody(
+	response: Response,
+): Promise<Result<JSONValue | undefined, OpenCloudError>> {
 	try {
 		const text = await response.text();
 		return { data: text === "" ? undefined : JSON.parse(text), success: true };
