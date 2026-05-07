@@ -236,12 +236,6 @@ function createApiError(status: number, body: unknown): ApiError {
 	});
 }
 
-/**
- * Classifies a fetch `Response` into a typed `Result`.
- *
- * @param response - The raw fetch Response to classify.
- * @returns A Result containing an HttpResponse on success or an OpenCloudError on failure.
- */
 function createRateLimitError(response: Response): RateLimitError {
 	return new RateLimitError("Rate limited", {
 		retryAfterSeconds: parseRetryAfterSeconds(
@@ -262,6 +256,12 @@ async function readResponseBody(response: Response): Promise<Result<unknown, Ope
 	}
 }
 
+/**
+ * Classifies a fetch `Response` into a typed `Result`.
+ *
+ * @param response - The raw fetch Response to classify.
+ * @returns A Result containing an HttpResponse on success or an OpenCloudError on failure.
+ */
 async function classifyResponse(response: Response): Promise<Result<HttpResponse, OpenCloudError>> {
 	if (response.status === 429) {
 		return { err: createRateLimitError(response), success: false };
