@@ -152,12 +152,12 @@ describe(parseLuauExecutionTaskResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a FAILED response whose error.code is not one of the supported codes", () => {
+		it("should reject a FAILED response whose error.code is the ERROR_CODE_UNSPECIFIED sentinel", () => {
 			expect.assertions(1);
 
 			const result = parseLuauExecutionTaskResponse({
 				body: validInProgressBody({
-					error: { code: "BOGUS", message: "x" },
+					error: { code: "ERROR_CODE_UNSPECIFIED", message: "x" },
 					state: "FAILED",
 				}),
 				headers: {},
