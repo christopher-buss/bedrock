@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildSubmitAtHeadRequest } from "./builders.ts";
+import { buildSubmitAtHeadRequest, buildSubmitAtVersionRequest } from "./builders.ts";
 
 describe(buildSubmitAtHeadRequest, () => {
 	it("should produce a POST request targeting /cloud/v2/universes/{uid}/places/{pid}/luau-execution-session-tasks", () => {
@@ -40,5 +40,38 @@ describe(buildSubmitAtHeadRequest, () => {
 		});
 
 		expect(request.body).toStrictEqual({ script: "return 1", timeout: "300s" });
+	});
+});
+
+describe(buildSubmitAtVersionRequest, () => {
+	it("should produce a POST request targeting /cloud/v2/universes/{uid}/places/{pid}/versions/{vid}/luau-execution-session-tasks", () => {
+		expect.assertions(2);
+
+		const request = buildSubmitAtVersionRequest({
+			placeId: "456",
+			script: "return 1",
+			universeId: "123",
+			versionId: "789",
+		});
+
+		expect(request.method).toBe("POST");
+		expect(request.url).toBe(
+			"/cloud/v2/universes/123/places/456/versions/789/luau-execution-session-tasks",
+		);
+	});
+
+	it("should send the same JSON body and content-type header as the head-version variant", () => {
+		expect.assertions(2);
+
+		const request = buildSubmitAtVersionRequest({
+			placeId: "456",
+			script: "return 1",
+			timeoutSeconds: 300,
+			universeId: "123",
+			versionId: "789",
+		});
+
+		expect(request.body).toStrictEqual({ script: "return 1", timeout: "300s" });
+		expect(request.headers).toStrictEqual({ "content-type": "application/json" });
 	});
 });
