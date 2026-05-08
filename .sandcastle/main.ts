@@ -1,22 +1,25 @@
-// Parallel Planner with Review: two-phase orchestration loop
+// Parallel Planner with Design + Implement + Review: four-phase loop.
 //
-// This template drives a multi-phase workflow:
-//   Phase 1 (Plan):             An opus agent analyzes open issues, builds a
-//                               dependency graph, and outputs a <plan> JSON
-//                               listing unblocked issues with branch names.
-//   Phase 2 (Execute + Review): For each issue, a sandbox is created via
-//                               createSandbox(). The implementer runs first
-//                               (up to 100 iterations). If it produces
-//                               commits, a reviewer runs in the same sandbox
-//                               on the same branch (up to 5 iterations, to
-//                               leave room for CI fix-and-push cycles). All
-//                               issue pipelines run concurrently via
-//                               Promise.allSettled(). Implementers push their
-//                               branches and open PRs directly; there is no
-//                               local merge phase.
+//   Phase 1 (Plan):      An opus agent analyses open issues, builds a
+//                        dependency graph, and outputs a <plan> JSON listing
+//                        unblocked issues with branch names.
+//   Phase 2 (Design):    For each issue, an opus agent runs in the sandbox,
+//                        explores siblings and ADRs, and writes a semi-high-
+//                        level TDD plan to .sandcastle/plans/<id>.md
+//                        (gitignored). One iteration, no code changes.
+//   Phase 3 (Implement): A sonnet agent reads the plan and implements
+//                        RED+GREEN slices on the branch (up to 100
+//                        iterations). Does not push or open a PR.
+//   Phase 4 (Review):    An opus agent runs /simplify, reviews the diff
+//                        against the plan and project standards, fixes
+//                        anything it finds, then pushes the branch, opens
+//                        the PR with the sandcastle label, and watches CI
+//                        (up to 5 iterations to leave room for CI fix-and-
+//                        push cycles).
 //
-// The outer loop repeats up to MAX_ITERATIONS times so that newly unblocked
-// issues are picked up after each round of PRs.
+// All issue pipelines run concurrently via Promise.allSettled(), capped at
+// MAX_PARALLEL. The outer loop repeats up to MAX_ITERATIONS times so newly
+// unblocked issues are picked up after each round of PRs.
 //
 // Usage:
 //   npx tsx .sandcastle/main.ts
@@ -39,7 +42,17 @@ import { join } from "node:path";
 // Maximum number of plan→execute cycles before stopping.
 // Raise this if your backlog is large; lower it for a quick smoke-test run.
 const MAX_ITERATIONS = 10;
-const AGENT_MODEL = "claude-opus-4-7[1m]";
+const MAX_PARALLEL = 4;
+const THINKING_MODEL = "claude-opus-4-7[1m]";
+const AGENT_MODEL = "claude-sonnet-4-6";
+
+// Smart thinking model for the planner, designer, and reviewer phases.
+// effort "xhigh" is supported by Claude Opus 4.7's CLI but not yet typed
+// in sandcastle 0.5.10's ClaudeCodeOptions.effort union; the cast bypasses
+// the missing type without changing runtime behaviour.
+// cspell:ignore xhigh
+const thinkingAgent = sandcastle.claudeCode(THINKING_MODEL, { effort: "xhigh" as never });
+const implementerAgent = sandcastle.claudeCode(AGENT_MODEL);
 
 // Sandcastle starts the container with --user $hostUid:$hostGid (e.g.
 // 501:20 on macOS); that UID has no entry in the image's /etc/passwd, so
@@ -59,7 +72,7 @@ const REGISTER_HOST_UID =
 // addons, and a `pnpm install` inside a linux-arm64 container rewrites them
 // to linux binaries, which would then break host tooling (eslint's
 // oxc-parser, etc.) that reads the same paths via the bind-mount.
-const copyToWorktree: Array<string> = [];
+const copyToWorktree: Array<string> = [".env"];
 
 // Shared pnpm content store on the host. Sandcastle bind-mounts this into
 // every sandbox at /home/agent/.pnpm-store; combined with the
@@ -114,6 +127,11 @@ const sandboxEnvironment = {
 	GIT_AUTHOR_NAME: HOST_USER_NAME,
 	GIT_COMMITTER_EMAIL: HOST_USER_EMAIL,
 	GIT_COMMITTER_NAME: HOST_USER_NAME,
+	// mise treats untrusted config files as parse errors. The Dockerfile
+	// bake-time `mise trust /home/agent/mise.toml` does not cover the
+	// bind-mount path used by sandcastle 0.5.10 (/home/agent/workspace).
+	// Trust the parent directory so any nested mise.toml is accepted.
+	MISE_TRUSTED_CONFIG_PATHS: "/home/agent",
 };
 
 // Configure ssh-signing inside the sandbox. Run as a hook step (rather than
@@ -129,13 +147,14 @@ const CONFIGURE_GIT_SIGNING = [
 	"git config --global tag.gpgsign true",
 ].join(" && ");
 
-// Hooks for implementer/reviewer sandboxes (Phase 2). These run inside an
-// isolated git worktree, so `pnpm install` writing linux-arm64 native addons
-// is contained.
+// Hooks for designer/implementer/reviewer sandboxes (Phases 2-4). These run
+// inside an isolated git worktree, so `pnpm install` writing linux-arm64
+// native addons is contained.
 //
-// `hk install --mise` wires the project's git hooks into the worktree's
-// .git/. `CI=true` keeps pnpm non-interactive (no TTY in sandbox exec).
-// 5-min timeout covers an 8-workspace cold install plus build scripts.
+// MISE_TRUSTED_CONFIG_PATHS in sandboxEnvironment covers the trust
+// requirement; `hk install --mise` wires the project's git hooks into the
+// worktree's .git/. `CI=true` keeps pnpm non-interactive (no TTY in sandbox
+// exec). 5-min timeout covers an 8-workspace cold install plus build scripts.
 const implementerHooks = {
 	sandbox: {
 		onSandboxReady: [
@@ -178,12 +197,8 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 	// -------------------------------------------------------------------------
 	const plan = await sandcastle.run({
 		name: "planner",
-		// Opus for planning: dependency analysis benefits from deeper reasoning.
-		agent: sandcastle.claudeCode(AGENT_MODEL),
+		agent: thinkingAgent,
 		hooks: plannerHooks,
-		// One iteration is enough: the planner just needs to read and reason,
-		// not write code.
-		maxIterations: 1,
 		promptFile: "./.sandcastle/plan-prompt.md",
 		sandbox: docker({ env: sandboxEnvironment, mounts: sandboxMounts }),
 	});
@@ -214,65 +229,99 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 	}
 
 	// -------------------------------------------------------------------------
-	// Phase 2: Execute + Review
+	// Phases 2-4: Design + Implement + Review
 	//
-	// For each issue, create a sandbox via createSandbox() so the implementer
-	// and reviewer share the same sandbox instance per branch. The implementer
-	// runs first; if it produces commits, the reviewer runs in the same sandbox.
+	// For each issue, create one sandbox via createSandbox() so the designer,
+	// implementer, and reviewer share the same sandbox instance per branch.
+	// The designer writes a plan to PLAN_PATH (gitignored). The implementer
+	// reads the plan and codes; if it produces commits, the reviewer runs in
+	// the same sandbox to simplify, review, push, and open the PR.
 	//
 	// Promise.allSettled means one failing pipeline doesn't cancel the others.
 	// -------------------------------------------------------------------------
+	let running = 0;
+	const queue: Array<() => void> = [];
+	// eslint-disable-next-line unicorn/consistent-function-scoping -- Using loop state
+	async function acquire(): Promise<void> {
+		if (running < MAX_PARALLEL) {
+			running++;
+			return;
+		}
+
+		return new Promise((resolve) => {
+			queue.push(resolve);
+		});
+	}
+
+	// eslint-disable-next-line unicorn/consistent-function-scoping -- Using loop state
+	function release(): void {
+		running--;
+		const next = queue.shift();
+		if (next) {
+			running++;
+			next();
+		}
+	}
 
 	const settled = await Promise.allSettled(
 		// eslint-disable-next-line max-lines-per-function -- From upstream template
 		issues.map(async (issue) => {
-			const sandbox = await sandcastle.createSandbox({
-				branch: issue.branch,
-				copyToWorktree,
-				hooks: implementerHooks,
-				sandbox: docker({ env: sandboxEnvironment, mounts: sandboxMounts }),
-			});
+			await acquire();
 
 			try {
-				// Run the implementer
-				const implement = await sandbox.run({
-					name: "implementer",
-					agent: sandcastle.claudeCode(AGENT_MODEL),
+				await using sandbox = await sandcastle.createSandbox({
+					branch: issue.branch,
+					copyToWorktree,
+					hooks: implementerHooks,
+					sandbox: docker({ env: sandboxEnvironment, mounts: sandboxMounts }),
+				});
+
+				const planPath = `.sandcastle/plans/${issue.id}.md`;
+				const sharedPromptArgs = {
+					BRANCH: issue.branch,
+					ISSUE_TITLE: issue.title,
+					PLAN_PATH: planPath,
+					TASK_ID: issue.id,
+				};
+
+				// Designer phase: opus, one iteration. Writes the plan to
+				// PLAN_PATH (gitignored). No code, no commits.
+				await sandbox.run({
+					name: `designer #${issue.id}`,
+					agent: thinkingAgent,
+					maxIterations: 1,
+					promptArgs: sharedPromptArgs,
+					promptFile: "./.sandcastle/design-prompt.md",
+				});
+
+				// Implementer phase: sonnet reads the plan and implements
+				// RED+GREEN slices on the branch.
+				const result = await sandbox.run({
+					name: `implementer #${issue.id}`,
+					agent: implementerAgent,
 					maxIterations: 100,
-					promptArgs: {
-						BRANCH: issue.branch,
-						ISSUE_TITLE: issue.title,
-						TASK_ID: issue.id,
-					},
+					promptArgs: sharedPromptArgs,
 					promptFile: "./.sandcastle/implement-prompt.md",
 				});
 
-				// Only review if the implementer produced commits
-				if (implement.commits.length > 0) {
-					const review = await sandbox.run({
-						name: "reviewer",
-						agent: sandcastle.claudeCode(AGENT_MODEL),
+				// Reviewer phase: opus runs /simplify, reviews against the
+				// plan, fixes issues, then pushes, opens the PR, and watches
+				// CI. Skipped when the implementer made no commits.
+				if (result.commits.length > 0) {
+					await sandbox.run({
+						name: `reviewer #${issue.id}`,
+						agent: thinkingAgent,
 						// Reviewer also waits on CI and may need to push fixes
 						// across multiple turns if checks fail.
 						maxIterations: 5,
-						promptArgs: {
-							BRANCH: issue.branch,
-						},
+						promptArgs: sharedPromptArgs,
 						promptFile: "./.sandcastle/review-prompt.md",
 					});
-
-					// Combine commits from both runs so the post-execution
-					// completed-branches log reflects all work on the branch.
-					// Each sandbox.run() only returns commits from its own run.
-					return {
-						...review,
-						commits: [...implement.commits, ...review.commits],
-					};
 				}
 
-				return implement;
+				return result;
 			} finally {
-				await sandbox.close();
+				release();
 			}
 		}),
 	);
@@ -287,7 +336,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 		}
 	}
 
-	// Log completed branches. Implementers are responsible for pushing and
+	// Log completed branches. Reviewers are responsible for pushing and
 	// opening PRs; nothing is merged locally.
 	const completedBranches = settled
 		// eslint-disable-next-line ts/no-non-null-assertion -- Guaranteed

@@ -8,6 +8,8 @@ Here are the open issues in the repo:
 
 </issues-json>
 
+The list above has already been filtered to issues ready for work.
+
 ## OPEN SANDCASTLE PRS
 
 Here are the open PRs already opened by sandcastle (these are still in
