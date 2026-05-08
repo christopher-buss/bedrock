@@ -6,7 +6,7 @@ describe(buildCredentialEnvironment, () => {
 	it("should map the apiKey flag value to BEDROCK_API_KEY", () => {
 		expect.assertions(1);
 
-		const getEnvironment = buildCredentialEnvironment({ apiKey: "abc" }, () => {});
+		const getEnvironment = buildCredentialEnvironment({ apiKey: "abc" }, empty);
 
 		expect(getEnvironment("BEDROCK_API_KEY")).toBe("abc");
 	});
@@ -14,7 +14,7 @@ describe(buildCredentialEnvironment, () => {
 	it("should map the githubToken flag value to GITHUB_TOKEN", () => {
 		expect.assertions(1);
 
-		const getEnvironment = buildCredentialEnvironment({ githubToken: "xyz" }, () => {});
+		const getEnvironment = buildCredentialEnvironment({ githubToken: "xyz" }, empty);
 
 		expect(getEnvironment("GITHUB_TOKEN")).toBe("xyz");
 	});
@@ -56,7 +56,7 @@ describe(buildCredentialEnvironment, () => {
 	it("should not apply the githubToken value to near-miss variable names", () => {
 		expect.assertions(1);
 
-		const getEnvironment = buildCredentialEnvironment({ githubToken: "FLAG" }, () => {});
+		const getEnvironment = buildCredentialEnvironment({ githubToken: "FLAG" }, empty);
 
 		expect(getEnvironment("GITHUB_TOKEN_X")).toBeUndefined();
 	});
@@ -79,4 +79,8 @@ function bindEnvironment(
 	bindings: Readonly<Record<string, string>>,
 ): (name: string) => string | undefined {
 	return (name) => bindings[name];
+}
+
+function empty(): string | undefined {
+	return undefined;
 }
