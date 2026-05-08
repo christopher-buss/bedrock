@@ -26,10 +26,14 @@ jobs:
       DRIFT_TITLE: "build(ocale): refresh vendored openapi spec"
       GH_TOKEN: ${{ github.token }}
     steps:
+      # Pin to `main` so a `workflow_dispatch` from a feature branch
+      # cannot accidentally use that branch's tip as the drift base.
+      # The drift PR always targets `main`, so the base must be `main`.
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 1
+          ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup
