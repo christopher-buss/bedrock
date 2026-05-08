@@ -32,6 +32,7 @@ export default mergeConfig(sharedConfig, {
 			"locales": "src/locales/index.ts",
 			"luau-execution": "src/resources/luau-execution/index.ts",
 			"places": "src/resources/places/index.ts",
+			"storage": "src/resources/storage/index.ts",
 			"universes": "src/resources/universes/index.ts",
 		},
 		exports: {

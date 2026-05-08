@@ -4,7 +4,7 @@
 
 **File:** `roblox-openapi.json`
 **Upstream:** <https://github.com/Roblox/creator-docs/blob/main/content/en-us/reference/cloud/openapi.json>
-**Pinned commit:** `1383cbec2a860aff931128445ff77609b790913f`
+**Pinned commit:** `0cbea0571b465d97ce870109666d6435e1491449`
 **Format:** OpenAPI 3.0.4 (JSON)
 
 ### Refresh
@@ -14,8 +14,52 @@ pnpm --filter @bedrock/ocale refresh-openapi
 ```
 
 The script updates both `roblox-openapi.json` and the pinned commit
-SHA in this README. After refreshing, diff the file against the
-previous version to review changes before committing.
+SHA in this README, then re-applies the local drift patches listed
+below. After refreshing, diff the file against the previous version
+to review changes before committing.
+
+### Local drift patches
+
+`scripts/apply-schema-patches.ts` corrects confirmed divergences
+between the upstream schema and the live API at `apis.roblox.com`.
+The script runs automatically as part of `refresh-openapi`. Each
+patch is idempotent against an already-patched file (re-runs on the
+same vendored copy are a no-op), but the refresh flow first calls
+`verifyPatchesStillNeeded` against the freshly-pulled upstream and
+fails loudly if any patch's pre-patch shape is absent. That signal
+catches the case where Roblox has fixed a drift upstream: the patch
+becomes obsolete and should be removed before the refresh succeeds.
+
+Active patches as of 2026-05-08:
+
+1. `components.schemas.MemoryStoreQueueItem.required` includes
+   `"data"`. The server returns 400 `INVALID_ARGUMENT` when the
+   field is absent or `null`; the schema marks it optional.
+2. `components.schemas.MemoryStoreQueueItem.properties.path.readOnly`
+   is `true`. The server generates the path on creation and
+   rejects client-supplied paths; the schema does not flag the
+   field as read-only.
+3. `components.schemas.ReadMemoryStoreQueueItemsResponse.properties`
+   uses keys `queueItems` and `id`. The server emits the items
+   array under `queueItems` (schema: `items`) and the read
+   identifier under `id` (schema: `readId`). The
+   `DiscardMemoryStoreQueueItemsRequest` body is *not* affected;
+   the discard request expects `readId`, matching the schema.
+4. `components.schemas.MemoryStoreQueueItem.properties.ttl` drops
+   `"format": "duration"`. The schema's example shows `"3s"`
+   (Google's protobuf `Duration` style), which is the format the
+   server actually accepts; the `format: "duration"` annotation
+   makes Ajv-formats demand ISO 8601 (`PT3S`) instead and rejects
+   wire-correct values during conformance validation.
+5. The `invisibilityWindow` query parameter on
+   `Cloud_ReadMemoryStoreQueueItems` drops `"format": "duration"` for
+   the same reason as patch 4. The example is `"3s"` and the server
+   rejects ISO 8601 form.
+
+When a patched section is fixed upstream, the next `refresh-openapi`
+will fail with the obsolete patch's description. Remove the
+corresponding case from `apply-schema-patches.ts` and re-run the
+refresh; the upstream value is then left in place.
 
 ### Why pin? And why pinning is not protection
 
@@ -77,7 +121,11 @@ Drift is caught in three places, each with a different failure mode:
    `.github/workflows/` runs weekly, re-runs `scripts/fetch-openapi.ts`,
    and opens (or updates) a PR when the upstream `openapi.json` or its
    pinned commit SHA has diverged. Normal CI on that PR surfaces any
-   fixture or parser drift introduced by the new spec.
+   fixture or parser drift introduced by the new spec. The refresh
+   itself fails loudly via `verifyPatchesStillNeeded` when an
+   upstream change has removed the pre-patch shape of one of the
+   active drift patches; the message names the obsolete patch so the
+   case can be removed before the refresh re-runs.
 3. **End-to-end (deferred).** Scenario tests that hit the real Open
    Cloud API with throwaway resources will catch runtime behavior that
    the schema cannot describe (e.g. silent field rename, changed error
