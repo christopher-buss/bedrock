@@ -229,6 +229,59 @@ function runLocal(): number {
 	return result.status ?? 1;
 }
 
+function containerSeesWorktree(config: RemoteConfig): boolean {
+	const result = spawnSync(
+		"ssh",
+		[
+			...SSH_OPTS,
+			config.host,
+			"docker",
+			"exec",
+			config.container,
+			"test",
+			"-d",
+			`/data/worktrees/${config.worktree}`,
+		],
+		{ stdio: ["ignore", "ignore", "pipe"] },
+	);
+	return result.status === 0;
+}
+
+function setupRemote(config: RemoteConfig): string | undefined {
+	const upStatus = rsyncUp(config);
+	if (upStatus !== 0) {
+		return `rsync to ${config.host} failed (status ${String(upStatus)})`;
+	}
+
+	if (!containerSeesWorktree(config)) {
+		return (
+			`${config.container} cannot see /data/worktrees/${config.worktree} after rsync; ` +
+			`bind mount may be detached. Fix: docker rm -f ${config.container}, then re-run ` +
+			`with -v ${config.stage}:/data/worktrees so Docker Desktop re-establishes the WSL share.`
+		);
+	}
+
+	const diff = computeDiff();
+	const diffStatus = writeFileToContainer(config, diff, REMOTE_DIFF_PATH);
+	if (diffStatus !== 0) {
+		return `writing diff to ${config.container} failed (status ${String(diffStatus)})`;
+	}
+
+	return undefined;
+}
+
+function reportLoudFailure(reason: string): void {
+	const banner = "=".repeat(64);
+	process.stderr.write(
+		`\n${banner}\nREMOTE MUTATION OFFLOAD FAILED; running mutation locally\n` +
+			`${banner}\n${reason}\n${banner}\n\n`,
+	);
+}
+
+function reportLoudFailureTrailer(reason: string): void {
+	process.stderr.write(`\n[remote offload was unavailable for this run: ${reason}]\n\n`);
+}
+
 function main(): number {
 	const config = readConfig();
 	if (config === undefined) {
@@ -242,18 +295,12 @@ function main(): number {
 		return runLocal();
 	}
 
-	const diff = computeDiff();
-
-	const upStatus = rsyncUp(config);
-	if (upStatus !== 0) {
-		console.error(`rsync to ${config.host} failed; aborting offload`);
-		return upStatus;
-	}
-
-	const diffStatus = writeFileToContainer(config, diff, REMOTE_DIFF_PATH);
-	if (diffStatus !== 0) {
-		console.error(`failed to write diff to ${config.container}; aborting offload`);
-		return diffStatus;
+	const failure = setupRemote(config);
+	if (failure !== undefined) {
+		reportLoudFailure(failure);
+		const status = runLocal();
+		reportLoudFailureTrailer(failure);
+		return status;
 	}
 
 	const execStatus = execMutate(config);
