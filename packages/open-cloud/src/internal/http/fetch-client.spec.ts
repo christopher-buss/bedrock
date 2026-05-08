@@ -553,7 +553,7 @@ describe(createFetchHttpClient, () => {
 
 		const client = createFetchHttpClient(fakeFetch);
 		const result = await client.request(
-			{ method: "POST", url: "/v1/game-icon/games/1/language-codes/en-us" },
+			{ method: "POST", url: "/v1/game-icon/games/1/language-codes/en_us" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
 		);
 

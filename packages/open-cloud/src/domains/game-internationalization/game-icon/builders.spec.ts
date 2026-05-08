@@ -17,7 +17,7 @@ describe(buildUploadIconRequest, () => {
 
 		const parameters = {
 			image: new Uint8Array([1, 2, 3]),
-			languageCode: "en-us",
+			languageCode: "en_us",
 			universeId: "67890",
 		} satisfies UploadExperienceIconParameters;
 
@@ -31,14 +31,14 @@ describe(buildUploadIconRequest, () => {
 
 		const parameters = {
 			image: new Uint8Array([1, 2, 3]),
-			languageCode: "fr-fr",
+			languageCode: "fr_fr",
 			universeId: "67890",
 		} satisfies UploadExperienceIconParameters;
 
 		const request = buildUploadIconRequest(parameters);
 
 		expect(request.url).toBe(
-			"/legacy-game-internationalization/v1/game-icon/games/67890/language-codes/fr-fr",
+			"/legacy-game-internationalization/v1/game-icon/games/67890/language-codes/fr_fr",
 		);
 	});
 
@@ -47,7 +47,7 @@ describe(buildUploadIconRequest, () => {
 
 		const parameters = {
 			image: new Uint8Array([1, 2, 3]),
-			languageCode: "en-us",
+			languageCode: "en_us",
 			universeId: "67890",
 		} satisfies UploadExperienceIconParameters;
 
@@ -64,7 +64,7 @@ describe(buildUploadIconRequest, () => {
 		const image = new Uint8Array([1, 2, 3, 4]);
 		const parameters = {
 			image,
-			languageCode: "en-us",
+			languageCode: "en_us",
 			universeId: "67890",
 		} satisfies UploadExperienceIconParameters;
 
@@ -84,7 +84,7 @@ describe(buildUploadIconRequest, () => {
 		const image = new Blob([new Uint8Array([1, 2, 3, 4])], { type: "image/png" });
 		const parameters = {
 			image,
-			languageCode: "en-us",
+			languageCode: "en_us",
 			universeId: "67890",
 		} satisfies UploadExperienceIconParameters;
 
@@ -103,7 +103,7 @@ describe(buildDeleteIconRequest, () => {
 		expect.assertions(1);
 
 		const parameters = {
-			languageCode: "en-us",
+			languageCode: "en_us",
 			universeId: "67890",
 		} satisfies DeleteExperienceIconParameters;
 
@@ -116,14 +116,14 @@ describe(buildDeleteIconRequest, () => {
 		expect.assertions(1);
 
 		const parameters = {
-			languageCode: "es-es",
+			languageCode: "es_es",
 			universeId: "67890",
 		} satisfies DeleteExperienceIconParameters;
 
 		const request = buildDeleteIconRequest(parameters);
 
 		expect(request.url).toBe(
-			"/legacy-game-internationalization/v1/game-icon/games/67890/language-codes/es-es",
+			"/legacy-game-internationalization/v1/game-icon/games/67890/language-codes/es_es",
 		);
 	});
 
@@ -131,7 +131,7 @@ describe(buildDeleteIconRequest, () => {
 		expect.assertions(1);
 
 		const parameters = {
-			languageCode: "en-us",
+			languageCode: "en_us",
 			universeId: "67890",
 		} satisfies DeleteExperienceIconParameters;
 
