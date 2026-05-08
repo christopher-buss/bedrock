@@ -10,9 +10,28 @@ Here are the open issues in the repo:
 
 The list above has already been filtered to issues ready for work.
 
+## OPEN SANDCASTLE PRS
+
+Here are the open PRs already opened by sandcastle (these are still in
+flight; do not pick the issues they reference, even if those issues are
+still open):
+
+<open-prs-json>
+
+!`gh pr list --state open --label sandcastle --json number,title,body,headRefName --jq '[.[] | {number, title, headRefName, body}]'`
+
+</open-prs-json>
+
 ## TASK
 
-Analyze the open issues and build a dependency graph. For each issue, determine whether it **blocks** or **is blocked by** any other open issue.
+First, **exclude** any issue whose number appears in a `Closes #N`,
+`Fixes #N`, or `Resolves #N` reference in the body of an open
+sandcastle PR above. Those issues are already being worked on; picking
+them again would duplicate effort and conflict on the same branch.
+
+For the remaining open issues, analyze and build a dependency graph.
+For each issue, determine whether it **blocks** or **is blocked by**
+any other open issue.
 
 An issue B is **blocked by** issue A if:
 
