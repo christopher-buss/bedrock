@@ -9,7 +9,7 @@ describe(buildUploadIconRequest, () => {
 
 		const parameters = {
 			image: new Uint8Array([1, 2, 3]),
-			languageCode: "en-us",
+			languageCode: "en_us",
 			productId: "12345",
 		} satisfies UploadDeveloperProductIconParameters;
 
@@ -23,14 +23,14 @@ describe(buildUploadIconRequest, () => {
 
 		const parameters = {
 			image: new Uint8Array([1, 2, 3]),
-			languageCode: "fr-fr",
+			languageCode: "fr_fr",
 			productId: "12345",
 		} satisfies UploadDeveloperProductIconParameters;
 
 		const request = buildUploadIconRequest(parameters);
 
 		expect(request.url).toBe(
-			"/legacy-game-internationalization/v1/developer-products/12345/icons/language-codes/fr-fr",
+			"/legacy-game-internationalization/v1/developer-products/12345/icons/language-codes/fr_fr",
 		);
 	});
 
@@ -39,7 +39,7 @@ describe(buildUploadIconRequest, () => {
 
 		const parameters = {
 			image: new Uint8Array([1, 2, 3]),
-			languageCode: "en-us",
+			languageCode: "en_us",
 			productId: "12345",
 		} satisfies UploadDeveloperProductIconParameters;
 
@@ -56,7 +56,7 @@ describe(buildUploadIconRequest, () => {
 		const image = new Uint8Array([1, 2, 3, 4]);
 		const parameters = {
 			image,
-			languageCode: "en-us",
+			languageCode: "en_us",
 			productId: "12345",
 		} satisfies UploadDeveloperProductIconParameters;
 
@@ -77,7 +77,7 @@ describe(buildUploadIconRequest, () => {
 		const image = new Blob([new Uint8Array([1, 2, 3, 4])], { type: "image/png" });
 		const parameters = {
 			image,
-			languageCode: "en-us",
+			languageCode: "en_us",
 			productId: "12345",
 		} satisfies UploadDeveloperProductIconParameters;
 

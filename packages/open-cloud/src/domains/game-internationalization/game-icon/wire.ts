@@ -13,7 +13,11 @@ export interface GetGameIconResponseWire {
 	readonly imageId: string;
 	/** CDN URL the icon can be loaded from. */
 	readonly imageUrl: string;
-	/** BCP-47 language code the icon is registered against. */
+	/**
+	 * Roblox wire form the icon is registered against. Either the
+	 * Language form (e.g. `en`, `fil`, `zh-hans`) or the Locale form
+	 * (e.g. `en_us`, `pt_br`, `ar_001`).
+	 */
 	readonly languageCode: string;
 	/** Moderation state of the icon. */
 	readonly state: GameIconState;

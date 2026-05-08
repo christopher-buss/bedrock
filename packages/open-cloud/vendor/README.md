@@ -32,7 +32,38 @@ behavior. The pinned file is a reference, not a contract. Conformance
 tests (in `tests/conformance/`) are the real protection against
 behavioral drift; the vendor schema only provides the vocabulary.
 
-### Drift detection layers
+## Roblox Creator Locales
+
+**File:** `roblox-creator-locales.json`
+**Upstream:** <https://locale.roblox.com/v1/locales/supported-locales-for-creators>
+**Pinned date:** `2026-05-07`
+**Format:** Raw upstream payload (JSON)
+
+The companion file `../src/locales/data.generated.ts` derives the
+`ROBLOX_CREATOR_LOCALES` const and the `RobloxLocale` /
+`RobloxLanguageCode` union types from this snapshot. Both files are
+regenerated together by the refresh script and committed to git.
+
+### Refresh
+
+```sh
+pnpm --filter @bedrock/ocale refresh-locales
+```
+
+The script writes both the JSON and the generated TS module, and
+updates the pinned date in this README. After refreshing, diff both
+files against the previous version to review additions or
+removals before committing.
+
+### Why pin?
+
+The locale list rarely changes (Roblox adds a region a few times a
+year), but pinning the snapshot keeps `ROBLOX_CREATOR_LOCALES`
+deterministic across builds and gives review surface to additions or
+removals. Conformance tests under `tests/conformance/` keep the JSON
+and the generated TS in sync.
+
+## Drift detection layers
 
 Drift is caught in three places, each with a different failure mode:
 

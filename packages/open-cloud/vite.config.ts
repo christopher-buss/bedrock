@@ -29,6 +29,7 @@ export default mergeConfig(sharedConfig, {
 			"developer-products": "src/resources/developer-products/index.ts",
 			"game-passes": "src/resources/game-passes/index.ts",
 			"index": "src/index.ts",
+			"locales": "src/locales/index.ts",
 			"luau-execution": "src/resources/luau-execution/index.ts",
 			"places": "src/resources/places/index.ts",
 			"universes": "src/resources/universes/index.ts",

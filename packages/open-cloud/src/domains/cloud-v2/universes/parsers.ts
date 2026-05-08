@@ -1,5 +1,6 @@
 import type { HttpResponse } from "../../../client/types.ts";
 import { ApiError } from "../../../errors/api-error.ts";
+import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import type { Result } from "../../../types.ts";
 import type {
@@ -132,8 +133,8 @@ function isAgeRatingWire(value: unknown): value is AgeRatingWire {
 function hasValidRequiredFields(body: Record<string, unknown>): boolean {
 	return (
 		typeof body["path"] === "string" &&
-		typeof body["createTime"] === "string" &&
-		typeof body["updateTime"] === "string" &&
+		isDateTimeString(body["createTime"]) &&
+		isDateTimeString(body["updateTime"]) &&
 		typeof body["displayName"] === "string" &&
 		typeof body["description"] === "string" &&
 		isVisibilityWire(body["visibility"]) &&

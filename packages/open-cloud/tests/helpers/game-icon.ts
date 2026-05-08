@@ -17,7 +17,7 @@ export function validLocalizedIcon(
 	return {
 		imageId: "12345",
 		imageUrl: "https://t1.rbxcdn.com/icon/12345",
-		languageCode: "en-us",
+		languageCode: "en_us",
 		state: "Approved",
 		...overrides,
 	};

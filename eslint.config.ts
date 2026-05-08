@@ -12,6 +12,7 @@ export default isentinel(
 			"**/vendor/**",
 			".sandcastle/worktrees/**",
 			"packages/bedrock/tests/fixtures/**/*.yml",
+			"packages/open-cloud/src/locales/data.generated.ts",
 		],
 		namedConfigs: true,
 		pnpm: true,
