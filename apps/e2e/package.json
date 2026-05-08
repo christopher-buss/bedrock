@@ -13,6 +13,7 @@
 	"scripts": {
 		"lint": "eslint --cache .",
 		"test": "vitest",
+		"test:scenarios": "vp test run tests/scenarios",
 		"test:smoke": "vp test run tests/smoke",
 		"typecheck": "tsgo --noEmit"
 	},
