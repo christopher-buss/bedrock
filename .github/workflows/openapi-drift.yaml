@@ -26,10 +26,14 @@ jobs:
       DRIFT_TITLE: "build(ocale): refresh vendored openapi spec"
       GH_TOKEN: ${{ github.token }}
     steps:
+      # Pin to `main` so a `workflow_dispatch` from a feature branch
+      # cannot accidentally use that branch's tip as the drift base.
+      # The drift PR always targets `main`, so the base must be `main`.
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 1
+          ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup
@@ -47,17 +51,30 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # Reset the drift branch to the current commit before the API
+      # commit lands. No new commits are introduced by this push, so
+      # the "signed commits" ruleset has nothing to verify; the spec
+      # diff lands in the next step as a GitHub-signed commit via the
+      # GraphQL API.
       - if: steps.diff.outputs.changed == 'true'
-        name: Open or update drift PR
+        name: Reset drift branch ref to base
+        run: git push --force origin "HEAD:refs/heads/$DRIFT_BRANCH"
+
+      - env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: steps.diff.outputs.changed == 'true'
+        name: Commit refreshed spec via API
+        uses: planetscale/ghcommit-action@25309d8005ac7c3bcd61d3fe19b69e0fe47dbdde # v0.2.20
+        with:
+          branch: ${{ env.DRIFT_BRANCH }}
+          commit_message: ${{ env.DRIFT_TITLE }}
+          file_pattern: packages/open-cloud/vendor
+          repo: ${{ github.repository }}
+
+      - if: steps.diff.outputs.changed == 'true'
+        name: Open drift PR if missing
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -B "$DRIFT_BRANCH"
-          git add packages/open-cloud/vendor/
-          git commit -m "$DRIFT_TITLE"
-          git push --force origin "$DRIFT_BRANCH"
-
           if gh pr view "$DRIFT_BRANCH" --json number >/dev/null 2>&1; then
             echo "existing drift PR refreshed with latest spec"
           else
