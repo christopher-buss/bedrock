@@ -94,3 +94,19 @@ export interface DequeueResult {
 	 */
 	readonly readId: string;
 }
+
+/**
+ * Caller-supplied input for the `discard` method on
+ * `StorageClient.queues`. Mirrors `Cloud_DiscardMemoryStoreQueueItems`.
+ * Acknowledging a `readId` removes the dequeued batch from the queue
+ * permanently; without `discard`, the items reappear once their
+ * invisibility window elapses.
+ */
+export interface DiscardQueueItemsParameters {
+	/** Stringified queue identifier. */
+	readonly queueId: string;
+	/** Identifier returned by a prior `dequeue` call. */
+	readonly readId: string;
+	/** Stringified ID of the universe that owns the queue. */
+	readonly universeId: string;
+}

@@ -1,5 +1,9 @@
 import type { HttpRequest } from "../../../client/types.ts";
-import type { DequeueQueueItemsParameters, EnqueueQueueItemParameters } from "./types.ts";
+import type {
+	DequeueQueueItemsParameters,
+	DiscardQueueItemsParameters,
+	EnqueueQueueItemParameters,
+} from "./types.ts";
 
 /**
  * Builds a `POST` request for the Open Cloud
@@ -64,5 +68,25 @@ export function buildDequeueRequest(parameters: DequeueQueueItemsParameters): Ht
 	return {
 		method: "GET",
 		url: queryString === "" ? base : `${base}?${queryString}`,
+	};
+}
+
+/**
+ * Builds a `POST` request for the Open Cloud
+ * `Cloud_DiscardMemoryStoreQueueItems` endpoint. The request body uses
+ * `{ readId }`, matching the schema (the dequeue *response* uses `id`,
+ * but the discard *request* matches the schema and is not patched).
+ *
+ * @param parameters - Universe and queue identifiers, plus the
+ *   `readId` returned from a prior dequeue.
+ * @returns A pure {@link HttpRequest} describing the discard call.
+ */
+export function buildDiscardRequest(parameters: DiscardQueueItemsParameters): HttpRequest {
+	const { queueId, readId, universeId } = parameters;
+	return {
+		body: { readId },
+		headers: { "content-type": "application/json" },
+		method: "POST",
+		url: `/cloud/v2/universes/${universeId}/memory-store/queues/${queueId}/items:discard`,
 	};
 }

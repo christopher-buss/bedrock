@@ -1,11 +1,14 @@
 import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
 import {
 	buildDequeueRequest,
+	buildDiscardRequest,
 	buildEnqueueRequest,
 } from "../../domains/cloud-v2/memory-store-queues/builders.ts";
 import {
 	DEQUEUE_OPERATION_LIMIT,
 	DEQUEUE_REQUIRED_SCOPES,
+	DISCARD_OPERATION_LIMIT,
+	DISCARD_REQUIRED_SCOPES,
 	ENQUEUE_OPERATION_LIMIT,
 	ENQUEUE_REQUIRED_SCOPES,
 } from "../../domains/cloud-v2/memory-store-queues/operations.ts";
@@ -16,13 +19,15 @@ import {
 import type {
 	DequeueQueueItemsParameters,
 	DequeueResult,
+	DiscardQueueItemsParameters,
 	EnqueueQueueItemParameters,
 	QueueItem,
 } from "../../domains/cloud-v2/memory-store-queues/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
-import { CREATE_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
+import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
 	okRequest,
+	parseEmptyResponse,
 	type ResourceClient,
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
@@ -53,6 +58,15 @@ const DEQUEUE_SPEC = makeSpec<DequeueQueueItemsParameters, DequeueResult>({
 	operationLimit: DEQUEUE_OPERATION_LIMIT,
 	parse: parseDequeueResponse,
 	requiredScopes: DEQUEUE_REQUIRED_SCOPES,
+});
+
+const DISCARD_SPEC = makeSpec<DiscardQueueItemsParameters, undefined>({
+	buildRequest: (parameters) => okRequest(buildDiscardRequest(parameters)),
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: DISCARD_OPERATION_LIMIT,
+	parse: parseEmptyResponse,
+	requiredScopes: DISCARD_REQUIRED_SCOPES,
 });
 
 /**
@@ -102,6 +116,30 @@ export class MemoryStoreQueuesGroup {
 		options?: RequestOptions,
 	): Promise<Result<DequeueResult, OpenCloudError>> {
 		return this.#inner.execute({ options, parameters, spec: DEQUEUE_SPEC });
+	}
+
+	/**
+	 * Acknowledges a dequeued batch of items, removing them from the
+	 * queue permanently. Pass the `readId` returned from the prior
+	 * `dequeue` call. Without `discard`, the items reappear once the
+	 * invisibility window elapses.
+	 *
+	 * The call is idempotent: a second `discard` with the same `readId`
+	 * is a no-op once the batch has been acknowledged. The retry policy
+	 * therefore retries both 429 and 5xx.
+	 *
+	 * @param parameters - Universe and queue identifiers, plus the
+	 *   `readId` returned from a prior dequeue.
+	 * @param options - Optional per-request overrides.
+	 * @returns A {@link Result} wrapping `undefined` on success (the
+	 *   server returns an empty body) or the {@link OpenCloudError}
+	 *   that caused the request to fail.
+	 */
+	public async discard(
+		parameters: DiscardQueueItemsParameters,
+		options?: RequestOptions,
+	): Promise<Result<undefined, OpenCloudError>> {
+		return this.#inner.execute({ options, parameters, spec: DISCARD_SPEC });
 	}
 
 	/**

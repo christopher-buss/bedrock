@@ -45,3 +45,25 @@ export const DEQUEUE_OPERATION_LIMIT: OperationLimit = Object.freeze({
 export const DEQUEUE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
 	"memory-store.queue:dequeue",
 ]);
+
+const DISCARD_PER_MINUTE = 1_000_000;
+
+/**
+ * Per-second request ceiling for discarding (acknowledging) memory-store
+ * queue items, from the Open Cloud OpenAPI schema (1,000,000 requests
+ * per minute per API key owner). Keyed independently from enqueue and
+ * dequeue.
+ */
+export const DISCARD_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	maxPerSecond: DISCARD_PER_MINUTE / SECONDS_PER_MINUTE,
+	operationKey: "memory-store-queues.discard",
+});
+
+/**
+ * Scopes required to discard memory-store queue items, sourced from
+ * `x-roblox-scopes` on the `Cloud_DiscardMemoryStoreQueueItems`
+ * operation in the vendored OpenAPI schema.
+ */
+export const DISCARD_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
+	"memory-store.queue:discard",
+]);

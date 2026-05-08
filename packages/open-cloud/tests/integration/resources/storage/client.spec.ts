@@ -235,4 +235,87 @@ describe(StorageClient, () => {
 			expect(result.err.statusCode).toBe(403);
 		});
 	});
+
+	describe("queues.discard", () => {
+		it("should send a POST whose body carries the readId, returning undefined on success", async () => {
+			expect.assertions(4);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: undefined,
+				status: 200,
+			});
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.queues.discard({
+				queueId: "test-queue",
+				readId: "read-1",
+				universeId: "123",
+			});
+
+			assert(result.success);
+
+			expect(result.data).toBeUndefined();
+
+			const captured = httpClient.requests[0];
+			assert(captured !== undefined);
+
+			expect(captured.request.method).toBe("POST");
+			expect(captured.request.url).toBe(
+				"/cloud/v2/universes/123/memory-store/queues/test-queue/items:discard",
+			);
+			expect(captured.request.body).toStrictEqual({ readId: "read-1" });
+		});
+
+		it("should retry a 5xx since discard is idempotent", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockApiError({ statusCode: 502 })
+				.mockResponse({ body: undefined, status: 200 });
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.queues.discard({
+				queueId: "q",
+				readId: "abc",
+				universeId: "1",
+			});
+
+			assert(result.success);
+
+			expect(httpClient.requests).toHaveLength(2);
+			expect(result.data).toBeUndefined();
+		});
+
+		it("should upgrade a 403 to a PermissionError carrying memory-store.queue:discard", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.queues.discard({
+				queueId: "q",
+				readId: "abc",
+				universeId: "1",
+			});
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.requiredScopes).toStrictEqual(["memory-store.queue:discard"]);
+			expect(result.err.operationKey).toBe("memory-store-queues.discard");
+			expect(result.err.statusCode).toBe(403);
+		});
+	});
 });
