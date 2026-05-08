@@ -45,6 +45,18 @@ describe("DeleteExperienceIconParameters", () => {
 		}>();
 	});
 
+	it.for(["en", "en_us"] as const)(
+		"should accept %s as a Roblox wire form on languageCode",
+		(code) => {
+			const parameters: DeleteExperienceIconParameters = {
+				languageCode: code,
+				universeId: "999",
+			};
+
+			expectTypeOf(parameters).toExtend<DeleteExperienceIconParameters>();
+		},
+	);
+
 	it("should reject BCP-47 strings on languageCode at compile time", () => {
 		const parameters: DeleteExperienceIconParameters = {
 			// @ts-expect-error -- BCP-47 like `fr-fr` is not a Roblox wire form.
