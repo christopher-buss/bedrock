@@ -3,7 +3,7 @@ import { PermissionError } from "#src/errors/permission-error";
 import { StorageClient } from "#src/resources/storage/client";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
-import { validQueueItemBody } from "#tests/helpers/memory-store-queues";
+import { validDequeueBody, validQueueItemBody } from "#tests/helpers/memory-store-queues";
 import { assert, describe, expect, it } from "vitest";
 
 describe(StorageClient, () => {
@@ -139,6 +139,100 @@ describe(StorageClient, () => {
 			);
 
 			expect(httpClient.requests[0]?.config.apiKey).toBe("override-key");
+		});
+	});
+
+	describe("queues.dequeue", () => {
+		it("should return a parsed DequeueResult on a happy path", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validDequeueBody({ id: "read-1" }),
+				status: 200,
+			});
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.queues.dequeue({
+				count: 1,
+				queueId: "test-queue",
+				universeId: "123",
+			});
+
+			assert(result.success);
+
+			expect(result.data.readId).toBe("read-1");
+			expect(result.data.items).toHaveLength(1);
+		});
+
+		it("should send a GET targeting the :read custom method with query params", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validDequeueBody(),
+				status: 200,
+			});
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.queues.dequeue({
+				count: 5,
+				invisibilityWindow: 30,
+				queueId: "test-queue",
+				universeId: "123",
+			});
+
+			const captured = httpClient.requests[0];
+			assert(captured !== undefined);
+
+			expect(captured.request.method).toBe("GET");
+			expect(captured.request.url).toBe(
+				"/cloud/v2/universes/123/memory-store/queues/test-queue/items:read?count=5&invisibilityWindow=30s",
+			);
+		});
+
+		it("should not retry a 5xx so a transient dequeue does not lose a batch", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 503 });
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.queues.dequeue({ queueId: "q", universeId: "1" });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(httpClient.requests).toHaveLength(1);
+		});
+
+		it("should upgrade a 403 to a PermissionError carrying memory-store.queue:dequeue", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.queues.dequeue({ queueId: "q", universeId: "1" });
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.requiredScopes).toStrictEqual(["memory-store.queue:dequeue"]);
+			expect(result.err.operationKey).toBe("memory-store-queues.dequeue");
+			expect(result.err.statusCode).toBe(403);
 		});
 	});
 });

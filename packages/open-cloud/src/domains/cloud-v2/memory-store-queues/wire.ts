@@ -20,3 +20,17 @@ export interface MemoryStoreQueueItemWire {
 	/** Optional priority; higher values are dequeued first. */
 	readonly priority?: number | undefined;
 }
+
+/**
+ * Wire shape of the `Cloud_ReadMemoryStoreQueueItems` response. The
+ * server emits the items array under `queueItems` (vendored schema
+ * names it `items`) and the read identifier under `id` (schema names
+ * it `readId`); both deviations are corrected by `apply-schema-patches`,
+ * so the wire interface here matches the patched schema.
+ */
+export interface ReadQueueItemsResponseWire {
+	/** Identifier of the read operation, passed back to `:discard`. */
+	readonly id: string;
+	/** Items at the front of the queue, in dequeue order. */
+	readonly queueItems: ReadonlyArray<MemoryStoreQueueItemWire>;
+}

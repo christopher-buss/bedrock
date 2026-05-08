@@ -1,11 +1,21 @@
 import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
-import { buildEnqueueRequest } from "../../domains/cloud-v2/memory-store-queues/builders.ts";
 import {
+	buildDequeueRequest,
+	buildEnqueueRequest,
+} from "../../domains/cloud-v2/memory-store-queues/builders.ts";
+import {
+	DEQUEUE_OPERATION_LIMIT,
+	DEQUEUE_REQUIRED_SCOPES,
 	ENQUEUE_OPERATION_LIMIT,
 	ENQUEUE_REQUIRED_SCOPES,
 } from "../../domains/cloud-v2/memory-store-queues/operations.ts";
-import { parseQueueItemResponse } from "../../domains/cloud-v2/memory-store-queues/parsers.ts";
+import {
+	parseDequeueResponse,
+	parseQueueItemResponse,
+} from "../../domains/cloud-v2/memory-store-queues/parsers.ts";
 import type {
+	DequeueQueueItemsParameters,
+	DequeueResult,
 	EnqueueQueueItemParameters,
 	QueueItem,
 } from "../../domains/cloud-v2/memory-store-queues/types.ts";
@@ -31,6 +41,20 @@ const ENQUEUE_SPEC = makeSpec<EnqueueQueueItemParameters, QueueItem>({
 	requiredScopes: ENQUEUE_REQUIRED_SCOPES,
 });
 
+// Dequeue uses HTTP GET but mutates server state via the invisibility
+// window. Retrying a 5xx where the server set invisibility before
+// failing the response would lose the original batch (it stays
+// invisible until the window elapses) and return a different one. So
+// the retry policy mirrors `create`: only 429, never 5xx.
+const DEQUEUE_SPEC = makeSpec<DequeueQueueItemsParameters, DequeueResult>({
+	buildRequest: (parameters) => okRequest(buildDequeueRequest(parameters)),
+	methodDefaults: CREATE_METHOD_DEFAULTS,
+	methodKind: "create",
+	operationLimit: DEQUEUE_OPERATION_LIMIT,
+	parse: parseDequeueResponse,
+	requiredScopes: DEQUEUE_REQUIRED_SCOPES,
+});
+
 /**
  * Operation Group on `StorageClient` that exposes the memory-store
  * queue endpoints. Queues are FIFO collections of opaque JSON values
@@ -51,6 +75,33 @@ export class MemoryStoreQueuesGroup {
 	 */
 	constructor(inner: ResourceClient) {
 		this.#inner = inner;
+	}
+
+	/**
+	 * Dequeues up to `count` items from the front of the queue. Items
+	 * returned become invisible to subsequent reads for
+	 * `invisibilityWindow` seconds (default 30 server-side); they
+	 * reappear once the window elapses unless acknowledged via
+	 * `discard` with the returned `readId`.
+	 *
+	 * On 5xx, dequeue does not retry: the server may have set
+	 * invisibility on a batch before the response failed, so a retry
+	 * would return a *different* batch and the first one is lost until
+	 * the window expires. Callers that can detect duplicates externally
+	 * may opt back into 5xx retry per call by passing `retryableStatuses`
+	 * on `options`.
+	 *
+	 * @param parameters - Universe and queue identifiers, plus optional
+	 *   `count`, `allOrNothing`, and `invisibilityWindow`.
+	 * @param options - Optional per-request overrides.
+	 * @returns A {@link Result} wrapping the parsed {@link DequeueResult}
+	 *   or the {@link OpenCloudError} that caused the request to fail.
+	 */
+	public async dequeue(
+		parameters: DequeueQueueItemsParameters,
+		options?: RequestOptions,
+	): Promise<Result<DequeueResult, OpenCloudError>> {
+		return this.#inner.execute({ options, parameters, spec: DEQUEUE_SPEC });
 	}
 
 	/**

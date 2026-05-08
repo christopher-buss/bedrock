@@ -1,8 +1,8 @@
-import { validQueueItemBody } from "#tests/helpers/memory-store-queues";
+import { validDequeueBody, validQueueItemBody } from "#tests/helpers/memory-store-queues";
 import { assert, describe, expect, it } from "vitest";
 
 import { ApiError } from "../../../errors/api-error.ts";
-import { parseQueueItemResponse } from "./parsers.ts";
+import { parseDequeueResponse, parseQueueItemResponse } from "./parsers.ts";
 import type { MemoryStoreQueueItemWire } from "./wire.ts";
 
 function okQueueItemResponse(
@@ -240,5 +240,129 @@ describe(parseQueueItemResponse, () => {
 
 			expect(result.err.statusCode).toBe(502);
 		});
+	});
+});
+
+describe(parseDequeueResponse, () => {
+	it("should parse a valid response into a DequeueResult with mapped items and readId", () => {
+		expect.assertions(2);
+
+		const result = parseDequeueResponse({
+			body: validDequeueBody(),
+			headers: {},
+			status: 200,
+		});
+
+		assert(result.success);
+
+		expect(result.data.readId).toBe("1a354bd5b8fe457f8e51232f8dbfe6d0");
+		expect(result.data.items).toHaveLength(1);
+	});
+
+	it("should map every queue item through the same parser as the enqueue response", () => {
+		expect.assertions(3);
+
+		const result = parseDequeueResponse({
+			body: validDequeueBody({
+				queueItems: [
+					validQueueItemBody({
+						path: "cloud/v2/universes/1/memory-store/queues/q/items/first",
+					}),
+					validQueueItemBody({
+						path: "cloud/v2/universes/1/memory-store/queues/q/items/second",
+						priority: undefined,
+					}),
+				],
+			}),
+			headers: {},
+			status: 200,
+		});
+
+		assert(result.success);
+
+		expect(result.data.items).toHaveLength(2);
+		expect(result.data.items[0]?.id).toBe("first");
+		expect(result.data.items[1]?.priority).toBeUndefined();
+	});
+
+	it("should accept an empty queueItems array", () => {
+		expect.assertions(1);
+
+		const result = parseDequeueResponse({
+			body: validDequeueBody({ queueItems: [] }),
+			headers: {},
+			status: 200,
+		});
+
+		assert(result.success);
+
+		expect(result.data.items).toStrictEqual([]);
+	});
+
+	it("should reject a non-record body", () => {
+		expect.assertions(2);
+
+		const result = parseDequeueResponse({ body: "nope", headers: {}, status: 200 });
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err.message).toBe("Malformed memory-store dequeue response");
+	});
+
+	it("should reject a body whose id is not a string", () => {
+		expect.assertions(1);
+
+		const result = parseDequeueResponse({
+			body: { ...validDequeueBody(), id: 12_345 },
+			headers: {},
+			status: 200,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+	});
+
+	it("should reject a body whose queueItems is not an array", () => {
+		expect.assertions(1);
+
+		const result = parseDequeueResponse({
+			body: { ...validDequeueBody(), queueItems: "nope" },
+			headers: {},
+			status: 200,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+	});
+
+	it("should reject a body whose queueItems contains a malformed entry", () => {
+		expect.assertions(1);
+
+		const malformedItem: Record<string, unknown> = {
+			...validQueueItemBody(),
+			path: 12_345,
+		};
+		const result = parseDequeueResponse({
+			body: { ...validDequeueBody(), queueItems: [malformedItem] },
+			headers: {},
+			status: 200,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+	});
+
+	it("should propagate the response status code on the returned ApiError", () => {
+		expect.assertions(1);
+
+		const result = parseDequeueResponse({ body: "nope", headers: {}, status: 503 });
+
+		assert(!result.success);
+
+		expect(result.err.statusCode).toBe(503);
 	});
 });

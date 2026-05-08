@@ -48,6 +48,10 @@ Active patches as of 2026-05-08:
    server actually accepts; the `format: "duration"` annotation
    makes Ajv-formats demand ISO 8601 (`PT3S`) instead and rejects
    wire-correct values during conformance validation.
+5. The `invisibilityWindow` query parameter on
+   `Cloud_ReadMemoryStoreQueueItems` drops `"format": "duration"` for
+   the same reason as patch 4. The example is `"3s"` and the server
+   rejects ISO 8601 form.
 
 When a patched section is fixed upstream, remove the corresponding
 case from `apply-schema-patches.ts`. The next refresh will then

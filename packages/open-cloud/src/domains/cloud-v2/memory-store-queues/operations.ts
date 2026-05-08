@@ -24,3 +24,24 @@ export const ENQUEUE_OPERATION_LIMIT: OperationLimit = Object.freeze({
 export const ENQUEUE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
 	"memory-store.queue:add",
 ]);
+
+const DEQUEUE_PER_MINUTE = 1_000_000;
+
+/**
+ * Per-second request ceiling for dequeueing memory-store queue items,
+ * from the Open Cloud OpenAPI schema (1,000,000 requests per minute
+ * per API key owner). Keyed independently from enqueue and discard.
+ */
+export const DEQUEUE_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	maxPerSecond: DEQUEUE_PER_MINUTE / SECONDS_PER_MINUTE,
+	operationKey: "memory-store-queues.dequeue",
+});
+
+/**
+ * Scopes required to dequeue memory-store queue items, sourced from
+ * `x-roblox-scopes` on the `Cloud_ReadMemoryStoreQueueItems` operation
+ * in the vendored OpenAPI schema.
+ */
+export const DEQUEUE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
+	"memory-store.queue:dequeue",
+]);

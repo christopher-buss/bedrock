@@ -5605,8 +5605,7 @@
             "description": "Invisibility window for items read, in seconds.\n\nItems read are invisible in subsequent reads during the invisibility\nwindow duration.\n\nIt must be written in seconds greater than 0 and end with `s`.\n\nDefaults to `30s`.",
             "schema": {
               "example": "3s",
-              "type": "string",
-              "format": "duration"
+              "type": "string"
             }
           }
         ],
@@ -75145,8 +75144,7 @@
             "writeOnly": true,
             "example": "3s",
             "type": "string",
-            "description": "The TTL for the item.",
-            "format": "duration"
+            "description": "The TTL for the item."
           },
           "expireTime": {
             "readOnly": true,

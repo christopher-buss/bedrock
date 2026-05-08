@@ -47,6 +47,14 @@ const PATCHES: ReadonlyArray<Patch> = [
 		find: /(\{memory_store_queue_item_id\}`",[\s\S]*?"description": "The TTL for the item\.")(,\n {12}"format": "duration")/,
 		replace: "$1",
 	},
+	{
+		appliedMarker:
+			'"name": "invisibilityWindow",\n            "in": "query",\n            "description": "Invisibility window for items read',
+		description:
+			"Cloud_ReadMemoryStoreQueueItems.invisibilityWindow drops invalid format: duration",
+		find: /("name": "invisibilityWindow",[\s\S]*?"example": "3s",\n {14}"type": "string")(,\n {14}"format": "duration")/,
+		replace: "$1",
+	},
 ];
 
 /**
