@@ -42,6 +42,12 @@ Active patches as of 2026-05-08:
    identifier under `id` (schema: `readId`). The
    `DiscardMemoryStoreQueueItemsRequest` body is *not* affected;
    the discard request expects `readId`, matching the schema.
+4. `components.schemas.MemoryStoreQueueItem.properties.ttl` drops
+   `"format": "duration"`. The schema's example shows `"3s"`
+   (Google's protobuf `Duration` style), which is the format the
+   server actually accepts; the `format: "duration"` annotation
+   makes Ajv-formats demand ISO 8601 (`PT3S`) instead and rejects
+   wire-correct values during conformance validation.
 
 When a patched section is fixed upstream, remove the corresponding
 case from `apply-schema-patches.ts`. The next refresh will then

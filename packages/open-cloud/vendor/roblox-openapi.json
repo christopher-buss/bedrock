@@ -75095,8 +75095,7 @@
             "writeOnly": true,
             "example": "3s",
             "type": "string",
-            "description": "The TTL for the item.",
-            "format": "duration"
+            "description": "The TTL for the item."
           },
           "expireTime": {
             "readOnly": true,

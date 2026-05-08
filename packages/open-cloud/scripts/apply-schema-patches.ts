@@ -40,6 +40,13 @@ const PATCHES: ReadonlyArray<Patch> = [
 		find: /("ReadMemoryStoreQueueItemsResponse": \{\n {8}"type": "object",\n {8}"properties": \{)\n( {10})"readId":(\s*\{[\s\S]*?\n {10}\},)\n {10}"items":(\s*\{[\s\S]*?\n {10}\})/,
 		replace: '$1\n$2"id":$3\n          "queueItems":$4',
 	},
+	{
+		appliedMarker:
+			'"description": "The TTL for the item."\n          },\n          "expireTime"',
+		description: "MemoryStoreQueueItem.ttl drops invalid format: duration",
+		find: /(\{memory_store_queue_item_id\}`",[\s\S]*?"description": "The TTL for the item\.")(,\n {12}"format": "duration")/,
+		replace: "$1",
+	},
 ];
 
 /**
