@@ -6,6 +6,7 @@ import {
 	loadConfig as defaultLoadConfig,
 	type LoadConfigOptions,
 } from "../../shell/load-config.ts";
+import { buildCredentialEnvironment } from "../build-credential-environment.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps } from "../index.ts";
 import { type CommonOptions, parseCommonOptions } from "../parse-options.ts";
@@ -81,20 +82,6 @@ async function dispatchEnvironments(inputs: DispatchInputs): Promise<ReadonlyArr
 	return failed;
 }
 
-function buildGetEnvironment(parsed: CommonOptions): (name: string) => string | undefined {
-	return (name) => {
-		if (name === "BEDROCK_API_KEY" && parsed.apiKey !== undefined) {
-			return parsed.apiKey;
-		}
-
-		if (name === "GITHUB_TOKEN" && parsed.githubToken !== undefined) {
-			return parsed.githubToken;
-		}
-
-		return process.env[name];
-	};
-}
-
 function cancelAsFailed(clack: ClackPort): void {
 	clack.cancel("deploy failed");
 }
@@ -122,7 +109,7 @@ async function runDeploy(
 	const failures = await dispatchEnvironments({
 		config: loaded.data,
 		environments: parsed.data.environments,
-		getEnv: buildGetEnvironment(parsed.data),
+		getEnv: buildCredentialEnvironment(parsed.data),
 		resolved,
 	});
 	if (failures.length > 0) {
