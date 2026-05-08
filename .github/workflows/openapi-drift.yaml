@@ -56,16 +56,16 @@ jobs:
         name: Reset drift branch ref to base
         run: git push --force origin "HEAD:refs/heads/$DRIFT_BRANCH"
 
-      - if: steps.diff.outputs.changed == 'true'
+      - env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: steps.diff.outputs.changed == 'true'
         name: Commit refreshed spec via API
         uses: planetscale/ghcommit-action@25309d8005ac7c3bcd61d3fe19b69e0fe47dbdde # v0.2.20
         with:
-          commit_message: ${{ env.DRIFT_TITLE }}
-          repo: ${{ github.repository }}
           branch: ${{ env.DRIFT_BRANCH }}
+          commit_message: ${{ env.DRIFT_TITLE }}
           file_pattern: packages/open-cloud/vendor
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          repo: ${{ github.repository }}
 
       - if: steps.diff.outputs.changed == 'true'
         name: Open drift PR if missing
