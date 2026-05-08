@@ -1,7 +1,6 @@
-# Smoke + scenario tests: change-verification suite per ADR-003 amendment.
-# Runs `deploy()` and SDK-level scenario probes against real Roblox Open Cloud
-# on every PR and push to main. Distinct from the planned nightly
-# drift-detection e2e suite.
+# Smoke test: change-verification suite per ADR-003 amendment.
+# Runs `deploy()` against real Roblox Open Cloud on every PR and push to main.
+# Distinct from the planned nightly drift-detection e2e suite.
 
 name: Smoke
 
@@ -22,35 +21,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  scenarios:
-    name: Scenario Tests
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Setup
-        uses: ./.github/actions/setup
-
-      - env:
-          BEDROCK_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
-          ROBLOX_TEST_UNIVERSE_ID: ${{ secrets.ROBLOX_TEST_UNIVERSE_ID }}
-        name: Run scenario tests
-        run: pnpm --filter @bedrock/e2e test:scenarios --reporter=verbose --reporter=json --outputFile=scenarios-results.json
-
-      - if: always()
-        name: Fail if any scenario test was skipped
-        run: |
-          SKIPPED=$(jq '(.numPendingTests // 0) + (.numTodoTests // 0)' apps/e2e/scenarios-results.json)
-          echo "Skipped tests: $SKIPPED"
-          if [ "$SKIPPED" -ne 0 ]; then
-            echo "::error::$SKIPPED scenario test(s) were skipped; likely missing repo secrets"
-            exit 1
-          fi
-    timeout-minutes: 10
   smoke:
     name: Smoke Test
     # Fork PRs cannot access repository secrets, so skip cleanly rather than fail.

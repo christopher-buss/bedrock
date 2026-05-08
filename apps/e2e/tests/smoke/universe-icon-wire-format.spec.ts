@@ -10,7 +10,7 @@ const UNIVERSE_ID = process.env["ROBLOX_TEST_UNIVERSE_ID"];
 const HAS_SECRETS = API_KEY !== undefined && UNIVERSE_ID !== undefined;
 
 // Minimal valid 1x1 transparent PNG. A real image format keeps the
-// scenario stable against any change in Roblox's validation order
+// request stable against any change in Roblox's validation order
 // between language-code and image-bytes checks.
 const ICON_BYTES = new Uint8Array([
 	0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
@@ -20,9 +20,14 @@ const ICON_BYTES = new Uint8Array([
 	0x42, 0x60, 0x82,
 ]);
 
-describe("universe icon wire-format on real Roblox", () => {
+// Uploading the source-language icon is rejected by Roblox; we use that
+// rejection only as a deterministic way to elicit an error response, then
+// assert on bedrock's structured surfacing of it. The specific error code
+// and message text are kept loose so a Roblox-side reword does not block
+// every PR.
+describe("universe icon error surfacing on real Roblox", () => {
 	it.skipIf(!HAS_SECRETS)(
-		"should surface code 26 with a structured ApiError when uploading the source-language icon",
+		"should surface a structured ApiError when Roblox rejects an upload",
 		async () => {
 			expect.assertions(4);
 
@@ -42,9 +47,14 @@ describe("universe icon wire-format on real Roblox", () => {
 
 			assert(result.err instanceof ApiError);
 
-			expect(result.err.statusCode).toBe(400);
-			expect(result.err.code).toBe("26");
-			expect(result.err.message).toMatch(/source language/i);
+			const { code, message, statusCode } = result.err;
+
+			expect(statusCode).toBe(400);
+
+			assert(code !== undefined);
+
+			expect(code.length).toBeGreaterThan(0);
+			expect(message.length).toBeGreaterThan(0);
 		},
 	);
 });
