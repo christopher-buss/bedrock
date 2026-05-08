@@ -3,7 +3,7 @@
 // re-exported.
 
 /**
- * Wire shape of a `MemoryStoreQueueItem` resource — the response body
+ * Wire shape of a `MemoryStoreQueueItem` resource: the response body
  * returned by `Cloud_CreateMemoryStoreQueueItem` and the array entry
  * inside `Cloud_ReadMemoryStoreQueueItems`. The server emits `path`,
  * `data`, `expireTime`, and an optional `priority`. Top-level `data`

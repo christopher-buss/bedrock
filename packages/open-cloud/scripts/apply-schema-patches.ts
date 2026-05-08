@@ -9,7 +9,7 @@
 // String-surgery is preferred over `JSON.parse` + `JSON.stringify` so the
 // upstream formatting (compact short arrays, key ordering, whitespace)
 // survives the patch step. Diffs against the previous pinned commit show
-// only the four patched fields, not a whole-file reformat.
+// only the five patched fields, not a whole-file reformat.
 
 const SPEC_PATH = "vendor/roblox-openapi.json";
 
@@ -41,8 +41,12 @@ const PATCHES: ReadonlyArray<Patch> = [
 		replace: '$1\n$2"id":$3\n          "queueItems":$4',
 	},
 	{
+		// Anchored on the priority field that immediately precedes ttl so
+		// the marker is unique to MemoryStoreQueueItem (MemoryStoreSortedMapItem
+		// also ends with `"The TTL for the item."` followed by `expireTime`,
+		// but has no priority field).
 		appliedMarker:
-			'"description": "The TTL for the item."\n          },\n          "expireTime"',
+			'"description": "The priority of the queue item.",\n            "format": "double"\n          },\n          "ttl": {\n            "writeOnly": true,\n            "example": "3s",\n            "type": "string",\n            "description": "The TTL for the item."\n          },\n          "expireTime"',
 		description: "MemoryStoreQueueItem.ttl drops invalid format: duration",
 		find: /(\{memory_store_queue_item_id\}`",[\s\S]*?"description": "The TTL for the item\.")(,\n {12}"format": "duration")/,
 		replace: "$1",
