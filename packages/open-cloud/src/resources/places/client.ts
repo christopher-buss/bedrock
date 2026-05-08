@@ -1,4 +1,15 @@
 import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
+import {
+	GET_SPEC,
+	SUBMIT_HEAD_SPEC,
+	SUBMIT_VERSION_SPEC,
+} from "../../domains/cloud-v2/luau-execution-tasks/specs.ts";
+import type {
+	GetParameters,
+	LuauExecutionTask,
+	SubmitAtHeadParameters,
+	SubmitAtVersionParameters,
+} from "../../domains/cloud-v2/luau-execution-tasks/types.ts";
 import { buildUpdateRequest } from "../../domains/cloud-v2/places/builders.ts";
 import {
 	UPDATE_OPERATION_LIMIT,
@@ -18,7 +29,52 @@ import { CREATE_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import { ResourceClient, type ResourceMethodSpec } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
 
-function makeSpec(
+/**
+ * Operation Group exposed by {@link PlacesClient} as the
+ * `luauExecution` namespace. Provides `submit` to queue a Luau script
+ * and `get` to fetch a task's current state. Shares the same
+ * dispatch wiring as the top-level `LuauExecutionClient` exposed at
+ * `@bedrock/ocale/luau-execution`.
+ */
+export interface LuauExecutionHandle {
+	/**
+	 * Fetches the current state of a previously-submitted Luau
+	 * execution task. Uses idempotent retry semantics for both 429 and
+	 * 5xx.
+	 *
+	 * @param parameters - The task ref plus an optional `view` selector.
+	 * @param options - Optional per-request overrides (e.g. A different
+	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 * @returns A {@link Result} wrapping the parsed
+	 *   {@link LuauExecutionTask} or the {@link OpenCloudError} that
+	 *   caused the request to fail.
+	 */
+	get(
+		parameters: GetParameters,
+		options?: RequestOptions,
+	): Promise<Result<LuauExecutionTask, OpenCloudError>>;
+	/**
+	 * Submits a Luau script for execution against a place. Dispatches
+	 * to the head-version URL when `versionId` is omitted, or to the
+	 * specific-version URL when one is supplied. Both URL shapes share
+	 * one rate-limit queue and one required-scope set.
+	 *
+	 * @param parameters - The universe and place identifiers, the
+	 *   script to run, an optional `versionId`, and any other writable
+	 *   submit fields.
+	 * @param options - Optional per-request overrides (e.g. A different
+	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 * @returns A {@link Result} wrapping the parsed
+	 *   {@link LuauExecutionTask} or the {@link OpenCloudError} that
+	 *   caused the request to fail.
+	 */
+	submit(
+		parameters: SubmitAtHeadParameters | SubmitAtVersionParameters,
+		options?: RequestOptions,
+	): Promise<Result<LuauExecutionTask, OpenCloudError>>;
+}
+
+function makePublishSpec(
 	versionType: "Published" | "Saved",
 ): ResourceMethodSpec<PublishParameters, PlaceVersion> {
 	return Object.freeze({
@@ -32,8 +88,8 @@ function makeSpec(
 	});
 }
 
-const PUBLISH_SPEC = makeSpec("Published");
-const SAVE_SPEC = makeSpec("Saved");
+const PUBLISH_SPEC = makePublishSpec("Published");
+const SAVE_SPEC = makePublishSpec("Saved");
 
 const UPDATE_SPEC: ResourceMethodSpec<UpdatePlaceParameters, Place> = Object.freeze({
 	buildRequest: buildUpdateRequest,
@@ -46,12 +102,11 @@ const UPDATE_SPEC: ResourceMethodSpec<UpdatePlaceParameters, Place> = Object.fre
 
 /**
  * Public client for the Roblox Open Cloud `Place` resource. Covers
- * place-version publishing (`publish`, `save`) and place-configuration
- * updates (`update`). Wires the request builders, the injected
- * {@link OpenCloudClientOptions.httpClient}, and the response parsers
- * into a single ergonomic surface. Every method returns a {@link Result}
- * so callers handle failure explicitly; no thrown {@link OpenCloudError}
- * ever escapes the client.
+ * place-version publishing (`publish`, `save`), place-configuration
+ * updates (`update`), and the Luau execution Operation Group
+ * (`luauExecution.submit`, `luauExecution.get`). Every method returns
+ * a {@link Result} so callers handle failure explicitly; no thrown
+ * {@link OpenCloudError} ever escapes the client.
  *
  * Publishing or saving a 5xx-failed place version is not retried
  * automatically: Roblox does not support idempotency keys, so a retry
@@ -72,6 +127,8 @@ const UPDATE_SPEC: ResourceMethodSpec<UpdatePlaceParameters, Place> = Object.fre
 export class PlacesClient {
 	readonly #inner: ResourceClient;
 
+	public readonly luauExecution: LuauExecutionHandle;
+
 	/**
 	 * Creates a new {@link PlacesClient}. Configuration is frozen on
 	 * construction; per-request overrides are accepted on each method.
@@ -80,6 +137,7 @@ export class PlacesClient {
 	 */
 	constructor(options: OpenCloudClientOptions) {
 		this.#inner = new ResourceClient(options);
+		this.luauExecution = createLuauExecutionHandle(this.#inner);
 	}
 
 	/**
@@ -141,4 +199,19 @@ export class PlacesClient {
 	): Promise<Result<Place, OpenCloudError>> {
 		return this.#inner.execute({ options, parameters, spec: UPDATE_SPEC });
 	}
+}
+
+function createLuauExecutionHandle(inner: ResourceClient): LuauExecutionHandle {
+	return {
+		async get(parameters, options) {
+			return inner.execute({ options, parameters, spec: GET_SPEC });
+		},
+		async submit(parameters, options) {
+			if ("versionId" in parameters) {
+				return inner.execute({ options, parameters, spec: SUBMIT_VERSION_SPEC });
+			}
+
+			return inner.execute({ options, parameters, spec: SUBMIT_HEAD_SPEC });
+		},
+	};
 }

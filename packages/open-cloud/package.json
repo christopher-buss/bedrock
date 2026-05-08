@@ -45,6 +45,10 @@
 			"source": "./src/locales/index.ts",
 			"default": "./dist/locales.mjs"
 		},
+		"./luau-execution": {
+			"source": "./src/resources/luau-execution/index.ts",
+			"default": "./dist/luau-execution.mjs"
+		},
 		"./package.json": "./package.json",
 		"./places": {
 			"source": "./src/resources/places/index.ts",
@@ -98,6 +102,7 @@
 			"./developer-products": "./dist/developer-products.mjs",
 			"./game-passes": "./dist/game-passes.mjs",
 			"./locales": "./dist/locales.mjs",
+			"./luau-execution": "./dist/luau-execution.mjs",
 			"./package.json": "./package.json",
 			"./places": "./dist/places.mjs",
 			"./universes": "./dist/universes.mjs"

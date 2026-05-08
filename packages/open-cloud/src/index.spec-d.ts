@@ -184,6 +184,7 @@ describe("ValidationErrorCode", () => {
 			| "empty_image_ids"
 			| "empty_update"
 			| "format_mismatch"
+			| "incomplete_ref"
 			| "invalid_image_id"
 		>();
 	});
