@@ -10,6 +10,7 @@ export default isentinel(
 			"!.claude/hooks/**",
 			"**/*.example.spec.ts",
 			"**/vendor/**",
+			".sandcastle/plans/**",
 			".sandcastle/worktrees/**",
 			"packages/bedrock/tests/fixtures/**/*.yml",
 			"packages/open-cloud/src/locales/data.generated.ts",

@@ -24,6 +24,8 @@ The designer has written a plan for this task at `{{PLAN_PATH}}`. Read it first:
 
 The plan is canonical. Follow its slice breakdown. Pull the issue (`gh issue view {{TASK_ID}}`) or parent PRD only if you need detail the plan does not cover.
 
+Do NOT delete or modify `{{PLAN_PATH}}`. The reviewer needs it intact. The file is gitignored and ESLint-ignored; if a tool flags it, that is a configuration bug to report, not a reason to remove the plan.
+
 ## EXPLORATION
 
 After reading the plan, explore the sibling code and test files it points at. Pay extra attention to test files that touch the relevant parts of the code.
