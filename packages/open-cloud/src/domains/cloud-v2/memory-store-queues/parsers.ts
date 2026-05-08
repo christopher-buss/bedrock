@@ -50,14 +50,9 @@ export function parseDequeueResponse(response: HttpResponse): Result<DequeueResu
 		return malformedDequeue(statusCode);
 	}
 
-	const items: Array<QueueItem> = [];
-	for (const wire of queueItems) {
-		const item = wireBodyToQueueItem(wire);
-		if (item === undefined) {
-			return malformedDequeue(statusCode);
-		}
-
-		items.push(item);
+	const items = queueItems.map(wireBodyToQueueItem);
+	if (!items.every(isQueueItem)) {
+		return malformedDequeue(statusCode);
 	}
 
 	return { data: { items, readId: id }, success: true };
@@ -106,6 +101,10 @@ function malformedQueueItem(statusCode: number): Result<QueueItem, ApiError> {
 		err: new ApiError(MALFORMED_QUEUE_ITEM_MESSAGE, { statusCode }),
 		success: false,
 	};
+}
+
+function isQueueItem(item: QueueItem | undefined): item is QueueItem {
+	return item !== undefined;
 }
 
 function malformedDequeue(statusCode: number): Result<DequeueResult, ApiError> {
