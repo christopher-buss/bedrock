@@ -205,6 +205,18 @@ describe(parseQueueItemResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
+		it("should reject a body whose expireTime is a string that does not parse to a Date", () => {
+			expect.assertions(2);
+
+			const body = { ...validQueueItemBody(), expireTime: "not-a-date" };
+			const result = parseQueueItemResponse({ body, headers: {}, status: 200 });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err.message).toBe("Malformed memory-store queue item response");
+		});
+
 		it("should reject a body whose priority is not a number", () => {
 			expect.assertions(1);
 

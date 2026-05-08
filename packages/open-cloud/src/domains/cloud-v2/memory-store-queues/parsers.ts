@@ -1,5 +1,6 @@
 import type { HttpResponse } from "../../../client/types.ts";
 import { ApiError } from "../../../errors/api-error.ts";
+import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import type { Result } from "../../../types.ts";
 import type { DequeueResult, QueueItem } from "./types.ts";
@@ -70,7 +71,7 @@ function isQueueItemWire(body: unknown): body is MemoryStoreQueueItemWire {
 	const { data, expireTime, path, priority } = body;
 	return (
 		typeof path === "string" &&
-		typeof expireTime === "string" &&
+		isDateTimeString(expireTime) &&
 		data !== undefined &&
 		data !== null &&
 		(priority === undefined || priority === null || typeof priority === "number")
