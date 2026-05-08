@@ -1,4 +1,5 @@
 .env
 logs/
 plans/
+test-state/
 worktrees/
