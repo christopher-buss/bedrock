@@ -4,7 +4,7 @@
 
 **File:** `roblox-openapi.json`
 **Upstream:** <https://github.com/Roblox/creator-docs/blob/main/content/en-us/reference/cloud/openapi.json>
-**Pinned commit:** `1383cbec2a860aff931128445ff77609b790913f`
+**Pinned commit:** `0cbea0571b465d97ce870109666d6435e1491449`
 **Format:** OpenAPI 3.0.4 (JSON)
 
 ### Refresh
@@ -14,8 +14,38 @@ pnpm --filter @bedrock/ocale refresh-openapi
 ```
 
 The script updates both `roblox-openapi.json` and the pinned commit
-SHA in this README. After refreshing, diff the file against the
-previous version to review changes before committing.
+SHA in this README, then re-applies the local drift patches listed
+below. After refreshing, diff the file against the previous version
+to review changes before committing.
+
+### Local drift patches
+
+`scripts/apply-schema-patches.ts` corrects confirmed divergences
+between the upstream schema and the live API at `apis.roblox.com`.
+The script runs automatically as part of `refresh-openapi` and is
+idempotent: each patch is a no-op when the target shape is already
+present, so refreshing against an upstream that has fixed a drift
+will leave that section untouched.
+
+Active patches as of 2026-05-08:
+
+1. `components.schemas.MemoryStoreQueueItem.required` includes
+   `"data"`. The server returns 400 `INVALID_ARGUMENT` when the
+   field is absent or `null`; the schema marks it optional.
+2. `components.schemas.MemoryStoreQueueItem.properties.path.readOnly`
+   is `true`. The server generates the path on creation and
+   rejects client-supplied paths; the schema does not flag the
+   field as read-only.
+3. `components.schemas.ReadMemoryStoreQueueItemsResponse.properties`
+   uses keys `queueItems` and `id`. The server emits the items
+   array under `queueItems` (schema: `items`) and the read
+   identifier under `id` (schema: `readId`). The
+   `DiscardMemoryStoreQueueItemsRequest` body is *not* affected;
+   the discard request expects `readId`, matching the schema.
+
+When a patched section is fixed upstream, remove the corresponding
+case from `apply-schema-patches.ts`. The next refresh will then
+leave the upstream value in place.
 
 ### Why pin? And why pinning is not protection
 

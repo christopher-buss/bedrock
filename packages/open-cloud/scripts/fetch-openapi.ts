@@ -1,3 +1,5 @@
+import { applySchemaPatches } from "./apply-schema-patches.ts";
+
 const UPSTREAM_PATH = "content/en-us/reference/cloud/openapi.json";
 const UPSTREAM_RAW = `https://raw.githubusercontent.com/Roblox/creator-docs/refs/heads/main/${UPSTREAM_PATH}`;
 const UPSTREAM_COMMITS_API = `https://api.github.com/repos/Roblox/creator-docs/commits?path=${encodeURIComponent(UPSTREAM_PATH)}&per_page=1`;
@@ -31,6 +33,11 @@ async function refreshSpec(): Promise<void> {
 	await Bun.write(SPEC_PATH, specResponse);
 }
 
+async function refreshAndPatchSpec(): Promise<void> {
+	await refreshSpec();
+	await applySchemaPatches();
+}
+
 async function refreshPinnedCommit(): Promise<void> {
 	const sha = await fetchLatestSha();
 	const readme = await Bun.file(README_PATH).text();
@@ -42,4 +49,4 @@ async function refreshPinnedCommit(): Promise<void> {
 	await Bun.write(README_PATH, updated);
 }
 
-await Promise.all([refreshSpec(), refreshPinnedCommit()]);
+await Promise.all([refreshAndPatchSpec(), refreshPinnedCommit()]);
