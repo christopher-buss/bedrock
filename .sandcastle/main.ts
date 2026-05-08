@@ -127,6 +127,11 @@ const sandboxEnvironment = {
 	GIT_AUTHOR_NAME: HOST_USER_NAME,
 	GIT_COMMITTER_EMAIL: HOST_USER_EMAIL,
 	GIT_COMMITTER_NAME: HOST_USER_NAME,
+	// mise treats untrusted config files as parse errors. The Dockerfile
+	// bake-time `mise trust /home/agent/mise.toml` does not cover the
+	// bind-mount path used by sandcastle 0.5.10 (/home/agent/workspace).
+	// Trust the parent directory so any nested mise.toml is accepted.
+	MISE_TRUSTED_CONFIG_PATHS: "/home/agent",
 };
 
 // Configure ssh-signing inside the sandbox. Run as a hook step (rather than
@@ -146,17 +151,15 @@ const CONFIGURE_GIT_SIGNING = [
 // inside an isolated git worktree, so `pnpm install` writing linux-arm64
 // native addons is contained.
 //
-// `mise trust .` covers the bind-mount path (e.g. ~/workspace/mise.toml)
-// which the Dockerfile's bake-time `mise trust` does not match.
-// `hk install --mise` wires the project's git hooks into the worktree's
-// .git/. `CI=true` keeps pnpm non-interactive (no TTY in sandbox exec).
-// 5-min timeout covers an 8-workspace cold install plus build scripts.
+// MISE_TRUSTED_CONFIG_PATHS in sandboxEnvironment covers the trust
+// requirement; `hk install --mise` wires the project's git hooks into the
+// worktree's .git/. `CI=true` keeps pnpm non-interactive (no TTY in sandbox
+// exec). 5-min timeout covers an 8-workspace cold install plus build scripts.
 const implementerHooks = {
 	sandbox: {
 		onSandboxReady: [
 			{ command: REGISTER_HOST_UID },
 			{ command: CONFIGURE_GIT_SIGNING },
-			{ command: "mise trust ." },
 			{ command: "hk install --mise" },
 			{ command: "CI=true pnpm install", timeoutMs: 300_000 },
 		],
@@ -172,11 +175,7 @@ const implementerHooks = {
 // oxc-parser, vitest, etc.).
 const plannerHooks = {
 	sandbox: {
-		onSandboxReady: [
-			{ command: REGISTER_HOST_UID },
-			{ command: "mise trust ." },
-			{ command: "hk install --mise" },
-		],
+		onSandboxReady: [{ command: REGISTER_HOST_UID }, { command: "hk install --mise" }],
 	},
 };
 
