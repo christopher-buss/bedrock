@@ -146,6 +146,8 @@ const CONFIGURE_GIT_SIGNING = [
 // inside an isolated git worktree, so `pnpm install` writing linux-arm64
 // native addons is contained.
 //
+// `mise trust .` covers the bind-mount path (e.g. ~/workspace/mise.toml)
+// which the Dockerfile's bake-time `mise trust` does not match.
 // `hk install --mise` wires the project's git hooks into the worktree's
 // .git/. `CI=true` keeps pnpm non-interactive (no TTY in sandbox exec).
 // 5-min timeout covers an 8-workspace cold install plus build scripts.
@@ -154,6 +156,7 @@ const implementerHooks = {
 		onSandboxReady: [
 			{ command: REGISTER_HOST_UID },
 			{ command: CONFIGURE_GIT_SIGNING },
+			{ command: "mise trust ." },
 			{ command: "hk install --mise" },
 			{ command: "CI=true pnpm install", timeoutMs: 300_000 },
 		],
@@ -169,7 +172,11 @@ const implementerHooks = {
 // oxc-parser, vitest, etc.).
 const plannerHooks = {
 	sandbox: {
-		onSandboxReady: [{ command: REGISTER_HOST_UID }, { command: "hk install --mise" }],
+		onSandboxReady: [
+			{ command: REGISTER_HOST_UID },
+			{ command: "mise trust ." },
+			{ command: "hk install --mise" },
+		],
 	},
 };
 
