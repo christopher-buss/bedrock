@@ -242,7 +242,7 @@ function containerSeesWorktree(config: RemoteConfig): boolean {
 			"-d",
 			`/data/worktrees/${config.worktree}`,
 		],
-		{ stdio: ["ignore", "ignore", "pipe"] },
+		{ stdio: ["ignore", "ignore", "inherit"] },
 	);
 	return result.status === 0;
 }
