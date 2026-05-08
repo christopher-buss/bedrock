@@ -22,10 +22,13 @@ to review changes before committing.
 
 `scripts/apply-schema-patches.ts` corrects confirmed divergences
 between the upstream schema and the live API at `apis.roblox.com`.
-The script runs automatically as part of `refresh-openapi` and is
-idempotent: each patch is a no-op when the target shape is already
-present, so refreshing against an upstream that has fixed a drift
-will leave that section untouched.
+The script runs automatically as part of `refresh-openapi`. Each
+patch is idempotent against an already-patched file (re-runs on the
+same vendored copy are a no-op), but the refresh flow first calls
+`verifyPatchesStillNeeded` against the freshly-pulled upstream and
+fails loudly if any patch's pre-patch shape is absent. That signal
+catches the case where Roblox has fixed a drift upstream: the patch
+becomes obsolete and should be removed before the refresh succeeds.
 
 Active patches as of 2026-05-08:
 
@@ -53,9 +56,10 @@ Active patches as of 2026-05-08:
    the same reason as patch 4. The example is `"3s"` and the server
    rejects ISO 8601 form.
 
-When a patched section is fixed upstream, remove the corresponding
-case from `apply-schema-patches.ts`. The next refresh will then
-leave the upstream value in place.
+When a patched section is fixed upstream, the next `refresh-openapi`
+will fail with the obsolete patch's description. Remove the
+corresponding case from `apply-schema-patches.ts` and re-run the
+refresh; the upstream value is then left in place.
 
 ### Why pin? And why pinning is not protection
 
@@ -117,7 +121,11 @@ Drift is caught in three places, each with a different failure mode:
    `.github/workflows/` runs weekly, re-runs `scripts/fetch-openapi.ts`,
    and opens (or updates) a PR when the upstream `openapi.json` or its
    pinned commit SHA has diverged. Normal CI on that PR surfaces any
-   fixture or parser drift introduced by the new spec.
+   fixture or parser drift introduced by the new spec. The refresh
+   itself fails loudly via `verifyPatchesStillNeeded` when an
+   upstream change has removed the pre-patch shape of one of the
+   active drift patches; the message names the obsolete patch so the
+   case can be removed before the refresh re-runs.
 3. **End-to-end (deferred).** Scenario tests that hit the real Open
    Cloud API with throwaway resources will catch runtime behavior that
    the schema cannot describe (e.g. silent field rename, changed error

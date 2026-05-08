@@ -1,4 +1,4 @@
-import { applySchemaPatches } from "./apply-schema-patches.ts";
+import { applySchemaPatches, verifyPatchesStillNeeded } from "./apply-schema-patches.ts";
 
 const UPSTREAM_PATH = "content/en-us/reference/cloud/openapi.json";
 const UPSTREAM_RAW = `https://raw.githubusercontent.com/Roblox/creator-docs/refs/heads/main/${UPSTREAM_PATH}`;
@@ -35,6 +35,7 @@ async function refreshSpec(): Promise<void> {
 
 async function refreshAndPatchSpec(): Promise<void> {
 	await refreshSpec();
+	await verifyPatchesStillNeeded();
 	await applySchemaPatches();
 }
 

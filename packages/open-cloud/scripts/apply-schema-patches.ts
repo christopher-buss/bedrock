@@ -62,6 +62,44 @@ const PATCHES: ReadonlyArray<Patch> = [
 ];
 
 /**
+ * Returns the descriptions of every patch whose pre-patch `find` regex
+ * does not match `text`. Used by {@link verifyPatchesStillNeeded} to
+ * surface upstream fixes during the refresh flow: when a fresh upstream
+ * pull no longer contains a patch's pre-patch shape, that patch may be
+ * obsolete and the corresponding case can be removed.
+ *
+ * @param text - Raw upstream schema text to inspect.
+ * @returns Descriptions of patches whose pre-patch shape is absent.
+ */
+export function findObsoletePatchDescriptions(text: string): Array<string> {
+	return PATCHES.filter((patch) => !patch.find.test(text)).map((patch) => patch.description);
+}
+
+/**
+ * Asserts that every patch's pre-patch shape is still present in
+ * `vendor/roblox-openapi.json`. Called by `fetch-openapi.ts` after
+ * fetching upstream and before {@link applySchemaPatches} runs, so that
+ * a freshly-pulled spec which no longer contains a patch's pre-patch
+ * shape is reported loudly rather than silently no-op'd by the
+ * idempotent path inside {@link applySchemaPatches}.
+ *
+ * @rejects {Error} If any patch's pre-patch shape is absent from the
+ *   freshly-pulled spec, listing the patch descriptions to investigate.
+ */
+export async function verifyPatchesStillNeeded(): Promise<void> {
+	const text = await Bun.file(SPEC_PATH).text();
+	const obsolete = findObsoletePatchDescriptions(text);
+	if (obsolete.length === 0) {
+		return;
+	}
+
+	const list = obsolete.map((description) => `  - ${description}`).join("\n");
+	throw new Error(
+		`apply-schema-patches: pre-patch shape no longer present in fresh upstream; Roblox may have fixed these drifts. Remove the corresponding patch(es) from PATCHES and re-run refresh:\n${list}`,
+	);
+}
+
+/**
  * Applies the documented drift corrections to `vendor/roblox-openapi.json`.
  * Reads the file as text, applies each patch in turn via a targeted
  * regex replacement, and writes the result back. Each patch is idempotent:
