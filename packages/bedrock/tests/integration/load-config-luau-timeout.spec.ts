@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
 
 const WORKSPACE_TEMP_ROOT = join(
-	dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url))))),
+	dirname(dirname(dirname(fileURLToPath(import.meta.url)))),
 	"node_modules",
 	".cache",
 );
