@@ -50,7 +50,6 @@ io.write(encoded)
  */
 export class LuauRuntimeMissingError extends Error {
 	public readonly hint: string;
-	public override readonly name = "LuauRuntimeMissingError";
 	public readonly sourceFile: string;
 
 	/**

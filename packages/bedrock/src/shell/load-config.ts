@@ -33,13 +33,7 @@ export interface LoadConfigOptions {
 	readonly cwd?: string;
 }
 
-/**
- * Internal dependencies for {@link loadConfigWith}. Not re-exported from
- * `src/index.ts` — the only consumer is the unit spec, which injects a fake
- * evaluator to exercise error paths without spawning a real process.
- */
-export interface LoadConfigDeps {
-	/** Function used to evaluate `.luau` config files into plain config objects. */
+interface LoadConfigDeps {
 	readonly evaluator: LuauEvaluator;
 }
 
