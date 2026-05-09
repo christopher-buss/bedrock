@@ -15,7 +15,7 @@ export interface RateLimitErrorOptions extends ErrorOptions {
  * @example
  *
  * ```ts
- * import { RateLimitError } from "@bedrock/ocale";
+ * import { RateLimitError } from "@bedrock-rbx/ocale";
  *
  * const error = new RateLimitError("Too many requests", {
  *     retryAfterSeconds: 30,

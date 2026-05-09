@@ -14,7 +14,7 @@ const config: KnipConfig = {
 		".": {
 			entry: ["scripts/**/*.ts", ".claude/hooks/**/*.ts", "pncat.config.ts"],
 			ignoreDependencies: [
-				"@bedrock/core",
+				"@bedrock-rbx/core",
 				"@eslint/config-inspector",
 				"@isentinel/hooks",
 				"better-typescript-lib",

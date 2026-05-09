@@ -26,7 +26,7 @@ export interface PriceFields {
  * @example
  *
  * ```ts
- * import { derivePriceFields } from "@bedrock/core";
+ * import { derivePriceFields } from "@bedrock-rbx/core";
  *
  * expect(derivePriceFields({ price: undefined })).toStrictEqual({ isForSale: false });
  * expect(derivePriceFields({ price: 250 })).toStrictEqual({ isForSale: true, price: 250 });

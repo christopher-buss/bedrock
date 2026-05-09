@@ -37,7 +37,7 @@ export function serializeConfig(options: SerializeConfigOptions): string {
 
 	const body = renderObjectLiteral(options.config, 0);
 	return [
-		'import { defineConfig } from "@bedrock/core/config";',
+		'import { defineConfig } from "@bedrock-rbx/core/config";',
 		"",
 		`export default defineConfig(${body});`,
 		"",

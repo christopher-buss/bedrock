@@ -1,5 +1,5 @@
-import { ApiError } from "@bedrock/ocale";
-import { UniversesClient } from "@bedrock/ocale/universes";
+import { ApiError } from "@bedrock-rbx/ocale";
+import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
 import process from "node:process";
 import { assert, describe, expect, it } from "vitest";

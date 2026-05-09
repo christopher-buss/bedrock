@@ -1,4 +1,4 @@
-# @bedrock/typescript-config
+# @bedrock-rbx/typescript-config
 
 Shared TypeScript configuration for all Bedrock packages.
 

@@ -1,4 +1,4 @@
-import { sharedConfig, sortExports } from "@bedrock/vite-config";
+import { sharedConfig, sortExports } from "@bedrock-rbx/vite-config";
 
 import { mergeConfig } from "vite-plus";
 import type { ExportsOptions } from "vite-plus/pack";

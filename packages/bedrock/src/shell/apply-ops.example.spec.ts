@@ -8,7 +8,7 @@ import {
   asSha256Hex,
   type DriverRegistry,
   type Operation,
-} from '@bedrock/core'
+} from '@bedrock-rbx/core'
 
 it('Example 1', () => {
   function describe(err: ApplyError): string {

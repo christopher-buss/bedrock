@@ -15,7 +15,7 @@ import { MemoryStoreQueuesGroup } from "./queues-group.ts";
  * @example
  *
  * ```ts
- * import { StorageClient } from "@bedrock/ocale/storage";
+ * import { StorageClient } from "@bedrock-rbx/ocale/storage";
  *
  * const client = new StorageClient({ apiKey: "your-key" });
  * expect(client).toBeInstanceOf(StorageClient);

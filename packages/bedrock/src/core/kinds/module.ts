@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import type { Type } from "arktype";
 
@@ -22,7 +22,7 @@ import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
  * @example
  *
  * ```ts
- * import { asResourceKey, type BuildDesiredError } from "@bedrock/core";
+ * import { asResourceKey, type BuildDesiredError } from "@bedrock-rbx/core";
  *
  * const err: BuildDesiredError = {
  *     filePath: "assets/vip-icon.png",
@@ -62,7 +62,7 @@ export type BuildDesiredError =
  * @example
  *
  * ```ts
- * import type { KindIo } from "@bedrock/core";
+ * import type { KindIo } from "@bedrock-rbx/core";
  *
  * const io: KindIo = {
  *     readFile: async () => new Uint8Array([1, 2, 3]),
@@ -90,7 +90,7 @@ export interface KindIo {
  * ```ts
  * import { type } from "arktype";
  *
- * import { asResourceKey, asSha256Hex, type ResourceKindModule } from "@bedrock/core";
+ * import { asResourceKey, asSha256Hex, type ResourceKindModule } from "@bedrock-rbx/core";
  *
  * const stubKind: ResourceKindModule<"gamePass"> = {
  *     kind: "gamePass",
@@ -176,7 +176,7 @@ export interface ResourceKindModule<K extends ResourceKind> {
  * @example
  *
  * ```ts
- * import { defaultKindRegistry, type KindRegistry } from "@bedrock/core";
+ * import { defaultKindRegistry, type KindRegistry } from "@bedrock-rbx/core";
  *
  * const registry: KindRegistry = defaultKindRegistry;
  * expect(registry.gamePass.kind).toBe("gamePass");

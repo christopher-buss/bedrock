@@ -1,7 +1,7 @@
 # Open Cloud Package Design Document
 
 **Date:** 2025-12-13 **Status:** Historical (superseded by implementation)
-**Package:** `@bedrock/ocale` (renamed from `@bedrock/open-cloud`)
+**Package:** `@bedrock-rbx/ocale` (renamed from `@bedrock-rbx/open-cloud`)
 
 > **Heads up.** This document captures the design *as it was planned* in
 > December 2025. The shipped implementation diverged on several points. Do
@@ -26,7 +26,7 @@
 
 ## Executive Summary
 
-This document outlines the design for `@bedrock/open-cloud`, a standalone
+This document outlines the design for `@bedrock-rbx/open-cloud`, a standalone
 TypeScript HTTP client for Roblox Open Cloud APIs. The package provides
 type-safe, functional access to ~12 Open Cloud service categories with optimal
 tree-shaking, Result-based error handling, and per-request configuration
@@ -172,7 +172,7 @@ ADR-002 prescribes FCIS for the **Bedrock CLI** (the application with business
 logic). **ADR-011** refines ADR-002 for library packages: a package may use a
 simplified architecture if it satisfies a five-criteria rubric (single
 responsibility, minimal translation, stable external contract, no meaningful
-pure core to separate, swappability is imaginary). `@bedrock/open-cloud`
+pure core to separate, swappability is imaginary). `@bedrock-rbx/open-cloud`
 satisfies all five — it is an HTTP client library for one vendor API. Forcing
 "Ports and Adapters" terminology on it would produce Ports with exactly one
 implementation: ceremony rather than architecture.
@@ -900,7 +900,7 @@ async function performFetch(
 
 ```json
 {
-	"name": "@bedrock/open-cloud",
+	"name": "@bedrock-rbx/open-cloud",
 	"version": "0.1.0",
 	"type": "module",
 	"exports": {
@@ -950,13 +950,13 @@ export type { Result } from "./types";
 
 ```typescript
 // ✅ CORRECT - Shared utilities from root
-import { RateLimitError, type Result } from "@bedrock/open-cloud";
+import { RateLimitError, type Result } from "@bedrock-rbx/open-cloud";
 // ❌ IMPOSSIBLE - Clients NOT exported from root (prevents accidental barrel
 // import)
-import { GamePassesClient } from "@bedrock/open-cloud"; // TypeScript error!
+import { GamePassesClient } from "@bedrock-rbx/open-cloud"; // TypeScript error!
 // ✅ CORRECT - Subpath import (best tree-shaking)
-import { GamePassesClient } from "@bedrock/open-cloud/game-passes";
-import { UniversesClient } from "@bedrock/open-cloud/universes";
+import { GamePassesClient } from "@bedrock-rbx/open-cloud/game-passes";
+import { UniversesClient } from "@bedrock-rbx/open-cloud/universes";
 ```
 
 **Benefits:**
@@ -1105,8 +1105,8 @@ describe(GamePassesClient, () => {
 {
 	"dependencies": {},
 	"devDependencies": {
-		"@bedrock/typescript-config": "workspace:*",
-		"@bedrock/vitest-config": "workspace:*",
+		"@bedrock-rbx/typescript-config": "workspace:*",
+		"@bedrock-rbx/vitest-config": "workspace:*",
 		"@types/bun": "catalog:types",
 		"tsdown": "catalog:build",
 		"typescript": "catalog:tsc",
@@ -1292,7 +1292,7 @@ throw new NetworkError("Request failed: GET /cloud/v2/universes/123");
 **Clarification:** **ADR-011** formalized this decision. ADR-002 prescribes
 FCIS for the **Bedrock CLI** (application) and is the default for the
 monorepo; ADR-011 carves out library packages that satisfy its five-criteria
-rubric. `@bedrock/open-cloud` satisfies all five and uses the simplified
+rubric. `@bedrock-rbx/open-cloud` satisfies all five and uses the simplified
 pattern described in this plan.
 
 ## Implementation Notes
@@ -1327,7 +1327,7 @@ pattern described in this plan.
 
 ### npm Package Scope
 
-**Package name:** `@bedrock/open-cloud`
+**Package name:** `@bedrock-rbx/open-cloud`
 
 **Scope availability:** Must verify `@bedrock` scope is available on npm or
 create organization account.
@@ -1433,7 +1433,7 @@ pnpm changeset pre exit
 - [ ] Migration guide (if breaking changes)
 - [ ] GitHub release created with notes
 - [ ] npm publish succeeded
-- [ ] Verify installation: `npm install @bedrock/open-cloud@latest`
+- [ ] Verify installation: `npm install @bedrock-rbx/open-cloud@latest`
 
 ### Documentation Publishing
 
@@ -1545,7 +1545,7 @@ export async function createGamePass(
 - **ADR-002**: FCIS for CLI - refined by ADR-011 for library packages
 - **ADR-003**: Testing strategy - TDD, 100% coverage
 - **ADR-007**: Open Cloud only - no legacy APIs
-- **ADR-008**: Zero runtime dependencies in `@bedrock/open-cloud` - formalizes
+- **ADR-008**: Zero runtime dependencies in `@bedrock-rbx/open-cloud` - formalizes
   the empty `dependencies` field and native-web-API-only constraint
 - **ADR-009**: Result types over exceptions - formalizes the discriminated
   union `Result<T, E>` used at every public method boundary
@@ -1553,7 +1553,7 @@ export async function createGamePass(
   differentiated retry policy, `x-ratelimit-reset` adaptive backoff, and
   per-API-key queue semantics
 - **ADR-011**: Simplified architecture for library packages - formalizes the
-  FCIS opt-out and the five-criteria rubric; `@bedrock/open-cloud` satisfies
+  FCIS opt-out and the five-criteria rubric; `@bedrock-rbx/open-cloud` satisfies
   all five and uses the simplified pattern described in this plan
 - **ADR-012**: Class-based clients with per-request config overrides -
   formalizes `Object.freeze`d config, the `(params, options?)` method shape,

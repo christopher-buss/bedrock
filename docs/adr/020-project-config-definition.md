@@ -76,7 +76,7 @@ implements that kind, not by this ADR.
 
 ### `defineConfig` signature
 
-`defineConfig` is exported from `@bedrock/bedrock` and accepts either a plain
+`defineConfig` is exported from `@bedrock-rbx/core` and accepts either a plain
 config object or a function producing one. The function may be synchronous or
 asynchronous, and receives a `ctx` argument whose shape is intentionally
 minimal so future ADRs can extend it without breaking changes.
@@ -149,8 +149,8 @@ The `bedrock migrate` command (tracked in #104) automates this.
 
 ### Negative
 
-- c12 and arktype are runtime dependencies of `@bedrock/bedrock`. ADR-008's
-  zero-runtime-dependencies rule is scoped to `@bedrock/open-cloud` and
+- c12 and arktype are runtime dependencies of `@bedrock-rbx/core`. ADR-008's
+  zero-runtime-dependencies rule is scoped to `@bedrock-rbx/ocale` and
   does not apply here, but dependency count is nonzero.
 - Adding non-experience target types later requires a 0.x breaking change
   and a codemod to reintroduce a `target` wrapper. Mantle designed for

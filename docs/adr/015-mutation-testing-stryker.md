@@ -33,7 +33,7 @@ The decision to adopt StrykerJS also surfaces a secondary structural issue:
 This is test runtime behavior — not a Vite or Vitest configuration object —
 and does not belong in a package named `vite-config`. The natural home for
 both the shared Stryker config and the migrated `jest-extended.ts` setup is a
-dedicated `@bedrock/testing` package.
+dedicated `@bedrock-rbx/testing` package.
 
 ### Stryker technical facts relevant to this decision
 
@@ -64,13 +64,13 @@ architectural change excluded by this decision.
 
 Concretely:
 
-- **New package `@bedrock/testing`** (`packages/testing/`): shared home for
+- **New package `@bedrock-rbx/testing`** (`packages/testing/`): shared home for
   test-adjacent concerns. Structured as TypeScript source with no build step,
-  following the pattern of `@bedrock/vite-config`. Initial contents:
+  following the pattern of `@bedrock-rbx/vite-config`. Initial contents:
   - `src/jest-extended.ts` — migrated from `packages/vite-config/src/jest-extended.ts`.
     Registers jest-extended matchers on Vitest's `expect`. Consumers update
-    their `setupFiles` import from `@bedrock/vite-config/vitest-setup` to
-    `@bedrock/testing/jest-extended`.
+    their `setupFiles` import from `@bedrock-rbx/vite-config/vitest-setup` to
+    `@bedrock-rbx/testing/jest-extended`.
   - `src/stryker.ts` — shared Stryker configuration, extended by per-package
     `stryker.config.ts` files.
   - Future home for shared test helpers, custom matchers, and fake factories.
@@ -106,7 +106,7 @@ Concretely:
 - Incremental cache makes re-runs after minor changes fast.
 - Scoped rollout: `open-cloud` is the pilot; other packages opt in only when
   the signal proves valuable.
-- `@bedrock/testing` corrects an existing misfiling: `jest-extended.ts` moves
+- `@bedrock-rbx/testing` corrects an existing misfiling: `jest-extended.ts` moves
   from a package named after a build tool to a package named after testing.
   Future shared test utilities have a clear, appropriate home.
 
@@ -127,7 +127,7 @@ Concretely:
 - `coverageAnalysis: "perTest"` requires `threads: true` in Vitest; browser
   mode is not supported. These are Vitest runner constraints, not Stryker
   constraints.
-- Migrating `jest-extended.ts` out of `@bedrock/vite-config` requires updating
+- Migrating `jest-extended.ts` out of `@bedrock-rbx/vite-config` requires updating
   all `setupFiles` references in consumer packages. Low risk (mechanical find-
   and-replace, caught by typecheck), but a required step that touches multiple
   packages.
@@ -155,14 +155,14 @@ mutation engine is not a justified cost when StrykerJS provides the same signal.
 The custom approach was explicitly considered and declined in favor of an
 existing solution.
 
-### Separate `@bedrock/stryker-config` package
+### Separate `@bedrock-rbx/stryker-config` package
 
 A single-purpose package for shared Stryker configuration only, mirroring
-`@bedrock/vite-config`'s structure precisely.
+`@bedrock-rbx/vite-config`'s structure precisely.
 
 **Rejected.** A standalone stryker-config package would leave `jest-extended.ts`
-misplaced in `@bedrock/vite-config` and add two small packages (one for stryker
-config, one for... what?) rather than one cohesive testing package. `@bedrock/testing`
+misplaced in `@bedrock-rbx/vite-config` and add two small packages (one for stryker
+config, one for... what?) rather than one cohesive testing package. `@bedrock-rbx/testing`
 provides a clear, lasting home for all test-adjacent concerns that do not belong
 in a build tool config package.
 
@@ -195,7 +195,7 @@ direct `stryker run` invocation when needed (e.g. before a release).
 - `packages/vite-config/` — remove `src/jest-extended.ts` and the
   `./vitest-setup` export
 - All `setupFiles` consumers — update import from
-  `@bedrock/vite-config/vitest-setup` to `@bedrock/testing/jest-extended`
+  `@bedrock-rbx/vite-config/vitest-setup` to `@bedrock-rbx/testing/jest-extended`
 - `packages/open-cloud/stryker.config.ts` — new, extends shared config
 - `scripts/mutate-changed.ts` — new wrapper (pattern: `scripts/merge-coverage.ts`)
 - Root `package.json` — add `"mutate:changed": "bun scripts/mutate-changed.ts"`

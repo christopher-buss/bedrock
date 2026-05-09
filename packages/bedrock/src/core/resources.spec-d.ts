@@ -1,4 +1,4 @@
-import type { SocialLink } from "@bedrock/ocale/universes";
+import type { SocialLink } from "@bedrock-rbx/ocale/universes";
 
 import { describe, expectTypeOf, it } from "vitest";
 

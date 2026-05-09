@@ -1,4 +1,4 @@
-# ADR-008: Zero Runtime Dependencies in `@bedrock/open-cloud`
+# ADR-008: Zero Runtime Dependencies in `@bedrock-rbx/ocale`
 
 **Date:** 2026-04-12 **Status:** Accepted
 
@@ -7,7 +7,7 @@ supply-chain, web-apis
 
 ## Context
 
-`@bedrock/open-cloud` is a standalone, publishable TypeScript HTTP client for
+`@bedrock-rbx/ocale` is a standalone, publishable TypeScript HTTP client for
 Roblox Open Cloud APIs.
 
 The package targets Node.js 24.12+ and Bun 1.3+. Both runtimes ship native
@@ -34,7 +34,7 @@ with no offsetting benefit.
 
 ## Decision
 
-`@bedrock/open-cloud` ships with **`"dependencies": {}`** — literally empty.
+`@bedrock-rbx/ocale` ships with **`"dependencies": {}`** — literally empty.
 
 All runtime functionality uses standard web APIs exclusively:
 
@@ -49,7 +49,7 @@ Multipart encoding uses the native `FormData` API. No `form-data` package. No
 No Bun-specific APIs are used, ensuring compatibility with both target runtimes
 from the same source.
 
-devDependencies remain: `@bedrock/typescript-config`, `@bedrock/vitest-config`,
+devDependencies remain: `@bedrock-rbx/typescript-config`, `@bedrock-rbx/vitest-config`,
 `@types/bun`, `tsdown`, `typescript`, `vitest`. These are build/test tooling
 only — not shipped to consumers.
 

@@ -29,7 +29,7 @@ export type ConfigInput = ((ctx: ConfigContext) => Config | Promise<Config>) | C
  * @example
  *
  * ```ts
- * import { defineConfig } from "@bedrock/core/config";
+ * import { defineConfig } from "@bedrock-rbx/core/config";
  *
  * const config = defineConfig({
  *     environments: { production: {} },

@@ -1,4 +1,4 @@
-import type { SocialLink } from "@bedrock/ocale/universes";
+import type { SocialLink } from "@bedrock-rbx/ocale/universes";
 
 import {
 	asResourceKey,
@@ -17,7 +17,7 @@ import {
  * @example
  *
  * ```ts
- * import { asResourceKey, asSha256Hex, type GamePassDesiredState } from "@bedrock/core";
+ * import { asResourceKey, asSha256Hex, type GamePassDesiredState } from "@bedrock-rbx/core";
  *
  * const pass: GamePassDesiredState = {
  *     description: "Grants VIP perks.",
@@ -88,7 +88,7 @@ export interface GamePassDesiredState {
  *     asRobloxAssetId,
  *     asSha256Hex,
  *     type PlaceDesiredState,
- * } from "@bedrock/core";
+ * } from "@bedrock-rbx/core";
  *
  * const place: PlaceDesiredState = {
  *     description: undefined,
@@ -172,7 +172,7 @@ export interface PlaceOutputs {
  *     asRobloxAssetId,
  *     UNIVERSE_SINGLETON_KEY,
  *     type UniverseDesiredState,
- * } from "@bedrock/core";
+ * } from "@bedrock-rbx/core";
  *
  * const universe: UniverseDesiredState = {
  *     consoleEnabled: undefined,
@@ -288,7 +288,7 @@ export type SocialLinkField = (typeof SOCIAL_LINK_FIELDS)[number];
  * @example
  *
  * ```ts
- * import { asResourceKey, type DeveloperProductDesiredState } from "@bedrock/core";
+ * import { asResourceKey, type DeveloperProductDesiredState } from "@bedrock-rbx/core";
  *
  * const product: DeveloperProductDesiredState = {
  *     description: "Stocks the player up with 1,000 premium gems.",
@@ -421,7 +421,7 @@ export type ResourceKind = ResourceDesiredState["kind"];
  * @example
  *
  * ```ts
- * import { asRobloxAssetId, type ResourceOutputsByKind } from "@bedrock/core";
+ * import { asRobloxAssetId, type ResourceOutputsByKind } from "@bedrock-rbx/core";
  *
  * const outputs: ResourceOutputsByKind["gamePass"] = {
  *     assetId: asRobloxAssetId("9876543210"),
@@ -474,7 +474,7 @@ export type ResourceOutputs<K extends ResourceKind> = ResourceOutputsByKind[K];
  *     asRobloxAssetId,
  *     asSha256Hex,
  *     type ResourceCurrentState,
- * } from "@bedrock/core";
+ * } from "@bedrock-rbx/core";
  *
  * const current: ResourceCurrentState<"gamePass"> = {
  *     description: "Grants VIP perks.",
@@ -540,7 +540,7 @@ export function copyDeclaredSocialLinks(
  * @example
  *
  * ```ts
- * import { UNIVERSE_SINGLETON_KEY } from "@bedrock/core";
+ * import { UNIVERSE_SINGLETON_KEY } from "@bedrock-rbx/core";
  *
  * expect(UNIVERSE_SINGLETON_KEY).toBe("main");
  * ```

@@ -10,10 +10,10 @@ import {
 	type ResourceDriver,
 	selectEnvironment,
 	UNIVERSE_SINGLETON_KEY,
-} from "@bedrock/core";
-import { PlacesClient } from "@bedrock/ocale/places";
-import { createFakeHttpClient, validUniverseBody } from "@bedrock/ocale/testing";
-import { UniversesClient } from "@bedrock/ocale/universes";
+} from "@bedrock-rbx/core";
+import { PlacesClient } from "@bedrock-rbx/ocale/places";
+import { createFakeHttpClient, validUniverseBody } from "@bedrock-rbx/ocale/testing";
+import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

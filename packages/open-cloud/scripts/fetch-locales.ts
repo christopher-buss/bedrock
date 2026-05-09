@@ -138,7 +138,7 @@ function renderModule(entries: ReadonlyArray<VendoredEntry>): string {
 /**
  * Vendored snapshot of
  * \`${UPSTREAM_URL}\`.
- * Refreshed by \`pnpm --filter @bedrock/ocale refresh-locales\`.
+ * Refreshed by \`pnpm --filter @bedrock-rbx/ocale refresh-locales\`.
  */
 export const ROBLOX_CREATOR_LOCALES = [
 ${body}

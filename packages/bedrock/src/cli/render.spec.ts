@@ -1,4 +1,4 @@
-import { ApiError, PermissionError } from "@bedrock/ocale";
+import { ApiError, PermissionError } from "@bedrock-rbx/ocale";
 import { S_BAR, S_BAR_END, S_BAR_START, S_ERROR, S_SUCCESS } from "@clack/prompts";
 
 import { fakeClackPort } from "#tests/helpers/clack";

@@ -1,4 +1,4 @@
-import { defineConfig } from "@bedrock/core";
+import { defineConfig } from "@bedrock-rbx/core";
 
 export default defineConfig({
 	environments: { production: {} },

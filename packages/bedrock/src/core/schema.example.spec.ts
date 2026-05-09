@@ -4,13 +4,13 @@ import type {
   ResourceEntryByKind,
   Config,
   StateConfig,
-} from '@bedrock/core/config'
+} from '@bedrock-rbx/core/config'
 import {
   selectEnvironment,
   type ResolvedConfig,
   isGistStateConfig,
   validateConfig,
-} from '@bedrock/core'
+} from '@bedrock-rbx/core'
 
 it('Example 1', () => {
   const entry: ResourceEntryByKind['gamePass'] = {

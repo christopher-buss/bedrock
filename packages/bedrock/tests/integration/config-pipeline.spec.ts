@@ -13,14 +13,14 @@ import {
 	type ResourceCurrentState,
 	type ResourceDriver,
 	selectEnvironment,
-} from "@bedrock/core";
-import { GamePassesClient } from "@bedrock/ocale/game-passes";
+} from "@bedrock-rbx/core";
+import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import {
 	createFakeHttpClient,
 	type FakeHttpClient,
 	validGamePassBody,
-} from "@bedrock/ocale/testing";
-import { HAS_LUTE } from "@bedrock/testing/lute";
+} from "@bedrock-rbx/ocale/testing";
+import { HAS_LUTE } from "@bedrock-rbx/testing/lute";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

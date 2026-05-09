@@ -119,5 +119,5 @@ export {
 	isSha256Hex,
 } from "./types/ids.ts";
 export type { ResourceKey, RobloxAssetId, Sha256Hex } from "./types/ids.ts";
-export { OpenCloudError, type Result } from "@bedrock/ocale";
-export type { SocialLink } from "@bedrock/ocale/universes";
+export { OpenCloudError, type Result } from "@bedrock-rbx/ocale";
+export type { SocialLink } from "@bedrock-rbx/ocale/universes";

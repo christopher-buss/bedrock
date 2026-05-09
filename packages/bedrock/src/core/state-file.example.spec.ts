@@ -4,7 +4,7 @@ import {
   serializeStateFile,
   type BedrockState,
   parseStateFile,
-} from '@bedrock/core'
+} from '@bedrock-rbx/core'
 
 it('Example 1', () => {
   const state: BedrockState = {

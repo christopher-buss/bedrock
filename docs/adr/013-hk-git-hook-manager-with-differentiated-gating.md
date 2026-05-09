@@ -356,7 +356,7 @@ community hook definitions.
 - **ADR-006**: ADR Enforcement — this ADR is required before implementing the
   hook changes. The gap between CLAUDE.md's "Before Committing" documentation
   and the actual hook enforcement is the forcing function this ADR addresses.
-- **ADR-008**: Zero Runtime Dependencies in `@bedrock/open-cloud` — the new dev
+- **ADR-008**: Zero Runtime Dependencies in `@bedrock-rbx/ocale` — the new dev
   dependencies (`std-env`, commitlint) are development tooling, not runtime
   dependencies of any published package. ADR-008's constraint is not affected.
 

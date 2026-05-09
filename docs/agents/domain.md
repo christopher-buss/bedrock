@@ -20,11 +20,11 @@ This repo is a **multi-context monorepo**:
 ├── docs/adr/                          ← system-wide decisions (ADR-001 through ADR-020)
 └── packages/
     ├── open-cloud/
-    │   └── CONTEXT.md                 ← @bedrock/ocale vocabulary
+    │   └── CONTEXT.md                 ← @bedrock-rbx/ocale vocabulary
     ├── bedrock/
-    │   └── CONTEXT.md                 ← @bedrock/core vocabulary (when written)
+    │   └── CONTEXT.md                 ← @bedrock-rbx/core vocabulary (when written)
     ├── testing/
-    │   └── CONTEXT.md                 ← @bedrock/testing vocabulary (when written)
+    │   └── CONTEXT.md                 ← @bedrock-rbx/testing vocabulary (when written)
     ├── vite-config/                   ← config-only, no domain language
     └── typescript-config/             ← config-only, no domain language
 ```

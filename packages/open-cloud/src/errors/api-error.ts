@@ -19,7 +19,7 @@ export interface ApiErrorOptions extends ErrorOptions {
  * @example
  *
  * ```ts
- * import { ApiError } from "@bedrock/ocale";
+ * import { ApiError } from "@bedrock-rbx/ocale";
  *
  * const error = new ApiError("HTTP 404: Pass not found (code NotFound)", {
  *     code: "NotFound",

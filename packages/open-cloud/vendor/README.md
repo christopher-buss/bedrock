@@ -10,7 +10,7 @@
 ### Refresh
 
 ```sh
-pnpm --filter @bedrock/ocale refresh-openapi
+pnpm --filter @bedrock-rbx/ocale refresh-openapi
 ```
 
 The script updates both `roblox-openapi.json` and the pinned commit
@@ -91,7 +91,7 @@ regenerated together by the refresh script and committed to git.
 ### Refresh
 
 ```sh
-pnpm --filter @bedrock/ocale refresh-locales
+pnpm --filter @bedrock-rbx/ocale refresh-locales
 ```
 
 The script writes both the JSON and the generated TS module, and

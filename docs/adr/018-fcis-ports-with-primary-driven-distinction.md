@@ -17,7 +17,7 @@ justification is no longer accurate.
 ADR-017 established that Bedrock is a programmatic TypeScript IaC library whose
 CLI is one of several entry points -- not the sole entry point. There are now
 multiple ways to invoke Bedrock (CLI, programmatic API, future plugins) and
-multiple things Bedrock reaches out to (Open Cloud via `@bedrock/open-cloud`,
+multiple things Bedrock reaches out to (Open Cloud via `@bedrock-rbx/ocale`,
 future state backends, future config sources). This is precisely the topology
 that ports and adapters were designed for. The port structure is genuinely
 needed -- not just for testability, but because the boundaries are real and will
@@ -49,7 +49,7 @@ TypeDoc API reference, plugin author tutorials): those use plain language.
 | Term | Meaning |
 | ---- | ------- |
 | **Primary port** | An interface the core exposes for external actors to invoke. Primary adapters (CLI, programmatic API, future plugins) call through this interface to drive Bedrock's behavior. The core defines the port; the adapter calls it. Current examples: the CLI entrypoint (`packages/cli/src/bin/`), the programmatic public API (`src/index.ts`). Primary ports correspond to "driver ports" in strict hexagonal terminology. |
-| **Driven port** | An interface through which Bedrock reaches out to an external system. Driven adapters implement these. Current example: `ResourceDriver<K>` (Open Cloud resources via `@bedrock/open-cloud`). Future examples: `StatePort` (Gist / S3 / R2), `ConfigPort` (c12). Driven ports correspond to "secondary ports" in strict hexagonal terminology. |
+| **Driven port** | An interface through which Bedrock reaches out to an external system. Driven adapters implement these. Current example: `ResourceDriver<K>` (Open Cloud resources via `@bedrock-rbx/ocale`). Future examples: `StatePort` (Gist / S3 / R2), `ConfigPort` (c12). Driven ports correspond to "secondary ports" in strict hexagonal terminology. |
 | **`ResourceDriver<K>`** | Bedrock's generic driven-port interface, indexed by resource kind `K`. Despite containing the word "driver," this is a **driven** (secondary) port -- the opposite of a hexagonal "driver port," which means primary. The name follows the Terraform / Mantle IaC community convention where "driver" means "the component that talks to a specific resource API." This deliberate mismatch with hexagonal vocabulary is explained in Implementation Notes. |
 
 ## Decision
@@ -251,7 +251,7 @@ export interface ResourceDriver<K extends ResourceKind> {
 	create(
 		desired: ResourceDesiredState<K>,
 	): Promise<Result<ResourceCurrentState<K>, OpenCloudError>>;
-	// update and delete are deferred. update ships when @bedrock/ocale's
+	// update and delete are deferred. update ships when @bedrock-rbx/ocale's
 	// resource clients gain update capability; delete ships when a
 	// delete-capable resource lands. Slice 1 has create only; applyOps
 	// returns err(unsupported) if it encounters an Update op.
@@ -300,7 +300,7 @@ pass it in). It does not require a DI container.
 - **2026-04-25:** The CLI primary-adapter folder is `packages/bedrock/src/cli/`.
   The original Decision text places it at `packages/cli/src/bin/`; both segments
   changed after this ADR was accepted. The package was renamed to
-  `@bedrock/core` (PR #163), making `packages/bedrock/` its working-tree path.
+  `@bedrock-rbx/core` (PR #163), making `packages/bedrock/` its working-tree path.
   The `bin/` segment was renamed to `cli/` when the scaffolding landed (#184)
   to align with the Node convention that `bin` names the published executable
   entry (`dist/cli/run.mjs`, declared in `package.json` `bin`) rather than the

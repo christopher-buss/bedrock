@@ -1,6 +1,6 @@
 # Open Cloud Package
 
-`@bedrock/ocale` is a typed HTTP client for Roblox's Open Cloud APIs. This context covers the vocabulary used to organise wire-level code, consumer-facing client classes, and the relationships between them.
+`@bedrock-rbx/ocale` is a typed HTTP client for Roblox's Open Cloud APIs. This context covers the vocabulary used to organise wire-level code, consumer-facing client classes, and the relationships between them.
 
 ## Language
 

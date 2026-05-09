@@ -2,7 +2,7 @@
 
 Bedrock is an Infrastructure-as-Code library for Roblox. You declare the
 resources you want. Bedrock reconciles them against the live state through
-[`@bedrock/ocale`](/ocale/guide/getting-started) and reports what changed.
+[`@bedrock-rbx/ocale`](/ocale/guide/getting-started) and reports what changed.
 
 This guide walks through the programmatic pipeline as of the first slice:
 `config → buildDesired → diff → applyOps`. The `bedrock` CLI binary and
@@ -14,19 +14,19 @@ own TypeScript.
 :::tabs key:pm
 == pnpm
 ```sh
-pnpm add bedrock
+pnpm add @bedrock-rbx/core
 ```
 == npm
 ```sh
-npm install bedrock
+npm install @bedrock-rbx/core
 ```
 == bun
 ```sh
-bun add bedrock
+bun add @bedrock-rbx/core
 ```
 == yarn
 ```sh
-yarn add bedrock
+yarn add @bedrock-rbx/core
 ```
 :::
 
@@ -37,7 +37,7 @@ deploys. Bedrock correlates desired with current state by key, so renaming a
 key is interpreted as a delete-and-create. Pick something durable.
 
 ```ts
-import { asResourceKey } from "bedrock";
+import { asResourceKey } from "@bedrock-rbx/core";
 
 const resources = [
 	{
@@ -62,7 +62,8 @@ computes a SHA-256 hash of each, and returns the fully-normalized
 `ResourceDesiredState[]` that the pure core expects.
 
 ```ts
-import { buildDesired } from "bedrock";
+import { buildDesired } from "@bedrock-rbx/core";
+
 import { readFile } from "node:fs/promises";
 
 const desired = await buildDesired({ resources }, (path) => readFile(path));
@@ -79,7 +80,7 @@ Gist-backed state adapter ships in a later slice; until then, load current
 state from wherever you persist it. On a first deploy the snapshot is empty:
 
 ```ts
-import type { ResourceCurrentState } from "bedrock";
+import type { ResourceCurrentState } from "@bedrock-rbx/core";
 
 const current: ReadonlyArray<ResourceCurrentState> = [];
 ```
@@ -94,7 +95,7 @@ per desired resource:
 - `noop` when the key is present and every field matches.
 
 ```ts
-import { diff } from "bedrock";
+import { diff } from "@bedrock-rbx/core";
 
 const ops = diff(desired, current);
 ```
@@ -113,9 +114,8 @@ compile-time-checked dispatch table: every `ResourceKind` must map to a
 driver or the registry fails to type-check.
 
 ```ts
-import { GamePassesClient } from "@bedrock/ocale/game-passes";
-
-import { applyOps, type DriverRegistry } from "bedrock";
+import { applyOps, type DriverRegistry } from "@bedrock-rbx/core";
+import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 
 const apiKey = process.env.BEDROCK_API_KEY;
 if (apiKey === undefined) {
@@ -141,7 +141,7 @@ Pulumi behave.
 
 ## Handle the result
 
-Bedrock follows the same `Result` discipline as `@bedrock/ocale`: errors are
+Bedrock follows the same `Result` discipline as `@bedrock-rbx/ocale`: errors are
 returned, not thrown. Narrow on `result.success` to reach either the new
 current state or the error:
 
@@ -153,7 +153,7 @@ if (!result.success) {
 ```
 
 `result.err` is an [`OpenCloudError`](/ocale/guide/errors) re-exported from
-`@bedrock/ocale`; see the ocale error guide for the hierarchy and
+`@bedrock-rbx/ocale`; see the ocale error guide for the hierarchy and
 `instanceof` narrowing patterns.
 
 ## Reference

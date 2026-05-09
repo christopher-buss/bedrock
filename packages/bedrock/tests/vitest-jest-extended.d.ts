@@ -1,1 +1,1 @@
-import "@bedrock/testing/jest-extended";
+import "@bedrock-rbx/testing/jest-extended";

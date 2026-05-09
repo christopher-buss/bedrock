@@ -28,7 +28,7 @@ export interface PermissionErrorOptions extends ApiErrorOptions {
  * @example
  *
  * ```ts
- * import { PermissionError } from "@bedrock/ocale";
+ * import { PermissionError } from "@bedrock-rbx/ocale";
  *
  * const error = new PermissionError("HTTP 403", {
  *     operationKey: "developer-products.create",

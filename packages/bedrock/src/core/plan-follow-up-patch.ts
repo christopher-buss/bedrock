@@ -1,4 +1,4 @@
-import type { DeveloperProduct } from "@bedrock/ocale/developer-products";
+import type { DeveloperProduct } from "@bedrock-rbx/ocale/developer-products";
 
 import type { DeveloperProductDesiredState } from "./resources.ts";
 

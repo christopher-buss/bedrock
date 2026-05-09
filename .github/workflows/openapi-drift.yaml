@@ -40,7 +40,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Fetch upstream spec
-        run: pnpm --filter @bedrock/ocale refresh-openapi
+        run: pnpm --filter @bedrock-rbx/ocale refresh-openapi
 
       - id: diff
         name: Detect drift
@@ -95,7 +95,7 @@ jobs:
           The upstream \`content/en-us/reference/cloud/openapi.json\` in
           [Roblox/creator-docs](https://github.com/Roblox/creator-docs) has
           diverged from our pinned copy. The diff in this PR is exactly
-          what \`pnpm --filter @bedrock/ocale refresh-openapi\` produced
+          what \`pnpm --filter @bedrock-rbx/ocale refresh-openapi\` produced
           against main.
 
           ## What to review

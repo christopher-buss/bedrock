@@ -13,7 +13,7 @@ import { universeKind } from "./universe.ts";
  * @example
  *
  * ```ts
- * import { defaultKindRegistry } from "@bedrock/core";
+ * import { defaultKindRegistry } from "@bedrock-rbx/core";
  *
  * expect(defaultKindRegistry.gamePass.kind).toBe("gamePass");
  * expect(defaultKindRegistry.place.kind).toBe("place");

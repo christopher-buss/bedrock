@@ -5,7 +5,7 @@ import {
   type BedrockState,
   type DriverRegistry,
   type StatePort,
-} from '@bedrock/core'
+} from '@bedrock-rbx/core'
 
 it('Example 1', () => {
   return deploy({ environment: 'production' }).then((result) => {

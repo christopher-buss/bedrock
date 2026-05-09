@@ -11,7 +11,7 @@ import {
   flattenConfig,
   selectEnvironment,
   type Config,
-} from '@bedrock/core'
+} from '@bedrock-rbx/core'
 
 it('Example 1', () => {
   const input: GamePassDesiredInput = {

@@ -32,7 +32,7 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
  *     diff,
  *     type GamePassDesiredState,
  *     type ResourceCurrentState,
- * } from "@bedrock/core";
+ * } from "@bedrock-rbx/core";
  *
  * const hash = asSha256Hex(
  *     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",

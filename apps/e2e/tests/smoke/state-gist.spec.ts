@@ -1,4 +1,4 @@
-import { type BedrockState, createGistStateAdapter } from "@bedrock/core";
+import { type BedrockState, createGistStateAdapter } from "@bedrock-rbx/core";
 
 import process from "node:process";
 import { assert, describe, expect, it, onTestFinished } from "vitest";

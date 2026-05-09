@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import { readFile as nodeReadFile } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -98,7 +98,7 @@ interface AssembleReportInputs {
  * @example
  *
  * ```ts
- * import { migrateMantleState } from "@bedrock/core";
+ * import { migrateMantleState } from "@bedrock-rbx/core";
  *
  * const yaml = [
  *     'version: "6"',

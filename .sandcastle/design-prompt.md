@@ -37,7 +37,7 @@ Write the plan to `{{PLAN_PATH}}`. Structure it as:
 4. **Non-goals**: anything the implementer might be tempted to add but shouldn't (e.g. methods deferred per the issue).
 5. **Open questions**: anything you couldn't resolve from the issue plus codebase. The reviewer will resolve these during review.
 
-Follow `CLAUDE.md` conventions throughout: TDD slices, kebab-case commit subjects, no em-dashes, no `as` casts, `T | undefined` not `T | null`, jest-extended matchers wired via `@bedrock/testing/jest-extended`.
+Follow `CLAUDE.md` conventions throughout: TDD slices, kebab-case commit subjects, no em-dashes, no `as` casts, `T | undefined` not `T | null`, jest-extended matchers wired via `@bedrock-rbx/testing/jest-extended`.
 
 ## OUTPUT
 

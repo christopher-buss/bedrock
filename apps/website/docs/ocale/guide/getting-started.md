@@ -5,26 +5,26 @@
 :::tabs key:pm
 == pnpm
 ```sh
-pnpm add @bedrock/ocale
+pnpm add @bedrock-rbx/ocale
 ```
 == npm
 ```sh
-npm install @bedrock/ocale
+npm install @bedrock-rbx/ocale
 ```
 == bun
 ```sh
-bun add @bedrock/ocale
+bun add @bedrock-rbx/ocale
 ```
 == yarn
 ```sh
-yarn add @bedrock/ocale
+yarn add @bedrock-rbx/ocale
 ```
 :::
 
 ## Make a request
 
 ```ts
-import { GamePassesClient } from "@bedrock/ocale/game-passes";
+import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 
 const apiKey = process.env.ROBLOX_API_KEY;
 if (apiKey === undefined) {

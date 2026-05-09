@@ -1,6 +1,6 @@
-import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
-import type { PlacesClient } from "@bedrock/ocale/places";
-import type { UniversesClient, UpdateUniverseParameters } from "@bedrock/ocale/universes";
+import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
+import type { PlacesClient } from "@bedrock-rbx/ocale/places";
+import type { UniversesClient, UpdateUniverseParameters } from "@bedrock-rbx/ocale/universes";
 
 import {
 	copyDeclaredSocialLinks,
@@ -21,9 +21,9 @@ import { asRobloxAssetId } from "../types/ids.ts";
  * along on each `UniverseDesiredState`.
  */
 export interface UniverseDriverDeps {
-	/** Configured places client from `@bedrock/ocale/places`. */
+	/** Configured places client from `@bedrock-rbx/ocale/places`. */
 	readonly places: PlacesClient;
-	/** Configured universes client from `@bedrock/ocale/universes`. */
+	/** Configured universes client from `@bedrock-rbx/ocale/universes`. */
 	readonly universes: UniversesClient;
 }
 
@@ -64,15 +64,15 @@ interface ReconcileInputs {
  * @example
  *
  * ```ts
- * import type { HttpClient } from "@bedrock/ocale";
- * import { PlacesClient } from "@bedrock/ocale/places";
- * import { UniversesClient } from "@bedrock/ocale/universes";
- * import { validUniverseBody } from "@bedrock/ocale/testing";
+ * import type { HttpClient } from "@bedrock-rbx/ocale";
+ * import { PlacesClient } from "@bedrock-rbx/ocale/places";
+ * import { UniversesClient } from "@bedrock-rbx/ocale/universes";
+ * import { validUniverseBody } from "@bedrock-rbx/ocale/testing";
  * import {
  *     asRobloxAssetId,
  *     createUniverseDriver,
  *     UNIVERSE_SINGLETON_KEY,
- * } from "@bedrock/core";
+ * } from "@bedrock-rbx/core";
  *
  * const universeBodyHttpClient: HttpClient = {
  *     async request() {

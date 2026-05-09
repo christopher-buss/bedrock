@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import type { StateConfig } from "./schema.ts";
 
@@ -39,7 +39,7 @@ interface StateResolutionInputs {
  * @example
  *
  * ```ts
- * import { resolveStateConfig } from "@bedrock/core";
+ * import { resolveStateConfig } from "@bedrock-rbx/core";
  *
  * const result = resolveStateConfig(
  *     {

@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import type { ResourceDesiredInput } from "../core/flatten.ts";
 import { defaultKindRegistry } from "../core/kinds/index.ts";
@@ -24,7 +24,7 @@ export type { BuildDesiredError } from "../core/kinds/module.ts";
  * @example
  *
  * ```ts
- * import { asResourceKey, buildDesired } from "@bedrock/core";
+ * import { asResourceKey, buildDesired } from "@bedrock-rbx/core";
  *
  * async function readFile(): Promise<Uint8Array> {
  *     return new Uint8Array([1, 2, 3]);

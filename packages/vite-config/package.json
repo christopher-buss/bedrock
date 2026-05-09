@@ -1,5 +1,5 @@
 {
-	"name": "@bedrock/vite-config",
+	"name": "@bedrock-rbx/vite-config",
 	"version": "0.0.0",
 	"private": true,
 	"description": "Shared Vite configuration for Bedrock packages",
@@ -26,7 +26,7 @@
 		"vite-plus": "catalog:build"
 	},
 	"devDependencies": {
-		"@bedrock/typescript-config": "workspace:*",
+		"@bedrock-rbx/typescript-config": "workspace:*",
 		"@types/bun": "catalog:types",
 		"typescript": "catalog:tsc",
 		"vitest": "catalog:test"

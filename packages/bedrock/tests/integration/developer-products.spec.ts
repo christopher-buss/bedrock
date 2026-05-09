@@ -13,9 +13,9 @@ import {
 	type ResourceDriver,
 	selectEnvironment,
 	UNIVERSE_SINGLETON_KEY,
-} from "@bedrock/core";
-import { DeveloperProductsClient } from "@bedrock/ocale/developer-products";
-import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock/ocale/testing";
+} from "@bedrock-rbx/core";
+import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
+import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock-rbx/ocale/testing";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

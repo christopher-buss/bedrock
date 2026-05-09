@@ -1,4 +1,4 @@
-import { loadConfig, migrateMantleState, selectEnvironment } from "@bedrock/core";
+import { loadConfig, migrateMantleState, selectEnvironment } from "@bedrock-rbx/core";
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
 
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures");
-// Walking up from a temp file inside the workspace tree finds @bedrock/core
+// Walking up from a temp file inside the workspace tree finds @bedrock-rbx/core
 // via the workspace root's node_modules, regardless of pnpm's hoist decisions.
 // node_modules/.cache is the conventional location for tool ephemera and is
 // already gitignored.

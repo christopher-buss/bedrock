@@ -8,7 +8,7 @@ import {
   type ResourceKindModule,
   defaultKindRegistry,
   type KindRegistry,
-} from '@bedrock/core'
+} from '@bedrock-rbx/core'
 import { type } from 'arktype'
 
 it('Example 1', () => {

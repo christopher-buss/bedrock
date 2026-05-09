@@ -1,6 +1,6 @@
-import { ApiError } from "@bedrock/ocale";
-import { GamePassesClient } from "@bedrock/ocale/game-passes";
-import { createFakeHttpClient, validGamePassBody } from "@bedrock/ocale/testing";
+import { ApiError } from "@bedrock-rbx/ocale";
+import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
+import { createFakeHttpClient, validGamePassBody } from "@bedrock-rbx/ocale/testing";
 
 import { gamePassDesired } from "#tests/helpers/resources";
 import type { Except } from "type-fest";

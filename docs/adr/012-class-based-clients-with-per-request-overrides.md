@@ -8,7 +8,7 @@ Decision Makers: Maintainer Tags: architecture, open-cloud, api-design, sdk
 
 ## Context
 
-ADR-011 established that `@bedrock/open-cloud` may use a simplified architecture
+ADR-011 established that `@bedrock-rbx/ocale` may use a simplified architecture
 in place of FCIS + Ports, and listed "immutable configuration" as a principle
 opt-out packages must respect. That principle is intentionally shape-agnostic:
 it says a package's configuration must not change underneath a consumer once
@@ -16,7 +16,7 @@ the package has handed them a usable handle, but it says nothing about *how*
 that handle should be shaped. Classes, closure factories, builders, and bare
 functions could each satisfy the principle.
 
-This ADR picks a specific mechanism for `@bedrock/open-cloud`: each resource is
+This ADR picks a specific mechanism for `@bedrock-rbx/ocale`: each resource is
 a **class** with config **frozen at construction via `Object.freeze`**, and
 every public method takes an optional second argument — a subset of the
 construction-time options — whose fields override the constructor config for
@@ -58,7 +58,7 @@ Classes give this state a natural home. Closures can carry it too, but at the
 cost of the ceremony described above.
 
 **Industry convention** reinforces the class choice but is not itself
-load-bearing. Every modern TypeScript SDK that `@bedrock/open-cloud` consumers
+load-bearing. Every modern TypeScript SDK that `@bedrock-rbx/ocale` consumers
 are likely to have touched — OpenAI, Anthropic, AWS SDK v3, Stripe, Octokit —
 uses a class-based shape with constructor config. Matching that shape lowers
 the learning curve, but it is not a reason that could survive a strong
@@ -98,7 +98,7 @@ type, but it requires explicit documentation.
 
 ## Decision
 
-`@bedrock/open-cloud` resource clients are **classes**. Each public resource
+`@bedrock-rbx/ocale` resource clients are **classes**. Each public resource
 (one per Open Cloud service category — `GamePassesClient`,
 `DeveloperProductsClient`, `GameIconsClient`, `GameThumbnailsClient`,
 `UniversesClient`) is a class constructed with an `OpenCloudClientOptions`
@@ -152,7 +152,7 @@ in the merge are *replaced*, not extended.
 
 ### Application today
 
-- **`@bedrock/open-cloud` resource clients** follow this pattern uniformly.
+- **`@bedrock-rbx/ocale` resource clients** follow this pattern uniformly.
   Each of `GamePassesClient`, `DeveloperProductsClient`, `GameIconsClient`,
   `GameThumbnailsClient`, and `UniversesClient` is a class with a frozen
   `config` field and `(params, options?)` method signatures.
@@ -160,7 +160,7 @@ in the merge are *replaced*, not extended.
   rubric) are not bound to this decision. They must satisfy ADR-011's
   shape-agnostic "immutable configuration" principle, but they may choose
   classes, closure factories, or any other mechanism that honors it. This
-  ADR is a decision for `@bedrock/open-cloud` specifically, not a
+  ADR is a decision for `@bedrock-rbx/ocale` specifically, not a
   monorepo-wide pattern.
 
 ## Consequences
@@ -214,11 +214,11 @@ in the merge are *replaced*, not extended.
   is a silent hazard. The package must derive one from the other
   mechanically (e.g., `Pick<OpenCloudClientOptions, ...>`) or enforce
   synchronization via a type-level test.
-- **The decision is package-specific.** `@bedrock/open-cloud` is now
+- **The decision is package-specific.** `@bedrock-rbx/ocale` is now
   committed to a class-oriented API shape. A future refactor toward, say,
   a functional resource-module pattern would be a breaking change for
   consumers. ADR-011's shape-agnostic principle leaves room for *other*
-  opt-out packages to make different choices, but for `@bedrock/open-cloud`
+  opt-out packages to make different choices, but for `@bedrock-rbx/ocale`
   itself this ADR is load-bearing.
 
 ### Neutral
@@ -387,7 +387,7 @@ half of the rejection; the ergonomic argument is secondary.
 - **ADR-011**: Simplified architecture for library packages — the parent
   decision this ADR refines. ADR-011 establishes the shape-agnostic
   "immutable configuration" principle; this ADR picks classes with
-  `Object.freeze` as the specific mechanism for `@bedrock/open-cloud`.
+  `Object.freeze` as the specific mechanism for `@bedrock-rbx/ocale`.
 
 ## Amendments
 
@@ -424,7 +424,7 @@ invariants.
 
 `ResourceClient` is not exported from any package subpath. Consumers
 continue to import resource clients from their subpaths
-(`@bedrock/ocale/game-passes`, and so on).
+(`@bedrock-rbx/ocale/game-passes`, and so on).
 
 ## References
 

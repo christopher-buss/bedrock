@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import { validateEnvironmentName } from "../core/environment.ts";
 import { parseStateFile, serializeStateFile } from "../core/state-file.ts";
@@ -76,7 +76,7 @@ interface ReadContentParameters {
  * @example
  *
  * ```ts
- * import { createGistStateAdapter } from "@bedrock/core";
+ * import { createGistStateAdapter } from "@bedrock-rbx/core";
  *
  * const port = createGistStateAdapter({
  *     fetch: async () =>

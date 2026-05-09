@@ -1,7 +1,11 @@
-import { ApiError } from "@bedrock/ocale";
-import { PlacesClient } from "@bedrock/ocale/places";
-import { createFakeHttpClient, validPlaceBody, validUniverseBody } from "@bedrock/ocale/testing";
-import { UniversesClient } from "@bedrock/ocale/universes";
+import { ApiError } from "@bedrock-rbx/ocale";
+import { PlacesClient } from "@bedrock-rbx/ocale/places";
+import {
+	createFakeHttpClient,
+	validPlaceBody,
+	validUniverseBody,
+} from "@bedrock-rbx/ocale/testing";
+import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
 import { PLATFORM_FLAG_ROWS, universeDesired } from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";

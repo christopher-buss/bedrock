@@ -11,7 +11,7 @@ stack consisted of four tools from adjacent ecosystems:
 
 - **tsdown** for library builds (`packages/cli`, `packages/open-cloud`)
 - **vitest** for unit and type tests, configured per-package via an
-  `@bedrock/vitest-config` shared preset
+  `@bedrock-rbx/vitest-config` shared preset
 - **vitepress** for the documentation site (`apps/website`)
 - **turborepo** as the task runner, caching layer, and pipeline orchestrator
 
@@ -74,14 +74,14 @@ Concretely:
   in the root config).
 - **Library builds** move from tsdown to `vp pack`. `packages/cli` and
   `packages/open-cloud` each consume a shared `pack` config from
-  `@bedrock/vite-config`.
+  `@bedrock-rbx/vite-config`.
 - **Tests** continue to run on vitest, but invoked through `vp test`. Per-
   package `vitest.config.ts` files are deleted; each package instead re-
-  exports `@bedrock/vite-config`'s shared config from its `vite.config.ts`.
+  exports `@bedrock-rbx/vite-config`'s shared config from its `vite.config.ts`.
   The root config uses `projects: ["packages/*", "apps/*"]` glob discovery
   instead of a hand-maintained project list.
-- **The shared config package** is renamed from `@bedrock/vitest-config` to
-  `@bedrock/vite-config` and now owns both the shared `pack` (build) config
+- **The shared config package** is renamed from `@bedrock-rbx/vitest-config` to
+  `@bedrock-rbx/vite-config` and now owns both the shared `pack` (build) config
   and the shared `test` config, consumed as TypeScript source with no build
   step of its own.
 - **`vite` and `vitest` are pinned to the voidzero forks**
@@ -176,7 +176,7 @@ documents it as such.
 
 ## Implementation Notes
 
-- `@bedrock/vitest-config` is renamed to `@bedrock/vite-config`. The package
+- `@bedrock-rbx/vitest-config` is renamed to `@bedrock-rbx/vite-config`. The package
   is consumed as TypeScript source (its `main` and `types` point at
   `./src/index.ts`), so it has no build step of its own.
 - `packages/cli/vite.config.ts` and `packages/open-cloud/vite.config.ts` each

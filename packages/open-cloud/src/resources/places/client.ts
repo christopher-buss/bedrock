@@ -34,7 +34,7 @@ import type { Result } from "../../types.ts";
  * `luauExecution` namespace. Provides `submit` to queue a Luau script
  * and `get` to fetch a task's current state. Shares the same
  * dispatch wiring as the top-level `LuauExecutionClient` exposed at
- * `@bedrock/ocale/luau-execution`.
+ * `@bedrock-rbx/ocale/luau-execution`.
  */
 export interface LuauExecutionHandle {
 	/**
@@ -118,7 +118,7 @@ const UPDATE_SPEC: ResourceMethodSpec<UpdatePlaceParameters, Place> = Object.fre
  * @example
  *
  * ```ts
- * import { PlacesClient } from "@bedrock/ocale/places";
+ * import { PlacesClient } from "@bedrock-rbx/ocale/places";
  *
  * const client = new PlacesClient({ apiKey: "your-key" });
  * expect(client).toBeInstanceOf(PlacesClient);

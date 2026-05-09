@@ -1,5 +1,5 @@
 {
-	"name": "@bedrock/e2e",
+	"name": "@bedrock-rbx/e2e",
 	"version": "0.0.1",
 	"private": true,
 	"description": "Bedrock E2E scenario tests",
@@ -17,14 +17,14 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
-		"@bedrock/core": "workspace:*",
-		"@bedrock/ocale": "workspace:*",
+		"@bedrock-rbx/core": "workspace:*",
+		"@bedrock-rbx/ocale": "workspace:*",
 		"arktype": "catalog:runtime"
 	},
 	"devDependencies": {
-		"@bedrock/testing": "workspace:*",
-		"@bedrock/typescript-config": "workspace:*",
-		"@bedrock/vite-config": "workspace:*",
+		"@bedrock-rbx/testing": "workspace:*",
+		"@bedrock-rbx/typescript-config": "workspace:*",
+		"@bedrock-rbx/vite-config": "workspace:*",
 		"typescript": "catalog:tsc",
 		"vitest": "catalog:test"
 	},

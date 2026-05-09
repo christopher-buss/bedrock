@@ -34,7 +34,7 @@ import type {
 	defineConfig as defineConfigSource,
 } from "./shell/define-config.ts";
 
-describe("@bedrock/core/config resource-entry re-exports", () => {
+describe("@bedrock-rbx/core/config resource-entry re-exports", () => {
 	it("should re-export Config with the same identity as core/schema", () => {
 		expectTypeOf<Config>().toEqualTypeOf<ConfigSource>();
 	});
@@ -68,7 +68,7 @@ describe("@bedrock/core/config resource-entry re-exports", () => {
 	});
 });
 
-describe("@bedrock/core/config state and define-config re-exports", () => {
+describe("@bedrock-rbx/core/config state and define-config re-exports", () => {
 	it("should re-export GistStateConfig with the same identity as core/schema", () => {
 		expectTypeOf<GistStateConfig>().toEqualTypeOf<GistStateConfigSource>();
 	});
@@ -96,7 +96,7 @@ describe("@bedrock/core/config state and define-config re-exports", () => {
 	});
 });
 
-describe("@bedrock/core/config runtime surface", () => {
+describe("@bedrock-rbx/core/config runtime surface", () => {
 	it("should not leak programmatic-api symbols such as deploy or loadConfig", () => {
 		type ProgrammaticApi =
 			| "applyOps"

@@ -1,4 +1,4 @@
-import { OpenCloudError } from "@bedrock/ocale";
+import { OpenCloudError } from "@bedrock-rbx/ocale";
 
 import {
 	developerProductCurrent,

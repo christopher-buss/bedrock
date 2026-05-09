@@ -1,5 +1,5 @@
 {
-	"name": "@bedrock/website",
+	"name": "@bedrock-rbx/website",
 	"version": "0.0.1",
 	"private": true,
 	"description": "Bedrock documentation website",
@@ -19,9 +19,9 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"devDependencies": {
-		"@bedrock/testing": "workspace:*",
-		"@bedrock/typescript-config": "workspace:*",
-		"@bedrock/vite-config": "workspace:*",
+		"@bedrock-rbx/testing": "workspace:*",
+		"@bedrock-rbx/typescript-config": "workspace:*",
+		"@bedrock-rbx/vite-config": "workspace:*",
 		"concurrently": "catalog:dev",
 		"typedoc": "catalog:build",
 		"typedoc-plugin-markdown": "catalog:build",

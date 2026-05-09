@@ -1,4 +1,4 @@
-import type { OpenCloudError, Result } from "@bedrock/ocale";
+import type { OpenCloudError, Result } from "@bedrock-rbx/ocale";
 
 import type {
 	ResourceCurrentState,
@@ -25,7 +25,7 @@ import type {
  *     asRobloxAssetId,
  *     asSha256Hex,
  *     type ResourceDriver,
- * } from "@bedrock/core";
+ * } from "@bedrock-rbx/core";
  *
  * const gamePassDriver: ResourceDriver<"gamePass"> = {
  *     async create(desired) {
@@ -99,7 +99,7 @@ export interface ResourceDriver<K extends ResourceKind> {
  * @example
  *
  * ```ts
- * import { OpenCloudError, type DriverRegistry } from "@bedrock/core";
+ * import { OpenCloudError, type DriverRegistry } from "@bedrock-rbx/core";
  *
  * const registry: DriverRegistry = {
  *     gamePass: {

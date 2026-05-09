@@ -1,5 +1,5 @@
-import type { Result } from "@bedrock/ocale";
-import type { SocialLink } from "@bedrock/ocale/universes";
+import type { Result } from "@bedrock-rbx/ocale";
+import type { SocialLink } from "@bedrock-rbx/ocale/universes";
 
 import { ArkErrors, type, type Type } from "arktype";
 import type { SetRequired } from "type-fest";
@@ -279,7 +279,7 @@ export interface EnvironmentEntry {
  * @example
  *
  * ```ts
- * import type { ResourceEntryByKind } from "@bedrock/core/config";
+ * import type { ResourceEntryByKind } from "@bedrock-rbx/core/config";
  *
  * const entry: ResourceEntryByKind["gamePass"] = {
  *     description: "Grants VIP perks.",
@@ -428,7 +428,7 @@ export type ConfigEnvironmentUniverseId = ConfigBase & {
  * @example
  *
  * ```ts
- * import type { Config } from "@bedrock/core/config";
+ * import type { Config } from "@bedrock-rbx/core/config";
  *
  * const config: Config = {
  *     environments: { production: {} },
@@ -478,8 +478,8 @@ export interface ResolvedUniverseEntry extends Pick<
  * @example
  *
  * ```ts
- * import { selectEnvironment, type ResolvedConfig } from "@bedrock/core";
- * import type { Config } from "@bedrock/core/config";
+ * import { selectEnvironment, type ResolvedConfig } from "@bedrock-rbx/core";
+ * import type { Config } from "@bedrock-rbx/core/config";
  *
  * const config: Config = {
  *     environments: {
@@ -572,8 +572,8 @@ interface ConfigBase {
  * @example
  *
  * ```ts
- * import { isGistStateConfig } from "@bedrock/core";
- * import type { StateConfig } from "@bedrock/core/config";
+ * import { isGistStateConfig } from "@bedrock-rbx/core";
+ * import type { StateConfig } from "@bedrock-rbx/core/config";
  *
  * const config: StateConfig = { backend: "gist", gistId: "abc" };
  *
@@ -804,7 +804,7 @@ const rootSchema = type({
  * @example
  *
  * ```ts
- * import { validateConfig } from "@bedrock/core";
+ * import { validateConfig } from "@bedrock-rbx/core";
  *
  * const ok = validateConfig(
  *     {

@@ -5,7 +5,7 @@ import {
 	groupByPackage,
 	isTypesOnlyModule,
 	parseDiff,
-} from "@bedrock/testing/stryker-diff";
+} from "@bedrock-rbx/testing/stryker-diff";
 
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";

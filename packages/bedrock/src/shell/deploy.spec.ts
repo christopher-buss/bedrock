@@ -1,4 +1,4 @@
-import { OpenCloudError } from "@bedrock/ocale";
+import { OpenCloudError } from "@bedrock-rbx/ocale";
 
 import { placeCurrent, universeCurrent } from "#tests/helpers/resources";
 import { assert, describe, expect, it, vi } from "vitest";

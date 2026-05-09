@@ -44,15 +44,15 @@
 
 - name: pkg:bedrock
   color: 1d76db
-  description: "Scope: @bedrock/bedrock package"
+  description: "Scope: @bedrock-rbx/core package"
 
 - name: pkg:ocale
   color: 1d76db
-  description: "Scope: @bedrock/ocale package"
+  description: "Scope: @bedrock-rbx/ocale package"
 
 - name: pkg:testing
   color: 1d76db
-  description: "Scope: @bedrock/testing package"
+  description: "Scope: @bedrock-rbx/testing package"
 
 - name: pkg:website
   color: 1d76db

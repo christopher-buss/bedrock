@@ -147,7 +147,7 @@ interface GamePassLocalizationHandle {
  * `OpenCloudError` ever escapes the client.
  *
  * ```ts
- * import { GamePassesClient } from "@bedrock/ocale/game-passes";
+ * import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
  *
  * const client = new GamePassesClient({ apiKey: process.env.ROBLOX_API_KEY! });
  *

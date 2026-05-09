@@ -1,5 +1,5 @@
-import { ApiError, type OpenCloudError, type Result } from "@bedrock/ocale";
-import type { GamePass, GamePassesClient } from "@bedrock/ocale/game-passes";
+import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
+import type { GamePass, GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 
 import type { GamePassDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
@@ -14,9 +14,9 @@ import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
  * @example
  *
  * ```ts
- * import type { HttpClient } from "@bedrock/ocale";
- * import { GamePassesClient } from "@bedrock/ocale/game-passes";
- * import { asRobloxAssetId, type GamePassDriverDeps } from "@bedrock/core";
+ * import type { HttpClient } from "@bedrock-rbx/ocale";
+ * import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
+ * import { asRobloxAssetId, type GamePassDriverDeps } from "@bedrock-rbx/core";
  *
  * const httpClient: HttpClient = {
  *     async request() {
@@ -38,7 +38,7 @@ import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
  * ```
  */
 export interface GamePassDriverDeps {
-	/** Configured game-passes client from `@bedrock/ocale/game-passes`. */
+	/** Configured game-passes client from `@bedrock-rbx/ocale/game-passes`. */
 	readonly client: GamePassesClient;
 	/** Reads icon bytes for upload; rejections propagate out of `create`. */
 	readonly readFile: (path: string) => Promise<Uint8Array>;
@@ -63,14 +63,14 @@ export interface GamePassDriverDeps {
  * @example
  *
  * ```ts
- * import type { HttpClient } from "@bedrock/ocale";
- * import { GamePassesClient } from "@bedrock/ocale/game-passes";
+ * import type { HttpClient } from "@bedrock-rbx/ocale";
+ * import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
  * import {
  *     asResourceKey,
  *     asRobloxAssetId,
  *     asSha256Hex,
  *     createGamePassDriver,
- * } from "@bedrock/core";
+ * } from "@bedrock-rbx/core";
  *
  * const httpClient: HttpClient = {
  *     async request() {

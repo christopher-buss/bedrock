@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import { defu } from "defu";
 
@@ -124,8 +124,8 @@ interface ProjectInputs {
  * @example
  *
  * ```ts
- * import { selectEnvironment } from "@bedrock/core";
- * import type { Config } from "@bedrock/core/config";
+ * import { selectEnvironment } from "@bedrock-rbx/core";
+ * import type { Config } from "@bedrock-rbx/core/config";
  *
  * const config: Config = {
  *     environments: {

@@ -7,7 +7,7 @@ import {
   type ResourceDriver,
   OpenCloudError,
   type DriverRegistry,
-} from '@bedrock/core'
+} from '@bedrock-rbx/core'
 
 it('Example 1', () => {
   const gamePassDriver: ResourceDriver<'gamePass'> = {

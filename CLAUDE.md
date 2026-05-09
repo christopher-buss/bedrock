@@ -69,7 +69,7 @@ adds value for that slice.
 | -------- | ----------------- | ------------- |
 | Core     | Unit tests        | None needed   |
 | Shell    | Integration tests | Fake adapters |
-| Adapters | Adapter tests     | Injected fake transport (e.g. `fakeFetch`, `@bedrock/ocale/testing`) |
+| Adapters | Adapter tests     | Injected fake transport (e.g. `fakeFetch`, `@bedrock-rbx/ocale/testing`) |
 | E2E      | Scenario tests    | Real APIs     |
 
 **Coverage**: 100% required (statements, branches, functions, lines)
@@ -108,7 +108,7 @@ Format:
 /**
  * @example
  * ```ts
- * import { myFn } from "@bedrock/pkg";
+ * import { myFn } from "@bedrock-rbx/pkg";
  *
  * const result = myFn({ foo: 1 });
  * expect(result).toEqual({ ok: true });
@@ -200,7 +200,7 @@ PR titles are linted by commitlint (`.github/workflows/lint-pr-title.yaml`) —
    `GamePassesClient` → `game-passes-client`).
 2. **Scope-enum**: if a scope is present it MUST be one of
    `core, deps, e2e, global, ocale, testing, tsconfig, vite, website`.
-   The `bedrock` package was renamed to `@bedrock/core`, so changes in
+   The `bedrock` package was renamed to `@bedrock-rbx/core`, so changes in
    `packages/bedrock/` take the `core` scope. `ci`, `chore`, `docs`,
    `build`, `refactor` are **types, not scopes** — write `ci: …` with no
    scope, not `fix(ci): …`.

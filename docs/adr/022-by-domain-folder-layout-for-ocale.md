@@ -1,4 +1,4 @@
-# ADR-022: By-Domain Folder Layout for `@bedrock/ocale`
+# ADR-022: By-Domain Folder Layout for `@bedrock-rbx/ocale`
 
 **Date:** 2026-04-30 **Status:** Accepted
 
@@ -7,13 +7,13 @@ Tags: open-cloud, ocale, folder-layout, domains, resources, operations
 
 ## Context
 
-`@bedrock/ocale` organizes wire-level code (request builders, response parsers, wire types, rate-limit metadata) inside Resource folders at `src/resources/<resource>/`. Each Resource folder owns its builders, parsers, and wire types directly.
+`@bedrock-rbx/ocale` organizes wire-level code (request builders, response parsers, wire types, rate-limit metadata) inside Resource folders at `src/resources/<resource>/`. Each Resource folder owns its builders, parsers, and wire types directly.
 
 This collapses when a single upstream Roblox Domain serves multiple Resources. `gameinternationalization.roblox.com` hosts localized icon, name, description, and name-description Operations for badges, developer products, game passes, and universes, all under the same URL family, parameterized by entity type. With the peer-folder layout, wire code must either be duplicated across four Resource folders or extracted to an ad-hoc shared module outside any established convention. Neither scales to the full Open Cloud surface, which the package explicitly targets (all Resources in Roblox's Features list).
 
 Issue #293 (`refactor(ocale): consolidate experience-icon and experience-thumbnails under universes`) is the immediate trigger. `experience-icon` and `experience-thumbnails` are currently peer Resource folders but are not in Roblox's Features list. They are Operation Groups on the Universes Resource. Resolving #293 cleanly requires a layout convention for Operation Groups and for wire code shared across Resources.
 
-ADR-011 established the simplified architecture for `@bedrock/ocale` and explicitly deferred folder layout: "Folder layout is the package's own concern and is not prescribed by this ADR... Each opting-out package is responsible for its own structure." This ADR fills that deferred slot.
+ADR-011 established the simplified architecture for `@bedrock-rbx/ocale` and explicitly deferred folder layout: "Folder layout is the package's own concern and is not prescribed by this ADR... Each opting-out package is responsible for its own structure." This ADR fills that deferred slot.
 
 The vocabulary used throughout (Domain, Resource, Operation, Operation Group, Wire) is defined in `packages/open-cloud/CONTEXT.md`.
 
@@ -174,7 +174,7 @@ Use a code generator (OpenAPI Generator, openapi-typescript-codegen, or similar)
 
 ## Related Decisions
 
-- **ADR-011**: Simplified Architecture for Library Packages. Establishes the simplified architecture for `@bedrock/ocale` and explicitly defers folder layout. This ADR fills that deferred slot. ADR-011 is not superseded.
+- **ADR-011**: Simplified Architecture for Library Packages. Establishes the simplified architecture for `@bedrock-rbx/ocale` and explicitly defers folder layout. This ADR fills that deferred slot. ADR-011 is not superseded.
 - **ADR-012**: Class-Based Clients with Per-Request Config Overrides. The `ResourceMethodSpec` machinery referenced in the Decision is introduced there.
 - **ADR-010**: SDK-Managed Rate Limiting and Retry. Operation rate-limit constants referenced in Domain sub-trees' `operations.ts` files are governed by that ADR.
 

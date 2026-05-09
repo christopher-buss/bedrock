@@ -136,7 +136,7 @@ interface BadgeLocalizationHandle {
  * @example
  *
  * ```ts
- * import { BadgesClient } from "@bedrock/ocale/badges";
+ * import { BadgesClient } from "@bedrock-rbx/ocale/badges";
  *
  * const client = new BadgesClient({ apiKey: "your-key" });
  * expect(client).toBeInstanceOf(BadgesClient);

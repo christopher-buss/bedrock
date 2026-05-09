@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import { readFile as nodeReadFile } from "node:fs/promises";
 import process from "node:process";
@@ -117,7 +117,7 @@ interface PickRegistryInputs {
  * @example
  *
  * ```ts
- * import { deploy } from "@bedrock/core";
+ * import { deploy } from "@bedrock-rbx/core";
  *
  * return deploy({ environment: "production" }).then((result) => {
  *     expect(result.success).toBeFalse();
@@ -130,7 +130,7 @@ interface PickRegistryInputs {
  * @example
  *
  * ```ts
- * import { deploy, type BedrockState, type DriverRegistry, type StatePort } from "@bedrock/core";
+ * import { deploy, type BedrockState, type DriverRegistry, type StatePort } from "@bedrock-rbx/core";
  *
  * const store = new Map<string, BedrockState>();
  * const statePort: StatePort = {

@@ -1,4 +1,4 @@
-import type { Result } from "@bedrock/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import { defaultKindRegistry } from "./kinds/index.ts";
 import type { BuildDesiredError, ResourceKindModule } from "./kinds/module.ts";
@@ -23,7 +23,7 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
  * @example
  *
  * ```ts
- * import { asResourceKey, asRobloxAssetId, asSha256Hex, validatePlan } from "@bedrock/core";
+ * import { asResourceKey, asRobloxAssetId, asSha256Hex, validatePlan } from "@bedrock-rbx/core";
  *
  * const result = validatePlan(
  *     [

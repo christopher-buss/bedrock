@@ -29,7 +29,7 @@ export interface ValidationErrorOptions extends ErrorOptions {
  * @example
  *
  * ```ts
- * import { ValidationError } from "@bedrock/ocale";
+ * import { ValidationError } from "@bedrock-rbx/ocale";
  *
  * const error = new ValidationError("Place body is empty", {
  *     code: "empty_body",

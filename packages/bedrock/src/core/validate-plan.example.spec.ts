@@ -5,7 +5,7 @@ import {
   asRobloxAssetId,
   asSha256Hex,
   validatePlan,
-} from '@bedrock/core'
+} from '@bedrock-rbx/core'
 
 it('Example 1', () => {
   const result = validatePlan(

@@ -6,8 +6,8 @@ import {
 	type DriverRegistry,
 	type ResourceDriver,
 	type ResourceKind,
-} from "@bedrock/core";
-import { PlacesClient } from "@bedrock/ocale/places";
+} from "@bedrock-rbx/core";
+import { PlacesClient } from "@bedrock-rbx/ocale/places";
 
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";

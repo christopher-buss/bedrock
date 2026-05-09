@@ -16,7 +16,7 @@ with game-pass as the sole resource kind: game passes are created by Roblox on
 demand and the `create`-only port shape was sufficient at that scope.
 
 Places introduce a structurally different class of resource. The Roblox Open
-Cloud places API (shipped in `@bedrock/ocale` as PR #84) exposes `publish` and
+Cloud places API (shipped in `@bedrock-rbx/ocale` as PR #84) exposes `publish` and
 `save` only. There is no create, list, or detailed read endpoint. Consequences:
 
 - A place must already exist in Roblox before Bedrock can manage it. The place
@@ -262,7 +262,7 @@ introduce GET-based drift once a suitable field is available.
 
 ## References
 
-- PR #84: `@bedrock/ocale` places client (publish + save endpoints)
+- PR #84: `@bedrock-rbx/ocale` places client (publish + save endpoints)
 - Issue #99: first file-backed kind implementation (places resource driver)
 - ADR-017, ADR-018, ADR-019, ADR-020: prior architectural decisions extended
   or referenced by this ADR

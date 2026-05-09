@@ -1,1 +1,1 @@
-export { sharedConfig as default } from "@bedrock/vite-config";
+export { sharedConfig as default } from "@bedrock-rbx/vite-config";

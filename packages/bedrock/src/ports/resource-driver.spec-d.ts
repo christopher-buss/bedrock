@@ -1,4 +1,4 @@
-import type { OpenCloudError, Result } from "@bedrock/ocale";
+import type { OpenCloudError, Result } from "@bedrock-rbx/ocale";
 
 import { describe, expectTypeOf, it } from "vitest";
 
