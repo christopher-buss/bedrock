@@ -632,17 +632,20 @@ describe(loadConfig, () => {
 		});
 	});
 
-	it("should surface a parseFailed error when the Luau evaluator throws", async () => {
-		expect.assertions(2);
+	it("should surface a parseFailed error when the Luau evaluator returns evaluationFailed", async () => {
+		expect.assertions(3);
 
 		await withTemporaryDirectory(async (cwd) => {
-			writeFileSync(
-				join(cwd, "bedrock.config.luau"),
-				["return { passes = {} }", ""].join("\n"),
-			);
+			const luauPath = join(cwd, "bedrock.config.luau");
+			writeFileSync(luauPath, ["return { passes = {} }", ""].join("\n"));
 
-			async function evaluator(): Promise<Record<string, unknown>> {
-				throw new Error("evaluator timed out");
+			async function evaluator(): Promise<
+				Awaited<ReturnType<Parameters<typeof loadConfigWith>[0]["evaluator"]>>
+			> {
+				return {
+					err: { kind: "evaluationFailed", message: "evaluator timed out" },
+					success: false,
+				};
 			}
 
 			const result = await loadConfigWith({ evaluator }, { cwd });
@@ -652,6 +655,7 @@ describe(loadConfig, () => {
 
 			expect(result.err.kind).toBe("parseFailed");
 			expect(result.err.message).toBe("evaluator timed out");
+			expect(result.err.sourceFile).toBe(luauPath);
 		});
 	});
 

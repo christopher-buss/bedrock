@@ -1,10 +1,12 @@
+import type { Result } from "@bedrock-rbx/ocale";
+
 import { execFile } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import process from "node:process";
 
-import type { LuauEvaluator } from "../ports/luau-evaluator.ts";
+import type { LuauEvaluationError, LuauEvaluator } from "../ports/luau-evaluator.ts";
 import { bootstrapDirectoryPrefix } from "../shell/load-config-internal.ts";
 
 const SENTINEL_BASE = "__BEDROCK_LUAU_";
@@ -43,30 +45,6 @@ end
 io.write("${OK_PREFIX}")
 io.write(encoded)
 `;
-
-/**
- * Thrown by the lute adapter when no `lute` binary is reachable. Surfaces as a
- * `luauRuntimeMissing` `ConfigError` after `attributeLoadError` narrows on it.
- */
-export class LuauRuntimeMissingError extends Error {
-	public readonly hint: string;
-	public readonly sourceFile: string;
-
-	/**
-	 * Construct an error attributed to a specific Luau source file.
-	 * @param sourceFile - Absolute path of the `.luau` config the missing
-	 * runtime would have evaluated.
-	 * @param hint - Actionable install message surfaced to callers.
-	 */
-	constructor(sourceFile: string, hint: string) {
-		// `super()` message would only ever surface as `.message`, but every
-		// consumer narrows on `instanceof` and reads `.hint` / `.sourceFile`
-		// instead, so a message string here would be dead.
-		super();
-		this.hint = hint;
-		this.sourceFile = sourceFile;
-	}
-}
 
 const LUAU_RUNTIME_HINT =
 	"install lute (e.g. `mise install` with `github:luau-lang/lute`) or set BEDROCK_LUTE_PATH to the binary.";
@@ -151,7 +129,9 @@ function parseBootstrapOutput(stdout: string): Record<string, unknown> {
 	return parsed;
 }
 
-async function evaluateLuauWithLute(absPath: string): Promise<Record<string, unknown>> {
+async function evaluateLuauWithLute(
+	absPath: string,
+): Promise<Result<Record<string, unknown>, LuauEvaluationError>> {
 	const overridePath = process.env["BEDROCK_LUTE_PATH"];
 	const lute = overridePath !== undefined && overridePath.length > 0 ? overridePath : "lute";
 	const bootstrapDirectory = setupBootstrapDirectory(dirname(absPath));
@@ -160,15 +140,18 @@ async function evaluateLuauWithLute(absPath: string): Promise<Record<string, unk
 			bin: lute,
 			bootstrapPath: join(bootstrapDirectory, "bootstrap.luau"),
 			userBasename: basename(absPath),
-		}).catch((err: unknown) => {
-			if (isEnoentError(err)) {
-				throw new LuauRuntimeMissingError(absPath, LUAU_RUNTIME_HINT);
-			}
-
-			throw err;
 		});
+		return { data: parseBootstrapOutput(stdout), success: true };
+	} catch (err) {
+		if (isEnoentError(err)) {
+			return {
+				err: { hint: LUAU_RUNTIME_HINT, kind: "missingRuntime" },
+				success: false,
+			};
+		}
 
-		return parseBootstrapOutput(stdout);
+		const message = err instanceof Error ? err.message : String(err);
+		return { err: { kind: "evaluationFailed", message }, success: false };
 	} finally {
 		rmSync(bootstrapDirectory, { recursive: true });
 	}

@@ -5,13 +5,10 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import { isAbsolute, join, resolve as resolvePath } from "node:path";
 import process from "node:process";
 
-import {
-	createLuteLuauEvaluator,
-	LuauRuntimeMissingError,
-} from "../adapters/lute-luau-evaluator.ts";
+import { createLuteLuauEvaluator } from "../adapters/lute-luau-evaluator.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { type Config, validateConfig } from "../core/schema.ts";
-import type { LuauEvaluator } from "../ports/luau-evaluator.ts";
+import type { LuauEvaluationError, LuauEvaluator } from "../ports/luau-evaluator.ts";
 
 /**
  * Options for {@link loadConfig}. Matches a subset of c12's loader options;
@@ -213,6 +210,21 @@ interface LuauResolverDeps {
 }
 
 /**
+ * Internal-only wrapper used at the c12 boundary: makeLuauResolver maps an
+ * evaluator `Err` into this throwable, which `attributeLoadError` unwraps
+ * directly. This keeps the port on the `Result` contract per ADR-009 while
+ * still satisfying c12's exception-based `resolve` callback.
+ */
+class EvaluatorThrow extends Error {
+	public readonly configError: ConfigError;
+
+	constructor(configError: ConfigError) {
+		super();
+		this.configError = configError;
+	}
+}
+
+/**
  * Decide which Luau file the resolver should evaluate for a given c12 source,
  * or `undefined` to defer to c12's built-in loaders.
  *
@@ -235,6 +247,14 @@ function pickLuauTarget(source: string, context: PickLuauTargetContext): string 
 	return locateLuauConfig(source, cwd);
 }
 
+function evaluationErrorToConfigError(err: LuauEvaluationError, sourceFile: string): ConfigError {
+	if (err.kind === "missingRuntime") {
+		return { hint: err.hint, kind: "luauRuntimeMissing", sourceFile };
+	}
+
+	return { kind: "parseFailed", message: err.message, sourceFile };
+}
+
 function makeLuauResolver(
 	deps: LuauResolverDeps,
 ): (
@@ -248,10 +268,14 @@ function makeLuauResolver(
 			return;
 		}
 
-		const config = await deps.evaluator(luauPath);
+		const result = await deps.evaluator(luauPath);
+		if (!result.success) {
+			throw new EvaluatorThrow(evaluationErrorToConfigError(result.err, luauPath));
+		}
+
 		return {
 			_configFile: luauPath,
-			config,
+			config: result.data,
 			configFile: luauPath,
 			cwd,
 		};
@@ -298,8 +322,8 @@ function discoverConfigFile(cwd: string): string | undefined {
 }
 
 function attributeLoadError(err: unknown, cwd: string): ConfigError {
-	if (err instanceof LuauRuntimeMissingError) {
-		return { hint: err.hint, kind: "luauRuntimeMissing", sourceFile: err.sourceFile };
+	if (err instanceof EvaluatorThrow) {
+		return err.configError;
 	}
 
 	const message = err instanceof Error ? err.message : String(err);
