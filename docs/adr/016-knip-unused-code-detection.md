@@ -38,7 +38,7 @@ Several rot categories are therefore uncovered:
    sees it (never passes through `transform`), and ESLint doesn't complain
    because the file itself is syntactically valid.
 2. **Cross-package / workspace-level unused public exports.**
-   `@bedrock-rbx/open-cloud/game-passes` is a subpath entry. `unplugin-unused`
+   `@bedrock-rbx/ocale/game-passes` is a subpath entry. `unplugin-unused`
    treats it as a package *output* and keeps everything reachable from it.
    It cannot tell that no workspace consumer (`apps/e2e`, `apps/website`,
    other packages) actually imports `./game-passes`. An entire subpath
@@ -77,7 +77,7 @@ legitimately-consumed code and get silenced.
   handled natively — no manual listing.
 - Knip analyzes all workspaces via a shared module graph from a single
   root invocation, which is what lets it flag cross-workspace unused
-  exports (e.g. a `@bedrock-rbx/open-cloud` subpath that no consumer
+  exports (e.g. a `@bedrock-rbx/ocale` subpath that no consumer
   imports). See the
   [monorepos guide](https://knip.dev/features/monorepos-and-workspaces).
 - No `--affected` or `--changed` flag. Scoping is limited to
@@ -344,10 +344,10 @@ ADR-006 requires this ADR to be accepted before implementation begins.
   distinguish executed-from-real-consumer from executed-from-test-only.
   Knip closes that gap at the workspace level, analogous to how ADR-015's
   mutation testing closes it at the assertion level.
-- **ADR-008**: Zero Runtime Dependencies in `@bedrock-rbx/open-cloud` — knip is
+- **ADR-008**: Zero Runtime Dependencies in `@bedrock-rbx/ocale` — knip is
   a dev dependency. ADR-008's constraint is not affected.
 - **ADR-011**: Simplified Architecture for Library Packages — the subpath
-  export pattern (`@bedrock-rbx/open-cloud/game-passes`) is the exact surface
+  export pattern (`@bedrock-rbx/ocale/game-passes`) is the exact surface
   knip must preserve as entry points. Knip's `package.json` exports
   auto-detection handles this natively.
 - **ADR-013**: hk for Git Hook Management — this ADR reuses ADR-013's

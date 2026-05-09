@@ -248,7 +248,7 @@ construction time. `bedrock.deploy()` flushes the registry.
 - **ADR-007**: Open Cloud APIs Only -- unaffected. The constraint applies to
   Bedrock's own adapters. Third-party plugin authors are not bound by it.
 - **ADR-009**: Result Types Over Exceptions -- public API functions follow the
-  same `Promise<Result<T, E>>` convention established for `@bedrock-rbx/open-cloud`.
+  same `Promise<Result<T, E>>` convention established for `@bedrock-rbx/ocale`.
 - **ADR-011**: Simplified Architecture for Library Packages -- the five-criteria
   opt-out check applies if a future `@bedrock-rbx/core` split is proposed. The CLI
   package (which contains deployment logic) continues to fail criteria 2, 3, 4,

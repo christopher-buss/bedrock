@@ -9,7 +9,7 @@ Decision Makers: Maintainer Tags: documentation, vitepress, typedoc, vercel
 Bedrock requires documentation for two distinct packages:
 
 1. **Bedrock CLI** - User guides, configuration reference, deployment workflows
-2. **@bedrock-rbx/open-cloud** - SDK for Roblox Open Cloud APIs, usable
+2. **@bedrock-rbx/ocale** - SDK for Roblox Open Cloud APIs, usable
    independently
 
 Primary audience is Roblox developers deploying games. Internationalization
@@ -136,7 +136,7 @@ reviewing documentation changes before merge.
 
 ## Amendments
 
-- **2026-04-17:** The `@bedrock-rbx/open-cloud` package was renamed to
+- **2026-04-17:** The `@bedrock-rbx/ocale` package was renamed to
   `@bedrock-rbx/ocale`. URL path is now `/ocale/` (not `/open-cloud/`) and TypeDoc
   emits to `apps/website/docs/ocale/api/`. The directory `packages/open-cloud/`
   retains its original name.

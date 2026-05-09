@@ -39,7 +39,7 @@ bedrock/
 ├── apps/
 │   └── website/              # Vitepress docs
 ├── packages/
-│   ├── open-cloud/           # @bedrock-rbx/open-cloud
+│   ├── open-cloud/           # @bedrock-rbx/ocale
 │   └── cli/                  # bedrock CLI
 ├── docs/                     # Internal docs (ADRs, plans)
 ├── turbo.json
@@ -72,7 +72,7 @@ packages/cli/src/
 - **Clear I/O boundaries**: Shell does I/O, core is pure - never confused
 - **Trivial backend swaps**: Implement port interface, swap adapter
 - **Contributor clarity**: Folder structure answers "where does this code go?"
-- **Standalone packages**: `@bedrock-rbx/open-cloud` usable independently
+- **Standalone packages**: `@bedrock-rbx/ocale` usable independently
 - **Incremental builds**: Turborepo caches, parallelizes builds
 - **Package isolation**: Changes in CLI don't affect Open Cloud client
 
@@ -86,7 +86,7 @@ packages/cli/src/
 ### Neutral
 
 - **Workspace management**: pnpm workspaces + Turborepo config required
-- **Cross-package dependencies**: Must manage `@bedrock-rbx/open-cloud` versioning
+- **Cross-package dependencies**: Must manage `@bedrock-rbx/ocale` versioning
 - **Build orchestration**: Turborepo handles task ordering
 
 ## Alternatives Considered
@@ -181,8 +181,8 @@ export class GistBackend implements StateBackend {
 
 ### Package Boundaries
 
-- `@bedrock-rbx/open-cloud`: Zero dependencies on CLI
-- `bedrock` (CLI): Depends on `@bedrock-rbx/open-cloud`
+- `@bedrock-rbx/ocale`: Zero dependencies on CLI
+- `bedrock` (CLI): Depends on `@bedrock-rbx/ocale`
 - `website`: No code dependencies, imports examples for docs
 
 ## Related Decisions

@@ -252,7 +252,7 @@ Adapters flatten the envelope on read (extracting `version` from `$bedrock`) and
 re-wrap it on write. Nothing outside an adapter ever sees the raw `$bedrock` key.
 
 ```ts
-import type { OpenCloudError, Result } from "@bedrock-rbx/open-cloud";
+import type { OpenCloudError, Result } from "@bedrock-rbx/ocale";
 
 export interface BedrockState {
 	readonly environment: string;

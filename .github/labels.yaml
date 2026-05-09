@@ -44,7 +44,7 @@
 
 - name: pkg:bedrock
   color: 1d76db
-  description: "Scope: @bedrock-rbx/bedrock package"
+  description: "Scope: @bedrock-rbx/core package"
 
 - name: pkg:ocale
   color: 1d76db
