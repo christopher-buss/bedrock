@@ -1,15 +1,17 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { loadConfig as c12LoadConfig } from "c12";
-import { execFile } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { basename, dirname, isAbsolute, join, resolve as resolvePath } from "node:path";
+import { existsSync, readdirSync, statSync } from "node:fs";
+import { isAbsolute, join, resolve as resolvePath } from "node:path";
 import process from "node:process";
 
+import {
+	createLuteLuauEvaluator,
+	LuauRuntimeMissingError,
+} from "../adapters/lute-luau-evaluator.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { type Config, validateConfig } from "../core/schema.ts";
-import { bootstrapDirectoryPrefix } from "./load-config-internal.ts";
+import type { LuauEvaluator } from "../ports/luau-evaluator.ts";
 
 /**
  * Options for {@link loadConfig}. Matches a subset of c12's loader options;
@@ -31,12 +33,65 @@ export interface LoadConfigOptions {
 	readonly cwd?: string;
 }
 
+/**
+ * Internal dependencies for {@link loadConfigWith}. Not re-exported from
+ * `src/index.ts` — the only consumer is the unit spec, which injects a fake
+ * evaluator to exercise error paths without spawning a real process.
+ */
+export interface LoadConfigDeps {
+	/** Function used to evaluate `.luau` config files into plain config objects. */
+	readonly evaluator: LuauEvaluator;
+}
+
 interface LuauResolveResult {
 	/* eslint-disable-next-line flawless/naming-convention -- c12 reads `_configFile` to detect that a config file was found. */
 	readonly _configFile: string;
 	readonly config: Record<string, unknown>;
 	readonly configFile: string;
 	readonly cwd: string;
+}
+
+/**
+ * Internal entrypoint that lets tests inject a fake `LuauEvaluator`. The
+ * public {@link loadConfig} wraps this with the real lute adapter; the rest
+ * of the loader pipeline is identical.
+ *
+ * @param deps - Injected dependencies. Only the evaluator is configurable.
+ * @param options - Same loader options accepted by {@link loadConfig}.
+ * @returns Same `Result<Config, ConfigError>` shape as `loadConfig`.
+ */
+export async function loadConfigWith(
+	deps: LoadConfigDeps,
+	options?: LoadConfigOptions,
+): Promise<Result<Config, ConfigError>> {
+	const cwd = options?.cwd ?? process.cwd();
+	const configFile =
+		options?.configFile === undefined ? undefined : resolveConfigPath(cwd, options.configFile);
+	if (configFile !== undefined && !isExistingFile(configFile)) {
+		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
+	}
+
+	let resolved: Awaited<ReturnType<typeof c12LoadConfig<Record<string, unknown>>>>;
+	try {
+		resolved = await c12LoadConfig<Record<string, unknown>>({
+			name: "bedrock",
+			cwd,
+			resolve: makeLuauResolver({
+				callerConfigFile: configFile,
+				defaultCwd: cwd,
+				evaluator: deps.evaluator,
+			}),
+			...(configFile === undefined ? {} : { configFile }),
+		});
+	} catch (err) {
+		return { err: attributeLoadError(err, cwd), success: false };
+	}
+
+	if (resolved._configFile === undefined) {
+		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
+	}
+
+	return validateConfig(resolved.config, resolved._configFile);
 }
 
 /**
@@ -81,30 +136,7 @@ interface LuauResolveResult {
 export async function loadConfig(
 	options?: LoadConfigOptions,
 ): Promise<Result<Config, ConfigError>> {
-	const cwd = options?.cwd ?? process.cwd();
-	const configFile =
-		options?.configFile === undefined ? undefined : resolveConfigPath(cwd, options.configFile);
-	if (configFile !== undefined && !isExistingFile(configFile)) {
-		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
-	}
-
-	let resolved: Awaited<ReturnType<typeof c12LoadConfig<Record<string, unknown>>>>;
-	try {
-		resolved = await c12LoadConfig<Record<string, unknown>>({
-			name: "bedrock",
-			cwd,
-			resolve: makeLuauResolver(cwd, configFile),
-			...(configFile === undefined ? {} : { configFile }),
-		});
-	} catch (err) {
-		return { err: attributeLoadError(err, cwd), success: false };
-	}
-
-	if (resolved._configFile === undefined) {
-		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
-	}
-
-	return validateConfig(resolved.config, resolved._configFile);
+	return loadConfigWith({ evaluator: createLuteLuauEvaluator() }, options);
 }
 
 function resolveConfigPath(cwd: string, configFile: string): string {
@@ -180,6 +212,12 @@ interface PickLuauTargetContext {
 	readonly cwd: string;
 }
 
+interface LuauResolverDeps {
+	readonly callerConfigFile: string | undefined;
+	readonly defaultCwd: string;
+	readonly evaluator: LuauEvaluator;
+}
+
 /**
  * Decide which Luau file the resolver should evaluate for a given c12 source,
  * or `undefined` to defer to c12's built-in loaders.
@@ -204,20 +242,19 @@ function pickLuauTarget(source: string, context: PickLuauTargetContext): string 
 }
 
 function makeLuauResolver(
-	defaultCwd: string,
-	callerConfigFile: string | undefined,
+	deps: LuauResolverDeps,
 ): (
 	source: string,
 	c12Options: { readonly cwd?: string },
 ) => Promise<LuauResolveResult | undefined> {
 	return async (source, c12Options) => {
-		const cwd = c12Options.cwd ?? defaultCwd;
-		const luauPath = pickLuauTarget(source, { callerConfigFile, cwd });
+		const cwd = c12Options.cwd ?? deps.defaultCwd;
+		const luauPath = pickLuauTarget(source, { callerConfigFile: deps.callerConfigFile, cwd });
 		if (luauPath === undefined) {
 			return;
 		}
 
-		const config = await evaluateLuauConfig(luauPath);
+		const config = await deps.evaluator(luauPath);
 		return {
 			_configFile: luauPath,
 			config,
@@ -229,156 +266,9 @@ function makeLuauResolver(
 
 const LUAU_CONFIG_BASENAME = "bedrock.config.luau";
 
-const SENTINEL_BASE = "__BEDROCK_LUAU_";
-const OK_PREFIX = `${SENTINEL_BASE}OK__`;
-const ERR_PREFIX = `${SENTINEL_BASE}ERR__`;
-
-const LUTE_BOOTSTRAP_LUAU = `--!strict
-local json = require("@std/json")
-local process = require("@std/process")
-local io = require("@std/io")
-
-local function emit(kind, payload)
-    io.write("${SENTINEL_BASE}" .. kind .. "__")
-    io.write(json.serialize(payload))
-end
-
-local userBasename = process.args[2]
--- The user file lives in a different directory from this bootstrap, so we
--- require it via the @user alias defined in the .luaurc written alongside.
-local req = "@user/" .. string.gsub(userBasename, "%.luau$", "")
-
-local loadOk, modOrErr = pcall(require, req)
-if not loadOk then
-    emit("ERR", { kind = "loadFailed", message = tostring(modOrErr) })
-    return
-end
-
-local value = if type(modOrErr) == "function" then modOrErr() else modOrErr
-
-local encOk, encoded = pcall(json.serialize, value)
-if not encOk then
-    emit("ERR", { kind = "serializeFailed", message = tostring(encoded) })
-    return
-end
-
-io.write("${OK_PREFIX}")
-io.write(encoded)
-`;
-
-class LuauRuntimeMissingError extends Error {
-	public readonly hint: string;
-	public override readonly name = "LuauRuntimeMissingError";
-	public readonly sourceFile: string;
-
-	constructor(sourceFile: string, hint: string) {
-		// `super()` message would only ever surface as `.message`, but every
-		// consumer narrows on `instanceof` and reads `.hint` / `.sourceFile`
-		// instead, so a message string here would be dead.
-		super();
-		this.hint = hint;
-		this.sourceFile = sourceFile;
-	}
-}
-
-const LUAU_RUNTIME_HINT =
-	"install lute (e.g. `mise install` with `github:luau-lang/lute`) or set BEDROCK_LUTE_PATH to the binary.";
-
-interface LuteRunOptions {
-	readonly bin: string;
-	readonly bootstrapPath: string;
-	readonly userBasename: string;
-}
-
-function isEnoentError(error: unknown): boolean {
-	return error instanceof Error && "code" in error && error.code === "ENOENT";
-}
-
-// 10s is generous for evaluating a config file: real configs run in
-// milliseconds, and a value this high is meant to catch infinite loops in
-// user code (or a hung lute) without surprising slow-startup environments.
-const LUTE_BOOTSTRAP_TIMEOUT_MS = 10_000;
-
-async function runLuteBootstrap(runOptions: LuteRunOptions): Promise<string> {
-	const { bin, bootstrapPath, userBasename } = runOptions;
-	return new Promise((resolve, reject) => {
-		execFile(
-			bin,
-			["run", bootstrapPath, userBasename],
-			{ encoding: "utf8", timeout: LUTE_BOOTSTRAP_TIMEOUT_MS },
-			(error, stdout) => {
-				if (error instanceof Error) {
-					reject(error);
-					return;
-				}
-
-				resolve(stdout);
-			},
-		);
-	});
-}
-
-function parseBootstrapOutput(stdout: string): Record<string, unknown> {
-	if (stdout.startsWith(ERR_PREFIX)) {
-		// The bootstrap contract pairs ERR_PREFIX with `{ kind, message }`. Pass
-		// the raw envelope through as the error text rather than reach into the
-		// JSON: any unwrapping logic we add here is paranoid with no test
-		// surface (the bootstrap is the only producer and always conforms).
-		throw new Error(stdout.slice(ERR_PREFIX.length));
-	}
-
-	// Stdout that doesn't carry the OK prefix is unsupported; let JSON.parse
-	// surface a SyntaxError rather than guard a defensive fallback that has
-	// no observable behaviour.
-	const parsed = JSON.parse(stdout.slice(OK_PREFIX.length));
-
-	if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-		throw new TypeError("Luau config must return a table at the root");
-	}
-
-	return parsed;
-}
-
-async function evaluateLuauConfig(absPath: string): Promise<Record<string, unknown>> {
-	const overridePath = process.env["BEDROCK_LUTE_PATH"];
-	const lute = overridePath !== undefined && overridePath.length > 0 ? overridePath : "lute";
-	const cwd = dirname(absPath);
-	const base = basename(absPath);
-
-	const bootstrapDirectory = mkdtempSync(join(tmpdir(), bootstrapDirectoryPrefix(process.pid)));
-	try {
-		const bootstrapPath = join(bootstrapDirectory, "bootstrap.luau");
-		writeFileSync(bootstrapPath, LUTE_BOOTSTRAP_LUAU);
-		// Lute resolves `require` relative to the calling script's directory, not
-		// the process cwd. The bootstrap lives in a temp dir, so we expose the
-		// user's directory via a `.luaurc` alias that the bootstrap requires by
-		// name.
-		writeFileSync(
-			join(bootstrapDirectory, ".luaurc"),
-			JSON.stringify({ aliases: { user: cwd } }),
-		);
-
-		const stdout = await runLuteBootstrap({
-			bin: lute,
-			bootstrapPath,
-			userBasename: base,
-		}).catch((err: unknown) => {
-			if (isEnoentError(err)) {
-				throw new LuauRuntimeMissingError(absPath, LUAU_RUNTIME_HINT);
-			}
-
-			throw err;
-		});
-
-		return parseBootstrapOutput(stdout);
-	} finally {
-		rmSync(bootstrapDirectory, { recursive: true });
-	}
-}
-
-// `.luau` is intentionally absent: Luau errors travel through the bootstrap
-// ERR sentinel, not JS stack frames, so the file path is attributed by
-// `discoverConfigFile` rather than scraped from the throw site.
+// `.luau` is intentionally absent: Luau errors travel through the evaluator
+// adapter's ERR sentinel, not JS stack frames, so the file path is attributed
+// by `discoverConfigFile` rather than scraped from the throw site.
 const CONFIG_FILE_IN_FRAME = /[^\s():"']*bedrock\.config\.(?:ts|js|mjs|cjs|yaml|yml|json)/;
 
 function extractConfigFileFromStack(err: unknown): string | undefined {
