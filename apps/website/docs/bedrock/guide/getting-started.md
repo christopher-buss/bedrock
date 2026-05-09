@@ -117,9 +117,9 @@ import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 
 import { applyOps, type DriverRegistry } from "bedrock";
 
-const apiKey = process.env.ROBLOX_API_KEY;
+const apiKey = process.env.BEDROCK_API_KEY;
 if (apiKey === undefined) {
-	throw new Error("ROBLOX_API_KEY is not set");
+	throw new Error("BEDROCK_API_KEY is not set");
 }
 
 const client = new GamePassesClient({ apiKey });

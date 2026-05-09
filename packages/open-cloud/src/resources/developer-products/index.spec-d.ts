@@ -59,7 +59,7 @@ describe("UpdateDeveloperProductNameDescriptionParameters", () => {
 
 	it("should accept identifiers without name or description", () => {
 		const parameters: UpdateDeveloperProductNameDescriptionParameters = {
-			languageCode: "fr-fr",
+			languageCode: "fr_fr",
 			productId: "12345",
 		};
 
@@ -70,7 +70,7 @@ describe("UpdateDeveloperProductNameDescriptionParameters", () => {
 		const parameters: UpdateDeveloperProductNameDescriptionParameters = {
 			name: "Gem Pack",
 			description: "Premium gems",
-			languageCode: "fr-fr",
+			languageCode: "fr_fr",
 			productId: "12345",
 		};
 

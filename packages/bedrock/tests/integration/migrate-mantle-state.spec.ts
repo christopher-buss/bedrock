@@ -301,7 +301,7 @@ describe(migrateMantleState, () => {
 		expect(onSale.price).toBe(5);
 	});
 
-	it("should recompute the experienceIcon hash from disk and carry it onto the universe resource", async () => {
+	it("should emit a blocked warning per experienceIcon resource and leave universe icon fields absent", async () => {
 		expect.assertions(3);
 
 		const result = await migrateMantleState({
@@ -318,9 +318,16 @@ describe(migrateMantleState, () => {
 		const [universe] = productionState.resources;
 		assert(universe?.kind === "universe");
 
-		expect(universe.icon).toStrictEqual({ "en-us": "assets/marketing/example-icon.png" });
-		expect(universe.iconFileHashes).toStrictEqual({ "en-us": ICON_FILE_SHA256 });
-		expect(universe.outputs.iconAssetIds).toStrictEqual({ "en-us": "2712537313290602" });
+		expect("icon" in universe).toBeFalse();
+		expect("iconFileHashes" in universe).toBeFalse();
+		expect(
+			result.data.warnings.some((warning) => {
+				return (
+					warning.kind === "blocked" &&
+					warning.mantlePath === "production.experienceIcon_singleton"
+				);
+			}),
+		).toBeTrue();
 	});
 
 	it("should round-trip the universe overlay through selectEnvironment per environment", async () => {
@@ -534,7 +541,6 @@ describe(migrateMantleState, () => {
 			desktopEnabled: true,
 			discordSocialLink: { title: "Join our Discord", uri: "https://discord.gg/example" },
 			displayName: "roblox-ts Project Template",
-			icon: { "en-us": "assets/marketing/example-icon.png" },
 			mobileEnabled: true,
 			privateServerPriceRobux: 0,
 			tabletEnabled: true,
@@ -565,7 +571,6 @@ describe(migrateMantleState, () => {
 			desktopEnabled: true,
 			discordSocialLink: { title: "Join our Discord", uri: "https://discord.gg/example" },
 			displayName: "roblox-ts Project Template",
-			icon: { "en-us": "assets/marketing/example-icon.png" },
 			mobileEnabled: true,
 			privateServerPriceRobux: 0,
 			tabletEnabled: true,
@@ -641,18 +646,22 @@ describe(migrateMantleState, () => {
 		const blocked = result.data.warnings.filter((warning) => warning.kind === "blocked");
 
 		// 12 fields per environment × 2 environments + 1 isFriendsOnly only
-		// in production (development uses the YAML null sentinel).
+		// in production (development uses the YAML null sentinel)
+		// + 1 experienceIcon resource per environment (Open Cloud has no
+		// route to set the source-language icon).
 		// Excluded: price and customSocialSlotsCount (null sentinel);
 		// experience.groupId (null in both environments).
-		expect(blocked).toHaveLength(25);
-		expect(result.data.summary.blockedCount).toBe(25);
+		expect(blocked).toHaveLength(27);
+		expect(result.data.summary.blockedCount).toBe(27);
 
 		const paths = blocked.map((warning) => warning.mantlePath);
 
 		expect(paths).toIncludeAllMembers([
 			"development.experienceConfiguration_singleton.genre",
+			"development.experienceIcon_singleton",
 			"production.experienceConfiguration_singleton.genre",
 			"production.experienceConfiguration_singleton.universeAvatarType",
+			"production.experienceIcon_singleton",
 			"production.placeConfiguration_start.allowCopying",
 		]);
 	});

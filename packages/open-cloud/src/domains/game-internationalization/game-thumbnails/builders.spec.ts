@@ -18,7 +18,7 @@ describe(buildUploadThumbnailRequest, () => {
 
 		const parameters = {
 			image: new Uint8Array([1, 2, 3]),
-			languageCode: "en-us",
+			languageCode: "en_us",
 			universeId: "67890",
 		} satisfies UploadExperienceThumbnailParameters;
 
@@ -32,14 +32,14 @@ describe(buildUploadThumbnailRequest, () => {
 
 		const parameters = {
 			image: new Uint8Array([1, 2, 3]),
-			languageCode: "fr-fr",
+			languageCode: "fr_fr",
 			universeId: "67890",
 		} satisfies UploadExperienceThumbnailParameters;
 
 		const request = buildUploadThumbnailRequest(parameters);
 
 		expect(request.url).toBe(
-			"/legacy-game-internationalization/v1/game-thumbnails/games/67890/language-codes/fr-fr/image",
+			"/legacy-game-internationalization/v1/game-thumbnails/games/67890/language-codes/fr_fr/image",
 		);
 	});
 
@@ -48,7 +48,7 @@ describe(buildUploadThumbnailRequest, () => {
 
 		const parameters = {
 			image: new Uint8Array([1, 2, 3]),
-			languageCode: "en-us",
+			languageCode: "en_us",
 			universeId: "67890",
 		} satisfies UploadExperienceThumbnailParameters;
 
@@ -65,7 +65,7 @@ describe(buildUploadThumbnailRequest, () => {
 		const image = new Uint8Array([1, 2, 3, 4]);
 		const parameters = {
 			image,
-			languageCode: "en-us",
+			languageCode: "en_us",
 			universeId: "67890",
 		} satisfies UploadExperienceThumbnailParameters;
 
@@ -85,7 +85,7 @@ describe(buildUploadThumbnailRequest, () => {
 		const image = new Blob([new Uint8Array([1, 2, 3, 4])], { type: "image/png" });
 		const parameters = {
 			image,
-			languageCode: "en-us",
+			languageCode: "en_us",
 			universeId: "67890",
 		} satisfies UploadExperienceThumbnailParameters;
 
@@ -105,7 +105,7 @@ describe(buildDeleteThumbnailRequest, () => {
 
 		const parameters = {
 			imageId: "12345",
-			languageCode: "en-us",
+			languageCode: "en_us",
 			universeId: "67890",
 		} satisfies DeleteExperienceThumbnailParameters;
 
@@ -119,14 +119,14 @@ describe(buildDeleteThumbnailRequest, () => {
 
 		const parameters = {
 			imageId: "12345",
-			languageCode: "es-es",
+			languageCode: "es_es",
 			universeId: "67890",
 		} satisfies DeleteExperienceThumbnailParameters;
 
 		const request = buildDeleteThumbnailRequest(parameters);
 
 		expect(request.url).toBe(
-			"/legacy-game-internationalization/v1/game-thumbnails/games/67890/language-codes/es-es/images/12345",
+			"/legacy-game-internationalization/v1/game-thumbnails/games/67890/language-codes/es_es/images/12345",
 		);
 	});
 
@@ -135,7 +135,7 @@ describe(buildDeleteThumbnailRequest, () => {
 
 		const parameters = {
 			imageId: "12345",
-			languageCode: "en-us",
+			languageCode: "en_us",
 			universeId: "67890",
 		} satisfies DeleteExperienceThumbnailParameters;
 
@@ -150,7 +150,7 @@ describe(buildReorderThumbnailsRequest, () => {
 		expect.assertions(2);
 
 		const parameters = {
-			languageCode: "en-us",
+			languageCode: "en_us",
 			orderedImageIds: ["1", "2", "3"],
 			universeId: "67890",
 		} satisfies ReorderExperienceThumbnailsParameters;
@@ -167,7 +167,7 @@ describe(buildReorderThumbnailsRequest, () => {
 		expect.assertions(1);
 
 		const parameters = {
-			languageCode: "fr-fr",
+			languageCode: "fr_fr",
 			orderedImageIds: ["42"],
 			universeId: "67890",
 		} satisfies ReorderExperienceThumbnailsParameters;
@@ -177,7 +177,7 @@ describe(buildReorderThumbnailsRequest, () => {
 		assert(result.success);
 
 		expect(result.data.url).toBe(
-			"/legacy-game-internationalization/v1/game-thumbnails/games/67890/language-codes/fr-fr/images/order",
+			"/legacy-game-internationalization/v1/game-thumbnails/games/67890/language-codes/fr_fr/images/order",
 		);
 	});
 
@@ -185,7 +185,7 @@ describe(buildReorderThumbnailsRequest, () => {
 		expect.assertions(3);
 
 		const parameters = {
-			languageCode: "en-us",
+			languageCode: "en_us",
 			orderedImageIds: [],
 			universeId: "67890",
 		} satisfies ReorderExperienceThumbnailsParameters;
@@ -213,7 +213,7 @@ describe(buildReorderThumbnailsRequest, () => {
 		expect.assertions(3);
 
 		const parameters = {
-			languageCode: "en-us",
+			languageCode: "en_us",
 			orderedImageIds: [id],
 			universeId: "67890",
 		} satisfies ReorderExperienceThumbnailsParameters;
@@ -233,7 +233,7 @@ describe(buildReorderThumbnailsRequest, () => {
 		expect.assertions(1);
 
 		const parameters = {
-			languageCode: "en-us",
+			languageCode: "en_us",
 			orderedImageIds: ["1", "bad", "3"],
 			universeId: "67890",
 		} satisfies ReorderExperienceThumbnailsParameters;

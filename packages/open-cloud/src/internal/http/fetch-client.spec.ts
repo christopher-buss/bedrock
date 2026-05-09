@@ -8,6 +8,7 @@ import {
 	buildUrl,
 	createFetchHttpClient,
 	extractErrorCode,
+	extractErrorMessage,
 	headersToRecord,
 	parseRetryAfterSeconds,
 } from "./fetch-client.ts";
@@ -72,6 +73,117 @@ describe(extractErrorCode, () => {
 
 		// eslint-disable-next-line unicorn/no-null -- verifies JSON `null` body handling
 		expect(extractErrorCode(null)).toBeUndefined();
+	});
+
+	it("should extract numeric code from legacy errors[] as a string", () => {
+		expect.assertions(1);
+
+		const body = { errors: [{ code: 22, message: "Invalid language code" }] };
+
+		expect(extractErrorCode(body)).toBe("22");
+	});
+
+	it("should extract string code from legacy errors[]", () => {
+		expect.assertions(1);
+
+		const body = { errors: [{ code: "GAME_NOT_FOUND", message: "no" }] };
+
+		expect(extractErrorCode(body)).toBe("GAME_NOT_FOUND");
+	});
+
+	it("should prefer top-level errorCode over legacy errors[].code when both present", () => {
+		expect.assertions(1);
+
+		const body = { errorCode: "MODERN", errors: [{ code: 99, message: "legacy" }] };
+
+		expect(extractErrorCode(body)).toBe("MODERN");
+	});
+
+	it("should return undefined when errors is not an array", () => {
+		expect.assertions(1);
+
+		const body = { errors: "not-an-array" };
+
+		expect(extractErrorCode(body)).toBeUndefined();
+	});
+
+	it("should return undefined when errors[] is empty", () => {
+		expect.assertions(1);
+
+		const body = { errors: [] };
+
+		expect(extractErrorCode(body)).toBeUndefined();
+	});
+
+	it("should return undefined when errors[0] is not an object", () => {
+		expect.assertions(1);
+
+		const body = { errors: ["bare-string"] };
+
+		expect(extractErrorCode(body)).toBeUndefined();
+	});
+
+	it("should return undefined when errors[0].code is neither string nor number", () => {
+		expect.assertions(1);
+
+		const body = { errors: [{ code: { nested: true }, message: "hi" }] };
+
+		expect(extractErrorCode(body)).toBeUndefined();
+	});
+});
+
+describe(extractErrorMessage, () => {
+	it("should extract a top-level message string from a modern body", () => {
+		expect.assertions(1);
+
+		const body = { errorCode: "INVALID_ARGUMENT", message: "bad request" };
+
+		expect(extractErrorMessage(body)).toBe("bad request");
+	});
+
+	it("should extract message from legacy errors[]", () => {
+		expect.assertions(1);
+
+		const body = { errors: [{ code: 22, message: "Invalid language code" }] };
+
+		expect(extractErrorMessage(body)).toBe("Invalid language code");
+	});
+
+	it("should prefer top-level message over legacy errors[].message when both present", () => {
+		expect.assertions(1);
+
+		const body = { errors: [{ code: 1, message: "legacy" }], message: "modern" };
+
+		expect(extractErrorMessage(body)).toBe("modern");
+	});
+
+	it("should return undefined when body is not an object", () => {
+		expect.assertions(1);
+
+		expect(extractErrorMessage("string body")).toBeUndefined();
+	});
+
+	it("should return undefined when body is null", () => {
+		expect.assertions(1);
+
+		// eslint-disable-next-line unicorn/no-null -- verifies JSON `null` body handling
+		expect(extractErrorMessage(null)).toBeUndefined();
+	});
+
+	it("should return undefined when neither shape carries a message", () => {
+		expect.assertions(1);
+
+		const body = { errors: [{ code: 1 }] };
+
+		expect(extractErrorMessage(body)).toBeUndefined();
+	});
+
+	it("should return undefined when message is not a string", () => {
+		expect.assertions(1);
+
+		const body = { message: 42 };
+
+		expect(extractErrorMessage(body)).toBeUndefined();
 	});
 });
 
@@ -406,13 +518,13 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.retryAfterSeconds).toBe(0);
 	});
 
-	it("should return ApiError for 400 with errorCode in body", async () => {
-		expect.assertions(3);
+	it("should compose ApiError message and details from a modern errorCode body", async () => {
+		expect.assertions(4);
+
+		const body = { errorCode: "INVALID_ARGUMENT", message: "bad" };
 
 		async function fakeFetch(): Promise<Response> {
-			return new Response(JSON.stringify({ errorCode: "INVALID_ARGUMENT", message: "bad" }), {
-				status: 400,
-			});
+			return new Response(JSON.stringify(body), { status: 400 });
 		}
 
 		const client = createFetchHttpClient(fakeFetch);
@@ -426,11 +538,36 @@ describe(createFetchHttpClient, () => {
 
 		expect(result.err.statusCode).toBe(400);
 		expect(result.err.code).toBe("INVALID_ARGUMENT");
-		expect(result.err.message).toBe("HTTP 400");
+		expect(result.err.message).toBe("HTTP 400: bad (code INVALID_ARGUMENT)");
+		expect(result.err.details).toStrictEqual(body);
+	});
+
+	it("should compose ApiError message and details from a legacy errors[] body", async () => {
+		expect.assertions(4);
+
+		const body = { errors: [{ code: 22, message: "Invalid language code" }] };
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response(JSON.stringify(body), { status: 400 });
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "POST", url: "/v1/game-icon/games/1/language-codes/en_us" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
+		expect(result.err.statusCode).toBe(400);
+		expect(result.err.code).toBe("22");
+		expect(result.err.message).toBe("HTTP 400: Invalid language code (code 22)");
+		expect(result.err.details).toStrictEqual(body);
 	});
 
 	it("should return ApiError for 300 redirect responses", async () => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		async function fakeFetch(): Promise<Response> {
 			return new Response(JSON.stringify({}), { status: 300 });
@@ -447,10 +584,11 @@ describe(createFetchHttpClient, () => {
 
 		expect(result.err.statusCode).toBe(300);
 		expect(result.err.message).toBe("HTTP 300");
+		expect(result.err.details).toStrictEqual({});
 	});
 
-	it("should return ApiError for 500 without errorCode", async () => {
-		expect.assertions(2);
+	it("should compose ApiError message from a body that carries only a top-level message", async () => {
+		expect.assertions(4);
 
 		async function fakeFetch(): Promise<Response> {
 			return new Response(JSON.stringify({ message: "internal error" }), { status: 500 });
@@ -467,6 +605,29 @@ describe(createFetchHttpClient, () => {
 
 		expect(result.err.statusCode).toBe(500);
 		expect(result.err.code).toBeUndefined();
+		expect(result.err.message).toBe("HTTP 500: internal error");
+		expect(result.err.details).toStrictEqual({ message: "internal error" });
+	});
+
+	it("should compose ApiError message from a body that carries only a code", async () => {
+		expect.assertions(3);
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response(JSON.stringify({ errorCode: "ALONE" }), { status: 418 });
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
+		expect(result.err.statusCode).toBe(418);
+		expect(result.err.code).toBe("ALONE");
+		expect(result.err.message).toBe("HTTP 418 (code ALONE)");
 	});
 
 	it("should return ApiError when response body is not valid JSON", async () => {
@@ -514,7 +675,7 @@ describe(createFetchHttpClient, () => {
 	it.for([{ status: 404 }, { status: 500 }])(
 		"should return ApiError preserving status for empty-body $status responses",
 		async ({ status }) => {
-			expect.assertions(3);
+			expect.assertions(4);
 
 			async function fakeFetch(): Promise<Response> {
 				return new Response(undefined, { status });
@@ -532,6 +693,7 @@ describe(createFetchHttpClient, () => {
 			expect(result.err.statusCode).toBe(status);
 			expect(result.err.message).toBe(`HTTP ${status}`);
 			expect(result.err.code).toBeUndefined();
+			expect(result.err.details).toBeUndefined();
 		},
 	);
 

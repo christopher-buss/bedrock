@@ -8,7 +8,9 @@ import type {
 	BadgePaymentSource,
 	BadgesClient,
 	CreateBadgeParameters,
+	UpdateBadgeNameDescriptionParameters,
 	UpdateBadgeParameters,
+	UploadBadgeIconLocalizationParameters,
 	UploadBadgeIconParameters,
 } from "./index.ts";
 
@@ -78,6 +80,45 @@ describe("UploadBadgeIconParameters", () => {
 	});
 });
 
+describe("UpdateBadgeNameDescriptionParameters", () => {
+	it("should require badgeId and languageCode", () => {
+		expectTypeOf<UpdateBadgeNameDescriptionParameters>().toExtend<{
+			badgeId: string;
+			languageCode: string;
+		}>();
+	});
+
+	it("should accept identifiers without name or description", () => {
+		const parameters: UpdateBadgeNameDescriptionParameters = {
+			badgeId: "12345",
+			languageCode: "fr_fr",
+		};
+
+		expectTypeOf(parameters).toExtend<UpdateBadgeNameDescriptionParameters>();
+	});
+
+	it("should accept name and description as optional fields", () => {
+		const parameters: UpdateBadgeNameDescriptionParameters = {
+			name: "Localized Goal",
+			badgeId: "12345",
+			description: "Awarded on first login.",
+			languageCode: "fr_fr",
+		};
+
+		expectTypeOf(parameters).toExtend<UpdateBadgeNameDescriptionParameters>();
+	});
+});
+
+describe("UploadBadgeIconLocalizationParameters", () => {
+	it("should require badgeId, languageCode, and image", () => {
+		expectTypeOf<UploadBadgeIconLocalizationParameters>().toExtend<{
+			badgeId: string;
+			image: Blob | Uint8Array;
+			languageCode: string;
+		}>();
+	});
+});
+
 describe("Badge", () => {
 	it("should expose stringified ids and Date timestamps", () => {
 		expectTypeOf<Badge>().toExtend<{
@@ -115,6 +156,18 @@ describe("BadgesClient", () => {
 
 	it("should resolve uploadIcon() to Result<undefined, OpenCloudError>", () => {
 		expectTypeOf<BadgesClient["uploadIcon"]>().returns.resolves.toEqualTypeOf<
+			Result<undefined, OpenCloudError>
+		>();
+	});
+
+	it("should resolve localization.updateNameDescription() to Result<undefined, OpenCloudError>", () => {
+		expectTypeOf<
+			BadgesClient["localization"]["updateNameDescription"]
+		>().returns.resolves.toEqualTypeOf<Result<undefined, OpenCloudError>>();
+	});
+
+	it("should resolve localization.uploadIcon() to Result<undefined, OpenCloudError>", () => {
+		expectTypeOf<BadgesClient["localization"]["uploadIcon"]>().returns.resolves.toEqualTypeOf<
 			Result<undefined, OpenCloudError>
 		>();
 	});

@@ -313,6 +313,22 @@ describe(parseBadgeResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
+	it.for(["created", "updated"] as const)(
+		"should return an ApiError when %s is a string that does not parse to a Date",
+		(field) => {
+			expect.assertions(2);
+
+			const body = validBadgeBody({ [field]: "not-a-date" });
+
+			const result = parseBadgeResponse({ body, headers: {}, status: 502 });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(result.err.message).toBe("Malformed badge response");
+		},
+	);
+
 	it("should reject an awarder that is an array with look-alike named properties", () => {
 		expect.assertions(1);
 

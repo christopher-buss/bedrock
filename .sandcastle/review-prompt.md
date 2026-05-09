@@ -1,8 +1,16 @@
 # TASK
 
-Review the code changes on branch `{{BRANCH}}` and improve code clarity, consistency, and maintainability while preserving exact functionality.
+Polish, review, and ship the changes on branch `{{BRANCH}}` for issue {{TASK_ID}}: {{ISSUE_TITLE}}.
+
+You are the sandcastle reviewer. The implementer was a smaller model working from a plan; you have full Opus context plus `CLAUDE.md` and the project's ADRs at your disposal. Be thorough.
 
 ## CONTEXT
+
+### Plan
+
+The designer wrote this plan, which the implementer followed:
+
+!`cat {{PLAN_PATH}}`
 
 ### Branch diff
 
@@ -12,58 +20,49 @@ Review the code changes on branch `{{BRANCH}}` and improve code clarity, consist
 
 !`git log {{SOURCE_BRANCH}}..{{BRANCH}} --oneline`
 
-## REVIEW PROCESS
+### Shared review rubric
 
-1. **Understand the change**: Read the diff and commits above to understand the intent.
+This is the same rubric the CI Claude reviewer applies on opened PRs. Walk every section.
 
-2. **Analyze for improvements**: Look for opportunities to:
-   - Reduce unnecessary complexity and nesting
-   - Eliminate redundant code and abstractions
-   - Improve readability through clear variable and function names
-   - Consolidate related logic
-   - Remove unnecessary comments that describe obvious code
-   - Avoid nested ternary operators - prefer switch statements or if/else chains
-   - Choose clarity over brevity - explicit code is often better than overly compact code
+!`cat .claude/prompts/review-prompt.md`
 
-3. **Check correctness**:
-   - Does the implementation match the intent? Are edge cases handled?
-   - Are new/changed behaviours covered by tests?
-   - Are there unsafe casts, `any` types, or unchecked assumptions?
-   - Does the change introduce injection vulnerabilities, credential leaks, or other security issues?
+### Project context
 
-4. **Maintain balance**: Avoid over-simplification that could:
-   - Reduce code clarity or maintainability
-   - Create overly clever solutions that are hard to understand
-   - Combine too many concerns into single functions or components
-   - Remove helpful abstractions that improve code organization
-   - Make the code harder to debug or extend
+`CLAUDE.md` is auto-loaded by Claude Code. Apply its conventions throughout. Skim ADRs in `docs/adr/` referenced by the plan or that touch the package(s) being modified, plus any per-package `CONTEXT.md`.
 
-5. **Apply project standards**: Follow the coding standards defined in @.sandcastle/CODING_STANDARDS.md
+## SIMPLIFY
 
-6. **Preserve functionality**: Never change what the code does - only how it does it. All original features, outputs, and behaviors must remain intact.
+Run the `/simplify` skill on the cumulative changes. It reviews the diff for reuse, quality, and efficiency and applies fixes via sub-agents. Action any improvements it surfaces and commit them as separate commits in conventional-commit format.
 
-## EXECUTION
+## REVIEW
 
-If you find improvements to make:
+After simplify, walk the shared rubric loaded above. Make corrections directly on the branch; each correction is its own commit, with `hk check` before each commit.
 
-1. Make the changes directly on this branch
-2. Run `pnpm lint`, `pnpm typecheck`, and `pnpm test` to ensure nothing
-   is broken
-3. Commit describing the refinements (follow the bedrock
-   conventional-commit rules in `CLAUDE.md`)
-4. Push the changes to update the existing PR: `git push`
+In addition to the shared rubric, evaluate plan adherence:
 
-If the code is already clean and well-structured, skip to CI VERIFICATION.
+- Did the implementer build what the plan specified? Walk each slice in `{{PLAN_PATH}}` and confirm a matching test plus implementation landed.
+- Are non-goals respected? Flag any code added that the plan said NOT to add.
+- Are the plan's open questions resolved? If the plan flagged a decision the designer couldn't make, decide it now.
+- If the implementer skipped, misread, or partially completed a slice, fix it.
+
+## PUSH AND OPEN PR
+
+Once review changes are committed:
+
+1. Push the branch: `git push -u origin {{BRANCH}}`
+2. Open a PR with `gh pr create`. Include:
+   - A title following the bedrock commitlint rules (kebab-case subject after `type(scope):`, scope from the enum, no em-dashes; consumer-useful phrasing per `CLAUDE.md` "Pull Requests")
+   - `Closes #{{TASK_ID}}` in the body so the issue auto-closes on merge
+   - The `sandcastle` label so triage marks the PR `skip-review`:
+     `gh pr create --label sandcastle --title "..." --body "..."`
 
 ## CI VERIFICATION
 
-Before declaring the work complete, verify CI is green on the PR:
+Before declaring the work complete:
 
-1. Find the PR for this branch: `gh pr view --json number,url`
-2. Wait for checks to finish: `gh pr checks --watch`
-3. If any check fails, diagnose the failure (`gh run view <id> --log-failed`),
-   fix it, run the local feedback loop above, commit the fix, and
-   `git push`. Repeat until all checks pass.
+1. `gh pr checks --watch`
+2. If any check fails, diagnose with `gh run view <id> --log-failed`, fix it, run `hk check`, commit, and push.
+3. Repeat until all checks pass.
 
 Do not output COMPLETE until CI is fully green.
 

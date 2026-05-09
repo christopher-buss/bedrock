@@ -62,7 +62,7 @@ export function createProg(deps: ProgDeps = {}): Sade {
 		.describe("Reconcile a project's resources against the configured environment(s)")
 		.option("--env", "Target environment (repeat for multiple)")
 		.option("--config", "Config file path (overrides discovery)")
-		.option("--api-key", "Override the ROBLOX_API_KEY environment variable")
+		.option("--api-key", "Override the BEDROCK_API_KEY environment variable")
 		.option("--github-token", "Override the GITHUB_TOKEN environment variable")
 		.action(deployCommand(deps));
 
@@ -70,7 +70,7 @@ export function createProg(deps: ProgDeps = {}): Sade {
 		.describe("Preview the operations a deploy would apply, without writing state")
 		.option("--env", "Target environment (repeat for multiple)")
 		.option("--config", "Config file path (overrides discovery)")
-		.option("--api-key", "Override the ROBLOX_API_KEY environment variable")
+		.option("--api-key", "Override the BEDROCK_API_KEY environment variable")
 		.option("--github-token", "Override the GITHUB_TOKEN environment variable")
 		.action(diffCommand(deps));
 

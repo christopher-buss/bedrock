@@ -2,8 +2,6 @@
 
 Fix issue {{TASK_ID}}: {{ISSUE_TITLE}}
 
-Pull in the issue using `gh issue view {{TASK_ID}}`. If it has a parent PRD, pull that in too.
-
 Only work on the issue specified.
 
 Work on branch {{BRANCH}}. Make commits and run tests.
@@ -18,16 +16,24 @@ Here are the last 10 commits:
 
 </recent-commits>
 
+## PLAN
+
+The designer has written a plan for this task at `{{PLAN_PATH}}`. Read it first:
+
+!`cat {{PLAN_PATH}}`
+
+The plan is canonical. Follow its slice breakdown. Pull the issue (`gh issue view {{TASK_ID}}`) or parent PRD only if you need detail the plan does not cover.
+
+Do NOT delete or modify `{{PLAN_PATH}}`. The reviewer needs it intact. The file is gitignored and ESLint-ignored; if a tool flags it, that is a configuration bug to report, not a reason to remove the plan.
+
 ## EXPLORATION
 
-Explore the repo and fill your context window with relevant information that will allow you to complete the task.
-
-Pay extra attention to test files that touch the relevant parts of the code.
+After reading the plan, explore the sibling code and test files it points at. Pay extra attention to test files that touch the relevant parts of the code.
 
 ## EXECUTION
 
 Use TDD per `CLAUDE.md` and `docs/adr/003-testing-strategy.md`. For each
-behaviour slice:
+behaviour slice in the plan:
 
 1. RED: write one failing test for the slice
 2. GREEN: write the minimum implementation to pass it
@@ -44,16 +50,7 @@ that same commit. No premature scaffolding.
 
 Before each commit, run:
 
-- `pnpm gen:example-tests` if you touched any `@example` JSDoc blocks on
-  symbols exported from a package's `src/index.ts`
-- `pnpm lint`
-- `pnpm typecheck`
-- `pnpm test`
-- `pnpm mutate:changed` if you touched files under `src/**` (no
-  surviving mutants; never silence with `// Stryker disable`)
-
-The pre-commit hook runs lint, typecheck, test, and build, so a failing
-gate blocks the commit.
+- `hk check` to run the pre-commit hook checks (lint, typecheck, test, build)
 
 ## COMMIT FORMAT
 
@@ -68,27 +65,14 @@ Commit messages must follow the bedrock conventional-commit rules (see
 
 Keep each commit message concise.
 
-## SIMPLIFY
+## THE ISSUE
 
-Once every behaviour slice is implemented and committed, run the
-`/simplify` skill to review the cumulative changes for reuse, quality,
-and efficiency. Action any improvements it surfaces and commit them
-(separate commit, same conventions).
+If the task is not complete, leave a comment on the issue with what was done.
+Give attribution to claude code for work done, do not claim it as the user's own
+work.
 
-## PUSH AND OPEN PR
-
-After SIMPLIFY:
-
-1. Push the branch: `git push -u origin {{BRANCH}}`
-2. Open a PR with `gh pr create`, including:
-   - A title matching the commit conventions above
-   - `Closes #{{TASK_ID}}` in the body so the issue auto-closes on merge
-   - The `sandcastle` label so triage marks the PR `skip-review`
-     (we already ran a review stage in the sandbox):
-     `gh pr create --label sandcastle --title "..." --body "..."`
-
-If the task is not complete, leave a comment on the issue with what was
-done and do not open a PR.
+Do not close the issue - this will be done later.
+Do not push the branch or open a PR - the reviewer handles that.
 
 Once complete, output <promise>COMPLETE</promise>.
 

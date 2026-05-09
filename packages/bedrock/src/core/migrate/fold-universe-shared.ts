@@ -7,11 +7,11 @@ import type { MigrationWarning } from "./migration-report.ts";
  * The orchestrator (`foldUniverse`) composes fragments by spreading
  * `entryFragment` into the final entry, spreading `outputsFragment` into
  * the matching `BedrockState` resource's `outputs`, and concatenating
- * `warnings`. Most rules contribute only to the entry; rules that also
- * carry Roblox-assigned identifiers (icons, thumbnails) fill
- * `outputsFragment`. The `mergeFragment` helper, used inside individual
- * fold modules to combine sub-fragments, only merges `entryFragment` and
- * `warnings` because no rule that uses it currently produces outputs.
+ * `warnings`. Most rules contribute only to the entry; rules that surface
+ * Roblox-assigned identifiers populate `outputsFragment`. The
+ * `mergeFragment` helper, used inside individual fold modules to combine
+ * sub-fragments, only merges `entryFragment` and `warnings` because no
+ * rule that uses it currently produces outputs.
  */
 export interface FoldFragment {
 	/**

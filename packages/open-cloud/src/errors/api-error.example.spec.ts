@@ -3,11 +3,16 @@ import { expect, it } from "vitest";
 import { ApiError } from '@bedrock-rbx/ocale'
 
 it('Example 1', () => {
-  const error = new ApiError('Game pass not found', {
+  const error = new ApiError('HTTP 404: Pass not found (code NotFound)', {
     code: 'NotFound',
+    details: { errorCode: 'NotFound', message: 'Pass not found' },
     statusCode: 404,
   })
   expect(error).toBeInstanceOf(ApiError)
   expect(error.statusCode).toBe(404)
   expect(error.code).toBe('NotFound')
+  expect(error.details).toEqual({
+    errorCode: 'NotFound',
+    message: 'Pass not found',
+  })
 })

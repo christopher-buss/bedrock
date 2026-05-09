@@ -25,7 +25,7 @@ describe(UniversesClient, () => {
 
 				const result = await client.thumbnails.upload({
 					image: new Uint8Array([1, 2, 3]),
-					languageCode: "en-us",
+					languageCode: "en_us",
 					universeId: "1",
 				});
 
@@ -49,13 +49,13 @@ describe(UniversesClient, () => {
 
 				await client.thumbnails.upload({
 					image: new Uint8Array([1, 2, 3]),
-					languageCode: "en-us",
+					languageCode: "en_us",
 					universeId: "1",
 				});
 
 				expect(httpClient.requests[0]?.request.method).toBe("POST");
 				expect(httpClient.requests[0]?.request.url).toBe(
-					"/legacy-game-internationalization/v1/game-thumbnails/games/1/language-codes/en-us/image",
+					"/legacy-game-internationalization/v1/game-thumbnails/games/1/language-codes/en_us/image",
 				);
 			});
 
@@ -73,7 +73,7 @@ describe(UniversesClient, () => {
 
 				const result = await client.thumbnails.upload({
 					image: new Uint8Array([1, 2, 3]),
-					languageCode: "en-us",
+					languageCode: "en_us",
 					universeId: "1",
 				});
 
@@ -97,7 +97,7 @@ describe(UniversesClient, () => {
 
 				const result = await client.thumbnails.delete({
 					imageId: "12345",
-					languageCode: "en-us",
+					languageCode: "en_us",
 					universeId: "1",
 				});
 
@@ -118,13 +118,13 @@ describe(UniversesClient, () => {
 
 				await client.thumbnails.delete({
 					imageId: "12345",
-					languageCode: "en-us",
+					languageCode: "en_us",
 					universeId: "1",
 				});
 
 				expect(httpClient.requests[0]?.request.method).toBe("DELETE");
 				expect(httpClient.requests[0]?.request.url).toBe(
-					"/legacy-game-internationalization/v1/game-thumbnails/games/1/language-codes/en-us/images/12345",
+					"/legacy-game-internationalization/v1/game-thumbnails/games/1/language-codes/en_us/images/12345",
 				);
 			});
 		});
@@ -141,7 +141,7 @@ describe(UniversesClient, () => {
 				});
 
 				const result = await client.thumbnails.reorder({
-					languageCode: "en-us",
+					languageCode: "en_us",
 					orderedImageIds: ["1", "2", "3"],
 					universeId: "1",
 				});
@@ -162,14 +162,14 @@ describe(UniversesClient, () => {
 				});
 
 				await client.thumbnails.reorder({
-					languageCode: "en-us",
+					languageCode: "en_us",
 					orderedImageIds: ["3", "1", "2"],
 					universeId: "1",
 				});
 
 				expect(httpClient.requests[0]?.request.method).toBe("POST");
 				expect(httpClient.requests[0]?.request.url).toBe(
-					"/legacy-game-internationalization/v1/game-thumbnails/games/1/language-codes/en-us/images/order",
+					"/legacy-game-internationalization/v1/game-thumbnails/games/1/language-codes/en_us/images/order",
 				);
 				expect(httpClient.requests[0]?.request.body).toStrictEqual({
 					mediaAssetIds: [3, 1, 2],
@@ -187,7 +187,7 @@ describe(UniversesClient, () => {
 				});
 
 				const result = await client.thumbnails.reorder({
-					languageCode: "en-us",
+					languageCode: "en_us",
 					orderedImageIds: ["not-a-number"],
 					universeId: "1",
 				});
@@ -213,7 +213,7 @@ describe(UniversesClient, () => {
 
 				const result = await client.thumbnails.upload({
 					image: new Uint8Array([1, 2, 3]),
-					languageCode: "en-us",
+					languageCode: "en_us",
 					universeId: "1",
 				});
 
@@ -236,7 +236,7 @@ describe(UniversesClient, () => {
 
 				const result = await client.thumbnails.delete({
 					imageId: "67890",
-					languageCode: "en-us",
+					languageCode: "en_us",
 					universeId: "1",
 				});
 
@@ -257,7 +257,7 @@ describe(UniversesClient, () => {
 				});
 
 				const result = await client.thumbnails.reorder({
-					languageCode: "en-us",
+					languageCode: "en_us",
 					orderedImageIds: ["111", "222"],
 					universeId: "1",
 				});

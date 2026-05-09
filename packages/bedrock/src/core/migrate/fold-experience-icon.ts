@@ -1,83 +1,54 @@
-import { isRobloxAssetId, type RobloxAssetId } from "../../types/ids.ts";
 import {
+	blockedWarning,
 	EMPTY_FRAGMENT,
 	type FoldFragment,
-	interpretiveWarning,
 	isObjectPayload,
 } from "./fold-universe-shared.ts";
 import type { MantleResource } from "./types.ts";
 
 const EXPERIENCE_ICON_KIND = "experienceIcon";
 
-interface ExperienceIconParts {
-	readonly assetId: RobloxAssetId;
-	readonly filePath: string;
-}
+const BLOCKED_REASON =
+	"Open Cloud has no route to set a universe's source-language game icon; configure it via the Roblox creator portal.";
 
 /**
- * Fold the Mantle `experienceIcon_<key>` resource into the universe's
- * locale-keyed `icon` map and the `iconAssetIds` slot of its outputs.
- * Mantle has no locale concept on `experienceIcon`; the fold assigns the
- * single image to `"en-us"` and emits one `interpretive` warning so the
- * migration report records the implicit locale assignment.
+ * Surface every Mantle `experienceIcon_<key>` resource as a `blocked`
+ * migration warning. Bedrock has no `UniverseEntry.icon` field today
+ * because no Open Cloud endpoint accepts a source-language game icon, so
+ * the migrator emits one warning per legacy resource (rather than the
+ * first matching entry only) so the operator can audit each affected
+ * environment before reconfiguring the icon by hand.
  *
  * Resources whose payload is malformed (non-object inputs/outputs,
- * non-string `filePath`, missing or non-coercible `assetId`) drop
- * silently. The first matching resource wins; ambiguity handling for
- * multiple `experienceIcon` resources lands in a follow-up slice.
+ * non-string `filePath`) are skipped silently, matching the
+ * malformed-payload behaviour of the other fold rules.
  *
  * @param resources - Mantle resource list for one environment.
- * @returns The folded icon entry plus per-rule diagnostics.
+ * @returns A fragment whose `warnings` carries one `blocked` entry per
+ *   legacy experience-icon resource, or {@link EMPTY_FRAGMENT} when none
+ *   are present.
  */
 export function foldExperienceIcon(resources: ReadonlyArray<MantleResource>): FoldFragment {
-	const [first] = resources.filter((resource) => resource.kind === EXPERIENCE_ICON_KIND);
-	if (first === undefined) {
+	const warnings = resources
+		.filter(
+			(resource) => resource.kind === EXPERIENCE_ICON_KIND && hasReadablePayload(resource),
+		)
+		.map((resource) =>
+			blockedWarning(`${EXPERIENCE_ICON_KIND}_${resource.key}`, BLOCKED_REASON),
+		);
+
+	if (warnings.length === 0) {
 		return EMPTY_FRAGMENT;
 	}
 
-	const parts = readParts(first);
-	if (parts === undefined) {
-		return EMPTY_FRAGMENT;
-	}
-
-	return {
-		entryFragment: { icon: { "en-us": parts.filePath } },
-		outputsFragment: {
-			iconAssetIds: { "en-us": parts.assetId },
-		},
-		warnings: [
-			interpretiveWarning({
-				bedrockPath: "universe.icon",
-				mantlePath: `${EXPERIENCE_ICON_KIND}_${first.key}`,
-				rule: "experience-icon-to-en-us-locale",
-			}),
-		],
-	};
+	return { entryFragment: {}, warnings };
 }
 
-function coerceRobloxId(value: unknown): RobloxAssetId | undefined {
-	const candidate = String(value);
-	return isRobloxAssetId(candidate) ? candidate : undefined;
-}
-
-function readParts(resource: MantleResource): ExperienceIconParts | undefined {
+function hasReadablePayload(resource: MantleResource): boolean {
 	if (!isObjectPayload(resource.inputs)) {
-		return undefined;
+		return false;
 	}
 
 	const { filePath } = resource.inputs;
-	if (typeof filePath !== "string") {
-		return undefined;
-	}
-
-	if (!isObjectPayload(resource.outputs)) {
-		return undefined;
-	}
-
-	const assetId = coerceRobloxId(resource.outputs["assetId"]);
-	if (assetId === undefined) {
-		return undefined;
-	}
-
-	return { assetId, filePath };
+	return typeof filePath === "string";
 }

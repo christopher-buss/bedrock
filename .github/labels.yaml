@@ -2,7 +2,9 @@
 # Source of truth. Synced to the repo by .github/workflows/labels.yaml on
 # pushes to main that touch this file, and on manual workflow_dispatch.
 # Edit this file to add, remove, or recolor labels.
-# Hex color codes must be quoted: YAML parses all-digit values as numbers.
+# Hex color codes must be quoted when they look like a YAML number, i.e.
+# all-digit values (like "008672") or scientific notation patterns like
+# "5319e7" (digits + e + digits).
 
 - name: bug
   color: d73a4a
@@ -77,5 +79,5 @@
   description: Needs human implementation
 
 - name: sandcastle
-  color: 5319e7
+  color: "5319e7"
   description: PR opened by the sandcastle agent (already reviewed in-sandbox)

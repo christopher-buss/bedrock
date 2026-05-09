@@ -7,6 +7,7 @@ import {
 	type LoadConfigOptions,
 } from "../../shell/load-config.ts";
 import { previewDiff as defaultPreviewDiff, type DiffPreview } from "../../shell/preview-diff.ts";
+import { buildCredentialOverrides } from "../credential-environment-overrides.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps } from "../index.ts";
 import { type CommonOptions, parseCommonOptions } from "../parse-options.ts";
@@ -67,17 +68,8 @@ function loadOptionsFor(parsed: CommonOptions): LoadConfigOptions | undefined {
 }
 
 function buildGetEnvironment(parsed: CommonOptions): (name: string) => string | undefined {
-	return (name) => {
-		if (name === "ROBLOX_API_KEY" && parsed.apiKey !== undefined) {
-			return parsed.apiKey;
-		}
-
-		if (name === "GITHUB_TOKEN" && parsed.githubToken !== undefined) {
-			return parsed.githubToken;
-		}
-
-		return process.env[name];
-	};
+	const overrides = buildCredentialOverrides(parsed);
+	return (name) => overrides[name] ?? process.env[name];
 }
 
 function cancelAsFailed(clack: ClackPort): void {

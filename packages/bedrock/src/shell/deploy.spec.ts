@@ -667,7 +667,7 @@ describe(deploy, () => {
 		expect(result.err.purpose).toBe("stateBackend");
 	});
 
-	it("should default-construct the registry from ROBLOX_API_KEY when registry is omitted", async () => {
+	it("should default-construct the registry from BEDROCK_API_KEY when registry is omitted", async () => {
 		expect.assertions(1);
 
 		// Provide prior universe state so the diff is a noop and the real
@@ -686,7 +686,7 @@ describe(deploy, () => {
 				universe: { universeId: "1" },
 			},
 			environment: "production",
-			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test", ROBLOX_API_KEY: "rbx-test" }),
+			getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test", GITHUB_TOKEN: "ghp_test" }),
 			readFile: readIcon,
 			statePort: port,
 		});
@@ -696,7 +696,7 @@ describe(deploy, () => {
 		expect(result.data.environment).toBe("production");
 	});
 
-	it("should return Err(missingCredential) when ROBLOX_API_KEY is unset on the default-construction registry path", async () => {
+	it("should return Err(missingCredential) when BEDROCK_API_KEY is unset on the default-construction registry path", async () => {
 		expect.assertions(2);
 
 		const result = await deploy({
@@ -714,7 +714,7 @@ describe(deploy, () => {
 		assert(!result.success);
 		assert(result.err.kind === "missingCredential");
 
-		expect(result.err.variable).toBe("ROBLOX_API_KEY");
+		expect(result.err.variable).toBe("BEDROCK_API_KEY");
 		expect(result.err.purpose).toBe("registry");
 	});
 
@@ -727,7 +727,7 @@ describe(deploy, () => {
 				state: { backend: "gist", gistId: "abc" },
 			},
 			environment: "production",
-			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test", ROBLOX_API_KEY: "rbx-test" }),
+			getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test", GITHUB_TOKEN: "ghp_test" }),
 			readFile: readIcon,
 			statePort: inMemoryStatePort().port,
 		});
@@ -788,7 +788,7 @@ describe(deploy, () => {
 	it("should default getEnv to process.env when getEnv is not supplied", async () => {
 		expect.assertions(1);
 
-		vi.stubEnv("ROBLOX_API_KEY", "rbx-stub");
+		vi.stubEnv("BEDROCK_API_KEY", "rbx-stub");
 		try {
 			// Prior universe state keeps the diff at noop so the
 			// default-constructed universe driver never hits Open Cloud.

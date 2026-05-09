@@ -1,4 +1,12 @@
 import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
+import { buildUploadIconRequest } from "../../domains/game-internationalization/game-pass-icon/builders.ts";
+import type { UploadGamePassIconParameters } from "../../domains/game-internationalization/game-pass-icon/types.ts";
+import { buildUpdateRequest as buildLocaleNameDescRequest } from "../../domains/game-internationalization/game-pass-name-description/builders.ts";
+import {
+	LOCALIZATION_OPERATION_LIMIT,
+	LOCALIZATION_REQUIRED_SCOPES,
+} from "../../domains/game-internationalization/game-pass-name-description/operations.ts";
+import type { UpdateGamePassNameDescriptionParameters } from "../../domains/game-internationalization/game-pass-name-description/types.ts";
 import {
 	buildCreateRequest,
 	buildGetRequest,
@@ -76,6 +84,60 @@ const LIST_SPEC = makeSpec<ListGamePassesParameters, Page<GamePass>>({
 	requiredScopes: LIST_REQUIRED_SCOPES,
 });
 
+const UPDATE_NAME_DESCRIPTION_SPEC = makeSpec<UpdateGamePassNameDescriptionParameters, undefined>({
+	buildRequest: (parameters) => okRequest(buildLocaleNameDescRequest(parameters)),
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: LOCALIZATION_OPERATION_LIMIT,
+	parse: parseEmptyResponse,
+	requiredScopes: LOCALIZATION_REQUIRED_SCOPES,
+});
+
+const UPLOAD_ICON_SPEC = makeSpec<UploadGamePassIconParameters, undefined>({
+	buildRequest: (parameters) => okRequest(buildUploadIconRequest(parameters)),
+	methodDefaults: CREATE_METHOD_DEFAULTS,
+	methodKind: "create",
+	operationLimit: LOCALIZATION_OPERATION_LIMIT,
+	parse: parseEmptyResponse,
+	requiredScopes: LOCALIZATION_REQUIRED_SCOPES,
+});
+
+interface GamePassLocalizationHandle {
+	/**
+	 * Updates the per-locale display name and/or description registered against
+	 * a game pass. Either `name`, `description`, or both may be supplied;
+	 * omitted fields are not forwarded so the server leaves the existing value
+	 * for that locale untouched. Mirrors the upstream `200 OK` echo body as
+	 * `undefined` data.
+	 *
+	 * @param parameters - Game pass and language identifiers plus the optional
+	 *   replacement values.
+	 * @param options - Optional per-request overrides.
+	 * @returns A success {@link Result} with no payload, or the
+	 *   {@link OpenCloudError} that caused the request to fail.
+	 */
+	updateNameDescription: (
+		parameters: UpdateGamePassNameDescriptionParameters,
+		options?: RequestOptions,
+	) => Promise<Result<undefined, OpenCloudError>>;
+	/**
+	 * Uploads or replaces the per-locale icon for a game pass. A subsequent
+	 * upload for the same `(gamePassId, languageCode)` pair replaces the
+	 * existing icon for that locale. Does not retry on 5xx so a duplicate
+	 * upload cannot be created if the server fails mid-write.
+	 *
+	 * @param parameters - Game pass and language identifiers plus the image
+	 *   bytes to upload.
+	 * @param options - Optional per-request overrides.
+	 * @returns A success {@link Result} with no payload, or the
+	 *   {@link OpenCloudError} that caused the request to fail.
+	 */
+	uploadIcon: (
+		parameters: UploadGamePassIconParameters,
+		options?: RequestOptions,
+	) => Promise<Result<undefined, OpenCloudError>>;
+}
+
 /**
  * Public client for the Roblox Open Cloud Game Passes API.
  *
@@ -124,6 +186,16 @@ export class GamePassesClient {
 	readonly #inner: ResourceClient;
 
 	/**
+	 * Operation Group exposing per-locale localization Operations
+	 * (`updateNameDescription`, `uploadIcon`) backed by the
+	 * `legacy-game-internationalization` domain. Source-language values
+	 * remain on {@link GamePassesClient.update}; methods on this group set
+	 * per-locale overlays on top. Shares the parent client's HTTP,
+	 * rate-limit, and retry plumbing.
+	 */
+	public readonly localization: GamePassLocalizationHandle;
+
+	/**
 	 * Creates a new {@link GamePassesClient}. Configuration is frozen on
 	 * construction; per-request overrides are accepted on each method.
 	 *
@@ -131,6 +203,7 @@ export class GamePassesClient {
 	 */
 	constructor(options: OpenCloudClientOptions) {
 		this.#inner = new ResourceClient(options);
+		this.localization = createLocalizationHandle(this.#inner);
 	}
 
 	/**
@@ -201,4 +274,15 @@ export class GamePassesClient {
 	): Promise<Result<undefined, OpenCloudError>> {
 		return this.#inner.execute({ options, parameters, spec: UPDATE_SPEC });
 	}
+}
+
+function createLocalizationHandle(inner: ResourceClient): GamePassLocalizationHandle {
+	return {
+		async updateNameDescription(parameters, options) {
+			return inner.execute({ options, parameters, spec: UPDATE_NAME_DESCRIPTION_SPEC });
+		},
+		async uploadIcon(parameters, options) {
+			return inner.execute({ options, parameters, spec: UPLOAD_ICON_SPEC });
+		},
+	};
 }

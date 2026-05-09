@@ -5,7 +5,6 @@ import { type } from "arktype";
 
 import { asRobloxAssetId } from "../../types/ids.ts";
 import type { UniverseDesiredInput } from "../flatten.ts";
-import { hashIconLocales, iconHashesEqual, iconMap } from "../icons.ts";
 import {
 	copyDeclaredSocialLinks,
 	type ResourceCurrentState,
@@ -33,7 +32,6 @@ const entrySchema = type({
 	"displayName?": "string | undefined",
 	"facebookSocialLink?": socialLinkOrUndefined,
 	"guildedSocialLink?": socialLinkOrUndefined,
-	"icon?": iconMap,
 	"mobileEnabled?": OPTIONAL_BOOLEAN,
 	"privateServerPriceRobux?": "number.integer >= 0 | undefined",
 	"robloxGroupSocialLink?": socialLinkOrUndefined,
@@ -66,12 +64,11 @@ function flatten(config: ResolvedConfig): ReadonlyArray<UniverseDesiredInput> {
 		...copyDeclaredSocialLinks(entry),
 	};
 
-	const withPrice =
+	return [
 		"privateServerPriceRobux" in entry
 			? { ...base, privateServerPriceRobux: entry.privateServerPriceRobux }
-			: base;
-
-	return [entry.icon === undefined ? withPrice : { ...withPrice, icon: entry.icon }];
+			: base,
+	];
 }
 
 function buildBaseDesired(input: UniverseDesiredInput): UniverseDesiredState {
@@ -96,23 +93,9 @@ function buildBaseDesired(input: UniverseDesiredInput): UniverseDesiredState {
 
 async function normalize(
 	input: UniverseDesiredInput,
-	io: KindIo,
+	_io: KindIo,
 ): Promise<Result<UniverseDesiredState, BuildDesiredError>> {
-	const withPrice = buildBaseDesired(input);
-
-	if (input.icon === undefined) {
-		return { data: withPrice, success: true };
-	}
-
-	const hashes = await hashIconLocales({ key: input.key, icon: input.icon }, io);
-	if (!hashes.success) {
-		return hashes;
-	}
-
-	return {
-		data: { ...withPrice, icon: input.icon, iconFileHashes: hashes.data },
-		success: true,
-	};
+	return { data: buildBaseDesired(input), success: true };
 }
 
 function socialLinkEqual(a: SocialLink | undefined, b: SocialLink | undefined): boolean {
@@ -170,10 +153,6 @@ function fieldsEqual(
 		"privateServerPriceRobux" in desired &&
 		desired.privateServerPriceRobux !== current.privateServerPriceRobux
 	) {
-		return false;
-	}
-
-	if (!iconHashesEqual(current.iconFileHashes, desired.iconFileHashes)) {
 		return false;
 	}
 

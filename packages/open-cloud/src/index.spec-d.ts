@@ -95,6 +95,10 @@ describe("ApiError", () => {
 	it("should have code as string or undefined", () => {
 		expectTypeOf<ApiError>().toHaveProperty("code").toEqualTypeOf<string | undefined>();
 	});
+
+	it("should have details as JSONValue or undefined", () => {
+		expectTypeOf<ApiError>().toHaveProperty("details").toEqualTypeOf<JSONValue | undefined>();
+	});
 });
 
 describe("ApiErrorOptions", () => {
@@ -104,6 +108,10 @@ describe("ApiErrorOptions", () => {
 
 	it("should have optional code", () => {
 		expectTypeOf<ApiErrorOptions>().toExtend<{ code?: string | undefined }>();
+	});
+
+	it("should have optional details typed as JSONValue", () => {
+		expectTypeOf<ApiErrorOptions>().toExtend<{ details?: JSONValue | undefined }>();
 	});
 
 	it("should extend ErrorOptions", () => {
@@ -176,6 +184,7 @@ describe("ValidationErrorCode", () => {
 			| "empty_image_ids"
 			| "empty_update"
 			| "format_mismatch"
+			| "incomplete_ref"
 			| "invalid_image_id"
 		>();
 	});

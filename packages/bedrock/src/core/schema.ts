@@ -20,10 +20,9 @@ export interface GamePassEntry {
 	/** Description shown on the game-pass detail page. */
 	description: string;
 	/**
-	 * Locale-keyed icon paths. The map shape mirrors `UniverseEntry.icon`
-	 * so authors see a single vocabulary across icon-bearing kinds; v1
-	 * only accepts the `"en-us"` key. The Roblox game-pass API is
-	 * monolingual, so the `"en-us"` icon is the only one ever uploaded.
+	 * Locale-keyed icon path. The Roblox game-pass API is monolingual, so
+	 * only the `"en-us"` key is accepted; the map shape leaves room for
+	 * translated icons should the API ever expose them.
 	 */
 	icon: Record<"en-us", string>;
 	/** Robux price, or omitted / `undefined` for off-sale. */
@@ -40,9 +39,9 @@ export interface DeveloperProductEntry {
 	/** Description shown on the developer-product detail page. */
 	description: string;
 	/**
-	 * Locale-keyed icon paths. Mirrors `GamePassEntry.icon` and
-	 * `UniverseEntry.icon`; the Roblox developer-product API is monolingual,
-	 * so the `"en-us"` icon is the only one ever uploaded.
+	 * Locale-keyed icon path. Mirrors `GamePassEntry.icon`; the Roblox
+	 * developer-product API is monolingual, so only the `"en-us"` key is
+	 * accepted.
 	 */
 	icon?: Record<"en-us", string>;
 	/**
@@ -148,13 +147,6 @@ export interface UniverseEntry {
 	 * `undefined` to clear it, or set to a `SocialLink` to update it.
 	 */
 	guildedSocialLink?: SocialLink | undefined;
-	/**
-	 * Locale-keyed experience-icon paths. The map shape teaches that icons
-	 * are per-locale; v1 only accepts the `"en-us"` key. Omit to leave the
-	 * server icon unmanaged; remove a previously declared locale to delete
-	 * its icon on the next deploy.
-	 */
-	icon?: Record<"en-us", string>;
 	/** Whether mobile players can join; omit or set `undefined` to leave unmanaged. */
 	mobileEnabled?: boolean | undefined;
 	/**
@@ -364,7 +356,7 @@ export type UniverseOverlayWithId = Partial<WithoutKey<UniverseEntry, "universeI
 /**
  * Variant of `Config` where the root `universe` block declares
  * `universeId`. Per-environment universe overlays may carry shared
- * fields (device flags, social links, display name, icon) but cannot
+ * fields (device flags, social links, display name) but cannot
  * redeclare `universeId`; the schema rejects any env overlay that
  * does. The runtime `selectEnvironment` merges shared-field overlays
  * onto the root and inherits `universeId` from the root unchanged.
@@ -677,7 +669,6 @@ const universeEntry = type({
 	"displayName?": OPTIONAL_STRING,
 	"facebookSocialLink?": socialLinkOrUndefined,
 	"guildedSocialLink?": socialLinkOrUndefined,
-	"icon?": iconMap,
 	"mobileEnabled?": OPTIONAL_BOOLEAN,
 	"privateServerPriceRobux?": OPTIONAL_ROBUX_PRICE,
 	"robloxGroupSocialLink?": socialLinkOrUndefined,
