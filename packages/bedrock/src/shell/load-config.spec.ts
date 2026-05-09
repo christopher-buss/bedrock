@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
 
 import { bootstrapDirectoryPrefix } from "./load-config-internal.ts";
-import { loadConfig } from "./load-config.ts";
+import { loadConfig, loadConfigWith } from "./load-config.ts";
 
 // Walking up from a temp file inside the workspace tree finds @bedrock-rbx/core
 // via the workspace root's node_modules, regardless of pnpm's hoist decisions.
@@ -632,26 +632,32 @@ describe(loadConfig, () => {
 		});
 	});
 
-	it.skipIf(!HAS_LUTE)(
-		"should bound a hanging Luau config with the bootstrap timeout",
-		async () => {
-			expect.assertions(1);
+	it("should surface a parseFailed error when the Luau evaluator returns evaluationFailed", async () => {
+		expect.assertions(3);
 
-			await withTemporaryDirectory(async (cwd) => {
-				writeFileSync(
-					join(cwd, "bedrock.config.luau"),
-					["while true do end", ""].join("\n"),
-				);
+		await withTemporaryDirectory(async (cwd) => {
+			const luauPath = join(cwd, "bedrock.config.luau");
+			writeFileSync(luauPath, ["return { passes = {} }", ""].join("\n"));
 
-				const result = await loadConfig({ cwd });
+			async function evaluator(): Promise<
+				Awaited<ReturnType<Parameters<typeof loadConfigWith>[0]["evaluator"]>>
+			> {
+				return {
+					err: { kind: "evaluationFailed", message: "evaluator timed out" },
+					success: false,
+				};
+			}
 
-				assert(!result.success);
+			const result = await loadConfigWith({ evaluator }, { cwd });
 
-				expect(result.err.kind).toBe("parseFailed");
-			});
-		},
-		15_000,
-	);
+			assert(!result.success);
+			assert(result.err.kind === "parseFailed");
+
+			expect(result.err.kind).toBe("parseFailed");
+			expect(result.err.message).toBe("evaluator timed out");
+			expect(result.err.sourceFile).toBe(luauPath);
+		});
+	});
 
 	it.skipIf(!HAS_LUTE)(
 		"should surface a non-ENOENT spawn failure as parseFailed rather than luauRuntimeMissing",
