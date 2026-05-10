@@ -31,6 +31,7 @@
 		"lint:unused": "knip --cache",
 		"mutate:changed": "bun scripts/mutate-changed.ts",
 		"sandcastle": "node .sandcastle/main.ts",
+		"sandcastle:build": "sandcastle docker build-image --dockerfile .sandcastle/Dockerfile",
 		"test": "vp test",
 		"test:affected": "vp test",
 		"test:ci": "vp test --coverage && pnpm coverage:merge",
