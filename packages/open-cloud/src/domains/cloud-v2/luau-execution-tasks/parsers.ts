@@ -66,20 +66,7 @@ export function parseLuauExecutionTaskResponse(
 		return parseFailedTask({ body, ref, statusCode, timeoutSeconds });
 	}
 
-	return {
-		data: {
-			binaryInput: body.binaryInput,
-			binaryOutputUri: body.binaryOutputUri,
-			createdAt: new Date(body.createTime),
-			enableBinaryOutput: body.enableBinaryOutput,
-			ref,
-			state: body.state,
-			timeoutSeconds,
-			updatedAt: new Date(body.updateTime),
-			user: body.user,
-		},
-		success: true,
-	};
+	return parseInProgressTask({ body, ref, statusCode, timeoutSeconds });
 }
 
 function isAcceptedWireState(
@@ -168,6 +155,24 @@ function parseTimeoutSeconds(value: string | undefined): number | undefined {
 
 function malformed(statusCode: number): Result<LuauExecutionTask, ApiError> {
 	return { err: new ApiError(MALFORMED_TASK_MESSAGE, { statusCode }), success: false };
+}
+
+function parseInProgressTask(args: ParseVariantArgs): Result<LuauExecutionTask, ApiError> {
+	const { body, ref, timeoutSeconds } = args;
+	return {
+		data: {
+			binaryInput: body.binaryInput,
+			binaryOutputUri: body.binaryOutputUri,
+			createdAt: new Date(body.createTime),
+			enableBinaryOutput: body.enableBinaryOutput,
+			ref,
+			state: body.state as "CANCELLED" | "PROCESSING" | "QUEUED",
+			timeoutSeconds,
+			updatedAt: new Date(body.updateTime),
+			user: body.user,
+		},
+		success: true,
+	};
 }
 
 function parseCompleteTask(args: ParseVariantArgs): Result<LuauExecutionTask, ApiError> {
