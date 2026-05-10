@@ -34,7 +34,6 @@ import { execSync } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import process from "node:process";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -114,8 +113,12 @@ const HOST_USER_EMAIL = execSync("git config --get user.email").toString().trim(
 // resolve the worktree's gitdir pointer; without this mount the pointer
 // inside the container references a host filesystem path that does not
 // exist, and any operation that opens the repo (hk check, git status,
-// git commit) fails.
-const HOST_GIT_DIR = join(process.cwd(), ".git");
+// git commit) fails. --git-common-dir resolves to the main .git even when
+// sandcastle is invoked from a subdirectory or from one of the host's own
+// linked worktrees.
+const HOST_GIT_DIR = execSync("git rev-parse --path-format=absolute --git-common-dir")
+	.toString()
+	.trim();
 
 const sandboxMounts = [
 	{ hostPath: PNPM_STORE_HOST_DIR, sandboxPath: "/home/agent/.pnpm-store" },
@@ -198,9 +201,12 @@ const REPAIR_WORKTREE_GIT = [
 	"git config --global --add safe.directory /home/agent/.git-main",
 	"git config --global gc.auto 0",
 	'name=$(basename "$(sed -n "s/^gitdir: //p" /home/agent/workspace/.git)")',
+	'{ [ -n "$name" ] && [ "$name" != "." ]; } || { echo "REPAIR_WORKTREE_GIT: cannot parse worktree name from /home/agent/workspace/.git" >&2; exit 1; }',
 	'echo "gitdir: /home/agent/.git-main/worktrees/$name" > /home/agent/workspace/.git',
 	"git -C /home/agent/workspace worktree repair",
-	"git config --file /home/agent/.git-main/config extensions.worktreeConfig true",
+	// Set extensions.worktreeConfig only when missing so we leave the host
+	// repo's .git/config untouched on subsequent sandbox spawns.
+	"git config --file /home/agent/.git-main/config --get extensions.worktreeConfig 2>/dev/null | grep -qx true || git config --file /home/agent/.git-main/config extensions.worktreeConfig true",
 	"mkdir -p /home/agent/.git-hooks",
 	"git -C /home/agent/workspace config --worktree core.hooksPath /home/agent/.git-hooks",
 ].join(" && ");
