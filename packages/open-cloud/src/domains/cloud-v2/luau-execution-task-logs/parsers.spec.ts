@@ -1,25 +1,8 @@
+import { validLogPageBody } from "#tests/helpers/luau-execution-task-logs";
 import { assert, describe, expect, it } from "vitest";
 
 import { ApiError } from "../../../errors/api-error.ts";
 import { parseListLogsResponse } from "./parsers.ts";
-
-function validLogPageBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-	return {
-		luauExecutionSessionTaskLogs: [
-			{
-				path: "universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1/logs/chunk-1",
-				structuredMessages: [
-					{
-						createTime: "2026-01-01T00:00:00Z",
-						message: "Hello from Luau",
-						messageType: "OUTPUT",
-					},
-				],
-			},
-		],
-		...overrides,
-	};
-}
 
 describe(parseListLogsResponse, () => {
 	it("should parse an empty page (no chunks, no nextPageToken) into messages: [] and nextPageToken: undefined", () => {
@@ -57,7 +40,7 @@ describe(parseListLogsResponse, () => {
 		expect.assertions(2);
 
 		const result = parseListLogsResponse({
-			body: validLogPageBody({
+			body: {
 				luauExecutionSessionTaskLogs: [
 					{
 						path: "chunk-path",
@@ -70,7 +53,7 @@ describe(parseListLogsResponse, () => {
 						],
 					},
 				],
-			}),
+			},
 			headers: {},
 			status: 200,
 		});
@@ -157,6 +140,30 @@ describe(parseListLogsResponse, () => {
 		assert(result.success);
 
 		expect(result.data.nextPageToken).toBeUndefined();
+	});
+
+	it("should treat a body that omits luauExecutionSessionTaskLogs as an empty page", () => {
+		expect.assertions(1);
+
+		const result = parseListLogsResponse({ body: {}, headers: {}, status: 200 });
+
+		assert(result.success);
+
+		expect(result.data.messages).toStrictEqual([]);
+	});
+
+	it("should skip a chunk whose structuredMessages field is omitted", () => {
+		expect.assertions(1);
+
+		const result = parseListLogsResponse({
+			body: { luauExecutionSessionTaskLogs: [{ path: "chunk-empty" }] },
+			headers: {},
+			status: 200,
+		});
+
+		assert(result.success);
+
+		expect(result.data.messages).toStrictEqual([]);
 	});
 
 	describe("malformed bodies", () => {

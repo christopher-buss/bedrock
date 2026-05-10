@@ -28,11 +28,11 @@ export function parseListLogsResponse(response: HttpResponse): Result<LogPage, A
 
 	for (const chunk of chunks) {
 		for (const wireMessage of chunk.structuredMessages ?? []) {
-			if (!isAcceptedMessageType(wireMessage.messageType)) {
-				return malformed(statusCode);
-			}
-
-			messages.push(mapMessage(wireMessage));
+			messages.push({
+				createTime: wireMessage.createTime,
+				message: wireMessage.message,
+				messageType: wireMessage.messageType,
+			});
 		}
 	}
 
@@ -42,7 +42,7 @@ export function parseListLogsResponse(response: HttpResponse): Result<LogPage, A
 	};
 }
 
-function isAcceptedMessageType(value: unknown): value is "ERROR" | "INFO" | "OUTPUT" | "WARNING" {
+function isAcceptedMessageType(value: unknown): value is LogMessageWire["messageType"] {
 	return value === "OUTPUT" || value === "INFO" || value === "WARNING" || value === "ERROR";
 }
 
@@ -51,8 +51,7 @@ function isLogMessageWire(value: unknown): value is LogMessageWire {
 		isRecord(value) &&
 		typeof value["createTime"] === "string" &&
 		typeof value["message"] === "string" &&
-		(isAcceptedMessageType(value["messageType"]) ||
-			value["messageType"] === "MESSAGE_TYPE_UNSPECIFIED")
+		isAcceptedMessageType(value["messageType"])
 	);
 }
 
@@ -90,12 +89,4 @@ function isListLogsResponseWire(body: unknown): body is ListLogsResponseWire {
 
 function malformed(statusCode: number): Result<LogPage, ApiError> {
 	return { err: new ApiError(MALFORMED_LOGS_MESSAGE, { statusCode }), success: false };
-}
-
-function mapMessage(wireMessage: LogMessageWire): LogMessage {
-	return {
-		createTime: wireMessage.createTime,
-		message: wireMessage.message,
-		messageType: wireMessage.messageType as "ERROR" | "INFO" | "OUTPUT" | "WARNING",
-	};
 }
