@@ -323,5 +323,26 @@ describe(LuauExecutionClient, () => {
 			expect(result.data.state).toBe("COMPLETE");
 			expect(httpClient.requests).toHaveLength(3);
 		});
+
+		// Slice 17: always requests view=BASIC
+		it("should request view=BASIC on every polling iteration", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: processingBody, status: 200 })
+				.mockResponse({ body: processingBody, status: 200 })
+				.mockResponse({ body: completeBody, status: 200 });
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.tasks.pollUntilDone(fullRef, { pollDelay: () => 0 });
+
+			expect(httpClient.requests[0]?.request.url).toEndWith("?view=BASIC");
+			expect(httpClient.requests[1]?.request.url).toEndWith("?view=BASIC");
+			expect(httpClient.requests[2]?.request.url).toEndWith("?view=BASIC");
+		});
 	});
 });
