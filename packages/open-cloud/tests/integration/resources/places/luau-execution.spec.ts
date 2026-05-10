@@ -156,6 +156,36 @@ describe(PlacesClient, () => {
 		});
 	});
 
+	describe("luauExecution.runUntilDone", () => {
+		// Slice 23: smoke test on places surface
+		it("should compose submit and poll on placesClient.luauExecution", async () => {
+			expect.assertions(2);
+
+			const submitBody = validInProgressTaskBody({
+				path: "universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
+				state: "QUEUED",
+			});
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: submitBody, status: 200 })
+				.mockResponse({ body: completeBody, status: 200 });
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.luauExecution.runUntilDone(
+				{ placeId: "456", script: "return 1", universeId: "123", versionId: "789" },
+				{ pollDelay: () => 0 },
+			);
+
+			assert(result.success);
+
+			expect(result.data.state).toBe("COMPLETE");
+			expect(httpClient.requests).toHaveLength(2);
+		});
+	});
+
 	describe("luauExecution.pollUntilDone", () => {
 		// Slice 18: smoke test on places surface
 		it("should poll luauExecution.get until the response is COMPLETE", async () => {
