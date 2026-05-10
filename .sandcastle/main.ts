@@ -108,6 +108,18 @@ if (!existsSync(SIGNING_KEY_PATH)) {
 const HOST_USER_NAME = execSync("git config --get user.name").toString().trim();
 const HOST_USER_EMAIL = execSync("git config --get user.email").toString().trim();
 
+// Host path of the main repo's .git directory. Bind-mounted into worktree
+// sandboxes (Phases 2-4) so that libgit2-based tools (hk, git itself) can
+// resolve the worktree's gitdir pointer; without this mount the pointer
+// inside the container references a host filesystem path that does not
+// exist, and any operation that opens the repo (hk check, git status,
+// git commit) fails. --git-common-dir resolves to the main .git even when
+// sandcastle is invoked from a subdirectory or from one of the host's own
+// linked worktrees.
+const HOST_GIT_DIR = execSync("git rev-parse --path-format=absolute --git-common-dir")
+	.toString()
+	.trim();
+
 const sandboxMounts = [
 	{ hostPath: PNPM_STORE_HOST_DIR, sandboxPath: "/home/agent/.pnpm-store" },
 	{
@@ -120,6 +132,15 @@ const sandboxMounts = [
 		readonly: true,
 		sandboxPath: "/home/agent/.ssh/sandcastle_signing.pub",
 	},
+];
+
+// Mounts shared by designer/implementer/reviewer sandboxes (Phases 2-4).
+// The planner sandbox (Phase 1) runs from the host repo cwd directly, so
+// its .git is a real directory inside the bind-mount and needs no extra
+// mount.
+const worktreeSandboxMounts = [
+	...sandboxMounts,
+	{ hostPath: HOST_GIT_DIR, sandboxPath: "/home/agent/.git-main" },
 ];
 
 const sandboxEnvironment = {
@@ -147,6 +168,49 @@ const CONFIGURE_GIT_SIGNING = [
 	"git config --global tag.gpgsign true",
 ].join(" && ");
 
+// cspell:ignore gitdir libgit
+// Repair the worktree's gitdir pointer so the in-container paths line up
+// with the new bind-mount of <main>/.git at /home/agent/.git-main.
+//
+// Each step:
+//   - cd /: git config and safe.directory inspect the current repo, which
+//     would otherwise follow the still-broken pointer in /home/agent/workspace
+//     and abort the hook before we get a chance to fix it.
+//   - safe.directory entries: container UID (host UID, e.g. 501 on macOS)
+//     does not match the file ownership inside the bind-mounts, so libgit2
+//     refuses to open them without an explicit allow-list.
+//   - gc.auto 0: prevents a sandbox-side gc/repack from racing the host's
+//     concurrent git operations on the shared <main>/.git/objects.
+//   - rewrite the worktree's .git pointer to the in-container .git-main path.
+//     Sed extracts the worktree name from the existing (broken) pointer so
+//     this works for any host path layout, not just sandcastle's. Without
+//     this step `git worktree repair` itself fails because it tries to read
+//     the broken pointer first.
+//   - git worktree repair: official tool that writes the matching gitdir
+//     file on the main side; idempotent if paths already match.
+//   - extensions.worktreeConfig + core.hooksPath isolation: <main>/.git/hooks
+//     is shared across every worktree, including the host's. Without this,
+//     `hk install --mise` (next hook step) would overwrite the host's hooks
+//     with sandbox-flavoured ones, and a misbehaving sandbox could install
+//     a hook that fires on the next host commit. Setting core.hooksPath at
+//     --worktree scope keeps each sandbox's hooks in /home/agent/.git-hooks,
+//     leaving the host's .git/hooks untouched.
+const REPAIR_WORKTREE_GIT = [
+	"cd /",
+	"git config --global --add safe.directory /home/agent/workspace",
+	"git config --global --add safe.directory /home/agent/.git-main",
+	"git config --global gc.auto 0",
+	'name=$(basename "$(sed -n "s/^gitdir: //p" /home/agent/workspace/.git)")',
+	'{ [ -n "$name" ] && [ "$name" != "." ]; } || { echo "REPAIR_WORKTREE_GIT: cannot parse worktree name from /home/agent/workspace/.git" >&2; exit 1; }',
+	'echo "gitdir: /home/agent/.git-main/worktrees/$name" > /home/agent/workspace/.git',
+	"git -C /home/agent/workspace worktree repair",
+	// Set extensions.worktreeConfig only when missing so we leave the host
+	// repo's .git/config untouched on subsequent sandbox spawns.
+	"git config --file /home/agent/.git-main/config --get extensions.worktreeConfig 2>/dev/null | grep -qx true || git config --file /home/agent/.git-main/config extensions.worktreeConfig true",
+	"mkdir -p /home/agent/.git-hooks",
+	"git -C /home/agent/workspace config --worktree core.hooksPath /home/agent/.git-hooks",
+].join(" && ");
+
 // Hooks for designer/implementer/reviewer sandboxes (Phases 2-4). These run
 // inside an isolated git worktree, so `pnpm install` writing linux-arm64
 // native addons is contained.
@@ -159,6 +223,7 @@ const implementerHooks = {
 	sandbox: {
 		onSandboxReady: [
 			{ command: REGISTER_HOST_UID },
+			{ command: REPAIR_WORKTREE_GIT },
 			{ command: CONFIGURE_GIT_SIGNING },
 			{ command: "hk install --mise" },
 			{ command: "CI=true pnpm install", timeoutMs: 300_000 },
@@ -273,7 +338,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 					branch: issue.branch,
 					copyToWorktree,
 					hooks: implementerHooks,
-					sandbox: docker({ env: sandboxEnvironment, mounts: sandboxMounts }),
+					sandbox: docker({ env: sandboxEnvironment, mounts: worktreeSandboxMounts }),
 				});
 
 				const planPath = `.sandcastle/plans/${issue.id}.md`;
