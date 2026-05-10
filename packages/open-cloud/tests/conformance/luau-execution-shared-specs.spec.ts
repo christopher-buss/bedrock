@@ -1,3 +1,4 @@
+import { LIST_LOGS_SPEC } from "#src/domains/cloud-v2/luau-execution-task-logs/specs";
 import {
 	GET_SPEC,
 	SUBMIT_HEAD_SPEC,
@@ -10,6 +11,7 @@ describe("luau-execution specs are frozen module-scope singletons", () => {
 		["SUBMIT_HEAD_SPEC", SUBMIT_HEAD_SPEC],
 		["SUBMIT_VERSION_SPEC", SUBMIT_VERSION_SPEC],
 		["GET_SPEC", GET_SPEC],
+		["LIST_LOGS_SPEC", LIST_LOGS_SPEC],
 	] as const)(
 		"should be frozen so the dispatch wiring cannot be mutated at runtime",
 		([, spec]) => {

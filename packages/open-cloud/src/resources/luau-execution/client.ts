@@ -9,6 +9,11 @@ import type {
 	CreateBinaryInputParameters,
 	LuauExecutionTaskBinaryInput,
 } from "../../domains/cloud-v2/luau-execution-task-binary-inputs/types.ts";
+import { LIST_LOGS_SPEC } from "../../domains/cloud-v2/luau-execution-task-logs/specs.ts";
+import type {
+	ListLogsParameters,
+	LogPage,
+} from "../../domains/cloud-v2/luau-execution-task-logs/types.ts";
 import {
 	GET_SPEC,
 	SUBMIT_HEAD_SPEC,
@@ -72,8 +77,9 @@ export interface BinaryInputsHandle {
 
 /**
  * Operation handle exposed by {@link LuauExecutionClient} as the
- * `tasks` namespace. Provides `submit` to queue a Luau script and
- * `get` to fetch a task's current state.
+ * `tasks` namespace. Provides `submit` to queue a Luau script, `get`
+ * to fetch a task's current state, and `listLogs` to retrieve
+ * structured log messages produced by a task.
  */
 export interface TasksHandle {
 	/**
@@ -92,6 +98,23 @@ export interface TasksHandle {
 		parameters: GetParameters,
 		options?: RequestOptions,
 	): Promise<Result<LuauExecutionTask, OpenCloudError>>;
+	/**
+	 * Lists one page of structured log messages produced by a
+	 * previously-submitted Luau execution task. Messages from multiple
+	 * server-side chunks are flattened into a single ordered array.
+	 * Uses idempotent retry semantics for both 429 and 5xx.
+	 *
+	 * @param parameters - The task ref and optional pagination controls
+	 *   (`pageSize`, `pageToken`).
+	 * @param options - Optional per-request overrides (e.g. A different
+	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 * @returns A {@link Result} wrapping the parsed {@link LogPage} or
+	 *   the {@link OpenCloudError} that caused the request to fail.
+	 */
+	listLogs(
+		parameters: ListLogsParameters,
+		options?: RequestOptions,
+	): Promise<Result<LogPage, OpenCloudError>>;
 	/**
 	 * Submits a Luau script for execution against a place. Dispatches
 	 * to the head-version URL when `versionId` is omitted, or to the
@@ -118,7 +141,8 @@ export interface TasksHandle {
  * resource. Tasks run a Luau script against a place and surface state,
  * output, or error through the `LuauExecutionTask` discriminated
  * union. Exposes `tasks.submit` for both the head version and a
- * specific place version, `tasks.get` for fetching task state, and
+ * specific place version, `tasks.get` for fetching task state,
+ * `tasks.listLogs` for fetching structured log messages, and
  * `binaryInputs.create` for allocating presigned upload slots.
  */
 export class LuauExecutionClient {
@@ -153,6 +177,9 @@ function createTasksHandle(inner: ResourceClient): TasksHandle {
 	return {
 		async get(parameters, options) {
 			return inner.execute({ options, parameters, spec: GET_SPEC });
+		},
+		async listLogs(parameters, options) {
+			return inner.execute({ options, parameters, spec: LIST_LOGS_SPEC });
 		},
 		async submit(parameters, options) {
 			if ("versionId" in parameters) {

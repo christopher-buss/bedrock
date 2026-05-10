@@ -3,6 +3,11 @@ export type {
 	LuauExecutionTaskBinaryInput,
 } from "../../domains/cloud-v2/luau-execution-task-binary-inputs/types.ts";
 export type {
+	ListLogsParameters,
+	LogMessage,
+	LogPage,
+} from "../../domains/cloud-v2/luau-execution-task-logs/types.ts";
+export type {
 	CompleteTask,
 	FailedTask,
 	GetParameters,

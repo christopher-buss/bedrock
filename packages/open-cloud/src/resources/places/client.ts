@@ -1,4 +1,9 @@
 import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
+import { LIST_LOGS_SPEC } from "../../domains/cloud-v2/luau-execution-task-logs/specs.ts";
+import type {
+	ListLogsParameters,
+	LogPage,
+} from "../../domains/cloud-v2/luau-execution-task-logs/types.ts";
 import {
 	GET_SPEC,
 	SUBMIT_HEAD_SPEC,
@@ -31,9 +36,10 @@ import type { Result } from "../../types.ts";
 
 /**
  * Operation Group exposed by {@link PlacesClient} as the
- * `luauExecution` namespace. Provides `submit` to queue a Luau script
- * and `get` to fetch a task's current state. Shares the same
- * dispatch wiring as the top-level `LuauExecutionClient` exposed at
+ * `luauExecution` namespace. Provides `submit` to queue a Luau script,
+ * `get` to fetch a task's current state, and `listLogs` to retrieve
+ * structured log messages. Shares the same dispatch wiring as the
+ * top-level `LuauExecutionClient` exposed at
  * `@bedrock-rbx/ocale/luau-execution`.
  */
 export interface LuauExecutionHandle {
@@ -53,6 +59,23 @@ export interface LuauExecutionHandle {
 		parameters: GetParameters,
 		options?: RequestOptions,
 	): Promise<Result<LuauExecutionTask, OpenCloudError>>;
+	/**
+	 * Lists one page of structured log messages produced by a
+	 * previously-submitted Luau execution task. Messages from multiple
+	 * server-side chunks are flattened into a single ordered array.
+	 * Uses idempotent retry semantics for both 429 and 5xx.
+	 *
+	 * @param parameters - The task ref and optional pagination controls
+	 *   (`pageSize`, `pageToken`).
+	 * @param options - Optional per-request overrides (e.g. A different
+	 *   {@link OpenCloudClientOptions.apiKey} for this call only).
+	 * @returns A {@link Result} wrapping the parsed {@link LogPage} or
+	 *   the {@link OpenCloudError} that caused the request to fail.
+	 */
+	listLogs(
+		parameters: ListLogsParameters,
+		options?: RequestOptions,
+	): Promise<Result<LogPage, OpenCloudError>>;
 	/**
 	 * Submits a Luau script for execution against a place. Dispatches
 	 * to the head-version URL when `versionId` is omitted, or to the
@@ -205,6 +228,9 @@ function createLuauExecutionHandle(inner: ResourceClient): LuauExecutionHandle {
 	return {
 		async get(parameters, options) {
 			return inner.execute({ options, parameters, spec: GET_SPEC });
+		},
+		async listLogs(parameters, options) {
+			return inner.execute({ options, parameters, spec: LIST_LOGS_SPEC });
 		},
 		async submit(parameters, options) {
 			if ("versionId" in parameters) {
