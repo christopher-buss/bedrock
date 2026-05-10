@@ -419,4 +419,72 @@ describe(parseLuauExecutionTaskResponse, () => {
 			expect(result.err.statusCode).toBe(502);
 		});
 	});
+
+	describe("binary input/output passthrough", () => {
+		it("should surface binaryInput on the parsed task when present on the wire", () => {
+			expect.assertions(1);
+
+			const result = parseLuauExecutionTaskResponse({
+				body: validInProgressBody({
+					binaryInput: "universes/123/luau-execution-session-task-binary-inputs/abc",
+				}),
+				headers: {},
+				status: 200,
+			});
+
+			assert(result.success);
+
+			expect(result.data.binaryInput).toBe(
+				"universes/123/luau-execution-session-task-binary-inputs/abc",
+			);
+		});
+
+		it("should surface enableBinaryOutput on the parsed task when present on the wire", () => {
+			expect.assertions(1);
+
+			const result = parseLuauExecutionTaskResponse({
+				body: validInProgressBody({ enableBinaryOutput: true }),
+				headers: {},
+				status: 200,
+			});
+
+			assert(result.success);
+
+			expect(result.data.enableBinaryOutput).toBeTrue();
+		});
+
+		it("should surface binaryOutputUri on the parsed task when present on the wire", () => {
+			expect.assertions(1);
+
+			const result = parseLuauExecutionTaskResponse({
+				body: validInProgressBody({
+					binaryOutputUri: "https://storage.example.com/output?token=abc",
+				}),
+				headers: {},
+				status: 200,
+			});
+
+			assert(result.success);
+
+			expect(result.data.binaryOutputUri).toBe(
+				"https://storage.example.com/output?token=abc",
+			);
+		});
+
+		it("should surface all three as undefined when absent from the wire", () => {
+			expect.assertions(3);
+
+			const result = parseLuauExecutionTaskResponse({
+				body: validInProgressBody(),
+				headers: {},
+				status: 200,
+			});
+
+			assert(result.success);
+
+			expect(result.data.binaryInput).toBeUndefined();
+			expect(result.data.enableBinaryOutput).toBeUndefined();
+			expect(result.data.binaryOutputUri).toBeUndefined();
+		});
+	});
 });

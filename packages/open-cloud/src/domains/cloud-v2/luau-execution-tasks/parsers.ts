@@ -68,7 +68,10 @@ export function parseLuauExecutionTaskResponse(
 
 	return {
 		data: {
+			binaryInput: body.binaryInput,
+			binaryOutputUri: body.binaryOutputUri,
 			createdAt: new Date(body.createTime),
+			enableBinaryOutput: body.enableBinaryOutput,
 			ref,
 			state: body.state,
 			timeoutSeconds,
@@ -118,6 +121,14 @@ function isOptionalOutputWire(value: unknown): value is LuauExecutionTaskOutputW
 	return value === undefined || isOutputWire(value);
 }
 
+function isOptionalString(value: unknown): value is string | undefined {
+	return value === undefined || typeof value === "string";
+}
+
+function isOptionalBoolean(value: unknown): value is boolean | undefined {
+	return value === undefined || typeof value === "boolean";
+}
+
 function isLuauExecutionTaskWire(body: unknown): body is LuauExecutionTaskWire {
 	return (
 		isRecord(body) &&
@@ -128,7 +139,10 @@ function isLuauExecutionTaskWire(body: unknown): body is LuauExecutionTaskWire {
 		typeof body["user"] === "string" &&
 		isOptionalOutputWire(body["output"]) &&
 		isOptionalErrorWire(body["error"]) &&
-		isOptionalDurationWire(body["timeout"])
+		isOptionalDurationWire(body["timeout"]) &&
+		isOptionalString(body["binaryInput"]) &&
+		isOptionalBoolean(body["enableBinaryOutput"]) &&
+		isOptionalString(body["binaryOutputUri"])
 	);
 }
 
@@ -164,7 +178,10 @@ function parseCompleteTask(args: ParseVariantArgs): Result<LuauExecutionTask, Ap
 
 	return {
 		data: {
+			binaryInput: body.binaryInput,
+			binaryOutputUri: body.binaryOutputUri,
 			createdAt: new Date(body.createTime),
+			enableBinaryOutput: body.enableBinaryOutput,
 			output: { results: body.output.results },
 			ref,
 			state: "COMPLETE",
@@ -184,7 +201,10 @@ function parseFailedTask(args: ParseVariantArgs): Result<LuauExecutionTask, ApiE
 
 	return {
 		data: {
+			binaryInput: body.binaryInput,
+			binaryOutputUri: body.binaryOutputUri,
 			createdAt: new Date(body.createTime),
+			enableBinaryOutput: body.enableBinaryOutput,
 			error: { code: body.error.code, message: body.error.message },
 			ref,
 			state: "FAILED",
