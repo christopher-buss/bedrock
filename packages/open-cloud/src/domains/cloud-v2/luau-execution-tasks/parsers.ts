@@ -24,6 +24,8 @@ const MALFORMED_TASK_MESSAGE = "Malformed luau-execution-session-task response";
 const PATH_PATTERN =
 	/^universes\/(\d+)\/places\/(\d+)(?:\/versions\/(\d+))?(?:\/luau-execution-sessions\/([^/]+)\/tasks\/([^/]+)|\/luau-execution-session-tasks\/([^/]+))$/;
 
+type InProgressWireState = Exclude<LuauExecutionTaskWire["state"], "COMPLETE" | "FAILED">;
+
 interface ParseVariantArgs {
 	readonly body: LuauExecutionTaskWire;
 	readonly ref: LuauExecutionTaskRef;
@@ -66,7 +68,7 @@ export function parseLuauExecutionTaskResponse(
 		return parseFailedTask({ body, ref, statusCode, timeoutSeconds });
 	}
 
-	return parseInProgressTask({ body, ref, statusCode, timeoutSeconds });
+	return parseInProgressTask({ body, ref, state: body.state, statusCode, timeoutSeconds });
 }
 
 function isAcceptedWireState(
@@ -157,8 +159,10 @@ function malformed(statusCode: number): Result<LuauExecutionTask, ApiError> {
 	return { err: new ApiError(MALFORMED_TASK_MESSAGE, { statusCode }), success: false };
 }
 
-function parseInProgressTask(args: ParseVariantArgs): Result<LuauExecutionTask, ApiError> {
-	const { body, ref, timeoutSeconds } = args;
+function parseInProgressTask(
+	args: ParseVariantArgs & { readonly state: InProgressWireState },
+): Result<LuauExecutionTask, ApiError> {
+	const { body, ref, state, timeoutSeconds } = args;
 	return {
 		data: {
 			binaryInput: body.binaryInput,
@@ -166,7 +170,7 @@ function parseInProgressTask(args: ParseVariantArgs): Result<LuauExecutionTask, 
 			createdAt: new Date(body.createTime),
 			enableBinaryOutput: body.enableBinaryOutput,
 			ref,
-			state: body.state as "CANCELLED" | "PROCESSING" | "QUEUED",
+			state,
 			timeoutSeconds,
 			updatedAt: new Date(body.updateTime),
 			user: body.user,
