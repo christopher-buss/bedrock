@@ -4,6 +4,7 @@ import type { Result } from "../../../types.ts";
 import type { GetParameters, SubmitAtHeadParameters, SubmitAtVersionParameters } from "./types.ts";
 
 interface SubmitBodyInput {
+	readonly binaryInput?: string | undefined;
 	readonly script: string;
 	readonly timeoutSeconds?: number;
 }
@@ -93,6 +94,15 @@ export function buildGetRequest(parameters: GetParameters): Result<HttpRequest, 
 }
 
 function buildSubmitBody(parameters: SubmitBodyInput): Record<string, unknown> {
-	const { script, timeoutSeconds } = parameters;
-	return timeoutSeconds === undefined ? { script } : { script, timeout: `${timeoutSeconds}s` };
+	const { binaryInput, script, timeoutSeconds } = parameters;
+	const body: Record<string, unknown> = { script };
+	if (timeoutSeconds !== undefined) {
+		body["timeout"] = `${timeoutSeconds}s`;
+	}
+
+	if (binaryInput !== undefined) {
+		body["binaryInput"] = binaryInput;
+	}
+
+	return body;
 }

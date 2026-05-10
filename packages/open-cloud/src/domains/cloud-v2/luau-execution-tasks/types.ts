@@ -4,6 +4,11 @@
  * {@link SubmitAtVersionParameters} instead.
  */
 export interface SubmitAtHeadParameters {
+	/**
+	 * Resource path returned by `binaryInputs.create`, passed to the
+	 * server to attach a pre-uploaded binary to this task.
+	 */
+	readonly binaryInput?: string | undefined;
 	/** Stringified ID of the place to run the script against. */
 	readonly placeId: string;
 	/** Luau source to execute. */
@@ -23,6 +28,11 @@ export interface SubmitAtHeadParameters {
  * {@link SubmitAtHeadParameters} instead.
  */
 export interface SubmitAtVersionParameters {
+	/**
+	 * Resource path returned by `binaryInputs.create`, passed to the
+	 * server to attach a pre-uploaded binary to this task.
+	 */
+	readonly binaryInput?: string | undefined;
 	/** Stringified ID of the place to run the script against. */
 	readonly placeId: string;
 	/** Luau source to execute. */
