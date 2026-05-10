@@ -49,6 +49,46 @@ describe(buildSubmitAtHeadRequest, () => {
 	});
 });
 
+describe("enableBinaryOutput serialization", () => {
+	it.for([true, false] as const)(
+		"should serialize enableBinaryOutput %s onto the submit body",
+		(enableBinaryOutput) => {
+			expect.assertions(1);
+
+			const request = buildSubmitAtHeadRequest({
+				enableBinaryOutput,
+				placeId: "456",
+				script: "return 1",
+				universeId: "123",
+			});
+
+			expect(request.body).toStrictEqual({ enableBinaryOutput, script: "return 1" });
+		},
+	);
+});
+
+describe("binaryInput serialization", () => {
+	it.for([buildSubmitAtHeadRequest, buildSubmitAtVersionRequest] as const)(
+		"should serialize binaryInput onto the submit body when supplied",
+		(buildFunc) => {
+			expect.assertions(1);
+
+			const request = buildFunc({
+				binaryInput: "universes/123/luau-execution-session-task-binary-inputs/abc",
+				placeId: "456",
+				script: "return 1",
+				universeId: "123",
+				versionId: "789",
+			});
+
+			expect(request.body).toStrictEqual({
+				binaryInput: "universes/123/luau-execution-session-task-binary-inputs/abc",
+				script: "return 1",
+			});
+		},
+	);
+});
+
 describe(buildSubmitAtVersionRequest, () => {
 	it("should produce a POST request targeting /cloud/v2/universes/{uid}/places/{pid}/versions/{vid}/luau-execution-session-tasks", () => {
 		expect.assertions(2);

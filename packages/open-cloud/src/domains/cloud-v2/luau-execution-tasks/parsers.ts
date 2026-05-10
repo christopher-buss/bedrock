@@ -24,6 +24,8 @@ const MALFORMED_TASK_MESSAGE = "Malformed luau-execution-session-task response";
 const PATH_PATTERN =
 	/^universes\/(\d+)\/places\/(\d+)(?:\/versions\/(\d+))?(?:\/luau-execution-sessions\/([^/]+)\/tasks\/([^/]+)|\/luau-execution-session-tasks\/([^/]+))$/;
 
+type InProgressWireState = Exclude<LuauExecutionTaskWire["state"], "COMPLETE" | "FAILED">;
+
 interface ParseVariantArgs {
 	readonly body: LuauExecutionTaskWire;
 	readonly ref: LuauExecutionTaskRef;
@@ -66,17 +68,7 @@ export function parseLuauExecutionTaskResponse(
 		return parseFailedTask({ body, ref, statusCode, timeoutSeconds });
 	}
 
-	return {
-		data: {
-			createdAt: new Date(body.createTime),
-			ref,
-			state: body.state,
-			timeoutSeconds,
-			updatedAt: new Date(body.updateTime),
-			user: body.user,
-		},
-		success: true,
-	};
+	return parseInProgressTask({ body, ref, state: body.state, statusCode, timeoutSeconds });
 }
 
 function isAcceptedWireState(
@@ -118,6 +110,14 @@ function isOptionalOutputWire(value: unknown): value is LuauExecutionTaskOutputW
 	return value === undefined || isOutputWire(value);
 }
 
+function isOptionalString(value: unknown): value is string | undefined {
+	return value === undefined || typeof value === "string";
+}
+
+function isOptionalBoolean(value: unknown): value is boolean | undefined {
+	return value === undefined || typeof value === "boolean";
+}
+
 function isLuauExecutionTaskWire(body: unknown): body is LuauExecutionTaskWire {
 	return (
 		isRecord(body) &&
@@ -128,7 +128,10 @@ function isLuauExecutionTaskWire(body: unknown): body is LuauExecutionTaskWire {
 		typeof body["user"] === "string" &&
 		isOptionalOutputWire(body["output"]) &&
 		isOptionalErrorWire(body["error"]) &&
-		isOptionalDurationWire(body["timeout"])
+		isOptionalDurationWire(body["timeout"]) &&
+		isOptionalString(body["binaryInput"]) &&
+		isOptionalBoolean(body["enableBinaryOutput"]) &&
+		isOptionalString(body["binaryOutputUri"])
 	);
 }
 
@@ -156,6 +159,26 @@ function malformed(statusCode: number): Result<LuauExecutionTask, ApiError> {
 	return { err: new ApiError(MALFORMED_TASK_MESSAGE, { statusCode }), success: false };
 }
 
+function parseInProgressTask(
+	args: ParseVariantArgs & { readonly state: InProgressWireState },
+): Result<LuauExecutionTask, ApiError> {
+	const { body, ref, state, timeoutSeconds } = args;
+	return {
+		data: {
+			binaryInput: body.binaryInput,
+			binaryOutputUri: body.binaryOutputUri,
+			createdAt: new Date(body.createTime),
+			enableBinaryOutput: body.enableBinaryOutput,
+			ref,
+			state,
+			timeoutSeconds,
+			updatedAt: new Date(body.updateTime),
+			user: body.user,
+		},
+		success: true,
+	};
+}
+
 function parseCompleteTask(args: ParseVariantArgs): Result<LuauExecutionTask, ApiError> {
 	const { body, ref, statusCode, timeoutSeconds } = args;
 	if (body.output === undefined) {
@@ -164,7 +187,10 @@ function parseCompleteTask(args: ParseVariantArgs): Result<LuauExecutionTask, Ap
 
 	return {
 		data: {
+			binaryInput: body.binaryInput,
+			binaryOutputUri: body.binaryOutputUri,
 			createdAt: new Date(body.createTime),
+			enableBinaryOutput: body.enableBinaryOutput,
 			output: { results: body.output.results },
 			ref,
 			state: "COMPLETE",
@@ -184,7 +210,10 @@ function parseFailedTask(args: ParseVariantArgs): Result<LuauExecutionTask, ApiE
 
 	return {
 		data: {
+			binaryInput: body.binaryInput,
+			binaryOutputUri: body.binaryOutputUri,
 			createdAt: new Date(body.createTime),
+			enableBinaryOutput: body.enableBinaryOutput,
 			error: { code: body.error.code, message: body.error.message },
 			ref,
 			state: "FAILED",

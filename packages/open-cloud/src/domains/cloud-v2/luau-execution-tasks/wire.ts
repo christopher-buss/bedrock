@@ -36,8 +36,21 @@ export interface LuauExecutionTaskOutputWire {
  * they're observed.
  */
 export interface LuauExecutionTaskWire {
+	/**
+	 * Resource path of the binary input attached to this task, when
+	 * one was supplied at submit time.
+	 */
+	readonly binaryInput?: string | undefined;
+	/**
+	 * Pre-signed URI from which the binary output blob can be
+	 * downloaded. Present only after a `COMPLETE` task whose
+	 * `enableBinaryOutput` was `true`.
+	 */
+	readonly binaryOutputUri?: string | undefined;
 	/** ISO timestamp when the task was created. */
 	readonly createTime: string;
+	/** When `true`, the server writes output to a binary blob. */
+	readonly enableBinaryOutput?: boolean | undefined;
 	/**
 	 * Wire error payload. Present only for tasks in the `FAILED`
 	 * state; absent for in-progress and `COMPLETE` states.

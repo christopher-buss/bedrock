@@ -4,6 +4,13 @@
  * {@link SubmitAtVersionParameters} instead.
  */
 export interface SubmitAtHeadParameters {
+	/**
+	 * Resource path returned by `binaryInputs.create`, passed to the
+	 * server to attach a pre-uploaded binary to this task.
+	 */
+	readonly binaryInput?: string | undefined;
+	/** When `true`, the server places the task output into a binary blob. */
+	readonly enableBinaryOutput?: boolean | undefined;
 	/** Stringified ID of the place to run the script against. */
 	readonly placeId: string;
 	/** Luau source to execute. */
@@ -23,6 +30,13 @@ export interface SubmitAtHeadParameters {
  * {@link SubmitAtHeadParameters} instead.
  */
 export interface SubmitAtVersionParameters {
+	/**
+	 * Resource path returned by `binaryInputs.create`, passed to the
+	 * server to attach a pre-uploaded binary to this task.
+	 */
+	readonly binaryInput?: string | undefined;
+	/** When `true`, the server places the task output into a binary blob. */
+	readonly enableBinaryOutput?: boolean | undefined;
 	/** Stringified ID of the place to run the script against. */
 	readonly placeId: string;
 	/** Luau source to execute. */
@@ -139,8 +153,21 @@ export type LuauExecutionTask = CompleteTask | FailedTask | InProgressTask;
  * live on the variants themselves.
  */
 interface LuauExecutionTaskBase {
+	/**
+	 * Resource path of the binary input attached to this task, when one
+	 * was supplied at submit time.
+	 */
+	readonly binaryInput?: string | undefined;
+	/**
+	 * Pre-signed URI from which the binary output blob can be downloaded.
+	 * Present only after a `COMPLETE` task whose `enableBinaryOutput` was
+	 * `true`.
+	 */
+	readonly binaryOutputUri?: string | undefined;
 	/** Timestamp when the task was created. */
 	readonly createdAt: Date;
+	/** When `true`, the server writes output to a binary blob. */
+	readonly enableBinaryOutput?: boolean | undefined;
 	/** Round-trip-safe reference to this task. */
 	readonly ref: LuauExecutionTaskRef;
 	/**
