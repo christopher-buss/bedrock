@@ -324,6 +324,49 @@ describe(LuauExecutionClient, () => {
 			expect(httpClient.requests).toHaveLength(3);
 		});
 
+		// Slice 19: per-request apiKey flows through to polling fetch
+		it("should forward per-request apiKey override to the underlying tasks.get", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: completeBody,
+				status: 200,
+			});
+			const client = new LuauExecutionClient({
+				apiKey: "default-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.tasks.pollUntilDone(fullRef, {
+				apiKey: "override-key",
+				pollDelay: () => 0,
+			});
+
+			expect(httpClient.requests[0]?.config.apiKey).toBe("override-key");
+		});
+
+		// Slice 20: 429 burst during polling is absorbed by rate-limit retry
+		it("should absorb a 429 burst during polling without surfacing it through the polling result", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient()
+				.mockRateLimit({ retryAfterSeconds: 0 })
+				.mockResponse({ body: processingBody, status: 200 })
+				.mockResponse({ body: completeBody, status: 200 });
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.tasks.pollUntilDone(fullRef, { pollDelay: () => 0 });
+
+			assert(result.success);
+
+			expect(result.data.state).toBe("COMPLETE");
+		});
+
 		// Slice 17: always requests view=BASIC
 		it("should request view=BASIC on every polling iteration", async () => {
 			expect.assertions(3);
