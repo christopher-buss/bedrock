@@ -1,12 +1,32 @@
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
 import { LuauExecutionClient } from "#src/resources/luau-execution/index";
+import type { LuauExecutionTaskRef } from "#src/resources/luau-execution/index";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { validBinaryInputBody } from "#tests/helpers/luau-execution-task-binary-inputs";
 import { validLogPageBody } from "#tests/helpers/luau-execution-task-logs";
 import { validInProgressTaskBody } from "#tests/helpers/luau-execution-tasks";
 import { assert, describe, expect, it } from "vitest";
+
+const fullRef: LuauExecutionTaskRef = {
+	placeId: "456",
+	sessionId: "session-1",
+	taskId: "task-1",
+	universeId: "123",
+	versionId: "789",
+};
+
+const processingBody = validInProgressTaskBody({
+	path: "universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
+	state: "PROCESSING",
+});
+
+const completeBody = validInProgressTaskBody({
+	output: { results: [] },
+	path: "universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
+	state: "COMPLETE",
+});
 
 describe(LuauExecutionClient, () => {
 	describe("binaryInputs.create", () => {
@@ -279,6 +299,29 @@ describe(LuauExecutionClient, () => {
 				binaryInput: "universes/123/luau-execution-session-task-binary-inputs/abc",
 				script: "return 1",
 			});
+		});
+	});
+
+	describe("tasks.pollUntilDone", () => {
+		it("should poll tasks.get until the response is COMPLETE", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: processingBody, status: 200 })
+				.mockResponse({ body: processingBody, status: 200 })
+				.mockResponse({ body: completeBody, status: 200 });
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.tasks.pollUntilDone(fullRef, { pollDelay: () => 0 });
+
+			assert(result.success);
+
+			expect(result.data.state).toBe("COMPLETE");
+			expect(httpClient.requests).toHaveLength(3);
 		});
 	});
 });

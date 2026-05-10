@@ -1,3 +1,4 @@
+import type { RequestOptions } from "../../client/types.ts";
 import type { LuauExecutionTask } from "../../domains/cloud-v2/luau-execution-tasks/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { PollAbortedError } from "../../errors/poll-aborted.ts";
