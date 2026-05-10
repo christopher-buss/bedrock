@@ -1,3 +1,5 @@
+import { ApiError } from "#src/errors/api-error";
+import { PermissionError } from "#src/errors/permission-error";
 import { LuauExecutionClient } from "#src/resources/luau-execution/index";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
@@ -34,6 +36,52 @@ describe(LuauExecutionClient, () => {
 			expect(httpClient.requests[0]?.request.url).toBe(
 				"/cloud/v2/universes/123/luau-execution-session-task-binary-inputs",
 			);
+		});
+
+		it("should not retry a 5xx so a transient binary-input create failure does not leak quota", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 503 });
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.binaryInputs.create({
+				size: 1024,
+				universeId: "1",
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+			expect(httpClient.requests).toHaveLength(1);
+		});
+
+		it("should upgrade a 403 to a PermissionError carrying the required scopes", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.binaryInputs.create({
+				size: 1024,
+				universeId: "1",
+			});
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.requiredScopes).toStrictEqual([
+				"universe.place.luau-execution-session:write",
+			]);
+			expect(result.err.operationKey).toBe("luau-execution-task-binary-inputs.create");
+			expect(result.err.statusCode).toBe(403);
 		});
 	});
 
