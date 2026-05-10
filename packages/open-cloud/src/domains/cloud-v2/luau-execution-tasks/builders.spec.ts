@@ -49,6 +49,24 @@ describe(buildSubmitAtHeadRequest, () => {
 	});
 });
 
+describe("enableBinaryOutput serialization", () => {
+	it.for([true, false] as const)(
+		"should serialize enableBinaryOutput %s onto the submit body",
+		(enableBinaryOutput) => {
+			expect.assertions(1);
+
+			const request = buildSubmitAtHeadRequest({
+				enableBinaryOutput,
+				placeId: "456",
+				script: "return 1",
+				universeId: "123",
+			});
+
+			expect(request.body).toStrictEqual({ enableBinaryOutput, script: "return 1" });
+		},
+	);
+});
+
 describe("binaryInput serialization", () => {
 	it.for([buildSubmitAtHeadRequest, buildSubmitAtVersionRequest] as const)(
 		"should serialize binaryInput onto the submit body when supplied",

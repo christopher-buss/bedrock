@@ -9,6 +9,8 @@ export interface SubmitAtHeadParameters {
 	 * server to attach a pre-uploaded binary to this task.
 	 */
 	readonly binaryInput?: string | undefined;
+	/** When `true`, the server places the task output into a binary blob. */
+	readonly enableBinaryOutput?: boolean | undefined;
 	/** Stringified ID of the place to run the script against. */
 	readonly placeId: string;
 	/** Luau source to execute. */
@@ -33,6 +35,8 @@ export interface SubmitAtVersionParameters {
 	 * server to attach a pre-uploaded binary to this task.
 	 */
 	readonly binaryInput?: string | undefined;
+	/** When `true`, the server places the task output into a binary blob. */
+	readonly enableBinaryOutput?: boolean | undefined;
 	/** Stringified ID of the place to run the script against. */
 	readonly placeId: string;
 	/** Luau source to execute. */

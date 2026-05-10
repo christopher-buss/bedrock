@@ -5,6 +5,7 @@ import type { GetParameters, SubmitAtHeadParameters, SubmitAtVersionParameters }
 
 interface SubmitBodyInput {
 	readonly binaryInput?: string | undefined;
+	readonly enableBinaryOutput?: boolean | undefined;
 	readonly script: string;
 	readonly timeoutSeconds?: number;
 }
@@ -94,7 +95,12 @@ export function buildGetRequest(parameters: GetParameters): Result<HttpRequest, 
 }
 
 function buildSubmitBody(parameters: SubmitBodyInput): Record<string, unknown> {
-	const { binaryInput, script, timeoutSeconds } = parameters;
+	const {
+		binaryInput,
+		enableBinaryOutput: shouldEnableBinaryOutput,
+		script,
+		timeoutSeconds,
+	} = parameters;
 	const body: Record<string, unknown> = { script };
 	if (timeoutSeconds !== undefined) {
 		body["timeout"] = `${timeoutSeconds}s`;
@@ -102,6 +108,10 @@ function buildSubmitBody(parameters: SubmitBodyInput): Record<string, unknown> {
 
 	if (binaryInput !== undefined) {
 		body["binaryInput"] = binaryInput;
+	}
+
+	if (shouldEnableBinaryOutput !== undefined) {
+		body["enableBinaryOutput"] = shouldEnableBinaryOutput;
 	}
 
 	return body;
