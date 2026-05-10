@@ -14,7 +14,6 @@ export function validLogPageBody(
 	return {
 		luauExecutionSessionTaskLogs: [
 			{
-				path: "universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1/logs/chunk-1",
 				structuredMessages: [
 					{
 						createTime: "2026-01-01T00:00:00Z",

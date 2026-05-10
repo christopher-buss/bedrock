@@ -21,15 +21,11 @@ export interface LogMessageWire {
  * Wire shape of a single log chunk returned by the Open Cloud
  * list-logs endpoint. The `structuredMessages` array is populated
  * when `view=STRUCTURED` is requested (which is always the case in
- * this SDK).
+ * this SDK). Other wire fields (`path`, FLAT-mode `messages`) exist
+ * on the schema but are not modelled here because they are not
+ * surfaced on the public `LogPage` type.
  */
 export interface LogChunkWire {
-	/**
-	 * Resource path for this chunk. Required by the server schema;
-	 * not surfaced on the public `LogPage` type because chunks are
-	 * flattened before being returned to callers.
-	 */
-	readonly path: string;
 	/**
 	 * Structured log messages in this chunk. Optional on the wire;
 	 * absent when the chunk has no messages.

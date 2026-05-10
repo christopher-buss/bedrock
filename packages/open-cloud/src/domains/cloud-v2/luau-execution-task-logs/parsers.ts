@@ -65,11 +65,7 @@ function isOptionalStructuredMessages(
 }
 
 function isLogChunkWire(value: unknown): value is LogChunkWire {
-	return (
-		isRecord(value) &&
-		typeof value["path"] === "string" &&
-		isOptionalStructuredMessages(value["structuredMessages"])
-	);
+	return isRecord(value) && isOptionalStructuredMessages(value["structuredMessages"]);
 }
 
 function isOptionalLogChunks(value: unknown): value is ReadonlyArray<LogChunkWire> | undefined {

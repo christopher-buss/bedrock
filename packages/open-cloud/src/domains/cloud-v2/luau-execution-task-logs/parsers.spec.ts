@@ -43,7 +43,6 @@ describe(parseListLogsResponse, () => {
 			body: {
 				luauExecutionSessionTaskLogs: [
 					{
-						path: "chunk-path",
 						structuredMessages: [
 							{
 								createTime: "2026-01-01T00:00:00Z",
@@ -71,7 +70,6 @@ describe(parseListLogsResponse, () => {
 			body: {
 				luauExecutionSessionTaskLogs: [
 					{
-						path: "chunk-0",
 						structuredMessages: [
 							{
 								createTime: "2026-01-01T00:00:00Z",
@@ -86,7 +84,6 @@ describe(parseListLogsResponse, () => {
 						],
 					},
 					{
-						path: "chunk-1",
 						structuredMessages: [
 							{
 								createTime: "2026-01-01T00:00:02Z",
@@ -156,7 +153,7 @@ describe(parseListLogsResponse, () => {
 		expect.assertions(1);
 
 		const result = parseListLogsResponse({
-			body: { luauExecutionSessionTaskLogs: [{ path: "chunk-empty" }] },
+			body: { luauExecutionSessionTaskLogs: [{}] },
 			headers: {},
 			status: 200,
 		});
@@ -229,9 +226,7 @@ describe(parseListLogsResponse, () => {
 
 			const result = parseListLogsResponse({
 				body: {
-					luauExecutionSessionTaskLogs: [
-						{ path: "chunk-path", structuredMessages: "not-an-array" },
-					],
+					luauExecutionSessionTaskLogs: [{ structuredMessages: "not-an-array" }],
 				},
 				headers: {},
 				status: 200,
@@ -254,9 +249,7 @@ describe(parseListLogsResponse, () => {
 
 				const result = parseListLogsResponse({
 					body: {
-						luauExecutionSessionTaskLogs: [
-							{ path: "chunk-path", structuredMessages: [badMessage] },
-						],
+						luauExecutionSessionTaskLogs: [{ structuredMessages: [badMessage] }],
 					},
 					headers: {},
 					status: 200,
@@ -267,6 +260,33 @@ describe(parseListLogsResponse, () => {
 				expect(result.err).toBeInstanceOf(ApiError);
 			},
 		);
+
+		it("should reject the whole page when any message in a chunk is invalid", () => {
+			expect.assertions(1);
+
+			const result = parseListLogsResponse({
+				body: {
+					luauExecutionSessionTaskLogs: [
+						{
+							structuredMessages: [
+								{
+									createTime: "2026-01-01T00:00:00Z",
+									message: "valid",
+									messageType: "OUTPUT",
+								},
+								{ createTime: "2026-01-01T00:00:01Z", messageType: "OUTPUT" },
+							],
+						},
+					],
+				},
+				headers: {},
+				status: 200,
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
 
 		it("should propagate the response status code on the returned ApiError", () => {
 			expect.assertions(1);
