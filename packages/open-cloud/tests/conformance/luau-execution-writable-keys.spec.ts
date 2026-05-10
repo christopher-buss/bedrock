@@ -3,11 +3,18 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { listWritablePropertyNames } from "./_helpers.ts";
 
-const SUBMIT_PARAMETER_KEYS = ["script", "timeoutSeconds"] as const;
+const SUBMIT_PARAMETER_KEYS = [
+	"binaryInput",
+	"enableBinaryOutput",
+	"script",
+	"timeoutSeconds",
+] as const;
 
 type SubmitParameterKey = (typeof SUBMIT_PARAMETER_KEYS)[number];
 
 const WIRE_NAMES: Readonly<Record<SubmitParameterKey, string>> = Object.freeze({
+	binaryInput: "binaryInput",
+	enableBinaryOutput: "enableBinaryOutput",
 	script: "script",
 	timeoutSeconds: "timeout",
 });
