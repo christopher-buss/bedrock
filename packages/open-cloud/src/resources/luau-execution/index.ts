@@ -1,4 +1,9 @@
 export type {
+	ListLogsParameters,
+	LogMessage,
+	LogPage,
+} from "../../domains/cloud-v2/luau-execution-task-logs/types.ts";
+export type {
 	CompleteTask,
 	FailedTask,
 	GetParameters,
