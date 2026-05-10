@@ -486,5 +486,23 @@ describe(parseLuauExecutionTaskResponse, () => {
 			expect(result.data.enableBinaryOutput).toBeUndefined();
 			expect(result.data.binaryOutputUri).toBeUndefined();
 		});
+
+		it.for([
+			["binaryInput", 123],
+			["binaryOutputUri", 123],
+			["enableBinaryOutput", "not-a-boolean"],
+		] as const)("should reject a body whose %s field has the wrong type", ([field, value]) => {
+			expect.assertions(1);
+
+			const result = parseLuauExecutionTaskResponse({
+				body: validInProgressBody({ [field]: value }),
+				headers: {},
+				status: 200,
+			});
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
 	});
 });
