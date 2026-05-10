@@ -1,10 +1,42 @@
 import { LuauExecutionClient } from "#src/resources/luau-execution/index";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
+import { validBinaryInputBody } from "#tests/helpers/luau-execution-task-binary-inputs";
 import { validInProgressTaskBody } from "#tests/helpers/luau-execution-tasks";
 import { assert, describe, expect, it } from "vitest";
 
 describe(LuauExecutionClient, () => {
+	describe("binaryInputs.create", () => {
+		it("should POST to the universe-scoped URL and return path plus uploadUri", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validBinaryInputBody(),
+				status: 200,
+			});
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.binaryInputs.create({
+				size: 1024,
+				universeId: "123",
+			});
+
+			assert(result.success);
+
+			expect(result.data.path).toBe(
+				"universes/123/luau-execution-session-task-binary-inputs/abc",
+			);
+			expect(result.data.uploadUri).toBe("https://storage.example.com/upload?token=xyz");
+			expect(httpClient.requests[0]?.request.url).toBe(
+				"/cloud/v2/universes/123/luau-execution-session-task-binary-inputs",
+			);
+		});
+	});
+
 	describe("tasks.submit at head", () => {
 		it("should POST to the head URL and parse the response into an in-progress task", async () => {
 			expect.assertions(3);
