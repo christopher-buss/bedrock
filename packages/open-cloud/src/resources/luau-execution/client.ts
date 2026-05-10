@@ -34,7 +34,7 @@ import {
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import { pollUntilDoneCore, type PollUntilDoneOptions } from "./polling.ts";
+import { type PollDeps, pollUntilDoneCore, type PollUntilDoneOptions } from "./polling.ts";
 
 function makeSpec<P, R>(spec: ResourceMethodSpec<P, R>): ResourceMethodSpec<P, R> {
 	return Object.freeze(spec);
@@ -132,6 +132,22 @@ export interface TasksHandle {
 		options?: PollUntilDoneOptions,
 	): Promise<Result<LuauExecutionTask, OpenCloudError>>;
 	/**
+	 * Submits a Luau script and polls `tasks.get` with `view=BASIC` until
+	 * the task reaches a terminal state, the wall-clock budget is
+	 * exhausted, or the supplied `AbortSignal` fires. Combines `submit`
+	 * and `pollUntilDone` in one call.
+	 *
+	 * @param parameters - The same input accepted by `submit`.
+	 * @param options - Polling and per-request overrides.
+	 * @returns A {@link Result} wrapping the terminal
+	 *   {@link LuauExecutionTask}, or an error if submit fails, the task
+	 *   is aborted, timed out, or the transport fails.
+	 */
+	runUntilDone(
+		parameters: SubmitAtHeadParameters | SubmitAtVersionParameters,
+		options?: PollUntilDoneOptions,
+	): Promise<Result<LuauExecutionTask, OpenCloudError>>;
+	/**
 	 * Submits a Luau script for execution against a place. Dispatches
 	 * to the head-version URL when `versionId` is omitted, or to the
 	 * specific-version URL when one is supplied. Both URL shapes share
@@ -189,6 +205,44 @@ function createBinaryInputsHandle(inner: ResourceClient): BinaryInputsHandle {
 	};
 }
 
+function buildPollDeps(
+	inner: ResourceClient,
+	args: { options: PollUntilDoneOptions; ref: LuauExecutionTaskRef },
+): PollDeps {
+	return {
+		fetch: async () => {
+			return inner.execute({
+				options: args.options,
+				parameters: { ref: args.ref, view: "BASIC" },
+				spec: GET_SPEC,
+			});
+		},
+		now: Date.now,
+		sleep: inner.sleep,
+	};
+}
+
+async function submitAndPoll(
+	inner: ResourceClient,
+	args: {
+		options: PollUntilDoneOptions;
+		parameters: SubmitAtHeadParameters | SubmitAtVersionParameters;
+	},
+): Promise<Result<LuauExecutionTask, OpenCloudError>> {
+	const { options, parameters } = args;
+	const submitResult = await ("versionId" in parameters
+		? inner.execute({ options, parameters, spec: SUBMIT_VERSION_SPEC })
+		: inner.execute({ options, parameters, spec: SUBMIT_HEAD_SPEC }));
+	if (!submitResult.success) {
+		return submitResult;
+	}
+
+	return pollUntilDoneCore(
+		buildPollDeps(inner, { options, ref: submitResult.data.ref }),
+		options,
+	);
+}
+
 function createTasksHandle(inner: ResourceClient): TasksHandle {
 	return {
 		async get(parameters, options) {
@@ -198,20 +252,10 @@ function createTasksHandle(inner: ResourceClient): TasksHandle {
 			return inner.execute({ options, parameters, spec: LIST_LOGS_SPEC });
 		},
 		async pollUntilDone(ref, options = {}) {
-			return pollUntilDoneCore(
-				{
-					fetch: async () => {
-						return inner.execute({
-							options,
-							parameters: { ref, view: "BASIC" },
-							spec: GET_SPEC,
-						});
-					},
-					now: Date.now,
-					sleep: inner.sleep,
-				},
-				options,
-			);
+			return pollUntilDoneCore(buildPollDeps(inner, { options, ref }), options);
+		},
+		async runUntilDone(parameters, options = {}) {
+			return submitAndPoll(inner, { options, parameters });
 		},
 		async submit(parameters, options) {
 			if ("versionId" in parameters) {

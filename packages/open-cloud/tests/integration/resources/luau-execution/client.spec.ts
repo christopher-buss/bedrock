@@ -302,6 +302,55 @@ describe(LuauExecutionClient, () => {
 		});
 	});
 
+	describe("tasks.runUntilDone", () => {
+		it("should submit the task and then poll until the result reaches a terminal state", async () => {
+			expect.assertions(2);
+
+			const submitBody = validInProgressTaskBody({
+				path: "universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
+				state: "QUEUED",
+			});
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: submitBody, status: 200 })
+				.mockResponse({ body: processingBody, status: 200 })
+				.mockResponse({ body: completeBody, status: 200 });
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.tasks.runUntilDone(
+				{ placeId: "456", script: "return 1", universeId: "123", versionId: "789" },
+				{ pollDelay: () => 0 },
+			);
+
+			assert(result.success);
+
+			expect(result.data.state).toBe("COMPLETE");
+			expect(httpClient.requests).toHaveLength(3);
+		});
+
+		it("should return the submit error without polling when submit fails", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 400 });
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.tasks.runUntilDone(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ pollDelay: () => 0 },
+			);
+
+			expect(result.success).toBeFalse();
+			expect(httpClient.requests).toHaveLength(1);
+		});
+	});
+
 	describe("tasks.pollUntilDone", () => {
 		it("should poll tasks.get until the response is COMPLETE", async () => {
 			expect.assertions(2);
