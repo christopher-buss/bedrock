@@ -2,7 +2,7 @@ import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
 import { LuauExecutionClient } from "#src/resources/luau-execution/index";
 import type { LuauExecutionTaskRef } from "#src/resources/luau-execution/index";
-import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
+import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { validBinaryInputBody } from "#tests/helpers/luau-execution-task-binary-inputs";
 import { validLogPageBody } from "#tests/helpers/luau-execution-task-logs";

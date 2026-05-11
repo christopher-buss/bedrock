@@ -111,6 +111,7 @@
 			"./package.json": "./package.json",
 			"./places": "./dist/places.mjs",
 			"./storage": "./dist/storage.mjs",
+			"./testing": "./dist/testing.mjs",
 			"./universes": "./dist/universes.mjs"
 		}
 	}

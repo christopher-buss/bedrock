@@ -1,7 +1,7 @@
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
 import { UniversesClient } from "#src/resources/universes/index";
-import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
+import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { validIconListBody, validLocalizedIcon } from "#tests/helpers/game-icon";
 import { assert, describe, expect, it } from "vitest";

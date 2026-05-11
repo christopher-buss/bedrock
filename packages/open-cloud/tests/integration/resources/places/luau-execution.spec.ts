@@ -1,6 +1,6 @@
 import type { LuauExecutionTaskRef } from "#src/resources/luau-execution/index";
 import { PlacesClient } from "#src/resources/places/index";
-import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
+import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { validLogPageBody } from "#tests/helpers/luau-execution-task-logs";
 import { validInProgressTaskBody } from "#tests/helpers/luau-execution-tasks";

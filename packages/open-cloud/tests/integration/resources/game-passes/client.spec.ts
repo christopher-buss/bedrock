@@ -3,7 +3,10 @@ import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
 import { GamePassesClient } from "#src/resources/game-passes/index";
 import { createFakeClock } from "#tests/helpers/fake-clock";
-import { createFakeHttpClient, type FakeHttpClient } from "#tests/helpers/fake-http-client";
+import {
+	createFakeHttpClient,
+	type FakeHttpClient,
+} from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { validGamePassBody, validListGamePassesBody } from "#tests/helpers/game-passes";
 import { assert, describe, expect, it, vi } from "vitest";

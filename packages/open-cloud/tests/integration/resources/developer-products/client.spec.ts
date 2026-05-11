@@ -4,7 +4,10 @@ import { PermissionError } from "#src/errors/permission-error";
 import { DeveloperProductsClient } from "#src/resources/developer-products/index";
 import { validDeveloperProductBody } from "#tests/helpers/developer-products";
 import { createFakeClock } from "#tests/helpers/fake-clock";
-import { createFakeHttpClient, type FakeHttpClient } from "#tests/helpers/fake-http-client";
+import {
+	createFakeHttpClient,
+	type FakeHttpClient,
+} from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { assert, describe, expect, it, vi } from "vitest";
 

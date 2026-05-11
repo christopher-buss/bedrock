@@ -4,7 +4,7 @@ import { PermissionError } from "#src/errors/permission-error";
 import { ValidationError } from "#src/errors/validation";
 import { PlacesClient } from "#src/resources/places/client";
 import { createFakeClock } from "#tests/helpers/fake-clock";
-import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
+import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import {
 	rbxlBody,
