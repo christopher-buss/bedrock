@@ -1,12 +1,32 @@
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
 import { LuauExecutionClient } from "#src/resources/luau-execution/index";
+import type { LuauExecutionTaskRef } from "#src/resources/luau-execution/index";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { validBinaryInputBody } from "#tests/helpers/luau-execution-task-binary-inputs";
 import { validLogPageBody } from "#tests/helpers/luau-execution-task-logs";
 import { validInProgressTaskBody } from "#tests/helpers/luau-execution-tasks";
 import { assert, describe, expect, it } from "vitest";
+
+const fullRef: LuauExecutionTaskRef = {
+	placeId: "456",
+	sessionId: "session-1",
+	taskId: "task-1",
+	universeId: "123",
+	versionId: "789",
+};
+
+const processingBody = validInProgressTaskBody({
+	path: "universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
+	state: "PROCESSING",
+});
+
+const completeBody = validInProgressTaskBody({
+	output: { results: [] },
+	path: "universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
+	state: "COMPLETE",
+});
 
 describe(LuauExecutionClient, () => {
 	describe("binaryInputs.create", () => {
@@ -279,6 +299,142 @@ describe(LuauExecutionClient, () => {
 				binaryInput: "universes/123/luau-execution-session-task-binary-inputs/abc",
 				script: "return 1",
 			});
+		});
+	});
+
+	describe("tasks.runUntilDone", () => {
+		it("should submit the task and then poll until the result reaches a terminal state", async () => {
+			expect.assertions(2);
+
+			const submitBody = validInProgressTaskBody({
+				path: "universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
+				state: "QUEUED",
+			});
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: submitBody, status: 200 })
+				.mockResponse({ body: processingBody, status: 200 })
+				.mockResponse({ body: completeBody, status: 200 });
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.tasks.runUntilDone(
+				{ placeId: "456", script: "return 1", universeId: "123", versionId: "789" },
+				{ pollDelay: () => 0 },
+			);
+
+			assert(result.success);
+
+			expect(result.data.state).toBe("COMPLETE");
+			expect(httpClient.requests).toHaveLength(3);
+		});
+
+		it("should return the submit error without polling when submit fails", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 400 });
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.tasks.runUntilDone(
+				{ placeId: "456", script: "return 1", universeId: "123" },
+				{ pollDelay: () => 0 },
+			);
+
+			expect(result.success).toBeFalse();
+			expect(httpClient.requests).toHaveLength(1);
+		});
+	});
+
+	describe("tasks.pollUntilDone", () => {
+		it("should poll tasks.get until the response is COMPLETE", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: processingBody, status: 200 })
+				.mockResponse({ body: processingBody, status: 200 })
+				.mockResponse({ body: completeBody, status: 200 });
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.tasks.pollUntilDone(fullRef, { pollDelay: () => 0 });
+
+			assert(result.success);
+
+			expect(result.data.state).toBe("COMPLETE");
+			expect(httpClient.requests).toHaveLength(3);
+		});
+
+		// Slice 19: per-request apiKey flows through to polling fetch
+		it("should forward per-request apiKey override to the underlying tasks.get", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: completeBody,
+				status: 200,
+			});
+			const client = new LuauExecutionClient({
+				apiKey: "default-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.tasks.pollUntilDone(fullRef, {
+				apiKey: "override-key",
+				pollDelay: () => 0,
+			});
+
+			expect(httpClient.requests[0]?.config.apiKey).toBe("override-key");
+		});
+
+		// Slice 20: 429 burst during polling is absorbed by rate-limit retry
+		it("should absorb a 429 burst during polling without surfacing it through the polling result", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient()
+				.mockRateLimit({ retryAfterSeconds: 0 })
+				.mockResponse({ body: processingBody, status: 200 })
+				.mockResponse({ body: completeBody, status: 200 });
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.tasks.pollUntilDone(fullRef, { pollDelay: () => 0 });
+
+			assert(result.success);
+
+			expect(result.data.state).toBe("COMPLETE");
+		});
+
+		// Slice 17: always requests view=BASIC
+		it("should request view=BASIC on every polling iteration", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: processingBody, status: 200 })
+				.mockResponse({ body: processingBody, status: 200 })
+				.mockResponse({ body: completeBody, status: 200 });
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.tasks.pollUntilDone(fullRef, { pollDelay: () => 0 });
+
+			expect(httpClient.requests[0]?.request.url).toEndWith("?view=BASIC");
+			expect(httpClient.requests[1]?.request.url).toEndWith("?view=BASIC");
+			expect(httpClient.requests[2]?.request.url).toEndWith("?view=BASIC");
 		});
 	});
 });

@@ -12,6 +12,7 @@ import {
 import type {
 	GetParameters,
 	LuauExecutionTask,
+	LuauExecutionTaskRef,
 	SubmitAtHeadParameters,
 	SubmitAtVersionParameters,
 } from "../../domains/cloud-v2/luau-execution-tasks/types.ts";
@@ -33,6 +34,8 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import { ResourceClient, type ResourceMethodSpec } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
+import { buildPollDeps, submitAndPoll } from "../luau-execution/polling-helpers.ts";
+import { pollUntilDoneCore, type PollUntilDoneOptions } from "../luau-execution/polling.ts";
 
 /**
  * Operation Group exposed by {@link PlacesClient} as the
@@ -76,6 +79,37 @@ export interface LuauExecutionHandle {
 		parameters: ListLogsParameters,
 		options?: RequestOptions,
 	): Promise<Result<LogPage, OpenCloudError>>;
+	/**
+	 * Polls `get` with `view=BASIC` on a configurable backoff schedule until
+	 * the task reaches a terminal state, the wall-clock budget is exhausted,
+	 * or the supplied `AbortSignal` fires. Returns the terminal task on
+	 * success.
+	 *
+	 * @param ref - Reference to the task to poll, typically returned by `submit`.
+	 * @param options - Polling and per-request overrides.
+	 * @returns A {@link Result} wrapping the terminal {@link LuauExecutionTask},
+	 *   or an error if aborted, timed out, or the transport fails.
+	 */
+	pollUntilDone(
+		ref: LuauExecutionTaskRef,
+		options?: PollUntilDoneOptions,
+	): Promise<Result<LuauExecutionTask, OpenCloudError>>;
+	/**
+	 * Submits a Luau script and polls `get` with `view=BASIC` until the
+	 * task reaches a terminal state, the wall-clock budget is exhausted,
+	 * or the supplied `AbortSignal` fires. Combines `submit` and
+	 * `pollUntilDone` in one call.
+	 *
+	 * @param parameters - The same input accepted by `submit`.
+	 * @param options - Polling and per-request overrides.
+	 * @returns A {@link Result} wrapping the terminal
+	 *   {@link LuauExecutionTask}, or an error if submit fails, the task
+	 *   is aborted, timed out, or the transport fails.
+	 */
+	runUntilDone(
+		parameters: SubmitAtHeadParameters | SubmitAtVersionParameters,
+		options?: PollUntilDoneOptions,
+	): Promise<Result<LuauExecutionTask, OpenCloudError>>;
 	/**
 	 * Submits a Luau script for execution against a place. Dispatches
 	 * to the head-version URL when `versionId` is omitted, or to the
@@ -231,6 +265,12 @@ function createLuauExecutionHandle(inner: ResourceClient): LuauExecutionHandle {
 		},
 		async listLogs(parameters, options) {
 			return inner.execute({ options, parameters, spec: LIST_LOGS_SPEC });
+		},
+		async pollUntilDone(ref, options = {}) {
+			return pollUntilDoneCore(buildPollDeps(inner, { options, ref }), options);
+		},
+		async runUntilDone(parameters, options = {}) {
+			return submitAndPoll(inner, { options, parameters });
 		},
 		async submit(parameters, options) {
 			if ("versionId" in parameters) {

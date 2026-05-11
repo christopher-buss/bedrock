@@ -22,6 +22,7 @@ import {
 import type {
 	GetParameters,
 	LuauExecutionTask,
+	LuauExecutionTaskRef,
 	SubmitAtHeadParameters,
 	SubmitAtVersionParameters,
 } from "../../domains/cloud-v2/luau-execution-tasks/types.ts";
@@ -33,6 +34,8 @@ import {
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
+import { buildPollDeps, submitAndPoll } from "./polling-helpers.ts";
+import { pollUntilDoneCore, type PollUntilDoneOptions } from "./polling.ts";
 
 function makeSpec<P, R>(spec: ResourceMethodSpec<P, R>): ResourceMethodSpec<P, R> {
 	return Object.freeze(spec);
@@ -116,6 +119,37 @@ export interface TasksHandle {
 		options?: RequestOptions,
 	): Promise<Result<LogPage, OpenCloudError>>;
 	/**
+	 * Polls `tasks.get` with `view=BASIC` on a configurable backoff schedule
+	 * until the task reaches a terminal state, the wall-clock budget is
+	 * exhausted, or the supplied `AbortSignal` fires. Returns the terminal
+	 * task on success.
+	 *
+	 * @param ref - Reference to the task to poll, typically returned by `submit`.
+	 * @param options - Polling and per-request overrides.
+	 * @returns A {@link Result} wrapping the terminal {@link LuauExecutionTask},
+	 *   or an error if aborted, timed out, or the transport fails.
+	 */
+	pollUntilDone(
+		ref: LuauExecutionTaskRef,
+		options?: PollUntilDoneOptions,
+	): Promise<Result<LuauExecutionTask, OpenCloudError>>;
+	/**
+	 * Submits a Luau script and polls `tasks.get` with `view=BASIC` until
+	 * the task reaches a terminal state, the wall-clock budget is
+	 * exhausted, or the supplied `AbortSignal` fires. Combines `submit`
+	 * and `pollUntilDone` in one call.
+	 *
+	 * @param parameters - The same input accepted by `submit`.
+	 * @param options - Polling and per-request overrides.
+	 * @returns A {@link Result} wrapping the terminal
+	 *   {@link LuauExecutionTask}, or an error if submit fails, the task
+	 *   is aborted, timed out, or the transport fails.
+	 */
+	runUntilDone(
+		parameters: SubmitAtHeadParameters | SubmitAtVersionParameters,
+		options?: PollUntilDoneOptions,
+	): Promise<Result<LuauExecutionTask, OpenCloudError>>;
+	/**
 	 * Submits a Luau script for execution against a place. Dispatches
 	 * to the head-version URL when `versionId` is omitted, or to the
 	 * specific-version URL when one is supplied. Both URL shapes share
@@ -180,6 +214,12 @@ function createTasksHandle(inner: ResourceClient): TasksHandle {
 		},
 		async listLogs(parameters, options) {
 			return inner.execute({ options, parameters, spec: LIST_LOGS_SPEC });
+		},
+		async pollUntilDone(ref, options = {}) {
+			return pollUntilDoneCore(buildPollDeps(inner, { options, ref }), options);
+		},
+		async runUntilDone(parameters, options = {}) {
+			return submitAndPoll(inner, { options, parameters });
 		},
 		async submit(parameters, options) {
 			if ("versionId" in parameters) {

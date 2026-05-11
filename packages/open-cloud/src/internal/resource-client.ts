@@ -205,6 +205,15 @@ export class ResourceClient {
 		return spec.parse(httpResult.data);
 	}
 
+	/**
+	 * Returns the sleep function used by this client instance.
+	 *
+	 * @returns The sleep function injected at construction time.
+	 */
+	public get sleep(): SleepFunc {
+		return this.#sleep;
+	}
+
 	#getQueue(apiKey: string, limit: OperationLimit): RateLimitQueue {
 		const key = `${apiKey}::${limit.operationKey}`;
 		const existing = this.#queues.get(key);
