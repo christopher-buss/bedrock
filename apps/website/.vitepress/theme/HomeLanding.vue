@@ -215,6 +215,54 @@ function toggleTheme(): void {
 				</div>
 			</div>
 		</section>
+
+		<section id="pipeline" class="pipeline">
+			<div class="wrap">
+				<div class="pipeline-head">
+					<div class="eyebrow">02 &middot; How it works</div>
+					<h2>Four functions. <em>One</em> reconcile loop.</h2>
+					<p>
+						The CLI is a wrapper. Under it: a pure diff, a typed driver registry, and a
+						Result-returning applier. You can call any step directly.
+					</p>
+				</div>
+				<div class="pipeline-steps">
+					<div class="pstep">
+						<div class="pstep-num">01</div>
+						<div class="pstep-code">config</div>
+						<h4>Declare</h4>
+						<p>
+							Write resources as data in TypeScript, YAML, JSON, or JS. Every resource gets a
+							stable <code>key</code>.
+						</p>
+					</div>
+					<div class="pstep">
+						<div class="pstep-num">02</div>
+						<div class="pstep-code">buildDesired()</div>
+						<h4>Normalize</h4>
+						<p>Hash icons, resolve paths, freeze the desired state. Pure data, no network.</p>
+					</div>
+					<div class="pstep">
+						<div class="pstep-num">03</div>
+						<div class="pstep-code">diff()</div>
+						<h4>Plan</h4>
+						<p>
+							Compare desired vs current. Emit <code>create</code>, <code>update</code>, or
+							<code>noop</code> ops. Pure and synchronous.
+						</p>
+					</div>
+					<div class="pstep">
+						<div class="pstep-num">04</div>
+						<div class="pstep-code">applyOps()</div>
+						<h4>Reconcile</h4>
+						<p>
+							Each op runs through its <code>ResourceDriver&lt;K&gt;</code>. Returns a
+							<code>Result</code>, errors don't throw.
+						</p>
+					</div>
+				</div>
+			</div>
+		</section>
 	</div>
 </template>
 
@@ -888,5 +936,147 @@ html.dark .track h3 em {
 .track-note b {
 	color: var(--ink-2);
 	font-weight: 500;
+}
+
+/* Pipeline section */
+.pipeline {
+	padding: 110px 0;
+	background: var(--bg-soft);
+	border-top: 1px solid var(--line);
+	border-bottom: 1px solid var(--line);
+}
+
+.pipeline-head {
+	text-align: center;
+	margin-bottom: 64px;
+}
+
+.pipeline-head .eyebrow {
+	justify-content: center;
+}
+
+.pipeline-head .eyebrow::after {
+	content: "";
+	width: 18px;
+	height: 1px;
+	background: currentColor;
+}
+
+.pipeline-head h2 {
+	font-family: var(--f-serif);
+	font-weight: 400;
+	font-size: clamp(40px, 4.6vw, 58px);
+	line-height: 1.02;
+	letter-spacing: -0.02em;
+	margin: 16px 0 14px;
+}
+
+.pipeline-head h2 em {
+	font-style: italic;
+	color: var(--accent-deep);
+}
+
+html.dark .pipeline-head h2 em {
+	color: var(--accent-soft);
+}
+
+.pipeline-head p {
+	color: var(--ink-3);
+	max-width: 52ch;
+	margin: 0 auto;
+	font-size: 16px;
+}
+
+.pipeline-steps {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 0;
+	background: var(--bg-card);
+	border: 1px solid var(--line);
+	border-radius: var(--r-lg);
+	overflow: hidden;
+	position: relative;
+}
+
+.pipeline-steps::before {
+	content: "";
+	position: absolute;
+	top: 48px;
+	left: 12%;
+	right: 12%;
+	height: 1px;
+	background: repeating-linear-gradient(
+		90deg,
+		var(--line-strong) 0 6px,
+		transparent 6px 12px
+	);
+	z-index: 0;
+}
+
+.pstep {
+	padding: 28px 24px;
+	border-right: 1px solid var(--line);
+	position: relative;
+	z-index: 1;
+	background: var(--bg-card);
+}
+
+.pstep:last-child {
+	border-right: 0;
+}
+
+.pstep-num {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	background: var(--bg);
+	border: 1px solid var(--line-strong);
+	border-radius: 50%;
+	font-family: var(--f-mono);
+	font-size: 12px;
+	color: var(--accent-deep);
+	font-weight: 600;
+	margin-bottom: 20px;
+}
+
+html.dark .pstep-num {
+	color: var(--accent-soft);
+}
+
+.pstep-code {
+	font-family: var(--f-mono);
+	font-size: 13px;
+	color: var(--ink);
+	background: var(--bg-soft);
+	border: 1px solid var(--line);
+	padding: 6px 10px;
+	border-radius: 4px;
+	display: inline-block;
+	margin-bottom: 14px;
+}
+
+.pstep h4 {
+	font-family: var(--f-sans);
+	font-size: 15px;
+	font-weight: 600;
+	margin: 0 0 6px;
+}
+
+.pstep p {
+	margin: 0;
+	font-size: 13.5px;
+	color: var(--ink-3);
+	line-height: 1.55;
+}
+
+.pstep p code {
+	font-family: var(--f-mono);
+	font-size: 12.5px;
+	color: var(--ink-2);
+	background: var(--bg-soft);
+	padding: 1px 5px;
+	border-radius: 3px;
 }
 </style>
