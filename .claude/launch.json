@@ -1,0 +1,11 @@
+{
+	"version": "0.0.1",
+	"configurations": [
+		{
+			"name": "Bedrock docs (VitePress)",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": ["--filter", "@bedrock-rbx/website", "docs:dev"],
+			"port": 5173
+		}
+	]
+}
