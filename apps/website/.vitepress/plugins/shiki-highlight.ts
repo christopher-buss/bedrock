@@ -25,15 +25,13 @@ export function shikiHighlightPlugin(): Plugin {
 			}
 
 			const filePath = id.slice(0, -QUERY.length);
-			const source = await readFile(filePath, "utf8");
-			const highlighter = await getHighlighter();
-			const html = highlighter.codeToHtml(source, {
-				lang: detectLang(filePath),
-				theme: THEME,
-			});
-
-			this.addWatchFile(filePath);
-			return `export default ${JSON.stringify(html)};`;
+			try {
+				this.addWatchFile(filePath);
+				return await highlightToModule(filePath);
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				this.error(`shiki-highlight: ${filePath}: ${message}`);
+			}
 		},
 		async resolveId(source, importer) {
 			if (!source.endsWith(QUERY)) {
@@ -42,11 +40,7 @@ export function shikiHighlightPlugin(): Plugin {
 
 			const base = source.slice(0, -QUERY.length);
 			const resolved = await this.resolve(base, importer, { skipSelf: true });
-			if (!resolved) {
-				return;
-			}
-
-			return `${resolved.id}${QUERY}`;
+			return resolved ? `${resolved.id}${QUERY}` : undefined;
 		},
 	};
 }
@@ -64,5 +58,26 @@ function detectLang(filePath: string): string {
 		return "typescript";
 	}
 
-	return "bash";
+	if (filePath.endsWith(".sh") || filePath.endsWith(".bash")) {
+		return "bash";
+	}
+
+	throw new Error(`shiki-highlight: unsupported extension for ${filePath}`);
+}
+
+/**
+ * Read a source file and return its Shiki-highlighted HTML wrapped as a
+ * default-export module string.
+ *
+ * @param filePath - Absolute path to the source file (no `?highlighted` query).
+ * @returns Module source that default-exports the highlighted HTML string.
+ */
+async function highlightToModule(filePath: string): Promise<string> {
+	const source = await readFile(filePath, "utf8");
+	const highlighter = await getHighlighter();
+	const html = highlighter.codeToHtml(source, {
+		lang: detectLang(filePath),
+		theme: THEME,
+	});
+	return `export default ${JSON.stringify(html)};`;
 }

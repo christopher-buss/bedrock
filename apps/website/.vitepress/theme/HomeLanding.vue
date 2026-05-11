@@ -9,6 +9,7 @@ import trackRblxtsHtml from "../../landing/examples/track-rblxts.ts?highlighted"
 type TabId = "config" | "deploy" | "cli";
 type TermId = "diff" | "deploy" | "migrate";
 
+// TODO: swap to `pnpm add @bedrock-rbx/core` once published, or claim `bedrock` on npm first.
 const INSTALL_COMMAND = "pnpm add bedrock";
 const COPIED_RESET_MS = 1200;
 
@@ -19,10 +20,16 @@ const copyState = ref<"idle" | "copied">("idle");
 let copyResetTimer: ReturnType<typeof setTimeout> | undefined;
 
 async function copyInstall(): Promise<void> {
+	const clipboard = navigator.clipboard;
+	if (clipboard === undefined) {
+		// no clipboard API; nothing to show as success.
+		return;
+	}
+
 	try {
-		await navigator.clipboard?.writeText(INSTALL_COMMAND);
+		await clipboard.writeText(INSTALL_COMMAND);
 	} catch {
-		// clipboard denied or unavailable; skip the success flash.
+		// permission denied or write rejected.
 		return;
 	}
 
@@ -42,11 +49,56 @@ onBeforeUnmount(() => {
 	}
 });
 
-const tabs: Array<{ filename: string; id: TabId; label: string }> = [
+const tabs: ReadonlyArray<{
+	readonly filename: string;
+	readonly id: TabId;
+	readonly label: string;
+}> = [
 	{ filename: "bedrock.config.ts", id: "config", label: "config.ts" },
 	{ filename: ".bedrock/deploy.ts", id: "deploy", label: ".bedrock/deploy.ts" },
 	{ filename: "shell", id: "cli", label: "cli" },
 ];
+
+const TERM_IDS: ReadonlyArray<TermId> = ["diff", "deploy", "migrate"];
+
+function focusTabButton(prefix: string, id: string): void {
+	const button = document.getElementById(`${prefix}-tab-${id}`);
+	button?.focus();
+}
+
+function navigateCodeTab(event: KeyboardEvent, index: number): void {
+	if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") {
+		return;
+	}
+
+	event.preventDefault();
+	const direction = event.key === "ArrowRight" ? 1 : -1;
+	const nextIndex = (index + direction + tabs.length) % tabs.length;
+	const nextTab = tabs[nextIndex];
+	if (nextTab === undefined) {
+		return;
+	}
+
+	activeTab.value = nextTab.id;
+	focusTabButton("code", nextTab.id);
+}
+
+function navigateTerminalTab(event: KeyboardEvent, index: number): void {
+	if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") {
+		return;
+	}
+
+	event.preventDefault();
+	const direction = event.key === "ArrowRight" ? 1 : -1;
+	const nextIndex = (index + direction + TERM_IDS.length) % TERM_IDS.length;
+	const nextId = TERM_IDS[nextIndex];
+	if (nextId === undefined) {
+		return;
+	}
+
+	activeTerm.value = nextId;
+	focusTabButton("term", nextId);
+}
 
 function toggleTheme(): void {
 	isDark.value = !isDark.value;
@@ -179,20 +231,50 @@ function toggleTheme(): void {
 								<span class="code-dot" />
 								{{ tabs.find((tab) => tab.id === activeTab)?.filename }}
 							</div>
-							<div class="code-tabs">
+							<div class="code-tabs" role="tablist" aria-label="Code sample">
 								<button
-									v-for="tab in tabs"
+									v-for="(tab, index) in tabs"
+									:id="`code-tab-${tab.id}`"
 									:key="tab.id"
+									role="tab"
+									type="button"
 									:class="['code-tab', { active: activeTab === tab.id }]"
+									:aria-selected="activeTab === tab.id"
+									:aria-controls="`code-panel-${tab.id}`"
+									:tabindex="activeTab === tab.id ? 0 : -1"
 									@click="activeTab = tab.id"
+									@keydown="navigateCodeTab($event, index)"
 								>
 									{{ tab.label }}
 								</button>
 							</div>
 						</div>
-						<div v-show="activeTab === 'config'" class="code-pane" v-html="configHtml" />
-						<div v-show="activeTab === 'deploy'" class="code-pane" v-html="deployHtml" />
-						<div v-show="activeTab === 'cli'" class="code-pane cli-pane">
+						<div
+							v-show="activeTab === 'config'"
+							id="code-panel-config"
+							role="tabpanel"
+							aria-labelledby="code-tab-config"
+							tabindex="0"
+							class="code-pane"
+							v-html="configHtml"
+						/>
+						<div
+							v-show="activeTab === 'deploy'"
+							id="code-panel-deploy"
+							role="tabpanel"
+							aria-labelledby="code-tab-deploy"
+							tabindex="0"
+							class="code-pane"
+							v-html="deployHtml"
+						/>
+						<div
+							v-show="activeTab === 'cli'"
+							id="code-panel-cli"
+							role="tabpanel"
+							aria-labelledby="code-tab-cli"
+							tabindex="0"
+							class="code-pane cli-pane"
+						>
 							<pre><span class="cli-prompt">$</span> bedrock diff      <span class="cli-dim"># preview changes</span>
 <span class="cli-prompt">$</span> bedrock deploy    <span class="cli-dim"># reconcile</span>
 <span class="cli-prompt">$</span> bedrock migrate ./mantle.yml</pre>
@@ -413,19 +495,33 @@ function toggleTheme(): void {
 					<div class="term-head">
 						<div class="term-lights"><span /><span /><span /></div>
 						<span>~/strata</span>
-						<div class="term-tabs">
+						<div class="term-tabs" role="tablist" aria-label="CLI command">
 							<button
-								v-for="term in ['diff', 'deploy', 'migrate'] as const"
+								v-for="(term, index) in TERM_IDS"
+								:id="`term-tab-${term}`"
 								:key="term"
+								role="tab"
+								type="button"
 								:class="['term-tab', { active: activeTerm === term }]"
+								:aria-selected="activeTerm === term"
+								:aria-controls="`term-panel-${term}`"
+								:tabindex="activeTerm === term ? 0 : -1"
 								@click="activeTerm = term"
+								@keydown="navigateTerminalTab($event, index)"
 							>
 								{{ term }}
 							</button>
 						</div>
 					</div>
 					<div class="term-body">
-						<div v-show="activeTerm === 'diff'" class="term-pane">
+						<div
+							v-show="activeTerm === 'diff'"
+							id="term-panel-diff"
+							role="tabpanel"
+							aria-labelledby="term-tab-diff"
+							tabindex="0"
+							class="term-pane"
+						>
 							<div><span class="term-prompt">$</span> bedrock diff</div>
 							<div class="term-dim">Loading bedrock.config.ts ...</div>
 							<div class="term-dim">Fetching current state (gist:bedrock-state) ...</div>
@@ -439,7 +535,14 @@ function toggleTheme(): void {
 							<div class="term-dim">No changes will be applied. Run `bedrock deploy` to reconcile.</div>
 						</div>
 
-						<div v-show="activeTerm === 'deploy'" class="term-pane">
+						<div
+							v-show="activeTerm === 'deploy'"
+							id="term-panel-deploy"
+							role="tabpanel"
+							aria-labelledby="term-tab-deploy"
+							tabindex="0"
+							class="term-pane"
+						>
 							<div><span class="term-prompt">$</span> bedrock deploy</div>
 							<div class="term-dim">Plan shown above. Apply? [y/N]</div>
 							<div><span class="term-prompt">y</span></div>
@@ -453,7 +556,14 @@ function toggleTheme(): void {
 							<div class="term-dim">State written to gist:bedrock-state</div>
 						</div>
 
-						<div v-show="activeTerm === 'migrate'" class="term-pane">
+						<div
+							v-show="activeTerm === 'migrate'"
+							id="term-panel-migrate"
+							role="tabpanel"
+							aria-labelledby="term-tab-migrate"
+							tabindex="0"
+							class="term-pane"
+						>
 							<div><span class="term-prompt">$</span> bedrock migrate ./mantle.yml</div>
 							<div class="term-dim">Reading Mantle config ...</div>
 							<div>&nbsp;</div>
@@ -946,7 +1056,7 @@ html.dark .bedrock-landing {
 	transform: translateX(2px);
 }
 
-/* Hero shell — always dark per the design (the "stratum") */
+/* Hero shell, always dark per the design (the "stratum") */
 .hero-wrap {
 	margin-top: 0;
 }
