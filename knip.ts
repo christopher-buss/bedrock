@@ -29,7 +29,9 @@ const config: KnipConfig = {
 				"unplugin-unused",
 			],
 		},
-		"apps/website": {},
+		"apps/website": {
+			entry: ["landing/examples/**/*.ts"],
+		},
 		"packages/bedrock": {
 			entry: [
 				"stryker.config.ts",
