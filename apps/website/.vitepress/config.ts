@@ -4,6 +4,7 @@ import { defineConfig } from "vitepress";
 import { tabsMarkdownPlugin } from "vitepress-plugin-tabs";
 
 import { buildSidebarFromNavigation, type NavigationItem } from "./build-sidebar.ts";
+import { shikiHighlightPlugin } from "./plugins/shiki-highlight.ts";
 
 const navigationBedrock = loadNavigation("./docs/bedrock/api/navigation.json");
 const navigationOcale = loadNavigation("./docs/ocale/api/navigation.json");
@@ -73,6 +74,9 @@ export default defineConfig({
 		socialLinks: [{ icon: "github", link: "https://github.com/christopher-buss/bedrock" }],
 	},
 	title: IS_PREVIEW_CHANNEL ? "Bedrock (preview)" : "Bedrock",
+	vite: {
+		plugins: [shikiHighlightPlugin()],
+	},
 });
 
 function toNavigationItem(value: JSONValue): NavigationItem | undefined {

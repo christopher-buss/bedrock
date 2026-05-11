@@ -47,6 +47,9 @@ catalogs:
       specifier: 0.11.1
       version: 0.11.1
   docs:
+    shiki:
+      specifier: 3.23.0
+      version: 3.23.0
     vitepress:
       specifier: 2.0.0-alpha.17
       version: 2.0.0-alpha.17
@@ -357,6 +360,9 @@ importers:
 
   apps/website:
     devDependencies:
+      '@bedrock-rbx/core':
+        specifier: workspace:*
+        version: link:../../packages/bedrock
       '@bedrock-rbx/testing':
         specifier: workspace:*
         version: link:../../packages/testing
@@ -369,6 +375,9 @@ importers:
       concurrently:
         specifier: catalog:dev
         version: 9.1.0
+      shiki:
+        specifier: catalog:docs
+        version: 3.23.0
       typedoc:
         specifier: catalog:build
         version: 0.28.19(@typescript/typescript6@6.0.1)
@@ -381,6 +390,9 @@ importers:
       typescript:
         specifier: catalog:tsc
         version: '@typescript/typescript6@6.0.1'
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@0.1.19
+        version: '@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)'
       vitepress:
         specifier: catalog:docs
         version: 2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.128.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)
@@ -389,7 +401,7 @@ importers:
         version: 0.8.0(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.128.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(@typescript/typescript6@6.0.1))
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@0.1.19
-        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)'
 
   packages/bedrock:
     dependencies:
@@ -3508,6 +3520,7 @@ packages:
 
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
+    deprecated: Potential CWE-502 - Update to 1.3.1 or higher
 
   '@vitejs/plugin-vue@6.0.6':
     resolution: {integrity: sha512-u9HHgfrq3AjXlysn0eINFnWQOJQLO9WN6VprZ8FXl7A2bYisv3Hui9Ij+7QZ41F/WYWarHjwBbXtD7dKg3uxbg==}
@@ -9475,6 +9488,46 @@ snapshots:
 
   '@voidzero-dev/vite-plus-linux-x64-musl@0.1.19':
     optional: true
+
+  '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)':
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@types/chai': 5.2.3
+      '@voidzero-dev/vite-plus-core': 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)
+      es-module-lexer: 1.7.0
+      obug: 2.1.1
+      pixelmatch: 7.1.0
+      pngjs: 7.0.0
+      sirv: 3.0.2
+      std-env: 4.1.0
+      tinybench: 2.9.0
+      tinyexec: 1.1.1
+      tinyglobby: 0.2.16
+      vite: '@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)'
+      ws: 8.20.0
+    optionalDependencies:
+      '@types/node': 24.10.1
+      '@vitest/coverage-v8': 4.1.4(@voidzero-dev/vite-plus-test@0.1.19)
+    transitivePeerDependencies:
+      - '@arethetypeswrong/core'
+      - '@tsdown/css'
+      - '@tsdown/exe'
+      - '@vitejs/devtools'
+      - bufferutil
+      - esbuild
+      - jiti
+      - less
+      - publint
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - typescript
+      - unplugin-unused
+      - utf-8-validate
+      - yaml
 
   '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)':
     dependencies:

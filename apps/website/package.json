@@ -19,14 +19,17 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"devDependencies": {
+		"@bedrock-rbx/core": "workspace:*",
 		"@bedrock-rbx/testing": "workspace:*",
 		"@bedrock-rbx/typescript-config": "workspace:*",
 		"@bedrock-rbx/vite-config": "workspace:*",
 		"concurrently": "catalog:dev",
+		"shiki": "catalog:docs",
 		"typedoc": "catalog:build",
 		"typedoc-plugin-markdown": "catalog:build",
 		"typedoc-plugin-replace-text": "catalog:build",
 		"typescript": "catalog:tsc",
+		"vite": "catalog:",
 		"vitepress": "catalog:docs",
 		"vitepress-plugin-tabs": "catalog:docs",
 		"vitest": "catalog:test"
