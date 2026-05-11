@@ -1,6 +1,7 @@
 import type { Sade } from "sade";
 import { describe, expectTypeOf, it } from "vitest";
 
+import type { ProgressPort } from "../ports/progress-port.ts";
 import type { buildStatePort } from "../shell/build-state-port.ts";
 import type { deploy } from "../shell/deploy.ts";
 import type { loadConfig } from "../shell/load-config.ts";
@@ -23,6 +24,7 @@ describe("ProgDeps shape", () => {
 			| "migratePromptPort"
 			| "mkdir"
 			| "previewDiff"
+			| "progress"
 			| "writeFile"
 		>();
 	});
@@ -81,6 +83,10 @@ describe("ProgDeps migrate slots", () => {
 describe("ProgDeps render slots", () => {
 	it("should accept the ClackPort interface in the clack slot", () => {
 		expectTypeOf<NonNullable<ProgDeps["clack"]>>().toEqualTypeOf<ClackPort>();
+	});
+
+	it("should accept the ProgressPort interface in the progress slot", () => {
+		expectTypeOf<NonNullable<ProgDeps["progress"]>>().toEqualTypeOf<ProgressPort>();
 	});
 
 	it("should accept a void-returning exit handle so test stubs can intercept termination", () => {

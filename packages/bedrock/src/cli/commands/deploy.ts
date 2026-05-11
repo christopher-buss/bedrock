@@ -1,6 +1,8 @@
 import process from "node:process";
 
+import { createClackProgressAdapter } from "../../adapters/clack-progress-adapter.ts";
 import type { Config } from "../../core/schema.ts";
+import type { ProgressPort } from "../../ports/progress-port.ts";
 import { deploy as defaultDeploy } from "../../shell/deploy.ts";
 import {
 	loadConfig as defaultLoadConfig,
@@ -17,6 +19,7 @@ interface ResolvedDeploy {
 	readonly deploy: typeof defaultDeploy;
 	readonly exit: (code: number) => void;
 	readonly loadConfig: typeof defaultLoadConfig;
+	readonly progress: ProgressPort;
 }
 
 interface DispatchInputs {
@@ -48,11 +51,13 @@ export function deployCommand(
 }
 
 function resolveDeploy(deps: ProgDeps): ResolvedDeploy {
+	const clack = deps.clack ?? createClackPort();
 	return {
-		clack: deps.clack ?? createClackPort(),
+		clack,
 		deploy: deps.deploy ?? defaultDeploy,
 		exit: deps.exit ?? ((code: number) => process.exit(code)),
 		loadConfig: deps.loadConfig ?? defaultLoadConfig,
+		progress: deps.progress ?? createClackProgressAdapter({ clack }),
 	};
 }
 
@@ -70,11 +75,13 @@ async function dispatchEnvironments(inputs: DispatchInputs): Promise<ReadonlyArr
 			getEnv,
 		});
 		if (result.success) {
-			resolved.clack.logSuccess(
-				`${environment}: ${result.data.resources.length} resources reconciled`,
-			);
+			resolved.progress.emit({
+				environment,
+				kind: "deploySuccess",
+				resourceCount: result.data.resources.length,
+			});
 		} else {
-			renderDeployError(result.err, resolved.clack);
+			resolved.progress.emit({ environment, error: result.err, kind: "deployFailure" });
 			failed.push(environment);
 		}
 	}

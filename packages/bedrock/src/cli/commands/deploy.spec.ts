@@ -7,6 +7,7 @@ import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 import type { ResourceCurrentState } from "../../core/resources.ts";
 import type { Config } from "../../core/schema.ts";
 import type { BedrockState } from "../../core/state.ts";
+import type { ProgressEvent, ProgressPort } from "../../ports/progress-port.ts";
 import type { DeployError } from "../../shell/deploy.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import type { ProgDeps } from "../index.ts";
@@ -318,6 +319,56 @@ describe(deployCommand, () => {
 		);
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
+
+	it.for<{
+		deployResult: Result<BedrockState, DeployError>;
+		env: string;
+		expectedEvent: ProgressEvent;
+		label: string;
+	}>([
+		{
+			deployResult: { data: bedrockState("production", 3), success: true },
+			env: "production",
+			expectedEvent: { environment: "production", kind: "deploySuccess", resourceCount: 3 },
+			label: "deploySuccess",
+		},
+		{
+			deployResult: {
+				err: { declared: ["production"], environment: "ghost", kind: "unknownEnvironment" },
+				success: false,
+			},
+			env: "ghost",
+			expectedEvent: {
+				environment: "ghost",
+				error: {
+					declared: ["production"],
+					environment: "ghost",
+					kind: "unknownEnvironment",
+				},
+				kind: "deployFailure",
+			},
+			label: "deployFailure",
+		},
+	])(
+		"should emit a $label event to an injected progress port",
+		async ({ deployResult, env, expectedEvent }) => {
+			expect.assertions(1);
+
+			const events: Array<ProgressEvent> = [];
+			const progress: ProgressPort = {
+				emit(event) {
+					events.push(event);
+				},
+			};
+			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+			const deploy = fakeDeploy([deployResult]);
+			const deps = makeDeps({ deploy, loadConfig, progress });
+
+			await deployCommand(deps)({ env });
+
+			expect(events).toStrictEqual([expectedEvent]);
+		},
+	);
 
 	it("should default to process.exit when no exit slot is provided", async () => {
 		expect.assertions(1);

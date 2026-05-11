@@ -2,6 +2,7 @@ import sade from "sade";
 import type { Sade } from "sade";
 
 import manifest from "../../package.json" with { type: "json" };
+import type { ProgressPort } from "../ports/progress-port.ts";
 import type { buildStatePort as defaultBuildStatePort } from "../shell/build-state-port.ts";
 import type { deploy as defaultDeploy } from "../shell/deploy.ts";
 import type { loadConfig as defaultLoadConfig } from "../shell/load-config.ts";
@@ -41,6 +42,8 @@ export interface ProgDeps {
 	readonly mkdir?: (path: string) => Promise<void>;
 	/** Read-only preview of operations; defaults to the internal `previewDiff` shell helper. */
 	readonly previewDiff?: typeof defaultPreviewDiff;
+	/** Progress port that receives per-env deploy outcomes; defaults to the clack-backed adapter. */
+	readonly progress?: ProgressPort;
 	/** File-write seam used by the migrate command to emit the bedrock config file; defaults to `node:fs/promises.writeFile`. */
 	readonly writeFile?: (path: string, contents: string) => Promise<void>;
 }
