@@ -263,6 +263,79 @@ function toggleTheme(): void {
 				</div>
 			</div>
 		</section>
+
+		<section id="features" class="features">
+			<div class="wrap">
+				<div class="features-head">
+					<div>
+						<div class="eyebrow">03 &middot; Opinions you'll feel</div>
+						<h2>Choices we made, so you don't have to.</h2>
+					</div>
+					<p>
+						Six decisions baked into the design. Every one is reversible at your
+						project boundary, Bedrock won't touch what it didn't create.
+					</p>
+				</div>
+
+				<div class="feature-grid">
+					<div class="feature">
+						<div class="feature-glyph gl-stack"><span /><span /><span /><span /></div>
+						<div class="feature-num">&rarr; 01</div>
+						<h3>Open Cloud only</h3>
+						<p>
+							No ROBLOSECURITY, not now, not ever. Bedrock uses the official APIs so deploys
+							work from any machine, including CI.
+						</p>
+					</div>
+					<div class="feature">
+						<div class="feature-glyph gl-dots"><span /><span /><span /></div>
+						<div class="feature-num">&rarr; 02</div>
+						<h3>Typed, end-to-end</h3>
+						<p>
+							Resource shapes, drivers, state, ops, all typed. <code>defineConfig</code> infers
+							your universe. No YAML surprises at deploy.
+						</p>
+					</div>
+					<div class="feature">
+						<div class="feature-glyph gl-diamond"><span /><span /></div>
+						<div class="feature-num">&rarr; 03</div>
+						<h3><code>Result</code>, not throws</h3>
+						<p>
+							Every API call returns <code>Result&lt;T, E&gt;</code>. Narrow on
+							<code>success</code>, handle <code>err</code>, no try/catch chains.
+						</p>
+					</div>
+					<div class="feature">
+						<div class="feature-glyph gl-grid"><span /><span /><span /><span /></div>
+						<div class="feature-num">&rarr; 04</div>
+						<h3>Multi-format config</h3>
+						<p>
+							TS, JS, YAML, or JSON, via c12. Use whichever your team already uses,
+							Bedrock doesn't care.
+						</p>
+					</div>
+					<div class="feature">
+						<div class="feature-glyph gl-line"><span /><span /><span /></div>
+						<div class="feature-num">&rarr; 05</div>
+						<h3>State on your terms</h3>
+						<p>
+							Default: a private GitHub Gist (<code>GITHUB_TOKEN</code> and you're set).
+							S3 and Cloudflare R2 backends land in v0.3.
+						</p>
+					</div>
+					<div class="feature">
+						<div class="feature-glyph gl-pair"><span /><span /></div>
+						<div class="feature-num">&rarr; 06</div>
+						<h3>Mantle migration</h3>
+						<p>
+							<code>bedrock migrate</code> reads your existing <code>mantle.yml</code>,
+							flags anything unsupported, and writes a Bedrock config you can diff before
+							deploying.
+						</p>
+					</div>
+				</div>
+			</div>
+		</section>
 	</div>
 </template>
 
@@ -1078,5 +1151,240 @@ html.dark .pstep-num {
 	background: var(--bg-soft);
 	padding: 1px 5px;
 	border-radius: 3px;
+}
+
+/* Features section */
+.features {
+	padding: 110px 0;
+	border-bottom: 1px solid var(--line);
+}
+
+.features-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: end;
+	margin-bottom: 56px;
+	gap: 48px;
+}
+
+.features-head h2 {
+	font-family: var(--f-serif);
+	font-weight: 400;
+	font-size: clamp(40px, 4.6vw, 54px);
+	line-height: 1.02;
+	letter-spacing: -0.02em;
+	margin: 14px 0 0;
+	max-width: 15ch;
+}
+
+.features-head p {
+	font-size: 16px;
+	color: var(--ink-3);
+	max-width: 42ch;
+	margin: 0;
+}
+
+.feature-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 1px;
+	background: var(--line);
+	border: 1px solid var(--line);
+	border-radius: var(--r-lg);
+	overflow: hidden;
+}
+
+.feature {
+	background: var(--bg-card);
+	padding: 32px 28px 36px;
+	min-height: 240px;
+	transition: background 0.15s var(--ease);
+	display: flex;
+	flex-direction: column;
+}
+
+.feature:hover {
+	background: color-mix(in oklch, var(--bg-card), var(--accent) 4%);
+}
+
+.feature-num {
+	font-family: var(--f-mono);
+	font-size: 11px;
+	color: var(--ink-4);
+	letter-spacing: 0.1em;
+	margin-bottom: 22px;
+}
+
+.feature-glyph {
+	width: 40px;
+	height: 28px;
+	margin-bottom: 20px;
+	display: flex;
+	align-items: flex-end;
+	gap: 2px;
+}
+
+.feature-glyph span {
+	background: var(--ink);
+	border-radius: 1px;
+	display: block;
+}
+
+.feature-glyph span:last-child {
+	background: var(--accent);
+}
+
+.gl-stack span {
+	width: 7px;
+}
+
+.gl-stack span:nth-child(1) {
+	height: 8px;
+	opacity: 0.3;
+}
+
+.gl-stack span:nth-child(2) {
+	height: 14px;
+	opacity: 0.55;
+}
+
+.gl-stack span:nth-child(3) {
+	height: 22px;
+	opacity: 0.75;
+}
+
+.gl-stack span:nth-child(4) {
+	height: 28px;
+}
+
+.gl-pair span {
+	width: 13px;
+}
+
+.gl-pair span:nth-child(1) {
+	height: 20px;
+	opacity: 0.4;
+}
+
+.gl-pair span:nth-child(2) {
+	height: 28px;
+}
+
+.gl-line {
+	align-items: center;
+}
+
+.gl-line span {
+	height: 2px;
+	border-radius: 1px;
+}
+
+.gl-line span:nth-child(1) {
+	width: 18px;
+	opacity: 0.3;
+}
+
+.gl-line span:nth-child(2) {
+	width: 26px;
+	opacity: 0.6;
+}
+
+.gl-line span:nth-child(3) {
+	width: 12px;
+}
+
+.gl-dots {
+	align-items: center;
+}
+
+.gl-dots span {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+}
+
+.gl-dots span:nth-child(1) {
+	opacity: 0.35;
+}
+
+.gl-dots span:nth-child(2) {
+	opacity: 0.6;
+}
+
+.gl-dots span:nth-child(3) {
+	opacity: 0.85;
+}
+
+.gl-diamond {
+	align-items: center;
+	justify-content: center;
+}
+
+.gl-diamond span {
+	width: 14px;
+	height: 14px;
+	transform: rotate(45deg);
+}
+
+.gl-diamond span:nth-child(1) {
+	opacity: 0.35;
+}
+
+.gl-grid {
+	flex-wrap: wrap;
+	width: 28px;
+	height: 28px;
+	gap: 2px;
+}
+
+.gl-grid span {
+	width: 12px;
+	height: 12px;
+	opacity: 0.35;
+}
+
+.gl-grid span:last-child {
+	opacity: 1;
+}
+
+.feature h3 {
+	font-family: var(--f-sans);
+	font-size: 17px;
+	font-weight: 600;
+	margin: 0 0 8px;
+	letter-spacing: -0.01em;
+}
+
+.feature h3 code {
+	font-family: var(--f-mono);
+	font-size: 14px;
+	color: var(--ink);
+	background: var(--bg-soft);
+	padding: 1px 5px;
+	border-radius: 3px;
+}
+
+.feature p {
+	margin: 0;
+	font-size: 14.5px;
+	color: var(--ink-3);
+	line-height: 1.55;
+}
+
+.feature p code {
+	background: var(--bg-soft);
+	padding: 1px 5px;
+	border-radius: 3px;
+	font-size: 12.5px;
+	color: var(--ink-2);
+}
+
+.features-head h2 em {
+	font-style: italic;
+	color: var(--accent-deep);
+}
+
+html.dark .features-head h2 em {
+	color: var(--accent-soft);
 }
 </style>
