@@ -9,9 +9,21 @@ import trackRblxtsHtml from "../../landing/examples/track-rblxts.ts?highlighted"
 type TabId = "config" | "deploy" | "cli";
 type TermId = "diff" | "deploy" | "migrate";
 
+const INSTALL_COMMAND = "pnpm add bedrock";
+const COPIED_RESET_MS = 1200;
+
 const { isDark } = useData();
 const activeTab = ref<TabId>("config");
 const activeTerm = ref<TermId>("diff");
+const copyState = ref<"idle" | "copied">("idle");
+
+async function copyInstall(): Promise<void> {
+	await navigator.clipboard?.writeText(INSTALL_COMMAND);
+	copyState.value = "copied";
+	setTimeout(() => {
+		copyState.value = "idle";
+	}, COPIED_RESET_MS);
+}
 
 const tabs: Array<{ filename: string; id: TabId; label: string }> = [
 	{ filename: "bedrock.config.ts", id: "config", label: "config.ts" },
@@ -520,6 +532,50 @@ function toggleTheme(): void {
 							ROBLOSECURITY, by design.
 						</div>
 						<span class="link link-disabled">roblox.com/open-cloud</span>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section class="cta-band">
+			<div class="wrap">
+				<div class="cta-inner">
+					<div class="eyebrow eyebrow-center">Ready when you are</div>
+					<h2>Build on <em>solid ground.</em></h2>
+					<p>
+						Install the package, wire up an API key, ship your first deploy, all from
+						your terminal, in under five minutes.
+					</p>
+					<div class="cta-ctas">
+						<a class="btn btn-accent" href="/bedrock/guide/getting-started">
+							Get started
+							<svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+								<path
+									d="M2 6H10M10 6L6.5 2.5M10 6L6.5 9.5"
+									stroke="currentColor"
+									stroke-width="1.6"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								/>
+							</svg>
+						</a>
+						<a class="btn btn-ghost" href="https://github.com/christopher-buss/bedrock">
+							View on GitHub
+						</a>
+					</div>
+					<div class="cta-snippet-row">
+						<span class="cta-snippet">
+							<span class="dollar">$</span>
+							{{ INSTALL_COMMAND }}
+							<button
+								class="copy"
+								type="button"
+								aria-label="Copy install command"
+								@click="copyInstall"
+							>
+								{{ copyState === "copied" ? "copied" : "copy" }}
+							</button>
+						</span>
 					</div>
 				</div>
 			</div>
@@ -1950,5 +2006,114 @@ html.dark .install-steps li::before {
 	width: 1px;
 	background: var(--dark-line);
 	justify-self: center;
+}
+
+/* CTA band */
+.cta-band {
+	padding: 120px 0;
+	text-align: center;
+	background: repeating-linear-gradient(
+		180deg,
+		transparent 0 39px,
+		var(--line) 39px 40px
+	);
+}
+
+.cta-inner {
+	background: var(--bg);
+	padding: 64px 40px;
+	border: 1px solid var(--line);
+	border-radius: var(--r-lg);
+	max-width: 760px;
+	margin: 0 auto;
+}
+
+.eyebrow-center {
+	justify-content: center;
+}
+
+.eyebrow-center::after {
+	content: "";
+	width: 18px;
+	height: 1px;
+	background: currentColor;
+}
+
+.cta-inner h2 {
+	font-family: var(--f-serif);
+	font-weight: 400;
+	font-size: clamp(44px, 5vw, 64px);
+	line-height: 1.02;
+	letter-spacing: -0.02em;
+	margin: 18px 0 16px;
+}
+
+.cta-inner h2 em {
+	font-style: italic;
+	color: var(--accent-deep);
+}
+
+html.dark .cta-inner h2 em {
+	color: var(--accent-soft);
+}
+
+.cta-inner p {
+	color: var(--ink-3);
+	font-size: 17px;
+	margin: 0 auto 32px;
+	max-width: 44ch;
+}
+
+.cta-ctas {
+	display: flex;
+	gap: 10px;
+	justify-content: center;
+	flex-wrap: wrap;
+}
+
+.btn-ghost {
+	border-color: var(--line-strong);
+	color: var(--ink-2);
+}
+
+.btn-ghost:hover {
+	border-color: var(--ink);
+	color: var(--ink);
+}
+
+.cta-snippet-row {
+	margin-top: 28px;
+}
+
+.cta-snippet {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 14px 10px 16px;
+	background: var(--bg-card);
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	font-family: var(--f-mono);
+	font-size: 13px;
+	color: var(--ink-2);
+}
+
+.cta-snippet .dollar {
+	color: var(--ink-4);
+}
+
+.cta-snippet .copy {
+	padding: 4px 10px;
+	font-family: var(--f-mono);
+	font-size: 11px;
+	border-radius: 999px;
+	background: var(--bg-soft);
+	color: var(--ink-3);
+	transition: all 0.15s var(--ease);
+}
+
+.cta-snippet .copy:hover {
+	background: var(--ink);
+	color: var(--bg);
 }
 </style>
