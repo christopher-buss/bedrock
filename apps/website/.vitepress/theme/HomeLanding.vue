@@ -4,6 +4,7 @@ import { useData } from "vitepress";
 
 import configHtml from "../../landing/examples/config.ts?highlighted";
 import deployHtml from "../../landing/examples/deploy.ts?highlighted";
+import trackRblxtsHtml from "../../landing/examples/track-rblxts.ts?highlighted";
 
 type TabId = "config" | "deploy" | "cli";
 
@@ -169,6 +170,51 @@ function toggleTheme(): void {
 				</div>
 			</section>
 		</div>
+
+		<section class="tracks">
+			<div class="wrap">
+				<div class="tracks-head">
+					<div>
+						<div class="eyebrow">01 &middot; Two surfaces &middot; one library</div>
+						<h2>One product. <em>Two</em> entry points.</h2>
+					</div>
+					<p>
+						CLI with multi-format config for Luau studios. A typed library for roblox-ts
+						teams. Same functions underneath, neither is a second-class citizen.
+					</p>
+				</div>
+				<div class="tracks-grid">
+					<div class="track">
+						<div class="tag">Luau devs</div>
+						<h3>Config + <em>CLI</em></h3>
+						<p class="lede">
+							YAML, JSON, TypeScript, or JavaScript. Bedrock reads all four. Drop a config
+							in, run <code>bedrock deploy</code>, you're done.
+						</p>
+						<pre class="track-code"><span class="dim"># pick your config format</span>
+<span class="prompt">$</span> bedrock init --format yaml
+<span class="prompt">$</span> bedrock diff     <span class="dim"># preview changes</span>
+<span class="prompt">$</span> bedrock deploy   <span class="dim"># reconcile</span>
+
+<span class="dim"># migrating from Mantle?</span>
+<span class="prompt">$</span> bedrock migrate ./mantle.yml</pre>
+						<div class="track-note">&rarr; <b>bedrock init</b> &middot; <b>diff</b> &middot; <b>deploy</b> &middot; <b>migrate</b></div>
+					</div>
+
+					<div class="track">
+						<div class="tag">roblox-ts devs</div>
+						<h3>Import. <em>Call.</em></h3>
+						<p class="lede">
+							Bedrock is a TypeScript library first. Import <code>deploy</code>,
+							<code>diff</code>, <code>buildDesired</code>. Write drift tests. Script
+							mid-deploy mutations. It's your code.
+						</p>
+						<div class="track-code-shiki" v-html="trackRblxtsHtml" />
+						<div class="track-note">&rarr; public API &middot; typed &middot; semver'd &middot; <b>ResourceDriver&lt;K&gt;</b> plugins</div>
+					</div>
+				</div>
+			</div>
+		</section>
 	</div>
 </template>
 
@@ -671,5 +717,176 @@ html.dark .bedrock-landing {
 
 .cli-dim {
 	color: var(--dark-ink-3);
+}
+
+/* Tracks section */
+.tracks {
+	padding: 110px 0 100px;
+	border-top: 1px solid var(--line);
+}
+
+.tracks-head {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 72px;
+	align-items: end;
+	margin-bottom: 56px;
+}
+
+.tracks-head h2 {
+	font-family: var(--f-serif);
+	font-weight: 400;
+	font-size: clamp(40px, 4.6vw, 60px);
+	line-height: 1.02;
+	letter-spacing: -0.02em;
+	margin: 14px 0 0;
+	max-width: 16ch;
+}
+
+.tracks-head h2 em {
+	font-style: italic;
+	color: var(--accent-deep);
+}
+
+html.dark .tracks-head h2 em {
+	color: var(--accent-soft);
+}
+
+.tracks-head p {
+	font-size: 16px;
+	color: var(--ink-3);
+	max-width: 46ch;
+	margin: 0;
+	align-self: end;
+	line-height: 1.55;
+}
+
+.tracks-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 24px;
+}
+
+.track {
+	background: var(--bg-card);
+	border: 1px solid var(--line);
+	border-radius: var(--r-lg);
+	padding: 32px 32px 28px;
+	position: relative;
+	transition: border-color 0.2s var(--ease);
+}
+
+.track:hover {
+	border-color: var(--line-strong);
+}
+
+.track .tag {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-family: var(--f-mono);
+	font-size: 11px;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--ink-3);
+	margin-bottom: 16px;
+}
+
+.track .tag::before {
+	content: "";
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--accent);
+}
+
+.track h3 {
+	font-family: var(--f-serif);
+	font-weight: 400;
+	font-size: 34px;
+	letter-spacing: -0.015em;
+	margin: 0 0 8px;
+	line-height: 1.05;
+}
+
+.track h3 em {
+	font-style: italic;
+	color: var(--accent-deep);
+}
+
+html.dark .track h3 em {
+	color: var(--accent-soft);
+}
+
+.track p.lede {
+	font-size: 15px;
+	color: var(--ink-3);
+	margin: 0 0 22px;
+	line-height: 1.55;
+	max-width: 42ch;
+}
+
+.track p.lede code {
+	font-family: var(--f-mono);
+	font-size: 13px;
+	color: var(--ink-2);
+	background: var(--bg-soft);
+	padding: 1px 5px;
+	border-radius: 3px;
+}
+
+.track-code {
+	background: var(--dark-bg);
+	color: var(--dark-ink-2);
+	border-radius: var(--r);
+	padding: 18px 20px;
+	font-family: var(--f-mono);
+	font-size: 12.5px;
+	line-height: 1.65;
+	overflow-x: auto;
+	border: 1px solid var(--dark-line);
+	margin: 0;
+}
+
+.track-code .prompt {
+	color: var(--accent-soft);
+}
+
+.track-code .dim {
+	color: var(--dark-ink-3);
+}
+
+.track-code-shiki {
+	background: var(--dark-bg);
+	border-radius: var(--r);
+	border: 1px solid var(--dark-line);
+	overflow: hidden;
+}
+
+.track-code-shiki :deep(pre.shiki) {
+	margin: 0;
+	padding: 18px 20px;
+	background: transparent !important;
+	font-family: var(--f-mono);
+	font-size: 12.5px;
+	line-height: 1.65;
+	overflow-x: auto;
+}
+
+.track-code-shiki :deep(pre.shiki code) {
+	background: transparent;
+}
+
+.track-note {
+	margin-top: 18px;
+	font-family: var(--f-mono);
+	font-size: 11.5px;
+	color: var(--ink-4);
+	letter-spacing: 0.02em;
+}
+
+.track-note b {
+	color: var(--ink-2);
+	font-weight: 500;
 }
 </style>
