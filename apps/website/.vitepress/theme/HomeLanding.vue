@@ -580,6 +580,55 @@ function toggleTheme(): void {
 				</div>
 			</div>
 		</section>
+
+		<footer class="bedrock-foot">
+			<div class="wrap">
+				<div class="foot">
+					<div class="foot-brand">
+						<a class="brand" href="#">
+							<span class="brand-mark">
+								<span /><span /><span /><span />
+							</span>
+							Bedrock
+						</a>
+						<p>
+							Infrastructure-as-Code for Roblox. Typed, Open-Cloud-only, built for
+							studios that ship.
+						</p>
+					</div>
+					<div>
+						<h5>Bedrock</h5>
+						<ul>
+							<li><a href="/bedrock/guide/getting-started">Getting started</a></li>
+							<li><a href="#">Configuration</a></li>
+							<li><a href="#">CLI reference</a></li>
+							<li><a href="#">Migration from Mantle</a></li>
+						</ul>
+					</div>
+					<div>
+						<h5>Ocale</h5>
+						<ul>
+							<li><a href="/ocale/guide/getting-started">Getting started</a></li>
+							<li><a href="#">Resource clients</a></li>
+							<li><a href="/ocale/guide/errors">Error hierarchy</a></li>
+						</ul>
+					</div>
+					<div>
+						<h5>Project</h5>
+						<ul>
+							<li><a href="https://github.com/christopher-buss/bedrock">GitHub</a></li>
+							<li><a href="#">Roadmap</a></li>
+							<li><a href="#">ADRs</a></li>
+							<li><a href="#">Changelog</a></li>
+						</ul>
+					</div>
+				</div>
+				<div class="foot-bottom">
+					<div>&copy; 2026 &middot; MIT Licensed &middot; v0.1</div>
+					<div>built with vitepress</div>
+				</div>
+			</div>
+		</footer>
 	</div>
 </template>
 
@@ -2115,5 +2164,140 @@ html.dark .cta-inner h2 em {
 .cta-snippet .copy:hover {
 	background: var(--ink);
 	color: var(--bg);
+}
+
+/* Footer */
+.bedrock-foot {
+	padding: 72px 0 48px;
+	background: var(--bg-soft);
+	border-top: 1px solid var(--line);
+}
+
+.foot {
+	display: grid;
+	grid-template-columns: 1.4fr 1fr 1fr 1fr;
+	gap: 48px;
+	margin-bottom: 56px;
+}
+
+.foot h5 {
+	font-family: var(--f-mono);
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--ink-3);
+	margin: 0 0 16px;
+}
+
+.foot ul {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.foot li {
+	margin-bottom: 10px;
+}
+
+.foot a {
+	font-size: 14px;
+	color: var(--ink-2);
+	transition: color 0.15s var(--ease);
+}
+
+.foot a:hover {
+	color: var(--ink);
+}
+
+.foot-brand p {
+	font-size: 14px;
+	color: var(--ink-3);
+	max-width: 34ch;
+	margin: 14px 0 0;
+	line-height: 1.55;
+}
+
+.foot-bottom {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding-top: 28px;
+	border-top: 1px solid var(--line);
+	font-size: 12px;
+	color: var(--ink-4);
+	font-family: var(--f-mono);
+}
+
+/* Responsive */
+@media (max-width: 960px) {
+	.hero-inner,
+	.tracks-head,
+	.tracks-grid,
+	.eco-head,
+	.install-grid,
+	.foot,
+	.pipeline-steps {
+		grid-template-columns: 1fr;
+		gap: 40px;
+	}
+
+	.pipeline-steps::before {
+		display: none;
+	}
+
+	.pstep {
+		border-right: 0;
+		border-bottom: 1px solid var(--line);
+	}
+
+	.pstep:last-child {
+		border-bottom: 0;
+	}
+
+	.features-head {
+		flex-direction: column;
+		align-items: start;
+	}
+
+	.feature-grid {
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.nav-links {
+		display: none;
+	}
+
+	.eco-layer {
+		grid-template-columns: 1fr;
+		gap: 14px;
+	}
+
+	.eco-layer a.link {
+		justify-self: start;
+	}
+}
+
+@media (max-width: 640px) {
+	.wrap {
+		padding: 0 20px;
+	}
+
+	.feature-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.bedrock-landing .hero-inner {
+		padding: 56px 16px 64px;
+	}
+
+	.pipeline,
+	.tracks,
+	.features,
+	.install,
+	.ecosystem,
+	.cta-band {
+		padding: 72px 0;
+	}
 }
 </style>
