@@ -440,6 +440,90 @@ function toggleTheme(): void {
 				</div>
 			</div>
 		</section>
+
+		<section id="ecosystem" class="ecosystem">
+			<div class="strata" aria-hidden="true">
+				<div class="band" style="top: 20%" />
+				<div class="band" style="top: 52%" />
+				<div class="band" style="top: 82%" />
+			</div>
+			<div class="wrap">
+				<div class="eco-head">
+					<div>
+						<div class="eyebrow on-dark">05 &middot; The stack</div>
+						<h2>Two layers. <em>One</em> foundation.</h2>
+					</div>
+					<p>
+						Bedrock sits on <code>@bedrock-rbx/ocale</code>, the typed Open Cloud SDK. Use
+						Bedrock for declarative deploys, or drop down to Ocale for one-off API calls.
+						Same types. Same error model.
+					</p>
+				</div>
+
+				<div class="eco-stack">
+					<div class="eco-layer">
+						<div>
+							<div class="name">Bedrock</div>
+							<div class="role">Declarative &middot; reconciler</div>
+						</div>
+						<div class="desc">
+							The IaC surface. Takes your <code>defineConfig</code>, computes a plan,
+							applies it through drivers. CLI and library, same API.
+						</div>
+						<a class="link" href="/bedrock/guide/getting-started">
+							/bedrock/guide
+							<svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+								<path
+									d="M2 6H10M10 6L6.5 2.5M10 6L6.5 9.5"
+									stroke="currentColor"
+									stroke-width="1.6"
+									stroke-linecap="round"
+								/>
+							</svg>
+						</a>
+					</div>
+
+					<div class="eco-connector" />
+
+					<div class="eco-layer">
+						<div>
+							<div class="name">Ocale</div>
+							<div class="role">Imperative &middot; Open Cloud SDK</div>
+						</div>
+						<div class="desc">
+							Typed clients for Open Cloud resources. Every method returns
+							<code>Result&lt;T, OpenCloudError&gt;</code>. Use it directly when you want
+							imperative control.
+						</div>
+						<a class="link" href="/ocale/guide/getting-started">
+							/ocale/guide
+							<svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+								<path
+									d="M2 6H10M10 6L6.5 2.5M10 6L6.5 9.5"
+									stroke="currentColor"
+									stroke-width="1.6"
+									stroke-linecap="round"
+								/>
+							</svg>
+						</a>
+					</div>
+
+					<div class="eco-connector" />
+
+					<div class="eco-layer eco-layer-base">
+						<div>
+							<div class="name">Open Cloud</div>
+							<div class="role">Roblox &middot; platform API</div>
+						</div>
+						<div class="desc">
+							The bedrock under the bedrock. The only supported auth surface, no
+							ROBLOSECURITY, by design.
+						</div>
+						<span class="link link-disabled">roblox.com/open-cloud</span>
+					</div>
+				</div>
+			</div>
+		</section>
 	</div>
 </template>
 
@@ -1677,5 +1761,194 @@ html.dark .install-steps li::before {
 
 .term-plus {
 	color: #9dc18a;
+}
+
+/* Ecosystem section */
+.ecosystem {
+	padding: 120px 0;
+	background: var(--dark-bg);
+	color: var(--dark-ink);
+	border-bottom: 1px solid var(--dark-line);
+	position: relative;
+	overflow: hidden;
+}
+
+.ecosystem .strata {
+	position: absolute;
+	inset: 0;
+	opacity: 0.4;
+	pointer-events: none;
+}
+
+.ecosystem .strata .band {
+	position: absolute;
+	left: 0;
+	right: 0;
+	border-top: 1px solid var(--dark-line);
+}
+
+.eco-head {
+	position: relative;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 72px;
+	margin-bottom: 56px;
+}
+
+.eco-head h2 {
+	font-family: var(--f-serif);
+	font-weight: 400;
+	font-size: clamp(40px, 4.6vw, 60px);
+	line-height: 1.02;
+	letter-spacing: -0.02em;
+	margin: 14px 0 0;
+	color: var(--dark-ink);
+}
+
+.eco-head h2 em {
+	font-style: italic;
+	color: var(--accent-soft);
+}
+
+.eco-head p {
+	color: var(--dark-ink-2);
+	font-size: 16px;
+	margin: 0;
+	max-width: 46ch;
+	line-height: 1.55;
+	align-self: end;
+}
+
+.eco-head p code {
+	color: var(--accent-soft);
+	background: rgba(255, 255, 255, 0.05);
+	padding: 1px 6px;
+	border-radius: 3px;
+	font-family: var(--f-mono);
+	font-size: 14px;
+}
+
+.eco-stack {
+	position: relative;
+	display: grid;
+	gap: 14px;
+	max-width: 820px;
+	margin: 0 auto;
+}
+
+.eco-layer {
+	background: var(--dark-bg-2);
+	border: 1px solid var(--dark-line);
+	border-radius: var(--r-lg);
+	padding: 28px 32px;
+	display: grid;
+	grid-template-columns: 220px 1fr auto;
+	gap: 32px;
+	align-items: center;
+	transition: all 0.2s var(--ease);
+}
+
+.eco-layer:hover {
+	border-color: color-mix(in oklch, var(--accent) 45%, var(--dark-line));
+	transform: translateX(4px);
+}
+
+.eco-layer-base {
+	opacity: 0.78;
+}
+
+.eco-layer-base:hover {
+	transform: none;
+	border-color: var(--dark-line);
+}
+
+.eco-layer .name {
+	font-family: var(--f-serif);
+	font-weight: 400;
+	font-size: 32px;
+	letter-spacing: -0.015em;
+	color: var(--dark-ink);
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.eco-layer .name::before {
+	content: "";
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--accent);
+}
+
+.eco-layer-base .name {
+	color: var(--dark-ink-3);
+}
+
+.eco-layer-base .name::before {
+	background: var(--dark-ink-3);
+}
+
+.eco-layer .role {
+	font-family: var(--f-mono);
+	font-size: 11px;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--dark-ink-3);
+	margin-top: 4px;
+}
+
+.eco-layer .desc {
+	font-size: 14.5px;
+	color: var(--dark-ink-2);
+	line-height: 1.55;
+	max-width: 52ch;
+}
+
+.eco-layer-base .desc {
+	color: var(--dark-ink-3);
+}
+
+.eco-layer .desc code {
+	color: var(--accent-soft);
+	background: rgba(255, 255, 255, 0.05);
+	padding: 1px 6px;
+	border-radius: 3px;
+	font-family: var(--f-mono);
+	font-size: 13px;
+}
+
+.eco-layer a.link {
+	font-family: var(--f-mono);
+	font-size: 12px;
+	color: var(--accent-soft);
+	white-space: nowrap;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 14px;
+	border: 1px solid var(--dark-line);
+	border-radius: 999px;
+	transition: all 0.15s var(--ease);
+}
+
+.eco-layer a.link:hover {
+	border-color: var(--accent-soft);
+	background: rgba(230, 180, 114, 0.06);
+}
+
+.eco-layer .link-disabled {
+	font-family: var(--f-mono);
+	font-size: 12px;
+	color: var(--dark-ink-3);
+	white-space: nowrap;
+	padding: 8px 14px;
+}
+
+.eco-connector {
+	height: 18px;
+	width: 1px;
+	background: var(--dark-line);
+	justify-self: center;
 }
 </style>
