@@ -44,6 +44,7 @@ const config: KnipConfig = {
 				"scripts/**/*.ts",
 				"src/**/index.ts",
 				"tests/helpers/index.ts",
+				"tests/helpers/lite.ts",
 			],
 		},
 		"packages/testing": {},
