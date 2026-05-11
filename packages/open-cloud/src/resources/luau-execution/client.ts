@@ -118,9 +118,10 @@ export interface TasksHandle {
 		options?: RequestOptions,
 	): Promise<Result<LogPage, OpenCloudError>>;
 	/**
-	 * Polls `tasks.get` with `view=BASIC` on a fixed backoff until the task
-	 * reaches a terminal state, the wall-clock budget is exhausted, or the
-	 * supplied `AbortSignal` fires. Returns the terminal task on success.
+	 * Polls `tasks.get` with `view=BASIC` on a configurable backoff schedule
+	 * until the task reaches a terminal state, the wall-clock budget is
+	 * exhausted, or the supplied `AbortSignal` fires. Returns the terminal
+	 * task on success.
 	 *
 	 * @param ref - Reference to the task to poll, typically returned by `submit`.
 	 * @param options - Polling and per-request overrides.

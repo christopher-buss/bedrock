@@ -29,7 +29,7 @@ export interface PollAbortedErrorOptions extends ErrorOptions {
  */
 export class PollAbortedError extends OpenCloudError {
 	public override readonly name: string = "PollAbortedError";
-	public readonly reason: unknown;
+	public readonly reason?: unknown;
 
 	/**
 	 * Creates a new PollAbortedError.
