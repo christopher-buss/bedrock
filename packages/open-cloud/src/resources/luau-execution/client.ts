@@ -34,7 +34,8 @@ import {
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import { type PollDeps, pollUntilDoneCore, type PollUntilDoneOptions } from "./polling.ts";
+import { buildPollDeps, submitAndPoll } from "./polling-helpers.ts";
+import { pollUntilDoneCore, type PollUntilDoneOptions } from "./polling.ts";
 
 function makeSpec<P, R>(spec: ResourceMethodSpec<P, R>): ResourceMethodSpec<P, R> {
 	return Object.freeze(spec);
@@ -204,44 +205,6 @@ function createBinaryInputsHandle(inner: ResourceClient): BinaryInputsHandle {
 			return inner.execute({ options, parameters, spec: CREATE_BINARY_INPUT_SPEC });
 		},
 	};
-}
-
-function buildPollDeps(
-	inner: ResourceClient,
-	args: { options: PollUntilDoneOptions; ref: LuauExecutionTaskRef },
-): PollDeps {
-	return {
-		fetch: async () => {
-			return inner.execute({
-				options: args.options,
-				parameters: { ref: args.ref, view: "BASIC" },
-				spec: GET_SPEC,
-			});
-		},
-		now: Date.now,
-		sleep: inner.sleep,
-	};
-}
-
-async function submitAndPoll(
-	inner: ResourceClient,
-	args: {
-		options: PollUntilDoneOptions;
-		parameters: SubmitAtHeadParameters | SubmitAtVersionParameters;
-	},
-): Promise<Result<LuauExecutionTask, OpenCloudError>> {
-	const { options, parameters } = args;
-	const submitResult = await ("versionId" in parameters
-		? inner.execute({ options, parameters, spec: SUBMIT_VERSION_SPEC })
-		: inner.execute({ options, parameters, spec: SUBMIT_HEAD_SPEC }));
-	if (!submitResult.success) {
-		return submitResult;
-	}
-
-	return pollUntilDoneCore(
-		buildPollDeps(inner, { options, ref: submitResult.data.ref }),
-		options,
-	);
 }
 
 function createTasksHandle(inner: ResourceClient): TasksHandle {

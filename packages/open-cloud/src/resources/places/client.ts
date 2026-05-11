@@ -34,11 +34,8 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import { ResourceClient, type ResourceMethodSpec } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import {
-	type PollDeps,
-	pollUntilDoneCore,
-	type PollUntilDoneOptions,
-} from "../luau-execution/polling.ts";
+import { buildPollDeps, submitAndPoll } from "../luau-execution/polling-helpers.ts";
+import { pollUntilDoneCore, type PollUntilDoneOptions } from "../luau-execution/polling.ts";
 
 /**
  * Operation Group exposed by {@link PlacesClient} as the
@@ -259,44 +256,6 @@ export class PlacesClient {
 	): Promise<Result<Place, OpenCloudError>> {
 		return this.#inner.execute({ options, parameters, spec: UPDATE_SPEC });
 	}
-}
-
-function buildPollDeps(
-	inner: ResourceClient,
-	args: { options: PollUntilDoneOptions; ref: LuauExecutionTaskRef },
-): PollDeps {
-	return {
-		fetch: async () => {
-			return inner.execute({
-				options: args.options,
-				parameters: { ref: args.ref, view: "BASIC" },
-				spec: GET_SPEC,
-			});
-		},
-		now: Date.now,
-		sleep: inner.sleep,
-	};
-}
-
-async function submitAndPoll(
-	inner: ResourceClient,
-	args: {
-		options: PollUntilDoneOptions;
-		parameters: SubmitAtHeadParameters | SubmitAtVersionParameters;
-	},
-): Promise<Result<LuauExecutionTask, OpenCloudError>> {
-	const { options, parameters } = args;
-	const submitResult = await ("versionId" in parameters
-		? inner.execute({ options, parameters, spec: SUBMIT_VERSION_SPEC })
-		: inner.execute({ options, parameters, spec: SUBMIT_HEAD_SPEC }));
-	if (!submitResult.success) {
-		return submitResult;
-	}
-
-	return pollUntilDoneCore(
-		buildPollDeps(inner, { options, ref: submitResult.data.ref }),
-		options,
-	);
 }
 
 function createLuauExecutionHandle(inner: ResourceClient): LuauExecutionHandle {
