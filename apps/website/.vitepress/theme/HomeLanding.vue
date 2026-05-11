@@ -7,9 +7,11 @@ import deployHtml from "../../landing/examples/deploy.ts?highlighted";
 import trackRblxtsHtml from "../../landing/examples/track-rblxts.ts?highlighted";
 
 type TabId = "config" | "deploy" | "cli";
+type TermId = "diff" | "deploy" | "migrate";
 
 const { isDark } = useData();
 const activeTab = ref<TabId>("config");
+const activeTerm = ref<TermId>("diff");
 
 const tabs: Array<{ filename: string; id: TabId; label: string }> = [
 	{ filename: "bedrock.config.ts", id: "config", label: "config.ts" },
@@ -332,6 +334,108 @@ function toggleTheme(): void {
 							flags anything unsupported, and writes a Bedrock config you can diff before
 							deploying.
 						</p>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section id="install" class="install">
+			<div class="wrap install-grid">
+				<div class="install-copy">
+					<div class="eyebrow">04 &middot; Quickstart</div>
+					<h2>Five minutes, <em>one</em> deploy.</h2>
+					<p>
+						Install the package, point it at a universe, run <code>deploy</code>. Bedrock
+						plans before it touches anything, you always see the diff first.
+					</p>
+					<ol class="install-steps">
+						<li>
+							<div>
+								<b>Install</b><code>pnpm add bedrock</code> (or <code>npm</code> /
+								<code>bun</code> / <code>yarn</code>)
+							</div>
+						</li>
+						<li>
+							<div>
+								<b>Authenticate</b>Export <code>ROBLOX_API_KEY</code> from an Open Cloud
+								key with write scopes.
+							</div>
+						</li>
+						<li>
+							<div>
+								<b>Scaffold</b>Run <code>bedrock init</code>, pick TS, YAML, or JSON.
+							</div>
+						</li>
+						<li>
+							<div>
+								<b>Plan</b><code>bedrock diff</code> shows what'll change before anything moves.
+							</div>
+						</li>
+						<li>
+							<div>
+								<b>Apply</b><code>bedrock deploy</code> reconciles. Rerun any time; nothing
+								unchanged is touched.
+							</div>
+						</li>
+					</ol>
+				</div>
+
+				<div class="terminal">
+					<div class="term-head">
+						<div class="term-lights"><span /><span /><span /></div>
+						<span>~/strata</span>
+						<div class="term-tabs">
+							<button
+								v-for="term in ['diff', 'deploy', 'migrate'] as const"
+								:key="term"
+								:class="['term-tab', { active: activeTerm === term }]"
+								@click="activeTerm = term"
+							>
+								{{ term }}
+							</button>
+						</div>
+					</div>
+					<div class="term-body">
+						<div v-show="activeTerm === 'diff'" class="term-pane">
+							<div><span class="term-prompt">$</span> bedrock diff</div>
+							<div class="term-dim">Loading bedrock.config.ts ...</div>
+							<div class="term-dim">Fetching current state (gist:bedrock-state) ...</div>
+							<div>&nbsp;</div>
+							<div>Plan:<span class="term-dim"> 4 to change</span></div>
+							<div>  <span class="term-plus">+ create</span>   gamePass.vip-pass      <span class="term-dim">(new)</span></div>
+							<div>  <span class="term-warn">~ update</span>   gamePass.early-access  <span class="term-dim">(price: 300 -> 250)</span></div>
+							<div>  <span class="term-warn">~ update</span>   experience.config      <span class="term-dim">(3 fields)</span></div>
+							<div>  <span class="term-dim">. noop</span>     product.coins_100</div>
+							<div>&nbsp;</div>
+							<div class="term-dim">No changes will be applied. Run `bedrock deploy` to reconcile.</div>
+						</div>
+
+						<div v-show="activeTerm === 'deploy'" class="term-pane">
+							<div><span class="term-prompt">$</span> bedrock deploy</div>
+							<div class="term-dim">Plan shown above. Apply? [y/N]</div>
+							<div><span class="term-prompt">y</span></div>
+							<div>&nbsp;</div>
+							<div><span class="term-ok">v</span> gamePass.vip-pass       <span class="term-dim">created (id 987654321)</span></div>
+							<div><span class="term-ok">v</span> gamePass.early-access   <span class="term-dim">price updated</span></div>
+							<div><span class="term-ok">v</span> experience.config       <span class="term-dim">3 fields</span></div>
+							<div class="term-dim">. product.coins_100         unchanged</div>
+							<div>&nbsp;</div>
+							<div><span class="term-ok">Succeeded</span> in 4.1s <span class="term-dim">1 create, 2 update, 1 noop</span></div>
+							<div class="term-dim">State written to gist:bedrock-state</div>
+						</div>
+
+						<div v-show="activeTerm === 'migrate'" class="term-pane">
+							<div><span class="term-prompt">$</span> bedrock migrate ./mantle.yml</div>
+							<div class="term-dim">Reading Mantle config ...</div>
+							<div>&nbsp;</div>
+							<div><span class="term-ok">v</span> experience       <span class="term-dim">mapped</span></div>
+							<div><span class="term-ok">v</span> 3 game passes   <span class="term-dim">mapped</span></div>
+							<div><span class="term-warn">!</span> social-link     <span class="term-dim">unsupported in Open Cloud, skipped</span></div>
+							<div><span class="term-warn">!</span> badge.welcome   <span class="term-dim">deferred to v1.0</span></div>
+							<div>&nbsp;</div>
+							<div><span class="term-dim">Wrote</span> bedrock.config.ts</div>
+							<div><span class="term-dim">Next:</span> bedrock diff</div>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -1386,5 +1490,192 @@ html.dark .pstep-num {
 
 html.dark .features-head h2 em {
 	color: var(--accent-soft);
+}
+
+/* Quickstart / install section */
+.install {
+	padding: 110px 0;
+	background: var(--bg-soft);
+	border-bottom: 1px solid var(--line);
+}
+
+.install-grid {
+	display: grid;
+	grid-template-columns: 1fr 1.2fr;
+	gap: 72px;
+	align-items: start;
+}
+
+.install-copy h2 {
+	font-family: var(--f-serif);
+	font-weight: 400;
+	font-size: clamp(40px, 4.6vw, 54px);
+	line-height: 1.02;
+	letter-spacing: -0.02em;
+	margin: 14px 0 16px;
+}
+
+.install-copy h2 em {
+	font-style: italic;
+	color: var(--accent-deep);
+}
+
+html.dark .install-copy h2 em {
+	color: var(--accent-soft);
+}
+
+.install-copy p {
+	font-size: 16px;
+	color: var(--ink-2);
+	margin: 0 0 24px;
+	max-width: 42ch;
+	line-height: 1.55;
+}
+
+.install-copy p code {
+	font-family: var(--f-mono);
+	font-size: 14px;
+	color: var(--ink-2);
+	background: var(--bg-card);
+	padding: 1px 5px;
+	border-radius: 3px;
+	border: 1px solid var(--line);
+}
+
+.install-steps {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	counter-reset: step;
+}
+
+.install-steps li {
+	display: flex;
+	gap: 14px;
+	padding: 12px 0;
+	border-top: 1px solid var(--line);
+	font-size: 14.5px;
+	color: var(--ink-2);
+	counter-increment: step;
+}
+
+.install-steps li:last-child {
+	border-bottom: 1px solid var(--line);
+}
+
+.install-steps li::before {
+	content: counter(step, decimal-leading-zero);
+	font-family: var(--f-mono);
+	font-size: 11px;
+	color: var(--accent-deep);
+	letter-spacing: 0.08em;
+	min-width: 28px;
+	padding-top: 2px;
+	font-weight: 500;
+}
+
+html.dark .install-steps li::before {
+	color: var(--accent-soft);
+}
+
+.install-steps li b {
+	color: var(--ink);
+	font-weight: 600;
+	display: block;
+	margin-bottom: 2px;
+}
+
+.install-steps li code {
+	font-family: var(--f-mono);
+	font-size: 12.5px;
+	color: var(--ink-2);
+	background: var(--bg-card);
+	padding: 1px 5px;
+	border-radius: 3px;
+	border: 1px solid var(--line);
+}
+
+.terminal {
+	background: var(--dark-bg);
+	border: 1px solid var(--dark-line);
+	border-radius: var(--r-lg);
+	overflow: hidden;
+	font-family: var(--f-mono);
+	font-size: 12.5px;
+	box-shadow: 0 18px 56px -20px rgba(0, 0, 0, 0.35);
+}
+
+.term-head {
+	padding: 11px 14px;
+	border-bottom: 1px solid var(--dark-line);
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	color: var(--dark-ink-3);
+	font-size: 12px;
+}
+
+.term-lights {
+	display: flex;
+	gap: 6px;
+	margin-right: 8px;
+}
+
+.term-lights span {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background: var(--dark-line);
+}
+
+.term-tabs {
+	margin-left: auto;
+	display: flex;
+	gap: 2px;
+}
+
+.term-tab {
+	padding: 4px 10px;
+	font-size: 11px;
+	color: var(--dark-ink-3);
+	border-radius: 4px;
+	transition: all 0.15s var(--ease);
+}
+
+.term-tab.active {
+	background: rgba(255, 255, 255, 0.05);
+	color: var(--dark-ink);
+}
+
+.term-body {
+	padding: 20px;
+	color: var(--dark-ink-2);
+	line-height: 1.75;
+	max-height: 440px;
+	overflow-y: auto;
+}
+
+.term-pane > div {
+	white-space: pre;
+}
+
+.term-prompt {
+	color: var(--accent-soft);
+}
+
+.term-dim {
+	color: var(--dark-ink-3);
+}
+
+.term-ok {
+	color: #9dc18a;
+}
+
+.term-warn {
+	color: #e6b472;
+}
+
+.term-plus {
+	color: #9dc18a;
 }
 </style>
