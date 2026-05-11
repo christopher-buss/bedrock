@@ -1104,7 +1104,7 @@ html.dark .bedrock-landing {
 	grid-template-columns: 1.05fr 1fr;
 	gap: 56px;
 	align-items: start;
-	padding: 80px 16px 88px;
+	padding: 80px 48px 88px;
 }
 
 .hero-text h1 {
@@ -1182,8 +1182,10 @@ html.dark .bedrock-landing {
 
 .code-head {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
+	gap: 12px;
 	padding: 12px 16px;
 	border-bottom: 1px solid var(--dark-line);
 	background: rgba(255, 255, 255, 0.02);
@@ -1207,7 +1209,7 @@ html.dark .bedrock-landing {
 
 .code-tabs {
 	display: flex;
-	gap: 2px;
+	gap: 6px;
 	font-family: var(--f-mono);
 	font-size: 12px;
 }
@@ -1240,6 +1242,8 @@ html.dark .bedrock-landing {
 	font-family: var(--f-mono);
 	font-size: 13px;
 	line-height: 1.7;
+	tab-size: 4;
+	-moz-tab-size: 4;
 	overflow-x: auto;
 }
 
@@ -1409,6 +1413,8 @@ html.dark .bedrock-landing {
 	font-family: var(--f-mono);
 	font-size: 12.5px;
 	line-height: 1.65;
+	tab-size: 4;
+	-moz-tab-size: 4;
 	overflow-x: auto;
 }
 

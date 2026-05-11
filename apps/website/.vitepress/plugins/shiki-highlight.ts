@@ -2,8 +2,10 @@ import { readFile } from "node:fs/promises";
 import { createHighlighter, type Highlighter } from "shiki";
 import type { Plugin } from "vite";
 
+import { BEDROCK_WARM } from "./shiki-theme.ts";
+
 const QUERY = "?highlighted";
-const THEME = "vitesse-dark";
+const THEME = "bedrock-warm";
 
 let highlighterPromise: Promise<Highlighter> | undefined;
 
@@ -48,7 +50,7 @@ export function shikiHighlightPlugin(): Plugin {
 async function getHighlighter(): Promise<Highlighter> {
 	highlighterPromise ??= createHighlighter({
 		langs: ["typescript", "bash"],
-		themes: [THEME],
+		themes: [BEDROCK_WARM],
 	});
 	return highlighterPromise;
 }
