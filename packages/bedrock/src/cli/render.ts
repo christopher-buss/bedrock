@@ -14,6 +14,26 @@ import type { ParseOptionsError } from "./parse-options.ts";
 /**
  * Output port the CLI renders through. Mirrors the subset of `@clack/prompts`
  * the bedrock CLI uses today; tests inject a fake to assert what was rendered.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { ClackPort } from "@bedrock-rbx/core";
+ *
+ * const lines: Array<string> = [];
+ * const port: ClackPort = {
+ *     cancel: (message) => lines.push(`cancel: ${message}`),
+ *     intro: (message) => lines.push(`intro: ${message}`),
+ *     logError: (message) => lines.push(`error: ${message}`),
+ *     logMessage: (message) => lines.push(`log: ${message}`),
+ *     logSuccess: (message) => lines.push(`ok: ${message}`),
+ *     outro: (message) => lines.push(`outro: ${message}`),
+ * };
+ *
+ * port.logSuccess("done");
+ *
+ * expect(lines).toEqual(["ok: done"]);
+ * ```
  */
 export interface ClackPort {
 	/** End an interactive flow with a cancellation marker. */
@@ -74,6 +94,17 @@ export function renderParseError(err: ParseOptionsError, port: ClackPort): void 
 /**
  * Construct a `ClackPort` whose methods delegate to `@clack/prompts`. The
  * resulting port writes to `process.stdout` via clack's defaults.
+ *
+ * @example
+ *
+ * ```ts
+ * import { createClackPort } from "@bedrock-rbx/core";
+ *
+ * const port = createClackPort();
+ *
+ * expect(typeof port.logSuccess).toBe("function");
+ * ```
+ *
  * @returns A port whose six methods each invoke the matching clack helper.
  */
 export function createClackPort(): ClackPort {

@@ -1,4 +1,8 @@
 export {
+	createClackProgressAdapter,
+	type ClackProgressAdapterDeps,
+} from "./adapters/clack-progress-adapter.ts";
+export {
 	createDeveloperProductDriver,
 	type DeveloperProductDriverDeps,
 } from "./adapters/developer-product-driver.ts";
@@ -7,8 +11,11 @@ export {
 	createGistStateAdapter,
 	type GistStateAdapterDeps,
 } from "./adapters/gist-state-adapter.ts";
+export { createNoOpProgressAdapter } from "./adapters/no-op-progress-adapter.ts";
 export { createPlaceDriver, type PlaceDriverDeps } from "./adapters/place-driver.ts";
 export { createUniverseDriver, type UniverseDriverDeps } from "./adapters/universe-driver.ts";
+export type { ClackPort } from "./cli/render.ts";
+export { createClackPort } from "./cli/render.ts";
 export type { ConfigError, ConfigValidationIssue } from "./core/config-error.ts";
 export { derivePriceFields, type PriceFields } from "./core/derive-price-fields.ts";
 export { diff } from "./core/diff.ts";
@@ -95,6 +102,12 @@ export {
 export { parseStateFile, serializeStateFile } from "./core/state-file.ts";
 export type { BedrockState, StateError } from "./core/state.ts";
 export { validatePlan } from "./core/validate-plan.ts";
+export type {
+	DeployFailureEvent,
+	DeploySuccessEvent,
+	ProgressEvent,
+	ProgressPort,
+} from "./ports/progress-port.ts";
 export type { DriverRegistry, ResourceDriver } from "./ports/resource-driver.ts";
 export type { StatePort } from "./ports/state-port.ts";
 export { applyOps } from "./shell/apply-ops.ts";
