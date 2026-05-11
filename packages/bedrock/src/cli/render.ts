@@ -1,5 +1,4 @@
 import { PermissionError } from "@bedrock-rbx/ocale";
-import { cancel, intro, log, outro } from "@clack/prompts";
 
 import type { ConfigError } from "../core/config-error.ts";
 import type { MigrateError, MigrationSummary } from "../core/migrate/migration-report.ts";
@@ -89,45 +88,6 @@ export function renderDeployError(err: DeployError, port: ClackPort): void {
  */
 export function renderParseError(err: ParseOptionsError, port: ClackPort): void {
 	port.logError(parseErrorMessage(err));
-}
-
-/**
- * Construct a `ClackPort` whose methods delegate to `@clack/prompts`. The
- * resulting port writes to `process.stdout` via clack's defaults.
- *
- * @example
- *
- * ```ts
- * import { createClackPort } from "@bedrock-rbx/core";
- *
- * const port = createClackPort();
- *
- * expect(typeof port.logSuccess).toBe("function");
- * ```
- *
- * @returns A port whose six methods each invoke the matching clack helper.
- */
-export function createClackPort(): ClackPort {
-	return {
-		cancel: (message) => {
-			cancel(message);
-		},
-		intro: (message) => {
-			intro(message);
-		},
-		logError: (message) => {
-			log.error(message);
-		},
-		logMessage: (message) => {
-			log.message(message);
-		},
-		logSuccess: (message) => {
-			log.success(message);
-		},
-		outro: (message) => {
-			outro(message);
-		},
-	};
 }
 
 /**

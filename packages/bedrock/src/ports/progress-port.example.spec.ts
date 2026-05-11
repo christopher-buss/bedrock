@@ -3,10 +3,10 @@ import { expect, it } from "vitest";
 import type { ProgressEvent, ProgressPort } from '@bedrock-rbx/core'
 
 it('Example 1', () => {
-  const received: Array<ProgressEvent> = []
+  let received: ReadonlyArray<ProgressEvent> = []
   const port: ProgressPort = {
     emit(event) {
-      received.push(event)
+      received = [...received, event]
     },
   }
   port.emit({

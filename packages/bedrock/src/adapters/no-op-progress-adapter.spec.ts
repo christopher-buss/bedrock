@@ -1,25 +1,16 @@
 import { describe, expect, it } from "vitest";
 
+import type { ProgressEvent } from "../ports/progress-port.ts";
 import { createNoOpProgressAdapter } from "./no-op-progress-adapter.ts";
 
 describe(createNoOpProgressAdapter, () => {
-	it("should drop a deploySuccess event without throwing", () => {
-		expect.assertions(1);
-
-		const port = createNoOpProgressAdapter();
-
-		expect(() => {
-			port.emit({ environment: "production", kind: "deploySuccess", resourceCount: 3 });
-		}).not.toThrow();
-	});
-
-	it("should drop a deployFailure event without throwing", () => {
-		expect.assertions(1);
-
-		const port = createNoOpProgressAdapter();
-
-		expect(() => {
-			port.emit({
+	it.for<{ event: ProgressEvent; label: string }>([
+		{
+			event: { environment: "production", kind: "deploySuccess", resourceCount: 3 },
+			label: "deploySuccess",
+		},
+		{
+			event: {
 				environment: "production",
 				error: {
 					declared: ["production"],
@@ -27,7 +18,16 @@ describe(createNoOpProgressAdapter, () => {
 					kind: "unknownEnvironment",
 				},
 				kind: "deployFailure",
-			});
+			},
+			label: "deployFailure",
+		},
+	])("should drop a $label event without throwing", ({ event }) => {
+		expect.assertions(1);
+
+		const port = createNoOpProgressAdapter();
+
+		expect(() => {
+			port.emit(event);
 		}).not.toThrow();
 	});
 

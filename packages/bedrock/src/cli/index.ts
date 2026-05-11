@@ -14,7 +14,7 @@ import { migrateCommand } from "./commands/migrate.ts";
 import type { MigratePromptPort } from "./migrate-prompt-port.ts";
 import type { ClackPort } from "./render.ts";
 
-export { createClackPort } from "./render.ts";
+export { createClackPort } from "./clack-port.ts";
 
 const PROGRAM_NAME = "bedrock";
 const PROGRAM_DESCRIBE = "Infrastructure-as-Code deployment tool for Roblox";

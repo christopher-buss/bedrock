@@ -8,11 +8,12 @@ import {
 	loadConfig as defaultLoadConfig,
 	type LoadConfigOptions,
 } from "../../shell/load-config.ts";
+import { createClackPort } from "../clack-port.ts";
 import { buildCredentialOverrides } from "../credential-environment-overrides.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps } from "../index.ts";
 import { type CommonOptions, parseCommonOptions } from "../parse-options.ts";
-import { type ClackPort, createClackPort, renderDeployError, renderParseError } from "../render.ts";
+import { type ClackPort, renderDeployError, renderParseError } from "../render.ts";
 
 interface ResolvedDeploy {
 	readonly clack: ClackPort;

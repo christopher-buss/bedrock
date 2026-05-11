@@ -354,10 +354,10 @@ describe(deployCommand, () => {
 		async ({ deployResult, env, expectedEvent }) => {
 			expect.assertions(1);
 
-			const events: Array<ProgressEvent> = [];
+			let events: ReadonlyArray<ProgressEvent> = [];
 			const progress: ProgressPort = {
 				emit(event) {
-					events.push(event);
+					events = [...events, event];
 				},
 			};
 			const loadConfig = fakeLoad({ data: sampleConfig, success: true });

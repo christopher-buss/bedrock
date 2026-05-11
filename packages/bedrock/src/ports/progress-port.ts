@@ -47,10 +47,10 @@ export type ProgressEvent = DeployFailureEvent | DeploySuccessEvent;
  * ```ts
  * import type { ProgressEvent, ProgressPort } from "@bedrock-rbx/core";
  *
- * const received: Array<ProgressEvent> = [];
+ * let received: ReadonlyArray<ProgressEvent> = [];
  * const port: ProgressPort = {
  *     emit(event) {
- *         received.push(event);
+ *         received = [...received, event];
  *     },
  * };
  *
