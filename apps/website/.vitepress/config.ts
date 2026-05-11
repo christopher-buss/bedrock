@@ -13,6 +13,17 @@ const IS_PREVIEW_CHANNEL = process.env["BEDROCK_DOCS_CHANNEL"] === "next";
 export default defineConfig({
 	cleanUrls: true,
 	description: "Infrastructure-as-Code for Roblox",
+	head: [
+		["link", { href: "https://fonts.googleapis.com", rel: "preconnect" }],
+		["link", { crossorigin: "", href: "https://fonts.gstatic.com", rel: "preconnect" }],
+		[
+			"link",
+			{
+				href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap",
+				rel: "stylesheet",
+			},
+		],
+	],
 	lastUpdated: true,
 	locales: {
 		root: { label: "English", lang: "en-US" },
