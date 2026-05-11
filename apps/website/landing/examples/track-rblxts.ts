@@ -1,10 +1,17 @@
-import { deploy } from "@bedrock-rbx/core";
+import { diff, type Operation } from "@bedrock-rbx/core";
 
-// One-off scripts, test fixtures, custom CI: call deploy directly.
-// eslint-disable-next-line antfu/no-top-level-await -- script-style sample.
-const result = await deploy({ environment: "production" });
-
-if (!result.success) {
-	// result.err is a typed DeployError union, no try/catch needed.
-	console.error(`deploy failed: ${result.err.kind}`);
+/**
+ * Pure plan check: wrap any step from the reconcile loop yourself.
+ * No network call; `diff` is sync.
+ *
+ * @param desired - Desired-state snapshot from `buildDesired`.
+ * @param current - Current-state snapshot from your state backend.
+ * @returns Only the operations that change something.
+ */
+export function planChanges(
+	desired: Parameters<typeof diff>[0],
+	current: Parameters<typeof diff>[1],
+): ReadonlyArray<Operation> {
+	const ops = diff(desired, current);
+	return ops.filter((op) => op.type !== "noop");
 }

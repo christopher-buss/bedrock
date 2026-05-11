@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onBeforeUnmount, ref } from "vue";
 import { useData } from "vitepress";
 
 import configHtml from "../../landing/examples/config.ts?highlighted";
@@ -16,14 +16,31 @@ const { isDark } = useData();
 const activeTab = ref<TabId>("config");
 const activeTerm = ref<TermId>("diff");
 const copyState = ref<"idle" | "copied">("idle");
+let copyResetTimer: ReturnType<typeof setTimeout> | undefined;
 
 async function copyInstall(): Promise<void> {
-	await navigator.clipboard?.writeText(INSTALL_COMMAND);
+	try {
+		await navigator.clipboard?.writeText(INSTALL_COMMAND);
+	} catch {
+		// clipboard denied or unavailable; skip the success flash.
+		return;
+	}
+
 	copyState.value = "copied";
-	setTimeout(() => {
+	if (copyResetTimer !== undefined) {
+		clearTimeout(copyResetTimer);
+	}
+	copyResetTimer = setTimeout(() => {
 		copyState.value = "idle";
+		copyResetTimer = undefined;
 	}, COPIED_RESET_MS);
 }
+
+onBeforeUnmount(() => {
+	if (copyResetTimer !== undefined) {
+		clearTimeout(copyResetTimer);
+	}
+});
 
 const tabs: Array<{ filename: string; id: TabId; label: string }> = [
 	{ filename: "bedrock.config.ts", id: "config", label: "config.ts" },
@@ -568,7 +585,7 @@ function toggleTheme(): void {
 							<span class="dollar">$</span>
 							{{ INSTALL_COMMAND }}
 							<button
-								class="copy"
+								:class="['copy', { 'copy-done': copyState === 'copied' }]"
 								type="button"
 								aria-label="Copy install command"
 								@click="copyInstall"
@@ -657,6 +674,7 @@ function toggleTheme(): void {
 	--accent-soft: #a8bdd8;
 	--accent-deep: #324a6e;
 	--accent-bg: #e4ebf5;
+	--accent-em: var(--accent-deep);
 
 	--ok: #4a8a64;
 
@@ -701,6 +719,7 @@ html.dark .bedrock-landing {
 	--accent-soft: #b8c9e0;
 	--accent-deep: #4e6c92;
 	--accent-bg: #1e2840;
+	--accent-em: var(--accent-soft);
 }
 
 .bedrock-landing,
@@ -710,6 +729,10 @@ html.dark .bedrock-landing {
 		background-color 0.25s var(--ease),
 		border-color 0.25s var(--ease),
 		color 0.2s var(--ease);
+}
+
+.bedrock-landing section[id] {
+	scroll-margin-top: 76px;
 }
 
 .bedrock-landing a {
@@ -1159,11 +1182,7 @@ html.dark .bedrock-landing {
 
 .tracks-head h2 em {
 	font-style: italic;
-	color: var(--accent-deep);
-}
-
-html.dark .tracks-head h2 em {
-	color: var(--accent-soft);
+	color: var(--accent-em);
 }
 
 .tracks-head p {
@@ -1225,11 +1244,7 @@ html.dark .tracks-head h2 em {
 
 .track h3 em {
 	font-style: italic;
-	color: var(--accent-deep);
-}
-
-html.dark .track h3 em {
-	color: var(--accent-soft);
+	color: var(--accent-em);
 }
 
 .track p.lede {
@@ -1339,11 +1354,7 @@ html.dark .track h3 em {
 
 .pipeline-head h2 em {
 	font-style: italic;
-	color: var(--accent-deep);
-}
-
-html.dark .pipeline-head h2 em {
-	color: var(--accent-soft);
+	color: var(--accent-em);
 }
 
 .pipeline-head p {
@@ -1402,13 +1413,9 @@ html.dark .pipeline-head h2 em {
 	border-radius: 50%;
 	font-family: var(--f-mono);
 	font-size: 12px;
-	color: var(--accent-deep);
+	color: var(--accent-em);
 	font-weight: 600;
 	margin-bottom: 20px;
-}
-
-html.dark .pstep-num {
-	color: var(--accent-soft);
 }
 
 .pstep-code {
@@ -1674,11 +1681,7 @@ html.dark .pstep-num {
 
 .features-head h2 em {
 	font-style: italic;
-	color: var(--accent-deep);
-}
-
-html.dark .features-head h2 em {
-	color: var(--accent-soft);
+	color: var(--accent-em);
 }
 
 /* Quickstart / install section */
@@ -1706,11 +1709,7 @@ html.dark .features-head h2 em {
 
 .install-copy h2 em {
 	font-style: italic;
-	color: var(--accent-deep);
-}
-
-html.dark .install-copy h2 em {
-	color: var(--accent-soft);
+	color: var(--accent-em);
 }
 
 .install-copy p {
@@ -1756,15 +1755,11 @@ html.dark .install-copy h2 em {
 	content: counter(step, decimal-leading-zero);
 	font-family: var(--f-mono);
 	font-size: 11px;
-	color: var(--accent-deep);
+	color: var(--accent-em);
 	letter-spacing: 0.08em;
 	min-width: 28px;
 	padding-top: 2px;
 	font-weight: 500;
-}
-
-html.dark .install-steps li::before {
-	color: var(--accent-soft);
 }
 
 .install-steps li b {
@@ -2099,11 +2094,7 @@ html.dark .install-steps li::before {
 
 .cta-inner h2 em {
 	font-style: italic;
-	color: var(--accent-deep);
-}
-
-html.dark .cta-inner h2 em {
-	color: var(--accent-soft);
+	color: var(--accent-em);
 }
 
 .cta-inner p {
@@ -2164,6 +2155,13 @@ html.dark .cta-inner h2 em {
 .cta-snippet .copy:hover {
 	background: var(--ink);
 	color: var(--bg);
+}
+
+.cta-snippet .copy-done,
+.cta-snippet .copy-done:hover {
+	background: color-mix(in oklch, var(--ok), var(--bg) 78%);
+	color: var(--ok);
+	cursor: default;
 }
 
 /* Footer */
