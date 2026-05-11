@@ -248,7 +248,7 @@ describe(pollUntilDoneCore, () => {
 
 	// Slice 13: PollAbortedError mid-sleep
 	it("should resolve with PollAbortedError when the signal fires while the loop is sleeping between polls", async () => {
-		expect.assertions(1);
+		expect.assertions(2);
 
 		const controller = new AbortController();
 		let resolveSlowSleep: (() => void) | undefined;
@@ -276,9 +276,33 @@ describe(pollUntilDoneCore, () => {
 		assert(!result.success);
 
 		expect(result.err).toBeInstanceOf(PollAbortedError);
+		// The mid-sleep return short-circuits the loop; without it the next
+		// iteration would call fetch a second time before catching the abort.
+		expect(fetch).toHaveBeenCalledOnce();
 
-		// The slow sleep promise never resolved — we returned early
+		// The slow sleep promise never resolved; the loop returned early.
 		resolveSlowSleep?.();
+	});
+
+	it("should remove the abort listener after polling resolves", async () => {
+		expect.assertions(2);
+
+		const controller = new AbortController();
+		const removeSpy = vi.spyOn(controller.signal, "removeEventListener");
+		const fetch = vi
+			.fn<PollDeps["fetch"]>()
+			.mockResolvedValueOnce({ data: makeTask("QUEUED"), success: true })
+			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
+
+		const result = await pollUntilDoneCore(makeDeps({ fetch }), {
+			pollDelay: () => 0,
+			signal: controller.signal,
+		});
+
+		assert(result.success);
+
+		expect(result.data.state).toBe("COMPLETE");
+		expect(removeSpy).toHaveBeenCalledWith("abort", expect.any(Function));
 	});
 
 	// Kills sleepWithAbort's sleep-completion branch: sleep(ms).then(() => false
@@ -326,6 +350,38 @@ describe(pollUntilDoneCore, () => {
 		expect(result.err).toBeInstanceOf(PollAbortedError);
 		expect(fetch).toHaveBeenCalledOnce();
 		expect(sleep.waits).toStrictEqual([]);
+	});
+
+	it("should resolve with PollAbortedError when the signal fires while a fetch is in-flight", async () => {
+		expect.assertions(1);
+
+		const controller = new AbortController();
+		let resolveSlowFetch: (() => void) | undefined;
+
+		async function slowFetch(): ReturnType<PollDeps["fetch"]> {
+			return new Promise((resolve) => {
+				resolveSlowFetch = (): void => {
+					resolve({ data: makeTask("PROCESSING"), success: true });
+				};
+			});
+		}
+
+		const sleep = createFakeSleep();
+		const pollingPromise = pollUntilDoneCore(makeDeps({ fetch: slowFetch, sleep }), {
+			signal: controller.signal,
+		});
+
+		await vi.waitUntil(() => resolveSlowFetch !== undefined);
+		controller.abort("mid-fetch abort");
+
+		const result = await pollingPromise;
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(PollAbortedError);
+
+		// The slow fetch never resolved; the loop returned early.
+		resolveSlowFetch?.();
 	});
 
 	// Slice 15: underlying transport error is propagated

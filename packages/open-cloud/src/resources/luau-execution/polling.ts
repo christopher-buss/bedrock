@@ -37,10 +37,28 @@ interface PollOptions {
 	readonly timeoutMs?: number;
 }
 
+const ABORTED = Symbol("poll-aborted");
+type Aborted = typeof ABORTED;
+
+interface AbortObserver {
+	readonly cleanup: () => void;
+	readonly promise: Promise<Aborted>;
+}
+
 interface SleepWithAbortOptions {
 	readonly ms: number;
 	readonly signal: AbortSignal | undefined;
 	readonly sleep: SleepFunc;
+}
+
+type IterationOutcome =
+	| { readonly done: false; readonly task: LuauExecutionTask }
+	| { readonly done: true; readonly result: Result<LuauExecutionTask, OpenCloudError> };
+
+interface PollIterationOptions {
+	readonly delayMs: number;
+	readonly deps: PollDeps;
+	readonly signal: AbortSignal | undefined;
 }
 
 /**
@@ -58,11 +76,11 @@ export async function pollUntilDoneCore(
 	options: PollOptions = {},
 ): Promise<Result<LuauExecutionTask, OpenCloudError>> {
 	const timeoutMs = options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
+	const pollDelay = options.pollDelay ?? defaultRetryDelay;
 	const sig = options.signal;
 	const startedAt = deps.now();
-
 	if (sig?.aborted === true) {
-		return { err: makeAborted(sig), success: false };
+		return abortedResult(sig);
 	}
 
 	let lastTask: LuauExecutionTask | undefined;
@@ -71,25 +89,87 @@ export async function pollUntilDoneCore(
 			return { err: makeTimeout(lastTask, timeoutMs), success: false };
 		}
 
-		const fetchResult = await deps.fetch();
-		if (!fetchResult.success) {
-			return fetchResult;
+		const iteration = await pollIteration({ delayMs: pollDelay(attempt), deps, signal: sig });
+		if (iteration.done) {
+			return iteration.result;
 		}
 
-		lastTask = fetchResult.data;
-		if (isTerminal(lastTask)) {
-			return { data: lastTask, success: true };
-		}
-
-		const delay = (options.pollDelay ?? defaultRetryDelay)(attempt);
-		if (await sleepWithAbort({ ms: delay, signal: sig, sleep: deps.sleep })) {
-			return { err: makeAborted(sig), success: false };
-		}
+		lastTask = iteration.task;
 	}
 }
 
 function makeAborted(signal: AbortSignal | undefined): PollAbortedError {
 	return new PollAbortedError("Polling was aborted", { reason: signal?.reason });
+}
+
+function abortedResult(signal: AbortSignal | undefined): Result<LuauExecutionTask, OpenCloudError> {
+	return { err: makeAborted(signal), success: false };
+}
+
+function isTerminal(task: LuauExecutionTask): boolean {
+	return task.state === "COMPLETE" || task.state === "FAILED" || task.state === "CANCELLED";
+}
+
+function abortObserver(signal: AbortSignal): AbortObserver {
+	const { promise, resolve } = Promise.withResolvers<Aborted>();
+	function onAbort(): void {
+		resolve(ABORTED);
+	}
+
+	signal.addEventListener("abort", onAbort);
+	function cleanup(): void {
+		signal.removeEventListener("abort", onAbort);
+	}
+
+	return { cleanup, promise };
+}
+
+async function raceWithAbort<T>(
+	promise: Promise<T>,
+	signal: AbortSignal | undefined,
+): Promise<Aborted | T> {
+	if (signal === undefined) {
+		return promise;
+	}
+
+	if (signal.aborted) {
+		return ABORTED;
+	}
+
+	const observer = abortObserver(signal);
+	try {
+		return await Promise.race([promise, observer.promise]);
+	} finally {
+		observer.cleanup();
+	}
+}
+
+async function sleepWithAbort(options: SleepWithAbortOptions): Promise<boolean> {
+	const { ms, signal, sleep } = options;
+	const raced = await raceWithAbort(sleep(ms), signal);
+	return raced === ABORTED;
+}
+
+async function pollIteration(options: PollIterationOptions): Promise<IterationOutcome> {
+	const { delayMs, deps, signal } = options;
+	const fetchResult = await raceWithAbort(deps.fetch(), signal);
+	if (fetchResult === ABORTED) {
+		return { done: true, result: abortedResult(signal) };
+	}
+
+	if (!fetchResult.success) {
+		return { done: true, result: fetchResult };
+	}
+
+	if (isTerminal(fetchResult.data)) {
+		return { done: true, result: { data: fetchResult.data, success: true } };
+	}
+
+	if (await sleepWithAbort({ ms: delayMs, signal, sleep: deps.sleep })) {
+		return { done: true, result: abortedResult(signal) };
+	}
+
+	return { done: false, task: fetchResult.data };
 }
 
 function makeTimeout(
@@ -100,28 +180,4 @@ function makeTimeout(
 		lastObservedTask: task,
 		timeoutMs,
 	});
-}
-
-function isTerminal(task: LuauExecutionTask): boolean {
-	return task.state === "COMPLETE" || task.state === "FAILED" || task.state === "CANCELLED";
-}
-
-async function sleepWithAbort(options: SleepWithAbortOptions): Promise<boolean> {
-	const { ms, signal, sleep } = options;
-	if (signal === undefined) {
-		await sleep(ms);
-		return false;
-	}
-
-	if (signal.aborted) {
-		return true;
-	}
-
-	const abortSignal = signal;
-	const aborted = new Promise<true>((resolve) => {
-		abortSignal.addEventListener("abort", () => {
-			resolve(true);
-		});
-	});
-	return Promise.race([sleep(ms).then(() => false as const), aborted]);
 }
