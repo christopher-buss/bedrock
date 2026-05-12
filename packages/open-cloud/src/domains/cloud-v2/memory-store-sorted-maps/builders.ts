@@ -1,0 +1,166 @@
+import type { HttpRequest } from "../../../client/types.ts";
+import type {
+	CreateSortedMapItemParameters,
+	DeleteSortedMapItemParameters,
+	GetSortedMapItemParameters,
+	ListSortedMapItemsParameters,
+	SortKey,
+	UpdateSortedMapItemParameters,
+} from "./types.ts";
+
+/**
+ * Builds a `POST` request for the Open Cloud
+ * `Cloud_CreateMemoryStoreSortedMapItem` endpoint. The caller-supplied
+ * `itemId` travels as the `id` query parameter (URL-encoded by
+ * `URLSearchParams`); the body carries `value`, the optional `ttl`
+ * (serialized as a Google protobuf `Duration` string in seconds), and
+ * one of `stringSortKey`/`numericSortKey` projected from the
+ * {@link SortKey} discriminated union.
+ *
+ * @param parameters - Universe, sorted-map, item identifiers, the
+ *   value to store, and optional `sortKey` and `ttl`.
+ * @returns A pure {@link HttpRequest} describing the create call.
+ */
+export function buildCreateRequest(parameters: CreateSortedMapItemParameters): HttpRequest {
+	const { itemId, mapId, sortKey, ttl, universeId, value } = parameters;
+	const body: Record<string, unknown> = { value };
+	if (ttl !== undefined) {
+		body["ttl"] = `${ttl}s`;
+	}
+
+	applySortKeyToBody(body, sortKey);
+
+	const query = new URLSearchParams({ id: itemId });
+	return {
+		body,
+		headers: { "content-type": "application/json" },
+		method: "POST",
+		url: `/cloud/v2/universes/${encodeURIComponent(universeId)}/memory-store/sorted-maps/${encodeURIComponent(mapId)}/items?${query.toString()}`,
+	};
+}
+
+/**
+ * Builds a `DELETE` request for the Open Cloud
+ * `Cloud_DeleteMemoryStoreSortedMapItem` endpoint. Every path segment
+ * (universe, sorted-map, item identifiers) is URL-encoded so callers
+ * can pass values containing reserved characters without manual
+ * escaping.
+ *
+ * @param parameters - Universe, sorted-map, and item identifiers.
+ * @returns A pure {@link HttpRequest} describing the delete call.
+ */
+export function buildDeleteRequest(parameters: DeleteSortedMapItemParameters): HttpRequest {
+	const { itemId, mapId, universeId } = parameters;
+	return {
+		method: "DELETE",
+		url: `/cloud/v2/universes/${encodeURIComponent(universeId)}/memory-store/sorted-maps/${encodeURIComponent(mapId)}/items/${encodeURIComponent(itemId)}`,
+	};
+}
+
+/**
+ * Builds a `GET` request for the Open Cloud
+ * `Cloud_GetMemoryStoreSortedMapItem` endpoint. Every path segment
+ * (universe, sorted-map, item identifiers) is URL-encoded so callers
+ * can pass values containing reserved characters without manual
+ * escaping.
+ *
+ * @param parameters - Universe, sorted-map, and item identifiers.
+ * @returns A pure {@link HttpRequest} describing the get call.
+ */
+export function buildGetRequest(parameters: GetSortedMapItemParameters): HttpRequest {
+	const { itemId, mapId, universeId } = parameters;
+	return {
+		method: "GET",
+		url: `/cloud/v2/universes/${encodeURIComponent(universeId)}/memory-store/sorted-maps/${encodeURIComponent(mapId)}/items/${encodeURIComponent(itemId)}`,
+	};
+}
+
+/**
+ * Builds a `GET` request for the Open Cloud
+ * `Cloud_ListMemoryStoreSortedMapItems` endpoint. Optional `filter`,
+ * `maxPageSize`, `orderBy`, and `pageToken` parameters travel as query
+ * string parameters and are omitted when unset.
+ *
+ * @param parameters - Universe and sorted-map identifiers, plus
+ *   optional pagination and filter parameters.
+ * @returns A pure {@link HttpRequest} describing the list call.
+ */
+export function buildListRequest(parameters: ListSortedMapItemsParameters): HttpRequest {
+	const { filter, mapId, maxPageSize, orderBy, pageToken, universeId } = parameters;
+	const query = new URLSearchParams();
+	if (maxPageSize !== undefined) {
+		query.append("maxPageSize", String(maxPageSize));
+	}
+
+	if (pageToken !== undefined) {
+		query.append("pageToken", pageToken);
+	}
+
+	if (orderBy !== undefined) {
+		query.append("orderBy", orderBy);
+	}
+
+	if (filter !== undefined) {
+		query.append("filter", filter);
+	}
+
+	const base = `/cloud/v2/universes/${encodeURIComponent(universeId)}/memory-store/sorted-maps/${encodeURIComponent(mapId)}/items`;
+	const queryString = query.toString();
+	return { method: "GET", url: queryString === "" ? base : `${base}?${queryString}` };
+}
+
+/**
+ * Builds a `PATCH` request for the Open Cloud
+ * `Cloud_UpdateMemoryStoreSortedMapItem` endpoint. Body fields are
+ * conditionally included so a partial update sends only the changed
+ * fields; the optional `allowMissing` query string drives
+ * upsert-on-missing behaviour server-side.
+ *
+ * @param parameters - Universe, sorted-map, and item identifiers,
+ *   plus any subset of `value`, `ttl`, `sortKey`, and `allowMissing`.
+ * @returns A pure {@link HttpRequest} describing the update call.
+ */
+export function buildUpdateRequest(parameters: UpdateSortedMapItemParameters): HttpRequest {
+	const { allowMissing: shouldAllowMissing, itemId, mapId, universeId } = parameters;
+	const base = `/cloud/v2/universes/${encodeURIComponent(universeId)}/memory-store/sorted-maps/${encodeURIComponent(mapId)}/items/${encodeURIComponent(itemId)}`;
+	const query = new URLSearchParams();
+	if (shouldAllowMissing !== undefined) {
+		query.append("allowMissing", String(shouldAllowMissing));
+	}
+
+	const queryString = query.toString();
+	return {
+		body: buildUpdateBody(parameters),
+		headers: { "content-type": "application/json" },
+		method: "PATCH",
+		url: queryString === "" ? base : `${base}?${queryString}`,
+	};
+}
+
+function applySortKeyToBody(body: Record<string, unknown>, sortKey: SortKey | undefined): void {
+	if (sortKey === undefined) {
+		return;
+	}
+
+	if (sortKey.kind === "string") {
+		body["stringSortKey"] = sortKey.value;
+		return;
+	}
+
+	body["numericSortKey"] = sortKey.value;
+}
+
+function buildUpdateBody(parameters: UpdateSortedMapItemParameters): Record<string, unknown> {
+	const { sortKey, ttl, value } = parameters;
+	const body: Record<string, unknown> = {};
+	if (value !== undefined) {
+		body["value"] = value;
+	}
+
+	if (ttl !== undefined) {
+		body["ttl"] = `${ttl}s`;
+	}
+
+	applySortKeyToBody(body, sortKey);
+	return body;
+}

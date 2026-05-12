@@ -19,5 +19,6 @@ export { validBinaryInputBody } from "./luau-execution-task-binary-inputs.ts";
 export { validLogPageBody } from "./luau-execution-task-logs.ts";
 export { validInProgressTaskBody } from "./luau-execution-tasks.ts";
 export { validDequeueBody, validQueueItemBody } from "./memory-store-queues.ts";
+export { validListSortedMapItemsBody, validSortedMapItemBody } from "./memory-store-sorted-maps.ts";
 export { rbxlBody, rbxlxBody, validPlaceBody, validPublishResponseBody } from "./places.ts";
 export { validUniverseBody } from "./universes.ts";
