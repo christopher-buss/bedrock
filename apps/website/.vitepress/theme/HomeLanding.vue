@@ -652,15 +652,14 @@ function toggleTheme(): void {
 			<div class="wrap">
 				<div class="foot">
 					<div class="foot-brand">
-						<a class="brand" href="#">
+						<a class="brand" href="/">
 							<span class="brand-mark">
 								<span /><span /><span /><span />
 							</span>
 							Bedrock
 						</a>
 						<p>
-							Infrastructure-as-Code for Roblox. Typed, Open-Cloud-only, built for
-							studios that ship.
+							Infrastructure-as-Code for Roblox. Typed, Open Cloud only.
 						</p>
 					</div>
 					<div>
@@ -676,7 +675,7 @@ function toggleTheme(): void {
 						<h5>Ocale</h5>
 						<ul>
 							<li><a href="/ocale/guide/getting-started">Getting started</a></li>
-							<li><a href="#">Resource clients</a></li>
+							<li><a href="/ocale/api/">Resource clients</a></li>
 							<li><a href="/ocale/guide/errors">Error hierarchy</a></li>
 						</ul>
 					</div>
@@ -684,9 +683,9 @@ function toggleTheme(): void {
 						<h5>Project</h5>
 						<ul>
 							<li><a href="https://github.com/christopher-buss/bedrock">GitHub</a></li>
-							<li><a href="#">Roadmap</a></li>
-							<li><a href="#">ADRs</a></li>
-							<li><a href="#">Changelog</a></li>
+							<li><a href="https://github.com/christopher-buss/bedrock/projects?query=is%3Aopen">Roadmap</a></li>
+							<li><a href="https://github.com/christopher-buss/bedrock/tree/main/docs/adr">ADRs</a></li>
+							<li><a href="https://github.com/christopher-buss/bedrock/releases">Changelog</a></li>
 						</ul>
 					</div>
 				</div>
