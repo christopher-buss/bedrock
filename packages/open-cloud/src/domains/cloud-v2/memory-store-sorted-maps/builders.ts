@@ -35,15 +35,16 @@ export function buildCreateRequest(parameters: CreateSortedMapItemParameters): H
 		body,
 		headers: { "content-type": "application/json" },
 		method: "POST",
-		url: `/cloud/v2/universes/${universeId}/memory-store/sorted-maps/${mapId}/items?${query.toString()}`,
+		url: `/cloud/v2/universes/${encodeURIComponent(universeId)}/memory-store/sorted-maps/${encodeURIComponent(mapId)}/items?${query.toString()}`,
 	};
 }
 
 /**
  * Builds a `DELETE` request for the Open Cloud
- * `Cloud_DeleteMemoryStoreSortedMapItem` endpoint. The `itemId` is
- * URL-encoded into the path segment, matching the `get` and `update`
- * builders.
+ * `Cloud_DeleteMemoryStoreSortedMapItem` endpoint. Every path segment
+ * (universe, sorted-map, item identifiers) is URL-encoded so callers
+ * can pass values containing reserved characters without manual
+ * escaping.
  *
  * @param parameters - Universe, sorted-map, and item identifiers.
  * @returns A pure {@link HttpRequest} describing the delete call.
@@ -52,15 +53,16 @@ export function buildDeleteRequest(parameters: DeleteSortedMapItemParameters): H
 	const { itemId, mapId, universeId } = parameters;
 	return {
 		method: "DELETE",
-		url: `/cloud/v2/universes/${universeId}/memory-store/sorted-maps/${mapId}/items/${encodeURIComponent(itemId)}`,
+		url: `/cloud/v2/universes/${encodeURIComponent(universeId)}/memory-store/sorted-maps/${encodeURIComponent(mapId)}/items/${encodeURIComponent(itemId)}`,
 	};
 }
 
 /**
  * Builds a `GET` request for the Open Cloud
- * `Cloud_GetMemoryStoreSortedMapItem` endpoint. The `itemId` is
- * URL-encoded into the path segment so callers can pass values
- * containing reserved characters without manual escaping.
+ * `Cloud_GetMemoryStoreSortedMapItem` endpoint. Every path segment
+ * (universe, sorted-map, item identifiers) is URL-encoded so callers
+ * can pass values containing reserved characters without manual
+ * escaping.
  *
  * @param parameters - Universe, sorted-map, and item identifiers.
  * @returns A pure {@link HttpRequest} describing the get call.
@@ -69,7 +71,7 @@ export function buildGetRequest(parameters: GetSortedMapItemParameters): HttpReq
 	const { itemId, mapId, universeId } = parameters;
 	return {
 		method: "GET",
-		url: `/cloud/v2/universes/${universeId}/memory-store/sorted-maps/${mapId}/items/${encodeURIComponent(itemId)}`,
+		url: `/cloud/v2/universes/${encodeURIComponent(universeId)}/memory-store/sorted-maps/${encodeURIComponent(mapId)}/items/${encodeURIComponent(itemId)}`,
 	};
 }
 
@@ -102,7 +104,7 @@ export function buildListRequest(parameters: ListSortedMapItemsParameters): Http
 		query.append("filter", filter);
 	}
 
-	const base = `/cloud/v2/universes/${universeId}/memory-store/sorted-maps/${mapId}/items`;
+	const base = `/cloud/v2/universes/${encodeURIComponent(universeId)}/memory-store/sorted-maps/${encodeURIComponent(mapId)}/items`;
 	const queryString = query.toString();
 	return { method: "GET", url: queryString === "" ? base : `${base}?${queryString}` };
 }
@@ -120,7 +122,7 @@ export function buildListRequest(parameters: ListSortedMapItemsParameters): Http
  */
 export function buildUpdateRequest(parameters: UpdateSortedMapItemParameters): HttpRequest {
 	const { allowMissing: shouldAllowMissing, itemId, mapId, universeId } = parameters;
-	const base = `/cloud/v2/universes/${universeId}/memory-store/sorted-maps/${mapId}/items/${encodeURIComponent(itemId)}`;
+	const base = `/cloud/v2/universes/${encodeURIComponent(universeId)}/memory-store/sorted-maps/${encodeURIComponent(mapId)}/items/${encodeURIComponent(itemId)}`;
 	const query = new URLSearchParams();
 	if (shouldAllowMissing !== undefined) {
 		query.append("allowMissing", String(shouldAllowMissing));

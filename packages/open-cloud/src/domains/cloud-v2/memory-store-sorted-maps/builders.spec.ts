@@ -148,6 +148,21 @@ describe(buildCreateRequest, () => {
 			"/cloud/v2/universes/1/memory-store/sorted-maps/m/items?id=Hello+world%21%3F",
 		);
 	});
+
+	it("should URL-encode universeId and mapId carrying reserved characters in the path", () => {
+		expect.assertions(1);
+
+		const request = buildCreateRequest({
+			itemId: "i",
+			mapId: "team/red",
+			universeId: "1/2",
+			value: "x",
+		});
+
+		expect(request.url).toBe(
+			"/cloud/v2/universes/1%2F2/memory-store/sorted-maps/team%2Fred/items?id=i",
+		);
+	});
 });
 
 describe(buildDeleteRequest, () => {
@@ -186,6 +201,20 @@ describe(buildDeleteRequest, () => {
 
 		expect(request.url).toBe(
 			"/cloud/v2/universes/1/memory-store/sorted-maps/m/items/Hello%20world!%3F",
+		);
+	});
+
+	it("should URL-encode universeId and mapId carrying reserved characters in the path", () => {
+		expect.assertions(1);
+
+		const request = buildDeleteRequest({
+			itemId: "i",
+			mapId: "team/red",
+			universeId: "1/2",
+		});
+
+		expect(request.url).toBe(
+			"/cloud/v2/universes/1%2F2/memory-store/sorted-maps/team%2Fred/items/i",
 		);
 	});
 });
@@ -237,6 +266,16 @@ describe(buildListRequest, () => {
 
 		expect(request.url).toContain("?maxPageSize=10");
 		expect(request.url).not.toContain("pageToken");
+	});
+
+	it("should URL-encode universeId and mapId carrying reserved characters in the path", () => {
+		expect.assertions(1);
+
+		const request = buildListRequest({ mapId: "team/red", universeId: "1/2" });
+
+		expect(request.url).toBe(
+			"/cloud/v2/universes/1%2F2/memory-store/sorted-maps/team%2Fred/items",
+		);
 	});
 });
 
@@ -367,6 +406,20 @@ describe(buildUpdateRequest, () => {
 			"/cloud/v2/universes/1/memory-store/sorted-maps/m/items/Hello%20world!%3F",
 		);
 	});
+
+	it("should URL-encode universeId and mapId carrying reserved characters in the path", () => {
+		expect.assertions(1);
+
+		const request = buildUpdateRequest({
+			itemId: "i",
+			mapId: "team/red",
+			universeId: "1/2",
+		});
+
+		expect(request.url).toBe(
+			"/cloud/v2/universes/1%2F2/memory-store/sorted-maps/team%2Fred/items/i",
+		);
+	});
 });
 
 describe(buildGetRequest, () => {
@@ -405,6 +458,20 @@ describe(buildGetRequest, () => {
 
 		expect(request.url).toBe(
 			"/cloud/v2/universes/1/memory-store/sorted-maps/m/items/Hello%20world!%3F",
+		);
+	});
+
+	it("should URL-encode universeId and mapId carrying reserved characters in the path", () => {
+		expect.assertions(1);
+
+		const request = buildGetRequest({
+			itemId: "i",
+			mapId: "team/red",
+			universeId: "1/2",
+		});
+
+		expect(request.url).toBe(
+			"/cloud/v2/universes/1%2F2/memory-store/sorted-maps/team%2Fred/items/i",
 		);
 	});
 });
