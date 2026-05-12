@@ -86,4 +86,12 @@ export default isentinel(
 			"no-console": "off",
 		},
 	},
+	{
+		name: "project/docs",
+		files: ["apps/website/landing/examples/**/*.ts"],
+		rules: {
+			"antfu/no-top-level-await": "off",
+			"no-console": "off",
+		},
+	},
 );

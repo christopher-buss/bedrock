@@ -1,7 +1,12 @@
-import { defineConfig } from "@bedrock-rbx/core";
+import { defineConfig } from "@bedrock-rbx/core/config";
 
 export default defineConfig({
-	environments: { production: {} },
+	environments: {
+		production: {
+			places: { start: { placeId: "1234567890" } },
+			universe: { universeId: "6803861769" },
+		},
+	},
 	passes: {
 		"vip-pass": {
 			name: "VIP Pass",
@@ -11,5 +16,5 @@ export default defineConfig({
 		},
 	},
 	state: { backend: "gist", gistId: "abc123def456" },
-	universe: { universeId: "5182930447" },
+	universe: { voiceChatEnabled: true },
 });

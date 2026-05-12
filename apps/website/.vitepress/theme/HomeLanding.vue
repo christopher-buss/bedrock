@@ -2,15 +2,18 @@
 import { onBeforeUnmount, ref } from "vue";
 import { useData } from "vitepress";
 
+import { version as bedrockVersion } from "@bedrock-rbx/core/package.json";
+
 import configHtml from "../../landing/examples/config.ts?highlighted";
 import deployHtml from "../../landing/examples/deploy.ts?highlighted";
 import trackRblxtsHtml from "../../landing/examples/track-rblxts.ts?highlighted";
 
+const VERSION = `v${bedrockVersion}`;
+
 type TabId = "config" | "deploy" | "cli";
 type TermId = "diff" | "deploy" | "migrate";
 
-// TODO: swap to `pnpm add @bedrock-rbx/core` once published, or claim `bedrock` on npm first.
-const INSTALL_COMMAND = "pnpm add bedrock";
+const INSTALL_COMMAND = "pnpm add @bedrock-rbx/core";
 const COPIED_RESET_MS = 1200;
 
 const { isDark } = useData();
@@ -54,8 +57,8 @@ const tabs: ReadonlyArray<{
 	readonly id: TabId;
 	readonly label: string;
 }> = [
-	{ filename: "bedrock.config.ts", id: "config", label: "config.ts" },
-	{ filename: ".bedrock/deploy.ts", id: "deploy", label: ".bedrock/deploy.ts" },
+	{ filename: "bedrock.config.ts", id: "config", label: "config" },
+	{ filename: ".bedrock/deploy.ts", id: "deploy", label: "deploy" },
 	{ filename: "shell", id: "cli", label: "cli" },
 ];
 
@@ -113,7 +116,7 @@ function toggleTheme(): void {
 					<span class="brand-mark">
 						<span /><span /><span /><span />
 					</span>
-					Bedrock<span class="nav-v">v0.1</span>
+					Bedrock<span class="nav-v">{{ VERSION }}</span>
 				</a>
 				<div class="nav-links">
 					<a href="#pipeline">How it works</a>
@@ -194,12 +197,12 @@ function toggleTheme(): void {
 							Infrastructure-as-Code &middot; for Roblox
 						</div>
 						<h1>
-							Declare your experience.<br><em>Reconcile</em> it.
+							Declare your experience.<br><em>Deploy</em> it.
 						</h1>
 						<p class="sub">
-							Bedrock is a <b>TypeScript</b> library (with a CLI) that declares your
-							Roblox resources &mdash; game passes, places, products, experience config &mdash;
-							and reconciles them through <b>Open Cloud</b>. Built as a modern successor to Mantle.
+							Write your game passes, products, and experience config as code.
+							Make changes with confidence from a single source of truth.
+							A spiritual successor to Mantle.
 						</p>
 						<div class="ctas">
 							<a class="btn btn-accent" href="#install">
@@ -219,9 +222,7 @@ function toggleTheme(): void {
 							</a>
 						</div>
 						<div class="meta">
-							<div class="pip"><b>v0.1</b> &middot; early access</div>
-							<div>MIT licensed</div>
-							<div>Open Cloud only</div>
+							<div class="pip"><b>{{ VERSION }}</b> &middot; alpha &middot; MIT licensed</div>
 						</div>
 					</div>
 
@@ -751,7 +752,7 @@ function toggleTheme(): void {
 					</div>
 				</div>
 				<div class="foot-bottom">
-					<div>&copy; 2026 &middot; MIT Licensed &middot; v0.1</div>
+					<div>&copy; 2026 &middot; MIT Licensed &middot; {{ VERSION }}</div>
 					<div>built with vitepress</div>
 				</div>
 			</div>
@@ -780,7 +781,7 @@ function toggleTheme(): void {
 	--dark-ink-2: #b9c1d0;
 	--dark-ink-3: #6f7889;
 
-	--accent: #5c7da6;
+	--accent: #5944a2;
 	--accent-soft: #a8bdd8;
 	--accent-deep: #324a6e;
 	--accent-bg: #e4ebf5;
@@ -789,7 +790,7 @@ function toggleTheme(): void {
 	--ok: #4a8a64;
 
 	--f-sans: "Geist", "Inter", system-ui, -apple-system, sans-serif;
-	--f-serif: "Instrument Serif", "Times New Roman", serif;
+	--f-serif: "Source Serif 4", "Times New Roman", serif;
 	--f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
 
 	--r-sm: 4px;
@@ -825,7 +826,7 @@ html.dark .bedrock-landing {
 	--dark-bg-3: #161c2c;
 	--dark-line: #1e2434;
 
-	--accent: #7a9ac4;
+	--accent: #5944a2;
 	--accent-soft: #b8c9e0;
 	--accent-deep: #4e6c92;
 	--accent-bg: #1e2840;
@@ -1029,12 +1030,12 @@ html.dark .bedrock-landing {
 }
 
 .btn-accent {
-	background: var(--accent);
+	background: #6553aa;
 	color: #fff;
 }
 
 .btn-accent:hover {
-	background: color-mix(in oklch, var(--accent), #fff 8%);
+	background: color-mix(in oklch, #6553aa, #fff 8%);
 	transform: translateY(-1px);
 }
 
@@ -1119,7 +1120,8 @@ html.dark .bedrock-landing {
 
 .hero-text h1 em {
 	font-style: italic;
-	color: var(--accent-soft);
+	font-weight: 900;
+	color: #8b84ba;
 }
 
 .hero-text .sub {
@@ -1209,24 +1211,26 @@ html.dark .bedrock-landing {
 
 .code-tabs {
 	display: flex;
-	gap: 6px;
+	gap: 8px;
 	font-family: var(--f-mono);
 	font-size: 12px;
 }
 
-.code-tab {
-	padding: 6px 12px;
+.code-tabs .code-tab {
+	padding: 7px 14px;
 	color: var(--dark-ink-3);
 	border-radius: var(--r-sm);
+	border: 1px solid transparent;
 	transition: all 0.15s var(--ease);
 }
 
-.code-tab.active {
+.code-tabs .code-tab.active {
 	color: var(--dark-ink);
 	background: rgba(255, 255, 255, 0.05);
+	border-color: var(--dark-line);
 }
 
-.code-tab:not(.active):hover {
+.code-tabs .code-tab:not(.active):hover {
 	color: var(--dark-ink-2);
 }
 
