@@ -23,7 +23,11 @@
 		"@bedrock-rbx/testing": "workspace:*",
 		"@bedrock-rbx/typescript-config": "workspace:*",
 		"@bedrock-rbx/vite-config": "workspace:*",
+		"@testing-library/user-event": "catalog:test",
+		"@testing-library/vue": "catalog:test",
+		"@vitejs/plugin-vue": "catalog:docs",
 		"concurrently": "catalog:dev",
+		"happy-dom": "catalog:test",
 		"shiki": "catalog:docs",
 		"typedoc": "catalog:build",
 		"typedoc-plugin-markdown": "catalog:build",
@@ -32,7 +36,8 @@
 		"vite": "catalog:build",
 		"vitepress": "catalog:docs",
 		"vitepress-plugin-tabs": "catalog:docs",
-		"vitest": "catalog:test"
+		"vitest": "catalog:test",
+		"vue": "catalog:docs"
 	},
 	"engines": {
 		"bun": ">=1.0.0"
