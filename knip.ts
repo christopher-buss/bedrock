@@ -12,10 +12,9 @@ const config: KnipConfig = {
 	ignoreWorkspaces: ["apps/e2e"],
 	workspaces: {
 		".": {
-			entry: ["scripts/**/*.ts", ".claude/hooks/**/*.ts", "pncat.config.ts"],
+			entry: ["scripts/**/*.ts", "pncat.config.ts"],
 			ignoreDependencies: [
 				"@bedrock-rbx/core",
-				"@eslint/config-inspector",
 				"@isentinel/hooks",
 				"better-typescript-lib",
 				"eslint-plugin-erasable-syntax-only",
@@ -33,19 +32,13 @@ const config: KnipConfig = {
 			entry: ["landing/examples/**/*.ts"],
 		},
 		"packages/bedrock": {
-			entry: [
-				"stryker.config.ts",
-				"src/cli/run.ts",
-				"src/index.ts",
-				"tests/integration/fixtures/**/*.{ts,js}",
-			],
+			entry: ["stryker.config.ts", "tests/integration/fixtures/**/*.{ts,js}"],
 		},
 		"packages/open-cloud": {
 			entry: [
 				"stryker.config.ts",
 				"scripts/**/*.ts",
 				"src/**/index.ts",
-				"tests/helpers/index.ts",
 				"tests/helpers/lite.ts",
 			],
 		},
