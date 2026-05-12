@@ -6,7 +6,7 @@ import { version as bedrockVersion } from "@bedrock-rbx/core/package.json";
 
 import configHtml from "../../landing/examples/config.ts?highlighted";
 import deployHtml from "../../landing/examples/deploy.ts?highlighted";
-import trackRblxtsHtml from "../../landing/examples/track-rblxts.ts?highlighted";
+import programmaticHtml from "../../landing/examples/programmatic.ts?highlighted";
 
 const VERSION = `v${bedrockVersion}`;
 
@@ -278,7 +278,7 @@ function toggleTheme(): void {
 						>
 							<pre><span class="cli-prompt">$</span> bedrock diff      <span class="cli-dim"># preview changes</span>
 <span class="cli-prompt">$</span> bedrock deploy    <span class="cli-dim"># reconcile</span>
-<span class="cli-prompt">$</span> bedrock migrate ./mantle.yml</pre>
+<span class="cli-prompt">$</span> bedrock migrate ./mantle.yaml</pre>
 						</div>
 					</div>
 				</div>
@@ -290,20 +290,17 @@ function toggleTheme(): void {
 				<div class="tracks-head">
 					<div>
 						<div class="eyebrow">01 &middot; Two surfaces &middot; one library</div>
-						<h2>One product. <em>Two</em> entry points.</h2>
+						<h2>One library, <em>two</em> ways in.</h2>
 					</div>
-					<p>
-						CLI with multi-format config for Luau studios. A typed library for roblox-ts
-						teams. Same functions underneath, neither is a second-class citizen.
-					</p>
 				</div>
 				<div class="tracks-grid">
 					<div class="track">
-						<div class="tag">Luau devs</div>
-						<h3>Config + <em>CLI</em></h3>
+						<div class="tag">Command line</div>
+						<h3>From the <em>terminal</em>.</h3>
 						<p class="lede">
-							YAML, JSON, TypeScript, or JavaScript. Bedrock reads all four. Drop a config
-							in, run <code>bedrock deploy</code>, you're done.
+							Run <code>bedrock deploy</code> against your config and you're done.
+							Need to customise a step? Drop a TypeScript file in <code>.bedrock/</code>
+							- the CLI calls it instead of the built-in.
 						</p>
 						<pre class="track-code"><span class="dim"># pick your config format</span>
 <span class="prompt">$</span> bedrock init --format yaml
@@ -311,20 +308,20 @@ function toggleTheme(): void {
 <span class="prompt">$</span> bedrock deploy   <span class="dim"># reconcile</span>
 
 <span class="dim"># migrating from Mantle?</span>
-<span class="prompt">$</span> bedrock migrate ./mantle.yml</pre>
+<span class="prompt">$</span> bedrock migrate ./mantle.yaml</pre>
 						<div class="track-note">&rarr; <b>bedrock init</b> &middot; <b>diff</b> &middot; <b>deploy</b> &middot; <b>migrate</b></div>
 					</div>
 
 					<div class="track">
-						<div class="tag">roblox-ts devs</div>
-						<h3>Import. <em>Call.</em></h3>
+						<div class="tag">Programmatic</div>
+						<h3>From your <em>code</em>.</h3>
 						<p class="lede">
-							Bedrock is a TypeScript library first. Import <code>deploy</code>,
-							<code>diff</code>, <code>buildDesired</code>. Write drift tests. Script
-							mid-deploy mutations. It's your code.
+							Import any step from <code>@bedrock-rbx/core</code> and call it directly.
+							Trigger deploys from a web backend, a chat bot, or any service in
+							your stack.
 						</p>
-						<div class="track-code-shiki" v-html="trackRblxtsHtml" />
-						<div class="track-note">&rarr; public API &middot; typed &middot; semver'd &middot; <b>ResourceDriver&lt;K&gt;</b> plugins</div>
+						<div class="track-code-shiki" v-html="programmaticHtml" />
+						<div class="track-note">&rarr; public API &middot; typed &middot; semver'd &middot; extensible</div>
 					</div>
 				</div>
 			</div>
@@ -565,7 +562,7 @@ function toggleTheme(): void {
 							tabindex="0"
 							class="term-pane"
 						>
-							<div><span class="term-prompt">$</span> bedrock migrate ./mantle.yml</div>
+							<div><span class="term-prompt">$</span> bedrock migrate ./mantle.yaml</div>
 							<div class="term-dim">Reading Mantle config ...</div>
 							<div>&nbsp;</div>
 							<div><span class="term-ok">v</span> experience       <span class="term-dim">mapped</span></div>
