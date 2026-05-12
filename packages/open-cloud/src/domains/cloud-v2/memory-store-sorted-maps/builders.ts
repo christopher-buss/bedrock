@@ -4,6 +4,7 @@ import type {
 	DeleteSortedMapItemParameters,
 	GetSortedMapItemParameters,
 	SortKey,
+	UpdateSortedMapItemParameters,
 } from "./types.ts";
 
 /**
@@ -71,6 +72,34 @@ export function buildGetRequest(parameters: GetSortedMapItemParameters): HttpReq
 	};
 }
 
+/**
+ * Builds a `PATCH` request for the Open Cloud
+ * `Cloud_UpdateMemoryStoreSortedMapItem` endpoint. Body fields are
+ * conditionally included so a partial update sends only the changed
+ * fields; the optional `allowMissing` query string drives
+ * upsert-on-missing behaviour server-side.
+ *
+ * @param parameters - Universe, sorted-map, and item identifiers,
+ *   plus any subset of `value`, `ttl`, `sortKey`, and `allowMissing`.
+ * @returns A pure {@link HttpRequest} describing the update call.
+ */
+export function buildUpdateRequest(parameters: UpdateSortedMapItemParameters): HttpRequest {
+	const { allowMissing: shouldAllowMissing, itemId, mapId, universeId } = parameters;
+	const base = `/cloud/v2/universes/${universeId}/memory-store/sorted-maps/${mapId}/items/${encodeURIComponent(itemId)}`;
+	const query = new URLSearchParams();
+	if (shouldAllowMissing !== undefined) {
+		query.append("allowMissing", String(shouldAllowMissing));
+	}
+
+	const queryString = query.toString();
+	return {
+		body: buildUpdateBody(parameters),
+		headers: { "content-type": "application/json" },
+		method: "PATCH",
+		url: queryString === "" ? base : `${base}?${queryString}`,
+	};
+}
+
 function applySortKeyToBody(body: Record<string, unknown>, sortKey: SortKey | undefined): void {
 	if (sortKey === undefined) {
 		return;
@@ -82,4 +111,19 @@ function applySortKeyToBody(body: Record<string, unknown>, sortKey: SortKey | un
 	}
 
 	body["numericSortKey"] = sortKey.value;
+}
+
+function buildUpdateBody(parameters: UpdateSortedMapItemParameters): Record<string, unknown> {
+	const { sortKey, ttl, value } = parameters;
+	const body: Record<string, unknown> = {};
+	if (value !== undefined) {
+		body["value"] = value;
+	}
+
+	if (ttl !== undefined) {
+		body["ttl"] = `${ttl}s`;
+	}
+
+	applySortKeyToBody(body, sortKey);
+	return body;
 }

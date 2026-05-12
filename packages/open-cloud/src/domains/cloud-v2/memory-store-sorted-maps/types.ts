@@ -67,6 +67,41 @@ export interface GetSortedMapItemParameters {
 }
 
 /**
+ * Caller-supplied input for the `update` method on
+ * `StorageClient.sortedMaps`. Mirrors
+ * `Cloud_UpdateMemoryStoreSortedMapItem` on the Open Cloud API. Body
+ * fields (`value`, `ttl`, `sortKey`) are optional under PATCH
+ * semantics; omitted fields are left unchanged on the server.
+ */
+export interface UpdateSortedMapItemParameters {
+	/**
+	 * When `true`, the server creates the item if it does not exist
+	 * instead of returning 404. Travels as the `allowMissing` query
+	 * string parameter.
+	 */
+	readonly allowMissing?: boolean;
+	/** Caller-supplied item identifier. URL-encoded by the builder. */
+	readonly itemId: string;
+	/** Stringified sorted-map identifier. */
+	readonly mapId: string;
+	/**
+	 * Replacement sort key. Either kind of {@link SortKey} resets the
+	 * field on the wire; omit the field to leave the existing sort key
+	 * untouched.
+	 */
+	readonly sortKey?: SortKey;
+	/**
+	 * Replacement time-to-live in seconds. Omitted entries leave the
+	 * existing TTL unchanged.
+	 */
+	readonly ttl?: number;
+	/** Stringified ID of the universe that owns the sorted map. */
+	readonly universeId: string;
+	/** Replacement value. Omitted entries leave the existing value unchanged. */
+	readonly value?: JSONValue;
+}
+
+/**
  * Parsed representation of a sorted-map item, as returned by every
  * sorted-map operation that yields a single item.
  */

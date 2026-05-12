@@ -3,6 +3,7 @@ import {
 	buildCreateRequest,
 	buildDeleteRequest,
 	buildGetRequest,
+	buildUpdateRequest,
 } from "../../domains/cloud-v2/memory-store-sorted-maps/builders.ts";
 import {
 	CREATE_OPERATION_LIMIT,
@@ -11,6 +12,8 @@ import {
 	DELETE_REQUIRED_SCOPES,
 	GET_OPERATION_LIMIT,
 	GET_REQUIRED_SCOPES,
+	UPDATE_OPERATION_LIMIT,
+	UPDATE_REQUIRED_SCOPES,
 } from "../../domains/cloud-v2/memory-store-sorted-maps/operations.ts";
 import { parseSortedMapItemResponse } from "../../domains/cloud-v2/memory-store-sorted-maps/parsers.ts";
 import type {
@@ -18,6 +21,7 @@ import type {
 	DeleteSortedMapItemParameters,
 	GetSortedMapItemParameters,
 	SortedMapItem,
+	UpdateSortedMapItemParameters,
 } from "../../domains/cloud-v2/memory-store-sorted-maps/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
@@ -58,6 +62,15 @@ const GET_SPEC = makeSpec<GetSortedMapItemParameters, SortedMapItem>({
 	operationLimit: GET_OPERATION_LIMIT,
 	parse: parseSortedMapItemResponse,
 	requiredScopes: GET_REQUIRED_SCOPES,
+});
+
+const UPDATE_SPEC = makeSpec<UpdateSortedMapItemParameters, SortedMapItem>({
+	buildRequest: (parameters) => okRequest(buildUpdateRequest(parameters)),
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: UPDATE_OPERATION_LIMIT,
+	parse: parseSortedMapItemResponse,
+	requiredScopes: UPDATE_REQUIRED_SCOPES,
 });
 
 /**
@@ -142,5 +155,28 @@ export class MemoryStoreSortedMapsGroup {
 		options?: RequestOptions,
 	): Promise<Result<SortedMapItem, OpenCloudError>> {
 		return this.#inner.execute({ options, parameters, spec: GET_SPEC });
+	}
+
+	/**
+	 * Updates a sorted-map item under PATCH semantics: omitted body
+	 * fields are left unchanged on the server, supplied fields replace
+	 * their existing values. Passing `allowMissing: true` creates the
+	 * item when no row exists instead of returning 404.
+	 *
+	 * Retries 5xx because PATCH with the same body produces the same
+	 * server state.
+	 *
+	 * @param parameters - Universe, sorted-map, and item identifiers,
+	 *   plus any subset of `value`, `ttl`, `sortKey`, and
+	 *   `allowMissing`.
+	 * @param options - Optional per-request overrides.
+	 * @returns A {@link Result} wrapping the parsed {@link SortedMapItem}
+	 *   or the {@link OpenCloudError} that caused the request to fail.
+	 */
+	public async update(
+		parameters: UpdateSortedMapItemParameters,
+		options?: RequestOptions,
+	): Promise<Result<SortedMapItem, OpenCloudError>> {
+		return this.#inner.execute({ options, parameters, spec: UPDATE_SPEC });
 	}
 }

@@ -3,6 +3,8 @@ import type { OperationLimit } from "../../../internal/http/rate-limit-queue.ts"
 const CREATE_PER_MINUTE = 1_000_000;
 const SECONDS_PER_MINUTE = 60;
 
+const WRITE_SCOPE = "memory-store.sorted-map:write";
+
 /**
  * Per-second request ceiling for creating a memory-store sorted-map
  * item, from the Open Cloud OpenAPI schema (1,000,000 requests per
@@ -19,9 +21,7 @@ export const CREATE_OPERATION_LIMIT: OperationLimit = Object.freeze({
  * from `x-roblox-scopes` on the `Cloud_CreateMemoryStoreSortedMapItem`
  * operation in the vendored OpenAPI schema.
  */
-export const CREATE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
-	"memory-store.sorted-map:write",
-]);
+export const CREATE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([WRITE_SCOPE]);
 
 const DELETE_PER_MINUTE = 1_000_000;
 
@@ -40,9 +40,7 @@ export const DELETE_OPERATION_LIMIT: OperationLimit = Object.freeze({
  * from `x-roblox-scopes` on the `Cloud_DeleteMemoryStoreSortedMapItem`
  * operation in the vendored OpenAPI schema.
  */
-export const DELETE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
-	"memory-store.sorted-map:write",
-]);
+export const DELETE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([WRITE_SCOPE]);
 
 const GET_PER_MINUTE = 1_000_000;
 
@@ -64,3 +62,22 @@ export const GET_OPERATION_LIMIT: OperationLimit = Object.freeze({
 export const GET_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
 	"memory-store.sorted-map:read",
 ]);
+
+const UPDATE_PER_MINUTE = 1_000_000;
+
+/**
+ * Per-second request ceiling for updating a memory-store sorted-map
+ * item, from the Open Cloud OpenAPI schema (1,000,000 requests per
+ * minute per API key owner).
+ */
+export const UPDATE_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	maxPerSecond: UPDATE_PER_MINUTE / SECONDS_PER_MINUTE,
+	operationKey: "memory-store-sorted-maps.update",
+});
+
+/**
+ * Scopes required to update a memory-store sorted-map item, sourced
+ * from `x-roblox-scopes` on the `Cloud_UpdateMemoryStoreSortedMapItem`
+ * operation in the vendored OpenAPI schema.
+ */
+export const UPDATE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([WRITE_SCOPE]);

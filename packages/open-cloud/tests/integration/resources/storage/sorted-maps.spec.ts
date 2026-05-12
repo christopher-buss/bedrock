@@ -233,6 +233,121 @@ describe(StorageClient, () => {
 		});
 	});
 
+	describe("sortedMaps.update", () => {
+		it("should return a parsed SortedMapItem on a happy path", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validSortedMapItemBody({
+					path: "cloud/v2/universes/123/memory-store/sorted-maps/my-map/items/abc",
+				}),
+				status: 200,
+			});
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.sortedMaps.update({
+				itemId: "abc",
+				mapId: "my-map",
+				universeId: "123",
+				value: "updated",
+			});
+
+			assert(result.success);
+
+			expect(result.data).toMatchObject({ id: "abc", mapId: "my-map", universeId: "123" });
+			expect(httpClient.requests).toHaveLength(1);
+		});
+
+		it("should send a PATCH whose URL embeds allowMissing and whose body carries the partial update", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validSortedMapItemBody(),
+				status: 200,
+			});
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.sortedMaps.update({
+				allowMissing: true,
+				itemId: "abc123",
+				mapId: "test-map",
+				sortKey: { kind: "string", value: "beta" },
+				ttl: 60,
+				universeId: "123",
+			});
+
+			const captured = httpClient.requests[0];
+			assert(captured !== undefined);
+
+			expect(captured.request.method).toBe("PATCH");
+			expect(captured.request.url).toBe(
+				"/cloud/v2/universes/123/memory-store/sorted-maps/test-map/items/abc123?allowMissing=true",
+			);
+			expect(captured.request.body).toStrictEqual({
+				stringSortKey: "beta",
+				ttl: "60s",
+			});
+		});
+
+		it("should retry a 5xx since update is idempotent", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockApiError({ statusCode: 502 })
+				.mockResponse({ body: validSortedMapItemBody(), status: 200 });
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.sortedMaps.update({
+				itemId: "i",
+				mapId: "m",
+				universeId: "1",
+				value: "x",
+			});
+
+			assert(result.success);
+
+			expect(httpClient.requests).toHaveLength(2);
+			expect(result.data.id).toBe("abc123");
+		});
+
+		it("should upgrade a 403 to a PermissionError carrying memory-store.sorted-map:write", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.sortedMaps.update({
+				itemId: "i",
+				mapId: "m",
+				universeId: "1",
+				value: "x",
+			});
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.requiredScopes).toStrictEqual(["memory-store.sorted-map:write"]);
+			expect(result.err.operationKey).toBe("memory-store-sorted-maps.update");
+			expect(result.err.statusCode).toBe(403);
+		});
+	});
+
 	describe("sortedMaps.get", () => {
 		it("should return a parsed SortedMapItem on a happy path", async () => {
 			expect.assertions(2);

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCreateRequest, buildDeleteRequest, buildGetRequest } from "./builders.ts";
+import {
+	buildCreateRequest,
+	buildDeleteRequest,
+	buildGetRequest,
+	buildUpdateRequest,
+} from "./builders.ts";
 
 describe(buildCreateRequest, () => {
 	it("should produce a POST request targeting /cloud/v2/universes/{uid}/memory-store/sorted-maps/{mid}/items", () => {
@@ -173,6 +178,135 @@ describe(buildDeleteRequest, () => {
 		expect.assertions(1);
 
 		const request = buildDeleteRequest({
+			itemId: "Hello world!?",
+			mapId: "m",
+			universeId: "1",
+		});
+
+		expect(request.url).toBe(
+			"/cloud/v2/universes/1/memory-store/sorted-maps/m/items/Hello%20world!%3F",
+		);
+	});
+});
+
+describe(buildUpdateRequest, () => {
+	it("should produce a PATCH request targeting /cloud/v2/universes/{uid}/memory-store/sorted-maps/{mid}/items/{iid}", () => {
+		expect.assertions(2);
+
+		const request = buildUpdateRequest({
+			itemId: "item-1",
+			mapId: "my-map",
+			universeId: "123",
+		});
+
+		expect(request.method).toBe("PATCH");
+		expect(request.url).toBe(
+			"/cloud/v2/universes/123/memory-store/sorted-maps/my-map/items/item-1",
+		);
+	});
+
+	it("should send application/json as the content-type header", () => {
+		expect.assertions(1);
+
+		const request = buildUpdateRequest({ itemId: "i", mapId: "m", universeId: "1" });
+
+		expect(request.headers).toStrictEqual({ "content-type": "application/json" });
+	});
+
+	it("should send an empty body when no body fields are supplied", () => {
+		expect.assertions(1);
+
+		const request = buildUpdateRequest({ itemId: "i", mapId: "m", universeId: "1" });
+
+		expect(request.body).toStrictEqual({});
+	});
+
+	it("should include value in the body when supplied", () => {
+		expect.assertions(1);
+
+		const request = buildUpdateRequest({
+			itemId: "i",
+			mapId: "m",
+			universeId: "1",
+			value: { score: 5 },
+		});
+
+		expect(request.body).toStrictEqual({ value: { score: 5 } });
+	});
+
+	it("should serialize ttl as a duration string in seconds when supplied", () => {
+		expect.assertions(1);
+
+		const request = buildUpdateRequest({
+			itemId: "i",
+			mapId: "m",
+			ttl: 30,
+			universeId: "1",
+		});
+
+		expect(request.body).toStrictEqual({ ttl: "30s" });
+	});
+
+	it("should project a string sort key into stringSortKey on the body", () => {
+		expect.assertions(1);
+
+		const request = buildUpdateRequest({
+			itemId: "i",
+			mapId: "m",
+			sortKey: { kind: "string", value: "alpha" },
+			universeId: "1",
+		});
+
+		expect(request.body).toStrictEqual({ stringSortKey: "alpha" });
+	});
+
+	it("should project a numeric sort key into numericSortKey on the body", () => {
+		expect.assertions(1);
+
+		const request = buildUpdateRequest({
+			itemId: "i",
+			mapId: "m",
+			sortKey: { kind: "numeric", value: 7 },
+			universeId: "1",
+		});
+
+		expect(request.body).toStrictEqual({ numericSortKey: 7 });
+	});
+
+	it("should append allowMissing as a boolean query string when supplied", () => {
+		expect.assertions(1);
+
+		const request = buildUpdateRequest({
+			allowMissing: true,
+			itemId: "i",
+			mapId: "m",
+			universeId: "1",
+		});
+
+		expect(request.url).toBe(
+			"/cloud/v2/universes/1/memory-store/sorted-maps/m/items/i?allowMissing=true",
+		);
+	});
+
+	it("should send allowMissing=false explicitly when supplied as false", () => {
+		expect.assertions(1);
+
+		const request = buildUpdateRequest({
+			allowMissing: false,
+			itemId: "i",
+			mapId: "m",
+			universeId: "1",
+		});
+
+		expect(request.url).toBe(
+			"/cloud/v2/universes/1/memory-store/sorted-maps/m/items/i?allowMissing=false",
+		);
+	});
+
+	it("should URL-encode an itemId carrying reserved characters in the path", () => {
+		expect.assertions(1);
+
+		const request = buildUpdateRequest({
 			itemId: "Hello world!?",
 			mapId: "m",
 			universeId: "1",

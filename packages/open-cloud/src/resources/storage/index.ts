@@ -11,5 +11,6 @@ export type {
 	GetSortedMapItemParameters,
 	SortedMapItem,
 	SortKey,
+	UpdateSortedMapItemParameters,
 } from "../../domains/cloud-v2/memory-store-sorted-maps/types.ts";
 export { StorageClient } from "./client.ts";
