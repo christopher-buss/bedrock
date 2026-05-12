@@ -357,7 +357,12 @@ async function writePath(
 	}
 
 	if (response.ok) {
-		await waitForFileVisibility(ctx, state.environment);
+		try {
+			await waitForFileVisibility(ctx, state.environment);
+		} catch {
+			/* visibility poll errors are non-fatal; the PATCH already committed. */
+		}
+
 		return { data: undefined, success: true };
 	}
 

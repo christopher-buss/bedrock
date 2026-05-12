@@ -926,6 +926,33 @@ describe(createGistStateAdapter, () => {
 				expect(calls).toHaveLength(3);
 			});
 
+			it("should resolve write success when the injected sleep rejects during visibility polling", async () => {
+				expect.assertions(2);
+
+				const { calls, fetchFn } = fakeFetch((request) => {
+					return request.method === "PATCH" ? emptyResponse(200) : okJson({ files: {} });
+				});
+				async function rejectingSleep(): Promise<void> {
+					throw new Error("aborted");
+				}
+
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					sleep: rejectingSleep,
+					token: TOKEN,
+				});
+
+				const result = await port.write({
+					environment: "production",
+					resources: [],
+					version: 1,
+				});
+
+				expect(result.success).toBeTrue();
+				expect(calls).toHaveLength(2);
+			});
+
 			it("should treat a thrown visibility GET as 'not yet visible' and keep polling", async () => {
 				expect.assertions(2);
 
