@@ -22,3 +22,24 @@ export const CREATE_OPERATION_LIMIT: OperationLimit = Object.freeze({
 export const CREATE_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
 	"memory-store.sorted-map:write",
 ]);
+
+const GET_PER_MINUTE = 1_000_000;
+
+/**
+ * Per-second request ceiling for reading a memory-store sorted-map
+ * item, from the Open Cloud OpenAPI schema (1,000,000 requests per
+ * minute per API key owner).
+ */
+export const GET_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	maxPerSecond: GET_PER_MINUTE / SECONDS_PER_MINUTE,
+	operationKey: "memory-store-sorted-maps.get",
+});
+
+/**
+ * Scopes required to read a memory-store sorted-map item, sourced from
+ * `x-roblox-scopes` on the `Cloud_GetMemoryStoreSortedMapItem`
+ * operation in the vendored OpenAPI schema.
+ */
+export const GET_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
+	"memory-store.sorted-map:read",
+]);

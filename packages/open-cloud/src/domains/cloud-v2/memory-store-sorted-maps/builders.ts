@@ -1,5 +1,9 @@
 import type { HttpRequest } from "../../../client/types.ts";
-import type { CreateSortedMapItemParameters, SortKey } from "./types.ts";
+import type {
+	CreateSortedMapItemParameters,
+	GetSortedMapItemParameters,
+	SortKey,
+} from "./types.ts";
 
 /**
  * Builds a `POST` request for the Open Cloud
@@ -29,6 +33,23 @@ export function buildCreateRequest(parameters: CreateSortedMapItemParameters): H
 		headers: { "content-type": "application/json" },
 		method: "POST",
 		url: `/cloud/v2/universes/${universeId}/memory-store/sorted-maps/${mapId}/items?${query.toString()}`,
+	};
+}
+
+/**
+ * Builds a `GET` request for the Open Cloud
+ * `Cloud_GetMemoryStoreSortedMapItem` endpoint. The `itemId` is
+ * URL-encoded into the path segment so callers can pass values
+ * containing reserved characters without manual escaping.
+ *
+ * @param parameters - Universe, sorted-map, and item identifiers.
+ * @returns A pure {@link HttpRequest} describing the get call.
+ */
+export function buildGetRequest(parameters: GetSortedMapItemParameters): HttpRequest {
+	const { itemId, mapId, universeId } = parameters;
+	return {
+		method: "GET",
+		url: `/cloud/v2/universes/${universeId}/memory-store/sorted-maps/${mapId}/items/${encodeURIComponent(itemId)}`,
 	};
 }
 

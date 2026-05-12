@@ -150,4 +150,109 @@ describe(StorageClient, () => {
 			expect(httpClient.requests[0]?.config.apiKey).toBe("override-key");
 		});
 	});
+
+	describe("sortedMaps.get", () => {
+		it("should return a parsed SortedMapItem on a happy path", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validSortedMapItemBody({
+					path: "cloud/v2/universes/123/memory-store/sorted-maps/my-map/items/abc",
+				}),
+				status: 200,
+			});
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.sortedMaps.get({
+				itemId: "abc",
+				mapId: "my-map",
+				universeId: "123",
+			});
+
+			assert(result.success);
+
+			expect(result.data).toMatchObject({ id: "abc", mapId: "my-map", universeId: "123" });
+			expect(httpClient.requests).toHaveLength(1);
+		});
+
+		it("should send a GET whose URL embeds the path identifiers", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validSortedMapItemBody(),
+				status: 200,
+			});
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.sortedMaps.get({
+				itemId: "abc123",
+				mapId: "test-map",
+				universeId: "123",
+			});
+
+			const captured = httpClient.requests[0];
+			assert(captured !== undefined);
+
+			expect(captured.request.method).toBe("GET");
+			expect(captured.request.url).toBe(
+				"/cloud/v2/universes/123/memory-store/sorted-maps/test-map/items/abc123",
+			);
+		});
+
+		it("should retry a 5xx since get is idempotent", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockApiError({ statusCode: 502 })
+				.mockResponse({ body: validSortedMapItemBody(), status: 200 });
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.sortedMaps.get({
+				itemId: "i",
+				mapId: "m",
+				universeId: "1",
+			});
+
+			assert(result.success);
+
+			expect(httpClient.requests).toHaveLength(2);
+			expect(result.data.id).toBe("abc123");
+		});
+
+		it("should upgrade a 403 to a PermissionError carrying memory-store.sorted-map:read", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.sortedMaps.get({
+				itemId: "i",
+				mapId: "m",
+				universeId: "1",
+			});
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.requiredScopes).toStrictEqual(["memory-store.sorted-map:read"]);
+			expect(result.err.operationKey).toBe("memory-store-sorted-maps.get");
+			expect(result.err.statusCode).toBe(403);
+		});
+	});
 });

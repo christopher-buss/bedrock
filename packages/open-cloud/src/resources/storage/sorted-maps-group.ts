@@ -1,16 +1,22 @@
 import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
-import { buildCreateRequest } from "../../domains/cloud-v2/memory-store-sorted-maps/builders.ts";
+import {
+	buildCreateRequest,
+	buildGetRequest,
+} from "../../domains/cloud-v2/memory-store-sorted-maps/builders.ts";
 import {
 	CREATE_OPERATION_LIMIT,
 	CREATE_REQUIRED_SCOPES,
+	GET_OPERATION_LIMIT,
+	GET_REQUIRED_SCOPES,
 } from "../../domains/cloud-v2/memory-store-sorted-maps/operations.ts";
 import { parseSortedMapItemResponse } from "../../domains/cloud-v2/memory-store-sorted-maps/parsers.ts";
 import type {
 	CreateSortedMapItemParameters,
+	GetSortedMapItemParameters,
 	SortedMapItem,
 } from "../../domains/cloud-v2/memory-store-sorted-maps/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
-import { CREATE_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
+import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
 	okRequest,
 	type ResourceClient,
@@ -29,6 +35,15 @@ const CREATE_SPEC = makeSpec<CreateSortedMapItemParameters, SortedMapItem>({
 	operationLimit: CREATE_OPERATION_LIMIT,
 	parse: parseSortedMapItemResponse,
 	requiredScopes: CREATE_REQUIRED_SCOPES,
+});
+
+const GET_SPEC = makeSpec<GetSortedMapItemParameters, SortedMapItem>({
+	buildRequest: (parameters) => okRequest(buildGetRequest(parameters)),
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: GET_OPERATION_LIMIT,
+	parse: parseSortedMapItemResponse,
+	requiredScopes: GET_REQUIRED_SCOPES,
 });
 
 /**
@@ -77,5 +92,23 @@ export class MemoryStoreSortedMapsGroup {
 		options?: RequestOptions,
 	): Promise<Result<SortedMapItem, OpenCloudError>> {
 		return this.#inner.execute({ options, parameters, spec: CREATE_SPEC });
+	}
+
+	/**
+	 * Reads a single item from a sorted map. Returns the parsed
+	 * {@link SortedMapItem} with the server-recorded `etag` for use in
+	 * subsequent conditional updates (once the SDK begins emitting
+	 * `If-Match`; see the package README).
+	 *
+	 * @param parameters - Universe, sorted-map, and item identifiers.
+	 * @param options - Optional per-request overrides.
+	 * @returns A {@link Result} wrapping the parsed {@link SortedMapItem}
+	 *   or the {@link OpenCloudError} that caused the request to fail.
+	 */
+	public async get(
+		parameters: GetSortedMapItemParameters,
+		options?: RequestOptions,
+	): Promise<Result<SortedMapItem, OpenCloudError>> {
+		return this.#inner.execute({ options, parameters, spec: GET_SPEC });
 	}
 }

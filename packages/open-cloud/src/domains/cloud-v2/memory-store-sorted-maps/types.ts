@@ -39,6 +39,20 @@ export interface CreateSortedMapItemParameters {
 }
 
 /**
+ * Caller-supplied input for the `get` method on
+ * `StorageClient.sortedMaps`. Mirrors
+ * `Cloud_GetMemoryStoreSortedMapItem` on the Open Cloud API.
+ */
+export interface GetSortedMapItemParameters {
+	/** Caller-supplied item identifier. URL-encoded by the builder. */
+	readonly itemId: string;
+	/** Stringified sorted-map identifier. */
+	readonly mapId: string;
+	/** Stringified ID of the universe that owns the sorted map. */
+	readonly universeId: string;
+}
+
+/**
  * Parsed representation of a sorted-map item, as returned by every
  * sorted-map operation that yields a single item.
  */
