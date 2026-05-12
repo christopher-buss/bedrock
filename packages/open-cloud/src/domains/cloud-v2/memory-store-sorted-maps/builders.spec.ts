@@ -4,6 +4,7 @@ import {
 	buildCreateRequest,
 	buildDeleteRequest,
 	buildGetRequest,
+	buildListRequest,
 	buildUpdateRequest,
 } from "./builders.ts";
 
@@ -186,6 +187,56 @@ describe(buildDeleteRequest, () => {
 		expect(request.url).toBe(
 			"/cloud/v2/universes/1/memory-store/sorted-maps/m/items/Hello%20world!%3F",
 		);
+	});
+});
+
+describe(buildListRequest, () => {
+	it("should produce a GET request targeting /cloud/v2/universes/{uid}/memory-store/sorted-maps/{mid}/items", () => {
+		expect.assertions(2);
+
+		const request = buildListRequest({ mapId: "my-map", universeId: "123" });
+
+		expect(request.method).toBe("GET");
+		expect(request.url).toBe("/cloud/v2/universes/123/memory-store/sorted-maps/my-map/items");
+	});
+
+	it("should not carry a body or content-type", () => {
+		expect.assertions(2);
+
+		const request = buildListRequest({ mapId: "m", universeId: "1" });
+
+		expect(request.body).toBeUndefined();
+		expect(request.headers).toBeUndefined();
+	});
+
+	it("should serialize maxPageSize, pageToken, orderBy, and filter into the query string", () => {
+		expect.assertions(1);
+
+		const request = buildListRequest({
+			filter: 'id > "key-001"',
+			mapId: "m",
+			maxPageSize: 50,
+			orderBy: "id desc",
+			pageToken: "tok-123",
+			universeId: "1",
+		});
+
+		expect(request.url).toBe(
+			"/cloud/v2/universes/1/memory-store/sorted-maps/m/items?maxPageSize=50&pageToken=tok-123&orderBy=id+desc&filter=id+%3E+%22key-001%22",
+		);
+	});
+
+	it("should omit query keys for parameters not supplied", () => {
+		expect.assertions(2);
+
+		const request = buildListRequest({
+			mapId: "m",
+			maxPageSize: 10,
+			universeId: "1",
+		});
+
+		expect(request.url).toContain("?maxPageSize=10");
+		expect(request.url).not.toContain("pageToken");
 	});
 });
 

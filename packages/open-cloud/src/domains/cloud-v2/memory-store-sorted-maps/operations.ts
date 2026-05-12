@@ -63,6 +63,27 @@ export const GET_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
 	"memory-store.sorted-map:read",
 ]);
 
+const LIST_PER_MINUTE = 1_000_000;
+
+/**
+ * Per-second request ceiling for listing memory-store sorted-map
+ * items, from the Open Cloud OpenAPI schema (1,000,000 requests per
+ * minute per API key owner).
+ */
+export const LIST_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	maxPerSecond: LIST_PER_MINUTE / SECONDS_PER_MINUTE,
+	operationKey: "memory-store-sorted-maps.list",
+});
+
+/**
+ * Scopes required to list memory-store sorted-map items, sourced from
+ * `x-roblox-scopes` on the `Cloud_ListMemoryStoreSortedMapItems`
+ * operation in the vendored OpenAPI schema.
+ */
+export const LIST_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze([
+	"memory-store.sorted-map:read",
+]);
+
 const UPDATE_PER_MINUTE = 1_000_000;
 
 /**

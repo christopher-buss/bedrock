@@ -39,6 +39,87 @@ export interface CreateSortedMapItemParameters {
 }
 
 /**
+ * Caller-supplied input for the `list` method on
+ * `StorageClient.sortedMaps`. Mirrors
+ * `Cloud_ListMemoryStoreSortedMapItems` on the Open Cloud API. All
+ * paging and filtering parameters are optional; omitting them returns
+ * up to one item server-side (`maxPageSize` defaults to `1`).
+ */
+export interface ListSortedMapItemsParameters {
+	/**
+	 * Optional CEL filter on `id` and `sortKey`. The server supports
+	 * `<`, `>`, and `&&` operators only; other operators are rejected
+	 * server-side with a validation error.
+	 */
+	readonly filter?: string;
+	/** Stringified sorted-map identifier. */
+	readonly mapId: string;
+	/**
+	 * Maximum items per page. Capped at `100` server-side; values above
+	 * the cap are clamped. Defaults to `1` when omitted.
+	 */
+	readonly maxPageSize?: number;
+	/**
+	 * Sort order. The server supports the `id` field only, with an
+	 * optional ` desc` suffix.
+	 */
+	readonly orderBy?: string;
+	/**
+	 * Page token returned by a previous call. When supplied, all other
+	 * parameters must match the previous call exactly.
+	 */
+	readonly pageToken?: string;
+	/** Stringified ID of the universe that owns the sorted map. */
+	readonly universeId: string;
+}
+
+/**
+ * Parsed representation of a sorted-map item, as returned by every
+ * sorted-map operation that yields a single item.
+ */
+export interface SortedMapItem {
+	/** Item identifier, parsed from the wire `path`. */
+	readonly id: string;
+	/**
+	 * Server-generated etag for optimistic concurrency. Surfaced for
+	 * caller inspection; the SDK does not yet emit an `If-Match` header
+	 * for conditional update or delete.
+	 */
+	readonly etag: string;
+	/** Timestamp at which the server removes the item from the map. */
+	readonly expiresAt: Date;
+	/** Stringified sorted-map identifier, parsed from the wire `path`. */
+	readonly mapId: string;
+	/**
+	 * Parsed sort key, or `undefined` when the item has none. The server
+	 * contract is one-of: a response carrying both `stringSortKey` and
+	 * `numericSortKey` is rejected as malformed.
+	 */
+	readonly sortKey: SortKey | undefined;
+	/** Stringified universe identifier, parsed from the wire `path`. */
+	readonly universeId: string;
+	/**
+	 * Opaque item payload. Round-trips as JSON, including nested `null`
+	 * values inside objects and arrays, and `null` at the top level.
+	 */
+	readonly value: JSONValue;
+}
+
+/**
+ * Parsed result of a successful `Cloud_ListMemoryStoreSortedMapItems`
+ * response.
+ */
+export interface ListSortedMapItemsResult {
+	/** Items returned in the current page, ordered per `orderBy`. */
+	readonly items: ReadonlyArray<SortedMapItem>;
+	/**
+	 * Page token for the next call, or `undefined` when no more pages
+	 * exist. Pass back through `pageToken` to retrieve the next page.
+	 */
+	readonly nextPageToken: string | undefined;
+}
+
+/**
  * Caller-supplied input for the `delete` method on
  * `StorageClient.sortedMaps`. Mirrors
  * `Cloud_DeleteMemoryStoreSortedMapItem` on the Open Cloud API.
@@ -99,36 +180,4 @@ export interface UpdateSortedMapItemParameters {
 	readonly universeId: string;
 	/** Replacement value. Omitted entries leave the existing value unchanged. */
 	readonly value?: JSONValue;
-}
-
-/**
- * Parsed representation of a sorted-map item, as returned by every
- * sorted-map operation that yields a single item.
- */
-export interface SortedMapItem {
-	/** Item identifier, parsed from the wire `path`. */
-	readonly id: string;
-	/**
-	 * Server-generated etag for optimistic concurrency. Surfaced for
-	 * caller inspection; the SDK does not yet emit an `If-Match` header
-	 * for conditional update or delete.
-	 */
-	readonly etag: string;
-	/** Timestamp at which the server removes the item from the map. */
-	readonly expiresAt: Date;
-	/** Stringified sorted-map identifier, parsed from the wire `path`. */
-	readonly mapId: string;
-	/**
-	 * Parsed sort key, or `undefined` when the item has none. The server
-	 * contract is one-of: a response carrying both `stringSortKey` and
-	 * `numericSortKey` is rejected as malformed.
-	 */
-	readonly sortKey: SortKey | undefined;
-	/** Stringified universe identifier, parsed from the wire `path`. */
-	readonly universeId: string;
-	/**
-	 * Opaque item payload. Round-trips as JSON, including nested `null`
-	 * values inside objects and arrays, and `null` at the top level.
-	 */
-	readonly value: JSONValue;
 }

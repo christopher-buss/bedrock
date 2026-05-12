@@ -3,6 +3,7 @@ import type {
 	CreateSortedMapItemParameters,
 	DeleteSortedMapItemParameters,
 	GetSortedMapItemParameters,
+	ListSortedMapItemsParameters,
 	SortKey,
 	UpdateSortedMapItemParameters,
 } from "./types.ts";
@@ -70,6 +71,40 @@ export function buildGetRequest(parameters: GetSortedMapItemParameters): HttpReq
 		method: "GET",
 		url: `/cloud/v2/universes/${universeId}/memory-store/sorted-maps/${mapId}/items/${encodeURIComponent(itemId)}`,
 	};
+}
+
+/**
+ * Builds a `GET` request for the Open Cloud
+ * `Cloud_ListMemoryStoreSortedMapItems` endpoint. Optional `filter`,
+ * `maxPageSize`, `orderBy`, and `pageToken` parameters travel as query
+ * string parameters and are omitted when unset.
+ *
+ * @param parameters - Universe and sorted-map identifiers, plus
+ *   optional pagination and filter parameters.
+ * @returns A pure {@link HttpRequest} describing the list call.
+ */
+export function buildListRequest(parameters: ListSortedMapItemsParameters): HttpRequest {
+	const { filter, mapId, maxPageSize, orderBy, pageToken, universeId } = parameters;
+	const query = new URLSearchParams();
+	if (maxPageSize !== undefined) {
+		query.append("maxPageSize", String(maxPageSize));
+	}
+
+	if (pageToken !== undefined) {
+		query.append("pageToken", pageToken);
+	}
+
+	if (orderBy !== undefined) {
+		query.append("orderBy", orderBy);
+	}
+
+	if (filter !== undefined) {
+		query.append("filter", filter);
+	}
+
+	const base = `/cloud/v2/universes/${universeId}/memory-store/sorted-maps/${mapId}/items`;
+	const queryString = query.toString();
+	return { method: "GET", url: queryString === "" ? base : `${base}?${queryString}` };
 }
 
 /**

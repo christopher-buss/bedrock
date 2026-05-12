@@ -3,6 +3,7 @@ import {
 	buildCreateRequest,
 	buildDeleteRequest,
 	buildGetRequest,
+	buildListRequest,
 	buildUpdateRequest,
 } from "../../domains/cloud-v2/memory-store-sorted-maps/builders.ts";
 import {
@@ -12,14 +13,21 @@ import {
 	DELETE_REQUIRED_SCOPES,
 	GET_OPERATION_LIMIT,
 	GET_REQUIRED_SCOPES,
+	LIST_OPERATION_LIMIT,
+	LIST_REQUIRED_SCOPES,
 	UPDATE_OPERATION_LIMIT,
 	UPDATE_REQUIRED_SCOPES,
 } from "../../domains/cloud-v2/memory-store-sorted-maps/operations.ts";
-import { parseSortedMapItemResponse } from "../../domains/cloud-v2/memory-store-sorted-maps/parsers.ts";
+import {
+	parseListResponse,
+	parseSortedMapItemResponse,
+} from "../../domains/cloud-v2/memory-store-sorted-maps/parsers.ts";
 import type {
 	CreateSortedMapItemParameters,
 	DeleteSortedMapItemParameters,
 	GetSortedMapItemParameters,
+	ListSortedMapItemsParameters,
+	ListSortedMapItemsResult,
 	SortedMapItem,
 	UpdateSortedMapItemParameters,
 } from "../../domains/cloud-v2/memory-store-sorted-maps/types.ts";
@@ -62,6 +70,15 @@ const GET_SPEC = makeSpec<GetSortedMapItemParameters, SortedMapItem>({
 	operationLimit: GET_OPERATION_LIMIT,
 	parse: parseSortedMapItemResponse,
 	requiredScopes: GET_REQUIRED_SCOPES,
+});
+
+const LIST_SPEC = makeSpec<ListSortedMapItemsParameters, ListSortedMapItemsResult>({
+	buildRequest: (parameters) => okRequest(buildListRequest(parameters)),
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: LIST_OPERATION_LIMIT,
+	parse: parseListResponse,
+	requiredScopes: LIST_REQUIRED_SCOPES,
 });
 
 const UPDATE_SPEC = makeSpec<UpdateSortedMapItemParameters, SortedMapItem>({
@@ -155,6 +172,27 @@ export class MemoryStoreSortedMapsGroup {
 		options?: RequestOptions,
 	): Promise<Result<SortedMapItem, OpenCloudError>> {
 		return this.#inner.execute({ options, parameters, spec: GET_SPEC });
+	}
+
+	/**
+	 * Lists items in a sorted map. The server caps `maxPageSize` at
+	 * `100` and defaults it to `1` when omitted, so callers explicitly
+	 * pass `maxPageSize` to retrieve more than a single item per page.
+	 * The `filter` parameter accepts a CEL expression on `id` and
+	 * `sortKey` (operators `<`, `>`, `&&` only).
+	 *
+	 * @param parameters - Universe and sorted-map identifiers, plus
+	 *   optional pagination and filter parameters.
+	 * @param options - Optional per-request overrides.
+	 * @returns A {@link Result} wrapping the parsed
+	 *   {@link ListSortedMapItemsResult} or the {@link OpenCloudError}
+	 *   that caused the request to fail.
+	 */
+	public async list(
+		parameters: ListSortedMapItemsParameters,
+		options?: RequestOptions,
+	): Promise<Result<ListSortedMapItemsResult, OpenCloudError>> {
+		return this.#inner.execute({ options, parameters, spec: LIST_SPEC });
 	}
 
 	/**

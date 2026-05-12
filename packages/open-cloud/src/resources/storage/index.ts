@@ -9,6 +9,8 @@ export type {
 	CreateSortedMapItemParameters,
 	DeleteSortedMapItemParameters,
 	GetSortedMapItemParameters,
+	ListSortedMapItemsParameters,
+	ListSortedMapItemsResult,
 	SortedMapItem,
 	SortKey,
 	UpdateSortedMapItemParameters,

@@ -3,7 +3,10 @@ import { PermissionError } from "#src/errors/permission-error";
 import { StorageClient } from "#src/resources/storage/client";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
-import { validSortedMapItemBody } from "#tests/helpers/memory-store-sorted-maps";
+import {
+	validListSortedMapItemsBody,
+	validSortedMapItemBody,
+} from "#tests/helpers/memory-store-sorted-maps";
 import { assert, describe, expect, it } from "vitest";
 
 describe(StorageClient, () => {
@@ -229,6 +232,110 @@ describe(StorageClient, () => {
 
 			expect(result.err.requiredScopes).toStrictEqual(["memory-store.sorted-map:write"]);
 			expect(result.err.operationKey).toBe("memory-store-sorted-maps.delete");
+			expect(result.err.statusCode).toBe(403);
+		});
+	});
+
+	describe("sortedMaps.list", () => {
+		it("should return parsed items and a nextPageToken on a happy path", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validListSortedMapItemsBody({ nextPageToken: "tok-2" }),
+				status: 200,
+			});
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.sortedMaps.list({
+				mapId: "test-map",
+				maxPageSize: 50,
+				universeId: "123",
+			});
+
+			assert(result.success);
+
+			expect(result.data.items).toHaveLength(1);
+			expect(result.data.nextPageToken).toBe("tok-2");
+		});
+
+		it("should send a GET whose URL embeds the pagination and filter parameters", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: validListSortedMapItemsBody(),
+				status: 200,
+			});
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.sortedMaps.list({
+				filter: 'id > "key-001"',
+				mapId: "test-map",
+				maxPageSize: 25,
+				orderBy: "id desc",
+				pageToken: "tok-1",
+				universeId: "123",
+			});
+
+			const captured = httpClient.requests[0];
+			assert(captured !== undefined);
+
+			expect(captured.request.method).toBe("GET");
+			expect(captured.request.url).toBe(
+				"/cloud/v2/universes/123/memory-store/sorted-maps/test-map/items?maxPageSize=25&pageToken=tok-1&orderBy=id+desc&filter=id+%3E+%22key-001%22",
+			);
+		});
+
+		it("should retry a 5xx since list is idempotent", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockApiError({ statusCode: 502 })
+				.mockResponse({ body: validListSortedMapItemsBody(), status: 200 });
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.sortedMaps.list({
+				mapId: "m",
+				universeId: "1",
+			});
+
+			assert(result.success);
+
+			expect(httpClient.requests).toHaveLength(2);
+			expect(result.data.items).toHaveLength(1);
+		});
+
+		it("should upgrade a 403 to a PermissionError carrying memory-store.sorted-map:read", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.sortedMaps.list({
+				mapId: "m",
+				universeId: "1",
+			});
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.requiredScopes).toStrictEqual(["memory-store.sorted-map:read"]);
+			expect(result.err.operationKey).toBe("memory-store-sorted-maps.list");
 			expect(result.err.statusCode).toBe(403);
 		});
 	});

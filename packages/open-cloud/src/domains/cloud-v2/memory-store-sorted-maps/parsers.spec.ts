@@ -1,8 +1,11 @@
-import { validSortedMapItemBody } from "#tests/helpers/memory-store-sorted-maps";
+import {
+	validListSortedMapItemsBody,
+	validSortedMapItemBody,
+} from "#tests/helpers/memory-store-sorted-maps";
 import { assert, describe, expect, it } from "vitest";
 
 import { ApiError } from "../../../errors/api-error.ts";
-import { parseSortedMapItemResponse } from "./parsers.ts";
+import { parseListResponse, parseSortedMapItemResponse } from "./parsers.ts";
 import type { MemoryStoreSortedMapItemWire } from "./wire.ts";
 
 function okSortedMapItemResponse(
@@ -10,6 +13,156 @@ function okSortedMapItemResponse(
 ): Parameters<typeof parseSortedMapItemResponse>[0] {
 	return { body, headers: {}, status: 200 };
 }
+
+describe(parseListResponse, () => {
+	it("should parse a valid list response into items and a nextPageToken", () => {
+		expect.assertions(2);
+
+		const result = parseListResponse({
+			body: validListSortedMapItemsBody({ nextPageToken: "tok-42" }),
+			headers: {},
+			status: 200,
+		});
+
+		assert(result.success);
+
+		expect(result.data.items).toHaveLength(1);
+		expect(result.data.nextPageToken).toBe("tok-42");
+	});
+
+	it("should surface a missing nextPageToken as undefined", () => {
+		expect.assertions(1);
+
+		const result = parseListResponse({
+			body: validListSortedMapItemsBody(),
+			headers: {},
+			status: 200,
+		});
+
+		assert(result.success);
+
+		expect(result.data.nextPageToken).toBeUndefined();
+	});
+
+	it("should map every entry through the same parser as the single-item endpoints", () => {
+		expect.assertions(3);
+
+		const result = parseListResponse({
+			body: validListSortedMapItemsBody({
+				memoryStoreSortedMapItems: [
+					validSortedMapItemBody({
+						path: "cloud/v2/universes/1/memory-store/sorted-maps/m/items/first",
+					}),
+					validSortedMapItemBody({
+						numericSortKey: 7,
+						path: "cloud/v2/universes/1/memory-store/sorted-maps/m/items/second",
+						stringSortKey: undefined,
+					}),
+				],
+			}),
+			headers: {},
+			status: 200,
+		});
+
+		assert(result.success);
+
+		expect(result.data.items).toHaveLength(2);
+		expect(result.data.items[0]?.id).toBe("first");
+		expect(result.data.items[1]?.sortKey).toStrictEqual({ kind: "numeric", value: 7 });
+	});
+
+	it("should accept an empty memoryStoreSortedMapItems array", () => {
+		expect.assertions(1);
+
+		const result = parseListResponse({
+			body: validListSortedMapItemsBody({ memoryStoreSortedMapItems: [] }),
+			headers: {},
+			status: 200,
+		});
+
+		assert(result.success);
+
+		expect(result.data.items).toStrictEqual([]);
+	});
+
+	it("should reject a non-record body", () => {
+		expect.assertions(2);
+
+		const result = parseListResponse({
+			body: "nope",
+			headers: {},
+			status: 200,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+		expect(result.err.message).toBe("Malformed memory-store sorted-map list response");
+	});
+
+	it("should reject a body whose memoryStoreSortedMapItems is not an array", () => {
+		expect.assertions(1);
+
+		const result = parseListResponse({
+			body: { ...validListSortedMapItemsBody(), memoryStoreSortedMapItems: "nope" },
+			headers: {},
+			status: 200,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+	});
+
+	it("should reject a body whose nextPageToken is a non-string non-undefined value", () => {
+		expect.assertions(1);
+
+		const result = parseListResponse({
+			body: { ...validListSortedMapItemsBody(), nextPageToken: 42 },
+			headers: {},
+			status: 200,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+	});
+
+	it("should reject a body whose memoryStoreSortedMapItems contains a malformed entry", () => {
+		expect.assertions(1);
+
+		const malformedItem: Record<string, unknown> = {
+			...validSortedMapItemBody(),
+			path: 12_345,
+		};
+		const result = parseListResponse({
+			body: {
+				...validListSortedMapItemsBody(),
+				memoryStoreSortedMapItems: [malformedItem],
+			},
+			headers: {},
+			status: 200,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBeInstanceOf(ApiError);
+	});
+
+	it("should propagate the response status code on the returned ApiError", () => {
+		expect.assertions(1);
+
+		const result = parseListResponse({
+			body: "nope",
+			headers: {},
+			status: 503,
+		});
+
+		assert(!result.success);
+
+		expect(result.err.statusCode).toBe(503);
+	});
+});
 
 describe(parseSortedMapItemResponse, () => {
 	it("should parse a full valid body into the public SortedMapItem shape", () => {
