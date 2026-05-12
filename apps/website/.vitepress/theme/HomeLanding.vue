@@ -386,19 +386,20 @@ function toggleTheme(): void {
 					<div class="eyebrow">03 &middot; Quickstart</div>
 					<h2>Five minutes, <em>one</em> deploy.</h2>
 					<p>
-						Install the package, point it at a universe, run <code>deploy</code>. Bedrock
-						plans before it touches anything, you always see the diff first.
+						Three things to get you to a live deploy: the package, an Open Cloud
+						API key, and a config file. The steps below walk through each,
+						end-to-end in about five minutes.
 					</p>
 					<ol class="install-steps">
 						<li>
 							<div>
-								<b>Install</b><code>pnpm add bedrock</code> (or <code>npm</code> /
+								<b>Install</b><code>pnpm add @bedrock-rbx/core</code> (or <code>npm</code> /
 								<code>bun</code> / <code>yarn</code>)
 							</div>
 						</li>
 						<li>
 							<div>
-								<b>Authenticate</b>Export <code>ROBLOX_API_KEY</code> from an Open Cloud
+								<b>Authenticate</b>Export <code>BEDROCK_API_KEY</code> from an Open Cloud
 								key with write scopes.
 							</div>
 						</li>
@@ -500,7 +501,6 @@ function toggleTheme(): void {
 							<div><span class="term-ok">v</span> experience       <span class="term-dim">mapped</span></div>
 							<div><span class="term-ok">v</span> 3 game passes   <span class="term-dim">mapped</span></div>
 							<div><span class="term-warn">!</span> social-link     <span class="term-dim">unsupported in Open Cloud, skipped</span></div>
-							<div><span class="term-warn">!</span> badge.welcome   <span class="term-dim">deferred to v1.0</span></div>
 							<div>&nbsp;</div>
 							<div><span class="term-dim">Wrote</span> bedrock.config.ts</div>
 							<div><span class="term-dim">Next:</span> bedrock diff</div>
@@ -1727,23 +1727,41 @@ html.dark .bedrock-landing {
 	background: var(--dark-line);
 }
 
+.term-lights span:nth-child(1) {
+	background: #ff5f57;
+}
+
+.term-lights span:nth-child(2) {
+	background: #febc2e;
+}
+
+.term-lights span:nth-child(3) {
+	background: #28c840;
+}
+
 .term-tabs {
 	margin-left: auto;
 	display: flex;
-	gap: 2px;
+	gap: 8px;
 }
 
-.term-tab {
-	padding: 4px 10px;
+.term-tabs .term-tab {
+	padding: 6px 12px;
 	font-size: 11px;
 	color: var(--dark-ink-3);
 	border-radius: 4px;
+	border: 1px solid transparent;
 	transition: all 0.15s var(--ease);
 }
 
-.term-tab.active {
+.term-tabs .term-tab.active {
 	background: rgba(255, 255, 255, 0.05);
 	color: var(--dark-ink);
+	border-color: var(--dark-line);
+}
+
+.term-tabs .term-tab:not(.active):hover {
+	color: var(--dark-ink-2);
 }
 
 .term-body {
