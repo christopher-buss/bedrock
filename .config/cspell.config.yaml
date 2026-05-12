@@ -13,11 +13,15 @@ words:
   - luaurc
   - lute
   - monocart
-  - retryable
+  - nonwords
   - ocale
-  - Pulumi
+  - pulumi
   - rbxl
   - rbxlx
+  - retryable
+  - shiki
+  - stroustrup
+  - vitesse
   - worktree
   - worktrees
   - worktrunk

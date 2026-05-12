@@ -32,6 +32,9 @@ patchedDependencies:
   "@stryker-mutator/vitest-runner@9.6.1": patches/@stryker-mutator__vitest-runner@9.6.1.patch
   generate-jsdoc-example-tests: patches/generate-jsdoc-example-tests.patch
 
+catalog:
+  vite: npm:@voidzero-dev/vite-plus-core@0.1.19
+
 catalogs:
   build:
     typedoc: 0.28.19
@@ -49,6 +52,7 @@ catalogs:
     oxc-minify: 0.128.0
     pncat: 0.11.1
   docs:
+    shiki: 3.23.0
     vitepress: 2.0.0-alpha.17
     vitepress-plugin-tabs: 0.8.0
   lint:
@@ -60,14 +64,20 @@ catalogs:
     "@eslint/config-inspector": 1.5.0
     "@isentinel/eslint-config": 5.0.0-beta.11
     "@isentinel/hooks": 1.4.0
+    "@typescript-eslint/parser": 8.58.1
     "@vitest/eslint-plugin": 1.6.16
     eslint: 9.39.2
+    eslint-merge-processors: 2.0.0
     eslint-plugin-erasable-syntax-only: 0.4.1
     eslint-plugin-jest-extended: 3.0.1
     eslint-plugin-n: 17.24.0
     eslint-plugin-pnpm: 1.6.0
+    eslint-plugin-vue: 10.9.1
+    eslint-plugin-vuejs-accessibility: 2.5.0
+    eslint-processor-vue-blocks: 2.0.0
     knip: 6.7.0
     publint: 0.3.18
+    vue-eslint-parser: 10.4.0
   runtime:
     "@clack/prompts": 1.2.0
     arktype: 2.2.0

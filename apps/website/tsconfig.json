@@ -1,5 +1,5 @@
 {
 	"extends": "@bedrock-rbx/typescript-config/tsconfig.base.json",
-	"include": [".vitepress/**/*", "docs/**/*", "vite.config.ts"],
+	"include": [".vitepress/**/*", "docs/**/*", "landing/**/*", "vite.config.ts"],
 	"exclude": ["node_modules", ".vitepress/cache", ".vitepress/dist"]
 }
