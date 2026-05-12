@@ -303,7 +303,7 @@ async function sendPatch(ctx: AdapterContext, body: string): Promise<Response> {
 async function isFileVisible(ctx: AdapterContext, target: string): Promise<boolean> {
 	try {
 		const response = await sendGet(ctx);
-		const body: JSONValue = JSON.parse(await response.text());
+		const body = JSON.parse(await response.text());
 		const files = Reflect.get(body, "files");
 		return typeof files === "object" && files !== null && target in files;
 	} catch {
