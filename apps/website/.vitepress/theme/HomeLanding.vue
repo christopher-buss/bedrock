@@ -119,7 +119,6 @@ function toggleTheme(): void {
 					Bedrock<span class="nav-v">{{ VERSION }}</span>
 				</a>
 				<div class="nav-links">
-					<a href="#pipeline">How it works</a>
 					<a href="#features">Features</a>
 					<a href="#install">Quickstart</a>
 					<a href="#ecosystem">Ocale</a>
@@ -327,121 +326,54 @@ function toggleTheme(): void {
 			</div>
 		</section>
 
-		<section id="pipeline" class="pipeline">
-			<div class="wrap">
-				<div class="pipeline-head">
-					<div class="eyebrow">02 &middot; How it works</div>
-					<h2>Four functions. <em>One</em> reconcile loop.</h2>
-					<p>
-						The CLI is a wrapper. Under it: a pure diff, a typed driver registry, and a
-						Result-returning applier. You can call any step directly.
-					</p>
-				</div>
-				<div class="pipeline-steps">
-					<div class="pstep">
-						<div class="pstep-num">01</div>
-						<div class="pstep-code">config</div>
-						<h4>Declare</h4>
-						<p>
-							Write resources as data in TypeScript, YAML, JSON, or JS. Every resource gets a
-							stable <code>key</code>.
-						</p>
-					</div>
-					<div class="pstep">
-						<div class="pstep-num">02</div>
-						<div class="pstep-code">buildDesired()</div>
-						<h4>Normalize</h4>
-						<p>Hash icons, resolve paths, freeze the desired state. Pure data, no network.</p>
-					</div>
-					<div class="pstep">
-						<div class="pstep-num">03</div>
-						<div class="pstep-code">diff()</div>
-						<h4>Plan</h4>
-						<p>
-							Compare desired vs current. Emit <code>create</code>, <code>update</code>, or
-							<code>noop</code> ops. Pure and synchronous.
-						</p>
-					</div>
-					<div class="pstep">
-						<div class="pstep-num">04</div>
-						<div class="pstep-code">applyOps()</div>
-						<h4>Reconcile</h4>
-						<p>
-							Each op runs through its <code>ResourceDriver&lt;K&gt;</code>. Returns a
-							<code>Result</code>, errors don't throw.
-						</p>
-					</div>
-				</div>
-			</div>
-		</section>
-
 		<section id="features" class="features">
 			<div class="wrap">
 				<div class="features-head">
 					<div>
-						<div class="eyebrow">03 &middot; Opinions you'll feel</div>
-						<h2>Choices we made, so you don't have to.</h2>
+						<div class="eyebrow">02 &middot; Design choices</div>
+						<h2>Four decisions, <em>baked</em> in.</h2>
 					</div>
 					<p>
-						Six decisions baked into the design. Every one is reversible at your
-						project boundary, Bedrock won't touch what it didn't create.
+						Bedrock only manages what you list. Resources outside the config
+						stay exactly where they are.
 					</p>
 				</div>
 
 				<div class="feature-grid">
 					<div class="feature">
-						<div class="feature-glyph gl-stack"><span /><span /><span /><span /></div>
+						<div class="feature-glyph gl-grid"><span /><span /><span /><span /></div>
 						<div class="feature-num">&rarr; 01</div>
-						<h3>Open Cloud only</h3>
+						<h3>Typed configs</h3>
 						<p>
-							No ROBLOSECURITY, not now, not ever. Bedrock uses the official APIs so deploys
-							work from any machine, including CI.
-						</p>
-					</div>
-					<div class="feature">
-						<div class="feature-glyph gl-dots"><span /><span /><span /></div>
-						<div class="feature-num">&rarr; 02</div>
-						<h3>Typed, end-to-end</h3>
-						<p>
-							Resource shapes, drivers, state, ops, all typed. <code>defineConfig</code> infers
-							your universe. No YAML surprises at deploy.
+							Luau, TypeScript, JavaScript, YAML, or JSON. Same typed schema
+							underneath. Invalid configs fail before bedrock reaches the API.
 						</p>
 					</div>
 					<div class="feature">
 						<div class="feature-glyph gl-diamond"><span /><span /></div>
-						<div class="feature-num">&rarr; 03</div>
+						<div class="feature-num">&rarr; 02</div>
 						<h3><code>Result</code>, not throws</h3>
 						<p>
-							Every API call returns <code>Result&lt;T, E&gt;</code>. Narrow on
-							<code>success</code>, handle <code>err</code>, no try/catch chains.
+							Every public function returns <code>Result&lt;T, E&gt;</code>. Failures show
+							up as values to branch on, not exceptions to catch.
 						</p>
 					</div>
 					<div class="feature">
-						<div class="feature-glyph gl-grid"><span /><span /><span /><span /></div>
-						<div class="feature-num">&rarr; 04</div>
-						<h3>Multi-format config</h3>
-						<p>
-							TS, JS, YAML, or JSON, via c12. Use whichever your team already uses,
-							Bedrock doesn't care.
-						</p>
-					</div>
-					<div class="feature">
-						<div class="feature-glyph gl-line"><span /><span /><span /></div>
-						<div class="feature-num">&rarr; 05</div>
+						<div class="feature-glyph gl-stack"><span /><span /><span /><span /></div>
+						<div class="feature-num">&rarr; 03</div>
 						<h3>State on your terms</h3>
 						<p>
-							Default: a private GitHub Gist (<code>GITHUB_TOKEN</code> and you're set).
-							S3 and Cloudflare R2 backends land in v0.3.
+							Store state in a GitHub Gist with just a <code>GITHUB_TOKEN</code>.
+							S3 is on the way.
 						</p>
 					</div>
 					<div class="feature">
 						<div class="feature-glyph gl-pair"><span /><span /></div>
-						<div class="feature-num">&rarr; 06</div>
-						<h3>Mantle migration</h3>
+						<div class="feature-num">&rarr; 04</div>
+						<h3>Bring your <code>mantle.yaml</code></h3>
 						<p>
-							<code>bedrock migrate</code> reads your existing <code>mantle.yml</code>,
-							flags anything unsupported, and writes a Bedrock config you can diff before
-							deploying.
+							Run <code>bedrock migrate ./mantle.yaml</code>. You get a Bedrock config
+							back, with unsupported features flagged. Diff before you deploy.
 						</p>
 					</div>
 				</div>
@@ -451,7 +383,7 @@ function toggleTheme(): void {
 		<section id="install" class="install">
 			<div class="wrap install-grid">
 				<div class="install-copy">
-					<div class="eyebrow">04 &middot; Quickstart</div>
+					<div class="eyebrow">03 &middot; Quickstart</div>
 					<h2>Five minutes, <em>one</em> deploy.</h2>
 					<p>
 						Install the package, point it at a universe, run <code>deploy</code>. Bedrock
@@ -587,7 +519,7 @@ function toggleTheme(): void {
 			<div class="wrap">
 				<div class="eco-head">
 					<div>
-						<div class="eyebrow on-dark">05 &middot; The stack</div>
+						<div class="eyebrow on-dark">04 &middot; The stack</div>
 						<h2>Two layers. <em>One</em> foundation.</h2>
 					</div>
 					<p>
@@ -1436,140 +1368,6 @@ html.dark .bedrock-landing {
 	font-weight: 500;
 }
 
-/* Pipeline section */
-.pipeline {
-	padding: 110px 0;
-	background: var(--bg-soft);
-	border-top: 1px solid var(--line);
-	border-bottom: 1px solid var(--line);
-}
-
-.pipeline-head {
-	text-align: center;
-	margin-bottom: 64px;
-}
-
-.pipeline-head .eyebrow {
-	justify-content: center;
-}
-
-.pipeline-head .eyebrow::after {
-	content: "";
-	width: 18px;
-	height: 1px;
-	background: currentColor;
-}
-
-.pipeline-head h2 {
-	font-family: var(--f-serif);
-	font-weight: 400;
-	font-size: clamp(40px, 4.6vw, 58px);
-	line-height: 1.02;
-	letter-spacing: -0.02em;
-	margin: 16px 0 14px;
-}
-
-.pipeline-head h2 em {
-	font-style: italic;
-	color: var(--accent-em);
-}
-
-.pipeline-head p {
-	color: var(--ink-3);
-	max-width: 52ch;
-	margin: 0 auto;
-	font-size: 16px;
-}
-
-.pipeline-steps {
-	display: grid;
-	grid-template-columns: repeat(4, 1fr);
-	gap: 0;
-	background: var(--bg-card);
-	border: 1px solid var(--line);
-	border-radius: var(--r-lg);
-	overflow: hidden;
-	position: relative;
-}
-
-.pipeline-steps::before {
-	content: "";
-	position: absolute;
-	top: 48px;
-	left: 12%;
-	right: 12%;
-	height: 1px;
-	background: repeating-linear-gradient(
-		90deg,
-		var(--line-strong) 0 6px,
-		transparent 6px 12px
-	);
-	z-index: 0;
-}
-
-.pstep {
-	padding: 28px 24px;
-	border-right: 1px solid var(--line);
-	position: relative;
-	z-index: 1;
-	background: var(--bg-card);
-}
-
-.pstep:last-child {
-	border-right: 0;
-}
-
-.pstep-num {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 32px;
-	height: 32px;
-	background: var(--bg);
-	border: 1px solid var(--line-strong);
-	border-radius: 50%;
-	font-family: var(--f-mono);
-	font-size: 12px;
-	color: var(--accent-em);
-	font-weight: 600;
-	margin-bottom: 20px;
-}
-
-.pstep-code {
-	font-family: var(--f-mono);
-	font-size: 13px;
-	color: var(--ink);
-	background: var(--bg-soft);
-	border: 1px solid var(--line);
-	padding: 6px 10px;
-	border-radius: 4px;
-	display: inline-block;
-	margin-bottom: 14px;
-}
-
-.pstep h4 {
-	font-family: var(--f-sans);
-	font-size: 15px;
-	font-weight: 600;
-	margin: 0 0 6px;
-}
-
-.pstep p {
-	margin: 0;
-	font-size: 13.5px;
-	color: var(--ink-3);
-	line-height: 1.55;
-}
-
-.pstep p code {
-	font-family: var(--f-mono);
-	font-size: 12.5px;
-	color: var(--ink-2);
-	background: var(--bg-soft);
-	padding: 1px 5px;
-	border-radius: 3px;
-}
-
 /* Features section */
 .features {
 	padding: 110px 0;
@@ -2351,23 +2149,9 @@ html.dark .bedrock-landing {
 	.tracks-grid,
 	.eco-head,
 	.install-grid,
-	.foot,
-	.pipeline-steps {
+	.foot {
 		grid-template-columns: 1fr;
 		gap: 40px;
-	}
-
-	.pipeline-steps::before {
-		display: none;
-	}
-
-	.pstep {
-		border-right: 0;
-		border-bottom: 1px solid var(--line);
-	}
-
-	.pstep:last-child {
-		border-bottom: 0;
 	}
 
 	.features-head {
@@ -2406,7 +2190,6 @@ html.dark .bedrock-landing {
 		padding: 56px 16px 64px;
 	}
 
-	.pipeline,
 	.tracks,
 	.features,
 	.install,
