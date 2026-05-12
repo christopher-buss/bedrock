@@ -30,19 +30,19 @@ export interface CapturedRequest {
  */
 export interface FakeHttpClient extends HttpClient {
 	/** Queues an {@link ApiError} with the given status code and optional message/code. */
-	mockApiError(options: { code?: string; message?: string; statusCode: number }): FakeHttpClient;
+	mockApiError(options: { code?: string; message?: string; statusCode: number }): this;
 	/** Queues an error Result with the given error instance. */
-	mockError(error: OpenCloudError): FakeHttpClient;
+	mockError(error: OpenCloudError): this;
 	/** Queues a {@link NetworkError}. Preserves `cause` when provided. */
-	mockNetworkError(options?: { cause?: unknown; message?: string }): FakeHttpClient;
+	mockNetworkError(options?: { cause?: unknown; message?: string }): this;
 	/** Queues a {@link RateLimitError} with the given retry hint. */
-	mockRateLimit(options: { message?: string; retryAfterSeconds: number }): FakeHttpClient;
+	mockRateLimit(options: { message?: string; retryAfterSeconds: number }): this;
 	/** Queues a successful {@link HttpResponse}. Body defaults to `{}`; headers default to `{}`. */
 	mockResponse(options: {
 		body?: unknown;
 		headers?: Readonly<Record<string, string>>;
 		status: number;
-	}): FakeHttpClient;
+	}): this;
 	/** Number of queued mocks that have not yet been consumed. */
 	readonly pendingMocks: number;
 	/** Chronological log of every `(request, config)` pair the fake received. */

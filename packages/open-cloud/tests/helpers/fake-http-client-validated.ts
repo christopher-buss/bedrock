@@ -1,17 +1,11 @@
-import type { ApiError } from "#src/errors/api-error";
 import type { OpenCloudError } from "#src/errors/base";
-import type { NetworkError } from "#src/errors/network-error";
-import type { RateLimitError } from "#src/errors/rate-limit";
-import type {
-	HttpClient,
-	HttpRequest,
-	HttpResponse,
-	RequestConfig,
-} from "#src/internal/http/types";
+import type { HttpRequest, HttpResponse, RequestConfig } from "#src/internal/http/types";
 import type { Result } from "#src/types";
 
-import { createFakeHttpClient as createLiteFakeHttpClient } from "./fake-http-client.ts";
-import type { CapturedRequest } from "./fake-http-client.ts";
+import {
+	createFakeHttpClient as createLiteFakeHttpClient,
+	type FakeHttpClient as LiteFakeHttpClient,
+} from "./fake-http-client.ts";
 import {
 	FakeHttpClientContractError,
 	type SchemaValidationMode,
@@ -28,29 +22,11 @@ export {
 } from "./schema-contract.ts";
 
 /**
- * A fluent fake for the {@link HttpClient} boundary with contract
- * validation against the vendored OpenAPI spec. See
- * {@link createFakeHttpClient} for the wrapping semantics.
+ * A fluent fake for the HTTP-client boundary with contract validation
+ * against the vendored OpenAPI spec. Inherits the lite fake's mock
+ * surface and adds `schemaViolations` for `"warn"` mode assertions.
  */
-export interface FakeHttpClient extends HttpClient {
-	/** Queues an {@link ApiError} with the given status code and optional message/code. */
-	mockApiError(options: { code?: string; message?: string; statusCode: number }): FakeHttpClient;
-	/** Queues an error Result with the given error instance. */
-	mockError(error: OpenCloudError): FakeHttpClient;
-	/** Queues a {@link NetworkError}. Preserves `cause` when provided. */
-	mockNetworkError(options?: { cause?: unknown; message?: string }): FakeHttpClient;
-	/** Queues a {@link RateLimitError} with the given retry hint. */
-	mockRateLimit(options: { message?: string; retryAfterSeconds: number }): FakeHttpClient;
-	/** Queues a successful {@link HttpResponse}. Body defaults to `{}`; headers default to `{}`. */
-	mockResponse(options: {
-		body?: unknown;
-		headers?: Readonly<Record<string, string>>;
-		status: number;
-	}): FakeHttpClient;
-	/** Number of queued mocks that have not yet been consumed. */
-	readonly pendingMocks: number;
-	/** Chronological log of every `(request, config)` pair the fake received. */
-	readonly requests: ReadonlyArray<CapturedRequest>;
+export interface FakeHttpClient extends LiteFakeHttpClient {
 	/**
 	 * Schema violations observed under `"warn"` mode. In `"strict"`
 	 * mode the fake throws before this array can grow; in `"off"` mode
@@ -71,8 +47,6 @@ interface ViolationState {
 	readonly mode: SchemaValidationMode;
 	readonly violations: Array<SchemaViolation>;
 }
-
-type LiteFakeHttpClient = ReturnType<typeof createLiteFakeHttpClient>;
 
 /**
  * Creates a fluent {@link FakeHttpClient} that wraps the lite fake with
@@ -98,13 +72,8 @@ export function createFakeHttpClient(fakeOptions: FakeHttpClientOptions = {}): F
 	return buildWrapped(lite, state);
 }
 
-function forward(call: () => unknown, wrapped: FakeHttpClient): FakeHttpClient {
-	call();
-	return wrapped;
-}
-
 function recordViolations(state: ViolationState, violations: ReadonlyArray<SchemaViolation>): void {
-	const [first, ...rest] = violations;
+	const [first] = violations;
 	if (first === undefined) {
 		return;
 	}
@@ -113,26 +82,32 @@ function recordViolations(state: ViolationState, violations: ReadonlyArray<Schem
 		throw new FakeHttpClientContractError(first);
 	}
 
-	state.violations.push(first, ...rest);
+	state.violations.push(...violations);
 }
 
 async function validatingRequest(options: {
 	readonly config: RequestConfig;
-	readonly lite: ReturnType<typeof createLiteFakeHttpClient>;
+	readonly lite: LiteFakeHttpClient;
 	readonly request: HttpRequest;
 	readonly state: ViolationState;
 }): Promise<Result<HttpResponse, OpenCloudError>> {
 	const { config, lite, request, state } = options;
-	if (state.mode !== "off") {
-		recordViolations(state, validateRequestContract(request));
+	if (state.mode === "off") {
+		return lite.request(request, config);
 	}
 
+	recordViolations(state, validateRequestContract(request));
 	const result = await lite.request(request, config);
-	if (state.mode !== "off" && result.success) {
+	if (result.success) {
 		recordViolations(state, validateResponseContract(request, result.data));
 	}
 
 	return result;
+}
+
+function forward(call: () => unknown, wrapped: FakeHttpClient): FakeHttpClient {
+	call();
+	return wrapped;
 }
 
 function buildWrapped(lite: LiteFakeHttpClient, state: ViolationState): FakeHttpClient {
