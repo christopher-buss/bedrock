@@ -16,7 +16,9 @@ function validInProgressBody(
 	};
 }
 
-const REQUIRED_STRING_FIELDS = ["path", "createTime", "updateTime", "state", "user"] as const;
+const REQUIRED_STRING_FIELDS = ["path", "state", "user"] as const;
+const OPTIONAL_STRING_FIELDS = ["createTime", "updateTime"] as const;
+const ALL_STRING_FIELDS = [...REQUIRED_STRING_FIELDS, ...OPTIONAL_STRING_FIELDS] as const;
 
 describe(parseLuauExecutionTaskResponse, () => {
 	it.for(["QUEUED", "PROCESSING", "CANCELLED"] as const)(
@@ -248,6 +250,80 @@ describe(parseLuauExecutionTaskResponse, () => {
 		});
 	});
 
+	describe("optional timestamps", () => {
+		it.for(OPTIONAL_STRING_FIELDS)(
+			"should accept a body without %s and parse it without failing",
+			(field) => {
+				expect.assertions(1);
+
+				const { [field]: _omitted, ...body } = validInProgressBody();
+				const result = parseLuauExecutionTaskResponse({ body, headers: {}, status: 200 });
+
+				expect(result.success).toBeTrue();
+			},
+		);
+
+		it("should surface createdAt as undefined when wire createTime is absent on an in-progress body", () => {
+			expect.assertions(1);
+
+			const { createTime: _omitted, ...body } = validInProgressBody();
+			const result = parseLuauExecutionTaskResponse({ body, headers: {}, status: 200 });
+
+			assert(result.success);
+
+			expect(result.data.createdAt).toBeUndefined();
+		});
+
+		it("should surface updatedAt as undefined when wire updateTime is absent on an in-progress body", () => {
+			expect.assertions(1);
+
+			const { updateTime: _omitted, ...body } = validInProgressBody();
+			const result = parseLuauExecutionTaskResponse({ body, headers: {}, status: 200 });
+
+			assert(result.success);
+
+			expect(result.data.updatedAt).toBeUndefined();
+		});
+
+		it("should surface both timestamps as undefined on a COMPLETE body whose wire omits them", () => {
+			expect.assertions(2);
+
+			const {
+				createTime: _ct,
+				updateTime: _ut,
+				...body
+			} = validInProgressBody({
+				output: { results: [] },
+				state: "COMPLETE",
+			});
+			const result = parseLuauExecutionTaskResponse({ body, headers: {}, status: 200 });
+
+			assert(result.success);
+
+			expect(result.data.createdAt).toBeUndefined();
+			expect(result.data.updatedAt).toBeUndefined();
+		});
+
+		it("should surface both timestamps as undefined on a FAILED body whose wire omits them", () => {
+			expect.assertions(2);
+
+			const {
+				createTime: _ct,
+				updateTime: _ut,
+				...body
+			} = validInProgressBody({
+				error: { code: "SCRIPT_ERROR", message: "boom" },
+				state: "FAILED",
+			});
+			const result = parseLuauExecutionTaskResponse({ body, headers: {}, status: 200 });
+
+			assert(result.success);
+
+			expect(result.data.createdAt).toBeUndefined();
+			expect(result.data.updatedAt).toBeUndefined();
+		});
+	});
+
 	it("should return ApiError when the wire state is STATE_UNSPECIFIED", () => {
 		expect.assertions(2);
 
@@ -372,8 +448,8 @@ describe(parseLuauExecutionTaskResponse, () => {
 			},
 		);
 
-		it.for(REQUIRED_STRING_FIELDS)(
-			"should reject a body whose required %s field is not a string",
+		it.for(ALL_STRING_FIELDS)(
+			"should reject a body whose %s field is not a string",
 			(field) => {
 				expect.assertions(1);
 

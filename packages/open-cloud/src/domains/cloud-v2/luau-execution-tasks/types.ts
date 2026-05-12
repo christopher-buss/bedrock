@@ -164,8 +164,12 @@ interface LuauExecutionTaskBase {
 	 * `true`.
 	 */
 	readonly binaryOutputUri?: string | undefined;
-	/** Timestamp when the task was created. */
-	readonly createdAt: Date;
+	/**
+	 * Timestamp when the task was created. Surfaces `undefined` on the
+	 * task returned by `submit`, since the server omits the timestamp
+	 * from the create-task response; polled tasks carry it.
+	 */
+	readonly createdAt?: Date | undefined;
 	/** When `true`, the server writes output to a binary blob. */
 	readonly enableBinaryOutput?: boolean | undefined;
 	/** Round-trip-safe reference to this task. */
@@ -176,8 +180,12 @@ interface LuauExecutionTaskBase {
 	 * server applies its 5-minute default in that case).
 	 */
 	readonly timeoutSeconds?: number | undefined;
-	/** Timestamp of the most recent state change. */
-	readonly updatedAt: Date;
+	/**
+	 * Timestamp of the most recent state change. Surfaces `undefined`
+	 * on the task returned by `submit`, since the server omits the
+	 * timestamp from the create-task response; polled tasks carry it.
+	 */
+	readonly updatedAt?: Date | undefined;
 	/** Identifier of the user that owns the API key used to create this task. */
 	readonly user: string;
 }

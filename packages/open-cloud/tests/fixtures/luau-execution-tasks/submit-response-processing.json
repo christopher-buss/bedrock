@@ -1,0 +1,10 @@
+{
+	"path": "universes/123/places/456/versions/789/luau-execution-sessions/01HXYZ-session/tasks/01HXYZ-task",
+	"user": "1910140",
+	"state": "PROCESSING",
+	"script": "return 1",
+	"timeout": "60s",
+	"binaryInput": "",
+	"enableBinaryOutput": false,
+	"binaryOutputUri": ""
+}

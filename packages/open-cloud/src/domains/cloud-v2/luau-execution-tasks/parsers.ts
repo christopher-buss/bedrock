@@ -122,8 +122,8 @@ function isLuauExecutionTaskWire(body: unknown): body is LuauExecutionTaskWire {
 	return (
 		isRecord(body) &&
 		typeof body["path"] === "string" &&
-		typeof body["createTime"] === "string" &&
-		typeof body["updateTime"] === "string" &&
+		isOptionalString(body["createTime"]) &&
+		isOptionalString(body["updateTime"]) &&
 		isAcceptedWireState(body["state"]) &&
 		typeof body["user"] === "string" &&
 		isOptionalOutputWire(body["output"]) &&
@@ -133,6 +133,10 @@ function isLuauExecutionTaskWire(body: unknown): body is LuauExecutionTaskWire {
 		isOptionalBoolean(body["enableBinaryOutput"]) &&
 		isOptionalString(body["binaryOutputUri"])
 	);
+}
+
+function parseOptionalDate(value: string | undefined): Date | undefined {
+	return value === undefined ? undefined : new Date(value);
 }
 
 const DURATION_PATTERN = /^(\d+)s$/;
@@ -167,12 +171,12 @@ function parseInProgressTask(
 		data: {
 			binaryInput: body.binaryInput,
 			binaryOutputUri: body.binaryOutputUri,
-			createdAt: new Date(body.createTime),
+			createdAt: parseOptionalDate(body.createTime),
 			enableBinaryOutput: body.enableBinaryOutput,
 			ref,
 			state,
 			timeoutSeconds,
-			updatedAt: new Date(body.updateTime),
+			updatedAt: parseOptionalDate(body.updateTime),
 			user: body.user,
 		},
 		success: true,
@@ -189,13 +193,13 @@ function parseCompleteTask(args: ParseVariantArgs): Result<LuauExecutionTask, Ap
 		data: {
 			binaryInput: body.binaryInput,
 			binaryOutputUri: body.binaryOutputUri,
-			createdAt: new Date(body.createTime),
+			createdAt: parseOptionalDate(body.createTime),
 			enableBinaryOutput: body.enableBinaryOutput,
 			output: { results: body.output.results },
 			ref,
 			state: "COMPLETE",
 			timeoutSeconds,
-			updatedAt: new Date(body.updateTime),
+			updatedAt: parseOptionalDate(body.updateTime),
 			user: body.user,
 		},
 		success: true,
@@ -212,13 +216,13 @@ function parseFailedTask(args: ParseVariantArgs): Result<LuauExecutionTask, ApiE
 		data: {
 			binaryInput: body.binaryInput,
 			binaryOutputUri: body.binaryOutputUri,
-			createdAt: new Date(body.createTime),
+			createdAt: parseOptionalDate(body.createTime),
 			enableBinaryOutput: body.enableBinaryOutput,
 			error: { code: body.error.code, message: body.error.message },
 			ref,
 			state: "FAILED",
 			timeoutSeconds,
-			updatedAt: new Date(body.updateTime),
+			updatedAt: parseOptionalDate(body.updateTime),
 			user: body.user,
 		},
 		success: true,
