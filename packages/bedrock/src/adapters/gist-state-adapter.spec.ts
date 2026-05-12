@@ -530,9 +530,13 @@ describe(createGistStateAdapter, () => {
 
 	describe("write", () => {
 		it("should PATCH the gist with the serialized state file on write", async () => {
-			expect.assertions(4);
+			expect.assertions(3);
 
-			const { calls, fetchFn } = fakeFetch(() => emptyResponse(200));
+			const { calls, fetchFn } = fakeFetch((request) => {
+				return request.method === "PATCH"
+					? emptyResponse(200)
+					: okJson({ files: { "state.production.json": { content: "{}" } } });
+			});
 			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
 
 			const result = await port.write({
@@ -542,13 +546,14 @@ describe(createGistStateAdapter, () => {
 			});
 
 			expect(result.success).toBeTrue();
-			expect(calls).toHaveLength(1);
 
-			const request = calls[0]!;
+			const patchRequest = calls[0]!;
 
-			expect(request.method).toBe("PATCH");
+			expect(patchRequest.method).toBe("PATCH");
 
-			const body = (await request.json()) as { files: Record<string, { content: string }> };
+			const body = (await patchRequest.json()) as {
+				files: Record<string, { content: string }>;
+			};
 
 			expect(JSON.parse(body.files["state.production.json"]!.content)).toStrictEqual({
 				$bedrock: { version: 1 },
@@ -560,7 +565,11 @@ describe(createGistStateAdapter, () => {
 		it("should send a json content-type header on write", async () => {
 			expect.assertions(1);
 
-			const { calls, fetchFn } = fakeFetch(() => emptyResponse(200));
+			const { calls, fetchFn } = fakeFetch((request) => {
+				return request.method === "PATCH"
+					? emptyResponse(200)
+					: okJson({ files: { "state.production.json": { content: "{}" } } });
+			});
 			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
 
 			await port.write({ environment: "production", resources: [], version: 1 });
@@ -651,7 +660,11 @@ describe(createGistStateAdapter, () => {
 		it("should retry the PATCH on 409 and succeed on the second attempt", async () => {
 			expect.assertions(3);
 
-			const { calls, fetchFn } = fakeFetchSequence([emptyResponse(409), emptyResponse(200)]);
+			const { calls, fetchFn } = fakeFetchSequence([
+				emptyResponse(409),
+				emptyResponse(200),
+				okJson({ files: { "state.production.json": { content: "{}" } } }),
+			]);
 			const sleepFake = fakeSleep();
 			const port = createGistStateAdapter({
 				fetch: fetchFn,
@@ -667,7 +680,7 @@ describe(createGistStateAdapter, () => {
 			});
 
 			expect(result.success).toBeTrue();
-			expect(calls).toHaveLength(2);
+			expect(calls).toHaveLength(3);
 			expect(sleepFake.calls).toStrictEqual([1000]);
 		});
 
@@ -710,7 +723,11 @@ describe(createGistStateAdapter, () => {
 				vi.useRealTimers();
 			});
 
-			const { calls, fetchFn } = fakeFetchSequence([emptyResponse(409), emptyResponse(200)]);
+			const { calls, fetchFn } = fakeFetchSequence([
+				emptyResponse(409),
+				emptyResponse(200),
+				okJson({ files: { "state.production.json": { content: "{}" } } }),
+			]);
 			const port = createGistStateAdapter({
 				fetch: fetchFn,
 				gistId: GIST_ID,
@@ -732,7 +749,7 @@ describe(createGistStateAdapter, () => {
 			const result = await writePromise;
 
 			expect(result.success).toBeTrue();
-			expect(calls).toHaveLength(2);
+			expect(calls).toHaveLength(3);
 		});
 
 		it.for<[number, RegExp]>([
@@ -776,6 +793,64 @@ describe(createGistStateAdapter, () => {
 				const { calls, fetchFn } = fakeFetchSequence([
 					emptyResponse(status),
 					emptyResponse(200),
+					okJson({ files: { "state.production.json": { content: "{}" } } }),
+				]);
+				const sleepFake = fakeSleep();
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					sleep: sleepFake.sleep,
+					token: TOKEN,
+				});
+
+				const result = await port.write({
+					environment: "production",
+					resources: [],
+					version: 1,
+				});
+
+				expect(result.success).toBeTrue();
+				expect(calls).toHaveLength(3);
+				expect(sleepFake.calls).toStrictEqual([1000]);
+			},
+		);
+
+		describe("read-after-write visibility", () => {
+			it("should not resolve write until the written file is visible on a subsequent GET", async () => {
+				expect.assertions(5);
+
+				const { calls, fetchFn } = fakeFetchSequence([
+					emptyResponse(200),
+					okJson({ files: {} }),
+					okJson({ files: { "state.production.json": { content: "{}" } } }),
+				]);
+				const sleepFake = fakeSleep();
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					sleep: sleepFake.sleep,
+					token: TOKEN,
+				});
+
+				const result = await port.write({
+					environment: "production",
+					resources: [],
+					version: 1,
+				});
+
+				expect(result.success).toBeTrue();
+				expect(calls).toHaveLength(3);
+				expect(calls[0]!.method).toBe("PATCH");
+				expect(calls[1]!.method).toBe("GET");
+				expect(calls[2]!.method).toBe("GET");
+			});
+
+			it("should resolve write without polling further when the file is already visible on the first GET", async () => {
+				expect.assertions(3);
+
+				const { calls, fetchFn } = fakeFetchSequence([
+					emptyResponse(200),
+					okJson({ files: { "state.production.json": { content: "{}" } } }),
 				]);
 				const sleepFake = fakeSleep();
 				const port = createGistStateAdapter({
@@ -793,8 +868,124 @@ describe(createGistStateAdapter, () => {
 
 				expect(result.success).toBeTrue();
 				expect(calls).toHaveLength(2);
-				expect(sleepFake.calls).toStrictEqual([1000]);
-			},
-		);
+				expect(sleepFake.calls).toBeEmpty();
+			});
+
+			it("should resolve write success after exhausting the visibility budget", async () => {
+				expect.assertions(3);
+
+				const { calls, fetchFn } = fakeFetch((request) => {
+					if (request.method === "PATCH") {
+						return emptyResponse(200);
+					}
+
+					return okJson({ files: {} });
+				});
+				const sleepFake = fakeSleep();
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					sleep: sleepFake.sleep,
+					token: TOKEN,
+				});
+
+				const result = await port.write({
+					environment: "production",
+					resources: [],
+					version: 1,
+				});
+
+				expect(result.success).toBeTrue();
+				expect(calls).toHaveLength(6);
+				expect(sleepFake.calls).toStrictEqual([250, 500, 1000, 2000]);
+			});
+
+			it("should treat a transient non-ok GET as 'not yet visible' and keep polling", async () => {
+				expect.assertions(2);
+
+				const { calls, fetchFn } = fakeFetchSequence([
+					emptyResponse(200),
+					emptyResponse(503),
+					okJson({ files: { "state.production.json": { content: "{}" } } }),
+				]);
+				const sleepFake = fakeSleep();
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					sleep: sleepFake.sleep,
+					token: TOKEN,
+				});
+
+				const result = await port.write({
+					environment: "production",
+					resources: [],
+					version: 1,
+				});
+
+				expect(result.success).toBeTrue();
+				expect(calls).toHaveLength(3);
+			});
+
+			it("should resolve write success when the injected sleep rejects during visibility polling", async () => {
+				expect.assertions(2);
+
+				const { calls, fetchFn } = fakeFetch((request) => {
+					return request.method === "PATCH" ? emptyResponse(200) : okJson({ files: {} });
+				});
+				async function rejectingSleep(): Promise<void> {
+					throw new Error("aborted");
+				}
+
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					sleep: rejectingSleep,
+					token: TOKEN,
+				});
+
+				const result = await port.write({
+					environment: "production",
+					resources: [],
+					version: 1,
+				});
+
+				expect(result.success).toBeTrue();
+				expect(calls).toHaveLength(2);
+			});
+
+			it("should treat a thrown visibility GET as 'not yet visible' and keep polling", async () => {
+				expect.assertions(2);
+
+				let getCount = 0;
+				const { calls, fetchFn } = fakeFetch((request) => {
+					if (request.method === "PATCH") {
+						return emptyResponse(200);
+					}
+
+					getCount += 1;
+					if (getCount === 1) {
+						throw new Error("transient connection reset");
+					}
+
+					return okJson({ files: { "state.production.json": { content: "{}" } } });
+				});
+				const sleepFake = fakeSleep();
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					sleep: sleepFake.sleep,
+					token: TOKEN,
+				});
+
+				const result = await port.write({
+					environment: "production",
+					resources: [],
+					version: 1,
+				});
+
+				expect(result.success).toBeTrue();
+				expect(calls).toHaveLength(3);
+			});
+		});
 	});
 });
