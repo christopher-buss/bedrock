@@ -8,9 +8,12 @@ type CustomExportsFunc = Extract<
 	(...args: never) => unknown
 >;
 
-function addTestingSubpath(
-	exportsMap: Parameters<CustomExportsFunc>[0],
-	context: Parameters<CustomExportsFunc>[1],
+type ExportsMap = Parameters<CustomExportsFunc>[0];
+type ExportsContext = Parameters<CustomExportsFunc>[1];
+
+function pinTestingSourceToValidated(
+	exportsMap: ExportsMap,
+	context: ExportsContext,
 ): ReturnType<CustomExportsFunc> {
 	if (!context.isPublish) {
 		exportsMap["./testing"] = {
@@ -33,10 +36,11 @@ export default mergeConfig(sharedConfig, {
 			"luau-execution": "src/resources/luau-execution/index.ts",
 			"places": "src/resources/places/index.ts",
 			"storage": "src/resources/storage/index.ts",
+			"testing": "tests/helpers/lite.ts",
 			"universes": "src/resources/universes/index.ts",
 		},
 		exports: {
-			customExports: addTestingSubpath,
+			customExports: pinTestingSourceToValidated,
 		},
 	},
 });

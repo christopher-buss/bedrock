@@ -10,20 +10,6 @@ import type {
 } from "#src/internal/http/types";
 import type { Result } from "#src/types";
 
-import {
-	FakeHttpClientContractError,
-	type SchemaValidationMode,
-	type SchemaViolation,
-	validateRequestContract,
-	validateResponseContract,
-} from "./schema-contract.ts";
-
-export {
-	FakeHttpClientContractError,
-	type SchemaValidationMode,
-	type SchemaViolation,
-} from "./schema-contract.ts";
-
 /**
  * A request captured by {@link FakeHttpClient} for later assertion.
  */
@@ -44,37 +30,23 @@ export interface CapturedRequest {
  */
 export interface FakeHttpClient extends HttpClient {
 	/** Queues an {@link ApiError} with the given status code and optional message/code. */
-	mockApiError(options: { code?: string; message?: string; statusCode: number }): FakeHttpClient;
+	mockApiError(options: { code?: string; message?: string; statusCode: number }): this;
 	/** Queues an error Result with the given error instance. */
-	mockError(error: OpenCloudError): FakeHttpClient;
+	mockError(error: OpenCloudError): this;
 	/** Queues a {@link NetworkError}. Preserves `cause` when provided. */
-	mockNetworkError(options?: { cause?: unknown; message?: string }): FakeHttpClient;
+	mockNetworkError(options?: { cause?: unknown; message?: string }): this;
 	/** Queues a {@link RateLimitError} with the given retry hint. */
-	mockRateLimit(options: { message?: string; retryAfterSeconds: number }): FakeHttpClient;
+	mockRateLimit(options: { message?: string; retryAfterSeconds: number }): this;
 	/** Queues a successful {@link HttpResponse}. Body defaults to `{}`; headers default to `{}`. */
 	mockResponse(options: {
 		body?: unknown;
 		headers?: Readonly<Record<string, string>>;
 		status: number;
-	}): FakeHttpClient;
+	}): this;
 	/** Number of queued mocks that have not yet been consumed. */
 	readonly pendingMocks: number;
 	/** Chronological log of every `(request, config)` pair the fake received. */
 	readonly requests: ReadonlyArray<CapturedRequest>;
-	/**
-	 * Schema violations observed under `"warn"` mode. In `"strict"`
-	 * mode the fake throws before this array can grow; in `"off"` mode
-	 * it remains empty.
-	 */
-	readonly schemaViolations: ReadonlyArray<SchemaViolation>;
-}
-
-/**
- * Options accepted by {@link createFakeHttpClient}.
- */
-export interface FakeHttpClientOptions {
-	/** How strictly to enforce the vendored OpenAPI spec. Defaults to `"strict"`. */
-	readonly schemaValidation?: SchemaValidationMode;
 }
 
 type ErrorResult = Result<HttpResponse, OpenCloudError> & { success: false };
@@ -83,7 +55,6 @@ interface FakeState {
 	readonly captured: Array<CapturedRequest>;
 	consumed: number;
 	readonly queue: Array<Result<HttpResponse, OpenCloudError>>;
-	readonly violations: Array<SchemaViolation>;
 }
 
 /**
@@ -100,18 +71,10 @@ export class FakeHttpClientError extends Error {
  * {@link HttpClient} seam. Use for integration tests where you need to
  * assert per-request config (apiKey, baseUrl) flows through to HTTP.
  *
- * Defaults to `"strict"` contract validation against the vendored
- * OpenAPI spec so every new resource client inherits protection
- * automatically. Pass `{ schemaValidation: "off" }` to opt out for
- * tests that exercise the fake's own mechanics with synthetic URLs.
- *
- * @param fakeOptions - Behaviour flags; `schemaValidation` overrides
- *   the default `"strict"` contract checking.
  * @returns A fresh fake with an empty mock queue.
  */
-export function createFakeHttpClient(fakeOptions: FakeHttpClientOptions = {}): FakeHttpClient {
-	const mode: SchemaValidationMode = fakeOptions.schemaValidation ?? "strict";
-	const state: FakeState = { captured: [], consumed: 0, queue: [], violations: [] };
+export function createFakeHttpClient(): FakeHttpClient {
+	const state: FakeState = { captured: [], consumed: 0, queue: [] };
 	function enqueue(result: Result<HttpResponse, OpenCloudError>): FakeHttpClient {
 		state.queue.push(result);
 		return fake;
@@ -126,33 +89,13 @@ export function createFakeHttpClient(fakeOptions: FakeHttpClientOptions = {}): F
 		get pendingMocks() {
 			return state.queue.length;
 		},
-		request: async (request, config) => handleRequest({ config, mode, request, state }),
+		request: async (request, config) => handleRequest({ config, request, state }),
 		get requests() {
 			return state.captured;
-		},
-		get schemaViolations() {
-			return state.violations;
 		},
 	};
 
 	return fake;
-}
-
-function recordViolations(options: {
-	readonly mode: SchemaValidationMode;
-	readonly state: FakeState;
-	readonly violations: ReadonlyArray<SchemaViolation>;
-}): void {
-	const [first, ...rest] = options.violations;
-	if (first === undefined) {
-		return;
-	}
-
-	if (options.mode === "strict") {
-		throw new FakeHttpClientContractError(first);
-	}
-
-	options.state.violations.push(first, ...rest);
 }
 
 function consumeNextMock(
@@ -172,26 +115,12 @@ function consumeNextMock(
 
 async function handleRequest(options: {
 	readonly config: RequestConfig;
-	readonly mode: SchemaValidationMode;
 	readonly request: HttpRequest;
 	readonly state: FakeState;
 }): Promise<Result<HttpResponse, OpenCloudError>> {
-	const { config, mode, request, state } = options;
+	const { config, request, state } = options;
 	state.captured.push({ config, request });
-	if (mode !== "off") {
-		recordViolations({ mode, state, violations: validateRequestContract(request) });
-	}
-
-	const result = consumeNextMock(state, request);
-	if (mode !== "off" && result.success) {
-		recordViolations({
-			mode,
-			state,
-			violations: validateResponseContract(request, result.data),
-		});
-	}
-
-	return result;
+	return consumeNextMock(state, request);
 }
 
 function successResult(options: {
