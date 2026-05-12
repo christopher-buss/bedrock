@@ -11,6 +11,8 @@ const USER_AGENT = "bedrock";
 const MAX_INLINE_BYTES = 10_000_000;
 const MAX_RETRIES = 3;
 const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([409, 502, 503, 504]);
+const MAX_VISIBILITY_ATTEMPTS = 5;
+const VISIBILITY_BASE_DELAY_MS = 250;
 
 /**
  * Minimal `fetch`-compatible signature the adapter needs, narrower than
@@ -298,6 +300,46 @@ async function sendPatch(ctx: AdapterContext, body: string): Promise<Response> {
 	});
 }
 
+async function isFileVisible(ctx: AdapterContext, target: string): Promise<boolean> {
+	try {
+		const response = await sendGet(ctx);
+		const body: JSONValue = JSON.parse(await response.text());
+		const files = Reflect.get(body, "files");
+		return typeof files === "object" && files !== null && target in files;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Polls the gist until the just-written environment file is visible on a
+ * GET, with bounded retries. GitHub's gist API does not guarantee
+ * read-your-write across replicas: a GET issued immediately after a
+ * successful PATCH can return a body that omits the new file. The poll
+ * pre-warms the cache the consumer's next read will hit, so a successful
+ * write honours read-after-write at the port boundary.
+ *
+ * Best-effort: resolves after exhausting the visibility budget regardless
+ * of whether the file became visible. The PATCH already committed; the
+ * poll only narrows the window in which subsequent reads can lag.
+ *
+ * @param ctx - Adapter context carrying the injected fetch and sleep seams.
+ * @param environment - Environment name whose file is being verified.
+ */
+async function waitForFileVisibility(ctx: AdapterContext, environment: string): Promise<void> {
+	const target = fileName(environment);
+
+	for (let attempt = 0; attempt < MAX_VISIBILITY_ATTEMPTS; attempt += 1) {
+		if (await isFileVisible(ctx, target)) {
+			return;
+		}
+
+		if (attempt < MAX_VISIBILITY_ATTEMPTS - 1) {
+			await ctx.sleep(VISIBILITY_BASE_DELAY_MS * 2 ** attempt);
+		}
+	}
+}
+
 async function writePath(
 	ctx: AdapterContext,
 	state: BedrockState,
@@ -315,6 +357,7 @@ async function writePath(
 	}
 
 	if (response.ok) {
+		await waitForFileVisibility(ctx, state.environment);
 		return { data: undefined, success: true };
 	}
 
