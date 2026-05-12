@@ -2,7 +2,7 @@
 import DefaultTheme from "vitepress/theme";
 import { useData } from "vitepress";
 
-import HomeLanding from "./HomeLanding.vue";
+import HomeLanding from "./home-landing.vue";
 
 const { Layout: DefaultLayout } = DefaultTheme;
 const { frontmatter } = useData();

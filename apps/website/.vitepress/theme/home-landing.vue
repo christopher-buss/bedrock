@@ -113,9 +113,7 @@ function toggleTheme(): void {
 		<nav class="bedrock-nav">
 			<div class="wrap inner">
 				<a class="brand" href="#">
-					<span class="brand-mark">
-						<span /><span /><span /><span />
-					</span>
+					<span class="brand-mark"> <span /><span /><span /><span /> </span>
 					Bedrock<span class="nav-v">{{ VERSION }}</span>
 				</a>
 				<div class="nav-links">
@@ -124,17 +122,8 @@ function toggleTheme(): void {
 					<a href="#ecosystem">Ocale</a>
 					<a href="/bedrock/guide/getting-started">Docs</a>
 				</div>
-				<button
-					class="theme-toggle"
-					aria-label="Toggle theme"
-					@click="toggleTheme"
-				>
-					<svg
-						v-if="!isDark"
-						class="icon-moon"
-						viewBox="0 0 16 16"
-						fill="none"
-					>
+				<button class="theme-toggle" aria-label="Toggle theme" @click="toggleTheme">
+					<svg v-if="!isDark" class="icon-moon" viewBox="0 0 16 16" fill="none">
 						<path
 							d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7Z"
 							stroke="currentColor"
@@ -142,19 +131,8 @@ function toggleTheme(): void {
 							stroke-linejoin="round"
 						/>
 					</svg>
-					<svg
-						v-else
-						class="icon-sun"
-						viewBox="0 0 16 16"
-						fill="none"
-					>
-						<circle
-							cx="8"
-							cy="8"
-							r="3"
-							stroke="currentColor"
-							stroke-width="1.4"
-						/>
+					<svg v-else class="icon-sun" viewBox="0 0 16 16" fill="none">
+						<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.4" />
 						<path
 							d="M8 1.5v1.5M8 13v1.5M14.5 8H13M3 8H1.5M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1M12.6 12.6l-1.1-1.1M4.5 4.5 3.4 3.4"
 							stroke="currentColor"
@@ -163,10 +141,7 @@ function toggleTheme(): void {
 						/>
 					</svg>
 				</button>
-				<a
-					class="nav-cta"
-					href="https://github.com/christopher-buss/bedrock"
-				>
+				<a class="nav-cta" href="https://github.com/christopher-buss/bedrock">
 					GitHub
 					<svg width="11" height="11" viewBox="0 0 12 12" fill="none">
 						<path
@@ -195,13 +170,11 @@ function toggleTheme(): void {
 						<div class="eyebrow on-dark">
 							Infrastructure-as-Code &middot; for Roblox
 						</div>
-						<h1>
-							Declare your experience.<br><em>Deploy</em> it.
-						</h1>
+						<h1>Declare your experience.<br /><em>Deploy</em> it.</h1>
 						<p class="sub">
-							Write your game passes, products, and experience config as code.
-							Make changes with confidence from a single source of truth.
-							A spiritual successor to Mantle.
+							Write your game passes, products, and experience config as code. Make
+							changes with confidence from a single source of truth. A spiritual
+							successor to Mantle.
 						</p>
 						<div class="ctas">
 							<a class="btn btn-accent" href="#install">
@@ -221,7 +194,9 @@ function toggleTheme(): void {
 							</a>
 						</div>
 						<div class="meta">
-							<div class="pip"><b>{{ VERSION }}</b> &middot; alpha &middot; MIT licensed</div>
+							<div class="pip">
+								<b>{{ VERSION }}</b> &middot; alpha &middot; MIT licensed
+							</div>
 						</div>
 					</div>
 
@@ -238,7 +213,8 @@ function toggleTheme(): void {
 									:key="tab.id"
 									role="tab"
 									type="button"
-									:class="['code-tab', { active: activeTab === tab.id }]"
+									class="code-tab"
+									:class="[{ active: activeTab === tab.id }]"
 									:aria-selected="activeTab === tab.id"
 									:aria-controls="`code-panel-${tab.id}`"
 									:tabindex="activeTab === tab.id ? 0 : -1"
@@ -298,7 +274,8 @@ function toggleTheme(): void {
 						<h3>From the <em>terminal</em>.</h3>
 						<p class="lede">
 							Run <code>bedrock deploy</code> against your config and you're done.
-							Need to customise a step? Drop a TypeScript file in <code>.bedrock/</code>
+							Need to customise a step? Drop a TypeScript file in
+							<code>.bedrock/</code>
 							- the CLI calls it instead of the built-in.
 						</p>
 						<pre class="track-code"><span class="dim"># pick your config format</span>
@@ -308,19 +285,24 @@ function toggleTheme(): void {
 
 <span class="dim"># migrating from Mantle?</span>
 <span class="prompt">$</span> bedrock migrate ./mantle.yaml</pre>
-						<div class="track-note">&rarr; <b>bedrock init</b> &middot; <b>diff</b> &middot; <b>deploy</b> &middot; <b>migrate</b></div>
+						<div class="track-note">
+							&rarr; <b>bedrock init</b> &middot; <b>diff</b> &middot;
+							<b>deploy</b> &middot; <b>migrate</b>
+						</div>
 					</div>
 
 					<div class="track">
 						<div class="tag">Programmatic</div>
 						<h3>From your <em>code</em>.</h3>
 						<p class="lede">
-							Import any step from <code>@bedrock-rbx/core</code> and call it directly.
-							Trigger deploys from a web backend, a chat bot, or any service in
-							your stack.
+							Import any step from <code>@bedrock-rbx/core</code> and call it
+							directly. Trigger deploys from a web backend, a chat bot, or any service
+							in your stack.
 						</p>
 						<div class="track-code-shiki" v-html="programmaticHtml" />
-						<div class="track-note">&rarr; public API &middot; typed &middot; semver'd &middot; extensible</div>
+						<div class="track-note">
+							&rarr; public API &middot; typed &middot; semver'd &middot; extensible
+						</div>
 					</div>
 				</div>
 			</div>
@@ -334,8 +316,8 @@ function toggleTheme(): void {
 						<h2>Four decisions, <em>baked</em> in.</h2>
 					</div>
 					<p>
-						Bedrock only manages what you list. Resources outside the config
-						stay exactly where they are.
+						Bedrock only manages what you list. Resources outside the config stay
+						exactly where they are.
 					</p>
 				</div>
 
@@ -354,8 +336,8 @@ function toggleTheme(): void {
 						<div class="feature-num">&rarr; 02</div>
 						<h3><code>Result</code>, not throws</h3>
 						<p>
-							Every public function returns <code>Result&lt;T, E&gt;</code>. Failures show
-							up as values to branch on, not exceptions to catch.
+							Every public function returns <code>Result&lt;T, E&gt;</code>. Failures
+							show up as values to branch on, not exceptions to catch.
 						</p>
 					</div>
 					<div class="feature">
@@ -363,8 +345,8 @@ function toggleTheme(): void {
 						<div class="feature-num">&rarr; 03</div>
 						<h3>State on your terms</h3>
 						<p>
-							Store state in a GitHub Gist with just a <code>GITHUB_TOKEN</code>.
-							S3 is on the way.
+							Store state in a GitHub Gist with just a <code>GITHUB_TOKEN</code>. S3
+							is on the way.
 						</p>
 					</div>
 					<div class="feature">
@@ -386,37 +368,39 @@ function toggleTheme(): void {
 					<div class="eyebrow">03 &middot; Quickstart</div>
 					<h2>Five minutes, <em>one</em> deploy.</h2>
 					<p>
-						Three things to get you to a live deploy: the package, an Open Cloud
-						API key, and a config file. The steps below walk through each,
-						end-to-end in about five minutes.
+						Three things to get you to a live deploy: the package, an Open Cloud API
+						key, and a config file. The steps below walk through each, end-to-end in
+						about five minutes.
 					</p>
 					<ol class="install-steps">
 						<li>
 							<div>
-								<b>Install</b><code>pnpm add @bedrock-rbx/core</code> (or <code>npm</code> /
-								<code>bun</code> / <code>yarn</code>)
+								<b>Install</b><code>pnpm add @bedrock-rbx/core</code> (or
+								<code>npm</code> / <code>bun</code> / <code>yarn</code>)
 							</div>
 						</li>
 						<li>
 							<div>
-								<b>Authenticate</b>Export <code>BEDROCK_API_KEY</code> from an Open Cloud
-								key with write scopes.
+								<b>Authenticate</b>Export <code>BEDROCK_API_KEY</code> from an Open
+								Cloud key with write scopes.
 							</div>
 						</li>
 						<li>
 							<div>
-								<b>Scaffold</b>Run <code>bedrock init</code>, pick TS, YAML, or JSON.
+								<b>Scaffold</b>Run <code>bedrock init</code>, pick TS, YAML, or
+								JSON.
 							</div>
 						</li>
 						<li>
 							<div>
-								<b>Plan</b><code>bedrock diff</code> shows what'll change before anything moves.
+								<b>Plan</b><code>bedrock diff</code> shows what'll change before
+								anything moves.
 							</div>
 						</li>
 						<li>
 							<div>
-								<b>Apply</b><code>bedrock deploy</code> reconciles. Rerun any time; nothing
-								unchanged is touched.
+								<b>Apply</b><code>bedrock deploy</code> reconciles. Rerun any time;
+								nothing unchanged is touched.
 							</div>
 						</li>
 					</ol>
@@ -433,7 +417,8 @@ function toggleTheme(): void {
 								:key="term"
 								role="tab"
 								type="button"
-								:class="['term-tab', { active: activeTerm === term }]"
+								class="term-tab"
+								:class="[{ active: activeTerm === term }]"
 								:aria-selected="activeTerm === term"
 								:aria-controls="`term-panel-${term}`"
 								:tabindex="activeTerm === term ? 0 : -1"
@@ -455,15 +440,28 @@ function toggleTheme(): void {
 						>
 							<div><span class="term-prompt">$</span> bedrock diff</div>
 							<div class="term-dim">Loading bedrock.config.ts ...</div>
-							<div class="term-dim">Fetching current state (gist:bedrock-state) ...</div>
+							<div class="term-dim">
+								Fetching current state (gist:bedrock-state) ...
+							</div>
 							<div>&nbsp;</div>
 							<div>Plan:<span class="term-dim"> 4 to change</span></div>
-							<div>  <span class="term-plus">+ create</span>   gamePass.vip-pass      <span class="term-dim">(new)</span></div>
-							<div>  <span class="term-warn">~ update</span>   gamePass.early-access  <span class="term-dim">(price: 300 -> 250)</span></div>
-							<div>  <span class="term-warn">~ update</span>   experience.config      <span class="term-dim">(3 fields)</span></div>
-							<div>  <span class="term-dim">. noop</span>     product.coins_100</div>
+							<div>
+								<span class="term-plus">+ create</span> gamePass.vip-pass
+								<span class="term-dim">(new)</span>
+							</div>
+							<div>
+								<span class="term-warn">~ update</span> gamePass.early-access
+								<span class="term-dim">(price: 300 -> 250)</span>
+							</div>
+							<div>
+								<span class="term-warn">~ update</span> experience.config
+								<span class="term-dim">(3 fields)</span>
+							</div>
+							<div><span class="term-dim">. noop</span> product.coins_100</div>
 							<div>&nbsp;</div>
-							<div class="term-dim">No changes will be applied. Run `bedrock deploy` to reconcile.</div>
+							<div class="term-dim">
+								No changes will be applied. Run `bedrock deploy` to reconcile.
+							</div>
 						</div>
 
 						<div
@@ -478,12 +476,24 @@ function toggleTheme(): void {
 							<div class="term-dim">Plan shown above. Apply? [y/N]</div>
 							<div><span class="term-prompt">y</span></div>
 							<div>&nbsp;</div>
-							<div><span class="term-ok">v</span> gamePass.vip-pass       <span class="term-dim">created (id 987654321)</span></div>
-							<div><span class="term-ok">v</span> gamePass.early-access   <span class="term-dim">price updated</span></div>
-							<div><span class="term-ok">v</span> experience.config       <span class="term-dim">3 fields</span></div>
-							<div class="term-dim">. product.coins_100         unchanged</div>
+							<div>
+								<span class="term-ok">v</span> gamePass.vip-pass
+								<span class="term-dim">created (id 987654321)</span>
+							</div>
+							<div>
+								<span class="term-ok">v</span> gamePass.early-access
+								<span class="term-dim">price updated</span>
+							</div>
+							<div>
+								<span class="term-ok">v</span> experience.config
+								<span class="term-dim">3 fields</span>
+							</div>
+							<div class="term-dim">. product.coins_100 unchanged</div>
 							<div>&nbsp;</div>
-							<div><span class="term-ok">Succeeded</span> in 4.1s <span class="term-dim">1 create, 2 update, 1 noop</span></div>
+							<div>
+								<span class="term-ok">Succeeded</span> in 4.1s
+								<span class="term-dim">1 create, 2 update, 1 noop</span>
+							</div>
 							<div class="term-dim">State written to gist:bedrock-state</div>
 						</div>
 
@@ -495,12 +505,23 @@ function toggleTheme(): void {
 							tabindex="0"
 							class="term-pane"
 						>
-							<div><span class="term-prompt">$</span> bedrock migrate ./mantle.yaml</div>
+							<div>
+								<span class="term-prompt">$</span> bedrock migrate ./mantle.yaml
+							</div>
 							<div class="term-dim">Reading Mantle config ...</div>
 							<div>&nbsp;</div>
-							<div><span class="term-ok">v</span> experience       <span class="term-dim">mapped</span></div>
-							<div><span class="term-ok">v</span> 3 game passes   <span class="term-dim">mapped</span></div>
-							<div><span class="term-warn">!</span> social-link     <span class="term-dim">unsupported in Open Cloud, skipped</span></div>
+							<div>
+								<span class="term-ok">v</span> experience
+								<span class="term-dim">mapped</span>
+							</div>
+							<div>
+								<span class="term-ok">v</span> 3 game passes
+								<span class="term-dim">mapped</span>
+							</div>
+							<div>
+								<span class="term-warn">!</span> social-link
+								<span class="term-dim">unsupported in Open Cloud, skipped</span>
+							</div>
 							<div>&nbsp;</div>
 							<div><span class="term-dim">Wrote</span> bedrock.config.ts</div>
 							<div><span class="term-dim">Next:</span> bedrock diff</div>
@@ -523,10 +544,9 @@ function toggleTheme(): void {
 						<h2>Two libraries on <em>Open Cloud</em>.</h2>
 					</div>
 					<p>
-						Bedrock sits on <code>@bedrock-rbx/ocale</code>, a typed Open Cloud SDK
-						that stands on its own. Use Bedrock for declarative deploys, or call
-						Ocale directly when you want imperative control. Same types. Same
-						error model.
+						Bedrock sits on <code>@bedrock-rbx/ocale</code>, a typed Open Cloud SDK that
+						stands on its own. Use Bedrock for declarative deploys, or call Ocale
+						directly when you want imperative control. Same types. Same error model.
 					</p>
 				</div>
 
@@ -537,8 +557,8 @@ function toggleTheme(): void {
 							<div class="role">Declarative &middot; deploy tool</div>
 						</div>
 						<div class="desc">
-							Reads your config, previews what will change, applies it through
-							Open Cloud. CLI and library, same API.
+							Reads your config, previews what will change, applies it through Open
+							Cloud. CLI and library, same API.
 						</div>
 						<a class="link" href="/bedrock/guide/getting-started">
 							/bedrock/guide
@@ -562,8 +582,8 @@ function toggleTheme(): void {
 						</div>
 						<div class="desc">
 							Typed clients for Open Cloud resources. Every method returns
-							<code>Result&lt;T, OpenCloudError&gt;</code>. Use it directly when you want
-							imperative control.
+							<code>Result&lt;T, OpenCloudError&gt;</code>. Use it directly when you
+							want imperative control.
 						</div>
 						<a class="link" href="/ocale/guide/getting-started">
 							/ocale/guide
@@ -589,7 +609,12 @@ function toggleTheme(): void {
 							Roblox's official HTTP API. Bedrock and Ocale both call into it
 							directly, no legacy cookies or scraping.
 						</div>
-						<a class="link" href="https://create.roblox.com/docs/cloud" target="_blank" rel="noopener noreferrer">
+						<a
+							class="link"
+							href="https://create.roblox.com/docs/cloud"
+							target="_blank"
+							rel="noopener noreferrer"
+						>
 							create.roblox.com/docs/cloud
 							<svg width="10" height="10" viewBox="0 0 12 12" fill="none">
 								<path
@@ -610,9 +635,7 @@ function toggleTheme(): void {
 				<div class="cta-inner">
 					<div class="eyebrow eyebrow-center">Ready when you are</div>
 					<h2>Build on <em>solid ground.</em></h2>
-					<p>
-						Install the package, set an API key, run bedrock deploy.
-					</p>
+					<p>Install the package, set an API key, run bedrock deploy.</p>
 					<div class="cta-ctas">
 						<a class="btn btn-accent" href="/bedrock/guide/getting-started">
 							Get started
@@ -635,7 +658,8 @@ function toggleTheme(): void {
 							<span class="dollar">$</span>
 							{{ INSTALL_COMMAND }}
 							<button
-								:class="['copy', { 'copy-done': copyState === 'copied' }]"
+								class="copy"
+								:class="[{ 'copy-done': copyState === 'copied' }]"
 								type="button"
 								aria-label="Copy install command"
 								@click="copyInstall"
@@ -653,14 +677,10 @@ function toggleTheme(): void {
 				<div class="foot">
 					<div class="foot-brand">
 						<a class="brand" href="/">
-							<span class="brand-mark">
-								<span /><span /><span /><span />
-							</span>
+							<span class="brand-mark"> <span /><span /><span /><span /> </span>
 							Bedrock
 						</a>
-						<p>
-							Infrastructure-as-Code for Roblox. Typed, Open Cloud only.
-						</p>
+						<p>Infrastructure-as-Code for Roblox. Typed, Open Cloud only.</p>
 					</div>
 					<div>
 						<h5>Bedrock</h5>
@@ -682,10 +702,26 @@ function toggleTheme(): void {
 					<div>
 						<h5>Project</h5>
 						<ul>
-							<li><a href="https://github.com/christopher-buss/bedrock">GitHub</a></li>
-							<li><a href="https://github.com/christopher-buss/bedrock/projects?query=is%3Aopen">Roadmap</a></li>
-							<li><a href="https://github.com/christopher-buss/bedrock/tree/main/docs/adr">ADRs</a></li>
-							<li><a href="https://github.com/christopher-buss/bedrock/releases">Changelog</a></li>
+							<li>
+								<a href="https://github.com/christopher-buss/bedrock">GitHub</a>
+							</li>
+							<li>
+								<a
+									href="https://github.com/christopher-buss/bedrock/projects?query=is%3Aopen"
+									>Roadmap</a
+								>
+							</li>
+							<li>
+								<a
+									href="https://github.com/christopher-buss/bedrock/tree/main/docs/adr"
+									>ADRs</a
+								>
+							</li>
+							<li>
+								<a href="https://github.com/christopher-buss/bedrock/releases"
+									>Changelog</a
+								>
+							</li>
 						</ul>
 					</div>
 				</div>
@@ -1990,11 +2026,7 @@ html.dark .bedrock-landing {
 .cta-band {
 	padding: 120px 0;
 	text-align: center;
-	background: repeating-linear-gradient(
-		180deg,
-		transparent 0 39px,
-		var(--line) 39px 40px
-	);
+	background: repeating-linear-gradient(180deg, transparent 0 39px, var(--line) 39px 40px);
 }
 
 .cta-inner {
