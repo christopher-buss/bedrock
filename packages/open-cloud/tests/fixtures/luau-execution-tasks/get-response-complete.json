@@ -1,0 +1,13 @@
+{
+	"path": "universes/123/places/456/versions/789/luau-execution-sessions/01HXYZ-session/tasks/01HXYZ-task",
+	"createTime": "2026-05-12T01:42:25.171Z",
+	"updateTime": "2026-05-12T01:42:26.443Z",
+	"user": "1910140",
+	"state": "COMPLETE",
+	"script": "return 1",
+	"timeout": "60s",
+	"binaryInput": "",
+	"enableBinaryOutput": false,
+	"binaryOutputUri": "",
+	"output": { "results": [1] }
+}
