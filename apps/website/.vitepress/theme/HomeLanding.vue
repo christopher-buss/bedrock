@@ -611,8 +611,7 @@ function toggleTheme(): void {
 					<div class="eyebrow eyebrow-center">Ready when you are</div>
 					<h2>Build on <em>solid ground.</em></h2>
 					<p>
-						Install the package, wire up an API key, ship your first deploy, all from
-						your terminal, in under five minutes.
+						Install the package, set an API key, run bedrock deploy.
 					</p>
 					<div class="cta-ctas">
 						<a class="btn btn-accent" href="/bedrock/guide/getting-started">
