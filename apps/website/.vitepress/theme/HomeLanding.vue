@@ -520,12 +520,13 @@ function toggleTheme(): void {
 				<div class="eco-head">
 					<div>
 						<div class="eyebrow on-dark">04 &middot; The stack</div>
-						<h2>Two layers. <em>One</em> foundation.</h2>
+						<h2>Two libraries on <em>Open Cloud</em>.</h2>
 					</div>
 					<p>
-						Bedrock sits on <code>@bedrock-rbx/ocale</code>, the typed Open Cloud SDK. Use
-						Bedrock for declarative deploys, or drop down to Ocale for one-off API calls.
-						Same types. Same error model.
+						Bedrock sits on <code>@bedrock-rbx/ocale</code>, a typed Open Cloud SDK
+						that stands on its own. Use Bedrock for declarative deploys, or call
+						Ocale directly when you want imperative control. Same types. Same
+						error model.
 					</p>
 				</div>
 
@@ -533,11 +534,11 @@ function toggleTheme(): void {
 					<div class="eco-layer">
 						<div>
 							<div class="name">Bedrock</div>
-							<div class="role">Declarative &middot; reconciler</div>
+							<div class="role">Declarative &middot; deploy tool</div>
 						</div>
 						<div class="desc">
-							The IaC surface. Takes your <code>defineConfig</code>, computes a plan,
-							applies it through drivers. CLI and library, same API.
+							Reads your config, previews what will change, applies it through
+							Open Cloud. CLI and library, same API.
 						</div>
 						<a class="link" href="/bedrock/guide/getting-started">
 							/bedrock/guide
@@ -585,10 +586,20 @@ function toggleTheme(): void {
 							<div class="role">Roblox &middot; platform API</div>
 						</div>
 						<div class="desc">
-							The bedrock under the bedrock. The only supported auth surface, no
-							ROBLOSECURITY, by design.
+							Roblox's official HTTP API. Bedrock and Ocale both call into it
+							directly, no legacy cookies or scraping.
 						</div>
-						<span class="link link-disabled">roblox.com/open-cloud</span>
+						<a class="link" href="https://create.roblox.com/docs/cloud" target="_blank" rel="noopener noreferrer">
+							create.roblox.com/docs/cloud
+							<svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+								<path
+									d="M2 6H10M10 6L6.5 2.5M10 6L6.5 9.5"
+									stroke="currentColor"
+									stroke-width="1.6"
+									stroke-linecap="round"
+								/>
+							</svg>
+						</a>
 					</div>
 				</div>
 			</div>
@@ -1968,14 +1979,6 @@ html.dark .bedrock-landing {
 .eco-layer a.link:hover {
 	border-color: var(--accent-soft);
 	background: rgba(230, 180, 114, 0.06);
-}
-
-.eco-layer .link-disabled {
-	font-family: var(--f-mono);
-	font-size: 12px;
-	color: var(--dark-ink-3);
-	white-space: nowrap;
-	padding: 8px 14px;
 }
 
 .eco-connector {
