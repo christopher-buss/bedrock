@@ -39,6 +39,20 @@ export interface CreateSortedMapItemParameters {
 }
 
 /**
+ * Caller-supplied input for the `delete` method on
+ * `StorageClient.sortedMaps`. Mirrors
+ * `Cloud_DeleteMemoryStoreSortedMapItem` on the Open Cloud API.
+ */
+export interface DeleteSortedMapItemParameters {
+	/** Caller-supplied item identifier. URL-encoded by the builder. */
+	readonly itemId: string;
+	/** Stringified sorted-map identifier. */
+	readonly mapId: string;
+	/** Stringified ID of the universe that owns the sorted map. */
+	readonly universeId: string;
+}
+
+/**
  * Caller-supplied input for the `get` method on
  * `StorageClient.sortedMaps`. Mirrors
  * `Cloud_GetMemoryStoreSortedMapItem` on the Open Cloud API.

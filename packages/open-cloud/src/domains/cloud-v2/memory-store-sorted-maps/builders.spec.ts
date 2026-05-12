@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCreateRequest, buildGetRequest } from "./builders.ts";
+import { buildCreateRequest, buildDeleteRequest, buildGetRequest } from "./builders.ts";
 
 describe(buildCreateRequest, () => {
 	it("should produce a POST request targeting /cloud/v2/universes/{uid}/memory-store/sorted-maps/{mid}/items", () => {
@@ -140,6 +140,46 @@ describe(buildCreateRequest, () => {
 
 		expect(request.url).toBe(
 			"/cloud/v2/universes/1/memory-store/sorted-maps/m/items?id=Hello+world%21%3F",
+		);
+	});
+});
+
+describe(buildDeleteRequest, () => {
+	it("should produce a DELETE request targeting /cloud/v2/universes/{uid}/memory-store/sorted-maps/{mid}/items/{iid}", () => {
+		expect.assertions(2);
+
+		const request = buildDeleteRequest({
+			itemId: "item-1",
+			mapId: "my-map",
+			universeId: "123",
+		});
+
+		expect(request.method).toBe("DELETE");
+		expect(request.url).toBe(
+			"/cloud/v2/universes/123/memory-store/sorted-maps/my-map/items/item-1",
+		);
+	});
+
+	it("should not carry a body or content-type", () => {
+		expect.assertions(2);
+
+		const request = buildDeleteRequest({ itemId: "i", mapId: "m", universeId: "1" });
+
+		expect(request.body).toBeUndefined();
+		expect(request.headers).toBeUndefined();
+	});
+
+	it("should URL-encode an itemId carrying reserved characters in the path", () => {
+		expect.assertions(1);
+
+		const request = buildDeleteRequest({
+			itemId: "Hello world!?",
+			mapId: "m",
+			universeId: "1",
+		});
+
+		expect(request.url).toBe(
+			"/cloud/v2/universes/1/memory-store/sorted-maps/m/items/Hello%20world!%3F",
 		);
 	});
 });

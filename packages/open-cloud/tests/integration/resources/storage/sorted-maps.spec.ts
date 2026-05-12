@@ -151,6 +151,88 @@ describe(StorageClient, () => {
 		});
 	});
 
+	describe("sortedMaps.delete", () => {
+		it("should send a DELETE whose URL embeds the path identifiers and return undefined on success", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: undefined,
+				status: 200,
+			});
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.sortedMaps.delete({
+				itemId: "abc123",
+				mapId: "test-map",
+				universeId: "123",
+			});
+
+			assert(result.success);
+
+			expect(result.data).toBeUndefined();
+
+			const captured = httpClient.requests[0];
+			assert(captured !== undefined);
+
+			expect(captured.request.method).toBe("DELETE");
+			expect(captured.request.url).toBe(
+				"/cloud/v2/universes/123/memory-store/sorted-maps/test-map/items/abc123",
+			);
+		});
+
+		it("should retry a 5xx since delete is idempotent", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockApiError({ statusCode: 502 })
+				.mockResponse({ body: undefined, status: 200 });
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.sortedMaps.delete({
+				itemId: "i",
+				mapId: "m",
+				universeId: "1",
+			});
+
+			assert(result.success);
+
+			expect(httpClient.requests).toHaveLength(2);
+			expect(result.data).toBeUndefined();
+		});
+
+		it("should upgrade a 403 to a PermissionError carrying memory-store.sorted-map:write", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient().mockApiError({ statusCode: 403 });
+			const client = new StorageClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.sortedMaps.delete({
+				itemId: "i",
+				mapId: "m",
+				universeId: "1",
+			});
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.requiredScopes).toStrictEqual(["memory-store.sorted-map:write"]);
+			expect(result.err.operationKey).toBe("memory-store-sorted-maps.delete");
+			expect(result.err.statusCode).toBe(403);
+		});
+	});
+
 	describe("sortedMaps.get", () => {
 		it("should return a parsed SortedMapItem on a happy path", async () => {
 			expect.assertions(2);

@@ -1,17 +1,21 @@
 import type { OpenCloudClientOptions, RequestOptions } from "../../client/types.ts";
 import {
 	buildCreateRequest,
+	buildDeleteRequest,
 	buildGetRequest,
 } from "../../domains/cloud-v2/memory-store-sorted-maps/builders.ts";
 import {
 	CREATE_OPERATION_LIMIT,
 	CREATE_REQUIRED_SCOPES,
+	DELETE_OPERATION_LIMIT,
+	DELETE_REQUIRED_SCOPES,
 	GET_OPERATION_LIMIT,
 	GET_REQUIRED_SCOPES,
 } from "../../domains/cloud-v2/memory-store-sorted-maps/operations.ts";
 import { parseSortedMapItemResponse } from "../../domains/cloud-v2/memory-store-sorted-maps/parsers.ts";
 import type {
 	CreateSortedMapItemParameters,
+	DeleteSortedMapItemParameters,
 	GetSortedMapItemParameters,
 	SortedMapItem,
 } from "../../domains/cloud-v2/memory-store-sorted-maps/types.ts";
@@ -19,6 +23,7 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS, IDEMPOTENT_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import {
 	okRequest,
+	parseEmptyResponse,
 	type ResourceClient,
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
@@ -35,6 +40,15 @@ const CREATE_SPEC = makeSpec<CreateSortedMapItemParameters, SortedMapItem>({
 	operationLimit: CREATE_OPERATION_LIMIT,
 	parse: parseSortedMapItemResponse,
 	requiredScopes: CREATE_REQUIRED_SCOPES,
+});
+
+const DELETE_SPEC = makeSpec<DeleteSortedMapItemParameters, undefined>({
+	buildRequest: (parameters) => okRequest(buildDeleteRequest(parameters)),
+	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
+	methodKind: "idempotent",
+	operationLimit: DELETE_OPERATION_LIMIT,
+	parse: parseEmptyResponse,
+	requiredScopes: DELETE_REQUIRED_SCOPES,
 });
 
 const GET_SPEC = makeSpec<GetSortedMapItemParameters, SortedMapItem>({
@@ -92,6 +106,24 @@ export class MemoryStoreSortedMapsGroup {
 		options?: RequestOptions,
 	): Promise<Result<SortedMapItem, OpenCloudError>> {
 		return this.#inner.execute({ options, parameters, spec: CREATE_SPEC });
+	}
+
+	/**
+	 * Removes a single item from a sorted map. The call is idempotent:
+	 * a second `delete` against the same item is a no-op once the
+	 * server has dropped the row. The retry policy retries both 429
+	 * and 5xx.
+	 *
+	 * @param parameters - Universe, sorted-map, and item identifiers.
+	 * @param options - Optional per-request overrides.
+	 * @returns A {@link Result} wrapping `undefined` on success or the
+	 *   {@link OpenCloudError} that caused the request to fail.
+	 */
+	public async delete(
+		parameters: DeleteSortedMapItemParameters,
+		options?: RequestOptions,
+	): Promise<Result<undefined, OpenCloudError>> {
+		return this.#inner.execute({ options, parameters, spec: DELETE_SPEC });
 	}
 
 	/**

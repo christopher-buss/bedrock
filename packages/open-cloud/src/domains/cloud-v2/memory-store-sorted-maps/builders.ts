@@ -1,6 +1,7 @@
 import type { HttpRequest } from "../../../client/types.ts";
 import type {
 	CreateSortedMapItemParameters,
+	DeleteSortedMapItemParameters,
 	GetSortedMapItemParameters,
 	SortKey,
 } from "./types.ts";
@@ -33,6 +34,23 @@ export function buildCreateRequest(parameters: CreateSortedMapItemParameters): H
 		headers: { "content-type": "application/json" },
 		method: "POST",
 		url: `/cloud/v2/universes/${universeId}/memory-store/sorted-maps/${mapId}/items?${query.toString()}`,
+	};
+}
+
+/**
+ * Builds a `DELETE` request for the Open Cloud
+ * `Cloud_DeleteMemoryStoreSortedMapItem` endpoint. The `itemId` is
+ * URL-encoded into the path segment, matching the `get` and `update`
+ * builders.
+ *
+ * @param parameters - Universe, sorted-map, and item identifiers.
+ * @returns A pure {@link HttpRequest} describing the delete call.
+ */
+export function buildDeleteRequest(parameters: DeleteSortedMapItemParameters): HttpRequest {
+	const { itemId, mapId, universeId } = parameters;
+	return {
+		method: "DELETE",
+		url: `/cloud/v2/universes/${universeId}/memory-store/sorted-maps/${mapId}/items/${encodeURIComponent(itemId)}`,
 	};
 }
 

@@ -7,6 +7,7 @@ export type {
 } from "../../domains/cloud-v2/memory-store-queues/types.ts";
 export type {
 	CreateSortedMapItemParameters,
+	DeleteSortedMapItemParameters,
 	GetSortedMapItemParameters,
 	SortedMapItem,
 	SortKey,
