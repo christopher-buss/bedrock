@@ -465,6 +465,23 @@ describe(parseLuauExecutionTaskResponse, () => {
 			},
 		);
 
+		it.for(OPTIONAL_STRING_FIELDS)(
+			"should reject a body whose %s is a string that does not parse to a Date",
+			(field) => {
+				expect.assertions(1);
+
+				const result = parseLuauExecutionTaskResponse({
+					body: validInProgressBody({ [field]: "not-a-date" }),
+					headers: {},
+					status: 200,
+				});
+
+				assert(!result.success);
+
+				expect(result.err).toBeInstanceOf(ApiError);
+			},
+		);
+
 		it("should reject a body whose path is a non-string with a matching toString", () => {
 			expect.assertions(1);
 

@@ -3,6 +3,14 @@ import { assert, describe, expect, it } from "vitest";
 
 import { loadFixture } from "./_helpers.ts";
 
+// The vendored `LuauExecutionSessionTask` schema declares `timeout` as
+// `format: "duration"` (ISO 8601 e.g. `"PT3S"`), but the upstream
+// example and the live server both emit `"<n>s"` (e.g. `"3s"`). Ajv
+// rejects the live shape against the declared format, so unlike the
+// other resource specs this file does not run the schema validator
+// against the recorded fixtures; the parser round-trip below covers
+// the divergence between hand-built test bodies and the live wire.
+
 describe("luau-execution-tasks fixtures", () => {
 	describe(parseLuauExecutionTaskResponse, () => {
 		it("should round-trip submit-response-processing.json into an in-progress task whose timestamps are undefined", () => {

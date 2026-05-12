@@ -1,5 +1,6 @@
 import type { HttpResponse } from "../../../client/types.ts";
 import { ApiError } from "../../../errors/api-error.ts";
+import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import type { Result } from "../../../types.ts";
 import type { LuauExecutionTask, LuauExecutionTaskRef } from "./types.ts";
@@ -28,9 +29,11 @@ type InProgressWireState = Exclude<LuauExecutionTaskWire["state"], "COMPLETE" | 
 
 interface ParseVariantArgs {
 	readonly body: LuauExecutionTaskWire;
+	readonly createdAt: Date | undefined;
 	readonly ref: LuauExecutionTaskRef;
 	readonly statusCode: number;
 	readonly timeoutSeconds: number | undefined;
+	readonly updatedAt: Date | undefined;
 }
 
 /**
@@ -59,16 +62,26 @@ export function parseLuauExecutionTaskResponse(
 	}
 
 	const timeoutSeconds = parseTimeoutSeconds(body.timeout);
+	const createdAt = parseOptionalDate(body.createTime);
+	const updatedAt = parseOptionalDate(body.updateTime);
 
 	if (body.state === "COMPLETE") {
-		return parseCompleteTask({ body, ref, statusCode, timeoutSeconds });
+		return parseCompleteTask({ body, createdAt, ref, statusCode, timeoutSeconds, updatedAt });
 	}
 
 	if (body.state === "FAILED") {
-		return parseFailedTask({ body, ref, statusCode, timeoutSeconds });
+		return parseFailedTask({ body, createdAt, ref, statusCode, timeoutSeconds, updatedAt });
 	}
 
-	return parseInProgressTask({ body, ref, state: body.state, statusCode, timeoutSeconds });
+	return parseInProgressTask({
+		body,
+		createdAt,
+		ref,
+		state: body.state,
+		statusCode,
+		timeoutSeconds,
+		updatedAt,
+	});
 }
 
 function isAcceptedWireState(
@@ -118,12 +131,16 @@ function isOptionalBoolean(value: unknown): value is boolean | undefined {
 	return value === undefined || typeof value === "boolean";
 }
 
+function isOptionalDateTimeString(value: unknown): value is string | undefined {
+	return value === undefined || isDateTimeString(value);
+}
+
 function isLuauExecutionTaskWire(body: unknown): body is LuauExecutionTaskWire {
 	return (
 		isRecord(body) &&
 		typeof body["path"] === "string" &&
-		isOptionalString(body["createTime"]) &&
-		isOptionalString(body["updateTime"]) &&
+		isOptionalDateTimeString(body["createTime"]) &&
+		isOptionalDateTimeString(body["updateTime"]) &&
 		isAcceptedWireState(body["state"]) &&
 		typeof body["user"] === "string" &&
 		isOptionalOutputWire(body["output"]) &&
@@ -166,17 +183,17 @@ function malformed(statusCode: number): Result<LuauExecutionTask, ApiError> {
 function parseInProgressTask(
 	args: ParseVariantArgs & { readonly state: InProgressWireState },
 ): Result<LuauExecutionTask, ApiError> {
-	const { body, ref, state, timeoutSeconds } = args;
+	const { body, createdAt, ref, state, timeoutSeconds, updatedAt } = args;
 	return {
 		data: {
 			binaryInput: body.binaryInput,
 			binaryOutputUri: body.binaryOutputUri,
-			createdAt: parseOptionalDate(body.createTime),
+			createdAt,
 			enableBinaryOutput: body.enableBinaryOutput,
 			ref,
 			state,
 			timeoutSeconds,
-			updatedAt: parseOptionalDate(body.updateTime),
+			updatedAt,
 			user: body.user,
 		},
 		success: true,
@@ -184,7 +201,7 @@ function parseInProgressTask(
 }
 
 function parseCompleteTask(args: ParseVariantArgs): Result<LuauExecutionTask, ApiError> {
-	const { body, ref, statusCode, timeoutSeconds } = args;
+	const { body, createdAt, ref, statusCode, timeoutSeconds, updatedAt } = args;
 	if (body.output === undefined) {
 		return malformed(statusCode);
 	}
@@ -193,13 +210,13 @@ function parseCompleteTask(args: ParseVariantArgs): Result<LuauExecutionTask, Ap
 		data: {
 			binaryInput: body.binaryInput,
 			binaryOutputUri: body.binaryOutputUri,
-			createdAt: parseOptionalDate(body.createTime),
+			createdAt,
 			enableBinaryOutput: body.enableBinaryOutput,
 			output: { results: body.output.results },
 			ref,
 			state: "COMPLETE",
 			timeoutSeconds,
-			updatedAt: parseOptionalDate(body.updateTime),
+			updatedAt,
 			user: body.user,
 		},
 		success: true,
@@ -207,7 +224,7 @@ function parseCompleteTask(args: ParseVariantArgs): Result<LuauExecutionTask, Ap
 }
 
 function parseFailedTask(args: ParseVariantArgs): Result<LuauExecutionTask, ApiError> {
-	const { body, ref, statusCode, timeoutSeconds } = args;
+	const { body, createdAt, ref, statusCode, timeoutSeconds, updatedAt } = args;
 	if (body.error === undefined) {
 		return malformed(statusCode);
 	}
@@ -216,13 +233,13 @@ function parseFailedTask(args: ParseVariantArgs): Result<LuauExecutionTask, ApiE
 		data: {
 			binaryInput: body.binaryInput,
 			binaryOutputUri: body.binaryOutputUri,
-			createdAt: parseOptionalDate(body.createTime),
+			createdAt,
 			enableBinaryOutput: body.enableBinaryOutput,
 			error: { code: body.error.code, message: body.error.message },
 			ref,
 			state: "FAILED",
 			timeoutSeconds,
-			updatedAt: parseOptionalDate(body.updateTime),
+			updatedAt,
 			user: body.user,
 		},
 		success: true,

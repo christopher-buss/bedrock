@@ -47,11 +47,7 @@ export interface LuauExecutionTaskWire {
 	 * `enableBinaryOutput` was `true`.
 	 */
 	readonly binaryOutputUri?: string | undefined;
-	/**
-	 * ISO timestamp when the task was created. Present on polled GET
-	 * responses; omitted by the server from the create-task POST
-	 * response.
-	 */
+	/** ISO timestamp when the task was created; omitted from the create-task POST response. */
 	readonly createTime?: string | undefined;
 	/** When `true`, the server writes output to a binary blob. */
 	readonly enableBinaryOutput?: boolean | undefined;
@@ -78,11 +74,7 @@ export interface LuauExecutionTaskWire {
 	 * absent, the server applies its 5-minute default.
 	 */
 	readonly timeout?: string | undefined;
-	/**
-	 * ISO timestamp of the most recent state change. Present on polled
-	 * GET responses; omitted by the server from the create-task POST
-	 * response.
-	 */
+	/** ISO timestamp of the most recent state change; omitted from the create-task POST response. */
 	readonly updateTime?: string | undefined;
 	/** Identifier of the user that owns the API key used to create this task. */
 	readonly user: string;
