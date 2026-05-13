@@ -1,38 +1,41 @@
 import { cleanup, render, screen } from "@testing-library/vue";
+import { fromPartial } from "@total-typescript/shoehorn";
 
+import type * as VitePress from "vitepress";
+import type * as VitePressTheme from "vitepress/theme";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { defineComponent, ref } from "vue";
 
+import type * as HomeLandingModule from "./home-landing.vue";
 import Layout from "./layout.vue";
 
 const frontmatter = ref<{ layout?: string }>({});
 
-// vitepress/theme exports a Theme with a DefineComponent Layout; vitepress
-// exports a complex VitePressData via useData. Partial stubbing via the typed
-// import("...") form is impractical for either, so use string-form mocks here.
-/* eslint-disable vitest/prefer-import-in-mock -- see note above */
-vi.mock("vitepress/theme", () => {
-	return {
+vi.mock(import("vitepress/theme"), () => {
+	return fromPartial<typeof VitePressTheme>({
 		default: {
 			Layout: defineComponent({
 				name: "DefaultLayout",
 				template: '<div data-testid="default-layout">default</div>',
 			}),
 		},
-	};
+	});
 });
 
-vi.mock("vitepress", () => ({ useData: () => ({ frontmatter }) }));
+vi.mock(import("vitepress"), () => {
+	return fromPartial<typeof VitePress>({
+		useData: () => fromPartial<ReturnType<typeof VitePress.useData>>({ frontmatter }),
+	});
+});
 
-vi.mock("./home-landing.vue", () => {
-	return {
+vi.mock(import("./home-landing.vue"), () => {
+	return fromPartial<typeof HomeLandingModule>({
 		default: defineComponent({
 			name: "HomeLanding",
 			template: '<div data-testid="home-landing">landing</div>',
 		}),
-	};
+	});
 });
-/* eslint-enable vitest/prefer-import-in-mock */
 
 function renderLayout(): void {
 	onTestFinished(cleanup);

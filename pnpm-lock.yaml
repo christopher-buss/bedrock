@@ -174,6 +174,9 @@ catalogs:
     '@testing-library/vue':
       specifier: 8.1.0
       version: 8.1.0
+    '@total-typescript/shoehorn':
+      specifier: 0.1.2
+      version: 0.1.2
     '@vitest/coverage-v8':
       specifier: 4.1.5
       version: 4.1.5
@@ -420,6 +423,9 @@ importers:
       '@testing-library/vue':
         specifier: catalog:test
         version: 8.1.0(@vue/compiler-dom@3.5.32)(@vue/compiler-sfc@3.5.32)(@vue/server-renderer@3.5.32(vue@3.5.32(@typescript/typescript6@6.0.1)))(vue@3.5.32(@typescript/typescript6@6.0.1))
+      '@total-typescript/shoehorn':
+        specifier: catalog:test
+        version: 0.1.2
       '@vitejs/plugin-vue':
         specifier: catalog:docs
         version: 6.0.6(@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(@typescript/typescript6@6.0.1))
@@ -3420,6 +3426,9 @@ packages:
     peerDependenciesMeta:
       '@vue/compiler-sfc':
         optional: true
+
+  '@total-typescript/shoehorn@0.1.2':
+    resolution: {integrity: sha512-p7nNZbOZIofpDNyP0u1BctFbjxD44Qc+oO5jufgQdFdGIXJLc33QRloJpq7k5T59CTgLWfQSUxsuqLcmeurYRw==}
 
   '@ts-graphviz/adapter@2.0.6':
     resolution: {integrity: sha512-kJ10lIMSWMJkLkkCG5gt927SnGZcBuG0s0HHswGzcHTgvtUe7yk5/3zTEr0bafzsodsOq5Gi6FhQeV775nC35Q==}
@@ -9599,6 +9608,8 @@ snapshots:
     transitivePeerDependencies:
       - '@vue/compiler-dom'
       - '@vue/server-renderer'
+
+  '@total-typescript/shoehorn@0.1.2': {}
 
   '@ts-graphviz/adapter@2.0.6':
     dependencies:

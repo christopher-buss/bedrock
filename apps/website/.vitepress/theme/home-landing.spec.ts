@@ -1,7 +1,9 @@
 import { version as bedrockVersion } from "@bedrock-rbx/core/package.json";
 import userEvent from "@testing-library/user-event";
 import { cleanup, render, screen, within } from "@testing-library/vue";
+import { fromPartial } from "@total-typescript/shoehorn";
 
+import type * as VitePress from "vitepress";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { ref } from "vue";
 
@@ -10,10 +12,11 @@ import HomeLanding from "./home-landing.vue";
 const frontmatter = ref<{ layout?: string }>({});
 const isDark = ref(false);
 
-// vitepress's useData returns a 12+ field VitePressData; partial stubbing via
-// the typed import("...") form is impractical, so use the string form here.
-// eslint-disable-next-line vitest/prefer-import-in-mock -- see note above
-vi.mock("vitepress", () => ({ useData: () => ({ frontmatter, isDark }) }));
+vi.mock(import("vitepress"), () => {
+	return fromPartial<typeof VitePress>({
+		useData: () => fromPartial<ReturnType<typeof VitePress.useData>>({ frontmatter, isDark }),
+	});
+});
 
 function renderLanding(): void {
 	onTestFinished(cleanup);

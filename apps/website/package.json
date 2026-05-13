@@ -25,6 +25,7 @@
 		"@bedrock-rbx/vite-config": "workspace:*",
 		"@testing-library/user-event": "catalog:test",
 		"@testing-library/vue": "catalog:test",
+		"@total-typescript/shoehorn": "catalog:test",
 		"@vitejs/plugin-vue": "catalog:docs",
 		"concurrently": "catalog:dev",
 		"happy-dom": "catalog:test",
