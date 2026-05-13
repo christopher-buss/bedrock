@@ -53,20 +53,26 @@ export function parseListResponse(
 	}
 
 	const { memoryStoreSortedMapItems, nextPageToken } = body;
-	if (!Array.isArray(memoryStoreSortedMapItems)) {
+	if (
+		memoryStoreSortedMapItems !== undefined &&
+		memoryStoreSortedMapItems !== null &&
+		!Array.isArray(memoryStoreSortedMapItems)
+	) {
 		return malformedList(statusCode);
 	}
 
-	if (nextPageToken !== undefined && typeof nextPageToken !== "string") {
+	const normalizedToken = nextPageToken ?? undefined;
+	if (normalizedToken !== undefined && typeof normalizedToken !== "string") {
 		return malformedList(statusCode);
 	}
 
-	const items = memoryStoreSortedMapItems.map(wireBodyToSortedMapItem);
+	const rawItems = memoryStoreSortedMapItems ?? [];
+	const items = rawItems.map(wireBodyToSortedMapItem);
 	if (!items.every(isSortedMapItem)) {
 		return malformedList(statusCode);
 	}
 
-	return { data: { items, nextPageToken }, success: true };
+	return { data: { items, nextPageToken: normalizedToken }, success: true };
 }
 
 function isSortedMapItemWire(body: unknown): body is MemoryStoreSortedMapItemWire {

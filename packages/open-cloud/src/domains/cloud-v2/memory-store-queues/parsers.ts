@@ -46,11 +46,16 @@ export function parseDequeueResponse(response: HttpResponse): Result<DequeueResu
 	}
 
 	const { id, queueItems } = body;
-	if (typeof id !== "string" || !Array.isArray(queueItems)) {
+	if (typeof id !== "string") {
 		return malformedDequeue(statusCode);
 	}
 
-	const items = queueItems.map(wireBodyToQueueItem);
+	if (queueItems !== undefined && queueItems !== null && !Array.isArray(queueItems)) {
+		return malformedDequeue(statusCode);
+	}
+
+	const rawItems = queueItems ?? [];
+	const items = rawItems.map(wireBodyToQueueItem);
 	if (!items.every(isQueueItem)) {
 		return malformedDequeue(statusCode);
 	}

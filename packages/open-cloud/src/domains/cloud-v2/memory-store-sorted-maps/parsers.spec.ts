@@ -44,6 +44,21 @@ describe(parseListResponse, () => {
 		expect(result.data.nextPageToken).toBeUndefined();
 	});
 
+	it("should normalize a JSON null nextPageToken to undefined", () => {
+		expect.assertions(1);
+
+		const body: Record<string, unknown> = {
+			...validListSortedMapItemsBody(),
+			nextPageToken: JSON.parse("null"),
+		};
+
+		const result = parseListResponse({ body, headers: {}, status: 200 });
+
+		assert(result.success);
+
+		expect(result.data.nextPageToken).toBeUndefined();
+	});
+
 	it("should map every entry through the same parser as the single-item endpoints", () => {
 		expect.assertions(3);
 
@@ -83,6 +98,36 @@ describe(parseListResponse, () => {
 		assert(result.success);
 
 		expect(result.data.items).toStrictEqual([]);
+	});
+
+	it("should accept a response with memoryStoreSortedMapItems omitted", () => {
+		expect.assertions(2);
+
+		const result = parseListResponse({
+			body: { nextPageToken: "tok-1" },
+			headers: {},
+			status: 200,
+		});
+
+		assert(result.success);
+
+		expect(result.data.items).toStrictEqual([]);
+		expect(result.data.nextPageToken).toBe("tok-1");
+	});
+
+	it("should accept a response with memoryStoreSortedMapItems explicitly null", () => {
+		expect.assertions(2);
+
+		const body: Record<string, unknown> = {
+			memoryStoreSortedMapItems: JSON.parse("null"),
+		};
+
+		const result = parseListResponse({ body, headers: {}, status: 200 });
+
+		assert(result.success);
+
+		expect(result.data.items).toStrictEqual([]);
+		expect(result.data.nextPageToken).toBeUndefined();
 	});
 
 	it("should reject a non-record body", () => {
