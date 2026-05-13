@@ -37,8 +37,9 @@ vi.mock(import("./home-landing.vue"), () => {
 	});
 });
 
-function renderLayout(): void {
+function renderLayout(layout?: string): void {
 	onTestFinished(cleanup);
+	frontmatter.value = layout === undefined ? {} : { layout };
 	render(Layout);
 }
 
@@ -46,8 +47,7 @@ describe(Layout, () => {
 	it("should render the home landing when frontmatter.layout is 'landing'", () => {
 		expect.assertions(2);
 
-		frontmatter.value = { layout: "landing" };
-		renderLayout();
+		renderLayout("landing");
 
 		expect(screen.queryByTestId("home-landing")).not.toBeNull();
 		expect(screen.queryByTestId("default-layout")).toBeNull();
@@ -56,8 +56,7 @@ describe(Layout, () => {
 	it("should render the default vitepress layout when frontmatter.layout is not 'landing'", () => {
 		expect.assertions(2);
 
-		frontmatter.value = { layout: "home" };
-		renderLayout();
+		renderLayout("home");
 
 		expect(screen.queryByTestId("default-layout")).not.toBeNull();
 		expect(screen.queryByTestId("home-landing")).toBeNull();

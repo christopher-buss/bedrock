@@ -286,10 +286,10 @@ async function noopWrite(): Promise<void> {
 
 function installFakeClipboard(writeImpl: (text: string) => Promise<void> = noopWrite) {
 	const spy = vi.spyOn(globalThis.navigator.clipboard, "writeText");
-	spy.mockImplementation(writeImpl);
 	onTestFinished(() => {
 		spy.mockRestore();
 	});
+	spy.mockImplementation(writeImpl);
 	return spy;
 }
 
