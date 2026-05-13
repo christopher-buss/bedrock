@@ -27,10 +27,20 @@ export interface MemoryStoreQueueItemWire {
  * names it `items`) and the read identifier under `id` (schema names
  * it `readId`); both deviations are corrected by `apply-schema-patches`,
  * so the wire interface here matches the patched schema.
+ *
+ * `queueItems` is optional per the OpenAPI spec
+ * (`ReadMemoryStoreQueueItemsResponse` has no `required` array); empty
+ * queues come back with the field omitted or JSON `null`. `id` is also
+ * spec-optional but the server always returns it for a 200 dequeue (it
+ * is the `:discard` token), so the parser requires it.
  */
 export interface ReadQueueItemsResponseWire {
 	/** Identifier of the read operation, passed back to `:discard`. */
 	readonly id: string;
-	/** Items at the front of the queue, in dequeue order. */
-	readonly queueItems: ReadonlyArray<MemoryStoreQueueItemWire>;
+	/**
+	 * Items at the front of the queue, in dequeue order. Omitted or
+	 * JSON `null` on an empty queue; the parser normalizes both to an
+	 * empty array.
+	 */
+	readonly queueItems?: ReadonlyArray<MemoryStoreQueueItemWire>;
 }

@@ -311,6 +311,37 @@ describe(parseDequeueResponse, () => {
 		expect(result.data.items).toStrictEqual([]);
 	});
 
+	it("should accept a response with queueItems omitted", () => {
+		expect.assertions(2);
+
+		const result = parseDequeueResponse({
+			body: { id: "read-1" },
+			headers: {},
+			status: 200,
+		});
+
+		assert(result.success);
+
+		expect(result.data.items).toStrictEqual([]);
+		expect(result.data.readId).toBe("read-1");
+	});
+
+	it("should accept a response with queueItems explicitly null", () => {
+		expect.assertions(2);
+
+		const body: Record<string, unknown> = {
+			id: "read-1",
+			queueItems: JSON.parse("null"),
+		};
+
+		const result = parseDequeueResponse({ body, headers: {}, status: 200 });
+
+		assert(result.success);
+
+		expect(result.data.items).toStrictEqual([]);
+		expect(result.data.readId).toBe("read-1");
+	});
+
 	it("should reject a non-record body", () => {
 		expect.assertions(2);
 
