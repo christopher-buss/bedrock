@@ -35,7 +35,7 @@ interface ListParserPin {
 const PINS: ReadonlyArray<ListParserPin> = [
 	{
 		name: "parseListResponse (memory-store sorted-maps)",
-		acceptsMissingOrNull: ["memoryStoreSortedMapItems", "nextPageToken"],
+		acceptsMissingOrNull: ["items", "nextPageToken"],
 		parse: (body) => parseSortedMapListResponse({ body, headers: {}, status: 200 }),
 		schemaName: "ListMemoryStoreSortedMapItemsResponse",
 		stricterThanSpec: {},

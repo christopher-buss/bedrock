@@ -39,7 +39,7 @@ export function validListSortedMapItemsBody(
 	overrides: Partial<ListSortedMapItemsResponseWire> = {},
 ): ListSortedMapItemsResponseWire {
 	return {
-		memoryStoreSortedMapItems: [validSortedMapItemBody()],
+		items: [validSortedMapItemBody()],
 		nextPageToken: undefined,
 		...overrides,
 	};

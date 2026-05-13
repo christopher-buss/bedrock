@@ -1,0 +1,8 @@
+{
+	"path": "cloud/v2/universes/123/memory-stores/sorted-maps/test-map/items/name%3A%3Aid",
+	"value": { "hello": "world" },
+	"etag": "1",
+	"expireTime": "2026-05-13T02:48:08Z",
+	"id": "name::id",
+	"numericSortKey": null
+}

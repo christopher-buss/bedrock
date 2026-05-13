@@ -16,6 +16,7 @@ describe(StorageClient, () => {
 
 			const httpClient = createFakeHttpClient().mockResponse({
 				body: validSortedMapItemBody({
+					id: "abc",
 					path: "cloud/v2/universes/123/memory-store/sorted-maps/my-map/items/abc",
 				}),
 				status: 200,
@@ -346,6 +347,7 @@ describe(StorageClient, () => {
 
 			const httpClient = createFakeHttpClient().mockResponse({
 				body: validSortedMapItemBody({
+					id: "abc",
 					path: "cloud/v2/universes/123/memory-store/sorted-maps/my-map/items/abc",
 				}),
 				status: 200,
@@ -461,6 +463,7 @@ describe(StorageClient, () => {
 
 			const httpClient = createFakeHttpClient().mockResponse({
 				body: validSortedMapItemBody({
+					id: "abc",
 					path: "cloud/v2/universes/123/memory-store/sorted-maps/my-map/items/abc",
 				}),
 				status: 200,

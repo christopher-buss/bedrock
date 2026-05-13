@@ -7,7 +7,7 @@ import type { ListSortedMapItemsResult, SortedMapItem, SortKey } from "./types.t
 import type { MemoryStoreSortedMapItemWire } from "./wire.ts";
 
 const PATH_PATTERN =
-	/^cloud\/v2\/universes\/(\d+)\/memory-store\/sorted-maps\/([^/]+)\/items\/([^/]+)$/;
+	/^cloud\/v2\/universes\/(\d+)\/memory-stores?\/sorted-maps\/([^/]+)\/items\/([^/]+)$/;
 const MALFORMED_MESSAGE = "Malformed memory-store sorted-map item response";
 const MALFORMED_LIST_MESSAGE = "Malformed memory-store sorted-map list response";
 
@@ -34,10 +34,9 @@ export function parseSortedMapItemResponse(
 /**
  * Parses a successful `Cloud_ListMemoryStoreSortedMapItems` response
  * body into the public {@link ListSortedMapItemsResult} shape. Each
- * item in the `memoryStoreSortedMapItems` array is validated through
- * the same path-and-shape checks as
- * {@link parseSortedMapItemResponse}; a malformed entry rejects the
- * whole response.
+ * item in the `items` array is validated through the same
+ * path-and-shape checks as {@link parseSortedMapItemResponse}; a
+ * malformed entry rejects the whole response.
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
  * @returns A success result wrapping the parsed
@@ -52,12 +51,8 @@ export function parseListResponse(
 		return malformedList(statusCode);
 	}
 
-	const { memoryStoreSortedMapItems, nextPageToken } = body;
-	if (
-		memoryStoreSortedMapItems !== undefined &&
-		memoryStoreSortedMapItems !== null &&
-		!Array.isArray(memoryStoreSortedMapItems)
-	) {
+	const { items: rawItemsField, nextPageToken } = body;
+	if (rawItemsField !== undefined && rawItemsField !== null && !Array.isArray(rawItemsField)) {
 		return malformedList(statusCode);
 	}
 
@@ -66,7 +61,7 @@ export function parseListResponse(
 		return malformedList(statusCode);
 	}
 
-	const rawItems = memoryStoreSortedMapItems ?? [];
+	const rawItems = rawItemsField ?? [];
 	const items = rawItems.map(wireBodyToSortedMapItem);
 	if (!items.every(isSortedMapItem)) {
 		return malformedList(statusCode);
@@ -119,11 +114,13 @@ function wireBodyToSortedMapItem(body: unknown): SortedMapItem | undefined {
 		return undefined;
 	}
 
+	// Item ids round-trip URL-encoded in `path` (e.g. `name::id` arrives
+	// as `name%3A%3Aid`), so the decoded id is read from `body.id` rather
+	// than the regex group.
 	const match = PATH_PATTERN.exec(body.path);
 	const universeId = match?.[1];
 	const mapId = match?.[2];
-	const id = match?.[3];
-	if (universeId === undefined || mapId === undefined || id === undefined) {
+	if (universeId === undefined || mapId === undefined) {
 		return undefined;
 	}
 
@@ -133,7 +130,7 @@ function wireBodyToSortedMapItem(body: unknown): SortedMapItem | undefined {
 	}
 
 	return {
-		id,
+		id: body.id,
 		etag: body.etag,
 		expiresAt: new Date(body.expireTime),
 		mapId,

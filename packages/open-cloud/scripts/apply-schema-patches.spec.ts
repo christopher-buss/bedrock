@@ -16,6 +16,7 @@ describe(findObsoletePatchDescriptions, () => {
 			"ReadMemoryStoreQueueItemsResponse renames items→queueItems and readId→id",
 			"MemoryStoreQueueItem.ttl drops invalid format: duration",
 			"Cloud_ReadMemoryStoreQueueItems.invisibilityWindow drops invalid format: duration",
+			"ListMemoryStoreSortedMapItemsResponse renames memoryStoreSortedMapItems→items",
 		]);
 	});
 
@@ -29,7 +30,7 @@ describe(findObsoletePatchDescriptions, () => {
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
 
-		expect(findObsoletePatchDescriptions(text)).toHaveLength(5);
+		expect(findObsoletePatchDescriptions(text)).toHaveLength(6);
 	});
 
 	it("should not flag a patch when its pre-patch shape is present in the input", () => {

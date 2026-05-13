@@ -59,6 +59,19 @@ const PATCHES: ReadonlyArray<Patch> = [
 		find: /("name": "invisibilityWindow",[\s\S]*?"example": "3s",\n {14}"type": "string")(,\n {14}"format": "duration")/,
 		replace: "$1",
 	},
+	{
+		// Real-API probe (2026-05) shows the list endpoint returns the items
+		// array under `items`, not `memoryStoreSortedMapItems` as the spec
+		// claims. Same class of drift as the queue rename above. Without
+		// this patch the parser reads the wrong key and silently drops
+		// every real item on a non-empty page.
+		appliedMarker:
+			'"ListMemoryStoreSortedMapItemsResponse": {\n        "type": "object",\n        "properties": {\n          "items":',
+		description:
+			"ListMemoryStoreSortedMapItemsResponse renames memoryStoreSortedMapItems→items",
+		find: /("ListMemoryStoreSortedMapItemsResponse": \{\n {8}"type": "object",\n {8}"properties": \{\n {10})"memoryStoreSortedMapItems":/,
+		replace: '$1"items":',
+	},
 ];
 
 /**
