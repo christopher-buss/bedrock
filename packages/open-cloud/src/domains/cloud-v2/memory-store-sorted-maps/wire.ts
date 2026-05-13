@@ -22,8 +22,11 @@ export interface MemoryStoreSortedMapItemWire {
 	/** Numeric sort key. Mutually exclusive with `stringSortKey`. */
 	readonly numericSortKey?: number | undefined;
 	/**
-	 * Resource path:
-	 * `cloud/v2/universes/{u}/memory-store/sorted-maps/{m}/items/{i}`.
+	 * Resource path. CREATE and LIST emit the singular form
+	 * (`cloud/v2/universes/{u}/memory-store/sorted-maps/{m}/items/{i}`);
+	 * GET emits the plural form (`.../memory-stores/sorted-maps/...`).
+	 * The parser accepts both. Item ids with URL-reserved characters
+	 * arrive URL-encoded here; the decoded form is on `id`.
 	 */
 	readonly path: string;
 	/** Lexicographic sort key. Mutually exclusive with `numericSortKey`. */

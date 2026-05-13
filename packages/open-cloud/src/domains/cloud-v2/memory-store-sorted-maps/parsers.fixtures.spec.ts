@@ -15,8 +15,8 @@ import { parseListResponse, parseSortedMapItemResponse } from "./parsers.ts";
 //  - Item ids with URL-reserved characters round-trip URL-encoded
 //    in `path`; the parser reads the decoded form from body.id.
 
-describe("memory-store sorted-map parsers against captured live-API responses", () => {
-	it("should parse a CREATE 200 with a URL-encoded item path", () => {
+describe(parseSortedMapItemResponse, () => {
+	it("should parse a captured CREATE 200 with a URL-encoded item path", () => {
 		expect.assertions(4);
 
 		const body = loadFixture("memory-store-sorted-maps", "create-response.json");
@@ -31,7 +31,7 @@ describe("memory-store sorted-map parsers against captured live-API responses", 
 		expect(result.data.value).toStrictEqual({ hello: "world" });
 	});
 
-	it("should parse a GET 200 whose path uses the plural memory-stores prefix", () => {
+	it("should parse a captured GET 200 whose path uses the plural memory-stores prefix", () => {
 		expect.assertions(4);
 
 		const body = loadFixture("memory-store-sorted-maps", "get-response.json");
@@ -45,8 +45,10 @@ describe("memory-store sorted-map parsers against captured live-API responses", 
 		expect(result.data.universeId).toBe("123");
 		expect(result.data.value).toStrictEqual({ hello: "world" });
 	});
+});
 
-	it("should parse a LIST 200 that uses the items field and a null nextPageToken", () => {
+describe(parseListResponse, () => {
+	it("should parse a captured LIST 200 that uses the items field and a null nextPageToken", () => {
 		expect.assertions(4);
 
 		const body = loadFixture("memory-store-sorted-maps", "list-response.json");

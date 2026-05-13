@@ -6,9 +6,6 @@ import type { Result } from "../../../types.ts";
 import type { ListSortedMapItemsResult, SortedMapItem, SortKey } from "./types.ts";
 import type { MemoryStoreSortedMapItemWire } from "./wire.ts";
 
-// The CREATE and LIST endpoints emit paths under singular `memory-store`,
-// while GET emits plural `memory-stores`. The regex tolerates both to
-// absorb that upstream inconsistency at the wire boundary.
 const PATH_PATTERN =
 	/^cloud\/v2\/universes\/(\d+)\/memory-stores?\/sorted-maps\/([^/]+)\/items\/([^/]+)$/;
 const MALFORMED_MESSAGE = "Malformed memory-store sorted-map item response";
@@ -117,17 +114,12 @@ function wireBodyToSortedMapItem(body: unknown): SortedMapItem | undefined {
 		return undefined;
 	}
 
-	// Validate path shape and extract the universe + map ids from it,
-	// but read the item id from `body.id` directly: item ids may contain
-	// characters that arrive URL-encoded inside `path` (e.g. `::` shows
-	// up as `%3A%3A`), and the body's top-level `id` field carries the
-	// decoded form the caller supplied.
+	// Item ids round-trip URL-encoded in `path` (e.g. `name::id` arrives
+	// as `name%3A%3Aid`), so the decoded id is read from `body.id` rather
+	// than the regex group.
 	const match = PATH_PATTERN.exec(body.path);
-	if (match === null) {
-		return undefined;
-	}
-
-	const [, universeId, mapId] = match;
+	const universeId = match?.[1];
+	const mapId = match?.[2];
 	if (universeId === undefined || mapId === undefined) {
 		return undefined;
 	}
