@@ -17,6 +17,8 @@ vi.mock("vitepress", () => ({ useData: () => ({ frontmatter, isDark }) }));
 
 function renderLanding(): void {
 	onTestFinished(cleanup);
+	frontmatter.value = {};
+	isDark.value = false;
 	render(HomeLanding);
 }
 
@@ -210,7 +212,44 @@ describe(HomeLanding, () => {
 
 		expect(copyButton().textContent.trim()).toBe("copy");
 	});
+
+	it("should show the moon icon when the theme is light", () => {
+		expect.assertions(2);
+
+		renderLanding();
+
+		expect(themeToggle().querySelector(".icon-moon")).not.toBeNull();
+		expect(themeToggle().querySelector(".icon-sun")).toBeNull();
+	});
+
+	it("should swap the moon icon for the sun icon when the toggle is clicked", async () => {
+		expect.assertions(2);
+
+		renderLanding();
+		const user = userEvent.setup();
+
+		await user.click(themeToggle());
+
+		expect(themeToggle().querySelector(".icon-sun")).not.toBeNull();
+		expect(themeToggle().querySelector(".icon-moon")).toBeNull();
+	});
+
+	it("should swap the sun icon back to the moon icon on a second click", async () => {
+		expect.assertions(1);
+
+		renderLanding();
+		const user = userEvent.setup();
+
+		await user.click(themeToggle());
+		await user.click(themeToggle());
+
+		expect(themeToggle().querySelector(".icon-moon")).not.toBeNull();
+	});
 });
+
+function themeToggle(): HTMLElement {
+	return screen.getByRole("button", { name: "Toggle theme" });
+}
 
 function copyButton(): HTMLElement {
 	return screen.getByRole("button", { name: "Copy install command" });
