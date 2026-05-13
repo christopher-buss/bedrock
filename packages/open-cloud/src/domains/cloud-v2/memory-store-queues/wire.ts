@@ -42,5 +42,5 @@ export interface ReadQueueItemsResponseWire {
 	 * JSON `null` on an empty queue; the parser normalizes both to an
 	 * empty array.
 	 */
-	readonly queueItems?: ReadonlyArray<MemoryStoreQueueItemWire>;
+	readonly queueItems?: ReadonlyArray<MemoryStoreQueueItemWire> | undefined;
 }

@@ -48,7 +48,7 @@ export interface ListSortedMapItemsResponseWire {
 	 * Omitted or JSON `null` on an empty page; the parser normalizes
 	 * both to an empty array.
 	 */
-	readonly memoryStoreSortedMapItems?: ReadonlyArray<MemoryStoreSortedMapItemWire>;
+	readonly memoryStoreSortedMapItems?: ReadonlyArray<MemoryStoreSortedMapItemWire> | undefined;
 	/**
 	 * Page token for the next call, or `undefined` when no more pages
 	 * exist. JSON `null` is accepted on the wire and normalized to
