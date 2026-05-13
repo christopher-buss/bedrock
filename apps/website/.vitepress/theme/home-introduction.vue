@@ -3,14 +3,13 @@ import type { DefaultTheme } from "vitepress";
 import { Content, useData, useRoute, withBase } from "vitepress";
 import { computed } from "vue";
 
-import { version as bedrockVersion } from "@bedrock-rbx/core/package.json";
+import BedrockFooter, { type BedrockFooterColumn } from "./components/bedrock-footer.vue";
+import BedrockNav, { type BedrockNavLink } from "./components/bedrock-nav.vue";
 
 type SidebarGroup = DefaultTheme.SidebarItem;
 type SidebarLink = DefaultTheme.SidebarItem;
 
-const VERSION = `v${bedrockVersion}`;
-
-const { isDark, theme } = useData();
+const { theme } = useData();
 const route = useRoute();
 
 const sidebar = computed<ReadonlyArray<SidebarGroup>>(() => {
@@ -87,90 +86,64 @@ function kindDot(link: string | undefined): "cls" | "const" | "fn" | "type" | un
 	return undefined;
 }
 
-function toggleTheme(): void {
-	isDark.value = !isDark.value;
-}
+const navLinks = computed<ReadonlyArray<BedrockNavLink>>(() => [
+	{
+		active: currentPath.value.startsWith("/bedrock"),
+		href: withBase("/bedrock/introduction"),
+		text: "Docs",
+	},
+	{ href: withBase("/bedrock/api/"), text: "API" },
+	{ href: "#", text: "CLI" },
+	{
+		external: true,
+		href: "https://github.com/christopher-buss/bedrock/releases",
+		text: "Changelog",
+	},
+]);
+
+const footerColumns = computed<ReadonlyArray<BedrockFooterColumn>>(() => [
+	{
+		links: [
+			{ href: withBase("/bedrock/introduction"), text: "Introduction" },
+			{ href: withBase("/bedrock/guide/getting-started"), text: "Getting started" },
+			{ href: withBase("/bedrock/api/"), text: "API reference" },
+		],
+		title: "Docs",
+	},
+	{
+		links: [
+			{ href: withBase("/ocale/guide/getting-started"), text: "Getting started" },
+			{ href: withBase("/ocale/api/"), text: "Resource clients" },
+			{ href: withBase("/ocale/guide/errors"), text: "Error hierarchy" },
+		],
+		title: "Ocale",
+	},
+	{
+		links: [
+			{
+				external: true,
+				href: "https://github.com/christopher-buss/bedrock",
+				text: "GitHub",
+			},
+			{
+				external: true,
+				href: "https://github.com/christopher-buss/bedrock/tree/main/docs/adr",
+				text: "ADRs",
+			},
+			{
+				external: true,
+				href: "https://github.com/christopher-buss/bedrock/releases",
+				text: "Changelog",
+			},
+		],
+		title: "Project",
+	},
+]);
 </script>
 
 <template>
 	<div class="bedrock-intro">
-		<nav class="bedrock-nav">
-			<div class="wrap inner">
-				<a class="brand" :href="withBase('/')">
-					<span class="brand-mark"> <span /><span /><span /><span /> </span>
-					Bedrock<span class="nav-v">{{ VERSION }}</span>
-				</a>
-				<div class="nav-links">
-					<a class="active" :href="withBase('/bedrock/introduction')">Docs</a>
-					<a :href="withBase('/bedrock/api/')">API</a>
-					<a href="#">CLI</a>
-					<a href="https://github.com/christopher-buss/bedrock/releases">Changelog</a>
-				</div>
-				<div class="nav-right">
-					<div class="nav-search" role="button" tabindex="0" aria-label="Search docs">
-						<svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-							<circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.4" />
-							<path
-								d="m11 11 3 3"
-								stroke="currentColor"
-								stroke-width="1.4"
-								stroke-linecap="round"
-							/>
-						</svg>
-						Search docs&hellip;
-						<span class="kbd">&#8984;K</span>
-					</div>
-					<button class="theme-toggle" aria-label="Toggle theme" @click="toggleTheme">
-						<svg
-							v-if="!isDark"
-							class="icon-moon"
-							viewBox="0 0 16 16"
-							fill="none"
-							aria-hidden="true"
-						>
-							<path
-								d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7Z"
-								stroke="currentColor"
-								stroke-width="1.4"
-								stroke-linejoin="round"
-							/>
-						</svg>
-						<svg
-							v-else
-							class="icon-sun"
-							viewBox="0 0 16 16"
-							fill="none"
-							aria-hidden="true"
-						>
-							<circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.4" />
-							<path
-								d="M8 1.5v1.5M8 13v1.5M14.5 8H13M3 8H1.5M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1M12.6 12.6l-1.1-1.1M4.5 4.5 3.4 3.4"
-								stroke="currentColor"
-								stroke-width="1.4"
-								stroke-linecap="round"
-							/>
-						</svg>
-					</button>
-					<a class="nav-cta" href="https://github.com/christopher-buss/bedrock">
-						GitHub
-						<svg
-							width="11"
-							height="11"
-							viewBox="0 0 12 12"
-							fill="none"
-							aria-hidden="true"
-						>
-							<path
-								d="M3 9L9 3M9 3H4M9 3V8"
-								stroke="currentColor"
-								stroke-width="1.5"
-								stroke-linecap="round"
-							/>
-						</svg>
-					</a>
-				</div>
-			</div>
-		</nav>
+		<BedrockNav :home-href="withBase('/')" :links="navLinks" show-search />
 
 		<div class="wrap shell">
 			<aside class="side" aria-label="Documentation navigation">
@@ -227,69 +200,7 @@ function toggleTheme(): void {
 			</article>
 		</div>
 
-		<footer class="bedrock-foot">
-			<div class="wrap">
-				<div class="foot">
-					<div class="foot-brand">
-						<a class="brand" :href="withBase('/')">
-							<span class="brand-mark"> <span /><span /><span /><span /> </span>
-							Bedrock
-						</a>
-						<p>Infrastructure-as-Code for Roblox. Typed, Open Cloud only.</p>
-					</div>
-					<div>
-						<h5>Docs</h5>
-						<ul>
-							<li>
-								<a :href="withBase('/bedrock/introduction')">Introduction</a>
-							</li>
-							<li>
-								<a :href="withBase('/bedrock/guide/getting-started')"
-									>Getting started</a
-								>
-							</li>
-							<li><a :href="withBase('/bedrock/api/')">API reference</a></li>
-						</ul>
-					</div>
-					<div>
-						<h5>Ocale</h5>
-						<ul>
-							<li>
-								<a :href="withBase('/ocale/guide/getting-started')"
-									>Getting started</a
-								>
-							</li>
-							<li><a :href="withBase('/ocale/api/')">Resource clients</a></li>
-							<li><a :href="withBase('/ocale/guide/errors')">Error hierarchy</a></li>
-						</ul>
-					</div>
-					<div>
-						<h5>Project</h5>
-						<ul>
-							<li>
-								<a href="https://github.com/christopher-buss/bedrock">GitHub</a>
-							</li>
-							<li>
-								<a
-									href="https://github.com/christopher-buss/bedrock/tree/main/docs/adr"
-								>
-									ADRs
-								</a>
-							</li>
-							<li>
-								<a href="https://github.com/christopher-buss/bedrock/releases">
-									Changelog
-								</a>
-							</li>
-						</ul>
-					</div>
-				</div>
-				<div class="foot-bottom">
-					<div>&copy; 2026 &middot; MIT Licensed &middot; {{ VERSION }}</div>
-					<div>built with vitepress</div>
-				</div>
-			</div>
-		</footer>
+		<BedrockFooter :columns="footerColumns" :home-href="withBase('/')" />
 	</div>
 </template>
 
@@ -364,7 +275,6 @@ html.dark .bedrock-intro {
 }
 
 .bedrock-intro,
-.bedrock-intro .bedrock-nav,
 .bedrock-intro .side,
 .bedrock-intro .article {
 	transition:
@@ -378,197 +288,15 @@ html.dark .bedrock-intro {
 	text-decoration: none;
 }
 
-.bedrock-intro button {
-	font: inherit;
-	cursor: pointer;
-	border: 0;
-	background: none;
-	color: inherit;
-	padding: 0;
-}
-
 .bedrock-intro ::selection {
 	background: var(--accent);
 	color: #fff;
 }
 
 .wrap {
-	max-width: 1280px;
+	max-width: 1200px;
 	margin: 0 auto;
 	padding: 0 32px;
-}
-
-/* Nav (mirrors the landing's shape so navigating between feels seamless) */
-.bedrock-nav {
-	position: sticky;
-	top: 0;
-	z-index: 40;
-	backdrop-filter: blur(14px);
-	background: var(--bg-nav);
-	border-bottom: 1px solid var(--line);
-}
-
-.bedrock-nav .inner {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	height: 60px;
-	gap: 24px;
-}
-
-.nav-links {
-	display: flex;
-	gap: 28px;
-}
-
-.nav-links a {
-	font-size: 14px;
-	color: var(--ink-2);
-	transition: color 0.15s var(--ease);
-}
-
-.nav-links a:hover {
-	color: var(--ink);
-}
-
-.nav-links a.active {
-	color: var(--accent-deep);
-}
-
-html.dark .nav-links a.active {
-	color: var(--accent-soft);
-}
-
-.nav-right {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-
-.nav-search {
-	display: inline-flex;
-	align-items: center;
-	gap: 8px;
-	padding: 6px 10px 6px 12px;
-	background: var(--bg-soft);
-	border: 1px solid var(--line);
-	border-radius: 8px;
-	font-size: 13px;
-	color: var(--ink-3);
-	min-width: 220px;
-	transition: all 0.15s var(--ease);
-	cursor: pointer;
-}
-
-.nav-search:hover {
-	border-color: var(--line-strong);
-	color: var(--ink-2);
-}
-
-.nav-search svg {
-	width: 13px;
-	height: 13px;
-	opacity: 0.7;
-}
-
-.nav-search .kbd {
-	margin-left: auto;
-	font-family: var(--f-mono);
-	font-size: 10.5px;
-	padding: 1px 5px;
-	border: 1px solid var(--line-strong);
-	border-radius: 3px;
-	color: var(--ink-4);
-	background: var(--bg);
-}
-
-.nav-cta {
-	font-size: 13px;
-	padding: 6px 12px 6px 14px;
-	border: 1px solid var(--line-strong);
-	border-radius: 999px;
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	transition: all 0.15s var(--ease);
-}
-
-.nav-cta:hover {
-	border-color: var(--ink);
-	background: var(--ink);
-	color: var(--bg);
-}
-
-.nav-v {
-	font-family: var(--f-mono);
-	font-size: 11px;
-	color: var(--ink-4);
-	padding: 2px 6px;
-	background: var(--bg-soft);
-	border-radius: 3px;
-	margin-left: 8px;
-}
-
-.theme-toggle {
-	width: 32px;
-	height: 32px;
-	border: 1px solid var(--line);
-	border-radius: 999px;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	color: var(--ink-2);
-	transition: all 0.15s var(--ease);
-}
-
-.theme-toggle:hover {
-	border-color: var(--ink-3);
-	color: var(--ink);
-	background: var(--bg-soft);
-}
-
-.theme-toggle svg {
-	width: 14px;
-	height: 14px;
-}
-
-.brand {
-	display: inline-flex;
-	align-items: center;
-	gap: 10px;
-	font-family: var(--f-serif);
-	font-size: 23px;
-	letter-spacing: -0.01em;
-}
-
-.brand-mark {
-	width: 22px;
-	height: 22px;
-	display: grid;
-	grid-template-rows: repeat(4, 1fr);
-	gap: 2px;
-}
-
-.brand-mark span {
-	background: var(--ink);
-	border-radius: 1px;
-}
-
-.brand-mark span:nth-child(1) {
-	opacity: 0.3;
-}
-
-.brand-mark span:nth-child(2) {
-	opacity: 0.55;
-}
-
-.brand-mark span:nth-child(3) {
-	opacity: 0.8;
-}
-
-.brand-mark span:nth-child(4) {
-	background: var(--accent);
-	opacity: 1;
 }
 
 /* Two-column shell */
@@ -1053,69 +781,6 @@ html.dark .article :deep(.next-step .arrow) {
 	text-align: right;
 }
 
-/* Footer (mirrors landing's footer shape) */
-.bedrock-foot {
-	padding: 72px 0 48px;
-	background: var(--bg-soft);
-	border-top: 1px solid var(--line);
-}
-
-.foot {
-	display: grid;
-	grid-template-columns: 1.4fr 1fr 1fr 1fr;
-	gap: 48px;
-	margin-bottom: 56px;
-}
-
-.foot h5 {
-	font-family: var(--f-mono);
-	font-size: 11px;
-	font-weight: 500;
-	letter-spacing: 0.14em;
-	text-transform: uppercase;
-	color: var(--ink-3);
-	margin: 0 0 16px;
-}
-
-.foot ul {
-	list-style: none;
-	padding: 0;
-	margin: 0;
-}
-
-.foot li {
-	margin-bottom: 10px;
-}
-
-.foot a {
-	font-size: 14px;
-	color: var(--ink-2);
-	transition: color 0.15s var(--ease);
-}
-
-.foot a:hover {
-	color: var(--ink);
-}
-
-.foot-brand p {
-	font-size: 14px;
-	color: var(--ink-3);
-	max-width: 34ch;
-	margin: 14px 0 0;
-	line-height: 1.55;
-}
-
-.foot-bottom {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding-top: 28px;
-	border-top: 1px solid var(--line);
-	font-size: 12px;
-	color: var(--ink-4);
-	font-family: var(--f-mono);
-}
-
 /* Responsive */
 @media (max-width: 1100px) {
 	.shell {
@@ -1142,11 +807,6 @@ html.dark .article :deep(.next-step .arrow) {
 		border-bottom: 1px solid var(--line);
 	}
 
-	.nav-links,
-	.nav-search {
-		display: none;
-	}
-
 	.article :deep(h1) {
 		font-size: 52px;
 	}
@@ -1157,11 +817,6 @@ html.dark .article :deep(.next-step .arrow) {
 
 	.article :deep(.next-steps) {
 		grid-template-columns: 1fr;
-	}
-
-	.foot {
-		grid-template-columns: 1fr 1fr;
-		gap: 24px;
 	}
 }
 </style>
