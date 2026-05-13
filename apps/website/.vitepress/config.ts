@@ -47,13 +47,16 @@ export default defineConfig({
 		sidebar: {
 			"/bedrock/": [
 				{
-					items: [{ link: "/bedrock/guide/getting-started", text: "Getting Started" }],
+					items: [
+						{ link: "/bedrock/introduction", text: "Introduction" },
+						{ link: "/bedrock/guide/getting-started", text: "Getting Started" },
+					],
 					text: "Bedrock",
 				},
 				{
 					collapsed: false,
 					items: buildSidebarFromNavigation(navigationBedrock, "/bedrock/api/"),
-					text: "API",
+					text: "API Reference",
 				},
 			],
 			"/ocale/": [
