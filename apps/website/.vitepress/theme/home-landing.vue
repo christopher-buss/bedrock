@@ -4,7 +4,7 @@ import { onBeforeUnmount, ref } from "vue";
 import { version as bedrockVersion } from "@bedrock-rbx/core/package.json";
 
 import BedrockFooter, { type BedrockFooterColumn } from "./components/bedrock-footer.vue";
-import BedrockNav, { type BedrockNavLink } from "./components/bedrock-nav.vue";
+import BedrockNav from "./components/bedrock-nav.vue";
 
 import configHtml from "../../landing/examples/config.ts?highlighted";
 import deployHtml from "../../landing/examples/deploy.ts?highlighted";
@@ -22,13 +22,6 @@ const activeTab = ref<TabId>("config");
 const activeTerm = ref<TermId>("diff");
 const copyState = ref<"idle" | "copied">("idle");
 let copyResetTimer: ReturnType<typeof setTimeout> | undefined;
-
-const navLinks: ReadonlyArray<BedrockNavLink> = [
-	{ href: "#features", text: "Features" },
-	{ href: "#install", text: "Quickstart" },
-	{ href: "#ecosystem", text: "Ocale" },
-	{ href: "/bedrock/introduction", text: "Docs" },
-];
 
 const footerColumns: ReadonlyArray<BedrockFooterColumn> = [
 	{
@@ -155,7 +148,7 @@ function navigateTerminalTab(event: KeyboardEvent, fromId: TermId): void {
 
 <template>
 	<div class="bedrock-landing">
-		<BedrockNav :links="navLinks" />
+		<BedrockNav />
 
 		<div class="wrap hero-wrap">
 			<section class="hero">

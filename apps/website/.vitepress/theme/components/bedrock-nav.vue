@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import { useData } from "vitepress";
+import { useData, useRoute, withBase } from "vitepress";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import { version as bedrockVersion } from "@bedrock-rbx/core/package.json";
 
-export interface BedrockNavLink {
-	readonly active?: boolean;
+interface UnifiedNavLink {
+	readonly divider?: boolean;
 	readonly external?: boolean;
 	readonly href: string;
+	readonly section: "bridge" | "docs" | "landing";
 	readonly text: string;
 }
 
 interface Props {
 	readonly homeHref?: string;
-	readonly links: ReadonlyArray<BedrockNavLink>;
 	readonly showSearch?: boolean;
 }
 
@@ -20,11 +21,264 @@ const { homeHref = "/", showSearch = false } = defineProps<Props>();
 
 const VERSION = `v${bedrockVersion}`;
 
+// Single source of truth for the nav: a flat list with explicit divider
+// placement and section ownership. The landing-side items are page-anchors
+// on the homepage; the bridge (`Docs`) lights up the bedrock docs section;
+// the docs-side items are bedrock-specific. Ocale is a peer package and
+// lives outside this list as a separate affordance in the right cluster.
+const UNIFIED_LINKS: ReadonlyArray<UnifiedNavLink> = [
+	{ href: "/#features", section: "landing", text: "Features" },
+	{ href: "/#install", section: "landing", text: "Quickstart" },
+	{ divider: true, href: "/bedrock/introduction", section: "bridge", text: "Docs" },
+	{ href: "/bedrock/api/", section: "docs", text: "API" },
+	{ href: "#", section: "docs", text: "CLI" },
+	{
+		external: true,
+		href: "https://github.com/christopher-buss/bedrock/releases",
+		section: "docs",
+		text: "Changelog",
+	},
+];
+
+const OCALE_HREF = "/ocale/guide/getting-started";
+
+const BRIDGE_INDEX = UNIFIED_LINKS.findIndex((link) => link.section === "bridge");
+
 const { isDark } = useData();
+const route = useRoute();
+
+function normalizePath(value: string): string {
+	return value.toLowerCase().replace(/\/$/u, "");
+}
+
+const currentPath = computed(() => normalizePath(route.path));
+
+const currentSection = computed<"docs" | "landing">(() =>
+	currentPath.value.startsWith("/bedrock") ? "docs" : "landing",
+);
+
+function isRouteLink(link: UnifiedNavLink): boolean {
+	return !link.external && !link.href.startsWith("#") && !link.href.includes("/#");
+}
+
+// Longest-prefix match: /bedrock/api/functions/diff lights up "API" rather
+// than nothing. Equality alone would only match top-level pages.
+const activeIndex = computed<number>(() => {
+	let bestIndex = -1;
+	let bestLength = 0;
+	for (const [index, link] of UNIFIED_LINKS.entries()) {
+		if (!isRouteLink(link)) {
+			continue;
+		}
+
+		const linkPath = normalizePath(link.href);
+		if (linkPath.length === 0) {
+			continue;
+		}
+
+		const matches =
+			currentPath.value === linkPath || currentPath.value.startsWith(`${linkPath}/`);
+		if (matches && linkPath.length > bestLength) {
+			bestIndex = index;
+			bestLength = linkPath.length;
+		}
+	}
+
+	return bestIndex;
+});
+
+// Anchor sections on the landing that scroll-spy can light up. Order matches
+// the position of the link in UNIFIED_LINKS so the underline lands on the
+// correct item.
+const ANCHOR_SECTION_IDS: ReadonlyArray<string> = ["features", "install"];
+
+const intersectingSections = ref<ReadonlySet<string>>(new Set());
+
+// Pick the *last* intersecting section so when both briefly overlap the
+// scroll band, the lower (further-scrolled) one wins. Picking the first
+// would flicker back up as soon as the next section enters.
+const scrollSpyIndex = computed<number>(() => {
+	let last = -1;
+	for (const [index, id] of ANCHOR_SECTION_IDS.entries()) {
+		if (intersectingSections.value.has(id)) {
+			last = index;
+		}
+	}
+
+	return last;
+});
+
+// Scroll-spy takes precedence on the landing route; everywhere else the
+// route-based active index wins.
+const currentActiveIndex = computed<number>(() => {
+	if (currentSection.value === "landing" && scrollSpyIndex.value >= 0) {
+		return scrollSpyIndex.value;
+	}
+
+	return activeIndex.value;
+});
+
+function isActive(index: number): boolean {
+	return currentActiveIndex.value === index;
+}
+
+function ariaCurrentFor(link: UnifiedNavLink, index: number): "location" | "page" | undefined {
+	if (!isActive(index)) {
+		return undefined;
+	}
+
+	return isRouteLink(link) ? "page" : "location";
+}
+
+function isPhantom(link: UnifiedNavLink): boolean {
+	if (link.section === "bridge") {
+		return false;
+	}
+
+	return link.section !== currentSection.value;
+}
+
+// Opacity ladder by distance from the bridge. The 0.35 floor sits below
+// strict WCAG AA Normal text contrast, but :hover and :focus-visible both
+// restore to 1, so any user actively engaging with a phantom item sees it
+// at full strength. The fade is a peripheral-vision cue, not a contrast
+// statement.
+function phantomOpacity(link: UnifiedNavLink, index: number): number | undefined {
+	if (!isPhantom(link) || BRIDGE_INDEX === -1) {
+		return undefined;
+	}
+
+	const distance = Math.abs(index - BRIDGE_INDEX);
+	return Math.max(0.35, 0.85 - distance * 0.18);
+}
+
+function linkHref(link: UnifiedNavLink): string {
+	if (link.external || link.href.startsWith("#") || link.href.includes("/#")) {
+		return link.href;
+	}
+
+	return withBase(link.href);
+}
 
 function toggleTheme(): void {
 	isDark.value = !isDark.value;
 }
+
+// Template refs for the sliding underline. Each <a> registers itself so we
+// can read its layout box and position the underline beneath it. `linkRefs`
+// is populated by inline `:ref` bindings in the template.
+const navLinksElement = ref<HTMLDivElement | null>(null);
+const linkRefs = ref<Array<HTMLAnchorElement | null>>([]);
+
+const underlineStyle = ref<{
+	opacity: string;
+	transform: string;
+	width: string;
+}>({
+	opacity: "0",
+	transform: "translateX(0)",
+	width: "0px",
+});
+
+// Use `offsetLeft` / `offsetWidth` (layout-relative, not affected by scroll)
+// rather than `getBoundingClientRect` (viewport-relative). The underline
+// lives inside `.nav-links`, which is the scrolling container on narrow
+// viewports; using viewport coords would drift in the wrong direction as
+// the row scrolls.
+function updateUnderline(): void {
+	const index = currentActiveIndex.value;
+	const item = index >= 0 ? linkRefs.value[index] : null;
+	if (item === null || item === undefined || navLinksElement.value === null) {
+		underlineStyle.value = { ...underlineStyle.value, opacity: "0" };
+		return;
+	}
+
+	underlineStyle.value = {
+		opacity: "1",
+		transform: `translateX(${item.offsetLeft}px)`,
+		width: `${item.offsetWidth}px`,
+	};
+}
+
+let observer: IntersectionObserver | undefined;
+let resizeObserver: ResizeObserver | undefined;
+
+function teardownScrollSpy(): void {
+	observer?.disconnect();
+	observer = undefined;
+	intersectingSections.value = new Set();
+}
+
+function setupScrollSpy(): void {
+	teardownScrollSpy();
+	if (currentSection.value !== "landing") {
+		return;
+	}
+
+	const observed: Array<Element> = [];
+	for (const id of ANCHOR_SECTION_IDS) {
+		const element = document.getElementById(id);
+		if (element !== null) {
+			observed.push(element);
+		}
+	}
+
+	if (observed.length === 0) {
+		return;
+	}
+
+	observer = new IntersectionObserver(
+		(entries) => {
+			const next = new Set(intersectingSections.value);
+			for (const entry of entries) {
+				if (entry.isIntersecting) {
+					next.add(entry.target.id);
+				} else {
+					next.delete(entry.target.id);
+				}
+			}
+
+			intersectingSections.value = next;
+		},
+		{ rootMargin: "-40% 0px -50% 0px" },
+	);
+
+	for (const element of observed) {
+		observer.observe(element);
+	}
+}
+
+watch(
+	currentActiveIndex,
+	() => {
+		void nextTick(updateUnderline);
+	},
+	{ flush: "post" },
+);
+
+watch(currentSection, () => {
+	void nextTick(() => {
+		setupScrollSpy();
+		updateUnderline();
+	});
+});
+
+onMounted(() => {
+	setupScrollSpy();
+	updateUnderline();
+	if (navLinksElement.value !== null) {
+		resizeObserver = new ResizeObserver(() => {
+			updateUnderline();
+		});
+		resizeObserver.observe(navLinksElement.value);
+	}
+});
+
+onBeforeUnmount(() => {
+	teardownScrollSpy();
+	resizeObserver?.disconnect();
+	resizeObserver = undefined;
+});
 </script>
 
 <template>
@@ -34,26 +288,29 @@ function toggleTheme(): void {
 				<span class="brand-mark"> <span /><span /><span /><span /> </span>
 				Bedrock<span class="nav-v">{{ VERSION }}</span>
 			</a>
-			<div class="nav-links">
-				<a
-					v-for="link in links"
-					:key="link.href"
-					:class="{ active: link.active }"
-					:href="link.href"
-					:rel="link.external ? 'noopener noreferrer' : undefined"
-					:target="link.external ? '_blank' : undefined"
-				>
-					{{ link.text }}
-				</a>
+			<div ref="navLinksElement" class="nav-links">
+				<template v-for="(link, index) in UNIFIED_LINKS" :key="link.href">
+					<span v-if="link.divider" class="nav-divider" aria-hidden="true" />
+					<a
+						:ref="(element) => (linkRefs[index] = element as HTMLAnchorElement | null)"
+						:aria-current="ariaCurrentFor(link, index)"
+						:class="{ active: isActive(index), phantom: isPhantom(link) }"
+						:href="linkHref(link)"
+						:rel="link.external ? 'noopener noreferrer' : undefined"
+						:style="
+							phantomOpacity(link, index) !== undefined
+								? { '--phantom-opacity': phantomOpacity(link, index) }
+								: undefined
+						"
+						:target="link.external ? '_blank' : undefined"
+					>
+						{{ link.text }}
+					</a>
+				</template>
+				<span class="nav-underline" :style="underlineStyle" aria-hidden="true" />
 			</div>
 			<div class="nav-right">
-				<div
-					v-if="showSearch"
-					class="nav-search"
-					role="button"
-					tabindex="0"
-					aria-label="Search docs"
-				>
+				<button v-if="showSearch" class="nav-search" type="button" aria-label="Search docs">
 					<svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
 						<circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.4" />
 						<path
@@ -65,7 +322,7 @@ function toggleTheme(): void {
 					</svg>
 					Search docs&hellip;
 					<span class="kbd">&#8984;K</span>
-				</div>
+				</button>
 				<button class="theme-toggle" aria-label="Toggle theme" @click="toggleTheme">
 					<svg
 						v-if="!isDark"
@@ -91,6 +348,10 @@ function toggleTheme(): void {
 						/>
 					</svg>
 				</button>
+				<a class="nav-cta nav-cta-secondary" :href="withBase(OCALE_HREF)">
+					<span class="nav-cta-mark" aria-hidden="true"> <span /><span /><span /> </span>
+					Ocale
+				</a>
 				<a class="nav-cta" href="https://github.com/christopher-buss/bedrock">
 					GitHub
 					<svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
@@ -199,26 +460,73 @@ function toggleTheme(): void {
 }
 
 .nav-links {
+	position: relative;
 	display: flex;
-	gap: 28px;
+	align-items: center;
+	gap: 20px;
+}
+
+.nav-underline {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	height: 2px;
+	background: var(--accent);
+	border-radius: 1px;
+	pointer-events: none;
+	transition:
+		transform 0.28s var(--ease),
+		width 0.28s var(--ease),
+		opacity 0.18s var(--ease);
+	will-change: transform, width;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.nav-underline {
+		transition: opacity 0.18s var(--ease);
+	}
+}
+
+.nav-divider {
+	width: 1px;
+	height: 18px;
+	background: var(--line);
 }
 
 .nav-links a {
 	font-size: 14px;
 	color: var(--ink-2);
+	position: relative;
+	padding: 20px 0;
 	transition: color 0.15s var(--ease);
+	border-radius: 2px;
 }
 
 .nav-links a:hover {
 	color: var(--ink);
 }
 
-.nav-links a.active {
-	color: var(--accent-deep);
+.nav-links a:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 4px;
 }
 
-html.dark .nav-links a.active {
-	color: var(--accent-soft);
+.nav-links a.phantom {
+	opacity: var(--phantom-opacity, 0.35);
+	transition:
+		color 0.15s var(--ease),
+		opacity 0.18s var(--ease);
+}
+
+.nav-links a.phantom:hover,
+.nav-links a.phantom:focus-visible {
+	opacity: 1;
+	color: var(--ink);
+}
+
+.nav-links a.active {
+	color: var(--ink);
+	font-weight: 500;
 }
 
 .nav-right {
@@ -245,6 +553,11 @@ html.dark .nav-links a.active {
 .nav-search:hover {
 	border-color: var(--line-strong);
 	color: var(--ink-2);
+}
+
+.nav-search:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
 }
 
 .nav-search svg {
@@ -282,6 +595,11 @@ html.dark .nav-links a.active {
 	background: var(--bg-soft);
 }
 
+.theme-toggle:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
 .theme-toggle svg {
 	width: 14px;
 	height: 14px;
@@ -304,12 +622,91 @@ html.dark .nav-links a.active {
 	color: var(--bg);
 }
 
+.nav-cta:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+.nav-cta-secondary {
+	color: var(--ink-3);
+	padding-left: 10px;
+	gap: 8px;
+}
+
+.nav-cta-secondary:hover {
+	border-color: var(--accent-deep);
+	background: transparent;
+	color: var(--accent-deep);
+}
+
+html.dark .nav-cta-secondary:hover {
+	border-color: var(--accent-soft);
+	color: var(--accent-soft);
+}
+
+.nav-cta-mark {
+	width: 10px;
+	height: 10px;
+	display: grid;
+	grid-template-rows: repeat(3, 1fr);
+	gap: 1.5px;
+}
+
+.nav-cta-mark span {
+	background: currentColor;
+	border-radius: 1px;
+	opacity: 0.55;
+}
+
+.nav-cta-mark span:nth-child(3) {
+	background: var(--accent);
+	opacity: 1;
+}
+
+html.dark .nav-cta-mark span:nth-child(3) {
+	background: var(--accent-soft);
+}
+
+@media (max-width: 960px) {
+	.nav-links {
+		gap: 14px;
+	}
+
+	.nav-links a {
+		font-size: 13px;
+	}
+
+	.nav-search {
+		min-width: 160px;
+	}
+}
+
 @media (max-width: 760px) {
 	.wrap {
 		padding: 0 20px;
 	}
 
-	.nav-links,
+	.inner {
+		flex-wrap: wrap;
+		height: auto;
+		padding-top: 12px;
+		padding-bottom: 12px;
+		row-gap: 8px;
+	}
+
+	.nav-links {
+		order: 3;
+		width: 100%;
+		overflow-x: auto;
+		flex-wrap: nowrap;
+		scrollbar-width: none;
+		padding-bottom: 4px;
+	}
+
+	.nav-links::-webkit-scrollbar {
+		display: none;
+	}
+
 	.nav-search {
 		display: none;
 	}

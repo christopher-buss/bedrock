@@ -4,7 +4,7 @@ import { Content, useData, useRoute, withBase } from "vitepress";
 import { computed } from "vue";
 
 import BedrockFooter, { type BedrockFooterColumn } from "./components/bedrock-footer.vue";
-import BedrockNav, { type BedrockNavLink } from "./components/bedrock-nav.vue";
+import BedrockNav from "./components/bedrock-nav.vue";
 
 type SidebarGroup = DefaultTheme.SidebarItem;
 type SidebarLink = DefaultTheme.SidebarItem;
@@ -86,21 +86,6 @@ function kindDot(link: string | undefined): "cls" | "const" | "fn" | "type" | un
 	return undefined;
 }
 
-const navLinks = computed<ReadonlyArray<BedrockNavLink>>(() => [
-	{
-		active: currentPath.value.startsWith("/bedrock"),
-		href: withBase("/bedrock/introduction"),
-		text: "Docs",
-	},
-	{ href: withBase("/bedrock/api/"), text: "API" },
-	{ href: "#", text: "CLI" },
-	{
-		external: true,
-		href: "https://github.com/christopher-buss/bedrock/releases",
-		text: "Changelog",
-	},
-]);
-
 const footerColumns = computed<ReadonlyArray<BedrockFooterColumn>>(() => [
 	{
 		links: [
@@ -143,7 +128,7 @@ const footerColumns = computed<ReadonlyArray<BedrockFooterColumn>>(() => [
 
 <template>
 	<div class="bedrock-intro">
-		<BedrockNav :home-href="withBase('/')" :links="navLinks" show-search />
+		<BedrockNav :home-href="withBase('/')" show-search />
 
 		<div class="wrap shell">
 			<aside class="side" aria-label="Documentation navigation">
