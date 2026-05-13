@@ -34,17 +34,22 @@ export interface LogChunkWire {
 }
 
 /**
- * Wire shape of the list-luau-execution-task-logs response body.
+ * Wire shape of the list-luau-execution-task-logs response body. Both
+ * fields are optional per the OpenAPI spec
+ * (`ListLuauExecutionSessionTaskLogsResponse` has no `required` array);
+ * the parser also accepts JSON `null` on either field at the wire
+ * boundary and normalizes it to `undefined` / `[]`.
  */
 export interface ListLogsResponseWire {
 	/**
-	 * Array of log chunks. Optional on the wire; absent on an empty
-	 * page.
+	 * Array of log chunks. Omitted or JSON `null` on an empty page; the
+	 * parser normalizes both to an empty array.
 	 */
 	readonly luauExecutionSessionTaskLogs?: ReadonlyArray<LogChunkWire> | undefined;
 	/**
-	 * Opaque continuation token for the next page. Absent when this
-	 * is the last page.
+	 * Opaque continuation token for the next page. Absent or JSON
+	 * `null` when this is the last page; the parser normalizes both to
+	 * `undefined`.
 	 */
 	readonly nextPageToken?: string | undefined;
 }

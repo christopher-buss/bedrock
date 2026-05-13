@@ -3,7 +3,7 @@ import { ApiError } from "../../../errors/api-error.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
 import type { Result } from "../../../types.ts";
 import type { LogMessage, LogPage } from "./types.ts";
-import type { ListLogsResponseWire, LogChunkWire, LogMessageWire } from "./wire.ts";
+import type { LogChunkWire, LogMessageWire } from "./wire.ts";
 
 const MALFORMED_LOGS_MESSAGE = "Malformed list-luau-execution-task-logs response";
 
@@ -19,14 +19,22 @@ const MALFORMED_LOGS_MESSAGE = "Malformed list-luau-execution-task-logs response
  */
 export function parseListLogsResponse(response: HttpResponse): Result<LogPage, ApiError> {
 	const { body, status: statusCode } = response;
-	if (!isListLogsResponseWire(body)) {
+	if (!isRecord(body)) {
 		return malformed(statusCode);
 	}
 
-	const chunks = body.luauExecutionSessionTaskLogs ?? [];
-	const messages: Array<LogMessage> = [];
+	const rawChunks = body["luauExecutionSessionTaskLogs"] ?? undefined;
+	if (!isOptionalLogChunks(rawChunks)) {
+		return malformed(statusCode);
+	}
 
-	for (const chunk of chunks) {
+	const rawToken = body["nextPageToken"] ?? undefined;
+	if (rawToken !== undefined && typeof rawToken !== "string") {
+		return malformed(statusCode);
+	}
+
+	const messages: Array<LogMessage> = [];
+	for (const chunk of rawChunks ?? []) {
 		for (const wireMessage of chunk.structuredMessages ?? []) {
 			messages.push({
 				createTime: wireMessage.createTime,
@@ -37,7 +45,7 @@ export function parseListLogsResponse(response: HttpResponse): Result<LogPage, A
 	}
 
 	return {
-		data: { messages, nextPageToken: body.nextPageToken },
+		data: { messages, nextPageToken: rawToken },
 		success: true,
 	};
 }
@@ -72,14 +80,6 @@ function isOptionalLogChunks(value: unknown): value is ReadonlyArray<LogChunkWir
 	return (
 		value === undefined ||
 		(Array.isArray(value) && value.every((item: unknown) => isLogChunkWire(item)))
-	);
-}
-
-function isListLogsResponseWire(body: unknown): body is ListLogsResponseWire {
-	return (
-		isRecord(body) &&
-		isOptionalLogChunks(body["luauExecutionSessionTaskLogs"]) &&
-		(body["nextPageToken"] === undefined || typeof body["nextPageToken"] === "string")
 	);
 }
 

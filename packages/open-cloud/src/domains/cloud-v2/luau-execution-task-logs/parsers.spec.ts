@@ -149,6 +149,35 @@ describe(parseListLogsResponse, () => {
 		expect(result.data.messages).toStrictEqual([]);
 	});
 
+	it("should treat a body whose luauExecutionSessionTaskLogs is explicitly null as an empty page", () => {
+		expect.assertions(1);
+
+		const body: Record<string, unknown> = {
+			luauExecutionSessionTaskLogs: JSON.parse("null"),
+		};
+
+		const result = parseListLogsResponse({ body, headers: {}, status: 200 });
+
+		assert(result.success);
+
+		expect(result.data.messages).toStrictEqual([]);
+	});
+
+	it("should normalize a JSON null nextPageToken to undefined", () => {
+		expect.assertions(1);
+
+		const body: Record<string, unknown> = {
+			luauExecutionSessionTaskLogs: [],
+			nextPageToken: JSON.parse("null"),
+		};
+
+		const result = parseListLogsResponse({ body, headers: {}, status: 200 });
+
+		assert(result.success);
+
+		expect(result.data.nextPageToken).toBeUndefined();
+	});
+
 	it("should skip a chunk whose structuredMessages field is omitted", () => {
 		expect.assertions(1);
 
