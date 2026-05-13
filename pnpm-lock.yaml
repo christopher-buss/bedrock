@@ -79,8 +79,8 @@ catalogs:
       specifier: 5.0.0-beta.11
       version: 5.0.0-beta.11
     '@isentinel/hooks':
-      specifier: 1.4.0
-      version: 1.4.0
+      specifier: 1.4.1
+      version: 1.4.1
     '@vitest/eslint-plugin':
       specifier: 1.6.16
       version: 1.6.16
@@ -210,15 +210,9 @@ overrides:
   vitest: npm:@voidzero-dev/vite-plus-test@0.1.19
 
 patchedDependencies:
-  '@stryker-mutator/core@9.6.1':
-    hash: e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08
-    path: patches/@stryker-mutator__core@9.6.1.patch
-  '@stryker-mutator/vitest-runner@9.6.1':
-    hash: da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63
-    path: patches/@stryker-mutator__vitest-runner@9.6.1.patch
-  generate-jsdoc-example-tests:
-    hash: a8344a1c43e398b3146cd7ec6cd783c14a200e7987277a41dd6cefd6581f86b4
-    path: patches/generate-jsdoc-example-tests.patch
+  '@stryker-mutator/core@9.6.1': e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08
+  '@stryker-mutator/vitest-runner@9.6.1': da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63
+  generate-jsdoc-example-tests: a8344a1c43e398b3146cd7ec6cd783c14a200e7987277a41dd6cefd6581f86b4
 
 importers:
 
@@ -256,10 +250,10 @@ importers:
         version: 1.5.0(eslint@9.39.2(jiti@2.6.1))
       '@isentinel/eslint-config':
         specifier: catalog:lint
-        version: 5.0.0-beta.11(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/estree@1.0.8)(@typescript-eslint/utils@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(@vitest/eslint-plugin@1.6.16(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(@voidzero-dev/vite-plus-test@0.1.19)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-eslint-plugin@7.0.0(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-jest-extended@3.0.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-n@17.24.0(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-react-naming-convention@2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))
+        version: 5.0.0-beta.11(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/estree@1.0.8)(@typescript-eslint/utils@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(@vitest/eslint-plugin@1.6.16(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(@voidzero-dev/vite-plus-test@0.1.19)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-jest-extended@3.0.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-n@17.24.0(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-react-naming-convention@2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))
       '@isentinel/hooks':
         specifier: catalog:lint
-        version: 1.4.0(@typescript/native-preview@7.0.0-dev.20260428.1)(@typescript/typescript6@6.0.1)(jiti@2.6.1)
+        version: 1.4.1(@typescript/native-preview@7.0.0-dev.20260428.1)(@typescript/typescript6@6.0.1)(jiti@2.6.1)
       '@isentinel/tsconfig':
         specifier: catalog:tsc
         version: 1.2.0(@typescript/typescript6@6.0.1)
@@ -389,7 +383,7 @@ importers:
         version: '@typescript/typescript6@6.0.1'
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@0.1.19
-        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
 
   apps/website:
     devDependencies:
@@ -434,7 +428,7 @@ importers:
         version: 0.8.0(vitepress@2.0.0-alpha.17(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(change-case@5.4.4)(esbuild@0.27.7)(jiti@2.6.1)(oxc-minify@0.128.0)(postcss@8.5.9)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(vue@3.5.32(@typescript/typescript6@6.0.1))
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@0.1.19
-        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5(@voidzero-dev/vite-plus-test@0.1.19))(@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)'
 
   packages/bedrock:
     dependencies:
@@ -480,7 +474,7 @@ importers:
         version: 9.6.1(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
-        version: 9.6.1(patch_hash=da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63)(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19)
+        version: 9.6.1(patch_hash=da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63)(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5(@voidzero-dev/vite-plus-test@0.1.19))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3))
       '@types/bun':
         specifier: catalog:types
         version: 1.3.13
@@ -495,7 +489,7 @@ importers:
         version: '@typescript/typescript6@6.0.1'
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@0.1.19
-        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
 
   packages/open-cloud:
     devDependencies:
@@ -519,7 +513,7 @@ importers:
         version: 9.6.1(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
-        version: 9.6.1(patch_hash=da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63)(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19)
+        version: 9.6.1(patch_hash=da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63)(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5(@voidzero-dev/vite-plus-test@0.1.19))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3))
       '@types/bun':
         specifier: catalog:types
         version: 1.3.13
@@ -540,7 +534,7 @@ importers:
         version: '@typescript/typescript6@6.0.1'
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@0.1.19
-        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
 
   packages/testing:
     dependencies:
@@ -565,7 +559,7 @@ importers:
         version: 9.6.1(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@typescript/typescript6@6.0.1)
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
-        version: 9.6.1(patch_hash=da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63)(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19)
+        version: 9.6.1(patch_hash=da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63)(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5(@voidzero-dev/vite-plus-test@0.1.19))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3))
       '@types/bun':
         specifier: catalog:types
         version: 1.3.13
@@ -574,7 +568,7 @@ importers:
         version: '@typescript/typescript6@6.0.1'
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@0.1.19
-        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
 
   packages/typescript-config:
     devDependencies:
@@ -586,7 +580,7 @@ importers:
     dependencies:
       vite-plus:
         specifier: catalog:build
-        version: 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+        version: 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
     devDependencies:
       '@bedrock-rbx/typescript-config':
         specifier: workspace:*
@@ -599,7 +593,7 @@ importers:
         version: '@typescript/typescript6@6.0.1'
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@0.1.19
-        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
 
 packages:
 
@@ -1994,8 +1988,8 @@ packages:
     peerDependencies:
       eslint: '>=8.0.0'
 
-  '@isentinel/hooks@1.4.0':
-    resolution: {integrity: sha512-DKB5OHSFmIwr+rxtJKkv5FqSBiYN/4kRRNsyafRE4ME0PedBCy4MQUShaOLa0QfMqm1hI1VvSV0ssDVvveboeQ==}
+  '@isentinel/hooks@1.4.1':
+    resolution: {integrity: sha512-Pd4W0qbKWxBfyVRl3QtbQtmxGSFDWx/hxBu4YSwzghnpuPiw9PdYm/G+pm6S99TtvvaSSqMAAGJAY/qEERI+EQ==}
     engines: {node: '>=24.11.0'}
     peerDependencies:
       '@typescript/native-preview': '>=7'
@@ -3562,15 +3556,6 @@ packages:
       vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
       vue: ^3.2.25
 
-  '@vitest/coverage-v8@4.1.4':
-    resolution: {integrity: sha512-x7FptB5oDruxNPDNY2+S8tCh0pcq7ymCe1gTHcsp733jYjrJl8V1gMUlVysuCD9Kz46Xz9t1akkv08dPcYDs1w==}
-    peerDependencies:
-      '@vitest/browser': 4.1.4
-      vitest: 4.1.4
-    peerDependenciesMeta:
-      '@vitest/browser':
-        optional: true
-
   '@vitest/coverage-v8@4.1.5':
     resolution: {integrity: sha512-38C0/Ddb7HcRG0Z4/DUem8x57d2p9jYgp18mkaYswEOQBGsI1CG4f/hjm0ZCeaJfWhSZ4k7jgs29V1Zom7Ki9A==}
     peerDependencies:
@@ -3596,14 +3581,8 @@ packages:
       vitest:
         optional: true
 
-  '@vitest/pretty-format@4.1.4':
-    resolution: {integrity: sha512-ddmDHU0gjEUyEVLxtZa7xamrpIefdEETu3nZjWtHeZX4QxqJ7tRxSteHVXJOcr8jhiLoGAhkK4WJ3WqBpjx42A==}
-
   '@vitest/pretty-format@4.1.5':
     resolution: {integrity: sha512-7I3q6l5qr03dVfMX2wCo9FxwSJbPdwKjy2uu/YPpU3wfHvIL4QHwVRp57OfGrDFeUJ8/8QdfBKIV12FTtLn00g==}
-
-  '@vitest/utils@4.1.4':
-    resolution: {integrity: sha512-13QMT+eysM5uVGa1rG4kegGYNp6cnQcsTc67ELFbhNLQO+vgsygtYJx2khvdt4gVQqSSpC/KT5FZZxUpP3Oatw==}
 
   '@vitest/utils@4.1.5':
     resolution: {integrity: sha512-76wdkrmfXfqGjueGgnb45ITPyUi1ycZ4IHgC2bhPDUfWHklY/q3MdLOAB+TF1e6xfl8NxNY0ZYaPCFNWSsw3Ug==}
@@ -4580,12 +4559,6 @@ packages:
     engines: {node: ^14.18.0 || >=16.0.0}
     peerDependencies:
       eslint: '>=8'
-
-  eslint-plugin-eslint-plugin@7.0.0:
-    resolution: {integrity: sha512-EgiW9zf4PbqA+yN9T6Z8bHx46+fWtAIXFrYkL4nSTnI84LnTKmzjh+cIJaVAyFVZveKUSG8LcVe1suGG78qZPw==}
-    engines: {node: ^20.19.0 || ^22.13.1 || >=24.0.0}
-    peerDependencies:
-      eslint: '>=9.0.0'
 
   eslint-plugin-flawless@0.1.0:
     resolution: {integrity: sha512-Q8xelgVMfn8BGUj0qW0/+6Rm5DsPTlReExMnwymm4URaWQJbMtwtzgXdpykV3ptHjEY60SckwfP/BNuEgJ4QXQ==}
@@ -8258,7 +8231,7 @@ snapshots:
 
   '@isentinel/dict-roblox@1.0.3': {}
 
-  '@isentinel/eslint-config@5.0.0-beta.11(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/estree@1.0.8)(@typescript-eslint/utils@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(@vitest/eslint-plugin@1.6.16(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(@voidzero-dev/vite-plus-test@0.1.19)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-eslint-plugin@7.0.0(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-jest-extended@3.0.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-n@17.24.0(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-react-naming-convention@2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))':
+  '@isentinel/eslint-config@5.0.0-beta.11(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/estree@1.0.8)(@typescript-eslint/utils@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(@vitest/eslint-plugin@1.6.16(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(@voidzero-dev/vite-plus-test@0.1.19)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-jest-extended@3.0.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-n@17.24.0(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-react-naming-convention@2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))':
     dependencies:
       '@antfu/install-pkg': 1.1.0
       '@clack/prompts': 1.0.1
@@ -8312,7 +8285,6 @@ snapshots:
       yargs: 18.0.0
     optionalDependencies:
       '@vitest/eslint-plugin': 1.6.16(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(@voidzero-dev/vite-plus-test@0.1.19)(eslint@9.39.2(jiti@2.6.1))
-      eslint-plugin-eslint-plugin: 7.0.0(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-jest-extended: 3.0.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-n: 17.24.0(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1))
     transitivePeerDependencies:
@@ -8332,7 +8304,7 @@ snapshots:
       - supports-color
       - typescript
 
-  '@isentinel/hooks@1.4.0(@typescript/native-preview@7.0.0-dev.20260428.1)(@typescript/typescript6@6.0.1)(jiti@2.6.1)':
+  '@isentinel/hooks@1.4.1(@typescript/native-preview@7.0.0-dev.20260428.1)(@typescript/typescript6@6.0.1)(jiti@2.6.1)':
     dependencies:
       eslint_d: 15.0.2(jiti@2.6.1)
       file-entry-cache: 11.1.2
@@ -9218,14 +9190,14 @@ snapshots:
 
   '@stryker-mutator/util@9.6.1': {}
 
-  '@stryker-mutator/vitest-runner@9.6.1(patch_hash=da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63)(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19)':
+  '@stryker-mutator/vitest-runner@9.6.1(patch_hash=da506df9115772af6e9fa45219f3fabe9ce165e134d76247f4ffde28bf5eae63)(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1))(@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5(@voidzero-dev/vite-plus-test@0.1.19))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3))':
     dependencies:
       '@stryker-mutator/api': 9.6.1
       '@stryker-mutator/core': 9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1)
       '@stryker-mutator/util': 9.6.1
       semver: 7.7.4
       tslib: 2.8.1
-      vitest: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+      vitest: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
 
   '@stylistic/eslint-plugin@5.9.0(eslint@9.39.2(jiti@2.6.1))':
     dependencies:
@@ -9479,21 +9451,6 @@ snapshots:
       vite: '@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)'
       vue: 3.5.32(@typescript/typescript6@6.0.1)
 
-  '@vitest/coverage-v8@4.1.4(@voidzero-dev/vite-plus-test@0.1.19)':
-    dependencies:
-      '@bcoe/v8-coverage': 1.0.2
-      '@vitest/utils': 4.1.4
-      ast-v8-to-istanbul: 1.0.0
-      istanbul-lib-coverage: 3.2.2
-      istanbul-lib-report: 3.0.1
-      istanbul-reports: 3.2.0
-      magicast: 0.5.2
-      obug: 2.1.1
-      std-env: 4.1.0
-      tinyrainbow: 3.1.0
-      vitest: '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
-    optional: true
-
   '@vitest/coverage-v8@4.1.5(@voidzero-dev/vite-plus-test@0.1.19)':
     dependencies:
       '@bcoe/v8-coverage': 1.0.2
@@ -9520,21 +9477,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@vitest/pretty-format@4.1.4':
-    dependencies:
-      tinyrainbow: 3.1.0
-    optional: true
-
   '@vitest/pretty-format@4.1.5':
     dependencies:
       tinyrainbow: 3.1.0
-
-  '@vitest/utils@4.1.4':
-    dependencies:
-      '@vitest/pretty-format': 4.1.4
-      convert-source-map: 2.0.0
-      tinyrainbow: 3.1.0
-    optional: true
 
   '@vitest/utils@4.1.5':
     dependencies:
@@ -9577,7 +9522,7 @@ snapshots:
   '@voidzero-dev/vite-plus-linux-x64-musl@0.1.19':
     optional: true
 
-  '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)':
+  '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5(@voidzero-dev/vite-plus-test@0.1.19))(@voidzero-dev/vite-plus-core@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3))(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@types/chai': 5.2.3
@@ -9595,47 +9540,7 @@ snapshots:
       ws: 8.20.0
     optionalDependencies:
       '@types/node': 24.10.1
-      '@vitest/coverage-v8': 4.1.4(@voidzero-dev/vite-plus-test@0.1.19)
-    transitivePeerDependencies:
-      - '@arethetypeswrong/core'
-      - '@tsdown/css'
-      - '@tsdown/exe'
-      - '@vitejs/devtools'
-      - bufferutil
-      - esbuild
-      - jiti
-      - less
-      - publint
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - terser
-      - tsx
-      - typescript
-      - unplugin-unused
-      - utf-8-validate
-      - yaml
-
-  '@voidzero-dev/vite-plus-test@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)':
-    dependencies:
-      '@standard-schema/spec': 1.1.0
-      '@types/chai': 5.2.3
-      '@voidzero-dev/vite-plus-core': 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)
-      es-module-lexer: 1.7.0
-      obug: 2.1.1
-      pixelmatch: 7.1.0
-      pngjs: 7.0.0
-      sirv: 3.0.2
-      std-env: 4.1.0
-      tinybench: 2.9.0
-      tinyexec: 1.1.1
-      tinyglobby: 0.2.16
-      vite: 7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3)
-      ws: 8.20.0
-    optionalDependencies:
-      '@types/node': 24.10.1
-      '@vitest/coverage-v8': 4.1.4(@voidzero-dev/vite-plus-test@0.1.19)
+      '@vitest/coverage-v8': 4.1.5(@voidzero-dev/vite-plus-test@0.1.19)
     transitivePeerDependencies:
       - '@arethetypeswrong/core'
       - '@tsdown/css'
@@ -10568,13 +10473,6 @@ snapshots:
       '@eslint-community/regexpp': 4.12.2
       eslint: 9.39.2(jiti@2.6.1)
       eslint-compat-utils: 0.5.1(eslint@9.39.2(jiti@2.6.1))
-
-  eslint-plugin-eslint-plugin@7.0.0(eslint@9.39.2(jiti@2.6.1)):
-    dependencies:
-      '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.2(jiti@2.6.1))
-      eslint: 9.39.2(jiti@2.6.1)
-      estraverse: 5.3.0
-    optional: true
 
   eslint-plugin-flawless@0.1.0(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)):
     dependencies:
@@ -13138,53 +13036,6 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
-
-  vite-plus@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3):
-    dependencies:
-      '@oxc-project/types': 0.126.0
-      '@voidzero-dev/vite-plus-core': 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(yaml@2.8.3)
-      '@voidzero-dev/vite-plus-test': 0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.4)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
-      oxfmt: 0.45.0
-      oxlint: 1.60.0(oxlint-tsgolint@0.21.1)
-      oxlint-tsgolint: 0.21.1
-    optionalDependencies:
-      '@voidzero-dev/vite-plus-darwin-arm64': 0.1.19
-      '@voidzero-dev/vite-plus-darwin-x64': 0.1.19
-      '@voidzero-dev/vite-plus-linux-arm64-gnu': 0.1.19
-      '@voidzero-dev/vite-plus-linux-arm64-musl': 0.1.19
-      '@voidzero-dev/vite-plus-linux-x64-gnu': 0.1.19
-      '@voidzero-dev/vite-plus-linux-x64-musl': 0.1.19
-      '@voidzero-dev/vite-plus-win32-arm64-msvc': 0.1.19
-      '@voidzero-dev/vite-plus-win32-x64-msvc': 0.1.19
-    transitivePeerDependencies:
-      - '@arethetypeswrong/core'
-      - '@edge-runtime/vm'
-      - '@opentelemetry/api'
-      - '@tsdown/css'
-      - '@tsdown/exe'
-      - '@types/node'
-      - '@vitejs/devtools'
-      - '@vitest/coverage-istanbul'
-      - '@vitest/coverage-v8'
-      - '@vitest/ui'
-      - bufferutil
-      - esbuild
-      - happy-dom
-      - jiti
-      - jsdom
-      - less
-      - publint
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - terser
-      - tsx
-      - typescript
-      - unplugin-unused
-      - utf-8-validate
-      - vite
-      - yaml
 
   vite-plus@0.1.19(@types/node@24.10.1)(@typescript/typescript6@6.0.1)(@vitest/coverage-v8@4.1.5)(esbuild@0.27.7)(jiti@2.6.1)(publint@0.3.18)(tsx@4.21.0)(unplugin-unused@0.5.7)(vite@7.3.2(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3):
     dependencies:
