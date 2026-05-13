@@ -23,16 +23,10 @@ const copyState = ref<"idle" | "copied">("idle");
 let copyResetTimer: ReturnType<typeof setTimeout> | undefined;
 
 async function copyInstall(): Promise<void> {
-	const clipboard = navigator.clipboard;
-	if (clipboard === undefined) {
-		// no clipboard API; nothing to show as success.
-		return;
-	}
-
 	try {
-		await clipboard.writeText(INSTALL_COMMAND);
+		await navigator.clipboard.writeText(INSTALL_COMMAND);
 	} catch {
-		// permission denied or write rejected.
+		// clipboard API absent, permission denied, or write rejected.
 		return;
 	}
 
@@ -64,41 +58,43 @@ const tabs: ReadonlyArray<{
 
 const TERM_IDS: ReadonlyArray<TermId> = ["diff", "deploy", "migrate"];
 
+const NEXT_CODE_TAB: Record<TabId, Record<"left" | "right", TabId>> = {
+	cli: { left: "deploy", right: "config" },
+	config: { left: "cli", right: "deploy" },
+	deploy: { left: "config", right: "cli" },
+};
+
+const NEXT_TERM_TAB: Record<TermId, Record<"left" | "right", TermId>> = {
+	deploy: { left: "diff", right: "migrate" },
+	diff: { left: "migrate", right: "deploy" },
+	migrate: { left: "deploy", right: "diff" },
+};
+
 function focusTabButton(prefix: string, id: string): void {
 	const button = document.getElementById(`${prefix}-tab-${id}`);
 	button?.focus();
 }
 
-function navigateCodeTab(event: KeyboardEvent, index: number): void {
+function navigateCodeTab(event: KeyboardEvent, fromId: TabId): void {
 	if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") {
 		return;
 	}
 
 	event.preventDefault();
-	const direction = event.key === "ArrowRight" ? 1 : -1;
-	const nextIndex = (index + direction + tabs.length) % tabs.length;
-	const nextTab = tabs[nextIndex];
-	if (nextTab === undefined) {
-		return;
-	}
-
-	activeTab.value = nextTab.id;
-	focusTabButton("code", nextTab.id);
+	const direction = event.key === "ArrowRight" ? "right" : "left";
+	const nextId = NEXT_CODE_TAB[fromId][direction];
+	activeTab.value = nextId;
+	focusTabButton("code", nextId);
 }
 
-function navigateTerminalTab(event: KeyboardEvent, index: number): void {
+function navigateTerminalTab(event: KeyboardEvent, fromId: TermId): void {
 	if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") {
 		return;
 	}
 
 	event.preventDefault();
-	const direction = event.key === "ArrowRight" ? 1 : -1;
-	const nextIndex = (index + direction + TERM_IDS.length) % TERM_IDS.length;
-	const nextId = TERM_IDS[nextIndex];
-	if (nextId === undefined) {
-		return;
-	}
-
+	const direction = event.key === "ArrowRight" ? "right" : "left";
+	const nextId = NEXT_TERM_TAB[fromId][direction];
 	activeTerm.value = nextId;
 	focusTabButton("term", nextId);
 }
@@ -208,7 +204,7 @@ function toggleTheme(): void {
 							</div>
 							<div class="code-tabs" role="tablist" aria-label="Code sample">
 								<button
-									v-for="(tab, index) in tabs"
+									v-for="tab in tabs"
 									:id="`code-tab-${tab.id}`"
 									:key="tab.id"
 									role="tab"
@@ -219,7 +215,7 @@ function toggleTheme(): void {
 									:aria-controls="`code-panel-${tab.id}`"
 									:tabindex="activeTab === tab.id ? 0 : -1"
 									@click="activeTab = tab.id"
-									@keydown="navigateCodeTab($event, index)"
+									@keydown="navigateCodeTab($event, tab.id)"
 								>
 									{{ tab.label }}
 								</button>
@@ -412,7 +408,7 @@ function toggleTheme(): void {
 						<span>~/strata</span>
 						<div class="term-tabs" role="tablist" aria-label="CLI command">
 							<button
-								v-for="(term, index) in TERM_IDS"
+								v-for="term in TERM_IDS"
 								:id="`term-tab-${term}`"
 								:key="term"
 								role="tab"
@@ -423,7 +419,7 @@ function toggleTheme(): void {
 								:aria-controls="`term-panel-${term}`"
 								:tabindex="activeTerm === term ? 0 : -1"
 								@click="activeTerm = term"
-								@keydown="navigateTerminalTab($event, index)"
+								@keydown="navigateTerminalTab($event, term)"
 							>
 								{{ term }}
 							</button>
