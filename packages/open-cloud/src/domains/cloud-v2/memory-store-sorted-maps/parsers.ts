@@ -34,10 +34,9 @@ export function parseSortedMapItemResponse(
 /**
  * Parses a successful `Cloud_ListMemoryStoreSortedMapItems` response
  * body into the public {@link ListSortedMapItemsResult} shape. Each
- * item in the `memoryStoreSortedMapItems` array is validated through
- * the same path-and-shape checks as
- * {@link parseSortedMapItemResponse}; a malformed entry rejects the
- * whole response.
+ * item in the `items` array is validated through the same
+ * path-and-shape checks as {@link parseSortedMapItemResponse}; a
+ * malformed entry rejects the whole response.
  *
  * @param response - The full {@link HttpResponse} from the Open Cloud API.
  * @returns A success result wrapping the parsed
@@ -52,12 +51,8 @@ export function parseListResponse(
 		return malformedList(statusCode);
 	}
 
-	const { memoryStoreSortedMapItems, nextPageToken } = body;
-	if (
-		memoryStoreSortedMapItems !== undefined &&
-		memoryStoreSortedMapItems !== null &&
-		!Array.isArray(memoryStoreSortedMapItems)
-	) {
+	const { items: rawItemsField, nextPageToken } = body;
+	if (rawItemsField !== undefined && rawItemsField !== null && !Array.isArray(rawItemsField)) {
 		return malformedList(statusCode);
 	}
 
@@ -66,7 +61,7 @@ export function parseListResponse(
 		return malformedList(statusCode);
 	}
 
-	const rawItems = memoryStoreSortedMapItems ?? [];
+	const rawItems = rawItemsField ?? [];
 	const items = rawItems.map(wireBodyToSortedMapItem);
 	if (!items.every(isSortedMapItem)) {
 		return malformedList(statusCode);

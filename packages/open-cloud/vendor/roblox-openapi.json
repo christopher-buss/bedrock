@@ -74392,7 +74392,7 @@
       "ListMemoryStoreSortedMapItemsResponse": {
         "type": "object",
         "properties": {
-          "memoryStoreSortedMapItems": {
+          "items": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/MemoryStoreSortedMapItem"

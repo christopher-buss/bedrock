@@ -34,13 +34,18 @@ export interface MemoryStoreSortedMapItemWire {
 
 /**
  * Wire shape of the `Cloud_ListMemoryStoreSortedMapItems` response.
- * The server emits the items array under `memoryStoreSortedMapItems`
- * and an optional `nextPageToken` when more items are available.
+ * The server emits the items array under `items` and an optional
+ * `nextPageToken` when more items are available.
  *
  * Both fields are optional per the OpenAPI spec
  * (`ListMemoryStoreSortedMapItemsResponse` has no `required` array);
- * empty maps come back with `memoryStoreSortedMapItems` omitted or
- * JSON `null`. The parser normalizes both forms to `items: []`.
+ * empty maps come back with `items` omitted or JSON `null`. The
+ * parser normalizes both forms to `items: []`.
+ *
+ * The upstream schema names this field `memoryStoreSortedMapItems`
+ * (see `scripts/apply-schema-patches.ts`), but a real-API probe in
+ * 2026-05 confirmed the wire shape is `items`. The vendored spec is
+ * patched to match the server.
  */
 export interface ListSortedMapItemsResponseWire {
 	/**
@@ -48,7 +53,7 @@ export interface ListSortedMapItemsResponseWire {
 	 * Omitted or JSON `null` on an empty page; the parser normalizes
 	 * both to an empty array.
 	 */
-	readonly memoryStoreSortedMapItems?: ReadonlyArray<MemoryStoreSortedMapItemWire> | undefined;
+	readonly items?: ReadonlyArray<MemoryStoreSortedMapItemWire> | undefined;
 	/**
 	 * Page token for the next call, or `undefined` when no more pages
 	 * exist. JSON `null` is accepted on the wire and normalized to

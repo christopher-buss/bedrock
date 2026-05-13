@@ -64,7 +64,7 @@ describe(parseListResponse, () => {
 
 		const result = parseListResponse({
 			body: validListSortedMapItemsBody({
-				memoryStoreSortedMapItems: [
+				items: [
 					validSortedMapItemBody({
 						path: "cloud/v2/universes/1/memory-store/sorted-maps/m/items/first",
 					}),
@@ -86,11 +86,11 @@ describe(parseListResponse, () => {
 		expect(result.data.items[1]?.sortKey).toStrictEqual({ kind: "numeric", value: 7 });
 	});
 
-	it("should accept an empty memoryStoreSortedMapItems array", () => {
+	it("should accept an empty items array", () => {
 		expect.assertions(1);
 
 		const result = parseListResponse({
-			body: validListSortedMapItemsBody({ memoryStoreSortedMapItems: [] }),
+			body: validListSortedMapItemsBody({ items: [] }),
 			headers: {},
 			status: 200,
 		});
@@ -100,7 +100,7 @@ describe(parseListResponse, () => {
 		expect(result.data.items).toStrictEqual([]);
 	});
 
-	it("should accept a response with memoryStoreSortedMapItems omitted", () => {
+	it("should accept a response with items omitted", () => {
 		expect.assertions(2);
 
 		const result = parseListResponse({
@@ -115,11 +115,11 @@ describe(parseListResponse, () => {
 		expect(result.data.nextPageToken).toBe("tok-1");
 	});
 
-	it("should accept a response with memoryStoreSortedMapItems explicitly null", () => {
+	it("should accept a response with items explicitly null", () => {
 		expect.assertions(2);
 
 		const body: Record<string, unknown> = {
-			memoryStoreSortedMapItems: JSON.parse("null"),
+			items: JSON.parse("null"),
 		};
 
 		const result = parseListResponse({ body, headers: {}, status: 200 });
@@ -145,11 +145,11 @@ describe(parseListResponse, () => {
 		expect(result.err.message).toBe("Malformed memory-store sorted-map list response");
 	});
 
-	it("should reject a body whose memoryStoreSortedMapItems is not an array", () => {
+	it("should reject a body whose items is not an array", () => {
 		expect.assertions(1);
 
 		const result = parseListResponse({
-			body: { ...validListSortedMapItemsBody(), memoryStoreSortedMapItems: "nope" },
+			body: { ...validListSortedMapItemsBody(), items: "nope" },
 			headers: {},
 			status: 200,
 		});
@@ -173,7 +173,7 @@ describe(parseListResponse, () => {
 		expect(result.err).toBeInstanceOf(ApiError);
 	});
 
-	it("should reject a body whose memoryStoreSortedMapItems contains a malformed entry", () => {
+	it("should reject a body whose items contains a malformed entry", () => {
 		expect.assertions(1);
 
 		const malformedItem: Record<string, unknown> = {
@@ -183,7 +183,7 @@ describe(parseListResponse, () => {
 		const result = parseListResponse({
 			body: {
 				...validListSortedMapItemsBody(),
-				memoryStoreSortedMapItems: [malformedItem],
+				items: [malformedItem],
 			},
 			headers: {},
 			status: 200,
