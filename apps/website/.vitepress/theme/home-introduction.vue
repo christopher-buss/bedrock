@@ -4,7 +4,6 @@ import { Content, useData, useRoute, withBase } from "vitepress";
 import { computed } from "vue";
 
 import BedrockFooter, { type BedrockFooterColumn } from "./components/bedrock-footer.vue";
-import BedrockNav from "./components/bedrock-nav.vue";
 
 type SidebarGroup = DefaultTheme.SidebarItem;
 type SidebarLink = DefaultTheme.SidebarItem;
@@ -128,8 +127,6 @@ const footerColumns = computed<ReadonlyArray<BedrockFooterColumn>>(() => [
 
 <template>
 	<div class="bedrock-intro">
-		<BedrockNav :home-href="withBase('/')" show-search />
-
 		<div class="wrap shell">
 			<aside class="side" aria-label="Documentation navigation">
 				<div v-for="(group, gi) in sidebar" :key="gi" class="side-group">
@@ -191,48 +188,6 @@ const footerColumns = computed<ReadonlyArray<BedrockFooterColumn>>(() => [
 
 <style scoped>
 .bedrock-intro {
-	--bg: #f4f6fa;
-	--bg-soft: #e9edf3;
-	--bg-card: #ffffff;
-	--bg-nav: rgba(244, 246, 250, 0.78);
-	--ink: #0e131a;
-	--ink-2: #2a3240;
-	--ink-3: #5a6472;
-	--ink-4: #8b95a4;
-	--line: #dde2eb;
-	--line-strong: #c4cbd6;
-
-	--dark-bg: #0c1018;
-	--dark-bg-2: #131826;
-	--dark-line: #232a3a;
-	--dark-ink: #eef1f7;
-	--dark-ink-2: #b9c1d0;
-	--dark-ink-3: #6f7889;
-
-	--accent: #5944a2;
-	--accent-soft: #a8bdd8;
-	--accent-deep: #324a6e;
-	--accent-bg: #e4ebf5;
-
-	--ok: #4a8a64;
-	--warn: #c89a3a;
-	--del: #b5523a;
-
-	--kind-fn: oklch(62% 0.115 235);
-	--kind-type: oklch(68% 0.105 75);
-	--kind-cls: oklch(58% 0.095 145);
-	--kind-const: oklch(60% 0.115 305);
-
-	--f-sans: "Geist", "Inter", system-ui, -apple-system, sans-serif;
-	--f-serif: "Source Serif 4", "Source Serif Pro", "Times New Roman", serif;
-	--f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
-
-	--r-sm: 4px;
-	--r: 8px;
-	--r-lg: 14px;
-
-	--ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-
 	min-height: 100vh;
 	background: var(--bg);
 	color: var(--ink);
@@ -241,22 +196,6 @@ const footerColumns = computed<ReadonlyArray<BedrockFooterColumn>>(() => [
 	line-height: 1.6;
 	-webkit-font-smoothing: antialiased;
 	text-rendering: optimizeLegibility;
-}
-
-html.dark .bedrock-intro {
-	--bg: #0d1119;
-	--bg-soft: #141a26;
-	--bg-card: #1a2030;
-	--bg-nav: rgba(13, 17, 25, 0.78);
-	--ink: #eef1f7;
-	--ink-2: #c1c8d4;
-	--ink-3: #828b9c;
-	--ink-4: #565e6e;
-	--line: #232a39;
-	--line-strong: #2f3849;
-	--accent-soft: #b8c9e0;
-	--accent-deep: #4e6c92;
-	--accent-bg: #1e2840;
 }
 
 .bedrock-intro,
