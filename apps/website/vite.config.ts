@@ -9,7 +9,13 @@ export default mergeConfig(sharedConfig, {
 	plugins: [vue(), shikiHighlightPlugin()],
 	test: {
 		coverage: {
-			include: [".vitepress/**/*.{ts,tsx,vue}"],
+			exclude: [
+				".vitepress/**/*.spec.{ts,tsx}",
+				".vitepress/config.ts",
+				".vitepress/plugins/**",
+				".vitepress/theme/index.ts",
+			],
+			include: [".vitepress/build-sidebar.ts", ".vitepress/theme/**/*.{ts,vue}"],
 		},
 		environment: "happy-dom",
 	},

@@ -199,6 +199,28 @@ describe(HomeLanding, () => {
 		expect(copyButton().textContent.trim()).toBe("copy");
 	});
 
+	it("should reset the revert timer when copy is clicked again before it elapses", async () => {
+		expect.assertions(2);
+
+		installFakeClipboard();
+		installFakeTimers();
+		renderLanding();
+		const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+		await user.click(copyButton());
+		await vi.advanceTimersByTimeAsync(800);
+		await user.click(copyButton());
+		await vi.advanceTimersByTimeAsync(800);
+
+		// 1600ms after the first click but only 800ms since the second click,
+		// so the label is still "copied" — the first timer was cleared.
+		expect(copyButton().textContent.trim()).toBe("copied");
+
+		await vi.advanceTimersByTimeAsync(400);
+
+		expect(copyButton().textContent.trim()).toBe("copy");
+	});
+
 	it("should leave the copy button label unchanged when writeText rejects", async () => {
 		expect.assertions(1);
 
