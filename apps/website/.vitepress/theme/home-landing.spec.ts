@@ -155,4 +155,83 @@ describe(HomeLanding, () => {
 
 		expect(isSelected(termTab("diff"))).toBe("true");
 	});
+
+	it("should write the install command to the clipboard on copy click", async () => {
+		expect.assertions(1);
+
+		const writeText = installFakeClipboard();
+		renderLanding();
+		const user = userEvent.setup();
+
+		await user.click(copyButton());
+
+		expect(writeText).toHaveBeenCalledWith("pnpm add @bedrock-rbx/core");
+	});
+
+	it("should flip the copy button label to 'copied' after a successful write", async () => {
+		expect.assertions(1);
+
+		installFakeClipboard();
+		renderLanding();
+		const user = userEvent.setup();
+
+		await user.click(copyButton());
+
+		expect(copyButton().textContent.trim()).toBe("copied");
+	});
+
+	it("should revert the copy button label to 'copy' after the timeout elapses", async () => {
+		expect.assertions(2);
+
+		installFakeClipboard();
+		installFakeTimers();
+		renderLanding();
+		const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+		await user.click(copyButton());
+
+		expect(copyButton().textContent.trim()).toBe("copied");
+
+		await vi.advanceTimersByTimeAsync(1200);
+
+		expect(copyButton().textContent.trim()).toBe("copy");
+	});
+
+	it("should leave the copy button label unchanged when writeText rejects", async () => {
+		expect.assertions(1);
+
+		installFakeClipboard(async () => {
+			throw new Error("permission denied");
+		});
+		renderLanding();
+		const user = userEvent.setup();
+
+		await user.click(copyButton());
+
+		expect(copyButton().textContent.trim()).toBe("copy");
+	});
 });
+
+function copyButton(): HTMLElement {
+	return screen.getByRole("button", { name: "Copy install command" });
+}
+
+async function noopWrite(): Promise<void> {
+	/* default: resolve immediately */
+}
+
+function installFakeClipboard(writeImpl: (text: string) => Promise<void> = noopWrite) {
+	const spy = vi.spyOn(globalThis.navigator.clipboard, "writeText");
+	spy.mockImplementation(writeImpl);
+	onTestFinished(() => {
+		spy.mockRestore();
+	});
+	return spy;
+}
+
+function installFakeTimers(): void {
+	onTestFinished(() => {
+		vi.useRealTimers();
+	});
+	vi.useFakeTimers();
+}
