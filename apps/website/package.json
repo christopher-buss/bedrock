@@ -29,7 +29,7 @@
 		"typedoc-plugin-markdown": "catalog:build",
 		"typedoc-plugin-replace-text": "catalog:build",
 		"typescript": "catalog:tsc",
-		"vite": "catalog:",
+		"vite": "catalog:build",
 		"vitepress": "catalog:docs",
 		"vitepress-plugin-tabs": "catalog:docs",
 		"vitest": "catalog:test"

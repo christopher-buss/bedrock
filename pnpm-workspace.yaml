@@ -32,15 +32,13 @@ patchedDependencies:
   "@stryker-mutator/vitest-runner@9.6.1": patches/@stryker-mutator__vitest-runner@9.6.1.patch
   generate-jsdoc-example-tests: patches/generate-jsdoc-example-tests.patch
 
-catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@0.1.19
-
 catalogs:
   build:
     typedoc: 0.28.19
     typedoc-plugin-markdown: 4.11.0
     typedoc-plugin-replace-text: 4.2.0
     unplugin-unused: 0.5.7
+    vite: npm:@voidzero-dev/vite-plus-core@0.1.19
     vite-plus: 0.1.19
   dev:
     "@ai-hero/sandcastle": 0.5.10
