@@ -117,11 +117,18 @@ function wireBodyToSortedMapItem(body: unknown): SortedMapItem | undefined {
 		return undefined;
 	}
 
+	// Validate path shape and extract the universe + map ids from it,
+	// but read the item id from `body.id` directly: item ids may contain
+	// characters that arrive URL-encoded inside `path` (e.g. `::` shows
+	// up as `%3A%3A`), and the body's top-level `id` field carries the
+	// decoded form the caller supplied.
 	const match = PATH_PATTERN.exec(body.path);
-	const universeId = match?.[1];
-	const mapId = match?.[2];
-	const id = match?.[3];
-	if (universeId === undefined || mapId === undefined || id === undefined) {
+	if (match === null) {
+		return undefined;
+	}
+
+	const [, universeId, mapId] = match;
+	if (universeId === undefined || mapId === undefined) {
 		return undefined;
 	}
 
@@ -131,7 +138,7 @@ function wireBodyToSortedMapItem(body: unknown): SortedMapItem | undefined {
 	}
 
 	return {
-		id,
+		id: body.id,
 		etag: body.etag,
 		expiresAt: new Date(body.expireTime),
 		mapId,
