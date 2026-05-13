@@ -295,7 +295,6 @@ onBeforeUnmount(() => {
 						:ref="(element) => (linkRefs[index] = element as HTMLAnchorElement | null)"
 						:aria-current="ariaCurrentFor(link, index)"
 						:class="{ active: isActive(index), phantom: isPhantom(link) }"
-						:data-text="link.text"
 						:href="linkHref(link)"
 						:rel="link.external ? 'noopener noreferrer' : undefined"
 						:style="
@@ -495,25 +494,12 @@ onBeforeUnmount(() => {
 }
 
 .nav-links a {
-	/* `inline-grid` + a ghost `::before` at the active weight reserves the
-	   bold width so siblings don't reflow when the underline lands on a new
-	   item. The cell sizes to max(text-at-current-weight, ::before-at-500). */
-	display: inline-grid;
-	place-items: center;
 	font-size: 14px;
 	color: var(--ink-2);
 	position: relative;
 	padding: 20px 0;
 	transition: color 0.15s var(--ease);
 	border-radius: 2px;
-}
-
-.nav-links a::before {
-	content: attr(data-text);
-	grid-area: 1 / 1;
-	font-weight: 500;
-	visibility: hidden;
-	pointer-events: none;
 }
 
 .nav-links a:hover {
@@ -540,7 +526,11 @@ onBeforeUnmount(() => {
 
 .nav-links a.active {
 	color: var(--ink);
-	font-weight: 500;
+	/* `text-shadow` paints a subpixel stroke around each glyph which reads as
+	   weight without actually changing the font weight; that keeps the
+	   text's advance-width fixed so siblings don't reflow when the underline
+	   crosses sections. */
+	text-shadow: 0 0 0.55px currentColor;
 }
 
 .nav-right {
