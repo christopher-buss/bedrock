@@ -373,6 +373,24 @@ describe(parseSortedMapItemResponse, () => {
 			expect(result.data.id).toBe("400ffff0001");
 		});
 
+		it("should accept a path that uses the plural memory-stores prefix the GET endpoint emits", () => {
+			expect.assertions(3);
+
+			const result = parseSortedMapItemResponse(
+				okSortedMapItemResponse(
+					validSortedMapItemBody({
+						path: "cloud/v2/universes/99999/memory-stores/sorted-maps/some-map/items/400ffff0001",
+					}),
+				),
+			);
+
+			assert(result.success);
+
+			expect(result.data.universeId).toBe("99999");
+			expect(result.data.mapId).toBe("some-map");
+			expect(result.data.id).toBe("400ffff0001");
+		});
+
 		it("should reject a path that does not match the sorted-map item pattern", () => {
 			expect.assertions(2);
 

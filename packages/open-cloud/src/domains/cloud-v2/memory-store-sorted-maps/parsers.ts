@@ -6,8 +6,11 @@ import type { Result } from "../../../types.ts";
 import type { ListSortedMapItemsResult, SortedMapItem, SortKey } from "./types.ts";
 import type { MemoryStoreSortedMapItemWire } from "./wire.ts";
 
+// The CREATE and LIST endpoints emit paths under singular `memory-store`,
+// while GET emits plural `memory-stores`. The regex tolerates both to
+// absorb that upstream inconsistency at the wire boundary.
 const PATH_PATTERN =
-	/^cloud\/v2\/universes\/(\d+)\/memory-store\/sorted-maps\/([^/]+)\/items\/([^/]+)$/;
+	/^cloud\/v2\/universes\/(\d+)\/memory-stores?\/sorted-maps\/([^/]+)\/items\/([^/]+)$/;
 const MALFORMED_MESSAGE = "Malformed memory-store sorted-map item response";
 const MALFORMED_LIST_MESSAGE = "Malformed memory-store sorted-map list response";
 
