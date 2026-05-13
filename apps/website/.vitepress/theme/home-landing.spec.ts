@@ -25,6 +25,11 @@ function codeTab(name: string): HTMLElement {
 	return within(tablist).getByRole("tab", { name: new RegExp(`^${name}$`, "i") });
 }
 
+function termTab(name: string): HTMLElement {
+	const tablist = screen.getByRole("tablist", { name: "CLI command" });
+	return within(tablist).getByRole("tab", { name: new RegExp(`^${name}$`, "i") });
+}
+
 function isSelected(element: HTMLElement): string {
 	return element.getAttribute("aria-selected") ?? "";
 }
@@ -93,5 +98,61 @@ describe(HomeLanding, () => {
 		await user.keyboard("a");
 
 		expect(isSelected(codeTab("config"))).toBe("true");
+	});
+
+	it("should mark the diff terminal tab active by default", () => {
+		expect.assertions(3);
+
+		renderLanding();
+
+		expect(isSelected(termTab("diff"))).toBe("true");
+		expect(isSelected(termTab("deploy"))).toBe("false");
+		expect(isSelected(termTab("migrate"))).toBe("false");
+	});
+
+	it("should activate a terminal tab when it is clicked", async () => {
+		expect.assertions(2);
+
+		renderLanding();
+		const user = userEvent.setup();
+
+		await user.click(termTab("migrate"));
+
+		expect(isSelected(termTab("migrate"))).toBe("true");
+		expect(isSelected(termTab("diff"))).toBe("false");
+	});
+
+	it.for([
+		{ key: "{ArrowRight}", expected: "deploy", from: "diff" },
+		{ key: "{ArrowRight}", expected: "migrate", from: "deploy" },
+		{ key: "{ArrowRight}", expected: "diff", from: "migrate" },
+		{ key: "{ArrowLeft}", expected: "migrate", from: "diff" },
+		{ key: "{ArrowLeft}", expected: "diff", from: "deploy" },
+		{ key: "{ArrowLeft}", expected: "deploy", from: "migrate" },
+	])(
+		"should move the active terminal tab from $from to $expected on $key",
+		async ({ key, expected, from }) => {
+			expect.assertions(1);
+
+			renderLanding();
+			const user = userEvent.setup();
+
+			termTab(from).focus();
+			await user.keyboard(key);
+
+			expect(isSelected(termTab(expected))).toBe("true");
+		},
+	);
+
+	it("should leave the active terminal tab unchanged on non-arrow keys", async () => {
+		expect.assertions(1);
+
+		renderLanding();
+		const user = userEvent.setup();
+
+		termTab("diff").focus();
+		await user.keyboard("a");
+
+		expect(isSelected(termTab("diff"))).toBe("true");
 	});
 });
