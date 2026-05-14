@@ -99,15 +99,15 @@ function makeContext(universeId: string): ProbeContext {
 function extractReadId(bodyText: string): string | undefined {
 	try {
 		const parsed: unknown = JSON.parse(bodyText);
-		if (parsed !== null && typeof parsed === "object" && "id" in parsed) {
-			const { id } = parsed as { id?: unknown };
-			return typeof id === "string" ? id : undefined;
+		if (parsed === null || typeof parsed !== "object") {
+			return undefined;
 		}
+
+		const id: unknown = Reflect.get(parsed, "id");
+		return typeof id === "string" ? id : undefined;
 	} catch {
 		return undefined;
 	}
-
-	return undefined;
 }
 
 const CREATE_PROBES: ReadonlyArray<CreateProbe> = [

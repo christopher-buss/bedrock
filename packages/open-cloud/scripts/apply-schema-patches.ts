@@ -42,16 +42,21 @@ const PATCHES: ReadonlyArray<Patch> = [
 	},
 	{
 		// Anchored on `"The priority of the queue item."`, which is
-		// the description of the queue's `priority` field. That string
-		// is unique to `MemoryStoreQueueItem` (the sibling
-		// `MemoryStoreSortedMapItem` has no priority field), so the
-		// non-greedy `[\s\S]*?` to the next `"The TTL for the item."`
-		// cannot cross into `MemoryStoreSortedMapItem.ttl` during
-		// backtracking.
+		// the description of the queue's `priority` field and is unique
+		// to `MemoryStoreQueueItem` (the sibling `MemoryStoreSortedMapItem`
+		// has no priority field). The `(?!"MemoryStoreSortedMapItem":)`
+		// lookahead in the non-greedy gap forbids the regex from
+		// backtracking past the queue schema's closing brace into the
+		// next sibling schema. Without it, a future upstream that fixes
+		// the queue's ttl but not the sorted-map's would let the gap
+		// stretch into `MemoryStoreSortedMapItem.ttl` (same description
+		// string, still has `format: "duration"`), masking the
+		// upstream fix and silently corrupting the sorted-map patch's
+		// post-patch shape.
 		appliedMarker:
 			'"description": "The priority of the queue item.",\n            "format": "double"\n          },\n          "ttl": {\n            "writeOnly": true,\n            "example": "3s",\n            "type": "string",\n            "description": "The TTL for the item."\n          },\n          "expireTime"',
 		description: "MemoryStoreQueueItem.ttl drops invalid format: duration",
-		find: /("description": "The priority of the queue item\."[\s\S]*?"description": "The TTL for the item\.")(,\n {12}"format": "duration")/,
+		find: /("description": "The priority of the queue item\."(?:(?!"MemoryStoreSortedMapItem":)[\s\S])*?"description": "The TTL for the item\.")(,\n {12}"format": "duration")/,
 		replace: "$1",
 	},
 	{
