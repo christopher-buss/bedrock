@@ -1,5 +1,4 @@
 import { PermissionError } from "@bedrock-rbx/ocale";
-import { cancel, intro, log, outro } from "@clack/prompts";
 
 import type { ConfigError } from "../core/config-error.ts";
 import type { MigrateError, MigrationSummary } from "../core/migrate/migration-report.ts";
@@ -14,6 +13,26 @@ import type { ParseOptionsError } from "./parse-options.ts";
 /**
  * Output port the CLI renders through. Mirrors the subset of `@clack/prompts`
  * the bedrock CLI uses today; tests inject a fake to assert what was rendered.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { ClackPort } from "@bedrock-rbx/core";
+ *
+ * const lines: Array<string> = [];
+ * const port: ClackPort = {
+ *     cancel: (message) => lines.push(`cancel: ${message}`),
+ *     intro: (message) => lines.push(`intro: ${message}`),
+ *     logError: (message) => lines.push(`error: ${message}`),
+ *     logMessage: (message) => lines.push(`log: ${message}`),
+ *     logSuccess: (message) => lines.push(`ok: ${message}`),
+ *     outro: (message) => lines.push(`outro: ${message}`),
+ * };
+ *
+ * port.logSuccess("done");
+ *
+ * expect(lines).toEqual(["ok: done"]);
+ * ```
  */
 export interface ClackPort {
 	/** End an interactive flow with a cancellation marker. */
@@ -69,34 +88,6 @@ export function renderDeployError(err: DeployError, port: ClackPort): void {
  */
 export function renderParseError(err: ParseOptionsError, port: ClackPort): void {
 	port.logError(parseErrorMessage(err));
-}
-
-/**
- * Construct a `ClackPort` whose methods delegate to `@clack/prompts`. The
- * resulting port writes to `process.stdout` via clack's defaults.
- * @returns A port whose six methods each invoke the matching clack helper.
- */
-export function createClackPort(): ClackPort {
-	return {
-		cancel: (message) => {
-			cancel(message);
-		},
-		intro: (message) => {
-			intro(message);
-		},
-		logError: (message) => {
-			log.error(message);
-		},
-		logMessage: (message) => {
-			log.message(message);
-		},
-		logSuccess: (message) => {
-			log.success(message);
-		},
-		outro: (message) => {
-			outro(message);
-		},
-	};
 }
 
 /**

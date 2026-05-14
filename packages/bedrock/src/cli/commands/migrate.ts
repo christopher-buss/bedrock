@@ -10,6 +10,7 @@ import {
 	migrateMantleState as defaultMigrateMantleState,
 	type MigrateMantleStateDeps,
 } from "../../shell/migrate-mantle-state.ts";
+import { createClackPort } from "../clack-port.ts";
 import { createDefaultMigratePromptPort } from "../default-migrate-prompt-port.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps } from "../index.ts";
@@ -17,7 +18,6 @@ import type { MigrateConfigFormat, MigratePromptPort } from "../migrate-prompt-p
 import { type MigrationSource, parseMigrateOptions } from "../parse-migrate-options.ts";
 import {
 	type ClackPort,
-	createClackPort,
 	renderMigrateError,
 	renderMigrateParseError,
 	renderMigrationSummary,

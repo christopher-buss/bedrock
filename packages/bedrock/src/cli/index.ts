@@ -2,6 +2,7 @@ import sade from "sade";
 import type { Sade } from "sade";
 
 import manifest from "../../package.json" with { type: "json" };
+import type { ProgressPort } from "../ports/progress-port.ts";
 import type { buildStatePort as defaultBuildStatePort } from "../shell/build-state-port.ts";
 import type { deploy as defaultDeploy } from "../shell/deploy.ts";
 import type { loadConfig as defaultLoadConfig } from "../shell/load-config.ts";
@@ -13,7 +14,7 @@ import { migrateCommand } from "./commands/migrate.ts";
 import type { MigratePromptPort } from "./migrate-prompt-port.ts";
 import type { ClackPort } from "./render.ts";
 
-export { createClackPort } from "./render.ts";
+export { createClackPort } from "./clack-port.ts";
 
 const PROGRAM_NAME = "bedrock";
 const PROGRAM_DESCRIBE = "Infrastructure-as-Code deployment tool for Roblox";
@@ -41,6 +42,8 @@ export interface ProgDeps {
 	readonly mkdir?: (path: string) => Promise<void>;
 	/** Read-only preview of operations; defaults to the internal `previewDiff` shell helper. */
 	readonly previewDiff?: typeof defaultPreviewDiff;
+	/** Progress port that receives per-env deploy outcomes; defaults to the clack-backed adapter. */
+	readonly progress?: ProgressPort;
 	/** File-write seam used by the migrate command to emit the bedrock config file; defaults to `node:fs/promises.writeFile`. */
 	readonly writeFile?: (path: string, contents: string) => Promise<void>;
 }

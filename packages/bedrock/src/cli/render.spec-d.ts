@@ -1,7 +1,6 @@
 import { describe, expectTypeOf, it } from "vitest";
 
 import type { ClackPort } from "./render.ts";
-import { createClackPort } from "./render.ts";
 
 describe("ClackPort", () => {
 	it("should expose exactly the six clack subset methods", () => {
@@ -17,11 +16,5 @@ describe("ClackPort", () => {
 		expectTypeOf<ClackPort["logMessage"]>().toEqualTypeOf<(message: string) => void>();
 		expectTypeOf<ClackPort["logSuccess"]>().toEqualTypeOf<(message: string) => void>();
 		expectTypeOf<ClackPort["outro"]>().toEqualTypeOf<(message: string) => void>();
-	});
-});
-
-describe(createClackPort, () => {
-	it("should return a ClackPort and take no arguments", () => {
-		expectTypeOf(createClackPort).toEqualTypeOf<() => ClackPort>();
 	});
 });
