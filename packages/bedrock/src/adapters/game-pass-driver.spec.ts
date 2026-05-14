@@ -220,8 +220,8 @@ describe(createGamePassDriver, () => {
 			expect(http.requests).toHaveLength(1);
 		});
 
-		it("should serialize updated name, description, and price into the multipart body", async () => {
-			expect.assertions(3);
+		it("should serialize updated name, description, price, and isForSale=true into the multipart body", async () => {
+			expect.assertions(4);
 
 			const { driver, http } = makeDriver();
 			http.mockResponse({ body: undefined, status: 204 });
@@ -241,6 +241,7 @@ describe(createGamePassDriver, () => {
 			expect(readFormString(captured.request.body, "name")).toBe("Updated VIP");
 			expect(readFormString(captured.request.body, "description")).toBe("Better perks.");
 			expect(readFormString(captured.request.body, "price")).toBe("750");
+			expect(readFormString(captured.request.body, "isForSale")).toBe("true");
 		});
 
 		it("should omit the icon file from the body when iconFileHash matches", async () => {
@@ -313,8 +314,8 @@ describe(createGamePassDriver, () => {
 			});
 		});
 
-		it("should omit the price field from the request when desired price is undefined", async () => {
-			expect.assertions(1);
+		it("should mark the pass off-sale and omit price when desired price is undefined", async () => {
+			expect.assertions(2);
 
 			const { driver, http } = makeDriver();
 			http.mockResponse({ body: undefined, status: 204 });
@@ -329,6 +330,7 @@ describe(createGamePassDriver, () => {
 			assert(captured.request.body instanceof FormData);
 
 			expect(captured.request.body.has("price")).toBeFalse();
+			expect(readFormString(captured.request.body, "isForSale")).toBe("false");
 		});
 
 		it("should pass through an OpenCloudError when the ocale client returns an error", async () => {

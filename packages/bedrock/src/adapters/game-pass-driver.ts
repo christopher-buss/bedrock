@@ -1,6 +1,8 @@
 import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 import type { GamePass, GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 
+import { derivePriceFields } from "../core/derive-price-fields.ts";
+import { shouldReuploadIcon } from "../core/icons.ts";
 import type { GamePassDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
@@ -214,7 +216,7 @@ async function updateGamePass(
 	},
 ): Promise<Result<ResourceCurrentState<"gamePass">, OpenCloudError>> {
 	const { current, desired } = states;
-	const hasIconChanged = current.iconFileHashes["en-us"] !== desired.iconFileHashes["en-us"];
+	const hasIconChanged = shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes);
 	const imageFile = hasIconChanged ? await deps.readFile(desired.icon["en-us"]) : undefined;
 
 	const result = await deps.client.update({
@@ -222,7 +224,7 @@ async function updateGamePass(
 		description: desired.description,
 		gamePassId: current.outputs.assetId,
 		universeId: deps.universeId,
-		...(desired.price !== undefined ? { price: desired.price } : {}),
+		...derivePriceFields(desired),
 		...(imageFile !== undefined ? { imageFile } : {}),
 	});
 	if (!result.success) {
