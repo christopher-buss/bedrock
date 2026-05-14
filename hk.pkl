@@ -1,5 +1,5 @@
-amends "package://github.com/jdx/hk/releases/download/v1.42.0/hk@1.42.0#/Config.pkl"
-import "package://github.com/jdx/hk/releases/download/v1.42.0/hk@1.42.0#/Builtins.pkl"
+amends "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Builtins.pkl"
 
 // Workaround: hk util commands fail on Windows via cmd.exe, bash -c fixes it
 local bash: String = "bash -c"
@@ -29,17 +29,16 @@ local genExampleTests = new Step {
 }
 
 local lint = new Step {
-	glob = List("*.ts", "*.tsx")
 	check = "pnpm lint:affected"
+	fix = "pnpm lint:affected --fix"
 	shell = bash
-	exclusive = true
 }
 
 local typecheck = new Step {
     glob = List("*.ts", "*.tsx")
     check = "pnpm typecheck:affected"
     shell = bash
-    exclusive = true
+	stomp = true
 }
 
 local test = new Step {
@@ -62,7 +61,6 @@ local build = new Step {
     glob = List("*.ts", "*.tsx")
     check = "pnpm build:affected"
     shell = bash
-    exclusive = true
 }
 
 local mutate = new Step {
@@ -91,25 +89,26 @@ local unused = new Step {
 
 hooks {
     ["pre-commit"] {
+		fix = true
         stash = "none"
         steps {
             ...sharedGuards
             ["no-commit-to-branch"] = preCommitBranchGuard
-			["lint"] = (lint)
             ["typecheck"] = (typecheck)
+            ["build"] = (build) { condition = isAgent }
+			["lint"] = (lint)
             ["gen-example-tests"] = (genExampleTests) { condition = isAgent }
             ["test"] = (test) { condition = isAgent }
-            ["build"] = (build) { condition = isAgent }
             ["mutate"] = (mutate) { condition = isAgent }
         }
     }
     ["pre-push"] {
         steps {
-			["lint"] = lint
             ["typecheck"] = typecheck
-            ["gen-example-tests"] = genExampleTests
-            ["unused"] = unused
             ["build"] = build
+            ["unused"] = unused
+			["lint"] = lint
+            ["gen-example-tests"] = genExampleTests
             ["test"] = test
             ["mutate"] = (mutatePush) { condition = isAgent }
         }
@@ -139,11 +138,11 @@ hooks {
     ["check"] {
         steps {
             ...sharedGuards
-			["lint"] = lint
             ["typecheck"] = typecheck
-            ["gen-example-tests"] = genExampleTests
-            ["unused"] = unused
             ["build"] = build
+            ["unused"] = unused
+			["lint"] = lint
+            ["gen-example-tests"] = genExampleTests
             ["test"] = testCi
         }
     }
