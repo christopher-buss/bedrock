@@ -21,7 +21,7 @@ export async function readBytes(
 	io: KindIo,
 ): Promise<Result<Uint8Array, BuildDesiredError>> {
 	if (isRedactedIconPath(target.filePath)) {
-		return { data: REDACTED_ICON_BYTES, success: true };
+		return { data: new Uint8Array(REDACTED_ICON_BYTES), success: true };
 	}
 
 	try {

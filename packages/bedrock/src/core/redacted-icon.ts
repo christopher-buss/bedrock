@@ -60,7 +60,7 @@ export function withRedactedIcon(
 ): (path: string) => Promise<Uint8Array> {
 	return async (path) => {
 		if (isRedactedIconPath(path)) {
-			return REDACTED_ICON_BYTES;
+			return new Uint8Array(REDACTED_ICON_BYTES);
 		}
 
 		return readFile(path);

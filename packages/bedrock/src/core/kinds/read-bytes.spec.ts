@@ -47,8 +47,8 @@ describe(readBytes, () => {
 		});
 	});
 
-	it("should short-circuit the redacted-icon sentinel to embedded bytes without invoking the reader", async () => {
-		expect.assertions(2);
+	it("should short-circuit the redacted-icon sentinel to a fresh copy of embedded bytes without invoking the reader", async () => {
+		expect.assertions(3);
 
 		const calls: Array<string> = [];
 		const result = await readBytes(
@@ -63,7 +63,8 @@ describe(readBytes, () => {
 
 		assert(result.success);
 
-		expect(result.data).toBe(REDACTED_ICON_BYTES);
+		expect(result.data).toStrictEqual(REDACTED_ICON_BYTES);
+		expect(result.data).not.toBe(REDACTED_ICON_BYTES);
 		expect(calls).toBeEmpty();
 	});
 });

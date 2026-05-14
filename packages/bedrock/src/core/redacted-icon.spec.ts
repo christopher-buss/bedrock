@@ -47,8 +47,8 @@ describe(isRedactedIconPath, () => {
 });
 
 describe(withRedactedIcon, () => {
-	it("should resolve the sentinel to REDACTED_ICON_BYTES without invoking the inner reader", async () => {
-		expect.assertions(2);
+	it("should resolve the sentinel to a fresh copy of REDACTED_ICON_BYTES without invoking the inner reader", async () => {
+		expect.assertions(3);
 
 		const calls: Array<string> = [];
 		const wrapped = withRedactedIcon(async (path) => {
@@ -58,7 +58,8 @@ describe(withRedactedIcon, () => {
 
 		const bytes = await wrapped(REDACTED_ICON_PATH);
 
-		expect(bytes).toBe(REDACTED_ICON_BYTES);
+		expect(bytes).toStrictEqual(REDACTED_ICON_BYTES);
+		expect(bytes).not.toBe(REDACTED_ICON_BYTES);
 		expect(calls).toBeEmpty();
 	});
 
