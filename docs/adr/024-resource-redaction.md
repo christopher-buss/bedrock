@@ -36,9 +36,7 @@ For `gamePass`, `developerProduct`, and `badge`:
 
 ```ts
 interface PassEntry {
-	redacted?:
-		| boolean
-		| { description?: string; icon?: Record<"en-us", string>; name?: string };
+	redacted?: boolean | { description?: string; icon?: Record<"en-us", string>; name?: string };
 }
 ```
 
