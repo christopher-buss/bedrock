@@ -260,9 +260,32 @@ introduce GET-based drift once a suitable field is available.
 - ADR-020: Project Config Definition: reserves `places` as a config key
   mapping to `place`; per-kind entry schema is owned by issue #99.
 
+## Amendments
+
+### 2026-05-14: Game-pass driver implements `update`
+
+PR #342 (2026-05-05) added `update` and `list` to the upstream
+`GamePassesClient`, mapping OpenAPI `Cloud_UpdateGamePassConfig` to a PATCH
+that accepts name, description, price, isForSale, isRegionalPricingEnabled,
+and a replacement icon image.
+
+The game-pass driver now implements `ResourceDriver<"gamePass">["update"]`
+per the optional-method contract this ADR introduced. It always sends the
+writable scalars; it re-uploads the icon and follows with `client.get` to
+refresh the assigned `iconAssetId` only when the desired `iconFileHash`
+diverges from the current one. The follow-up read is required because the
+PATCH responds with 204 No Content and exposes no other channel for the
+new asset id.
+
+Game passes still match none of the file-backed criteria (Definition
+unchanged). The optional `update` was always available to any driver whose
+upstream API supports it; the file-backed framing here is what *requires*
+`update` for the publish-republish loop, not what *permits* it.
+
 ## References
 
 - PR #84: `@bedrock-rbx/ocale` places client (publish + save endpoints)
+- PR #342: `@bedrock-rbx/ocale` game-passes client `update` and `list` endpoints
 - Issue #99: first file-backed kind implementation (places resource driver)
 - ADR-017, ADR-018, ADR-019, ADR-020: prior architectural decisions extended
   or referenced by this ADR
