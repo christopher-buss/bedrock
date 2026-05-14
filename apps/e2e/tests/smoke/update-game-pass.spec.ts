@@ -44,6 +44,13 @@ async function fixtureReadFile(path: string): Promise<Uint8Array> {
 	return readFile(join(FIXTURE_DIR, path));
 }
 
+function withEnvironment(base: Config, environment: string): Config {
+	return {
+		...base,
+		environments: { ...base.environments, [environment]: {} },
+	};
+}
+
 function withMutatedPass(base: Config, overrides: { description: string; name: string }): Config {
 	const passes = base.passes ?? {};
 	const existing = passes["smoke-pass"];
@@ -92,9 +99,11 @@ describe("game-pass update via real Roblox", () => {
 				universe: unreachableDriver("universe block"),
 			} satisfies DriverRegistry;
 
+			const bootstrapConfig = withEnvironment(baseConfig, environment);
+
 			try {
 				const bootstrap = await deploy({
-					config: baseConfig,
+					config: bootstrapConfig,
 					environment,
 					readFile: fixtureReadFile,
 					registry,
@@ -106,7 +115,7 @@ describe("game-pass update via real Roblox", () => {
 				);
 
 				const stamp = String(Date.now());
-				const updatedConfig = withMutatedPass(baseConfig, {
+				const updatedConfig = withMutatedPass(bootstrapConfig, {
 					name: `Smoke Test Pass ${stamp}`,
 					description: `smoke description ${stamp}`,
 				});
