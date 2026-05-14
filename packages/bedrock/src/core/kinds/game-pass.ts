@@ -14,6 +14,7 @@ const entrySchema = type({
 	"description": "string",
 	"icon": iconMap,
 	"price?": OPTIONAL_ROBUX_PRICE,
+	"redacted?": "boolean | undefined",
 });
 
 function flatten(config: ResolvedConfig): ReadonlyArray<GamePassDesiredInput> {

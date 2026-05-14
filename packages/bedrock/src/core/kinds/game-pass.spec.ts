@@ -52,6 +52,28 @@ describe("gamePassKind", () => {
 				}),
 			).toBeInstanceOf(ArkErrors);
 		});
+
+		it.for([
+			["true", true],
+			["false", false],
+		] as const)("should accept an entry with redacted: %s", ([, redacted]) => {
+			expect.assertions(1);
+
+			expect(
+				gamePassKind.entrySchema({ ...ValidGamePassEntry, redacted }),
+			).not.toBeInstanceOf(ArkErrors);
+		});
+
+		it("should reject an object-form redacted override", () => {
+			expect.assertions(1);
+
+			expect(
+				gamePassKind.entrySchema({
+					...ValidGamePassEntry,
+					redacted: { name: "Closed Beta" },
+				}),
+			).toBeInstanceOf(ArkErrors);
+		});
 	});
 
 	describe("flatten", () => {
