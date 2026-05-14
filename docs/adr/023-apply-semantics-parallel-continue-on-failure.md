@@ -1,6 +1,6 @@
 # ADR-023: Apply Semantics — Parallel, Continue-on-Failure, Per-Op Progress Events
 
-Date: 2026-05-14 Status: Proposed
+**Date:** 2026-05-14 **Status:** Proposed
 
 Decision Makers: Maintainer
 Tags: apply, deploy, progress, ports, diff, ux
@@ -17,12 +17,12 @@ runs — a future deploy is required to converge them.
 
 Two issues motivated the redesign:
 
-1. **Deterministic failures punish unrelated resources.** A `gamePass` whose
-   driver lacks update support produces `updateUnsupported`, which is a
-   capability gap, not a transient error. Bailing on it skips every other
-   pending op even though none would have been affected. The user observed
-   this concretely: `apply failed for 'gamepass': update not supported`,
-   nothing else attempted.
+1. **Deterministic failures punish unrelated resources.** Any deterministic
+   apply failure (e.g. `updateUnsupported` from a custom or future driver, or
+   a 4xx validation error from Open Cloud) skips every other pending op even
+   though the queued resources would have been unaffected. A single failure
+   blocks dozens of unrelated reconciliations and forces another deploy to
+   converge them.
 2. **No per-resource progress visibility.** The `ProgressPort`
    ([packages/bedrock/src/ports/progress-port.ts](../../packages/bedrock/src/ports/progress-port.ts))
    currently emits a single `deploySuccess` or `deployFailure` event per
@@ -30,44 +30,101 @@ Two issues motivated the redesign:
    variants, but they do not yet exist. Users cannot tell mid-deploy what
    has reconciled and what has not.
 
-Apply-time operations are independent for all current resource kinds. Universe,
-GamePass, Place, and DeveloperProduct each bind `universeId` at driver
-construction time
-([game-pass-driver.ts:46](../../packages/bedrock/src/adapters/game-pass-driver.ts:46),
-[developer-product-driver.ts:53](../../packages/bedrock/src/adapters/developer-product-driver.ts:53))
-because Open Cloud cannot mint universes — they are adopted, not created. No
-op produces an output that another op consumes within the same apply. Retry
-and rate limiting are absorbed inside `@bedrock-rbx/ocale` per
-[ADR-010](./010-sdk-managed-rate-limiting-and-retry.md); a failure surfaced to
-apply has already exhausted retries.
+### Independence at apply time
+
+A premise of any parallel apply design is that ops do not interfere. The
+current resource kinds satisfy this in **output-flow** terms — no op
+consumes another op's outputs within the same apply:
+
+- `GamePass` and `DeveloperProduct` drivers bind `universeId` at driver
+  construction
+  ([game-pass-driver.ts:46](../../packages/bedrock/src/adapters/game-pass-driver.ts:46),
+  [developer-product-driver.ts:53](../../packages/bedrock/src/adapters/developer-product-driver.ts:53)),
+  so they never reach into another op's result.
+- `Universe` is adopted, not minted: the user supplies an existing
+  `universeId` on the desired state ([resources.ts:238](../../packages/bedrock/src/core/resources.ts:238)).
+  No op produces a universeId for another to consume.
+- `Place.versionNumber` is the only Roblox-returned identifier and is not
+  read back by any other op in the same apply.
+
+Output-flow independence holds. But there is one **shared-endpoint
+collision**: the `Universe` driver routes `displayName` updates through
+`PlacesClient.update` ([resources.ts:208-213](../../packages/bedrock/src/core/resources.ts:208))
+because the universe PATCH endpoint treats `displayName` as read-only. If a
+configured `Place` is the root place of the same universe, two concurrent
+PATCHes can hit the same upstream resource. This invalidates "fully
+parallel" but admits an easy two-phase remedy (see Decision).
+
+Retry and rate limiting are absorbed inside `@bedrock-rbx/ocale` per
+[ADR-010](./010-sdk-managed-rate-limiting-and-retry.md); a failure surfaced
+to apply has already exhausted retries.
 
 ## Decision
 
-`applyOps` becomes parallel, continue-on-failure, and instrumented with
-per-op `ProgressPort` events.
+`applyOps` becomes **two-phase, continue-on-failure**, and instrumented with
+per-op `ProgressPort` events:
 
-### Algorithm
+1. **Phase 1** — `Universe` op(s) run sequentially. `Universe` is a singleton
+   per environment, so at most one op runs here. Sequencing it before
+   everything else removes the documented `displayName` race against
+   `Place(root)`.
+2. **Phase 2** — every remaining non-noop op dispatches concurrently via
+   `Promise.allSettled`. `allSettled` (not `all`) is deliberate: a driver
+   that throws outside its `Result` contract settles as a rejection for that
+   op alone, without short-circuiting the in-flight batch. **Phase 2 runs
+   regardless of Phase 1's outcome** — a failed universe op does not block
+   the rest, consistent with continue-on-failure.
 
-1. Dispatch every non-noop op concurrently via
-   `Promise.allSettled(ops.map(dispatchOp))`. `allSettled` (not `all`) is
-   deliberate: a driver that throws outside its `Result` contract settles as
-   a rejection for that op alone, without short-circuiting the in-flight
-   batch.
-2. Each dispatch emits `resourceOpStarted` before the driver call and
-   `resourceOpSucceeded` or `resourceOpFailed` after it returns.
-3. `noop` ops emit a single `resourceOpNoop` event (no dispatch, no driver call).
-4. After all ops settle, return
-   `Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>`:
-   - **Ok** when no op failed; `applied[]` is in declaration order
-     (`Promise.allSettled` preserves input order in its results array; we
-     zip by index, not by completion time).
-   - **Err** when one or more ops failed; the aggregate carries both the
-     `applied` set and the `failures` list.
-5. `deploy.runReconcile` writes the merged state regardless of whether any op
-   failed (preserving today's "persist what succeeded" behaviour). It then
-   emits `applySummary` unconditionally. `stateWritten` is emitted only when
-   `statePort.write` returns `Ok`; on write failure, the existing
-   `stateWriteFailed` error path runs and no `stateWritten` event fires.
+Per-op event emission:
+
+- Each dispatch emits `resourceOpStarted` before the driver call and
+  `resourceOpSucceeded` or `resourceOpFailed` after it returns.
+- `noop` ops emit a single `resourceOpNoop` event (no dispatch, no driver
+  call).
+
+Return shape:
+
+- After both phases settle, `applyOps` returns
+  `Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>`:
+  - **Ok** when no op failed; `applied[]` is in declaration order (Phase 1
+    universe ops first, then Phase 2 ops in input order;
+    `Promise.allSettled` preserves input order in its results array, so we
+    zip by index, not by completion time).
+  - **Err** when one or more ops failed; the aggregate carries both the
+    `applied` set and the `failures` list.
+
+State persistence:
+
+- `deploy.runReconcile` writes the merged state regardless of whether any
+  op failed (preserving today's "persist what succeeded" behaviour). It
+  then emits `applySummary` unconditionally. `stateWritten` is emitted only
+  when `statePort.write` returns `Ok`; on write failure, the existing
+  `stateWriteFailed` error path runs and no `stateWritten` event fires.
+
+### State-write failure: orphan recovery contract
+
+Under continue-on-failure with parallel Phase 2, a `statePort.write` failure
+can occur after multiple resources have been created/updated remotely. The
+old first-fail model bounded this to at most one resource ahead of the
+failure; the new model can leave N. We accept this trade-off pre-1.0 with
+two explicit mitigations:
+
+1. **The `stateWriteFailed` error already carries `unsavedState`**
+   ([deploy.ts:77-81](../../packages/bedrock/src/shell/deploy.ts:77)). The
+   CLI renders the unsaved snapshot to stderr so an operator can manually
+   reconcile the state file. This is a documented manual-recovery path,
+   not an automatic one.
+2. **Drivers should be tolerant of replay where Open Cloud supports it.**
+   Most Open Cloud creates return a server-assigned identifier; the
+   replay risk is duplicate creation, not silent corruption. Drivers that
+   can detect existing resources (e.g. by name within universe) should
+   prefer adopt-over-create when state has been lost. Drivers that
+   cannot are limited by Open Cloud's API surface, not by bedrock.
+
+A transaction-log artefact written before remote mutation would give a
+stronger contract but adds significant complexity (a new port for the
+journal, replay logic in deploy). It is a candidate future enhancement,
+not part of this ADR.
 
 ### Wire / type changes
 
@@ -77,29 +134,36 @@ exist yet ([ADR-006](./006-adr-enforcement.md) rule 7).
 ```ts
 // core/operations.ts
 interface UpdateOperation extends BaseOperation {
-	readonly changedFields: ReadonlyArray<string>; // NEW: populated by diff()
-	readonly current: ResourceCurrentState;
-	readonly desired: ResourceDesiredState;
-	readonly type: "update";
+    readonly changedFields: ReadonlyArray<string>; // NEW: populated by diff()
+    readonly current: ResourceCurrentState;
+    readonly desired: ResourceDesiredState;
+    readonly type: "update";
 }
 
 // shell/apply-ops.ts
 type ApplyError =
-	| { cause: OpenCloudError; key: ResourceKey; kind: "driverFailure" }
-	| { key: ResourceKey; kind: "updateUnsupported" };
+    | { kind: "driverFailure"; key: ResourceKey; cause: OpenCloudError }
+    | { kind: "unexpectedThrow"; key: ResourceKey; cause: unknown } // NEW
+    | { kind: "updateUnsupported"; key: ResourceKey };
 //   appliedSoFar removed — moved up to AggregateApplyError.applied
+//   unexpectedThrow captures non-OpenCloudError rejections from drivers
+//   (e.g. fs errors from readFile, programming errors). cause is `unknown`
+//   because the surface area of possible throws is open.
 
 interface AggregateApplyError {
-	readonly applied: ReadonlyArray<ResourceCurrentState>; // in declaration order
-	readonly failures: ReadonlyArray<ApplyError>; // 1..N
+    readonly applied: ReadonlyArray<ResourceCurrentState>; // in declaration order
+    readonly failures: ReadonlyArray<ApplyError>;          // 1..N
 }
 
 // shell/deploy.ts
-interface DeployError {
-	cause: AggregateApplyError;
-	kind: "applyFailed";
-} // CHANGED: aggregate, not single
-/* other variants unchanged */
+interface DeployOptions {
+    /* existing fields unchanged */
+    readonly progress?: ProgressPort; // NEW: injected by callers (CLI plumbs through)
+}
+
+type DeployError =
+    | { kind: "applyFailed"; cause: AggregateApplyError } // CHANGED: aggregate, not single
+    /* other variants unchanged */;
 ```
 
 ### Progress events
@@ -110,54 +174,71 @@ adapter.
 
 ```ts
 type ProgressEvent =
-	// existing
-	| DeployFailureEvent
-	| DeploySuccessEvent
-	// new
-	| { backend: string; environment; identifier: string; kind: "stateWritten" }
-	| {
-			changedFields: ReadonlyArray<string>;
-			environment;
-			key;
-			kind: "resourceOpSucceeded";
-			opType: "update";
-			resourceKind;
-	  }
-	| {
-			created: number;
-			durationMs: number;
-			environment;
-			failed: number;
-			kind: "applySummary";
-			noop: number;
-			updated: number;
-	  }
-	| {
-			environment;
-			error: ApplyError;
-			key;
-			kind: "resourceOpFailed";
-			opType: "create" | "update";
-			resourceKind;
-	  }
-	| { environment; key; kind: "resourceOpNoop"; resourceKind }
-	| { environment; key; kind: "resourceOpStarted"; opType: "create" | "update"; resourceKind }
-	| {
-			environment;
-			key;
-			kind: "resourceOpSucceeded";
-			opType: "create";
-			outputs: ResourceOutputs;
-			resourceKind;
-	  };
-// stateWritten.identifier is the backend-scoped pointer to the persisted
-// snapshot. For the Gist backend it is the gist ID. Typed as `string`
-// because every current backend identifies its target with a single
-// opaque token; broaden if a future backend needs structured fields.
-// changedFields on resourceOpSucceeded (update) is a list of top-level
-// field names (e.g. ["price", "name"]) matching the granularity of
-// module.fieldsEqual in core/diff.ts. Dotted sub-paths
-// (e.g. "discordSocialLink.uri") are a separate decision if ever needed.
+    // existing
+    | DeployFailureEvent
+    | DeploySuccessEvent
+    // new
+    | {
+          environment: string;
+          key: ResourceKey;
+          kind: "resourceOpStarted";
+          opType: "create" | "update";
+          resourceKind: ResourceKind;
+      }
+    | {
+          environment: string;
+          key: ResourceKey;
+          kind: "resourceOpSucceeded";
+          opType: "create";
+          outputs: ResourceOutputs;
+          resourceKind: ResourceKind;
+      }
+    | {
+          changedFields: ReadonlyArray<string>;
+          environment: string;
+          key: ResourceKey;
+          kind: "resourceOpSucceeded";
+          opType: "update";
+          resourceKind: ResourceKind;
+      }
+    | {
+          environment: string;
+          key: ResourceKey;
+          kind: "resourceOpNoop";
+          resourceKind: ResourceKind;
+      }
+    | {
+          environment: string;
+          error: ApplyError;
+          key: ResourceKey;
+          kind: "resourceOpFailed";
+          opType: "create" | "update";
+          resourceKind: ResourceKind;
+      }
+    | {
+          created: number;
+          durationMs: number;
+          environment: string;
+          failed: number;
+          kind: "applySummary";
+          noop: number;
+          updated: number;
+      }
+    | { environment: string; kind: "stateWritten" };
+// `resourceOpSucceeded` is split into two arms by opType (`create` carries
+// `outputs`; `update` carries `changedFields`). Adapters that switch on
+// `kind` alone must further narrow on `opType` to access the
+// variant-specific payload.
+// `changedFields` is a list of top-level field names (e.g. ["price",
+// "name"]) matching the granularity of `module.fieldsEqual` in
+// core/diff.ts. Dotted sub-paths (e.g. "discordSocialLink.uri") are a
+// separate decision if ever needed.
+// `stateWritten` carries no backend identity. `StatePort` is opaque to
+// `runReconcile`; the CLI renders backend/identifier strings from the
+// project config it already loaded, not from the event payload.
+// `applySummary.durationMs` is measured inside `applyOps` from function
+// entry to the resolution of Phase 2's `Promise.allSettled`. State-write
+// time is excluded.
 ```
 
 ### Ordering contract revision
@@ -167,52 +248,63 @@ type ProgressEvent =
 callers can rely on declaration order when logging or applying ops."*
 
 Revised: the **operations array** and the **persisted `applied[]` result**
-remain in declaration order. The **execution order** and therefore the
-**event emission order** are not guaranteed; events arrive as ops complete.
+remain in declaration order, with `Universe` ops grouped first by virtue of
+the two-phase algorithm. The **execution order within Phase 2** and
+therefore the **event emission order** are not guaranteed; events arrive as
+ops complete.
 
 ### Plan command alignment
 
-`bedrock diff` (the plan command) is updated in the same PR to render the new
-`changedFields` from `UpdateOperation`, so plan and apply share the same
-source of truth for "what changed". This is a strict additive win — both
-surfaces previously had to recompute or omit the detail.
+Once `UpdateOperation` carries `changedFields`, `bedrock diff` (the plan
+command) will be updated in the implementation PR to render that field, so
+plan and apply share the same source of truth for "what changed". This is a
+strict additive win — both surfaces previously had to recompute or omit the
+detail.
 
 ### Out of scope
 
 - `Apply? [y/N]` interactive confirm flow shown in the mockup. Separate
   workstream (TTY detection, `--yes` flag).
 - Configurable parallelism cap. Defer until measurements justify the knob.
-- Mantle parity check. We are deciding on merits; Mantle's choice does not bind.
+- Transaction-log artefact for state-write recovery. Listed as a future
+  enhancement above; not part of this ADR.
+- Mantle parity check. We are deciding on merits; Mantle's choice does not
+  bind.
 
 ## Consequences
 
 ### Positive
 
-- A single deterministic failure (e.g. `updateUnsupported`) no longer blocks
-  every unrelated op in the same deploy. The next deploy has less to
-  reconcile.
-- Real-time per-resource feedback. Users see what is created, updated, noop'd,
-  and failed as it happens, not only an aggregate at the end.
-- Faster wall-clock apply on large projects. ocale rate-limiting absorbs the
-  concurrency safely; we are no longer artificially serialising independent
-  HTTP calls.
-- `bedrock diff` and `bedrock deploy` render `changedFields` from the same
-  source. No drift between plan and apply UX.
+- A single deterministic failure no longer blocks every unrelated op in the
+  same deploy. The next deploy has less to reconcile.
+- Real-time per-resource feedback. Users see what is created, updated,
+  noop'd, and failed as it happens, not only an aggregate at the end.
+- Faster wall-clock apply on large projects. Phase 2 parallelism is the
+  primary win; ocale rate-limiting absorbs concurrency safely.
+- `bedrock diff` and `bedrock deploy` will render `changedFields` from the
+  same source. No drift between plan and apply UX.
 - `ProgressPort` event surface grows along the additive seam its JSDoc
   already advertised. No port redesign.
 
 ### Negative
 
-- Event order is non-deterministic. Tests asserting specific event sequences
-  must relax to "set of events, any order". The clack output's clean
-  top-to-bottom layout shown in mockups becomes completion-order interleave
-  (matches `terraform apply -parallelism=N` UX).
-- `ApplyError` and `DeployError.applyFailed` shape changes are breaking for
-  any external consumer. Acceptable pre-1.0; would not be acceptable post-1.0
-  without a deprecation cycle.
-- Parallel apply makes the worst-case error volume larger. Where first-fail
-  surfaced one error, continue-on-failure can surface N. Renderers must
-  handle multi-error reporting cleanly.
+- Event order is non-deterministic within Phase 2. Tests asserting specific
+  event sequences must relax to "set of events, any order". The clack
+  output's clean top-to-bottom layout shown in mockups becomes
+  completion-order interleave (matches `terraform apply -parallelism=N`
+  UX).
+- `ApplyError`, `DeployError.applyFailed`, and `DeployOptions` shape
+  changes are breaking for any external consumer. Acceptable pre-1.0;
+  would not be acceptable post-1.0 without a deprecation cycle.
+- Parallel Phase 2 makes the worst-case error volume larger. Where
+  first-fail surfaced one error, continue-on-failure can surface N.
+  Renderers must handle multi-error reporting cleanly.
+- **State-write failure after parallel Phase 2 can leave up to N orphaned
+  remote resources whose IDs are absent from the state file.** Manual
+  reconciliation via the `unsavedState` field on `stateWriteFailed` is the
+  documented recovery path. This is materially worse than first-fail, which
+  bounded orphans to one. Accepted pre-1.0; a transaction-log adapter is
+  the natural escape hatch later.
 - Memory cost per apply scales with `ops.length`: all `Promise` objects exist
   concurrently. Not a practical concern at current project sizes; revisit if
   apply runs above the low thousands of resources.
@@ -221,7 +313,7 @@ surfaces previously had to recompute or omit the detail.
   changes meaning under parallel + `allSettled`. Today a thrown driver
   propagates the rejection and halts the batch; under the new design that
   throw is captured as a settled rejection scoped to the throwing op alone,
-  surfaced as a `driverFailure` `ApplyError` so the rest of the batch is
+  surfaced as an `unexpectedThrow` `ApplyError` so the rest of the batch is
   unaffected. The JSDoc must be updated accordingly: drivers no longer have
   a path to halt the batch via uncaught throws.
 
@@ -229,19 +321,28 @@ surfaces previously had to recompute or omit the detail.
 
 ### Keep first-fail, improve only the UX
 
-**Rejected because:** the user's concrete pain (`updateUnsupported` blocking
-49 unrelated ops) is not a UX problem. Better error rendering would not have
+**Rejected because:** the original pain (a deterministic failure blocking
+every queued op) is not a UX problem. Better error rendering would not have
 caused the other ops to run. The algorithm itself is the issue.
 
-### Continue-on-failure, sequential
+### Continue-on-failure, fully sequential
 
-**Rejected because:** ops are independent and ocale already manages rate
-limiting and retry ([ADR-010](./010-sdk-managed-rate-limiting-and-retry.md)).
-Sequential apply is leaving wall-clock time on the floor for no robustness
-benefit. The diff.ts ordering contract had to be revised either way once
-continue-on-failure landed (event interleave is a continue-on-failure
-property as much as a parallelism one, once ops can fail mid-batch and
-others keep running).
+**Rejected because:** for output-flow-independent ops there is no
+robustness reason to serialise. ocale already manages rate limiting and
+retry ([ADR-010](./010-sdk-managed-rate-limiting-and-retry.md)). Sequential
+apply leaves wall-clock time on the floor. The diff.ts ordering contract
+had to be revised either way once continue-on-failure landed (event
+interleave is a continue-on-failure property as much as a parallelism one,
+once ops can fail mid-batch and others keep running).
+
+### Fully parallel (no two-phase split)
+
+**Rejected because:** Universe.displayName routes through
+`PlacesClient.update`. If a configured `Place` is the root place of the
+same universe, two concurrent PATCHes can race the same upstream
+`displayName`. Two-phase apply (Universe first, then everything in
+parallel) removes the race while keeping nearly all of the parallelism
+benefit, since Universe is a singleton.
 
 ### Drop the `Result` wrapper on `applyOps`
 
@@ -266,6 +367,13 @@ create-vs-update-vs-noop; recomputing in apply is duplicated work and a
 second source of truth that can drift. Augmenting `UpdateOperation` keeps
 the diff function as the single source.
 
+### Add a transaction log before every remote mutation (for orphan recovery)
+
+**Rejected because:** doubles the I/O cost per op, requires a new port and
+adapter, and adds replay logic to `deploy`. The manual-recovery path via
+`unsavedState` is sufficient for pre-1.0. Revisit post-publish if state
+backend failures become observable in practice.
+
 ## Implementation Notes
 
 - `diff()` must populate `changedFields` for every `update` op; existing
@@ -275,24 +383,41 @@ the diff function as the single source.
   dotted sub-paths.
 - `applyOps` accepts `progress: ProgressPort` and `environment: string` so
   events can be scoped per environment without callers post-processing.
+  Callers thread the port through `DeployOptions.progress`.
+- `applyOps` partitions ops by `desired.kind === "universe"` and runs the
+  universe partition sequentially before dispatching the rest under
+  `Promise.allSettled`. Phase 2 runs even if Phase 1 fails (continue-on-
+  failure applies across phases).
 - `dispatchOp` becomes responsible for emitting `resourceOpStarted` and the
   terminal event around the driver call. Driver throws that escape the
   driver's `Result` contract are caught at the `dispatchOp` boundary and
-  translated to a `driverFailure` `ApplyError`, then emitted as
+  translated to an `unexpectedThrow` `ApplyError`, then emitted as
   `resourceOpFailed`.
 - `applied[]` ordering: `Promise.allSettled` resolves to an array in the same
-  order as its input promises, so the apply loop zips successful results
-  back into `applied[]` by index — not by settle order. Renamed
-  `appliedSoFar` should not return; the new field is unambiguously
-  `applied`.
+  order as its input promises. The apply loop zips successful results back
+  into `applied[]` by index, with Phase 1 entries first, then Phase 2
+  entries in their input order. Renamed `appliedSoFar` does not return;
+  the new field is unambiguously `applied`.
 - `deploy.runReconcile` emits `applySummary` from the aggregate counts
   regardless of failures, then emits `stateWritten` only when
-  `statePort.write` returns `Ok`.
+  `statePort.write` returns `Ok`. The summary's `durationMs` is sourced
+  from `applyOps` (entry → both phases settled), not from `runReconcile`,
+  so it reflects pure apply time.
+- Internal `deploy.ts` types ripple: `SnapshotInputs.applied` and
+  `FinalizeInputs.applied` change from `Result<…, ApplyError>` to
+  `Result<…, AggregateApplyError>`; `buildSnapshot`'s read of
+  `inputs.applied.err.appliedSoFar` becomes `inputs.applied.err.applied`.
+- `ApplyError`'s own `@example` JSDoc
+  ([apply-ops.ts:44-48](../../packages/bedrock/src/shell/apply-ops.ts:44))
+  references `appliedSoFar: []` and must be rewritten alongside the type
+  change. `pnpm gen:example-tests` will fail until it is.
 - Existing `apply-ops.spec.ts` first-fail assertions must be inverted; new
   tests cover (a) all ops attempted past a failure, (b) `applied[]` order
   preserved under parallel completion (assert on result-array order, not
   call order), (c) `failures[]` carries every failure, (d) a driver that
-  throws becomes a `driverFailure` without halting other ops.
+  throws becomes an `unexpectedThrow` without halting other ops, (e)
+  Phase 1 universe op completes before any Phase 2 op starts, (f) Phase 2
+  still runs when Phase 1 fails.
 
 ## Related Decisions
 
