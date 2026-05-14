@@ -4,7 +4,7 @@
 
 **File:** `roblox-openapi.json`
 **Upstream:** <https://github.com/Roblox/creator-docs/blob/main/content/en-us/reference/cloud/openapi.json>
-**Pinned commit:** `0cbea0571b465d97ce870109666d6435e1491449`
+**Pinned commit:** `3dedc83c559bc97392afc7d5add766e74994969f`
 **Format:** OpenAPI 3.0.4 (JSON)
 
 ### Refresh
@@ -30,15 +30,20 @@ fails loudly if any patch's pre-patch shape is absent. That signal
 catches the case where Roblox has fixed a drift upstream: the patch
 becomes obsolete and should be removed before the refresh succeeds.
 
-Active patches as of 2026-05-08:
+Active patches as of 2026-05-14:
 
 1. `components.schemas.MemoryStoreQueueItem.required` includes
    `"data"`. The server returns 400 `INVALID_ARGUMENT` when the
    field is absent or `null`; the schema marks it optional.
 2. `components.schemas.MemoryStoreQueueItem.properties.path.readOnly`
-   is `true`. The server generates the path on creation and
-   rejects client-supplied paths; the schema does not flag the
-   field as read-only.
+   is `true`. The server generates the path on creation and silently
+   ignores any client-supplied `path` in the request body (no
+   validation, no error — the response always carries the
+   server-generated value). The schema does not flag the field as
+   read-only, so without this patch a fixture or builder could ship
+   `path` in a request body and the test surface would not catch the
+   bug. Verified 2026-05-14 via
+   `scripts/probe-memory-store-queues.ts`.
 3. `components.schemas.ReadMemoryStoreQueueItemsResponse.properties`
    uses keys `queueItems` and `id`. The server emits the items
    array under `queueItems` (schema: `items`) and the read
@@ -55,6 +60,16 @@ Active patches as of 2026-05-08:
    `Cloud_ReadMemoryStoreQueueItems` drops `"format": "duration"` for
    the same reason as patch 4. The example is `"3s"` and the server
    rejects ISO 8601 form.
+6. `components.schemas.ListMemoryStoreSortedMapItemsResponse.properties`
+   renames `memoryStoreSortedMapItems` to `items`. Real-API probe
+   (2026-05) shows the list endpoint returns the items array under
+   `items`; without the rename the parser silently drops every real
+   item on a non-empty page.
+7. `components.schemas.MemoryStoreSortedMapItem.properties.ttl` drops
+   `"format": "duration"`. Same drift class as patch 4: the schema's
+   example is `"3s"` but the upstream `format: "duration"` annotation
+   makes Ajv-formats demand ISO 8601. Roblox added this annotation
+   upstream between the prior refresh and 2026-05-14.
 
 When a patched section is fixed upstream, the next `refresh-openapi`
 will fail with the obsolete patch's description. Remove the
@@ -130,3 +145,10 @@ Drift is caught in three places, each with a different failure mode:
    Cloud API with throwaway resources will catch runtime behavior that
    the schema cannot describe (e.g. silent field rename, changed error
    semantics). Not yet implemented.
+4. **Manual probes (on demand).** Per-resource scripts under
+   `scripts/probe-*.ts` hit the live API without going through the
+   SDK and print every request/response so the operator has direct
+   evidence of the wire shape. Use them to investigate a suspected
+   drift or to regenerate the fixtures under `tests/fixtures/`. The
+   scripts require an API key and a throwaway universe; see each
+   script's header comment for the env-var contract.

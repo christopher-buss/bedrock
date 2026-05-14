@@ -41,14 +41,22 @@ const PATCHES: ReadonlyArray<Patch> = [
 		replace: '$1\n$2"id":$3\n          "queueItems":$4',
 	},
 	{
-		// Anchored on the priority field that immediately precedes ttl so
-		// the marker is unique to MemoryStoreQueueItem (MemoryStoreSortedMapItem
-		// also ends with `"The TTL for the item."` followed by `expireTime`,
-		// but has no priority field).
+		// Anchored on `"The priority of the queue item."`, which is
+		// the description of the queue's `priority` field and is unique
+		// to `MemoryStoreQueueItem` (the sibling `MemoryStoreSortedMapItem`
+		// has no priority field). The `(?!"MemoryStoreSortedMapItem":)`
+		// lookahead in the non-greedy gap forbids the regex from
+		// backtracking past the queue schema's closing brace into the
+		// next sibling schema. Without it, a future upstream that fixes
+		// the queue's ttl but not the sorted-map's would let the gap
+		// stretch into `MemoryStoreSortedMapItem.ttl` (same description
+		// string, still has `format: "duration"`), masking the
+		// upstream fix and silently corrupting the sorted-map patch's
+		// post-patch shape.
 		appliedMarker:
 			'"description": "The priority of the queue item.",\n            "format": "double"\n          },\n          "ttl": {\n            "writeOnly": true,\n            "example": "3s",\n            "type": "string",\n            "description": "The TTL for the item."\n          },\n          "expireTime"',
 		description: "MemoryStoreQueueItem.ttl drops invalid format: duration",
-		find: /(\{memory_store_queue_item_id\}`",[\s\S]*?"description": "The TTL for the item\.")(,\n {12}"format": "duration")/,
+		find: /("description": "The priority of the queue item\."(?:(?!"MemoryStoreSortedMapItem":)[\s\S])*?"description": "The TTL for the item\.")(,\n {12}"format": "duration")/,
 		replace: "$1",
 	},
 	{
@@ -71,6 +79,20 @@ const PATCHES: ReadonlyArray<Patch> = [
 			"ListMemoryStoreSortedMapItemsResponse renames memoryStoreSortedMapItems→items",
 		find: /("ListMemoryStoreSortedMapItemsResponse": \{\n {8}"type": "object",\n {8}"properties": \{\n {10})"memoryStoreSortedMapItems":/,
 		replace: '$1"items":',
+	},
+	{
+		// Anchored on `"The server generated tag of an item."`, which
+		// is the description of `MemoryStoreSortedMapItem.etag` and is
+		// unique to that schema. Same drift class as the queue ttl
+		// patch above: the schema's example shows `"3s"` while the
+		// `format: "duration"` annotation makes Ajv-formats demand
+		// ISO 8601 (`PT3S`). The sorted-map item gained this
+		// annotation upstream after the queue patch above was added.
+		appliedMarker:
+			'"description": "The server generated tag of an item."\n          },\n          "ttl": {\n            "writeOnly": true,\n            "example": "3s",\n            "type": "string",\n            "description": "The TTL for the item."\n          },\n          "expireTime"',
+		description: "MemoryStoreSortedMapItem.ttl drops invalid format: duration",
+		find: /("description": "The server generated tag of an item\."[\s\S]*?"description": "The TTL for the item\.")(,\n {12}"format": "duration")/,
+		replace: "$1",
 	},
 ];
 
