@@ -9502,7 +9502,7 @@
           {
             "name": "repository",
             "in": "path",
-            "description": "\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig",
+            "description": "\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig\n\nExtendedServicesConfig",
             "required": true,
             "schema": {
               "allOf": [
@@ -9514,13 +9514,15 @@
               "x-enum-varnames": [
                 "InExperienceConfig",
                 "RecommendationServicesConfig",
-                "DataStoresConfig"
+                "DataStoresConfig",
+                "ExtendedServicesConfig"
               ]
             },
             "x-enum-varnames": [
               "InExperienceConfig",
               "RecommendationServicesConfig",
-              "DataStoresConfig"
+              "DataStoresConfig",
+              "ExtendedServicesConfig"
             ]
           }
         ],
@@ -9621,7 +9623,7 @@
           {
             "name": "repository",
             "in": "path",
-            "description": "\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig",
+            "description": "\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig\n\nExtendedServicesConfig",
             "required": true,
             "schema": {
               "allOf": [
@@ -9633,13 +9635,15 @@
               "x-enum-varnames": [
                 "InExperienceConfig",
                 "RecommendationServicesConfig",
-                "DataStoresConfig"
+                "DataStoresConfig",
+                "ExtendedServicesConfig"
               ]
             },
             "x-enum-varnames": [
               "InExperienceConfig",
               "RecommendationServicesConfig",
-              "DataStoresConfig"
+              "DataStoresConfig",
+              "ExtendedServicesConfig"
             ]
           }
         ],
@@ -9783,7 +9787,7 @@
           {
             "name": "repository",
             "in": "path",
-            "description": "\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig",
+            "description": "\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig\n\nExtendedServicesConfig",
             "required": true,
             "schema": {
               "allOf": [
@@ -9795,13 +9799,15 @@
               "x-enum-varnames": [
                 "InExperienceConfig",
                 "RecommendationServicesConfig",
-                "DataStoresConfig"
+                "DataStoresConfig",
+                "ExtendedServicesConfig"
               ]
             },
             "x-enum-varnames": [
               "InExperienceConfig",
               "RecommendationServicesConfig",
-              "DataStoresConfig"
+              "DataStoresConfig",
+              "ExtendedServicesConfig"
             ]
           }
         ],
@@ -9885,7 +9891,7 @@
       "patch": {
         "tags": ["Configs"],
         "summary": "Partially updates the draft.",
-        "description": "Updates the draft treating the payload as a partial changeset.\r\nIf draftHash is provided, this call will fail if the hash doesn't match.\r\nA key not included will not be changed. To indicate deletion, set key to null.\r\nTo discard a change, set key to its currently published value.",
+        "description": "Updates the draft treating the payload as a partial changeset.\r\nIf draftHash is provided, this call will fail if the hash doesn't match.\r\nA key not included will not be changed. To indicate deletion, set key to null.\r\nTo discard a change, set key to its currently published value.\r\nWhen `conditionalRules` is omitted or empty (`{}`), the CMS update omits the conditional-rules field so existing published rules remain at publish time;\r\nsend a non-empty `conditionalRules` object to merge rule changes.\r\nEntry count and per-value size limits are enforced here via CreatorConfigsPublicApi.Utils.DraftValidationHelper; further schema validation is performed by Config Management.",
         "operationId": "CreatorConfigsPublicApi_UpdateDraft",
         "parameters": [
           {
@@ -9900,7 +9906,7 @@
           {
             "name": "repository",
             "in": "path",
-            "description": "\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig",
+            "description": "\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig\n\nExtendedServicesConfig",
             "required": true,
             "schema": {
               "allOf": [
@@ -9912,13 +9918,15 @@
               "x-enum-varnames": [
                 "InExperienceConfig",
                 "RecommendationServicesConfig",
-                "DataStoresConfig"
+                "DataStoresConfig",
+                "ExtendedServicesConfig"
               ]
             },
             "x-enum-varnames": [
               "InExperienceConfig",
               "RecommendationServicesConfig",
-              "DataStoresConfig"
+              "DataStoresConfig",
+              "ExtendedServicesConfig"
             ]
           }
         ],
@@ -9932,7 +9940,7 @@
                     "$ref": "#/components/schemas/UpdateDraftRequest"
                   }
                 ],
-                "description": "Request model for updating a draft (partial update)."
+                "description": "Request model for draft updates: PATCH uses a partial merge; PUT `draft:overwrite` treats the body as the full intended configuration after publish."
               }
             },
             "application/json": {
@@ -9942,7 +9950,7 @@
                     "$ref": "#/components/schemas/UpdateDraftRequest"
                   }
                 ],
-                "description": "Request model for updating a draft (partial update)."
+                "description": "Request model for draft updates: PATCH uses a partial merge; PUT `draft:overwrite` treats the body as the full intended configuration after publish."
               }
             },
             "text/json": {
@@ -9952,7 +9960,7 @@
                     "$ref": "#/components/schemas/UpdateDraftRequest"
                   }
                 ],
-                "description": "Request model for updating a draft (partial update)."
+                "description": "Request model for draft updates: PATCH uses a partial merge; PUT `draft:overwrite` treats the body as the full intended configuration after publish."
               }
             },
             "application/*+json": {
@@ -9962,7 +9970,7 @@
                     "$ref": "#/components/schemas/UpdateDraftRequest"
                   }
                 ],
-                "description": "Request model for updating a draft (partial update)."
+                "description": "Request model for draft updates: PATCH uses a partial merge; PUT `draft:overwrite` treats the body as the full intended configuration after publish."
               }
             }
           }
@@ -10049,7 +10057,7 @@
       "put": {
         "tags": ["Configs"],
         "summary": "Overwrites the entire draft with the request payload.",
-        "description": "Full overwrite of current draft. The payload is the expected final state after publish.\r\nIf a key is not included, it is interpreted as removed.\r\nIf draftHash is provided, this call will fail if the hash doesn't match.",
+        "description": "Full overwrite of current draft. The payload is the expected final state after publish (not a merge with the draft or published config from the client’s perspective).\r\nThe service aligns that intent with CMS validation by emitting explicit deletions for published keys and conditional branches omitted from the body.\r\nIf a key is not included, it is interpreted as removed.\r\nWhen `conditionalRules` is included, `conditionalRules.rules` is authoritative for rule definitions:\r\nany conditional rule that exists on the latest published configuration but is omitted from `rules` is removed (same as sending an empty RPN rule).\r\nWhen `conditionalRules` is omitted, all published conditional rules are removed; entries must not use conditional branches or `.RBX.conditional.*` keys unless you send `conditionalRules`.\r\nIf draftHash is provided, this call will fail if the hash doesn't match.\r\nEntry count and per-value size limits are enforced here via CreatorConfigsPublicApi.Utils.DraftValidationHelper; further schema validation is performed by Config Management.",
         "operationId": "CreatorConfigsPublicApi_OverwriteDraft",
         "parameters": [
           {
@@ -10064,7 +10072,7 @@
           {
             "name": "repository",
             "in": "path",
-            "description": "\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig",
+            "description": "\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig\n\nExtendedServicesConfig",
             "required": true,
             "schema": {
               "allOf": [
@@ -10076,13 +10084,15 @@
               "x-enum-varnames": [
                 "InExperienceConfig",
                 "RecommendationServicesConfig",
-                "DataStoresConfig"
+                "DataStoresConfig",
+                "ExtendedServicesConfig"
               ]
             },
             "x-enum-varnames": [
               "InExperienceConfig",
               "RecommendationServicesConfig",
-              "DataStoresConfig"
+              "DataStoresConfig",
+              "ExtendedServicesConfig"
             ]
           }
         ],
@@ -10096,7 +10106,7 @@
                     "$ref": "#/components/schemas/UpdateDraftRequest"
                   }
                 ],
-                "description": "Request model for updating a draft (partial update)."
+                "description": "Request model for draft updates: PATCH uses a partial merge; PUT `draft:overwrite` treats the body as the full intended configuration after publish."
               }
             },
             "application/json": {
@@ -10106,7 +10116,7 @@
                     "$ref": "#/components/schemas/UpdateDraftRequest"
                   }
                 ],
-                "description": "Request model for updating a draft (partial update)."
+                "description": "Request model for draft updates: PATCH uses a partial merge; PUT `draft:overwrite` treats the body as the full intended configuration after publish."
               }
             },
             "text/json": {
@@ -10116,7 +10126,7 @@
                     "$ref": "#/components/schemas/UpdateDraftRequest"
                   }
                 ],
-                "description": "Request model for updating a draft (partial update)."
+                "description": "Request model for draft updates: PATCH uses a partial merge; PUT `draft:overwrite` treats the body as the full intended configuration after publish."
               }
             },
             "application/*+json": {
@@ -10126,7 +10136,7 @@
                     "$ref": "#/components/schemas/UpdateDraftRequest"
                   }
                 ],
-                "description": "Request model for updating a draft (partial update)."
+                "description": "Request model for draft updates: PATCH uses a partial merge; PUT `draft:overwrite` treats the body as the full intended configuration after publish."
               }
             }
           }
@@ -10228,7 +10238,7 @@
           {
             "name": "repository",
             "in": "path",
-            "description": "\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig",
+            "description": "\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig\n\nExtendedServicesConfig",
             "required": true,
             "schema": {
               "allOf": [
@@ -10240,13 +10250,15 @@
               "x-enum-varnames": [
                 "InExperienceConfig",
                 "RecommendationServicesConfig",
-                "DataStoresConfig"
+                "DataStoresConfig",
+                "ExtendedServicesConfig"
               ]
             },
             "x-enum-varnames": [
               "InExperienceConfig",
               "RecommendationServicesConfig",
-              "DataStoresConfig"
+              "DataStoresConfig",
+              "ExtendedServicesConfig"
             ]
           }
         ],
@@ -10347,7 +10359,7 @@
           {
             "name": "repository",
             "in": "path",
-            "description": "\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig",
+            "description": "\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig\n\nExtendedServicesConfig",
             "required": true,
             "schema": {
               "allOf": [
@@ -10359,13 +10371,15 @@
               "x-enum-varnames": [
                 "InExperienceConfig",
                 "RecommendationServicesConfig",
-                "DataStoresConfig"
+                "DataStoresConfig",
+                "ExtendedServicesConfig"
               ]
             },
             "x-enum-varnames": [
               "InExperienceConfig",
               "RecommendationServicesConfig",
-              "DataStoresConfig"
+              "DataStoresConfig",
+              "ExtendedServicesConfig"
             ]
           }
         ],
@@ -10511,7 +10525,7 @@
           {
             "name": "repository",
             "in": "path",
-            "description": "\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig",
+            "description": "\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig\n\nExtendedServicesConfig",
             "required": true,
             "schema": {
               "allOf": [
@@ -10523,13 +10537,15 @@
               "x-enum-varnames": [
                 "InExperienceConfig",
                 "RecommendationServicesConfig",
-                "DataStoresConfig"
+                "DataStoresConfig",
+                "ExtendedServicesConfig"
               ]
             },
             "x-enum-varnames": [
               "InExperienceConfig",
               "RecommendationServicesConfig",
-              "DataStoresConfig"
+              "DataStoresConfig",
+              "ExtendedServicesConfig"
             ]
           },
           {
@@ -10686,7 +10702,7 @@
           {
             "name": "repository",
             "in": "path",
-            "description": "\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig",
+            "description": "\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig\n\nExtendedServicesConfig",
             "required": true,
             "schema": {
               "allOf": [
@@ -10698,13 +10714,15 @@
               "x-enum-varnames": [
                 "InExperienceConfig",
                 "RecommendationServicesConfig",
-                "DataStoresConfig"
+                "DataStoresConfig",
+                "ExtendedServicesConfig"
               ]
             },
             "x-enum-varnames": [
               "InExperienceConfig",
               "RecommendationServicesConfig",
-              "DataStoresConfig"
+              "DataStoresConfig",
+              "ExtendedServicesConfig"
             ]
           },
           {
@@ -18031,6 +18049,7 @@
     },
     "/legacy-game-internationalization/v1/supported-languages/games/{gameId}/languages/{languageCode}/image-translation-status": {
       "patch": {
+        "tags": ["Localization"],
         "summary": "Enable or disable image translation for a game and language.",
         "parameters": [
           {
@@ -18118,7 +18137,10 @@
           {
             "roblox-oauth2": []
           }
-        ]
+        ],
+        "externalDocs": {
+          "url": "https://create.roblox.com/docs/cloud/reference/features/localization#patch_legacy_game_internationalization_v1_supported_languages_games__gameId__languages__languageCode__image_translation_status"
+        }
       }
     },
     "/legacy-game-internationalization/v1/supported-languages/games/{gameId}/languages/{languageCode}/universe-display-info-automatic-translation-settings": {
@@ -23147,6 +23169,7 @@
     },
     "/thumbnail-personalization-api/v1/universe/{universeId}/personalization": {
       "get": {
+        "tags": ["Thumbnails"],
         "operationId": "HomepageThumbnail_FindThumbnailPersonalizations",
         "parameters": [
           {
@@ -23245,11 +23268,15 @@
           {
             "roblox-legacy-cookie": []
           }
-        ]
+        ],
+        "externalDocs": {
+          "url": "https://create.roblox.com/docs/cloud/reference/features/thumbnails#HomepageThumbnail_FindThumbnailPersonalizations"
+        }
       }
     },
     "/thumbnail-personalization-api/v1/universe/{universeId}/personalization/create": {
       "post": {
+        "tags": ["Thumbnails"],
         "operationId": "HomepageThumbnail_CreateThumbnailPersonalization",
         "parameters": [
           {
@@ -23362,11 +23389,15 @@
           {
             "roblox-legacy-cookie": []
           }
-        ]
+        ],
+        "externalDocs": {
+          "url": "https://create.roblox.com/docs/cloud/reference/features/thumbnails#HomepageThumbnail_CreateThumbnailPersonalization"
+        }
       }
     },
     "/thumbnail-personalization-api/v1/universe/{universeId}/personalization/update": {
       "post": {
+        "tags": ["Thumbnails"],
         "operationId": "HomepageThumbnail_UpdateThumbnailPersonalization",
         "parameters": [
           {
@@ -23479,11 +23510,15 @@
           {
             "roblox-legacy-cookie": []
           }
-        ]
+        ],
+        "externalDocs": {
+          "url": "https://create.roblox.com/docs/cloud/reference/features/thumbnails#HomepageThumbnail_UpdateThumbnailPersonalization"
+        }
       }
     },
     "/thumbnail-personalization-api/v1/universe/{universeId}/thumbnails": {
       "delete": {
+        "tags": ["Thumbnails"],
         "operationId": "HomepageThumbnail_DeleteHomepageThumbnails",
         "parameters": [
           {
@@ -23566,9 +23601,13 @@
           {
             "roblox-legacy-cookie": []
           }
-        ]
+        ],
+        "externalDocs": {
+          "url": "https://create.roblox.com/docs/cloud/reference/features/thumbnails#HomepageThumbnail_DeleteHomepageThumbnails"
+        }
       },
       "get": {
+        "tags": ["Thumbnails"],
         "operationId": "HomepageThumbnail_GetHomepageThumbnails",
         "parameters": [
           {
@@ -23656,11 +23695,15 @@
           {
             "roblox-legacy-cookie": []
           }
-        ]
+        ],
+        "externalDocs": {
+          "url": "https://create.roblox.com/docs/cloud/reference/features/thumbnails#HomepageThumbnail_GetHomepageThumbnails"
+        }
       }
     },
     "/thumbnail-personalization-api/v1/universe/{universeId}/thumbnails/uploads": {
       "post": {
+        "tags": ["Thumbnails"],
         "operationId": "HomepageThumbnail_UploadHomepageThumbnails",
         "parameters": [
           {
@@ -23756,11 +23799,15 @@
           {
             "roblox-legacy-cookie": []
           }
-        ]
+        ],
+        "externalDocs": {
+          "url": "https://create.roblox.com/docs/cloud/reference/features/thumbnails#HomepageThumbnail_UploadHomepageThumbnails"
+        }
       }
     },
     "/thumbnail-personalization-api/v1/universe/{universeId}/thumbnails/uploads/status": {
       "get": {
+        "tags": ["Thumbnails"],
         "operationId": "HomepageThumbnail_GetHomepageThumbnailsStatus",
         "parameters": [
           {
@@ -23843,862 +23890,10 @@
           {
             "roblox-legacy-cookie": []
           }
-        ]
-      }
-    },
-    "/thumbnail-personalization-api/v1/universes/{universeId}/personalization": {
-      "get": {
-        "operationId": "ThumbnailPersonalizationApi.HomepageThumbnail_FindThumbnailPersonalizations",
-        "parameters": [
-          {
-            "name": "universeId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          },
-          {
-            "name": "status",
-            "in": "query",
-            "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/PersonalizedConfigStatus"
-                }
-              ]
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
         ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          }
-        },
-        "x-roblox-stability": "EXPERIMENTAL",
-        "x-roblox-rate-limits": {
-          "perApiKeyOwner": {
-            "period": "MINUTE",
-            "maxInPeriod": 100
-          },
-          "perOauth2Authorization": {
-            "period": "MINUTE",
-            "maxInPeriod": 100
-          }
-        },
-        "x-roblox-scopes": [
-          {
-            "name": "universe:read",
-            "targetResourceSpecifier": "universes"
-          }
-        ],
-        "x-roblox-engine-usability": {
-          "apiKeyWithHttpService": false
-        },
-        "security": [
-          {
-            "roblox-legacy-cookie": []
-          },
-          {
-            "roblox-api-key": []
-          },
-          {
-            "roblox-oauth2": ["universe:read"]
-          }
-        ]
-      }
-    },
-    "/thumbnail-personalization-api/v1/universes/{universeId}/personalization/create": {
-      "post": {
-        "operationId": "ThumbnailPersonalizationApi.HomepageThumbnail_CreateThumbnailPersonalization",
-        "parameters": [
-          {
-            "name": "universeId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json-patch+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateThumbnailPersonalizationRequest"
-                  }
-                ]
-              }
-            },
-            "application/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateThumbnailPersonalizationRequest"
-                  }
-                ]
-              }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateThumbnailPersonalizationRequest"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CreateThumbnailPersonalizationRequest"
-                  }
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          }
-        },
-        "x-roblox-stability": "EXPERIMENTAL",
-        "x-roblox-rate-limits": {
-          "perApiKeyOwner": {
-            "period": "MINUTE",
-            "maxInPeriod": 50
-          },
-          "perOauth2Authorization": {
-            "period": "MINUTE",
-            "maxInPeriod": 50
-          }
-        },
-        "x-roblox-scopes": [
-          {
-            "name": "universe:write",
-            "targetResourceSpecifier": "universes"
-          }
-        ],
-        "x-roblox-engine-usability": {
-          "apiKeyWithHttpService": false
-        },
-        "security": [
-          {
-            "roblox-legacy-cookie": []
-          },
-          {
-            "roblox-api-key": []
-          },
-          {
-            "roblox-oauth2": ["universe:write"]
-          }
-        ]
-      }
-    },
-    "/thumbnail-personalization-api/v1/universes/{universeId}/personalization/update": {
-      "post": {
-        "operationId": "ThumbnailPersonalizationApi.HomepageThumbnail_UpdateThumbnailPersonalization",
-        "parameters": [
-          {
-            "name": "universeId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json-patch+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateThumbnailPersonalizationRequest"
-                  }
-                ]
-              }
-            },
-            "application/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateThumbnailPersonalizationRequest"
-                  }
-                ]
-              }
-            },
-            "text/json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateThumbnailPersonalizationRequest"
-                  }
-                ]
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/UpdateThumbnailPersonalizationRequest"
-                  }
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          }
-        },
-        "x-roblox-stability": "EXPERIMENTAL",
-        "x-roblox-rate-limits": {
-          "perApiKeyOwner": {
-            "period": "MINUTE",
-            "maxInPeriod": 50
-          },
-          "perOauth2Authorization": {
-            "period": "MINUTE",
-            "maxInPeriod": 50
-          }
-        },
-        "x-roblox-scopes": [
-          {
-            "name": "universe:write",
-            "targetResourceSpecifier": "universes"
-          }
-        ],
-        "x-roblox-engine-usability": {
-          "apiKeyWithHttpService": false
-        },
-        "security": [
-          {
-            "roblox-legacy-cookie": []
-          },
-          {
-            "roblox-api-key": []
-          },
-          {
-            "roblox-oauth2": ["universe:write"]
-          }
-        ]
-      }
-    },
-    "/thumbnail-personalization-api/v1/universes/{universeId}/thumbnails": {
-      "delete": {
-        "operationId": "ThumbnailPersonalizationApi.HomepageThumbnail_DeleteHomepageThumbnails",
-        "parameters": [
-          {
-            "name": "universeId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          },
-          {
-            "name": "homepageThumbnailIds",
-            "in": "query",
-            "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          }
-        },
-        "x-roblox-stability": "EXPERIMENTAL",
-        "x-roblox-rate-limits": {
-          "perApiKeyOwner": {
-            "period": "MINUTE",
-            "maxInPeriod": 50
-          },
-          "perOauth2Authorization": {
-            "period": "MINUTE",
-            "maxInPeriod": 50
-          }
-        },
-        "x-roblox-scopes": [
-          {
-            "name": "universe:write",
-            "targetResourceSpecifier": "universes"
-          }
-        ],
-        "x-roblox-engine-usability": {
-          "apiKeyWithHttpService": false
-        },
-        "security": [
-          {
-            "roblox-legacy-cookie": []
-          },
-          {
-            "roblox-api-key": []
-          },
-          {
-            "roblox-oauth2": ["universe:write"]
-          }
-        ]
-      },
-      "get": {
-        "operationId": "ThumbnailPersonalizationApi.HomepageThumbnail_GetHomepageThumbnails",
-        "parameters": [
-          {
-            "name": "universeId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
-          },
-          {
-            "name": "nextCursor",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FindThumbnailsResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          }
-        },
-        "x-roblox-stability": "EXPERIMENTAL",
-        "x-roblox-rate-limits": {
-          "perApiKeyOwner": {
-            "period": "MINUTE",
-            "maxInPeriod": 100
-          },
-          "perOauth2Authorization": {
-            "period": "MINUTE",
-            "maxInPeriod": 100
-          }
-        },
-        "x-roblox-scopes": [
-          {
-            "name": "universe:read",
-            "targetResourceSpecifier": "universes"
-          }
-        ],
-        "x-roblox-engine-usability": {
-          "apiKeyWithHttpService": false
-        },
-        "security": [
-          {
-            "roblox-legacy-cookie": []
-          },
-          {
-            "roblox-api-key": []
-          },
-          {
-            "roblox-oauth2": ["universe:read"]
-          }
-        ]
-      }
-    },
-    "/thumbnail-personalization-api/v1/universes/{universeId}/thumbnails/uploads": {
-      "post": {
-        "operationId": "ThumbnailPersonalizationApi.HomepageThumbnail_UploadHomepageThumbnails",
-        "parameters": [
-          {
-            "name": "universeId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "files": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "format": "binary"
-                    }
-                  }
-                }
-              },
-              "encoding": {
-                "files": {
-                  "style": "form"
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UploadThumbnailsResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          }
-        },
-        "x-roblox-stability": "EXPERIMENTAL",
-        "x-roblox-rate-limits": {
-          "perApiKeyOwner": {
-            "period": "MINUTE",
-            "maxInPeriod": 50
-          },
-          "perOauth2Authorization": {
-            "period": "MINUTE",
-            "maxInPeriod": 50
-          }
-        },
-        "x-roblox-scopes": [
-          {
-            "name": "universe:write",
-            "targetResourceSpecifier": "universes"
-          }
-        ],
-        "x-roblox-engine-usability": {
-          "apiKeyWithHttpService": false
-        },
-        "security": [
-          {
-            "roblox-legacy-cookie": []
-          },
-          {
-            "roblox-api-key": []
-          },
-          {
-            "roblox-oauth2": ["universe:write"]
-          }
-        ]
-      }
-    },
-    "/thumbnail-personalization-api/v1/universes/{universeId}/thumbnails/uploads/status": {
-      "get": {
-        "operationId": "ThumbnailPersonalizationApi.HomepageThumbnail_GetHomepageThumbnailsStatus",
-        "parameters": [
-          {
-            "name": "universeId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          },
-          {
-            "name": "operationIds",
-            "in": "query",
-            "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UploadThumbnailsStatusResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionResult"
-                }
-              }
-            }
-          }
-        },
-        "x-roblox-stability": "EXPERIMENTAL",
-        "x-roblox-rate-limits": {
-          "perApiKeyOwner": {
-            "period": "MINUTE",
-            "maxInPeriod": 100
-          },
-          "perOauth2Authorization": {
-            "period": "MINUTE",
-            "maxInPeriod": 100
-          }
-        },
-        "x-roblox-scopes": [
-          {
-            "name": "universe:read",
-            "targetResourceSpecifier": "universes"
-          }
-        ],
-        "x-roblox-engine-usability": {
-          "apiKeyWithHttpService": false
-        },
-        "security": [
-          {
-            "roblox-legacy-cookie": []
-          },
-          {
-            "roblox-api-key": []
-          },
-          {
-            "roblox-oauth2": ["universe:read"]
-          }
-        ]
+        "externalDocs": {
+          "url": "https://create.roblox.com/docs/cloud/reference/features/thumbnails#HomepageThumbnail_GetHomepageThumbnailsStatus"
+        }
       }
     },
     "/toolbox-service/v1/saves": {
@@ -25700,7 +24895,7 @@
               "minimum": 0,
               "type": "integer",
               "format": "int64",
-              "default": 0
+              "nullable": true
             }
           },
           {
@@ -26109,6 +25304,7 @@
     },
     "/v1/account-creation/metadata": {
       "get": {
+        "tags": ["Accounts"],
         "summary": "Get metadata for adding auth methods.",
         "responses": {
           "200": {
@@ -26131,7 +25327,10 @@
           {
             "url": "https://auth.roblox.com"
           }
-        ]
+        ],
+        "externalDocs": {
+          "url": "https://create.roblox.com/docs/cloud/reference/features/accounts#auth_get_v1_account_creation_metadata"
+        }
       }
     },
     "/v1/account/pin": {
@@ -40349,7 +39548,7 @@
             }
           },
           "400": {
-            "description": "1: The group is invalid or does not exist."
+            "description": "1: The group is invalid or does not exist.\r\n36: The pagination cursor is invalid."
           },
           "401": {
             "description": "0: Authorization has been denied for this request."
@@ -42376,7 +41575,7 @@
             }
           },
           "400": {
-            "description": "1: The group is invalid or does not exist."
+            "description": "1: The group is invalid or does not exist.\r\n36: The pagination cursor is invalid."
           },
           "403": {
             "description": "2: The roleset is invalid or does not exist.\r\n35: You do not have permission to view this group's member list."
@@ -43341,7 +42540,7 @@
             }
           },
           "400": {
-            "description": "1: The group is invalid or does not exist."
+            "description": "1: The group is invalid or does not exist.\r\n36: The pagination cursor is invalid."
           },
           "403": {
             "description": "35: You do not have permission to view this group's member list."
@@ -47755,6 +46954,7 @@
     },
     "/v1/passkey/su-eligibility": {
       "get": {
+        "tags": ["Accounts"],
         "summary": "Checks whether the authenticated user is eligible for silent passkey upgrade.\r\nRoute and response are intentionally obfuscated (\"su-eligibility\" = \"silent-upgrade-eligibility\").",
         "responses": {
           "200": {
@@ -47783,7 +46983,10 @@
           {
             "url": "https://auth.roblox.com"
           }
-        ]
+        ],
+        "externalDocs": {
+          "url": "https://create.roblox.com/docs/cloud/reference/features/accounts#auth_get_v1_passkey_su_eligibility"
+        }
       }
     },
     "/v1/passwords/validate": {
@@ -47997,7 +47200,6 @@
           "apiKeyWithHttpService": false
         },
         "security": [
-          {},
           {
             "roblox-legacy-cookie": []
           }
@@ -48055,7 +47257,6 @@
           "apiKeyWithHttpService": false
         },
         "security": [
-          {},
           {
             "roblox-legacy-cookie": []
           }
@@ -48125,7 +47326,6 @@
           "apiKeyWithHttpService": false
         },
         "security": [
-          {},
           {
             "roblox-legacy-cookie": []
           }
@@ -50389,6 +49589,7 @@
     },
     "/v1/supported-languages/games/{gameId}/languages/{languageCode}/image-translation-status": {
       "patch": {
+        "tags": ["Localization"],
         "summary": "Enable or disable image translation for a game and language.",
         "parameters": [
           {
@@ -50468,7 +49669,10 @@
           {
             "roblox-legacy-cookie": []
           }
-        ]
+        ],
+        "externalDocs": {
+          "url": "https://create.roblox.com/docs/cloud/reference/features/localization#gameinternationalization_patch_v1_supported_languages_games__gameId__languages__languageCode__image_translation_status"
+        }
       }
     },
     "/v1/supported-languages/games/{gameId}/languages/{languageCode}/universe-display-info-automatic-translation-settings": {
@@ -54590,6 +53794,7 @@
     },
     "/v1/username/change/price": {
       "get": {
+        "tags": ["Accounts"],
         "summary": "Get the current price for a username change",
         "responses": {
           "200": {
@@ -54615,7 +53820,10 @@
           {
             "url": "https://auth.roblox.com"
           }
-        ]
+        ],
+        "externalDocs": {
+          "url": "https://create.roblox.com/docs/cloud/reference/features/accounts#auth_get_v1_username_change_price"
+        }
       }
     },
     "/v1/usernames": {
@@ -56104,7 +55312,6 @@
           "apiKeyWithHttpService": false
         },
         "security": [
-          {},
           {
             "roblox-legacy-cookie": []
           }
@@ -56249,7 +55456,6 @@
           "apiKeyWithHttpService": false
         },
         "security": [
-          {},
           {
             "roblox-legacy-cookie": []
           }
@@ -56814,7 +56020,6 @@
           "apiKeyWithHttpService": false
         },
         "security": [
-          {},
           {
             "roblox-legacy-cookie": []
           }
@@ -62813,6 +62018,7 @@
     },
     "/v2/assets/{assetId}/bundles": {
       "get": {
+        "tags": ["Assets"],
         "summary": "Lists bundles that contain the given asset (hydrated search-detail shape for marketplace).",
         "parameters": [
           {
@@ -62910,7 +62116,10 @@
           {
             "roblox-legacy-cookie": []
           }
-        ]
+        ],
+        "externalDocs": {
+          "url": "https://create.roblox.com/docs/cloud/reference/features/assets#catalog_get_v2_assets__assetId__bundles"
+        }
       }
     },
     "/v2/assets/{assetId}/owners": {
@@ -63624,7 +62833,12 @@
         "x-roblox-engine-usability": {
           "apiKeyWithHttpService": false
         },
-        "security": [{}],
+        "security": [
+          {},
+          {
+            "roblox-legacy-cookie": []
+          }
+        ],
         "externalDocs": {
           "url": "https://create.roblox.com/docs/cloud/reference/features/metadata#clientsettings_get_v2_client_version__binaryType__channel__channelName_"
         }
@@ -64838,7 +64052,12 @@
         "x-roblox-engine-usability": {
           "apiKeyWithHttpService": false
         },
-        "security": [{}],
+        "security": [
+          {},
+          {
+            "roblox-legacy-cookie": []
+          }
+        ],
         "externalDocs": {
           "url": "https://create.roblox.com/docs/cloud/reference/features/metadata#clientsettings_get_v2_ota_version__binaryType_"
         }
@@ -68223,6 +67442,7 @@
     },
     "/v2/username/change/price": {
       "get": {
+        "tags": ["Accounts"],
         "summary": "Get the current price for a username change",
         "responses": {
           "200": {
@@ -68248,7 +67468,10 @@
           {
             "url": "https://auth.roblox.com"
           }
-        ]
+        ],
+        "externalDocs": {
+          "url": "https://create.roblox.com/docs/cloud/reference/features/accounts#auth_get_v2_username_change_price"
+        }
       }
     },
     "/v2/usernames": {
@@ -70790,6 +70013,66 @@
         "additionalProperties": false,
         "description": "Set Client Status request."
       },
+      "ConditionalRuleDefinition": {
+        "type": "object",
+        "properties": {
+          "tokens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RpnTokenDto"
+            },
+            "description": "Postfix RPN token sequence.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "JSON shape of an RPN conditional rule in public API requests, aligned with `roblox.creatorexperienceconfig.conditionrules.v1.RpnRule`."
+      },
+      "ConditionalRulesChangesPayload": {
+        "type": "object",
+        "properties": {
+          "rulesOrder": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RulesOrderDeltaPayload"
+              }
+            ],
+            "nullable": true
+          },
+          "rules": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RuleDeltaPayload"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Minimal delta for conditional rules on a revision (optional extension on list revisions)."
+      },
+      "ConditionalRulesPayload": {
+        "type": "object",
+        "properties": {
+          "rules": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ConditionalRuleDefinition"
+            },
+            "description": "RPN rules keyed by condition id. On `draft:overwrite`, omitting a rule id that exists on published removes that rule; JSON `null` tombstones;\r\n`{ \"tokens\": [] }` is an explicit empty rule.",
+            "nullable": true
+          },
+          "rulesOrder": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Evaluation order (condition ids).",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Public JSON shape for conditional rules (`rules` + `rulesOrder`), aligned with CMS `ConditionalRules`."
+      },
       "ConfigDraftEntry": {
         "type": "object",
         "properties": {
@@ -70821,6 +70104,15 @@
             },
             "description": "The configuration entries in the draft (key to value and optional description).",
             "nullable": true
+          },
+          "conditionalRules": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConditionalRulesPayload"
+              }
+            ],
+            "description": "Conditional rules staged on the draft, when any exist.",
+            "nullable": true
           }
         },
         "additionalProperties": false,
@@ -70844,6 +70136,15 @@
               }
             ],
             "description": "Metadata about the configuration repository.",
+            "nullable": true
+          },
+          "conditionalRules": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConditionalRulesPayload"
+              }
+            ],
+            "description": "Conditional RPN rules and evaluation order, when any exist.",
             "nullable": true
           }
         },
@@ -70881,6 +70182,15 @@
             },
             "description": "The configuration entries (key-value pairs) in the repository.",
             "nullable": true
+          },
+          "conditionalRules": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConditionalRulesPayload"
+              }
+            ],
+            "description": "Conditional RPN rules and evaluation order, when any exist.",
+            "nullable": true
           }
         },
         "additionalProperties": false,
@@ -70889,6 +70199,14 @@
       "ConfigValueFull": {
         "type": "object",
         "properties": {
+          "variants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConfigVariantDto"
+            },
+            "description": "Non-default branches (e.g. conditional), when present.",
+            "nullable": true
+          },
           "value": {
             "description": "The value of the configuration entry.",
             "nullable": true
@@ -70911,6 +70229,36 @@
         },
         "additionalProperties": false,
         "description": "A full representation of a configuration value, including its metadata."
+      },
+      "ConfigVariantDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConfigVariantType"
+              }
+            ],
+            "description": "Variant discriminator (e.g. conditional branch).\n\nconditional",
+            "x-enum-varnames": ["Conditional"]
+          },
+          "variantTypeId": {
+            "type": "string",
+            "description": "Identifier for this variant within CreatorConfigsPublicApi.Models.ConfigVariantDto.Type (e.g. conditional rule id for CreatorConfigsPublicApi.Models.ConfigVariantType.Conditional).",
+            "nullable": true
+          },
+          "value": {
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "A non-default branch on a config entry (public API discriminated variant)."
+      },
+      "ConfigVariantType": {
+        "enum": ["conditional"],
+        "type": "string",
+        "description": "Discriminator for entries in CreatorConfigsPublicApi.Models.ConfigVariantDto variant lists (full config and revision snapshots).\n\nconditional",
+        "x-enum-varnames": ["Conditional"]
       },
       "ContentMessage": {
         "type": "object",
@@ -74003,6 +73351,11 @@
             },
             "description": "Optional. A mapping of PlaceId to the specific versions to restart/bleed off for that place.\r\nWhen set for a place, only servers running those exact versions will be affected.\r\nIf a place is not in this dictionary or has an empty set, behavior falls back to CloseOldVersionsOnly logic.",
             "nullable": true
+          },
+          "attributes": {
+            "type": "string",
+            "description": "Optional. Attributes string to include in the ServerLifecycleChanged CSM payload published to game servers.",
+            "nullable": true
           }
         },
         "additionalProperties": false,
@@ -74501,6 +73854,29 @@
           }
         },
         "description": "A list of UserRestrictions in the parent collection."
+      },
+      "LiteralValueDto": {
+        "type": "object",
+        "properties": {
+          "booleanValue": {
+            "type": "string",
+            "nullable": true
+          },
+          "integerValue": {
+            "type": "string",
+            "nullable": true
+          },
+          "doubleValue": {
+            "type": "string",
+            "nullable": true
+          },
+          "stringValue": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Literal constant for an RPN operand (proto `LiteralValue` oneof as independent fields for JSON)."
       },
       "LuauExecutionSessionTask": {
         "type": "object",
@@ -76653,14 +76029,16 @@
         "enum": [
           "InExperienceConfig",
           "RecommendationServicesConfig",
-          "DataStoresConfig"
+          "DataStoresConfig",
+          "ExtendedServicesConfig"
         ],
         "type": "string",
-        "description": "Public API repository identifier. Only values exposed by the public API are included;\r\ninternal repository types are not exposed to allow development and testing before enabling.\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig",
+        "description": "Public API repository identifier. Only values exposed by the public API are included;\r\ninternal repository types are not exposed to allow development and testing before enabling.\n\nInExperienceConfig\n\nRecommendationServicesConfig\n\nDataStoresConfig\n\nExtendedServicesConfig",
         "x-enum-varnames": [
           "InExperienceConfig",
           "RecommendationServicesConfig",
-          "DataStoresConfig"
+          "DataStoresConfig",
+          "ExtendedServicesConfig"
         ]
       },
       "RestartState": {
@@ -76869,6 +76247,15 @@
               "$ref": "#/components/schemas/RevisionChange"
             },
             "description": "The changes in this revision, keyed by entry key.",
+            "nullable": true
+          },
+          "conditionalRulesChanges": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConditionalRulesChangesPayload"
+              }
+            ],
+            "description": "Optional delta for conditional rules when this revision touched rules or evaluation order.",
             "nullable": true
           }
         },
@@ -79931,6 +79318,16 @@
             "description": "The current moderation status of the game if it is for sale in fiat. ['Invalid' = 0, 'NotModerated' = 1, 'Pending' = 2, 'Approved' = 3, 'Rejected' = 4]",
             "enum": [0, 1, 2, 3, 4],
             "type": "integer"
+          },
+          "audiences": {
+            "description": "Audiences allowed to view this universe, sourced from the new UniversePublicitySettings entity\r\nin universe-settings-service. Populated from USS only when UniversePublicitySettingsTreatment\r\nis ReverseShadow or Authority (USS is the source of truth in those modes); an empty list is\r\nreturned for Off and Shadow so clients always see a stable shape, never null.",
+            "type": "array",
+            "items": {
+              "format": "int32",
+              "description": " ['Invalid' = 0, 'Editors' = 1, 'PlayTesters' = 2, 'Friends' = 3, 'Public' = 4]",
+              "enum": [0, 1, 2, 3, 4],
+              "type": "integer"
+            }
           }
         },
         "additionalProperties": false
@@ -82468,8 +81865,8 @@
             "type": "array",
             "items": {
               "format": "int32",
-              "description": "Catalog item status enum. ['New' = 1, 'Sale' = 2, 'SaleTimer' = 7]",
-              "enum": [1, 2, 7],
+              "description": "Catalog item status enum. ['New' = 1, 'Sale' = 2, 'SaleTimer' = 7, 'IsFAE' = 8]",
+              "enum": [1, 2, 7, 8],
               "type": "integer"
             }
           },
@@ -82656,8 +82053,8 @@
             "type": "array",
             "items": {
               "format": "int32",
-              "description": "Catalog item status enum. ['New' = 1, 'Sale' = 2, 'SaleTimer' = 7]",
-              "enum": [1, 2, 7],
+              "description": "Catalog item status enum. ['New' = 1, 'Sale' = 2, 'SaleTimer' = 7, 'IsFAE' = 8]",
+              "enum": [1, 2, 7, 8],
               "type": "integer"
             }
           },
@@ -93827,6 +93224,78 @@
         },
         "additionalProperties": false
       },
+      "RpnOperandDto": {
+        "type": "object",
+        "properties": {
+          "attributeReference": {
+            "type": "string",
+            "nullable": true
+          },
+          "literalValue": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LiteralValueDto"
+              }
+            ],
+            "description": "Literal constant for an RPN operand (proto `LiteralValue` oneof as independent fields for JSON).",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "RPN operand: attribute reference or literal value (same concepts as the proto `RpnOperand` oneof)."
+      },
+      "RpnTokenDto": {
+        "type": "object",
+        "properties": {
+          "operator": {
+            "type": "string",
+            "nullable": true
+          },
+          "operand": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RpnOperandDto"
+              }
+            ],
+            "description": "RPN operand: attribute reference or literal value (same concepts as the proto `RpnOperand` oneof).",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "One RPN token: either a logical/comparison CreatorConfigsPublicApi.Models.ConditionalRuleOperator (proto JSON `OPERATOR_*`) or an operand object."
+      },
+      "RuleDeltaPayload": {
+        "type": "object",
+        "properties": {
+          "before": {
+            "nullable": true
+          },
+          "after": {
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RulesOrderDeltaPayload": {
+        "type": "object",
+        "properties": {
+          "before": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "after": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "SalesReportDownloadRequest": {
         "type": "object",
         "properties": {
@@ -94048,7 +93517,8 @@
             "minimum": 0,
             "type": "integer",
             "description": "The minimum price of the asset in cents. If included, must be greater than or equal to 0.",
-            "format": "int64"
+            "format": "int64",
+            "nullable": true
           },
           "maxPriceCents": {
             "maximum": 2147483647,
@@ -95836,12 +95306,21 @@
             "additionalProperties": {
               "nullable": true
             },
-            "description": "The entries to update. Keys not included will not be changed. Set key to null to delete, or set to published value to discard.",
+            "description": "On PATCH, keys not included are unchanged; set a key to null to delete a branch or entry per merge rules.\r\nOn PUT `draft:overwrite`, this map is the authoritative final entry set: any key present on the latest published configuration but omitted here is removed, and any conditional branch omitted for a key that remains is removed.",
+            "nullable": true
+          },
+          "conditionalRules": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConditionalRulesPayload"
+              }
+            ],
+            "description": "Optional conditional rules. On PATCH, merges with the current draft rules when this payload is non-empty (any rule id or `rulesOrder` entry).\r\nOmit the property or send an empty object `{}` to leave rules unchanged (draft rules, or latest published rules if the draft has none yet).\r\nOn PUT `draft:overwrite`, when this property is present,\r\nCreatorConfigsPublicApi.Models.ConditionalRulesPayload.Rules is the full intended rule set after publish: rules that exist on the latest published configuration but are omitted are removed.\r\nWhen omitted on overwrite, all published conditional rules are cleared (entries must not reference conditionals unless you provide this object).",
             "nullable": true
           }
         },
         "additionalProperties": false,
-        "description": "Request model for updating a draft (partial update)."
+        "description": "Request model for draft updates: PATCH uses a partial merge; PUT `draft:overwrite` treats the body as the full intended configuration after publish."
       },
       "UpdateEntryRequest": {
         "required": ["value"],
@@ -96914,6 +96393,9 @@
           "auth_get_v1_xbox_connection",
           "auth_post_v1_xbox_disconnect",
           "auth_get_v1_xbox_get_login_consecutive_days",
+          "auth_get_v1_username_change_price",
+          "auth_get_v1_account_creation_metadata",
+          "auth_get_v1_passkey_su_eligibility",
           "auth_post_v1_xbox_translate",
           "auth_get_v2_auth_metadata",
           "auth_post_v2_identity_verification_login",
@@ -96940,6 +96422,7 @@
           "auth_get_v2_usernames",
           "auth_post_v2_usernames_recover",
           "auth_get_v2_usernames_validate",
+          "auth_get_v2_username_change_price",
           "auth_post_v2_usernames_validate",
           "auth_post_v3_logout",
           "auth_post_v3_users__userId__two_step_verification_login",
@@ -97049,6 +96532,7 @@
           "catalog_post_v1_topic_get_topics",
           "catalog_get_v1_users__userId__bundles",
           "catalog_get_v1_users__userId__bundles__bundleType_",
+          "catalog_get_v2_assets__assetId__bundles",
           "catalog_get_v2_search_items_details",
           "develop_get_v1_assets_voting",
           "develop_get_v1_plugins",
@@ -97688,6 +97172,8 @@
           "gameinternationalization_get_v1_supported_languages_games__gameId__automatic_translation_status",
           "patch_legacy_game_internationalization_v1_supported_languages_games__gameId__languages__languageCode__automatic_translation_status",
           "gameinternationalization_patch_v1_supported_languages_games__gameId__languages__languageCode__automatic_translation_status",
+          "patch_legacy_game_internationalization_v1_supported_languages_games__gameId__languages__languageCode__image_translation_status",
+          "gameinternationalization_patch_v1_supported_languages_games__gameId__languages__languageCode__image_translation_status",
           "patch_legacy_game_internationalization_v1_supported_languages_games__gameId__languages__languageCode__universe_display_info_automatic_translation_settings",
           "gameinternationalization_patch_v1_supported_languages_games__gameId__languages__languageCode__universe_display_info_automatic_translation_settings",
           "get_legacy_game_internationalization_v1_supported_languages_games__gameId__universe_display_info_automatic_translation_settings",
@@ -98004,6 +97490,13 @@
         "content": "HTTP APIs for working with user thumbnails on Roblox Cloud.",
         "ordering": [
           "Cloud_GenerateUserThumbnail",
+          "HomepageThumbnail_UploadHomepageThumbnails",
+          "HomepageThumbnail_GetHomepageThumbnailsStatus",
+          "HomepageThumbnail_GetHomepageThumbnails",
+          "HomepageThumbnail_DeleteHomepageThumbnails",
+          "HomepageThumbnail_CreateThumbnailPersonalization",
+          "HomepageThumbnail_UpdateThumbnailPersonalization",
+          "HomepageThumbnail_FindThumbnailPersonalizations",
           "post_legacy_game_internationalization_v1_game_thumbnails_games__gameId__language_codes__languageCode__alt_text",
           "gameinternationalization_post_v1_game_thumbnails_games__gameId__language_codes__languageCode__alt_text",
           "post_legacy_game_internationalization_v1_game_thumbnails_games__gameId__language_codes__languageCode__image",
