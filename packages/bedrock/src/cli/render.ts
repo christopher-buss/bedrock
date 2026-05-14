@@ -245,6 +245,9 @@ function deployErrorMessage(err: DeployError): string {
 		case "configLoadFailed": {
 			return `config load failed: ${configErrorDetail(err.cause)}`;
 		}
+		case "incompletePassEntry": {
+			return `pass '${err.key}' is missing '${err.missingField}' under environment '${err.environment}'`;
+		}
 		case "incompletePlaceEntry": {
 			return `place '${err.key}' is missing '${err.missingField}' under environment '${err.environment}'`;
 		}

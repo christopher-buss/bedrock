@@ -66,16 +66,34 @@ export interface IncompleteUniverseEntryError {
 	readonly missingField: "universeId";
 }
 
+/**
+ * Failure surfaced when a merged `passes` entry is missing a required
+ * field. The most common path here is an overlay-only pass declared
+ * under `environments.X.passes` with no matching root entry: the overlay
+ * shape is `Partial<GamePassEntry>`, so a typo on the ResourceKey
+ * silently produces an incomplete entry that would otherwise be filled
+ * in by `applyRedaction` (when `redacted: true` is set) and pushed as a
+ * phantom placeholder pass. Surfacing the missing field at the
+ * resolution boundary keeps that case attributable instead of letting
+ * normalize fail later with a less specific error.
+ */
+export interface IncompletePassEntryError {
+	/** ResourceKey of the pass entry that is missing a required field. */
+	readonly key: string;
+	/** Environment whose overlay was projected onto the config. */
+	readonly environment: string;
+	/** Literal discriminator for narrowing. */
+	readonly kind: "incompletePassEntry";
+	/** Field that the merged entry lacks. */
+	readonly missingField: "description" | "icon" | "name";
+}
+
 /** Failure modes returned by {@link selectEnvironment}. */
 export type SelectEnvironmentError =
+	| IncompletePassEntryError
 	| IncompletePlaceEntryError
 	| IncompleteUniverseEntryError
 	| UnknownEnvironmentError;
-
-interface ProjectInputs {
-	readonly config: Config;
-	readonly entry: Config["environments"][string];
-}
 
 /**
  * Project a validated `Config` onto a single environment. Looks up the
@@ -163,7 +181,15 @@ export function selectEnvironment(
 		return { err: unknownEnvironment(config, environment), success: false };
 	}
 
-	const projected = projectConfig({ config, entry });
+	const merged = mergeOverlays(config, entry);
+
+	const incompletePass = findIncompletePass(merged, environment);
+	if (incompletePass !== undefined) {
+		return { err: incompletePass, success: false };
+	}
+
+	const projected = redactAndPrefix({ config, entry, merged });
+
 	const incompletePlace = findIncompletePlace(projected, environment);
 	if (incompletePlace !== undefined) {
 		return { err: incompletePlace, success: false };
@@ -193,6 +219,38 @@ function findIncompleteUniverse(
 	const candidate: Partial<ResolvedUniverseEntry> = universe;
 	if (candidate.universeId === undefined) {
 		return { environment, kind: "incompleteUniverseEntry", missingField: "universeId" };
+	}
+
+	return undefined;
+}
+
+function findIncompletePass(
+	merged: ResolvedConfig,
+	environment: string,
+): IncompletePassEntryError | undefined {
+	const { passes } = merged;
+	if (passes === undefined) {
+		return undefined;
+	}
+
+	const candidates: Record<string, Partial<GamePassEntry>> = passes;
+	for (const [key, entry] of Object.entries(candidates)) {
+		if (entry.name === undefined) {
+			return { key, environment, kind: "incompletePassEntry", missingField: "name" };
+		}
+
+		if (entry.description === undefined) {
+			return {
+				key,
+				environment,
+				kind: "incompletePassEntry",
+				missingField: "description",
+			};
+		}
+
+		if (entry.icon === undefined) {
+			return { key, environment, kind: "incompletePassEntry", missingField: "icon" };
+		}
 	}
 
 	return undefined;
@@ -233,49 +291,6 @@ function findIncompletePlace(
 	}
 
 	return undefined;
-}
-
-function resolvePrefix(config: Config, entry: EnvironmentEntry): string | undefined {
-	if (config.displayNamePrefix?.enabled === false) {
-		return undefined;
-	}
-
-	const { label } = entry;
-	if (label === undefined || label === "") {
-		return undefined;
-	}
-
-	return renderDisplayNamePrefix(label, config.displayNamePrefix?.format);
-}
-
-function applyUniversePrefix(
-	universe: ResolvedUniverseEntry | undefined,
-	prefix: string | undefined,
-): ResolvedUniverseEntry | undefined {
-	if (universe === undefined || prefix === undefined || universe.displayName === undefined) {
-		return universe;
-	}
-
-	return { ...universe, displayName: prefix + universe.displayName };
-}
-
-function applyPlacesPrefix(
-	places: Record<string, ResolvedPlaceEntry> | undefined,
-	prefix: string | undefined,
-): Record<string, ResolvedPlaceEntry> | undefined {
-	if (places === undefined || prefix === undefined) {
-		return places;
-	}
-
-	return Object.fromEntries(
-		Object.entries(places).map(([key, place]) => {
-			if (place.displayName === undefined) {
-				return [key, place];
-			}
-
-			return [key, { ...place, displayName: prefix + place.displayName }];
-		}),
-	);
 }
 
 function mergeEntry<Resolved extends object>(
@@ -359,9 +374,64 @@ function mergeOverlays(config: Config, entry: EnvironmentEntry): ResolvedConfig 
 	};
 }
 
-function projectConfig(inputs: ProjectInputs): ResolvedConfig {
-	const { config, entry } = inputs;
-	const redacted = applyRedaction(mergeOverlays(config, entry));
+function unknownEnvironment(config: Config, environment: string): UnknownEnvironmentError {
+	return {
+		declared: Object.keys(config.environments),
+		environment,
+		kind: "unknownEnvironment",
+	};
+}
+
+function resolvePrefix(config: Config, entry: EnvironmentEntry): string | undefined {
+	if (config.displayNamePrefix?.enabled === false) {
+		return undefined;
+	}
+
+	const { label } = entry;
+	if (label === undefined || label === "") {
+		return undefined;
+	}
+
+	return renderDisplayNamePrefix(label, config.displayNamePrefix?.format);
+}
+
+function applyUniversePrefix(
+	universe: ResolvedUniverseEntry | undefined,
+	prefix: string | undefined,
+): ResolvedUniverseEntry | undefined {
+	if (universe === undefined || prefix === undefined || universe.displayName === undefined) {
+		return universe;
+	}
+
+	return { ...universe, displayName: prefix + universe.displayName };
+}
+
+function applyPlacesPrefix(
+	places: Record<string, ResolvedPlaceEntry> | undefined,
+	prefix: string | undefined,
+): Record<string, ResolvedPlaceEntry> | undefined {
+	if (places === undefined || prefix === undefined) {
+		return places;
+	}
+
+	return Object.fromEntries(
+		Object.entries(places).map(([key, place]) => {
+			if (place.displayName === undefined) {
+				return [key, place];
+			}
+
+			return [key, { ...place, displayName: prefix + place.displayName }];
+		}),
+	);
+}
+
+function redactAndPrefix(inputs: {
+	readonly config: Config;
+	readonly entry: EnvironmentEntry;
+	readonly merged: ResolvedConfig;
+}): ResolvedConfig {
+	const { config, entry, merged } = inputs;
+	const redacted = applyRedaction(merged);
 	const prefix = resolvePrefix(config, entry);
 	const places = applyPlacesPrefix(redacted.places, prefix);
 	const universe = applyUniversePrefix(redacted.universe, prefix);
@@ -370,13 +440,5 @@ function projectConfig(inputs: ProjectInputs): ResolvedConfig {
 		...redacted,
 		...(places === undefined ? {} : { places }),
 		...(universe === undefined ? {} : { universe }),
-	};
-}
-
-function unknownEnvironment(config: Config, environment: string): UnknownEnvironmentError {
-	return {
-		declared: Object.keys(config.environments),
-		environment,
-		kind: "unknownEnvironment",
 	};
 }

@@ -154,6 +154,7 @@ type ExpectedDeployErrorKind =
 	| "applyFailed"
 	| "buildDesiredFailed"
 	| "configLoadFailed"
+	| "incompletePassEntry"
 	| "incompletePlaceEntry"
 	| "incompleteUniverseEntry"
 	| "missingCredential"

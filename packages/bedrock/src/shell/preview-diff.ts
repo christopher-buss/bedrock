@@ -11,6 +11,7 @@ import type { Operation } from "../core/operations.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
 import {
+	type IncompletePassEntryError,
 	type IncompletePlaceEntryError,
 	type IncompleteUniverseEntryError,
 	selectEnvironment,
@@ -57,6 +58,7 @@ export interface PreviewDiffOptions {
  * `stateWriteFailed`) cannot occur because `previewDiff` is read-only.
  */
 export type PreviewDiffError =
+	| IncompletePassEntryError
 	| IncompletePlaceEntryError
 	| IncompleteUniverseEntryError
 	| MissingCredentialError

@@ -11,6 +11,7 @@ import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolv
 import type { ResourceCurrentState } from "../core/resources.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
 import {
+	type IncompletePassEntryError,
 	type IncompletePlaceEntryError,
 	type IncompleteUniverseEntryError,
 	selectEnvironment,
@@ -63,6 +64,7 @@ export interface DeployOptions {
  * `unsupportedBackend`, `registryConfigMissing`).
  */
 export type DeployError =
+	| IncompletePassEntryError
 	| IncompletePlaceEntryError
 	| IncompleteUniverseEntryError
 	| MissingCredentialError

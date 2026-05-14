@@ -21,9 +21,12 @@ describe("selectEnvironment signature", () => {
 		>();
 	});
 
-	it("should discriminate SelectEnvironmentError across the unknownEnvironment, incompletePlaceEntry, and incompleteUniverseEntry kinds", () => {
+	it("should discriminate SelectEnvironmentError across every resolution failure kind", () => {
 		expectTypeOf<SelectEnvironmentError["kind"]>().toEqualTypeOf<
-			"incompletePlaceEntry" | "incompleteUniverseEntry" | "unknownEnvironment"
+			| "incompletePassEntry"
+			| "incompletePlaceEntry"
+			| "incompleteUniverseEntry"
+			| "unknownEnvironment"
 		>();
 	});
 });
