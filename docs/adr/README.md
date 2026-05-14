@@ -32,7 +32,7 @@ things are the way they are.
 | [020](./020-project-config-definition.md) | Project Config Definition | Accepted | 2026-04-22 |
 | [021](./021-file-backed-resource-kinds.md) | Resource Update Capability for File-Backed Kinds | Accepted | 2026-04-22 |
 | [022](./022-by-domain-folder-layout-for-ocale.md) | By-Domain Folder Layout for `@bedrock-rbx/ocale` | Accepted | 2026-04-30 |
-| [023](./023-apply-semantics-parallel-continue-on-failure.md) | Apply Semantics — Parallel, Continue-on-Failure, Per-Op Progress Events | Proposed | 2026-05-14 |
+| [023](./023-apply-semantics-parallel-continue-on-failure.md) | Apply Semantics — Parallel, Continue-on-Failure, Per-Op Progress Events | Accepted | 2026-05-14 |
 
 ## Creating a New ADR
 

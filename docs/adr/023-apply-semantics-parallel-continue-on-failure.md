@@ -1,6 +1,6 @@
 # ADR-023: Apply Semantics — Parallel, Continue-on-Failure, Per-Op Progress Events
 
-**Date:** 2026-05-14 **Status:** Proposed
+**Date:** 2026-05-14 **Status:** Accepted
 
 Decision Makers: Maintainer
 Tags: apply, deploy, progress, ports, diff, ux
