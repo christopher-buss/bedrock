@@ -51,7 +51,7 @@ describe(selectEnvironment, () => {
 	});
 
 	it("should leave state absent when neither env nor root declares it", () => {
-		expect.assertions(1);
+		expect.assertions(2);
 
 		const config: Config = { environments: { production: {} } };
 
@@ -60,6 +60,7 @@ describe(selectEnvironment, () => {
 		assert(result.success);
 
 		expect(result.data.state).toBeUndefined();
+		expect(result.data).not.toContainKey("state");
 	});
 
 	it("should prefer the env state override when both root and env declare state", () => {
