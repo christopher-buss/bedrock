@@ -27,6 +27,13 @@ export interface GamePassEntry {
 	icon: Record<"en-us", string>;
 	/** Robux price, or omitted / `undefined` for off-sale. */
 	price?: number | undefined;
+	/**
+	 * Set to `true` to deploy this pass with bedrock-supplied placeholder
+	 * content (default name, empty description, embedded placeholder icon)
+	 * in place of the real values declared above. Omit or set `false` to
+	 * push the real values unchanged.
+	 */
+	redacted?: boolean | undefined;
 }
 
 /**
@@ -623,6 +630,7 @@ const gamePassEntry = type({
 	"description": "string",
 	"icon": iconMap,
 	"price?": OPTIONAL_ROBUX_PRICE,
+	"redacted?": OPTIONAL_BOOLEAN,
 });
 
 const passesCollection = type({
@@ -695,6 +703,7 @@ const gamePassOverlay = type({
 	"icon?": iconMap,
 	"name?": "string",
 	"price?": OPTIONAL_ROBUX_PRICE,
+	"redacted?": OPTIONAL_BOOLEAN,
 }).onUndeclaredKey("reject");
 
 const passesOverlayCollection = type({
