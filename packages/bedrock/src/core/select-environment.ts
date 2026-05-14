@@ -3,6 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { defu } from "defu";
 
 import { renderDisplayNamePrefix } from "./display-name-prefix.ts";
+import { applyRedaction } from "./redact-resources.ts";
 import type {
 	Config,
 	DeveloperProductEntry,
@@ -234,6 +235,49 @@ function findIncompletePlace(
 	return undefined;
 }
 
+function resolvePrefix(config: Config, entry: EnvironmentEntry): string | undefined {
+	if (config.displayNamePrefix?.enabled === false) {
+		return undefined;
+	}
+
+	const { label } = entry;
+	if (label === undefined || label === "") {
+		return undefined;
+	}
+
+	return renderDisplayNamePrefix(label, config.displayNamePrefix?.format);
+}
+
+function applyUniversePrefix(
+	universe: ResolvedUniverseEntry | undefined,
+	prefix: string | undefined,
+): ResolvedUniverseEntry | undefined {
+	if (universe === undefined || prefix === undefined || universe.displayName === undefined) {
+		return universe;
+	}
+
+	return { ...universe, displayName: prefix + universe.displayName };
+}
+
+function applyPlacesPrefix(
+	places: Record<string, ResolvedPlaceEntry> | undefined,
+	prefix: string | undefined,
+): Record<string, ResolvedPlaceEntry> | undefined {
+	if (places === undefined || prefix === undefined) {
+		return places;
+	}
+
+	return Object.fromEntries(
+		Object.entries(places).map(([key, place]) => {
+			if (place.displayName === undefined) {
+				return [key, place];
+			}
+
+			return [key, { ...place, displayName: prefix + place.displayName }];
+		}),
+	);
+}
+
 function mergeEntry<Resolved extends object>(
 	overlay: Partial<Resolved>,
 	base: Partial<Resolved> | undefined,
@@ -291,58 +335,11 @@ function mergeUniverse(
 	return defu(overlay ?? {}, base ?? {}) as ResolvedUniverseEntry;
 }
 
-function resolvePrefix(config: Config, entry: EnvironmentEntry): string | undefined {
-	if (config.displayNamePrefix?.enabled === false) {
-		return undefined;
-	}
-
-	const { label } = entry;
-	if (label === undefined || label === "") {
-		return undefined;
-	}
-
-	return renderDisplayNamePrefix(label, config.displayNamePrefix?.format);
-}
-
-function applyUniversePrefix(
-	universe: ResolvedUniverseEntry | undefined,
-	prefix: string | undefined,
-): ResolvedUniverseEntry | undefined {
-	if (universe === undefined || prefix === undefined || universe.displayName === undefined) {
-		return universe;
-	}
-
-	return { ...universe, displayName: prefix + universe.displayName };
-}
-
-function applyPlacesPrefix(
-	places: Record<string, ResolvedPlaceEntry> | undefined,
-	prefix: string | undefined,
-): Record<string, ResolvedPlaceEntry> | undefined {
-	if (places === undefined || prefix === undefined) {
-		return places;
-	}
-
-	return Object.fromEntries(
-		Object.entries(places).map(([key, place]) => {
-			if (place.displayName === undefined) {
-				return [key, place];
-			}
-
-			return [key, { ...place, displayName: prefix + place.displayName }];
-		}),
-	);
-}
-
-function projectConfig(inputs: ProjectInputs): ResolvedConfig {
-	const { config, entry } = inputs;
+function mergeOverlays(config: Config, entry: EnvironmentEntry): ResolvedConfig {
 	const passes = mergeKeyedRecord<GamePassEntry>(entry.passes, config.passes);
-	const mergedPlaces = mergeKeyedRecord<ResolvedPlaceEntry>(entry.places, config.places);
+	const places = mergeKeyedRecord<ResolvedPlaceEntry>(entry.places, config.places);
 	const products = mergeKeyedRecord<DeveloperProductEntry>(entry.products, config.products);
-	const merged = mergeUniverse(entry.universe, config.universe);
-	const prefix = resolvePrefix(config, entry);
-	const universe = applyUniversePrefix(merged, prefix);
-	const places = applyPlacesPrefix(mergedPlaces, prefix);
+	const universe = mergeUniverse(entry.universe, config.universe);
 	const state = entry.state ?? config.state;
 
 	const {
@@ -358,6 +355,20 @@ function projectConfig(inputs: ProjectInputs): ResolvedConfig {
 		...(places === undefined ? {} : { places }),
 		...(products === undefined ? {} : { products }),
 		...(state === undefined ? {} : { state }),
+		...(universe === undefined ? {} : { universe }),
+	};
+}
+
+function projectConfig(inputs: ProjectInputs): ResolvedConfig {
+	const { config, entry } = inputs;
+	const redacted = applyRedaction(mergeOverlays(config, entry));
+	const prefix = resolvePrefix(config, entry);
+	const places = applyPlacesPrefix(redacted.places, prefix);
+	const universe = applyUniversePrefix(redacted.universe, prefix);
+
+	return {
+		...redacted,
+		...(places === undefined ? {} : { places }),
 		...(universe === undefined ? {} : { universe }),
 	};
 }
