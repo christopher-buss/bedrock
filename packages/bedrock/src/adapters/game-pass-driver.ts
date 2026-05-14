@@ -128,19 +128,10 @@ export interface GamePassDriverDeps {
 export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"gamePass"> {
 	return {
 		async create(desired) {
-			const imageFile = await deps.readFile(desired.icon["en-us"]);
-			const result = await deps.client.create({
-				name: desired.name,
-				description: desired.description,
-				imageFile,
-				universeId: deps.universeId,
-				...(desired.price !== undefined ? { price: desired.price } : {}),
-			});
-			if (!result.success) {
-				return result;
-			}
-
-			return toCurrentState(desired, result.data);
+			return createGamePass(deps, desired);
+		},
+		async update(current, desired) {
+			return updateGamePass(deps, { current, desired });
 		},
 	};
 }
@@ -170,4 +161,73 @@ function toCurrentState(
 		},
 		success: true,
 	};
+}
+
+async function createGamePass(
+	deps: GamePassDriverDeps,
+	desired: GamePassDesiredState,
+): Promise<Result<ResourceCurrentState<"gamePass">, OpenCloudError>> {
+	const imageFile = await deps.readFile(desired.icon["en-us"]);
+	const result = await deps.client.create({
+		name: desired.name,
+		description: desired.description,
+		imageFile,
+		universeId: deps.universeId,
+		...(desired.price !== undefined ? { price: desired.price } : {}),
+	});
+	if (!result.success) {
+		return result;
+	}
+
+	return toCurrentState(desired, result.data);
+}
+
+async function resolveUpdatedState(
+	deps: GamePassDriverDeps,
+	context: {
+		readonly current: ResourceCurrentState<"gamePass">;
+		readonly desired: GamePassDesiredState;
+		readonly hasIconChanged: boolean;
+	},
+): Promise<Result<ResourceCurrentState<"gamePass">, OpenCloudError>> {
+	const { current, desired, hasIconChanged } = context;
+	if (!hasIconChanged) {
+		return { data: { ...desired, outputs: current.outputs }, success: true };
+	}
+
+	const fetched = await deps.client.get({
+		gamePassId: current.outputs.assetId,
+		universeId: deps.universeId,
+	});
+	if (!fetched.success) {
+		return fetched;
+	}
+
+	return toCurrentState(desired, fetched.data);
+}
+
+async function updateGamePass(
+	deps: GamePassDriverDeps,
+	states: {
+		readonly current: ResourceCurrentState<"gamePass">;
+		readonly desired: GamePassDesiredState;
+	},
+): Promise<Result<ResourceCurrentState<"gamePass">, OpenCloudError>> {
+	const { current, desired } = states;
+	const hasIconChanged = current.iconFileHashes["en-us"] !== desired.iconFileHashes["en-us"];
+	const imageFile = hasIconChanged ? await deps.readFile(desired.icon["en-us"]) : undefined;
+
+	const result = await deps.client.update({
+		name: desired.name,
+		description: desired.description,
+		gamePassId: current.outputs.assetId,
+		universeId: deps.universeId,
+		...(desired.price !== undefined ? { price: desired.price } : {}),
+		...(imageFile !== undefined ? { imageFile } : {}),
+	});
+	if (!result.success) {
+		return result;
+	}
+
+	return resolveUpdatedState(deps, { current, desired, hasIconChanged });
 }
