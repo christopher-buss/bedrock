@@ -134,36 +134,38 @@ exist yet ([ADR-006](./006-adr-enforcement.md) rule 7).
 ```ts
 // core/operations.ts
 interface UpdateOperation extends BaseOperation {
-    readonly changedFields: ReadonlyArray<string>; // NEW: populated by diff()
-    readonly current: ResourceCurrentState;
-    readonly desired: ResourceDesiredState;
-    readonly type: "update";
+	readonly changedFields: ReadonlyArray<string>; // NEW: populated by diff()
+	readonly current: ResourceCurrentState;
+	readonly desired: ResourceDesiredState;
+	readonly type: "update";
 }
 
 // shell/apply-ops.ts
 type ApplyError =
-    | { kind: "driverFailure"; key: ResourceKey; cause: OpenCloudError }
-    | { kind: "unexpectedThrow"; key: ResourceKey; cause: unknown } // NEW
-    | { kind: "updateUnsupported"; key: ResourceKey };
+	| { cause: OpenCloudError; key: ResourceKey; kind: "driverFailure" }
+	| { cause: unknown; key: ResourceKey; kind: "unexpectedThrow" } // NEW
+	| { key: ResourceKey; kind: "updateUnsupported" };
 //   appliedSoFar removed — moved up to AggregateApplyError.applied
 //   unexpectedThrow captures non-OpenCloudError rejections from drivers
 //   (e.g. fs errors from readFile, programming errors). cause is `unknown`
 //   because the surface area of possible throws is open.
 
 interface AggregateApplyError {
-    readonly applied: ReadonlyArray<ResourceCurrentState>; // in declaration order
-    readonly failures: ReadonlyArray<ApplyError>;          // 1..N
+	readonly applied: ReadonlyArray<ResourceCurrentState>; // in declaration order
+	readonly failures: ReadonlyArray<ApplyError>; // 1..N
 }
 
 // shell/deploy.ts
 interface DeployOptions {
-    /* existing fields unchanged */
-    readonly progress?: ProgressPort; // NEW: injected by callers (CLI plumbs through)
+	/* existing fields unchanged */
+	readonly progress?: ProgressPort; // NEW: injected by callers (CLI plumbs through)
 }
 
-type DeployError =
-    | { kind: "applyFailed"; cause: AggregateApplyError } // CHANGED: aggregate, not single
-    /* other variants unchanged */;
+interface DeployError {
+	cause: AggregateApplyError;
+	kind: "applyFailed";
+} // CHANGED: aggregate, not single
+/* other variants unchanged */
 ```
 
 ### Progress events
@@ -174,57 +176,57 @@ adapter.
 
 ```ts
 type ProgressEvent =
-    // existing
-    | DeployFailureEvent
-    | DeploySuccessEvent
-    // new
-    | {
-          environment: string;
-          key: ResourceKey;
-          kind: "resourceOpStarted";
-          opType: "create" | "update";
-          resourceKind: ResourceKind;
-      }
-    | {
-          environment: string;
-          key: ResourceKey;
-          kind: "resourceOpSucceeded";
-          opType: "create";
-          outputs: ResourceOutputs;
-          resourceKind: ResourceKind;
-      }
-    | {
-          changedFields: ReadonlyArray<string>;
-          environment: string;
-          key: ResourceKey;
-          kind: "resourceOpSucceeded";
-          opType: "update";
-          resourceKind: ResourceKind;
-      }
-    | {
-          environment: string;
-          key: ResourceKey;
-          kind: "resourceOpNoop";
-          resourceKind: ResourceKind;
-      }
-    | {
-          environment: string;
-          error: ApplyError;
-          key: ResourceKey;
-          kind: "resourceOpFailed";
-          opType: "create" | "update";
-          resourceKind: ResourceKind;
-      }
-    | {
-          created: number;
-          durationMs: number;
-          environment: string;
-          failed: number;
-          kind: "applySummary";
-          noop: number;
-          updated: number;
-      }
-    | { environment: string; kind: "stateWritten" };
+	// existing
+	| DeployFailureEvent
+	| DeploySuccessEvent
+	// new
+	| {
+			changedFields: ReadonlyArray<string>;
+			environment: string;
+			key: ResourceKey;
+			kind: "resourceOpSucceeded";
+			opType: "update";
+			resourceKind: ResourceKind;
+	  }
+	| {
+			created: number;
+			durationMs: number;
+			environment: string;
+			failed: number;
+			kind: "applySummary";
+			noop: number;
+			updated: number;
+	  }
+	| {
+			environment: string;
+			error: ApplyError;
+			key: ResourceKey;
+			kind: "resourceOpFailed";
+			opType: "create" | "update";
+			resourceKind: ResourceKind;
+	  }
+	| {
+			environment: string;
+			key: ResourceKey;
+			kind: "resourceOpNoop";
+			resourceKind: ResourceKind;
+	  }
+	| {
+			environment: string;
+			key: ResourceKey;
+			kind: "resourceOpStarted";
+			opType: "create" | "update";
+			resourceKind: ResourceKind;
+	  }
+	| {
+			environment: string;
+			key: ResourceKey;
+			kind: "resourceOpSucceeded";
+			opType: "create";
+			outputs: ResourceOutputs;
+			resourceKind: ResourceKind;
+	  }
+	| { environment: string; kind: "stateWritten" };
 // `resourceOpSucceeded` is split into two arms by opType (`create` carries
 // `outputs`; `update` carries `changedFields`). Adapters that switch on
 // `kind` alone must further narrow on `opType` to access the
