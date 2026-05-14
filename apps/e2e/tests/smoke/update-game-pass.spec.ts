@@ -1,140 +1,155 @@
 import {
-	asResourceKey,
 	asRobloxAssetId,
-	asSha256Hex,
+	type Config,
 	createGamePassDriver,
-	type GamePassDesiredState,
-	type ResourceCurrentState,
-	type Sha256Hex,
+	createGistStateAdapter,
+	deploy,
+	type DriverRegistry,
+	loadConfig,
+	type ResourceDriver,
+	type ResourceKind,
 } from "@bedrock-rbx/core";
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 
-import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
+
+import { pruneStateGist } from "../helpers/prune-state-gist.ts";
+
+const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "game-pass");
 
 const API_KEY = process.env["BEDROCK_API_KEY"];
 const UNIVERSE_ID_ENV = process.env["ROBLOX_TEST_UNIVERSE_ID"];
-const GAME_PASS_ID_ENV = process.env["ROBLOX_TEST_GAME_PASS_ID"];
-const ICON_PATH = process.env["ROBLOX_TEST_GAME_PASS_ICON_PATH"];
+const TOKEN = process.env["GITHUB_TOKEN"];
+const GIST_ID = process.env["BEDROCK_TEST_GIST_ID"];
 
 const HAS_SECRETS =
-	API_KEY !== undefined && UNIVERSE_ID_ENV !== undefined && GAME_PASS_ID_ENV !== undefined;
+	API_KEY !== undefined &&
+	UNIVERSE_ID_ENV !== undefined &&
+	TOKEN !== undefined &&
+	GIST_ID !== undefined;
 
-const PLACEHOLDER_HASH = asSha256Hex("0".repeat(64));
-
-describe("update game pass via real Roblox", () => {
-	it.skipIf(!HAS_SECRETS)(
-		"should PATCH name, description, and price for a fixed game pass",
-		async () => {
-			expect.assertions(3);
-
-			assert(API_KEY !== undefined, "BEDROCK_API_KEY must be set");
-			assert(UNIVERSE_ID_ENV !== undefined, "ROBLOX_TEST_UNIVERSE_ID must be set");
-			assert(GAME_PASS_ID_ENV !== undefined, "ROBLOX_TEST_GAME_PASS_ID must be set");
-
-			const universeId = asRobloxAssetId(UNIVERSE_ID_ENV);
-			const gamePassId = asRobloxAssetId(GAME_PASS_ID_ENV);
-
-			const stamp = String(Date.now());
-			const desired = {
-				key: asResourceKey("smoke-pass"),
-				name: `smoke pass ${stamp}`,
-				description: `smoke description ${stamp}`,
-				icon: { "en-us": "unused.png" },
-				iconFileHashes: { "en-us": PLACEHOLDER_HASH },
-				kind: "gamePass",
-				price: 100,
-			} satisfies GamePassDesiredState;
-
-			const current = {
-				...desired,
-				outputs: {
-					assetId: gamePassId,
-					iconAssetIds: { "en-us": gamePassId },
-				},
-			} satisfies ResourceCurrentState<"gamePass">;
-
-			const driver = createGamePassDriver({
-				client: new GamePassesClient({ apiKey: API_KEY }),
-				readFile,
-				universeId,
-			});
-
-			assert(driver.update !== undefined);
-			const result = await driver.update(current, desired);
-
-			assert(
-				result.success,
-				`driver.update failed: ${JSON.stringify(result.success ? null : result.err)}`,
-			);
-
-			expect(result.data.outputs.assetId).toBe(gamePassId);
-			expect(result.data.name).toBe(desired.name);
-			expect(result.data.description).toBe(desired.description);
+function unreachableDriver<K extends ResourceKind>(label: string): ResourceDriver<K> {
+	return {
+		async create() {
+			throw new Error(`unreachable: smoke config declares no ${label}`);
 		},
-		60_000,
-	);
+	};
+}
 
-	it.skipIf(!HAS_SECRETS || ICON_PATH === undefined)(
-		"should PATCH a new icon for a fixed game pass and refresh the assigned icon asset id",
+async function fixtureReadFile(path: string): Promise<Uint8Array> {
+	return readFile(join(FIXTURE_DIR, path));
+}
+
+function withMutatedPass(base: Config, overrides: { description: string; name: string }): Config {
+	const passes = base.passes ?? {};
+	const existing = passes["smoke-pass"];
+	assert(existing !== undefined, "fixture config must declare a smoke-pass entry");
+	return {
+		...base,
+		passes: {
+			...passes,
+			"smoke-pass": { ...existing, ...overrides },
+		},
+	};
+}
+
+describe("game-pass update via real Roblox", () => {
+	it.skipIf(!HAS_SECRETS)(
+		"should bootstrap then update a game pass via deploy and persist outputs to a real gist",
 		async () => {
-			expect.assertions(3);
+			expect.assertions(5);
 
 			assert(API_KEY !== undefined, "BEDROCK_API_KEY must be set");
 			assert(UNIVERSE_ID_ENV !== undefined, "ROBLOX_TEST_UNIVERSE_ID must be set");
-			assert(GAME_PASS_ID_ENV !== undefined, "ROBLOX_TEST_GAME_PASS_ID must be set");
-			assert(ICON_PATH !== undefined, "ROBLOX_TEST_GAME_PASS_ICON_PATH must be set");
+			assert(TOKEN !== undefined, "GITHUB_TOKEN must be set");
+			assert(GIST_ID !== undefined, "BEDROCK_TEST_GIST_ID must be set");
 
 			const universeId = asRobloxAssetId(UNIVERSE_ID_ENV);
-			const gamePassId = asRobloxAssetId(GAME_PASS_ID_ENV);
+			const environment = `game-pass-smoke-${String(Date.now())}`;
+			const statePort = createGistStateAdapter({ gistId: GIST_ID, token: TOKEN });
 
-			const iconBytes = await readFile(ICON_PATH);
-			const iconHash = sha256Hex(iconBytes);
+			const loaded = await loadConfig({ cwd: FIXTURE_DIR });
+			assert(
+				loaded.success,
+				`loadConfig failed: ${JSON.stringify(loaded.success ? null : loaded.err)}`,
+			);
+			const baseConfig = loaded.data;
 
-			const stamp = String(Date.now());
-			const desired = {
-				key: asResourceKey("smoke-pass"),
-				name: `smoke pass icon ${stamp}`,
-				description: `smoke icon update ${stamp}`,
-				icon: { "en-us": ICON_PATH },
-				iconFileHashes: { "en-us": iconHash },
-				kind: "gamePass",
-				price: 100,
-			} satisfies GamePassDesiredState;
-
-			const current = {
-				...desired,
-				iconFileHashes: { "en-us": PLACEHOLDER_HASH },
-				outputs: {
-					assetId: gamePassId,
-					iconAssetIds: { "en-us": gamePassId },
-				},
-			} satisfies ResourceCurrentState<"gamePass">;
-
-			const driver = createGamePassDriver({
+			const gamePassDriver = createGamePassDriver({
 				client: new GamePassesClient({ apiKey: API_KEY }),
-				readFile,
+				readFile: fixtureReadFile,
 				universeId,
 			});
 
-			assert(driver.update !== undefined);
-			const result = await driver.update(current, desired);
+			const registry = {
+				developerProduct: unreachableDriver("developer products"),
+				gamePass: gamePassDriver,
+				place: unreachableDriver("places"),
+				universe: unreachableDriver("universe block"),
+			} satisfies DriverRegistry;
 
-			assert(
-				result.success,
-				`driver.update failed: ${JSON.stringify(result.success ? null : result.err)}`,
-			);
+			try {
+				const bootstrap = await deploy({
+					config: baseConfig,
+					environment,
+					readFile: fixtureReadFile,
+					registry,
+					statePort,
+				});
+				assert(
+					bootstrap.success,
+					`bootstrap deploy failed: ${JSON.stringify(bootstrap.success ? null : bootstrap.err)}`,
+				);
 
-			expect(result.data.outputs.assetId).toBe(gamePassId);
-			expect(result.data.iconFileHashes["en-us"]).toBe(iconHash);
-			expect(result.data.outputs.iconAssetIds["en-us"]).not.toBe(gamePassId);
+				const stamp = String(Date.now());
+				const updatedConfig = withMutatedPass(baseConfig, {
+					name: `Smoke Test Pass ${stamp}`,
+					description: `smoke description ${stamp}`,
+				});
+				const updated = await deploy({
+					config: updatedConfig,
+					environment,
+					readFile: fixtureReadFile,
+					registry,
+					statePort,
+				});
+				assert(
+					updated.success,
+					`update deploy failed: ${JSON.stringify(updated.success ? null : updated.err)}`,
+				);
+
+				const persistedRead = await statePort.read(environment);
+				assert(
+					persistedRead.success,
+					`state read failed: ${JSON.stringify(persistedRead.success ? null : persistedRead.err)}`,
+				);
+
+				const persisted = persistedRead.data;
+				assert(persisted !== undefined);
+
+				expect(persisted.environment).toBe(environment);
+				expect(persisted.resources).toHaveLength(1);
+
+				const resource = persisted.resources[0];
+				assert(resource !== undefined);
+				assert(resource.kind === "gamePass");
+
+				expect(resource.name).toBe(`Smoke Test Pass ${stamp}`);
+				expect(resource.description).toBe(`smoke description ${stamp}`);
+				expect(resource.outputs.assetId).toBeString();
+			} finally {
+				await pruneStateGist({
+					filenamePrefix: "state.game-pass-smoke-",
+					gistId: GIST_ID,
+					keep: 3,
+					token: TOKEN,
+				});
+			}
 		},
 		60_000,
 	);
 });
-
-function sha256Hex(bytes: Uint8Array): Sha256Hex {
-	return asSha256Hex(createHash("sha256").update(bytes).digest("hex"));
-}
