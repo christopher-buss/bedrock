@@ -7,7 +7,6 @@ import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { diff } from "../core/diff.ts";
 import { flattenConfig } from "../core/flatten.ts";
-import { withRedactedIcon } from "../core/redacted-icon.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
@@ -245,7 +244,7 @@ async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDeps,
 	}
 
 	const effective = selected.data;
-	const readFile = withRedactedIcon(options.readFile ?? nodeReadFile);
+	const readFile = options.readFile ?? nodeReadFile;
 
 	const statePort = pickStatePort(options, effective);
 	if (!statePort.success) {

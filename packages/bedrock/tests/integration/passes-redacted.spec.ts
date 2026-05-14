@@ -18,7 +18,7 @@ import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import { createFakeHttpClient, validGamePassBody } from "@bedrock-rbx/ocale/testing";
 
 import { REDACTED_DESCRIPTION, REDACTED_PASS_NAME } from "#src/core/redact-resources";
-import { REDACTED_ICON_BYTES, REDACTED_ICON_PATH, withRedactedIcon } from "#src/core/redacted-icon";
+import { REDACTED_ICON_BYTES, REDACTED_ICON_PATH } from "#src/core/redacted-icon";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
@@ -70,11 +70,7 @@ const UNIVERSE_TRAP: ResourceDriver<"universe"> = {
 
 const REAL_ICON_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x01, 0x02, 0x03]);
 
-async function readSentinelOnly(path: string): Promise<Uint8Array> {
-	if (path === REDACTED_ICON_PATH) {
-		return REDACTED_ICON_BYTES;
-	}
-
+async function panicOnRealPath(path: string): Promise<Uint8Array> {
 	throw new Error(`readFile must not run for path: ${path}`);
 }
 
@@ -132,7 +128,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		const resolved = selectEnvironment(loaded.data, "production");
 		assert(resolved.success);
 
-		const readFile = withRedactedIcon(readSentinelOnly);
+		const readFile = panicOnRealPath;
 		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
 		assert(desiredResult.success);
 
@@ -187,7 +183,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		const resolved = selectEnvironment(loaded.data, "production");
 		assert(resolved.success);
 
-		const readFile = withRedactedIcon(readSentinelOnly);
+		const readFile = panicOnRealPath;
 		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
 		assert(desiredResult.success);
 
@@ -237,7 +233,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		const resolved = selectEnvironment(config, "production");
 		assert(resolved.success);
 
-		const readFile = withRedactedIcon(readSentinelOnly);
+		const readFile = panicOnRealPath;
 		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
 		assert(desiredResult.success);
 
@@ -266,7 +262,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		const resolved = selectEnvironment(config, "production");
 		assert(resolved.success);
 
-		const readFile = withRedactedIcon(readRealIcon);
+		const readFile = readRealIcon;
 		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
 		assert(desiredResult.success);
 

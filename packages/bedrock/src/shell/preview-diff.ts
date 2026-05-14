@@ -8,7 +8,6 @@ import type { ConfigError } from "../core/config-error.ts";
 import { diff } from "../core/diff.ts";
 import { flattenConfig } from "../core/flatten.ts";
 import type { Operation } from "../core/operations.ts";
-import { withRedactedIcon } from "../core/redacted-icon.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
 import {
@@ -159,7 +158,7 @@ async function resolveDeps(
 	}
 
 	const effective = selected.data;
-	const readFile = withRedactedIcon(options.readFile ?? nodeReadFile);
+	const readFile = options.readFile ?? nodeReadFile;
 
 	const statePort = pickStatePort(options, effective);
 	if (!statePort.success) {
