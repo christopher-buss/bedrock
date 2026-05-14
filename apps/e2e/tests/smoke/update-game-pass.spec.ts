@@ -44,11 +44,13 @@ async function fixtureReadFile(path: string): Promise<Uint8Array> {
 	return readFile(join(FIXTURE_DIR, path));
 }
 
-function withEnvironment(base: Config, environment: string): Config {
+function withEnvironment<T extends Config>(base: T, environment: string): T {
+	// Spreading a discriminated-union Config widens the result past either
+	// arm; the cast keeps the input arm we know is preserved structurally.
 	return {
 		...base,
 		environments: { ...base.environments, [environment]: {} },
-	};
+	} as T;
 }
 
 function withMutatedPass(base: Config, overrides: { description: string; name: string }): Config {
