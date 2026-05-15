@@ -84,6 +84,24 @@ describe("EnvironmentEntry overlay shapes", () => {
 	});
 });
 
+describe("EnvironmentEntry passes overlay redacted narrowing", () => {
+	it("should narrow the passes overlay redacted field to boolean so per-field overrides stay root-only", () => {
+		expectTypeOf<PassesOverlayEntry["redacted"]>().toEqualTypeOf<boolean | undefined>();
+	});
+
+	it("should reject a passes overlay entry that declares the redacted object override form", () => {
+		// @ts-expect-error per-field redaction overrides are valid only on the
+		// root passes entry.
+		const overlay: PassesOverlayEntry = { redacted: { name: "Closed Beta" } };
+		expectTypeOf(overlay).toExtend<PassesOverlayEntry>();
+	});
+
+	it("should still accept a passes overlay entry that declares redacted as a boolean", () => {
+		const overlay = { redacted: true } as const satisfies PassesOverlayEntry;
+		expectTypeOf(overlay).toExtend<PassesOverlayEntry>();
+	});
+});
+
 describe("EnvironmentEntry overlay derivation", () => {
 	it("should match the keys of GamePassEntry on a passes overlay entry", () => {
 		expectTypeOf<keyof PassesOverlayEntry>().toEqualTypeOf<keyof GamePassEntry>();

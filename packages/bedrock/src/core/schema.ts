@@ -282,12 +282,16 @@ export interface EnvironmentEntry {
 	 * Per-environment game-pass overlay. Every field is optional; missing
 	 * fields fall through to the matching root `passes` entry at merge time.
 	 *
-	 * Uses `Partial<GamePassEntry>` directly rather than `Overlay<T, K>`
+	 * Uses a partial `GamePassEntry` directly rather than `Overlay<T, K>`
 	 * because game passes have no user-supplied identity key (Open Cloud
-	 * mints the asset ID). The other overlay fields use `Overlay<T, K>`
-	 * to keep their identity-bearing key required.
+	 * mints the asset ID). The `redacted` field narrows to a boolean here:
+	 * per-field overrides (the {@link RedactedGamePassOverride} object form)
+	 * are valid only on the root resource entry.
 	 */
-	passes?: Record<string, Partial<GamePassEntry>>;
+	passes?: Record<
+		string,
+		Partial<WithoutKey<GamePassEntry, "redacted">> & { redacted?: boolean | undefined }
+	>;
 	/**
 	 * Per-environment places overlay. `placeId` is required on every
 	 * declared entry; `filePath` is optional and falls through to the
