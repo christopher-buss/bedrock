@@ -11,6 +11,39 @@ import { iconMap } from "./icons.ts";
 import { collectUniverseIdIssues } from "./validate-universe-xor.ts";
 
 /**
+ * Per-field redaction override for a game-pass entry. Each supplied field
+ * replaces the matching bedrock-supplied placeholder; omitted fields fall
+ * through to the placeholder defaults. The object form implies redaction
+ * is enabled, so authors who want only defaults should write
+ * `redacted: true` instead of an empty object.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { GamePassEntry, RedactedGamePassOverride } from "@bedrock-rbx/core/config";
+ *
+ * const override: RedactedGamePassOverride = { name: "Closed Beta" };
+ *
+ * const entry: GamePassEntry = {
+ *     name: "VIP Pass",
+ *     description: "Grants VIP perks.",
+ *     icon: { "en-us": "assets/vip.png" },
+ *     redacted: override,
+ * };
+ *
+ * expect(entry.redacted).toStrictEqual({ name: "Closed Beta" });
+ * ```
+ */
+export interface RedactedGamePassOverride {
+	/** Override name; falls through to the bedrock default when omitted. */
+	name?: string | undefined;
+	/** Override description; falls through to the bedrock default when omitted. */
+	description?: string | undefined;
+	/** Override icon path; falls through to the embedded placeholder when omitted. */
+	icon?: Record<"en-us", string> | undefined;
+}
+
+/**
  * Body of a single entry in the `passes` collection. Keys in the parent
  * record are `ResourceKey`-shaped strings enforced at schema validation.
  */
@@ -30,10 +63,14 @@ export interface GamePassEntry {
 	/**
 	 * Set to `true` to deploy this pass with bedrock-supplied placeholder
 	 * content (default name, empty description, embedded placeholder icon)
-	 * in place of the real values declared above. Omit or set `false` to
-	 * push the real values unchanged.
+	 * in place of the real values declared above. Set to a
+	 * {@link RedactedGamePassOverride} to substitute selected placeholders
+	 * with custom values while leaving the rest at bedrock defaults; the
+	 * object form implies redaction is enabled. Omit or set `false` to
+	 * push the real values unchanged. Environment overlays accept only the
+	 * boolean form.
 	 */
-	redacted?: boolean | undefined;
+	redacted?: boolean | RedactedGamePassOverride | undefined;
 }
 
 /**
@@ -619,6 +656,20 @@ export const OPTIONAL_POSITIVE_INTEGER = "(number.integer >= 1) | undefined";
  */
 export const OPTIONAL_ROBUX_PRICE = "number.integer >= 0 | undefined";
 
+// The per-field redaction override for a game-pass entry. Each supplied
+// field replaces the matching bedrock-supplied placeholder; omitted fields
+// fall through to the defaults. `onUndeclaredKey("reject")` keeps unknown
+// keys (for example `price`) out of the override so the rejection path is
+// attributed to the offending key. The object form implies redaction is
+// enabled; environment overlays accept only the boolean form.
+const gamePassRedactedOverride = type({
+	"description?": "string",
+	"icon?": iconMap,
+	"name?": "string",
+}).onUndeclaredKey("reject");
+
+const gamePassRedacted = gamePassRedactedOverride.or("boolean | undefined");
+
 // Resource-kind entry schemas. Adding a new kind is two additions:
 // 1. Declare its entry schema and keyed-map collection below.
 // 2. Reference that collection as an optional property on `rootSchema`.
@@ -630,7 +681,7 @@ const gamePassEntry = type({
 	"description": "string",
 	"icon": iconMap,
 	"price?": OPTIONAL_ROBUX_PRICE,
-	"redacted?": OPTIONAL_BOOLEAN,
+	"redacted?": gamePassRedacted,
 });
 
 const passesCollection = type({

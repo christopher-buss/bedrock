@@ -281,6 +281,44 @@ describe(validateConfig, () => {
 		expect(result.data.passes!["vip-pass"]!.redacted).toBe(redacted);
 	});
 
+	it.for([
+		["partial name override", { name: "Closed Beta" }],
+		["partial description override", { description: "Coming soon." }],
+		["partial icon override", { icon: { "en-us": "assets/closed-beta.png" } }],
+		[
+			"full override",
+			{
+				name: "Closed Beta",
+				description: "Coming soon.",
+				icon: { "en-us": "assets/closed-beta.png" },
+			},
+		],
+	] as const)(
+		"should accept a passes entry with redacted as the %s object form",
+		([, redacted]) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					environments: MinEnvironments,
+					passes: {
+						"vip-pass": {
+							name: "VIP Pass",
+							description: "Grants VIP perks.",
+							icon: { "en-us": "assets/vip.png" },
+							redacted,
+						},
+					},
+				},
+				SOURCE,
+			);
+
+			assert(result.success);
+
+			expect(result.data.passes!["vip-pass"]!.redacted).toStrictEqual(redacted);
+		},
+	);
+
 	it("should default redacted to undefined when omitted on a passes entry", () => {
 		expect.assertions(1);
 
@@ -304,7 +342,6 @@ describe(validateConfig, () => {
 	});
 
 	it.for([
-		["object override form", { name: "Closed Beta" }],
 		["string", "true"],
 		["number", 1],
 		// eslint-disable-next-line unicorn/no-null -- testing that arktype rejects the json null literal

@@ -10,6 +10,7 @@ import type {
 	GamePassEntry,
 	GistStateConfig,
 	PlaceEntry,
+	RedactedGamePassOverride,
 	ResolvedPlaceEntry,
 	ResourceEntryByKind,
 	SocialLink,
@@ -23,6 +24,7 @@ import type {
 	GamePassEntry as GamePassEntrySource,
 	GistStateConfig as GistStateConfigSource,
 	PlaceEntry as PlaceEntrySource,
+	RedactedGamePassOverride as RedactedGamePassOverrideSource,
 	ResolvedPlaceEntry as ResolvedPlaceEntrySource,
 	ResourceEntryByKind as ResourceEntryByKindSource,
 	StateConfig as StateConfigSource,
@@ -45,6 +47,10 @@ describe("@bedrock-rbx/core/config resource-entry re-exports", () => {
 
 	it("should re-export GamePassEntry with the same identity as core/schema", () => {
 		expectTypeOf<GamePassEntry>().toEqualTypeOf<GamePassEntrySource>();
+	});
+
+	it("should re-export RedactedGamePassOverride with the same identity as core/schema", () => {
+		expectTypeOf<RedactedGamePassOverride>().toEqualTypeOf<RedactedGamePassOverrideSource>();
 	});
 
 	it("should re-export DeveloperProductEntry with the same identity as core/schema", () => {

@@ -9,10 +9,12 @@ export const REDACTED_DESCRIPTION = "";
 
 /**
  * Pure transform that substitutes bedrock-supplied placeholder content for
- * every resource flagged `redacted: true`. Runs between env-overlay merge
- * and display-name prefix render so the rest of the pipeline (flatten,
- * normalize, diff, apply) operates on already-redacted values and needs no
- * special-case redaction logic.
+ * every resource flagged `redacted: true` or `redacted: { ... }`. The
+ * object form replaces matching fields with the supplied values and falls
+ * back to the bedrock defaults for the rest. Runs between env-overlay
+ * merge and display-name prefix render so the rest of the pipeline
+ * (flatten, normalize, diff, apply) operates on already-redacted values
+ * and needs no special-case redaction logic.
  *
  * @param config - Post-merge `ResolvedConfig` produced by `selectEnvironment`.
  * @returns A `ResolvedConfig` whose redacted entries carry placeholder
@@ -34,14 +36,16 @@ export function applyRedaction(config: ResolvedConfig): ResolvedConfig {
 }
 
 function redactPass(entry: GamePassEntry): GamePassEntry {
-	if (entry.redacted !== true) {
+	if (entry.redacted === undefined || entry.redacted === false) {
 		return entry;
 	}
 
+	const override = entry.redacted === true ? {} : entry.redacted;
+
 	return {
 		...entry,
-		name: REDACTED_PASS_NAME,
-		description: REDACTED_DESCRIPTION,
-		icon: { "en-us": REDACTED_ICON_PATH },
+		name: override.name ?? REDACTED_PASS_NAME,
+		description: override.description ?? REDACTED_DESCRIPTION,
+		icon: override.icon ?? { "en-us": REDACTED_ICON_PATH },
 	};
 }

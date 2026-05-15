@@ -94,4 +94,68 @@ describe(applyRedaction, () => {
 		expect(input.passes["vip-pass"]).toStrictEqual({ ...vipEntry, redacted: true });
 		expect(result.passes?.["vip-pass"]).not.toBe(input.passes["vip-pass"]);
 	});
+
+	it("should substitute only the supplied override fields and fall back to defaults for the rest", () => {
+		expect.assertions(1);
+
+		const result = applyRedaction({
+			...baseConfig,
+			passes: {
+				"vip-pass": { ...vipEntry, redacted: { name: "Closed Beta" } },
+			},
+		});
+
+		expect(result.passes?.["vip-pass"]).toStrictEqual({
+			name: "Closed Beta",
+			description: REDACTED_DESCRIPTION,
+			icon: { "en-us": REDACTED_ICON_PATH },
+			price: 500,
+			redacted: { name: "Closed Beta" },
+		});
+	});
+
+	it("should substitute every field when the override object supplies name, description, and icon", () => {
+		expect.assertions(1);
+
+		const override = {
+			name: "Beta Pass",
+			description: "Beta description",
+			icon: { "en-us": "assets/beta.png" },
+		};
+
+		const result = applyRedaction({
+			...baseConfig,
+			passes: { "vip-pass": { ...vipEntry, redacted: override } },
+		});
+
+		expect(result.passes?.["vip-pass"]).toStrictEqual({
+			name: "Beta Pass",
+			description: "Beta description",
+			icon: { "en-us": "assets/beta.png" },
+			price: 500,
+			redacted: override,
+		});
+	});
+
+	it("should substitute the icon override path while leaving non-icon fields at defaults", () => {
+		expect.assertions(1);
+
+		const result = applyRedaction({
+			...baseConfig,
+			passes: {
+				"vip-pass": {
+					...vipEntry,
+					redacted: { icon: { "en-us": "assets/override-icon.png" } },
+				},
+			},
+		});
+
+		expect(result.passes?.["vip-pass"]).toStrictEqual({
+			name: REDACTED_PASS_NAME,
+			description: REDACTED_DESCRIPTION,
+			icon: { "en-us": "assets/override-icon.png" },
+			price: 500,
+			redacted: { icon: { "en-us": "assets/override-icon.png" } },
+		});
+	});
 });
