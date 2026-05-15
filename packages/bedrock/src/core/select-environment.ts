@@ -96,7 +96,7 @@ export type SelectEnvironmentError =
 	| UnknownEnvironmentError;
 
 /** Successful return shape for {@link selectMergedEnvironment}. */
-export interface MergedEnvironment {
+interface MergedEnvironment {
 	/** Per-environment entry that the merge projected onto the root config. */
 	readonly entry: EnvironmentEntry;
 	/**
@@ -109,7 +109,7 @@ export interface MergedEnvironment {
 }
 
 /** Failure modes returned by {@link selectMergedEnvironment}. */
-export type SelectMergedEnvironmentError = IncompletePassEntryError | UnknownEnvironmentError;
+type SelectMergedEnvironmentError = IncompletePassEntryError | UnknownEnvironmentError;
 
 /**
  * Project a `Config` onto a single environment up to the pre-redaction
