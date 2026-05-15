@@ -10,7 +10,7 @@ import type {
 	PlaceEntry,
 	StateConfig,
 } from "./schema.ts";
-import { selectEnvironment } from "./select-environment.ts";
+import { selectEnvironment, selectMergedEnvironment } from "./select-environment.ts";
 
 const ROOT_STATE: StateConfig = { backend: "gist", gistId: "root-gist" };
 const PROD_STATE: StateConfig = { backend: "gist", gistId: "prod-gist" };
@@ -819,5 +819,109 @@ describe(selectEnvironment, () => {
 
 		expect(result.data.passes?.["vip-pass"]?.name).toBe(REDACTED_PASS_NAME);
 		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Start Place");
+	});
+});
+
+describe(selectMergedEnvironment, () => {
+	it("should preserve real name, description, and icon on a redacted pass instead of substituting placeholders", () => {
+		expect.assertions(3);
+
+		const config: Config = {
+			environments: { production: {} },
+			passes: { "vip-pass": { ...VIP_PASS, redacted: true } },
+		};
+
+		const result = selectMergedEnvironment(config, "production");
+
+		assert(result.success);
+
+		expect(result.data.merged.passes?.["vip-pass"]?.name).toBe(VIP_PASS.name);
+		expect(result.data.merged.passes?.["vip-pass"]?.description).toBe(VIP_PASS.description);
+		expect(result.data.merged.passes?.["vip-pass"]?.icon["en-us"]).toBe(VIP_PASS.icon["en-us"]);
+	});
+
+	it("should leave a place displayName unprefixed even when the env declares a label", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: {
+				staging: {
+					label: "staging",
+					places: { "start-place": { placeId: "5555" } },
+				},
+			},
+			places: {
+				"start-place": { displayName: "Start Place", filePath: "places/start.rbxl" },
+			},
+		};
+
+		const result = selectMergedEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.merged.places?.["start-place"]?.displayName).toBe("Start Place");
+	});
+
+	it("should return the matched env entry alongside the merged config", () => {
+		expect.assertions(1);
+
+		const productionEntry = { label: "prod" };
+		const config: Config = {
+			environments: { production: productionEntry },
+		};
+
+		const result = selectMergedEnvironment(config, "production");
+
+		assert(result.success);
+
+		expect(result.data.entry).toBe(productionEntry);
+	});
+
+	it("should return Err(unknownEnvironment) when the env name is not declared", () => {
+		expect.assertions(1);
+
+		const config: Config = { environments: { production: {} } };
+
+		const result = selectMergedEnvironment(config, "staging");
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("unknownEnvironment");
+	});
+
+	it("should return Err(incompletePassEntry) when an overlay-only pass lacks required fields", () => {
+		expect.assertions(2);
+
+		const config: Config = {
+			environments: {
+				production: { passes: { ghost: { redacted: true } } },
+			},
+		};
+
+		const result = selectMergedEnvironment(config, "production");
+
+		assert(!result.success);
+		assert(result.err.kind === "incompletePassEntry");
+
+		expect(result.err.kind).toBe("incompletePassEntry");
+		expect(result.err.key).toBe("ghost");
+	});
+
+	it("should return Err(incompletePlaceEntry) for a root place that no overlay completes, matching selectEnvironment", () => {
+		expect.assertions(3);
+
+		const config: Config = {
+			environments: { production: {} },
+			places: { "ghost-place": { filePath: "places/ghost.rbxl" } },
+		};
+
+		const mergedResult = selectMergedEnvironment(config, "production");
+
+		assert(!mergedResult.success);
+		assert(mergedResult.err.kind === "incompletePlaceEntry");
+
+		expect(mergedResult.err.kind).toBe("incompletePlaceEntry");
+		expect(mergedResult.err.key).toBe("ghost-place");
+		expect(mergedResult.err.missingField).toBe("placeId");
 	});
 });

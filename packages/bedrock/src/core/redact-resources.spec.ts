@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { applyRedaction, REDACTED_DESCRIPTION, REDACTED_PASS_NAME } from "./redact-resources.ts";
+import {
+	applyRedaction,
+	collectRedactionAnnotations,
+	REDACTED_DESCRIPTION,
+	REDACTED_PASS_NAME,
+} from "./redact-resources.ts";
 import { REDACTED_ICON_PATH } from "./redacted-icon.ts";
 import type { GamePassEntry, ResolvedConfig } from "./schema.ts";
 
@@ -158,4 +163,94 @@ describe(applyRedaction, () => {
 			redacted: { icon: { "en-us": "assets/override-icon.png" } },
 		});
 	});
+});
+
+describe(collectRedactionAnnotations, () => {
+	it("should return an empty array when no passes collection is declared", () => {
+		expect.assertions(1);
+		expect(collectRedactionAnnotations(baseConfig)).toStrictEqual([]);
+	});
+
+	it("should return an empty array when no pass has redacted set to true", () => {
+		expect.assertions(1);
+
+		const result = collectRedactionAnnotations({
+			...baseConfig,
+			passes: {
+				"opt-out-pass": { ...vipEntry, redacted: false },
+				"plain-pass": vipEntry,
+			},
+		});
+
+		expect(result).toStrictEqual([]);
+	});
+
+	it("should emit one gamePass annotation per pass flagged redacted true with hasRealValueEdits false when the author already typed placeholder values literally", () => {
+		expect.assertions(1);
+
+		const placeholderEntry: GamePassEntry = {
+			name: REDACTED_PASS_NAME,
+			description: REDACTED_DESCRIPTION,
+			icon: { "en-us": REDACTED_ICON_PATH },
+			redacted: true,
+		};
+
+		const result = collectRedactionAnnotations({
+			...baseConfig,
+			passes: {
+				"elite-pass": placeholderEntry,
+				"plain-pass": vipEntry,
+				"vip-pass": placeholderEntry,
+			},
+		});
+
+		expect(result).toIncludeSameMembers([
+			{ key: "vip-pass", hasRealValueEdits: false, kind: "gamePass" },
+			{ key: "elite-pass", hasRealValueEdits: false, kind: "gamePass" },
+		]);
+	});
+
+	it.for<{ entry: GamePassEntry; label: string }>([
+		{
+			entry: {
+				name: "Real Name",
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				redacted: true,
+			},
+			label: "name",
+		},
+		{
+			entry: {
+				name: REDACTED_PASS_NAME,
+				description: "Real description.",
+				icon: { "en-us": REDACTED_ICON_PATH },
+				redacted: true,
+			},
+			label: "description",
+		},
+		{
+			entry: {
+				name: REDACTED_PASS_NAME,
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": "assets/real.png" },
+				redacted: true,
+			},
+			label: "icon",
+		},
+	])(
+		"should set hasRealValueEdits true when only the real $label diverges from the placeholder default",
+		({ entry }) => {
+			expect.assertions(1);
+
+			const result = collectRedactionAnnotations({
+				...baseConfig,
+				passes: { "vip-pass": entry },
+			});
+
+			expect(result).toStrictEqual([
+				{ key: "vip-pass", hasRealValueEdits: true, kind: "gamePass" },
+			]);
+		},
+	);
 });

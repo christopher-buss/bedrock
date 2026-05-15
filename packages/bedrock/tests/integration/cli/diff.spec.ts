@@ -22,7 +22,7 @@ interface DiffHarness {
 }
 
 function emptyPreview(environment: string): DiffPreview {
-	return { environment, ops: [] };
+	return { environment, ops: [], redactions: [] };
 }
 
 function buildHarness(

@@ -5,6 +5,7 @@ import process from "node:process";
 import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import type { Operation } from "../../core/operations.ts";
+import type { RedactionAnnotation } from "../../core/redact-resources.ts";
 import type { Config } from "../../core/schema.ts";
 import type { DiffPreview, PreviewDiffError } from "../../shell/preview-diff.ts";
 import { asResourceKey, asSha256Hex } from "../../types/ids.ts";
@@ -67,11 +68,19 @@ function updatePlaceOp(key: string): Operation {
 	};
 }
 
-function preview(
-	environment: string,
-	ops: ReadonlyArray<Operation>,
-): Result<DiffPreview, PreviewDiffError> {
-	return { data: { environment, ops }, success: true };
+function preview(input: {
+	environment: string;
+	ops: ReadonlyArray<Operation>;
+	redactions?: ReadonlyArray<RedactionAnnotation>;
+}): Result<DiffPreview, PreviewDiffError> {
+	return {
+		data: {
+			environment: input.environment,
+			ops: input.ops,
+			redactions: input.redactions ?? [],
+		},
+		success: true,
+	};
 }
 
 function fakeLoad(result: LoadConfigResult): LoadConfigFunc {
@@ -136,7 +145,7 @@ describe(diffCommand, () => {
 		expect.assertions(1);
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-		const previewDiff = fakePreview([preview("production", [])]);
+		const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
 		const deps = makeDeps({ loadConfig, previewDiff });
 
 		await diffCommand(deps)({ config: "./bedrock.staging.config.ts", env: "production" });
@@ -150,7 +159,7 @@ describe(diffCommand, () => {
 		expect.assertions(1);
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-		const previewDiff = fakePreview([preview("production", [])]);
+		const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
 		const deps = makeDeps({ loadConfig, previewDiff });
 
 		await diffCommand(deps)({ env: "production" });
@@ -158,20 +167,67 @@ describe(diffCommand, () => {
 		expect(loadConfig).toHaveBeenCalledExactlyOnceWith(undefined);
 	});
 
-	it("should render no-drift line and exit 0 when every op is a noop", async () => {
-		expect.assertions(3);
+	it("should render no-drift line and exit 0 when every op is a noop without any redacted section", async () => {
+		expect.assertions(4);
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-		const previewDiff = fakePreview([preview("production", [noopOp("vip-pass")])]);
+		const previewDiff = fakePreview([
+			preview({ environment: "production", ops: [noopOp("vip-pass")] }),
+		]);
 		const deps = makeDeps({ loadConfig, previewDiff });
 
 		await diffCommand(deps)({ env: "production" });
 
 		expect(deps.clack?.logSuccess).toHaveBeenCalledExactlyOnceWith('No drift for "production"');
+		expect(deps.clack?.logMessage).not.toHaveBeenCalled();
 		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
 			"all environments are up to date",
 		);
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should annotate redacted noops after the no-drift line and keep the up-to-date outro", async () => {
+		expect.assertions(2);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const previewDiff = fakePreview([
+			preview({
+				environment: "production",
+				ops: [noopOp("vip-pass"), noopOp("elite-pass")],
+				redactions: [
+					{
+						key: asResourceKey("vip-pass"),
+						hasRealValueEdits: false,
+						kind: "gamePass",
+					},
+					{
+						key: asResourceKey("elite-pass"),
+						hasRealValueEdits: true,
+						kind: "gamePass",
+					},
+				],
+			}),
+		]);
+		const deps = makeDeps({ loadConfig, previewDiff });
+
+		await diffCommand(deps)({ env: "production" });
+
+		expect(vi.mocked(deps.clack!.logMessage).mock.calls).toMatchInlineSnapshot(`
+		  [
+		    [
+		      "Redacted in "production":",
+		    ],
+		    [
+		      "- gamePass:vip-pass (redacted)",
+		    ],
+		    [
+		      "- gamePass:elite-pass (redacted, real values not pushed)",
+		    ],
+		  ]
+		`);
+		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+			"all environments are up to date",
+		);
 	});
 
 	it("should render create and update ops with the kind:key prefix and suggest deploy", async () => {
@@ -179,11 +235,14 @@ describe(diffCommand, () => {
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([
-			preview("production", [
-				createGamePassOp("vip-pass"),
-				updatePlaceOp("start-place"),
-				noopOp("rookie-pass"),
-			]),
+			preview({
+				environment: "production",
+				ops: [
+					createGamePassOp("vip-pass"),
+					updatePlaceOp("start-place"),
+					noopOp("rookie-pass"),
+				],
+			}),
 		]);
 		const deps = makeDeps({ loadConfig, previewDiff });
 
@@ -199,6 +258,96 @@ describe(diffCommand, () => {
 			"run bedrock deploy to apply pending changes",
 		);
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should render the redacted section after the drift section and skip redactions whose op is a create or update", async () => {
+		expect.assertions(2);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const previewDiff = fakePreview([
+			preview({
+				environment: "production",
+				ops: [
+					createGamePassOp("fresh-pass"),
+					noopOp("vip-pass"),
+					createGamePassOp("secret-pass"),
+				],
+				redactions: [
+					{
+						key: asResourceKey("vip-pass"),
+						hasRealValueEdits: true,
+						kind: "gamePass",
+					},
+					{
+						key: asResourceKey("secret-pass"),
+						hasRealValueEdits: true,
+						kind: "gamePass",
+					},
+				],
+			}),
+		]);
+		const deps = makeDeps({ loadConfig, previewDiff });
+
+		await diffCommand(deps)({ env: "production" });
+
+		expect(vi.mocked(deps.clack!.logMessage).mock.calls).toMatchInlineSnapshot(`
+		  [
+		    [
+		      "Pending changes for "production":",
+		    ],
+		    [
+		      "+ gamePass:fresh-pass",
+		    ],
+		    [
+		      "+ gamePass:secret-pass",
+		    ],
+		    [
+		      "Redacted in "production":",
+		    ],
+		    [
+		      "- gamePass:vip-pass (redacted, real values not pushed)",
+		    ],
+		  ]
+		`);
+		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+			"run bedrock deploy to apply pending changes",
+		);
+	});
+
+	it("should skip the redacted annotation when the redaction's own kind+key has a drift op even if another kind shares the key", async () => {
+		expect.assertions(2);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const previewDiff = fakePreview([
+			preview({
+				environment: "production",
+				ops: [createGamePassOp("vip-pass"), noopOp("vip-pass")],
+				redactions: [
+					{
+						key: asResourceKey("vip-pass"),
+						hasRealValueEdits: true,
+						kind: "gamePass",
+					},
+				],
+			}),
+		]);
+		const deps = makeDeps({ loadConfig, previewDiff });
+
+		await diffCommand(deps)({ env: "production" });
+
+		expect(vi.mocked(deps.clack!.logMessage).mock.calls).toMatchInlineSnapshot(`
+		  [
+		    [
+		      "Pending changes for "production":",
+		    ],
+		    [
+		      "+ gamePass:vip-pass",
+		    ],
+		  ]
+		`);
+		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+			"run bedrock deploy to apply pending changes",
+		);
 	});
 
 	it("should render the previewDiff Err and exit 1 when the call returns unknownEnvironment", async () => {
@@ -228,7 +377,10 @@ describe(diffCommand, () => {
 		expect.assertions(3);
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-		const previewDiff = fakePreview([preview("production", []), preview("staging", [])]);
+		const previewDiff = fakePreview([
+			preview({ environment: "production", ops: [] }),
+			preview({ environment: "staging", ops: [] }),
+		]);
 		const deps = makeDeps({ loadConfig, previewDiff });
 
 		await diffCommand(deps)({ env: ["production", "staging"] });
@@ -245,8 +397,8 @@ describe(diffCommand, () => {
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([
-			preview("production", [noopOp("vip-pass")]),
-			preview("staging", [createGamePassOp("beta-pass")]),
+			preview({ environment: "production", ops: [noopOp("vip-pass")] }),
+			preview({ environment: "staging", ops: [createGamePassOp("beta-pass")] }),
 		]);
 		const deps = makeDeps({ loadConfig, previewDiff });
 
@@ -258,6 +410,36 @@ describe(diffCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
+	it("should keep the up-to-date outro when only redacted noops appear across envs even though one env declares them", async () => {
+		expect.assertions(2);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const previewDiff = fakePreview([
+			preview({ environment: "production", ops: [noopOp("vip-pass")] }),
+			preview({
+				environment: "staging",
+				ops: [noopOp("vip-pass")],
+				redactions: [
+					{
+						key: asResourceKey("vip-pass"),
+						hasRealValueEdits: true,
+						kind: "gamePass",
+					},
+				],
+			}),
+		]);
+		const deps = makeDeps({ loadConfig, previewDiff });
+
+		await diffCommand(deps)({ env: ["production", "staging"] });
+
+		expect(deps.clack?.logMessage).toHaveBeenCalledWith(
+			"- gamePass:vip-pass (redacted, real values not pushed)",
+		);
+		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+			"all environments are up to date",
+		);
+	});
+
 	it("should call previewDiff for every env even when one fails, then exit 1", async () => {
 		expect.assertions(4);
 
@@ -267,7 +449,7 @@ describe(diffCommand, () => {
 				err: { environment: "production", kind: "stateNotConfigured" },
 				success: false,
 			},
-			preview("staging", [noopOp("vip-pass")]),
+			preview({ environment: "staging", ops: [noopOp("vip-pass")] }),
 		]);
 		const deps = makeDeps({ loadConfig, previewDiff });
 
@@ -286,7 +468,7 @@ describe(diffCommand, () => {
 
 		try {
 			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-			const previewDiff = fakePreview([preview("production", [])]);
+			const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
 			const deps = makeDeps({ loadConfig, previewDiff });
 
 			await diffCommand(deps)({
@@ -318,7 +500,7 @@ describe(diffCommand, () => {
 
 		try {
 			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-			const previewDiff = fakePreview([preview("production", [])]);
+			const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
 			const deps = makeDeps({ loadConfig, previewDiff });
 
 			await diffCommand(deps)({ "api-key": "FLAG_BEDROCK", "env": "production" });
@@ -344,7 +526,7 @@ describe(diffCommand, () => {
 
 		try {
 			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-			const previewDiff = fakePreview([preview("production", [])]);
+			const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
 			const deps = makeDeps({ loadConfig, previewDiff });
 
 			await diffCommand(deps)({ env: "production" });
@@ -370,7 +552,7 @@ describe(diffCommand, () => {
 		vi.stubEnv("BEDROCK_ENVIRONMENT", "production");
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-		const previewDiff = fakePreview([preview("production", [])]);
+		const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
 		const deps = makeDeps({ loadConfig, previewDiff });
 
 		await diffCommand(deps)({});

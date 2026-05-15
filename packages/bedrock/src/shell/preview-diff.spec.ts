@@ -391,4 +391,52 @@ describe(previewDiff, () => {
 
 		assert(result.success);
 	});
+
+	it("should return an empty redactions array when no pass is flagged redacted", async () => {
+		expect.assertions(1);
+
+		const { port } = inMemoryStatePort();
+
+		const result = await previewDiff({
+			config: vipPassConfig(),
+			environment: "production",
+			readFile: readIcon,
+			statePort: port,
+		});
+
+		assert(result.success);
+
+		expect(result.data.redactions).toStrictEqual([]);
+	});
+
+	it("should return a redaction annotation with hasRealValueEdits true when the redacted pass keeps its real name in config", async () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: { production: {} },
+			passes: {
+				"vip-pass": {
+					name: "VIP Pass",
+					description: "Grants VIP perks.",
+					icon: { "en-us": "assets/vip-icon.png" },
+					price: 500,
+					redacted: true,
+				},
+			},
+		};
+		const { port } = inMemoryStatePort();
+
+		const result = await previewDiff({
+			config,
+			environment: "production",
+			readFile: readIcon,
+			statePort: port,
+		});
+
+		assert(result.success);
+
+		expect(result.data.redactions).toStrictEqual([
+			{ key: "vip-pass", hasRealValueEdits: true, kind: "gamePass" },
+		]);
+	});
 });

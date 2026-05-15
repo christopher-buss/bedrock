@@ -1,6 +1,7 @@
 import process from "node:process";
 
 import type { CreateOperation, Operation, UpdateOperation } from "../../core/operations.ts";
+import type { RedactionAnnotation } from "../../core/redact-resources.ts";
 import type { Config } from "../../core/schema.ts";
 import {
 	loadConfig as defaultLoadConfig,
@@ -92,10 +93,33 @@ function isDriftOp(op: Operation): op is CreateOperation | UpdateOperation {
 	return op.type !== "noop";
 }
 
+function describeRedaction(redaction: RedactionAnnotation): string {
+	const suffix = redaction.hasRealValueEdits ? "redacted, real values not pushed" : "redacted";
+	return `- ${redaction.kind}:${redaction.key} (${suffix})`;
+}
+
+function renderRedactions(preview: DiffPreview, clack: ClackPort): void {
+	const driftPairs = new Set(
+		preview.ops.filter(isDriftOp).map((op) => `${op.desired.kind}:${op.key}`),
+	);
+	const redactedNoops = preview.redactions.filter(
+		(redaction) => !driftPairs.has(`${redaction.kind}:${redaction.key}`),
+	);
+	if (redactedNoops.length === 0) {
+		return;
+	}
+
+	clack.logMessage(`Redacted in "${preview.environment}":`);
+	for (const redaction of redactedNoops) {
+		clack.logMessage(describeRedaction(redaction));
+	}
+}
+
 function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 	const drift = preview.ops.filter(isDriftOp);
 	if (drift.length === 0) {
 		clack.logSuccess(`No drift for "${preview.environment}"`);
+		renderRedactions(preview, clack);
 		return false;
 	}
 
@@ -103,6 +127,8 @@ function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 	for (const op of drift) {
 		clack.logMessage(describeOp(op));
 	}
+
+	renderRedactions(preview, clack);
 
 	return true;
 }
