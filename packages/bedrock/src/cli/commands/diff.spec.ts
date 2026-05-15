@@ -167,8 +167,8 @@ describe(diffCommand, () => {
 		expect(loadConfig).toHaveBeenCalledExactlyOnceWith(undefined);
 	});
 
-	it("should render no-drift line and exit 0 when every op is a noop", async () => {
-		expect.assertions(3);
+	it("should render no-drift line and exit 0 when every op is a noop without any redacted section", async () => {
+		expect.assertions(4);
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([
@@ -179,10 +179,55 @@ describe(diffCommand, () => {
 		await diffCommand(deps)({ env: "production" });
 
 		expect(deps.clack?.logSuccess).toHaveBeenCalledExactlyOnceWith('No drift for "production"');
+		expect(deps.clack?.logMessage).not.toHaveBeenCalled();
 		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
 			"all environments are up to date",
 		);
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should annotate redacted noops after the no-drift line and keep the up-to-date outro", async () => {
+		expect.assertions(2);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const previewDiff = fakePreview([
+			preview({
+				environment: "production",
+				ops: [noopOp("vip-pass"), noopOp("elite-pass")],
+				redactions: [
+					{
+						key: asResourceKey("vip-pass"),
+						hasRealValueEdits: false,
+						kind: "gamePass",
+					},
+					{
+						key: asResourceKey("elite-pass"),
+						hasRealValueEdits: true,
+						kind: "gamePass",
+					},
+				],
+			}),
+		]);
+		const deps = makeDeps({ loadConfig, previewDiff });
+
+		await diffCommand(deps)({ env: "production" });
+
+		expect(vi.mocked(deps.clack!.logMessage).mock.calls).toMatchInlineSnapshot(`
+		  [
+		    [
+		      "Redacted in "production":",
+		    ],
+		    [
+		      "- gamePass:vip-pass (redacted)",
+		    ],
+		    [
+		      "- gamePass:elite-pass (redacted, real values not pushed)",
+		    ],
+		  ]
+		`);
+		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+			"all environments are up to date",
+		);
 	});
 
 	it("should render create and update ops with the kind:key prefix and suggest deploy", async () => {
