@@ -398,6 +398,36 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.message).toContain("redacted: true");
 	});
 
+	it("should reject an unknown key in a redacted override and attribute the issue path to the offending key", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				passes: {
+					"vip-pass": {
+						name: "VIP Pass",
+						description: "Grants VIP perks.",
+						icon: { "en-us": "assets/vip.png" },
+						redacted: { price: 0 },
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"passes",
+			"vip-pass",
+			"redacted",
+			"price",
+		]);
+		expect(result.err.issues[0]!.message).toContain("price");
+	});
+
 	it("should accept a products collection with a valid developer-product entry", () => {
 		expect.assertions(1);
 
