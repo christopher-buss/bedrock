@@ -660,13 +660,25 @@ export const OPTIONAL_ROBUX_PRICE = "number.integer >= 0 | undefined";
 // field replaces the matching bedrock-supplied placeholder; omitted fields
 // fall through to the defaults. `onUndeclaredKey("reject")` keeps unknown
 // keys (for example `price`) out of the override so the rejection path is
-// attributed to the offending key. The object form implies redaction is
-// enabled; environment overlays accept only the boolean form.
+// attributed to the offending key. The empty-object narrow steers authors
+// who want only defaults to the simpler `redacted: true` form. The object
+// form implies redaction is enabled; environment overlays accept only the
+// boolean form.
 const gamePassRedactedOverride = type({
 	"description?": "string",
 	"icon?": iconMap,
 	"name?": "string",
-}).onUndeclaredKey("reject");
+})
+	.onUndeclaredKey("reject")
+	.narrow((value, ctx) => {
+		if (Object.keys(value).length === 0) {
+			return ctx.mustBe(
+				"a non-empty override object; use `redacted: true` for default placeholders",
+			);
+		}
+
+		return true;
+	});
 
 const gamePassRedacted = gamePassRedactedOverride.or("boolean | undefined");
 

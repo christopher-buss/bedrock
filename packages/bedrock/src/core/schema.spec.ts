@@ -373,6 +373,31 @@ describe(validateConfig, () => {
 		},
 	);
 
+	it("should reject an empty redacted object and recommend redacted: true for default placeholders", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				passes: {
+					"vip-pass": {
+						name: "VIP Pass",
+						description: "Grants VIP perks.",
+						icon: { "en-us": "assets/vip.png" },
+						redacted: {},
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "redacted"]);
+		expect(result.err.issues[0]!.message).toContain("redacted: true");
+	});
+
 	it("should accept a products collection with a valid developer-product entry", () => {
 		expect.assertions(1);
 
