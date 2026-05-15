@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- centralized public-API schema; growing the surface here is expected. */
 import type { Result } from "@bedrock-rbx/ocale";
 import type { SocialLink } from "@bedrock-rbx/ocale/universes";
 
@@ -306,6 +307,8 @@ export interface EnvironmentEntry {
 	 * `productId`).
 	 */
 	products?: Record<string, Partial<DeveloperProductEntry>>;
+	/** Per-environment redaction toggle. Per-resource `redacted` flags on the merged config take precedence; `false` carves out exceptions. */
+	redacted?: boolean | undefined;
 	/** Per-environment state override; takes precedence over root `state`. */
 	state?: StateConfig;
 	/**
@@ -807,6 +810,7 @@ const environmentEntry: Type<EnvironmentEntry> = type({
 	"passes?": passesOverlayCollection,
 	"places?": placesOverlayCollection,
 	"products?": productsOverlayCollection,
+	"redacted?": OPTIONAL_BOOLEAN,
 	"state?": stateConfig,
 	"universe?": universeOverlay,
 }).onUndeclaredKey("reject");

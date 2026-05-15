@@ -1,7 +1,7 @@
 import { asResourceKey, type ResourceKey } from "../types/ids.ts";
 import { REDACTED_ICON_PATH } from "./redacted-icon.ts";
 import type { ResourceKind } from "./resources.ts";
-import type { GamePassEntry, ResolvedConfig } from "./schema.ts";
+import type { GamePassEntry, RedactedGamePassOverride, ResolvedConfig } from "./schema.ts";
 
 /** Default placeholder name pushed for a redacted game-pass. */
 export const REDACTED_PASS_NAME = "Redacted Pass";
@@ -27,26 +27,40 @@ export interface RedactionAnnotation {
 
 /**
  * Pure transform that substitutes bedrock-supplied placeholder content for
- * every resource flagged `redacted: true` or `redacted: { ... }`. The
- * object form replaces matching fields with the supplied values and falls
- * back to the bedrock defaults for the rest. Runs between env-overlay
- * merge and display-name prefix render so the rest of the pipeline
- * (flatten, normalize, diff, apply) operates on already-redacted values
- * and needs no special-case redaction logic.
+ * every resource whose effective `redacted` flag is truthy. The effective
+ * flag is the per-resource `redacted` value when set, otherwise the
+ * `environmentRedacted` fallback. A `redacted` object form replaces
+ * matching fields with the supplied values and falls back to the bedrock
+ * defaults for the rest. Runs between env-overlay merge and display-name
+ * prefix render so the rest of the pipeline (flatten, normalize, diff,
+ * apply) operates on already-redacted values and needs no special-case
+ * redaction logic.
  *
  * @param config - Post-merge `ResolvedConfig` produced by `selectEnvironment`.
+ * @param environmentRedacted - Environment-level redaction toggle. Resources
+ *   that omit a per-resource `redacted` flag inherit this value.
  * @returns A `ResolvedConfig` whose redacted entries carry placeholder
  *   values; non-redacted entries pass through verbatim, and the input is
  *   not mutated.
  */
-export function applyRedaction(config: ResolvedConfig): ResolvedConfig {
+export function applyRedaction(
+	config: ResolvedConfig,
+	environmentRedacted = false,
+): ResolvedConfig {
 	if (config.passes === undefined) {
 		return config;
 	}
 
 	const passes = Object.fromEntries(
 		Object.entries(config.passes).map(([key, entry]) => {
-			return [key, redactPass(entry)] as const;
+			const effective = entry.redacted ?? environmentRedacted;
+			if (effective === false) {
+				return [key, entry] as const;
+			}
+
+			const override: RedactedGamePassOverride =
+				typeof effective === "object" ? effective : {};
+			return [key, redactPass(entry, override)] as const;
 		}),
 	);
 
@@ -86,13 +100,7 @@ export function collectRedactionAnnotations(
 		});
 }
 
-function redactPass(entry: GamePassEntry): GamePassEntry {
-	if (entry.redacted === undefined || entry.redacted === false) {
-		return entry;
-	}
-
-	const override = entry.redacted === true ? {} : entry.redacted;
-
+function redactPass(entry: GamePassEntry, override: RedactedGamePassOverride): GamePassEntry {
 	return {
 		...entry,
 		name: override.name ?? REDACTED_PASS_NAME,

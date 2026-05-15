@@ -1943,12 +1943,28 @@ describe(validateConfig, () => {
 		]);
 	});
 
-	it("should reject a bare redacted toggle on an environments entry until env-level redaction lands", () => {
+	it("should accept a bare redacted toggle on an environments entry", () => {
 		expect.assertions(1);
 
 		const result = validateConfig(
 			{
 				environments: { production: { redacted: true } },
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.environments["production"]?.redacted).toBeTrue();
+	});
+
+	it("should reject an object-form redacted on an environments entry", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: { production: { redacted: { name: "Closed Beta" } } },
 				state: { backend: "gist", gistId: "root-gist" },
 			},
 			SOURCE,
