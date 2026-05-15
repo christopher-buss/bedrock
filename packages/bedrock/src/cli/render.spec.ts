@@ -220,6 +220,15 @@ describe(renderDeployError, () => {
 		},
 		{
 			err: {
+				key: "vip-pass",
+				environment: "production",
+				kind: "incompletePassEntry",
+				missingField: "name",
+			},
+			expected: "pass 'vip-pass' is missing 'name' under environment 'production'",
+		},
+		{
+			err: {
 				key: "main-place",
 				environment: "production",
 				kind: "incompletePlaceEntry",

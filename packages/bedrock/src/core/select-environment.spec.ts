@@ -1,5 +1,7 @@
 import { assert, describe, expect, it } from "vitest";
 
+import { REDACTED_DESCRIPTION, REDACTED_PASS_NAME } from "./redact-resources.ts";
+import { REDACTED_ICON_PATH } from "./redacted-icon.ts";
 import type {
 	Config,
 	DeveloperProductEntry,
@@ -49,7 +51,7 @@ describe(selectEnvironment, () => {
 	});
 
 	it("should leave state absent when neither env nor root declares it", () => {
-		expect.assertions(1);
+		expect.assertions(2);
 
 		const config: Config = { environments: { production: {} } };
 
@@ -58,6 +60,7 @@ describe(selectEnvironment, () => {
 		assert(result.success);
 
 		expect(result.data.state).toBeUndefined();
+		expect(result.data).not.toContainKey("state");
 	});
 
 	it("should prefer the env state override when both root and env declare state", () => {
@@ -671,5 +674,149 @@ describe(selectEnvironment, () => {
 
 		expect(result.data.environments).toContainKey("production");
 		expect(result.data.extends).toBe("./base.config.ts");
+	});
+
+	it("should substitute placeholder content when a root pass declares redacted: true", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: { production: {} },
+			passes: { "vip-pass": { ...VIP_PASS, redacted: true } },
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "production");
+
+		assert(result.success);
+
+		expect(result.data.passes?.["vip-pass"]).toStrictEqual({
+			name: REDACTED_PASS_NAME,
+			description: REDACTED_DESCRIPTION,
+			icon: { "en-us": REDACTED_ICON_PATH },
+			price: 500,
+			redacted: true,
+		});
+	});
+
+	it("should redact a pass when an env-overlay flips redacted to true while the root leaves it unset", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: {
+				staging: { passes: { "vip-pass": { redacted: true } } },
+			},
+			passes: { "vip-pass": VIP_PASS },
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.passes?.["vip-pass"]?.name).toBe(REDACTED_PASS_NAME);
+	});
+
+	it("should push real values when an env-overlay flips redacted to false while the root says true", () => {
+		expect.assertions(2);
+
+		const config: Config = {
+			environments: {
+				production: { passes: { "vip-pass": { redacted: false } } },
+			},
+			passes: { "vip-pass": { ...VIP_PASS, redacted: true } },
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "production");
+
+		assert(result.success);
+
+		expect(result.data.passes?.["vip-pass"]?.name).toBe("VIP Pass");
+		expect(result.data.passes?.["vip-pass"]?.icon["en-us"]).toBe("assets/vip.png");
+	});
+
+	it.for<
+		[
+			label: string,
+			overlay: Partial<GamePassEntry>,
+			missingField: "description" | "icon" | "name",
+		]
+	>([
+		["name", { description: "x", icon: { "en-us": "x.png" }, redacted: true }, "name"],
+		["description", { name: "x", icon: { "en-us": "x.png" }, redacted: true }, "description"],
+		["icon", { name: "x", description: "x", redacted: true }, "icon"],
+	])(
+		"should return Err(incompletePassEntry) when an overlay-only pass omits %s before redaction can substitute placeholders",
+		([, overlay, missingField]) => {
+			expect.assertions(4);
+
+			const config: Config = {
+				environments: {
+					staging: { passes: { "vip-pass": overlay } },
+				},
+				state: ROOT_STATE,
+			};
+
+			const result = selectEnvironment(config, "staging");
+
+			assert(!result.success);
+			assert(result.err.kind === "incompletePassEntry");
+
+			expect(result.err.environment).toBe("staging");
+			expect(result.err.key).toBe("vip-pass");
+			expect(result.err.missingField).toBe(missingField);
+			expect(result.err.kind).toBe("incompletePassEntry");
+		},
+	);
+
+	it("should accept an overlay-only redacted pass when the overlay declares name, description, and icon", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: {
+				staging: {
+					passes: {
+						"vip-pass": {
+							name: "VIP Pass",
+							description: "Grants VIP perks.",
+							icon: { "en-us": "assets/vip.png" },
+							redacted: true,
+						},
+					},
+				},
+			},
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.passes?.["vip-pass"]?.name).toBe(REDACTED_PASS_NAME);
+	});
+
+	it("should still apply the display-name prefix to places when a redacted pass coexists", () => {
+		expect.assertions(2);
+
+		const config: Config = {
+			environments: {
+				staging: {
+					label: "staging",
+					places: { "start-place": { placeId: "5555" } },
+				},
+			},
+			passes: { "vip-pass": { ...VIP_PASS, redacted: true } },
+			places: {
+				"start-place": { displayName: "Start Place", filePath: "places/start.rbxl" },
+			},
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.passes?.["vip-pass"]?.name).toBe(REDACTED_PASS_NAME);
+		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Start Place");
 	});
 });

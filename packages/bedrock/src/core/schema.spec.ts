@@ -255,6 +255,87 @@ describe(validateConfig, () => {
 		},
 	);
 
+	it.for([
+		["true", true],
+		["false", false],
+	] as const)("should accept a passes entry with redacted: %s", ([, redacted]) => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				passes: {
+					"vip-pass": {
+						name: "VIP Pass",
+						description: "Grants VIP perks.",
+						icon: { "en-us": "assets/vip.png" },
+						redacted,
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.passes!["vip-pass"]!.redacted).toBe(redacted);
+	});
+
+	it("should default redacted to undefined when omitted on a passes entry", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				passes: {
+					"vip-pass": {
+						name: "VIP Pass",
+						description: "Grants VIP perks.",
+						icon: { "en-us": "assets/vip.png" },
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.passes!["vip-pass"]!.redacted).toBeUndefined();
+	});
+
+	it.for([
+		["object override form", { name: "Closed Beta" }],
+		["string", "true"],
+		["number", 1],
+		// eslint-disable-next-line unicorn/no-null -- testing that arktype rejects the json null literal
+		["null", null],
+	] as const)(
+		"should reject %s as a passes redacted field and attribute the issue path to that field",
+		([, redacted]) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					environments: MinEnvironments,
+					passes: {
+						"vip-pass": {
+							name: "VIP Pass",
+							description: "Grants VIP perks.",
+							icon: { "en-us": "assets/vip.png" },
+							redacted,
+						},
+					},
+				},
+				SOURCE,
+			);
+
+			assert(!result.success);
+			assert(result.err.kind === "validationFailed");
+
+			expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "redacted"]);
+		},
+	);
+
 	it("should accept a products collection with a valid developer-product entry", () => {
 		expect.assertions(1);
 
@@ -1437,6 +1518,74 @@ describe(validateConfig, () => {
 		expect(result.success).toBeTrue();
 	});
 
+	it.for([
+		["true", true],
+		["false", false],
+	] as const)(
+		"should accept a per-environment passes overlay that declares redacted: %s",
+		([, redacted]) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					environments: {
+						staging: { passes: { "vip-pass": { redacted } } },
+					},
+					passes: {
+						"vip-pass": {
+							name: "VIP Pass",
+							description: "Grants VIP perks.",
+							icon: { "en-us": "assets/vip.png" },
+							price: 500,
+						},
+					},
+					state: { backend: "gist", gistId: "root-gist" },
+				},
+				SOURCE,
+			);
+
+			assert(result.success);
+
+			expect(result.data.environments["staging"]?.passes?.["vip-pass"]?.redacted).toBe(
+				redacted,
+			);
+		},
+	);
+
+	it("should reject an object override form on a per-environment passes overlay redacted field", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: {
+						passes: { "vip-pass": { redacted: { name: "Closed Beta" } } },
+					},
+				},
+				passes: {
+					"vip-pass": {
+						name: "VIP Pass",
+						description: "Grants VIP perks.",
+						icon: { "en-us": "assets/vip.png" },
+					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"staging",
+			"passes",
+			"vip-pass",
+			"redacted",
+		]);
+	});
+
 	it("should accept a per-environment products overlay that supplies a partial subset of fields", () => {
 		expect.assertions(1);
 
@@ -1699,6 +1848,27 @@ describe(validateConfig, () => {
 			"environments",
 			"production",
 			"unexpected",
+		]);
+	});
+
+	it("should reject a bare redacted toggle on an environments entry until env-level redaction lands", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: { production: { redacted: true } },
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"production",
+			"redacted",
 		]);
 	});
 

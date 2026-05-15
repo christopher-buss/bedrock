@@ -3,6 +3,7 @@ import type { GamePass, GamePassesClient } from "@bedrock-rbx/ocale/game-passes"
 
 import { derivePriceFields } from "../core/derive-price-fields.ts";
 import { shouldReuploadIcon } from "../core/icons.ts";
+import { withRedactedIcon } from "../core/redacted-icon.ts";
 import type { GamePassDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
@@ -128,12 +129,16 @@ export interface GamePassDriverDeps {
  * ```
  */
 export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"gamePass"> {
+	const effective: GamePassDriverDeps = {
+		...deps,
+		readFile: withRedactedIcon(deps.readFile),
+	};
 	return {
 		async create(desired) {
-			return createGamePass(deps, desired);
+			return createGamePass(effective, desired);
 		},
 		async update(current, desired) {
-			return updateGamePass(deps, { current, desired });
+			return updateGamePass(effective, { current, desired });
 		},
 	};
 }

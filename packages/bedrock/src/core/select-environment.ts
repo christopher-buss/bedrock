@@ -3,6 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { defu } from "defu";
 
 import { renderDisplayNamePrefix } from "./display-name-prefix.ts";
+import { applyRedaction } from "./redact-resources.ts";
 import type {
 	Config,
 	DeveloperProductEntry,
@@ -65,16 +66,34 @@ export interface IncompleteUniverseEntryError {
 	readonly missingField: "universeId";
 }
 
+/**
+ * Failure surfaced when a merged `passes` entry is missing a required
+ * field. The most common path here is an overlay-only pass declared
+ * under `environments.X.passes` with no matching root entry: the overlay
+ * shape is `Partial<GamePassEntry>`, so a typo on the ResourceKey
+ * silently produces an incomplete entry that would otherwise be filled
+ * in by `applyRedaction` (when `redacted: true` is set) and pushed as a
+ * phantom placeholder pass. Surfacing the missing field at the
+ * resolution boundary keeps that case attributable instead of letting
+ * normalize fail later with a less specific error.
+ */
+export interface IncompletePassEntryError {
+	/** ResourceKey of the pass entry that is missing a required field. */
+	readonly key: string;
+	/** Environment whose overlay was projected onto the config. */
+	readonly environment: string;
+	/** Literal discriminator for narrowing. */
+	readonly kind: "incompletePassEntry";
+	/** Field that the merged entry lacks. */
+	readonly missingField: "description" | "icon" | "name";
+}
+
 /** Failure modes returned by {@link selectEnvironment}. */
 export type SelectEnvironmentError =
+	| IncompletePassEntryError
 	| IncompletePlaceEntryError
 	| IncompleteUniverseEntryError
 	| UnknownEnvironmentError;
-
-interface ProjectInputs {
-	readonly config: Config;
-	readonly entry: Config["environments"][string];
-}
 
 /**
  * Project a validated `Config` onto a single environment. Looks up the
@@ -162,7 +181,15 @@ export function selectEnvironment(
 		return { err: unknownEnvironment(config, environment), success: false };
 	}
 
-	const projected = projectConfig({ config, entry });
+	const merged = mergeOverlays(config, entry);
+
+	const incompletePass = findIncompletePass(merged, environment);
+	if (incompletePass !== undefined) {
+		return { err: incompletePass, success: false };
+	}
+
+	const projected = redactAndPrefix({ config, entry, merged });
+
 	const incompletePlace = findIncompletePlace(projected, environment);
 	if (incompletePlace !== undefined) {
 		return { err: incompletePlace, success: false };
@@ -192,6 +219,38 @@ function findIncompleteUniverse(
 	const candidate: Partial<ResolvedUniverseEntry> = universe;
 	if (candidate.universeId === undefined) {
 		return { environment, kind: "incompleteUniverseEntry", missingField: "universeId" };
+	}
+
+	return undefined;
+}
+
+function findIncompletePass(
+	merged: ResolvedConfig,
+	environment: string,
+): IncompletePassEntryError | undefined {
+	const { passes } = merged;
+	if (passes === undefined) {
+		return undefined;
+	}
+
+	const candidates: Record<string, Partial<GamePassEntry>> = passes;
+	for (const [key, entry] of Object.entries(candidates)) {
+		if (entry.name === undefined) {
+			return { key, environment, kind: "incompletePassEntry", missingField: "name" };
+		}
+
+		if (entry.description === undefined) {
+			return {
+				key,
+				environment,
+				kind: "incompletePassEntry",
+				missingField: "description",
+			};
+		}
+
+		if (entry.icon === undefined) {
+			return { key, environment, kind: "incompletePassEntry", missingField: "icon" };
+		}
 	}
 
 	return undefined;
@@ -291,6 +350,38 @@ function mergeUniverse(
 	return defu(overlay ?? {}, base ?? {}) as ResolvedUniverseEntry;
 }
 
+function mergeOverlays(config: Config, entry: EnvironmentEntry): ResolvedConfig {
+	const passes = mergeKeyedRecord<GamePassEntry>(entry.passes, config.passes);
+	const places = mergeKeyedRecord<ResolvedPlaceEntry>(entry.places, config.places);
+	const products = mergeKeyedRecord<DeveloperProductEntry>(entry.products, config.products);
+	const universe = mergeUniverse(entry.universe, config.universe);
+	const state = entry.state ?? config.state;
+
+	const {
+		places: _placesRoot,
+		products: _productsRoot,
+		universe: _universeRoot,
+		...rest
+	} = config;
+
+	return {
+		...rest,
+		...(passes === undefined ? {} : { passes }),
+		...(places === undefined ? {} : { places }),
+		...(products === undefined ? {} : { products }),
+		...(state === undefined ? {} : { state }),
+		...(universe === undefined ? {} : { universe }),
+	};
+}
+
+function unknownEnvironment(config: Config, environment: string): UnknownEnvironmentError {
+	return {
+		declared: Object.keys(config.environments),
+		environment,
+		kind: "unknownEnvironment",
+	};
+}
+
 function resolvePrefix(config: Config, entry: EnvironmentEntry): string | undefined {
 	if (config.displayNamePrefix?.enabled === false) {
 		return undefined;
@@ -334,38 +425,20 @@ function applyPlacesPrefix(
 	);
 }
 
-function projectConfig(inputs: ProjectInputs): ResolvedConfig {
-	const { config, entry } = inputs;
-	const passes = mergeKeyedRecord<GamePassEntry>(entry.passes, config.passes);
-	const mergedPlaces = mergeKeyedRecord<ResolvedPlaceEntry>(entry.places, config.places);
-	const products = mergeKeyedRecord<DeveloperProductEntry>(entry.products, config.products);
-	const merged = mergeUniverse(entry.universe, config.universe);
+function redactAndPrefix(inputs: {
+	readonly config: Config;
+	readonly entry: EnvironmentEntry;
+	readonly merged: ResolvedConfig;
+}): ResolvedConfig {
+	const { config, entry, merged } = inputs;
+	const redacted = applyRedaction(merged);
 	const prefix = resolvePrefix(config, entry);
-	const universe = applyUniversePrefix(merged, prefix);
-	const places = applyPlacesPrefix(mergedPlaces, prefix);
-	const state = entry.state ?? config.state;
-
-	const {
-		places: _placesRoot,
-		products: _productsRoot,
-		universe: _universeRoot,
-		...rest
-	} = config;
+	const places = applyPlacesPrefix(redacted.places, prefix);
+	const universe = applyUniversePrefix(redacted.universe, prefix);
 
 	return {
-		...rest,
-		...(passes === undefined ? {} : { passes }),
+		...redacted,
 		...(places === undefined ? {} : { places }),
-		...(products === undefined ? {} : { products }),
-		...(state === undefined ? {} : { state }),
 		...(universe === undefined ? {} : { universe }),
-	};
-}
-
-function unknownEnvironment(config: Config, environment: string): UnknownEnvironmentError {
-	return {
-		declared: Object.keys(config.environments),
-		environment,
-		kind: "unknownEnvironment",
 	};
 }
