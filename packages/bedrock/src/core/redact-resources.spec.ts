@@ -145,4 +145,48 @@ describe(collectRedactionAnnotations, () => {
 			{ key: "elite-pass", hasRealValueEdits: false, kind: "gamePass" },
 		]);
 	});
+
+	it.for<{ entry: GamePassEntry; label: string }>([
+		{
+			entry: {
+				name: "Real Name",
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				redacted: true,
+			},
+			label: "name",
+		},
+		{
+			entry: {
+				name: REDACTED_PASS_NAME,
+				description: "Real description.",
+				icon: { "en-us": REDACTED_ICON_PATH },
+				redacted: true,
+			},
+			label: "description",
+		},
+		{
+			entry: {
+				name: REDACTED_PASS_NAME,
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": "assets/real.png" },
+				redacted: true,
+			},
+			label: "icon",
+		},
+	])(
+		"should set hasRealValueEdits true when only the real $label diverges from the placeholder default",
+		({ entry }) => {
+			expect.assertions(1);
+
+			const result = collectRedactionAnnotations({
+				...baseConfig,
+				passes: { "vip-pass": entry },
+			});
+
+			expect(result).toStrictEqual([
+				{ key: "vip-pass", hasRealValueEdits: true, kind: "gamePass" },
+			]);
+		},
+	);
 });

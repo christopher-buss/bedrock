@@ -75,8 +75,12 @@ export function collectRedactionAnnotations(
 
 	return Object.entries(merged.passes)
 		.filter(([, entry]) => entry.redacted === true)
-		.map(([key]) => {
-			return { key: asResourceKey(key), hasRealValueEdits: false, kind: "gamePass" as const };
+		.map(([key, entry]) => {
+			return {
+				key: asResourceKey(key),
+				hasRealValueEdits: passHasRealValueEdits(entry),
+				kind: "gamePass" as const,
+			};
 		});
 }
 
@@ -91,4 +95,12 @@ function redactPass(entry: GamePassEntry): GamePassEntry {
 		description: REDACTED_DESCRIPTION,
 		icon: { "en-us": REDACTED_ICON_PATH },
 	};
+}
+
+function passHasRealValueEdits(entry: GamePassEntry): boolean {
+	return (
+		entry.name !== REDACTED_PASS_NAME ||
+		entry.description !== REDACTED_DESCRIPTION ||
+		entry.icon["en-us"] !== REDACTED_ICON_PATH
+	);
 }
