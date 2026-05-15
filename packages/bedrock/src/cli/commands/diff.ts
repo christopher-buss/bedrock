@@ -99,12 +99,14 @@ function describeRedaction(redaction: RedactionAnnotation): string {
 }
 
 function renderRedactions(preview: DiffPreview, clack: ClackPort): void {
-	if (preview.redactions.length === 0) {
+	const noopKeys = new Set(preview.ops.filter((op) => op.type === "noop").map((op) => op.key));
+	const redactedNoops = preview.redactions.filter((redaction) => noopKeys.has(redaction.key));
+	if (redactedNoops.length === 0) {
 		return;
 	}
 
 	clack.logMessage(`Redacted in "${preview.environment}":`);
-	for (const redaction of preview.redactions) {
+	for (const redaction of redactedNoops) {
 		clack.logMessage(describeRedaction(redaction));
 	}
 }
@@ -121,6 +123,8 @@ function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 	for (const op of drift) {
 		clack.logMessage(describeOp(op));
 	}
+
+	renderRedactions(preview, clack);
 
 	return true;
 }

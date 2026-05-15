@@ -260,6 +260,60 @@ describe(diffCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
+	it("should render the redacted section after the drift section and skip redactions whose op is a create or update", async () => {
+		expect.assertions(2);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const previewDiff = fakePreview([
+			preview({
+				environment: "production",
+				ops: [
+					createGamePassOp("fresh-pass"),
+					noopOp("vip-pass"),
+					createGamePassOp("secret-pass"),
+				],
+				redactions: [
+					{
+						key: asResourceKey("vip-pass"),
+						hasRealValueEdits: true,
+						kind: "gamePass",
+					},
+					{
+						key: asResourceKey("secret-pass"),
+						hasRealValueEdits: true,
+						kind: "gamePass",
+					},
+				],
+			}),
+		]);
+		const deps = makeDeps({ loadConfig, previewDiff });
+
+		await diffCommand(deps)({ env: "production" });
+
+		expect(vi.mocked(deps.clack!.logMessage).mock.calls).toMatchInlineSnapshot(`
+		  [
+		    [
+		      "Pending changes for "production":",
+		    ],
+		    [
+		      "+ gamePass:fresh-pass",
+		    ],
+		    [
+		      "+ gamePass:secret-pass",
+		    ],
+		    [
+		      "Redacted in "production":",
+		    ],
+		    [
+		      "- gamePass:vip-pass (redacted, real values not pushed)",
+		    ],
+		  ]
+		`);
+		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+			"run bedrock deploy to apply pending changes",
+		);
+	});
+
 	it("should render the previewDiff Err and exit 1 when the call returns unknownEnvironment", async () => {
 		expect.assertions(3);
 
