@@ -5,6 +5,7 @@ import process from "node:process";
 import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import type { Operation } from "../../core/operations.ts";
+import type { RedactionAnnotation } from "../../core/redact-resources.ts";
 import type { Config } from "../../core/schema.ts";
 import type { DiffPreview, PreviewDiffError } from "../../shell/preview-diff.ts";
 import { asResourceKey, asSha256Hex } from "../../types/ids.ts";
@@ -67,11 +68,19 @@ function updatePlaceOp(key: string): Operation {
 	};
 }
 
-function preview(
-	environment: string,
-	ops: ReadonlyArray<Operation>,
-): Result<DiffPreview, PreviewDiffError> {
-	return { data: { environment, ops }, success: true };
+function preview(input: {
+	environment: string;
+	ops: ReadonlyArray<Operation>;
+	redactions?: ReadonlyArray<RedactionAnnotation>;
+}): Result<DiffPreview, PreviewDiffError> {
+	return {
+		data: {
+			environment: input.environment,
+			ops: input.ops,
+			redactions: input.redactions ?? [],
+		},
+		success: true,
+	};
 }
 
 function fakeLoad(result: LoadConfigResult): LoadConfigFunc {
@@ -136,7 +145,7 @@ describe(diffCommand, () => {
 		expect.assertions(1);
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-		const previewDiff = fakePreview([preview("production", [])]);
+		const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
 		const deps = makeDeps({ loadConfig, previewDiff });
 
 		await diffCommand(deps)({ config: "./bedrock.staging.config.ts", env: "production" });
@@ -150,7 +159,7 @@ describe(diffCommand, () => {
 		expect.assertions(1);
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-		const previewDiff = fakePreview([preview("production", [])]);
+		const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
 		const deps = makeDeps({ loadConfig, previewDiff });
 
 		await diffCommand(deps)({ env: "production" });
@@ -162,7 +171,9 @@ describe(diffCommand, () => {
 		expect.assertions(3);
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-		const previewDiff = fakePreview([preview("production", [noopOp("vip-pass")])]);
+		const previewDiff = fakePreview([
+			preview({ environment: "production", ops: [noopOp("vip-pass")] }),
+		]);
 		const deps = makeDeps({ loadConfig, previewDiff });
 
 		await diffCommand(deps)({ env: "production" });
@@ -179,11 +190,14 @@ describe(diffCommand, () => {
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([
-			preview("production", [
-				createGamePassOp("vip-pass"),
-				updatePlaceOp("start-place"),
-				noopOp("rookie-pass"),
-			]),
+			preview({
+				environment: "production",
+				ops: [
+					createGamePassOp("vip-pass"),
+					updatePlaceOp("start-place"),
+					noopOp("rookie-pass"),
+				],
+			}),
 		]);
 		const deps = makeDeps({ loadConfig, previewDiff });
 
@@ -228,7 +242,10 @@ describe(diffCommand, () => {
 		expect.assertions(3);
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-		const previewDiff = fakePreview([preview("production", []), preview("staging", [])]);
+		const previewDiff = fakePreview([
+			preview({ environment: "production", ops: [] }),
+			preview({ environment: "staging", ops: [] }),
+		]);
 		const deps = makeDeps({ loadConfig, previewDiff });
 
 		await diffCommand(deps)({ env: ["production", "staging"] });
@@ -245,8 +262,8 @@ describe(diffCommand, () => {
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([
-			preview("production", [noopOp("vip-pass")]),
-			preview("staging", [createGamePassOp("beta-pass")]),
+			preview({ environment: "production", ops: [noopOp("vip-pass")] }),
+			preview({ environment: "staging", ops: [createGamePassOp("beta-pass")] }),
 		]);
 		const deps = makeDeps({ loadConfig, previewDiff });
 
@@ -267,7 +284,7 @@ describe(diffCommand, () => {
 				err: { environment: "production", kind: "stateNotConfigured" },
 				success: false,
 			},
-			preview("staging", [noopOp("vip-pass")]),
+			preview({ environment: "staging", ops: [noopOp("vip-pass")] }),
 		]);
 		const deps = makeDeps({ loadConfig, previewDiff });
 
@@ -286,7 +303,7 @@ describe(diffCommand, () => {
 
 		try {
 			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-			const previewDiff = fakePreview([preview("production", [])]);
+			const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
 			const deps = makeDeps({ loadConfig, previewDiff });
 
 			await diffCommand(deps)({
@@ -318,7 +335,7 @@ describe(diffCommand, () => {
 
 		try {
 			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-			const previewDiff = fakePreview([preview("production", [])]);
+			const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
 			const deps = makeDeps({ loadConfig, previewDiff });
 
 			await diffCommand(deps)({ "api-key": "FLAG_BEDROCK", "env": "production" });
@@ -344,7 +361,7 @@ describe(diffCommand, () => {
 
 		try {
 			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-			const previewDiff = fakePreview([preview("production", [])]);
+			const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
 			const deps = makeDeps({ loadConfig, previewDiff });
 
 			await diffCommand(deps)({ env: "production" });
@@ -370,7 +387,7 @@ describe(diffCommand, () => {
 		vi.stubEnv("BEDROCK_ENVIRONMENT", "production");
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-		const previewDiff = fakePreview([preview("production", [])]);
+		const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
 		const deps = makeDeps({ loadConfig, previewDiff });
 
 		await diffCommand(deps)({});

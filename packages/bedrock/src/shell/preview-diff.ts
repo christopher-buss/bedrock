@@ -8,6 +8,7 @@ import type { ConfigError } from "../core/config-error.ts";
 import { diff } from "../core/diff.ts";
 import { flattenConfig } from "../core/flatten.ts";
 import type { Operation } from "../core/operations.ts";
+import { collectRedactionAnnotations, type RedactionAnnotation } from "../core/redact-resources.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
 import {
@@ -15,6 +16,7 @@ import {
 	type IncompletePlaceEntryError,
 	type IncompleteUniverseEntryError,
 	selectEnvironment,
+	selectMergedEnvironment,
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
 import type { StateError } from "../core/state.ts";
@@ -75,11 +77,18 @@ export interface DiffPreview {
 	readonly environment: string;
 	/** Operations `diff` would apply during a deploy. */
 	readonly ops: ReadonlyArray<Operation>;
+	/**
+	 * One entry per resource flagged redacted in the active environment.
+	 * Surfaced so plan output can call out silent noops where the author's
+	 * real-value edits stay in config but never reach Open Cloud.
+	 */
+	readonly redactions: ReadonlyArray<RedactionAnnotation>;
 }
 
 interface ResolvedDeps {
 	readonly config: ResolvedConfig;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
+	readonly redactions: ReadonlyArray<RedactionAnnotation>;
 	readonly statePort: StatePort;
 }
 
@@ -146,6 +155,32 @@ function pickStatePort(
 	});
 }
 
+function resolveEnvironmentView(
+	config: Config,
+	environment: string,
+): Result<
+	{ readonly effective: ResolvedConfig; readonly redactions: ReadonlyArray<RedactionAnnotation> },
+	PreviewDiffError
+> {
+	const merged = selectMergedEnvironment(config, environment);
+	if (!merged.success) {
+		return { err: merged.err, success: false };
+	}
+
+	const selected = selectEnvironment(config, environment);
+	if (!selected.success) {
+		return { err: selected.err, success: false };
+	}
+
+	return {
+		data: {
+			effective: selected.data,
+			redactions: collectRedactionAnnotations(merged.data.merged),
+		},
+		success: true,
+	};
+}
+
 async function resolveDeps(
 	options: PreviewDiffOptions,
 ): Promise<Result<ResolvedDeps, PreviewDiffError>> {
@@ -154,25 +189,20 @@ async function resolveDeps(
 		return config;
 	}
 
-	const selected = selectEnvironment(config.data, options.environment);
-	if (!selected.success) {
-		return { err: selected.err, success: false };
+	const view = resolveEnvironmentView(config.data, options.environment);
+	if (!view.success) {
+		return view;
 	}
 
-	const effective = selected.data;
+	const { effective, redactions } = view.data;
 	const readFile = options.readFile ?? nodeReadFile;
-
 	const statePort = pickStatePort(options, effective);
 	if (!statePort.success) {
 		return statePort;
 	}
 
 	return {
-		data: {
-			config: effective,
-			readFile,
-			statePort: statePort.data,
-		},
+		data: { config: effective, readFile, redactions, statePort: statePort.data },
 		success: true,
 	};
 }
@@ -198,5 +228,5 @@ async function runPreview(
 	}
 
 	const ops = diff(desired.data, priorResources);
-	return { data: { environment, ops }, success: true };
+	return { data: { environment, ops, redactions: deps.redactions }, success: true };
 }
