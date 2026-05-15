@@ -314,6 +314,42 @@ describe(diffCommand, () => {
 		);
 	});
 
+	it("should skip the redacted annotation when the redaction's own kind+key has a drift op even if another kind shares the key", async () => {
+		expect.assertions(2);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const previewDiff = fakePreview([
+			preview({
+				environment: "production",
+				ops: [createGamePassOp("vip-pass"), noopOp("vip-pass")],
+				redactions: [
+					{
+						key: asResourceKey("vip-pass"),
+						hasRealValueEdits: true,
+						kind: "gamePass",
+					},
+				],
+			}),
+		]);
+		const deps = makeDeps({ loadConfig, previewDiff });
+
+		await diffCommand(deps)({ env: "production" });
+
+		expect(vi.mocked(deps.clack!.logMessage).mock.calls).toMatchInlineSnapshot(`
+		  [
+		    [
+		      "Pending changes for "production":",
+		    ],
+		    [
+		      "+ gamePass:vip-pass",
+		    ],
+		  ]
+		`);
+		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+			"run bedrock deploy to apply pending changes",
+		);
+	});
+
 	it("should render the previewDiff Err and exit 1 when the call returns unknownEnvironment", async () => {
 		expect.assertions(3);
 

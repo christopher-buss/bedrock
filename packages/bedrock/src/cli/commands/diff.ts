@@ -99,8 +99,12 @@ function describeRedaction(redaction: RedactionAnnotation): string {
 }
 
 function renderRedactions(preview: DiffPreview, clack: ClackPort): void {
-	const noopKeys = new Set(preview.ops.filter((op) => op.type === "noop").map((op) => op.key));
-	const redactedNoops = preview.redactions.filter((redaction) => noopKeys.has(redaction.key));
+	const driftPairs = new Set(
+		preview.ops.filter(isDriftOp).map((op) => `${op.desired.kind}:${op.key}`),
+	);
+	const redactedNoops = preview.redactions.filter(
+		(redaction) => !driftPairs.has(`${redaction.kind}:${redaction.key}`),
+	);
 	if (redactedNoops.length === 0) {
 		return;
 	}
