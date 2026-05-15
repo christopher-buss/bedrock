@@ -95,6 +95,55 @@ export type SelectEnvironmentError =
 	| IncompleteUniverseEntryError
 	| UnknownEnvironmentError;
 
+/** Successful return shape for {@link selectMergedEnvironment}. */
+export interface MergedEnvironment {
+	/** Per-environment entry that the merge projected onto the root config. */
+	readonly entry: EnvironmentEntry;
+	/**
+	 * Post-merge, pre-redaction `ResolvedConfig`. Resources that opt into
+	 * redaction still carry their real `name`, `description`, and `icon`
+	 * values, so callers can inspect divergence from placeholder defaults
+	 * before {@link selectEnvironment} substitutes them.
+	 */
+	readonly merged: ResolvedConfig;
+}
+
+/** Failure modes returned by {@link selectMergedEnvironment}. */
+export type SelectMergedEnvironmentError = IncompletePassEntryError | UnknownEnvironmentError;
+
+/**
+ * Project a `Config` onto a single environment up to the pre-redaction
+ * merge boundary. Looks up the env entry, deep-merges its resource overlay
+ * over the root config, and validates that every pass carries the required
+ * name/description/icon fields. Real `name`, `description`, and `icon`
+ * values stay intact; callers that need the pre-redaction view (for
+ * example to inspect divergence from redaction placeholders) consume the
+ * `merged` field here rather than {@link selectEnvironment}'s return,
+ * which substitutes those fields before handing the config downstream.
+ *
+ * @param config - Validated project config.
+ * @param environment - Environment name to project onto.
+ * @returns The matched env entry plus the merged config, or an
+ *   `UnknownEnvironmentError` / `IncompletePassEntryError`.
+ */
+export function selectMergedEnvironment(
+	config: Config,
+	environment: string,
+): Result<MergedEnvironment, SelectMergedEnvironmentError> {
+	const entry = config.environments[environment];
+	if (entry === undefined) {
+		return { err: unknownEnvironment(config, environment), success: false };
+	}
+
+	const merged = mergeOverlays(config, entry);
+	const incompletePass = findIncompletePass(merged, environment);
+	if (incompletePass !== undefined) {
+		return { err: incompletePass, success: false };
+	}
+
+	return { data: { entry, merged }, success: true };
+}
+
 /**
  * Project a validated `Config` onto a single environment. Looks up the
  * matching `environments[environment]` entry, deep-merges its resource
@@ -176,18 +225,12 @@ export function selectEnvironment(
 	config: Config,
 	environment: string,
 ): Result<ResolvedConfig, SelectEnvironmentError> {
-	const entry = config.environments[environment];
-	if (entry === undefined) {
-		return { err: unknownEnvironment(config, environment), success: false };
+	const mergedResult = selectMergedEnvironment(config, environment);
+	if (!mergedResult.success) {
+		return mergedResult;
 	}
 
-	const merged = mergeOverlays(config, entry);
-
-	const incompletePass = findIncompletePass(merged, environment);
-	if (incompletePass !== undefined) {
-		return { err: incompletePass, success: false };
-	}
-
+	const { entry, merged } = mergedResult.data;
 	const projected = redactAndPrefix({ config, entry, merged });
 
 	const incompletePlace = findIncompletePlace(projected, environment);
@@ -201,27 +244,6 @@ export function selectEnvironment(
 	}
 
 	return { data: projected, success: true };
-}
-
-function findIncompleteUniverse(
-	projected: ResolvedConfig,
-	environment: string,
-): IncompleteUniverseEntryError | undefined {
-	const { universe } = projected;
-	if (universe === undefined) {
-		return undefined;
-	}
-
-	// `universe` is typed as `ResolvedUniverseEntry` (universeId required)
-	// because the merge boundary already promised completeness; this routine
-	// exists to honour that promise at runtime, so it widens the view back to
-	// `Partial<ResolvedUniverseEntry>` for the duration of the check.
-	const candidate: Partial<ResolvedUniverseEntry> = universe;
-	if (candidate.universeId === undefined) {
-		return { environment, kind: "incompleteUniverseEntry", missingField: "universeId" };
-	}
-
-	return undefined;
 }
 
 function findIncompletePass(
@@ -250,43 +272,6 @@ function findIncompletePass(
 
 		if (entry.icon === undefined) {
 			return { key, environment, kind: "incompletePassEntry", missingField: "icon" };
-		}
-	}
-
-	return undefined;
-}
-
-function findIncompletePlace(
-	projected: ResolvedConfig,
-	environment: string,
-): IncompletePlaceEntryError | undefined {
-	const { places } = projected;
-	if (places === undefined) {
-		return undefined;
-	}
-
-	// `places` is typed as `Record<string, ResolvedPlaceEntry>` because the
-	// merge boundary already promised completeness; this routine exists to
-	// honour that promise at runtime, so it widens the view back to
-	// `Partial<ResolvedPlaceEntry>` for the duration of the check.
-	const candidates: Record<string, Partial<ResolvedPlaceEntry>> = places;
-	for (const [key, entry] of Object.entries(candidates)) {
-		if (entry.placeId === undefined) {
-			return {
-				key,
-				environment,
-				kind: "incompletePlaceEntry",
-				missingField: "placeId",
-			};
-		}
-
-		if (entry.filePath === undefined) {
-			return {
-				key,
-				environment,
-				kind: "incompletePlaceEntry",
-				missingField: "filePath",
-			};
 		}
 	}
 
@@ -380,6 +365,64 @@ function unknownEnvironment(config: Config, environment: string): UnknownEnviron
 		environment,
 		kind: "unknownEnvironment",
 	};
+}
+
+function findIncompleteUniverse(
+	projected: ResolvedConfig,
+	environment: string,
+): IncompleteUniverseEntryError | undefined {
+	const { universe } = projected;
+	if (universe === undefined) {
+		return undefined;
+	}
+
+	// `universe` is typed as `ResolvedUniverseEntry` (universeId required)
+	// because the merge boundary already promised completeness; this routine
+	// exists to honour that promise at runtime, so it widens the view back to
+	// `Partial<ResolvedUniverseEntry>` for the duration of the check.
+	const candidate: Partial<ResolvedUniverseEntry> = universe;
+	if (candidate.universeId === undefined) {
+		return { environment, kind: "incompleteUniverseEntry", missingField: "universeId" };
+	}
+
+	return undefined;
+}
+
+function findIncompletePlace(
+	projected: ResolvedConfig,
+	environment: string,
+): IncompletePlaceEntryError | undefined {
+	const { places } = projected;
+	if (places === undefined) {
+		return undefined;
+	}
+
+	// `places` is typed as `Record<string, ResolvedPlaceEntry>` because the
+	// merge boundary already promised completeness; this routine exists to
+	// honour that promise at runtime, so it widens the view back to
+	// `Partial<ResolvedPlaceEntry>` for the duration of the check.
+	const candidates: Record<string, Partial<ResolvedPlaceEntry>> = places;
+	for (const [key, entry] of Object.entries(candidates)) {
+		if (entry.placeId === undefined) {
+			return {
+				key,
+				environment,
+				kind: "incompletePlaceEntry",
+				missingField: "placeId",
+			};
+		}
+
+		if (entry.filePath === undefined) {
+			return {
+				key,
+				environment,
+				kind: "incompletePlaceEntry",
+				missingField: "filePath",
+			};
+		}
+	}
+
+	return undefined;
 }
 
 function resolvePrefix(config: Config, entry: EnvironmentEntry): string | undefined {
