@@ -906,8 +906,8 @@ describe(selectMergedEnvironment, () => {
 		expect(result.err.key).toBe("ghost");
 	});
 
-	it("should NOT validate places and universe (callers run post-redaction validators)", () => {
-		expect.assertions(2);
+	it("should return Err(incompletePlaceEntry) for a root place that no overlay completes, matching selectEnvironment", () => {
+		expect.assertions(3);
 
 		const config: Config = {
 			environments: { production: {} },
@@ -915,9 +915,12 @@ describe(selectMergedEnvironment, () => {
 		};
 
 		const mergedResult = selectMergedEnvironment(config, "production");
-		const fullResult = selectEnvironment(config, "production");
 
-		expect(mergedResult.success).toBeTrue();
-		expect(fullResult.success).toBeFalse();
+		assert(!mergedResult.success);
+		assert(mergedResult.err.kind === "incompletePlaceEntry");
+
+		expect(mergedResult.err.kind).toBe("incompletePlaceEntry");
+		expect(mergedResult.err.key).toBe("ghost-place");
+		expect(mergedResult.err.missingField).toBe("placeId");
 	});
 });

@@ -108,28 +108,25 @@ interface MergedEnvironment {
 	readonly merged: ResolvedConfig;
 }
 
-/** Failure modes returned by {@link selectMergedEnvironment}. */
-type SelectMergedEnvironmentError = IncompletePassEntryError | UnknownEnvironmentError;
-
 /**
  * Project a `Config` onto a single environment up to the pre-redaction
  * merge boundary. Looks up the env entry, deep-merges its resource overlay
- * over the root config, and validates that every pass carries the required
- * name/description/icon fields. Real `name`, `description`, and `icon`
- * values stay intact; callers that need the pre-redaction view (for
- * example to inspect divergence from redaction placeholders) consume the
- * `merged` field here rather than {@link selectEnvironment}'s return,
- * which substitutes those fields before handing the config downstream.
+ * over the root config, and runs the same pass, place, and universe
+ * completeness checks {@link selectEnvironment} runs, so the returned
+ * `merged` config honours the full `ResolvedConfig` contract. Real
+ * `name`, `description`, and `icon` values on redacted resources stay
+ * intact, letting callers inspect divergence from placeholder defaults
+ * before {@link selectEnvironment} substitutes them.
  *
  * @param config - Validated project config.
  * @param environment - Environment name to project onto.
- * @returns The matched env entry plus the merged config, or an
- *   `UnknownEnvironmentError` / `IncompletePassEntryError`.
+ * @returns The matched env entry plus the merged config, or any of the
+ *   `SelectEnvironmentError` failure modes.
  */
 export function selectMergedEnvironment(
 	config: Config,
 	environment: string,
-): Result<MergedEnvironment, SelectMergedEnvironmentError> {
+): Result<MergedEnvironment, SelectEnvironmentError> {
 	const entry = config.environments[environment];
 	if (entry === undefined) {
 		return { err: unknownEnvironment(config, environment), success: false };
@@ -139,6 +136,16 @@ export function selectMergedEnvironment(
 	const incompletePass = findIncompletePass(merged, environment);
 	if (incompletePass !== undefined) {
 		return { err: incompletePass, success: false };
+	}
+
+	const incompletePlace = findIncompletePlace(merged, environment);
+	if (incompletePlace !== undefined) {
+		return { err: incompletePlace, success: false };
+	}
+
+	const incompleteUniverse = findIncompleteUniverse(merged, environment);
+	if (incompleteUniverse !== undefined) {
+		return { err: incompleteUniverse, success: false };
 	}
 
 	return { data: { entry, merged }, success: true };
@@ -231,19 +238,7 @@ export function selectEnvironment(
 	}
 
 	const { entry, merged } = mergedResult.data;
-	const projected = redactAndPrefix({ config, entry, merged });
-
-	const incompletePlace = findIncompletePlace(projected, environment);
-	if (incompletePlace !== undefined) {
-		return { err: incompletePlace, success: false };
-	}
-
-	const incompleteUniverse = findIncompleteUniverse(projected, environment);
-	if (incompleteUniverse !== undefined) {
-		return { err: incompleteUniverse, success: false };
-	}
-
-	return { data: projected, success: true };
+	return { data: redactAndPrefix({ config, entry, merged }), success: true };
 }
 
 function findIncompletePass(
