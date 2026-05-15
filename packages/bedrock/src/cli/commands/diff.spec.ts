@@ -374,6 +374,36 @@ describe(diffCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
+	it("should keep the up-to-date outro when only redacted noops appear across envs even though one env declares them", async () => {
+		expect.assertions(2);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const previewDiff = fakePreview([
+			preview({ environment: "production", ops: [noopOp("vip-pass")] }),
+			preview({
+				environment: "staging",
+				ops: [noopOp("vip-pass")],
+				redactions: [
+					{
+						key: asResourceKey("vip-pass"),
+						hasRealValueEdits: true,
+						kind: "gamePass",
+					},
+				],
+			}),
+		]);
+		const deps = makeDeps({ loadConfig, previewDiff });
+
+		await diffCommand(deps)({ env: ["production", "staging"] });
+
+		expect(deps.clack?.logMessage).toHaveBeenCalledWith(
+			"- gamePass:vip-pass (redacted, real values not pushed)",
+		);
+		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+			"all environments are up to date",
+		);
+	});
+
 	it("should call previewDiff for every env even when one fails, then exit 1", async () => {
 		expect.assertions(4);
 
