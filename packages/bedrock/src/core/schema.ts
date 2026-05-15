@@ -660,14 +660,6 @@ export const OPTIONAL_POSITIVE_INTEGER = "(number.integer >= 1) | undefined";
  */
 export const OPTIONAL_ROBUX_PRICE = "number.integer >= 0 | undefined";
 
-// The per-field redaction override for a game-pass entry. Each supplied
-// field replaces the matching bedrock-supplied placeholder; omitted fields
-// fall through to the defaults. `onUndeclaredKey("reject")` keeps unknown
-// keys (for example `price`) out of the override so the rejection path is
-// attributed to the offending key. The empty-object narrow steers authors
-// who want only defaults to the simpler `redacted: true` form. The object
-// form implies redaction is enabled; environment overlays accept only the
-// boolean form.
 const gamePassRedactedOverride = type({
 	"description?": "string",
 	"icon?": iconMap,

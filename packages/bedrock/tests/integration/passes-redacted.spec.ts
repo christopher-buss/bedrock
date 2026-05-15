@@ -425,7 +425,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		};
 
 		const desiredPass = findGamePassDesired(desiredResult.data);
-		const placeholderHash = await hashPlaceholderIcon(readFile);
+		const placeholderHash = await hashPlaceholderIcon();
 		const prior = persistedPass(desiredResult.data, {
 			name: REDACTED_PASS_NAME,
 			description: REDACTED_DESCRIPTION,
@@ -451,9 +451,9 @@ describe("passes-redacted pipeline end-to-end", () => {
 	});
 });
 
-async function hashPlaceholderIcon(
-	readFile: (path: string) => Promise<Uint8Array>,
-): Promise<ResourceCurrentState<"gamePass">["iconFileHashes"]["en-us"]> {
+async function hashPlaceholderIcon(): Promise<
+	ResourceCurrentState<"gamePass">["iconFileHashes"]["en-us"]
+> {
 	const probe = defineConfig({
 		environments: { production: {} },
 		passes: {
@@ -467,7 +467,7 @@ async function hashPlaceholderIcon(
 	});
 	const resolved = selectEnvironment(probe, "production");
 	assert(resolved.success);
-	const desired = await buildDesired(flattenConfig(resolved.data), readFile);
+	const desired = await buildDesired(flattenConfig(resolved.data), panicOnRealPath);
 	assert(desired.success);
 	const entry = findGamePassDesired(desired.data);
 	return entry.iconFileHashes["en-us"];
