@@ -469,7 +469,7 @@ function redactAndPrefix(inputs: {
 	readonly merged: ResolvedConfig;
 }): ResolvedConfig {
 	const { config, entry, merged } = inputs;
-	const redacted = applyRedaction(merged);
+	const redacted = applyRedaction(merged, entry.redacted);
 	const prefix = resolvePrefix(config, entry);
 	const places = applyPlacesPrefix(redacted.places, prefix);
 	const universe = applyUniversePrefix(redacted.universe, prefix);

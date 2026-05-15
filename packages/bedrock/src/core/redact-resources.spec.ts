@@ -163,6 +163,55 @@ describe(applyRedaction, () => {
 			redacted: { icon: { "en-us": "assets/override-icon.png" } },
 		});
 	});
+
+	it.for([
+		{
+			caseName: "no flags set",
+			entryRedacted: undefined,
+			envRedacted: undefined,
+			expectRedacted: false,
+		},
+		{
+			caseName: "env-level true, no resource flag",
+			entryRedacted: undefined,
+			envRedacted: true,
+			expectRedacted: true,
+		},
+		{
+			caseName: "env-level false, no resource flag",
+			entryRedacted: undefined,
+			envRedacted: false,
+			expectRedacted: false,
+		},
+		{
+			caseName: "resource false carves out env-level true",
+			entryRedacted: false,
+			envRedacted: true,
+			expectRedacted: false,
+		},
+		{
+			caseName: "resource true redacts despite env-level false",
+			entryRedacted: true,
+			envRedacted: false,
+			expectRedacted: true,
+		},
+	] as const)(
+		"should redact a pass according to overlay > root > env precedence ($caseName)",
+		({ entryRedacted, envRedacted, expectRedacted }) => {
+			expect.assertions(1);
+
+			const passEntry = (
+				entryRedacted === undefined ? vipEntry : { ...vipEntry, redacted: entryRedacted }
+			) satisfies GamePassEntry;
+			const result = applyRedaction(
+				{ ...baseConfig, passes: { "vip-pass": passEntry } },
+				envRedacted,
+			);
+			const expectedName = expectRedacted ? REDACTED_PASS_NAME : vipEntry.name;
+
+			expect(result.passes?.["vip-pass"]?.name).toBe(expectedName);
+		},
+	);
 });
 
 describe(collectRedactionAnnotations, () => {

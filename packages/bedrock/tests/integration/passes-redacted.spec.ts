@@ -25,6 +25,7 @@ import { assert, describe, expect, it } from "vitest";
 
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const PASSES_FIXTURE_DIR = join(FIXTURES_ROOT, "passes-redacted");
+const PASSES_ENV_FIXTURE_DIR = join(FIXTURES_ROOT, "passes-redacted-env");
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
 const ROOT_PLACE_ID = asRobloxAssetId("4711");
 
@@ -448,6 +449,58 @@ describe("passes-redacted pipeline end-to-end", () => {
 		await expect(readFormBytes(captured.request.body, "file")).resolves.toStrictEqual(
 			REAL_ICON_BYTES,
 		);
+	});
+});
+
+describe("passes-redacted env-level toggle", () => {
+	it("should redact a pass with no redacted flag when the env-level redacted toggle is true", async () => {
+		expect.assertions(3);
+
+		const loaded = await loadConfig({ cwd: PASSES_ENV_FIXTURE_DIR });
+		assert(loaded.success);
+
+		const resolved = selectEnvironment(loaded.data, "dev");
+		assert(resolved.success);
+
+		const vip = resolved.data.passes?.["vip-pass"];
+		assert(vip !== undefined);
+
+		expect(vip.name).toBe(REDACTED_PASS_NAME);
+		expect(vip.description).toBe(REDACTED_DESCRIPTION);
+		expect(vip.icon["en-us"]).toBe(REDACTED_ICON_PATH);
+	});
+
+	it("should leave a pass real when its overlay sets redacted false despite an env-level redacted true", async () => {
+		expect.assertions(3);
+
+		const loaded = await loadConfig({ cwd: PASSES_ENV_FIXTURE_DIR });
+		assert(loaded.success);
+
+		const resolved = selectEnvironment(loaded.data, "dev");
+		assert(resolved.success);
+
+		const carve = resolved.data.passes?.["carve-out-pass"];
+		assert(carve !== undefined);
+
+		expect(carve.name).toBe("Carve Out");
+		expect(carve.description).toBe("Stays real in dev.");
+		expect(carve.icon["en-us"]).toBe("assets/carve.png");
+	});
+
+	it("should not redact passes in an env whose redacted toggle is absent", async () => {
+		expect.assertions(2);
+
+		const loaded = await loadConfig({ cwd: PASSES_ENV_FIXTURE_DIR });
+		assert(loaded.success);
+
+		const resolved = selectEnvironment(loaded.data, "production");
+		assert(resolved.success);
+
+		const vip = resolved.data.passes?.["vip-pass"];
+		const carve = resolved.data.passes?.["carve-out-pass"];
+
+		expect(vip?.name).toBe("VIP Pass");
+		expect(carve?.name).toBe("Carve Out");
 	});
 });
 
