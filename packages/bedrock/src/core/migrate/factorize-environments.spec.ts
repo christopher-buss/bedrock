@@ -518,6 +518,29 @@ describe(factorizeEnvironments, () => {
 		});
 	});
 
+	it("should omit price from a non-primary overlay when the carried entry has no price", () => {
+		expect.assertions(2);
+
+		const offSaleEntry = {
+			name: "Off Sale Pass",
+			description: "Free preview pass.",
+			icon: { "en-us": "assets/off-sale.png" },
+		};
+		const folds = new Map([
+			["development", fold({ passes: [passWithEntry("off-sale", offSaleEntry)] })],
+			["production", fold({ passes: [] })],
+		]);
+
+		const result = factorizeEnvironments({ folds, primaryEnvironment: "production" });
+
+		assert(result.success);
+
+		const overlay = result.data.config.environments["development"]?.passes?.["off-sale"];
+
+		expect(overlay).toStrictEqual(offSaleEntry);
+		expect(overlay).not.toContainKey("price");
+	});
+
 	it("should carry every divergent pass field on a non-primary overlay when several diverge at once", () => {
 		expect.assertions(1);
 

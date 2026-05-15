@@ -281,6 +281,44 @@ describe(validateConfig, () => {
 		expect(result.data.passes!["vip-pass"]!.redacted).toBe(redacted);
 	});
 
+	it.for([
+		["partial name override", { name: "Closed Beta" }],
+		["partial description override", { description: "Coming soon." }],
+		["partial icon override", { icon: { "en-us": "assets/closed-beta.png" } }],
+		[
+			"full override",
+			{
+				name: "Closed Beta",
+				description: "Coming soon.",
+				icon: { "en-us": "assets/closed-beta.png" },
+			},
+		],
+	] as const)(
+		"should accept a passes entry with redacted as the %s object form",
+		([, redacted]) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					environments: MinEnvironments,
+					passes: {
+						"vip-pass": {
+							name: "VIP Pass",
+							description: "Grants VIP perks.",
+							icon: { "en-us": "assets/vip.png" },
+							redacted,
+						},
+					},
+				},
+				SOURCE,
+			);
+
+			assert(result.success);
+
+			expect(result.data.passes!["vip-pass"]!.redacted).toStrictEqual(redacted);
+		},
+	);
+
 	it("should default redacted to undefined when omitted on a passes entry", () => {
 		expect.assertions(1);
 
@@ -304,7 +342,6 @@ describe(validateConfig, () => {
 	});
 
 	it.for([
-		["object override form", { name: "Closed Beta" }],
 		["string", "true"],
 		["number", 1],
 		// eslint-disable-next-line unicorn/no-null -- testing that arktype rejects the json null literal
@@ -335,6 +372,61 @@ describe(validateConfig, () => {
 			expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "redacted"]);
 		},
 	);
+
+	it("should reject an empty redacted object and recommend redacted: true for default placeholders", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				passes: {
+					"vip-pass": {
+						name: "VIP Pass",
+						description: "Grants VIP perks.",
+						icon: { "en-us": "assets/vip.png" },
+						redacted: {},
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["passes", "vip-pass", "redacted"]);
+		expect(result.err.issues[0]!.message).toContain("redacted: true");
+	});
+
+	it("should reject an unknown key in a redacted override and attribute the issue path to the offending key", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				passes: {
+					"vip-pass": {
+						name: "VIP Pass",
+						description: "Grants VIP perks.",
+						icon: { "en-us": "assets/vip.png" },
+						redacted: { price: 0 },
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"passes",
+			"vip-pass",
+			"redacted",
+			"price",
+		]);
+		expect(result.err.issues[0]!.message).toContain("price");
+	});
 
 	it("should accept a products collection with a valid developer-product entry", () => {
 		expect.assertions(1);

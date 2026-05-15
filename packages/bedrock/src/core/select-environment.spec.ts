@@ -5,6 +5,7 @@ import { REDACTED_ICON_PATH } from "./redacted-icon.ts";
 import type {
 	Config,
 	DeveloperProductEntry,
+	EnvironmentEntry,
 	GamePassEntry,
 	PlaceEntry,
 	StateConfig,
@@ -738,7 +739,7 @@ describe(selectEnvironment, () => {
 	it.for<
 		[
 			label: string,
-			overlay: Partial<GamePassEntry>,
+			overlay: NonNullable<EnvironmentEntry["passes"]>[string],
 			missingField: "description" | "icon" | "name",
 		]
 	>([

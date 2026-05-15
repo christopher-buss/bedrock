@@ -137,6 +137,15 @@ function buildRootPasses(
 	return Object.fromEntries(primaryFold.passes.map(({ key, entry }) => [key, entry]));
 }
 
+function buildFullPassOverlay(entry: GamePassEntry): PassOverlayEntry {
+	return {
+		name: entry.name,
+		description: entry.description,
+		icon: entry.icon,
+		...(entry.price !== undefined && { price: entry.price }),
+	};
+}
+
 function buildPassOverlayEntry(
 	entry: GamePassEntry,
 	primary: GamePassEntry,
@@ -172,7 +181,9 @@ function buildPassesOverlay(
 	for (const { key, entry } of fold.passes) {
 		const primaryEntry = primaryByKey.get(key);
 		const passOverlay =
-			primaryEntry === undefined ? { ...entry } : buildPassOverlayEntry(entry, primaryEntry);
+			primaryEntry === undefined
+				? buildFullPassOverlay(entry)
+				: buildPassOverlayEntry(entry, primaryEntry);
 		if (passOverlay !== undefined) {
 			overlay[key] = passOverlay;
 		}
