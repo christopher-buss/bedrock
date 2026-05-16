@@ -820,6 +820,103 @@ describe(selectEnvironment, () => {
 		expect(result.data.passes?.["vip-pass"]?.name).toBe(REDACTED_PASS_NAME);
 		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Start Place");
 	});
+
+	it("should redact a place description and preserve the real displayName under the prefix when redacted is true", () => {
+		expect.assertions(2);
+
+		const config: Config = {
+			environments: {
+				staging: {
+					label: "staging",
+					places: { "start-place": { placeId: "5555" } },
+				},
+			},
+			places: {
+				"start-place": {
+					description: "The lobby place.",
+					displayName: "Start Place",
+					filePath: "places/start.rbxl",
+					redacted: true,
+				},
+			},
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.places?.["start-place"]?.description).toBe(REDACTED_DESCRIPTION);
+		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Start Place");
+	});
+
+	it("should compose the display-name prefix with an explicit place displayName override", () => {
+		expect.assertions(2);
+
+		const config: Config = {
+			environments: {
+				staging: {
+					label: "staging",
+					places: { "start-place": { placeId: "5555" } },
+				},
+			},
+			places: {
+				"start-place": {
+					description: "The lobby place.",
+					displayName: "Start Place",
+					filePath: "places/start.rbxl",
+					redacted: { displayName: "Hidden" },
+				},
+			},
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.places?.["start-place"]?.description).toBe(REDACTED_DESCRIPTION);
+		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Hidden");
+	});
+
+	it("should redact every place description while preserving displayNames when the env-level toggle is true", () => {
+		expect.assertions(4);
+
+		const config: Config = {
+			environments: {
+				staging: {
+					label: "staging",
+					places: {
+						"lobby": { placeId: "2222" },
+						"start-place": { placeId: "5555" },
+					},
+					redacted: true,
+				},
+			},
+			places: {
+				"lobby": {
+					description: "The hub.",
+					displayName: "Lobby",
+					filePath: "places/lobby.rbxl",
+				},
+				"start-place": {
+					description: "The lobby place.",
+					displayName: "Start Place",
+					filePath: "places/start.rbxl",
+				},
+			},
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.places?.["lobby"]?.description).toBe(REDACTED_DESCRIPTION);
+		expect(result.data.places?.["lobby"]?.displayName).toBe("[STAGING] Lobby");
+		expect(result.data.places?.["start-place"]?.description).toBe(REDACTED_DESCRIPTION);
+		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Start Place");
+	});
 });
 
 describe(selectMergedEnvironment, () => {

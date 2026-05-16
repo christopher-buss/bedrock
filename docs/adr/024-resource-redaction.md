@@ -270,3 +270,58 @@ Modified:
 - ADR-020 -- Project Config Definition: this ADR extends the schema ADR-020
   defines. The per-resource entry schema and the env-overlay schema both gain
   the `redacted` field.
+
+## Amendment -- 2026-05-16
+
+The original Decision named `universe` as a redactable kind with a default field
+set of `description` and `icon`. Implementation found that universe owns neither
+field as wire-pushable today:
+
+- `icon` for the universe is blocked upstream. Open Cloud has no endpoint to
+  set a universe's source-language game icon. The block is tracked in the
+  Mantle-feature-blocked register; see issue #362.
+- `description` is not owned by `universe`. The universe's description is
+  derived server-side from the root place's `description` field, which already
+  lives on `PlaceEntry`. The redactable description field is therefore on the
+  `place` kind, not on `universe`.
+
+`displayName` remains the only universe field redactable today, routed through
+`PlacesClient.update` on the root place (same path the universe driver uses).
+
+The asymmetric-default design (preserve `displayName` so Roblox Studio's place
+picker and the Creator Hub experience list still identify the developer's own
+work) transfers from `universe` to `place`. Places already declare both
+`description` and `displayName` on their entry shape, so the same default set
+applies cleanly.
+
+### Per-kind default field sets (revised)
+
+| Kind                | Redacted by default               | Override field set                                   |
+| ------------------- | --------------------------------- | ---------------------------------------------------- |
+| `gamePass`          | `name`, `description`, `icon`     | `{ name?, description?, icon? }`                     |
+| `developerProduct`  | `name`, `description`, `icon`     | `{ name?, description?, icon? }`                     |
+| `badge`             | `name`, `description`, `icon`     | `{ name?, description?, icon? }`                     |
+| `place`             | `description` only                | `{ description?, displayName? }`                     |
+| `universe`          | (none today; see notes)           | `{ displayName? }` once wired                        |
+
+Universe-level redaction is deferred until either the icon endpoint lands
+upstream (resolves the `icon` half) or the design migrates to publishing
+`displayName` overrides through the existing universe path. The `redacted`
+field on `UniverseEntry` is not yet present in the schema and will be added
+when there is a concrete redactable target.
+
+### Placeholder defaults (revised)
+
+| Kind               | Field         | Default                                  |
+| ------------------ | ------------- | ---------------------------------------- |
+| `gamePass`         | `name`        | `"Redacted Pass"`                        |
+| `gamePass`         | `description` | `""`                                     |
+| `gamePass`         | `icon`        | embedded placeholder PNG                 |
+| `developerProduct` | `name`        | `"Redacted Product"`                     |
+| `developerProduct` | `description` | `""`                                     |
+| `developerProduct` | `icon`        | embedded placeholder PNG                 |
+| `badge`            | `name`        | `"Redacted Badge"`                       |
+| `badge`            | `description` | `""`                                     |
+| `badge`            | `icon`        | embedded placeholder PNG                 |
+| `place`            | `description` | `""`                                     |
+| `place`            | `displayName` | (no default; explicit override required) |

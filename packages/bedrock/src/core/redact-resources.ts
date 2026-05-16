@@ -6,7 +6,9 @@ import type {
 	GamePassEntry,
 	RedactedDeveloperProductOverride,
 	RedactedGamePassOverride,
+	RedactedPlaceOverride,
 	ResolvedConfig,
+	ResolvedPlaceEntry,
 } from "./schema.ts";
 
 /** Default placeholder name pushed for a redacted game-pass. */
@@ -57,15 +59,17 @@ export function applyRedaction(
 	environmentRedacted = false,
 ): ResolvedConfig {
 	const passes = redactPasses(config.passes, environmentRedacted);
+	const places = redactPlaces(config.places, environmentRedacted);
 	const products = redactProducts(config.products, environmentRedacted);
 
-	if (passes === config.passes && products === config.products) {
+	if (passes === config.passes && places === config.places && products === config.products) {
 		return config;
 	}
 
 	return {
 		...config,
 		...(passes === undefined ? {} : { passes }),
+		...(places === undefined ? {} : { places }),
 		...(products === undefined ? {} : { products }),
 	};
 }
@@ -144,6 +148,45 @@ function redactPasses(
 			const override: RedactedGamePassOverride =
 				typeof effective === "object" ? effective : {};
 			return [key, redactPass(entry, override)] as const;
+		}),
+	);
+}
+
+function redactPlace(
+	entry: ResolvedPlaceEntry,
+	override: RedactedPlaceOverride,
+): ResolvedPlaceEntry {
+	return {
+		...entry,
+		description: override.description ?? REDACTED_DESCRIPTION,
+		displayName: override.displayName ?? entry.displayName,
+	};
+}
+
+function redactPlaces(
+	places: ResolvedConfig["places"],
+	environmentRedacted: boolean,
+): ResolvedConfig["places"] {
+	if (places === undefined) {
+		return undefined;
+	}
+
+	const hasAnyRedaction = Object.values(places).some(
+		(entry) => (entry.redacted ?? environmentRedacted) !== false,
+	);
+	if (!hasAnyRedaction) {
+		return places;
+	}
+
+	return Object.fromEntries(
+		Object.entries(places).map(([key, entry]) => {
+			const effective = entry.redacted ?? environmentRedacted;
+			if (effective === false) {
+				return [key, entry] as const;
+			}
+
+			const override: RedactedPlaceOverride = typeof effective === "object" ? effective : {};
+			return [key, redactPlace(entry, override)] as const;
 		}),
 	);
 }
