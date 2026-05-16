@@ -636,6 +636,83 @@ describe(validateConfig, () => {
 		},
 	);
 
+	it.for([
+		["true", true],
+		["false", false],
+	] as const)("should accept a products entry with redacted: %s", ([, redacted]) => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				products: {
+					"gem-pack": {
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+						redacted,
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.products!["gem-pack"]!.redacted).toBe(redacted);
+	});
+
+	it("should default redacted to undefined when omitted on a products entry", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				products: {
+					"gem-pack": {
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.products!["gem-pack"]!.redacted).toBeUndefined();
+	});
+
+	it.for([
+		["string", "true"],
+		["number", 1],
+		// eslint-disable-next-line unicorn/no-null -- testing that arktype rejects the json null literal
+		["null", null],
+	] as const)(
+		"should reject %s as a products redacted field and attribute the issue path to that field",
+		([, redacted]) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					environments: MinEnvironments,
+					products: {
+						"gem-pack": {
+							name: "Gem Pack",
+							description: "Stocks the player up with 1,000 premium gems.",
+							redacted,
+						},
+					},
+				},
+				SOURCE,
+			);
+
+			assert(!result.success);
+			assert(result.err.kind === "validationFailed");
+
+			expect(result.err.issues[0]!.path).toStrictEqual(["products", "gem-pack", "redacted"]);
+		},
+	);
+
 	it("should accept a root places collection that declares only filePath", () => {
 		expect.assertions(1);
 
@@ -1838,6 +1915,38 @@ describe(validateConfig, () => {
 			"bad key!",
 		]);
 	});
+
+	it.for([
+		["true", true],
+		["false", false],
+	] as const)(
+		"should accept a per-environment products overlay that declares redacted: %s",
+		([, redacted]) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					environments: {
+						staging: { products: { "gem-pack": { redacted } } },
+					},
+					products: {
+						"gem-pack": {
+							name: "Gem Pack",
+							description: "Stocks the player up with 1,000 premium gems.",
+						},
+					},
+					state: { backend: "gist", gistId: "root-gist" },
+				},
+				SOURCE,
+			);
+
+			assert(result.success);
+
+			expect(result.data.environments["staging"]?.products?.["gem-pack"]?.redacted).toBe(
+				redacted,
+			);
+		},
+	);
 
 	it.for(INVALID_ROBUX_PRICES)(
 		"should reject %s as a per-environment passes overlay price",

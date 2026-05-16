@@ -101,6 +101,14 @@ export interface DeveloperProductEntry {
 	 */
 	price?: number | undefined;
 	/**
+	 * Set to `true` to deploy this product with bedrock-supplied placeholder
+	 * content (default name, empty description, embedded placeholder icon)
+	 * in place of the real values declared above. Omit or set `false` to
+	 * push the real values unchanged. Environment overlays accept only the
+	 * boolean form.
+	 */
+	redacted?: boolean | undefined;
+	/**
 	 * Whether the product appears on the universe's external store page.
 	 * Tri-state: omit (or set `undefined`) to leave the flag unmanaged.
 	 * The Roblox v2 create endpoint does not accept this field, so the
@@ -705,6 +713,7 @@ const developerProductEntry = type({
 	"icon?": iconMap,
 	"isRegionalPricingEnabled?": OPTIONAL_BOOLEAN,
 	"price?": OPTIONAL_ROBUX_PRICE,
+	"redacted?": OPTIONAL_BOOLEAN,
 	"storePageEnabled?": OPTIONAL_BOOLEAN,
 }).onUndeclaredKey("reject");
 
@@ -778,6 +787,7 @@ const developerProductOverlay = type({
 	"isRegionalPricingEnabled?": OPTIONAL_BOOLEAN,
 	"name?": "string",
 	"price?": OPTIONAL_ROBUX_PRICE,
+	"redacted?": OPTIONAL_BOOLEAN,
 	"storePageEnabled?": OPTIONAL_BOOLEAN,
 }).onUndeclaredKey("reject");
 
