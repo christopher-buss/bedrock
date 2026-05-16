@@ -168,9 +168,9 @@ function redactProducts(
 		return undefined;
 	}
 
-	const hasAnyRedaction = Object.values(products).some((entry) => {
-		return Boolean(entry.redacted ?? environmentRedacted);
-	});
+	const hasAnyRedaction = Object.values(products).some(
+		(entry) => (entry.redacted ?? environmentRedacted) !== false,
+	);
 	if (!hasAnyRedaction) {
 		return products;
 	}
