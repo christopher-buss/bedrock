@@ -521,4 +521,121 @@ describe(collectRedactionAnnotations, () => {
 			]);
 		},
 	);
+
+	it("should return an empty array when no product has redacted set to true", () => {
+		expect.assertions(1);
+
+		const result = collectRedactionAnnotations({
+			...baseConfig,
+			products: {
+				"opt-out-pack": { ...gemPackEntry, redacted: false },
+				"plain-pack": gemPackEntry,
+			},
+		});
+
+		expect(result).toStrictEqual([]);
+	});
+
+	it("should emit one developerProduct annotation per product flagged redacted true with hasRealValueEdits false when the author already typed placeholder values literally", () => {
+		expect.assertions(1);
+
+		const placeholderEntry: DeveloperProductEntry = {
+			name: REDACTED_PRODUCT_NAME,
+			description: REDACTED_DESCRIPTION,
+			icon: { "en-us": REDACTED_ICON_PATH },
+			redacted: true,
+		};
+
+		const result = collectRedactionAnnotations({
+			...baseConfig,
+			products: {
+				"elite-pack": placeholderEntry,
+				"gem-pack": placeholderEntry,
+				"plain-pack": gemPackEntry,
+			},
+		});
+
+		expect(result).toIncludeSameMembers([
+			{ key: "gem-pack", hasRealValueEdits: false, kind: "developerProduct" },
+			{ key: "elite-pack", hasRealValueEdits: false, kind: "developerProduct" },
+		]);
+	});
+
+	it("should set hasRealValueEdits false when a redacted product carries no icon at all", () => {
+		expect.assertions(1);
+
+		const result = collectRedactionAnnotations({
+			...baseConfig,
+			products: {
+				"plain-pack": {
+					name: REDACTED_PRODUCT_NAME,
+					description: REDACTED_DESCRIPTION,
+					redacted: true,
+				},
+			},
+		});
+
+		expect(result).toStrictEqual([
+			{ key: "plain-pack", hasRealValueEdits: false, kind: "developerProduct" },
+		]);
+	});
+
+	it.for<{ entry: DeveloperProductEntry; label: string }>([
+		{
+			entry: {
+				name: "Real Pack",
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				redacted: true,
+			},
+			label: "name",
+		},
+		{
+			entry: {
+				name: REDACTED_PRODUCT_NAME,
+				description: "Real description.",
+				icon: { "en-us": REDACTED_ICON_PATH },
+				redacted: true,
+			},
+			label: "description",
+		},
+		{
+			entry: {
+				name: REDACTED_PRODUCT_NAME,
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": "assets/real.png" },
+				redacted: true,
+			},
+			label: "icon",
+		},
+	])(
+		"should set hasRealValueEdits true when only the real product $label diverges from the placeholder default",
+		({ entry }) => {
+			expect.assertions(1);
+
+			const result = collectRedactionAnnotations({
+				...baseConfig,
+				products: { "gem-pack": entry },
+			});
+
+			expect(result).toStrictEqual([
+				{ key: "gem-pack", hasRealValueEdits: true, kind: "developerProduct" },
+			]);
+		},
+	);
+
+	it("should emit annotations for both passes and products when each kind declares a redacted entry", () => {
+		expect.assertions(1);
+
+		const result = collectRedactionAnnotations({
+			...baseConfig,
+			passes: { "vip-pass": { ...vipEntry, redacted: true } },
+			products: { "gem-pack": { ...gemPackEntry, redacted: true } },
+		});
+
+		expect(result).toIncludeSameMembers([
+			{ key: "vip-pass", hasRealValueEdits: true, kind: "gamePass" },
+			{ key: "gem-pack", hasRealValueEdits: true, kind: "developerProduct" },
+		]);
+	});
 });

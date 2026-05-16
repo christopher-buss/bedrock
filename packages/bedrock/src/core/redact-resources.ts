@@ -88,19 +88,26 @@ export function applyRedaction(
 export function collectRedactionAnnotations(
 	merged: ResolvedConfig,
 ): ReadonlyArray<RedactionAnnotation> {
-	if (merged.passes === undefined) {
-		return [];
-	}
-
-	return Object.entries(merged.passes)
+	const passes = Object.entries(merged.passes ?? {})
 		.filter(([, entry]) => entry.redacted === true)
-		.map(([key, entry]) => {
+		.map(([key, entry]): RedactionAnnotation => {
 			return {
 				key: asResourceKey(key),
 				hasRealValueEdits: passHasRealValueEdits(entry),
-				kind: "gamePass" as const,
+				kind: "gamePass",
 			};
 		});
+	const products = Object.entries(merged.products ?? {})
+		.filter(([, entry]) => entry.redacted === true)
+		.map(([key, entry]): RedactionAnnotation => {
+			return {
+				key: asResourceKey(key),
+				hasRealValueEdits: productHasRealValueEdits(entry),
+				kind: "developerProduct",
+			};
+		});
+
+	return [...passes, ...products];
 }
 
 function redactPass(entry: GamePassEntry, override: RedactedGamePassOverride): GamePassEntry {
@@ -187,5 +194,13 @@ function passHasRealValueEdits(entry: GamePassEntry): boolean {
 		entry.name !== REDACTED_PASS_NAME ||
 		entry.description !== REDACTED_DESCRIPTION ||
 		entry.icon["en-us"] !== REDACTED_ICON_PATH
+	);
+}
+
+function productHasRealValueEdits(entry: DeveloperProductEntry): boolean {
+	return (
+		entry.name !== REDACTED_PRODUCT_NAME ||
+		entry.description !== REDACTED_DESCRIPTION ||
+		(entry.icon !== undefined && entry.icon["en-us"] !== REDACTED_ICON_PATH)
 	);
 }
