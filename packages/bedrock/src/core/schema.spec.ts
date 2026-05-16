@@ -713,6 +713,96 @@ describe(validateConfig, () => {
 		},
 	);
 
+	it.for([
+		["partial name override", { name: "Closed Beta Pack" }],
+		["partial description override", { description: "Coming soon." }],
+		["partial icon override", { icon: { "en-us": "assets/closed-beta.png" } }],
+		[
+			"full override",
+			{
+				name: "Closed Beta Pack",
+				description: "Coming soon.",
+				icon: { "en-us": "assets/closed-beta.png" },
+			},
+		],
+	] as const)(
+		"should accept a products entry with redacted as the %s object form",
+		([, redacted]) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					environments: MinEnvironments,
+					products: {
+						"gem-pack": {
+							name: "Gem Pack",
+							description: "Stocks the player up with 1,000 premium gems.",
+							redacted,
+						},
+					},
+				},
+				SOURCE,
+			);
+
+			assert(result.success);
+
+			expect(result.data.products!["gem-pack"]!.redacted).toStrictEqual(redacted);
+		},
+	);
+
+	it("should reject an empty redacted object on a products entry and recommend redacted: true for default placeholders", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				products: {
+					"gem-pack": {
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+						redacted: {},
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["products", "gem-pack", "redacted"]);
+		expect(result.err.issues[0]!.message).toContain("redacted: true");
+	});
+
+	it("should reject an unknown key in a products redacted override and attribute the issue path to the offending key", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				products: {
+					"gem-pack": {
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+						redacted: { price: 0 },
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"products",
+			"gem-pack",
+			"redacted",
+			"price",
+		]);
+		expect(result.err.issues[0]!.message).toContain("price");
+	});
+
 	it("should accept a root places collection that declares only filePath", () => {
 		expect.assertions(1);
 
@@ -1947,6 +2037,39 @@ describe(validateConfig, () => {
 			);
 		},
 	);
+
+	it("should reject an object override form on a per-environment products overlay redacted field", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: {
+						products: { "gem-pack": { redacted: { name: "Closed Beta Pack" } } },
+					},
+				},
+				products: {
+					"gem-pack": {
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"staging",
+			"products",
+			"gem-pack",
+			"redacted",
+		]);
+	});
 
 	it.for(INVALID_ROBUX_PRICES)(
 		"should reject %s as a per-environment passes overlay price",

@@ -83,6 +83,7 @@ export {
 	type GamePassEntry,
 	type GistStateConfig,
 	type PlaceEntry,
+	type RedactedDeveloperProductOverride,
 	type RedactedGamePassOverride,
 	type ResolvedConfig,
 	type ResolvedPlaceEntry,

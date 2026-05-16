@@ -4,6 +4,7 @@ import type { ResourceKind } from "./resources.ts";
 import type {
 	DeveloperProductEntry,
 	GamePassEntry,
+	RedactedDeveloperProductOverride,
 	RedactedGamePassOverride,
 	ResolvedConfig,
 } from "./schema.ts";
@@ -140,12 +141,15 @@ function redactPasses(
 	);
 }
 
-function redactProduct(entry: DeveloperProductEntry): DeveloperProductEntry {
+function redactProduct(
+	entry: DeveloperProductEntry,
+	override: RedactedDeveloperProductOverride,
+): DeveloperProductEntry {
 	return {
 		...entry,
-		name: REDACTED_PRODUCT_NAME,
-		description: REDACTED_DESCRIPTION,
-		icon: { "en-us": REDACTED_ICON_PATH },
+		name: override.name ?? REDACTED_PRODUCT_NAME,
+		description: override.description ?? REDACTED_DESCRIPTION,
+		icon: override.icon ?? { "en-us": REDACTED_ICON_PATH },
 	};
 }
 
@@ -166,11 +170,14 @@ function redactProducts(
 
 	return Object.fromEntries(
 		Object.entries(products).map(([key, entry]) => {
-			if (!(entry.redacted ?? environmentRedacted)) {
+			const effective = entry.redacted ?? environmentRedacted;
+			if (effective === false) {
 				return [key, entry] as const;
 			}
 
-			return [key, redactProduct(entry)] as const;
+			const override: RedactedDeveloperProductOverride =
+				typeof effective === "object" ? effective : {};
+			return [key, redactProduct(entry, override)] as const;
 		}),
 	);
 }

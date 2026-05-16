@@ -75,6 +75,41 @@ export interface GamePassEntry {
 }
 
 /**
+ * Per-field redaction override for a developer-product entry. Each supplied
+ * field replaces the matching bedrock-supplied placeholder; omitted fields
+ * fall through to the placeholder defaults. The object form implies
+ * redaction is enabled, so authors who want only defaults should write
+ * `redacted: true` instead of an empty object.
+ *
+ * @example
+ *
+ * ```ts
+ * import type {
+ *     DeveloperProductEntry,
+ *     RedactedDeveloperProductOverride,
+ * } from "@bedrock-rbx/core/config";
+ *
+ * const override: RedactedDeveloperProductOverride = { name: "Closed Beta Pack" };
+ *
+ * const entry: DeveloperProductEntry = {
+ *     name: "Gem Pack",
+ *     description: "Stocks the player up with 1,000 premium gems.",
+ *     redacted: override,
+ * };
+ *
+ * expect(entry.redacted).toStrictEqual({ name: "Closed Beta Pack" });
+ * ```
+ */
+export interface RedactedDeveloperProductOverride {
+	/** Override name; falls through to the bedrock default when omitted. */
+	name?: string | undefined;
+	/** Override description; falls through to the bedrock default when omitted. */
+	description?: string | undefined;
+	/** Override icon path; falls through to the embedded placeholder when omitted. */
+	icon?: Record<"en-us", string> | undefined;
+}
+
+/**
  * Body of a single entry in the `products` collection. Keys in the parent
  * record are `ResourceKey`-shaped strings enforced at schema validation.
  */
@@ -103,11 +138,14 @@ export interface DeveloperProductEntry {
 	/**
 	 * Set to `true` to deploy this product with bedrock-supplied placeholder
 	 * content (default name, empty description, embedded placeholder icon)
-	 * in place of the real values declared above. Omit or set `false` to
-	 * push the real values unchanged. Environment overlays accept only the
-	 * boolean form.
+	 * in place of the real values declared above. Set to a
+	 * {@link RedactedDeveloperProductOverride} to substitute selected
+	 * placeholders with custom values while leaving the rest at bedrock
+	 * defaults; the object form implies redaction is enabled. Omit or set
+	 * `false` to push the real values unchanged. Environment overlays accept
+	 * only the boolean form.
 	 */
-	redacted?: boolean | undefined;
+	redacted?: boolean | RedactedDeveloperProductOverride | undefined;
 	/**
 	 * Whether the product appears on the universe's external store page.
 	 * Tri-state: omit (or set `undefined`) to leave the flag unmanaged.
@@ -312,9 +350,14 @@ export interface EnvironmentEntry {
 	 * missing fields fall through to the matching root `products` entry at
 	 * merge time. Mirrors the `passes` shape because developer products
 	 * also have no user-supplied identity key (Open Cloud mints the
-	 * `productId`).
+	 * `productId`). The `redacted` field narrows to a boolean here:
+	 * per-field overrides (the {@link RedactedDeveloperProductOverride}
+	 * object form) are valid only on the root resource entry.
 	 */
-	products?: Record<string, Partial<DeveloperProductEntry>>;
+	products?: Record<
+		string,
+		Partial<WithoutKey<DeveloperProductEntry, "redacted">> & { redacted?: boolean | undefined }
+	>;
 	/** Per-environment redaction toggle. Per-resource `redacted` flags on the merged config take precedence; `false` carves out exceptions. */
 	redacted?: boolean | undefined;
 	/** Per-environment state override; takes precedence over root `state`. */
@@ -689,6 +732,24 @@ const gamePassRedactedOverride = type({
 
 const gamePassRedacted = gamePassRedactedOverride.or("boolean | undefined");
 
+const productRedactedOverride = type({
+	"description?": "string",
+	"icon?": iconMap,
+	"name?": "string",
+})
+	.onUndeclaredKey("reject")
+	.narrow((value, ctx) => {
+		if (Object.keys(value).length === 0) {
+			return ctx.mustBe(
+				"a non-empty override object; use `redacted: true` for default placeholders",
+			);
+		}
+
+		return true;
+	});
+
+const productRedacted = productRedactedOverride.or(OPTIONAL_BOOLEAN);
+
 // Resource-kind entry schemas. Adding a new kind is two additions:
 // 1. Declare its entry schema and keyed-map collection below.
 // 2. Reference that collection as an optional property on `rootSchema`.
@@ -713,7 +774,7 @@ const developerProductEntry = type({
 	"icon?": iconMap,
 	"isRegionalPricingEnabled?": OPTIONAL_BOOLEAN,
 	"price?": OPTIONAL_ROBUX_PRICE,
-	"redacted?": OPTIONAL_BOOLEAN,
+	"redacted?": productRedacted,
 	"storePageEnabled?": OPTIONAL_BOOLEAN,
 }).onUndeclaredKey("reject");
 

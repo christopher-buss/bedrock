@@ -243,6 +243,138 @@ describe("products-redacted pipeline end-to-end", () => {
 		expect(ops.every((op) => op.type === "noop")).toBeTrue();
 	});
 
+	it("should upload the icon override bytes and default name and description when redacted is an object with icon", async () => {
+		expect.assertions(3);
+
+		const overrideIconPath = "assets/closed-beta.png";
+		const overrideIconBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0xaa, 0xbb, 0xcc]);
+
+		const config = defineConfig({
+			environments: { production: {} },
+			products: {
+				"gem-pack": {
+					name: "Gem Pack",
+					description: "Stocks the player up with 1,000 premium gems.",
+					icon: { "en-us": "assets/gems.png" },
+					price: 100,
+					redacted: { icon: { "en-us": overrideIconPath } },
+				},
+			},
+			universe: { universeId: "1234567890" },
+		});
+
+		const resolved = selectEnvironment(config, "production");
+		assert(resolved.success);
+
+		async function readOverrideIcon(path: string): Promise<Uint8Array> {
+			if (path === overrideIconPath) {
+				return overrideIconBytes;
+			}
+
+			throw new Error(`readFile must not run for path: ${path}`);
+		}
+
+		const desiredResult = await buildDesired(flattenConfig(resolved.data), readOverrideIcon);
+		assert(desiredResult.success);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: validDeveloperProductBody({
+				name: REDACTED_PRODUCT_NAME,
+				description: REDACTED_DESCRIPTION,
+				productId: 8_172_635_495,
+				universeId: 1_234_567_890,
+			}),
+			status: 200,
+		});
+
+		const registry: DriverRegistry = {
+			developerProduct: createDeveloperProductDriver({
+				client: new DeveloperProductsClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: async () => {},
+				}),
+				readFile: readOverrideIcon,
+				universeId: UNIVERSE_ID,
+			}),
+			gamePass: GAME_PASS_TRAP,
+			place: PLACE_TRAP,
+			universe: UNIVERSE_DRIVER,
+		};
+
+		const applyResult = await applyOps(diff(desiredResult.data, []), registry);
+		assert(applyResult.success);
+
+		const captured = httpClient.requests[0]!;
+
+		expect(readFormString(captured.request.body, "name")).toBe(REDACTED_PRODUCT_NAME);
+		expect(readFormString(captured.request.body, "description")).toBe(REDACTED_DESCRIPTION);
+		await expect(readFormBytes(captured.request.body, "imageFile")).resolves.toStrictEqual(
+			overrideIconBytes,
+		);
+	});
+
+	it("should upload the name override and default placeholders when redacted is an object with name", async () => {
+		expect.assertions(3);
+
+		const config = defineConfig({
+			environments: { production: {} },
+			products: {
+				"gem-pack": {
+					name: "Gem Pack",
+					description: "Stocks the player up with 1,000 premium gems.",
+					icon: { "en-us": "assets/gems.png" },
+					price: 100,
+					redacted: { name: "Closed Beta Pack" },
+				},
+			},
+			universe: { universeId: "1234567890" },
+		});
+
+		const resolved = selectEnvironment(config, "production");
+		assert(resolved.success);
+
+		const readFile = panicOnRealPath;
+		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		assert(desiredResult.success);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: validDeveloperProductBody({
+				name: "Closed Beta Pack",
+				description: REDACTED_DESCRIPTION,
+				productId: 8_172_635_495,
+				universeId: 1_234_567_890,
+			}),
+			status: 200,
+		});
+
+		const registry: DriverRegistry = {
+			developerProduct: createDeveloperProductDriver({
+				client: new DeveloperProductsClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: async () => {},
+				}),
+				readFile,
+				universeId: UNIVERSE_ID,
+			}),
+			gamePass: GAME_PASS_TRAP,
+			place: PLACE_TRAP,
+			universe: UNIVERSE_DRIVER,
+		};
+
+		const applyResult = await applyOps(diff(desiredResult.data, []), registry);
+		assert(applyResult.success);
+
+		const captured = httpClient.requests[0]!;
+
+		expect(readFormString(captured.request.body, "name")).toBe("Closed Beta Pack");
+		expect(readFormString(captured.request.body, "description")).toBe(REDACTED_DESCRIPTION);
+		await expect(readFormBytes(captured.request.body, "imageFile")).resolves.toStrictEqual(
+			REDACTED_ICON_BYTES,
+		);
+	});
+
 	it("should push real values on the next deploy when redacted flips from true to false", async () => {
 		expect.assertions(3);
 

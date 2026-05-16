@@ -367,6 +367,70 @@ describe(applyRedaction, () => {
 			expect(result.products?.["gem-pack"]?.name).toBe(expectedName);
 		},
 	);
+
+	it("should substitute only the supplied product override fields and fall back to defaults for the rest", () => {
+		expect.assertions(1);
+
+		const result = applyRedaction({
+			...baseConfig,
+			products: {
+				"gem-pack": { ...gemPackEntry, redacted: { name: "Closed Beta Pack" } },
+			},
+		});
+
+		expect(result.products?.["gem-pack"]).toStrictEqual({
+			name: "Closed Beta Pack",
+			description: REDACTED_DESCRIPTION,
+			icon: { "en-us": REDACTED_ICON_PATH },
+			price: 100,
+			redacted: { name: "Closed Beta Pack" },
+		});
+	});
+
+	it("should substitute every product field when the override object supplies name, description, and icon", () => {
+		expect.assertions(1);
+
+		const override = {
+			name: "Beta Pack",
+			description: "Beta description",
+			icon: { "en-us": "assets/beta.png" },
+		};
+
+		const result = applyRedaction({
+			...baseConfig,
+			products: { "gem-pack": { ...gemPackEntry, redacted: override } },
+		});
+
+		expect(result.products?.["gem-pack"]).toStrictEqual({
+			name: "Beta Pack",
+			description: "Beta description",
+			icon: { "en-us": "assets/beta.png" },
+			price: 100,
+			redacted: override,
+		});
+	});
+
+	it("should substitute the product icon override path while leaving non-icon fields at defaults", () => {
+		expect.assertions(1);
+
+		const result = applyRedaction({
+			...baseConfig,
+			products: {
+				"gem-pack": {
+					...gemPackEntry,
+					redacted: { icon: { "en-us": "assets/override-icon.png" } },
+				},
+			},
+		});
+
+		expect(result.products?.["gem-pack"]).toStrictEqual({
+			name: REDACTED_PRODUCT_NAME,
+			description: REDACTED_DESCRIPTION,
+			icon: { "en-us": "assets/override-icon.png" },
+			price: 100,
+			redacted: { icon: { "en-us": "assets/override-icon.png" } },
+		});
+	});
 });
 
 describe(collectRedactionAnnotations, () => {

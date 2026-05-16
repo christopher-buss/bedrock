@@ -16,6 +16,7 @@ export type {
 	GamePassEntry,
 	GistStateConfig,
 	PlaceEntry,
+	RedactedDeveloperProductOverride,
 	RedactedGamePassOverride,
 	ResolvedPlaceEntry,
 	ResourceEntryByKind,
