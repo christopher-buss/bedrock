@@ -96,11 +96,12 @@ type UniverseOp = NonNoopOp & { readonly desired: UniverseDesiredState };
  * @returns `Ok(state)` when every operation succeeds, where `state` holds
  *   driver outputs for each non-noop op in dispatched order; or the first
  *   failure encountered.
- * @throws Whatever the dispatched driver rejects with outside its `Result`
- *   return. A driver whose injected I/O (file reads, network calls, etc.)
- *   throws will surface that rejection here rather than translating it into
- *   a `Result` failure; wrap the call site in a try/catch when drivers are
- *   not trusted to contain their own rejections.
+ * @throws Whatever a Phase 2 driver rejects with outside its `Result`
+ *   contract. Rejections from Phase 2 dispatches surface through
+ *   `Promise.allSettled` and are rethrown by `applyOps`; wrap the call
+ *   site in a try/catch when drivers are not trusted to contain their
+ *   own rejections.
+ * @rejects See `@throws`.
  * @example
  *
  * ```ts
@@ -199,16 +200,37 @@ export async function applyOps(
 		applied.push(outcome.data);
 	}
 
-	for (const op of phase2) {
-		const outcome = await dispatchOp(op, registry);
-		if (!outcome.success) {
-			return { err: { applied, failures: [outcome.err] }, success: false };
-		}
+	const phase2Settled = await Promise.allSettled(
+		phase2.map(async (op) => dispatchOp(op, registry)),
+	);
+	const failures = collectPhase2Results(phase2Settled, applied);
 
-		applied.push(outcome.data);
+	const [head, ...tail] = failures;
+	if (head === undefined) {
+		return { data: applied, success: true };
 	}
 
-	return { data: applied, success: true };
+	return { err: { applied, failures: [head, ...tail] }, success: false };
+}
+
+function collectPhase2Results(
+	settledResults: ReadonlyArray<PromiseSettledResult<Result<ResourceCurrentState, ApplyError>>>,
+	applied: Array<ResourceCurrentState>,
+): Array<ApplyError> {
+	const failures: Array<ApplyError> = [];
+	for (const settled of settledResults) {
+		if (settled.status === "rejected") {
+			throw settled.reason;
+		}
+
+		if (settled.value.success) {
+			applied.push(settled.value.data);
+		} else {
+			failures.push(settled.value.err);
+		}
+	}
+
+	return failures;
 }
 
 function partitionByPhase(ops: ReadonlyArray<Operation>): {

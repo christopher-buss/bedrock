@@ -240,54 +240,119 @@ describe(applyOps, () => {
 		expect(universeCreate).toHaveBeenCalledOnce();
 	});
 
-	it("should stop dispatching on the first driver failure and surface an aggregate with applied[] and a single-failure failures[]", async () => {
+	it("should dispatch Phase 2 ops concurrently rather than serially", async () => {
+		expect.assertions(3);
+
+		const first = createOp(asResourceKey("first-pass"));
+		const second = createOp(asResourceKey("second-pass"));
+		let resolveFirst!: () => void;
+		const firstGate = new Promise<void>((resolve) => {
+			resolveFirst = resolve;
+		});
+		const firstCurrent = gamePassCurrent({ ...first.desired });
+		const secondCurrent = gamePassCurrent({ ...second.desired });
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockImplementationOnce(async () => {
+				await firstGate;
+				return { data: firstCurrent, success: true };
+			})
+			.mockImplementationOnce(async () => {
+				return { data: secondCurrent, success: true };
+			});
+
+		const applyPromise = applyOps([first, second], registryWith(create));
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(create).toHaveBeenCalledTimes(2);
+
+		resolveFirst();
+		const result = await applyPromise;
+
+		expect(result.success).toBeTrue();
+		expect(result).toStrictEqual({ data: [firstCurrent, secondCurrent], success: true });
+	});
+
+	it("should preserve applied[] in declaration order even when Phase 2 ops settle out of order", async () => {
+		expect.assertions(1);
+
+		const first = createOp(asResourceKey("first-pass"));
+		const second = createOp(asResourceKey("second-pass"));
+		let resolveFirst!: () => void;
+		const firstGate = new Promise<void>((resolve) => {
+			resolveFirst = resolve;
+		});
+		const firstCurrent = gamePassCurrent({ ...first.desired });
+		const secondCurrent = gamePassCurrent({ ...second.desired });
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockImplementationOnce(async () => {
+				await firstGate;
+				return { data: firstCurrent, success: true };
+			})
+			.mockImplementationOnce(async () => {
+				queueMicrotask(resolveFirst);
+				return { data: secondCurrent, success: true };
+			});
+
+		const result = await applyOps([first, second], registryWith(create));
+
+		expect(result).toStrictEqual({ data: [firstCurrent, secondCurrent], success: true });
+	});
+
+	it("should dispatch every Phase 2 op past a failure and aggregate survivors with the failure", async () => {
 		expect.assertions(3);
 
 		const first = createOp(asResourceKey("first-pass"));
 		const second = createOp(asResourceKey("second-pass"));
 		const third = createOp(asResourceKey("third-pass"));
 		const firstCurrent = gamePassCurrent({ ...first.desired });
+		const thirdCurrent = gamePassCurrent({ ...third.desired });
 		const cause = new OpenCloudError("boom");
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValueOnce({ data: firstCurrent, success: true })
-			.mockResolvedValueOnce({ err: cause, success: false });
+			.mockResolvedValueOnce({ err: cause, success: false })
+			.mockResolvedValueOnce({ data: thirdCurrent, success: true });
 
 		const result = await applyOps([first, second, third], registryWith(create));
 
 		expect(result).toStrictEqual({
 			err: {
-				applied: [firstCurrent],
+				applied: [firstCurrent, thirdCurrent],
 				failures: [{ key: second.key, cause, kind: "driverFailure" }],
 			},
 			success: false,
 		});
-		expect(create).toHaveBeenCalledTimes(2);
+		expect(create).toHaveBeenCalledTimes(3);
 		expect(create.mock.calls.map((call) => call[0].key)).toStrictEqual([
 			"first-pass",
 			"second-pass",
+			"third-pass",
 		]);
 	});
 
-	it("should return an updateUnsupported failure in the aggregate when the driver has no update method", async () => {
+	it("should aggregate updateUnsupported failures alongside concurrent Phase 2 successes", async () => {
 		expect.assertions(2);
 
 		const update = updateOp(asResourceKey("vip-pass"));
-		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
+		const otherCreate = createOp(asResourceKey("other-pass"));
+		const otherCurrent = gamePassCurrent({ ...otherCreate.desired });
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockResolvedValue({ data: otherCurrent, success: true });
 
-		const result = await applyOps(
-			[update, createOp(asResourceKey("other-pass"))],
-			registryWith(create),
-		);
+		const result = await applyOps([update, otherCreate], registryWith(create));
 
 		expect(result).toStrictEqual({
 			err: {
-				applied: [],
+				applied: [otherCurrent],
 				failures: [{ key: update.key, kind: "updateUnsupported" }],
 			},
 			success: false,
 		});
-		expect(create).not.toHaveBeenCalled();
+		expect(create).toHaveBeenCalledExactlyOnceWith(otherCreate.desired);
 	});
 
 	it("should carry preceding driver outputs in aggregate.applied on updateUnsupported", async () => {
@@ -329,13 +394,16 @@ describe(applyOps, () => {
 		expect(update.mock.calls[0]![1]).toBe(op.desired);
 	});
 
-	it("should stop dispatching on the first update failure and wrap it in driverFailure Err", async () => {
+	it("should aggregate an update failure alongside the concurrent Phase 2 successes", async () => {
 		expect.assertions(2);
 
 		const first = updateOp(asResourceKey("first-pass"));
 		const second = createOp(asResourceKey("second-pass"));
+		const secondCurrent = gamePassCurrent({ ...second.desired });
 		const cause = new OpenCloudError("boom");
-		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockResolvedValue({ data: secondCurrent, success: true });
 		const update = vi
 			.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>()
 			.mockResolvedValue({ err: cause, success: false });
@@ -344,12 +412,12 @@ describe(applyOps, () => {
 
 		expect(result).toStrictEqual({
 			err: {
-				applied: [],
+				applied: [secondCurrent],
 				failures: [{ key: first.key, cause, kind: "driverFailure" }],
 			},
 			success: false,
 		});
-		expect(create).not.toHaveBeenCalled();
+		expect(create).toHaveBeenCalledExactlyOnceWith(second.desired);
 	});
 
 	describe("developerProduct kind", () => {
