@@ -190,6 +190,27 @@ function permissionDetail(err: PermissionError): string {
 	return `${err.message} on ${err.operationKey}: missing required ${label} ${scopeList}. Grant ${pronoun} on the API key at https://create.roblox.com/credentials`;
 }
 
+/**
+ * Coerce an arbitrary thrown value to a display string without ever throwing.
+ * `String(value)` itself can throw on null-prototype objects or values whose
+ * `toString`/`Symbol.toPrimitive` implementations reject coercion; the
+ * renderer's contract is to surface the failure, not crash mid-diagnostic.
+ * @param value - The thrown value to render.
+ * @returns The `message` of an `Error`, the `String()` coercion for other
+ *   values, or `"<unprintable cause>"` when even `String()` throws.
+ */
+function safeStringify(value: unknown): string {
+	if (value instanceof Error) {
+		return value.message;
+	}
+
+	try {
+		return String(value);
+	} catch {
+		return "<unprintable cause>";
+	}
+}
+
 function applyCauseDetail(cause: ApplyError): string {
 	switch (cause.kind) {
 		case "driverFailure": {
@@ -200,9 +221,7 @@ function applyCauseDetail(cause: ApplyError): string {
 			return cause.cause.message;
 		}
 		case "unexpectedThrow": {
-			const message =
-				cause.cause instanceof Error ? cause.cause.message : String(cause.cause);
-			return `unexpected error: ${message}`;
+			return `unexpected error: ${safeStringify(cause.cause)}`;
 		}
 		case "updateUnsupported": {
 			return "update not supported";

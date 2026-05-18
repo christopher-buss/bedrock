@@ -159,6 +159,26 @@ describe(renderDeployError, () => {
 					applied: [],
 					failures: [
 						{
+							key: asResourceKey("vip-pass"),
+							cause: {
+								toString() {
+									throw new Error("toString rejected coercion");
+								},
+							},
+							kind: "unexpectedThrow",
+						},
+					],
+				},
+				kind: "applyFailed",
+			},
+			expected: "apply failed for 'vip-pass': unexpected error: <unprintable cause>",
+		},
+		{
+			err: {
+				cause: {
+					applied: [],
+					failures: [
+						{
 							key: asResourceKey("main-place"),
 							cause: new ApiError("auth failed (401)", { statusCode: 401 }),
 							kind: "driverFailure",
