@@ -190,20 +190,21 @@ export async function applyOps(
 ): Promise<Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>> {
 	const { phase1, phase2 } = partitionByPhase(ops);
 	const applied: Array<ResourceCurrentState> = [];
+	const failures: Array<ApplyError> = [];
 
 	for (const op of phase1) {
 		const outcome = await dispatchOp(op, registry);
-		if (!outcome.success) {
-			return { err: { applied, failures: [outcome.err] }, success: false };
+		if (outcome.success) {
+			applied.push(outcome.data);
+		} else {
+			failures.push(outcome.err);
 		}
-
-		applied.push(outcome.data);
 	}
 
 	const phase2Settled = await Promise.allSettled(
 		phase2.map(async (op) => dispatchOp(op, registry)),
 	);
-	const failures = collectPhase2Results(phase2Settled, applied);
+	failures.push(...collectPhase2Results(phase2Settled, applied));
 
 	const [head, ...tail] = failures;
 	if (head === undefined) {
