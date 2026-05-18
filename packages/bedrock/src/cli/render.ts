@@ -76,6 +76,14 @@ interface MigrationSummaryRender {
  * @param port - The output port the diagnostic is written to.
  */
 export function renderDeployError(err: DeployError, port: ClackPort): void {
+	if (err.kind === "applyFailed") {
+		for (const failure of err.cause.failures) {
+			port.logError(`apply failed for '${failure.key}': ${applyCauseDetail(failure)}`);
+		}
+
+		return;
+	}
+
 	port.logError(deployErrorMessage(err));
 }
 
@@ -239,12 +247,8 @@ function stateErrorDetail(cause: StateError): string {
 }
 
 /* eslint-disable-next-line max-lines-per-function -- single exhaustive switch over every DeployError variant is clearer than splitting into a wrapped-vs-unwrapped predicate plus a parallel prefix table. */
-function deployErrorMessage(err: DeployError): string {
+function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFailed" }>): string {
 	switch (err.kind) {
-		case "applyFailed": {
-			const first = err.cause.failures[0];
-			return `apply failed for '${first.key}': ${applyCauseDetail(first)}`;
-		}
 		case "buildDesiredFailed": {
 			return `build desired state failed for '${err.cause.key}' ${buildDesiredDetail(err.cause)}`;
 		}

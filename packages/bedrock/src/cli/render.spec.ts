@@ -301,6 +301,52 @@ describe(renderDeployError, () => {
 
 		expect(port.logError).toHaveBeenCalledExactlyOnceWith(expected);
 	});
+
+	it("should emit one logError line per failure in declaration order when applyFailed carries multiple failures", () => {
+		expect.assertions(4);
+
+		const port = fakeClackPort();
+
+		renderDeployError(
+			{
+				cause: {
+					applied: [],
+					failures: [
+						{
+							key: asResourceKey("main-universe"),
+							cause: new ApiError("auth failed (401)", { statusCode: 401 }),
+							kind: "driverFailure",
+						},
+						{
+							key: asResourceKey("vip-pass"),
+							kind: "updateUnsupported",
+						},
+						{
+							key: asResourceKey("gem-pack"),
+							cause: new Error("driver crashed"),
+							kind: "unexpectedThrow",
+						},
+					],
+				},
+				kind: "applyFailed",
+			},
+			port,
+		);
+
+		expect(port.logError).toHaveBeenCalledTimes(3);
+		expect(port.logError).toHaveBeenNthCalledWith(
+			1,
+			"apply failed for 'main-universe': auth failed (401)",
+		);
+		expect(port.logError).toHaveBeenNthCalledWith(
+			2,
+			"apply failed for 'vip-pass': update not supported",
+		);
+		expect(port.logError).toHaveBeenNthCalledWith(
+			3,
+			"apply failed for 'gem-pack': unexpected error: driver crashed",
+		);
+	});
 });
 
 describe(renderParseError, () => {
