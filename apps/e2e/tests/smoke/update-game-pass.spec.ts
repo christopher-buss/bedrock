@@ -32,6 +32,11 @@ const HAS_SECRETS =
 	TOKEN !== undefined &&
 	GIST_ID !== undefined;
 
+// All runs share one game pass via the gist's persistent state. Open Cloud
+// v2 has no DELETE for game passes and caps creation at 5/day per universe,
+// so reusing the stored assetId is required to stay within quota.
+const STABLE_ENVIRONMENT = "game-pass-smoke";
+
 function unreachableDriver<K extends ResourceKind>(label: string): ResourceDriver<K> {
 	return {
 		async create() {
@@ -68,7 +73,7 @@ function withMutatedPass(base: Config, overrides: { description: string; name: s
 
 describe("game-pass update via real Roblox", () => {
 	it.skipIf(!HAS_SECRETS)(
-		"should bootstrap then update a game pass via deploy and persist outputs to a real gist",
+		"should update an existing game pass via deploy and persist outputs to a real gist",
 		async () => {
 			expect.assertions(5);
 
@@ -78,7 +83,6 @@ describe("game-pass update via real Roblox", () => {
 			assert(GIST_ID !== undefined, "BEDROCK_TEST_GIST_ID must be set");
 
 			const universeId = asRobloxAssetId(UNIVERSE_ID_ENV);
-			const environment = `game-pass-smoke-${String(Date.now())}`;
 			const statePort = createGistStateAdapter({ gistId: GIST_ID, token: TOKEN });
 
 			const loaded = await loadConfig({ cwd: FIXTURE_DIR });
@@ -101,12 +105,16 @@ describe("game-pass update via real Roblox", () => {
 				universe: unreachableDriver("universe block"),
 			} satisfies DriverRegistry;
 
-			const bootstrapConfig = withEnvironment(baseConfig, environment);
+			const bootstrapConfig = withEnvironment(baseConfig, STABLE_ENVIRONMENT);
 
 			try {
+				// The bootstrap deploy reconciles the pass against the fixture
+				// baseline, creating on the first run and reverting any drift
+				// from a prior update otherwise. The update deploy then mutates
+				// name and description with a per-run timestamp.
 				const bootstrap = await deploy({
 					config: bootstrapConfig,
-					environment,
+					environment: STABLE_ENVIRONMENT,
 					readFile: fixtureReadFile,
 					registry,
 					statePort,
@@ -123,7 +131,7 @@ describe("game-pass update via real Roblox", () => {
 				});
 				const updated = await deploy({
 					config: updatedConfig,
-					environment,
+					environment: STABLE_ENVIRONMENT,
 					readFile: fixtureReadFile,
 					registry,
 					statePort,
@@ -133,7 +141,7 @@ describe("game-pass update via real Roblox", () => {
 					`update deploy failed: ${JSON.stringify(updated.success ? null : updated.err)}`,
 				);
 
-				const persistedRead = await statePort.read(environment);
+				const persistedRead = await statePort.read(STABLE_ENVIRONMENT);
 				assert(
 					persistedRead.success,
 					`state read failed: ${JSON.stringify(persistedRead.success ? null : persistedRead.err)}`,
@@ -142,7 +150,7 @@ describe("game-pass update via real Roblox", () => {
 				const persisted = persistedRead.data;
 				assert(persisted !== undefined);
 
-				expect(persisted.environment).toBe(environment);
+				expect(persisted.environment).toBe(STABLE_ENVIRONMENT);
 				expect(persisted.resources).toHaveLength(1);
 
 				const resource = persisted.resources[0];
@@ -154,9 +162,9 @@ describe("game-pass update via real Roblox", () => {
 				expect(resource.outputs.assetId).toBeString();
 			} finally {
 				await pruneStateGist({
-					filenamePrefix: "state.game-pass-smoke-",
+					filenamePrefix: `state.${STABLE_ENVIRONMENT}-`,
 					gistId: GIST_ID,
-					keep: 3,
+					keep: 0,
 					token: TOKEN,
 				});
 			}
