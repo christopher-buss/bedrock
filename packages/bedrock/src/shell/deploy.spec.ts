@@ -410,6 +410,66 @@ describe(deploy, () => {
 		});
 	});
 
+	it("should persist Phase 2 survivors alongside Phase 1 universe success when one Phase 2 op fails", async () => {
+		expect.assertions(3);
+
+		const placeIdValue = asRobloxAssetId("84607999013117");
+		const universeCreated = universeCurrent();
+		const placeCreated = placeCurrent({ outputs: { versionNumber: 1 } });
+		const alphaCurrent = alphaPassCurrent();
+		const cause = new OpenCloudError("create vip-pass: 503");
+		const universeCreate = vi
+			.fn<ResourceDriver<"universe">["create"]>()
+			.mockResolvedValue({ data: universeCreated, success: true });
+		const placeCreate = vi
+			.fn<ResourceDriver<"place">["create"]>()
+			.mockResolvedValue({ data: placeCreated, success: true });
+		const gamePassCreate = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockImplementation(async (desired) => {
+				if (desired.key === "alpha-pass") {
+					return { data: alphaCurrent, success: true };
+				}
+
+				return { err: cause, success: false };
+			});
+		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
+			gamePass: { create: gamePassCreate },
+			place: { create: placeCreate },
+			universe: { create: universeCreate },
+		};
+		const { port, writes } = inMemoryStatePort();
+
+		const result = await deploy({
+			config: {
+				...twoPassConfig(),
+				environments: {
+					production: { places: { main: { placeId: placeIdValue } } },
+				},
+				places: { main: { filePath: "anime-rush.rbxl" } },
+				universe: { universeId: "1234567890" },
+			},
+			environment: "production",
+			readFile: readIcon,
+			registry,
+			statePort: port,
+		});
+
+		expect(writes).toHaveLength(1);
+		expect(writes[0]!.resources).toStrictEqual([universeCreated, alphaCurrent, placeCreated]);
+
+		assert(!result.success);
+
+		expect(result.err).toStrictEqual({
+			cause: {
+				applied: [universeCreated, alphaCurrent, placeCreated],
+				failures: [{ key: asResourceKey("vip-pass"), cause, kind: "driverFailure" }],
+			},
+			kind: "applyFailed",
+		});
+	});
+
 	it("should surface stateReadFailed without dispatching drivers or writing state when StatePort.read returns Err", async () => {
 		expect.assertions(3);
 
