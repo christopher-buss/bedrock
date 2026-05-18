@@ -58,19 +58,23 @@ async function normalize(
 	};
 }
 
-function fieldsEqual(desired: PlaceDesiredState, current: ResourceCurrentState<"place">): boolean {
-	if (
-		desired.fileHash !== current.fileHash ||
-		desired.filePath !== current.filePath ||
-		desired.placeId !== current.placeId
-	) {
-		return false;
-	}
+function changedFieldsBetween(
+	desired: PlaceDesiredState,
+	current: ResourceCurrentState<"place">,
+): ReadonlyArray<string> {
+	return [
+		...(desired.fileHash === current.fileHash ? [] : ["fileHash"]),
+		...(desired.filePath === current.filePath ? [] : ["filePath"]),
+		...(desired.placeId === current.placeId ? [] : ["placeId"]),
+		...PLACE_MANAGED_METADATA_FIELDS.filter((field) => {
+			const desiredValue = desired[field];
+			return desiredValue !== undefined && desiredValue !== current[field];
+		}),
+	];
+}
 
-	return PLACE_MANAGED_METADATA_FIELDS.every((field) => {
-		const desiredValue = desired[field];
-		return desiredValue === undefined || desiredValue === current[field];
-	});
+function fieldsEqual(desired: PlaceDesiredState, current: ResourceCurrentState<"place">): boolean {
+	return changedFieldsBetween(desired, current).length === 0;
 }
 
 /**
@@ -79,6 +83,7 @@ function fieldsEqual(desired: PlaceDesiredState, current: ResourceCurrentState<"
  * kind.
  */
 export const placeKind: ResourceKindModule<"place"> = {
+	changedFieldsBetween,
 	entrySchema,
 	fieldsEqual,
 	flatten,

@@ -54,6 +54,8 @@ it('Example 3', () => {
       },
       success: true,
     }),
+    changedFieldsBetween: (desired, current) =>
+      desired.name === current.name ? [] : ['name'],
     fieldsEqual: (desired, current) => desired.name === current.name,
   }
   expect(stubKind.kind).toBe('gamePass')

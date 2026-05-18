@@ -79,6 +79,11 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
  * const ops = diff([unchanged, drifted, fresh], current);
  *
  * expect(ops.map((op) => op.type)).toEqual(["noop", "update", "create"]);
+ *
+ * const updateOp = ops[1]!;
+ * if (updateOp.type === "update") {
+ *     expect(updateOp.changedFields).toStrictEqual(["name"]);
+ * }
  * ```
  */
 export function diff(
@@ -93,13 +98,6 @@ function compositeKey(resource: { readonly key: string; readonly kind: ResourceK
 	return `${resource.kind}:${resource.key}`;
 }
 
-function desiredFieldsEqual(desired: ResourceDesiredState, current: ResourceCurrentState): boolean {
-	// Composite-key matching guarantees `desired.kind === current.kind`,
-	// so the per-kind module is consulted directly without a kind guard.
-	const module = defaultKindRegistry[desired.kind] as ResourceKindModule<ResourceKind>;
-	return module.fieldsEqual(desired, current);
-}
-
 function operationFor(
 	desired: ResourceDesiredState,
 	current: ResourceCurrentState | undefined,
@@ -108,9 +106,11 @@ function operationFor(
 		return { key: desired.key, desired, type: "create" };
 	}
 
-	if (desiredFieldsEqual(desired, current)) {
+	const module = defaultKindRegistry[desired.kind] as ResourceKindModule<ResourceKind>;
+	const changedFields = module.changedFieldsBetween(desired, current);
+	if (changedFields.length === 0) {
 		return { key: desired.key, type: "noop" };
 	}
 
-	return { key: desired.key, current, desired, type: "update" };
+	return { key: desired.key, changedFields, current, desired, type: "update" };
 }

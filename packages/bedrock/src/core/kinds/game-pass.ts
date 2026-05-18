@@ -53,17 +53,26 @@ async function normalize(
 	};
 }
 
+function changedFieldsBetween(
+	desired: GamePassDesiredState,
+	current: ResourceCurrentState<"gamePass">,
+): ReadonlyArray<string> {
+	return [
+		...(desired.description === current.description ? [] : ["description"]),
+		...(desired.icon["en-us"] === current.icon["en-us"] ? [] : ["icon"]),
+		...(iconHashesEqual(current.iconFileHashes, desired.iconFileHashes)
+			? []
+			: ["iconFileHashes"]),
+		...(desired.name === current.name ? [] : ["name"]),
+		...(desired.price === current.price ? [] : ["price"]),
+	];
+}
+
 function fieldsEqual(
 	desired: GamePassDesiredState,
 	current: ResourceCurrentState<"gamePass">,
 ): boolean {
-	return (
-		desired.description === current.description &&
-		desired.icon["en-us"] === current.icon["en-us"] &&
-		iconHashesEqual(current.iconFileHashes, desired.iconFileHashes) &&
-		desired.name === current.name &&
-		desired.price === current.price
-	);
+	return changedFieldsBetween(desired, current).length === 0;
 }
 
 /**
@@ -72,6 +81,7 @@ function fieldsEqual(
  * `gamePass` kind.
  */
 export const gamePassKind: ResourceKindModule<"gamePass"> = {
+	changedFieldsBetween,
 	entrySchema,
 	fieldsEqual,
 	flatten,

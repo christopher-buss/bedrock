@@ -51,4 +51,8 @@ it('Example 1', () => {
   ]
   const ops = diff([unchanged, drifted, fresh], current)
   expect(ops.map((op) => op.type)).toEqual(['noop', 'update', 'create'])
+  const updateOp = ops[1]!
+  if (updateOp.type === 'update') {
+    expect(updateOp.changedFields).toStrictEqual(['name'])
+  }
 })

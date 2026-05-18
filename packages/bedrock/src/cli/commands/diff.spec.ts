@@ -8,7 +8,7 @@ import type { Operation } from "../../core/operations.ts";
 import type { RedactionAnnotation } from "../../core/redact-resources.ts";
 import type { Config } from "../../core/schema.ts";
 import type { DiffPreview, PreviewDiffError } from "../../shell/preview-diff.ts";
-import { asResourceKey, asSha256Hex } from "../../types/ids.ts";
+import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import type { ProgDeps } from "../index.ts";
 import { diffCommand } from "./diff.ts";
 
@@ -57,12 +57,39 @@ function updatePlaceOp(key: string): Operation {
 		fileHash: SAMPLE_HASH,
 		filePath: "places/start.rbxl",
 		kind: "place" as const,
-		placeId: asResourceKey("4711") as never,
+		placeId: asRobloxAssetId("4711"),
 		serverSize: undefined,
 	};
 	return {
 		key: asResourceKey(key),
+		changedFields: ["fileHash"],
 		current: { ...desired, outputs: { versionNumber: 1 } },
+		desired,
+		type: "update",
+	};
+}
+
+function multiFieldUpdatePlaceOp(key: string): Operation {
+	const desired = {
+		key: asResourceKey(key),
+		description: "New body",
+		displayName: "New name",
+		fileHash: SAMPLE_HASH,
+		filePath: "places/start.rbxl",
+		kind: "place" as const,
+		placeId: asRobloxAssetId("4711"),
+		serverSize: undefined,
+	};
+	const current = {
+		...desired,
+		description: "Old body",
+		displayName: "Old name",
+		outputs: { versionNumber: 1 },
+	};
+	return {
+		key: asResourceKey(key),
+		changedFields: ["displayName", "description"],
+		current,
 		desired,
 		type: "update",
 	};
@@ -253,11 +280,34 @@ describe(diffCommand, () => {
 			'Pending changes for "production":',
 		);
 		expect(deps.clack?.logMessage).toHaveBeenNthCalledWith(2, "+ gamePass:vip-pass");
-		expect(deps.clack?.logMessage).toHaveBeenNthCalledWith(3, "~ place:start-place");
+		expect(deps.clack?.logMessage).toHaveBeenNthCalledWith(
+			3,
+			"~ place:start-place fileHash updated",
+		);
 		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
 			"run bedrock deploy to apply pending changes",
 		);
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should join multiple changed fields with ' + ' for an update op", async () => {
+		expect.assertions(1);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const previewDiff = fakePreview([
+			preview({
+				environment: "production",
+				ops: [multiFieldUpdatePlaceOp("start-place")],
+			}),
+		]);
+		const deps = makeDeps({ loadConfig, previewDiff });
+
+		await diffCommand(deps)({ env: "production" });
+
+		expect(deps.clack?.logMessage).toHaveBeenNthCalledWith(
+			2,
+			"~ place:start-place displayName + description updated",
+		);
 	});
 
 	it("should render the redacted section after the drift section and skip redactions whose op is a create or update", async () => {

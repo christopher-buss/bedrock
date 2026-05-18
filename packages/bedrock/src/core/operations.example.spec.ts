@@ -70,10 +70,12 @@ it('Example 3', () => {
       name: 'VIP Pass',
       price: 750,
     },
+    changedFields: ['description', 'price'],
     key: asResourceKey('vip-pass'),
     type: 'update',
   }
   expect(op.type).toBe('update')
+  expect(op.changedFields).toStrictEqual(['description', 'price'])
   if (op.desired.kind === 'gamePass') {
     expect(op.desired.price).toBe(750)
   }

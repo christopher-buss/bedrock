@@ -592,6 +592,126 @@ describe("developerProductKind", () => {
 			},
 		);
 	});
+
+	describe("changedFieldsBetween", () => {
+		it("should return an empty list when every managed field matches", () => {
+			expect.assertions(1);
+
+			expect(
+				developerProductKind.changedFieldsBetween(
+					developerProductDesired(),
+					developerProductCurrent(),
+				),
+			).toStrictEqual([]);
+		});
+
+		it.for<[field: string, currentOverrides: Partial<ResourceCurrentStateDeveloperProduct>]>([
+			["description", { description: "Other description" }],
+			["name", { name: "Other Name" }],
+			["price", { price: 100 }],
+		])("should return [%s] when only %s differs", ([field, overrides]) => {
+			expect.assertions(1);
+
+			expect(
+				developerProductKind.changedFieldsBetween(
+					developerProductDesired(),
+					developerProductCurrent(overrides),
+				),
+			).toStrictEqual([field]);
+		});
+
+		it("should return [icon] when only the icon path differs", () => {
+			expect.assertions(1);
+
+			const sharedHashes = { "en-us": ICON_HASH };
+
+			expect(
+				developerProductKind.changedFieldsBetween(
+					developerProductDesired({
+						icon: { "en-us": "assets/gem-pack.png" },
+						iconFileHashes: sharedHashes,
+					}),
+					developerProductCurrent({
+						icon: { "en-us": "assets/other.png" },
+						iconFileHashes: sharedHashes,
+					}),
+				),
+			).toStrictEqual(["icon"]);
+		});
+
+		it("should return [iconFileHashes] when only the icon hash differs", () => {
+			expect.assertions(1);
+
+			const SharedIcon = { "en-us": "assets/gem-pack.png" } as const;
+
+			expect(
+				developerProductKind.changedFieldsBetween(
+					developerProductDesired({
+						icon: SharedIcon,
+						iconFileHashes: { "en-us": ICON_HASH },
+					}),
+					developerProductCurrent({
+						icon: SharedIcon,
+						iconFileHashes: { "en-us": ALT_ICON_HASH },
+					}),
+				),
+			).toStrictEqual(["iconFileHashes"]);
+		});
+
+		it.for([["isRegionalPricingEnabled"] as const, ["storePageEnabled"] as const])(
+			"should return [%s] when desired.%s differs from current",
+			([flag]) => {
+				expect.assertions(1);
+
+				expect(
+					developerProductKind.changedFieldsBetween(
+						developerProductDesired({ [flag]: true }),
+						developerProductCurrent({ [flag]: false }),
+					),
+				).toStrictEqual([flag]);
+			},
+		);
+
+		it.for([["isRegionalPricingEnabled"] as const, ["storePageEnabled"] as const])(
+			"should return an empty list when desired leaves %s unmanaged but current carries a value",
+			([flag]) => {
+				expect.assertions(1);
+
+				expect(
+					developerProductKind.changedFieldsBetween(
+						developerProductDesired({ [flag]: undefined }),
+						developerProductCurrent({ [flag]: true }),
+					),
+				).toStrictEqual([]);
+			},
+		);
+
+		it("should return every changed field in declaration order when many differ", () => {
+			expect.assertions(1);
+
+			expect(
+				developerProductKind.changedFieldsBetween(
+					developerProductDesired({
+						name: "New",
+						description: "New",
+						isRegionalPricingEnabled: true,
+						price: 999,
+						storePageEnabled: false,
+					}),
+					developerProductCurrent({
+						isRegionalPricingEnabled: false,
+						storePageEnabled: true,
+					}),
+				),
+			).toStrictEqual([
+				"description",
+				"name",
+				"price",
+				"isRegionalPricingEnabled",
+				"storePageEnabled",
+			]);
+		});
+	});
 });
 
 type ResourceCurrentStateDeveloperProduct = Parameters<typeof developerProductKind.fieldsEqual>[1];

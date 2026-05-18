@@ -44,6 +44,10 @@ describe("UpdateOperation", () => {
 	it("should carry the current resource state", () => {
 		expectTypeOf<UpdateOperation["current"]>().toEqualTypeOf<ResourceCurrentState>();
 	});
+
+	it("should carry changedFields as a readonly array of strings", () => {
+		expectTypeOf<UpdateOperation["changedFields"]>().toEqualTypeOf<ReadonlyArray<string>>();
+	});
 });
 
 describe("NoopOperation", () => {
@@ -53,5 +57,9 @@ describe("NoopOperation", () => {
 
 	it("should not carry a current resource state", () => {
 		expectTypeOf<NoopOperation>().not.toHaveProperty("current");
+	});
+
+	it("should not carry a changedFields array", () => {
+		expectTypeOf<NoopOperation>().not.toHaveProperty("changedFields");
 	});
 });

@@ -117,6 +117,8 @@ export interface KindIo {
  *         },
  *         success: true,
  *     }),
+ *     changedFieldsBetween: (desired, current) =>
+ *         desired.name === current.name ? [] : ["name"],
  *     fieldsEqual: (desired, current) => desired.name === current.name,
  * };
  *
@@ -136,6 +138,19 @@ export interface ResourceKindModule<K extends ResourceKind> {
 		current: ResourceCurrentState<K>,
 		desired: DesiredFor<K>,
 	) => Result<undefined, BuildDesiredError>;
+
+	/**
+	 * Top-level field names that differ between `desired` and `current`,
+	 * in a kind-specific deterministic order. Mirrors `fieldsEqual`
+	 * semantics, so `fieldsEqual(d, c)` is `true` iff this returns `[]`.
+	 * Granularity is top-level: `discordSocialLink`, not
+	 * `discordSocialLink.uri`. Plan and apply renderers consume this as
+	 * the single source of truth for "what changed" on an update op.
+	 */
+	changedFieldsBetween(
+		desired: DesiredFor<K>,
+		current: ResourceCurrentState<K>,
+	): ReadonlyArray<string>;
 
 	/** ArkType schema for the authored entry body of this kind. */
 	readonly entrySchema: Type<ResourceEntryByKind[K]>;
