@@ -71,10 +71,6 @@ function changedFieldsBetween(
 	desired: DeveloperProductDesiredState,
 	current: ResourceCurrentState<"developerProduct">,
 ): ReadonlyArray<string> {
-	// `isRegionalPricingEnabled` and `storePageEnabled` are tri-state:
-	// `undefined` on the desired side means the user does not manage the
-	// field, so any current value is accepted as a match and the field is
-	// omitted from the change list.
 	return [
 		...(desired.description === current.description ? [] : ["description"]),
 		...(desired.icon?.["en-us"] === current.icon?.["en-us"] ? [] : ["icon"]),

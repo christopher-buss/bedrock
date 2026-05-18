@@ -106,8 +106,6 @@ function operationFor(
 		return { key: desired.key, desired, type: "create" };
 	}
 
-	// Composite-key matching guarantees `desired.kind === current.kind`,
-	// so the per-kind module is consulted directly without a kind guard.
 	const module = defaultKindRegistry[desired.kind] as ResourceKindModule<ResourceKind>;
 	const changedFields = module.changedFieldsBetween(desired, current);
 	if (changedFields.length === 0) {

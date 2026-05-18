@@ -8,7 +8,7 @@ import type { Operation } from "../../core/operations.ts";
 import type { RedactionAnnotation } from "../../core/redact-resources.ts";
 import type { Config } from "../../core/schema.ts";
 import type { DiffPreview, PreviewDiffError } from "../../shell/preview-diff.ts";
-import { asResourceKey, asSha256Hex } from "../../types/ids.ts";
+import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import type { ProgDeps } from "../index.ts";
 import { diffCommand } from "./diff.ts";
 
@@ -57,7 +57,7 @@ function updatePlaceOp(key: string): Operation {
 		fileHash: SAMPLE_HASH,
 		filePath: "places/start.rbxl",
 		kind: "place" as const,
-		placeId: asResourceKey("4711") as never,
+		placeId: asRobloxAssetId("4711"),
 		serverSize: undefined,
 	};
 	return {
@@ -77,7 +77,7 @@ function multiFieldUpdatePlaceOp(key: string): Operation {
 		fileHash: SAMPLE_HASH,
 		filePath: "places/start.rbxl",
 		kind: "place" as const,
-		placeId: asResourceKey("4711") as never,
+		placeId: asRobloxAssetId("4711"),
 		serverSize: undefined,
 	};
 	const current = {

@@ -116,10 +116,6 @@ function changedFieldsBetween(
 ): ReadonlyArray<string> {
 	return [
 		...(desired.universeId === current.universeId ? [] : ["universeId"]),
-		// Only compare flags the user has declared. An undeclared flag
-		// stays owned by whoever else writes to the universe (Creator
-		// Hub, another tool), so a concrete current value for it is not
-		// drift.
 		...UNIVERSE_MANAGED_FLAGS.filter((flag) => {
 			const isDesiredEnabled = desired[flag];
 			return isDesiredEnabled !== undefined && isDesiredEnabled !== current[flag];
