@@ -190,20 +190,14 @@ function permissionDetail(err: PermissionError): string {
 	return `${err.message} on ${err.operationKey}: missing required ${label} ${scopeList}. Grant ${pronoun} on the API key at https://create.roblox.com/credentials`;
 }
 
-/**
- * Coerce an arbitrary thrown value to a display string without ever throwing.
- * `String(value)` itself can throw on null-prototype objects or values whose
- * `toString`/`Symbol.toPrimitive` implementations reject coercion; the
- * renderer's contract is to surface the failure, not crash mid-diagnostic.
- * @param value - The thrown value to render.
- * @returns The `message` of an `Error`, the `String()` coercion for other
- *   values, or `"<unprintable cause>"` when even `String()` throws.
- */
 function safeStringify(value: unknown): string {
 	if (value instanceof Error) {
 		return value.message;
 	}
 
+	// `String(value)` can throw on null-prototype objects or values whose
+	// `toString` / `Symbol.toPrimitive` rejects coercion; fall back so the
+	// renderer never crashes mid-diagnostic.
 	try {
 		return String(value);
 	} catch {

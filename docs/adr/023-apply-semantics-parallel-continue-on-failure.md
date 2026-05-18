@@ -447,8 +447,8 @@ always carrying at least one entry.
 ### 2026-05-18: Phase 2 dispatches with `Promise.all`
 
 **This amendment supersedes the `Promise.allSettled` decision recorded in
-the original Decision section (Phase 2 description, lines 71-75) and in
-the Implementation Notes (lines 389-392).**
+the original Decision section's Phase 2 description and in the
+Implementation Notes section.**
 
 Phase 2 dispatches concurrently via `Promise.all` rather than
 `Promise.allSettled`. The dispatch-boundary try/catch inside `dispatchOp`

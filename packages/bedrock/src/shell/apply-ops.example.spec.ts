@@ -3,6 +3,7 @@ import { expect, it } from "vitest";
 import {
   asResourceKey,
   type ApplyError,
+  type AggregateApplyError,
   applyOps,
   asRobloxAssetId,
   asSha256Hex,
@@ -32,6 +33,17 @@ it('Example 1', () => {
 })
 
 it('Example 2', () => {
+  function summarise(err: AggregateApplyError): string {
+    return `${err.applied.length} survived, ${err.failures.length} failed`
+  }
+  const err: AggregateApplyError = {
+    applied: [],
+    failures: [{ key: asResourceKey('vip-pass'), kind: 'updateUnsupported' }],
+  }
+  expect(summarise(err)).toBe('0 survived, 1 failed')
+})
+
+it('Example 3', () => {
   const registry: DriverRegistry = {
     gamePass: {
       async create(desired) {

@@ -65,13 +65,31 @@ export type ApplyError =
 
 /**
  * Aggregate outcome returned by `applyOps` when one or more ops fail.
- * `applied` is the survivor set in declaration order. `failures` is the
- * non-empty list of `ApplyError`s, one per failing op.
+ * `applied` is the survivor set in Phase 1 then Phase 2 input order.
+ * `failures` is the non-empty list of `ApplyError`s, one per failing op,
+ * grouped the same way.
+ *
+ * @example
+ *
+ * ```ts
+ * import { asResourceKey, type AggregateApplyError } from "@bedrock-rbx/core";
+ *
+ * function summarize(err: AggregateApplyError): string {
+ *     return `${err.applied.length} survived, ${err.failures.length} failed`;
+ * }
+ *
+ * const err: AggregateApplyError = {
+ *     applied: [],
+ *     failures: [{ key: asResourceKey("vip-pass"), kind: "updateUnsupported" }],
+ * };
+ *
+ * expect(summarize(err)).toBe("0 survived, 1 failed");
+ * ```
  */
 export interface AggregateApplyError {
-	/** Survivors persisted to state, in declaration order. */
+	/** Survivors persisted to state, in Phase 1 then Phase 2 input order. */
 	readonly applied: ReadonlyArray<ResourceCurrentState>;
-	/** Per-op failures, at least one. */
+	/** Per-op failures, at least one, in Phase 1 then Phase 2 input order. */
 	readonly failures: readonly [ApplyError, ...ReadonlyArray<ApplyError>];
 }
 
@@ -203,20 +221,14 @@ export async function applyOps(
 	registry: DriverRegistry,
 ): Promise<Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>> {
 	const { phase1, phase2 } = partitionByPhase(ops);
-	const applied: Array<ResourceCurrentState> = [];
-	const failures: Array<ApplyError> = [];
 
+	const phase1Outcomes: Array<Result<ResourceCurrentState, ApplyError>> = [];
 	for (const op of phase1) {
-		const outcome = await dispatchOp(op, registry);
-		if (outcome.success) {
-			applied.push(outcome.data);
-		} else {
-			failures.push(outcome.err);
-		}
+		phase1Outcomes.push(await dispatchOp(op, registry));
 	}
 
-	const phase2Results = await Promise.all(phase2.map(async (op) => dispatchOp(op, registry)));
-	failures.push(...collectPhase2Results(phase2Results, applied));
+	const phase2Outcomes = await Promise.all(phase2.map(async (op) => dispatchOp(op, registry)));
+	const { applied, failures } = partitionOutcomes([...phase1Outcomes, ...phase2Outcomes]);
 
 	const [head, ...tail] = failures;
 	if (head === undefined) {
@@ -224,43 +236,6 @@ export async function applyOps(
 	}
 
 	return { err: { applied, failures: [head, ...tail] }, success: false };
-}
-
-function collectPhase2Results(
-	results: ReadonlyArray<Result<ResourceCurrentState, ApplyError>>,
-	applied: Array<ResourceCurrentState>,
-): Array<ApplyError> {
-	const failures: Array<ApplyError> = [];
-	for (const result of results) {
-		if (result.success) {
-			applied.push(result.data);
-		} else {
-			failures.push(result.err);
-		}
-	}
-
-	return failures;
-}
-
-function partitionByPhase(ops: ReadonlyArray<Operation>): {
-	readonly phase1: ReadonlyArray<NonNoopOp>;
-	readonly phase2: ReadonlyArray<NonNoopOp>;
-} {
-	const phase1: Array<NonNoopOp> = [];
-	const phase2: Array<NonNoopOp> = [];
-	for (const op of ops) {
-		if (op.type === "noop") {
-			continue;
-		}
-
-		if (op.desired.kind === "universe") {
-			phase1.push(op);
-		} else {
-			phase2.push(op);
-		}
-	}
-
-	return { phase1, phase2 };
 }
 
 function driverFailure(
@@ -333,4 +308,34 @@ async function dispatchOp(
 	} catch (err) {
 		return { err: { key: op.key, cause: err, kind: "unexpectedThrow" }, success: false };
 	}
+}
+
+function partitionOutcomes(outcomes: ReadonlyArray<Result<ResourceCurrentState, ApplyError>>): {
+	readonly applied: ReadonlyArray<ResourceCurrentState>;
+	readonly failures: ReadonlyArray<ApplyError>;
+} {
+	const applied = outcomes.flatMap((outcome) => (outcome.success ? [outcome.data] : []));
+	const failures = outcomes.flatMap((outcome) => (outcome.success ? [] : [outcome.err]));
+	return { applied, failures };
+}
+
+function partitionByPhase(ops: ReadonlyArray<Operation>): {
+	readonly phase1: ReadonlyArray<NonNoopOp>;
+	readonly phase2: ReadonlyArray<NonNoopOp>;
+} {
+	const phase1: Array<NonNoopOp> = [];
+	const phase2: Array<NonNoopOp> = [];
+	for (const op of ops) {
+		if (op.type === "noop") {
+			continue;
+		}
+
+		if (op.desired.kind === "universe") {
+			phase1.push(op);
+		} else {
+			phase2.push(op);
+		}
+	}
+
+	return { phase1, phase2 };
 }
