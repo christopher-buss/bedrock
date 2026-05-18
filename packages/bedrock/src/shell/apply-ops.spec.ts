@@ -389,6 +389,42 @@ describe(applyOps, () => {
 		expect(result).toStrictEqual({ data: [firstCurrent, secondCurrent], success: true });
 	});
 
+	it("should preserve failures[] in declaration order even when Phase 2 failures settle out of order", async () => {
+		expect.assertions(1);
+
+		const first = createOp(asResourceKey("first-pass"));
+		const second = createOp(asResourceKey("second-pass"));
+		let resolveFirst!: () => void;
+		const firstGate = new Promise<void>((resolve) => {
+			resolveFirst = resolve;
+		});
+		const firstCause = new OpenCloudError("first boom");
+		const secondCause = new OpenCloudError("second boom");
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockImplementationOnce(async () => {
+				await firstGate;
+				return { err: firstCause, success: false };
+			})
+			.mockImplementationOnce(async () => {
+				queueMicrotask(resolveFirst);
+				return { err: secondCause, success: false };
+			});
+
+		const result = await applyOps([first, second], registryWith(create));
+
+		expect(result).toStrictEqual({
+			err: {
+				applied: [],
+				failures: [
+					{ key: first.key, cause: firstCause, kind: "driverFailure" },
+					{ key: second.key, cause: secondCause, kind: "driverFailure" },
+				],
+			},
+			success: false,
+		});
+	});
+
 	it("should translate a synchronous driver throw into an unexpectedThrow without halting the batch", async () => {
 		expect.assertions(3);
 

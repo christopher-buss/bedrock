@@ -14,10 +14,12 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
  * `update` op if any declared field differs or a `noop` op if every field
  * matches.
  *
- * Ops appear in the order their desired entries appear in the input array;
- * the persisted post-apply snapshot stays in that declaration order with
- * Phase 1 universe ops grouped first. The execution order within Phase 2
- * is not guaranteed because `applyOps` dispatches Phase 2 concurrently.
+ * Ops appear in the order their desired entries appear in the input array.
+ * `applyOps` regroups them into Phase 1 (universe) and Phase 2 (everything
+ * else) when dispatching; the execution order within Phase 2 is not
+ * guaranteed because Phase 2 dispatches concurrently. Persisted state-file
+ * order is determined by the merge in `deploy.runReconcile` (which retains
+ * prior-snapshot positions for unchanged keys), not by this diff output.
  *
  * @param desired - Declared desired state from user config, already normalized
  *   (file hashes computed, nullable wire values mapped to `undefined`).

@@ -99,14 +99,15 @@ type UniverseOp = NonNoopOp & { readonly desired: UniverseDesiredState };
  *   dispatch boundary and translated to an `unexpectedThrow` `ApplyError`
  *   scoped to that op alone; the rest of the batch keeps running.
  *
- * On Ok the returned array carries driver outputs for every non-noop op in
- * declaration order: Phase 1 entries first, then Phase 2 entries in their
- * input order. Noops are not represented; callers needing a full post-apply
- * snapshot merge with the pre-apply current state keyed by `ResourceKey`.
+ * On Ok the returned array carries driver outputs for every non-noop op
+ * in phase order: Phase 1 universe entries first, then Phase 2 entries in
+ * their input order. Noops are not represented; callers needing a full
+ * post-apply snapshot merge with the pre-apply current state keyed by
+ * `ResourceKey`.
  *
- * On Err the aggregate carries every survivor in `applied` (declaration
- * order) and every failure in `failures` (Phase 1 entries first, then
- * Phase 2 entries in input order — never completion order).
+ * On Err the aggregate carries every survivor in `applied` (Phase 1 first,
+ * then Phase 2 input order) and every failure in `failures` with the same
+ * grouping. Neither array reflects completion order.
  *
  * @param ops - Reconciliation operations produced by `diff`, applied in
  *   declaration order.

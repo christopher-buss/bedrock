@@ -446,6 +446,10 @@ always carrying at least one entry.
 
 ### 2026-05-18: Phase 2 dispatches with `Promise.all`
 
+**This amendment supersedes the `Promise.allSettled` decision recorded in
+the original Decision section (Phase 2 description, lines 71-75) and in
+the Implementation Notes (lines 389-392).**
+
 Phase 2 dispatches concurrently via `Promise.all` rather than
 `Promise.allSettled`. The dispatch-boundary try/catch inside `dispatchOp`
 catches any rejection a driver produces outside its `Result` contract
@@ -453,4 +457,5 @@ and translates it into an `unexpectedThrow` `ApplyError`, so by the time
 `Promise.all` awaits the phase-2 map, no individual dispatch can reject.
 `Promise.allSettled`'s rejection-handling branch would be unreachable
 under that contract; `Promise.all` keeps the apply path honest about
-where rejections can come from.
+where rejections can come from. The original ADR text predated the
+dispatch-boundary catch and assumed rejections could still escape.

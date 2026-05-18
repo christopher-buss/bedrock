@@ -66,12 +66,14 @@ interface MigrationSummaryRender {
 }
 
 /**
- * Render a `DeployError` to the supplied `ClackPort` as a single error line.
- * Each variant produces a distinct, terse diagnostic; wrapped variants
- * (`applyFailed`, `buildDesiredFailed`, `configLoadFailed`, `stateReadFailed`,
- * `stateWriteFailed`) surface the inner cause's actionable detail (file path,
- * resource key, parser message, HTTP failure, validator issue) so the reader
- * does not have to inspect the full cause to act.
+ * Render a `DeployError` to the supplied `ClackPort`. Most variants emit a
+ * single error line; `applyFailed` emits one line per failing op in the
+ * aggregate (in Phase 1 then Phase 2 input order). Wrapped variants
+ * (`applyFailed`, `buildDesiredFailed`, `configLoadFailed`,
+ * `stateReadFailed`, `stateWriteFailed`) surface the inner cause's
+ * actionable detail (file path, resource key, parser message, HTTP failure,
+ * validator issue) so the reader does not have to inspect the full cause to
+ * act.
  * @param err - The deploy error to describe.
  * @param port - The output port the diagnostic is written to.
  */
