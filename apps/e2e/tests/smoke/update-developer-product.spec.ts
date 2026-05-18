@@ -32,11 +32,9 @@ const HAS_SECRETS =
 	TOKEN !== undefined &&
 	GIST_ID !== undefined;
 
-// Stable environment name (no timestamp): the gist's state file persists
-// across runs so the first run creates the developer product and every
-// subsequent run plans an update against the stored productId. Open Cloud
-// v2 has no DELETE for developer products, so a stable env caps the leak
-// at one product per universe over the test's lifetime.
+// All runs share one developer product via the gist's persistent state.
+// Open Cloud v2 has no DELETE for developer products, so reusing the stored
+// productId is the only way to keep the leak bounded.
 const STABLE_ENVIRONMENT = "developer-product-smoke";
 
 function unreachableDriver<K extends ResourceKind>(label: string): ResourceDriver<K> {
@@ -113,10 +111,9 @@ describe("developer-product update via real Roblox", () => {
 			const bootstrapConfig = withEnvironment(baseConfig, STABLE_ENVIRONMENT);
 
 			try {
-				// First-ever run: state empty → create. Subsequent runs:
-				// bootstrap config matches stored state → planned noop. The
-				// id round-trip we care about is exercised by the second
-				// deploy below in either case.
+				// The bootstrap deploy creates the product when the gist holds
+				// no matching state and is a planned noop otherwise. The update
+				// deploy exercises the id round-trip on a mutation.
 				const bootstrap = await deploy({
 					config: bootstrapConfig,
 					environment: STABLE_ENVIRONMENT,
@@ -167,9 +164,9 @@ describe("developer-product update via real Roblox", () => {
 				expect(resource.outputs.productId).toBeString();
 			} finally {
 				await pruneStateGist({
-					filenamePrefix: `state.${STABLE_ENVIRONMENT}`,
+					filenamePrefix: `state.${STABLE_ENVIRONMENT}-`,
 					gistId: GIST_ID,
-					keep: 1,
+					keep: 0,
 					token: TOKEN,
 				});
 			}
