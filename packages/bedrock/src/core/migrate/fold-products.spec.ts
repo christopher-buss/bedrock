@@ -85,7 +85,7 @@ describe(foldProducts, () => {
 		});
 		expect(entry.outputs).toStrictEqual({
 			iconImageAssetId: undefined,
-			productId: "58109926",
+			productId: "1835296153",
 		});
 	});
 
@@ -167,14 +167,30 @@ describe(foldProducts, () => {
 		);
 	});
 
-	it("should drop a product resource without outputs.productId", () => {
+	it("should drop a product resource without outputs.assetId", () => {
 		expect.assertions(1);
 
 		const result = foldProducts([
-			product("1-example", fixture(undefined, { assetId: 1835296153 })),
+			product("1-example", fixture(undefined, { productId: 58109926 })),
 		]);
 
 		expect(result.products).toStrictEqual([]);
+	});
+
+	it("should map mantle outputs.assetId (not outputs.productId) to the bedrock productId", () => {
+		expect.assertions(1);
+
+		// Mantle's `assetId` is the canonical marketplace id (what
+		// MarketplaceService.PromptProductPurchase and Open Cloud's URL accept);
+		// Mantle's `productId` is a legacy config id Open Cloud v2 cannot route.
+		// Distinct values prove a future re-swap would surface here.
+		const result = foldProducts([
+			product("1-example", fixture(undefined, { assetId: 100, productId: 200 })),
+		]);
+		const [entry] = result.products;
+		assert(entry !== undefined);
+
+		expect(entry.outputs.productId).toBe("100");
 	});
 
 	it("should drop a product whose inputs payload is not an object", () => {
@@ -197,7 +213,7 @@ describe(foldProducts, () => {
 		expect(result.products).toStrictEqual([]);
 	});
 
-	it("should accept a string-formatted productId in the outputs", () => {
+	it("should accept a string-formatted assetId in the outputs", () => {
 		expect.assertions(1);
 
 		const result = foldProducts([
@@ -209,7 +225,7 @@ describe(foldProducts, () => {
 		const [entry] = result.products;
 		assert(entry !== undefined);
 
-		expect(entry.outputs.productId).toBe("58109926");
+		expect(entry.outputs.productId).toBe("1835296153");
 	});
 
 	it("should pair a productIcon resource with its product by key", () => {
