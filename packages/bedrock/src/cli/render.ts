@@ -229,11 +229,11 @@ function buildDesiredDetail(cause: BuildDesiredError): string {
 			return `for '${cause.key}' (${cause.filePath}): ${cause.reason}`;
 		}
 		case "iconRemovalRejected": {
-			return `for '${cause.key}' : ${cause.message}`;
+			return `for '${cause.key}': ${cause.message}`;
 		}
 		case "redactedNameCollision": {
 			const [first, second] = cause.keys;
-			return `for '${first}' and '${second}' : ${cause.message}`;
+			return `for '${first}' and '${second}': ${cause.message}`;
 		}
 	}
 }

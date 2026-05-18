@@ -89,7 +89,7 @@ describe(renderDeployError, () => {
 				kind: "buildDesiredFailed",
 			},
 			expected:
-				"build desired state failed for 'gem-pack' : developer product 'gem-pack' had an icon recorded in state, but the desired entry no longer declares one.",
+				"build desired state failed for 'gem-pack': developer product 'gem-pack' had an icon recorded in state, but the desired entry no longer declares one.",
 		},
 		{
 			err: {
@@ -103,7 +103,7 @@ describe(renderDeployError, () => {
 				kind: "buildDesiredFailed",
 			},
 			expected:
-				"build desired state failed for 'bp-1' and 'bp-2' : developer products 'bp-1' and 'bp-2' both resolve to the wire name 'Hidden'.",
+				"build desired state failed for 'bp-1' and 'bp-2': developer products 'bp-1' and 'bp-2' both resolve to the wire name 'Hidden'.",
 		},
 		{
 			err: {

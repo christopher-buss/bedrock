@@ -16,12 +16,15 @@ import type {
 /** Default placeholder name pushed for a redacted game-pass. */
 export const REDACTED_PASS_NAME = "Redacted Pass";
 
-// Common prefix used to build the default name pushed for a redacted
-// developer-product. The full default is `${REDACTED_PRODUCT_NAME} #${suffix}`
-// where `suffix` is a 6-hex-char digest of the resource key (see
-// {@link redactedNameSuffix}). The suffix is required because Roblox enforces
-// per-universe uniqueness on developer-product names, and a shared bare
-// placeholder would collide across multiple redacted entries.
+/**
+ * Common prefix used to build the default name pushed for a redacted
+ * developer-product. The full default produced by {@link defaultRedactedProductName}
+ * is `${REDACTED_PRODUCT_NAME} #${suffix}`, where `suffix` is a 6-hex-char
+ * digest of the resource key (see {@link redactedNameSuffix}). The suffix is
+ * required because Roblox enforces per-universe uniqueness on
+ * developer-product names, so a shared bare placeholder would collide across
+ * multiple redacted entries.
+ */
 export const REDACTED_PRODUCT_NAME = "Redacted Product";
 
 /** Default placeholder description pushed for any redacted resource. */
