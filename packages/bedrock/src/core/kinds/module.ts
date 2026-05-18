@@ -8,16 +8,21 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
 import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
 
 /**
- * Failure surfaced during desired-state preparation. Two variants today:
+ * Failure surfaced during desired-state preparation. Three variants today:
  *
  * - `fileReadFailed`: a kind module's `normalize` could not read a file
  *   the input declared (e.g. An icon path that is missing on disk).
  * - `iconRemovalRejected`: `validatePlan` saw a kind whose prior current
  *   state recorded an icon that the desired state no longer declares,
  *   and the kind has no documented unset path on the upstream API.
+ * - `redactedNameCollision`: `validatePlan` saw two developer-products in
+ *   the same plan that resolve to the same wire `name`. The upstream
+ *   Roblox API enforces per-universe uniqueness on developer-product
+ *   names and would reject the second PATCH with `DuplicateProductName`.
  *
- * Both variants carry the offending `key` so the CLI can attribute the
- * failure to a single resource entry.
+ * The single-resource variants carry the offending `key` so the CLI can
+ * attribute the failure to one entry; `redactedNameCollision` carries
+ * both colliding keys and the resolved name.
  *
  * @example
  *
@@ -52,6 +57,16 @@ export type BuildDesiredError =
 			readonly kind: "iconRemovalRejected";
 			/** Human-readable explanation naming the resource and the invariant. */
 			readonly message: string;
+	  }
+	| {
+			/** The two developer-product keys whose desired `name` resolves to the same string. */
+			readonly keys: readonly [ResourceKey, ResourceKey];
+			/** Literal discriminator for narrowing. */
+			readonly kind: "redactedNameCollision";
+			/** Human-readable explanation naming both keys and the override remedy. */
+			readonly message: string;
+			/** The wire `name` value both products resolve to. */
+			readonly resolvedName: string;
 	  };
 
 /**

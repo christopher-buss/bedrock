@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { asResourceKey, type ResourceKey } from "../types/ids.ts";
 import { REDACTED_ICON_PATH } from "./redacted-icon.ts";
 import type { ResourceKind } from "./resources.ts";
@@ -14,7 +16,15 @@ import type {
 /** Default placeholder name pushed for a redacted game-pass. */
 export const REDACTED_PASS_NAME = "Redacted Pass";
 
-/** Default placeholder name pushed for a redacted developer-product. */
+/**
+ * Common prefix used to build the default name pushed for a redacted
+ * developer-product. The full default produced by {@link defaultRedactedProductName}
+ * is `${REDACTED_PRODUCT_NAME} #${suffix}`, where `suffix` is a 6-hex-char
+ * digest of the resource key (see {@link redactedNameSuffix}). The suffix is
+ * required because Roblox enforces per-universe uniqueness on
+ * developer-product names, so a shared bare placeholder would collide across
+ * multiple redacted entries.
+ */
 export const REDACTED_PRODUCT_NAME = "Redacted Product";
 
 /** Default placeholder description pushed for any redacted resource. */
@@ -42,6 +52,38 @@ export interface RedactionAnnotation {
 	readonly hasRealValueEdits: boolean;
 	/** Resource kind, so the renderer can format `kind:key` consistently with op output. */
 	readonly kind: ResourceKind;
+}
+
+interface ProductRedactionInputs {
+	readonly key: string;
+	readonly entry: DeveloperProductEntry;
+	readonly override: RedactedDeveloperProductOverride;
+}
+
+/**
+ * Six-character lowercase hex digest of `SHA-256(key)`, used as the
+ * disambiguating suffix on a redacted developer-product's default `name`.
+ * Stable across config edits (driven only by the bedrock resource key, not
+ * declaration order) and opaque to a Roblox player browsing the marketplace.
+ * A natural collision is caught at plan time by `validatePlan`.
+ *
+ * @param key - Bedrock resource key for the developer product being redacted.
+ * @returns The first six lowercase hex characters of the SHA-256 digest of `key`.
+ */
+export function redactedNameSuffix(key: string): string {
+	return createHash("sha256").update(key).digest("hex").slice(0, 6);
+}
+
+/**
+ * Default redacted name for a developer product with the given resource key.
+ * Combines {@link REDACTED_PRODUCT_NAME} with {@link redactedNameSuffix} so
+ * each redacted entry resolves to a unique value the upstream API will accept.
+ *
+ * @param key - Bedrock resource key for the developer product being redacted.
+ * @returns The placeholder name pushed to Roblox for this product.
+ */
+export function defaultRedactedProductName(key: string): string {
+	return `${REDACTED_PRODUCT_NAME} #${redactedNameSuffix(key)}`;
 }
 
 /**
@@ -114,7 +156,7 @@ export function collectRedactionAnnotations(
 		.map(([key, entry]): RedactionAnnotation => {
 			return {
 				key: asResourceKey(key),
-				hasRealValueEdits: productHasRealValueEdits(entry),
+				hasRealValueEdits: productHasRealValueEdits(key, entry),
 				kind: "developerProduct",
 			};
 		});
@@ -200,13 +242,11 @@ function redactPlaces(
 	);
 }
 
-function redactProduct(
-	entry: DeveloperProductEntry,
-	override: RedactedDeveloperProductOverride,
-): DeveloperProductEntry {
+function redactProduct(inputs: ProductRedactionInputs): DeveloperProductEntry {
+	const { key, entry, override } = inputs;
 	return {
 		...entry,
-		name: override.name ?? REDACTED_PRODUCT_NAME,
+		name: override.name ?? defaultRedactedProductName(key),
 		description: override.description ?? REDACTED_DESCRIPTION,
 		icon: override.icon ?? { "en-us": REDACTED_ICON_PATH },
 		...(entry.price === undefined ? {} : { price: override.price ?? REDACTED_PRICE }),
@@ -237,7 +277,7 @@ function redactProducts(
 
 			const override: RedactedDeveloperProductOverride =
 				typeof effective === "object" ? effective : {};
-			return [key, redactProduct(entry, override)] as const;
+			return [key, redactProduct({ key, entry, override })] as const;
 		}),
 	);
 }
@@ -251,9 +291,16 @@ function passHasRealValueEdits(entry: GamePassEntry): boolean {
 	);
 }
 
-function productHasRealValueEdits(entry: DeveloperProductEntry): boolean {
+function productHasRealValueEdits(key: string, entry: DeveloperProductEntry): boolean {
+	// A redacted product's `name` is a placeholder when it equals either the
+	// suffixed default for this key (what `applyRedaction` synthesizes) or
+	// the bare `REDACTED_PRODUCT_NAME` constant (what an author may have
+	// hand-typed). Any other value, including `Redacted Product Deluxe` or a
+	// suffix that doesn't match this key's hash, is treated as a real edit.
+	const isPlaceholderName =
+		entry.name === defaultRedactedProductName(key) || entry.name === REDACTED_PRODUCT_NAME;
 	return (
-		entry.name !== REDACTED_PRODUCT_NAME ||
+		!isPlaceholderName ||
 		entry.description !== REDACTED_DESCRIPTION ||
 		(entry.icon !== undefined && entry.icon["en-us"] !== REDACTED_ICON_PATH) ||
 		(entry.price !== undefined && entry.price !== REDACTED_PRICE)

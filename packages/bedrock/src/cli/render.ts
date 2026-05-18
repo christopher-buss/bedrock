@@ -226,10 +226,14 @@ function applyCauseDetail(cause: ApplyError): string {
 function buildDesiredDetail(cause: BuildDesiredError): string {
 	switch (cause.kind) {
 		case "fileReadFailed": {
-			return `(${cause.filePath}): ${cause.reason}`;
+			return `for '${cause.key}' (${cause.filePath}): ${cause.reason}`;
 		}
 		case "iconRemovalRejected": {
-			return `: ${cause.message}`;
+			return `for '${cause.key}': ${cause.message}`;
+		}
+		case "redactedNameCollision": {
+			const [first, second] = cause.keys;
+			return `for '${first}' and '${second}': ${cause.message}`;
 		}
 	}
 }
@@ -265,7 +269,7 @@ function stateErrorDetail(cause: StateError): string {
 function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFailed" }>): string {
 	switch (err.kind) {
 		case "buildDesiredFailed": {
-			return `build desired state failed for '${err.cause.key}' ${buildDesiredDetail(err.cause)}`;
+			return `build desired state failed ${buildDesiredDetail(err.cause)}`;
 		}
 		case "configLoadFailed": {
 			return `config load failed: ${configErrorDetail(err.cause)}`;

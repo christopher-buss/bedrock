@@ -89,7 +89,21 @@ describe(renderDeployError, () => {
 				kind: "buildDesiredFailed",
 			},
 			expected:
-				"build desired state failed for 'gem-pack' : developer product 'gem-pack' had an icon recorded in state, but the desired entry no longer declares one.",
+				"build desired state failed for 'gem-pack': developer product 'gem-pack' had an icon recorded in state, but the desired entry no longer declares one.",
+		},
+		{
+			err: {
+				cause: {
+					keys: [asResourceKey("bp-1"), asResourceKey("bp-2")] as const,
+					kind: "redactedNameCollision",
+					message:
+						"developer products 'bp-1' and 'bp-2' both resolve to the wire name 'Hidden'.",
+					resolvedName: "Hidden",
+				},
+				kind: "buildDesiredFailed",
+			},
+			expected:
+				"build desired state failed for 'bp-1' and 'bp-2': developer products 'bp-1' and 'bp-2' both resolve to the wire name 'Hidden'.",
 		},
 		{
 			err: {

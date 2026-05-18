@@ -129,13 +129,14 @@ describe(asSha256Hex, () => {
 	});
 });
 
+type ExpectedBuildDesiredKind = "fileReadFailed" | "iconRemovalRejected" | "redactedNameCollision";
+
 describe(buildDesired, () => {
 	it("should resolve to a Result of readonly desired state or BuildDesiredError", () => {
 		expectTypeOf<Awaited<ReturnType<typeof buildDesired>>>().toEqualTypeOf<
 			Result<ReadonlyArray<ResourceDesiredState>, BuildDesiredError>
 		>();
-		type Kinds = BuildDesiredError["kind"];
-		expectTypeOf<Kinds>().toEqualTypeOf<"fileReadFailed" | "iconRemovalRejected">();
+		expectTypeOf<BuildDesiredError["kind"]>().toEqualTypeOf<ExpectedBuildDesiredKind>();
 	});
 });
 
