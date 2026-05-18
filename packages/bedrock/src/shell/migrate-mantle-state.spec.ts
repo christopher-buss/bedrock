@@ -1196,7 +1196,10 @@ environments:
 		assert(product?.kind === "developerProduct");
 
 		expect(product.key).toBe("1-gem-pack");
-		expect(product.outputs.productId).toBe("58109926");
+		// Mantle's outputs.assetId is the canonical marketplace product id;
+		// bedrock stamps it under outputs.productId because Open Cloud names
+		// the same number `productId` on its wire.
+		expect(product.outputs.productId).toBe("1835296153");
 		expect(product.outputs.iconImageAssetId).toBe("18280868488");
 		expect(product.iconFileHashes).toStrictEqual({ "en-us": ICON_BYTES_SHA256 });
 		expect(product.iconFileHashes?.["en-us"]).not.toBe(SAMPLE_HASH);

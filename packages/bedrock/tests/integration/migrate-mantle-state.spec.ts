@@ -493,6 +493,36 @@ describe(migrateMantleState, () => {
 		});
 	});
 
+	it("should migrate Mantle outputs.assetId (not outputs.productId) onto bedrock outputs.productId per environment", async () => {
+		expect.assertions(2);
+
+		// Mantle's outputs.assetId is the canonical marketplace product id and
+		// is what Open Cloud's URL accepts; outputs.productId is a legacy config
+		// id Open Cloud v2 does not route. Distinct fixture values per env prove
+		// the right field flows through end-to-end and the right one is dropped.
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			primaryEnvironment: "production",
+			readFile: async () => new TextEncoder().encode(TWO_ENV_DIVERGENT_PRODUCT_YAML),
+			stateFilePath: ".mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		const { development, production } = result.data.statesByEnvironment;
+		const developmentProduct = development?.resources.find(
+			(resource) => resource.kind === "developerProduct",
+		);
+		const productionProduct = production?.resources.find(
+			(resource) => resource.kind === "developerProduct",
+		);
+		assert(developmentProduct?.kind === "developerProduct");
+		assert(productionProduct?.kind === "developerProduct");
+
+		expect(developmentProduct.outputs.productId).toBe("1000");
+		expect(productionProduct.outputs.productId).toBe("3000");
+	});
+
 	it("should fall back to the Mantle hash and emit an ambiguous warning for a missing icon", async () => {
 		expect.assertions(4);
 

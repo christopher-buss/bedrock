@@ -82,7 +82,7 @@ interface ProductIconParts {
  * and the Roblox-assigned `iconImageAssetId` lands on the outputs.
  *
  * Resources whose payload is malformed (non-object, missing required string
- * field, missing `productId`, malformed `fileHash`) are dropped silently.
+ * field, missing `assetId`, malformed `fileHash`) are dropped silently.
  * Orphan `productIcon_<k>` resources (no matching product) emit one
  * `ambiguous` warning each.
  *
@@ -162,7 +162,11 @@ function readProductOutputs(raw: unknown): ProductOutputsRaw | undefined {
 		return undefined;
 	}
 
-	const productId = coerceRobloxId(raw["productId"]);
+	// Mantle's `assetId` is the canonical marketplace product id (the value
+	// MarketplaceService.PromptProductPurchase and Open Cloud's URL accept).
+	// Mantle's `productId` is a legacy config id from a different endpoint
+	// family that Open Cloud v2 does not route.
+	const productId = coerceRobloxId(raw["assetId"]);
 	if (productId === undefined) {
 		return undefined;
 	}
