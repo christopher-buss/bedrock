@@ -416,6 +416,25 @@ describe(applyRedaction, () => {
 		},
 	);
 
+	it("should redact a flagged place while leaving an unflagged sibling unchanged", () => {
+		expect.assertions(2);
+
+		const plainPlace = {
+			...startPlaceEntry,
+			placeId: "1111",
+		} as const satisfies ResolvedPlaceEntry;
+		const result = applyRedaction({
+			...baseConfig,
+			places: {
+				"plain-place": plainPlace,
+				"secret-place": { ...startPlaceEntry, redacted: true },
+			},
+		});
+
+		expect(result.places?.["plain-place"]).toStrictEqual(plainPlace);
+		expect(result.places?.["secret-place"]?.description).toBe(REDACTED_DESCRIPTION);
+	});
+
 	it("should replace name, description, and icon with placeholders when a product redacted is true", () => {
 		expect.assertions(1);
 
