@@ -5,6 +5,7 @@ import {
 	collectRedactionAnnotations,
 	REDACTED_DESCRIPTION,
 	REDACTED_PASS_NAME,
+	REDACTED_PRICE,
 	REDACTED_PRODUCT_NAME,
 } from "./redact-resources.ts";
 import { REDACTED_ICON_PATH } from "./redacted-icon.ts";
@@ -41,7 +42,7 @@ const startPlaceEntry = {
 } as const satisfies ResolvedPlaceEntry;
 
 describe(applyRedaction, () => {
-	it("should replace name, description, and icon with placeholders when redacted is true", () => {
+	it("should replace name, description, icon, and price with placeholders when redacted is true", () => {
 		expect.assertions(1);
 
 		const result = applyRedaction({
@@ -53,9 +54,76 @@ describe(applyRedaction, () => {
 			name: REDACTED_PASS_NAME,
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
-			price: 500,
+			price: REDACTED_PRICE,
 			redacted: true,
 		});
+	});
+
+	it("should preserve an off-sale pass as off-sale when redacted is true", () => {
+		expect.assertions(1);
+
+		const offSale = {
+			name: "Coming Soon Pass",
+			description: "Reveal at launch.",
+			icon: { "en-us": "assets/soon.png" },
+		} as const satisfies GamePassEntry;
+
+		const result = applyRedaction({
+			...baseConfig,
+			passes: { "soon-pass": { ...offSale, redacted: true } },
+		});
+
+		expect(result.passes?.["soon-pass"]).toStrictEqual({
+			name: REDACTED_PASS_NAME,
+			description: REDACTED_DESCRIPTION,
+			icon: { "en-us": REDACTED_ICON_PATH },
+			redacted: true,
+		});
+	});
+
+	it("should substitute the price override on a redacted pass while leaving other fields at defaults", () => {
+		expect.assertions(1);
+
+		const result = applyRedaction({
+			...baseConfig,
+			passes: { "vip-pass": { ...vipEntry, redacted: { price: 500 } } },
+		});
+
+		expect(result.passes?.["vip-pass"]).toStrictEqual({
+			name: REDACTED_PASS_NAME,
+			description: REDACTED_DESCRIPTION,
+			icon: { "en-us": REDACTED_ICON_PATH },
+			price: 500,
+			redacted: { price: 500 },
+		});
+	});
+
+	it("should honour a price override of 0 on a redacted pass without falling back to the default", () => {
+		expect.assertions(1);
+
+		const result = applyRedaction({
+			...baseConfig,
+			passes: { "vip-pass": { ...vipEntry, redacted: { price: 0 } } },
+		});
+
+		expect(result.passes?.["vip-pass"]?.price).toBe(0);
+	});
+
+	it("should ignore a price override on a redacted pass that is off-sale", () => {
+		expect.assertions(1);
+
+		const offSale = {
+			name: "Coming Soon Pass",
+			description: "Reveal at launch.",
+			icon: { "en-us": "assets/soon.png" },
+		} as const satisfies GamePassEntry;
+
+		const result = applyRedaction({
+			...baseConfig,
+			passes: { "soon-pass": { ...offSale, redacted: { price: 500 } } },
+		});
+
+		expect(result.passes?.["soon-pass"]).not.toHaveProperty("price");
 	});
 
 	it("should leave a pass unchanged when redacted is false", () => {
@@ -160,7 +228,7 @@ describe(applyRedaction, () => {
 			name: "Closed Beta",
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
-			price: 500,
+			price: REDACTED_PRICE,
 			redacted: { name: "Closed Beta" },
 		});
 	});
@@ -183,7 +251,7 @@ describe(applyRedaction, () => {
 			name: "Beta Pass",
 			description: "Beta description",
 			icon: { "en-us": "assets/beta.png" },
-			price: 500,
+			price: REDACTED_PRICE,
 			redacted: override,
 		});
 	});
@@ -205,7 +273,7 @@ describe(applyRedaction, () => {
 			name: REDACTED_PASS_NAME,
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": "assets/override-icon.png" },
-			price: 500,
+			price: REDACTED_PRICE,
 			redacted: { icon: { "en-us": "assets/override-icon.png" } },
 		});
 	});
@@ -435,7 +503,7 @@ describe(applyRedaction, () => {
 		expect(result.places?.["secret-place"]?.description).toBe(REDACTED_DESCRIPTION);
 	});
 
-	it("should replace name, description, and icon with placeholders when a product redacted is true", () => {
+	it("should replace name, description, icon, and price with placeholders when a product redacted is true", () => {
 		expect.assertions(1);
 
 		const result = applyRedaction({
@@ -447,9 +515,76 @@ describe(applyRedaction, () => {
 			name: REDACTED_PRODUCT_NAME,
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
-			price: 100,
+			price: REDACTED_PRICE,
 			redacted: true,
 		});
+	});
+
+	it("should preserve an off-sale product as off-sale when redacted is true", () => {
+		expect.assertions(1);
+
+		const offSale = {
+			name: "Coming Soon Pack",
+			description: "Reveal at launch.",
+			icon: { "en-us": "assets/soon.png" },
+		} as const satisfies DeveloperProductEntry;
+
+		const result = applyRedaction({
+			...baseConfig,
+			products: { "soon-pack": { ...offSale, redacted: true } },
+		});
+
+		expect(result.products?.["soon-pack"]).toStrictEqual({
+			name: REDACTED_PRODUCT_NAME,
+			description: REDACTED_DESCRIPTION,
+			icon: { "en-us": REDACTED_ICON_PATH },
+			redacted: true,
+		});
+	});
+
+	it("should substitute the price override on a redacted product while leaving other fields at defaults", () => {
+		expect.assertions(1);
+
+		const result = applyRedaction({
+			...baseConfig,
+			products: { "gem-pack": { ...gemPackEntry, redacted: { price: 500 } } },
+		});
+
+		expect(result.products?.["gem-pack"]).toStrictEqual({
+			name: REDACTED_PRODUCT_NAME,
+			description: REDACTED_DESCRIPTION,
+			icon: { "en-us": REDACTED_ICON_PATH },
+			price: 500,
+			redacted: { price: 500 },
+		});
+	});
+
+	it("should honour a price override of 0 on a redacted product without falling back to the default", () => {
+		expect.assertions(1);
+
+		const result = applyRedaction({
+			...baseConfig,
+			products: { "gem-pack": { ...gemPackEntry, redacted: { price: 0 } } },
+		});
+
+		expect(result.products?.["gem-pack"]?.price).toBe(0);
+	});
+
+	it("should ignore a price override on a redacted product that is off-sale", () => {
+		expect.assertions(1);
+
+		const offSale = {
+			name: "Coming Soon Pack",
+			description: "Reveal at launch.",
+			icon: { "en-us": "assets/soon.png" },
+		} as const satisfies DeveloperProductEntry;
+
+		const result = applyRedaction({
+			...baseConfig,
+			products: { "soon-pack": { ...offSale, redacted: { price: 500 } } },
+		});
+
+		expect(result.products?.["soon-pack"]).not.toHaveProperty("price");
 	});
 
 	it("should assign the placeholder icon to a redacted product even when the source entry declares no icon", () => {
@@ -571,7 +706,7 @@ describe(applyRedaction, () => {
 			name: "Closed Beta Pack",
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
-			price: 100,
+			price: REDACTED_PRICE,
 			redacted: { name: "Closed Beta Pack" },
 		});
 	});
@@ -594,7 +729,7 @@ describe(applyRedaction, () => {
 			name: "Beta Pack",
 			description: "Beta description",
 			icon: { "en-us": "assets/beta.png" },
-			price: 100,
+			price: REDACTED_PRICE,
 			redacted: override,
 		});
 	});
@@ -616,7 +751,7 @@ describe(applyRedaction, () => {
 			name: REDACTED_PRODUCT_NAME,
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": "assets/override-icon.png" },
-			price: 100,
+			price: REDACTED_PRICE,
 			redacted: { icon: { "en-us": "assets/override-icon.png" } },
 		});
 	});
@@ -694,6 +829,16 @@ describe(collectRedactionAnnotations, () => {
 				redacted: true,
 			},
 			label: "icon",
+		},
+		{
+			entry: {
+				name: REDACTED_PASS_NAME,
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				price: 500,
+				redacted: true,
+			},
+			label: "price",
 		},
 	])(
 		"should set hasRealValueEdits true when only the real $label diverges from the placeholder default",
@@ -797,6 +942,16 @@ describe(collectRedactionAnnotations, () => {
 			},
 			label: "icon",
 		},
+		{
+			entry: {
+				name: REDACTED_PRODUCT_NAME,
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				price: 250,
+				redacted: true,
+			},
+			label: "price",
+		},
 	])(
 		"should set hasRealValueEdits true when only the real product $label diverges from the placeholder default",
 		({ entry }) => {
@@ -812,6 +967,72 @@ describe(collectRedactionAnnotations, () => {
 			]);
 		},
 	);
+
+	it.for<{ entry: GamePassEntry; label: string }>([
+		{
+			entry: {
+				name: REDACTED_PASS_NAME,
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				price: REDACTED_PRICE,
+				redacted: true,
+			},
+			label: "price matches the placeholder default",
+		},
+		{
+			entry: {
+				name: REDACTED_PASS_NAME,
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				redacted: true,
+			},
+			label: "the pass is off-sale",
+		},
+	])("should set hasRealValueEdits false on a redacted pass when $label", ({ entry }) => {
+		expect.assertions(1);
+
+		const result = collectRedactionAnnotations({
+			...baseConfig,
+			passes: { "vip-pass": entry },
+		});
+
+		expect(result).toStrictEqual([
+			{ key: "vip-pass", hasRealValueEdits: false, kind: "gamePass" },
+		]);
+	});
+
+	it.for<{ entry: DeveloperProductEntry; label: string }>([
+		{
+			entry: {
+				name: REDACTED_PRODUCT_NAME,
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				price: REDACTED_PRICE,
+				redacted: true,
+			},
+			label: "price matches the placeholder default",
+		},
+		{
+			entry: {
+				name: REDACTED_PRODUCT_NAME,
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				redacted: true,
+			},
+			label: "the product is off-sale",
+		},
+	])("should set hasRealValueEdits false on a redacted product when $label", ({ entry }) => {
+		expect.assertions(1);
+
+		const result = collectRedactionAnnotations({
+			...baseConfig,
+			products: { "gem-pack": entry },
+		});
+
+		expect(result).toStrictEqual([
+			{ key: "gem-pack", hasRealValueEdits: false, kind: "developerProduct" },
+		]);
+	});
 
 	it("should emit annotations for both passes and products when each kind declares a redacted entry", () => {
 		expect.assertions(1);

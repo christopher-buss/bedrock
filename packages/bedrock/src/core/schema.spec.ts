@@ -285,12 +285,14 @@ describe(validateConfig, () => {
 		["partial name override", { name: "Closed Beta" }],
 		["partial description override", { description: "Coming soon." }],
 		["partial icon override", { icon: { "en-us": "assets/closed-beta.png" } }],
+		["partial price override", { price: 500 }],
 		[
 			"full override",
 			{
 				name: "Closed Beta",
 				description: "Coming soon.",
 				icon: { "en-us": "assets/closed-beta.png" },
+				price: 500,
 			},
 		],
 	] as const)(
@@ -409,7 +411,42 @@ describe(validateConfig, () => {
 						name: "VIP Pass",
 						description: "Grants VIP perks.",
 						icon: { "en-us": "assets/vip.png" },
-						redacted: { price: 0 },
+						redacted: { bogus: "value" },
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"passes",
+			"vip-pass",
+			"redacted",
+			"bogus",
+		]);
+		expect(result.err.issues[0]!.message).toContain("bogus");
+	});
+
+	it.for([
+		["negative", -1],
+		["fractional", 1.5],
+		["NaN", Number.NaN],
+		["Infinity", Number.POSITIVE_INFINITY],
+	] as const)("should reject %s as a redacted price override on a passes entry", ([, price]) => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				passes: {
+					"vip-pass": {
+						name: "VIP Pass",
+						description: "Grants VIP perks.",
+						icon: { "en-us": "assets/vip.png" },
+						redacted: { price },
 					},
 				},
 			},
@@ -425,7 +462,29 @@ describe(validateConfig, () => {
 			"redacted",
 			"price",
 		]);
-		expect(result.err.issues[0]!.message).toContain("price");
+	});
+
+	it("should accept zero as a redacted price override on a passes entry", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				passes: {
+					"vip-pass": {
+						name: "VIP Pass",
+						description: "Grants VIP perks.",
+						icon: { "en-us": "assets/vip.png" },
+						redacted: { price: 0 },
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.passes!["vip-pass"]!.redacted).toStrictEqual({ price: 0 });
 	});
 
 	it("should accept a products collection with a valid developer-product entry", () => {
@@ -717,12 +776,14 @@ describe(validateConfig, () => {
 		["partial name override", { name: "Closed Beta Pack" }],
 		["partial description override", { description: "Coming soon." }],
 		["partial icon override", { icon: { "en-us": "assets/closed-beta.png" } }],
+		["partial price override", { price: 500 }],
 		[
 			"full override",
 			{
 				name: "Closed Beta Pack",
 				description: "Coming soon.",
 				icon: { "en-us": "assets/closed-beta.png" },
+				price: 500,
 			},
 		],
 	] as const)(
@@ -784,7 +845,7 @@ describe(validateConfig, () => {
 					"gem-pack": {
 						name: "Gem Pack",
 						description: "Stocks the player up with 1,000 premium gems.",
-						redacted: { price: 0 },
+						redacted: { bogus: "value" },
 					},
 				},
 			},
@@ -798,9 +859,67 @@ describe(validateConfig, () => {
 			"products",
 			"gem-pack",
 			"redacted",
-			"price",
+			"bogus",
 		]);
-		expect(result.err.issues[0]!.message).toContain("price");
+		expect(result.err.issues[0]!.message).toContain("bogus");
+	});
+
+	it.for([
+		["negative", -1],
+		["fractional", 1.5],
+		["NaN", Number.NaN],
+		["Infinity", Number.POSITIVE_INFINITY],
+	] as const)(
+		"should reject %s as a redacted price override on a products entry",
+		([, price]) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					environments: MinEnvironments,
+					products: {
+						"gem-pack": {
+							name: "Gem Pack",
+							description: "Stocks the player up with 1,000 premium gems.",
+							redacted: { price },
+						},
+					},
+				},
+				SOURCE,
+			);
+
+			assert(!result.success);
+			assert(result.err.kind === "validationFailed");
+
+			expect(result.err.issues[0]!.path).toStrictEqual([
+				"products",
+				"gem-pack",
+				"redacted",
+				"price",
+			]);
+		},
+	);
+
+	it("should accept zero as a redacted price override on a products entry", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				products: {
+					"gem-pack": {
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+						redacted: { price: 0 },
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.products!["gem-pack"]!.redacted).toStrictEqual({ price: 0 });
 	});
 
 	it("should accept a root places collection that declares only filePath", () => {

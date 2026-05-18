@@ -21,6 +21,14 @@ export const REDACTED_PRODUCT_NAME = "Redacted Product";
 export const REDACTED_DESCRIPTION = "";
 
 /**
+ * Default placeholder Robux price pushed for a redacted game-pass or
+ * developer-product whose config price is defined. Off-sale resources
+ * (`price === undefined`) keep their off-sale state through redaction so a
+ * hidden product is never accidentally listed for sale.
+ */
+export const REDACTED_PRICE = 1;
+
+/**
  * Per-resource annotation surfaced in plan output for entries that are
  * redacted in the active environment. `hasRealValueEdits` is true when the
  * pre-redaction merged config carries real display values that diverge from
@@ -120,6 +128,7 @@ function redactPass(entry: GamePassEntry, override: RedactedGamePassOverride): G
 		name: override.name ?? REDACTED_PASS_NAME,
 		description: override.description ?? REDACTED_DESCRIPTION,
 		icon: override.icon ?? { "en-us": REDACTED_ICON_PATH },
+		...(entry.price === undefined ? {} : { price: override.price ?? REDACTED_PRICE }),
 	};
 }
 
@@ -200,6 +209,7 @@ function redactProduct(
 		name: override.name ?? REDACTED_PRODUCT_NAME,
 		description: override.description ?? REDACTED_DESCRIPTION,
 		icon: override.icon ?? { "en-us": REDACTED_ICON_PATH },
+		...(entry.price === undefined ? {} : { price: override.price ?? REDACTED_PRICE }),
 	};
 }
 
@@ -236,7 +246,8 @@ function passHasRealValueEdits(entry: GamePassEntry): boolean {
 	return (
 		entry.name !== REDACTED_PASS_NAME ||
 		entry.description !== REDACTED_DESCRIPTION ||
-		entry.icon["en-us"] !== REDACTED_ICON_PATH
+		entry.icon["en-us"] !== REDACTED_ICON_PATH ||
+		(entry.price !== undefined && entry.price !== REDACTED_PRICE)
 	);
 }
 
@@ -244,6 +255,7 @@ function productHasRealValueEdits(entry: DeveloperProductEntry): boolean {
 	return (
 		entry.name !== REDACTED_PRODUCT_NAME ||
 		entry.description !== REDACTED_DESCRIPTION ||
-		(entry.icon !== undefined && entry.icon["en-us"] !== REDACTED_ICON_PATH)
+		(entry.icon !== undefined && entry.icon["en-us"] !== REDACTED_ICON_PATH) ||
+		(entry.price !== undefined && entry.price !== REDACTED_PRICE)
 	);
 }
