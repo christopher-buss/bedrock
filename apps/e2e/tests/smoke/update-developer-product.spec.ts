@@ -111,9 +111,10 @@ describe("developer-product update via real Roblox", () => {
 			const bootstrapConfig = withEnvironment(baseConfig, STABLE_ENVIRONMENT);
 
 			try {
-				// The bootstrap deploy creates the product when the gist holds
-				// no matching state and is a planned noop otherwise. The update
-				// deploy exercises the id round-trip on a mutation.
+				// The bootstrap deploy reconciles the product against the
+				// fixture baseline, creating on the first run and reverting any
+				// drift from a prior update otherwise. The update deploy then
+				// mutates name and description with a per-run timestamp.
 				const bootstrap = await deploy({
 					config: bootstrapConfig,
 					environment: STABLE_ENVIRONMENT,
