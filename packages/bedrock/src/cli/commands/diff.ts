@@ -84,7 +84,7 @@ function describeOp(op: CreateOperation | UpdateOperation): string {
 			return `+ ${op.desired.kind}:${op.key}`;
 		}
 		case "update": {
-			return `~ ${op.desired.kind}:${op.key}`;
+			return `~ ${op.desired.kind}:${op.key} ${op.changedFields.join(" + ")} updated`;
 		}
 	}
 }
