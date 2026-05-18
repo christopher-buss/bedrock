@@ -23,16 +23,17 @@ import { collectUniverseIdIssues } from "./validate-universe-xor.ts";
  * ```ts
  * import type { GamePassEntry, RedactedGamePassOverride } from "@bedrock-rbx/core/config";
  *
- * const override: RedactedGamePassOverride = { name: "Closed Beta" };
+ * const override: RedactedGamePassOverride = { name: "Closed Beta", price: 500 };
  *
  * const entry: GamePassEntry = {
  *     name: "VIP Pass",
  *     description: "Grants VIP perks.",
  *     icon: { "en-us": "assets/vip.png" },
+ *     price: 1500,
  *     redacted: override,
  * };
  *
- * expect(entry.redacted).toStrictEqual({ name: "Closed Beta" });
+ * expect(entry.redacted).toStrictEqual({ name: "Closed Beta", price: 500 });
  * ```
  */
 export interface RedactedGamePassOverride {
@@ -42,6 +43,12 @@ export interface RedactedGamePassOverride {
 	description?: string | undefined;
 	/** Override icon path; falls through to the embedded placeholder when omitted. */
 	icon?: Record<"en-us", string> | undefined;
+	/**
+	 * Override Robux price; falls through to the bedrock default (`1`) when
+	 * omitted. Ignored when the entry's `price` is `undefined` so an off-sale
+	 * pass stays off-sale through redaction.
+	 */
+	price?: number | undefined;
 }
 
 /**
@@ -96,13 +103,14 @@ export interface GamePassEntry {
 	price?: number | undefined;
 	/**
 	 * Set to `true` to deploy this pass with bedrock-supplied placeholder
-	 * content (default name, empty description, embedded placeholder icon)
-	 * in place of the real values declared above. Set to a
-	 * {@link RedactedGamePassOverride} to substitute selected placeholders
-	 * with custom values while leaving the rest at bedrock defaults; the
-	 * object form implies redaction is enabled. Omit or set `false` to
-	 * push the real values unchanged. Environment overlays accept only the
-	 * boolean form.
+	 * content (default name, empty description, embedded placeholder icon,
+	 * price `1` Robux when the entry is on-sale) in place of the real values
+	 * declared above. Off-sale passes (`price` omitted) stay off-sale. Set
+	 * to a {@link RedactedGamePassOverride} to substitute selected
+	 * placeholders with custom values while leaving the rest at bedrock
+	 * defaults; the object form implies redaction is enabled. Omit or set
+	 * `false` to push the real values unchanged. Environment overlays accept
+	 * only the boolean form.
 	 */
 	redacted?: boolean | RedactedGamePassOverride | undefined;
 }
@@ -122,15 +130,19 @@ export interface GamePassEntry {
  *     RedactedDeveloperProductOverride,
  * } from "@bedrock-rbx/core/config";
  *
- * const override: RedactedDeveloperProductOverride = { name: "Closed Beta Pack" };
+ * const override: RedactedDeveloperProductOverride = {
+ *     name: "Closed Beta Pack",
+ *     price: 500,
+ * };
  *
  * const entry: DeveloperProductEntry = {
  *     name: "Gem Pack",
  *     description: "Stocks the player up with 1,000 premium gems.",
+ *     price: 1500,
  *     redacted: override,
  * };
  *
- * expect(entry.redacted).toStrictEqual({ name: "Closed Beta Pack" });
+ * expect(entry.redacted).toStrictEqual({ name: "Closed Beta Pack", price: 500 });
  * ```
  */
 export interface RedactedDeveloperProductOverride {
@@ -140,6 +152,12 @@ export interface RedactedDeveloperProductOverride {
 	description?: string | undefined;
 	/** Override icon path; falls through to the embedded placeholder when omitted. */
 	icon?: Record<"en-us", string> | undefined;
+	/**
+	 * Override Robux price; falls through to the bedrock default (`1`) when
+	 * omitted. Ignored when the entry's `price` is `undefined` so an off-sale
+	 * product stays off-sale through redaction.
+	 */
+	price?: number | undefined;
 }
 
 /**
@@ -170,9 +188,10 @@ export interface DeveloperProductEntry {
 	price?: number | undefined;
 	/**
 	 * Set to `true` to deploy this product with bedrock-supplied placeholder
-	 * content (default name, empty description, embedded placeholder icon)
-	 * in place of the real values declared above. Set to a
-	 * {@link RedactedDeveloperProductOverride} to substitute selected
+	 * content (default name, empty description, embedded placeholder icon,
+	 * price `1` Robux when the entry is on-sale) in place of the real values
+	 * declared above. Off-sale products (`price` omitted) stay off-sale. Set
+	 * to a {@link RedactedDeveloperProductOverride} to substitute selected
 	 * placeholders with custom values while leaving the rest at bedrock
 	 * defaults; the object form implies redaction is enabled. Omit or set
 	 * `false` to push the real values unchanged. Environment overlays accept
@@ -774,6 +793,7 @@ const gamePassRedactedOverride = type({
 	"description?": "string",
 	"icon?": iconMap,
 	"name?": "string",
+	"price?": OPTIONAL_ROBUX_PRICE,
 })
 	.onUndeclaredKey("reject")
 	.narrow((value, ctx) => {
@@ -805,6 +825,7 @@ const productRedactedOverride = type({
 	"description?": "string",
 	"icon?": iconMap,
 	"name?": "string",
+	"price?": OPTIONAL_ROBUX_PRICE,
 })
 	.onUndeclaredKey("reject")
 	.narrow((value, ctx) => {

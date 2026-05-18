@@ -1,6 +1,6 @@
 import { assert, describe, expect, it } from "vitest";
 
-import { REDACTED_DESCRIPTION, REDACTED_PASS_NAME } from "./redact-resources.ts";
+import { REDACTED_DESCRIPTION, REDACTED_PASS_NAME, REDACTED_PRICE } from "./redact-resources.ts";
 import { REDACTED_ICON_PATH } from "./redacted-icon.ts";
 import type {
 	Config,
@@ -694,7 +694,7 @@ describe(selectEnvironment, () => {
 			name: REDACTED_PASS_NAME,
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
-			price: 500,
+			price: REDACTED_PRICE,
 			redacted: true,
 		});
 	});

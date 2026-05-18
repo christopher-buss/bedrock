@@ -17,7 +17,11 @@ import {
 import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
 import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock-rbx/ocale/testing";
 
-import { REDACTED_DESCRIPTION, REDACTED_PRODUCT_NAME } from "#src/core/redact-resources";
+import {
+	REDACTED_DESCRIPTION,
+	REDACTED_PRICE,
+	REDACTED_PRODUCT_NAME,
+} from "#src/core/redact-resources";
 import { REDACTED_ICON_BYTES, REDACTED_ICON_PATH } from "#src/core/redacted-icon";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -118,8 +122,8 @@ function persistedProduct(
 }
 
 describe("products-redacted pipeline end-to-end", () => {
-	it("should upload placeholder name, description, and embedded icon bytes when redacted is true", async () => {
-		expect.assertions(4);
+	it("should upload placeholder name, description, embedded icon bytes, and the placeholder price when redacted is true", async () => {
+		expect.assertions(5);
 
 		const loaded = await loadConfig({ cwd: PRODUCTS_FIXTURE_DIR });
 		assert(loaded.success);
@@ -163,6 +167,7 @@ describe("products-redacted pipeline end-to-end", () => {
 
 		expect(readFormString(captured.request.body, "name")).toBe(REDACTED_PRODUCT_NAME);
 		expect(readFormString(captured.request.body, "description")).toBe(REDACTED_DESCRIPTION);
+		expect(readFormString(captured.request.body, "price")).toBe(String(REDACTED_PRICE));
 		await expect(readFormBytes(captured.request.body, "imageFile")).resolves.toStrictEqual(
 			REDACTED_ICON_BYTES,
 		);
@@ -171,6 +176,122 @@ describe("products-redacted pipeline end-to-end", () => {
 		assert(created !== undefined);
 
 		expect(created.name).toBe(REDACTED_PRODUCT_NAME);
+	});
+
+	it("should upload the price override and default placeholders when redacted is an object with price", async () => {
+		expect.assertions(2);
+
+		const config = defineConfig({
+			environments: { production: {} },
+			products: {
+				"gem-pack": {
+					name: "Gem Pack",
+					description: "Stocks the player up with 1,000 premium gems.",
+					icon: { "en-us": "assets/gems.png" },
+					price: 1500,
+					redacted: { price: 500 },
+				},
+			},
+			universe: { universeId: "1234567890" },
+		});
+
+		const resolved = selectEnvironment(config, "production");
+		assert(resolved.success);
+
+		const readFile = panicOnRealPath;
+		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		assert(desiredResult.success);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: validDeveloperProductBody({
+				name: REDACTED_PRODUCT_NAME,
+				description: REDACTED_DESCRIPTION,
+				productId: 8_172_635_495,
+				universeId: 1_234_567_890,
+			}),
+			status: 200,
+		});
+
+		const registry: DriverRegistry = {
+			developerProduct: createDeveloperProductDriver({
+				client: new DeveloperProductsClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: async () => {},
+				}),
+				readFile,
+				universeId: UNIVERSE_ID,
+			}),
+			gamePass: GAME_PASS_TRAP,
+			place: PLACE_TRAP,
+			universe: UNIVERSE_DRIVER,
+		};
+
+		const applyResult = await applyOps(diff(desiredResult.data, []), registry);
+		assert(applyResult.success);
+
+		const captured = httpClient.requests[0]!;
+
+		expect(readFormString(captured.request.body, "price")).toBe("500");
+		expect(readFormString(captured.request.body, "name")).toBe(REDACTED_PRODUCT_NAME);
+	});
+
+	it("should keep an off-sale product off-sale on the wire when redacted is true", async () => {
+		expect.assertions(2);
+
+		const config = defineConfig({
+			environments: { production: {} },
+			products: {
+				"soon-pack": {
+					name: "Coming Soon Pack",
+					description: "Reveal at launch.",
+					icon: { "en-us": "assets/gems.png" },
+					redacted: true,
+				},
+			},
+			universe: { universeId: "1234567890" },
+		});
+
+		const resolved = selectEnvironment(config, "production");
+		assert(resolved.success);
+
+		const readFile = panicOnRealPath;
+		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		assert(desiredResult.success);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: validDeveloperProductBody({
+				name: REDACTED_PRODUCT_NAME,
+				description: REDACTED_DESCRIPTION,
+				productId: 8_172_635_495,
+				universeId: 1_234_567_890,
+			}),
+			status: 200,
+		});
+
+		const registry: DriverRegistry = {
+			developerProduct: createDeveloperProductDriver({
+				client: new DeveloperProductsClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: async () => {},
+				}),
+				readFile,
+				universeId: UNIVERSE_ID,
+			}),
+			gamePass: GAME_PASS_TRAP,
+			place: PLACE_TRAP,
+			universe: UNIVERSE_DRIVER,
+		};
+
+		const applyResult = await applyOps(diff(desiredResult.data, []), registry);
+		assert(applyResult.success);
+
+		const captured = httpClient.requests[0]!;
+		assert(captured.request.body instanceof FormData);
+
+		expect(captured.request.body.has("price")).toBeFalse();
+		expect(readFormString(captured.request.body, "name")).toBe(REDACTED_PRODUCT_NAME);
 	});
 
 	it("should re-deploy as a noop when the persisted state already carries the placeholder values", async () => {

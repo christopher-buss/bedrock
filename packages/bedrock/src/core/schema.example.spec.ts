@@ -19,14 +19,15 @@ import {
 } from '@bedrock-rbx/core'
 
 it('Example 1', () => {
-  const override: RedactedGamePassOverride = { name: 'Closed Beta' }
+  const override: RedactedGamePassOverride = { name: 'Closed Beta', price: 500 }
   const entry: GamePassEntry = {
     name: 'VIP Pass',
     description: 'Grants VIP perks.',
     icon: { 'en-us': 'assets/vip.png' },
+    price: 1500,
     redacted: override,
   }
-  expect(entry.redacted).toStrictEqual({ name: 'Closed Beta' })
+  expect(entry.redacted).toStrictEqual({ name: 'Closed Beta', price: 500 })
 })
 
 it('Example 2', () => {
@@ -43,13 +44,15 @@ it('Example 2', () => {
 it('Example 3', () => {
   const override: RedactedDeveloperProductOverride = {
     name: 'Closed Beta Pack',
+    price: 500,
   }
   const entry: DeveloperProductEntry = {
     name: 'Gem Pack',
     description: 'Stocks the player up with 1,000 premium gems.',
+    price: 1500,
     redacted: override,
   }
-  expect(entry.redacted).toStrictEqual({ name: 'Closed Beta Pack' })
+  expect(entry.redacted).toStrictEqual({ name: 'Closed Beta Pack', price: 500 })
 })
 
 it('Example 4', () => {
