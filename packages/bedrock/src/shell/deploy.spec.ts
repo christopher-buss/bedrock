@@ -512,7 +512,7 @@ describe(deploy, () => {
 		});
 	});
 
-	it("should surface applyFailed and still attempt to persist the partial snapshot even when the write then rejects", async () => {
+	it("should surface stateWriteFailed with the partial-success unsavedState when both apply and state-write fail", async () => {
 		expect.assertions(3);
 
 		const alphaCurrent = alphaPassCurrent();
@@ -560,17 +560,13 @@ describe(deploy, () => {
 		expect(writeAttempts[0]!.resources).toStrictEqual([alphaCurrent]);
 		expect(result).toStrictEqual({
 			err: {
-				cause: {
-					applied: [alphaCurrent],
-					failures: [
-						{
-							key: asResourceKey("vip-pass"),
-							cause,
-							kind: "driverFailure",
-						},
-					],
+				cause: stateError,
+				kind: "stateWriteFailed",
+				unsavedState: {
+					environment: "production",
+					resources: [alphaCurrent],
+					version: 1,
 				},
-				kind: "applyFailed",
 			},
 			success: false,
 		});

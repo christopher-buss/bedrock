@@ -297,10 +297,11 @@ function buildSnapshot(inputs: SnapshotInputs): BedrockState {
 }
 
 function finalize(inputs: FinalizeInputs): Result<BedrockState, DeployError> {
-	if (!inputs.applied.success) {
-		return { err: { cause: inputs.applied.err, kind: "applyFailed" }, success: false };
-	}
-
+	// State-write failure takes priority over apply failure: under continue-
+	// on-failure, the write carries the `unsavedState` snapshot the operator
+	// needs to manually reconcile orphaned remote mutations, while apply
+	// failures will resurface on the next deploy via `diff` once state
+	// catches up.
 	if (!inputs.written.success) {
 		return {
 			err: {
@@ -310,6 +311,10 @@ function finalize(inputs: FinalizeInputs): Result<BedrockState, DeployError> {
 			},
 			success: false,
 		};
+	}
+
+	if (!inputs.applied.success) {
+		return { err: { cause: inputs.applied.err, kind: "applyFailed" }, success: false };
 	}
 
 	return { data: inputs.merged, success: true };
