@@ -1,12 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 
 import {
 	applyRedaction,
 	collectRedactionAnnotations,
+	defaultRedactedProductName,
 	REDACTED_DESCRIPTION,
 	REDACTED_PASS_NAME,
 	REDACTED_PRICE,
 	REDACTED_PRODUCT_NAME,
+	redactedNameSuffix,
 } from "./redact-resources.ts";
 import { REDACTED_ICON_PATH } from "./redacted-icon.ts";
 import type {
@@ -512,7 +514,7 @@ describe(applyRedaction, () => {
 		});
 
 		expect(result.products?.["gem-pack"]).toStrictEqual({
-			name: REDACTED_PRODUCT_NAME,
+			name: defaultRedactedProductName("gem-pack"),
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
 			price: REDACTED_PRICE,
@@ -535,7 +537,7 @@ describe(applyRedaction, () => {
 		});
 
 		expect(result.products?.["soon-pack"]).toStrictEqual({
-			name: REDACTED_PRODUCT_NAME,
+			name: defaultRedactedProductName("soon-pack"),
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
 			redacted: true,
@@ -551,7 +553,7 @@ describe(applyRedaction, () => {
 		});
 
 		expect(result.products?.["gem-pack"]).toStrictEqual({
-			name: REDACTED_PRODUCT_NAME,
+			name: defaultRedactedProductName("gem-pack"),
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
 			price: 500,
@@ -585,6 +587,28 @@ describe(applyRedaction, () => {
 		});
 
 		expect(result.products?.["soon-pack"]).not.toHaveProperty("price");
+	});
+
+	it("should give two redacted products distinct default names so a Roblox-side uniqueness check sees no collision", () => {
+		expect.assertions(2);
+
+		const result = applyRedaction({
+			...baseConfig,
+			products: {
+				"gem-pack": { ...gemPackEntry, redacted: true },
+				"gold-pack": { ...gemPackEntry, redacted: true },
+			},
+		});
+
+		const gemName = result.products?.["gem-pack"]?.name;
+		const goldName = result.products?.["gold-pack"]?.name;
+		assert(gemName !== undefined);
+		assert(goldName !== undefined);
+
+		expect(gemName).not.toBe(goldName);
+		expect(
+			[gemName, goldName].every((name) => name.startsWith(REDACTED_PRODUCT_NAME)),
+		).toBeTrue();
 	});
 
 	it("should assign the placeholder icon to a redacted product even when the source entry declares no icon", () => {
@@ -686,7 +710,9 @@ describe(applyRedaction, () => {
 				{ ...baseConfig, products: { "gem-pack": productEntry } },
 				envRedacted,
 			);
-			const expectedName = expectRedacted ? REDACTED_PRODUCT_NAME : gemPackEntry.name;
+			const expectedName = expectRedacted
+				? defaultRedactedProductName("gem-pack")
+				: gemPackEntry.name;
 
 			expect(result.products?.["gem-pack"]?.name).toBe(expectedName);
 		},
@@ -748,7 +774,7 @@ describe(applyRedaction, () => {
 		});
 
 		expect(result.products?.["gem-pack"]).toStrictEqual({
-			name: REDACTED_PRODUCT_NAME,
+			name: defaultRedactedProductName("gem-pack"),
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": "assets/override-icon.png" },
 			price: REDACTED_PRICE,
@@ -1047,5 +1073,56 @@ describe(collectRedactionAnnotations, () => {
 			{ key: "vip-pass", hasRealValueEdits: true, kind: "gamePass" },
 			{ key: "gem-pack", hasRealValueEdits: true, kind: "developerProduct" },
 		]);
+	});
+
+	it("should set hasRealValueEdits false when the author types the suffixed default name verbatim", () => {
+		expect.assertions(1);
+
+		const result = collectRedactionAnnotations({
+			...baseConfig,
+			products: {
+				"gem-pack": {
+					name: defaultRedactedProductName("gem-pack"),
+					description: REDACTED_DESCRIPTION,
+					icon: { "en-us": REDACTED_ICON_PATH },
+					redacted: true,
+				},
+			},
+		});
+
+		expect(result).toStrictEqual([
+			{ key: "gem-pack", hasRealValueEdits: false, kind: "developerProduct" },
+		]);
+	});
+});
+
+describe(redactedNameSuffix, () => {
+	it("should return six lowercase hex characters", () => {
+		expect.assertions(1);
+		expect(redactedNameSuffix("bp-1")).toMatch(/^[0-9a-f]{6}$/);
+	});
+
+	it("should be deterministic for the same input", () => {
+		expect.assertions(1);
+		expect(redactedNameSuffix("bp-1")).toBe(redactedNameSuffix("bp-1"));
+	});
+
+	it("should differ for two distinct keys to make Roblox-side name collisions unlikely", () => {
+		expect.assertions(1);
+		expect(redactedNameSuffix("bp-1")).not.toBe(redactedNameSuffix("bp-2"));
+	});
+
+	it("should match a known SHA-256 prefix for a fixed key so the wire-visible value is pinned", () => {
+		expect.assertions(1);
+		expect(redactedNameSuffix("bp-1")).toBe("f5df4b");
+	});
+});
+
+describe(defaultRedactedProductName, () => {
+	it("should combine the placeholder prefix with the key's suffix", () => {
+		expect.assertions(1);
+		expect(defaultRedactedProductName("bp-1")).toBe(
+			`${REDACTED_PRODUCT_NAME} #${redactedNameSuffix("bp-1")}`,
+		);
 	});
 });

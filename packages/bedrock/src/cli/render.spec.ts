@@ -93,6 +93,20 @@ describe(renderDeployError, () => {
 		},
 		{
 			err: {
+				cause: {
+					keys: [asResourceKey("bp-1"), asResourceKey("bp-2")] as const,
+					kind: "redactedNameCollision",
+					message:
+						"developer products 'bp-1' and 'bp-2' both resolve to the wire name 'Hidden'.",
+					resolvedName: "Hidden",
+				},
+				kind: "buildDesiredFailed",
+			},
+			expected:
+				"build desired state failed for 'bp-1' and 'bp-2' : developer products 'bp-1' and 'bp-2' both resolve to the wire name 'Hidden'.",
+		},
+		{
+			err: {
 				cause: { file: "state.json", kind: "stateError", reason: "invalid json" },
 				kind: "stateReadFailed",
 			},

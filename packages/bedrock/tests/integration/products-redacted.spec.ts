@@ -13,14 +13,15 @@ import {
 	type ResourceDriver,
 	selectEnvironment,
 	UNIVERSE_SINGLETON_KEY,
+	validatePlan,
 } from "@bedrock-rbx/core";
 import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
 import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock-rbx/ocale/testing";
 
 import {
+	defaultRedactedProductName,
 	REDACTED_DESCRIPTION,
 	REDACTED_PRICE,
-	REDACTED_PRODUCT_NAME,
 } from "#src/core/redact-resources";
 import { REDACTED_ICON_BYTES, REDACTED_ICON_PATH } from "#src/core/redacted-icon";
 import { dirname, join } from "node:path";
@@ -135,9 +136,10 @@ describe("products-redacted pipeline end-to-end", () => {
 		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
 		assert(desiredResult.success);
 
+		const expectedName = defaultRedactedProductName("gem-pack");
 		const httpClient = createFakeHttpClient().mockResponse({
 			body: validDeveloperProductBody({
-				name: REDACTED_PRODUCT_NAME,
+				name: expectedName,
 				description: REDACTED_DESCRIPTION,
 				productId: 8_172_635_495,
 				universeId: 1_234_567_890,
@@ -165,7 +167,7 @@ describe("products-redacted pipeline end-to-end", () => {
 
 		const captured = httpClient.requests[0]!;
 
-		expect(readFormString(captured.request.body, "name")).toBe(REDACTED_PRODUCT_NAME);
+		expect(readFormString(captured.request.body, "name")).toBe(expectedName);
 		expect(readFormString(captured.request.body, "description")).toBe(REDACTED_DESCRIPTION);
 		expect(readFormString(captured.request.body, "price")).toBe(String(REDACTED_PRICE));
 		await expect(readFormBytes(captured.request.body, "imageFile")).resolves.toStrictEqual(
@@ -175,7 +177,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		const created = applyResult.data.find((entry) => entry.kind === "developerProduct");
 		assert(created !== undefined);
 
-		expect(created.name).toBe(REDACTED_PRODUCT_NAME);
+		expect(created.name).toBe(expectedName);
 	});
 
 	it("should upload the price override and default placeholders when redacted is an object with price", async () => {
@@ -202,9 +204,10 @@ describe("products-redacted pipeline end-to-end", () => {
 		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
 		assert(desiredResult.success);
 
+		const expectedName = defaultRedactedProductName("gem-pack");
 		const httpClient = createFakeHttpClient().mockResponse({
 			body: validDeveloperProductBody({
-				name: REDACTED_PRODUCT_NAME,
+				name: expectedName,
 				description: REDACTED_DESCRIPTION,
 				productId: 8_172_635_495,
 				universeId: 1_234_567_890,
@@ -233,7 +236,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		const captured = httpClient.requests[0]!;
 
 		expect(readFormString(captured.request.body, "price")).toBe("500");
-		expect(readFormString(captured.request.body, "name")).toBe(REDACTED_PRODUCT_NAME);
+		expect(readFormString(captured.request.body, "name")).toBe(expectedName);
 	});
 
 	it("should keep an off-sale product off-sale on the wire when redacted is true", async () => {
@@ -259,9 +262,10 @@ describe("products-redacted pipeline end-to-end", () => {
 		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
 		assert(desiredResult.success);
 
+		const expectedName = defaultRedactedProductName("soon-pack");
 		const httpClient = createFakeHttpClient().mockResponse({
 			body: validDeveloperProductBody({
-				name: REDACTED_PRODUCT_NAME,
+				name: expectedName,
 				description: REDACTED_DESCRIPTION,
 				productId: 8_172_635_495,
 				universeId: 1_234_567_890,
@@ -291,7 +295,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		assert(captured.request.body instanceof FormData);
 
 		expect(captured.request.body.has("price")).toBeFalse();
-		expect(readFormString(captured.request.body, "name")).toBe(REDACTED_PRODUCT_NAME);
+		expect(readFormString(captured.request.body, "name")).toBe(expectedName);
 	});
 
 	it("should re-deploy as a noop when the persisted state already carries the placeholder values", async () => {
@@ -398,9 +402,10 @@ describe("products-redacted pipeline end-to-end", () => {
 		const desiredResult = await buildDesired(flattenConfig(resolved.data), readOverrideIcon);
 		assert(desiredResult.success);
 
+		const expectedName = defaultRedactedProductName("gem-pack");
 		const httpClient = createFakeHttpClient().mockResponse({
 			body: validDeveloperProductBody({
-				name: REDACTED_PRODUCT_NAME,
+				name: expectedName,
 				description: REDACTED_DESCRIPTION,
 				productId: 8_172_635_495,
 				universeId: 1_234_567_890,
@@ -428,7 +433,7 @@ describe("products-redacted pipeline end-to-end", () => {
 
 		const captured = httpClient.requests[0]!;
 
-		expect(readFormString(captured.request.body, "name")).toBe(REDACTED_PRODUCT_NAME);
+		expect(readFormString(captured.request.body, "name")).toBe(expectedName);
 		expect(readFormString(captured.request.body, "description")).toBe(REDACTED_DESCRIPTION);
 		await expect(readFormBytes(captured.request.body, "imageFile")).resolves.toStrictEqual(
 			overrideIconBytes,
@@ -543,7 +548,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		const gemPack = findProductDesired(desiredResult.data, "gem-pack");
 		const placeholderHash = await hashPlaceholderIcon();
 		const prior = persistedProduct(gemPack, {
-			name: REDACTED_PRODUCT_NAME,
+			name: defaultRedactedProductName("gem-pack"),
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
 			iconFileHashes: { "en-us": placeholderHash },
@@ -565,6 +570,125 @@ describe("products-redacted pipeline end-to-end", () => {
 			REAL_ICON_BYTES,
 		);
 	});
+
+	it("should give two redacted products distinct wire names so Roblox does not reject the second create as DuplicateProductName", async () => {
+		expect.assertions(3);
+
+		const config = defineConfig({
+			environments: { production: { redacted: true } },
+			products: {
+				"bp-1": {
+					name: "Release Pass",
+					description: "Buy the season pass.",
+				},
+				"gems-2": {
+					name: "1,250 Gems",
+					description: "Buy 1,250 gems.",
+				},
+			},
+			universe: { universeId: "1234567890" },
+		});
+
+		const resolved = selectEnvironment(config, "production");
+		assert(resolved.success);
+
+		const readFile = panicOnRealPath;
+		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		assert(desiredResult.success);
+
+		const planCheck = validatePlan(desiredResult.data, []);
+		assert(planCheck.success);
+
+		const bpName = defaultRedactedProductName("bp-1");
+		const gemsName = defaultRedactedProductName("gems-2");
+
+		expect(bpName).not.toBe(gemsName);
+
+		const httpClient = createFakeHttpClient()
+			.mockResponse({
+				body: validDeveloperProductBody({
+					name: bpName,
+					description: REDACTED_DESCRIPTION,
+					productId: 1_111_111_111,
+					universeId: 1_234_567_890,
+				}),
+				status: 200,
+			})
+			.mockResponse({
+				body: validDeveloperProductBody({
+					name: gemsName,
+					description: REDACTED_DESCRIPTION,
+					productId: 2_222_222_222,
+					universeId: 1_234_567_890,
+				}),
+				status: 200,
+			});
+
+		const registry: DriverRegistry = {
+			developerProduct: createDeveloperProductDriver({
+				client: new DeveloperProductsClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: async () => {},
+				}),
+				readFile,
+				universeId: UNIVERSE_ID,
+			}),
+			gamePass: GAME_PASS_TRAP,
+			place: PLACE_TRAP,
+			universe: UNIVERSE_DRIVER,
+		};
+
+		const applyResult = await applyOps(diff(desiredResult.data, []), registry);
+		assert(applyResult.success);
+
+		const nameForms = httpClient.requests
+			.filter((entry) => entry.request.method === "POST")
+			.map((entry) => readFormString(entry.request.body, "name"));
+
+		expect(nameForms).toIncludeSameMembers([bpName, gemsName]);
+
+		const createdNames = applyResult.data
+			.filter((entry) => entry.kind === "developerProduct")
+			.map((entry) => entry.name);
+
+		expect(createdNames).toIncludeSameMembers([bpName, gemsName]);
+	});
+
+	it("should reject the plan when two redacted products would resolve to the same wire name via override", async () => {
+		expect.assertions(3);
+
+		const config = defineConfig({
+			environments: { production: { redacted: true } },
+			products: {
+				"bp-1": {
+					name: "Release Pass",
+					description: "Buy the season pass.",
+					redacted: { name: "Hidden" },
+				},
+				"bp-2": {
+					name: "Other Pass",
+					description: "Buy the other pass.",
+					redacted: { name: "Hidden" },
+				},
+			},
+			universe: { universeId: "1234567890" },
+		});
+
+		const resolved = selectEnvironment(config, "production");
+		assert(resolved.success);
+
+		const desiredResult = await buildDesired(flattenConfig(resolved.data), panicOnRealPath);
+		assert(desiredResult.success);
+
+		const planCheck = validatePlan(desiredResult.data, []);
+		assert(!planCheck.success);
+		assert(planCheck.err.kind === "redactedNameCollision");
+
+		expect(planCheck.err.resolvedName).toBe("Hidden");
+		expect(planCheck.err.keys).toIncludeSameMembers(["bp-1", "bp-2"]);
+		expect(planCheck.err.message).toContain("Hidden");
+	});
 });
 
 describe("products-redacted env-level toggle", () => {
@@ -580,7 +704,7 @@ describe("products-redacted env-level toggle", () => {
 		const gemPack = resolved.data.products?.["gem-pack"];
 		assert(gemPack !== undefined);
 
-		expect(gemPack.name).toBe(REDACTED_PRODUCT_NAME);
+		expect(gemPack.name).toBe(defaultRedactedProductName("gem-pack"));
 		expect(gemPack.description).toBe(REDACTED_DESCRIPTION);
 		expect(gemPack.icon?.["en-us"]).toBe(REDACTED_ICON_PATH);
 	});
