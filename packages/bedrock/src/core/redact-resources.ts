@@ -153,7 +153,7 @@ export function collectRedactionAnnotations(
 		.map(([key, entry]): RedactionAnnotation => {
 			return {
 				key: asResourceKey(key),
-				hasRealValueEdits: productHasRealValueEdits(entry),
+				hasRealValueEdits: productHasRealValueEdits(key, entry),
 				kind: "developerProduct",
 			};
 		});
@@ -288,9 +288,16 @@ function passHasRealValueEdits(entry: GamePassEntry): boolean {
 	);
 }
 
-function productHasRealValueEdits(entry: DeveloperProductEntry): boolean {
+function productHasRealValueEdits(key: string, entry: DeveloperProductEntry): boolean {
+	// A redacted product's `name` is a placeholder when it equals either the
+	// suffixed default for this key (what `applyRedaction` synthesizes) or
+	// the bare `REDACTED_PRODUCT_NAME` constant (what an author may have
+	// hand-typed). Any other value, including `Redacted Product Deluxe` or a
+	// suffix that doesn't match this key's hash, is treated as a real edit.
+	const isPlaceholderName =
+		entry.name === defaultRedactedProductName(key) || entry.name === REDACTED_PRODUCT_NAME;
 	return (
-		!entry.name.startsWith(REDACTED_PRODUCT_NAME) ||
+		!isPlaceholderName ||
 		entry.description !== REDACTED_DESCRIPTION ||
 		(entry.icon !== undefined && entry.icon["en-us"] !== REDACTED_ICON_PATH) ||
 		(entry.price !== undefined && entry.price !== REDACTED_PRICE)

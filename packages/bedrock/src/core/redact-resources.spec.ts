@@ -1094,6 +1094,46 @@ describe(collectRedactionAnnotations, () => {
 			{ key: "gem-pack", hasRealValueEdits: false, kind: "developerProduct" },
 		]);
 	});
+
+	it("should set hasRealValueEdits true when the name only shares the placeholder prefix (e.g. Redacted Product Deluxe)", () => {
+		expect.assertions(1);
+
+		const result = collectRedactionAnnotations({
+			...baseConfig,
+			products: {
+				"gem-pack": {
+					name: `${REDACTED_PRODUCT_NAME} Deluxe`,
+					description: REDACTED_DESCRIPTION,
+					icon: { "en-us": REDACTED_ICON_PATH },
+					redacted: true,
+				},
+			},
+		});
+
+		expect(result).toStrictEqual([
+			{ key: "gem-pack", hasRealValueEdits: true, kind: "developerProduct" },
+		]);
+	});
+
+	it("should set hasRealValueEdits true when the name's suffix does not match this key's hash", () => {
+		expect.assertions(1);
+
+		const result = collectRedactionAnnotations({
+			...baseConfig,
+			products: {
+				"gem-pack": {
+					name: defaultRedactedProductName("gold-pack"),
+					description: REDACTED_DESCRIPTION,
+					icon: { "en-us": REDACTED_ICON_PATH },
+					redacted: true,
+				},
+			},
+		});
+
+		expect(result).toStrictEqual([
+			{ key: "gem-pack", hasRealValueEdits: true, kind: "developerProduct" },
+		]);
+	});
 });
 
 describe(redactedNameSuffix, () => {
