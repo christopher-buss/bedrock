@@ -106,10 +106,18 @@ export { parseStateFile, serializeStateFile } from "./core/state-file.ts";
 export type { BedrockState, StateError } from "./core/state.ts";
 export { validatePlan } from "./core/validate-plan.ts";
 export type {
+	ApplySummaryEvent,
 	DeployFailureEvent,
 	DeploySuccessEvent,
 	ProgressEvent,
 	ProgressPort,
+	ResourceOpFailedEvent,
+	ResourceOpNoopEvent,
+	ResourceOpStartedEvent,
+	ResourceOpSucceededCreateEvent,
+	ResourceOpSucceededEvent,
+	ResourceOpSucceededUpdateEvent,
+	StateWrittenEvent,
 } from "./ports/progress-port.ts";
 export type { DriverRegistry, ResourceDriver } from "./ports/resource-driver.ts";
 export type { StatePort } from "./ports/state-port.ts";

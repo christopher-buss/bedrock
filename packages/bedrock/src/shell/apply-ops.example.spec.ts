@@ -33,14 +33,14 @@ it('Example 1', () => {
 })
 
 it('Example 2', () => {
-  function summarise(err: AggregateApplyError): string {
+  function summarize(err: AggregateApplyError): string {
     return `${err.applied.length} survived, ${err.failures.length} failed`
   }
   const err: AggregateApplyError = {
     applied: [],
     failures: [{ key: asResourceKey('vip-pass'), kind: 'updateUnsupported' }],
   }
-  expect(summarise(err)).toBe('0 survived, 1 failed')
+  expect(summarize(err)).toBe('0 survived, 1 failed')
 })
 
 it('Example 3', () => {

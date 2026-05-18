@@ -113,7 +113,7 @@ function operationFor(
 	const module = defaultKindRegistry[desired.kind] as ResourceKindModule<ResourceKind>;
 	const changedFields = module.changedFieldsBetween(desired, current);
 	if (changedFields.length === 0) {
-		return { key: desired.key, type: "noop" };
+		return { key: desired.key, kind: desired.kind, type: "noop" };
 	}
 
 	return { key: desired.key, changedFields, current, desired, type: "update" };

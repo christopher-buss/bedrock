@@ -13,10 +13,6 @@ it('Example 1', () => {
     outro: (message) => lines.push(`outro: ${message}`),
   }
   const port = createClackProgressAdapter({ clack })
-  port.emit({
-    environment: 'production',
-    kind: 'deploySuccess',
-    resourceCount: 3,
-  })
-  expect(lines).toEqual(['ok: production: 3 resources reconciled'])
+  port.emit({ environment: 'production', kind: 'stateWritten' })
+  expect(lines).toEqual(['log: State written to state'])
 })

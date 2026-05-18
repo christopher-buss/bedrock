@@ -30,7 +30,7 @@ const sampleConfig: Config = { environments: { production: {}, staging: {} } };
 const SAMPLE_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
 
 function noopOp(key: string): Operation {
-	return { key: asResourceKey(key), type: "noop" };
+	return { key: asResourceKey(key), kind: "gamePass", type: "noop" };
 }
 
 function createGamePassOp(key: string): Operation {

@@ -7,6 +7,7 @@ import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
+import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
@@ -989,6 +990,89 @@ describe(deploy, () => {
 				kind: "buildDesiredFailed",
 			},
 			success: false,
+		});
+	});
+
+	describe("progress events", () => {
+		function recordingProgress(): {
+			calls: Array<ProgressEvent>;
+			port: ProgressPort;
+		} {
+			const calls: Array<ProgressEvent> = [];
+			return {
+				calls,
+				port: {
+					emit(event) {
+						calls.push(event);
+					},
+				},
+			};
+		}
+
+		it("should emit stateWritten when statePort.write returns Ok", async () => {
+			expect.assertions(1);
+
+			const { port: statePort } = inMemoryStatePort();
+			const { calls, port: progress } = recordingProgress();
+
+			await deploy({
+				config: vipPassConfig(),
+				environment: "production",
+				progress,
+				readFile: readIcon,
+				registry: stubRegistryWithVipCreate(),
+				statePort,
+			});
+
+			expect(calls).toContainEqual({ environment: "production", kind: "stateWritten" });
+		});
+
+		it("should not emit stateWritten when statePort.write returns Err", async () => {
+			expect.assertions(2);
+
+			const writeFailure: StatePort = {
+				async read() {
+					return { data: undefined, success: true };
+				},
+				async write() {
+					return {
+						err: { file: "state.json", kind: "stateError", reason: "boom" },
+						success: false,
+					};
+				},
+			};
+			const { calls, port: progress } = recordingProgress();
+
+			const result = await deploy({
+				config: vipPassConfig(),
+				environment: "production",
+				progress,
+				readFile: readIcon,
+				registry: stubRegistryWithVipCreate(),
+				statePort: writeFailure,
+			});
+
+			expect(result.success).toBeFalse();
+			expect(calls.some((event) => event.kind === "stateWritten")).toBeFalse();
+		});
+
+		it("should thread the progress port through applyOps so per-resource events fire", async () => {
+			expect.assertions(2);
+
+			const { port: statePort } = inMemoryStatePort();
+			const { calls, port: progress } = recordingProgress();
+
+			await deploy({
+				config: vipPassConfig(),
+				environment: "production",
+				progress,
+				readFile: readIcon,
+				registry: stubRegistryWithVipCreate(),
+				statePort,
+			});
+
+			expect(calls.some((event) => event.kind === "resourceOpStarted")).toBeTrue();
+			expect(calls.some((event) => event.kind === "applySummary")).toBeTrue();
 		});
 	});
 });

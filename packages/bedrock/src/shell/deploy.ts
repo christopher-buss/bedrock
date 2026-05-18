@@ -19,6 +19,7 @@ import {
 } from "../core/select-environment.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
 import { validatePlan } from "../core/validate-plan.ts";
+import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { type AggregateApplyError, applyOps } from "./apply-ops.ts";
@@ -47,6 +48,13 @@ export interface DeployOptions {
 	readonly getEnv?: (name: string) => string | undefined;
 	/** Loader invoked when `config` is omitted; defaults to `loadConfig` from this package. */
 	readonly loadConfig?: (options?: LoadConfigOptions) => Promise<Result<Config, ConfigError>>;
+	/**
+	 * Optional sink for per-resource and aggregate progress events. When
+	 * supplied, `applyOps` emits one started/terminal pair per non-noop op
+	 * (plus per-noop and summary events), and `deploy` emits `stateWritten`
+	 * after a successful state-write. Omit to run silently.
+	 */
+	readonly progress?: ProgressPort;
 	/** Reads file bytes for resources that have file-backed inputs. Defaults to `node:fs/promises.readFile`. */
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
 	/** Per-kind driver table consulted for create / update dispatch. Default-constructed from `BEDROCK_API_KEY` when omitted. */
@@ -96,6 +104,7 @@ interface FinalizeInputs {
 
 interface ResolvedDeps {
 	readonly config: ResolvedConfig;
+	readonly progress: ProgressPort | undefined;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly registry: DriverRegistry;
 	readonly statePort: StatePort;
@@ -261,6 +270,7 @@ async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDeps,
 	return {
 		data: {
 			config: effective,
+			progress: options.progress,
 			readFile,
 			registry: registry.data,
 			statePort: statePort.data,
@@ -337,9 +347,17 @@ async function runReconcile(
 	}
 
 	const ops = diff(desired.data, priorResources);
-	const applied = await applyOps(ops, deps.registry);
+	const applied = await applyOps(
+		ops,
+		deps.registry,
+		deps.progress === undefined ? undefined : { environment, progress: deps.progress },
+	);
 	const merged = buildSnapshot({ applied, environment, priorResources });
 
 	const written = await deps.statePort.write(merged);
+	if (written.success) {
+		deps.progress?.emit({ environment, kind: "stateWritten" });
+	}
+
 	return finalize({ applied, merged, written });
 }
