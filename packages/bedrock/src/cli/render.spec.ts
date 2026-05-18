@@ -109,9 +109,13 @@ describe(renderDeployError, () => {
 		{
 			err: {
 				cause: {
-					key: asResourceKey("vip-pass"),
-					appliedSoFar: [],
-					kind: "updateUnsupported",
+					applied: [],
+					failures: [
+						{
+							key: asResourceKey("vip-pass"),
+							kind: "updateUnsupported",
+						},
+					],
 				},
 				kind: "applyFailed",
 			},
@@ -120,10 +124,66 @@ describe(renderDeployError, () => {
 		{
 			err: {
 				cause: {
-					key: asResourceKey("main-place"),
-					appliedSoFar: [],
-					cause: new ApiError("auth failed (401)", { statusCode: 401 }),
-					kind: "driverFailure",
+					applied: [],
+					failures: [
+						{
+							key: asResourceKey("vip-pass"),
+							cause: new Error("driver crashed"),
+							kind: "unexpectedThrow",
+						},
+					],
+				},
+				kind: "applyFailed",
+			},
+			expected: "apply failed for 'vip-pass': unexpected error: driver crashed",
+		},
+		{
+			err: {
+				cause: {
+					applied: [],
+					failures: [
+						{
+							key: asResourceKey("vip-pass"),
+							cause: "string error",
+							kind: "unexpectedThrow",
+						},
+					],
+				},
+				kind: "applyFailed",
+			},
+			expected: "apply failed for 'vip-pass': unexpected error: string error",
+		},
+		{
+			err: {
+				cause: {
+					applied: [],
+					failures: [
+						{
+							key: asResourceKey("vip-pass"),
+							cause: {
+								toString() {
+									throw new Error("toString rejected coercion");
+								},
+							},
+							kind: "unexpectedThrow",
+						},
+					],
+				},
+				kind: "applyFailed",
+			},
+			expected: "apply failed for 'vip-pass': unexpected error: <unprintable cause>",
+		},
+		{
+			err: {
+				cause: {
+					applied: [],
+					failures: [
+						{
+							key: asResourceKey("main-place"),
+							cause: new ApiError("auth failed (401)", { statusCode: 401 }),
+							kind: "driverFailure",
+						},
+					],
 				},
 				kind: "applyFailed",
 			},
@@ -132,14 +192,18 @@ describe(renderDeployError, () => {
 		{
 			err: {
 				cause: {
-					key: asResourceKey("gem-pack"),
-					appliedSoFar: [],
-					cause: new PermissionError("HTTP 403", {
-						operationKey: "developer-products.create",
-						requiredScopes: ["developer-product:write"],
-						statusCode: 403,
-					}),
-					kind: "driverFailure",
+					applied: [],
+					failures: [
+						{
+							key: asResourceKey("gem-pack"),
+							cause: new PermissionError("HTTP 403", {
+								operationKey: "developer-products.create",
+								requiredScopes: ["developer-product:write"],
+								statusCode: 403,
+							}),
+							kind: "driverFailure",
+						},
+					],
 				},
 				kind: "applyFailed",
 			},
@@ -149,14 +213,18 @@ describe(renderDeployError, () => {
 		{
 			err: {
 				cause: {
-					key: asResourceKey("main-place"),
-					appliedSoFar: [],
-					cause: new PermissionError("HTTP 401", {
-						operationKey: "places.publishVersion",
-						requiredScopes: ["universe-places:write", "universe.place:write"],
-						statusCode: 401,
-					}),
-					kind: "driverFailure",
+					applied: [],
+					failures: [
+						{
+							key: asResourceKey("main-place"),
+							cause: new PermissionError("HTTP 401", {
+								operationKey: "places.publishVersion",
+								requiredScopes: ["universe-places:write", "universe.place:write"],
+								statusCode: 401,
+							}),
+							kind: "driverFailure",
+						},
+					],
 				},
 				kind: "applyFailed",
 			},
@@ -252,6 +320,52 @@ describe(renderDeployError, () => {
 		renderDeployError(err, port);
 
 		expect(port.logError).toHaveBeenCalledExactlyOnceWith(expected);
+	});
+
+	it("should emit one logError line per failure in declaration order when applyFailed carries multiple failures", () => {
+		expect.assertions(4);
+
+		const port = fakeClackPort();
+
+		renderDeployError(
+			{
+				cause: {
+					applied: [],
+					failures: [
+						{
+							key: asResourceKey("main-universe"),
+							cause: new ApiError("auth failed (401)", { statusCode: 401 }),
+							kind: "driverFailure",
+						},
+						{
+							key: asResourceKey("vip-pass"),
+							kind: "updateUnsupported",
+						},
+						{
+							key: asResourceKey("gem-pack"),
+							cause: new Error("driver crashed"),
+							kind: "unexpectedThrow",
+						},
+					],
+				},
+				kind: "applyFailed",
+			},
+			port,
+		);
+
+		expect(port.logError).toHaveBeenCalledTimes(3);
+		expect(port.logError).toHaveBeenNthCalledWith(
+			1,
+			"apply failed for 'main-universe': auth failed (401)",
+		);
+		expect(port.logError).toHaveBeenNthCalledWith(
+			2,
+			"apply failed for 'vip-pass': update not supported",
+		);
+		expect(port.logError).toHaveBeenNthCalledWith(
+			3,
+			"apply failed for 'gem-pack': unexpected error: driver crashed",
+		);
 	});
 });
 

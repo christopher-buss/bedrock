@@ -137,56 +137,460 @@ describe(applyOps, () => {
 		]);
 	});
 
-	it("should stop dispatching on the first driver failure and wrap it in driverFailure Err with appliedSoFar", async () => {
+	it("should dispatch universe ops in Phase 1 before any non-universe op regardless of input position", async () => {
+		expect.assertions(2);
+
+		const callOrder: Array<string> = [];
+		const gamePassOp = createOp(asResourceKey("vip-pass"));
+		const universeOp = {
+			key: UNIVERSE_SINGLETON_KEY,
+			desired: universeDesired({ voiceChatEnabled: true }),
+			type: "create",
+		} as const satisfies CreateOperation;
+		const placeOp = {
+			key: asResourceKey("start-place"),
+			desired: placeDesired(),
+			type: "create",
+		} as const satisfies CreateOperation;
+		const gamePassCreate = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockImplementation(async (desired) => {
+				callOrder.push(`gamePass:${desired.key}`);
+				return { data: gamePassCurrent({ ...desired }), success: true };
+			});
+		const universeCreate = vi
+			.fn<ResourceDriver<"universe">["create"]>()
+			.mockImplementation(async (desired) => {
+				callOrder.push(`universe:${desired.key}`);
+				return { data: universeCurrent({ ...desired }), success: true };
+			});
+		const placeCreate = vi
+			.fn<ResourceDriver<"place">["create"]>()
+			.mockImplementation(async (desired) => {
+				callOrder.push(`place:${desired.key}`);
+				return { data: placeCurrent({ ...desired }), success: true };
+			});
+		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
+			gamePass: { create: gamePassCreate },
+			place: { create: placeCreate },
+			universe: { create: universeCreate },
+		};
+
+		const result = await applyOps([gamePassOp, universeOp, placeOp], registry);
+
+		expect(result.success).toBeTrue();
+		expect(callOrder).toStrictEqual([
+			`universe:${UNIVERSE_SINGLETON_KEY}`,
+			"gamePass:vip-pass",
+			"place:start-place",
+		]);
+	});
+
+	it("should still dispatch non-universe ops when no universe op is in the input", async () => {
+		expect.assertions(2);
+
+		const op = createOp(asResourceKey("vip-pass"));
+		const created = gamePassCurrent({ ...op.desired });
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockResolvedValue({ data: created, success: true });
+
+		const result = await applyOps([op], registryWith(create));
+
+		expect(result).toStrictEqual({ data: [created], success: true });
+		expect(create).toHaveBeenCalledOnce();
+	});
+
+	it("should treat a 'main'-keyed place and 'main'-keyed universe as independent partitions", async () => {
+		expect.assertions(3);
+
+		const placeOp = {
+			key: UNIVERSE_SINGLETON_KEY,
+			desired: placeDesired({ key: UNIVERSE_SINGLETON_KEY }),
+			type: "create",
+		} as const satisfies CreateOperation;
+		const universeOp = {
+			key: UNIVERSE_SINGLETON_KEY,
+			desired: universeDesired({ voiceChatEnabled: true }),
+			type: "create",
+		} as const satisfies CreateOperation;
+		const placeCreated = placeCurrent({ ...placeOp.desired });
+		const universeCreated = universeCurrent({ ...universeOp.desired });
+		const placeCreate = vi
+			.fn<ResourceDriver<"place">["create"]>()
+			.mockResolvedValue({ data: placeCreated, success: true });
+		const universeCreate = vi
+			.fn<ResourceDriver<"universe">["create"]>()
+			.mockResolvedValue({ data: universeCreated, success: true });
+		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
+			gamePass: {
+				create() {
+					throw new Error("gamePass driver must not run");
+				},
+			},
+			place: { create: placeCreate },
+			universe: { create: universeCreate },
+		};
+
+		const result = await applyOps([placeOp, universeOp], registry);
+
+		expect(result.success).toBeTrue();
+		expect(placeCreate).toHaveBeenCalledOnce();
+		expect(universeCreate).toHaveBeenCalledOnce();
+	});
+
+	it("should run Phase 2 even when the Phase 1 universe op fails", async () => {
+		expect.assertions(4);
+
+		const universeOp = {
+			key: UNIVERSE_SINGLETON_KEY,
+			desired: universeDesired({ voiceChatEnabled: true }),
+			type: "create",
+		} as const satisfies CreateOperation;
+		const gamePassOp = createOp(asResourceKey("vip-pass"));
+		const placeOp = {
+			key: asResourceKey("start-place"),
+			desired: placeDesired(),
+			type: "create",
+		} as const satisfies CreateOperation;
+		const gamePassCurrentState = gamePassCurrent({ ...gamePassOp.desired });
+		const placeCurrentState = placeCurrent({ ...placeOp.desired });
+		const universeCause = new OpenCloudError("universe boom");
+		const gamePassCreate = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockResolvedValue({ data: gamePassCurrentState, success: true });
+		const universeCreate = vi
+			.fn<ResourceDriver<"universe">["create"]>()
+			.mockResolvedValue({ err: universeCause, success: false });
+		const placeCreate = vi
+			.fn<ResourceDriver<"place">["create"]>()
+			.mockResolvedValue({ data: placeCurrentState, success: true });
+		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
+			gamePass: { create: gamePassCreate },
+			place: { create: placeCreate },
+			universe: { create: universeCreate },
+		};
+
+		const result = await applyOps([gamePassOp, universeOp, placeOp], registry);
+
+		expect(gamePassCreate).toHaveBeenCalledOnce();
+		expect(placeCreate).toHaveBeenCalledOnce();
+		expect(universeCreate).toHaveBeenCalledOnce();
+		expect(result).toStrictEqual({
+			err: {
+				applied: [gamePassCurrentState, placeCurrentState],
+				failures: [
+					{ key: UNIVERSE_SINGLETON_KEY, cause: universeCause, kind: "driverFailure" },
+				],
+			},
+			success: false,
+		});
+	});
+
+	it("should aggregate failures from both Phase 1 and Phase 2", async () => {
+		expect.assertions(2);
+
+		const universeOp = {
+			key: UNIVERSE_SINGLETON_KEY,
+			desired: universeDesired({ voiceChatEnabled: true }),
+			type: "create",
+		} as const satisfies CreateOperation;
+		const gamePassOp = createOp(asResourceKey("vip-pass"));
+		const universeCause = new OpenCloudError("universe boom");
+		const gamePassCause = new OpenCloudError("gamePass boom");
+		const universeCreate = vi
+			.fn<ResourceDriver<"universe">["create"]>()
+			.mockResolvedValue({ err: universeCause, success: false });
+		const gamePassCreate = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockResolvedValue({ err: gamePassCause, success: false });
+		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
+			gamePass: { create: gamePassCreate },
+			place: placeStub,
+			universe: { create: universeCreate },
+		};
+
+		const result = await applyOps([universeOp, gamePassOp], registry);
+
+		expect(result.success).toBeFalse();
+
+		assert(!result.success);
+
+		expect(result.err).toStrictEqual({
+			applied: [],
+			failures: [
+				{ key: UNIVERSE_SINGLETON_KEY, cause: universeCause, kind: "driverFailure" },
+				{ key: gamePassOp.key, cause: gamePassCause, kind: "driverFailure" },
+			],
+		});
+	});
+
+	it("should dispatch Phase 2 ops concurrently rather than serially", async () => {
+		expect.assertions(3);
+
+		const first = createOp(asResourceKey("first-pass"));
+		const second = createOp(asResourceKey("second-pass"));
+		let resolveFirst!: () => void;
+		const firstGate = new Promise<void>((resolve) => {
+			resolveFirst = resolve;
+		});
+		const firstCurrent = gamePassCurrent({ ...first.desired });
+		const secondCurrent = gamePassCurrent({ ...second.desired });
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockImplementationOnce(async () => {
+				await firstGate;
+				return { data: firstCurrent, success: true };
+			})
+			.mockImplementationOnce(async () => {
+				return { data: secondCurrent, success: true };
+			});
+
+		const applyPromise = applyOps([first, second], registryWith(create));
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(create).toHaveBeenCalledTimes(2);
+
+		resolveFirst();
+		const result = await applyPromise;
+
+		expect(result.success).toBeTrue();
+		expect(result).toStrictEqual({ data: [firstCurrent, secondCurrent], success: true });
+	});
+
+	it("should preserve applied[] in declaration order even when Phase 2 ops settle out of order", async () => {
+		expect.assertions(1);
+
+		const first = createOp(asResourceKey("first-pass"));
+		const second = createOp(asResourceKey("second-pass"));
+		let resolveFirst!: () => void;
+		const firstGate = new Promise<void>((resolve) => {
+			resolveFirst = resolve;
+		});
+		const firstCurrent = gamePassCurrent({ ...first.desired });
+		const secondCurrent = gamePassCurrent({ ...second.desired });
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockImplementationOnce(async () => {
+				await firstGate;
+				return { data: firstCurrent, success: true };
+			})
+			.mockImplementationOnce(async () => {
+				queueMicrotask(resolveFirst);
+				return { data: secondCurrent, success: true };
+			});
+
+		const result = await applyOps([first, second], registryWith(create));
+
+		expect(result).toStrictEqual({ data: [firstCurrent, secondCurrent], success: true });
+	});
+
+	it("should preserve failures[] in declaration order even when Phase 2 failures settle out of order", async () => {
+		expect.assertions(1);
+
+		const first = createOp(asResourceKey("first-pass"));
+		const second = createOp(asResourceKey("second-pass"));
+		let resolveFirst!: () => void;
+		const firstGate = new Promise<void>((resolve) => {
+			resolveFirst = resolve;
+		});
+		const firstCause = new OpenCloudError("first boom");
+		const secondCause = new OpenCloudError("second boom");
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockImplementationOnce(async () => {
+				await firstGate;
+				return { err: firstCause, success: false };
+			})
+			.mockImplementationOnce(async () => {
+				queueMicrotask(resolveFirst);
+				return { err: secondCause, success: false };
+			});
+
+		const result = await applyOps([first, second], registryWith(create));
+
+		expect(result).toStrictEqual({
+			err: {
+				applied: [],
+				failures: [
+					{ key: first.key, cause: firstCause, kind: "driverFailure" },
+					{ key: second.key, cause: secondCause, kind: "driverFailure" },
+				],
+			},
+			success: false,
+		});
+	});
+
+	it("should translate a synchronous driver throw into an unexpectedThrow without halting the batch", async () => {
 		expect.assertions(3);
 
 		const first = createOp(asResourceKey("first-pass"));
 		const second = createOp(asResourceKey("second-pass"));
 		const third = createOp(asResourceKey("third-pass"));
 		const firstCurrent = gamePassCurrent({ ...first.desired });
-		const cause = new OpenCloudError("boom");
+		const thirdCurrent = gamePassCurrent({ ...third.desired });
+		const thrown = new Error("boom");
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
 			.mockResolvedValueOnce({ data: firstCurrent, success: true })
-			.mockResolvedValueOnce({ err: cause, success: false });
+			.mockImplementationOnce(() => {
+				throw thrown;
+			})
+			.mockResolvedValueOnce({ data: thirdCurrent, success: true });
 
 		const result = await applyOps([first, second, third], registryWith(create));
 
 		expect(result).toStrictEqual({
 			err: {
-				key: second.key,
-				appliedSoFar: [firstCurrent],
-				cause,
-				kind: "driverFailure",
+				applied: [firstCurrent, thirdCurrent],
+				failures: [{ key: second.key, cause: thrown, kind: "unexpectedThrow" }],
 			},
 			success: false,
 		});
-		expect(create).toHaveBeenCalledTimes(2);
+		expect(create).toHaveBeenCalledTimes(3);
 		expect(create.mock.calls.map((call) => call[0].key)).toStrictEqual([
 			"first-pass",
 			"second-pass",
+			"third-pass",
 		]);
 	});
 
-	it("should return an updateUnsupported Err when the driver has no update method", async () => {
+	it("should translate an async driver rejection into an unexpectedThrow", async () => {
+		expect.assertions(1);
+
+		const op = createOp(asResourceKey("vip-pass"));
+		const thrown = new Error("async boom");
+		const create = vi.fn<ResourceDriver<"gamePass">["create"]>().mockRejectedValue(thrown);
+
+		const result = await applyOps([op], registryWith(create));
+
+		expect(result).toStrictEqual({
+			err: {
+				applied: [],
+				failures: [{ key: op.key, cause: thrown, kind: "unexpectedThrow" }],
+			},
+			success: false,
+		});
+	});
+
+	it("should preserve a non-Error throw as the unexpectedThrow cause", async () => {
+		expect.assertions(1);
+
+		const op = createOp(asResourceKey("vip-pass"));
+		const create = vi.fn<ResourceDriver<"gamePass">["create"]>().mockImplementation(() => {
+			// eslint-disable-next-line ts/only-throw-error -- exercise non-Error throw
+			throw "string error";
+		});
+
+		const result = await applyOps([op], registryWith(create));
+
+		expect(result).toStrictEqual({
+			err: {
+				applied: [],
+				failures: [{ key: op.key, cause: "string error", kind: "unexpectedThrow" }],
+			},
+			success: false,
+		});
+	});
+
+	it("should translate a universe-driver throw in Phase 1 into an unexpectedThrow alongside Phase 2 ops", async () => {
+		expect.assertions(2);
+
+		const universeOp = {
+			key: UNIVERSE_SINGLETON_KEY,
+			desired: universeDesired({ voiceChatEnabled: true }),
+			type: "create",
+		} as const satisfies CreateOperation;
+		const gamePassOp = createOp(asResourceKey("vip-pass"));
+		const gamePassCurrentState = gamePassCurrent({ ...gamePassOp.desired });
+		const thrown = new Error("universe driver crashed");
+		const universeCreate = vi
+			.fn<ResourceDriver<"universe">["create"]>()
+			.mockImplementation(() => {
+				throw thrown;
+			});
+		const gamePassCreate = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockResolvedValue({ data: gamePassCurrentState, success: true });
+		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
+			gamePass: { create: gamePassCreate },
+			place: placeStub,
+			universe: { create: universeCreate },
+		};
+
+		const result = await applyOps([universeOp, gamePassOp], registry);
+
+		expect(gamePassCreate).toHaveBeenCalledOnce();
+		expect(result).toStrictEqual({
+			err: {
+				applied: [gamePassCurrentState],
+				failures: [{ key: UNIVERSE_SINGLETON_KEY, cause: thrown, kind: "unexpectedThrow" }],
+			},
+			success: false,
+		});
+	});
+
+	it("should dispatch every Phase 2 op past a failure and aggregate survivors with the failure", async () => {
+		expect.assertions(3);
+
+		const first = createOp(asResourceKey("first-pass"));
+		const second = createOp(asResourceKey("second-pass"));
+		const third = createOp(asResourceKey("third-pass"));
+		const firstCurrent = gamePassCurrent({ ...first.desired });
+		const thirdCurrent = gamePassCurrent({ ...third.desired });
+		const cause = new OpenCloudError("boom");
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockResolvedValueOnce({ data: firstCurrent, success: true })
+			.mockResolvedValueOnce({ err: cause, success: false })
+			.mockResolvedValueOnce({ data: thirdCurrent, success: true });
+
+		const result = await applyOps([first, second, third], registryWith(create));
+
+		expect(result).toStrictEqual({
+			err: {
+				applied: [firstCurrent, thirdCurrent],
+				failures: [{ key: second.key, cause, kind: "driverFailure" }],
+			},
+			success: false,
+		});
+		expect(create).toHaveBeenCalledTimes(3);
+		expect(create.mock.calls.map((call) => call[0].key)).toStrictEqual([
+			"first-pass",
+			"second-pass",
+			"third-pass",
+		]);
+	});
+
+	it("should aggregate updateUnsupported failures alongside concurrent Phase 2 successes", async () => {
 		expect.assertions(2);
 
 		const update = updateOp(asResourceKey("vip-pass"));
-		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
+		const otherCreate = createOp(asResourceKey("other-pass"));
+		const otherCurrent = gamePassCurrent({ ...otherCreate.desired });
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockResolvedValue({ data: otherCurrent, success: true });
 
-		const result = await applyOps(
-			[update, createOp(asResourceKey("other-pass"))],
-			registryWith(create),
-		);
+		const result = await applyOps([update, otherCreate], registryWith(create));
 
 		expect(result).toStrictEqual({
-			err: { key: update.key, appliedSoFar: [], kind: "updateUnsupported" },
+			err: {
+				applied: [otherCurrent],
+				failures: [{ key: update.key, kind: "updateUnsupported" }],
+			},
 			success: false,
 		});
-		expect(create).not.toHaveBeenCalled();
+		expect(create).toHaveBeenCalledExactlyOnceWith(otherCreate.desired);
 	});
 
-	it("should carry preceding driver outputs in appliedSoFar on updateUnsupported", async () => {
+	it("should carry preceding driver outputs in aggregate.applied on updateUnsupported", async () => {
 		expect.assertions(1);
 
 		const created = createOp(asResourceKey("first-pass"));
@@ -199,7 +603,10 @@ describe(applyOps, () => {
 		const result = await applyOps([created, update], registryWith(create));
 
 		expect(result).toStrictEqual({
-			err: { key: update.key, appliedSoFar: [createdCurrent], kind: "updateUnsupported" },
+			err: {
+				applied: [createdCurrent],
+				failures: [{ key: update.key, kind: "updateUnsupported" }],
+			},
 			success: false,
 		});
 	});
@@ -222,13 +629,16 @@ describe(applyOps, () => {
 		expect(update.mock.calls[0]![1]).toBe(op.desired);
 	});
 
-	it("should stop dispatching on the first update failure and wrap it in driverFailure Err", async () => {
+	it("should aggregate an update failure alongside the concurrent Phase 2 successes", async () => {
 		expect.assertions(2);
 
 		const first = updateOp(asResourceKey("first-pass"));
 		const second = createOp(asResourceKey("second-pass"));
+		const secondCurrent = gamePassCurrent({ ...second.desired });
 		const cause = new OpenCloudError("boom");
-		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockResolvedValue({ data: secondCurrent, success: true });
 		const update = vi
 			.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>()
 			.mockResolvedValue({ err: cause, success: false });
@@ -236,10 +646,13 @@ describe(applyOps, () => {
 		const result = await applyOps([first, second], registryWith(create, update));
 
 		expect(result).toStrictEqual({
-			err: { key: first.key, appliedSoFar: [], cause, kind: "driverFailure" },
+			err: {
+				applied: [secondCurrent],
+				failures: [{ key: first.key, cause, kind: "driverFailure" }],
+			},
 			success: false,
 		});
-		expect(create).not.toHaveBeenCalled();
+		expect(create).toHaveBeenCalledExactlyOnceWith(second.desired);
 	});
 
 	describe("developerProduct kind", () => {
@@ -302,7 +715,10 @@ describe(applyOps, () => {
 			const result = await applyOps([op], developerProductRegistry(create));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
+				err: {
+					applied: [],
+					failures: [{ key: op.key, cause, kind: "driverFailure" }],
+				},
 				success: false,
 			});
 		});
@@ -316,7 +732,10 @@ describe(applyOps, () => {
 			const result = await applyOps([op], developerProductRegistry(create));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, appliedSoFar: [], kind: "updateUnsupported" },
+				err: {
+					applied: [],
+					failures: [{ key: op.key, kind: "updateUnsupported" }],
+				},
 				success: false,
 			});
 			expect(create).not.toHaveBeenCalled();
@@ -352,7 +771,10 @@ describe(applyOps, () => {
 			const result = await applyOps([op], developerProductRegistry(create, update));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
+				err: {
+					applied: [],
+					failures: [{ key: op.key, cause, kind: "driverFailure" }],
+				},
 				success: false,
 			});
 		});
@@ -418,7 +840,10 @@ describe(applyOps, () => {
 			const result = await applyOps([op], placeRegistry(create));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
+				err: {
+					applied: [],
+					failures: [{ key: op.key, cause, kind: "driverFailure" }],
+				},
 				success: false,
 			});
 		});
@@ -432,7 +857,10 @@ describe(applyOps, () => {
 			const result = await applyOps([op], placeRegistry(create));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, appliedSoFar: [], kind: "updateUnsupported" },
+				err: {
+					applied: [],
+					failures: [{ key: op.key, kind: "updateUnsupported" }],
+				},
 				success: false,
 			});
 			expect(create).not.toHaveBeenCalled();
@@ -468,7 +896,10 @@ describe(applyOps, () => {
 			const result = await applyOps([op], placeRegistry(create, update));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
+				err: {
+					applied: [],
+					failures: [{ key: op.key, cause, kind: "driverFailure" }],
+				},
 				success: false,
 			});
 		});
@@ -491,11 +922,12 @@ describe(applyOps, () => {
 			const result = await applyOps([op], placeRegistry(create, update));
 
 			assert(!result.success);
-			assert(result.err.kind === "driverFailure");
+			const failure = result.err.failures[0];
+			assert(failure.kind === "driverFailure");
 
-			expect(result.err.cause.message).toContain("expected place");
-			expect(result.err.cause.message).toContain("got gamePass");
-			expect(result.err.cause.message).toContain(op.key);
+			expect(failure.cause.message).toContain("expected place");
+			expect(failure.cause.message).toContain("got gamePass");
+			expect(failure.cause.message).toContain(op.key);
 			expect(update).not.toHaveBeenCalled();
 		});
 	});
@@ -518,11 +950,12 @@ describe(applyOps, () => {
 			const result = await applyOps([op], registryWith(create, update));
 
 			assert(!result.success);
-			assert(result.err.kind === "driverFailure");
+			const failure = result.err.failures[0];
+			assert(failure.kind === "driverFailure");
 
-			expect(result.err.cause.message).toContain("expected gamePass");
-			expect(result.err.cause.message).toContain("got place");
-			expect(result.err.cause.message).toContain(op.key);
+			expect(failure.cause.message).toContain("expected gamePass");
+			expect(failure.cause.message).toContain("got place");
+			expect(failure.cause.message).toContain(op.key);
 			expect(update).not.toHaveBeenCalled();
 		});
 	});
@@ -591,7 +1024,10 @@ describe(applyOps, () => {
 			const result = await applyOps([op], universeRegistry(create));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
+				err: {
+					applied: [],
+					failures: [{ key: op.key, cause, kind: "driverFailure" }],
+				},
 				success: false,
 			});
 		});
@@ -605,7 +1041,10 @@ describe(applyOps, () => {
 			const result = await applyOps([op], universeRegistry(create));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, appliedSoFar: [], kind: "updateUnsupported" },
+				err: {
+					applied: [],
+					failures: [{ key: op.key, kind: "updateUnsupported" }],
+				},
 				success: false,
 			});
 			expect(create).not.toHaveBeenCalled();
@@ -641,7 +1080,10 @@ describe(applyOps, () => {
 			const result = await applyOps([op], universeRegistry(create, update));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
+				err: {
+					applied: [],
+					failures: [{ key: op.key, cause, kind: "driverFailure" }],
+				},
 				success: false,
 			});
 		});
@@ -664,11 +1106,12 @@ describe(applyOps, () => {
 			const result = await applyOps([op], universeRegistry(create, update));
 
 			assert(!result.success);
-			assert(result.err.kind === "driverFailure");
+			const failure = result.err.failures[0];
+			assert(failure.kind === "driverFailure");
 
-			expect(result.err.cause.message).toContain("expected universe");
-			expect(result.err.cause.message).toContain("got gamePass");
-			expect(result.err.cause.message).toContain(op.key);
+			expect(failure.cause.message).toContain("expected universe");
+			expect(failure.cause.message).toContain("got gamePass");
+			expect(failure.cause.message).toContain(op.key);
 			expect(update).not.toHaveBeenCalled();
 		});
 	});

@@ -66,16 +66,26 @@ interface MigrationSummaryRender {
 }
 
 /**
- * Render a `DeployError` to the supplied `ClackPort` as a single error line.
- * Each variant produces a distinct, terse diagnostic; wrapped variants
- * (`applyFailed`, `buildDesiredFailed`, `configLoadFailed`, `stateReadFailed`,
- * `stateWriteFailed`) surface the inner cause's actionable detail (file path,
- * resource key, parser message, HTTP failure, validator issue) so the reader
- * does not have to inspect the full cause to act.
+ * Render a `DeployError` to the supplied `ClackPort`. Most variants emit a
+ * single error line; `applyFailed` emits one line per failing op in the
+ * aggregate (in Phase 1 then Phase 2 input order). Wrapped variants
+ * (`applyFailed`, `buildDesiredFailed`, `configLoadFailed`,
+ * `stateReadFailed`, `stateWriteFailed`) surface the inner cause's
+ * actionable detail (file path, resource key, parser message, HTTP failure,
+ * validator issue) so the reader does not have to inspect the full cause to
+ * act.
  * @param err - The deploy error to describe.
  * @param port - The output port the diagnostic is written to.
  */
 export function renderDeployError(err: DeployError, port: ClackPort): void {
+	if (err.kind === "applyFailed") {
+		for (const failure of err.cause.failures) {
+			port.logError(`apply failed for '${failure.key}': ${applyCauseDetail(failure)}`);
+		}
+
+		return;
+	}
+
 	port.logError(deployErrorMessage(err));
 }
 
@@ -180,6 +190,21 @@ function permissionDetail(err: PermissionError): string {
 	return `${err.message} on ${err.operationKey}: missing required ${label} ${scopeList}. Grant ${pronoun} on the API key at https://create.roblox.com/credentials`;
 }
 
+function safeStringify(value: unknown): string {
+	if (value instanceof Error) {
+		return value.message;
+	}
+
+	// `String(value)` can throw on null-prototype objects or values whose
+	// `toString` / `Symbol.toPrimitive` rejects coercion; fall back so the
+	// renderer never crashes mid-diagnostic.
+	try {
+		return String(value);
+	} catch {
+		return "<unprintable cause>";
+	}
+}
+
 function applyCauseDetail(cause: ApplyError): string {
 	switch (cause.kind) {
 		case "driverFailure": {
@@ -188,6 +213,9 @@ function applyCauseDetail(cause: ApplyError): string {
 			}
 
 			return cause.cause.message;
+		}
+		case "unexpectedThrow": {
+			return `unexpected error: ${safeStringify(cause.cause)}`;
 		}
 		case "updateUnsupported": {
 			return "update not supported";
@@ -234,11 +262,8 @@ function stateErrorDetail(cause: StateError): string {
 }
 
 /* eslint-disable-next-line max-lines-per-function -- single exhaustive switch over every DeployError variant is clearer than splitting into a wrapped-vs-unwrapped predicate plus a parallel prefix table. */
-function deployErrorMessage(err: DeployError): string {
+function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFailed" }>): string {
 	switch (err.kind) {
-		case "applyFailed": {
-			return `apply failed for '${err.cause.key}': ${applyCauseDetail(err.cause)}`;
-		}
 		case "buildDesiredFailed": {
 			return `build desired state failed for '${err.cause.key}' ${buildDesiredDetail(err.cause)}`;
 		}

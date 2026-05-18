@@ -1,7 +1,5 @@
 import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 
-import type { DistributedOmit } from "type-fest";
-
 import type { Operation } from "../core/operations.ts";
 import type {
 	DeveloperProductDesiredState,
@@ -18,11 +16,9 @@ import type { ResourceKey } from "../types/ids.ts";
 /**
  * Failure surfaced by `applyOps` when an operation cannot be applied.
  * Plain-data discriminated union; narrow on `kind`, do not `instanceof` it.
- *
- * `appliedSoFar` carries the driver outputs from operations that succeeded
- * before the failing one, in dispatched order. Callers persist this so a
- * follow-up reconcile does not duplicate Roblox-side resources that have
- * already been created or updated.
+ * One `ApplyError` describes one failing op; the surrounding
+ * `AggregateApplyError` carries the full batch outcome (every survivor and
+ * every failure).
  *
  * @example
  *
@@ -34,6 +30,9 @@ import type { ResourceKey } from "../types/ids.ts";
  *         case "driverFailure": {
  *             return `driver failed for ${err.key}: ${err.cause.message}`;
  *         }
+ *         case "unexpectedThrow": {
+ *             return `unexpected error for ${err.key}`;
+ *         }
  *         case "updateUnsupported": {
  *             return `update not supported for ${err.key}`;
  *         }
@@ -42,7 +41,6 @@ import type { ResourceKey } from "../types/ids.ts";
  *
  * const err: ApplyError = {
  *     key: asResourceKey("vip-pass"),
- *     appliedSoFar: [],
  *     kind: "updateUnsupported",
  * };
  *
@@ -51,16 +49,49 @@ import type { ResourceKey } from "../types/ids.ts";
  */
 export type ApplyError =
 	| {
-			readonly appliedSoFar: ReadonlyArray<ResourceCurrentState>;
 			readonly cause: OpenCloudError;
 			readonly key: ResourceKey;
 			readonly kind: "driverFailure";
 	  }
 	| {
-			readonly appliedSoFar: ReadonlyArray<ResourceCurrentState>;
+			readonly cause: unknown;
+			readonly key: ResourceKey;
+			readonly kind: "unexpectedThrow";
+	  }
+	| {
 			readonly key: ResourceKey;
 			readonly kind: "updateUnsupported";
 	  };
+
+/**
+ * Aggregate outcome returned by `applyOps` when one or more ops fail.
+ * `applied` is the survivor set in Phase 1 then Phase 2 input order.
+ * `failures` is the non-empty list of `ApplyError`s, one per failing op,
+ * grouped the same way.
+ *
+ * @example
+ *
+ * ```ts
+ * import { asResourceKey, type AggregateApplyError } from "@bedrock-rbx/core";
+ *
+ * function summarize(err: AggregateApplyError): string {
+ *     return `${err.applied.length} survived, ${err.failures.length} failed`;
+ * }
+ *
+ * const err: AggregateApplyError = {
+ *     applied: [],
+ *     failures: [{ key: asResourceKey("vip-pass"), kind: "updateUnsupported" }],
+ * };
+ *
+ * expect(summarize(err)).toBe("0 survived, 1 failed");
+ * ```
+ */
+export interface AggregateApplyError {
+	/** Survivors persisted to state, in Phase 1 then Phase 2 input order. */
+	readonly applied: ReadonlyArray<ResourceCurrentState>;
+	/** Per-op failures, at least one, in Phase 1 then Phase 2 input order. */
+	readonly failures: readonly [ApplyError, ...ReadonlyArray<ApplyError>];
+}
 
 type NonNoopOp = Exclude<Operation, { readonly type: "noop" }>;
 type DeveloperProductOp = NonNoopOp & { readonly desired: DeveloperProductDesiredState };
@@ -68,36 +99,41 @@ type GamePassOp = NonNoopOp & { readonly desired: GamePassDesiredState };
 type PlaceOp = NonNoopOp & { readonly desired: PlaceDesiredState };
 type UniverseOp = NonNoopOp & { readonly desired: UniverseDesiredState };
 
-type RawApplyError = DistributedOmit<ApplyError, "appliedSoFar">;
-
 /**
- * Dispatch each reconciliation operation to the matching resource driver
- * with first-fail semantics: on the first `Err` (driver failure or
- * `updateUnsupported`), the remaining operations are skipped and the error
- * is returned verbatim.
+ * Dispatch reconciliation operations to their matching drivers in two phases
+ * with continue-on-failure semantics. Phase 1 runs universe ops sequentially
+ * (singleton per environment; sequencing it before everything else avoids the
+ * `displayName` race against the root `Place`). Phase 2 dispatches every
+ * remaining non-noop op concurrently via `Promise.all`; every op is
+ * attempted regardless of earlier failures.
  *
  * Behaviour:
- * - `create` operations are routed to `registry[op.desired.kind].create`.
- * - `update` operations are routed to `registry[op.desired.kind].update`
- *   when the driver exposes it; otherwise they short-circuit to an
- *   `updateUnsupported` Err without invoking the driver.
+ * - `create` operations route to `registry[op.desired.kind].create`.
+ * - `update` operations route to `registry[op.desired.kind].update` when the
+ *   driver exposes it; otherwise they yield an `updateUnsupported`
+ *   `ApplyError` without invoking the driver.
  * - `noop` operations are skipped entirely (no I/O, no dispatch).
+ * - A driver that throws outside its `Result` contract is caught at the
+ *   dispatch boundary and translated to an `unexpectedThrow` `ApplyError`
+ *   scoped to that op alone; the rest of the batch keeps running.
  *
- * On success the returned array carries the driver outputs for every
- * non-noop op, in dispatched order. Noops are not represented; callers
- * needing a full post-apply snapshot merge with the pre-apply current
- * state keyed by `ResourceKey`.
+ * On Ok the returned array carries driver outputs for every non-noop op
+ * in phase order: Phase 1 universe entries first, then Phase 2 entries in
+ * their input order. Noops are not represented; callers needing a full
+ * post-apply snapshot merge with the pre-apply current state keyed by
+ * `ResourceKey`.
  *
- * @param ops - Reconciliation operations produced by `diff`, applied in order.
- * @param registry - Per-kind driver table; dispatch uses `op.desired.kind` as the index.
- * @returns `Ok(state)` when every operation succeeds, where `state` holds
- *   driver outputs for each non-noop op in dispatched order; or the first
- *   failure encountered.
- * @throws Whatever the dispatched driver rejects with outside its `Result`
- *   return. A driver whose injected I/O (file reads, network calls, etc.)
- *   throws will surface that rejection here rather than translating it into
- *   a `Result` failure; wrap the call site in a try/catch when drivers are
- *   not trusted to contain their own rejections.
+ * On Err the aggregate carries every survivor in `applied` (Phase 1 first,
+ * then Phase 2 input order) and every failure in `failures` with the same
+ * grouping. Neither array reflects completion order.
+ *
+ * @param ops - Reconciliation operations produced by `diff`, applied in
+ *   declaration order.
+ * @param registry - Per-kind driver table; dispatch uses `op.desired.kind`
+ *   as the index.
+ * @returns `Ok(state)` when every op succeeded; otherwise
+ *   `Err(AggregateApplyError)` with the survivors and the non-empty
+ *   failures tuple.
  * @example
  *
  * ```ts
@@ -183,29 +219,29 @@ type RawApplyError = DistributedOmit<ApplyError, "appliedSoFar">;
 export async function applyOps(
 	ops: ReadonlyArray<Operation>,
 	registry: DriverRegistry,
-): Promise<Result<ReadonlyArray<ResourceCurrentState>, ApplyError>> {
-	const applied: Array<ResourceCurrentState> = [];
+): Promise<Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>> {
+	const { phase1, phase2 } = partitionByPhase(ops);
 
-	for (const op of ops) {
-		if (op.type === "noop") {
-			continue;
-		}
-
-		const outcome = await dispatchOp(op, registry);
-		if (!outcome.success) {
-			return { err: { ...outcome.err, appliedSoFar: applied }, success: false };
-		}
-
-		applied.push(outcome.data);
+	const phase1Outcomes: Array<Result<ResourceCurrentState, ApplyError>> = [];
+	for (const op of phase1) {
+		phase1Outcomes.push(await dispatchOp(op, registry));
 	}
 
-	return { data: applied, success: true };
+	const phase2Outcomes = await Promise.all(phase2.map(async (op) => dispatchOp(op, registry)));
+	const { applied, failures } = partitionOutcomes([...phase1Outcomes, ...phase2Outcomes]);
+
+	const [head, ...tail] = failures;
+	if (head === undefined) {
+		return { data: applied, success: true };
+	}
+
+	return { err: { applied, failures: [head, ...tail] }, success: false };
 }
 
 function driverFailure(
 	key: ResourceKey,
 	cause: OpenCloudError,
-): Result<ResourceCurrentState, RawApplyError> {
+): Result<ResourceCurrentState, ApplyError> {
 	return { err: { key, cause, kind: "driverFailure" }, success: false };
 }
 
@@ -219,7 +255,7 @@ function kindMismatch(key: ResourceKey, mismatch: { actual: string; expected: st
 async function applyOne<K extends ResourceKind>(
 	op: NonNoopOp & { readonly desired: Extract<ResourceDesiredState, { kind: K }> },
 	driver: ResourceDriver<K>,
-): Promise<Result<ResourceCurrentState, RawApplyError>> {
+): Promise<Result<ResourceCurrentState, ApplyError>> {
 	if (op.type === "create") {
 		const created = await driver.create(op.desired);
 		return created.success ? created : driverFailure(op.key, created.err);
@@ -240,10 +276,10 @@ async function applyOne<K extends ResourceKind>(
 	return updated.success ? updated : driverFailure(op.key, updated.err);
 }
 
-async function dispatchOp(
+async function dispatchByKind(
 	op: NonNoopOp,
 	registry: DriverRegistry,
-): Promise<Result<ResourceCurrentState, RawApplyError>> {
+): Promise<Result<ResourceCurrentState, ApplyError>> {
 	// Exhaustive switch: adding a new ResourceKind is a compile error here
 	// until an arm lands. Each arm casts because custom type narrowing does
 	// not propagate through a non-distributive union.
@@ -261,4 +297,45 @@ async function dispatchOp(
 			return applyOne(op as UniverseOp, registry.universe);
 		}
 	}
+}
+
+async function dispatchOp(
+	op: NonNoopOp,
+	registry: DriverRegistry,
+): Promise<Result<ResourceCurrentState, ApplyError>> {
+	try {
+		return await dispatchByKind(op, registry);
+	} catch (err) {
+		return { err: { key: op.key, cause: err, kind: "unexpectedThrow" }, success: false };
+	}
+}
+
+function partitionOutcomes(outcomes: ReadonlyArray<Result<ResourceCurrentState, ApplyError>>): {
+	readonly applied: ReadonlyArray<ResourceCurrentState>;
+	readonly failures: ReadonlyArray<ApplyError>;
+} {
+	const applied = outcomes.flatMap((outcome) => (outcome.success ? [outcome.data] : []));
+	const failures = outcomes.flatMap((outcome) => (outcome.success ? [] : [outcome.err]));
+	return { applied, failures };
+}
+
+function partitionByPhase(ops: ReadonlyArray<Operation>): {
+	readonly phase1: ReadonlyArray<NonNoopOp>;
+	readonly phase2: ReadonlyArray<NonNoopOp>;
+} {
+	const phase1: Array<NonNoopOp> = [];
+	const phase2: Array<NonNoopOp> = [];
+	for (const op of ops) {
+		if (op.type === "noop") {
+			continue;
+		}
+
+		if (op.desired.kind === "universe") {
+			phase1.push(op);
+		} else {
+			phase2.push(op);
+		}
+	}
+
+	return { phase1, phase2 };
 }

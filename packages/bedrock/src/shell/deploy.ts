@@ -21,7 +21,7 @@ import type { BedrockState, StateError } from "../core/state.ts";
 import { validatePlan } from "../core/validate-plan.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
-import { type ApplyError, applyOps } from "./apply-ops.ts";
+import { type AggregateApplyError, applyOps } from "./apply-ops.ts";
 import { buildDefaultRegistry, type RegistryConfigError } from "./build-default-registry.ts";
 import { buildDesired, type BuildDesiredError } from "./build-desired.ts";
 import {
@@ -72,7 +72,7 @@ export type DeployError =
 	| StateNotConfiguredError
 	| UnknownEnvironmentError
 	| UnsupportedBackendError
-	| { readonly cause: ApplyError; readonly kind: "applyFailed" }
+	| { readonly cause: AggregateApplyError; readonly kind: "applyFailed" }
 	| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" }
 	| { readonly cause: ConfigError; readonly kind: "configLoadFailed" }
 	| { readonly cause: StateError; readonly kind: "stateReadFailed" }
@@ -83,13 +83,13 @@ export type DeployError =
 	  };
 
 interface SnapshotInputs {
-	readonly applied: Result<ReadonlyArray<ResourceCurrentState>, ApplyError>;
+	readonly applied: Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>;
 	readonly environment: string;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 }
 
 interface FinalizeInputs {
-	readonly applied: Result<ReadonlyArray<ResourceCurrentState>, ApplyError>;
+	readonly applied: Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>;
 	readonly merged: BedrockState;
 	readonly written: Result<void, StateError>;
 }
@@ -288,7 +288,7 @@ function mergeResources(
 function buildSnapshot(inputs: SnapshotInputs): BedrockState {
 	const appliedResources = inputs.applied.success
 		? inputs.applied.data
-		: inputs.applied.err.appliedSoFar;
+		: inputs.applied.err.applied;
 	return {
 		environment: inputs.environment,
 		resources: mergeResources(inputs.priorResources, appliedResources),
@@ -297,10 +297,7 @@ function buildSnapshot(inputs: SnapshotInputs): BedrockState {
 }
 
 function finalize(inputs: FinalizeInputs): Result<BedrockState, DeployError> {
-	if (!inputs.applied.success) {
-		return { err: { cause: inputs.applied.err, kind: "applyFailed" }, success: false };
-	}
-
+	// Check write before apply: only the write carries `unsavedState`.
 	if (!inputs.written.success) {
 		return {
 			err: {
@@ -310,6 +307,10 @@ function finalize(inputs: FinalizeInputs): Result<BedrockState, DeployError> {
 			},
 			success: false,
 		};
+	}
+
+	if (!inputs.applied.success) {
+		return { err: { cause: inputs.applied.err, kind: "applyFailed" }, success: false };
 	}
 
 	return { data: inputs.merged, success: true };
