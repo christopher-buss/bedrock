@@ -154,6 +154,7 @@ describe(diff, () => {
 			{ key: matchingKey, type: "noop" },
 			{
 				key: driftedKey,
+				changedFields: ["name"],
 				current: currentDrifted,
 				desired: desiredDrifted,
 				type: "update",
@@ -182,6 +183,7 @@ describe(diff, () => {
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 				{
 					key: desiredEntry.key,
+					changedFields: ["name"],
 					current: currentEntry,
 					desired: desiredEntry,
 					type: "update",
@@ -198,6 +200,7 @@ describe(diff, () => {
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 				{
 					key: desiredEntry.key,
+					changedFields: ["price"],
 					current: currentEntry,
 					desired: desiredEntry,
 					type: "update",
@@ -214,6 +217,7 @@ describe(diff, () => {
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 				{
 					key: desiredEntry.key,
+					changedFields: ["price"],
 					current: currentEntry,
 					desired: desiredEntry,
 					type: "update",
@@ -230,6 +234,7 @@ describe(diff, () => {
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 				{
 					key: desiredEntry.key,
+					changedFields: ["price"],
 					current: currentEntry,
 					desired: desiredEntry,
 					type: "update",
@@ -276,7 +281,13 @@ describe(diff, () => {
 			const currentEntry = placeCurrent();
 
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-				{ key: PLACE_KEY, current: currentEntry, desired: desiredEntry, type: "update" },
+				{
+					key: PLACE_KEY,
+					changedFields: ["fileHash"],
+					current: currentEntry,
+					desired: desiredEntry,
+					type: "update",
+				},
 			]);
 		});
 
@@ -287,7 +298,13 @@ describe(diff, () => {
 			const currentEntry = placeCurrent();
 
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-				{ key: PLACE_KEY, current: currentEntry, desired: desiredEntry, type: "update" },
+				{
+					key: PLACE_KEY,
+					changedFields: ["filePath"],
+					current: currentEntry,
+					desired: desiredEntry,
+					type: "update",
+				},
 			]);
 		});
 
@@ -298,13 +315,19 @@ describe(diff, () => {
 			const currentEntry = placeCurrent();
 
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-				{ key: PLACE_KEY, current: currentEntry, desired: desiredEntry, type: "update" },
+				{
+					key: PLACE_KEY,
+					changedFields: ["placeId"],
+					current: currentEntry,
+					desired: desiredEntry,
+					type: "update",
+				},
 			]);
 		});
 
 		it.for<
 			[
-				label: string,
+				field: string,
 				desiredOverrides: Partial<PlaceDesiredState>,
 				currentOverrides: Partial<ResourceCurrentState<"place">>,
 			]
@@ -314,7 +337,7 @@ describe(diff, () => {
 			["serverSize", { serverSize: 25 }, { serverSize: 50 }],
 		])(
 			"should emit an update op when the place %s differs",
-			([, desiredOverrides, currentOverrides]) => {
+			([field, desiredOverrides, currentOverrides]) => {
 				expect.assertions(1);
 
 				const desiredEntry = placeDesired(desiredOverrides);
@@ -323,6 +346,7 @@ describe(diff, () => {
 				expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 					{
 						key: PLACE_KEY,
+						changedFields: [field],
 						current: currentEntry,
 						desired: desiredEntry,
 						type: "update",
@@ -394,6 +418,7 @@ describe(diff, () => {
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 				{
 					key: UNIVERSE_SINGLETON_KEY,
+					changedFields: ["universeId"],
 					current: currentEntry,
 					desired: desiredEntry,
 					type: "update",
@@ -432,6 +457,7 @@ describe(diff, () => {
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 				{
 					key: UNIVERSE_SINGLETON_KEY,
+					changedFields: ["voiceChatEnabled"],
 					current: currentEntry,
 					desired: desiredEntry,
 					type: "update",
@@ -451,6 +477,7 @@ describe(diff, () => {
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 				{
 					key: UNIVERSE_SINGLETON_KEY,
+					changedFields: ["universeId"],
 					current: currentEntry,
 					desired: desiredEntry,
 					type: "update",
@@ -480,6 +507,7 @@ describe(diff, () => {
 				expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 					{
 						key: UNIVERSE_SINGLETON_KEY,
+						changedFields: [flag],
 						current: currentEntry,
 						desired: desiredEntry,
 						type: "update",
@@ -552,6 +580,7 @@ describe(diff, () => {
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 				{
 					key: UNIVERSE_SINGLETON_KEY,
+					changedFields: ["mobileEnabled"],
 					current: currentEntry,
 					desired: desiredEntry,
 					type: "update",
@@ -586,6 +615,7 @@ describe(diff, () => {
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 				{
 					key: UNIVERSE_SINGLETON_KEY,
+					changedFields: ["displayName"],
 					current: currentEntry,
 					desired: desiredEntry,
 					type: "update",
@@ -627,6 +657,7 @@ describe(diff, () => {
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 				{
 					key: UNIVERSE_SINGLETON_KEY,
+					changedFields: ["privateServerPriceRobux"],
 					current: currentEntry,
 					desired: desiredEntry,
 					type: "update",
@@ -643,6 +674,7 @@ describe(diff, () => {
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 				{
 					key: UNIVERSE_SINGLETON_KEY,
+					changedFields: ["privateServerPriceRobux"],
 					current: currentEntry,
 					desired: desiredEntry,
 					type: "update",
@@ -702,6 +734,7 @@ describe(diff, () => {
 					expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 						{
 							key: UNIVERSE_SINGLETON_KEY,
+							changedFields: [field],
 							current: currentEntry,
 							desired: desiredEntry,
 							type: "update",
@@ -723,6 +756,7 @@ describe(diff, () => {
 					expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 						{
 							key: UNIVERSE_SINGLETON_KEY,
+							changedFields: [field],
 							current: currentEntry,
 							desired: desiredEntry,
 							type: "update",
@@ -742,6 +776,7 @@ describe(diff, () => {
 					expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 						{
 							key: UNIVERSE_SINGLETON_KEY,
+							changedFields: [field],
 							current: currentEntry,
 							desired: desiredEntry,
 							type: "update",
@@ -761,6 +796,7 @@ describe(diff, () => {
 					expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 						{
 							key: UNIVERSE_SINGLETON_KEY,
+							changedFields: [field],
 							current: currentEntry,
 							desired: desiredEntry,
 							type: "update",
@@ -855,6 +891,7 @@ describe(diff, () => {
 				expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
 					{
 						key: UNIVERSE_SINGLETON_KEY,
+						changedFields: ["discordSocialLink"],
 						current: currentEntry,
 						desired: desiredEntry,
 						type: "update",

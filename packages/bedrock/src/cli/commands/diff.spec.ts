@@ -62,6 +62,7 @@ function updatePlaceOp(key: string): Operation {
 	};
 	return {
 		key: asResourceKey(key),
+		changedFields: ["fileHash"],
 		current: { ...desired, outputs: { versionNumber: 1 } },
 		desired,
 		type: "update",

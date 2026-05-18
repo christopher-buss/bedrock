@@ -113,11 +113,13 @@ export interface CreateOperation extends BaseOperation {
  *         name: "VIP Pass",
  *         price: 750,
  *     },
+ *     changedFields: ["description", "price"],
  *     key: asResourceKey("vip-pass"),
  *     type: "update",
  * };
  *
  * expect(op.type).toBe("update");
+ * expect(op.changedFields).toStrictEqual(["description", "price"]);
  * if (op.desired.kind === "gamePass") {
  *     expect(op.desired.price).toBe(750);
  * }
@@ -127,6 +129,13 @@ export interface CreateOperation extends BaseOperation {
  * ```
  */
 export interface UpdateOperation extends BaseOperation {
+	/**
+	 * Top-level field names that differ between `current` and `desired`,
+	 * populated by `diff` from the kind module's `changedFieldsBetween`.
+	 * Plan and apply renderers consume this as the single source of truth
+	 * for "what changed" on this op; never empty for an `update` variant.
+	 */
+	readonly changedFields: ReadonlyArray<string>;
 	/** Last-known live state; the driver computes a patch against `desired`. */
 	readonly current: ResourceCurrentState;
 	/** Declared desired state to converge toward. */

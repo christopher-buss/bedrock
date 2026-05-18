@@ -45,7 +45,8 @@ function updateOp(key: ResourceKey) {
 	const desired = gamePassDesired({ key });
 	return {
 		key,
-		current: gamePassCurrent({ ...desired }),
+		changedFields: ["name"],
+		current: gamePassCurrent({ ...desired, name: "Outdated" }),
 		desired,
 		type: "update",
 	} as const satisfies UpdateOperation;
@@ -267,7 +268,8 @@ describe(applyOps, () => {
 			const desired = developerProductDesired({ key });
 			return {
 				key,
-				current: developerProductCurrent({ ...desired }),
+				changedFields: ["name"],
+				current: developerProductCurrent({ ...desired, name: "Outdated" }),
 				desired,
 				type: "update",
 			} as const satisfies UpdateOperation;
@@ -379,10 +381,11 @@ describe(applyOps, () => {
 		}
 
 		function placeUpdateOp(key: ResourceKey) {
-			const desired = placeDesired({ key });
+			const desired = placeDesired({ key, displayName: "New" });
 			return {
 				key,
-				current: placeCurrent({ ...desired }),
+				changedFields: ["displayName"],
+				current: placeCurrent({ ...desired, displayName: "Old" }),
 				desired,
 				type: "update",
 			} as const satisfies UpdateOperation;
@@ -477,6 +480,7 @@ describe(applyOps, () => {
 			const crossKindCurrent = gamePassCurrent({ key: placeDesiredState.key });
 			const op: UpdateOperation = {
 				key: placeDesiredState.key,
+				changedFields: ["fileHash"],
 				current: crossKindCurrent,
 				desired: placeDesiredState,
 				type: "update",
@@ -503,6 +507,7 @@ describe(applyOps, () => {
 			const crossKindCurrent = placeCurrent({ key: asResourceKey("vip-pass") });
 			const op: UpdateOperation = {
 				key: crossKindCurrent.key,
+				changedFields: ["name"],
 				current: crossKindCurrent,
 				desired: gamePassDesired({ key: crossKindCurrent.key }),
 				type: "update",
@@ -552,6 +557,7 @@ describe(applyOps, () => {
 			const desired = universeDesired({ voiceChatEnabled: true });
 			return {
 				key: UNIVERSE_SINGLETON_KEY,
+				changedFields: ["voiceChatEnabled"],
 				current: universeCurrent({ ...desired, voiceChatEnabled: false }),
 				desired,
 				type: "update",
@@ -647,6 +653,7 @@ describe(applyOps, () => {
 			const crossKindCurrent = gamePassCurrent({ key: universeDesiredState.key });
 			const op: UpdateOperation = {
 				key: universeDesiredState.key,
+				changedFields: ["voiceChatEnabled"],
 				current: crossKindCurrent,
 				desired: universeDesiredState,
 				type: "update",
