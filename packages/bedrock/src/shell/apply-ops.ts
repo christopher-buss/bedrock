@@ -82,32 +82,39 @@ type PlaceOp = NonNoopOp & { readonly desired: PlaceDesiredState };
 type UniverseOp = NonNoopOp & { readonly desired: UniverseDesiredState };
 
 /**
- * Dispatch each reconciliation operation to the matching resource driver
- * with first-fail semantics: on the first `Err` (driver failure or
- * `updateUnsupported`), the remaining operations are skipped and the error
- * is returned verbatim.
+ * Dispatch reconciliation operations to their matching drivers in two phases
+ * with continue-on-failure semantics. Phase 1 runs universe ops sequentially
+ * (singleton per environment; sequencing it before everything else avoids the
+ * `displayName` race against the root `Place`). Phase 2 dispatches every
+ * remaining non-noop op concurrently via `Promise.all`; every op is
+ * attempted regardless of earlier failures.
  *
  * Behaviour:
- * - `create` operations are routed to `registry[op.desired.kind].create`.
- * - `update` operations are routed to `registry[op.desired.kind].update`
- *   when the driver exposes it; otherwise they short-circuit to an
- *   `updateUnsupported` Err without invoking the driver.
+ * - `create` operations route to `registry[op.desired.kind].create`.
+ * - `update` operations route to `registry[op.desired.kind].update` when the
+ *   driver exposes it; otherwise they yield an `updateUnsupported`
+ *   `ApplyError` without invoking the driver.
  * - `noop` operations are skipped entirely (no I/O, no dispatch).
+ * - A driver that throws outside its `Result` contract is caught at the
+ *   dispatch boundary and translated to an `unexpectedThrow` `ApplyError`
+ *   scoped to that op alone; the rest of the batch keeps running.
  *
- * On success the returned array carries the driver outputs for every
- * non-noop op, in dispatched order. Noops are not represented; callers
- * needing a full post-apply snapshot merge with the pre-apply current
- * state keyed by `ResourceKey`.
+ * On Ok the returned array carries driver outputs for every non-noop op in
+ * declaration order: Phase 1 entries first, then Phase 2 entries in their
+ * input order. Noops are not represented; callers needing a full post-apply
+ * snapshot merge with the pre-apply current state keyed by `ResourceKey`.
  *
- * @param ops - Reconciliation operations produced by `diff`, applied in order.
- * @param registry - Per-kind driver table; dispatch uses `op.desired.kind` as the index.
- * @returns `Ok(state)` when every operation succeeds, where `state` holds
- *   driver outputs for each non-noop op in dispatched order; or the first
- *   failure encountered.
- * A driver that throws outside its `Result` contract is caught at the
- * dispatch boundary and translated to an `unexpectedThrow`
- * `ApplyError` scoped to that op alone; the rest of the batch keeps
- * running.
+ * On Err the aggregate carries every survivor in `applied` (declaration
+ * order) and every failure in `failures` (Phase 1 entries first, then
+ * Phase 2 entries in input order — never completion order).
+ *
+ * @param ops - Reconciliation operations produced by `diff`, applied in
+ *   declaration order.
+ * @param registry - Per-kind driver table; dispatch uses `op.desired.kind`
+ *   as the index.
+ * @returns `Ok(state)` when every op succeeded; otherwise
+ *   `Err(AggregateApplyError)` with the survivors and the non-empty
+ *   failures tuple.
  * @example
  *
  * ```ts

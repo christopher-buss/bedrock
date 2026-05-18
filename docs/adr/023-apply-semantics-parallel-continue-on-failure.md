@@ -431,3 +431,26 @@ backend failures become observable in practice.
 - [ADR-019](./019-state-data-model-and-diff-algebra.md): diff algebra and
   state data model; `UpdateOperation.changedFields` extends the contract
   described there.
+
+## Amendments
+
+### 2026-05-18: Non-empty `failures` tuple
+
+`AggregateApplyError.failures` ships as `readonly [ApplyError,
+...ReadonlyArray<ApplyError>]` rather than `ReadonlyArray<ApplyError>`.
+The algorithm only returns `Err` when at least one op failed, so the
+non-empty tuple encodes the runtime invariant in the type. The CLI
+renderer reads `failures[0]` and iterates without defensive empty-array
+branches, and consumers narrowing the aggregate can rely on `failures`
+always carrying at least one entry.
+
+### 2026-05-18: Phase 2 dispatches with `Promise.all`
+
+Phase 2 dispatches concurrently via `Promise.all` rather than
+`Promise.allSettled`. The dispatch-boundary try/catch inside `dispatchOp`
+catches any rejection a driver produces outside its `Result` contract
+and translates it into an `unexpectedThrow` `ApplyError`, so by the time
+`Promise.all` awaits the phase-2 map, no individual dispatch can reject.
+`Promise.allSettled`'s rejection-handling branch would be unreachable
+under that contract; `Promise.all` keeps the apply path honest about
+where rejections can come from.

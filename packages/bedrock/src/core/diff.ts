@@ -14,8 +14,10 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
  * `update` op if any declared field differs or a `noop` op if every field
  * matches.
  *
- * Ops appear in the order their desired entries appear in the input array so
- * callers can rely on declaration order when logging or applying ops.
+ * Ops appear in the order their desired entries appear in the input array;
+ * the persisted post-apply snapshot stays in that declaration order with
+ * Phase 1 universe ops grouped first. The execution order within Phase 2
+ * is not guaranteed because `applyOps` dispatches Phase 2 concurrently.
  *
  * @param desired - Declared desired state from user config, already normalized
  *   (file hashes computed, nullable wire values mapped to `undefined`).
