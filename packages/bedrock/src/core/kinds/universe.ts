@@ -110,53 +110,38 @@ function socialLinkEqual(a: SocialLink | undefined, b: SocialLink | undefined): 
 	return a.title === b.title && a.uri === b.uri;
 }
 
-function declaredSocialLinksEqual(
+function changedFieldsBetween(
 	desired: UniverseDesiredState,
 	current: ResourceCurrentState<"universe">,
-): boolean {
-	for (const field of SOCIAL_LINK_FIELDS) {
-		if (!(field in desired)) {
-			continue;
-		}
-
-		if (!socialLinkEqual(desired[field], current[field])) {
-			return false;
-		}
-	}
-
-	return true;
+): ReadonlyArray<string> {
+	return [
+		...(desired.universeId === current.universeId ? [] : ["universeId"]),
+		// Only compare flags the user has declared. An undeclared flag
+		// stays owned by whoever else writes to the universe (Creator
+		// Hub, another tool), so a concrete current value for it is not
+		// drift.
+		...UNIVERSE_MANAGED_FLAGS.filter((flag) => {
+			const isDesiredEnabled = desired[flag];
+			return isDesiredEnabled !== undefined && isDesiredEnabled !== current[flag];
+		}),
+		...(desired.displayName === undefined || desired.displayName === current.displayName
+			? []
+			: ["displayName"]),
+		...("privateServerPriceRobux" in desired &&
+		desired.privateServerPriceRobux !== current.privateServerPriceRobux
+			? ["privateServerPriceRobux"]
+			: []),
+		...SOCIAL_LINK_FIELDS.filter(
+			(field) => field in desired && !socialLinkEqual(desired[field], current[field]),
+		),
+	];
 }
 
 function fieldsEqual(
 	desired: UniverseDesiredState,
 	current: ResourceCurrentState<"universe">,
 ): boolean {
-	if (desired.universeId !== current.universeId) {
-		return false;
-	}
-
-	// Only compare flags the user has declared. An undeclared flag stays
-	// owned by whoever else writes to the universe (Creator Hub, another
-	// tool), so a concrete current value for it is not drift.
-	for (const flag of UNIVERSE_MANAGED_FLAGS) {
-		const isDesiredEnabled = desired[flag];
-		if (isDesiredEnabled !== undefined && isDesiredEnabled !== current[flag]) {
-			return false;
-		}
-	}
-
-	if (desired.displayName !== undefined && desired.displayName !== current.displayName) {
-		return false;
-	}
-
-	if (
-		"privateServerPriceRobux" in desired &&
-		desired.privateServerPriceRobux !== current.privateServerPriceRobux
-	) {
-		return false;
-	}
-
-	return declaredSocialLinksEqual(desired, current);
+	return changedFieldsBetween(desired, current).length === 0;
 }
 
 /**
@@ -165,6 +150,7 @@ function fieldsEqual(
  * drift-equality for the `universe` kind.
  */
 export const universeKind: ResourceKindModule<"universe"> = {
+	changedFieldsBetween,
 	entrySchema,
 	fieldsEqual,
 	flatten,

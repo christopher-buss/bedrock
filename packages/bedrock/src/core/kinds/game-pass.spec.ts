@@ -210,6 +210,47 @@ describe("gamePassKind", () => {
 			).toBeFalse();
 		});
 	});
+
+	describe("changedFieldsBetween", () => {
+		it("should return an empty list when every managed field matches", () => {
+			expect.assertions(1);
+
+			expect(
+				gamePassKind.changedFieldsBetween(gamePassDesired(), gamePassCurrent()),
+			).toStrictEqual([]);
+		});
+
+		it.for<[field: string, currentOverrides: Partial<ResourceCurrentStateGamePass>]>([
+			["description", { description: "Other" }],
+			["icon", { icon: { "en-us": "assets/other.png" } }],
+			["iconFileHashes", { iconFileHashes: { "en-us": ALT_HASH } }],
+			["name", { name: "Other Name" }],
+			["price", { price: 999 }],
+		])("should return [%s] when only %s differs", ([field, overrides]) => {
+			expect.assertions(1);
+
+			expect(
+				gamePassKind.changedFieldsBetween(gamePassDesired(), gamePassCurrent(overrides)),
+			).toStrictEqual([field]);
+		});
+
+		it("should return every changed field in declaration order when many differ", () => {
+			expect.assertions(1);
+
+			expect(
+				gamePassKind.changedFieldsBetween(
+					gamePassDesired({
+						name: "New",
+						description: "New",
+						icon: { "en-us": "assets/new.png" },
+						iconFileHashes: { "en-us": ALT_HASH },
+						price: 999,
+					}),
+					gamePassCurrent(),
+				),
+			).toStrictEqual(["description", "icon", "iconFileHashes", "name", "price"]);
+		});
+	});
 });
 
 type ResourceCurrentStateGamePass = Parameters<typeof gamePassKind.fieldsEqual>[1];

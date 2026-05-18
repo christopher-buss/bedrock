@@ -67,24 +67,38 @@ async function normalize(
 	};
 }
 
+function changedFieldsBetween(
+	desired: DeveloperProductDesiredState,
+	current: ResourceCurrentState<"developerProduct">,
+): ReadonlyArray<string> {
+	// `isRegionalPricingEnabled` and `storePageEnabled` are tri-state:
+	// `undefined` on the desired side means the user does not manage the
+	// field, so any current value is accepted as a match and the field is
+	// omitted from the change list.
+	return [
+		...(desired.description === current.description ? [] : ["description"]),
+		...(desired.icon?.["en-us"] === current.icon?.["en-us"] ? [] : ["icon"]),
+		...(iconHashesEqual(current.iconFileHashes, desired.iconFileHashes)
+			? []
+			: ["iconFileHashes"]),
+		...(desired.name === current.name ? [] : ["name"]),
+		...(desired.price === current.price ? [] : ["price"]),
+		...(desired.isRegionalPricingEnabled === undefined ||
+		desired.isRegionalPricingEnabled === current.isRegionalPricingEnabled
+			? []
+			: ["isRegionalPricingEnabled"]),
+		...(desired.storePageEnabled === undefined ||
+		desired.storePageEnabled === current.storePageEnabled
+			? []
+			: ["storePageEnabled"]),
+	];
+}
+
 function fieldsEqual(
 	desired: DeveloperProductDesiredState,
 	current: ResourceCurrentState<"developerProduct">,
 ): boolean {
-	// `isRegionalPricingEnabled` and `storePageEnabled` are tri-state:
-	// `undefined` on the desired side means the user does not manage the
-	// field, so any current value is accepted as a match.
-	return (
-		desired.description === current.description &&
-		desired.icon?.["en-us"] === current.icon?.["en-us"] &&
-		iconHashesEqual(current.iconFileHashes, desired.iconFileHashes) &&
-		desired.name === current.name &&
-		desired.price === current.price &&
-		(desired.isRegionalPricingEnabled === undefined ||
-			desired.isRegionalPricingEnabled === current.isRegionalPricingEnabled) &&
-		(desired.storePageEnabled === undefined ||
-			desired.storePageEnabled === current.storePageEnabled)
-	);
+	return changedFieldsBetween(desired, current).length === 0;
 }
 
 function assertReconcilable(
@@ -112,6 +126,7 @@ function assertReconcilable(
  */
 export const developerProductKind: ResourceKindModule<"developerProduct"> = {
 	assertReconcilable,
+	changedFieldsBetween,
 	entrySchema,
 	fieldsEqual,
 	flatten,

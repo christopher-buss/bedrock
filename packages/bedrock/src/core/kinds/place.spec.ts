@@ -227,6 +227,82 @@ describe("placeKind", () => {
 			},
 		);
 	});
+
+	describe("changedFieldsBetween", () => {
+		it("should return an empty list when every managed field matches", () => {
+			expect.assertions(1);
+
+			expect(placeKind.changedFieldsBetween(placeDesired(), placeCurrent())).toStrictEqual(
+				[],
+			);
+		});
+
+		it.for<[field: string, currentOverrides: Partial<ResourceCurrentStatePlace>]>([
+			["fileHash", { fileHash: ALT_HASH }],
+			["filePath", { filePath: "places/renamed.rbxl" }],
+			["placeId", { placeId: asRobloxAssetId("9999") }],
+		])("should return [%s] when only the identity field %s differs", ([field, overrides]) => {
+			expect.assertions(1);
+
+			expect(
+				placeKind.changedFieldsBetween(placeDesired(), placeCurrent(overrides)),
+			).toStrictEqual([field]);
+		});
+
+		it.for<
+			[
+				field: string,
+				desiredOverrides: Partial<PlaceDesiredStateOnly>,
+				currentOverrides: Partial<ResourceCurrentStatePlace>,
+			]
+		>([
+			["displayName", { displayName: "Lobby v2" }, { displayName: "Lobby" }],
+			["description", { description: "New body." }, { description: "Old body." }],
+			["serverSize", { serverSize: 25 }, { serverSize: 50 }],
+		])(
+			"should return [%s] when desired declares a different %s than current",
+			([field, desiredOverrides, currentOverrides]) => {
+				expect.assertions(1);
+
+				expect(
+					placeKind.changedFieldsBetween(
+						placeDesired(desiredOverrides),
+						placeCurrent(currentOverrides),
+					),
+				).toStrictEqual([field]);
+			},
+		);
+
+		it.for<[field: string, currentOverrides: Partial<ResourceCurrentStatePlace>]>([
+			["displayName", { displayName: "Server Owned" }],
+			["description", { description: "Server owned body." }],
+			["serverSize", { serverSize: 100 }],
+		])(
+			"should return an empty list when desired leaves %s unmanaged but current carries a value",
+			([, currentOverrides]) => {
+				expect.assertions(1);
+
+				expect(
+					placeKind.changedFieldsBetween(placeDesired(), placeCurrent(currentOverrides)),
+				).toStrictEqual([]);
+			},
+		);
+
+		it("should return every changed field in declaration order when many differ", () => {
+			expect.assertions(1);
+
+			expect(
+				placeKind.changedFieldsBetween(
+					placeDesired({
+						description: "New body.",
+						displayName: "New",
+						fileHash: ALT_HASH,
+					}),
+					placeCurrent({ description: "Old body.", displayName: "Old" }),
+				),
+			).toStrictEqual(["fileHash", "displayName", "description"]);
+		});
+	});
 });
 
 type ResourceCurrentStatePlace = Parameters<typeof placeKind.fieldsEqual>[1];
