@@ -749,6 +749,9 @@ const OPTIONAL_STRING = "string | undefined";
 
 const REDACTED_KEY = "redacted?";
 
+const NON_EMPTY_OVERRIDE_MESSAGE =
+	"a non-empty override object; use `redacted: true` for default placeholders";
+
 /**
  * Shared arktype constraint for any optional positive-integer field.
  * Reused by per-kind entry schemas so positive-integer fields validate
@@ -775,9 +778,7 @@ const gamePassRedactedOverride = type({
 	.onUndeclaredKey("reject")
 	.narrow((value, ctx) => {
 		if (Object.keys(value).length === 0) {
-			return ctx.mustBe(
-				"a non-empty override object; use `redacted: true` for default placeholders",
-			);
+			return ctx.mustBe(NON_EMPTY_OVERRIDE_MESSAGE);
 		}
 
 		return true;
@@ -792,9 +793,7 @@ const placeRedactedOverride = type({
 	.onUndeclaredKey("reject")
 	.narrow((value, ctx) => {
 		if (Object.keys(value).length === 0) {
-			return ctx.mustBe(
-				"a non-empty override object; use `redacted: true` for default placeholders",
-			);
+			return ctx.mustBe(NON_EMPTY_OVERRIDE_MESSAGE);
 		}
 
 		return true;
@@ -810,9 +809,7 @@ const productRedactedOverride = type({
 	.onUndeclaredKey("reject")
 	.narrow((value, ctx) => {
 		if (Object.keys(value).length === 0) {
-			return ctx.mustBe(
-				"a non-empty override object; use `redacted: true` for default placeholders",
-			);
+			return ctx.mustBe(NON_EMPTY_OVERRIDE_MESSAGE);
 		}
 
 		return true;
