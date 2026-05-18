@@ -16,6 +16,9 @@ it('Example 1', () => {
       case 'driverFailure': {
         return `driver failed for ${err.key}: ${err.cause.message}`
       }
+      case 'unexpectedThrow': {
+        return `unexpected error for ${err.key}`
+      }
       case 'updateUnsupported': {
         return `update not supported for ${err.key}`
       }

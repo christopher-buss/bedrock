@@ -189,6 +189,11 @@ function applyCauseDetail(cause: ApplyError): string {
 
 			return cause.cause.message;
 		}
+		case "unexpectedThrow": {
+			const message =
+				cause.cause instanceof Error ? cause.cause.message : String(cause.cause);
+			return `unexpected error: ${message}`;
+		}
 		case "updateUnsupported": {
 			return "update not supported";
 		}

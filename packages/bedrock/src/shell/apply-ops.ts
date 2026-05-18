@@ -30,6 +30,9 @@ import type { ResourceKey } from "../types/ids.ts";
  *         case "driverFailure": {
  *             return `driver failed for ${err.key}: ${err.cause.message}`;
  *         }
+ *         case "unexpectedThrow": {
+ *             return `unexpected error for ${err.key}`;
+ *         }
  *         case "updateUnsupported": {
  *             return `update not supported for ${err.key}`;
  *         }
@@ -49,6 +52,11 @@ export type ApplyError =
 			readonly cause: OpenCloudError;
 			readonly key: ResourceKey;
 			readonly kind: "driverFailure";
+	  }
+	| {
+			readonly cause: unknown;
+			readonly key: ResourceKey;
+			readonly kind: "unexpectedThrow";
 	  }
 	| {
 			readonly key: ResourceKey;
@@ -96,12 +104,10 @@ type UniverseOp = NonNoopOp & { readonly desired: UniverseDesiredState };
  * @returns `Ok(state)` when every operation succeeds, where `state` holds
  *   driver outputs for each non-noop op in dispatched order; or the first
  *   failure encountered.
- * @throws Whatever a Phase 2 driver rejects with outside its `Result`
- *   contract. Rejections from Phase 2 dispatches surface through
- *   `Promise.allSettled` and are rethrown by `applyOps`; wrap the call
- *   site in a try/catch when drivers are not trusted to contain their
- *   own rejections.
- * @rejects See `@throws`.
+ * A driver that throws outside its `Result` contract is caught at the
+ * dispatch boundary and translated to an `unexpectedThrow`
+ * `ApplyError` scoped to that op alone; the rest of the batch keeps
+ * running.
  * @example
  *
  * ```ts
@@ -201,10 +207,8 @@ export async function applyOps(
 		}
 	}
 
-	const phase2Settled = await Promise.allSettled(
-		phase2.map(async (op) => dispatchOp(op, registry)),
-	);
-	failures.push(...collectPhase2Results(phase2Settled, applied));
+	const phase2Results = await Promise.all(phase2.map(async (op) => dispatchOp(op, registry)));
+	failures.push(...collectPhase2Results(phase2Results, applied));
 
 	const [head, ...tail] = failures;
 	if (head === undefined) {
@@ -215,19 +219,15 @@ export async function applyOps(
 }
 
 function collectPhase2Results(
-	settledResults: ReadonlyArray<PromiseSettledResult<Result<ResourceCurrentState, ApplyError>>>,
+	results: ReadonlyArray<Result<ResourceCurrentState, ApplyError>>,
 	applied: Array<ResourceCurrentState>,
 ): Array<ApplyError> {
 	const failures: Array<ApplyError> = [];
-	for (const settled of settledResults) {
-		if (settled.status === "rejected") {
-			throw settled.reason;
-		}
-
-		if (settled.value.success) {
-			applied.push(settled.value.data);
+	for (const result of results) {
+		if (result.success) {
+			applied.push(result.data);
 		} else {
-			failures.push(settled.value.err);
+			failures.push(result.err);
 		}
 	}
 
@@ -293,7 +293,7 @@ async function applyOne<K extends ResourceKind>(
 	return updated.success ? updated : driverFailure(op.key, updated.err);
 }
 
-async function dispatchOp(
+async function dispatchByKind(
 	op: NonNoopOp,
 	registry: DriverRegistry,
 ): Promise<Result<ResourceCurrentState, ApplyError>> {
@@ -313,5 +313,16 @@ async function dispatchOp(
 		case "universe": {
 			return applyOne(op as UniverseOp, registry.universe);
 		}
+	}
+}
+
+async function dispatchOp(
+	op: NonNoopOp,
+	registry: DriverRegistry,
+): Promise<Result<ResourceCurrentState, ApplyError>> {
+	try {
+		return await dispatchByKind(op, registry);
+	} catch (err) {
+		return { err: { key: op.key, cause: err, kind: "unexpectedThrow" }, success: false };
 	}
 }

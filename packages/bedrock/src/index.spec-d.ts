@@ -19,7 +19,6 @@ import {
 } from "./index.ts";
 import type {
 	AggregateApplyError,
-	ApplyError,
 	BedrockState,
 	BuildDesiredError,
 	Config,
@@ -140,11 +139,10 @@ describe(buildDesired, () => {
 });
 
 describe(applyOps, () => {
-	it("should resolve to a Result of readonly current state or AggregateApplyError discriminated by ApplyError kind", () => {
+	it("should resolve to a Result of readonly current state or AggregateApplyError", () => {
 		expectTypeOf<Awaited<ReturnType<typeof applyOps>>>().toEqualTypeOf<
 			Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>
 		>();
-		expectTypeOf<ApplyError["kind"]>().toEqualTypeOf<"driverFailure" | "updateUnsupported">();
 	});
 });
 

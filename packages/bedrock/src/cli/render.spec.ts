@@ -127,6 +127,38 @@ describe(renderDeployError, () => {
 					applied: [],
 					failures: [
 						{
+							key: asResourceKey("vip-pass"),
+							cause: new Error("driver crashed"),
+							kind: "unexpectedThrow",
+						},
+					],
+				},
+				kind: "applyFailed",
+			},
+			expected: "apply failed for 'vip-pass': unexpected error: driver crashed",
+		},
+		{
+			err: {
+				cause: {
+					applied: [],
+					failures: [
+						{
+							key: asResourceKey("vip-pass"),
+							cause: "string error",
+							kind: "unexpectedThrow",
+						},
+					],
+				},
+				kind: "applyFailed",
+			},
+			expected: "apply failed for 'vip-pass': unexpected error: string error",
+		},
+		{
+			err: {
+				cause: {
+					applied: [],
+					failures: [
+						{
 							key: asResourceKey("main-place"),
 							cause: new ApiError("auth failed (401)", { statusCode: 401 }),
 							kind: "driverFailure",

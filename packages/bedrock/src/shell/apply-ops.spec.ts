@@ -389,6 +389,116 @@ describe(applyOps, () => {
 		expect(result).toStrictEqual({ data: [firstCurrent, secondCurrent], success: true });
 	});
 
+	it("should translate a synchronous driver throw into an unexpectedThrow without halting the batch", async () => {
+		expect.assertions(3);
+
+		const first = createOp(asResourceKey("first-pass"));
+		const second = createOp(asResourceKey("second-pass"));
+		const third = createOp(asResourceKey("third-pass"));
+		const firstCurrent = gamePassCurrent({ ...first.desired });
+		const thirdCurrent = gamePassCurrent({ ...third.desired });
+		const thrown = new Error("boom");
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockResolvedValueOnce({ data: firstCurrent, success: true })
+			.mockImplementationOnce(() => {
+				throw thrown;
+			})
+			.mockResolvedValueOnce({ data: thirdCurrent, success: true });
+
+		const result = await applyOps([first, second, third], registryWith(create));
+
+		expect(result).toStrictEqual({
+			err: {
+				applied: [firstCurrent, thirdCurrent],
+				failures: [{ key: second.key, cause: thrown, kind: "unexpectedThrow" }],
+			},
+			success: false,
+		});
+		expect(create).toHaveBeenCalledTimes(3);
+		expect(create.mock.calls.map((call) => call[0].key)).toStrictEqual([
+			"first-pass",
+			"second-pass",
+			"third-pass",
+		]);
+	});
+
+	it("should translate an async driver rejection into an unexpectedThrow", async () => {
+		expect.assertions(1);
+
+		const op = createOp(asResourceKey("vip-pass"));
+		const thrown = new Error("async boom");
+		const create = vi.fn<ResourceDriver<"gamePass">["create"]>().mockRejectedValue(thrown);
+
+		const result = await applyOps([op], registryWith(create));
+
+		expect(result).toStrictEqual({
+			err: {
+				applied: [],
+				failures: [{ key: op.key, cause: thrown, kind: "unexpectedThrow" }],
+			},
+			success: false,
+		});
+	});
+
+	it("should preserve a non-Error throw as the unexpectedThrow cause", async () => {
+		expect.assertions(1);
+
+		const op = createOp(asResourceKey("vip-pass"));
+		const create = vi.fn<ResourceDriver<"gamePass">["create"]>().mockImplementation(() => {
+			// eslint-disable-next-line ts/only-throw-error -- exercise non-Error throw
+			throw "string error";
+		});
+
+		const result = await applyOps([op], registryWith(create));
+
+		expect(result).toStrictEqual({
+			err: {
+				applied: [],
+				failures: [{ key: op.key, cause: "string error", kind: "unexpectedThrow" }],
+			},
+			success: false,
+		});
+	});
+
+	it("should translate a universe-driver throw in Phase 1 into an unexpectedThrow alongside Phase 2 ops", async () => {
+		expect.assertions(2);
+
+		const universeOp = {
+			key: UNIVERSE_SINGLETON_KEY,
+			desired: universeDesired({ voiceChatEnabled: true }),
+			type: "create",
+		} as const satisfies CreateOperation;
+		const gamePassOp = createOp(asResourceKey("vip-pass"));
+		const gamePassCurrentState = gamePassCurrent({ ...gamePassOp.desired });
+		const thrown = new Error("universe driver crashed");
+		const universeCreate = vi
+			.fn<ResourceDriver<"universe">["create"]>()
+			.mockImplementation(() => {
+				throw thrown;
+			});
+		const gamePassCreate = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockResolvedValue({ data: gamePassCurrentState, success: true });
+		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
+			gamePass: { create: gamePassCreate },
+			place: placeStub,
+			universe: { create: universeCreate },
+		};
+
+		const result = await applyOps([universeOp, gamePassOp], registry);
+
+		expect(gamePassCreate).toHaveBeenCalledOnce();
+		expect(result).toStrictEqual({
+			err: {
+				applied: [gamePassCurrentState],
+				failures: [{ key: UNIVERSE_SINGLETON_KEY, cause: thrown, kind: "unexpectedThrow" }],
+			},
+			success: false,
+		});
+	});
+
 	it("should dispatch every Phase 2 op past a failure and aggregate survivors with the failure", async () => {
 		expect.assertions(3);
 
