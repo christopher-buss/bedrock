@@ -2,7 +2,7 @@ import { describe, expectTypeOf, it } from "vitest";
 
 import type { ResourceKey } from "../types/ids.ts";
 import type { CreateOperation, NoopOperation, Operation, UpdateOperation } from "./operations.ts";
-import type { ResourceCurrentState, ResourceDesiredState } from "./resources.ts";
+import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "./resources.ts";
 
 describe("Operation", () => {
 	it("should enumerate exactly the three slice-1 variants in the type discriminator", () => {
@@ -51,6 +51,10 @@ describe("UpdateOperation", () => {
 });
 
 describe("NoopOperation", () => {
+	it("should carry the resource kind discriminator", () => {
+		expectTypeOf<NoopOperation["kind"]>().toEqualTypeOf<ResourceKind>();
+	});
+
 	it("should not carry a desired resource state", () => {
 		expectTypeOf<NoopOperation>().not.toHaveProperty("desired");
 	});

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- exhaustive per-ResourceKind dispatch (applyOne, dispatchByKind, createSucceededEvent) plus progress emission helpers keep the apply pipeline cohesive in one module; splitting would scatter related code without improving navigation. */
 import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 
 import type { Operation } from "../core/operations.ts";
@@ -10,8 +11,21 @@ import type {
 	ResourceKind,
 	UniverseDesiredState,
 } from "../core/resources.ts";
+import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
+
+/**
+ * Optional wiring `applyOps` uses to emit per-resource and aggregate progress
+ * events. When omitted, `applyOps` runs silently (backward-compatible with
+ * pre-progress callers).
+ */
+export interface ApplyOpsReporting {
+	/** Environment name stamped on every emitted event. */
+	readonly environment: string;
+	/** Sink the apply pipeline pushes events into. */
+	readonly progress: ProgressPort;
+}
 
 /**
  * Failure surfaced by `applyOps` when an operation cannot be applied.
@@ -99,6 +113,45 @@ type GamePassOp = NonNoopOp & { readonly desired: GamePassDesiredState };
 type PlaceOp = NonNoopOp & { readonly desired: PlaceDesiredState };
 type UniverseOp = NonNoopOp & { readonly desired: UniverseDesiredState };
 
+interface OutcomePair {
+	readonly op: NonNoopOp;
+	readonly outcome: Result<ResourceCurrentState, ApplyError>;
+}
+
+interface DispatchInPhasesInput {
+	readonly phase1: ReadonlyArray<NonNoopOp>;
+	readonly phase2: ReadonlyArray<NonNoopOp>;
+	readonly registry: DriverRegistry;
+	readonly reporting: ApplyOpsReporting | undefined;
+}
+
+interface ApplySummaryInput {
+	readonly end: number;
+	readonly failures: ReadonlyArray<ApplyError>;
+	readonly noopCount: number;
+	readonly pairs: ReadonlyArray<OutcomePair>;
+	readonly reporting: ApplyOpsReporting | undefined;
+	readonly start: number;
+}
+
+interface CreateSucceededInput {
+	readonly key: ResourceKey;
+	readonly environment: string;
+	readonly state: ResourceCurrentState;
+}
+
+interface TerminalEventInput {
+	readonly environment: string;
+	readonly op: NonNoopOp;
+	readonly outcome: Result<ResourceCurrentState, ApplyError>;
+}
+
+interface ReportAndDispatchInput {
+	readonly op: NonNoopOp;
+	readonly registry: DriverRegistry;
+	readonly reporting: ApplyOpsReporting | undefined;
+}
+
 /**
  * Dispatch reconciliation operations to their matching drivers in two phases
  * with continue-on-failure semantics. Phase 1 runs universe ops sequentially
@@ -131,104 +184,44 @@ type UniverseOp = NonNoopOp & { readonly desired: UniverseDesiredState };
  *   declaration order.
  * @param registry - Per-kind driver table; dispatch uses `op.desired.kind`
  *   as the index.
+ * @param reporting - Optional progress wiring. When supplied, `applyOps`
+ *   emits one `resourceOpStarted` and one terminal event per non-noop op,
+ *   one `resourceOpNoop` per noop op, and a final `applySummary` carrying
+ *   the per-type counts and the wall-clock apply duration. When omitted,
+ *   no events fire.
  * @returns `Ok(state)` when every op succeeded; otherwise
  *   `Err(AggregateApplyError)` with the survivors and the non-empty
  *   failures tuple.
  * @example
  *
  * ```ts
- * import {
- *     applyOps,
- *     asResourceKey,
- *     asRobloxAssetId,
- *     asSha256Hex,
- *     type DriverRegistry,
- *     type Operation,
- * } from "@bedrock-rbx/core";
+ * import { applyOps, type DriverRegistry } from "@bedrock-rbx/core";
  *
- * const registry: DriverRegistry = {
- *     gamePass: {
- *         async create(desired) {
- *             return {
- *                 data: {
- *                     ...desired,
- *                     outputs: {
- *                         assetId: asRobloxAssetId("9876543210"),
- *                         iconAssetIds: { "en-us": asRobloxAssetId("1122334455") },
- *                     },
- *                 },
- *                 success: true,
- *             };
- *         },
- *     },
- *     place: {
- *         async create(desired) {
- *             return {
- *                 data: { ...desired, outputs: { versionNumber: 1 } },
- *                 success: true,
- *             };
- *         },
- *     },
- *     universe: {
- *         async create(desired) {
- *             return {
- *                 data: { ...desired, outputs: { rootPlaceId: asRobloxAssetId("4711") } },
- *                 success: true,
- *             };
- *         },
- *     },
- *     developerProduct: {
- *         async create(desired) {
- *             return {
- *                 data: {
- *                     ...desired,
- *                     outputs: { productId: asRobloxAssetId("8172635495") },
- *                 },
- *                 success: true,
- *             };
- *         },
- *     },
+ * const noopRegistry: DriverRegistry = {
+ *     developerProduct: { create: async () => ({ err: new Error("stub") as never, success: false }) },
+ *     gamePass: { create: async () => ({ err: new Error("stub") as never, success: false }) },
+ *     place: { create: async () => ({ err: new Error("stub") as never, success: false }) },
+ *     universe: { create: async () => ({ err: new Error("stub") as never, success: false }) },
  * };
  *
- * const ops: ReadonlyArray<Operation> = [
- *     {
- *         key: asResourceKey("vip-pass"),
- *         type: "create",
- *         desired: {
- *             key: asResourceKey("vip-pass"),
- *             name: "VIP Pass",
- *             description: "Grants VIP perks.",
- *             icon: { "en-us": "assets/vip-icon.png" },
- *             iconFileHashes: {
- *                 "en-us": asSha256Hex(
- *                     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
- *                 ),
- *             },
- *             kind: "gamePass",
- *             price: 500,
- *         },
- *     },
- * ];
- *
- * return applyOps(ops, registry).then((result) => {
- *     expect(result.success).toBe(true);
- *     expect(result.success && result.data).toHaveLength(1);
+ * return applyOps([], noopRegistry).then((result) => {
+ *     expect(result).toStrictEqual({ data: [], success: true });
  * });
  * ```
  */
+// eslint-disable-next-line better-max-params/better-max-params -- additive optional progress hook on the established two-positional-deps shape; folding into an options bag would break every caller for no semantic gain.
 export async function applyOps(
 	ops: ReadonlyArray<Operation>,
 	registry: DriverRegistry,
+	reporting?: ApplyOpsReporting,
 ): Promise<Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>> {
-	const { phase1, phase2 } = partitionByPhase(ops);
+	const start = Date.now();
+	const { noopCount, phase1, phase2 } = partitionAndEmitNoops(ops, reporting);
+	const pairs = await dispatchInPhases({ phase1, phase2, registry, reporting });
+	const end = Date.now();
 
-	const phase1Outcomes: Array<Result<ResourceCurrentState, ApplyError>> = [];
-	for (const op of phase1) {
-		phase1Outcomes.push(await dispatchOp(op, registry));
-	}
-
-	const phase2Outcomes = await Promise.all(phase2.map(async (op) => dispatchOp(op, registry)));
-	const { applied, failures } = partitionOutcomes([...phase1Outcomes, ...phase2Outcomes]);
+	const { applied, failures } = partitionOutcomes(pairs.map((pair) => pair.outcome));
+	emitApplySummary({ end, failures, noopCount, pairs, reporting, start });
 
 	const [head, ...tail] = failures;
 	if (head === undefined) {
@@ -310,6 +303,140 @@ async function dispatchOp(
 	}
 }
 
+/* eslint-disable-next-line max-lines-per-function -- exhaustive per-ResourceKind switch with literal returns required for per-kind narrowing of `outputs`; consolidating would either reintroduce casts or hide the discriminator. */
+function createSucceededEvent(input: CreateSucceededInput): ProgressEvent {
+	const { key, environment, state } = input;
+	switch (state.kind) {
+		case "developerProduct": {
+			return {
+				key,
+				environment,
+				kind: "resourceOpSucceeded",
+				opType: "create",
+				outputs: state.outputs,
+				resourceKind: "developerProduct",
+			};
+		}
+		case "gamePass": {
+			return {
+				key,
+				environment,
+				kind: "resourceOpSucceeded",
+				opType: "create",
+				outputs: state.outputs,
+				resourceKind: "gamePass",
+			};
+		}
+		case "place": {
+			return {
+				key,
+				environment,
+				kind: "resourceOpSucceeded",
+				opType: "create",
+				outputs: state.outputs,
+				resourceKind: "place",
+			};
+		}
+		case "universe": {
+			return {
+				key,
+				environment,
+				kind: "resourceOpSucceeded",
+				opType: "create",
+				outputs: state.outputs,
+				resourceKind: "universe",
+			};
+		}
+	}
+}
+
+function toTerminalEvent(input: TerminalEventInput): ProgressEvent {
+	const { environment, op, outcome } = input;
+	if (!outcome.success) {
+		return {
+			key: op.key,
+			environment,
+			error: outcome.err,
+			kind: "resourceOpFailed",
+			opType: op.type,
+			resourceKind: op.desired.kind,
+		};
+	}
+
+	if (op.type === "update") {
+		return {
+			key: op.key,
+			changedFields: op.changedFields,
+			environment,
+			kind: "resourceOpSucceeded",
+			opType: "update",
+			resourceKind: op.desired.kind,
+		};
+	}
+
+	return createSucceededEvent({ key: op.key, environment, state: outcome.data });
+}
+
+async function reportAndDispatch(input: ReportAndDispatchInput): Promise<OutcomePair> {
+	const { op, registry, reporting } = input;
+	if (reporting !== undefined) {
+		reporting.progress.emit({
+			key: op.key,
+			environment: reporting.environment,
+			kind: "resourceOpStarted",
+			opType: op.type,
+			resourceKind: op.desired.kind,
+		});
+	}
+
+	const outcome = await dispatchOp(op, registry);
+	if (reporting !== undefined) {
+		reporting.progress.emit(
+			toTerminalEvent({ environment: reporting.environment, op, outcome }),
+		);
+	}
+
+	return { op, outcome };
+}
+
+async function dispatchInPhases(input: DispatchInPhasesInput): Promise<ReadonlyArray<OutcomePair>> {
+	const phase1Pairs: Array<OutcomePair> = [];
+	for (const op of input.phase1) {
+		phase1Pairs.push(
+			await reportAndDispatch({ op, registry: input.registry, reporting: input.reporting }),
+		);
+	}
+
+	const phase2Pairs = await Promise.all(
+		input.phase2.map(async (op) => {
+			return reportAndDispatch({ op, registry: input.registry, reporting: input.reporting });
+		}),
+	);
+	return [...phase1Pairs, ...phase2Pairs];
+}
+
+function emitApplySummary(input: ApplySummaryInput): void {
+	if (input.reporting === undefined) {
+		return;
+	}
+
+	const created = input.pairs.filter(
+		(pair) => pair.outcome.success && pair.op.type === "create",
+	).length;
+	const updated = input.pairs.filter(
+		(pair) => pair.outcome.success && pair.op.type === "update",
+	).length;
+	input.reporting.progress.emit({
+		created,
+		durationMs: input.end - input.start,
+		environment: input.reporting.environment,
+		failed: input.failures.length,
+		kind: "applySummary",
+		noop: input.noopCount,
+		updated,
+	});
+}
+
 function partitionOutcomes(outcomes: ReadonlyArray<Result<ResourceCurrentState, ApplyError>>): {
 	readonly applied: ReadonlyArray<ResourceCurrentState>;
 	readonly failures: ReadonlyArray<ApplyError>;
@@ -319,23 +446,43 @@ function partitionOutcomes(outcomes: ReadonlyArray<Result<ResourceCurrentState, 
 	return { applied, failures };
 }
 
-function partitionByPhase(ops: ReadonlyArray<Operation>): {
+function emitNoop(
+	op: Extract<Operation, { readonly type: "noop" }>,
+	reporting: ApplyOpsReporting | undefined,
+): void {
+	if (reporting === undefined) {
+		return;
+	}
+
+	reporting.progress.emit({
+		key: op.key,
+		environment: reporting.environment,
+		kind: "resourceOpNoop",
+		resourceKind: op.kind,
+	});
+}
+
+function partitionAndEmitNoops(
+	ops: ReadonlyArray<Operation>,
+	reporting: ApplyOpsReporting | undefined,
+): {
+	readonly noopCount: number;
 	readonly phase1: ReadonlyArray<NonNoopOp>;
 	readonly phase2: ReadonlyArray<NonNoopOp>;
 } {
 	const phase1: Array<NonNoopOp> = [];
 	const phase2: Array<NonNoopOp> = [];
+	let noopCount = 0;
 	for (const op of ops) {
 		if (op.type === "noop") {
-			continue;
-		}
-
-		if (op.desired.kind === "universe") {
+			noopCount += 1;
+			emitNoop(op, reporting);
+		} else if (op.desired.kind === "universe") {
 			phase1.push(op);
 		} else {
 			phase2.push(op);
 		}
 	}
 
-	return { phase1, phase2 };
+	return { noopCount, phase1, phase2 };
 }

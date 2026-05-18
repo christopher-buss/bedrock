@@ -20,13 +20,20 @@ interface ResolvedDeploy {
 	readonly deploy: typeof defaultDeploy;
 	readonly exit: (code: number) => void;
 	readonly loadConfig: typeof defaultLoadConfig;
-	readonly progress: ProgressPort;
+	readonly progressOverride: ProgressPort | undefined;
 }
 
 interface DispatchInputs {
 	readonly config: Config;
 	readonly environments: ReadonlyArray<string>;
 	readonly getEnv: (name: string) => string | undefined;
+	readonly progress: ProgressPort;
+	readonly resolved: ResolvedDeploy;
+}
+
+interface DispatchAndReportInput {
+	readonly loaded: Config;
+	readonly parsed: CommonOptions;
 	readonly resolved: ResolvedDeploy;
 }
 
@@ -58,7 +65,7 @@ function resolveDeploy(deps: ProgDeps): ResolvedDeploy {
 		deploy: deps.deploy ?? defaultDeploy,
 		exit: deps.exit ?? ((code: number) => process.exit(code)),
 		loadConfig: deps.loadConfig ?? defaultLoadConfig,
-		progress: deps.progress ?? createClackProgressAdapter({ clack }),
+		progressOverride: deps.progress,
 	};
 }
 
@@ -66,23 +73,28 @@ function loadOptionsFor(parsed: CommonOptions): LoadConfigOptions | undefined {
 	return parsed.configFile === undefined ? undefined : { configFile: parsed.configFile };
 }
 
+function cancelAsFailed(clack: ClackPort): void {
+	clack.cancel("deploy failed");
+}
+
 async function dispatchEnvironments(inputs: DispatchInputs): Promise<ReadonlyArray<string>> {
-	const { config, environments, getEnv, resolved } = inputs;
+	const { config, environments, getEnv, progress, resolved } = inputs;
 	const failed: Array<string> = [];
 	for (const environment of environments) {
 		const result = await resolved.deploy({
 			config,
 			environment,
 			getEnv,
+			progress,
 		});
 		if (result.success) {
-			resolved.progress.emit({
+			progress.emit({
 				environment,
 				kind: "deploySuccess",
 				resourceCount: result.data.resources.length,
 			});
 		} else {
-			resolved.progress.emit({ environment, error: result.err, kind: "deployFailure" });
+			progress.emit({ environment, error: result.err, kind: "deployFailure" });
 			failed.push(environment);
 		}
 	}
@@ -95,8 +107,26 @@ function buildGetEnvironment(parsed: CommonOptions): (name: string) => string | 
 	return (name) => overrides[name] ?? process.env[name];
 }
 
-function cancelAsFailed(clack: ClackPort): void {
-	clack.cancel("deploy failed");
+async function dispatchAndReport(input: DispatchAndReportInput): Promise<number> {
+	const { loaded, parsed, resolved } = input;
+	const progress: ProgressPort =
+		resolved.progressOverride ??
+		createClackProgressAdapter({ clack: resolved.clack, config: loaded });
+
+	const failures = await dispatchEnvironments({
+		config: loaded,
+		environments: parsed.environments,
+		getEnv: buildGetEnvironment(parsed),
+		progress,
+		resolved,
+	});
+	if (failures.length > 0) {
+		cancelAsFailed(resolved.clack);
+		return EXIT_ERROR;
+	}
+
+	resolved.clack.outro("deploy succeeded");
+	return EXIT_OK;
 }
 
 async function runDeploy(
@@ -119,17 +149,5 @@ async function runDeploy(
 		return EXIT_ERROR;
 	}
 
-	const failures = await dispatchEnvironments({
-		config: loaded.data,
-		environments: parsed.data.environments,
-		getEnv: buildGetEnvironment(parsed.data),
-		resolved,
-	});
-	if (failures.length > 0) {
-		cancelAsFailed(resolved.clack);
-		return EXIT_ERROR;
-	}
-
-	resolved.clack.outro("deploy succeeded");
-	return EXIT_OK;
+	return dispatchAndReport({ loaded: loaded.data, parsed: parsed.data, resolved });
 }

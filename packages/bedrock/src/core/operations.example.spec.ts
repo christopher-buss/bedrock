@@ -87,9 +87,11 @@ it('Example 3', () => {
 it('Example 4', () => {
   const op: NoopOperation = {
     key: asResourceKey('vip-pass'),
+    kind: 'gamePass',
     type: 'noop',
   }
   expect(op.type).toBe('noop')
+  expect(op.kind).toBe('gamePass')
   expect(op.key).toBe('vip-pass')
 })
 
@@ -109,6 +111,7 @@ it('Example 5', () => {
   }
   const op: Operation = {
     key: asResourceKey('vip-pass'),
+    kind: 'gamePass',
     type: 'noop',
   }
   expect(describeOp(op)).toBe('noop vip-pass')

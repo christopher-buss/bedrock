@@ -56,7 +56,7 @@ describe(diff, () => {
 		const currentEntry = gamePassCurrent();
 
 		expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-			{ key: desiredEntry.key, type: "noop" },
+			{ key: desiredEntry.key, kind: desiredEntry.kind, type: "noop" },
 		]);
 	});
 
@@ -100,7 +100,7 @@ describe(diff, () => {
 		const currentEntry = gamePassCurrent({ price: undefined });
 
 		expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-			{ key: desiredEntry.key, type: "noop" },
+			{ key: desiredEntry.key, kind: desiredEntry.kind, type: "noop" },
 		]);
 	});
 
@@ -151,7 +151,7 @@ describe(diff, () => {
 
 		expect(ops).toStrictEqual([
 			{ key: createKey, desired: desiredCreate, type: "create" },
-			{ key: matchingKey, type: "noop" },
+			{ key: matchingKey, kind: "gamePass", type: "noop" },
 			{
 				key: driftedKey,
 				changedFields: ["name"],
@@ -170,7 +170,7 @@ describe(diff, () => {
 			const currentEntry = developerProductCurrent({ price: 100 });
 
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-				{ key: desiredEntry.key, type: "noop" },
+				{ key: desiredEntry.key, kind: desiredEntry.kind, type: "noop" },
 			]);
 		});
 
@@ -257,8 +257,8 @@ describe(diff, () => {
 		);
 
 		expect(ops).toStrictEqual([
-			{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
-			{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+			{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", type: "noop" },
+			{ key: UNIVERSE_SINGLETON_KEY, kind: "place", type: "noop" },
 		]);
 	});
 
@@ -270,7 +270,7 @@ describe(diff, () => {
 			const currentEntry = placeCurrent();
 
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-				{ key: PLACE_KEY, type: "noop" },
+				{ key: PLACE_KEY, kind: "place", type: "noop" },
 			]);
 		});
 
@@ -433,7 +433,7 @@ describe(diff, () => {
 			const currentEntry = universeCurrent({ voiceChatEnabled: false });
 
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+				{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", type: "noop" },
 			]);
 		});
 
@@ -444,7 +444,7 @@ describe(diff, () => {
 			const currentEntry = universeCurrent({ voiceChatEnabled: true });
 
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+				{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", type: "noop" },
 			]);
 		});
 
@@ -525,7 +525,7 @@ describe(diff, () => {
 				const currentEntry = universeCurrent({ [flag]: true });
 
 				expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-					{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+					{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", type: "noop" },
 				]);
 			},
 		);
@@ -539,7 +539,7 @@ describe(diff, () => {
 				const currentEntry = universeCurrent({ [flag]: true, voiceChatEnabled: true });
 
 				expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-					{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+					{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", type: "noop" },
 				]);
 			},
 		);
@@ -559,7 +559,7 @@ describe(diff, () => {
 			const currentEntry = universeCurrent(allFlags);
 
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+				{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", type: "noop" },
 			]);
 		});
 
@@ -602,7 +602,7 @@ describe(diff, () => {
 			});
 
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+				{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", type: "noop" },
 			]);
 		});
 
@@ -630,7 +630,7 @@ describe(diff, () => {
 			const currentEntry = universeCurrent({ displayName: "Fun Universe" });
 
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+				{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", type: "noop" },
 			]);
 		});
 
@@ -644,7 +644,7 @@ describe(diff, () => {
 			});
 
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+				{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", type: "noop" },
 			]);
 		});
 
@@ -689,7 +689,7 @@ describe(diff, () => {
 			const currentEntry = universeCurrent({ privateServerPriceRobux: 100 });
 
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+				{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", type: "noop" },
 			]);
 		});
 
@@ -700,7 +700,7 @@ describe(diff, () => {
 			const currentEntry = universeCurrent({ privateServerPriceRobux: undefined });
 
 			expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-				{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+				{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", type: "noop" },
 			]);
 		});
 
@@ -716,7 +716,7 @@ describe(diff, () => {
 					const currentEntry = universeCurrent({ [field]: sampleLink });
 
 					expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-						{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+						{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", type: "noop" },
 					]);
 				},
 			);
@@ -814,7 +814,7 @@ describe(diff, () => {
 					const currentEntry = universeCurrent();
 
 					expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-						{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+						{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", type: "noop" },
 					]);
 				},
 			);
@@ -828,7 +828,7 @@ describe(diff, () => {
 					const currentEntry = universeCurrent({ [field]: sampleLink });
 
 					expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-						{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+						{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", type: "noop" },
 					]);
 				},
 			);
@@ -845,7 +845,7 @@ describe(diff, () => {
 					});
 
 					expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-						{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+						{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", type: "noop" },
 					]);
 				},
 			);
@@ -860,7 +860,7 @@ describe(diff, () => {
 				});
 
 				expect(diff([desiredEntry], [currentEntry])).toStrictEqual([
-					{ key: UNIVERSE_SINGLETON_KEY, type: "noop" },
+					{ key: UNIVERSE_SINGLETON_KEY, kind: "universe", type: "noop" },
 				]);
 			});
 

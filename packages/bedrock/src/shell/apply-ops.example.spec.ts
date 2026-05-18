@@ -5,10 +5,7 @@ import {
   type ApplyError,
   type AggregateApplyError,
   applyOps,
-  asRobloxAssetId,
-  asSha256Hex,
   type DriverRegistry,
-  type Operation,
 } from '@bedrock-rbx/core'
 
 it('Example 1', () => {
@@ -33,84 +30,32 @@ it('Example 1', () => {
 })
 
 it('Example 2', () => {
-  function summarise(err: AggregateApplyError): string {
+  function summarize(err: AggregateApplyError): string {
     return `${err.applied.length} survived, ${err.failures.length} failed`
   }
   const err: AggregateApplyError = {
     applied: [],
     failures: [{ key: asResourceKey('vip-pass'), kind: 'updateUnsupported' }],
   }
-  expect(summarise(err)).toBe('0 survived, 1 failed')
+  expect(summarize(err)).toBe('0 survived, 1 failed')
 })
 
 it('Example 3', () => {
-  const registry: DriverRegistry = {
+  const noopRegistry: DriverRegistry = {
+    developerProduct: {
+      create: async () => ({ err: new Error('stub') as never, success: false }),
+    },
     gamePass: {
-      async create(desired) {
-        return {
-          data: {
-            ...desired,
-            outputs: {
-              assetId: asRobloxAssetId('9876543210'),
-              iconAssetIds: { 'en-us': asRobloxAssetId('1122334455') },
-            },
-          },
-          success: true,
-        }
-      },
+      create: async () => ({ err: new Error('stub') as never, success: false }),
     },
     place: {
-      async create(desired) {
-        return {
-          data: { ...desired, outputs: { versionNumber: 1 } },
-          success: true,
-        }
-      },
+      create: async () => ({ err: new Error('stub') as never, success: false }),
     },
     universe: {
-      async create(desired) {
-        return {
-          data: {
-            ...desired,
-            outputs: { rootPlaceId: asRobloxAssetId('4711') },
-          },
-          success: true,
-        }
-      },
-    },
-    developerProduct: {
-      async create(desired) {
-        return {
-          data: {
-            ...desired,
-            outputs: { productId: asRobloxAssetId('8172635495') },
-          },
-          success: true,
-        }
-      },
+      create: async () => ({ err: new Error('stub') as never, success: false }),
     },
   }
-  const ops: ReadonlyArray<Operation> = [
-    {
-      key: asResourceKey('vip-pass'),
-      type: 'create',
-      desired: {
-        key: asResourceKey('vip-pass'),
-        name: 'VIP Pass',
-        description: 'Grants VIP perks.',
-        icon: { 'en-us': 'assets/vip-icon.png' },
-        iconFileHashes: {
-          'en-us': asSha256Hex(
-            'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-          ),
-        },
-        kind: 'gamePass',
-        price: 500,
-      },
-    },
-  ]
-  return applyOps(ops, registry).then((result) => {
-    expect(result.success).toBe(true)
-    expect(result.success && result.data).toHaveLength(1)
+  return applyOps([], noopRegistry).then((result) => {
+    expect(result).toStrictEqual({ data: [], success: true })
   })
 })

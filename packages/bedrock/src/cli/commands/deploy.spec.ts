@@ -385,4 +385,37 @@ describe(deployCommand, () => {
 			exitSpy.mockRestore();
 		}
 	});
+
+	it("should thread the injected progress port into the underlying deploy() call", async () => {
+		expect.assertions(1);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = fakeDeploy([{ data: bedrockState("production", 0), success: true }]);
+		const progress: ProgressPort = { emit: vi.fn<ProgressPort["emit"]>() };
+		const deps = makeDeps({ deploy, loadConfig, progress });
+
+		await deployCommand(deps)({ env: "production" });
+
+		expect(deploy).toHaveBeenCalledWith(expect.objectContaining({ progress }));
+	});
+
+	it("should render stateWritten through the default clack adapter with the loaded config's state label", async () => {
+		expect.assertions(1);
+
+		const configWithGist: Config = {
+			environments: { production: {} },
+			state: { backend: "gist", gistId: "abc-test" },
+		};
+		const clack = fakeClackPort();
+		const loadConfig = fakeLoad({ data: configWithGist, success: true });
+		const deploy = vi.fn<DeployFunc>(async (options) => {
+			options.progress?.emit({ environment: "production", kind: "stateWritten" });
+			return { data: bedrockState("production", 0), success: true };
+		});
+		const deps = makeDeps({ clack, deploy, loadConfig });
+
+		await deployCommand(deps)({ env: "production" });
+
+		expect(clack.logMessage).toHaveBeenCalledWith("State written to gist:abc-test");
+	});
 });

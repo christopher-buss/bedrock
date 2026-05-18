@@ -10,10 +10,11 @@ import {
 	universeCurrent,
 	universeDesired,
 } from "#tests/helpers/resources";
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import type { CreateOperation, UpdateOperation } from "../core/operations.ts";
 import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
+import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import { asResourceKey, type ResourceKey } from "../types/ids.ts";
 import { applyOps } from "./apply-ops.ts";
@@ -105,7 +106,11 @@ describe(applyOps, () => {
 			.mockResolvedValueOnce({ data: secondCurrent, success: true });
 
 		const result = await applyOps(
-			[firstOp, { key: asResourceKey("sync-pass"), type: "noop" }, secondOp],
+			[
+				firstOp,
+				{ key: asResourceKey("sync-pass"), kind: "gamePass", type: "noop" },
+				secondOp,
+			],
 			registryWith(create),
 		);
 
@@ -1113,6 +1118,324 @@ describe(applyOps, () => {
 			expect(failure.cause.message).toContain("got gamePass");
 			expect(failure.cause.message).toContain(op.key);
 			expect(update).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("progress reporting", () => {
+		function fakeProgress(): { calls: Array<ProgressEvent>; port: ProgressPort } {
+			const calls: Array<ProgressEvent> = [];
+			return {
+				calls,
+				port: {
+					emit(event) {
+						calls.push(event);
+					},
+				},
+			};
+		}
+
+		it("should emit resourceOpStarted before the driver is called", async () => {
+			expect.assertions(2);
+
+			const op = createOp(asResourceKey("vip-pass"));
+			const created = gamePassCurrent({ ...op.desired });
+			const sequence: Array<string> = [];
+			const create = vi
+				.fn<ResourceDriver<"gamePass">["create"]>()
+				.mockImplementation(async () => {
+					sequence.push("driver");
+					return { data: created, success: true };
+				});
+			const { calls, port } = fakeProgress();
+			const trackedPort: ProgressPort = {
+				emit(event) {
+					if (event.kind === "resourceOpStarted") {
+						sequence.push("started");
+					}
+
+					port.emit(event);
+				},
+			};
+
+			await applyOps([op], registryWith(create), {
+				environment: "production",
+				progress: trackedPort,
+			});
+
+			expect(sequence).toStrictEqual(["started", "driver"]);
+			expect(calls[0]).toStrictEqual({
+				key: op.key,
+				environment: "production",
+				kind: "resourceOpStarted",
+				opType: "create",
+				resourceKind: "gamePass",
+			});
+		});
+
+		it("should emit a resourceOpSucceeded create event carrying outputs and resourceKind", async () => {
+			expect.assertions(1);
+
+			const op = createOp(asResourceKey("vip-pass"));
+			const created = gamePassCurrent({ ...op.desired });
+			const create = vi
+				.fn<ResourceDriver<"gamePass">["create"]>()
+				.mockResolvedValue({ data: created, success: true });
+			const { calls, port } = fakeProgress();
+
+			await applyOps([op], registryWith(create), {
+				environment: "production",
+				progress: port,
+			});
+
+			expect(calls).toContainEqual({
+				key: op.key,
+				environment: "production",
+				kind: "resourceOpSucceeded",
+				opType: "create",
+				outputs: created.outputs,
+				resourceKind: "gamePass",
+			});
+		});
+
+		it("should emit a resourceOpSucceeded update event carrying changedFields and resourceKind", async () => {
+			expect.assertions(1);
+
+			const op = updateOp(asResourceKey("vip-pass"));
+			const updated = gamePassCurrent({ ...op.desired });
+			const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
+			const update = vi
+				.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>()
+				.mockResolvedValue({ data: updated, success: true });
+			const { calls, port } = fakeProgress();
+
+			await applyOps([op], registryWith(create, update), {
+				environment: "production",
+				progress: port,
+			});
+
+			expect(calls).toContainEqual({
+				key: op.key,
+				changedFields: op.changedFields,
+				environment: "production",
+				kind: "resourceOpSucceeded",
+				opType: "update",
+				resourceKind: "gamePass",
+			});
+		});
+
+		it("should emit a resourceOpNoop for each noop op in input order without a started/terminal pair", async () => {
+			expect.assertions(2);
+
+			const firstOp = createOp(asResourceKey("first-pass"));
+			const noopKey = asResourceKey("sync-pass");
+			const firstCurrent = gamePassCurrent({ ...firstOp.desired });
+			const create = vi
+				.fn<ResourceDriver<"gamePass">["create"]>()
+				.mockResolvedValue({ data: firstCurrent, success: true });
+			const { calls, port } = fakeProgress();
+
+			await applyOps(
+				[firstOp, { key: noopKey, kind: "gamePass", type: "noop" }],
+				registryWith(create),
+				{ environment: "production", progress: port },
+			);
+
+			const noopEvents = calls.filter((event) => event.kind === "resourceOpNoop");
+
+			expect(noopEvents).toStrictEqual([
+				{
+					key: noopKey,
+					environment: "production",
+					kind: "resourceOpNoop",
+					resourceKind: "gamePass",
+				},
+			]);
+
+			const keyedEvents = calls.filter(
+				(event): event is Extract<ProgressEvent, { key: ResourceKey }> => "key" in event,
+			);
+
+			expect(
+				keyedEvents.some(
+					(event) => event.kind !== "resourceOpNoop" && event.key === noopKey,
+				),
+			).toBeFalse();
+		});
+
+		it("should emit a resourceOpFailed event carrying the driverFailure ApplyError", async () => {
+			expect.assertions(1);
+
+			const op = createOp(asResourceKey("vip-pass"));
+			const cause = new OpenCloudError("boom");
+			const create = vi
+				.fn<ResourceDriver<"gamePass">["create"]>()
+				.mockResolvedValue({ err: cause, success: false });
+			const { calls, port } = fakeProgress();
+
+			await applyOps([op], registryWith(create), {
+				environment: "production",
+				progress: port,
+			});
+
+			expect(calls).toContainEqual({
+				key: op.key,
+				environment: "production",
+				error: { key: op.key, cause, kind: "driverFailure" },
+				kind: "resourceOpFailed",
+				opType: "create",
+				resourceKind: "gamePass",
+			});
+		});
+
+		it("should emit a resourceOpFailed event carrying the unexpectedThrow ApplyError", async () => {
+			expect.assertions(1);
+
+			const op = createOp(asResourceKey("vip-pass"));
+			const thrown = new Error("boom");
+			const create = vi.fn<ResourceDriver<"gamePass">["create"]>().mockImplementation(() => {
+				throw thrown;
+			});
+			const { calls, port } = fakeProgress();
+
+			await applyOps([op], registryWith(create), {
+				environment: "production",
+				progress: port,
+			});
+
+			expect(calls).toContainEqual({
+				key: op.key,
+				environment: "production",
+				error: { key: op.key, cause: thrown, kind: "unexpectedThrow" },
+				kind: "resourceOpFailed",
+				opType: "create",
+				resourceKind: "gamePass",
+			});
+		});
+
+		it("should emit a resourceOpFailed event carrying the updateUnsupported ApplyError", async () => {
+			expect.assertions(1);
+
+			const op = updateOp(asResourceKey("vip-pass"));
+			const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
+			const { calls, port } = fakeProgress();
+
+			await applyOps([op], registryWith(create), {
+				environment: "production",
+				progress: port,
+			});
+
+			expect(calls).toContainEqual({
+				key: op.key,
+				environment: "production",
+				error: { key: op.key, kind: "updateUnsupported" },
+				kind: "resourceOpFailed",
+				opType: "update",
+				resourceKind: "gamePass",
+			});
+		});
+
+		it("should emit applySummary with per-type counts that distinguish creates, updates, noops, and failures", async () => {
+			expect.assertions(2);
+
+			const firstCreate = createOp(asResourceKey("create-one"));
+			const secondCreate = createOp(asResourceKey("create-two"));
+			const thirdCreate = createOp(asResourceKey("create-three"));
+			const updateOne = updateOp(asResourceKey("update-one"));
+			const failOne = createOp(asResourceKey("fail-one"));
+			const failTwo = createOp(asResourceKey("fail-two"));
+			const create = vi
+				.fn<ResourceDriver<"gamePass">["create"]>()
+				.mockImplementation(async (desired) => {
+					if (
+						desired.key === failOne.desired.key ||
+						desired.key === failTwo.desired.key
+					) {
+						return { err: new OpenCloudError("boom"), success: false };
+					}
+
+					return { data: gamePassCurrent({ ...desired }), success: true };
+				});
+			const update = vi
+				.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>()
+				.mockResolvedValue({
+					data: gamePassCurrent({ ...updateOne.desired }),
+					success: true,
+				});
+			const { calls, port } = fakeProgress();
+
+			await applyOps(
+				[
+					firstCreate,
+					secondCreate,
+					thirdCreate,
+					updateOne,
+					failOne,
+					failTwo,
+					{ key: asResourceKey("noop-one"), kind: "gamePass", type: "noop" },
+					{ key: asResourceKey("noop-two"), kind: "gamePass", type: "noop" },
+					{ key: asResourceKey("noop-three"), kind: "gamePass", type: "noop" },
+					{ key: asResourceKey("noop-four"), kind: "gamePass", type: "noop" },
+				],
+				registryWith(create, update),
+				{ environment: "production", progress: port },
+			);
+
+			const summary = calls.find((event) => event.kind === "applySummary");
+			assert(summary?.kind === "applySummary");
+
+			expect(summary).toMatchObject({
+				created: 3,
+				environment: "production",
+				failed: 2,
+				kind: "applySummary",
+				noop: 4,
+				updated: 1,
+			});
+			expect(calls.indexOf(summary)).toBe(calls.length - 1);
+		});
+
+		it("should report applySummary.durationMs as the elapsed time between applyOps entry and Phase 2 resolution", async () => {
+			expect.assertions(2);
+
+			const dateNowSpy = vi.spyOn(Date, "now");
+			onTestFinished(() => {
+				dateNowSpy.mockRestore();
+			});
+			dateNowSpy.mockReturnValueOnce(1_000).mockReturnValueOnce(1_750);
+
+			const op = createOp(asResourceKey("vip-pass"));
+			const created = gamePassCurrent({ ...op.desired });
+			const create = vi
+				.fn<ResourceDriver<"gamePass">["create"]>()
+				.mockResolvedValue({ data: created, success: true });
+			const { calls, port } = fakeProgress();
+
+			await applyOps([op], registryWith(create), {
+				environment: "production",
+				progress: port,
+			});
+
+			const summary = calls.find((event) => event.kind === "applySummary");
+			assert(summary?.kind === "applySummary");
+
+			expect(summary.durationMs).toBe(750);
+			expect(dateNowSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+		});
+
+		it("should not emit any events when reporting is omitted", async () => {
+			expect.assertions(2);
+
+			const op = createOp(asResourceKey("vip-pass"));
+			const created = gamePassCurrent({ ...op.desired });
+			const create = vi
+				.fn<ResourceDriver<"gamePass">["create"]>()
+				.mockResolvedValue({ data: created, success: true });
+			const emit = vi.fn<ProgressPort["emit"]>();
+
+			await applyOps([op], registryWith(create));
+
+			expect(emit).not.toHaveBeenCalled();
+			expect(create).toHaveBeenCalledOnce();
 		});
 	});
 });

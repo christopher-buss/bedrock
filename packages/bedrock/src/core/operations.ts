@@ -1,5 +1,5 @@
 import type { ResourceKey } from "../types/ids.ts";
-import type { ResourceCurrentState, ResourceDesiredState } from "./resources.ts";
+import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "./resources.ts";
 
 /**
  * Fields shared by every operation variant.
@@ -149,9 +149,9 @@ export interface UpdateOperation extends BaseOperation {
  * entry matches its `current` entry exactly. The driver performs no I/O for
  * this variant.
  *
- * Bare by design: the operation carries only `key` and `type` because no
- * payload is needed at apply time. Callers that need the matching desired or
- * current state look it up in the snapshots passed to `diff`.
+ * Carries `key` and `kind` so progress renderers and adapters can describe the
+ * unchanged resource without re-looking it up in the desired or current
+ * snapshots passed to `diff`.
  *
  * @example
  *
@@ -160,14 +160,18 @@ export interface UpdateOperation extends BaseOperation {
  *
  * const op: NoopOperation = {
  *     key: asResourceKey("vip-pass"),
+ *     kind: "gamePass",
  *     type: "noop",
  * };
  *
  * expect(op.type).toBe("noop");
+ * expect(op.kind).toBe("gamePass");
  * expect(op.key).toBe("vip-pass");
  * ```
  */
 export interface NoopOperation extends BaseOperation {
+	/** Resource-kind discriminator copied from the matching desired/current entry. */
+	readonly kind: ResourceKind;
 	/** Discriminator tag for the `Operation` union. */
 	readonly type: "noop";
 }
@@ -201,6 +205,7 @@ export interface NoopOperation extends BaseOperation {
  *
  * const op: Operation = {
  *     key: asResourceKey("vip-pass"),
+ *     kind: "gamePass",
  *     type: "noop",
  * };
  *

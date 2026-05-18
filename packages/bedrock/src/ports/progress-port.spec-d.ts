@@ -10,7 +10,16 @@ import type {
 
 describe("ProgressEvent", () => {
 	it("should discriminate on the kind field", () => {
-		expectTypeOf<ProgressEvent["kind"]>().toEqualTypeOf<"deployFailure" | "deploySuccess">();
+		expectTypeOf<ProgressEvent["kind"]>().toEqualTypeOf<
+			| "applySummary"
+			| "deployFailure"
+			| "deploySuccess"
+			| "resourceOpFailed"
+			| "resourceOpNoop"
+			| "resourceOpStarted"
+			| "resourceOpSucceeded"
+			| "stateWritten"
+		>();
 	});
 
 	it("should narrow to DeploySuccessEvent on the deploySuccess kind", () => {
