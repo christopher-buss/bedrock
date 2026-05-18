@@ -136,6 +136,110 @@ describe(applyOps, () => {
 		]);
 	});
 
+	it("should dispatch universe ops in Phase 1 before any non-universe op regardless of input position", async () => {
+		expect.assertions(2);
+
+		const callOrder: Array<string> = [];
+		const gamePassOp = createOp(asResourceKey("vip-pass"));
+		const universeOp = {
+			key: UNIVERSE_SINGLETON_KEY,
+			desired: universeDesired({ voiceChatEnabled: true }),
+			type: "create",
+		} as const satisfies CreateOperation;
+		const placeOp = {
+			key: asResourceKey("start-place"),
+			desired: placeDesired(),
+			type: "create",
+		} as const satisfies CreateOperation;
+		const gamePassCreate = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockImplementation(async (desired) => {
+				callOrder.push(`gamePass:${desired.key}`);
+				return { data: gamePassCurrent({ ...desired }), success: true };
+			});
+		const universeCreate = vi
+			.fn<ResourceDriver<"universe">["create"]>()
+			.mockImplementation(async (desired) => {
+				callOrder.push(`universe:${desired.key}`);
+				return { data: universeCurrent({ ...desired }), success: true };
+			});
+		const placeCreate = vi
+			.fn<ResourceDriver<"place">["create"]>()
+			.mockImplementation(async (desired) => {
+				callOrder.push(`place:${desired.key}`);
+				return { data: placeCurrent({ ...desired }), success: true };
+			});
+		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
+			gamePass: { create: gamePassCreate },
+			place: { create: placeCreate },
+			universe: { create: universeCreate },
+		};
+
+		const result = await applyOps([gamePassOp, universeOp, placeOp], registry);
+
+		expect(result.success).toBeTrue();
+		expect(callOrder).toStrictEqual([
+			`universe:${UNIVERSE_SINGLETON_KEY}`,
+			"gamePass:vip-pass",
+			"place:start-place",
+		]);
+	});
+
+	it("should still dispatch non-universe ops when no universe op is in the input", async () => {
+		expect.assertions(2);
+
+		const op = createOp(asResourceKey("vip-pass"));
+		const created = gamePassCurrent({ ...op.desired });
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockResolvedValue({ data: created, success: true });
+
+		const result = await applyOps([op], registryWith(create));
+
+		expect(result).toStrictEqual({ data: [created], success: true });
+		expect(create).toHaveBeenCalledOnce();
+	});
+
+	it("should treat a 'main'-keyed place and 'main'-keyed universe as independent partitions", async () => {
+		expect.assertions(3);
+
+		const placeOp = {
+			key: UNIVERSE_SINGLETON_KEY,
+			desired: placeDesired({ key: UNIVERSE_SINGLETON_KEY }),
+			type: "create",
+		} as const satisfies CreateOperation;
+		const universeOp = {
+			key: UNIVERSE_SINGLETON_KEY,
+			desired: universeDesired({ voiceChatEnabled: true }),
+			type: "create",
+		} as const satisfies CreateOperation;
+		const placeCreated = placeCurrent({ ...placeOp.desired });
+		const universeCreated = universeCurrent({ ...universeOp.desired });
+		const placeCreate = vi
+			.fn<ResourceDriver<"place">["create"]>()
+			.mockResolvedValue({ data: placeCreated, success: true });
+		const universeCreate = vi
+			.fn<ResourceDriver<"universe">["create"]>()
+			.mockResolvedValue({ data: universeCreated, success: true });
+		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
+			gamePass: {
+				create() {
+					throw new Error("gamePass driver must not run");
+				},
+			},
+			place: { create: placeCreate },
+			universe: { create: universeCreate },
+		};
+
+		const result = await applyOps([placeOp, universeOp], registry);
+
+		expect(result.success).toBeTrue();
+		expect(placeCreate).toHaveBeenCalledOnce();
+		expect(universeCreate).toHaveBeenCalledOnce();
+	});
+
 	it("should stop dispatching on the first driver failure and surface an aggregate with applied[] and a single-failure failures[]", async () => {
 		expect.assertions(3);
 

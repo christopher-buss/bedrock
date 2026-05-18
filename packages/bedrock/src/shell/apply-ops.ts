@@ -187,13 +187,19 @@ export async function applyOps(
 	ops: ReadonlyArray<Operation>,
 	registry: DriverRegistry,
 ): Promise<Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>> {
+	const { phase1, phase2 } = partitionByPhase(ops);
 	const applied: Array<ResourceCurrentState> = [];
 
-	for (const op of ops) {
-		if (op.type === "noop") {
-			continue;
+	for (const op of phase1) {
+		const outcome = await dispatchOp(op, registry);
+		if (!outcome.success) {
+			return { err: { applied, failures: [outcome.err] }, success: false };
 		}
 
+		applied.push(outcome.data);
+	}
+
+	for (const op of phase2) {
 		const outcome = await dispatchOp(op, registry);
 		if (!outcome.success) {
 			return { err: { applied, failures: [outcome.err] }, success: false };
@@ -203,6 +209,27 @@ export async function applyOps(
 	}
 
 	return { data: applied, success: true };
+}
+
+function partitionByPhase(ops: ReadonlyArray<Operation>): {
+	readonly phase1: ReadonlyArray<NonNoopOp>;
+	readonly phase2: ReadonlyArray<NonNoopOp>;
+} {
+	const phase1: Array<NonNoopOp> = [];
+	const phase2: Array<NonNoopOp> = [];
+	for (const op of ops) {
+		if (op.type === "noop") {
+			continue;
+		}
+
+		if (op.desired.kind === "universe") {
+			phase1.push(op);
+		} else {
+			phase2.push(op);
+		}
+	}
+
+	return { phase1, phase2 };
 }
 
 function driverFailure(

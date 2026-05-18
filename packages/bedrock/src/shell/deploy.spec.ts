@@ -222,7 +222,7 @@ describe(deploy, () => {
 
 		expect(universeCreate).toHaveBeenCalledOnce();
 		expect(placeCreate).toHaveBeenCalledOnce();
-		expect(writes[0]!.resources).toStrictEqual([placeCreated, universeCreated]);
+		expect(writes[0]!.resources).toStrictEqual([universeCreated, placeCreated]);
 	});
 
 	it("should preserve prior resources of distinct kinds that share a key when desired is empty", async () => {
