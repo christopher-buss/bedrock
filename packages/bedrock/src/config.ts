@@ -18,6 +18,7 @@ export type {
 	PlaceEntry,
 	RedactedDeveloperProductOverride,
 	RedactedGamePassOverride,
+	RedactedPlaceOverride,
 	ResolvedPlaceEntry,
 	ResourceEntryByKind,
 	StateConfig,

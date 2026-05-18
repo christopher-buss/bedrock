@@ -1023,6 +1023,157 @@ describe(validateConfig, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["places", "bad key!"]);
 	});
 
+	it.for([
+		["true", true],
+		["false", false],
+	] as const)("should accept a places entry with redacted: %s", ([, redacted]) => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				places: {
+					"start-place": {
+						filePath: "places/start.rbxl",
+						redacted,
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.places!["start-place"]!.redacted).toBe(redacted);
+	});
+
+	it.for([
+		["partial description override", { description: "Coming soon." }],
+		["partial displayName override", { displayName: "Hidden Project" }],
+		["full override", { description: "Coming soon.", displayName: "Hidden Project" }],
+	] as const)(
+		"should accept a places entry with redacted as the %s object form",
+		([, redacted]) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					environments: MinEnvironments,
+					places: {
+						"start-place": {
+							filePath: "places/start.rbxl",
+							redacted,
+						},
+					},
+				},
+				SOURCE,
+			);
+
+			assert(result.success);
+
+			expect(result.data.places!["start-place"]!.redacted).toStrictEqual(redacted);
+		},
+	);
+
+	it("should default redacted to undefined when omitted on a places entry", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				places: {
+					"start-place": { filePath: "places/start.rbxl" },
+				},
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.places!["start-place"]!.redacted).toBeUndefined();
+	});
+
+	it.for([
+		["string", "true"],
+		["number", 1],
+		// eslint-disable-next-line unicorn/no-null -- testing that arktype rejects the json null literal
+		["null", null],
+	] as const)(
+		"should reject %s as a places redacted field and attribute the issue path to that field",
+		([, redacted]) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					environments: MinEnvironments,
+					places: {
+						"start-place": {
+							filePath: "places/start.rbxl",
+							redacted,
+						},
+					},
+				},
+				SOURCE,
+			);
+
+			assert(!result.success);
+			assert(result.err.kind === "validationFailed");
+
+			expect(result.err.issues[0]!.path).toStrictEqual(["places", "start-place", "redacted"]);
+		},
+	);
+
+	it("should reject an empty places redacted object and recommend redacted: true for default placeholders", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				places: {
+					"start-place": {
+						filePath: "places/start.rbxl",
+						redacted: {},
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["places", "start-place", "redacted"]);
+		expect(result.err.issues[0]!.message).toContain("redacted: true");
+	});
+
+	it("should reject an unknown key in a places redacted override and attribute the issue path to the offending key", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				places: {
+					"start-place": {
+						filePath: "places/start.rbxl",
+						redacted: { filePath: "nope" },
+					},
+				},
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"places",
+			"start-place",
+			"redacted",
+			"filePath",
+		]);
+		expect(result.err.issues[0]!.message).toContain("filePath");
+	});
+
 	it("should accept a universe block declaring only universeId", () => {
 		expect.assertions(2);
 
@@ -1841,6 +1992,66 @@ describe(validateConfig, () => {
 			"staging",
 			"passes",
 			"vip-pass",
+			"redacted",
+		]);
+	});
+
+	it.for([
+		["true", true],
+		["false", false],
+	] as const)(
+		"should accept a per-environment places overlay that declares redacted: %s",
+		([, redacted]) => {
+			expect.assertions(1);
+
+			const result = validateConfig(
+				{
+					environments: {
+						staging: { places: { "start-place": { placeId: "5555", redacted } } },
+					},
+					places: { "start-place": { filePath: "places/start.rbxl" } },
+					state: { backend: "gist", gistId: "root-gist" },
+				},
+				SOURCE,
+			);
+
+			assert(result.success);
+
+			expect(result.data.environments["staging"]?.places?.["start-place"]?.redacted).toBe(
+				redacted,
+			);
+		},
+	);
+
+	it("should reject an object override form on a per-environment places overlay redacted field", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: {
+						places: {
+							"start-place": {
+								placeId: "5555",
+								redacted: { displayName: "Hidden" },
+							},
+						},
+					},
+				},
+				places: { "start-place": { filePath: "places/start.rbxl" } },
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"staging",
+			"places",
+			"start-place",
 			"redacted",
 		]);
 	});

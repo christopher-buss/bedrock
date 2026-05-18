@@ -11,6 +11,7 @@ import type {
 	GistStateConfig,
 	PlaceEntry,
 	RedactedGamePassOverride,
+	RedactedPlaceOverride,
 	ResolvedPlaceEntry,
 	ResourceEntryByKind,
 	SocialLink,
@@ -25,6 +26,7 @@ import type {
 	GistStateConfig as GistStateConfigSource,
 	PlaceEntry as PlaceEntrySource,
 	RedactedGamePassOverride as RedactedGamePassOverrideSource,
+	RedactedPlaceOverride as RedactedPlaceOverrideSource,
 	ResolvedPlaceEntry as ResolvedPlaceEntrySource,
 	ResourceEntryByKind as ResourceEntryByKindSource,
 	StateConfig as StateConfigSource,
@@ -36,7 +38,7 @@ import type {
 	defineConfig as defineConfigSource,
 } from "./shell/define-config.ts";
 
-describe("@bedrock-rbx/core/config resource-entry re-exports", () => {
+describe("@bedrock-rbx/core/config core re-exports", () => {
 	it("should re-export Config with the same identity as core/schema", () => {
 		expectTypeOf<Config>().toEqualTypeOf<ConfigSource>();
 	});
@@ -45,12 +47,22 @@ describe("@bedrock-rbx/core/config resource-entry re-exports", () => {
 		expectTypeOf<EnvironmentEntry>().toEqualTypeOf<EnvironmentEntrySource>();
 	});
 
+	it("should re-export ResourceEntryByKind with the same identity as core/schema", () => {
+		expectTypeOf<ResourceEntryByKind>().toEqualTypeOf<ResourceEntryByKindSource>();
+	});
+});
+
+describe("@bedrock-rbx/core/config resource-entry re-exports", () => {
 	it("should re-export GamePassEntry with the same identity as core/schema", () => {
 		expectTypeOf<GamePassEntry>().toEqualTypeOf<GamePassEntrySource>();
 	});
 
 	it("should re-export RedactedGamePassOverride with the same identity as core/schema", () => {
 		expectTypeOf<RedactedGamePassOverride>().toEqualTypeOf<RedactedGamePassOverrideSource>();
+	});
+
+	it("should re-export RedactedPlaceOverride with the same identity as core/schema", () => {
+		expectTypeOf<RedactedPlaceOverride>().toEqualTypeOf<RedactedPlaceOverrideSource>();
 	});
 
 	it("should re-export DeveloperProductEntry with the same identity as core/schema", () => {
@@ -67,10 +79,6 @@ describe("@bedrock-rbx/core/config resource-entry re-exports", () => {
 
 	it("should re-export UniverseEntry with the same identity as core/schema", () => {
 		expectTypeOf<UniverseEntry>().toEqualTypeOf<UniverseEntrySource>();
-	});
-
-	it("should re-export ResourceEntryByKind with the same identity as core/schema", () => {
-		expectTypeOf<ResourceEntryByKind>().toEqualTypeOf<ResourceEntryByKindSource>();
 	});
 });
 

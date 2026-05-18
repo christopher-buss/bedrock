@@ -3,6 +3,8 @@ import { expect, it } from "vitest";
 import type {
   GamePassEntry,
   RedactedGamePassOverride,
+  PlaceEntry,
+  RedactedPlaceOverride,
   DeveloperProductEntry,
   RedactedDeveloperProductOverride,
   ResourceEntryByKind,
@@ -28,6 +30,17 @@ it('Example 1', () => {
 })
 
 it('Example 2', () => {
+  const override: RedactedPlaceOverride = { displayName: 'Hidden Project' }
+  const entry: PlaceEntry = {
+    description: 'The lobby place.',
+    displayName: 'Start Place',
+    filePath: 'places/start.rbxl',
+    redacted: override,
+  }
+  expect(entry.redacted).toStrictEqual({ displayName: 'Hidden Project' })
+})
+
+it('Example 3', () => {
   const override: RedactedDeveloperProductOverride = {
     name: 'Closed Beta Pack',
   }
@@ -39,7 +52,7 @@ it('Example 2', () => {
   expect(entry.redacted).toStrictEqual({ name: 'Closed Beta Pack' })
 })
 
-it('Example 3', () => {
+it('Example 4', () => {
   const entry: ResourceEntryByKind['gamePass'] = {
     description: 'Grants VIP perks.',
     icon: { 'en-us': 'assets/vip-icon.png' },
@@ -49,7 +62,7 @@ it('Example 3', () => {
   expect(entry.name).toBe('VIP Pass')
 })
 
-it('Example 4', () => {
+it('Example 5', () => {
   const config: Config = {
     environments: { production: {} },
     state: { backend: 'gist', gistId: 'abc123def456' },
@@ -65,7 +78,7 @@ it('Example 4', () => {
   expect(config.passes!['vip-pass']!.name).toBe('VIP Pass')
 })
 
-it('Example 5', () => {
+it('Example 6', () => {
   const config: Config = {
     environments: {
       production: { places: { 'start-place': { placeId: '4711' } } },
@@ -81,7 +94,7 @@ it('Example 5', () => {
   }
 })
 
-it('Example 6', () => {
+it('Example 7', () => {
   const config: StateConfig = { backend: 'gist', gistId: 'abc' }
   expect(isGistStateConfig(config)).toBeTrue()
   if (isGistStateConfig(config)) {
@@ -89,7 +102,7 @@ it('Example 6', () => {
   }
 })
 
-it('Example 7', () => {
+it('Example 8', () => {
   const ok = validateConfig(
     {
       environments: { production: {} },

@@ -85,6 +85,7 @@ export {
 	type PlaceEntry,
 	type RedactedDeveloperProductOverride,
 	type RedactedGamePassOverride,
+	type RedactedPlaceOverride,
 	type ResolvedConfig,
 	type ResolvedPlaceEntry,
 	type ResolvedUniverseEntry,

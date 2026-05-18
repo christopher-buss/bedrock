@@ -204,7 +204,7 @@ describe("UniverseEntry / ResolvedUniverseEntry split", () => {
 describe("PlaceEntry / ResolvedPlaceEntry split", () => {
 	it("should expose filePath plus the optional metadata fields at the root PlaceEntry level", () => {
 		expectTypeOf<keyof PlaceEntry>().toEqualTypeOf<
-			"description" | "displayName" | "filePath" | "serverSize"
+			"description" | "displayName" | "filePath" | "redacted" | "serverSize"
 		>();
 		expectTypeOf<PlaceEntry["filePath"]>().toEqualTypeOf<string>();
 		expectTypeOf<PlaceEntry["displayName"]>().toEqualTypeOf<string | undefined>();
@@ -214,7 +214,7 @@ describe("PlaceEntry / ResolvedPlaceEntry split", () => {
 
 	it("should add placeId on ResolvedPlaceEntry as the post-merge invariant alongside the metadata fields", () => {
 		expectTypeOf<keyof ResolvedPlaceEntry>().toEqualTypeOf<
-			"description" | "displayName" | "filePath" | "placeId" | "serverSize"
+			"description" | "displayName" | "filePath" | "placeId" | "redacted" | "serverSize"
 		>();
 		expectTypeOf<ResolvedPlaceEntry["filePath"]>().toEqualTypeOf<string>();
 		expectTypeOf<ResolvedPlaceEntry["placeId"]>().toEqualTypeOf<string>();

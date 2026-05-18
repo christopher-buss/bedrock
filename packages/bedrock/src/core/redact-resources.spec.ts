@@ -8,7 +8,12 @@ import {
 	REDACTED_PRODUCT_NAME,
 } from "./redact-resources.ts";
 import { REDACTED_ICON_PATH } from "./redacted-icon.ts";
-import type { DeveloperProductEntry, GamePassEntry, ResolvedConfig } from "./schema.ts";
+import type {
+	DeveloperProductEntry,
+	GamePassEntry,
+	ResolvedConfig,
+	ResolvedPlaceEntry,
+} from "./schema.ts";
 
 const baseConfig: ResolvedConfig = {
 	environments: { production: {} },
@@ -27,6 +32,13 @@ const gemPackEntry = {
 	icon: { "en-us": "assets/gems.png" },
 	price: 100,
 } as const satisfies DeveloperProductEntry;
+
+const startPlaceEntry = {
+	description: "The lobby place.",
+	displayName: "Start Place",
+	filePath: "places/start.rbxl",
+	placeId: "4711",
+} as const satisfies ResolvedPlaceEntry;
 
 describe(applyRedaction, () => {
 	it("should replace name, description, and icon with placeholders when redacted is true", () => {
@@ -74,7 +86,7 @@ describe(applyRedaction, () => {
 		expect(applyRedaction(baseConfig)).toStrictEqual(baseConfig);
 	});
 
-	it("should pass through products, places, and universe collections verbatim", () => {
+	it("should pass through products, places, and universe collections verbatim when no redaction applies", () => {
 		expect.assertions(3);
 
 		const input: ResolvedConfig = {
@@ -115,6 +127,7 @@ describe(applyRedaction, () => {
 		const input: ResolvedConfig = {
 			...baseConfig,
 			passes: { "vip-pass": vipEntry },
+			places: { "start-place": { filePath: "places/start.rbxl", placeId: "4711" } },
 			products: { "gem-pack": gemPackEntry },
 		};
 
@@ -245,6 +258,182 @@ describe(applyRedaction, () => {
 			expect(result.passes?.["vip-pass"]?.name).toBe(expectedName);
 		},
 	);
+
+	it("should redact description and preserve displayName on a place when redacted is true", () => {
+		expect.assertions(1);
+
+		const result = applyRedaction({
+			...baseConfig,
+			places: {
+				"start-place": { ...startPlaceEntry, redacted: true },
+			},
+		});
+
+		expect(result.places?.["start-place"]).toStrictEqual({
+			...startPlaceEntry,
+			description: REDACTED_DESCRIPTION,
+			redacted: true,
+		});
+	});
+
+	it("should leave a place unchanged when redacted is false", () => {
+		expect.assertions(1);
+
+		const entry = { ...startPlaceEntry, redacted: false } as const satisfies ResolvedPlaceEntry;
+		const result = applyRedaction({
+			...baseConfig,
+			places: { "start-place": entry },
+		});
+
+		expect(result.places?.["start-place"]).toStrictEqual(entry);
+	});
+
+	it("should leave a place unchanged when redacted is omitted", () => {
+		expect.assertions(1);
+
+		const result = applyRedaction({
+			...baseConfig,
+			places: { "start-place": startPlaceEntry },
+		});
+
+		expect(result.places?.["start-place"]).toStrictEqual(startPlaceEntry);
+	});
+
+	it("should substitute displayName only when supplied explicitly in the override", () => {
+		expect.assertions(1);
+
+		const result = applyRedaction({
+			...baseConfig,
+			places: {
+				"start-place": {
+					...startPlaceEntry,
+					redacted: { displayName: "Hidden Project" },
+				},
+			},
+		});
+
+		expect(result.places?.["start-place"]).toStrictEqual({
+			...startPlaceEntry,
+			description: REDACTED_DESCRIPTION,
+			displayName: "Hidden Project",
+			redacted: { displayName: "Hidden Project" },
+		});
+	});
+
+	it("should substitute both description and displayName when the override supplies both", () => {
+		expect.assertions(1);
+
+		const override = { description: "Coming soon.", displayName: "Hidden" };
+		const result = applyRedaction({
+			...baseConfig,
+			places: {
+				"start-place": { ...startPlaceEntry, redacted: override },
+			},
+		});
+
+		expect(result.places?.["start-place"]).toStrictEqual({
+			...startPlaceEntry,
+			description: "Coming soon.",
+			displayName: "Hidden",
+			redacted: override,
+		});
+	});
+
+	it("should preserve a real displayName when redacted true cascades from the environment", () => {
+		expect.assertions(2);
+
+		const result = applyRedaction(
+			{ ...baseConfig, places: { "start-place": startPlaceEntry } },
+			true,
+		);
+
+		expect(result.places?.["start-place"]?.description).toBe(REDACTED_DESCRIPTION);
+		expect(result.places?.["start-place"]?.displayName).toBe(startPlaceEntry.displayName);
+	});
+
+	it("should not mutate the input config when redacting a place", () => {
+		expect.assertions(2);
+
+		const places = { "start-place": { ...startPlaceEntry, redacted: true } };
+		const input = { ...baseConfig, places } as const satisfies ResolvedConfig;
+
+		const result = applyRedaction(input);
+
+		expect(input.places["start-place"]).toStrictEqual({ ...startPlaceEntry, redacted: true });
+		expect(result.places?.["start-place"]).not.toBe(input.places["start-place"]);
+	});
+
+	it.for([
+		{
+			caseName: "no flags set",
+			entryRedacted: undefined,
+			envRedacted: undefined,
+			expectRedacted: false,
+		},
+		{
+			caseName: "env-level true, no resource flag",
+			entryRedacted: undefined,
+			envRedacted: true,
+			expectRedacted: true,
+		},
+		{
+			caseName: "env-level false, no resource flag",
+			entryRedacted: undefined,
+			envRedacted: false,
+			expectRedacted: false,
+		},
+		{
+			caseName: "resource false carves out env-level true",
+			entryRedacted: false,
+			envRedacted: true,
+			expectRedacted: false,
+		},
+		{
+			caseName: "resource true redacts despite env-level false",
+			entryRedacted: true,
+			envRedacted: false,
+			expectRedacted: true,
+		},
+	] as const)(
+		"should redact a place description according to overlay > root > env precedence ($caseName)",
+		({ entryRedacted, envRedacted, expectRedacted }) => {
+			expect.assertions(1);
+
+			const placeEntry = (
+				entryRedacted === undefined
+					? startPlaceEntry
+					: { ...startPlaceEntry, redacted: entryRedacted }
+			) satisfies ResolvedPlaceEntry;
+			const result = applyRedaction(
+				{ ...baseConfig, places: { "start-place": placeEntry } },
+				envRedacted,
+			);
+			const expectedDescription = expectRedacted
+				? REDACTED_DESCRIPTION
+				: startPlaceEntry.description;
+
+			expect(result.places?.["start-place"]?.description).toBe(expectedDescription);
+		},
+	);
+
+	it("should redact a flagged place while leaving an unflagged sibling unchanged", () => {
+		expect.assertions(2);
+
+		const plainPlace = {
+			...startPlaceEntry,
+			placeId: "1111",
+		} as const satisfies ResolvedPlaceEntry;
+		const result = applyRedaction({
+			...baseConfig,
+			places: {
+				"plain-place": plainPlace,
+				"secret-place": { ...startPlaceEntry, redacted: true },
+			},
+		});
+
+		expect(result.places?.["plain-place"]).toStrictEqual(plainPlace);
+		expect(result.places?.["secret-place"]?.description).toBe(REDACTED_DESCRIPTION);
+	});
 
 	it("should replace name, description, and icon with placeholders when a product redacted is true", () => {
 		expect.assertions(1);

@@ -45,6 +45,39 @@ export interface RedactedGamePassOverride {
 }
 
 /**
+ * Per-field redaction override for a place entry. Each supplied field
+ * replaces the matching bedrock-supplied placeholder; omitted `description`
+ * falls through to the placeholder default. `displayName` has no
+ * placeholder default; an omitted `displayName` preserves the real value
+ * declared on the entry. The object form implies redaction is enabled, so
+ * authors who want only the description default should write
+ * `redacted: true` instead of an empty object.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { PlaceEntry, RedactedPlaceOverride } from "@bedrock-rbx/core/config";
+ *
+ * const override: RedactedPlaceOverride = { displayName: "Hidden Project" };
+ *
+ * const entry: PlaceEntry = {
+ *     description: "The lobby place.",
+ *     displayName: "Start Place",
+ *     filePath: "places/start.rbxl",
+ *     redacted: override,
+ * };
+ *
+ * expect(entry.redacted).toStrictEqual({ displayName: "Hidden Project" });
+ * ```
+ */
+export interface RedactedPlaceOverride {
+	/** Override description; falls through to the bedrock default when omitted. */
+	description?: string | undefined;
+	/** Override display name; preserves the real entry value when omitted (no default). */
+	displayName?: string | undefined;
+}
+
+/**
  * Body of a single entry in the `passes` collection. Keys in the parent
  * record are `ResourceKey`-shaped strings enforced at schema validation.
  */
@@ -169,6 +202,18 @@ export interface PlaceEntry {
 	displayName?: string | undefined;
 	/** Path to the `.rbxl` or `.rbxlx` file; handed to `readFile` verbatim by `buildDesired`. */
 	filePath: string;
+	/**
+	 * Set to `true` to deploy this place with bedrock-supplied placeholder
+	 * content (empty description) in place of the real values declared
+	 * above. `displayName` is preserved by default because it surfaces in
+	 * Roblox Studio's place picker and the Creator Hub experience list;
+	 * authors who want full opacity write the object form
+	 * {@link RedactedPlaceOverride} to substitute selected placeholders
+	 * with custom values, including `displayName`. The object form
+	 * implies redaction is enabled. Omit or set `false` to push the real
+	 * values unchanged. Environment overlays accept only the boolean form.
+	 */
+	redacted?: boolean | RedactedPlaceOverride | undefined;
 	/** Maximum players per server; positive integer. */
 	serverSize?: number | undefined;
 }
@@ -193,6 +238,12 @@ export interface ResolvedPlaceEntry {
 	filePath: string;
 	/** Existing Roblox place ID. */
 	placeId: string;
+	/**
+	 * Resolved redaction setting after merging the per-environment overlay
+	 * (boolean only at the overlay level) onto the root entry. See
+	 * {@link PlaceEntry.redacted} for the authored shape.
+	 */
+	redacted?: boolean | RedactedPlaceOverride | undefined;
 	/** Maximum players per server; positive integer. */
 	serverSize?: number | undefined;
 }
@@ -696,6 +747,11 @@ const OPTIONAL_BOOLEAN = "boolean | undefined";
 
 const OPTIONAL_STRING = "string | undefined";
 
+const REDACTED_KEY = "redacted?";
+
+const NON_EMPTY_OVERRIDE_MESSAGE =
+	"a non-empty override object; use `redacted: true` for default placeholders";
+
 /**
  * Shared arktype constraint for any optional positive-integer field.
  * Reused by per-kind entry schemas so positive-integer fields validate
@@ -722,15 +778,28 @@ const gamePassRedactedOverride = type({
 	.onUndeclaredKey("reject")
 	.narrow((value, ctx) => {
 		if (Object.keys(value).length === 0) {
-			return ctx.mustBe(
-				"a non-empty override object; use `redacted: true` for default placeholders",
-			);
+			return ctx.mustBe(NON_EMPTY_OVERRIDE_MESSAGE);
 		}
 
 		return true;
 	});
 
-const gamePassRedacted = gamePassRedactedOverride.or("boolean | undefined");
+const gamePassRedacted = gamePassRedactedOverride.or(OPTIONAL_BOOLEAN);
+
+const placeRedactedOverride = type({
+	"description?": "string",
+	"displayName?": "string",
+})
+	.onUndeclaredKey("reject")
+	.narrow((value, ctx) => {
+		if (Object.keys(value).length === 0) {
+			return ctx.mustBe(NON_EMPTY_OVERRIDE_MESSAGE);
+		}
+
+		return true;
+	});
+
+const placeRedacted = placeRedactedOverride.or(OPTIONAL_BOOLEAN);
 
 const productRedactedOverride = type({
 	"description?": "string",
@@ -740,9 +809,7 @@ const productRedactedOverride = type({
 	.onUndeclaredKey("reject")
 	.narrow((value, ctx) => {
 		if (Object.keys(value).length === 0) {
-			return ctx.mustBe(
-				"a non-empty override object; use `redacted: true` for default placeholders",
-			);
+			return ctx.mustBe(NON_EMPTY_OVERRIDE_MESSAGE);
 		}
 
 		return true;
@@ -761,7 +828,7 @@ const gamePassEntry = type({
 	"description": "string",
 	"icon": iconMap,
 	"price?": OPTIONAL_ROBUX_PRICE,
-	"redacted?": gamePassRedacted,
+	[REDACTED_KEY]: gamePassRedacted,
 });
 
 const passesCollection = type({
@@ -774,7 +841,7 @@ const developerProductEntry = type({
 	"icon?": iconMap,
 	"isRegionalPricingEnabled?": OPTIONAL_BOOLEAN,
 	"price?": OPTIONAL_ROBUX_PRICE,
-	"redacted?": productRedacted,
+	[REDACTED_KEY]: productRedacted,
 	"storePageEnabled?": OPTIONAL_BOOLEAN,
 }).onUndeclaredKey("reject");
 
@@ -788,6 +855,7 @@ const placeEntry = type({
 	"description?": OPTIONAL_STRING,
 	"displayName?": OPTIONAL_STRING,
 	"filePath": "string",
+	[REDACTED_KEY]: placeRedacted,
 	"serverSize?": OPTIONAL_POSITIVE_INTEGER,
 }).onUndeclaredKey("reject");
 
@@ -835,7 +903,7 @@ const gamePassOverlay = type({
 	"icon?": iconMap,
 	"name?": "string",
 	"price?": OPTIONAL_ROBUX_PRICE,
-	"redacted?": OPTIONAL_BOOLEAN,
+	[REDACTED_KEY]: OPTIONAL_BOOLEAN,
 }).onUndeclaredKey("reject");
 
 const passesOverlayCollection = type({
@@ -848,7 +916,7 @@ const developerProductOverlay = type({
 	"isRegionalPricingEnabled?": OPTIONAL_BOOLEAN,
 	"name?": "string",
 	"price?": OPTIONAL_ROBUX_PRICE,
-	"redacted?": OPTIONAL_BOOLEAN,
+	[REDACTED_KEY]: OPTIONAL_BOOLEAN,
 	"storePageEnabled?": OPTIONAL_BOOLEAN,
 }).onUndeclaredKey("reject");
 
@@ -861,6 +929,7 @@ const placeOverlay = type({
 	"displayName?": OPTIONAL_STRING,
 	"filePath?": "string",
 	"placeId": ROBLOX_ID_DIGITS,
+	[REDACTED_KEY]: OPTIONAL_BOOLEAN,
 	"serverSize?": OPTIONAL_POSITIVE_INTEGER,
 }).onUndeclaredKey("reject");
 
@@ -881,7 +950,7 @@ const environmentEntry: Type<EnvironmentEntry> = type({
 	"passes?": passesOverlayCollection,
 	"places?": placesOverlayCollection,
 	"products?": productsOverlayCollection,
-	"redacted?": OPTIONAL_BOOLEAN,
+	[REDACTED_KEY]: OPTIONAL_BOOLEAN,
 	"state?": stateConfig,
 	"universe?": universeOverlay,
 }).onUndeclaredKey("reject");
