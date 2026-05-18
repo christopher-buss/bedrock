@@ -7,6 +7,7 @@ import type {
 import { derivePriceFields } from "../core/derive-price-fields.ts";
 import { shouldReuploadIcon } from "../core/icons.ts";
 import { planFollowUpPatch } from "../core/plan-follow-up-patch.ts";
+import { withRedactedIcon } from "../core/redacted-icon.ts";
 import type { DeveloperProductDesiredState, ResourceCurrentState } from "../core/resources.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
@@ -144,12 +145,16 @@ interface FollowUpPatchInputs {
 export function createDeveloperProductDriver(
 	deps: DeveloperProductDriverDeps,
 ): ResourceDriver<"developerProduct"> {
+	const effective: DeveloperProductDriverDeps = {
+		...deps,
+		readFile: withRedactedIcon(deps.readFile),
+	};
 	return {
 		async create(desired) {
-			return createOne(deps, desired);
+			return createOne(effective, desired);
 		},
 		async update(current, desired) {
-			return updateOne(deps, { current, desired });
+			return updateOne(effective, { current, desired });
 		},
 	};
 }

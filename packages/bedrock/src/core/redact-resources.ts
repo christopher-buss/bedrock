@@ -1,10 +1,19 @@
 import { asResourceKey, type ResourceKey } from "../types/ids.ts";
 import { REDACTED_ICON_PATH } from "./redacted-icon.ts";
 import type { ResourceKind } from "./resources.ts";
-import type { GamePassEntry, RedactedGamePassOverride, ResolvedConfig } from "./schema.ts";
+import type {
+	DeveloperProductEntry,
+	GamePassEntry,
+	RedactedDeveloperProductOverride,
+	RedactedGamePassOverride,
+	ResolvedConfig,
+} from "./schema.ts";
 
 /** Default placeholder name pushed for a redacted game-pass. */
 export const REDACTED_PASS_NAME = "Redacted Pass";
+
+/** Default placeholder name pushed for a redacted developer-product. */
+export const REDACTED_PRODUCT_NAME = "Redacted Product";
 
 /** Default placeholder description pushed for any redacted resource. */
 export const REDACTED_DESCRIPTION = "";
@@ -47,24 +56,18 @@ export function applyRedaction(
 	config: ResolvedConfig,
 	environmentRedacted = false,
 ): ResolvedConfig {
-	if (config.passes === undefined) {
+	const passes = redactPasses(config.passes, environmentRedacted);
+	const products = redactProducts(config.products, environmentRedacted);
+
+	if (passes === config.passes && products === config.products) {
 		return config;
 	}
 
-	const passes = Object.fromEntries(
-		Object.entries(config.passes).map(([key, entry]) => {
-			const effective = entry.redacted ?? environmentRedacted;
-			if (effective === false) {
-				return [key, entry] as const;
-			}
-
-			const override: RedactedGamePassOverride =
-				typeof effective === "object" ? effective : {};
-			return [key, redactPass(entry, override)] as const;
-		}),
-	);
-
-	return { ...config, passes };
+	return {
+		...config,
+		...(passes === undefined ? {} : { passes }),
+		...(products === undefined ? {} : { products }),
+	};
 }
 
 /**
@@ -85,19 +88,26 @@ export function applyRedaction(
 export function collectRedactionAnnotations(
 	merged: ResolvedConfig,
 ): ReadonlyArray<RedactionAnnotation> {
-	if (merged.passes === undefined) {
-		return [];
-	}
-
-	return Object.entries(merged.passes)
+	const passes = Object.entries(merged.passes ?? {})
 		.filter(([, entry]) => entry.redacted === true)
-		.map(([key, entry]) => {
+		.map(([key, entry]): RedactionAnnotation => {
 			return {
 				key: asResourceKey(key),
 				hasRealValueEdits: passHasRealValueEdits(entry),
-				kind: "gamePass" as const,
+				kind: "gamePass",
 			};
 		});
+	const products = Object.entries(merged.products ?? {})
+		.filter(([, entry]) => entry.redacted === true)
+		.map(([key, entry]): RedactionAnnotation => {
+			return {
+				key: asResourceKey(key),
+				hasRealValueEdits: productHasRealValueEdits(entry),
+				kind: "developerProduct",
+			};
+		});
+
+	return [...passes, ...products];
 }
 
 function redactPass(entry: GamePassEntry, override: RedactedGamePassOverride): GamePassEntry {
@@ -109,10 +119,88 @@ function redactPass(entry: GamePassEntry, override: RedactedGamePassOverride): G
 	};
 }
 
+function redactPasses(
+	passes: ResolvedConfig["passes"],
+	environmentRedacted: boolean,
+): ResolvedConfig["passes"] {
+	if (passes === undefined) {
+		return undefined;
+	}
+
+	const hasAnyRedaction = Object.values(passes).some(
+		(entry) => (entry.redacted ?? environmentRedacted) !== false,
+	);
+	if (!hasAnyRedaction) {
+		return passes;
+	}
+
+	return Object.fromEntries(
+		Object.entries(passes).map(([key, entry]) => {
+			const effective = entry.redacted ?? environmentRedacted;
+			if (effective === false) {
+				return [key, entry] as const;
+			}
+
+			const override: RedactedGamePassOverride =
+				typeof effective === "object" ? effective : {};
+			return [key, redactPass(entry, override)] as const;
+		}),
+	);
+}
+
+function redactProduct(
+	entry: DeveloperProductEntry,
+	override: RedactedDeveloperProductOverride,
+): DeveloperProductEntry {
+	return {
+		...entry,
+		name: override.name ?? REDACTED_PRODUCT_NAME,
+		description: override.description ?? REDACTED_DESCRIPTION,
+		icon: override.icon ?? { "en-us": REDACTED_ICON_PATH },
+	};
+}
+
+function redactProducts(
+	products: ResolvedConfig["products"],
+	environmentRedacted: boolean,
+): ResolvedConfig["products"] {
+	if (products === undefined) {
+		return undefined;
+	}
+
+	const hasAnyRedaction = Object.values(products).some(
+		(entry) => (entry.redacted ?? environmentRedacted) !== false,
+	);
+	if (!hasAnyRedaction) {
+		return products;
+	}
+
+	return Object.fromEntries(
+		Object.entries(products).map(([key, entry]) => {
+			const effective = entry.redacted ?? environmentRedacted;
+			if (effective === false) {
+				return [key, entry] as const;
+			}
+
+			const override: RedactedDeveloperProductOverride =
+				typeof effective === "object" ? effective : {};
+			return [key, redactProduct(entry, override)] as const;
+		}),
+	);
+}
+
 function passHasRealValueEdits(entry: GamePassEntry): boolean {
 	return (
 		entry.name !== REDACTED_PASS_NAME ||
 		entry.description !== REDACTED_DESCRIPTION ||
 		entry.icon["en-us"] !== REDACTED_ICON_PATH
+	);
+}
+
+function productHasRealValueEdits(entry: DeveloperProductEntry): boolean {
+	return (
+		entry.name !== REDACTED_PRODUCT_NAME ||
+		entry.description !== REDACTED_DESCRIPTION ||
+		(entry.icon !== undefined && entry.icon["en-us"] !== REDACTED_ICON_PATH)
 	);
 }

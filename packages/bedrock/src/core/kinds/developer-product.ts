@@ -17,6 +17,7 @@ const entrySchema = type({
 	"icon?": iconMap,
 	"isRegionalPricingEnabled?": OPTIONAL_BOOLEAN,
 	"price?": OPTIONAL_ROBUX_PRICE,
+	"redacted?": "boolean | undefined",
 	"storePageEnabled?": OPTIONAL_BOOLEAN,
 });
 
