@@ -23,7 +23,6 @@ it('Example 1', () => {
   }
   const err: ApplyError = {
     key: asResourceKey('vip-pass'),
-    appliedSoFar: [],
     kind: 'updateUnsupported',
   }
   expect(describe(err)).toBe('update not supported for vip-pass')

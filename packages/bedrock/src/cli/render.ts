@@ -237,7 +237,8 @@ function stateErrorDetail(cause: StateError): string {
 function deployErrorMessage(err: DeployError): string {
 	switch (err.kind) {
 		case "applyFailed": {
-			return `apply failed for '${err.cause.key}': ${applyCauseDetail(err.cause)}`;
+			const first = err.cause.failures[0];
+			return `apply failed for '${first.key}': ${applyCauseDetail(first)}`;
 		}
 		case "buildDesiredFailed": {
 			return `build desired state failed for '${err.cause.key}' ${buildDesiredDetail(err.cause)}`;

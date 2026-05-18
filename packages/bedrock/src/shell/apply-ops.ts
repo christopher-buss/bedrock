@@ -1,7 +1,5 @@
 import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 
-import type { DistributedOmit } from "type-fest";
-
 import type { Operation } from "../core/operations.ts";
 import type {
 	DeveloperProductDesiredState,
@@ -18,11 +16,9 @@ import type { ResourceKey } from "../types/ids.ts";
 /**
  * Failure surfaced by `applyOps` when an operation cannot be applied.
  * Plain-data discriminated union; narrow on `kind`, do not `instanceof` it.
- *
- * `appliedSoFar` carries the driver outputs from operations that succeeded
- * before the failing one, in dispatched order. Callers persist this so a
- * follow-up reconcile does not duplicate Roblox-side resources that have
- * already been created or updated.
+ * One `ApplyError` describes one failing op; the surrounding
+ * `AggregateApplyError` carries the full batch outcome (every survivor and
+ * every failure).
  *
  * @example
  *
@@ -42,7 +38,6 @@ import type { ResourceKey } from "../types/ids.ts";
  *
  * const err: ApplyError = {
  *     key: asResourceKey("vip-pass"),
- *     appliedSoFar: [],
  *     kind: "updateUnsupported",
  * };
  *
@@ -51,24 +46,32 @@ import type { ResourceKey } from "../types/ids.ts";
  */
 export type ApplyError =
 	| {
-			readonly appliedSoFar: ReadonlyArray<ResourceCurrentState>;
 			readonly cause: OpenCloudError;
 			readonly key: ResourceKey;
 			readonly kind: "driverFailure";
 	  }
 	| {
-			readonly appliedSoFar: ReadonlyArray<ResourceCurrentState>;
 			readonly key: ResourceKey;
 			readonly kind: "updateUnsupported";
 	  };
+
+/**
+ * Aggregate outcome returned by `applyOps` when one or more ops fail.
+ * `applied` is the survivor set in declaration order. `failures` is the
+ * non-empty list of `ApplyError`s, one per failing op.
+ */
+export interface AggregateApplyError {
+	/** Survivors persisted to state, in declaration order. */
+	readonly applied: ReadonlyArray<ResourceCurrentState>;
+	/** Per-op failures, at least one. */
+	readonly failures: readonly [ApplyError, ...ReadonlyArray<ApplyError>];
+}
 
 type NonNoopOp = Exclude<Operation, { readonly type: "noop" }>;
 type DeveloperProductOp = NonNoopOp & { readonly desired: DeveloperProductDesiredState };
 type GamePassOp = NonNoopOp & { readonly desired: GamePassDesiredState };
 type PlaceOp = NonNoopOp & { readonly desired: PlaceDesiredState };
 type UniverseOp = NonNoopOp & { readonly desired: UniverseDesiredState };
-
-type RawApplyError = DistributedOmit<ApplyError, "appliedSoFar">;
 
 /**
  * Dispatch each reconciliation operation to the matching resource driver
@@ -183,7 +186,7 @@ type RawApplyError = DistributedOmit<ApplyError, "appliedSoFar">;
 export async function applyOps(
 	ops: ReadonlyArray<Operation>,
 	registry: DriverRegistry,
-): Promise<Result<ReadonlyArray<ResourceCurrentState>, ApplyError>> {
+): Promise<Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>> {
 	const applied: Array<ResourceCurrentState> = [];
 
 	for (const op of ops) {
@@ -193,7 +196,7 @@ export async function applyOps(
 
 		const outcome = await dispatchOp(op, registry);
 		if (!outcome.success) {
-			return { err: { ...outcome.err, appliedSoFar: applied }, success: false };
+			return { err: { applied, failures: [outcome.err] }, success: false };
 		}
 
 		applied.push(outcome.data);
@@ -205,7 +208,7 @@ export async function applyOps(
 function driverFailure(
 	key: ResourceKey,
 	cause: OpenCloudError,
-): Result<ResourceCurrentState, RawApplyError> {
+): Result<ResourceCurrentState, ApplyError> {
 	return { err: { key, cause, kind: "driverFailure" }, success: false };
 }
 
@@ -219,7 +222,7 @@ function kindMismatch(key: ResourceKey, mismatch: { actual: string; expected: st
 async function applyOne<K extends ResourceKind>(
 	op: NonNoopOp & { readonly desired: Extract<ResourceDesiredState, { kind: K }> },
 	driver: ResourceDriver<K>,
-): Promise<Result<ResourceCurrentState, RawApplyError>> {
+): Promise<Result<ResourceCurrentState, ApplyError>> {
 	if (op.type === "create") {
 		const created = await driver.create(op.desired);
 		return created.success ? created : driverFailure(op.key, created.err);
@@ -243,7 +246,7 @@ async function applyOne<K extends ResourceKind>(
 async function dispatchOp(
 	op: NonNoopOp,
 	registry: DriverRegistry,
-): Promise<Result<ResourceCurrentState, RawApplyError>> {
+): Promise<Result<ResourceCurrentState, ApplyError>> {
 	// Exhaustive switch: adding a new ResourceKind is a compile error here
 	// until an arm lands. Each arm casts because custom type narrowing does
 	// not propagate through a non-distributive union.

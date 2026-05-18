@@ -18,6 +18,7 @@ import {
 	loadConfig,
 } from "./index.ts";
 import type {
+	AggregateApplyError,
 	ApplyError,
 	BedrockState,
 	BuildDesiredError,
@@ -139,13 +140,10 @@ describe(buildDesired, () => {
 });
 
 describe(applyOps, () => {
-	it("should resolve to a Result of readonly current state or ApplyError", () => {
+	it("should resolve to a Result of readonly current state or AggregateApplyError discriminated by ApplyError kind", () => {
 		expectTypeOf<Awaited<ReturnType<typeof applyOps>>>().toEqualTypeOf<
-			Result<ReadonlyArray<ResourceCurrentState>, ApplyError>
+			Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>
 		>();
-	});
-
-	it("should discriminate ApplyError on driverFailure and updateUnsupported kinds", () => {
 		expectTypeOf<ApplyError["kind"]>().toEqualTypeOf<"driverFailure" | "updateUnsupported">();
 	});
 });

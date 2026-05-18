@@ -136,7 +136,7 @@ describe(applyOps, () => {
 		]);
 	});
 
-	it("should stop dispatching on the first driver failure and wrap it in driverFailure Err with appliedSoFar", async () => {
+	it("should stop dispatching on the first driver failure and surface an aggregate with applied[] and a single-failure failures[]", async () => {
 		expect.assertions(3);
 
 		const first = createOp(asResourceKey("first-pass"));
@@ -153,10 +153,8 @@ describe(applyOps, () => {
 
 		expect(result).toStrictEqual({
 			err: {
-				key: second.key,
-				appliedSoFar: [firstCurrent],
-				cause,
-				kind: "driverFailure",
+				applied: [firstCurrent],
+				failures: [{ key: second.key, cause, kind: "driverFailure" }],
 			},
 			success: false,
 		});
@@ -167,7 +165,7 @@ describe(applyOps, () => {
 		]);
 	});
 
-	it("should return an updateUnsupported Err when the driver has no update method", async () => {
+	it("should return an updateUnsupported failure in the aggregate when the driver has no update method", async () => {
 		expect.assertions(2);
 
 		const update = updateOp(asResourceKey("vip-pass"));
@@ -179,13 +177,16 @@ describe(applyOps, () => {
 		);
 
 		expect(result).toStrictEqual({
-			err: { key: update.key, appliedSoFar: [], kind: "updateUnsupported" },
+			err: {
+				applied: [],
+				failures: [{ key: update.key, kind: "updateUnsupported" }],
+			},
 			success: false,
 		});
 		expect(create).not.toHaveBeenCalled();
 	});
 
-	it("should carry preceding driver outputs in appliedSoFar on updateUnsupported", async () => {
+	it("should carry preceding driver outputs in aggregate.applied on updateUnsupported", async () => {
 		expect.assertions(1);
 
 		const created = createOp(asResourceKey("first-pass"));
@@ -198,7 +199,10 @@ describe(applyOps, () => {
 		const result = await applyOps([created, update], registryWith(create));
 
 		expect(result).toStrictEqual({
-			err: { key: update.key, appliedSoFar: [createdCurrent], kind: "updateUnsupported" },
+			err: {
+				applied: [createdCurrent],
+				failures: [{ key: update.key, kind: "updateUnsupported" }],
+			},
 			success: false,
 		});
 	});
@@ -235,7 +239,10 @@ describe(applyOps, () => {
 		const result = await applyOps([first, second], registryWith(create, update));
 
 		expect(result).toStrictEqual({
-			err: { key: first.key, appliedSoFar: [], cause, kind: "driverFailure" },
+			err: {
+				applied: [],
+				failures: [{ key: first.key, cause, kind: "driverFailure" }],
+			},
 			success: false,
 		});
 		expect(create).not.toHaveBeenCalled();
@@ -300,7 +307,10 @@ describe(applyOps, () => {
 			const result = await applyOps([op], developerProductRegistry(create));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
+				err: {
+					applied: [],
+					failures: [{ key: op.key, cause, kind: "driverFailure" }],
+				},
 				success: false,
 			});
 		});
@@ -314,7 +324,10 @@ describe(applyOps, () => {
 			const result = await applyOps([op], developerProductRegistry(create));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, appliedSoFar: [], kind: "updateUnsupported" },
+				err: {
+					applied: [],
+					failures: [{ key: op.key, kind: "updateUnsupported" }],
+				},
 				success: false,
 			});
 			expect(create).not.toHaveBeenCalled();
@@ -350,7 +363,10 @@ describe(applyOps, () => {
 			const result = await applyOps([op], developerProductRegistry(create, update));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
+				err: {
+					applied: [],
+					failures: [{ key: op.key, cause, kind: "driverFailure" }],
+				},
 				success: false,
 			});
 		});
@@ -415,7 +431,10 @@ describe(applyOps, () => {
 			const result = await applyOps([op], placeRegistry(create));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
+				err: {
+					applied: [],
+					failures: [{ key: op.key, cause, kind: "driverFailure" }],
+				},
 				success: false,
 			});
 		});
@@ -429,7 +448,10 @@ describe(applyOps, () => {
 			const result = await applyOps([op], placeRegistry(create));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, appliedSoFar: [], kind: "updateUnsupported" },
+				err: {
+					applied: [],
+					failures: [{ key: op.key, kind: "updateUnsupported" }],
+				},
 				success: false,
 			});
 			expect(create).not.toHaveBeenCalled();
@@ -465,7 +487,10 @@ describe(applyOps, () => {
 			const result = await applyOps([op], placeRegistry(create, update));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
+				err: {
+					applied: [],
+					failures: [{ key: op.key, cause, kind: "driverFailure" }],
+				},
 				success: false,
 			});
 		});
@@ -487,11 +512,12 @@ describe(applyOps, () => {
 			const result = await applyOps([op], placeRegistry(create, update));
 
 			assert(!result.success);
-			assert(result.err.kind === "driverFailure");
+			const failure = result.err.failures[0];
+			assert(failure.kind === "driverFailure");
 
-			expect(result.err.cause.message).toContain("expected place");
-			expect(result.err.cause.message).toContain("got gamePass");
-			expect(result.err.cause.message).toContain(op.key);
+			expect(failure.cause.message).toContain("expected place");
+			expect(failure.cause.message).toContain("got gamePass");
+			expect(failure.cause.message).toContain(op.key);
 			expect(update).not.toHaveBeenCalled();
 		});
 	});
@@ -513,11 +539,12 @@ describe(applyOps, () => {
 			const result = await applyOps([op], registryWith(create, update));
 
 			assert(!result.success);
-			assert(result.err.kind === "driverFailure");
+			const failure = result.err.failures[0];
+			assert(failure.kind === "driverFailure");
 
-			expect(result.err.cause.message).toContain("expected gamePass");
-			expect(result.err.cause.message).toContain("got place");
-			expect(result.err.cause.message).toContain(op.key);
+			expect(failure.cause.message).toContain("expected gamePass");
+			expect(failure.cause.message).toContain("got place");
+			expect(failure.cause.message).toContain(op.key);
 			expect(update).not.toHaveBeenCalled();
 		});
 	});
@@ -585,7 +612,10 @@ describe(applyOps, () => {
 			const result = await applyOps([op], universeRegistry(create));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
+				err: {
+					applied: [],
+					failures: [{ key: op.key, cause, kind: "driverFailure" }],
+				},
 				success: false,
 			});
 		});
@@ -599,7 +629,10 @@ describe(applyOps, () => {
 			const result = await applyOps([op], universeRegistry(create));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, appliedSoFar: [], kind: "updateUnsupported" },
+				err: {
+					applied: [],
+					failures: [{ key: op.key, kind: "updateUnsupported" }],
+				},
 				success: false,
 			});
 			expect(create).not.toHaveBeenCalled();
@@ -635,7 +668,10 @@ describe(applyOps, () => {
 			const result = await applyOps([op], universeRegistry(create, update));
 
 			expect(result).toStrictEqual({
-				err: { key: op.key, appliedSoFar: [], cause, kind: "driverFailure" },
+				err: {
+					applied: [],
+					failures: [{ key: op.key, cause, kind: "driverFailure" }],
+				},
 				success: false,
 			});
 		});
@@ -657,11 +693,12 @@ describe(applyOps, () => {
 			const result = await applyOps([op], universeRegistry(create, update));
 
 			assert(!result.success);
-			assert(result.err.kind === "driverFailure");
+			const failure = result.err.failures[0];
+			assert(failure.kind === "driverFailure");
 
-			expect(result.err.cause.message).toContain("expected universe");
-			expect(result.err.cause.message).toContain("got gamePass");
-			expect(result.err.cause.message).toContain(op.key);
+			expect(failure.cause.message).toContain("expected universe");
+			expect(failure.cause.message).toContain("got gamePass");
+			expect(failure.cause.message).toContain(op.key);
 			expect(update).not.toHaveBeenCalled();
 		});
 	});

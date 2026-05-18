@@ -395,10 +395,14 @@ describe(deploy, () => {
 		expect(result).toStrictEqual({
 			err: {
 				cause: {
-					key: asResourceKey("vip-pass"),
-					appliedSoFar: [alphaCurrent],
-					cause,
-					kind: "driverFailure",
+					applied: [alphaCurrent],
+					failures: [
+						{
+							key: asResourceKey("vip-pass"),
+							cause,
+							kind: "driverFailure",
+						},
+					],
 				},
 				kind: "applyFailed",
 			},
@@ -497,10 +501,14 @@ describe(deploy, () => {
 		expect(result).toStrictEqual({
 			err: {
 				cause: {
-					key: asResourceKey("vip-pass"),
-					appliedSoFar: [alphaCurrent],
-					cause,
-					kind: "driverFailure",
+					applied: [alphaCurrent],
+					failures: [
+						{
+							key: asResourceKey("vip-pass"),
+							cause,
+							kind: "driverFailure",
+						},
+					],
 				},
 				kind: "applyFailed",
 			},

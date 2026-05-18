@@ -109,9 +109,13 @@ describe(renderDeployError, () => {
 		{
 			err: {
 				cause: {
-					key: asResourceKey("vip-pass"),
-					appliedSoFar: [],
-					kind: "updateUnsupported",
+					applied: [],
+					failures: [
+						{
+							key: asResourceKey("vip-pass"),
+							kind: "updateUnsupported",
+						},
+					],
 				},
 				kind: "applyFailed",
 			},
@@ -120,10 +124,14 @@ describe(renderDeployError, () => {
 		{
 			err: {
 				cause: {
-					key: asResourceKey("main-place"),
-					appliedSoFar: [],
-					cause: new ApiError("auth failed (401)", { statusCode: 401 }),
-					kind: "driverFailure",
+					applied: [],
+					failures: [
+						{
+							key: asResourceKey("main-place"),
+							cause: new ApiError("auth failed (401)", { statusCode: 401 }),
+							kind: "driverFailure",
+						},
+					],
 				},
 				kind: "applyFailed",
 			},
@@ -132,14 +140,18 @@ describe(renderDeployError, () => {
 		{
 			err: {
 				cause: {
-					key: asResourceKey("gem-pack"),
-					appliedSoFar: [],
-					cause: new PermissionError("HTTP 403", {
-						operationKey: "developer-products.create",
-						requiredScopes: ["developer-product:write"],
-						statusCode: 403,
-					}),
-					kind: "driverFailure",
+					applied: [],
+					failures: [
+						{
+							key: asResourceKey("gem-pack"),
+							cause: new PermissionError("HTTP 403", {
+								operationKey: "developer-products.create",
+								requiredScopes: ["developer-product:write"],
+								statusCode: 403,
+							}),
+							kind: "driverFailure",
+						},
+					],
 				},
 				kind: "applyFailed",
 			},
@@ -149,14 +161,18 @@ describe(renderDeployError, () => {
 		{
 			err: {
 				cause: {
-					key: asResourceKey("main-place"),
-					appliedSoFar: [],
-					cause: new PermissionError("HTTP 401", {
-						operationKey: "places.publishVersion",
-						requiredScopes: ["universe-places:write", "universe.place:write"],
-						statusCode: 401,
-					}),
-					kind: "driverFailure",
+					applied: [],
+					failures: [
+						{
+							key: asResourceKey("main-place"),
+							cause: new PermissionError("HTTP 401", {
+								operationKey: "places.publishVersion",
+								requiredScopes: ["universe-places:write", "universe.place:write"],
+								statusCode: 401,
+							}),
+							kind: "driverFailure",
+						},
+					],
 				},
 				kind: "applyFailed",
 			},
