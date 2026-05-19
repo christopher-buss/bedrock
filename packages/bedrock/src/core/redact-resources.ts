@@ -76,23 +76,23 @@ export interface EnvironmentResourceRedaction {
 	readonly products?: EnvironmentResourceLayer<RedactedDeveloperProductOverride>;
 }
 
-/**
- * Aggregated redaction layers consumed by {@link applyRedaction}. The
- * `envLevel` layer applies to every redactable resource in the env;
- * `envResource` carries per-resource env-overlay overrides keyed by kind.
- */
-export interface RedactionInputs {
-	/** Env-level redaction layer. Boolean toggle or cross-kind override object. */
-	readonly envLevel?: EnvironmentLevel;
-	/** Per-resource env-overlay redaction layers, keyed by kind. */
-	readonly envResource?: EnvironmentResourceRedaction;
-}
-
 type RedactionLayer<Override> = boolean | Override | undefined;
 
 type EnvironmentResourceLayer<Override> = Readonly<Record<string, RedactionLayer<Override>>>;
 
 type EnvironmentLevel = boolean | RedactedEnvironmentOverride | undefined;
+
+/**
+ * Aggregated redaction layers consumed by {@link applyRedaction}. The
+ * `envLevel` layer applies to every redactable resource in the env;
+ * `envResource` carries per-resource env-overlay overrides keyed by kind.
+ */
+interface RedactionInputs {
+	/** Env-level redaction layer. Boolean toggle or cross-kind override object. */
+	readonly envLevel?: EnvironmentLevel;
+	/** Per-resource env-overlay redaction layers, keyed by kind. */
+	readonly envResource?: EnvironmentResourceRedaction;
+}
 
 interface ProductRedactionInputs {
 	readonly key: string;
