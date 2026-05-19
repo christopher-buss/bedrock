@@ -13,6 +13,13 @@
  * to its own remote staging dir (basename of cwd), so concurrent
  * agents on the same host don't clobber each other.
  *
+ * If the container is running but its bind mount has gone stale
+ * (Docker Desktop's WSL share commonly detaches after Docker Desktop
+ * restarts), the runner attempts `docker restart` once to re-establish
+ * the mount. It first checks for an in-flight mutation on the shared
+ * container and refuses to restart when one is detected so a
+ * concurrent worktree's run isn't clobbered.
+ *
  * The diff is computed locally and shipped as a file because git
  * worktrees use a `.git` file pointing at a path that only exists on
  * the local machine; the remote does not need a working `.git`.
@@ -247,6 +254,65 @@ function containerSeesWorktree(config: RemoteConfig): boolean {
 	return result.status === 0;
 }
 
+function containerHasActiveMutation(config: RemoteConfig): boolean {
+	const result = spawnSync(
+		"ssh",
+		[
+			...SSH_OPTS,
+			config.host,
+			"docker",
+			"exec",
+			config.container,
+			"pgrep",
+			"-f",
+			"bedrock-mutate.sh|stryker",
+		],
+		{ stdio: ["ignore", "ignore", "ignore"] },
+	);
+	// pgrep exits 1 when nothing matches. Treat any other non-zero
+	// status (2 syntax, 3 fatal, 127 missing binary) as "active" so
+	// we never restart on uncertainty.
+	return result.status !== 1;
+}
+
+function restartContainer(config: RemoteConfig): boolean {
+	const result = spawnSync(
+		"ssh",
+		[...SSH_OPTS, config.host, "docker", "restart", config.container],
+		{ stdio: ["ignore", "ignore", "inherit"] },
+	);
+	return result.status === 0;
+}
+
+function recoverBindMount(config: RemoteConfig): string | undefined {
+	if (containerHasActiveMutation(config)) {
+		return (
+			`${config.container} cannot see /data/worktrees/${config.worktree} after rsync, ` +
+			"but another mutation is in progress on the shared container; refusing to " +
+			"docker restart and clobber it. Retry once the other run finishes, or restart " +
+			`${config.container} by hand if you know the bind mount is stale.`
+		);
+	}
+
+	if (!restartContainer(config)) {
+		return (
+			`${config.container} cannot see /data/worktrees/${config.worktree} after rsync ` +
+			`and docker restart ${config.container} failed; run docker rm -f ${config.container} ` +
+			`and re-create with -v ${config.stage}:/data/worktrees to re-establish the WSL share.`
+		);
+	}
+
+	if (!containerSeesWorktree(config)) {
+		return (
+			`${config.container} still cannot see /data/worktrees/${config.worktree} after ` +
+			"docker restart; bind mount is severely detached. Run docker rm -f " +
+			`${config.container} and re-create with -v ${config.stage}:/data/worktrees.`
+		);
+	}
+
+	return undefined;
+}
+
 function setupRemote(config: RemoteConfig): string | undefined {
 	const upStatus = rsyncUp(config);
 	if (upStatus !== 0) {
@@ -254,11 +320,10 @@ function setupRemote(config: RemoteConfig): string | undefined {
 	}
 
 	if (!containerSeesWorktree(config)) {
-		return (
-			`${config.container} cannot see /data/worktrees/${config.worktree} after rsync; ` +
-			`bind mount may be detached. Fix: docker rm -f ${config.container}, then re-run ` +
-			`with -v ${config.stage}:/data/worktrees so Docker Desktop re-establishes the WSL share.`
-		);
+		const recoveryFailure = recoverBindMount(config);
+		if (recoveryFailure !== undefined) {
+			return recoveryFailure;
+		}
 	}
 
 	const diff = computeDiff();
