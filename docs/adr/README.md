@@ -34,6 +34,7 @@ things are the way they are.
 | [022](./022-by-domain-folder-layout-for-ocale.md) | By-Domain Folder Layout for `@bedrock-rbx/ocale` | Accepted | 2026-04-30 |
 | [023](./023-apply-semantics-parallel-continue-on-failure.md) | Apply Semantics — Parallel, Continue-on-Failure, Per-Op Progress Events | Accepted | 2026-05-14 |
 | [024](./024-resource-redaction.md) | Resource Redaction for Pre-Release Environments | Accepted | 2026-05-14 |
+| [025](./025-luau-type-definitions.md) | Luau type definitions for `bedrock.config.luau` | Accepted | 2026-05-19 |
 
 ## Creating a New ADR
 
