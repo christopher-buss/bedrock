@@ -364,3 +364,63 @@ tracked in [issue #431](https://github.com/christopher-buss/bedrock/issues/431).
 | `developerProduct` | `name` | `` `Hidden Product ${suffix}` `` |
 
 Other rows are unchanged from the 2026-05-16 table above.
+
+## Amendment -- 2026-05-19 (env-scope overrides and field-level merging)
+
+Three changes lift restrictions the original Decision placed on the redaction surface, plus a default-value bump for the price field added in [#427](https://github.com/christopher-buss/bedrock/pull/427).
+
+### Default redacted price for game-pass and developer-product
+
+`REDACTED_PRICE` becomes `99999`. The original Decision's Placeholder defaults table did not cover `price`; [#427](https://github.com/christopher-buss/bedrock/pull/427) introduced `price` as a redactable field with an implicit default of `1`. The bump is a fail-safe shift. A misconfigured redacted resource erring on "unbuyable" is preferable to one erring on "accidentally cheap": the former is embarrassing, the latter risks revenue loss and premature reveal of monetization metadata.
+
+Off-sale resources (`price: undefined`) continue to stay off-sale through redaction; the default applies only when a real price is set.
+
+### Placeholder defaults (price-aware)
+
+| Kind               | Field   | Default                  |
+| ------------------ | ------- | ------------------------ |
+| `gamePass`         | `price` | `99999` (when on-sale)   |
+| `developerProduct` | `price` | `99999` (when on-sale)   |
+
+Other rows are unchanged from earlier tables.
+
+### Env-level cross-kind override object accepted
+
+The "Env-level override object" alternative is no longer deferred. A concrete use case has surfaced: an author needs every redactable product and pass in an env to ship with `{ price: 1 }` (or another uniform override) without repeating the override per resource.
+
+`environments.<env>.redacted` accepts `boolean | RedactedEnvironmentOverride | undefined`, where `RedactedEnvironmentOverride` carries the union of redactable fields across kinds:
+
+| Field         | Applies to                                                  |
+| ------------- | ----------------------------------------------------------- |
+| `name`        | `gamePass`, `developerProduct`                              |
+| `description` | `gamePass`, `developerProduct`, `place`                     |
+| `icon`        | `gamePass`, `developerProduct`                              |
+| `price`       | `gamePass`, `developerProduct`                              |
+| `displayName` | `place`, `universe` (when explicitly redacted via override) |
+
+Per-kind application: each redactable kind picks up only the fields its own override type supports. Fields a kind does not recognize are silently ignored for that kind. The "kind-specific field eligibility" concern raised in the original Alternatives Considered section is resolved by this rule.
+
+### Per-resource env-overlay object form accepted
+
+Each per-resource entry inside an env overlay (`environments.<env>.passes.<key>`, `.products.<key>`, `.places.<key>`) accepts the kind's existing override object form alongside `boolean`. The env-overlay surface aligns with the root resource entry, removing the public-API asymmetry where the exported `RedactedGamePassOverride`, `RedactedDeveloperProductOverride`, and `RedactedPlaceOverride` types appeared usable wherever `redacted` was mentioned but were rejected at env scope. Covers user story 17 from the PRD ([#408](https://github.com/christopher-buss/bedrock/issues/408)).
+
+### Field-level merging precedence
+
+Layers compose field-by-field rather than whole-object. The original Precedence section's "most-specific layer wins" reading was consistent with both whole-object and field-level merging because only one layer (root-resource) carried object form; the question had no observable answer. With object form at every layer the choice is explicit.
+
+Layer order remains most-specific to least-specific. Short forms below are convenient nicknames used through the rest of this amendment:
+
+```text
+env-resource (per-resource inside an env overlay)
+  > root-resource (per-resource at root)
+  > env-level (cross-kind on the env entry)
+```
+
+Resolution is two-step:
+
+1. **State.** The first non-undefined `redacted` value sets the redaction state. `false` carves out: the resource is not redacted and lower layers are moot. `true` or object form enables redaction; proceed to step 2.
+2. **Fields.** Walk every object-form layer encountered (most-specific to least-specific). Merge fields with the most-specific layer's value winning per field. Boolean `true` contributes no fields. Bedrock kind defaults fill any field still unset.
+
+Canonical example: `products.myProduct.redacted = { name: "Hidden" }` at root combined with `environments.dev.redacted = { price: 1 }` at env-level resolves, for dev's `myProduct`, to `{ name: "Hidden", price: 1 }` plus kind defaults for `description` and `icon`.
+
+The Negative section clause about authors needing to "repeat the override on each env overlay's entry" is superseded: root-level overrides now compose with env-level and env-resource overrides automatically.
