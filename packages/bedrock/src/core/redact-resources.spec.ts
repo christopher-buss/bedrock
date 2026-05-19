@@ -1095,7 +1095,7 @@ describe(collectRedactionAnnotations, () => {
 		]);
 	});
 
-	it("should set hasRealValueEdits true when the name only shares the placeholder prefix (e.g. Redacted Product Deluxe)", () => {
+	it("should set hasRealValueEdits true when the name only shares the placeholder prefix (e.g. Hidden Product Deluxe)", () => {
 		expect.assertions(1);
 
 		const result = collectRedactionAnnotations({
@@ -1159,10 +1159,19 @@ describe(redactedNameSuffix, () => {
 });
 
 describe(defaultRedactedProductName, () => {
-	it("should combine the placeholder prefix with the key's suffix", () => {
+	it("should combine the placeholder prefix with the key's suffix separated by a space", () => {
 		expect.assertions(1);
 		expect(defaultRedactedProductName("bp-1")).toBe(
-			`${REDACTED_PRODUCT_NAME} #${redactedNameSuffix("bp-1")}`,
+			`${REDACTED_PRODUCT_NAME} ${redactedNameSuffix("bp-1")}`,
 		);
+	});
+
+	it("should not contain a hash sign or the word Redacted so Roblox's text-moderation filter does not collapse the name to ########", () => {
+		expect.assertions(2);
+
+		const name = defaultRedactedProductName("bp-1");
+
+		expect(name).not.toInclude("#");
+		expect(name).not.toInclude("Redacted");
 	});
 });

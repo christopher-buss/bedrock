@@ -325,3 +325,42 @@ when there is a concrete redactable target.
 | `badge`            | `icon`        | embedded placeholder PNG                 |
 | `place`            | `description` | `""`                                     |
 | `place`            | `displayName` | (no default; explicit override required) |
+
+## Amendment -- 2026-05-19
+
+Two changes to the `developerProduct` name default since the 2026-05-16
+amendment:
+
+1. **Hashed suffix (PR #426).** The bare shared default `"Redacted Product"`
+   collided with Roblox's per-universe uniqueness constraint on dev-product
+   names. The default now embeds a 6-hex SHA-256 digest of the resource key
+   so every redacted entry resolves to a unique wire value.
+2. **Prefix change to `"Hidden Product"` and removal of the `#` separator.**
+   Live smoke testing against Anime Rush surfaced that Roblox's text
+   moderation filter silently replaces some names matching
+   `Redacted Product #<hex>` with `########################` (24 hashes, one
+   per source character). Once one product's name moderates to that string,
+   every other redacted entry whose proposed name *would also* moderate to
+   the same string is rejected at PATCH time with `DuplicateProductName`
+   (Roblox's uniqueness check runs against the post-moderation value, not
+   the submitted one). Dropping the word `Redacted` and the `#` separator
+   produces names of the form `Hidden Product <hex>` that the moderation
+   filter has been observed to pass cleanly.
+
+The `gamePass` default `"Redacted Pass"` is unchanged: game-pass names do not
+enforce per-universe uniqueness on Roblox, so a moderation-induced collapse
+to `########################` cannot cascade into apply failures.
+
+The prefix swap is a stop-gap: the moderation filter is opaque and the
+pattern that passes today could stop passing tomorrow. Sturdier options
+(post-PATCH moderation-drift detection, moving uniqueness off the
+human-readable name, pre-validating against a Roblox filter endpoint) are
+tracked in [issue #431](https://github.com/christopher-buss/bedrock/issues/431).
+
+### Placeholder defaults (revised again)
+
+| Kind               | Field  | Default                          |
+| ------------------ | ------ | -------------------------------- |
+| `developerProduct` | `name` | `` `Hidden Product ${suffix}` `` |
+
+Other rows are unchanged from the 2026-05-16 table above.

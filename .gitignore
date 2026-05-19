@@ -3,6 +3,7 @@ node_modules
 .DS_Store
 .eslintcache
 .env
+OVERNIGHT_STATUS.md
 
 # Testing
 coverage

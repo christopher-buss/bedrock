@@ -19,13 +19,17 @@ export const REDACTED_PASS_NAME = "Redacted Pass";
 /**
  * Common prefix used to build the default name pushed for a redacted
  * developer-product. The full default produced by {@link defaultRedactedProductName}
- * is `${REDACTED_PRODUCT_NAME} #${suffix}`, where `suffix` is a 6-hex-char
+ * is `${REDACTED_PRODUCT_NAME} ${suffix}`, where `suffix` is a 6-hex-char
  * digest of the resource key (see {@link redactedNameSuffix}). The suffix is
  * required because Roblox enforces per-universe uniqueness on
  * developer-product names, so a shared bare placeholder would collide across
- * multiple redacted entries.
+ * multiple redacted entries. The prefix avoids the word `Redacted` and the
+ * `#` separator because Roblox's text-moderation filter has been observed
+ * silently replacing names matching `Redacted Product #<hex>` with
+ * `########################`, which then causes downstream `DuplicateProductName`
+ * errors when other redacted entries are moderated to the same string.
  */
-export const REDACTED_PRODUCT_NAME = "Redacted Product";
+export const REDACTED_PRODUCT_NAME = "Hidden Product";
 
 /** Default placeholder description pushed for any redacted resource. */
 export const REDACTED_DESCRIPTION = "";
@@ -83,7 +87,7 @@ export function redactedNameSuffix(key: string): string {
  * @returns The placeholder name pushed to Roblox for this product.
  */
 export function defaultRedactedProductName(key: string): string {
-	return `${REDACTED_PRODUCT_NAME} #${redactedNameSuffix(key)}`;
+	return `${REDACTED_PRODUCT_NAME} ${redactedNameSuffix(key)}`;
 }
 
 /**
@@ -295,7 +299,7 @@ function productHasRealValueEdits(key: string, entry: DeveloperProductEntry): bo
 	// A redacted product's `name` is a placeholder when it equals either the
 	// suffixed default for this key (what `applyRedaction` synthesizes) or
 	// the bare `REDACTED_PRODUCT_NAME` constant (what an author may have
-	// hand-typed). Any other value, including `Redacted Product Deluxe` or a
+	// hand-typed). Any other value, including `Hidden Product Deluxe` or a
 	// suffix that doesn't match this key's hash, is treated as a real edit.
 	const isPlaceholderName =
 		entry.name === defaultRedactedProductName(key) || entry.name === REDACTED_PRODUCT_NAME;
