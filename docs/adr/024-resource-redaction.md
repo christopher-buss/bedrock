@@ -351,6 +351,12 @@ The `gamePass` default `"Redacted Pass"` is unchanged: game-pass names do not
 enforce per-universe uniqueness on Roblox, so a moderation-induced collapse
 to `########################` cannot cascade into apply failures.
 
+The prefix swap is a stop-gap: the moderation filter is opaque and the
+pattern that passes today could stop passing tomorrow. Sturdier options
+(post-PATCH moderation-drift detection, moving uniqueness off the
+human-readable name, pre-validating against a Roblox filter endpoint) are
+tracked in [issue #431](https://github.com/christopher-buss/bedrock/issues/431).
+
 ### Placeholder defaults (revised again)
 
 | Kind               | Field  | Default                          |
