@@ -7,15 +7,15 @@ import {
 import { assert, describe, expect, it } from "vitest";
 
 import { asResourceKey, asSha256Hex } from "../types/ids.ts";
-import { validatePlan } from "./validate-plan.ts";
+import { assertAllReconcilable } from "./assert-all-reconcilable.ts";
 
 const ICON_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
 
-describe(validatePlan, () => {
+describe(assertAllReconcilable, () => {
 	it("should return ok when there is no current state to compare against", () => {
 		expect.assertions(1);
 
-		expect(validatePlan([developerProductDesired()], [])).toStrictEqual({
+		expect(assertAllReconcilable([developerProductDesired()], [])).toStrictEqual({
 			data: undefined,
 			success: true,
 		});
@@ -25,7 +25,7 @@ describe(validatePlan, () => {
 		expect.assertions(1);
 
 		expect(
-			validatePlan([developerProductDesired()], [developerProductCurrent()]),
+			assertAllReconcilable([developerProductDesired()], [developerProductCurrent()]),
 		).toStrictEqual({ data: undefined, success: true });
 	});
 
@@ -37,7 +37,7 @@ describe(validatePlan, () => {
 			iconFileHashes: { "en-us": ICON_HASH },
 		});
 
-		expect(validatePlan([desired], [developerProductCurrent()])).toStrictEqual({
+		expect(assertAllReconcilable([desired], [developerProductCurrent()])).toStrictEqual({
 			data: undefined,
 			success: true,
 		});
@@ -50,7 +50,7 @@ describe(validatePlan, () => {
 		const iconFileHashes = { "en-us": ICON_HASH };
 
 		expect(
-			validatePlan(
+			assertAllReconcilable(
 				[developerProductDesired({ icon, iconFileHashes })],
 				[developerProductCurrent({ icon, iconFileHashes })],
 			),
@@ -65,7 +65,7 @@ describe(validatePlan, () => {
 			iconFileHashes: { "en-us": ICON_HASH },
 		});
 
-		const result = validatePlan([developerProductDesired()], [current]);
+		const result = assertAllReconcilable([developerProductDesired()], [current]);
 		assert(!result.success);
 		assert(result.err.kind === "iconRemovalRejected");
 
@@ -82,7 +82,7 @@ describe(validatePlan, () => {
 			iconFileHashes: { "en-us": ICON_HASH },
 		});
 
-		expect(validatePlan([], [orphanCurrent])).toStrictEqual({
+		expect(assertAllReconcilable([], [orphanCurrent])).toStrictEqual({
 			data: undefined,
 			success: true,
 		});
@@ -92,7 +92,7 @@ describe(validatePlan, () => {
 		expect.assertions(1);
 
 		expect(
-			validatePlan(
+			assertAllReconcilable(
 				[developerProductDesired(), gamePassDesired()],
 				[
 					developerProductCurrent({
@@ -111,7 +111,7 @@ describe(validatePlan, () => {
 		const sharedKey = developerProductDesired().key;
 
 		expect(
-			validatePlan(
+			assertAllReconcilable(
 				[developerProductDesired({ key: sharedKey })],
 				[
 					gamePassCurrent({
@@ -136,7 +136,7 @@ describe(validatePlan, () => {
 			name: "Hidden Product abcdef",
 		});
 
-		const result = validatePlan([first, second], []);
+		const result = assertAllReconcilable([first, second], []);
 		assert(!result.success);
 		assert(result.err.kind === "redactedNameCollision");
 
@@ -159,14 +159,14 @@ describe(validatePlan, () => {
 			name: "Closed Beta Pack",
 		});
 
-		expect(validatePlan([first, second], []).success).toBeFalse();
+		expect(assertAllReconcilable([first, second], []).success).toBeFalse();
 	});
 
 	it("should pass through when two developer-products have distinct names", () => {
 		expect.assertions(1);
 
 		expect(
-			validatePlan(
+			assertAllReconcilable(
 				[
 					developerProductDesired({ key: asResourceKey("a"), name: "Pack A" }),
 					developerProductDesired({ key: asResourceKey("b"), name: "Pack B" }),
@@ -180,7 +180,7 @@ describe(validatePlan, () => {
 		expect.assertions(1);
 
 		expect(
-			validatePlan(
+			assertAllReconcilable(
 				[
 					developerProductDesired({ name: "Shared Name" }),
 					gamePassDesired({ name: "Shared Name" }),

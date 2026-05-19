@@ -8,17 +8,17 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
 import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
 
 /**
- * Failure surfaced during desired-state preparation. Three variants today:
+ * Failure surfaced before `diff` runs. Three variants today:
  *
  * - `fileReadFailed`: a kind module's `normalize` could not read a file
  *   the input declared (e.g. An icon path that is missing on disk).
- * - `iconRemovalRejected`: `validatePlan` saw a kind whose prior current
- *   state recorded an icon that the desired state no longer declares,
- *   and the kind has no documented unset path on the upstream API.
- * - `redactedNameCollision`: `validatePlan` saw two developer-products in
- *   the same plan that resolve to the same wire `name`. The upstream
- *   Roblox API enforces per-universe uniqueness on developer-product
- *   names and would reject the second PATCH with `DuplicateProductName`.
+ * - `iconRemovalRejected`: a kind's prior current state recorded an icon
+ *   that the desired state no longer declares, and the kind has no
+ *   documented unset path on the upstream API.
+ * - `redactedNameCollision`: two developer-products in the same batch
+ *   resolve to the same wire `name`. The upstream Roblox API enforces
+ *   per-universe uniqueness on developer-product names and would reject
+ *   the second PATCH with `DuplicateProductName`.
  *
  * The single-resource variants carry the offending `key` so the CLI can
  * attribute the failure to one entry; `redactedNameCollision` carries
@@ -142,12 +142,11 @@ export interface KindIo {
  */
 export interface ResourceKindModule<K extends ResourceKind> {
 	/**
-	 * Optional plan-time invariant check called by `validatePlan` for every
-	 * `(kind, key)` pair that exists on both sides. Surfaces kind-specific
+	 * Optional reconcilability invariant invoked for every `(kind, key)` pair
+	 * that exists on both sides before `diff` runs. Surfaces kind-specific
 	 * rejections (e.g. Removing a developer-product icon, which the upstream
-	 * API has no documented unset path for) before `diff` runs and before
-	 * any apply-side driver I/O is attempted. Kinds without plan-level
-	 * invariants omit this hook.
+	 * API has no documented unset path for) before any apply-side driver I/O
+	 * is attempted. Kinds without such invariants omit this hook.
 	 */
 	readonly assertReconcilable?: (
 		current: ResourceCurrentState<K>,
@@ -159,7 +158,7 @@ export interface ResourceKindModule<K extends ResourceKind> {
 	 * in a kind-specific deterministic order. Mirrors `fieldsEqual`
 	 * semantics, so `fieldsEqual(d, c)` is `true` iff this returns `[]`.
 	 * Granularity is top-level: `discordSocialLink`, not
-	 * `discordSocialLink.uri`. Plan and apply renderers consume this as
+	 * `discordSocialLink.uri`. Preview and apply renderers consume this as
 	 * the single source of truth for "what changed" on an update op.
 	 */
 	changedFieldsBetween(

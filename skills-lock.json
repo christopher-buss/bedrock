@@ -17,13 +17,13 @@
 			"source": "mattpocock/skills",
 			"sourceType": "github",
 			"skillPath": "skills/engineering/grill-with-docs/SKILL.md",
-			"computedHash": "1adf321072f53cce3dcaf5357d91b8230d4aa647bb8a51756745337a6ee567b8"
+			"computedHash": "a5c65e76275008b469962f7bee8b34866f1c9b0709f4886e71c8e731735640e4"
 		},
 		"handoff": {
 			"source": "mattpocock/skills",
 			"sourceType": "github",
 			"skillPath": "skills/productivity/handoff/SKILL.md",
-			"computedHash": "d543685cbfb0c64b7bc51a8dc3465975528da9b64f987f863765973b2f3867ab"
+			"computedHash": "1a78d774f8a59db5daa6e65e20a6596872fa8cde769f9a6e3a09b678dd5ae8cc"
 		},
 		"humanizer": {
 			"source": "christopher-buss/skills",
@@ -51,6 +51,12 @@
 			"sourceType": "github",
 			"computedHash": "57b44178faeb6a0eeb2b56d5fdea211b9107b7542b5c6a74c83ea88041286c67"
 		},
+		"prototype": {
+			"source": "mattpocock/skills",
+			"sourceType": "github",
+			"skillPath": "skills/engineering/prototype/SKILL.md",
+			"computedHash": "e4d0c8f8cb3fc096ee99405a15491da466545cf4a3694bee5a0c9db2fa621a43"
+		},
 		"qa": {
 			"source": "mattpocock/skills",
 			"sourceType": "github",
@@ -60,7 +66,7 @@
 			"source": "mattpocock/skills",
 			"sourceType": "github",
 			"skillPath": "skills/engineering/setup-matt-pocock-skills/SKILL.md",
-			"computedHash": "3a32f8f1ed8160c9d286a2aabe88ee9b884c6f3f88a7a6c47b7d5d552c959587"
+			"computedHash": "0164a8b1ef998abca426056c6ed8a7716a9d4692fc6daa5378f68381a6dafd24"
 		},
 		"test-driven-development": {
 			"source": "christopher-buss/skills",

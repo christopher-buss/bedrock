@@ -44,7 +44,7 @@ export const REDACTED_DESCRIPTION = "";
 export const REDACTED_PRICE = 99_999;
 
 /**
- * Per-resource annotation surfaced in plan output for entries that are
+ * Per-resource annotation surfaced in preview output for entries that are
  * redacted in the active environment. `hasRealValueEdits` is true when the
  * pre-redaction merged config carries real display values that diverge from
  * the placeholders bedrock pushes, so the renderer can warn the author that
@@ -135,7 +135,7 @@ interface RedactKindInputs<Entry, Override> {
  * disambiguating suffix on a redacted developer-product's default `name`.
  * Stable across config edits (driven only by the bedrock resource key, not
  * declaration order) and opaque to a Roblox player browsing the marketplace.
- * A natural collision is caught at plan time by `validatePlan`.
+ * A natural collision is caught before any apply-side driver I/O by `assertAllReconcilable`.
  *
  * @param key - Bedrock resource key for the developer product being redacted.
  * @returns The first six lowercase hex characters of the SHA-256 digest of `key`.

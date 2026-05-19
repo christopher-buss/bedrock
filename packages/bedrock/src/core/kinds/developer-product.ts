@@ -118,7 +118,7 @@ function assertReconcilable(
 /**
  * Resource-kind module for Roblox developer products. Owns the entry
  * schema, flattening, icon-hash normalization, drift-equality, and the
- * plan-time icon-removal rejection for the `developerProduct` kind.
+ * pre-reconcile icon-removal rejection for the `developerProduct` kind.
  */
 export const developerProductKind: ResourceKindModule<"developerProduct"> = {
 	assertReconcilable,

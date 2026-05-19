@@ -105,7 +105,6 @@ export {
 } from "./core/select-environment.ts";
 export { parseStateFile, serializeStateFile } from "./core/state-file.ts";
 export type { BedrockState, StateError } from "./core/state.ts";
-export { validatePlan } from "./core/validate-plan.ts";
 export type {
 	ApplySummaryEvent,
 	DeployFailureEvent,
