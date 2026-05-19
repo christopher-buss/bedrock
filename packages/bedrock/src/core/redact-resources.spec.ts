@@ -332,7 +332,7 @@ describe(applyRedaction, () => {
 			) satisfies GamePassEntry;
 			const result = applyRedaction(
 				{ ...baseConfig, passes: { "vip-pass": passEntry } },
-				envRedacted,
+				{ envLevel: envRedacted },
 			);
 			const expectedName = expectRedacted ? REDACTED_PASS_NAME : vipEntry.name;
 
@@ -425,7 +425,7 @@ describe(applyRedaction, () => {
 
 		const result = applyRedaction(
 			{ ...baseConfig, places: { "start-place": startPlaceEntry } },
-			true,
+			{ envLevel: true },
 		);
 
 		expect(result.places?.["start-place"]?.description).toBe(REDACTED_DESCRIPTION);
@@ -487,7 +487,7 @@ describe(applyRedaction, () => {
 			) satisfies ResolvedPlaceEntry;
 			const result = applyRedaction(
 				{ ...baseConfig, places: { "start-place": placeEntry } },
-				envRedacted,
+				{ envLevel: envRedacted },
 			);
 			const expectedDescription = expectRedacted
 				? REDACTED_DESCRIPTION
@@ -719,7 +719,7 @@ describe(applyRedaction, () => {
 			) satisfies DeveloperProductEntry;
 			const result = applyRedaction(
 				{ ...baseConfig, products: { "gem-pack": productEntry } },
-				envRedacted,
+				{ envLevel: envRedacted },
 			);
 			const expectedName = expectRedacted
 				? defaultRedactedProductName("gem-pack")
@@ -792,6 +792,334 @@ describe(applyRedaction, () => {
 			redacted: { icon: { "en-us": "assets/override-icon.png" } },
 		});
 	});
+
+	describe("env-level cross-kind override", () => {
+		it("should apply an env-level price override to every on-sale pass without per-resource repetition", () => {
+			expect.assertions(2);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					passes: {
+						"elite-pass": { ...vipEntry, name: "Elite Pass", price: 1500 },
+						"vip-pass": vipEntry,
+					},
+				},
+				{ envLevel: { price: 1 } },
+			);
+
+			expect(result.passes?.["vip-pass"]?.price).toBe(1);
+			expect(result.passes?.["elite-pass"]?.price).toBe(1);
+		});
+
+		it("should apply an env-level price override to every on-sale product without per-resource repetition", () => {
+			expect.assertions(2);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					products: {
+						"gem-pack": gemPackEntry,
+						"gold-pack": { ...gemPackEntry, name: "Gold Pack", price: 2000 },
+					},
+				},
+				{ envLevel: { price: 1 } },
+			);
+
+			expect(result.products?.["gem-pack"]?.price).toBe(1);
+			expect(result.products?.["gold-pack"]?.price).toBe(1);
+		});
+
+		it("should leave off-sale passes and products off-sale when an env-level price override is supplied", () => {
+			expect.assertions(2);
+
+			const offSalePass = {
+				name: "Coming Soon Pass",
+				description: "Reveal at launch.",
+				icon: { "en-us": "assets/soon.png" },
+			} as const satisfies GamePassEntry;
+			const offSaleProduct = {
+				name: "Future Pack",
+				description: "Reveal at launch.",
+			} as const satisfies DeveloperProductEntry;
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					passes: { "soon-pass": offSalePass },
+					products: { "future-pack": offSaleProduct },
+				},
+				{ envLevel: { price: 1 } },
+			);
+
+			expect(result.passes?.["soon-pass"]).not.toHaveProperty("price");
+			expect(result.products?.["future-pack"]).not.toHaveProperty("price");
+		});
+
+		it("should apply an env-level description override to every redactable kind that supports description", () => {
+			expect.assertions(3);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					passes: { "vip-pass": vipEntry },
+					places: { "start-place": startPlaceEntry },
+					products: { "gem-pack": gemPackEntry },
+				},
+				{ envLevel: { description: "Reveal at launch." } },
+			);
+
+			expect(result.passes?.["vip-pass"]?.description).toBe("Reveal at launch.");
+			expect(result.places?.["start-place"]?.description).toBe("Reveal at launch.");
+			expect(result.products?.["gem-pack"]?.description).toBe("Reveal at launch.");
+		});
+
+		it("should apply an env-level displayName override only to places", () => {
+			expect.assertions(3);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					passes: { "vip-pass": vipEntry },
+					places: { "start-place": startPlaceEntry },
+					products: { "gem-pack": gemPackEntry },
+				},
+				{ envLevel: { displayName: "Hidden Project" } },
+			);
+
+			expect(result.places?.["start-place"]?.displayName).toBe("Hidden Project");
+			expect(result.passes?.["vip-pass"]?.name).toBe(REDACTED_PASS_NAME);
+			expect(result.products?.["gem-pack"]?.name).toBe(
+				defaultRedactedProductName("gem-pack"),
+			);
+		});
+
+		it("should apply an env-level icon override to passes and products and silently ignore it on places", () => {
+			expect.assertions(3);
+
+			const iconOverride = { "en-us": "assets/env-icon.png" };
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					passes: { "vip-pass": vipEntry },
+					places: { "start-place": startPlaceEntry },
+					products: { "gem-pack": gemPackEntry },
+				},
+				{ envLevel: { icon: iconOverride } },
+			);
+
+			expect(result.passes?.["vip-pass"]?.icon).toStrictEqual(iconOverride);
+			expect(result.products?.["gem-pack"]?.icon).toStrictEqual(iconOverride);
+			expect(result.places?.["start-place"]).not.toHaveProperty("icon");
+		});
+
+		it("should compose a root name override with an env-level price override into one field-merged product result", () => {
+			expect.assertions(1);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					products: {
+						"gem-pack": { ...gemPackEntry, redacted: { name: "Hidden" } },
+					},
+				},
+				{ envLevel: { price: 1 } },
+			);
+
+			expect(result.products?.["gem-pack"]).toStrictEqual({
+				name: "Hidden",
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				price: 1,
+				redacted: { name: "Hidden" },
+			});
+		});
+
+		it("should let env-level fields apply when the root layer enables redaction with bare true", () => {
+			expect.assertions(1);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					products: { "gem-pack": { ...gemPackEntry, redacted: true } },
+				},
+				{ envLevel: { price: 1 } },
+			);
+
+			expect(result.products?.["gem-pack"]).toStrictEqual({
+				name: defaultRedactedProductName("gem-pack"),
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				price: 1,
+				redacted: true,
+			});
+		});
+
+		it("should not redact when a root false carves out despite an env-level override object", () => {
+			expect.assertions(1);
+
+			const entry = {
+				...gemPackEntry,
+				redacted: false,
+			} as const satisfies DeveloperProductEntry;
+			const result = applyRedaction(
+				{ ...baseConfig, products: { "gem-pack": entry } },
+				{ envLevel: { price: 1 } },
+			);
+
+			expect(result.products?.["gem-pack"]).toStrictEqual(entry);
+		});
+
+		it("should let a root field override win over the env-level value for the same field", () => {
+			expect.assertions(1);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					products: {
+						"gem-pack": { ...gemPackEntry, redacted: { price: 500 } },
+					},
+				},
+				{ envLevel: { price: 1 } },
+			);
+
+			expect(result.products?.["gem-pack"]?.price).toBe(500);
+		});
+
+		it("should redact a place from env-level alone when the place sets no redacted flag", () => {
+			expect.assertions(2);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					places: { "start-place": startPlaceEntry },
+				},
+				{ envLevel: { displayName: "Hidden Project" } },
+			);
+
+			expect(result.places?.["start-place"]?.description).toBe(REDACTED_DESCRIPTION);
+			expect(result.places?.["start-place"]?.displayName).toBe("Hidden Project");
+		});
+	});
+
+	describe("env-resource layer", () => {
+		it("should let an env-resource name override win over a root override and an env-level override for the same field", () => {
+			expect.assertions(1);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					products: {
+						"gem-pack": {
+							...gemPackEntry,
+							redacted: { name: "Root Name", price: 100 },
+						},
+					},
+				},
+				{
+					envLevel: { price: 1 },
+					envResource: { products: { "gem-pack": { name: "Env Resource Name" } } },
+				},
+			);
+
+			expect(result.products?.["gem-pack"]).toStrictEqual({
+				name: "Env Resource Name",
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				price: 100,
+				redacted: { name: "Root Name", price: 100 },
+			});
+		});
+
+		it("should treat env-resource true as enabling redaction without contributing fields, letting root and env-level fields apply", () => {
+			expect.assertions(1);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					products: {
+						"gem-pack": { ...gemPackEntry, redacted: { name: "Root Name" } },
+					},
+				},
+				{
+					envLevel: { price: 1 },
+					envResource: { products: { "gem-pack": true } },
+				},
+			);
+
+			expect(result.products?.["gem-pack"]).toStrictEqual({
+				name: "Root Name",
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				price: 1,
+				redacted: { name: "Root Name" },
+			});
+		});
+
+		it("should treat env-resource false as carving out, leaving root and env-level layers moot", () => {
+			expect.assertions(1);
+
+			const rootEntry = {
+				...gemPackEntry,
+				redacted: { name: "Root Name" },
+			} as const satisfies DeveloperProductEntry;
+			const result = applyRedaction(
+				{ ...baseConfig, products: { "gem-pack": rootEntry } },
+				{
+					envLevel: { price: 1 },
+					envResource: { products: { "gem-pack": false } },
+				},
+			);
+
+			expect(result.products?.["gem-pack"]).toStrictEqual(rootEntry);
+		});
+
+		it("should let an env-resource object force redaction even when the root entry sets redacted false", () => {
+			expect.assertions(1);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					products: { "gem-pack": { ...gemPackEntry, redacted: false } },
+				},
+				{
+					envResource: { products: { "gem-pack": { name: "Env Hidden" } } },
+				},
+			);
+
+			expect(result.products?.["gem-pack"]).toStrictEqual({
+				name: "Env Hidden",
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				price: REDACTED_PRICE,
+				redacted: false,
+			});
+		});
+
+		it("should compose env-resource passes, products, and places independently against env-level", () => {
+			expect.assertions(3);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					passes: { "vip-pass": vipEntry },
+					places: { "start-place": startPlaceEntry },
+					products: { "gem-pack": gemPackEntry },
+				},
+				{
+					envLevel: { price: 1 },
+					envResource: {
+						passes: { "vip-pass": { name: "Hidden Pass" } },
+						places: { "start-place": { displayName: "Hidden Place" } },
+						products: { "gem-pack": { name: "Hidden Pack" } },
+					},
+				},
+			);
+
+			expect(result.passes?.["vip-pass"]?.name).toBe("Hidden Pass");
+			expect(result.places?.["start-place"]?.displayName).toBe("Hidden Place");
+			expect(result.products?.["gem-pack"]?.name).toBe("Hidden Pack");
+		});
+	});
 });
 
 describe(collectRedactionAnnotations, () => {
@@ -812,6 +1140,38 @@ describe(collectRedactionAnnotations, () => {
 		});
 
 		expect(result).toStrictEqual([]);
+	});
+
+	it("should annotate a pass whose env-overlay layer alone sets redacted: true even when the root entry omits the flag", () => {
+		expect.assertions(1);
+
+		const result = collectRedactionAnnotations(
+			{
+				...baseConfig,
+				passes: { "vip-pass": vipEntry },
+			},
+			{ passes: { "vip-pass": true } },
+		);
+
+		expect(result).toStrictEqual([
+			{ key: "vip-pass", hasRealValueEdits: true, kind: "gamePass" },
+		]);
+	});
+
+	it("should annotate a product whose env-overlay layer alone sets redacted: true even when the root entry omits the flag", () => {
+		expect.assertions(1);
+
+		const result = collectRedactionAnnotations(
+			{
+				...baseConfig,
+				products: { "gem-pack": gemPackEntry },
+			},
+			{ products: { "gem-pack": true } },
+		);
+
+		expect(result).toStrictEqual([
+			{ key: "gem-pack", hasRealValueEdits: true, kind: "developerProduct" },
+		]);
 	});
 
 	it("should emit one gamePass annotation per pass flagged redacted true with hasRealValueEdits false when the author already typed placeholder values literally", () => {

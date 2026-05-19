@@ -10,6 +10,7 @@ import type {
 	GamePassEntry,
 	GistStateConfig,
 	PlaceEntry,
+	RedactedEnvironmentOverride,
 	RedactedGamePassOverride,
 	RedactedPlaceOverride,
 	ResolvedPlaceEntry,
@@ -25,6 +26,8 @@ import type {
 	GamePassEntry as GamePassEntrySource,
 	GistStateConfig as GistStateConfigSource,
 	PlaceEntry as PlaceEntrySource,
+	// eslint-disable-next-line id-length -- matches the symbol name; existing Source aliases use the same convention
+	RedactedEnvironmentOverride as RedactedEnvironmentOverrideSource,
 	RedactedGamePassOverride as RedactedGamePassOverrideSource,
 	RedactedPlaceOverride as RedactedPlaceOverrideSource,
 	ResolvedPlaceEntry as ResolvedPlaceEntrySource,
@@ -63,6 +66,10 @@ describe("@bedrock-rbx/core/config resource-entry re-exports", () => {
 
 	it("should re-export RedactedPlaceOverride with the same identity as core/schema", () => {
 		expectTypeOf<RedactedPlaceOverride>().toEqualTypeOf<RedactedPlaceOverrideSource>();
+	});
+
+	it("should re-export RedactedEnvironmentOverride with the same identity as core/schema", () => {
+		expectTypeOf<RedactedEnvironmentOverride>().toEqualTypeOf<RedactedEnvironmentOverrideSource>();
 	});
 
 	it("should re-export DeveloperProductEntry with the same identity as core/schema", () => {

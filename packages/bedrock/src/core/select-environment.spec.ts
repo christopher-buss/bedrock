@@ -917,6 +917,38 @@ describe(selectEnvironment, () => {
 		expect(result.data.places?.["start-place"]?.description).toBe(REDACTED_DESCRIPTION);
 		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Start Place");
 	});
+
+	it("should compose env-resource, root-resource, and env-level redaction overrides field-by-field", () => {
+		expect.assertions(4);
+
+		const config: Config = {
+			environments: {
+				dev: {
+					products: {
+						"gem-pack": {
+							redacted: { icon: { "en-us": "assets/dev-override.png" } },
+						},
+					},
+					redacted: { price: 1 },
+				},
+			},
+			products: {
+				"gem-pack": { ...GEM_PACK, redacted: { name: "Hidden Pack" } },
+			},
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "dev");
+
+		assert(result.success);
+
+		const gemPack = result.data.products?.["gem-pack"];
+
+		expect(gemPack?.name).toBe("Hidden Pack");
+		expect(gemPack?.icon).toStrictEqual({ "en-us": "assets/dev-override.png" });
+		expect(gemPack?.price).toBe(1);
+		expect(gemPack?.description).toBe(REDACTED_DESCRIPTION);
+	});
 });
 
 describe(selectMergedEnvironment, () => {

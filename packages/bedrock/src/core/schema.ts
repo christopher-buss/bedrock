@@ -85,6 +85,54 @@ export interface RedactedPlaceOverride {
 }
 
 /**
+ * Env-scoped redaction override that applies across every redactable kind in
+ * a single environment. Each field is projected onto the kinds whose own
+ * override type names it: `price`, `name`, and `icon` reach passes and
+ * products; `description` reaches passes, products, and places; `displayName`
+ * reaches places. Fields a kind does not recognize are silently ignored for
+ * that kind.
+ *
+ * Composes field-by-field with per-resource overrides at the root and inside
+ * an env overlay; the most-specific layer wins per field. Boolean `true`
+ * contributes no fields; `false` carves the resource out at its layer.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { Config, RedactedEnvironmentOverride } from "@bedrock-rbx/core/config";
+ *
+ * const devRedaction: RedactedEnvironmentOverride = { price: 1 };
+ *
+ * const config: Config = {
+ *     environments: { dev: { redacted: devRedaction } },
+ *     passes: {
+ *         "vip-pass": {
+ *             name: "VIP Pass",
+ *             description: "Grants VIP perks.",
+ *             icon: { "en-us": "assets/vip.png" },
+ *             price: 500,
+ *         },
+ *     },
+ *     state: { backend: "gist", gistId: "abc123" },
+ * };
+ *
+ * expect(config.environments["dev"]?.redacted).toStrictEqual({ price: 1 });
+ * ```
+ */
+export interface RedactedEnvironmentOverride {
+	/** Override name applied to every passes and products entry the env redacts. */
+	name?: string | undefined;
+	/** Override description applied to every passes, products, and places entry the env redacts. */
+	description?: string | undefined;
+	/** Override display name applied only to places (and universes, when their redaction lands). */
+	displayName?: string | undefined;
+	/** Override icon path applied to every passes and products entry the env redacts. */
+	icon?: Record<"en-us", string> | undefined;
+	/** Override Robux price applied to every on-sale passes and products entry the env redacts. */
+	price?: number | undefined;
+}
+
+/**
  * Body of a single entry in the `passes` collection. Keys in the parent
  * record are `ResourceKey`-shaped strings enforced at schema validation.
  */
@@ -110,7 +158,7 @@ export interface GamePassEntry {
 	 * placeholders with custom values while leaving the rest at bedrock
 	 * defaults; the object form implies redaction is enabled. Omit or set
 	 * `false` to push the real values unchanged. Environment overlays accept
-	 * only the boolean form.
+	 * the same shape and compose field-by-field with this layer.
 	 */
 	redacted?: boolean | RedactedGamePassOverride | undefined;
 }
@@ -195,7 +243,8 @@ export interface DeveloperProductEntry {
 	 * substitute selected placeholders with custom values while leaving the
 	 * rest at bedrock defaults; the object form implies redaction is enabled.
 	 * Omit or set `false` to push the real values unchanged. Environment
-	 * overlays accept only the boolean form.
+	 * overlays accept the same shape and compose field-by-field with this
+	 * layer.
 	 */
 	redacted?: boolean | RedactedDeveloperProductOverride | undefined;
 	/**
@@ -230,7 +279,8 @@ export interface PlaceEntry {
 	 * {@link RedactedPlaceOverride} to substitute selected placeholders
 	 * with custom values, including `displayName`. The object form
 	 * implies redaction is enabled. Omit or set `false` to push the real
-	 * values unchanged. Environment overlays accept only the boolean form.
+	 * values unchanged. Environment overlays accept the same shape and
+	 * compose field-by-field with this layer.
 	 */
 	redacted?: boolean | RedactedPlaceOverride | undefined;
 	/** Maximum players per server; positive integer. */
@@ -259,8 +309,8 @@ export interface ResolvedPlaceEntry {
 	placeId: string;
 	/**
 	 * Resolved redaction setting after merging the per-environment overlay
-	 * (boolean only at the overlay level) onto the root entry. See
-	 * {@link PlaceEntry.redacted} for the authored shape.
+	 * onto the root entry. See {@link PlaceEntry.redacted} for the
+	 * authored shape.
 	 */
 	redacted?: boolean | RedactedPlaceOverride | undefined;
 	/** Maximum players per server; positive integer. */
@@ -401,14 +451,11 @@ export interface EnvironmentEntry {
 	 *
 	 * Uses a partial `GamePassEntry` directly rather than `Overlay<T, K>`
 	 * because game passes have no user-supplied identity key (Open Cloud
-	 * mints the asset ID). The `redacted` field narrows to a boolean here:
-	 * per-field overrides (the {@link RedactedGamePassOverride} object form)
-	 * are valid only on the root resource entry.
+	 * mints the asset ID). The `redacted` field accepts the same shape it
+	 * does at the root entry: a boolean toggle or a {@link RedactedGamePassOverride}
+	 * carrying per-field overrides for this resource in this environment.
 	 */
-	passes?: Record<
-		string,
-		Partial<WithoutKey<GamePassEntry, "redacted">> & { redacted?: boolean | undefined }
-	>;
+	passes?: Record<string, Partial<GamePassEntry>>;
 	/**
 	 * Per-environment places overlay. `placeId` is required on every
 	 * declared entry; `filePath` is optional and falls through to the
@@ -420,16 +467,20 @@ export interface EnvironmentEntry {
 	 * missing fields fall through to the matching root `products` entry at
 	 * merge time. Mirrors the `passes` shape because developer products
 	 * also have no user-supplied identity key (Open Cloud mints the
-	 * `productId`). The `redacted` field narrows to a boolean here:
-	 * per-field overrides (the {@link RedactedDeveloperProductOverride}
-	 * object form) are valid only on the root resource entry.
+	 * `productId`). The `redacted` field accepts the same shape it does
+	 * at the root entry: a boolean toggle or a
+	 * {@link RedactedDeveloperProductOverride} carrying per-field
+	 * overrides for this resource in this environment.
 	 */
-	products?: Record<
-		string,
-		Partial<WithoutKey<DeveloperProductEntry, "redacted">> & { redacted?: boolean | undefined }
-	>;
-	/** Per-environment redaction toggle. Per-resource `redacted` flags on the merged config take precedence; `false` carves out exceptions. */
-	redacted?: boolean | undefined;
+	products?: Record<string, Partial<DeveloperProductEntry>>;
+	/**
+	 * Per-environment redaction layer. Accepts a boolean toggle or a
+	 * {@link RedactedEnvironmentOverride} carrying cross-kind override
+	 * fields. Per-resource `redacted` flags on the merged config take
+	 * precedence per field; `false` at any layer carves out at that
+	 * layer.
+	 */
+	redacted?: boolean | RedactedEnvironmentOverride | undefined;
 	/** Per-environment state override; takes precedence over root `state`. */
 	state?: StateConfig;
 	/**
@@ -500,6 +551,16 @@ export interface DisplayNamePrefixConfig {
 	 */
 	format?: string | undefined;
 }
+
+/**
+ * Helper that produces a shallow `Omit<T, K>` without using TypeScript's
+ * built-in `Omit` (deprecated under the project's lint rules because of
+ * its lossy interaction with mapped types).
+ *
+ * @template T - Source type to project keys away from.
+ * @template Key - Key (or union of keys) on `T` to remove.
+ */
+export type WithoutKey<T, Key extends keyof T> = Pick<T, Exclude<keyof T, Key>>;
 
 /**
  * Per-environment universe overlay shape that prevents `universeId` from
@@ -700,16 +761,6 @@ export interface ResolvedConfig extends Pick<ConfigBase, Exclude<keyof ConfigBas
 type Overlay<T, RequiredKey extends keyof T> = SetRequired<Partial<T>, RequiredKey>;
 
 /**
- * Helper that produces a shallow `Omit<T, K>` without using TypeScript's
- * built-in `Omit` (deprecated under the project's lint rules because of
- * its lossy interaction with mapped types).
- *
- * @template T - Source type to project keys away from.
- * @template Key - Key (or union of keys) on `T` to remove.
- */
-type WithoutKey<T, Key extends keyof T> = Pick<T, Exclude<keyof T, Key>>;
-
-/**
  * Fields shared by every {@link Config} variant. The discriminated
  * `Config` union narrows `universe` and `environments` to enforce the
  * `universeId` XOR rule between the root and per-environment overlays;
@@ -838,6 +889,24 @@ const productRedactedOverride = type({
 
 const productRedacted = productRedactedOverride.or(OPTIONAL_BOOLEAN);
 
+const environmentRedactedOverride = type({
+	"description?": "string",
+	"displayName?": "string",
+	"icon?": iconMap,
+	"name?": "string",
+	"price?": OPTIONAL_ROBUX_PRICE,
+})
+	.onUndeclaredKey("reject")
+	.narrow((value, ctx) => {
+		if (Object.keys(value).length === 0) {
+			return ctx.mustBe(NON_EMPTY_OVERRIDE_MESSAGE);
+		}
+
+		return true;
+	});
+
+const environmentRedacted = environmentRedactedOverride.or(OPTIONAL_BOOLEAN);
+
 // Resource-kind entry schemas. Adding a new kind is two additions:
 // 1. Declare its entry schema and keyed-map collection below.
 // 2. Reference that collection as an optional property on `rootSchema`.
@@ -924,7 +993,7 @@ const gamePassOverlay = type({
 	"icon?": iconMap,
 	"name?": "string",
 	"price?": OPTIONAL_ROBUX_PRICE,
-	[REDACTED_KEY]: OPTIONAL_BOOLEAN,
+	[REDACTED_KEY]: gamePassRedacted,
 }).onUndeclaredKey("reject");
 
 const passesOverlayCollection = type({
@@ -937,7 +1006,7 @@ const developerProductOverlay = type({
 	"isRegionalPricingEnabled?": OPTIONAL_BOOLEAN,
 	"name?": "string",
 	"price?": OPTIONAL_ROBUX_PRICE,
-	[REDACTED_KEY]: OPTIONAL_BOOLEAN,
+	[REDACTED_KEY]: productRedacted,
 	"storePageEnabled?": OPTIONAL_BOOLEAN,
 }).onUndeclaredKey("reject");
 
@@ -950,7 +1019,7 @@ const placeOverlay = type({
 	"displayName?": OPTIONAL_STRING,
 	"filePath?": "string",
 	"placeId": ROBLOX_ID_DIGITS,
-	[REDACTED_KEY]: OPTIONAL_BOOLEAN,
+	[REDACTED_KEY]: placeRedacted,
 	"serverSize?": OPTIONAL_POSITIVE_INTEGER,
 }).onUndeclaredKey("reject");
 
@@ -971,7 +1040,7 @@ const environmentEntry: Type<EnvironmentEntry> = type({
 	"passes?": passesOverlayCollection,
 	"places?": placesOverlayCollection,
 	"products?": productsOverlayCollection,
-	[REDACTED_KEY]: OPTIONAL_BOOLEAN,
+	[REDACTED_KEY]: environmentRedacted,
 	"state?": stateConfig,
 	"universe?": universeOverlay,
 }).onUndeclaredKey("reject");

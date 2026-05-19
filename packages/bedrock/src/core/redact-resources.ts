@@ -7,6 +7,7 @@ import type {
 	DeveloperProductEntry,
 	GamePassEntry,
 	RedactedDeveloperProductOverride,
+	RedactedEnvironmentOverride,
 	RedactedGamePassOverride,
 	RedactedPlaceOverride,
 	ResolvedConfig,
@@ -58,10 +59,75 @@ export interface RedactionAnnotation {
 	readonly kind: ResourceKind;
 }
 
+/**
+ * Per-resource env-overlay redaction layers, keyed by kind. Each entry maps
+ * a resource key to its env-overlay `redacted` value (boolean or per-field
+ * override). `selectEnvironment` extracts these from env-overlay entries
+ * before the rest of the overlay is defu-merged onto the root, so the
+ * env-resource layer can compose field-by-field with the root layer in
+ * {@link applyRedaction}.
+ */
+export interface EnvironmentResourceRedaction {
+	/** Per-pass env-overlay redaction values keyed by resource key. */
+	readonly passes?: EnvironmentResourceLayer<RedactedGamePassOverride>;
+	/** Per-place env-overlay redaction values keyed by resource key. */
+	readonly places?: EnvironmentResourceLayer<RedactedPlaceOverride>;
+	/** Per-product env-overlay redaction values keyed by resource key. */
+	readonly products?: EnvironmentResourceLayer<RedactedDeveloperProductOverride>;
+}
+
+type RedactionLayer<Override> = boolean | Override | undefined;
+
+type EnvironmentResourceLayer<Override> = Readonly<Record<string, RedactionLayer<Override>>>;
+
+type EnvironmentLevel = boolean | RedactedEnvironmentOverride | undefined;
+
+/**
+ * Aggregated redaction layers consumed by {@link applyRedaction}. The
+ * `envLevel` layer applies to every redactable resource in the env;
+ * `envResource` carries per-resource env-overlay overrides keyed by kind.
+ */
+interface RedactionInputs {
+	/** Env-level redaction layer. Boolean toggle or cross-kind override object. */
+	readonly envLevel?: EnvironmentLevel;
+	/** Per-resource env-overlay redaction layers, keyed by kind. */
+	readonly envResource?: EnvironmentResourceRedaction;
+}
+
 interface ProductRedactionInputs {
 	readonly key: string;
 	readonly entry: DeveloperProductEntry;
 	readonly override: RedactedDeveloperProductOverride;
+}
+
+interface ResolvedEntry<Entry, Override> {
+	readonly key: string;
+	readonly entry: Entry;
+	readonly override: Override | undefined;
+}
+
+const PASS_PRODUCT_ENV_FIELDS = [
+	"description",
+	"icon",
+	"name",
+	"price",
+] as const satisfies ReadonlyArray<keyof RedactedEnvironmentOverride>;
+
+const PLACE_ENV_FIELDS = ["description", "displayName"] as const satisfies ReadonlyArray<
+	keyof RedactedEnvironmentOverride
+>;
+
+interface RedactCollectionInputs<Entry, Override> {
+	readonly collection: Readonly<Record<string, Entry>> | undefined;
+	readonly environmentForKind: RedactionLayer<Override>;
+	readonly envResource: EnvironmentResourceLayer<Override> | undefined;
+	readonly redact: (item: { entry: Entry; key: string; override: Override }) => Entry;
+}
+
+interface RedactKindInputs<Entry, Override> {
+	readonly collection: Readonly<Record<string, Entry>> | undefined;
+	readonly envLevel: EnvironmentLevel;
+	readonly envResource: EnvironmentResourceLayer<Override> | undefined;
 }
 
 /**
@@ -92,29 +158,42 @@ export function defaultRedactedProductName(key: string): string {
 
 /**
  * Pure transform that substitutes bedrock-supplied placeholder content for
- * every resource whose effective `redacted` flag is truthy. The effective
- * flag is the per-resource `redacted` value when set, otherwise the
- * `environmentRedacted` fallback. A `redacted` object form replaces
- * matching fields with the supplied values and falls back to the bedrock
- * defaults for the rest. Runs between env-overlay merge and display-name
- * prefix render so the rest of the pipeline (flatten, normalize, diff,
- * apply) operates on already-redacted values and needs no special-case
- * redaction logic.
+ * every resource whose effective redaction state is truthy. Three layers
+ * compose field-by-field per resource: env-resource (most-specific, from
+ * `inputs.envResource`), root-resource (the `redacted` field on the
+ * passed-in entry), and env-level (least-specific, `inputs.envLevel`).
+ * The first non-undefined value sets state (`false` carves out); object
+ * layers then contribute fields with the most-specific layer winning per
+ * field, and bedrock defaults fill any field nobody set. Runs between
+ * env-overlay merge and display-name prefix render so the rest of the
+ * pipeline (flatten, normalize, diff, apply) operates on already-redacted
+ * values and needs no special-case redaction logic.
  *
  * @param config - Post-merge `ResolvedConfig` produced by `selectEnvironment`.
- * @param environmentRedacted - Environment-level redaction toggle. Resources
- *   that omit a per-resource `redacted` flag inherit this value.
+ * @param inputs - Aggregated redaction layers. Omit to skip redaction
+ *   entirely. See {@link RedactionInputs} for the shape.
  * @returns A `ResolvedConfig` whose redacted entries carry placeholder
  *   values; non-redacted entries pass through verbatim, and the input is
  *   not mutated.
  */
-export function applyRedaction(
-	config: ResolvedConfig,
-	environmentRedacted = false,
-): ResolvedConfig {
-	const passes = redactPasses(config.passes, environmentRedacted);
-	const places = redactPlaces(config.places, environmentRedacted);
-	const products = redactProducts(config.products, environmentRedacted);
+export function applyRedaction(config: ResolvedConfig, inputs?: RedactionInputs): ResolvedConfig {
+	const environmentLevel = inputs?.envLevel;
+	const environmentResource = inputs?.envResource;
+	const passes = redactPasses({
+		collection: config.passes,
+		envLevel: environmentLevel,
+		envResource: environmentResource?.passes,
+	});
+	const places = redactPlaces({
+		collection: config.places,
+		envLevel: environmentLevel,
+		envResource: environmentResource?.places,
+	});
+	const products = redactProducts({
+		collection: config.products,
+		envLevel: environmentLevel,
+		envResource: environmentResource?.products,
+	});
 
 	if (passes === config.passes && places === config.places && products === config.products) {
 		return config;
@@ -130,9 +209,10 @@ export function applyRedaction(
 
 /**
  * Inspect the pre-redaction merged config and produce one annotation per
- * resource flagged `redacted: true`. Callers thread the result into plan
- * output so authors can see which resources are redacted in the active
- * environment and whether their real-value edits are being suppressed.
+ * resource flagged `redacted: true` at either the root entry or its
+ * env-overlay counterpart. Callers thread the result into plan output so
+ * authors can see which resources are redacted in the active environment
+ * and whether their real-value edits are being suppressed.
  *
  * Operates on the pre-redaction view because the post-redaction config no
  * longer carries the real `name`/`description`/`icon` values needed to
@@ -140,14 +220,21 @@ export function applyRedaction(
  *
  * @param merged - `ResolvedConfig` produced by environment overlay merge,
  *   before `applyRedaction` has substituted placeholders.
+ * @param environmentResource - Per-kind env-overlay redaction layers
+ *   extracted from the active env entry. Omit when the caller has no
+ *   env-overlay layer.
  * @returns Zero or more annotations, one per redacted resource. Empty when
  *   the config declares no redacted resources.
  */
 export function collectRedactionAnnotations(
 	merged: ResolvedConfig,
+	environmentResource?: EnvironmentResourceRedaction,
 ): ReadonlyArray<RedactionAnnotation> {
 	const passes = Object.entries(merged.passes ?? {})
-		.filter(([, entry]) => entry.redacted === true)
+		.filter(
+			([key, entry]) =>
+				entry.redacted === true || environmentResource?.passes?.[key] === true,
+		)
 		.map(([key, entry]): RedactionAnnotation => {
 			return {
 				key: asResourceKey(key),
@@ -156,7 +243,10 @@ export function collectRedactionAnnotations(
 			};
 		});
 	const products = Object.entries(merged.products ?? {})
-		.filter(([, entry]) => entry.redacted === true)
+		.filter(
+			([key, entry]) =>
+				entry.redacted === true || environmentResource?.products?.[key] === true,
+		)
 		.map(([key, entry]): RedactionAnnotation => {
 			return {
 				key: asResourceKey(key),
@@ -166,6 +256,113 @@ export function collectRedactionAnnotations(
 		});
 
 	return [...passes, ...products];
+}
+
+function pickEnvironmentFields<Field extends keyof RedactedEnvironmentOverride>(
+	environmentLevel: EnvironmentLevel,
+	fields: ReadonlyArray<Field>,
+): RedactionLayer<Pick<RedactedEnvironmentOverride, Field>> {
+	if (environmentLevel === undefined || typeof environmentLevel === "boolean") {
+		return environmentLevel;
+	}
+
+	return Object.fromEntries(fields.map((field) => [field, environmentLevel[field]])) as Pick<
+		RedactedEnvironmentOverride,
+		Field
+	>;
+}
+
+/**
+ * Walk redaction layers most-specific to least-specific and produce the
+ * effective per-field override for one resource. Returns `undefined` when the
+ * resource is not redacted; returns a (possibly empty) object when it is.
+ * State step: the first non-undefined layer sets state -- `false` carves out,
+ * `true` or object enables. Fields step: walk every object layer in the same
+ * order, taking the first value per field. A field's value may itself be
+ * `undefined` (the env-level projection produced by {@link pickEnvironmentFields}
+ * includes every projected key, even when the env override left it absent);
+ * downstream per-kind redact functions collapse those back to bedrock
+ * placeholder defaults via `??`.
+ *
+ * @template Override - Per-kind override type the resource accepts.
+ * @param layers - Layers ordered most-specific (index 0) to least-specific.
+ * @returns The effective override, or `undefined` when not redacted.
+ */
+function resolveEffectiveOverride<Override extends object>(
+	layers: ReadonlyArray<RedactionLayer<Override>>,
+): Override | undefined {
+	const firstNonUndefined = layers.find((layer) => layer !== undefined);
+	if (firstNonUndefined === undefined || firstNonUndefined === false) {
+		return undefined;
+	}
+
+	const effective: Record<string, unknown> = {};
+	for (const layer of layers) {
+		if (typeof layer !== "object") {
+			continue;
+		}
+
+		for (const [field, value] of Object.entries(layer)) {
+			if (!(field in effective)) {
+				effective[field] = value;
+			}
+		}
+	}
+
+	return effective as Override;
+}
+
+function resolveEntries<
+	Entry extends { readonly redacted?: RedactionLayer<Override> },
+	Override extends object,
+>(inputs: {
+	readonly collection: Readonly<Record<string, Entry>>;
+	readonly environmentForKind: RedactionLayer<Override>;
+	readonly envResource: EnvironmentResourceLayer<Override> | undefined;
+}): ReadonlyArray<ResolvedEntry<Entry, Override>> {
+	const { collection, environmentForKind, envResource } = inputs;
+	return Object.entries(collection).map(([key, entry]) => {
+		return {
+			key,
+			entry,
+			override: resolveEffectiveOverride<Override>([
+				envResource?.[key],
+				entry.redacted,
+				environmentForKind,
+			]),
+		};
+	});
+}
+
+function redactCollection<
+	Entry extends { readonly redacted?: RedactionLayer<Override> },
+	Override extends object,
+>(inputs: RedactCollectionInputs<Entry, Override>): Readonly<Record<string, Entry>> | undefined {
+	const { collection, environmentForKind, envResource, redact } = inputs;
+	if (collection === undefined) {
+		return undefined;
+	}
+
+	const resolved = resolveEntries<Entry, Override>({
+		collection,
+		environmentForKind,
+		envResource,
+	});
+
+	if (resolved.every((item) => item.override === undefined)) {
+		return collection;
+	}
+
+	return Object.fromEntries(
+		resolved.map((item) => {
+			return item.override === undefined
+				? ([item.key, item.entry] as const)
+				: ([
+						item.key,
+						redact({ key: item.key, entry: item.entry, override: item.override }),
+					] as const);
+		}),
+	);
 }
 
 function redactPass(entry: GamePassEntry, override: RedactedGamePassOverride): GamePassEntry {
@@ -179,32 +376,15 @@ function redactPass(entry: GamePassEntry, override: RedactedGamePassOverride): G
 }
 
 function redactPasses(
-	passes: ResolvedConfig["passes"],
-	environmentRedacted: boolean,
+	inputs: RedactKindInputs<GamePassEntry, RedactedGamePassOverride>,
 ): ResolvedConfig["passes"] {
-	if (passes === undefined) {
-		return undefined;
-	}
-
-	const hasAnyRedaction = Object.values(passes).some(
-		(entry) => (entry.redacted ?? environmentRedacted) !== false,
-	);
-	if (!hasAnyRedaction) {
-		return passes;
-	}
-
-	return Object.fromEntries(
-		Object.entries(passes).map(([key, entry]) => {
-			const effective = entry.redacted ?? environmentRedacted;
-			if (effective === false) {
-				return [key, entry] as const;
-			}
-
-			const override: RedactedGamePassOverride =
-				typeof effective === "object" ? effective : {};
-			return [key, redactPass(entry, override)] as const;
-		}),
-	);
+	const { collection, envLevel, envResource } = inputs;
+	return redactCollection<GamePassEntry, RedactedGamePassOverride>({
+		collection,
+		environmentForKind: pickEnvironmentFields(envLevel, PASS_PRODUCT_ENV_FIELDS),
+		envResource,
+		redact: (item) => redactPass(item.entry, item.override),
+	});
 }
 
 function redactPlace(
@@ -219,31 +399,15 @@ function redactPlace(
 }
 
 function redactPlaces(
-	places: ResolvedConfig["places"],
-	environmentRedacted: boolean,
+	inputs: RedactKindInputs<ResolvedPlaceEntry, RedactedPlaceOverride>,
 ): ResolvedConfig["places"] {
-	if (places === undefined) {
-		return undefined;
-	}
-
-	const hasAnyRedaction = Object.values(places).some(
-		(entry) => (entry.redacted ?? environmentRedacted) !== false,
-	);
-	if (!hasAnyRedaction) {
-		return places;
-	}
-
-	return Object.fromEntries(
-		Object.entries(places).map(([key, entry]) => {
-			const effective = entry.redacted ?? environmentRedacted;
-			if (effective === false) {
-				return [key, entry] as const;
-			}
-
-			const override: RedactedPlaceOverride = typeof effective === "object" ? effective : {};
-			return [key, redactPlace(entry, override)] as const;
-		}),
-	);
+	const { collection, envLevel, envResource } = inputs;
+	return redactCollection<ResolvedPlaceEntry, RedactedPlaceOverride>({
+		collection,
+		environmentForKind: pickEnvironmentFields(envLevel, PLACE_ENV_FIELDS),
+		envResource,
+		redact: (item) => redactPlace(item.entry, item.override),
+	});
 }
 
 function redactProduct(inputs: ProductRedactionInputs): DeveloperProductEntry {
@@ -258,32 +422,15 @@ function redactProduct(inputs: ProductRedactionInputs): DeveloperProductEntry {
 }
 
 function redactProducts(
-	products: ResolvedConfig["products"],
-	environmentRedacted: boolean,
+	inputs: RedactKindInputs<DeveloperProductEntry, RedactedDeveloperProductOverride>,
 ): ResolvedConfig["products"] {
-	if (products === undefined) {
-		return undefined;
-	}
-
-	const hasAnyRedaction = Object.values(products).some(
-		(entry) => (entry.redacted ?? environmentRedacted) !== false,
-	);
-	if (!hasAnyRedaction) {
-		return products;
-	}
-
-	return Object.fromEntries(
-		Object.entries(products).map(([key, entry]) => {
-			const effective = entry.redacted ?? environmentRedacted;
-			if (effective === false) {
-				return [key, entry] as const;
-			}
-
-			const override: RedactedDeveloperProductOverride =
-				typeof effective === "object" ? effective : {};
-			return [key, redactProduct({ key, entry, override })] as const;
-		}),
-	);
+	const { collection, envLevel, envResource } = inputs;
+	return redactCollection<DeveloperProductEntry, RedactedDeveloperProductOverride>({
+		collection,
+		environmentForKind: pickEnvironmentFields(envLevel, PASS_PRODUCT_ENV_FIELDS),
+		envResource,
+		redact: redactProduct,
+	});
 }
 
 function passHasRealValueEdits(entry: GamePassEntry): boolean {

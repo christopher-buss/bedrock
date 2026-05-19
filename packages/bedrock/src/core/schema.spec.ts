@@ -2081,14 +2081,15 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it("should reject an object override form on a per-environment passes overlay redacted field", () => {
+	it("should accept an object override form on a per-environment passes overlay redacted field", () => {
 		expect.assertions(1);
 
+		const override = { name: "Closed Beta", price: 1 };
 		const result = validateConfig(
 			{
 				environments: {
 					staging: {
-						passes: { "vip-pass": { redacted: { name: "Closed Beta" } } },
+						passes: { "vip-pass": { redacted: override } },
 					},
 				},
 				passes: {
@@ -2097,6 +2098,26 @@ describe(validateConfig, () => {
 						description: "Grants VIP perks.",
 						icon: { "en-us": "assets/vip.png" },
 					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.environments["staging"]?.passes?.["vip-pass"]?.redacted).toStrictEqual(
+			override,
+		);
+	});
+
+	it("should reject an empty object on a per-environment passes overlay redacted field", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: { passes: { "vip-pass": { redacted: {} } } },
 				},
 				state: { backend: "gist", gistId: "root-gist" },
 			},
@@ -2113,6 +2134,7 @@ describe(validateConfig, () => {
 			"vip-pass",
 			"redacted",
 		]);
+		expect(result.err.issues[0]!.message).toContain("redacted: true");
 	});
 
 	it.for([
@@ -2142,9 +2164,10 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it("should reject an object override form on a per-environment places overlay redacted field", () => {
+	it("should accept an object override form on a per-environment places overlay redacted field", () => {
 		expect.assertions(1);
 
+		const override = { displayName: "Hidden Project" };
 		const result = validateConfig(
 			{
 				environments: {
@@ -2152,9 +2175,32 @@ describe(validateConfig, () => {
 						places: {
 							"start-place": {
 								placeId: "5555",
-								redacted: { displayName: "Hidden" },
+								redacted: override,
 							},
 						},
+					},
+				},
+				places: { "start-place": { filePath: "places/start.rbxl" } },
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(
+			result.data.environments["staging"]?.places?.["start-place"]?.redacted,
+		).toStrictEqual(override);
+	});
+
+	it("should reject an empty object on a per-environment places overlay redacted field", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: {
+					staging: {
+						places: { "start-place": { placeId: "5555", redacted: {} } },
 					},
 				},
 				places: { "start-place": { filePath: "places/start.rbxl" } },
@@ -2173,6 +2219,7 @@ describe(validateConfig, () => {
 			"start-place",
 			"redacted",
 		]);
+		expect(result.err.issues[0]!.message).toContain("redacted: true");
 	});
 
 	it("should accept a per-environment products overlay that supplies a partial subset of fields", () => {
@@ -2368,14 +2415,43 @@ describe(validateConfig, () => {
 		},
 	);
 
-	it("should reject an object override form on a per-environment products overlay redacted field", () => {
+	it("should accept an object override form on a per-environment products overlay redacted field", () => {
 		expect.assertions(1);
+
+		const override = { name: "Closed Beta Pack", price: 1 };
+		const result = validateConfig(
+			{
+				environments: {
+					staging: {
+						products: { "gem-pack": { redacted: override } },
+					},
+				},
+				products: {
+					"gem-pack": {
+						name: "Gem Pack",
+						description: "Stocks the player up with 1,000 premium gems.",
+					},
+				},
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.environments["staging"]?.products?.["gem-pack"]?.redacted).toStrictEqual(
+			override,
+		);
+	});
+
+	it("should reject an empty object on a per-environment products overlay redacted field", () => {
+		expect.assertions(2);
 
 		const result = validateConfig(
 			{
 				environments: {
 					staging: {
-						products: { "gem-pack": { redacted: { name: "Closed Beta Pack" } } },
+						products: { "gem-pack": { redacted: {} } },
 					},
 				},
 				products: {
@@ -2399,6 +2475,7 @@ describe(validateConfig, () => {
 			"gem-pack",
 			"redacted",
 		]);
+		expect(result.err.issues[0]!.message).toContain("redacted: true");
 	});
 
 	it.for(INVALID_ROBUX_PRICES)(
@@ -2524,12 +2601,36 @@ describe(validateConfig, () => {
 		expect(result.data.environments["production"]?.redacted).toBe(redacted);
 	});
 
-	it("should reject an object-form redacted on an environments entry", () => {
+	it("should accept an object-form redacted on an environments entry that carries the cross-kind union of override fields", () => {
 		expect.assertions(1);
+
+		const override = {
+			name: "Closed Beta",
+			description: "Reveal at launch.",
+			displayName: "Hidden Project",
+			icon: { "en-us": "assets/redacted.png" },
+			price: 1,
+		};
 
 		const result = validateConfig(
 			{
-				environments: { production: { redacted: { name: "Closed Beta" } } },
+				environments: { production: { redacted: override } },
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.environments["production"]?.redacted).toStrictEqual(override);
+	});
+
+	it("should reject an empty redacted override on an environments entry and recommend redacted: true for default placeholders", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: { production: { redacted: {} } },
 				state: { backend: "gist", gistId: "root-gist" },
 			},
 			SOURCE,
@@ -2542,6 +2643,29 @@ describe(validateConfig, () => {
 			"environments",
 			"production",
 			"redacted",
+		]);
+		expect(result.err.issues[0]!.message).toContain("redacted: true");
+	});
+
+	it("should reject an unknown key on an env-level redacted override and attribute the issue to the offending key", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: { production: { redacted: { bogus: "value" } } },
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"production",
+			"redacted",
+			"bogus",
 		]);
 	});
 

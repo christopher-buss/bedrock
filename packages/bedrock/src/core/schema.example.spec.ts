@@ -5,10 +5,11 @@ import type {
   RedactedGamePassOverride,
   PlaceEntry,
   RedactedPlaceOverride,
+  Config,
+  RedactedEnvironmentOverride,
   DeveloperProductEntry,
   RedactedDeveloperProductOverride,
   ResourceEntryByKind,
-  Config,
   StateConfig,
 } from '@bedrock-rbx/core/config'
 import {
@@ -42,6 +43,23 @@ it('Example 2', () => {
 })
 
 it('Example 3', () => {
+  const devRedaction: RedactedEnvironmentOverride = { price: 1 }
+  const config: Config = {
+    environments: { dev: { redacted: devRedaction } },
+    passes: {
+      'vip-pass': {
+        name: 'VIP Pass',
+        description: 'Grants VIP perks.',
+        icon: { 'en-us': 'assets/vip.png' },
+        price: 500,
+      },
+    },
+    state: { backend: 'gist', gistId: 'abc123' },
+  }
+  expect(config.environments['dev']?.redacted).toStrictEqual({ price: 1 })
+})
+
+it('Example 4', () => {
   const override: RedactedDeveloperProductOverride = {
     name: 'Closed Beta Pack',
     price: 500,
@@ -55,7 +73,7 @@ it('Example 3', () => {
   expect(entry.redacted).toStrictEqual({ name: 'Closed Beta Pack', price: 500 })
 })
 
-it('Example 4', () => {
+it('Example 5', () => {
   const entry: ResourceEntryByKind['gamePass'] = {
     description: 'Grants VIP perks.',
     icon: { 'en-us': 'assets/vip-icon.png' },
@@ -65,7 +83,7 @@ it('Example 4', () => {
   expect(entry.name).toBe('VIP Pass')
 })
 
-it('Example 5', () => {
+it('Example 6', () => {
   const config: Config = {
     environments: { production: {} },
     state: { backend: 'gist', gistId: 'abc123def456' },
@@ -81,7 +99,7 @@ it('Example 5', () => {
   expect(config.passes!['vip-pass']!.name).toBe('VIP Pass')
 })
 
-it('Example 6', () => {
+it('Example 7', () => {
   const config: Config = {
     environments: {
       production: { places: { 'start-place': { placeId: '4711' } } },
@@ -97,7 +115,7 @@ it('Example 6', () => {
   }
 })
 
-it('Example 7', () => {
+it('Example 8', () => {
   const config: StateConfig = { backend: 'gist', gistId: 'abc' }
   expect(isGistStateConfig(config)).toBeTrue()
   if (isGistStateConfig(config)) {
@@ -105,7 +123,7 @@ it('Example 7', () => {
   }
 })
 
-it('Example 8', () => {
+it('Example 9', () => {
   const ok = validateConfig(
     {
       environments: { production: {} },
