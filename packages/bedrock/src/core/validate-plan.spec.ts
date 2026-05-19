@@ -129,22 +129,22 @@ describe(validatePlan, () => {
 
 		const first = developerProductDesired({
 			key: asResourceKey("bp-1"),
-			name: "Redacted Product #abcdef",
+			name: "Hidden Product abcdef",
 		});
 		const second = developerProductDesired({
 			key: asResourceKey("bp-2"),
-			name: "Redacted Product #abcdef",
+			name: "Hidden Product abcdef",
 		});
 
 		const result = validatePlan([first, second], []);
 		assert(!result.success);
 		assert(result.err.kind === "redactedNameCollision");
 
-		expect(result.err.resolvedName).toBe("Redacted Product #abcdef");
+		expect(result.err.resolvedName).toBe("Hidden Product abcdef");
 		expect(result.err.keys).toStrictEqual([first.key, second.key]);
 		expect(result.err.message).toContain(first.key);
 		expect(result.err.message).toContain(second.key);
-		expect(result.err.message).toContain("Redacted Product #abcdef");
+		expect(result.err.message).toContain("Hidden Product abcdef");
 	});
 
 	it("should also reject when the colliding name comes from a user-supplied override rather than the hashed default", () => {
