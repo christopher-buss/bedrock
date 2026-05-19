@@ -13,6 +13,14 @@
  * to its own remote staging dir (basename of cwd), so concurrent
  * agents on the same host don't clobber each other.
  *
+ * If the bind mount goes stale (common after Docker Desktop's WSL
+ * share detaches on restart), the runner attempts `docker restart`
+ * once. It skips the restart when another mutation is detected on
+ * the shared container or when the activity probe is inconclusive,
+ * so a concurrent worktree's run isn't clobbered. The probe is not
+ * atomic with the restart; on a lost race the other run falls back
+ * to local, matching the pre-recovery behavior.
+ *
  * The diff is computed locally and shipped as a file because git
  * worktrees use a `.git` file pointing at a path that only exists on
  * the local machine; the remote does not need a working `.git`.
@@ -61,6 +69,11 @@ interface RemoteConfig {
 	stage: string;
 	worktree: string;
 }
+
+type MutationActivity =
+	| { detail: string; kind: "unknown" }
+	| { kind: "active" }
+	| { kind: "inactive" };
 
 function readConfig(): RemoteConfig | undefined {
 	const host = process.env["BEDROCK_REMOTE_MUTATE_HOST"];
@@ -247,6 +260,69 @@ function containerSeesWorktree(config: RemoteConfig): boolean {
 	return result.status === 0;
 }
 
+function checkActiveMutation(config: RemoteConfig): MutationActivity {
+	const result = spawnSync(
+		"ssh",
+		[
+			...SSH_OPTS,
+			config.host,
+			"docker",
+			"exec",
+			config.container,
+			"pgrep",
+			"-f",
+			"bedrock-mutate.sh|stryker",
+		],
+		{ encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+	);
+	// pgrep exits 0 when matched, 1 when nothing matched. Anything
+	// else (2 syntax, 3 fatal from pgrep; 125 docker exec error;
+	// 127 missing binary; 255 ssh failure) is an inconclusive probe.
+	if (result.status === 0) {
+		return { kind: "active" };
+	}
+
+	if (result.status === 1) {
+		return { kind: "inactive" };
+	}
+
+	const stderr = result.stderr.trim();
+	const suffix = stderr === "" ? "" : `: ${stderr}`;
+	return { detail: `pgrep probe exited ${String(result.status)}${suffix}`, kind: "unknown" };
+}
+
+function restartContainer(config: RemoteConfig): boolean {
+	const result = spawnSync(
+		"ssh",
+		[...SSH_OPTS, config.host, "docker", "restart", config.container],
+		{ stdio: ["ignore", "ignore", "inherit"] },
+	);
+	return result.status === 0;
+}
+
+function recoverBindMount(config: RemoteConfig): string | undefined {
+	const activity = checkActiveMutation(config);
+	const head = `${config.container} cannot see /data/worktrees/${config.worktree} after rsync`;
+	const recreate = `run docker rm -f ${config.container} and re-create with -v ${config.stage}:/data/worktrees`;
+	if (activity.kind === "active") {
+		return `${head}, but another mutation is in progress on the shared container; refusing to docker restart and clobber it. Retry once the other run finishes.`;
+	}
+
+	if (activity.kind === "unknown") {
+		return `${head} and the active-mutation probe was inconclusive (${activity.detail}); refusing to docker restart on uncertain state. Investigate the probe failure and retry.`;
+	}
+
+	if (!restartContainer(config)) {
+		return `${head} and docker restart ${config.container} failed; ${recreate} to re-establish the WSL share.`;
+	}
+
+	if (!containerSeesWorktree(config)) {
+		return `${head}, even after docker restart; bind mount is severely detached. ${recreate}.`;
+	}
+
+	return undefined;
+}
+
 function setupRemote(config: RemoteConfig): string | undefined {
 	const upStatus = rsyncUp(config);
 	if (upStatus !== 0) {
@@ -254,11 +330,10 @@ function setupRemote(config: RemoteConfig): string | undefined {
 	}
 
 	if (!containerSeesWorktree(config)) {
-		return (
-			`${config.container} cannot see /data/worktrees/${config.worktree} after rsync; ` +
-			`bind mount may be detached. Fix: docker rm -f ${config.container}, then re-run ` +
-			`with -v ${config.stage}:/data/worktrees so Docker Desktop re-establishes the WSL share.`
-		);
+		const recoveryFailure = recoverBindMount(config);
+		if (recoveryFailure !== undefined) {
+			return recoveryFailure;
+		}
 	}
 
 	const diff = computeDiff();
