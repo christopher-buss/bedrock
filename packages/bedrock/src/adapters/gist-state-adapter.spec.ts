@@ -182,6 +182,62 @@ describe(createGistStateAdapter, () => {
 			},
 		);
 
+		it("should err with a rate-limited reason on 403 carrying a Retry-After header", async () => {
+			expect.assertions(4);
+
+			const { fetchFn } = fakeFetch(
+				() => new Response("", { headers: { "Retry-After": "60" }, status: 403 }),
+			);
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.read("production");
+
+			expect(result.success).toBeFalse();
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/rate limit/u);
+			expect(result.err.reason).not.toMatch(/auth failed/u);
+			expect(result.err.reason).toContain("60");
+		});
+
+		it("should err with a rate-limited reason on 403 carrying X-RateLimit-Remaining: 0", async () => {
+			expect.assertions(4);
+
+			const { fetchFn } = fakeFetch(
+				() => new Response("", { headers: { "X-RateLimit-Remaining": "0" }, status: 403 }),
+			);
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.read("production");
+
+			expect(result.success).toBeFalse();
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/rate limit/u);
+			expect(result.err.reason).not.toMatch(/auth failed/u);
+			expect(result.err.reason).not.toMatch(/retry after/u);
+		});
+
+		it("should err with an auth reason on 401 even when rate-limit headers are present", async () => {
+			expect.assertions(3);
+
+			const { fetchFn } = fakeFetch(
+				() => new Response("", { headers: { "Retry-After": "60" }, status: 401 }),
+			);
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.read("production");
+
+			expect(result.success).toBeFalse();
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/auth failed/u);
+			expect(result.err.reason).not.toMatch(/rate limit/u);
+		});
+
 		it("should err with a network-error reason when fetch throws", async () => {
 			expect.assertions(2);
 
