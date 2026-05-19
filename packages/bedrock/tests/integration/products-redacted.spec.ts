@@ -18,7 +18,11 @@ import {
 import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
 import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock-rbx/ocale/testing";
 
-import { defaultRedactedProductName, REDACTED_DESCRIPTION } from "#src/core/redact-resources";
+import {
+	defaultRedactedProductName,
+	REDACTED_DESCRIPTION,
+	REDACTED_PRICE,
+} from "#src/core/redact-resources";
 import { REDACTED_ICON_BYTES, REDACTED_ICON_PATH } from "#src/core/redacted-icon";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -165,7 +169,7 @@ describe("products-redacted pipeline end-to-end", () => {
 
 		expect(readFormString(captured.request.body, "name")).toBe(expectedName);
 		expect(readFormString(captured.request.body, "description")).toBe(REDACTED_DESCRIPTION);
-		expect(readFormString(captured.request.body, "price")).toBe("99999");
+		expect(readFormString(captured.request.body, "price")).toBe(String(REDACTED_PRICE));
 		await expect(readFormBytes(captured.request.body, "imageFile")).resolves.toStrictEqual(
 			REDACTED_ICON_BYTES,
 		);
