@@ -17,11 +17,7 @@ import {
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import { createFakeHttpClient, validGamePassBody } from "@bedrock-rbx/ocale/testing";
 
-import {
-	REDACTED_DESCRIPTION,
-	REDACTED_PASS_NAME,
-	REDACTED_PRICE,
-} from "#src/core/redact-resources";
+import { REDACTED_DESCRIPTION, REDACTED_PASS_NAME } from "#src/core/redact-resources";
 import { REDACTED_ICON_BYTES, REDACTED_ICON_PATH } from "#src/core/redacted-icon";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -169,7 +165,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 
 		expect(readFormString(captured.request.body, "name")).toBe(REDACTED_PASS_NAME);
 		expect(readFormString(captured.request.body, "description")).toBe(REDACTED_DESCRIPTION);
-		expect(readFormString(captured.request.body, "price")).toBe(String(REDACTED_PRICE));
+		expect(readFormString(captured.request.body, "price")).toBe("99999");
 		await expect(readFormBytes(captured.request.body, "imageFile")).resolves.toStrictEqual(
 			REDACTED_ICON_BYTES,
 		);

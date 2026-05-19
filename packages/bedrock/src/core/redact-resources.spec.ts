@@ -56,7 +56,7 @@ describe(applyRedaction, () => {
 			name: REDACTED_PASS_NAME,
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
-			price: REDACTED_PRICE,
+			price: 99_999,
 			redacted: true,
 		});
 	});
@@ -517,7 +517,7 @@ describe(applyRedaction, () => {
 			name: defaultRedactedProductName("gem-pack"),
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
-			price: REDACTED_PRICE,
+			price: 99_999,
 			redacted: true,
 		});
 	});

@@ -40,7 +40,7 @@ export const REDACTED_DESCRIPTION = "";
  * (`price === undefined`) keep their off-sale state through redaction so a
  * hidden product is never accidentally listed for sale.
  */
-export const REDACTED_PRICE = 1;
+export const REDACTED_PRICE = 99_999;
 
 /**
  * Per-resource annotation surfaced in plan output for entries that are
