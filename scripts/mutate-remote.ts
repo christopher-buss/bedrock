@@ -13,12 +13,13 @@
  * to its own remote staging dir (basename of cwd), so concurrent
  * agents on the same host don't clobber each other.
  *
- * If the container is running but its bind mount has gone stale
- * (Docker Desktop's WSL share commonly detaches after Docker Desktop
- * restarts), the runner attempts `docker restart` once to re-establish
- * the mount. It first checks for an in-flight mutation on the shared
- * container and refuses to restart when one is detected so a
- * concurrent worktree's run isn't clobbered.
+ * If the bind mount goes stale (common after Docker Desktop's WSL
+ * share detaches on restart), the runner attempts `docker restart`
+ * once. It skips the restart when another mutation is detected on
+ * the shared container or when the activity probe is inconclusive,
+ * so a concurrent worktree's run isn't clobbered. The probe is not
+ * atomic with the restart; on a lost race the other run falls back
+ * to local, matching the pre-recovery behavior.
  *
  * The diff is computed locally and shipped as a file because git
  * worktrees use a `.git` file pointing at a path that only exists on
@@ -68,6 +69,11 @@ interface RemoteConfig {
 	stage: string;
 	worktree: string;
 }
+
+type MutationActivity =
+	| { detail: string; kind: "unknown" }
+	| { kind: "active" }
+	| { kind: "inactive" };
 
 function readConfig(): RemoteConfig | undefined {
 	const host = process.env["BEDROCK_REMOTE_MUTATE_HOST"];
@@ -254,7 +260,7 @@ function containerSeesWorktree(config: RemoteConfig): boolean {
 	return result.status === 0;
 }
 
-function containerHasActiveMutation(config: RemoteConfig): boolean {
+function checkActiveMutation(config: RemoteConfig): MutationActivity {
 	const result = spawnSync(
 		"ssh",
 		[
@@ -267,12 +273,22 @@ function containerHasActiveMutation(config: RemoteConfig): boolean {
 			"-f",
 			"bedrock-mutate.sh|stryker",
 		],
-		{ stdio: ["ignore", "ignore", "ignore"] },
+		{ encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
 	);
-	// pgrep exits 1 when nothing matches. Treat any other non-zero
-	// status (2 syntax, 3 fatal, 127 missing binary) as "active" so
-	// we never restart on uncertainty.
-	return result.status !== 1;
+	// pgrep exits 0 when matched, 1 when nothing matched. Anything
+	// else (2 syntax, 3 fatal from pgrep; 125 docker exec error;
+	// 127 missing binary; 255 ssh failure) is an inconclusive probe.
+	if (result.status === 0) {
+		return { kind: "active" };
+	}
+
+	if (result.status === 1) {
+		return { kind: "inactive" };
+	}
+
+	const stderr = result.stderr.trim();
+	const suffix = stderr === "" ? "" : `: ${stderr}`;
+	return { detail: `pgrep probe exited ${String(result.status)}${suffix}`, kind: "unknown" };
 }
 
 function restartContainer(config: RemoteConfig): boolean {
@@ -285,29 +301,23 @@ function restartContainer(config: RemoteConfig): boolean {
 }
 
 function recoverBindMount(config: RemoteConfig): string | undefined {
-	if (containerHasActiveMutation(config)) {
-		return (
-			`${config.container} cannot see /data/worktrees/${config.worktree} after rsync, ` +
-			"but another mutation is in progress on the shared container; refusing to " +
-			"docker restart and clobber it. Retry once the other run finishes, or restart " +
-			`${config.container} by hand if you know the bind mount is stale.`
-		);
+	const activity = checkActiveMutation(config);
+	const head = `${config.container} cannot see /data/worktrees/${config.worktree} after rsync`;
+	const recreate = `run docker rm -f ${config.container} and re-create with -v ${config.stage}:/data/worktrees`;
+	if (activity.kind === "active") {
+		return `${head}, but another mutation is in progress on the shared container; refusing to docker restart and clobber it. Retry once the other run finishes.`;
+	}
+
+	if (activity.kind === "unknown") {
+		return `${head} and the active-mutation probe was inconclusive (${activity.detail}); refusing to docker restart on uncertain state. Investigate the probe failure and retry.`;
 	}
 
 	if (!restartContainer(config)) {
-		return (
-			`${config.container} cannot see /data/worktrees/${config.worktree} after rsync ` +
-			`and docker restart ${config.container} failed; run docker rm -f ${config.container} ` +
-			`and re-create with -v ${config.stage}:/data/worktrees to re-establish the WSL share.`
-		);
+		return `${head} and docker restart ${config.container} failed; ${recreate} to re-establish the WSL share.`;
 	}
 
 	if (!containerSeesWorktree(config)) {
-		return (
-			`${config.container} still cannot see /data/worktrees/${config.worktree} after ` +
-			"docker restart; bind mount is severely detached. Run docker rm -f " +
-			`${config.container} and re-create with -v ${config.stage}:/data/worktrees.`
-		);
+		return `${head}, even after docker restart; bind mount is severely detached. ${recreate}.`;
 	}
 
 	return undefined;
