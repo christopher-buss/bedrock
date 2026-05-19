@@ -153,6 +153,23 @@ export function selectMergedEnvironment(
 }
 
 /**
+ * Build the per-resource env-overlay redaction layer that `applyRedaction`
+ * and `collectRedactionAnnotations` consume. Reads each redactable kind off
+ * the environment entry and projects every entry's `redacted` field into
+ * the layer; omits kinds the env entry does not declare.
+ *
+ * @param entry - Environment entry whose overlay redaction values to extract.
+ * @returns A `EnvironmentResourceRedaction` ready to pass downstream.
+ */
+export function extractResourceRedaction(entry: EnvironmentEntry): EnvironmentResourceRedaction {
+	return {
+		...(entry.passes ? { passes: extractRedactionLayer(entry.passes) } : {}),
+		...(entry.places ? { places: extractRedactionLayer(entry.places) } : {}),
+		...(entry.products ? { products: extractRedactionLayer(entry.products) } : {}),
+	};
+}
+
+/**
  * Project a validated `Config` onto a single environment. Looks up the
  * matching `environments[environment]` entry, deep-merges its resource
  * overlay (`passes`, `places`, `universe`) over the root config via defu,
@@ -439,6 +456,19 @@ function findIncompletePlace(
 	return undefined;
 }
 
+function extractRedactionLayer<Value>(
+	overlay: Readonly<Record<string, { readonly redacted?: Value }>>,
+): Readonly<Record<string, Value>> {
+	const layer: Record<string, Value> = {};
+	for (const [key, entryValue] of Object.entries(overlay)) {
+		if (entryValue.redacted !== undefined) {
+			layer[key] = entryValue.redacted;
+		}
+	}
+
+	return layer;
+}
+
 function resolvePrefix(config: Config, entry: EnvironmentEntry): string | undefined {
 	if (config.displayNamePrefix?.enabled === false) {
 		return undefined;
@@ -482,33 +512,15 @@ function applyPlacesPrefix(
 	);
 }
 
-function extractRedactionLayer<Value>(
-	overlay: Readonly<Record<string, { readonly redacted?: Value }>>,
-): Readonly<Record<string, Value>> {
-	const layer: Record<string, Value> = {};
-	for (const [key, entryValue] of Object.entries(overlay)) {
-		if (entryValue.redacted !== undefined) {
-			layer[key] = entryValue.redacted;
-		}
-	}
-
-	return layer;
-}
-
 function redactAndPrefix(inputs: {
 	readonly config: Config;
 	readonly entry: EnvironmentEntry;
 	readonly merged: ResolvedConfig;
 }): ResolvedConfig {
 	const { config, entry, merged } = inputs;
-	const environmentResource: EnvironmentResourceRedaction = {
-		...(entry.passes ? { passes: extractRedactionLayer(entry.passes) } : {}),
-		...(entry.places ? { places: extractRedactionLayer(entry.places) } : {}),
-		...(entry.products ? { products: extractRedactionLayer(entry.products) } : {}),
-	};
 	const redacted = applyRedaction(merged, {
 		envLevel: entry.redacted,
-		envResource: environmentResource,
+		envResource: extractResourceRedaction(entry),
 	});
 	const prefix = resolvePrefix(config, entry);
 	const places = applyPlacesPrefix(redacted.places, prefix);

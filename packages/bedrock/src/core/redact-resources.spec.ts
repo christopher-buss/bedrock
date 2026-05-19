@@ -1073,6 +1073,28 @@ describe(applyRedaction, () => {
 			expect(result.products?.["gem-pack"]).toStrictEqual(rootEntry);
 		});
 
+		it("should let an env-resource object force redaction even when the root entry sets redacted false", () => {
+			expect.assertions(1);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					products: { "gem-pack": { ...gemPackEntry, redacted: false } },
+				},
+				{
+					envResource: { products: { "gem-pack": { name: "Env Hidden" } } },
+				},
+			);
+
+			expect(result.products?.["gem-pack"]).toStrictEqual({
+				name: "Env Hidden",
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				price: REDACTED_PRICE,
+				redacted: false,
+			});
+		});
+
 		it("should compose env-resource passes, products, and places independently against env-level", () => {
 			expect.assertions(3);
 
@@ -1118,6 +1140,38 @@ describe(collectRedactionAnnotations, () => {
 		});
 
 		expect(result).toStrictEqual([]);
+	});
+
+	it("should annotate a pass whose env-overlay layer alone sets redacted: true even when the root entry omits the flag", () => {
+		expect.assertions(1);
+
+		const result = collectRedactionAnnotations(
+			{
+				...baseConfig,
+				passes: { "vip-pass": vipEntry },
+			},
+			{ passes: { "vip-pass": true } },
+		);
+
+		expect(result).toStrictEqual([
+			{ key: "vip-pass", hasRealValueEdits: true, kind: "gamePass" },
+		]);
+	});
+
+	it("should annotate a product whose env-overlay layer alone sets redacted: true even when the root entry omits the flag", () => {
+		expect.assertions(1);
+
+		const result = collectRedactionAnnotations(
+			{
+				...baseConfig,
+				products: { "gem-pack": gemPackEntry },
+			},
+			{ products: { "gem-pack": true } },
+		);
+
+		expect(result).toStrictEqual([
+			{ key: "gem-pack", hasRealValueEdits: true, kind: "developerProduct" },
+		]);
 	});
 
 	it("should emit one gamePass annotation per pass flagged redacted true with hasRealValueEdits false when the author already typed placeholder values literally", () => {

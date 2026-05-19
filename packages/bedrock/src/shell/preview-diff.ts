@@ -12,6 +12,7 @@ import { collectRedactionAnnotations, type RedactionAnnotation } from "../core/r
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
 import {
+	extractResourceRedaction,
 	type IncompletePassEntryError,
 	type IncompletePlaceEntryError,
 	type IncompleteUniverseEntryError,
@@ -172,10 +173,11 @@ function resolveEnvironmentView(
 		return { err: selected.err, success: false };
 	}
 
+	const environmentResource = extractResourceRedaction(merged.data.entry);
 	return {
 		data: {
 			effective: selected.data,
-			redactions: collectRedactionAnnotations(merged.data.merged),
+			redactions: collectRedactionAnnotations(merged.data.merged, environmentResource),
 		},
 		success: true,
 	};

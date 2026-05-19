@@ -158,7 +158,7 @@ export interface GamePassEntry {
 	 * placeholders with custom values while leaving the rest at bedrock
 	 * defaults; the object form implies redaction is enabled. Omit or set
 	 * `false` to push the real values unchanged. Environment overlays accept
-	 * only the boolean form.
+	 * the same shape and compose field-by-field with this layer.
 	 */
 	redacted?: boolean | RedactedGamePassOverride | undefined;
 }
@@ -243,7 +243,8 @@ export interface DeveloperProductEntry {
 	 * substitute selected placeholders with custom values while leaving the
 	 * rest at bedrock defaults; the object form implies redaction is enabled.
 	 * Omit or set `false` to push the real values unchanged. Environment
-	 * overlays accept only the boolean form.
+	 * overlays accept the same shape and compose field-by-field with this
+	 * layer.
 	 */
 	redacted?: boolean | RedactedDeveloperProductOverride | undefined;
 	/**
@@ -278,7 +279,8 @@ export interface PlaceEntry {
 	 * {@link RedactedPlaceOverride} to substitute selected placeholders
 	 * with custom values, including `displayName`. The object form
 	 * implies redaction is enabled. Omit or set `false` to push the real
-	 * values unchanged. Environment overlays accept only the boolean form.
+	 * values unchanged. Environment overlays accept the same shape and
+	 * compose field-by-field with this layer.
 	 */
 	redacted?: boolean | RedactedPlaceOverride | undefined;
 	/** Maximum players per server; positive integer. */

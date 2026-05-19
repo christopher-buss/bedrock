@@ -209,9 +209,10 @@ export function applyRedaction(config: ResolvedConfig, inputs?: RedactionInputs)
 
 /**
  * Inspect the pre-redaction merged config and produce one annotation per
- * resource flagged `redacted: true`. Callers thread the result into plan
- * output so authors can see which resources are redacted in the active
- * environment and whether their real-value edits are being suppressed.
+ * resource flagged `redacted: true` at either the root entry or its
+ * env-overlay counterpart. Callers thread the result into plan output so
+ * authors can see which resources are redacted in the active environment
+ * and whether their real-value edits are being suppressed.
  *
  * Operates on the pre-redaction view because the post-redaction config no
  * longer carries the real `name`/`description`/`icon` values needed to
@@ -219,14 +220,21 @@ export function applyRedaction(config: ResolvedConfig, inputs?: RedactionInputs)
  *
  * @param merged - `ResolvedConfig` produced by environment overlay merge,
  *   before `applyRedaction` has substituted placeholders.
+ * @param environmentResource - Per-kind env-overlay redaction layers
+ *   extracted from the active env entry. Omit when the caller has no
+ *   env-overlay layer.
  * @returns Zero or more annotations, one per redacted resource. Empty when
  *   the config declares no redacted resources.
  */
 export function collectRedactionAnnotations(
 	merged: ResolvedConfig,
+	environmentResource?: EnvironmentResourceRedaction,
 ): ReadonlyArray<RedactionAnnotation> {
 	const passes = Object.entries(merged.passes ?? {})
-		.filter(([, entry]) => entry.redacted === true)
+		.filter(
+			([key, entry]) =>
+				entry.redacted === true || environmentResource?.passes?.[key] === true,
+		)
 		.map(([key, entry]): RedactionAnnotation => {
 			return {
 				key: asResourceKey(key),
@@ -235,7 +243,10 @@ export function collectRedactionAnnotations(
 			};
 		});
 	const products = Object.entries(merged.products ?? {})
-		.filter(([, entry]) => entry.redacted === true)
+		.filter(
+			([key, entry]) =>
+				entry.redacted === true || environmentResource?.products?.[key] === true,
+		)
 		.map(([key, entry]): RedactionAnnotation => {
 			return {
 				key: asResourceKey(key),
@@ -267,9 +278,11 @@ function pickEnvironmentFields<Field extends keyof RedactedEnvironmentOverride>(
  * resource is not redacted; returns a (possibly empty) object when it is.
  * State step: the first non-undefined layer sets state -- `false` carves out,
  * `true` or object enables. Fields step: walk every object layer in the same
- * order, taking the first value per field. Callers are responsible for not
- * passing layers with explicit `undefined` field values; the per-kind
- * projections (see {@link pickEnvironmentFields}) drop them at the boundary.
+ * order, taking the first value per field. A field's value may itself be
+ * `undefined` (the env-level projection produced by {@link pickEnvironmentFields}
+ * includes every projected key, even when the env override left it absent);
+ * downstream per-kind redact functions collapse those back to bedrock
+ * placeholder defaults via `??`.
  *
  * @template Override - Per-kind override type the resource accepts.
  * @param layers - Layers ordered most-specific (index 0) to least-specific.
