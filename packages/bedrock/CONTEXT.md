@@ -7,7 +7,7 @@
 ### Resources
 
 **Resource**:
-A single instance of a managed Roblox entity that bedrock reconciles between declared desired state and live state (e.g. a specific game pass keyed `"vip-pass"`, a specific place keyed `"start-place"`, the singleton universe).
+A single instance of a managed Roblox entity that bedrock reconciles between declared desired state and live state (e.g. a specific game pass keyed `"vip-pass"`, a specific place keyed `"start-place"`, the singleton universe keyed `"main"`).
 _Avoid_: entity, item, thing
 
 **Kind**:
@@ -15,7 +15,7 @@ The discriminator tag identifying which type of Roblox entity a **Resource** rep
 _Avoid_: type, category, sort
 
 **Key**:
-User-supplied stable identifier for a **Resource** within a config (e.g. `"vip-pass"`), carried across deploys so desired and current state can correlate even when Roblox-assigned IDs are unknown. Surfaced in code as the branded `ResourceKey` type.
+Stable identifier for a **Resource** within a config (e.g. `"vip-pass"`), user-supplied for most kinds and synthesized for the universe singleton (`"main"`); carried across deploys so desired and current state can correlate even when Roblox-assigned IDs are unknown. Surfaced in code as the branded `ResourceKey` type.
 _Avoid_: id, name, slug, handle
 
 ### State
@@ -33,8 +33,8 @@ The Roblox-assigned identifiers a driver returns after creating or updating a **
 _Avoid_: ids, results, server-assigned fields
 
 **State**:
-The per-**Environment** record bedrock persists between deploys: a versioned `BedrockState` carrying the list of **Current state** entries for that **Environment**. Read at the start of each **Deploy**, written at the end.
-_Avoid_: snapshot, save, history
+The per-**Environment** snapshot bedrock persists between deploys: a versioned `BedrockState` carrying the list of **Current state** entries for that **Environment**. Read at the start of each **Deploy**, written at the end.
+_Avoid_: save, history
 
 **Environment**:
 The partition unit for both **State** (each environment has its own persisted record) and config (per-environment overlays merged onto root). User-supplied name (e.g. `"production"`, `"staging"`); validated against an env-name regex.
@@ -51,7 +51,7 @@ The pure function from a list of **Desired state** entries and a list of **Curre
 _Avoid_: plan, reconciliation plan
 
 **Apply**:
-The shell step that dispatches each non-noop **Operation** to its matching **Driver** and collects the resulting **Outputs** into an updated **Current state** list. Implemented as `applyOps`.
+The shell step that dispatches each non-noop **Operation** to its matching **Driver** and collects the resulting **Outputs** into an updated **Current state** list: universe ops first, then everything else in parallel with continue-on-failure. Implemented as `applyOps`.
 _Avoid_: execute, run, push
 
 **Deploy**:
@@ -80,8 +80,12 @@ _Avoid_: schema module, handler, type module
 The plugin contract for **State** persistence: `read(environment)` returns the existing **State** or `undefined`, `write(state)` overwrites it. Surfaced in code as `StatePort`; selected at runtime by the user's **Backend** choice in config.
 _Avoid_: storage, persistence layer
 
+**Progress port**:
+Optional plugin contract for receiving per-**Resource** and aggregate progress events during **Deploy** (started, succeeded, failed, noop, summary, state-written). Surfaced in code as `ProgressPort` and supplied via `DeployOptions.progress`; omit to run silently.
+_Avoid_: logger, reporter, telemetry
+
 **Backend**:
-The user-facing discriminator in config that selects which adapter implements a plugin contract at runtime (e.g. `state: { backend: "gist" }` picks the Gist adapter for the **State port**). Each backend value names exactly one adapter.
+The user-facing discriminator in config that selects which **State port** adapter to construct at runtime (e.g. `state: { backend: "gist" }` picks the Gist adapter). Each backend value names exactly one adapter; today only the State port is backend-configurable.
 _Avoid_: provider, driver, storage
 
 ### Patterns
@@ -90,6 +94,10 @@ _Avoid_: provider, driver, storage
 The kind-level pattern where the user supplies the Roblox identifier (`universeId`, `placeId`) on the authored entry because Open Cloud cannot create the upstream entity. The `universe` and `place` **Kinds** are adopted; `gamePass` and `developerProduct` are provisioned, meaning bedrock creates them and learns the assigned ID as an **Output**.
 _Avoid_: import, attach, claim
 
+**Managed field**:
+A field bedrock owns the value for on a **Resource**'s **Desired state**: the **Diff** treats unmanaged fields (key absent or `undefined`) as non-drift and the **Driver** omits them from the wire request. Clearable fields are tri-state: an absent key is unmanaged, a present `undefined` clears the server value, and a set value writes through.
+_Avoid_: writable field, declared field, owned field
+
 **Redaction**:
-Per-**Resource** (or per-**Environment**) opt-in to bedrock-supplied placeholder content on the wire, used to deploy structurally real but content-hidden resources to pre-release environments. Triggered by a `redacted` field; the placeholder set is per-**Kind** and may be overridden field-by-field at the root entry.
+Per-**Resource** (or per-**Environment**) opt-in to bedrock-supplied placeholder content on the wire, used to deploy structurally real but content-hidden resources to pre-release environments. Triggered by a `redacted` field; the placeholder set is per-**Kind** and may be overridden via the object form of the `redacted` field on the root entry.
 _Avoid_: obfuscation, masking, scrubbing
