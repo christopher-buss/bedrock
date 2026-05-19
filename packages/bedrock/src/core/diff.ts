@@ -23,7 +23,7 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
  *
  * @param desired - Declared desired state from user config, already normalized
  *   (file hashes computed, nullable wire values mapped to `undefined`).
- * @param current - Last-known live state from the state file.
+ * @param current - Last-known current state from the state file.
  * @returns Operations to reconcile the two snapshots.
  *
  * @example

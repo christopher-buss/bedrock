@@ -13,11 +13,11 @@ import {
 	type ResourceDriver,
 	selectEnvironment,
 	UNIVERSE_SINGLETON_KEY,
-	validatePlan,
 } from "@bedrock-rbx/core";
 import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
 import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock-rbx/ocale/testing";
 
+import { assertAllReconcilable } from "#src/core/assert-all-reconcilable";
 import {
 	defaultRedactedProductName,
 	REDACTED_DESCRIPTION,
@@ -596,7 +596,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
 		assert(desiredResult.success);
 
-		const planCheck = validatePlan(desiredResult.data, []);
+		const planCheck = assertAllReconcilable(desiredResult.data, []);
 		assert(planCheck.success);
 
 		const bpName = defaultRedactedProductName("bp-1");
@@ -681,7 +681,7 @@ describe("products-redacted pipeline end-to-end", () => {
 		const desiredResult = await buildDesired(flattenConfig(resolved.data), panicOnRealPath);
 		assert(desiredResult.success);
 
-		const planCheck = validatePlan(desiredResult.data, []);
+		const planCheck = assertAllReconcilable(desiredResult.data, []);
 		assert(!planCheck.success);
 		assert(planCheck.err.kind === "redactedNameCollision");
 

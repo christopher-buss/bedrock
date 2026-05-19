@@ -4,6 +4,7 @@ import { readFile as nodeReadFile } from "node:fs/promises";
 import process from "node:process";
 
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
+import { assertAllReconcilable } from "../core/assert-all-reconcilable.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { diff } from "../core/diff.ts";
 import { flattenConfig } from "../core/flatten.ts";
@@ -20,7 +21,6 @@ import {
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
 import type { StateError } from "../core/state.ts";
-import { validatePlan } from "../core/validate-plan.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { buildDesired, type BuildDesiredError } from "./build-desired.ts";
 import {
@@ -79,7 +79,7 @@ export interface DiffPreview {
 	readonly ops: ReadonlyArray<Operation>;
 	/**
 	 * One entry per resource flagged redacted in the active environment.
-	 * Surfaced so plan output can call out silent noops where the author's
+	 * Surfaced so preview output can call out silent noops where the author's
 	 * real-value edits stay in config but never reach Open Cloud.
 	 */
 	readonly redactions: ReadonlyArray<RedactionAnnotation>;
@@ -222,7 +222,7 @@ async function runPreview(
 	}
 
 	const priorResources = prior.data?.resources ?? [];
-	const validated = validatePlan(desired.data, priorResources);
+	const validated = assertAllReconcilable(desired.data, priorResources);
 	if (!validated.success) {
 		return { err: { cause: validated.err, kind: "buildDesiredFailed" }, success: false };
 	}

@@ -6,7 +6,7 @@ import type { BuildDesiredError, ResourceKindModule } from "./kinds/module.ts";
 import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "./resources.ts";
 
 /**
- * Plan-time invariant check that runs after `buildDesired` and before
+ * Batch reconcilability check that runs after `buildDesired` and before
  * `diff`. Walks paired `(kind, key)` entries and dispatches to each
  * kind module's optional `assertReconcilable` hook so kind-specific
  * rejections (e.g. Removing a developer-product icon, which the upstream
@@ -20,51 +20,8 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
  * @param current - Prior current state from the state port.
  * @returns `Ok(undefined)` when every paired entry passes its kind-level
  *   reconcilability check, or the first `Err` returned by a hook.
- *
- * @example
- *
- * ```ts
- * import { asResourceKey, asRobloxAssetId, asSha256Hex, validatePlan } from "@bedrock-rbx/core";
- *
- * const result = validatePlan(
- *     [
- *         {
- *             description: "Stocks the player up with 1,000 premium gems.",
- *             isRegionalPricingEnabled: undefined,
- *             key: asResourceKey("gem-pack"),
- *             kind: "developerProduct",
- *             name: "Gem Pack",
- *             price: undefined,
- *             storePageEnabled: undefined,
- *         },
- *     ],
- *     [
- *         {
- *             description: "Stocks the player up with 1,000 premium gems.",
- *             icon: { "en-us": "assets/gem-pack.png" },
- *             iconFileHashes: {
- *                 "en-us": asSha256Hex(
- *                     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
- *                 ),
- *             },
- *             isRegionalPricingEnabled: undefined,
- *             key: asResourceKey("gem-pack"),
- *             kind: "developerProduct",
- *             name: "Gem Pack",
- *             outputs: { productId: asRobloxAssetId("9876543210") },
- *             price: undefined,
- *             storePageEnabled: undefined,
- *         },
- *     ],
- * );
- *
- * expect(result.success).toBeFalse();
- * if (!result.success) {
- *     expect(result.err.kind).toBe("iconRemovalRejected");
- * }
- * ```
  */
-export function validatePlan(
+export function assertAllReconcilable(
 	desired: ReadonlyArray<ResourceDesiredState>,
 	current: ReadonlyArray<ResourceCurrentState>,
 ): Result<undefined, BuildDesiredError> {

@@ -4,6 +4,7 @@ import { readFile as nodeReadFile } from "node:fs/promises";
 import process from "node:process";
 
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
+import { assertAllReconcilable } from "../core/assert-all-reconcilable.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { diff } from "../core/diff.ts";
 import { flattenConfig } from "../core/flatten.ts";
@@ -18,7 +19,6 @@ import {
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
-import { validatePlan } from "../core/validate-plan.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
@@ -341,7 +341,7 @@ async function runReconcile(
 	}
 
 	const priorResources = prior.data?.resources ?? [];
-	const validated = validatePlan(desired.data, priorResources);
+	const validated = assertAllReconcilable(desired.data, priorResources);
 	if (!validated.success) {
 		return { err: { cause: validated.err, kind: "buildDesiredFailed" }, success: false };
 	}

@@ -28,7 +28,7 @@ export interface ProgDeps {
 	readonly buildStatePort?: typeof defaultBuildStatePort;
 	/** Output port; defaults to a real `@clack/prompts` adapter inside command actions. */
 	readonly clack?: ClackPort;
-	/** Reconciles config to live state; defaults to the public `deploy`. */
+	/** Reconciles config to upstream state; defaults to the public `deploy`. */
 	readonly deploy?: typeof defaultDeploy;
 	/** Process exit handle; defaults to `process.exit` so tests can intercept termination. The production default never returns; test stubs are free to return void. */
 	readonly exit?: (code: number) => void;
