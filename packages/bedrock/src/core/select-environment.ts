@@ -13,6 +13,7 @@ import type {
 	ResolvedPlaceEntry,
 	ResolvedUniverseEntry,
 	UniverseEntry,
+	WithoutKey,
 } from "./schema.ts";
 
 /**
@@ -107,8 +108,6 @@ interface MergedEnvironment {
 	 */
 	readonly merged: ResolvedConfig;
 }
-
-type WithoutRedacted<T> = Pick<T, Exclude<keyof T, "redacted">>;
 
 /**
  * Project a `Config` onto a single environment up to the pre-redaction
@@ -334,7 +333,7 @@ function mergeUniverse(
 
 function stripRedacted<T extends { readonly redacted?: unknown }>(
 	overlay: Readonly<Record<string, T>> | undefined,
-): Record<string, WithoutRedacted<T>> | undefined {
+): Record<string, WithoutKey<T, "redacted">> | undefined {
 	if (overlay === undefined) {
 		return undefined;
 	}

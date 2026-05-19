@@ -551,6 +551,16 @@ export interface DisplayNamePrefixConfig {
 }
 
 /**
+ * Helper that produces a shallow `Omit<T, K>` without using TypeScript's
+ * built-in `Omit` (deprecated under the project's lint rules because of
+ * its lossy interaction with mapped types).
+ *
+ * @template T - Source type to project keys away from.
+ * @template Key - Key (or union of keys) on `T` to remove.
+ */
+export type WithoutKey<T, Key extends keyof T> = Pick<T, Exclude<keyof T, Key>>;
+
+/**
  * Per-environment universe overlay shape that prevents `universeId` from
  * being redeclared alongside a root-authoritative `universeId`.
  * Used by {@link ConfigRootUniverseId}: when the root universe block
@@ -747,16 +757,6 @@ export interface ResolvedConfig extends Pick<ConfigBase, Exclude<keyof ConfigBas
  * still declare (for example `"placeId"` or `"universeId"`).
  */
 type Overlay<T, RequiredKey extends keyof T> = SetRequired<Partial<T>, RequiredKey>;
-
-/**
- * Helper that produces a shallow `Omit<T, K>` without using TypeScript's
- * built-in `Omit` (deprecated under the project's lint rules because of
- * its lossy interaction with mapped types).
- *
- * @template T - Source type to project keys away from.
- * @template Key - Key (or union of keys) on `T` to remove.
- */
-type WithoutKey<T, Key extends keyof T> = Pick<T, Exclude<keyof T, Key>>;
 
 /**
  * Fields shared by every {@link Config} variant. The discriminated

@@ -106,9 +106,16 @@ interface ResolvedEntry<Entry, Override> {
 	readonly override: Override | undefined;
 }
 
-const PASS_PRODUCT_ENV_FIELDS = ["description", "icon", "name", "price"] as const;
+const PASS_PRODUCT_ENV_FIELDS = [
+	"description",
+	"icon",
+	"name",
+	"price",
+] as const satisfies ReadonlyArray<keyof RedactedEnvironmentOverride>;
 
-const PLACE_ENV_FIELDS = ["description", "displayName"] as const;
+const PLACE_ENV_FIELDS = ["description", "displayName"] as const satisfies ReadonlyArray<
+	keyof RedactedEnvironmentOverride
+>;
 
 interface RedactCollectionInputs<Entry, Override> {
 	readonly collection: Readonly<Record<string, Entry>> | undefined;
