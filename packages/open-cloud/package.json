@@ -1,6 +1,6 @@
 {
 	"name": "@bedrock-rbx/ocale",
-	"version": "0.1.0-beta.13",
+	"version": "0.1.0-beta.14",
 	"description": "Roblox Open Cloud API client",
 	"keywords": [
 		"api",
