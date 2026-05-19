@@ -58,7 +58,7 @@ interface GistFile {
 interface HttpFailure {
 	readonly file: string;
 	readonly gistId: string;
-	readonly status: number;
+	readonly response: Response;
 }
 
 interface ReadContentParameters {
@@ -153,9 +153,27 @@ function toGistFile(entry: unknown): GistFile | undefined {
 	return { content, isTruncated, rawUrl, size };
 }
 
-function mapHttpError({ file, gistId, status }: HttpFailure): StateError {
+function isRateLimited(headers: Headers): boolean {
+	return headers.get("retry-after") !== null || headers.get("x-ratelimit-remaining") === "0";
+}
+
+function rateLimitReason(status: number, headers: Headers): string {
+	const retryAfter = headers.get("retry-after");
+	if (retryAfter !== null) {
+		return `rate limited (${status}): retry after ${retryAfter}s`;
+	}
+
+	return `rate limited (${status})`;
+}
+
+function mapHttpError({ file, gistId, response }: HttpFailure): StateError {
+	const { headers, status } = response;
 	if (status === 404) {
 		return { file, kind: "stateError", reason: `gist ${gistId} not found: check gistId` };
+	}
+
+	if (status === 403 && isRateLimited(headers)) {
+		return { file, kind: "stateError", reason: rateLimitReason(status, headers) };
 	}
 
 	if (status === 401 || status === 403) {
@@ -224,7 +242,7 @@ async function fetchGistBody(
 
 	if (!response.ok) {
 		return {
-			err: mapHttpError({ file, gistId: ctx.gistId, status: response.status }),
+			err: mapHttpError({ file, gistId: ctx.gistId, response }),
 			success: false,
 		};
 	}
@@ -371,7 +389,7 @@ async function writePath(
 	}
 
 	return {
-		err: mapHttpError({ file, gistId: ctx.gistId, status: response.status }),
+		err: mapHttpError({ file, gistId: ctx.gistId, response }),
 		success: false,
 	};
 }
