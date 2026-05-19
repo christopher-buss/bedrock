@@ -16,7 +16,7 @@
 -- Mirrors `packages/bedrock/src/core/schema.ts` lines 504-585. The two
 -- variants encode the universeId XOR via singleton-string directive types
 -- on the forbidden side. ADR-025 ships the union DROPPED in favour of a
--- single permissive Config in `src/luau/config.luau`; the discriminated
+-- single permissive Config in `packages/bedrock/src/luau/config.luau`; the discriminated
 -- variants here exist so the union-encoding alternatives (sections 7-9)
 -- can be demonstrated against the schema we would otherwise ship.
 -- ============================================================================
