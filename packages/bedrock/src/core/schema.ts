@@ -44,7 +44,7 @@ export interface RedactedGamePassOverride {
 	/** Override icon path; falls through to the embedded placeholder when omitted. */
 	icon?: Record<"en-us", string> | undefined;
 	/**
-	 * Override Robux price; falls through to the bedrock default (`1`) when
+	 * Override Robux price; falls through to the bedrock default (`99999`) when
 	 * omitted. Ignored when the entry's `price` is `undefined` so an off-sale
 	 * pass stays off-sale through redaction.
 	 */
@@ -104,9 +104,9 @@ export interface GamePassEntry {
 	/**
 	 * Set to `true` to deploy this pass with bedrock-supplied placeholder
 	 * content (default name, empty description, embedded placeholder icon,
-	 * price `1` Robux when the entry is on-sale) in place of the real values
-	 * declared above. Off-sale passes (`price` omitted) stay off-sale. Set
-	 * to a {@link RedactedGamePassOverride} to substitute selected
+	 * price `99999` Robux when the entry is on-sale) in place of the real
+	 * values declared above. Off-sale passes (`price` omitted) stay off-sale.
+	 * Set to a {@link RedactedGamePassOverride} to substitute selected
 	 * placeholders with custom values while leaving the rest at bedrock
 	 * defaults; the object form implies redaction is enabled. Omit or set
 	 * `false` to push the real values unchanged. Environment overlays accept
@@ -153,7 +153,7 @@ export interface RedactedDeveloperProductOverride {
 	/** Override icon path; falls through to the embedded placeholder when omitted. */
 	icon?: Record<"en-us", string> | undefined;
 	/**
-	 * Override Robux price; falls through to the bedrock default (`1`) when
+	 * Override Robux price; falls through to the bedrock default (`99999`) when
 	 * omitted. Ignored when the entry's `price` is `undefined` so an off-sale
 	 * product stays off-sale through redaction.
 	 */
@@ -189,13 +189,13 @@ export interface DeveloperProductEntry {
 	/**
 	 * Set to `true` to deploy this product with bedrock-supplied placeholder
 	 * content (default name, empty description, embedded placeholder icon,
-	 * price `1` Robux when the entry is on-sale) in place of the real values
-	 * declared above. Off-sale products (`price` omitted) stay off-sale. Set
-	 * to a {@link RedactedDeveloperProductOverride} to substitute selected
-	 * placeholders with custom values while leaving the rest at bedrock
-	 * defaults; the object form implies redaction is enabled. Omit or set
-	 * `false` to push the real values unchanged. Environment overlays accept
-	 * only the boolean form.
+	 * price `99999` Robux when the entry is on-sale) in place of the real
+	 * values declared above. Off-sale products (`price` omitted) stay
+	 * off-sale. Set to a {@link RedactedDeveloperProductOverride} to
+	 * substitute selected placeholders with custom values while leaving the
+	 * rest at bedrock defaults; the object form implies redaction is enabled.
+	 * Omit or set `false` to push the real values unchanged. Environment
+	 * overlays accept only the boolean form.
 	 */
 	redacted?: boolean | RedactedDeveloperProductOverride | undefined;
 	/**

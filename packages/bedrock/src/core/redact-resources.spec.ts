@@ -43,6 +43,17 @@ const startPlaceEntry = {
 	placeId: "4711",
 } as const satisfies ResolvedPlaceEntry;
 
+describe("redacted price default", () => {
+	it("should pin REDACTED_PRICE to 99999 robux as a fail-safe deterrent", () => {
+		expect.assertions(1);
+		// 99_999 is a deterrent default: a misconfigured redacted resource
+		// priced this high is merely embarrassing, whereas one priced near
+		// zero risks revenue loss and premature reveal of monetization
+		// metadata.
+		expect(REDACTED_PRICE).toBe(99_999);
+	});
+});
+
 describe(applyRedaction, () => {
 	it("should replace name, description, icon, and price with placeholders when redacted is true", () => {
 		expect.assertions(1);
