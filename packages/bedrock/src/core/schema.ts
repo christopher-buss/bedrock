@@ -307,8 +307,8 @@ export interface ResolvedPlaceEntry {
 	placeId: string;
 	/**
 	 * Resolved redaction setting after merging the per-environment overlay
-	 * (boolean only at the overlay level) onto the root entry. See
-	 * {@link PlaceEntry.redacted} for the authored shape.
+	 * onto the root entry. See {@link PlaceEntry.redacted} for the
+	 * authored shape.
 	 */
 	redacted?: boolean | RedactedPlaceOverride | undefined;
 	/** Maximum players per server; positive integer. */
@@ -449,14 +449,11 @@ export interface EnvironmentEntry {
 	 *
 	 * Uses a partial `GamePassEntry` directly rather than `Overlay<T, K>`
 	 * because game passes have no user-supplied identity key (Open Cloud
-	 * mints the asset ID). The `redacted` field narrows to a boolean here:
-	 * per-field overrides (the {@link RedactedGamePassOverride} object form)
-	 * are valid only on the root resource entry.
+	 * mints the asset ID). The `redacted` field accepts the same shape it
+	 * does at the root entry: a boolean toggle or a {@link RedactedGamePassOverride}
+	 * carrying per-field overrides for this resource in this environment.
 	 */
-	passes?: Record<
-		string,
-		Partial<WithoutKey<GamePassEntry, "redacted">> & { redacted?: boolean | undefined }
-	>;
+	passes?: Record<string, Partial<GamePassEntry>>;
 	/**
 	 * Per-environment places overlay. `placeId` is required on every
 	 * declared entry; `filePath` is optional and falls through to the
@@ -468,14 +465,12 @@ export interface EnvironmentEntry {
 	 * missing fields fall through to the matching root `products` entry at
 	 * merge time. Mirrors the `passes` shape because developer products
 	 * also have no user-supplied identity key (Open Cloud mints the
-	 * `productId`). The `redacted` field narrows to a boolean here:
-	 * per-field overrides (the {@link RedactedDeveloperProductOverride}
-	 * object form) are valid only on the root resource entry.
+	 * `productId`). The `redacted` field accepts the same shape it does
+	 * at the root entry: a boolean toggle or a
+	 * {@link RedactedDeveloperProductOverride} carrying per-field
+	 * overrides for this resource in this environment.
 	 */
-	products?: Record<
-		string,
-		Partial<WithoutKey<DeveloperProductEntry, "redacted">> & { redacted?: boolean | undefined }
-	>;
+	products?: Record<string, Partial<DeveloperProductEntry>>;
 	/**
 	 * Per-environment redaction layer. Accepts a boolean toggle or a
 	 * {@link RedactedEnvironmentOverride} carrying cross-kind override
@@ -996,7 +991,7 @@ const gamePassOverlay = type({
 	"icon?": iconMap,
 	"name?": "string",
 	"price?": OPTIONAL_ROBUX_PRICE,
-	[REDACTED_KEY]: OPTIONAL_BOOLEAN,
+	[REDACTED_KEY]: gamePassRedacted,
 }).onUndeclaredKey("reject");
 
 const passesOverlayCollection = type({
@@ -1009,7 +1004,7 @@ const developerProductOverlay = type({
 	"isRegionalPricingEnabled?": OPTIONAL_BOOLEAN,
 	"name?": "string",
 	"price?": OPTIONAL_ROBUX_PRICE,
-	[REDACTED_KEY]: OPTIONAL_BOOLEAN,
+	[REDACTED_KEY]: productRedacted,
 	"storePageEnabled?": OPTIONAL_BOOLEAN,
 }).onUndeclaredKey("reject");
 
@@ -1022,7 +1017,7 @@ const placeOverlay = type({
 	"displayName?": OPTIONAL_STRING,
 	"filePath?": "string",
 	"placeId": ROBLOX_ID_DIGITS,
-	[REDACTED_KEY]: OPTIONAL_BOOLEAN,
+	[REDACTED_KEY]: placeRedacted,
 	"serverSize?": OPTIONAL_POSITIVE_INTEGER,
 }).onUndeclaredKey("reject");
 

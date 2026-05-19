@@ -332,7 +332,7 @@ describe(applyRedaction, () => {
 			) satisfies GamePassEntry;
 			const result = applyRedaction(
 				{ ...baseConfig, passes: { "vip-pass": passEntry } },
-				envRedacted,
+				{ envLevel: envRedacted },
 			);
 			const expectedName = expectRedacted ? REDACTED_PASS_NAME : vipEntry.name;
 
@@ -425,7 +425,7 @@ describe(applyRedaction, () => {
 
 		const result = applyRedaction(
 			{ ...baseConfig, places: { "start-place": startPlaceEntry } },
-			true,
+			{ envLevel: true },
 		);
 
 		expect(result.places?.["start-place"]?.description).toBe(REDACTED_DESCRIPTION);
@@ -487,7 +487,7 @@ describe(applyRedaction, () => {
 			) satisfies ResolvedPlaceEntry;
 			const result = applyRedaction(
 				{ ...baseConfig, places: { "start-place": placeEntry } },
-				envRedacted,
+				{ envLevel: envRedacted },
 			);
 			const expectedDescription = expectRedacted
 				? REDACTED_DESCRIPTION
@@ -719,7 +719,7 @@ describe(applyRedaction, () => {
 			) satisfies DeveloperProductEntry;
 			const result = applyRedaction(
 				{ ...baseConfig, products: { "gem-pack": productEntry } },
-				envRedacted,
+				{ envLevel: envRedacted },
 			);
 			const expectedName = expectRedacted
 				? defaultRedactedProductName("gem-pack")
@@ -805,7 +805,7 @@ describe(applyRedaction, () => {
 						"vip-pass": vipEntry,
 					},
 				},
-				{ price: 1 },
+				{ envLevel: { price: 1 } },
 			);
 
 			expect(result.passes?.["vip-pass"]?.price).toBe(1);
@@ -823,7 +823,7 @@ describe(applyRedaction, () => {
 						"gold-pack": { ...gemPackEntry, name: "Gold Pack", price: 2000 },
 					},
 				},
-				{ price: 1 },
+				{ envLevel: { price: 1 } },
 			);
 
 			expect(result.products?.["gem-pack"]?.price).toBe(1);
@@ -848,7 +848,7 @@ describe(applyRedaction, () => {
 					passes: { "soon-pass": offSalePass },
 					products: { "future-pack": offSaleProduct },
 				},
-				{ price: 1 },
+				{ envLevel: { price: 1 } },
 			);
 
 			expect(result.passes?.["soon-pass"]).not.toHaveProperty("price");
@@ -865,7 +865,7 @@ describe(applyRedaction, () => {
 					places: { "start-place": startPlaceEntry },
 					products: { "gem-pack": gemPackEntry },
 				},
-				{ description: "Reveal at launch." },
+				{ envLevel: { description: "Reveal at launch." } },
 			);
 
 			expect(result.passes?.["vip-pass"]?.description).toBe("Reveal at launch.");
@@ -883,7 +883,7 @@ describe(applyRedaction, () => {
 					places: { "start-place": startPlaceEntry },
 					products: { "gem-pack": gemPackEntry },
 				},
-				{ displayName: "Hidden Project" },
+				{ envLevel: { displayName: "Hidden Project" } },
 			);
 
 			expect(result.places?.["start-place"]?.displayName).toBe("Hidden Project");
@@ -904,7 +904,7 @@ describe(applyRedaction, () => {
 					places: { "start-place": startPlaceEntry },
 					products: { "gem-pack": gemPackEntry },
 				},
-				{ icon: iconOverride },
+				{ envLevel: { icon: iconOverride } },
 			);
 
 			expect(result.passes?.["vip-pass"]?.icon).toStrictEqual(iconOverride);
@@ -922,7 +922,7 @@ describe(applyRedaction, () => {
 						"gem-pack": { ...gemPackEntry, redacted: { name: "Hidden" } },
 					},
 				},
-				{ price: 1 },
+				{ envLevel: { price: 1 } },
 			);
 
 			expect(result.products?.["gem-pack"]).toStrictEqual({
@@ -942,7 +942,7 @@ describe(applyRedaction, () => {
 					...baseConfig,
 					products: { "gem-pack": { ...gemPackEntry, redacted: true } },
 				},
-				{ price: 1 },
+				{ envLevel: { price: 1 } },
 			);
 
 			expect(result.products?.["gem-pack"]).toStrictEqual({
@@ -963,7 +963,7 @@ describe(applyRedaction, () => {
 			} as const satisfies DeveloperProductEntry;
 			const result = applyRedaction(
 				{ ...baseConfig, products: { "gem-pack": entry } },
-				{ price: 1 },
+				{ envLevel: { price: 1 } },
 			);
 
 			expect(result.products?.["gem-pack"]).toStrictEqual(entry);
@@ -979,7 +979,7 @@ describe(applyRedaction, () => {
 						"gem-pack": { ...gemPackEntry, redacted: { price: 500 } },
 					},
 				},
-				{ price: 1 },
+				{ envLevel: { price: 1 } },
 			);
 
 			expect(result.products?.["gem-pack"]?.price).toBe(500);
@@ -993,11 +993,109 @@ describe(applyRedaction, () => {
 					...baseConfig,
 					places: { "start-place": startPlaceEntry },
 				},
-				{ displayName: "Hidden Project" },
+				{ envLevel: { displayName: "Hidden Project" } },
 			);
 
 			expect(result.places?.["start-place"]?.description).toBe(REDACTED_DESCRIPTION);
 			expect(result.places?.["start-place"]?.displayName).toBe("Hidden Project");
+		});
+	});
+
+	describe("env-resource layer", () => {
+		it("should let an env-resource name override win over a root override and an env-level override for the same field", () => {
+			expect.assertions(1);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					products: {
+						"gem-pack": {
+							...gemPackEntry,
+							redacted: { name: "Root Name", price: 100 },
+						},
+					},
+				},
+				{
+					envLevel: { price: 1 },
+					envResource: { products: { "gem-pack": { name: "Env Resource Name" } } },
+				},
+			);
+
+			expect(result.products?.["gem-pack"]).toStrictEqual({
+				name: "Env Resource Name",
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				price: 100,
+				redacted: { name: "Root Name", price: 100 },
+			});
+		});
+
+		it("should treat env-resource true as enabling redaction without contributing fields, letting root and env-level fields apply", () => {
+			expect.assertions(1);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					products: {
+						"gem-pack": { ...gemPackEntry, redacted: { name: "Root Name" } },
+					},
+				},
+				{
+					envLevel: { price: 1 },
+					envResource: { products: { "gem-pack": true } },
+				},
+			);
+
+			expect(result.products?.["gem-pack"]).toStrictEqual({
+				name: "Root Name",
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				price: 1,
+				redacted: { name: "Root Name" },
+			});
+		});
+
+		it("should treat env-resource false as carving out, leaving root and env-level layers moot", () => {
+			expect.assertions(1);
+
+			const rootEntry = {
+				...gemPackEntry,
+				redacted: { name: "Root Name" },
+			} as const satisfies DeveloperProductEntry;
+			const result = applyRedaction(
+				{ ...baseConfig, products: { "gem-pack": rootEntry } },
+				{
+					envLevel: { price: 1 },
+					envResource: { products: { "gem-pack": false } },
+				},
+			);
+
+			expect(result.products?.["gem-pack"]).toStrictEqual(rootEntry);
+		});
+
+		it("should compose env-resource passes, products, and places independently against env-level", () => {
+			expect.assertions(3);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					passes: { "vip-pass": vipEntry },
+					places: { "start-place": startPlaceEntry },
+					products: { "gem-pack": gemPackEntry },
+				},
+				{
+					envLevel: { price: 1 },
+					envResource: {
+						passes: { "vip-pass": { name: "Hidden Pass" } },
+						places: { "start-place": { displayName: "Hidden Place" } },
+						products: { "gem-pack": { name: "Hidden Pack" } },
+					},
+				},
+			);
+
+			expect(result.passes?.["vip-pass"]?.name).toBe("Hidden Pass");
+			expect(result.places?.["start-place"]?.displayName).toBe("Hidden Place");
+			expect(result.products?.["gem-pack"]?.name).toBe("Hidden Pack");
 		});
 	});
 });

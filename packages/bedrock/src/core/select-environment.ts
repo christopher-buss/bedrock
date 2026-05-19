@@ -3,7 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { defu } from "defu";
 
 import { renderDisplayNamePrefix } from "./display-name-prefix.ts";
-import { applyRedaction } from "./redact-resources.ts";
+import { applyRedaction, type EnvironmentResourceRedaction } from "./redact-resources.ts";
 import type {
 	Config,
 	DeveloperProductEntry,
@@ -107,6 +107,8 @@ interface MergedEnvironment {
 	 */
 	readonly merged: ResolvedConfig;
 }
+
+type WithoutRedacted<T> = Pick<T, Exclude<keyof T, "redacted">>;
 
 /**
  * Project a `Config` onto a single environment up to the pre-redaction
@@ -330,10 +332,28 @@ function mergeUniverse(
 	return defu(overlay ?? {}, base ?? {}) as ResolvedUniverseEntry;
 }
 
+function stripRedacted<T extends { readonly redacted?: unknown }>(
+	overlay: Readonly<Record<string, T>> | undefined,
+): Record<string, WithoutRedacted<T>> | undefined {
+	if (overlay === undefined) {
+		return undefined;
+	}
+
+	return Object.fromEntries(
+		Object.entries(overlay).map(([key, entryValue]) => {
+			const { redacted: _redacted, ...rest } = entryValue;
+			return [key, rest];
+		}),
+	);
+}
+
 function mergeOverlays(config: Config, entry: EnvironmentEntry): ResolvedConfig {
-	const passes = mergeKeyedRecord<GamePassEntry>(entry.passes, config.passes);
-	const places = mergeKeyedRecord<ResolvedPlaceEntry>(entry.places, config.places);
-	const products = mergeKeyedRecord<DeveloperProductEntry>(entry.products, config.products);
+	const passes = mergeKeyedRecord<GamePassEntry>(stripRedacted(entry.passes), config.passes);
+	const places = mergeKeyedRecord<ResolvedPlaceEntry>(stripRedacted(entry.places), config.places);
+	const products = mergeKeyedRecord<DeveloperProductEntry>(
+		stripRedacted(entry.products),
+		config.products,
+	);
 	const universe = mergeUniverse(entry.universe, config.universe);
 	const state = entry.state ?? config.state;
 
@@ -463,13 +483,34 @@ function applyPlacesPrefix(
 	);
 }
 
+function extractRedactionLayer<Value>(
+	overlay: Readonly<Record<string, { readonly redacted?: Value }>>,
+): Readonly<Record<string, Value>> {
+	const layer: Record<string, Value> = {};
+	for (const [key, entryValue] of Object.entries(overlay)) {
+		if (entryValue.redacted !== undefined) {
+			layer[key] = entryValue.redacted;
+		}
+	}
+
+	return layer;
+}
+
 function redactAndPrefix(inputs: {
 	readonly config: Config;
 	readonly entry: EnvironmentEntry;
 	readonly merged: ResolvedConfig;
 }): ResolvedConfig {
 	const { config, entry, merged } = inputs;
-	const redacted = applyRedaction(merged, entry.redacted);
+	const environmentResource: EnvironmentResourceRedaction = {
+		...(entry.passes ? { passes: extractRedactionLayer(entry.passes) } : {}),
+		...(entry.places ? { places: extractRedactionLayer(entry.places) } : {}),
+		...(entry.products ? { products: extractRedactionLayer(entry.products) } : {}),
+	};
+	const redacted = applyRedaction(merged, {
+		envLevel: entry.redacted,
+		envResource: environmentResource,
+	});
 	const prefix = resolvePrefix(config, entry);
 	const places = applyPlacesPrefix(redacted.places, prefix);
 	const universe = applyUniversePrefix(redacted.universe, prefix);
