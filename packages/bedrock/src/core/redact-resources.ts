@@ -299,7 +299,7 @@ function productHasRealValueEdits(key: string, entry: DeveloperProductEntry): bo
 	// A redacted product's `name` is a placeholder when it equals either the
 	// suffixed default for this key (what `applyRedaction` synthesizes) or
 	// the bare `REDACTED_PRODUCT_NAME` constant (what an author may have
-	// hand-typed). Any other value, including `Redacted Product Deluxe` or a
+	// hand-typed). Any other value, including `Hidden Product Deluxe` or a
 	// suffix that doesn't match this key's hash, is treated as a real edit.
 	const isPlaceholderName =
 		entry.name === defaultRedactedProductName(key) || entry.name === REDACTED_PRODUCT_NAME;
