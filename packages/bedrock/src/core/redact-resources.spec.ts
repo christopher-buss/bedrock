@@ -1095,7 +1095,7 @@ describe(collectRedactionAnnotations, () => {
 		]);
 	});
 
-	it("should set hasRealValueEdits true when the name only shares the placeholder prefix (e.g. Redacted Product Deluxe)", () => {
+	it("should set hasRealValueEdits true when the name only shares the placeholder prefix (e.g. Hidden Product Deluxe)", () => {
 		expect.assertions(1);
 
 		const result = collectRedactionAnnotations({
