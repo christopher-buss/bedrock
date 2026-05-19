@@ -2524,12 +2524,36 @@ describe(validateConfig, () => {
 		expect(result.data.environments["production"]?.redacted).toBe(redacted);
 	});
 
-	it("should reject an object-form redacted on an environments entry", () => {
+	it("should accept an object-form redacted on an environments entry that carries the cross-kind union of override fields", () => {
 		expect.assertions(1);
+
+		const override = {
+			name: "Closed Beta",
+			description: "Reveal at launch.",
+			displayName: "Hidden Project",
+			icon: { "en-us": "assets/redacted.png" },
+			price: 1,
+		};
 
 		const result = validateConfig(
 			{
-				environments: { production: { redacted: { name: "Closed Beta" } } },
+				environments: { production: { redacted: override } },
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.environments["production"]?.redacted).toStrictEqual(override);
+	});
+
+	it("should reject an empty redacted override on an environments entry and recommend redacted: true for default placeholders", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: { production: { redacted: {} } },
 				state: { backend: "gist", gistId: "root-gist" },
 			},
 			SOURCE,
@@ -2542,6 +2566,29 @@ describe(validateConfig, () => {
 			"environments",
 			"production",
 			"redacted",
+		]);
+		expect(result.err.issues[0]!.message).toContain("redacted: true");
+	});
+
+	it("should reject an unknown key on an env-level redacted override and attribute the issue to the offending key", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: { production: { redacted: { bogus: "value" } } },
+				state: { backend: "gist", gistId: "root-gist" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual([
+			"environments",
+			"production",
+			"redacted",
+			"bogus",
 		]);
 	});
 

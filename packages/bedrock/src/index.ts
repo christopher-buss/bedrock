@@ -84,6 +84,7 @@ export {
 	type GistStateConfig,
 	type PlaceEntry,
 	type RedactedDeveloperProductOverride,
+	type RedactedEnvironmentOverride,
 	type RedactedGamePassOverride,
 	type RedactedPlaceOverride,
 	type ResolvedConfig,

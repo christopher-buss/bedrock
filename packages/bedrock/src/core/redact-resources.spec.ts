@@ -792,6 +792,214 @@ describe(applyRedaction, () => {
 			redacted: { icon: { "en-us": "assets/override-icon.png" } },
 		});
 	});
+
+	describe("env-level cross-kind override", () => {
+		it("should apply an env-level price override to every on-sale pass without per-resource repetition", () => {
+			expect.assertions(2);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					passes: {
+						"elite-pass": { ...vipEntry, name: "Elite Pass", price: 1500 },
+						"vip-pass": vipEntry,
+					},
+				},
+				{ price: 1 },
+			);
+
+			expect(result.passes?.["vip-pass"]?.price).toBe(1);
+			expect(result.passes?.["elite-pass"]?.price).toBe(1);
+		});
+
+		it("should apply an env-level price override to every on-sale product without per-resource repetition", () => {
+			expect.assertions(2);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					products: {
+						"gem-pack": gemPackEntry,
+						"gold-pack": { ...gemPackEntry, name: "Gold Pack", price: 2000 },
+					},
+				},
+				{ price: 1 },
+			);
+
+			expect(result.products?.["gem-pack"]?.price).toBe(1);
+			expect(result.products?.["gold-pack"]?.price).toBe(1);
+		});
+
+		it("should leave off-sale passes and products off-sale when an env-level price override is supplied", () => {
+			expect.assertions(2);
+
+			const offSalePass = {
+				name: "Coming Soon Pass",
+				description: "Reveal at launch.",
+				icon: { "en-us": "assets/soon.png" },
+			} as const satisfies GamePassEntry;
+			const offSaleProduct = {
+				name: "Future Pack",
+				description: "Reveal at launch.",
+			} as const satisfies DeveloperProductEntry;
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					passes: { "soon-pass": offSalePass },
+					products: { "future-pack": offSaleProduct },
+				},
+				{ price: 1 },
+			);
+
+			expect(result.passes?.["soon-pass"]).not.toHaveProperty("price");
+			expect(result.products?.["future-pack"]).not.toHaveProperty("price");
+		});
+
+		it("should apply an env-level description override to every redactable kind that supports description", () => {
+			expect.assertions(3);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					passes: { "vip-pass": vipEntry },
+					places: { "start-place": startPlaceEntry },
+					products: { "gem-pack": gemPackEntry },
+				},
+				{ description: "Reveal at launch." },
+			);
+
+			expect(result.passes?.["vip-pass"]?.description).toBe("Reveal at launch.");
+			expect(result.places?.["start-place"]?.description).toBe("Reveal at launch.");
+			expect(result.products?.["gem-pack"]?.description).toBe("Reveal at launch.");
+		});
+
+		it("should apply an env-level displayName override only to places", () => {
+			expect.assertions(3);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					passes: { "vip-pass": vipEntry },
+					places: { "start-place": startPlaceEntry },
+					products: { "gem-pack": gemPackEntry },
+				},
+				{ displayName: "Hidden Project" },
+			);
+
+			expect(result.places?.["start-place"]?.displayName).toBe("Hidden Project");
+			expect(result.passes?.["vip-pass"]?.name).toBe(REDACTED_PASS_NAME);
+			expect(result.products?.["gem-pack"]?.name).toBe(
+				defaultRedactedProductName("gem-pack"),
+			);
+		});
+
+		it("should apply an env-level icon override to passes and products and silently ignore it on places", () => {
+			expect.assertions(3);
+
+			const iconOverride = { "en-us": "assets/env-icon.png" };
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					passes: { "vip-pass": vipEntry },
+					places: { "start-place": startPlaceEntry },
+					products: { "gem-pack": gemPackEntry },
+				},
+				{ icon: iconOverride },
+			);
+
+			expect(result.passes?.["vip-pass"]?.icon).toStrictEqual(iconOverride);
+			expect(result.products?.["gem-pack"]?.icon).toStrictEqual(iconOverride);
+			expect(result.places?.["start-place"]).not.toHaveProperty("icon");
+		});
+
+		it("should compose a root name override with an env-level price override into one field-merged product result", () => {
+			expect.assertions(1);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					products: {
+						"gem-pack": { ...gemPackEntry, redacted: { name: "Hidden" } },
+					},
+				},
+				{ price: 1 },
+			);
+
+			expect(result.products?.["gem-pack"]).toStrictEqual({
+				name: "Hidden",
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				price: 1,
+				redacted: { name: "Hidden" },
+			});
+		});
+
+		it("should let env-level fields apply when the root layer enables redaction with bare true", () => {
+			expect.assertions(1);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					products: { "gem-pack": { ...gemPackEntry, redacted: true } },
+				},
+				{ price: 1 },
+			);
+
+			expect(result.products?.["gem-pack"]).toStrictEqual({
+				name: defaultRedactedProductName("gem-pack"),
+				description: REDACTED_DESCRIPTION,
+				icon: { "en-us": REDACTED_ICON_PATH },
+				price: 1,
+				redacted: true,
+			});
+		});
+
+		it("should not redact when a root false carves out despite an env-level override object", () => {
+			expect.assertions(1);
+
+			const entry = {
+				...gemPackEntry,
+				redacted: false,
+			} as const satisfies DeveloperProductEntry;
+			const result = applyRedaction(
+				{ ...baseConfig, products: { "gem-pack": entry } },
+				{ price: 1 },
+			);
+
+			expect(result.products?.["gem-pack"]).toStrictEqual(entry);
+		});
+
+		it("should let a root field override win over the env-level value for the same field", () => {
+			expect.assertions(1);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					products: {
+						"gem-pack": { ...gemPackEntry, redacted: { price: 500 } },
+					},
+				},
+				{ price: 1 },
+			);
+
+			expect(result.products?.["gem-pack"]?.price).toBe(500);
+		});
+
+		it("should redact a place from env-level alone when the place sets no redacted flag", () => {
+			expect.assertions(2);
+
+			const result = applyRedaction(
+				{
+					...baseConfig,
+					places: { "start-place": startPlaceEntry },
+				},
+				{ displayName: "Hidden Project" },
+			);
+
+			expect(result.places?.["start-place"]?.description).toBe(REDACTED_DESCRIPTION);
+			expect(result.places?.["start-place"]?.displayName).toBe("Hidden Project");
+		});
+	});
 });
 
 describe(collectRedactionAnnotations, () => {

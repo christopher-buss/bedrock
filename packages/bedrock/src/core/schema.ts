@@ -85,6 +85,54 @@ export interface RedactedPlaceOverride {
 }
 
 /**
+ * Env-scoped redaction override that applies across every redactable kind in
+ * a single environment. Each field is projected onto the kinds whose own
+ * override type names it: `price`, `name`, and `icon` reach passes and
+ * products; `description` reaches passes, products, and places; `displayName`
+ * reaches places. Fields a kind does not recognize are silently ignored for
+ * that kind.
+ *
+ * Composes field-by-field with per-resource overrides at the root and inside
+ * an env overlay; the most-specific layer wins per field. Boolean `true`
+ * contributes no fields; `false` carves the resource out at its layer.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { Config, RedactedEnvironmentOverride } from "@bedrock-rbx/core/config";
+ *
+ * const devRedaction: RedactedEnvironmentOverride = { price: 1 };
+ *
+ * const config: Config = {
+ *     environments: { dev: { redacted: devRedaction } },
+ *     passes: {
+ *         "vip-pass": {
+ *             name: "VIP Pass",
+ *             description: "Grants VIP perks.",
+ *             icon: { "en-us": "assets/vip.png" },
+ *             price: 500,
+ *         },
+ *     },
+ *     state: { backend: "gist", gistId: "abc123" },
+ * };
+ *
+ * expect(config.environments["dev"]?.redacted).toStrictEqual({ price: 1 });
+ * ```
+ */
+export interface RedactedEnvironmentOverride {
+	/** Override name applied to every passes and products entry the env redacts. */
+	name?: string | undefined;
+	/** Override description applied to every passes, products, and places entry the env redacts. */
+	description?: string | undefined;
+	/** Override display name applied only to places (and universes, when their redaction lands). */
+	displayName?: string | undefined;
+	/** Override icon path applied to every passes and products entry the env redacts. */
+	icon?: Record<"en-us", string> | undefined;
+	/** Override Robux price applied to every on-sale passes and products entry the env redacts. */
+	price?: number | undefined;
+}
+
+/**
  * Body of a single entry in the `passes` collection. Keys in the parent
  * record are `ResourceKey`-shaped strings enforced at schema validation.
  */
@@ -428,8 +476,14 @@ export interface EnvironmentEntry {
 		string,
 		Partial<WithoutKey<DeveloperProductEntry, "redacted">> & { redacted?: boolean | undefined }
 	>;
-	/** Per-environment redaction toggle. Per-resource `redacted` flags on the merged config take precedence; `false` carves out exceptions. */
-	redacted?: boolean | undefined;
+	/**
+	 * Per-environment redaction layer. Accepts a boolean toggle or a
+	 * {@link RedactedEnvironmentOverride} carrying cross-kind override
+	 * fields. Per-resource `redacted` flags on the merged config take
+	 * precedence per field; `false` at any layer carves out at that
+	 * layer.
+	 */
+	redacted?: boolean | RedactedEnvironmentOverride | undefined;
 	/** Per-environment state override; takes precedence over root `state`. */
 	state?: StateConfig;
 	/**
@@ -838,6 +892,24 @@ const productRedactedOverride = type({
 
 const productRedacted = productRedactedOverride.or(OPTIONAL_BOOLEAN);
 
+const environmentRedactedOverride = type({
+	"description?": "string",
+	"displayName?": "string",
+	"icon?": iconMap,
+	"name?": "string",
+	"price?": OPTIONAL_ROBUX_PRICE,
+})
+	.onUndeclaredKey("reject")
+	.narrow((value, ctx) => {
+		if (Object.keys(value).length === 0) {
+			return ctx.mustBe(NON_EMPTY_OVERRIDE_MESSAGE);
+		}
+
+		return true;
+	});
+
+const environmentRedacted = environmentRedactedOverride.or(OPTIONAL_BOOLEAN);
+
 // Resource-kind entry schemas. Adding a new kind is two additions:
 // 1. Declare its entry schema and keyed-map collection below.
 // 2. Reference that collection as an optional property on `rootSchema`.
@@ -971,7 +1043,7 @@ const environmentEntry: Type<EnvironmentEntry> = type({
 	"passes?": passesOverlayCollection,
 	"places?": placesOverlayCollection,
 	"products?": productsOverlayCollection,
-	[REDACTED_KEY]: OPTIONAL_BOOLEAN,
+	[REDACTED_KEY]: environmentRedacted,
 	"state?": stateConfig,
 	"universe?": universeOverlay,
 }).onUndeclaredKey("reject");
