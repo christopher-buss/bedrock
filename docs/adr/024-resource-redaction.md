@@ -367,7 +367,7 @@ Other rows are unchanged from the 2026-05-16 table above.
 
 ## Amendment -- 2026-05-19 (env-scope overrides and field-level merging)
 
-Three changes lift restrictions the original Decision placed on the redaction surface, plus a default-value bump for the price field added in [#427](https://github.com/christopher-buss/bedrock/pull/427).
+Four coupled changes: three lift restrictions the original Decision placed on the redaction surface, and one bumps the default for the price field added in [#427](https://github.com/christopher-buss/bedrock/pull/427).
 
 ### Default redacted price for game-pass and developer-product
 
