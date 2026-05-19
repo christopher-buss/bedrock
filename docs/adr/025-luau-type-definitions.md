@@ -53,7 +53,7 @@ The same setup flow materializes additional `.bedrock/` files in future slices (
 
 `bedrock setup` is the single mutating command for these files; every other `bedrock` subcommand is read-only with respect to `.bedrock/` and `.luaurc`. Three flags control its behavior:
 
-- `--alias <name>` overrides the default `bedrock` alias name when a user already has an `@bedrock` alias pointing elsewhere.
+- `--alias <name>` overrides the default alias name when a user already has an `@bedrock` alias pointing elsewhere.
 - `--types-path <path>` overrides the default `.bedrock/config.luau` location.
 - `--check` runs the staleness check (described below) explicitly without performing any writes.
 
