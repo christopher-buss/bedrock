@@ -1,5 +1,6 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
+import { buildCredentialOverrides } from "./credential-environment-overrides.ts";
 import type { Spawner, SpawnInvocation } from "./spawner.ts";
 
 /**
@@ -63,10 +64,15 @@ export async function dispatchOverride(
 		args.push("--config", invocation.configFile);
 	}
 
+	const credentialOverrides = buildCredentialOverrides({
+		...(invocation.apiKey === undefined ? {} : { apiKey: invocation.apiKey }),
+		...(invocation.githubToken === undefined ? {} : { githubToken: invocation.githubToken }),
+	});
+
 	const launched = await spawner.spawn({
 		args,
 		command: "bun",
-		envOverrides: {},
+		envOverrides: { ...credentialOverrides },
 	});
 	if (!launched.success) {
 		return { err: { cause: launched.err.cause, kind: "launchFailed" }, success: false };

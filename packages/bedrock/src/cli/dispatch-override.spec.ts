@@ -117,4 +117,61 @@ describe(dispatchOverride, () => {
 
 		expect(invocations[0]?.args).not.toContain("--config");
 	});
+
+	it("should set BEDROCK_API_KEY in envOverrides when apiKey is supplied", async () => {
+		expect.assertions(1);
+
+		const { invocations, spawner } = okSpawner(0);
+
+		await dispatchOverride(
+			{
+				apiKey: "rbx-123",
+				environment: "production",
+				overridePath: "/abs/.bedrock/deploy.ts",
+			},
+			spawner,
+		);
+
+		expect(invocations[0]?.envOverrides).toMatchObject({ BEDROCK_API_KEY: "rbx-123" });
+	});
+
+	it("should set GITHUB_TOKEN in envOverrides when githubToken is supplied", async () => {
+		expect.assertions(1);
+
+		const { invocations, spawner } = okSpawner(0);
+
+		await dispatchOverride(
+			{
+				environment: "production",
+				githubToken: "ghp_456",
+				overridePath: "/abs/.bedrock/deploy.ts",
+			},
+			spawner,
+		);
+
+		expect(invocations[0]?.envOverrides).toMatchObject({ GITHUB_TOKEN: "ghp_456" });
+	});
+
+	it("should keep credential values out of argv", async () => {
+		expect.assertions(4);
+
+		const { invocations, spawner } = okSpawner(0);
+
+		await dispatchOverride(
+			{
+				apiKey: "rbx-123",
+				environment: "production",
+				githubToken: "ghp_456",
+				overridePath: "/abs/.bedrock/deploy.ts",
+			},
+			spawner,
+		);
+
+		const args = invocations[0]?.args ?? [];
+
+		expect(args).not.toContain("--api-key");
+		expect(args).not.toContain("rbx-123");
+		expect(args).not.toContain("--github-token");
+		expect(args).not.toContain("ghp_456");
+	});
 });
