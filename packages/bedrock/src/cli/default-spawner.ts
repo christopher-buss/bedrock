@@ -18,6 +18,27 @@ import type { Spawner, SpawnInvocation } from "./spawner.ts";
  *   difference.
  *
  * @returns A `Spawner` whose `spawn` settles once the child closes.
+ * @example
+ *
+ * ```ts
+ * import { createDefaultSpawner } from "@bedrock-rbx/core";
+ * import process from "node:process";
+ *
+ * const spawner = createDefaultSpawner();
+ *
+ * return spawner
+ *     .spawn({
+ *         args: ["-e", "process.exit(0)"],
+ *         command: process.execPath,
+ *         envOverrides: {},
+ *     })
+ *     .then((result) => {
+ *         expect(result.success).toBeTrue();
+ *         if (result.success) {
+ *             expect(result.data).toBe(0);
+ *         }
+ *     });
+ * ```
  */
 export function createDefaultSpawner(): Spawner {
 	return { spawn: spawnViaChildProcess };

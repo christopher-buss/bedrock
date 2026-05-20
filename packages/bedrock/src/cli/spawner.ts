@@ -37,6 +37,27 @@ export interface SpawnLaunchError {
  * spawner to perform a launch. Stdio is always inherited from the parent
  * process so the spawned script's output appears within the CLI's frame
  * in chronological order.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { Spawner, SpawnInvocation } from "@bedrock-rbx/core";
+ *
+ * const invocations: Array<SpawnInvocation> = [];
+ * const spawner: Spawner = {
+ *     async spawn(invocation) {
+ *         invocations.push(invocation);
+ *         return { data: 0, success: true };
+ *     },
+ * };
+ *
+ * return spawner
+ *     .spawn({ args: ["--env", "production"], command: "bun", envOverrides: {} })
+ *     .then((result) => {
+ *         expect(result.success).toBeTrue();
+ *         expect(invocations).toHaveLength(1);
+ *     });
+ * ```
  */
 export interface Spawner {
 	/**

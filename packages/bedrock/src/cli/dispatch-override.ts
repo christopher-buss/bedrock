@@ -54,6 +54,28 @@ export type SpawnOverrideError =
  *   {@link SpawnInvocation} to.
  * @returns `Ok(undefined)` when the child exited zero; otherwise an
  *   {@link SpawnOverrideError} discriminating launch vs non-zero exit.
+ *
+ * @example
+ *
+ * ```ts
+ * import { dispatchOverride, type Spawner } from "@bedrock-rbx/core";
+ *
+ * const spawner: Spawner = {
+ *     async spawn() {
+ *         return { data: 0, success: true };
+ *     },
+ * };
+ *
+ * return dispatchOverride(
+ *     {
+ *         environment: "production",
+ *         overridePath: "/abs/.bedrock/deploy.ts",
+ *     },
+ *     spawner,
+ * ).then((result) => {
+ *     expect(result.success).toBeTrue();
+ * });
+ * ```
  */
 export async function dispatchOverride(
 	invocation: OverrideInvocation,

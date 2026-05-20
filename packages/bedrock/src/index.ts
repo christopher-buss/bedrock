@@ -15,7 +15,14 @@ export { createNoOpProgressAdapter } from "./adapters/no-op-progress-adapter.ts"
 export { createPlaceDriver, type PlaceDriverDeps } from "./adapters/place-driver.ts";
 export { createUniverseDriver, type UniverseDriverDeps } from "./adapters/universe-driver.ts";
 export { createClackPort } from "./cli/clack-port.ts";
+export { createDefaultSpawner } from "./cli/default-spawner.ts";
+export {
+	dispatchOverride,
+	type OverrideInvocation,
+	type SpawnOverrideError,
+} from "./cli/dispatch-override.ts";
 export type { ClackPort } from "./cli/render.ts";
+export type { Spawner, SpawnInvocation, SpawnLaunchError } from "./cli/spawner.ts";
 export type { ConfigError, ConfigValidationIssue } from "./core/config-error.ts";
 export { derivePriceFields, type PriceFields } from "./core/derive-price-fields.ts";
 export { diff } from "./core/diff.ts";
