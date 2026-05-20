@@ -1,7 +1,37 @@
+import type { Result } from "@bedrock-rbx/ocale";
+
 import { spawn } from "node:child_process";
 import process from "node:process";
 
-import type { Spawner, SpawnInvocation } from "./spawner.ts";
+import type { Spawner, SpawnInvocation, SpawnLaunchError } from "./spawner.ts";
+
+/**
+ * Translate a `child.on("close", code, signal)` payload into the
+ * {@link Spawner.spawn} return shape. Extracted from the adapter so the
+ * signal-terminated branch can be exercised without launching a real
+ * process. The caller normalizes node's `null` to `undefined` at the
+ * boundary so this helper never sees `null`.
+ * @param code - Exit code reported by the child, or `undefined` if the
+ *   child was terminated by a signal before exiting.
+ * @param signal - Signal name reported by the child, or `undefined` when
+ *   no signal terminated it.
+ * @returns `Ok(code)` for a clean exit (including `0`); otherwise
+ *   `Err(launchFailed)` carrying a synthetic Error whose message names
+ *   the signal.
+ */
+export function classifySpawnClose(
+	code: number | undefined,
+	signal: NodeJS.Signals | undefined,
+): Result<number, SpawnLaunchError> {
+	if (code !== undefined) {
+		return { data: code, success: true };
+	}
+
+	const cause: NodeJS.ErrnoException = new Error(
+		`spawned process terminated by signal ${signal ?? "unknown"}`,
+	);
+	return { err: { cause, kind: "launchFailed" }, success: false };
+}
 
 /**
  * Construct a {@link Spawner} backed by `node:child_process.spawn` with
@@ -56,15 +86,7 @@ async function spawnViaChildProcess(invocation: SpawnInvocation): ReturnType<Spa
 		});
 
 		child.once("close", (code, signal) => {
-			if (code !== null) {
-				resolve({ data: code, success: true });
-				return;
-			}
-
-			const cause: NodeJS.ErrnoException = new Error(
-				`spawned process terminated by signal ${signal ?? "unknown"}`,
-			);
-			resolve({ err: { cause, kind: "launchFailed" }, success: false });
+			resolve(classifySpawnClose(code ?? undefined, signal ?? undefined));
 		});
 	});
 }

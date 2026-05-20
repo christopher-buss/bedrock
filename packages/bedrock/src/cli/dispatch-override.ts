@@ -86,10 +86,7 @@ export async function dispatchOverride(
 		args.push("--config", invocation.configFile);
 	}
 
-	const credentialOverrides = buildCredentialOverrides({
-		...(invocation.apiKey === undefined ? {} : { apiKey: invocation.apiKey }),
-		...(invocation.githubToken === undefined ? {} : { githubToken: invocation.githubToken }),
-	});
+	const credentialOverrides = buildCredentialOverrides(invocation);
 
 	const launched = await spawner.spawn({
 		args,
