@@ -1,6 +1,6 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import { describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 
 import { dispatchOverride } from "./dispatch-override.ts";
 import type { Spawner, SpawnInvocation, SpawnLaunchError } from "./spawner.ts";
@@ -186,5 +186,67 @@ describe(dispatchOverride, () => {
 		expect(args).not.toContain("rbx-123");
 		expect(args).not.toContain("--github-token");
 		expect(args).not.toContain("ghp_456");
+	});
+
+	it("should resolve Ok(undefined) when the child exits zero", async () => {
+		expect.assertions(2);
+
+		const { spawner } = okSpawner(0);
+
+		const result = await dispatchOverride(
+			{ environment: "production", overridePath: "/abs/.bedrock/deploy.ts" },
+			spawner,
+		);
+
+		expect(result.success).toBeTrue();
+
+		assert(result.success);
+
+		expect(result.data).toBeUndefined();
+	});
+
+	it("should resolve Err(nonZeroExit) carrying the exit code when the child exits non-zero", async () => {
+		expect.assertions(2);
+
+		const { spawner } = okSpawner(7);
+
+		const result = await dispatchOverride(
+			{ environment: "production", overridePath: "/abs/.bedrock/deploy.ts" },
+			spawner,
+		);
+
+		expect(result.success).toBeFalse();
+
+		assert(!result.success);
+
+		expect(result.err).toStrictEqual({ exitCode: 7, kind: "nonZeroExit" });
+	});
+
+	it("should resolve Err(launchFailed) forwarding the ErrnoException when the spawner fails to launch", async () => {
+		expect.assertions(3);
+
+		const cause: NodeJS.ErrnoException = Object.assign(new Error("spawn bun ENOENT"), {
+			code: "ENOENT",
+			errno: -2,
+		});
+		const { spawner } = recordingSpawner({
+			err: { cause, kind: "launchFailed" },
+			success: false,
+		});
+
+		const result = await dispatchOverride(
+			{ environment: "production", overridePath: "/abs/.bedrock/deploy.ts" },
+			spawner,
+		);
+
+		expect(result.success).toBeFalse();
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("launchFailed");
+
+		assert(result.err.kind === "launchFailed");
+
+		expect(result.err.cause).toBe(cause);
 	});
 });
