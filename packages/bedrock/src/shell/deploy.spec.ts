@@ -1,6 +1,8 @@
 import { OpenCloudError } from "@bedrock-rbx/ocale";
 
 import { placeCurrent, universeCurrent } from "#tests/helpers/resources";
+import { Buffer } from "node:buffer";
+import process from "node:process";
 import { assert, describe, expect, it, vi } from "vitest";
 
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
@@ -11,7 +13,7 @@ import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
-import { deploy } from "./deploy.ts";
+import { deploy, type DeployError } from "./deploy.ts";
 
 // Empty bytes hash to SHA-256 `e3b0c44...`; keeping readIcon in lockstep with
 // the hash constant lets the noop test assert "desired matches current" without
@@ -158,6 +160,16 @@ function stubRegistryWithVipCreate(): DriverRegistry {
 		},
 		place: placeStub,
 		universe: universeStub,
+	};
+}
+
+async function failingLoadConfig(): Promise<{
+	err: { kind: "fileNotFound"; searchedFrom: string };
+	success: false;
+}> {
+	return {
+		err: { kind: "fileNotFound", searchedFrom: "/tmp" },
+		success: false,
 	};
 }
 
@@ -885,7 +897,7 @@ describe(deploy, () => {
 		}
 	});
 
-	it("should not invoke getEnv when statePort, registry, and config are all supplied", async () => {
+	it("should not invoke getEnv when statePort, registry, config, and progress are all supplied", async () => {
 		expect.assertions(1);
 
 		const getEnvironment = vi.fn<(name: string) => string | undefined>();
@@ -894,6 +906,7 @@ describe(deploy, () => {
 			config: vipPassConfig(),
 			environment: "production",
 			getEnv: getEnvironment,
+			progress: { emit() {} },
 			readFile: readIcon,
 			registry: stubRegistryWithVipCreate(),
 			statePort: inMemoryStatePort().port,
@@ -1079,6 +1092,266 @@ describe(deploy, () => {
 
 			expect(calls.some((event) => event.kind === "resourceOpStarted")).toBeTrue();
 			expect(calls.some((event) => event.kind === "applySummary")).toBeTrue();
+		});
+
+		it("should emit exactly one deploySuccess event with environment and resourceCount on a successful reconcile", async () => {
+			expect.assertions(1);
+
+			const { port: statePort } = inMemoryStatePort();
+			const { calls, port: progress } = recordingProgress();
+
+			await deploy({
+				config: vipPassConfig(),
+				environment: "production",
+				progress,
+				readFile: readIcon,
+				registry: stubRegistryWithVipCreate(),
+				statePort,
+			});
+
+			const terminal = calls.filter((event) => event.kind === "deploySuccess");
+
+			expect(terminal).toStrictEqual([
+				{ environment: "production", kind: "deploySuccess", resourceCount: 1 },
+			]);
+		});
+
+		it.for<{
+			arrange: () => Parameters<typeof deploy>[0];
+			label: string;
+			matchError: (error: DeployError) => boolean;
+		}>([
+			{
+				arrange: () => {
+					return {
+						environment: "production",
+						loadConfig: failingLoadConfig,
+						readFile: readIcon,
+						registry: stubRegistry(),
+						statePort: inMemoryStatePort().port,
+					};
+				},
+				label: "configLoadFailed",
+				matchError: (error) => error.kind === "configLoadFailed",
+			},
+			{
+				arrange: () => {
+					const stateError = {
+						file: ".bedrock/state/production.json",
+						kind: "stateError" as const,
+						reason: "Corrupt JSON",
+					};
+					return {
+						config: vipPassConfig(),
+						environment: "production",
+						readFile: readIcon,
+						registry: stubRegistry(),
+						statePort: {
+							async read() {
+								return { err: stateError, success: false };
+							},
+							async write() {
+								return { data: undefined, success: true };
+							},
+						},
+					};
+				},
+				label: "stateReadFailed",
+				matchError: (error) => error.kind === "stateReadFailed",
+			},
+			{
+				arrange: () => {
+					const cause = new OpenCloudError("create vip-pass: 503");
+					return {
+						config: vipPassConfig(),
+						environment: "production",
+						readFile: readIcon,
+						registry: {
+							...stubRegistry(),
+							gamePass: {
+								async create() {
+									return { err: cause, success: false };
+								},
+							},
+						},
+						statePort: inMemoryStatePort().port,
+					};
+				},
+				label: "applyFailed",
+				matchError: (error) => error.kind === "applyFailed",
+			},
+			{
+				arrange: () => {
+					const stateError = {
+						file: ".bedrock/state/production.json",
+						kind: "stateError" as const,
+						reason: "EACCES",
+					};
+					return {
+						config: vipPassConfig(),
+						environment: "production",
+						readFile: readIcon,
+						registry: stubRegistryWithVipCreate(),
+						statePort: {
+							async read() {
+								return { data: undefined, success: true };
+							},
+							async write() {
+								return { err: stateError, success: false };
+							},
+						},
+					};
+				},
+				label: "stateWriteFailed",
+				matchError: (error) => error.kind === "stateWriteFailed",
+			},
+		])(
+			"should emit exactly one deployFailure event carrying the original $label error",
+			async ({ arrange, matchError }) => {
+				expect.assertions(2);
+
+				const { calls, port: progress } = recordingProgress();
+				const options = arrange();
+
+				const result = await deploy({ ...options, progress });
+
+				assert(!result.success);
+				const failures = calls.filter((event) => event.kind === "deployFailure");
+
+				expect(failures).toHaveLength(1);
+
+				assert(failures[0]?.kind === "deployFailure");
+
+				expect(
+					matchError(failures[0].error) && failures[0].error === result.err,
+				).toBeTrue();
+			},
+		);
+
+		it("should pass the environment name verbatim through the deployFailure event", async () => {
+			expect.assertions(1);
+
+			const { calls, port: progress } = recordingProgress();
+
+			await deploy({
+				config: vipPassConfig(),
+				environment: "ghost",
+				progress,
+				readFile: readIcon,
+				registry: stubRegistry(),
+				statePort: inMemoryStatePort().port,
+			});
+
+			const failures = calls.filter((event) => event.kind === "deployFailure");
+
+			expect(failures.map((event) => event.environment)).toStrictEqual(["ghost"]);
+		});
+	});
+
+	describe("default port resolution", () => {
+		it("should not consult BEDROCK_CLI when an explicit progress port is supplied", async () => {
+			expect.assertions(2);
+
+			const { port: statePort } = inMemoryStatePort();
+			const calls: Array<ProgressEvent> = [];
+			const progress: ProgressPort = {
+				emit(event) {
+					calls.push(event);
+				},
+			};
+			const getEnvironment = vi.fn<(name: string) => string | undefined>((name) => {
+				return name === "BEDROCK_API_KEY" ? "rbx-test" : undefined;
+			});
+
+			await deploy({
+				config: vipPassConfig(),
+				environment: "production",
+				getEnv: getEnvironment,
+				progress,
+				readFile: readIcon,
+				registry: stubRegistryWithVipCreate(),
+				statePort,
+			});
+
+			expect(calls.some((event) => event.kind === "deploySuccess")).toBeTrue();
+			expect(getEnvironment.mock.calls.some(([name]) => name === "BEDROCK_CLI")).toBeFalse();
+		});
+
+		it("should default to the clack adapter when progress is omitted and BEDROCK_CLI is set", async () => {
+			expect.assertions(1);
+
+			const chunks: Array<string> = [];
+			const writeSpy = vi
+				.spyOn(process.stdout, "write")
+				.mockImplementation((chunk: string | Uint8Array): boolean => {
+					chunks.push(
+						typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"),
+					);
+					return true;
+				});
+
+			try {
+				const { port: statePort } = inMemoryStatePort();
+
+				await deploy({
+					config: vipPassConfig(),
+					environment: "production",
+					getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test", BEDROCK_CLI: "1" }),
+					readFile: readIcon,
+					registry: stubRegistryWithVipCreate(),
+					statePort,
+				});
+			} finally {
+				writeSpy.mockRestore();
+			}
+
+			expect(chunks.join("")).toContain("production: 1 resources reconciled");
+		});
+
+		it("should default to a no-op port when progress is omitted and BEDROCK_CLI is unset", async () => {
+			expect.assertions(1);
+
+			const writeSpy = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+
+			try {
+				const { port: statePort } = inMemoryStatePort();
+
+				await deploy({
+					config: vipPassConfig(),
+					environment: "production",
+					getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test" }),
+					readFile: readIcon,
+					registry: stubRegistryWithVipCreate(),
+					statePort,
+				});
+			} finally {
+				writeSpy.mockRestore();
+			}
+
+			expect(writeSpy).not.toHaveBeenCalled();
+		});
+
+		it("should default to a no-op port when progress is omitted and BEDROCK_CLI is empty string", async () => {
+			expect.assertions(1);
+
+			const writeSpy = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+
+			try {
+				const { port: statePort } = inMemoryStatePort();
+
+				await deploy({
+					config: vipPassConfig(),
+					environment: "production",
+					getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test", BEDROCK_CLI: "" }),
+					readFile: readIcon,
+					registry: stubRegistryWithVipCreate(),
+					statePort,
+				});
+			} finally {
+				writeSpy.mockRestore();
+			}
+
+			expect(writeSpy).not.toHaveBeenCalled();
 		});
 	});
 });

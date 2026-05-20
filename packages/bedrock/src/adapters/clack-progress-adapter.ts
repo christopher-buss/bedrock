@@ -1,3 +1,4 @@
+import { createClackPort } from "../cli/clack-port.ts";
 import { type ClackPort, renderDeployError } from "../cli/render.ts";
 import { resolveStateConfig } from "../core/resolve-state-config.ts";
 import { type Config, isGistStateConfig, type StateConfig } from "../core/schema.ts";
@@ -59,6 +60,26 @@ export function createClackProgressAdapter(deps: ClackProgressAdapterDeps): Prog
 			renderEvent(event, deps);
 		},
 	};
+}
+
+/**
+ * Build a {@link ProgressPort} for the default CLI rendering path: wires a
+ * fresh {@link createClackPort} into {@link createClackProgressAdapter}. The
+ * `config` argument is forwarded so `stateWritten` events can name the
+ * persistence backend; pass `undefined` when the config has not yet loaded.
+ *
+ * Internal: used by `deploy()`'s default-port resolver when callers omit
+ * `progress` and `BEDROCK_CLI` is set.
+ *
+ * @param config - Pre-loaded config used to format the state-backend label,
+ *   or `undefined` to render the generic placeholder.
+ * @returns A clack-backed `ProgressPort` that writes to `process.stdout`.
+ */
+export function createDefaultProgressAdapter(config: Config | undefined): ProgressPort {
+	const clack = createClackPort();
+	return config === undefined
+		? createClackProgressAdapter({ clack })
+		: createClackProgressAdapter({ clack, config });
 }
 
 function applySummaryLine(event: Extract<ProgressEvent, { kind: "applySummary" }>): string {

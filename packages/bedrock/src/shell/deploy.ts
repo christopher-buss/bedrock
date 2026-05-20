@@ -3,7 +3,9 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { readFile as nodeReadFile } from "node:fs/promises";
 import process from "node:process";
 
+import { createDefaultProgressAdapter } from "../adapters/clack-progress-adapter.ts";
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
+import { createNoOpProgressAdapter } from "../adapters/no-op-progress-adapter.ts";
 import { assertAllReconcilable } from "../core/assert-all-reconcilable.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { diff } from "../core/diff.ts";
@@ -102,12 +104,15 @@ interface FinalizeInputs {
 	readonly written: Result<void, StateError>;
 }
 
-interface ResolvedDeps {
+interface ResolvedDepsBase {
 	readonly config: ResolvedConfig;
-	readonly progress: ProgressPort | undefined;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly registry: DriverRegistry;
 	readonly statePort: StatePort;
+}
+
+interface ResolvedDeps extends ResolvedDepsBase {
+	readonly progress: ProgressPort;
 }
 
 interface PickRegistryInputs {
@@ -116,11 +121,21 @@ interface PickRegistryInputs {
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 }
 
+interface EmitTerminalEventInputs {
+	readonly environment: string;
+	readonly progress: ProgressPort;
+	readonly result: Result<BedrockState, DeployError>;
+}
+
 /**
  * Run a full reconcile end-to-end. Default-constructs missing deps from
- * the project config and the environment variables `BEDROCK_GITHUB_TOKEN` and
- * `BEDROCK_API_KEY`; never reads `process.env` when `statePort`,
- * `registry`, and `config` are all supplied explicitly.
+ * the project config and the environment variables `BEDROCK_GITHUB_TOKEN`
+ * and `BEDROCK_API_KEY`; emits a terminal `deploySuccess` or `deployFailure`
+ * event through the resolved `progress` port. When `progress` is omitted,
+ * the default port comes from `BEDROCK_CLI`: a non-empty value selects the
+ * clack-backed adapter, any other reading selects the no-op adapter. No
+ * environment lookups happen when `statePort`, `registry`, `config`, and
+ * `progress` are all supplied explicitly.
  *
  * @param options - Target environment plus optional overrides.
  * @returns The persisted `BedrockState` on success, or a stage-tagged
@@ -181,12 +196,10 @@ interface PickRegistryInputs {
  * ```
  */
 export async function deploy(options: DeployOptions): Promise<Result<BedrockState, DeployError>> {
-	const resolved = await resolveDeps(options);
-	if (!resolved.success) {
-		return resolved;
-	}
-
-	return runReconcile(options.environment, resolved.data);
+	const progress = resolveProgressPort(options);
+	const result = await runDeploy(options, progress);
+	emitTerminalEvent({ environment: options.environment, progress, result });
+	return result;
 }
 
 async function pickConfig(options: DeployOptions): Promise<Result<Config, DeployError>> {
@@ -243,7 +256,7 @@ function pickRegistry(inputs: PickRegistryInputs): Result<DriverRegistry, Deploy
 	});
 }
 
-async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDeps, DeployError>> {
+async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDepsBase, DeployError>> {
 	const config = await pickConfig(options);
 	if (!config.success) {
 		return config;
@@ -256,7 +269,6 @@ async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDeps,
 
 	const effective = selected.data;
 	const readFile = options.readFile ?? nodeReadFile;
-
 	const statePort = pickStatePort(options, effective);
 	if (!statePort.success) {
 		return statePort;
@@ -268,13 +280,7 @@ async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDeps,
 	}
 
 	return {
-		data: {
-			config: effective,
-			progress: options.progress,
-			readFile,
-			registry: registry.data,
-			statePort: statePort.data,
-		},
+		data: { config: effective, readFile, registry: registry.data, statePort: statePort.data },
 		success: true,
 	};
 }
@@ -347,17 +353,52 @@ async function runReconcile(
 	}
 
 	const ops = diff(desired.data, priorResources);
-	const applied = await applyOps(
-		ops,
-		deps.registry,
-		deps.progress === undefined ? undefined : { environment, progress: deps.progress },
-	);
+	const applied = await applyOps(ops, deps.registry, { environment, progress: deps.progress });
 	const merged = buildSnapshot({ applied, environment, priorResources });
 
 	const written = await deps.statePort.write(merged);
 	if (written.success) {
-		deps.progress?.emit({ environment, kind: "stateWritten" });
+		deps.progress.emit({ environment, kind: "stateWritten" });
 	}
 
 	return finalize({ applied, merged, written });
+}
+
+async function runDeploy(
+	options: DeployOptions,
+	progress: ProgressPort,
+): Promise<Result<BedrockState, DeployError>> {
+	const resolved = await resolveDeps(options);
+	if (!resolved.success) {
+		return resolved;
+	}
+
+	return runReconcile(options.environment, { ...resolved.data, progress });
+}
+
+function resolveProgressPort(options: DeployOptions): ProgressPort {
+	if (options.progress !== undefined) {
+		return options.progress;
+	}
+
+	const cliFlag = getEnvironmentOf(options)("BEDROCK_CLI");
+	if (cliFlag !== undefined && cliFlag !== "") {
+		return createDefaultProgressAdapter(options.config);
+	}
+
+	return createNoOpProgressAdapter();
+}
+
+function emitTerminalEvent(inputs: EmitTerminalEventInputs): void {
+	const { environment, progress, result } = inputs;
+	if (result.success) {
+		progress.emit({
+			environment,
+			kind: "deploySuccess",
+			resourceCount: result.data.resources.length,
+		});
+		return;
+	}
+
+	progress.emit({ environment, error: result.err, kind: "deployFailure" });
 }
