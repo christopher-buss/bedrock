@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 
 import type { StatProbe } from "./discover-override.ts";
 import { discoverOverride, discoverOverrideWith } from "./discover-override.ts";
@@ -28,76 +28,70 @@ const WORKSPACE_TEMP_ROOT = join(
 	".cache",
 );
 
-async function withTemporaryDirectory<T>(run: (directory: string) => Promise<T>): Promise<T> {
+function createTemporaryDirectory(): string {
 	mkdirSync(WORKSPACE_TEMP_ROOT, { recursive: true });
 	const directory = mkdtempSync(join(WORKSPACE_TEMP_ROOT, "bedrock-discover-override-"));
-	try {
-		return await run(directory);
-	} finally {
+	onTestFinished(() => {
 		rmSync(directory, { force: true, recursive: true });
-	}
+	});
+	return directory;
 }
 
 describe(discoverOverride, () => {
-	it("should return the resolved absolute path when the override file exists", async () => {
+	it("should return the resolved absolute path when the override file exists", () => {
 		expect.assertions(1);
 
-		await withTemporaryDirectory(async (cwd) => {
-			mkdirSync(join(cwd, ".bedrock"));
-			const expected = join(cwd, ".bedrock", "deploy.ts");
-			writeFileSync(expected, "export default () => {};");
+		const cwd = createTemporaryDirectory();
+		mkdirSync(join(cwd, ".bedrock"));
+		const expected = join(cwd, ".bedrock", "deploy.ts");
+		writeFileSync(expected, "export default () => {};");
 
-			expect(discoverOverride(cwd, "deploy")).toBe(expected);
-		});
+		expect(discoverOverride(cwd, "deploy")).toBe(expected);
 	});
 
-	it("should return undefined when the .bedrock directory does not exist", async () => {
+	it("should return undefined when the .bedrock directory does not exist", () => {
 		expect.assertions(1);
 
-		await withTemporaryDirectory(async (cwd) => {
-			expect(discoverOverride(cwd, "deploy")).toBeUndefined();
-		});
+		const cwd = createTemporaryDirectory();
+
+		expect(discoverOverride(cwd, "deploy")).toBeUndefined();
 	});
 
-	it("should return undefined when .bedrock exists but the command file is absent", async () => {
+	it("should return undefined when .bedrock exists but the command file is absent", () => {
 		expect.assertions(1);
 
-		await withTemporaryDirectory(async (cwd) => {
-			mkdirSync(join(cwd, ".bedrock"));
+		const cwd = createTemporaryDirectory();
+		mkdirSync(join(cwd, ".bedrock"));
 
-			expect(discoverOverride(cwd, "deploy")).toBeUndefined();
-		});
+		expect(discoverOverride(cwd, "deploy")).toBeUndefined();
 	});
 
-	it("should return undefined when a different command override exists in .bedrock", async () => {
+	it("should return undefined when a different command override exists in .bedrock", () => {
 		expect.assertions(1);
 
-		await withTemporaryDirectory(async (cwd) => {
-			mkdirSync(join(cwd, ".bedrock"));
-			writeFileSync(join(cwd, ".bedrock", "diff.ts"), "export default () => {};");
+		const cwd = createTemporaryDirectory();
+		mkdirSync(join(cwd, ".bedrock"));
+		writeFileSync(join(cwd, ".bedrock", "diff.ts"), "export default () => {};");
 
-			expect(discoverOverride(cwd, "deploy")).toBeUndefined();
-		});
+		expect(discoverOverride(cwd, "deploy")).toBeUndefined();
 	});
 
-	it("should return undefined when the candidate path exists as a directory rather than a file", async () => {
+	it("should return undefined when the candidate path exists as a directory rather than a file", () => {
 		expect.assertions(1);
 
-		await withTemporaryDirectory(async (cwd) => {
-			mkdirSync(join(cwd, ".bedrock", "deploy.ts"), { recursive: true });
+		const cwd = createTemporaryDirectory();
+		mkdirSync(join(cwd, ".bedrock", "deploy.ts"), { recursive: true });
 
-			expect(discoverOverride(cwd, "deploy")).toBeUndefined();
-		});
+		expect(discoverOverride(cwd, "deploy")).toBeUndefined();
 	});
 
-	it("should return undefined when .bedrock itself is a regular file rather than a directory", async () => {
+	it("should return undefined when .bedrock itself is a regular file rather than a directory", () => {
 		expect.assertions(1);
 
-		await withTemporaryDirectory(async (cwd) => {
-			writeFileSync(join(cwd, ".bedrock"), "not a directory");
+		const cwd = createTemporaryDirectory();
+		writeFileSync(join(cwd, ".bedrock"), "not a directory");
 
-			expect(discoverOverride(cwd, "deploy")).toBeUndefined();
-		});
+		expect(discoverOverride(cwd, "deploy")).toBeUndefined();
 	});
 
 	it.for<[label: string, command: string]>([
@@ -109,19 +103,18 @@ describe(discoverOverride, () => {
 		["uppercase", "Deploy"],
 		["leading hyphen", "-rf"],
 	])(
-		"should return undefined for a malformed command name (%s) without touching the filesystem",
-		async ([, command]) => {
+		"should return undefined for a malformed command name (%s) without invoking the stat probe",
+		([, command]) => {
 			expect.assertions(1);
 
-			await withTemporaryDirectory(async (cwd) => {
-				// A `.bedrock/` directory with a permissive file present
-				// proves the early-return path skipped the stat — otherwise
-				// path traversal could resolve into something real.
-				mkdirSync(join(cwd, ".bedrock"));
-				writeFileSync(join(cwd, ".bedrock", "diff.ts"), "export default () => {};");
+			// A throwing stat proves the early-return path skipped the
+			// filesystem entirely. If validation regressed and the path was
+			// resolved, the stat call would surface the synthetic error.
+			const stat = throwingStat(new Error("stat must not run for a malformed command"));
 
-				expect(discoverOverride(cwd, command)).toBeUndefined();
-			});
+			expect(
+				discoverOverrideWith({ command, projectRoot: "/project", stat }),
+			).toBeUndefined();
 		},
 	);
 
