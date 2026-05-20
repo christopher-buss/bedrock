@@ -128,6 +128,19 @@ interface EmitTerminalEventInputs {
 }
 
 /**
+ * Decide whether `BEDROCK_CLI` should select the clack-backed default
+ * progress adapter. Exported for direct unit coverage of the boundary
+ * (`undefined` and empty string both flip to no-op; any non-empty value
+ * picks clack).
+ *
+ * @param value - Raw `BEDROCK_CLI` value as returned by `getEnv`.
+ * @returns `true` if the clack adapter should be the default.
+ */
+export function isCliEnvironmentFlagSet(value: string | undefined): boolean {
+	return value !== undefined && value !== "";
+}
+
+/**
  * Run a full reconcile end-to-end. Default-constructs missing deps from
  * the project config and the environment variables `BEDROCK_GITHUB_TOKEN`
  * and `BEDROCK_API_KEY`; emits a terminal `deploySuccess` or `deployFailure`
@@ -200,8 +213,7 @@ export async function deploy(options: DeployOptions): Promise<Result<BedrockStat
 		return runAndEmit(options, options.progress);
 	}
 
-	const cliFlag = getEnvironmentOf(options)("BEDROCK_CLI");
-	if (cliFlag === undefined || cliFlag === "") {
+	if (!isCliEnvironmentFlagSet(getEnvironmentOf(options)("BEDROCK_CLI"))) {
 		return runAndEmit(options, createNoOpProgressAdapter());
 	}
 

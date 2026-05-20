@@ -13,7 +13,7 @@ import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
-import { deploy, type DeployError } from "./deploy.ts";
+import { deploy, type DeployError, isCliEnvironmentFlagSet } from "./deploy.ts";
 
 // Empty bytes hash to SHA-256 `e3b0c44...`; keeping readIcon in lockstep with
 // the hash constant lets the noop test assert "desired matches current" without
@@ -1396,5 +1396,37 @@ describe(deploy, () => {
 
 			expect(writeSpy).not.toHaveBeenCalled();
 		});
+	});
+});
+
+describe(isCliEnvironmentFlagSet, () => {
+	it("should return false when value is undefined", () => {
+		expect.assertions(1);
+		expect(isCliEnvironmentFlagSet(undefined)).toBeFalse();
+	});
+
+	it("should return false when value is the empty string", () => {
+		expect.assertions(1);
+		expect(isCliEnvironmentFlagSet("")).toBeFalse();
+	});
+
+	it("should return true when value is a single non-empty character", () => {
+		expect.assertions(1);
+		expect(isCliEnvironmentFlagSet("1")).toBeTrue();
+	});
+
+	it("should return true when value is the literal '0' since only the empty string is rejected", () => {
+		expect.assertions(1);
+		expect(isCliEnvironmentFlagSet("0")).toBeTrue();
+	});
+
+	it("should return true when value is a single-space string since only the empty string is rejected", () => {
+		expect.assertions(1);
+		expect(isCliEnvironmentFlagSet(" ")).toBeTrue();
+	});
+
+	it("should return true when value is a multi-character non-empty string", () => {
+		expect.assertions(1);
+		expect(isCliEnvironmentFlagSet("true")).toBeTrue();
 	});
 });
