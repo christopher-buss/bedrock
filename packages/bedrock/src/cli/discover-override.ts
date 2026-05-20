@@ -21,7 +21,7 @@ export type StatProbe = (path: string) => Pick<Stats, "isFile">;
  * Inputs to {@link discoverOverrideWith}. The stat seam is internal — the
  * public {@link discoverOverride} entry point binds it to `node:fs.statSync`.
  */
-export interface DiscoverOverrideInputs {
+interface DiscoverOverrideInputs {
 	/** CLI subcommand name. Must match `/^[a-z][a-z0-9-]*$/`. */
 	readonly command: string;
 	/** Project root path. Relative inputs resolve against `process.cwd()`. */
