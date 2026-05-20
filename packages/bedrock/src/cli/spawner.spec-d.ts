@@ -2,7 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { describe, expectTypeOf, it } from "vitest";
 
-import type { Spawner, SpawnInvocation, SpawnLaunchError } from "./spawner.ts";
+import type { Spawner, SpawnInvocation, SpawnLaunchCause, SpawnLaunchError } from "./spawner.ts";
 
 describe("Spawner", () => {
 	it("should expose a spawn method returning Result<number, SpawnLaunchError>", () => {
@@ -19,10 +19,15 @@ describe("Spawner", () => {
 		}>();
 	});
 
-	it("should tag SpawnLaunchError with the 'launchFailed' kind and an ErrnoException cause", () => {
+	it("should tag SpawnLaunchError with the 'launchFailed' kind and a SpawnLaunchCause", () => {
 		expectTypeOf<SpawnLaunchError>().toEqualTypeOf<{
-			readonly cause: NodeJS.ErrnoException;
+			readonly cause: SpawnLaunchCause;
 			readonly kind: "launchFailed";
 		}>();
+	});
+
+	it("should describe SpawnLaunchCause as Error with an optional errno code", () => {
+		expectTypeOf<SpawnLaunchCause>().toExtend<Error>();
+		expectTypeOf<SpawnLaunchCause["code"]>().toEqualTypeOf<string | undefined>();
 	});
 });

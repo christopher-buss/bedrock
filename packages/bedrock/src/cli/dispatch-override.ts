@@ -1,7 +1,7 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { buildCredentialOverrides } from "./credential-environment-overrides.ts";
-import type { Spawner, SpawnInvocation } from "./spawner.ts";
+import type { Spawner, SpawnInvocation, SpawnLaunchCause } from "./spawner.ts";
 
 /**
  * Parsed deploy arguments forwarded to a `.bedrock/<command>.ts` override
@@ -25,14 +25,14 @@ export interface OverrideInvocation {
  * Failure modes returned by {@link dispatchOverride}.
  *
  * - `launchFailed` — the child process could not be started (e.g. `bun`
- *   missing, permission denied). Wraps the `ErrnoException` from the
- *   underlying spawner so callers can render a precise diagnostic.
+ *   missing, permission denied). Wraps the {@link SpawnLaunchCause} the
+ *   underlying spawner surfaced so callers can render a precise diagnostic.
  * - `nonZeroExit` — the child started, ran, and exited with a non-zero
  *   exit code. Callers should propagate `exitCode` into the CLI's own
  *   process exit code so CI failure modes mirror the override's outcome.
  */
 export type SpawnOverrideError =
-	| { readonly cause: NodeJS.ErrnoException; readonly kind: "launchFailed" }
+	| { readonly cause: SpawnLaunchCause; readonly kind: "launchFailed" }
 	| { readonly exitCode: number; readonly kind: "nonZeroExit" };
 
 /**
@@ -43,8 +43,10 @@ export type SpawnOverrideError =
  *   appended when supplied.
  * - `apiKey` becomes the `BEDROCK_API_KEY` env-var override; `githubToken`
  *   becomes `GITHUB_TOKEN`. Neither value appears in argv.
- * - `BEDROCK_CLI=1` is always set in the env so the spawned `deploy()`
- *   defaults to the clack progress adapter.
+ * - `BEDROCK_CLI=1` is always set in the env. The override's `deploy()`
+ *   reads this on the `getEnv` seam to default to the clack progress
+ *   adapter; absent that downstream wiring, the variable is a forward-
+ *   compatible signal a future caller can act on.
  *
  * The dispatcher itself reads no ambient state: every input arrives via the
  * `invocation` argument and the `Spawner` port is the only side-effect seam.

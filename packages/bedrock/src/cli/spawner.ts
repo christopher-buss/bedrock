@@ -16,13 +16,24 @@ export interface SpawnInvocation {
 }
 
 /**
+ * Structural shape of the underlying error a {@link Spawner} surfaces when
+ * a child cannot be launched. Mirrors the subset of Node's `ErrnoException`
+ * the dispatcher and downstream renderers care about, without requiring
+ * consumers to install `@types/node` to consume the public surface.
+ */
+export interface SpawnLaunchCause extends Error {
+	/** Errno code like `"ENOENT"`, `"EACCES"`, or `undefined` when the error did not carry one. */
+	readonly code?: string | undefined;
+}
+
+/**
  * Failure surfaced by {@link Spawner.spawn} when the child process could not
  * be started at all (e.g. `ENOENT` for a missing executable). Carries the
- * original `ErrnoException` so callers can render a precise diagnostic.
+ * underlying error so callers can render a precise diagnostic.
  */
 export interface SpawnLaunchError {
-	/** Underlying errno from `node:child_process`. */
-	readonly cause: NodeJS.ErrnoException;
+	/** Underlying error from the spawn attempt; structurally an `Error` with an optional errno `code`. */
+	readonly cause: SpawnLaunchCause;
 	/** Discriminator tag. */
 	readonly kind: "launchFailed";
 }

@@ -40,8 +40,9 @@ export function classifySpawnClose(
  * win on key collision).
  *
  * - Exit codes resolve as `Ok(exitCode)` (including `0`).
- * - `ENOENT` and other launch-time `ErrnoException`s resolve as
- *   `Err(launchFailed)` with the original error.
+ * - `ENOENT` and other launch-time errors resolve as `Err(launchFailed)`
+ *   with the original error in `cause` (its `code` field carries the
+ *   errno where present).
  * - Children terminated by signal before producing an exit code collapse
  *   into `launchFailed` with a synthetic `Error` whose message names the
  *   signal; a distinct variant lands the day a caller needs to act on the

@@ -222,12 +222,11 @@ describe(dispatchOverride, () => {
 		expect(result.err).toStrictEqual({ exitCode: 7, kind: "nonZeroExit" });
 	});
 
-	it("should resolve Err(launchFailed) forwarding the ErrnoException when the spawner fails to launch", async () => {
+	it("should resolve Err(launchFailed) forwarding the cause when the spawner fails to launch", async () => {
 		expect.assertions(3);
 
-		const cause: NodeJS.ErrnoException = Object.assign(new Error("spawn bun ENOENT"), {
+		const cause: Error & { code?: string } = Object.assign(new Error("spawn bun ENOENT"), {
 			code: "ENOENT",
-			errno: -2,
 		});
 		const { spawner } = recordingSpawner({
 			err: { cause, kind: "launchFailed" },
