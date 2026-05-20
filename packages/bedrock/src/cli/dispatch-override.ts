@@ -72,7 +72,7 @@ export async function dispatchOverride(
 	const launched = await spawner.spawn({
 		args,
 		command: "bun",
-		envOverrides: { ...credentialOverrides },
+		envOverrides: { ...credentialOverrides, BEDROCK_CLI: "1" },
 	});
 	if (!launched.success) {
 		return { err: { cause: launched.err.cause, kind: "launchFailed" }, success: false };

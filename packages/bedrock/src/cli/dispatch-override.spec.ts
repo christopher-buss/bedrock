@@ -152,6 +152,19 @@ describe(dispatchOverride, () => {
 		expect(invocations[0]?.envOverrides).toMatchObject({ GITHUB_TOKEN: "ghp_456" });
 	});
 
+	it("should set BEDROCK_CLI to '1' in envOverrides", async () => {
+		expect.assertions(1);
+
+		const { invocations, spawner } = okSpawner(0);
+
+		await dispatchOverride(
+			{ environment: "production", overridePath: "/abs/.bedrock/deploy.ts" },
+			spawner,
+		);
+
+		expect(invocations[0]?.envOverrides).toMatchObject({ BEDROCK_CLI: "1" });
+	});
+
 	it("should keep credential values out of argv", async () => {
 		expect.assertions(4);
 
