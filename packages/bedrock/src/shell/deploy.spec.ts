@@ -1277,6 +1277,26 @@ describe(deploy, () => {
 			expect(getEnvironment.mock.calls.some(([name]) => name === "BEDROCK_CLI")).toBeFalse();
 		});
 
+		it("should consult getEnv with 'BEDROCK_CLI' when progress is omitted", async () => {
+			expect.assertions(1);
+
+			const { port: statePort } = inMemoryStatePort();
+			const getEnvironment = vi.fn<(name: string) => string | undefined>((name) => {
+				return name === "BEDROCK_API_KEY" ? "rbx-test" : undefined;
+			});
+
+			await deploy({
+				config: vipPassConfig(),
+				environment: "production",
+				getEnv: getEnvironment,
+				readFile: readIcon,
+				registry: stubRegistryWithVipCreate(),
+				statePort,
+			});
+
+			expect(getEnvironment.mock.calls.some(([name]) => name === "BEDROCK_CLI")).toBeTrue();
+		});
+
 		it("should default to the clack adapter when progress is omitted and BEDROCK_CLI is set", async () => {
 			expect.assertions(1);
 
