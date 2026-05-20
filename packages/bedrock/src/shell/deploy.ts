@@ -420,11 +420,6 @@ async function runAndEmit(
 async function runWithDeferredClackProgress(
 	options: DeployOptions,
 ): Promise<Result<BedrockState, DeployError>> {
-	// Defer building the clack adapter until config has resolved so the
-	// `stateWritten` label reflects the loaded backend (e.g. `gist:abc`)
-	// even when callers omit `options.config` and rely on `loadConfig()`.
-	// On early failure, fall back to the caller-supplied `options.config`
-	// (which may be undefined), keeping the generic `"state"` placeholder.
 	const resolved = await resolveDeps(options);
 	const labelConfig = resolved.success ? resolved.data.config : options.config;
 	const progress = createDefaultProgressAdapter(labelConfig);
