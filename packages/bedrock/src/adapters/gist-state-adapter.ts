@@ -9,7 +9,9 @@ const GITHUB_API_BASE = "https://api.github.com";
 const GITHUB_API_VERSION = "2026-03-10";
 const USER_AGENT = "bedrock";
 const MAX_INLINE_BYTES = 10_000_000;
-const MAX_RETRIES = 3;
+const MAX_RETRIES = 6;
+const BASE_BACKOFF_MS = 500;
+const MAX_BACKOFF_MS = 16_000;
 const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([409, 502, 503, 504]);
 const MAX_VISIBILITY_ATTEMPTS = 5;
 const VISIBILITY_BASE_DELAY_MS = 250;
@@ -33,6 +35,13 @@ export interface GistStateAdapterDeps {
 	/** ID of an existing GitHub Gist that holds this project's state files. */
 	readonly gistId: string;
 	/**
+	 * Injection seam for retry jitter; defaults to `Math.random`. Tests pass a
+	 * deterministic source so jittered sleep durations stay stable across runs.
+	 * Jitter prevents concurrent callers (parallel CI jobs writing to the same
+	 * gist) from retrying in lockstep and re-colliding on each backoff.
+	 */
+	readonly random?: (() => number) | undefined;
+	/**
 	 * Injection seam for retry backoff timing; defaults to a `setTimeout`-based
 	 * promise. Tests pass a fake to keep retry assertions deterministic.
 	 */
@@ -44,6 +53,7 @@ export interface GistStateAdapterDeps {
 interface AdapterContext {
 	readonly fetchFn: GistFetch;
 	readonly gistId: string;
+	readonly random: () => number;
 	readonly sleep: (ms: number) => Promise<void>;
 	readonly token: string;
 }
@@ -61,11 +71,16 @@ interface HttpFailure {
 	readonly response: Response;
 }
 
+interface RetryDeps {
+	readonly random: () => number;
+	readonly sleep: (ms: number) => Promise<void>;
+}
+
 interface ReadContentParameters {
 	readonly entry: GistFile;
 	readonly fetchFn: GistFetch;
 	readonly file: string;
-	readonly sleep: (ms: number) => Promise<void>;
+	readonly retry: RetryDeps;
 }
 
 /**
@@ -102,6 +117,7 @@ export function createGistStateAdapter(deps: GistStateAdapterDeps): StatePort {
 	const ctx: AdapterContext = {
 		fetchFn: deps.fetch ?? globalThis.fetch.bind(globalThis),
 		gistId: deps.gistId,
+		random: deps.random ?? Math.random,
 		sleep: deps.sleep ?? defaultSleep,
 		token: deps.token,
 	};
@@ -208,21 +224,20 @@ function isRetryableStatus(status: number): boolean {
 	return RETRYABLE_STATUSES.has(status);
 }
 
-function backoffMs(attempt: number): number {
-	return 1000 * 2 ** attempt;
+function backoffMs(attempt: number, random: () => number): number {
+	const cap = Math.min(MAX_BACKOFF_MS, BASE_BACKOFF_MS * 2 ** attempt);
+	const half = cap / 2;
+	return half + random() * half;
 }
 
-async function withRetry(
-	sleep: (ms: number) => Promise<void>,
-	operation: () => Promise<Response>,
-): Promise<Response> {
+async function withRetry(retry: RetryDeps, operation: () => Promise<Response>): Promise<Response> {
 	let response = await operation();
 	for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
 		if (response.ok || !isRetryableStatus(response.status)) {
 			return response;
 		}
 
-		await sleep(backoffMs(attempt));
+		await retry.sleep(backoffMs(attempt, retry.random));
 		response = await operation();
 	}
 
@@ -235,7 +250,7 @@ async function fetchGistBody(
 ): Promise<Result<Record<string, unknown>, StateError>> {
 	let response: Response;
 	try {
-		response = await withRetry(ctx.sleep, async () => sendGet(ctx));
+		response = await withRetry(ctx, async () => sendGet(ctx));
 	} catch (err) {
 		return { err: networkError(err, file), success: false };
 	}
@@ -259,7 +274,7 @@ async function readGistContent({
 	entry,
 	fetchFn,
 	file,
-	sleep,
+	retry,
 }: ReadContentParameters): Promise<Result<BedrockState | undefined, StateError>> {
 	if (entry.size > MAX_INLINE_BYTES) {
 		return stateErr(file, `state file too large: ${entry.size} bytes`);
@@ -273,7 +288,7 @@ async function readGistContent({
 		const { rawUrl } = entry;
 		let rawResponse: Response;
 		try {
-			rawResponse = await withRetry(sleep, async () => fetchFn(rawUrl));
+			rawResponse = await withRetry(retry, async () => fetchFn(rawUrl));
 		} catch (err) {
 			return { err: networkError(err, file), success: false };
 		}
@@ -305,7 +320,7 @@ async function readPath(
 		return { data: undefined, success: true };
 	}
 
-	return readGistContent({ entry, fetchFn: ctx.fetchFn, file, sleep: ctx.sleep });
+	return readGistContent({ entry, fetchFn: ctx.fetchFn, file, retry: ctx });
 }
 
 async function sendPatch(ctx: AdapterContext, body: string): Promise<Response> {
@@ -369,7 +384,7 @@ async function writePath(
 
 	let response: Response;
 	try {
-		response = await withRetry(ctx.sleep, async () => sendPatch(ctx, body));
+		response = await withRetry(ctx, async () => sendPatch(ctx, body));
 	} catch (err) {
 		return { err: networkError(err, file), success: false };
 	}

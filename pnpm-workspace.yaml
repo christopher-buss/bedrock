@@ -63,7 +63,7 @@ catalogs:
     "@commitlint/types": 20.5.0
     "@eslint/config-inspector": 1.5.0
     "@isentinel/eslint-config": 5.0.0-beta.11
-    "@isentinel/hooks": 1.4.1
+    "@isentinel/hooks": 1.5.1
     "@typescript-eslint/parser": 8.58.1
     "@vitest/eslint-plugin": 1.6.16
     eslint: 9.39.2
