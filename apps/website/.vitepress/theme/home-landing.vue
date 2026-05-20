@@ -341,8 +341,8 @@ function toggleTheme(): void {
 						<div class="feature-num">&rarr; 03</div>
 						<h3>State on your terms</h3>
 						<p>
-							Store state in a GitHub Gist with just a <code>GITHUB_TOKEN</code>. S3
-							is on the way.
+							Store state in a GitHub Gist with just a
+							<code>BEDROCK_GITHUB_TOKEN</code>. S3 is on the way.
 						</p>
 					</div>
 					<div class="feature">

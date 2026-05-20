@@ -6,7 +6,8 @@ it('Example 1', () => {
   const port = buildStatePort({
     fetch: async () =>
       new Response(JSON.stringify({ files: {} }), { status: 200 }),
-    getEnv: (name) => (name === 'GITHUB_TOKEN' ? 'ghp_example' : undefined),
+    getEnv: (name) =>
+      name === 'BEDROCK_GITHUB_TOKEN' ? 'ghp_example' : undefined,
     stateConfig: { backend: 'gist', gistId: 'abc123' },
   })
   expect(port.success).toBeTrue()

@@ -226,7 +226,7 @@ describe(previewDiff, () => {
 		});
 	});
 
-	it("should surface missingCredential when buildStatePort cannot read GITHUB_TOKEN", async () => {
+	it("should surface missingCredential when buildStatePort cannot read BEDROCK_GITHUB_TOKEN", async () => {
 		expect.assertions(1);
 
 		const config: Config = {
@@ -246,7 +246,7 @@ describe(previewDiff, () => {
 		expect(result.err).toStrictEqual({
 			kind: "missingCredential",
 			purpose: "stateBackend",
-			variable: "GITHUB_TOKEN",
+			variable: "BEDROCK_GITHUB_TOKEN",
 		});
 	});
 
@@ -382,7 +382,7 @@ describe(previewDiff, () => {
 		const result = await previewDiff({
 			environment: "production",
 			fetch: async () => new Response(JSON.stringify({ files: {} }), { status: 200 }),
-			getEnv: (name) => (name === "GITHUB_TOKEN" ? "ghp_test" : undefined),
+			getEnv: (name) => (name === "BEDROCK_GITHUB_TOKEN" ? "ghp_test" : undefined),
 			loadConfig,
 			readFile: readIcon,
 		});

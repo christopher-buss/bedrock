@@ -649,7 +649,7 @@ describe(deploy, () => {
 			config: configWithState(),
 			environment: "production",
 			fetch: fetchSpy,
-			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test" }),
+			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
 			readFile: readIcon,
 			registry,
 		});
@@ -702,7 +702,7 @@ describe(deploy, () => {
 		const result = await deploy({
 			config: { environments: { production: {} }, state: { backend: "s3" } },
 			environment: "production",
-			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test" }),
+			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
 			readFile: readIcon,
 			registry: stubRegistry(),
 		});
@@ -714,7 +714,7 @@ describe(deploy, () => {
 		expect(result.err.backend).toBe("s3");
 	});
 
-	it("should return Err(missingCredential) when GITHUB_TOKEN is unset on the default-construction state-port path", async () => {
+	it("should return Err(missingCredential) when BEDROCK_GITHUB_TOKEN is unset on the default-construction state-port path", async () => {
 		expect.assertions(2);
 
 		const result = await deploy({
@@ -728,7 +728,7 @@ describe(deploy, () => {
 		assert(!result.success);
 		assert(result.err.kind === "missingCredential");
 
-		expect(result.err.variable).toBe("GITHUB_TOKEN");
+		expect(result.err.variable).toBe("BEDROCK_GITHUB_TOKEN");
 		expect(result.err.purpose).toBe("stateBackend");
 	});
 
@@ -751,7 +751,10 @@ describe(deploy, () => {
 				universe: { universeId: "1" },
 			},
 			environment: "production",
-			getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test", GITHUB_TOKEN: "ghp_test" }),
+			getEnv: environmentFrom({
+				BEDROCK_API_KEY: "rbx-test",
+				BEDROCK_GITHUB_TOKEN: "ghp_test",
+			}),
 			readFile: readIcon,
 			statePort: port,
 		});
@@ -771,7 +774,7 @@ describe(deploy, () => {
 				universe: { universeId: "1" },
 			},
 			environment: "production",
-			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test" }),
+			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
 			readFile: readIcon,
 			statePort: inMemoryStatePort().port,
 		});
@@ -792,7 +795,10 @@ describe(deploy, () => {
 				state: { backend: "gist", gistId: "abc" },
 			},
 			environment: "production",
-			getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test", GITHUB_TOKEN: "ghp_test" }),
+			getEnv: environmentFrom({
+				BEDROCK_API_KEY: "rbx-test",
+				BEDROCK_GITHUB_TOKEN: "ghp_test",
+			}),
 			readFile: readIcon,
 			statePort: inMemoryStatePort().port,
 		});

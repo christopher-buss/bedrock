@@ -11,12 +11,12 @@ describe(buildCredentialOverrides, () => {
 		expect(result).toStrictEqual({ BEDROCK_API_KEY: "rbx-123" });
 	});
 
-	it("should map githubToken to GITHUB_TOKEN when supplied", () => {
+	it("should map githubToken to BEDROCK_GITHUB_TOKEN when supplied", () => {
 		expect.assertions(1);
 
 		const result = buildCredentialOverrides({ githubToken: "ghp_456" });
 
-		expect(result).toStrictEqual({ GITHUB_TOKEN: "ghp_456" });
+		expect(result).toStrictEqual({ BEDROCK_GITHUB_TOKEN: "ghp_456" });
 	});
 
 	it("should include both env vars when both flags are supplied", () => {
@@ -24,7 +24,10 @@ describe(buildCredentialOverrides, () => {
 
 		const result = buildCredentialOverrides({ apiKey: "rbx-123", githubToken: "ghp_456" });
 
-		expect(result).toStrictEqual({ BEDROCK_API_KEY: "rbx-123", GITHUB_TOKEN: "ghp_456" });
+		expect(result).toStrictEqual({
+			BEDROCK_API_KEY: "rbx-123",
+			BEDROCK_GITHUB_TOKEN: "ghp_456",
+		});
 	});
 
 	it("should return an empty record when neither flag is supplied", () => {

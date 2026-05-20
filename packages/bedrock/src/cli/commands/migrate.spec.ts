@@ -286,7 +286,7 @@ describe(migrateCommand, () => {
 		onTestFinished(() => {
 			vi.unstubAllEnvs();
 		});
-		vi.stubEnv("GITHUB_TOKEN", "from-process");
+		vi.stubEnv("BEDROCK_GITHUB_TOKEN", "from-process");
 
 		const buildStatePort = vi.fn<BuildStatePortFunc>(() => happyPortResult());
 		const deps = makeDeps({ buildStatePort });
@@ -296,7 +296,7 @@ describe(migrateCommand, () => {
 
 		const firstCall = vi.mocked(buildStatePort).mock.calls[0]?.[0];
 
-		expect(firstCall?.getEnv("GITHUB_TOKEN")).toBe("from-process");
+		expect(firstCall?.getEnv("BEDROCK_GITHUB_TOKEN")).toBe("from-process");
 	});
 
 	it("should render an io error and exit 1 when the migrator throws (e.g. EACCES)", async () => {
@@ -473,7 +473,7 @@ describe(migrateCommand, () => {
 				err: {
 					kind: "missingCredential",
 					purpose: "stateBackend",
-					variable: "GITHUB_TOKEN",
+					variable: "BEDROCK_GITHUB_TOKEN",
 				},
 				success: false,
 			};
@@ -484,7 +484,7 @@ describe(migrateCommand, () => {
 		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
 
 		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
-			"missing credential: environment variable GITHUB_TOKEN is not set",
+			"missing credential: environment variable BEDROCK_GITHUB_TOKEN is not set",
 		);
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
