@@ -535,7 +535,7 @@ describe(diffCommand, () => {
 			const [call] = firstCall;
 
 			expect(call.getEnv?.("BEDROCK_API_KEY")).toBe("BEDROCK_OVERRIDE");
-			expect(call.getEnv?.("GITHUB_TOKEN")).toBe("GH_OVERRIDE");
+			expect(call.getEnv?.("BEDROCK_GITHUB_TOKEN")).toBe("GH_OVERRIDE");
 			expect(call.getEnv?.("UNRELATED_VAR")).toBe("from-process-unrelated");
 		} finally {
 			vi.unstubAllEnvs();
@@ -546,7 +546,7 @@ describe(diffCommand, () => {
 		expect.assertions(3);
 
 		vi.stubEnv("BEDROCK_API_KEY", "from-process-bedrock");
-		vi.stubEnv("GITHUB_TOKEN", "from-process-github");
+		vi.stubEnv("BEDROCK_GITHUB_TOKEN", "from-process-github");
 
 		try {
 			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
@@ -561,7 +561,7 @@ describe(diffCommand, () => {
 			const [call] = firstCall;
 
 			expect(call.getEnv?.("BEDROCK_API_KEY")).toBe("FLAG_BEDROCK");
-			expect(call.getEnv?.("GITHUB_TOKEN")).toBe("from-process-github");
+			expect(call.getEnv?.("BEDROCK_GITHUB_TOKEN")).toBe("from-process-github");
 			expect(call.getEnv?.("UNRELATED_VAR")).toBeUndefined();
 		} finally {
 			vi.unstubAllEnvs();
@@ -572,7 +572,7 @@ describe(diffCommand, () => {
 		expect.assertions(2);
 
 		vi.stubEnv("BEDROCK_API_KEY", "process-bedrock");
-		vi.stubEnv("GITHUB_TOKEN", "process-github");
+		vi.stubEnv("BEDROCK_GITHUB_TOKEN", "process-github");
 
 		try {
 			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
@@ -587,7 +587,7 @@ describe(diffCommand, () => {
 			const [call] = firstCall;
 
 			expect(call.getEnv?.("BEDROCK_API_KEY")).toBe("process-bedrock");
-			expect(call.getEnv?.("GITHUB_TOKEN")).toBe("process-github");
+			expect(call.getEnv?.("BEDROCK_GITHUB_TOKEN")).toBe("process-github");
 		} finally {
 			vi.unstubAllEnvs();
 		}

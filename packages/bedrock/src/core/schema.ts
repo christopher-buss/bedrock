@@ -403,8 +403,8 @@ export interface UniverseEntry {
 
 /**
  * State configuration for the GitHub Gist backend. Holds the public gist
- * ID; the GitHub token is read from `GITHUB_TOKEN` only when the library
- * default-constructs the adapter.
+ * ID; the GitHub token is read from `BEDROCK_GITHUB_TOKEN` only when the
+ * library default-constructs the adapter.
  */
 export interface GistStateConfig {
 	/** Discriminator selecting the gist adapter. */

@@ -59,7 +59,7 @@ const STATE_PORT_HINT = "pass a custom statePort via opts.statePort";
  * const port = buildStatePort({
  *     fetch: async () =>
  *         new Response(JSON.stringify({ files: {} }), { status: 200 }),
- *     getEnv: (name) => (name === "GITHUB_TOKEN" ? "ghp_example" : undefined),
+ *     getEnv: (name) => (name === "BEDROCK_GITHUB_TOKEN" ? "ghp_example" : undefined),
  *     stateConfig: { backend: "gist", gistId: "abc123" },
  * });
  *
@@ -91,13 +91,13 @@ function buildGistStatePort(
 	stateConfig: GistStateConfig,
 	deps: BuildStatePortDeps,
 ): Result<StatePort, MissingCredentialError> {
-	const token = deps.getEnv("GITHUB_TOKEN");
+	const token = deps.getEnv("BEDROCK_GITHUB_TOKEN") ?? deps.getEnv("GITHUB_TOKEN");
 	if (token === undefined) {
 		return {
 			err: {
 				kind: "missingCredential",
 				purpose: "stateBackend",
-				variable: "GITHUB_TOKEN",
+				variable: "BEDROCK_GITHUB_TOKEN",
 			},
 			success: false,
 		};

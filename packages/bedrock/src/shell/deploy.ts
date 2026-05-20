@@ -35,7 +35,7 @@ import { loadConfig as defaultLoadConfig, type LoadConfigOptions } from "./load-
 /**
  * Inputs for `deploy`. Every field except `environment` is optional;
  * omitted dependencies are default-constructed from the project config
- * and the environment variables `GITHUB_TOKEN` and `BEDROCK_API_KEY`.
+ * and the environment variables `BEDROCK_GITHUB_TOKEN` and `BEDROCK_API_KEY`.
  */
 export interface DeployOptions {
 	/** Pre-loaded, optionally-mutated project config. Omit to call `loadConfig()` automatically. */
@@ -59,7 +59,7 @@ export interface DeployOptions {
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
 	/** Per-kind driver table consulted for create / update dispatch. Default-constructed from `BEDROCK_API_KEY` when omitted. */
 	readonly registry?: DriverRegistry;
-	/** Backend used to read the prior snapshot and persist the new one. Default-constructed from `config.state` and `GITHUB_TOKEN` when omitted. */
+	/** Backend used to read the prior snapshot and persist the new one. Default-constructed from `config.state` and `BEDROCK_GITHUB_TOKEN` when omitted. */
 	readonly statePort?: StatePort;
 }
 
@@ -118,7 +118,7 @@ interface PickRegistryInputs {
 
 /**
  * Run a full reconcile end-to-end. Default-constructs missing deps from
- * the project config and the environment variables `GITHUB_TOKEN` and
+ * the project config and the environment variables `BEDROCK_GITHUB_TOKEN` and
  * `BEDROCK_API_KEY`; never reads `process.env` when `statePort`,
  * `registry`, and `config` are all supplied explicitly.
  *
