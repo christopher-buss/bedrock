@@ -85,8 +85,8 @@ catalogs:
       specifier: 5.0.0-beta.11
       version: 5.0.0-beta.11
     '@isentinel/hooks':
-      specifier: 1.4.1
-      version: 1.4.1
+      specifier: 1.5.1
+      version: 1.5.1
     '@vitest/eslint-plugin':
       specifier: 1.6.16
       version: 1.6.16
@@ -271,7 +271,7 @@ importers:
         version: 5.0.0-beta.11(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/estree@1.0.8)(@typescript-eslint/utils@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(@vitest/eslint-plugin@1.6.16(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(@typescript/typescript6@6.0.1)(@voidzero-dev/vite-plus-test@0.1.19)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-jest-extended@3.0.1(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-n@17.24.0(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint-plugin-react-naming-convention@2.3.9(@typescript/typescript6@6.0.1)(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))
       '@isentinel/hooks':
         specifier: catalog:lint
-        version: 1.4.1(@typescript/native-preview@7.0.0-dev.20260428.1)(@typescript/typescript6@6.0.1)(jiti@2.6.1)
+        version: 1.5.1(@typescript/native-preview@7.0.0-dev.20260428.1)(@typescript/typescript6@6.0.1)(jiti@2.6.1)
       '@isentinel/tsconfig':
         specifier: catalog:tsc
         version: 1.2.0(@typescript/typescript6@6.0.1)
@@ -2032,8 +2032,8 @@ packages:
     peerDependencies:
       eslint: '>=8.0.0'
 
-  '@isentinel/hooks@1.4.1':
-    resolution: {integrity: sha512-Pd4W0qbKWxBfyVRl3QtbQtmxGSFDWx/hxBu4YSwzghnpuPiw9PdYm/G+pm6S99TtvvaSSqMAAGJAY/qEERI+EQ==}
+  '@isentinel/hooks@1.5.1':
+    resolution: {integrity: sha512-kRR5i1e4lMw496T7XabGOoTEAtFQz9NgpqNLxwGO/mllsFz9RAVIW98lB05cfINqC75S7+rMbL1Fk+jKMGYi2g==}
     engines: {node: '>=24.11.0'}
     peerDependencies:
       '@typescript/native-preview': '>=7'
@@ -8672,7 +8672,7 @@ snapshots:
       - supports-color
       - typescript
 
-  '@isentinel/hooks@1.4.1(@typescript/native-preview@7.0.0-dev.20260428.1)(@typescript/typescript6@6.0.1)(jiti@2.6.1)':
+  '@isentinel/hooks@1.5.1(@typescript/native-preview@7.0.0-dev.20260428.1)(@typescript/typescript6@6.0.1)(jiti@2.6.1)':
     dependencies:
       eslint_d: 15.0.2(jiti@2.6.1)
       file-entry-cache: 11.1.2
