@@ -1308,6 +1308,49 @@ describe(deploy, () => {
 			expect(chunks.join("")).toContain("production: 1 resources reconciled");
 		});
 
+		it("should render stateWritten with the loaded backend label when options.config is omitted but loadConfig succeeds and BEDROCK_CLI is set", async () => {
+			expect.assertions(1);
+
+			const chunks: Array<string> = [];
+			const writeSpy = vi
+				.spyOn(process.stdout, "write")
+				.mockImplementation((chunk: string | Uint8Array): boolean => {
+					chunks.push(
+						typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"),
+					);
+					return true;
+				});
+
+			try {
+				const loadedConfig: Config = {
+					environments: { production: {} },
+					passes: {
+						"vip-pass": {
+							name: "VIP Pass",
+							description: "Grants VIP perks.",
+							icon: { "en-us": "assets/vip-icon.png" },
+							price: 500,
+						},
+					},
+					state: { backend: "gist", gistId: "abc-test" },
+				};
+				const { port: statePort } = inMemoryStatePort();
+
+				await deploy({
+					environment: "production",
+					getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test", BEDROCK_CLI: "1" }),
+					loadConfig: async () => ({ data: loadedConfig, success: true }),
+					readFile: readIcon,
+					registry: stubRegistryWithVipCreate(),
+					statePort,
+				});
+			} finally {
+				writeSpy.mockRestore();
+			}
+
+			expect(chunks.join("")).toContain("State written to gist:abc-test");
+		});
+
 		it("should default to a no-op port when progress is omitted and BEDROCK_CLI is unset", async () => {
 			expect.assertions(1);
 

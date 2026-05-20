@@ -196,10 +196,24 @@ interface EmitTerminalEventInputs {
  * ```
  */
 export async function deploy(options: DeployOptions): Promise<Result<BedrockState, DeployError>> {
-	const progress = resolveProgressPort(options);
-	const result = await runDeploy(options, progress);
-	emitTerminalEvent({ environment: options.environment, progress, result });
-	return result;
+	if (options.progress !== undefined) {
+		return runAndEmit(options, options.progress);
+	}
+
+	const cliFlag = getEnvironmentOf(options)("BEDROCK_CLI");
+	if (cliFlag === undefined || cliFlag === "") {
+		return runAndEmit(options, createNoOpProgressAdapter());
+	}
+
+	return runWithDeferredClackProgress(options);
+}
+
+function readProcessEnvironment(name: string): string | undefined {
+	return process.env[name];
+}
+
+function getEnvironmentOf(options: DeployOptions): (name: string) => string | undefined {
+	return options.getEnv ?? readProcessEnvironment;
 }
 
 async function pickConfig(options: DeployOptions): Promise<Result<Config, DeployError>> {
@@ -214,14 +228,6 @@ async function pickConfig(options: DeployOptions): Promise<Result<Config, Deploy
 	}
 
 	return { data: loaded.data, success: true };
-}
-
-function readProcessEnvironment(name: string): string | undefined {
-	return process.env[name];
-}
-
-function getEnvironmentOf(options: DeployOptions): (name: string) => string | undefined {
-	return options.getEnv ?? readProcessEnvironment;
 }
 
 function pickStatePort(
@@ -376,19 +382,6 @@ async function runDeploy(
 	return runReconcile(options.environment, { ...resolved.data, progress });
 }
 
-function resolveProgressPort(options: DeployOptions): ProgressPort {
-	if (options.progress !== undefined) {
-		return options.progress;
-	}
-
-	const cliFlag = getEnvironmentOf(options)("BEDROCK_CLI");
-	if (cliFlag !== undefined && cliFlag !== "") {
-		return createDefaultProgressAdapter(options.config);
-	}
-
-	return createNoOpProgressAdapter();
-}
-
 function emitTerminalEvent(inputs: EmitTerminalEventInputs): void {
 	const { environment, progress, result } = inputs;
 	if (result.success) {
@@ -401,4 +394,35 @@ function emitTerminalEvent(inputs: EmitTerminalEventInputs): void {
 	}
 
 	progress.emit({ environment, error: result.err, kind: "deployFailure" });
+}
+
+async function runAndEmit(
+	options: DeployOptions,
+	progress: ProgressPort,
+): Promise<Result<BedrockState, DeployError>> {
+	const result = await runDeploy(options, progress);
+	emitTerminalEvent({ environment: options.environment, progress, result });
+	return result;
+}
+
+async function runWithDeferredClackProgress(
+	options: DeployOptions,
+): Promise<Result<BedrockState, DeployError>> {
+	// Defer building the clack adapter until config has resolved so the
+	// `stateWritten` label reflects the loaded backend (e.g. `gist:abc`)
+	// even when callers omit `options.config` and rely on `loadConfig()`.
+	// On early failure, fall back to the caller-supplied `options.config`
+	// (which may be undefined), keeping the generic `"state"` placeholder.
+	const resolved = await resolveDeps(options);
+	const labelConfig = resolved.success ? resolved.data.config : options.config;
+	const progress = createDefaultProgressAdapter(labelConfig);
+
+	if (!resolved.success) {
+		emitTerminalEvent({ environment: options.environment, progress, result: resolved });
+		return resolved;
+	}
+
+	const result = await runReconcile(options.environment, { ...resolved.data, progress });
+	emitTerminalEvent({ environment: options.environment, progress, result });
+	return result;
 }
