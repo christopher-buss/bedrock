@@ -135,7 +135,7 @@ describe(dispatchOverride, () => {
 		expect(invocations[0]?.envOverrides).toMatchObject({ BEDROCK_API_KEY: "rbx-123" });
 	});
 
-	it("should set GITHUB_TOKEN in envOverrides when githubToken is supplied", async () => {
+	it("should set BEDROCK_GITHUB_TOKEN in envOverrides when githubToken is supplied", async () => {
 		expect.assertions(1);
 
 		const { invocations, spawner } = okSpawner(0);
@@ -149,7 +149,7 @@ describe(dispatchOverride, () => {
 			spawner,
 		);
 
-		expect(invocations[0]?.envOverrides).toMatchObject({ GITHUB_TOKEN: "ghp_456" });
+		expect(invocations[0]?.envOverrides).toMatchObject({ BEDROCK_GITHUB_TOKEN: "ghp_456" });
 	});
 
 	it("should set BEDROCK_CLI to '1' in envOverrides", async () => {

@@ -15,7 +15,7 @@ export interface OverrideInvocation {
 	readonly configFile?: string;
 	/** Target environment for this single override invocation. */
 	readonly environment: string;
-	/** Optional `--github-token` value; translated to `GITHUB_TOKEN` in env. */
+	/** Optional `--github-token` value; translated to `BEDROCK_GITHUB_TOKEN` in env. */
 	readonly githubToken?: string;
 	/** Path to the override script file to invoke. */
 	readonly overridePath: string;
@@ -42,7 +42,7 @@ export type SpawnOverrideError =
  * - argv = `[overridePath, "--env", environment]`, with `"--config", configFile`
  *   appended when supplied.
  * - `apiKey` becomes the `BEDROCK_API_KEY` env-var override; `githubToken`
- *   becomes `GITHUB_TOKEN`. Neither value appears in argv.
+ *   becomes `BEDROCK_GITHUB_TOKEN`. Neither value appears in argv.
  * - `BEDROCK_CLI=1` is always set in the env. The override's `deploy()`
  *   reads this on the `getEnv` seam to default to the clack progress
  *   adapter; absent that downstream wiring, the variable is a forward-

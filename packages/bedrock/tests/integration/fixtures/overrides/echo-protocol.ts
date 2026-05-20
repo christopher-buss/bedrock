@@ -15,7 +15,7 @@ function main(): void {
 		apiKey: process.env["BEDROCK_API_KEY"],
 		args: process.argv.slice(1),
 		cli: process.env["BEDROCK_CLI"],
-		githubToken: process.env["GITHUB_TOKEN"],
+		githubToken: process.env["BEDROCK_GITHUB_TOKEN"],
 	};
 
 	writeFileSync(outPath, JSON.stringify(payload));
