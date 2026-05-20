@@ -59,6 +59,9 @@ export async function dispatchOverride(
 	spawner: Spawner,
 ): Promise<Result<void, SpawnOverrideError>> {
 	const args = [invocation.overridePath, "--env", invocation.environment];
+	if (invocation.configFile !== undefined) {
+		args.push("--config", invocation.configFile);
+	}
 
 	const launched = await spawner.spawn({
 		args,

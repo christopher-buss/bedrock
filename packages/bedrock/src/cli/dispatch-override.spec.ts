@@ -83,4 +83,38 @@ describe(dispatchOverride, () => {
 
 		expect(args[flagIndex + 1]).toBe("production");
 	});
+
+	it("should forward '--config <path>' in argv when configFile is supplied", async () => {
+		expect.assertions(2);
+
+		const { invocations, spawner } = okSpawner(0);
+
+		await dispatchOverride(
+			{
+				configFile: "./bedrock.staging.config.ts",
+				environment: "production",
+				overridePath: "/abs/.bedrock/deploy.ts",
+			},
+			spawner,
+		);
+
+		const args = invocations[0]?.args ?? [];
+		const flagIndex = args.indexOf("--config");
+
+		expect(flagIndex).toBeGreaterThanOrEqual(0);
+		expect(args[flagIndex + 1]).toBe("./bedrock.staging.config.ts");
+	});
+
+	it("should omit '--config' from argv when configFile is undefined", async () => {
+		expect.assertions(1);
+
+		const { invocations, spawner } = okSpawner(0);
+
+		await dispatchOverride(
+			{ environment: "production", overridePath: "/abs/.bedrock/deploy.ts" },
+			spawner,
+		);
+
+		expect(invocations[0]?.args).not.toContain("--config");
+	});
 });
