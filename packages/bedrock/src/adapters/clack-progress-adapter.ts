@@ -1,6 +1,12 @@
+import { createClackPort } from "../cli/clack-port.ts";
 import { type ClackPort, renderDeployError } from "../cli/render.ts";
 import { resolveStateConfig } from "../core/resolve-state-config.ts";
-import { type Config, isGistStateConfig, type StateConfig } from "../core/schema.ts";
+import {
+	type Config,
+	isGistStateConfig,
+	type ResolvedConfig,
+	type StateConfig,
+} from "../core/schema.ts";
 import type {
 	ProgressEvent,
 	ProgressPort,
@@ -15,11 +21,12 @@ export interface ClackProgressAdapterDeps {
 	/** Output port the events are rendered through. */
 	readonly clack: ClackPort;
 	/**
-	 * Loaded project config; the `stateWritten` case resolves the per-environment
-	 * `StateConfig` against this to format the backend label. When omitted,
-	 * `stateWritten` renders the generic `"state"` placeholder.
+	 * Loaded project config (raw `Config` or env-resolved `ResolvedConfig`);
+	 * the `stateWritten` case resolves the per-environment `StateConfig`
+	 * against this to format the backend label. When omitted, `stateWritten`
+	 * renders the generic `"state"` placeholder.
 	 */
-	readonly config?: Config;
+	readonly config?: Config | ResolvedConfig;
 }
 
 /**
@@ -61,6 +68,29 @@ export function createClackProgressAdapter(deps: ClackProgressAdapterDeps): Prog
 	};
 }
 
+/**
+ * Build a {@link ProgressPort} for the default CLI rendering path: wires a
+ * fresh {@link createClackPort} into {@link createClackProgressAdapter}. The
+ * `config` argument (raw `Config` or env-resolved `ResolvedConfig`) is
+ * forwarded so `stateWritten` events can name the persistence backend; pass
+ * `undefined` when the config has not yet loaded.
+ *
+ * Internal: used by `deploy()`'s default-port resolver when callers omit
+ * `progress` and `BEDROCK_CLI` is set.
+ *
+ * @param config - Pre-loaded or env-resolved config used to format the
+ *   state-backend label, or `undefined` to render the generic placeholder.
+ * @returns A clack-backed `ProgressPort` that writes to `process.stdout`.
+ */
+export function createDefaultProgressAdapter(
+	config: Config | ResolvedConfig | undefined,
+): ProgressPort {
+	const clack = createClackPort();
+	return config === undefined
+		? createClackProgressAdapter({ clack })
+		: createClackProgressAdapter({ clack, config });
+}
+
 function applySummaryLine(event: Extract<ProgressEvent, { kind: "applySummary" }>): string {
 	const seconds = (event.durationMs / 1000).toFixed(1);
 	const parts = [
@@ -80,7 +110,10 @@ function stateConfigLabel(state: StateConfig): string {
 	return state.backend;
 }
 
-function formatStateLabel(config: Config | undefined, environment: string): string {
+function formatStateLabel(
+	config: Config | ResolvedConfig | undefined,
+	environment: string,
+): string {
 	if (config === undefined) {
 		return "state";
 	}

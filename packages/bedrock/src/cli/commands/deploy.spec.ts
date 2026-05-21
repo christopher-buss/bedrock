@@ -60,11 +60,25 @@ function fakeLoad(result: LoadConfigResult): LoadConfigFunc {
 
 function fakeDeploy(mapping: ReadonlyArray<Result<BedrockState, DeployError>>): DeployFunc {
 	let callIndex = 0;
-	return vi.fn<DeployFunc>(async () => {
+	return vi.fn<DeployFunc>(async (options) => {
 		const next = mapping[callIndex];
 		callIndex += 1;
 		if (next === undefined) {
 			throw new Error("fakeDeploy invoked with no scripted result");
+		}
+
+		if (next.success) {
+			options.progress?.emit({
+				environment: options.environment,
+				kind: "deploySuccess",
+				resourceCount: next.data.resources.length,
+			});
+		} else {
+			options.progress?.emit({
+				environment: options.environment,
+				error: next.err,
+				kind: "deployFailure",
+			});
 		}
 
 		return next;

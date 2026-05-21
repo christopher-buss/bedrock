@@ -87,14 +87,7 @@ async function dispatchEnvironments(inputs: DispatchInputs): Promise<ReadonlyArr
 			getEnv,
 			progress,
 		});
-		if (result.success) {
-			progress.emit({
-				environment,
-				kind: "deploySuccess",
-				resourceCount: result.data.resources.length,
-			});
-		} else {
-			progress.emit({ environment, error: result.err, kind: "deployFailure" });
+		if (!result.success) {
 			failed.push(environment);
 		}
 	}
