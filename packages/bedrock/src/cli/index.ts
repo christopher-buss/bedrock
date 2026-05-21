@@ -66,7 +66,7 @@ export function createProg(deps: ProgDeps = {}): Sade {
 		.option("--env", "Target environment (repeat for multiple)")
 		.option("--config", "Config file path (overrides discovery)")
 		.option("--api-key", "Override the BEDROCK_API_KEY environment variable")
-		.option("--github-token", "Override the GITHUB_TOKEN environment variable")
+		.option("--github-token", "Override the BEDROCK_GITHUB_TOKEN environment variable")
 		.action(deployCommand(deps));
 
 	prog.command("diff")
@@ -74,7 +74,7 @@ export function createProg(deps: ProgDeps = {}): Sade {
 		.option("--env", "Target environment (repeat for multiple)")
 		.option("--config", "Config file path (overrides discovery)")
 		.option("--api-key", "Override the BEDROCK_API_KEY environment variable")
-		.option("--github-token", "Override the GITHUB_TOKEN environment variable")
+		.option("--github-token", "Override the BEDROCK_GITHUB_TOKEN environment variable")
 		.action(diffCommand(deps));
 
 	prog.command("migrate [stateFilePath]")

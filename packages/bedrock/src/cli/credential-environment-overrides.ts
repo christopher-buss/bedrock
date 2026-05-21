@@ -2,7 +2,7 @@
 interface CredentialFlags {
 	/** Roblox Open Cloud API key override; translates to BEDROCK_API_KEY when defined. */
 	readonly apiKey?: string;
-	/** GitHub token override; translates to GITHUB_TOKEN when defined. */
+	/** GitHub token override; translates to BEDROCK_GITHUB_TOKEN when defined. */
 	readonly githubToken?: string;
 }
 
@@ -19,7 +19,7 @@ export function buildCredentialOverrides(flags: CredentialFlags): Readonly<Recor
 	}
 
 	if (flags.githubToken !== undefined) {
-		overrides["GITHUB_TOKEN"] = flags.githubToken;
+		overrides["BEDROCK_GITHUB_TOKEN"] = flags.githubToken;
 	}
 
 	return overrides;

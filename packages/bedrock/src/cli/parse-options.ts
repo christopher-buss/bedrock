@@ -13,7 +13,7 @@ export interface CommonOptions {
 	readonly configFile?: string;
 	/** Target environment names. Sade collects `--env` repeatedly into this list. */
 	readonly environments: ReadonlyArray<string>;
-	/** GitHub token override; falls back to GITHUB_TOKEN when undefined. */
+	/** GitHub token override; falls back to BEDROCK_GITHUB_TOKEN when undefined. */
 	readonly githubToken?: string;
 }
 

@@ -152,7 +152,7 @@ See `docs/adr/` for full Architecture Decision Records.
 
 - **TypeScript over Rust**: Community contribution accessibility
 - **Open Cloud only**: ROBLOSECURITY is deprecated, Open Cloud is the future
-- **GitHub Gists for state**: Zero external service, works with GITHUB_TOKEN
+- **GitHub Gists for state**: Zero external service, works with BEDROCK_GITHUB_TOKEN
 - **Multi-format config**: Support TS, JS, YAML, JSON, Luau via c12
 
 ## Common Commands

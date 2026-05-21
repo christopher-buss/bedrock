@@ -53,6 +53,15 @@ function fakeSleep(): FakeSleep {
 	return { calls, sleep };
 }
 
+function fakeRandom(values: ReadonlyArray<number> = [0]): () => number {
+	let index = 0;
+	return () => {
+		const value = values[index] ?? values.at(-1) ?? 0;
+		index += 1;
+		return value;
+	};
+}
+
 function okJson(body: unknown): Response {
 	return new Response(JSON.stringify(body), { status: 200 });
 }
@@ -530,6 +539,7 @@ describe(createGistStateAdapter, () => {
 				const port = createGistStateAdapter({
 					fetch: fetchFn,
 					gistId: GIST_ID,
+					random: fakeRandom(),
 					sleep: sleepFake.sleep,
 					token: TOKEN,
 				});
@@ -538,7 +548,7 @@ describe(createGistStateAdapter, () => {
 
 				expect(result.success).toBeTrue();
 				expect(calls).toHaveLength(2);
-				expect(sleepFake.calls).toStrictEqual([1000]);
+				expect(sleepFake.calls).toStrictEqual([250]);
 			},
 		);
 
@@ -571,6 +581,7 @@ describe(createGistStateAdapter, () => {
 				const port = createGistStateAdapter({
 					fetch: fetchFn,
 					gistId: GIST_ID,
+					random: fakeRandom(),
 					sleep: sleepFake.sleep,
 					token: TOKEN,
 				});
@@ -579,7 +590,7 @@ describe(createGistStateAdapter, () => {
 
 				expect(result.success).toBeTrue();
 				expect(calls).toHaveLength(3);
-				expect(sleepFake.calls).toStrictEqual([1000]);
+				expect(sleepFake.calls).toStrictEqual([250]);
 			},
 		);
 	});
@@ -725,6 +736,7 @@ describe(createGistStateAdapter, () => {
 			const port = createGistStateAdapter({
 				fetch: fetchFn,
 				gistId: GIST_ID,
+				random: fakeRandom(),
 				sleep: sleepFake.sleep,
 				token: TOKEN,
 			});
@@ -737,7 +749,7 @@ describe(createGistStateAdapter, () => {
 
 			expect(result.success).toBeTrue();
 			expect(calls).toHaveLength(3);
-			expect(sleepFake.calls).toStrictEqual([1000]);
+			expect(sleepFake.calls).toStrictEqual([250]);
 		});
 
 		it("should err with the github-returned-409 reason after exhausting the retry budget", async () => {
@@ -748,11 +760,15 @@ describe(createGistStateAdapter, () => {
 				emptyResponse(409),
 				emptyResponse(409),
 				emptyResponse(409),
+				emptyResponse(409),
+				emptyResponse(409),
+				emptyResponse(409),
 			]);
 			const sleepFake = fakeSleep();
 			const port = createGistStateAdapter({
 				fetch: fetchFn,
 				gistId: GIST_ID,
+				random: fakeRandom(),
 				sleep: sleepFake.sleep,
 				token: TOKEN,
 			});
@@ -767,8 +783,41 @@ describe(createGistStateAdapter, () => {
 
 			expect(result.err.reason).toMatch(/github returned 409/u);
 			expect(result.err.file).toBe(`gist:${GIST_ID}/state.production.json`);
-			expect(calls).toHaveLength(4);
-			expect(sleepFake.calls).toStrictEqual([1000, 2000, 4000]);
+			expect(calls).toHaveLength(7);
+			expect(sleepFake.calls).toStrictEqual([250, 500, 1000, 2000, 4000, 8000]);
+		});
+
+		it("should jitter retry backoff via the injected random source", async () => {
+			expect.assertions(2);
+
+			const { fetchFn } = fakeFetchSequence([
+				emptyResponse(409),
+				emptyResponse(409),
+				emptyResponse(409),
+				emptyResponse(409),
+				emptyResponse(409),
+				emptyResponse(409),
+				emptyResponse(409),
+			]);
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				random: fakeRandom([1]),
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			const result = await port.write({
+				environment: "production",
+				resources: [],
+				version: 1,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/github returned 409/u);
+			expect(sleepFake.calls).toStrictEqual([500, 1000, 2000, 4000, 8000, 16_000]);
 		});
 
 		it("should sleep using setTimeout by default when sleep is not injected", async () => {
@@ -855,6 +904,7 @@ describe(createGistStateAdapter, () => {
 				const port = createGistStateAdapter({
 					fetch: fetchFn,
 					gistId: GIST_ID,
+					random: fakeRandom(),
 					sleep: sleepFake.sleep,
 					token: TOKEN,
 				});
@@ -867,7 +917,7 @@ describe(createGistStateAdapter, () => {
 
 				expect(result.success).toBeTrue();
 				expect(calls).toHaveLength(3);
-				expect(sleepFake.calls).toStrictEqual([1000]);
+				expect(sleepFake.calls).toStrictEqual([250]);
 			},
 		);
 

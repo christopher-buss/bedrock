@@ -45,7 +45,7 @@ describe(buildStatePort, () => {
 
 		const result = buildStatePort({
 			fetch: fetchFn,
-			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test" }),
+			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
 			stateConfig: GIST_CONFIG,
 		});
 
@@ -56,24 +56,43 @@ describe(buildStatePort, () => {
 		expect(read.success).toBeTrue();
 	});
 
-	it("should pass the GITHUB_TOKEN value through to the gist adapter as a Bearer token", async () => {
-		expect.assertions(1);
+	it.for([
+		{
+			env: { BEDROCK_GITHUB_TOKEN: "ghp_preferred" },
+			expectedBearer: "Bearer ghp_preferred",
+			label: "BEDROCK_GITHUB_TOKEN",
+		},
+		{
+			env: { GITHUB_TOKEN: "ghp_legacy" },
+			expectedBearer: "Bearer ghp_legacy",
+			label: "GITHUB_TOKEN as fallback",
+		},
+		{
+			env: { BEDROCK_GITHUB_TOKEN: "ghp_preferred", GITHUB_TOKEN: "ghp_legacy" },
+			expectedBearer: "Bearer ghp_preferred",
+			label: "BEDROCK_GITHUB_TOKEN over GITHUB_TOKEN when both are set",
+		},
+	])(
+		"should send the credential resolved from $label as a Bearer token",
+		async ({ env, expectedBearer }) => {
+			expect.assertions(1);
 
-		const { calls, fetchFn } = fakeFetch(emptyFilesResponse);
+			const { calls, fetchFn } = fakeFetch(emptyFilesResponse);
 
-		const result = buildStatePort({
-			fetch: fetchFn,
-			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_secret" }),
-			stateConfig: GIST_CONFIG,
-		});
+			const result = buildStatePort({
+				fetch: fetchFn,
+				getEnv: environmentFrom(env),
+				stateConfig: GIST_CONFIG,
+			});
 
-		assert(result.success);
-		await result.data.read("production");
+			assert(result.success);
+			await result.data.read("production");
 
-		expect(calls[0]!.headers.get("authorization")).toBe("Bearer ghp_secret");
-	});
+			expect(calls[0]!.headers.get("authorization")).toBe(expectedBearer);
+		},
+	);
 
-	it("should return Err(missingCredential) when backend is gist and GITHUB_TOKEN is unset", () => {
+	it("should return Err(missingCredential) naming BEDROCK_GITHUB_TOKEN when no credential env var is set", () => {
 		expect.assertions(3);
 
 		const result = buildStatePort({
@@ -86,7 +105,7 @@ describe(buildStatePort, () => {
 		assert(result.err.kind === "missingCredential");
 
 		expect(result.err.kind).toBe("missingCredential");
-		expect(result.err.variable).toBe("GITHUB_TOKEN");
+		expect(result.err.variable).toBe("BEDROCK_GITHUB_TOKEN");
 		expect(result.err.purpose).toBe("stateBackend");
 	});
 
@@ -95,7 +114,7 @@ describe(buildStatePort, () => {
 
 		const result = buildStatePort({
 			fetch: neverFetch,
-			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test" }),
+			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
 			stateConfig: { backend: "s3" },
 		});
 
@@ -110,7 +129,7 @@ describe(buildStatePort, () => {
 
 		const result = buildStatePort({
 			fetch: neverFetch,
-			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test" }),
+			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
 			stateConfig: { backend: "s3" },
 		});
 
@@ -124,7 +143,7 @@ describe(buildStatePort, () => {
 		expect.assertions(1);
 
 		const result = buildStatePort({
-			getEnv: environmentFrom({ GITHUB_TOKEN: "ghp_test" }),
+			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
 			stateConfig: GIST_CONFIG,
 		});
 

@@ -37,9 +37,9 @@ describe(renderDeployError, () => {
 			err: {
 				kind: "missingCredential",
 				purpose: "stateBackend",
-				variable: "GITHUB_TOKEN",
+				variable: "BEDROCK_GITHUB_TOKEN",
 			},
-			expected: "missing credential: environment variable GITHUB_TOKEN is not set",
+			expected: "missing credential: environment variable BEDROCK_GITHUB_TOKEN is not set",
 		},
 		{
 			err: {
@@ -494,8 +494,12 @@ describe(renderMigrateError, () => {
 describe(renderBuildStatePortError, () => {
 	it.for<{ err: MissingCredentialError | UnsupportedBackendError; expected: string }>([
 		{
-			err: { kind: "missingCredential", purpose: "stateBackend", variable: "GITHUB_TOKEN" },
-			expected: "missing credential: environment variable GITHUB_TOKEN is not set",
+			err: {
+				kind: "missingCredential",
+				purpose: "stateBackend",
+				variable: "BEDROCK_GITHUB_TOKEN",
+			},
+			expected: "missing credential: environment variable BEDROCK_GITHUB_TOKEN is not set",
 		},
 		{
 			err: { backend: "s3", hint: "pass a custom statePort", kind: "unsupportedBackend" },

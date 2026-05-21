@@ -27,7 +27,7 @@ It is a spiritual successor to [Mantle](https://github.com/blake-mealey/mantle)
   your own tooling, or reach for the CLI for day-to-day deploys. See
   [ADR-017](./docs/adr/017-product-framing-programmatic-iac-with-cli.md).
 - **State in a GitHub Gist.** Zero external services to stand up; a
-  `GITHUB_TOKEN` is enough. Extensible to other backends.
+  `BEDROCK_GITHUB_TOKEN` is enough. Extensible to other backends.
 - **Multi-format config.** TypeScript, JavaScript, YAML, JSON, or Luau via c12.
 
 ## Packages

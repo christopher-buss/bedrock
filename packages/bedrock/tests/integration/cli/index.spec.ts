@@ -134,7 +134,7 @@ describe("cli program factory", () => {
 			expect(captured).toContain("Target environment");
 			expect(captured).toContain("Config file path");
 			expect(captured).toContain("BEDROCK_API_KEY");
-			expect(captured).toContain("GITHUB_TOKEN");
+			expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
 		}
 	});
 
@@ -154,7 +154,7 @@ describe("cli program factory", () => {
 			expect(captured).toContain("Target environment");
 			expect(captured).toContain("Config file path");
 			expect(captured).toContain("BEDROCK_API_KEY");
-			expect(captured).toContain("GITHUB_TOKEN");
+			expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
 		}
 	});
 

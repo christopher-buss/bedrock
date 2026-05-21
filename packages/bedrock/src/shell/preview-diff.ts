@@ -35,7 +35,7 @@ import { loadConfig as defaultLoadConfig, type LoadConfigOptions } from "./load-
  * Inputs for `previewDiff`. Mirrors `DeployOptions` minus the apply-side
  * dependencies (`registry`); every field except `environment` is optional
  * and default-constructed from the project config and the environment
- * variables `GITHUB_TOKEN` (gist state backend) when omitted.
+ * variables `BEDROCK_GITHUB_TOKEN` (gist state backend) when omitted.
  */
 export interface PreviewDiffOptions {
 	/** Pre-loaded, optionally-mutated project config. Omit to call `loadConfig()` automatically. */
@@ -50,7 +50,7 @@ export interface PreviewDiffOptions {
 	readonly loadConfig?: (options?: LoadConfigOptions) => Promise<Result<Config, ConfigError>>;
 	/** Reads file bytes for resources that have file-backed inputs. Defaults to `node:fs/promises.readFile`. */
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
-	/** Backend used to read the prior snapshot. Default-constructed from `config.state` and `GITHUB_TOKEN` when omitted. */
+	/** Backend used to read the prior snapshot. Default-constructed from `config.state` and `BEDROCK_GITHUB_TOKEN` when omitted. */
 	readonly statePort?: StatePort;
 }
 
@@ -96,7 +96,7 @@ interface ResolvedDeps {
 /**
  * Compute the operations `deploy` would apply for a target environment
  * without writing state. Default-constructs missing deps from the project
- * config and `GITHUB_TOKEN`; never reads `process.env` when `statePort`
+ * config and `BEDROCK_GITHUB_TOKEN`; never reads `process.env` when `statePort`
  * and `config` are both supplied explicitly.
  *
  * @param options - Target environment plus optional overrides.
