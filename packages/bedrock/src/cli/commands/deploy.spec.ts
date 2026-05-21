@@ -566,7 +566,7 @@ describe(deployCommand, () => {
 	});
 
 	it("should cancel and exit 1 when an override spawn returns a non-zero exit code", async () => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
 		const { spawner } = recordingSpawner({ data: 3, success: true });
@@ -575,6 +575,32 @@ describe(deployCommand, () => {
 
 		await deployCommand(deps)({ env: "production" });
 
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+			"production: override exited with code 3",
+		);
+		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should log a launch failure via clack and exit 1 when the override spawn cannot start", async () => {
+		expect.assertions(3);
+
+		const cause: Error & { code?: string } = Object.assign(new Error("spawn bun ENOENT"), {
+			code: "ENOENT",
+		});
+		const { spawner } = recordingSpawner({
+			err: { cause, kind: "launchFailed" },
+			success: false,
+		});
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const discoverOverride = discoverReturning("/abs/.bedrock/deploy.ts");
+		const deps = makeDeps({ discoverOverride, loadConfig, spawner });
+
+		await deployCommand(deps)({ env: "production" });
+
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+			"production: failed to launch override - spawn bun ENOENT",
+		);
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});

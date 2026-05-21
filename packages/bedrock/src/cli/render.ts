@@ -7,6 +7,7 @@ import type { ApplyError } from "../shell/apply-ops.ts";
 import type { BuildDesiredError } from "../shell/build-desired.ts";
 import type { MissingCredentialError, UnsupportedBackendError } from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
+import type { SpawnOverrideError } from "./dispatch-override.ts";
 import type { ParseMigrateError } from "./parse-migrate-options.ts";
 import type { ParseOptionsError } from "./parse-options.ts";
 
@@ -65,6 +66,14 @@ interface MigrationSummaryRender {
 	readonly summary: MigrationSummary;
 }
 
+/** Inputs for {@link renderOverrideError}. */
+interface OverrideErrorRender {
+	/** Environment whose override spawn produced the error. */
+	readonly environment: string;
+	/** The spawn-override error returned by `dispatchOverride`. */
+	readonly err: SpawnOverrideError;
+}
+
 /**
  * Render a `DeployError` to the supplied `ClackPort`. Most variants emit a
  * single error line; `applyFailed` emits one line per failing op in the
@@ -98,6 +107,19 @@ export function renderDeployError(err: DeployError, port: ClackPort): void {
  */
 export function renderParseError(err: ParseOptionsError, port: ClackPort): void {
 	port.logError(parseErrorMessage(err));
+}
+
+/**
+ * Render a `SpawnOverrideError` to the supplied `ClackPort` as a single
+ * error line that names the environment alongside the failure mode. On
+ * `launchFailed` the child never produced output of its own, so the parent
+ * carries the diagnostic; on `nonZeroExit` the parent's line attributes the
+ * exit code to a specific environment when several spawns are running.
+ * @param input - Environment + spawn-override error to describe.
+ * @param port - The output port the diagnostic is written to.
+ */
+export function renderOverrideError(input: OverrideErrorRender, port: ClackPort): void {
+	port.logError(overrideErrorMessage(input));
 }
 
 /**
@@ -319,6 +341,15 @@ function parseErrorMessage(err: ParseOptionsError): string {
 			return `unknown flag '--${err.flag}'`;
 		}
 	}
+}
+
+function overrideErrorMessage(input: OverrideErrorRender): string {
+	const { environment, err } = input;
+	if (err.kind === "launchFailed") {
+		return `${environment}: failed to launch override - ${err.cause.message}`;
+	}
+
+	return `${environment}: override exited with code ${String(err.exitCode)}`;
 }
 
 function migrateParseErrorMessage(err: ParseMigrateError): string {

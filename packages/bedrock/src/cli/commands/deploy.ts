@@ -17,7 +17,12 @@ import { dispatchOverride } from "../dispatch-override.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps } from "../index.ts";
 import { type CommonOptions, parseCommonOptions } from "../parse-options.ts";
-import { type ClackPort, renderDeployError, renderParseError } from "../render.ts";
+import {
+	type ClackPort,
+	renderDeployError,
+	renderOverrideError,
+	renderParseError,
+} from "../render.ts";
 import type { Spawner } from "../spawner.ts";
 
 interface ResolvedDeploy {
@@ -104,6 +109,7 @@ async function dispatchEnvironments(inputs: DispatchInputs): Promise<ReadonlyArr
 			const invocation = buildOverrideInvocation({ environment, overridePath, parsed });
 			const result = await dispatchOverride(invocation, resolved.spawner);
 			if (!result.success) {
+				renderOverrideError({ environment, err: result.err }, resolved.clack);
 				failed.push(environment);
 			}
 
