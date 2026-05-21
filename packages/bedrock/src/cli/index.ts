@@ -11,8 +11,10 @@ import type { previewDiff as defaultPreviewDiff } from "../shell/preview-diff.ts
 import { deployCommand } from "./commands/deploy.ts";
 import { diffCommand } from "./commands/diff.ts";
 import { migrateCommand } from "./commands/migrate.ts";
+import type { discoverOverride as defaultDiscoverOverride } from "./discover-override.ts";
 import type { MigratePromptPort } from "./migrate-prompt-port.ts";
 import type { ClackPort } from "./render.ts";
+import type { Spawner } from "./spawner.ts";
 
 export { createClackPort } from "./clack-port.ts";
 
@@ -30,6 +32,8 @@ export interface ProgDeps {
 	readonly clack?: ClackPort;
 	/** Reconciles config to upstream state; defaults to the public `deploy`. */
 	readonly deploy?: typeof defaultDeploy;
+	/** Discovers a `.bedrock/<command>.ts` override path; defaults to the real `discoverOverride`. */
+	readonly discoverOverride?: typeof defaultDiscoverOverride;
 	/** Process exit handle; defaults to `process.exit` so tests can intercept termination. The production default never returns; test stubs are free to return void. */
 	readonly exit?: (code: number) => void;
 	/** Project config loader; defaults to the public `loadConfig`. */
@@ -44,6 +48,10 @@ export interface ProgDeps {
 	readonly previewDiff?: typeof defaultPreviewDiff;
 	/** Progress port that receives per-env deploy outcomes; defaults to the clack-backed adapter. */
 	readonly progress?: ProgressPort;
+	/** Project root passed to override discovery; defaults to `process.cwd()`. */
+	readonly projectRoot?: string;
+	/** Child-process spawner used to launch override scripts; defaults to `createDefaultSpawner()`. */
+	readonly spawner?: Spawner;
 	/** File-write seam used by the migrate command to emit the bedrock config file; defaults to `node:fs/promises.writeFile`. */
 	readonly writeFile?: (path: string, contents: string) => Promise<void>;
 }

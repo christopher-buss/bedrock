@@ -11,12 +11,34 @@ import type { ProgressEvent, ProgressPort } from "../../ports/progress-port.ts";
 import type { DeployError } from "../../shell/deploy.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import type { ProgDeps } from "../index.ts";
+import type { Spawner, SpawnInvocation, SpawnLaunchError } from "../spawner.ts";
 import { deployCommand } from "./deploy.ts";
 
 type LoadConfigFunc = NonNullable<ProgDeps["loadConfig"]>;
 type LoadConfigResult = Awaited<ReturnType<LoadConfigFunc>>;
 type DeployFunc = NonNullable<ProgDeps["deploy"]>;
 type ExitFunc = NonNullable<ProgDeps["exit"]>;
+type DiscoverOverrideFunc = NonNullable<ProgDeps["discoverOverride"]>;
+
+interface SpawnerRecorder {
+	readonly invocations: ReadonlyArray<SpawnInvocation>;
+	readonly spawner: Spawner;
+}
+
+function recordingSpawner(result: Result<number, SpawnLaunchError>): SpawnerRecorder {
+	const invocations: Array<SpawnInvocation> = [];
+	const spawner: Spawner = {
+		async spawn(invocation) {
+			invocations.push(invocation);
+			return result;
+		},
+	};
+	return { invocations, spawner };
+}
+
+function discoverReturning(path: string | undefined): DiscoverOverrideFunc {
+	return vi.fn<DiscoverOverrideFunc>(() => path);
+}
 
 function makeDeps(overrides: Partial<ProgDeps> = {}): ProgDeps {
 	return {
@@ -431,5 +453,160 @@ describe(deployCommand, () => {
 		await deployCommand(deps)({ env: "production" });
 
 		expect(clack.logMessage).toHaveBeenCalledWith("State written to gist:abc-test");
+	});
+
+	it("should dispatch the spawner instead of deploy() when an override is discovered", async () => {
+		expect.assertions(3);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = vi.fn<DeployFunc>();
+		const { invocations, spawner } = recordingSpawner({ data: 0, success: true });
+		const discoverOverride = discoverReturning("/abs/.bedrock/deploy.ts");
+		const deps = makeDeps({
+			deploy,
+			discoverOverride,
+			loadConfig,
+			projectRoot: "/project",
+			spawner,
+		});
+
+		await deployCommand(deps)({ env: "production" });
+
+		expect(invocations).toHaveLength(1);
+		expect(deploy).not.toHaveBeenCalled();
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should query discoverOverride with the configured projectRoot and the 'deploy' command name", async () => {
+		expect.assertions(1);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
+		const discoverOverride = discoverReturning(undefined);
+		const deps = makeDeps({
+			deploy,
+			discoverOverride,
+			loadConfig,
+			projectRoot: "/abs/project",
+		});
+
+		await deployCommand(deps)({ env: "production" });
+
+		expect(discoverOverride).toHaveBeenCalledExactlyOnceWith("/abs/project", "deploy");
+	});
+
+	it("should forward the discovered override path and parsed flags into the spawned invocation", async () => {
+		expect.assertions(5);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const { invocations, spawner } = recordingSpawner({ data: 0, success: true });
+		const discoverOverride = discoverReturning("/abs/.bedrock/deploy.ts");
+		const deps = makeDeps({ discoverOverride, loadConfig, projectRoot: "/abs", spawner });
+
+		await deployCommand(deps)({
+			"api-key": "rbx-key",
+			"config": "./bedrock.staging.config.ts",
+			"env": "production",
+			"github-token": "ghp-token",
+		});
+
+		const args = invocations[0]?.args ?? [];
+
+		expect(args[0]).toBe("/abs/.bedrock/deploy.ts");
+		expect(args).toStrictEqual([
+			"/abs/.bedrock/deploy.ts",
+			"--env",
+			"production",
+			"--config",
+			"./bedrock.staging.config.ts",
+		]);
+		expect(invocations[0]?.envOverrides).toMatchObject({
+			BEDROCK_API_KEY: "rbx-key",
+			BEDROCK_CLI: "1",
+			BEDROCK_GITHUB_TOKEN: "ghp-token",
+		});
+		expect(args).not.toContain("rbx-key");
+		expect(args).not.toContain("ghp-token");
+	});
+
+	it("should dispatch the spawner once per --env when multiple environments are requested", async () => {
+		expect.assertions(3);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const { invocations, spawner } = recordingSpawner({ data: 0, success: true });
+		const discoverOverride = discoverReturning("/abs/.bedrock/deploy.ts");
+		const deps = makeDeps({ discoverOverride, loadConfig, projectRoot: "/abs", spawner });
+
+		await deployCommand(deps)({ env: ["production", "staging"] });
+
+		expect(invocations).toHaveLength(2);
+
+		const environmentValues = invocations.map((invocation) => {
+			const { args } = invocation;
+			return args[args.indexOf("--env") + 1];
+		});
+
+		expect(environmentValues).toStrictEqual(["production", "staging"]);
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should fall back to the shell deploy() when discoverOverride returns undefined", async () => {
+		expect.assertions(2);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
+		const { invocations, spawner } = recordingSpawner({ data: 0, success: true });
+		const discoverOverride = discoverReturning(undefined);
+		const deps = makeDeps({ deploy, discoverOverride, loadConfig, spawner });
+
+		await deployCommand(deps)({ env: "production" });
+
+		expect(deploy).toHaveBeenCalledOnce();
+		expect(invocations).toHaveLength(0);
+	});
+
+	it("should cancel and exit 1 when an override spawn returns a non-zero exit code", async () => {
+		expect.assertions(2);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const { spawner } = recordingSpawner({ data: 3, success: true });
+		const discoverOverride = discoverReturning("/abs/.bedrock/deploy.ts");
+		const deps = makeDeps({ discoverOverride, loadConfig, spawner });
+
+		await deployCommand(deps)({ env: "production" });
+
+		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should run every env via spawn even when an earlier env's spawn exits non-zero", async () => {
+		expect.assertions(2);
+
+		const invocations: Array<SpawnInvocation> = [];
+		let callIndex = 0;
+		const results: ReadonlyArray<Result<number, SpawnLaunchError>> = [
+			{ data: 3, success: true },
+			{ data: 0, success: true },
+		];
+		const spawner: Spawner = {
+			async spawn(invocation) {
+				invocations.push(invocation);
+				const next = results[callIndex];
+				callIndex += 1;
+				if (next === undefined) {
+					throw new Error("spawner invoked beyond scripted results");
+				}
+
+				return next;
+			},
+		};
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const discoverOverride = discoverReturning("/abs/.bedrock/deploy.ts");
+		const deps = makeDeps({ discoverOverride, loadConfig, spawner });
+
+		await deployCommand(deps)({ env: ["production", "staging"] });
+
+		expect(invocations).toHaveLength(2);
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 });
