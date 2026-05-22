@@ -21,67 +21,39 @@ describe(buildOverrideInvocation, () => {
 		expect(invocation.overridePath).toBe("/abs/.bedrock/deploy.ts");
 	});
 
-	it("should include apiKey when parsed.apiKey is defined", () => {
-		expect.assertions(1);
-
-		const invocation = buildOverrideInvocation({
-			environment: "production",
-			overridePath: "/abs/.bedrock/deploy.ts",
+	it.for<{ entry: [string, string]; label: string; parsed: CommonOptions }>([
+		{
+			entry: ["apiKey", "rbx-123"],
+			label: "apiKey",
 			parsed: parsedWith({ apiKey: "rbx-123" }),
-		});
-
-		expect(invocation).toContainEntry(["apiKey", "rbx-123"]);
-	});
-
-	it("should omit apiKey when parsed.apiKey is undefined", () => {
-		expect.assertions(1);
-
-		const invocation = buildOverrideInvocation({
-			environment: "production",
-			overridePath: "/abs/.bedrock/deploy.ts",
-			parsed: parsedWith(),
-		});
-
-		expect(invocation).not.toContainKey("apiKey");
-	});
-
-	it("should include configFile when parsed.configFile is defined", () => {
-		expect.assertions(1);
-
-		const invocation = buildOverrideInvocation({
-			environment: "production",
-			overridePath: "/abs/.bedrock/deploy.ts",
+		},
+		{
+			entry: ["configFile", "./bedrock.staging.config.ts"],
+			label: "configFile",
 			parsed: parsedWith({ configFile: "./bedrock.staging.config.ts" }),
-		});
-
-		expect(invocation).toContainEntry(["configFile", "./bedrock.staging.config.ts"]);
-	});
-
-	it("should omit configFile when parsed.configFile is undefined", () => {
-		expect.assertions(1);
-
-		const invocation = buildOverrideInvocation({
-			environment: "production",
-			overridePath: "/abs/.bedrock/deploy.ts",
-			parsed: parsedWith(),
-		});
-
-		expect(invocation).not.toContainKey("configFile");
-	});
-
-	it("should include githubToken when parsed.githubToken is defined", () => {
-		expect.assertions(1);
-
-		const invocation = buildOverrideInvocation({
-			environment: "production",
-			overridePath: "/abs/.bedrock/deploy.ts",
+		},
+		{
+			entry: ["githubToken", "ghp-456"],
+			label: "githubToken",
 			parsed: parsedWith({ githubToken: "ghp-456" }),
+		},
+	])("should include $label when parsed.$label is defined", ({ entry, parsed }) => {
+		expect.assertions(1);
+
+		const invocation = buildOverrideInvocation({
+			environment: "production",
+			overridePath: "/abs/.bedrock/deploy.ts",
+			parsed,
 		});
 
-		expect(invocation).toContainEntry(["githubToken", "ghp-456"]);
+		expect(invocation).toContainEntry(entry);
 	});
 
-	it("should omit githubToken when parsed.githubToken is undefined", () => {
+	it.for<{ key: "apiKey" | "configFile" | "githubToken" }>([
+		{ key: "apiKey" },
+		{ key: "configFile" },
+		{ key: "githubToken" },
+	])("should omit $key when parsed.$key is undefined", ({ key }) => {
 		expect.assertions(1);
 
 		const invocation = buildOverrideInvocation({
@@ -90,6 +62,6 @@ describe(buildOverrideInvocation, () => {
 			parsed: parsedWith(),
 		});
 
-		expect(invocation).not.toContainKey("githubToken");
+		expect(invocation).not.toContainKey(key);
 	});
 });
