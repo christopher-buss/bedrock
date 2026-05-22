@@ -7,10 +7,12 @@ import type { deploy } from "../shell/deploy.ts";
 import type { loadConfig } from "../shell/load-config.ts";
 import type { migrateMantleState } from "../shell/migrate-mantle-state.ts";
 import type { previewDiff } from "../shell/preview-diff.ts";
+import type { discoverOverride } from "./discover-override.ts";
 import type { ProgDeps } from "./index.ts";
 import { createProg } from "./index.ts";
 import type { MigratePromptPort } from "./migrate-prompt-port.ts";
 import type { ClackPort } from "./render.ts";
+import type { Spawner } from "./spawner.ts";
 
 describe("ProgDeps shape", () => {
 	it("should expose exactly the configured injection slots", () => {
@@ -18,6 +20,7 @@ describe("ProgDeps shape", () => {
 			| "buildStatePort"
 			| "clack"
 			| "deploy"
+			| "discoverOverride"
 			| "exit"
 			| "loadConfig"
 			| "migrateMantleState"
@@ -25,6 +28,8 @@ describe("ProgDeps shape", () => {
 			| "mkdir"
 			| "previewDiff"
 			| "progress"
+			| "projectRoot"
+			| "spawner"
 			| "writeFile"
 		>();
 	});
@@ -91,6 +96,22 @@ describe("ProgDeps render slots", () => {
 
 	it("should accept a void-returning exit handle so test stubs can intercept termination", () => {
 		expectTypeOf<NonNullable<ProgDeps["exit"]>>().toEqualTypeOf<(code: number) => void>();
+	});
+});
+
+describe("ProgDeps override slots", () => {
+	it("should accept the discoverOverride signature in the discoverOverride slot", () => {
+		expectTypeOf<NonNullable<ProgDeps["discoverOverride"]>>().toEqualTypeOf<
+			typeof discoverOverride
+		>();
+	});
+
+	it("should accept a string in the projectRoot slot", () => {
+		expectTypeOf<NonNullable<ProgDeps["projectRoot"]>>().toEqualTypeOf<string>();
+	});
+
+	it("should accept the Spawner interface in the spawner slot", () => {
+		expectTypeOf<NonNullable<ProgDeps["spawner"]>>().toEqualTypeOf<Spawner>();
 	});
 });
 

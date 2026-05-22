@@ -7,6 +7,7 @@ import type { MigrateError } from "../core/migrate/migration-report.ts";
 import type { MissingCredentialError, UnsupportedBackendError } from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
 import { asResourceKey } from "../types/ids.ts";
+import type { SpawnOverrideError } from "./dispatch-override.ts";
 import type { ParseMigrateError } from "./parse-migrate-options.ts";
 import type { ParseOptionsError } from "./parse-options.ts";
 import {
@@ -15,6 +16,8 @@ import {
 	renderMigrateError,
 	renderMigrateParseError,
 	renderMigrationSummary,
+	renderOverrideDiscoveryError,
+	renderOverrideError,
 	renderParseError,
 	renderStateWriteError,
 } from "./render.ts";
@@ -405,6 +408,54 @@ describe(renderParseError, () => {
 		renderParseError(err, port);
 
 		expect(port.logError).toHaveBeenCalledExactlyOnceWith(expected);
+	});
+});
+
+describe(renderOverrideError, () => {
+	it("should render a launchFailed cause as a single environment-tagged error line", () => {
+		expect.assertions(1);
+
+		const port = fakeClackPort();
+		const cause: Error & { code?: string } = Object.assign(new Error("spawn bun ENOENT"), {
+			code: "ENOENT",
+		});
+		const err: SpawnOverrideError = { cause, kind: "launchFailed" };
+
+		renderOverrideError({ environment: "production", err }, port);
+
+		expect(port.logError).toHaveBeenCalledExactlyOnceWith(
+			"production: failed to launch override - spawn bun ENOENT",
+		);
+	});
+
+	it("should render a nonZeroExit code as a single environment-tagged error line", () => {
+		expect.assertions(1);
+
+		const port = fakeClackPort();
+		const err: SpawnOverrideError = { exitCode: 3, kind: "nonZeroExit" };
+
+		renderOverrideError({ environment: "staging", err }, port);
+
+		expect(port.logError).toHaveBeenCalledExactlyOnceWith(
+			"staging: override exited with code 3",
+		);
+	});
+});
+
+describe(renderOverrideDiscoveryError, () => {
+	it("should render the thrown cause message as a single error line", () => {
+		expect.assertions(1);
+
+		const port = fakeClackPort();
+
+		renderOverrideDiscoveryError(
+			new Error("EACCES: permission denied, stat '/project/.bedrock/deploy.ts'"),
+			port,
+		);
+
+		expect(port.logError).toHaveBeenCalledExactlyOnceWith(
+			"override discovery failed: EACCES: permission denied, stat '/project/.bedrock/deploy.ts'",
+		);
 	});
 });
 

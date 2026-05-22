@@ -8,34 +8,54 @@ import {
 	loadConfig as defaultLoadConfig,
 	type LoadConfigOptions,
 } from "../../shell/load-config.ts";
+import { buildOverrideInvocation } from "../build-override-invocation.ts";
 import { createClackPort } from "../clack-port.ts";
 import { buildCredentialOverrides } from "../credential-environment-overrides.ts";
+import { createDefaultSpawner } from "../default-spawner.ts";
+import { discoverOverride as defaultDiscoverOverride } from "../discover-override.ts";
+import { dispatchOverride } from "../dispatch-override.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps } from "../index.ts";
 import { type CommonOptions, parseCommonOptions } from "../parse-options.ts";
-import { type ClackPort, renderDeployError, renderParseError } from "../render.ts";
+import {
+	type ClackPort,
+	renderDeployError,
+	renderOverrideDiscoveryError,
+	renderOverrideError,
+	renderParseError,
+} from "../render.ts";
+import type { Spawner } from "../spawner.ts";
 
 interface ResolvedDeploy {
 	readonly clack: ClackPort;
 	readonly deploy: typeof defaultDeploy;
+	readonly discoverOverride: typeof defaultDiscoverOverride;
 	readonly exit: (code: number) => void;
 	readonly loadConfig: typeof defaultLoadConfig;
 	readonly progressOverride: ProgressPort | undefined;
+	readonly projectRoot: string;
+	readonly spawner: Spawner;
 }
 
 interface DispatchInputs {
 	readonly config: Config;
-	readonly environments: ReadonlyArray<string>;
 	readonly getEnv: (name: string) => string | undefined;
+	readonly overridePath: string | undefined;
+	readonly parsed: CommonOptions;
 	readonly progress: ProgressPort;
 	readonly resolved: ResolvedDeploy;
 }
 
 interface DispatchAndReportInput {
 	readonly loaded: Config;
+	readonly overridePath: string | undefined;
 	readonly parsed: CommonOptions;
 	readonly resolved: ResolvedDeploy;
 }
+
+type OverrideDiscovery =
+	| { readonly kind: "discovered"; readonly overridePath: string | undefined }
+	| { readonly kind: "failed" };
 
 /**
  * Build the sade action for `bedrock deploy`. The returned function consumes
@@ -44,6 +64,14 @@ interface DispatchAndReportInput {
  * `deploy()` for each `--env` value in order. Per-env successes and failures
  * render through clack as a single line each; the aggregated exit code is
  * `EXIT_OK` only when every env succeeded.
+ *
+ * When a `.bedrock/deploy.ts` override is discovered under the resolved
+ * project root, each `--env` is handed to the spawner via
+ * {@link dispatchOverride} instead of the in-process `deploy()` call. The
+ * aggregation rule is identical: every env still runs and the exit code is
+ * `EXIT_OK` only when every spawn returned a zero exit code. Unlike the
+ * in-process path, only failures emit a per-env line here; a successful
+ * spawn's output comes from the override script's own inherited stdout.
  * @param deps - Dependency overrides; missing slots are default-constructed
  *   from real implementations.
  * @returns An async sade action that returns once `deps.exit` was invoked.
@@ -63,9 +91,12 @@ function resolveDeploy(deps: ProgDeps): ResolvedDeploy {
 	return {
 		clack,
 		deploy: deps.deploy ?? defaultDeploy,
+		discoverOverride: deps.discoverOverride ?? defaultDiscoverOverride,
 		exit: deps.exit ?? ((code: number) => process.exit(code)),
 		loadConfig: deps.loadConfig ?? defaultLoadConfig,
 		progressOverride: deps.progress,
+		projectRoot: deps.projectRoot ?? process.cwd(),
+		spawner: deps.spawner ?? createDefaultSpawner(),
 	};
 }
 
@@ -78,9 +109,20 @@ function cancelAsFailed(clack: ClackPort): void {
 }
 
 async function dispatchEnvironments(inputs: DispatchInputs): Promise<ReadonlyArray<string>> {
-	const { config, environments, getEnv, progress, resolved } = inputs;
+	const { config, getEnv, overridePath, parsed, progress, resolved } = inputs;
 	const failed: Array<string> = [];
-	for (const environment of environments) {
+	for (const environment of parsed.environments) {
+		if (overridePath !== undefined) {
+			const invocation = buildOverrideInvocation({ environment, overridePath, parsed });
+			const result = await dispatchOverride(invocation, resolved.spawner);
+			if (!result.success) {
+				renderOverrideError({ environment, err: result.err }, resolved.clack);
+				failed.push(environment);
+			}
+
+			continue;
+		}
+
 		const result = await resolved.deploy({
 			config,
 			environment,
@@ -101,15 +143,16 @@ function buildGetEnvironment(parsed: CommonOptions): (name: string) => string | 
 }
 
 async function dispatchAndReport(input: DispatchAndReportInput): Promise<number> {
-	const { loaded, parsed, resolved } = input;
+	const { loaded, overridePath, parsed, resolved } = input;
 	const progress: ProgressPort =
 		resolved.progressOverride ??
 		createClackProgressAdapter({ clack: resolved.clack, config: loaded });
 
 	const failures = await dispatchEnvironments({
 		config: loaded,
-		environments: parsed.environments,
 		getEnv: buildGetEnvironment(parsed),
+		overridePath,
+		parsed,
 		progress,
 		resolved,
 	});
@@ -120,6 +163,19 @@ async function dispatchAndReport(input: DispatchAndReportInput): Promise<number>
 
 	resolved.clack.outro("deploy succeeded");
 	return EXIT_OK;
+}
+
+function discoverOverridePath(resolved: ResolvedDeploy): OverrideDiscovery {
+	try {
+		return {
+			kind: "discovered",
+			overridePath: resolved.discoverOverride(resolved.projectRoot, "deploy"),
+		};
+	} catch (err) {
+		renderOverrideDiscoveryError(err, resolved.clack);
+		cancelAsFailed(resolved.clack);
+		return { kind: "failed" };
+	}
 }
 
 async function runDeploy(
@@ -142,5 +198,15 @@ async function runDeploy(
 		return EXIT_ERROR;
 	}
 
-	return dispatchAndReport({ loaded: loaded.data, parsed: parsed.data, resolved });
+	const discovery = discoverOverridePath(resolved);
+	if (discovery.kind === "failed") {
+		return EXIT_ERROR;
+	}
+
+	return dispatchAndReport({
+		loaded: loaded.data,
+		overridePath: discovery.overridePath,
+		parsed: parsed.data,
+		resolved,
+	});
 }
