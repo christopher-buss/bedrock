@@ -496,7 +496,7 @@ describe(deployCommand, () => {
 	});
 
 	it("should forward the discovered override path and parsed flags into the spawned invocation", async () => {
-		expect.assertions(5);
+		expect.assertions(4);
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
 		const { invocations, spawner } = recordingSpawner({ data: 0, success: true });
@@ -512,7 +512,6 @@ describe(deployCommand, () => {
 
 		const args = invocations[0]?.args ?? [];
 
-		expect(args[0]).toBe("/abs/.bedrock/deploy.ts");
 		expect(args).toStrictEqual([
 			"/abs/.bedrock/deploy.ts",
 			"--env",
@@ -633,6 +632,25 @@ describe(deployCommand, () => {
 		await deployCommand(deps)({ env: ["production", "staging"] });
 
 		expect(invocations).toHaveLength(2);
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should render an error and exit 1 when discoverOverride throws", async () => {
+		expect.assertions(3);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = vi.fn<DeployFunc>();
+		const discoverOverride = vi.fn<DiscoverOverrideFunc>(() => {
+			throw new Error("EACCES: permission denied, stat '/project/.bedrock/deploy.ts'");
+		});
+		const deps = makeDeps({ deploy, discoverOverride, loadConfig, projectRoot: "/project" });
+
+		await deployCommand(deps)({ env: "production" });
+
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+			"override discovery failed: EACCES: permission denied, stat '/project/.bedrock/deploy.ts'",
+		);
+		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 });

@@ -20,6 +20,7 @@ import { type CommonOptions, parseCommonOptions } from "../parse-options.ts";
 import {
 	type ClackPort,
 	renderDeployError,
+	renderOverrideDiscoveryError,
 	renderOverrideError,
 	renderParseError,
 } from "../render.ts";
@@ -52,6 +53,10 @@ interface DispatchAndReportInput {
 	readonly resolved: ResolvedDeploy;
 }
 
+type OverrideDiscovery =
+	| { readonly kind: "discovered"; readonly overridePath: string | undefined }
+	| { readonly kind: "failed" };
+
 /**
  * Build the sade action for `bedrock deploy`. The returned function consumes
  * the raw options object sade hands the action callback, parses it via
@@ -63,8 +68,10 @@ interface DispatchAndReportInput {
  * When a `.bedrock/deploy.ts` override is discovered under the resolved
  * project root, each `--env` is handed to the spawner via
  * {@link dispatchOverride} instead of the in-process `deploy()` call. The
- * aggregation rule is identical: every env still runs, and the exit code
- * is `EXIT_OK` only when every spawn returned a zero exit code.
+ * aggregation rule is identical: every env still runs and the exit code is
+ * `EXIT_OK` only when every spawn returned a zero exit code. Unlike the
+ * in-process path, only failures emit a per-env line here; a successful
+ * spawn's output comes from the override script's own inherited stdout.
  * @param deps - Dependency overrides; missing slots are default-constructed
  *   from real implementations.
  * @returns An async sade action that returns once `deps.exit` was invoked.
@@ -158,6 +165,19 @@ async function dispatchAndReport(input: DispatchAndReportInput): Promise<number>
 	return EXIT_OK;
 }
 
+function discoverOverridePath(resolved: ResolvedDeploy): OverrideDiscovery {
+	try {
+		return {
+			kind: "discovered",
+			overridePath: resolved.discoverOverride(resolved.projectRoot, "deploy"),
+		};
+	} catch (err) {
+		renderOverrideDiscoveryError(err, resolved.clack);
+		cancelAsFailed(resolved.clack);
+		return { kind: "failed" };
+	}
+}
+
 async function runDeploy(
 	rawOptions: Record<string, unknown>,
 	resolved: ResolvedDeploy,
@@ -178,11 +198,14 @@ async function runDeploy(
 		return EXIT_ERROR;
 	}
 
-	const overridePath = resolved.discoverOverride(resolved.projectRoot, "deploy");
+	const discovery = discoverOverridePath(resolved);
+	if (discovery.kind === "failed") {
+		return EXIT_ERROR;
+	}
 
 	return dispatchAndReport({
 		loaded: loaded.data,
-		overridePath,
+		overridePath: discovery.overridePath,
 		parsed: parsed.data,
 		resolved,
 	});

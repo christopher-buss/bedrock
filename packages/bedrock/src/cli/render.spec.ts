@@ -16,6 +16,7 @@ import {
 	renderMigrateError,
 	renderMigrateParseError,
 	renderMigrationSummary,
+	renderOverrideDiscoveryError,
 	renderOverrideError,
 	renderParseError,
 	renderStateWriteError,
@@ -437,6 +438,23 @@ describe(renderOverrideError, () => {
 
 		expect(port.logError).toHaveBeenCalledExactlyOnceWith(
 			"staging: override exited with code 3",
+		);
+	});
+});
+
+describe(renderOverrideDiscoveryError, () => {
+	it("should render the thrown cause message as a single error line", () => {
+		expect.assertions(1);
+
+		const port = fakeClackPort();
+
+		renderOverrideDiscoveryError(
+			new Error("EACCES: permission denied, stat '/project/.bedrock/deploy.ts'"),
+			port,
+		);
+
+		expect(port.logError).toHaveBeenCalledExactlyOnceWith(
+			"override discovery failed: EACCES: permission denied, stat '/project/.bedrock/deploy.ts'",
 		);
 	});
 });

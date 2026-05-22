@@ -123,6 +123,19 @@ export function renderOverrideError(input: OverrideErrorRender, port: ClackPort)
 }
 
 /**
+ * Render the failure surfaced when override discovery throws a non-absence
+ * filesystem error (for example `EACCES` on a `.bedrock/<command>.ts` that
+ * exists but cannot be read). Discovery refuses to fall through to the
+ * built-in path in that case, so the CLI reports the cause and exits rather
+ * than crashing on the unhandled throw.
+ * @param error - The value thrown during override discovery.
+ * @param port - The output port the diagnostic is written to.
+ */
+export function renderOverrideDiscoveryError(error: unknown, port: ClackPort): void {
+	port.logError(`override discovery failed: ${safeStringify(error)}`);
+}
+
+/**
  * Render a `ParseMigrateError` to the supplied `ClackPort`. Reuses
  * `parseErrorMessage` for the three flag-shape variants and adds a
  * dedicated message for `unknownSource` listing the supported sources.
