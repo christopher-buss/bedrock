@@ -17,4 +17,5 @@ writeFileSync(
 );
 
 process.stdout.write("bedrock override deploy ran\n");
-process.exit(0);
+// No explicit process.exit: a synchronous exit can truncate the piped stdout
+// write above. Node exits 0 once the event loop drains and the write flushes.
