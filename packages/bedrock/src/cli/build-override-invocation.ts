@@ -6,7 +6,7 @@ import type { CommonOptions } from "./parse-options.ts";
  * once an override file has been discovered: the parsed deploy flags, the
  * absolute override path, and the environment a single invocation targets.
  */
-export interface BuildOverrideInvocationInputs {
+interface BuildOverrideInvocationInputs {
 	/** Target environment for the single invocation being built. */
 	readonly environment: string;
 	/** Absolute path to the override script to invoke. */
