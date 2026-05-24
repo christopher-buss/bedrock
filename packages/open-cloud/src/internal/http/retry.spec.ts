@@ -1,3 +1,4 @@
+import { CodedError } from "#tests/helpers/coded-error";
 import { makeRetryConfig } from "#tests/helpers/retry-config";
 import { describe, expect, it, vi } from "vitest";
 
@@ -128,7 +129,7 @@ describe(shouldRetry, () => {
 	it("should mark network errors as retryable when their transport code is allowed", () => {
 		expect.assertions(1);
 
-		const reset = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
+		const reset = new CodedError("read ECONNRESET", "ECONNRESET");
 		const error = new NetworkError("Network request failed", { cause: reset });
 
 		expect(
@@ -139,7 +140,7 @@ describe(shouldRetry, () => {
 	it("should not mark network errors as retryable when their transport code is excluded", () => {
 		expect.assertions(1);
 
-		const reset = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
+		const reset = new CodedError("read ECONNRESET", "ECONNRESET");
 		const error = new NetworkError("Network request failed", { cause: reset });
 
 		expect(
@@ -153,7 +154,7 @@ describe(shouldRetry, () => {
 	it("should not mark a non-network error carrying a transport code as retryable", () => {
 		expect.assertions(1);
 
-		const error = Object.assign(new Error("not a NetworkError"), { code: "ECONNRESET" });
+		const error = new CodedError("not a NetworkError", "ECONNRESET");
 
 		expect(
 			shouldRetry(error, { retryableStatuses: [], retryableTransportCodes: ["ECONNRESET"] }),

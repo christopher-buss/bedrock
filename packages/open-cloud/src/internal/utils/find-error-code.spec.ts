@@ -1,3 +1,4 @@
+import { CodedError } from "#tests/helpers/coded-error";
 import { describe, expect, it } from "vitest";
 
 import { findErrorCode } from "./find-error-code.ts";
@@ -6,7 +7,7 @@ describe(findErrorCode, () => {
 	it("should find a node-style code on the error itself", () => {
 		expect.assertions(1);
 
-		const error = Object.assign(new Error("boom"), { code: "ECONNRESET" });
+		const error = new CodedError("boom", "ECONNRESET");
 
 		expect(findErrorCode(error)).toBe("ECONNRESET");
 	});
@@ -14,7 +15,7 @@ describe(findErrorCode, () => {
 	it("should walk the cause chain to find a deeper code", () => {
 		expect.assertions(1);
 
-		const root = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
+		const root = new CodedError("read ECONNRESET", "ECONNRESET");
 		const middle = new TypeError("fetch failed", { cause: root });
 		const outer = new Error("Network request failed", { cause: middle });
 
@@ -34,8 +35,8 @@ describe(findErrorCode, () => {
 	it("should ignore a non-string code and keep walking", () => {
 		expect.assertions(1);
 
-		const root = Object.assign(new Error("inner"), { code: "ETIMEDOUT" });
-		const outer = Object.assign(new Error("outer"), { cause: root, code: 42 });
+		const root = new CodedError("inner", "ETIMEDOUT");
+		const outer = new CodedError("outer", 42, { cause: root });
 
 		expect(findErrorCode(outer)).toBe("ETIMEDOUT");
 	});
@@ -60,7 +61,7 @@ describe(findErrorCode, () => {
 
 		// Code lives five links deep; the walk checks shallower links only and
 		// must not reach it.
-		let chain: Error = Object.assign(new Error("deep"), { code: "ECONNRESET" });
+		let chain: Error = new CodedError("deep", "ECONNRESET");
 		for (let index = 0; index < 5; index += 1) {
 			chain = new Error(`wrap ${String(index)}`, { cause: chain });
 		}
