@@ -630,11 +630,14 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.message).toBe("HTTP 418 (code ALONE)");
 	});
 
-	it("should return ApiError when response body is not valid JSON", async () => {
-		expect.assertions(2);
+	it("should enrich the error when a 2xx body is not valid JSON", async () => {
+		expect.assertions(4);
 
 		async function fakeFetch(): Promise<Response> {
-			return new Response("not json", { status: 200 });
+			return new Response("not json", {
+				headers: { "content-type": "application/json" },
+				status: 200,
+			});
 		}
 
 		const client = createFetchHttpClient(fakeFetch);
@@ -646,8 +649,100 @@ describe(createFetchHttpClient, () => {
 		assert(!result.success);
 		assert(result.err instanceof ApiError);
 
-		expect(result.err.message).toBe("Failed to parse response body");
 		expect(result.err.statusCode).toBe(200);
+		expect(result.err.message).toBe(
+			"Failed to parse response body (content-type: application/json)",
+		);
+		expect(result.err.details).toBe("not json");
+		expect(result.err.cause).toBeInstanceOf(SyntaxError);
+	});
+
+	it("should label content-type unknown when a 2xx parse failure has no content-type", async () => {
+		expect.assertions(1);
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response(new TextEncoder().encode("not json"), { status: 200 });
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
+		expect(result.err.message).toBe("Failed to parse response body (content-type: unknown)");
+	});
+
+	it("should truncate the raw body retained on a 2xx parse failure", async () => {
+		expect.assertions(1);
+
+		const rawBody = "x".repeat(1000);
+		async function fakeFetch(): Promise<Response> {
+			return new Response(rawBody, {
+				headers: { "content-type": "application/json" },
+				status: 200,
+			});
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
+		expect(result.err.details).toBe("x".repeat(500));
+	});
+
+	it("should classify a non-2xx response with a non-JSON body by its status", async () => {
+		expect.assertions(4);
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response("<html>502 Bad Gateway</html>", {
+				headers: { "content-type": "text/html" },
+				status: 502,
+			});
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
+		expect(result.err.statusCode).toBe(502);
+		expect(result.err.message).toBe("HTTP 502");
+		expect(result.err.code).toBeUndefined();
+		expect(result.err.details).toBe("<html>502 Bad Gateway</html>");
+	});
+
+	it("should truncate the raw body retained on a non-JSON error response", async () => {
+		expect.assertions(2);
+
+		const rawBody = "x".repeat(1000);
+		async function fakeFetch(): Promise<Response> {
+			return new Response(rawBody, { status: 503 });
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
+		expect(result.err.details).toBe("x".repeat(500));
+		expect(result.err.statusCode).toBe(503);
 	});
 
 	it.for([{ status: 204 }, { status: 200 }])(
