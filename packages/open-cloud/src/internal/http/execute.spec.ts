@@ -4,6 +4,7 @@ import { makeRetryConfig } from "#tests/helpers/retry-config";
 import { assert, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "../../errors/api-error.ts";
+import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
 import { executeWithRetry } from "./execute.ts";
 import { defaultRetryDelay, IDEMPOTENT_METHOD_DEFAULTS } from "./retry.ts";
@@ -103,6 +104,63 @@ describe(executeWithRetry, () => {
 		expect(fakeSend.requests).toHaveLength(2);
 		expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, serverError);
 		expect(fakeSleep.waits).toHaveLength(1);
+	});
+
+	it("should retry a transient transport error for idempotent methods", async () => {
+		expect.assertions(3);
+
+		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
+		const hooks: OpenCloudHooks = { onRetry };
+		const reset = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
+		const networkError = new NetworkError("Network request failed", { cause: reset });
+		const fakeSend = createFakeSend({
+			responses: [
+				{ err: networkError, success: false },
+				{ data: okResponse({ id: "ok" }), success: true },
+			],
+		});
+		const fakeSleep = createFakeSleep();
+
+		const result = await executeWithRetry(request, {
+			config: makeRetryConfig({
+				retryableTransportCodes: IDEMPOTENT_METHOD_DEFAULTS.retryableTransportCodes,
+			}),
+			hooks,
+			send: fakeSend.send,
+			sleep: fakeSleep,
+		});
+
+		assert(result.success);
+
+		expect(result.data.body).toStrictEqual({ id: "ok" });
+		expect(fakeSend.requests).toHaveLength(2);
+		expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, networkError);
+	});
+
+	it("should not retry a transient transport error when no transport code is allowed", async () => {
+		expect.assertions(3);
+
+		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
+		const hooks: OpenCloudHooks = { onRetry };
+		const reset = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
+		const networkError = new NetworkError("Network request failed", { cause: reset });
+		const fakeSend = createFakeSend({
+			responses: [{ err: networkError, success: false }],
+		});
+		const fakeSleep = createFakeSleep();
+
+		const result = await executeWithRetry(request, {
+			config: makeRetryConfig({ retryableTransportCodes: [] }),
+			hooks,
+			send: fakeSend.send,
+			sleep: fakeSleep,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBe(networkError);
+		expect(fakeSend.requests).toHaveLength(1);
+		expect(onRetry).not.toHaveBeenCalled();
 	});
 
 	it("should not retry a non-retryable 4xx response", async () => {

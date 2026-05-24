@@ -329,6 +329,7 @@ describe("RequestOptions", () => {
 					| "baseUrl"
 					| "maxRetries"
 					| "retryableStatuses"
+					| "retryableTransportCodes"
 					| "retryDelay"
 					| "timeout"
 				>

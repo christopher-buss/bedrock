@@ -1,5 +1,7 @@
 import { ApiError } from "../../errors/api-error.ts";
+import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
+import { findErrorCode } from "../utils/find-error-code.ts";
 
 /**
  * Fully-resolved retry config shape that {@link mergeConfig} and
@@ -18,6 +20,13 @@ export interface RetryResolvable {
 	readonly maxRetries: number;
 	/** Status codes that are eligible for retry. */
 	readonly retryableStatuses: ReadonlyArray<number>;
+	/**
+	 * Node-style transport error codes ({@link findErrorCode}) eligible for
+	 * retry when surfaced as a {@link NetworkError}. Empty for create
+	 * operations by default; consumers opt a create in via a per-request
+	 * override.
+	 */
+	readonly retryableTransportCodes: ReadonlyArray<string>;
 	/** Fallback delay function when no server hint is available. */
 	readonly retryDelay: (attempt: number) => number;
 	/** Per-request timeout in milliseconds. */
@@ -25,23 +34,47 @@ export interface RetryResolvable {
 }
 
 /**
- * Default retry status codes for idempotent operations (read, list, update,
- * delete). Safe to retry on both rate limits and transient server errors.
+ * Transient transport error codes that are safe to retry for idempotent
+ * operations. Connection resets, timeouts, and DNS hiccups are recoverable on
+ * a retry; a self-aborted request timeout carries no `code` and so is excluded
+ * by construction.
  */
-export const IDEMPOTENT_METHOD_DEFAULTS: Readonly<Pick<RetryResolvable, "retryableStatuses">> =
-	Object.freeze({
-		retryableStatuses: Object.freeze([429, 500, 502, 503, 504] as const),
-	});
+export const TRANSIENT_TRANSPORT_CODES: ReadonlyArray<string> = Object.freeze([
+	"ECONNRESET",
+	"ECONNREFUSED",
+	"ETIMEDOUT",
+	"EPIPE",
+	"ENETUNREACH",
+	"EHOSTDOWN",
+	"EAI_AGAIN",
+	"UND_ERR_SOCKET",
+]);
+
+/** Method-level retry defaults, keyed by {@link MethodKind}. */
+type MethodDefaults = Readonly<
+	Pick<RetryResolvable, "retryableStatuses" | "retryableTransportCodes">
+>;
 
 /**
- * Default retry status codes for create operations. Retries rate limits only,
- * to prevent duplicate resources on 5xx (Roblox Open Cloud has no
- * idempotency-key support).
+ * Default retry policy for idempotent operations (read, list, update,
+ * delete). Safe to retry on rate limits, transient server errors, and
+ * transient transport failures.
  */
-export const CREATE_METHOD_DEFAULTS: Readonly<Pick<RetryResolvable, "retryableStatuses">> =
-	Object.freeze({
-		retryableStatuses: Object.freeze([429] as const),
-	});
+export const IDEMPOTENT_METHOD_DEFAULTS: MethodDefaults = Object.freeze({
+	retryableStatuses: Object.freeze([429, 500, 502, 503, 504] as const),
+	retryableTransportCodes: TRANSIENT_TRANSPORT_CODES,
+});
+
+/**
+ * Default retry policy for create operations. Retries rate limits only — no
+ * 5xx and no transport-error retries — to prevent duplicate resources, since
+ * Roblox Open Cloud has no idempotency-key support. Consumers who can tolerate
+ * a duplicate opt in per request.
+ */
+export const CREATE_METHOD_DEFAULTS: MethodDefaults = Object.freeze({
+	retryableStatuses: Object.freeze([429] as const),
+	retryableTransportCodes: Object.freeze([] as const),
+});
 
 /** Kind of HTTP method the merge is being performed for. */
 export type MethodKind = "create" | "idempotent";
@@ -126,7 +159,7 @@ export function defaultRetryDelay(attempt: number): number {
  * @returns Wait duration in milliseconds before the next attempt.
  */
 export function computeRetryWaitMs(
-	error: ApiError | RateLimitError,
+	error: ApiError | NetworkError | RateLimitError,
 	options: ComputeRetryWaitMsOptions,
 ): number {
 	if (error instanceof RateLimitError && error.retryAfterSeconds > 0) {
@@ -137,10 +170,12 @@ export function computeRetryWaitMs(
 }
 
 /**
- * Decides whether a failed request is eligible for retry under the given
- * `retryableStatuses`. Only {@link RateLimitError} (checked against 429) and
- * {@link ApiError} (checked against its `statusCode`) are retryable — network
- * errors and other failures always return `false`.
+ * Decides whether a failed request is eligible for retry. {@link RateLimitError}
+ * (checked against 429) and {@link ApiError} (checked against its `statusCode`)
+ * are retryable when their status is in `retryableStatuses`. A
+ * {@link NetworkError} is retryable when its transport code
+ * ({@link findErrorCode}) is in `retryableTransportCodes` — this is how
+ * transient connection resets recover. All other failures return `false`.
  *
  * @example
  *
@@ -150,18 +185,7 @@ export function computeRetryWaitMs(
  *
  * const error = new RateLimitError("", { retryAfterSeconds: 1 });
  *
- * expect(shouldRetry(error, { retryableStatuses: [429] })).toBe(true);
- * ```
- *
- * @example
- *
- * ```ts
- * import { ApiError } from "../../errors/api-error.ts";
- * import { shouldRetry } from "./retry";
- *
- * const error = new ApiError("", { statusCode: 503 });
- *
- * expect(shouldRetry(error, { retryableStatuses: [429, 500, 502, 503, 504] })).toBe(
+ * expect(shouldRetry(error, { retryableStatuses: [429], retryableTransportCodes: [] })).toBe(
  *     true,
  * );
  * ```
@@ -172,25 +196,36 @@ export function computeRetryWaitMs(
  * import { NetworkError } from "../../errors/network-error.ts";
  * import { shouldRetry } from "./retry";
  *
- * const error = new NetworkError("offline");
+ * const reset = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
+ * const error = new NetworkError("Network request failed", { cause: reset });
  *
- * expect(shouldRetry(error, { retryableStatuses: [429] })).toBe(false);
+ * expect(
+ *     shouldRetry(error, { retryableStatuses: [], retryableTransportCodes: ["ECONNRESET"] }),
+ * ).toBe(true);
  * ```
  *
  * @param error - The error returned by the failing request.
- * @param config - Object carrying the retry-eligible status list.
+ * @param config - Object carrying the retry-eligible status and transport-code lists.
  * @returns `true` if the error should be retried, `false` otherwise.
  */
 export function shouldRetry(
 	error: unknown,
-	config: { readonly retryableStatuses: ReadonlyArray<number> },
-): error is ApiError | RateLimitError {
+	config: {
+		readonly retryableStatuses: ReadonlyArray<number>;
+		readonly retryableTransportCodes: ReadonlyArray<string>;
+	},
+): error is ApiError | NetworkError | RateLimitError {
 	if (error instanceof RateLimitError) {
 		return config.retryableStatuses.includes(429);
 	}
 
 	if (error instanceof ApiError) {
 		return config.retryableStatuses.includes(error.statusCode);
+	}
+
+	if (error instanceof NetworkError) {
+		const code = findErrorCode(error);
+		return code !== undefined && config.retryableTransportCodes.includes(code);
 	}
 
 	return false;
@@ -227,6 +262,7 @@ export function shouldRetry(
  *     baseUrl: "https://apis.roblox.com",
  *     maxRetries: 3,
  *     retryableStatuses: [429, 500],
+ *     retryableTransportCodes: [],
  *     retryDelay: defaultRetryDelay,
  *     timeout: 30_000,
  * };
@@ -254,6 +290,7 @@ export function shouldRetry(
  *     baseUrl: "https://apis.roblox.com",
  *     maxRetries: 3,
  *     retryableStatuses: [429],
+ *     retryableTransportCodes: [],
  *     retryDelay: defaultRetryDelay,
  *     timeout: 30_000,
  * };
