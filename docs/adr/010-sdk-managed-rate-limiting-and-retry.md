@@ -273,3 +273,64 @@ implementation.
 - [Roblox Open Cloud Common Patterns](https://create.roblox.com/docs/cloud/reference/patterns)
 - [Roblox Cloud Rate Limits](https://github.com/Roblox/creator-docs/blob/main/content/en-us/cloud/reference/rate-limits.md)
 - [Open Cloud Package Design Plan](../plans/2025-12-13-open-cloud-package-design.md)
+
+## Amendment: 2026-05-24, retry transient transport errors
+
+The original Decision only retries `RateLimitError` (429) and `ApiError`
+(5xx, by operation kind). `NetworkError` — the transport class wrapping
+`ECONNRESET`, `ETIMEDOUT`, DNS failures, and similar — was never retried,
+because it carries no HTTP status for `shouldRetry` to match against. A
+transport failure therefore terminated the request on the first occurrence.
+
+This bit a long-running `--workspace` Luau-execution run in project-halcyon
+(christopher-buss/project-halcyon#482), which aborted on `read ECONNRESET`
+mid-poll. A connection reset is normal: Roblox closes idle keep-alive
+sockets, and the Node/undici/Bun keep-alive socket-reuse race is documented
+and won't-fix in the runtimes — the established guidance is for the client to
+retry idempotent requests. The retry pipeline existed but excluded the one
+error class that most warranted retrying for an idempotent GET.
+
+The retry policy gains a transport axis parallel to `retryableStatuses`:
+
+- **`retryableTransportCodes`** — a node-style error-code allowlist applied to
+  `NetworkError`. `shouldRetry` walks the error's `cause` chain, reads the
+  underlying `code`, and retries when it is a member. The code is detected
+  through the chain because `fetch` surfaces resets as
+  `NetworkError → TypeError("fetch failed") → OS Error{code}`.
+- **Idempotent operations** (read, list, update, delete) default to the
+  transient set `ECONNRESET, ECONNREFUSED, ETIMEDOUT, EPIPE, ENETUNREACH,
+  EHOSTDOWN, EAI_AGAIN, UND_ERR_SOCKET`.
+- **Create operations** default to none, for the same duplicate-resource
+  reason the 5xx guard exists. A read-side reset can arrive after the server
+  already processed the create, and Roblox has no idempotency keys. Consumers
+  who can tolerate a duplicate (a re-published place version, a re-run Luau
+  task) opt in through the per-request override only — the same merge
+  precedence that scopes `retryableStatuses` keeps a client-level setting from
+  silently relaxing create safety.
+- **Self-aborts are never retried.** Ocale's own request-timeout `AbortSignal`
+  produces an error with no node-style `code`, so the allowlist excludes it by
+  construction. A genuine 30s timeout is a real signal, not a transient blip.
+
+Transport retries reuse the existing `maxRetries` budget and the
+`defaultRetryDelay` exponential schedule (`1s → 2s → 4s …`); there is no
+`Retry-After` for a transport failure.
+
+Two supporting changes land with the policy:
+
+- **`NetworkError` carries `method` and `url`.** A transport failure that
+  survives all retries now names the call that failed. The URL is safe to
+  surface — the API key travels in the `x-api-key` header, never the URL.
+- **The Luau-execution poll loop is bounded against transient failures.**
+  Previously a single failed poll aborted the whole loop. It now tolerates a
+  transient-transport poll failure and continues within the existing
+  wall-clock `timeoutMs`, but bails early after `maxConsecutivePollFailures`
+  (default 3) so a genuinely-unreachable endpoint stops in seconds rather than
+  spinning out the full budget. A non-transport failure (a 404 meaning the
+  task is gone, a 403) still aborts immediately — there is nothing to poll. A
+  successful poll resets the counter.
+
+New public surface: `retryableTransportCodes` on `OpenCloudClientOptions` and
+`RequestOptions`; `method` and `url` on `NetworkError`;
+`maxConsecutivePollFailures` on the poll options. The create idempotency
+guarantee is unchanged — duplicate-resource risk stays gated behind an
+explicit per-request opt-in.
