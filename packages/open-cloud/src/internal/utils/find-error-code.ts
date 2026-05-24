@@ -44,6 +44,6 @@ export function findErrorCode(error: unknown): string | undefined {
 }
 
 function readCode(error: Error): string | undefined {
-	const code: unknown = Reflect.get(error, "code");
+	const code = Reflect.get(error, "code");
 	return typeof code === "string" ? code : undefined;
 }
