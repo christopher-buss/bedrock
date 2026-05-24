@@ -3,12 +3,32 @@ import type { LuauExecutionTask } from "../../domains/cloud-v2/luau-execution-ta
 import type { OpenCloudError } from "../../errors/base.ts";
 import { PollAbortedError } from "../../errors/poll-aborted.ts";
 import { PollTimeoutError } from "../../errors/poll-timeout.ts";
-import { defaultRetryDelay } from "../../internal/http/retry.ts";
 import type { SleepFunc } from "../../internal/utils/sleep.ts";
 import type { Result } from "../../types.ts";
 
 /** Default total polling budget in milliseconds (5 minutes). */
 export const DEFAULT_POLL_TIMEOUT_MS = 300_000;
+
+/** One step of the default poll-cadence schedule. */
+interface PollDelayTier {
+	/** Delay in ms to wait between polls while within this tier. */
+	readonly delayMs: number;
+	/** Upper elapsed-time bound (exclusive) at which this tier stops applying. */
+	readonly untilMs: number;
+}
+
+/** Steady-state delay once elapsed time reaches the final tier bound. */
+const STEADY_POLL_DELAY_MS = 5_000;
+
+/**
+ * Fast→slow poll-cadence tiers keyed on elapsed wall-clock time. Elapsed
+ * times at or beyond the last `untilMs` fall through to
+ * {@link STEADY_POLL_DELAY_MS}.
+ */
+const DEFAULT_POLL_TIERS: ReadonlyArray<PollDelayTier> = [
+	{ delayMs: 500, untilMs: 20_000 },
+	{ delayMs: 1_000, untilMs: 60_000 },
+];
 
 /**
  * Injected dependencies for the deep-module polling loop. The `fetch`
@@ -29,12 +49,35 @@ export type PollUntilDoneOptions = PollOptions & RequestOptions;
 
 /** Caller-supplied polling-loop options; all fields optional. */
 interface PollOptions {
-	/** Returns the sleep duration for a given zero-indexed attempt. Defaults to {@link defaultRetryDelay}. */
-	readonly pollDelay?: (attempt: number) => number;
+	/** Returns the sleep duration given ms elapsed since polling started. Defaults to {@link defaultPollDelay}. */
+	readonly pollDelay?: (elapsedMs: number) => number;
 	/** When aborted, the loop returns {@link PollAbortedError} rather than continuing. */
 	readonly signal?: AbortSignal;
 	/** Total wall-clock budget in ms before the loop returns {@link PollTimeoutError}. */
 	readonly timeoutMs?: number;
+}
+
+/**
+ * Default poll cadence as a function of elapsed wall-clock time since
+ * polling began. Polls quickly while a task is young so short runs resolve
+ * snappily, then eases off so a long run leaves rate-limit headroom for
+ * newer tasks: 0–20s → 500ms, 20–60s → 1000ms, 60s+ → 5000ms.
+ *
+ * @example
+ * ```ts
+ * import { defaultPollDelay } from "@bedrock-rbx/ocale/luau-execution";
+ *
+ * expect(defaultPollDelay(0)).toBe(500);
+ * expect(defaultPollDelay(30_000)).toBe(1000);
+ * expect(defaultPollDelay(120_000)).toBe(5000);
+ * ```
+ *
+ * @param elapsedMs - Milliseconds elapsed since polling started.
+ * @returns The delay in milliseconds to wait before the next poll.
+ */
+export function defaultPollDelay(elapsedMs: number): number {
+	const tier = DEFAULT_POLL_TIERS.find((candidate) => elapsedMs < candidate.untilMs);
+	return tier?.delayMs ?? STEADY_POLL_DELAY_MS;
 }
 
 const ABORTED = Symbol("poll-aborted");
@@ -63,7 +106,7 @@ interface PollIterationOptions {
 
 /**
  * Core polling loop. Calls `deps.fetch()` repeatedly, sleeping
- * `pollDelay(attempt)` ms between iterations, until a terminal state
+ * `pollDelay(elapsedMs)` ms between iterations, until a terminal state
  * is observed, the wall-clock budget is exhausted, or an `AbortSignal`
  * fires. Returns the terminal task on success.
  *
@@ -76,7 +119,7 @@ export async function pollUntilDoneCore(
 	options: PollOptions = {},
 ): Promise<Result<LuauExecutionTask, OpenCloudError>> {
 	const timeoutMs = options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
-	const pollDelay = options.pollDelay ?? defaultRetryDelay;
+	const pollDelay = options.pollDelay ?? defaultPollDelay;
 	const sig = options.signal;
 	const startedAt = deps.now();
 	if (sig?.aborted === true) {
@@ -84,12 +127,13 @@ export async function pollUntilDoneCore(
 	}
 
 	let lastTask: LuauExecutionTask | undefined;
-	for (let attempt = 0; ; attempt += 1) {
-		if (deps.now() - startedAt >= timeoutMs) {
+	for (;;) {
+		const elapsedMs = deps.now() - startedAt;
+		if (elapsedMs >= timeoutMs) {
 			return { err: makeTimeout(lastTask, timeoutMs), success: false };
 		}
 
-		const iteration = await pollIteration({ delayMs: pollDelay(attempt), deps, signal: sig });
+		const iteration = await pollIteration({ delayMs: pollDelay(elapsedMs), deps, signal: sig });
 		if (iteration.done) {
 			return iteration.result;
 		}

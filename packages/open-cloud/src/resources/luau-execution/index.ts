@@ -18,4 +18,4 @@ export type {
 	SubmitAtVersionParameters,
 } from "../../domains/cloud-v2/luau-execution-tasks/types.ts";
 export { LuauExecutionClient, type BinaryInputsHandle, type TasksHandle } from "./client.ts";
-export { type PollUntilDoneOptions } from "./polling.ts";
+export { defaultPollDelay, type PollUntilDoneOptions } from "./polling.ts";
