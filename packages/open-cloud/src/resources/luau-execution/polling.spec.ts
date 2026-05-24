@@ -11,10 +11,11 @@ import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { PollAbortedError } from "../../errors/poll-aborted.ts";
 import { PollTimeoutError } from "../../errors/poll-timeout.ts";
-import { defaultRetryDelay, TRANSIENT_TRANSPORT_CODES } from "../../internal/http/retry.ts";
+import { TRANSIENT_TRANSPORT_CODES } from "../../internal/http/retry.ts";
 import {
 	DEFAULT_POLL_FAILURE_CAP,
 	DEFAULT_POLL_TIMEOUT_MS,
+	defaultPollDelay,
 	type PollDeps,
 	pollUntilDoneCore,
 } from "./polling.ts";
@@ -117,8 +118,8 @@ describe(pollUntilDoneCore, () => {
 		expect(sleep.waits).toStrictEqual([]);
 	});
 
-	// Slice 6: polls until terminal with one wait between fetches
-	it("should sleep using pollDelay between successive fetches until a terminal state arrives", async () => {
+	// Sleeps the pollDelay result between successive non-terminal fetches.
+	it("should sleep the pollDelay result between successive fetches until a terminal state arrives", async () => {
 		expect.assertions(2);
 
 		const sleep = createFakeSleep();
@@ -129,37 +130,39 @@ describe(pollUntilDoneCore, () => {
 			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
 
 		const result = await pollUntilDoneCore(makeDeps({ fetch, sleep }), {
-			pollDelay: defaultRetryDelay,
+			pollDelay: () => 100,
 		});
 
 		assert(result.success);
 
 		expect(fetch).toHaveBeenCalledTimes(3);
-		expect(sleep.waits).toStrictEqual([defaultRetryDelay(0), defaultRetryDelay(1)]);
+		expect(sleep.waits).toStrictEqual([100, 100]);
 	});
 
-	// Slice 7: caps backoff at 30s after attempt 5
-	it("should cap the sleep at 30000ms once the backoff curve saturates", async () => {
-		expect.assertions(1);
+	// The schedule is keyed on elapsed wall-clock time, not the attempt index.
+	it("should call pollDelay with elapsed time since start, not the attempt index", async () => {
+		expect.assertions(2);
 
-		const sleep = createFakeSleep();
-		// Generate enough non-terminal responses to push past attempt 5
-		const fetch = vi.fn<PollDeps["fetch"]>();
-		for (let index = 0; index < 6; index++) {
-			fetch.mockResolvedValueOnce({ data: makeTask("QUEUED"), success: true });
-		}
+		const clock = createFakeClock();
+		const pollDelay = vi.fn<(elapsedMs: number) => number>(() => 100);
+		const fetch = vi
+			.fn<PollDeps["fetch"]>()
+			.mockResolvedValueOnce({ data: makeTask("QUEUED"), success: true })
+			.mockResolvedValueOnce({ data: makeTask("PROCESSING"), success: true })
+			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
 
-		fetch.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
+		await pollUntilDoneCore({ fetch, now: Date.now, sleep: clock.sleep }, { pollDelay });
 
-		await pollUntilDoneCore(makeDeps({ fetch, sleep }), {
-			pollDelay: defaultRetryDelay,
-		});
-
-		expect(sleep.waits.at(-1)).toBe(30_000);
+		// Each 100ms sleep advances the clock, so the second sleep observes
+		// elapsed=100, proving elapsed time, not the attempt index (which would
+		// be 1). pollDelay fires only on the continue path, so the terminal poll
+		// does not call it.
+		expect(pollDelay.mock.calls).toStrictEqual([[0], [100]]);
+		expect(clock.waits).toStrictEqual([100, 100]);
 	});
 
-	// Slice 8: defaultRetryDelay is the default pollDelay
-	it("should fall back to defaultRetryDelay when no pollDelay override is supplied", async () => {
+	// Defaults to the elapsed-keyed defaultPollDelay when no override is given.
+	it("should fall back to defaultPollDelay when no pollDelay override is supplied", async () => {
 		expect.assertions(1);
 
 		const sleep = createFakeSleep();
@@ -170,25 +173,7 @@ describe(pollUntilDoneCore, () => {
 
 		await pollUntilDoneCore(makeDeps({ fetch, sleep }));
 
-		expect(sleep.waits).toStrictEqual([defaultRetryDelay(0)]);
-	});
-
-	// Slice 9: custom pollDelay is honoured
-	it("should call the supplied pollDelay function with each zero-indexed attempt and use its return value", async () => {
-		expect.assertions(2);
-
-		const sleep = createFakeSleep();
-		const pollDelay = vi.fn<(attempt: number) => number>((attempt) => 50 + attempt);
-		const fetch = vi
-			.fn<PollDeps["fetch"]>()
-			.mockResolvedValueOnce({ data: makeTask("QUEUED"), success: true })
-			.mockResolvedValueOnce({ data: makeTask("PROCESSING"), success: true })
-			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
-
-		await pollUntilDoneCore(makeDeps({ fetch, sleep }), { pollDelay });
-
-		expect(pollDelay).toHaveBeenCalledWith(0);
-		expect(sleep.waits).toStrictEqual([50, 51]);
+		expect(sleep.waits).toStrictEqual([defaultPollDelay(0)]);
 	});
 
 	// Slice 10: PollTimeoutError with last-observed task on exhaustion
@@ -566,5 +551,20 @@ describe(pollUntilDoneCore, () => {
 		await pollUntilDoneCore(makeDeps({ fetch }), { pollDelay: () => 0 });
 
 		expect(fetch).toHaveBeenCalledTimes(DEFAULT_POLL_FAILURE_CAP);
+	});
+});
+
+describe(defaultPollDelay, () => {
+	it.for([
+		{ elapsedMs: 0, expected: 500 },
+		{ elapsedMs: 19_999, expected: 500 },
+		{ elapsedMs: 20_000, expected: 1_000 },
+		{ elapsedMs: 59_999, expected: 1_000 },
+		{ elapsedMs: 60_000, expected: 5_000 },
+		{ elapsedMs: 300_000, expected: 5_000 },
+	])("should return $expected ms when $elapsedMs ms have elapsed", ({ elapsedMs, expected }) => {
+		expect.assertions(1);
+
+		expect(defaultPollDelay(elapsedMs)).toBe(expected);
 	});
 });

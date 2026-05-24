@@ -4,13 +4,57 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { PollAbortedError } from "../../errors/poll-aborted.ts";
 import { PollTimeoutError } from "../../errors/poll-timeout.ts";
-import { defaultRetryDelay, TRANSIENT_TRANSPORT_CODES } from "../../internal/http/retry.ts";
+import { TRANSIENT_TRANSPORT_CODES } from "../../internal/http/retry.ts";
 import { findErrorCode } from "../../internal/utils/find-error-code.ts";
 import type { SleepFunc } from "../../internal/utils/sleep.ts";
 import type { Result } from "../../types.ts";
 
 /** Default total polling budget in milliseconds (5 minutes). */
 export const DEFAULT_POLL_TIMEOUT_MS = 300_000;
+
+/** One step of the default poll-cadence schedule. */
+interface PollDelayTier {
+	/** Delay in ms to wait between polls while within this tier. */
+	readonly delayMs: number;
+	/** Upper elapsed-time bound (exclusive) at which this tier stops applying. */
+	readonly untilMs: number;
+}
+
+/** Steady-state delay once elapsed time reaches the final tier bound. */
+const STEADY_POLL_DELAY_MS = 5_000;
+
+/**
+ * Fast-to-slow poll-cadence tiers keyed on elapsed wall-clock time. Elapsed
+ * times at or beyond the last `untilMs` fall through to
+ * {@link STEADY_POLL_DELAY_MS}.
+ */
+const DEFAULT_POLL_TIERS: ReadonlyArray<PollDelayTier> = [
+	{ delayMs: 500, untilMs: 20_000 },
+	{ delayMs: 1_000, untilMs: 60_000 },
+];
+
+/**
+ * Default poll cadence as a function of elapsed wall-clock time since
+ * polling began. Polls quickly while a task is young so short runs resolve
+ * snappily, then eases off so a long run leaves rate-limit headroom for
+ * newer tasks: 0-20s is 500ms, 20-60s is 1000ms, 60s+ is 5000ms.
+ *
+ * @example
+ * ```ts
+ * import { defaultPollDelay } from "@bedrock-rbx/ocale/luau-execution";
+ *
+ * expect(defaultPollDelay(0)).toBe(500);
+ * expect(defaultPollDelay(30_000)).toBe(1000);
+ * expect(defaultPollDelay(120_000)).toBe(5000);
+ * ```
+ *
+ * @param elapsedMs - Milliseconds elapsed since polling started.
+ * @returns The delay in milliseconds to wait before the next poll.
+ */
+export function defaultPollDelay(elapsedMs: number): number {
+	const tier = DEFAULT_POLL_TIERS.find((candidate) => elapsedMs < candidate.untilMs);
+	return tier?.delayMs ?? STEADY_POLL_DELAY_MS;
+}
 
 /**
  * Default number of consecutive transport failures tolerated before the poll
@@ -45,8 +89,8 @@ interface PollOptions {
 	 * the count.
 	 */
 	readonly maxConsecutivePollFailures?: number;
-	/** Returns the sleep duration for a given zero-indexed attempt. Defaults to {@link defaultRetryDelay}. */
-	readonly pollDelay?: (attempt: number) => number;
+	/** Returns the sleep duration given ms elapsed since polling started. Defaults to {@link defaultPollDelay}. */
+	readonly pollDelay?: (elapsedMs: number) => number;
 	/** When aborted, the loop returns {@link PollAbortedError} rather than continuing. */
 	readonly signal?: AbortSignal;
 	/** Total wall-clock budget in ms before the loop returns {@link PollTimeoutError}. */
@@ -93,7 +137,7 @@ interface OutcomeContext {
 
 /**
  * Core polling loop. Calls `deps.fetch()` repeatedly, sleeping
- * `pollDelay(attempt)` ms between iterations, until a terminal state
+ * `pollDelay(elapsedMs)` ms between iterations, until a terminal state
  * is observed, the wall-clock budget is exhausted, or an `AbortSignal`
  * fires. A transient transport failure ({@link NetworkError}) is tolerated
  * and the loop continues, giving up only after `maxConsecutivePollFailures`
@@ -110,7 +154,7 @@ export async function pollUntilDoneCore(
 	options: PollOptions = {},
 ): Promise<Result<LuauExecutionTask, OpenCloudError>> {
 	const timeoutMs = options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
-	const pollDelay = options.pollDelay ?? defaultRetryDelay;
+	const pollDelay = options.pollDelay ?? defaultPollDelay;
 	const maxFailures = options.maxConsecutivePollFailures ?? DEFAULT_POLL_FAILURE_CAP;
 	const sig = options.signal;
 	const startedAt = deps.now();
@@ -119,8 +163,9 @@ export async function pollUntilDoneCore(
 	}
 
 	let state: LoopState = { consecutiveFailures: 0, lastTask: undefined };
-	for (let attempt = 0; ; attempt += 1) {
-		if (deps.now() - startedAt >= timeoutMs) {
+	for (;;) {
+		const elapsedMs = deps.now() - startedAt;
+		if (elapsedMs >= timeoutMs) {
 			return { err: makeTimeout(state.lastTask, timeoutMs), success: false };
 		}
 
@@ -131,7 +176,7 @@ export async function pollUntilDoneCore(
 		}
 
 		({ state } = action);
-		if (await sleepWithAbort({ ms: pollDelay(attempt), signal: sig, sleep: deps.sleep })) {
+		if (await sleepWithAbort({ ms: pollDelay(elapsedMs), signal: sig, sleep: deps.sleep })) {
 			return abortedResult(sig);
 		}
 	}

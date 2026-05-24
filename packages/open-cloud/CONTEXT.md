@@ -24,6 +24,18 @@ _Avoid_: facet, sub-client, namespace, subresource
 The raw JSON shape that crosses the HTTP boundary: Roblox's snake_case field names, `null`-bearing values, and unparsed numeric strings as they appear on request and response bodies, before parsers translate them into the camelCase, `T | undefined` shapes that **Resources** expose publicly. Wire types live in each Operation's `wire.ts` and never escape past the parser boundary.
 _Avoid_: raw types, DTO, payload
 
+**Rate-limit queue**:
+The per-`(API key, Operation)` token bucket that paces every outbound request for one **Operation** down to that Operation's per-key ceiling, serialising concurrent callers. It is the layer that keeps traffic under Roblox's quota; a caller's own loop does not. The ceiling is sourced from `x-roblox-rate-limits.perApiKeyOwner` in the vendored schema, which the live `x-ratelimit-*` response headers are the authority on; trust those over the human-doc prose quota, which can be stale (Luau-execution `tasks.get` reads 200/min in both the schema and live headers, despite docs prose saying 45/min). Roblox enforces a fixed, clock-aligned 60s window; our token-bucket model is a deliberately conservative approximation, so `retry-after` on a 429 can lie (the real recovery is `x-ratelimit-reset`, the window boundary).
+_Avoid_: throttle, debounce, rate limiter (when the per-key/per-Operation scoping matters)
+
+**Retry backoff**:
+The escalating delay before re-sending a single failed request that returned a retryable status (429/5xx), bounded by `maxRetries`, within one **Operation** call. Concerns one request's transient failure, not the spacing between distinct reads of a resource.
+_Avoid_: poll cadence, rate limiting
+
+**Poll cadence**:
+The delay between successive reads of a long-running resource's state (today, a Luau execution task) while waiting for it to reach a terminal state. Governs latency-to-completion for short runs and, under concurrency, how much **Rate-limit queue** headroom a long run leaves for newer ones. A separate concern from **Retry backoff**: it spaces *distinct* reads, not retries of one read, and its curve is tuned to task lifetimes, not transient-failure recovery.
+_Avoid_: retry, retry backoff, poll interval (when the distinction from retry matters)
+
 ## Relationships
 
 - An **Operation** belongs to exactly one **Domain**.
