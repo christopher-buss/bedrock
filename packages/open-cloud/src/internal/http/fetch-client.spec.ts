@@ -717,4 +717,24 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.cause).toBe(cause);
 		expect(result.err.message).toBe("Network request failed");
 	});
+
+	it("should attach the request method and resolved url to the NetworkError", async () => {
+		expect.assertions(2);
+
+		async function fakeFetch(): Promise<Response> {
+			throw new TypeError("Failed to fetch");
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "POST", url: "/cloud/v2/ping" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof NetworkError);
+
+		expect(result.err.method).toBe("POST");
+		expect(result.err.url).toBe("https://example.com/cloud/v2/ping");
+	});
 });
