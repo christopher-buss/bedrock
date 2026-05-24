@@ -408,7 +408,8 @@ describe(pollUntilDoneCore, () => {
 	});
 
 	function makeNetworkError(): NetworkError {
-		const [code = "ECONNRESET"] = TRANSIENT_TRANSPORT_CODES;
+		const code = TRANSIENT_TRANSPORT_CODES[0];
+		assert(code !== undefined, "Expected TRANSIENT_TRANSPORT_CODES to be non-empty");
 		const reset = new CodedError(`read ${code}`, code);
 		return new NetworkError("Network request failed", { cause: reset });
 	}
