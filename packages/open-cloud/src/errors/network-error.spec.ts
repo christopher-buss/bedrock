@@ -52,4 +52,25 @@ describe(NetworkError, () => {
 
 		expect(error.cause).toBeUndefined();
 	});
+
+	it("should store the request method and url when provided", () => {
+		expect.assertions(2);
+
+		const error = new NetworkError("Network request failed", {
+			method: "GET",
+			url: "https://apis.roblox.com/cloud/v2/ping",
+		});
+
+		expect(error.method).toBe("GET");
+		expect(error.url).toBe("https://apis.roblox.com/cloud/v2/ping");
+	});
+
+	it("should have undefined method and url when not provided", () => {
+		expect.assertions(2);
+
+		const error = new NetworkError("fetch failed");
+
+		expect(error.method).toBeUndefined();
+		expect(error.url).toBeUndefined();
+	});
 });

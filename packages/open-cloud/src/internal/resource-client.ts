@@ -119,6 +119,7 @@ const CLIENT_DEFAULTS = Object.freeze({
 	baseUrl: "https://apis.roblox.com",
 	maxRetries: 3,
 	retryableStatuses: IDEMPOTENT_METHOD_DEFAULTS.retryableStatuses,
+	retryableTransportCodes: IDEMPOTENT_METHOD_DEFAULTS.retryableTransportCodes,
 	retryDelay: defaultRetryDelay,
 	timeout: 30_000,
 } satisfies Except<RetryResolvable, "apiKey">);

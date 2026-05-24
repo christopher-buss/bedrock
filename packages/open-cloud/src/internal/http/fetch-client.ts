@@ -172,7 +172,11 @@ export function createFetchHttpClient(
 			const fetchResult = await tryCatch(fetchFunc(url, options));
 			if (!fetchResult.success) {
 				return {
-					err: new NetworkError("Network request failed", { cause: fetchResult.err }),
+					err: new NetworkError("Network request failed", {
+						cause: fetchResult.err,
+						method: httpRequest.method,
+						url,
+					}),
 					success: false,
 				};
 			}

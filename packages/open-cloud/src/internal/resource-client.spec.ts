@@ -1,3 +1,4 @@
+import { CodedError } from "#tests/helpers/coded-error";
 import { createFakeClock } from "#tests/helpers/fake-clock";
 import {
 	createFakeHttpClient,
@@ -8,6 +9,7 @@ import { assert, describe, expect, it, vi } from "vitest";
 
 import type { HttpRequest, OpenCloudHooks } from "../client/types.ts";
 import { ApiError } from "../errors/api-error.ts";
+import { NetworkError } from "../errors/network-error.ts";
 import { PermissionError } from "../errors/permission-error.ts";
 import { ValidationError } from "../errors/validation.ts";
 import type { Result } from "../types.ts";
@@ -350,6 +352,76 @@ describe(ResourceClient, () => {
 			assert(!result.success);
 
 			expect(httpClient.requests).toHaveLength(1);
+		});
+
+		it("should retry a transient transport error for idempotent-kind specs", async () => {
+			expect.assertions(1);
+
+			const reset = new CodedError("read ECONNRESET", "ECONNRESET");
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockError(new NetworkError("Network request failed", { cause: reset }))
+				.mockResponse({ status: 200 });
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.execute({
+				parameters: { id: "1" },
+				spec: TEST_GET_SPEC,
+			});
+
+			assert(result.success);
+
+			expect(httpClient.requests).toHaveLength(2);
+		});
+
+		it("should not retry a transport error for create-kind specs by default", async () => {
+			expect.assertions(1);
+
+			const reset = new CodedError("read ECONNRESET", "ECONNRESET");
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockError(new NetworkError("Network request failed", { cause: reset }))
+				.mockResponse({ status: 200 });
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.execute({
+				parameters: { id: "1" },
+				spec: TEST_CREATE_SPEC,
+			});
+
+			assert(!result.success);
+
+			expect(httpClient.requests).toHaveLength(1);
+		});
+
+		it("should retry a transport error for create-kind specs when opted in per request", async () => {
+			expect.assertions(1);
+
+			const reset = new CodedError("read ECONNRESET", "ECONNRESET");
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockError(new NetworkError("Network request failed", { cause: reset }))
+				.mockResponse({ status: 200 });
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.execute({
+				options: { retryableTransportCodes: ["ECONNRESET"] },
+				parameters: { id: "1" },
+				spec: TEST_CREATE_SPEC,
+			});
+
+			assert(result.success);
+
+			expect(httpClient.requests).toHaveLength(2);
 		});
 
 		it("should surface a non-retryable error without further attempts", async () => {

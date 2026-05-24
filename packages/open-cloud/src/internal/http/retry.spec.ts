@@ -1,3 +1,4 @@
+import { CodedError } from "#tests/helpers/coded-error";
 import { makeRetryConfig } from "#tests/helpers/retry-config";
 import { describe, expect, it, vi } from "vitest";
 
@@ -74,15 +75,29 @@ describe(computeRetryWaitMs, () => {
 
 		expect(retryDelay).toHaveBeenCalledWith(7);
 	});
+
+	it("should fall back to the retryDelay function for network errors", () => {
+		expect.assertions(2);
+
+		const retryDelay = vi.fn<(attempt: number) => number>((attempt) => 250 * (attempt + 1));
+		const error = new NetworkError("Network request failed");
+
+		expect(computeRetryWaitMs(error, { attempt: 3, retryDelay })).toBe(1000);
+		expect(retryDelay).toHaveBeenCalledWith(3);
+	});
 });
 
 describe(shouldRetry, () => {
+	const noTransport: { readonly retryableTransportCodes: ReadonlyArray<string> } = {
+		retryableTransportCodes: [],
+	};
+
 	it("should mark rate-limit errors as retryable when 429 is in the allow-list", () => {
 		expect.assertions(1);
 
 		const error = new RateLimitError("slow down", { retryAfterSeconds: 1 });
 
-		expect(shouldRetry(error, { retryableStatuses: [429, 500] })).toBeTrue();
+		expect(shouldRetry(error, { retryableStatuses: [429, 500], ...noTransport })).toBeTrue();
 	});
 
 	it("should not mark rate-limit errors as retryable when 429 is excluded", () => {
@@ -90,7 +105,7 @@ describe(shouldRetry, () => {
 
 		const error = new RateLimitError("slow down", { retryAfterSeconds: 1 });
 
-		expect(shouldRetry(error, { retryableStatuses: [500, 502] })).toBeFalse();
+		expect(shouldRetry(error, { retryableStatuses: [500, 502], ...noTransport })).toBeFalse();
 	});
 
 	it("should mark API errors as retryable when their status is in the allow-list", () => {
@@ -98,7 +113,9 @@ describe(shouldRetry, () => {
 
 		const error = new ApiError("unavailable", { statusCode: 503 });
 
-		expect(shouldRetry(error, { retryableStatuses: [429, 500, 502, 503, 504] })).toBeTrue();
+		expect(
+			shouldRetry(error, { retryableStatuses: [429, 500, 502, 503, 504], ...noTransport }),
+		).toBeTrue();
 	});
 
 	it("should not mark API errors as retryable when their status is excluded", () => {
@@ -106,28 +123,72 @@ describe(shouldRetry, () => {
 
 		const error = new ApiError("bad request", { statusCode: 400 });
 
-		expect(shouldRetry(error, { retryableStatuses: [429, 500] })).toBeFalse();
+		expect(shouldRetry(error, { retryableStatuses: [429, 500], ...noTransport })).toBeFalse();
 	});
 
-	it("should not mark network errors as retryable", () => {
+	it("should mark network errors as retryable when their transport code is allowed", () => {
 		expect.assertions(1);
 
-		const error = new NetworkError("offline");
+		const reset = new CodedError("read ECONNRESET", "ECONNRESET");
+		const error = new NetworkError("Network request failed", { cause: reset });
 
-		expect(shouldRetry(error, { retryableStatuses: [429, 500] })).toBeFalse();
+		expect(
+			shouldRetry(error, { retryableStatuses: [], retryableTransportCodes: ["ECONNRESET"] }),
+		).toBeTrue();
+	});
+
+	it("should not mark network errors as retryable when their transport code is excluded", () => {
+		expect.assertions(1);
+
+		const reset = new CodedError("read ECONNRESET", "ECONNRESET");
+		const error = new NetworkError("Network request failed", { cause: reset });
+
+		expect(
+			shouldRetry(error, {
+				retryableStatuses: [429],
+				retryableTransportCodes: ["ETIMEDOUT"],
+			}),
+		).toBeFalse();
+	});
+
+	it("should not mark a non-network error carrying a transport code as retryable", () => {
+		expect.assertions(1);
+
+		const error = new CodedError("not a NetworkError", "ECONNRESET");
+
+		expect(
+			shouldRetry(error, { retryableStatuses: [], retryableTransportCodes: ["ECONNRESET"] }),
+		).toBeFalse();
+	});
+
+	it("should not mark a self-aborted network error as retryable", () => {
+		expect.assertions(1);
+
+		const error = new NetworkError("Network request failed", {
+			cause: new DOMException("timed out", "TimeoutError"),
+		});
+
+		expect(
+			shouldRetry(error, {
+				retryableStatuses: [429],
+				retryableTransportCodes: ["ECONNRESET", "ETIMEDOUT"],
+			}),
+		).toBeFalse();
 	});
 
 	it("should not mark unclassified Error instances as retryable", () => {
 		expect.assertions(1);
 
-		expect(shouldRetry(new Error("boom"), { retryableStatuses: [429] })).toBeFalse();
+		expect(
+			shouldRetry(new Error("boom"), { retryableStatuses: [429], ...noTransport }),
+		).toBeFalse();
 	});
 
 	it("should not mark non-Error values as retryable", () => {
 		expect.assertions(2);
 
-		expect(shouldRetry("oops", { retryableStatuses: [429] })).toBeFalse();
-		expect(shouldRetry(undefined, { retryableStatuses: [429] })).toBeFalse();
+		expect(shouldRetry("oops", { retryableStatuses: [429], ...noTransport })).toBeFalse();
+		expect(shouldRetry(undefined, { retryableStatuses: [429], ...noTransport })).toBeFalse();
 	});
 });
 
@@ -143,6 +204,27 @@ describe("method retry defaults", () => {
 
 		expect(IDEMPOTENT_METHOD_DEFAULTS.retryableStatuses).toStrictEqual([
 			429, 500, 502, 503, 504,
+		]);
+	});
+
+	it("should not retry any transport codes for create methods", () => {
+		expect.assertions(1);
+
+		expect(CREATE_METHOD_DEFAULTS.retryableTransportCodes).toStrictEqual([]);
+	});
+
+	it("should retry the transient transport set for idempotent methods", () => {
+		expect.assertions(1);
+
+		expect(IDEMPOTENT_METHOD_DEFAULTS.retryableTransportCodes).toStrictEqual([
+			"ECONNRESET",
+			"ECONNREFUSED",
+			"ETIMEDOUT",
+			"EPIPE",
+			"ENETUNREACH",
+			"EHOSTDOWN",
+			"EAI_AGAIN",
+			"UND_ERR_SOCKET",
 		]);
 	});
 });
@@ -174,6 +256,33 @@ describe(mergeConfig, () => {
 			});
 
 			expect(merged.retryableStatuses).toStrictEqual([429, 500, 503]);
+		});
+
+		it("should keep create transport retries empty when only client config sets them", () => {
+			expect.assertions(1);
+
+			const clientConfig = makeRetryConfig({ retryableTransportCodes: ["ECONNRESET"] });
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: CREATE_METHOD_DEFAULTS,
+				methodKind: "create",
+			});
+
+			expect(merged.retryableTransportCodes).toStrictEqual([]);
+		});
+
+		it("should let requestOptions opt a create into transport-code retries", () => {
+			expect.assertions(1);
+
+			const clientConfig = makeRetryConfig({ retryableTransportCodes: [] });
+
+			const merged = mergeConfig(clientConfig, {
+				methodDefaults: CREATE_METHOD_DEFAULTS,
+				methodKind: "create",
+				requestOptions: { retryableTransportCodes: ["ECONNRESET"] },
+			});
+
+			expect(merged.retryableTransportCodes).toStrictEqual(["ECONNRESET"]);
 		});
 
 		it("should keep client apiKey when method defaults do not supply one", () => {

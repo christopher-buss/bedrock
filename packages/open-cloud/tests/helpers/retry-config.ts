@@ -15,6 +15,7 @@ export function makeRetryConfig(overrides: Partial<RetryResolvable> = {}): Retry
 		baseUrl: "https://test.example",
 		maxRetries: 3,
 		retryableStatuses: [429],
+		retryableTransportCodes: [],
 		retryDelay: defaultRetryDelay,
 		timeout: 30_000,
 		...overrides,
