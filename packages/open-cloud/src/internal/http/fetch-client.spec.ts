@@ -676,6 +676,29 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.message).toBe("Failed to parse response body (content-type: unknown)");
 	});
 
+	it("should truncate the raw body retained on a 2xx parse failure", async () => {
+		expect.assertions(1);
+
+		const rawBody = "x".repeat(1000);
+		async function fakeFetch(): Promise<Response> {
+			return new Response(rawBody, {
+				headers: { "content-type": "application/json" },
+				status: 200,
+			});
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
+		expect(result.err.details).toBe("x".repeat(500));
+	});
+
 	it("should classify a non-2xx response with a non-JSON body by its status", async () => {
 		expect.assertions(4);
 
