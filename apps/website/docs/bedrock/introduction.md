@@ -8,81 +8,82 @@ description: Bedrock turns the Roblox commerce surface into a single typed file 
   <span class="v">v0.1 · alpha</span>
 </div>
 
-# Your catalog,<br/>as _code_.
+# What is<br/>as _Bedrock?_
 
 <p class="lede">
-Bedrock turns the Roblox commerce surface (game passes, products, places, subscriptions) into a single typed file in your repo. Edit it, open a pull request, and let CI reconcile through Open Cloud. The next price change is a one-line diff, not a tab in Creator Hub.
+Bedrock is an open-source CLI and programmatic tool for managing your game's resources, such as game passes, developer products, and places. It turns Roblox's commerce surface into a single file in your repo. Manage infrastructure and configuration with a unified workflow, alongside your code.
 </p>
 
-## <span class="num">§ 01</span>The status quo
+## <span class="num">§ 01</span>How it works
 
-<p class="dropcap">Today, the canonical place to manage a Roblox catalog is Creator Hub: click into the dashboard, edit a price, save, hope you remember to update the team. There's no diff, no review, no rollback. Pricing experiments mean three people coordinating in Slack; multi-place experiences mean five browser tabs open just to verify a launch.</p>
+<p class="dropcap">You can think of Bedrock as a single source of truth for your game's metadata. Rather than manually updating your game's description, passes, and other resources in the Creator Hub, you declare what you want in a config file. Then, when you run `bedrock deploy`, that declaration is automatically applied to your game on Roblox. This means that your game's metadata is version-controlled, reviewable, and deployable through your existing CI/CD pipelines, just like the rest of your code.
+</p>
 
-This works fine for a solo developer with two passes. It does not survive contact with a team shipping live ops.
+## <span class="num">§ 02</span>Supported resources
 
-<blockquote class="pull-quote">
-Your game's commerce surface should live in your repo, reviewed, diffed, deployed, not in a browser tab.
-<cite>Design goal</cite>
-</blockquote>
-
-## <span class="num">§ 02</span>What changes
-
-Bedrock turns the catalog into data. You write one TypeScript file that lists what you want to exist. Bedrock reads it, reads what's actually live on Roblox, and figures out the Open Cloud calls needed to make reality match. Change the file, run `apply`, and the changes ship. Roll back by reverting the commit.
-
-There is nothing Bedrock can do that you couldn't do by hand. The point is that doing it by hand doesn't compose with the rest of your engineering practice. This does.
-
-## <span class="num">§ 03</span>A 30-second taste
-
-Here is the whole interface, end to end. One file declares a single game pass; one CLI command reconciles it.
-
-```ts
-import { asResourceKey, defineConfig } from "@bedrock-rbx/core";
-
-export default defineConfig({
-	resources: [
-		{
-			key: asResourceKey("vip-pass"),
-			name: "VIP Pass",
-			kind: "gamePass",
-			price: 500,
-		},
-	],
-	state: { backend: "gist" },
-	universeId: "5182930447",
-});
-```
-
-```bash
-$ npx bedrock apply
-  ✓ created gamePass.vip-pass (id 184219204)
-```
-
-Resources are typed. Keys are branded so duplicates fail at compile time. Everything else is a thin layer over Open Cloud.
-
-## <span class="num">§ 04</span>What Bedrock is _not_
-
-<ul class="not-list">
+<ul class="resource-list">
   <li>
-    <span class="x">not a plugin</span>
-    <span class="why"><b>It never touches your <code>.rbxl</code> file.</b> Bedrock manages metadata around your experience, not the experience itself.</span>
+    <span class="kind"><code>gamePass</code></span>
+    <span class="desc">Name, price, description, icon</span>
   </li>
   <li>
-    <span class="x">not a runtime SDK</span>
-    <span class="why"><b>It does not ship to your game server.</b> Bedrock runs in CI; your players never see it.</span>
+    <span class="kind"><code>developerProduct</code></span>
+    <span class="desc">Name, price, description, icon, regional pricing</span>
   </li>
   <li>
-    <span class="x">not a billing platform</span>
-    <span class="why"><b>Roblox still owns the transaction.</b> Bedrock declares what you sell, Roblox handles the money.</span>
+    <span class="kind"><code>place</code></span>
+    <span class="desc">Place file (<code>.rbxl</code> / <code>.rbxlx</code>), display name, description</span>
   </li>
   <li>
-    <span class="x">not a Luau library</span>
-    <span class="why"><b>Your config is TypeScript, in your tooling repo,</b> alongside CI scripts, lint rules, and the rest of your build chain.</span>
+    <span class="kind"><code>universe</code></span>
+    <span class="desc">Display name, social links, platform flags, voice chat</span>
+  </li>
+  <li>
+    <span class="kind soon">assets</span>
+    <span class="desc">Textures, audio, models <span class="badge">coming soon</span></span>
   </li>
 </ul>
 
-## <span class="num">§ 05</span>Where to next
+## <span class="num">§ 03</span>The deploy pipeline
 
-Three doors, depending on what you want to do in the next ten minutes:
+The model becomes most useful when used as part of your CI/CD pipeline. 
+Assets and code are already in source control, so why not your game metadata? 
+
+Consider a seasonal event. A week before launch you commit the new game
+description and two new game passes to your config. The change goes through a
+normal pull request. On release day, all you have to do is merge a PR into your
+main branch, and bedrock will update any changed resources, as well as your
+place file. Never forget to manually update a description again, or accidentally
+leave a pass hidden because you forgot to flip it live.
+
+<blockquote class="pull-quote">
+Declare what should exist. Let CI make it true.
+<cite>Core idea</cite>
+</blockquote>
+
+This workflow allows you to keep your game's metadata in sync with your code and
+assets, and ensures that all changes are tracked and reviewable. It also makes
+it easier to roll back changes if something goes wrong, since you can simply
+revert the commit that introduced the change.
+
+## <span class="num">§ 04</span>What it works with
+
+Bedrock works best alongside a fully-managed [Rojo](https://rojo.space) project,
+where scripts, assets, and configuration all live on the filesystem. When you
+run `bedrock deploy`, Bedrock handles publishing your place file and reconciling
+your config in a single step - your game and its metadata always ship together.
+
+You can also use Bedrock without managing a place at all. Version-controlled
+game passes and products are useful on their own, and the reconcile loop works
+the same either way. This still gives you the benefits of a review process and
+version history for your metadata, even if you prefer to manage your place
+directly through Roblox.
+
+> **Coming soon:** a system for turning your state file into usable Luau
+> constants so that asset IDs, image IDs, and product IDs declared in config can
+> be referenced directly in your game code without hardcoding.
+
+## <span class="num">§ 05</span>Where to next
 
 <div class="next-steps">
   <a class="next-step" href="/bedrock/guide/getting-started">
