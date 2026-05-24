@@ -1,14 +1,24 @@
 import type { RequestOptions } from "../../client/types.ts";
 import type { LuauExecutionTask } from "../../domains/cloud-v2/luau-execution-tasks/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
+import { NetworkError } from "../../errors/network-error.ts";
 import { PollAbortedError } from "../../errors/poll-aborted.ts";
 import { PollTimeoutError } from "../../errors/poll-timeout.ts";
-import { defaultRetryDelay } from "../../internal/http/retry.ts";
+import { defaultRetryDelay, TRANSIENT_TRANSPORT_CODES } from "../../internal/http/retry.ts";
+import { findErrorCode } from "../../internal/utils/find-error-code.ts";
 import type { SleepFunc } from "../../internal/utils/sleep.ts";
 import type { Result } from "../../types.ts";
 
 /** Default total polling budget in milliseconds (5 minutes). */
 export const DEFAULT_POLL_TIMEOUT_MS = 300_000;
+
+/**
+ * Default number of consecutive transport failures tolerated before the poll
+ * loop gives up. With per-request retries already absorbing isolated blips,
+ * three consecutive loop-level failures signals a genuinely unreachable
+ * endpoint, so it bails in seconds rather than spinning out the wall-clock budget.
+ */
+export const DEFAULT_POLL_FAILURE_CAP = 3;
 
 /**
  * Injected dependencies for the deep-module polling loop. The `fetch`
@@ -29,6 +39,12 @@ export type PollUntilDoneOptions = PollOptions & RequestOptions;
 
 /** Caller-supplied polling-loop options; all fields optional. */
 interface PollOptions {
+	/**
+	 * Consecutive transient transport failures tolerated before the loop gives
+	 * up. Defaults to {@link DEFAULT_POLL_FAILURE_CAP}. A successful poll resets
+	 * the count.
+	 */
+	readonly maxConsecutivePollFailures?: number;
 	/** Returns the sleep duration for a given zero-indexed attempt. Defaults to {@link defaultRetryDelay}. */
 	readonly pollDelay?: (attempt: number) => number;
 	/** When aborted, the loop returns {@link PollAbortedError} rather than continuing. */
@@ -51,25 +67,43 @@ interface SleepWithAbortOptions {
 	readonly sleep: SleepFunc;
 }
 
-type IterationOutcome =
-	| { readonly done: false; readonly task: LuauExecutionTask }
-	| { readonly done: true; readonly result: Result<LuauExecutionTask, OpenCloudError> };
+type FetchOutcome =
+	| { readonly error: NetworkError; readonly kind: "transient" }
+	| { readonly error: OpenCloudError; readonly kind: "failed" }
+	| { readonly kind: "aborted" }
+	| { readonly kind: "pending"; readonly task: LuauExecutionTask }
+	| { readonly kind: "terminal"; readonly task: LuauExecutionTask };
 
-interface PollIterationOptions {
-	readonly delayMs: number;
-	readonly deps: PollDeps;
+/** Mutable-per-iteration loop state threaded through {@link applyOutcome}. */
+interface LoopState {
+	readonly consecutiveFailures: number;
+	readonly lastTask: LuauExecutionTask | undefined;
+}
+
+type LoopAction =
+	| { readonly kind: "continue"; readonly state: LoopState }
+	| { readonly kind: "return"; readonly result: Result<LuauExecutionTask, OpenCloudError> };
+
+/** Per-iteration inputs to {@link applyOutcome}. */
+interface OutcomeContext {
+	readonly maxFailures: number;
 	readonly signal: AbortSignal | undefined;
+	readonly state: LoopState;
 }
 
 /**
  * Core polling loop. Calls `deps.fetch()` repeatedly, sleeping
  * `pollDelay(attempt)` ms between iterations, until a terminal state
  * is observed, the wall-clock budget is exhausted, or an `AbortSignal`
- * fires. Returns the terminal task on success.
+ * fires. A transient transport failure ({@link NetworkError}) is tolerated
+ * and the loop continues, giving up only after `maxConsecutivePollFailures`
+ * consecutive failures; any other failure aborts immediately, since an API
+ * response (a 404 for a vanished task, a 403) means there is nothing left to
+ * poll. A successful poll resets the failure count.
  *
  * @param deps - Injected fetch, now, and sleep callbacks.
- * @param options - Optional poll delay, timeout, and abort signal.
- * @returns The terminal task, or an error if aborted, timed out, or the transport fails.
+ * @param options - Optional poll delay, timeout, failure cap, and abort signal.
+ * @returns The terminal task, or an error if aborted, timed out, or the transport keeps failing.
  */
 export async function pollUntilDoneCore(
 	deps: PollDeps,
@@ -77,24 +111,29 @@ export async function pollUntilDoneCore(
 ): Promise<Result<LuauExecutionTask, OpenCloudError>> {
 	const timeoutMs = options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
 	const pollDelay = options.pollDelay ?? defaultRetryDelay;
+	const maxFailures = options.maxConsecutivePollFailures ?? DEFAULT_POLL_FAILURE_CAP;
 	const sig = options.signal;
 	const startedAt = deps.now();
 	if (sig?.aborted === true) {
 		return abortedResult(sig);
 	}
 
-	let lastTask: LuauExecutionTask | undefined;
+	let state: LoopState = { consecutiveFailures: 0, lastTask: undefined };
 	for (let attempt = 0; ; attempt += 1) {
 		if (deps.now() - startedAt >= timeoutMs) {
-			return { err: makeTimeout(lastTask, timeoutMs), success: false };
+			return { err: makeTimeout(state.lastTask, timeoutMs), success: false };
 		}
 
-		const iteration = await pollIteration({ delayMs: pollDelay(attempt), deps, signal: sig });
-		if (iteration.done) {
-			return iteration.result;
+		const outcome = await fetchOnce(deps, sig);
+		const action = applyOutcome(outcome, { maxFailures, signal: sig, state });
+		if (action.kind === "return") {
+			return action.result;
 		}
 
-		lastTask = iteration.task;
+		({ state } = action);
+		if (await sleepWithAbort({ ms: pollDelay(attempt), signal: sig, sleep: deps.sleep })) {
+			return abortedResult(sig);
+		}
 	}
 }
 
@@ -106,8 +145,40 @@ function abortedResult(signal: AbortSignal | undefined): Result<LuauExecutionTas
 	return { err: makeAborted(signal), success: false };
 }
 
-function isTerminal(task: LuauExecutionTask): boolean {
-	return task.state === "COMPLETE" || task.state === "FAILED" || task.state === "CANCELLED";
+/**
+ * Maps a single fetch outcome to the next loop action. Terminal, failed, and
+ * aborted outcomes return immediately; a transient transport failure advances
+ * the consecutive-failure count and returns once it reaches `maxFailures`; a
+ * pending task resets the count and continues.
+ *
+ * @param outcome - The classified result of one poll fetch.
+ * @param context - The loop state, failure cap, and abort signal.
+ * @returns Whether to return a final Result or continue with updated state.
+ */
+function applyOutcome(outcome: FetchOutcome, context: OutcomeContext): LoopAction {
+	const { maxFailures, signal, state } = context;
+	switch (outcome.kind) {
+		case "aborted": {
+			return { kind: "return", result: abortedResult(signal) };
+		}
+		case "failed": {
+			return { kind: "return", result: { err: outcome.error, success: false } };
+		}
+		case "pending": {
+			return { kind: "continue", state: { consecutiveFailures: 0, lastTask: outcome.task } };
+		}
+		case "terminal": {
+			return { kind: "return", result: { data: outcome.task, success: true } };
+		}
+		case "transient": {
+			const consecutiveFailures = state.consecutiveFailures + 1;
+			if (consecutiveFailures >= maxFailures) {
+				return { kind: "return", result: { err: outcome.error, success: false } };
+			}
+
+			return { kind: "continue", state: { consecutiveFailures, lastTask: state.lastTask } };
+		}
+	}
 }
 
 function abortObserver(signal: AbortSignal): AbortObserver {
@@ -150,28 +221,6 @@ async function sleepWithAbort(options: SleepWithAbortOptions): Promise<boolean> 
 	return raced === ABORTED;
 }
 
-async function pollIteration(options: PollIterationOptions): Promise<IterationOutcome> {
-	const { delayMs, deps, signal } = options;
-	const fetchResult = await raceWithAbort(deps.fetch(), signal);
-	if (fetchResult === ABORTED) {
-		return { done: true, result: abortedResult(signal) };
-	}
-
-	if (!fetchResult.success) {
-		return { done: true, result: fetchResult };
-	}
-
-	if (isTerminal(fetchResult.data)) {
-		return { done: true, result: { data: fetchResult.data, success: true } };
-	}
-
-	if (await sleepWithAbort({ ms: delayMs, signal, sleep: deps.sleep })) {
-		return { done: true, result: abortedResult(signal) };
-	}
-
-	return { done: false, task: fetchResult.data };
-}
-
 function makeTimeout(
 	task: LuauExecutionTask | undefined,
 	timeoutMs: number,
@@ -180,4 +229,47 @@ function makeTimeout(
 		lastObservedTask: task,
 		timeoutMs,
 	});
+}
+
+function isTerminal(task: LuauExecutionTask): boolean {
+	return task.state === "COMPLETE" || task.state === "FAILED" || task.state === "CANCELLED";
+}
+
+/**
+ * A failed poll is worth re-polling only when it is a `NetworkError` carrying a
+ * known transient transport code. A self-aborted request timeout has no
+ * `code`, and an API response (4xx/5xx) is authoritative, so both abort the
+ * loop rather than being re-polled. Transient-ness is classified against the
+ * canonical `TRANSIENT_TRANSPORT_CODES` set; this is the loop's own tolerance
+ * dimension, distinct from the per-request `retryableTransportCodes` override
+ * (which governs request-level retries inside each poll). Loop tolerance is
+ * bounded separately by `maxConsecutivePollFailures`.
+ *
+ * @param error - The error returned by a failed poll.
+ * @returns `true` when the loop should tolerate and re-poll.
+ */
+function isTransientTransport(error: OpenCloudError): error is NetworkError {
+	if (!(error instanceof NetworkError)) {
+		return false;
+	}
+
+	const code = findErrorCode(error);
+	return code !== undefined && TRANSIENT_TRANSPORT_CODES.includes(code);
+}
+
+async function fetchOnce(deps: PollDeps, signal: AbortSignal | undefined): Promise<FetchOutcome> {
+	const fetchResult = await raceWithAbort(deps.fetch(), signal);
+	if (fetchResult === ABORTED) {
+		return { kind: "aborted" };
+	}
+
+	if (!fetchResult.success) {
+		return isTransientTransport(fetchResult.err)
+			? { error: fetchResult.err, kind: "transient" }
+			: { error: fetchResult.err, kind: "failed" };
+	}
+
+	return isTerminal(fetchResult.data)
+		? { kind: "terminal", task: fetchResult.data }
+		: { kind: "pending", task: fetchResult.data };
 }

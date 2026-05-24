@@ -1,5 +1,6 @@
 import { assert, describe, expect, it, vi } from "vitest";
 
+import { CodedError } from "../../../tests/helpers/coded-error.ts";
 import { createFakeClock } from "../../../tests/helpers/fake-clock.ts";
 import { createFakeSleep } from "../../../tests/helpers/fake-sleep.ts";
 import type {
@@ -7,10 +8,16 @@ import type {
 	LuauExecutionTaskRef,
 } from "../../domains/cloud-v2/luau-execution-tasks/types.ts";
 import { ApiError } from "../../errors/api-error.ts";
+import { NetworkError } from "../../errors/network-error.ts";
 import { PollAbortedError } from "../../errors/poll-aborted.ts";
 import { PollTimeoutError } from "../../errors/poll-timeout.ts";
-import { defaultRetryDelay } from "../../internal/http/retry.ts";
-import { DEFAULT_POLL_TIMEOUT_MS, type PollDeps, pollUntilDoneCore } from "./polling.ts";
+import { defaultRetryDelay, TRANSIENT_TRANSPORT_CODES } from "../../internal/http/retry.ts";
+import {
+	DEFAULT_POLL_FAILURE_CAP,
+	DEFAULT_POLL_TIMEOUT_MS,
+	type PollDeps,
+	pollUntilDoneCore,
+} from "./polling.ts";
 
 const ref: LuauExecutionTaskRef = {
 	placeId: "456",
@@ -398,5 +405,166 @@ describe(pollUntilDoneCore, () => {
 		assert(!result.success);
 
 		expect(result.err).toBe(transportError);
+	});
+
+	function makeNetworkError(): NetworkError {
+		const code = TRANSIENT_TRANSPORT_CODES[0];
+		assert(code !== undefined, "Expected TRANSIENT_TRANSPORT_CODES to be non-empty");
+		const reset = new CodedError(`read ${code}`, code);
+		return new NetworkError("Network request failed", { cause: reset });
+	}
+
+	it("should keep polling after a transient network failure and resolve on a terminal state", async () => {
+		expect.assertions(2);
+
+		const sleep = createFakeSleep();
+		const fetch = vi
+			.fn<PollDeps["fetch"]>()
+			.mockResolvedValueOnce({ err: makeNetworkError(), success: false })
+			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
+
+		const result = await pollUntilDoneCore(makeDeps({ fetch, sleep }), {
+			pollDelay: () => 100,
+		});
+
+		assert(result.success);
+
+		expect(result.data.state).toBe("COMPLETE");
+		expect(fetch).toHaveBeenCalledTimes(2);
+	});
+
+	it("should abort immediately without further polls on a non-network failure", async () => {
+		expect.assertions(2);
+
+		const apiError = new ApiError("not found", { statusCode: 404 });
+		const fetch = vi
+			.fn<PollDeps["fetch"]>()
+			.mockResolvedValue({ err: apiError, success: false });
+
+		const result = await pollUntilDoneCore(makeDeps({ fetch }), {
+			maxConsecutivePollFailures: 3,
+			pollDelay: () => 0,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBe(apiError);
+		expect(fetch).toHaveBeenCalledOnce();
+	});
+
+	it("should abort immediately on a self-aborted network failure with no transport code", async () => {
+		expect.assertions(2);
+
+		const selfAbort = new NetworkError("Network request failed", {
+			cause: new DOMException("timed out", "TimeoutError"),
+		});
+		const fetch = vi
+			.fn<PollDeps["fetch"]>()
+			.mockResolvedValue({ err: selfAbort, success: false });
+
+		const result = await pollUntilDoneCore(makeDeps({ fetch }), {
+			maxConsecutivePollFailures: 3,
+			pollDelay: () => 0,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBe(selfAbort);
+		expect(fetch).toHaveBeenCalledOnce();
+	});
+
+	it("should abort immediately on a network failure whose transport code is not transient", async () => {
+		expect.assertions(2);
+
+		const nonTransient = new CodedError("weird", "NOT_A_TRANSIENT_CODE");
+		const networkError = new NetworkError("Network request failed", { cause: nonTransient });
+		const fetch = vi
+			.fn<PollDeps["fetch"]>()
+			.mockResolvedValue({ err: networkError, success: false });
+
+		const result = await pollUntilDoneCore(makeDeps({ fetch }), {
+			maxConsecutivePollFailures: 3,
+			pollDelay: () => 0,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBe(networkError);
+		expect(fetch).toHaveBeenCalledOnce();
+	});
+
+	it("should abort immediately on an api error even if it carries a transport-style code", async () => {
+		expect.assertions(2);
+
+		const apiError = new ApiError("masquerade", { code: "ECONNRESET", statusCode: 500 });
+		const fetch = vi
+			.fn<PollDeps["fetch"]>()
+			.mockResolvedValue({ err: apiError, success: false });
+
+		const result = await pollUntilDoneCore(makeDeps({ fetch }), {
+			maxConsecutivePollFailures: 3,
+			pollDelay: () => 0,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBe(apiError);
+		expect(fetch).toHaveBeenCalledOnce();
+	});
+
+	it("should give up after the configured number of consecutive network failures", async () => {
+		expect.assertions(2);
+
+		const networkError = makeNetworkError();
+		const fetch = vi
+			.fn<PollDeps["fetch"]>()
+			.mockResolvedValue({ err: networkError, success: false });
+
+		const result = await pollUntilDoneCore(makeDeps({ fetch }), {
+			maxConsecutivePollFailures: 3,
+			pollDelay: () => 0,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBe(networkError);
+		expect(fetch).toHaveBeenCalledTimes(3);
+	});
+
+	it("should reset the consecutive-failure count after a successful poll", async () => {
+		expect.assertions(2);
+
+		const fetch = vi
+			.fn<PollDeps["fetch"]>()
+			.mockResolvedValueOnce({ err: makeNetworkError(), success: false })
+			.mockResolvedValueOnce({ err: makeNetworkError(), success: false })
+			.mockResolvedValueOnce({ data: makeTask("PROCESSING"), success: true })
+			.mockResolvedValueOnce({ err: makeNetworkError(), success: false })
+			.mockResolvedValueOnce({ err: makeNetworkError(), success: false })
+			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
+
+		const result = await pollUntilDoneCore(makeDeps({ fetch }), {
+			maxConsecutivePollFailures: 3,
+			pollDelay: () => 0,
+		});
+
+		assert(result.success);
+
+		expect(result.data.state).toBe("COMPLETE");
+		expect(fetch).toHaveBeenCalledTimes(6);
+	});
+
+	it("should default the consecutive-failure cap to three", async () => {
+		expect.assertions(2);
+
+		expect(DEFAULT_POLL_FAILURE_CAP).toBe(3);
+
+		const fetch = vi
+			.fn<PollDeps["fetch"]>()
+			.mockResolvedValue({ err: makeNetworkError(), success: false });
+
+		await pollUntilDoneCore(makeDeps({ fetch }), { pollDelay: () => 0 });
+
+		expect(fetch).toHaveBeenCalledTimes(DEFAULT_POLL_FAILURE_CAP);
 	});
 });

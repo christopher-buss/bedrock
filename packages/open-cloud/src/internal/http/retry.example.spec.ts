@@ -35,27 +35,34 @@ it('Example 3', () => {
 
 it('Example 4', () => {
   const error = new RateLimitError('', { retryAfterSeconds: 1 })
-  expect(shouldRetry(error, { retryableStatuses: [429] })).toBe(true)
+  expect(
+    shouldRetry(error, {
+      retryableStatuses: [429],
+      retryableTransportCodes: [],
+    }),
+  ).toBe(true)
 })
 
 it('Example 5', () => {
-  const error = new ApiError('', { statusCode: 503 })
+  const reset = Object.assign(new Error('read ECONNRESET'), {
+    code: 'ECONNRESET',
+  })
+  const error = new NetworkError('Network request failed', { cause: reset })
   expect(
-    shouldRetry(error, { retryableStatuses: [429, 500, 502, 503, 504] }),
+    shouldRetry(error, {
+      retryableStatuses: [],
+      retryableTransportCodes: ['ECONNRESET'],
+    }),
   ).toBe(true)
 })
 
 it('Example 6', () => {
-  const error = new NetworkError('offline')
-  expect(shouldRetry(error, { retryableStatuses: [429] })).toBe(false)
-})
-
-it('Example 7', () => {
   const clientConfig: RetryResolvable = {
     apiKey: 'k',
     baseUrl: 'https://apis.roblox.com',
     maxRetries: 3,
     retryableStatuses: [429, 500],
+    retryableTransportCodes: [],
     retryDelay: defaultRetryDelay,
     timeout: 30000,
   }
@@ -66,12 +73,13 @@ it('Example 7', () => {
   expect(merged.retryableStatuses).toStrictEqual([429])
 })
 
-it('Example 8', () => {
+it('Example 7', () => {
   const clientConfig: RetryResolvable = {
     apiKey: 'k',
     baseUrl: 'https://apis.roblox.com',
     maxRetries: 3,
     retryableStatuses: [429],
+    retryableTransportCodes: [],
     retryDelay: defaultRetryDelay,
     timeout: 30000,
   }
