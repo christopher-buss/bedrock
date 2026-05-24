@@ -16,7 +16,7 @@ export const DEFAULT_POLL_TIMEOUT_MS = 300_000;
  * Default number of consecutive transport failures tolerated before the poll
  * loop gives up. With per-request retries already absorbing isolated blips,
  * three consecutive loop-level failures signals a genuinely unreachable
- * endpoint — bail in seconds rather than spinning out the wall-clock budget.
+ * endpoint, so it bails in seconds rather than spinning out the wall-clock budget.
  */
 export const DEFAULT_POLL_FAILURE_CAP = 3;
 
@@ -238,8 +238,12 @@ function isTerminal(task: LuauExecutionTask): boolean {
 /**
  * A failed poll is worth re-polling only when it is a `NetworkError` carrying a
  * known transient transport code. A self-aborted request timeout has no
- * `code`, and an API response (4xx/5xx) is authoritative — both abort the loop
- * rather than being re-polled, mirroring the per-request retry policy.
+ * `code`, and an API response (4xx/5xx) is authoritative, so both abort the
+ * loop rather than being re-polled. Transient-ness is classified against the
+ * canonical `TRANSIENT_TRANSPORT_CODES` set; this is the loop's own tolerance
+ * dimension, distinct from the per-request `retryableTransportCodes` override
+ * (which governs request-level retries inside each poll). Loop tolerance is
+ * bounded separately by `maxConsecutivePollFailures`.
  *
  * @param error - The error returned by a failed poll.
  * @returns `true` when the loop should tolerate and re-poll.

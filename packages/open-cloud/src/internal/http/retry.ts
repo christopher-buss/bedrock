@@ -6,7 +6,7 @@ import { findErrorCode } from "../utils/find-error-code.ts";
 /**
  * Fully-resolved retry config shape that {@link mergeConfig} and
  * {@link shouldRetry} operate on. Fields are required because this represents
- * the post-defaulting, internal view — callers should supply every field (or
+ * the post-defaulting, internal view; callers should supply every field (or
  * resolve them via a test factory / client constructor). The partial,
  * user-facing type lives on client construction options; method defaults and
  * per-request overrides use `Partial<RetryResolvable>`.
@@ -66,8 +66,8 @@ export const IDEMPOTENT_METHOD_DEFAULTS: MethodDefaults = Object.freeze({
 });
 
 /**
- * Default retry policy for create operations. Retries rate limits only — no
- * 5xx and no transport-error retries — to prevent duplicate resources, since
+ * Default retry policy for create operations. Retries rate limits only (no
+ * 5xx and no transport-error retries) to prevent duplicate resources, since
  * Roblox Open Cloud has no idempotency-key support. Consumers who can tolerate
  * a duplicate opt in per request.
  */
@@ -174,7 +174,7 @@ export function computeRetryWaitMs(
  * (checked against 429) and {@link ApiError} (checked against its `statusCode`)
  * are retryable when their status is in `retryableStatuses`. A
  * {@link NetworkError} is retryable when its transport code
- * ({@link findErrorCode}) is in `retryableTransportCodes` — this is how
+ * ({@link findErrorCode}) is in `retryableTransportCodes`. This is how
  * transient connection resets recover. All other failures return `false`.
  *
  * @example

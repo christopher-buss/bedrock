@@ -1,3 +1,4 @@
+import { CodedError } from "#tests/helpers/coded-error";
 import { createFakeSend } from "#tests/helpers/fake-send";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { makeRetryConfig } from "#tests/helpers/retry-config";
@@ -111,7 +112,7 @@ describe(executeWithRetry, () => {
 
 		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
 		const hooks: OpenCloudHooks = { onRetry };
-		const reset = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
+		const reset = new CodedError("read ECONNRESET", "ECONNRESET");
 		const networkError = new NetworkError("Network request failed", { cause: reset });
 		const fakeSend = createFakeSend({
 			responses: [
@@ -142,7 +143,7 @@ describe(executeWithRetry, () => {
 
 		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
 		const hooks: OpenCloudHooks = { onRetry };
-		const reset = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
+		const reset = new CodedError("read ECONNRESET", "ECONNRESET");
 		const networkError = new NetworkError("Network request failed", { cause: reset });
 		const fakeSend = createFakeSend({
 			responses: [{ err: networkError, success: false }],

@@ -1,5 +1,6 @@
 import { assert, describe, expect, it, vi } from "vitest";
 
+import { CodedError } from "../../../tests/helpers/coded-error.ts";
 import { createFakeClock } from "../../../tests/helpers/fake-clock.ts";
 import { createFakeSleep } from "../../../tests/helpers/fake-sleep.ts";
 import type {
@@ -10,7 +11,7 @@ import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { PollAbortedError } from "../../errors/poll-aborted.ts";
 import { PollTimeoutError } from "../../errors/poll-timeout.ts";
-import { defaultRetryDelay } from "../../internal/http/retry.ts";
+import { defaultRetryDelay, TRANSIENT_TRANSPORT_CODES } from "../../internal/http/retry.ts";
 import {
 	DEFAULT_POLL_FAILURE_CAP,
 	DEFAULT_POLL_TIMEOUT_MS,
@@ -407,7 +408,8 @@ describe(pollUntilDoneCore, () => {
 	});
 
 	function makeNetworkError(): NetworkError {
-		const reset = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
+		const [code = "ECONNRESET"] = TRANSIENT_TRANSPORT_CODES;
+		const reset = new CodedError(`read ${code}`, code);
 		return new NetworkError("Network request failed", { cause: reset });
 	}
 
@@ -473,7 +475,7 @@ describe(pollUntilDoneCore, () => {
 	it("should abort immediately on a network failure whose transport code is not transient", async () => {
 		expect.assertions(2);
 
-		const nonTransient = Object.assign(new Error("weird"), { code: "NOT_A_TRANSIENT_CODE" });
+		const nonTransient = new CodedError("weird", "NOT_A_TRANSIENT_CODE");
 		const networkError = new NetworkError("Network request failed", { cause: nonTransient });
 		const fetch = vi
 			.fn<PollDeps["fetch"]>()

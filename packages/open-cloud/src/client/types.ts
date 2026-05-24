@@ -106,7 +106,7 @@ export interface OpenCloudClientOptions {
 	 * Node-style transport error codes eligible for retry when a request fails
 	 * with a `NetworkError` (e.g. `["ECONNRESET", "ETIMEDOUT"]`).
 	 * Defaults to the idempotent-method transient set. Create methods default
-	 * to none and cannot be relaxed by a client-level value — pass the exported
+	 * to none and cannot be relaxed by a client-level value. Pass the exported
 	 * `TRANSIENT_TRANSPORT_CODES` set (or your own subset) on a single call's
 	 * {@link RequestOptions} to opt a create into transport retries when a
 	 * duplicate resource is acceptable.

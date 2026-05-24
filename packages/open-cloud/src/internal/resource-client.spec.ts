@@ -1,3 +1,4 @@
+import { CodedError } from "#tests/helpers/coded-error";
 import { createFakeClock } from "#tests/helpers/fake-clock";
 import {
 	createFakeHttpClient,
@@ -356,7 +357,7 @@ describe(ResourceClient, () => {
 		it("should retry a transient transport error for idempotent-kind specs", async () => {
 			expect.assertions(1);
 
-			const reset = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
+			const reset = new CodedError("read ECONNRESET", "ECONNRESET");
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
 				.mockError(new NetworkError("Network request failed", { cause: reset }))
 				.mockResponse({ status: 200 });
@@ -379,7 +380,7 @@ describe(ResourceClient, () => {
 		it("should not retry a transport error for create-kind specs by default", async () => {
 			expect.assertions(1);
 
-			const reset = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
+			const reset = new CodedError("read ECONNRESET", "ECONNRESET");
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
 				.mockError(new NetworkError("Network request failed", { cause: reset }))
 				.mockResponse({ status: 200 });
@@ -402,7 +403,7 @@ describe(ResourceClient, () => {
 		it("should retry a transport error for create-kind specs when opted in per request", async () => {
 			expect.assertions(1);
 
-			const reset = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
+			const reset = new CodedError("read ECONNRESET", "ECONNRESET");
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
 				.mockError(new NetworkError("Network request failed", { cause: reset }))
 				.mockResponse({ status: 200 });
