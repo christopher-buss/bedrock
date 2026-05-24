@@ -150,7 +150,7 @@ describe(pollUntilDoneCore, () => {
 		await pollUntilDoneCore({ fetch, now: Date.now, sleep: clock.sleep }, { pollDelay });
 
 		// Each 100ms sleep advances the clock, so successive calls observe
-		// 0, 100, 200 — proving elapsed time, not attempt index (0, 1, 2).
+		// 0, 100, 200, proving elapsed time, not attempt index (0, 1, 2).
 		// pollDelay is computed once per iteration, including the terminal one.
 		expect(pollDelay.mock.calls).toStrictEqual([[0], [100], [200]]);
 		expect(clock.waits).toStrictEqual([100, 100]);

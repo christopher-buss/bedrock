@@ -17,7 +17,7 @@
 //       or a FIXED 60s WINDOW (sharp reset at minute boundary).
 //
 // Result (2026-05-24, one key+IP): the schema's 200/min is correct, not the
-// docs' 45/min — live headers read `x-ratelimit-limit: 200;w=60`, and the
+// docs' 45/min; live headers read `x-ratelimit-limit: 200;w=60`, and the
 // limiter is a FIXED 60s window (`x-ratelimit-reset` ticks to the boundary
 // regardless of traffic; `retry-after` is a constant 5s that understates it).
 //

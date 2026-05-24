@@ -21,7 +21,7 @@ interface PollDelayTier {
 const STEADY_POLL_DELAY_MS = 5_000;
 
 /**
- * Fast→slow poll-cadence tiers keyed on elapsed wall-clock time. Elapsed
+ * Fast-to-slow poll-cadence tiers keyed on elapsed wall-clock time. Elapsed
  * times at or beyond the last `untilMs` fall through to
  * {@link STEADY_POLL_DELAY_MS}.
  */
@@ -61,7 +61,7 @@ interface PollOptions {
  * Default poll cadence as a function of elapsed wall-clock time since
  * polling began. Polls quickly while a task is young so short runs resolve
  * snappily, then eases off so a long run leaves rate-limit headroom for
- * newer tasks: 0–20s → 500ms, 20–60s → 1000ms, 60s+ → 5000ms.
+ * newer tasks: 0-20s is 500ms, 20-60s is 1000ms, 60s+ is 5000ms.
  *
  * @example
  * ```ts

@@ -25,11 +25,11 @@ The raw JSON shape that crosses the HTTP boundary: Roblox's snake_case field nam
 _Avoid_: raw types, DTO, payload
 
 **Rate-limit queue**:
-The per-`(API key, Operation)` token bucket that paces every outbound request for one **Operation** down to that Operation's per-key ceiling, serialising concurrent callers. It is the layer that keeps traffic under Roblox's quota; a caller's own loop does not. The ceiling is sourced from `x-roblox-rate-limits.perApiKeyOwner` in the vendored schema, which the live `x-ratelimit-*` response headers are the authority on — trust those over the human-doc prose quota, which can be stale (Luau-execution `tasks.get` reads 200/min in both the schema and live headers, despite docs prose saying 45/min). Roblox enforces a fixed, clock-aligned 60s window; our token-bucket model is a deliberately conservative approximation, so `retry-after` on a 429 can lie (the real recovery is `x-ratelimit-reset`, the window boundary).
+The per-`(API key, Operation)` token bucket that paces every outbound request for one **Operation** down to that Operation's per-key ceiling, serialising concurrent callers. It is the layer that keeps traffic under Roblox's quota; a caller's own loop does not. The ceiling is sourced from `x-roblox-rate-limits.perApiKeyOwner` in the vendored schema, which the live `x-ratelimit-*` response headers are the authority on; trust those over the human-doc prose quota, which can be stale (Luau-execution `tasks.get` reads 200/min in both the schema and live headers, despite docs prose saying 45/min). Roblox enforces a fixed, clock-aligned 60s window; our token-bucket model is a deliberately conservative approximation, so `retry-after` on a 429 can lie (the real recovery is `x-ratelimit-reset`, the window boundary).
 _Avoid_: throttle, debounce, rate limiter (when the per-key/per-Operation scoping matters)
 
 **Retry backoff**:
-The escalating delay before re-sending a single failed request that returned a retryable status (429/5xx), bounded by `maxRetries`, within one **Operation** call. Concerns one request's transient failure — not the spacing between distinct reads of a resource.
+The escalating delay before re-sending a single failed request that returned a retryable status (429/5xx), bounded by `maxRetries`, within one **Operation** call. Concerns one request's transient failure, not the spacing between distinct reads of a resource.
 _Avoid_: poll cadence, rate limiting
 
 **Poll cadence**:
