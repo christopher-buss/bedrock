@@ -7,6 +7,7 @@ import type {
 	HttpRequest,
 	HttpResponse,
 	NetworkError,
+	NetworkErrorOptions,
 	OpenCloudClientOptions,
 	OpenCloudError,
 	OpenCloudHooks,
@@ -122,6 +123,14 @@ describe("ApiErrorOptions", () => {
 describe("NetworkError", () => {
 	it("should be assignable to OpenCloudError", () => {
 		expectTypeOf<NetworkError>().toExtend<OpenCloudError>();
+	});
+});
+
+describe("NetworkErrorOptions", () => {
+	it("should extend ErrorOptions with optional method and url strings", () => {
+		expectTypeOf<NetworkErrorOptions>().toExtend<
+			ErrorOptions & { method?: string | undefined; url?: string | undefined }
+		>();
 	});
 });
 

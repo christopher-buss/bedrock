@@ -11,7 +11,12 @@ import { NetworkError } from "../../errors/network-error.ts";
 import { PollAbortedError } from "../../errors/poll-aborted.ts";
 import { PollTimeoutError } from "../../errors/poll-timeout.ts";
 import { defaultRetryDelay } from "../../internal/http/retry.ts";
-import { DEFAULT_POLL_TIMEOUT_MS, type PollDeps, pollUntilDoneCore } from "./polling.ts";
+import {
+	DEFAULT_POLL_FAILURE_CAP,
+	DEFAULT_POLL_TIMEOUT_MS,
+	type PollDeps,
+	pollUntilDoneCore,
+} from "./polling.ts";
 
 const ref: LuauExecutionTaskRef = {
 	placeId: "456",
@@ -547,7 +552,9 @@ describe(pollUntilDoneCore, () => {
 	});
 
 	it("should default the consecutive-failure cap to three", async () => {
-		expect.assertions(1);
+		expect.assertions(2);
+
+		expect(DEFAULT_POLL_FAILURE_CAP).toBe(3);
 
 		const fetch = vi
 			.fn<PollDeps["fetch"]>()
@@ -555,6 +562,6 @@ describe(pollUntilDoneCore, () => {
 
 		await pollUntilDoneCore(makeDeps({ fetch }), { pollDelay: () => 0 });
 
-		expect(fetch).toHaveBeenCalledTimes(3);
+		expect(fetch).toHaveBeenCalledTimes(DEFAULT_POLL_FAILURE_CAP);
 	});
 });
