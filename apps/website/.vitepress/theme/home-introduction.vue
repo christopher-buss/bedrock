@@ -573,6 +573,65 @@ html.dark .article :deep(a) {
 	font-family: var(--f-sans);
 }
 
+/* Resource list — supported resource kinds */
+.article :deep(.resource-list) {
+	list-style: none;
+	padding: 0;
+	margin: 0 0 18px;
+	max-width: 62ch;
+}
+
+.article :deep(.resource-list li) {
+	display: grid;
+	grid-template-columns: 160px 1fr;
+	gap: 18px;
+	padding: 12px 0;
+	border-top: 1px dashed var(--line);
+	align-items: baseline;
+	font-size: 15.5px;
+	margin-bottom: 0;
+}
+
+.article :deep(.resource-list li:last-child) {
+	border-bottom: 1px dashed var(--line);
+}
+
+.article :deep(.resource-list .kind) {
+	font-family: var(--f-mono);
+	font-size: 12.5px;
+	color: var(--ink);
+}
+
+.article :deep(.resource-list .kind code) {
+	background: none;
+	border: none;
+	padding: 0;
+	font-size: inherit;
+	color: inherit;
+}
+
+.article :deep(.resource-list .kind.soon) {
+	color: var(--ink-4);
+}
+
+.article :deep(.resource-list .desc) {
+	color: var(--ink-3);
+	font-family: var(--f-sans);
+}
+
+.article :deep(.resource-list .desc .badge) {
+	font-family: var(--f-mono);
+	font-size: 10px;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--ink-4);
+	border: 1px solid var(--line);
+	border-radius: 3px;
+	padding: 1px 5px;
+	margin-left: 8px;
+	vertical-align: 1px;
+}
+
 /* Next-steps card grid */
 .article :deep(.next-steps) {
 	display: grid;
