@@ -7,6 +7,7 @@ import type {
 	LuauExecutionTaskRef,
 } from "../../domains/cloud-v2/luau-execution-tasks/types.ts";
 import { ApiError } from "../../errors/api-error.ts";
+import { NetworkError } from "../../errors/network-error.ts";
 import { PollAbortedError } from "../../errors/poll-aborted.ts";
 import { PollTimeoutError } from "../../errors/poll-timeout.ts";
 import { defaultRetryDelay } from "../../internal/http/retry.ts";
@@ -398,5 +399,102 @@ describe(pollUntilDoneCore, () => {
 		assert(!result.success);
 
 		expect(result.err).toBe(transportError);
+	});
+
+	function makeNetworkError(): NetworkError {
+		const reset = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
+		return new NetworkError("Network request failed", { cause: reset });
+	}
+
+	it("should keep polling after a transient network failure and resolve on a terminal state", async () => {
+		expect.assertions(2);
+
+		const sleep = createFakeSleep();
+		const fetch = vi
+			.fn<PollDeps["fetch"]>()
+			.mockResolvedValueOnce({ err: makeNetworkError(), success: false })
+			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
+
+		const result = await pollUntilDoneCore(makeDeps({ fetch, sleep }), {
+			pollDelay: () => 100,
+		});
+
+		assert(result.success);
+
+		expect(result.data.state).toBe("COMPLETE");
+		expect(fetch).toHaveBeenCalledTimes(2);
+	});
+
+	it("should abort immediately without further polls on a non-network failure", async () => {
+		expect.assertions(2);
+
+		const apiError = new ApiError("not found", { statusCode: 404 });
+		const fetch = vi
+			.fn<PollDeps["fetch"]>()
+			.mockResolvedValue({ err: apiError, success: false });
+
+		const result = await pollUntilDoneCore(makeDeps({ fetch }), {
+			maxConsecutivePollFailures: 3,
+			pollDelay: () => 0,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBe(apiError);
+		expect(fetch).toHaveBeenCalledOnce();
+	});
+
+	it("should give up after the configured number of consecutive network failures", async () => {
+		expect.assertions(2);
+
+		const networkError = makeNetworkError();
+		const fetch = vi
+			.fn<PollDeps["fetch"]>()
+			.mockResolvedValue({ err: networkError, success: false });
+
+		const result = await pollUntilDoneCore(makeDeps({ fetch }), {
+			maxConsecutivePollFailures: 3,
+			pollDelay: () => 0,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBe(networkError);
+		expect(fetch).toHaveBeenCalledTimes(3);
+	});
+
+	it("should reset the consecutive-failure count after a successful poll", async () => {
+		expect.assertions(2);
+
+		const fetch = vi
+			.fn<PollDeps["fetch"]>()
+			.mockResolvedValueOnce({ err: makeNetworkError(), success: false })
+			.mockResolvedValueOnce({ err: makeNetworkError(), success: false })
+			.mockResolvedValueOnce({ data: makeTask("PROCESSING"), success: true })
+			.mockResolvedValueOnce({ err: makeNetworkError(), success: false })
+			.mockResolvedValueOnce({ err: makeNetworkError(), success: false })
+			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
+
+		const result = await pollUntilDoneCore(makeDeps({ fetch }), {
+			maxConsecutivePollFailures: 3,
+			pollDelay: () => 0,
+		});
+
+		assert(result.success);
+
+		expect(result.data.state).toBe("COMPLETE");
+		expect(fetch).toHaveBeenCalledTimes(6);
+	});
+
+	it("should default the consecutive-failure cap to three", async () => {
+		expect.assertions(1);
+
+		const fetch = vi
+			.fn<PollDeps["fetch"]>()
+			.mockResolvedValue({ err: makeNetworkError(), success: false });
+
+		await pollUntilDoneCore(makeDeps({ fetch }), { pollDelay: () => 0 });
+
+		expect(fetch).toHaveBeenCalledTimes(3);
 	});
 });
