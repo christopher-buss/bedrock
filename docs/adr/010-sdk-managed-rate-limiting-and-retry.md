@@ -325,9 +325,11 @@ Two supporting changes land with the policy:
   transient-transport poll failure and continues within the existing
   wall-clock `timeoutMs`, but bails early after `maxConsecutivePollFailures`
   (default 3) so a genuinely-unreachable endpoint stops in seconds rather than
-  spinning out the full budget. A non-transport failure (a 404 meaning the
-  task is gone, a 403) still aborts immediately — there is nothing to poll. A
-  successful poll resets the counter.
+  spinning out the full budget. Only a `NetworkError` carrying a known
+  transient transport code is re-polled; a self-aborted request timeout (no
+  code) aborts immediately, matching the per-request policy. A non-transport
+  failure (a 404 meaning the task is gone, a 403) likewise aborts immediately —
+  there is nothing to poll. A successful poll resets the counter.
 
 New public surface: `retryableTransportCodes` on `OpenCloudClientOptions` and
 `RequestOptions`; `method` and `url` on `NetworkError`;

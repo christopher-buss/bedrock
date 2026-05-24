@@ -4,7 +4,8 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { PollAbortedError } from "../../errors/poll-aborted.ts";
 import { PollTimeoutError } from "../../errors/poll-timeout.ts";
-import { defaultRetryDelay } from "../../internal/http/retry.ts";
+import { defaultRetryDelay, TRANSIENT_TRANSPORT_CODES } from "../../internal/http/retry.ts";
+import { findErrorCode } from "../../internal/utils/find-error-code.ts";
 import type { SleepFunc } from "../../internal/utils/sleep.ts";
 import type { Result } from "../../types.ts";
 
@@ -234,6 +235,24 @@ function isTerminal(task: LuauExecutionTask): boolean {
 	return task.state === "COMPLETE" || task.state === "FAILED" || task.state === "CANCELLED";
 }
 
+/**
+ * A failed poll is worth re-polling only when it is a `NetworkError` carrying a
+ * known transient transport code. A self-aborted request timeout has no
+ * `code`, and an API response (4xx/5xx) is authoritative — both abort the loop
+ * rather than being re-polled, mirroring the per-request retry policy.
+ *
+ * @param error - The error returned by a failed poll.
+ * @returns `true` when the loop should tolerate and re-poll.
+ */
+function isTransientTransport(error: OpenCloudError): error is NetworkError {
+	if (!(error instanceof NetworkError)) {
+		return false;
+	}
+
+	const code = findErrorCode(error);
+	return code !== undefined && TRANSIENT_TRANSPORT_CODES.includes(code);
+}
+
 async function fetchOnce(deps: PollDeps, signal: AbortSignal | undefined): Promise<FetchOutcome> {
 	const fetchResult = await raceWithAbort(deps.fetch(), signal);
 	if (fetchResult === ABORTED) {
@@ -241,7 +260,7 @@ async function fetchOnce(deps: PollDeps, signal: AbortSignal | undefined): Promi
 	}
 
 	if (!fetchResult.success) {
-		return fetchResult.err instanceof NetworkError
+		return isTransientTransport(fetchResult.err)
 			? { error: fetchResult.err, kind: "transient" }
 			: { error: fetchResult.err, kind: "failed" };
 	}

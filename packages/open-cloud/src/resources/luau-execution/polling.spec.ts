@@ -444,6 +444,66 @@ describe(pollUntilDoneCore, () => {
 		expect(fetch).toHaveBeenCalledOnce();
 	});
 
+	it("should abort immediately on a self-aborted network failure with no transport code", async () => {
+		expect.assertions(2);
+
+		const selfAbort = new NetworkError("Network request failed", {
+			cause: new DOMException("timed out", "TimeoutError"),
+		});
+		const fetch = vi
+			.fn<PollDeps["fetch"]>()
+			.mockResolvedValue({ err: selfAbort, success: false });
+
+		const result = await pollUntilDoneCore(makeDeps({ fetch }), {
+			maxConsecutivePollFailures: 3,
+			pollDelay: () => 0,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBe(selfAbort);
+		expect(fetch).toHaveBeenCalledOnce();
+	});
+
+	it("should abort immediately on a network failure whose transport code is not transient", async () => {
+		expect.assertions(2);
+
+		const nonTransient = Object.assign(new Error("weird"), { code: "NOT_A_TRANSIENT_CODE" });
+		const networkError = new NetworkError("Network request failed", { cause: nonTransient });
+		const fetch = vi
+			.fn<PollDeps["fetch"]>()
+			.mockResolvedValue({ err: networkError, success: false });
+
+		const result = await pollUntilDoneCore(makeDeps({ fetch }), {
+			maxConsecutivePollFailures: 3,
+			pollDelay: () => 0,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBe(networkError);
+		expect(fetch).toHaveBeenCalledOnce();
+	});
+
+	it("should abort immediately on an api error even if it carries a transport-style code", async () => {
+		expect.assertions(2);
+
+		const apiError = new ApiError("masquerade", { code: "ECONNRESET", statusCode: 500 });
+		const fetch = vi
+			.fn<PollDeps["fetch"]>()
+			.mockResolvedValue({ err: apiError, success: false });
+
+		const result = await pollUntilDoneCore(makeDeps({ fetch }), {
+			maxConsecutivePollFailures: 3,
+			pollDelay: () => 0,
+		});
+
+		assert(!result.success);
+
+		expect(result.err).toBe(apiError);
+		expect(fetch).toHaveBeenCalledOnce();
+	});
+
 	it("should give up after the configured number of consecutive network failures", async () => {
 		expect.assertions(2);
 
