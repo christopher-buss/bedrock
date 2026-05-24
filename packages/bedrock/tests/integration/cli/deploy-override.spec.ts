@@ -93,11 +93,11 @@ describe("cli deploy override discovery end-to-end", () => {
 
 		expect(code).toBe(0);
 		expect(harness.deploy).not.toHaveBeenCalled();
-		// bun canonicalizes the script path in argv[1] (on macOS the temp dir's
-		// `/var` symlink resolves to `/private/var`), so compare against the
-		// real path of the file discoverOverride resolved.
+		// bun canonicalizes the script path in argv[1] (macOS resolves the temp
+		// dir's `/var` symlink to `/private/var`; Windows expands the 8.3 short
+		// name), so compare against the natively-resolved real path.
 		expect(readProbe()).toStrictEqual({
-			args: [realpathSync(project.overridePath), "--env", "production"],
+			args: [realpathSync.native(project.overridePath), "--env", "production"],
 			cli: "1",
 		});
 		expect(harness.clack.outro).toHaveBeenCalledExactlyOnceWith("deploy succeeded");
