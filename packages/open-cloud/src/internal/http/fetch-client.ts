@@ -6,6 +6,18 @@ import type { Result } from "../../types.ts";
 import { tryCatch } from "../utils/try-catch.ts";
 import type { HttpClient, HttpRequest, HttpResponse, RequestConfig } from "./types.ts";
 
+// Caps the raw body retained when a response cannot be parsed, so a multi-KB
+// HTML error page is not surfaced or logged whole.
+const MAX_DETAIL_LENGTH = 500;
+
+const CONTENT_TYPE_HEADER = "content-type";
+
+interface ParseFailureArgs {
+	readonly cause: Error;
+	readonly response: Response;
+	readonly text: string;
+}
+
 interface ApiErrorMessageParts {
 	readonly code: string | undefined;
 	readonly message: string | undefined;
@@ -116,10 +128,10 @@ export function buildFetchOptions(request: HttpRequest, config: RequestConfig): 
 	if (request.body instanceof FormData) {
 		options.body = request.body;
 	} else if (request.body instanceof Uint8Array) {
-		headers.set("content-type", "application/octet-stream");
+		headers.set(CONTENT_TYPE_HEADER, "application/octet-stream");
 		options.body = request.body;
 	} else if (request.body !== undefined) {
-		headers.set("content-type", "application/json");
+		headers.set(CONTENT_TYPE_HEADER, "application/json");
 		options.body = JSON.stringify(request.body);
 	}
 
@@ -244,22 +256,46 @@ function createRateLimitError(response: Response): RateLimitError {
 	});
 }
 
-async function readResponseBody(
-	response: Response,
-): Promise<Result<JSONValue | undefined, OpenCloudError>> {
+/**
+ * Parses response text as JSON, returning the underlying `SyntaxError` on
+ * failure rather than throwing. The synchronous sibling of {@link tryCatch}.
+ *
+ * @param text - The raw response body text.
+ * @returns A Result wrapping the parsed value, or the parse error.
+ */
+function parseJson(text: string): Result<JSONValue> {
 	try {
-		const text = await response.text();
-		return { data: text === "" ? undefined : JSON.parse(text), success: true };
-	} catch {
-		return {
-			err: new ApiError("Failed to parse response body", { statusCode: response.status }),
-			success: false,
-		};
+		return { data: JSON.parse(text), success: true };
+	} catch (err) {
+		return { err: err instanceof Error ? err : new Error(String(err)), success: false };
 	}
 }
 
 /**
+ * Builds the error for a 2xx response whose body could not be parsed as JSON,
+ * preserving the parse `cause`, the (truncated) raw body, and the declared
+ * content-type so the failure can be diagnosed after the fact.
+ *
+ * @param args - The Response, raw body text, and underlying parse error.
+ * @returns An ApiError carrying the diagnostic context.
+ */
+function parseFailureError({ cause, response, text }: ParseFailureArgs): ApiError {
+	const contentType = response.headers.get(CONTENT_TYPE_HEADER) ?? "unknown";
+	return new ApiError(`Failed to parse response body (content-type: ${contentType})`, {
+		cause,
+		details: text.slice(0, MAX_DETAIL_LENGTH),
+		statusCode: response.status,
+	});
+}
+
+/**
  * Classifies a fetch `Response` into a typed `Result`.
+ *
+ * The body is read once and parsed best-effort. Error responses (status >= 300)
+ * never require valid JSON: an error body that is not valid JSON (for example
+ * an HTML gateway page) degrades to a status-based {@link ApiError} carrying
+ * the raw text. A parse failure is only fatal on a 2xx, where a parseable body is part
+ * of the contract.
  *
  * @param response - The raw fetch Response to classify.
  * @returns A Result containing an HttpResponse on success or an OpenCloudError on failure.
@@ -269,18 +305,22 @@ async function classifyResponse(response: Response): Promise<Result<HttpResponse
 		return { err: createRateLimitError(response), success: false };
 	}
 
-	const bodyResult = await readResponseBody(response);
-	if (!bodyResult.success) {
-		return bodyResult;
-	}
+	const text = await response.text();
+	const parsed: Result<JSONValue | undefined> =
+		text === "" ? { data: undefined, success: true } : parseJson(text);
 
 	if (response.status >= 300) {
-		return { err: createApiError(response.status, bodyResult.data), success: false };
+		const body = parsed.success ? parsed.data : text.slice(0, MAX_DETAIL_LENGTH);
+		return { err: createApiError(response.status, body), success: false };
+	}
+
+	if (!parsed.success) {
+		return { err: parseFailureError({ cause: parsed.err, response, text }), success: false };
 	}
 
 	return {
 		data: {
-			body: bodyResult.data,
+			body: parsed.data,
 			headers: headersToRecord(response.headers),
 			status: response.status,
 		},
