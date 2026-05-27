@@ -15,7 +15,19 @@ const manifest = require("../../../package.json") as { readonly version: string 
 // transitively-imported top-level statement to that test, classifying
 // genuinely-static schema mutants as "covered" (and surviving) instead
 // of "ignored" by `ignoreStatic`.
-const CLI_ENTRY = fileURLToPath(new URL("../../../src/cli/index.ts", import.meta.url));
+//
+// Strip the Stryker sandbox segment so the spawned bun child resolves
+// modules against the canonical source tree. Bun 1.3.13 returns the
+// package directory itself (EISDIR on `node_modules/sade`) when looking
+// up dependencies from inside `.stryker-tmp/sandbox-XXX/`, but resolves
+// the same dependencies correctly when pointed at the real package
+// path. This test only verifies that module evaluation produces no
+// side effects; the mutants live in the in-process suites below, so
+// using the canonical path here costs no coverage.
+const CLI_ENTRY = fileURLToPath(new URL("../../../src/cli/index.ts", import.meta.url)).replace(
+	/([\\/])\.stryker-tmp\1sandbox-[^\\/]+/,
+	"",
+);
 
 interface CapturedStreams {
 	readonly stderr: ReadonlyArray<string>;
