@@ -255,7 +255,7 @@ function resolveExplicitConfigFile(
 function findConfigInDirectory(directory: string): string | undefined {
 	for (const extension of DISCOVERY_EXTENSIONS) {
 		const candidate = join(directory, `bedrock.config.${extension}`);
-		if (existsSync(candidate)) {
+		if (isExistingFile(candidate)) {
 			return candidate;
 		}
 	}
@@ -263,6 +263,16 @@ function findConfigInDirectory(directory: string): string | undefined {
 	return undefined;
 }
 
+/**
+ * Pick the `.bedrock/bedrock.config.*` fallback only when no `bedrock.config.*`
+ * exists at the project root, letting c12 run its own discovery so a root file
+ * always wins. Other c12 sources (`.bedrockrc`, `package.json#bedrock`) are
+ * still merged in by c12 either way; the configFile we hand back wins
+ * overlapping keys per c12's standard layering precedence.
+ * @param cwd - The directory to search.
+ * @returns Absolute path of the `.bedrock/` candidate, or `undefined` to defer
+ * to c12's own discovery on the project root.
+ */
 function discoverConfigFallback(cwd: string): string | undefined {
 	if (findConfigInDirectory(cwd) !== undefined) {
 		return undefined;
