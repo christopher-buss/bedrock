@@ -110,7 +110,7 @@ export BEDROCK_GITHUB_TOKEN=...
 pnpm bedrock deploy --env production
 ```
 
-`bedrock deploy` discovers `bedrock.config.{ts,js,mjs,yaml,yml,json,luau}` in the current directory, loads it, and runs the same reconcile as the programmatic path. Output is rendered via `@clack/prompts` (interactive progress, summary, and error reporting).
+`bedrock deploy` discovers `bedrock.config.{ts,js,mjs,yaml,yml,json,luau}` in the current directory, loads it, and runs the same reconcile as the programmatic path. If no config sits at the project root, bedrock also looks inside `.bedrock/` so you can colocate the file with your other `.bedrock/` artifacts; a root-level config always wins on collision. Output is rendered via `@clack/prompts` (interactive progress, summary, and error reporting).
 
 `--env` may be repeated to deploy to multiple environments in one invocation; each environment is reconciled with its own merged config and its own state slot.
 

@@ -20,7 +20,9 @@ export interface LoadConfigOptions {
 	 * Resolved relative to `cwd` when not absolute. Loaded as-is with no
 	 * extension search; if the file does not exist at the given path,
 	 * `loadConfig` returns `fileNotFound`. When omitted, `loadConfig`
-	 * discovers `bedrock.config.{ts,js,...}` from `cwd`.
+	 * discovers `bedrock.config.{ts,js,...}` from `cwd`, falling back to
+	 * `.bedrock/bedrock.config.{ts,js,...}` when the project root has
+	 * none.
 	 */
 	readonly configFile?: string;
 	/**
@@ -56,11 +58,12 @@ export async function loadConfigWith(
 	options?: LoadConfigOptions,
 ): Promise<Result<Config, ConfigError>> {
 	const cwd = options?.cwd ?? process.cwd();
-	const configFile =
-		options?.configFile === undefined ? undefined : resolveConfigPath(cwd, options.configFile);
-	if (configFile !== undefined && !isExistingFile(configFile)) {
-		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
+	const explicit = resolveExplicitConfigFile(cwd, options?.configFile);
+	if (!explicit.success) {
+		return explicit;
 	}
+
+	const configFile = explicit.data ?? discoverConfigFallback(cwd);
 
 	let resolved: Awaited<ReturnType<typeof c12LoadConfig<Record<string, unknown>>>>;
 	try {
@@ -88,9 +91,12 @@ export async function loadConfigWith(
 /**
  * Discover, parse, and validate the project config.
  *
- * Looks for `bedrock.config.{ts,js,mjs,cjs,yaml,yml,json}`, `.bedrockrc*`,
- * and `package.json#bedrock` starting at `options.cwd` (or the current
- * working directory). Returns a fresh, mutable `Config` on every call so
+ * Looks for `bedrock.config.{ts,js,mjs,cjs,yaml,yml,json,luau}`,
+ * `.bedrockrc*`, and `package.json#bedrock` starting at `options.cwd` (or the
+ * current working directory). When no config sits at the project root, the
+ * loader also probes `.bedrock/bedrock.config.*` so users can colocate the
+ * file with their other `.bedrock/` artifacts. The project root always wins
+ * on collision. Returns a fresh, mutable `Config` on every call so
  * long-running scripts see up-to-date values.
  *
  * When the exported default is a function (sync or async), `loadConfig`
@@ -198,6 +204,12 @@ const NATIVE_CONFIG_EXTENSIONS = [
 	"yml",
 ] as const;
 
+// Discovery probes both the project root and `.bedrock/`. Native formats
+// outrank Luau wherever they coexist; root outranks `.bedrock/`.
+const DISCOVERY_EXTENSIONS = [...NATIVE_CONFIG_EXTENSIONS, "luau"] as const;
+
+const BEDROCK_CONFIG_DIRECTORY = ".bedrock";
+
 interface PickLuauTargetContext {
 	readonly callerConfigFile: string | undefined;
 	readonly cwd: string;
@@ -222,6 +234,51 @@ class EvaluatorThrow extends Error {
 		super();
 		this.configError = configError;
 	}
+}
+
+function resolveExplicitConfigFile(
+	cwd: string,
+	configFile: string | undefined,
+): Result<string | undefined, ConfigError> {
+	if (configFile === undefined) {
+		return { data: undefined, success: true };
+	}
+
+	const resolved = resolveConfigPath(cwd, configFile);
+	if (!isExistingFile(resolved)) {
+		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
+	}
+
+	return { data: resolved, success: true };
+}
+
+function findConfigInDirectory(directory: string): string | undefined {
+	for (const extension of DISCOVERY_EXTENSIONS) {
+		const candidate = join(directory, `bedrock.config.${extension}`);
+		if (isExistingFile(candidate)) {
+			return candidate;
+		}
+	}
+
+	return undefined;
+}
+
+/**
+ * Pick the `.bedrock/bedrock.config.*` fallback only when no `bedrock.config.*`
+ * exists at the project root, letting c12 run its own discovery so a root file
+ * always wins. Other c12 sources (`.bedrockrc`, `package.json#bedrock`) are
+ * still merged in by c12 either way; the configFile we hand back wins
+ * overlapping keys per c12's standard layering precedence.
+ * @param cwd - The directory to search.
+ * @returns Absolute path of the `.bedrock/` candidate, or `undefined` to defer
+ * to c12's own discovery on the project root.
+ */
+function discoverConfigFallback(cwd: string): string | undefined {
+	if (findConfigInDirectory(cwd) !== undefined) {
+		return undefined;
+	}
+
+	return findConfigInDirectory(join(cwd, BEDROCK_CONFIG_DIRECTORY));
 }
 
 /**
@@ -309,16 +366,20 @@ function extractConfigFileFromStack(err: unknown): string | undefined {
 	return undefined;
 }
 
-function discoverConfigFile(cwd: string): string | undefined {
+function findConfigEntry(directory: string): string | undefined {
 	let entries: ReadonlyArray<string>;
 	try {
-		entries = readdirSync(cwd);
+		entries = readdirSync(directory);
 	} catch {
 		return undefined;
 	}
 
 	const match = entries.toSorted().find((entry) => entry.startsWith("bedrock.config."));
-	return match === undefined ? undefined : join(cwd, match);
+	return match === undefined ? undefined : join(directory, match);
+}
+
+function discoverConfigFile(cwd: string): string | undefined {
+	return findConfigEntry(cwd) ?? findConfigEntry(join(cwd, BEDROCK_CONFIG_DIRECTORY));
 }
 
 function attributeLoadError(err: unknown, cwd: string): ConfigError {

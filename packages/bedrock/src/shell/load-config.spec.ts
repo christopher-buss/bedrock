@@ -745,6 +745,140 @@ describe(loadConfig, () => {
 		},
 	);
 
+	it("should discover bedrock.config.ts inside .bedrock/ when the project root has no config", async () => {
+		expect.assertions(1);
+
+		await withTemporaryDirectory(async (cwd) => {
+			const bedrockDirectory = join(cwd, ".bedrock");
+			mkdirSync(bedrockDirectory, { recursive: true });
+			writeFileSync(
+				join(bedrockDirectory, "bedrock.config.ts"),
+				[
+					"import { defineConfig } from '@bedrock-rbx/core';",
+					"export default defineConfig({",
+					"  environments: { production: {} },",
+					"  passes: {",
+					"    'vip-pass': {",
+					"      description: 'Loaded from .bedrock dir.',",
+					"      icon: { 'en-us': 'assets/vip-icon.png' },",
+					"      name: 'Nested Pass',",
+					"      price: 500,",
+					"    },",
+					"  },",
+					"});",
+				].join("\n"),
+			);
+
+			const result = await loadConfig({ cwd });
+
+			assert(result.success);
+
+			expect(result.data.passes!["vip-pass"]!.name).toBe("Nested Pass");
+		});
+	});
+
+	it.skipIf(!HAS_LUTE)(
+		"should discover bedrock.config.luau inside .bedrock/ when the project root has no config",
+		async () => {
+			expect.assertions(1);
+
+			await withTemporaryDirectory(async (cwd) => {
+				const bedrockDirectory = join(cwd, ".bedrock");
+				mkdirSync(bedrockDirectory, { recursive: true });
+				writeFileSync(
+					join(bedrockDirectory, "bedrock.config.luau"),
+					[
+						"return {",
+						"  environments = { production = {} },",
+						"  passes = {",
+						"    ['vip-pass'] = {",
+						"      description = 'Loaded from .bedrock dir.',",
+						"      icon = { ['en-us'] = 'assets/vip-icon.png' },",
+						"      name = 'Nested Luau Pass',",
+						"      price = 500,",
+						"    },",
+						"  },",
+						"}",
+						"",
+					].join("\n"),
+				);
+
+				const result = await loadConfig({ cwd });
+
+				assert(result.success);
+
+				expect(result.data.passes!["vip-pass"]!.name).toBe("Nested Luau Pass");
+			});
+		},
+	);
+
+	it("should prefer the root bedrock.config.* over .bedrock/ when both exist", async () => {
+		expect.assertions(1);
+
+		await withTemporaryDirectory(async (cwd) => {
+			const bedrockDirectory = join(cwd, ".bedrock");
+			mkdirSync(bedrockDirectory, { recursive: true });
+			writeFixtureConfig(cwd, [
+				"export default {",
+				"  environments: { production: {} },",
+				"  passes: {",
+				"    'vip-pass': {",
+				"      description: 'Root wins.',",
+				"      icon: { 'en-us': 'assets/vip-icon.png' },",
+				"      name: 'Root Pass',",
+				"      price: 500,",
+				"    },",
+				"  },",
+				"};",
+			]);
+			writeFileSync(
+				join(bedrockDirectory, "bedrock.config.ts"),
+				[
+					"export default {",
+					"  environments: { production: {} },",
+					"  passes: {",
+					"    'vip-pass': {",
+					"      description: 'Nested loses.',",
+					"      icon: { 'en-us': 'assets/vip-icon.png' },",
+					"      name: 'Nested Pass',",
+					"      price: 500,",
+					"    },",
+					"  },",
+					"};",
+				].join("\n"),
+			);
+
+			const result = await loadConfig({ cwd });
+
+			assert(result.success);
+
+			expect(result.data.passes!["vip-pass"]!.name).toBe("Root Pass");
+		});
+	});
+
+	it("should attribute a parseFailed error to the .bedrock/ config file when that is the only source", async () => {
+		expect.assertions(3);
+
+		await withTemporaryDirectory(async (cwd) => {
+			const bedrockDirectory = join(cwd, ".bedrock");
+			mkdirSync(bedrockDirectory, { recursive: true });
+			const malformedPath = join(bedrockDirectory, "bedrock.config.yaml");
+			writeFileSync(
+				malformedPath,
+				["passes:", "  vip-pass:", '    name: "VIP Pass', "    price: 500", ""].join("\n"),
+			);
+
+			const result = await loadConfig({ cwd });
+
+			assert(!result.success);
+			assert(result.err.kind === "parseFailed");
+
+			expect(result.err.kind).toBe("parseFailed");
+			expect(result.err.sourceFile).toBe(malformedPath);
+			expect(result.err.message.length).toBeGreaterThan(0);
+		});
+	});
+
 	it("should return a fresh copy on each call so mutation does not leak between invocations", async () => {
 		expect.assertions(1);
 
