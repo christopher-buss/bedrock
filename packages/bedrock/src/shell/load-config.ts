@@ -20,7 +20,9 @@ export interface LoadConfigOptions {
 	 * Resolved relative to `cwd` when not absolute. Loaded as-is with no
 	 * extension search; if the file does not exist at the given path,
 	 * `loadConfig` returns `fileNotFound`. When omitted, `loadConfig`
-	 * discovers `bedrock.config.{ts,js,...}` from `cwd`.
+	 * discovers `bedrock.config.{ts,js,...}` from `cwd`, falling back to
+	 * `.bedrock/bedrock.config.{ts,js,...}` when the project root has
+	 * none.
 	 */
 	readonly configFile?: string;
 	/**
@@ -61,7 +63,7 @@ export async function loadConfigWith(
 		return explicit;
 	}
 
-	const configFile = explicit.data ?? findConfigInBedrockDirectory(cwd);
+	const configFile = explicit.data ?? discoverConfigFallback(cwd);
 
 	let resolved: Awaited<ReturnType<typeof c12LoadConfig<Record<string, unknown>>>>;
 	try {
@@ -261,7 +263,7 @@ function findConfigInDirectory(directory: string): string | undefined {
 	return undefined;
 }
 
-function findConfigInBedrockDirectory(cwd: string): string | undefined {
+function discoverConfigFallback(cwd: string): string | undefined {
 	if (findConfigInDirectory(cwd) !== undefined) {
 		return undefined;
 	}
