@@ -200,6 +200,9 @@ export class PlacesClient {
 	/**
 	 * Publishes a new live version of a place.
 	 *
+	 * No default request timeout applies to this upload; pass `options.timeout`
+	 * to set a per-call deadline.
+	 *
 	 * @param parameters - Universe and place identifiers, the place file
 	 *   bytes, and their declared `format`.
 	 * @param options - Optional per-request overrides (e.g. A different
@@ -220,6 +223,9 @@ export class PlacesClient {
 	 * promote it later. Shares a single per-API-key rate-limit queue with
 	 * `publish` because Roblox attributes both calls to the same per-minute
 	 * quota.
+	 *
+	 * No default request timeout applies to this upload; pass `options.timeout`
+	 * to set a per-call deadline.
 	 *
 	 * @param parameters - Universe and place identifiers, the place file
 	 *   bytes, and their declared `format`.
