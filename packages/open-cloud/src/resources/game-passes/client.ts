@@ -126,6 +126,9 @@ interface GamePassLocalizationHandle {
 	 * existing icon for that locale. Does not retry on 5xx so a duplicate
 	 * upload cannot be created if the server fails mid-write.
 	 *
+	 * No default request timeout applies to this upload; pass `options.timeout`
+	 * to set a per-call deadline.
+	 *
 	 * @param parameters - Game pass and language identifiers plus the image
 	 *   bytes to upload.
 	 * @param options - Optional per-request overrides.
@@ -209,6 +212,9 @@ export class GamePassesClient {
 	/**
 	 * Creates a new game pass under the supplied universe.
 	 *
+	 * No default request timeout applies to this upload; pass `options.timeout`
+	 * to set a per-call deadline.
+	 *
 	 * @param parameters - Creation fields including the universe and pass name.
 	 * @param options - Optional per-request overrides.
 	 * @returns A {@link Result} wrapping the parsed {@link GamePass} or the
@@ -261,6 +267,9 @@ export class GamePassesClient {
 	 * observe a server-derived `updatedAt`) chain
 	 * {@link GamePassesClient.get} themselves so the GET only fires when
 	 * actually needed.
+	 *
+	 * No default request timeout applies to this upload; pass `options.timeout`
+	 * to set a per-call deadline.
 	 *
 	 * @param parameters - The universe and game pass identifiers and the
 	 *   fields to update. Only fields explicitly provided are forwarded.

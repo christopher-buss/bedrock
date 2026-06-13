@@ -201,6 +201,9 @@ interface UniverseIconHandle {
 	 * subsequent upload for the same `(universeId, languageCode)` pair
 	 * replaces the existing icon for that locale.
 	 *
+	 * No default request timeout applies to this upload; pass `options.timeout`
+	 * to set a per-call deadline.
+	 *
 	 * @param parameters - Universe and language identifiers plus the image
 	 *   bytes to upload.
 	 * @param options - Optional per-request overrides (e.g. A different
@@ -249,6 +252,9 @@ interface UniverseThumbnailsHandle {
 	 * Uploads a new thumbnail and appends it to the localized carousel. Use
 	 * {@link UniverseThumbnailsHandle.reorder} after multiple uploads to
 	 * set the display order.
+	 *
+	 * No default request timeout applies to this upload; pass `options.timeout`
+	 * to set a per-call deadline.
 	 *
 	 * @param parameters - Universe and language identifiers plus the image
 	 *   bytes to upload.

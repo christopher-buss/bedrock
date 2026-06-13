@@ -6,6 +6,7 @@ import type {
 	HttpResponse,
 	OpenCloudClientOptions,
 	OpenCloudHooks,
+	RequestConfig,
 	RequestOptions,
 	SleepFunc,
 } from "../client/types.ts";
@@ -23,6 +24,7 @@ import {
 	type MethodKind,
 	type RetryResolvable,
 } from "./http/retry.ts";
+import { isUploadRequest } from "./http/upload-request.ts";
 
 /**
  * Describes a single resource method's shape for dispatch through
@@ -124,6 +126,18 @@ const CLIENT_DEFAULTS = Object.freeze({
 } satisfies Except<RetryResolvable, "apiKey">);
 
 /**
+ * Inputs to {@link buildRequestConfig}, bundled to keep the signature narrow.
+ */
+interface RequestConfigInputs {
+	/** The resolved config for this call. */
+	readonly merged: RetryResolvable;
+	/** The caller's per-request overrides, if any. */
+	readonly options: RequestOptions | undefined;
+	/** The built request, inspected for an upload body. */
+	readonly request: HttpRequest;
+}
+
+/**
  * Internal orchestrator shared by every Open Cloud resource client. Holds
  * the frozen client config, observability hooks, injected HTTP client and
  * sleep, and the per-effective-key rate-limit queue registry. Resource
@@ -184,11 +198,7 @@ export class ResourceClient {
 			return requestResult;
 		}
 
-		const requestConfig = {
-			apiKey: merged.apiKey,
-			baseUrl: merged.baseUrl,
-			timeout: merged.timeout,
-		};
+		const requestConfig = buildRequestConfig({ merged, options, request: requestResult.data });
 		const queue = this.#getQueue(merged.apiKey, spec.operationLimit);
 		const httpResult = await queue.acquire(async () => {
 			return executeWithRetry(requestResult.data, {
@@ -225,6 +235,27 @@ export class ResourceClient {
 		this.#queues.set(key, queue);
 		return queue;
 	}
+}
+
+/**
+ * Resolves the per-request {@link RequestConfig}. Upload requests
+ * ({@link isUploadRequest}) carry no default timeout: a multi-megabyte place
+ * file over a slow link is bandwidth-bound, so a client-side deadline only
+ * fires spuriously. An explicit `options.timeout` still applies to any
+ * request; every non-upload request keeps the merged default.
+ *
+ * @param inputs - The merged config, the built request, and per-request overrides.
+ * @returns The config to hand to the transport, with `timeout` omitted when
+ *   no client-side deadline should apply.
+ */
+function buildRequestConfig(inputs: RequestConfigInputs): RequestConfig {
+	const { merged, options, request } = inputs;
+	const shouldOmitDefaultTimeout = options?.timeout === undefined && isUploadRequest(request);
+	return {
+		apiKey: merged.apiKey,
+		baseUrl: merged.baseUrl,
+		...(shouldOmitDefaultTimeout ? {} : { timeout: merged.timeout }),
+	};
 }
 
 function enrichPermissionError<P, T>(

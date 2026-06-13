@@ -110,6 +110,9 @@ interface BadgeLocalizationHandle {
 	 * upload cannot be created if the server fails mid-write. Source-language
 	 * icons remain on {@link BadgesClient.uploadIcon}.
 	 *
+	 * No default request timeout applies to this upload; pass `options.timeout`
+	 * to set a per-call deadline.
+	 *
 	 * @param parameters - Badge and language identifiers plus the image bytes
 	 *   to upload.
 	 * @param options - Optional per-request overrides.
@@ -170,6 +173,9 @@ export class BadgesClient {
 	/**
 	 * Creates a new badge under the supplied universe.
 	 *
+	 * No default request timeout applies to this upload; pass `options.timeout`
+	 * to set a per-call deadline.
+	 *
 	 * @param parameters - Creation fields including the universe, name, and
 	 *   icon image.
 	 * @param options - Optional per-request overrides.
@@ -206,6 +212,9 @@ export class BadgesClient {
 	 * badge. A subsequent upload for the same badge replaces the
 	 * existing source icon. Does not retry on 5xx so a duplicate icon
 	 * upload cannot be created if the server fails mid-write.
+	 *
+	 * No default request timeout applies to this upload; pass `options.timeout`
+	 * to set a per-call deadline.
 	 *
 	 * @param parameters - Identifier plus the image bytes to upload.
 	 * @param options - Optional per-request overrides.

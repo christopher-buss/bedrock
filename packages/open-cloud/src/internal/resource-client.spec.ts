@@ -37,6 +37,10 @@ function buildTestPostRequest(parameters: TestParameters): HttpRequest {
 	return { body: { id: parameters.id }, method: "POST", url: "/test" };
 }
 
+function buildTestUploadRequest(): HttpRequest {
+	return { body: new Uint8Array([1, 2, 3]), method: "POST", url: "/upload" };
+}
+
 const TEST_GET_SPEC: ResourceMethodSpec<TestParameters, TestResult> = {
 	buildRequest: (parameters) => okRequest({ method: "GET", url: `/test/${parameters.id}` }),
 	methodDefaults: IDEMPOTENT_METHOD_DEFAULTS,
@@ -50,6 +54,14 @@ const TEST_CREATE_SPEC: ResourceMethodSpec<TestParameters, TestResult> = {
 	methodDefaults: CREATE_METHOD_DEFAULTS,
 	methodKind: "create",
 	operationLimit: Object.freeze({ maxPerSecond: 5, operationKey: "test.create" }),
+	parse: parseTestResponse,
+};
+
+const TEST_UPLOAD_SPEC: ResourceMethodSpec<TestParameters, TestResult> = {
+	buildRequest: () => okRequest(buildTestUploadRequest()),
+	methodDefaults: CREATE_METHOD_DEFAULTS,
+	methodKind: "create",
+	operationLimit: Object.freeze({ maxPerSecond: 5, operationKey: "test.upload" }),
 	parse: parseTestResponse,
 };
 
@@ -211,6 +223,70 @@ describe(ResourceClient, () => {
 			assert(!result.success);
 
 			expect(httpClient.requests).toHaveLength(1);
+		});
+	});
+
+	describe("upload timeout policy", () => {
+		it("should drop the default timeout for an upload request with no per-request timeout", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				status: 200,
+			});
+			const client = new ResourceClient({
+				apiKey: "client-key",
+				baseUrl: "https://apis.roblox.com",
+				httpClient,
+				sleep: createFakeSleep(),
+				timeout: 30_000,
+			});
+
+			await client.execute({ parameters: { id: "1" }, spec: TEST_UPLOAD_SPEC });
+
+			expect(httpClient.requests[0]?.config).toStrictEqual({
+				apiKey: "client-key",
+				baseUrl: "https://apis.roblox.com",
+			});
+		});
+
+		it("should apply an explicit per-request timeout to an upload request", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				status: 200,
+			});
+			const client = new ResourceClient({
+				apiKey: "client-key",
+				httpClient,
+				sleep: createFakeSleep(),
+				timeout: 30_000,
+			});
+
+			await client.execute({
+				options: { timeout: 1000 },
+				parameters: { id: "1" },
+				spec: TEST_UPLOAD_SPEC,
+			});
+
+			expect(httpClient.requests[0]?.config.timeout).toBe(1000);
+		});
+
+		it("should keep the default timeout for a JSON request with no per-request timeout", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
+				status: 200,
+			});
+			const client = new ResourceClient({
+				apiKey: "client-key",
+				httpClient,
+				sleep: createFakeSleep(),
+				timeout: 30_000,
+			});
+
+			await client.execute({ parameters: { id: "1" }, spec: TEST_CREATE_SPEC });
+
+			expect(httpClient.requests[0]?.config.timeout).toBe(30_000);
 		});
 	});
 
