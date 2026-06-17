@@ -35,7 +35,11 @@ import {
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
 import { buildPollDeps, submitAndPoll } from "./polling-helpers.ts";
-import { pollUntilDoneCore, type PollUntilDoneOptions } from "./polling.ts";
+import {
+	pollUntilDoneCore,
+	type PollUntilDoneOptions,
+	withBudgetRequestTimeout,
+} from "./polling.ts";
 
 function makeSpec<P, R>(spec: ResourceMethodSpec<P, R>): ResourceMethodSpec<P, R> {
 	return Object.freeze(spec);
@@ -216,10 +220,11 @@ function createTasksHandle(inner: ResourceClient): TasksHandle {
 			return inner.execute({ options, parameters, spec: LIST_LOGS_SPEC });
 		},
 		async pollUntilDone(ref, options = {}) {
-			return pollUntilDoneCore(buildPollDeps(inner, { options, ref }), options);
+			const resolved = withBudgetRequestTimeout(options);
+			return pollUntilDoneCore(buildPollDeps(inner, { options: resolved, ref }), resolved);
 		},
 		async runUntilDone(parameters, options = {}) {
-			return submitAndPoll(inner, { options, parameters });
+			return submitAndPoll(inner, { options: withBudgetRequestTimeout(options), parameters });
 		},
 		async submit(parameters, options) {
 			if ("versionId" in parameters) {

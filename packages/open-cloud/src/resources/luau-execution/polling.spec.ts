@@ -18,6 +18,7 @@ import {
 	defaultPollDelay,
 	type PollDeps,
 	pollUntilDoneCore,
+	withBudgetRequestTimeout,
 } from "./polling.ts";
 
 const ref: LuauExecutionTaskRef = {
@@ -566,5 +567,27 @@ describe(defaultPollDelay, () => {
 		expect.assertions(1);
 
 		expect(defaultPollDelay(elapsedMs)).toBe(expected);
+	});
+});
+
+describe(withBudgetRequestTimeout, () => {
+	it("should derive the per-request timeout from the poll budget when none is set", () => {
+		expect.assertions(1);
+
+		expect(withBudgetRequestTimeout({ timeoutMs: 120_000 }).timeout).toBe(120_000);
+	});
+
+	it("should preserve an explicit per-request timeout over the poll budget", () => {
+		expect.assertions(1);
+
+		expect(withBudgetRequestTimeout({ timeout: 5_000, timeoutMs: 120_000 }).timeout).toBe(
+			5_000,
+		);
+	});
+
+	it("should fall back to the default poll budget when neither timeout nor timeoutMs is set", () => {
+		expect.assertions(1);
+
+		expect(withBudgetRequestTimeout({}).timeout).toBe(DEFAULT_POLL_TIMEOUT_MS);
 	});
 });
