@@ -349,6 +349,31 @@ describe(LuauExecutionClient, () => {
 			expect(result.success).toBeFalse();
 			expect(httpClient.requests).toHaveLength(1);
 		});
+
+		it("should derive the submit and poll request timeouts from the poll budget", async () => {
+			expect.assertions(2);
+
+			const submitBody = validInProgressTaskBody({
+				path: "universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
+				state: "QUEUED",
+			});
+			const httpClient = createFakeHttpClient()
+				.mockResponse({ body: submitBody, status: 200 })
+				.mockResponse({ body: completeBody, status: 200 });
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.tasks.runUntilDone(
+				{ placeId: "456", script: "return 1", universeId: "123", versionId: "789" },
+				{ pollDelay: () => 0, timeoutMs: 120_000 },
+			);
+
+			expect(httpClient.requests[0]?.config.timeout).toBe(120_000);
+			expect(httpClient.requests[1]?.config.timeout).toBe(120_000);
+		});
 	});
 
 	describe("tasks.pollUntilDone", () => {
@@ -414,6 +439,46 @@ describe(LuauExecutionClient, () => {
 			assert(result.success);
 
 			expect(result.data.state).toBe("COMPLETE");
+		});
+
+		it("should derive the poll request timeout from the poll budget", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: completeBody,
+				status: 200,
+			});
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.tasks.pollUntilDone(fullRef, { pollDelay: () => 0, timeoutMs: 120_000 });
+
+			expect(httpClient.requests[0]?.config.timeout).toBe(120_000);
+		});
+
+		it("should forward an explicit per-request timeout ahead of the poll budget", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient().mockResponse({
+				body: completeBody,
+				status: 200,
+			});
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			await client.tasks.pollUntilDone(fullRef, {
+				pollDelay: () => 0,
+				timeout: 5_000,
+				timeoutMs: 120_000,
+			});
+
+			expect(httpClient.requests[0]?.config.timeout).toBe(5_000);
 		});
 
 		// Slice 17: always requests view=BASIC

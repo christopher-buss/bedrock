@@ -336,3 +336,54 @@ New public surface: `retryableTransportCodes` on `OpenCloudClientOptions` and
 `maxConsecutivePollFailures` on the poll options. The create idempotency
 guarantee is unchanged — duplicate-resource risk stays gated behind an
 explicit per-request opt-in.
+
+## Amendment: 2026-06-17, per-request timeout follows the poll budget for polled operations
+
+The original Decision treats the 30s per-request `timeout` as a universal
+default and the prior amendment reinforces it: "a genuine 30s timeout is a real
+signal, not a transient blip," and a self-abort — carrying no node-style
+`code` — is never retried. That holds for snappy CRUD, where 30s of silence is
+a genuine fault.
+
+It does not hold for `LuauExecutionClient.tasks.runUntilDone` /
+`pollUntilDone`. The submit endpoint only enqueues a task (it "does not wait for
+the task to complete"), and a poll `get` is a plain state read, so both should
+answer in well under a second. But Roblox's task-create and cold-`get` latencies
+routinely spike past 30s under load. When they do, the request self-aborts at
+the 30s default — an error the retry layer excludes by construction and the poll
+loop classifies as a hard failure — so the operation dies before its own
+wall-clock budget (`timeoutMs`) is ever consulted. This produced frequent,
+non-recoverable timeout failures in the jest-roblox-cli runner, whose poll
+budget is 5 minutes.
+
+The fix derives the per-request deadline from the budget the caller already
+declared rather than a fixed constant:
+
+- **`runUntilDone` and `pollUntilDone` default each submit and poll request's
+  `timeout` to `timeoutMs`** (falling back to the 300s default budget) when the
+  caller has not set one. The value is not a magic number — it is the patience
+  the caller already chose for the whole operation. A single request stays alive
+  long enough for the backend to answer or to surface a *retryable* status (a
+  5xx, or a TCP-level `ECONNRESET`) instead of a self-abort the retry layer
+  never retries.
+- **An explicit per-request `timeout` still wins**, via the same merge
+  precedence that scopes the retry fields. This is why the default is applied in
+  the options layer and not as a method default: for the idempotent poll `get`,
+  client config beats method defaults, but per-request options beat both.
+
+This is the same recognition behind dropping the default timeout for upload
+methods (christopher-buss/bedrock#463): the one-size 30s CRUD default does not
+fit every request class. The two carve-outs differ in shape — uploads omit the
+deadline entirely because their duration is bandwidth-bound and unknowable,
+whereas polled luau-execution requests keep a *finite* budget-derived deadline
+so a true black-hole still bails and a TCP reset stays retryable.
+
+No new public surface: the behavior lives in an internal helper applied at the
+two polling entry points and is not exported from the package barrel.
+
+A latent gap remains and is tracked separately
+(christopher-buss/bedrock#466): the poll budget is only checked between
+iterations and is not wired to an in-flight `AbortSignal`, so a single request
+is still not bounded by the *remaining* budget, and budget exhaustion mid-flight
+surfaces as a transport `NetworkError` rather than the documented
+`PollTimeoutError`.
