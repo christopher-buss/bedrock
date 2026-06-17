@@ -2,7 +2,7 @@
 #
 # Claude Code's WorktreeCreate hook (scripts/worktree-create.ts) runs
 # `wt switch --create` with hooks enabled, so these fire during creation:
-# pre-start blocks, post-start backgrounds. Teardown mirrors this — the
+# pre-start blocks, post-start backgrounds. Teardown mirrors this; the
 # WorktreeRemove hook (scripts/worktree-remove.ts) runs `wt remove --force`.
 #
 # Pipeline runs block-by-block in order: mise trust -> mise install -> (pnpm
