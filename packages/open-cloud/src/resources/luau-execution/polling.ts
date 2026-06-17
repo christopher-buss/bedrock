@@ -100,15 +100,15 @@ interface PollOptions {
 /**
  * Defaults the per-request `timeout` to the effective poll budget when the
  * caller has not set one. A luau-execution submit and each poll `get` normally
- * answer in well under a second — the submit endpoint enqueues the task without
- * waiting for it to run — so the only job of a per-request deadline here is to
+ * answer in well under a second (the submit endpoint enqueues the task without
+ * waiting for it to run), so the only job of a per-request deadline here is to
  * bound a black-hole connection. Leaving these requests on the client-wide 30s
  * default (tuned for snappy CRUD) turns a slow-but-alive backend into a
- * self-abort — an error the retry layer never retries by construction — before
+ * self-abort, an error the retry layer never retries by construction, before
  * the loop's wall-clock budget is ever consulted. Deriving the deadline from
- * `timeoutMs` keeps a single request
- * alive exactly as long as the caller already agreed to wait for the whole
- * operation, so the backend can answer or surface a retryable status instead.
+ * `timeoutMs` keeps a single request alive exactly as long as the caller
+ * already agreed to wait for the whole operation, so the backend can answer or
+ * surface a retryable status instead.
  *
  * @param options - The caller's poll and per-request options.
  * @returns The options with `timeout` filled from the budget when it was unset.
