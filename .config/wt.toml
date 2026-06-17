@@ -1,5 +1,42 @@
-[pre-start]
-mise-trust = "mise trust"
+# Project-specific hooks that run automatically during worktree operations.
+#
+# Claude Code's WorktreeCreate hook (scripts/worktree-create.ts) runs
+# `wt switch --create` with hooks enabled, so these fire during creation:
+# pre-start blocks, post-start backgrounds. Teardown mirrors this; the
+# WorktreeRemove hook (scripts/worktree-remove.ts) runs `wt remove --force`.
+#
+# Pipeline runs block-by-block in order: mise trust -> mise install -> (pnpm
+# install and copy concurrently). pnpm install and copy share a block because
+# they touch disjoint files -- pnpm install owns node_modules, copy-ignored
+# excludes it (see [step.copy-ignored] below). The deprecated single-table form
+# runs all keys in parallel.
+[[pre-start]]
+mise = "mise trust"
+
+# After trust, before deps: front-load the pinned toolchain into its own named
+# step so a version bump or fresh clone fails fast here with clear attribution
+# instead of mid-`pnpm install`/build.
+[[pre-start]]
 mise-install = "mise install"
-pnpm-install = "pnpm install"
-build = "nr build"
+
+# pnpm install and copy run concurrently (one block, multiple keys): disjoint
+# file sets, so no race on node_modules.
+[[pre-start]]
+deps = "pnpm install"
+copy = "wt step copy-ignored"
+
+# Post-Start: runs in BACKGROUND after pre-start completes, so worktree creation
+# isn't blocked on the build. MUST use the [[post-start]] table header, not a
+# bare `post-start =` key: a bare key placed after the [[pre-start]] blocks above
+# is absorbed by TOML into the last pre-start block, which would run the build
+# concurrently with pnpm install and race node_modules.
+# Output logged to .git/wt-logs/{branch}-project-post-start-{name}.log
+[[post-start]]
+build = "pnpm build"
+
+# copy-ignored skips node_modules: pnpm install owns it, and copying it would
+# (a) race pnpm install when the two run concurrently and (b) waste I/O
+# re-walking the thousands of files pnpm install already created. Everything
+# else gitignored (.env, build outputs) is still copied to warm the worktree.
+[step.copy-ignored]
+exclude = [ "node_modules/" ]
