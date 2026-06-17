@@ -25,25 +25,24 @@
 		"defaultMode": "plan"
 	},
 	"hooks": {
-		"SessionStart": [
-			{
-				"matcher": "startup",
-				"hooks": [
-					{
-						"type": "command",
-						"command": "bun ${CLAUDE_PROJECT_DIR}/scripts/session-start-worktree-setup.ts",
-						"timeout": 300
-					}
-				]
-			}
-		],
 		"WorktreeCreate": [
 			{
 				"hooks": [
 					{
 						"type": "command",
 						"command": "bun ${CLAUDE_PROJECT_DIR}/scripts/worktree-create.ts",
-						"timeout": 300
+						"timeout": 600
+					}
+				]
+			}
+		],
+		"WorktreeRemove": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun ${CLAUDE_PROJECT_DIR}/scripts/worktree-remove.ts",
+						"timeout": 120
 					}
 				]
 			}
