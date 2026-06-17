@@ -30,7 +30,7 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "bun ${CLAUDE_PROJECT_DIR}/scripts/worktree-create.ts",
+						"command": "bun scripts/worktree-create.ts",
 						"timeout": 600
 					}
 				]
@@ -41,7 +41,7 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "bun ${CLAUDE_PROJECT_DIR}/scripts/worktree-remove.ts",
+						"command": "bun scripts/worktree-remove.ts",
 						"timeout": 120
 					}
 				]
