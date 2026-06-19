@@ -1,5 +1,5 @@
 import { createClackPort } from "../cli/clack-port.ts";
-import { type ClackPort, renderDeployError } from "../cli/render.ts";
+import { type ClackPort, describeDriverCause, renderDeployError } from "../cli/render.ts";
 import { resolveStateConfig } from "../core/resolve-state-config.ts";
 import {
 	type Config,
@@ -162,7 +162,7 @@ function renderResourceOpSucceeded(
 function describeApplyError(error: ApplyError): string {
 	switch (error.kind) {
 		case "driverFailure": {
-			return `failed: ${error.cause.message}`;
+			return `failed: ${describeDriverCause(error.cause)}`;
 		}
 		case "unexpectedThrow": {
 			return "unexpected error";

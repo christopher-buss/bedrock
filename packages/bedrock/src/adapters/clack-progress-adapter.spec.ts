@@ -1,4 +1,4 @@
-import { OpenCloudError } from "@bedrock-rbx/ocale";
+import { NetworkError, OpenCloudError } from "@bedrock-rbx/ocale";
 
 import { fakeClackPort } from "#tests/helpers/clack";
 import { describe, expect, it } from "vitest";
@@ -153,6 +153,35 @@ describe(createClackProgressAdapter, () => {
 		});
 
 		expect(clack.logError).toHaveBeenCalledExactlyOnceWith("gamePass.vip-pass failed: boom");
+	});
+
+	it("should expand a network driverFailure with its transport code and failing call", () => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		const port = createClackProgressAdapter({ clack });
+		const key = asResourceKey("start");
+
+		port.emit({
+			key,
+			environment: "development",
+			error: {
+				key,
+				cause: new NetworkError("Network request failed", {
+					cause: Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" }),
+					method: "POST",
+					url: "https://apis.roblox.com/universes/v1/9110019856/places/84607999013117/versions",
+				}),
+				kind: "driverFailure",
+			},
+			kind: "resourceOpFailed",
+			opType: "update",
+			resourceKind: "place",
+		});
+
+		expect(clack.logError).toHaveBeenCalledExactlyOnceWith(
+			"place.start failed: Network request failed (ECONNRESET) on POST https://apis.roblox.com/universes/v1/9110019856/places/84607999013117/versions",
+		);
 	});
 
 	it("should render resourceOpFailed for the unexpectedThrow ApplyError", () => {
