@@ -1,4 +1,4 @@
-import { ApiError, PermissionError } from "@bedrock-rbx/ocale";
+import { ApiError, NetworkError, PermissionError } from "@bedrock-rbx/ocale";
 
 import { fakeClackPort } from "#tests/helpers/clack";
 import { describe, expect, it } from "vitest";
@@ -11,6 +11,7 @@ import type { SpawnOverrideError } from "./dispatch-override.ts";
 import type { ParseMigrateError } from "./parse-migrate-options.ts";
 import type { ParseOptionsError } from "./parse-options.ts";
 import {
+	describeDriverCause,
 	renderBuildStatePortError,
 	renderDeployError,
 	renderMigrateError,
@@ -247,6 +248,31 @@ describe(renderDeployError, () => {
 			},
 			expected:
 				"apply failed for 'main-place': HTTP 401 on places.publishVersion: missing required scopes 'universe-places:write', 'universe.place:write'. Grant them on the API key at https://create.roblox.com/credentials",
+		},
+		{
+			err: {
+				cause: {
+					applied: [],
+					failures: [
+						{
+							key: asResourceKey("start"),
+							cause: new NetworkError("Network request failed", {
+								cause: new TypeError("fetch failed", {
+									cause: Object.assign(new Error("read ECONNRESET"), {
+										code: "ECONNRESET",
+									}),
+								}),
+								method: "POST",
+								url: "https://apis.roblox.com/universes/v1/9110019856/places/84607999013117/versions?versionType=Published",
+							}),
+							kind: "driverFailure",
+						},
+					],
+				},
+				kind: "applyFailed",
+			},
+			expected:
+				"apply failed for 'start': Network request failed (ECONNRESET) on POST https://apis.roblox.com/universes/v1/9110019856/places/84607999013117/versions?versionType=Published",
 		},
 		{
 			err: {
@@ -687,5 +713,126 @@ describe(renderMigrationSummary, () => {
 			`action required: 1 fields need your input. See ${reportPath}`,
 		);
 		expect(port.logSuccess).not.toHaveBeenCalled();
+	});
+});
+
+describe(describeDriverCause, () => {
+	it("should expand a network error with its transport code and failing call", () => {
+		expect.assertions(1);
+
+		const err = new NetworkError("Network request failed", {
+			cause: new TypeError("fetch failed", {
+				cause: Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" }),
+			}),
+			method: "POST",
+			url: "https://apis.roblox.com/v2/places/1",
+		});
+
+		expect(describeDriverCause(err)).toBe(
+			"Network request failed (ECONNRESET) on POST https://apis.roblox.com/v2/places/1",
+		);
+	});
+
+	it("should ignore a non-string transport code and keep walking the cause chain", () => {
+		expect.assertions(1);
+
+		const err = new NetworkError("Network request failed", {
+			cause: Object.assign(new Error("outer"), {
+				cause: Object.assign(new Error("inner"), { code: "ETIMEDOUT" }),
+				code: 42,
+			}),
+			method: "GET",
+			url: "https://apis.roblox.com/v2/places/1",
+		});
+
+		expect(describeDriverCause(err)).toBe(
+			"Network request failed (ETIMEDOUT) on GET https://apis.roblox.com/v2/places/1",
+		);
+	});
+
+	it("should fall back to the cause message when no transport code is present", () => {
+		expect.assertions(1);
+
+		const err = new NetworkError("Network request failed", {
+			cause: new TypeError("fetch failed"),
+			method: "PATCH",
+			url: "https://apis.roblox.com/v2/places/1",
+		});
+
+		expect(describeDriverCause(err)).toBe(
+			"Network request failed (fetch failed) on PATCH https://apis.roblox.com/v2/places/1",
+		);
+	});
+
+	it.for<{ err: NetworkError; label: string }>([
+		{
+			err: new NetworkError("Network request failed", {
+				cause: Object.assign(new Error("reset"), { code: "ECONNRESET" }),
+				method: "POST",
+			}),
+			label: "url absent",
+		},
+		{
+			err: new NetworkError("Network request failed", {
+				cause: Object.assign(new Error("reset"), { code: "ECONNRESET" }),
+				url: "https://apis.roblox.com/v2/places/1",
+			}),
+			label: "method absent",
+		},
+	])("should omit the call target when $label", ({ err }) => {
+		expect.assertions(1);
+
+		expect(describeDriverCause(err)).toBe("Network request failed (ECONNRESET)");
+	});
+
+	it("should fall back to the bare message when neither a reason nor a target is available", () => {
+		expect.assertions(1);
+
+		const err = new NetworkError("Network request failed");
+
+		expect(describeDriverCause(err)).toBe("Network request failed");
+	});
+
+	it("should surface a non-network Open Cloud error's own message unchanged", () => {
+		expect.assertions(1);
+
+		const err = new ApiError("HTTP 504: gateway timeout", { statusCode: 504 });
+
+		expect(describeDriverCause(err)).toBe("HTTP 504: gateway timeout");
+	});
+
+	it("should not read a transport code that sits beyond the cause-depth cap", () => {
+		expect.assertions(1);
+
+		let chain: Error = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
+		for (let index = 0; index < 4; index += 1) {
+			chain = new Error(`wrap ${String(index)}`, { cause: chain });
+		}
+
+		const err = new NetworkError("Network request failed", {
+			cause: chain,
+			method: "POST",
+			url: "https://apis.roblox.com/v2/places/1",
+		});
+
+		expect(describeDriverCause(err)).toBe(
+			"Network request failed (wrap 3) on POST https://apis.roblox.com/v2/places/1",
+		);
+	});
+
+	it("should stop walking a self-referential cause chain rather than loop forever", () => {
+		expect.assertions(1);
+
+		const cyclic = new Error("loop");
+		cyclic.cause = cyclic;
+		const err = new NetworkError("Network request failed", {
+			cause: cyclic,
+			method: "POST",
+			url: "https://apis.roblox.com/v2/places/1",
+		});
+
+		expect(describeDriverCause(err)).toBe(
+			"Network request failed (loop) on POST https://apis.roblox.com/v2/places/1",
+		);
 	});
 });
