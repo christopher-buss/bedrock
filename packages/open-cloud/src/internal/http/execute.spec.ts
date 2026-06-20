@@ -138,6 +138,38 @@ describe(executeWithRetry, () => {
 		expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, networkError);
 	});
 
+	it("should retry a self-aborted request timeout for idempotent methods", async () => {
+		expect.assertions(3);
+
+		const onRetry = vi.fn<(attempt: number, error: Error) => void>();
+		const hooks: OpenCloudHooks = { onRetry };
+		const networkError = new NetworkError("Network request failed", {
+			cause: new DOMException("The operation timed out.", "TimeoutError"),
+		});
+		const fakeSend = createFakeSend({
+			responses: [
+				{ err: networkError, success: false },
+				{ data: okResponse({ id: "ok" }), success: true },
+			],
+		});
+		const fakeSleep = createFakeSleep();
+
+		const result = await executeWithRetry(request, {
+			config: makeRetryConfig({
+				retryableTransportCodes: IDEMPOTENT_METHOD_DEFAULTS.retryableTransportCodes,
+			}),
+			hooks,
+			send: fakeSend.send,
+			sleep: fakeSleep,
+		});
+
+		assert(result.success);
+
+		expect(result.data.body).toStrictEqual({ id: "ok" });
+		expect(fakeSend.requests).toHaveLength(2);
+		expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, networkError);
+	});
+
 	it("should not retry a transient transport error when no transport code is allowed", async () => {
 		expect.assertions(3);
 

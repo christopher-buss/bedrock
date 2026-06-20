@@ -1,7 +1,7 @@
 import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
-import { findErrorCode } from "../utils/find-error-code.ts";
+import { findErrorCode, isTimeoutAbort } from "../utils/find-error-code.ts";
 
 /**
  * Fully-resolved retry config shape that {@link mergeConfig} and
@@ -36,8 +36,10 @@ export interface RetryResolvable {
 /**
  * Transient transport error codes that are safe to retry for idempotent
  * operations. Connection resets, timeouts, and DNS hiccups are recoverable on
- * a retry; a self-aborted request timeout carries no `code` and so is excluded
- * by construction.
+ * a retry. A self-aborted request timeout carries no OS-level `code`, so
+ * {@link shouldRetry} folds it into this set as `ETIMEDOUT` (via
+ * {@link isTimeoutAbort}) for idempotent methods; create methods retry no
+ * transport codes and so still never re-issue a timed-out write.
  */
 export const TRANSIENT_TRANSPORT_CODES: ReadonlyArray<string> = Object.freeze([
 	"ECONNRESET",
@@ -175,7 +177,10 @@ export function computeRetryWaitMs(
  * are retryable when their status is in `retryableStatuses`. A
  * {@link NetworkError} is retryable when its transport code
  * ({@link findErrorCode}) is in `retryableTransportCodes`. This is how
- * transient connection resets recover. All other failures return `false`.
+ * transient connection resets recover. A self-aborted request timeout
+ * ({@link isTimeoutAbort}) carries no transport code, so it is classified as
+ * `ETIMEDOUT` — recovered for idempotent methods, never for creates (whose
+ * list is empty). All other failures return `false`.
  *
  * @example
  *
@@ -224,7 +229,7 @@ export function shouldRetry(
 	}
 
 	if (error instanceof NetworkError) {
-		const code = findErrorCode(error);
+		const code = findErrorCode(error) ?? (isTimeoutAbort(error) ? "ETIMEDOUT" : undefined);
 		return code !== undefined && config.retryableTransportCodes.includes(code);
 	}
 
