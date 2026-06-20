@@ -47,3 +47,47 @@ function readCode(error: Error): string | undefined {
 	const code = Reflect.get(error, "code");
 	return typeof code === "string" ? code : undefined;
 }
+
+/**
+ * `DOMException.name` produced when an `AbortSignal.timeout` fires. This is the
+ * web-standard discriminator (stable across Node and Bun, unlike the
+ * runtime-specific message) and distinguishes the SDK's own request timeout
+ * from a caller-supplied cancellation, which surfaces as `"AbortError"`.
+ */
+const TIMEOUT_ABORT_NAME = "TimeoutError";
+
+/**
+ * Reports whether an error chain was produced by the SDK's own
+ * `AbortSignal.timeout` self-abort. Such a `DOMException` carries a numeric
+ * `code` (23), so {@link findErrorCode} (which only reads string codes)
+ * cannot classify it; this walk keys on `name` instead. A caller-supplied
+ * abort (`"AbortError"`) is deliberately not matched.
+ *
+ * @example
+ *
+ * ```ts
+ * import { isTimeoutAbort } from "./find-error-code";
+ *
+ * const error = new Error("Network request failed", {
+ *     cause: new DOMException("timed out", "TimeoutError"),
+ * });
+ *
+ * expect(isTimeoutAbort(error)).toBe(true);
+ * expect(isTimeoutAbort(new DOMException("cancelled", "AbortError"))).toBe(false);
+ * ```
+ *
+ * @param error - The error to inspect; typically a `NetworkError`.
+ * @returns `true` when a `TimeoutError` abort sits within the cause chain.
+ */
+export function isTimeoutAbort(error: unknown): boolean {
+	let current: unknown = error;
+	for (let depth = 0; depth < MAX_DEPTH && current instanceof Error; depth += 1) {
+		if (Reflect.get(current, "name") === TIMEOUT_ABORT_NAME) {
+			return true;
+		}
+
+		current = current.cause;
+	}
+
+	return false;
+}

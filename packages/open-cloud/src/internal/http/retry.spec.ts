@@ -161,11 +161,36 @@ describe(shouldRetry, () => {
 		).toBeFalse();
 	});
 
-	it("should not mark a self-aborted network error as retryable", () => {
+	it("should mark a self-aborted timeout network error as retryable when ETIMEDOUT is allowed", () => {
 		expect.assertions(1);
 
 		const error = new NetworkError("Network request failed", {
 			cause: new DOMException("timed out", "TimeoutError"),
+		});
+
+		expect(
+			shouldRetry(error, {
+				retryableStatuses: [429],
+				retryableTransportCodes: ["ECONNRESET", "ETIMEDOUT"],
+			}),
+		).toBeTrue();
+	});
+
+	it("should not mark a self-aborted timeout network error as retryable when ETIMEDOUT is excluded", () => {
+		expect.assertions(1);
+
+		const error = new NetworkError("Network request failed", {
+			cause: new DOMException("timed out", "TimeoutError"),
+		});
+
+		expect(shouldRetry(error, { retryableStatuses: [429], ...noTransport })).toBeFalse();
+	});
+
+	it("should not mark a caller-aborted network error as retryable even when ETIMEDOUT is allowed", () => {
+		expect.assertions(1);
+
+		const error = new NetworkError("Network request failed", {
+			cause: new DOMException("cancelled", "AbortError"),
 		});
 
 		expect(
