@@ -59,7 +59,7 @@ const TIMEOUT_ABORT_NAME = "TimeoutError";
 /**
  * Reports whether an error chain was produced by the SDK's own
  * `AbortSignal.timeout` self-abort. Such a `DOMException` carries a numeric
- * `code` (23), so {@link findErrorCode} — which only reads string codes —
+ * `code` (23), so {@link findErrorCode} (which only reads string codes)
  * cannot classify it; this walk keys on `name` instead. A caller-supplied
  * abort (`"AbortError"`) is deliberately not matched.
  *

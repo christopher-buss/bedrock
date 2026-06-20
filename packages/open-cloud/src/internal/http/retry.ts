@@ -179,7 +179,7 @@ export function computeRetryWaitMs(
  * ({@link findErrorCode}) is in `retryableTransportCodes`. This is how
  * transient connection resets recover. A self-aborted request timeout
  * ({@link isTimeoutAbort}) carries no transport code, so it is classified as
- * `ETIMEDOUT` — recovered for idempotent methods, never for creates (whose
+ * `ETIMEDOUT`: recovered for idempotent methods, never for creates (whose
  * list is empty). All other failures return `false`.
  *
  * @example
