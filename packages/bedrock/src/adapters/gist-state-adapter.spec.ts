@@ -7,6 +7,11 @@ import { createGistStateAdapter, type GistFetch } from "./gist-state-adapter.ts"
 const GIST_ID = "abc123def456";
 const TOKEN = "ghp_example_token";
 
+// The visibility poll now matches written content, so a "file is visible"
+// GET fixture must echo exactly what `write` PATCHed for the same state.
+const PRODUCTION_STATE: BedrockState = { environment: "production", resources: [], version: 1 };
+const PRODUCTION_CONTENT = serializeStateFile(PRODUCTION_STATE);
+
 interface FakeFetch {
 	readonly calls: Array<Request>;
 	readonly fetchFn: GistFetch;
@@ -602,7 +607,9 @@ describe(createGistStateAdapter, () => {
 			const { calls, fetchFn } = fakeFetch((request) => {
 				return request.method === "PATCH"
 					? emptyResponse(200)
-					: okJson({ files: { "state.production.json": { content: "{}" } } });
+					: okJson({
+							files: { "state.production.json": { content: PRODUCTION_CONTENT } },
+						});
 			});
 			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
 
@@ -635,7 +642,9 @@ describe(createGistStateAdapter, () => {
 			const { calls, fetchFn } = fakeFetch((request) => {
 				return request.method === "PATCH"
 					? emptyResponse(200)
-					: okJson({ files: { "state.production.json": { content: "{}" } } });
+					: okJson({
+							files: { "state.production.json": { content: PRODUCTION_CONTENT } },
+						});
 			});
 			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
 
@@ -730,7 +739,7 @@ describe(createGistStateAdapter, () => {
 			const { calls, fetchFn } = fakeFetchSequence([
 				emptyResponse(409),
 				emptyResponse(200),
-				okJson({ files: { "state.production.json": { content: "{}" } } }),
+				okJson({ files: { "state.production.json": { content: PRODUCTION_CONTENT } } }),
 			]);
 			const sleepFake = fakeSleep();
 			const port = createGistStateAdapter({
@@ -831,7 +840,7 @@ describe(createGistStateAdapter, () => {
 			const { calls, fetchFn } = fakeFetchSequence([
 				emptyResponse(409),
 				emptyResponse(200),
-				okJson({ files: { "state.production.json": { content: "{}" } } }),
+				okJson({ files: { "state.production.json": { content: PRODUCTION_CONTENT } } }),
 			]);
 			const port = createGistStateAdapter({
 				fetch: fetchFn,
@@ -898,7 +907,7 @@ describe(createGistStateAdapter, () => {
 				const { calls, fetchFn } = fakeFetchSequence([
 					emptyResponse(status),
 					emptyResponse(200),
-					okJson({ files: { "state.production.json": { content: "{}" } } }),
+					okJson({ files: { "state.production.json": { content: PRODUCTION_CONTENT } } }),
 				]);
 				const sleepFake = fakeSleep();
 				const port = createGistStateAdapter({
@@ -925,10 +934,19 @@ describe(createGistStateAdapter, () => {
 			it("should not resolve write until the written file is visible on a subsequent GET", async () => {
 				expect.assertions(5);
 
+				const written: BedrockState = {
+					environment: "production",
+					resources: [],
+					version: 1,
+				};
 				const { calls, fetchFn } = fakeFetchSequence([
 					emptyResponse(200),
 					okJson({ files: {} }),
-					okJson({ files: { "state.production.json": { content: "{}" } } }),
+					okJson({
+						files: {
+							"state.production.json": { content: serializeStateFile(written) },
+						},
+					}),
 				]);
 				const sleepFake = fakeSleep();
 				const port = createGistStateAdapter({
@@ -938,11 +956,7 @@ describe(createGistStateAdapter, () => {
 					token: TOKEN,
 				});
 
-				const result = await port.write({
-					environment: "production",
-					resources: [],
-					version: 1,
-				});
+				const result = await port.write(written);
 
 				expect(result.success).toBeTrue();
 				expect(calls).toHaveLength(3);
@@ -951,12 +965,24 @@ describe(createGistStateAdapter, () => {
 				expect(calls[2]!.method).toBe("GET");
 			});
 
-			it("should resolve write without polling further when the file is already visible on the first GET", async () => {
+			it("should keep polling while the file is present but its content is stale from a prior write", async () => {
 				expect.assertions(3);
 
+				const written: BedrockState = {
+					environment: "production",
+					resources: [],
+					version: 1,
+				};
 				const { calls, fetchFn } = fakeFetchSequence([
 					emptyResponse(200),
-					okJson({ files: { "state.production.json": { content: "{}" } } }),
+					okJson({
+						files: { "state.production.json": { content: "stale prior content" } },
+					}),
+					okJson({
+						files: {
+							"state.production.json": { content: serializeStateFile(written) },
+						},
+					}),
 				]);
 				const sleepFake = fakeSleep();
 				const port = createGistStateAdapter({
@@ -966,11 +992,38 @@ describe(createGistStateAdapter, () => {
 					token: TOKEN,
 				});
 
-				const result = await port.write({
+				const result = await port.write(written);
+
+				expect(result.success).toBeTrue();
+				expect(calls).toHaveLength(3);
+				expect(calls[2]!.method).toBe("GET");
+			});
+
+			it("should resolve write without polling further when the file is already visible on the first GET", async () => {
+				expect.assertions(3);
+
+				const written: BedrockState = {
 					environment: "production",
 					resources: [],
 					version: 1,
+				};
+				const { calls, fetchFn } = fakeFetchSequence([
+					emptyResponse(200),
+					okJson({
+						files: {
+							"state.production.json": { content: serializeStateFile(written) },
+						},
+					}),
+				]);
+				const sleepFake = fakeSleep();
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					sleep: sleepFake.sleep,
+					token: TOKEN,
 				});
+
+				const result = await port.write(written);
 
 				expect(result.success).toBeTrue();
 				expect(calls).toHaveLength(2);
@@ -1009,10 +1062,19 @@ describe(createGistStateAdapter, () => {
 			it("should treat a transient non-ok GET as 'not yet visible' and keep polling", async () => {
 				expect.assertions(2);
 
+				const written: BedrockState = {
+					environment: "production",
+					resources: [],
+					version: 1,
+				};
 				const { calls, fetchFn } = fakeFetchSequence([
 					emptyResponse(200),
 					emptyResponse(503),
-					okJson({ files: { "state.production.json": { content: "{}" } } }),
+					okJson({
+						files: {
+							"state.production.json": { content: serializeStateFile(written) },
+						},
+					}),
 				]);
 				const sleepFake = fakeSleep();
 				const port = createGistStateAdapter({
@@ -1022,11 +1084,7 @@ describe(createGistStateAdapter, () => {
 					token: TOKEN,
 				});
 
-				const result = await port.write({
-					environment: "production",
-					resources: [],
-					version: 1,
-				});
+				const result = await port.write(written);
 
 				expect(result.success).toBeTrue();
 				expect(calls).toHaveLength(3);
@@ -1062,6 +1120,11 @@ describe(createGistStateAdapter, () => {
 			it("should treat a thrown visibility GET as 'not yet visible' and keep polling", async () => {
 				expect.assertions(2);
 
+				const written: BedrockState = {
+					environment: "production",
+					resources: [],
+					version: 1,
+				};
 				let getCount = 0;
 				const { calls, fetchFn } = fakeFetch((request) => {
 					if (request.method === "PATCH") {
@@ -1073,7 +1136,11 @@ describe(createGistStateAdapter, () => {
 						throw new Error("transient connection reset");
 					}
 
-					return okJson({ files: { "state.production.json": { content: "{}" } } });
+					return okJson({
+						files: {
+							"state.production.json": { content: serializeStateFile(written) },
+						},
+					});
 				});
 				const sleepFake = fakeSleep();
 				const port = createGistStateAdapter({
@@ -1083,14 +1150,56 @@ describe(createGistStateAdapter, () => {
 					token: TOKEN,
 				});
 
-				const result = await port.write({
-					environment: "production",
-					resources: [],
-					version: 1,
-				});
+				const result = await port.write(written);
 
 				expect(result.success).toBeTrue();
 				expect(calls).toHaveLength(3);
+			});
+
+			it("should keep polling when a present file carries no readable content", async () => {
+				expect.assertions(3);
+
+				const { calls, fetchFn } = fakeFetch((request) => {
+					return request.method === "PATCH"
+						? emptyResponse(200)
+						: okJson({ files: { "state.production.json": {} } });
+				});
+				const sleepFake = fakeSleep();
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					sleep: sleepFake.sleep,
+					token: TOKEN,
+				});
+
+				const result = await port.write(PRODUCTION_STATE);
+
+				expect(result.success).toBeTrue();
+				expect(calls).toHaveLength(6);
+				expect(sleepFake.calls).toStrictEqual([250, 500, 1000, 2000]);
+			});
+
+			it("should keep polling when a present file's value is malformed (non-object)", async () => {
+				expect.assertions(3);
+
+				const { calls, fetchFn } = fakeFetch((request) => {
+					return request.method === "PATCH"
+						? emptyResponse(200)
+						: okJson({ files: { "state.production.json": "unexpected string entry" } });
+				});
+				const sleepFake = fakeSleep();
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					sleep: sleepFake.sleep,
+					token: TOKEN,
+				});
+
+				const result = await port.write(PRODUCTION_STATE);
+
+				expect(result.success).toBeTrue();
+				expect(calls).toHaveLength(6);
+				expect(sleepFake.calls).toStrictEqual([250, 500, 1000, 2000]);
 			});
 		});
 	});

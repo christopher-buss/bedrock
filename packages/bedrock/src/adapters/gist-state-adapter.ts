@@ -83,6 +83,11 @@ interface ReadContentParameters {
 	readonly retry: RetryDeps;
 }
 
+interface VisibilityTarget {
+	readonly content: string;
+	readonly environment: string;
+}
+
 /**
  * Build a `StatePort` that persists Bedrock state in a GitHub Gist.
  *
@@ -333,37 +338,49 @@ async function sendPatch(ctx: AdapterContext, body: string): Promise<Response> {
 	});
 }
 
-async function isFileVisible(ctx: AdapterContext, target: string): Promise<boolean> {
+async function isContentVisible(ctx: AdapterContext, want: VisibilityTarget): Promise<boolean> {
+	const target = fileName(want.environment);
 	try {
+		// Compare the written body, not just the filename. The name is fixed
+		// per environment and unchanged by an overwrite, so presence alone
+		// never proves the new write propagated. Any absent or malformed shape
+		// (missing files map, missing file entry, missing content) surfaces as
+		// undefined or a thrown Reflect.get and is funnelled through the catch
+		// below, counting as "not yet visible" so the poll keeps trying rather
+		// than accepting a stale replica.
 		const response = await sendGet(ctx);
 		const body = JSON.parse(await response.text());
 		const files = Reflect.get(body, "files");
-		return typeof files === "object" && files !== null && target in files;
+		const entry = Reflect.get(files, target);
+		const content = Reflect.get(entry, "content");
+		return content === want.content;
 	} catch {
 		return false;
 	}
 }
 
 /**
- * Polls the gist until the just-written environment file is visible on a
- * GET, with bounded retries. GitHub's gist API does not guarantee
- * read-your-write across replicas: a GET issued immediately after a
- * successful PATCH can return a body that omits the new file. The poll
- * pre-warms the cache the consumer's next read will hit, so a successful
- * write honours read-after-write at the port boundary.
+ * Polls the gist until the just-written file is visible on a GET carrying the
+ * content just written, with bounded retries. GitHub's gist API does not
+ * guarantee read-your-write across replicas: a GET issued immediately after a
+ * successful PATCH can omit the new file or, on an overwrite, still serve the
+ * prior version from a stale replica. Matching content (not the filename,
+ * which is stable across overwrites) is what proves the new write propagated,
+ * so the poll pre-warms the cache the consumer's next read hits.
  *
- * Best-effort: resolves after exhausting the visibility budget regardless
- * of whether the file became visible. The PATCH already committed; the
- * poll only narrows the window in which subsequent reads can lag.
+ * Best-effort: resolves after exhausting the visibility budget regardless of
+ * whether the content became visible. The PATCH already committed; the poll
+ * only narrows the window in which subsequent reads can lag.
  *
  * @param ctx - Adapter context carrying the injected fetch and sleep seams.
- * @param environment - Environment name whose file is being verified.
+ * @param want - Environment file and serialized body the PATCH just wrote.
  */
-async function waitForFileVisibility(ctx: AdapterContext, environment: string): Promise<void> {
-	const target = fileName(environment);
-
+async function waitForContentVisibility(
+	ctx: AdapterContext,
+	want: VisibilityTarget,
+): Promise<void> {
 	for (let attempt = 0; attempt < MAX_VISIBILITY_ATTEMPTS; attempt += 1) {
-		if (await isFileVisible(ctx, target)) {
+		if (await isContentVisible(ctx, want)) {
 			return;
 		}
 
@@ -378,8 +395,9 @@ async function writePath(
 	state: BedrockState,
 ): Promise<Result<void, StateError>> {
 	const file = fileLabel(ctx.gistId, state.environment);
+	const content = serializeStateFile(state);
 	const body = JSON.stringify({
-		files: { [fileName(state.environment)]: { content: serializeStateFile(state) } },
+		files: { [fileName(state.environment)]: { content } },
 	});
 
 	let response: Response;
@@ -391,7 +409,7 @@ async function writePath(
 
 	if (response.ok) {
 		try {
-			await waitForFileVisibility(ctx, state.environment);
+			await waitForContentVisibility(ctx, { content, environment: state.environment });
 		} catch {
 			/* visibility poll errors are non-fatal; the PATCH already committed. */
 		}
