@@ -3,13 +3,19 @@ import type { OpenCloudError, Result } from "@bedrock-rbx/ocale";
 import { describe, expectTypeOf, it } from "vitest";
 
 import type { GamePassDesiredState, ResourceCurrentState } from "../core/resources.ts";
-import type { DriverRegistry, ResourceDriver } from "./resource-driver.ts";
+import type { DriverRegistry, ResourceApplyContext, ResourceDriver } from "./resource-driver.ts";
 
 describe("ResourceDriver", () => {
 	it("should accept the matching desired state for its kind", () => {
 		expectTypeOf<
 			Parameters<ResourceDriver<"gamePass">["create"]>[0]
 		>().toEqualTypeOf<GamePassDesiredState>();
+	});
+
+	it("should accept an optional apply context as the create's second parameter", () => {
+		expectTypeOf<Parameters<ResourceDriver<"gamePass">["create"]>[1]>().toEqualTypeOf<
+			ResourceApplyContext | undefined
+		>();
 	});
 
 	it("should return a Promise<Result<current-for-kind, OpenCloudError>>", () => {

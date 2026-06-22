@@ -135,7 +135,11 @@ export type {
 	ResourceOpSucceededUpdateEvent,
 	StateWrittenEvent,
 } from "./ports/progress-port.ts";
-export type { DriverRegistry, ResourceDriver } from "./ports/resource-driver.ts";
+export type {
+	DriverRegistry,
+	ResourceApplyContext,
+	ResourceDriver,
+} from "./ports/resource-driver.ts";
 export type { StatePort } from "./ports/state-port.ts";
 export { applyOps } from "./shell/apply-ops.ts";
 export type { AggregateApplyError, ApplyError, ApplyOpsReporting } from "./shell/apply-ops.ts";
