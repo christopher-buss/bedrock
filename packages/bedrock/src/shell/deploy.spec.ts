@@ -1652,7 +1652,7 @@ describe(deploy, () => {
 		});
 
 		it("should surface codegenFailed when enabled with an emitter but no writer or output is configured", async () => {
-			expect.assertions(1);
+			expect.assertions(3);
 
 			const result = await deploy({
 				config: codegenVipConfig(),
@@ -1665,8 +1665,11 @@ describe(deploy, () => {
 
 			assert(!result.success);
 			assert(result.err.kind === "codegenFailed");
+			assert(result.err.cause.kind === "codegenWriteFailed");
 
-			expect(result.err.cause.kind).toBe("codegenWriteFailed");
+			expect(result.err.cause.cause.kind).toBe("codegenWriteError");
+			expect(result.err.cause.cause.path).toBe("");
+			expect(result.err.cause.cause.reason).toContain("no output path");
 		});
 
 		it("should default to a node-fs writer rooted at the configured output when none is injected", async () => {
