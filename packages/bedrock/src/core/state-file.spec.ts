@@ -406,4 +406,34 @@ describe(parseStateFile, () => {
 
 		expect(result.success).toBeFalse();
 	});
+
+	it("should tolerate and drop an unknown $bedrock member for forward compatibility", () => {
+		expect.assertions(3);
+
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: { futureThing: "x", version: 1 },
+				environment: "production",
+				resources: [],
+			}),
+			SAMPLE_FILE,
+		);
+
+		expect(result.success).toBeTrue();
+
+		assert(result.success);
+		assert(result.data !== undefined);
+
+		expect(result.data).toStrictEqual({
+			environment: "production",
+			resources: [],
+			version: 1,
+		});
+
+		expect(JSON.parse(serializeStateFile(result.data))).toStrictEqual({
+			$bedrock: { version: 1 },
+			environment: "production",
+			resources: [],
+		});
+	});
 });
