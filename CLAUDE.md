@@ -216,6 +216,16 @@ PR titles are linted by commitlint (`.github/workflows/lint-pr-title.yaml`) —
    (`remove internal references from public jsdoc`) rather than labelling
    the pass.
 
+### Releases
+
+Versioning + publishing run on Changesets (ADR-027). `@bedrock-rbx/core` and
+`@bedrock-rbx/ocale` are **linked** (shared version, bump together). Any PR
+changing a published package MUST add a changeset (`pnpm changeset`, or
+`pnpm changeset add --empty` for a deliberately non-releasing change) — a
+blocking CI check (`changeset status`) fails the PR otherwise. PRs touching
+only docs/CI/private packages need none. Releases ship by merging the
+auto-generated `ci: version packages` PR; never hand-edit package versions.
+
 ### Creating Issues
 
 Use GitHub issue templates for:

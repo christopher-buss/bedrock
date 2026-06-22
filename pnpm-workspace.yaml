@@ -78,6 +78,9 @@ catalogs:
     knip: 6.7.0
     publint: 0.3.18
     vue-eslint-parser: 10.4.0
+  release:
+    "@changesets/changelog-github": 0.7.0
+    "@changesets/cli": 2.31.0
   runtime:
     "@clack/prompts": 1.2.0
     arktype: 2.2.0
