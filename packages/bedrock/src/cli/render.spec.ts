@@ -167,7 +167,7 @@ describe(renderDeployError, () => {
 				kind: "pendingRebuildWithoutHook",
 			},
 			expected:
-				"place(s) start-place, arena owe a rebuild but no rebuild hook was supplied: supply a rebuild hook, or pass clearPendingRebuild to deploy() to abandon two-phase",
+				"place(s) start-place, arena owe a rebuild but no rebuild hook is available: supply one (or set clearPendingRebuild to abandon two-phase) through a .bedrock/deploy.ts override",
 		},
 		{
 			err: {

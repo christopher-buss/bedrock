@@ -395,7 +395,7 @@ function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFailed" }>):
 			return `missing credential: environment variable ${err.variable} is not set`;
 		}
 		case "pendingRebuildWithoutHook": {
-			return `place(s) ${err.keys.join(", ")} owe a rebuild but no rebuild hook was supplied: supply a rebuild hook, or pass clearPendingRebuild to deploy() to abandon two-phase`;
+			return `place(s) ${err.keys.join(", ")} owe a rebuild but no rebuild hook is available: supply one (or set clearPendingRebuild to abandon two-phase) through a .bedrock/deploy.ts override`;
 		}
 		case "rebuildHookThrew": {
 			return `the rebuild hook threw: ${err.reason}`;
