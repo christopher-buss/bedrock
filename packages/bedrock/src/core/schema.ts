@@ -554,10 +554,13 @@ export interface DisplayNamePrefixConfig {
 
 /**
  * Opt-in code-generation policy. When `enabled`, `deploy` assembles the
- * current state of every declared environment after a successful apply and
- * hands it to the caller-supplied emitter, writing the returned files under
- * `output`. Absent or `enabled: false` keeps Mantle-parity behaviour (state
- * only; consumption is the user's problem).
+ * current state of every declared environment after the new state is
+ * written and hands it to the caller-supplied emitter, writing the returned
+ * files under `output`. Codegen runs whenever the state write succeeds —
+ * including after a partial apply failure, in which case it emits only the
+ * keys that resolved while `deploy` still returns `applyFailed`. Absent or
+ * `enabled: false` keeps Mantle-parity behaviour (state only; consumption is
+ * the user's problem).
  *
  * The emitter itself is supplied programmatically through `DeployOptions`,
  * not here: an emitter is arbitrary code, so it cannot round-trip through a
@@ -566,8 +569,8 @@ export interface DisplayNamePrefixConfig {
  */
 export interface CodegenConfig {
 	/**
-	 * Whether codegen runs after a successful deploy. Treat `undefined` as
-	 * disabled; set `true` to opt in.
+	 * Whether codegen runs once the deploy's state write succeeds. Treat
+	 * `undefined` as disabled; set `true` to opt in.
 	 */
 	enabled?: boolean | undefined;
 	/**

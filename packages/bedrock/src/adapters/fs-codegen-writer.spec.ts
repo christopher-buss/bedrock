@@ -1,4 +1,4 @@
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { assert, describe, expect, it, vi } from "vitest";
 
 import type { CodegenFile } from "../core/codegen.ts";
@@ -77,6 +77,40 @@ describe(createFsCodegenWriter, () => {
 		expect(result.err.kind).toBe("codegenWriteError");
 		expect(result.err.path).toBe(join(OUTPUT_DIR, "ids", "passes.luau"));
 		expect(result.err.reason).toBe("EACCES: permission denied");
+	});
+
+	it("should reject a relative path that escapes the output directory without touching the filesystem", async () => {
+		expect.assertions(3);
+
+		const mkdir = fakeMkdir();
+		const writeFile = fakeWriteFile();
+		const writer = createFsCodegenWriter({ mkdir, outputDir: OUTPUT_DIR, writeFile });
+
+		const result = await writer.write({ content: "x", path: join("..", "escape.luau") });
+
+		assert(!result.success);
+
+		expect(result.err.reason).toContain("escapes the codegen output directory");
+		expect(mkdir).not.toHaveBeenCalled();
+		expect(writeFile).not.toHaveBeenCalled();
+	});
+
+	it("should reject an absolute path without touching the filesystem", async () => {
+		expect.assertions(2);
+
+		const writeFile = fakeWriteFile();
+		const writer = createFsCodegenWriter({
+			mkdir: fakeMkdir(),
+			outputDir: OUTPUT_DIR,
+			writeFile,
+		});
+
+		const result = await writer.write({ content: "x", path: resolve("ids.luau") });
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("codegenWriteError");
+		expect(writeFile).not.toHaveBeenCalled();
 	});
 
 	it("should stringify a non-Error write rejection into the failure reason", async () => {

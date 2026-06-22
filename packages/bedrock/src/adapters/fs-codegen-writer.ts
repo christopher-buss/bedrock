@@ -1,7 +1,7 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { mkdir as nodeMkdir, writeFile as nodeWriteFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
 import type { CodegenFile } from "../core/codegen.ts";
 import type { CodegenWriteError, CodegenWriterPort } from "../ports/codegen-writer.ts";
@@ -32,6 +32,11 @@ export interface FsCodegenWriterDeps {
  * recursively, and writes the content as UTF-8. A thrown filesystem error is
  * mapped to a {@link CodegenWriteError} naming the resolved path.
  *
+ * A file `path` must stay inside `outputDir`: an absolute path or one that
+ * escapes the directory via `..` is rejected with a `CodegenWriteError`
+ * before any directory is created, so a stray emitter cannot write outside
+ * the configured output location.
+ *
  * @param deps - Output directory plus optional filesystem injection seams.
  * @returns A writer port that persists files under `outputDir`.
  * @example
@@ -61,6 +66,17 @@ export function createFsCodegenWriter(deps: FsCodegenWriterDeps): CodegenWriterP
 
 	return {
 		async write(file: CodegenFile): Promise<Result<void, CodegenWriteError>> {
+			if (!isWithinOutputDirectory(deps.outputDir, file.path)) {
+				return {
+					err: {
+						kind: "codegenWriteError",
+						path: file.path,
+						reason: "path escapes the codegen output directory",
+					},
+					success: false,
+				};
+			}
+
 			const path = join(deps.outputDir, file.path);
 			try {
 				await makeDirectory(dirname(path), { recursive: true });
@@ -74,6 +90,15 @@ export function createFsCodegenWriter(deps: FsCodegenWriterDeps): CodegenWriterP
 			}
 		},
 	};
+}
+
+function isWithinOutputDirectory(outputDirectory: string, filePath: string): boolean {
+	if (isAbsolute(filePath)) {
+		return false;
+	}
+
+	const base = resolve(outputDirectory);
+	return !relative(base, resolve(base, filePath)).startsWith("..");
 }
 
 function toReason(err: unknown): string {

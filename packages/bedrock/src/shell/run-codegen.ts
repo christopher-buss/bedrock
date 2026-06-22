@@ -21,7 +21,7 @@ export type CodegenError =
 /**
  * Inputs for {@link runCodegen}.
  */
-export interface RunCodegenInputs {
+interface RunCodegenInputs {
 	/** Freshly merged snapshot of the environment just deployed. */
 	readonly deployedState: BedrockState;
 	/** Caller-supplied emitter that turns per-environment state into files. */

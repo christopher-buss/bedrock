@@ -154,7 +154,8 @@ describe(renderDeployError, () => {
 		},
 		{
 			err: { kind: "codegenOutputMissing" },
-			expected: "codegen is enabled but no output path is configured",
+			expected:
+				"codegen is enabled but has no output: set codegen.output in your config or pass a codegenWriter to deploy()",
 		},
 		{
 			err: {
