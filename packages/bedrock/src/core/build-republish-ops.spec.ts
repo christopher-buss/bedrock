@@ -53,6 +53,23 @@ describe(buildRepublishOps, () => {
 		expect(ops).toStrictEqual([{ key: desired.key, desired, type: "create" }]);
 	});
 
+	it("should not match a place current whose key differs from the declared place", () => {
+		expect.assertions(1);
+
+		const desired = placeDesired({ key: asResourceKey("wanted-place") });
+		// A different place in current state must not satisfy the matching place;
+		// the absent match means a create, not an update.
+		const otherPlace = placeCurrent({ key: asResourceKey("other-place") });
+
+		const ops = buildRepublishOps({
+			currentResources: [otherPlace],
+			desiredPlaces: [desired],
+			keys: [desired.key],
+		});
+
+		expect(ops).toStrictEqual([{ key: desired.key, desired, type: "create" }]);
+	});
+
 	it("should republish only the places named in keys", () => {
 		expect.assertions(1);
 

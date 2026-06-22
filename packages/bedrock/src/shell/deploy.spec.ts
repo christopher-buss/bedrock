@@ -1915,6 +1915,40 @@ describe(deploy, () => {
 			]);
 		});
 
+		it("should fall back to a single pass when a hook is supplied but no provisioned create exists", async () => {
+			expect.assertions(4);
+
+			const { port, writes } = inMemoryStatePort();
+			const { placeCalls, registry } = recordingPlaceRegistry();
+			let didCallHook = false;
+
+			const result = await deploy({
+				config: {
+					environments: {
+						production: { places: { "start-place": { placeId: "4711" } } },
+					},
+					places: { "start-place": { filePath: "places/start.rbxl" } },
+				},
+				environment: "production",
+				readFile: readIcon,
+				rebuild: () => {
+					didCallHook = true;
+					return [{ key: startPlace, bytes: rebuiltBytes }];
+				},
+				registry,
+				statePort: port,
+			});
+
+			assert(result.success);
+
+			expect(didCallHook).toBeFalse();
+			expect(writes).toHaveLength(1);
+			expect(writes[0]!.pendingRebuild).toBeUndefined();
+			expect(placeCalls).toStrictEqual([
+				{ key: startPlace, artifact: undefined, type: "create" },
+			]);
+		});
+
 		it("should run codegen with the minted IDs during a two-phase deploy", async () => {
 			expect.assertions(2);
 

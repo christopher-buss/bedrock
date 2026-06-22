@@ -7,6 +7,7 @@ import {
 } from "#tests/helpers/resources";
 import { describe, expect, it } from "vitest";
 
+import { asResourceKey } from "../types/ids.ts";
 import type { Operation } from "./operations.ts";
 import { planTwoPhase } from "./plan-two-phase.ts";
 
@@ -38,6 +39,10 @@ function gamePassUpdate(): Operation {
 
 function placeNoop(): Operation {
 	return { key: placeDesired().key, kind: "place", type: "noop" };
+}
+
+function gamePassNoop(): Operation {
+	return { key: asResourceKey("legend-pass"), kind: "gamePass", type: "noop" };
 }
 
 describe(planTwoPhase, () => {
@@ -108,5 +113,16 @@ describe(planTwoPhase, () => {
 		const plan = planTwoPhase([pass, placeNoop()], true);
 
 		expect(plan.assetOps).toStrictEqual([pass]);
+	});
+
+	it("should keep a non-place noop in the asset stage when two-phase activates", () => {
+		expect.assertions(1);
+
+		const pass = gamePassCreate();
+		const noop = gamePassNoop();
+
+		const plan = planTwoPhase([pass, noop], true);
+
+		expect(plan.assetOps).toStrictEqual([pass, noop]);
 	});
 });
