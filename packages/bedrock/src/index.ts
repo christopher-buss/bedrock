@@ -66,6 +66,7 @@ export type {
 	Operation,
 	UpdateOperation,
 } from "./core/operations.ts";
+export type { RebuildHook, RebuiltPlace } from "./core/rebuild.ts";
 export { resolveStateConfig, type StateNotConfiguredError } from "./core/resolve-state-config.ts";
 export {
 	SOCIAL_LINK_FIELDS,
