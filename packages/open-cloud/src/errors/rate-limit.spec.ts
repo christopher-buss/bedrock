@@ -52,4 +52,20 @@ describe(RateLimitError, () => {
 
 		expect(error.cause).toBe(cause);
 	});
+
+	it("should store remaining when provided", () => {
+		expect.assertions(1);
+
+		const error = new RateLimitError("rate limited", { remaining: 0, retryAfterSeconds: 22 });
+
+		expect(error.remaining).toBe(0);
+	});
+
+	it("should default remaining to undefined when omitted", () => {
+		expect.assertions(1);
+
+		const error = new RateLimitError("rate limited", { retryAfterSeconds: 5 });
+
+		expect(error.remaining).toBeUndefined();
+	});
 });
