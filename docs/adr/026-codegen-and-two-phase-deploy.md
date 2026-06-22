@@ -40,7 +40,7 @@ Key constraints shaping the design:
   therefore succeed partially, returning an `AggregateApplyError` of survivors
   plus failures. `applyOps` dispatches only non-`noop` ops.
 - A `statePort.write` can itself fail after remote creates succeed; ADR-023
-  defines the resulting orphan-recovery contract (`unsavedState`).
+  defines the resulting orphan-recovery contract (`stateWriteFailed.unsavedState`).
 - The common Roblox shape is one artifact serving several environments, with
   IDs resolved at runtime; codegen for it must see *all* environments' state.
 
@@ -60,8 +60,8 @@ When enabled, codegen runs after the asset stage on every deploy. The
 customizable unit is the **Emitter**: a layered API where declarative
 `{ path, language }` yields a working file with no code, and an optional `emit`
 override takes full control of layout. `emit` receives the current state of
-**all declared environments** and returns a keyed array of files; bedrock writes
-them. bedrock never commits — the generated file is regenerable from **State**
+**all declared environments** and returns a list of file descriptors to write,
+each carrying an output `path` and its contents; bedrock writes them. bedrock never commits — the generated file is regenerable from **State**
 and is not on the deploy's critical path.
 
 **Cross-environment read.** The environment list comes from `config.environments`.
@@ -86,7 +86,7 @@ are settled at implementation time; the default path is user-configurable.
 
 ### Two-phase deploy
 
-Activates iff a **Rebuild hook** is supplied **and** the diff contains a
+Activates iff a **Rebuild hook** is supplied **and** either the diff contains a
 provisioned `create` **or** any place carries a `pendingRebuild` marker. Trigger
 is "any provisioned create," not declared per-resource dependencies: bedrock has
 no inter-resource edges and a stray rebuild is cheap, whereas a dependency graph
@@ -102,7 +102,8 @@ A two-phase deploy splits the single apply into two:
    marker, before the rebuild can fail.
 3. **Codegen** — write the generated file(s) from current state.
 4. **Rebuild hook** — invoked (wrapped; a throw does not abort the checkpointed
-   state). Returns a keyed array of rebuilt place artifacts.
+   state). Returns an array of per-place entries, each carrying the place
+   **Key** and its rebuilt artifact.
 5. **Republish stage** — a second `applyOps` over the place ops, using the
    returned artifact bytes as desired input. A place under `pendingRebuild` whose
    diff was `noop` is republished via a **synthesized `update` op** injected by
@@ -112,7 +113,8 @@ A two-phase deploy splits the single apply into two:
    republished and persist place versions.
 
 The **Rebuild hook** is one callback per deploy, receiving post-asset-stage
-state and returning a keyed array of rebuilt place artifacts. bedrock owns the
+state and returning an array of per-place entries, each carrying the place
+**Key** and its rebuilt artifact. bedrock owns the
 orchestration; the hook owns the build. bedrock does not know how to build.
 
 ### Failure and convergence
@@ -124,7 +126,8 @@ Two rules make two-phase safe:
    the rebuild can fail, narrowing the window for duplicate provisioning. It does
    not close it: if the checkpoint write itself fails, freshly-minted
    non-idempotent IDs are unpersisted and a retry re-creates them — the same
-   orphan window ADR-023 documents, recovered the same way (`unsavedState`).
+   orphan window ADR-023 documents, recovered the same way
+   (`stateWriteFailed.unsavedState`).
 2. **`pendingRebuild` marker for self-healing.** A checkpointed `create` `noop`s
    on the next run, so the create trigger alone cannot re-fire — a recovered
    build would otherwise leave a green-but-stale place. The marker, set at
@@ -214,7 +217,8 @@ generic image-upload resource kind is out of scope and deferred.
   so the `stateWriteFailed.unsavedState` contract (ADR-023) applies to two writes.
 - A two-phase deploy invokes `applyOps` twice (asset stage, then republish
   stage) and `deploy` may synthesize an `update` op for a forced republish.
-- Codegen reads every declared environment's state once per enabled deploy.
+- Codegen reads every declared environment's state once per deploy where codegen
+  is enabled.
 - A new driven concept (the **Emitter**) and a new injected callback (the
   **Rebuild hook**) join the port surface.
 - Two-phase is unavailable to non-TS/JS configs by construction.

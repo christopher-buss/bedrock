@@ -103,7 +103,7 @@ The deploy mode where a provisioned `create` mints a new asset ID that the place
 _Avoid_: two-pass, multi-stage, rebuild deploy
 
 **Rebuild hook**:
-The injected callback bedrock invokes during a **Two-phase deploy** to regenerate the place artifact once new asset IDs exist. Bedrock owns the orchestration; the hook owns the build, taking the post-asset deploy state and returning a keyed array of rebuilt place artifacts. Bedrock does not know how to build.
+The injected callback bedrock invokes during a **Two-phase deploy** to regenerate the place artifact once new asset IDs exist. Bedrock owns the orchestration; the hook owns the build, taking the post-asset deploy state and returning an array of per-place entries, each carrying the place **Key** and its rebuilt artifact. Bedrock does not know how to build.
 _Avoid_: builder, build step, compile hook
 
 **Pending rebuild**:
