@@ -499,13 +499,14 @@ async function runAssetStage(inputs: AssetStageInputs): Promise<ReconcilePass> {
 
 async function runRepublishStage(inputs: RepublishStageInputs): Promise<ReconcilePass> {
 	const { assetPass, deps, desiredPlaces, environment, rebuilt } = inputs;
+	const artifacts = new Map(rebuilt.map((place) => [place.key, place.bytes]));
 	return applyAndPersist({
-		artifacts: new Map(rebuilt.map((place) => [place.key, place.bytes])),
+		artifacts,
 		environment,
 		ops: buildRepublishOps({
 			currentResources: assetPass.merged.resources,
 			desiredPlaces,
-			keys: rebuilt.map((place) => place.key),
+			keys: [...artifacts.keys()],
 		}),
 		priorResources: assetPass.merged.resources,
 		progress: deps.progress,
