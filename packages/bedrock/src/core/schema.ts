@@ -553,6 +553,33 @@ export interface DisplayNamePrefixConfig {
 }
 
 /**
+ * Opt-in code-generation policy. When `enabled`, `deploy` assembles the
+ * current state of every declared environment after a successful apply and
+ * hands it to the caller-supplied emitter, writing the returned files under
+ * `output`. Absent or `enabled: false` keeps Mantle-parity behaviour (state
+ * only; consumption is the user's problem).
+ *
+ * The emitter itself is supplied programmatically through `DeployOptions`,
+ * not here: an emitter is arbitrary code, so it cannot round-trip through a
+ * YAML/JSON config. This section carries only the declarative switch and the
+ * output location.
+ */
+export interface CodegenConfig {
+	/**
+	 * Whether codegen runs after a successful deploy. Treat `undefined` as
+	 * disabled; set `true` to opt in.
+	 */
+	enabled?: boolean | undefined;
+	/**
+	 * Directory the generated files are written under, resolved relative to
+	 * the working directory. Each emitted file's path is joined onto this
+	 * base. Used by the default node-fs writer; ignored when a writer is
+	 * injected through `DeployOptions`.
+	 */
+	output?: string | undefined;
+}
+
+/**
  * Helper that produces a shallow `Omit<T, K>` without using TypeScript's
  * built-in `Omit` (deprecated under the project's lint rules because of
  * its lossy interaction with mapped types).
@@ -767,6 +794,8 @@ type Overlay<T, RequiredKey extends keyof T> = SetRequired<Partial<T>, RequiredK
  * everything else lives here.
  */
 interface ConfigBase {
+	/** Opt-in code-generation policy; omitted keeps Mantle-parity behaviour. */
+	codegen?: CodegenConfig;
 	/**
 	 * Project-level prefixing of universe and place display names with the
 	 * environment label. Default behaviour (when omitted) is enabled with a
@@ -984,6 +1013,11 @@ const stateConfig = type({
 	"gistId?": "string > 0",
 }).onUndeclaredKey("reject");
 
+const codegenConfig: Type<CodegenConfig> = type({
+	"enabled?": OPTIONAL_BOOLEAN,
+	"output?": OPTIONAL_STRING,
+}).onUndeclaredKey("reject");
+
 // Overlay schemas mirror the base entry schemas but with every field
 // optional, except the identity-bearing key (`placeId`, `universeId`)
 // which stays required. Game passes have no user-supplied identity, so
@@ -1072,6 +1106,7 @@ const environmentsCollection = type({
 // duplicate every field declaration without buying additional runtime
 // coverage on top of the narrow.
 const rootSchema = type({
+	"codegen?": codegenConfig,
 	"displayNamePrefix?": displayNamePrefix,
 	"environments": environmentsCollection,
 	"extends?": "unknown",

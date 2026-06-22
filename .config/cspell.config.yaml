@@ -6,6 +6,7 @@ language: en
 words:
   - arktype
   - bedrockrc
+  - codegen
   - defu
   - ehostdown
   - gameinternationalization
