@@ -10,6 +10,15 @@ const GIST_ID = process.env["BEDROCK_TEST_GIST_ID"];
 
 const HAS_SECRETS = TOKEN !== undefined && GIST_ID !== undefined;
 
+const READ_VISIBILITY_BUDGET_MS = 40_000;
+const READ_POLL_INTERVAL_MS = 1_000;
+
+async function sleep(ms: number): Promise<void> {
+	await new Promise<void>((resolve) => {
+		setTimeout(resolve, ms);
+	});
+}
+
 describe("gist state adapter against real github", () => {
 	it.skipIf(!HAS_SECRETS)(
 		"should round-trip a state file through a real gist and clean up after itself",
@@ -47,11 +56,21 @@ describe("gist state adapter against real github", () => {
 				`write failed: ${JSON.stringify(writeResult.success ? undefined : writeResult.err)}`,
 			);
 
-			const secondRead = await port.read(environment);
+			// The gist write-visibility poll is best-effort, so a fresh file
+			// can still lag on a slow GitHub replica once that budget is spent.
+			// Poll the read so the round-trip tolerates eventual consistency
+			// instead of flaking on the first read that races propagation.
+			const deadline = Date.now() + READ_VISIBILITY_BUDGET_MS;
+			let secondRead = await port.read(environment);
+			while (secondRead.success && secondRead.data === undefined && Date.now() < deadline) {
+				await sleep(READ_POLL_INTERVAL_MS);
+				secondRead = await port.read(environment);
+			}
+
 			assert(secondRead.success);
 
 			expect(secondRead.data).toStrictEqual(state);
 		},
-		30_000,
+		60_000,
 	);
 });
