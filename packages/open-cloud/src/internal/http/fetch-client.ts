@@ -4,7 +4,7 @@ import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
 import type { Result } from "../../types.ts";
 import { tryCatch } from "../utils/try-catch.ts";
-import { parseRateLimitHeaders } from "./rate-limit-sample.ts";
+import { reduceRateLimitTokens } from "./rate-limit-sample.ts";
 import type { HttpClient, HttpRequest, HttpResponse, RequestConfig } from "./types.ts";
 
 // Caps the raw body retained when a response cannot be parsed, so a multi-KB
@@ -93,18 +93,7 @@ export function extractErrorMessage(body: unknown): string | undefined {
  * @returns The number of seconds to wait, or 0 if missing/invalid.
  */
 export function parseRetryAfterSeconds(headerValue: string | undefined): number {
-	if (headerValue === undefined) {
-		return 0;
-	}
-
-	const seconds = headerValue
-		.split(",")
-		.map((part) => Number(part))
-		.filter((value) => !Number.isNaN(value));
-
-	// An all-NaN header leaves `seconds` empty, so `Math.max(...[])` is
-	// -Infinity and the outer `Math.max(0, ...)` clamps it back to 0.
-	return Math.max(0, Math.floor(Math.max(...seconds)));
+	return reduceRateLimitTokens(headerValue, (a, b) => Math.max(a, b)) ?? 0;
 }
 
 /**
@@ -266,7 +255,9 @@ function createApiError(status: number, body: JSONValue | undefined): ApiError {
 function createRateLimitError(response: Response): RateLimitError {
 	const headers = headersToRecord(response.headers);
 	return new RateLimitError("Rate limited", {
-		remaining: parseRateLimitHeaders(headers)?.remaining,
+		remaining: reduceRateLimitTokens(headers["x-ratelimit-remaining"], (a, b) =>
+			Math.min(a, b),
+		),
 		retryAfterSeconds: parseRetryAfterSeconds(headers["x-ratelimit-reset"]),
 	});
 }

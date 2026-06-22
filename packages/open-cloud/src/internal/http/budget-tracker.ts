@@ -5,9 +5,9 @@ const MS_PER_SECOND = 1000;
 /** Live window state for one scope: budget left and when it resets. */
 interface WindowState {
 	/** Best estimate of requests still allowed before the window resets. */
-	predictedRemaining: number;
+	readonly predictedRemaining: number;
 	/** Absolute time (ms) the window resets to full. */
-	resetAt: number;
+	readonly resetAt: number;
 }
 
 /**
@@ -19,7 +19,7 @@ interface WindowState {
  * the time left in the window (`timeLeft / remaining`), so a burst does not
  * spend the whole window's budget up front and then stall. Once the budget is
  * spent, requests hold until the window resets. Budget and reset time move
- * together as one window, so the tracker is either unprimed or fully primed —
+ * together as one window, so the tracker is either unprimed or fully primed,
  * never half-known.
  */
 export class BudgetTracker {
@@ -52,7 +52,10 @@ export class BudgetTracker {
 	public reserve(now: number): void {
 		this.#lastAllowedAt = now;
 		if (this.#window !== undefined) {
-			this.#window.predictedRemaining -= 1;
+			this.#window = {
+				...this.#window,
+				predictedRemaining: this.#window.predictedRemaining - 1,
+			};
 		}
 	}
 

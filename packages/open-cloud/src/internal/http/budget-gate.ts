@@ -6,14 +6,19 @@ import type { RateLimitSample } from "./rate-limit-sample.ts";
  * Header-primed rate-limit gate shared across a client. Holds one
  * {@link BudgetTracker} per API key, since the tightest Roblox window is the
  * per-key one shared across every operation. Before each request the caller
- * gates on the request's key — sleeping if its budget is spent — and after
- * each response folds the parsed sample back in, so a sibling operation on the
- * same key can head off a 429 the static per-operation token bucket cannot
- * foresee. A per-operation tracker is deliberately not kept: every operation
- * reports the same most-constrained `remaining`, so a per-key tracker (drawn
- * down by all operations) is always the binding constraint.
+ * gates on the request's key (sleeping if its budget is spent), and after each
+ * response folds the parsed sample back in, so a sibling operation on the same
+ * key can head off a 429 the static per-operation token bucket cannot foresee.
+ * A per-operation tracker is deliberately not kept: every operation reports the
+ * same most-constrained `remaining`, so a per-key tracker (drawn down by all
+ * operations) is always the binding constraint.
+ *
+ * Gating is serialized per scope through a promise chain so concurrent
+ * requests on one key cannot read the same budget and reserve the same slot;
+ * each waits for the prior gate's reserve before computing its own.
  */
 export class BudgetGate {
+	readonly #chains = new Map<string, Promise<void>>();
 	readonly #sleep: SleepFunc;
 	readonly #trackers = new Map<string, BudgetTracker>();
 
@@ -32,13 +37,10 @@ export class BudgetGate {
 	 * @param scope - The scope key to gate on (the effective API key).
 	 */
 	public async gate(scope: string): Promise<void> {
-		const tracker = this.#tracker(scope);
-		const waitMs = tracker.waitMs(Date.now());
-		if (waitMs > 0) {
-			await this.#sleep(waitMs);
-		}
-
-		tracker.reserve(Date.now());
+		const previous = this.#chains.get(scope) ?? Promise.resolve();
+		const mine = previous.then(async () => this.#gateOnce(scope));
+		this.#chains.set(scope, mine);
+		await mine;
 	}
 
 	/**
@@ -55,6 +57,16 @@ export class BudgetGate {
 		}
 
 		this.#tracker(scope).observe(sample, Date.now());
+	}
+
+	async #gateOnce(scope: string): Promise<void> {
+		const tracker = this.#tracker(scope);
+		const waitMs = tracker.waitMs(Date.now());
+		if (waitMs > 0) {
+			await this.#sleep(waitMs);
+		}
+
+		tracker.reserve(Date.now());
 	}
 
 	#tracker(scope: string): BudgetTracker {

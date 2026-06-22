@@ -51,4 +51,33 @@ describe(BudgetGate, () => {
 
 		expect(clock.waits).toStrictEqual([]);
 	});
+
+	it("should space the next send evenly while budget remains", async () => {
+		expect.assertions(1);
+
+		const clock = createFakeClock();
+		const gate = new BudgetGate(clock.sleep);
+
+		gate.observe("k", { remaining: 2, resetSeconds: 60 });
+		await gate.gate("k");
+		await gate.gate("k");
+
+		expect(clock.waits).toStrictEqual([60_000]);
+	});
+
+	it("should serialize concurrent gates on the same scope", async () => {
+		expect.assertions(1);
+
+		const clock = createFakeClock();
+		const gate = new BudgetGate(clock.sleep);
+
+		gate.observe("k", { remaining: 2, resetSeconds: 60 });
+		await gate.gate("k");
+		// Two concurrent gates: serialization means the second waits for the
+		// first's reserve, so only one sleeps. Without it, both read the same
+		// budget and both sleep, recording two waits.
+		await Promise.all([gate.gate("k"), gate.gate("k")]);
+
+		expect(clock.waits).toStrictEqual([60_000]);
+	});
 });

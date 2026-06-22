@@ -223,6 +223,12 @@ describe(parseRetryAfterSeconds, () => {
 
 		expect(parseRetryAfterSeconds("0, 22")).toBe(22);
 	});
+
+	it("should reject non-finite tokens such as Infinity", () => {
+		expect.assertions(1);
+
+		expect(parseRetryAfterSeconds("Infinity")).toBe(0);
+	});
 });
 
 describe(buildUrl, () => {
@@ -534,6 +540,29 @@ describe(createFetchHttpClient, () => {
 
 		expect(result.err.remaining).toBe(0);
 		expect(result.err.retryAfterSeconds).toBe(22);
+	});
+
+	it("should capture remaining even when the reset header is non-numeric", async () => {
+		expect.assertions(2);
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response("rate limited", {
+				headers: { "x-ratelimit-remaining": "3", "x-ratelimit-reset": "abc" },
+				status: 429,
+			});
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof RateLimitError);
+
+		expect(result.err.remaining).toBe(3);
+		expect(result.err.retryAfterSeconds).toBe(0);
 	});
 
 	it("should return RateLimitError with retryAfterSeconds 0 when header missing", async () => {

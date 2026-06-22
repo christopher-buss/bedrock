@@ -69,4 +69,26 @@ describe(parseRateLimitHeaders, () => {
 			}),
 		).toBeUndefined();
 	});
+
+	it("should drop non-finite tokens such as Infinity", () => {
+		expect.assertions(1);
+
+		expect(
+			parseRateLimitHeaders({
+				"x-ratelimit-remaining": "Infinity",
+				"x-ratelimit-reset": "23",
+			}),
+		).toBeUndefined();
+	});
+
+	it("should trim whitespace and ignore blank tokens", () => {
+		expect.assertions(1);
+
+		expect(
+			parseRateLimitHeaders({
+				"x-ratelimit-remaining": " , 5",
+				"x-ratelimit-reset": "60, ",
+			}),
+		).toStrictEqual({ remaining: 5, resetSeconds: 60 });
+	});
 });

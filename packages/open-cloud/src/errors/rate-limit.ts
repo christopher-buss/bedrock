@@ -7,7 +7,9 @@ export interface RateLimitErrorOptions extends ErrorOptions {
 	/**
 	 * Requests still allowed in the throttled window, read from
 	 * `x-ratelimit-remaining` (the most-constrained window). `undefined` when
-	 * the header was absent. Typically `0` on a genuine 429.
+	 * the header is absent or carries no finite numeric token; parsed
+	 * independently of `x-ratelimit-reset`, so a valid value survives a
+	 * non-numeric reset. Typically `0` on a genuine 429.
 	 */
 	remaining?: number | undefined;
 	/** Seconds to wait before retrying the request. */
