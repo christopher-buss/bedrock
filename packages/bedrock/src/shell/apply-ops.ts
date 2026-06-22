@@ -12,7 +12,11 @@ import type {
 	UniverseDesiredState,
 } from "../core/resources.ts";
 import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
-import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
+import type {
+	DriverRegistry,
+	ResourceApplyContext,
+	ResourceDriver,
+} from "../ports/resource-driver.ts";
 import type { ResourceKey } from "../types/ids.ts";
 
 /**
@@ -119,6 +123,7 @@ interface OutcomePair {
 }
 
 interface DispatchInPhasesInput {
+	readonly artifacts: ReadonlyMap<ResourceKey, Uint8Array> | undefined;
 	readonly phase1: ReadonlyArray<NonNoopOp>;
 	readonly phase2: ReadonlyArray<NonNoopOp>;
 	readonly registry: DriverRegistry;
@@ -147,9 +152,15 @@ interface TerminalEventInput {
 }
 
 interface ReportAndDispatchInput {
+	readonly artifacts: ReadonlyMap<ResourceKey, Uint8Array> | undefined;
 	readonly op: NonNoopOp;
 	readonly registry: DriverRegistry;
 	readonly reporting: ApplyOpsReporting | undefined;
+}
+
+interface DispatchDeps {
+	readonly context: ResourceApplyContext | undefined;
+	readonly registry: DriverRegistry;
 }
 
 /**
@@ -189,6 +200,10 @@ interface ReportAndDispatchInput {
  *   one `resourceOpNoop` per noop op, and a final `applySummary` carrying
  *   the per-type counts and the wall-clock apply duration. When omitted,
  *   no events fire.
+ * @param artifacts - Optional per-key rebuilt artifact bytes. When supplied,
+ *   each dispatched op's driver receives a `ResourceApplyContext` carrying the
+ *   matching key's bytes (a two-phase republish stage feeds rebuilt place
+ *   bytes here); when omitted, drivers are called without a context argument.
  * @returns `Ok(state)` when every op succeeded; otherwise
  *   `Err(AggregateApplyError)` with the survivors and the non-empty
  *   failures tuple.
@@ -214,10 +229,11 @@ export async function applyOps(
 	ops: ReadonlyArray<Operation>,
 	registry: DriverRegistry,
 	reporting?: ApplyOpsReporting,
+	artifacts?: ReadonlyMap<ResourceKey, Uint8Array>,
 ): Promise<Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>> {
 	const start = Date.now();
 	const { noopCount, phase1, phase2 } = partitionAndEmitNoops(ops, reporting);
-	const pairs = await dispatchInPhases({ phase1, phase2, registry, reporting });
+	const pairs = await dispatchInPhases({ artifacts, phase1, phase2, registry, reporting });
 	const end = Date.now();
 
 	const { applied, failures } = partitionOutcomes(pairs.map((pair) => pair.outcome));
@@ -247,10 +263,17 @@ function kindMismatch(key: ResourceKey, mismatch: { actual: string; expected: st
 
 async function applyOne<K extends ResourceKind>(
 	op: NonNoopOp & { readonly desired: Extract<ResourceDesiredState, { kind: K }> },
-	driver: ResourceDriver<K>,
+	deps: {
+		readonly context: ResourceApplyContext | undefined;
+		readonly driver: ResourceDriver<K>;
+	},
 ): Promise<Result<ResourceCurrentState, ApplyError>> {
+	const { context, driver } = deps;
 	if (op.type === "create") {
-		const created = await driver.create(op.desired);
+		const created =
+			context === undefined
+				? await driver.create(op.desired)
+				: await driver.create(op.desired, context);
 		return created.success ? created : driverFailure(op.key, created.err);
 	}
 
@@ -265,39 +288,46 @@ async function applyOne<K extends ResourceKind>(
 		);
 	}
 
-	const updated = await driver.update(op.current as ResourceCurrentState<K>, op.desired);
+	const current = op.current as ResourceCurrentState<K>;
+	const updated = await (context === undefined
+		? driver.update(current, op.desired)
+		: driver.update(current, op.desired, context));
 	return updated.success ? updated : driverFailure(op.key, updated.err);
 }
 
 async function dispatchByKind(
 	op: NonNoopOp,
-	registry: DriverRegistry,
+	deps: DispatchDeps,
 ): Promise<Result<ResourceCurrentState, ApplyError>> {
+	const { context, registry } = deps;
 	// Exhaustive switch: adding a new ResourceKind is a compile error here
 	// until an arm lands. Each arm casts because custom type narrowing does
 	// not propagate through a non-distributive union.
 	switch (op.desired.kind) {
 		case "developerProduct": {
-			return applyOne(op as DeveloperProductOp, registry.developerProduct);
+			return applyOne(op as DeveloperProductOp, {
+				context,
+				driver: registry.developerProduct,
+			});
 		}
 		case "gamePass": {
-			return applyOne(op as GamePassOp, registry.gamePass);
+			return applyOne(op as GamePassOp, { context, driver: registry.gamePass });
 		}
 		case "place": {
-			return applyOne(op as PlaceOp, registry.place);
+			return applyOne(op as PlaceOp, { context, driver: registry.place });
 		}
 		case "universe": {
-			return applyOne(op as UniverseOp, registry.universe);
+			return applyOne(op as UniverseOp, { context, driver: registry.universe });
 		}
 	}
 }
 
 async function dispatchOp(
 	op: NonNoopOp,
-	registry: DriverRegistry,
+	deps: DispatchDeps,
 ): Promise<Result<ResourceCurrentState, ApplyError>> {
 	try {
-		return await dispatchByKind(op, registry);
+		return await dispatchByKind(op, deps);
 	} catch (err) {
 		return { err: { key: op.key, cause: err, kind: "unexpectedThrow" }, success: false };
 	}
@@ -378,7 +408,7 @@ function toTerminalEvent(input: TerminalEventInput): ProgressEvent {
 }
 
 async function reportAndDispatch(input: ReportAndDispatchInput): Promise<OutcomePair> {
-	const { op, registry, reporting } = input;
+	const { artifacts, op, registry, reporting } = input;
 	if (reporting !== undefined) {
 		reporting.progress.emit({
 			key: op.key,
@@ -389,7 +419,9 @@ async function reportAndDispatch(input: ReportAndDispatchInput): Promise<Outcome
 		});
 	}
 
-	const outcome = await dispatchOp(op, registry);
+	const artifact = artifacts?.get(op.key);
+	const context = artifact === undefined ? undefined : { artifact };
+	const outcome = await dispatchOp(op, { context, registry });
 	if (reporting !== undefined) {
 		reporting.progress.emit(
 			toTerminalEvent({ environment: reporting.environment, op, outcome }),
@@ -400,17 +432,14 @@ async function reportAndDispatch(input: ReportAndDispatchInput): Promise<Outcome
 }
 
 async function dispatchInPhases(input: DispatchInPhasesInput): Promise<ReadonlyArray<OutcomePair>> {
+	const { artifacts, phase1, phase2, registry, reporting } = input;
 	const phase1Pairs: Array<OutcomePair> = [];
-	for (const op of input.phase1) {
-		phase1Pairs.push(
-			await reportAndDispatch({ op, registry: input.registry, reporting: input.reporting }),
-		);
+	for (const op of phase1) {
+		phase1Pairs.push(await reportAndDispatch({ artifacts, op, registry, reporting }));
 	}
 
 	const phase2Pairs = await Promise.all(
-		input.phase2.map(async (op) => {
-			return reportAndDispatch({ op, registry: input.registry, reporting: input.reporting });
-		}),
+		phase2.map(async (op) => reportAndDispatch({ artifacts, op, registry, reporting })),
 	);
 	return [...phase1Pairs, ...phase2Pairs];
 }

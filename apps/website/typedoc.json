@@ -9,6 +9,7 @@
 	"entryPointStrategy": "resolve",
 	"exclude": ["**/*.spec.ts", "**/*.spec-d.ts", "**/*.example.spec.ts", "**/*.example.test.ts"],
 	"tsconfig": "../../packages/open-cloud/tsconfig.json",
+	"skipErrorChecking": true,
 	"out": "./docs/ocale/api",
 	"navigationJson": "./docs/ocale/api/navigation.json",
 	"pretty": true,

@@ -4,6 +4,7 @@
 	"entryPointStrategy": "resolve",
 	"exclude": ["**/*.spec.ts", "**/*.spec-d.ts", "**/*.example.spec.ts", "**/*.example.test.ts"],
 	"tsconfig": "../../packages/bedrock/tsconfig.json",
+	"skipErrorChecking": true,
 	"out": "./docs/bedrock/api",
 	"navigationJson": "./docs/bedrock/api/navigation.json",
 	"pretty": true,

@@ -7,6 +7,27 @@ import type {
 } from "../core/resources.ts";
 
 /**
+ * Per-operation context threaded to a driver alongside the desired state.
+ * Carries the rebuilt artifact bytes a two-phase deploy's republish stage
+ * supplies for a place; absent (and ignored) on every other dispatch. A driver
+ * that does not consume an artifact simply ignores the parameter.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { ResourceApplyContext } from "@bedrock-rbx/core";
+ *
+ * const context: ResourceApplyContext = { artifact: new Uint8Array([1, 2, 3]) };
+ *
+ * expect(context.artifact).toHaveLength(3);
+ * ```
+ */
+export interface ResourceApplyContext {
+	/** Rebuilt artifact bytes to publish instead of reading the declared file. */
+	readonly artifact?: Uint8Array;
+}
+
+/**
  * Plugin contract for a resource adapter: the interface a third-party author
  * implements to teach Bedrock how to reconcile one {@link ResourceKind} against
  * its upstream API.
@@ -71,6 +92,7 @@ export interface ResourceDriver<K extends ResourceKind> {
 	 */
 	create(
 		desired: Extract<ResourceDesiredState, { kind: K }>,
+		context?: ResourceApplyContext,
 	): Promise<Result<ResourceCurrentState<K>, OpenCloudError>>;
 
 	/**
@@ -86,6 +108,7 @@ export interface ResourceDriver<K extends ResourceKind> {
 	update?(
 		current: ResourceCurrentState<K>,
 		desired: Extract<ResourceDesiredState, { kind: K }>,
+		context?: ResourceApplyContext,
 	): Promise<Result<ResourceCurrentState<K>, OpenCloudError>>;
 }
 

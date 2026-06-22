@@ -290,4 +290,52 @@ describe(createPlaceDriver, () => {
 		expect(http.requests).toHaveLength(2);
 		expect(result.err.message).toContain("displayName too long");
 	});
+
+	it("should publish the supplied artifact bytes instead of reading the file on create", async () => {
+		expect.assertions(2);
+
+		const rebuilt = Uint8Array.from([...RBXL_SIGNATURE, 0xaa, 0xbb]);
+		const { driver, http } = makeDriver({
+			readFile: async () => {
+				throw new Error("readFile must not run when an artifact is supplied");
+			},
+		});
+		http.mockResponse({ body: { versionNumber: 4 }, status: 200 });
+
+		const result = await driver.create(placeDesired(), { artifact: rebuilt });
+
+		assert(result.success);
+
+		expect(result.data.outputs.versionNumber).toBe(4);
+		expect(http.requests[0]!.request.body).toStrictEqual(Uint8Array.from(rebuilt));
+	});
+
+	it("should publish the supplied artifact bytes instead of reading the file on update", async () => {
+		expect.assertions(1);
+
+		const rebuilt = Uint8Array.from([...RBXL_SIGNATURE, 0xcc]);
+		const { driver, http } = makeDriver({
+			readFile: async () => {
+				throw new Error("readFile must not run when an artifact is supplied");
+			},
+		});
+		http.mockResponse({ body: { versionNumber: 7 }, status: 200 });
+
+		assert(driver.update !== undefined);
+
+		await driver.update(placeCurrent(), placeDesired(), { artifact: rebuilt });
+
+		expect(http.requests[0]!.request.body).toStrictEqual(Uint8Array.from(rebuilt));
+	});
+
+	it("should fall back to reading the file when no artifact context is supplied", async () => {
+		expect.assertions(1);
+
+		const { driver, http } = makeDriver({ readFile: async () => RBXL_SIGNATURE });
+		http.mockResponse({ body: { versionNumber: 1 }, status: 200 });
+
+		await driver.create(placeDesired());
+
+		expect(http.requests[0]!.request.body).toStrictEqual(Uint8Array.from(RBXL_SIGNATURE));
+	});
 });

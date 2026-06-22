@@ -1438,4 +1438,53 @@ describe(applyOps, () => {
 			expect(create).toHaveBeenCalledOnce();
 		});
 	});
+
+	describe("apply context", () => {
+		it("should pass the per-key artifact to the driver's create as apply context", async () => {
+			expect.assertions(1);
+
+			const op = createOp(asResourceKey("vip-pass"));
+			const created = gamePassCurrent({ ...op.desired });
+			const create = vi
+				.fn<ResourceDriver<"gamePass">["create"]>()
+				.mockResolvedValue({ data: created, success: true });
+			const artifact = new Uint8Array([1, 2, 3]);
+			const artifacts = new Map<ResourceKey, Uint8Array>([[op.key, artifact]]);
+
+			await applyOps([op], registryWith(create), undefined, artifacts);
+
+			expect(create).toHaveBeenCalledExactlyOnceWith(op.desired, { artifact });
+		});
+
+		it("should pass the per-key artifact to the driver's update as apply context", async () => {
+			expect.assertions(1);
+
+			const op = updateOp(asResourceKey("vip-pass"));
+			const updated = gamePassCurrent({ ...op.desired });
+			const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
+			const update = vi
+				.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>()
+				.mockResolvedValue({ data: updated, success: true });
+			const artifact = new Uint8Array([4, 5, 6]);
+			const artifacts = new Map<ResourceKey, Uint8Array>([[op.key, artifact]]);
+
+			await applyOps([op], registryWith(create, update), undefined, artifacts);
+
+			expect(update).toHaveBeenCalledExactlyOnceWith(op.current, op.desired, { artifact });
+		});
+
+		it("should call the driver without an apply context when no artifacts map is supplied", async () => {
+			expect.assertions(1);
+
+			const op = createOp(asResourceKey("vip-pass"));
+			const created = gamePassCurrent({ ...op.desired });
+			const create = vi
+				.fn<ResourceDriver<"gamePass">["create"]>()
+				.mockResolvedValue({ data: created, success: true });
+
+			await applyOps([op], registryWith(create));
+
+			expect(create).toHaveBeenCalledExactlyOnceWith(op.desired);
+		});
+	});
 });
