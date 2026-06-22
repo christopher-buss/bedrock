@@ -566,19 +566,13 @@ async function runRepublishStage(inputs: RepublishStageInputs): Promise<Reconcil
 	});
 }
 
-/**
- * Invoke the rebuild hook, catching a throw. The hook owns an arbitrary build;
- * a throw leaves the checkpoint's outputs and marker in place and surfaces a
- * stage-tagged `rebuildHookThrew` error so the republish stage never runs.
- *
- * @param rebuild - Caller-supplied rebuild hook.
- * @param state - Post-asset-stage state handed to the hook.
- * @returns The rebuilt places, or a stage-tagged error when the hook throws.
- */
 async function invokeRebuildHook(
 	rebuild: RebuildHook,
 	state: BedrockState,
 ): Promise<Result<ReadonlyArray<RebuiltPlace>, DeployError>> {
+	// The hook owns an arbitrary build; a throw leaves the checkpoint's outputs
+	// and marker in place and surfaces a stage-tagged rebuildHookThrew error so
+	// the republish stage never runs.
 	try {
 		return { data: await rebuild({ state }), success: true };
 	} catch (err) {
