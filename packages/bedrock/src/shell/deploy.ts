@@ -11,7 +11,6 @@ import type { ConfigError } from "../core/config-error.ts";
 import { diff } from "../core/diff.ts";
 import { flattenConfig } from "../core/flatten.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
-import type { ResourceCurrentState } from "../core/resources.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
 import {
 	type IncompletePassEntryError,
@@ -33,7 +32,7 @@ import {
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
 import { loadConfig as defaultLoadConfig, type LoadConfigOptions } from "./load-config.ts";
-import { applyAndPersist } from "./reconcile-pass.ts";
+import { applyAndPersist, type ReconcilePass } from "./reconcile-pass.ts";
 
 /**
  * Inputs for `deploy`. Every field except `environment` is optional;
@@ -92,12 +91,6 @@ export type DeployError =
 			readonly kind: "stateWriteFailed";
 			readonly unsavedState: BedrockState;
 	  };
-
-interface FinalizeInputs {
-	readonly applied: Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>;
-	readonly merged: BedrockState;
-	readonly written: Result<void, StateError>;
-}
 
 interface ResolvedDepsBase {
 	readonly config: ResolvedConfig;
@@ -298,24 +291,24 @@ async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDepsB
 	};
 }
 
-function finalize(inputs: FinalizeInputs): Result<BedrockState, DeployError> {
+function finalize(pass: ReconcilePass): Result<BedrockState, DeployError> {
 	// Check write before apply: only the write carries `unsavedState`.
-	if (!inputs.written.success) {
+	if (!pass.written.success) {
 		return {
 			err: {
-				cause: inputs.written.err,
+				cause: pass.written.err,
 				kind: "stateWriteFailed",
-				unsavedState: inputs.merged,
+				unsavedState: pass.merged,
 			},
 			success: false,
 		};
 	}
 
-	if (!inputs.applied.success) {
-		return { err: { cause: inputs.applied.err, kind: "applyFailed" }, success: false };
+	if (!pass.applied.success) {
+		return { err: { cause: pass.applied.err, kind: "applyFailed" }, success: false };
 	}
 
-	return { data: inputs.merged, success: true };
+	return { data: pass.merged, success: true };
 }
 
 async function runReconcile(
@@ -348,7 +341,7 @@ async function runReconcile(
 		statePort: deps.statePort,
 	});
 
-	return finalize({ applied: pass.applied, merged: pass.merged, written: pass.written });
+	return finalize(pass);
 }
 
 async function runDeploy(
