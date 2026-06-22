@@ -1,6 +1,6 @@
 # ADR-026: Codegen and Two-Phase Deploy
 
-**Date:** 2026-06-22  **Status:** Accepted
+**Date:** 2026-06-22 **Status:** Accepted
 
 Decision Makers: Maintainer
 Tags: deploy, codegen, state, data-model, ports, two-phase, core
