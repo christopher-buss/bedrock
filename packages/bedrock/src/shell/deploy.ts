@@ -9,11 +9,20 @@ import { createFsCodegenWriter } from "../adapters/fs-codegen-writer.ts";
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import { createNoOpProgressAdapter } from "../adapters/no-op-progress-adapter.ts";
 import { assertAllReconcilable } from "../core/assert-all-reconcilable.ts";
+import { buildRepublishOps } from "../core/build-republish-ops.ts";
 import { type Emitter, isCodegenEnabled } from "../core/codegen.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { diff } from "../core/diff.ts";
 import { flattenConfig } from "../core/flatten.ts";
+import type { Operation } from "../core/operations.ts";
+import { planTwoPhase, type TwoPhasePlan } from "../core/plan-two-phase.ts";
+import type { RebuildHook, RebuiltPlace } from "../core/rebuild.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
+import type {
+	PlaceDesiredState,
+	ResourceCurrentState,
+	ResourceDesiredState,
+} from "../core/resources.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
 import {
 	type IncompletePassEntryError,
@@ -76,6 +85,14 @@ export interface DeployOptions {
 	readonly progress?: ProgressPort;
 	/** Reads file bytes for resources that have file-backed inputs. Defaults to `node:fs/promises.readFile`. */
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
+	/**
+	 * Two-phase rebuild hook. Supplied programmatically (a function cannot
+	 * round-trip through a config file). When supplied and the diff contains a
+	 * provisioned `create`, `deploy` mints the assets, runs codegen, invokes the
+	 * hook with the post-asset-stage state, then republishes each returned place
+	 * from the hook's rebuilt bytes. Omit to publish places in a single pass.
+	 */
+	readonly rebuild?: RebuildHook;
 	/** Per-kind driver table consulted for create / update dispatch. Default-constructed from `BEDROCK_API_KEY` when omitted. */
 	readonly registry?: DriverRegistry;
 	/** Backend used to read the prior snapshot and persist the new one. Default-constructed from `config.state` and `BEDROCK_GITHUB_TOKEN` when omitted. */
@@ -124,6 +141,7 @@ interface ResolvedDepsBase {
 	readonly codegen: CodegenBundle | undefined;
 	readonly config: ResolvedConfig;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
+	readonly rebuild: RebuildHook | undefined;
 	readonly registry: DriverRegistry;
 	readonly statePort: StatePort;
 }
@@ -142,6 +160,38 @@ interface EmitTerminalEventInputs {
 	readonly environment: string;
 	readonly progress: ProgressPort;
 	readonly result: Result<BedrockState, DeployError>;
+}
+
+interface SinglePassInputs {
+	readonly deps: ResolvedDeps;
+	readonly environment: string;
+	readonly ops: ReadonlyArray<Operation>;
+	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
+}
+
+interface TwoPhaseInputs {
+	readonly deps: ResolvedDeps;
+	readonly desired: ReadonlyArray<ResourceDesiredState>;
+	readonly environment: string;
+	readonly plan: TwoPhasePlan;
+	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
+	readonly rebuild: RebuildHook;
+}
+
+interface AssetStageInputs {
+	readonly deps: ResolvedDeps;
+	readonly desiredPlaces: ReadonlyArray<PlaceDesiredState>;
+	readonly environment: string;
+	readonly ops: ReadonlyArray<Operation>;
+	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
+}
+
+interface RepublishStageInputs {
+	readonly assetPass: ReconcilePass;
+	readonly deps: ResolvedDeps;
+	readonly desiredPlaces: ReadonlyArray<PlaceDesiredState>;
+	readonly environment: string;
+	readonly rebuilt: ReadonlyArray<RebuiltPlace>;
 }
 
 /**
@@ -365,6 +415,7 @@ async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDepsB
 			codegen: codegen.data,
 			config: effective,
 			readFile,
+			rebuild: options.rebuild,
 			registry: registry.data,
 			statePort: statePort.data,
 		},
@@ -418,6 +469,77 @@ async function runCodegenStage(
 	});
 }
 
+async function runSinglePass(inputs: SinglePassInputs): Promise<Result<BedrockState, DeployError>> {
+	const { deps, environment, ops, priorResources } = inputs;
+	const pass = await applyAndPersist({
+		environment,
+		ops,
+		priorResources,
+		progress: deps.progress,
+		registry: deps.registry,
+		statePort: deps.statePort,
+	});
+
+	const codegen = await runCodegenStage(deps, pass);
+	return finalize(pass, codegen);
+}
+
+async function runAssetStage(inputs: AssetStageInputs): Promise<ReconcilePass> {
+	const { deps, desiredPlaces, environment, ops, priorResources } = inputs;
+	return applyAndPersist({
+		environment,
+		ops,
+		pendingRebuild: new Set(desiredPlaces.map((place) => place.key)),
+		priorResources,
+		progress: deps.progress,
+		registry: deps.registry,
+		statePort: deps.statePort,
+	});
+}
+
+async function runRepublishStage(inputs: RepublishStageInputs): Promise<ReconcilePass> {
+	const { assetPass, deps, desiredPlaces, environment, rebuilt } = inputs;
+	return applyAndPersist({
+		artifacts: new Map(rebuilt.map((place) => [place.key, place.bytes])),
+		environment,
+		ops: buildRepublishOps({
+			currentResources: assetPass.merged.resources,
+			desiredPlaces,
+			keys: rebuilt.map((place) => place.key),
+		}),
+		priorResources: assetPass.merged.resources,
+		progress: deps.progress,
+		registry: deps.registry,
+		statePort: deps.statePort,
+	});
+}
+
+async function runTwoPhase(inputs: TwoPhaseInputs): Promise<Result<BedrockState, DeployError>> {
+	const { deps, desired, environment, plan, priorResources, rebuild } = inputs;
+	const desiredPlaces = desired.filter(
+		(entry): entry is PlaceDesiredState => entry.kind === "place",
+	);
+	const assetPass = await runAssetStage({
+		deps,
+		desiredPlaces,
+		environment,
+		ops: plan.assetOps,
+		priorResources,
+	});
+
+	const codegen = await runCodegenStage(deps, assetPass);
+	const rebuilt = await rebuild({ state: assetPass.merged });
+	const republishPass = await runRepublishStage({
+		assetPass,
+		deps,
+		desiredPlaces,
+		environment,
+		rebuilt,
+	});
+
+	return finalize(republishPass, codegen);
+}
+
 async function runReconcile(
 	environment: string,
 	deps: ResolvedDeps,
@@ -439,17 +561,17 @@ async function runReconcile(
 	}
 
 	const ops = diff(desired.data, priorResources);
-	const pass = await applyAndPersist({
-		environment,
-		ops,
-		priorResources,
-		progress: deps.progress,
-		registry: deps.registry,
-		statePort: deps.statePort,
-	});
+	const { rebuild } = deps;
+	if (rebuild === undefined) {
+		return runSinglePass({ deps, environment, ops, priorResources });
+	}
 
-	const codegen = await runCodegenStage(deps, pass);
-	return finalize(pass, codegen);
+	const plan = planTwoPhase(ops, true);
+	if (!plan.activates) {
+		return runSinglePass({ deps, environment, ops, priorResources });
+	}
+
+	return runTwoPhase({ deps, desired: desired.data, environment, plan, priorResources, rebuild });
 }
 
 async function runDeploy(

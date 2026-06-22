@@ -7,14 +7,16 @@ import { assert, describe, expect, it, vi } from "vitest";
 
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import type { CodegenFile, EmitInput, Emitter } from "../core/codegen.ts";
+import type { RebuiltPlace } from "../core/rebuild.ts";
 import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
+import type { ResourceCurrentState } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
 import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
-import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
+import { asResourceKey, asRobloxAssetId, asSha256Hex, type ResourceKey } from "../types/ids.ts";
 import { deploy, type DeployError, isCliEnvironmentFlagSet } from "./deploy.ts";
 
 // Empty bytes hash to SHA-256 `e3b0c44...`; keeping readIcon in lockstep with
@@ -1684,6 +1686,263 @@ describe(deploy, () => {
 			assert(result.success);
 
 			expect(emit).toHaveBeenCalledOnce();
+		});
+	});
+
+	describe("two-phase deploy", () => {
+		const rebuiltBytes = new Uint8Array([10, 20, 30]);
+		const startPlace = asResourceKey("start-place");
+
+		interface PlaceCall {
+			readonly key: ResourceKey;
+			readonly artifact: Uint8Array | undefined;
+			readonly type: "create" | "update";
+		}
+
+		function recordingPlaceRegistry(): {
+			placeCalls: Array<PlaceCall>;
+			registry: DriverRegistry;
+		} {
+			const placeCalls: Array<PlaceCall> = [];
+			const place: ResourceDriver<"place"> = {
+				async create(desired, context) {
+					placeCalls.push({
+						key: desired.key,
+						artifact: context?.artifact,
+						type: "create",
+					});
+					return { data: { ...desired, outputs: { versionNumber: 1 } }, success: true };
+				},
+				// eslint-disable-next-line better-max-params/better-max-params -- ResourceDriver.update port contract.
+				async update(_current, desired, context) {
+					placeCalls.push({
+						key: desired.key,
+						artifact: context?.artifact,
+						type: "update",
+					});
+					return { data: { ...desired, outputs: { versionNumber: 2 } }, success: true };
+				},
+			};
+			return {
+				placeCalls,
+				registry: {
+					developerProduct: developerProductStub,
+					gamePass: {
+						async create() {
+							return { data: vipPassCurrent(), success: true };
+						},
+					},
+					place,
+					universe: universeStub,
+				},
+			};
+		}
+
+		function twoPhaseConfig(): Config {
+			return {
+				environments: { production: { places: { "start-place": { placeId: "4711" } } } },
+				passes: { "vip-pass": VipPassEntry },
+				places: { "start-place": { filePath: "places/start.rbxl" } },
+			};
+		}
+
+		function cannedRebuild(): ReadonlyArray<RebuiltPlace> {
+			return [{ key: startPlace, bytes: rebuiltBytes }];
+		}
+
+		it("should publish the rebuild hook's bytes to the place driver instead of the pre-built file", async () => {
+			expect.assertions(1);
+
+			const { placeCalls, registry } = recordingPlaceRegistry();
+
+			const result = await deploy({
+				config: twoPhaseConfig(),
+				environment: "production",
+				readFile: readIcon,
+				rebuild: cannedRebuild,
+				registry,
+				statePort: inMemoryStatePort().port,
+			});
+
+			assert(result.success);
+
+			expect(placeCalls).toStrictEqual([
+				{ key: startPlace, artifact: rebuiltBytes, type: "create" },
+			]);
+		});
+
+		it("should give the rebuild hook the freshly minted asset IDs", async () => {
+			expect.assertions(1);
+
+			let received: BedrockState | undefined;
+			const { registry } = recordingPlaceRegistry();
+
+			await deploy({
+				config: twoPhaseConfig(),
+				environment: "production",
+				readFile: readIcon,
+				rebuild: ({ state }) => {
+					received = state;
+					return [{ key: startPlace, bytes: rebuiltBytes }];
+				},
+				registry,
+				statePort: inMemoryStatePort().port,
+			});
+
+			expect(received?.resources).toContainEqual(vipPassCurrent());
+		});
+
+		it("should set the pending-rebuild marker at the checkpoint write and clear it at the final write", async () => {
+			expect.assertions(3);
+
+			const { port, writes } = inMemoryStatePort();
+			const { registry } = recordingPlaceRegistry();
+
+			await deploy({
+				config: twoPhaseConfig(),
+				environment: "production",
+				readFile: readIcon,
+				rebuild: cannedRebuild,
+				registry,
+				statePort: port,
+			});
+
+			expect(writes).toHaveLength(2);
+			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
+			expect(writes[1]!.pendingRebuild).toBeUndefined();
+		});
+
+		it("should republish each place from its keyed entry for a multi-place universe", async () => {
+			expect.assertions(2);
+
+			const lobbyBytes = new Uint8Array([1, 1]);
+			const arenaBytes = new Uint8Array([2, 2]);
+			const { placeCalls, registry } = recordingPlaceRegistry();
+
+			await deploy({
+				config: {
+					environments: {
+						production: {
+							places: { arena: { placeId: "200" }, lobby: { placeId: "100" } },
+						},
+					},
+					passes: { "vip-pass": VipPassEntry },
+					places: {
+						arena: { filePath: "places/arena.rbxl" },
+						lobby: { filePath: "places/lobby.rbxl" },
+					},
+				},
+				environment: "production",
+				readFile: readIcon,
+				rebuild: () => {
+					return [
+						{ key: asResourceKey("lobby"), bytes: lobbyBytes },
+						{ key: asResourceKey("arena"), bytes: arenaBytes },
+					];
+				},
+				registry,
+				statePort: inMemoryStatePort().port,
+			});
+
+			expect(placeCalls).toContainEqual({
+				key: asResourceKey("lobby"),
+				artifact: lobbyBytes,
+				type: "create",
+			});
+			expect(placeCalls).toContainEqual({
+				key: asResourceKey("arena"),
+				artifact: arenaBytes,
+				type: "create",
+			});
+		});
+
+		it("should republish a place already in state with the hook's bytes via an update", async () => {
+			expect.assertions(1);
+
+			const priorPlace: ResourceCurrentState<"place"> = {
+				key: startPlace,
+				description: undefined,
+				displayName: undefined,
+				fileHash: ICON_HASH,
+				filePath: "places/start.rbxl",
+				kind: "place",
+				outputs: { versionNumber: 1 },
+				placeId: asRobloxAssetId("4711"),
+				serverSize: undefined,
+			};
+			const { placeCalls, registry } = recordingPlaceRegistry();
+
+			const result = await deploy({
+				config: twoPhaseConfig(),
+				environment: "production",
+				readFile: readIcon,
+				rebuild: cannedRebuild,
+				registry,
+				statePort: inMemoryStatePort({
+					environment: "production",
+					resources: [priorPlace],
+					version: 1,
+				}).port,
+			});
+
+			assert(result.success);
+
+			expect(placeCalls).toStrictEqual([
+				{ key: startPlace, artifact: rebuiltBytes, type: "update" },
+			]);
+		});
+
+		it("should publish places normally in a single pass when no rebuild hook is supplied", async () => {
+			expect.assertions(3);
+
+			const { port, writes } = inMemoryStatePort();
+			const { placeCalls, registry } = recordingPlaceRegistry();
+
+			const result = await deploy({
+				config: twoPhaseConfig(),
+				environment: "production",
+				readFile: readIcon,
+				registry,
+				statePort: port,
+			});
+
+			assert(result.success);
+
+			expect(writes).toHaveLength(1);
+			expect(writes[0]!.pendingRebuild).toBeUndefined();
+			expect(placeCalls).toStrictEqual([
+				{ key: startPlace, artifact: undefined, type: "create" },
+			]);
+		});
+
+		it("should run codegen with the minted IDs during a two-phase deploy", async () => {
+			expect.assertions(2);
+
+			const inputs: Array<EmitInput> = [];
+			const writer = inMemoryCodegenWriter();
+			const { registry } = recordingPlaceRegistry();
+
+			await deploy({
+				codegenWriter: writer.port,
+				config: {
+					...twoPhaseConfig(),
+					codegen: { enabled: true, output: "src/generated" },
+				},
+				emit: async (input) => {
+					inputs.push(input);
+					return [CODEGEN_FILE];
+				},
+				environment: "production",
+				readFile: readIcon,
+				rebuild: cannedRebuild,
+				registry,
+				statePort: inMemoryStatePort().port,
+			});
+
+			expect(inputs[0]!.environments["production"]!.resources).toContainEqual(
+				vipPassCurrent(),
+			);
+			expect(writer.writes).toStrictEqual([CODEGEN_FILE]);
 		});
 	});
 });

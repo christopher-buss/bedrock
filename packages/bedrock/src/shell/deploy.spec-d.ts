@@ -1,5 +1,6 @@
 import { describe, expectTypeOf, it } from "vitest";
 
+import type { RebuildHook } from "../core/rebuild.ts";
 import type { StateConfig } from "../core/schema.ts";
 import type { DeployError, DeployOptions } from "./deploy.ts";
 
@@ -10,6 +11,10 @@ describe("DeployOptions", () => {
 
 	it("should type environment as string", () => {
 		expectTypeOf<DeployOptions["environment"]>().toEqualTypeOf<string>();
+	});
+
+	it("should accept an optional rebuild hook", () => {
+		expectTypeOf<DeployOptions["rebuild"]>().toEqualTypeOf<RebuildHook | undefined>();
 	});
 });
 
