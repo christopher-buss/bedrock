@@ -1,5 +1,6 @@
 import { describe, expectTypeOf, it } from "vitest";
 
+import type { ResourceKey } from "../types/ids.ts";
 import type { ResourceCurrentState } from "./resources.ts";
 import type { BedrockState, StateError } from "./state.ts";
 
@@ -7,6 +8,7 @@ describe("BedrockState", () => {
 	it("should expose readonly environment, resources, and version fields", () => {
 		expectTypeOf<BedrockState>().toEqualTypeOf<{
 			readonly environment: string;
+			readonly pendingRebuild?: ReadonlySet<ResourceKey>;
 			readonly resources: ReadonlyArray<ResourceCurrentState>;
 			readonly version: 1;
 		}>();
@@ -14,6 +16,12 @@ describe("BedrockState", () => {
 
 	it("should pin version to the literal 1, not number", () => {
 		expectTypeOf<BedrockState["version"]>().toEqualTypeOf<1>();
+	});
+
+	it("should type pendingRebuild as an optional readonly set of resource keys", () => {
+		expectTypeOf<BedrockState["pendingRebuild"]>().toEqualTypeOf<
+			ReadonlySet<ResourceKey> | undefined
+		>();
 	});
 });
 
