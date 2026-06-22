@@ -387,3 +387,77 @@ iterations and is not wired to an in-flight `AbortSignal`, so a single request
 is still not bounded by the *remaining* budget, and budget exhaustion mid-flight
 surfaces as a transport `NetworkError` rather than the documented
 `PollTimeoutError`.
+
+## Amendment: 2026-06-22, adaptive throttling from the live remaining budget
+
+The original Decision paces requests with a **static** per-operation token
+bucket (`requestsPerSecond` from the vendored OpenAPI) and recovers from a 429
+reactively via `x-ratelimit-reset`. Two facts, established by a live probe
+against the real API (one API key + IP), show that static pacing is
+structurally unreliable and that better information was being discarded:
+
+- **The static constants drift from reality.** The schema encodes 200/min for
+  `Cloud_GetLuauExecutionSessionTask`; the probe measured a real ceiling of
+  exactly 100/min on `Cloud_GetUniverse`, and the human docs disagree with both.
+  A hardcoded ceiling cannot track an undocumented limit.
+- **Roblox returns the live budget on every response.** `x-ratelimit-remaining`
+  (and `-limit`, `-reset`) appear on 200/403/429 across four API families —
+  absent only on a 404 (the gateway short-circuits before the rate-limit layer).
+  So the headers are best-effort, not guaranteed.
+
+Two parsing facts also surfaced: on a 429, `x-ratelimit-reset` is a
+comma-separated **list** of per-window resets (e.g. `"22, 0"`), and `retry-after`
+(5s) **understates** the true reset (22s). The list parse is reduced with
+`max` for reset (longest wait) and `min` for remaining (most constrained); the
+`retry-after`-understates-`reset` finding is why the SDK keeps preferring
+`x-ratelimit-reset` over the header the docs nominally recommend.
+
+The amendment adds a **header-primed budget gate** alongside the existing
+machinery (which is unchanged and remains the fallback):
+
+- **Observe every response.** Each attempt parses a `{ remaining, resetSeconds }`
+  sample and folds it back into the gate. A 2xx carries the budget in its
+  headers; a 429 carries it on `RateLimitError.remaining` — previously the 429
+  path built no header record, so the one response that proves exhaustion
+  dropped its budget signal. That error now carries `remaining`.
+- **Gate per attempt, not per acquire.** The token bucket grants one token for a
+  whole logical call, so gating only at acquisition cannot stop the retry-loop
+  attempts that share the token. The gate lives in the `send` closure and runs
+  before every attempt.
+- **Two pacing regimes.** While budget remains, requests are spaced evenly over
+  the time left in the window (`timeLeft / remaining`), so a burst does not spend
+  the window up front and then stall; the first send in a window goes
+  immediately. Once the budget is spent, requests hold until reset. Pacing runs
+  at the **server-observed** rate, so it self-corrects when the static ceiling is
+  wrong.
+- **Per-key scope, not per-operation.** The gate keys one budget per API key.
+  A per-operation tracker was prototyped and dropped: every operation reports the
+  same most-constrained `remaining`, and a per-key tracker drawn down by all
+  operations is always the binding constraint, so a per-operation tracker could
+  never independently fire. Per-key is also where the value is — a deploy's 429s
+  come from many operations sharing the per-key window, which a per-operation
+  bucket cannot see.
+- **Last-writer-wins observation.** Observe time is monotonic (stamped when the
+  response resolves), so the most recent sample is the best estimate; no
+  timestamp-staleness bookkeeping is kept.
+
+Static-bucket pacing is retained for cold start (no sample yet) and for
+endpoints that omit the headers (404s and any future gap), since a missing or
+non-numeric header parses to `undefined` and leaves that scope on static pacing.
+
+Known limitations (residual, accepted): the per-key `remaining` is the *minimum*
+across all of Roblox's overlapping windows, so when only a route-specific window
+is exhausted the gate over-throttles other operations on that key until the next
+observation refreshes it; a concurrent burst before the first observation can
+still overshoot (bounded — the next observation corrects it, and the reactive
+429 retry path remains as defense in depth); and the multi-client/multi-process
+per-key hazard from the original Decision is unchanged. Auto-correcting the
+static `requestsPerSecond` from `x-ratelimit-limit` is intentionally **not**
+attempted — `remaining`/`reset` already demote the static value to a pure
+fallback.
+
+No new public surface: the gate is internal, parsing reductions are internal,
+and `RateLimitError` only gains a `remaining` field (additive). A consumer hook
+to observe proactive holds (`onRateLimitHeaders`) was considered and deferred to
+avoid overloading the existing `onRateLimit` callback, which already signals both
+static-bucket and retry waits.
