@@ -5,14 +5,20 @@ import {
 	gamePassCurrent,
 	gamePassDesired,
 	placeCurrent,
+	placeDesired,
 	universeCurrent,
 } from "#tests/helpers/resources";
 import { describe, expect, it } from "vitest";
 
 import type { Operation } from "../core/operations.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
+import type { BedrockState } from "../core/state.ts";
 import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
-import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
+import type {
+	DriverRegistry,
+	ResourceApplyContext,
+	ResourceDriver,
+} from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { asResourceKey, type ResourceKey } from "../types/ids.ts";
 import { applyAndPersist } from "./reconcile-pass.ts";
@@ -222,5 +228,83 @@ describe(applyAndPersist, () => {
 
 		expect(pass.applied.success).toBeFalse();
 		expect(writes[0]).toStrictEqual([alpha]);
+	});
+
+	it("should stamp the pendingRebuild marker on the persisted snapshot when supplied", async () => {
+		expect.assertions(2);
+
+		const states: Array<BedrockState> = [];
+		const port: StatePort = {
+			async read() {
+				return { data: undefined, success: true };
+			},
+			async write(state) {
+				states.push(state);
+				return { data: undefined, success: true };
+			},
+		};
+		const marker = new Set([asResourceKey("start-place")]);
+
+		const pass = await applyAndPersist({
+			environment: "production",
+			ops: [createGamePassOp(asResourceKey("vip-pass"))],
+			pendingRebuild: marker,
+			priorResources: [],
+			progress: recordingProgress().port,
+			registry: gamePassRegistry({ "vip-pass": vip }),
+			statePort: port,
+		});
+
+		expect(pass.merged.pendingRebuild).toStrictEqual(marker);
+		expect(states[0]!.pendingRebuild).toStrictEqual(marker);
+	});
+
+	it("should omit the pendingRebuild marker when the supplied set is empty", async () => {
+		expect.assertions(1);
+
+		const { port } = inMemoryStatePort();
+
+		const pass = await applyAndPersist({
+			environment: "production",
+			ops: [createGamePassOp(asResourceKey("vip-pass"))],
+			pendingRebuild: new Set(),
+			priorResources: [],
+			progress: recordingProgress().port,
+			registry: gamePassRegistry({ "vip-pass": vip }),
+			statePort: port,
+		});
+
+		expect(pass.merged.pendingRebuild).toBeUndefined();
+	});
+
+	it("should forward artifacts to the driver as apply context", async () => {
+		expect.assertions(1);
+
+		const desired = placeDesired();
+		const artifact = new Uint8Array([7, 7, 7]);
+		let received: ResourceApplyContext | undefined;
+		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
+			gamePass: gamePassRegistry({}).gamePass,
+			place: {
+				async create(_desired, context) {
+					received = context;
+					return { data: placeCurrent(), success: true };
+				},
+			},
+			universe: universeStub,
+		};
+
+		await applyAndPersist({
+			artifacts: new Map([[desired.key, artifact]]),
+			environment: "production",
+			ops: [{ key: desired.key, desired, type: "create" }],
+			priorResources: [],
+			progress: recordingProgress().port,
+			registry,
+			statePort: inMemoryStatePort().port,
+		});
+
+		expect(received).toStrictEqual({ artifact });
 	});
 });

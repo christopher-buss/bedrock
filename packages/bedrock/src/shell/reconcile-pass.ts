@@ -6,6 +6,7 @@ import type { BedrockState, StateError } from "../core/state.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
+import type { ResourceKey } from "../types/ids.ts";
 import { type AggregateApplyError, applyOps } from "./apply-ops.ts";
 
 /**
@@ -29,10 +30,17 @@ export interface ReconcilePass {
  * later pass receives the previous pass's `merged.resources` here.
  */
 interface ApplyAndPersistInputs {
+	/** Optional per-key rebuilt artifact bytes forwarded to `applyOps` as apply context. */
+	readonly artifacts?: ReadonlyMap<ResourceKey, Uint8Array>;
 	/** Environment name threaded into `applyOps` reporting and the snapshot. */
 	readonly environment: string;
 	/** Subset of reconcile ops applied in this pass, in declaration order. */
 	readonly ops: ReadonlyArray<Operation>;
+	/**
+	 * Place keys to record as owing a rebuild. Stamped onto the persisted
+	 * snapshot when non-empty; an empty or absent set leaves the marker off.
+	 */
+	readonly pendingRebuild?: ReadonlySet<ResourceKey>;
 	/** Resources already persisted; survivors merge on top, none are dropped. */
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 	/** Sink for per-resource, summary, and `stateWritten` progress events. */
@@ -46,6 +54,7 @@ interface ApplyAndPersistInputs {
 interface SnapshotInputs {
 	readonly applied: Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>;
 	readonly environment: string;
+	readonly pendingRebuild: ReadonlySet<ResourceKey> | undefined;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 }
 
@@ -65,9 +74,18 @@ interface SnapshotInputs {
  * @returns The apply, snapshot, and write outcomes for the pass.
  */
 export async function applyAndPersist(inputs: ApplyAndPersistInputs): Promise<ReconcilePass> {
-	const { environment, ops, priorResources, progress, registry, statePort } = inputs;
-	const applied = await applyOps(ops, registry, { environment, progress });
-	const merged = buildSnapshot({ applied, environment, priorResources });
+	const {
+		artifacts,
+		environment,
+		ops,
+		pendingRebuild,
+		priorResources,
+		progress,
+		registry,
+		statePort,
+	} = inputs;
+	const applied = await applyOps(ops, registry, { environment, progress }, artifacts);
+	const merged = buildSnapshot({ applied, environment, pendingRebuild, priorResources });
 
 	const written = await statePort.write(merged);
 	if (written.success) {
@@ -94,9 +112,15 @@ function buildSnapshot(inputs: SnapshotInputs): BedrockState {
 	const appliedResources = inputs.applied.success
 		? inputs.applied.data
 		: inputs.applied.err.applied;
+	const resources = mergeResources(inputs.priorResources, appliedResources);
+	if (inputs.pendingRebuild === undefined || inputs.pendingRebuild.size === 0) {
+		return { environment: inputs.environment, resources, version: 1 };
+	}
+
 	return {
 		environment: inputs.environment,
-		resources: mergeResources(inputs.priorResources, appliedResources),
+		pendingRebuild: inputs.pendingRebuild,
+		resources,
 		version: 1,
 	};
 }
