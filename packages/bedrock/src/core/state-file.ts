@@ -2,6 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { ArkErrors, type } from "arktype";
 
+import type { ResourceKey } from "../types/ids.ts";
 import type { ResourceCurrentState } from "./resources.ts";
 import type { BedrockState, StateError } from "./state.ts";
 
@@ -18,7 +19,7 @@ const resourceShape = type({
 });
 
 const envelopeSchema = type({
-	$bedrock: { version: "1" },
+	$bedrock: { "pendingRebuild?": "string[]", "version": "1" },
 	environment: "string",
 	resources: resourceShape.array(),
 });
@@ -31,6 +32,10 @@ const envelopeSchema = type({
  * `$bedrock: { version: N }` envelope so that a future breaking change to the
  * schema can be detected and rejected at parse time rather than silently
  * accepted. The top-level `version` field is not duplicated on disk.
+ *
+ * A non-empty `pendingRebuild` set is written as a `pendingRebuild` list of
+ * keys alongside `version` inside the envelope; an empty or absent set is
+ * omitted so a happy-path file never shows the marker.
  *
  * @example
  *
@@ -56,7 +61,7 @@ const envelopeSchema = type({
  */
 export function serializeStateFile(state: BedrockState): string {
 	const envelope = {
-		$bedrock: { version: state.version },
+		$bedrock: bedrockMeta(state),
 		environment: state.environment,
 		resources: state.resources,
 	};
@@ -69,6 +74,10 @@ export function serializeStateFile(state: BedrockState): string {
  * A backend that reports "no state file for this environment yet" must pass
  * `undefined`: that distinguishes a legitimate first deploy from a file that
  * exists but cannot be trusted.
+ *
+ * A `pendingRebuild` list inside the envelope is hydrated back into the typed
+ * set; an absent or empty list leaves the field off the parsed state. A
+ * pre-existing v1 file without the field parses unchanged.
  *
  * @example
  *
@@ -107,10 +116,33 @@ export function parseStateFile(
 		return errState(file, `invalid state file: ${validated.summary}`);
 	}
 
+	return { data: toState(validated), success: true };
+}
+
+function bedrockMeta(state: BedrockState): {
+	pendingRebuild?: ReadonlyArray<ResourceKey>;
+	version: 1;
+} {
+	const { pendingRebuild, version } = state;
+	if (pendingRebuild === undefined || pendingRebuild.size === 0) {
+		return { version };
+	}
+
+	return { pendingRebuild: [...pendingRebuild], version };
+}
+
+function toState(validated: typeof envelopeSchema.infer): BedrockState {
 	const resources = validated.resources as unknown as ReadonlyArray<ResourceCurrentState>;
+	const pendingKeys = validated.$bedrock.pendingRebuild;
+	if (pendingKeys === undefined || pendingKeys.length === 0) {
+		return { environment: validated.environment, resources, version: 1 };
+	}
+
 	return {
-		data: { environment: validated.environment, resources, version: 1 },
-		success: true,
+		environment: validated.environment,
+		pendingRebuild: new Set(pendingKeys as unknown as ReadonlyArray<ResourceKey>),
+		resources,
+		version: 1,
 	};
 }
 

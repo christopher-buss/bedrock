@@ -1,3 +1,4 @@
+import type { ResourceKey } from "../types/ids.ts";
 import type { ResourceCurrentState } from "./resources.ts";
 
 /**
@@ -51,6 +52,17 @@ import type { ResourceCurrentState } from "./resources.ts";
 export interface BedrockState {
 	/** Environment name this snapshot belongs to (e.g. `"production"`, `"staging"`). */
 	readonly environment: string;
+	/**
+	 * Place keys recorded as owing a rebuild, surfaced so a later deploy can
+	 * self-heal a place that published but never finished its follow-up build.
+	 *
+	 * Presence-only: a key is either listed or absent, never flagged `false`.
+	 * The field is omitted entirely when no place owes a rebuild, so a
+	 * happy-path snapshot never carries it. On disk the set is stored as a list
+	 * of keys inside the adapter-private `$bedrock` envelope, and an empty set
+	 * is dropped on write. The marker never participates in drift detection.
+	 */
+	readonly pendingRebuild?: ReadonlySet<ResourceKey>;
 	/** Current state of every resource Bedrock manages in this environment. */
 	readonly resources: ReadonlyArray<ResourceCurrentState>;
 	/** Schema-version literal; bumped only for breaking changes to the on-disk format. */

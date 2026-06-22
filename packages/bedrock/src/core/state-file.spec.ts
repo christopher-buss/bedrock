@@ -82,6 +82,40 @@ describe(serializeStateFile, () => {
 
 		expect(serializeStateFile(state)).toContain("\n");
 	});
+
+	it("should serialize pending-rebuild place keys into the $bedrock envelope", () => {
+		expect.assertions(1);
+
+		const state: BedrockState = {
+			environment: "production",
+			pendingRebuild: new Set([asResourceKey("lobby"), asResourceKey("start-place")]),
+			resources: [],
+			version: 1,
+		};
+
+		expect(JSON.parse(serializeStateFile(state))).toStrictEqual({
+			$bedrock: { pendingRebuild: ["lobby", "start-place"], version: 1 },
+			environment: "production",
+			resources: [],
+		});
+	});
+
+	it("should omit pending-rebuild from the envelope when the marker set is empty", () => {
+		expect.assertions(1);
+
+		const state: BedrockState = {
+			environment: "production",
+			pendingRebuild: new Set(),
+			resources: [],
+			version: 1,
+		};
+
+		expect(JSON.parse(serializeStateFile(state))).toStrictEqual({
+			$bedrock: { version: 1 },
+			environment: "production",
+			resources: [],
+		});
+	});
 });
 
 const SAMPLE_FILE = "gist:abc123/state.production.json";
@@ -266,5 +300,140 @@ describe(parseStateFile, () => {
 		);
 
 		expect(result.success).toBeFalse();
+	});
+
+	it("should round-trip pending-rebuild markers through serialize and parse", () => {
+		expect.assertions(2);
+
+		const state: BedrockState = {
+			environment: "staging",
+			pendingRebuild: new Set([asResourceKey("start-place")]),
+			resources: [],
+			version: 1,
+		};
+
+		const result = parseStateFile(serializeStateFile(state), SAMPLE_FILE);
+
+		expect(result.success).toBeTrue();
+
+		assert(result.success);
+
+		expect(result.data).toStrictEqual(state);
+	});
+
+	it("should hydrate pending-rebuild markers from a $bedrock envelope list", () => {
+		expect.assertions(2);
+
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: { pendingRebuild: ["start-place", "lobby"], version: 1 },
+				environment: "production",
+				resources: [],
+			}),
+			SAMPLE_FILE,
+		);
+
+		expect(result.success).toBeTrue();
+
+		assert(result.success);
+
+		expect(result.data).toStrictEqual({
+			environment: "production",
+			pendingRebuild: new Set([asResourceKey("lobby"), asResourceKey("start-place")]),
+			resources: [],
+			version: 1,
+		});
+	});
+
+	it("should omit pending-rebuild when the envelope list is empty", () => {
+		expect.assertions(2);
+
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: { pendingRebuild: [], version: 1 },
+				environment: "production",
+				resources: [],
+			}),
+			SAMPLE_FILE,
+		);
+
+		expect(result.success).toBeTrue();
+
+		assert(result.success);
+
+		expect(result.data).toStrictEqual({
+			environment: "production",
+			resources: [],
+			version: 1,
+		});
+	});
+
+	it("should parse a v1 state file without pendingRebuild and leave version unchanged", () => {
+		expect.assertions(3);
+
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: { version: 1 },
+				environment: "production",
+				resources: [],
+			}),
+			SAMPLE_FILE,
+		);
+
+		expect(result.success).toBeTrue();
+
+		assert(result.success);
+
+		expect(result.data).toStrictEqual({
+			environment: "production",
+			resources: [],
+			version: 1,
+		});
+		expect(result.data?.pendingRebuild).toBeUndefined();
+	});
+
+	it("should err when pendingRebuild is not a list of strings", () => {
+		expect.assertions(1);
+
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: { pendingRebuild: "start-place", version: 1 },
+				environment: "production",
+				resources: [],
+			}),
+			SAMPLE_FILE,
+		);
+
+		expect(result.success).toBeFalse();
+	});
+
+	it("should tolerate and drop an unknown $bedrock member for forward compatibility", () => {
+		expect.assertions(3);
+
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: { futureThing: "x", version: 1 },
+				environment: "production",
+				resources: [],
+			}),
+			SAMPLE_FILE,
+		);
+
+		expect(result.success).toBeTrue();
+
+		assert(result.success);
+		assert(result.data !== undefined);
+
+		expect(result.data).toStrictEqual({
+			environment: "production",
+			resources: [],
+			version: 1,
+		});
+
+		expect(JSON.parse(serializeStateFile(result.data))).toStrictEqual({
+			$bedrock: { version: 1 },
+			environment: "production",
+			resources: [],
+		});
 	});
 });

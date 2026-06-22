@@ -14,7 +14,6 @@ import type { ConfigError } from "../core/config-error.ts";
 import { diff } from "../core/diff.ts";
 import { flattenConfig } from "../core/flatten.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
-import type { ResourceCurrentState } from "../core/resources.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
 import {
 	type IncompletePassEntryError,
@@ -28,7 +27,7 @@ import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
-import { type AggregateApplyError, applyOps } from "./apply-ops.ts";
+import type { AggregateApplyError } from "./apply-ops.ts";
 import { buildDefaultRegistry, type RegistryConfigError } from "./build-default-registry.ts";
 import { buildDesired, type BuildDesiredError } from "./build-desired.ts";
 import {
@@ -37,6 +36,7 @@ import {
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
 import { loadConfig as defaultLoadConfig, type LoadConfigOptions } from "./load-config.ts";
+import { applyAndPersist, type ReconcilePass } from "./reconcile-pass.ts";
 import { type CodegenError, runCodegen } from "./run-codegen.ts";
 
 /**
@@ -113,19 +113,6 @@ export type DeployError =
 			readonly unsavedState: BedrockState;
 	  }
 	| { readonly kind: "codegenOutputMissing" };
-
-interface SnapshotInputs {
-	readonly applied: Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>;
-	readonly environment: string;
-	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
-}
-
-interface FinalizeInputs {
-	readonly applied: Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>;
-	readonly codegen: Result<void, CodegenError> | undefined;
-	readonly merged: BedrockState;
-	readonly written: Result<void, StateError>;
-}
 
 /** Resolved codegen dependencies; present only when codegen is active. */
 interface CodegenBundle {
@@ -385,41 +372,17 @@ async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDepsB
 	};
 }
 
-function mergeResources(
-	pre: ReadonlyArray<ResourceCurrentState>,
-	applied: ReadonlyArray<ResourceCurrentState>,
-): ReadonlyArray<ResourceCurrentState> {
-	const byKey = new Map<string, ResourceCurrentState>();
-	for (const resource of pre) {
-		byKey.set(`${resource.kind}:${resource.key}`, resource);
-	}
-
-	for (const resource of applied) {
-		byKey.set(`${resource.kind}:${resource.key}`, resource);
-	}
-
-	return [...byKey.values()];
-}
-
-function buildSnapshot(inputs: SnapshotInputs): BedrockState {
-	const appliedResources = inputs.applied.success
-		? inputs.applied.data
-		: inputs.applied.err.applied;
-	return {
-		environment: inputs.environment,
-		resources: mergeResources(inputs.priorResources, appliedResources),
-		version: 1,
-	};
-}
-
-function finalize(inputs: FinalizeInputs): Result<BedrockState, DeployError> {
+function finalize(
+	pass: ReconcilePass,
+	codegen: Result<void, CodegenError> | undefined,
+): Result<BedrockState, DeployError> {
 	// Check write before apply: only the write carries `unsavedState`.
-	if (!inputs.written.success) {
+	if (!pass.written.success) {
 		return {
 			err: {
-				cause: inputs.written.err,
+				cause: pass.written.err,
 				kind: "stateWriteFailed",
-				unsavedState: inputs.merged,
+				unsavedState: pass.merged,
 			},
 			success: false,
 		};
@@ -427,27 +390,27 @@ function finalize(inputs: FinalizeInputs): Result<BedrockState, DeployError> {
 
 	// Apply outranks codegen: a partial apply still emits codegen for the keys
 	// that resolved, but the deploy result stays `applyFailed`.
-	if (!inputs.applied.success) {
-		return { err: { cause: inputs.applied.err, kind: "applyFailed" }, success: false };
+	if (!pass.applied.success) {
+		return { err: { cause: pass.applied.err, kind: "applyFailed" }, success: false };
 	}
 
-	if (inputs.codegen !== undefined && !inputs.codegen.success) {
-		return { err: { cause: inputs.codegen.err, kind: "codegenFailed" }, success: false };
+	if (codegen !== undefined && !codegen.success) {
+		return { err: { cause: codegen.err, kind: "codegenFailed" }, success: false };
 	}
 
-	return { data: inputs.merged, success: true };
+	return { data: pass.merged, success: true };
 }
 
 async function runCodegenStage(
 	deps: ResolvedDeps,
-	merged: BedrockState,
+	pass: ReconcilePass,
 ): Promise<Result<void, CodegenError> | undefined> {
-	if (deps.codegen === undefined) {
+	if (!pass.written.success || deps.codegen === undefined) {
 		return undefined;
 	}
 
 	return runCodegen({
-		deployedState: merged,
+		deployedState: pass.merged,
 		emit: deps.codegen.emit,
 		environments: Object.keys(deps.config.environments),
 		statePort: deps.statePort,
@@ -476,17 +439,17 @@ async function runReconcile(
 	}
 
 	const ops = diff(desired.data, priorResources);
-	const applied = await applyOps(ops, deps.registry, { environment, progress: deps.progress });
-	const merged = buildSnapshot({ applied, environment, priorResources });
+	const pass = await applyAndPersist({
+		environment,
+		ops,
+		priorResources,
+		progress: deps.progress,
+		registry: deps.registry,
+		statePort: deps.statePort,
+	});
 
-	const written = await deps.statePort.write(merged);
-	let codegen: Result<void, CodegenError> | undefined;
-	if (written.success) {
-		deps.progress.emit({ environment, kind: "stateWritten" });
-		codegen = await runCodegenStage(deps, merged);
-	}
-
-	return finalize({ applied, codegen, merged, written });
+	const codegen = await runCodegenStage(deps, pass);
+	return finalize(pass, codegen);
 }
 
 async function runDeploy(

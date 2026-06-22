@@ -88,6 +88,32 @@ _Avoid_: logger, reporter, telemetry
 The user-facing discriminator in config that selects which **State port** adapter to construct at runtime (e.g. `state: { backend: "gist" }` picks the Gist adapter). Each backend value names exactly one adapter; today only the State port is backend-configurable.
 _Avoid_: provider, driver, storage
 
+### Code generation
+
+**Codegen**:
+Opt-in feature that writes deployed **Outputs** to persisted source files the game references by **Key** instead of by hardcoded ID. Off by default — the floor is Mantle parity, where IDs live only in **State** and consuming them is the user's problem.
+_Avoid_: scaffolding, templating, asset map
+
+**Emitter**:
+The user-overridable function that turns deploy state into generated file content for **Codegen**. Receives state for every declared **Environment** (fresh for the one just deployed, last-known for the rest) and returns the files to write; bedrock ships a default so the simple case needs no code, while a custom emitter owns its layout entirely.
+_Avoid_: generator, formatter, template, renderer
+
+**Two-phase deploy**:
+The deploy mode where a provisioned `create` mints a new asset ID that the place artifact must embed before it is published. Splits the apply into an **asset stage** (apply assets, checkpoint state, run **Codegen**, invoke the **Rebuild hook**) and a **republish stage** (publish the rebuilt places). Activates only when a **Rebuild hook** is supplied and either a provisioned `create` occurs or a **Pending rebuild** marker is set; otherwise the deploy publishes places normally.
+_Avoid_: two-pass, multi-stage, rebuild deploy
+
+**Rebuild hook**:
+The injected callback bedrock invokes during a **Two-phase deploy** to regenerate the place artifact once new asset IDs exist. Bedrock owns the orchestration; the hook owns the build, taking the post-asset deploy state and returning an array of per-place entries, each carrying the place **Key** and its rebuilt artifact. Bedrock does not know how to build.
+_Avoid_: builder, build step, compile hook
+
+**Pending rebuild**:
+A presence-only bookkeeping marker — a place **Key** listed in the `$bedrock` envelope's `pendingRebuild` list — recording a place whose required asset IDs have been minted but not yet embedded and republished. Set for every place at the checkpoint write when a **Two-phase deploy** activates; cleared per place on a successful republish (the key is removed, never set `false`; an empty list is omitted), so a happy-path state never shows it. Lets a two-phase deploy self-heal after a failed **Rebuild hook**, since the assets themselves now `noop`; a marker present with no hook available is a hard error.
+_Avoid_: dirty flag, needs-redeploy, stale marker
+
+**`$bedrock` namespace**:
+The reserved, **adapter-private** key on the on-disk state envelope carrying bedrock's own bookkeeping — the schema `version` and the **Pending rebuild** list — distinct from user-declared desired state and Roblox-returned **Outputs**. Adapters flatten it on read into typed `BedrockState` fields and re-wrap it on write; nothing outside an adapter sees the raw key, and its contents never participate in **Drift**.
+_Avoid_: metadata, internal, reserved
+
 ### Patterns
 
 **Adoption**:
