@@ -38,7 +38,7 @@ export class BudgetGate {
 			await this.#sleep(waitMs);
 		}
 
-		tracker.reserve();
+		tracker.reserve(Date.now());
 	}
 
 	/**
