@@ -17,7 +17,7 @@ export interface TwoPhasePlan {
  * Decide whether a deploy activates two-phase and which ops belong to the
  * asset stage. Two-phase activates only when a rebuild hook is supplied and the
  * diff contains a provisioned `create` (a `gamePass` or `developerProduct`
- * create — the kinds that mint a new Roblox ID). A `place` or `universe` create
+ * create, the kinds that mint a new Roblox ID). A `place` or `universe` create
  * adopts a user-supplied ID and does not trigger it.
  *
  * When active, place ops are withheld from `assetOps` so the asset stage mints

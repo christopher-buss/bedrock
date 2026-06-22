@@ -17,7 +17,7 @@ interface BuildRepublishOpsInputs {
  * named in `keys` becomes an `update` op (carrying its post-asset-stage
  * `current` and a `["rebuild"]` `changedFields` marking the forced republish)
  * when it already exists, or a `create` op when it does not. The rebuilt bytes
- * are not carried on the ops — they flow to the place driver as the republish
+ * are not carried on the ops; they flow to the place driver as the republish
  * stage's per-key apply context.
  *
  * @param inputs - The rebuilt keys, declared places, and post-asset resources.

@@ -500,6 +500,11 @@ async function runAssetStage(inputs: AssetStageInputs): Promise<ReconcilePass> {
 async function runRepublishStage(inputs: RepublishStageInputs): Promise<ReconcilePass> {
 	const { assetPass, deps, desiredPlaces, environment, rebuilt } = inputs;
 	const artifacts = new Map(rebuilt.map((place) => [place.key, place.bytes]));
+	// Clear the marker only for the places the hook actually republished; any
+	// declared place the hook skipped still owes a rebuild and keeps its marker.
+	const stillOwed = new Set(
+		desiredPlaces.map((place) => place.key).filter((key) => !artifacts.has(key)),
+	);
 	return applyAndPersist({
 		artifacts,
 		environment,
@@ -508,6 +513,7 @@ async function runRepublishStage(inputs: RepublishStageInputs): Promise<Reconcil
 			desiredPlaces,
 			keys: [...artifacts.keys()],
 		}),
+		pendingRebuild: stillOwed,
 		priorResources: assetPass.merged.resources,
 		progress: deps.progress,
 		registry: deps.registry,

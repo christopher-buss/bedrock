@@ -18,6 +18,11 @@ describe("ResourceDriver", () => {
 		>();
 	});
 
+	it("should accept an optional apply context as the update's third parameter", () => {
+		type UpdateFunc = NonNullable<ResourceDriver<"gamePass">["update"]>;
+		expectTypeOf<Parameters<UpdateFunc>[2]>().toEqualTypeOf<ResourceApplyContext | undefined>();
+	});
+
 	it("should return a Promise<Result<current-for-kind, OpenCloudError>>", () => {
 		expectTypeOf<ReturnType<ResourceDriver<"gamePass">["create"]>>().toEqualTypeOf<
 			Promise<Result<Extract<ResourceCurrentState, { kind: "gamePass" }>, OpenCloudError>>

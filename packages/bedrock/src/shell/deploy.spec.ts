@@ -1915,6 +1915,38 @@ describe(deploy, () => {
 			]);
 		});
 
+		it("should keep the pending-rebuild marker for a place the hook did not republish", async () => {
+			expect.assertions(2);
+
+			const { port, writes } = inMemoryStatePort();
+			const { registry } = recordingPlaceRegistry();
+
+			await deploy({
+				config: {
+					environments: {
+						production: {
+							places: { arena: { placeId: "200" }, lobby: { placeId: "100" } },
+						},
+					},
+					passes: { "vip-pass": VipPassEntry },
+					places: {
+						arena: { filePath: "places/arena.rbxl" },
+						lobby: { filePath: "places/lobby.rbxl" },
+					},
+				},
+				environment: "production",
+				readFile: readIcon,
+				rebuild: () => [{ key: asResourceKey("lobby"), bytes: rebuiltBytes }],
+				registry,
+				statePort: port,
+			});
+
+			expect(writes[0]!.pendingRebuild).toStrictEqual(
+				new Set([asResourceKey("arena"), asResourceKey("lobby")]),
+			);
+			expect(writes[1]!.pendingRebuild).toStrictEqual(new Set([asResourceKey("arena")]));
+		});
+
 		it("should fall back to a single pass when a hook is supplied but no provisioned create exists", async () => {
 			expect.assertions(4);
 
