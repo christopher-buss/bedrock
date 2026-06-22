@@ -121,16 +121,18 @@ manage a bot GPG key, `release.yaml` reuses the `openapi-drift.yaml` approach:
   merged): build, then `changeset publish`, which publishes changed packages
   to npm and creates `@bedrock-rbx/<pkg>@<version>` tags. The workflow runs
   these as two steps (rather than the root `pnpm release` script, which is
-  `pnpm build && changeset publish`) so the npm-auth and `NPM_CONFIG_PROVENANCE`
-  env scope to the publish step only. Tags are then pushed and
+  `pnpm build && changeset publish`) so the `NPM_CONFIG_PROVENANCE` env scopes
+  to the publish step only. Tags are then pushed and
   `website-release.yaml` is dispatched explicitly (a `GITHUB_TOKEN` tag push
   does not fire its `on: push: tags` trigger).
-- **Provenance:** the job grants `id-token: write` and sets
-  `NPM_CONFIG_PROVENANCE=true`; combined with npm auth (the `NPM_TOKEN` secret
-  written to `~/.npmrc` for the publish step) this attaches a signed
-  build-provenance attestation to each publish. (`id-token: write` alone is
-  necessary but not sufficient — the `NPM_CONFIG_PROVENANCE` flag is what
-  actually enables provenance.)
+- **Auth + provenance via OIDC trusted publishing:** the job grants
+  `id-token: write` and uses **no npm token**. Each package has a Trusted
+  Publisher configured on npmjs.com pointing at this repo + `release.yaml`;
+  `pnpm publish` (invoked by `changeset publish`) exchanges a short-lived OIDC
+  token at publish time, so there is no long-lived secret to leak or rotate.
+  Provenance is attached automatically (`NPM_CONFIG_PROVENANCE=true` is set for
+  clarity). Trusted publishing was preferred over an `NPM_TOKEN` automation
+  secret precisely to keep zero long-lived publish credentials in CI.
 
 ### Mandatory changeset gate
 
@@ -180,10 +182,11 @@ also resets the npm `latest` dist-tag to `0.1.0`, fixing constraint 3.
 - **Contributors must remember a changeset.** The blocking gate enforces it,
   but it adds a step to every consumer-facing PR. The `--empty` escape hatch
   and the gate's clear failure message mitigate the friction.
-- **Secrets and a repo setting are external prerequisites.** The pipeline
-  cannot publish until an `NPM_TOKEN` secret exists and "Allow GitHub Actions
-  to create and approve pull requests" is enabled. These are documented but
-  cannot be provisioned in code.
+- **Two external prerequisites.** The pipeline cannot publish until a Trusted
+  Publisher is configured on npmjs.com for each package (repo + `release.yaml`),
+  and "Allow GitHub Actions to create and approve pull requests" is enabled.
+  Both are dashboard settings that cannot be provisioned in code — but neither
+  is a long-lived secret.
 
 ### Neutral
 
@@ -273,12 +276,16 @@ the packages actually ship.
 
 **External prerequisites (cannot be provisioned in code):**
 
-- Repository secret `NPM_TOKEN` (npm granular/automation token with publish
-  scope on `@bedrock-rbx/*`).
+- A Trusted Publisher configured on npmjs.com for each published package
+  (`@bedrock-rbx/core`, `@bedrock-rbx/ocale`), pointing at this repo and
+  `release.yaml`. Both packages already exist on npm, so this is configurable
+  immediately; no `NPM_TOKEN` secret is used.
 - Repository setting: "Allow GitHub Actions to create and approve pull
   requests" enabled.
-- A token for the publish step's tag push that re-triggers workflows (so
-  `website-release.yaml` fires), per the `openapi-drift.yaml` precedent.
+
+The publish step's tag push re-triggers `website-release.yaml` by dispatching
+it explicitly (`gh workflow run`) rather than relying on a `GITHUB_TOKEN` tag
+push, so no extra PAT is needed.
 
 **Verification:**
 

@@ -17,8 +17,12 @@
 #   dispatch website-release.yaml for the new core tag (a GITHUB_TOKEN tag
 #   push does not fire the `on: push: tags` trigger on its own).
 #
+# Auth is via OIDC trusted publishing (no npm token) — `id-token: write` lets
+# pnpm exchange a short-lived token at publish time.
+#
 # External prerequisites (cannot be provisioned here):
-#   - secret NPM_TOKEN: npm token with publish scope on @bedrock-rbx/*.
+#   - a Trusted Publisher configured on npmjs.com for each package, pointing at
+#     this repo + release.yaml.
 #   - repo setting "Allow GitHub Actions to create and approve pull requests".
 
 name: Release
@@ -134,12 +138,10 @@ jobs:
         name: Build
         run: pnpm build
 
-      - env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: steps.changesets.outputs.pending == 'false'
-        name: Configure npm auth
-        run: printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" >> "$HOME/.npmrc"
-
+      # No npm token: auth is via OIDC trusted publishing. Each package has a
+      # trusted publisher configured on npmjs.com pointing at this repo +
+      # workflow; `id-token: write` lets pnpm exchange an OIDC token at publish
+      # time, and provenance is attached automatically.
       - env:
           NPM_CONFIG_PROVENANCE: "true"
         id: publish
