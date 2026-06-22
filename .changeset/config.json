@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
+  "changelog": [
+    "@changesets/changelog-github",
+    { "repo": "christopher-buss/bedrock" }
+  ],
+  "commit": false,
+  "privatePackages": { "version": false, "tag": false },
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "linked": [["@bedrock-rbx/core", "@bedrock-rbx/ocale"]],
+  "fixed": [],
+  "ignore": []
+}

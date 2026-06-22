@@ -1,0 +1,39 @@
+# Blocking changeset gate (ADR-027). Fails a PR that changes a published
+# package (@bedrock-rbx/core, @bedrock-rbx/ocale) without recording a
+# changeset. `changeset status` exits non-zero only when a publishable
+# package changed and no changeset covers it; PRs that touch nothing
+# publishable (docs, CI, private packages) pass without one. For a
+# deliberately non-releasing change to a published package, add an empty
+# changeset: `pnpm changeset add --empty`.
+
+name: Changeset Check
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  changeset:
+    name: Require a changeset
+    # The release bot's Version PR legitimately consumes every changeset.
+    if: ${{ !startsWith(github.head_ref, 'changeset-release/') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Verify a changeset is present
+        run: pnpm changeset status --since=origin/${{ github.base_ref }}
+    timeout-minutes: 10

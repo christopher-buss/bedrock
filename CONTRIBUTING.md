@@ -90,9 +90,12 @@ The bar is the same whether a human or an agent writes the diff:
 - **100% coverage** across statements, branches, functions, and lines on
   `src/**`. CI enforces this.
 - **Commit style.** `type(scope): kebab-case subject`. Scope-enum:
-  `bedrock`, `e2e`, `global`, `ocale`, `testing`, `tsconfig`, `vite`,
+  `core`, `deps`, `e2e`, `global`, `ocale`, `testing`, `tsconfig`, `vite`,
   `website`. `ci`, `chore`, `docs`, `build`, `refactor` are types, not
   scopes.
+- **Changeset.** A change to a published package (`@bedrock-rbx/core`,
+  `@bedrock-rbx/ocale`) needs a changeset, or CI fails. See
+  [Releases](#releases) below.
 - **Public API examples.** Exported symbols carry JSDoc `@example` blocks
   ([ADR-005](./docs/adr/005-jsdoc-example-testing.md)).
 
@@ -120,6 +123,42 @@ pnpm test
 
 The pre-commit hook (managed by [hk](./docs/adr/013-hk-git-hook-manager-with-differentiated-gating.md))
 runs lint, typecheck, test, and build.
+
+## Releases
+
+Versioning and publishing run on [Changesets](https://github.com/changesets/changesets)
+(see [ADR-027](./docs/adr/027-changesets-release-flow.md)). The two published
+packages — `@bedrock-rbx/core` and `@bedrock-rbx/ocale` — are *linked*: they
+share one version number and bump together.
+
+**Every PR that changes a published package must include a changeset.** A CI
+check (`changeset status`) fails the PR otherwise. Add one with:
+
+```bash
+pnpm changeset
+```
+
+Pick the bumped packages and the semver level, and write a one-line summary —
+it becomes the `CHANGELOG.md` entry, so phrase it for someone *installing* the
+package, not for the diff. For a change that genuinely needs no release (a
+comment, a test-only tweak on a published package), record that intent
+explicitly:
+
+```bash
+pnpm changeset add --empty
+```
+
+PRs that touch nothing publishable (docs, CI, private packages) do not need a
+changeset; the check passes without one.
+
+### How a release happens
+
+1. Changesets accumulate on `main` as PRs merge.
+2. The `Release` workflow opens (and keeps refreshing) a **`ci: version
+   packages`** PR that applies the version bumps and writes the changelogs.
+3. Merging that PR publishes the packages to npm, pushes their git tags, and
+   triggers the production docs deploy. Releasing is therefore a deliberate
+   act: merge the Version PR when you want a release to go out.
 
 ## Code of conduct
 

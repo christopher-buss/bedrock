@@ -20,6 +20,7 @@
 	"scripts": {
 		"build": "vp run -r build",
 		"build:affected": "vp run -r build",
+		"changeset": "changeset",
 		"commit": "commit",
 		"coverage:merge": "tsx scripts/merge-coverage.ts",
 		"dev": "vp run -r dev",
@@ -31,6 +32,7 @@
 		"lint:affected": "eslint --cache .",
 		"lint:unused": "knip --cache",
 		"mutate:changed": "bun scripts/mutate-changed.ts",
+		"release": "pnpm build && changeset publish",
 		"sandcastle": "node .sandcastle/main.ts",
 		"sandcastle:build": "sandcastle docker build-image --dockerfile .sandcastle/Dockerfile",
 		"test": "vp test",
@@ -39,13 +41,16 @@
 		"test:smoke": "pnpm --filter @bedrock-rbx/e2e test:smoke",
 		"test:watch": "vp test --watch",
 		"typecheck": "vp run -r typecheck",
-		"typecheck:affected": "vp run -r typecheck"
+		"typecheck:affected": "vp run -r typecheck",
+		"version": "changeset version && pnpm install --lockfile-only"
 	},
 	"devDependencies": {
 		"@ai-hero/sandcastle": "catalog:dev",
 		"@bedrock-rbx/core": "workspace:*",
 		"@bedrock-rbx/testing": "workspace:*",
 		"@bedrock-rbx/vite-config": "workspace:*",
+		"@changesets/changelog-github": "catalog:release",
+		"@changesets/cli": "catalog:release",
 		"@commitlint/cli": "catalog:lint",
 		"@commitlint/config-conventional": "catalog:lint",
 		"@commitlint/config-pnpm-scopes": "catalog:lint",
