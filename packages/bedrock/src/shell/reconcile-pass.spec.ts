@@ -1,3 +1,5 @@
+import { OpenCloudError } from "@bedrock-rbx/ocale";
+
 import {
 	developerProductCurrent,
 	gamePassCurrent,
@@ -185,5 +187,40 @@ describe(applyAndPersist, () => {
 
 		expect(second.written).toStrictEqual({ err: stateError, success: false });
 		expect(second.merged.resources).toStrictEqual([alpha, vip]);
+	});
+
+	it("should snapshot only the survivors when an op in the pass fails to apply", async () => {
+		expect.assertions(2);
+
+		const failure = new OpenCloudError("create vip-pass: 503");
+		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
+			gamePass: {
+				async create(desired) {
+					return desired.key === "alpha-pass"
+						? { data: alpha, success: true }
+						: { err: failure, success: false };
+				},
+			},
+			place: placeStub,
+			universe: universeStub,
+		};
+		const { port, writes } = inMemoryStatePort();
+		const { port: progress } = recordingProgress();
+
+		const pass = await applyAndPersist({
+			environment: "production",
+			ops: [
+				createGamePassOp(asResourceKey("alpha-pass")),
+				createGamePassOp(asResourceKey("vip-pass")),
+			],
+			priorResources: [],
+			progress,
+			registry,
+			statePort: port,
+		});
+
+		expect(pass.applied.success).toBeFalse();
+		expect(writes[0]).toStrictEqual([alpha]);
 	});
 });

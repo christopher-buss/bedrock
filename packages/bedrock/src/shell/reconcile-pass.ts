@@ -9,26 +9,6 @@ import type { StatePort } from "../ports/state-port.ts";
 import { type AggregateApplyError, applyOps } from "./apply-ops.ts";
 
 /**
- * Inputs for a single {@link applyAndPersist} pass. `priorResources` is the
- * cumulative baseline the pass folds its survivors into before writing, so a
- * later pass receives the previous pass's `merged.resources` here.
- */
-export interface ApplyAndPersistInputs {
-	/** Environment name threaded into `applyOps` reporting and the snapshot. */
-	readonly environment: string;
-	/** Subset of reconcile ops applied in this pass, in declaration order. */
-	readonly ops: ReadonlyArray<Operation>;
-	/** Resources already persisted; survivors merge on top, none are dropped. */
-	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
-	/** Sink for per-resource, summary, and `stateWritten` progress events. */
-	readonly progress: ProgressPort;
-	/** Per-kind driver table consulted for create / update dispatch. */
-	readonly registry: DriverRegistry;
-	/** Backend the cumulative snapshot is written to. */
-	readonly statePort: StatePort;
-}
-
-/**
  * Outcome of a single apply → snapshot → write pass. `merged` is the
  * cumulative snapshot persisted by this pass; a caller threads
  * `merged.resources` into a later pass as the next `priorResources`
@@ -41,6 +21,26 @@ export interface ReconcilePass {
 	readonly merged: BedrockState;
 	/** The state-write outcome; carries `merged` as the unsaved snapshot on failure. */
 	readonly written: Result<void, StateError>;
+}
+
+/**
+ * Inputs for a single {@link applyAndPersist} pass. `priorResources` is the
+ * cumulative baseline the pass folds its survivors into before writing, so a
+ * later pass receives the previous pass's `merged.resources` here.
+ */
+interface ApplyAndPersistInputs {
+	/** Environment name threaded into `applyOps` reporting and the snapshot. */
+	readonly environment: string;
+	/** Subset of reconcile ops applied in this pass, in declaration order. */
+	readonly ops: ReadonlyArray<Operation>;
+	/** Resources already persisted; survivors merge on top, none are dropped. */
+	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
+	/** Sink for per-resource, summary, and `stateWritten` progress events. */
+	readonly progress: ProgressPort;
+	/** Per-kind driver table consulted for create / update dispatch. */
+	readonly registry: DriverRegistry;
+	/** Backend the cumulative snapshot is written to. */
+	readonly statePort: StatePort;
 }
 
 interface SnapshotInputs {
@@ -81,15 +81,12 @@ function mergeResources(
 	pre: ReadonlyArray<ResourceCurrentState>,
 	applied: ReadonlyArray<ResourceCurrentState>,
 ): ReadonlyArray<ResourceCurrentState> {
-	const byKey = new Map<string, ResourceCurrentState>();
-	for (const resource of pre) {
-		byKey.set(`${resource.kind}:${resource.key}`, resource);
-	}
-
-	for (const resource of applied) {
-		byKey.set(`${resource.kind}:${resource.key}`, resource);
-	}
-
+	// Later entries win on key collision; the Map keeps each key at its
+	// first-seen position, so prior resources hold their slot and applied
+	// survivors override in place, with applied-only keys appended.
+	const byKey = new Map(
+		[...pre, ...applied].map((resource) => [`${resource.kind}:${resource.key}`, resource]),
+	);
 	return [...byKey.values()];
 }
 
