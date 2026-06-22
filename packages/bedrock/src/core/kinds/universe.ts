@@ -55,7 +55,10 @@ const entrySchema = type({
  *
  * @param desired - Desired universe state from the resolved config.
  * @param current - Last-known state, or `undefined` on create.
- * @returns Set of managed field names to apply (`universeId` aside).
+ * @returns Set of managed field names the driver should apply. On the update
+ *   path it mirrors {@link changedFieldsBetween} and so can include
+ *   `universeId` when the adopted identifier itself differs; the driver uses
+ *   `universeId` only as the request identifier, never as a patch field.
  */
 export function changedUniverseFields(
 	desired: UniverseDesiredState,
