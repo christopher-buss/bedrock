@@ -1,8 +1,8 @@
 import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
-import type { PlacesClient, UpdatePlaceParameters } from "@bedrock-rbx/ocale/places";
+import type { PlacesClient } from "@bedrock-rbx/ocale/places";
 
+import { changedPlaceMetadata } from "../core/kinds/place.ts";
 import type { PlaceDesiredState, PlaceOutputs, ResourceCurrentState } from "../core/resources.ts";
-import { PLACE_MANAGED_METADATA_FIELDS } from "../core/resources.ts";
 import type { ResourceDriver } from "../ports/resource-driver.ts";
 import type { RobloxAssetId } from "../types/ids.ts";
 
@@ -46,6 +46,11 @@ export interface PlaceDriverDeps {
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	/** Universe that owns every place this driver publishes. */
 	readonly universeId: RobloxAssetId;
+}
+
+interface PublishInputs {
+	readonly current: ResourceCurrentState<"place"> | undefined;
+	readonly desired: PlaceDesiredState;
 }
 
 /**
@@ -121,31 +126,12 @@ export interface PlaceDriverDeps {
 export function createPlaceDriver(deps: PlaceDriverDeps): ResourceDriver<"place"> {
 	return {
 		async create(desired) {
-			return publishPlace(deps, desired);
+			return publishPlace(deps, { current: undefined, desired });
 		},
-		async update(_current, desired) {
-			return publishPlace(deps, desired);
+		async update(current, desired) {
+			return publishPlace(deps, { current, desired });
 		},
 	};
-}
-
-function buildMetadataParameters(
-	universeId: RobloxAssetId,
-	desired: PlaceDesiredState,
-): undefined | UpdatePlaceParameters {
-	const metadata = PLACE_MANAGED_METADATA_FIELDS.reduce<Partial<UpdatePlaceParameters>>(
-		(accumulator, field) => {
-			const value = desired[field];
-			return value === undefined ? accumulator : { ...accumulator, [field]: value };
-		},
-		{},
-	);
-
-	if (Object.keys(metadata).length === 0) {
-		return undefined;
-	}
-
-	return { ...metadata, placeId: desired.placeId, universeId };
 }
 
 function detectFormat(filePath: string): "rbxl" | "rbxlx" | undefined {
@@ -188,16 +174,21 @@ async function publishVersion(
 
 async function publishPlace(
 	deps: PlaceDriverDeps,
-	desired: PlaceDesiredState,
+	inputs: PublishInputs,
 ): Promise<Result<ResourceCurrentState<"place">, OpenCloudError>> {
+	const { current, desired } = inputs;
 	const publishResult = await publishVersion(deps, desired);
 	if (!publishResult.success) {
 		return publishResult;
 	}
 
-	const metadataParameters = buildMetadataParameters(deps.universeId, desired);
-	if (metadataParameters !== undefined) {
-		const metadataResult = await deps.client.update(metadataParameters);
+	const metadata = changedPlaceMetadata(desired, current);
+	if (Object.keys(metadata).length > 0) {
+		const metadataResult = await deps.client.update({
+			...metadata,
+			placeId: desired.placeId,
+			universeId: deps.universeId,
+		});
 		if (!metadataResult.success) {
 			return metadataResult;
 		}

@@ -6,7 +6,7 @@ import { placeCurrent, placeDesired } from "#tests/helpers/resources";
 import type { Except } from "type-fest";
 import { assert, describe, expect, it } from "vitest";
 
-import { asRobloxAssetId } from "../types/ids.ts";
+import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { createPlaceDriver, type PlaceDriverDeps } from "./place-driver.ts";
 
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
@@ -214,6 +214,62 @@ describe(createPlaceDriver, () => {
 			`/cloud/v2/universes/${UNIVERSE_ID}/places/${PLACE_ID}?updateMask=description`,
 		);
 		expect(http.requests[1]!.request.body).toStrictEqual({ description: "Updated body." });
+	});
+
+	it("should skip the metadata PATCH on update when only the file hash changed", async () => {
+		expect.assertions(2);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: { versionNumber: 4 }, status: 200 });
+
+		assert(driver.update !== undefined);
+
+		const current = placeCurrent({
+			description: "Body.",
+			displayName: "Lobby",
+			fileHash: asSha256Hex(
+				"0000000000000000000000000000000000000000000000000000000000000000",
+			),
+			serverSize: 25,
+		});
+		const result = await driver.update(
+			current,
+			placeDesired({ description: "Body.", displayName: "Lobby", serverSize: 25 }),
+		);
+
+		assert(result.success);
+
+		expect(http.requests).toHaveLength(1);
+		expect(http.requests[0]!.request.method).toBe("POST");
+	});
+
+	it("should omit unchanged metadata fields from the updateMask on update", async () => {
+		expect.assertions(3);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({ body: { versionNumber: 5 }, status: 200 });
+		http.mockResponse({
+			body: validPlaceBody({ description: "New body." }),
+			status: 200,
+		});
+
+		assert(driver.update !== undefined);
+
+		const current = placeCurrent({
+			description: "Old body.",
+			displayName: "Lobby",
+			serverSize: 25,
+		});
+		await driver.update(
+			current,
+			placeDesired({ description: "New body.", displayName: "Lobby", serverSize: 25 }),
+		);
+
+		expect(http.requests).toHaveLength(2);
+		expect(http.requests[1]!.request.url).toBe(
+			`/cloud/v2/universes/${UNIVERSE_ID}/places/${PLACE_ID}?updateMask=description`,
+		);
+		expect(http.requests[1]!.request.body).toStrictEqual({ description: "New body." });
 	});
 
 	it("should surface a Result.err when the metadata PATCH fails after a successful publish", async () => {
