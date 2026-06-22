@@ -6,6 +6,20 @@ import type { BedrockState } from "./state.ts";
  * asset IDs. `key` is the place's resource key; `bytes` is the rebuilt `.rbxl`
  * or `.rbxlx` content the republish stage publishes in place of the file on
  * disk.
+ *
+ * @example
+ *
+ * ```ts
+ * import { asResourceKey, type RebuiltPlace } from "@bedrock-rbx/core";
+ *
+ * const rebuilt: RebuiltPlace = {
+ *     bytes: new TextEncoder().encode("-- rebuilt place"),
+ *     key: asResourceKey("start-place"),
+ * };
+ *
+ * expect(rebuilt.key).toBe("start-place");
+ * expect(rebuilt.bytes).toBeInstanceOf(Uint8Array);
+ * ```
  */
 export interface RebuiltPlace {
 	/** Resource key of the place these bytes belong to. */

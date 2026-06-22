@@ -1,4 +1,4 @@
-import { type BedrockState, createGistStateAdapter } from "@bedrock-rbx/core";
+import { type BedrockState, createGistStateAdapter, type StatePort } from "@bedrock-rbx/core";
 
 import process from "node:process";
 import { assert, describe, expect, it, onTestFinished } from "vitest";
@@ -17,6 +17,30 @@ async function sleep(ms: number): Promise<void> {
 	await new Promise<void>((resolve) => {
 		setTimeout(resolve, ms);
 	});
+}
+
+/**
+ * Read state, retrying until the write is visible or the deadline passes. The
+ * gist write-visibility poll is best-effort, so a fresh file can still lag on a
+ * slow GitHub replica once that budget is spent. Polling lets the round-trip
+ * tolerate eventual consistency instead of racing replica propagation.
+ *
+ * @param inputs - State port, environment name, and the absolute poll deadline.
+ * @returns The first read carrying data, or the last read once the deadline passes.
+ */
+async function readUntilVisible(inputs: {
+	readonly deadline: number;
+	readonly environment: string;
+	readonly port: StatePort;
+}): Promise<Awaited<ReturnType<StatePort["read"]>>> {
+	const { deadline, environment, port } = inputs;
+	const read = await port.read(environment);
+	if (!read.success || read.data !== undefined || Date.now() >= deadline) {
+		return read;
+	}
+
+	await sleep(READ_POLL_INTERVAL_MS);
+	return readUntilVisible(inputs);
 }
 
 describe("gist state adapter against real github", () => {
@@ -56,16 +80,11 @@ describe("gist state adapter against real github", () => {
 				`write failed: ${JSON.stringify(writeResult.success ? undefined : writeResult.err)}`,
 			);
 
-			// The gist write-visibility poll is best-effort, so a fresh file
-			// can still lag on a slow GitHub replica once that budget is spent.
-			// Poll the read so the round-trip tolerates eventual consistency
-			// instead of flaking on the first read that races propagation.
-			const deadline = Date.now() + READ_VISIBILITY_BUDGET_MS;
-			let secondRead = await port.read(environment);
-			while (secondRead.success && secondRead.data === undefined && Date.now() < deadline) {
-				await sleep(READ_POLL_INTERVAL_MS);
-				secondRead = await port.read(environment);
-			}
+			const secondRead = await readUntilVisible({
+				deadline: Date.now() + READ_VISIBILITY_BUDGET_MS,
+				environment,
+				port,
+			});
 
 			assert(secondRead.success);
 
