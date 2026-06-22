@@ -94,6 +94,22 @@ describe(selectEnvironment, () => {
 		expect(result.data.state).toBe(ROOT_STATE);
 	});
 
+	it("should pass the root codegen section through to the resolved config", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			codegen: { enabled: true, output: "src/generated" },
+			environments: { production: {} },
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "production");
+
+		assert(result.success);
+
+		expect(result.data.codegen).toStrictEqual({ enabled: true, output: "src/generated" });
+	});
+
 	it("should override only the universe fields the env overlay declares", () => {
 		expect.assertions(2);
 

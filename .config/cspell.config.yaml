@@ -6,6 +6,7 @@ language: en
 words:
   - arktype
   - bedrockrc
+  - codegen
   - defu
   - ehostdown
   - gameinternationalization
@@ -22,6 +23,7 @@ words:
   - rbxlx
   - redactable
   - redactions
+  - regenerable
   - retryable
   - shiki
   - stroustrup

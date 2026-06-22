@@ -8,6 +8,7 @@
  */
 
 export type {
+	CodegenConfig,
 	Config,
 	ConfigEnvironmentUniverseId,
 	ConfigRootUniverseId,

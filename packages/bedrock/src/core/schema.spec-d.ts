@@ -233,7 +233,7 @@ describe("PlaceEntry / ResolvedPlaceEntry split", () => {
 // EnvironmentEntry fields carry environment-only metadata that has no Config
 // counterpart. Adding to or removing from these unions is the explicit way to
 // opt new fields out of the symmetric overlay surface.
-type NonOverridableConfigKey = "displayNamePrefix" | "environments" | "extends";
+type NonOverridableConfigKey = "codegen" | "displayNamePrefix" | "environments" | "extends";
 type EnvironmentMetadataKey = "label" | "redacted";
 type OverridableConfigKey = Exclude<keyof Config, NonOverridableConfigKey>;
 type EnvironmentEntryKey = Exclude<keyof Required<EnvironmentEntry>, EnvironmentMetadataKey>;

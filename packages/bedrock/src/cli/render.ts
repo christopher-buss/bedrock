@@ -7,6 +7,7 @@ import type { ApplyError } from "../shell/apply-ops.ts";
 import type { BuildDesiredError } from "../shell/build-desired.ts";
 import type { MissingCredentialError, UnsupportedBackendError } from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
+import type { CodegenError } from "../shell/run-codegen.ts";
 import type { SpawnOverrideError } from "./dispatch-override.ts";
 import type { ParseMigrateError } from "./parse-migrate-options.ts";
 import type { ParseOptionsError } from "./parse-options.ts";
@@ -78,7 +79,7 @@ interface OverrideErrorRender {
  * Render a `DeployError` to the supplied `ClackPort`. Most variants emit a
  * single error line; `applyFailed` emits one line per failing op in the
  * aggregate (in Phase 1 then Phase 2 input order). Wrapped variants
- * (`applyFailed`, `buildDesiredFailed`, `configLoadFailed`,
+ * (`applyFailed`, `buildDesiredFailed`, `codegenFailed`, `configLoadFailed`,
  * `stateReadFailed`, `stateWriteFailed`) surface the inner cause's
  * actionable detail (file path, resource key, parser message, HTTP failure,
  * validator issue) so the reader does not have to inspect the full cause to
@@ -351,11 +352,31 @@ function stateErrorDetail(cause: StateError): string {
 	return `(${cause.file}): ${cause.reason}`;
 }
 
+function codegenErrorDetail(cause: CodegenError): string {
+	switch (cause.kind) {
+		case "codegenEmitThrew": {
+			return `because the emitter threw: ${cause.reason}`;
+		}
+		case "codegenStateReadFailed": {
+			return `reading environment '${cause.environment}' ${stateErrorDetail(cause.cause)}`;
+		}
+		case "codegenWriteFailed": {
+			return `writing '${cause.cause.path}': ${cause.cause.reason}`;
+		}
+	}
+}
+
 /* eslint-disable-next-line max-lines-per-function -- single exhaustive switch over every DeployError variant is clearer than splitting into a wrapped-vs-unwrapped predicate plus a parallel prefix table. */
 function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFailed" }>): string {
 	switch (err.kind) {
 		case "buildDesiredFailed": {
 			return `build desired state failed ${buildDesiredDetail(err.cause)}`;
+		}
+		case "codegenFailed": {
+			return `codegen failed ${codegenErrorDetail(err.cause)}`;
+		}
+		case "codegenOutputMissing": {
+			return "codegen is enabled but has no output: set codegen.output in your config or pass a codegenWriter to deploy()";
 		}
 		case "configLoadFailed": {
 			return `config load failed: ${configErrorDetail(err.cause)}`;

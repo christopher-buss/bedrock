@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- public-API type tests grow with the exported surface. */
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { describe, expectTypeOf, it } from "vitest";
@@ -154,6 +155,8 @@ describe(applyOps, () => {
 type ExpectedDeployErrorKind =
 	| "applyFailed"
 	| "buildDesiredFailed"
+	| "codegenFailed"
+	| "codegenOutputMissing"
 	| "configLoadFailed"
 	| "incompletePassEntry"
 	| "incompletePlaceEntry"
@@ -189,8 +192,9 @@ describe(deploy, () => {
 });
 
 describe("Config", () => {
-	it("should expose the eight root fields with environments required and extends typed as unknown", () => {
+	it("should expose the nine root fields with environments required and extends typed as unknown", () => {
 		expectTypeOf<keyof Config>().toEqualTypeOf<
+			| "codegen"
 			| "displayNamePrefix"
 			| "environments"
 			| "extends"

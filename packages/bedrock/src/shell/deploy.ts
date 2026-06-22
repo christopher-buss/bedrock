@@ -1,12 +1,15 @@
+/* eslint-disable max-lines -- deploy orchestration shell; the reconcile pipeline and its dependency resolution are one cohesive module. */
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { readFile as nodeReadFile } from "node:fs/promises";
 import process from "node:process";
 
 import { createDefaultProgressAdapter } from "../adapters/clack-progress-adapter.ts";
+import { createFsCodegenWriter } from "../adapters/fs-codegen-writer.ts";
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import { createNoOpProgressAdapter } from "../adapters/no-op-progress-adapter.ts";
 import { assertAllReconcilable } from "../core/assert-all-reconcilable.ts";
+import { type Emitter, isCodegenEnabled } from "../core/codegen.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { diff } from "../core/diff.ts";
 import { flattenConfig } from "../core/flatten.ts";
@@ -20,6 +23,7 @@ import {
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
+import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
@@ -33,6 +37,7 @@ import {
 } from "./build-state-port.ts";
 import { loadConfig as defaultLoadConfig, type LoadConfigOptions } from "./load-config.ts";
 import { applyAndPersist, type ReconcilePass } from "./reconcile-pass.ts";
+import { type CodegenError, runCodegen } from "./run-codegen.ts";
 
 /**
  * Inputs for `deploy`. Every field except `environment` is optional;
@@ -40,8 +45,20 @@ import { applyAndPersist, type ReconcilePass } from "./reconcile-pass.ts";
  * and the environment variables `BEDROCK_GITHUB_TOKEN` and `BEDROCK_API_KEY`.
  */
 export interface DeployOptions {
+	/**
+	 * Writer for codegen output; defaults to a node-fs writer rooted at
+	 * `config.codegen.output`. Supplied to fake the write step at this seam.
+	 * Only consulted when codegen is enabled and `emit` is supplied.
+	 */
+	readonly codegenWriter?: CodegenWriterPort;
 	/** Pre-loaded, optionally-mutated project config. Omit to call `loadConfig()` automatically. */
 	readonly config?: Config;
+	/**
+	 * Codegen emitter. Supplied programmatically (a function cannot round-trip
+	 * through a config file). When codegen is enabled in config and this is
+	 * supplied, `deploy` runs it after a successful state write.
+	 */
+	readonly emit?: Emitter;
 	/** Environment name; threaded into `StatePort.read` and the persisted snapshot. */
 	readonly environment: string;
 	/** `fetch` override plumbed into the default-constructed gist adapter when `statePort` is omitted. */
@@ -68,10 +85,13 @@ export interface DeployOptions {
 /**
  * Failure surfaced by `deploy`. Stage-tagged so callers can branch on
  * `kind` to distinguish reconciliation failures (`stateReadFailed`,
- * `applyFailed`, ...) from default-construction failures
+ * `applyFailed`, `codegenFailed`, ...) from default-construction failures
  * (`configLoadFailed`, `stateNotConfigured`, `unknownEnvironment`,
  * `incompletePlaceEntry`, `incompleteUniverseEntry`, `missingCredential`,
- * `unsupportedBackend`, `registryConfigMissing`).
+ * `unsupportedBackend`, `registryConfigMissing`, `codegenOutputMissing`).
+ * `codegenFailed` cannot mask an `applyFailed`: a partial apply still emits
+ * codegen for the keys that resolved, but the returned error stays
+ * `applyFailed`.
  */
 export type DeployError =
 	| IncompletePassEntryError
@@ -84,15 +104,24 @@ export type DeployError =
 	| UnsupportedBackendError
 	| { readonly cause: AggregateApplyError; readonly kind: "applyFailed" }
 	| { readonly cause: BuildDesiredError; readonly kind: "buildDesiredFailed" }
+	| { readonly cause: CodegenError; readonly kind: "codegenFailed" }
 	| { readonly cause: ConfigError; readonly kind: "configLoadFailed" }
 	| { readonly cause: StateError; readonly kind: "stateReadFailed" }
 	| {
 			readonly cause: StateError;
 			readonly kind: "stateWriteFailed";
 			readonly unsavedState: BedrockState;
-	  };
+	  }
+	| { readonly kind: "codegenOutputMissing" };
+
+/** Resolved codegen dependencies; present only when codegen is active. */
+interface CodegenBundle {
+	readonly emit: Emitter;
+	readonly writer: CodegenWriterPort;
+}
 
 interface ResolvedDepsBase {
+	readonly codegen: CodegenBundle | undefined;
 	readonly config: ResolvedConfig;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly registry: DriverRegistry;
@@ -216,20 +245,6 @@ function getEnvironmentOf(options: DeployOptions): (name: string) => string | un
 	return options.getEnv ?? readProcessEnvironment;
 }
 
-async function pickConfig(options: DeployOptions): Promise<Result<Config, DeployError>> {
-	if (options.config !== undefined) {
-		return { data: options.config, success: true };
-	}
-
-	const loader = options.loadConfig ?? defaultLoadConfig;
-	const loaded = await loader();
-	if (!loaded.success) {
-		return { err: { cause: loaded.err, kind: "configLoadFailed" }, success: false };
-	}
-
-	return { data: loaded.data, success: true };
-}
-
 function pickStatePort(
 	options: DeployOptions,
 	config: ResolvedConfig,
@@ -262,7 +277,51 @@ function pickRegistry(inputs: PickRegistryInputs): Result<DriverRegistry, Deploy
 	});
 }
 
-async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDepsBase, DeployError>> {
+function pickCodegen(
+	options: DeployOptions,
+	config: ResolvedConfig,
+): Result<CodegenBundle | undefined, DeployError> {
+	if (!isCodegenEnabled(config.codegen) || options.emit === undefined) {
+		return { data: undefined, success: true };
+	}
+
+	if (options.codegenWriter !== undefined) {
+		return { data: { emit: options.emit, writer: options.codegenWriter }, success: true };
+	}
+
+	const output = config.codegen?.output;
+	if (output === undefined) {
+		return { err: { kind: "codegenOutputMissing" }, success: false };
+	}
+
+	return {
+		data: { emit: options.emit, writer: createFsCodegenWriter({ outputDir: output }) },
+		success: true,
+	};
+}
+
+async function pickConfig(options: DeployOptions): Promise<Result<Config, DeployError>> {
+	if (options.config !== undefined) {
+		return { data: options.config, success: true };
+	}
+
+	const loader = options.loadConfig ?? defaultLoadConfig;
+	const loaded = await loader();
+	if (!loaded.success) {
+		return { err: { cause: loaded.err, kind: "configLoadFailed" }, success: false };
+	}
+
+	return { data: loaded.data, success: true };
+}
+
+async function resolveEffectiveConfig(
+	options: DeployOptions,
+): Promise<
+	Result<
+		{ effective: ResolvedConfig; readFile: (path: string) => Promise<Uint8Array> },
+		DeployError
+	>
+> {
 	const config = await pickConfig(options);
 	if (!config.success) {
 		return config;
@@ -273,8 +332,19 @@ async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDepsB
 		return { err: selected.err, success: false };
 	}
 
-	const effective = selected.data;
-	const readFile = options.readFile ?? nodeReadFile;
+	return {
+		data: { effective: selected.data, readFile: options.readFile ?? nodeReadFile },
+		success: true,
+	};
+}
+
+async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDepsBase, DeployError>> {
+	const base = await resolveEffectiveConfig(options);
+	if (!base.success) {
+		return base;
+	}
+
+	const { effective, readFile } = base.data;
 	const statePort = pickStatePort(options, effective);
 	if (!statePort.success) {
 		return statePort;
@@ -285,13 +355,27 @@ async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDepsB
 		return registry;
 	}
 
+	const codegen = pickCodegen(options, effective);
+	if (!codegen.success) {
+		return codegen;
+	}
+
 	return {
-		data: { config: effective, readFile, registry: registry.data, statePort: statePort.data },
+		data: {
+			codegen: codegen.data,
+			config: effective,
+			readFile,
+			registry: registry.data,
+			statePort: statePort.data,
+		},
 		success: true,
 	};
 }
 
-function finalize(pass: ReconcilePass): Result<BedrockState, DeployError> {
+function finalize(
+	pass: ReconcilePass,
+	codegen: Result<void, CodegenError> | undefined,
+): Result<BedrockState, DeployError> {
 	// Check write before apply: only the write carries `unsavedState`.
 	if (!pass.written.success) {
 		return {
@@ -304,11 +388,34 @@ function finalize(pass: ReconcilePass): Result<BedrockState, DeployError> {
 		};
 	}
 
+	// Apply outranks codegen: a partial apply still emits codegen for the keys
+	// that resolved, but the deploy result stays `applyFailed`.
 	if (!pass.applied.success) {
 		return { err: { cause: pass.applied.err, kind: "applyFailed" }, success: false };
 	}
 
+	if (codegen !== undefined && !codegen.success) {
+		return { err: { cause: codegen.err, kind: "codegenFailed" }, success: false };
+	}
+
 	return { data: pass.merged, success: true };
+}
+
+async function runCodegenStage(
+	deps: ResolvedDeps,
+	pass: ReconcilePass,
+): Promise<Result<void, CodegenError> | undefined> {
+	if (!pass.written.success || deps.codegen === undefined) {
+		return undefined;
+	}
+
+	return runCodegen({
+		deployedState: pass.merged,
+		emit: deps.codegen.emit,
+		environments: Object.keys(deps.config.environments),
+		statePort: deps.statePort,
+		writer: deps.codegen.writer,
+	});
 }
 
 async function runReconcile(
@@ -341,7 +448,8 @@ async function runReconcile(
 		statePort: deps.statePort,
 	});
 
-	return finalize(pass);
+	const codegen = await runCodegenStage(deps, pass);
+	return finalize(pass, codegen);
 }
 
 async function runDeploy(

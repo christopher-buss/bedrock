@@ -6,9 +6,11 @@ import process from "node:process";
 import { assert, describe, expect, it, vi } from "vitest";
 
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
+import type { CodegenFile, EmitInput, Emitter } from "../core/codegen.ts";
 import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
+import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
@@ -186,6 +188,49 @@ function alphaPassCurrent() {
 			iconAssetIds: { "en-us": asRobloxAssetId("2222222222") },
 		},
 		price: 250,
+	};
+}
+
+const CODEGEN_FILE: CodegenFile = { content: "return {}\n", path: "ids.luau" };
+
+function inMemoryCodegenWriter(): { port: CodegenWriterPort; writes: Array<CodegenFile> } {
+	const writes: Array<CodegenFile> = [];
+	return {
+		port: {
+			async write(file) {
+				writes.push(file);
+				return { data: undefined, success: true };
+			},
+		},
+		writes,
+	};
+}
+
+function environmentAwareStatePort(initial: Record<string, BedrockState>): StatePort {
+	const store = new Map<string, BedrockState>(Object.entries(initial));
+	return {
+		async read(environment) {
+			return { data: store.get(environment), success: true };
+		},
+		async write(state) {
+			store.set(state.environment, state);
+			return { data: undefined, success: true };
+		},
+	};
+}
+
+const VipPassEntry = {
+	name: "VIP Pass",
+	description: "Grants VIP perks.",
+	icon: { "en-us": "assets/vip-icon.png" },
+	price: 500,
+} as const;
+
+function codegenVipConfig(output?: string): Config {
+	return {
+		codegen: { enabled: true, ...(output === undefined ? {} : { output }) },
+		environments: { production: {} },
+		passes: { "vip-pass": VipPassEntry },
 	};
 }
 
@@ -1371,6 +1416,29 @@ describe(deploy, () => {
 			expect(chunks.join("")).toContain("State written to gist:abc-test");
 		});
 
+		it("should surface resolveDeps failure through the default clack path when BEDROCK_CLI is set", async () => {
+			expect.assertions(1);
+
+			const writeSpy = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+
+			try {
+				const result = await deploy({
+					config: vipPassConfig(),
+					environment: "ghost",
+					getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test", BEDROCK_CLI: "1" }),
+					readFile: readIcon,
+					registry: stubRegistry(),
+					statePort: inMemoryStatePort().port,
+				});
+
+				assert(!result.success);
+
+				expect(result.err.kind).toBe("unknownEnvironment");
+			} finally {
+				writeSpy.mockRestore();
+			}
+		});
+
 		it("should default to a no-op port when progress is omitted and BEDROCK_CLI is unset", async () => {
 			expect.assertions(1);
 
@@ -1415,6 +1483,207 @@ describe(deploy, () => {
 			}
 
 			expect(writeSpy).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("codegen", () => {
+		it("should write the files the emitter returns through the injected writer", async () => {
+			expect.assertions(1);
+
+			const writer = inMemoryCodegenWriter();
+			const result = await deploy({
+				codegenWriter: writer.port,
+				config: codegenVipConfig(),
+				emit: vi.fn<Emitter>().mockResolvedValue([CODEGEN_FILE]),
+				environment: "production",
+				readFile: readIcon,
+				registry: stubRegistryWithVipCreate(),
+				statePort: inMemoryStatePort().port,
+			});
+
+			assert(result.success);
+
+			expect(writer.writes).toStrictEqual([CODEGEN_FILE]);
+		});
+
+		it("should hand the emitter the deployed state and present a never-deployed environment as empty", async () => {
+			expect.assertions(2);
+
+			const created = vipPassCurrent();
+			const inputs: Array<EmitInput> = [];
+			const emit = vi.fn<Emitter>(async (input) => {
+				inputs.push(input);
+				return [];
+			});
+
+			await deploy({
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: {
+					codegen: { enabled: true, output: "src/generated" },
+					environments: { production: {}, staging: {} },
+					passes: { "vip-pass": VipPassEntry },
+				},
+				emit,
+				environment: "production",
+				readFile: readIcon,
+				registry: stubRegistryWithVipCreate(),
+				statePort: environmentAwareStatePort({}),
+			});
+
+			expect(inputs[0]!.environments["production"]!.resources).toStrictEqual([created]);
+			expect(inputs[0]!.environments["staging"]).toStrictEqual({
+				environment: "staging",
+				resources: [],
+				version: 1,
+			});
+		});
+
+		it("should not run codegen when the config does not enable it", async () => {
+			expect.assertions(2);
+
+			const writer = inMemoryCodegenWriter();
+			const emit = vi.fn<Emitter>();
+			const result = await deploy({
+				codegenWriter: writer.port,
+				config: vipPassConfig(),
+				emit,
+				environment: "production",
+				readFile: readIcon,
+				registry: stubRegistryWithVipCreate(),
+				statePort: inMemoryStatePort().port,
+			});
+
+			assert(result.success);
+
+			expect(emit).not.toHaveBeenCalled();
+			expect(writer.writes).toBeEmpty();
+		});
+
+		it("should leave codegen inert when enabled but no emitter is supplied", async () => {
+			expect.assertions(1);
+
+			const writer = inMemoryCodegenWriter();
+			const result = await deploy({
+				codegenWriter: writer.port,
+				config: codegenVipConfig("src/generated"),
+				environment: "production",
+				readFile: readIcon,
+				registry: stubRegistryWithVipCreate(),
+				statePort: inMemoryStatePort().port,
+			});
+
+			assert(result.success);
+
+			expect(writer.writes).toBeEmpty();
+		});
+
+		it("should emit only the resolved keys and still return applyFailed on a partial apply", async () => {
+			expect.assertions(3);
+
+			const alphaCurrent = alphaPassCurrent();
+			const cause = new OpenCloudError("create vip-pass: 503");
+			const create = vi
+				.fn<ResourceDriver<"gamePass">["create"]>()
+				.mockImplementation(async (desired) => {
+					if (desired.key === "alpha-pass") {
+						return { data: alphaCurrent, success: true };
+					}
+
+					return { err: cause, success: false };
+				});
+			const inputs: Array<EmitInput> = [];
+			const emit = vi.fn<Emitter>(async (input) => {
+				inputs.push(input);
+				return [CODEGEN_FILE];
+			});
+			const writer = inMemoryCodegenWriter();
+
+			const result = await deploy({
+				codegenWriter: writer.port,
+				config: { ...twoPassConfig(), codegen: { enabled: true, output: "src/generated" } },
+				emit,
+				environment: "production",
+				readFile: readIcon,
+				registry: {
+					developerProduct: developerProductStub,
+					gamePass: { create },
+					place: placeStub,
+					universe: universeStub,
+				},
+				statePort: inMemoryStatePort().port,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("applyFailed");
+			expect(inputs[0]!.environments["production"]!.resources).toStrictEqual([alphaCurrent]);
+			expect(writer.writes).toStrictEqual([CODEGEN_FILE]);
+		});
+
+		it("should surface codegenFailed when the writer rejects on an otherwise successful deploy", async () => {
+			expect.assertions(1);
+
+			const writer: CodegenWriterPort = {
+				async write() {
+					return {
+						err: {
+							kind: "codegenWriteError",
+							path: "out/ids.luau",
+							reason: "no space",
+						},
+						success: false,
+					};
+				},
+			};
+			const result = await deploy({
+				codegenWriter: writer,
+				config: codegenVipConfig(),
+				emit: vi.fn<Emitter>().mockResolvedValue([CODEGEN_FILE]),
+				environment: "production",
+				readFile: readIcon,
+				registry: stubRegistryWithVipCreate(),
+				statePort: inMemoryStatePort().port,
+			});
+
+			assert(!result.success);
+			assert(result.err.kind === "codegenFailed");
+
+			expect(result.err.cause.kind).toBe("codegenWriteFailed");
+		});
+
+		it("should surface codegenOutputMissing when enabled with an emitter but no writer or output is configured", async () => {
+			expect.assertions(1);
+
+			const result = await deploy({
+				config: codegenVipConfig(),
+				emit: vi.fn<Emitter>().mockResolvedValue([CODEGEN_FILE]),
+				environment: "production",
+				readFile: readIcon,
+				registry: stubRegistryWithVipCreate(),
+				statePort: inMemoryStatePort().port,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("codegenOutputMissing");
+		});
+
+		it("should default to a node-fs writer rooted at the configured output when none is injected", async () => {
+			expect.assertions(1);
+
+			const emit = vi.fn<Emitter>().mockResolvedValue([]);
+			const result = await deploy({
+				config: codegenVipConfig("src/generated"),
+				emit,
+				environment: "production",
+				readFile: readIcon,
+				registry: stubRegistryWithVipCreate(),
+				statePort: inMemoryStatePort().port,
+			});
+
+			assert(result.success);
+
+			expect(emit).toHaveBeenCalledOnce();
 		});
 	});
 });

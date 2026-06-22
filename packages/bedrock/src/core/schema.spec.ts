@@ -55,6 +55,56 @@ describe(validateConfig, () => {
 		expect(result.success).toBeTrue();
 	});
 
+	it("should accept a codegen section with enable and output fields", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{ codegen: { enabled: true, output: "src/generated" }, environments: MinEnvironments },
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.codegen!.enabled).toBeTrue();
+		expect(result.data.codegen!.output).toBe("src/generated");
+	});
+
+	it("should accept a codegen section that omits both optional fields", () => {
+		expect.assertions(1);
+
+		const result = validateConfig({ codegen: {}, environments: MinEnvironments }, SOURCE);
+
+		expect(result.success).toBeTrue();
+	});
+
+	it("should reject an unknown key inside the codegen section", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{ codegen: { language: "luau" }, environments: MinEnvironments },
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["codegen", "language"]);
+	});
+
+	it("should reject a non-boolean codegen enable flag", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{ codegen: { enabled: "yes" }, environments: MinEnvironments },
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["codegen", "enabled"]);
+	});
+
 	it("should reject unknown top-level keys and point the issue path at the offending key", () => {
 		expect.assertions(3);
 
