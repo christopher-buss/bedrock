@@ -162,6 +162,8 @@ type ExpectedDeployErrorKind =
 	| "incompletePlaceEntry"
 	| "incompleteUniverseEntry"
 	| "missingCredential"
+	| "pendingRebuildWithoutHook"
+	| "rebuildHookThrew"
 	| "registryConfigMissing"
 	| "stateNotConfigured"
 	| "stateReadFailed"
