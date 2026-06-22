@@ -211,6 +211,18 @@ describe(parseRetryAfterSeconds, () => {
 
 		expect(parseRetryAfterSeconds("-3")).toBe(0);
 	});
+
+	it("should take the largest window from a comma-separated 429 reset header", () => {
+		expect.assertions(1);
+
+		expect(parseRetryAfterSeconds("22, 0")).toBe(22);
+	});
+
+	it("should take the largest window regardless of token order", () => {
+		expect.assertions(1);
+
+		expect(parseRetryAfterSeconds("0, 22")).toBe(22);
+	});
 });
 
 describe(buildUrl, () => {

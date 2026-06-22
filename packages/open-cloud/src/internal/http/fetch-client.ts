@@ -82,18 +82,28 @@ export function extractErrorMessage(body: unknown): string | undefined {
 }
 
 /**
- * Parses the `x-ratelimit-reset` header value into seconds.
+ * Parses the `x-ratelimit-reset` header value into seconds. On a 429 the header
+ * is a comma-separated list of per-window reset times (e.g. `"22, 0"`, one entry
+ * per rate-limit window); the largest value is the longest-resetting window and
+ * the only safe wait that won't retry into a still-exhausted window. A single
+ * value is treated as a one-element list.
  *
  * @param headerValue - The raw header value, or `undefined` if missing.
  * @returns The number of seconds to wait, or 0 if missing/invalid.
  */
 export function parseRetryAfterSeconds(headerValue: string | undefined): number {
-	const parsed = Number(headerValue);
-	if (Number.isNaN(parsed)) {
+	if (headerValue === undefined) {
 		return 0;
 	}
 
-	return Math.max(0, Math.floor(parsed));
+	const seconds = headerValue
+		.split(",")
+		.map((part) => Number(part))
+		.filter((value) => !Number.isNaN(value));
+
+	// An all-NaN header leaves `seconds` empty, so `Math.max(...[])` is
+	// -Infinity and the outer `Math.max(0, ...)` clamps it back to 0.
+	return Math.max(0, Math.floor(Math.max(...seconds)));
 }
 
 /**
