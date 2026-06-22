@@ -4,6 +4,12 @@ import { OpenCloudError } from "./base.ts";
  * Options for constructing a {@link RateLimitError}.
  */
 export interface RateLimitErrorOptions extends ErrorOptions {
+	/**
+	 * Requests still allowed in the throttled window, read from
+	 * `x-ratelimit-remaining` (the most-constrained window). `undefined` when
+	 * the header was absent. Typically `0` on a genuine 429.
+	 */
+	remaining?: number | undefined;
 	/** Seconds to wait before retrying the request. */
 	retryAfterSeconds: number;
 }
@@ -27,6 +33,8 @@ export interface RateLimitErrorOptions extends ErrorOptions {
  */
 export class RateLimitError extends OpenCloudError {
 	public override readonly name = "RateLimitError";
+	/** Requests left in the throttled window, or `undefined` if not reported. */
+	public readonly remaining: number | undefined;
 	public readonly retryAfterSeconds: number;
 
 	/**
@@ -38,5 +46,6 @@ export class RateLimitError extends OpenCloudError {
 	constructor(message: string, options: RateLimitErrorOptions) {
 		super(message, options);
 		this.retryAfterSeconds = options.retryAfterSeconds;
+		this.remaining = options.remaining;
 	}
 }

@@ -4,6 +4,7 @@ import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
 import type { Result } from "../../types.ts";
 import { tryCatch } from "../utils/try-catch.ts";
+import { parseRateLimitHeaders } from "./rate-limit-sample.ts";
 import type { HttpClient, HttpRequest, HttpResponse, RequestConfig } from "./types.ts";
 
 // Caps the raw body retained when a response cannot be parsed, so a multi-KB
@@ -263,10 +264,10 @@ function createApiError(status: number, body: JSONValue | undefined): ApiError {
 }
 
 function createRateLimitError(response: Response): RateLimitError {
+	const headers = headersToRecord(response.headers);
 	return new RateLimitError("Rate limited", {
-		retryAfterSeconds: parseRetryAfterSeconds(
-			response.headers.get("x-ratelimit-reset") ?? undefined,
-		),
+		remaining: parseRateLimitHeaders(headers)?.remaining,
+		retryAfterSeconds: parseRetryAfterSeconds(headers["x-ratelimit-reset"]),
 	});
 }
 
