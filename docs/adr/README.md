@@ -36,6 +36,7 @@ things are the way they are.
 | [024](./024-resource-redaction.md) | Resource Redaction for Pre-Release Environments | Accepted | 2026-05-14 |
 | [025](./025-luau-type-definitions.md) | Luau type definitions for `bedrock.config.luau` | Accepted | 2026-05-19 |
 | [026](./026-codegen-and-two-phase-deploy.md) | Codegen and Two-Phase Deploy | Accepted | 2026-06-22 |
+| [027](./027-changesets-release-flow.md) | Changesets for Versioning and Automated npm Publishing | Accepted | 2026-06-22 |
 
 ## Creating a New ADR
 
