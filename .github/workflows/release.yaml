@@ -166,6 +166,7 @@ jobs:
         name: Trigger docs release for the core tag
         run: |
           set -euo pipefail
+          # The `bedrock` package directory is the `@bedrock-rbx/core` package.
           version=$(node -p "require('./packages/bedrock/package.json').version")
           tag="@bedrock-rbx/core@${version}"
           if git ls-remote --tags origin "refs/tags/$tag" | grep -q "$tag"; then

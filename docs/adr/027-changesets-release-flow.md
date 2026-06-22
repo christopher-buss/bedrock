@@ -76,9 +76,15 @@ pipeline.
   - `updateInternalDependencies`: `patch` — when `ocale` bumps, `core`'s
     `workspace:*` dependency edge produces a patch bump on `core`.
   - **`linked`: `[["@bedrock-rbx/core", "@bedrock-rbx/ocale"]]`** (see below).
+  - **`privatePackages`: `{ "version": false, "tag": false }`** (see below).
 - The five private packages (`testing`, `vite-config`, `typescript-config`,
-  `apps/website`, `apps/e2e`, and the root) carry `private: true` and are
-  ignored by Changesets automatically; no `ignore` entries are needed.
+  `apps/website`, `apps/e2e`, and the root) carry `private: true`, so Changesets
+  never *publishes* them — but it does not ignore them by default.
+  `privatePackages.version` defaults to `true`, which would version-bump and
+  changelog any private package that depends on a released one (e.g.
+  `apps/e2e`, which consumes `core`/`ocale` via `workspace:*`). Setting
+  `privatePackages.version: false` suppresses that, so only `core` and `ocale`
+  are versioned. No `ignore` entries are needed.
 
 ### Linked, not fixed or independent
 
@@ -112,15 +118,19 @@ manage a bot GPG key, `release.yaml` reuses the `openapi-drift.yaml` approach:
   open or refresh a PR titled **`ci: version packages`** via the `gh` CLI, and
   dispatch `ci.yaml` against the bot branch so the Version PR gets checks.
 - **Publish mode** (no pending changesets — i.e. a Version PR has just
-  merged): run `pnpm release` (`pnpm build && changeset publish`), which
-  publishes changed packages to npm and creates `@bedrock-rbx/<pkg>@<version>`
-  tags. Tags are pushed with a token that re-triggers workflows so
-  `website-release.yaml` fires.
+  merged): build, then `changeset publish`, which publishes changed packages
+  to npm and creates `@bedrock-rbx/<pkg>@<version>` tags. The workflow runs
+  these as two steps (rather than the root `pnpm release` script, which is
+  `pnpm build && changeset publish`) so the npm-auth and `NPM_CONFIG_PROVENANCE`
+  env scope to the publish step only. Tags are then pushed and
+  `website-release.yaml` is dispatched explicitly (a `GITHUB_TOKEN` tag push
+  does not fire its `on: push: tags` trigger).
 - **Provenance:** the job grants `id-token: write` and sets
-  `NPM_CONFIG_PROVENANCE=true`; combined with `NODE_AUTH_TOKEN` (from the
-  `NPM_TOKEN` secret) this attaches a signed build-provenance attestation to
-  each publish. (`id-token: write` alone is necessary but not sufficient — the
-  `NPM_CONFIG_PROVENANCE` flag is what actually enables provenance.)
+  `NPM_CONFIG_PROVENANCE=true`; combined with npm auth (the `NPM_TOKEN` secret
+  written to `~/.npmrc` for the publish step) this attaches a signed
+  build-provenance attestation to each publish. (`id-token: write` alone is
+  necessary but not sufficient — the `NPM_CONFIG_PROVENANCE` flag is what
+  actually enables provenance.)
 
 ### Mandatory changeset gate
 
