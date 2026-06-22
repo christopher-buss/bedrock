@@ -535,6 +535,13 @@ async function runTwoPhase(inputs: TwoPhaseInputs): Promise<Result<BedrockState,
 	});
 
 	const codegen = await runCodegenStage(deps, assetPass);
+	if (!assetPass.written.success || !assetPass.applied.success) {
+		// A failed asset stage aborts the rebuild: survivors and the marker are
+		// already persisted, so surface the asset-stage failure rather than
+		// masking it behind a republish over half-applied state.
+		return finalize(assetPass, codegen);
+	}
+
 	const rebuilt = await rebuild({ state: assetPass.merged });
 	const republishPass = await runRepublishStage({
 		assetPass,

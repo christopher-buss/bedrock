@@ -1915,6 +1915,75 @@ describe(deploy, () => {
 			]);
 		});
 
+		it("should abort the rebuild and surface applyFailed when the asset stage apply fails", async () => {
+			expect.assertions(3);
+
+			const { placeCalls, registry } = recordingPlaceRegistry();
+			let didCallHook = false;
+			const failingRegistry: DriverRegistry = {
+				...registry,
+				gamePass: {
+					async create() {
+						return { err: new OpenCloudError("create vip-pass: 503"), success: false };
+					},
+				},
+			};
+
+			const result = await deploy({
+				config: twoPhaseConfig(),
+				environment: "production",
+				readFile: readIcon,
+				rebuild: () => {
+					didCallHook = true;
+					return [{ key: startPlace, bytes: rebuiltBytes }];
+				},
+				registry: failingRegistry,
+				statePort: inMemoryStatePort().port,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("applyFailed");
+			expect(didCallHook).toBeFalse();
+			expect(placeCalls).toBeEmpty();
+		});
+
+		it("should abort the rebuild and surface stateWriteFailed when the checkpoint write fails", async () => {
+			expect.assertions(3);
+
+			const { placeCalls, registry } = recordingPlaceRegistry();
+			let didCallHook = false;
+			const port: StatePort = {
+				async read() {
+					return { data: undefined, success: true };
+				},
+				async write() {
+					return {
+						err: { file: "state.json", kind: "stateError", reason: "EACCES" },
+						success: false,
+					};
+				},
+			};
+
+			const result = await deploy({
+				config: twoPhaseConfig(),
+				environment: "production",
+				readFile: readIcon,
+				rebuild: () => {
+					didCallHook = true;
+					return [{ key: startPlace, bytes: rebuiltBytes }];
+				},
+				registry,
+				statePort: port,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("stateWriteFailed");
+			expect(didCallHook).toBeFalse();
+			expect(placeCalls).toBeEmpty();
+		});
+
 		it("should keep the pending-rebuild marker for a place the hook did not republish", async () => {
 			expect.assertions(2);
 

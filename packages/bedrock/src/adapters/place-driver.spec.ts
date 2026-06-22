@@ -4,7 +4,7 @@ import { createFakeHttpClient, validPlaceBody } from "@bedrock-rbx/ocale/testing
 
 import { placeCurrent, placeDesired } from "#tests/helpers/resources";
 import type { Except } from "type-fest";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it, vi } from "vitest";
 
 import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { createPlaceDriver, type PlaceDriverDeps } from "./place-driver.ts";
@@ -329,13 +329,16 @@ describe(createPlaceDriver, () => {
 	});
 
 	it("should fall back to reading the file when no artifact context is supplied", async () => {
-		expect.assertions(1);
+		expect.assertions(2);
 
-		const { driver, http } = makeDriver({ readFile: async () => RBXL_SIGNATURE });
+		const fromDisk = Uint8Array.from([...RBXL_SIGNATURE, 0x99]);
+		const readFile = vi.fn<PlaceDriverDeps["readFile"]>().mockResolvedValue(fromDisk);
+		const { driver, http } = makeDriver({ readFile });
 		http.mockResponse({ body: { versionNumber: 1 }, status: 200 });
 
 		await driver.create(placeDesired());
 
-		expect(http.requests[0]!.request.body).toStrictEqual(Uint8Array.from(RBXL_SIGNATURE));
+		expect(readFile).toHaveBeenCalledOnce();
+		expect(http.requests[0]!.request.body).toStrictEqual(Uint8Array.from(fromDisk));
 	});
 });

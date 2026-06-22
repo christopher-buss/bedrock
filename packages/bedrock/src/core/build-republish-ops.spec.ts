@@ -40,8 +40,6 @@ describe(buildRepublishOps, () => {
 		expect.assertions(1);
 
 		const desired = placeDesired({ key: asResourceKey("shared") });
-		// A game pass keyed the same string must not be mistaken for the place's
-		// current state.
 		const collidingPass = gamePassCurrent({ key: asResourceKey("shared") });
 
 		const ops = buildRepublishOps({
@@ -57,8 +55,6 @@ describe(buildRepublishOps, () => {
 		expect.assertions(1);
 
 		const desired = placeDesired({ key: asResourceKey("wanted-place") });
-		// A different place in current state must not satisfy the matching place;
-		// the absent match means a create, not an update.
 		const otherPlace = placeCurrent({ key: asResourceKey("other-place") });
 
 		const ops = buildRepublishOps({
