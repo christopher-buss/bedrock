@@ -4,11 +4,14 @@ import type { RateLimitSample } from "./rate-limit-sample.ts";
 
 /**
  * Header-primed rate-limit gate shared across a client. Holds one
- * {@link BudgetTracker} per scope key (per-operation and per-API-key). Before
- * each request the caller gates on the relevant scope keys — sleeping if any is
- * exhausted — and after each response folds the parsed sample back onto those
- * keys. Prevents 429s the static token bucket cannot foresee, notably the
- * per-key window shared across operations.
+ * {@link BudgetTracker} per API key, since the tightest Roblox window is the
+ * per-key one shared across every operation. Before each request the caller
+ * gates on the request's key — sleeping if its budget is spent — and after
+ * each response folds the parsed sample back in, so a sibling operation on the
+ * same key can head off a 429 the static per-operation token bucket cannot
+ * foresee. A per-operation tracker is deliberately not kept: every operation
+ * reports the same most-constrained `remaining`, so a per-key tracker (drawn
+ * down by all operations) is always the binding constraint.
  */
 export class BudgetGate {
 	readonly #sleep: SleepFunc;
@@ -24,55 +27,44 @@ export class BudgetGate {
 	}
 
 	/**
-	 * Holds until every scope key permits a send, then reserves one slot on
-	 * each. The wait is the longest across keys, so the most-constrained window
-	 * governs.
+	 * Holds until the scope's budget permits a send, then reserves one slot.
 	 *
-	 * @param keys - Scope keys to gate on (e.g. The API key and operation key).
+	 * @param scope - The scope key to gate on (the effective API key).
 	 */
-	public async gate(keys: ReadonlyArray<string>): Promise<void> {
-		const now = Date.now();
-		let waitMs = 0;
-		for (const key of keys) {
-			waitMs = Math.max(waitMs, this.#tracker(key).waitMs(now));
-		}
-
+	public async gate(scope: string): Promise<void> {
+		const tracker = this.#tracker(scope);
+		const waitMs = tracker.waitMs(Date.now());
 		if (waitMs > 0) {
 			await this.#sleep(waitMs);
 		}
 
-		for (const key of keys) {
-			this.#tracker(key).reserve();
-		}
+		tracker.reserve();
 	}
 
 	/**
-	 * Folds a response's parsed budget back onto each scope key. A `undefined`
-	 * sample (headers absent or non-numeric) is ignored, leaving the gate on
-	 * static pacing for that scope.
+	 * Folds a response's parsed budget back onto the scope. A `undefined`
+	 * sample (headers absent or non-numeric) is ignored, leaving the scope on
+	 * static pacing.
 	 *
-	 * @param keys - The same scope keys passed to {@link gate}.
+	 * @param scope - The same scope key passed to {@link gate}.
 	 * @param sample - Parsed sample, or `undefined` when none was reported.
 	 */
-	public observe(keys: ReadonlyArray<string>, sample: RateLimitSample | undefined): void {
+	public observe(scope: string, sample: RateLimitSample | undefined): void {
 		if (sample === undefined) {
 			return;
 		}
 
-		const now = Date.now();
-		for (const key of keys) {
-			this.#tracker(key).observe(sample, now);
-		}
+		this.#tracker(scope).observe(sample, Date.now());
 	}
 
-	#tracker(key: string): BudgetTracker {
-		const existing = this.#trackers.get(key);
+	#tracker(scope: string): BudgetTracker {
+		const existing = this.#trackers.get(scope);
 		if (existing !== undefined) {
 			return existing;
 		}
 
 		const tracker = new BudgetTracker();
-		this.#trackers.set(key, tracker);
+		this.#trackers.set(scope, tracker);
 		return tracker;
 	}
 }

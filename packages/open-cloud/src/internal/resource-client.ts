@@ -14,7 +14,9 @@ import { ApiError } from "../errors/api-error.ts";
 import type { OpenCloudError } from "../errors/base.ts";
 import { PermissionError } from "../errors/permission-error.ts";
 import type { Result } from "../types.ts";
+import { BudgetGate } from "./http/budget-gate.ts";
 import { executeWithRetry } from "./http/execute.ts";
+import { rateLimitSampleFromResult } from "./http/rate-limit-observation.ts";
 import { type OperationLimit, RateLimitQueue } from "./http/rate-limit-queue.ts";
 import { resolveDependencies } from "./http/resolve-dependencies.ts";
 import {
@@ -148,6 +150,7 @@ interface RequestConfigInputs {
  * `src/resources/**` modules in this package.
  */
 export class ResourceClient {
+	readonly #budgets: BudgetGate;
 	readonly #config: Readonly<RetryResolvable>;
 	readonly #hooks: OpenCloudHooks;
 	readonly #httpClient: HttpClient;
@@ -167,6 +170,7 @@ export class ResourceClient {
 		const resolved = resolveDependencies({ httpClient, sleep });
 		this.#httpClient = resolved.httpClient;
 		this.#sleep = resolved.sleep;
+		this.#budgets = new BudgetGate(this.#sleep);
 		this.#hooks = hooks ?? {};
 		this.#config = Object.freeze({
 			...CLIENT_DEFAULTS,
@@ -205,7 +209,7 @@ export class ResourceClient {
 			return executeWithRetry(requestResult.data, {
 				config: merged,
 				hooks: this.#hooks,
-				send: async (toSend) => this.#httpClient.request(toSend, requestConfig),
+				send: this.#gatedSend(merged.apiKey, requestConfig),
 				sleep: this.#sleep,
 			});
 		});
@@ -223,6 +227,28 @@ export class ResourceClient {
 	 */
 	public get sleep(): SleepFunc {
 		return this.#sleep;
+	}
+
+	/**
+	 * Builds the transport callback for one logical call, wrapping the HTTP
+	 * client with the budget gate: each attempt waits on the API key's budget
+	 * before sending, then folds the response's reported budget back in so the
+	 * next attempt (or a sibling operation on the same key) can head off a 429.
+	 *
+	 * @param apiKey - The effective API key to gate on.
+	 * @param requestConfig - The resolved per-request transport config.
+	 * @returns A send callback for {@link executeWithRetry}.
+	 */
+	#gatedSend(
+		apiKey: string,
+		requestConfig: RequestConfig,
+	): (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>> {
+		return async (toSend) => {
+			await this.#budgets.gate(apiKey);
+			const sendResult = await this.#httpClient.request(toSend, requestConfig);
+			this.#budgets.observe(apiKey, rateLimitSampleFromResult(sendResult));
+			return sendResult;
+		};
 	}
 
 	#getQueue(apiKey: string, limit: OperationLimit): RateLimitQueue {

@@ -785,4 +785,55 @@ describe(ResourceClient, () => {
 			expect(sleep.waits).toStrictEqual([2000]);
 		});
 	});
+
+	describe("adaptive throttling", () => {
+		it("should hold a same-key operation when an earlier response reported zero remaining", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockResponse({
+					headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "60" },
+					status: 200,
+				})
+				.mockResponse({ status: 200 });
+			const clock = createFakeClock();
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			const first = await client.execute({ parameters: { id: "1" }, spec: TEST_GET_SPEC });
+			const second = await client.execute({
+				parameters: { id: "2" },
+				spec: TEST_CREATE_SPEC,
+			});
+
+			assert(first.success);
+			assert(second.success);
+
+			// The GET drained the shared per-key window to 0, so the CREATE on
+			// the same key holds for the full reset before its request goes out.
+			expect(clock.waits).toStrictEqual([60_000]);
+		});
+
+		it("should not hold when responses carry no rate-limit headers", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockResponse({ status: 200 })
+				.mockResponse({ status: 200 });
+			const clock = createFakeClock();
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			await client.execute({ parameters: { id: "1" }, spec: TEST_GET_SPEC });
+			await client.execute({ parameters: { id: "2" }, spec: TEST_CREATE_SPEC });
+
+			expect(clock.waits).toStrictEqual([]);
+		});
+	});
 });
