@@ -88,9 +88,10 @@ export interface DeployOptions {
  * `applyFailed`, `codegenFailed`, ...) from default-construction failures
  * (`configLoadFailed`, `stateNotConfigured`, `unknownEnvironment`,
  * `incompletePlaceEntry`, `incompleteUniverseEntry`, `missingCredential`,
- * `unsupportedBackend`, `registryConfigMissing`). `codegenFailed` cannot
- * mask an `applyFailed`: a partial apply still emits codegen for the keys
- * that resolved, but the returned error stays `applyFailed`.
+ * `unsupportedBackend`, `registryConfigMissing`, `codegenOutputMissing`).
+ * `codegenFailed` cannot mask an `applyFailed`: a partial apply still emits
+ * codegen for the keys that resolved, but the returned error stays
+ * `applyFailed`.
  */
 export type DeployError =
 	| IncompletePassEntryError
@@ -110,7 +111,8 @@ export type DeployError =
 			readonly cause: StateError;
 			readonly kind: "stateWriteFailed";
 			readonly unsavedState: BedrockState;
-	  };
+	  }
+	| { readonly kind: "codegenOutputMissing" };
 
 interface SnapshotInputs {
 	readonly applied: Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>;
@@ -288,10 +290,6 @@ function pickRegistry(inputs: PickRegistryInputs): Result<DriverRegistry, Deploy
 	});
 }
 
-function defaultCodegenWriter(output: string | undefined): CodegenWriterPort | undefined {
-	return output === undefined ? undefined : createFsCodegenWriter({ outputDir: output });
-}
-
 function pickCodegen(
 	options: DeployOptions,
 	config: ResolvedConfig,
@@ -300,25 +298,19 @@ function pickCodegen(
 		return { data: undefined, success: true };
 	}
 
-	const writer = options.codegenWriter ?? defaultCodegenWriter(config.codegen?.output);
-	if (writer === undefined) {
-		return {
-			err: {
-				cause: {
-					cause: {
-						kind: "codegenWriteError",
-						path: "",
-						reason: "codegen is enabled but no output path is configured",
-					},
-					kind: "codegenWriteFailed",
-				},
-				kind: "codegenFailed",
-			},
-			success: false,
-		};
+	if (options.codegenWriter !== undefined) {
+		return { data: { emit: options.emit, writer: options.codegenWriter }, success: true };
 	}
 
-	return { data: { emit: options.emit, writer }, success: true };
+	const output = config.codegen?.output;
+	if (output === undefined) {
+		return { err: { kind: "codegenOutputMissing" }, success: false };
+	}
+
+	return {
+		data: { emit: options.emit, writer: createFsCodegenWriter({ outputDir: output }) },
+		success: true,
+	};
 }
 
 async function pickConfig(options: DeployOptions): Promise<Result<Config, DeployError>> {

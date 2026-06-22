@@ -153,6 +153,10 @@ describe(renderDeployError, () => {
 			expected: "codegen failed because the emitter threw: boom",
 		},
 		{
+			err: { kind: "codegenOutputMissing" },
+			expected: "codegen is enabled but no output path is configured",
+		},
+		{
 			err: {
 				cause: {
 					applied: [],

@@ -375,6 +375,9 @@ function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFailed" }>):
 		case "codegenFailed": {
 			return `codegen failed ${codegenErrorDetail(err.cause)}`;
 		}
+		case "codegenOutputMissing": {
+			return "codegen is enabled but no output path is configured";
+		}
 		case "configLoadFailed": {
 			return `config load failed: ${configErrorDetail(err.cause)}`;
 		}
