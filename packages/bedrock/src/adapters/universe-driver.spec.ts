@@ -7,7 +7,7 @@ import {
 } from "@bedrock-rbx/ocale/testing";
 import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
-import { PLATFORM_FLAG_ROWS, universeDesired } from "#tests/helpers/resources";
+import { PLATFORM_FLAG_ROWS, universeCurrent, universeDesired } from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";
 
 import { SOCIAL_LINK_FIELDS, UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
@@ -204,6 +204,50 @@ describe(createUniverseDriver, () => {
 		assert(result.success);
 
 		expect(result.data.outputs.rootPlaceId).toBe("4711");
+	});
+
+	it("should omit unchanged managed flags from the universe updateMask on update", async () => {
+		expect.assertions(2);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({
+			body: validUniverseBody({ rootPlace: ROOT_PLACE_PATH }),
+			status: 200,
+		});
+
+		assert(driver.update !== undefined);
+
+		await driver.update(
+			universeCurrent({ desktopEnabled: true, voiceChatEnabled: false }),
+			universeDesired({ desktopEnabled: true, voiceChatEnabled: true }),
+		);
+
+		expect(http.requests[0]!.request.url).toBe(
+			`/cloud/v2/universes/${UNIVERSE_ID}?updateMask=voiceChatEnabled`,
+		);
+		expect(http.requests[0]!.request.body).toStrictEqual({ voiceChatEnabled: true });
+	});
+
+	it("should skip the root-place displayName patch when displayName is unchanged on update", async () => {
+		expect.assertions(2);
+
+		const { driver, http } = makeDriver();
+		http.mockResponse({
+			body: validUniverseBody({ rootPlace: ROOT_PLACE_PATH }),
+			status: 200,
+		});
+
+		assert(driver.update !== undefined);
+
+		await driver.update(
+			universeCurrent({ displayName: "Same", voiceChatEnabled: false }),
+			universeDesired({ displayName: "Same", voiceChatEnabled: true }),
+		);
+
+		expect(http.requests).toHaveLength(1);
+		expect(http.requests[0]!.request.url).toBe(
+			`/cloud/v2/universes/${UNIVERSE_ID}?updateMask=voiceChatEnabled`,
+		);
 	});
 
 	it("should surface a 404 as an adoption error naming the config key and universeId", async () => {

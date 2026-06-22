@@ -2,7 +2,7 @@ import { placeCurrent, placeDesired } from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
-import { placeKind } from "./place.ts";
+import { changedPlaceMetadata, placeKind } from "./place.ts";
 
 const ALT_HASH = asSha256Hex("a3f2c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852e1b0");
 
@@ -301,6 +301,43 @@ describe("placeKind", () => {
 					placeCurrent({ description: "Old body.", displayName: "Old" }),
 				),
 			).toStrictEqual(["fileHash", "displayName", "description"]);
+		});
+	});
+
+	describe(changedPlaceMetadata, () => {
+		it("should include every declared metadata field when no current state is given", () => {
+			expect.assertions(1);
+
+			expect(
+				changedPlaceMetadata(
+					placeDesired({ description: "Body.", displayName: "Lobby", serverSize: 25 }),
+				),
+			).toStrictEqual({ description: "Body.", displayName: "Lobby", serverSize: 25 });
+		});
+
+		it("should return an empty object when no metadata is declared on create", () => {
+			expect.assertions(1);
+
+			expect(changedPlaceMetadata(placeDesired())).toStrictEqual({});
+		});
+
+		it("should keep only metadata whose declared value differs from current", () => {
+			expect.assertions(1);
+
+			expect(
+				changedPlaceMetadata(
+					placeDesired({
+						description: "New body.",
+						displayName: "Lobby",
+						serverSize: 25,
+					}),
+					placeCurrent({
+						description: "Old body.",
+						displayName: "Lobby",
+						serverSize: 25,
+					}),
+				),
+			).toStrictEqual({ description: "New body." });
 		});
 	});
 });

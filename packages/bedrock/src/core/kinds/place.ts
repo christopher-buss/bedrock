@@ -20,6 +20,41 @@ const entrySchema = type({
 	"serverSize?": OPTIONAL_POSITIVE_INTEGER,
 }).onUndeclaredKey("reject");
 
+type PlaceMetadataField = (typeof PLACE_MANAGED_METADATA_FIELDS)[number];
+
+/** Managed metadata fields with their non-`undefined` declared values. */
+type PlaceMetadataPatch = {
+	readonly [Field in PlaceMetadataField]?: NonNullable<PlaceDesiredState[Field]>;
+};
+
+/**
+ * Select the managed metadata fields (`displayName`, `description`,
+ * `serverSize`) the driver must `PATCH` to converge `current` onto `desired`.
+ * A field is emitted only when it is declared (`!== undefined`) and either no
+ * `current` is known (a create, where every declared field must be pushed) or
+ * its value differs from the recorded state. Both drift detection
+ * ({@link changedFieldsBetween}) and the place driver's `updateMask` builder
+ * route through this single predicate so the two cannot diverge.
+ *
+ * @param desired - Desired place state from the resolved config.
+ * @param current - Last-known state, or `undefined` on create.
+ * @returns Partial state holding only the metadata fields to patch, in the
+ *   fixed `PLACE_MANAGED_METADATA_FIELDS` order.
+ */
+export function changedPlaceMetadata(
+	desired: PlaceDesiredState,
+	current?: ResourceCurrentState<"place">,
+): PlaceMetadataPatch {
+	return PLACE_MANAGED_METADATA_FIELDS.reduce<PlaceMetadataPatch>((accumulator, field) => {
+		const value = desired[field];
+		if (value === undefined || value === current?.[field]) {
+			return accumulator;
+		}
+
+		return { ...accumulator, [field]: value };
+	}, {});
+}
+
 function flatten(config: ResolvedConfig): ReadonlyArray<PlaceDesiredInput> {
 	return Object.entries(config.places ?? {}).map<PlaceDesiredInput>(([key, entry]) => {
 		return {
@@ -66,10 +101,7 @@ function changedFieldsBetween(
 		...(desired.fileHash === current.fileHash ? [] : ["fileHash"]),
 		...(desired.filePath === current.filePath ? [] : ["filePath"]),
 		...(desired.placeId === current.placeId ? [] : ["placeId"]),
-		...PLACE_MANAGED_METADATA_FIELDS.filter((field) => {
-			const desiredValue = desired[field];
-			return desiredValue !== undefined && desiredValue !== current[field];
-		}),
+		...Object.keys(changedPlaceMetadata(desired, current)),
 	];
 }
 

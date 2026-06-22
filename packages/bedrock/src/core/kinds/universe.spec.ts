@@ -4,7 +4,7 @@ import { assert, describe, expect, it } from "vitest";
 
 import { asRobloxAssetId } from "../../types/ids.ts";
 import { SOCIAL_LINK_FIELDS, UNIVERSE_SINGLETON_KEY } from "../resources.ts";
-import { universeKind } from "./universe.ts";
+import { changedUniverseFields, universeKind } from "./universe.ts";
 
 const NORMALIZE_IO_NEVER = {
 	readFile: async (): Promise<Uint8Array> => {
@@ -309,6 +309,59 @@ describe("universeKind", () => {
 				"discordSocialLink",
 			]);
 		});
+	});
+});
+
+describe(changedUniverseFields, () => {
+	const sampleLink = { title: "Old", uri: "https://example.com/old" };
+
+	it("should return every declared field when no current state is given", () => {
+		expect.assertions(1);
+
+		expect(
+			changedUniverseFields(
+				universeDesired({
+					discordSocialLink: { title: "New", uri: "https://discord.gg/new" },
+					displayName: "Fun Universe",
+					privateServerPriceRobux: 250,
+					voiceChatEnabled: true,
+				}),
+			),
+		).toStrictEqual(
+			new Set([
+				"discordSocialLink",
+				"displayName",
+				"privateServerPriceRobux",
+				"voiceChatEnabled",
+			]),
+		);
+	});
+
+	it("should return an empty set when nothing is declared on create", () => {
+		expect.assertions(1);
+
+		expect(changedUniverseFields(universeDesired())).toStrictEqual(new Set());
+	});
+
+	it("should narrow to only the drifted fields when a current state is given", () => {
+		expect.assertions(1);
+
+		expect(
+			changedUniverseFields(
+				universeDesired({
+					discordSocialLink: sampleLink,
+					displayName: "Same",
+					privateServerPriceRobux: 250,
+					voiceChatEnabled: true,
+				}),
+				universeCurrent({
+					discordSocialLink: sampleLink,
+					displayName: "Same",
+					privateServerPriceRobux: 250,
+					voiceChatEnabled: false,
+				}),
+			),
+		).toStrictEqual(new Set(["voiceChatEnabled"]));
 	});
 });
 
