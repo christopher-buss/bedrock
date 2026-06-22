@@ -127,6 +127,34 @@ describe(renderDeployError, () => {
 		{
 			err: {
 				cause: {
+					cause: { kind: "codegenWriteError", path: "out/ids.luau", reason: "no space" },
+					kind: "codegenWriteFailed",
+				},
+				kind: "codegenFailed",
+			},
+			expected: "codegen failed writing 'out/ids.luau': no space",
+		},
+		{
+			err: {
+				cause: {
+					cause: { file: "staging.json", kind: "stateError", reason: "corrupt" },
+					environment: "staging",
+					kind: "codegenStateReadFailed",
+				},
+				kind: "codegenFailed",
+			},
+			expected: "codegen failed reading environment 'staging' (staging.json): corrupt",
+		},
+		{
+			err: {
+				cause: { kind: "codegenEmitThrew", reason: "boom" },
+				kind: "codegenFailed",
+			},
+			expected: "codegen failed because the emitter threw: boom",
+		},
+		{
+			err: {
+				cause: {
 					applied: [],
 					failures: [
 						{

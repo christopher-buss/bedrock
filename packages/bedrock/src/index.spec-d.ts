@@ -155,6 +155,7 @@ describe(applyOps, () => {
 type ExpectedDeployErrorKind =
 	| "applyFailed"
 	| "buildDesiredFailed"
+	| "codegenFailed"
 	| "configLoadFailed"
 	| "incompletePassEntry"
 	| "incompletePlaceEntry"
