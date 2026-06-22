@@ -49,6 +49,7 @@ export interface PlaceDriverDeps {
 }
 
 interface PublishInputs {
+	readonly artifact: Uint8Array | undefined;
 	readonly current: ResourceCurrentState<"place"> | undefined;
 	readonly desired: PlaceDesiredState;
 }
@@ -125,11 +126,12 @@ interface PublishInputs {
  */
 export function createPlaceDriver(deps: PlaceDriverDeps): ResourceDriver<"place"> {
 	return {
-		async create(desired) {
-			return publishPlace(deps, { current: undefined, desired });
+		async create(desired, context) {
+			return publishPlace(deps, { artifact: context?.artifact, current: undefined, desired });
 		},
-		async update(current, desired) {
-			return publishPlace(deps, { current, desired });
+		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
+		async update(current, desired, context) {
+			return publishPlace(deps, { artifact: context?.artifact, current, desired });
 		},
 	};
 }
@@ -148,8 +150,9 @@ function detectFormat(filePath: string): "rbxl" | "rbxlx" | undefined {
 
 async function publishVersion(
 	deps: PlaceDriverDeps,
-	desired: PlaceDesiredState,
+	inputs: { readonly artifact: Uint8Array | undefined; readonly desired: PlaceDesiredState },
 ): Promise<Result<PlaceOutputs, OpenCloudError>> {
+	const { artifact, desired } = inputs;
 	const format = detectFormat(desired.filePath);
 	if (format === undefined) {
 		return {
@@ -161,7 +164,7 @@ async function publishVersion(
 		};
 	}
 
-	const body = await deps.readFile(desired.filePath);
+	const body = artifact ?? (await deps.readFile(desired.filePath));
 	return deps.client.publish({
 		// Narrows `Uint8Array<ArrayBufferLike>` to `Uint8Array<ArrayBuffer>`
 		// so the ocale wire type rejects SharedArrayBuffer at the call site.
@@ -176,8 +179,8 @@ async function publishPlace(
 	deps: PlaceDriverDeps,
 	inputs: PublishInputs,
 ): Promise<Result<ResourceCurrentState<"place">, OpenCloudError>> {
-	const { current, desired } = inputs;
-	const publishResult = await publishVersion(deps, desired);
+	const { artifact, current, desired } = inputs;
+	const publishResult = await publishVersion(deps, { artifact, desired });
 	if (!publishResult.success) {
 		return publishResult;
 	}
