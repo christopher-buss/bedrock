@@ -5,7 +5,7 @@ import type { ResourceCurrentState } from "./resources.ts";
 import type { BedrockState, StateError } from "./state.ts";
 
 describe("BedrockState", () => {
-	it("should expose readonly environment, resources, and version fields", () => {
+	it("should expose readonly environment, pendingRebuild, resources, and version fields", () => {
 		expectTypeOf<BedrockState>().toEqualTypeOf<{
 			readonly environment: string;
 			readonly pendingRebuild?: ReadonlySet<ResourceKey>;
