@@ -2,8 +2,8 @@ import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 import type { PlacesClient } from "@bedrock-rbx/ocale/places";
 import type { UniversesClient, UpdateUniverseParameters } from "@bedrock-rbx/ocale/universes";
 
+import { changedUniverseFields } from "../core/kinds/universe.ts";
 import {
-	copyDeclaredSocialLinks,
 	type ResourceCurrentState,
 	SOCIAL_LINK_FIELDS,
 	UNIVERSE_MANAGED_FLAGS,
@@ -32,6 +32,7 @@ interface ResolvedUniverse {
 }
 
 interface ReconcileInputs {
+	readonly current: ResourceCurrentState<"universe"> | undefined;
 	readonly deps: UniverseDriverDeps;
 	readonly desired: UniverseDesiredState;
 }
@@ -128,10 +129,10 @@ interface ReconcileInputs {
 export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"universe"> {
 	return {
 		async create(desired) {
-			return reconcileUniverse({ deps, desired });
+			return reconcileUniverse({ current: undefined, deps, desired });
 		},
-		async update(_current, desired) {
-			return reconcileUniverse({ deps, desired });
+		async update(current, desired) {
+			return reconcileUniverse({ current, deps, desired });
 		},
 	};
 }
@@ -146,21 +147,23 @@ function toCurrentState(
 	};
 }
 
-function buildParameters(desired: UniverseDesiredState): UpdateUniverseParameters {
+function buildParameters(
+	desired: UniverseDesiredState,
+	fields: ReadonlySet<string>,
+): UpdateUniverseParameters {
 	const base = UNIVERSE_MANAGED_FLAGS.reduce<UpdateUniverseParameters>(
-		(accumulator, flag) => {
-			const isEnabled = desired[flag];
-			return isEnabled === undefined ? accumulator : { ...accumulator, [flag]: isEnabled };
-		},
+		(accumulator, flag) =>
+			fields.has(flag) ? { ...accumulator, [flag]: desired[flag] } : accumulator,
 		{ universeId: desired.universeId },
 	);
 
-	const withPrice =
-		"privateServerPriceRobux" in desired
-			? { ...base, privateServerPriceRobux: desired.privateServerPriceRobux }
-			: base;
+	const withPrice = fields.has("privateServerPriceRobux")
+		? { ...base, privateServerPriceRobux: desired.privateServerPriceRobux }
+		: base;
 
-	return { ...withPrice, ...copyDeclaredSocialLinks(desired) };
+	return SOCIAL_LINK_FIELDS.reduce<UpdateUniverseParameters>((accumulator, field) => {
+		return fields.has(field) ? { ...accumulator, [field]: desired[field] } : accumulator;
+	}, withPrice);
 }
 
 function wrapUpdateError(err: OpenCloudError, desired: UniverseDesiredState): OpenCloudError {
@@ -174,24 +177,21 @@ function wrapUpdateError(err: OpenCloudError, desired: UniverseDesiredState): Op
 	return err;
 }
 
-function hasUniverseLevelUpdate(desired: UniverseDesiredState): boolean {
-	if (UNIVERSE_MANAGED_FLAGS.some((flag) => desired[flag] !== undefined)) {
-		return true;
-	}
-
-	if ("privateServerPriceRobux" in desired) {
-		return true;
-	}
-
-	return SOCIAL_LINK_FIELDS.some((field) => field in desired);
+function hasUniverseLevelUpdate(fields: ReadonlySet<string>): boolean {
+	return (
+		UNIVERSE_MANAGED_FLAGS.some((flag) => fields.has(flag)) ||
+		fields.has("privateServerPriceRobux") ||
+		SOCIAL_LINK_FIELDS.some((field) => fields.has(field))
+	);
 }
 
 async function resolveUniverse(
 	deps: UniverseDriverDeps,
-	desired: UniverseDesiredState,
+	target: { desired: UniverseDesiredState; fields: ReadonlySet<string> },
 ): Promise<Result<ResolvedUniverse, OpenCloudError>> {
-	const result = hasUniverseLevelUpdate(desired)
-		? await deps.universes.update(buildParameters(desired))
+	const { desired, fields } = target;
+	const result = hasUniverseLevelUpdate(fields)
+		? await deps.universes.update(buildParameters(desired, fields))
 		: await deps.universes.get({ universeId: desired.universeId });
 
 	if (!result.success) {
@@ -215,16 +215,18 @@ async function resolveUniverse(
 async function reconcileUniverse(
 	inputs: ReconcileInputs,
 ): Promise<Result<ResourceCurrentState<"universe">, OpenCloudError>> {
-	const { deps, desired } = inputs;
-	const universeResult = await resolveUniverse(deps, desired);
+	const { current, deps, desired } = inputs;
+	const fields = changedUniverseFields(desired, current);
+	const universeResult = await resolveUniverse(deps, { desired, fields });
 	if (!universeResult.success) {
 		return universeResult;
 	}
 
 	const { rootPlaceId } = universeResult.data;
-	if (desired.displayName !== undefined) {
+	const displayName = fields.has("displayName") ? desired.displayName : undefined;
+	if (displayName !== undefined) {
 		const placesResult = await deps.places.update({
-			displayName: desired.displayName,
+			displayName,
 			placeId: rootPlaceId,
 			universeId: desired.universeId,
 		});

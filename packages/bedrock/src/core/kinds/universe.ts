@@ -44,6 +44,74 @@ const entrySchema = type({
 	"youtubeSocialLink?": socialLinkOrUndefined,
 }).onUndeclaredKey("reject");
 
+/**
+ * Resolve the managed field names the universe driver must apply to converge
+ * `current` onto `desired`. On update (a known `current`) this is exactly
+ * {@link changedFieldsBetween}, so the constructed `updateMask` and the
+ * root-place `displayName` patch touch only drifted fields. On create
+ * (`current` omitted) every declared field is returned so a freshly adopted
+ * universe is fully reconciled. Sharing this predicate with drift detection
+ * keeps the patch set and the diff from diverging.
+ *
+ * @param desired - Desired universe state from the resolved config.
+ * @param current - Last-known state, or `undefined` on create.
+ * @returns Set of managed field names to apply (`universeId` aside).
+ */
+export function changedUniverseFields(
+	desired: UniverseDesiredState,
+	current?: ResourceCurrentState<"universe">,
+): ReadonlySet<string> {
+	return new Set(
+		current === undefined
+			? declaredUniverseFields(desired)
+			: changedFieldsBetween(desired, current),
+	);
+}
+
+function socialLinkEqual(a: SocialLink | undefined, b: SocialLink | undefined): boolean {
+	if (a === undefined) {
+		return b === undefined;
+	}
+
+	if (b === undefined) {
+		return false;
+	}
+
+	return a.title === b.title && a.uri === b.uri;
+}
+
+function changedFieldsBetween(
+	desired: UniverseDesiredState,
+	current: ResourceCurrentState<"universe">,
+): ReadonlyArray<string> {
+	return [
+		...(desired.universeId === current.universeId ? [] : ["universeId"]),
+		...UNIVERSE_MANAGED_FLAGS.filter((flag) => {
+			const isDesiredEnabled = desired[flag];
+			return isDesiredEnabled !== undefined && isDesiredEnabled !== current[flag];
+		}),
+		...(desired.displayName === undefined || desired.displayName === current.displayName
+			? []
+			: ["displayName"]),
+		...("privateServerPriceRobux" in desired &&
+		desired.privateServerPriceRobux !== current.privateServerPriceRobux
+			? ["privateServerPriceRobux"]
+			: []),
+		...SOCIAL_LINK_FIELDS.filter(
+			(field) => field in desired && !socialLinkEqual(desired[field], current[field]),
+		),
+	];
+}
+
+function declaredUniverseFields(desired: UniverseDesiredState): ReadonlyArray<string> {
+	return [
+		...UNIVERSE_MANAGED_FLAGS.filter((flag) => desired[flag] !== undefined),
+		...(desired.displayName === undefined ? [] : ["displayName"]),
+		...("privateServerPriceRobux" in desired ? ["privateServerPriceRobux"] : []),
+		...SOCIAL_LINK_FIELDS.filter((field) => field in desired),
+	];
+}
+
 function flatten(config: ResolvedConfig): ReadonlyArray<UniverseDesiredInput> {
 	const entry = config.universe;
 	if (entry === undefined) {
@@ -96,41 +164,6 @@ async function normalize(
 	_io: KindIo,
 ): Promise<Result<UniverseDesiredState, BuildDesiredError>> {
 	return { data: buildBaseDesired(input), success: true };
-}
-
-function socialLinkEqual(a: SocialLink | undefined, b: SocialLink | undefined): boolean {
-	if (a === undefined) {
-		return b === undefined;
-	}
-
-	if (b === undefined) {
-		return false;
-	}
-
-	return a.title === b.title && a.uri === b.uri;
-}
-
-function changedFieldsBetween(
-	desired: UniverseDesiredState,
-	current: ResourceCurrentState<"universe">,
-): ReadonlyArray<string> {
-	return [
-		...(desired.universeId === current.universeId ? [] : ["universeId"]),
-		...UNIVERSE_MANAGED_FLAGS.filter((flag) => {
-			const isDesiredEnabled = desired[flag];
-			return isDesiredEnabled !== undefined && isDesiredEnabled !== current[flag];
-		}),
-		...(desired.displayName === undefined || desired.displayName === current.displayName
-			? []
-			: ["displayName"]),
-		...("privateServerPriceRobux" in desired &&
-		desired.privateServerPriceRobux !== current.privateServerPriceRobux
-			? ["privateServerPriceRobux"]
-			: []),
-		...SOCIAL_LINK_FIELDS.filter(
-			(field) => field in desired && !socialLinkEqual(desired[field], current[field]),
-		),
-	];
 }
 
 function fieldsEqual(
