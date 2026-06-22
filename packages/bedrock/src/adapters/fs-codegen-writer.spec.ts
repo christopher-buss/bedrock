@@ -95,7 +95,7 @@ describe(createFsCodegenWriter, () => {
 		expect(writeFile).not.toHaveBeenCalled();
 	});
 
-	it("should reject an absolute path without touching the filesystem", async () => {
+	it("should reject an absolute path even when it points inside the output directory", async () => {
 		expect.assertions(2);
 
 		const writeFile = fakeWriteFile();
@@ -105,7 +105,9 @@ describe(createFsCodegenWriter, () => {
 			writeFile,
 		});
 
-		const result = await writer.write({ content: "x", path: resolve("ids.luau") });
+		// Absolute and inside the output dir: only the absolute-path guard can
+		// reject this, since the `..`-relative check would otherwise accept it.
+		const result = await writer.write({ content: "x", path: resolve(OUTPUT_DIR, "ids.luau") });
 
 		assert(!result.success);
 
