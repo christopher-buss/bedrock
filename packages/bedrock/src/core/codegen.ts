@@ -28,6 +28,22 @@ export interface EmitInput {
  * Caller-supplied function that turns the per-environment state into the files
  * bedrock writes. Returns a keyed array of files (sync or async); bedrock
  * writes them through the injected writer but never commits them.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { Emitter } from "@bedrock-rbx/core";
+ *
+ * const emit: Emitter = ({ environments }) => {
+ *     const count = environments["production"]?.resources.length ?? 0;
+ *     return [{ content: `return { count = ${String(count)} }\n`, path: "ids.luau" }];
+ * };
+ *
+ * const files = emit({
+ *     environments: { production: { environment: "production", resources: [], version: 1 } },
+ * });
+ * expect(files).toStrictEqual([{ content: "return { count = 0 }\n", path: "ids.luau" }]);
+ * ```
  */
 export type Emitter = (
 	input: EmitInput,

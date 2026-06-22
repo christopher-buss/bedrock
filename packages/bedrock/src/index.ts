@@ -6,6 +6,7 @@ export {
 	createDeveloperProductDriver,
 	type DeveloperProductDriverDeps,
 } from "./adapters/developer-product-driver.ts";
+export { createFsCodegenWriter, type FsCodegenWriterDeps } from "./adapters/fs-codegen-writer.ts";
 export { createGamePassDriver, type GamePassDriverDeps } from "./adapters/game-pass-driver.ts";
 export {
 	createGistStateAdapter,
@@ -28,6 +29,7 @@ export type {
 	SpawnLaunchCause,
 	SpawnLaunchError,
 } from "./cli/spawner.ts";
+export type { CodegenFile, EmitInput, Emitter } from "./core/codegen.ts";
 export type { ConfigError, ConfigValidationIssue } from "./core/config-error.ts";
 export { derivePriceFields, type PriceFields } from "./core/derive-price-fields.ts";
 export { diff } from "./core/diff.ts";
@@ -86,6 +88,7 @@ export {
 export {
 	isGistStateConfig,
 	validateConfig,
+	type CodegenConfig,
 	type Config,
 	type ConfigEnvironmentUniverseId,
 	type ConfigRootUniverseId,
@@ -117,6 +120,7 @@ export {
 } from "./core/select-environment.ts";
 export { parseStateFile, serializeStateFile } from "./core/state-file.ts";
 export type { BedrockState, StateError } from "./core/state.ts";
+export type { CodegenWriteError, CodegenWriterPort } from "./ports/codegen-writer.ts";
 export type {
 	ApplySummaryEvent,
 	DeployFailureEvent,
@@ -146,6 +150,7 @@ export { defineConfig, type ConfigContext, type ConfigInput } from "./shell/defi
 export { deploy, type DeployError, type DeployOptions } from "./shell/deploy.ts";
 export { loadConfig, type LoadConfigOptions } from "./shell/load-config.ts";
 export { migrateMantleState, type MigrateMantleStateDeps } from "./shell/migrate-mantle-state.ts";
+export type { CodegenError } from "./shell/run-codegen.ts";
 export {
 	asResourceKey,
 	asRobloxAssetId,

@@ -155,6 +155,23 @@ describe(runCodegen, () => {
 		expect(result.err.reason).toBe("emit blew up");
 	});
 
+	it("should stringify a non-Error emitter rejection into the failure reason", async () => {
+		expect.assertions(1);
+
+		const result = await runCodegen({
+			deployedState: PRODUCTION,
+			emit: vi.fn<Emitter>().mockRejectedValue("kaboom"),
+			environments: ["production"],
+			statePort: statePortReading(STAGING),
+			writer: inMemoryWriter().port,
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "codegenEmitThrew");
+
+		expect(result.err.reason).toBe("kaboom");
+	});
+
 	it("should fail with codegenWriteFailed when the writer rejects a file", async () => {
 		expect.assertions(1);
 

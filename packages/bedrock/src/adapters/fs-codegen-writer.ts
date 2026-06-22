@@ -34,6 +34,26 @@ export interface FsCodegenWriterDeps {
  *
  * @param deps - Output directory plus optional filesystem injection seams.
  * @returns A writer port that persists files under `outputDir`.
+ * @example
+ *
+ * ```ts
+ * import { createFsCodegenWriter } from "@bedrock-rbx/core";
+ *
+ * const writes: Array<{ content: string; path: string }> = [];
+ * const writer = createFsCodegenWriter({
+ *     mkdir: async () => undefined,
+ *     outputDir: "src/generated",
+ *     writeFile: async (path, content) => {
+ *         writes.push({ content, path });
+ *     },
+ * });
+ *
+ * return writer.write({ content: "return {}\n", path: "ids.luau" }).then((result) => {
+ *     expect(result.success).toBeTrue();
+ *     expect(writes[0]?.content).toBe("return {}\n");
+ *     expect(writes[0]?.path).toContain("ids.luau");
+ * });
+ * ```
  */
 export function createFsCodegenWriter(deps: FsCodegenWriterDeps): CodegenWriterPort {
 	const makeDirectory = deps.mkdir ?? nodeMkdir;

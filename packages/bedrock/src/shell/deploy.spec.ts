@@ -1416,6 +1416,29 @@ describe(deploy, () => {
 			expect(chunks.join("")).toContain("State written to gist:abc-test");
 		});
 
+		it("should surface resolveDeps failure through the default clack path when BEDROCK_CLI is set", async () => {
+			expect.assertions(1);
+
+			const writeSpy = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+
+			try {
+				const result = await deploy({
+					config: vipPassConfig(),
+					environment: "ghost",
+					getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test", BEDROCK_CLI: "1" }),
+					readFile: readIcon,
+					registry: stubRegistry(),
+					statePort: inMemoryStatePort().port,
+				});
+
+				assert(!result.success);
+
+				expect(result.err.kind).toBe("unknownEnvironment");
+			} finally {
+				writeSpy.mockRestore();
+			}
+		});
+
 		it("should default to a no-op port when progress is omitted and BEDROCK_CLI is unset", async () => {
 			expect.assertions(1);
 
