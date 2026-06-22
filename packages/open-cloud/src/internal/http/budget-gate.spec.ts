@@ -73,10 +73,33 @@ describe(BudgetGate, () => {
 
 		gate.observe("k", { remaining: 2, resetSeconds: 60 });
 		await gate.gate("k");
-		// Two concurrent gates: serialization means the second waits for the
-		// first's reserve, so only one sleeps. Without it, both read the same
-		// budget and both sleep, recording two waits.
 		await Promise.all([gate.gate("k"), gate.gate("k")]);
+
+		expect(clock.waits).toStrictEqual([60_000]);
+	});
+
+	it("should keep gating after a failed attempt", async () => {
+		expect.assertions(2);
+
+		const clock = createFakeClock();
+		let shouldReject = true;
+		async function sleep(ms: number): Promise<void> {
+			if (shouldReject) {
+				shouldReject = false;
+				throw new Error("sleep failed");
+			}
+
+			return clock.sleep(ms);
+		}
+
+		const gate = new BudgetGate(sleep);
+
+		gate.observe("k", { remaining: 1, resetSeconds: 60 });
+		await gate.gate("k");
+
+		await expect(gate.gate("k")).rejects.toThrow("sleep failed");
+
+		await gate.gate("k");
 
 		expect(clock.waits).toStrictEqual([60_000]);
 	});

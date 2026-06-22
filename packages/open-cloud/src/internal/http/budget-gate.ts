@@ -33,12 +33,15 @@ export class BudgetGate {
 
 	/**
 	 * Holds until the scope's budget permits a send, then reserves one slot.
+	 * Runs after the prior gate on the same scope settles, whether it resolved
+	 * or rejected, so one failed attempt cannot poison later gates on the key.
 	 *
 	 * @param scope - The scope key to gate on (the effective API key).
 	 */
 	public async gate(scope: string): Promise<void> {
 		const previous = this.#chains.get(scope) ?? Promise.resolve();
-		const mine = previous.then(async () => this.#gateOnce(scope));
+		const runGate = async (): Promise<void> => this.#gateOnce(scope);
+		const mine = previous.then(runGate, runGate);
 		this.#chains.set(scope, mine);
 		await mine;
 	}
