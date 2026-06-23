@@ -22,7 +22,7 @@ export interface TwoPhasePlan {
  * Split a deploy's reconcile ops into the asset stage and the withheld place
  * ops. Place ops are held back from the asset stage so the asset stage mints new
  * IDs and persists mutable asset fields before codegen regenerates the place's
- * source; the caller then decides — from the freshly emitted codegen hash — to
+ * source; the caller then decides, from the freshly emitted codegen hash, whether to
  * republish the rebuilt bytes or replay `placeOps` to publish the pre-built file.
  *
  * Every declared place is marked (`markPlaces`), not a computed subset: the diff

@@ -36,7 +36,8 @@ interface ApplyAndPersistInputs {
 	 * Codegen fingerprint to stamp onto the persisted snapshot. Omit (or pass
 	 * `undefined`) to leave the field off; a caller threads the stored hash
 	 * through to preserve it, and the freshly emitted hash on the write that
-	 * completes a successful rebuild.
+	 * completes a successful rebuild. Stamped only when the pass fully applies:
+	 * a partial failure drops the hash so the next deploy re-detects the change.
 	 */
 	readonly codegenHash?: Sha256Hex | undefined;
 	/** Environment name threaded into `applyOps` reporting and the snapshot. */
@@ -157,7 +158,10 @@ function buildSnapshot(inputs: SnapshotInputs): BedrockState {
 		pendingRebuild === undefined || pendingRebuild.size === 0 ? {} : { pendingRebuild };
 	const scoped = scopeRealDisplay(realDisplay, resources);
 	const real = Object.keys(scoped).length === 0 ? {} : { realDisplay: scoped };
-	const hash = codegenHash === undefined ? {} : { codegenHash };
+	// Advance the fingerprint only when every op in the pass applied: a failed
+	// republish must not record that the place was rebuilt against the emitted
+	// source, so the hash is dropped and the next deploy re-detects the change.
+	const hash = codegenHash === undefined || !applied.success ? {} : { codegenHash };
 
 	return {
 		...hash,

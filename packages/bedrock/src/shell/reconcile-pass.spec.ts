@@ -325,6 +325,44 @@ describe(applyAndPersist, () => {
 		expect(pass.merged.codegenHash).toBeUndefined();
 	});
 
+	it("should drop the codegen hash when an op in the pass fails to apply", async () => {
+		expect.assertions(2);
+
+		const hash = asSha256Hex(
+			"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		);
+		const failure = new OpenCloudError("create vip-pass: 503");
+		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
+			gamePass: {
+				async create(desired) {
+					return desired.key === "alpha-pass"
+						? { data: alpha, success: true }
+						: { err: failure, success: false };
+				},
+			},
+			place: placeStub,
+			universe: universeStub,
+		};
+		const { port } = inMemoryStatePort();
+
+		const pass = await applyAndPersist({
+			codegenHash: hash,
+			environment: "production",
+			ops: [
+				createGamePassOp(asResourceKey("alpha-pass")),
+				createGamePassOp(asResourceKey("vip-pass")),
+			],
+			priorResources: [],
+			progress: recordingProgress().port,
+			registry,
+			statePort: port,
+		});
+
+		expect(pass.applied.success).toBeFalse();
+		expect(pass.merged.codegenHash).toBeUndefined();
+	});
+
 	it("should forward artifacts to the driver as apply context", async () => {
 		expect.assertions(1);
 

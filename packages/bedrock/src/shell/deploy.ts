@@ -105,7 +105,7 @@ export interface DeployOptions {
 	 * round-trip through a config file). When supplied alongside active codegen,
 	 * `deploy` mints the assets, runs codegen, and rebuilds + republishes each
 	 * place from the hook's bytes whenever the emitted source would change (its
-	 * fingerprint differs from the stored one) — otherwise it publishes the
+	 * fingerprint differs from the stored one); otherwise it publishes the
 	 * pre-built file. Because the rebuild re-runs the build after codegen
 	 * rewrites source, the deploy environment needs the build toolchain, not just
 	 * a pre-built artifact. Omit, or run without codegen, to publish places in a
@@ -622,7 +622,7 @@ async function runPublishStage(
 	const { assetPass, codegen, codegenHash, deps, environment, placeOps } = inputs;
 	// Codegen output matched the stored hash, so the pre-built place file is
 	// still current: replay the withheld place ops (the driver reads the file
-	// from disk), clear the marker — nothing owes a rebuild — and advance the
+	// from disk), clear the marker (nothing owes a rebuild), and advance the
 	// stored hash to the value just emitted.
 	const publishPass = await applyAndPersist({
 		codegenHash,
@@ -667,7 +667,7 @@ async function completeTwoPhase(
 	const nextHash = emittedHash ?? storedHash;
 	// Rebuild when a leftover marker forces it or the freshly emitted codegen
 	// would differ from what the published place was last built against. A
-	// provisioned create changes the emitted output, so its hash differs — the
+	// provisioned create changes the emitted output, so its hash differs and the
 	// create trigger is subsumed here, not duplicated.
 	const shouldRebuild =
 		marker.size > 0 || (emittedHash !== undefined && emittedHash !== storedHash);

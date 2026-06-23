@@ -456,6 +456,21 @@ describe(parseStateFile, () => {
 		});
 	});
 
+	it("should err when the codegen hash is not a 64-character lowercase hex digest", () => {
+		expect.assertions(1);
+
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: { codegenHash: "not-a-valid-hash", version: 1 },
+				environment: "production",
+				resources: [],
+			}),
+			SAMPLE_FILE,
+		);
+
+		expect(result.success).toBeFalse();
+	});
+
 	it("should parse a v1 state file without pendingRebuild and leave version unchanged", () => {
 		expect.assertions(3);
 

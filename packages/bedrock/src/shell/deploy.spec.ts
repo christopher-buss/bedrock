@@ -2523,6 +2523,38 @@ describe(deploy, () => {
 			expect(writes[0]!.codegenHash).toBe(storedHash);
 			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
 		});
+
+		it("should preserve the stored codegen hash on a marker retry without an active emitter", async () => {
+			expect.assertions(2);
+
+			const storedHash = asSha256Hex(
+				"2222222222222222222222222222222222222222222222222222222222222222",
+			);
+			const { port, writes } = inMemoryStatePort({
+				codegenHash: storedHash,
+				environment: "production",
+				pendingRebuild: new Set([startPlace]),
+				resources: [vipPassCurrent(), startPlaceInState()],
+				version: 1,
+			});
+			const { placeCalls, registry } = recordingPlaceRegistry();
+
+			const result = await deploy({
+				config: twoPhaseConfig(),
+				environment: "production",
+				readFile: readIcon,
+				rebuild: cannedRebuild,
+				registry,
+				statePort: port,
+			});
+
+			assert(result.success);
+
+			expect(placeCalls).toStrictEqual([
+				{ key: startPlace, artifact: rebuiltBytes, type: "update" },
+			]);
+			expect(writes.at(-1)!.codegenHash).toBe(storedHash);
+		});
 	});
 });
 

@@ -286,7 +286,7 @@ seam with in-memory fakes (no real disk or network).
 
 The original two-phase trigger (user story 14) rebuilt a place only when the
 diff contained a provisioned `create`. That misses a project that embeds
-*mutable* fields — a price, a name — into the place rather than just IDs: a
+*mutable* fields (a price, a name) into the place rather than just IDs: a
 price/name `update` is not a `create`, so the pre-built artifact and the
 regenerated source silently diverged until the next provisioning. The
 "last-codegen-hash fingerprint" recorded as deferred in *Considered Options* is
@@ -296,7 +296,7 @@ now adopted, retiring the create-only trigger.
 emits, bedrock hashes the emitted output (`Sha256Hex`) and rebuilds + republishes
 iff that hash differs from a stored fingerprint **or** a `pendingRebuild` marker
 is set; otherwise it publishes the pre-built file. A provisioned `create` changes
-the emitted output, so its hash differs — the create trigger is **subsumed and
+the emitted output, so its hash differs: the create trigger is **subsumed and
 retired**, not duplicated. Because the decision now needs the emitted hash,
 whenever a rebuild hook **and** active codegen are both present the deploy always
 defers place ops past the asset stage: the asset stage mints IDs and persists
@@ -307,7 +307,7 @@ republish-rebuilt-bytes vs publish-pre-built-file per place.
 `$bedrock` envelope alongside `pendingRebuild`, diff-ignored (ADR-019 2026-06-23
 amendment). Lifecycle: the new hash is stored only on the write that completes a
 **successful** publish/republish; on a failed rebuild or republish the stored
-hash stays stale and the marker stays set, so the next deploy self-heals — the
+hash stays stale and the marker stays set, so the next deploy self-heals: the
 same convergence guarantee the marker already provided, now also covering
 mutable-field drift. A clean first deploy has no stored hash, which reads as
 "differs" and rebuilds.

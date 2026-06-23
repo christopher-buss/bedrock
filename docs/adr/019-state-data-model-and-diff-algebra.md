@@ -522,15 +522,15 @@ export type DriverRegistry = {
   backend is recorded in ADR-024's 2026-06-23 amendment.
 
 - **2026-06-23 (`codegenHash` envelope field):** the file-level `$bedrock`
-  envelope gains an optional `codegenHash` member — a single `Sha256Hex`
+  envelope gains an optional `codegenHash` member: a single `Sha256Hex`
   fingerprint of the codegen output the currently-published place was last built
-  against — mapped to and from a typed `BedrockState.codegenHash` field exactly
+  against, mapped to and from a typed `BedrockState.codegenHash` field exactly
   as `version` and `pendingRebuild` already are. Like `pendingRebuild`, it is
   bedrock bookkeeping, not user-declared desired state or Roblox-returned
   **Outputs**: `diff` and `mergeResources` never read it, so it stays out of the
   diff algebra and the marker-style "never participates in **Drift**" rule
   extends to it. It is a v1-compatible, additive envelope member per this ADR's
-  `$bedrock.version` revisit criterion — a pre-existing reader ignores the
+  `$bedrock.version` revisit criterion: a pre-existing reader ignores the
   unknown member and a happy-path deploy with codegen disabled never writes one.
   Its lifecycle (stored only on a successful republish/publish, retained stale on
   an aborted rebuild so the next deploy retries) and its role as the two-phase

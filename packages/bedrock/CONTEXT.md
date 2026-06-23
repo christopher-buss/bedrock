@@ -111,11 +111,11 @@ A presence-only bookkeeping marker — a place **Key** listed in the `$bedrock` 
 _Avoid_: dirty flag, needs-redeploy, stale marker
 
 **Codegen fingerprint**:
-A single `Sha256Hex` of the **Codegen** output the currently-published place was last built against, stored as `codegenHash` in the `$bedrock` envelope. A **Two-phase deploy** rebuilds and republishes iff the freshly emitted hash differs from the stored one (or a **Pending rebuild** marker forces it); an unchanged hash publishes the pre-built file. Stored only on a successful republish, retained stale on an aborted rebuild so the next deploy retries — the trigger that supersedes the old "any provisioned `create`" rule, catching mutable-field (price, name) drift the create rule missed. Diff-ignored like the marker; an absent stored hash (clean first deploy) reads as "differs".
+A single `Sha256Hex` of the **Codegen** output the currently-published place was last built against, stored as `codegenHash` in the `$bedrock` envelope. A **Two-phase deploy** rebuilds and republishes iff the freshly emitted hash differs from the stored one (or a **Pending rebuild** marker forces it); an unchanged hash publishes the pre-built file. Stored only on a successful republish, retained stale on an aborted rebuild so the next deploy retries; the trigger that supersedes the old "any provisioned `create`" rule, catching mutable-field (price, name) drift the create rule missed. Diff-ignored like the marker; an absent stored hash (clean first deploy) reads as "differs".
 _Avoid_: checksum, etag, revision, dirty hash
 
 **`$bedrock` namespace**:
-The reserved, **adapter-private** key on the on-disk state envelope carrying bedrock's own bookkeeping — the schema `version`, the **Pending rebuild** list, and the **Codegen fingerprint** (`codegenHash`) — distinct from user-declared desired state and Roblox-returned **Outputs**. Adapters flatten it on read into typed `BedrockState` fields and re-wrap it on write; nothing outside an adapter sees the raw key, and its contents never participate in **Drift**.
+The reserved, **adapter-private** key on the on-disk state envelope carrying bedrock's own bookkeeping (the schema `version`, the **Pending rebuild** list, and the **Codegen fingerprint** `codegenHash`), distinct from user-declared desired state and Roblox-returned **Outputs**. Adapters flatten it on read into typed `BedrockState` fields and re-wrap it on write; nothing outside an adapter sees the raw key, and its contents never participate in **Drift**.
 _Avoid_: metadata, internal, reserved
 
 ### Patterns

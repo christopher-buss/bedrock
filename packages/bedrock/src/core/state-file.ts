@@ -18,8 +18,16 @@ const resourceShape = type({
 	"outputs": "object",
 });
 
+// `codegenHash` is constrained to the `Sha256Hex` shape (64 lowercase hex
+// chars) at the schema boundary so a malformed digest from old tooling or a
+// manual edit is rejected as an untrusted state file rather than branded and
+// fed into the rebuild-decision comparison.
 const envelopeSchema = type({
-	$bedrock: { "codegenHash?": "string", "pendingRebuild?": "string[]", "version": "1" },
+	$bedrock: {
+		"codegenHash?": "/^[0-9a-f]{64}$/",
+		"pendingRebuild?": "string[]",
+		"version": "1",
+	},
 	environment: "string",
 	resources: resourceShape.array(),
 });
@@ -62,7 +70,8 @@ export function coLocateRealDisplay(
  *
  * A non-empty `pendingRebuild` set is written as a `pendingRebuild` list of
  * keys alongside `version` inside the envelope; an empty or absent set is
- * omitted so a happy-path file never shows the marker.
+ * omitted so a happy-path file never shows the marker. A present `codegenHash`
+ * is likewise stored alongside `version`; an absent one is omitted.
  *
  * @since 0.1.0
  *
