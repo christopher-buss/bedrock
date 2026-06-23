@@ -3,15 +3,12 @@ import {
 	gamePassCurrent,
 	gamePassDesired,
 	placeDesired,
-	universeDesired,
 } from "#tests/helpers/resources";
 import { describe, expect, it } from "vitest";
 
 import { asResourceKey, type ResourceKey } from "../types/ids.ts";
 import type { Operation } from "./operations.ts";
 import { planTwoPhase } from "./plan-two-phase.ts";
-
-const NO_MARKER: ReadonlySet<ResourceKey> = new Set();
 
 function gamePassCreate(): Operation {
 	const desired = gamePassDesired();
@@ -25,11 +22,6 @@ function developerProductCreate(): Operation {
 
 function placeCreate(): Operation {
 	const desired = placeDesired();
-	return { key: desired.key, desired, type: "create" };
-}
-
-function universeCreate(): Operation {
-	const desired = universeDesired();
 	return { key: desired.key, desired, type: "create" };
 }
 
@@ -52,112 +44,59 @@ function gamePassNoop(): Operation {
 }
 
 describe(planTwoPhase, () => {
-	it("should not activate when no provisioned create or marker exists", () => {
-		expect.assertions(2);
-
-		const ops = [gamePassUpdate(), placeCreate()];
-
-		const plan = planTwoPhase(ops, NO_MARKER);
-
-		expect(plan.activates).toBeFalse();
-		expect(plan.assetOps).toStrictEqual(ops);
-	});
-
-	it("should activate on a game-pass create", () => {
-		expect.assertions(1);
-
-		expect(planTwoPhase([gamePassCreate()], NO_MARKER).activates).toBeTrue();
-	});
-
-	it("should activate on a developer-product create", () => {
-		expect.assertions(1);
-
-		expect(planTwoPhase([developerProductCreate()], NO_MARKER).activates).toBeTrue();
-	});
-
-	it("should not treat a place create as a provisioned create", () => {
-		expect.assertions(1);
-
-		expect(planTwoPhase([placeCreate()], NO_MARKER).activates).toBeFalse();
-	});
-
-	it("should not treat a universe create as a provisioned create", () => {
-		expect.assertions(1);
-
-		expect(planTwoPhase([universeCreate()], NO_MARKER).activates).toBeFalse();
-	});
-
-	it("should activate from a pending-rebuild marker even without a provisioned create", () => {
-		expect.assertions(2);
-
-		const marker = new Set([placeDesired().key]);
-
-		const plan = planTwoPhase([placeNoop()], marker);
-
-		expect(plan.activates).toBeTrue();
-		expect(plan.assetOps).toStrictEqual([]);
-	});
-
-	it("should withhold place ops from the asset stage when two-phase activates", () => {
+	it("should withhold place ops from the asset stage", () => {
 		expect.assertions(2);
 
 		const pass = gamePassCreate();
-		const universe = universeCreate();
+		const product = developerProductCreate();
 		const place = placeCreate();
 
-		const plan = planTwoPhase([pass, place, universe], NO_MARKER);
+		const plan = planTwoPhase([pass, place, product]);
 
-		expect(plan.activates).toBeTrue();
-		expect(plan.assetOps).toStrictEqual([pass, universe]);
+		expect(plan.assetOps).toStrictEqual([pass, product]);
+		expect(plan.placeOps).toStrictEqual([place]);
 	});
 
-	it("should withhold a noop place from the asset stage when two-phase activates", () => {
-		expect.assertions(1);
+	it("should withhold a noop place from the asset stage", () => {
+		expect.assertions(2);
 
 		const pass = gamePassCreate();
+		const place = placeNoop();
 
-		const plan = planTwoPhase([pass, placeNoop()], NO_MARKER);
+		const plan = planTwoPhase([pass, place]);
 
 		expect(plan.assetOps).toStrictEqual([pass]);
+		expect(plan.placeOps).toStrictEqual([place]);
 	});
 
-	it("should keep a non-place noop in the asset stage when two-phase activates", () => {
+	it("should keep a non-place noop in the asset stage", () => {
 		expect.assertions(1);
 
 		const pass = gamePassCreate();
 		const noop = gamePassNoop();
 
-		const plan = planTwoPhase([pass, noop], NO_MARKER);
+		const plan = planTwoPhase([pass, noop]);
 
 		expect(plan.assetOps).toStrictEqual([pass, noop]);
 	});
 
-	it("should mark every declared place when a provisioned create is present", () => {
+	it("should mark every declared place regardless of its op type", () => {
 		expect.assertions(1);
 
 		const arena = asResourceKey("arena");
 		const lobby = asResourceKey("lobby");
-		const plan = planTwoPhase(
-			[gamePassCreate(), placeNoopFor(lobby), placeNoopFor(arena)],
-			NO_MARKER,
-		);
+
+		const plan = planTwoPhase([gamePassCreate(), placeNoopFor(lobby), placeNoopFor(arena)]);
 
 		expect(plan.markPlaces).toStrictEqual([lobby, arena]);
 	});
 
-	it("should mark every declared place on a marker-driven activation, not just the marked one", () => {
-		expect.assertions(1);
+	it("should leave markPlaces and placeOps empty when no place op exists", () => {
+		expect.assertions(2);
 
-		const arena = asResourceKey("arena");
-		const lobby = asResourceKey("lobby");
-		const plan = planTwoPhase([placeNoopFor(lobby), placeNoopFor(arena)], new Set([arena]));
+		const plan = planTwoPhase([gamePassUpdate()]);
 
-		expect(plan.markPlaces).toStrictEqual([lobby, arena]);
-	});
-
-	it("should leave markPlaces empty when two-phase does not activate", () => {
-		expect.assertions(1);
-
-		expect(planTwoPhase([gamePassUpdate()], NO_MARKER).markPlaces).toStrictEqual([]);
+		expect(plan.markPlaces).toStrictEqual([]);
+		expect(plan.placeOps).toStrictEqual([]);
 	});
 });

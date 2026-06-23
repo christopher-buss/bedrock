@@ -1,9 +1,15 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import { buildCodegenEnvironments, type CodegenFile, type Emitter } from "../core/codegen.ts";
+import {
+	buildCodegenEnvironments,
+	type CodegenFile,
+	type Emitter,
+	hashCodegenFiles,
+} from "../core/codegen.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
 import type { CodegenWriteError, CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { StatePort } from "../ports/state-port.ts";
+import type { Sha256Hex } from "../types/ids.ts";
 
 /**
  * Failure surfaced by {@link runCodegen}. Stage-tagged so callers can tell a
@@ -45,10 +51,13 @@ interface RunCodegenInputs {
  *
  * @param inputs - Deployed snapshot, declared environments, emitter, state
  * backend, and writer.
- * @returns `Ok` once all files are written, or a stage-tagged
- * {@link CodegenError}.
+ * @returns The fingerprint of the emitted output once all files are written,
+ * or a stage-tagged {@link CodegenError}. A two-phase deploy compares the hash
+ * against the stored one to decide whether to rebuild.
  */
-export async function runCodegen(inputs: RunCodegenInputs): Promise<Result<void, CodegenError>> {
+export async function runCodegen(
+	inputs: RunCodegenInputs,
+): Promise<Result<Sha256Hex, CodegenError>> {
 	const collected = await collectStates(inputs);
 	if (!collected.success) {
 		return collected;
@@ -67,7 +76,12 @@ export async function runCodegen(inputs: RunCodegenInputs): Promise<Result<void,
 		};
 	}
 
-	return writeFiles(files, inputs.writer);
+	const written = await writeFiles(files, inputs.writer);
+	if (!written.success) {
+		return written;
+	}
+
+	return { data: await hashCodegenFiles(files), success: true };
 }
 
 async function collectStates(

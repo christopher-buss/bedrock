@@ -1,3 +1,5 @@
+import { asSha256Hex, type Sha256Hex } from "../types/ids.ts";
+import { sha256Hex } from "./kinds/hash.ts";
 import type { CodegenConfig } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
 
@@ -77,6 +79,23 @@ export function buildCodegenEnvironments(
 }
 
 /**
+ * Fingerprint the emitted codegen output so a two-phase deploy can tell whether
+ * the generated source would change. The digest is order-independent (files are
+ * sorted by `path` first) so a reordered emitter return does not spuriously
+ * trigger a rebuild, and the canonical form is a JSON array of `[path, content]`
+ * pairs so no path/content boundary shift collides.
+ *
+ * @param files - The files the emitter returned for the deployed environment.
+ * @returns The branded SHA-256 hex digest of the canonicalized output.
+ */
+export async function hashCodegenFiles(files: ReadonlyArray<CodegenFile>): Promise<Sha256Hex> {
+	const canonical = JSON.stringify(
+		[...files].sort(byPath).map((file) => [file.path, file.content]),
+	);
+	return asSha256Hex(await sha256Hex(new TextEncoder().encode(canonical)));
+}
+
+/**
  * Whether codegen should run for a deploy. Opt-in: only an explicit
  * `enabled: true` activates it; an absent section or any other value keeps
  * Mantle-parity behaviour.
@@ -86,4 +105,12 @@ export function buildCodegenEnvironments(
  */
 export function isCodegenEnabled(codegen: CodegenConfig | undefined): boolean {
 	return codegen?.enabled === true;
+}
+
+function byPath(left: CodegenFile, right: CodegenFile): number {
+	if (left.path === right.path) {
+		return 0;
+	}
+
+	return left.path < right.path ? -1 : 1;
 }
