@@ -88,4 +88,59 @@ describe(collectPublicApiSymbols, () => {
 			},
 		]);
 	});
+
+	it("should skip names re-exported from another package", () => {
+		expect.assertions(1);
+
+		const read = moduleMap({
+			"core/diff.ts": "export function diff() {}",
+			"index.ts": [
+				'export { OpenCloudError } from "@bedrock-rbx/ocale";',
+				'export { diff } from "./core/diff.ts";',
+			].join("\n"),
+		});
+
+		const symbols = collectPublicApiSymbols(BARREL, read);
+
+		expect(symbols).toStrictEqual([
+			{
+				name: "diff",
+				declarationFile: declarationFileOf("core/diff.ts"),
+				sinceTag: undefined,
+			},
+		]);
+	});
+
+	it("should follow a re-export chain through an intermediate index to the declaration", () => {
+		expect.assertions(1);
+
+		const read = moduleMap({
+			"core/kinds/index.ts": 'export { defaultKindRegistry } from "./registry.ts";',
+			"core/kinds/registry.ts": "export const defaultKindRegistry = {};",
+			"index.ts": 'export { defaultKindRegistry } from "./core/kinds/index.ts";',
+		});
+
+		const symbols = collectPublicApiSymbols(BARREL, read);
+
+		expect(symbols).toStrictEqual([
+			{
+				name: "defaultKindRegistry",
+				declarationFile: declarationFileOf("core/kinds/registry.ts"),
+				sinceTag: undefined,
+			},
+		]);
+	});
+
+	it("should drop a name whose re-export chain leaves the package", () => {
+		expect.assertions(1);
+
+		const read = moduleMap({
+			"index.ts": 'export { Result } from "./re-export.ts";',
+			"re-export.ts": 'export { Result } from "@bedrock-rbx/ocale";',
+		});
+
+		const symbols = collectPublicApiSymbols(BARREL, read);
+
+		expect(symbols).toStrictEqual([]);
+	});
 });

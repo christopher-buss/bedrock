@@ -53,6 +53,10 @@ export function collectPublicApiSymbols(
 		}
 
 		const specifier = (statement.moduleSpecifier as ts.StringLiteral).text;
+		if (!isRelativeSpecifier(specifier)) {
+			continue;
+		}
+
 		const targetPath = path.resolve(path.dirname(barrelPath), specifier);
 
 		for (const element of namedExportElements(statement)) {
@@ -89,6 +93,10 @@ function namedExportElements(statement: ts.ExportDeclaration): ReadonlyArray<ts.
 	return clause.elements;
 }
 
+function isRelativeSpecifier(specifier: string): boolean {
+	return specifier.startsWith(".");
+}
+
 function declaresName(statement: ts.Statement, name: string): boolean {
 	if (
 		ts.isFunctionDeclaration(statement) ||
@@ -109,6 +117,28 @@ function declaresName(statement: ts.Statement, name: string): boolean {
 	return false;
 }
 
+function reExportTargetFor(
+	module: ts.SourceFile,
+	name: string,
+): undefined | { name: string; specifier: string } {
+	for (const statement of module.statements) {
+		if (!ts.isExportDeclaration(statement) || statement.moduleSpecifier === undefined) {
+			continue;
+		}
+
+		for (const element of namedExportElements(statement)) {
+			if (element.name.text === name) {
+				return {
+					name: (element.propertyName ?? element.name).text,
+					specifier: (statement.moduleSpecifier as ts.StringLiteral).text,
+				};
+			}
+		}
+	}
+
+	return undefined;
+}
+
 function resolveDeclaration(
 	request: DeclarationRequest,
 	readSource: ReadSource,
@@ -121,5 +151,16 @@ function resolveDeclaration(
 		}
 	}
 
-	return undefined;
+	const next = reExportTargetFor(module, request.name);
+	if (next === undefined || !isRelativeSpecifier(next.specifier)) {
+		return undefined;
+	}
+
+	return resolveDeclaration(
+		{
+			name: next.name,
+			modulePath: path.resolve(path.dirname(request.modulePath), next.specifier),
+		},
+		readSource,
+	);
 }
