@@ -84,12 +84,10 @@ export function createDefaultEmitter(options?: DefaultEmitterOptions): Emitter {
 	const shouldWriteDeclarations = options?.typeDeclarations === true;
 	return ({ environments }: EmitInput): ReadonlyArray<CodegenFile> => {
 		const tree = buildTree(environments);
-		const files: Array<CodegenFile> = [{ content: renderLuau(tree), path: LUAU_FILE }];
-		if (shouldWriteDeclarations) {
-			files.push({ content: renderDeclaration(tree), path: DECLARATION_FILE });
-		}
-
-		return files;
+		const luauFile: CodegenFile = { content: renderLuau(tree), path: LUAU_FILE };
+		return shouldWriteDeclarations
+			? [luauFile, { content: renderDeclaration(tree), path: DECLARATION_FILE }]
+			: [luauFile];
 	};
 }
 
@@ -117,7 +115,7 @@ function renderDeclaration(tree: IdTree): string {
 function sortedDefinedKeys(record: Readonly<Record<string, unknown>>): Array<string> {
 	return Object.keys(record)
 		.filter((key) => record[key] !== undefined)
-		.sort();
+		.toSorted();
 }
 
 function luauKey(name: string): string {
