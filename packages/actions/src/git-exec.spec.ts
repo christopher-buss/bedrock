@@ -22,6 +22,15 @@ describe(createGitExec, () => {
 		expect(result.code).not.toBe(0);
 		expect(result.stderr).not.toBe("");
 	});
+
+	it("should run git in the configured working directory", async () => {
+		expect.assertions(1);
+
+		const git = createGitExec({ cwd: "this-directory-does-not-exist-xyz" });
+		const result = await git(["--version"]);
+
+		expect(result.code).not.toBe(0);
+	});
 });
 
 describe(classifyExecFailure, () => {

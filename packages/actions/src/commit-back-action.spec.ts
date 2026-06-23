@@ -145,6 +145,62 @@ describe(resolveActionConfig, () => {
 		});
 	});
 
+	it("should split paths on runs of whitespace", () => {
+		expect.assertions(1);
+
+		const { deps } = harness({ inputs: { paths: "a/one \t b/two   c/three" } });
+
+		expect(resolveActionConfig(deps).options.paths).toStrictEqual([
+			"a/one",
+			"b/two",
+			"c/three",
+		]);
+	});
+
+	it("should accept max-attempts of exactly 1", () => {
+		expect.assertions(1);
+
+		const { deps } = harness({ inputs: { "max-attempts": "1" } });
+
+		expect(resolveActionConfig(deps).options.maxAttempts).toBe(1);
+	});
+
+	it("should reject a max-attempts of 0", () => {
+		expect.assertions(1);
+
+		const { deps } = harness({ inputs: { "max-attempts": "0" } });
+
+		expect(() => resolveActionConfig(deps)).toThrow(
+			"'max-attempts' must be a positive integer",
+		);
+	});
+
+	it("should treat a whitespace-only max-attempts as unset", () => {
+		expect.assertions(1);
+
+		const { deps } = harness({ inputs: { "max-attempts": "  " } });
+
+		expect(resolveActionConfig(deps).options.maxAttempts).toBeUndefined();
+	});
+
+	it("should reject a whitespace-only token", () => {
+		expect.assertions(1);
+
+		const { deps } = harness({ inputs: { token: "   " } });
+
+		expect(() => resolveActionConfig(deps)).toThrow("missing required input 'token'");
+	});
+
+	it("should reject a whitespace-only GITHUB_REPOSITORY", () => {
+		expect.assertions(1);
+
+		const { deps } = harness({ env: { GITHUB_REPOSITORY: "   " } });
+
+		expect(() => resolveActionConfig(deps)).toThrow(
+			"missing required environment variable 'GITHUB_REPOSITORY'",
+		);
+	});
+
 	it("should build the remote URL from an enterprise GITHUB_SERVER_URL", () => {
 		expect.assertions(1);
 

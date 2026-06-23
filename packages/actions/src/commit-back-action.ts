@@ -34,9 +34,8 @@ export function resolveActionConfig(deps: CommitBackActionDeps): {
 	remoteUrl: string;
 } {
 	const token = requireInput(deps.readInput, "token");
-	const paths = requireInput(deps.readInput, "paths")
-		.split(/\s+/u)
-		.filter((path) => path.length > 0);
+	// requireInput trims, so the split yields no leading/trailing empties.
+	const paths = requireInput(deps.readInput, "paths").split(/\s+/u);
 	const serverUrl = deps.getEnv("GITHUB_SERVER_URL") ?? DEFAULT_SERVER_URL;
 	const repository = requireEnvironment(deps.getEnv, "GITHUB_REPOSITORY");
 
@@ -72,11 +71,8 @@ export async function runCommitBackAction(deps: CommitBackActionDeps): Promise<v
 }
 
 function authenticatedUrl(parts: { repository: string; serverUrl: string; token: string }): string {
-	const authority = parts.serverUrl.replace(
-		/^https:\/\//u,
-		`https://x-access-token:${parts.token}@`,
-	);
-	return `${authority}/${parts.repository}.git`;
+	const host = parts.serverUrl.replace("https://", "");
+	return `https://x-access-token:${parts.token}@${host}/${parts.repository}.git`;
 }
 
 function parseMaxAttempts(raw: string): { maxAttempts?: number } {

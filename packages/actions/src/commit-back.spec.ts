@@ -64,37 +64,51 @@ const DefaultOptions = {
 } as const;
 
 describe(commitBack, () => {
-	it("should commit and push the changed files, returning the new commit sha", async () => {
-		expect.assertions(3);
+	it("should reflow, commit, and push in order, returning the new commit sha", async () => {
+		expect.assertions(2);
 
 		const { calls, git } = fakeGit({
 			diff: "src/shared/assets/places.ts\n",
 			head: "abc1234\n",
+			stashSha: "stash99\n",
 		});
 
 		const result = await commitBack({ git }, DefaultOptions);
 
 		expect(result).toStrictEqual({ changedFiles: 1, committed: true, sha: "abc1234" });
-		expect(calls.some((args) => args.includes("commit"))).toBeTrue();
-		expect(calls.some((args) => args.includes("push"))).toBeTrue();
+		expect(calls).toStrictEqual([
+			["diff", "--name-only", "--", "src/shared/assets"],
+			["stash", "create"],
+			["fetch", "origin", "main"],
+			["checkout", "-f", "-B", "main", "FETCH_HEAD"],
+			["checkout", "stash99", "--", "src/shared/assets"],
+			["add", "--", "src/shared/assets"],
+			[
+				"-c",
+				"user.name=deploy-bot",
+				"-c",
+				"user.email=bot@example.com",
+				"commit",
+				"--message",
+				"chore(assets): regenerate asset ids [skip ci]",
+			],
+			["rev-parse", "HEAD"],
+			["push", "origin", "HEAD:refs/heads/main"],
+		]);
 	});
 
-	it("should reflow the changed files onto the latest branch tip before committing", async () => {
-		expect.assertions(3);
+	it("should count only non-blank diff lines as changed files", async () => {
+		expect.assertions(1);
 
-		const { calls, git } = fakeGit({
-			diff: "src/shared/assets/places.ts\n",
+		const { git } = fakeGit({
+			diff: "src/a.ts\n\n   \nsrc/b.ts\n",
 			head: "abc1234\n",
 			stashSha: "stash99",
 		});
 
-		await commitBack({ git }, DefaultOptions);
+		const result = await commitBack({ git }, DefaultOptions);
 
-		const seq = calls.map((args) => args.join(" "));
-
-		expect(seq).toContain("fetch origin main");
-		expect(seq).toContain("checkout -f -B main FETCH_HEAD");
-		expect(seq).toContain("checkout stash99 -- src/shared/assets");
+		expect(result.changedFiles).toBe(2);
 	});
 
 	it("should retry the push when the branch tip moves, then succeed", async () => {
@@ -131,14 +145,13 @@ describe(commitBack, () => {
 	});
 
 	it("should not commit or push when nothing changed under the paths", async () => {
-		expect.assertions(3);
+		expect.assertions(2);
 
 		const { calls, git } = fakeGit({ diff: "" });
 
 		const result = await commitBack({ git }, DefaultOptions);
 
 		expect(result).toStrictEqual({ changedFiles: 0, committed: false });
-		expect(calls.some((args) => args.includes("commit"))).toBeFalse();
-		expect(calls.some((args) => args.includes("push"))).toBeFalse();
+		expect(calls).toStrictEqual([["diff", "--name-only", "--", "src/shared/assets"]]);
 	});
 });
