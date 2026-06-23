@@ -18,8 +18,8 @@ export interface DefaultEmitterOptions {
 
 /**
  * Default directory the generated files are written under, relative to the
- * working directory. Sits inside ADR-025's managed `.bedrock/` directory but
- * in its own `generated/` subdirectory, so codegen output stays clear of the
+ * working directory. Sits inside the managed `.bedrock/` directory but in its
+ * own `generated/` subdirectory, so codegen output stays clear of the
  * `bedrock setup`-managed type files; consume it as `@bedrock/generated/resources`.
  *
  * @since 0.1.0
