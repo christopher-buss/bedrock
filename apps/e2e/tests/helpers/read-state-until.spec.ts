@@ -1,7 +1,7 @@
 import type { BedrockState, StateError, StatePort } from "@bedrock-rbx/core";
 import type { Result } from "@bedrock-rbx/ocale";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { readStateUntil } from "./read-state-until.ts";
 
@@ -125,7 +125,7 @@ describe(readStateUntil, () => {
 	});
 
 	it("should treat an absent state file as not yet converged and keep polling", async () => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		const { reads, statePort } = fakeReadSequence([
 			{ data: undefined, success: true },
@@ -134,6 +134,7 @@ describe(readStateUntil, () => {
 		const sleepFake = fakeSleep();
 
 		const result = await readStateUntil({
+			baseDelayMs: 250,
 			environment: ENVIRONMENT,
 			predicate: isReady,
 			sleep: sleepFake.sleep,
@@ -141,11 +142,12 @@ describe(readStateUntil, () => {
 		});
 
 		expect(reads).toHaveLength(2);
+		expect(sleepFake.calls).toStrictEqual([250]);
 		expect(result).toStrictEqual(okResult(READY));
 	});
 
 	it("should treat a failed read as not yet converged and return the last failure", async () => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		const failure: ReadResult = {
 			err: {
@@ -160,6 +162,7 @@ describe(readStateUntil, () => {
 
 		const result = await readStateUntil({
 			attempts: 3,
+			baseDelayMs: 250,
 			environment: ENVIRONMENT,
 			predicate: isReady,
 			sleep: sleepFake.sleep,
@@ -167,6 +170,30 @@ describe(readStateUntil, () => {
 		});
 
 		expect(reads).toHaveLength(3);
+		expect(sleepFake.calls).toStrictEqual([250, 500]);
 		expect(result).toStrictEqual(failure);
+	});
+
+	it("should fall back to a real timer when no sleep seam is injected", async () => {
+		expect.assertions(2);
+
+		vi.useFakeTimers();
+		onTestFinished(() => {
+			vi.useRealTimers();
+		});
+
+		const { reads, statePort } = fakeReadSequence([okResult(PENDING), okResult(READY)]);
+
+		const pending = readStateUntil({
+			baseDelayMs: 10,
+			environment: ENVIRONMENT,
+			predicate: isReady,
+			statePort,
+		});
+		await vi.runAllTimersAsync();
+		const result = await pending;
+
+		expect(reads).toHaveLength(2);
+		expect(result).toStrictEqual(okResult(READY));
 	});
 });

@@ -65,6 +65,8 @@ export async function readStateUntil(
 		result = await statePort.read(environment);
 	}
 
+	// The read taken on the final iteration is a budget read: it is returned
+	// unchecked so the caller sees the last value (or error) and can assert.
 	return result;
 }
 
