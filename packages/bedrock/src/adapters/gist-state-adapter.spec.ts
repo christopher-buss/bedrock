@@ -1179,6 +1179,55 @@ describe(createGistStateAdapter, () => {
 				expect(sleepFake.calls).toStrictEqual([250, 500, 1000, 2000]);
 			});
 
+			it("should replay a stale replica's ETag on later polls so 304s and missing-etag GETs stay conditional", async () => {
+				expect.assertions(5);
+
+				const written: BedrockState = {
+					environment: "production",
+					resources: [],
+					version: 1,
+				};
+				const staleEtag = 'W/"stale-replica-etag"';
+				function staleFile(etag?: string): Response {
+					return new Response(
+						JSON.stringify({
+							files: { "state.production.json": { content: "stale prior content" } },
+						}),
+						etag === undefined ? { status: 200 } : { headers: { etag }, status: 200 },
+					);
+				}
+
+				const { calls, fetchFn } = fakeFetchSequence([
+					emptyResponse(200),
+					staleFile(staleEtag),
+					new Response(undefined, { status: 304 }),
+					staleFile(),
+					okJson({
+						files: {
+							"state.production.json": { content: serializeStateFile(written) },
+						},
+					}),
+				]);
+				const sleepFake = fakeSleep();
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					sleep: sleepFake.sleep,
+					token: TOKEN,
+				});
+
+				const result = await port.write(written);
+
+				expect(result.success).toBeTrue();
+				expect(calls).toHaveLength(5);
+				// First poll has no baseline ETag, so it is unconditional.
+				expect(calls[1]!.headers.get("if-none-match")).toBeNull();
+				// Captured ETag is replayed so a still-stale replica answers 304.
+				expect(calls[2]!.headers.get("if-none-match")).toBe(staleEtag);
+				// Retained across the 304 and a later etag-less stale 200.
+				expect(calls[4]!.headers.get("if-none-match")).toBe(staleEtag);
+			});
+
 			it("should keep polling when a present file's value is malformed (non-object)", async () => {
 				expect.assertions(3);
 
