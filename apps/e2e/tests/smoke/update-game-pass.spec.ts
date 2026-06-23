@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
 
 import { pruneStateGist } from "../helpers/prune-state-gist.ts";
+import { readStateUntil } from "../helpers/read-state-until.ts";
 
 const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "game-pass");
 
@@ -141,7 +142,21 @@ describe("game-pass update via real Roblox", () => {
 					`update deploy failed: ${JSON.stringify(updated.success ? null : updated.err)}`,
 				);
 
-				const persistedRead = await statePort.read(STABLE_ENVIRONMENT);
+				// GitHub gist reads are not read-your-write across replicas, so
+				// the verification read can land on a replica still serving the
+				// bootstrap state; poll until the update propagates.
+				const persistedRead = await readStateUntil({
+					environment: STABLE_ENVIRONMENT,
+					predicate: (state) => {
+						return state.resources.some((entry) => {
+							return (
+								entry.kind === "gamePass" &&
+								entry.name === `Smoke Test Pass ${stamp}`
+							);
+						});
+					},
+					statePort,
+				});
 				assert(
 					persistedRead.success,
 					`state read failed: ${JSON.stringify(persistedRead.success ? null : persistedRead.err)}`,
