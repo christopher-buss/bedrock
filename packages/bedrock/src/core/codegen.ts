@@ -5,6 +5,8 @@ import type { BedrockState } from "./state.ts";
  * A single file the emitter wants written. `path` is relative to the codegen
  * output directory; the writer joins it onto that base. `content` is the
  * UTF-8 source text to write.
+ *
+ * @since 0.1.0
  */
 export interface CodegenFile {
 	/** UTF-8 source text to write. */
@@ -18,6 +20,8 @@ export interface CodegenFile {
  * state of every declared environment keyed by name: fresh for the one being
  * deployed, last-known for the rest, and an empty snapshot for any that has
  * never been deployed.
+ *
+ * @since 0.1.0
  */
 export interface EmitInput {
 	/** Current state of every declared environment, keyed by environment name. */
@@ -28,6 +32,8 @@ export interface EmitInput {
  * Caller-supplied function that turns the per-environment state into the files
  * bedrock writes. Returns a keyed array of files (sync or async); bedrock
  * writes them through the injected writer but never commits them.
+ *
+ * @since 0.1.0
  *
  * @example
  *

@@ -5,6 +5,8 @@ import type { ProgressPort } from "../ports/progress-port.ts";
  * tests and programmatic callers who want to invoke deploy logic without
  * any rendering.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts

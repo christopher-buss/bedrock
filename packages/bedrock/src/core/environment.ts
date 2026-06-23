@@ -33,6 +33,8 @@ const ENVIRONMENT_NAME_PATTERN = new RegExp(ENV_NAME_PATTERN_SOURCE);
  * anything outside that set so the adapter can fail loudly instead of
  * silently stripping characters.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts

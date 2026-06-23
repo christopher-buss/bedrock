@@ -5,6 +5,8 @@ import type { Result } from "@bedrock-rbx/ocale";
  * its argv, and an env-var override map layered on top of the host process
  * environment. The adapter is responsible for merging `envOverrides` with
  * `process.env` so overrides win on collisions.
+ *
+ * @since 0.1.0
  */
 export interface SpawnInvocation {
 	/** Argv to pass to the spawned executable, excluding the command itself. */
@@ -20,6 +22,8 @@ export interface SpawnInvocation {
  * a child cannot be launched. Mirrors the subset of Node's `ErrnoException`
  * the dispatcher and downstream renderers care about, without requiring
  * consumers to install `@types/node` to consume the public surface.
+ *
+ * @since 0.1.0
  */
 export interface SpawnLaunchCause extends Error {
 	/** Errno code like `"ENOENT"`, `"EACCES"`, or `undefined` when the error did not carry one. */
@@ -30,6 +34,8 @@ export interface SpawnLaunchCause extends Error {
  * Failure surfaced by {@link Spawner.spawn} when the child process could not
  * be started at all (e.g. `ENOENT` for a missing executable). Carries the
  * underlying error so callers can render a precise diagnostic.
+ *
+ * @since 0.1.0
  */
 export interface SpawnLaunchError {
 	/** Underlying error from the spawn attempt; structurally an `Error` with an optional errno `code`. */
@@ -48,6 +54,8 @@ export interface SpawnLaunchError {
  * spawner to perform a launch. Stdio is always inherited from the parent
  * process so the spawned script's output appears within the CLI's frame
  * in chronological order.
+ *
+ * @since 0.1.0
  *
  * @example
  *

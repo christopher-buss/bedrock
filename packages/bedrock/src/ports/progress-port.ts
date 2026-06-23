@@ -7,6 +7,8 @@ import type { ResourceKey } from "../types/ids.ts";
  * Per-environment outcome event emitted after a deploy completes
  * successfully. Carries the environment name and the count of resources
  * present in the persisted state snapshot.
+ *
+ * @since 0.1.0
  */
 export interface DeploySuccessEvent {
 	/** The environment that finished reconciling. */
@@ -21,6 +23,8 @@ export interface DeploySuccessEvent {
  * Per-environment outcome event emitted when a deploy fails. Carries the
  * environment name and the full {@link DeployError} so a renderer can
  * delegate to the existing diagnostic helpers.
+ *
+ * @since 0.1.0
  */
 export interface DeployFailureEvent {
 	/** The environment whose deploy failed. */
@@ -36,6 +40,8 @@ export interface DeployFailureEvent {
  * non-noop op to its driver. Adapters may render a "starting" line or
  * stay silent; the matching terminal event ({@link ResourceOpSucceededEvent}
  * or {@link ResourceOpFailedEvent}) fires when the driver settles.
+ *
+ * @since 0.1.0
  */
 export interface ResourceOpStartedEvent {
 	/** User-supplied resource key. */
@@ -54,6 +60,8 @@ export interface ResourceOpStartedEvent {
  * Terminal event for a successful create op. The `resourceKind` discriminator
  * narrows `outputs` to the matching `ResourceOutputs<K>` shape so renderers
  * can read Roblox-assigned IDs without casts.
+ *
+ * @since 0.1.0
  */
 export type ResourceOpSucceededCreateEvent = {
 	[K in ResourceKind]: Readonly<{
@@ -69,6 +77,8 @@ export type ResourceOpSucceededCreateEvent = {
 /**
  * Terminal event for a successful update op. Carries the list of top-level
  * fields the diff flagged as changed so renderers can attribute the update.
+ *
+ * @since 0.1.0
  */
 export interface ResourceOpSucceededUpdateEvent {
 	/** User-supplied resource key. */
@@ -89,6 +99,8 @@ export interface ResourceOpSucceededUpdateEvent {
  * Terminal event for a successful non-noop op. Sub-discriminated by `opType`
  * so a renderer can extract `outputs` (creates) or `changedFields` (updates)
  * without losing type narrowing.
+ *
+ * @since 0.1.0
  */
 export type ResourceOpSucceededEvent =
 	| ResourceOpSucceededCreateEvent
@@ -98,6 +110,8 @@ export type ResourceOpSucceededEvent =
  * Per-resource event emitted for each op the diff produced as a noop.
  * Noops never fire a `started`/terminal pair; this single event stands in
  * for the entire op so adapters can render a "unchanged" line.
+ *
+ * @since 0.1.0
  */
 export interface ResourceOpNoopEvent {
 	/** User-supplied resource key. */
@@ -113,6 +127,8 @@ export interface ResourceOpNoopEvent {
 /**
  * Terminal event for a failed non-noop op. Carries the {@link ApplyError}
  * so a renderer can delegate to the existing apply-cause diagnostic helper.
+ *
+ * @since 0.1.0
  */
 export interface ResourceOpFailedEvent {
 	/** User-supplied resource key. */
@@ -133,6 +149,8 @@ export interface ResourceOpFailedEvent {
  * Aggregate footer event emitted after `applyOps` finishes (Phase 2 settled).
  * Fires unconditionally, including on partial failure; `durationMs` measures
  * apply time only (state-write time excluded).
+ *
+ * @since 0.1.0
  */
 export interface ApplySummaryEvent {
 	/** Count of successful create ops. */
@@ -157,6 +175,8 @@ export interface ApplySummaryEvent {
  * `kind: "stateWriteFailed"` runs the existing failure flow. The payload
  * carries no backend identity; renderers read the backend label from the
  * project config when constructing the rendered line.
+ *
+ * @since 0.1.0
  */
 export interface StateWrittenEvent {
 	/** Environment whose state snapshot was just persisted. */
@@ -169,6 +189,8 @@ export interface StateWrittenEvent {
  * Discriminated union of progress events the CLI emits while a deploy
  * runs. The variant set is additive: future per-stage and per-resource
  * events land as new `kind` values without breaking existing adapters.
+ *
+ * @since 0.1.0
  */
 export type ProgressEvent =
 	| ApplySummaryEvent
@@ -186,6 +208,8 @@ export type ProgressEvent =
  * off events without re-implementing rendering logic.
  *
  * `ProgressPort` is a *driven* (secondary) port in hexagonal terms.
+ *
+ * @since 0.1.0
  *
  * @example
  *

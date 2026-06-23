@@ -16,6 +16,8 @@ import type { ApplyError } from "../shell/apply-ops.ts";
 
 /**
  * Configuration for {@link createClackProgressAdapter}.
+ *
+ * @since 0.1.0
  */
 export interface ClackProgressAdapterDeps {
 	/** Output port the events are rendered through. */
@@ -34,6 +36,8 @@ export interface ClackProgressAdapterDeps {
  * Pattern-matches on the event `kind`: per-resource events render one line each,
  * the aggregate `applySummary` becomes the deploy footer, and `stateWritten`
  * names the persistence backend resolved from the loaded `Config`.
+ *
+ * @since 0.1.0
  *
  * @example
  *

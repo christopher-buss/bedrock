@@ -48,6 +48,8 @@ export function classifySpawnClose(
  *   signal; a distinct variant lands the day a caller needs to act on the
  *   difference.
  *
+ * @since 0.1.0
+ *
  * @returns A `Spawner` whose `spawn` settles once the child closes.
  * @example
  *

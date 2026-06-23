@@ -115,6 +115,8 @@ export function iconHashesEqual(
  * driver projects its own `iconFileHashes` and `outputs.iconFileHashes`
  * fields before calling.
  *
+ * @since 0.1.0
+ *
  * @param currentHashes - Hashes recorded on the prior current-state entry.
  * @param desiredHashes - Hashes layered onto the desired-state entry by
  *   `normalize` from the local icon file's bytes.

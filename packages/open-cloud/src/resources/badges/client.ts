@@ -136,6 +136,8 @@ interface BadgeLocalizationHandle {
  * callers handle failure explicitly; no thrown {@link OpenCloudError}
  * ever escapes the client.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts

@@ -21,6 +21,8 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
  * order is determined by the merge in `deploy.runReconcile` (which retains
  * prior-snapshot positions for unchanged keys), not by this diff output.
  *
+ * @since 0.1.0
+ *
  * @param desired - Declared desired state from user config, already normalized
  *   (file hashes computed, nullable wire values mapped to `undefined`).
  * @param current - Last-known current state from the state file.

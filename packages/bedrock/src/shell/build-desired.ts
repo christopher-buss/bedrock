@@ -16,6 +16,8 @@ export type { BuildDesiredError } from "../core/kinds/module.ts";
  * that `diff` consumes. Entries are processed sequentially so the first
  * failure's attribution is deterministic.
  *
+ * @since 0.1.0
+ *
  * @param inputs - Flat tagged resource inputs from `flattenConfig`.
  * @param readFile - Reads file bytes for a given path; rejection becomes a
  * `fileReadFailed` Err.

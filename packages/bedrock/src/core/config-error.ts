@@ -3,6 +3,8 @@
  * sequence of keys and indices into the config root; `message` is a
  * human-readable explanation.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -44,6 +46,8 @@ export interface ConfigValidationIssue {
  *   `lute` runtime needed to evaluate it could not be located on PATH or
  *   via the `BEDROCK_LUTE_PATH` environment variable. `hint` carries an
  *   actionable install message.
+ *
+ * @since 0.1.0
  *
  * @example
  *

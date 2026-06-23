@@ -153,6 +153,8 @@ interface DeveloperProductLocalizationHandle {
  *     console.error(result.err.message);
  * }
  * ```
+ *
+ * @since 0.1.0
  */
 export class DeveloperProductsClient {
 	readonly #inner: ResourceClient;

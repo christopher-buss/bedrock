@@ -39,6 +39,8 @@ const DEFAULT_POLL_TIERS: ReadonlyArray<PollDelayTier> = [
  * snappily, then eases off so a long run leaves rate-limit headroom for
  * newer tasks: 0-20s is 500ms, 20-60s is 1000ms, 60s+ is 5000ms.
  *
+ * @since 0.1.0
+ *
  * @example
  * ```ts
  * import { defaultPollDelay } from "@bedrock-rbx/ocale/luau-execution";
@@ -78,7 +80,11 @@ export interface PollDeps {
 	readonly sleep: SleepFunc;
 }
 
-/** Public options accepted by `pollUntilDone` and `runUntilDone` on both client surfaces. */
+/**
+ * Public options accepted by `pollUntilDone` and `runUntilDone` on both client surfaces.
+ *
+ * @since 0.1.0
+ */
 export type PollUntilDoneOptions = PollOptions & RequestOptions;
 
 /** Caller-supplied polling-loop options; all fields optional. */

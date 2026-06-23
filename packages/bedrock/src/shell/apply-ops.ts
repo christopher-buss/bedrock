@@ -23,6 +23,8 @@ import type { ResourceKey } from "../types/ids.ts";
  * Optional wiring `applyOps` uses to emit per-resource and aggregate progress
  * events. When omitted, `applyOps` runs silently (backward-compatible with
  * pre-progress callers).
+ *
+ * @since 0.1.0
  */
 export interface ApplyOpsReporting {
 	/** Environment name stamped on every emitted event. */
@@ -37,6 +39,8 @@ export interface ApplyOpsReporting {
  * One `ApplyError` describes one failing op; the surrounding
  * `AggregateApplyError` carries the full batch outcome (every survivor and
  * every failure).
+ *
+ * @since 0.1.0
  *
  * @example
  *
@@ -86,6 +90,8 @@ export type ApplyError =
  * `applied` is the survivor set in Phase 1 then Phase 2 input order.
  * `failures` is the non-empty list of `ApplyError`s, one per failing op,
  * grouped the same way.
+ *
+ * @since 0.1.0
  *
  * @example
  *
@@ -190,6 +196,8 @@ interface DispatchDeps {
  * On Err the aggregate carries every survivor in `applied` (Phase 1 first,
  * then Phase 2 input order) and every failure in `failures` with the same
  * grouping. Neither array reflects completion order.
+ *
+ * @since 0.1.0
  *
  * @param ops - Reconciliation operations produced by `diff`, applied in
  *   declaration order.

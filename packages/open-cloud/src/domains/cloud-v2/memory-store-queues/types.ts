@@ -1,6 +1,8 @@
 /**
  * Caller-supplied input for the `enqueue` method on `StorageClient.queues`.
  * Mirrors `Cloud_CreateMemoryStoreQueueItem` on the Open Cloud API.
+ *
+ * @since 0.1.0
  */
 export interface EnqueueQueueItemParameters {
 	/**
@@ -32,6 +34,8 @@ export interface EnqueueQueueItemParameters {
  * Parsed representation of a memory-store queue item, as returned by the
  * Open Cloud `Cloud_CreateMemoryStoreQueueItem` and (inside the array)
  * `Cloud_ReadMemoryStoreQueueItems` endpoints.
+ *
+ * @since 0.1.0
  */
 export interface QueueItem {
 	/** Server-generated item identifier, parsed from the wire `path`. */
@@ -54,6 +58,8 @@ export interface QueueItem {
 /**
  * Caller-supplied input for the `dequeue` method on
  * `StorageClient.queues`. Mirrors `Cloud_ReadMemoryStoreQueueItems`.
+ *
+ * @since 0.1.0
  */
 export interface DequeueQueueItemsParameters {
 	/**
@@ -84,6 +90,8 @@ export interface DequeueQueueItemsParameters {
  * response. The `readId` value must be passed to a subsequent
  * `discard` call to acknowledge the items; otherwise the items reappear
  * once the invisibility window elapses.
+ *
+ * @since 0.1.0
  */
 export interface DequeueResult {
 	/** Items dequeued from the front of the queue, in dequeue order. */
@@ -101,6 +109,8 @@ export interface DequeueResult {
  * Acknowledging a `readId` removes the dequeued batch from the queue
  * permanently; without `discard`, the items reappear once their
  * invisibility window elapses.
+ *
+ * @since 0.1.0
  */
 export interface DiscardQueueItemsParameters {
 	/** Stringified queue identifier. */

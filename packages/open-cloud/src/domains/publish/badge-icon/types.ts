@@ -4,6 +4,8 @@
  * replaces the existing source icon; per-locale icon overlays live
  * under a separate `legacy-game-internationalization` endpoint and
  * are managed through `BadgesClient.localization.uploadIcon`.
+ *
+ * @since 0.1.0
  */
 export interface UploadBadgeIconParameters {
 	/** Stringified ID of the badge whose icon is being uploaded. */

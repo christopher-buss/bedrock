@@ -6,6 +6,8 @@ export type { GameIconState } from "./wire.ts";
 
 /**
  * A localized icon entry returned by listing icons for an experience.
+ *
+ * @since 0.1.0
  */
 export interface ExperienceIcon {
 	/** Stringified ID of the uploaded icon image. */
@@ -26,6 +28,8 @@ export interface ExperienceIcon {
  * Parameters for uploading or replacing a localized experience icon. A
  * subsequent upload for the same `(universeId, languageCode)` pair replaces
  * the existing icon for that locale.
+ *
+ * @since 0.1.0
  */
 export interface UploadExperienceIconParameters {
 	/** Image bytes to upload. PNG and JPEG are accepted by the server. */
@@ -43,6 +47,8 @@ export interface UploadExperienceIconParameters {
 /**
  * Parameters for deleting the localized icon registered against a universe
  * for a given language.
+ *
+ * @since 0.1.0
  */
 export interface DeleteExperienceIconParameters {
 	/**
@@ -57,6 +63,8 @@ export interface DeleteExperienceIconParameters {
 
 /**
  * Parameters for listing every localized icon registered against a universe.
+ *
+ * @since 0.1.0
  */
 export interface ListExperienceIconsParameters {
 	/** Stringified ID of the universe whose icons are being listed. */

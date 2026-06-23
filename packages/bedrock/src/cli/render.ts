@@ -17,6 +17,8 @@ import type { ParseOptionsError } from "./parse-options.ts";
  * Output port the CLI renders through. Mirrors the subset of `@clack/prompts`
  * the bedrock CLI uses today; tests inject a fake to assert what was rendered.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts

@@ -10,6 +10,8 @@ import { universeKind } from "./universe.ts";
  * `developerProduct`) matches the order `flattenConfig` emits entries
  * today, preserving the observable order of generated operations.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts

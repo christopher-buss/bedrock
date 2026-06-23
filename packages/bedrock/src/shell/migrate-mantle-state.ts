@@ -34,6 +34,8 @@ const FILE_MISSING_CODES = new Set(["ENOENT"]);
  * `bedrock.config.ts` with `defineConfig({...})`; `"yaml"` emits a
  * `bedrock.config.yaml` body. Both shapes round-trip through
  * `loadConfig` cleanly.
+ *
+ * @since 0.1.0
  */
 export interface MigrateMantleStateDeps {
 	/**
@@ -87,6 +89,8 @@ interface AssembleReportInputs {
  * `Err({ kind: "primaryEnvironmentRequired", available })` so the
  * migrator never silently picks a winner. Future slices add social
  * links and the deferred / blocked warning categories.
+ *
+ * @since 0.1.0
  *
  * @param deps - Inputs for the migration.
  * @returns `Ok` with a `MigrationReport` on success, or `Err` with a

@@ -1,6 +1,8 @@
 /**
  * Pricing feature flags that can be enabled on a game pass. Values
  * mirror the Open Cloud `GamePasses.PricingFeature` enum.
+ *
+ * @since 0.1.0
  */
 export type GamePassPricingFeature =
 	| "Invalid"
@@ -10,6 +12,8 @@ export type GamePassPricingFeature =
 
 /**
  * Public shape of a game pass's pricing configuration.
+ *
+ * @since 0.1.0
  */
 export interface GamePassPrice {
 	/** Default Robux price; `undefined` when no default price is configured. */
@@ -22,6 +26,8 @@ export interface GamePassPrice {
  * A Roblox game pass as exposed to SDK consumers. Fields use DX-friendly
  * names and types (stringified IDs, `Date` timestamps) rather than the
  * raw wire representation.
+ *
+ * @since 0.1.0
  */
 export interface GamePass {
 	/** Stringified game pass ID. The API returns an int64; always use this. */
@@ -44,6 +50,8 @@ export interface GamePass {
 
 /**
  * Parameters for creating a new game pass under a universe.
+ *
+ * @since 0.1.0
  */
 export interface CreateGamePassParameters {
 	/** Display name of the new game pass. */
@@ -64,6 +72,8 @@ export interface CreateGamePassParameters {
 
 /**
  * Parameters for reading a single game pass by ID.
+ *
+ * @since 0.1.0
  */
 export interface GetGamePassParameters {
 	/** Stringified ID of the game pass to retrieve. */
@@ -77,6 +87,8 @@ export interface GetGamePassParameters {
  * Pagination is cursor-based: omit `pageToken` to fetch the first page,
  * then thread the previous response's `nextPageToken` back in until it
  * is `undefined`.
+ *
+ * @since 0.1.0
  */
 export interface ListGamePassesParameters {
 	/** Optional page size; the server defaults to 50 when omitted. */
@@ -92,6 +104,8 @@ export interface ListGamePassesParameters {
  * except the identifiers is optional; omitted fields are not included
  * in the multipart body so the server leaves their current values
  * untouched.
+ *
+ * @since 0.1.0
  */
 export interface UpdateGamePassParameters {
 	/** Optional new display name for the game pass. */

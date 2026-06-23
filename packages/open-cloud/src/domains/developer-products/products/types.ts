@@ -1,6 +1,8 @@
 /**
  * Pricing feature flags that can be enabled on a developer product. Values
  * mirror the Open Cloud `DeveloperProducts.PricingFeature` enum.
+ *
+ * @since 0.1.0
  */
 export type DeveloperProductPricingFeature =
 	| "Invalid"
@@ -10,6 +12,8 @@ export type DeveloperProductPricingFeature =
 
 /**
  * Public shape of a developer product's pricing configuration.
+ *
+ * @since 0.1.0
  */
 export interface DeveloperProductPrice {
 	/** Default Robux price; `undefined` when no default price is configured. */
@@ -22,6 +26,8 @@ export interface DeveloperProductPrice {
  * A Roblox developer product as exposed to SDK consumers. Fields use
  * DX-friendly names and types (stringified IDs, `Date` timestamps) rather
  * than the raw wire representation.
+ *
+ * @since 0.1.0
  */
 export interface DeveloperProduct {
 	/** Stringified developer product ID. The API returns an int64; always use this. */
@@ -50,6 +56,8 @@ export interface DeveloperProduct {
 
 /**
  * Parameters for creating a new developer product under a universe.
+ *
+ * @since 0.1.0
  */
 export interface CreateDeveloperProductParameters {
 	/** Display name of the new developer product. */
@@ -70,6 +78,8 @@ export interface CreateDeveloperProductParameters {
 
 /**
  * Parameters for reading a single developer product by ID.
+ *
+ * @since 0.1.0
  */
 export interface GetDeveloperProductParameters {
 	/** Stringified ID of the developer product to retrieve. */
@@ -83,6 +93,8 @@ export interface GetDeveloperProductParameters {
  * field except the identifiers is optional; omitted fields are not included
  * in the multipart PATCH body so the server leaves their current values
  * untouched.
+ *
+ * @since 0.1.0
  */
 export interface UpdateDeveloperProductParameters {
 	/** Optional new display name. */

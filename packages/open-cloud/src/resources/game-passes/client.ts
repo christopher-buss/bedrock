@@ -184,6 +184,8 @@ interface GamePassLocalizationHandle {
  *     pageToken = page.data.nextPageToken;
  * } while (pageToken !== undefined);
  * ```
+ *
+ * @since 0.1.0
  */
 export class GamePassesClient {
 	readonly #inner: ResourceClient;

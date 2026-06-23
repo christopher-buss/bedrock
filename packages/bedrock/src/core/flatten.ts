@@ -12,6 +12,8 @@ import type { DeveloperProductEntry, GamePassEntry, ResolvedConfig } from "./sch
  * key so `buildDesired` can consume a flat tagged list and layer on the
  * SHA-256 icon digest.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -42,6 +44,8 @@ export interface GamePassDesiredInput extends Readonly<GamePassEntry> {
  * overlay) plus the optional metadata fields and the tag discriminator and
  * the `ResourceKey`-branded key, so `buildDesired` can consume a flat
  * tagged list and layer on the SHA-256 file digest.
+ *
+ * @since 0.1.0
  *
  * @example
  *
@@ -84,6 +88,8 @@ export interface PlaceDesiredInput {
  * key (`"main"`) and the branded `universeId` so `buildDesired` can hand a
  * single tagged record downstream without a shape divergence for the
  * singleton kind.
+ *
+ * @since 0.1.0
  *
  * @example
  *
@@ -167,6 +173,8 @@ export interface UniverseDesiredInput {
  * `ResourceKey`-branded key so `buildDesired` can consume a flat tagged
  * list.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -192,6 +200,8 @@ export interface DeveloperProductDesiredInput extends Readonly<DeveloperProductE
 /**
  * Flat tagged input for `buildDesired`. One member per resource kind; future
  * kinds widen this union as they land.
+ *
+ * @since 0.1.0
  */
 export type ResourceDesiredInput =
 	| DeveloperProductDesiredInput
@@ -207,6 +217,8 @@ export type ResourceDesiredInput =
  * every invariant this function relies on is guaranteed by the input
  * shape. Entries appear in the insertion order of each collection;
  * `passes` are emitted before `places`.
+ *
+ * @since 0.1.0
  *
  * @param config - Resolved config returned by `selectEnvironment`.
  * @returns Flat tagged list ready for `buildDesired`.

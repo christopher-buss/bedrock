@@ -2,6 +2,8 @@
  * Caller-supplied input for creating a Luau execution task binary input
  * upload slot. The server returns a presigned `uploadUri` the caller uses
  * to PUT the binary data.
+ *
+ * @since 0.1.0
  */
 export interface CreateBinaryInputParameters {
 	/** Size in bytes of the binary data to be uploaded. */
@@ -13,6 +15,8 @@ export interface CreateBinaryInputParameters {
 /**
  * Public representation of a created Luau execution task binary input.
  * Pass `path` verbatim to `tasks.submit({ binaryInput })`.
+ *
+ * @since 0.1.0
  */
 export interface LuauExecutionTaskBinaryInput {
 	/** Server-emitted resource path; pass to `tasks.submit` as `binaryInput`. */

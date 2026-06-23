@@ -3,6 +3,8 @@
  * `PlacesClient`. Both methods take the same parameter shape; which
  * version-type query string is used is decided by the method, not the
  * caller.
+ *
+ * @since 0.1.0
  */
 export interface PublishParameters {
 	/** Raw `.rbxl` or `.rbxlx` file bytes. Must be non-empty. */
@@ -22,6 +24,8 @@ export interface PublishParameters {
 
 /**
  * Successful response from publishing or saving a new place version.
+ *
+ * @since 0.1.0
  */
 export interface PlaceVersion {
 	/**

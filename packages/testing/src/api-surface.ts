@@ -126,7 +126,7 @@ function isRelativeSpecifier(specifier: string): boolean {
 	return specifier.startsWith(".");
 }
 
-function readObject(value: JSONValue): Record<string, JSONValue> | undefined {
+function readObject(value: JSONValue | undefined): Record<string, JSONValue> | undefined {
 	if (typeof value === "object" && value && !Array.isArray(value)) {
 		return value;
 	}
