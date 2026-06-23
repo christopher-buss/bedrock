@@ -143,4 +143,48 @@ describe(collectPublicApiSymbols, () => {
 
 		expect(symbols).toStrictEqual([]);
 	});
+
+	it("should read the @since version from the declaration's JSDoc", () => {
+		expect.assertions(1);
+
+		const read = moduleMap({
+			"core/diff.ts":
+				"/**\n * Diffs two states.\n *\n * @since 0.1.0\n */\nexport function diff() {}",
+			"index.ts": 'export { diff } from "./core/diff.ts";',
+		});
+
+		const symbols = collectPublicApiSymbols(BARREL, read);
+
+		expect(symbols).toStrictEqual([
+			{ name: "diff", declarationFile: declarationFileOf("core/diff.ts"), sinceTag: "0.1.0" },
+		]);
+	});
+
+	it("should report an undefined sinceTag when the declaration has no @since", () => {
+		expect.assertions(1);
+
+		const read = moduleMap({
+			"core/diff.ts": "/** Diffs two states. */\nexport function diff() {}",
+			"index.ts": 'export { diff } from "./core/diff.ts";',
+		});
+
+		const symbols = collectPublicApiSymbols(BARREL, read);
+
+		expect(symbols[0]?.sinceTag).toBeUndefined();
+	});
+
+	it("should read @since from the final declaration in a re-export chain", () => {
+		expect.assertions(1);
+
+		const read = moduleMap({
+			"core/kinds/index.ts": 'export { defaultKindRegistry } from "./registry.ts";',
+			"core/kinds/registry.ts":
+				"/**\n * Default registry.\n *\n * @since 2.3.0\n */\nexport const defaultKindRegistry = {};",
+			"index.ts": 'export { defaultKindRegistry } from "./core/kinds/index.ts";',
+		});
+
+		const symbols = collectPublicApiSymbols(BARREL, read);
+
+		expect(symbols[0]?.sinceTag).toBe("2.3.0");
+	});
 });

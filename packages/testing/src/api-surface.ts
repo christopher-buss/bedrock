@@ -97,6 +97,20 @@ function isRelativeSpecifier(specifier: string): boolean {
 	return specifier.startsWith(".");
 }
 
+const SINCE_TAG = /@since\s+(\S+)/;
+
+function sinceTagOf(module: ts.SourceFile, statement: ts.Statement): string | undefined {
+	const ranges = ts.getLeadingCommentRanges(module.text, statement.getFullStart()) ?? [];
+	for (const range of ranges) {
+		const match = SINCE_TAG.exec(module.text.slice(range.pos, range.end));
+		if (match?.[1] !== undefined) {
+			return match[1];
+		}
+	}
+
+	return undefined;
+}
+
 function declaresName(statement: ts.Statement, name: string): boolean {
 	if (
 		ts.isFunctionDeclaration(statement) ||
@@ -147,7 +161,10 @@ function resolveDeclaration(
 
 	for (const statement of module.statements) {
 		if (declaresName(statement, request.name)) {
-			return { declarationFile: request.modulePath, sinceTag: undefined };
+			return {
+				declarationFile: request.modulePath,
+				sinceTag: sinceTagOf(module, statement),
+			};
 		}
 	}
 

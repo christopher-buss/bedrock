@@ -11,6 +11,7 @@
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
 	"type": "module",
 	"exports": {
+		"./api-surface": "./src/api-surface.ts",
 		"./jest-extended": "./src/jest-extended.ts",
 		"./lute": "./src/lute.ts",
 		"./stryker": "./src/stryker.ts",
