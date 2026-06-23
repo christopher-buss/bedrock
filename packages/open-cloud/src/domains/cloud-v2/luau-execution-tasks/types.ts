@@ -2,6 +2,8 @@
  * Caller-supplied input for submitting a Luau Execution task against a
  * place's head version. Submitting against a specific place version uses
  * {@link SubmitAtVersionParameters} instead.
+ *
+ * @since 0.1.0
  */
 export interface SubmitAtHeadParameters {
 	/**
@@ -28,6 +30,8 @@ export interface SubmitAtHeadParameters {
  * Caller-supplied input for submitting a Luau Execution task against a
  * specific place version. Submitting against the head version uses
  * {@link SubmitAtHeadParameters} instead.
+ *
+ * @since 0.1.0
  */
 export interface SubmitAtVersionParameters {
 	/**
@@ -58,6 +62,8 @@ export interface SubmitAtVersionParameters {
  * returned by the server, and the get builder consumes it to construct
  * the maximal GET URL. `versionId` and `sessionId` are `undefined` when
  * the response `path` did not include those segments.
+ *
+ * @since 0.1.0
  */
 export interface LuauExecutionTaskRef {
 	/** Stringified place ID. */
@@ -75,6 +81,8 @@ export interface LuauExecutionTaskRef {
 /**
  * Caller-supplied input for fetching a Luau Execution task's current
  * state.
+ *
+ * @since 0.1.0
  */
 export interface GetParameters {
 	/** Reference to the task to fetch, typically returned by submit. */
@@ -91,6 +99,8 @@ export interface GetParameters {
  * Discriminated variant carrying every state in which the task has not
  * yet produced output or an error: queued for execution, currently
  * executing, or cancelled by the caller.
+ *
+ * @since 0.1.0
  */
 export interface InProgressTask extends LuauExecutionTaskBase {
 	/** Discriminator: the task is queued, processing, or cancelled. */
@@ -102,6 +112,8 @@ export interface InProgressTask extends LuauExecutionTaskBase {
  * server populates `output.results` with the Luau `return` values from
  * the script run, serialized as JSON; entries that were not
  * JSON-serializable (e.g., Roblox `Instance`s) appear as `null`.
+ *
+ * @since 0.1.0
  */
 export interface CompleteTask extends LuauExecutionTaskBase {
 	/**
@@ -119,6 +131,8 @@ export interface CompleteTask extends LuauExecutionTaskBase {
  * human-readable message describing the failure. The
  * `ERROR_CODE_UNSPECIFIED` wire sentinel is rejected by the parser, so
  * `code` is narrowed here to the four substantive error categories.
+ *
+ * @since 0.1.0
  */
 export interface FailedTask extends LuauExecutionTaskBase {
 	/** The categorical error code and message that caused the task to fail. */
@@ -144,6 +158,8 @@ export interface FailedTask extends LuauExecutionTaskBase {
 /**
  * Public, discriminated representation of a Luau Execution session
  * task. The variants are mutually exclusive on `state`.
+ *
+ * @since 0.1.0
  */
 export type LuauExecutionTask = CompleteTask | FailedTask | InProgressTask;
 

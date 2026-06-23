@@ -1,5 +1,7 @@
 /**
  * Caller-supplied input for the `get` method on `UniversesClient`.
+ *
+ * @since 0.1.0
  */
 export interface GetUniverseParameters {
 	/** Stringified ID of the universe to fetch. */
@@ -8,6 +10,8 @@ export interface GetUniverseParameters {
 
 /**
  * A social link that may be associated with a universe.
+ *
+ * @since 0.1.0
  */
 export interface SocialLink {
 	/** Display title of the link. */
@@ -16,7 +20,11 @@ export interface SocialLink {
 	readonly uri: string;
 }
 
-/** Public visibility classification. */
+/**
+ * Public visibility classification.
+ *
+ * @since 0.1.0
+ */
 export type UniverseVisibility = "private" | "public" | "unspecified";
 
 /**
@@ -27,6 +35,8 @@ export type UniverseVisibility = "private" | "public" | "unspecified";
  * Setting a key to `undefined` clears the corresponding server-side
  * value (applicable to `privateServerPriceRobux` and each optional
  * social link).
+ *
+ * @since 0.1.0
  */
 export interface UpdateUniverseParameters {
 	/** Whether console players can join. */
@@ -63,6 +73,8 @@ export interface UpdateUniverseParameters {
 
 /**
  * Discriminated-union representation of a universe's owner.
+ *
+ * @since 0.1.0
  */
 export interface UniverseOwner {
 	/**
@@ -74,11 +86,17 @@ export interface UniverseOwner {
 	readonly kind: "group" | "user";
 }
 
-/** Public age-rating classification. */
+/**
+ * Public age-rating classification.
+ *
+ * @since 0.1.0
+ */
 export type UniverseAgeRating = "9Plus" | "13Plus" | "17Plus" | "all" | "unspecified";
 
 /**
  * Parsed representation of a Roblox universe's configuration.
+ *
+ * @since 0.1.0
  */
 export interface Universe {
 	/** Stringified universe ID, extracted from the wire `path`. */

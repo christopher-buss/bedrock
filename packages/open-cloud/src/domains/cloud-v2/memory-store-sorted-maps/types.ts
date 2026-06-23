@@ -3,6 +3,8 @@
  * server contract requires at most one of `stringSortKey` or
  * `numericSortKey`; the union surfaces that constraint at the type
  * level so callers cannot accidentally set both.
+ *
+ * @since 0.1.0
  */
 export type SortKey =
 	| { readonly kind: "numeric"; readonly value: number }
@@ -12,6 +14,8 @@ export type SortKey =
  * Caller-supplied input for the `create` method on
  * `StorageClient.sortedMaps`. Mirrors
  * `Cloud_CreateMemoryStoreSortedMapItem` on the Open Cloud API.
+ *
+ * @since 0.1.0
  */
 export interface CreateSortedMapItemParameters {
 	/**
@@ -44,6 +48,8 @@ export interface CreateSortedMapItemParameters {
  * `Cloud_ListMemoryStoreSortedMapItems` on the Open Cloud API. All
  * paging and filtering parameters are optional; omitting them returns
  * up to one item server-side (`maxPageSize` defaults to `1`).
+ *
+ * @since 0.1.0
  */
 export interface ListSortedMapItemsParameters {
 	/**
@@ -76,6 +82,8 @@ export interface ListSortedMapItemsParameters {
 /**
  * Parsed representation of a sorted-map item, as returned by every
  * sorted-map operation that yields a single item.
+ *
+ * @since 0.1.0
  */
 export interface SortedMapItem {
 	/** Item identifier, parsed from the wire `path`. */
@@ -108,6 +116,8 @@ export interface SortedMapItem {
 /**
  * Parsed result of a successful `Cloud_ListMemoryStoreSortedMapItems`
  * response.
+ *
+ * @since 0.1.0
  */
 export interface ListSortedMapItemsResult {
 	/** Items returned in the current page, ordered per `orderBy`. */
@@ -123,6 +133,8 @@ export interface ListSortedMapItemsResult {
  * Caller-supplied input for the `delete` method on
  * `StorageClient.sortedMaps`. Mirrors
  * `Cloud_DeleteMemoryStoreSortedMapItem` on the Open Cloud API.
+ *
+ * @since 0.1.0
  */
 export interface DeleteSortedMapItemParameters {
 	/** Caller-supplied item identifier. URL-encoded by the builder. */
@@ -137,6 +149,8 @@ export interface DeleteSortedMapItemParameters {
  * Caller-supplied input for the `get` method on
  * `StorageClient.sortedMaps`. Mirrors
  * `Cloud_GetMemoryStoreSortedMapItem` on the Open Cloud API.
+ *
+ * @since 0.1.0
  */
 export interface GetSortedMapItemParameters {
 	/** Caller-supplied item identifier. URL-encoded by the builder. */
@@ -153,6 +167,8 @@ export interface GetSortedMapItemParameters {
  * `Cloud_UpdateMemoryStoreSortedMapItem` on the Open Cloud API. Body
  * fields (`value`, `ttl`, `sortKey`) are optional under PATCH
  * semantics; omitted fields are left unchanged on the server.
+ *
+ * @since 0.1.0
  */
 export interface UpdateSortedMapItemParameters {
 	/**

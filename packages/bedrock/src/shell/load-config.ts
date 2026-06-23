@@ -13,6 +13,8 @@ import type { LuauEvaluationError, LuauEvaluator } from "../ports/luau-evaluator
 /**
  * Options for {@link loadConfig}. Matches a subset of c12's loader options;
  * additional fields land with the issues that introduce each flow.
+ *
+ * @since 0.1.0
  */
 export interface LoadConfigOptions {
 	/**
@@ -111,6 +113,8 @@ export async function loadConfigWith(
  *   not satisfy the runtime schema.
  * - `configFunctionFailed` - a function-form config threw or its returned
  *   promise rejected while being invoked.
+ *
+ * @since 0.1.0
  *
  * @param options - Loader options.
  * @returns `Ok` with the validated `Config`, or `Err` with a `ConfigError`.

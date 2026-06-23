@@ -2,6 +2,8 @@ import type { RobloxLanguageCode, RobloxLocale } from "#src/locales/data.generat
 
 /**
  * Result of uploading a localized experience thumbnail.
+ *
+ * @since 0.1.0
  */
 export interface UploadedExperienceThumbnail {
 	/** Stringified media asset ID of the uploaded thumbnail. */
@@ -12,6 +14,8 @@ export interface UploadedExperienceThumbnail {
  * Parameters for uploading a new localized experience thumbnail. Each upload
  * appends a new entry to the carousel; reorder via {@link ReorderExperienceThumbnailsParameters}
  * after multiple uploads to set the display order.
+ *
+ * @since 0.1.0
  */
 export interface UploadExperienceThumbnailParameters {
 	/** Image bytes to upload. PNG and JPEG are accepted by the server. */
@@ -28,6 +32,8 @@ export interface UploadExperienceThumbnailParameters {
 
 /**
  * Parameters for deleting a single thumbnail by media asset ID.
+ *
+ * @since 0.1.0
  */
 export interface DeleteExperienceThumbnailParameters {
 	/** Stringified media asset ID of the thumbnail to delete. */
@@ -45,6 +51,8 @@ export interface DeleteExperienceThumbnailParameters {
 /**
  * Parameters for reordering the localized thumbnail carousel. The supplied
  * `orderedImageIds` describes the new display order from first to last.
+ *
+ * @since 0.1.0
  */
 export interface ReorderExperienceThumbnailsParameters {
 	/**

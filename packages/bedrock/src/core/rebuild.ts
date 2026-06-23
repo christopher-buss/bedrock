@@ -7,6 +7,8 @@ import type { BedrockState } from "./state.ts";
  * or `.rbxlx` content the republish stage publishes in place of the file on
  * disk.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -36,6 +38,8 @@ export interface RebuiltPlace {
  * place's pending-rebuild marker; the hook owns the build while bedrock owns
  * the orchestration. Supplied programmatically because a function cannot
  * round-trip through a config file.
+ *
+ * @since 0.1.0
  *
  * @example
  *

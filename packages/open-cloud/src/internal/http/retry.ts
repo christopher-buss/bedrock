@@ -40,6 +40,8 @@ export interface RetryResolvable {
  * {@link shouldRetry} folds it into this set as `ETIMEDOUT` (via
  * {@link isTimeoutAbort}) for idempotent methods; create methods retry no
  * transport codes and so still never re-issue a timed-out write.
+ *
+ * @since 0.1.0
  */
 export const TRANSIENT_TRANSPORT_CODES: ReadonlyArray<string> = Object.freeze([
 	"ECONNRESET",

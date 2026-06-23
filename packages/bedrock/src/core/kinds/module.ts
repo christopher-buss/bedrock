@@ -24,6 +24,8 @@ import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
  * attribute the failure to one entry; `redactedNameCollision` carries
  * both colliding keys and the resolved name.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -74,6 +76,8 @@ export type BuildDesiredError =
  * only file-reading capability today; new capabilities widen this shape
  * when a kind module needs them.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -97,6 +101,8 @@ export interface KindIo {
  * equality) behind one interface that the core `diff` and shell
  * `buildDesired` functions dispatch through at runtime. Composes with the
  * `ResourceDriver<K>` port, which stays the I/O half of the kind.
+ *
+ * @since 0.1.0
  *
  * @template K - The {@link ResourceKind} discriminator this module handles.
  *
@@ -201,6 +207,8 @@ export interface ResourceKindModule<K extends ResourceKind> {
  * Adding a new kind to `ResourceKind` is a compile error at `KindRegistry`
  * until a matching entry is supplied, matching how `DriverRegistry`
  * enforces the same invariant on its I/O half.
+ *
+ * @since 0.1.0
  *
  * @example
  *

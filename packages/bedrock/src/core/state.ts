@@ -11,6 +11,8 @@ import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
  * `version` is a literal so a breaking schema change is a compile-time type
  * shift rather than a silently accepted runtime value.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -89,6 +91,8 @@ export interface BedrockState {
  *
  * Narrow on `kind` rather than using `instanceof`: `StateError` is plain data,
  * not a thrown error subclass.
+ *
+ * @since 0.1.0
  *
  * @example
  *

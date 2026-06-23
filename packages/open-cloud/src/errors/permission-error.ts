@@ -2,6 +2,8 @@ import { ApiError, type ApiErrorOptions } from "./api-error.ts";
 
 /**
  * Options for constructing a {@link PermissionError}.
+ *
+ * @since 0.1.0
  */
 export interface PermissionErrorOptions extends ApiErrorOptions {
 	/**
@@ -24,6 +26,8 @@ export interface PermissionErrorOptions extends ApiErrorOptions {
  * scope strings the caller's credential is missing plus the operation key, so
  * a CLI consumer can tell the user exactly which scope to grant on their API
  * key.
+ *
+ * @since 0.1.0
  *
  * @example
  *

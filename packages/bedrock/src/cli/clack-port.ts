@@ -9,6 +9,8 @@ import type { ClackPort } from "./render.ts";
  * (programmatic deploys, custom adapters) do not pull `@clack/prompts`
  * into their bundle.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts

@@ -14,7 +14,8 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/christopher-buss/bedrock/tree/main/packages/open-cloud.git"
+		"url": "git+https://github.com/christopher-buss/bedrock.git",
+		"directory": "packages/open-cloud"
 	},
 	"license": "MIT",
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",

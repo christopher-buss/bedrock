@@ -5,6 +5,8 @@ import type { RobloxLanguageCode, RobloxLocale } from "#src/locales/data.generat
  * against a developer product. A subsequent upload for the same
  * `(productId, languageCode)` pair replaces the existing icon for that
  * locale.
+ *
+ * @since 0.1.0
  */
 export interface UploadDeveloperProductIconParameters {
 	/** Image bytes to upload. PNG and JPEG are accepted by the server. */

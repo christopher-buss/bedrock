@@ -2,6 +2,8 @@ import { OpenCloudError } from "./base.ts";
 
 /**
  * Options for constructing an {@link ApiError}.
+ *
+ * @since 0.1.0
  */
 export interface ApiErrorOptions extends ErrorOptions {
 	/** Optional machine-readable error code from the API. */
@@ -15,6 +17,8 @@ export interface ApiErrorOptions extends ErrorOptions {
 /**
  * Thrown when the Roblox Open Cloud API returns a non-2xx response
  * that is not a rate limit (429).
+ *
+ * @since 0.1.0
  *
  * @example
  *

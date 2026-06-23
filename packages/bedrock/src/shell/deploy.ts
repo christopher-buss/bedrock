@@ -54,6 +54,8 @@ import { type CodegenError, runCodegen } from "./run-codegen.ts";
  * Inputs for `deploy`. Every field except `environment` is optional;
  * omitted dependencies are default-constructed from the project config
  * and the environment variables `BEDROCK_GITHUB_TOKEN` and `BEDROCK_API_KEY`.
+ *
+ * @since 0.1.0
  */
 export interface DeployOptions {
 	/**
@@ -126,6 +128,8 @@ export interface DeployOptions {
  * `rebuildHookThrew` with the checkpoint's outputs and marker still persisted;
  * a marker present with no rebuild hook available returns
  * `pendingRebuildWithoutHook` rather than reporting success over a stale place.
+ *
+ * @since 0.1.0
  */
 export type DeployError =
 	| IncompletePassEntryError
@@ -251,6 +255,8 @@ export function isCliEnvironmentFlagSet(value: string | undefined): boolean {
  * clack-backed adapter, any other reading selects the no-op adapter. No
  * environment lookups happen when `statePort`, `registry`, `config`, and
  * `progress` are all supplied explicitly.
+ *
+ * @since 0.1.0
  *
  * @param options - Target environment plus optional overrides.
  * @returns The persisted `BedrockState` on success, or a stage-tagged

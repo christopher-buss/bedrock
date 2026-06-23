@@ -2,13 +2,17 @@ import type { Config } from "../core/schema.ts";
 
 /**
  * Context object passed to a config-function input. Intentionally empty so
- * future ADRs can add fields without breaking existing user configs.
+ * future fields can be added without breaking existing user configs.
+ *
+ * @since 0.1.0
  */
 export interface ConfigContext {}
 
 /**
  * Input accepted by `defineConfig`: a plain `Config` object, or a
  * (sync or async) function that returns one given a `ConfigContext`.
+ *
+ * @since 0.1.0
  */
 export type ConfigInput = ((ctx: ConfigContext) => Config | Promise<Config>) | Config;
 
@@ -20,6 +24,8 @@ export type ConfigInput = ((ctx: ConfigContext) => Config | Promise<Config>) | C
  * Accepts a plain `Config` object or a function that produces one. The
  * function form lets users compute config values from external data at load
  * time; `loadConfig` awaits the result on call.
+ *
+ * @since 0.1.0
  *
  * @template T - Narrow `ConfigInput` subtype preserved across the call so
  * downstream inference does not widen to `Config | (ctx) => Config`.

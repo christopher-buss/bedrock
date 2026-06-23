@@ -7,6 +7,8 @@ import type { StateConfig } from "./schema.ts";
  * environment. The shell layer wraps this in a `DeployError` when default
  * state-port construction is requested but the project has not declared
  * where state should live.
+ *
+ * @since 0.1.0
  */
 export interface StateNotConfiguredError {
 	/** Environment that the resolver was called against. */
@@ -31,6 +33,8 @@ interface StateResolutionInputs {
  * overrides win over the root block; if neither is present, returns
  * `Err(stateNotConfigured)` so the deploy boundary can surface a typed
  * error instead of silently falling back.
+ *
+ * @since 0.1.0
  *
  * @param config - Validated project config.
  * @param environment - Target environment name.

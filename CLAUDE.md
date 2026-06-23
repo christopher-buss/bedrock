@@ -236,7 +236,7 @@ Use GitHub issue templates for:
 
 ### Making Architectural Decisions
 
-Bedrock is pre-1.0, unpublished, and solo-maintained. ADRs are for decisions
+Bedrock is pre-1.0 and solo-maintained. ADRs are for decisions
 a future maintainer could not reconstruct from the commit, PR body, and code.
 Default to no ADR.
 
@@ -259,8 +259,11 @@ Default to no ADR.
 5. **Security.** Auth flow, secret handling, or trust boundary.
 6. **Mandatory developer policy.** A new required check, test level, or
    commit gate. CI tweaks and retuning existing tooling do not qualify.
-7. **Breaking change post-publish.** Only once bedrock is published to npm.
-   Before that, downstream consumers do not exist.
+7. **Breaking change to a published package.** A breaking change to the
+   public API or wire/state contract of `@bedrock-rbx/core` or
+   `@bedrock-rbx/ocale` that a downstream consumer could not reconstruct from
+   the changeset and changelog. Pre-1.0, breaking changes are still allowed in
+   minor bumps; the ADR bar is whether the rationale needs explaining.
 
 **Gray-zone calibration:**
 

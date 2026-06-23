@@ -6,6 +6,8 @@ export type { SleepFunc } from "../internal/utils/sleep.ts";
 
 /**
  * A normalized HTTP request to send to the Roblox Open Cloud API.
+ *
+ * @since 0.1.0
  */
 export interface HttpRequest {
 	/** The request body. */
@@ -24,6 +26,8 @@ export interface HttpRequest {
 
 /**
  * A normalized HTTP response from the Roblox Open Cloud API.
+ *
+ * @since 0.1.0
  */
 export interface HttpResponse {
 	/**
@@ -40,6 +44,8 @@ export interface HttpResponse {
 
 /**
  * Per-request configuration passed to {@link HttpClient.request}.
+ *
+ * @since 0.1.0
  */
 export interface RequestConfig {
 	/** The Roblox Open Cloud API key. */
@@ -53,6 +59,8 @@ export interface RequestConfig {
 /**
  * HTTP transport abstraction. Implementations classify every response into
  * a typed {@link Result}.
+ *
+ * @since 0.1.0
  */
 export interface HttpClient {
 	/** Sends an HTTP request and classifies the response. */
@@ -65,6 +73,8 @@ export interface HttpClient {
 /**
  * Client-level observability hooks. All hooks are notification-only and
  * fire-and-forget; they cannot alter retry behaviour.
+ *
+ * @since 0.1.0
  */
 export interface OpenCloudHooks {
 	/** Fired before the SDK sleeps for a computed retry or rate-limit wait. */
@@ -78,6 +88,8 @@ export interface OpenCloudHooks {
 /**
  * Options accepted by every resource client constructor. Cross-cutting
  * configuration that applies to all requests made through the client instance.
+ *
+ * @since 0.1.0
  */
 export interface OpenCloudClientOptions {
 	/** The Roblox Open Cloud API key used as the default for every request. */
@@ -137,6 +149,8 @@ export interface OpenCloudClientOptions {
  * Per-request override shape. Any subset of the overridable client options
  * may be supplied for a single request; omitted fields fall through to the
  * client-level defaults.
+ *
+ * @since 0.1.0
  */
 export type RequestOptions = Partial<
 	Pick<

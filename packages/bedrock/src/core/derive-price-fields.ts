@@ -3,6 +3,8 @@
  * `isForSale` flag and an optional numeric `price`. Mirrors the multipart
  * fields the Open Cloud `developer-products` create and update endpoints
  * accept for setting Robux pricing.
+ *
+ * @since 0.1.0
  */
 export interface PriceFields {
 	/** Whether the developer product should be purchasable. */
@@ -19,6 +21,8 @@ export interface PriceFields {
  * price (including `0`) becomes `{ isForSale: true, price }`. Both
  * `developerProduct` create and update paths share this helper so the
  * "absent ⇒ off-sale" semantics live in exactly one place.
+ *
+ * @since 0.1.0
  *
  * @param desired - Object carrying the user-declared `price`.
  * @returns The wire-shape `{ isForSale, price? }` fragment.

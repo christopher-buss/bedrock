@@ -2,6 +2,8 @@ import { OpenCloudError } from "./base.ts";
 
 /**
  * Options for constructing a {@link RateLimitError}.
+ *
+ * @since 0.1.0
  */
 export interface RateLimitErrorOptions extends ErrorOptions {
 	/**
@@ -19,6 +21,8 @@ export interface RateLimitErrorOptions extends ErrorOptions {
 /**
  * Thrown when the Roblox Open Cloud API returns a 429 Too Many Requests response.
  * Contains the server-suggested retry delay.
+ *
+ * @since 0.1.0
  *
  * @example
  *

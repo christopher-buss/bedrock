@@ -6,6 +6,8 @@ import { OpenCloudError } from "./base.ts";
  * so the class can be reused by future Resources without forcing a parallel
  * hierarchy.
  *
+ * @since 0.1.0
+ *
  * @template T - Resource-specific task type being polled.
  */
 export interface PollTimeoutErrorOptions<T = unknown> extends ErrorOptions {
@@ -19,6 +21,8 @@ export interface PollTimeoutErrorOptions<T = unknown> extends ErrorOptions {
  * Returned when `pollUntilDone` exhausts its wall-clock budget without
  * observing a terminal task state. Carries the last task polled so callers
  * can inspect state and decide whether to retry with a fresh budget.
+ *
+ * @since 0.1.0
  *
  * @template T - Resource-specific task type being polled.
  *

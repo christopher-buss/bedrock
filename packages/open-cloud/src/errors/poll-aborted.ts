@@ -2,6 +2,8 @@ import { OpenCloudError } from "./base.ts";
 
 /**
  * Options for constructing a {@link PollAbortedError}.
+ *
+ * @since 0.1.0
  */
 export interface PollAbortedErrorOptions extends ErrorOptions {
 	/** Whatever `AbortSignal.reason` was at the moment of abort. */
@@ -13,6 +15,8 @@ export interface PollAbortedErrorOptions extends ErrorOptions {
  * a terminal task state is reached. The `reason` field mirrors
  * `AbortSignal.reason` so callers can distinguish intentional cancellation
  * from unexpected abort sources.
+ *
+ * @since 0.1.0
  *
  * @example
  *

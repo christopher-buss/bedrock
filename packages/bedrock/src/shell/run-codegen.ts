@@ -8,6 +8,8 @@ import type { StatePort } from "../ports/state-port.ts";
 /**
  * Failure surfaced by {@link runCodegen}. Stage-tagged so callers can tell a
  * cross-environment read failure from a thrown emitter or a write failure.
+ *
+ * @since 0.1.0
  */
 export type CodegenError =
 	| { readonly cause: CodegenWriteError; readonly kind: "codegenWriteFailed" }

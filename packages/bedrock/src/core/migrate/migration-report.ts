@@ -5,9 +5,11 @@ import type { BedrockState } from "../state.ts";
 /**
  * Per-environment in-memory state snapshot map keyed by environment name.
  *
- * `Record` rather than the PRD-suggested `Map` so the field survives
- * `JSON.stringify` for downstream logging and parallel-iterates cleanly
- * with `Config.environments` (which is itself a `Record`).
+ * `Record` rather than `Map` so the field survives `JSON.stringify` for
+ * downstream logging and parallel-iterates cleanly with
+ * `Config.environments` (which is itself a `Record`).
+ *
+ * @since 0.1.0
  */
 export type StatesByEnvironment = Readonly<Record<string, BedrockState>>;
 
@@ -15,6 +17,8 @@ export type StatesByEnvironment = Readonly<Record<string, BedrockState>>;
  * Aggregate counts for the four `MigrationWarning` kinds. Computed by
  * folding `MigrationReport.warnings`; lets a CI gate skim totals without
  * iterating every entry. All fields are zero on a clean migration.
+ *
+ * @since 0.1.0
  */
 export interface MigrationSummary {
 	/** Number of `ambiguous` warnings emitted. */
@@ -45,6 +49,8 @@ export interface MigrationSummary {
  * Every variant carries `mantlePath` rooted at the environment so the
  * report is searchable (for example
  * `production.experienceConfiguration_singleton.genre`).
+ *
+ * @since 0.1.0
  */
 export type MigrationWarning =
 	| {
@@ -78,6 +84,8 @@ export type MigrationWarning =
  *   `validateConfig`; `cause` carries the `ConfigError` so callers can
  *   inspect each `validationFailed` issue. Defensive bug catcher that
  *   callers should never see in practice.
+ *
+ * @since 0.1.0
  */
 export type MigrateError =
 	| {
@@ -112,6 +120,8 @@ export type MigrateError =
  *
  * `warnings` and `summary` describe what the migrator did *not* migrate
  * verbatim, classified for triage. The skeleton emits no warnings.
+ *
+ * @since 0.1.0
  */
 export interface MigrationReport {
 	/** Validated bedrock config built from the Mantle state file. */

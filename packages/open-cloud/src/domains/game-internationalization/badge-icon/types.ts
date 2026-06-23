@@ -5,6 +5,8 @@ import type { RobloxLanguageCode, RobloxLocale } from "#src/locales/data.generat
  * against a badge. A subsequent upload for the same `(badgeId, languageCode)`
  * pair replaces the existing icon for that locale. Source-language icons
  * are managed through `BadgesClient.uploadIcon`.
+ *
+ * @since 0.1.0
  */
 export interface UploadBadgeIconLocalizationParameters {
 	/** Stringified ID of the badge whose icon is being uploaded. */

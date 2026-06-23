@@ -3,6 +3,8 @@
  * Every writable field is optional; presence of a key drives the
  * `updateMask` query string that the server uses as the field-mask
  * for the partial update. Absent keys are left untouched server-side.
+ *
+ * @since 0.1.0
  */
 export interface UpdatePlaceParameters {
 	/** New description for the place. */
@@ -20,6 +22,8 @@ export interface UpdatePlaceParameters {
 /**
  * Parsed representation of a Roblox place's configuration, as returned
  * by the Open Cloud `Cloud_GetPlace` and `Cloud_UpdatePlace` endpoints.
+ *
+ * @since 0.1.0
  */
 export interface Place {
 	/** Stringified place ID, extracted from the wire `path`. */

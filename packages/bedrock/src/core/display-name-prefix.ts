@@ -2,6 +2,8 @@
  * Default template applied when a project enables display-name prefixing
  * without supplying its own `displayNamePrefix.format`. Yields outputs
  * like `[STAGING] ` for an environment whose `label` is `"staging"`.
+ *
+ * @since 0.1.0
  */
 export const DEFAULT_PREFIX_FORMAT = "[{LABEL}] ";
 
@@ -17,6 +19,8 @@ const PLACEHOLDER_PATTERN = /\{(LABEL|Label|label)\}/g;
  * - `{Label}`: capitalized label (first character upper, rest as written).
  *
  * Other characters in the template flow through verbatim.
+ *
+ * @since 0.1.0
  *
  * @param label - Environment label declared on `EnvironmentEntry.label`.
  * @param format - Template string. Falls back to

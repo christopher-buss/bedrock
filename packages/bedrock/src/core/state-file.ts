@@ -64,6 +64,8 @@ export function coLocateRealDisplay(
  * keys alongside `version` inside the envelope; an empty or absent set is
  * omitted so a happy-path file never shows the marker.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -105,6 +107,8 @@ export function serializeStateFile(state: BedrockState): string {
  * A `pendingRebuild` list inside the envelope is hydrated back into the typed
  * set; an absent or empty list leaves the field off the parsed state. A
  * pre-existing v1 file without the field parses unchanged.
+ *
+ * @since 0.1.0
  *
  * @example
  *

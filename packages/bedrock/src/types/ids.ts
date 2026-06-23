@@ -16,12 +16,16 @@ const SHA256_HEX_PATTERN = /^[0-9a-f]{64}$/;
 /**
  * User-supplied identifier for a resource within a config (e.g. `"vip-pass"`).
  * Stable across deploys; used to correlate desired ↔ current state.
+ *
+ * @since 0.1.0
  */
 export type ResourceKey = Tagged<string, "ResourceKey">;
 
 /**
  * Roblox-assigned numeric asset ID, represented as a string to avoid int64
  * precision loss in JavaScript.
+ *
+ * @since 0.1.0
  */
 export type RobloxAssetId = Tagged<string, "RobloxAssetId">;
 
@@ -29,6 +33,8 @@ export type RobloxAssetId = Tagged<string, "RobloxAssetId">;
  * Lowercase hex-encoded SHA-256 digest (exactly 64 characters drawn from
  * `0-9a-f`). Used to detect changes to file-backed resource inputs such as
  * game-pass icons without re-uploading the file.
+ *
+ * @since 0.1.0
  */
 export type Sha256Hex = Tagged<string, "Sha256Hex">;
 
@@ -38,6 +44,8 @@ export type Sha256Hex = Tagged<string, "Sha256Hex">;
  * Prefer this when the caller owns error handling (for example, constructing a
  * `Result` error in a shell-layer parser). Use {@link asResourceKey} when an
  * exception is the right failure mode.
+ *
+ * @since 0.1.0
  *
  * @example
  *
@@ -62,6 +70,8 @@ export function isResourceKey(raw: string): raw is ResourceKey {
  *
  * Accepts non-empty strings of alphanumeric characters, hyphens, and
  * underscores (matching `/^[A-Za-z0-9_-]+$/`).
+ *
+ * @since 0.1.0
  *
  * @example
  *
@@ -102,6 +112,8 @@ export function asResourceKey(raw: string): ResourceKey {
  * `Result` error in a shell-layer parser). Use {@link asRobloxAssetId} when an
  * exception is the right failure mode.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -126,6 +138,8 @@ export function isRobloxAssetId(raw: string): raw is RobloxAssetId {
  * Accepts non-empty digit-only strings (matching `/^\d+$/`). Roblox asset IDs
  * are int64 values carried as strings because JavaScript's `number` cannot
  * represent the full int64 range.
+ *
+ * @since 0.1.0
  *
  * @example
  *
@@ -168,6 +182,8 @@ export function asRobloxAssetId(raw: string): RobloxAssetId {
  * `/^[0-9a-f]{64}$/`). Prefer this when the caller owns error handling;
  * use {@link asSha256Hex} when throwing is the right failure mode.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -193,6 +209,8 @@ export function isSha256Hex(raw: string): raw is Sha256Hex {
  * Accepts exactly 64 lowercase hexadecimal characters. Uppercase hex, lengths
  * other than 64, and any non-hex character are rejected so the brand is a
  * canonical representation.
+ *
+ * @since 0.1.0
  *
  * @example
  *

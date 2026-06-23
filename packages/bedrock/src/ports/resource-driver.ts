@@ -12,6 +12,8 @@ import type {
  * supplies for a place; absent (and ignored) on every other dispatch. A driver
  * that does not consume an artifact simply ignores the parameter.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -35,6 +37,8 @@ export interface ResourceApplyContext {
  * `ResourceDriver<K>` is a *driven* (secondary) port in hexagonal terms; the
  * name "driver" follows Terraform, Pulumi, and Mantle IaC convention for a
  * component that talks to a specific resource API.
+ *
+ * @since 0.1.0
  *
  * @template K - The {@link ResourceKind} discriminator this driver handles.
  *
@@ -118,6 +122,8 @@ export interface ResourceDriver<K extends ResourceKind> {
  * registry by `op.desired.kind` to reach the matching driver with full type
  * safety: adding a new kind to `ResourceDesiredState` is a compile error until
  * a matching registry entry is supplied.
+ *
+ * @since 0.1.0
  *
  * @example
  *

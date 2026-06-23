@@ -18,6 +18,8 @@ import { collectUniverseIdIssues } from "./validate-universe-xor.ts";
  * is enabled, so authors who want only defaults should write
  * `redacted: true` instead of an empty object.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -60,6 +62,8 @@ export interface RedactedGamePassOverride {
  * authors who want only the description default should write
  * `redacted: true` instead of an empty object.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -95,6 +99,8 @@ export interface RedactedPlaceOverride {
  * Composes field-by-field with per-resource overrides at the root and inside
  * an env overlay; the most-specific layer wins per field. Boolean `true`
  * contributes no fields; `false` carves the resource out at its layer.
+ *
+ * @since 0.1.0
  *
  * @example
  *
@@ -135,6 +141,8 @@ export interface RedactedEnvironmentOverride {
 /**
  * Body of a single entry in the `passes` collection. Keys in the parent
  * record are `ResourceKey`-shaped strings enforced at schema validation.
+ *
+ * @since 0.1.0
  */
 export interface GamePassEntry {
 	/** Name shown on the Roblox storefront. */
@@ -169,6 +177,8 @@ export interface GamePassEntry {
  * fall through to the placeholder defaults. The object form implies
  * redaction is enabled, so authors who want only defaults should write
  * `redacted: true` instead of an empty object.
+ *
+ * @since 0.1.0
  *
  * @example
  *
@@ -211,6 +221,8 @@ export interface RedactedDeveloperProductOverride {
 /**
  * Body of a single entry in the `products` collection. Keys in the parent
  * record are `ResourceKey`-shaped strings enforced at schema validation.
+ *
+ * @since 0.1.0
  */
 export interface DeveloperProductEntry {
 	/** Name shown on the Roblox storefront. */
@@ -262,6 +274,8 @@ export interface DeveloperProductEntry {
  * metadata fields. The Roblox `placeId` is environment-specific and lives
  * on each per-environment overlay so the same `.rbxl` file can publish to
  * different places across staging, production, and so on.
+ *
+ * @since 0.1.0
  */
 export interface PlaceEntry {
 	/** User-facing description shown on the place's detail page. */
@@ -297,6 +311,8 @@ export interface PlaceEntry {
  * `placeId` is user-supplied because Open Cloud cannot mint places; the
  * place must already exist in Roblox before Bedrock can publish versions
  * to it.
+ *
+ * @since 0.1.0
  */
 export interface ResolvedPlaceEntry {
 	/** User-facing description shown on the place's detail page. */
@@ -331,6 +347,8 @@ export interface ResolvedPlaceEntry {
  * overlay, but never both: the schema rejects a config that sets it in
  * both places, and rejects a `universe` block without a resolvable
  * `universeId`.
+ *
+ * @since 0.1.0
  */
 export interface UniverseEntry {
 	/** Whether console players can join; omit or set `undefined` to leave unmanaged. */
@@ -405,6 +423,8 @@ export interface UniverseEntry {
  * State configuration for the GitHub Gist backend. Holds the public gist
  * ID; the library reads the GitHub token from `BEDROCK_GITHUB_TOKEN` when
  * it default-constructs the adapter.
+ *
+ * @since 0.1.0
  */
 export interface GistStateConfig {
 	/** Discriminator selecting the gist adapter. */
@@ -419,6 +439,8 @@ export interface GistStateConfig {
  * builtins while permitting custom values for plugin scenarios. The
  * dispatch path inside `deploy()` rejects unknown names with a typed
  * `unsupportedBackend` error.
+ *
+ * @since 0.1.0
  */
 export type StateConfig = GistStateConfig | { readonly backend: string & {} };
 
@@ -435,6 +457,8 @@ export type StateConfig = GistStateConfig | { readonly backend: string & {} };
  * either at the root (root-authoritative) or per environment, but never
  * both: the schema enforces this XOR at validation time, attributing the
  * failure to the offending field's path.
+ *
+ * @since 0.1.0
  */
 export interface EnvironmentEntry {
 	/**
@@ -499,6 +523,8 @@ export interface EnvironmentEntry {
  * their entry type alongside the kind's other domain types without
  * touching this module.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -531,6 +557,8 @@ export interface ResourceEntryByKind {
  * that `selectEnvironment` prepends to every declared display name.
  *
  * Defaults: `enabled` is `true`; `format` is `"[{LABEL}] "`.
+ *
+ * @since 0.1.0
  */
 export interface DisplayNamePrefixConfig {
 	/**
@@ -566,6 +594,8 @@ export interface DisplayNamePrefixConfig {
  * not here: an emitter is arbitrary code, so it cannot round-trip through a
  * YAML/JSON config. This section carries only the declarative switch and the
  * output location.
+ *
+ * @since 0.1.0
  */
 export interface CodegenConfig {
 	/**
@@ -599,6 +629,8 @@ export type WithoutKey<T, Key extends keyof T> = Pick<T, Exclude<keyof T, Key>>;
  * declares `universeId`, no per-env overlay may redeclare it. Setting
  * `universeId` here produces a descriptive type error pointing at this
  * field rather than the opaque `never` message.
+ *
+ * @since 0.1.0
  */
 export type UniverseOverlayWithoutId = Partial<WithoutKey<UniverseEntry, "universeId">> & {
 	universeId?: "universeId is already declared on the root universe block; remove it from this environment overlay, or remove it from root and declare it on every environment overlay instead" & {
@@ -611,6 +643,8 @@ export type UniverseOverlayWithoutId = Partial<WithoutKey<UniverseEntry, "univer
  * Used by {@link ConfigEnvironmentUniverseId}: when the root universe
  * block does not declare `universeId`, every env that declares a
  * `universe` overlay must supply one of its own.
+ *
+ * @since 0.1.0
  */
 export type UniverseOverlayWithId = Partial<WithoutKey<UniverseEntry, "universeId">> & {
 	universeId: string;
@@ -623,6 +657,8 @@ export type UniverseOverlayWithId = Partial<WithoutKey<UniverseEntry, "universeI
  * redeclare `universeId`; the schema rejects any env overlay that
  * does. The runtime `selectEnvironment` merges shared-field overlays
  * onto the root and inherits `universeId` from the root unchanged.
+ *
+ * @since 0.1.0
  */
 export type ConfigRootUniverseId = ConfigBase & {
 	/**
@@ -650,6 +686,8 @@ export type ConfigRootUniverseId = ConfigBase & {
  * universe at all. The root may still carry shared fields (device
  * flags, social links, display name, icon) which `selectEnvironment`
  * merges onto each env's overlay at resolution time.
+ *
+ * @since 0.1.0
  */
 export type ConfigEnvironmentUniverseId = ConfigBase & {
 	/**
@@ -688,6 +726,8 @@ export type ConfigEnvironmentUniverseId = ConfigBase & {
  * every entry of `environments`; `resolveStateConfig` surfaces the
  * missing case at the deploy boundary as `stateNotConfigured`.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -719,6 +759,8 @@ export type Config = ConfigEnvironmentUniverseId | ConfigRootUniverseId;
  * `universeId`. Resource drivers consume this shape rather than
  * `UniverseEntry` so the post-merge invariant is visible in the type
  * system.
+ *
+ * @since 0.1.0
  */
 export interface ResolvedUniverseEntry extends Pick<
 	UniverseEntry,
@@ -737,6 +779,8 @@ export interface ResolvedUniverseEntry extends Pick<
  * (`flattenConfig`, `buildDefaultRegistry`, the deploy pipeline) accept
  * this shape rather than `Config` so the post-merge invariant is visible
  * in the type system.
+ *
+ * @since 0.1.0
  *
  * @example
  *
@@ -823,6 +867,8 @@ interface ConfigBase {
  * autocomplete idiom prevents TypeScript from narrowing on
  * `backend === "gist"` alone, so dispatch sites use this guard to
  * preserve the `gistId` field shape.
+ *
+ * @since 0.1.0
  *
  * @example
  *
@@ -1134,6 +1180,8 @@ const rootSchema = type({
  * validated `Config` on success or a `validationFailed` `ConfigError` with
  * one issue per problem, each attributed to a field path. `sourceFile`
  * appears in the error so callers can point a human at the offending file.
+ *
+ * @since 0.1.0
  *
  * @param input - Parsed value from a config source (object tree from a
  * config loader, or a hand-built literal). Shape is checked, not assumed.
