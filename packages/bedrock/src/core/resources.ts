@@ -507,11 +507,11 @@ export type ResourceCurrentState<K extends ResourceKind = ResourceKind> = K exte
 /**
  * Real (pre-redaction) display values for a single redacted resource,
  * persisted in a diff-ignored sibling of the state file so a codegen emitter
- * can recover the values bedrock hid behind placeholders (ADR-024). Only the
- * redactable scalar fields that actually diverge from the pushed placeholder
- * are present; a field whose real value equals what was pushed is omitted.
- * `icon` is intentionally absent — its actionable value is the asset ID in
- * `outputs` (never redacted), and the config path is useless to game source.
+ * can recover the values bedrock hid behind placeholders. Only the redactable
+ * scalar fields that actually diverge from the pushed placeholder are present;
+ * a field whose real value equals what was pushed is omitted. `icon` is
+ * intentionally absent: its actionable value is the asset ID in `outputs`
+ * (never redacted), and the config path is useless to game source.
  *
  * @example
  *

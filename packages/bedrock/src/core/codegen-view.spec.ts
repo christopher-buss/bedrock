@@ -128,6 +128,14 @@ describe(codegenView, () => {
 		expect(view.price).toBe(99_999);
 	});
 
+	it("should not project a field the resource does not own even when realDisplay carries it", () => {
+		expect.assertions(1);
+
+		const view = codegenView(redactedPass, { displayName: "Should Not Appear" });
+
+		expect(view as Record<string, unknown>).not.toContainKey("displayName");
+	});
+
 	it("should project a redacted place display name as the object form", () => {
 		expect.assertions(1);
 

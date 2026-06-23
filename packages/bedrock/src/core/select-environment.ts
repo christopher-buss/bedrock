@@ -107,8 +107,8 @@ export type SelectEnvironmentError =
  * the deploy-ready (redacted, prefixed) config and the real-display sibling
  * map derived from the same pre-redaction merge.
  */
-export interface ResolvedEnvironment {
-	/** Redacted, prefixed `ResolvedConfig` — what {@link selectEnvironment} returns. */
+interface ResolvedEnvironment {
+	/** Redacted, prefixed `ResolvedConfig`, the same value {@link selectEnvironment} returns. */
 	readonly config: ResolvedConfig;
 	/**
 	 * Real (pre-redaction) display values for redacted resources, keyed by the

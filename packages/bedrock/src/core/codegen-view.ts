@@ -10,19 +10,26 @@ import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
  *
  * The polymorphism lives only in this codegen-facing view; the persisted and
  * diffed resource always holds the scalar pushed value. Never hand-narrow the
- * union — use {@link realValue}, {@link pushedValue}, and {@link isRedacted}.
+ * union: use {@link realValue}, {@link pushedValue}, and {@link isRedacted}.
  *
  * @template T - The scalar field type (e.g. `string` for a name, `number` for
  * a price).
  */
-export type Field<T> = RedactedField<T> | T;
+export type Field<T extends Scalar> = RedactedField<T> | T;
+
+/**
+ * The scalar field types a {@link Field} may carry. Constraining the union to
+ * scalars keeps `typeof value === "object"` a sound discriminant for the
+ * redacted object form: a plain field value can never itself be an object.
+ */
+type Scalar = boolean | number | string | undefined;
 
 /**
  * Object form of a {@link Field} for a field that was redacted on deploy.
  *
  * @template T - The scalar field type.
  */
-interface RedactedField<T> {
+interface RedactedField<T extends Scalar> {
 	/** The placeholder value bedrock pushed to Open Cloud in place of the real one. */
 	readonly redacted: T;
 	/** The real (pre-redaction) value recovered from the diff-ignored state sibling. */
@@ -46,7 +53,7 @@ interface RedactedField<T> {
  * expect(realValue({ redacted: "Redacted Pass", value: "VIP Pass" })).toBe("VIP Pass");
  * ```
  */
-export function realValue<T>(field: Field<T>): T {
+export function realValue<T extends Scalar>(field: Field<T>): T {
 	return isRedactedField(field) ? field.value : field;
 }
 
@@ -67,7 +74,7 @@ export function realValue<T>(field: Field<T>): T {
  * expect(pushedValue({ redacted: 99999, value: 500 })).toBe(99999);
  * ```
  */
-export function pushedValue<T>(field: Field<T>): T {
+export function pushedValue<T extends Scalar>(field: Field<T>): T {
 	return isRedactedField(field) ? field.redacted : field;
 }
 
@@ -88,11 +95,13 @@ export function pushedValue<T>(field: Field<T>): T {
  * expect(isRedacted({ redacted: "Redacted Pass", value: "VIP Pass" })).toBeTrue();
  * ```
  */
-export function isRedacted<T>(field: Field<T>): boolean {
+export function isRedacted<T extends Scalar>(field: Field<T>): boolean {
 	return isRedactedField(field);
 }
 
-function isRedactedField<T>(field: Field<T>): field is RedactedField<T> {
+function isRedactedField<T extends Scalar>(field: Field<T>): field is RedactedField<T> {
+	// Sound because `T extends Scalar`: a non-redacted field value is never an
+	// object, so only the redacted `{ value, redacted }` form is typeof "object".
 	return typeof field === "object";
 }
 
@@ -107,7 +116,7 @@ const REDACTABLE_VIEW_FIELDS = ["name", "description", "price", "displayName"] a
  */
 export type CodegenView<Resource> = {
 	readonly [Key in keyof Resource]: Key extends RedactableViewField
-		? Field<Resource[Key]>
+		? Field<Resource[Key] & Scalar>
 		: Resource[Key];
 };
 
@@ -117,8 +126,8 @@ type RedactableViewField = (typeof REDACTABLE_VIEW_FIELDS)[number];
  * Project a persisted resource into the view a codegen emitter
  * consumes. A redactable field that was hidden (its key is present in
  * `realDisplay` with a value differing from the pushed scalar) becomes the
- * {@link Field} object form carrying both the real and pushed values; every
- * other field — non-redactable, or redactable but not hidden — stays the plain
+ * {@link Field} object form carrying both the real and pushed values. Every
+ * other field (non-redactable, or redactable but not hidden) stays the plain
  * scalar already on the resource. The persisted resource is never mutated.
  *
  * Read the projected fields through {@link realValue}, {@link pushedValue}, and
@@ -171,6 +180,12 @@ export function codegenView<Resource extends ResourceCurrentState>(
 ): CodegenView<Resource> {
 	const view: Record<string, unknown> = { ...resource };
 	for (const field of REDACTABLE_VIEW_FIELDS) {
+		if (!(field in resource)) {
+			// Skip a field the kind does not own (e.g. a game pass has no
+			// `displayName`), even when a mismatched `realDisplay` carries it.
+			continue;
+		}
+
 		const pushed = view[field];
 		const real = realDisplay?.[field];
 		if (real !== undefined && real !== pushed) {

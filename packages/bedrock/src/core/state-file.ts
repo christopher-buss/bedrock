@@ -28,7 +28,7 @@ const envelopeSchema = type({
  * Project the `realDisplay` map onto the resources array for serialization,
  * attaching each covered resource's real display values as an adapter-private
  * `$realDisplay` sibling. A resource the map does not cover is returned by
- * reference unchanged — never with an `$realDisplay: undefined` key, which
+ * reference unchanged, never with an `$realDisplay: undefined` key, which
  * `JSON.stringify` would erase but `parseStateFile` and equality checks would
  * not. Exported for direct unit coverage of that distinction.
  *

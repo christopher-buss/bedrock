@@ -66,14 +66,14 @@ export interface BedrockState {
 	/**
 	 * Real (pre-redaction) display values for redacted resources, keyed by the
 	 * same `kind:key` composite the diff uses. Populated only for resources
-	 * that hide a display field (ADR-024); the field is omitted entirely when
-	 * no resource is redacted, so a happy-path snapshot never carries it.
+	 * that hide a display field; the field is omitted entirely when no resource
+	 * is redacted, so a happy-path snapshot never carries it.
 	 *
 	 * On disk each entry is co-located as an adapter-private `$realDisplay`
 	 * sibling on the resource it describes; `serializeStateFile` and
 	 * `parseStateFile` own that mapping. The map never participates in drift
-	 * detection — `diff` and the state merge operate on the resources array and
-	 * never read it — so persisting real values keeps the diff redaction-blind.
+	 * detection: `diff` and the state merge operate on the resources array and
+	 * never read it, so persisting real values keeps the diff redaction-blind.
 	 * A codegen emitter recovers the values through the `codegenView` projection.
 	 */
 	readonly realDisplay?: Readonly<Record<string, ResourceRealDisplay>>;
