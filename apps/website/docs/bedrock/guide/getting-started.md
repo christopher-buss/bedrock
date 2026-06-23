@@ -106,14 +106,17 @@ Set the two credentials Bedrock reads from the environment, then deploy:
 export BEDROCK_API_KEY="<open-cloud-api-key>"
 export BEDROCK_GITHUB_TOKEN="<github-token-with-gist-scope>"
 
-bedrock deploy --env production
+pnpm bedrock deploy --env production
 ```
+
+`@bedrock-rbx/core` installs locally, so run its `bedrock` binary through your
+package manager — `pnpm bedrock` (shown here), `npx bedrock`, or `bunx bedrock`.
 
 To preview the operations a deploy *would* apply without writing any state, run
 a dry run first:
 
 ```sh
-bedrock diff --env production
+pnpm bedrock diff --env production
 ```
 
 `diff` prints the pending creates and updates per environment (or `No drift`
@@ -171,11 +174,16 @@ input, computes a SHA-256 hash of its contents, and returns the normalized
 stays testable against a fake filesystem:
 
 ```ts
-import { buildDesired, flattenConfig, selectEnvironment } from "@bedrock-rbx/core";
+import { buildDesired, flattenConfig, loadConfig, selectEnvironment } from "@bedrock-rbx/core";
 
 import { readFile } from "node:fs/promises";
 
-const resolved = selectEnvironment(config, "production");
+const config = await loadConfig();
+if (!config.success) {
+	throw new Error(config.err.kind);
+}
+
+const resolved = selectEnvironment(config.data, "production");
 if (!resolved.success) {
 	throw new Error(resolved.err.kind);
 }
@@ -186,9 +194,10 @@ if (!desired.success) {
 }
 ```
 
-`selectEnvironment` merges the chosen environment's overlays onto the root
-config, and `flattenConfig` turns that resolved config into the flat tagged
-input list `buildDesired` expects.
+[`loadConfig`](/bedrock/api/functions/loadConfig) discovers and validates the
+`bedrock.config.*` file, `selectEnvironment` merges the chosen environment's
+overlays onto the root config, and `flattenConfig` turns that resolved config
+into the flat tagged input list `buildDesired` expects.
 
 ### Compute the diff
 
