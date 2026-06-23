@@ -1,9 +1,10 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { collectPublicApiSymbols, type ReadSource } from "./api-surface.ts";
+import { barrelSourcePaths, collectPublicApiSymbols, type ReadSource } from "./api-surface.ts";
 
 const BARREL = path.resolve("/virtual/pkg/src/index.ts");
+const ROOT = path.resolve("/virtual/pkg");
 
 function moduleMap(modules: Record<string, string>): ReadSource {
 	const resolved = new Map<string, string>();
@@ -237,5 +238,49 @@ describe(collectPublicApiSymbols, () => {
 		const symbols = collectPublicApiSymbols(BARREL, read);
 
 		expect(symbols[0]?.sinceTag).toBe("2.3.0");
+	});
+});
+
+describe(barrelSourcePaths, () => {
+	it("should return the source path of every src .ts entry point", () => {
+		expect.assertions(1);
+
+		const manifest = JSON.stringify({
+			exports: {
+				".": { default: "./dist/index.mjs", source: "./src/index.ts" },
+				"./config": { default: "./dist/config.mjs", source: "./src/config.ts" },
+			},
+		});
+
+		const paths = barrelSourcePaths(manifest, ROOT);
+
+		expect(paths).toStrictEqual([
+			path.resolve(ROOT, "./src/index.ts"),
+			path.resolve(ROOT, "./src/config.ts"),
+		]);
+	});
+
+	it("should exclude string entries and non-src sources", () => {
+		expect.assertions(1);
+
+		const manifest = JSON.stringify({
+			exports: {
+				".": { source: "./src/index.ts" },
+				"./package.json": "./package.json",
+				"./testing": { source: "./tests/helpers/index.ts" },
+			},
+		});
+
+		const paths = barrelSourcePaths(manifest, ROOT);
+
+		expect(paths).toStrictEqual([path.resolve(ROOT, "./src/index.ts")]);
+	});
+
+	it("should return no paths when the manifest has no exports", () => {
+		expect.assertions(1);
+
+		const paths = barrelSourcePaths(JSON.stringify({ name: "pkg" }), ROOT);
+
+		expect(paths).toStrictEqual([]);
 	});
 });

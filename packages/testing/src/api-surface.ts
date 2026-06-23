@@ -74,6 +74,35 @@ export function collectPublicApiSymbols(
 	return symbols;
 }
 
+/**
+ * Resolve the absolute paths of every first-party barrel a package publishes:
+ * each `exports` entry whose `source` condition points at a `./src/**` `.ts`
+ * module. Subpaths that ship from outside `src` (the `./testing` helpers, a
+ * bare `./package.json`) are excluded.
+ *
+ * @param packageJsonText - Raw `package.json` contents.
+ * @param packageRoot - Absolute path the relative sources resolve against.
+ * @returns Absolute barrel paths, in `exports` declaration order.
+ */
+export function barrelSourcePaths(packageJsonText: string, packageRoot: string): Array<string> {
+	const manifest = JSON.parse(packageJsonText);
+	const exportsMap = readObject(manifest)?.["exports"];
+	const entries = readObject(exportsMap);
+	if (entries === undefined) {
+		return [];
+	}
+
+	const paths: Array<string> = [];
+	for (const entry of Object.values(entries)) {
+		const source = sourceConditionOf(entry);
+		if (source !== undefined && source.startsWith("./src/") && source.endsWith(".ts")) {
+			paths.push(path.resolve(packageRoot, source));
+		}
+	}
+
+	return paths;
+}
+
 function parseModule(modulePath: string, readSource: ReadSource): ts.SourceFile {
 	return ts.createSourceFile(
 		modulePath,
@@ -95,6 +124,20 @@ function namedExportElements(statement: ts.ExportDeclaration): ReadonlyArray<ts.
 
 function isRelativeSpecifier(specifier: string): boolean {
 	return specifier.startsWith(".");
+}
+
+function readObject(value: JSONValue): Record<string, JSONValue> | undefined {
+	if (typeof value === "object" && value && !Array.isArray(value)) {
+		return value;
+	}
+
+	return undefined;
+}
+
+function sourceConditionOf(entry: JSONValue): string | undefined {
+	const record = readObject(entry);
+	const source = record?.["source"];
+	return typeof source === "string" ? source : undefined;
 }
 
 const SINCE_TAG = /@since\s+(\S+)/;
