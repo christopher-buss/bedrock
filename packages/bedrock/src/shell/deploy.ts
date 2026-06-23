@@ -668,9 +668,10 @@ async function completeTwoPhase(
 	// Rebuild when a leftover marker forces it or the freshly emitted codegen
 	// would differ from what the published place was last built against. A
 	// provisioned create changes the emitted output, so its hash differs and the
-	// create trigger is subsumed here, not duplicated.
-	const shouldRebuild =
-		marker.size > 0 || (emittedHash !== undefined && emittedHash !== storedHash);
+	// create trigger is subsumed here, not duplicated. `emittedHash` is undefined
+	// only when codegen is inactive, which (per the activation rule) implies a
+	// forcing marker, so `marker.size > 0` already covers that case.
+	const shouldRebuild = marker.size > 0 || emittedHash !== storedHash;
 
 	if (!shouldRebuild) {
 		const args = { assetPass, codegen, codegenHash: nextHash, deps, environment };

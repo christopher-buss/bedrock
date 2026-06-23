@@ -89,8 +89,12 @@ export function buildCodegenEnvironments(
  * @returns The branded SHA-256 hex digest of the canonicalized output.
  */
 export async function hashCodegenFiles(files: ReadonlyArray<CodegenFile>): Promise<Sha256Hex> {
+	// Each file becomes the unambiguous JSON of its `[path, content]` pair, the
+	// pairs are sorted as strings (a deterministic total order, so a reordered
+	// emitter return hashes the same), and the sorted list is hashed. JSON keys
+	// rule out a path/content boundary shift colliding two distinct files.
 	const canonical = JSON.stringify(
-		[...files].sort(byPath).map((file) => [file.path, file.content]),
+		files.map((file) => JSON.stringify([file.path, file.content])).sort(),
 	);
 	return asSha256Hex(await sha256Hex(new TextEncoder().encode(canonical)));
 }
@@ -105,12 +109,4 @@ export async function hashCodegenFiles(files: ReadonlyArray<CodegenFile>): Promi
  */
 export function isCodegenEnabled(codegen: CodegenConfig | undefined): boolean {
 	return codegen?.enabled === true;
-}
-
-function byPath(left: CodegenFile, right: CodegenFile): number {
-	if (left.path === right.path) {
-		return 0;
-	}
-
-	return left.path < right.path ? -1 : 1;
 }

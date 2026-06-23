@@ -2134,6 +2134,43 @@ describe(deploy, () => {
 			expect(writer.writes).toStrictEqual([CODEGEN_FILE]);
 		});
 
+		it("should abort the rebuild and surface codegenFailed when codegen fails in two-phase", async () => {
+			expect.assertions(3);
+
+			const { port, writes } = inMemoryStatePort();
+			const { placeCalls, registry } = recordingPlaceRegistry();
+			let didCallHook = false;
+			const rejectingWriter: CodegenWriterPort = {
+				async write() {
+					return {
+						err: { kind: "codegenWriteError", path: "ids.luau", reason: "no space" },
+						success: false,
+					};
+				},
+			};
+
+			const result = await deploy({
+				codegenWriter: rejectingWriter,
+				config: twoPhaseCodegenConfig(),
+				emit: twoPhaseEmit,
+				environment: "production",
+				readFile: readIcon,
+				rebuild: () => {
+					didCallHook = true;
+					return cannedRebuild();
+				},
+				registry,
+				statePort: port,
+			});
+
+			assert(!result.success);
+			assert(result.err.kind === "codegenFailed");
+
+			expect(didCallHook).toBeFalse();
+			expect(placeCalls).toBeEmpty();
+			expect(writes).toHaveLength(1);
+		});
+
 		function startPlaceInState(): ResourceCurrentState<"place"> {
 			return {
 				key: startPlace,
