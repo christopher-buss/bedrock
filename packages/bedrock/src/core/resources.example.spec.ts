@@ -11,6 +11,7 @@ import {
   type DeveloperProductDesiredState,
   type ResourceOutputsByKind,
   type ResourceCurrentState,
+  type ResourceRealDisplay,
 } from '@bedrock-rbx/core'
 
 it('Example 1', () => {
@@ -120,5 +121,14 @@ it('Example 6', () => {
 })
 
 it('Example 7', () => {
+  const real: ResourceRealDisplay = {
+    description: 'Grants VIP perks.',
+    name: 'VIP Pass',
+    price: 500,
+  }
+  expect(real.name).toBe('VIP Pass')
+})
+
+it('Example 8', () => {
   expect(UNIVERSE_SINGLETON_KEY).toBe('main')
 })

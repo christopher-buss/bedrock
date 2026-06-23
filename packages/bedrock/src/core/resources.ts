@@ -504,6 +504,40 @@ export type ResourceCurrentState<K extends ResourceKind = ResourceKind> = K exte
 		>
 	: never;
 
+/**
+ * Real (pre-redaction) display values for a single redacted resource,
+ * persisted in a diff-ignored sibling of the state file so a codegen emitter
+ * can recover the values bedrock hid behind placeholders (ADR-024). Only the
+ * redactable scalar fields that actually diverge from the pushed placeholder
+ * are present; a field whose real value equals what was pushed is omitted.
+ * `icon` is intentionally absent — its actionable value is the asset ID in
+ * `outputs` (never redacted), and the config path is useless to game source.
+ *
+ * @example
+ *
+ * ```ts
+ * import type { ResourceRealDisplay } from "@bedrock-rbx/core";
+ *
+ * const real: ResourceRealDisplay = {
+ *     description: "Grants VIP perks.",
+ *     name: "VIP Pass",
+ *     price: 500,
+ * };
+ *
+ * expect(real.name).toBe("VIP Pass");
+ * ```
+ */
+export interface ResourceRealDisplay {
+	/** Real name for a redacted `gamePass` or `developerProduct`. */
+	readonly name?: string;
+	/** Real description for a redacted `gamePass`, `developerProduct`, or `place`. */
+	readonly description?: string;
+	/** Real display name for a redacted `place`. */
+	readonly displayName?: string;
+	/** Real Robux price for a redacted on-sale `gamePass` or `developerProduct`. */
+	readonly price?: number;
+}
+
 type Prettify<T> = { readonly [K in keyof T]: T[K] };
 
 type WithOptionalSocialLinks = Readonly<Partial<Record<SocialLinkField, SocialLink | undefined>>>;
