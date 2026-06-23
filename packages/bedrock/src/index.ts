@@ -39,6 +39,11 @@ export {
 } from "./core/codegen-view.ts";
 export type { CodegenFile, EmitInput, Emitter } from "./core/codegen.ts";
 export type { ConfigError, ConfigValidationIssue } from "./core/config-error.ts";
+export {
+	createDefaultEmitter,
+	DEFAULT_CODEGEN_OUTPUT_DIR,
+	type DefaultEmitterOptions,
+} from "./core/default-emitter.ts";
 export { derivePriceFields, type PriceFields } from "./core/derive-price-fields.ts";
 export { diff } from "./core/diff.ts";
 export { DEFAULT_PREFIX_FORMAT, renderDisplayNamePrefix } from "./core/display-name-prefix.ts";
