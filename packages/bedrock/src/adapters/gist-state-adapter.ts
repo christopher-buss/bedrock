@@ -222,9 +222,16 @@ function buildHeaders(token: string): Headers {
 	return headers;
 }
 
-async function sendGet(ctx: AdapterContext): Promise<Response> {
+async function sendGet(ctx: AdapterContext, etag?: string): Promise<Response> {
+	const headers = buildHeaders(ctx.token);
+	if (etag !== undefined) {
+		// Conditional GET: a replica still serving the prior body answers 304,
+		// which GitHub does not count against the primary REST rate limit.
+		headers.set("If-None-Match", etag);
+	}
+
 	return ctx.fetchFn(`${GITHUB_API_BASE}/gists/${ctx.gistId}`, {
-		headers: buildHeaders(ctx.token),
+		headers,
 		method: "GET",
 	});
 }
@@ -342,27 +349,6 @@ async function sendPatch(ctx: AdapterContext, body: string): Promise<Response> {
 	});
 }
 
-async function isContentVisible(ctx: AdapterContext, want: VisibilityTarget): Promise<boolean> {
-	const target = fileName(want.environment);
-	try {
-		// Compare the written body, not just the filename. The name is fixed
-		// per environment and unchanged by an overwrite, so presence alone
-		// never proves the new write propagated. Any absent or malformed shape
-		// (missing files map, missing file entry, missing content) surfaces as
-		// undefined or a thrown Reflect.get and is funnelled through the catch
-		// below, counting as "not yet visible" so the poll keeps trying rather
-		// than accepting a stale replica.
-		const response = await sendGet(ctx);
-		const body = JSON.parse(await response.text());
-		const files = Reflect.get(body, "files");
-		const entry = Reflect.get(files, target);
-		const content = Reflect.get(entry, "content");
-		return content === want.content;
-	} catch {
-		return false;
-	}
-}
-
 /**
  * Polls the gist until the just-written file is visible on a GET carrying the
  * content just written, with bounded retries. GitHub's gist API does not
@@ -376,6 +362,12 @@ async function isContentVisible(ctx: AdapterContext, want: VisibilityTarget): Pr
  * whether the content became visible. The PATCH already committed; the poll
  * only narrows the window in which subsequent reads can lag.
  *
+ * Once a stale replica reveals its ETag, later polls replay it via
+ * `If-None-Match`: a replica still serving the prior body answers `304 Not
+ * Modified`, which GitHub does not bill against the primary REST rate limit,
+ * so a slow-propagating write costs roughly one charged GET instead of one per
+ * attempt.
+ *
  * @param ctx - Adapter context carrying the injected fetch and sleep seams.
  * @param want - Environment file and serialized body the PATCH just wrote.
  */
@@ -383,9 +375,26 @@ async function waitForContentVisibility(
 	ctx: AdapterContext,
 	want: VisibilityTarget,
 ): Promise<void> {
+	const target = fileName(want.environment);
+	let etag: string | undefined;
 	for (let attempt = 0; attempt < MAX_VISIBILITY_ATTEMPTS; attempt += 1) {
-		if (await isContentVisible(ctx, want)) {
-			return;
+		try {
+			const response = await sendGet(ctx, etag);
+			// Carry the replica's ETag forward (keeping the prior one when the
+			// response omits it) so later polls stay conditional. Compare the
+			// written body, not the filename: the name is stable across an
+			// overwrite, so presence alone never proves propagation. Any absent
+			// or malformed shape, or an empty 304 body, throws and drops to the
+			// catch as "not yet visible" rather than accepting a stale replica.
+			etag = response.headers.get("etag") ?? etag;
+			const body = JSON.parse(await response.text());
+			const files = Reflect.get(body, "files");
+			const entry = Reflect.get(files, target);
+			if (Reflect.get(entry, "content") === want.content) {
+				return;
+			}
+		} catch {
+			/* not yet visible; keep polling with the retained ETag. */
 		}
 
 		if (attempt < MAX_VISIBILITY_ATTEMPTS - 1) {

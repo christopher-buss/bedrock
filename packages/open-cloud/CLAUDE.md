@@ -158,7 +158,7 @@ game-passes); those use request-only inline schemas with no `readOnly` flags.
 export interface GamePass {
 	readonly id: string;
 	readonly name: string;
-	readonly priceInRobux: number;
+	readonly isForSale: boolean;
 }
 ```
 

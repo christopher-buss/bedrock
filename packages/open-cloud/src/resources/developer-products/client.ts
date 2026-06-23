@@ -155,6 +155,15 @@ interface DeveloperProductLocalizationHandle {
  * ```
  *
  * @since 0.1.0
+ *
+ * @example
+ *
+ * ```ts
+ * import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
+ *
+ * const client = new DeveloperProductsClient({ apiKey: "your-key" });
+ * expect(client).toBeInstanceOf(DeveloperProductsClient);
+ * ```
  */
 export class DeveloperProductsClient {
 	readonly #inner: ResourceClient;

@@ -14,7 +14,8 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/christopher-buss/bedrock.git"
+		"url": "git+https://github.com/christopher-buss/bedrock.git",
+		"directory": "packages/bedrock"
 	},
 	"license": "MIT",
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",

@@ -6,7 +6,7 @@ Infrastructure-as-Code for Roblox, with a bundled `bedrock` CLI.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/christopher-buss/bedrock/blob/main/LICENSE)
 [![CI](https://github.com/christopher-buss/bedrock/actions/workflows/ci.yaml/badge.svg)](https://github.com/christopher-buss/bedrock/actions/workflows/ci.yaml)
 
-> **Status: 0.1 beta.** The public API is stabilizing. Breaking changes may land in minor releases (0.1 to 0.2) until 1.0.
+> **Status: 0.1, pre-1.0.** The public API is stabilizing; breaking changes may land in minor releases until 1.0.
 
 ## What is `@bedrock-rbx/core`?
 
@@ -47,7 +47,10 @@ import { defineConfig } from "@bedrock-rbx/core/config";
 
 export default defineConfig({
 	environments: {
-		production: { universe: { universeId: 1234567890 } },
+		production: {
+			places: { "start-place": { placeId: "1234567890" } },
+			universe: { universeId: "9876543210" },
+		},
 	},
 	passes: {
 		"vip-pass": {
@@ -59,15 +62,12 @@ export default defineConfig({
 	},
 	places: {
 		"start-place": {
-			name: "Start Place",
-			file: "places/start.rbxl",
+			displayName: "Start Place",
+			filePath: "places/start.rbxl",
 		},
 	},
 	state: { backend: "gist", gistId: "abc123def456" },
-	universe: {
-		name: "My Game",
-		description: "An adventure.",
-	},
+	universe: { voiceChatEnabled: true },
 });
 ```
 
@@ -118,8 +118,8 @@ pnpm bedrock deploy --env production
 
 | Kind | Key example | What bedrock manages | Notes |
 |---|---|---|---|
-| `universe` | `"main"` (singleton) | Name, description, social links, age guidelines, opt-in studio access. | Adopted by ID. Bedrock does not create new universes. |
-| `place` | `"start-place"` | Place metadata (name, description, server-fill mode, max-player count), `.rbxl` file uploads. | The root place is adopted; secondary places are provisioned by bedrock. |
+| `universe` | `"main"` (singleton) | Display name, social links, per-device join toggles, voice chat, private-server price. | Adopted by ID. Bedrock does not create new universes. |
+| `place` | `"start-place"` | Place metadata (display name, description, max players per server), `.rbxl` file uploads. | The root place is adopted; secondary places are provisioned by bedrock. |
 | `gamePass` | `"vip-pass"` | Name, description, icon upload, price, on-sale state. | Provisioned by bedrock; the asset ID is recorded in outputs. |
 | `developerProduct` | `"gem-pack-100"` | Name, description, icon upload, price. | Provisioned by bedrock; the asset ID is recorded in outputs. |
 

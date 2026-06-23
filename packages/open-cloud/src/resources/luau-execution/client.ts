@@ -188,6 +188,15 @@ export interface TasksHandle {
  * `binaryInputs.create` for allocating presigned upload slots.
  *
  * @since 0.1.0
+ *
+ * @example
+ *
+ * ```ts
+ * import { LuauExecutionClient } from "@bedrock-rbx/ocale/luau-execution";
+ *
+ * const client = new LuauExecutionClient({ apiKey: "your-key" });
+ * expect(client).toBeInstanceOf(LuauExecutionClient);
+ * ```
  */
 export class LuauExecutionClient {
 	readonly #inner: ResourceClient;
