@@ -153,11 +153,6 @@ describe(renderDeployError, () => {
 			expected: "codegen failed because the emitter threw: boom",
 		},
 		{
-			err: { kind: "codegenOutputMissing" },
-			expected:
-				"codegen is enabled but has no output: set codegen.output in your config or pass a codegenWriter to deploy()",
-		},
-		{
 			err: { kind: "rebuildHookThrew", reason: "build blew up" },
 			expected: "the rebuild hook threw: build blew up",
 		},

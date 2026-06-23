@@ -77,6 +77,33 @@ describe(validateConfig, () => {
 		expect(result.success).toBeTrue();
 	});
 
+	it("should accept a codegen section that opts into type declarations", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{ codegen: { enabled: true, typeDeclarations: true }, environments: MinEnvironments },
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.codegen!.typeDeclarations).toBeTrue();
+	});
+
+	it("should reject a non-boolean codegen type-declarations flag", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{ codegen: { typeDeclarations: "yes" }, environments: MinEnvironments },
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["codegen", "typeDeclarations"]);
+	});
+
 	it("should reject an unknown key inside the codegen section", () => {
 		expect.assertions(1);
 

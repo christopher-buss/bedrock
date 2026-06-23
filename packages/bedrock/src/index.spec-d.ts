@@ -156,7 +156,6 @@ type ExpectedDeployErrorKind =
 	| "applyFailed"
 	| "buildDesiredFailed"
 	| "codegenFailed"
-	| "codegenOutputMissing"
 	| "configLoadFailed"
 	| "incompletePassEntry"
 	| "incompletePlaceEntry"
