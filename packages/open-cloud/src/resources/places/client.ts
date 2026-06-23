@@ -44,6 +44,8 @@ import { pollUntilDoneCore, type PollUntilDoneOptions } from "../luau-execution/
  * structured log messages. Shares the same dispatch wiring as the
  * top-level `LuauExecutionClient` exposed at
  * `@bedrock-rbx/ocale/luau-execution`.
+ *
+ * @since 0.1.0
  */
 export interface LuauExecutionHandle {
 	/**
@@ -171,6 +173,8 @@ const UPDATE_SPEC: ResourceMethodSpec<UpdatePlaceParameters, Place> = Object.fre
  * duplicates externally may opt back into 5xx retry per-call by passing
  * `retryableStatuses` on the second argument. The `update` method, by
  * contrast, is idempotent and retries both 429 and 5xx automatically.
+ *
+ * @since 0.1.0
  *
  * @example
  *

@@ -9,6 +9,8 @@ import type { CodegenFile } from "../core/codegen.ts";
  *
  * Narrow on `kind` rather than using `instanceof`: `CodegenWriteError` is
  * plain data, not a thrown error subclass.
+ *
+ * @since 0.1.0
  */
 export interface CodegenWriteError {
 	/** Literal discriminator for narrowing. */
@@ -28,6 +30,8 @@ export interface CodegenWriteError {
  * following the same naming convention as {@link "./state-port".StatePort}.
  * Bedrock writes through it but never commits the result; the output is always
  * regenerable from state.
+ *
+ * @since 0.1.0
  */
 export interface CodegenWriterPort {
 	/**

@@ -2,6 +2,8 @@ import { OpenCloudError } from "./base.ts";
 
 /**
  * Options for constructing a {@link NetworkError}.
+ *
+ * @since 0.1.0
  */
 export interface NetworkErrorOptions extends ErrorOptions {
 	/** HTTP method of the request that failed. */
@@ -16,6 +18,8 @@ export interface NetworkErrorOptions extends ErrorOptions {
  * The `method` and `url` name the failing call so a transport failure that
  * survives every retry can be diagnosed; the underlying transport error is
  * carried on `cause`.
+ *
+ * @since 0.1.0
  */
 export class NetworkError extends OpenCloudError {
 	public readonly method: string | undefined;

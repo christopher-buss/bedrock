@@ -4,6 +4,8 @@ import process from "node:process";
 
 /**
  * Failure modes returned by {@link getEnvironment}.
+ *
+ * @since 0.1.0
  */
 export type GetEnvironmentError =
 	| { readonly kind: "missingEnvironment" }
@@ -18,6 +20,8 @@ export type GetEnvironmentError =
  * (with every offending value) when argv contains more than one `--env`
  * flag. Both inputs default to the running process so override scripts
  * under `.bedrock/` can call `getEnvironment()` with no arguments.
+ *
+ * @since 0.1.0
  *
  * @param argv - Argument list to scan for `--env <name>` flags. Defaults to
  * `process.argv.slice(2)` when omitted.

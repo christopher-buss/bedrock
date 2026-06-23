@@ -4,6 +4,8 @@ import { OpenCloudError } from "./base.ts";
  * Closed discriminator for a {@link ValidationError}. Consumers can
  * exhaustively `switch` over this union so TypeScript will refuse to compile
  * if a new variant is added without a handler.
+ *
+ * @since 0.1.0
  */
 export type ValidationErrorCode =
 	| "empty_body"
@@ -15,6 +17,8 @@ export type ValidationErrorCode =
 
 /**
  * Options for constructing a {@link ValidationError}.
+ *
+ * @since 0.1.0
  */
 export interface ValidationErrorOptions extends ErrorOptions {
 	/** Machine-readable discriminator identifying the validation failure. */
@@ -25,6 +29,8 @@ export interface ValidationErrorOptions extends ErrorOptions {
  * Thrown locally when caller-supplied input is rejected before any HTTP
  * round-trip. The `code` discriminator lets consumers branch on local-input
  * errors separately from server-side errors.
+ *
+ * @since 0.1.0
  *
  * @example
  *

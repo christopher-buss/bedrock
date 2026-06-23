@@ -1,5 +1,7 @@
 /**
  * Image moderation state returned alongside each localized icon.
+ *
+ * @since 0.1.0
  */
 export type GameIconState = "Approved" | "Error" | "PendingReview" | "Rejected" | "UnAvailable";
 

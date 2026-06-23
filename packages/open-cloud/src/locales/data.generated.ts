@@ -3,6 +3,8 @@
 
 /**
  * One row in the vendored Roblox creator-locale list.
+ *
+ * @since 0.1.0
  */
 export interface RobloxCreatorLocale {
 	readonly locale: string;
@@ -19,6 +21,8 @@ export interface RobloxCreatorLocale {
  * Vendored snapshot of
  * `https://locale.roblox.com/v1/locales/supported-locales-for-creators`.
  * Refreshed by `pnpm --filter @bedrock-rbx/ocale refresh-locales`.
+ *
+ * @since 0.1.0
  */
 export const ROBLOX_CREATOR_LOCALES = [
 	{
@@ -527,6 +531,8 @@ export const ROBLOX_CREATOR_LOCALES = [
  * Roblox locale wire form (e.g. `en_us`, `pt_br`, `ar_001`). Used by
  * the legacy game-internationalization endpoints when
  * `languageCodeType` is `Locale`.
+ *
+ * @since 0.1.0
  */
 export type RobloxLocale = (typeof ROBLOX_CREATOR_LOCALES)[number]["locale"];
 
@@ -534,5 +540,7 @@ export type RobloxLocale = (typeof ROBLOX_CREATOR_LOCALES)[number]["locale"];
  * Roblox language wire form (e.g. `en`, `fil`, `zh-hans`). Used by
  * the legacy game-internationalization endpoints when
  * `languageCodeType` is `Language`.
+ *
+ * @since 0.1.0
  */
 export type RobloxLanguageCode = (typeof ROBLOX_CREATOR_LOCALES)[number]["languageCode"];

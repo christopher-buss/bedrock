@@ -3,12 +3,16 @@
  * `Place`, so the wire enum carries a single value; the public type
  * preserves the string label so future awarder kinds can be added
  * without a breaking change.
+ *
+ * @since 0.1.0
  */
 export type BadgeAwarderType = "Place";
 
 /**
  * The entity that awards a badge. Always a place at present; the
  * `id` is the awarding place's ID and `name` its display name.
+ *
+ * @since 0.1.0
  */
 export interface BadgeAwarder {
 	/** Stringified ID of the awarding entity. */
@@ -21,6 +25,8 @@ export interface BadgeAwarder {
 
 /**
  * Award statistics for a badge.
+ *
+ * @since 0.1.0
  */
 export interface BadgeStatistics {
 	/** Total number of times the badge has been awarded. */
@@ -33,11 +39,15 @@ export interface BadgeStatistics {
 
 /**
  * Source of funds for the Robux fee charged on badge creation.
+ *
+ * @since 0.1.0
  */
 export type BadgePaymentSource = "Group" | "User";
 
 /**
  * Parameters for creating a new badge under a universe.
+ *
+ * @since 0.1.0
  */
 export interface CreateBadgeParameters {
 	/** Display name of the new badge. */
@@ -60,6 +70,8 @@ export interface CreateBadgeParameters {
  * Parameters for partially updating an existing badge. Every field
  * except the identifier is optional; omitted fields are not included
  * in the JSON body so the server leaves their current values untouched.
+ *
+ * @since 0.1.0
  */
 export interface UpdateBadgeParameters {
 	/** Optional new source-language display name. */
@@ -76,6 +88,8 @@ export interface UpdateBadgeParameters {
  * A Roblox badge as exposed to SDK consumers. Fields use DX-friendly
  * names and types (stringified IDs, `Date` timestamps) rather than the
  * raw wire representation.
+ *
+ * @since 0.1.0
  */
 export interface Badge {
 	/** Stringified badge ID. The API returns an int64; always use this. */

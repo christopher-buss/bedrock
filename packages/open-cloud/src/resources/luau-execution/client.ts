@@ -61,6 +61,8 @@ const CREATE_BINARY_INPUT_SPEC = makeSpec<
  * Operation handle for the `binaryInputs` namespace on
  * {@link LuauExecutionClient}. Provides `create` to allocate a presigned
  * upload slot for binary script inputs.
+ *
+ * @since 0.1.0
  */
 export interface BinaryInputsHandle {
 	/**
@@ -87,6 +89,8 @@ export interface BinaryInputsHandle {
  * `tasks` namespace. Provides `submit` to queue a Luau script, `get`
  * to fetch a task's current state, and `listLogs` to retrieve
  * structured log messages produced by a task.
+ *
+ * @since 0.1.0
  */
 export interface TasksHandle {
 	/**
@@ -182,6 +186,8 @@ export interface TasksHandle {
  * specific place version, `tasks.get` for fetching task state,
  * `tasks.listLogs` for fetching structured log messages, and
  * `binaryInputs.create` for allocating presigned upload slots.
+ *
+ * @since 0.1.0
  *
  * @example
  *

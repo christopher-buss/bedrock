@@ -5,6 +5,8 @@ import type { RobloxLanguageCode, RobloxLocale } from "#src/locales/data.generat
  * against a game pass. A subsequent upload for the same
  * `(gamePassId, languageCode)` pair replaces the existing icon for that
  * locale.
+ *
+ * @since 0.1.0
  */
 export interface UploadGamePassIconParameters {
 	/** Stringified ID of the game pass whose icon is being uploaded. */

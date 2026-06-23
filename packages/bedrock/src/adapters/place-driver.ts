@@ -13,6 +13,8 @@ import type { RobloxAssetId } from "../types/ids.ts";
  * per universe. `readFile` is injected because `diff` operates on file hashes
  * while the driver is the only place that needs the raw bytes.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -63,6 +65,8 @@ interface PublishInputs {
  * Format is detected from the file extension (`.rbxl` → binary,
  * `.rbxlx` → XML); any other extension returns an `ApiError`-backed failure
  * without hitting the network.
+ *
+ * @since 0.1.0
  *
  * @param deps - Injected ocale client, file reader, and owning universe.
  * @returns A driver indexable by `"place"` in a `DriverRegistry`.

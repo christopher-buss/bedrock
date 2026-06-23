@@ -4,6 +4,8 @@
  * Every SDK client method returns `Promise<Result<T, OpenCloudError>>`.
  * Errors are never thrown; they are returned as `{ err, success: false }`.
  *
+ * @since 0.1.0
+ *
  * @template T - The success value type.
  * @template E - The error type (defaults to `Error`).
  *
@@ -43,6 +45,8 @@ export type Result<T, E = Error> = { data: T; success: true } | { err: E; succes
  * or `undefined` on the last page; the SDK normalizes the wire's
  * `null`-vs-absent variants to `undefined` so callers only ever see one
  * shape.
+ *
+ * @since 0.1.0
  *
  * @template T - The public item type for the listed resource.
  *

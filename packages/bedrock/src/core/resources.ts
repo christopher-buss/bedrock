@@ -14,6 +14,8 @@ import {
  * snapshot once normalized by `buildDesired`; downstream consumers (`diff`,
  * drivers) must not mutate it.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -80,6 +82,8 @@ export interface GamePassDesiredState {
  * `serverSize` are optional metadata fields routed through
  * `PlacesClient.update`; `undefined` leaves the server value untouched.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -145,6 +149,8 @@ export const PLACE_MANAGED_METADATA_FIELDS = [
  * endpoint does not return an asset ID (the `placeId` is supplied by the
  * caller); `versionNumber` is the only Roblox-assigned field the response
  * carries.
+ *
+ * @since 0.1.0
  */
 export interface PlaceOutputs {
 	/** Auto-incrementing version number assigned by Roblox on every publish. */
@@ -164,6 +170,8 @@ export interface PlaceOutputs {
  * social link) are additionally key-presence aware: a present key with
  * `undefined` tells the driver to clear the server value (ocale emits
  * JSON `null`), while an absent key leaves the server value untouched.
+ *
+ * @since 0.1.0
  *
  * @example
  *
@@ -267,6 +275,8 @@ export type UniverseManagedFlag = (typeof UNIVERSE_MANAGED_FLAGS)[number];
  * Tuple of every social link field name on {@link UniverseDesiredState}.
  * Iterated by flatten, driver, and diff to handle the tri-state clearable
  * semantics uniformly across all seven fields.
+ *
+ * @since 0.1.0
  */
 export const SOCIAL_LINK_FIELDS = [
 	"discordSocialLink",
@@ -278,12 +288,18 @@ export const SOCIAL_LINK_FIELDS = [
 	"youtubeSocialLink",
 ] as const satisfies ReadonlyArray<keyof UniverseDesiredState>;
 
-/** Union of the seven social link field names on {@link UniverseDesiredState}. */
+/**
+ * Union of the seven social link field names on {@link UniverseDesiredState}.
+ *
+ * @since 0.1.0
+ */
 export type SocialLinkField = (typeof SOCIAL_LINK_FIELDS)[number];
 
 /**
  * Desired state for a developer product, the consumable a player can buy via
  * `MarketplaceService:PromptProductPurchase`.
+ *
+ * @since 0.1.0
  *
  * @example
  *
@@ -354,6 +370,8 @@ export interface DeveloperProductDesiredState {
  * Extend by adding new members to this union; the mapped
  * `ResourceOutputsByKind` interface then forces a matching outputs entry for
  * the new kind at compile time.
+ *
+ * @since 0.1.0
  */
 export type ResourceDesiredState =
 	| DeveloperProductDesiredState
@@ -367,6 +385,8 @@ export type ResourceDesiredState =
  * Distinct from `GamePassDesiredState.key`: the desired-state key is a
  * user-supplied handle, while these IDs are assigned by Roblox and
  * discovered only after the first successful API call.
+ *
+ * @since 0.1.0
  */
 export interface GamePassOutputs {
 	/** Primary Roblox asset ID for the game pass itself. */
@@ -386,6 +406,8 @@ export interface GamePassOutputs {
  * accepts and is stable across re-deploys. `iconImageAssetId` is optional
  * because the wire returns it as nullable when no icon is uploaded; slice 1
  * never populates it because icon support lands in a later slice.
+ *
+ * @since 0.1.0
  */
 export interface DeveloperProductOutputs {
 	/** Roblox asset ID of the uploaded icon image; `undefined` when no icon is uploaded. */
@@ -398,6 +420,8 @@ export interface DeveloperProductOutputs {
  * Roblox-returned value produced by reconciling a universe. The root place
  * ID is server-authoritative: bedrock cannot set it directly, but records it
  * so a future places slice can cross-validate the declared start place.
+ *
+ * @since 0.1.0
  */
 export interface UniverseOutputs {
 	/** Server-assigned root place ID for the universe. */
@@ -409,6 +433,8 @@ export interface UniverseOutputs {
  *
  * Derived from the union rather than hand-maintained so adding a new
  * `ResourceDesiredState` member automatically widens this type.
+ *
+ * @since 0.1.0
  */
 export type ResourceKind = ResourceDesiredState["kind"];
 
@@ -417,6 +443,8 @@ export type ResourceKind = ResourceDesiredState["kind"];
  * or `ResourceOutputs<K>` is a compile error. Modelled as an interface (not a
  * type alias) so downstream packages can use declaration merging to register
  * outputs for new kinds without touching this module.
+ *
+ * @since 0.1.0
  *
  * @example
  *
@@ -445,6 +473,8 @@ export interface ResourceOutputsByKind {
 /**
  * Resolved outputs for a specific resource kind.
  *
+ * @since 0.1.0
+ *
  * @template K - The resource kind discriminator.
  */
 export type ResourceOutputs<K extends ResourceKind> = ResourceOutputsByKind[K];
@@ -461,6 +491,8 @@ export type ResourceOutputs<K extends ResourceKind> = ResourceOutputsByKind[K];
  * The `outputs` sub-object stays nested (rather than flattening into the
  * top level) to mirror Mantle's `{ inputs, outputs }` state layout,
  * keeping migration copy clean.
+ *
+ * @since 0.1.0
  *
  * @template K - The resource kind discriminator. Defaults to the full
  * `ResourceKind` union for the broad form used in `ReadonlyArray`
@@ -536,6 +568,8 @@ export function copyDeclaredSocialLinks(
  * Fixed stable key for the singleton universe resource. `flattenConfig`
  * stamps this onto the sole `UniverseDesiredInput` it emits; fixtures and
  * state adapters share the constant so the invariant is encoded once.
+ *
+ * @since 0.1.0
  *
  * @example
  *

@@ -28,6 +28,8 @@ export type GistFetch = (
 
 /**
  * Configuration for {@link createGistStateAdapter}.
+ *
+ * @since 0.1.0
  */
 export interface GistStateAdapterDeps {
 	/** Injection seam for tests; defaults to `globalThis.fetch`. */
@@ -94,6 +96,8 @@ interface VisibilityTarget {
  * One gist holds one file per environment, named `state.<env>.json`. The
  * adapter authenticates with a user-supplied token and speaks the GitHub
  * REST API directly; no SDK dependency.
+ *
+ * @since 0.1.0
  *
  * @example
  *

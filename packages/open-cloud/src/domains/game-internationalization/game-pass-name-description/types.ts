@@ -5,6 +5,8 @@ import type { RobloxLanguageCode, RobloxLocale } from "#src/locales/data.generat
  * against a game pass. Both `name` and `description` are optional; fields
  * omitted from the call are not included in the JSON body so the server
  * leaves the existing value for that locale untouched.
+ *
+ * @since 0.1.0
  */
 export interface UpdateGamePassNameDescriptionParameters {
 	/** Replacement display name for the supplied locale. */

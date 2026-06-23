@@ -21,6 +21,8 @@ import type {
  * name that is not a key of `config.environments`. Carries the list of
  * declared names so callers can render a "did you mean?" hint or a
  * close-match suggestion.
+ *
+ * @since 0.1.0
  */
 export interface UnknownEnvironmentError {
 	/** Environment names that the config actually declared. */
@@ -39,6 +41,8 @@ export interface UnknownEnvironmentError {
  * supply `filePath`. Surfacing both at the resolution boundary attributes
  * the missing field to the offending entry's key instead of letting
  * `buildDesired` crash with a generic `fileReadFailed` later on.
+ *
+ * @since 0.1.0
  */
 export interface IncompletePlaceEntryError {
 	/** ResourceKey of the place entry that is missing a required field. */
@@ -57,6 +61,8 @@ export interface IncompletePlaceEntryError {
  * `universeId` either at the root or on every per-environment overlay;
  * this error remains as a typed safety net for callers that bypass
  * `validateConfig` and hand a `Config` to `selectEnvironment` directly.
+ *
+ * @since 0.1.0
  */
 export interface IncompleteUniverseEntryError {
 	/** Environment whose overlay was projected onto the config. */
@@ -89,7 +95,11 @@ export interface IncompletePassEntryError {
 	readonly missingField: "description" | "icon" | "name";
 }
 
-/** Failure modes returned by {@link selectEnvironment}. */
+/**
+ * Failure modes returned by {@link selectEnvironment}.
+ *
+ * @since 0.1.0
+ */
 export type SelectEnvironmentError =
 	| IncompletePassEntryError
 	| IncompletePlaceEntryError
@@ -213,6 +223,8 @@ export function extractResourceRedaction(entry: EnvironmentEntry): EnvironmentRe
  * and every declared place `displayName`. An undeclared `displayName`, an
  * empty/absent label, or an explicit `displayNamePrefix.enabled: false` all
  * skip prefixing for the affected fields.
+ *
+ * @since 0.1.0
  *
  * @example
  *

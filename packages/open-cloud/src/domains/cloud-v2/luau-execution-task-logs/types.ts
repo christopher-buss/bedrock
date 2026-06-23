@@ -5,6 +5,8 @@ export type { LuauExecutionTaskRef } from "../luau-execution-tasks/types.ts";
 /**
  * Caller-supplied input for listing the structured log messages produced
  * by a previously-submitted Luau execution task.
+ *
+ * @since 0.1.0
  */
 export interface ListLogsParameters {
 	/**
@@ -26,6 +28,8 @@ export interface ListLogsParameters {
  * A single structured log message produced by a Luau execution task.
  * The `createTime` field is a raw ISO timestamp string, not a
  * {@link Date}, so it can be serialized without conversion.
+ *
+ * @since 0.1.0
  */
 export interface LogMessage {
 	/** ISO timestamp when the log message was produced. */
@@ -44,6 +48,8 @@ export interface LogMessage {
  * Chunks are flattened by the parser; consumers see a single ordered
  * array. When `nextPageToken` is present, pass it to the next
  * `listLogs` call to retrieve the following page.
+ *
+ * @since 0.1.0
  */
 export interface LogPage {
 	/** Flattened, ordered list of log messages from this page. */

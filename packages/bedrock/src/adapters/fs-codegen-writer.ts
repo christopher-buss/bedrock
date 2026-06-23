@@ -10,6 +10,8 @@ import type { CodegenWriteError, CodegenWriterPort } from "../ports/codegen-writ
  * Configuration for {@link createFsCodegenWriter}. `mkdir` and `writeFile`
  * default to `node:fs/promises`; tests inject fakes so the suite never touches
  * disk.
+ *
+ * @since 0.1.0
  */
 export interface FsCodegenWriterDeps {
 	/**
@@ -36,6 +38,8 @@ export interface FsCodegenWriterDeps {
  * escapes the directory via `..` is rejected with a `CodegenWriteError`
  * before any directory is created, so a stray emitter cannot write outside
  * the configured output location.
+ *
+ * @since 0.1.0
  *
  * @param deps - Output directory plus optional filesystem injection seams.
  * @returns A writer port that persists files under `outputDir`.

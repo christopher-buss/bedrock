@@ -18,6 +18,8 @@ import type { MissingCredentialError } from "./build-state-port.ts";
  * field that is not present. The deploy boundary wraps this in a
  * `DeployError` so the caller sees a typed Result instead of a downstream
  * driver error.
+ *
+ * @since 0.1.0
  */
 export interface RegistryConfigError {
 	/** Suggested fix routed back to the caller. */
@@ -49,6 +51,8 @@ interface AssembleRegistryInputs {
  * and `BEDROCK_API_KEY`. Reads the API key via the injected `getEnv` seam
  * and surfaces `missingCredential` or `registryConfigMissing` as typed
  * Results instead of throwing.
+ *
+ * @since 0.1.0
  *
  * @example
  *

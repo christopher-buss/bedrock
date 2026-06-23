@@ -289,6 +289,8 @@ interface UniverseThumbnailsHandle {
  * {@link UniversesClient.thumbnails} Operation Groups so callers reach
  * for one client per universe.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts

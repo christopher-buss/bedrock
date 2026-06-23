@@ -14,6 +14,8 @@ import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
  * shape. `readFile` exists on the driver (not upstream in shell) because icon
  * hashes flow through `diff` but bytes do not.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -58,6 +60,8 @@ export interface GamePassDriverDeps {
  * Filesystem errors from `deps.readFile` do not fit the `OpenCloudError`
  * shape and propagate as promise rejections; shell callers are expected to
  * translate them if a unified error surface is required.
+ *
+ * @since 0.1.0
  *
  * @param deps - Injected ocale client, file reader, and owning universe.
  * @returns A driver indexable by `"gamePass"` in a `DriverRegistry`.

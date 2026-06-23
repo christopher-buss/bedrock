@@ -19,6 +19,8 @@ import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
  * one driver per universe. `readFile` exists on the driver (not upstream
  * in shell) because icon hashes flow through `diff` but bytes do not.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -74,6 +76,8 @@ interface FollowUpPatchInputs {
  * present.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.
+ *
+ * @since 0.1.0
  *
  * @param deps - Injected ocale client and owning universe.
  * @returns A driver indexable by `"developerProduct"` in a `DriverRegistry`.

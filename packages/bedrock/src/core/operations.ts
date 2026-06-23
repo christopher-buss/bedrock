@@ -9,6 +9,8 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
  * on the discriminator. `applyOps` and logging both rely on this uniform
  * access pattern.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -28,6 +30,8 @@ export interface BaseOperation {
  * Reconcile an absent resource: produced when a `desired` entry has no
  * matching `current` entry. The driver creates the resource and records the
  * Roblox-assigned outputs into state.
+ *
+ * @since 0.1.0
  *
  * @example
  *
@@ -71,6 +75,8 @@ export interface CreateOperation extends BaseOperation {
  * Reconcile a drifted resource: produced when a `desired` entry differs from
  * its matching `current` entry. Both states are carried so the driver can
  * compute the minimal patch.
+ *
+ * @since 0.1.0
  *
  * @example
  *
@@ -153,6 +159,8 @@ export interface UpdateOperation extends BaseOperation {
  * unchanged resource without re-looking it up in the desired or current
  * snapshots passed to `diff`.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
@@ -183,6 +191,8 @@ export interface NoopOperation extends BaseOperation {
  *
  * A `delete` variant is intentionally absent: resources present only in
  * current state (orphans) are ignored, never reconciled.
+ *
+ * @since 0.1.0
  *
  * @example
  *

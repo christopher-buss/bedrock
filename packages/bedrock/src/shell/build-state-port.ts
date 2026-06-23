@@ -9,6 +9,8 @@ import type { StatePort } from "../ports/state-port.ts";
  * required environment variable. The deploy boundary wraps this in a
  * `DeployError` so the caller sees a typed Result instead of an
  * exception or a confusing downstream HTTP error.
+ *
+ * @since 0.1.0
  */
 export interface MissingCredentialError {
 	/** Literal discriminator for narrowing. */
@@ -23,6 +25,8 @@ export interface MissingCredentialError {
  * Failure surfaced when the dispatch helper sees a `state.backend` value
  * it does not recognize. The hint points at `opts.statePort` so the
  * caller can pass a custom adapter as an escape hatch.
+ *
+ * @since 0.1.0
  */
 export interface UnsupportedBackendError {
 	/** Backend name read from `state.backend`. */
@@ -50,6 +54,8 @@ const STATE_PORT_HINT = "pass a custom statePort via opts.statePort";
  * `stateConfig.backend` to the matching builtin adapter; reads the
  * required credential from `getEnv` and surfaces `missingCredential` or
  * `unsupportedBackend` as typed Results.
+ *
+ * @since 0.1.0
  *
  * @example
  *

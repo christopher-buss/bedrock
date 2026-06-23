@@ -19,6 +19,8 @@ import { asRobloxAssetId } from "../types/ids.ts";
  * `displayName`). There is no `universeId` at construction time because
  * the universe *is* the resource the driver reconciles, so the ID rides
  * along on each `UniverseDesiredState`.
+ *
+ * @since 0.1.0
  */
 export interface UniverseDriverDeps {
 	/** Configured places client from `@bedrock-rbx/ocale/places`. */
@@ -57,6 +59,8 @@ interface ReconcileInputs {
  * so callers observing a partial failure should reconcile by
  * reapplying rather than assuming the universe-level fields are
  * unchanged.
+ *
+ * @since 0.1.0
  *
  * @param deps - Injected ocale clients (universes plus places for the
  *   read-only universe fields Roblox derives from the root place).

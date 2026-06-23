@@ -7,6 +7,8 @@ import type { Spawner, SpawnInvocation, SpawnLaunchCause } from "./spawner.ts";
  * Parsed deploy arguments forwarded to a `.bedrock/<command>.ts` override
  * script. Credential flags are translated into env-var overrides by the
  * dispatcher so secrets never reach the child's argv.
+ *
+ * @since 0.1.0
  */
 export interface OverrideInvocation {
 	/** Optional `--api-key` value; translated to `BEDROCK_API_KEY` in env. */
@@ -30,6 +32,8 @@ export interface OverrideInvocation {
  * - `nonZeroExit` — the child started, ran, and exited with a non-zero
  *   exit code. Callers should propagate `exitCode` into the CLI's own
  *   process exit code so CI failure modes mirror the override's outcome.
+ *
+ * @since 0.1.0
  */
 export type SpawnOverrideError =
 	| { readonly cause: SpawnLaunchCause; readonly kind: "launchFailed" }
@@ -50,6 +54,8 @@ export type SpawnOverrideError =
  *
  * The dispatcher itself reads no ambient state: every input arrives via the
  * `invocation` argument and the `Spawner` port is the only side-effect seam.
+ *
+ * @since 0.1.0
  *
  * @param invocation - Path, environment, and parsed deploy-flag inputs.
  * @param spawner - Port the dispatcher hands the resolved

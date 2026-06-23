@@ -185,6 +185,8 @@ interface GamePassLocalizationHandle {
  * } while (pageToken !== undefined);
  * ```
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts

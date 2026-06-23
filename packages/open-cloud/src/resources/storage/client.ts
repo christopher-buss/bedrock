@@ -14,6 +14,8 @@ import { MemoryStoreSortedMapsGroup } from "./sorted-maps-group.ts";
  * Every method returns a `Result` so callers handle failure
  * explicitly; no thrown error ever escapes the client.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
