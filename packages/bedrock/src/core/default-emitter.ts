@@ -4,6 +4,8 @@ import type { BedrockState } from "./state.ts";
 
 /**
  * Options for {@link createDefaultEmitter}.
+ *
+ * @since 0.1.0
  */
 export interface DefaultEmitterOptions {
 	/**
@@ -19,6 +21,8 @@ export interface DefaultEmitterOptions {
  * working directory. Sits inside ADR-025's managed `.bedrock/` directory but
  * in its own `generated/` subdirectory, so codegen output stays clear of the
  * `bedrock setup`-managed type files; consume it as `@bedrock/generated/resources`.
+ *
+ * @since 0.1.0
  */
 export const DEFAULT_CODEGEN_OUTPUT_DIR = ".bedrock/generated";
 
@@ -61,6 +65,7 @@ type IdTree = Record<string, Record<string, unknown>>;
  *
  * @param options - Optional toggles; `typeDeclarations` adds the `.d.ts` companion.
  * @returns An {@link Emitter} suitable for `DeployOptions.emit`.
+ * @since 0.1.0
  * @example
  *
  * ```ts
