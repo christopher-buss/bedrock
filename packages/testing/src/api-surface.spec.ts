@@ -279,7 +279,7 @@ describe(barrelSourcePaths, () => {
 	it("should return no paths when the manifest has no exports", () => {
 		expect.assertions(1);
 
-		const paths = barrelSourcePaths(JSON.stringify({ name: "pkg" }), ROOT);
+		const paths = barrelSourcePaths('{ "name": "pkg" }', ROOT);
 
 		expect(paths).toStrictEqual([]);
 	});
