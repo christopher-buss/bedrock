@@ -173,6 +173,57 @@ describe(collectPublicApiSymbols, () => {
 		expect(symbols[0]?.sinceTag).toBeUndefined();
 	});
 
+	it("should ignore imports and local exports in the barrel", () => {
+		expect.assertions(1);
+
+		const read = moduleMap({
+			"core/diff.ts": "export function diff() {}",
+			"index.ts": [
+				'import process from "node:process";',
+				"export const LOCAL = 1;",
+				'export { diff } from "./core/diff.ts";',
+			].join("\n"),
+		});
+
+		const symbols = collectPublicApiSymbols(BARREL, read);
+
+		expect(symbols).toStrictEqual([
+			{
+				name: "diff",
+				declarationFile: declarationFileOf("core/diff.ts"),
+				sinceTag: undefined,
+			},
+		]);
+	});
+
+	it("should not follow star re-exports", () => {
+		expect.assertions(1);
+
+		const read = moduleMap({
+			"index.ts": 'export * from "./everything.ts";',
+		});
+
+		const symbols = collectPublicApiSymbols(BARREL, read);
+
+		expect(symbols).toStrictEqual([]);
+	});
+
+	it("should drop a name the target module neither declares nor re-exports", () => {
+		expect.assertions(1);
+
+		const read = moduleMap({
+			"index.ts": 'export { Missing } from "./middle.ts";',
+			"middle.ts": [
+				'import foo from "node:foo";',
+				'export { Other } from "./other.ts";',
+			].join("\n"),
+		});
+
+		const symbols = collectPublicApiSymbols(BARREL, read);
+
+		expect(symbols).toStrictEqual([]);
+	});
+
 	it("should read @since from the final declaration in a re-export chain", () => {
 		expect.assertions(1);
 
