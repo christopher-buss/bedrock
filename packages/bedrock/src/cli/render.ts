@@ -1,4 +1,3 @@
-/* eslint-disable max-lines -- single CLI render sink: one exhaustive message arm per error variant across deploy, codegen, migrate, and parse failures; it grows with the error surface and splitting would scatter the cohesive mapping. */
 import { NetworkError, type OpenCloudError, PermissionError } from "@bedrock-rbx/ocale";
 
 import type { ConfigError } from "../core/config-error.ts";
@@ -377,9 +376,6 @@ function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFailed" }>):
 		}
 		case "codegenFailed": {
 			return `codegen failed ${codegenErrorDetail(err.cause)}`;
-		}
-		case "codegenOutputMissing": {
-			return "codegen is enabled but has no output: set codegen.output in your config or pass a codegenWriter to deploy()";
 		}
 		case "configLoadFailed": {
 			return `config load failed: ${configErrorDetail(err.cause)}`;

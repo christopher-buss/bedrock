@@ -607,9 +607,19 @@ export interface CodegenConfig {
 	 * Directory the generated files are written under, resolved relative to
 	 * the working directory. Each emitted file's path is joined onto this
 	 * base. Used by the default node-fs writer; ignored when a writer is
-	 * injected through `DeployOptions`.
+	 * injected through `DeployOptions`. Defaults to `.bedrock/generated`
+	 * whenever codegen is enabled and no writer is injected — including when
+	 * a custom `emit` override is supplied — so a directory is only required
+	 * to override that default.
 	 */
 	output?: string | undefined;
+	/**
+	 * Whether the default emitter also writes a `resources.d.ts` declaration
+	 * beside the Luau module so roblox-ts consumers get type-safety over the
+	 * same constants. Treat `undefined` as `false`. Ignored when a custom
+	 * `emit` override is supplied through `DeployOptions`.
+	 */
+	typeDeclarations?: boolean | undefined;
 }
 
 /**
@@ -1065,6 +1075,7 @@ const stateConfig = type({
 const codegenConfig: Type<CodegenConfig> = type({
 	"enabled?": OPTIONAL_BOOLEAN,
 	"output?": OPTIONAL_STRING,
+	"typeDeclarations?": OPTIONAL_BOOLEAN,
 }).onUndeclaredKey("reject");
 
 // Overlay schemas mirror the base entry schemas but with every field

@@ -225,7 +225,29 @@ generic image-upload resource kind is out of scope and deferred.
 - Hand-rolled post-deploy generators and commit bots become removable: codegen +
   the rebuild hook make a single deploy self-contained.
 
-## Related Decisions
+## Implementation Notes
+
+### Default emitter and output path (2026-06-23)
+
+The Decision deferred the generated-file location and its relationship to
+ADR-025's `.bedrock/` directory "to implementation time." Settled:
+
+- The default emitter (`createDefaultEmitter`) writes `resources.luau`: a Luau
+  module of deployed outputs keyed by environment name, then resource **Key**,
+  then that resource's **Outputs**. Roblox asset IDs are emitted as Luau number
+  literals. It is exported so a custom `emit` can wrap rather than replace it.
+- Opting in via `codegen.typeDeclarations: true` (or
+  `createDefaultEmitter({ typeDeclarations: true })`) additionally writes a
+  `resources.d.ts` companion (`export =`) so roblox-ts consumers type the same
+  module.
+- The default output directory is `.bedrock/generated` (overridable via
+  `codegen.output`), a `generated/` subdirectory of ADR-025's managed
+  `.bedrock/` directory so codegen output stays clear of the
+  `bedrock setup`-managed type files. With the `@bedrock` directory alias, the
+  module is consumed as `require("@bedrock/generated/resources")`. Because the
+  default emitter needs no `emit` override, enabling codegen with no further
+  configuration now always produces a file, so the prior `codegenOutputMissing`
+  deploy error is removed.
 
 - ADR-017 (programmatic IaC + CLI) — names post-deploy constant generation; the
   hooks live on the programmatic surface.

@@ -1562,8 +1562,8 @@ describe(deploy, () => {
 			expect(writer.writes).toBeEmpty();
 		});
 
-		it("should leave codegen inert when enabled but no emitter is supplied", async () => {
-			expect.assertions(1);
+		it("should write the default Luau module when enabled with no emitter supplied", async () => {
+			expect.assertions(2);
 
 			const writer = inMemoryCodegenWriter();
 			const result = await deploy({
@@ -1577,7 +1577,31 @@ describe(deploy, () => {
 
 			assert(result.success);
 
-			expect(writer.writes).toBeEmpty();
+			expect(writer.writes.map((file) => file.path)).toStrictEqual(["resources.luau"]);
+			expect(writer.writes[0]!.content).toContain("assetId = 9876543210");
+		});
+
+		it("should also write the type-declaration companion when the config opts in", async () => {
+			expect.assertions(1);
+
+			const writer = inMemoryCodegenWriter();
+			await deploy({
+				codegenWriter: writer.port,
+				config: {
+					codegen: { enabled: true, typeDeclarations: true },
+					environments: { production: {} },
+					passes: { "vip-pass": VipPassEntry },
+				},
+				environment: "production",
+				readFile: readIcon,
+				registry: stubRegistryWithVipCreate(),
+				statePort: inMemoryStatePort().port,
+			});
+
+			expect(writer.writes.map((file) => file.path)).toStrictEqual([
+				"resources.luau",
+				"resources.d.ts",
+			]);
 		});
 
 		it("should emit only the resolved keys and still return applyFailed on a partial apply", async () => {
@@ -1654,21 +1678,22 @@ describe(deploy, () => {
 			expect(result.err.cause.kind).toBe("codegenWriteFailed");
 		});
 
-		it("should surface codegenOutputMissing when enabled with an emitter but no writer or output is configured", async () => {
+		it("should default the output directory when enabled with no writer or output configured", async () => {
 			expect.assertions(1);
 
+			const emit = vi.fn<Emitter>().mockResolvedValue([]);
 			const result = await deploy({
 				config: codegenVipConfig(),
-				emit: vi.fn<Emitter>().mockResolvedValue([CODEGEN_FILE]),
+				emit,
 				environment: "production",
 				readFile: readIcon,
 				registry: stubRegistryWithVipCreate(),
 				statePort: inMemoryStatePort().port,
 			});
 
-			assert(!result.success);
+			assert(result.success);
 
-			expect(result.err.kind).toBe("codegenOutputMissing");
+			expect(emit).toHaveBeenCalledOnce();
 		});
 
 		it("should default to a node-fs writer rooted at the configured output when none is injected", async () => {

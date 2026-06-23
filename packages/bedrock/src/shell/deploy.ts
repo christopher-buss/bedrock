@@ -12,6 +12,7 @@ import { assertAllReconcilable } from "../core/assert-all-reconcilable.ts";
 import { buildRepublishOps } from "../core/build-republish-ops.ts";
 import { type Emitter, isCodegenEnabled } from "../core/codegen.ts";
 import type { ConfigError } from "../core/config-error.ts";
+import { createDefaultEmitter, resolveCodegenOutputDirectory } from "../core/default-emitter.ts";
 import { diff } from "../core/diff.ts";
 import { flattenConfig } from "../core/flatten.ts";
 import type { Operation } from "../core/operations.ts";
@@ -124,7 +125,7 @@ export interface DeployOptions {
  * `pendingRebuildWithoutHook`, ...) from default-construction failures
  * (`configLoadFailed`, `stateNotConfigured`, `unknownEnvironment`,
  * `incompletePlaceEntry`, `incompleteUniverseEntry`, `missingCredential`,
- * `unsupportedBackend`, `registryConfigMissing`, `codegenOutputMissing`).
+ * `unsupportedBackend`, `registryConfigMissing`).
  * `codegenFailed` cannot mask an `applyFailed`: a partial apply still emits
  * codegen for the keys that resolved, but the returned error stays
  * `applyFailed`. A two-phase deploy whose asset stage partially fails aborts
@@ -155,7 +156,6 @@ export type DeployError =
 			readonly unsavedState: BedrockState;
 	  }
 	| { readonly keys: ReadonlyArray<ResourceKey>; readonly kind: "pendingRebuildWithoutHook" }
-	| { readonly kind: "codegenOutputMissing" }
 	| { readonly kind: "rebuildHookThrew"; readonly reason: string };
 
 /** Resolved codegen dependencies; present only when codegen is active. */
@@ -440,23 +440,22 @@ function pickCodegen(
 	options: DeployOptions,
 	config: ResolvedConfig,
 ): Result<CodegenBundle | undefined, DeployError> {
-	if (!isCodegenEnabled(config.codegen) || options.emit === undefined) {
+	if (!isCodegenEnabled(config.codegen)) {
 		return { data: undefined, success: true };
 	}
 
-	if (options.codegenWriter !== undefined) {
-		return { data: { emit: options.emit, writer: options.codegenWriter }, success: true };
-	}
+	// No `emit` override falls back to the default Luau emitter, so an enabled
+	// codegen always produces a file (zero-config); a supplied emitter may wrap
+	// it. With no injected writer, output roots at `codegen.output` or, absent
+	// that, the default `.bedrock/generated` directory.
+	const emit =
+		options.emit ??
+		createDefaultEmitter({ typeDeclarations: config.codegen?.typeDeclarations });
+	const writer =
+		options.codegenWriter ??
+		createFsCodegenWriter({ outputDir: resolveCodegenOutputDirectory(config.codegen) });
 
-	const output = config.codegen?.output;
-	if (output === undefined) {
-		return { err: { kind: "codegenOutputMissing" }, success: false };
-	}
-
-	return {
-		data: { emit: options.emit, writer: createFsCodegenWriter({ outputDir: output }) },
-		success: true,
-	};
+	return { data: { emit, writer }, success: true };
 }
 
 function pickDrivenDeps(inputs: PickRegistryInputs): Result<DrivenDeps, DeployError> {
