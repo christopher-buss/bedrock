@@ -305,7 +305,7 @@ export function collectRedactionAnnotations(
 export function collectRealDisplay(
 	merged: ResolvedConfig,
 	inputs?: RedactionInputs,
-): Record<string, ResourceRealDisplay> {
+): Readonly<Record<string, ResourceRealDisplay>> {
 	const environmentLevel = inputs?.envLevel;
 	const environmentResource = inputs?.envResource;
 	const result: Record<string, ResourceRealDisplay> = {};

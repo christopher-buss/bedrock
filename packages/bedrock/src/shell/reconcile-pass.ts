@@ -122,14 +122,30 @@ function mergeResources(
 	return [...byKey.values()];
 }
 
+function scopeRealDisplay(
+	realDisplay: Readonly<Record<string, ResourceRealDisplay>> | undefined,
+	resources: ReadonlyArray<ResourceCurrentState>,
+): Readonly<Record<string, ResourceRealDisplay>> {
+	// Drop real-display entries whose resource is not in the persisted snapshot,
+	// keeping `realDisplay` aligned with `resources` across adapters: a file
+	// adapter co-locates only matching siblings, so an in-memory adapter must
+	// not retain orphan keys for resources a partial apply dropped.
+	if (realDisplay === undefined) {
+		return {};
+	}
+
+	const present = new Set(resources.map((resource) => `${resource.kind}:${resource.key}`));
+	return Object.fromEntries(Object.entries(realDisplay).filter(([key]) => present.has(key)));
+}
+
 function buildSnapshot(inputs: SnapshotInputs): BedrockState {
 	const { applied, environment, pendingRebuild, priorResources, realDisplay } = inputs;
 	const appliedResources = applied.success ? applied.data : applied.err.applied;
 	const resources = mergeResources(priorResources, appliedResources);
 	const marker =
 		pendingRebuild === undefined || pendingRebuild.size === 0 ? {} : { pendingRebuild };
-	const real =
-		realDisplay === undefined || Object.keys(realDisplay).length === 0 ? {} : { realDisplay };
+	const scoped = scopeRealDisplay(realDisplay, resources);
+	const real = Object.keys(scoped).length === 0 ? {} : { realDisplay: scoped };
 
 	return {
 		environment,

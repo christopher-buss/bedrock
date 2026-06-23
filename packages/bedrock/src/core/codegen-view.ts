@@ -12,6 +12,8 @@ import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
  * diffed resource always holds the scalar pushed value. Never hand-narrow the
  * union: use {@link realValue}, {@link pushedValue}, and {@link isRedacted}.
  *
+ * @since 0.1.0
+ *
  * @template T - The scalar field type (e.g. `string` for a name, `number` for
  * a price).
  */
@@ -40,6 +42,8 @@ interface RedactedField<T extends Scalar> {
  * The real (pre-redaction) value of a {@link Field}: the object form's `value`,
  * or the scalar itself when the field was not redacted.
  *
+ * @since 0.1.0
+ *
  * @template T - The scalar field type.
  * @param field - The field as presented in the codegen view.
  * @returns The real value an emitter should write into generated source.
@@ -61,6 +65,8 @@ export function realValue<T extends Scalar>(field: Field<T>): T {
  * The pushed (live) value of a {@link Field}: the object form's `redacted`
  * placeholder, or the scalar itself when the field was not redacted.
  *
+ * @since 0.1.0
+ *
  * @template T - The scalar field type.
  * @param field - The field as presented in the codegen view.
  * @returns The value currently live on Open Cloud for this field.
@@ -81,6 +87,8 @@ export function pushedValue<T extends Scalar>(field: Field<T>): T {
 /**
  * Whether a {@link Field} was redacted on deploy (its real value differs from
  * the placeholder pushed to Open Cloud).
+ *
+ * @since 0.1.0
  *
  * @template T - The scalar field type.
  * @param field - The field as presented in the codegen view.
@@ -112,6 +120,8 @@ const REDACTABLE_VIEW_FIELDS = ["name", "description", "price", "displayName"] a
  * A resource as seen by a codegen emitter: every redactable scalar
  * field is widened to {@link Field}, every other field stays as-is.
  *
+ * @since 0.1.0
+ *
  * @template Resource - The {@link ResourceCurrentState} shape being projected.
  */
 export type CodegenView<Resource> = {
@@ -132,6 +142,8 @@ type RedactableViewField = (typeof REDACTABLE_VIEW_FIELDS)[number];
  *
  * Read the projected fields through {@link realValue}, {@link pushedValue}, and
  * {@link isRedacted} rather than narrowing the union by hand.
+ *
+ * @since 0.1.0
  *
  * @template Resource - The {@link ResourceCurrentState} shape being projected.
  * @param resource - The persisted resource (scalar pushed values).
@@ -178,20 +190,23 @@ export function codegenView<Resource extends ResourceCurrentState>(
 	resource: Resource,
 	realDisplay?: ResourceRealDisplay,
 ): CodegenView<Resource> {
-	const view: Record<string, unknown> = { ...resource };
-	for (const field of REDACTABLE_VIEW_FIELDS) {
-		if (!(field in resource)) {
-			// Skip a field the kind does not own (e.g. a game pass has no
-			// `displayName`), even when a mismatched `realDisplay` carries it.
-			continue;
-		}
+	const view = REDACTABLE_VIEW_FIELDS.reduce<Record<string, unknown>>(
+		(accumulator, field) => {
+			if (!(field in resource)) {
+				// Skip a field the kind does not own (e.g. a game pass has no
+				// `displayName`), even when a mismatched `realDisplay` carries
+				// it.
+				return accumulator;
+			}
 
-		const pushed = view[field];
-		const real = realDisplay?.[field];
-		if (real !== undefined && real !== pushed) {
-			view[field] = { redacted: pushed, value: real };
-		}
-	}
+			const pushed = accumulator[field];
+			const real = realDisplay?.[field];
+			return real !== undefined && real !== pushed
+				? { ...accumulator, [field]: { redacted: pushed, value: real } }
+				: accumulator;
+		},
+		{ ...resource },
+	);
 
 	return view as CodegenView<Resource>;
 }

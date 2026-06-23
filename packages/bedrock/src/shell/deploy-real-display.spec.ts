@@ -1,4 +1,6 @@
-import { assert, describe, expect, it, vi } from "vitest";
+import { OpenCloudError } from "@bedrock-rbx/ocale";
+
+import { assert, describe, expect, it } from "vitest";
 
 import { codegenView, realValue } from "../core/codegen-view.ts";
 import type { EmitInput } from "../core/codegen.ts";
@@ -125,30 +127,27 @@ describe("deploy persists real display values", () => {
 	it("should push placeholders to the driver while persisting the real values out of band", async () => {
 		expect.assertions(2);
 
-		const create = vi
-			.fn<ResourceDriver<"gamePass">["create"]>()
-			.mockImplementation(async (desired) => {
-				return { data: { ...desired, outputs: Outputs }, success: true };
-			});
 		const { port } = inMemoryStatePort();
 
+		// The echo driver persists exactly the desired state it was handed, so a
+		// placeholder-valued persisted resource proves the driver received the
+		// redacted (pushed) values, while realDisplay carries the real ones.
 		const result = await deploy({
 			config: redactedVipConfig("VIP Pass"),
 			environment: "production",
 			readFile: readIcon,
-			registry: registryWith({ create }),
+			registry: registryWith(echoGamePassDriver()),
 			statePort: port,
 		});
 
 		assert(result.success);
-		const pushed = create.mock.calls[0]![0];
 
-		expect(pushed.name).toBe(REDACTED_PASS_NAME);
 		expect(result.data.resources[0]).toMatchObject({
 			name: REDACTED_PASS_NAME,
 			description: REDACTED_DESCRIPTION,
 			price: REDACTED_PRICE,
 		});
+		expect(result.data.realDisplay?.["gamePass:vip-pass"]?.name).toBe("VIP Pass");
 	});
 
 	it("should expose the real value to a codegen emitter through the projected view", async () => {
@@ -185,7 +184,7 @@ describe("deploy persists real display values", () => {
 	});
 
 	it("should diff a redacted resource as a noop when only its real value changes", async () => {
-		expect.assertions(3);
+		expect.assertions(1);
 
 		const first = inMemoryStatePort();
 		await deploy({
@@ -197,22 +196,53 @@ describe("deploy persists real display values", () => {
 		});
 
 		const prior = first.writes[0]!;
-		const create = vi.fn<ResourceDriver<"gamePass">["create"]>();
-		const update = vi.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>();
+		// A trap driver turns any dispatch into a failed deploy, so a successful
+		// result is itself the proof that the real-value-only edit diffed as a
+		// noop and no create/update crossed the driver seam.
+		const trap: ResourceDriver<"gamePass"> = {
+			create() {
+				throw new Error("gamePass create must not run on a redaction-blind noop");
+			},
+			update() {
+				throw new Error("gamePass update must not run on a redaction-blind noop");
+			},
+		};
 		const second = inMemoryStatePort(prior);
 
 		const result = await deploy({
 			config: redactedVipConfig("VIP Pass Renamed"),
 			environment: "production",
 			readFile: readIcon,
-			registry: registryWith({ create, update }),
+			registry: registryWith(trap),
 			statePort: second.port,
 		});
 
 		assert(result.success);
 
-		expect(create).not.toHaveBeenCalled();
-		expect(update).not.toHaveBeenCalled();
 		expect(result.data.realDisplay?.["gamePass:vip-pass"]?.name).toBe("VIP Pass Renamed");
+	});
+
+	it("should not persist real display values for a resource that failed to apply", async () => {
+		expect.assertions(2);
+
+		const failing: ResourceDriver<"gamePass"> = {
+			async create() {
+				return { err: new OpenCloudError("create vip-pass: 503"), success: false };
+			},
+		};
+		const { port, writes } = inMemoryStatePort();
+
+		const result = await deploy({
+			config: redactedVipConfig("VIP Pass"),
+			environment: "production",
+			readFile: readIcon,
+			registry: registryWith(failing),
+			statePort: port,
+		});
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("applyFailed");
+		expect(writes[0]).not.toContainKey("realDisplay");
 	});
 });

@@ -124,7 +124,7 @@ interface ResolvedEnvironment {
 	 * Real (pre-redaction) display values for redacted resources, keyed by the
 	 * `kind:key` composite the diff uses. Empty when nothing is redacted.
 	 */
-	readonly realDisplay: Record<string, ResourceRealDisplay>;
+	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 }
 
 /** Successful return shape for {@link selectMergedEnvironment}. */

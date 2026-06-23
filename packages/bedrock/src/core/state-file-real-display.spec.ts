@@ -80,8 +80,8 @@ describe(serializeStateFile, () => {
 		expect(wire.resources[0]).not.toContainKey("$realDisplay");
 	});
 
-	it("should attach $realDisplay only to resources the map covers, leaving others bare", () => {
-		expect.assertions(2);
+	it("should attach $realDisplay to a resource the map covers", () => {
+		expect.assertions(1);
 
 		const otherPass: BedrockState["resources"][number] = {
 			...redactedPass,
@@ -92,6 +92,19 @@ describe(serializeStateFile, () => {
 		) as unknown as { resources: ReadonlyArray<Record<string, unknown>> };
 
 		expect(wire.resources[0]).toContainKey("$realDisplay");
+	});
+
+	it("should leave a resource bare when the map does not cover it", () => {
+		expect.assertions(1);
+
+		const otherPass: BedrockState["resources"][number] = {
+			...redactedPass,
+			key: asResourceKey("plain-pass"),
+		};
+		const wire = JSON.parse(
+			serializeStateFile({ ...stateWithRealDisplay, resources: [redactedPass, otherPass] }),
+		) as unknown as { resources: ReadonlyArray<Record<string, unknown>> };
+
 		expect(wire.resources[1]).not.toContainKey("$realDisplay");
 	});
 });

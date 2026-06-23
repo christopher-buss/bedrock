@@ -545,6 +545,8 @@ export type ResourceCurrentState<K extends ResourceKind = ResourceKind> = K exte
  * intentionally absent: its actionable value is the asset ID in `outputs`
  * (never redacted), and the config path is useless to game source.
  *
+ * @since 0.1.0
+ *
  * @example
  *
  * ```ts
