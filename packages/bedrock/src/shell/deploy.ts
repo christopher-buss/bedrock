@@ -22,13 +22,14 @@ import type {
 	PlaceDesiredState,
 	ResourceCurrentState,
 	ResourceDesiredState,
+	ResourceRealDisplay,
 } from "../core/resources.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
 import {
 	type IncompletePassEntryError,
 	type IncompletePlaceEntryError,
 	type IncompleteUniverseEntryError,
-	selectEnvironment,
+	resolveEnvironment,
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
@@ -164,6 +165,7 @@ interface ResolvedDepsBase {
 	readonly codegen: CodegenBundle | undefined;
 	readonly config: ResolvedConfig;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
+	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly rebuild: RebuildHook | undefined;
 	readonly registry: DriverRegistry;
 	readonly statePort: StatePort;
@@ -348,11 +350,13 @@ async function pickConfig(options: DeployOptions): Promise<Result<Config, Deploy
 	return { data: loaded.data, success: true };
 }
 
-async function resolveEffectiveConfig(
-	options: DeployOptions,
-): Promise<
+async function resolveEffectiveConfig(options: DeployOptions): Promise<
 	Result<
-		{ effective: ResolvedConfig; readFile: (path: string) => Promise<Uint8Array> },
+		{
+			effective: ResolvedConfig;
+			readFile: (path: string) => Promise<Uint8Array>;
+			realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
+		},
 		DeployError
 	>
 > {
@@ -361,13 +365,17 @@ async function resolveEffectiveConfig(
 		return config;
 	}
 
-	const selected = selectEnvironment(config.data, options.environment);
+	const selected = resolveEnvironment(config.data, options.environment);
 	if (!selected.success) {
 		return { err: selected.err, success: false };
 	}
 
 	return {
-		data: { effective: selected.data, readFile: options.readFile ?? nodeReadFile },
+		data: {
+			effective: selected.data.config,
+			readFile: options.readFile ?? nodeReadFile,
+			realDisplay: selected.data.realDisplay,
+		},
 		success: true,
 	};
 }
@@ -456,7 +464,7 @@ async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDepsB
 		return base;
 	}
 
-	const { effective, readFile } = base.data;
+	const { effective, readFile, realDisplay } = base.data;
 	const driven = pickDrivenDeps({ config: effective, options, readFile });
 	if (!driven.success) {
 		return driven;
@@ -468,6 +476,7 @@ async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDepsB
 			clearPendingRebuild: options.clearPendingRebuild ?? false,
 			config: effective,
 			readFile,
+			realDisplay,
 			rebuild: options.rebuild,
 		},
 		success: true,
@@ -527,6 +536,7 @@ async function runSinglePass(inputs: SinglePassInputs): Promise<Result<BedrockSt
 		ops,
 		priorResources,
 		progress: deps.progress,
+		realDisplay: deps.realDisplay,
 		registry: deps.registry,
 		statePort: deps.statePort,
 	});
@@ -543,6 +553,7 @@ async function runAssetStage(inputs: AssetStageInputs): Promise<ReconcilePass> {
 		pendingRebuild: new Set(markPlaces),
 		priorResources,
 		progress: deps.progress,
+		realDisplay: deps.realDisplay,
 		registry: deps.registry,
 		statePort: deps.statePort,
 	});
@@ -567,6 +578,7 @@ async function runRepublishStage(inputs: RepublishStageInputs): Promise<Reconcil
 		pendingRebuild: stillOwed,
 		priorResources: assetPass.merged.resources,
 		progress: deps.progress,
+		realDisplay: deps.realDisplay,
 		registry: deps.registry,
 		statePort: deps.statePort,
 	});

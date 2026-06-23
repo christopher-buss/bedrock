@@ -424,3 +424,59 @@ Resolution is two-step:
 Canonical example: `products.myProduct.redacted = { name: "Hidden" }` at root combined with `environments.dev.redacted = { price: 1 }` at env-level resolves, for dev's `myProduct`, to `{ name: "Hidden", price: 1 }` plus kind defaults for `description` and `icon`.
 
 The Negative section clause about authors needing to "repeat the override on each env overlay's entry" is superseded: root-level overrides now compose with env-level and env-resource overrides automatically.
+
+## Amendment -- 2026-06-23 (real values in confidential state for codegen)
+
+The original Decision (State and diff section) recorded that "the state file
+records the values that were actually pushed -- placeholders for redacted
+resources", and the "Encrypt or omit real values from the state file"
+alternative was rejected with the reasoning that real values "stay in config".
+That holds for the diff and apply paths, but it leaves a gap for codegen
+(ADR-026): an emitter that writes real names/prices/descriptions into generated
+game source reads from **State**, not config, and State carried only the
+placeholders. Identity (asset IDs in `outputs`) already flows to codegen because
+outputs are never redacted; the gap is the *display* values.
+
+This amendment is a deliberate, scoped reversal: the real (pre-redaction)
+display values for a redacted resource are now **persisted in the state
+backend**, alongside the placeholders, so codegen can recover them.
+
+### Diff-ignored sibling
+
+Each redacted resource gains a namespaced, diff-ignored sibling in the state
+file. On disk it is co-located as a `$realDisplay` key on the resource object
+(adapter-private, like the `$bedrock` envelope); in memory it is a
+`BedrockState.realDisplay` map keyed by the `kind:key` composite the diff uses.
+`serializeStateFile` / `parseStateFile` own the on-disk ↔ in-memory mapping;
+`diff` and the state merge operate only on the resources array and never read
+the sibling. The scalar *pushed* fields, the per-kind drivers, and the diff
+algebra are unchanged, so the diff stays redaction-blind: a redacted resource
+whose real values change but whose pushed values do not still diffs as a `noop`.
+The sibling carries only the redactable scalar fields that diverge from the
+pushed value (`name`, `description`, `price`; place `displayName` /
+`description`); `icon` is excluded because its actionable value is the asset ID
+in `outputs`.
+
+### Codegen-facing view and helpers
+
+The polymorphism lives only in the codegen-facing view, never on the persisted
+or diffed resource. `codegenView(resource, realDisplay)` presents each
+redactable field as `Field<T> = T | { readonly value: T; readonly redacted: T }`
+— a plain scalar when the field was not hidden, the object form (real `value`
+plus `redacted` placeholder) when it was. The exported `realValue`,
+`pushedValue`, and `isRedacted` helpers narrow the union so emitters never
+hand-narrow it.
+
+### Confidentiality constraint
+
+This narrows the original threat model's escape hatch into a requirement. The
+original Decision noted that "authors who need state-file confidentiality should
+choose a locked-down state backend"; persisting real pre-release values makes
+that **mandatory** for redaction-plus-codegen. The state backend now holds the
+exact monetization metadata redaction hides from the Roblox page, so it must be
+a confidential store (e.g. a private gist) — the same trust boundary the
+backend already required for resource IDs, now load-bearing for display content
+too. The on-Roblox threat model is unchanged: placeholders are still what ships
+to Open Cloud. No state-file schema bump: `realDisplay` is an optional,
+v1-compatible addition (see ADR-019's 2026-06-23 amendment); older readers
+tolerate it and a happy-path (no redaction) file never carries it.

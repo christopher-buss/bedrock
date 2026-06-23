@@ -29,6 +29,14 @@ export type {
 	SpawnLaunchCause,
 	SpawnLaunchError,
 } from "./cli/spawner.ts";
+export {
+	codegenView,
+	isRedacted,
+	pushedValue,
+	realValue,
+	type CodegenView,
+	type Field,
+} from "./core/codegen-view.ts";
 export type { CodegenFile, EmitInput, Emitter } from "./core/codegen.ts";
 export type { ConfigError, ConfigValidationIssue } from "./core/config-error.ts";
 export { derivePriceFields, type PriceFields } from "./core/derive-price-fields.ts";
@@ -82,6 +90,7 @@ export {
 	type ResourceKind,
 	type ResourceOutputs,
 	type ResourceOutputsByKind,
+	type ResourceRealDisplay,
 	type SocialLinkField,
 	type UniverseDesiredState,
 	type UniverseOutputs,

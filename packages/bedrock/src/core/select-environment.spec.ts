@@ -10,7 +10,11 @@ import type {
 	PlaceEntry,
 	StateConfig,
 } from "./schema.ts";
-import { selectEnvironment, selectMergedEnvironment } from "./select-environment.ts";
+import {
+	resolveEnvironment,
+	selectEnvironment,
+	selectMergedEnvironment,
+} from "./select-environment.ts";
 
 const ROOT_STATE: StateConfig = { backend: "gist", gistId: "root-gist" };
 const PROD_STATE: StateConfig = { backend: "gist", gistId: "prod-gist" };
@@ -1068,5 +1072,59 @@ describe(selectMergedEnvironment, () => {
 		expect(mergedResult.err.kind).toBe("incompletePlaceEntry");
 		expect(mergedResult.err.key).toBe("ghost-place");
 		expect(mergedResult.err.missingField).toBe("placeId");
+	});
+});
+
+describe(resolveEnvironment, () => {
+	it("should populate realDisplay from an environment-level redaction toggle", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: { dev: { redacted: true } },
+			passes: {
+				"vip-pass": {
+					name: "VIP Pass",
+					description: "Grants VIP perks.",
+					icon: { "en-us": "assets/vip.png" },
+					price: 500,
+				},
+			},
+		};
+
+		const result = resolveEnvironment(config, "dev");
+		assert(result.success);
+
+		expect(result.data.realDisplay).toStrictEqual({
+			"gamePass:vip-pass": {
+				name: "VIP Pass",
+				description: "Grants VIP perks.",
+				price: 500,
+			},
+		});
+	});
+
+	it("should populate realDisplay from a per-resource env-overlay redaction override", () => {
+		expect.assertions(1);
+
+		const config: Config = {
+			environments: { dev: { passes: { "vip-pass": { redacted: { name: "Hidden" } } } } },
+			passes: {
+				"vip-pass": {
+					name: "VIP Pass",
+					description: "Grants VIP perks.",
+					icon: { "en-us": "assets/vip.png" },
+					price: 500,
+				},
+			},
+		};
+
+		const result = resolveEnvironment(config, "dev");
+		assert(result.success);
+
+		expect(result.data.realDisplay["gamePass:vip-pass"]).toStrictEqual({
+			name: "VIP Pass",
+			description: "Grants VIP perks.",
+			price: 500,
+		});
 	});
 });
