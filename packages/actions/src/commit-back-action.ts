@@ -62,7 +62,11 @@ export function resolveActionConfig(deps: CommitBackActionDeps): {
  */
 export async function runCommitBackAction(deps: CommitBackActionDeps): Promise<void> {
 	const { options, remoteUrl } = resolveActionConfig(deps);
-	await deps.git(["remote", "set-url", "origin", remoteUrl]);
+	const setUrl = await deps.git(["remote", "set-url", "origin", remoteUrl]);
+	if (setUrl.code !== 0) {
+		// The error omits remoteUrl, which embeds the token.
+		throw new Error(`commit-back: failed to set the origin URL (exit code ${setUrl.code})`);
+	}
 
 	const result = await commitBack({ git: deps.git }, options);
 	deps.setOutput("committed", String(result.committed));
@@ -71,8 +75,13 @@ export async function runCommitBackAction(deps: CommitBackActionDeps): Promise<v
 }
 
 function authenticatedUrl(parts: { repository: string; serverUrl: string; token: string }): string {
-	const host = parts.serverUrl.replace("https://", "");
-	return `https://x-access-token:${parts.token}@${host}/${parts.repository}.git`;
+	// URL parsing (over string surgery) tolerates a trailing slash, a custom
+	// scheme, or a path in GITHUB_SERVER_URL, and encodes the credentials.
+	const url = new URL(parts.serverUrl);
+	url.username = "x-access-token";
+	url.password = parts.token;
+	url.pathname = `/${parts.repository}.git`;
+	return url.href;
 }
 
 function parseMaxAttempts(raw: string): { maxAttempts?: number } {

@@ -9,17 +9,18 @@ function ok(stdout = ""): GitResult {
 
 /**
  * Build a fake {@link GitExec} that records every argument vector it receives
- * and answers `git diff` / `git rev-parse` from the supplied transcript. Every
- * other command resolves successfully with empty output.
+ * and answers `git status` / `git rev-parse` / `git stash create` from the
+ * supplied transcript. Every other command resolves successfully with empty
+ * output, and `git push` can be made to fail a number of times.
  *
- * @param transcript - Canned stdout for the `diff` and `rev-parse` commands.
+ * @param transcript - Canned stdout and the push-failure count.
  * @returns The recorded `calls` and the fake `git` runner.
  */
 function fakeGit(transcript: {
-	diff?: string;
 	head?: string;
 	pushFailures?: number;
 	stashSha?: string;
+	status?: string;
 }): {
 	calls: Array<ReadonlyArray<string>>;
 	git: GitExec;
@@ -28,8 +29,8 @@ function fakeGit(transcript: {
 	let pushes = 0;
 	async function git(args: ReadonlyArray<string>): Promise<GitResult> {
 		calls.push(args);
-		if (args[0] === "diff") {
-			return ok(transcript.diff ?? "");
+		if (args[0] === "status") {
+			return ok(transcript.status ?? "");
 		}
 
 		if (args[0] === "rev-parse") {
@@ -64,20 +65,21 @@ const DefaultOptions = {
 } as const;
 
 describe(commitBack, () => {
-	it("should reflow, commit, and push in order, returning the new commit sha", async () => {
+	it("should stage, reflow, commit, and push in order, returning the new commit sha", async () => {
 		expect.assertions(2);
 
 		const { calls, git } = fakeGit({
-			diff: "src/shared/assets/places.ts\n",
 			head: "abc1234\n",
 			stashSha: "stash99\n",
+			status: " M src/shared/assets/places.ts\n",
 		});
 
 		const result = await commitBack({ git }, DefaultOptions);
 
 		expect(result).toStrictEqual({ changedFiles: 1, committed: true, sha: "abc1234" });
 		expect(calls).toStrictEqual([
-			["diff", "--name-only", "--", "src/shared/assets"],
+			["status", "--porcelain", "--", "src/shared/assets"],
+			["add", "--", "src/shared/assets"],
 			["stash", "create"],
 			["fetch", "origin", "main"],
 			["checkout", "-f", "-B", "main", "FETCH_HEAD"],
@@ -97,13 +99,13 @@ describe(commitBack, () => {
 		]);
 	});
 
-	it("should count only non-blank diff lines as changed files", async () => {
+	it("should count both modified and untracked files, ignoring blank lines", async () => {
 		expect.assertions(1);
 
 		const { git } = fakeGit({
-			diff: "src/a.ts\n\n   \nsrc/b.ts\n",
 			head: "abc1234\n",
 			stashSha: "stash99",
+			status: " M src/a.ts\n\n   \n?? src/b.ts\n",
 		});
 
 		const result = await commitBack({ git }, DefaultOptions);
@@ -115,10 +117,10 @@ describe(commitBack, () => {
 		expect.assertions(3);
 
 		const { calls, git } = fakeGit({
-			diff: "src/shared/assets/places.ts\n",
 			head: "abc1234\n",
 			pushFailures: 1,
 			stashSha: "stash99",
+			status: " M src/shared/assets/places.ts\n",
 		});
 
 		const result = await commitBack({ git }, DefaultOptions);
@@ -132,10 +134,10 @@ describe(commitBack, () => {
 		expect.assertions(2);
 
 		const { calls, git } = fakeGit({
-			diff: "src/shared/assets/places.ts\n",
 			head: "abc1234\n",
 			pushFailures: 99,
 			stashSha: "stash99",
+			status: " M src/shared/assets/places.ts\n",
 		});
 
 		await expect(commitBack({ git }, { ...DefaultOptions, maxAttempts: 2 })).rejects.toThrow(
@@ -144,14 +146,28 @@ describe(commitBack, () => {
 		expect(calls.filter((args) => args[0] === "push")).toHaveLength(2);
 	});
 
+	it("should reject when a required git command fails", async () => {
+		expect.assertions(1);
+
+		async function git(args: ReadonlyArray<string>): Promise<GitResult> {
+			return args[0] === "status"
+				? { code: 0, stderr: "", stdout: " M src/shared/assets/places.ts\n" }
+				: { code: 128, stderr: "fatal: not a git repository", stdout: "" };
+		}
+
+		await expect(commitBack({ git }, DefaultOptions)).rejects.toThrow(
+			"git add -- src/shared/assets failed with exit code 128",
+		);
+	});
+
 	it("should not commit or push when nothing changed under the paths", async () => {
 		expect.assertions(2);
 
-		const { calls, git } = fakeGit({ diff: "" });
+		const { calls, git } = fakeGit({ status: "" });
 
 		const result = await commitBack({ git }, DefaultOptions);
 
 		expect(result).toStrictEqual({ changedFiles: 0, committed: false });
-		expect(calls).toStrictEqual([["diff", "--name-only", "--", "src/shared/assets"]]);
+		expect(calls).toStrictEqual([["status", "--porcelain", "--", "src/shared/assets"]]);
 	});
 });

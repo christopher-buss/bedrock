@@ -1,4 +1,4 @@
-import type { GitExec } from "./git.ts";
+import type { GitExec, GitResult } from "./git.ts";
 
 /** Push attempts before giving up when the branch tip keeps moving. */
 const DEFAULT_MAX_ATTEMPTS = 3;
@@ -48,14 +48,19 @@ export async function commitBack(
 	deps: CommitBackDeps,
 	options: CommitBackOptions,
 ): Promise<CommitBackResult> {
-	const diff = await deps.git(["diff", "--name-only", "--", ...options.paths]);
-	const changedFiles = parseChangedFiles(diff.stdout);
+	// `git status --porcelain` (not `git diff`) so newly created files — a first
+	// deploy under codegen.output — count as changes, not just tracked edits.
+	const status = await runGit(deps, ["status", "--porcelain", "--", ...options.paths]);
+	const changedFiles = parseChangedFiles(status.stdout);
 
 	if (changedFiles.length === 0) {
 		return { changedFiles: 0, committed: false };
 	}
 
-	const stash = await deps.git(["stash", "create"]);
+	// Stage first so `git stash create` snapshots untracked files too (it would
+	// otherwise ignore them, yielding an empty stash on an all-new-files run).
+	await runGit(deps, ["add", "--", ...options.paths]);
+	const stash = await runGit(deps, ["stash", "create"]);
 	const stashSha = stash.stdout.trim();
 	const maxAttempts = options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
 
@@ -72,6 +77,26 @@ export async function commitBack(
 }
 
 /**
+ * Run a git command that must succeed, rejecting if it exits non-zero so a
+ * failure surfaces instead of silently corrupting the reflow. These commands
+ * carry no secret (the authenticated remote URL is configured by the action
+ * shell, not here), so the error can echo the full argument vector.
+ *
+ * @param deps - Injected `git` runner.
+ * @param args - The git argument vector.
+ * @returns The successful {@link GitResult}.
+ * @rejects When the command exits with a non-zero code.
+ */
+async function runGit(deps: CommitBackDeps, args: ReadonlyArray<string>): Promise<GitResult> {
+	const result = await deps.git(args);
+	if (result.code !== 0) {
+		throw new Error(`commit-back: git ${args.join(" ")} failed with exit code ${result.code}`);
+	}
+
+	return result;
+}
+
+/**
  * Reset onto the latest branch tip, restore the generated paths from the stash
  * commit, commit, and push once.
  *
@@ -85,11 +110,11 @@ async function reflowOntoTip(
 	plan: CommitBackOptions & { readonly stashSha: string },
 ): Promise<string | undefined> {
 	const { stashSha, ...options } = plan;
-	await deps.git(["fetch", "origin", options.branch]);
-	await deps.git(["checkout", "-f", "-B", options.branch, "FETCH_HEAD"]);
-	await deps.git(["checkout", stashSha, "--", ...options.paths]);
-	await deps.git(["add", "--", ...options.paths]);
-	await deps.git([
+	await runGit(deps, ["fetch", "origin", options.branch]);
+	await runGit(deps, ["checkout", "-f", "-B", options.branch, "FETCH_HEAD"]);
+	await runGit(deps, ["checkout", stashSha, "--", ...options.paths]);
+	await runGit(deps, ["add", "--", ...options.paths]);
+	await runGit(deps, [
 		"-c",
 		`user.name=${options.authorName}`,
 		"-c",
@@ -98,7 +123,9 @@ async function reflowOntoTip(
 		"--message",
 		options.message,
 	]);
-	const head = await deps.git(["rev-parse", "HEAD"]);
+	const head = await runGit(deps, ["rev-parse", "HEAD"]);
+	// Push is the one command whose non-zero exit is expected (a moving tip):
+	// surface it as a retry signal rather than a thrown error.
 	const push = await deps.git(["push", "origin", `HEAD:refs/heads/${options.branch}`]);
 	return push.code === 0 ? head.stdout.trim() : undefined;
 }

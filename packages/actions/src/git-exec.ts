@@ -9,21 +9,6 @@ const MAX_BUFFER = 64 * 1024 * 1024;
 // eslint-disable-next-line ts/strict-void-return -- promisify resolves execFile through its dedicated `util.promisify.custom` overload; the ChildProcess return is consumed by promisify, not a discarded value.
 const execFileAsync = promisify(execFile);
 
-/**
- * The error `promisify(execFile)` rejects with on a non-zero exit or a launch
- * failure: `code` is the numeric exit status, or a string errno (e.g. `ENOENT`)
- * when the binary could not be spawned. `stdout`/`stderr` carry whatever the
- * process emitted before failing.
- */
-export interface ExecFailure {
-	/** Numeric exit status, or a string errno when the binary failed to launch. */
-	readonly code?: number | string | undefined;
-	/** Captured standard error, if any. */
-	readonly stderr?: string | undefined;
-	/** Captured standard output, if any. */
-	readonly stdout?: string | undefined;
-}
-
 /** Dependencies for {@link createGitExec}. */
 export interface GitExecDeps {
 	/** Git executable to run; defaults to `git` resolved on the `PATH`. */
@@ -38,10 +23,18 @@ export interface GitExecDeps {
  * to `1`, and absent output normalizes to an empty string. Extracted so every
  * branch is unit-testable without provoking a real launch failure.
  *
+ * `failure.code` is the numeric exit status, or a string errno (e.g. `ENOENT`)
+ * when the binary could not be spawned; `stdout`/`stderr` carry whatever the
+ * process emitted before failing.
+ *
  * @param failure - The error thrown by `promisify(execFile)`.
  * @returns The equivalent non-success {@link GitResult}.
  */
-export function classifyExecFailure(failure: ExecFailure): GitResult {
+export function classifyExecFailure(failure: {
+	readonly code?: number | string | undefined;
+	readonly stderr?: string | undefined;
+	readonly stdout?: string | undefined;
+}): GitResult {
 	return {
 		code: typeof failure.code === "number" ? failure.code : 1,
 		stderr: failure.stderr ?? "",
@@ -68,7 +61,7 @@ export function createGitExec(deps: GitExecDeps = {}): GitExec {
 			});
 			return { code: 0, stderr, stdout };
 		} catch (err) {
-			return classifyExecFailure(err as ExecFailure);
+			return classifyExecFailure(err as Parameters<typeof classifyExecFailure>[0]);
 		}
 	};
 }

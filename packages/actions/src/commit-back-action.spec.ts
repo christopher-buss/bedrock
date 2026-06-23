@@ -18,9 +18,9 @@ function ok(stdout = ""): GitResult {
 }
 
 function harness(overrides?: {
-	diff?: string;
 	env?: Record<string, string>;
 	inputs?: Record<string, string>;
+	status?: string;
 }): Harness {
 	const inputs: Record<string, string> = {
 		paths: "src/shared/assets",
@@ -35,8 +35,8 @@ function harness(overrides?: {
 	const gitCalls: Array<ReadonlyArray<string>> = [];
 	async function git(args: ReadonlyArray<string>): Promise<GitResult> {
 		gitCalls.push(args);
-		if (args[0] === "diff") {
-			return ok(overrides?.diff ?? "");
+		if (args[0] === "status") {
+			return ok(overrides?.status ?? "");
 		}
 
 		if (args[0] === "rev-parse") {
@@ -69,7 +69,7 @@ describe(runCommitBackAction, () => {
 	it("should authenticate origin with the token and record outputs on a commit", async () => {
 		expect.assertions(2);
 
-		const { deps, gitCalls, outputs } = harness({ diff: "src/shared/assets/places.ts\n" });
+		const { deps, gitCalls, outputs } = harness({ status: " M src/shared/assets/places.ts\n" });
 
 		await runCommitBackAction(deps);
 
@@ -89,7 +89,7 @@ describe(runCommitBackAction, () => {
 	it("should record a no-op with an empty sha when nothing changed", async () => {
 		expect.assertions(1);
 
-		const { deps, outputs } = harness({ diff: "" });
+		const { deps, outputs } = harness();
 
 		await runCommitBackAction(deps);
 
@@ -98,6 +98,25 @@ describe(runCommitBackAction, () => {
 			"committed": "false",
 			"sha": "",
 		});
+	});
+
+	it("should reject without leaking the token when the remote URL cannot be set", async () => {
+		expect.assertions(2);
+
+		const { deps } = harness();
+		const failing: CommitBackActionDeps = {
+			...deps,
+			git: async (args) => {
+				return args[0] === "remote"
+					? { code: 1, stderr: "error", stdout: "" }
+					: { code: 0, stderr: "", stdout: "" };
+			},
+		};
+
+		const rejection = runCommitBackAction(failing);
+
+		await expect(rejection).rejects.toThrow("failed to set the origin URL");
+		await expect(rejection).rejects.not.toThrow("ghs_secret");
 	});
 });
 

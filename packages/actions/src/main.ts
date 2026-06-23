@@ -6,6 +6,9 @@ import { runCommitBackAction } from "./commit-back-action.ts";
 import { createGitExec } from "./git-exec.ts";
 
 async function main(): Promise<void> {
+	// Mask the token so it can never surface in logs (it is embedded in the
+	// authenticated remote URL).
+	core.setSecret(core.getInput("token"));
 	await runCommitBackAction({
 		getEnv: (name) => process.env[name],
 		git: createGitExec(),

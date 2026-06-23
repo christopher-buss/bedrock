@@ -2,6 +2,8 @@
 
 import type { KnipConfig } from "knip";
 
+const STRYKER_CONFIG = "stryker.config.ts";
+
 const config: KnipConfig = {
 	ignore: [".sandcastle/worktrees/**"],
 	ignoreDependencies: [
@@ -31,16 +33,14 @@ const config: KnipConfig = {
 		"apps/website": {
 			entry: ["landing/examples/**/*.ts"],
 		},
+		"packages/actions": {
+			entry: [STRYKER_CONFIG],
+		},
 		"packages/bedrock": {
-			entry: ["stryker.config.ts", "tests/integration/fixtures/**/*.{ts,js}"],
+			entry: [STRYKER_CONFIG, "tests/integration/fixtures/**/*.{ts,js}"],
 		},
 		"packages/open-cloud": {
-			entry: [
-				"stryker.config.ts",
-				"scripts/**/*.ts",
-				"src/**/index.ts",
-				"tests/helpers/lite.ts",
-			],
+			entry: [STRYKER_CONFIG, "scripts/**/*.ts", "src/**/index.ts", "tests/helpers/lite.ts"],
 		},
 		"packages/testing": {},
 		"packages/typescript-config": {},
