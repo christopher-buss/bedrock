@@ -55,7 +55,7 @@ Test isolation by layer:
 - `@example` blocks compile into `*.example.spec.ts` via `pnpm gen:example-tests`. Source blocks must NOT include the `vitest` import (the generator prepends it). Place `@example` after `@template`/`@param`.
 - One well-chosen `@example` per symbol; resist enumerating permutations.
 - No ADR references in code or rendered JSDoc. ADRs are internal governance; rendered docs ship to consumers.
-- Bedrock is pre-1.0 and unpublished; do not frame type widenings as "breaking for plugin authors" in JSDoc and do not speculate about semver bumps.
+- Bedrock is pre-1.0; do not frame type widenings as "breaking for plugin authors" in JSDoc and do not speculate about semver bumps.
 
 ## 5. Commit and PR format
 

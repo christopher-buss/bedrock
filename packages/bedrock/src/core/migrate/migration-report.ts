@@ -5,9 +5,9 @@ import type { BedrockState } from "../state.ts";
 /**
  * Per-environment in-memory state snapshot map keyed by environment name.
  *
- * `Record` rather than the PRD-suggested `Map` so the field survives
- * `JSON.stringify` for downstream logging and parallel-iterates cleanly
- * with `Config.environments` (which is itself a `Record`).
+ * `Record` rather than `Map` so the field survives `JSON.stringify` for
+ * downstream logging and parallel-iterates cleanly with
+ * `Config.environments` (which is itself a `Record`).
  */
 export type StatesByEnvironment = Readonly<Record<string, BedrockState>>;
 

@@ -184,6 +184,15 @@ interface GamePassLocalizationHandle {
  *     pageToken = page.data.nextPageToken;
  * } while (pageToken !== undefined);
  * ```
+ *
+ * @example
+ *
+ * ```ts
+ * import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
+ *
+ * const client = new GamePassesClient({ apiKey: "your-key" });
+ * expect(client).toBeInstanceOf(GamePassesClient);
+ * ```
  */
 export class GamePassesClient {
 	readonly #inner: ResourceClient;

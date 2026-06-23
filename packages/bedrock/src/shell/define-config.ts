@@ -2,7 +2,7 @@ import type { Config } from "../core/schema.ts";
 
 /**
  * Context object passed to a config-function input. Intentionally empty so
- * future ADRs can add fields without breaking existing user configs.
+ * future fields can be added without breaking existing user configs.
  */
 export interface ConfigContext {}
 

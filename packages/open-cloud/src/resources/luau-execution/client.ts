@@ -182,6 +182,15 @@ export interface TasksHandle {
  * specific place version, `tasks.get` for fetching task state,
  * `tasks.listLogs` for fetching structured log messages, and
  * `binaryInputs.create` for allocating presigned upload slots.
+ *
+ * @example
+ *
+ * ```ts
+ * import { LuauExecutionClient } from "@bedrock-rbx/ocale/luau-execution";
+ *
+ * const client = new LuauExecutionClient({ apiKey: "your-key" });
+ * expect(client).toBeInstanceOf(LuauExecutionClient);
+ * ```
  */
 export class LuauExecutionClient {
 	readonly #inner: ResourceClient;
