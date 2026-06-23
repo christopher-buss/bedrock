@@ -5,7 +5,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const PACKAGE_ROOT = path.resolve(import.meta.dirname, "..");
-const SEMVER = /^\d+\.\d+\.\d+(?:-[\dA-Za-z.-]+)?$/;
+const SEMVER = /^\d+\.\d+\.\d+(?:-[\dA-Za-z.-]+)?(?:\+[\dA-Za-z.-]+)?$/;
 // Floor guarding against a barrel-discovery regression silently passing the
 // suite. Raise it if the public surface ever shrinks below this.
 const MINIMUM_PUBLIC_SYMBOLS = 50;
