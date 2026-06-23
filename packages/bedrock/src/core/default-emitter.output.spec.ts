@@ -6,7 +6,7 @@ import {
 	placeCurrent,
 	universeCurrent,
 } from "#tests/helpers/resources";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,8 +21,16 @@ import type { ResourceCurrentState } from "./resources.ts";
 import type { BedrockState } from "./state.ts";
 
 // Golden fixtures committed alongside the package so a reviewer can open the
-// real generated artifacts; the snapshot tests below regenerate and diff them.
+// real generated artifacts; the tests below read-compare the emitter against
+// them as a regression guard.
 const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../tests/fixtures/codegen");
+
+// Stryker's typescript-checker rewrites every program file in its sandbox
+// (it prepends `// @ts-nocheck` to all but the active mutant), so a
+// byte-for-byte compare against the committed `.d.ts` would read corrupted
+// bytes. The emitter's rendering mutants are killed by the unit spec, so the
+// golden-file compares opt out of the mutation sandbox rather than fight it.
+const IS_MUTATION_SANDBOX = fileURLToPath(import.meta.url).includes(".stryker-tmp");
 
 function stateOf(
 	environment: string,
@@ -65,7 +73,9 @@ async function emitFile(input: EmitInput, path: string): Promise<string> {
 	const files: ReadonlyArray<CodegenFile> = await createDefaultEmitter({
 		typeDeclarations: true,
 	})(input);
-	return files.find((file) => file.path === path)!.content;
+	const file = files.find((entry) => entry.path === path);
+	assert(file !== undefined);
+	return file.content;
 }
 
 /**
@@ -126,22 +136,42 @@ async function withTemporaryLuau<T>(
 	}
 }
 
+/**
+ * Read a committed golden fixture. Comparing the emitter against these
+ * checked-in files (rather than a managed snapshot) keeps the assertion a
+ * plain equality and makes regenerating them an explicit edit, never an
+ * implicit `--update`. To refresh: emit `comprehensiveInput()` and overwrite
+ * the files.
+ *
+ * @param path - The fixture filename under the codegen fixtures directory.
+ * @returns The committed fixture's UTF-8 contents.
+ */
+function committedFixture(path: string): string {
+	return readFileSync(join(FIXTURE_DIR, path), "utf8");
+}
+
 describe("default emitter golden fixtures", () => {
-	it("should match the committed resources.luau example", async () => {
-		expect.assertions(1);
+	it.skipIf(IS_MUTATION_SANDBOX)(
+		"should match the committed resources.luau example",
+		async () => {
+			expect.assertions(1);
 
-		const content = await emitFile(comprehensiveInput(), "resources.luau");
+			const content = await emitFile(comprehensiveInput(), "resources.luau");
 
-		await expect(content).toMatchFileSnapshot(join(FIXTURE_DIR, "resources.luau"));
-	});
+			expect(content).toBe(committedFixture("resources.luau"));
+		},
+	);
 
-	it("should match the committed resources.d.ts example", async () => {
-		expect.assertions(1);
+	it.skipIf(IS_MUTATION_SANDBOX)(
+		"should match the committed resources.d.ts example",
+		async () => {
+			expect.assertions(1);
 
-		const content = await emitFile(comprehensiveInput(), "resources.d.ts");
+			const content = await emitFile(comprehensiveInput(), "resources.d.ts");
 
-		await expect(content).toMatchFileSnapshot(join(FIXTURE_DIR, "resources.d.ts"));
-	});
+			expect(content).toBe(committedFixture("resources.d.ts"));
+		},
+	);
 });
 
 describe("default emitter Luau output validity", () => {
