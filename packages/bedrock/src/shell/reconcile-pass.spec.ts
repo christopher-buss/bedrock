@@ -20,7 +20,7 @@ import type {
 	ResourceDriver,
 } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
-import { asResourceKey, type ResourceKey } from "../types/ids.ts";
+import { asResourceKey, asSha256Hex, type ResourceKey } from "../types/ids.ts";
 import { applyAndPersist } from "./reconcile-pass.ts";
 
 const alpha = gamePassCurrent({
@@ -275,6 +275,92 @@ describe(applyAndPersist, () => {
 		});
 
 		expect(pass.merged.pendingRebuild).toBeUndefined();
+	});
+
+	it("should stamp the codegen hash on the persisted snapshot when supplied", async () => {
+		expect.assertions(2);
+
+		const hash = asSha256Hex(
+			"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		);
+		const states: Array<BedrockState> = [];
+		const port: StatePort = {
+			async read() {
+				return { data: undefined, success: true };
+			},
+			async write(state) {
+				states.push(state);
+				return { data: undefined, success: true };
+			},
+		};
+
+		const pass = await applyAndPersist({
+			codegenHash: hash,
+			environment: "production",
+			ops: [createGamePassOp(asResourceKey("vip-pass"))],
+			priorResources: [],
+			progress: recordingProgress().port,
+			registry: gamePassRegistry({ "vip-pass": vip }),
+			statePort: port,
+		});
+
+		expect(pass.merged.codegenHash).toBe(hash);
+		expect(states[0]!.codegenHash).toBe(hash);
+	});
+
+	it("should omit the codegen hash from the snapshot when not supplied", async () => {
+		expect.assertions(1);
+
+		const { port } = inMemoryStatePort();
+
+		const pass = await applyAndPersist({
+			environment: "production",
+			ops: [createGamePassOp(asResourceKey("vip-pass"))],
+			priorResources: [],
+			progress: recordingProgress().port,
+			registry: gamePassRegistry({ "vip-pass": vip }),
+			statePort: port,
+		});
+
+		expect(pass.merged.codegenHash).toBeUndefined();
+	});
+
+	it("should drop the codegen hash when an op in the pass fails to apply", async () => {
+		expect.assertions(2);
+
+		const hash = asSha256Hex(
+			"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		);
+		const failure = new OpenCloudError("create vip-pass: 503");
+		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
+			gamePass: {
+				async create(desired) {
+					return desired.key === "alpha-pass"
+						? { data: alpha, success: true }
+						: { err: failure, success: false };
+				},
+			},
+			place: placeStub,
+			universe: universeStub,
+		};
+		const { port } = inMemoryStatePort();
+
+		const pass = await applyAndPersist({
+			codegenHash: hash,
+			environment: "production",
+			ops: [
+				createGamePassOp(asResourceKey("alpha-pass")),
+				createGamePassOp(asResourceKey("vip-pass")),
+			],
+			priorResources: [],
+			progress: recordingProgress().port,
+			registry,
+			statePort: port,
+		});
+
+		expect(pass.applied.success).toBeFalse();
+		expect(pass.merged.codegenHash).toBeUndefined();
 	});
 
 	it("should forward artifacts to the driver as apply context", async () => {

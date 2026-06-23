@@ -116,6 +116,44 @@ describe(serializeStateFile, () => {
 			resources: [],
 		});
 	});
+
+	it("should serialize the codegen hash into the $bedrock envelope", () => {
+		expect.assertions(1);
+
+		const state: BedrockState = {
+			codegenHash: asSha256Hex(
+				"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			),
+			environment: "production",
+			resources: [],
+			version: 1,
+		};
+
+		expect(JSON.parse(serializeStateFile(state))).toStrictEqual({
+			$bedrock: {
+				codegenHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				version: 1,
+			},
+			environment: "production",
+			resources: [],
+		});
+	});
+
+	it("should omit the codegen hash from the envelope when it is absent", () => {
+		expect.assertions(1);
+
+		const state: BedrockState = {
+			environment: "production",
+			resources: [],
+			version: 1,
+		};
+
+		expect(JSON.parse(serializeStateFile(state))).toStrictEqual({
+			$bedrock: { version: 1 },
+			environment: "production",
+			resources: [],
+		});
+	});
 });
 
 const SAMPLE_FILE = "gist:abc123/state.production.json";
@@ -366,6 +404,71 @@ describe(parseStateFile, () => {
 			resources: [],
 			version: 1,
 		});
+	});
+
+	it("should round-trip the codegen hash through serialize and parse", () => {
+		expect.assertions(2);
+
+		const state: BedrockState = {
+			codegenHash: asSha256Hex(
+				"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			),
+			environment: "staging",
+			resources: [],
+			version: 1,
+		};
+
+		const result = parseStateFile(serializeStateFile(state), SAMPLE_FILE);
+
+		expect(result.success).toBeTrue();
+
+		assert(result.success);
+
+		expect(result.data).toStrictEqual(state);
+	});
+
+	it("should hydrate the codegen hash from a $bedrock envelope", () => {
+		expect.assertions(2);
+
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: {
+					codegenHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+					version: 1,
+				},
+				environment: "production",
+				resources: [],
+			}),
+			SAMPLE_FILE,
+		);
+
+		expect(result.success).toBeTrue();
+
+		assert(result.success);
+
+		expect(result.data).toStrictEqual({
+			codegenHash: asSha256Hex(
+				"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			),
+			environment: "production",
+			resources: [],
+			version: 1,
+		});
+	});
+
+	it("should err when the codegen hash is not a 64-character lowercase hex digest", () => {
+		expect.assertions(1);
+
+		const result = parseStateFile(
+			JSON.stringify({
+				$bedrock: { codegenHash: "not-a-valid-hash", version: 1 },
+				environment: "production",
+				resources: [],
+			}),
+			SAMPLE_FILE,
+		);
+
+		expect(result.success).toBeFalse();
 	});
 
 	it("should parse a v1 state file without pendingRebuild and leave version unchanged", () => {

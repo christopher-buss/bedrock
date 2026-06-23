@@ -38,7 +38,7 @@ import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
-import type { ResourceKey } from "../types/ids.ts";
+import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
 import type { AggregateApplyError } from "./apply-ops.ts";
 import { buildDefaultRegistry, type RegistryConfigError } from "./build-default-registry.ts";
 import { buildDesired, type BuildDesiredError } from "./build-desired.ts";
@@ -102,10 +102,14 @@ export interface DeployOptions {
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
 	/**
 	 * Two-phase rebuild hook. Supplied programmatically (a function cannot
-	 * round-trip through a config file). When supplied and the diff contains a
-	 * provisioned `create`, `deploy` mints the assets, runs codegen, invokes the
-	 * hook with the post-asset-stage state, then republishes each returned place
-	 * from the hook's rebuilt bytes. Omit to publish places in a single pass.
+	 * round-trip through a config file). When supplied alongside active codegen,
+	 * `deploy` mints the assets, runs codegen, and rebuilds + republishes each
+	 * place from the hook's bytes whenever the emitted source would change (its
+	 * fingerprint differs from the stored one); otherwise it publishes the
+	 * pre-built file. Because the rebuild re-runs the build after codegen
+	 * rewrites source, the deploy environment needs the build toolchain, not just
+	 * a pre-built artifact. Omit, or run without codegen, to publish places in a
+	 * single pass.
 	 */
 	readonly rebuild?: RebuildHook;
 	/** Per-kind driver table consulted for create / update dispatch. Default-constructed from `BEDROCK_API_KEY` when omitted. */
@@ -192,15 +196,23 @@ interface SinglePassInputs {
 	readonly environment: string;
 	readonly ops: ReadonlyArray<Operation>;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
+	readonly storedHash: Sha256Hex | undefined;
 }
 
 interface TwoPhaseInputs {
 	readonly deps: ResolvedDeps;
 	readonly desired: ReadonlyArray<ResourceDesiredState>;
 	readonly environment: string;
+	readonly marker: ReadonlySet<ResourceKey>;
 	readonly plan: TwoPhasePlan;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 	readonly rebuild: RebuildHook;
+	readonly storedHash: Sha256Hex | undefined;
+}
+
+interface CompleteTwoPhaseInputs extends TwoPhaseInputs {
+	readonly assetPass: ReconcilePass;
+	readonly codegen: Result<Sha256Hex, CodegenError> | undefined;
 }
 
 interface AssetStageInputs {
@@ -209,10 +221,21 @@ interface AssetStageInputs {
 	readonly markPlaces: ReadonlyArray<ResourceKey>;
 	readonly ops: ReadonlyArray<Operation>;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
+	readonly storedHash: Sha256Hex | undefined;
+}
+
+interface PublishStageInputs {
+	readonly assetPass: ReconcilePass;
+	readonly codegen: Result<Sha256Hex, CodegenError> | undefined;
+	readonly codegenHash: Sha256Hex | undefined;
+	readonly deps: ResolvedDeps;
+	readonly environment: string;
+	readonly placeOps: ReadonlyArray<Operation>;
 }
 
 interface RepublishStageInputs {
 	readonly assetPass: ReconcilePass;
+	readonly codegenHash: Sha256Hex | undefined;
 	readonly deps: ResolvedDeps;
 	readonly desiredPlaces: ReadonlyArray<PlaceDesiredState>;
 	readonly environment: string;
@@ -231,6 +254,7 @@ interface ReconcileInputs {
 	readonly ops: ReadonlyArray<Operation>;
 	readonly owedRebuild: ReadonlySet<ResourceKey>;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
+	readonly storedHash: Sha256Hex | undefined;
 }
 
 /**
@@ -484,7 +508,7 @@ async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDepsB
 
 function finalize(
 	pass: ReconcilePass,
-	codegen: Result<void, CodegenError> | undefined,
+	codegen: Result<Sha256Hex, CodegenError> | undefined,
 ): Result<BedrockState, DeployError> {
 	// Check write before apply: only the write carries `unsavedState`.
 	if (!pass.written.success) {
@@ -514,7 +538,7 @@ function finalize(
 async function runCodegenStage(
 	deps: ResolvedDeps,
 	pass: ReconcilePass,
-): Promise<Result<void, CodegenError> | undefined> {
+): Promise<Result<Sha256Hex, CodegenError> | undefined> {
 	if (!pass.written.success || deps.codegen === undefined) {
 		return undefined;
 	}
@@ -529,8 +553,12 @@ async function runCodegenStage(
 }
 
 async function runSinglePass(inputs: SinglePassInputs): Promise<Result<BedrockState, DeployError>> {
-	const { deps, environment, ops, priorResources } = inputs;
+	const { deps, environment, ops, priorResources, storedHash } = inputs;
+	// A single pass never owns the fingerprint: it threads the stored hash back
+	// out unchanged so a codegen-only (no rebuild hook) deploy never claims the
+	// place was built against newly emitted source it could not have republished.
 	const pass = await applyAndPersist({
+		codegenHash: storedHash,
 		environment,
 		ops,
 		priorResources,
@@ -545,8 +573,12 @@ async function runSinglePass(inputs: SinglePassInputs): Promise<Result<BedrockSt
 }
 
 async function runAssetStage(inputs: AssetStageInputs): Promise<ReconcilePass> {
-	const { deps, environment, markPlaces, ops, priorResources } = inputs;
+	const { deps, environment, markPlaces, ops, priorResources, storedHash } = inputs;
+	// The checkpoint preserves the stored hash: only the write that completes a
+	// successful republish (or pre-built publish) advances it, so an aborted
+	// rebuild retains the stale hash and the next deploy retries.
 	return applyAndPersist({
+		codegenHash: storedHash,
 		environment,
 		ops,
 		pendingRebuild: new Set(markPlaces),
@@ -559,7 +591,7 @@ async function runAssetStage(inputs: AssetStageInputs): Promise<ReconcilePass> {
 }
 
 async function runRepublishStage(inputs: RepublishStageInputs): Promise<ReconcilePass> {
-	const { assetPass, deps, desiredPlaces, environment, rebuilt } = inputs;
+	const { assetPass, codegenHash, deps, desiredPlaces, environment, rebuilt } = inputs;
 	const artifacts = new Map(rebuilt.map((place) => [place.key, place.bytes]));
 	// Clear the marker only for the places the hook actually republished; any
 	// declared place the hook skipped still owes a rebuild and keeps its marker.
@@ -568,6 +600,7 @@ async function runRepublishStage(inputs: RepublishStageInputs): Promise<Reconcil
 	);
 	return applyAndPersist({
 		artifacts,
+		codegenHash,
 		environment,
 		ops: buildRepublishOps({
 			currentResources: assetPass.merged.resources,
@@ -581,6 +614,28 @@ async function runRepublishStage(inputs: RepublishStageInputs): Promise<Reconcil
 		registry: deps.registry,
 		statePort: deps.statePort,
 	});
+}
+
+async function runPublishStage(
+	inputs: PublishStageInputs,
+): Promise<Result<BedrockState, DeployError>> {
+	const { assetPass, codegen, codegenHash, deps, environment, placeOps } = inputs;
+	// Codegen output matched the stored hash, so the pre-built place file is
+	// still current: replay the withheld place ops (the driver reads the file
+	// from disk), clear the marker (nothing owes a rebuild), and advance the
+	// stored hash to the value just emitted.
+	const publishPass = await applyAndPersist({
+		codegenHash,
+		environment,
+		ops: placeOps,
+		pendingRebuild: new Set(),
+		priorResources: assetPass.merged.resources,
+		progress: deps.progress,
+		realDisplay: deps.realDisplay,
+		registry: deps.registry,
+		statePort: deps.statePort,
+	});
+	return finalize(publishPass, codegen);
 }
 
 async function invokeRebuildHook(
@@ -603,27 +658,24 @@ async function invokeRebuildHook(
 	}
 }
 
-async function runTwoPhase(inputs: TwoPhaseInputs): Promise<Result<BedrockState, DeployError>> {
-	const { deps, desired, environment, plan, priorResources, rebuild } = inputs;
-	const desiredPlaces = desired.filter(
-		(entry): entry is PlaceDesiredState => entry.kind === "place",
-	);
-	const assetPass = await runAssetStage({
-		deps,
-		environment,
-		markPlaces: plan.markPlaces,
-		ops: plan.assetOps,
-		priorResources,
-	});
+async function completeTwoPhase(
+	inputs: CompleteTwoPhaseInputs,
+): Promise<Result<BedrockState, DeployError>> {
+	const { assetPass, codegen, deps, desired, environment, marker, plan, rebuild, storedHash } =
+		inputs;
+	const emittedHash = codegen?.success === true ? codegen.data : undefined;
+	const nextHash = emittedHash ?? storedHash;
+	// Rebuild when a leftover marker forces it or the freshly emitted codegen
+	// would differ from what the published place was last built against. A
+	// provisioned create changes the emitted output, so its hash differs and the
+	// create trigger is subsumed here, not duplicated. `emittedHash` is undefined
+	// only when codegen is inactive, which (per the activation rule) implies a
+	// forcing marker, so `marker.size > 0` already covers that case.
+	const shouldRebuild = marker.size > 0 || emittedHash !== storedHash;
 
-	const codegen = await runCodegenStage(deps, assetPass);
-
-	// A partial asset failure (or a failed checkpoint write) aborts the rebuild:
-	// survivors and the marker are already persisted, codegen has emitted the
-	// resolved keys, and the asset-stage error stands so the next run retries
-	// via the marker instead of rebuilding against missing IDs.
-	if (!assetPass.written.success || !assetPass.applied.success) {
-		return finalize(assetPass, codegen);
+	if (!shouldRebuild) {
+		const args = { assetPass, codegen, codegenHash: nextHash, deps, environment };
+		return runPublishStage({ ...args, placeOps: plan.placeOps });
 	}
 
 	const rebuilt = await invokeRebuildHook(rebuild, assetPass.merged);
@@ -631,8 +683,12 @@ async function runTwoPhase(inputs: TwoPhaseInputs): Promise<Result<BedrockState,
 		return rebuilt;
 	}
 
+	const desiredPlaces = desired.filter(
+		(entry): entry is PlaceDesiredState => entry.kind === "place",
+	);
 	const republishPass = await runRepublishStage({
 		assetPass,
+		codegenHash: nextHash,
 		deps,
 		desiredPlaces,
 		environment,
@@ -640,6 +696,36 @@ async function runTwoPhase(inputs: TwoPhaseInputs): Promise<Result<BedrockState,
 	});
 
 	return finalize(republishPass, codegen);
+}
+
+async function runTwoPhase(inputs: TwoPhaseInputs): Promise<Result<BedrockState, DeployError>> {
+	const { deps, environment, plan, priorResources, storedHash } = inputs;
+	const assetPass = await runAssetStage({
+		deps,
+		environment,
+		markPlaces: plan.markPlaces,
+		ops: plan.assetOps,
+		priorResources,
+		storedHash,
+	});
+
+	const codegen = await runCodegenStage(deps, assetPass);
+
+	// A partial asset failure (or a failed checkpoint write) aborts the rebuild:
+	// survivors and the marker are already persisted, codegen has emitted the
+	// resolved keys, and the asset-stage error stands so the next run retries
+	// via the marker instead of rebuilding against missing IDs. A codegen failure
+	// after the checkpoint aborts too: with no fresh hash the rebuild decision
+	// cannot be made, so the marker and the stale hash are retained.
+	if (!assetPass.written.success || !assetPass.applied.success) {
+		return finalize(assetPass, codegen);
+	}
+
+	if (codegen !== undefined && !codegen.success) {
+		return finalize(assetPass, codegen);
+	}
+
+	return completeTwoPhase({ ...inputs, assetPass, codegen });
 }
 
 async function loadReconcileInputs(
@@ -668,9 +754,26 @@ async function loadReconcileInputs(
 			ops: diff(desired.data, priorResources),
 			owedRebuild: prior.data?.pendingRebuild ?? new Set<ResourceKey>(),
 			priorResources,
+			storedHash: prior.data?.codegenHash,
 		},
 		success: true,
 	};
+}
+
+function markerWithoutHookError(inputs: {
+	owedRebuild: ReadonlySet<ResourceKey>;
+	rebuild: RebuildHook | undefined;
+	shouldClearMarker: boolean;
+}): DeployError | undefined {
+	const { owedRebuild, rebuild, shouldClearMarker } = inputs;
+	// A marker present with no hook to satisfy it is a hard error: refuse to
+	// report success while a rebuild is owed and cannot be performed. The escape
+	// hatch lets a user deliberately abandoning two-phase clear it instead.
+	if (!shouldClearMarker && owedRebuild.size > 0 && rebuild === undefined) {
+		return { keys: [...owedRebuild], kind: "pendingRebuildWithoutHook" };
+	}
+
+	return undefined;
 }
 
 async function runReconcile(
@@ -682,29 +785,34 @@ async function runReconcile(
 		return loaded;
 	}
 
-	const { desired, ops, owedRebuild, priorResources } = loaded.data;
-	const { clearPendingRebuild: shouldClearMarker, rebuild } = deps;
+	const { desired, ops, owedRebuild, priorResources, storedHash } = loaded.data;
+	const { clearPendingRebuild: shouldClearMarker, codegen, rebuild } = deps;
 
-	// A marker present with no hook to satisfy it is a hard error: refuse to
-	// report success while a rebuild is owed and cannot be performed. The escape
-	// hatch lets a user deliberately abandoning two-phase clear it instead.
-	if (!shouldClearMarker && owedRebuild.size > 0 && rebuild === undefined) {
-		return {
-			err: { keys: [...owedRebuild], kind: "pendingRebuildWithoutHook" },
-			success: false,
-		};
+	const owedError = markerWithoutHookError({ owedRebuild, rebuild, shouldClearMarker });
+	if (owedError !== undefined) {
+		return { err: owedError, success: false };
 	}
 
-	if (rebuild === undefined) {
-		return runSinglePass({ deps, environment, ops, priorResources });
+	const marker = shouldClearMarker ? new Set<ResourceKey>() : owedRebuild;
+	// Two-phase activates only when a rebuild hook is available and there is
+	// something for the post-codegen check to act on: active codegen (whose hash
+	// drives the rebuild decision) or a leftover marker forcing a retry. Without
+	// codegen there is no generated source to fingerprint, so a rebuild hook is
+	// inert and the deploy publishes the pre-built file in a single pass.
+	if (rebuild === undefined || (codegen === undefined && marker.size === 0)) {
+		return runSinglePass({ deps, environment, ops, priorResources, storedHash });
 	}
 
-	const plan = planTwoPhase(ops, shouldClearMarker ? new Set<ResourceKey>() : owedRebuild);
-	if (!plan.activates) {
-		return runSinglePass({ deps, environment, ops, priorResources });
-	}
-
-	return runTwoPhase({ deps, desired, environment, plan, priorResources, rebuild });
+	return runTwoPhase({
+		deps,
+		desired,
+		environment,
+		marker,
+		plan: planTwoPhase(ops),
+		priorResources,
+		rebuild,
+		storedHash,
+	});
 }
 
 async function runDeploy(

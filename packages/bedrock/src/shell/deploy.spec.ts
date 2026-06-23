@@ -7,6 +7,7 @@ import { assert, describe, expect, it, vi } from "vitest";
 
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import type { CodegenFile, EmitInput, Emitter } from "../core/codegen.ts";
+import { hashCodegenFiles } from "../core/codegen.ts";
 import type { RebuildHook, RebuiltPlace } from "../core/rebuild.ts";
 import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
@@ -1775,13 +1776,27 @@ describe(deploy, () => {
 			return [{ key: startPlace, bytes: rebuiltBytes }];
 		}
 
+		function twoPhaseEmit(): ReadonlyArray<CodegenFile> {
+			return [CODEGEN_FILE];
+		}
+
+		function withCodegen(config: Config): Config {
+			return { ...config, codegen: { enabled: true, output: "src/generated" } };
+		}
+
+		function twoPhaseCodegenConfig(): Config {
+			return withCodegen(twoPhaseConfig());
+		}
+
 		it("should publish the rebuild hook's bytes to the place driver instead of the pre-built file", async () => {
 			expect.assertions(1);
 
 			const { placeCalls, registry } = recordingPlaceRegistry();
 
 			const result = await deploy({
-				config: twoPhaseConfig(),
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: twoPhaseCodegenConfig(),
+				emit: twoPhaseEmit,
 				environment: "production",
 				readFile: readIcon,
 				rebuild: cannedRebuild,
@@ -1803,7 +1818,9 @@ describe(deploy, () => {
 			const { registry } = recordingPlaceRegistry();
 
 			await deploy({
-				config: twoPhaseConfig(),
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: twoPhaseCodegenConfig(),
+				emit: twoPhaseEmit,
 				environment: "production",
 				readFile: readIcon,
 				rebuild: ({ state }) => {
@@ -1824,7 +1841,9 @@ describe(deploy, () => {
 			const { registry } = recordingPlaceRegistry();
 
 			await deploy({
-				config: twoPhaseConfig(),
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: twoPhaseCodegenConfig(),
+				emit: twoPhaseEmit,
 				environment: "production",
 				readFile: readIcon,
 				rebuild: cannedRebuild,
@@ -1845,7 +1864,8 @@ describe(deploy, () => {
 			const { placeCalls, registry } = recordingPlaceRegistry();
 
 			await deploy({
-				config: {
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: withCodegen({
 					environments: {
 						production: {
 							places: { arena: { placeId: "200" }, lobby: { placeId: "100" } },
@@ -1856,7 +1876,8 @@ describe(deploy, () => {
 						arena: { filePath: "places/arena.rbxl" },
 						lobby: { filePath: "places/lobby.rbxl" },
 					},
-				},
+				}),
+				emit: twoPhaseEmit,
 				environment: "production",
 				readFile: readIcon,
 				rebuild: () => {
@@ -1898,7 +1919,9 @@ describe(deploy, () => {
 			const { placeCalls, registry } = recordingPlaceRegistry();
 
 			const result = await deploy({
-				config: twoPhaseConfig(),
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: twoPhaseCodegenConfig(),
+				emit: twoPhaseEmit,
 				environment: "production",
 				readFile: readIcon,
 				rebuild: cannedRebuild,
@@ -1955,7 +1978,9 @@ describe(deploy, () => {
 			};
 
 			const result = await deploy({
-				config: twoPhaseConfig(),
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: twoPhaseCodegenConfig(),
+				emit: twoPhaseEmit,
 				environment: "production",
 				readFile: readIcon,
 				rebuild: () => {
@@ -1991,7 +2016,9 @@ describe(deploy, () => {
 			};
 
 			const result = await deploy({
-				config: twoPhaseConfig(),
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: twoPhaseCodegenConfig(),
+				emit: twoPhaseEmit,
 				environment: "production",
 				readFile: readIcon,
 				rebuild: () => {
@@ -2016,7 +2043,8 @@ describe(deploy, () => {
 			const { registry } = recordingPlaceRegistry();
 
 			await deploy({
-				config: {
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: withCodegen({
 					environments: {
 						production: {
 							places: { arena: { placeId: "200" }, lobby: { placeId: "100" } },
@@ -2027,7 +2055,8 @@ describe(deploy, () => {
 						arena: { filePath: "places/arena.rbxl" },
 						lobby: { filePath: "places/lobby.rbxl" },
 					},
-				},
+				}),
+				emit: twoPhaseEmit,
 				environment: "production",
 				readFile: readIcon,
 				rebuild: () => [{ key: asResourceKey("lobby"), bytes: rebuiltBytes }],
@@ -2041,7 +2070,7 @@ describe(deploy, () => {
 			expect(writes[1]!.pendingRebuild).toStrictEqual(new Set([asResourceKey("arena")]));
 		});
 
-		it("should fall back to a single pass when a hook is supplied but no provisioned create exists", async () => {
+		it("should publish in a single pass when codegen is not enabled even with a rebuild hook", async () => {
 			expect.assertions(4);
 
 			const { port, writes } = inMemoryStatePort();
@@ -2103,6 +2132,43 @@ describe(deploy, () => {
 				vipPassCurrent(),
 			);
 			expect(writer.writes).toStrictEqual([CODEGEN_FILE]);
+		});
+
+		it("should abort the rebuild and surface codegenFailed when codegen fails in two-phase", async () => {
+			expect.assertions(3);
+
+			const { port, writes } = inMemoryStatePort();
+			const { placeCalls, registry } = recordingPlaceRegistry();
+			let didCallHook = false;
+			const rejectingWriter: CodegenWriterPort = {
+				async write() {
+					return {
+						err: { kind: "codegenWriteError", path: "ids.luau", reason: "no space" },
+						success: false,
+					};
+				},
+			};
+
+			const result = await deploy({
+				codegenWriter: rejectingWriter,
+				config: twoPhaseCodegenConfig(),
+				emit: twoPhaseEmit,
+				environment: "production",
+				readFile: readIcon,
+				rebuild: () => {
+					didCallHook = true;
+					return cannedRebuild();
+				},
+				registry,
+				statePort: port,
+			});
+
+			assert(!result.success);
+			assert(result.err.kind === "codegenFailed");
+
+			expect(didCallHook).toBeFalse();
+			expect(placeCalls).toBeEmpty();
+			expect(writes).toHaveLength(1);
 		});
 
 		function startPlaceInState(): ResourceCurrentState<"place"> {
@@ -2176,7 +2242,9 @@ describe(deploy, () => {
 			const { placeCalls, registry } = recordingPlaceRegistry();
 
 			const result = await deploy({
-				config: twoPhaseConfig(),
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: twoPhaseCodegenConfig(),
+				emit: twoPhaseEmit,
 				environment: "production",
 				readFile: readIcon,
 				rebuild: () => {
@@ -2200,7 +2268,9 @@ describe(deploy, () => {
 			expect.assertions(1);
 
 			const result = await deploy({
-				config: twoPhaseConfig(),
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: twoPhaseCodegenConfig(),
+				emit: twoPhaseEmit,
 				environment: "production",
 				readFile: readIcon,
 				rebuild: vi.fn<RebuildHook>().mockRejectedValue("kaboom"),
@@ -2339,6 +2409,188 @@ describe(deploy, () => {
 			expect(didCallHook).toBeFalse();
 			expect(writes.at(-1)!.pendingRebuild).toBeUndefined();
 			expect(placeCalls).toBeEmpty();
+		});
+
+		function priceEmit({ environments }: EmitInput): ReadonlyArray<CodegenFile> {
+			const pass = environments["production"]?.resources.find(
+				(resource) => resource.kind === "gamePass",
+			);
+			const price = pass !== undefined && "price" in pass ? pass.price : 0;
+			return [{ content: `return { price = ${String(price)} }\n`, path: "ids.luau" }];
+		}
+
+		function priceUpdateRegistry(updatedPass: ResourceCurrentState<"gamePass">): {
+			placeCalls: Array<PlaceCall>;
+			registry: DriverRegistry;
+		} {
+			const { placeCalls, registry } = recordingPlaceRegistry();
+			return {
+				placeCalls,
+				registry: {
+					...registry,
+					gamePass: {
+						async create() {
+							return { data: updatedPass, success: true };
+						},
+						async update() {
+							return { data: updatedPass, success: true };
+						},
+					},
+				},
+			};
+		}
+
+		function priceUpdateConfig(price: number): Config {
+			return withCodegen({
+				environments: { production: { places: { "start-place": { placeId: "4711" } } } },
+				passes: { "vip-pass": { ...VipPassEntry, price } },
+				places: { "start-place": { filePath: "places/start.rbxl" } },
+			});
+		}
+
+		it("should rebuild and republish on a price-only update whose codegen output changed", async () => {
+			expect.assertions(3);
+
+			const storedHash = await hashCodegenFiles([
+				{ content: "return { price = 500 }\n", path: "ids.luau" },
+			]);
+			const updatedPass = { ...vipPassCurrent(), price: 600 };
+			const { placeCalls, registry } = priceUpdateRegistry(updatedPass);
+			const { port, writes } = inMemoryStatePort({
+				codegenHash: storedHash,
+				environment: "production",
+				resources: [vipPassCurrent(), startPlaceInState()],
+				version: 1,
+			});
+
+			const result = await deploy({
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: priceUpdateConfig(600),
+				emit: priceEmit,
+				environment: "production",
+				readFile: readIcon,
+				rebuild: cannedRebuild,
+				registry,
+				statePort: port,
+			});
+
+			assert(result.success);
+
+			expect(placeCalls).toStrictEqual([
+				{ key: startPlace, artifact: rebuiltBytes, type: "update" },
+			]);
+			expect(writes.at(-1)!.codegenHash).toBe(
+				await hashCodegenFiles([{ content: "return { price = 600 }\n", path: "ids.luau" }]),
+			);
+			expect(writes.at(-1)!.pendingRebuild).toBeUndefined();
+		});
+
+		it("should publish the pre-built file without rebuilding when codegen output is unchanged", async () => {
+			expect.assertions(3);
+
+			const storedHash = await hashCodegenFiles([CODEGEN_FILE]);
+			const priorPlace: ResourceCurrentState<"place"> = {
+				...startPlaceInState(),
+				fileHash: asSha256Hex(
+					"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				),
+			};
+			const { placeCalls, registry } = recordingPlaceRegistry();
+			let didCallHook = false;
+			const { port, writes } = inMemoryStatePort({
+				codegenHash: storedHash,
+				environment: "production",
+				resources: [vipPassCurrent(), priorPlace],
+				version: 1,
+			});
+
+			const result = await deploy({
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: twoPhaseCodegenConfig(),
+				emit: twoPhaseEmit,
+				environment: "production",
+				readFile: readIcon,
+				rebuild: () => {
+					didCallHook = true;
+					return cannedRebuild();
+				},
+				registry,
+				statePort: port,
+			});
+
+			assert(result.success);
+
+			expect(didCallHook).toBeFalse();
+			expect(placeCalls).toStrictEqual([
+				{ key: startPlace, artifact: undefined, type: "update" },
+			]);
+			expect(writes.at(-1)!.codegenHash).toBe(storedHash);
+		});
+
+		it("should retain the stored hash and the marker when the rebuild hook throws", async () => {
+			expect.assertions(3);
+
+			const storedHash = asSha256Hex(
+				"1111111111111111111111111111111111111111111111111111111111111111",
+			);
+			const { port, writes } = inMemoryStatePort({
+				codegenHash: storedHash,
+				environment: "production",
+				resources: [vipPassCurrent(), startPlaceInState()],
+				version: 1,
+			});
+
+			const result = await deploy({
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: twoPhaseCodegenConfig(),
+				emit: twoPhaseEmit,
+				environment: "production",
+				readFile: readIcon,
+				rebuild: () => {
+					throw new Error("build blew up");
+				},
+				registry: recordingPlaceRegistry().registry,
+				statePort: port,
+			});
+
+			assert(!result.success);
+			assert(result.err.kind === "rebuildHookThrew");
+
+			expect(writes).toHaveLength(1);
+			expect(writes[0]!.codegenHash).toBe(storedHash);
+			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
+		});
+
+		it("should preserve the stored codegen hash on a marker retry without an active emitter", async () => {
+			expect.assertions(2);
+
+			const storedHash = asSha256Hex(
+				"2222222222222222222222222222222222222222222222222222222222222222",
+			);
+			const { port, writes } = inMemoryStatePort({
+				codegenHash: storedHash,
+				environment: "production",
+				pendingRebuild: new Set([startPlace]),
+				resources: [vipPassCurrent(), startPlaceInState()],
+				version: 1,
+			});
+			const { placeCalls, registry } = recordingPlaceRegistry();
+
+			const result = await deploy({
+				config: twoPhaseConfig(),
+				environment: "production",
+				readFile: readIcon,
+				rebuild: cannedRebuild,
+				registry,
+				statePort: port,
+			});
+
+			assert(result.success);
+
+			expect(placeCalls).toStrictEqual([
+				{ key: startPlace, artifact: rebuiltBytes, type: "update" },
+			]);
+			expect(writes.at(-1)!.codegenHash).toBe(storedHash);
 		});
 	});
 });

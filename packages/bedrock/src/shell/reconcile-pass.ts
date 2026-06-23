@@ -6,7 +6,7 @@ import type { BedrockState, StateError } from "../core/state.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
-import type { ResourceKey } from "../types/ids.ts";
+import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
 import { type AggregateApplyError, applyOps } from "./apply-ops.ts";
 
 /**
@@ -32,6 +32,14 @@ export interface ReconcilePass {
 interface ApplyAndPersistInputs {
 	/** Optional per-key rebuilt artifact bytes forwarded to `applyOps` as apply context. */
 	readonly artifacts?: ReadonlyMap<ResourceKey, Uint8Array>;
+	/**
+	 * Codegen fingerprint to stamp onto the persisted snapshot. Omit (or pass
+	 * `undefined`) to leave the field off; a caller threads the stored hash
+	 * through to preserve it, and the freshly emitted hash on the write that
+	 * completes a successful rebuild. Stamped only when the pass fully applies:
+	 * a partial failure drops the hash so the next deploy re-detects the change.
+	 */
+	readonly codegenHash?: Sha256Hex | undefined;
 	/** Environment name threaded into `applyOps` reporting and the snapshot. */
 	readonly environment: string;
 	/** Subset of reconcile ops applied in this pass, in declaration order. */
@@ -59,6 +67,7 @@ interface ApplyAndPersistInputs {
 
 interface SnapshotInputs {
 	readonly applied: Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>;
+	readonly codegenHash: Sha256Hex | undefined;
 	readonly environment: string;
 	readonly pendingRebuild: ReadonlySet<ResourceKey> | undefined;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
@@ -83,6 +92,7 @@ interface SnapshotInputs {
 export async function applyAndPersist(inputs: ApplyAndPersistInputs): Promise<ReconcilePass> {
 	const {
 		artifacts,
+		codegenHash,
 		environment,
 		ops,
 		pendingRebuild,
@@ -95,6 +105,7 @@ export async function applyAndPersist(inputs: ApplyAndPersistInputs): Promise<Re
 	const applied = await applyOps(ops, registry, { environment, progress }, artifacts);
 	const merged = buildSnapshot({
 		applied,
+		codegenHash,
 		environment,
 		pendingRebuild,
 		priorResources,
@@ -139,15 +150,21 @@ function scopeRealDisplay(
 }
 
 function buildSnapshot(inputs: SnapshotInputs): BedrockState {
-	const { applied, environment, pendingRebuild, priorResources, realDisplay } = inputs;
+	const { applied, codegenHash, environment, pendingRebuild, priorResources, realDisplay } =
+		inputs;
 	const appliedResources = applied.success ? applied.data : applied.err.applied;
 	const resources = mergeResources(priorResources, appliedResources);
 	const marker =
 		pendingRebuild === undefined || pendingRebuild.size === 0 ? {} : { pendingRebuild };
 	const scoped = scopeRealDisplay(realDisplay, resources);
 	const real = Object.keys(scoped).length === 0 ? {} : { realDisplay: scoped };
+	// Advance the fingerprint only when every op in the pass applied: a failed
+	// republish must not record that the place was rebuilt against the emitted
+	// source, so the hash is dropped and the next deploy re-detects the change.
+	const hash = codegenHash === undefined || !applied.success ? {} : { codegenHash };
 
 	return {
+		...hash,
 		environment,
 		...marker,
 		...real,

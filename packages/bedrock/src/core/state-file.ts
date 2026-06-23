@@ -2,7 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { ArkErrors, type } from "arktype";
 
-import type { ResourceKey } from "../types/ids.ts";
+import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
 import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
 import type { BedrockState, StateError } from "./state.ts";
 
@@ -18,8 +18,16 @@ const resourceShape = type({
 	"outputs": "object",
 });
 
+// `codegenHash` is constrained to the `Sha256Hex` shape (64 lowercase hex
+// chars) at the schema boundary so a malformed digest from old tooling or a
+// manual edit is rejected as an untrusted state file rather than branded and
+// fed into the rebuild-decision comparison.
 const envelopeSchema = type({
-	$bedrock: { "pendingRebuild?": "string[]", "version": "1" },
+	$bedrock: {
+		"codegenHash?": "/^[0-9a-f]{64}$/",
+		"pendingRebuild?": "string[]",
+		"version": "1",
+	},
 	environment: "string",
 	resources: resourceShape.array(),
 });
@@ -62,7 +70,8 @@ export function coLocateRealDisplay(
  *
  * A non-empty `pendingRebuild` set is written as a `pendingRebuild` list of
  * keys alongside `version` inside the envelope; an empty or absent set is
- * omitted so a happy-path file never shows the marker.
+ * omitted so a happy-path file never shows the marker. A present `codegenHash`
+ * is likewise stored alongside `version`; an absent one is omitted.
  *
  * @since 0.1.0
  *
@@ -151,15 +160,17 @@ export function parseStateFile(
 }
 
 function bedrockMeta(state: BedrockState): {
+	codegenHash?: Sha256Hex;
 	pendingRebuild?: ReadonlyArray<ResourceKey>;
 	version: 1;
 } {
-	const { pendingRebuild, version } = state;
-	if (pendingRebuild === undefined || pendingRebuild.size === 0) {
-		return { version };
-	}
-
-	return { pendingRebuild: [...pendingRebuild], version };
+	const { codegenHash, pendingRebuild, version } = state;
+	const marker =
+		pendingRebuild === undefined || pendingRebuild.size === 0
+			? {}
+			: { pendingRebuild: [...pendingRebuild] };
+	const hash = codegenHash === undefined ? {} : { codegenHash };
+	return { ...hash, ...marker, version };
 }
 
 function splitRealDisplay(rawResources: typeof envelopeSchema.infer.resources): {
@@ -189,8 +200,10 @@ function toState(validated: typeof envelopeSchema.infer): BedrockState {
 		pendingKeys === undefined || pendingKeys.length === 0
 			? undefined
 			: new Set(pendingKeys as unknown as ReadonlyArray<ResourceKey>);
+	const codegenHash = validated.$bedrock.codegenHash as Sha256Hex | undefined;
 
 	return {
+		...(codegenHash === undefined ? {} : { codegenHash }),
 		environment: validated.environment,
 		...(pendingRebuild === undefined ? {} : { pendingRebuild }),
 		...(realDisplay === undefined ? {} : { realDisplay }),

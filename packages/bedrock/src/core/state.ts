@@ -1,4 +1,4 @@
-import type { ResourceKey } from "../types/ids.ts";
+import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
 import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
 
 /**
@@ -52,6 +52,21 @@ import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
  * ```
  */
 export interface BedrockState {
+	/**
+	 * Fingerprint of the codegen output the currently-published place was built
+	 * against, used to decide whether a two-phase deploy must rebuild. A deploy
+	 * compares the freshly emitted codegen hash against this stored value and
+	 * rebuilds + republishes when they differ; an unchanged hash publishes the
+	 * pre-built file. The field is omitted entirely until a codegen-enabled
+	 * deploy first stores one, so a happy-path snapshot with no codegen never
+	 * carries it.
+	 *
+	 * On disk it is stored alongside `version` inside the adapter-private
+	 * `$bedrock` envelope; `serializeStateFile` and `parseStateFile` own that
+	 * mapping. Like the rebuild marker, it is bedrock bookkeeping and never
+	 * participates in drift detection: `diff` and the state merge never read it.
+	 */
+	readonly codegenHash?: Sha256Hex;
 	/** Environment name this snapshot belongs to (e.g. `"production"`, `"staging"`). */
 	readonly environment: string;
 	/**

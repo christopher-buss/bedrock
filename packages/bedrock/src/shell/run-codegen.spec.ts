@@ -1,5 +1,6 @@
 import { assert, describe, expect, it, vi } from "vitest";
 
+import { hashCodegenFiles } from "../core/codegen.ts";
 import type { CodegenFile, Emitter } from "../core/codegen.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
 import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
@@ -111,6 +112,23 @@ describe(runCodegen, () => {
 		assert(result.success);
 
 		expect(writer.writes).toStrictEqual([FILE, second]);
+	});
+
+	it("should return the fingerprint of the emitted files on success", async () => {
+		expect.assertions(1);
+
+		const second: CodegenFile = { content: "return 2\n", path: "more.luau" };
+		const result = await runCodegen({
+			deployedState: PRODUCTION,
+			emit: vi.fn<Emitter>().mockResolvedValue([FILE, second]),
+			environments: ["production"],
+			statePort: statePortReading(STAGING),
+			writer: inMemoryWriter().port,
+		});
+
+		assert(result.success);
+
+		expect(result.data).toBe(await hashCodegenFiles([FILE, second]));
 	});
 
 	it("should fail with codegenStateReadFailed when another environment's state cannot be read", async () => {

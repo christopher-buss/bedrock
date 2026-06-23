@@ -1,3 +1,5 @@
+import { asSha256Hex, type Sha256Hex } from "../types/ids.ts";
+import { sha256Hex } from "./kinds/hash.ts";
 import type { CodegenConfig } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
 
@@ -74,6 +76,27 @@ export function buildCodegenEnvironments(
 	}
 
 	return environments;
+}
+
+/**
+ * Fingerprint the emitted codegen output so a two-phase deploy can tell whether
+ * the generated source would change. The digest is order-independent (files are
+ * sorted by `path` first) so a reordered emitter return does not spuriously
+ * trigger a rebuild, and the canonical form is a JSON array of `[path, content]`
+ * pairs so no path/content boundary shift collides.
+ *
+ * @param files - The files the emitter returned for the deployed environment.
+ * @returns The branded SHA-256 hex digest of the canonicalized output.
+ */
+export async function hashCodegenFiles(files: ReadonlyArray<CodegenFile>): Promise<Sha256Hex> {
+	// Each file becomes the unambiguous JSON of its `[path, content]` pair, the
+	// pairs are sorted as strings (a deterministic total order, so a reordered
+	// emitter return hashes the same), and the sorted list is hashed. JSON keys
+	// rule out a path/content boundary shift colliding two distinct files.
+	const canonical = JSON.stringify(
+		files.map((file) => JSON.stringify([file.path, file.content])).sort(),
+	);
+	return asSha256Hex(await sha256Hex(new TextEncoder().encode(canonical)));
 }
 
 /**
