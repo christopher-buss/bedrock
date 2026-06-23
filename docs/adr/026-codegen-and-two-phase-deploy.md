@@ -237,6 +237,25 @@ generic image-upload resource kind is out of scope and deferred.
   republish stage feeds rebuilt bytes through the same path.
 - ADR-023 (apply semantics) — phase ordering, continue-on-failure aggregate
   outcome, and the orphan-recovery contract the checkpoint inherits.
-- ADR-024 (redaction) — codegen emits real IDs for redacted resources.
+- ADR-024 (redaction) — codegen emits real IDs for redacted resources, and
+  (per ADR-024's 2026-06-23 amendment) the real pre-redaction display values
+  too: the emitter sees each redactable field as `Field<T> = T | { value,
+  redacted }` via `codegenView`, narrowed with `realValue` / `pushedValue` /
+  `isRedacted`. Identity (asset IDs) and now display content both reach the
+  game; only the placeholders ship to Open Cloud.
 - ADR-025 (Luau type definitions) — the default Luau emitter and `.d.ts`
   companion relate to the Luau distribution story.
+
+## Amendment -- 2026-06-23 (real display values for emitters)
+
+Redaction (ADR-024) persists the *pushed* placeholder display values, so an
+emitter reading **State** could not recover the real name, price, or
+description of a redacted resource — only its (never-redacted) asset IDs. The
+real values are now persisted in a diff-ignored `$realDisplay` sibling in the
+state file (ADR-024 / ADR-019 2026-06-23 amendments) and surfaced to the
+emitter through a co-located per-field view: `codegenView(resource,
+realDisplay)` widens each redactable field to `Field<T> = T | { value,
+redacted }`, with exported `realValue` / `pushedValue` / `isRedacted` helpers so
+emitters never hand-narrow the union. The diff path is unchanged and stays
+redaction-blind. The contract is verifiable end-to-end through the `deploy()`
+seam with in-memory fakes (no real disk or network).

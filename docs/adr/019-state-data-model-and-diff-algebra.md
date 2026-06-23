@@ -502,3 +502,21 @@ export type DriverRegistry = {
   yet" stays a distinct success value from "file with empty resources list",
   and a malformed file must still surface as `Err(StateError)` rather than
   collapsing to that sentinel. See `packages/cli/src/ports/state-port.ts`.
+
+- **2026-06-23 (`realDisplay` sibling):** `BedrockState` gains an optional
+  `realDisplay` field — a map keyed by the `kind:key` composite carrying the
+  real (pre-redaction) display values for redacted resources, so a codegen
+  emitter can recover what redaction (ADR-024) hid behind placeholders. On disk
+  each entry is co-located as an adapter-private `$realDisplay` key on the
+  resource object it describes (mirroring the `$bedrock` envelope's
+  "nothing outside an adapter sees it" property); `serializeStateFile` and
+  `parseStateFile` own the on-disk ↔ in-memory mapping. This is **not** a
+  diff-algebra change: `diff` and the state merge (`mergeResources`) operate on
+  the resources array and never read the sibling, so the field-by-field
+  comparison and the `Operation` union are untouched and the diff stays
+  redaction-blind. It is also **not** a schema-version bump: `realDisplay` is an
+  optional, additive field per this ADR's `$bedrock.version` revisit criterion
+  (a v1 file read by a newer bedrock, or a newer file read by an older bedrock,
+  behaves correctly), and a happy-path file with no redacted resources never
+  carries it. The decision to persist real values in the (confidential) state
+  backend is recorded in ADR-024's 2026-06-23 amendment.
