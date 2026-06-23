@@ -34,6 +34,7 @@ patchedDependencies:
 
 catalogs:
   build:
+    tsdown: 0.22.3
     typedoc: 0.28.19
     typedoc-plugin-markdown: 4.11.0
     typedoc-plugin-replace-text: 4.2.0
@@ -82,6 +83,7 @@ catalogs:
     "@changesets/changelog-github": 0.7.0
     "@changesets/cli": 2.31.0
   runtime:
+    "@actions/core": 3.0.1
     "@clack/prompts": 1.2.0
     arktype: 2.2.0
     c12: 3.3.4

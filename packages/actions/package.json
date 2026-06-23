@@ -15,8 +15,12 @@
 		".": "./src/index.ts"
 	},
 	"scripts": {
+		"bundle": "tsdown",
 		"test": "vp test",
 		"typecheck": "tsgo --noEmit"
+	},
+	"dependencies": {
+		"@actions/core": "catalog:runtime"
 	},
 	"devDependencies": {
 		"@bedrock-rbx/testing": "workspace:*",
@@ -27,6 +31,7 @@
 		"@stryker-mutator/typescript-checker": "catalog:test",
 		"@stryker-mutator/vitest-runner": "catalog:test",
 		"@types/bun": "catalog:types",
+		"tsdown": "catalog:build",
 		"typescript": "catalog:tsc",
 		"vitest": "catalog:test"
 	},

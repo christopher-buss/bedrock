@@ -1,0 +1,35 @@
+author: Christopher Buss
+description: Reflow Bedrock codegen output back onto the deploy branch, race-safe.
+inputs:
+  author-email:
+    default: 41898282+github-actions[bot]@users.noreply.github.com
+    description: Commit author email.
+  author-name:
+    default: github-actions[bot]
+    description: Commit author name.
+  branch:
+    default: main
+    description: Branch the regenerated files are committed onto.
+  max-attempts:
+    default: "3"
+    description: Push attempts before giving up when the branch tip keeps moving.
+  message:
+    default: "chore(assets): regenerate asset ids [skip ci]"
+    description: Commit message; keep a CI-skip marker to avoid a redeploy loop.
+  paths:
+    description: Whitespace-separated paths to reflow — typically your Bedrock codegen.output directory.
+    required: true
+  token:
+    description: Write-capable token (a GitHub App installation token or PAT) the push authenticates with.
+    required: true
+name: Bedrock commit-back
+outputs:
+  changed-files:
+    description: Number of generated files that changed.
+  committed:
+    description: "`true` when a commit was created and pushed."
+  sha:
+    description: The new commit sha, or empty on a no-op.
+runs:
+  main: dist/index.mjs
+  using: node24
