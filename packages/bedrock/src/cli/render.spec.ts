@@ -158,6 +158,18 @@ describe(renderDeployError, () => {
 				"codegen is enabled but has no output: set codegen.output in your config or pass a codegenWriter to deploy()",
 		},
 		{
+			err: { kind: "rebuildHookThrew", reason: "build blew up" },
+			expected: "the rebuild hook threw: build blew up",
+		},
+		{
+			err: {
+				keys: [asResourceKey("start-place"), asResourceKey("arena")] as const,
+				kind: "pendingRebuildWithoutHook",
+			},
+			expected:
+				"place(s) start-place, arena owe a rebuild but no rebuild hook is available: supply one (or set clearPendingRebuild to abandon two-phase) through a .bedrock/deploy.ts override",
+		},
+		{
 			err: {
 				cause: {
 					applied: [],

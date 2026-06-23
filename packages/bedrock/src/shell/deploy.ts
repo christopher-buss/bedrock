@@ -36,6 +36,7 @@ import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
+import type { ResourceKey } from "../types/ids.ts";
 import type { AggregateApplyError } from "./apply-ops.ts";
 import { buildDefaultRegistry, type RegistryConfigError } from "./build-default-registry.ts";
 import { buildDesired, type BuildDesiredError } from "./build-desired.ts";
@@ -54,6 +55,16 @@ import { type CodegenError, runCodegen } from "./run-codegen.ts";
  * and the environment variables `BEDROCK_GITHUB_TOKEN` and `BEDROCK_API_KEY`.
  */
 export interface DeployOptions {
+	/**
+	 * Escape hatch for a deploy stuck behind a pending-rebuild marker. When
+	 * `true`, the incoming marker is treated as cleared: the deploy neither
+	 * re-activates two-phase from it nor hard-errors when no rebuild hook is
+	 * available, and the normal state write drops the marker. Use it to abandon
+	 * two-phase after dropping the rebuild hook; the place still publishes from
+	 * its pre-built file in a single pass. Omit (defaults to `false`) to honor
+	 * the marker.
+	 */
+	readonly clearPendingRebuild?: boolean;
 	/**
 	 * Writer for codegen output; defaults to a node-fs writer rooted at
 	 * `config.codegen.output`. Supplied to fake the write step at this seam.
@@ -102,13 +113,18 @@ export interface DeployOptions {
 /**
  * Failure surfaced by `deploy`. Stage-tagged so callers can branch on
  * `kind` to distinguish reconciliation failures (`stateReadFailed`,
- * `applyFailed`, `codegenFailed`, ...) from default-construction failures
+ * `applyFailed`, `codegenFailed`, `rebuildHookThrew`,
+ * `pendingRebuildWithoutHook`, ...) from default-construction failures
  * (`configLoadFailed`, `stateNotConfigured`, `unknownEnvironment`,
  * `incompletePlaceEntry`, `incompleteUniverseEntry`, `missingCredential`,
  * `unsupportedBackend`, `registryConfigMissing`, `codegenOutputMissing`).
  * `codegenFailed` cannot mask an `applyFailed`: a partial apply still emits
  * codegen for the keys that resolved, but the returned error stays
- * `applyFailed`.
+ * `applyFailed`. A two-phase deploy whose asset stage partially fails aborts
+ * the rebuild and returns `applyFailed`; a rebuild hook that throws returns
+ * `rebuildHookThrew` with the checkpoint's outputs and marker still persisted;
+ * a marker present with no rebuild hook available returns
+ * `pendingRebuildWithoutHook` rather than reporting success over a stale place.
  */
 export type DeployError =
 	| IncompletePassEntryError
@@ -129,7 +145,9 @@ export type DeployError =
 			readonly kind: "stateWriteFailed";
 			readonly unsavedState: BedrockState;
 	  }
-	| { readonly kind: "codegenOutputMissing" };
+	| { readonly keys: ReadonlyArray<ResourceKey>; readonly kind: "pendingRebuildWithoutHook" }
+	| { readonly kind: "codegenOutputMissing" }
+	| { readonly kind: "rebuildHookThrew"; readonly reason: string };
 
 /** Resolved codegen dependencies; present only when codegen is active. */
 interface CodegenBundle {
@@ -138,6 +156,7 @@ interface CodegenBundle {
 }
 
 interface ResolvedDepsBase {
+	readonly clearPendingRebuild: boolean;
 	readonly codegen: CodegenBundle | undefined;
 	readonly config: ResolvedConfig;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
@@ -180,8 +199,8 @@ interface TwoPhaseInputs {
 
 interface AssetStageInputs {
 	readonly deps: ResolvedDeps;
-	readonly desiredPlaces: ReadonlyArray<PlaceDesiredState>;
 	readonly environment: string;
+	readonly markPlaces: ReadonlyArray<ResourceKey>;
 	readonly ops: ReadonlyArray<Operation>;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 }
@@ -192,6 +211,20 @@ interface RepublishStageInputs {
 	readonly desiredPlaces: ReadonlyArray<PlaceDesiredState>;
 	readonly environment: string;
 	readonly rebuilt: ReadonlyArray<RebuiltPlace>;
+}
+
+/** Driven dependencies picked from environment and config once the effective config resolves. */
+interface DrivenDeps {
+	readonly codegen: CodegenBundle | undefined;
+	readonly registry: DriverRegistry;
+	readonly statePort: StatePort;
+}
+
+interface ReconcileInputs {
+	readonly desired: ReadonlyArray<ResourceDesiredState>;
+	readonly ops: ReadonlyArray<Operation>;
+	readonly owedRebuild: ReadonlySet<ResourceKey>;
+	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 }
 
 /**
@@ -295,6 +328,44 @@ function getEnvironmentOf(options: DeployOptions): (name: string) => string | un
 	return options.getEnv ?? readProcessEnvironment;
 }
 
+async function pickConfig(options: DeployOptions): Promise<Result<Config, DeployError>> {
+	if (options.config !== undefined) {
+		return { data: options.config, success: true };
+	}
+
+	const loader = options.loadConfig ?? defaultLoadConfig;
+	const loaded = await loader();
+	if (!loaded.success) {
+		return { err: { cause: loaded.err, kind: "configLoadFailed" }, success: false };
+	}
+
+	return { data: loaded.data, success: true };
+}
+
+async function resolveEffectiveConfig(
+	options: DeployOptions,
+): Promise<
+	Result<
+		{ effective: ResolvedConfig; readFile: (path: string) => Promise<Uint8Array> },
+		DeployError
+	>
+> {
+	const config = await pickConfig(options);
+	if (!config.success) {
+		return config;
+	}
+
+	const selected = selectEnvironment(config.data, options.environment);
+	if (!selected.success) {
+		return { err: selected.err, success: false };
+	}
+
+	return {
+		data: { effective: selected.data, readFile: options.readFile ?? nodeReadFile },
+		success: true,
+	};
+}
+
 function pickStatePort(
 	options: DeployOptions,
 	config: ResolvedConfig,
@@ -350,40 +421,25 @@ function pickCodegen(
 	};
 }
 
-async function pickConfig(options: DeployOptions): Promise<Result<Config, DeployError>> {
-	if (options.config !== undefined) {
-		return { data: options.config, success: true };
+function pickDrivenDeps(inputs: PickRegistryInputs): Result<DrivenDeps, DeployError> {
+	const { config, options, readFile } = inputs;
+	const statePort = pickStatePort(options, config);
+	if (!statePort.success) {
+		return statePort;
 	}
 
-	const loader = options.loadConfig ?? defaultLoadConfig;
-	const loaded = await loader();
-	if (!loaded.success) {
-		return { err: { cause: loaded.err, kind: "configLoadFailed" }, success: false };
+	const registry = pickRegistry({ config, options, readFile });
+	if (!registry.success) {
+		return registry;
 	}
 
-	return { data: loaded.data, success: true };
-}
-
-async function resolveEffectiveConfig(
-	options: DeployOptions,
-): Promise<
-	Result<
-		{ effective: ResolvedConfig; readFile: (path: string) => Promise<Uint8Array> },
-		DeployError
-	>
-> {
-	const config = await pickConfig(options);
-	if (!config.success) {
-		return config;
-	}
-
-	const selected = selectEnvironment(config.data, options.environment);
-	if (!selected.success) {
-		return { err: selected.err, success: false };
+	const codegen = pickCodegen(options, config);
+	if (!codegen.success) {
+		return codegen;
 	}
 
 	return {
-		data: { effective: selected.data, readFile: options.readFile ?? nodeReadFile },
+		data: { codegen: codegen.data, registry: registry.data, statePort: statePort.data },
 		success: true,
 	};
 }
@@ -395,29 +451,18 @@ async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDepsB
 	}
 
 	const { effective, readFile } = base.data;
-	const statePort = pickStatePort(options, effective);
-	if (!statePort.success) {
-		return statePort;
-	}
-
-	const registry = pickRegistry({ config: effective, options, readFile });
-	if (!registry.success) {
-		return registry;
-	}
-
-	const codegen = pickCodegen(options, effective);
-	if (!codegen.success) {
-		return codegen;
+	const driven = pickDrivenDeps({ config: effective, options, readFile });
+	if (!driven.success) {
+		return driven;
 	}
 
 	return {
 		data: {
-			codegen: codegen.data,
+			...driven.data,
+			clearPendingRebuild: options.clearPendingRebuild ?? false,
 			config: effective,
 			readFile,
 			rebuild: options.rebuild,
-			registry: registry.data,
-			statePort: statePort.data,
 		},
 		success: true,
 	};
@@ -485,11 +530,11 @@ async function runSinglePass(inputs: SinglePassInputs): Promise<Result<BedrockSt
 }
 
 async function runAssetStage(inputs: AssetStageInputs): Promise<ReconcilePass> {
-	const { deps, desiredPlaces, environment, ops, priorResources } = inputs;
+	const { deps, environment, markPlaces, ops, priorResources } = inputs;
 	return applyAndPersist({
 		environment,
 		ops,
-		pendingRebuild: new Set(desiredPlaces.map((place) => place.key)),
+		pendingRebuild: new Set(markPlaces),
 		priorResources,
 		progress: deps.progress,
 		registry: deps.registry,
@@ -521,6 +566,26 @@ async function runRepublishStage(inputs: RepublishStageInputs): Promise<Reconcil
 	});
 }
 
+async function invokeRebuildHook(
+	rebuild: RebuildHook,
+	state: BedrockState,
+): Promise<Result<ReadonlyArray<RebuiltPlace>, DeployError>> {
+	// The hook owns an arbitrary build; a throw leaves the checkpoint's outputs
+	// and marker in place and surfaces a stage-tagged rebuildHookThrew error so
+	// the republish stage never runs.
+	try {
+		return { data: await rebuild({ state }), success: true };
+	} catch (err) {
+		return {
+			err: {
+				kind: "rebuildHookThrew",
+				reason: err instanceof Error ? err.message : String(err),
+			},
+			success: false,
+		};
+	}
+}
+
 async function runTwoPhase(inputs: TwoPhaseInputs): Promise<Result<BedrockState, DeployError>> {
 	const { deps, desired, environment, plan, priorResources, rebuild } = inputs;
 	const desiredPlaces = desired.filter(
@@ -528,36 +593,42 @@ async function runTwoPhase(inputs: TwoPhaseInputs): Promise<Result<BedrockState,
 	);
 	const assetPass = await runAssetStage({
 		deps,
-		desiredPlaces,
 		environment,
+		markPlaces: plan.markPlaces,
 		ops: plan.assetOps,
 		priorResources,
 	});
 
 	const codegen = await runCodegenStage(deps, assetPass);
+
+	// A partial asset failure (or a failed checkpoint write) aborts the rebuild:
+	// survivors and the marker are already persisted, codegen has emitted the
+	// resolved keys, and the asset-stage error stands so the next run retries
+	// via the marker instead of rebuilding against missing IDs.
 	if (!assetPass.written.success || !assetPass.applied.success) {
-		// A failed asset stage aborts the rebuild: survivors and the marker are
-		// already persisted, so surface the asset-stage failure rather than
-		// masking it behind a republish over half-applied state.
 		return finalize(assetPass, codegen);
 	}
 
-	const rebuilt = await rebuild({ state: assetPass.merged });
+	const rebuilt = await invokeRebuildHook(rebuild, assetPass.merged);
+	if (!rebuilt.success) {
+		return rebuilt;
+	}
+
 	const republishPass = await runRepublishStage({
 		assetPass,
 		deps,
 		desiredPlaces,
 		environment,
-		rebuilt,
+		rebuilt: rebuilt.data,
 	});
 
 	return finalize(republishPass, codegen);
 }
 
-async function runReconcile(
+async function loadReconcileInputs(
 	environment: string,
 	deps: ResolvedDeps,
-): Promise<Result<BedrockState, DeployError>> {
+): Promise<Result<ReconcileInputs, DeployError>> {
 	const desired = await buildDesired(flattenConfig(deps.config), deps.readFile);
 	if (!desired.success) {
 		return { err: { cause: desired.err, kind: "buildDesiredFailed" }, success: false };
@@ -574,18 +645,49 @@ async function runReconcile(
 		return { err: { cause: validated.err, kind: "buildDesiredFailed" }, success: false };
 	}
 
-	const ops = diff(desired.data, priorResources);
-	const { rebuild } = deps;
+	return {
+		data: {
+			desired: desired.data,
+			ops: diff(desired.data, priorResources),
+			owedRebuild: prior.data?.pendingRebuild ?? new Set<ResourceKey>(),
+			priorResources,
+		},
+		success: true,
+	};
+}
+
+async function runReconcile(
+	environment: string,
+	deps: ResolvedDeps,
+): Promise<Result<BedrockState, DeployError>> {
+	const loaded = await loadReconcileInputs(environment, deps);
+	if (!loaded.success) {
+		return loaded;
+	}
+
+	const { desired, ops, owedRebuild, priorResources } = loaded.data;
+	const { clearPendingRebuild: shouldClearMarker, rebuild } = deps;
+
+	// A marker present with no hook to satisfy it is a hard error: refuse to
+	// report success while a rebuild is owed and cannot be performed. The escape
+	// hatch lets a user deliberately abandoning two-phase clear it instead.
+	if (!shouldClearMarker && owedRebuild.size > 0 && rebuild === undefined) {
+		return {
+			err: { keys: [...owedRebuild], kind: "pendingRebuildWithoutHook" },
+			success: false,
+		};
+	}
+
 	if (rebuild === undefined) {
 		return runSinglePass({ deps, environment, ops, priorResources });
 	}
 
-	const plan = planTwoPhase(ops, true);
+	const plan = planTwoPhase(ops, shouldClearMarker ? new Set<ResourceKey>() : owedRebuild);
 	if (!plan.activates) {
 		return runSinglePass({ deps, environment, ops, priorResources });
 	}
 
-	return runTwoPhase({ deps, desired: desired.data, environment, plan, priorResources, rebuild });
+	return runTwoPhase({ deps, desired, environment, plan, priorResources, rebuild });
 }
 
 async function runDeploy(

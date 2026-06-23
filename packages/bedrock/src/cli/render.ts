@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- single CLI render sink: one exhaustive message arm per error variant across deploy, codegen, migrate, and parse failures; it grows with the error surface and splitting would scatter the cohesive mapping. */
 import { NetworkError, type OpenCloudError, PermissionError } from "@bedrock-rbx/ocale";
 
 import type { ConfigError } from "../core/config-error.ts";
@@ -392,6 +393,12 @@ function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFailed" }>):
 		}
 		case "missingCredential": {
 			return `missing credential: environment variable ${err.variable} is not set`;
+		}
+		case "pendingRebuildWithoutHook": {
+			return `place(s) ${err.keys.join(", ")} owe a rebuild but no rebuild hook is available: supply one (or set clearPendingRebuild to abandon two-phase) through a .bedrock/deploy.ts override`;
+		}
+		case "rebuildHookThrew": {
+			return `the rebuild hook threw: ${err.reason}`;
 		}
 		case "registryConfigMissing": {
 			return `registry config missing '${err.missing}' (${err.hint})`;

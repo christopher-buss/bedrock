@@ -2,6 +2,7 @@ import { describe, expectTypeOf, it } from "vitest";
 
 import type { RebuildHook } from "../core/rebuild.ts";
 import type { StateConfig } from "../core/schema.ts";
+import type { ResourceKey } from "../types/ids.ts";
 import type { DeployError, DeployOptions } from "./deploy.ts";
 
 describe("DeployOptions", () => {
@@ -15,6 +16,10 @@ describe("DeployOptions", () => {
 
 	it("should accept an optional rebuild hook", () => {
 		expectTypeOf<DeployOptions["rebuild"]>().toEqualTypeOf<RebuildHook | undefined>();
+	});
+
+	it("should accept an optional clearPendingRebuild escape hatch", () => {
+		expectTypeOf<DeployOptions["clearPendingRebuild"]>().toEqualTypeOf<boolean | undefined>();
 	});
 });
 
@@ -61,6 +66,20 @@ describe("DeployError - registry and config variants", () => {
 			| "parseFailed"
 			| "validationFailed"
 		>();
+	});
+});
+
+describe("DeployError - two-phase failure variants", () => {
+	it("should narrow rebuildHookThrew to expose the stringified reason", () => {
+		expectTypeOf<
+			Extract<DeployError, { kind: "rebuildHookThrew" }>["reason"]
+		>().toEqualTypeOf<string>();
+	});
+
+	it("should narrow pendingRebuildWithoutHook to expose the owed place keys", () => {
+		expectTypeOf<
+			Extract<DeployError, { kind: "pendingRebuildWithoutHook" }>["keys"]
+		>().toEqualTypeOf<ReadonlyArray<ResourceKey>>();
 	});
 });
 

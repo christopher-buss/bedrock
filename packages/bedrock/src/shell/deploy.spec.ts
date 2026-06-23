@@ -7,7 +7,7 @@ import { assert, describe, expect, it, vi } from "vitest";
 
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import type { CodegenFile, EmitInput, Emitter } from "../core/codegen.ts";
-import type { RebuiltPlace } from "../core/rebuild.ts";
+import type { RebuildHook, RebuiltPlace } from "../core/rebuild.ts";
 import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
@@ -2078,6 +2078,242 @@ describe(deploy, () => {
 				vipPassCurrent(),
 			);
 			expect(writer.writes).toStrictEqual([CODEGEN_FILE]);
+		});
+
+		function startPlaceInState(): ResourceCurrentState<"place"> {
+			return {
+				key: startPlace,
+				description: undefined,
+				displayName: undefined,
+				fileHash: ICON_HASH,
+				filePath: "places/start.rbxl",
+				kind: "place",
+				outputs: { versionNumber: 1 },
+				placeId: asRobloxAssetId("4711"),
+				serverSize: undefined,
+			};
+		}
+
+		function markedPriorState(): BedrockState {
+			return {
+				environment: "production",
+				pendingRebuild: new Set([startPlace]),
+				resources: [vipPassCurrent(), startPlaceInState()],
+				version: 1,
+			};
+		}
+
+		function twoPassPlaceConfig(): Config {
+			return {
+				environments: { production: { places: { "start-place": { placeId: "4711" } } } },
+				passes: {
+					"alpha-pass": {
+						name: "Alpha Pass",
+						description: "Grants alpha perks.",
+						icon: { "en-us": "assets/alpha-icon.png" },
+						price: 250,
+					},
+					"vip-pass": VipPassEntry,
+				},
+				places: { "start-place": { filePath: "places/start.rbxl" } },
+			};
+		}
+
+		function partialFailureRegistry(): {
+			placeCalls: Array<PlaceCall>;
+			registry: DriverRegistry;
+		} {
+			const { placeCalls, registry } = recordingPlaceRegistry();
+			return {
+				placeCalls,
+				registry: {
+					...registry,
+					gamePass: {
+						async create(desired) {
+							if (desired.key === asResourceKey("alpha-pass")) {
+								return {
+									err: new OpenCloudError("create alpha-pass: 503"),
+									success: false,
+								};
+							}
+
+							return { data: vipPassCurrent(), success: true };
+						},
+					},
+				},
+			};
+		}
+
+		it("should persist the asset outputs and marker and return rebuildHookThrew when the hook throws", async () => {
+			expect.assertions(5);
+
+			const { port, writes } = inMemoryStatePort();
+			const { placeCalls, registry } = recordingPlaceRegistry();
+
+			const result = await deploy({
+				config: twoPhaseConfig(),
+				environment: "production",
+				readFile: readIcon,
+				rebuild: () => {
+					throw new Error("build blew up");
+				},
+				registry,
+				statePort: port,
+			});
+
+			assert(!result.success);
+			assert(result.err.kind === "rebuildHookThrew");
+
+			expect(result.err.reason).toBe("build blew up");
+			expect(writes).toHaveLength(1);
+			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
+			expect(writes[0]!.resources).toContainEqual(vipPassCurrent());
+			expect(placeCalls).toBeEmpty();
+		});
+
+		it("should stringify a non-Error thrown by the rebuild hook into the failure reason", async () => {
+			expect.assertions(1);
+
+			const result = await deploy({
+				config: twoPhaseConfig(),
+				environment: "production",
+				readFile: readIcon,
+				rebuild: vi.fn<RebuildHook>().mockRejectedValue("kaboom"),
+				registry: recordingPlaceRegistry().registry,
+				statePort: inMemoryStatePort().port,
+			});
+
+			assert(!result.success);
+			assert(result.err.kind === "rebuildHookThrew");
+
+			expect(result.err.reason).toBe("kaboom");
+		});
+
+		it("should emit codegen for resolved keys only on a partial asset failure", async () => {
+			expect.assertions(3);
+
+			const inputs: Array<EmitInput> = [];
+			const writer = inMemoryCodegenWriter();
+			const { registry } = partialFailureRegistry();
+
+			const result = await deploy({
+				codegenWriter: writer.port,
+				config: {
+					...twoPassPlaceConfig(),
+					codegen: { enabled: true, output: "src/generated" },
+				},
+				emit: async (input) => {
+					inputs.push(input);
+					return [CODEGEN_FILE];
+				},
+				environment: "production",
+				readFile: readIcon,
+				rebuild: cannedRebuild,
+				registry,
+				statePort: inMemoryStatePort().port,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("applyFailed");
+			expect(inputs[0]!.environments["production"]!.resources).toContainEqual(
+				vipPassCurrent(),
+			);
+			expect(inputs[0]!.environments["production"]!.resources).not.toContainEqual(
+				alphaPassCurrent(),
+			);
+		});
+
+		it("should re-activate two-phase from a marker and republish the marked place over a noop diff", async () => {
+			expect.assertions(3);
+
+			const { port, writes } = inMemoryStatePort(markedPriorState());
+			const { placeCalls, registry } = recordingPlaceRegistry();
+
+			const result = await deploy({
+				config: twoPhaseConfig(),
+				environment: "production",
+				readFile: readIcon,
+				rebuild: cannedRebuild,
+				registry,
+				statePort: port,
+			});
+
+			assert(result.success);
+
+			expect(placeCalls).toStrictEqual([
+				{ key: startPlace, artifact: rebuiltBytes, type: "update" },
+			]);
+			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
+			expect(writes[1]!.pendingRebuild).toBeUndefined();
+		});
+
+		it("should return pendingRebuildWithoutHook when a marker is present and no hook is available", async () => {
+			expect.assertions(2);
+
+			const { port, writes } = inMemoryStatePort(markedPriorState());
+
+			const result = await deploy({
+				config: twoPhaseConfig(),
+				environment: "production",
+				readFile: readIcon,
+				registry: recordingPlaceRegistry().registry,
+				statePort: port,
+			});
+
+			assert(!result.success);
+			assert(result.err.kind === "pendingRebuildWithoutHook");
+
+			expect(result.err.keys).toStrictEqual([startPlace]);
+			expect(writes).toBeEmpty();
+		});
+
+		it("should clear a stuck marker without rebuilding when clearPendingRebuild is set", async () => {
+			expect.assertions(2);
+
+			const { port, writes } = inMemoryStatePort(markedPriorState());
+			const { placeCalls, registry } = recordingPlaceRegistry();
+
+			const result = await deploy({
+				clearPendingRebuild: true,
+				config: twoPhaseConfig(),
+				environment: "production",
+				readFile: readIcon,
+				registry,
+				statePort: port,
+			});
+
+			assert(result.success);
+
+			expect(writes.at(-1)!.pendingRebuild).toBeUndefined();
+			expect(placeCalls).toBeEmpty();
+		});
+
+		it("should not re-activate two-phase from a marker when clearPendingRebuild is set even with a hook", async () => {
+			expect.assertions(3);
+
+			const { port, writes } = inMemoryStatePort(markedPriorState());
+			const { placeCalls, registry } = recordingPlaceRegistry();
+			let didCallHook = false;
+
+			const result = await deploy({
+				clearPendingRebuild: true,
+				config: twoPhaseConfig(),
+				environment: "production",
+				readFile: readIcon,
+				rebuild: () => {
+					didCallHook = true;
+					return cannedRebuild();
+				},
+				registry,
+				statePort: port,
+			});
+
+			assert(result.success);
+
+			expect(didCallHook).toBeFalse();
+			expect(writes.at(-1)!.pendingRebuild).toBeUndefined();
+			expect(placeCalls).toBeEmpty();
 		});
 	});
 });
