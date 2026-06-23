@@ -67,6 +67,7 @@ type IdTree = Record<string, Record<string, unknown>>;
  *
  * @param options - Optional toggles; `typeDeclarations` adds the `.d.ts` companion.
  * @returns An {@link Emitter} suitable for `DeployOptions.emit`.
+ * @since 0.1.0
  * @example
  *
  * ```ts
