@@ -191,7 +191,7 @@ function toggleTheme(): void {
 						</div>
 						<div class="meta">
 							<div class="pip">
-								<b>{{ VERSION }}</b> &middot; alpha &middot; MIT licensed
+								<b>{{ VERSION }}</b> &middot; pre-1.0 &middot; MIT licensed
 							</div>
 						</div>
 					</div>

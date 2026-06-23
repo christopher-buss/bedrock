@@ -5,16 +5,17 @@ Infrastructure-as-Code deployment for Roblox, written in TypeScript.
 [![CI](https://github.com/christopher-buss/bedrock/actions/workflows/ci.yaml/badge.svg)](https://github.com/christopher-buss/bedrock/actions/workflows/ci.yaml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-> **Pre-release.** APIs are unstable and nothing is published to npm yet.
-> Follow the repository or the [project board](https://github.com/christopher-buss/bedrock/projects)
+> **Pre-release.** Bedrock is pre-1.0 — the API and config schema may
+> change between minor versions until 1.0. Follow the repository or the
+> [project board](https://github.com/christopher-buss/bedrock/projects)
 > for progress.
 
 ## What is Bedrock?
 
 Bedrock declaratively manages Roblox experiences the way Terraform manages
-cloud resources. Describe the places, game passes, badges, and other
-resources an experience should have in a config file; Bedrock figures out
-what to create, update, or delete to match.
+cloud resources. Describe the universe, places, game passes, and developer
+products an experience should have in a config file; Bedrock figures out
+what to create or update to match.
 
 It is a spiritual successor to [Mantle](https://github.com/blake-mealey/mantle)
 (no longer maintained), rebuilt in TypeScript on top of Roblox Open Cloud.
@@ -39,21 +40,34 @@ It is a spiritual successor to [Mantle](https://github.com/blake-mealey/mantle)
 
 ## Status
 
-Bedrock is in active development ahead of a first public release. Core
-pieces in place today:
+Bedrock is pre-1.0 and under active development. What works today:
 
-- Open Cloud client (`@bedrock-rbx/ocale`) with game-pass and place resources,
-  built-in rate limiting, retries, and 100% test coverage.
+- Open Cloud client (`@bedrock-rbx/ocale`) with typed clients across universes,
+  places, game passes, developer products, badges, storage, and Luau execution,
+  plus built-in rate limiting, retries, and 100% test coverage.
 - State data model and diff algebra ([ADR-019](./docs/adr/019-state-data-model-and-diff-algebra.md)).
 - FCIS + Ports architecture with explicit primary/driven port distinction
   ([ADR-018](./docs/adr/018-fcis-ports-with-primary-driven-distinction.md)).
+- The `bedrock` CLI (`deploy`, `diff`, `migrate`) and the programmatic
+  `deploy()` workflow.
 
-The CLI surface and higher-level `deploy` workflow are next. Track progress
-on the [project board](https://github.com/christopher-buss/bedrock/projects).
+Track scope and timing on the
+[project board](https://github.com/christopher-buss/bedrock/projects).
 
 ## Getting started
 
-There is nothing to install from npm yet. To poke at the code locally:
+Install the deployment library and bundled `bedrock` CLI from npm:
+
+```bash
+pnpm add -D @bedrock-rbx/core
+# or: npm install --save-dev @bedrock-rbx/core
+# or: bun add -d @bedrock-rbx/core
+```
+
+See the [getting-started guide](https://bedrock-livid.vercel.app/) for a full
+walkthrough.
+
+To develop Bedrock itself locally:
 
 ```bash
 git clone https://github.com/christopher-buss/bedrock.git

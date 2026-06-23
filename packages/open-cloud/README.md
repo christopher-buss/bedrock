@@ -6,7 +6,7 @@ Zero-dependency TypeScript SDK for Roblox Open Cloud.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/christopher-buss/bedrock/blob/main/LICENSE)
 [![CI](https://github.com/christopher-buss/bedrock/actions/workflows/ci.yaml/badge.svg)](https://github.com/christopher-buss/bedrock/actions/workflows/ci.yaml)
 
-> **Status: 0.1 beta.** The public API is stabilizing. Breaking changes may land in minor releases (0.1 to 0.2) until 1.0.
+> **Status: 0.1, pre-1.0.** The public API is stabilizing; breaking changes may land in minor releases until 1.0.
 
 ## What is `@bedrock-rbx/ocale`?
 
@@ -45,7 +45,7 @@ if (!result.success) {
 	process.exit(1);
 }
 
-console.log(`${result.data.name}: ${result.data.priceInRobux} Robux`);
+console.log(`${result.data.name} (${result.data.id})`);
 ```
 
 Every method returns `Promise<Result<T, OpenCloudError>>`. `Result` is a discriminated union: `result.success` is `true` with the parsed response on `result.data`, or `false` with a structured error on `result.err`. No exception ever escapes a client method.
@@ -56,7 +56,7 @@ Resource clients live on subpaths so unused features tree-shake out of your bund
 
 | Subpath | Client | What it covers |
 |---|---|---|
-| `@bedrock-rbx/ocale/universes` | `UniversesClient` | Universe metadata, social links, icon and thumbnail uploads, badges and game-passes scoped to a universe. |
+| `@bedrock-rbx/ocale/universes` | `UniversesClient` | Universe metadata, social links, icon and thumbnail uploads. |
 | `@bedrock-rbx/ocale/places` | `PlacesClient` | Place metadata, `.rbxl` publishing, Luau execution tasks scoped to a place. |
 | `@bedrock-rbx/ocale/game-passes` | `GamePassesClient` | Game pass CRUD, icon upload, localized name and description updates. |
 | `@bedrock-rbx/ocale/developer-products` | `DeveloperProductsClient` | Developer product CRUD, icon upload, localized name and description updates. |
@@ -107,7 +107,8 @@ This pattern fits multi-tenant tooling (different API keys per workspace), crede
 
 A `@bedrock-rbx/ocale/testing` subpath exports the same fakes the SDK's own integration tests use:
 
-- `createFakeHttpClient(...)` and `createFakeSend(...)` for swapping the HTTP transport with a recorded fake that validates request bodies against the vendored OpenAPI schema.
+- `createFakeHttpClient(...)` for swapping the HTTP transport with a recorded fake that validates request bodies against the vendored OpenAPI schema.
+- `createFakeSend(...)` for a lightweight scripted send-callback fake that records requests and replays responses for single-call tests, without schema validation.
 - `createFakeSleep(...)` for deterministic retry and rate-limit timing.
 - `valid*Body` fixtures (`validGamePassBody`, `validPlaceBody`, `validUniverseBody`, and similar) for synthesising realistic response payloads.
 
@@ -115,7 +116,7 @@ Pass the fake into any client via the `httpClient` and `sleep` parameters on `Op
 
 ## Status, docs, and contributing
 
-This package is in active development ahead of a first public release. Track scope and timing on the [project board](https://github.com/christopher-buss/bedrock/projects).
+This package is pre-1.0 and under active development. Track scope and timing on the [project board](https://github.com/christopher-buss/bedrock/projects).
 
 - [Documentation site](https://bedrock-livid.vercel.app/) (work in progress)
 - [Source repository](https://github.com/christopher-buss/bedrock/tree/main/packages/open-cloud)
