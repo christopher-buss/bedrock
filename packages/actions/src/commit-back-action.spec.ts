@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	type ActionIo,
 	type CommitBackActionDeps,
+	executeCommitBackAction,
 	resolveActionConfig,
 	runCommitBackAction,
 } from "./commit-back-action.ts";
@@ -11,6 +13,30 @@ interface Harness {
 	deps: CommitBackActionDeps;
 	gitCalls: Array<ReadonlyArray<string>>;
 	outputs: Record<string, string>;
+}
+
+function fakeIo(): {
+	failures: Array<string>;
+	io: ActionIo;
+	secrets: Array<string>;
+} {
+	const failures: Array<string> = [];
+	const secrets: Array<string> = [];
+	const inputs: Record<string, string> = { paths: "src/shared/assets", token: "ghs_secret" };
+	return {
+		failures,
+		io: {
+			getInput: (name) => inputs[name] ?? "",
+			setFailed: (message) => {
+				failures.push(message);
+			},
+			setOutput: () => {},
+			setSecret: (value) => {
+				secrets.push(value);
+			},
+		},
+		secrets,
+	};
 }
 
 function ok(stdout = ""): GitResult {
@@ -117,6 +143,53 @@ describe(runCommitBackAction, () => {
 
 		await expect(rejection).rejects.toThrow("failed to set the origin URL");
 		await expect(rejection).rejects.not.toThrow("ghs_secret");
+	});
+});
+
+describe(executeCommitBackAction, () => {
+	const environment = { GITHUB_REPOSITORY: "acme/game" };
+
+	it("should mask the token and complete without failing on success", async () => {
+		expect.assertions(2);
+
+		const { failures, io, secrets } = fakeIo();
+		async function git(): Promise<GitResult> {
+			return { code: 0, stderr: "", stdout: "" };
+		}
+
+		await executeCommitBackAction(io, environment, git);
+
+		expect(secrets).toStrictEqual(["ghs_secret"]);
+		expect(failures).toStrictEqual([]);
+	});
+
+	it("should report an Error message via setFailed", async () => {
+		expect.assertions(1);
+
+		const { failures, io } = fakeIo();
+		async function git(args: ReadonlyArray<string>): Promise<GitResult> {
+			return args[0] === "remote"
+				? { code: 1, stderr: "", stdout: "" }
+				: { code: 0, stderr: "", stdout: "" };
+		}
+
+		await executeCommitBackAction(io, environment, git);
+
+		expect(failures[0]).toContain("failed to set the origin URL");
+	});
+
+	it("should stringify a non-Error failure for setFailed", async () => {
+		expect.assertions(1);
+
+		const { failures, io } = fakeIo();
+		async function git(): Promise<GitResult> {
+			// eslint-disable-next-line ts/only-throw-error -- exercises the non-Error catch branch
+			throw "kaboom";
+		}
+
+		await executeCommitBackAction(io, environment, git);
+
+		expect(failures).toStrictEqual(["kaboom"]);
 	});
 });
 

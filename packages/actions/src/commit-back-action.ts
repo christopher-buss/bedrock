@@ -8,6 +8,21 @@ const DEFAULT_AUTHOR_NAME = "github-actions[bot]";
 const DEFAULT_AUTHOR_EMAIL = "41898282+github-actions[bot]@users.noreply.github.com";
 const DEFAULT_SERVER_URL = "https://github.com";
 
+/**
+ * The slice of `@actions/core` the action shell uses, narrowed so tests can
+ * inject a fake without the real toolkit.
+ */
+export interface ActionIo {
+	/** Reads an action input by kebab-case name, returning `""` when unset. */
+	readonly getInput: (name: string) => string;
+	/** Marks the action failed with the given message. */
+	readonly setFailed: (message: string) => void;
+	/** Records an action output. */
+	readonly setOutput: (name: string, value: string) => void;
+	/** Registers a value to be masked in the workflow logs. */
+	readonly setSecret: (value: string) => void;
+}
+
 /** Dependencies for {@link runCommitBackAction}, all injected for testability. */
 export interface CommitBackActionDeps {
 	/** Reads a GitHub workflow env var (e.g. `GITHUB_REPOSITORY`); `undefined` when absent. */
@@ -72,6 +87,36 @@ export async function runCommitBackAction(deps: CommitBackActionDeps): Promise<v
 	deps.setOutput("committed", String(result.committed));
 	deps.setOutput("changed-files", String(result.changedFiles));
 	deps.setOutput("sha", result.sha ?? "");
+}
+
+/**
+ * The action's composition root: mask the token, wire the toolkit and process
+ * env into {@link runCommitBackAction}, and convert any failure into
+ * `setFailed`. Kept here (rather than the bundler entrypoint) so it is fully
+ * tested; `main.ts` only supplies the real `@actions/core`, `process.env`, and
+ * git adapter.
+ *
+ * @param io - The `@actions/core` slice (inputs, outputs, masking, failure).
+ * @param environment - The process environment to read workflow vars from.
+ * @param git - The git runner the reflow drives.
+ */
+// eslint-disable-next-line better-max-params/better-max-params -- three injected composition-root dependencies; an options bag would add an ObjectLiteral mutant to the coverage-excluded main.ts shim.
+export async function executeCommitBackAction(
+	io: ActionIo,
+	environment: Record<string, string | undefined>,
+	git: GitExec,
+): Promise<void> {
+	io.setSecret(io.getInput("token"));
+	try {
+		await runCommitBackAction({
+			getEnv: (name) => environment[name],
+			git,
+			readInput: io.getInput,
+			setOutput: io.setOutput,
+		});
+	} catch (err) {
+		io.setFailed(err instanceof Error ? err.message : String(err));
+	}
 }
 
 function authenticatedUrl(parts: { repository: string; serverUrl: string; token: string }): string {
