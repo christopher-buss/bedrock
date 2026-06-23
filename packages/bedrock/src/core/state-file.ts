@@ -3,7 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { ArkErrors, type } from "arktype";
 
 import type { ResourceKey } from "../types/ids.ts";
-import type { ResourceCurrentState } from "./resources.ts";
+import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
 import type { BedrockState, StateError } from "./state.ts";
 
 // Resource-level validation is intentionally shallow: every resource must be
@@ -23,6 +23,33 @@ const envelopeSchema = type({
 	environment: "string",
 	resources: resourceShape.array(),
 });
+
+/**
+ * Project the `realDisplay` map onto the resources array for serialization,
+ * attaching each covered resource's real display values as an adapter-private
+ * `$realDisplay` sibling. A resource the map does not cover is returned by
+ * reference unchanged — never with an `$realDisplay: undefined` key, which
+ * `JSON.stringify` would erase but `parseStateFile` and equality checks would
+ * not. Exported for direct unit coverage of that distinction.
+ *
+ * @param resources - The persisted resources, in state-file order.
+ * @param realDisplay - The `kind:key`-keyed real-display map, or `undefined`
+ *   when nothing is redacted (the resources are returned untouched).
+ * @returns The resources, each covered one carrying its `$realDisplay` sibling.
+ */
+export function coLocateRealDisplay(
+	resources: ReadonlyArray<ResourceCurrentState>,
+	realDisplay: Readonly<Record<string, ResourceRealDisplay>> | undefined,
+): ReadonlyArray<unknown> {
+	if (realDisplay === undefined) {
+		return resources;
+	}
+
+	return resources.map((resource) => {
+		const real = realDisplay[`${resource.kind}:${resource.key}`];
+		return real === undefined ? resource : { ...resource, $realDisplay: real };
+	});
+}
 
 /**
  * Serialize a {@link BedrockState} to the on-disk JSON representation used by
@@ -63,7 +90,7 @@ export function serializeStateFile(state: BedrockState): string {
 	const envelope = {
 		$bedrock: bedrockMeta(state),
 		environment: state.environment,
-		resources: state.resources,
+		resources: coLocateRealDisplay(state.resources, state.realDisplay),
 	};
 	return JSON.stringify(envelope, undefined, 2);
 }
@@ -131,16 +158,38 @@ function bedrockMeta(state: BedrockState): {
 	return { pendingRebuild: [...pendingRebuild], version };
 }
 
+function splitRealDisplay(rawResources: typeof envelopeSchema.infer.resources): {
+	realDisplay: Record<string, ResourceRealDisplay> | undefined;
+	resources: ReadonlyArray<ResourceCurrentState>;
+} {
+	const realDisplay: Record<string, ResourceRealDisplay> = {};
+	const resources = rawResources.map((raw) => {
+		const { $realDisplay, ...rest } = raw;
+		if ($realDisplay !== undefined) {
+			realDisplay[`${rest.kind}:${rest.key}`] = $realDisplay as ResourceRealDisplay;
+		}
+
+		return rest as unknown as ResourceCurrentState;
+	});
+
+	return {
+		realDisplay: Object.keys(realDisplay).length > 0 ? realDisplay : undefined,
+		resources,
+	};
+}
+
 function toState(validated: typeof envelopeSchema.infer): BedrockState {
-	const resources = validated.resources as unknown as ReadonlyArray<ResourceCurrentState>;
+	const { realDisplay, resources } = splitRealDisplay(validated.resources);
 	const pendingKeys = validated.$bedrock.pendingRebuild;
-	if (pendingKeys === undefined || pendingKeys.length === 0) {
-		return { environment: validated.environment, resources, version: 1 };
-	}
+	const pendingRebuild =
+		pendingKeys === undefined || pendingKeys.length === 0
+			? undefined
+			: new Set(pendingKeys as unknown as ReadonlyArray<ResourceKey>);
 
 	return {
 		environment: validated.environment,
-		pendingRebuild: new Set(pendingKeys as unknown as ReadonlyArray<ResourceKey>),
+		...(pendingRebuild === undefined ? {} : { pendingRebuild }),
+		...(realDisplay === undefined ? {} : { realDisplay }),
 		resources,
 		version: 1,
 	};

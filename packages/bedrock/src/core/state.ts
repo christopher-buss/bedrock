@@ -1,5 +1,5 @@
 import type { ResourceKey } from "../types/ids.ts";
-import type { ResourceCurrentState } from "./resources.ts";
+import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
 
 /**
  * In-memory state snapshot for one environment.
@@ -63,6 +63,20 @@ export interface BedrockState {
 	 * is dropped on write. The marker never participates in drift detection.
 	 */
 	readonly pendingRebuild?: ReadonlySet<ResourceKey>;
+	/**
+	 * Real (pre-redaction) display values for redacted resources, keyed by the
+	 * same `kind:key` composite the diff uses. Populated only for resources
+	 * that hide a display field (ADR-024); the field is omitted entirely when
+	 * no resource is redacted, so a happy-path snapshot never carries it.
+	 *
+	 * On disk each entry is co-located as an adapter-private `$realDisplay`
+	 * sibling on the resource it describes; `serializeStateFile` and
+	 * `parseStateFile` own that mapping. The map never participates in drift
+	 * detection — `diff` and the state merge operate on the resources array and
+	 * never read it — so persisting real values keeps the diff redaction-blind.
+	 * A codegen emitter recovers the values through the `codegenView` projection.
+	 */
+	readonly realDisplay?: Readonly<Record<string, ResourceRealDisplay>>;
 	/** Current state of every resource Bedrock manages in this environment. */
 	readonly resources: ReadonlyArray<ResourceCurrentState>;
 	/** Schema-version literal; bumped only for breaking changes to the on-disk format. */
