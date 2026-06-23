@@ -577,8 +577,10 @@ export interface CodegenConfig {
 	 * Directory the generated files are written under, resolved relative to
 	 * the working directory. Each emitted file's path is joined onto this
 	 * base. Used by the default node-fs writer; ignored when a writer is
-	 * injected through `DeployOptions`. Defaults to `.bedrock/generated` when
-	 * the default emitter runs and no directory is configured.
+	 * injected through `DeployOptions`. Defaults to `.bedrock/generated`
+	 * whenever codegen is enabled and no writer is injected — including when
+	 * a custom `emit` override is supplied — so a directory is only required
+	 * to override that default.
 	 */
 	output?: string | undefined;
 	/**
