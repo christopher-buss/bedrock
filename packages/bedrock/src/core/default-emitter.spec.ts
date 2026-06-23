@@ -1,5 +1,5 @@
 import { developerProductCurrent, gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
-import { describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import type { CodegenFile, EmitInput } from "./codegen.ts";
@@ -32,7 +32,9 @@ async function emitFiles(
 
 async function luauContent(input: EmitInput): Promise<string> {
 	const files = await emitFiles(input);
-	return files.find((file) => file.path === "resources.luau")!.content;
+	const file = files.find((entry) => entry.path === "resources.luau");
+	assert(file !== undefined);
+	return file.content;
 }
 
 describe(createDefaultEmitter, () => {

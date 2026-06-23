@@ -94,17 +94,16 @@ export function createDefaultEmitter(options?: DefaultEmitterOptions): Emitter {
 }
 
 function buildTree(environments: Readonly<Record<string, BedrockState>>): IdTree {
-	const tree: IdTree = {};
-	for (const [environment, state] of Object.entries(environments)) {
-		const byKey: Record<string, unknown> = {};
-		for (const resource of state.resources) {
-			byKey[resource.key] = resource.outputs;
-		}
-
-		tree[environment] = byKey;
-	}
-
-	return tree;
+	return Object.fromEntries(
+		Object.entries(environments).map(([environment, state]) => {
+			return [
+				environment,
+				Object.fromEntries(
+					state.resources.map((resource) => [resource.key, resource.outputs]),
+				),
+			];
+		}),
+	);
 }
 
 function renderLuau(tree: IdTree): string {
@@ -147,7 +146,7 @@ function renderLuauValue(value: unknown, indent: number): string {
 
 	// Every scalar output is a Roblox asset ID (a numeric string) or a numeric
 	// count, so both render to a bare Luau number literal.
-	return String(value as number | string);
+	return String(value);
 }
 
 function renderDeclarationType(value: unknown, indent: number): string {
