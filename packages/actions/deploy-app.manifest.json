@@ -1,0 +1,9 @@
+{
+	"name": "Bedrock deploy bot",
+	"url": "https://github.com/christopher-buss/bedrock",
+	"public": false,
+	"default_permissions": {
+		"contents": "write"
+	},
+	"default_events": []
+}
