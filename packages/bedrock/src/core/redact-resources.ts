@@ -1,8 +1,9 @@
+/* eslint-disable max-lines -- redaction core: the forward transform (push placeholders) and its inverse (collectRealDisplay, capture real values) share the same layered-precedence resolution; splitting would export the internal resolution helpers across a module boundary for no gain. */
 import { createHash } from "node:crypto";
 
 import { asResourceKey, type ResourceKey } from "../types/ids.ts";
 import { REDACTED_ICON_PATH } from "./redacted-icon.ts";
-import type { ResourceKind } from "./resources.ts";
+import type { ResourceKind, ResourceRealDisplay } from "./resources.ts";
 import type {
 	DeveloperProductEntry,
 	GamePassEntry,
@@ -131,6 +132,25 @@ interface RedactKindInputs<Entry, Override> {
 }
 
 /**
+ * Mutable accumulator for the real display fields captured for one resource.
+ * Built up field-by-field, then frozen into the immutable
+ * {@link ResourceRealDisplay} returned to callers.
+ */
+interface MutableRealDisplay {
+	name?: string;
+	description?: string;
+	displayName?: string;
+	price?: number;
+}
+
+interface CollectRealInputs<Entry, Override> {
+	readonly collection: Readonly<Record<string, Entry>> | undefined;
+	readonly environmentLevel: EnvironmentLevel;
+	readonly environmentResource: EnvironmentResourceLayer<Override> | undefined;
+	readonly result: Record<string, ResourceRealDisplay>;
+}
+
+/**
  * Six-character lowercase hex digest of `SHA-256(key)`, used as the
  * disambiguating suffix on a redacted developer-product's default `name`.
  * Stable across config edits (driven only by the bedrock resource key, not
@@ -256,6 +276,60 @@ export function collectRedactionAnnotations(
 		});
 
 	return [...passes, ...products];
+}
+
+/**
+ * Derive the real (pre-redaction) display values that redaction hid, keyed by
+ * the same `kind:key` composite the diff and state merge use. For every
+ * resource whose effective redaction state is truthy, captures each redactable
+ * scalar field whose real value diverges from the placeholder bedrock pushes;
+ * a field whose real value already equals the pushed value (e.g. An override
+ * that restates the real value, or a place `displayName` preserved by default)
+ * is omitted, and a non-redacted resource contributes nothing. `icon` is never
+ * captured — its actionable value is the asset ID in `outputs`, not the config
+ * path. The redaction state and per-field overrides are resolved with the same
+ * layered precedence {@link applyRedaction} uses, so the two stay in lockstep.
+ *
+ * The result is persisted in a diff-ignored sibling of the state file so a
+ * codegen emitter can recover the real values without the diff path ever
+ * seeing them. Operates on the pre-redaction merged config, the only view that
+ * still carries the real values.
+ *
+ * @param merged - Post-merge, pre-redaction `ResolvedConfig` (the same input
+ *   {@link applyRedaction} and {@link collectRedactionAnnotations} consume).
+ * @param inputs - Aggregated redaction layers. Omit to resolve redaction from
+ *   the per-resource `redacted` fields alone. See {@link RedactionInputs}.
+ * @returns A map of `kind:key` to the real display fields that were hidden;
+ *   empty when no resource hides any field.
+ */
+export function collectRealDisplay(
+	merged: ResolvedConfig,
+	inputs?: RedactionInputs,
+): Record<string, ResourceRealDisplay> {
+	const environmentLevel = inputs?.envLevel;
+	const environmentResource = inputs?.envResource;
+	const result: Record<string, ResourceRealDisplay> = {};
+
+	collectPassesReal({
+		collection: merged.passes,
+		environmentLevel,
+		environmentResource: environmentResource?.passes,
+		result,
+	});
+	collectProductsReal({
+		collection: merged.products,
+		environmentLevel,
+		environmentResource: environmentResource?.products,
+		result,
+	});
+	collectPlacesReal({
+		collection: merged.places,
+		environmentLevel,
+		environmentResource: environmentResource?.places,
+		result,
+	});
+
+	return result;
 }
 
 function pickEnvironmentFields<Field extends keyof RedactedEnvironmentOverride>(
@@ -456,4 +530,135 @@ function productHasRealValueEdits(key: string, entry: DeveloperProductEntry): bo
 		(entry.icon !== undefined && entry.icon["en-us"] !== REDACTED_ICON_PATH) ||
 		(entry.price !== undefined && entry.price !== REDACTED_PRICE)
 	);
+}
+
+function captureNameDescriptionPrice(inputs: {
+	readonly defaultName: string;
+	readonly entry: { description: string; name: string; price?: number | undefined };
+	readonly override: {
+		description?: string | undefined;
+		name?: string | undefined;
+		price?: number | undefined;
+	};
+}): ResourceRealDisplay | undefined {
+	const { defaultName, entry, override } = inputs;
+	const captured: MutableRealDisplay = {};
+	if (entry.name !== (override.name ?? defaultName)) {
+		captured.name = entry.name;
+	}
+
+	if (entry.description !== (override.description ?? REDACTED_DESCRIPTION)) {
+		captured.description = entry.description;
+	}
+
+	if (entry.price !== undefined && entry.price !== (override.price ?? REDACTED_PRICE)) {
+		captured.price = entry.price;
+	}
+
+	return Object.keys(captured).length > 0 ? captured : undefined;
+}
+
+function collectPassesReal(
+	inputs: CollectRealInputs<GamePassEntry, RedactedGamePassOverride>,
+): void {
+	const { collection, environmentLevel, environmentResource, result } = inputs;
+	if (collection === undefined) {
+		return;
+	}
+
+	const resolved = resolveEntries<GamePassEntry, RedactedGamePassOverride>({
+		collection,
+		environmentForKind: pickEnvironmentFields(environmentLevel, PASS_PRODUCT_ENV_FIELDS),
+		envResource: environmentResource,
+	});
+	for (const { key, entry, override } of resolved) {
+		if (override === undefined) {
+			continue;
+		}
+
+		const captured = captureNameDescriptionPrice({
+			defaultName: REDACTED_PASS_NAME,
+			entry,
+			override,
+		});
+		if (captured !== undefined) {
+			result[`gamePass:${key}`] = captured;
+		}
+	}
+}
+
+function collectProductsReal(
+	inputs: CollectRealInputs<DeveloperProductEntry, RedactedDeveloperProductOverride>,
+): void {
+	const { collection, environmentLevel, environmentResource, result } = inputs;
+	if (collection === undefined) {
+		return;
+	}
+
+	const resolved = resolveEntries<DeveloperProductEntry, RedactedDeveloperProductOverride>({
+		collection,
+		environmentForKind: pickEnvironmentFields(environmentLevel, PASS_PRODUCT_ENV_FIELDS),
+		envResource: environmentResource,
+	});
+	for (const { key, entry, override } of resolved) {
+		if (override === undefined) {
+			continue;
+		}
+
+		const captured = captureNameDescriptionPrice({
+			defaultName: defaultRedactedProductName(key),
+			entry,
+			override,
+		});
+		if (captured !== undefined) {
+			result[`developerProduct:${key}`] = captured;
+		}
+	}
+}
+
+function capturePlaceReal(
+	entry: ResolvedPlaceEntry,
+	override: RedactedPlaceOverride,
+): ResourceRealDisplay | undefined {
+	const captured: MutableRealDisplay = {};
+	if (
+		entry.description !== undefined &&
+		entry.description !== (override.description ?? REDACTED_DESCRIPTION)
+	) {
+		captured.description = entry.description;
+	}
+
+	if (
+		entry.displayName !== undefined &&
+		entry.displayName !== (override.displayName ?? entry.displayName)
+	) {
+		captured.displayName = entry.displayName;
+	}
+
+	return Object.keys(captured).length > 0 ? captured : undefined;
+}
+
+function collectPlacesReal(
+	inputs: CollectRealInputs<ResolvedPlaceEntry, RedactedPlaceOverride>,
+): void {
+	const { collection, environmentLevel, environmentResource, result } = inputs;
+	if (collection === undefined) {
+		return;
+	}
+
+	const resolved = resolveEntries<ResolvedPlaceEntry, RedactedPlaceOverride>({
+		collection,
+		environmentForKind: pickEnvironmentFields(environmentLevel, PLACE_ENV_FIELDS),
+		envResource: environmentResource,
+	});
+	for (const { key, entry, override } of resolved) {
+		if (override === undefined) {
+			continue;
+		}
+
+		const captured = capturePlaceReal(entry, override);
+		if (captured !== undefined) {
+			result[`place:${key}`] = captured;
+		}
+	}
 }
