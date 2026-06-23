@@ -1,7 +1,7 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import type { Operation } from "../core/operations.ts";
-import type { ResourceCurrentState } from "../core/resources.ts";
+import type { ResourceCurrentState, ResourceRealDisplay } from "../core/resources.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
@@ -45,6 +45,12 @@ interface ApplyAndPersistInputs {
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 	/** Sink for per-resource, summary, and `stateWritten` progress events. */
 	readonly progress: ProgressPort;
+	/**
+	 * Real (pre-redaction) display values for redacted resources, keyed by the
+	 * `kind:key` composite. Stamped onto the persisted snapshot when non-empty;
+	 * never read by the apply or diff path. Omit when nothing is redacted.
+	 */
+	readonly realDisplay?: Readonly<Record<string, ResourceRealDisplay>>;
 	/** Per-kind driver table consulted for create / update dispatch. */
 	readonly registry: DriverRegistry;
 	/** Backend the cumulative snapshot is written to. */
@@ -56,6 +62,7 @@ interface SnapshotInputs {
 	readonly environment: string;
 	readonly pendingRebuild: ReadonlySet<ResourceKey> | undefined;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
+	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>> | undefined;
 }
 
 /**
@@ -81,11 +88,18 @@ export async function applyAndPersist(inputs: ApplyAndPersistInputs): Promise<Re
 		pendingRebuild,
 		priorResources,
 		progress,
+		realDisplay,
 		registry,
 		statePort,
 	} = inputs;
 	const applied = await applyOps(ops, registry, { environment, progress }, artifacts);
-	const merged = buildSnapshot({ applied, environment, pendingRebuild, priorResources });
+	const merged = buildSnapshot({
+		applied,
+		environment,
+		pendingRebuild,
+		priorResources,
+		realDisplay,
+	});
 
 	const written = await statePort.write(merged);
 	if (written.success) {
@@ -109,17 +123,18 @@ function mergeResources(
 }
 
 function buildSnapshot(inputs: SnapshotInputs): BedrockState {
-	const appliedResources = inputs.applied.success
-		? inputs.applied.data
-		: inputs.applied.err.applied;
-	const resources = mergeResources(inputs.priorResources, appliedResources);
-	if (inputs.pendingRebuild === undefined || inputs.pendingRebuild.size === 0) {
-		return { environment: inputs.environment, resources, version: 1 };
-	}
+	const { applied, environment, pendingRebuild, priorResources, realDisplay } = inputs;
+	const appliedResources = applied.success ? applied.data : applied.err.applied;
+	const resources = mergeResources(priorResources, appliedResources);
+	const marker =
+		pendingRebuild === undefined || pendingRebuild.size === 0 ? {} : { pendingRebuild };
+	const real =
+		realDisplay === undefined || Object.keys(realDisplay).length === 0 ? {} : { realDisplay };
 
 	return {
-		environment: inputs.environment,
-		pendingRebuild: inputs.pendingRebuild,
+		environment,
+		...marker,
+		...real,
 		resources,
 		version: 1,
 	};

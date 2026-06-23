@@ -1,9 +1,15 @@
+/* eslint-disable max-lines -- cohesive environment-resolution module: overlay merge, completeness validation, redaction/prefix application, and the real-display projection are one pipeline; the typed error declarations alone are a third of the file. */
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { defu } from "defu";
 
 import { renderDisplayNamePrefix } from "./display-name-prefix.ts";
-import { applyRedaction, type EnvironmentResourceRedaction } from "./redact-resources.ts";
+import {
+	applyRedaction,
+	collectRealDisplay,
+	type EnvironmentResourceRedaction,
+} from "./redact-resources.ts";
+import type { ResourceRealDisplay } from "./resources.ts";
 import type {
 	Config,
 	DeveloperProductEntry,
@@ -96,6 +102,21 @@ export type SelectEnvironmentError =
 	| IncompleteUniverseEntryError
 	| UnknownEnvironmentError;
 
+/**
+ * Resolved view an orchestrator needs from one environment projection:
+ * the deploy-ready (redacted, prefixed) config and the real-display sibling
+ * map derived from the same pre-redaction merge.
+ */
+export interface ResolvedEnvironment {
+	/** Redacted, prefixed `ResolvedConfig` — what {@link selectEnvironment} returns. */
+	readonly config: ResolvedConfig;
+	/**
+	 * Real (pre-redaction) display values for redacted resources, keyed by the
+	 * `kind:key` composite the diff uses. Empty when nothing is redacted.
+	 */
+	readonly realDisplay: Record<string, ResourceRealDisplay>;
+}
+
 /** Successful return shape for {@link selectMergedEnvironment}. */
 interface MergedEnvironment {
 	/** Per-environment entry that the merge projected onto the root config. */
@@ -166,6 +187,43 @@ export function extractResourceRedaction(entry: EnvironmentEntry): EnvironmentRe
 		...(entry.passes ? { passes: extractRedactionLayer(entry.passes) } : {}),
 		...(entry.places ? { places: extractRedactionLayer(entry.places) } : {}),
 		...(entry.products ? { products: extractRedactionLayer(entry.products) } : {}),
+	};
+}
+
+/**
+ * Project a `Config` onto a single environment and return both the deploy-ready
+ * config and the real-display map, computed from one shared pre-redaction
+ * merge. The config is identical to {@link selectEnvironment}'s output; the
+ * map is what {@link collectRealDisplay} derives from the same merged view and
+ * redaction layers, so the placeholders bedrock pushes and the real values it
+ * persists out of band stay in lockstep. Used by the deploy orchestrator so it
+ * resolves the environment once rather than redacting twice.
+ *
+ * @param config - Validated project config.
+ * @param environment - Environment name to project onto.
+ * @returns The resolved config plus real-display map, or any
+ *   {@link SelectEnvironmentError}.
+ */
+export function resolveEnvironment(
+	config: Config,
+	environment: string,
+): Result<ResolvedEnvironment, SelectEnvironmentError> {
+	const mergedResult = selectMergedEnvironment(config, environment);
+	if (!mergedResult.success) {
+		return mergedResult;
+	}
+
+	const { entry, merged } = mergedResult.data;
+	const redactionInputs = {
+		envLevel: entry.redacted,
+		envResource: extractResourceRedaction(entry),
+	};
+	return {
+		data: {
+			config: redactAndPrefix({ config, entry, merged }),
+			realDisplay: collectRealDisplay(merged, redactionInputs),
+		},
+		success: true,
 	};
 }
 
@@ -250,13 +308,12 @@ export function selectEnvironment(
 	config: Config,
 	environment: string,
 ): Result<ResolvedConfig, SelectEnvironmentError> {
-	const mergedResult = selectMergedEnvironment(config, environment);
-	if (!mergedResult.success) {
-		return mergedResult;
+	const resolved = resolveEnvironment(config, environment);
+	if (!resolved.success) {
+		return resolved;
 	}
 
-	const { entry, merged } = mergedResult.data;
-	return { data: redactAndPrefix({ config, entry, merged }), success: true };
+	return { data: resolved.data.config, success: true };
 }
 
 function findIncompletePass(
