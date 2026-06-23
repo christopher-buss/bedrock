@@ -259,3 +259,51 @@ redacted }`, with exported `realValue` / `pushedValue` / `isRedacted` helpers so
 emitters never hand-narrow the union. The diff path is unchanged and stays
 redaction-blind. The contract is verifiable end-to-end through the `deploy()`
 seam with in-memory fakes (no real disk or network).
+
+## Amendment -- 2026-06-23 (codegen-content fingerprint supersedes the create-only trigger)
+
+The original two-phase trigger (user story 14) rebuilt a place only when the
+diff contained a provisioned `create`. That misses a project that embeds
+*mutable* fields — a price, a name — into the place rather than just IDs: a
+price/name `update` is not a `create`, so the pre-built artifact and the
+regenerated source silently diverged until the next provisioning. The
+"last-codegen-hash fingerprint" recorded as deferred in *Considered Options* is
+now adopted, retiring the create-only trigger.
+
+**What changes.** The rebuild decision moves to **after** codegen. Once codegen
+emits, bedrock hashes the emitted output (`Sha256Hex`) and rebuilds + republishes
+iff that hash differs from a stored fingerprint **or** a `pendingRebuild` marker
+is set; otherwise it publishes the pre-built file. A provisioned `create` changes
+the emitted output, so its hash differs — the create trigger is **subsumed and
+retired**, not duplicated. Because the decision now needs the emitted hash,
+whenever a rebuild hook **and** active codegen are both present the deploy always
+defers place ops past the asset stage: the asset stage mints IDs and persists
+mutable asset fields, codegen regenerates source, then the hash check picks
+republish-rebuilt-bytes vs publish-pre-built-file per place.
+
+**State.** A single global `codegenHash` is persisted in the adapter-private
+`$bedrock` envelope alongside `pendingRebuild`, diff-ignored (ADR-019 2026-06-23
+amendment). Lifecycle: the new hash is stored only on the write that completes a
+**successful** publish/republish; on a failed rebuild or republish the stored
+hash stays stale and the marker stays set, so the next deploy self-heals — the
+same convergence guarantee the marker already provided, now also covering
+mutable-field drift. A clean first deploy has no stored hash, which reads as
+"differs" and rebuilds.
+
+**Trigger now requires codegen.** Two-phase activates only when a rebuild hook is
+supplied **and** codegen is active (or a leftover marker forces a retry). Without
+codegen there is no generated source to fingerprint, so the rebuild hook is inert
+and the deploy publishes the pre-built file in a single pass. This is the
+intended coupling: tier 3 (two-phase) sits on tier 2 (codegen) in the opt-in
+ladder, and a rebuild only has meaning as "recompile against the source codegen
+just rewrote."
+
+**Operational consequence.** Because the rebuild recompiles *after* codegen
+rewrites source, the deploy environment now needs the build toolchain, not just a
+pre-built artifact. A CI job that previously shipped only the `rbxl` must also be
+able to run the project's build.
+
+The flow stays verifiable end-to-end through the `deploy()` seam with in-memory
+fakes: `deploy.spec` covers the single-pass, fingerprint-rebuild (price/name
+update), create-rebuild, no-op-publishes-pre-built, partial-asset-failure, and
+retry-via-marker paths.

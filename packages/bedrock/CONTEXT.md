@@ -99,7 +99,7 @@ The user-overridable function that turns deploy state into generated file conten
 _Avoid_: generator, formatter, template, renderer
 
 **Two-phase deploy**:
-The deploy mode where a provisioned `create` mints a new asset ID that the place artifact must embed before it is published. Splits the apply into an **asset stage** (apply assets, checkpoint state, run **Codegen**, invoke the **Rebuild hook**) and a **republish stage** (publish the rebuilt places). Activates only when a **Rebuild hook** is supplied and either a provisioned `create` occurs or a **Pending rebuild** marker is set; otherwise the deploy publishes places normally.
+The deploy mode that rebuilds a place artifact when the generated source it embeds would change. Splits the apply into an **asset stage** (apply assets, checkpoint state, run **Codegen**) and, after the **Codegen fingerprint** check, either a **republish stage** (invoke the **Rebuild hook**, publish the rebuilt places) when the fingerprint changed or a normal publish of the pre-built file when it did not. Activates only when a **Rebuild hook** is supplied **and Codegen is active** (or a **Pending rebuild** marker is set); without codegen the hook is inert and places publish in a single pass. Because the rebuild recompiles after codegen rewrites source, the deploy environment needs the build toolchain, not just a pre-built artifact.
 _Avoid_: two-pass, multi-stage, rebuild deploy
 
 **Rebuild hook**:
@@ -110,8 +110,12 @@ _Avoid_: builder, build step, compile hook
 A presence-only bookkeeping marker — a place **Key** listed in the `$bedrock` envelope's `pendingRebuild` list — recording a place whose required asset IDs have been minted but not yet embedded and republished. Set for every place at the checkpoint write when a **Two-phase deploy** activates; cleared per place on a successful republish (the key is removed, never set `false`; an empty list is omitted), so a happy-path state never shows it. Lets a two-phase deploy self-heal after a failed **Rebuild hook**, since the assets themselves now `noop`; a marker present with no hook available is a hard error.
 _Avoid_: dirty flag, needs-redeploy, stale marker
 
+**Codegen fingerprint**:
+A single `Sha256Hex` of the **Codegen** output the currently-published place was last built against, stored as `codegenHash` in the `$bedrock` envelope. A **Two-phase deploy** rebuilds and republishes iff the freshly emitted hash differs from the stored one (or a **Pending rebuild** marker forces it); an unchanged hash publishes the pre-built file. Stored only on a successful republish, retained stale on an aborted rebuild so the next deploy retries — the trigger that supersedes the old "any provisioned `create`" rule, catching mutable-field (price, name) drift the create rule missed. Diff-ignored like the marker; an absent stored hash (clean first deploy) reads as "differs".
+_Avoid_: checksum, etag, revision, dirty hash
+
 **`$bedrock` namespace**:
-The reserved, **adapter-private** key on the on-disk state envelope carrying bedrock's own bookkeeping — the schema `version` and the **Pending rebuild** list — distinct from user-declared desired state and Roblox-returned **Outputs**. Adapters flatten it on read into typed `BedrockState` fields and re-wrap it on write; nothing outside an adapter sees the raw key, and its contents never participate in **Drift**.
+The reserved, **adapter-private** key on the on-disk state envelope carrying bedrock's own bookkeeping — the schema `version`, the **Pending rebuild** list, and the **Codegen fingerprint** (`codegenHash`) — distinct from user-declared desired state and Roblox-returned **Outputs**. Adapters flatten it on read into typed `BedrockState` fields and re-wrap it on write; nothing outside an adapter sees the raw key, and its contents never participate in **Drift**.
 _Avoid_: metadata, internal, reserved
 
 ### Patterns
