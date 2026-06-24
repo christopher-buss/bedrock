@@ -28,7 +28,10 @@ it('Example 1', () => {
       price: 500,
     },
   ]
-  const pass = findResource(resources, { key: 'vip-pass', kind: 'gamePass' })
+  const pass = findResource(resources, {
+    key: asResourceKey('vip-pass'),
+    kind: 'gamePass',
+  })
   expect(pass?.outputs.assetId).toBe('9876543210')
   expect(findResource(resources, { kind: 'place' })).toBeUndefined()
 })

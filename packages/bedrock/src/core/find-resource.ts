@@ -1,3 +1,4 @@
+import type { ResourceKey } from "../types/ids.ts";
 import type { ResourceCurrentState, ResourceKind } from "./resources.ts";
 
 /**
@@ -16,7 +17,7 @@ import type { ResourceCurrentState, ResourceKind } from "./resources.ts";
  *
  * @template K - The {@link ResourceKind} to narrow the result to.
  * @param resources - The resources to search (e.g. `state.resources`).
- * @param selector - The kind to match and an optional key.
+ * @param selector - The kind to match and an optional {@link ResourceKey}.
  * @returns The matching resource narrowed to `K`, or `undefined`.
  *
  * @example
@@ -50,7 +51,7 @@ import type { ResourceCurrentState, ResourceKind } from "./resources.ts";
  *     },
  * ];
  *
- * const pass = findResource(resources, { key: "vip-pass", kind: "gamePass" });
+ * const pass = findResource(resources, { key: asResourceKey("vip-pass"), kind: "gamePass" });
  * // `pass` is narrowed to ResourceCurrentState<"gamePass">, so `outputs.assetId` is typed.
  * expect(pass?.outputs.assetId).toBe("9876543210");
  * expect(findResource(resources, { kind: "place" })).toBeUndefined();
@@ -58,7 +59,7 @@ import type { ResourceCurrentState, ResourceKind } from "./resources.ts";
  */
 export function findResource<K extends ResourceKind>(
 	resources: ReadonlyArray<ResourceCurrentState>,
-	selector: { readonly key?: string | undefined; readonly kind: K },
+	selector: { readonly key?: ResourceKey | undefined; readonly kind: K },
 ): ResourceCurrentState<K> | undefined {
 	const { key, kind } = selector;
 	return resources.find((resource): resource is ResourceCurrentState<K> => {
