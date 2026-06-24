@@ -48,6 +48,7 @@ export { derivePriceFields, type PriceFields } from "./core/derive-price-fields.
 export { diff } from "./core/diff.ts";
 export { DEFAULT_PREFIX_FORMAT, renderDisplayNamePrefix } from "./core/display-name-prefix.ts";
 export { validateEnvironmentName } from "./core/environment.ts";
+export { findResource } from "./core/find-resource.ts";
 export {
 	flattenConfig,
 	type DeveloperProductDesiredInput,
