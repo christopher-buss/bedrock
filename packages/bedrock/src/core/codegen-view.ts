@@ -1,4 +1,5 @@
 import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
+import type { BedrockState } from "./state.ts";
 
 /**
  * A single redactable display field as presented to a codegen emitter.
@@ -209,4 +210,70 @@ export function codegenView<Resource extends ResourceCurrentState>(
 	);
 
 	return view as CodegenView<Resource>;
+}
+
+/**
+ * Project a resource into its codegen view, resolving the resource's
+ * real-display sibling from `state.realDisplay` for you. A convenience over
+ * {@link codegenView} that frees an emitter from re-deriving the internal
+ * `kind:key` composite the state map is keyed by; pass the whole state and the
+ * resource, and a redacted field comes back as the {@link Field} object form.
+ *
+ * Read the projected fields through {@link realValue}, {@link pushedValue}, and
+ * {@link isRedacted} rather than narrowing the union by hand.
+ *
+ * @since 0.1.0
+ *
+ * @template Resource - The {@link ResourceCurrentState} shape being projected.
+ * @param state - The deploy state holding the resource and its `realDisplay`.
+ * @param resource - The persisted resource to project (scalar pushed values).
+ * @returns A view with redactable fields presented as {@link Field}.
+ *
+ * @example
+ *
+ * ```ts
+ * import {
+ *     asResourceKey,
+ *     asRobloxAssetId,
+ *     asSha256Hex,
+ *     codegenViewOf,
+ *     realValue,
+ *     type BedrockState,
+ *     type ResourceCurrentState,
+ * } from "@bedrock-rbx/core";
+ *
+ * const pass: ResourceCurrentState<"gamePass"> = {
+ *     description: "",
+ *     icon: { "en-us": "assets/vip-icon.png" },
+ *     iconFileHashes: {
+ *         "en-us": asSha256Hex(
+ *             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+ *         ),
+ *     },
+ *     key: asResourceKey("vip-pass"),
+ *     kind: "gamePass",
+ *     name: "Redacted Pass",
+ *     outputs: {
+ *         assetId: asRobloxAssetId("9876543210"),
+ *         iconAssetIds: { "en-us": asRobloxAssetId("1122334455") },
+ *     },
+ *     price: 500,
+ * };
+ *
+ * const state: BedrockState = {
+ *     environment: "production",
+ *     realDisplay: { "gamePass:vip-pass": { name: "VIP Pass" } },
+ *     resources: [pass],
+ *     version: 1,
+ * };
+ *
+ * const view = codegenViewOf(state, pass);
+ * expect(realValue(view.name)).toBe("VIP Pass");
+ * ```
+ */
+export function codegenViewOf<Resource extends ResourceCurrentState>(
+	state: BedrockState,
+	resource: Resource,
+): CodegenView<Resource> {
+	return codegenView(resource, state.realDisplay?.[`${resource.kind}:${resource.key}`]);
 }

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
-import { codegenView, isRedacted, pushedValue, realValue } from "./codegen-view.ts";
+import { codegenView, codegenViewOf, isRedacted, pushedValue, realValue } from "./codegen-view.ts";
 import type { ResourceCurrentState } from "./resources.ts";
+import type { BedrockState } from "./state.ts";
 
 const redactedPass: ResourceCurrentState<"gamePass"> = {
 	key: asResourceKey("vip-pass"),
@@ -145,5 +146,47 @@ describe(codegenView, () => {
 			redacted: "[DEV] Hidden Lobby",
 			value: "Start Place",
 		});
+	});
+});
+
+function stateWith(
+	resources: ReadonlyArray<ResourceCurrentState>,
+	realDisplay?: BedrockState["realDisplay"],
+): BedrockState {
+	return {
+		environment: "production",
+		resources,
+		version: 1,
+		...(realDisplay === undefined ? {} : { realDisplay }),
+	};
+}
+
+describe(codegenViewOf, () => {
+	it("should resolve the real-display sibling from state by the kind:key composite", () => {
+		expect.assertions(1);
+
+		const state = stateWith([redactedPass], { "gamePass:vip-pass": { name: "VIP Pass" } });
+
+		const view = codegenViewOf(state, redactedPass);
+
+		expect(view.name).toStrictEqual({ redacted: "Redacted Pass", value: "VIP Pass" });
+	});
+
+	it("should keep a redactable field scalar when the state carries no real-display map", () => {
+		expect.assertions(1);
+
+		const view = codegenViewOf(stateWith([redactedPass]), redactedPass);
+
+		expect(view.name).toBe("Redacted Pass");
+	});
+
+	it("should keep a redactable field scalar when no real-display entry matches the resource", () => {
+		expect.assertions(1);
+
+		const state = stateWith([redactedPass], { "gamePass:other-pass": { name: "VIP Pass" } });
+
+		const view = codegenViewOf(state, redactedPass);
+
+		expect(view.name).toBe("Redacted Pass");
 	});
 });

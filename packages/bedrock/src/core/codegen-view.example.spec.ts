@@ -9,6 +9,8 @@ import {
   asSha256Hex,
   codegenView,
   type ResourceCurrentState,
+  codegenViewOf,
+  type BedrockState,
 } from '@bedrock-rbx/core'
 
 it('Example 1', () => {
@@ -51,4 +53,32 @@ it('Example 4', () => {
   const view = codegenView(pass, { name: 'VIP Pass', price: 500 })
   expect(realValue(view.name)).toBe('VIP Pass')
   expect(view.description).toBe('')
+})
+
+it('Example 5', () => {
+  const pass: ResourceCurrentState<'gamePass'> = {
+    description: '',
+    icon: { 'en-us': 'assets/vip-icon.png' },
+    iconFileHashes: {
+      'en-us': asSha256Hex(
+        'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      ),
+    },
+    key: asResourceKey('vip-pass'),
+    kind: 'gamePass',
+    name: 'Redacted Pass',
+    outputs: {
+      assetId: asRobloxAssetId('9876543210'),
+      iconAssetIds: { 'en-us': asRobloxAssetId('1122334455') },
+    },
+    price: 500,
+  }
+  const state: BedrockState = {
+    environment: 'production',
+    realDisplay: { 'gamePass:vip-pass': { name: 'VIP Pass' } },
+    resources: [pass],
+    version: 1,
+  }
+  const view = codegenViewOf(state, pass)
+  expect(realValue(view.name)).toBe('VIP Pass')
 })
