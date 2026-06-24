@@ -19,6 +19,7 @@ function ok(stdout = ""): GitResult {
 function fakeGit(transcript: {
 	head?: string;
 	pushFailures?: number;
+	stagedEmpty?: boolean;
 	stashSha?: string;
 	status?: string;
 }): {
@@ -39,6 +40,11 @@ function fakeGit(transcript: {
 
 		if (args[0] === "stash" && args[1] === "create") {
 			return ok(transcript.stashSha ?? "");
+		}
+
+		if (args[0] === "diff") {
+			// `--quiet` exits 0 when nothing staged, 1 when changes exist.
+			return { code: transcript.stagedEmpty === true ? 0 : 1, stderr: "", stdout: "" };
 		}
 
 		if (args[0] === "push") {
@@ -85,6 +91,7 @@ describe(commitBack, () => {
 			["checkout", "-f", "-B", "main", "FETCH_HEAD"],
 			["checkout", "stash99", "--", "src/shared/assets"],
 			["add", "--", "src/shared/assets"],
+			["diff", "--cached", "--quiet", "--", "src/shared/assets"],
 			[
 				"-c",
 				"user.name=deploy-bot",
@@ -144,6 +151,23 @@ describe(commitBack, () => {
 			"rejected after 2 attempts",
 		);
 		expect(calls.filter((args) => args[0] === "push")).toHaveLength(2);
+	});
+
+	it("should converge as a no-op when the tip already carries the generated files", async () => {
+		expect.assertions(3);
+
+		const { calls, git } = fakeGit({
+			head: "abc1234\n",
+			stagedEmpty: true,
+			stashSha: "stash99",
+			status: " M src/shared/assets/places.ts\n",
+		});
+
+		const result = await commitBack({ git }, DefaultOptions);
+
+		expect(result).toStrictEqual({ changedFiles: 1, committed: false });
+		expect(calls.filter((args) => args[0] === "push")).toHaveLength(0);
+		expect(calls.filter((args) => args.includes("commit"))).toHaveLength(0);
 	});
 
 	it("should reject when a required git command fails", async () => {

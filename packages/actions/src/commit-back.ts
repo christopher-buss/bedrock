@@ -36,6 +36,16 @@ export interface CommitBackResult {
 }
 
 /**
+ * The result of a single reflow attempt: a `committed` sha that was pushed, a
+ * `converged` no-op (the tip already carries the generated files), or a
+ * `rejected` push (the tip moved) that the caller retries.
+ */
+type ReflowOutcome =
+	| { readonly kind: "committed"; readonly sha: string }
+	| { readonly kind: "converged" }
+	| { readonly kind: "rejected" };
+
+/**
  * Commit the changes under `paths` onto the latest `branch` tip and push them,
  * retrying when the tip moves under a concurrent push.
  *
@@ -65,9 +75,16 @@ export async function commitBack(
 	const maxAttempts = options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
 
 	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-		const sha = await reflowOntoTip(deps, { ...options, stashSha });
-		if (sha !== undefined) {
-			return { changedFiles: changedFiles.length, committed: true, sha };
+		const outcome = await reflowOntoTip(deps, { ...options, stashSha });
+		if (outcome.kind === "committed") {
+			return { changedFiles: changedFiles.length, committed: true, sha: outcome.sha };
+		}
+
+		if (outcome.kind === "converged") {
+			// A concurrent run pushed identical generated files first, so the tip
+			// already carries them. The desired state is realized; report no new
+			// commit rather than failing on an empty `git commit`.
+			return { changedFiles: changedFiles.length, committed: false };
 		}
 	}
 
@@ -102,18 +119,26 @@ async function runGit(deps: CommitBackDeps, args: ReadonlyArray<string>): Promis
  *
  * @param deps - Injected `git` runner.
  * @param plan - Commit options plus the `stashSha` capturing the generated files.
- * @returns The new commit sha on a successful push, or `undefined` when the push
- * was rejected (the tip moved).
+ * @returns The pushed sha (`committed`), a `converged` no-op when the tip
+ * already has the files, or `rejected` when the push lost a race.
  */
 async function reflowOntoTip(
 	deps: CommitBackDeps,
 	plan: CommitBackOptions & { readonly stashSha: string },
-): Promise<string | undefined> {
+): Promise<ReflowOutcome> {
 	const { stashSha, ...options } = plan;
 	await runGit(deps, ["fetch", "origin", options.branch]);
 	await runGit(deps, ["checkout", "-f", "-B", options.branch, "FETCH_HEAD"]);
 	await runGit(deps, ["checkout", stashSha, "--", ...options.paths]);
 	await runGit(deps, ["add", "--", ...options.paths]);
+	// `--quiet` exits 0 when nothing is staged — the tip already matches the
+	// generated files, so committing would fail with "nothing to commit". Treat
+	// it as convergence instead. A genuine diff failure surfaces at the commit.
+	const staged = await deps.git(["diff", "--cached", "--quiet", "--", ...options.paths]);
+	if (staged.code === 0) {
+		return { kind: "converged" };
+	}
+
 	await runGit(deps, [
 		"-c",
 		`user.name=${options.authorName}`,
@@ -127,7 +152,7 @@ async function reflowOntoTip(
 	// Push is the one command whose non-zero exit is expected (a moving tip):
 	// surface it as a retry signal rather than a thrown error.
 	const push = await deps.git(["push", "origin", `HEAD:refs/heads/${options.branch}`]);
-	return push.code === 0 ? head.stdout.trim() : undefined;
+	return push.code === 0 ? { kind: "committed", sha: head.stdout.trim() } : { kind: "rejected" };
 }
 
 function parseChangedFiles(stdout: string): Array<string> {
