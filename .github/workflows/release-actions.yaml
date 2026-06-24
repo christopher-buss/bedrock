@@ -21,16 +21,23 @@ on:
     tags:
       - "actions-v*"
 
-permissions:
-  contents: write
+# No workflow-level token: the write scope is granted only to the one job that
+# force-moves the tag refs (see the job-level `permissions` below).
+permissions: {}
 
+# Every actions-v1.x.y release force-moves the shared `actions-v1` alias, so all
+# releases must serialize — keying on the exact tag would let two v1 releases
+# race and leave the alias on whichever finished last.
 concurrency:
-  group: release-actions-${{ github.ref_name }}
+  group: release-actions
   cancel-in-progress: false
 
 jobs:
   bake:
     name: Bundle and bake dist onto the tag
+    permissions:
+      # Required to commit the bundled dist and force-update the tag refs.
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -50,6 +57,10 @@ jobs:
         name: Bake dist and move tags
         run: |
           set -euo pipefail
+          if [[ ! "${TAG}" =~ ^actions-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Expected tag actions-v<major>.<minor>.<patch>; got ${TAG}"
+            exit 1
+          fi
           major="${TAG%%.*}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
