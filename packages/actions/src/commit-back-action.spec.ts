@@ -73,6 +73,11 @@ function harness(overrides?: {
 			return ok("stash1");
 		}
 
+		if (args[0] === "diff") {
+			// Non-zero "differences exist" so the reflow proceeds to commit.
+			return { code: 1, stderr: "", stdout: "" };
+		}
+
 		return ok();
 	}
 
@@ -198,6 +203,29 @@ describe(resolveActionConfig, () => {
 		expect.assertions(1);
 
 		const { deps } = harness();
+
+		const { options } = resolveActionConfig(deps);
+
+		expect(options).toStrictEqual({
+			authorEmail: "41898282+github-actions[bot]@users.noreply.github.com",
+			authorName: "github-actions[bot]",
+			branch: "main",
+			message: "chore(assets): regenerate asset ids [skip ci]",
+			paths: ["src/shared/assets"],
+		});
+	});
+
+	it("should fall back to defaults when the optional inputs are whitespace-only", () => {
+		expect.assertions(1);
+
+		const { deps } = harness({
+			inputs: {
+				"author-email": "  ",
+				"author-name": "\t",
+				"branch": "   ",
+				"message": " ",
+			},
+		});
 
 		const { options } = resolveActionConfig(deps);
 

@@ -56,10 +56,10 @@ export function resolveActionConfig(deps: CommitBackActionDeps): {
 
 	return {
 		options: {
-			authorEmail: deps.readInput("author-email") || DEFAULT_AUTHOR_EMAIL,
-			authorName: deps.readInput("author-name") || DEFAULT_AUTHOR_NAME,
-			branch: deps.readInput("branch") || DEFAULT_BRANCH,
-			message: deps.readInput("message") || DEFAULT_MESSAGE,
+			authorEmail: optionalInput(deps.readInput("author-email"), DEFAULT_AUTHOR_EMAIL),
+			authorName: optionalInput(deps.readInput("author-name"), DEFAULT_AUTHOR_NAME),
+			branch: optionalInput(deps.readInput("branch"), DEFAULT_BRANCH),
+			message: optionalInput(deps.readInput("message"), DEFAULT_MESSAGE),
 			paths,
 			...parseMaxAttempts(deps.readInput("max-attempts")),
 		},
@@ -127,6 +127,13 @@ function authenticatedUrl(parts: { repository: string; serverUrl: string; token:
 	url.password = parts.token;
 	url.pathname = `/${parts.repository}.git`;
 	return url.href;
+}
+
+function optionalInput(raw: string, fallback: string): string {
+	// Trim like requireInput so a whitespace-only value falls back to the default
+	// rather than producing an all-spaces branch, message, or author field.
+	const value = raw.trim();
+	return value === "" ? fallback : value;
 }
 
 function parseMaxAttempts(raw: string): { maxAttempts?: number } {
