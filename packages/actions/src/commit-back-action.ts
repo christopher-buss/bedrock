@@ -35,6 +35,16 @@ export interface CommitBackActionDeps {
 	readonly setOutput: (name: string, value: string) => void;
 }
 
+/** Dependencies for {@link executeCommitBackAction}, the action composition root. */
+interface ExecuteCommitBackActionDeps {
+	/** The process environment to read workflow vars from. */
+	readonly environment: Record<string, string | undefined>;
+	/** The git runner the reflow drives; the live shim injects the real adapter. */
+	readonly git: GitExec;
+	/** The `@actions/core` slice: inputs, outputs, masking, and failure. */
+	readonly io: ActionIo;
+}
+
 /**
  * Resolve the action's inputs into a commit-back plan plus the token-authenticated
  * `origin` URL the push authenticates through.
@@ -96,16 +106,10 @@ export async function runCommitBackAction(deps: CommitBackActionDeps): Promise<v
  * tested; `main.ts` only supplies the real `@actions/core`, `process.env`, and
  * git adapter.
  *
- * @param io - The `@actions/core` slice (inputs, outputs, masking, failure).
- * @param environment - The process environment to read workflow vars from.
- * @param git - The git runner the reflow drives.
+ * @param deps - The `@actions/core` slice, process environment, and git runner.
  */
-// eslint-disable-next-line better-max-params/better-max-params -- three injected composition-root dependencies; an options bag would add an ObjectLiteral mutant to the coverage-excluded main.ts shim.
-export async function executeCommitBackAction(
-	io: ActionIo,
-	environment: Record<string, string | undefined>,
-	git: GitExec,
-): Promise<void> {
+export async function executeCommitBackAction(deps: ExecuteCommitBackActionDeps): Promise<void> {
+	const { environment, git, io } = deps;
 	io.setSecret(io.getInput("token"));
 	try {
 		await runCommitBackAction({

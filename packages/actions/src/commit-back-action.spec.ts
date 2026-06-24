@@ -162,7 +162,7 @@ describe(executeCommitBackAction, () => {
 			return { code: 0, stderr: "", stdout: "" };
 		}
 
-		await executeCommitBackAction(io, environment, git);
+		await executeCommitBackAction({ environment, git, io });
 
 		expect(secrets).toStrictEqual(["ghs_secret"]);
 		expect(failures).toStrictEqual([]);
@@ -178,7 +178,7 @@ describe(executeCommitBackAction, () => {
 				: { code: 0, stderr: "", stdout: "" };
 		}
 
-		await executeCommitBackAction(io, environment, git);
+		await executeCommitBackAction({ environment, git, io });
 
 		expect(failures[0]).toContain("failed to set the origin URL");
 	});
@@ -192,7 +192,7 @@ describe(executeCommitBackAction, () => {
 			throw "kaboom";
 		}
 
-		await executeCommitBackAction(io, environment, git);
+		await executeCommitBackAction({ environment, git, io });
 
 		expect(failures).toStrictEqual(["kaboom"]);
 	});
