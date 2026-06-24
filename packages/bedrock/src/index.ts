@@ -31,6 +31,7 @@ export type {
 } from "./cli/spawner.ts";
 export {
 	codegenView,
+	codegenViewOf,
 	isRedacted,
 	pushedValue,
 	realValue,
