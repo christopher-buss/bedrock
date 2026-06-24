@@ -11,6 +11,20 @@ This is a multi-context monorepo. Each package owns its own domain language; thi
 - **`@bedrock-rbx/vite-config`** — _config-only, no domain language._
 - **`@bedrock-rbx/typescript-config`** — _config-only, no domain language._
 
+## Relationships
+
+- **`@bedrock-rbx/core` → `@bedrock-rbx/ocale`**: core consumes ocale as a
+  workspace dependency for all Roblox Open Cloud access; core never talks HTTP
+  directly. Data crosses as ocale wire types in, core domain types out.
+- **`@bedrock-rbx/actions` → `@bedrock-rbx/core`**: the actions invoke the core
+  CLI to run a deploy, then reflow the `codegen.output` files core wrote. The
+  seam is the filesystem (generated set) and the process boundary, not a code
+  import.
+- **`@bedrock-rbx/testing`**: shared fakes/matchers the other contexts import
+  in tests only; carries no runtime domain language of its own.
+- **`vite-config` / `typescript-config`**: build/type configuration consumed by
+  every package; no domain data crosses.
+
 ## System-wide decisions
 
 ADRs at [`docs/adr/`](docs/adr/) apply across all contexts. Per-package ADR directories are not used.

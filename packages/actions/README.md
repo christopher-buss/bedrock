@@ -67,8 +67,9 @@ Run the reflow on its own, after your own deploy step:
 ```
 
 It snapshots the changed files, resets onto the latest branch tip, restores only
-those files (codegen ids win — never a merge), commits with a `[skip ci]`
-message, and pushes — retrying if the tip moves under a concurrent push.
+those files (codegen ids win — never a merge), commits, and pushes — retrying if
+the tip moves under a concurrent push. The default `message` carries `[skip ci]`
+to avoid a redeploy loop; override `message` to change that.
 
 | Input | Default | |
 | --- | --- | --- |
@@ -76,7 +77,8 @@ message, and pushes — retrying if the tip moves under a concurrent push.
 | `paths` | — (required) | Whitespace-separated paths to reflow. |
 | `branch` | `main` | Branch to commit onto. |
 | `message` | `chore(assets): regenerate asset ids [skip ci]` | Commit message. |
-| `author-name` / `author-email` | `github-actions[bot]` | Commit author. |
+| `author-name` | `github-actions[bot]` | Commit author name. |
+| `author-email` | `41898282+github-actions[bot]@users.noreply.github.com` | Commit author email. |
 | `max-attempts` | `3` | Push attempts before giving up on a moving tip. |
 
 Outputs: `committed` (`true`/`false`), `changed-files` (count), `sha` (new

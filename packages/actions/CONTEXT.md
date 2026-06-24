@@ -20,8 +20,8 @@ _Avoid_: rebase, merge (it is neither).
 
 **Generated set**:
 The exact files that changed under `codegen.output` after a deploy — what
-commit-back reflows. Discovered by a path-scoped `git diff`, never a hand-kept
-list.
+commit-back reflows. Discovered by a path-scoped `git status --porcelain` (so a
+first deploy's newly created files count too), never a hand-kept list.
 _Avoid_: dirty files, artifacts.
 
 **Deploy App**:

@@ -33,8 +33,9 @@ Three forces shape how it is shipped:
    Cloud domain. The files to reflow are discoverable without any new core API:
    the codegen writer guarantees every generated file lands under one
    `codegen.output` root, and a deploy writes nothing else to the working tree
-   (state is network-backed), so `git diff --name-only -- <codegen.output>`
-   after a deploy yields the exact changed set.
+   (state is network-backed), so `git status --porcelain -- <codegen.output>`
+   after a deploy yields the exact changed set — including a first deploy's
+   newly created (untracked) files, which a plain `git diff` would miss.
 
 ## Decision
 
@@ -44,8 +45,9 @@ Ship commit-back as **GitHub Actions in a separate package**
 feature, not a hosted service, not a shared App.
 
 - **No new `@bedrock-rbx/core` surface.** The reflow is a node24 JavaScript
-  action that discovers changed files via a `codegen.output`-scoped `git diff`
-  and pushes through an injected `GitExec` seam. Core stays pure Open Cloud.
+  action that discovers changed files via a `codegen.output`-scoped
+  `git status --porcelain` and pushes through an injected `GitExec` seam. Core
+  stays pure Open Cloud.
 - **Per-user App, created via the documented setup (or App Manifest).** Bedrock
   ships the required permissions (`contents: write`, no webhook) as a manifest
   and a how-to; the consumer creates their own App, installs it, stores
@@ -68,8 +70,8 @@ feature, not a hosted service, not a shared App.
   branch-protection, and push-retry semantics into an Open Cloud tool, a large
   foreign surface for an orthogonal concern.
 - **Core reports its generated paths (new API)** — unnecessary: the
-  `codegen.output`-scoped `git diff` already yields the exact set with no new
-  public surface to maintain.
+  `codegen.output`-scoped `git status --porcelain` already yields the exact set
+  with no new public surface to maintain.
 
 ## Consequences
 
