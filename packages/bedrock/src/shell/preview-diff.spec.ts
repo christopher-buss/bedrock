@@ -150,7 +150,7 @@ describe(previewDiff, () => {
 			loadConfig,
 		});
 
-		expect(loadConfig).toHaveBeenCalledOnce();
+		expect(loadConfig).toHaveBeenCalledExactlyOnceWith();
 
 		assert(!result.success);
 
@@ -387,7 +387,7 @@ describe(previewDiff, () => {
 			readFile: readIcon,
 		});
 
-		expect(loadConfig).toHaveBeenCalledOnce();
+		expect(loadConfig).toHaveBeenCalledExactlyOnceWith();
 
 		assert(result.success);
 	});

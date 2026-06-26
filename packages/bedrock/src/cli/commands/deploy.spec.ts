@@ -125,7 +125,7 @@ describe(deployCommand, () => {
 		await deployCommand(deps)(rawOptions);
 
 		expect(deps.clack?.intro).toHaveBeenCalledExactlyOnceWith("bedrock deploy");
-		expect(deps.clack?.logError).toHaveBeenCalledOnce();
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
@@ -141,7 +141,7 @@ describe(deployCommand, () => {
 
 		await deployCommand(deps)({ env: "production" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledOnce();
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
@@ -209,7 +209,7 @@ describe(deployCommand, () => {
 
 		await deployCommand(deps)({ env: "ghost" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledOnce();
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
@@ -270,7 +270,9 @@ describe(deployCommand, () => {
 				"github-token": "GH_OVERRIDE",
 			});
 
-			expect(deploy).toHaveBeenCalledOnce();
+			expect(deploy).toHaveBeenCalledExactlyOnceWith(
+				expect.objectContaining({ config: sampleConfig, environment: "production" }),
+			);
 
 			const firstCall = vi.mocked(deploy).mock.calls[0];
 			assert(firstCall !== undefined);
@@ -560,7 +562,9 @@ describe(deployCommand, () => {
 
 		await deployCommand(deps)({ env: "production" });
 
-		expect(deploy).toHaveBeenCalledOnce();
+		expect(deploy).toHaveBeenCalledExactlyOnceWith(
+			expect.objectContaining({ config: sampleConfig, environment: "production" }),
+		);
 		expect(invocations).toHaveLength(0);
 	});
 

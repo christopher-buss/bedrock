@@ -42,7 +42,7 @@
 	},
 	"types": "./dist/index.d.mts",
 	"bin": {
-		"bedrock": "./dist/cli/run.mjs"
+		"core": "./src/cli/run.ts"
 	},
 	"files": [
 		"dist"
@@ -87,6 +87,9 @@
 			"./cli/run": "./dist/cli/run.mjs",
 			"./config": "./dist/config.mjs",
 			"./package.json": "./package.json"
+		},
+		"bin": {
+			"core": "./dist/cli/run.mjs"
 		}
 	},
 	"inlinedDependencies": {

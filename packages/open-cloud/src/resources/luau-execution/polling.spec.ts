@@ -75,7 +75,7 @@ describe(pollUntilDoneCore, () => {
 		assert(result.success);
 
 		expect(result.data.state).toBe("COMPLETE");
-		expect(fetch).toHaveBeenCalledOnce();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith();
 		expect(sleep.waits).toStrictEqual([]);
 	});
 
@@ -95,7 +95,7 @@ describe(pollUntilDoneCore, () => {
 		assert(result.success);
 
 		expect(result.data.state).toBe("FAILED");
-		expect(fetch).toHaveBeenCalledOnce();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith();
 		expect(sleep.waits).toStrictEqual([]);
 	});
 
@@ -115,7 +115,7 @@ describe(pollUntilDoneCore, () => {
 		assert(result.success);
 
 		expect(result.data.state).toBe("CANCELLED");
-		expect(fetch).toHaveBeenCalledOnce();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith();
 		expect(sleep.waits).toStrictEqual([]);
 	});
 
@@ -271,7 +271,7 @@ describe(pollUntilDoneCore, () => {
 		expect(result.err).toBeInstanceOf(PollAbortedError);
 		// The mid-sleep return short-circuits the loop; without it the next
 		// iteration would call fetch a second time before catching the abort.
-		expect(fetch).toHaveBeenCalledOnce();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith();
 
 		// The slow sleep promise never resolved; the loop returned early.
 		resolveSlowSleep?.();
@@ -341,7 +341,7 @@ describe(pollUntilDoneCore, () => {
 		assert(!result.success);
 
 		expect(result.err).toBeInstanceOf(PollAbortedError);
-		expect(fetch).toHaveBeenCalledOnce();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith();
 		expect(sleep.waits).toStrictEqual([]);
 	});
 
@@ -435,7 +435,7 @@ describe(pollUntilDoneCore, () => {
 		assert(!result.success);
 
 		expect(result.err).toBe(apiError);
-		expect(fetch).toHaveBeenCalledOnce();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith();
 	});
 
 	it("should abort immediately on a self-aborted network failure with no transport code", async () => {
@@ -456,7 +456,7 @@ describe(pollUntilDoneCore, () => {
 		assert(!result.success);
 
 		expect(result.err).toBe(selfAbort);
-		expect(fetch).toHaveBeenCalledOnce();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith();
 	});
 
 	it("should abort immediately on a network failure whose transport code is not transient", async () => {
@@ -476,7 +476,7 @@ describe(pollUntilDoneCore, () => {
 		assert(!result.success);
 
 		expect(result.err).toBe(networkError);
-		expect(fetch).toHaveBeenCalledOnce();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith();
 	});
 
 	it("should abort immediately on an api error even if it carries a transport-style code", async () => {
@@ -495,7 +495,7 @@ describe(pollUntilDoneCore, () => {
 		assert(!result.success);
 
 		expect(result.err).toBe(apiError);
-		expect(fetch).toHaveBeenCalledOnce();
+		expect(fetch).toHaveBeenCalledExactlyOnceWith();
 	});
 
 	it("should give up after the configured number of consecutive network failures", async () => {

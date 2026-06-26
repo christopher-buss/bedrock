@@ -138,11 +138,7 @@ export interface PlaceDesiredState {
  * driver's parameter translator so drift detection and the constructed
  * `updateMask` cannot drift apart.
  */
-export const PLACE_MANAGED_METADATA_FIELDS = [
-	"displayName",
-	"description",
-	"serverSize",
-] as const satisfies ReadonlyArray<keyof PlaceDesiredState>;
+export const PLACE_MANAGED_METADATA_FIELDS = ["displayName", "description", "serverSize"] as const;
 
 /**
  * Roblox-returned value produced by publishing a place version. The publish
@@ -266,7 +262,7 @@ export const UNIVERSE_MANAGED_FLAGS = [
 	"consoleEnabled",
 	"vrEnabled",
 	"voiceChatEnabled",
-] as const satisfies ReadonlyArray<keyof UniverseDesiredState>;
+] as const;
 
 /** Key of an optional boolean managed field on {@link UniverseDesiredState}. */
 export type UniverseManagedFlag = (typeof UNIVERSE_MANAGED_FLAGS)[number];
@@ -286,7 +282,7 @@ export const SOCIAL_LINK_FIELDS = [
 	"twitchSocialLink",
 	"twitterSocialLink",
 	"youtubeSocialLink",
-] as const satisfies ReadonlyArray<keyof UniverseDesiredState>;
+] as const;
 
 /**
  * Union of the seven social link field names on {@link UniverseDesiredState}.

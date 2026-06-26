@@ -147,7 +147,7 @@ describe(diffCommand, () => {
 		await diffCommand(deps)(rawOptions);
 
 		expect(deps.clack?.intro).toHaveBeenCalledExactlyOnceWith("bedrock diff");
-		expect(deps.clack?.logError).toHaveBeenCalledOnce();
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
@@ -163,7 +163,7 @@ describe(diffCommand, () => {
 
 		await diffCommand(deps)({ env: "production" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledOnce();
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
@@ -418,7 +418,7 @@ describe(diffCommand, () => {
 
 		await diffCommand(deps)({ env: "ghost" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledOnce();
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
@@ -527,7 +527,9 @@ describe(diffCommand, () => {
 				"github-token": "GH_OVERRIDE",
 			});
 
-			expect(previewDiff).toHaveBeenCalledOnce();
+			expect(previewDiff).toHaveBeenCalledExactlyOnceWith(
+				expect.objectContaining({ config: sampleConfig, environment: "production" }),
+			);
 
 			const firstCall = vi.mocked(previewDiff).mock.calls[0];
 			assert(firstCall !== undefined);
