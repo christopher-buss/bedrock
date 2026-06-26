@@ -1,0 +1,42 @@
+{
+	"name": "@bedrock-rbx/actions",
+	"version": "0.0.0",
+	"private": true,
+	"description": "GitHub Actions for deploying Roblox projects with Bedrock",
+	"keywords": [
+		"actions",
+		"deployment",
+		"github",
+		"roblox"
+	],
+	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"bundle": "tsdown",
+		"test": "vp test",
+		"typecheck": "tsgo --noEmit"
+	},
+	"dependencies": {
+		"@actions/core": "catalog:runtime"
+	},
+	"devDependencies": {
+		"@bedrock-rbx/testing": "workspace:*",
+		"@bedrock-rbx/typescript-config": "workspace:*",
+		"@bedrock-rbx/vite-config": "workspace:*",
+		"@stryker-mutator/api": "catalog:test",
+		"@stryker-mutator/core": "catalog:test",
+		"@stryker-mutator/typescript-checker": "catalog:test",
+		"@stryker-mutator/vitest-runner": "catalog:test",
+		"@types/bun": "catalog:types",
+		"tsdown": "catalog:build",
+		"typescript": "catalog:tsc",
+		"vitest": "catalog:test"
+	},
+	"engines": {
+		"node": ">=24.12.0",
+		"bun": ">=1.3.0"
+	}
+}

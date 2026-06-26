@@ -1,0 +1,61 @@
+author: Christopher Buss
+description: Deploy a Roblox project with Bedrock and reflow regenerated codegen back to the repo.
+inputs:
+  api-key:
+    description: Roblox Open Cloud API key (exposed to Bedrock as BEDROCK_API_KEY).
+    required: true
+  app-client-id:
+    default: ""
+    description: GitHub App client id used to mint the commit-back token. Set with app-private-key to mint internally; leave unset to use commit-token.
+  app-private-key:
+    default: ""
+    description: GitHub App private key paired with app-client-id.
+  branch:
+    default: main
+    description: Branch the regenerated files are committed onto.
+  commit-token:
+    default: ""
+    description: A ready write-capable token for commit-back, used when app-client-id/app-private-key are not supplied. Commit-back is skipped when no token is available.
+  deploy-command:
+    default: npx bedrock
+    description: Command that invokes the Bedrock CLI (e.g. "npx bedrock" or "bun x bedrock").
+  environment:
+    description: Bedrock environment to deploy (passed as --env).
+    required: true
+  gist-token:
+    description: Token Bedrock uses for gist-backed state (exposed as BEDROCK_GITHUB_TOKEN).
+    required: true
+  paths:
+    description: Whitespace-separated paths to reflow — typically your Bedrock codegen.output directory.
+    required: true
+  working-directory:
+    default: .
+    description: Directory the Bedrock CLI runs in.
+name: Bedrock deploy
+runs:
+  steps:
+    - name: Deploy with Bedrock
+      env:
+        BEDROCK_API_KEY: ${{ inputs.api-key }}
+        BEDROCK_GITHUB_TOKEN: ${{ inputs.gist-token }}
+      run: ${{ inputs.deploy-command }} deploy --env "${{ inputs.environment }}"
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+
+    - name: Mint commit-back token
+      id: app-token
+      if: inputs.app-client-id != '' && inputs.app-private-key != ''
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+      with:
+        client-id: ${{ inputs.app-client-id }}
+        permission-contents: write
+        private-key: ${{ inputs.app-private-key }}
+
+    - name: Reflow regenerated files
+      if: steps.app-token.outputs.token != '' || inputs.commit-token != ''
+      uses: christopher-buss/bedrock/packages/actions@actions-v1
+      with:
+        branch: ${{ inputs.branch }}
+        paths: ${{ inputs.paths }}
+        token: ${{ steps.app-token.outputs.token || inputs.commit-token }}
+  using: composite

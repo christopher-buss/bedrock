@@ -1,0 +1,72 @@
+# Publishes the @bedrock-rbx/actions GitHub Actions for `uses:` consumption.
+#
+# The action's bundled dist (packages/actions/dist) is gitignored on main to
+# keep the tree clean. This workflow bakes it onto a tag so consumers can pin
+# `christopher-buss/bedrock/packages/actions@actions-v1`.
+#
+# Trigger: push an `actions-v<major>.<minor>.<patch>` tag (cut from a tested
+# main commit). The workflow bundles the action, commits the dist into a
+# detached commit on top of the tagged commit, and force-moves the pushed tag
+# plus its `actions-v<major>` alias onto it.
+#
+# Baking on a TAG (not a branch) is deliberate: the repo's `all` ruleset
+# enforces required_signatures on every branch, so an unsigned dist commit
+# could not land on a branch. Reached only through a tag ref, it is not subject
+# to that branch rule. The tag scheme is disjoint from the Changesets package
+# tags (`@bedrock-rbx/core@x.y.z`).
+name: Release actions
+
+on:
+  push:
+    tags:
+      - "actions-v*"
+
+# No workflow-level token: the write scope is granted only to the one job that
+# force-moves the tag refs (see the job-level `permissions` below).
+permissions: {}
+
+# Every actions-v1.x.y release force-moves the shared `actions-v1` alias, so all
+# releases must serialize — keying on the exact tag would let two v1 releases
+# race and leave the alias on whichever finished last.
+concurrency:
+  group: release-actions
+  cancel-in-progress: false
+
+jobs:
+  bake:
+    name: Bundle and bake dist onto the tag
+    permissions:
+      # Required to commit the bundled dist and force-update the tag refs.
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Bundle the action
+        run: pnpm --filter @bedrock-rbx/actions bundle
+        shell: bash
+
+      - env:
+          TAG: ${{ github.ref_name }}
+        name: Bake dist and move tags
+        run: |
+          set -euo pipefail
+          if [[ ! "${TAG}" =~ ^actions-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Expected tag actions-v<major>.<minor>.<patch>; got ${TAG}"
+            exit 1
+          fi
+          major="${TAG%%.*}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --force packages/actions/dist
+          git commit --message "build(actions): bundle dist for ${TAG}"
+          git tag --force "${TAG}"
+          git tag --force "${major}"
+          git push --force origin "refs/tags/${TAG}" "refs/tags/${major}"
+        shell: bash
