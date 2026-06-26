@@ -525,7 +525,7 @@ export const ROBLOX_CREATOR_LOCALES = [
 		isEnabledForInGameUgc: true,
 		isEnabledForSignupAndLogin: true,
 	},
-] as const satisfies ReadonlyArray<RobloxCreatorLocale>;
+] as const;
 
 /**
  * Roblox locale wire form (e.g. `en_us`, `pt_br`, `ar_001`). Used by

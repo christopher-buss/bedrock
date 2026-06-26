@@ -1,6 +1,12 @@
 import { OpenCloudError } from "@bedrock-rbx/ocale";
 
-import { placeCurrent, universeCurrent } from "#tests/helpers/resources";
+import {
+	gamePassDesired,
+	placeCurrent,
+	placeDesired,
+	universeCurrent,
+	universeDesired,
+} from "#tests/helpers/resources";
 import { Buffer } from "node:buffer";
 import process from "node:process";
 import { assert, describe, expect, it, vi } from "vitest";
@@ -281,8 +287,15 @@ describe(deploy, () => {
 
 		assert(result.success);
 
-		expect(universeCreate).toHaveBeenCalledOnce();
-		expect(placeCreate).toHaveBeenCalledOnce();
+		expect(universeCreate).toHaveBeenCalledExactlyOnceWith(universeDesired());
+		expect(placeCreate).toHaveBeenCalledExactlyOnceWith(
+			placeDesired({
+				key: UNIVERSE_SINGLETON_KEY,
+				fileHash: ICON_HASH,
+				filePath: "anime-rush.rbxl",
+				placeId: placeIdValue,
+			}),
+		);
 		expect(writes[0]!.resources).toStrictEqual([universeCreated, placeCreated]);
 	});
 
@@ -334,7 +347,7 @@ describe(deploy, () => {
 			statePort: port,
 		});
 
-		expect(create).toHaveBeenCalledOnce();
+		expect(create).toHaveBeenCalledExactlyOnceWith(gamePassDesired());
 		expect(writes).toHaveLength(1);
 		expect(writes[0]!.environment).toBe("production");
 		expect(writes[0]!.resources).toStrictEqual([created]);
@@ -415,7 +428,7 @@ describe(deploy, () => {
 			statePort: port,
 		});
 
-		expect(update).toHaveBeenCalledOnce();
+		expect(update).toHaveBeenCalledExactlyOnceWith(existing, gamePassDesired({ price: 750 }));
 		expect(writes[0]!.resources).toStrictEqual([updated]);
 		expect(result).toStrictEqual({ data: writes[0], success: true });
 	});
@@ -668,7 +681,7 @@ describe(deploy, () => {
 			statePort: port,
 		});
 
-		expect(create).toHaveBeenCalledOnce();
+		expect(create).toHaveBeenCalledExactlyOnceWith(gamePassDesired());
 		expect(result).toStrictEqual({
 			err: {
 				cause: stateError,
@@ -889,7 +902,7 @@ describe(deploy, () => {
 			statePort: inMemoryStatePort().port,
 		});
 
-		expect(loadConfigStub).toHaveBeenCalledOnce();
+		expect(loadConfigStub).toHaveBeenCalledExactlyOnceWith();
 		expect(result.success).toBeTrue();
 	});
 
@@ -1693,7 +1706,15 @@ describe(deploy, () => {
 
 			assert(result.success);
 
-			expect(emit).toHaveBeenCalledOnce();
+			expect(emit).toHaveBeenCalledExactlyOnceWith({
+				environments: {
+					production: {
+						environment: "production",
+						resources: [vipPassCurrent()],
+						version: 1,
+					},
+				},
+			});
 		});
 
 		it("should default to a node-fs writer rooted at the configured output when none is injected", async () => {
@@ -1711,7 +1732,15 @@ describe(deploy, () => {
 
 			assert(result.success);
 
-			expect(emit).toHaveBeenCalledOnce();
+			expect(emit).toHaveBeenCalledExactlyOnceWith({
+				environments: {
+					production: {
+						environment: "production",
+						resources: [vipPassCurrent()],
+						version: 1,
+					},
+				},
+			});
 		});
 	});
 

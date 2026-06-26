@@ -51,12 +51,10 @@ async function fixtureReadFile(path: string): Promise<Uint8Array> {
 }
 
 function withEnvironment<T extends Config>(base: T, environment: string): T {
-	// Spreading a discriminated-union Config widens the result past either
-	// arm; the cast keeps the input arm we know is preserved structurally.
 	return {
 		...base,
 		environments: { ...base.environments, [environment]: {} },
-	} as T;
+	};
 }
 
 function withMutatedPass(base: Config, overrides: { description: string; name: string }): Config {

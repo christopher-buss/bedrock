@@ -117,7 +117,7 @@ export interface RobloxCreatorLocale {
 }
 `;
 
-const FOOTER = `] as const satisfies ReadonlyArray<RobloxCreatorLocale>;
+const FOOTER = `] as const;
 
 /**
  * Roblox locale wire form (e.g. \`en_us\`, \`pt_br\`, \`ar_001\`). Used by

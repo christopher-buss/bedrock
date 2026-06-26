@@ -338,7 +338,7 @@ describe(createPlaceDriver, () => {
 
 		await driver.create(placeDesired());
 
-		expect(readFile).toHaveBeenCalledOnce();
+		expect(readFile).toHaveBeenCalledExactlyOnceWith("places/start.rbxl");
 		expect(http.requests[0]!.request.body).toStrictEqual(Uint8Array.from(fromDisk));
 	});
 });

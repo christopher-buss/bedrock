@@ -111,8 +111,13 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(deps)("./.mantle-state.yml", {});
 
-		expect(deps.migratePromptPort?.promptMigrationSource).toHaveBeenCalledOnce();
-		expect(deps.migrateMantleState).toHaveBeenCalledOnce();
+		expect(deps.migratePromptPort?.promptMigrationSource).toHaveBeenCalledExactlyOnceWith([
+			"mantle",
+		]);
+		expect(deps.migrateMantleState).toHaveBeenCalledExactlyOnceWith({
+			configFormat: "typescript",
+			stateFilePath: "./.mantle-state.yml",
+		});
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
@@ -382,7 +387,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(deps)(undefined, { from: "mantle" });
 
-		expect(deps.migratePromptPort?.promptStateFilePath).toHaveBeenCalledOnce();
+		expect(deps.migratePromptPort?.promptStateFilePath).toHaveBeenCalledExactlyOnceWith();
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 

@@ -1,5 +1,5 @@
 import process from "node:process";
-import type { ViteUserConfig } from "vite-plus";
+import type { UserConfig } from "vite-plus";
 import type { ExportsOptions } from "vite-plus/pack";
 
 type ExportsMap = Parameters<
@@ -85,4 +85,4 @@ export const sharedConfig = {
 			enabled: process.env["VITEST_TYPECHECK"] !== "false",
 		},
 	},
-} satisfies ViteUserConfig;
+} satisfies UserConfig;

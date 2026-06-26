@@ -78,7 +78,7 @@ describe(applyOps, () => {
 	});
 
 	it("should dispatch a create op to the matching driver and return Ok on success", async () => {
-		expect.assertions(3);
+		expect.assertions(2);
 
 		const op = createOp(asResourceKey("vip-pass"));
 		const created = gamePassCurrent({ ...op.desired });
@@ -89,8 +89,7 @@ describe(applyOps, () => {
 		const result = await applyOps([op], registryWith(create));
 
 		expect(result).toStrictEqual({ data: [created], success: true });
-		expect(create).toHaveBeenCalledOnce();
-		expect(create.mock.calls[0]![0]).toBe(op.desired);
+		expect(create).toHaveBeenCalledExactlyOnceWith(op.desired);
 	});
 
 	it("should return the driver outputs in dispatched order and skip noops", async () => {
@@ -204,7 +203,7 @@ describe(applyOps, () => {
 		const result = await applyOps([op], registryWith(create));
 
 		expect(result).toStrictEqual({ data: [created], success: true });
-		expect(create).toHaveBeenCalledOnce();
+		expect(create).toHaveBeenCalledExactlyOnceWith(op.desired);
 	});
 
 	it("should treat a 'main'-keyed place and 'main'-keyed universe as independent partitions", async () => {
@@ -242,8 +241,8 @@ describe(applyOps, () => {
 		const result = await applyOps([placeOp, universeOp], registry);
 
 		expect(result.success).toBeTrue();
-		expect(placeCreate).toHaveBeenCalledOnce();
-		expect(universeCreate).toHaveBeenCalledOnce();
+		expect(placeCreate).toHaveBeenCalledExactlyOnceWith(placeOp.desired);
+		expect(universeCreate).toHaveBeenCalledExactlyOnceWith(universeOp.desired);
 	});
 
 	it("should run Phase 2 even when the Phase 1 universe op fails", async () => {
@@ -281,9 +280,9 @@ describe(applyOps, () => {
 
 		const result = await applyOps([gamePassOp, universeOp, placeOp], registry);
 
-		expect(gamePassCreate).toHaveBeenCalledOnce();
-		expect(placeCreate).toHaveBeenCalledOnce();
-		expect(universeCreate).toHaveBeenCalledOnce();
+		expect(gamePassCreate).toHaveBeenCalledExactlyOnceWith(gamePassOp.desired);
+		expect(placeCreate).toHaveBeenCalledExactlyOnceWith(placeOp.desired);
+		expect(universeCreate).toHaveBeenCalledExactlyOnceWith(universeOp.desired);
 		expect(result).toStrictEqual({
 			err: {
 				applied: [gamePassCurrentState, placeCurrentState],
@@ -531,7 +530,7 @@ describe(applyOps, () => {
 
 		const result = await applyOps([universeOp, gamePassOp], registry);
 
-		expect(gamePassCreate).toHaveBeenCalledOnce();
+		expect(gamePassCreate).toHaveBeenCalledExactlyOnceWith(gamePassOp.desired);
 		expect(result).toStrictEqual({
 			err: {
 				applied: [gamePassCurrentState],
@@ -617,7 +616,7 @@ describe(applyOps, () => {
 	});
 
 	it("should dispatch an update op to the driver's update method and return Ok on success", async () => {
-		expect.assertions(4);
+		expect.assertions(2);
 
 		const op = updateOp(asResourceKey("vip-pass"));
 		const updated = gamePassCurrent({ ...op.desired });
@@ -629,9 +628,7 @@ describe(applyOps, () => {
 		const result = await applyOps([op], registryWith(create, update));
 
 		expect(result).toStrictEqual({ data: [updated], success: true });
-		expect(update).toHaveBeenCalledOnce();
-		expect(update.mock.calls[0]![0]).toBe(op.current);
-		expect(update.mock.calls[0]![1]).toBe(op.desired);
+		expect(update).toHaveBeenCalledExactlyOnceWith(op.current, op.desired);
 	});
 
 	it("should aggregate an update failure alongside the concurrent Phase 2 successes", async () => {
@@ -1435,7 +1432,7 @@ describe(applyOps, () => {
 			await applyOps([op], registryWith(create));
 
 			expect(emit).not.toHaveBeenCalled();
-			expect(create).toHaveBeenCalledOnce();
+			expect(create).toHaveBeenCalledExactlyOnceWith(op.desired);
 		});
 	});
 
