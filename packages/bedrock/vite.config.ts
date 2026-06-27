@@ -5,6 +5,12 @@ import { mergeConfig } from "vite-plus";
 export default mergeConfig(sharedConfig, {
 	pack: {
 		entry: ["src/index.ts", "src/cli/run.ts", "src/config.ts"],
+		exports: {
+			...sharedConfig.pack.exports,
+			bin: {
+				bedrock: "./src/cli/run.ts",
+			},
+		},
 	},
 	test: {
 		coverage: {

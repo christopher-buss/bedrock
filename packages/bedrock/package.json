@@ -1,6 +1,6 @@
 {
 	"name": "@bedrock-rbx/core",
-	"version": "0.1.0-beta.20",
+	"version": "0.1.0-beta.21",
 	"description": "Infrastructure-as-Code deployment tool for Roblox",
 	"keywords": [
 		"infrastructure",
@@ -42,7 +42,7 @@
 	},
 	"types": "./dist/index.d.mts",
 	"bin": {
-		"core": "./src/cli/run.ts"
+		"bedrock": "./src/cli/run.ts"
 	},
 	"files": [
 		"dist"
@@ -89,7 +89,7 @@
 			"./package.json": "./package.json"
 		},
 		"bin": {
-			"core": "./dist/cli/run.mjs"
+			"bedrock": "./dist/cli/run.mjs"
 		}
 	},
 	"inlinedDependencies": {
