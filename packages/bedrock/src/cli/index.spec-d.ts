@@ -3,7 +3,7 @@ import { describe, expectTypeOf, it } from "vitest";
 
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { buildStatePort } from "../shell/build-state-port.ts";
-import type { deploy } from "../shell/deploy.ts";
+import type { deploy, provision, publish } from "../shell/deploy.ts";
 import type { loadConfig } from "../shell/load-config.ts";
 import type { migrateMantleState } from "../shell/migrate-mantle-state.ts";
 import type { previewDiff } from "../shell/preview-diff.ts";
@@ -29,6 +29,8 @@ describe("ProgDeps shape", () => {
 			| "previewDiff"
 			| "progress"
 			| "projectRoot"
+			| "provision"
+			| "publish"
 			| "spawner"
 			| "writeFile"
 		>();
@@ -54,6 +56,16 @@ describe("ProgDeps deploy/diff slots", () => {
 		expectTypeOf<NonNullable<ProgDependencies["loadConfig"]>>().toEqualTypeOf<
 			typeof loadConfig
 		>();
+	});
+
+	it("should accept the real provision signature in the provision slot", () => {
+		expectTypeOf<NonNullable<ProgDependencies["provision"]>>().toEqualTypeOf<
+			typeof provision
+		>();
+	});
+
+	it("should accept the real publish signature in the publish slot", () => {
+		expectTypeOf<NonNullable<ProgDependencies["publish"]>>().toEqualTypeOf<typeof publish>();
 	});
 });
 
