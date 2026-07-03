@@ -4,10 +4,7 @@ import { createClackProgressAdapter } from "../../adapters/clack-progress-adapte
 import type { Config } from "../../core/schema.ts";
 import type { ProgressPort } from "../../ports/progress-port.ts";
 import { deploy as defaultDeploy } from "../../shell/deploy.ts";
-import {
-	loadConfig as defaultLoadConfig,
-	type LoadConfigOptions,
-} from "../../shell/load-config.ts";
+import { loadConfig as defaultLoadConfig } from "../../shell/load-config.ts";
 import { buildOverrideInvocation } from "../build-override-invocation.ts";
 import { createClackPort } from "../clack-port.ts";
 import { buildCredentialOverrides } from "../credential-environment-overrides.ts";
@@ -16,7 +13,7 @@ import { discoverOverride as defaultDiscoverOverride } from "../discover-overrid
 import { dispatchOverride } from "../dispatch-override.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps } from "../index.ts";
-import { type CommonOptions, parseCommonOptions } from "../parse-options.ts";
+import { type CommonOptions, loadOptionsFor, parseCommonOptions } from "../parse-options.ts";
 import {
 	type ClackPort,
 	renderDeployError,
@@ -98,10 +95,6 @@ function resolveDeploy(deps: ProgDeps): ResolvedDeploy {
 		projectRoot: deps.projectRoot ?? process.cwd(),
 		spawner: deps.spawner ?? createDefaultSpawner(),
 	};
-}
-
-function loadOptionsFor(parsed: CommonOptions): LoadConfigOptions | undefined {
-	return parsed.configFile === undefined ? undefined : { configFile: parsed.configFile };
 }
 
 function cancelAsFailed(clack: ClackPort): void {

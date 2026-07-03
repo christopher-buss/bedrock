@@ -1,18 +1,15 @@
 import process from "node:process";
 
 import { isCodegenEnabled } from "../../core/codegen.ts";
-import {
-	loadConfig as defaultLoadConfig,
-	type LoadConfigOptions,
-} from "../../shell/load-config.ts";
+import { loadConfig as defaultLoadConfig } from "../../shell/load-config.ts";
 import { buildOverrideInvocation } from "../build-override-invocation.ts";
 import { createClackPort } from "../clack-port.ts";
 import { createDefaultSpawner } from "../default-spawner.ts";
 import { discoverOverride as defaultDiscoverOverride } from "../discover-override.ts";
-import { dispatchOverride } from "../dispatch-override.ts";
+import { dispatchOverride, type SpawnOverrideError } from "../dispatch-override.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps } from "../index.ts";
-import { type CommonOptions, parseCommonOptions } from "../parse-options.ts";
+import { type CommonOptions, loadOptionsFor, parseCommonOptions } from "../parse-options.ts";
 import {
 	type ClackPort,
 	renderDeployError,
@@ -22,11 +19,7 @@ import {
 } from "../render.ts";
 import type { Spawner } from "../spawner.ts";
 
-// A codegen project embeds generated source into its place artifact, so it
-// must supply a build override that produces that artifact. There is no
-// built-in default build, so a missing override is a hard error rather than a
-// silent skip. Kept here rather than in `render.ts` (which is at its
-// max-lines ceiling) because the message is specific to this command.
+// render.ts is at its line ceiling; this message is build-specific.
 const MISSING_BUILD_OVERRIDE_MESSAGE =
 	"codegen is enabled but no .bedrock/build.ts override was found: add one that writes each place's built artifact to its configured file path, or disable codegen";
 
@@ -52,17 +45,18 @@ interface DispatchOverrideInputs {
 /**
  * Build the sade action for `bedrock build`. The returned function parses the
  * raw options via `parseCommonOptions`, discovers a `.bedrock/build.ts`
- * override under the resolved project root, and — when one exists — hands each
+ * override under the resolved project root, and, when one exists, hands each
  * `--env` to the spawner via {@link dispatchOverride}. Producing the place
  * artifact is entirely the override's job; there is no built-in default build.
  * With no override the config decides the outcome: a codegen project owes an
  * artifact it cannot produce, so it is a hard error (`EXIT_ERROR`); a
  * no-codegen project has nothing to produce and exits `EXIT_OK`.
  *
- * The aggregation rule mirrors `deploy`: every env still runs and the exit
- * code is `EXIT_OK` only when every spawn returned a zero exit code. Only
- * failures emit a per-env line; a successful spawn's output comes from the
- * override script's own inherited stdout.
+ * Every env still runs. The exit code is `EXIT_OK` when every spawn returned
+ * zero, otherwise the highest non-zero code any override returned (a launch
+ * failure counts as `EXIT_ERROR`), so a CI job sees the override's own failure
+ * code. Only failures emit a per-env line; a successful spawn's output comes
+ * from the override script's own inherited stdout.
  * @param deps - Dependency overrides; missing slots are default-constructed
  *   from real implementations.
  * @returns An async sade action that returns once `deps.exit` was invoked.
@@ -105,29 +99,29 @@ function discoverBuildOverride(resolved: ResolvedBuild): OverrideDiscovery {
 	}
 }
 
+function overrideExitCode(err: SpawnOverrideError): number {
+	return err.kind === "nonZeroExit" ? err.exitCode : EXIT_ERROR;
+}
+
 async function dispatchOverrideEnvironments(inputs: DispatchOverrideInputs): Promise<number> {
 	const { overridePath, parsed, resolved } = inputs;
-	const failed: Array<string> = [];
+	let worstExit = EXIT_OK;
 	for (const environment of parsed.environments) {
 		const invocation = buildOverrideInvocation({ environment, overridePath, parsed });
 		const result = await dispatchOverride(invocation, resolved.spawner);
 		if (!result.success) {
 			renderOverrideError({ environment, err: result.err }, resolved.clack);
-			failed.push(environment);
+			worstExit = Math.max(worstExit, overrideExitCode(result.err));
 		}
 	}
 
-	if (failed.length > 0) {
+	if (worstExit !== EXIT_OK) {
 		cancelAsFailed(resolved.clack);
-		return EXIT_ERROR;
+		return worstExit;
 	}
 
 	resolved.clack.outro("build succeeded");
 	return EXIT_OK;
-}
-
-function loadOptionsFor(parsed: CommonOptions): LoadConfigOptions | undefined {
-	return parsed.configFile === undefined ? undefined : { configFile: parsed.configFile };
 }
 
 async function reportNoOverride(parsed: CommonOptions, resolved: ResolvedBuild): Promise<number> {

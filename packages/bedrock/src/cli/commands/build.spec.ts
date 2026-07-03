@@ -169,7 +169,7 @@ describe(buildCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should cancel and exit 1 when an override spawn returns a non-zero exit code", async () => {
+	it("should exit with the override's own non-zero exit code, not a generic 1", async () => {
 		expect.assertions(3);
 
 		const { spawner } = recordingSpawner({ data: 3, success: true });
@@ -182,7 +182,7 @@ describe(buildCommand, () => {
 			"production: override exited with code 3",
 		);
 		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("build failed");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(3);
 	});
 
 	it("should log a launch failure via clack and exit 1 when the override spawn cannot start", async () => {
@@ -234,7 +234,34 @@ describe(buildCommand, () => {
 		await buildCommand(deps)({ env: ["production", "staging"] });
 
 		expect(invocations).toHaveLength(2);
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(3);
+	});
+
+	it("should exit with the highest non-zero code when several envs fail with different codes", async () => {
+		expect.assertions(1);
+
+		let callIndex = 0;
+		const results: ReadonlyArray<Result<number, SpawnLaunchError>> = [
+			{ data: 5, success: true },
+			{ data: 2, success: true },
+		];
+		const spawner: Spawner = {
+			async spawn() {
+				const next = results[callIndex];
+				callIndex += 1;
+				if (next === undefined) {
+					throw new Error("spawner invoked beyond scripted results");
+				}
+
+				return next;
+			},
+		};
+		const discoverOverride = discoverReturning("/abs/.bedrock/build.ts");
+		const deps = makeDeps({ discoverOverride, spawner });
+
+		await buildCommand(deps)({ env: ["production", "staging"] });
+
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(5);
 	});
 
 	it("should report nothing to build and exit 0 when no override exists and codegen is off", async () => {
@@ -331,13 +358,12 @@ describe(buildCommand, () => {
 		const exitSpy = vi
 			.spyOn(process, "exit")
 			.mockImplementation((() => {}) as typeof process.exit);
-
-		try {
-			await buildCommand({ clack: fakeClackPort() })({});
-
-			expect(exitSpy).toHaveBeenCalledExactlyOnceWith(1);
-		} finally {
+		onTestFinished(() => {
 			exitSpy.mockRestore();
-		}
+		});
+
+		await buildCommand({ clack: fakeClackPort() })({});
+
+		expect(exitSpy).toHaveBeenCalledExactlyOnceWith(1);
 	});
 });

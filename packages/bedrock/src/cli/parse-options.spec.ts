@@ -1,6 +1,6 @@
 import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
-import { parseCommonOptions } from "./parse-options.ts";
+import { loadOptionsFor, parseCommonOptions } from "./parse-options.ts";
 
 describe(parseCommonOptions, () => {
 	it("should reject when --env is missing", () => {
@@ -196,6 +196,22 @@ describe(parseCommonOptions, () => {
 		assert(result.success);
 
 		expect(result.data.environments).toStrictEqual(["from-env"]);
+	});
+});
+
+describe(loadOptionsFor, () => {
+	it("should forward the configFile as loadConfig options when a --config path was supplied", () => {
+		expect.assertions(1);
+
+		expect(
+			loadOptionsFor({ configFile: "./bedrock.staging.config.ts", environments: ["prod"] }),
+		).toStrictEqual({ configFile: "./bedrock.staging.config.ts" });
+	});
+
+	it("should return undefined so the loader applies discovery when no --config path was supplied", () => {
+		expect.assertions(1);
+
+		expect(loadOptionsFor({ environments: ["prod"] })).toBeUndefined();
 	});
 });
 
