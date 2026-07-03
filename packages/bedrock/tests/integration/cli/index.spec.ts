@@ -150,6 +150,26 @@ describe("cli program factory", () => {
 		}
 	});
 
+	it("should describe the build subcommand and each of its flags in 'build --help' output", () => {
+		expect.assertions(5);
+
+		const prog = createProg();
+
+		const collect = startCapture();
+		try {
+			prog.parse(["node", "bedrock", "build", "--help"]);
+		} finally {
+			const { stdout } = collect();
+			const captured = stdout.join("");
+
+			expect(captured).toContain(".bedrock/build.ts");
+			expect(captured).toContain("Target environment");
+			expect(captured).toContain("Config file path");
+			expect(captured).toContain("BEDROCK_API_KEY");
+			expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
+		}
+	});
+
 	it("should describe the diff subcommand and each of its flags in 'diff --help' output", () => {
 		expect.assertions(5);
 
