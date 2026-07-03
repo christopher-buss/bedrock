@@ -1,10 +1,10 @@
 import { describe, expectTypeOf, it } from "vitest";
 
-import type { GistStateAdapterDeps } from "./gist-state-adapter.ts";
+import type { GistStateAdapterDeps as GistStateAdapterDependencies } from "./gist-state-adapter.ts";
 
 describe("GistStateAdapterDeps", () => {
 	it("should expose sleep as an optional injection seam", () => {
-		expectTypeOf<GistStateAdapterDeps>()
+		expectTypeOf<GistStateAdapterDependencies>()
 			.toHaveProperty("sleep")
 			.toEqualTypeOf<((ms: number) => Promise<void>) | undefined>();
 	});
@@ -13,6 +13,6 @@ describe("GistStateAdapterDeps", () => {
 		expectTypeOf<{
 			readonly gistId: string;
 			readonly token: string;
-		}>().toExtend<GistStateAdapterDeps>();
+		}>().toExtend<GistStateAdapterDependencies>();
 	});
 });

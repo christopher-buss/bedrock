@@ -175,15 +175,15 @@ function toCurrentState(
 }
 
 async function createGamePass(
-	deps: GamePassDriverDeps,
+	dependencies: GamePassDriverDeps,
 	desired: GamePassDesiredState,
 ): Promise<Result<ResourceCurrentState<"gamePass">, OpenCloudError>> {
-	const imageFile = await deps.readFile(desired.icon["en-us"]);
-	const result = await deps.client.create({
+	const imageFile = await dependencies.readFile(desired.icon["en-us"]);
+	const result = await dependencies.client.create({
 		name: desired.name,
 		description: desired.description,
 		imageFile,
-		universeId: deps.universeId,
+		universeId: dependencies.universeId,
 		...(desired.price !== undefined ? { price: desired.price } : {}),
 	});
 	if (!result.success) {
@@ -194,7 +194,7 @@ async function createGamePass(
 }
 
 async function resolveUpdatedState(
-	deps: GamePassDriverDeps,
+	dependencies: GamePassDriverDeps,
 	context: {
 		readonly current: ResourceCurrentState<"gamePass">;
 		readonly desired: GamePassDesiredState;
@@ -206,9 +206,9 @@ async function resolveUpdatedState(
 		return { data: { ...desired, outputs: current.outputs }, success: true };
 	}
 
-	const fetched = await deps.client.get({
+	const fetched = await dependencies.client.get({
 		gamePassId: current.outputs.assetId,
-		universeId: deps.universeId,
+		universeId: dependencies.universeId,
 	});
 	if (!fetched.success) {
 		return fetched;
@@ -218,7 +218,7 @@ async function resolveUpdatedState(
 }
 
 async function updateGamePass(
-	deps: GamePassDriverDeps,
+	dependencies: GamePassDriverDeps,
 	states: {
 		readonly current: ResourceCurrentState<"gamePass">;
 		readonly desired: GamePassDesiredState;
@@ -226,13 +226,15 @@ async function updateGamePass(
 ): Promise<Result<ResourceCurrentState<"gamePass">, OpenCloudError>> {
 	const { current, desired } = states;
 	const hasIconChanged = shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes);
-	const imageFile = hasIconChanged ? await deps.readFile(desired.icon["en-us"]) : undefined;
+	const imageFile = hasIconChanged
+		? await dependencies.readFile(desired.icon["en-us"])
+		: undefined;
 
-	const result = await deps.client.update({
+	const result = await dependencies.client.update({
 		name: desired.name,
 		description: desired.description,
 		gamePassId: current.outputs.assetId,
-		universeId: deps.universeId,
+		universeId: dependencies.universeId,
 		...derivePriceFields(desired),
 		...(imageFile !== undefined ? { imageFile } : {}),
 	});
@@ -240,5 +242,5 @@ async function updateGamePass(
 		return result;
 	}
 
-	return resolveUpdatedState(deps, { current, desired, hasIconChanged });
+	return resolveUpdatedState(dependencies, { current, desired, hasIconChanged });
 }

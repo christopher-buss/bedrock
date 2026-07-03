@@ -119,7 +119,7 @@ const SRC_SEGMENT = /(?:^|\/)src\//;
  */
 export function filterMutableFiles(files: ReadonlyArray<FileChange>): Array<FileChange> {
 	return files.filter((file) => {
-		if (!MUTABLE_SUFFIXES.some((suffix) => file.path.endsWith(suffix))) {
+		if (MUTABLE_SUFFIXES.every((suffix) => !file.path.endsWith(suffix))) {
 			return false;
 		}
 
@@ -179,15 +179,15 @@ export function findPackagesWithChangedSpecs(
 
 	for (const file of files) {
 		const filePath = normalizePath(file.path);
-		if (!RUNTIME_SPEC_SUFFIXES.some((suffix) => filePath.endsWith(suffix))) {
+		if (RUNTIME_SPEC_SUFFIXES.every((suffix) => !filePath.endsWith(suffix))) {
 			continue;
 		}
 
-		for (const packageDirectory of normalizedPackageDirectories) {
-			if (filePath.startsWith(`${packageDirectory}/`)) {
-				packagesWithChangedSpecs.add(packageDirectory);
-				break;
-			}
+		const packageDirectory = normalizedPackageDirectories.find((directory) => {
+			return filePath.startsWith(`${directory}/`);
+		});
+		if (packageDirectory !== undefined) {
+			packagesWithChangedSpecs.add(packageDirectory);
 		}
 	}
 

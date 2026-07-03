@@ -20,9 +20,8 @@ function publicSymbols(): Array<{
 	const symbols: Array<{ declarationFile: string; name: string; sinceTag: string | undefined }> =
 		[];
 	for (const barrel of barrelSourcePaths(manifest, PACKAGE_ROOT)) {
-		for (const symbol of collectPublicApiSymbols(barrel, (file) =>
-			readFileSync(file, "utf8"),
-		)) {
+		const barrelSymbols = collectPublicApiSymbols(barrel, (file) => readFileSync(file, "utf8"));
+		for (const symbol of barrelSymbols) {
 			const key = `${symbol.declarationFile}#${symbol.name}`;
 			if (!seen.has(key)) {
 				seen.add(key);

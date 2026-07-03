@@ -60,9 +60,7 @@ jobs:
         name: Reset drift branch ref to base
         run: git push --force origin "HEAD:refs/heads/$DRIFT_BRANCH"
 
-      - env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        if: steps.diff.outputs.changed == 'true'
+      - if: steps.diff.outputs.changed == 'true'
         name: Commit refreshed spec via API
         uses: planetscale/ghcommit-action@25309d8005ac7c3bcd61d3fe19b69e0fe47dbdde # v0.2.20
         with:
@@ -70,6 +68,8 @@ jobs:
           commit_message: ${{ env.DRIFT_TITLE }}
           file_pattern: packages/open-cloud/vendor
           repo: ${{ github.repository }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - if: steps.diff.outputs.changed == 'true'
         name: Open drift PR if missing
@@ -128,8 +128,8 @@ jobs:
       # Non-fatal: if the repo does not have auto-merge enabled or
       # branch protection requires a check ci.yaml does not produce,
       # the PR still stands open for a human merge.
-      - continue-on-error: true
-        if: steps.diff.outputs.changed == 'true'
+      - if: steps.diff.outputs.changed == 'true'
         name: Enable auto-merge on the drift PR
         run: gh pr merge "$DRIFT_BRANCH" --auto --squash
+        continue-on-error: true
     timeout-minutes: 15

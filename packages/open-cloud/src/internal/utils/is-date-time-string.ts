@@ -13,5 +13,6 @@ export function isDateTimeString(value: unknown): value is string {
 		return false;
 	}
 
-	return !Number.isNaN(new Date(value).getTime());
+	const parsed = new Date(value);
+	return !Number.isNaN(parsed.getTime());
 }

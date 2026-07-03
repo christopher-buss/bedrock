@@ -45,7 +45,7 @@ function defaultPlaceFile(key: string): MantleResource {
 	});
 }
 
-function placeConfiguration(key: string, inputs: unknown): MantleResource {
+function placeConfig(key: string, inputs: unknown): MantleResource {
 	return {
 		key,
 		dependencies: [],
@@ -295,7 +295,7 @@ describe(foldPlaces, () => {
 			const result = foldPlaces([
 				place({ key: "start", outputs: { assetId: 17613681043 } }),
 				defaultPlaceFile("start"),
-				placeConfiguration("start", { description: "A project template" }),
+				placeConfig("start", { description: "A project template" }),
 			]);
 
 			const entry = result.entries.get("start");
@@ -310,7 +310,7 @@ describe(foldPlaces, () => {
 			const result = foldPlaces([
 				place({ key: "start", outputs: { assetId: 17613681043 } }),
 				defaultPlaceFile("start"),
-				placeConfiguration("start", { description: "A project template" }),
+				placeConfig("start", { description: "A project template" }),
 			]);
 
 			expect(result.warnings).toStrictEqual([
@@ -329,7 +329,7 @@ describe(foldPlaces, () => {
 			const result = foldPlaces([
 				place({ key: "start", outputs: { assetId: 17613681043 } }),
 				defaultPlaceFile("start"),
-				placeConfiguration("start", { description: 42 }),
+				placeConfig("start", { description: 42 }),
 			]);
 
 			const entry = result.entries.get("start");
@@ -342,7 +342,7 @@ describe(foldPlaces, () => {
 		it("should emit an ambiguous warning when a placeConfiguration has no matching place or placeFile", () => {
 			expect.assertions(4);
 
-			const result = foldPlaces([placeConfiguration("orphan", { description: "Stranded" })]);
+			const result = foldPlaces([placeConfig("orphan", { description: "Stranded" })]);
 
 			expect(result.entries.size).toBe(0);
 			expect(result.warnings).toHaveLength(1);
@@ -359,7 +359,7 @@ describe(foldPlaces, () => {
 
 			const result = foldPlaces([
 				place({ key: "lonely", outputs: { assetId: 17613681043 } }),
-				placeConfiguration("lonely", { description: "Stranded" }),
+				placeConfig("lonely", { description: "Stranded" }),
 			]);
 
 			expect(result.entries.size).toBe(0);
@@ -374,7 +374,7 @@ describe(foldPlaces, () => {
 
 			const result = foldPlaces([
 				defaultPlaceFile("lonely"),
-				placeConfiguration("lonely", { description: "Stranded" }),
+				placeConfig("lonely", { description: "Stranded" }),
 			]);
 
 			expect(result.entries.size).toBe(0);
@@ -392,7 +392,7 @@ describe(foldPlaces, () => {
 			const result = foldPlaces([
 				place({ key: "start", outputs: { assetId: 17613681043 } }),
 				defaultPlaceFile("start"),
-				placeConfiguration("start", { maxPlayerCount: 700 }),
+				placeConfig("start", { maxPlayerCount: 700 }),
 			]);
 
 			const entry = result.entries.get("start");
@@ -407,7 +407,7 @@ describe(foldPlaces, () => {
 			const result = foldPlaces([
 				place({ key: "start", outputs: { assetId: 17613681043 } }),
 				defaultPlaceFile("start"),
-				placeConfiguration("start", { maxPlayerCount: 700 }),
+				placeConfig("start", { maxPlayerCount: 700 }),
 			]);
 
 			expect(result.warnings).toStrictEqual([
@@ -431,7 +431,7 @@ describe(foldPlaces, () => {
 			const result = foldPlaces([
 				place({ key: "start", outputs: { assetId: 17613681043 } }),
 				defaultPlaceFile("start"),
-				placeConfiguration("start", { maxPlayerCount: value }),
+				placeConfig("start", { maxPlayerCount: value }),
 			]);
 
 			const entry = result.entries.get("start");
@@ -451,7 +451,7 @@ describe(foldPlaces, () => {
 				place({ key: "lobby", inputs: { isStart: false }, outputs: { assetId: 2 } }),
 				defaultPlaceFile("start"),
 				defaultPlaceFile("lobby"),
-				placeConfiguration("lobby", { name: "Lobby" }),
+				placeConfig("lobby", { name: "Lobby" }),
 			]);
 
 			const entry = result.entries.get("lobby");
@@ -468,7 +468,7 @@ describe(foldPlaces, () => {
 				place({ key: "lobby", inputs: { isStart: false }, outputs: { assetId: 2 } }),
 				defaultPlaceFile("start"),
 				defaultPlaceFile("lobby"),
-				placeConfiguration("lobby", { name: "Lobby" }),
+				placeConfig("lobby", { name: "Lobby" }),
 			]);
 
 			expect(result.warnings).toIncludeAllPartialMembers([
@@ -487,7 +487,7 @@ describe(foldPlaces, () => {
 			const result = foldPlaces([
 				place({ key: "start", inputs: { isStart: true }, outputs: { assetId: 1 } }),
 				defaultPlaceFile("start"),
-				placeConfiguration("start", { name: "Start" }),
+				placeConfig("start", { name: "Start" }),
 			]);
 
 			const entry = result.entries.get("start");
@@ -502,7 +502,7 @@ describe(foldPlaces, () => {
 			const result = foldPlaces([
 				place({ key: "lobby", inputs: { isStart: false }, outputs: { assetId: 2 } }),
 				defaultPlaceFile("lobby"),
-				placeConfiguration("lobby", { name: 42 }),
+				placeConfig("lobby", { name: 42 }),
 			]);
 
 			const entry = result.entries.get("lobby");
@@ -518,7 +518,7 @@ describe(foldPlaces, () => {
 			const result = foldPlaces([
 				place({ key: "lobby", inputs: "not-an-object", outputs: { assetId: 2 } }),
 				defaultPlaceFile("lobby"),
-				placeConfiguration("lobby", { name: "Lobby" }),
+				placeConfig("lobby", { name: "Lobby" }),
 			]);
 
 			const entry = result.entries.get("lobby");
@@ -554,7 +554,7 @@ describe(foldPlaces, () => {
 			const result = foldPlaces([
 				place({ key: "start", outputs: { assetId: 17613681043 } }),
 				defaultPlaceFile("start"),
-				placeConfiguration("start", { [field]: value }),
+				placeConfig("start", { [field]: value }),
 			]);
 
 			expect(result.warnings).toStrictEqual([
@@ -572,7 +572,7 @@ describe(foldPlaces, () => {
 			const result = foldPlaces([
 				place({ key: "start", outputs: { assetId: 17613681043 } }),
 				defaultPlaceFile("start"),
-				placeConfiguration("start", {
+				placeConfig("start", {
 					allowCopying: undefined,
 					description: undefined,
 				}),
@@ -589,11 +589,11 @@ describe(foldPlaces, () => {
 				defaultPlaceFile("start"),
 				place({ key: "lobby", outputs: { assetId: 17613681044 } }),
 				defaultPlaceFile("lobby"),
-				placeConfiguration("start", {
+				placeConfig("start", {
 					allowCopying: true,
 					customSocialSlotsCount: 4,
 				}),
-				placeConfiguration("lobby", { socialSlotType: "Empty" }),
+				placeConfig("lobby", { socialSlotType: "Empty" }),
 			]);
 
 			expect(result.warnings).toIncludeAllPartialMembers([
@@ -620,7 +620,7 @@ describe(foldPlaces, () => {
 			const result = foldPlaces([
 				place({ key: "start", outputs: { assetId: 17613681043 } }),
 				defaultPlaceFile("start"),
-				placeConfiguration("start", "not-an-object"),
+				placeConfig("start", "not-an-object"),
 			]);
 
 			expect(result.warnings).toStrictEqual([]);
@@ -632,7 +632,7 @@ describe(foldPlaces, () => {
 			const result = foldPlaces([
 				place({ key: "start", outputs: { assetId: 17613681043 } }),
 				defaultPlaceFile("start"),
-				placeConfiguration("start", { name: "My Place" }),
+				placeConfig("start", { name: "My Place" }),
 			]);
 
 			expect(

@@ -1,23 +1,23 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import { fakeClackPort } from "#tests/helpers/clack";
 import process from "node:process";
 import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
+import { fakeClackPort } from "#tests/helpers/clack";
 import type { Operation } from "../../core/operations.ts";
 import type { RedactionAnnotation } from "../../core/redact-resources.ts";
 import type { Config } from "../../core/schema.ts";
 import type { DiffPreview, PreviewDiffError } from "../../shell/preview-diff.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
-import type { ProgDeps } from "../index.ts";
+import type { ProgDeps as ProgDependencies } from "../index.ts";
 import { diffCommand } from "./diff.ts";
 
-type LoadConfigFunc = NonNullable<ProgDeps["loadConfig"]>;
+type LoadConfigFunc = NonNullable<ProgDependencies["loadConfig"]>;
 type LoadConfigResult = Awaited<ReturnType<LoadConfigFunc>>;
-type PreviewDiffFunc = NonNullable<ProgDeps["previewDiff"]>;
-type ExitFunc = NonNullable<ProgDeps["exit"]>;
+type PreviewDiffFunc = NonNullable<ProgDependencies["previewDiff"]>;
+type ExitFunc = NonNullable<ProgDependencies["exit"]>;
 
-function makeDeps(overrides: Partial<ProgDeps> = {}): ProgDeps {
+function makeDependencies(overrides: Partial<ProgDependencies> = {}): ProgDependencies {
 	return {
 		clack: fakeClackPort(),
 		exit: vi.fn<ExitFunc>(),
@@ -142,14 +142,14 @@ describe(diffCommand, () => {
 		});
 		vi.stubEnv("BEDROCK_ENVIRONMENT", undefined);
 
-		const deps = makeDeps();
+		const dependencies = makeDependencies();
 
-		await diffCommand(deps)(rawOptions);
+		await diffCommand(dependencies)(rawOptions);
 
-		expect(deps.clack?.intro).toHaveBeenCalledExactlyOnceWith("bedrock diff");
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.clack?.intro).toHaveBeenCalledExactlyOnceWith("bedrock diff");
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should render configLoadFailed and exit 1 when loadConfig returns Err", async () => {
@@ -159,13 +159,16 @@ describe(diffCommand, () => {
 			err: { kind: "fileNotFound", searchedFrom: "/tmp/project" },
 			success: false,
 		});
-		const deps = makeDeps({ loadConfig, previewDiff: vi.fn<PreviewDiffFunc>() });
+		const dependencies = makeDependencies({
+			loadConfig,
+			previewDiff: vi.fn<PreviewDiffFunc>(),
+		});
 
-		await diffCommand(deps)({ env: "production" });
+		await diffCommand(dependencies)({ env: "production" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should forward parsed configFile to loadConfig", async () => {
@@ -173,9 +176,12 @@ describe(diffCommand, () => {
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
-		const deps = makeDeps({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
 
-		await diffCommand(deps)({ config: "./bedrock.staging.config.ts", env: "production" });
+		await diffCommand(dependencies)({
+			config: "./bedrock.staging.config.ts",
+			env: "production",
+		});
 
 		expect(loadConfig).toHaveBeenCalledExactlyOnceWith({
 			configFile: "./bedrock.staging.config.ts",
@@ -187,9 +193,9 @@ describe(diffCommand, () => {
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
-		const deps = makeDeps({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
 
-		await diffCommand(deps)({ env: "production" });
+		await diffCommand(dependencies)({ env: "production" });
 
 		expect(loadConfig).toHaveBeenCalledExactlyOnceWith(undefined);
 	});
@@ -201,16 +207,18 @@ describe(diffCommand, () => {
 		const previewDiff = fakePreview([
 			preview({ environment: "production", ops: [noopOp("vip-pass")] }),
 		]);
-		const deps = makeDeps({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
 
-		await diffCommand(deps)({ env: "production" });
+		await diffCommand(dependencies)({ env: "production" });
 
-		expect(deps.clack?.logSuccess).toHaveBeenCalledExactlyOnceWith('No drift for "production"');
-		expect(deps.clack?.logMessage).not.toHaveBeenCalled();
-		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.logSuccess).toHaveBeenCalledExactlyOnceWith(
+			'No drift for "production"',
+		);
+		expect(dependencies.clack?.logMessage).not.toHaveBeenCalled();
+		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
 			"all environments are up to date",
 		);
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
 	it("should annotate redacted noops after the no-drift line and keep the up-to-date outro", async () => {
@@ -235,11 +243,11 @@ describe(diffCommand, () => {
 				],
 			}),
 		]);
-		const deps = makeDeps({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
 
-		await diffCommand(deps)({ env: "production" });
+		await diffCommand(dependencies)({ env: "production" });
 
-		expect(vi.mocked(deps.clack!.logMessage).mock.calls).toMatchInlineSnapshot(`
+		expect(vi.mocked(dependencies.clack!.logMessage).mock.calls).toMatchInlineSnapshot(`
 		  [
 		    [
 		      "Redacted in "production":",
@@ -252,7 +260,7 @@ describe(diffCommand, () => {
 		    ],
 		  ]
 		`);
-		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
 			"all environments are up to date",
 		);
 	});
@@ -271,23 +279,23 @@ describe(diffCommand, () => {
 				],
 			}),
 		]);
-		const deps = makeDeps({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
 
-		await diffCommand(deps)({ env: "production" });
+		await diffCommand(dependencies)({ env: "production" });
 
-		expect(deps.clack?.logMessage).toHaveBeenNthCalledWith(
+		expect(dependencies.clack?.logMessage).toHaveBeenNthCalledWith(
 			1,
 			'Pending changes for "production":',
 		);
-		expect(deps.clack?.logMessage).toHaveBeenNthCalledWith(2, "+ gamePass:vip-pass");
-		expect(deps.clack?.logMessage).toHaveBeenNthCalledWith(
+		expect(dependencies.clack?.logMessage).toHaveBeenNthCalledWith(2, "+ gamePass:vip-pass");
+		expect(dependencies.clack?.logMessage).toHaveBeenNthCalledWith(
 			3,
 			"~ place:start-place fileHash updated",
 		);
-		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
 			"run bedrock deploy to apply pending changes",
 		);
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
 	it("should join multiple changed fields with ' + ' for an update op", async () => {
@@ -300,11 +308,11 @@ describe(diffCommand, () => {
 				ops: [multiFieldUpdatePlaceOp("start-place")],
 			}),
 		]);
-		const deps = makeDeps({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
 
-		await diffCommand(deps)({ env: "production" });
+		await diffCommand(dependencies)({ env: "production" });
 
-		expect(deps.clack?.logMessage).toHaveBeenNthCalledWith(
+		expect(dependencies.clack?.logMessage).toHaveBeenNthCalledWith(
 			2,
 			"~ place:start-place displayName + description updated",
 		);
@@ -336,11 +344,11 @@ describe(diffCommand, () => {
 				],
 			}),
 		]);
-		const deps = makeDeps({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
 
-		await diffCommand(deps)({ env: "production" });
+		await diffCommand(dependencies)({ env: "production" });
 
-		expect(vi.mocked(deps.clack!.logMessage).mock.calls).toMatchInlineSnapshot(`
+		expect(vi.mocked(dependencies.clack!.logMessage).mock.calls).toMatchInlineSnapshot(`
 		  [
 		    [
 		      "Pending changes for "production":",
@@ -359,7 +367,7 @@ describe(diffCommand, () => {
 		    ],
 		  ]
 		`);
-		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
 			"run bedrock deploy to apply pending changes",
 		);
 	});
@@ -381,11 +389,11 @@ describe(diffCommand, () => {
 				],
 			}),
 		]);
-		const deps = makeDeps({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
 
-		await diffCommand(deps)({ env: "production" });
+		await diffCommand(dependencies)({ env: "production" });
 
-		expect(vi.mocked(deps.clack!.logMessage).mock.calls).toMatchInlineSnapshot(`
+		expect(vi.mocked(dependencies.clack!.logMessage).mock.calls).toMatchInlineSnapshot(`
 		  [
 		    [
 		      "Pending changes for "production":",
@@ -395,7 +403,7 @@ describe(diffCommand, () => {
 		    ],
 		  ]
 		`);
-		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
 			"run bedrock deploy to apply pending changes",
 		);
 	});
@@ -414,13 +422,13 @@ describe(diffCommand, () => {
 				success: false,
 			},
 		]);
-		const deps = makeDeps({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
 
-		await diffCommand(deps)({ env: "ghost" });
+		await diffCommand(dependencies)({ env: "ghost" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should call previewDiff once per --env and outro up-to-date when no env has drift", async () => {
@@ -431,15 +439,15 @@ describe(diffCommand, () => {
 			preview({ environment: "production", ops: [] }),
 			preview({ environment: "staging", ops: [] }),
 		]);
-		const deps = makeDeps({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
 
-		await diffCommand(deps)({ env: ["production", "staging"] });
+		await diffCommand(dependencies)({ env: ["production", "staging"] });
 
 		expect(previewDiff).toHaveBeenCalledTimes(2);
-		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
 			"all environments are up to date",
 		);
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
 	it("should outro suggesting deploy when at least one env has drift across multiple envs", async () => {
@@ -450,14 +458,14 @@ describe(diffCommand, () => {
 			preview({ environment: "production", ops: [noopOp("vip-pass")] }),
 			preview({ environment: "staging", ops: [createGamePassOp("beta-pass")] }),
 		]);
-		const deps = makeDeps({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
 
-		await diffCommand(deps)({ env: ["production", "staging"] });
+		await diffCommand(dependencies)({ env: ["production", "staging"] });
 
-		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
 			"run bedrock deploy to apply pending changes",
 		);
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
 	it("should keep the up-to-date outro when only redacted noops appear across envs even though one env declares them", async () => {
@@ -478,14 +486,14 @@ describe(diffCommand, () => {
 				],
 			}),
 		]);
-		const deps = makeDeps({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
 
-		await diffCommand(deps)({ env: ["production", "staging"] });
+		await diffCommand(dependencies)({ env: ["production", "staging"] });
 
-		expect(deps.clack?.logMessage).toHaveBeenCalledWith(
+		expect(dependencies.clack?.logMessage).toHaveBeenCalledWith(
 			"- gamePass:vip-pass (redacted, real values not pushed)",
 		);
-		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
 			"all environments are up to date",
 		);
 	});
@@ -501,14 +509,16 @@ describe(diffCommand, () => {
 			},
 			preview({ environment: "staging", ops: [noopOp("vip-pass")] }),
 		]);
-		const deps = makeDeps({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
 
-		await diffCommand(deps)({ env: ["production", "staging"] });
+		await diffCommand(dependencies)({ env: ["production", "staging"] });
 
 		expect(previewDiff).toHaveBeenCalledTimes(2);
-		expect(deps.clack?.logSuccess).toHaveBeenCalledExactlyOnceWith('No drift for "staging"');
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.clack?.logSuccess).toHaveBeenCalledExactlyOnceWith(
+			'No drift for "staging"',
+		);
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should thread --api-key and --github-token through getEnv into previewDiff", async () => {
@@ -519,9 +529,9 @@ describe(diffCommand, () => {
 		try {
 			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
 			const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
-			const deps = makeDeps({ loadConfig, previewDiff });
+			const dependencies = makeDependencies({ loadConfig, previewDiff });
 
-			await diffCommand(deps)({
+			await diffCommand(dependencies)({
 				"api-key": "BEDROCK_OVERRIDE",
 				"env": "production",
 				"github-token": "GH_OVERRIDE",
@@ -553,9 +563,9 @@ describe(diffCommand, () => {
 		try {
 			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
 			const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
-			const deps = makeDeps({ loadConfig, previewDiff });
+			const dependencies = makeDependencies({ loadConfig, previewDiff });
 
-			await diffCommand(deps)({ "api-key": "FLAG_BEDROCK", "env": "production" });
+			await diffCommand(dependencies)({ "api-key": "FLAG_BEDROCK", "env": "production" });
 
 			const firstCall = vi.mocked(previewDiff).mock.calls[0];
 			assert(firstCall !== undefined);
@@ -579,9 +589,9 @@ describe(diffCommand, () => {
 		try {
 			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
 			const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
-			const deps = makeDeps({ loadConfig, previewDiff });
+			const dependencies = makeDependencies({ loadConfig, previewDiff });
 
-			await diffCommand(deps)({ env: "production" });
+			await diffCommand(dependencies)({ env: "production" });
 
 			const firstCall = vi.mocked(previewDiff).mock.calls[0];
 			assert(firstCall !== undefined);
@@ -605,14 +615,14 @@ describe(diffCommand, () => {
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
-		const deps = makeDeps({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
 
-		await diffCommand(deps)({});
+		await diffCommand(dependencies)({});
 
 		expect(previewDiff).toHaveBeenCalledExactlyOnceWith(
 			expect.objectContaining({ config: sampleConfig, environment: "production" }),
 		);
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
 	it("should default to process.exit when no exit slot is provided", async () => {

@@ -1,5 +1,6 @@
-import type { ClackPort } from "#src/cli/render";
 import { vi } from "vitest";
+
+import type { ClackPort } from "#src/cli/render";
 
 /**
  * Build a `ClackPort` whose six methods are independent `vi.fn()` spies. Used

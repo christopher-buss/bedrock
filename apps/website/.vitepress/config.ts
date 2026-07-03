@@ -90,10 +90,12 @@ function toNavigationItem(value: JSONValue): NavigationItem | undefined {
 	}
 
 	return {
-		...(Array.isArray(children) && {
-			children: children.flatMap((child) => toNavigationItem(child) ?? []),
-		}),
-		...(typeof path === "string" && { path }),
+		...(Array.isArray(children)
+			? {
+					children: children.flatMap((child) => toNavigationItem(child) ?? []),
+				}
+			: {}),
+		...(typeof path === "string" ? { path } : {}),
 		title,
 	};
 }

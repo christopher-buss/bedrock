@@ -1,6 +1,6 @@
-import { gamePassCurrent, placeCurrent, placeDesired } from "#tests/helpers/resources";
 import { describe, expect, it } from "vitest";
 
+import { gamePassCurrent, placeCurrent, placeDesired } from "#tests/helpers/resources";
 import { asResourceKey } from "../types/ids.ts";
 import { buildRepublishOps } from "./build-republish-ops.ts";
 

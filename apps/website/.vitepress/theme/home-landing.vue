@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from "vue";
-import { useData } from "vitepress";
-
 import { version as bedrockVersion } from "@bedrock-rbx/core/package.json";
+
+import { useData } from "vitepress";
+import { onBeforeUnmount, ref } from "vue";
 
 import configHtml from "../../landing/examples/config.ts?highlighted";
 import deployHtml from "../../landing/examples/deploy.ts?highlighted";

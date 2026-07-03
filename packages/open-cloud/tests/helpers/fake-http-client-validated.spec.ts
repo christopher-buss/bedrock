@@ -1,6 +1,6 @@
-import type { HttpRequest, RequestConfig } from "#src/internal/http/types";
 import { assert, describe, expect, it } from "vitest";
 
+import type { HttpRequest, RequestConfig } from "#src/internal/http/types";
 import { createFakeHttpClient, FakeHttpClientContractError } from "./fake-http-client-validated.ts";
 import { validGamePassBody } from "./game-passes.ts";
 

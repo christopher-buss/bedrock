@@ -1,42 +1,72 @@
 # ADR-013 hk Git Hooks Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use
+> `superpowers:subagent-driven-development` (recommended) or
+> `superpowers:executing-plans` to implement this plan task-by-task. Steps use
+> checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace `simple-git-hooks` + `lint-staged` with **hk**, wiring a differentiated gate that runs comprehensive checks (typecheck + test + build) at pre-commit time for AI-generated commits and at pre-push time for humans.
+**Goal:** Replace `simple-git-hooks` + `lint-staged` with **hk**, wiring a
+differentiated gate that runs comprehensive checks (typecheck + test + build) at
+pre-commit time for AI-generated commits and at pre-push time for humans.
 
-**Architecture:** hk is installed via mise (same ecosystem as existing Bun/Node). Config lives in `hk.pkl` (Pkl format). Agent detection uses `std-env`'s `isAgent` export, called from a small Bun script (`scripts/is-agent.ts`). Heavy gate steps are conditioned on that script's output. Lint continues to run on every commit; everything else is differentiated.
+**Architecture:** hk is installed via mise (same ecosystem as existing
+Bun/Node). Config lives in `hk.pkl` (Pkl format). Agent detection uses
+`std-env`'s `isAgent` export, called from a small Bun script
+(`scripts/is-agent.ts`). Heavy gate steps are conditioned on that script's
+output. Lint continues to run on every commit; everything else is
+differentiated.
 
-**Tech Stack:** hk (via mise), Pkl (config), `std-env` (agent detection), `@commitlint/cli` + `@commitlint/config-conventional`, Turborepo 2.1+ `--affected` flag, Bun runtime.
+**Tech Stack:** hk (via mise), Pkl (config), `std-env` (agent detection),
+`@commitlint/cli` + `@commitlint/config-conventional`, Turborepo 2.1+
+`--affected` flag, Bun runtime.
 
 ---
 
 ## Prerequisites
 
-ADR-013 is **Accepted** (as of 2026-04-13). Implementation may begin. The ADR's Pkl example already uses `bun scripts/is-agent.ts`, matching what this plan implements.
+ADR-013 is **Accepted** (as of 2026-04-13). Implementation may begin. The ADR's
+Pkl example already uses `bun scripts/is-agent.ts`, matching what this plan
+implements.
 
-**Execution location:** Prefer a dedicated git worktree off `main` for this work (see `superpowers:using-git-worktrees`). The task is self-contained and non-trivial; isolating it from any in-flight feature work avoids cross-contamination of the hook configuration. If the plan is being executed inline on `docs/adr-013-hk-git-hooks` (the current branch), that is also acceptable — but if the worktree approach is used, create it from `main`, not from this branch.
+**Execution location:** Prefer a dedicated git worktree off `main` for this work
+(see `superpowers:using-git-worktrees`). The task is self-contained and
+non-trivial; isolating it from any in-flight feature work avoids
+cross-contamination of the hook configuration. If the plan is being executed
+inline on `docs/adr-013-hk-git-hooks` (the current branch), that is also
+acceptable — but if the worktree approach is used, create it from `main`, not
+from this branch.
 
-**Verification-at-implementation-time items** (things to confirm against current hk docs before assuming the plan text is correct):
+**Verification-at-implementation-time items** (things to confirm against current
+hk docs before assuming the plan text is correct):
 
-1. **hk install command.** The plan uses `hk install` as the hook-registration command. Confirm this is the current command against <https://hk.jdx.dev/> before running it. If the command has changed, update the plan and proceed.
-2. **hk schema URL version.** The plan pins hk at `v1.38.0` (matching the schema URL in the Pkl import). Confirm a compatible current release exists before writing `hk.pkl`; if a newer minor/patch is available and the schema is backward-compatible, pin to the latest. If a major version bumped the schema, pause and re-validate the config shape.
-3. **Turborepo `--affected` base ref.** Turbo 2.1+ infers the base ref automatically for `--affected`. Confirm this works with bedrock's `turbo.json` without explicit `globalDependencies` changes. If it fails, add `--filter=[main]` as a fallback to the `:affected` scripts.
+1. **hk install command.** The plan uses `hk install` as the hook-registration
+   command. Confirm this is the current command against <https://hk.jdx.dev/>
+   before running it. If the command has changed, update the plan and proceed.
+2. **hk schema URL version.** The plan pins hk at `v1.38.0` (matching the schema
+   URL in the Pkl import). Confirm a compatible current release exists before
+   writing `hk.pkl`; if a newer minor/patch is available and the schema is
+   backward-compatible, pin to the latest. If a major version bumped the schema,
+   pause and re-validate the config shape.
+3. **Turborepo `--affected` base ref.** Turbo 2.1+ infers the base ref
+   automatically for `--affected`. Confirm this works with bedrock's
+   `turbo.json` without explicit `globalDependencies` changes. If it fails, add
+   `--filter=[main]` as a fallback to the `:affected` scripts.
 
 ---
 
 ## Summary of Changes
 
-| Area                 | Current                                               | Target                                                                     |
-| -------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------- |
-| Hook manager         | `simple-git-hooks` + `lint-staged`                    | `hk` (via mise)                                                            |
-| Hook config          | `"simple-git-hooks"` field in `package.json`          | `hk.pkl` at repo root                                                      |
-| Pre-commit (human)   | `pnpm i ... && npx lint-staged` (ESLint only)         | Guards + ESLint on staged files                                            |
-| Pre-commit (AI)      | Same as human                                         | Guards + ESLint + typecheck + test + build (all `:affected`)               |
-| Pre-push             | Nothing                                               | typecheck + test + build (unconditional)                                   |
-| Commit message       | Advisory Conventional Commits                         | Enforced via `commit-msg` hook calling `commitlint`                        |
-| Post-merge           | Nothing                                               | Auto-runs `pnpm install` on lockfile change, `mise install` on mise.toml change |
-| CI                   | Individual `lint → typecheck → build → test` steps  | Single `hk check` invocation                                               |
-| `:affected` scripts  | None                                                  | `typecheck:affected`, `test:affected`, `build:affected`                    |
+| Area                | Current                                            | Target                                                                          |
+| ------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Hook manager        | `simple-git-hooks` + `lint-staged`                 | `hk` (via mise)                                                                 |
+| Hook config         | `"simple-git-hooks"` field in `package.json`       | `hk.pkl` at repo root                                                           |
+| Pre-commit (human)  | `pnpm i ... && npx lint-staged` (ESLint only)      | Guards + ESLint on staged files                                                 |
+| Pre-commit (AI)     | Same as human                                      | Guards + ESLint + typecheck + test + build (all `:affected`)                    |
+| Pre-push            | Nothing                                            | typecheck + test + build (unconditional)                                        |
+| Commit message      | Advisory Conventional Commits                      | Enforced via `commit-msg` hook calling `commitlint`                             |
+| Post-merge          | Nothing                                            | Auto-runs `pnpm install` on lockfile change, `mise install` on mise.toml change |
+| CI                  | Individual `lint → typecheck → build → test` steps | Single `hk check` invocation                                                    |
+| `:affected` scripts | None                                               | `typecheck:affected`, `test:affected`, `build:affected`                         |
 
 ---
 
@@ -45,26 +75,38 @@ ADR-013 is **Accepted** (as of 2026-04-13). Implementation may begin. The ADR's 
 **New files:**
 
 - `hk.pkl` — hk configuration (Pkl format)
-- `scripts/is-agent.ts` — prints `"true"` or `"false"` based on `std-env`'s `isAgent`
-- `commitlint.config.ts` — commitlint configuration extending conventional config
+- `scripts/is-agent.ts` — prints `"true"` or `"false"` based on `std-env`'s
+  `isAgent`
+- `commitlint.config.ts` — commitlint configuration extending conventional
+  config
 
 **Modified files:**
 
-- `package.json` — add `:affected` scripts; remove `simple-git-hooks` / `lint-staged` fields and devDependencies; add `std-env`, `@commitlint/cli`, `@commitlint/config-conventional` devDependencies
-- `pnpm-workspace.yaml` — add `std-env` and commitlint packages to catalog(s) if the project uses catalog entries consistently (verify against the file at implementation time)
+- `package.json` — add `:affected` scripts; remove `simple-git-hooks` /
+  `lint-staged` fields and devDependencies; add `std-env`, `@commitlint/cli`,
+  `@commitlint/config-conventional` devDependencies
+- `pnpm-workspace.yaml` — add `std-env` and commitlint packages to catalog(s) if
+  the project uses catalog entries consistently (verify against the file at
+  implementation time)
 - `mise.toml` — add `hk` under `[tools]`
-- `.github/workflows/ci.yaml` — replace individual quality-gate steps with a single `hk check` step
-**Out of scope for this plan (deliberate exclusions):**
+- `.github/workflows/ci.yaml` — replace individual quality-gate steps with a
+  single `hk check` step **Out of scope for this plan (deliberate exclusions):**
 
-- `prepare-commit-msg` hook and commit-message template script. The ADR mentions this as part of the full hk hook surface, but the template behavior is not specified and is orthogonal to the differentiated gate. Add later if desired.
+- `prepare-commit-msg` hook and commit-message template script. The ADR mentions
+  this as part of the full hk hook surface, but the template behavior is not
+  specified and is orthogonal to the differentiated gate. Add later if desired.
 - `lint:affected` script. `lint` is already fast; `pnpm lint` stays as-is.
-- Windows contributor validation. The `shell = "bash -c"` incantation is included for forward compatibility, but validation on Windows is not part of this plan.
+- Windows contributor validation. The `shell = "bash -c"` incantation is
+  included for forward compatibility, but validation on Windows is not part of
+  this plan.
 
 ---
 
 ## Task 1: Add `:affected` Pnpm Scripts
 
-**Why first:** These scripts have zero dependency on hk and can be validated independently. Getting them working first means the later hk steps reference commands we already know work.
+**Why first:** These scripts have zero dependency on hk and can be validated
+independently. Getting them working first means the later hk steps reference
+commands we already know work.
 
 **Files:**
 
@@ -72,7 +114,8 @@ ADR-013 is **Accepted** (as of 2026-04-13). Implementation may begin. The ADR's 
 
 - [ ] **Step 1: Add the scripts to `package.json`**
 
-Open `package.json`. In the `"scripts"` block, alongside the existing `build`/`test`/`typecheck` entries, add:
+Open `package.json`. In the `"scripts"` block, alongside the existing
+`build`/`test`/`typecheck` entries, add:
 
 ```json
 {
@@ -97,7 +140,10 @@ Run:
 pnpm typecheck:affected
 ```
 
-Expected: the command succeeds (exit 0). If bedrock has no changes vs. the merge base, Turbo will report "No packages matched the provided filters" or similar and exit cleanly. If it errors with "unknown flag --affected," confirm Turbo is ≥ 2.1 (`pnpm turbo --version`) and upgrade if needed.
+Expected: the command succeeds (exit 0). If bedrock has no changes vs. the merge
+base, Turbo will report "No packages matched the provided filters" or similar
+and exit cleanly. If it errors with "unknown flag --affected," confirm Turbo is
+≥ 2.1 (`pnpm turbo --version`) and upgrade if needed.
 
 - [ ] **Step 3: Verify `test:affected` runs**
 
@@ -136,7 +182,9 @@ git commit -m "build: add turbo --affected pnpm scripts"
 
 - [ ] **Step 1: Add hk to `mise.toml`**
 
-Open `mise.toml`. In the `[tools]` section, add `hk` pinned to a version whose Pkl schema is backward-compatible with `v1.38.0`. Example (verify the latest compatible version at implementation time):
+Open `mise.toml`. In the `[tools]` section, add `hk` pinned to a version whose
+Pkl schema is backward-compatible with `v1.38.0`. Example (verify the latest
+compatible version at implementation time):
 
 ```toml
 [tools]
@@ -146,7 +194,8 @@ node = { version = "lts", postinstall = "corepack enable" }
 hk = "1.38.0"
 ```
 
-If mise's registry uses a different identifier for hk (e.g. `ubi:jdx/hk` or similar), use that instead. Check `mise registry | grep -i hk` first.
+If mise's registry uses a different identifier for hk (e.g. `ubi:jdx/hk` or
+similar), use that instead. Check `mise registry | grep -i hk` first.
 
 - [ ] **Step 2: Install the new tool**
 
@@ -179,12 +228,17 @@ git commit -m "build(deps): add hk to mise tools"
 
 ## Task 3: Create Agent-Detection Script
 
-**Why Bun:** ADR-001 establishes Bun as the runtime. Bun can execute `.ts` files directly with no transpile step, and mise already puts `bun` on PATH. Using `bun` also avoids spawning a Node process from within an hk step that is otherwise running inside a Bun-managed repo. ADR-013 already documents this choice in its Pkl example.
+**Why Bun:** ADR-001 establishes Bun as the runtime. Bun can execute `.ts` files
+directly with no transpile step, and mise already puts `bun` on PATH. Using
+`bun` also avoids spawning a Node process from within an hk step that is
+otherwise running inside a Bun-managed repo. ADR-013 already documents this
+choice in its Pkl example.
 
 **Files:**
 
 - Modify: `package.json` (add `std-env` dev dep)
-- Modify: `pnpm-workspace.yaml` (add `std-env` to catalog if using catalogs consistently — verify at implementation time)
+- Modify: `pnpm-workspace.yaml` (add `std-env` to catalog if using catalogs
+  consistently — verify at implementation time)
 - Create: `scripts/is-agent.ts`
 
 - [ ] **Step 1: Add `std-env` as a dev dependency**
@@ -195,7 +249,10 @@ Run:
 pnpm add -D -w std-env
 ```
 
-Expected: `std-env` is added to the root `package.json` `devDependencies`. If the repo uses pnpm catalogs for devDependencies (check `pnpm-workspace.yaml`'s existing catalog entries), also add `std-env` to the appropriate catalog and reference it as `"std-env": "catalog:..."`.
+Expected: `std-env` is added to the root `package.json` `devDependencies`. If
+the repo uses pnpm catalogs for devDependencies (check `pnpm-workspace.yaml`'s
+existing catalog entries), also add `std-env` to the appropriate catalog and
+reference it as `"std-env": "catalog:..."`.
 
 - [ ] **Step 2: Write the agent-detection script**
 
@@ -207,7 +264,8 @@ import { isAgent } from "std-env";
 console.log(isAgent ? "true" : "false");
 ```
 
-No additional logic. No argv parsing. No error handling. The script's only job is to print the boolean status of `isAgent` on stdout.
+No additional logic. No argv parsing. No error handling. The script's only job
+is to print the boolean status of `isAgent` on stdout.
 
 - [ ] **Step 3: Verify the script in the human path**
 
@@ -219,7 +277,8 @@ bun scripts/is-agent.ts
 
 Expected output: `false`
 
-(Your interactive shell should not set any agent env var; `std-env.isAgent` should be false.)
+(Your interactive shell should not set any agent env var; `std-env.isAgent`
+should be false.)
 
 - [ ] **Step 4: Verify the script in the agent path**
 
@@ -231,7 +290,10 @@ CLAUDECODE=1 bun scripts/is-agent.ts
 
 Expected output: `true`
 
-If this prints `false`, the `std-env` version installed does not recognize `CLAUDECODE` as an agent marker. Check `std-env`'s docs for the current agent-detection env vars and use one of those instead; update the command above to match.
+If this prints `false`, the `std-env` version installed does not recognize
+`CLAUDECODE` as an agent marker. Check `std-env`'s docs for the current
+agent-detection env vars and use one of those instead; update the command above
+to match.
 
 - [ ] **Step 5: Typecheck the new script**
 
@@ -241,7 +303,8 @@ Run:
 pnpm typecheck
 ```
 
-Expected: passes (the `scripts/` dir has its own tsconfig that already covers `*.ts`).
+Expected: passes (the `scripts/` dir has its own tsconfig that already covers
+`*.ts`).
 
 - [ ] **Step 6: Commit**
 
@@ -254,7 +317,10 @@ git commit -m "feat(scripts): add is-agent.ts detection script"
 
 ## Task 4: Create Minimal `hk.pkl` with Guards Only
 
-**Why "guards only" first:** Land the hk config with the lightest-weight hooks (branch protection, merge-conflict check, private-key check, large-file check) and verify it actually gets invoked on a commit before layering heavier checks on top. This catches any hk-install or Pkl-schema issues in isolation.
+**Why "guards only" first:** Land the hk config with the lightest-weight hooks
+(branch protection, merge-conflict check, private-key check, large-file check)
+and verify it actually gets invoked on a commit before layering heavier checks
+on top. This catches any hk-install or Pkl-schema issues in isolation.
 
 **Files:**
 
@@ -294,7 +360,8 @@ hooks {
 }
 ```
 
-Note: the branch name is `main` (not `develop` as in the halcyon-derived reference). Do not leave `develop` in the config.
+Note: the branch name is `main` (not `develop` as in the halcyon-derived
+reference). Do not leave `develop` in the config.
 
 - [ ] **Step 2: Install hk hooks into `.git/hooks`**
 
@@ -304,7 +371,9 @@ Run:
 hk install
 ```
 
-Expected: hk writes shim scripts into `.git/hooks/` that delegate to `hk.pkl`. If `hk install` is not the current command name, check `hk --help` and use whatever command registers the git hooks.
+Expected: hk writes shim scripts into `.git/hooks/` that delegate to `hk.pkl`.
+If `hk install` is not the current command name, check `hk --help` and use
+whatever command registers the git hooks.
 
 - [ ] **Step 3: Verify the pre-commit hook fires on a trivial commit**
 
@@ -318,7 +387,10 @@ git add smoke.txt
 git commit -m "chore: smoke test hk guards"
 ```
 
-Expected: all four guards run and pass; the commit succeeds. If hk does not fire at all, `hk install` did not register the hook correctly — diagnose before continuing. If any guard fails unexpectedly (e.g., `check-added-large-files` flags `smoke.txt`), inspect the output and fix the config.
+Expected: all four guards run and pass; the commit succeeds. If hk does not fire
+at all, `hk install` did not register the hook correctly — diagnose before
+continuing. If any guard fails unexpectedly (e.g., `check-added-large-files`
+flags `smoke.txt`), inspect the output and fix the config.
 
 - [ ] **Step 4: Verify branch protection blocks commits to `main`**
 
@@ -329,7 +401,9 @@ git add smoke.txt
 git commit -m "chore: should be blocked"
 ```
 
-Expected: the commit is **rejected** by the `no-commit-to-branch` guard. If it is not rejected, the branch-name argument or hk util behavior is wrong — fix before continuing.
+Expected: the commit is **rejected** by the `no-commit-to-branch` guard. If it
+is not rejected, the branch-name argument or hk util behavior is wrong — fix
+before continuing.
 
 Clean up:
 
@@ -393,7 +467,8 @@ local build = new Step {
 }
 ```
 
-Then update the `pre-commit` hook inside `hooks { ... }` to include the three conditioned steps:
+Then update the `pre-commit` hook inside `hooks { ... }` to include the three
+conditioned steps:
 
 ```pkl
 hooks {
@@ -420,7 +495,9 @@ git add -A
 git commit -m "chore: verify human pre-commit path"
 ```
 
-Expected: guards run, ESLint/staged-file checks run, **typecheck/test/build do NOT run**. The commit completes in the same time as the guards-only hook from Task 4.
+Expected: guards run, ESLint/staged-file checks run, **typecheck/test/build do
+NOT run**. The commit completes in the same time as the guards-only hook from
+Task 4.
 
 - [ ] **Step 3: Verify the agent path runs heavy steps**
 
@@ -436,7 +513,9 @@ Now commit with the agent env var set:
 CLAUDECODE=1 git commit -m "chore: verify agent pre-commit path"
 ```
 
-Expected: guards run, **AND** typecheck + test + build run (via `:affected`). The commit takes noticeably longer and exits 0 if the repo is in a passing state.
+Expected: guards run, **AND** typecheck + test + build run (via `:affected`).
+The commit takes noticeably longer and exits 0 if the repo is in a passing
+state.
 
 - [ ] **Step 4: Verify the agent path blocks on a failing change**
 
@@ -449,7 +528,8 @@ git add -A
 CLAUDECODE=1 git commit -m "chore: should fail typecheck"
 ```
 
-Expected: the commit is **rejected** because `typecheck:affected` fails. Confirm the error message points to the typecheck failure.
+Expected: the commit is **rejected** because `typecheck:affected` fails. Confirm
+the error message points to the typecheck failure.
 
 Clean up:
 
@@ -488,11 +568,14 @@ Inside the `hooks { ... }` block, after the `pre-commit` entry, add:
     }
 ```
 
-(The steps reuse the `typecheck` / `test` / `build` locals defined in Task 5. No `condition` is set — every push triggers them.)
+(The steps reuse the `typecheck` / `test` / `build` locals defined in Task 5. No
+`condition` is set — every push triggers them.)
 
 - [ ] **Step 2: Verify pre-push runs on `git push`**
 
-From a feature branch with no remote, set an upstream to trigger the hook locally without actually pushing to a shared remote. Easiest approach: create a dummy local bare repo.
+From a feature branch with no remote, set an upstream to trigger the hook
+locally without actually pushing to a shared remote. Easiest approach: create a
+dummy local bare repo.
 
 ```bash
 git checkout -b verify/hk-push-test
@@ -502,11 +585,13 @@ git remote add verify-local /tmp/bedrock-hk-verify.git
 git push -u verify-local verify/hk-push-test
 ```
 
-Expected: the push invokes hk's `pre-push` hook, runs typecheck + test + build, and (if all pass) completes the push.
+Expected: the push invokes hk's `pre-push` hook, runs typecheck + test + build,
+and (if all pass) completes the push.
 
 - [ ] **Step 3: Verify pre-push blocks on a failing change**
 
-Introduce a deliberate failure, commit (human-path, so pre-commit does NOT catch it), then try to push:
+Introduce a deliberate failure, commit (human-path, so pre-commit does NOT catch
+it), then try to push:
 
 ```bash
 echo "export const broken2: number = 'still not a number';" >> packages/cli/src/cli.ts
@@ -564,7 +649,8 @@ After the `pre-push` entry, add:
     }
 ```
 
-- [ ] **Step 2: Verify the post-merge hook activates when the lock file changes**
+- [ ] **Step 2: Verify the post-merge hook activates when the lock file
+      changes**
 
 Simulate a merge that touches `pnpm-lock.yaml`:
 
@@ -578,7 +664,9 @@ git checkout -
 git merge verify/hk-post-merge --no-edit
 ```
 
-Expected: after the merge, `pnpm install` runs automatically. If the lockfile did not actually change content, the glob may not match — that is fine (the hook's job is to run only when relevant files change).
+Expected: after the merge, `pnpm install` runs automatically. If the lockfile
+did not actually change content, the glob may not match — that is fine (the
+hook's job is to run only when relevant files change).
 
 Clean up:
 
@@ -600,8 +688,10 @@ git commit -m "feat(hooks): auto-install deps on post-merge"
 
 **Files:**
 
-- Modify: `package.json` (add `@commitlint/cli`, `@commitlint/config-conventional`)
-- Modify: `pnpm-workspace.yaml` (add to catalogs if consistent with existing pattern)
+- Modify: `package.json` (add `@commitlint/cli`,
+  `@commitlint/config-conventional`)
+- Modify: `pnpm-workspace.yaml` (add to catalogs if consistent with existing
+  pattern)
 - Create: `commitlint.config.ts`
 - Modify: `hk.pkl` (add `commit-msg` hook)
 
@@ -611,7 +701,8 @@ git commit -m "feat(hooks): auto-install deps on post-merge"
 pnpm add -D -w @commitlint/cli @commitlint/config-conventional
 ```
 
-Expected: both packages added to root `devDependencies`. If pnpm catalogs are used, mirror the addition there.
+Expected: both packages added to root `devDependencies`. If pnpm catalogs are
+used, mirror the addition there.
 
 - [ ] **Step 2: Create `commitlint.config.ts`**
 
@@ -627,7 +718,9 @@ const config: UserConfig = {
 export default config;
 ```
 
-No project-specific rules are added in this task. The existing repo already uses Conventional Commits by convention; the config just enforces the default ruleset.
+No project-specific rules are added in this task. The existing repo already uses
+Conventional Commits by convention; the config just enforces the default
+ruleset.
 
 - [ ] **Step 3: Verify commitlint parses a valid message**
 
@@ -645,7 +738,8 @@ Expected: exit 0, no output.
 echo "not a conventional commit" | pnpm commitlint
 ```
 
-Expected: exit 1, error output indicating the subject does not match the conventional format.
+Expected: exit 1, error output indicating the subject does not match the
+conventional format.
 
 - [ ] **Step 5: Add the `commit-msg` hook to `hk.pkl`**
 
@@ -703,7 +797,9 @@ git commit -m "feat(hooks): enforce conventional commits via commitlint"
 
 ## Task 9: Remove `simple-git-hooks` and `lint-staged`
 
-**Why now (not earlier):** Keeping simple-git-hooks alive until hk is fully validated means there is always a working hook manager during migration. Only remove the old tool once the new one is proven across all hook types.
+**Why now (not earlier):** Keeping simple-git-hooks alive until hk is fully
+validated means there is always a working hook manager during migration. Only
+remove the old tool once the new one is proven across all hook types.
 
 **Files:**
 
@@ -716,7 +812,8 @@ git commit -m "feat(hooks): enforce conventional commits via commitlint"
 pnpm remove -D -w simple-git-hooks lint-staged
 ```
 
-Expected: both packages removed from root `devDependencies`. If either has a catalog entry in `pnpm-workspace.yaml`, remove it.
+Expected: both packages removed from root `devDependencies`. If either has a
+catalog entry in `pnpm-workspace.yaml`, remove it.
 
 - [ ] **Step 2: Remove the config fields from `package.json`**
 
@@ -735,7 +832,10 @@ Open `package.json` and delete these two top-level fields entirely:
 
 After removal, `package.json` should not contain either key.
 
-Note: the `pnpm i --frozen-lockfile --ignore-scripts --offline` preamble from the old hook is intentionally dropped. mise handles tool versioning; hk + mise do not need a pre-hook install step. If any workflow depended on that preamble (it should not — it was a hook-only artifact), diagnose before removing.
+Note: the `pnpm i --frozen-lockfile --ignore-scripts --offline` preamble from
+the old hook is intentionally dropped. mise handles tool versioning; hk + mise
+do not need a pre-hook install step. If any workflow depended on that preamble
+(it should not — it was a hook-only artifact), diagnose before removing.
 
 - [ ] **Step 3: Re-run `hk install` to confirm hooks still wired**
 
@@ -743,7 +843,9 @@ Note: the `pnpm i --frozen-lockfile --ignore-scripts --offline` preamble from th
 hk install
 ```
 
-Expected: hk re-registers its shims in `.git/hooks/`. (Uninstalling `simple-git-hooks` may have removed its own shim, but hk's shim should be intact.)
+Expected: hk re-registers its shims in `.git/hooks/`. (Uninstalling
+`simple-git-hooks` may have removed its own shim, but hk's shim should be
+intact.)
 
 - [ ] **Step 4: Smoke test a commit**
 
@@ -756,7 +858,8 @@ git add smoke.txt
 git commit -m "chore: verify hk after sgh removal"
 ```
 
-Expected: guards run, commit succeeds. If hk does not fire, re-install and diagnose.
+Expected: guards run, commit succeeds. If hk does not fire, re-install and
+diagnose.
 
 Clean up:
 
@@ -769,7 +872,10 @@ git branch -D verify/hk-post-removal
 
 - [ ] **Step 5: Move ESLint onto an unconditional hk pre-commit step**
 
-The old `lint-staged` config ran `eslint --fix --cache` on staged files. That behavior needs to move into `hk.pkl` so human commits still get linted. Edit `hk.pkl` and add an `eslint` entry inside the `pre-commit` steps block, after `...guards` and before the conditioned heavy steps:
+The old `lint-staged` config ran `eslint --fix --cache` on staged files. That
+behavior needs to move into `hk.pkl` so human commits still get linted. Edit
+`hk.pkl` and add an `eslint` entry inside the `pre-commit` steps block, after
+`...guards` and before the conditioned heavy steps:
 
 ```pkl
             ["eslint"] = new Step {
@@ -779,7 +885,9 @@ The old `lint-staged` config ran `eslint --fix --cache` on staged files. That be
             }
 ```
 
-Note: this step runs unconditionally (no `condition = isAgent`), matching the previous `lint-staged` behavior. It runs in parallel with the guards because no `exclusive = true` is set and guards are not exclusive either.
+Note: this step runs unconditionally (no `condition = isAgent`), matching the
+previous `lint-staged` behavior. It runs in parallel with the guards because no
+`exclusive = true` is set and guards are not exclusive either.
 
 - [ ] **Step 6: Verify the ESLint step fires on a TS file change**
 
@@ -790,7 +898,8 @@ git add -A
 git commit -m "chore: verify eslint step"
 ```
 
-Expected: ESLint runs. Depending on the project's ESLint config, it may auto-fix or reject. Adjust the test line if needed to trigger a real warning.
+Expected: ESLint runs. Depending on the project's ESLint config, it may auto-fix
+or reject. Adjust the test line if needed to trigger a real warning.
 
 Clean up:
 
@@ -812,7 +921,10 @@ git commit -m "build: remove simple-git-hooks and lint-staged in favor of hk"
 
 ## Task 10: Update CI to Use `hk check`
 
-**Why:** The CI workflow currently runs `lint → typecheck → build → test` as four separate steps. Consolidating via `hk check` means "what CI runs" is defined in one place (`hk.pkl`), aligning local enforcement with CI enforcement. The `check` hook runs everything unconditionally — appropriate for CI.
+**Why:** The CI workflow currently runs `lint → typecheck → build → test` as
+four separate steps. Consolidating via `hk check` means "what CI runs" is
+defined in one place (`hk.pkl`), aligning local enforcement with CI enforcement.
+The `check` hook runs everything unconditionally — appropriate for CI.
 
 **Files:**
 
@@ -841,24 +953,39 @@ Inside the `hooks { ... }` block, add:
 
 Notes:
 
-- ESLint in the `check` hook uses `eslint --cache` without `--fix` (CI should not auto-fix).
-- All heavy steps run unconditionally — the `check` hook is the manual / CI entry point, so no `condition` is applied.
-- `typecheck`, `test`, and `build` here reference the same locals defined in Task 5 and still use the `:affected` scripts. For CI we may want the full runs, not affected — see Step 2.
+- ESLint in the `check` hook uses `eslint --cache` without `--fix` (CI should
+  not auto-fix).
+- All heavy steps run unconditionally — the `check` hook is the manual / CI
+  entry point, so no `condition` is applied.
+- `typecheck`, `test`, and `build` here reference the same locals defined in
+  Task 5 and still use the `:affected` scripts. For CI we may want the full
+  runs, not affected — see Step 2.
 
 - [ ] **Step 2: Decide on `:affected` vs. full runs in CI**
 
-CI's existing behavior runs the full suite via `pnpm lint:ci`, `pnpm turbo typecheck`, `pnpm turbo build`, `pnpm test:ci`. Those are unconditional full runs. The `hk check` hook as written above uses `:affected` (the locals are shared with pre-commit / pre-push). This is a deliberate behavior change: CI will only run tasks for packages whose files changed vs. the base ref.
+CI's existing behavior runs the full suite via `pnpm lint:ci`,
+`pnpm turbo typecheck`, `pnpm turbo build`, `pnpm test:ci`. Those are
+unconditional full runs. The `hk check` hook as written above uses `:affected`
+(the locals are shared with pre-commit / pre-push). This is a deliberate
+behavior change: CI will only run tasks for packages whose files changed vs. the
+base ref.
 
-If this change is acceptable, leave the config as-is. If CI should continue running the full suite:
+If this change is acceptable, leave the config as-is. If CI should continue
+running the full suite:
 
-1. Define separate `typecheckFull` / `testFull` / `buildFull` locals in `hk.pkl` (copies of the existing locals but with `pnpm typecheck` / `pnpm test` / `pnpm build` as the check commands).
+1. Define separate `typecheckFull` / `testFull` / `buildFull` locals in `hk.pkl`
+   (copies of the existing locals but with `pnpm typecheck` / `pnpm test` /
+   `pnpm build` as the check commands).
 2. Use those in the `check` hook instead.
 
-Recommendation: go with `:affected` in CI to match the stated intent of the ADR. Full runs remain available manually via `pnpm typecheck` / `pnpm test` / `pnpm build`.
+Recommendation: go with `:affected` in CI to match the stated intent of the ADR.
+Full runs remain available manually via `pnpm typecheck` / `pnpm test` /
+`pnpm build`.
 
 - [ ] **Step 3: Update `.github/workflows/ci.yaml`**
 
-Replace the four individual quality-gate steps with a single `hk check` invocation. The existing CI file has these steps (lines 41–54 approximately):
+Replace the four individual quality-gate steps with a single `hk check`
+invocation. The existing CI file has these steps (lines 41–54 approximately):
 
 ```yaml
 - name: Lint
@@ -887,11 +1014,18 @@ Replace those five steps with:
   run: hk check
 ```
 
-Keep the `Generate example tests` step (it is a code-generation step, not a quality gate, and must run before tests). Place it before `hk check` so generated tests are visible to the test step.
+Keep the `Generate example tests` step (it is a code-generation step, not a
+quality gate, and must run before tests). Place it before `hk check` so
+generated tests are visible to the test step.
 
 - [ ] **Step 4: Verify hk is available in CI**
 
-The `./.github/actions/setup` composite action is responsible for installing mise-managed tools. Confirm it already runs `mise install` or equivalent; if so, adding `hk` to `mise.toml` in Task 2 means CI picks it up automatically. If the setup action does NOT install mise tools, fix it as part of this task — read `.github/actions/setup/action.yaml`, verify, and add a `mise install` step if missing.
+The `./.github/actions/setup` composite action is responsible for installing
+mise-managed tools. Confirm it already runs `mise install` or equivalent; if so,
+adding `hk` to `mise.toml` in Task 2 means CI picks it up automatically. If the
+setup action does NOT install mise tools, fix it as part of this task — read
+`.github/actions/setup/action.yaml`, verify, and add a `mise install` step if
+missing.
 
 - [ ] **Step 5: Commit**
 
@@ -906,13 +1040,17 @@ git commit -m "ci: replace individual gates with hk check"
 git push
 ```
 
-Watch the CI run via `gh run watch` or in the GitHub Actions UI. Expected: CI completes using `hk check` as the sole quality-gate invocation. If CI fails because `hk` is not on PATH, revisit Step 4.
+Watch the CI run via `gh run watch` or in the GitHub Actions UI. Expected: CI
+completes using `hk check` as the sole quality-gate invocation. If CI fails
+because `hk` is not on PATH, revisit Step 4.
 
 ---
 
 ## Task 11: Final Smoke Test and Open PR
 
-ADR-013 was flipped to Accepted before implementation began; no ADR edits are needed here. This task is a full end-to-end verification of every hook the plan has added, followed by the PR.
+ADR-013 was flipped to Accepted before implementation began; no ADR edits are
+needed here. This task is a full end-to-end verification of every hook the plan
+has added, followed by the PR.
 
 - [ ] **Step 1: Final smoke test of the complete hook surface**
 
@@ -927,7 +1065,8 @@ CLAUDECODE=1 git commit --amend --no-edit  # re-runs pre-commit, this time with 
 git push verify-local verify/hk-final-smoke 2>/dev/null || true  # pre-push fires; OK if no verify-local remote
 ```
 
-Expected: commit-msg passes, pre-commit passes on both human and agent paths, pre-push fires (or is skipped if no remote is configured — that is fine).
+Expected: commit-msg passes, pre-commit passes on both human and agent paths,
+pre-push fires (or is skipped if no remote is configured — that is fine).
 
 Clean up:
 
@@ -938,7 +1077,8 @@ git checkout -
 git branch -D verify/hk-final-smoke
 ```
 
-- [ ] **Step 2: Run the CLAUDE.md "Before Committing" checklist against the final state**
+- [ ] **Step 2: Run the CLAUDE.md "Before Committing" checklist against the
+      final state**
 
 ```bash
 pnpm lint
@@ -947,7 +1087,8 @@ pnpm test
 pnpm typecheck
 ```
 
-Expected: all four pass. This is redundant with the hk-enforced gate but is the project-wide acceptance test per CLAUDE.md.
+Expected: all four pass. This is redundant with the hk-enforced gate but is the
+project-wide acceptance test per CLAUDE.md.
 
 - [ ] **Step 3: Push the branch and open a pull request**
 
@@ -982,7 +1123,21 @@ EOF
 
 ## Self-Review Notes
 
-- **Spec coverage:** Every section of the ADR Decision block has a corresponding task: guards (Task 4), heavy pre-commit (Task 5), pre-push (Task 6), post-merge (Task 7), commit-msg / commitlint (Task 8), global config (`stash`, `bash -c`) (Task 4), dependency changes (Tasks 2, 3, 8, 9), CI (Task 10), final smoke test + PR (Task 11). The `prepare-commit-msg` hook is deliberately out of scope, documented in File Structure.
-- **Verification at every task boundary:** every task ends with a concrete verification step AND a commit, so regressions are caught early and history shows the incremental progress.
-- **Naming consistency:** The Pkl locals `typecheck`, `test`, `build` are defined in Task 5 and reused in Tasks 6 and 10 without renaming. The `isAgent` local is defined once in Task 5. The `guards` Mapping is defined in Task 4 and spread into multiple hooks via `...guards` without duplication.
-- **TDD note:** This is infrastructure/config work, not feature code. The "tests" are end-to-end verifications (make a commit, observe hook behavior) rather than unit tests. Each task still follows the red-green pattern: a verification step that would fail before the task's changes are applied, then the changes, then the verification passing.
+- **Spec coverage:** Every section of the ADR Decision block has a corresponding
+  task: guards (Task 4), heavy pre-commit (Task 5), pre-push (Task 6),
+  post-merge (Task 7), commit-msg / commitlint (Task 8), global config (`stash`,
+  `bash -c`) (Task 4), dependency changes (Tasks 2, 3, 8, 9), CI (Task 10),
+  final smoke test + PR (Task 11). The `prepare-commit-msg` hook is deliberately
+  out of scope, documented in File Structure.
+- **Verification at every task boundary:** every task ends with a concrete
+  verification step AND a commit, so regressions are caught early and history
+  shows the incremental progress.
+- **Naming consistency:** The Pkl locals `typecheck`, `test`, `build` are
+  defined in Task 5 and reused in Tasks 6 and 10 without renaming. The `isAgent`
+  local is defined once in Task 5. The `guards` Mapping is defined in Task 4 and
+  spread into multiple hooks via `...guards` without duplication.
+- **TDD note:** This is infrastructure/config work, not feature code. The
+  "tests" are end-to-end verifications (make a commit, observe hook behavior)
+  rather than unit tests. Each task still follows the red-green pattern: a
+  verification step that would fail before the task's changes are applied, then
+  the changes, then the verification passing.

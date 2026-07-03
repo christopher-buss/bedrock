@@ -34,13 +34,14 @@ async function readUntilVisible(inputs: {
 	readonly port: StatePort;
 }): Promise<Awaited<ReturnType<StatePort["read"]>>> {
 	const { deadline, environment, port } = inputs;
-	const read = await port.read(environment);
-	if (!read.success || read.data !== undefined || Date.now() >= deadline) {
-		return read;
-	}
+	for (;;) {
+		const read = await port.read(environment);
+		if (!read.success || read.data !== undefined || Date.now() >= deadline) {
+			return read;
+		}
 
-	await sleep(READ_POLL_INTERVAL_MS);
-	return readUntilVisible(inputs);
+		await sleep(READ_POLL_INTERVAL_MS);
+	}
 }
 
 describe("gist state adapter against real github", () => {

@@ -86,7 +86,7 @@ export interface DiffPreview {
 	readonly redactions: ReadonlyArray<RedactionAnnotation>;
 }
 
-interface ResolvedDeps {
+interface ResolvedDependencies {
 	readonly config: ResolvedConfig;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly redactions: ReadonlyArray<RedactionAnnotation>;
@@ -106,7 +106,7 @@ interface ResolvedDeps {
 export async function previewDiff(
 	options: PreviewDiffOptions,
 ): Promise<Result<DiffPreview, PreviewDiffError>> {
-	const resolved = await resolveDeps(options);
+	const resolved = await resolveDependencies(options);
 	if (!resolved.success) {
 		return resolved;
 	}
@@ -183,9 +183,9 @@ function resolveEnvironmentView(
 	};
 }
 
-async function resolveDeps(
+async function resolveDependencies(
 	options: PreviewDiffOptions,
-): Promise<Result<ResolvedDeps, PreviewDiffError>> {
+): Promise<Result<ResolvedDependencies, PreviewDiffError>> {
 	const config = await pickConfig(options);
 	if (!config.success) {
 		return config;
@@ -211,14 +211,14 @@ async function resolveDeps(
 
 async function runPreview(
 	environment: string,
-	deps: ResolvedDeps,
+	dependencies: ResolvedDependencies,
 ): Promise<Result<DiffPreview, PreviewDiffError>> {
-	const desired = await buildDesired(flattenConfig(deps.config), deps.readFile);
+	const desired = await buildDesired(flattenConfig(dependencies.config), dependencies.readFile);
 	if (!desired.success) {
 		return { err: { cause: desired.err, kind: "buildDesiredFailed" }, success: false };
 	}
 
-	const prior = await deps.statePort.read(environment);
+	const prior = await dependencies.statePort.read(environment);
 	if (!prior.success) {
 		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
 	}
@@ -230,5 +230,5 @@ async function runPreview(
 	}
 
 	const ops = diff(desired.data, priorResources);
-	return { data: { environment, ops, redactions: deps.redactions }, success: true };
+	return { data: { environment, ops, redactions: dependencies.redactions }, success: true };
 }

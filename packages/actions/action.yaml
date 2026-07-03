@@ -1,5 +1,6 @@
 author: Christopher Buss
 description: Reflow Bedrock codegen output back onto the deploy branch, race-safe.
+
 inputs:
   author-email:
     default: 41898282+github-actions[bot]@users.noreply.github.com
@@ -22,7 +23,9 @@ inputs:
   token:
     description: Write-capable token (a GitHub App installation token or PAT) the push authenticates with.
     required: true
+
 name: Bedrock commit-back
+
 outputs:
   changed-files:
     description: Number of generated files that changed.
@@ -30,6 +33,7 @@ outputs:
     description: "`true` when a commit was created and pushed."
   sha:
     description: The new commit sha, or empty on a no-op.
+
 runs:
   main: dist/index.mjs
   using: node24

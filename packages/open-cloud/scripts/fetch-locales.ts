@@ -154,7 +154,8 @@ ${FOOTER}`;
 }
 
 async function refreshPinnedDate(): Promise<void> {
-	const today = new Date().toISOString().slice(0, 10);
+	const now = new Date();
+	const today = now.toISOString().slice(0, 10);
 	const readme = await Bun.file(README_PATH).text();
 	if (!PINNED_DATE_PATTERN.test(readme)) {
 		throw new Error(`failed to locate creator-locales pinned-date line in ${README_PATH}`);
@@ -169,7 +170,7 @@ function byLocaleAsc(a: { locale: { locale: string } }, b: { locale: { locale: s
 }
 
 const upstream = await fetchUpstream();
-const sorted: UpstreamPayload = { data: [...upstream.data].sort(byLocaleAsc) };
+const sorted: UpstreamPayload = { data: upstream.data.toSorted(byLocaleAsc) };
 const entries = sorted.data.map(projectEntry);
 await Bun.write(VENDOR_JSON_PATH, `${JSON.stringify(sorted, undefined, "\t")}\n`);
 await Bun.write(GENERATED_TS_PATH, renderModule(entries));

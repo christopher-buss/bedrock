@@ -164,7 +164,7 @@ interface ReportAndDispatchInput {
 	readonly reporting: ApplyOpsReporting | undefined;
 }
 
-interface DispatchDeps {
+interface DispatchDependencies {
 	readonly context: ResourceApplyContext | undefined;
 	readonly registry: DriverRegistry;
 }
@@ -271,12 +271,12 @@ function kindMismatch(key: ResourceKey, mismatch: { actual: string; expected: st
 
 async function applyOne<K extends ResourceKind>(
 	op: NonNoopOp & { readonly desired: Extract<ResourceDesiredState, { kind: K }> },
-	deps: {
+	dependencies: {
 		readonly context: ResourceApplyContext | undefined;
 		readonly driver: ResourceDriver<K>;
 	},
 ): Promise<Result<ResourceCurrentState, ApplyError>> {
-	const { context, driver } = deps;
+	const { context, driver } = dependencies;
 	if (op.type === "create") {
 		const created =
 			context === undefined
@@ -305,9 +305,9 @@ async function applyOne<K extends ResourceKind>(
 
 async function dispatchByKind(
 	op: NonNoopOp,
-	deps: DispatchDeps,
+	dependencies: DispatchDependencies,
 ): Promise<Result<ResourceCurrentState, ApplyError>> {
-	const { context, registry } = deps;
+	const { context, registry } = dependencies;
 	// Exhaustive switch: adding a new ResourceKind is a compile error here
 	// until an arm lands. Each arm casts because custom type narrowing does
 	// not propagate through a non-distributive union.
@@ -332,10 +332,10 @@ async function dispatchByKind(
 
 async function dispatchOp(
 	op: NonNoopOp,
-	deps: DispatchDeps,
+	dependencies: DispatchDependencies,
 ): Promise<Result<ResourceCurrentState, ApplyError>> {
 	try {
-		return await dispatchByKind(op, deps);
+		return await dispatchByKind(op, dependencies);
 	} catch (err) {
 		return { err: { key: op.key, cause: err, kind: "unexpectedThrow" }, success: false };
 	}

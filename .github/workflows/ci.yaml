@@ -90,11 +90,11 @@ jobs:
             stryker-${{ runner.os }}-${{ steps.stryker-hash.outputs.hash }}-${{ github.head_ref || github.ref_name }}-
             stryker-${{ runner.os }}-${{ steps.stryker-hash.outputs.hash }}-main-
 
-      - env:
+      - name: Mutation test changed files
+        run: pnpm mutate:changed
+        env:
           MUTATE_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
           VITEST_TYPECHECK: "false"
-        name: Mutation test changed files
-        run: pnpm mutate:changed
 
       - if: always() && steps.stryker-cache.outputs.cache-hit != 'true'
         name: Save Stryker incremental cache

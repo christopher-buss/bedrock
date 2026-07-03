@@ -1125,14 +1125,14 @@ describe(createGistStateAdapter, () => {
 					resources: [],
 					version: 1,
 				};
-				let getCount = 0;
+				let pollCount = 0;
 				const { calls, fetchFn } = fakeFetch((request) => {
 					if (request.method === "PATCH") {
 						return emptyResponse(200);
 					}
 
-					getCount += 1;
-					if (getCount === 1) {
+					pollCount += 1;
+					if (pollCount === 1) {
 						throw new Error("transient connection reset");
 					}
 

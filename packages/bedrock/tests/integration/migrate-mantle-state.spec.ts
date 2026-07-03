@@ -123,6 +123,11 @@ const TWO_ENV_DIVERGENT_PASS_YAML = [
 	"",
 ].join("\n");
 
+function utf8(content: string): Uint8Array {
+	const encoder = new TextEncoder();
+	return encoder.encode(content);
+}
+
 async function withTemporaryDirectory<T>(run: (directory: string) => Promise<T>): Promise<T> {
 	mkdirSync(WORKSPACE_TEMP_ROOT, { recursive: true });
 	const directory = mkdtempSync(join(WORKSPACE_TEMP_ROOT, "bedrock-migrate-"));
@@ -439,7 +444,7 @@ describe(migrateMantleState, () => {
 		const result = await migrateMantleState({
 			configFormat: "typescript",
 			primaryEnvironment: "production",
-			readFile: async () => new TextEncoder().encode(TWO_ENV_DIVERGENT_PASS_YAML),
+			readFile: async () => utf8(TWO_ENV_DIVERGENT_PASS_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
 
@@ -470,7 +475,7 @@ describe(migrateMantleState, () => {
 		const result = await migrateMantleState({
 			configFormat: "typescript",
 			primaryEnvironment: "production",
-			readFile: async () => new TextEncoder().encode(TWO_ENV_DIVERGENT_PRODUCT_YAML),
+			readFile: async () => utf8(TWO_ENV_DIVERGENT_PRODUCT_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
 
@@ -503,7 +508,7 @@ describe(migrateMantleState, () => {
 		const result = await migrateMantleState({
 			configFormat: "typescript",
 			primaryEnvironment: "production",
-			readFile: async () => new TextEncoder().encode(TWO_ENV_DIVERGENT_PRODUCT_YAML),
+			readFile: async () => utf8(TWO_ENV_DIVERGENT_PRODUCT_YAML),
 			stateFilePath: ".mantle-state.yml",
 		});
 

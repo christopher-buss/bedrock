@@ -1,9 +1,9 @@
 # ADR-028: Deploy Actions and Per-User GitHub App Auth for Codegen Commit-Back
 
-**Date:** 2026-06-23  **Status:** Accepted
+**Date:** 2026-06-23 **Status:** Accepted
 
-Decision Makers: Maintainer
-Tags: actions, auth, github-app, codegen, ci, boundary
+Decision Makers: Maintainer Tags: actions, auth, github-app, codegen, ci,
+boundary
 
 ## Context
 
@@ -76,7 +76,7 @@ feature, not a hosted service, not a shared App.
 ## Consequences
 
 - The action runtime is **node24** (`runs.using: node24`), GitHub's zero-install
-  JS host — deliberately *not* Bun, so consumers who run the Bedrock CLI under
+  JS host — deliberately _not_ Bun, so consumers who run the Bedrock CLI under
   Node are not forced to install Bun. The action source therefore uses
   node-compatible APIs and is bundled (deps inlined) for that runtime.
 - The bundled `dist` is **gitignored on `main`** and baked onto a disjoint

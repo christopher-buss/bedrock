@@ -1,13 +1,13 @@
+import { assert, describe, expect, it } from "vitest";
+
 import { ApiError } from "#src/errors/api-error";
 import { OpenCloudError } from "#src/errors/base";
 import { NetworkError } from "#src/errors/network-error";
 import { RateLimitError } from "#src/errors/rate-limit";
 import type { HttpRequest, RequestConfig } from "#src/internal/http/types";
-import { assert, describe, expect, it } from "vitest";
-
 import { createFakeHttpClient, FakeHttpClientError } from "./fake-http-client.ts";
 
-const getRequest: HttpRequest = { method: "GET", url: "/v1/ping" };
+const pingRequest: HttpRequest = { method: "GET", url: "/v1/ping" };
 const postRequest: HttpRequest = {
 	body: { name: "pass" },
 	method: "POST",
@@ -27,11 +27,11 @@ describe(createFakeHttpClient, () => {
 			.mockResponse({ status: 200 })
 			.mockResponse({ status: 201 });
 
-		await fake.request(getRequest, config);
+		await fake.request(pingRequest, config);
 		await fake.request(postRequest, overrideConfig);
 
 		expect(fake.requests).toStrictEqual([
-			{ config, request: getRequest },
+			{ config, request: pingRequest },
 			{ config: overrideConfig, request: postRequest },
 		]);
 	});
@@ -43,7 +43,7 @@ describe(createFakeHttpClient, () => {
 			status: 204,
 		});
 
-		const result = await fake.request(getRequest, config);
+		const result = await fake.request(pingRequest, config);
 
 		expect(result).toStrictEqual({
 			data: { body: {}, headers: {}, status: 204 },
@@ -60,7 +60,7 @@ describe(createFakeHttpClient, () => {
 			status: 200,
 		});
 
-		const result = await fake.request(getRequest, config);
+		const result = await fake.request(pingRequest, config);
 
 		expect(result).toStrictEqual({
 			data: { body: { id: "abc" }, headers: { "x-custom": "1" }, status: 200 },
@@ -74,7 +74,7 @@ describe(createFakeHttpClient, () => {
 		const error = new OpenCloudError("boom");
 		const fake = createFakeHttpClient().mockError(error);
 
-		const result = await fake.request(getRequest, config);
+		const result = await fake.request(pingRequest, config);
 
 		assert(!result.success);
 
@@ -88,8 +88,8 @@ describe(createFakeHttpClient, () => {
 			.mockRateLimit({ retryAfterSeconds: 2 })
 			.mockRateLimit({ message: "slow down", retryAfterSeconds: 5 });
 
-		const defaultResult = await fake.request(getRequest, config);
-		const customResult = await fake.request(getRequest, config);
+		const defaultResult = await fake.request(pingRequest, config);
+		const customResult = await fake.request(pingRequest, config);
 
 		assert(!defaultResult.success);
 		assert(!customResult.success);
@@ -107,8 +107,8 @@ describe(createFakeHttpClient, () => {
 			.mockApiError({ statusCode: 500 })
 			.mockApiError({ code: "BAD_INPUT", message: "bad input", statusCode: 400 });
 
-		const defaultResult = await fake.request(getRequest, config);
-		const detailedResult = await fake.request(getRequest, config);
+		const defaultResult = await fake.request(pingRequest, config);
+		const detailedResult = await fake.request(pingRequest, config);
 
 		assert(!defaultResult.success);
 		assert(!detailedResult.success);
@@ -129,8 +129,8 @@ describe(createFakeHttpClient, () => {
 			.mockNetworkError()
 			.mockNetworkError({ cause, message: "dial failed" });
 
-		const defaultResult = await fake.request(getRequest, config);
-		const detailedResult = await fake.request(getRequest, config);
+		const defaultResult = await fake.request(pingRequest, config);
+		const detailedResult = await fake.request(pingRequest, config);
 
 		assert(!defaultResult.success);
 		assert(!detailedResult.success);
@@ -149,10 +149,10 @@ describe(createFakeHttpClient, () => {
 			.mockRateLimit({ retryAfterSeconds: 1 })
 			.mockNetworkError();
 
-		const first = await fake.request(getRequest, config);
-		const second = await fake.request(getRequest, config);
-		const third = await fake.request(getRequest, config);
-		const fourth = await fake.request(getRequest, config);
+		const first = await fake.request(pingRequest, config);
+		const second = await fake.request(pingRequest, config);
+		const third = await fake.request(pingRequest, config);
+		const fourth = await fake.request(pingRequest, config);
 
 		assert(first.success);
 		assert(!second.success && !third.success && !fourth.success);
@@ -173,7 +173,7 @@ describe(createFakeHttpClient, () => {
 
 		expect(fake.pendingMocks).toBe(2);
 
-		await fake.request(getRequest, config);
+		await fake.request(pingRequest, config);
 
 		expect(fake.pendingMocks).toBe(1);
 	});
@@ -184,7 +184,7 @@ describe(createFakeHttpClient, () => {
 		const fake = createFakeHttpClient().mockResponse({
 			status: 200,
 		});
-		await fake.request(getRequest, config);
+		await fake.request(pingRequest, config);
 
 		await expect(fake.request(postRequest, config)).rejects.toThrowWithMessage(
 			FakeHttpClientError,

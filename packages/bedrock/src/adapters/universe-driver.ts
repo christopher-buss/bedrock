@@ -190,13 +190,13 @@ function hasUniverseLevelUpdate(fields: ReadonlySet<string>): boolean {
 }
 
 async function resolveUniverse(
-	deps: UniverseDriverDeps,
+	dependencies: UniverseDriverDeps,
 	target: { desired: UniverseDesiredState; fields: ReadonlySet<string> },
 ): Promise<Result<ResolvedUniverse, OpenCloudError>> {
 	const { desired, fields } = target;
 	const result = hasUniverseLevelUpdate(fields)
-		? await deps.universes.update(buildParameters(desired, fields))
-		: await deps.universes.get({ universeId: desired.universeId });
+		? await dependencies.universes.update(buildParameters(desired, fields))
+		: await dependencies.universes.get({ universeId: desired.universeId });
 
 	if (!result.success) {
 		return { err: wrapUpdateError(result.err, desired), success: false };

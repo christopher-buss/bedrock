@@ -1,3 +1,5 @@
+import { assert, describe, expect, it, vi } from "vitest";
+
 import type { OpenCloudHooks } from "#src/client/types";
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
@@ -9,7 +11,6 @@ import {
 } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { validGamePassBody, validListGamePassesBody } from "#tests/helpers/game-passes";
-import { assert, describe, expect, it, vi } from "vitest";
 
 function mockManyOk(fake: FakeHttpClient, count: number): FakeHttpClient {
 	for (let index = 0; index < count; index++) {

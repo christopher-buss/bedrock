@@ -1,6 +1,6 @@
 # ADR-019: State Data Model and Diff Algebra -- Mantle Parity
 
-**Date:** 2026-04-17  **Status:** Accepted
+**Date:** 2026-04-17 **Status:** Accepted
 
 Decision Makers: Maintainer  
 Tags: state, data-model, diff, types, mantle, migration, core
@@ -27,10 +27,10 @@ Mantle. Mantle's data model therefore anchors the design:
 - Mantle serialises per-environment state in a single combined YAML file. We
   depart from this in format (JSON) and layout (one file per environment) while
   preserving the semantic content.
-- Mantle hashes its entire serialised inputs blob for change detection. We reject
-  this: we use field-by-field comparison where file-backed fields (e.g.
-  `iconFileHash`) carry an explicit pre-computed hash. This is simpler to
-  reason about, avoids serialisation-order sensitivity, and allows future
+- Mantle hashes its entire serialised inputs blob for change detection. We
+  reject this: we use field-by-field comparison where file-backed fields (e.g.
+  `iconFileHash`) carry an explicit pre-computed hash. This is simpler to reason
+  about, avoids serialisation-order sensitivity, and allows future
   partial-update optimisation.
 
 Three design tensions shaped the specific choices:
@@ -46,9 +46,9 @@ Three design tensions shaped the specific choices:
    to narrow in TypeScript discriminated unions.
 
 3. **Pure core vs. I/O in types.** `buildDesired` must hash icon files (I/O).
-   The hash result is stored as `iconFileHash` on `ResourceDesiredState`, keeping
-   `diff` pure. The hashing step lives in `shell/` (ADR-018); the hash field
-   lives in `core/`.
+   The hash result is stored as `iconFileHash` on `ResourceDesiredState`,
+   keeping `diff` pure. The hashing step lives in `shell/` (ADR-018); the hash
+   field lives in `core/`.
 
 ## Decision
 
@@ -134,9 +134,12 @@ export type ResourceOutputs<K extends ResourceKind> = ResourceOutputsByKind[K];
  * structure and produce clean migration copy.
  * @template K The resource kind discriminator.
  */
-export type ResourceCurrentState<K extends ResourceKind = ResourceKind> = Simplify<
-	Extract<ResourceDesiredState, { kind: K }> & { readonly outputs: ResourceOutputs<K> }
->;
+export type ResourceCurrentState<K extends ResourceKind = ResourceKind> =
+	Simplify<
+		Extract<ResourceDesiredState, { kind: K }> & {
+			readonly outputs: ResourceOutputs<K>;
+		}
+	>;
 
 // ── Operations ────────────────────────────────────────────────────────────────
 
@@ -246,10 +249,10 @@ migration-friendly comparison.
 `StatePort` is a driven port (ADR-018) whose `read()` and `write()` methods
 handle state file I/O. The `read()` return type handles two legitimate outcomes:
 
-`BedrockState` is the **in-memory** shape. The **on-disk** shape wraps it with
-a `$bedrock: { version: N }` envelope (shown in the JSON example above).
-Adapters flatten the envelope on read (extracting `version` from `$bedrock`) and
-re-wrap it on write. Nothing outside an adapter ever sees the raw `$bedrock` key.
+`BedrockState` is the **in-memory** shape. The **on-disk** shape wraps it with a
+`$bedrock: { version: N }` envelope (shown in the JSON example above). Adapters
+flatten the envelope on read (extracting `version` from `$bedrock`) and re-wrap
+it on write. Nothing outside an adapter ever sees the raw `$bedrock` key.
 
 ```ts
 import type { OpenCloudError, Result } from "@bedrock-rbx/ocale";
@@ -302,10 +305,10 @@ not implemented in slice 1. The migration slice will formalise it.
 ### Positive
 
 - Type shapes are Mantle-compatible at the semantic level: `kind`, `key`,
-  `inputs`, `outputs` map directly to Mantle's resource fields. Migration tooling
-  has a clear target.
-- `diff` is pure and sync. It can be called from programmatic scripts, tests, and
-  the CLI without any async plumbing (ADR-017 use case: drift assertions).
+  `inputs`, `outputs` map directly to Mantle's resource fields. Migration
+  tooling has a clear target.
+- `diff` is pure and sync. It can be called from programmatic scripts, tests,
+  and the CLI without any async plumbing (ADR-017 use case: drift assertions).
 - `ResourceCurrentState<K>` is derived from `ResourceDesiredState` via
   `Simplify<Extract<...> & { outputs }>`. Adding a new desired-state field
   automatically propagates to current state; no parallel type maintenance.
@@ -357,20 +360,20 @@ not implemented in slice 1. The migration slice will formalise it.
 
 This ADR should be reopened if any of the following occur:
 
-- **A second resource type is added.** The flat discriminated union and
-  per-kind output type pattern should be re-evaluated once there are two
-  real resource types. If the per-kind boilerplate is manageable, continue; if
-  it is growing into a maintenance burden, a codegen or registry-based approach
-  should be considered before the pattern solidifies further.
+- **A second resource type is added.** The flat discriminated union and per-kind
+  output type pattern should be re-evaluated once there are two real resource
+  types. If the per-kind boilerplate is manageable, continue; if it is growing
+  into a maintenance burden, a codegen or registry-based approach should be
+  considered before the pattern solidifies further.
 - **The migration slice ships.** The re-hash-on-migration strategy described
-  here ("re-compute file hashes from disk") becomes concrete implementation.
-  If the strategy turns out to be impractical (e.g. icon files are no longer
-  on disk at migration time), the fallback needs a decision. ADR-019 should be
+  here ("re-compute file hashes from disk") becomes concrete implementation. If
+  the strategy turns out to be impractical (e.g. icon files are no longer on
+  disk at migration time), the fallback needs a decision. ADR-019 should be
   amended or a child ADR created at that point.
 - **The `delete` operation lands.** The `Operation` union gains a `delete`
   variant and orphan-detection logic enters `diff`. The orphan-accumulation
-  consequence documented above is resolved. ADR-019's Decision section should
-  be updated to reflect the expanded union.
+  consequence documented above is resolved. ADR-019's Decision section should be
+  updated to reflect the expanded union.
 - **`$bedrock.version` needs a bump.** Any breaking change to the state file
   schema (adding a required field, renaming a key, changing a type) must
   increment `version` and provide a documented migration path. The trigger
@@ -386,16 +389,17 @@ Write state files as YAML to match Mantle's `.mantle-state.yml` format, enabling
 direct file comparison during migration.
 
 **Rejected.** Migration is a one-time `bedrock migrate` conversion, not an
-ongoing parallel-write requirement. YAML parity during migration does not require
-Bedrock's own format to be YAML. JSON is simpler to parse without a runtime
-dependency, produces cleaner `git diff` output for per-field state changes, and
-is more natural for the programmatic API (JSON.stringify/parse, no serialisation
-library needed in `StatePort` implementations).
+ongoing parallel-write requirement. YAML parity during migration does not
+require Bedrock's own format to be YAML. JSON is simpler to parse without a
+runtime dependency, produces cleaner `git diff` output for per-field state
+changes, and is more natural for the programmatic API (JSON.stringify/parse, no
+serialisation library needed in `StatePort` implementations).
 
 ### Combined `environments:` map (Mantle's layout)
 
-Store all environments in a single file: `{ environments: { production: [...],
-staging: [...] } }`, matching Mantle's `BTreeMap<String, Vec<RobloxResource>>`.
+Store all environments in a single file:
+`{ environments: { production: [...], staging: [...] } }`, matching Mantle's
+`BTreeMap<String, Vec<RobloxResource>>`.
 
 **Rejected.** A staging deploy would rewrite a file that also contains
 production state, inflating `git diff` noise and widening the blast radius of a
@@ -429,15 +433,15 @@ migration-friendly and sufficient for the v1.0 resource set.
 
 ## Implementation Notes
 
-- `ResourceDesiredState`, `ResourceCurrentState`, `ResourceKey`, `RobloxAssetId`,
-  `Sha256Hex`, `Operation`, and `diff` are exported from
+- `ResourceDesiredState`, `ResourceCurrentState`, `ResourceKey`,
+  `RobloxAssetId`, `Sha256Hex`, `Operation`, and `diff` are exported from
   `packages/cli/src/index.ts` as public API per ADR-017.
-- `StatePort`, `BedrockState`, and `StateError` are driven-port types
-  (ADR-018). They are exported from `packages/cli/src/ports/state-port.ts`
-  and re-exported from `src/index.ts`.
+- `StatePort`, `BedrockState`, and `StateError` are driven-port types (ADR-018).
+  They are exported from `packages/cli/src/ports/state-port.ts` and re-exported
+  from `src/index.ts`.
 - `buildDesired` (shell) reads icon files and produces `iconFileHash` before
-  calling `diff`. `diff` never reads files. This boundary must be preserved
-  as new file-backed resource types are added.
+  calling `diff`. `diff` never reads files. This boundary must be preserved as
+  new file-backed resource types are added.
 - The `DriverRegistry` type maps `ResourceKind` to its `ResourceDriver<K>`
   implementation. `applyOps` (shell) receives a `DriverRegistry` and dispatches
   each `Operation` to the appropriate driver. The registry type is:
@@ -452,14 +456,14 @@ export type DriverRegistry = {
   state.** Roblox Open Cloud requires a `universeId` on every game-pass
   operation, yet `GamePassDesiredState` intentionally carries no `universeId`
   field — matching Mantle's `PassInputs`, which also omits it. Instead, the
-  scope is threaded into the driver at construction: `createGamePassDriver({
-  client, universeId })` captures the universe in a closure. Slice 1 hardcodes
-  the universeId at the test boundary because experience is not yet a managed
-  resource. When experience becomes managed (a future slice shipping
-  configuration-managed experience resources), `applyOps` will topo-sort
-  dependency order and thread the experience's `outputs.assetId` into the
-  game-pass driver at instantiation. Public types do not change during that
-  refactor — only `applyOps` and the driver-construction path evolve.
+  scope is threaded into the driver at construction:
+  `createGamePassDriver({ client, universeId })` captures the universe in a
+  closure. Slice 1 hardcodes the universeId at the test boundary because
+  experience is not yet a managed resource. When experience becomes managed (a
+  future slice shipping configuration-managed experience resources), `applyOps`
+  will topo-sort dependency order and thread the experience's `outputs.assetId`
+  into the game-pass driver at instantiation. Public types do not change during
+  that refactor — only `applyOps` and the driver-construction path evolve.
 
 - The `Tagged` pattern from type-fest produces branded types whose brand is
   erased at JSON-serialisation boundaries. Adapters that read state from disk or
@@ -467,10 +471,10 @@ export type DriverRegistry = {
   helpers (`asResourceKey(raw: string): ResourceKey`,
   `asRobloxAssetId(raw: string): RobloxAssetId`,
   `asSha256Hex(raw: string): Sha256Hex`). These constructors live in `core/`
-  alongside the branded type definitions. They perform runtime validation
-  (e.g. `asSha256Hex` verifies the string is 64 lowercase hex characters)
-  before returning the branded value, ensuring the compile-time guarantees
-  are backed by runtime checks at every deserialization boundary.
+  alongside the branded type definitions. They perform runtime validation (e.g.
+  `asSha256Hex` verifies the string is 64 lowercase hex characters) before
+  returning the branded value, ensuring the compile-time guarantees are backed
+  by runtime checks at every deserialization boundary.
 
 ## Related Decisions
 
@@ -489,8 +493,8 @@ export type DriverRegistry = {
 - **ADR-018**: Architecture Refinement -- core types live in
   `packages/cli/src/core/`; `StatePort` and `ResourceDriver<K>` live in
   `packages/cli/src/ports/`; `buildDesired` (which hashes files) lives in
-  `packages/cli/src/shell/`. The I/O boundary established in ADR-018 is
-  enforced by this ADR's type placement.
+  `packages/cli/src/shell/`. The I/O boundary established in ADR-018 is enforced
+  by this ADR's type placement.
 
 ## Amendments
 
@@ -498,18 +502,18 @@ export type DriverRegistry = {
   section and in the "no state file" narrative uses `BedrockState | null` and
   `Ok(null)`. In code this is modelled as `BedrockState | undefined` and
   `Ok(undefined)`, because `null` is banned project-wide under the
-  `unicorn/no-null` ESLint rule. The contract is unchanged: "no state file
-  yet" stays a distinct success value from "file with empty resources list",
-  and a malformed file must still surface as `Err(StateError)` rather than
-  collapsing to that sentinel. See `packages/cli/src/ports/state-port.ts`.
+  `unicorn/no-null` ESLint rule. The contract is unchanged: "no state file yet"
+  stays a distinct success value from "file with empty resources list", and a
+  malformed file must still surface as `Err(StateError)` rather than collapsing
+  to that sentinel. See `packages/cli/src/ports/state-port.ts`.
 
 - **2026-06-23 (`realDisplay` sibling):** `BedrockState` gains an optional
   `realDisplay` field — a map keyed by the `kind:key` composite carrying the
   real (pre-redaction) display values for redacted resources, so a codegen
   emitter can recover what redaction (ADR-024) hid behind placeholders. On disk
   each entry is co-located as an adapter-private `$realDisplay` key on the
-  resource object it describes (mirroring the `$bedrock` envelope's
-  "nothing outside an adapter sees it" property); `serializeStateFile` and
+  resource object it describes (mirroring the `$bedrock` envelope's "nothing
+  outside an adapter sees it" property); `serializeStateFile` and
   `parseStateFile` own the on-disk ↔ in-memory mapping. This is **not** a
   diff-algebra change: `diff` and the state merge (`mergeResources`) operate on
   the resources array and never read the sibling, so the field-by-field
@@ -532,6 +536,6 @@ export type DriverRegistry = {
   extends to it. It is a v1-compatible, additive envelope member per this ADR's
   `$bedrock.version` revisit criterion: a pre-existing reader ignores the
   unknown member and a happy-path deploy with codegen disabled never writes one.
-  Its lifecycle (stored only on a successful republish/publish, retained stale on
-  an aborted rebuild so the next deploy retries) and its role as the two-phase
-  rebuild trigger are recorded in ADR-026's 2026-06-23 amendment.
+  Its lifecycle (stored only on a successful republish/publish, retained stale
+  on an aborted rebuild so the next deploy retries) and its role as the
+  two-phase rebuild trigger are recorded in ADR-026's 2026-06-23 amendment.

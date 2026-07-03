@@ -1,9 +1,9 @@
+import { assert, describe, expect, it } from "vitest";
+
 import {
 	validListSortedMapItemsBody,
 	validSortedMapItemBody,
 } from "#tests/helpers/memory-store-sorted-maps";
-import { assert, describe, expect, it } from "vitest";
-
 import { ApiError } from "../../../errors/api-error.ts";
 import { parseListResponse, parseSortedMapItemResponse } from "./parsers.ts";
 import type { MemoryStoreSortedMapItemWire } from "./wire.ts";

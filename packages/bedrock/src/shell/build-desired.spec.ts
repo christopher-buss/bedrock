@@ -1,6 +1,6 @@
-import { PLATFORM_FLAG_ROWS } from "#tests/helpers/resources";
 import { assert, describe, expect, it, vi } from "vitest";
 
+import { PLATFORM_FLAG_ROWS } from "#tests/helpers/resources";
 import type { GamePassDesiredInput } from "../core/flatten.ts";
 import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";

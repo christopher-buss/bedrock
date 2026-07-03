@@ -9,8 +9,7 @@ Decision Makers: Maintainer Tags: documentation, vitepress, typedoc, vercel
 Bedrock requires documentation for two distinct packages:
 
 1. **Bedrock CLI** - User guides, configuration reference, deployment workflows
-2. **@bedrock-rbx/ocale** - SDK for Roblox Open Cloud APIs, usable
-   independently
+2. **@bedrock-rbx/ocale** - SDK for Roblox Open Cloud APIs, usable independently
 
 Primary audience is Roblox developers deploying games. Internationalization
 (i18n) is essential for global reach. Versioned documentation is nice to have
@@ -137,21 +136,20 @@ reviewing documentation changes before merge.
 ## Amendments
 
 - **2026-04-17:** The `@bedrock-rbx/ocale` package was renamed to
-  `@bedrock-rbx/ocale`. URL path is now `/ocale/` (not `/open-cloud/`) and TypeDoc
-  emits to `apps/website/docs/ocale/api/`. The directory `packages/open-cloud/`
-  retains its original name.
+  `@bedrock-rbx/ocale`. URL path is now `/ocale/` (not `/open-cloud/`) and
+  TypeDoc emits to `apps/website/docs/ocale/api/`. The directory
+  `packages/open-cloud/` retains its original name.
 
-- **2026-04-29:** Production docs deploy on release tags, not `main`. The
-  Vercel project at `bedrock-livid.vercel.app` is driven by
+- **2026-04-29:** Production docs deploy on release tags, not `main`. The Vercel
+  project at `bedrock-livid.vercel.app` is driven by
   `.github/workflows/website-release.yaml`, which fires on push of a tag
   matching `@bedrock-rbx/core@*` (the Changesets default), checks out the tagged
   commit, and runs `vercel pull` / `vercel build --prod` /
   `vercel deploy --prebuilt --prod`. Required repo secrets: `VERCEL_TOKEN`,
-  `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`. The dashboard's git integration for
-  this project must have auto-deploy on `main` disabled. A second Vercel
-  project tracks `main` for previewing unreleased work; it builds with the
-  environment variable `BEDROCK_DOCS_CHANNEL=next`, which the VitePress
-  config consumes to prefix the title (`Bedrock (preview)`) and add a "Latest
-  release" link to the navbar pointing back at production. The site remains
-  single-version; a version switcher is deferred until the API stabilizes
-  at 1.0. Issue #137.
+  `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`. The dashboard's git integration for this
+  project must have auto-deploy on `main` disabled. A second Vercel project
+  tracks `main` for previewing unreleased work; it builds with the environment
+  variable `BEDROCK_DOCS_CHANNEL=next`, which the VitePress config consumes to
+  prefix the title (`Bedrock (preview)`) and add a "Latest release" link to the
+  navbar pointing back at production. The site remains single-version; a version
+  switcher is deferred until the API stabilizes at 1.0. Issue #137.

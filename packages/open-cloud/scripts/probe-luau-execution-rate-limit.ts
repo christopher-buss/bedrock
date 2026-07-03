@@ -51,6 +51,9 @@ const DEFAULT_RETRY_AFTER_SECONDS = 2;
 const ROLLING_WINDOW_MS = 60_000;
 const MS_PER_SECOND = 1000;
 
+/** Matches a windowed `x-ratelimit-limit` header value such as `200;w=60`. */
+const WINDOWED_LIMIT_PATTERN = /w=\d+/;
+
 /** Matches any of the four x-aep-resource path shapes the create call may return. */
 const PATH_PATTERN =
 	/^universes\/(\d+)\/places\/(\d+)(?:\/versions\/(\d+))?(?:\/luau-execution-sessions\/([^/]+)\/tasks\/([^/]+)|\/luau-execution-session-tasks\/([^/]+))$/;
@@ -248,23 +251,33 @@ async function runGetLoop(apiKey: string, url: string): Promise<ReadonlyArray<Ge
 	return samples;
 }
 
+function countSuccessesInWindow(successTimes: ReadonlyArray<number>, startIndex: number): number {
+	const windowStart = successTimes[startIndex];
+	if (windowStart === undefined) {
+		return 0;
+	}
+
+	let count = 0;
+	for (let index = startIndex; index < successTimes.length; index += 1) {
+		const time = successTimes[index];
+		if (time === undefined || time - windowStart >= ROLLING_WINDOW_MS) {
+			return count;
+		}
+
+		count += 1;
+	}
+
+	return count;
+}
+
 function maxSuccessesInRollingWindow(samples: ReadonlyArray<GetSample>): number {
 	const successTimes = samples
 		.filter((sample) => sample.status >= 200 && sample.status < 300)
 		.map((sample) => sample.time);
 
 	let best = 0;
-	for (const [startIndex, windowStart] of successTimes.entries()) {
-		let count = 0;
-		for (let index = startIndex; index < successTimes.length; index += 1) {
-			const time = successTimes[index];
-			if (time !== undefined && time - windowStart < ROLLING_WINDOW_MS) {
-				count += 1;
-			} else {
-				break;
-			}
-		}
-
+	for (const startIndex of successTimes.keys()) {
+		const count = countSuccessesInWindow(successTimes, startIndex);
 		if (count > best) {
 			best = count;
 		}
@@ -303,7 +316,7 @@ function shapeVerdict(samples: ReadonlyArray<GetSample>): string {
 	}
 
 	const limits = distinctHeader(samples, "x-ratelimit-limit");
-	const isWindowed = limits.some((value) => /w=\d+/.test(value));
+	const isWindowed = limits.some((value) => WINDOWED_LIMIT_PATTERN.test(value));
 	return isWindowed
 		? `FIXED WINDOW per x-ratelimit-limit=[${limits.join(" | ")}] ` +
 				"(x-ratelimit-reset is the true recovery; retry-after understates it)"
@@ -364,8 +377,8 @@ function printSummary(samples: ReadonlyArray<GetSample>): void {
 }
 
 async function probe(credentials: Credentials): Promise<void> {
-	const createBody = await submitTask(credentials);
-	const ref = parseTaskRef(createBody);
+	const taskBody = await submitTask(credentials);
+	const ref = parseTaskRef(taskBody);
 	if (ref === undefined) {
 		console.error("!!! could not parse a task ref from the create response; aborting");
 		process.exit(1);

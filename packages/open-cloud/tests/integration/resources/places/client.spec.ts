@@ -1,3 +1,5 @@
+import { assert, describe, expect, it, vi } from "vitest";
+
 import type { OpenCloudHooks } from "#src/client/types";
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
@@ -12,7 +14,6 @@ import {
 	validPlaceBody,
 	validPublishResponseBody,
 } from "#tests/helpers/places";
-import { assert, describe, expect, it, vi } from "vitest";
 
 describe(PlacesClient, () => {
 	describe("publish", () => {

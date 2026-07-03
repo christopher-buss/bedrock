@@ -1,8 +1,8 @@
+import type { ErrorObject, ValidateFunction } from "ajv";
+
 import type { HttpRequest, HttpResponse } from "#src/internal/http/types";
 import { isRecord } from "#src/internal/utils/is-record";
 import { getAjv, type OpenApiValidationMode } from "#tests/conformance/_helpers";
-import type { ErrorObject, ValidateFunction } from "ajv";
-
 import { findOperation, type OperationMatch } from "./openapi-operations.ts";
 
 const JSON_MEDIA_TYPE = "application/json";

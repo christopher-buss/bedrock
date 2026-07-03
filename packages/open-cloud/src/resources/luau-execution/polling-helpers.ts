@@ -12,21 +12,21 @@ import type {
 import type { OpenCloudError } from "../../errors/base.ts";
 import type { ResourceClient } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import { type PollDeps, pollUntilDoneCore, type PollUntilDoneOptions } from "./polling.ts";
+import { type PollDependencies, pollUntilDoneCore, type PollUntilDoneOptions } from "./polling.ts";
 
 /**
- * Builds the {@link PollDeps} bundle used by {@link pollUntilDoneCore},
+ * Builds the {@link PollDependencies} bundle used by {@link pollUntilDoneCore},
  * closing over the supplied {@link ResourceClient}, task ref, and
  * per-request options so the core loop stays narrow.
  *
  * @param inner - The {@link ResourceClient} that issues each `tasks.get` call.
  * @param args - The polling options and the task ref to fetch on every iteration.
- * @returns A {@link PollDeps} bundle wiring `fetch`, `now`, and `sleep`.
+ * @returns A {@link PollDependencies} bundle wiring `fetch`, `now`, and `sleep`.
  */
-export function buildPollDeps(
+export function buildPollDependencies(
 	inner: ResourceClient,
 	args: { options: PollUntilDoneOptions; ref: LuauExecutionTaskRef },
-): PollDeps {
+): PollDependencies {
 	return {
 		fetch: async () => {
 			return inner.execute({
@@ -66,7 +66,7 @@ export async function submitAndPoll(
 	}
 
 	return pollUntilDoneCore(
-		buildPollDeps(inner, { options, ref: submitResult.data.ref }),
+		buildPollDependencies(inner, { options, ref: submitResult.data.ref }),
 		options,
 	);
 }

@@ -2,23 +2,30 @@
 
 ## Install
 
-:::tabs key:pm
-== pnpm
+:::tabs key:pm == pnpm
+
 ```sh
 pnpm add @bedrock-rbx/ocale
 ```
+
 == npm
+
 ```sh
 npm install @bedrock-rbx/ocale
 ```
+
 == bun
+
 ```sh
 bun add @bedrock-rbx/ocale
 ```
+
 == yarn
+
 ```sh
 yarn add @bedrock-rbx/ocale
 ```
+
 :::
 
 ## Make a request

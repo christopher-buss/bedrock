@@ -1,5 +1,9 @@
 import { OpenCloudError } from "@bedrock-rbx/ocale";
 
+import { Buffer } from "node:buffer";
+import process from "node:process";
+import { assert, describe, expect, it, vi } from "vitest";
+
 import {
 	gamePassDesired,
 	placeCurrent,
@@ -7,10 +11,6 @@ import {
 	universeCurrent,
 	universeDesired,
 } from "#tests/helpers/resources";
-import { Buffer } from "node:buffer";
-import process from "node:process";
-import { assert, describe, expect, it, vi } from "vitest";
-
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import type { CodegenFile, EmitInput, Emitter } from "../core/codegen.ts";
 import { hashCodegenFiles } from "../core/codegen.ts";

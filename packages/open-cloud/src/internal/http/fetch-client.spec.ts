@@ -727,7 +727,8 @@ describe(createFetchHttpClient, () => {
 		expect.assertions(1);
 
 		async function fakeFetch(): Promise<Response> {
-			return new Response(new TextEncoder().encode("not json"), { status: 200 });
+			const encoder = new TextEncoder();
+			return new Response(encoder.encode("not json"), { status: 200 });
 		}
 
 		const client = createFetchHttpClient(fakeFetch);

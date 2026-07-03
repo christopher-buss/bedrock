@@ -178,8 +178,8 @@ function describeApplyError(error: ApplyError): string {
 }
 
 /* eslint-disable-next-line max-lines-per-function -- single exhaustive switch over every ProgressEvent variant is clearer than splitting into deploy-level vs per-resource halves, which would leave both halves non-exhaustive and required a boolean handoff that hides the dispatch surface. */
-function renderEvent(event: ProgressEvent, deps: ClackProgressAdapterDeps): void {
-	const { clack, config } = deps;
+function renderEvent(event: ProgressEvent, dependencies: ClackProgressAdapterDeps): void {
+	const { clack, config } = dependencies;
 	switch (event.kind) {
 		case "applySummary": {
 			clack.logMessage(applySummaryLine(event));

@@ -17,6 +17,10 @@ import {
 import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
 import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock-rbx/ocale/testing";
 
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { assert, describe, expect, it } from "vitest";
+
 import { assertAllReconcilable } from "#src/core/assert-all-reconcilable";
 import {
 	defaultRedactedProductName,
@@ -24,9 +28,6 @@ import {
 	REDACTED_PRICE,
 } from "#src/core/redact-resources";
 import { REDACTED_ICON_BYTES, REDACTED_ICON_PATH } from "#src/core/redacted-icon";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it } from "vitest";
 
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const PRODUCTS_FIXTURE_DIR = join(FIXTURES_ROOT, "products-redacted");

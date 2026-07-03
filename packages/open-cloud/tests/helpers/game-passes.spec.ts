@@ -1,5 +1,6 @@
-import { validGamePassBody } from "#tests/helpers/game-passes";
 import { describe, expect, it } from "vitest";
+
+import { validGamePassBody } from "#tests/helpers/game-passes";
 
 describe(validGamePassBody, () => {
 	it("should produce a minimally-valid default body matching the GamePassConfigV2 schema", () => {

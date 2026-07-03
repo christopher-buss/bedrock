@@ -102,9 +102,9 @@ function renderSection<W extends { readonly mantlePath: string }>(input: Section
 	}
 
 	const groups = groupByKey(input.warnings, input.groupKey);
-	const blocks = [...groups].map(([heading, members]) => {
+	const blocks = Array.from(groups, ([heading, members]) => {
 		const bySubject = groupByKey(members, input.subject);
-		const lines = [...bySubject].map(([key, subjectMembers]) =>
+		const lines = Array.from(bySubject, ([key, subjectMembers]) =>
 			renderBullet(key, subjectMembers),
 		);
 		return [`### ${heading}`, "", ...lines, ""].join("\n");

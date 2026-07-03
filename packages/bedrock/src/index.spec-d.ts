@@ -32,7 +32,7 @@ import type {
 	GetEnvironmentError,
 	LoadConfigOptions,
 	PlaceDesiredState,
-	PlaceDriverDeps,
+	PlaceDriverDeps as PlaceDriverDependencies,
 	PlaceEntry,
 	PlaceOutputs,
 	ResolvedConfig,
@@ -303,8 +303,10 @@ describe("PlaceOutputs", () => {
 
 describe("PlaceDriverDeps", () => {
 	it("should expose client, readFile, and universeId", () => {
-		expectTypeOf<keyof PlaceDriverDeps>().toEqualTypeOf<"client" | "readFile" | "universeId">();
-		expectTypeOf<PlaceDriverDeps["universeId"]>().toEqualTypeOf<RobloxAssetId>();
+		expectTypeOf<keyof PlaceDriverDependencies>().toEqualTypeOf<
+			"client" | "readFile" | "universeId"
+		>();
+		expectTypeOf<PlaceDriverDependencies["universeId"]>().toEqualTypeOf<RobloxAssetId>();
 	});
 });
 

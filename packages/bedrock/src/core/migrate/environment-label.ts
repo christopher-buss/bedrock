@@ -18,7 +18,7 @@ import type { EnvironmentFoldResult } from "./fold-environment.ts";
 export function computeEnvironmentLabel(fold: EnvironmentFoldResult): string | undefined {
 	const displayNames = [
 		fold.universe?.entry.displayName,
-		...[...fold.places.values()].map(({ entry }) => entry.displayName),
+		...Array.from(fold.places.values(), ({ entry }) => entry.displayName),
 	].filter((displayName): displayName is string => displayName !== undefined);
 	const labels = new Set(
 		displayNames.map((displayName) => extractDisplayNamePrefix(displayName).label),

@@ -2,6 +2,8 @@ import CoverageReport from "monocart-coverage-reports";
 import { glob } from "node:fs/promises";
 import process from "node:process";
 
+const BEDROCK_ROOT_PREFIX_PATTERN = /^.*\/bedrock\//;
+
 async function mergeCoverage(): Promise<void> {
 	/** Find all coverage directories in packages and apps. */
 	const coverageDirectories: Array<string> = [];
@@ -33,7 +35,7 @@ async function mergeCoverage(): Promise<void> {
 		 * @param filePath - The absolute file path from coverage data.
 		 * @returns The relative path from the bedrock root.
 		 */
-		sourcePath: (filePath: string): string => filePath.replace(/^.*\/bedrock\//, ""),
+		sourcePath: (filePath: string): string => filePath.replace(BEDROCK_ROOT_PREFIX_PATTERN, ""),
 	});
 
 	await report.generate();

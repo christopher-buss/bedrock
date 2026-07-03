@@ -1,10 +1,11 @@
+import { describe, expect, it } from "vitest";
+
 import { LIST_LOGS_SPEC } from "#src/domains/cloud-v2/luau-execution-task-logs/specs";
 import {
 	GET_SPEC,
 	SUBMIT_HEAD_SPEC,
 	SUBMIT_VERSION_SPEC,
 } from "#src/domains/cloud-v2/luau-execution-tasks/specs";
-import { describe, expect, it } from "vitest";
 
 describe("luau-execution specs are frozen module-scope singletons", () => {
 	it.for([

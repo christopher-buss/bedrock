@@ -15,8 +15,9 @@ import {
 import { PlacesClient } from "@bedrock-rbx/ocale/places";
 import { createFakeHttpClient, validPlaceBody } from "@bedrock-rbx/ocale/testing";
 
-import { REDACTED_DESCRIPTION } from "#src/core/redact-resources";
 import { assert, describe, expect, it } from "vitest";
+
+import { REDACTED_DESCRIPTION } from "#src/core/redact-resources";
 
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
 const PLACE_ID = asRobloxAssetId("4711");

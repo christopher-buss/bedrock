@@ -9,7 +9,7 @@ interface SpawnResult {
 
 type SpawnFunc = (command: string, args: ReadonlyArray<string>) => SpawnResult;
 
-interface RunDeps {
+interface RunDependencies {
 	readonly platform: NodeJS.Platform;
 	readonly spawn: SpawnFunc;
 	readonly stdin: string;
@@ -87,15 +87,15 @@ function removeWorktree(spawn: SpawnFunc, binary: string, worktreePath: string):
 	return true;
 }
 
-function runWorktreeRemove(deps: RunDeps): RunResult {
-	const worktreePath = parseWorktreePath(deps.stdin);
+function runWorktreeRemove(dependencies: RunDependencies): RunResult {
+	const worktreePath = parseWorktreePath(dependencies.stdin);
 	if (worktreePath === undefined) {
 		console.error("worktree-remove: missing `worktree_path` in stdin payload");
 		return { code: 1 };
 	}
 
-	const binary = worktrunkBinary(deps.platform);
-	return removeWorktree(deps.spawn, binary, worktreePath) ? { code: 0 } : { code: 1 };
+	const binary = worktrunkBinary(dependencies.platform);
+	return removeWorktree(dependencies.spawn, binary, worktreePath) ? { code: 0 } : { code: 1 };
 }
 
 async function readStdin(): Promise<string> {

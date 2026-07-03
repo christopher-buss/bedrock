@@ -11,7 +11,7 @@ import { previewDiff as defaultPreviewDiff, type DiffPreview } from "../../shell
 import { createClackPort } from "../clack-port.ts";
 import { buildCredentialOverrides } from "../credential-environment-overrides.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
-import type { ProgDeps } from "../index.ts";
+import type { ProgDeps as ProgDependencies } from "../index.ts";
 import { type CommonOptions, parseCommonOptions } from "../parse-options.ts";
 import { type ClackPort, renderDeployError, renderParseError } from "../render.ts";
 
@@ -47,7 +47,7 @@ interface DispatchOutcome {
  * @returns An async sade action that returns once `deps.exit` was invoked.
  */
 export function diffCommand(
-	deps: ProgDeps,
+	deps: ProgDependencies,
 ): (rawOptions: Record<string, unknown>) => Promise<void> {
 	const resolved = resolveDiff(deps);
 	return async (rawOptions) => {
@@ -56,12 +56,12 @@ export function diffCommand(
 	};
 }
 
-function resolveDiff(deps: ProgDeps): ResolvedDiff {
+function resolveDiff(dependencies: ProgDependencies): ResolvedDiff {
 	return {
-		clack: deps.clack ?? createClackPort(),
-		exit: deps.exit ?? ((code: number) => process.exit(code)),
-		loadConfig: deps.loadConfig ?? defaultLoadConfig,
-		previewDiff: deps.previewDiff ?? defaultPreviewDiff,
+		clack: dependencies.clack ?? createClackPort(),
+		exit: dependencies.exit ?? ((code: number) => process.exit(code)),
+		loadConfig: dependencies.loadConfig ?? defaultLoadConfig,
+		previewDiff: dependencies.previewDiff ?? defaultPreviewDiff,
 	};
 }
 

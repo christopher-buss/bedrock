@@ -1,5 +1,7 @@
 import { OpenCloudError } from "@bedrock-rbx/ocale";
 
+import { describe, expect, it } from "vitest";
+
 import {
 	developerProductCurrent,
 	gamePassCurrent,
@@ -8,8 +10,6 @@ import {
 	placeDesired,
 	universeCurrent,
 } from "#tests/helpers/resources";
-import { describe, expect, it } from "vitest";
-
 import type { Operation } from "../core/operations.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
 import type { BedrockState } from "../core/state.ts";

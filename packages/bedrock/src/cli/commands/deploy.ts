@@ -12,7 +12,7 @@ import { createDefaultSpawner } from "../default-spawner.ts";
 import { discoverOverride as defaultDiscoverOverride } from "../discover-override.ts";
 import { dispatchOverride } from "../dispatch-override.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
-import type { ProgDeps } from "../index.ts";
+import type { ProgDeps as ProgDependencies } from "../index.ts";
 import { type CommonOptions, loadOptionsFor, parseCommonOptions } from "../parse-options.ts";
 import {
 	type ClackPort,
@@ -74,7 +74,7 @@ type OverrideDiscovery =
  * @returns An async sade action that returns once `deps.exit` was invoked.
  */
 export function deployCommand(
-	deps: ProgDeps,
+	deps: ProgDependencies,
 ): (rawOptions: Record<string, unknown>) => Promise<void> {
 	const resolved = resolveDeploy(deps);
 	return async (rawOptions) => {
@@ -83,17 +83,17 @@ export function deployCommand(
 	};
 }
 
-function resolveDeploy(deps: ProgDeps): ResolvedDeploy {
-	const clack = deps.clack ?? createClackPort();
+function resolveDeploy(dependencies: ProgDependencies): ResolvedDeploy {
+	const clack = dependencies.clack ?? createClackPort();
 	return {
 		clack,
-		deploy: deps.deploy ?? defaultDeploy,
-		discoverOverride: deps.discoverOverride ?? defaultDiscoverOverride,
-		exit: deps.exit ?? ((code: number) => process.exit(code)),
-		loadConfig: deps.loadConfig ?? defaultLoadConfig,
-		progressOverride: deps.progress,
-		projectRoot: deps.projectRoot ?? process.cwd(),
-		spawner: deps.spawner ?? createDefaultSpawner(),
+		deploy: dependencies.deploy ?? defaultDeploy,
+		discoverOverride: dependencies.discoverOverride ?? defaultDiscoverOverride,
+		exit: dependencies.exit ?? ((code: number) => process.exit(code)),
+		loadConfig: dependencies.loadConfig ?? defaultLoadConfig,
+		progressOverride: dependencies.progress,
+		projectRoot: dependencies.projectRoot ?? process.cwd(),
+		spawner: dependencies.spawner ?? createDefaultSpawner(),
 	};
 }
 

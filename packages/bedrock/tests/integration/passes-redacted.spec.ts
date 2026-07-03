@@ -17,15 +17,16 @@ import {
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import { createFakeHttpClient, validGamePassBody } from "@bedrock-rbx/ocale/testing";
 
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { assert, describe, expect, it } from "vitest";
+
 import {
 	REDACTED_DESCRIPTION,
 	REDACTED_PASS_NAME,
 	REDACTED_PRICE,
 } from "#src/core/redact-resources";
 import { REDACTED_ICON_BYTES, REDACTED_ICON_PATH } from "#src/core/redacted-icon";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it } from "vitest";
 
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const PASSES_FIXTURE_DIR = join(FIXTURES_ROOT, "passes-redacted");

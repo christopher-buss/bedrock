@@ -1,6 +1,6 @@
-import { validDeveloperProductBody } from "#tests/helpers/developer-products";
 import { assert, describe, expect, it } from "vitest";
 
+import { validDeveloperProductBody } from "#tests/helpers/developer-products";
 import { ApiError } from "../../../errors/api-error.ts";
 import { parseDeveloperProductResponse } from "./parsers.ts";
 import type { DeveloperProductConfigV2 } from "./wire.ts";

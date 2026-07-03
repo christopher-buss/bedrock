@@ -1,12 +1,12 @@
+import { ArkErrors } from "arktype";
+import { assert, describe, expect, it } from "vitest";
+
 import {
 	gamePassCurrent,
 	gamePassDesired,
 	INVALID_ROBUX_PRICES,
 	ValidGamePassEntry,
 } from "#tests/helpers/resources";
-import { ArkErrors } from "arktype";
-import { assert, describe, expect, it } from "vitest";
-
 import { asResourceKey, asSha256Hex } from "../../types/ids.ts";
 import { gamePassKind } from "./game-pass.ts";
 

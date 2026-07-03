@@ -8,7 +8,7 @@ import type { loadConfig } from "../shell/load-config.ts";
 import type { migrateMantleState } from "../shell/migrate-mantle-state.ts";
 import type { previewDiff } from "../shell/preview-diff.ts";
 import type { discoverOverride } from "./discover-override.ts";
-import type { ProgDeps } from "./index.ts";
+import type { ProgDeps as ProgDependencies } from "./index.ts";
 import { createProg } from "./index.ts";
 import type { MigratePromptPort } from "./migrate-prompt-port.ts";
 import type { ClackPort } from "./render.ts";
@@ -16,7 +16,7 @@ import type { Spawner } from "./spawner.ts";
 
 describe("ProgDeps shape", () => {
 	it("should expose exactly the configured injection slots", () => {
-		expectTypeOf<keyof ProgDeps>().toEqualTypeOf<
+		expectTypeOf<keyof ProgDependencies>().toEqualTypeOf<
 			| "buildStatePort"
 			| "clack"
 			| "deploy"
@@ -35,51 +35,55 @@ describe("ProgDeps shape", () => {
 	});
 
 	it("should mark every slot as optional so an empty deps object satisfies ProgDeps", () => {
-		expectTypeOf<Record<string, never>>().toExtend<ProgDeps>();
+		expectTypeOf<Record<string, never>>().toExtend<ProgDependencies>();
 	});
 });
 
 describe("ProgDeps deploy/diff slots", () => {
 	it("should accept the real deploy signature in the deploy slot", () => {
-		expectTypeOf<NonNullable<ProgDeps["deploy"]>>().toEqualTypeOf<typeof deploy>();
+		expectTypeOf<NonNullable<ProgDependencies["deploy"]>>().toEqualTypeOf<typeof deploy>();
 	});
 
 	it("should accept the real previewDiff signature in the previewDiff slot", () => {
-		expectTypeOf<NonNullable<ProgDeps["previewDiff"]>>().toEqualTypeOf<typeof previewDiff>();
+		expectTypeOf<NonNullable<ProgDependencies["previewDiff"]>>().toEqualTypeOf<
+			typeof previewDiff
+		>();
 	});
 
 	it("should accept the real loadConfig signature in the loadConfig slot", () => {
-		expectTypeOf<NonNullable<ProgDeps["loadConfig"]>>().toEqualTypeOf<typeof loadConfig>();
+		expectTypeOf<NonNullable<ProgDependencies["loadConfig"]>>().toEqualTypeOf<
+			typeof loadConfig
+		>();
 	});
 });
 
 describe("ProgDeps migrate slots", () => {
 	it("should accept the real buildStatePort signature in the buildStatePort slot", () => {
-		expectTypeOf<NonNullable<ProgDeps["buildStatePort"]>>().toEqualTypeOf<
+		expectTypeOf<NonNullable<ProgDependencies["buildStatePort"]>>().toEqualTypeOf<
 			typeof buildStatePort
 		>();
 	});
 
 	it("should accept the real migrateMantleState signature in the migrateMantleState slot", () => {
-		expectTypeOf<NonNullable<ProgDeps["migrateMantleState"]>>().toEqualTypeOf<
+		expectTypeOf<NonNullable<ProgDependencies["migrateMantleState"]>>().toEqualTypeOf<
 			typeof migrateMantleState
 		>();
 	});
 
 	it("should accept the MigratePromptPort interface in the migratePromptPort slot", () => {
 		expectTypeOf<
-			NonNullable<ProgDeps["migratePromptPort"]>
+			NonNullable<ProgDependencies["migratePromptPort"]>
 		>().toEqualTypeOf<MigratePromptPort>();
 	});
 
 	it("should accept a (path, contents) writeFile signature in the writeFile slot", () => {
-		expectTypeOf<NonNullable<ProgDeps["writeFile"]>>().toEqualTypeOf<
+		expectTypeOf<NonNullable<ProgDependencies["writeFile"]>>().toEqualTypeOf<
 			(path: string, contents: string) => Promise<void>
 		>();
 	});
 
 	it("should accept a (path) mkdir signature in the mkdir slot", () => {
-		expectTypeOf<NonNullable<ProgDeps["mkdir"]>>().toEqualTypeOf<
+		expectTypeOf<NonNullable<ProgDependencies["mkdir"]>>().toEqualTypeOf<
 			(path: string) => Promise<void>
 		>();
 	});
@@ -87,37 +91,39 @@ describe("ProgDeps migrate slots", () => {
 
 describe("ProgDeps render slots", () => {
 	it("should accept the ClackPort interface in the clack slot", () => {
-		expectTypeOf<NonNullable<ProgDeps["clack"]>>().toEqualTypeOf<ClackPort>();
+		expectTypeOf<NonNullable<ProgDependencies["clack"]>>().toEqualTypeOf<ClackPort>();
 	});
 
 	it("should accept the ProgressPort interface in the progress slot", () => {
-		expectTypeOf<NonNullable<ProgDeps["progress"]>>().toEqualTypeOf<ProgressPort>();
+		expectTypeOf<NonNullable<ProgDependencies["progress"]>>().toEqualTypeOf<ProgressPort>();
 	});
 
 	it("should accept a void-returning exit handle so test stubs can intercept termination", () => {
-		expectTypeOf<NonNullable<ProgDeps["exit"]>>().toEqualTypeOf<(code: number) => void>();
+		expectTypeOf<NonNullable<ProgDependencies["exit"]>>().toEqualTypeOf<
+			(code: number) => void
+		>();
 	});
 });
 
 describe("ProgDeps override slots", () => {
 	it("should accept the discoverOverride signature in the discoverOverride slot", () => {
-		expectTypeOf<NonNullable<ProgDeps["discoverOverride"]>>().toEqualTypeOf<
+		expectTypeOf<NonNullable<ProgDependencies["discoverOverride"]>>().toEqualTypeOf<
 			typeof discoverOverride
 		>();
 	});
 
 	it("should accept a string in the projectRoot slot", () => {
-		expectTypeOf<NonNullable<ProgDeps["projectRoot"]>>().toEqualTypeOf<string>();
+		expectTypeOf<NonNullable<ProgDependencies["projectRoot"]>>().toEqualTypeOf<string>();
 	});
 
 	it("should accept the Spawner interface in the spawner slot", () => {
-		expectTypeOf<NonNullable<ProgDeps["spawner"]>>().toEqualTypeOf<Spawner>();
+		expectTypeOf<NonNullable<ProgDependencies["spawner"]>>().toEqualTypeOf<Spawner>();
 	});
 });
 
 describe(createProg, () => {
 	it("should accept an optional ProgDeps argument and return a sade Sade instance", () => {
-		expectTypeOf(createProg).parameter(0).toEqualTypeOf<ProgDeps | undefined>();
+		expectTypeOf(createProg).parameter(0).toEqualTypeOf<ProgDependencies | undefined>();
 		expectTypeOf<ReturnType<typeof createProg>>().toEqualTypeOf<Sade>();
 	});
 });
