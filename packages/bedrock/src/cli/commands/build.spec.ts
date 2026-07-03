@@ -40,6 +40,26 @@ function recordingSpawner(result: Result<number, SpawnLaunchError>): SpawnerReco
 	return { invocations, spawner };
 }
 
+function scriptedSpawner(
+	results: ReadonlyArray<Result<number, SpawnLaunchError>>,
+): SpawnerRecorder {
+	const invocations: Array<SpawnInvocation> = [];
+	let callIndex = 0;
+	const spawner: Spawner = {
+		async spawn(invocation) {
+			invocations.push(invocation);
+			const next = results[callIndex];
+			callIndex += 1;
+			if (next === undefined) {
+				throw new Error("spawner invoked beyond scripted results");
+			}
+
+			return next;
+		},
+	};
+	return { invocations, spawner };
+}
+
 function discoverReturning(path: string | undefined): DiscoverOverrideFunc {
 	return vi.fn<DiscoverOverrideFunc>(() => path);
 }
@@ -210,24 +230,10 @@ describe(buildCommand, () => {
 	it("should run every env via spawn even when an earlier env's spawn exits non-zero", async () => {
 		expect.assertions(2);
 
-		const invocations: Array<SpawnInvocation> = [];
-		let callIndex = 0;
-		const results: ReadonlyArray<Result<number, SpawnLaunchError>> = [
+		const { invocations, spawner } = scriptedSpawner([
 			{ data: 3, success: true },
 			{ data: 0, success: true },
-		];
-		const spawner: Spawner = {
-			async spawn(invocation) {
-				invocations.push(invocation);
-				const next = results[callIndex];
-				callIndex += 1;
-				if (next === undefined) {
-					throw new Error("spawner invoked beyond scripted results");
-				}
-
-				return next;
-			},
-		};
+		]);
 		const discoverOverride = discoverReturning("/abs/.bedrock/build.ts");
 		const deps = makeDeps({ discoverOverride, spawner });
 
@@ -240,22 +246,10 @@ describe(buildCommand, () => {
 	it("should exit with the highest non-zero code when several envs fail with different codes", async () => {
 		expect.assertions(1);
 
-		let callIndex = 0;
-		const results: ReadonlyArray<Result<number, SpawnLaunchError>> = [
+		const { spawner } = scriptedSpawner([
 			{ data: 5, success: true },
 			{ data: 2, success: true },
-		];
-		const spawner: Spawner = {
-			async spawn() {
-				const next = results[callIndex];
-				callIndex += 1;
-				if (next === undefined) {
-					throw new Error("spawner invoked beyond scripted results");
-				}
-
-				return next;
-			},
-		};
+		]);
 		const discoverOverride = discoverReturning("/abs/.bedrock/build.ts");
 		const deps = makeDeps({ discoverOverride, spawner });
 
