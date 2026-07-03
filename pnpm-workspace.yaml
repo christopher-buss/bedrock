@@ -5,6 +5,7 @@ ignoreWorkspaceRootCheck: true
 
 minimumReleaseAgeExclude:
   - "@isentinel/eslint-config@6.0.0-beta.2"
+  - "@isentinel/eslint-config@6.0.0-beta.3"
   - eslint-plugin-flawless@0.1.6
 
 publicHoistPattern:
@@ -67,7 +68,7 @@ catalogs:
     "@commitlint/prompt-cli": 21.1.0
     "@commitlint/types": 21.1.0
     "@eslint/config-inspector": 3.0.4
-    "@isentinel/eslint-config": 6.0.0-beta.2
+    "@isentinel/eslint-config": 6.0.0-beta.3
     "@isentinel/hooks": 1.5.2
     "@typescript-eslint/parser": 8.62.1
     "@vitest/eslint-plugin": 1.6.20

@@ -152,6 +152,14 @@ export default isentinel(
 		typescript: {
 			erasableOnly: true,
 		},
+		unicorn: {
+			nameReplacements: {
+				// "Deps" is the established suffix for injected-dependency
+				// records across the repo; the full word trips id-length
+				// (> 30 chars) on longer adapter names.
+				deps: false,
+			},
+		},
 	},
 	{
 		name: "project/config",
@@ -165,42 +173,6 @@ export default isentinel(
 		files: [".github/FUNDING.{yml,yaml}", ".github/ISSUE_TEMPLATE/**"],
 		rules: {
 			"unicorn/filename-case": "off",
-		},
-	},
-	{
-		name: "project/deps-naming",
-		files: [GLOB_SRC, GLOB_MARKDOWN_CODE],
-		rules: {
-			// Upstream's disabled-abbreviation set, plus "deps": the
-			// established suffix for injected-dependency records across the
-			// repo; the full word trips id-length (> 30 chars) on longer
-			// adapter names.
-			"unicorn/name-replacements": [
-				"error",
-				{
-					checkFilenames: true,
-					replacements: {
-						args: false,
-						ctx: false,
-						deps: false,
-						dist: { distance: true },
-						e: false,
-						err: false,
-						fn: { func: true, function: false },
-						func: false,
-						inst: { instance: true },
-						jsdoc: false,
-						nums: { numbers: true },
-						pos: { position: true },
-						props: false,
-						ref: false,
-						refs: false,
-						str: false,
-						util: false,
-						utils: false,
-					},
-				},
-			],
 		},
 	},
 	{
