@@ -371,11 +371,17 @@ stages, exposed as CLI subcommands, that all consumers compose:
 `deploy` is retained as the **fused** form — `provision → build → publish` in one
 invocation (spawning `build` internally) — for environments with no test gate
 (e.g. production). Environments that want to test the final artifact run the
-stages as separate CI steps with `build + test` in the gap:
+stages as separate CI steps, building the artifact once and testing *that*
+artifact before publishing:
 
 ```text
-provision  →  commit-back generated source  →  [rojo build test place + jest]  →  build  →  publish
+provision  →  commit-back generated source  →  build  →  test  →  publish
 ```
+
+The single `build` produces the artifact; the consumer's test suite runs against
+it (or against a test-only variant built from the same codegen'd source); only
+then does `publish` upload. There is no second build of the shipped artifact —
+that is the double-build this amendment removes.
 
 This exposes the checkpoint that already existed *inside* two-phase (asset stage
 → `pendingRebuild` → republish) as an externally-resumable **CLI seam**, so a
