@@ -4,7 +4,6 @@ enablePrePostScripts: true
 ignoreWorkspaceRootCheck: true
 
 minimumReleaseAgeExclude:
-  - "@isentinel/eslint-config@6.0.0-beta.2"
   - "@isentinel/eslint-config@6.0.0-beta.3"
   - eslint-plugin-flawless@0.1.6
 
