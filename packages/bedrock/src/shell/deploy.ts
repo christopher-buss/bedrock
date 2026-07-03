@@ -662,16 +662,6 @@ async function resolveDependencies(
 	};
 }
 
-async function runDeploy(context: RunContext): Promise<Result<BedrockState, DeployError>> {
-	const { options, progress, runner } = context;
-	const resolved = await resolveDependencies(options);
-	if (!resolved.success) {
-		return resolved;
-	}
-
-	return runner(options.environment, { ...resolved.data, progress });
-}
-
 function emitTerminalEvent(inputs: EmitTerminalEventInputs): void {
 	const { environment, progress, result } = inputs;
 	if (result.success) {
@@ -687,12 +677,15 @@ function emitTerminalEvent(inputs: EmitTerminalEventInputs): void {
 }
 
 async function runAndEmit(context: RunContext): Promise<Result<BedrockState, DeployError>> {
-	const result = await runDeploy(context);
-	emitTerminalEvent({
-		environment: context.options.environment,
-		progress: context.progress,
-		result,
-	});
+	const { options, progress, runner } = context;
+	const resolved = await resolveDependencies(options);
+	if (!resolved.success) {
+		emitTerminalEvent({ environment: options.environment, progress, result: resolved });
+		return resolved;
+	}
+
+	const result = await runner(options.environment, { ...resolved.data, progress });
+	emitTerminalEvent({ environment: options.environment, progress, result });
 	return result;
 }
 
