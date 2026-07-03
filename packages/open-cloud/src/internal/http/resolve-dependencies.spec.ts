@@ -1,7 +1,8 @@
-import { resolveDependencies } from "#src/internal/http/resolve-dependencies";
-import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 import { setTimeout } from "node:timers/promises";
 import { describe, expect, it } from "vitest";
+
+import { resolveDependencies } from "#src/internal/http/resolve-dependencies";
+import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 
 describe(resolveDependencies, () => {
 	it("should use the provided httpClient when supplied", () => {

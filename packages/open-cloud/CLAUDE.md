@@ -5,9 +5,9 @@ code in this repository.
 
 ## Package Overview
 
-`@bedrock-rbx/ocale` is a standalone TypeScript HTTP client for Roblox Open Cloud
-APIs. It is designed to be publishable to npm and usable independently of the
-Bedrock CLI.
+`@bedrock-rbx/ocale` is a standalone TypeScript HTTP client for Roblox Open
+Cloud APIs. It is designed to be publishable to npm and usable independently of
+the Bedrock CLI.
 
 Key characteristics:
 
@@ -64,18 +64,19 @@ import { RateLimitError, type Result } from "@bedrock-rbx/ocale";
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 ```
 
-The root `@bedrock-rbx/ocale` entry point deliberately does not re-export resource
-clients; consumers pay only for the services they import.
+The root `@bedrock-rbx/ocale` entry point deliberately does not re-export
+resource clients; consumers pay only for the services they import.
 
 ### 4. Rate Limiting and Retries Built-In
 
 The SDK manages concurrency, rate limiting, and retries internally. Consumers
-fire requests and the SDK queues them. Pacing is **header-primed**: a per-API-key
-budget gate reads `x-ratelimit-remaining`/`-reset` off every response and spaces
-requests across the live window (holding until reset once the budget is spent),
-self-correcting when the server's real limit differs from the schema. A static
-per-operation token bucket sourced from the vendored OpenAPI schema remains the
-cold-start and header-absent fallback. Retries are idempotency-aware:
+fire requests and the SDK queues them. Pacing is **header-primed**: a
+per-API-key budget gate reads `x-ratelimit-remaining`/`-reset` off every
+response and spaces requests across the live window (holding until reset once
+the budget is spent), self-correcting when the server's real limit differs from
+the schema. A static per-operation token bucket sourced from the vendored
+OpenAPI schema remains the cold-start and header-absent fallback. Retries are
+idempotency-aware:
 
 | Operation | 429 (Rate Limit) | 5xx (Server Error) |
 | --------- | ---------------- | ------------------ |
@@ -84,28 +85,29 @@ cold-start and header-absent fallback. Retries are idempotency-aware:
 | Update    | Retry            | Retry              |
 | Delete    | Retry            | Retry              |
 
-Create operations only retry rate limits to prevent duplicate resources
-(Roblox does not support idempotency keys).
+Create operations only retry rate limits to prevent duplicate resources (Roblox
+does not support idempotency keys).
 
-See [ADR-010](../../docs/adr/010-sdk-managed-rate-limiting-and-retry.md) for
-the implemented contract, including per-operation token buckets, the
-send-callback wiring between queue and retry, and the
-`onRequest` / `onRetry` / `onRateLimit` hook semantics.
+See [ADR-010](../../docs/adr/010-sdk-managed-rate-limiting-and-retry.md) for the
+implemented contract, including per-operation token buckets, the send-callback
+wiring between queue and retry, and the `onRequest` / `onRetry` / `onRateLimit`
+hook semantics.
 
 ## Testing Requirements
 
-Every line of production code must be written in response to a failing test.
-For the full RED → GREEN → REFACTOR commit cadence and the 100% coverage
+Every line of production code must be written in response to a failing test. For
+the full RED → GREEN → REFACTOR commit cadence and the 100% coverage
 requirement, see the root [CLAUDE.md](../../CLAUDE.md) and
 [ADR-003](../../docs/adr/003-testing-strategy.md).
 
 Unit tests live alongside their subject as colocated `*.spec.ts` files.
-Integration tests live in `tests/integration/` and inject fakes for the two
-test seams on `OpenCloudClientOptions`:
+Integration tests live in `tests/integration/` and inject fakes for the two test
+seams on `OpenCloudClientOptions`:
 
 - `httpClient`: swap the fetch-backed transport for a recorded fake. Canonical
-  fakes are [tests/helpers/fake-http-client.ts](tests/helpers/fake-http-client.ts)
-  and the simpler [tests/helpers/fake-send.ts](tests/helpers/fake-send.ts) for
+  fakes are
+  [tests/helpers/fake-http-client.ts](tests/helpers/fake-http-client.ts) and the
+  simpler [tests/helpers/fake-send.ts](tests/helpers/fake-send.ts) for
   single-call tests.
 - `sleep`: swap the `setTimeout`-backed sleep for
   [tests/helpers/fake-sleep.ts](tests/helpers/fake-sleep.ts) so retry and
@@ -123,15 +125,16 @@ describe(buildCreateRequest, () => {
 
 ### Writable-keys conformance pins
 
-Update and create operations whose request body is a JSON `$ref` to a
-component schema shared with the response (Roblox's pattern for most
-`Cloud_Update*` operations) must add a writable-keys pin under
-`tests/conformance/`. The spec relies on `readOnly: true` to flag fields the
-server silently drops from PATCH bodies, and the pin keeps the parameter
-interface and the spec in sync at typecheck and test time.
+Update and create operations whose request body is a JSON `$ref` to a component
+schema shared with the response (Roblox's pattern for most `Cloud_Update*`
+operations) must add a writable-keys pin under `tests/conformance/`. The spec
+relies on `readOnly: true` to flag fields the server silently drops from PATCH
+bodies, and the pin keeps the parameter interface and the spec in sync at
+typecheck and test time.
 
 Templates:
-[tests/conformance/universes-writable-keys.spec.ts](tests/conformance/universes-writable-keys.spec.ts) and
+[tests/conformance/universes-writable-keys.spec.ts](tests/conformance/universes-writable-keys.spec.ts)
+and
 [tests/conformance/places-writable-keys.spec.ts](tests/conformance/places-writable-keys.spec.ts).
 
 Each pin:
@@ -188,11 +191,18 @@ No Bun-specific APIs.
 ## Related Documentation
 
 - Root [CLAUDE.md](../../CLAUDE.md): project context and workflow
-- [ADR-003](../../docs/adr/003-testing-strategy.md): testing strategy (TDD, 100% coverage)
-- [ADR-007](../../docs/adr/007-open-cloud-only.md): Open Cloud only (no legacy APIs)
-- [ADR-008](../../docs/adr/008-zero-runtime-dependencies.md): zero runtime dependencies
+- [ADR-003](../../docs/adr/003-testing-strategy.md): testing strategy (TDD, 100%
+  coverage)
+- [ADR-007](../../docs/adr/007-open-cloud-only.md): Open Cloud only (no legacy
+  APIs)
+- [ADR-008](../../docs/adr/008-zero-runtime-dependencies.md): zero runtime
+  dependencies
 - [ADR-009](../../docs/adr/009-result-types-over-exceptions.md): Result types
-- [ADR-010](../../docs/adr/010-sdk-managed-rate-limiting-and-retry.md): rate limiting and retries
-- [ADR-011](../../docs/adr/011-simplified-architecture-for-library-packages.md): simplified library architecture
-- [ADR-012](../../docs/adr/012-class-based-clients-with-per-request-overrides.md): class-based clients with per-request overrides
-- [docs/plans/2025-12-13-open-cloud-package-design.md](../../docs/plans/2025-12-13-open-cloud-package-design.md): historical design doc (superseded by the ADRs and the shipped code)
+- [ADR-010](../../docs/adr/010-sdk-managed-rate-limiting-and-retry.md): rate
+  limiting and retries
+- [ADR-011](../../docs/adr/011-simplified-architecture-for-library-packages.md):
+  simplified library architecture
+- [ADR-012](../../docs/adr/012-class-based-clients-with-per-request-overrides.md):
+  class-based clients with per-request overrides
+- [docs/plans/2025-12-13-open-cloud-package-design.md](../../docs/plans/2025-12-13-open-cloud-package-design.md):
+  historical design doc (superseded by the ADRs and the shipped code)

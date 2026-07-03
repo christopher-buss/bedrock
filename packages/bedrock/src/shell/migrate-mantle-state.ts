@@ -155,7 +155,8 @@ export async function migrateMantleState(
 		throw err;
 	}
 
-	const raw = new TextDecoder("utf-8").decode(bytes);
+	const decoder = new TextDecoder("utf-8");
+	const raw = decoder.decode(bytes);
 	const parsed = parseState(raw, deps.stateFilePath);
 	if (!parsed.success) {
 		return parsed;
@@ -188,7 +189,7 @@ function buildStatesByEnvironment(
 	inputs: BuildStatesByEnvironmentInputs,
 ): Readonly<Record<string, BedrockState>> {
 	return Object.fromEntries(
-		[...inputs.folds.entries()].map(([name, folded]): [string, BedrockState] => {
+		Array.from(inputs.folds, ([name, folded]): [string, BedrockState] => {
 			return [
 				name,
 				buildState({
@@ -210,7 +211,7 @@ function prefixMantlePath(warning: MigrationWarning, environmentName: string): M
 function collectFoldWarnings(
 	folds: ReadonlyMap<string, EnvironmentFoldResult>,
 ): ReadonlyArray<MigrationWarning> {
-	return [...folds.entries()].flatMap(([name, fold]) => {
+	return [...folds].flatMap(([name, fold]) => {
 		return fold.warnings.map((warning) => prefixMantlePath(warning, name));
 	});
 }

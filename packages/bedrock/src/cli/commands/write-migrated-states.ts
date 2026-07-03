@@ -22,7 +22,7 @@ export type ResolvedStateTarget =
 	| { readonly backend: "local"; readonly outputDir: string };
 
 /** Subset of the migrate command's resolved deps the writers need. */
-interface WriterDeps {
+interface WriterDependencies {
 	readonly buildStatePort: typeof defaultBuildStatePort;
 	readonly clack: ClackPort;
 	readonly mkdir: (path: string) => Promise<void>;
@@ -30,7 +30,7 @@ interface WriterDeps {
 }
 
 interface WriteInputs {
-	readonly deps: WriterDeps;
+	readonly deps: WriterDependencies;
 	readonly report: MigrationReport;
 	readonly target: ResolvedStateTarget;
 }

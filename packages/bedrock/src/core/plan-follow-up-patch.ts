@@ -20,18 +20,18 @@ interface FollowUpPatchBody {
  * matches the desired value.
  *
  * @param desired - Desired state for the developer product being created.
- * @param createResponse - The `storePageEnabled` value reported by the create POST response.
+ * @param creationResponse - The `storePageEnabled` value reported by the create POST response.
  * @returns The PATCH body to issue, or `undefined` when no follow-up is needed.
  */
 export function planFollowUpPatch(
 	desired: DeveloperProductDesiredState,
-	createResponse: Pick<DeveloperProduct, "storePageEnabled">,
+	creationResponse: Pick<DeveloperProduct, "storePageEnabled">,
 ): FollowUpPatchBody | undefined {
 	if (desired.storePageEnabled === undefined) {
 		return undefined;
 	}
 
-	if (desired.storePageEnabled === createResponse.storePageEnabled) {
+	if (desired.storePageEnabled === creationResponse.storePageEnabled) {
 		return undefined;
 	}
 

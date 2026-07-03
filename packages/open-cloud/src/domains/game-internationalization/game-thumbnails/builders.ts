@@ -10,6 +10,8 @@ import type {
 
 type ParsedIdsResult = Result<ReadonlyArray<number>, ValidationError>;
 
+const POSITIVE_INTEGER_PATTERN = /^[1-9]\d*$/;
+
 /**
  * Builds a `POST` request for the localized "upload experience thumbnail"
  * endpoint. Each successful upload appends a new entry to the carousel.
@@ -82,7 +84,7 @@ export function buildReorderThumbnailsRequest(
 }
 
 function parseImageId(value: string): number | undefined {
-	if (!/^[1-9]\d*$/.test(value)) {
+	if (!POSITIVE_INTEGER_PATTERN.test(value)) {
 		return undefined;
 	}
 

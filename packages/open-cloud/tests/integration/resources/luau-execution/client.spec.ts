@@ -1,3 +1,5 @@
+import { assert, describe, expect, it } from "vitest";
+
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
 import { LuauExecutionClient } from "#src/resources/luau-execution/index";
@@ -7,7 +9,6 @@ import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { validBinaryInputBody } from "#tests/helpers/luau-execution-task-binary-inputs";
 import { validLogPageBody } from "#tests/helpers/luau-execution-task-logs";
 import { validInProgressTaskBody } from "#tests/helpers/luau-execution-tasks";
-import { assert, describe, expect, it } from "vitest";
 
 const fullRef: LuauExecutionTaskRef = {
 	placeId: "456",
@@ -278,15 +279,15 @@ describe(LuauExecutionClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			const createResult = await client.binaryInputs.create({
+			const creationResult = await client.binaryInputs.create({
 				size: 1024,
 				universeId: "123",
 			});
 
-			assert(createResult.success);
+			assert(creationResult.success);
 
 			const submitResult = await client.tasks.submit({
-				binaryInput: createResult.data.path,
+				binaryInput: creationResult.data.path,
 				placeId: "456",
 				script: "return 1",
 				universeId: "123",

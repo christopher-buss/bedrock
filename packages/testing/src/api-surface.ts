@@ -196,31 +196,51 @@ function reExportTargetFor(
 	return undefined;
 }
 
-function resolveDeclaration(
-	request: DeclarationRequest,
-	readSource: ReadSource,
-): ResolvedDeclaration | undefined {
-	const module = parseModule(request.modulePath, readSource);
-
-	for (const statement of module.statements) {
-		if (declaresName(statement, request.name)) {
-			return {
-				declarationFile: request.modulePath,
-				sinceTag: sinceTagOf(module, statement),
-			};
-		}
-	}
-
-	const next = reExportTargetFor(module, request.name);
+function reExportRequestFor(
+	module: ts.SourceFile,
+	current: DeclarationRequest,
+): DeclarationRequest | undefined {
+	const next = reExportTargetFor(module, current.name);
 	if (next === undefined || !isRelativeSpecifier(next.specifier)) {
 		return undefined;
 	}
 
-	return resolveDeclaration(
-		{
-			name: next.name,
-			modulePath: path.resolve(path.dirname(request.modulePath), next.specifier),
-		},
-		readSource,
-	);
+	return {
+		name: next.name,
+		modulePath: path.resolve(path.dirname(current.modulePath), next.specifier),
+	};
+}
+
+function resolveDeclaration(
+	request: DeclarationRequest,
+	readSource: ReadSource,
+): ResolvedDeclaration | undefined {
+	const visited = new Set<string>();
+	let current: DeclarationRequest | undefined = request;
+	while (current !== undefined) {
+		// A cyclic re-export chain never reaches a declaration; bail instead
+		// of looping forever.
+		const key = `${current.modulePath} ${current.name}`;
+		if (visited.has(key)) {
+			return undefined;
+		}
+
+		visited.add(key);
+
+		const module = parseModule(current.modulePath, readSource);
+		const currentName = current.name;
+		const declaration = module.statements.find((statement) =>
+			declaresName(statement, currentName),
+		);
+		if (declaration !== undefined) {
+			return {
+				declarationFile: current.modulePath,
+				sinceTag: sinceTagOf(module, declaration),
+			};
+		}
+
+		current = reExportRequestFor(module, current);
+	}
+
+	return undefined;
 }

@@ -183,7 +183,7 @@ function toCurrentState(
 }
 
 async function applyFollowUpPatch(
-	deps: DeveloperProductDriverDeps,
+	dependencies: DeveloperProductDriverDeps,
 	{ created, desired }: FollowUpPatchInputs,
 ): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
 	const followUp = planFollowUpPatch(desired, created);
@@ -191,9 +191,9 @@ async function applyFollowUpPatch(
 		return toCurrentState(desired, created);
 	}
 
-	const patched = await deps.client.update({
+	const patched = await dependencies.client.update({
 		productId: asRobloxAssetId(created.id),
-		universeId: deps.universeId,
+		universeId: dependencies.universeId,
 		...followUp,
 	});
 	if (patched.success) {
@@ -208,15 +208,15 @@ async function applyFollowUpPatch(
 }
 
 async function createOne(
-	deps: DeveloperProductDriverDeps,
+	dependencies: DeveloperProductDriverDeps,
 	desired: DeveloperProductDesiredState,
 ): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
 	const imageFile =
-		desired.icon === undefined ? undefined : await deps.readFile(desired.icon["en-us"]);
-	const created = await deps.client.create({
+		desired.icon === undefined ? undefined : await dependencies.readFile(desired.icon["en-us"]);
+	const created = await dependencies.client.create({
 		name: desired.name,
 		description: desired.description,
-		universeId: deps.universeId,
+		universeId: dependencies.universeId,
 		...(imageFile === undefined ? {} : { imageFile }),
 		...derivePriceFields(desired),
 		...(desired.isRegionalPricingEnabled === undefined
@@ -227,23 +227,23 @@ async function createOne(
 		return created;
 	}
 
-	return applyFollowUpPatch(deps, { created: created.data, desired });
+	return applyFollowUpPatch(dependencies, { created: created.data, desired });
 }
 
 async function updateOne(
-	deps: DeveloperProductDriverDeps,
+	dependencies: DeveloperProductDriverDeps,
 	{ current, desired }: UpdateInputs,
 ): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
 	const imageFile =
 		desired.icon !== undefined &&
 		shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes)
-			? await deps.readFile(desired.icon["en-us"])
+			? await dependencies.readFile(desired.icon["en-us"])
 			: undefined;
-	const result = await deps.client.update({
+	const result = await dependencies.client.update({
 		name: desired.name,
 		description: desired.description,
 		productId: current.outputs.productId,
-		universeId: deps.universeId,
+		universeId: dependencies.universeId,
 		...(imageFile === undefined ? {} : { imageFile }),
 		...derivePriceFields(desired),
 		...(desired.isRegionalPricingEnabled === undefined

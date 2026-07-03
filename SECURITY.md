@@ -2,19 +2,20 @@
 
 ## Supported versions
 
-Bedrock is pre-1.0 and under active development. Only the latest release
-is supported; fixes are not backported to older versions.
+Bedrock is pre-1.0 and under active development. Only the latest release is
+supported; fixes are not backported to older versions.
 
-| Version       | Supported |
-| ------------- | --------- |
-| Latest `main` | Yes       |
-| Everything else | No      |
+| Version         | Supported |
+| --------------- | --------- |
+| Latest `main`   | Yes       |
+| Everything else | No        |
 
 ## Reporting a vulnerability
 
 **Do not open a public GitHub issue for security reports.**
 
-Please use GitHub's [private vulnerability reporting](https://github.com/christopher-buss/bedrock/security/advisories/new)
+Please use GitHub's
+[private vulnerability reporting](https://github.com/christopher-buss/bedrock/security/advisories/new)
 to submit a report. This creates a private advisory visible only to the
 maintainer and you.
 
@@ -34,34 +35,34 @@ Please include:
 - **Initial assessment** (severity, scope) within 7 business days.
 - **Fix target**: critical issues patched and released within 30 days;
   lower-severity issues handled on the next regular release cycle.
-- **Credit** in the release notes and advisory once a fix ships, unless
-  you prefer to remain anonymous.
+- **Credit** in the release notes and advisory once a fix ships, unless you
+  prefer to remain anonymous.
 
 ## Scope
 
 The following are in scope:
 
-- Vulnerabilities in published packages (`@bedrock-rbx/core`, `@bedrock-rbx/ocale`).
-- Vulnerabilities in the deployment flow that could leak secrets, corrupt
-  state, or cause unauthorized access to a Roblox experience the user
-  controls.
+- Vulnerabilities in published packages (`@bedrock-rbx/core`,
+  `@bedrock-rbx/ocale`).
+- Vulnerabilities in the deployment flow that could leak secrets, corrupt state,
+  or cause unauthorized access to a Roblox experience the user controls.
 - Supply-chain issues in our own build and release pipeline.
 
 The following are out of scope:
 
-- Vulnerabilities in Roblox Open Cloud itself. Report those to Roblox via
-  their [HackerOne program](https://hackerone.com/roblox).
+- Vulnerabilities in Roblox Open Cloud itself. Report those to Roblox via their
+  [HackerOne program](https://hackerone.com/roblox).
 - Misuse of a valid API key that the user themselves exposed.
-- Issues in third-party dependencies that have already been disclosed
-  upstream; please follow the upstream project's process instead.
+- Issues in third-party dependencies that have already been disclosed upstream;
+  please follow the upstream project's process instead.
 
 ## Threat model notes
 
 - Bedrock authenticates to Roblox via Open Cloud API keys only. The legacy
   `ROBLOSECURITY` cookie is never used (see
   [ADR-007](./docs/adr/007-open-cloud-only.md)).
-- State files are stored in GitHub Gists and contain only resource IDs
-  (public data). Secrets are never written to state.
+- State files are stored in GitHub Gists and contain only resource IDs (public
+  data). Secrets are never written to state.
 - `@bedrock-rbx/ocale` has zero runtime dependencies (see
   [ADR-008](./docs/adr/008-zero-runtime-dependencies.md)) to minimise
   supply-chain surface area.

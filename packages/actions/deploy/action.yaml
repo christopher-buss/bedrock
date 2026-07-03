@@ -1,5 +1,6 @@
 author: Christopher Buss
 description: Deploy a Roblox project with Bedrock and reflow regenerated codegen back to the repo.
+
 inputs:
   api-key:
     description: Roblox Open Cloud API key (exposed to Bedrock as BEDROCK_API_KEY).
@@ -31,7 +32,9 @@ inputs:
   working-directory:
     default: .
     description: Directory the Bedrock CLI runs in.
+
 name: Bedrock deploy
+
 runs:
   steps:
     - name: Deploy with Bedrock

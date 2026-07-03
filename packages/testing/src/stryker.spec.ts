@@ -83,7 +83,8 @@ describe("stryker static mutant planning patch", () => {
 			replacement: "``",
 		} satisfies Mutant;
 
-		const planner = new plannerModule[PLANNER_EXPORT](
+		const { MutantTestPlanner } = plannerModule;
+		const planner = new MutantTestPlanner(
 			{
 				hasCoverage: true,
 				hasStaticCoverage: () => true,

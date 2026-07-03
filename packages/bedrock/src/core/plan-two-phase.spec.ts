@@ -1,11 +1,11 @@
+import { describe, expect, it } from "vitest";
+
 import {
 	developerProductDesired,
 	gamePassCurrent,
 	gamePassDesired,
 	placeDesired,
 } from "#tests/helpers/resources";
-import { describe, expect, it } from "vitest";
-
 import { asResourceKey, type ResourceKey } from "../types/ids.ts";
 import type { Operation } from "./operations.ts";
 import { planTwoPhase } from "./plan-two-phase.ts";

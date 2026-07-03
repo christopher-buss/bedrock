@@ -1,10 +1,11 @@
-import { createProg } from "#src/cli/index";
 import { Buffer } from "node:buffer";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
+
+import { createProg } from "#src/cli/index";
 
 const require = createRequire(import.meta.url);
 const manifest = require("../../../package.json") as { readonly version: string };

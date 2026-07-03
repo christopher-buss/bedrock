@@ -31,7 +31,7 @@ export interface RegistryConfigError {
 }
 
 /** Inputs for {@link buildDefaultRegistry}. */
-interface BuildDefaultRegistryDeps {
+interface BuildDefaultRegistryDependencies {
 	/** Resolved project config; supplies `universe.universeId` and is read for nothing else. */
 	readonly config: ResolvedConfig;
 	/** Reads an environment variable; injected so tests stay free of `process.env`. */
@@ -77,7 +77,7 @@ interface AssembleRegistryInputs {
  * missing API key or the missing universe declaration.
  */
 export function buildDefaultRegistry(
-	deps: BuildDefaultRegistryDeps,
+	deps: BuildDefaultRegistryDependencies,
 ): Result<DriverRegistry, MissingCredentialError | RegistryConfigError> {
 	const apiKey = deps.getEnv("BEDROCK_API_KEY");
 	if (apiKey === undefined) {

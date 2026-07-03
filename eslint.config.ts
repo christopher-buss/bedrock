@@ -152,6 +152,14 @@ export default isentinel(
 		typescript: {
 			erasableOnly: true,
 		},
+		unicorn: {
+			nameReplacements: {
+				// "Deps" is the established suffix for injected-dependency
+				// records across the repo; the full word trips id-length
+				// (> 30 chars) on longer adapter names.
+				deps: false,
+			},
+		},
 	},
 	{
 		name: "project/config",
@@ -162,7 +170,7 @@ export default isentinel(
 	},
 	{
 		name: "project/github-required-filenames",
-		files: [".github/FUNDING.{yml,yaml}"],
+		files: [".github/FUNDING.{yml,yaml}", ".github/ISSUE_TEMPLATE/**"],
 		rules: {
 			"unicorn/filename-case": "off",
 		},

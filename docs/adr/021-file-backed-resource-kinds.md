@@ -2,8 +2,8 @@
 
 **Date:** 2026-04-22 **Status:** Accepted
 
-Decision Makers: Maintainer
-Tags: ports, resource-driver, apply-ops, public-api, file-backed
+Decision Makers: Maintainer Tags: ports, resource-driver, apply-ops, public-api,
+file-backed
 
 ## Context
 
@@ -16,8 +16,9 @@ with game-pass as the sole resource kind: game passes are created by Roblox on
 demand and the `create`-only port shape was sufficient at that scope.
 
 Places introduce a structurally different class of resource. The Roblox Open
-Cloud places API (shipped in `@bedrock-rbx/ocale` as PR #84) exposes `publish` and
-`save` only. There is no create, list, or detailed read endpoint. Consequences:
+Cloud places API (shipped in `@bedrock-rbx/ocale` as PR #84) exposes `publish`
+and `save` only. There is no create, list, or detailed read endpoint.
+Consequences:
 
 - A place must already exist in Roblox before Bedrock can manage it. The place
   ID is a user-supplied input, not a Roblox-assigned output. The port cannot
@@ -35,11 +36,11 @@ content, the file is the unit of managed content, and the publisher's ID is
 supplied externally. Places are the first such kind; assets and similar kinds
 are the anticipated continuation.
 
-The current `ResourceDriver<K>` interface has only `create`. `applyOps`
-returns an `updateUnsupported` error for every `update` operation regardless
-of kind. Shipping place support requires extending the port to support `update`
-without breaking the game-pass driver and without adding a mandatory method
-that non-file-backed kinds need not implement.
+The current `ResourceDriver<K>` interface has only `create`. `applyOps` returns
+an `updateUnsupported` error for every `update` operation regardless of kind.
+Shipping place support requires extending the port to support `update` without
+breaking the game-pass driver and without adding a mandatory method that
+non-file-backed kinds need not implement.
 
 Issue #99 implements the first file-backed kind (places). ADR-020 reserves
 `places` as a config key mapping to the `place` kind; the per-kind entry schema
@@ -92,8 +93,7 @@ valid `ResourceDriver<K>` implementations. No existing driver changes.
   Success and failure semantics mirror `create`: `Ok` returns the new current
   state; `Err` surfaces as `driverFailure`.
 - If `driver.update` is absent, `applyOps` returns the existing
-  `updateUnsupported` error. Behavior for drivers without `update` is
-  unchanged.
+  `updateUnsupported` error. Behavior for drivers without `update` is unchanged.
 
 ### Drift detection for file-backed kinds (slice 1)
 
@@ -103,8 +103,8 @@ the hash recorded in state from the last successful apply. A mismatch produces
 an `update` op; a match produces a `noop`.
 
 State is the source of truth. Out-of-band changes to a place (Studio publish,
-other tools) are not detected. The `GetPlace.updateTime` field exists but is
-too coarse for content-equality; a future ADR may introduce GET-based drift
+other tools) are not detected. The `GetPlace.updateTime` field exists but is too
+coarse for content-equality; a future ADR may introduce GET-based drift
 detection when a suitable content-equality field is available.
 
 ### Create semantics for file-backed kinds
@@ -113,8 +113,8 @@ For file-backed kinds, a `create` op means "first-time tracked publish for this
 key": the resource exists in Roblox already, but Bedrock has no prior state
 entry for it. The driver's `create` implementation and `update` implementation
 share an internal publish helper because the upstream call is identical either
-way. This is a driver-implementation detail; the `diff` algebra from ADR-019
-is unchanged.
+way. This is a driver-implementation detail; the `diff` algebra from ADR-019 is
+unchanged.
 
 ### `PlaceDesiredState` and `PlaceOutputs` shape
 
@@ -135,11 +135,11 @@ export interface PlaceOutputs {
 ```
 
 `key` is the user-supplied correlation handle shared by every resource kind.
-`placeId` is the Roblox identifier, supplied by the user per entry because
-Open Cloud cannot mint it. `filePath` and `fileHash` describe the local
-`.rbxl` or `.rbxlx` to publish. `versionNumber` is the Roblox-assigned value
-returned by the publish call. Per ADR-020, the wire-level schema of the
-`places` entry body (`placeId`, `filePath`) is owned by issue #99.
+`placeId` is the Roblox identifier, supplied by the user per entry because Open
+Cloud cannot mint it. `filePath` and `fileHash` describe the local `.rbxl` or
+`.rbxlx` to publish. `versionNumber` is the Roblox-assigned value returned by
+the publish call. Per ADR-020, the wire-level schema of the `places` entry body
+(`placeId`, `filePath`) is owned by issue #99.
 
 ### Slice 1 scope
 
@@ -160,8 +160,8 @@ players), and delete are deferred.
 - Contributors adding a new file-backed kind have a clear pattern to follow:
   implement both `create` and `update`, delegate both to one internal publish
   helper.
-- State-as-drift-source is simple and auditable. A `git diff` on the state
-  file shows exactly which hash changed and when.
+- State-as-drift-source is simple and auditable. A `git diff` on the state file
+  shows exactly which hash changed and when.
 
 ### Negative
 
@@ -170,19 +170,18 @@ players), and delete are deferred.
   user's config file hash is updated. This is a known limitation of the
   state-as-drift-source approach.
 - `update?` is optional on the interface, which means TypeScript does not
-  statically enforce that file-backed kinds implement it. A driver author
-  who forgets `update` will get `updateUnsupported` errors at runtime, not
-  a compile error. The pattern is documented but not enforced by the type
-  system.
-- `placeId` on desired state (rather than outputs) is an unusual shape
-  relative to game-pass. Contributors encountering the first two resource
-  kinds must learn that the pattern differs by kind. A code comment at the
+  statically enforce that file-backed kinds implement it. A driver author who
+  forgets `update` will get `updateUnsupported` errors at runtime, not a compile
+  error. The pattern is documented but not enforced by the type system.
+- `placeId` on desired state (rather than outputs) is an unusual shape relative
+  to game-pass. Contributors encountering the first two resource kinds must
+  learn that the pattern differs by kind. A code comment at the
   `PlaceDesiredState` declaration should explain why.
 - Renaming the `.rbxl` file without changing its contents (new `filePath`,
   unchanged `fileHash`) produces an `update` op because `desiredFieldsEqual`
-  compares both fields. This matches ADR-019's treatment of `iconFilePath`
-  and is the intended behavior: the declared source-of-truth path changed,
-  so state should reflect the new path on the next apply.
+  compares both fields. This matches ADR-019's treatment of `iconFilePath` and
+  is the intended behavior: the declared source-of-truth path changed, so state
+  should reflect the new path on the next apply.
 
 ## Alternatives Considered
 
@@ -191,47 +190,47 @@ players), and delete are deferred.
 Make `update` a required method, with drivers that do not support it returning
 `updateUnsupported` from within their implementation.
 
-**Rejected.** The game-pass driver has no upstream `update` operation to map
-to. Making `update` mandatory would force every create-only driver to carry
-a no-op method returning `updateUnsupported` at runtime, duplicating the
-error-path logic that already lives in `applyOps`. The optional shape keeps
-the interface minimal for drivers whose upstream API is one-shot.
+**Rejected.** The game-pass driver has no upstream `update` operation to map to.
+Making `update` mandatory would force every create-only driver to carry a no-op
+method returning `updateUnsupported` at runtime, duplicating the error-path
+logic that already lives in `applyOps`. The optional shape keeps the interface
+minimal for drivers whose upstream API is one-shot.
 
 ### Separate `FileBackedDriver<K>` interface extending `ResourceDriver<K>`
 
 Define a sub-interface that adds `update` as required. File-backed drivers
-implement `FileBackedDriver<K>`; `applyOps` checks
-`instanceof`/duck-type narrowing to dispatch.
+implement `FileBackedDriver<K>`; `applyOps` checks `instanceof`/duck-type
+narrowing to dispatch.
 
 **Rejected.** `instanceof` is fragile across module boundaries (ESM, bundling).
 Duck-typing on `"update" in driver` achieves the same dispatch with less
-ceremony and no new public interface to maintain. A second interface would
-also multiply the export surface without adding capability: `update?` on the
-single interface is sufficient for both driver implementors and for
-`applyOps` dispatch.
+ceremony and no new public interface to maintain. A second interface would also
+multiply the export surface without adding capability: `update?` on the single
+interface is sufficient for both driver implementors and for `applyOps`
+dispatch.
 
 ### Use `GetPlace.updateTime` as the drift key
 
 Compare `updateTime` from the Open Cloud `GetPlace` response against the
 timestamp stored in state to detect out-of-band changes.
 
-**Rejected for slice 1.** `updateTime` changes on any Studio edit, save, or
-tool event, not only on publishes of the managed file. A timestamp-based
-drift check would trigger spurious `update` ops after routine Studio work.
-A content-equality field (checksum, version hash) does not currently exist
-in the Open Cloud places API. The door is left open for a future ADR to
-introduce GET-based drift once a suitable field is available.
+**Rejected for slice 1.** `updateTime` changes on any Studio edit, save, or tool
+event, not only on publishes of the managed file. A timestamp-based drift check
+would trigger spurious `update` ops after routine Studio work. A
+content-equality field (checksum, version hash) does not currently exist in the
+Open Cloud places API. The door is left open for a future ADR to introduce
+GET-based drift once a suitable field is available.
 
 ## Implementation Notes
 
-- `update?` is added to `packages/bedrock/src/ports/resource-driver.ts`.
-  The `@example` block on `ResourceDriver<K>` should be extended to show a
-  minimal file-backed driver implementing both `create` and `update` via a
-  shared helper.
+- `update?` is added to `packages/bedrock/src/ports/resource-driver.ts`. The
+  `@example` block on `ResourceDriver<K>` should be extended to show a minimal
+  file-backed driver implementing both `create` and `update` via a shared
+  helper.
 - `applyOps` in `packages/bedrock/src/shell/apply-ops.ts` dispatches the
   existing `update` op via `driver.update(op.current, op.desired)` when
-  `driver.update` is defined. The `updateUnsupported` branch is retained as
-  the fallback.
+  `driver.update` is defined. The `updateUnsupported` branch is retained as the
+  fallback.
 - `PlaceDesiredState` and `PlaceOutputs` are added to
   `packages/bedrock/src/core/resources.ts`. `ResourceDesiredState` becomes
   `GamePassDesiredState | PlaceDesiredState`; `ResourceOutputsByKind` gains
@@ -250,42 +249,41 @@ introduce GET-based drift once a suitable field is available.
 ## Related Decisions
 
 - ADR-017: Product Framing: `ResourceDriver<K>` and `update?` sit inside the
-  public API surface defined there; the optional method is additive for
-  in-repo code, and widening `ResourceKind` to `"place"` forces every
-  `DriverRegistry` construction site to supply a `place` driver.
+  public API surface defined there; the optional method is additive for in-repo
+  code, and widening `ResourceKind` to `"place"` forces every `DriverRegistry`
+  construction site to supply a `place` driver.
 - ADR-018: FCIS Ports: `ResourceDriver<K>` is a driven port; `applyOps` is a
   shell function. Both are modified by this ADR within their established roles.
 - ADR-019: State Data Model: the `diff` algebra and `Operation` union are
   unchanged. This ADR extends driver dispatch only.
-- ADR-020: Project Config Definition: reserves `places` as a config key
-  mapping to `place`; per-kind entry schema is owned by issue #99.
+- ADR-020: Project Config Definition: reserves `places` as a config key mapping
+  to `place`; per-kind entry schema is owned by issue #99.
 
 ## Amendments
 
 ### 2026-05-14: Game-pass driver implements `update`
 
 PR #342 (2026-05-05) added `update` and `list` to the upstream
-`GamePassesClient`, mapping OpenAPI `Cloud_UpdateGamePassConfig` to a PATCH
-that accepts name, description, price, isForSale, isRegionalPricingEnabled,
-and a replacement icon image.
+`GamePassesClient`, mapping OpenAPI `Cloud_UpdateGamePassConfig` to a PATCH that
+accepts name, description, price, isForSale, isRegionalPricingEnabled, and a
+replacement icon image.
 
-The game-pass driver now implements `ResourceDriver<"gamePass">["update"]`
-per the optional-method contract this ADR introduced. It always sends the
-writable scalars; it re-uploads the icon and follows with `client.get` to
-refresh the assigned `iconAssetId` only when the desired `iconFileHash`
-diverges from the current one. The follow-up read is required because the
-PATCH responds with 204 No Content and exposes no other channel for the
-new asset id.
+The game-pass driver now implements `ResourceDriver<"gamePass">["update"]` per
+the optional-method contract this ADR introduced. It always sends the writable
+scalars; it re-uploads the icon and follows with `client.get` to refresh the
+assigned `iconAssetId` only when the desired `iconFileHash` diverges from the
+current one. The follow-up read is required because the PATCH responds with 204
+No Content and exposes no other channel for the new asset id.
 
-Game passes still match none of the file-backed criteria (Definition
-unchanged). The optional `update` was always available to any driver whose
-upstream API supports it; the file-backed framing here is what *requires*
-`update` for the publish-republish loop, not what *permits* it.
+Game passes still match none of the file-backed criteria (Definition unchanged).
+The optional `update` was always available to any driver whose upstream API
+supports it; the file-backed framing here is what _requires_ `update` for the
+publish-republish loop, not what _permits_ it.
 
 ## References
 
 - PR #84: `@bedrock-rbx/ocale` places client (publish + save endpoints)
 - PR #342: `@bedrock-rbx/ocale` game-passes client `update` and `list` endpoints
 - Issue #99: first file-backed kind implementation (places resource driver)
-- ADR-017, ADR-018, ADR-019, ADR-020: prior architectural decisions extended
-  or referenced by this ADR
+- ADR-017, ADR-018, ADR-019, ADR-020: prior architectural decisions extended or
+  referenced by this ADR

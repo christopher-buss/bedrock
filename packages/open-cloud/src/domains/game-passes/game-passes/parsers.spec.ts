@@ -1,6 +1,6 @@
-import { validGamePassBody, validListGamePassesBody } from "#tests/helpers/game-passes";
 import { assert, describe, expect, it } from "vitest";
 
+import { validGamePassBody, validListGamePassesBody } from "#tests/helpers/game-passes";
 import { ApiError } from "../../../errors/api-error.ts";
 import { parseGamePassesListResponse, parseGamePassResponse } from "./parsers.ts";
 import type { GamePassConfigV2 } from "./wire.ts";

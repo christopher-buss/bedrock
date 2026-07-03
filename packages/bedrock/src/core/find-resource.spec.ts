@@ -1,6 +1,6 @@
-import { developerProductCurrent, gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
 import { describe, expect, it } from "vitest";
 
+import { developerProductCurrent, gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import { findResource } from "./find-resource.ts";
 

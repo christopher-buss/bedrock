@@ -12,11 +12,16 @@ import type {
 } from "../core/migrate/migration-report.ts";
 import type { Config } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
-import { migrateMantleState, type MigrateMantleStateDeps } from "./migrate-mantle-state.ts";
+import {
+	migrateMantleState,
+	type MigrateMantleStateDeps as MigrateMantleStateDependencies,
+} from "./migrate-mantle-state.ts";
 
 describe(migrateMantleState, () => {
 	it("should accept a single MigrateMantleStateDeps argument", () => {
-		expectTypeOf(migrateMantleState).parameter(0).toEqualTypeOf<MigrateMantleStateDeps>();
+		expectTypeOf(migrateMantleState)
+			.parameter(0)
+			.toEqualTypeOf<MigrateMantleStateDependencies>();
 	});
 
 	it("should resolve to a Result of MigrationReport or MigrateError", () => {
@@ -31,23 +36,23 @@ describe("MigrateMantleStateDeps", () => {
 		expectTypeOf<{
 			configFormat: "typescript" | "yaml";
 			stateFilePath: string;
-		}>().toExtend<MigrateMantleStateDeps>();
+		}>().toExtend<MigrateMantleStateDependencies>();
 	});
 
 	it("should accept the typescript and yaml literals on configFormat", () => {
-		expectTypeOf<MigrateMantleStateDeps["configFormat"]>().toEqualTypeOf<
+		expectTypeOf<MigrateMantleStateDependencies["configFormat"]>().toEqualTypeOf<
 			"typescript" | "yaml"
 		>();
 	});
 
 	it("should expose primaryEnvironment as an optional string", () => {
-		expectTypeOf<MigrateMantleStateDeps["primaryEnvironment"]>().toEqualTypeOf<
+		expectTypeOf<MigrateMantleStateDependencies["primaryEnvironment"]>().toEqualTypeOf<
 			string | undefined
 		>();
 	});
 
 	it("should accept an optional Uint8Array-returning readFile to match deploy and buildDesired", () => {
-		expectTypeOf<MigrateMantleStateDeps["readFile"]>().toEqualTypeOf<
+		expectTypeOf<MigrateMantleStateDependencies["readFile"]>().toEqualTypeOf<
 			((path: string) => Promise<Uint8Array>) | undefined
 		>();
 	});

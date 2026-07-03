@@ -172,31 +172,21 @@ function collectOrphanWarnings(buckets: PlaceBuckets): ReadonlyArray<MigrationWa
 }
 
 function bucketByKind(resources: ReadonlyArray<MantleResource>): PlaceBuckets {
-	const places = new Map<string, MantleResource>();
-	const placeFiles = new Map<string, MantleResource>();
-	const placeConfigurations = new Map<string, MantleResource>();
+	const buckets: PlaceBuckets = {
+		placeConfigurations: new Map(),
+		placeFiles: new Map(),
+		places: new Map(),
+	};
+	const bucketsByKind = new Map([
+		[PLACE_CONFIGURATION_KIND, buckets.placeConfigurations],
+		[PLACE_FILE_KIND, buckets.placeFiles],
+		[PLACE_KIND, buckets.places],
+	]);
 	for (const resource of resources) {
-		switch (resource.kind) {
-			case PLACE_CONFIGURATION_KIND: {
-				placeConfigurations.set(resource.key, resource);
-
-				break;
-			}
-			case PLACE_FILE_KIND: {
-				placeFiles.set(resource.key, resource);
-
-				break;
-			}
-			case PLACE_KIND: {
-				places.set(resource.key, resource);
-
-				break;
-			}
-			// No default
-		}
+		bucketsByKind.get(resource.kind)?.set(resource.key, resource);
 	}
 
-	return { placeConfigurations, placeFiles, places };
+	return buckets;
 }
 
 function readString(value: unknown): string | undefined {

@@ -79,11 +79,11 @@ export function buildRootPlaces(
 		return undefined;
 	}
 
-	const folded: ReadonlyArray<LabeledFold> = [...folds.entries()].map(([name, fold]) => {
+	const folded: ReadonlyArray<LabeledFold> = Array.from(folds, ([name, fold]) => {
 		return { fold, label: labels.get(name) };
 	});
 	return Object.fromEntries(
-		[...primaryFold.places.entries()].map(([placeKey, primary]) => [
+		Array.from(primaryFold.places, ([placeKey, primary]) => [
 			placeKey,
 			buildRootPlaceEntry(primary, { folds: folded, placeKey }),
 		]),
@@ -112,7 +112,7 @@ export function buildPlacesOverlay(
 	}
 
 	return Object.fromEntries(
-		[...fold.places.entries()].map(([placeKey, foldEntry]) => {
+		Array.from(fold.places, ([placeKey, foldEntry]) => {
 			return [
 				placeKey,
 				buildPlaceOverlayEntry({
@@ -170,9 +170,9 @@ function buildRootPlaceEntry(
 	const serverSize = placeFieldConsensus({ ...consensusBase, field: "serverSize" });
 	return {
 		filePath: primary.entry.filePath,
-		...(description !== undefined && { description }),
-		...(displayName !== undefined && { displayName }),
-		...(serverSize !== undefined && { serverSize }),
+		...(description !== undefined ? { description } : {}),
+		...(displayName !== undefined ? { displayName } : {}),
+		...(serverSize !== undefined ? { serverSize } : {}),
 	};
 }
 
@@ -182,9 +182,9 @@ function buildPlaceOverlayEntry(inputs: BuildPlaceOverlayEntryInputs): PlaceOver
 	const displayName = resolveDisplayName(rawDisplayName, label);
 	return {
 		placeId: fold.placeId,
-		...(filePath !== rootEntry?.filePath && { filePath }),
-		...(!Object.is(rootEntry?.description, description) && { description }),
-		...(!Object.is(rootEntry?.displayName, displayName) && { displayName }),
-		...(!Object.is(rootEntry?.serverSize, serverSize) && { serverSize }),
+		...(filePath !== rootEntry?.filePath ? { filePath } : {}),
+		...(!Object.is(rootEntry?.description, description) ? { description } : {}),
+		...(!Object.is(rootEntry?.displayName, displayName) ? { displayName } : {}),
+		...(!Object.is(rootEntry?.serverSize, serverSize) ? { serverSize } : {}),
 	};
 }

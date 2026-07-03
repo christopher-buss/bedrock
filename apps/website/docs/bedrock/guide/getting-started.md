@@ -12,23 +12,30 @@ same reconciliation is available programmatically through
 
 ## Install
 
-:::tabs key:pm
-== pnpm
+:::tabs key:pm == pnpm
+
 ```sh
 pnpm add @bedrock-rbx/core
 ```
+
 == npm
+
 ```sh
 npm install @bedrock-rbx/core
 ```
+
 == bun
+
 ```sh
 bun add @bedrock-rbx/core
 ```
+
 == yarn
+
 ```sh
 yarn add @bedrock-rbx/core
 ```
+
 :::
 
 ## Write a config
@@ -71,10 +78,11 @@ What each block declares:
 - **`passes`** — game passes, keyed by a stable user-chosen `ResourceKey`. Each
   entry carries a `name`, `description`, a locale-keyed `icon` (`"en-us"` path),
   and an optional `price` in Robux (omit for an off-sale pass). You point at an
-  icon file; Bedrock hashes its contents so an unchanged icon is not re-uploaded.
+  icon file; Bedrock hashes its contents so an unchanged icon is not
+  re-uploaded.
 - **`places`** — the root entry holds the bits every environment shares: a
   required `filePath` to the `.rbxl`/`.rbxlx` file, plus optional `displayName`,
-  `description`, and `serverSize`. The Roblox `placeId` is *not* here — it is
+  `description`, and `serverSize`. The Roblox `placeId` is _not_ here — it is
   environment-specific.
 - **`universe`** — the managed universe settings. `universeId` is a string of
   digits for an existing universe (Open Cloud cannot mint universes). Other
@@ -87,12 +95,10 @@ What each block declares:
 - **`state`** — where Bedrock persists the deployed state. The Gist backend
   takes a `gistId`; the GitHub token is read from `BEDROCK_GITHUB_TOKEN`.
 
-::: tip universeId placement
-Declare `universeId` **either** on the root `universe` block (one universe for
-every environment) **or** on each `environments[name].universe` overlay (a
-distinct universe per environment) — never both. The schema rejects a config
-that sets it in both places.
-:::
+::: tip universeId placement Declare `universeId` **either** on the root
+`universe` block (one universe for every environment) **or** on each
+`environments[name].universe` overlay (a distinct universe per environment) —
+never both. The schema rejects a config that sets it in both places. :::
 
 Config files are discovered automatically as
 `bedrock.config.{ts,js,mjs,yaml,yml,json,luau}` at the project root, or under a
@@ -112,7 +118,7 @@ pnpm bedrock deploy --env production
 `@bedrock-rbx/core` installs locally, so run its `bedrock` binary through your
 package manager — `pnpm bedrock` (shown here), `npx bedrock`, or `bunx bedrock`.
 
-To preview the operations a deploy *would* apply without writing any state, run
+To preview the operations a deploy _would_ apply without writing any state, run
 a dry run first:
 
 ```sh
@@ -174,7 +180,12 @@ input, computes a SHA-256 hash of its contents, and returns the normalized
 stays testable against a fake filesystem:
 
 ```ts
-import { buildDesired, flattenConfig, loadConfig, selectEnvironment } from "@bedrock-rbx/core";
+import {
+	buildDesired,
+	flattenConfig,
+	loadConfig,
+	selectEnvironment,
+} from "@bedrock-rbx/core";
 
 import { readFile } from "node:fs/promises";
 
@@ -188,7 +199,8 @@ if (!resolved.success) {
 	throw new Error(resolved.err.kind);
 }
 
-const desired = await buildDesired(flattenConfig(resolved.data), (path) => readFile(path));
+const inputs = flattenConfig(resolved.data);
+const desired = await buildDesired(inputs, (path) => readFile(path));
 if (!desired.success) {
 	throw new Error(desired.err.kind);
 }
@@ -222,7 +234,7 @@ const ops = diff(desired.data, current);
 
 A [`DriverRegistry`](/bedrock/api/type-aliases/DriverRegistry) maps every
 `ResourceKind` to a [`ResourceDriver`](/bedrock/api/interfaces/ResourceDriver) —
-an *object* with a `create` method (and an optional `update`), not a bare
+an _object_ with a `create` method (and an optional `update`), not a bare
 function. Build the default registry, which wires each kind to its
 `@bedrock-rbx/ocale` client, with
 [`buildDefaultRegistry`](/bedrock/api/functions/buildDefaultRegistry):
@@ -278,14 +290,23 @@ carrying a `key` and a cause. Iterate `failures` to report them.
 
 - [`deploy`](/bedrock/api/functions/deploy): high-level end-to-end reconcile
 - [`defineConfig`](/bedrock/api/functions/defineConfig): typed config helper
-- [`loadConfig`](/bedrock/api/functions/loadConfig): discover and validate config
-- [`getEnvironment`](/bedrock/api/functions/getEnvironment): resolve the target environment
+- [`loadConfig`](/bedrock/api/functions/loadConfig): discover and validate
+  config
+- [`getEnvironment`](/bedrock/api/functions/getEnvironment): resolve the target
+  environment
 - [`diff`](/bedrock/api/functions/diff): pure reconciliation
-- [`buildDesired`](/bedrock/api/functions/buildDesired): file-backed desired-state assembly
-- [`buildDefaultRegistry`](/bedrock/api/functions/buildDefaultRegistry): default driver table
+- [`buildDesired`](/bedrock/api/functions/buildDesired): file-backed
+  desired-state assembly
+- [`buildDefaultRegistry`](/bedrock/api/functions/buildDefaultRegistry): default
+  driver table
 - [`applyOps`](/bedrock/api/functions/applyOps): dispatch operations to drivers
-- [`Operation`](/bedrock/api/type-aliases/Operation): discriminated union of reconciliation steps
-- [`ResourceDriver`](/bedrock/api/interfaces/ResourceDriver): the plugin contract
-- [`DriverRegistry`](/bedrock/api/type-aliases/DriverRegistry): kind → driver dispatch table
-- [`DeployError`](/bedrock/api/type-aliases/DeployError): stage-tagged deploy failure
-- [`AggregateApplyError`](/bedrock/api/interfaces/AggregateApplyError): apply-stage failure batch
+- [`Operation`](/bedrock/api/type-aliases/Operation): discriminated union of
+  reconciliation steps
+- [`ResourceDriver`](/bedrock/api/interfaces/ResourceDriver): the plugin
+  contract
+- [`DriverRegistry`](/bedrock/api/type-aliases/DriverRegistry): kind → driver
+  dispatch table
+- [`DeployError`](/bedrock/api/type-aliases/DeployError): stage-tagged deploy
+  failure
+- [`AggregateApplyError`](/bedrock/api/interfaces/AggregateApplyError):
+  apply-stage failure batch

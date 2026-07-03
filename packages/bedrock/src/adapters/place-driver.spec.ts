@@ -2,12 +2,15 @@ import { ApiError } from "@bedrock-rbx/ocale";
 import { PlacesClient } from "@bedrock-rbx/ocale/places";
 import { createFakeHttpClient, validPlaceBody } from "@bedrock-rbx/ocale/testing";
 
-import { placeCurrent, placeDesired } from "#tests/helpers/resources";
 import type { Except } from "type-fest";
 import { assert, describe, expect, it, vi } from "vitest";
 
+import { placeCurrent, placeDesired } from "#tests/helpers/resources";
 import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
-import { createPlaceDriver, type PlaceDriverDeps } from "./place-driver.ts";
+import {
+	createPlaceDriver,
+	type PlaceDriverDeps as PlaceDriverDependencies,
+} from "./place-driver.ts";
 
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
 const PLACE_ID = asRobloxAssetId("4711");
@@ -16,7 +19,7 @@ const RBXL_SIGNATURE = new Uint8Array([
 ]);
 const RBXLX_SIGNATURE = new Uint8Array([0x3c, 0x72, 0x6f, 0x62, 0x6c, 0x6f, 0x78, 0x20]);
 
-function makeDriver(overrides?: Partial<Except<PlaceDriverDeps, "client">>) {
+function makeDriver(overrides?: Partial<Except<PlaceDriverDependencies, "client">>) {
 	const http = createFakeHttpClient();
 	const driver = createPlaceDriver({
 		client: new PlacesClient({
@@ -332,7 +335,7 @@ describe(createPlaceDriver, () => {
 		expect.assertions(2);
 
 		const fromDisk = Uint8Array.from([...RBXL_SIGNATURE, 0x99]);
-		const readFile = vi.fn<PlaceDriverDeps["readFile"]>().mockResolvedValue(fromDisk);
+		const readFile = vi.fn<PlaceDriverDependencies["readFile"]>().mockResolvedValue(fromDisk);
 		const { driver, http } = makeDriver({ readFile });
 		http.mockResponse({ body: { versionNumber: 1 }, status: 200 });
 

@@ -3,6 +3,7 @@
 
 version: "0.2"
 language: en
+
 words:
   - arktype
   - bedrockrc
@@ -10,6 +11,7 @@ words:
   - defu
   - ehostdown
   - gameinternationalization
+  - gsub
   - guilded
   - luau
   - luaurc
@@ -17,6 +19,7 @@ words:
   - monocart
   - nonwords
   - ocale
+  - pcall
   - pgrep
   - pulumi
   - rbxl

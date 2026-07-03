@@ -34,7 +34,7 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import { ResourceClient, type ResourceMethodSpec } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import { buildPollDeps, submitAndPoll } from "../luau-execution/polling-helpers.ts";
+import { buildPollDependencies, submitAndPoll } from "../luau-execution/polling-helpers.ts";
 import { pollUntilDoneCore, type PollUntilDoneOptions } from "../luau-execution/polling.ts";
 
 /**
@@ -277,7 +277,7 @@ function createLuauExecutionHandle(inner: ResourceClient): LuauExecutionHandle {
 			return inner.execute({ options, parameters, spec: LIST_LOGS_SPEC });
 		},
 		async pollUntilDone(ref, options = {}) {
-			return pollUntilDoneCore(buildPollDeps(inner, { options, ref }), options);
+			return pollUntilDoneCore(buildPollDependencies(inner, { options, ref }), options);
 		},
 		async runUntilDone(parameters, options = {}) {
 			return submitAndPoll(inner, { options, parameters });

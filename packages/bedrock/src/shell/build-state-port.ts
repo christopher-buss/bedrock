@@ -38,7 +38,7 @@ export interface UnsupportedBackendError {
 }
 
 /** Inputs for {@link buildStatePort}. */
-interface BuildStatePortDeps {
+interface BuildStatePortDependencies {
 	/** Optional `fetch` seam plumbed through to the gist adapter for tests. */
 	readonly fetch?: GistFetch | undefined;
 	/** Reads an environment variable; injected so tests stay free of `process.env`. */
@@ -77,7 +77,7 @@ const STATE_PORT_HINT = "pass a custom statePort via opts.statePort";
  * missing credential or the unsupported backend.
  */
 export function buildStatePort(
-	deps: BuildStatePortDeps,
+	deps: BuildStatePortDependencies,
 ): Result<StatePort, MissingCredentialError | UnsupportedBackendError> {
 	if (isGistStateConfig(deps.stateConfig)) {
 		return buildGistStatePort(deps.stateConfig, deps);
@@ -95,9 +95,10 @@ export function buildStatePort(
 
 function buildGistStatePort(
 	stateConfig: GistStateConfig,
-	deps: BuildStatePortDeps,
+	dependencies: BuildStatePortDependencies,
 ): Result<StatePort, MissingCredentialError> {
-	const token = deps.getEnv("BEDROCK_GITHUB_TOKEN") ?? deps.getEnv("GITHUB_TOKEN");
+	const token =
+		dependencies.getEnv("BEDROCK_GITHUB_TOKEN") ?? dependencies.getEnv("GITHUB_TOKEN");
 	if (token === undefined) {
 		return {
 			err: {
@@ -111,7 +112,7 @@ function buildGistStatePort(
 
 	return {
 		data: createGistStateAdapter({
-			fetch: deps.fetch,
+			fetch: dependencies.fetch,
 			gistId: stateConfig.gistId,
 			token,
 		}),

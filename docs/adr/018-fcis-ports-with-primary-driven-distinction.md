@@ -1,6 +1,6 @@
 # ADR-018: Architecture Refinement -- FCIS + Ports with Explicit Primary/Driven Port Distinction
 
-**Date:** 2026-04-17  **Status:** Accepted
+**Date:** 2026-04-17 **Status:** Accepted
 
 Refines: ADR-002 (FCIS + Ports architecture)
 
@@ -46,10 +46,10 @@ These terms are used throughout this ADR and in contributor-facing materials
 (code comments, CLAUDE.md). They are **not** exposed in user-facing docs (the
 TypeDoc API reference, plugin author tutorials): those use plain language.
 
-| Term | Meaning |
-| ---- | ------- |
-| **Primary port** | An interface the core exposes for external actors to invoke. Primary adapters (CLI, programmatic API, future plugins) call through this interface to drive Bedrock's behavior. The core defines the port; the adapter calls it. Current examples: the CLI entrypoint (`packages/cli/src/bin/`), the programmatic public API (`src/index.ts`). Primary ports correspond to "driver ports" in strict hexagonal terminology. |
-| **Driven port** | An interface through which Bedrock reaches out to an external system. Driven adapters implement these. Current example: `ResourceDriver<K>` (Open Cloud resources via `@bedrock-rbx/ocale`). Future examples: `StatePort` (Gist / S3 / R2), `ConfigPort` (c12). Driven ports correspond to "secondary ports" in strict hexagonal terminology. |
+| Term                    | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Primary port**        | An interface the core exposes for external actors to invoke. Primary adapters (CLI, programmatic API, future plugins) call through this interface to drive Bedrock's behavior. The core defines the port; the adapter calls it. Current examples: the CLI entrypoint (`packages/cli/src/bin/`), the programmatic public API (`src/index.ts`). Primary ports correspond to "driver ports" in strict hexagonal terminology.                                   |
+| **Driven port**         | An interface through which Bedrock reaches out to an external system. Driven adapters implement these. Current example: `ResourceDriver<K>` (Open Cloud resources via `@bedrock-rbx/ocale`). Future examples: `StatePort` (Gist / S3 / R2), `ConfigPort` (c12). Driven ports correspond to "secondary ports" in strict hexagonal terminology.                                                                                                               |
 | **`ResourceDriver<K>`** | Bedrock's generic driven-port interface, indexed by resource kind `K`. Despite containing the word "driver," this is a **driven** (secondary) port -- the opposite of a hexagonal "driver port," which means primary. The name follows the Terraform / Mantle IaC community convention where "driver" means "the component that talks to a specific resource API." This deliberate mismatch with hexagonal vocabulary is explained in Implementation Notes. |
 
 ## Decision
@@ -109,8 +109,8 @@ is no folder to create.
 - Third-party plugin authors have a named contract (`ResourceDriver<K>`) with
   stable semantics. The driven-port vocabulary in code comments and CLAUDE.md
   gives contributors a precise frame for where new adapters belong.
-- The architecture is forward-compatible with the plugin system (ADR-017,
-  v0.3+) and with new state backends (S3, R2) without any structural change.
+- The architecture is forward-compatible with the plugin system (ADR-017, v0.3+)
+  and with new state backends (S3, R2) without any structural change.
 - Full hexagonal's ceremony is explicitly off the table. Contributors arriving
   from enterprise TypeScript backgrounds cannot introduce application-service
   classes or DI containers and cite "architecture" as justification.
@@ -122,13 +122,14 @@ is no folder to create.
   Mitigated by the glossary table in this ADR and a note in CLAUDE.md.
 - `ResourceDriver<K>` is a permanent terminology inconsistency: "driver" in our
   codebase means the opposite of "driver port" in strict hexagonal. Readers who
-  know hexagonal deeply will notice. Mitigated by the glossary and Implementation
-  Notes, but the inconsistency cannot be fully eliminated without renaming.
+  know hexagonal deeply will notice. Mitigated by the glossary and
+  Implementation Notes, but the inconsistency cannot be fully eliminated without
+  renaming.
 
 ### Neutral
 
-- ADR-002's FCIS folder vocabulary (`core/`, `shell/`, `ports/`, `adapters/`)
-  is preserved. No migration of existing code is required.
+- ADR-002's FCIS folder vocabulary (`core/`, `shell/`, `ports/`, `adapters/`) is
+  preserved. No migration of existing code is required.
 - ADR-011's simplified-architecture opt-out does not apply to the CLI package.
   That verdict is unchanged (see Related Decisions).
 
@@ -285,26 +286,26 @@ pass it in). It does not require a DI container.
   ADR-011 itself is untouched.
 - **ADR-017**: Product Framing -- the product decision that made ADR-002's "CLI
   tool" justification incomplete. ADR-018 exists because ADR-017 established
-  multiple primary ports; without that, the primary/driven distinction would have
-  been a formalism with only one primary adapter.
+  multiple primary ports; without that, the primary/driven distinction would
+  have been a formalism with only one primary adapter.
 - **ADR-009**: Result Types Over Exceptions -- driven port interfaces return
   `Promise<Result<T, BedrockError>>` per ADR-009. This applies to
   `ResourceDriver<K>` and all future driven ports.
 - **ADR-003**: Testing Strategy -- the refined architecture preserves ADR-003's
-  zero-mock testing story. The pure core is tested without mocks; driven adapters
-  are tested against fakes injected at the port boundary; shell functions are
-  integration-tested with fake adapters.
+  zero-mock testing story. The pure core is tested without mocks; driven
+  adapters are tested against fakes injected at the port boundary; shell
+  functions are integration-tested with fake adapters.
 
 ## Amendments
 
 - **2026-04-25:** The CLI primary-adapter folder is `packages/bedrock/src/cli/`.
   The original Decision text places it at `packages/cli/src/bin/`; both segments
   changed after this ADR was accepted. The package was renamed to
-  `@bedrock-rbx/core` (PR #163), making `packages/bedrock/` its working-tree path.
-  The `bin/` segment was renamed to `cli/` when the scaffolding landed (#184)
-  to align with the Node convention that `bin` names the published executable
-  entry (`dist/cli/run.mjs`, declared in `package.json` `bin`) rather than the
-  source folder. Source under `cli/` covers the program factory (`index.ts`),
-  the executable shim (`run.ts`), output port (`render.ts`), options parser
-  (`parse-options.ts`), and exit-code constants. Future command modules live
-  under `cli/commands/`.
+  `@bedrock-rbx/core` (PR #163), making `packages/bedrock/` its working-tree
+  path. The `bin/` segment was renamed to `cli/` when the scaffolding landed
+  (#184) to align with the Node convention that `bin` names the published
+  executable entry (`dist/cli/run.mjs`, declared in `package.json` `bin`) rather
+  than the source folder. Source under `cli/` covers the program factory
+  (`index.ts`), the executable shim (`run.ts`), output port (`render.ts`),
+  options parser (`parse-options.ts`), and exit-code constants. Future command
+  modules live under `cli/commands/`.

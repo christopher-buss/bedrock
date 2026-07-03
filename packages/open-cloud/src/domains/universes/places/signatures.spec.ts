@@ -53,7 +53,8 @@ describe(matchesSignature, () => {
 	it("should return false when the body is shorter than the signature", () => {
 		expect.assertions(1);
 
-		const body = new Uint8Array(RBXL_SIGNATURE).subarray(0, RBXL_SIGNATURE.length - 1);
+		const fullSignature = new Uint8Array(RBXL_SIGNATURE);
+		const body = fullSignature.subarray(0, RBXL_SIGNATURE.length - 1);
 
 		expect(matchesSignature(body, RBXL_SIGNATURE)).toBeFalse();
 	});

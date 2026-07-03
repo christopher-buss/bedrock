@@ -39,10 +39,6 @@ import { join } from "node:path";
 // Configuration
 // ---------------------------------------------------------------------------
 
-// Maximum number of plan→execute cycles before stopping.
-// Raise this if your backlog is large; lower it for a quick smoke-test run.
-const MAX_ITERATIONS = 10;
-const MAX_PARALLEL = 4;
 const THINKING_MODEL = "claude-opus-4-7[1m]";
 const AGENT_MODEL = "claude-sonnet-4-6";
 
@@ -101,6 +97,11 @@ if (!existsSync(SIGNING_KEY_PATH)) {
 			'-C "sandcastle agent signing", then register the .pub on GitHub as a Signing Key.',
 	);
 }
+
+// Maximum number of plan→execute cycles before stopping.
+// Raise this if your backlog is large; lower it for a quick smoke-test run.
+const MAX_ITERATIONS = 10;
+const MAX_PARALLEL = 4;
 
 // Read the host's git identity so sandbox commits attribute to the same
 // author/committer the host would use, which lets GitHub match the
@@ -306,7 +307,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 	// -------------------------------------------------------------------------
 	let running = 0;
 	const queue: Array<() => void> = [];
-	// eslint-disable-next-line unicorn/consistent-function-scoping -- Using loop state
+
 	async function acquire(): Promise<void> {
 		if (running < MAX_PARALLEL) {
 			running++;
@@ -318,7 +319,6 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 		});
 	}
 
-	// eslint-disable-next-line unicorn/consistent-function-scoping -- Using loop state
 	function release(): void {
 		running--;
 		const next = queue.shift();

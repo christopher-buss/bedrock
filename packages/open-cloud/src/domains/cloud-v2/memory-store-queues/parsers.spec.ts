@@ -1,6 +1,6 @@
-import { validDequeueBody, validQueueItemBody } from "#tests/helpers/memory-store-queues";
 import { assert, describe, expect, it } from "vitest";
 
+import { validDequeueBody, validQueueItemBody } from "#tests/helpers/memory-store-queues";
 import { ApiError } from "../../../errors/api-error.ts";
 import { parseDequeueResponse, parseQueueItemResponse } from "./parsers.ts";
 import type { MemoryStoreQueueItemWire } from "./wire.ts";

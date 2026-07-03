@@ -1,6 +1,6 @@
-import { INVALID_ROBUX_PRICES, PLATFORM_FLAG_ROWS } from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";
 
+import { INVALID_ROBUX_PRICES, PLATFORM_FLAG_ROWS } from "#tests/helpers/resources";
 import { SOCIAL_LINK_FIELDS } from "./resources.ts";
 import { validateConfig } from "./schema.ts";
 

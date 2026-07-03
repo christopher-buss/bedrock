@@ -34,8 +34,10 @@ export function parseListLogsResponse(response: HttpResponse): Result<LogPage, A
 	}
 
 	const messages: Array<LogMessage> = [];
-	for (const chunk of rawChunks ?? []) {
-		for (const wireMessage of chunk.structuredMessages ?? []) {
+	const chunks = rawChunks ?? [];
+	for (const chunk of chunks) {
+		const wireMessages = chunk.structuredMessages ?? [];
+		for (const wireMessage of wireMessages) {
 			messages.push({
 				createTime: wireMessage.createTime,
 				message: wireMessage.message,

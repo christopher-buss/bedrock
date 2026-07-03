@@ -157,7 +157,8 @@ function composeResources(inputs: BuildStateInputs): ReadonlyArray<ResourceCurre
 					}),
 				];
 
-	const placeResources: ReadonlyArray<ResourceCurrentState> = [...folded.places.entries()].map(
+	const placeResources: ReadonlyArray<ResourceCurrentState> = Array.from(
+		folded.places,
 		([key, entry]) => placeResource(key, entry),
 	);
 

@@ -35,14 +35,17 @@ method return values.
 
 ```typescript
 // src/types.ts
-export type Result<T, E = Error> = { data: T; success: true } | { err: E; success: false };
+export type Result<T, E = Error> =
+	| { data: T; success: true }
+	| { err: E; success: false };
 ```
 
 Every SDK client method returns `Promise<Result<T, OpenCloudError>>`. Errors are
-never thrown from client methods — they are returned as `{ err, success: false }`.
+never thrown from client methods — they are returned as
+`{ err, success: false }`.
 
-The `Result` type lives in `src/types.ts` within `@bedrock-rbx/ocale` itself
-and is exported from the package root. No commitment is made to project-wide
+The `Result` type lives in `src/types.ts` within `@bedrock-rbx/ocale` itself and
+is exported from the package root. No commitment is made to project-wide
 adoption; the Bedrock CLI and other packages decide their own error handling
 independently.
 

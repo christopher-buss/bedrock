@@ -21,14 +21,14 @@ interface MigrationReportPaths {
 }
 
 /** Subset of the migrate command's deps the report writer touches. */
-interface WriterDeps {
+interface WriterDependencies {
 	readonly clack: ClackPort;
 	readonly mkdir: (path: string) => Promise<void>;
 	readonly writeFile: (path: string, contents: string) => Promise<void>;
 }
 
 interface WriteInputs {
-	readonly deps: WriterDeps;
+	readonly deps: WriterDependencies;
 	readonly report: MigrationReport;
 	readonly stateFilePath: string;
 }

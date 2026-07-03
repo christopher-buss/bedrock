@@ -1,6 +1,6 @@
 # ADR-017: Product Framing -- Programmatic IaC with CLI Convenience (Level 2 Hybrid)
 
-**Date:** 2026-04-17  **Status:** Accepted
+**Date:** 2026-04-17 **Status:** Accepted
 
 Decision Makers: Maintainer  
 Tags: product, api-design, public-api, cli, plugin-system, semver
@@ -19,23 +19,23 @@ Bedrock serves two distinct audiences:
   JSON, or minimal JS/TS data files. The CLI + multi-format config (c12) is
   their primary surface. This is why multi-format config exists: it is full,
   deliberate support for users who have no interest in TypeScript embedding.
-- **roblox-ts developers** -- a minority who write game code in TypeScript.
-  They have everything the Luau audience has, plus the ability to import Bedrock
-  as a TypeScript library and call its functions directly from scripts, tests,
-  and CI pipelines.
+- **roblox-ts developers** -- a minority who write game code in TypeScript. They
+  have everything the Luau audience has, plus the ability to import Bedrock as a
+  TypeScript library and call its functions directly from scripts, tests, and CI
+  pipelines.
 
 The stakes differ by audience. The Luau audience's deployment experience is
-already well-served by CLI + multi-format config; nothing described here
-changes that. The roblox-ts audience's experience is what's at stake: when a
-roblox-ts developer needs to automate deployment -- scheduled price changes,
-post-deploy Luau constant generation, drift assertions in CI -- the natural
-move is to import Bedrock as a library, not to shell out to its CLI. If that
-programmatic surface is an afterthought (undocumented internals, no stability
-commitment, no examples), the roblox-ts use cases are effectively locked out.
+already well-served by CLI + multi-format config; nothing described here changes
+that. The roblox-ts audience's experience is what's at stake: when a roblox-ts
+developer needs to automate deployment -- scheduled price changes, post-deploy
+Luau constant generation, drift assertions in CI -- the natural move is to
+import Bedrock as a library, not to shell out to its CLI. If that programmatic
+surface is an afterthought (undocumented internals, no stability commitment, no
+examples), the roblox-ts use cases are effectively locked out.
 
-The planned plugin system (v0.3+) makes the stakes concrete: plugins
-will implement `ResourceDriver<K>` and call core functions like `diff` and
-`applyOps`. That plugin contract *is* a public API. Treating it as an escape
+The planned plugin system (v0.3+) makes the stakes concrete: plugins will
+implement `ResourceDriver<K>` and call core functions like `diff` and
+`applyOps`. That plugin contract _is_ a public API. Treating it as an escape
 hatch rather than a documented, stable product surface would mean shipping an
 extensibility story on an undocumented, unstable foundation.
 
@@ -63,9 +63,9 @@ Concretely:
   it is the canonical programmatic surface.
 - `bedrock deploy` loads a default-exported config and calls the same underlying
   functions. CLI and programmatic paths are identical below the entry point.
-- The following surface is the **public API**: `diff`, `applyOps`, `buildDesired`,
-  `ResourceDriver<K>`, `defineConfig`, `deploy`, all associated type contracts,
-  and any symbol exported from `src/index.ts`.
+- The following surface is the **public API**: `diff`, `applyOps`,
+  `buildDesired`, `ResourceDriver<K>`, `defineConfig`, `deploy`, all associated
+  type contracts, and any symbol exported from `src/index.ts`.
 - The public API is semver-versioned. During 0.x, breaking changes are permitted
   in minor bumps (0.1 -> 0.2) per standard pre-1.0 semver convention. Strict
   breaking-change-in-major-only semantics engage at 1.0.
@@ -79,9 +79,9 @@ Concretely:
 
 ### Motivating use cases
 
-These use cases drove Level 2 from the roblox-ts audience. The Luau audience
-is served equivalently by multi-format config (YAML/JSON) + CLI; Level 2 does
-not change their experience.
+These use cases drove Level 2 from the roblox-ts audience. The Luau audience is
+served equivalently by multi-format config (YAML/JSON) + CLI; Level 2 does not
+change their experience.
 
 1. **Scheduled price mutations.** A cron-triggered script bypasses the `bedrock`
    CLI entirely and runs as a plain TypeScript program (e.g.
@@ -106,8 +106,8 @@ not change their experience.
 4. **Multi-game monorepo orchestration.** A studio with multiple Roblox
    experiences writes a single script that iterates over per-game configs and
    calls `deploy()` for each. Sequencing, error handling, and reporting are
-   expressed in TypeScript; the script does not shell out to `bedrock deploy`
-   in a loop.
+   expressed in TypeScript; the script does not shell out to `bedrock deploy` in
+   a loop.
 
 ## Consequences
 
@@ -138,8 +138,8 @@ not change their experience.
   just that internal units behave correctly. Test surface grows.
 - Semver creates a communication obligation: breaking changes to the public API
   during 0.x require a CHANGELOG entry with clear labeling. No deprecation
-  notice period is required during 0.x; no release cadence is mandated. Both
-  are deferred to a future 1.0 stability policy ADR.
+  notice period is required during 0.x; no release cadence is mandated. Both are
+  deferred to a future 1.0 stability policy ADR.
 - The Open Cloud constraint (ADR-007) applies to Bedrock's own adapters.
   Third-party plugin authors are responsible for their own API choices within
   their `ResourceDriver<K>` implementations.
@@ -149,10 +149,10 @@ not change their experience.
 - Package structure (single `bedrock` package vs. split `@bedrock-rbx/core` +
   `@bedrock-rbx/cli`) is not resolved by this ADR. Splitting is deferred until
   concrete demand arises. A future ADR will define the split criteria if needed.
-- ADR-002's FCIS + Ports architecture is unaffected by this decision. Level 2
-  is a product framing, not an architecture-pattern change. ADR-018 (planned)
-  will refine ADR-002 to reflect the primary/driven port distinction that Level
-  2 makes explicit.
+- ADR-002's FCIS + Ports architecture is unaffected by this decision. Level 2 is
+  a product framing, not an architecture-pattern change. ADR-018 (planned) will
+  refine ADR-002 to reflect the primary/driven port distinction that Level 2
+  makes explicit.
 
 ### Revisit criteria
 
@@ -167,21 +167,21 @@ This ADR should be reopened if any of the following occur:
   breaking-change-in-major semantics engage. A 1.0 stability policy ADR should
   supersede the deferred items in this one.
 - **Audience ratio shifts substantially.** If roblox-ts adoption grows to the
-  point where it is no longer a clear minority of Bedrock users, the two-audience
-  framing and the "Level 2 does not change the Luau audience's experience"
-  language may need rebalancing.
+  point where it is no longer a clear minority of Bedrock users, the
+  two-audience framing and the "Level 2 does not change the Luau audience's
+  experience" language may need rebalancing.
 - **Level 3 ergonomic complaints are resolved by new patterns.** If CDK/Pulumi
   successors demonstrably solve implicit ordering, constructor side-effects, and
-  difficult unit testing -- the four objections listed under Level 3 rejection --
-  the constructor-registration alternative should be re-evaluated.
+  difficult unit testing -- the four objections listed under Level 3 rejection
+  -- the constructor-registration alternative should be re-evaluated.
 
 ## Alternatives Considered
 
 ### Level 1: CLI-first with programmatic escape hatch
 
 `bedrock.config.ts` is a data file. `bedrock deploy` is the primary entry point.
-Programmatic access exists but is undocumented, unstable, and framed as
-advanced use.
+Programmatic access exists but is undocumented, unstable, and framed as advanced
+use.
 
 **Rejected.** Level 1 leaves the plugin system without a supported foundation:
 plugins implement `ResourceDriver<K>` and call core functions like `diff` and
@@ -201,18 +201,19 @@ construction time. `bedrock.deploy()` flushes the registry.
 
 1. **Machinery cost disproportionate to scope.** v1.0 has six resource types.
    The registration runtime, lifecycle hooks, and dependency graph that
-   constructor-based tools require are significant engineering investment for
-   a small fixed resource set.
+   constructor-based tools require are significant engineering investment for a
+   small fixed resource set.
 2. **Mantle migration becomes hard.** YAML config maps naturally to a
-   `defineConfig` data structure. It does not map naturally to constructor calls.
-   Maintaining the migration path (CLAUDE.md constraint) requires config-as-data.
+   `defineConfig` data structure. It does not map naturally to constructor
+   calls. Maintaining the migration path (CLAUDE.md constraint) requires
+   config-as-data.
 3. **Known ergonomic complaints.** AWS CDK Level-3 constructs carry
    widely-documented friction: implicit ordering, constructor side-effects,
-   difficult unit testing, surprises when constructs are composed. Bedrock should
-   not import these problems.
+   difficult unit testing, surprises when constructs are composed. Bedrock
+   should not import these problems.
 4. **Config-as-data matches both audiences.** Luau developers are already
-   familiar with declarative config files (Mantle YAML, Rojo `project.json`);
-   a `defineConfig` data structure is a natural continuation of that idiom.
+   familiar with declarative config files (Mantle YAML, Rojo `project.json`); a
+   `defineConfig` data structure is a natural continuation of that idiom.
    roblox-ts developers are familiar with typed object literals and Vite-style
    `defineConfig` helpers; the data-file pattern is equally comfortable for
    them. Constructor-registration is a larger conceptual step for both groups
@@ -226,10 +227,10 @@ construction time. `bedrock.deploy()` flushes the registry.
   config shape without requiring explicit type annotations at call sites.
 - `ResourceDriver<K>` documentation must include a full `@example` implementing
   a minimal driver, so plugin authors have a concrete starting point.
-- The docs site must present CLI-with-multi-format-config and programmatic-TS
-  as peer entry points, not a hierarchy. Luau users land on CLI + YAML/JSON
-  config; roblox-ts users land on either surface. Neither path is buried or
-  framed as advanced.
+- The docs site must present CLI-with-multi-format-config and programmatic-TS as
+  peer entry points, not a hierarchy. Luau users land on CLI + YAML/JSON config;
+  roblox-ts users land on either surface. Neither path is buried or framed as
+  advanced.
 - ADR-018 (planned) refines ADR-002 to name the primary port (CLI entry,
   programmatic entry) vs. driven ports (state backend, Open Cloud HTTP). That
   distinction follows from Level 2 but is a separate architectural concern.
@@ -250,9 +251,9 @@ construction time. `bedrock.deploy()` flushes the registry.
 - **ADR-009**: Result Types Over Exceptions -- public API functions follow the
   same `Promise<Result<T, E>>` convention established for `@bedrock-rbx/ocale`.
 - **ADR-011**: Simplified Architecture for Library Packages -- the five-criteria
-  opt-out check applies if a future `@bedrock-rbx/core` split is proposed. The CLI
-  package (which contains deployment logic) continues to fail criteria 2, 3, 4,
-  and 5 and must use FCIS + Ports.
+  opt-out check applies if a future `@bedrock-rbx/core` split is proposed. The
+  CLI package (which contains deployment logic) continues to fail criteria 2, 3,
+  4, and 5 and must use FCIS + Ports.
 
 ## References
 
@@ -260,6 +261,6 @@ construction time. `bedrock.deploy()` flushes the registry.
   path is a CLAUDE.md hard constraint
 - [Pulumi](https://www.pulumi.com/) -- Level 3 reference; ergonomic complaints
   informed the rejection
-- [AWS CDK Level-3 Constructs](https://docs.aws.amazon.com/cdk/v2/guide/constructs.html) --
-  Level 3 reference; documented friction informed the rejection
+- [AWS CDK Level-3 Constructs](https://docs.aws.amazon.com/cdk/v2/guide/constructs.html)
+  -- Level 3 reference; documented friction informed the rejection
 - ADR-004, ADR-005 -- documentation and example obligations extended by this ADR

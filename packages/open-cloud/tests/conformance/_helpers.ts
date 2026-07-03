@@ -1,9 +1,10 @@
-import { isRecord } from "#src/internal/utils/is-record";
 import Ajv, { type ValidateFunction } from "ajv";
 import addFormats from "ajv-formats";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { assert, expect } from "vitest";
+
+import { isRecord } from "#src/internal/utils/is-record";
 
 /**
  * Normalization mode for the Ajv instance returned by {@link getAjv}.

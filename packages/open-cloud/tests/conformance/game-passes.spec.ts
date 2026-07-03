@@ -1,6 +1,6 @@
-import { parseGamePassResponse } from "#src/domains/game-passes/game-passes/parsers";
 import { assert, describe, expect, it } from "vitest";
 
+import { parseGamePassResponse } from "#src/domains/game-passes/game-passes/parsers";
 import {
 	dropReadOnlyFromRequired,
 	expectValid,

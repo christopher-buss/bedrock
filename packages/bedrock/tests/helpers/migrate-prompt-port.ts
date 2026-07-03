@@ -1,5 +1,6 @@
-import type { MigratePromptPort } from "#src/cli/migrate-prompt-port";
 import { vi } from "vitest";
+
+import type { MigratePromptPort } from "#src/cli/migrate-prompt-port";
 
 /**
  * Build a `MigratePromptPort` whose six methods are independent

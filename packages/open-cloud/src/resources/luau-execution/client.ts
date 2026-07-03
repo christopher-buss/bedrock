@@ -34,7 +34,7 @@ import {
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import { buildPollDeps, submitAndPoll } from "./polling-helpers.ts";
+import { buildPollDependencies, submitAndPoll } from "./polling-helpers.ts";
 import {
 	pollUntilDoneCore,
 	type PollUntilDoneOptions,
@@ -236,7 +236,10 @@ function createTasksHandle(inner: ResourceClient): TasksHandle {
 		},
 		async pollUntilDone(ref, options = {}) {
 			const resolved = withBudgetRequestTimeout(options);
-			return pollUntilDoneCore(buildPollDeps(inner, { options: resolved, ref }), resolved);
+			return pollUntilDoneCore(
+				buildPollDependencies(inner, { options: resolved, ref }),
+				resolved,
+			);
 		},
 		async runUntilDone(parameters, options = {}) {
 			return submitAndPoll(inner, { options: withBudgetRequestTimeout(options), parameters });

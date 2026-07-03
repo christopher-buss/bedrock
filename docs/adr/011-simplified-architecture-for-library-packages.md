@@ -11,32 +11,33 @@ monorepo
 
 ADR-002 established Functional Core, Imperative Shell (FCIS) + Ports as the
 architecture for the Bedrock monorepo. Its "Internal Architecture" section
-described the CLI package, but its monorepo diagram placed `packages/open-cloud/`
-alongside `packages/cli/` under the same umbrella without distinguishing them.
-Readers reasonably concluded FCIS + Ports applied to every package.
+described the CLI package, but its monorepo diagram placed
+`packages/open-cloud/` alongside `packages/cli/` under the same umbrella without
+distinguishing them. Readers reasonably concluded FCIS + Ports applied to every
+package.
 
 Building `@bedrock-rbx/ocale` revealed that conclusion is wrong for HTTP client
 libraries. FCIS exists to separate pure business logic from I/O so the logic can
 be tested without mocks. An HTTP client library has no pure business logic to
-separate — the package *is* the I/O layer for something else. Its only "pure"
+separate — the package _is_ the I/O layer for something else. Its only "pure"
 code is request builders and response parsers, which are already pure in any
 reasonable implementation. Forcing FCIS vocabulary onto such a package produces
 "Ports" with exactly one implementation, which is ceremony rather than
 architecture.
 
-The `@bedrock-rbx/ocale` package was restructured to use the simplified
-pattern in commit `fa173bc`. This ADR catches the decision log up to what
-already exists on disk and establishes a general rule so future packages can
-make the same determination consistently.
+The `@bedrock-rbx/ocale` package was restructured to use the simplified pattern
+in commit `fa173bc`. This ADR catches the decision log up to what already exists
+on disk and establishes a general rule so future packages can make the same
+determination consistently.
 
 External precedent reinforces the carve-out.
 [Scenarist](https://github.com/citypaul/scenarist), a TypeScript library of
 comparable shape, codifies the same decision in its ADR-0006 ("Thin adapters -
 real integration tests"). Scenarist uses real ports and adapters — but only for
-*inbound* framework boundaries (Express vs Next.js), never for outbound HTTP to
+_inbound_ framework boundaries (Express vs Next.js), never for outbound HTTP to
 specific vendor APIs. There is no `StripePort` in their codebase: outbound HTTP
-to one specific vendor has no second implementation, so the abstraction would
-be imaginary.
+to one specific vendor has no second implementation, so the abstraction would be
+imaginary.
 
 Constraints:
 
@@ -49,8 +50,8 @@ Constraints:
 
 ## Decision
 
-A Bedrock package may use a **simplified architecture** in place of FCIS +
-Ports when **all five** of the following criteria hold. If any criterion fails,
+A Bedrock package may use a **simplified architecture** in place of FCIS + Ports
+when **all five** of the following criteria hold. If any criterion fails,
 ADR-002 (FCIS + Ports) applies as the default.
 
 ### Opt-out criteria
@@ -111,8 +112,8 @@ Folder layout is the package's own concern and is not prescribed by this ADR.
 
 ### Positive
 
-- **No ceremony without payoff** — HTTP clients do not grow Port interfaces
-  that have exactly one implementation.
+- **No ceremony without payoff** — HTTP clients do not grow Port interfaces that
+  have exactly one implementation.
 - **Mechanical decision rule** — new packages run the five criteria and get a
   clear answer, rather than arguing "is this a library?"
 - **Matches industry conventions** — aligns `@bedrock-rbx/ocale` with the
@@ -121,19 +122,19 @@ Folder layout is the package's own concern and is not prescribed by this ADR.
 - **Preserves FCIS where it helps** — ADR-002 remains the default, so packages
   with real business logic still get the zero-mock testability benefits it was
   introduced for.
-- **Testability is preserved** — the testable HTTP seam, pure builders, and
-  pure parsers together give the simplified pattern the same mock-free unit
-  testing story FCIS provides, just without the port vocabulary.
+- **Testability is preserved** — the testable HTTP seam, pure builders, and pure
+  parsers together give the simplified pattern the same mock-free unit testing
+  story FCIS provides, just without the port vocabulary.
 
 ### Negative
 
 - **Two patterns in one monorepo** — contributors must learn when each applies
   and how to apply the five-criteria check.
-- **Risk of misapplication** — a contributor might force the simplified
-  pattern onto a package that genuinely needs FCIS. Mitigated by the
-  "all five must hold" rule, which biases toward FCIS in ambiguous cases.
-- **Generalization from one package** — the pattern is currently validated by
-  a single package (`@bedrock-rbx/ocale`). Future library packages may reveal
+- **Risk of misapplication** — a contributor might force the simplified pattern
+  onto a package that genuinely needs FCIS. Mitigated by the "all five must
+  hold" rule, which biases toward FCIS in ambiguous cases.
+- **Generalization from one package** — the pattern is currently validated by a
+  single package (`@bedrock-rbx/ocale`). Future library packages may reveal
   additional considerations that require revisiting this ADR.
 
 ### Neutral
@@ -169,18 +170,18 @@ patterns.
 
 **Rejected.** ADR-002's decision still stands for everything it was actually
 applied to (the CLI and its pluggable backends). Superseding it would
-mischaracterize what happened: the decision was not reversed, only narrowed.
-The append-only ADR convention (Nygard, MADR) reserves "Superseded" for
-replacement, not refinement.
+mischaracterize what happened: the decision was not reversed, only narrowed. The
+append-only ADR convention (Nygard, MADR) reserves "Superseded" for replacement,
+not refinement.
 
 ### Do nothing; leave the implicit divergence
 
-The package is already restructured to the simplified pattern; arguably no
-ADR is needed.
+The package is already restructured to the simplified pattern; arguably no ADR
+is needed.
 
-**Rejected.** ADR-002's prose and diagrams still describe a monorepo where
-every package uses FCIS + Ports, which no longer matches reality. Leaving the
-gap makes ADR-002 misleading, prevents future packages from applying the same
+**Rejected.** ADR-002's prose and diagrams still describe a monorepo where every
+package uses FCIS + Ports, which no longer matches reality. Leaving the gap
+makes ADR-002 misleading, prevents future packages from applying the same
 reasoning consistently, and violates ADR-006 (ADR enforcement) which requires
 architectural changes to be recorded before implementation — this ADR closes
 that gap retroactively.
@@ -190,9 +191,9 @@ that gap retroactively.
 - **ADR-002 cross-reference.** A single header line is added to ADR-002
   (`Refined by: ADR-011 (library/SDK packages use a simplified architecture)`)
   to give readers encountering ADR-002 first a breadcrumb to this refinement.
-  ADR-002's Context, Decision, and Consequences are not modified. The
-  mainstream ADR convention is append-only; this header line is the minimal
-  additive edit required for discoverability.
+  ADR-002's Context, Decision, and Consequences are not modified. The mainstream
+  ADR convention is append-only; this header line is the minimal additive edit
+  required for discoverability.
 - **Folder layout** is deliberately not prescribed by this ADR. Each opting-out
   package is responsible for documenting its own layout alongside its source
   (package README, code organization). This ADR governs the decision rule and
@@ -204,13 +205,13 @@ that gap retroactively.
 ## Related Decisions
 
 - **ADR-002**: Monorepo with FCIS + Ports — the decision this ADR refines.
-  FCIS + Ports remains the default for the monorepo; this ADR carves out
-  library packages that satisfy all five criteria.
+  FCIS + Ports remains the default for the monorepo; this ADR carves out library
+  packages that satisfy all five criteria.
 - **ADR-003**: Testing strategy — applies to both patterns unchanged. The
   simplified pattern preserves mock-free unit testing via pure builders/parsers
   and the injectable HTTP seam.
-- **ADR-006**: ADR enforcement — this ADR is the retroactive record required
-  by ADR-006 for the simplified-architecture decision already implemented in
+- **ADR-006**: ADR enforcement — this ADR is the retroactive record required by
+  ADR-006 for the simplified-architecture decision already implemented in
   `@bedrock-rbx/ocale`.
 - **ADR-008**: Zero runtime dependencies — scoped to `@bedrock-rbx/ocale` and
   compatible with the simplified pattern.
@@ -221,12 +222,12 @@ that gap retroactively.
 
 ## References
 
-- [Scenarist ADR-0006: Thin adapters - real integration tests](https://github.com/citypaul/scenarist/blob/main/docs/adrs/0006-thin-adapters-real-integration-tests.md) —
-  precedent and source of the five-criteria rubric
-- [Scenarist ADR-0011: Domain constants location](https://github.com/citypaul/scenarist/blob/main/docs/adrs/0011-domain-constants-location.md) —
-  explicit rule for what belongs in core vs adapter
-- [Michael Nygard, "Documenting Architecture Decisions" (2011)](https://www.cognitect.com/blog/2011/11/15/documenting-architecture-decisions) —
-  source of the append-only ADR convention
+- [Scenarist ADR-0006: Thin adapters - real integration tests](https://github.com/citypaul/scenarist/blob/main/docs/adrs/0006-thin-adapters-real-integration-tests.md)
+  — precedent and source of the five-criteria rubric
+- [Scenarist ADR-0011: Domain constants location](https://github.com/citypaul/scenarist/blob/main/docs/adrs/0011-domain-constants-location.md)
+  — explicit rule for what belongs in core vs adapter
+- [Michael Nygard, "Documenting Architecture Decisions" (2011)](https://www.cognitect.com/blog/2011/11/15/documenting-architecture-decisions)
+  — source of the append-only ADR convention
 - [MADR template](https://github.com/adr/madr) — canonical status vocabulary
 - [AWS SDK v3 architecture](https://github.com/aws/aws-sdk-js-v3) — industry
   example of a TypeScript SDK without a FCIS-style core

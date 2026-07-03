@@ -96,7 +96,8 @@ export async function hashCodegenFiles(files: ReadonlyArray<CodegenFile>): Promi
 	const canonical = JSON.stringify(
 		files.map((file) => JSON.stringify([file.path, file.content])).sort(),
 	);
-	return asSha256Hex(await sha256Hex(new TextEncoder().encode(canonical)));
+	const encoder = new TextEncoder();
+	return asSha256Hex(await sha256Hex(encoder.encode(canonical)));
 }
 
 /**

@@ -1,6 +1,6 @@
-import { validBadgeBody } from "#tests/helpers/badges";
 import { assert, describe, expect, it } from "vitest";
 
+import { validBadgeBody } from "#tests/helpers/badges";
 import { ApiError } from "../../../errors/api-error.ts";
 import { parseBadgeResponse } from "./parsers.ts";
 

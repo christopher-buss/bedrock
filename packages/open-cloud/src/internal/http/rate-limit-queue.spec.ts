@@ -1,6 +1,6 @@
-import { createFakeClock } from "#tests/helpers/fake-clock";
 import { describe, expect, it, vi } from "vitest";
 
+import { createFakeClock } from "#tests/helpers/fake-clock";
 import { RateLimitQueue } from "./rate-limit-queue.ts";
 
 describe(RateLimitQueue, () => {

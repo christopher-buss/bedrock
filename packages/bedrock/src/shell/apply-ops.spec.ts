@@ -1,5 +1,7 @@
 import { OpenCloudError } from "@bedrock-rbx/ocale";
 
+import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
+
 import {
 	developerProductCurrent,
 	developerProductDesired,
@@ -10,8 +12,6 @@ import {
 	universeCurrent,
 	universeDesired,
 } from "#tests/helpers/resources";
-import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
-
 import type { CreateOperation, UpdateOperation } from "../core/operations.ts";
 import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";

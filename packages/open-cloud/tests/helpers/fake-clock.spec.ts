@@ -1,5 +1,6 @@
-import { createFakeClock } from "#tests/helpers/fake-clock";
 import { describe, expect, it } from "vitest";
+
+import { createFakeClock } from "#tests/helpers/fake-clock";
 
 describe(createFakeClock, () => {
 	it("should mock Date.now to start at zero", () => {

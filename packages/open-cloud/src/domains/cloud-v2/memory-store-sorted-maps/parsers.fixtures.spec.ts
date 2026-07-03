@@ -1,6 +1,6 @@
-import { loadFixture } from "#tests/conformance/_helpers";
 import { assert, describe, expect, it } from "vitest";
 
+import { loadFixture } from "#tests/conformance/_helpers";
 import { parseListResponse, parseSortedMapItemResponse } from "./parsers.ts";
 
 // Captured against the live Open Cloud API at apis.roblox.com in

@@ -1,6 +1,6 @@
-import { validPlaceBody } from "#tests/helpers/places";
 import { assert, describe, expect, it } from "vitest";
 
+import { validPlaceBody } from "#tests/helpers/places";
 import { ApiError } from "../../../errors/api-error.ts";
 import { parsePlaceResponse } from "./parsers.ts";
 import type { PlaceWire } from "./wire.ts";

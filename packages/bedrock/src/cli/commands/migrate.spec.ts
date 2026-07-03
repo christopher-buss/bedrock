@@ -1,23 +1,23 @@
-import { fakeClackPort } from "#tests/helpers/clack";
-import { fakeMigratePromptPort } from "#tests/helpers/migrate-prompt-port";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
+import { fakeClackPort } from "#tests/helpers/clack";
+import { fakeMigratePromptPort } from "#tests/helpers/migrate-prompt-port";
 import type { MigrationReport } from "../../core/migrate/migration-report.ts";
 import type { Config } from "../../core/schema.ts";
 import type { BedrockState, StateError } from "../../core/state.ts";
 import type { StatePort } from "../../ports/state-port.ts";
-import type { ProgDeps } from "../index.ts";
+import type { ProgDeps as ProgDependencies } from "../index.ts";
 import { migrateCommand } from "./migrate.ts";
 
-type ExitFunc = NonNullable<ProgDeps["exit"]>;
-type WriteFileFunc = NonNullable<ProgDeps["writeFile"]>;
-type MkdirFunc = NonNullable<ProgDeps["mkdir"]>;
-type MigrateFunc = NonNullable<ProgDeps["migrateMantleState"]>;
-type BuildStatePortFunc = NonNullable<ProgDeps["buildStatePort"]>;
+type ExitFunc = NonNullable<ProgDependencies["exit"]>;
+type WriteFileFunc = NonNullable<ProgDependencies["writeFile"]>;
+type MkdirFunc = NonNullable<ProgDependencies["mkdir"]>;
+type MigrateFunc = NonNullable<ProgDependencies["migrateMantleState"]>;
+type BuildStatePortFunc = NonNullable<ProgDependencies["buildStatePort"]>;
 
 // Platform-correct expected paths the migrate command builds via `node:path`.
 // On Windows these resolve with backslashes; on POSIX with forward slashes.
@@ -64,7 +64,7 @@ function happyPortResult(write?: StatePort["write"]): ReturnType<BuildStatePortF
 	return { data: happyPort(write), success: true };
 }
 
-function makeDeps(overrides: Partial<ProgDeps> = {}): ProgDeps {
+function makeDependencies(overrides: Partial<ProgDependencies> = {}): ProgDependencies {
 	const migrate = vi.fn<MigrateFunc>();
 	migrate.mockResolvedValue({ data: SAMPLE_REPORT, success: true });
 	const writeFile = vi.fn<WriteFileFunc>();
@@ -83,8 +83,8 @@ function makeDeps(overrides: Partial<ProgDeps> = {}): ProgDeps {
 	};
 }
 
-function scriptHappyPrompts(deps: ProgDeps): void {
-	const port = deps.migratePromptPort;
+function scriptHappyPrompts(dependencies: ProgDependencies): void {
+	const port = dependencies.migratePromptPort;
 	if (port === undefined) {
 		throw new Error("migratePromptPort missing in deps");
 	}
@@ -102,70 +102,71 @@ describe(migrateCommand, () => {
 	it("should prompt for the migration source when --from is omitted", async () => {
 		expect.assertions(3);
 
-		const deps = makeDeps();
-		scriptHappyPrompts(deps);
-		vi.mocked(deps.migratePromptPort!.promptMigrationSource).mockResolvedValueOnce({
+		const dependencies = makeDependencies();
+		scriptHappyPrompts(dependencies);
+		vi.mocked(dependencies.migratePromptPort!.promptMigrationSource).mockResolvedValueOnce({
 			data: "mantle",
 			success: true,
 		});
 
-		await migrateCommand(deps)("./.mantle-state.yml", {});
+		await migrateCommand(dependencies)("./.mantle-state.yml", {});
 
-		expect(deps.migratePromptPort?.promptMigrationSource).toHaveBeenCalledExactlyOnceWith([
-			"mantle",
-		]);
-		expect(deps.migrateMantleState).toHaveBeenCalledExactlyOnceWith({
+		expect(
+			dependencies.migratePromptPort?.promptMigrationSource,
+		).toHaveBeenCalledExactlyOnceWith(["mantle"]);
+		expect(dependencies.migrateMantleState).toHaveBeenCalledExactlyOnceWith({
 			configFormat: "typescript",
 			stateFilePath: "./.mantle-state.yml",
 		});
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
 	it("should cancel cleanly when the user aborts the migration-source prompt", async () => {
 		expect.assertions(2);
 
-		const deps = makeDeps();
-		vi.mocked(deps.migratePromptPort!.promptMigrationSource).mockResolvedValueOnce({
+		const dependencies = makeDependencies();
+		vi.mocked(dependencies.migratePromptPort!.promptMigrationSource).mockResolvedValueOnce({
 			err: { kind: "cancelled" },
 			success: false,
 		});
 
-		await migrateCommand(deps)("./.mantle-state.yml", {});
+		await migrateCommand(dependencies)("./.mantle-state.yml", {});
 
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should reject an unknown --from source with the unknownSource diagnostic", async () => {
 		expect.assertions(2);
 
-		const deps = makeDeps();
+		const dependencies = makeDependencies();
 
-		await migrateCommand(deps)(undefined, { from: "universe" });
+		await migrateCommand(dependencies)(undefined, { from: "universe" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
 			"unknown migration source 'universe' (supported: mantle)",
 		);
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should call the migrator once with the picked format and resolved path", async () => {
 		expect.assertions(3);
 
-		const deps = makeDeps();
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies();
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(deps.clack?.intro).toHaveBeenCalledExactlyOnceWith("bedrock migrate");
-		expect(deps.migrateMantleState).toHaveBeenCalledExactlyOnceWith({
+		expect(dependencies.clack?.intro).toHaveBeenCalledExactlyOnceWith("bedrock migrate");
+		expect(dependencies.migrateMantleState).toHaveBeenCalledExactlyOnceWith({
 			configFormat: "typescript",
 			stateFilePath: STATE_FILE_PATH,
 		});
 
-		const firstCallDeps = vi.mocked(deps.migrateMantleState!).mock.calls[0]?.[0];
+		const firstCallDependencies = vi.mocked(dependencies.migrateMantleState!).mock
+			.calls[0]?.[0];
 
-		expect(Object.hasOwn(firstCallDeps ?? {}, "primaryEnvironment")).toBeFalse();
+		expect(Object.hasOwn(firstCallDependencies ?? {}, "primaryEnvironment")).toBeFalse();
 	});
 
 	it("should write each environment's state through the StatePort and log per-env success", async () => {
@@ -173,14 +174,16 @@ describe(migrateCommand, () => {
 
 		const writeSpy = makeWriteSpy();
 		const buildStatePort = vi.fn<BuildStatePortFunc>(() => happyPortResult(writeSpy));
-		const deps = makeDeps({ buildStatePort });
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies({ buildStatePort });
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(writeSpy).toHaveBeenCalledExactlyOnceWith(SAMPLE_STATE);
-		expect(deps.clack?.logSuccess).toHaveBeenCalledWith("production: 0 resources migrated");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+		expect(dependencies.clack?.logSuccess).toHaveBeenCalledWith(
+			"production: 0 resources migrated",
+		);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
 	it("should write the bedrock config beside the state file and log the path", async () => {
@@ -188,18 +191,18 @@ describe(migrateCommand, () => {
 
 		const writeFile = vi.fn<WriteFileFunc>();
 		writeFile.mockResolvedValue();
-		const deps = makeDeps({ writeFile });
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies({ writeFile });
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
 		const configWrites = vi
 			.mocked(writeFile)
 			.mock.calls.filter(([path]) => path === CONFIG_TS_PATH);
 
 		expect(configWrites).toStrictEqual([[CONFIG_TS_PATH, expect.any(String)]]);
-		expect(deps.clack?.logSuccess).toHaveBeenCalledWith(`wrote ${CONFIG_TS_PATH}`);
-		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith("migrate succeeded");
+		expect(dependencies.clack?.logSuccess).toHaveBeenCalledWith(`wrote ${CONFIG_TS_PATH}`);
+		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith("migrate succeeded");
 	});
 
 	it("should write the migration report json and markdown alongside the state files", async () => {
@@ -209,10 +212,10 @@ describe(migrateCommand, () => {
 		writeFile.mockResolvedValue();
 		const mkdir = vi.fn<MkdirFunc>();
 		mkdir.mockResolvedValue();
-		const deps = makeDeps({ mkdir, writeFile });
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies({ mkdir, writeFile });
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(mkdir).toHaveBeenCalledWith(REPORT_DIRECTORY);
 		expect(writeFile).toHaveBeenCalledWith(
@@ -232,16 +235,16 @@ describe(migrateCommand, () => {
 		// First call (writeMigratedStates is gist-backend so doesn't mkdir)
 		// goes to the migration-report directory.
 		mkdir.mockRejectedValueOnce(new Error("EACCES: permission denied"));
-		const deps = makeDeps({ mkdir });
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies({ mkdir });
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
 			`migration report directory create failed (${REPORT_DIRECTORY}): EACCES: permission denied`,
 		);
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should render an error and exit 1 when the migration report json write rejects", async () => {
@@ -252,16 +255,16 @@ describe(migrateCommand, () => {
 			.fn<WriteFileFunc>()
 			.mockResolvedValueOnce()
 			.mockRejectedValueOnce(new Error("EROFS: read-only file system"));
-		const deps = makeDeps({ writeFile });
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies({ writeFile });
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
 			`migration report write failed (${REPORT_JSON_PATH}): EROFS: read-only file system`,
 		);
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should render an error and exit 1 when the migration report markdown write rejects", async () => {
@@ -273,16 +276,16 @@ describe(migrateCommand, () => {
 			.mockResolvedValueOnce()
 			.mockResolvedValueOnce()
 			.mockRejectedValueOnce(new Error("ENOSPC: no space left on device"));
-		const deps = makeDeps({ writeFile });
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies({ writeFile });
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
 			`migration report write failed (${REPORT_MD_PATH}): ENOSPC: no space left on device`,
 		);
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should pass process.env through getEnv when constructing the StatePort", async () => {
@@ -294,10 +297,10 @@ describe(migrateCommand, () => {
 		vi.stubEnv("BEDROCK_GITHUB_TOKEN", "from-process");
 
 		const buildStatePort = vi.fn<BuildStatePortFunc>(() => happyPortResult());
-		const deps = makeDeps({ buildStatePort });
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies({ buildStatePort });
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
 		const firstCall = vi.mocked(buildStatePort).mock.calls[0]?.[0];
 
@@ -310,16 +313,16 @@ describe(migrateCommand, () => {
 		const migrateMantleState = vi.fn<MigrateFunc>(async () => {
 			throw new Error("EACCES: permission denied");
 		});
-		const deps = makeDeps({ migrateMantleState });
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies({ migrateMantleState });
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
 			`failed to read Mantle state file '${STATE_FILE_PATH}': EACCES: permission denied`,
 		);
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should describe a non-Error throw value via String(value)", async () => {
@@ -327,12 +330,12 @@ describe(migrateCommand, () => {
 
 		const migrateMantleState = vi.fn<MigrateFunc>();
 		migrateMantleState.mockRejectedValueOnce("raw-string-failure");
-		const deps = makeDeps({ migrateMantleState });
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies({ migrateMantleState });
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
 			`failed to read Mantle state file '${STATE_FILE_PATH}': raw-string-failure`,
 		);
 	});
@@ -347,19 +350,19 @@ describe(migrateCommand, () => {
 				success: false,
 			})
 			.mockRejectedValueOnce(new Error("ENOSPC: no space left on device"));
-		const deps = makeDeps({ migrateMantleState });
-		scriptHappyPrompts(deps);
-		vi.mocked(deps.migratePromptPort!.promptPrimaryEnvironment).mockResolvedValueOnce({
+		const dependencies = makeDependencies({ migrateMantleState });
+		scriptHappyPrompts(dependencies);
+		vi.mocked(dependencies.migratePromptPort!.promptPrimaryEnvironment).mockResolvedValueOnce({
 			data: "production",
 			success: true,
 		});
 
-		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
 			`failed to read Mantle state file '${STATE_FILE_PATH}': ENOSPC: no space left on device`,
 		);
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should render a config-write error and exit 1 when writeFile rejects", async () => {
@@ -367,28 +370,30 @@ describe(migrateCommand, () => {
 
 		const writeFile = vi.fn<WriteFileFunc>();
 		writeFile.mockRejectedValueOnce(new Error("EROFS: read-only file system"));
-		const deps = makeDeps({ writeFile });
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies({ writeFile });
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
 			`config file write failed (${CONFIG_TS_PATH}): EROFS: read-only file system`,
 		);
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should fall back to clack.text when the positional path is omitted", async () => {
 		expect.assertions(2);
 
-		const deps = makeDeps();
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies();
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)(undefined, { from: "mantle" });
+		await migrateCommand(dependencies)(undefined, { from: "mantle" });
 
-		expect(deps.migratePromptPort?.promptStateFilePath).toHaveBeenCalledExactlyOnceWith();
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+		expect(
+			dependencies.migratePromptPort?.promptStateFilePath,
+		).toHaveBeenCalledExactlyOnceWith();
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
 	it("should re-run the migrator with the picked primary env on multi-env state", async () => {
@@ -401,20 +406,20 @@ describe(migrateCommand, () => {
 				success: false,
 			})
 			.mockResolvedValueOnce({ data: SAMPLE_REPORT, success: true });
-		const deps = makeDeps({ migrateMantleState });
-		scriptHappyPrompts(deps);
-		vi.mocked(deps.migratePromptPort!.promptPrimaryEnvironment).mockResolvedValueOnce({
+		const dependencies = makeDependencies({ migrateMantleState });
+		scriptHappyPrompts(dependencies);
+		vi.mocked(dependencies.migratePromptPort!.promptPrimaryEnvironment).mockResolvedValueOnce({
 			data: "production",
 			success: true,
 		});
 
-		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
 		expect(migrateMantleState).toHaveBeenCalledTimes(2);
 		expect(migrateMantleState).toHaveBeenLastCalledWith(
 			expect.objectContaining({ primaryEnvironment: "production" }),
 		);
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
 	it("should render the migrator error and exit 1 on a non-recoverable failure", async () => {
@@ -426,16 +431,16 @@ describe(migrateCommand, () => {
 				success: false,
 			};
 		});
-		const deps = makeDeps({ migrateMantleState });
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies({ migrateMantleState });
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
 			"Mantle state file not found at './.mantle-state.yml'",
 		);
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should render the migrator error from the second pass when re-runs fail", async () => {
@@ -455,19 +460,19 @@ describe(migrateCommand, () => {
 				},
 				success: false,
 			});
-		const deps = makeDeps({ migrateMantleState });
-		scriptHappyPrompts(deps);
-		vi.mocked(deps.migratePromptPort!.promptPrimaryEnvironment).mockResolvedValueOnce({
+		const dependencies = makeDependencies({ migrateMantleState });
+		scriptHappyPrompts(dependencies);
+		vi.mocked(dependencies.migratePromptPort!.promptPrimaryEnvironment).mockResolvedValueOnce({
 			data: "ghost",
 			success: true,
 		});
 
-		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
 			"primary environment 'ghost' not found (available: production, staging)",
 		);
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should render the buildStatePort error when constructing the StatePort fails", async () => {
@@ -483,15 +488,15 @@ describe(migrateCommand, () => {
 				success: false,
 			};
 		});
-		const deps = makeDeps({ buildStatePort });
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies({ buildStatePort });
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
 			"missing credential: environment variable BEDROCK_GITHUB_TOKEN is not set",
 		);
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should render the unsupportedBackend error from buildStatePort", async () => {
@@ -503,12 +508,12 @@ describe(migrateCommand, () => {
 				success: false,
 			};
 		});
-		const deps = makeDeps({ buildStatePort });
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies({ buildStatePort });
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
 			"unsupported state backend 's3' (pass a custom statePort)",
 		);
 	});
@@ -527,81 +532,81 @@ describe(migrateCommand, () => {
 		const buildStatePort = vi.fn<BuildStatePortFunc>(() => {
 			return { data: happyPort(writeSpy), success: true };
 		});
-		const deps = makeDeps({ buildStatePort });
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies({ buildStatePort });
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
 			"state write failed for 'production' (state.json): auth 401",
 		);
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should cancel cleanly when the user aborts the config-format prompt", async () => {
 		expect.assertions(2);
 
-		const deps = makeDeps();
-		scriptHappyPrompts(deps);
-		vi.mocked(deps.migratePromptPort!.promptConfigFormat).mockReset();
-		vi.mocked(deps.migratePromptPort!.promptConfigFormat).mockResolvedValueOnce({
+		const dependencies = makeDependencies();
+		scriptHappyPrompts(dependencies);
+		vi.mocked(dependencies.migratePromptPort!.promptConfigFormat).mockReset();
+		vi.mocked(dependencies.migratePromptPort!.promptConfigFormat).mockResolvedValueOnce({
 			err: { kind: "cancelled" },
 			success: false,
 		});
 
-		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should cancel cleanly when the user aborts the state-backend prompt", async () => {
 		expect.assertions(2);
 
-		const deps = makeDeps();
-		scriptHappyPrompts(deps);
-		vi.mocked(deps.migratePromptPort!.promptStateBackend).mockReset();
-		vi.mocked(deps.migratePromptPort!.promptStateBackend).mockResolvedValueOnce({
+		const dependencies = makeDependencies();
+		scriptHappyPrompts(dependencies);
+		vi.mocked(dependencies.migratePromptPort!.promptStateBackend).mockReset();
+		vi.mocked(dependencies.migratePromptPort!.promptStateBackend).mockResolvedValueOnce({
 			err: { kind: "cancelled" },
 			success: false,
 		});
 
-		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should cancel cleanly when the user aborts the gist-id prompt", async () => {
 		expect.assertions(2);
 
-		const deps = makeDeps();
-		scriptHappyPrompts(deps);
-		vi.mocked(deps.migratePromptPort!.promptGistId).mockReset();
-		vi.mocked(deps.migratePromptPort!.promptGistId).mockResolvedValueOnce({
+		const dependencies = makeDependencies();
+		scriptHappyPrompts(dependencies);
+		vi.mocked(dependencies.migratePromptPort!.promptGistId).mockReset();
+		vi.mocked(dependencies.migratePromptPort!.promptGistId).mockResolvedValueOnce({
 			err: { kind: "cancelled" },
 			success: false,
 		});
 
-		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should cancel cleanly when the user aborts the path prompt", async () => {
 		expect.assertions(2);
 
-		const deps = makeDeps();
-		vi.mocked(deps.migratePromptPort!.promptStateFilePath).mockResolvedValueOnce({
+		const dependencies = makeDependencies();
+		vi.mocked(dependencies.migratePromptPort!.promptStateFilePath).mockResolvedValueOnce({
 			err: { kind: "cancelled" },
 			success: false,
 		});
 
-		await migrateCommand(deps)(undefined, { from: "mantle" });
+		await migrateCommand(dependencies)(undefined, { from: "mantle" });
 
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should cancel cleanly when the user aborts the primary-env prompt", async () => {
@@ -613,30 +618,30 @@ describe(migrateCommand, () => {
 				success: false,
 			};
 		});
-		const deps = makeDeps({ migrateMantleState });
-		scriptHappyPrompts(deps);
-		vi.mocked(deps.migratePromptPort!.promptPrimaryEnvironment).mockResolvedValueOnce({
+		const dependencies = makeDependencies({ migrateMantleState });
+		scriptHappyPrompts(dependencies);
+		vi.mocked(dependencies.migratePromptPort!.promptPrimaryEnvironment).mockResolvedValueOnce({
 			err: { kind: "cancelled" },
 			success: false,
 		});
 
-		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
 	});
 
 	it("should stay silent in the summary when every warning count is zero", async () => {
 		expect.assertions(2);
 
-		const deps = makeDeps();
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies();
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(deps.clack?.logError).not.toHaveBeenCalled();
+		expect(dependencies.clack?.logError).not.toHaveBeenCalled();
 		// logSuccess fires for state and config writes; assert only that the
 		// review-prompt success line does not.
-		expect(deps.clack?.logSuccess).not.toHaveBeenCalledWith(
+		expect(dependencies.clack?.logSuccess).not.toHaveBeenCalledWith(
 			expect.stringContaining("auto-mapped or skipped fields"),
 		);
 	});
@@ -656,18 +661,18 @@ describe(migrateCommand, () => {
 		const migrateMantleState = vi.fn<MigrateFunc>(async () => {
 			return { data: reportWithAmbiguous, success: true };
 		});
-		const deps = makeDeps({ migrateMantleState });
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies({ migrateMantleState });
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledWith(
+		expect(dependencies.clack?.logError).toHaveBeenCalledWith(
 			expect.stringMatching(
 				/^action required: 4 fields need your input\. See .*\.bedrock[\\/]migration-report\.md$/,
 			),
 		);
 		// Auto-mapped success line should not fire when ambiguous > 0.
-		expect(deps.clack?.logSuccess).not.toHaveBeenCalledWith(
+		expect(dependencies.clack?.logSuccess).not.toHaveBeenCalledWith(
 			expect.stringContaining("auto-mapped or skipped fields"),
 		);
 	});
@@ -687,42 +692,42 @@ describe(migrateCommand, () => {
 		const migrateMantleState = vi.fn<MigrateFunc>(async () => {
 			return { data: reportWithoutAmbiguous, success: true };
 		});
-		const deps = makeDeps({ migrateMantleState });
-		scriptHappyPrompts(deps);
+		const dependencies = makeDependencies({ migrateMantleState });
+		scriptHappyPrompts(dependencies);
 
-		await migrateCommand(deps)("./.mantle-state.yml", { from: "mantle" });
+		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(deps.clack?.logSuccess).toHaveBeenCalledWith(
+		expect(dependencies.clack?.logSuccess).toHaveBeenCalledWith(
 			expect.stringMatching(
 				/^migration complete; see .*\.bedrock[\\/]migration-report\.md for 6 auto-mapped or skipped fields$/,
 			),
 		);
-		expect(deps.clack?.logError).not.toHaveBeenCalled();
+		expect(dependencies.clack?.logError).not.toHaveBeenCalled();
 	});
 
 	it("should write a yaml config when the user picks yaml format", async () => {
 		expect.assertions(1);
 
 		const writeFile = vi.fn<WriteFileFunc>(async () => {});
-		const deps = makeDeps({ writeFile });
-		vi.mocked(deps.migratePromptPort!.promptStateFilePath).mockResolvedValueOnce({
+		const dependencies = makeDependencies({ writeFile });
+		vi.mocked(dependencies.migratePromptPort!.promptStateFilePath).mockResolvedValueOnce({
 			data: STATE_FILE_PATH,
 			success: true,
 		});
-		vi.mocked(deps.migratePromptPort!.promptConfigFormat).mockResolvedValueOnce({
+		vi.mocked(dependencies.migratePromptPort!.promptConfigFormat).mockResolvedValueOnce({
 			data: "yaml",
 			success: true,
 		});
-		vi.mocked(deps.migratePromptPort!.promptStateBackend).mockResolvedValueOnce({
+		vi.mocked(dependencies.migratePromptPort!.promptStateBackend).mockResolvedValueOnce({
 			data: "gist",
 			success: true,
 		});
-		vi.mocked(deps.migratePromptPort!.promptGistId).mockResolvedValueOnce({
+		vi.mocked(dependencies.migratePromptPort!.promptGistId).mockResolvedValueOnce({
 			data: "abc",
 			success: true,
 		});
 
-		await migrateCommand(deps)(undefined, { from: "mantle" });
+		await migrateCommand(dependencies)(undefined, { from: "mantle" });
 
 		const configWrites = vi
 			.mocked(writeFile)
@@ -731,16 +736,19 @@ describe(migrateCommand, () => {
 		expect(configWrites).toStrictEqual([[CONFIG_YAML_PATH, expect.any(String)]]);
 	});
 
-	function scriptLocalBackendPrompts(deps: ProgDeps, stateFilePath: string): void {
-		vi.mocked(deps.migratePromptPort!.promptStateFilePath).mockResolvedValueOnce({
+	function scriptLocalBackendPrompts(
+		dependencies: ProgDependencies,
+		stateFilePath: string,
+	): void {
+		vi.mocked(dependencies.migratePromptPort!.promptStateFilePath).mockResolvedValueOnce({
 			data: stateFilePath,
 			success: true,
 		});
-		vi.mocked(deps.migratePromptPort!.promptConfigFormat).mockResolvedValueOnce({
+		vi.mocked(dependencies.migratePromptPort!.promptConfigFormat).mockResolvedValueOnce({
 			data: "typescript",
 			success: true,
 		});
-		vi.mocked(deps.migratePromptPort!.promptStateBackend).mockResolvedValueOnce({
+		vi.mocked(dependencies.migratePromptPort!.promptStateBackend).mockResolvedValueOnce({
 			data: "local",
 			success: true,
 		});
@@ -751,10 +759,10 @@ describe(migrateCommand, () => {
 
 		const writeFile = vi.fn<WriteFileFunc>();
 		writeFile.mockResolvedValue();
-		const deps = makeDeps({ writeFile });
-		scriptLocalBackendPrompts(deps, STATE_FILE_PATH);
+		const dependencies = makeDependencies({ writeFile });
+		scriptLocalBackendPrompts(dependencies, STATE_FILE_PATH);
 
-		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(writeFile).toHaveBeenCalledWith(
 			LOCAL_STATE_JSON_PATH,
@@ -764,21 +772,23 @@ describe(migrateCommand, () => {
 			CONFIG_TS_PATH,
 			expect.not.stringContaining('"state"'),
 		);
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
 	it("should skip the gist-id prompt and buildStatePort when 'local' backend is picked", async () => {
 		expect.assertions(3);
 
 		const buildStatePort = vi.fn<BuildStatePortFunc>(() => happyPortResult());
-		const deps = makeDeps({ buildStatePort });
-		scriptLocalBackendPrompts(deps, STATE_FILE_PATH);
+		const dependencies = makeDependencies({ buildStatePort });
+		scriptLocalBackendPrompts(dependencies, STATE_FILE_PATH);
 
-		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(deps.migratePromptPort?.promptGistId).not.toHaveBeenCalled();
+		expect(dependencies.migratePromptPort?.promptGistId).not.toHaveBeenCalled();
 		expect(buildStatePort).not.toHaveBeenCalled();
-		expect(deps.clack?.logSuccess).toHaveBeenCalledWith("production: 0 resources migrated");
+		expect(dependencies.clack?.logSuccess).toHaveBeenCalledWith(
+			"production: 0 resources migrated",
+		);
 	});
 
 	it("should create the local-dump output directory before writing per-env state files", async () => {
@@ -786,13 +796,13 @@ describe(migrateCommand, () => {
 
 		const mkdir = vi.fn<MkdirFunc>();
 		mkdir.mockResolvedValue();
-		const deps = makeDeps({ mkdir });
-		scriptLocalBackendPrompts(deps, STATE_FILE_PATH);
+		const dependencies = makeDependencies({ mkdir });
+		scriptLocalBackendPrompts(dependencies, STATE_FILE_PATH);
 
-		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(mkdir).toHaveBeenCalledWith(LOCAL_STATE_DIRECTORY);
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
 	it("should render an error and exit 1 when the local-dump mkdir rejects", async () => {
@@ -800,16 +810,16 @@ describe(migrateCommand, () => {
 
 		const mkdir = vi.fn<MkdirFunc>();
 		mkdir.mockRejectedValueOnce(new Error("EACCES: permission denied"));
-		const deps = makeDeps({ mkdir });
-		scriptLocalBackendPrompts(deps, STATE_FILE_PATH);
+		const dependencies = makeDependencies({ mkdir });
+		scriptLocalBackendPrompts(dependencies, STATE_FILE_PATH);
 
-		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
 			`local state directory create failed (${LOCAL_STATE_DIRECTORY}): EACCES: permission denied`,
 		);
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should default to recursive node mkdir when no mkdir slot is provided", async () => {
@@ -855,16 +865,16 @@ describe(migrateCommand, () => {
 
 		const writeFile = vi.fn<WriteFileFunc>();
 		writeFile.mockRejectedValueOnce(new Error("EROFS: read-only file system"));
-		const deps = makeDeps({ writeFile });
-		scriptLocalBackendPrompts(deps, STATE_FILE_PATH);
+		const dependencies = makeDependencies({ writeFile });
+		scriptLocalBackendPrompts(dependencies, STATE_FILE_PATH);
 
-		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
 			`local state write failed (${LOCAL_STATE_JSON_PATH}): EROFS: read-only file system`,
 		);
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
-		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should drop a pre-existing state field from the bedrock config when 'local' is picked", async () => {
@@ -881,10 +891,10 @@ describe(migrateCommand, () => {
 		migrate.mockResolvedValue({ data: reportWithState, success: true });
 		const writeFile = vi.fn<WriteFileFunc>();
 		writeFile.mockResolvedValue();
-		const deps = makeDeps({ migrateMantleState: migrate, writeFile });
-		scriptLocalBackendPrompts(deps, STATE_FILE_PATH);
+		const dependencies = makeDependencies({ migrateMantleState: migrate, writeFile });
+		scriptLocalBackendPrompts(dependencies, STATE_FILE_PATH);
 
-		await migrateCommand(deps)(STATE_FILE_PATH, { from: "mantle" });
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(writeFile).toHaveBeenCalledWith(
 			CONFIG_TS_PATH,

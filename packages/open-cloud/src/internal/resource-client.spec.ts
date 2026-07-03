@@ -1,3 +1,5 @@
+import { assert, describe, expect, it, vi } from "vitest";
+
 import { CodedError } from "#tests/helpers/coded-error";
 import { createFakeClock } from "#tests/helpers/fake-clock";
 import {
@@ -5,8 +7,6 @@ import {
 	type FakeHttpClient,
 } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
-import { assert, describe, expect, it, vi } from "vitest";
-
 import type { HttpRequest, OpenCloudHooks } from "../client/types.ts";
 import { ApiError } from "../errors/api-error.ts";
 import { NetworkError } from "../errors/network-error.ts";

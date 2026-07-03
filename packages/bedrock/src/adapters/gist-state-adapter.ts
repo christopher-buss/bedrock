@@ -73,7 +73,7 @@ interface HttpFailure {
 	readonly response: Response;
 }
 
-interface RetryDeps {
+interface RetryDependencies {
 	readonly random: () => number;
 	readonly sleep: (ms: number) => Promise<void>;
 }
@@ -82,7 +82,7 @@ interface ReadContentParameters {
 	readonly entry: GistFile;
 	readonly fetchFn: GistFetch;
 	readonly file: string;
-	readonly retry: RetryDeps;
+	readonly retry: RetryDependencies;
 }
 
 interface VisibilityTarget {
@@ -179,7 +179,7 @@ function toGistFile(entry: unknown): GistFile | undefined {
 }
 
 function isRateLimited(headers: Headers): boolean {
-	return headers.get("retry-after") !== null || headers.get("x-ratelimit-remaining") === "0";
+	return headers.has("retry-after") || headers.get("x-ratelimit-remaining") === "0";
 }
 
 function rateLimitReason(status: number, headers: Headers): string {
@@ -246,7 +246,10 @@ function backoffMs(attempt: number, random: () => number): number {
 	return half + random() * half;
 }
 
-async function withRetry(retry: RetryDeps, operation: () => Promise<Response>): Promise<Response> {
+async function withRetry(
+	retry: RetryDependencies,
+	operation: () => Promise<Response>,
+): Promise<Response> {
 	let response = await operation();
 	for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
 		if (response.ok || !isRetryableStatus(response.status)) {

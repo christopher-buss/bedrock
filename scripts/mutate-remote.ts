@@ -303,7 +303,6 @@ function restartContainer(config: RemoteConfig): boolean {
 function recoverBindMount(config: RemoteConfig): string | undefined {
 	const activity = checkActiveMutation(config);
 	const head = `${config.container} cannot see /data/worktrees/${config.worktree} after rsync`;
-	const recreate = `run docker rm -f ${config.container} and re-create with -v ${config.stage}:/data/worktrees`;
 	if (activity.kind === "active") {
 		return `${head}, but another mutation is in progress on the shared container; refusing to docker restart and clobber it. Retry once the other run finishes.`;
 	}
@@ -312,6 +311,7 @@ function recoverBindMount(config: RemoteConfig): string | undefined {
 		return `${head} and the active-mutation probe was inconclusive (${activity.detail}); refusing to docker restart on uncertain state. Investigate the probe failure and retry.`;
 	}
 
+	const recreate = `run docker rm -f ${config.container} and re-create with -v ${config.stage}:/data/worktrees`;
 	if (!restartContainer(config)) {
 		return `${head} and docker restart ${config.container} failed; ${recreate} to re-establish the WSL share.`;
 	}

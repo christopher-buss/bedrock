@@ -1,6 +1,6 @@
-import type { UpdateSortedMapItemParameters } from "#src/domains/cloud-v2/memory-store-sorted-maps/types";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
+import type { UpdateSortedMapItemParameters } from "#src/domains/cloud-v2/memory-store-sorted-maps/types";
 import { listWritablePropertyNames } from "./_helpers.ts";
 
 // Type-level pin: every key in the parameter interface (minus the

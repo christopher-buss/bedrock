@@ -499,8 +499,13 @@ environments:
       dependencies: []
 `;
 
+function utf8(content: string): Uint8Array {
+	const encoder = new TextEncoder();
+	return encoder.encode(content);
+}
+
 function fakeReadFile(content: string): (path: string) => Promise<Uint8Array> {
-	return async () => new TextEncoder().encode(content);
+	return async () => utf8(content);
 }
 
 function fakeFs(
@@ -520,7 +525,7 @@ async function readFileMissing(): Promise<Uint8Array> {
 	throw Object.assign(new Error("not found"), { code: "ENOENT" });
 }
 
-const ICON_BYTES = new TextEncoder().encode("a");
+const ICON_BYTES = utf8("a");
 const ICON_BYTES_SHA256 = "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb";
 
 /**
@@ -890,7 +895,7 @@ environments:
 		expect.assertions(4);
 
 		const files = new Map<string, "missing" | Uint8Array>([
-			[".mantle-state.yml", new TextEncoder().encode(PASS_YAML)],
+			[".mantle-state.yml", utf8(PASS_YAML)],
 			[iconFsKey(".mantle-state.yml", "assets/marketing/example-icon.png"), ICON_BYTES],
 		]);
 
@@ -918,7 +923,7 @@ environments:
 		expect.assertions(1);
 
 		const files = new Map<string, "missing" | Uint8Array>([
-			["/tmp/project/.mantle-state.yml", new TextEncoder().encode(PASS_YAML)],
+			["/tmp/project/.mantle-state.yml", utf8(PASS_YAML)],
 			[
 				iconFsKey("/tmp/project/.mantle-state.yml", "assets/marketing/example-icon.png"),
 				ICON_BYTES,
@@ -944,7 +949,7 @@ environments:
 		expect.assertions(5);
 
 		const files = new Map<string, "missing" | Uint8Array>([
-			[".mantle-state.yml", new TextEncoder().encode(PASS_YAML)],
+			[".mantle-state.yml", utf8(PASS_YAML)],
 			[iconFsKey(".mantle-state.yml", "assets/marketing/example-icon.png"), "missing"],
 		]);
 
@@ -976,7 +981,7 @@ environments:
 	it("should fall back to the Mantle hash for any readFile rejection, not just ENOENT", async () => {
 		expect.assertions(2);
 
-		const yamlBytes = new TextEncoder().encode(PASS_YAML);
+		const yamlBytes = utf8(PASS_YAML);
 		async function readFile(path: string): Promise<Uint8Array> {
 			if (path === ".mantle-state.yml") {
 				return yamlBytes;
@@ -1020,7 +1025,7 @@ environments:
 		expect.assertions(4);
 
 		const files = new Map<string, "missing" | Uint8Array>([
-			[".mantle-state.yml", new TextEncoder().encode(UNIVERSE_ICON_YAML)],
+			[".mantle-state.yml", utf8(UNIVERSE_ICON_YAML)],
 			[iconFsKey(".mantle-state.yml", "assets/marketing/icon.png"), ICON_BYTES],
 		]);
 
@@ -1057,7 +1062,7 @@ environments:
 		expect.assertions(2);
 
 		const files = new Map<string, "missing" | Uint8Array>([
-			[".mantle-state.yml", new TextEncoder().encode(PRODUCT_WITH_ICON_YAML)],
+			[".mantle-state.yml", utf8(PRODUCT_WITH_ICON_YAML)],
 			[iconFsKey(".mantle-state.yml", "assets/marketing/gem-pack.png"), ICON_BYTES],
 		]);
 
@@ -1101,7 +1106,7 @@ environments:
 		expect.assertions(1);
 
 		const files = new Map<string, "missing" | Uint8Array>([
-			[".mantle-state.yml", new TextEncoder().encode(PRODUCT_WITH_ICON_YAML)],
+			[".mantle-state.yml", utf8(PRODUCT_WITH_ICON_YAML)],
 			[iconFsKey(".mantle-state.yml", "assets/marketing/gem-pack.png"), "missing"],
 		]);
 
@@ -1124,7 +1129,7 @@ environments:
 		expect.assertions(3);
 
 		const files = new Map<string, "missing" | Uint8Array>([
-			[".mantle-state.yml", new TextEncoder().encode(PRODUCT_WITH_ICON_YAML)],
+			[".mantle-state.yml", utf8(PRODUCT_WITH_ICON_YAML)],
 			[iconFsKey(".mantle-state.yml", "assets/marketing/gem-pack.png"), "missing"],
 		]);
 
@@ -1151,7 +1156,7 @@ environments:
 		expect.assertions(2);
 
 		const files = new Map<string, "missing" | Uint8Array>([
-			[".mantle-state.yml", new TextEncoder().encode(PRODUCT_WITH_ICON_YAML)],
+			[".mantle-state.yml", utf8(PRODUCT_WITH_ICON_YAML)],
 			[iconFsKey(".mantle-state.yml", "assets/marketing/gem-pack.png"), ICON_BYTES],
 		]);
 
@@ -1179,7 +1184,7 @@ environments:
 		expect.assertions(5);
 
 		const files = new Map<string, "missing" | Uint8Array>([
-			[".mantle-state.yml", new TextEncoder().encode(PRODUCT_WITH_ICON_YAML)],
+			[".mantle-state.yml", utf8(PRODUCT_WITH_ICON_YAML)],
 			[iconFsKey(".mantle-state.yml", "assets/marketing/gem-pack.png"), ICON_BYTES],
 		]);
 
@@ -1272,7 +1277,7 @@ environments:
 			}
 
 			const segments = warning.mantlePath.split(".");
-			const last = segments[segments.length - 1] ?? "";
+			const last = segments.at(-1) ?? "";
 			return last.startsWith("product_") || last.startsWith("productIcon_");
 		});
 

@@ -145,6 +145,20 @@ describe(collectPublicApiSymbols, () => {
 		expect(symbols).toStrictEqual([]);
 	});
 
+	it("should drop a name whose re-export chain is cyclic", () => {
+		expect.assertions(1);
+
+		const read = moduleMap({
+			"a.ts": 'export { ghost } from "./b.ts";',
+			"b.ts": 'export { ghost } from "./a.ts";',
+			"index.ts": 'export { ghost } from "./a.ts";',
+		});
+
+		const symbols = collectPublicApiSymbols(BARREL, read);
+
+		expect(symbols).toStrictEqual([]);
+	});
+
 	it("should read the @since version from the declaration's JSDoc", () => {
 		expect.assertions(1);
 

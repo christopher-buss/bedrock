@@ -1,6 +1,6 @@
-import type { RobloxLanguageCode, RobloxLocale } from "#src/locales/index";
 import { describe, expectTypeOf, it } from "vitest";
 
+import type { RobloxLanguageCode, RobloxLocale } from "#src/locales/index";
 import type { DeleteExperienceIconParameters, UploadExperienceIconParameters } from "./index.ts";
 
 describe("UploadExperienceIconParameters", () => {

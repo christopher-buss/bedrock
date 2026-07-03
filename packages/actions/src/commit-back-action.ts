@@ -7,6 +7,7 @@ const DEFAULT_MESSAGE = "chore(assets): regenerate asset ids [skip ci]";
 const DEFAULT_AUTHOR_NAME = "github-actions[bot]";
 const DEFAULT_AUTHOR_EMAIL = "41898282+github-actions[bot]@users.noreply.github.com";
 const DEFAULT_SERVER_URL = "https://github.com";
+const WHITESPACE_PATTERN = /\s+/u;
 
 /**
  * The slice of `@actions/core` the action shell uses, narrowed so tests can
@@ -36,7 +37,7 @@ export interface CommitBackActionDeps {
 }
 
 /** Dependencies for {@link executeCommitBackAction}, the action composition root. */
-interface ExecuteCommitBackActionDeps {
+interface ExecuteCommitBackActionDependencies {
 	/** The process environment to read workflow vars from. */
 	readonly environment: Record<string, string | undefined>;
 	/** The git runner the reflow drives; the live shim injects the real adapter. */
@@ -60,9 +61,9 @@ export function resolveActionConfig(deps: CommitBackActionDeps): {
 } {
 	const token = requireInput(deps.readInput, "token");
 	// requireInput trims, so the split yields no leading/trailing empties.
-	const paths = requireInput(deps.readInput, "paths").split(/\s+/u);
+	const paths = requireInput(deps.readInput, "paths").split(WHITESPACE_PATTERN);
 	const serverUrl = deps.getEnv("GITHUB_SERVER_URL") ?? DEFAULT_SERVER_URL;
-	const repository = requireEnvironment(deps.getEnv, "GITHUB_REPOSITORY");
+	const repo = requireEnvironment(deps.getEnv, "GITHUB_REPOSITORY");
 
 	return {
 		options: {
@@ -73,7 +74,7 @@ export function resolveActionConfig(deps: CommitBackActionDeps): {
 			paths,
 			...parseMaxAttempts(deps.readInput("max-attempts")),
 		},
-		remoteUrl: authenticatedUrl({ repository, serverUrl, token }),
+		remoteUrl: authenticatedUrl({ repository: repo, serverUrl, token }),
 	};
 }
 
@@ -87,10 +88,10 @@ export function resolveActionConfig(deps: CommitBackActionDeps): {
  */
 export async function runCommitBackAction(deps: CommitBackActionDeps): Promise<void> {
 	const { options, remoteUrl } = resolveActionConfig(deps);
-	const setUrl = await deps.git(["remote", "set-url", "origin", remoteUrl]);
-	if (setUrl.code !== 0) {
+	const urlResult = await deps.git(["remote", "set-url", "origin", remoteUrl]);
+	if (urlResult.code !== 0) {
 		// The error omits remoteUrl, which embeds the token.
-		throw new Error(`commit-back: failed to set the origin URL (exit code ${setUrl.code})`);
+		throw new Error(`commit-back: failed to set the origin URL (exit code ${urlResult.code})`);
 	}
 
 	const result = await commitBack({ git: deps.git }, options);
@@ -108,7 +109,9 @@ export async function runCommitBackAction(deps: CommitBackActionDeps): Promise<v
  *
  * @param deps - The `@actions/core` slice, process environment, and git runner.
  */
-export async function executeCommitBackAction(deps: ExecuteCommitBackActionDeps): Promise<void> {
+export async function executeCommitBackAction(
+	deps: ExecuteCommitBackActionDependencies,
+): Promise<void> {
 	const { environment, git, io } = deps;
 	io.setSecret(io.getInput("token"));
 	try {

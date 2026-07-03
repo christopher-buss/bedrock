@@ -137,10 +137,10 @@ function buildRootProductEntry(
 	return {
 		name: primaryEntry.name,
 		description: primaryEntry.description,
-		...(icon !== undefined && { icon }),
-		...(isRegionalPricingEnabled !== undefined && { isRegionalPricingEnabled }),
-		...(price !== undefined && { price }),
-		...(isStorePageEnabled !== undefined && { storePageEnabled: isStorePageEnabled }),
+		...(icon !== undefined ? { icon } : {}),
+		...(isRegionalPricingEnabled !== undefined ? { isRegionalPricingEnabled } : {}),
+		...(price !== undefined ? { price } : {}),
+		...(isStorePageEnabled !== undefined ? { storePageEnabled: isStorePageEnabled } : {}),
 	};
 }
 
@@ -149,15 +149,21 @@ function buildProductOverlayEntry(
 	rootEntry: DeveloperProductEntry | undefined,
 ): ProductOverlayEntry {
 	return {
-		...(entry.name !== rootEntry?.name && { name: entry.name }),
-		...(entry.description !== rootEntry?.description && { description: entry.description }),
-		...(!Object.is(rootEntry?.icon?.["en-us"], entry.icon?.["en-us"]) && { icon: entry.icon }),
-		...(!Object.is(rootEntry?.price, entry.price) && { price: entry.price }),
-		...(!Object.is(rootEntry?.isRegionalPricingEnabled, entry.isRegionalPricingEnabled) && {
-			isRegionalPricingEnabled: entry.isRegionalPricingEnabled,
-		}),
-		...(!Object.is(rootEntry?.storePageEnabled, entry.storePageEnabled) && {
-			storePageEnabled: entry.storePageEnabled,
-		}),
+		...(entry.name !== rootEntry?.name ? { name: entry.name } : {}),
+		...(entry.description !== rootEntry?.description ? { description: entry.description } : {}),
+		...(!Object.is(rootEntry?.icon?.["en-us"], entry.icon?.["en-us"])
+			? { icon: entry.icon }
+			: {}),
+		...(!Object.is(rootEntry?.price, entry.price) ? { price: entry.price } : {}),
+		...(!Object.is(rootEntry?.isRegionalPricingEnabled, entry.isRegionalPricingEnabled)
+			? {
+					isRegionalPricingEnabled: entry.isRegionalPricingEnabled,
+				}
+			: {}),
+		...(!Object.is(rootEntry?.storePageEnabled, entry.storePageEnabled)
+			? {
+					storePageEnabled: entry.storePageEnabled,
+				}
+			: {}),
 	};
 }

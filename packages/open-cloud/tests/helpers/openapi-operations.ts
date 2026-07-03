@@ -29,6 +29,8 @@ interface CompiledOperation {
 	readonly regex: RegExp;
 }
 
+const HOST_PREFIX_PATTERN = /^https?:\/\/[^/]+/;
+
 let cachedCompiledOperations: ReadonlyArray<CompiledOperation> | undefined;
 const matchCache = new Map<string, OperationMatch | undefined>();
 
@@ -105,6 +107,22 @@ function isOpenApiMethod(value: string): value is OpenApiMethod {
 	);
 }
 
+function compilePathItem(
+	pathTemplate: string,
+	pathItem: Readonly<Record<string, unknown>>,
+): Array<CompiledOperation> {
+	const { paramNames, regex } = compileTemplate(pathTemplate);
+	const compiled: Array<CompiledOperation> = [];
+	for (const [methodKey, operation] of Object.entries(pathItem)) {
+		const method = methodKey.toLowerCase();
+		if (isOpenApiMethod(method) && isRecord(operation)) {
+			compiled.push({ method, operation, paramNames, pathTemplate, regex });
+		}
+	}
+
+	return compiled;
+}
+
 function getCompiledOperations(): ReadonlyArray<CompiledOperation> {
 	if (cachedCompiledOperations !== undefined) {
 		return cachedCompiledOperations;
@@ -122,15 +140,7 @@ function getCompiledOperations(): ReadonlyArray<CompiledOperation> {
 			continue;
 		}
 
-		const { paramNames, regex } = compileTemplate(pathTemplate);
-		for (const [methodKey, operation] of Object.entries(pathItem)) {
-			const method = methodKey.toLowerCase();
-			if (!isOpenApiMethod(method) || !isRecord(operation)) {
-				continue;
-			}
-
-			compiled.push({ method, operation, paramNames, pathTemplate, regex });
-		}
+		compiled.push(...compilePathItem(pathTemplate, pathItem));
 	}
 
 	cachedCompiledOperations = compiled;
@@ -159,7 +169,7 @@ function firstMatch(methodLower: string, normalizedUrl: string): OperationMatch 
 }
 
 function normalizeUrl(url: string): string {
-	const withoutHost = url.replace(/^https?:\/\/[^/]+/, "");
+	const withoutHost = url.replace(HOST_PREFIX_PATTERN, "");
 	const questionIndex = withoutHost.indexOf("?");
 	return questionIndex === -1 ? withoutHost : withoutHost.slice(0, questionIndex);
 }

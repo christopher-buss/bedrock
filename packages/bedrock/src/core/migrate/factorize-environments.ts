@@ -142,7 +142,7 @@ function buildFullPassOverlay(entry: GamePassEntry): PassOverlayEntry {
 		name: entry.name,
 		description: entry.description,
 		icon: entry.icon,
-		...(entry.price !== undefined && { price: entry.price }),
+		...(entry.price !== undefined ? { price: entry.price } : {}),
 	};
 }
 
@@ -202,11 +202,11 @@ function buildEnvironmentEntry(inputs: EnvironmentEntryInputs): EnvironmentEntry
 		hasDivergentUniverseIds: context.hasDivergentUniverseIds,
 	});
 	return {
-		...(label !== undefined && { label }),
-		...(passes !== undefined && { passes }),
-		...(places !== undefined && { places }),
-		...(products !== undefined && { products }),
-		...(universe !== undefined && { universe }),
+		...(label !== undefined ? { label } : {}),
+		...(passes !== undefined ? { passes } : {}),
+		...(places !== undefined ? { places } : {}),
+		...(products !== undefined ? { products } : {}),
+		...(universe !== undefined ? { universe } : {}),
 	};
 }
 
@@ -215,7 +215,7 @@ function buildEnvironmentEntries(
 	context: OverlayContext,
 ): Record<string, EnvironmentEntry> {
 	return Object.fromEntries(
-		[...folds].map(([name, fold]) => [
+		Array.from(folds, ([name, fold]) => [
 			name,
 			buildEnvironmentEntry({ context, fold, label: context.labels.get(name) }),
 		]),
@@ -225,7 +225,7 @@ function buildEnvironmentEntries(
 function buildEnvironmentLabels(
 	folds: ReadonlyMap<string, EnvironmentFoldResult>,
 ): ReadonlyMap<string, string | undefined> {
-	return new Map([...folds].map(([name, fold]) => [name, computeEnvironmentLabel(fold)]));
+	return new Map(Array.from(folds, ([name, fold]) => [name, computeEnvironmentLabel(fold)]));
 }
 
 function stripDisplayNamePrefix(
@@ -259,10 +259,10 @@ function buildConfig(inputs: BuildConfigInputs): Config {
 	);
 	const config: LooseConfigForBuild = {
 		environments,
-		...(passes !== undefined && { passes }),
-		...(places !== undefined && { places }),
-		...(products !== undefined && { products }),
-		...(universe !== undefined && { universe }),
+		...(passes !== undefined ? { passes } : {}),
+		...(places !== undefined ? { places } : {}),
+		...(products !== undefined ? { products } : {}),
+		...(universe !== undefined ? { universe } : {}),
 	};
 	// Precondition for the cast: `hasDivergentUniverseIds` decides
 	// `shouldOmitRootUniverseId` and `buildRootUniverse` and

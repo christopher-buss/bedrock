@@ -1,3 +1,5 @@
+import { assert, describe, expect, it } from "vitest";
+
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
 import { StorageClient } from "#src/resources/storage/client";
@@ -7,7 +9,6 @@ import {
 	validListSortedMapItemsBody,
 	validSortedMapItemBody,
 } from "#tests/helpers/memory-store-sorted-maps";
-import { assert, describe, expect, it } from "vitest";
 
 describe(StorageClient, () => {
 	describe("sortedMaps.create", () => {

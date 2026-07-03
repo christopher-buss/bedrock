@@ -1,6 +1,6 @@
-import { createFakeClock } from "#tests/helpers/fake-clock";
 import { describe, expect, it } from "vitest";
 
+import { createFakeClock } from "#tests/helpers/fake-clock";
 import { BudgetGate } from "./budget-gate.ts";
 
 describe(BudgetGate, () => {
