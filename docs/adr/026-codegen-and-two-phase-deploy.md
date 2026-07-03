@@ -329,3 +329,117 @@ The flow stays verifiable end-to-end through the `deploy()` seam with in-memory
 fakes: `deploy.spec` covers the single-pass, fingerprint-rebuild (price/name
 update), create-rebuild, no-op-publishes-pre-built, partial-asset-failure, and
 retry-via-marker paths.
+
+## Amendment -- 2026-07-01 (lifecycle decomposition: provision / build / publish; rebuild hook retired)
+
+**Status:** Accepted
+
+Two problems surfaced running two-phase deploy against a real consumer
+(anime-rush, one shared artifact across several places):
+
+1. **Double build.** CI builds the place *before* `deploy` (to satisfy the
+   pre-built-artifact requirement and to feed the pre-deploy test suite), and the
+   change-gated rebuild builds it *again* inside `deploy`. On any
+   codegen-changing deploy the first build is thrown away.
+2. **Untested artifact.** The rebuild embeds freshly-minted IDs into the final
+   place *inside* `deploy`, after the test suite has already run against the
+   previous deploy's committed source. The artifact that reaches players is the
+   one build no test ever saw.
+
+Both have one root cause: the rebuild is **change-gated and internal**. Because
+it fires only when `codegenHash` differs, bedrock can never be the sole builder —
+the no-change path reuses a pre-built file on disk — so a consumer is forced to
+pre-build unconditionally, and the actual final build happens after the last
+place a test could observe it.
+
+**What changes.** The single atomic `deploy` is decomposed into three lifecycle
+stages, exposed as CLI subcommands, that all consumers compose:
+
+- **`provision`** — the asset stage plus codegen. Applies non-place ops (mints
+  IDs), persists mutable asset fields, sets the `pendingRebuild` marker at the
+  checkpoint, and runs the emitter. Builds and publishes **no** place.
+- **`build`** — a subcommand whose behaviour is supplied by a spawned
+  `.bedrock/build.ts` **override** (same discovery/spawn model as
+  `.bedrock/deploy.ts`; see `discover-override.ts`). The override writes the
+  artifact to the configured place `filePath` and returns nothing; bedrock
+  republishes it through the existing file-hash path (ADR-021). There is **no
+  built-in default** — a codegen project with no `.bedrock/build.ts` is a hard
+  error; a no-codegen project needs no build.
+- **`publish`** — a pure uploader: read the `pendingRebuild` places, publish the
+  on-disk artifact, clear the marker. No mint, no codegen, no build.
+
+`deploy` is retained as the **fused** form — `provision → build → publish` in one
+invocation (spawning `build` internally) — for environments with no test gate
+(e.g. production). Environments that want to test the final artifact run the
+stages as separate CI steps, building the artifact once and testing *that*
+artifact before publishing:
+
+```text
+provision  →  commit-back generated source  →  build  →  test  →  publish
+```
+
+The single `build` produces the artifact; the consumer's test suite runs against
+it (or against a test-only variant built from the same codegen'd source); only
+then does `publish` upload. There is no second build of the shipped artifact —
+that is the double-build this amendment removes.
+
+This exposes the checkpoint that already existed *inside* two-phase (asset stage
+→ `pendingRebuild` → republish) as an externally-resumable **CLI seam**, so a
+test suite can run against real minted IDs before the place is published. It
+adds no new intermediate state: the "minted but unpublished" state is exactly the
+one the marker already models.
+
+**Always build after codegen (for codegen projects).** The `codegenHash`-gated
+"rebuild vs. reuse-pre-built" branch (2026-06-23 amendment) is **retired**. For a
+codegen project the place is produced by `build.ts` *after* codegen on every
+run; the reuse-a-pre-built-`rbxl` single-pass survives **only** for no-codegen
+projects (tier 1/2 of the opt-in ladder). No-op uploads are still avoided — not
+by a codegen fingerprint, but by the file-hash comparison the place path already
+performs (ADR-021). This directly resolves the 2026-06-23 amendment's
+"Operational consequence": the deploy environment no longer needs a
+*pre-built* artifact *and* a toolchain for the conditional rebuild — bedrock
+triggers the one build itself.
+
+**Rebuild hook removed.** The in-process `DeployOptions.rebuild` callback (one
+callback returning per-place bytes) is **deleted**, not deprecated.
+`.bedrock/build.ts` is the single build mechanism, keeping one source of build
+truth. This is a breaking change to the programmatic surface; pre-1.0 it ships in
+a minor with a changeset. The "primitives exposed underneath as an escape hatch"
+noted in *Considered Options* are now these `provision`/`build`/`publish`
+subcommands.
+
+**Config-format coupling relaxed.** Two-phase was "TS/JS config only" because the
+hook lived in `DeployOptions`/a TS config module. The build now lives in a
+spawned `.bedrock/build.ts`, independent of config format, so a YAML/JSON/Luau
+config can drive two-phase by adding that file (with the default emitter). A
+*custom* `emit` remains TS/JS by construction.
+
+**Failure and convergence.** Unchanged in kind. A failure anywhere after
+`provision` (a failed `build`, or a failed **test** in the gap) leaves minted
+assets checkpointed under `pendingRebuild` and the place unpublished; the next
+green run self-heals via the marker exactly as before. Mint-before-test widens
+the failure window from "build fails" to "tests fail" but introduces no new
+orphan class — the asset stage already minted before the rebuild could fail. A
+minted-but-unpublished asset is invisible to players until a live place
+references it.
+
+**Drift surfacing.** A `pendingRebuild` that persists across runs is a real
+"minted but unpublished" drift signal; `diff` now reports it (count of places
+owed a publish) instead of leaving it silent. It still self-heals on the next
+green `publish`.
+
+**Consequences.**
+
+- The CLI gains `provision`, `build`, and `publish`; `deploy` becomes their fused
+  composition. `discover-override` recognises the new command names, so each is
+  overridable via `.bedrock/<command>.ts`.
+- `DeployOptions.rebuild` is removed (breaking, changeset-gated). The
+  `codegenHash`-gated rebuild decision is retired; the field's remaining role (if
+  any) is narrowed to drift bookkeeping and settled at implementation time.
+- `build.ts` writes to disk and returns nothing; the bytes→places fan-out the old
+  hook performed is gone — publish reads `filePath` per config and dedups by file
+  hash (ADR-021).
+- Commit-back of generated source is a consumer-CI concern (bedrock still never
+  commits); the split makes "commit the *tested* source" natural by landing it
+  after `provision`.
+- Two-phase is available to any config format once a `.bedrock/build.ts` exists.
