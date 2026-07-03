@@ -2,10 +2,10 @@ import { ApiError } from "@bedrock-rbx/ocale";
 import { DeveloperProductsClient } from "@bedrock-rbx/ocale/developer-products";
 import { createFakeHttpClient, validDeveloperProductBody } from "@bedrock-rbx/ocale/testing";
 
-import { developerProductCurrent, developerProductDesired } from "#tests/helpers/resources";
 import type { Except } from "type-fest";
 import { assert, describe, expect, it, vi } from "vitest";
 
+import { developerProductCurrent, developerProductDesired } from "#tests/helpers/resources";
 import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import {
 	createDeveloperProductDriver,

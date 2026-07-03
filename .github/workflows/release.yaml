@@ -74,13 +74,13 @@ jobs:
           fi
 
       # ---- Version mode -------------------------------------------------
-      - env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        if: steps.changesets.outputs.pending == 'true'
+      - if: steps.changesets.outputs.pending == 'true'
         name: Apply version bump
         run: |
           pnpm changeset version
           pnpm install --lockfile-only
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Move the bot branch ref onto main's (already-signed) tip. No new
       # commit is introduced, so required_signatures has nothing to verify;
@@ -89,9 +89,7 @@ jobs:
         name: Reset release branch to base
         run: git push --force origin "HEAD:refs/heads/$RELEASE_BRANCH"
 
-      - env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        if: steps.changesets.outputs.pending == 'true'
+      - if: steps.changesets.outputs.pending == 'true'
         name: Commit version bump via API (signed)
         uses: planetscale/ghcommit-action@a6b150b81dca5dd027baa898604418eec9e11465 # v0.2.22
         with:
@@ -99,6 +97,8 @@ jobs:
           commit_message: "ci: version packages"
           file_pattern: .changeset packages pnpm-lock.yaml
           repo: ${{ github.repository }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - if: steps.changesets.outputs.pending == 'true'
         name: Open or refresh the Version PR
@@ -142,9 +142,7 @@ jobs:
       # trusted publisher configured on npmjs.com pointing at this repo +
       # workflow; `id-token: write` lets pnpm exchange an OIDC token at publish
       # time, and provenance is attached automatically.
-      - env:
-          NPM_CONFIG_PROVENANCE: "true"
-        id: publish
+      - id: publish
         if: steps.changesets.outputs.pending == 'false'
         name: Publish to npm
         run: |
@@ -156,6 +154,8 @@ jobs:
           else
             echo "published=false" >> "$GITHUB_OUTPUT"
           fi
+        env:
+          NPM_CONFIG_PROVENANCE: "true"
 
       - if: steps.changesets.outputs.pending == 'false' && steps.publish.outputs.published == 'true'
         name: Push tags

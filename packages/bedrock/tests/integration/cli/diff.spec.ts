@@ -1,10 +1,11 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
+import { describe, expect, it, vi } from "vitest";
+
 import { createProg, type ProgDeps } from "#src/cli/index";
 import type { Config } from "#src/core/schema";
 import type { DiffPreview, PreviewDiffError } from "#src/shell/preview-diff";
 import { fakeClackPort } from "#tests/helpers/clack";
-import { describe, expect, it, vi } from "vitest";
 
 type LoadConfigFunc = NonNullable<ProgDeps["loadConfig"]>;
 type PreviewDiffFunc = NonNullable<ProgDeps["previewDiff"]>;

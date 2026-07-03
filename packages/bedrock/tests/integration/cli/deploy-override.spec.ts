@@ -1,12 +1,13 @@
-import { createProg, type ProgDeps } from "#src/cli/index";
-import type { Config } from "#src/core/schema";
-import type { BedrockState } from "#src/core/state";
-import { fakeClackPort } from "#tests/helpers/clack";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
+
+import { createProg, type ProgDeps } from "#src/cli/index";
+import type { Config } from "#src/core/schema";
+import type { BedrockState } from "#src/core/state";
+import { fakeClackPort } from "#tests/helpers/clack";
 
 type DeployFunc = NonNullable<ProgDeps["deploy"]>;
 type ExitFunc = NonNullable<ProgDeps["exit"]>;

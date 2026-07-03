@@ -6,10 +6,10 @@ regenerated codegen (asset ids) back to your repository.
 
 Two actions are published from this directory:
 
-| Action | Path | Use |
-| --- | --- | --- |
-| **Deploy** | `christopher-buss/bedrock/packages/actions/deploy@actions-v1` | Full pipeline: deploy → mint token → reflow codegen. |
-| **Commit-back** | `christopher-buss/bedrock/packages/actions@actions-v1` | Just the race-safe codegen reflow, to compose yourself. |
+| Action          | Path                                                          | Use                                                     |
+| --------------- | ------------------------------------------------------------- | ------------------------------------------------------- |
+| **Deploy**      | `christopher-buss/bedrock/packages/actions/deploy@actions-v1` | Full pipeline: deploy → mint token → reflow codegen.    |
+| **Commit-back** | `christopher-buss/bedrock/packages/actions@actions-v1`        | Just the race-safe codegen reflow, to compose yourself. |
 
 Both are built from public primitives, so you can wire your own pipeline if the
 drop-ins don't fit.
@@ -51,8 +51,8 @@ your GitHub App (see [Set up the deploy bot](#set-up-the-deploy-bot)):
 files that changed under it. Set `deploy-command` if you invoke the CLI
 differently (defaults to `npx bedrock`; use `bun x bedrock` on Bun).
 
-If you already have a write token, pass `commit-token:` instead of the
-`app-*` inputs. With neither, the commit-back step is skipped.
+If you already have a write token, pass `commit-token:` instead of the `app-*`
+inputs. With neither, the commit-back step is skipped.
 
 ## Commit-back primitive
 
@@ -71,15 +71,15 @@ those files (codegen ids win — never a merge), commits, and pushes — retryin
 the tip moves under a concurrent push. The default `message` carries `[skip ci]`
 to avoid a redeploy loop; override `message` to change that.
 
-| Input | Default | |
-| --- | --- | --- |
-| `token` | — (required) | Write-capable token the push authenticates with. |
-| `paths` | — (required) | Whitespace-separated paths to reflow. |
-| `branch` | `main` | Branch to commit onto. |
-| `message` | `chore(assets): regenerate asset ids [skip ci]` | Commit message. |
-| `author-name` | `github-actions[bot]` | Commit author name. |
-| `author-email` | `41898282+github-actions[bot]@users.noreply.github.com` | Commit author email. |
-| `max-attempts` | `3` | Push attempts before giving up on a moving tip. |
+| Input          | Default                                                 |                                                  |
+| -------------- | ------------------------------------------------------- | ------------------------------------------------ |
+| `token`        | — (required)                                            | Write-capable token the push authenticates with. |
+| `paths`        | — (required)                                            | Whitespace-separated paths to reflow.            |
+| `branch`       | `main`                                                  | Branch to commit onto.                           |
+| `message`      | `chore(assets): regenerate asset ids [skip ci]`         | Commit message.                                  |
+| `author-name`  | `github-actions[bot]`                                   | Commit author name.                              |
+| `author-email` | `41898282+github-actions[bot]@users.noreply.github.com` | Commit author email.                             |
+| `max-attempts` | `3`                                                     | Push attempts before giving up on a moving tip.  |
 
 Outputs: `committed` (`true`/`false`), `changed-files` (count), `sha` (new
 commit, empty on a no-op).
@@ -97,8 +97,8 @@ credentials as secrets.
    - **Repository permissions → Contents**: **Read and write**.
    - Leave every other permission as **No access**.
    - **Where can this app be installed?**: **Only on this account**.
-2. **Generate a private key.** On the app's page, under **Private keys**,
-   click **Generate a private key** and keep the downloaded `.pem`.
+2. **Generate a private key.** On the app's page, under **Private keys**, click
+   **Generate a private key** and keep the downloaded `.pem`.
 3. **Install the app** on the repository you deploy from (the app page →
    **Install App**).
 4. **Add repository secrets** (Settings → Secrets and variables → Actions):
@@ -115,8 +115,8 @@ at run time via
 
 ### Manifest reference
 
-The same settings as a [GitHub App
-manifest](https://docs.github.com/en/apps/sharing-github-apps/registering-a-github-app-from-a-manifest)
+The same settings as a
+[GitHub App manifest](https://docs.github.com/en/apps/sharing-github-apps/registering-a-github-app-from-a-manifest)
 (`deploy-app.manifest.json`), if you prefer the manifest flow over filling the
 form by hand:
 

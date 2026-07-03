@@ -1,14 +1,14 @@
-import { ApiError } from "#src/errors/api-error";
-import type { HttpRequest, HttpResponse } from "#src/internal/http/types";
 import { describe, expect, it } from "vitest";
 
+import { ApiError } from "#src/errors/api-error";
+import type { HttpRequest, HttpResponse } from "#src/internal/http/types";
 import { createFakeSend } from "./fake-send.ts";
 
 function okResponse(body: unknown = {}): HttpResponse {
 	return { body, headers: {}, status: 200 };
 }
 
-const getRequest: HttpRequest = { method: "GET", url: "/v1/ping" };
+const pingRequest: HttpRequest = { method: "GET", url: "/v1/ping" };
 const postRequest: HttpRequest = { method: "POST", url: "/v1/create" };
 
 describe(createFakeSend, () => {
@@ -22,10 +22,10 @@ describe(createFakeSend, () => {
 			],
 		});
 
-		await fakeSend.send(getRequest);
+		await fakeSend.send(pingRequest);
 		await fakeSend.send(postRequest);
 
-		expect(fakeSend.requests).toStrictEqual([getRequest, postRequest]);
+		expect(fakeSend.requests).toStrictEqual([pingRequest, postRequest]);
 	});
 
 	it("should replay queued responses FIFO", async () => {
@@ -40,8 +40,8 @@ describe(createFakeSend, () => {
 			],
 		});
 
-		const firstResult = await fakeSend.send(getRequest);
-		const secondResult = await fakeSend.send(getRequest);
+		const firstResult = await fakeSend.send(pingRequest);
+		const secondResult = await fakeSend.send(pingRequest);
 
 		expect(firstResult).toStrictEqual({ data: okResponse(successBody), success: true });
 		expect(secondResult).toStrictEqual({ err: apiError, success: false });
@@ -54,7 +54,7 @@ describe(createFakeSend, () => {
 			responses: [{ data: okResponse(), success: true }],
 		});
 
-		await fakeSend.send(getRequest);
+		await fakeSend.send(pingRequest);
 
 		await expect(fakeSend.send(postRequest)).rejects.toThrowWithMessage(
 			Error,

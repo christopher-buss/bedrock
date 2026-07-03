@@ -97,7 +97,7 @@ export async function recomputeIconHashes(
 	inputs: RecomputeIconHashesInputs,
 ): Promise<IconHashRecomputation> {
 	const walked = await Promise.all(
-		[...inputs.folds.entries()].map(async ([environment, folded]) => {
+		Array.from(inputs.folds, async ([environment, folded]) => {
 			const result = await walkEnvironment({
 				environmentName: environment,
 				folded,

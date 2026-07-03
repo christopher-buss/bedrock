@@ -63,7 +63,7 @@ export function collectMissingResourceWarnings(
 	inputs: MissingResourceInputs,
 ): ReadonlyArray<MigrationWarning> {
 	const primaryFold = inputs.primary.fold;
-	return [...inputs.folds.entries()].flatMap(([name, fold]): ReadonlyArray<MigrationWarning> => {
+	return [...inputs.folds].flatMap(([name, fold]): ReadonlyArray<MigrationWarning> => {
 		const context: AsymmetryContext = { environmentName: name, fold, primary: primaryFold };
 		return [
 			...universeAsymmetryWarnings(context),

@@ -162,9 +162,63 @@ export default isentinel(
 	},
 	{
 		name: "project/github-required-filenames",
-		files: [".github/FUNDING.{yml,yaml}"],
+		files: [".github/FUNDING.{yml,yaml}", ".github/ISSUE_TEMPLATE/**"],
 		rules: {
 			"unicorn/filename-case": "off",
+		},
+	},
+	{
+		name: "project/deps-naming",
+		files: [GLOB_SRC, GLOB_MARKDOWN_CODE],
+		rules: {
+			// Upstream's disabled-abbreviation set, plus "deps": the
+			// established suffix for injected-dependency records across the
+			// repo; the full word trips id-length (> 30 chars) on longer
+			// adapter names.
+			"unicorn/name-replacements": [
+				"error",
+				{
+					checkFilenames: true,
+					replacements: {
+						args: false,
+						ctx: false,
+						deps: false,
+						dist: { distance: true },
+						e: false,
+						err: false,
+						fn: { func: true, function: false },
+						func: false,
+						inst: { instance: true },
+						jsdoc: false,
+						nums: { numbers: true },
+						pos: { position: true },
+						props: false,
+						ref: false,
+						refs: false,
+						str: false,
+						util: false,
+						utils: false,
+					},
+				},
+			],
+		},
+	},
+	{
+		name: "project/workspace-package-json",
+		files: ["packages/*/package.json", "apps/*/package.json", "scripts/package.json"],
+		rules: {
+			// packageManager lives in the workspace root only.
+			"package-json/require-packageManager": "off",
+		},
+	},
+	{
+		name: "project/docs-history",
+		files: ["docs/adr/**/*.md/**", "docs/plans/**/*.md/**"],
+		rules: {
+			// ADRs and plans are historical records; don't force refactors on
+			// their code fences.
+			"max-lines-per-function": "off",
+			"unicorn/no-unreadable-new-expression": "off",
 		},
 	},
 	{

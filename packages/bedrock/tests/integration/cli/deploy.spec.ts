@@ -1,13 +1,14 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it, vi } from "vitest";
+
 import { createProg, type ProgDeps } from "#src/cli/index";
 import type { Config } from "#src/core/schema";
 import type { BedrockState } from "#src/core/state";
 import type { DeployError } from "#src/shell/deploy";
 import { fakeClackPort } from "#tests/helpers/clack";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { describe, expect, it, vi } from "vitest";
 
 type LoadConfigFunc = NonNullable<ProgDeps["loadConfig"]>;
 type DeployFunc = NonNullable<ProgDeps["deploy"]>;

@@ -1,3 +1,5 @@
+import { assert, describe, expect, it } from "vitest";
+
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
 import { ValidationError } from "#src/errors/validation";
@@ -5,7 +7,6 @@ import { UniversesClient } from "#src/resources/universes/index";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { validThumbnailUploadBody } from "#tests/helpers/game-thumbnails";
-import { assert, describe, expect, it } from "vitest";
 
 describe(UniversesClient, () => {
 	describe("thumbnails", () => {

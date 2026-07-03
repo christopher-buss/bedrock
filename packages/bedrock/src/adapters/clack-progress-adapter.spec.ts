@@ -1,8 +1,8 @@
 import { NetworkError, OpenCloudError } from "@bedrock-rbx/ocale";
 
-import { fakeClackPort } from "#tests/helpers/clack";
 import { describe, expect, it } from "vitest";
 
+import { fakeClackPort } from "#tests/helpers/clack";
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import { createClackProgressAdapter } from "./clack-progress-adapter.ts";
 

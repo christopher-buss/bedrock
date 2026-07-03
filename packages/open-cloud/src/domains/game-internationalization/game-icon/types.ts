@@ -1,5 +1,4 @@
 import type { RobloxLanguageCode, RobloxLocale } from "#src/locales/data.generated";
-
 import type { GameIconState } from "./wire.ts";
 
 export type { GameIconState } from "./wire.ts";

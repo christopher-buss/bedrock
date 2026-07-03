@@ -1,11 +1,12 @@
-import { createDefaultSpawner } from "#src/cli/default-spawner";
-import { dispatchOverride } from "#src/cli/dispatch-override";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it, vi } from "vitest";
+
+import { createDefaultSpawner } from "#src/cli/default-spawner";
+import { dispatchOverride } from "#src/cli/dispatch-override";
 
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures", "overrides");
 const ECHO_PROTOCOL = join(FIXTURES_ROOT, "echo-protocol.ts");

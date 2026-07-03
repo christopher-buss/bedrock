@@ -1,9 +1,9 @@
+import { assert, describe, expect, it, vi } from "vitest";
+
 import { CodedError } from "#tests/helpers/coded-error";
 import { createFakeSend } from "#tests/helpers/fake-send";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { makeRetryConfig } from "#tests/helpers/retry-config";
-import { assert, describe, expect, it, vi } from "vitest";
-
 import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";

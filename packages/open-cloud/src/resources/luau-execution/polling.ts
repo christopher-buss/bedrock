@@ -187,11 +187,11 @@ export async function pollUntilDoneCore(
 	const pollDelay = options.pollDelay ?? defaultPollDelay;
 	const maxFailures = options.maxConsecutivePollFailures ?? DEFAULT_POLL_FAILURE_CAP;
 	const sig = options.signal;
-	const startedAt = deps.now();
 	if (sig?.aborted === true) {
 		return abortedResult(sig);
 	}
 
+	const startedAt = deps.now();
 	let state: LoopState = { consecutiveFailures: 0, lastTask: undefined };
 	for (;;) {
 		const elapsedMs = deps.now() - startedAt;
@@ -332,8 +332,11 @@ function isTransientTransport(error: OpenCloudError): error is NetworkError {
 	return code !== undefined && TRANSIENT_TRANSPORT_CODES.includes(code);
 }
 
-async function fetchOnce(deps: PollDeps, signal: AbortSignal | undefined): Promise<FetchOutcome> {
-	const fetchResult = await raceWithAbort(deps.fetch(), signal);
+async function fetchOnce(
+	dependencies: PollDeps,
+	signal: AbortSignal | undefined,
+): Promise<FetchOutcome> {
+	const fetchResult = await raceWithAbort(dependencies.fetch(), signal);
 	if (fetchResult === ABORTED) {
 		return { kind: "aborted" };
 	}

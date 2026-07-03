@@ -8,6 +8,8 @@ import type { PlaceWire } from "./wire.ts";
 
 const MALFORMED_PLACE_MESSAGE = "Malformed place response";
 
+const PLACE_PATH_PATTERN = /^universes\/(\d+)\/places\/(\d+)$/;
+
 interface ToPlaceArgs {
 	readonly id: string;
 	readonly body: PlaceWire;
@@ -29,7 +31,7 @@ export function parsePlaceResponse(response: HttpResponse): Result<Place, ApiErr
 		return malformedPlace(statusCode);
 	}
 
-	const match = /^universes\/(\d+)\/places\/(\d+)$/.exec(body.path);
+	const match = PLACE_PATH_PATTERN.exec(body.path);
 	const universeId = match?.[1];
 	const id = match?.[2];
 	if (id === undefined || universeId === undefined) {

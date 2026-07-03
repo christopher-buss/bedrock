@@ -18,7 +18,7 @@ const DEFAULT_EXPERIENCE_OUTPUTS = { assetId: 1, startPlaceId: 2 };
 
 type DeviceFlag = "consoleEnabled" | "desktopEnabled" | "mobileEnabled" | "tabletEnabled";
 
-function experienceConfiguration(inputs: unknown): MantleResource {
+function experienceConfig(inputs: unknown): MantleResource {
 	return {
 		key: "singleton",
 		dependencies: [],
@@ -68,7 +68,7 @@ function place(key: string, inputs: unknown): MantleResource {
 	};
 }
 
-function placeConfiguration(key: string, inputs: unknown): MantleResource {
+function placeConfig(key: string, inputs: unknown): MantleResource {
 	return {
 		key,
 		dependencies: [],
@@ -196,7 +196,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ playableDevices: [device] }),
+				experienceConfig({ playableDevices: [device] }),
 			]);
 
 			assert(result !== undefined);
@@ -210,7 +210,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({
+				experienceConfig({
 					playableDevices: ["Computer", "Console", "Phone", "Tablet"],
 				}),
 			]);
@@ -231,7 +231,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ playableDevices: ["Computer"] }),
+				experienceConfig({ playableDevices: ["Computer"] }),
 			]);
 
 			assert(result !== undefined);
@@ -246,7 +246,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ playableDevices: ["Computer", "Console"] }),
+				experienceConfig({ playableDevices: ["Computer", "Console"] }),
 			]);
 
 			assert(result !== undefined);
@@ -273,7 +273,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ playableDevices: ["Toaster"] }),
+				experienceConfig({ playableDevices: ["Toaster"] }),
 			]);
 
 			assert(result !== undefined);
@@ -296,7 +296,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ playableDevices: [42] }),
+				experienceConfig({ playableDevices: [42] }),
 			]);
 
 			assert(result !== undefined);
@@ -314,7 +314,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({
+				experienceConfig({
 					playableDevices: ["Computer", "Toaster", "Tablet"],
 				}),
 			]);
@@ -345,7 +345,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration("not-an-object"),
+				experienceConfig("not-an-object"),
 			]);
 
 			assert(result !== undefined);
@@ -359,7 +359,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ playableDevices: "Computer" }),
+				experienceConfig({ playableDevices: "Computer" }),
 			]);
 
 			assert(result !== undefined);
@@ -373,7 +373,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ allowPrivateServers: undefined }),
+				experienceConfig({ allowPrivateServers: undefined }),
 			]);
 
 			assert(result !== undefined);
@@ -387,7 +387,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ playableDevices: [] }),
+				experienceConfig({ playableDevices: [] }),
 			]);
 
 			assert(result !== undefined);
@@ -406,7 +406,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({
+				experienceConfig({
 					allowPrivateServers: true,
 					privateServerPrice: price,
 				}),
@@ -425,7 +425,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({
+				experienceConfig({
 					allowPrivateServers: true,
 					privateServerPrice: 50,
 				}),
@@ -448,7 +448,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({
+				experienceConfig({
 					allowPrivateServers: false,
 					privateServerPrice: 25,
 				}),
@@ -464,7 +464,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ allowPrivateServers: false }),
+				experienceConfig({ allowPrivateServers: false }),
 			]);
 
 			assert(result !== undefined);
@@ -484,7 +484,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ allowPrivateServers: true }),
+				experienceConfig({ allowPrivateServers: true }),
 			]);
 
 			assert(result !== undefined);
@@ -498,7 +498,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({
+				experienceConfig({
 					allowPrivateServers: true,
 					privateServerPrice: "free",
 				}),
@@ -515,7 +515,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ privateServerPrice: 25 }),
+				experienceConfig({ privateServerPrice: 25 }),
 			]);
 
 			assert(result !== undefined);
@@ -635,7 +635,7 @@ describe(foldUniverse, () => {
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
 				experienceActivation({ isActive: true }),
-				experienceConfiguration({ isFriendsOnly: false }),
+				experienceConfig({ isFriendsOnly: false }),
 			]);
 
 			assert(result !== undefined);
@@ -648,7 +648,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ isFriendsOnly: false }),
+				experienceConfig({ isFriendsOnly: false }),
 			]);
 
 			assert(result !== undefined);
@@ -895,7 +895,7 @@ describe(foldUniverse, () => {
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
 				place("start", { isStart: true }),
-				placeConfiguration("start", { name: "My Place" }),
+				placeConfig("start", { name: "My Place" }),
 			]);
 
 			assert(result !== undefined);
@@ -912,7 +912,7 @@ describe(foldUniverse, () => {
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
 				place("start", { isStart: true }),
-				placeConfiguration("start", { name: "My Place" }),
+				placeConfig("start", { name: "My Place" }),
 			]);
 
 			assert(result !== undefined);
@@ -934,8 +934,8 @@ describe(foldUniverse, () => {
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
 				place("start", { isStart: true }),
 				place("lobby", { isStart: false }),
-				placeConfiguration("lobby", { name: "Lobby" }),
-				placeConfiguration("start", { name: "My Place" }),
+				placeConfig("lobby", { name: "Lobby" }),
+				placeConfig("start", { name: "My Place" }),
 			]);
 
 			assert(result !== undefined);
@@ -957,7 +957,7 @@ describe(foldUniverse, () => {
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
 				place("start", { isStart: false }),
-				placeConfiguration("start", { name: "My Place" }),
+				placeConfig("start", { name: "My Place" }),
 			]);
 
 			assert(result !== undefined);
@@ -971,9 +971,9 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ isStart: true }),
+				experienceConfig({ isStart: true }),
 				place("start", { isStart: true }),
-				placeConfiguration("start", { name: "My Place" }),
+				placeConfig("start", { name: "My Place" }),
 			]);
 
 			assert(result !== undefined);
@@ -1010,8 +1010,8 @@ describe(foldUniverse, () => {
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
 				place("start", { isStart: true }),
 				place("alt-start", { isStart: true }),
-				placeConfiguration("start", { name: "Primary" }),
-				placeConfiguration("alt-start", { name: "Alternate" }),
+				placeConfig("start", { name: "Primary" }),
+				placeConfig("alt-start", { name: "Alternate" }),
 			]);
 
 			assert(result !== undefined);
@@ -1031,7 +1031,7 @@ describe(foldUniverse, () => {
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
 				place("start", { isStart: true }),
-				placeConfiguration("start", { name: 42 }),
+				placeConfig("start", { name: 42 }),
 			]);
 
 			assert(result !== undefined);
@@ -1046,7 +1046,7 @@ describe(foldUniverse, () => {
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
 				place("start", { isStart: true }),
-				placeConfiguration("start", "not-an-object"),
+				placeConfig("start", "not-an-object"),
 			]);
 
 			assert(result !== undefined);
@@ -1061,7 +1061,7 @@ describe(foldUniverse, () => {
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
 				place("start", "not-an-object"),
-				placeConfiguration("start", { name: "My Place" }),
+				placeConfig("start", { name: "My Place" }),
 			]);
 
 			assert(result !== undefined);
@@ -1102,7 +1102,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ [field]: value }),
+				experienceConfig({ [field]: value }),
 			]);
 
 			assert(result !== undefined);
@@ -1121,7 +1121,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ genre: undefined, isArchived: undefined }),
+				experienceConfig({ genre: undefined, isArchived: undefined }),
 			]);
 
 			assert(result !== undefined);
@@ -1135,7 +1135,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({
+				experienceConfig({
 					genre: "All",
 					isArchived: false,
 					isForSale: false,
@@ -1167,7 +1167,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration("not-an-object"),
+				experienceConfig("not-an-object"),
 			]);
 
 			assert(result !== undefined);
@@ -1187,7 +1187,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ [key]: "PlayerChoice" }),
+				experienceConfig({ [key]: "PlayerChoice" }),
 			]);
 
 			assert(result !== undefined);
@@ -1206,7 +1206,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ universeAnimationType: "PlayerChoice" }),
+				experienceConfig({ universeAnimationType: "PlayerChoice" }),
 			]);
 
 			assert(result !== undefined);
@@ -1220,7 +1220,7 @@ describe(foldUniverse, () => {
 
 			const result = foldUniverse([
 				experience(DEFAULT_EXPERIENCE_OUTPUTS),
-				experienceConfiguration({ universeAvatarType: undefined }),
+				experienceConfig({ universeAvatarType: undefined }),
 			]);
 
 			assert(result !== undefined);
@@ -1266,7 +1266,7 @@ describe(foldUniverse, () => {
 			expect.assertions(2);
 
 			const result = foldUniverse([
-				experienceConfiguration({ allowPrivateServers: undefined }),
+				experienceConfig({ allowPrivateServers: undefined }),
 				{
 					key: "singleton",
 					dependencies: [],

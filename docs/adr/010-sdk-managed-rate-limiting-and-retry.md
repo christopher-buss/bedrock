@@ -10,11 +10,11 @@ idempotency, observability
 `@bedrock-rbx/ocale` is a standalone TypeScript HTTP client for Roblox Open
 Cloud APIs, consumed primarily by the Bedrock CLI shell layer.
 
-Deploying a game through the Bedrock CLI may issue dozens of concurrent
-requests — creating game passes, creating developer products, uploading
-thumbnails — all against API-key-scoped rate limits. Roblox publishes rate
-limit constants per API, and a naive concurrent dispatch will hit 429s under
-realistic deployment workloads.
+Deploying a game through the Bedrock CLI may issue dozens of concurrent requests
+— creating game passes, creating developer products, uploading thumbnails — all
+against API-key-scoped rate limits. Roblox publishes rate limit constants per
+API, and a naive concurrent dispatch will hit 429s under realistic deployment
+workloads.
 
 Three questions need answering:
 
@@ -38,8 +38,8 @@ Constraints:
   similar — the queue must be implemented with standard JavaScript.
 - **FCIS architecture (ADR-002)**: rate limiting and retry are I/O concerns;
   placing them in the CLI shell would pull I/O logic into orchestration code.
-- **Rate limit constants are per-API**: known from Roblox documentation; the
-  SDK is the natural home for that knowledge.
+- **Rate limit constants are per-API**: known from Roblox documentation; the SDK
+  is the natural home for that knowledge.
 
 ## Decision
 
@@ -77,9 +77,9 @@ Specifically:
 4. **Observability hooks**. `onRequest`, `onRetry`, and `onRateLimit` are
    notification-only, client-level callbacks. They are set once via
    `OpenCloudClientOptions` at construction and fire for every request the
-   client makes. Consumers cannot cancel or alter retry behavior through
-   them, and they are not available on `RequestOptions` — hooks are a
-   client-level concern, not a per-request concern (see ADR-012).
+   client makes. Consumers cannot cancel or alter retry behavior through them,
+   and they are not available on `RequestOptions` — hooks are a client-level
+   concern, not a per-request concern (see ADR-012).
 
    ```typescript
    const client = new GamePassesClient({
@@ -101,14 +101,14 @@ Specifically:
 ### Positive
 
 - **Consumers have no retry logic**: the CLI shell calls the SDK, handles the
-  returned `Result`, and moves on. Queuing, pacing, and retries are invisible
-  to orchestration code.
+  returned `Result`, and moves on. Queuing, pacing, and retries are invisible to
+  orchestration code.
 - **Correct idempotency semantics by default**: create operations cannot
-  silently produce duplicate resources on 5xx. The asymmetry is enforced at
-  the method level, not left to consumer discipline.
+  silently produce duplicate resources on 5xx. The asymmetry is enforced at the
+  method level, not left to consumer discipline.
 - **Precise 429 recovery**: using `x-ratelimit-reset` avoids over-waiting
-  (exponential backoff overshoots) and under-waiting (immediate retry hits
-  429 again).
+  (exponential backoff overshoots) and under-waiting (immediate retry hits 429
+  again).
 - **Per-key isolation**: multiple API keys (e.g., a separate key for asset
   uploads) each maintain their own queue. Quotas are not conflated.
 - **Observability without control flow coupling**: hooks let consumers log
@@ -118,27 +118,27 @@ Specifically:
 
 ### Negative
 
-- **No automatic recovery for failed creates on 5xx**: consumers must detect
-  and handle failed create operations themselves. The SDK returns the error;
-  the consumer decides whether to investigate, retry with idempotency
-  guarantees, or surface the failure.
-- **Multiple client instances sharing an API key are a correctness hazard,
-  not just a performance gap**: two `GamePassesClient` instances with the
-  same key maintain independent queues that do not coordinate, so the SDK's
-  internal rate accounting is silently out of sync with Roblox's actual
-  per-key quota. The 429 handling transparently recovers from the over-issue,
-  but the SDK will have promised rate limiting it did not deliver. The
-  correct-by-construction solution is per-request API key overrides on a
-  single client instance (see ADR-012). Consumers who need to distribute
-  work across multiple keys should use overrides, not additional client
-  instances. Bedrock CLI uses one client per resource type in any case.
+- **No automatic recovery for failed creates on 5xx**: consumers must detect and
+  handle failed create operations themselves. The SDK returns the error; the
+  consumer decides whether to investigate, retry with idempotency guarantees, or
+  surface the failure.
+- **Multiple client instances sharing an API key are a correctness hazard, not
+  just a performance gap**: two `GamePassesClient` instances with the same key
+  maintain independent queues that do not coordinate, so the SDK's internal rate
+  accounting is silently out of sync with Roblox's actual per-key quota. The 429
+  handling transparently recovers from the over-issue, but the SDK will have
+  promised rate limiting it did not deliver. The correct-by-construction
+  solution is per-request API key overrides on a single client instance (see
+  ADR-012). Consumers who need to distribute work across multiple keys should
+  use overrides, not additional client instances. Bedrock CLI uses one client
+  per resource type in any case.
 - **Hooks are fire-and-forget**: `onRequest`, `onRetry`, and `onRateLimit`
-  cannot cancel, delay, or modify retry behavior. Consumers who need that
-  level of control must wrap the SDK, not reach inside it.
-- **Rate limit constants are static**: each client hardcodes limits from
-  Roblox documentation. If Roblox changes undocumented limits, 429s will
-  still occur — the adaptive `x-ratelimit-reset` handling absorbs this, but
-  the SDK will not learn the new limit without a code change.
+  cannot cancel, delay, or modify retry behavior. Consumers who need that level
+  of control must wrap the SDK, not reach inside it.
+- **Rate limit constants are static**: each client hardcodes limits from Roblox
+  documentation. If Roblox changes undocumented limits, 429s will still occur —
+  the adaptive `x-ratelimit-reset` handling absorbs this, but the SDK will not
+  learn the new limit without a code change.
 
 ### Neutral
 
@@ -163,10 +163,10 @@ consumers have maximum control.
 
 - Every consumer must re-implement the same queuing and backoff logic — error
   prone and duplicated across integrations.
-- FCIS (ADR-002) places I/O concerns in the I/O layer; rate limiting is I/O,
-  not business logic.
-- Roblox rate limit constants are API-specific knowledge; the SDK is the
-  natural home for them, not every caller.
+- FCIS (ADR-002) places I/O concerns in the I/O layer; rate limiting is I/O, not
+  business logic.
+- Roblox rate limit constants are API-specific knowledge; the SDK is the natural
+  home for them, not every caller.
 - Couples the CLI's orchestration logic to Roblox's rate limit details, which
   leaks implementation detail across the boundary.
 
@@ -180,9 +180,9 @@ branching.
 
 **Rejected because:**
 
-- Roblox does not support idempotency keys. Retrying a create on 5xx can
-  produce duplicate game passes, developer products, or thumbnails with no
-  way to detect or clean up the duplicates.
+- Roblox does not support idempotency keys. Retrying a create on 5xx can produce
+  duplicate game passes, developer products, or thumbnails with no way to detect
+  or clean up the duplicates.
 - The asymmetry between create and read/update/delete is a correctness
   requirement, not a stylistic preference. Uniformity would trade correctness
   for simplicity.
@@ -201,8 +201,8 @@ HTTP client.
   under-waits (hitting 429 again immediately). `x-ratelimit-reset` gives a
   precise answer — ignoring it is strictly worse.
 - The SDK is already Roblox-specific (ADR-007, Open Cloud only). "Avoiding
-  coupling" to Roblox response headers is not a meaningful constraint for
-  a Roblox-dedicated client.
+  coupling" to Roblox response headers is not a meaningful constraint for a
+  Roblox-dedicated client.
 - Falling back to exponential backoff when the header is missing preserves
   robustness without sacrificing precision when the header is present.
 
@@ -221,31 +221,28 @@ implementation.
   implementations.
 - Retry loops in the CLI mix I/O concerns into shell orchestration, violating
   FCIS (ADR-002).
-- The idempotency constraint must still be communicated and respected by
-  every caller — SDK-level enforcement is the only reliable way to prevent
-  duplicate resources.
+- The idempotency constraint must still be communicated and respected by every
+  caller — SDK-level enforcement is the only reliable way to prevent duplicate
+  resources.
 
 ## Implementation Notes
 
 - `packages/open-cloud/src/internal/http/rate-limit-queue.ts` — `RateLimitQueue`
   class; per-API-key instances created lazily inside each service client.
 - Rate limit constants (`requestsPerSecond`, `requestsPerMinute`) are defined
-  per client from Roblox documentation. Values must be researched and
-  confirmed during implementation — the design plan uses placeholder values.
-- `executeWithRetry` is a private method on each service client.
-  `shouldRetry` checks both the error type and the operation-specific
-  `retryableStatuses`.
-- Create methods hardcode `retryableStatuses: [429]` at the method level.
-  Read, list, update, and delete methods default to
-  `[429, 500, 502, 503, 504]`.
+  per client from Roblox documentation. Values must be researched and confirmed
+  during implementation — the design plan uses placeholder values.
+- `executeWithRetry` is a private method on each service client. `shouldRetry`
+  checks both the error type and the operation-specific `retryableStatuses`.
+- Create methods hardcode `retryableStatuses: [429]` at the method level. Read,
+  list, update, and delete methods default to `[429, 500, 502, 503, 504]`.
 - On a 429 response, `RateLimitError.retryAfterSeconds` is populated from
   `x-ratelimit-reset` when present; the retry delay logic prefers this value
   over the exponential backoff schedule.
-- Client-level `retryableStatuses` in `OpenCloudClientOptions` does not
-  override the create-method guard. Only `RequestOptions.retryableStatuses`
-  passed to a specific `create()` call can. This is enforced by merging
-  `RequestOptions` over the method-level default, not over the client-level
-  default.
+- Client-level `retryableStatuses` in `OpenCloudClientOptions` does not override
+  the create-method guard. Only `RequestOptions.retryableStatuses` passed to a
+  specific `create()` call can. This is enforced by merging `RequestOptions`
+  over the method-level default, not over the client-level default.
 - If Roblox adds idempotency key support in the future, `RequestOptions` can
   accept an `idempotencyKey` field, and create methods can enable 5xx retries
   when it is present. The per-request override mechanism above is the forward-
@@ -253,19 +250,18 @@ implementation.
 
 ## Related Decisions
 
-- **ADR-002**: FCIS Architecture — SDK is the I/O layer; rate limiting and
-  retry are I/O concerns and belong here, not in CLI orchestration.
+- **ADR-002**: FCIS Architecture — SDK is the I/O layer; rate limiting and retry
+  are I/O concerns and belong here, not in CLI orchestration.
 - **ADR-003**: Testing strategy — retry and queue behavior must reach 100%
-  branch coverage; the fake HTTP client
-  (`tests/helpers/fake-http-client.ts`) enables this without real rate limits
-  or sleeps.
+  branch coverage; the fake HTTP client (`tests/helpers/fake-http-client.ts`)
+  enables this without real rate limits or sleeps.
 - **ADR-007**: Open Cloud only — all traffic goes to Roblox Open Cloud; rate
   limit constants and header formats are sourced from Roblox documentation.
-- **ADR-008**: Zero runtime dependencies — the queue is implemented from
-  scratch using standard JavaScript; no `p-queue` or equivalent.
+- **ADR-008**: Zero runtime dependencies — the queue is implemented from scratch
+  using standard JavaScript; no `p-queue` or equivalent.
 - **ADR-009**: Result types over exceptions — retry logic returns `Result` on
-  exhaustion; `RateLimitError` carries `retryAfterSeconds` for consumer
-  display when desired.
+  exhaustion; `RateLimitError` carries `retryAfterSeconds` for consumer display
+  when desired.
 
 ## References
 
@@ -276,19 +272,19 @@ implementation.
 
 ## Amendment: 2026-05-24, retry transient transport errors
 
-The original Decision only retries `RateLimitError` (429) and `ApiError`
-(5xx, by operation kind). `NetworkError` — the transport class wrapping
-`ECONNRESET`, `ETIMEDOUT`, DNS failures, and similar — was never retried,
-because it carries no HTTP status for `shouldRetry` to match against. A
-transport failure therefore terminated the request on the first occurrence.
+The original Decision only retries `RateLimitError` (429) and `ApiError` (5xx,
+by operation kind). `NetworkError` — the transport class wrapping `ECONNRESET`,
+`ETIMEDOUT`, DNS failures, and similar — was never retried, because it carries
+no HTTP status for `shouldRetry` to match against. A transport failure therefore
+terminated the request on the first occurrence.
 
 This bit a long-running `--workspace` Luau-execution run in project-halcyon
 (christopher-buss/project-halcyon#482), which aborted on `read ECONNRESET`
-mid-poll. A connection reset is normal: Roblox closes idle keep-alive
-sockets, and the Node/undici/Bun keep-alive socket-reuse race is documented
-and won't-fix in the runtimes — the established guidance is for the client to
-retry idempotent requests. The retry pipeline existed but excluded the one
-error class that most warranted retrying for an idempotent GET.
+mid-poll. A connection reset is normal: Roblox closes idle keep-alive sockets,
+and the Node/undici/Bun keep-alive socket-reuse race is documented and won't-fix
+in the runtimes — the established guidance is for the client to retry idempotent
+requests. The retry pipeline existed but excluded the one error class that most
+warranted retrying for an idempotent GET.
 
 The retry policy gains a transport axis parallel to `retryableStatuses`:
 
@@ -298,15 +294,15 @@ The retry policy gains a transport axis parallel to `retryableStatuses`:
   through the chain because `fetch` surfaces resets as
   `NetworkError → TypeError("fetch failed") → OS Error{code}`.
 - **Idempotent operations** (read, list, update, delete) default to the
-  transient set `ECONNRESET, ECONNREFUSED, ETIMEDOUT, EPIPE, ENETUNREACH,
-  EHOSTDOWN, EAI_AGAIN, UND_ERR_SOCKET`.
-- **Create operations** default to none, for the same duplicate-resource
-  reason the 5xx guard exists. A read-side reset can arrive after the server
-  already processed the create, and Roblox has no idempotency keys. Consumers
-  who can tolerate a duplicate (a re-published place version, a re-run Luau
-  task) opt in through the per-request override only — the same merge
-  precedence that scopes `retryableStatuses` keeps a client-level setting from
-  silently relaxing create safety.
+  transient set
+  `ECONNRESET, ECONNREFUSED, ETIMEDOUT, EPIPE, ENETUNREACH, EHOSTDOWN, EAI_AGAIN, UND_ERR_SOCKET`.
+- **Create operations** default to none, for the same duplicate-resource reason
+  the 5xx guard exists. A read-side reset can arrive after the server already
+  processed the create, and Roblox has no idempotency keys. Consumers who can
+  tolerate a duplicate (a re-published place version, a re-run Luau task) opt in
+  through the per-request override only — the same merge precedence that scopes
+  `retryableStatuses` keeps a client-level setting from silently relaxing create
+  safety.
 - **Self-aborts are never retried.** Ocale's own request-timeout `AbortSignal`
   produces an error with no node-style `code`, so the allowlist excludes it by
   construction. A genuine 30s timeout is a real signal, not a transient blip.
@@ -322,39 +318,38 @@ Two supporting changes land with the policy:
   surface — the API key travels in the `x-api-key` header, never the URL.
 - **The Luau-execution poll loop is bounded against transient failures.**
   Previously a single failed poll aborted the whole loop. It now tolerates a
-  transient-transport poll failure and continues within the existing
-  wall-clock `timeoutMs`, but bails early after `maxConsecutivePollFailures`
-  (default 3) so a genuinely-unreachable endpoint stops in seconds rather than
-  spinning out the full budget. Only a `NetworkError` carrying a known
-  transient transport code is re-polled; a self-aborted request timeout (no
-  code) aborts immediately, matching the per-request policy. A non-transport
-  failure (a 404 meaning the task is gone, a 403) likewise aborts immediately —
-  there is nothing to poll. A successful poll resets the counter.
+  transient-transport poll failure and continues within the existing wall-clock
+  `timeoutMs`, but bails early after `maxConsecutivePollFailures` (default 3) so
+  a genuinely-unreachable endpoint stops in seconds rather than spinning out the
+  full budget. Only a `NetworkError` carrying a known transient transport code
+  is re-polled; a self-aborted request timeout (no code) aborts immediately,
+  matching the per-request policy. A non-transport failure (a 404 meaning the
+  task is gone, a 403) likewise aborts immediately — there is nothing to poll. A
+  successful poll resets the counter.
 
 New public surface: `retryableTransportCodes` on `OpenCloudClientOptions` and
 `RequestOptions`; `method` and `url` on `NetworkError`;
 `maxConsecutivePollFailures` on the poll options. The create idempotency
-guarantee is unchanged — duplicate-resource risk stays gated behind an
-explicit per-request opt-in.
+guarantee is unchanged — duplicate-resource risk stays gated behind an explicit
+per-request opt-in.
 
 ## Amendment: 2026-06-17, per-request timeout follows the poll budget for polled operations
 
 The original Decision treats the 30s per-request `timeout` as a universal
 default and the prior amendment reinforces it: "a genuine 30s timeout is a real
-signal, not a transient blip," and a self-abort — carrying no node-style
-`code` — is never retried. That holds for snappy CRUD, where 30s of silence is
-a genuine fault.
+signal, not a transient blip," and a self-abort — carrying no node-style `code`
+— is never retried. That holds for snappy CRUD, where 30s of silence is a
+genuine fault.
 
-It does not hold for `LuauExecutionClient.tasks.runUntilDone` /
-`pollUntilDone`. The submit endpoint only enqueues a task (it "does not wait for
-the task to complete"), and a poll `get` is a plain state read, so both should
-answer in well under a second. But Roblox's task-create and cold-`get` latencies
-routinely spike past 30s under load. When they do, the request self-aborts at
-the 30s default — an error the retry layer excludes by construction and the poll
-loop classifies as a hard failure — so the operation dies before its own
-wall-clock budget (`timeoutMs`) is ever consulted. This produced frequent,
-non-recoverable timeout failures in the jest-roblox-cli runner, whose poll
-budget is 5 minutes.
+It does not hold for `LuauExecutionClient.tasks.runUntilDone` / `pollUntilDone`.
+The submit endpoint only enqueues a task (it "does not wait for the task to
+complete"), and a poll `get` is a plain state read, so both should answer in
+well under a second. But Roblox's task-create and cold-`get` latencies routinely
+spike past 30s under load. When they do, the request self-aborts at the 30s
+default — an error the retry layer excludes by construction and the poll loop
+classifies as a hard failure — so the operation dies before its own wall-clock
+budget (`timeoutMs`) is ever consulted. This produced frequent, non-recoverable
+timeout failures in the jest-roblox-cli runner, whose poll budget is 5 minutes.
 
 The fix derives the per-request deadline from the budget the caller already
 declared rather than a fixed constant:
@@ -363,7 +358,7 @@ declared rather than a fixed constant:
   `timeout` to `timeoutMs`** (falling back to the 300s default budget) when the
   caller has not set one. The value is not a magic number — it is the patience
   the caller already chose for the whole operation. A single request stays alive
-  long enough for the backend to answer or to surface a *retryable* status (a
+  long enough for the backend to answer or to surface a _retryable_ status (a
   5xx, or a TCP-level `ECONNRESET`) instead of a self-abort the retry layer
   never retries.
 - **An explicit per-request `timeout` still wins**, via the same merge
@@ -375,26 +370,25 @@ This is the same recognition behind dropping the default timeout for upload
 methods (christopher-buss/bedrock#463): the one-size 30s CRUD default does not
 fit every request class. The two carve-outs differ in shape — uploads omit the
 deadline entirely because their duration is bandwidth-bound and unknowable,
-whereas polled luau-execution requests keep a *finite* budget-derived deadline
+whereas polled luau-execution requests keep a _finite_ budget-derived deadline
 so a true black-hole still bails and a TCP reset stays retryable.
 
 No new public surface: the behavior lives in an internal helper applied at the
 two polling entry points and is not exported from the package barrel.
 
-A latent gap remains and is tracked separately
-(christopher-buss/bedrock#466): the poll budget is only checked between
-iterations and is not wired to an in-flight `AbortSignal`, so a single request
-is still not bounded by the *remaining* budget, and budget exhaustion mid-flight
-surfaces as a transport `NetworkError` rather than the documented
-`PollTimeoutError`.
+A latent gap remains and is tracked separately (christopher-buss/bedrock#466):
+the poll budget is only checked between iterations and is not wired to an
+in-flight `AbortSignal`, so a single request is still not bounded by the
+_remaining_ budget, and budget exhaustion mid-flight surfaces as a transport
+`NetworkError` rather than the documented `PollTimeoutError`.
 
 ## Amendment: 2026-06-22, adaptive throttling from the live remaining budget
 
 The original Decision paces requests with a **static** per-operation token
 bucket (`requestsPerSecond` from the vendored OpenAPI) and recovers from a 429
 reactively via `x-ratelimit-reset`. Two facts, established by a live probe
-against the real API (one API key + IP), show that static pacing is
-structurally unreliable and that better information was being discarded:
+against the real API (one API key + IP), show that static pacing is structurally
+unreliable and that better information was being discarded:
 
 - **The static constants drift from reality.** The schema encodes 200/min for
   `Cloud_GetLuauExecutionSessionTask`; the probe measured a real ceiling of
@@ -406,32 +400,33 @@ structurally unreliable and that better information was being discarded:
   So the headers are best-effort, not guaranteed.
 
 Two parsing facts also surfaced: on a 429, `x-ratelimit-reset` is a
-comma-separated **list** of per-window resets (e.g. `"22, 0"`), and `retry-after`
-(5s) **understates** the true reset (22s). The list parse is reduced with
-`max` for reset (longest wait) and `min` for remaining (most constrained); the
-`retry-after`-understates-`reset` finding is why the SDK keeps preferring
-`x-ratelimit-reset` over the header the docs nominally recommend.
+comma-separated **list** of per-window resets (e.g. `"22, 0"`), and
+`retry-after` (5s) **understates** the true reset (22s). The list parse is
+reduced with `max` for reset (longest wait) and `min` for remaining (most
+constrained); the `retry-after`-understates-`reset` finding is why the SDK keeps
+preferring `x-ratelimit-reset` over the header the docs nominally recommend.
 
 The amendment adds a **header-primed budget gate** alongside the existing
 machinery (which is unchanged and remains the fallback):
 
-- **Observe every response.** Each attempt parses a `{ remaining, resetSeconds }`
-  sample and folds it back into the gate. A 2xx carries the budget in its
-  headers; a 429 carries it on `RateLimitError.remaining` — previously the 429
-  path built no header record, so the one response that proves exhaustion
-  dropped its budget signal. That error now carries `remaining`.
+- **Observe every response.** Each attempt parses a
+  `{ remaining, resetSeconds }` sample and folds it back into the gate. A 2xx
+  carries the budget in its headers; a 429 carries it on
+  `RateLimitError.remaining` — previously the 429 path built no header record,
+  so the one response that proves exhaustion dropped its budget signal. That
+  error now carries `remaining`.
 - **Gate per attempt, not per acquire.** The token bucket grants one token for a
   whole logical call, so gating only at acquisition cannot stop the retry-loop
   attempts that share the token. The gate lives in the `send` closure and runs
   before every attempt.
 - **Two pacing regimes.** While budget remains, requests are spaced evenly over
-  the time left in the window (`timeLeft / remaining`), so a burst does not spend
-  the window up front and then stall; the first send in a window goes
+  the time left in the window (`timeLeft / remaining`), so a burst does not
+  spend the window up front and then stall; the first send in a window goes
   immediately. Once the budget is spent, requests hold until reset. Pacing runs
-  at the **server-observed** rate, so it self-corrects when the static ceiling is
-  wrong.
-- **Per-key scope, not per-operation.** The gate keys one budget per API key.
-  A per-operation tracker was prototyped and dropped: every operation reports the
+  at the **server-observed** rate, so it self-corrects when the static ceiling
+  is wrong.
+- **Per-key scope, not per-operation.** The gate keys one budget per API key. A
+  per-operation tracker was prototyped and dropped: every operation reports the
   same most-constrained `remaining`, and a per-key tracker drawn down by all
   operations is always the binding constraint, so a per-operation tracker could
   never independently fire. Per-key is also where the value is — a deploy's 429s
@@ -445,7 +440,7 @@ Static-bucket pacing is retained for cold start (no sample yet) and for
 endpoints that omit the headers (404s and any future gap), since a missing or
 non-numeric header parses to `undefined` and leaves that scope on static pacing.
 
-Known limitations (residual, accepted): the per-key `remaining` is the *minimum*
+Known limitations (residual, accepted): the per-key `remaining` is the _minimum_
 across all of Roblox's overlapping windows, so when only a route-specific window
 is exhausted the gate over-throttles other operations on that key until the next
 observation refreshes it; a concurrent burst before the first observation can
@@ -459,5 +454,5 @@ fallback.
 No new public surface: the gate is internal, parsing reductions are internal,
 and `RateLimitError` only gains a `remaining` field (additive). A consumer hook
 to observe proactive holds (`onRateLimitHeaders`) was considered and deferred to
-avoid overloading the existing `onRateLimit` callback, which already signals both
-static-bucket and retry waits.
+avoid overloading the existing `onRateLimit` callback, which already signals
+both static-bucket and retry waits.

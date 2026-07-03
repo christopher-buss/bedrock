@@ -25,8 +25,8 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
-      - env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-        name: Lint PR title
+      - name: Lint PR title
         run: echo "$PR_TITLE" | pnpm commitlint --verbose
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
     timeout-minutes: 5

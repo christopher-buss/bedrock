@@ -1,12 +1,13 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { assert, describe, expect, expectTypeOf, it } from "vitest";
+
 import { isRecord } from "#src/internal/utils/is-record";
 import {
 	ROBLOX_CREATOR_LOCALES,
 	type RobloxLanguageCode,
 	type RobloxLocale,
 } from "#src/locales/index";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { assert, describe, expect, expectTypeOf, it } from "vitest";
 
 const VENDOR_JSON_URL = new URL("../../vendor/roblox-creator-locales.json", import.meta.url);
 

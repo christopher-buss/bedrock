@@ -24,8 +24,8 @@ Given that, three approaches were evaluated:
    runtime
 2. **Minimal dependencies** — use targeted packages (e.g., `undici`,
    `form-data`) for specific capabilities
-3. **Full HTTP framework** — use an established HTTP client library (e.g., `got`,
-   `axios`, `ky`)
+3. **Full HTTP framework** — use an established HTTP client library (e.g.,
+   `got`, `axios`, `ky`)
 
 As a library distributed via npm, the dependency graph is inherited by every
 consumer — including CI/CD pipelines with elevated credentials. When no
@@ -49,9 +49,9 @@ Multipart encoding uses the native `FormData` API. No `form-data` package. No
 No Bun-specific APIs are used, ensuring compatibility with both target runtimes
 from the same source.
 
-devDependencies remain: `@bedrock-rbx/typescript-config`, `@bedrock-rbx/vitest-config`,
-`@types/bun`, `tsdown`, `typescript`, `vitest`. These are build/test tooling
-only — not shipped to consumers.
+devDependencies remain: `@bedrock-rbx/typescript-config`,
+`@bedrock-rbx/vitest-config`, `@types/bun`, `tsdown`, `typescript`, `vitest`.
+These are build/test tooling only — not shipped to consumers.
 
 ## Consequences
 
@@ -72,31 +72,29 @@ only — not shipped to consumers.
 
 ### Negative
 
-- **Hand-rolling ordinarily-dependency-provided logic**: multipart encoding,
-  the rate-limit queue (ADR-010), exponential backoff, and low-level HTTP
-  handling must all be implemented from scratch within the package. Each is
-  well-scoped, but each is also code to write, test, and maintain that a
-  mature HTTP framework would have provided pre-tested. The subset of Open
-  Cloud APIs this SDK targets keeps the scope manageable, but "manageable"
-  is not "free."
+- **Hand-rolling ordinarily-dependency-provided logic**: multipart encoding, the
+  rate-limit queue (ADR-010), exponential backoff, and low-level HTTP handling
+  must all be implemented from scratch within the package. Each is well-scoped,
+  but each is also code to write, test, and maintain that a mature HTTP
+  framework would have provided pre-tested. The subset of Open Cloud APIs this
+  SDK targets keeps the scope manageable, but "manageable" is not "free."
 - **Full test burden for primitives**: ADR-003 requires 100% coverage on
-  everything that ships, including the hand-rolled HTTP utilities. Edge
-  cases (retry timing, timeout handling, multipart encoding quirks,
-  `Retry-After` header parsing) that a framework would cover in its own
-  tests become the SDK's responsibility to test exhaustively.
-- **Discovery cost for HTTP edge cases**: frameworks like `got` or `ky`
-  have accumulated workarounds for HTTP edge cases over years of production
-  use (redirect handling, proxy support, header casing quirks, chunked
-  encoding interactions). A zero-dependency HTTP client will meet those
-  edge cases later, the hard way, and fix them in-tree. This is acceptable
-  for a SDK bound to a single vendor's well-documented API surface, but it
-  trades upfront dependency risk for long-tail maintenance risk.
+  everything that ships, including the hand-rolled HTTP utilities. Edge cases
+  (retry timing, timeout handling, multipart encoding quirks, `Retry-After`
+  header parsing) that a framework would cover in its own tests become the SDK's
+  responsibility to test exhaustively.
+- **Discovery cost for HTTP edge cases**: frameworks like `got` or `ky` have
+  accumulated workarounds for HTTP edge cases over years of production use
+  (redirect handling, proxy support, header casing quirks, chunked encoding
+  interactions). A zero-dependency HTTP client will meet those edge cases later,
+  the hard way, and fix them in-tree. This is acceptable for a SDK bound to a
+  single vendor's well-documented API surface, but it trades upfront dependency
+  risk for long-tail maintenance risk.
 
 ### Neutral
 
 - The `form-data` package and `undici` are devDependencies in many projects
-  anyway; removing them from the runtime graph does not affect developer
-  tooling
+  anyway; removing them from the runtime graph does not affect developer tooling
 - Result types (ADR-009) were already preferred on their own merits; the
   zero-dep constraint reinforced that choice by ruling out fp-ts and Effect
 

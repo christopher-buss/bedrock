@@ -1,6 +1,6 @@
-import type { UpdatePlaceParameters } from "#src/domains/cloud-v2/places/types";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
+import type { UpdatePlaceParameters } from "#src/domains/cloud-v2/places/types";
 import { listWritablePropertyNames } from "./_helpers.ts";
 
 /**

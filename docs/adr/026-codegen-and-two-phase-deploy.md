@@ -2,25 +2,25 @@
 
 **Date:** 2026-06-22 **Status:** Accepted
 
-Decision Makers: Maintainer
-Tags: deploy, codegen, state, data-model, ports, two-phase, core
+Decision Makers: Maintainer Tags: deploy, codegen, state, data-model, ports,
+two-phase, core
 
 ## Context
 
 Game code needs to reference Roblox-assigned asset IDs (game-pass IDs,
 developer-product IDs, icon asset IDs) by a stable **Key** rather than a
 hardcoded number. Today those IDs only exist in **State** after a deploy
-provisions them, and consuming them is left entirely to the user
-(Mantle parity). Issue #119 asks bedrock to optionally generate source files
-from deployed **Outputs**. ADR-017 already named "post-deploy Luau constant
+provisions them, and consuming them is left entirely to the user (Mantle
+parity). Issue #119 asks bedrock to optionally generate source files from
+deployed **Outputs**. ADR-017 already named "post-deploy Luau constant
 generation" as a motivating use case for the programmatic surface.
 
 A harder, related problem sits on top of codegen. A place's `rbxm` is built
-*before* deploy, but a deploy may `create` a provisioned asset and mint a *new*
-ID the build needed to embed. The pre-built artifact therefore cannot contain
-an ID that did not exist when it was built. The common workaround generates
-asset source *after* deploy and commits it back (often via a CI bot), so the new
-ID only reaches the game on a *second* deploy. The two-deploy lag and the
+_before_ deploy, but a deploy may `create` a provisioned asset and mint a _new_
+ID the build needed to embed. The pre-built artifact therefore cannot contain an
+ID that did not exist when it was built. The common workaround generates asset
+source _after_ deploy and commits it back (often via a CI bot), so the new ID
+only reaches the game on a _second_ deploy. The two-deploy lag and the
 load-bearing commit step are the pain this ADR removes.
 
 Key constraints shaping the design:
@@ -40,20 +40,21 @@ Key constraints shaping the design:
   therefore succeed partially, returning an `AggregateApplyError` of survivors
   plus failures. `applyOps` dispatches only non-`noop` ops.
 - A `statePort.write` can itself fail after remote creates succeed; ADR-023
-  defines the resulting orphan-recovery contract (`stateWriteFailed.unsavedState`).
-- The common Roblox shape is one artifact serving several environments, with
-  IDs resolved at runtime; codegen for it must see *all* environments' state.
+  defines the resulting orphan-recovery contract
+  (`stateWriteFailed.unsavedState`).
+- The common Roblox shape is one artifact serving several environments, with IDs
+  resolved at runtime; codegen for it must see _all_ environments' state.
 
 To avoid colliding with ADR-023's apply-level "Phase 1 / Phase 2" (universe vs.
-the rest), this ADR names its two halves the **asset stage** and the
-**republish stage**.
+the rest), this ADR names its two halves the **asset stage** and the **republish
+stage**.
 
 ## Decision
 
 ### Codegen (opt-in, issue #119 proper)
 
-A three-tier opt-in ladder: (1) no codegen — IDs live only in **State**;
-(2) **Codegen** — emit **Outputs** to source files; (3) **Two-phase deploy** —
+A three-tier opt-in ladder: (1) no codegen — IDs live only in **State**; (2)
+**Codegen** — emit **Outputs** to source files; (3) **Two-phase deploy** —
 rebuild and republish a place on top.
 
 When enabled, codegen runs after the asset stage on every deploy. The
@@ -61,17 +62,19 @@ customizable unit is the **Emitter**: a layered API where declarative
 `{ path, language }` yields a working file with no code, and an optional `emit`
 override takes full control of layout. `emit` receives the current state of
 **all declared environments** and returns a list of file descriptors to write,
-each carrying an output `path` and its contents; bedrock writes them. bedrock never commits — the generated file is regenerable from **State**
-and is not on the deploy's critical path.
+each carrying an output `path` and its contents; bedrock writes them. bedrock
+never commits — the generated file is regenerable from **State** and is not on
+the deploy's critical path.
 
-**Cross-environment read.** The environment list comes from `config.environments`.
-`deploy` reads each environment's snapshot via `statePort.read(env)` — fresh for
-the environment being deployed (the in-flight result), last-known for the rest.
-An environment that has never deployed reads `undefined` and is presented to the
-emitter as having no resources; the emitter decides whether to omit it or emit a
-placeholder. This assumes one backend credential can read every environment's
-state (true for the gist backend); a backend that partitions credentials per
-environment would surface only the environments it can read.
+**Cross-environment read.** The environment list comes from
+`config.environments`. `deploy` reads each environment's snapshot via
+`statePort.read(env)` — fresh for the environment being deployed (the in-flight
+result), last-known for the rest. An environment that has never deployed reads
+`undefined` and is presented to the emitter as having no resources; the emitter
+decides whether to omit it or emit a placeholder. This assumes one backend
+credential can read every environment's state (true for the gist backend); a
+backend that partitions credentials per environment would surface only the
+environments it can read.
 
 **Partial asset failure.** Because the asset stage is continue-on-failure,
 codegen emits source only for keys that resolved to real IDs and omits keys
@@ -105,26 +108,26 @@ A two-phase deploy splits the single apply into two:
    state). Returns an array of per-place entries, each carrying the place
    **Key** and its rebuilt artifact.
 5. **Republish stage** — a second `applyOps` over the place ops, using the
-   returned artifact bytes as desired input. A place under `pendingRebuild` whose
-   diff was `noop` is republished via a **synthesized `update` op** injected by
-   `deploy` (its `changedFields` records the forced rebuild), since `applyOps`
-   never dispatches `noop`s.
+   returned artifact bytes as desired input. A place under `pendingRebuild`
+   whose diff was `noop` is republished via a **synthesized `update` op**
+   injected by `deploy` (its `changedFields` records the forced rebuild), since
+   `applyOps` never dispatches `noop`s.
 6. **Final write** — clear the marker for every place the hook actually
    republished and persist place versions.
 
 The **Rebuild hook** is one callback per deploy, receiving post-asset-stage
 state and returning an array of per-place entries, each carrying the place
-**Key** and its rebuilt artifact. bedrock owns the
-orchestration; the hook owns the build. bedrock does not know how to build.
+**Key** and its rebuilt artifact. bedrock owns the orchestration; the hook owns
+the build. bedrock does not know how to build.
 
 ### Failure and convergence
 
 bedrock keeps its existing non-transactional model — there is no all-or-revert.
 Two rules make two-phase safe:
 
-1. **Checkpoint before the risky step.** Asset outputs are persisted *before*
-   the rebuild can fail, narrowing the window for duplicate provisioning. It does
-   not close it: if the checkpoint write itself fails, freshly-minted
+1. **Checkpoint before the risky step.** Asset outputs are persisted _before_
+   the rebuild can fail, narrowing the window for duplicate provisioning. It
+   does not close it: if the checkpoint write itself fails, freshly-minted
    non-idempotent IDs are unpersisted and a retry re-creates them — the same
    orphan window ADR-023 documents, recovered the same way
    (`stateWriteFailed.unsavedState`).
@@ -134,9 +137,10 @@ Two rules make two-phase safe:
    checkpoint and cleared per-place on successful republish, re-activates
    two-phase on retry.
 
-Marker lifecycle: `absent → set at checkpoint → present across codegen +
-rebuild → cleared at final write for each republished place`. On a failed
-rebuild or republish the marker stays set and the deploy returns an error.
+Marker lifecycle:
+`absent → set at checkpoint → present across codegen + rebuild → cleared at final write for each republished place`.
+On a failed rebuild or republish the marker stays set and the deploy returns an
+error.
 
 **Marker present but no rebuild hook** (e.g. a CLI run against a YAML config
 after a hooked run failed) is a **hard error**: the deploy refuses to report
@@ -151,22 +155,23 @@ the next run retries via the marker rather than building against missing IDs.
 
 `pendingRebuild` is bedrock bookkeeping — neither user-declared desired state
 nor Roblox-returned **Outputs**. It is stored as a **list of resource keys in
-the file-level `$bedrock` envelope** (`{ $bedrock: { version, pendingRebuild } }`),
-preserving ADR-019's invariant that the `$bedrock` key is **adapter-private**:
-adapters map it to and from a typed, core-visible `BedrockState.pendingRebuild`
-field, exactly as they already flatten/re-wrap `version`. `ResourceCurrentState`
-is unchanged — no per-resource key, no public per-resource type change. The
-marker is **presence-only** (a key is listed or absent, never a `false`); a
-clean republish removes the key from the list, and the on-disk list is omitted
-when empty so a happy-path state never shows it.
+the file-level `$bedrock` envelope**
+(`{ $bedrock: { version, pendingRebuild } }`), preserving ADR-019's invariant
+that the `$bedrock` key is **adapter-private**: adapters map it to and from a
+typed, core-visible `BedrockState.pendingRebuild` field, exactly as they already
+flatten/re-wrap `version`. `ResourceCurrentState` is unchanged — no per-resource
+key, no public per-resource type change. The marker is **presence-only** (a key
+is listed or absent, never a `false`); a clean republish removes the key from
+the list, and the on-disk list is omitted when empty so a happy-path state never
+shows it.
 
-This is a v1-compatible, optional envelope addition: the existing envelope schema
-ignores unknown `$bedrock` members, so a pre-ADR-026 reader tolerates the field
-(and, not knowing two-phase, simply drops it on its next write — harmless, since
-that binary performs no rebuilds). `serializeStateFile`/`parseStateFile` own the
-`BedrockState.pendingRebuild` ↔ envelope mapping; `mergeResources` is unaffected
-because the marker no longer rides on resource entries. The marker never
-participates in **Drift** — it is not a resource field.
+This is a v1-compatible, optional envelope addition: the existing envelope
+schema ignores unknown `$bedrock` members, so a pre-ADR-026 reader tolerates the
+field (and, not knowing two-phase, simply drops it on its next write — harmless,
+since that binary performs no rebuilds). `serializeStateFile`/`parseStateFile`
+own the `BedrockState.pendingRebuild` ↔ envelope mapping; `mergeResources` is
+unaffected because the marker no longer rides on resource entries. The marker
+never participates in **Drift** — it is not a resource field.
 
 ### Surface
 
@@ -213,8 +218,9 @@ generic image-upload resource kind is out of scope and deferred.
   `$bedrock` envelope gains a `pendingRebuild` list. `serializeStateFile` and
   `parseStateFile` own the mapping; `ResourceCurrentState` and `mergeResources`
   are untouched. v1-compatible.
-- Deploys now perform an intermediate checkpoint `statePort.write` mid-reconcile,
-  so the `stateWriteFailed.unsavedState` contract (ADR-023) applies to two writes.
+- Deploys now perform an intermediate checkpoint `statePort.write`
+  mid-reconcile, so the `stateWriteFailed.unsavedState` contract (ADR-023)
+  applies to two writes.
 - A two-phase deploy invokes `applyOps` twice (asset stage, then republish
   stage) and `deploy` may synthesize an `update` op for a forced republish.
 - Codegen reads every declared environment's state once per deploy where codegen
@@ -259,49 +265,50 @@ ADR-025's `.bedrock/` directory "to implementation time." Settled:
   republish stage feeds rebuilt bytes through the same path.
 - ADR-023 (apply semantics) — phase ordering, continue-on-failure aggregate
   outcome, and the orphan-recovery contract the checkpoint inherits.
-- ADR-024 (redaction) — codegen emits real IDs for redacted resources, and
-  (per ADR-024's 2026-06-23 amendment) the real pre-redaction display values
-  too: the emitter sees each redactable field as `Field<T> = T | { value,
-  redacted }` via `codegenView`, narrowed with `realValue` / `pushedValue` /
-  `isRedacted`. Identity (asset IDs) and now display content both reach the
-  game; only the placeholders ship to Open Cloud.
+- ADR-024 (redaction) — codegen emits real IDs for redacted resources, and (per
+  ADR-024's 2026-06-23 amendment) the real pre-redaction display values too: the
+  emitter sees each redactable field as `Field<T> = T | { value, redacted }` via
+  `codegenView`, narrowed with `realValue` / `pushedValue` / `isRedacted`.
+  Identity (asset IDs) and now display content both reach the game; only the
+  placeholders ship to Open Cloud.
 - ADR-025 (Luau type definitions) — the default Luau emitter and `.d.ts`
   companion relate to the Luau distribution story.
 
 ## Amendment -- 2026-06-23 (real display values for emitters)
 
-Redaction (ADR-024) persists the *pushed* placeholder display values, so an
-emitter reading **State** could not recover the real name, price, or
-description of a redacted resource — only its (never-redacted) asset IDs. The
-real values are now persisted in a diff-ignored `$realDisplay` sibling in the
-state file (ADR-024 / ADR-019 2026-06-23 amendments) and surfaced to the
-emitter through a co-located per-field view: `codegenView(resource,
-realDisplay)` widens each redactable field to `Field<T> = T | { value,
-redacted }`, with exported `realValue` / `pushedValue` / `isRedacted` helpers so
-emitters never hand-narrow the union. The diff path is unchanged and stays
-redaction-blind. The contract is verifiable end-to-end through the `deploy()`
-seam with in-memory fakes (no real disk or network).
+Redaction (ADR-024) persists the _pushed_ placeholder display values, so an
+emitter reading **State** could not recover the real name, price, or description
+of a redacted resource — only its (never-redacted) asset IDs. The real values
+are now persisted in a diff-ignored `$realDisplay` sibling in the state file
+(ADR-024 / ADR-019 2026-06-23 amendments) and surfaced to the emitter through a
+co-located per-field view: `codegenView(resource, realDisplay)` widens each
+redactable field to `Field<T> = T | { value, redacted }`, with exported
+`realValue` / `pushedValue` / `isRedacted` helpers so emitters never hand-narrow
+the union. The diff path is unchanged and stays redaction-blind. The contract is
+verifiable end-to-end through the `deploy()` seam with in-memory fakes (no real
+disk or network).
 
 ## Amendment -- 2026-06-23 (codegen-content fingerprint supersedes the create-only trigger)
 
 The original two-phase trigger (user story 14) rebuilt a place only when the
 diff contained a provisioned `create`. That misses a project that embeds
-*mutable* fields (a price, a name) into the place rather than just IDs: a
+_mutable_ fields (a price, a name) into the place rather than just IDs: a
 price/name `update` is not a `create`, so the pre-built artifact and the
 regenerated source silently diverged until the next provisioning. The
-"last-codegen-hash fingerprint" recorded as deferred in *Considered Options* is
+"last-codegen-hash fingerprint" recorded as deferred in _Considered Options_ is
 now adopted, retiring the create-only trigger.
 
 **What changes.** The rebuild decision moves to **after** codegen. Once codegen
-emits, bedrock hashes the emitted output (`Sha256Hex`) and rebuilds + republishes
-iff that hash differs from a stored fingerprint **or** a `pendingRebuild` marker
-is set; otherwise it publishes the pre-built file. A provisioned `create` changes
-the emitted output, so its hash differs: the create trigger is **subsumed and
-retired**, not duplicated. Because the decision now needs the emitted hash,
-whenever a rebuild hook **and** active codegen are both present the deploy always
-defers place ops past the asset stage: the asset stage mints IDs and persists
-mutable asset fields, codegen regenerates source, then the hash check picks
-republish-rebuilt-bytes vs publish-pre-built-file per place.
+emits, bedrock hashes the emitted output (`Sha256Hex`) and rebuilds +
+republishes iff that hash differs from a stored fingerprint **or** a
+`pendingRebuild` marker is set; otherwise it publishes the pre-built file. A
+provisioned `create` changes the emitted output, so its hash differs: the create
+trigger is **subsumed and retired**, not duplicated. Because the decision now
+needs the emitted hash, whenever a rebuild hook **and** active codegen are both
+present the deploy always defers place ops past the asset stage: the asset stage
+mints IDs and persists mutable asset fields, codegen regenerates source, then
+the hash check picks republish-rebuilt-bytes vs publish-pre-built-file per
+place.
 
 **State.** A single global `codegenHash` is persisted in the adapter-private
 `$bedrock` envelope alongside `pendingRebuild`, diff-ignored (ADR-019 2026-06-23
@@ -312,18 +319,18 @@ same convergence guarantee the marker already provided, now also covering
 mutable-field drift. A clean first deploy has no stored hash, which reads as
 "differs" and rebuilds.
 
-**Trigger now requires codegen.** Two-phase activates only when a rebuild hook is
-supplied **and** codegen is active (or a leftover marker forces a retry). Without
-codegen there is no generated source to fingerprint, so the rebuild hook is inert
-and the deploy publishes the pre-built file in a single pass. This is the
-intended coupling: tier 3 (two-phase) sits on tier 2 (codegen) in the opt-in
+**Trigger now requires codegen.** Two-phase activates only when a rebuild hook
+is supplied **and** codegen is active (or a leftover marker forces a retry).
+Without codegen there is no generated source to fingerprint, so the rebuild hook
+is inert and the deploy publishes the pre-built file in a single pass. This is
+the intended coupling: tier 3 (two-phase) sits on tier 2 (codegen) in the opt-in
 ladder, and a rebuild only has meaning as "recompile against the source codegen
 just rewrote."
 
-**Operational consequence.** Because the rebuild recompiles *after* codegen
-rewrites source, the deploy environment now needs the build toolchain, not just a
-pre-built artifact. A CI job that previously shipped only the `rbxl` must also be
-able to run the project's build.
+**Operational consequence.** Because the rebuild recompiles _after_ codegen
+rewrites source, the deploy environment now needs the build toolchain, not just
+a pre-built artifact. A CI job that previously shipped only the `rbxl` must also
+be able to run the project's build.
 
 The flow stays verifiable end-to-end through the `deploy()` seam with in-memory
 fakes: `deploy.spec` covers the single-pass, fingerprint-rebuild (price/name

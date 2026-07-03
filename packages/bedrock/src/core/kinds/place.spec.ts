@@ -1,6 +1,6 @@
-import { placeCurrent, placeDesired } from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";
 
+import { placeCurrent, placeDesired } from "#tests/helpers/resources";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import { changedPlaceMetadata, placeKind } from "./place.ts";
 

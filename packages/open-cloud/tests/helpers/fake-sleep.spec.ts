@@ -1,6 +1,6 @@
-import type { SleepFunc } from "#src/internal/utils/sleep";
 import { describe, expect, it } from "vitest";
 
+import type { SleepFunc } from "#src/internal/utils/sleep";
 import { createFakeSleep } from "./fake-sleep.ts";
 
 describe(createFakeSleep, () => {

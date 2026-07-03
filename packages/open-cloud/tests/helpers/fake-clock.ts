@@ -1,5 +1,6 @@
-import type { SleepFunc } from "#src/internal/utils/sleep";
 import { onTestFinished, vi } from "vitest";
+
+import type { SleepFunc } from "#src/internal/utils/sleep";
 
 /**
  * A clock test double where sleeping also advances the mocked

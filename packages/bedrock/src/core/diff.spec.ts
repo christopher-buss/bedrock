@@ -1,3 +1,5 @@
+import { assert, describe, expect, it } from "vitest";
+
 import {
 	developerProductCurrent,
 	developerProductDesired,
@@ -9,8 +11,6 @@ import {
 	universeCurrent,
 	universeDesired,
 } from "#tests/helpers/resources";
-import { assert, describe, expect, it } from "vitest";
-
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { diff } from "./diff.ts";
 import { SOCIAL_LINK_FIELDS, UNIVERSE_SINGLETON_KEY } from "./resources.ts";
@@ -119,12 +119,12 @@ describe(diff, () => {
 	it("should preserve desired order and emit the correct op per entry across a mixed batch", () => {
 		expect.assertions(1);
 
-		const createKey = asResourceKey("new-pass");
+		const createdKey = asResourceKey("new-pass");
 		const matchingKey = asResourceKey("matching-pass");
 		const driftedKey = asResourceKey("drifted-pass");
 		const orphanKey = asResourceKey("orphan-pass");
 
-		const desiredCreate = gamePassDesired({ key: createKey, name: "New Pass" });
+		const desiredCreate = gamePassDesired({ key: createdKey, name: "New Pass" });
 		const desiredMatching = gamePassDesired({
 			key: matchingKey,
 			name: "Matching Pass",
@@ -150,7 +150,7 @@ describe(diff, () => {
 		);
 
 		expect(ops).toStrictEqual([
-			{ key: createKey, desired: desiredCreate, type: "create" },
+			{ key: createdKey, desired: desiredCreate, type: "create" },
 			{ key: matchingKey, kind: "gamePass", type: "noop" },
 			{
 				key: driftedKey,

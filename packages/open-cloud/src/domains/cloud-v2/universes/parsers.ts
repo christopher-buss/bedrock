@@ -28,6 +28,12 @@ const AGE_RATING_MAP: Readonly<Record<AgeRatingWire, UniverseAgeRating>> = {
 
 const MALFORMED_MESSAGE = "Malformed universe response";
 
+const UNIVERSE_PATH_PATTERN = /^universes\/(\d+)$/;
+
+const ROOT_PLACE_PATH_PATTERN = /\/places\/(\d+)$/;
+
+const OWNER_PATH_PATTERN = /^(?:users|groups)\/(\d+)$/;
+
 interface ToUniverseArgs {
 	readonly id: string;
 	readonly body: UniverseWire;
@@ -54,7 +60,7 @@ export function parseUniverseResponse(response: HttpResponse): Result<Universe, 
 		return malformed(statusCode);
 	}
 
-	const idMatch = /^universes\/(\d+)$/.exec(body.path);
+	const idMatch = UNIVERSE_PATH_PATTERN.exec(body.path);
 	const id = idMatch?.[1];
 	if (id === undefined) {
 		return malformed(statusCode);
@@ -75,7 +81,7 @@ function extractRootPlaceId(rootPlace: string | undefined): string | undefined {
 		return undefined;
 	}
 
-	const match = /\/places\/(\d+)$/.exec(rootPlace);
+	const match = ROOT_PLACE_PATH_PATTERN.exec(rootPlace);
 	return match?.[1];
 }
 
@@ -195,7 +201,7 @@ function isUniverseWire(body: unknown): body is UniverseWire {
 }
 
 function extractOwnerId(resourcePath: string): string | undefined {
-	const match = /^(?:users|groups)\/(\d+)$/.exec(resourcePath);
+	const match = OWNER_PATH_PATTERN.exec(resourcePath);
 	return match?.[1];
 }
 

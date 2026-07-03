@@ -147,8 +147,8 @@ function parseResource(value: unknown): MantleResource {
 	const outputsRaw = resource["outputs"];
 	const outputs = isObjectPayload(outputsRaw) ? stripNulls(outputsRaw[kind]) : undefined;
 
-	const dependencies = expectArray(resource["dependencies"]).map((dep) => {
-		return expectString(dep, "dependency");
+	const dependencies = expectArray(resource["dependencies"]).map((dependency) => {
+		return expectString(dependency, "dependency");
 	});
 
 	return { key, dependencies, inputs, kind, outputs };

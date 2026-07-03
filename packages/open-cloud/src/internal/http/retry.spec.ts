@@ -1,7 +1,7 @@
-import { CodedError } from "#tests/helpers/coded-error";
-import { makeRetryConfig } from "#tests/helpers/retry-config";
 import { describe, expect, it, vi } from "vitest";
 
+import { CodedError } from "#tests/helpers/coded-error";
+import { makeRetryConfig } from "#tests/helpers/retry-config";
 import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";

@@ -1,6 +1,6 @@
-import type { UpdateGamePassParameters } from "#src/domains/game-passes/game-passes/types";
 import { assert, describe, expect, expectTypeOf, it } from "vitest";
 
+import type { UpdateGamePassParameters } from "#src/domains/game-passes/game-passes/types";
 import { getOpenApiDocument, isRecord } from "./_helpers.ts";
 
 /**

@@ -29,8 +29,10 @@ export function buildSidebarFromNavigation(
 	return nav.flatMap((item) => toSidebarItem(item, basePath) ?? []);
 }
 
+const PAGE_EXTENSION_PATTERN = /\.(?:md|html)$/u;
+
 function toLink(path: string, basePath: string): string {
-	return basePath + path.replace(/\.(?:md|html)$/u, "");
+	return basePath + path.replace(PAGE_EXTENSION_PATTERN, "");
 }
 
 function toSidebarItem(

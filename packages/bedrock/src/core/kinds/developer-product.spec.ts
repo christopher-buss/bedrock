@@ -1,12 +1,12 @@
+import { ArkErrors } from "arktype";
+import { assert, describe, expect, it } from "vitest";
+
 import {
 	developerProductCurrent,
 	developerProductDesired,
 	INVALID_ROBUX_PRICES,
 	ValidDeveloperProductEntry,
 } from "#tests/helpers/resources";
-import { ArkErrors } from "arktype";
-import { assert, describe, expect, it } from "vitest";
-
 import { asResourceKey, asSha256Hex } from "../../types/ids.ts";
 import { developerProductKind } from "./developer-product.ts";
 

@@ -3,6 +3,10 @@ cleanupUnusedCatalogs: true
 enablePrePostScripts: true
 ignoreWorkspaceRootCheck: true
 
+minimumReleaseAgeExclude:
+  - "@isentinel/eslint-config@6.0.0-beta.2"
+  - eslint-plugin-flawless@0.1.6
+
 publicHoistPattern:
   - "@typescript/*"
 
@@ -14,16 +18,18 @@ trustPolicyExclude:
   - semver@6.3.1
   - chokidar@4.0.3
 
+trustPolicyIgnoreAfter: 10080 # 7 days
+
 packages:
   - packages/*
   - apps/*
   - scripts/*
 
 overrides:
-  "@typescript-eslint/eslint-plugin": 8.62.0
-  "@typescript-eslint/parser": 8.62.0
-  "@typescript-eslint/type-utils": 8.62.0
-  "@typescript-eslint/utils": 8.62.0
+  "@typescript-eslint/eslint-plugin": 8.62.1
+  "@typescript-eslint/parser": 8.62.1
+  "@typescript-eslint/type-utils": 8.62.1
+  "@typescript-eslint/utils": 8.62.1
   vite: npm:@voidzero-dev/vite-plus-core@0.2.1
 
 patchedDependencies:
@@ -61,11 +67,11 @@ catalogs:
     "@commitlint/prompt-cli": 21.1.0
     "@commitlint/types": 21.1.0
     "@eslint/config-inspector": 3.0.4
-    "@isentinel/eslint-config": 5.0.0-beta.11
+    "@isentinel/eslint-config": 6.0.0-beta.2
     "@isentinel/hooks": 1.5.2
-    "@typescript-eslint/parser": 8.62.0
+    "@typescript-eslint/parser": 8.62.1
     "@vitest/eslint-plugin": 1.6.20
-    eslint: 9.39.2
+    eslint: 10.6.0
     eslint-merge-processors: 2.0.0
     eslint-plugin-erasable-syntax-only: 0.4.2
     eslint-plugin-jest-extended: 3.0.1
@@ -120,5 +126,3 @@ allowBuilds:
   "@parcel/watcher": true
   esbuild: true
   msgpackr-extract: true
-
-trustPolicyIgnoreAfter: 10080 # 7 days

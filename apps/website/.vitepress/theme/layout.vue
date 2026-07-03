@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import DefaultTheme from "vitepress/theme";
 import { useData } from "vitepress";
+import DefaultTheme from "vitepress/theme";
 
 import HomeLanding from "./home-landing.vue";
 

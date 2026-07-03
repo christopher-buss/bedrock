@@ -1,7 +1,6 @@
 import type { OpenCloudError } from "#src/errors/base";
 import type { HttpRequest, HttpResponse, RequestConfig } from "#src/internal/http/types";
 import type { Result } from "#src/types";
-
 import {
 	createFakeHttpClient as createLiteFakeHttpClient,
 	type FakeHttpClient as LiteFakeHttpClient,

@@ -1,8 +1,8 @@
 # Errors
 
-Ocale never throws from client methods; errors come back inside a `Result`.
-All error classes extend `OpenCloudError`, so `instanceof OpenCloudError` will
-catch anything the SDK produces.
+Ocale never throws from client methods; errors come back inside a `Result`. All
+error classes extend `OpenCloudError`, so `instanceof OpenCloudError` will catch
+anything the SDK produces.
 
 ## Hierarchy
 

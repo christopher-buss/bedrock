@@ -1,6 +1,6 @@
-import { PLATFORM_FLAG_ROWS } from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";
 
+import { PLATFORM_FLAG_ROWS } from "#tests/helpers/resources";
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import { flattenConfig } from "./flatten.ts";
 import { SOCIAL_LINK_FIELDS, UNIVERSE_SINGLETON_KEY } from "./resources.ts";

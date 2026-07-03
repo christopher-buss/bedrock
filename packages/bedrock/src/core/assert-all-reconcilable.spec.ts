@@ -1,11 +1,11 @@
+import { assert, describe, expect, it } from "vitest";
+
 import {
 	developerProductCurrent,
 	developerProductDesired,
 	gamePassCurrent,
 	gamePassDesired,
 } from "#tests/helpers/resources";
-import { assert, describe, expect, it } from "vitest";
-
 import { asResourceKey, asSha256Hex } from "../types/ids.ts";
 import { assertAllReconcilable } from "./assert-all-reconcilable.ts";
 

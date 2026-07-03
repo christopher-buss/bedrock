@@ -164,7 +164,7 @@ interface CodegenBundle {
 	readonly writer: CodegenWriterPort;
 }
 
-interface ResolvedDepsBase {
+interface ResolvedDependenciesBase {
 	readonly clearPendingRebuild: boolean;
 	readonly codegen: CodegenBundle | undefined;
 	readonly config: ResolvedConfig;
@@ -175,7 +175,7 @@ interface ResolvedDepsBase {
 	readonly statePort: StatePort;
 }
 
-interface ResolvedDeps extends ResolvedDepsBase {
+interface ResolvedDependencies extends ResolvedDependenciesBase {
 	readonly progress: ProgressPort;
 }
 
@@ -192,7 +192,7 @@ interface EmitTerminalEventInputs {
 }
 
 interface SinglePassInputs {
-	readonly deps: ResolvedDeps;
+	readonly deps: ResolvedDependencies;
 	readonly environment: string;
 	readonly ops: ReadonlyArray<Operation>;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
@@ -200,7 +200,7 @@ interface SinglePassInputs {
 }
 
 interface TwoPhaseInputs {
-	readonly deps: ResolvedDeps;
+	readonly deps: ResolvedDependencies;
 	readonly desired: ReadonlyArray<ResourceDesiredState>;
 	readonly environment: string;
 	readonly marker: ReadonlySet<ResourceKey>;
@@ -216,7 +216,7 @@ interface CompleteTwoPhaseInputs extends TwoPhaseInputs {
 }
 
 interface AssetStageInputs {
-	readonly deps: ResolvedDeps;
+	readonly deps: ResolvedDependencies;
 	readonly environment: string;
 	readonly markPlaces: ReadonlyArray<ResourceKey>;
 	readonly ops: ReadonlyArray<Operation>;
@@ -228,7 +228,7 @@ interface PublishStageInputs {
 	readonly assetPass: ReconcilePass;
 	readonly codegen: Result<Sha256Hex, CodegenError> | undefined;
 	readonly codegenHash: Sha256Hex | undefined;
-	readonly deps: ResolvedDeps;
+	readonly deps: ResolvedDependencies;
 	readonly environment: string;
 	readonly placeOps: ReadonlyArray<Operation>;
 }
@@ -236,14 +236,14 @@ interface PublishStageInputs {
 interface RepublishStageInputs {
 	readonly assetPass: ReconcilePass;
 	readonly codegenHash: Sha256Hex | undefined;
-	readonly deps: ResolvedDeps;
+	readonly deps: ResolvedDependencies;
 	readonly desiredPlaces: ReadonlyArray<PlaceDesiredState>;
 	readonly environment: string;
 	readonly rebuilt: ReadonlyArray<RebuiltPlace>;
 }
 
 /** Driven dependencies picked from environment and config once the effective config resolves. */
-interface DrivenDeps {
+interface DrivenDependencies {
 	readonly codegen: CodegenBundle | undefined;
 	readonly registry: DriverRegistry;
 	readonly statePort: StatePort;
@@ -458,7 +458,9 @@ function pickCodegen(
 	return { data: { emit, writer }, success: true };
 }
 
-function pickDrivenDeps(inputs: PickRegistryInputs): Result<DrivenDeps, DeployError> {
+function pickDrivenDependencies(
+	inputs: PickRegistryInputs,
+): Result<DrivenDependencies, DeployError> {
 	const { config, options, readFile } = inputs;
 	const statePort = pickStatePort(options, config);
 	if (!statePort.success) {
@@ -481,14 +483,16 @@ function pickDrivenDeps(inputs: PickRegistryInputs): Result<DrivenDeps, DeployEr
 	};
 }
 
-async function resolveDeps(options: DeployOptions): Promise<Result<ResolvedDepsBase, DeployError>> {
+async function resolveDependencies(
+	options: DeployOptions,
+): Promise<Result<ResolvedDependenciesBase, DeployError>> {
 	const base = await resolveEffectiveConfig(options);
 	if (!base.success) {
 		return base;
 	}
 
 	const { effective, readFile, realDisplay } = base.data;
-	const driven = pickDrivenDeps({ config: effective, options, readFile });
+	const driven = pickDrivenDependencies({ config: effective, options, readFile });
 	if (!driven.success) {
 		return driven;
 	}
@@ -536,19 +540,19 @@ function finalize(
 }
 
 async function runCodegenStage(
-	deps: ResolvedDeps,
+	dependencies: ResolvedDependencies,
 	pass: ReconcilePass,
 ): Promise<Result<Sha256Hex, CodegenError> | undefined> {
-	if (!pass.written.success || deps.codegen === undefined) {
+	if (!pass.written.success || dependencies.codegen === undefined) {
 		return undefined;
 	}
 
 	return runCodegen({
 		deployedState: pass.merged,
-		emit: deps.codegen.emit,
-		environments: Object.keys(deps.config.environments),
-		statePort: deps.statePort,
-		writer: deps.codegen.writer,
+		emit: dependencies.codegen.emit,
+		environments: Object.keys(dependencies.config.environments),
+		statePort: dependencies.statePort,
+		writer: dependencies.codegen.writer,
 	});
 }
 
@@ -730,14 +734,14 @@ async function runTwoPhase(inputs: TwoPhaseInputs): Promise<Result<BedrockState,
 
 async function loadReconcileInputs(
 	environment: string,
-	deps: ResolvedDeps,
+	dependencies: ResolvedDependencies,
 ): Promise<Result<ReconcileInputs, DeployError>> {
-	const desired = await buildDesired(flattenConfig(deps.config), deps.readFile);
+	const desired = await buildDesired(flattenConfig(dependencies.config), dependencies.readFile);
 	if (!desired.success) {
 		return { err: { cause: desired.err, kind: "buildDesiredFailed" }, success: false };
 	}
 
-	const prior = await deps.statePort.read(environment);
+	const prior = await dependencies.statePort.read(environment);
 	if (!prior.success) {
 		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
 	}
@@ -778,15 +782,15 @@ function markerWithoutHookError(inputs: {
 
 async function runReconcile(
 	environment: string,
-	deps: ResolvedDeps,
+	dependencies: ResolvedDependencies,
 ): Promise<Result<BedrockState, DeployError>> {
-	const loaded = await loadReconcileInputs(environment, deps);
+	const loaded = await loadReconcileInputs(environment, dependencies);
 	if (!loaded.success) {
 		return loaded;
 	}
 
 	const { desired, ops, owedRebuild, priorResources, storedHash } = loaded.data;
-	const { clearPendingRebuild: shouldClearMarker, codegen, rebuild } = deps;
+	const { clearPendingRebuild: shouldClearMarker, codegen, rebuild } = dependencies;
 
 	const owedError = markerWithoutHookError({ owedRebuild, rebuild, shouldClearMarker });
 	if (owedError !== undefined) {
@@ -800,11 +804,11 @@ async function runReconcile(
 	// codegen there is no generated source to fingerprint, so a rebuild hook is
 	// inert and the deploy publishes the pre-built file in a single pass.
 	if (rebuild === undefined || (codegen === undefined && marker.size === 0)) {
-		return runSinglePass({ deps, environment, ops, priorResources, storedHash });
+		return runSinglePass({ deps: dependencies, environment, ops, priorResources, storedHash });
 	}
 
 	return runTwoPhase({
-		deps,
+		deps: dependencies,
 		desired,
 		environment,
 		marker,
@@ -819,7 +823,7 @@ async function runDeploy(
 	options: DeployOptions,
 	progress: ProgressPort,
 ): Promise<Result<BedrockState, DeployError>> {
-	const resolved = await resolveDeps(options);
+	const resolved = await resolveDependencies(options);
 	if (!resolved.success) {
 		return resolved;
 	}
@@ -853,7 +857,7 @@ async function runAndEmit(
 async function runWithDeferredClackProgress(
 	options: DeployOptions,
 ): Promise<Result<BedrockState, DeployError>> {
-	const resolved = await resolveDeps(options);
+	const resolved = await resolveDependencies(options);
 	const labelConfig = resolved.success ? resolved.data.config : options.config;
 	const progress = createDefaultProgressAdapter(labelConfig);
 

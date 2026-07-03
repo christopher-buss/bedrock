@@ -13,7 +13,7 @@ function place(key: string, inputs: unknown): MantleResource {
 	};
 }
 
-function placeConfiguration(key: string, inputs: unknown): MantleResource {
+function placeConfig(key: string, inputs: unknown): MantleResource {
 	return {
 		key,
 		dependencies: [],
@@ -29,8 +29,8 @@ describe(foldDisplayName, () => {
 
 		const result = foldDisplayName([
 			place("start", { isStart: true }),
-			placeConfiguration("start", { name: "Earlier" }),
-			placeConfiguration("start", { name: "Later" }),
+			placeConfig("start", { name: "Earlier" }),
+			placeConfig("start", { name: "Later" }),
 		]);
 
 		assert(result.entryFragment.displayName === "Later");
@@ -42,9 +42,9 @@ describe(foldDisplayName, () => {
 		expect.assertions(1);
 
 		const result = foldDisplayName([
-			placeConfiguration("start", { name: "Start" }),
+			placeConfig("start", { name: "Start" }),
 			place("start", { isStart: true }),
-			placeConfiguration("lobby", { name: "Lobby" }),
+			placeConfig("lobby", { name: "Lobby" }),
 			place("lobby", { isStart: false }),
 		]);
 

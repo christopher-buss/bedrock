@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	type ActionIo,
-	type CommitBackActionDeps,
+	type CommitBackActionDeps as CommitBackActionDependencies,
 	executeCommitBackAction,
 	resolveActionConfig,
 	runCommitBackAction,
@@ -10,7 +10,7 @@ import {
 import type { GitExec, GitResult } from "./git.ts";
 
 interface Harness {
-	deps: CommitBackActionDeps;
+	deps: CommitBackActionDependencies;
 	gitCalls: Array<ReadonlyArray<string>>;
 	outputs: Record<string, string>;
 }
@@ -135,7 +135,7 @@ describe(runCommitBackAction, () => {
 		expect.assertions(2);
 
 		const { deps } = harness();
-		const failing: CommitBackActionDeps = {
+		const failing: CommitBackActionDependencies = {
 			...deps,
 			git: async (args) => {
 				return args[0] === "remote"

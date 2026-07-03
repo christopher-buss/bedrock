@@ -12,7 +12,7 @@ interface SpawnResult {
 
 type SpawnFunc = (command: string, args: ReadonlyArray<string>) => SpawnResult;
 
-interface RunDeps {
+interface RunDependencies {
 	readonly cwd: string;
 	readonly env: NodeJS.ProcessEnv;
 	readonly platform: NodeJS.Platform;
@@ -206,16 +206,16 @@ function createWorktree(spawn: SpawnFunc, binary: string, name: string): string 
 	return path;
 }
 
-function runWorktreeCreate(deps: RunDeps): RunResult {
-	const name = parseName(deps.stdin);
+function runWorktreeCreate(dependencies: RunDependencies): RunResult {
+	const name = parseName(dependencies.stdin);
 	if (name === undefined) {
 		console.error("worktree-create: missing `name` in stdin payload");
 		return { code: 1 };
 	}
 
-	const projectDirectory = resolveProjectDirectory(deps.env, deps.cwd);
-	const binary = worktrunkBinary(deps.platform);
-	const path = createWorktree(deps.spawn(projectDirectory), binary, name);
+	const projectDirectory = resolveProjectDirectory(dependencies.env, dependencies.cwd);
+	const binary = worktrunkBinary(dependencies.platform);
+	const path = createWorktree(dependencies.spawn(projectDirectory), binary, name);
 	if (path === undefined) {
 		return { code: 1 };
 	}

@@ -1,6 +1,6 @@
-import type { EnqueueQueueItemParameters } from "#src/domains/cloud-v2/memory-store-queues/types";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
+import type { EnqueueQueueItemParameters } from "#src/domains/cloud-v2/memory-store-queues/types";
 import { listWritablePropertyNames } from "./_helpers.ts";
 
 /**

@@ -153,7 +153,7 @@ function detectFormat(filePath: string): "rbxl" | "rbxlx" | undefined {
 }
 
 async function publishVersion(
-	deps: PlaceDriverDeps,
+	dependencies: PlaceDriverDeps,
 	inputs: { readonly artifact: Uint8Array | undefined; readonly desired: PlaceDesiredState },
 ): Promise<Result<PlaceOutputs, OpenCloudError>> {
 	const { artifact, desired } = inputs;
@@ -168,33 +168,33 @@ async function publishVersion(
 		};
 	}
 
-	const body = artifact ?? (await deps.readFile(desired.filePath));
-	return deps.client.publish({
+	const body = artifact ?? (await dependencies.readFile(desired.filePath));
+	return dependencies.client.publish({
 		// Narrows `Uint8Array<ArrayBufferLike>` to `Uint8Array<ArrayBuffer>`
 		// so the ocale wire type rejects SharedArrayBuffer at the call site.
 		body: Uint8Array.from(body),
 		format,
 		placeId: desired.placeId,
-		universeId: deps.universeId,
+		universeId: dependencies.universeId,
 	});
 }
 
 async function publishPlace(
-	deps: PlaceDriverDeps,
+	dependencies: PlaceDriverDeps,
 	inputs: PublishInputs,
 ): Promise<Result<ResourceCurrentState<"place">, OpenCloudError>> {
 	const { artifact, current, desired } = inputs;
-	const publishResult = await publishVersion(deps, { artifact, desired });
+	const publishResult = await publishVersion(dependencies, { artifact, desired });
 	if (!publishResult.success) {
 		return publishResult;
 	}
 
 	const metadata = changedPlaceMetadata(desired, current);
 	if (Object.keys(metadata).length > 0) {
-		const metadataResult = await deps.client.update({
+		const metadataResult = await dependencies.client.update({
 			...metadata,
 			placeId: desired.placeId,
-			universeId: deps.universeId,
+			universeId: dependencies.universeId,
 		});
 		if (!metadataResult.success) {
 			return metadataResult;

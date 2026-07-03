@@ -2,12 +2,15 @@ import { ApiError } from "@bedrock-rbx/ocale";
 import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
 import { createFakeHttpClient, validGamePassBody } from "@bedrock-rbx/ocale/testing";
 
-import { gamePassCurrent, gamePassDesired } from "#tests/helpers/resources";
 import type { Except } from "type-fest";
 import { assert, describe, expect, it } from "vitest";
 
+import { gamePassCurrent, gamePassDesired } from "#tests/helpers/resources";
 import { asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
-import { createGamePassDriver, type GamePassDriverDeps } from "./game-pass-driver.ts";
+import {
+	createGamePassDriver,
+	type GamePassDriverDeps as GamePassDriverDependencies,
+} from "./game-pass-driver.ts";
 
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
 const ICON_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
@@ -23,7 +26,7 @@ const WIRE_BODY = validGamePassBody({
 	priceInformation: { defaultPriceInRobux: 500, enabledFeatures: [] },
 });
 
-function makeDriver(overrides?: Partial<Except<GamePassDriverDeps, "client">>) {
+function makeDriver(overrides?: Partial<Except<GamePassDriverDependencies, "client">>) {
 	const http = createFakeHttpClient();
 	const driver = createGamePassDriver({
 		client: new GamePassesClient({

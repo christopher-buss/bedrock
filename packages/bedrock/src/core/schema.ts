@@ -1237,7 +1237,7 @@ export function validateConfig(input: unknown, sourceFile: string): Result<Confi
 		const issues = Array.from(validated, (issue) => {
 			return {
 				message: issue.message,
-				path: [...issue.path].map((segment) => String(segment)),
+				path: Array.from(issue.path, (segment) => String(segment)),
 			};
 		});
 

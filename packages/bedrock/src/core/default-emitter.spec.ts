@@ -1,6 +1,6 @@
-import { developerProductCurrent, gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
 import { assert, describe, expect, it } from "vitest";
 
+import { developerProductCurrent, gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
 import { asResourceKey, asRobloxAssetId } from "../types/ids.ts";
 import type { CodegenFile, EmitInput } from "./codegen.ts";
 import {

@@ -1,6 +1,6 @@
-import type { UpdateUniverseParameters } from "#src/domains/cloud-v2/universes/types";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
+import type { UpdateUniverseParameters } from "#src/domains/cloud-v2/universes/types";
 import { listWritablePropertyNames } from "./_helpers.ts";
 
 /**

@@ -1,6 +1,6 @@
-import { CodedError } from "#tests/helpers/coded-error";
 import { describe, expect, it } from "vitest";
 
+import { CodedError } from "#tests/helpers/coded-error";
 import { findErrorCode, isTimeoutAbort } from "./find-error-code.ts";
 
 describe(findErrorCode, () => {

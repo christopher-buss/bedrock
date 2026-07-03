@@ -1,7 +1,7 @@
-import { PLATFORM_FLAG_ROWS, universeCurrent, universeDesired } from "#tests/helpers/resources";
 import { ArkErrors } from "arktype";
 import { assert, describe, expect, it } from "vitest";
 
+import { PLATFORM_FLAG_ROWS, universeCurrent, universeDesired } from "#tests/helpers/resources";
 import { asRobloxAssetId } from "../../types/ids.ts";
 import { SOCIAL_LINK_FIELDS, UNIVERSE_SINGLETON_KEY } from "../resources.ts";
 import { changedUniverseFields, universeKind } from "./universe.ts";

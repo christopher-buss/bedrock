@@ -34,7 +34,7 @@ export interface LoadConfigOptions {
 	readonly cwd?: string;
 }
 
-interface LoadConfigDeps {
+interface LoadConfigDependencies {
 	readonly evaluator: LuauEvaluator;
 }
 
@@ -56,7 +56,7 @@ interface LuauResolveResult {
  * @returns Same `Result<Config, ConfigError>` shape as `loadConfig`.
  */
 export async function loadConfigWith(
-	deps: LoadConfigDeps,
+	deps: LoadConfigDependencies,
 	options?: LoadConfigOptions,
 ): Promise<Result<Config, ConfigError>> {
 	const cwd = options?.cwd ?? process.cwd();
@@ -219,7 +219,7 @@ interface PickLuauTargetContext {
 	readonly cwd: string;
 }
 
-interface LuauResolverDeps {
+interface LuauResolverDependencies {
 	readonly callerConfigFile: string | undefined;
 	readonly defaultCwd: string;
 	readonly evaluator: LuauEvaluator;
@@ -317,19 +317,22 @@ function evaluationErrorToConfigError(err: LuauEvaluationError, sourceFile: stri
 }
 
 function makeLuauResolver(
-	deps: LuauResolverDeps,
+	dependencies: LuauResolverDependencies,
 ): (
 	source: string,
 	c12Options: { readonly cwd?: string },
 ) => Promise<LuauResolveResult | undefined> {
 	return async (source, c12Options) => {
-		const cwd = c12Options.cwd ?? deps.defaultCwd;
-		const luauPath = pickLuauTarget(source, { callerConfigFile: deps.callerConfigFile, cwd });
+		const cwd = c12Options.cwd ?? dependencies.defaultCwd;
+		const luauPath = pickLuauTarget(source, {
+			callerConfigFile: dependencies.callerConfigFile,
+			cwd,
+		});
 		if (luauPath === undefined) {
 			return;
 		}
 
-		const result = await deps.evaluator(luauPath);
+		const result = await dependencies.evaluator(luauPath);
 		if (!result.success) {
 			throw new EvaluatorThrow(evaluationErrorToConfigError(result.err, luauPath));
 		}

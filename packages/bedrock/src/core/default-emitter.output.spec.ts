@@ -1,11 +1,5 @@
 import { HAS_LUTE } from "@bedrock-rbx/testing/lute";
 
-import {
-	developerProductCurrent,
-	gamePassCurrent,
-	placeCurrent,
-	universeCurrent,
-} from "#tests/helpers/resources";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -13,6 +7,12 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { assert, describe, expect, it } from "vitest";
 
+import {
+	developerProductCurrent,
+	gamePassCurrent,
+	placeCurrent,
+	universeCurrent,
+} from "#tests/helpers/resources";
 import { createLuteLuauEvaluator } from "../adapters/lute-luau-evaluator.ts";
 import { asRobloxAssetId } from "../types/ids.ts";
 import type { CodegenFile, EmitInput } from "./codegen.ts";

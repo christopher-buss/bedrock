@@ -54,7 +54,7 @@ export function foldBlockedExperienceFields(
 ): FoldFragment {
 	return {
 		entryFragment: {},
-		warnings: [...configurationWarnings(resources), ...groupIdWarnings(resources)],
+		warnings: [...configWarnings(resources), ...groupIdWarnings(resources)],
 	};
 }
 
@@ -91,9 +91,7 @@ function avatarFieldWarnings(inputs: Record<string, unknown>): ReadonlyArray<Mig
 		);
 }
 
-function configurationWarnings(
-	resources: ReadonlyArray<MantleResource>,
-): ReadonlyArray<MigrationWarning> {
+function configWarnings(resources: ReadonlyArray<MantleResource>): ReadonlyArray<MigrationWarning> {
 	const config = resources.find((resource) => resource.kind === EXPERIENCE_CONFIGURATION_KIND);
 	if (config === undefined || !isObjectPayload(config.inputs)) {
 		return [];

@@ -1,3 +1,5 @@
+import { assert, describe, expect, it } from "vitest";
+
 import { parseListLogsResponse } from "#src/domains/cloud-v2/luau-execution-task-logs/parsers";
 import { parseDequeueResponse } from "#src/domains/cloud-v2/memory-store-queues/parsers";
 import { parseListResponse as parseSortedMapListResponse } from "#src/domains/cloud-v2/memory-store-sorted-maps/parsers";
@@ -6,8 +8,6 @@ import { validListGamePassesBody } from "#tests/helpers/game-passes";
 import { validLogPageBody } from "#tests/helpers/luau-execution-task-logs";
 import { validDequeueBody } from "#tests/helpers/memory-store-queues";
 import { validListSortedMapItemsBody } from "#tests/helpers/memory-store-sorted-maps";
-import { assert, describe, expect, it } from "vitest";
-
 import { getOpenApiDocument, isRecord } from "./_helpers.ts";
 
 /**
@@ -110,7 +110,7 @@ describe("list-response parsers align with OpenAPI optionality", () => {
 			const specOptional = schema.properties.filter((name) => !required.has(name));
 			const declared = [...pin.acceptsMissingOrNull, ...Object.keys(pin.stricterThanSpec)];
 
-			expect([...specOptional].sort()).toStrictEqual([...declared].sort());
+			expect(specOptional.toSorted()).toStrictEqual(declared.toSorted());
 		},
 	);
 

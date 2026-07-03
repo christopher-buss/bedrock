@@ -2,18 +2,21 @@ import { dirname, join, resolve } from "node:path";
 import { assert, describe, expect, it, vi } from "vitest";
 
 import type { CodegenFile } from "../core/codegen.ts";
-import { createFsCodegenWriter, type FsCodegenWriterDeps } from "./fs-codegen-writer.ts";
+import {
+	createFsCodegenWriter,
+	type FsCodegenWriterDeps as FsCodegenWriterDependencies,
+} from "./fs-codegen-writer.ts";
 
 const OUTPUT_DIR = join("src", "generated");
 const FILE: CodegenFile = { content: "return {}\n", path: join("ids", "passes.luau") };
 
-function fakeMkdir(): FsCodegenWriterDeps["mkdir"] {
+function fakeMkdir(): FsCodegenWriterDependencies["mkdir"] {
 	return vi.fn<(path: string, options: { readonly recursive: true }) => Promise<undefined>>(
 		async () => {},
 	);
 }
 
-function fakeWriteFile(): FsCodegenWriterDeps["writeFile"] {
+function fakeWriteFile(): FsCodegenWriterDependencies["writeFile"] {
 	return vi.fn<(path: string, data: string) => Promise<void>>(async () => {});
 }
 

@@ -1,6 +1,6 @@
-import { developerProductDesired } from "#tests/helpers/resources";
 import { describe, expect, it } from "vitest";
 
+import { developerProductDesired } from "#tests/helpers/resources";
 import { planFollowUpPatch } from "./plan-follow-up-patch.ts";
 
 describe(planFollowUpPatch, () => {

@@ -1,14 +1,14 @@
 # ADR-015: Mutation Testing with StrykerJS
 
-**Date:** 2026-04-16  **Status:** Accepted
+**Date:** 2026-04-16 **Status:** Accepted
 
 Decision Makers: Maintainer  
 Tags: testing, quality, developer-workflow, mutation-testing, stryker
 
 ## Context
 
-Bedrock mandates 100% code coverage (ADR-003). Coverage proves tests *execute*
-every line — it does not prove they *assert meaningfully* on the behavior those
+Bedrock mandates 100% code coverage (ADR-003). Coverage proves tests _execute_
+every line — it does not prove they _assert meaningfully_ on the behavior those
 lines implement. Tests can satisfy coverage thresholds while checking nothing
 consequential: a test that calls a function and discards the return value covers
 the line but cannot kill a mutant that changes what the function returns. This
@@ -29,11 +29,11 @@ no in-band solution.
 
 The decision to adopt StrykerJS also surfaces a secondary structural issue:
 `packages/vite-config` currently exports a `vitest-setup` entry
-(`src/jest-extended.ts`) that registers jest-extended matchers at runtime.
-This is test runtime behavior — not a Vite or Vitest configuration object —
-and does not belong in a package named `vite-config`. The natural home for
-both the shared Stryker config and the migrated `jest-extended.ts` setup is a
-dedicated `@bedrock-rbx/testing` package.
+(`src/jest-extended.ts`) that registers jest-extended matchers at runtime. This
+is test runtime behavior — not a Vite or Vitest configuration object — and does
+not belong in a package named `vite-config`. The natural home for both the
+shared Stryker config and the migrated `jest-extended.ts` setup is a dedicated
+`@bedrock-rbx/testing` package.
 
 ### Stryker technical facts relevant to this decision
 
@@ -58,18 +58,19 @@ dedicated `@bedrock-rbx/testing` package.
 
 Adopt **StrykerJS with `@stryker-mutator/vitest-runner`** for mutation testing,
 scoped to `packages/open-cloud` initially. The first PR adds Stryker with
-local-only invocation via `pnpm mutate:changed`. Adding CI is a normal
-follow-up PR and does not require a new ADR — it is scope sequencing, not an
-architectural change excluded by this decision.
+local-only invocation via `pnpm mutate:changed`. Adding CI is a normal follow-up
+PR and does not require a new ADR — it is scope sequencing, not an architectural
+change excluded by this decision.
 
 Concretely:
 
 - **New package `@bedrock-rbx/testing`** (`packages/testing/`): shared home for
   test-adjacent concerns. Structured as TypeScript source with no build step,
   following the pattern of `@bedrock-rbx/vite-config`. Initial contents:
-  - `src/jest-extended.ts` — migrated from `packages/vite-config/src/jest-extended.ts`.
-    Registers jest-extended matchers on Vitest's `expect`. Consumers update
-    their `setupFiles` import from `@bedrock-rbx/vite-config/vitest-setup` to
+  - `src/jest-extended.ts` — migrated from
+    `packages/vite-config/src/jest-extended.ts`. Registers jest-extended
+    matchers on Vitest's `expect`. Consumers update their `setupFiles` import
+    from `@bedrock-rbx/vite-config/vitest-setup` to
     `@bedrock-rbx/testing/jest-extended`.
   - `src/stryker.ts` — shared Stryker configuration, extended by per-package
     `stryker.config.ts` files.
@@ -78,18 +79,20 @@ Concretely:
   `src/jest-extended.ts` file. Vite-config retains only Vite and Vitest
   configuration objects.
 - **Wrapper script**: `scripts/mutate-changed.ts` at repo root. Derives changed
-  line ranges from `git diff HEAD`, constructs `--mutate "path:L1-L2"` arguments,
-  and invokes Stryker. Hard-errors on unexpected conditions (new files with no
-  prior HEAD, renames, binary files). No fallback to full-package mutation —
-  loud failure is preferred so issues surface immediately. Minimizes surface
-  area: only line-range derivation; all mutation logic remains in Stryker.
+  line ranges from `git diff HEAD`, constructs `--mutate "path:L1-L2"`
+  arguments, and invokes Stryker. Hard-errors on unexpected conditions (new
+  files with no prior HEAD, renames, binary files). No fallback to full-package
+  mutation — loud failure is preferred so issues surface immediately. Minimizes
+  surface area: only line-range derivation; all mutation logic remains in
+  Stryker.
 - **Trigger**: `pnpm mutate:changed` at repo root. Not wired into `pnpm test`,
   not run by git hooks. On-demand after tests pass. CI integration is a
   follow-up implementation step, not an architectural exclusion.
 - **Failure mode**: exit non-zero if any mutant survives. No percentage
-  thresholds — noisy on small diffs, and the mandate is zero survivors, not
-  an acceptable rate.
-- **Incremental cache**: `reports/` added to `.gitignore` (rationale in Context).
+  thresholds — noisy on small diffs, and the mandate is zero survivors, not an
+  acceptable rate.
+- **Incremental cache**: `reports/` added to `.gitignore` (rationale in
+  Context).
 - **Relationship to coverage**: mutation testing and 100% coverage are
   independent, both mandatory. Coverage proves execution; mutation testing
   proves assertion quality. Neither replaces the other.
@@ -100,37 +103,37 @@ Concretely:
 
 - Guards against coverage theater: a test suite that kills all mutants is
   demonstrably asserting on behavior, not just touching lines.
-- Proportional cost: `--mutate` with line ranges means on-demand runs are
-  cheap for small diffs, making regular use realistic.
+- Proportional cost: `--mutate` with line ranges means on-demand runs are cheap
+  for small diffs, making regular use realistic.
 - No new test runner: Vitest runner reuses the existing Vitest setup.
 - Incremental cache makes re-runs after minor changes fast.
-- Scoped rollout: `open-cloud` is the pilot; other packages opt in only when
-  the signal proves valuable.
-- `@bedrock-rbx/testing` corrects an existing misfiling: `jest-extended.ts` moves
-  from a package named after a build tool to a package named after testing.
-  Future shared test utilities have a clear, appropriate home.
+- Scoped rollout: `open-cloud` is the pilot; other packages opt in only when the
+  signal proves valuable.
+- `@bedrock-rbx/testing` corrects an existing misfiling: `jest-extended.ts`
+  moves from a package named after a build tool to a package named after
+  testing. Future shared test utilities have a clear, appropriate home.
 
 ### Negative
 
 - Mutation testing is inherently expensive at scale. Full-package runs on
   `open-cloud` could be slow; the line-range approach mitigates but does not
   eliminate this.
-- Wrapper script (`scripts/mutate-changed.ts`) is a necessary evil — custom
-  code that must be maintained. Risk is mitigated by pinned dependencies
-  (catalog versioning means Stryker CLI changes surface at upgrade time, not
-  randomly) and by minimizing the script's surface area.
+- Wrapper script (`scripts/mutate-changed.ts`) is a necessary evil — custom code
+  that must be maintained. Risk is mitigated by pinned dependencies (catalog
+  versioning means Stryker CLI changes surface at upgrade time, not randomly)
+  and by minimizing the script's surface area.
 - Until a CI workflow is added in a follow-up PR, mutation quality is enforced
   locally only. A contributor could merge code that survives mutants if they
   don't run `pnpm mutate:changed`. This is a scope choice for the initial
   implementation, not an architectural decision — adding CI does not require a
   new ADR.
-- `coverageAnalysis: "perTest"` requires `threads: true` in Vitest; browser
-  mode is not supported. These are Vitest runner constraints, not Stryker
+- `coverageAnalysis: "perTest"` requires `threads: true` in Vitest; browser mode
+  is not supported. These are Vitest runner constraints, not Stryker
   constraints.
-- Migrating `jest-extended.ts` out of `@bedrock-rbx/vite-config` requires updating
-  all `setupFiles` references in consumer packages. Low risk (mechanical find-
-  and-replace, caught by typecheck), but a required step that touches multiple
-  packages.
+- Migrating `jest-extended.ts` out of `@bedrock-rbx/vite-config` requires
+  updating all `setupFiles` references in consumer packages. Low risk
+  (mechanical find- and-replace, caught by typecheck), but a required step that
+  touches multiple packages.
 
 ### Neutral
 
@@ -161,10 +164,10 @@ A single-purpose package for shared Stryker configuration only, mirroring
 `@bedrock-rbx/vite-config`'s structure precisely.
 
 **Rejected.** A standalone stryker-config package would leave `jest-extended.ts`
-misplaced in `@bedrock-rbx/vite-config` and add two small packages (one for stryker
-config, one for... what?) rather than one cohesive testing package. `@bedrock-rbx/testing`
-provides a clear, lasting home for all test-adjacent concerns that do not belong
-in a build tool config package.
+misplaced in `@bedrock-rbx/vite-config` and add two small packages (one for
+stryker config, one for... what?) rather than one cohesive testing package.
+`@bedrock-rbx/testing` provides a clear, lasting home for all test-adjacent
+concerns that do not belong in a build tool config package.
 
 ### Do nothing — rely on 100% coverage alone
 
@@ -195,14 +198,16 @@ direct `stryker run` invocation when needed (e.g. before a release).
 - `packages/vite-config/` — remove `src/jest-extended.ts` and the
   `./vitest-setup` export
 - All `setupFiles` consumers — update import from
-  `@bedrock-rbx/vite-config/vitest-setup` to `@bedrock-rbx/testing/jest-extended`
+  `@bedrock-rbx/vite-config/vitest-setup` to
+  `@bedrock-rbx/testing/jest-extended`
 - `packages/open-cloud/stryker.config.ts` — new, extends shared config
-- `scripts/mutate-changed.ts` — new wrapper (pattern: `scripts/merge-coverage.ts`)
+- `scripts/mutate-changed.ts` — new wrapper (pattern:
+  `scripts/merge-coverage.ts`)
 - Root `package.json` — add `"mutate:changed": "bun scripts/mutate-changed.ts"`
 - `.gitignore` — add `reports/` if not already present
 
-**Dependencies:** Add `@stryker-mutator/core` and `@stryker-mutator/vitest-runner`
-as dev dependencies in `packages/open-cloud`.
+**Dependencies:** Add `@stryker-mutator/core` and
+`@stryker-mutator/vitest-runner` as dev dependencies in `packages/open-cloud`.
 
 **Verification:**
 

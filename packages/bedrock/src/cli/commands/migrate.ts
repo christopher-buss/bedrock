@@ -8,12 +8,12 @@ import type { MigrateError, MigrationReport } from "../../core/migrate/migration
 import { buildStatePort as defaultBuildStatePort } from "../../shell/build-state-port.ts";
 import {
 	migrateMantleState as defaultMigrateMantleState,
-	type MigrateMantleStateDeps,
+	type MigrateMantleStateDeps as MigrateMantleStateDependencies,
 } from "../../shell/migrate-mantle-state.ts";
 import { createClackPort } from "../clack-port.ts";
 import { createDefaultMigratePromptPort } from "../default-migrate-prompt-port.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
-import type { ProgDeps } from "../index.ts";
+import type { ProgDeps as ProgDependencies } from "../index.ts";
 import type { MigrateConfigFormat, MigratePromptPort } from "../migrate-prompt-port.ts";
 import { type MigrationSource, parseMigrateOptions } from "../parse-migrate-options.ts";
 import {
@@ -23,7 +23,11 @@ import {
 	renderMigrationSummary,
 } from "../render.ts";
 import { describeUnknown } from "./describe-unknown.ts";
-import { type FinalizeDeps, type FinalizeInputs, persistMigration } from "./finalize-migration.ts";
+import {
+	type FinalizeDeps as FinalizeDependencies,
+	type FinalizeInputs,
+	persistMigration,
+} from "./finalize-migration.ts";
 import { resolveMigrationSource, resolveStateFilePath } from "./resolve-migrate-inputs.ts";
 import type { ResolvedStateTarget } from "./write-migrated-states.ts";
 
@@ -88,7 +92,7 @@ interface DispatchInputs {
  * @returns An async sade action that returns once `deps.exit` was invoked.
  */
 export function migrateCommand(
-	deps: ProgDeps,
+	deps: ProgDependencies,
 ): (
 	pathArgument: string | undefined,
 	rawOptions: Readonly<Record<string, unknown>>,
@@ -100,16 +104,19 @@ export function migrateCommand(
 	};
 }
 
-function resolveMigrate(deps: ProgDeps): ResolvedMigrate {
+function resolveMigrate(dependencies: ProgDependencies): ResolvedMigrate {
 	return {
-		buildStatePort: deps.buildStatePort ?? defaultBuildStatePort,
-		clack: deps.clack ?? createClackPort(),
-		exit: deps.exit ?? ((code) => process.exit(code)),
-		migrateMantleState: deps.migrateMantleState ?? defaultMigrateMantleState,
-		mkdir: deps.mkdir ?? (async (path) => void (await nodeMkdir(path, { recursive: true }))),
-		promptPort: deps.migratePromptPort ?? createDefaultMigratePromptPort(),
+		buildStatePort: dependencies.buildStatePort ?? defaultBuildStatePort,
+		clack: dependencies.clack ?? createClackPort(),
+		exit: dependencies.exit ?? ((code) => process.exit(code)),
+		migrateMantleState: dependencies.migrateMantleState ?? defaultMigrateMantleState,
+		mkdir:
+			dependencies.mkdir ??
+			(async (path) => void (await nodeMkdir(path, { recursive: true }))),
+		promptPort: dependencies.migratePromptPort ?? createDefaultMigratePromptPort(),
 		writeFile:
-			deps.writeFile ?? (async (path, contents) => nodeWriteFile(path, contents, "utf8")),
+			dependencies.writeFile ??
+			(async (path, contents) => nodeWriteFile(path, contents, "utf8")),
 	};
 }
 
@@ -135,7 +142,7 @@ function renderedFailure(
 async function callMigrator(
 	inputs: RunMigratorInputs & { readonly primaryEnvironment?: string },
 ): Promise<Result<MigrationReport, MigrateError | MigratorIoError>> {
-	const callDeps: MigrateMantleStateDeps = {
+	const callDependencies: MigrateMantleStateDependencies = {
 		configFormat: inputs.configFormat,
 		stateFilePath: inputs.stateFilePath,
 		...(inputs.primaryEnvironment === undefined
@@ -143,7 +150,7 @@ async function callMigrator(
 			: { primaryEnvironment: inputs.primaryEnvironment }),
 	};
 	try {
-		return await inputs.resolved.migrateMantleState(callDeps);
+		return await inputs.resolved.migrateMantleState(callDependencies);
 	} catch (err) {
 		return { err: { cause: err, kind: "ioError", path: inputs.stateFilePath }, success: false };
 	}
@@ -243,7 +250,7 @@ async function promptForStateTarget(
 	};
 }
 
-function finalizeDeps(resolved: ResolvedMigrate): FinalizeDeps {
+function finalizeDependencies(resolved: ResolvedMigrate): FinalizeDependencies {
 	return {
 		buildStatePort: resolved.buildStatePort,
 		clack: resolved.clack,
@@ -278,7 +285,7 @@ async function runWithStateFilePath(
 	return finalize({
 		configFilePath: configFileFor(stateFilePath, formatResult.data),
 		configFormat: formatResult.data,
-		deps: finalizeDeps(resolved),
+		deps: finalizeDependencies(resolved),
 		report: reportResult.data,
 		stateFilePath,
 		target: targetResult.data,
