@@ -4,16 +4,29 @@ import { fakeClackPort } from "#tests/helpers/clack";
 import process from "node:process";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
+import type { Config } from "../../core/schema.ts";
 import type { ProgDeps } from "../index.ts";
 import type { Spawner, SpawnInvocation, SpawnLaunchError } from "../spawner.ts";
 import { buildCommand } from "./build.ts";
 
 type ExitFunc = NonNullable<ProgDeps["exit"]>;
 type DiscoverOverrideFunc = NonNullable<ProgDeps["discoverOverride"]>;
+type LoadConfigFunc = NonNullable<ProgDeps["loadConfig"]>;
+type LoadConfigResult = Awaited<ReturnType<LoadConfigFunc>>;
+
+const noCodegenConfig: Config = { environments: { production: {} } };
+const codegenConfig: Config = {
+	codegen: { enabled: true },
+	environments: { production: {} },
+};
 
 interface SpawnerRecorder {
 	readonly invocations: ReadonlyArray<SpawnInvocation>;
 	readonly spawner: Spawner;
+}
+
+function fakeLoad(result: LoadConfigResult): LoadConfigFunc {
+	return vi.fn<LoadConfigFunc>(async () => result);
 }
 
 function recordingSpawner(result: Result<number, SpawnLaunchError>): SpawnerRecorder {
@@ -224,17 +237,92 @@ describe(buildCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should report nothing to build and exit 0 when no override is discovered", async () => {
-		expect.assertions(2);
+	it("should report nothing to build and exit 0 when no override exists and codegen is off", async () => {
+		expect.assertions(3);
 
 		const { invocations, spawner } = recordingSpawner({ data: 0, success: true });
 		const discoverOverride = discoverReturning(undefined);
-		const deps = makeDeps({ discoverOverride, spawner });
+		const loadConfig = fakeLoad({ data: noCodegenConfig, success: true });
+		const deps = makeDeps({ discoverOverride, loadConfig, spawner });
 
 		await buildCommand(deps)({ env: "production" });
 
 		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith("nothing to build");
 		expect(invocations).toHaveLength(0);
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should fail with a missing-override diagnostic when codegen is enabled and no override exists", async () => {
+		expect.assertions(3);
+
+		const discoverOverride = discoverReturning(undefined);
+		const loadConfig = fakeLoad({ data: codegenConfig, success: true });
+		const deps = makeDeps({ discoverOverride, loadConfig });
+
+		await buildCommand(deps)({ env: "production" });
+
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+			"codegen is enabled but no .bedrock/build.ts override was found: add one that writes each place's built artifact to its configured file path, or disable codegen",
+		);
+		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("build failed");
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should render configLoadFailed and exit 1 when loadConfig returns Err and no override exists", async () => {
+		expect.assertions(3);
+
+		const discoverOverride = discoverReturning(undefined);
+		const loadConfig = fakeLoad({
+			err: { kind: "fileNotFound", searchedFrom: "/tmp/project" },
+			success: false,
+		});
+		const deps = makeDeps({ discoverOverride, loadConfig });
+
+		await buildCommand(deps)({ env: "production" });
+
+		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
+		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("build failed");
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should forward parsed configFile to loadConfig when no override exists", async () => {
+		expect.assertions(1);
+
+		const discoverOverride = discoverReturning(undefined);
+		const loadConfig = fakeLoad({ data: noCodegenConfig, success: true });
+		const deps = makeDeps({ discoverOverride, loadConfig });
+
+		await buildCommand(deps)({ config: "./bedrock.staging.config.ts", env: "production" });
+
+		expect(loadConfig).toHaveBeenCalledExactlyOnceWith({
+			configFile: "./bedrock.staging.config.ts",
+		});
+	});
+
+	it("should call loadConfig with no options when --config is absent and no override exists", async () => {
+		expect.assertions(1);
+
+		const discoverOverride = discoverReturning(undefined);
+		const loadConfig = fakeLoad({ data: noCodegenConfig, success: true });
+		const deps = makeDeps({ discoverOverride, loadConfig });
+
+		await buildCommand(deps)({ env: "production" });
+
+		expect(loadConfig).toHaveBeenCalledExactlyOnceWith(undefined);
+	});
+
+	it("should not load config when an override is discovered so build stays decoupled", async () => {
+		expect.assertions(2);
+
+		const { spawner } = recordingSpawner({ data: 0, success: true });
+		const discoverOverride = discoverReturning("/abs/.bedrock/build.ts");
+		const loadConfig = fakeLoad({ data: codegenConfig, success: true });
+		const deps = makeDeps({ discoverOverride, loadConfig, projectRoot: "/abs", spawner });
+
+		await buildCommand(deps)({ env: "production" });
+
+		expect(loadConfig).not.toHaveBeenCalled();
+		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
 	it("should default to process.exit when no exit slot is provided", async () => {
