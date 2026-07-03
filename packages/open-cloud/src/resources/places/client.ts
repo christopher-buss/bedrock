@@ -34,10 +34,7 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import { CREATE_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import { ResourceClient, type ResourceMethodSpec } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import {
-	buildPollDeps as buildPollDependencies,
-	submitAndPoll,
-} from "../luau-execution/polling-helpers.ts";
+import { buildPollDependencies, submitAndPoll } from "../luau-execution/polling-helpers.ts";
 import { pollUntilDoneCore, type PollUntilDoneOptions } from "../luau-execution/polling.ts";
 
 /**

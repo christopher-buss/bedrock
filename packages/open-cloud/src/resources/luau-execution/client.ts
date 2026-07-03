@@ -34,7 +34,7 @@ import {
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import { buildPollDeps as buildPollDependencies, submitAndPoll } from "./polling-helpers.ts";
+import { buildPollDependencies, submitAndPoll } from "./polling-helpers.ts";
 import {
 	pollUntilDoneCore,
 	type PollUntilDoneOptions,

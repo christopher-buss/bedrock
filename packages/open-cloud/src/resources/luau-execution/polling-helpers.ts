@@ -12,11 +12,7 @@ import type {
 import type { OpenCloudError } from "../../errors/base.ts";
 import type { ResourceClient } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import {
-	type PollDeps as PollDependencies,
-	pollUntilDoneCore,
-	type PollUntilDoneOptions,
-} from "./polling.ts";
+import { type PollDependencies, pollUntilDoneCore, type PollUntilDoneOptions } from "./polling.ts";
 
 /**
  * Builds the {@link PollDependencies} bundle used by {@link pollUntilDoneCore},
@@ -27,7 +23,7 @@ import {
  * @param args - The polling options and the task ref to fetch on every iteration.
  * @returns A {@link PollDependencies} bundle wiring `fetch`, `now`, and `sleep`.
  */
-export function buildPollDeps(
+export function buildPollDependencies(
 	inner: ResourceClient,
 	args: { options: PollUntilDoneOptions; ref: LuauExecutionTaskRef },
 ): PollDependencies {
@@ -70,7 +66,7 @@ export async function submitAndPoll(
 	}
 
 	return pollUntilDoneCore(
-		buildPollDeps(inner, { options, ref: submitResult.data.ref }),
+		buildPollDependencies(inner, { options, ref: submitResult.data.ref }),
 		options,
 	);
 }

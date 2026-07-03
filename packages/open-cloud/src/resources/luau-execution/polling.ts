@@ -71,7 +71,7 @@ export const DEFAULT_POLL_FAILURE_CAP = 3;
  * callback is pre-bound by the wiring layer and closes over the task ref
  * and request options, keeping the core loop narrow.
  */
-export interface PollDeps {
+export interface PollDependencies {
 	/** Returns the current task or an error. Called on each loop iteration. */
 	readonly fetch: () => Promise<Result<LuauExecutionTask, OpenCloudError>>;
 	/** Returns the current wall-clock time in ms. */
@@ -180,7 +180,7 @@ interface OutcomeContext {
  * @returns The terminal task, or an error if aborted, timed out, or the transport keeps failing.
  */
 export async function pollUntilDoneCore(
-	deps: PollDeps,
+	deps: PollDependencies,
 	options: PollOptions = {},
 ): Promise<Result<LuauExecutionTask, OpenCloudError>> {
 	const timeoutMs = options.timeoutMs ?? DEFAULT_POLL_TIMEOUT_MS;
@@ -333,7 +333,7 @@ function isTransientTransport(error: OpenCloudError): error is NetworkError {
 }
 
 async function fetchOnce(
-	dependencies: PollDeps,
+	dependencies: PollDependencies,
 	signal: AbortSignal | undefined,
 ): Promise<FetchOutcome> {
 	const fetchResult = await raceWithAbort(dependencies.fetch(), signal);

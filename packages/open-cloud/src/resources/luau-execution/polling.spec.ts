@@ -16,7 +16,7 @@ import {
 	DEFAULT_POLL_FAILURE_CAP,
 	DEFAULT_POLL_TIMEOUT_MS,
 	defaultPollDelay,
-	type PollDeps as PollDependencies,
+	type PollDependencies,
 	pollUntilDoneCore,
 	withBudgetRequestTimeout,
 } from "./polling.ts";
