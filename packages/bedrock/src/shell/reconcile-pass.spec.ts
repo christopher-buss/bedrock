@@ -259,6 +259,65 @@ describe(applyAndPersist, () => {
 		expect(states[0]!.pendingRebuild).toStrictEqual(marker);
 	});
 
+	it("should resolve the pendingRebuild marker from the applied survivors when given a function", async () => {
+		expect.assertions(2);
+
+		let received: ReadonlyArray<ResourceCurrentState> | undefined;
+
+		const pass = await applyAndPersist({
+			environment: "production",
+			ops: [createGamePassOp(asResourceKey("vip-pass"))],
+			pendingRebuild: (survivors) => {
+				received = survivors;
+				return new Set(survivors.map((resource) => asResourceKey(resource.key)));
+			},
+			priorResources: [],
+			progress: recordingProgress().port,
+			registry: gamePassRegistry({ "vip-pass": vip }),
+			statePort: inMemoryStatePort().port,
+		});
+
+		expect(received).toStrictEqual([vip]);
+		expect(pass.merged.pendingRebuild).toStrictEqual(new Set([asResourceKey("vip-pass")]));
+	});
+
+	it("should pass only the succeeding survivors to the pendingRebuild resolver when an op fails", async () => {
+		expect.assertions(1);
+
+		const failure = new OpenCloudError("create vip-pass: 503");
+		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
+			gamePass: {
+				async create(desired) {
+					return desired.key === "alpha-pass"
+						? { data: alpha, success: true }
+						: { err: failure, success: false };
+				},
+			},
+			place: placeStub,
+			universe: universeStub,
+		};
+		let received: ReadonlyArray<ResourceCurrentState> | undefined;
+
+		await applyAndPersist({
+			environment: "production",
+			ops: [
+				createGamePassOp(asResourceKey("alpha-pass")),
+				createGamePassOp(asResourceKey("vip-pass")),
+			],
+			pendingRebuild: (survivors) => {
+				received = survivors;
+				return new Set();
+			},
+			priorResources: [],
+			progress: recordingProgress().port,
+			registry,
+			statePort: inMemoryStatePort().port,
+		});
+
+		expect(received).toStrictEqual([alpha]);
+	});
+
 	it("should omit the pendingRebuild marker when the supplied set is empty", async () => {
 		expect.assertions(1);
 
