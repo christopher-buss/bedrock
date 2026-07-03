@@ -4,7 +4,7 @@ enablePrePostScripts: true
 ignoreWorkspaceRootCheck: true
 
 minimumReleaseAgeExclude:
-  - "@isentinel/eslint-config@6.0.0-beta.3"
+  - "@isentinel/eslint-config@6.0.0-beta.4"
   - eslint-plugin-flawless@0.1.6
 
 publicHoistPattern:
@@ -21,8 +21,8 @@ trustPolicyExclude:
 trustPolicyIgnoreAfter: 10080 # 7 days
 
 packages:
-  - packages/*
   - apps/*
+  - packages/*
   - scripts/*
 
 overrides:
@@ -67,7 +67,7 @@ catalogs:
     "@commitlint/prompt-cli": 21.1.0
     "@commitlint/types": 21.1.0
     "@eslint/config-inspector": 3.0.4
-    "@isentinel/eslint-config": 6.0.0-beta.3
+    "@isentinel/eslint-config": 6.0.0-beta.4
     "@isentinel/hooks": 1.5.2
     "@typescript-eslint/parser": 8.62.1
     "@vitest/eslint-plugin": 1.6.20

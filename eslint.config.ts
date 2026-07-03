@@ -176,24 +176,6 @@ export default isentinel(
 		},
 	},
 	{
-		name: "project/workspace-package-json",
-		files: ["packages/*/package.json", "apps/*/package.json", "scripts/package.json"],
-		rules: {
-			// packageManager lives in the workspace root only.
-			"package-json/require-packageManager": "off",
-		},
-	},
-	{
-		name: "project/docs-history",
-		files: ["docs/adr/**/*.md/**", "docs/plans/**/*.md/**"],
-		rules: {
-			// ADRs and plans are historical records; don't force refactors on
-			// their code fences.
-			"max-lines-per-function": "off",
-			"unicorn/no-unreadable-new-expression": "off",
-		},
-	},
-	{
 		name: "project/src",
 		files: [`packages/*/*/${GLOB_SRC}`],
 		rules: {

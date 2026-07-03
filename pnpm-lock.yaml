@@ -85,8 +85,8 @@ catalogs:
       specifier: 3.0.4
       version: 3.0.4
     '@isentinel/eslint-config':
-      specifier: 6.0.0-beta.3
-      version: 6.0.0-beta.3
+      specifier: 6.0.0-beta.4
+      version: 6.0.0-beta.4
     '@isentinel/hooks':
       specifier: 1.5.2
       version: 1.5.2
@@ -285,7 +285,7 @@ importers:
         version: 3.0.4(@typescript/typescript6@6.0.1)(eslint@10.6.0(jiti@2.7.0)(supports-color@10.2.2))
       '@isentinel/eslint-config':
         specifier: catalog:lint
-        version: 6.0.0-beta.3(9dc137e2a1118c32028f98ce38b5b9d8)
+        version: 6.0.0-beta.4(9dc137e2a1118c32028f98ce38b5b9d8)
       '@isentinel/hooks':
         specifier: catalog:lint
         version: 1.5.2(@typescript/native-preview@7.0.0-dev.20260624.1)(@typescript/typescript6@6.0.1)(jiti@2.7.0)
@@ -1993,8 +1993,8 @@ packages:
     resolution: {integrity: sha512-A9IicAnM91uRFPMgjNyACBLuPPsbXxmyVQRDHrnFD0mL3sl/3I14VbXF4AGuNHkgUTqzO3ryoWmW41DAGjLQyQ==}
     engines: {node: '>=20.18.0'}
 
-  '@isentinel/eslint-config@6.0.0-beta.3':
-    resolution: {integrity: sha512-Huc+hMlAc84K46UNwPDZRwcLq+YWh7nehrgWWhXgGpM0CREsTxJ1xpbZ/mewxmuy7bvP8sZZSNvbS9PRzaZKvQ==}
+  '@isentinel/eslint-config@6.0.0-beta.4':
+    resolution: {integrity: sha512-H1AQFIEDv4EpEMhI1TKRxxGxy0Cfb5owygsLiMj9aCLuocwYBAWpT/ojIlDmLkJoDhUtgEKPO4ilD7KpxSFOnA==}
     engines: {node: '>=24.12.0'}
     hasBin: true
     peerDependencies:
@@ -9410,7 +9410,7 @@ snapshots:
 
   '@isentinel/dict-roblox@1.0.5': {}
 
-  '@isentinel/eslint-config@6.0.0-beta.3(9dc137e2a1118c32028f98ce38b5b9d8)':
+  '@isentinel/eslint-config@6.0.0-beta.4(9dc137e2a1118c32028f98ce38b5b9d8)':
     dependencies:
       '@antfu/install-pkg': 1.1.0
       '@clack/prompts': 1.6.0

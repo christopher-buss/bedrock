@@ -296,10 +296,8 @@ A separate `GamePassesClientBuilder` accumulates configuration via fluent
 `.withX(...)` calls and produces a client via `.build()`:
 
 ```ts
-const client = new GamePassesClientBuilder()
-	.withApiKey("main-key")
-	.withTimeout(10_000)
-	.build();
+const builder = new GamePassesClientBuilder();
+const client = builder.withApiKey("main-key").withTimeout(10_000).build();
 ```
 
 **Rejected.** Builders earn their keep when configuration has many optional

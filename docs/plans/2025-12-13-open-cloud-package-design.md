@@ -576,6 +576,7 @@ class GamePassesClient {
 		};
 	}
 
+	// eslint-disable-next-line max-lines-per-function -- Design sketch
 	private async executeWithRetry(
 		request: HttpRequest,
 		config: RequestConfig,
@@ -1070,6 +1071,7 @@ function createTestClient(http: HttpClient): GamePassesClient {
 	});
 }
 
+// eslint-disable-next-line max-lines-per-function -- Describe block
 describe(GamePassesClient, () => {
 	it("should create game pass successfully", async () => {
 		expect.assertions(3);
