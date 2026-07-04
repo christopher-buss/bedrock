@@ -2454,6 +2454,125 @@ describe(deploy, () => {
 			expect(writes.at(-1)!.codegenHash).toBe(storedHash);
 		});
 
+		function collisionConfig(): Config {
+			// A game pass sharing the place's key: the marker stores bare keys,
+			// so settling must only consider place survivors and place noops.
+			return {
+				environments: { production: { places: { "start-place": { placeId: "4711" } } } },
+				passes: { "start-place": VipPassEntry },
+				places: { "start-place": { filePath: "places/start.rbxl" } },
+			};
+		}
+
+		function collidingPassCurrent(price: number) {
+			return { ...vipPassCurrent(), key: startPlace, price };
+		}
+
+		function failingPlaceDriver(): ResourceDriver<"place"> {
+			return {
+				async create() {
+					return { err: new OpenCloudError("create start-place: 503"), success: false };
+				},
+				async update() {
+					return { err: new OpenCloudError("update start-place: 503"), success: false };
+				},
+			};
+		}
+
+		it("should read the place artifact only in the publish stage and asset files only in provision", async () => {
+			expect.assertions(2);
+
+			const reads: Array<string> = [];
+
+			async function readRecording(path: string): Promise<Uint8Array> {
+				reads.push(path);
+				return ICON_BYTES;
+			}
+
+			const { registry } = recordingPlaceRegistry();
+
+			const result = await deploy({
+				build: recordingBuildStep().step,
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: fusedCodegenConfig(),
+				emit: fusedEmit,
+				environment: "production",
+				readFile: readRecording,
+				registry,
+				statePort: inMemoryStatePort().port,
+			});
+
+			assert(result.success);
+
+			expect(reads.filter((path) => path === "assets/vip-icon.png")).toHaveLength(1);
+			expect(reads.filter((path) => path === "places/start.rbxl")).toHaveLength(1);
+		});
+
+		it("should keep the marker when a game pass sharing the place's key republishes but the place fails", async () => {
+			expect.assertions(2);
+
+			const { port, writes } = inMemoryStatePort({
+				environment: "production",
+				pendingRebuild: new Set([startPlace]),
+				resources: [collidingPassCurrent(250), stalePlaceInState()],
+				version: 1,
+			});
+			const registry: DriverRegistry = {
+				developerProduct: developerProductStub,
+				gamePass: {
+					async create() {
+						return { data: collidingPassCurrent(500), success: true };
+					},
+					async update() {
+						return { data: collidingPassCurrent(500), success: true };
+					},
+				},
+				place: failingPlaceDriver(),
+				universe: universeStub,
+			};
+
+			const result = await deploy({
+				config: collisionConfig(),
+				environment: "production",
+				readFile: readIcon,
+				registry,
+				statePort: port,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("applyFailed");
+			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
+		});
+
+		it("should keep the marker when a game pass sharing the place's key noop's but the place fails", async () => {
+			expect.assertions(2);
+
+			const { port, writes } = inMemoryStatePort({
+				environment: "production",
+				pendingRebuild: new Set([startPlace]),
+				resources: [collidingPassCurrent(500), stalePlaceInState()],
+				version: 1,
+			});
+			const registry: DriverRegistry = {
+				...stubRegistry(),
+				place: failingPlaceDriver(),
+			};
+
+			const result = await deploy({
+				config: collisionConfig(),
+				environment: "production",
+				readFile: readIcon,
+				registry,
+				statePort: port,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("applyFailed");
+			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
+		});
+
 		it("should publish the marked place and clear a leftover marker in a no-codegen deploy", async () => {
 			expect.assertions(3);
 
