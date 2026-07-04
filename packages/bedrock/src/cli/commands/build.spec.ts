@@ -1,9 +1,9 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import { fakeClackPort } from "#tests/helpers/clack";
 import process from "node:process";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
+import { fakeClackPort } from "#tests/helpers/clack";
 import type { Config } from "../../core/schema.ts";
 import type { ProgDeps } from "../index.ts";
 import type { Spawner, SpawnInvocation, SpawnLaunchError } from "../spawner.ts";
