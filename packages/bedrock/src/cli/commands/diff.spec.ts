@@ -98,12 +98,14 @@ function multiFieldUpdatePlaceOp(key: string): Operation {
 function preview(input: {
 	environment: string;
 	ops: ReadonlyArray<Operation>;
+	pendingRebuild?: ReadonlyArray<string>;
 	redactions?: ReadonlyArray<RedactionAnnotation>;
 }): Result<DiffPreview, PreviewDiffError> {
 	return {
 		data: {
 			environment: input.environment,
 			ops: input.ops,
+			pendingRebuild: (input.pendingRebuild ?? []).map((key) => asResourceKey(key)),
 			redactions: input.redactions ?? [],
 		},
 		success: true,
@@ -218,6 +220,62 @@ describe(diffCommand, () => {
 		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
 			"all environments are up to date",
 		);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should report places minted but unpublished as drift when a pending-rebuild marker persists", async () => {
+		expect.assertions(4);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const previewDiff = fakePreview([
+			preview({
+				environment: "production",
+				ops: [noopOp("vip-pass")],
+				pendingRebuild: ["arena", "lobby"],
+			}),
+		]);
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
+
+		await diffCommand(dependencies)({ env: "production" });
+
+		expect(dependencies.clack?.logSuccess).not.toHaveBeenCalled();
+		expect(dependencies.clack?.logMessage).toHaveBeenCalledExactlyOnceWith(
+			'2 place(s) minted but unpublished in "production": arena, lobby',
+		);
+		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+			"run bedrock deploy to apply pending changes",
+		);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should render the pending-publish line after the drift ops when both are present", async () => {
+		expect.assertions(2);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const previewDiff = fakePreview([
+			preview({
+				environment: "production",
+				ops: [createGamePassOp("vip-pass")],
+				pendingRebuild: ["start-place"],
+			}),
+		]);
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
+
+		await diffCommand(dependencies)({ env: "production" });
+
+		expect(vi.mocked(dependencies.clack!.logMessage).mock.calls).toMatchInlineSnapshot(`
+		  [
+		    [
+		      "Pending changes for "production":",
+		    ],
+		    [
+		      "+ gamePass:vip-pass",
+		    ],
+		    [
+		      "1 place(s) minted but unpublished in "production": start-place",
+		    ],
+		  ]
+		`);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 

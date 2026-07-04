@@ -23,6 +23,7 @@ import {
 } from "../core/select-environment.ts";
 import type { StateError } from "../core/state.ts";
 import type { StatePort } from "../ports/state-port.ts";
+import type { ResourceKey } from "../types/ids.ts";
 import { buildDesired, type BuildDesiredError } from "./build-desired.ts";
 import {
 	buildStatePort,
@@ -78,6 +79,13 @@ export interface DiffPreview {
 	readonly environment: string;
 	/** Operations `diff` would apply during a deploy. */
 	readonly ops: ReadonlyArray<Operation>;
+	/**
+	 * Place keys the prior snapshot records as minted but unpublished (its
+	 * `pendingRebuild` marker). A persistent marker is real drift — assets were
+	 * provisioned but the place artifact never published — and self-heals on
+	 * the next green publish. Empty when nothing owes a publish.
+	 */
+	readonly pendingRebuild: ReadonlyArray<ResourceKey>;
 	/**
 	 * One entry per resource flagged redacted in the active environment.
 	 * Surfaced so preview output can call out silent noops where the author's
@@ -232,6 +240,13 @@ async function runPreview(
 		return { err: { cause: validated.err, kind: "buildDesiredFailed" }, success: false };
 	}
 
-	const ops = diff(desired.data, priorResources);
-	return { data: { environment, ops, redactions: dependencies.redactions }, success: true };
+	return {
+		data: {
+			environment,
+			ops: diff(desired.data, priorResources),
+			pendingRebuild: [...(prior.data?.pendingRebuild ?? [])],
+			redactions: dependencies.redactions,
+		},
+		success: true,
+	};
 }
