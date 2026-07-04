@@ -218,6 +218,32 @@ describe(provision, () => {
 		expect(inputs[0]!.environments["production"]!.resources).toStrictEqual([alpha]);
 	});
 
+	it("should not read the place artifact file so it can run before the place is built", async () => {
+		expect.assertions(2);
+
+		const { port, writes } = inMemoryStatePort();
+		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>(async (path) => {
+			if (path === "places/start.rbxl") {
+				throw new Error("place artifact must not be read during provision");
+			}
+
+			return ICON_BYTES;
+		});
+
+		const result = await provision({
+			config: provisionConfig(),
+			environment: "production",
+			readFile,
+			registry: vipCreateRegistry(),
+			statePort: port,
+		});
+
+		assert(result.success);
+
+		expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
+		expect(readFile).not.toHaveBeenCalledWith("places/start.rbxl");
+	});
+
 	it("should surface stateReadFailed without dispatching drivers when StatePort.read returns Err", async () => {
 		expect.assertions(1);
 

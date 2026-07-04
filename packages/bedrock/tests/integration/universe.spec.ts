@@ -81,7 +81,10 @@ describe("universe pipeline end-to-end", () => {
 		const resolved = selectEnvironment(loaded.data, "production");
 		assert(resolved.success);
 
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFileNever);
+		const desiredResult = await buildDesired({
+			readFile: readFileNever,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		// `twitterSocialLink: undefined` in the fixture flows through as a
@@ -133,7 +136,10 @@ describe("universe pipeline end-to-end", () => {
 		const resolved = selectEnvironment(loaded.data, "production");
 		assert(resolved.success);
 
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFileNever);
+		const desiredResult = await buildDesired({
+			readFile: readFileNever,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
@@ -172,7 +178,10 @@ describe("universe pipeline end-to-end", () => {
 		const resolved = selectEnvironment(loaded.data, "production");
 		assert(resolved.success);
 
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFileNever);
+		const desiredResult = await buildDesired({
+			readFile: readFileNever,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockResponse({
@@ -214,7 +223,10 @@ describe("universe pipeline end-to-end", () => {
 		const resolved = selectEnvironment(loaded.data, "production");
 		assert(resolved.success);
 
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFileNever);
+		const desiredResult = await buildDesired({
+			readFile: readFileNever,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const ops = diff(desiredResult.data, [
@@ -265,7 +277,10 @@ describe("universe pipeline end-to-end", () => {
 		const resolved = selectEnvironment(loaded.data, "production");
 		assert(resolved.success);
 
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFileNever);
+		const desiredResult = await buildDesired({
+			readFile: readFileNever,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const ops = diff(desiredResult.data, [

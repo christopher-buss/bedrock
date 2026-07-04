@@ -80,7 +80,10 @@ describe("developer-products pipeline end-to-end", () => {
 		const resolved = selectEnvironment(loaded.data, "production");
 		assert(resolved.success);
 
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFileNever);
+		const desiredResult = await buildDesired({
+			readFile: readFileNever,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient().mockResponse({
@@ -141,7 +144,10 @@ describe("developer-products pipeline end-to-end", () => {
 		const resolved = selectEnvironment(loaded.data, "production");
 		assert(resolved.success);
 
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFileNever);
+		const desiredResult = await buildDesired({
+			readFile: readFileNever,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient();
@@ -191,7 +197,10 @@ describe("developer-products pipeline end-to-end", () => {
 		const resolved = selectEnvironment(loaded.data, "production");
 		assert(resolved.success);
 
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFileNever);
+		const desiredResult = await buildDesired({
+			readFile: readFileNever,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient().mockResponse({
@@ -260,7 +269,10 @@ describe("developer-products pipeline end-to-end", () => {
 		const resolved = selectEnvironment(config, "production");
 		assert(resolved.success);
 
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFileNever);
+		const desiredResult = await buildDesired({
+			readFile: readFileNever,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		// First deploy: POST persists the product, PATCH fails. The driver

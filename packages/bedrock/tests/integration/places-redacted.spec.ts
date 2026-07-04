@@ -86,7 +86,10 @@ describe("places-redacted pipeline end-to-end", () => {
 		const resolved = selectEnvironment(config, "production");
 		assert(resolved.success);
 
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readPlaceFile);
+		const desiredResult = await buildDesired({
+			readFile: readPlaceFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient()
@@ -154,7 +157,10 @@ describe("places-redacted pipeline end-to-end", () => {
 		const resolved = selectEnvironment(config, "staging");
 		assert(resolved.success);
 
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readPlaceFile);
+		const desiredResult = await buildDesired({
+			readFile: readPlaceFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient()
@@ -254,7 +260,10 @@ describe("places-redacted pipeline end-to-end", () => {
 		const resolved = selectEnvironment(config, "production");
 		assert(resolved.success);
 
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readPlaceFile);
+		const desiredResult = await buildDesired({
+			readFile: readPlaceFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const ops = diff(desiredResult.data, [persistedPlace(desiredResult.data)]);

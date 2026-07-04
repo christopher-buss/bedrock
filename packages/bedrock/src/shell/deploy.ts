@@ -23,6 +23,7 @@ import type {
 	PlaceDesiredState,
 	ResourceCurrentState,
 	ResourceDesiredState,
+	ResourceKind,
 	ResourceRealDisplay,
 } from "../core/resources.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
@@ -947,13 +948,31 @@ async function runTwoPhase(inputs: TwoPhaseInputs): Promise<Result<BedrockState,
 	return completeTwoPhase({ ...inputs, assetPass, codegen });
 }
 
-async function loadReconcileInputs(
-	environment: string,
+async function resolveDesiredState(
 	dependencies: ResolvedDependencies,
-): Promise<Result<ReconcileInputs, DeployError>> {
-	const desired = await buildDesired(flattenConfig(dependencies.config), dependencies.readFile);
+	includeKind?: (kind: ResourceKind) => boolean,
+): Promise<Result<ReadonlyArray<ResourceDesiredState>, DeployError>> {
+	const desired = await buildDesired({
+		includeKind,
+		readFile: dependencies.readFile,
+		resources: flattenConfig(dependencies.config),
+	});
 	if (!desired.success) {
 		return { err: { cause: desired.err, kind: "buildDesiredFailed" }, success: false };
+	}
+
+	return desired;
+}
+
+async function loadReconcileInputs(inputs: {
+	readonly dependencies: ResolvedDependencies;
+	readonly environment: string;
+	readonly includeKind?: (kind: ResourceKind) => boolean;
+}): Promise<Result<ReconcileInputs, DeployError>> {
+	const { dependencies, environment, includeKind } = inputs;
+	const desired = await resolveDesiredState(dependencies, includeKind);
+	if (!desired.success) {
+		return desired;
 	}
 
 	const prior = await dependencies.statePort.read(environment);
@@ -999,7 +1018,7 @@ async function runReconcile(
 	environment: string,
 	dependencies: ResolvedDependencies,
 ): Promise<Result<BedrockState, DeployError>> {
-	const loaded = await loadReconcileInputs(environment, dependencies);
+	const loaded = await loadReconcileInputs({ dependencies, environment });
 	if (!loaded.success) {
 		return loaded;
 	}
@@ -1034,24 +1053,34 @@ async function runReconcile(
 	});
 }
 
+function declaredPlaceKeys(config: ResolvedConfig): ReadonlyArray<ResourceKey> {
+	return flattenConfig(config)
+		.filter((input) => input.kind === "place")
+		.map((input) => input.key);
+}
+
 async function runProvision(
 	environment: string,
 	deps: ResolvedDependencies,
 ): Promise<Result<BedrockState, DeployError>> {
-	const loaded = await loadReconcileInputs(environment, deps);
+	// Reconcile assets only: provision never reads the place artifact, so it can
+	// run before the place is built. Every declared place is marked for a later
+	// publish, its key taken from config rather than a diffed op.
+	const loaded = await loadReconcileInputs({
+		dependencies: deps,
+		environment,
+		includeKind: (kind) => kind !== "place",
+	});
 	if (!loaded.success) {
 		return loaded;
 	}
 
 	const { ops, priorResources, storedHash } = loaded.data;
-	// Withhold place ops and mark every declared place: provision mints the
-	// assets and sets the marker, leaving the places for a later publish.
-	const plan = planTwoPhase(ops);
 	const { outcome } = await runProvisionStage({
 		deps,
 		environment,
-		markPlaces: plan.markPlaces,
-		ops: plan.assetOps,
+		markPlaces: declaredPlaceKeys(deps.config),
+		ops,
 		priorResources,
 		storedHash,
 	});
@@ -1073,17 +1102,22 @@ async function runPublish(
 	environment: string,
 	deps: ResolvedDependencies,
 ): Promise<Result<BedrockState, DeployError>> {
-	const loaded = await loadReconcileInputs(environment, deps);
+	// Reconcile places only: publish never reads asset files. Publish just the
+	// places owing a rebuild; the diff already noop's a place whose on-disk
+	// artifact hash matches state, so an unchanged artifact is not dispatched (no
+	// upload). The stored hash threads through unchanged: publish runs no
+	// codegen.
+	const loaded = await loadReconcileInputs({
+		dependencies: deps,
+		environment,
+		includeKind: (kind) => kind === "place",
+	});
 	if (!loaded.success) {
 		return loaded;
 	}
 
 	const { ops, owedRebuild, priorResources, storedHash } = loaded.data;
-	// Publish only the places owing a rebuild; the diff already noop's a place
-	// whose on-disk artifact hash matches state, so an unchanged artifact is not
-	// dispatched (no upload). The stored hash threads through unchanged: publish
-	// runs no codegen.
-	const placeOps = planTwoPhase(ops).placeOps.filter((op) => owedRebuild.has(op.key));
+	const placeOps = ops.filter((op) => owedRebuild.has(op.key));
 	const pass = await applyAndPersist({
 		codegenHash: storedHash,
 		environment,

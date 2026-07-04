@@ -136,6 +136,46 @@ describe(publish, () => {
 		expect(writes.at(-1)!.pendingRebuild).toBeUndefined();
 	});
 
+	it("should not read asset icon files because it reconciles only places", async () => {
+		expect.assertions(2);
+
+		const { placeCalls, registry } = recordingPlaceRegistry();
+		const { port } = inMemoryStatePort(
+			priorWith(placeCurrent({ fileHash: STALE_HASH }), new Set([startPlace])),
+		);
+		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>(async (path) => {
+			if (path === "places/start.rbxl") {
+				return PLACE_BYTES;
+			}
+
+			throw new Error(`publish must not read non-place file: ${path}`);
+		});
+
+		const result = await publish({
+			config: {
+				environments: { production: { places: { "start-place": { placeId: "4711" } } } },
+				passes: {
+					"vip-pass": {
+						name: "VIP Pass",
+						description: "Grants VIP perks.",
+						icon: { "en-us": "assets/vip-icon.png" },
+						price: 500,
+					},
+				},
+				places: { "start-place": { filePath: "places/start.rbxl" } },
+			},
+			environment: "production",
+			readFile,
+			registry,
+			statePort: port,
+		});
+
+		assert(result.success);
+
+		expect(placeCalls).toStrictEqual([{ key: "start-place", type: "update" }]);
+		expect(readFile).not.toHaveBeenCalledWith("assets/vip-icon.png");
+	});
+
 	it("should keep the marker and skip the upload when a pending place's artifact is unchanged", async () => {
 		expect.assertions(2);
 

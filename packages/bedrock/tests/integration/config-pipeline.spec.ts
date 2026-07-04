@@ -116,7 +116,10 @@ async function runPipelineFromFixture(cwd: string): Promise<CreateFlowResult> {
 	const resolved = selectEnvironment(loaded.data, "production");
 	assert(resolved.success);
 
-	const desiredResult = await buildDesired(flattenConfig(resolved.data), readIcon);
+	const desiredResult = await buildDesired({
+		readFile: readIcon,
+		resources: flattenConfig(resolved.data),
+	});
 	assert(desiredResult.success);
 
 	const httpClient = createFakeHttpClient().mockResponse({
@@ -193,7 +196,10 @@ describe("config pipeline end-to-end", () => {
 		const resolved = selectEnvironment(loaded.data, "production");
 		assert(resolved.success);
 
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readIcon);
+		const desiredResult = await buildDesired({
+			readFile: readIcon,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const ops = diff(desiredResult.data, [await buildExistingPass()]);

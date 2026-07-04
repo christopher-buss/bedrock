@@ -24,7 +24,7 @@ describe(buildDesired, () => {
 
 		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>();
 
-		const result = await buildDesired([], readFile);
+		const result = await buildDesired({ readFile, resources: [] });
 
 		expect(result).toStrictEqual({ data: [], success: true });
 		expect(readFile).not.toHaveBeenCalled();
@@ -37,7 +37,7 @@ describe(buildDesired, () => {
 			.fn<(path: string) => Promise<Uint8Array>>()
 			.mockResolvedValue(new Uint8Array([1, 2, 3]));
 
-		const result = await buildDesired([gamePassInput()], readFile);
+		const result = await buildDesired({ readFile, resources: [gamePassInput()] });
 
 		expect(result).toStrictEqual({
 			data: [
@@ -64,7 +64,7 @@ describe(buildDesired, () => {
 			.fn<(path: string) => Promise<Uint8Array>>()
 			.mockResolvedValue(new Uint8Array([0]));
 
-		const result = await buildDesired([gamePassInput()], readFile);
+		const result = await buildDesired({ readFile, resources: [gamePassInput()] });
 
 		assert(result.success);
 
@@ -83,13 +83,13 @@ describe(buildDesired, () => {
 			.fn<(path: string) => Promise<Uint8Array>>()
 			.mockResolvedValue(new Uint8Array([1, 2, 3]));
 
-		const result = await buildDesired(
-			[
+		const result = await buildDesired({
+			readFile,
+			resources: [
 				gamePassInput({ key: asResourceKey("first-pass") }),
 				gamePassInput({ key: asResourceKey("second-pass") }),
 			],
-			readFile,
-		);
+		});
 
 		assert(result.success);
 
@@ -108,7 +108,7 @@ describe(buildDesired, () => {
 				.fn<(path: string) => Promise<Uint8Array>>()
 				.mockRejectedValueOnce(rejection);
 
-			const result = await buildDesired([gamePassInput()], readFile);
+			const result = await buildDesired({ readFile, resources: [gamePassInput()] });
 
 			expect(result).toStrictEqual({
 				err: {
@@ -129,8 +129,9 @@ describe(buildDesired, () => {
 			.fn<(path: string) => Promise<Uint8Array>>()
 			.mockResolvedValue(new Uint8Array([1, 2, 3]));
 
-		const result = await buildDesired(
-			[
+		const result = await buildDesired({
+			readFile,
+			resources: [
 				{
 					key: asResourceKey("start-place"),
 					description: undefined,
@@ -141,8 +142,7 @@ describe(buildDesired, () => {
 					serverSize: undefined,
 				},
 			],
-			readFile,
-		);
+		});
 
 		expect(result).toStrictEqual({
 			data: [
@@ -168,8 +168,9 @@ describe(buildDesired, () => {
 			.fn<(path: string) => Promise<Uint8Array>>()
 			.mockRejectedValueOnce(new Error("ENOENT"));
 
-		const result = await buildDesired(
-			[
+		const result = await buildDesired({
+			readFile,
+			resources: [
 				{
 					key: asResourceKey("start-place"),
 					description: undefined,
@@ -180,8 +181,7 @@ describe(buildDesired, () => {
 					serverSize: undefined,
 				},
 			],
-			readFile,
-		);
+		});
 
 		expect(result).toStrictEqual({
 			err: {
@@ -201,8 +201,9 @@ describe(buildDesired, () => {
 			.fn<(path: string) => Promise<Uint8Array>>()
 			.mockResolvedValue(new Uint8Array([1, 2, 3]));
 
-		const result = await buildDesired(
-			[
+		const result = await buildDesired({
+			readFile,
+			resources: [
 				gamePassInput(),
 				{
 					key: asResourceKey("start-place"),
@@ -214,12 +215,41 @@ describe(buildDesired, () => {
 					serverSize: undefined,
 				},
 			],
-			readFile,
-		);
+		});
 
 		assert(result.success);
 
 		expect(result.data.map((entry) => entry.kind)).toStrictEqual(["gamePass", "place"]);
+	});
+
+	it("should skip inputs the includeKind predicate rejects and read no file for them", async () => {
+		expect.assertions(2);
+
+		const readFile = vi
+			.fn<(path: string) => Promise<Uint8Array>>()
+			.mockResolvedValue(new Uint8Array([1, 2, 3]));
+
+		const result = await buildDesired({
+			includeKind: (kind) => kind !== "place",
+			readFile,
+			resources: [
+				gamePassInput(),
+				{
+					key: asResourceKey("start-place"),
+					description: undefined,
+					displayName: undefined,
+					filePath: "places/start.rbxl",
+					kind: "place",
+					placeId: asRobloxAssetId("4711"),
+					serverSize: undefined,
+				},
+			],
+		});
+
+		assert(result.success);
+
+		expect(result.data.map((entry) => entry.kind)).toStrictEqual(["gamePass"]);
+		expect(readFile).not.toHaveBeenCalledWith("places/start.rbxl");
 	});
 
 	it("should pass a universe input straight through without calling readFile", async () => {
@@ -227,8 +257,9 @@ describe(buildDesired, () => {
 
 		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>();
 
-		const result = await buildDesired(
-			[
+		const result = await buildDesired({
+			readFile,
+			resources: [
 				{
 					key: UNIVERSE_SINGLETON_KEY,
 					consoleEnabled: undefined,
@@ -242,8 +273,7 @@ describe(buildDesired, () => {
 					vrEnabled: undefined,
 				},
 			],
-			readFile,
-		);
+		});
 
 		expect(result).toStrictEqual({
 			data: [
@@ -270,8 +300,9 @@ describe(buildDesired, () => {
 
 		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>();
 
-		const result = await buildDesired(
-			[
+		const result = await buildDesired({
+			readFile,
+			resources: [
 				{
 					key: UNIVERSE_SINGLETON_KEY,
 					consoleEnabled: undefined,
@@ -285,8 +316,7 @@ describe(buildDesired, () => {
 					vrEnabled: undefined,
 				},
 			],
-			readFile,
-		);
+		});
 
 		assert(result.success);
 		assert(result.data[0]!.kind === "universe");
@@ -313,7 +343,10 @@ describe(buildDesired, () => {
 				voiceChatEnabled: undefined,
 				vrEnabled: undefined,
 			};
-			const result = await buildDesired([{ ...baseInput, [flag]: true }], readFile);
+			const result = await buildDesired({
+				readFile,
+				resources: [{ ...baseInput, [flag]: true }],
+			});
 
 			assert(result.success);
 			assert(result.data[0]!.kind === "universe");
@@ -327,8 +360,9 @@ describe(buildDesired, () => {
 
 		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>();
 
-		const result = await buildDesired(
-			[
+		const result = await buildDesired({
+			readFile,
+			resources: [
 				{
 					key: UNIVERSE_SINGLETON_KEY,
 					consoleEnabled: undefined,
@@ -343,8 +377,7 @@ describe(buildDesired, () => {
 					vrEnabled: undefined,
 				},
 			],
-			readFile,
-		);
+		});
 
 		assert(result.success);
 		assert(result.data[0]!.kind === "universe");
@@ -358,8 +391,9 @@ describe(buildDesired, () => {
 
 		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>();
 
-		const result = await buildDesired(
-			[
+		const result = await buildDesired({
+			readFile,
+			resources: [
 				{
 					key: UNIVERSE_SINGLETON_KEY,
 					consoleEnabled: undefined,
@@ -373,8 +407,7 @@ describe(buildDesired, () => {
 					vrEnabled: undefined,
 				},
 			],
-			readFile,
-		);
+		});
 
 		assert(result.success);
 		assert(result.data[0]!.kind === "universe");
