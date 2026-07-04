@@ -13,8 +13,6 @@ import {
 } from "#tests/helpers/resources";
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import type { CodegenFile, EmitInput, Emitter } from "../core/codegen.ts";
-import { hashCodegenFiles } from "../core/codegen.ts";
-import type { RebuildHook, RebuiltPlace } from "../core/rebuild.ts";
 import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
@@ -24,7 +22,7 @@ import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex, type ResourceKey } from "../types/ids.ts";
-import { deploy, type DeployError, isCliEnvironmentFlagSet } from "./deploy.ts";
+import { type BuildStep, deploy, type DeployError, isCliEnvironmentFlagSet } from "./deploy.ts";
 
 // Empty bytes hash to SHA-256 `e3b0c44...`; keeping readIcon in lockstep with
 // the hash constant lets the noop test assert "desired matches current" without
@@ -1744,8 +1742,7 @@ describe(deploy, () => {
 		});
 	});
 
-	describe("two-phase deploy", () => {
-		const rebuiltBytes = new Uint8Array([10, 20, 30]);
+	describe("fused deploy", () => {
 		const startPlace = asResourceKey("start-place");
 
 		interface PlaceCall {
@@ -1793,7 +1790,17 @@ describe(deploy, () => {
 			};
 		}
 
-		function twoPhaseConfig(): Config {
+		function recordingBuildStep(): { builds: Array<string>; step: BuildStep } {
+			const builds: Array<string> = [];
+			return {
+				builds,
+				step: async ({ environment }) => {
+					builds.push(environment);
+				},
+			};
+		}
+
+		function fusedConfig(): Config {
 			return {
 				environments: { production: { places: { "start-place": { placeId: "4711" } } } },
 				passes: { "vip-pass": VipPassEntry },
@@ -1801,11 +1808,7 @@ describe(deploy, () => {
 			};
 		}
 
-		function cannedRebuild(): ReadonlyArray<RebuiltPlace> {
-			return [{ key: startPlace, bytes: rebuiltBytes }];
-		}
-
-		function twoPhaseEmit(): ReadonlyArray<CodegenFile> {
+		function fusedEmit(): ReadonlyArray<CodegenFile> {
 			return [CODEGEN_FILE];
 		}
 
@@ -1813,392 +1816,9 @@ describe(deploy, () => {
 			return { ...config, codegen: { enabled: true, output: "src/generated" } };
 		}
 
-		function twoPhaseCodegenConfig(): Config {
-			return withCodegen(twoPhaseConfig());
+		function fusedCodegenConfig(): Config {
+			return withCodegen(fusedConfig());
 		}
-
-		it("should publish the rebuild hook's bytes to the place driver instead of the pre-built file", async () => {
-			expect.assertions(1);
-
-			const { placeCalls, registry } = recordingPlaceRegistry();
-
-			const result = await deploy({
-				codegenWriter: inMemoryCodegenWriter().port,
-				config: twoPhaseCodegenConfig(),
-				emit: twoPhaseEmit,
-				environment: "production",
-				readFile: readIcon,
-				rebuild: cannedRebuild,
-				registry,
-				statePort: inMemoryStatePort().port,
-			});
-
-			assert(result.success);
-
-			expect(placeCalls).toStrictEqual([
-				{ key: startPlace, artifact: rebuiltBytes, type: "create" },
-			]);
-		});
-
-		it("should give the rebuild hook the freshly minted asset IDs", async () => {
-			expect.assertions(1);
-
-			let received: BedrockState | undefined;
-			const { registry } = recordingPlaceRegistry();
-
-			await deploy({
-				codegenWriter: inMemoryCodegenWriter().port,
-				config: twoPhaseCodegenConfig(),
-				emit: twoPhaseEmit,
-				environment: "production",
-				readFile: readIcon,
-				rebuild: ({ state }) => {
-					received = state;
-					return [{ key: startPlace, bytes: rebuiltBytes }];
-				},
-				registry,
-				statePort: inMemoryStatePort().port,
-			});
-
-			expect(received?.resources).toContainEqual(vipPassCurrent());
-		});
-
-		it("should set the pending-rebuild marker at the checkpoint write and clear it at the final write", async () => {
-			expect.assertions(3);
-
-			const { port, writes } = inMemoryStatePort();
-			const { registry } = recordingPlaceRegistry();
-
-			await deploy({
-				codegenWriter: inMemoryCodegenWriter().port,
-				config: twoPhaseCodegenConfig(),
-				emit: twoPhaseEmit,
-				environment: "production",
-				readFile: readIcon,
-				rebuild: cannedRebuild,
-				registry,
-				statePort: port,
-			});
-
-			expect(writes).toHaveLength(2);
-			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
-			expect(writes[1]!.pendingRebuild).toBeUndefined();
-		});
-
-		it("should republish each place from its keyed entry for a multi-place universe", async () => {
-			expect.assertions(2);
-
-			const lobbyBytes = new Uint8Array([1, 1]);
-			const arenaBytes = new Uint8Array([2, 2]);
-			const { placeCalls, registry } = recordingPlaceRegistry();
-
-			await deploy({
-				codegenWriter: inMemoryCodegenWriter().port,
-				config: withCodegen({
-					environments: {
-						production: {
-							places: { arena: { placeId: "200" }, lobby: { placeId: "100" } },
-						},
-					},
-					passes: { "vip-pass": VipPassEntry },
-					places: {
-						arena: { filePath: "places/arena.rbxl" },
-						lobby: { filePath: "places/lobby.rbxl" },
-					},
-				}),
-				emit: twoPhaseEmit,
-				environment: "production",
-				readFile: readIcon,
-				rebuild: () => {
-					return [
-						{ key: asResourceKey("lobby"), bytes: lobbyBytes },
-						{ key: asResourceKey("arena"), bytes: arenaBytes },
-					];
-				},
-				registry,
-				statePort: inMemoryStatePort().port,
-			});
-
-			expect(placeCalls).toContainEqual({
-				key: asResourceKey("lobby"),
-				artifact: lobbyBytes,
-				type: "create",
-			});
-			expect(placeCalls).toContainEqual({
-				key: asResourceKey("arena"),
-				artifact: arenaBytes,
-				type: "create",
-			});
-		});
-
-		it("should republish a place already in state with the hook's bytes via an update", async () => {
-			expect.assertions(1);
-
-			const priorPlace: ResourceCurrentState<"place"> = {
-				key: startPlace,
-				description: undefined,
-				displayName: undefined,
-				fileHash: ICON_HASH,
-				filePath: "places/start.rbxl",
-				kind: "place",
-				outputs: { versionNumber: 1 },
-				placeId: asRobloxAssetId("4711"),
-				serverSize: undefined,
-			};
-			const { placeCalls, registry } = recordingPlaceRegistry();
-
-			const result = await deploy({
-				codegenWriter: inMemoryCodegenWriter().port,
-				config: twoPhaseCodegenConfig(),
-				emit: twoPhaseEmit,
-				environment: "production",
-				readFile: readIcon,
-				rebuild: cannedRebuild,
-				registry,
-				statePort: inMemoryStatePort({
-					environment: "production",
-					resources: [priorPlace],
-					version: 1,
-				}).port,
-			});
-
-			assert(result.success);
-
-			expect(placeCalls).toStrictEqual([
-				{ key: startPlace, artifact: rebuiltBytes, type: "update" },
-			]);
-		});
-
-		it("should publish places normally in a single pass when no rebuild hook is supplied", async () => {
-			expect.assertions(3);
-
-			const { port, writes } = inMemoryStatePort();
-			const { placeCalls, registry } = recordingPlaceRegistry();
-
-			const result = await deploy({
-				config: twoPhaseConfig(),
-				environment: "production",
-				readFile: readIcon,
-				registry,
-				statePort: port,
-			});
-
-			assert(result.success);
-
-			expect(writes).toHaveLength(1);
-			expect(writes[0]!.pendingRebuild).toBeUndefined();
-			expect(placeCalls).toStrictEqual([
-				{ key: startPlace, artifact: undefined, type: "create" },
-			]);
-		});
-
-		it("should abort the rebuild and surface applyFailed when the asset stage apply fails", async () => {
-			expect.assertions(3);
-
-			const { placeCalls, registry } = recordingPlaceRegistry();
-			let didCallHook = false;
-			const failingRegistry: DriverRegistry = {
-				...registry,
-				gamePass: {
-					async create() {
-						return { err: new OpenCloudError("create vip-pass: 503"), success: false };
-					},
-				},
-			};
-
-			const result = await deploy({
-				codegenWriter: inMemoryCodegenWriter().port,
-				config: twoPhaseCodegenConfig(),
-				emit: twoPhaseEmit,
-				environment: "production",
-				readFile: readIcon,
-				rebuild: () => {
-					didCallHook = true;
-					return [{ key: startPlace, bytes: rebuiltBytes }];
-				},
-				registry: failingRegistry,
-				statePort: inMemoryStatePort().port,
-			});
-
-			assert(!result.success);
-
-			expect(result.err.kind).toBe("applyFailed");
-			expect(didCallHook).toBeFalse();
-			expect(placeCalls).toBeEmpty();
-		});
-
-		it("should abort the rebuild and surface stateWriteFailed when the checkpoint write fails", async () => {
-			expect.assertions(3);
-
-			const { placeCalls, registry } = recordingPlaceRegistry();
-			let didCallHook = false;
-			const port: StatePort = {
-				async read() {
-					return { data: undefined, success: true };
-				},
-				async write() {
-					return {
-						err: { file: "state.json", kind: "stateError", reason: "EACCES" },
-						success: false,
-					};
-				},
-			};
-
-			const result = await deploy({
-				codegenWriter: inMemoryCodegenWriter().port,
-				config: twoPhaseCodegenConfig(),
-				emit: twoPhaseEmit,
-				environment: "production",
-				readFile: readIcon,
-				rebuild: () => {
-					didCallHook = true;
-					return [{ key: startPlace, bytes: rebuiltBytes }];
-				},
-				registry,
-				statePort: port,
-			});
-
-			assert(!result.success);
-
-			expect(result.err.kind).toBe("stateWriteFailed");
-			expect(didCallHook).toBeFalse();
-			expect(placeCalls).toBeEmpty();
-		});
-
-		it("should keep the pending-rebuild marker for a place the hook did not republish", async () => {
-			expect.assertions(2);
-
-			const { port, writes } = inMemoryStatePort();
-			const { registry } = recordingPlaceRegistry();
-
-			await deploy({
-				codegenWriter: inMemoryCodegenWriter().port,
-				config: withCodegen({
-					environments: {
-						production: {
-							places: { arena: { placeId: "200" }, lobby: { placeId: "100" } },
-						},
-					},
-					passes: { "vip-pass": VipPassEntry },
-					places: {
-						arena: { filePath: "places/arena.rbxl" },
-						lobby: { filePath: "places/lobby.rbxl" },
-					},
-				}),
-				emit: twoPhaseEmit,
-				environment: "production",
-				readFile: readIcon,
-				rebuild: () => [{ key: asResourceKey("lobby"), bytes: rebuiltBytes }],
-				registry,
-				statePort: port,
-			});
-
-			expect(writes[0]!.pendingRebuild).toStrictEqual(
-				new Set([asResourceKey("arena"), asResourceKey("lobby")]),
-			);
-			expect(writes[1]!.pendingRebuild).toStrictEqual(new Set([asResourceKey("arena")]));
-		});
-
-		it("should publish in a single pass when codegen is not enabled even with a rebuild hook", async () => {
-			expect.assertions(4);
-
-			const { port, writes } = inMemoryStatePort();
-			const { placeCalls, registry } = recordingPlaceRegistry();
-			let didCallHook = false;
-
-			const result = await deploy({
-				config: {
-					environments: {
-						production: { places: { "start-place": { placeId: "4711" } } },
-					},
-					places: { "start-place": { filePath: "places/start.rbxl" } },
-				},
-				environment: "production",
-				readFile: readIcon,
-				rebuild: () => {
-					didCallHook = true;
-					return [{ key: startPlace, bytes: rebuiltBytes }];
-				},
-				registry,
-				statePort: port,
-			});
-
-			assert(result.success);
-
-			expect(didCallHook).toBeFalse();
-			expect(writes).toHaveLength(1);
-			expect(writes[0]!.pendingRebuild).toBeUndefined();
-			expect(placeCalls).toStrictEqual([
-				{ key: startPlace, artifact: undefined, type: "create" },
-			]);
-		});
-
-		it("should run codegen with the minted IDs during a two-phase deploy", async () => {
-			expect.assertions(2);
-
-			const inputs: Array<EmitInput> = [];
-			const writer = inMemoryCodegenWriter();
-			const { registry } = recordingPlaceRegistry();
-
-			await deploy({
-				codegenWriter: writer.port,
-				config: {
-					...twoPhaseConfig(),
-					codegen: { enabled: true, output: "src/generated" },
-				},
-				emit: async (input) => {
-					inputs.push(input);
-					return [CODEGEN_FILE];
-				},
-				environment: "production",
-				readFile: readIcon,
-				rebuild: cannedRebuild,
-				registry,
-				statePort: inMemoryStatePort().port,
-			});
-
-			expect(inputs[0]!.environments["production"]!.resources).toContainEqual(
-				vipPassCurrent(),
-			);
-			expect(writer.writes).toStrictEqual([CODEGEN_FILE]);
-		});
-
-		it("should abort the rebuild and surface codegenFailed when codegen fails in two-phase", async () => {
-			expect.assertions(3);
-
-			const { port, writes } = inMemoryStatePort();
-			const { placeCalls, registry } = recordingPlaceRegistry();
-			let didCallHook = false;
-			const rejectingWriter: CodegenWriterPort = {
-				async write() {
-					return {
-						err: { kind: "codegenWriteError", path: "ids.luau", reason: "no space" },
-						success: false,
-					};
-				},
-			};
-
-			const result = await deploy({
-				codegenWriter: rejectingWriter,
-				config: twoPhaseCodegenConfig(),
-				emit: twoPhaseEmit,
-				environment: "production",
-				readFile: readIcon,
-				rebuild: () => {
-					didCallHook = true;
-					return cannedRebuild();
-				},
-				registry,
-				statePort: port,
-			});
-
-			assert(!result.success);
-			assert(result.err.kind === "codegenFailed");
-
-			expect(didCallHook).toBeFalse();
-			expect(placeCalls).toBeEmpty();
-			expect(writes).toHaveLength(1);
-		});
 
 		function startPlaceInState(): ResourceCurrentState<"place"> {
 			return {
@@ -2223,68 +1843,149 @@ describe(deploy, () => {
 			};
 		}
 
-		function twoPassPlaceConfig(): Config {
+		function stalePlaceInState(): ResourceCurrentState<"place"> {
+			// A fileHash that cannot match readIcon's empty-bytes digest, so the
+			// diff dispatches an update (the on-disk artifact changed).
 			return {
-				environments: { production: { places: { "start-place": { placeId: "4711" } } } },
-				passes: {
-					"alpha-pass": {
-						name: "Alpha Pass",
-						description: "Grants alpha perks.",
-						icon: { "en-us": "assets/alpha-icon.png" },
-						price: 250,
-					},
-					"vip-pass": VipPassEntry,
-				},
-				places: { "start-place": { filePath: "places/start.rbxl" } },
+				...startPlaceInState(),
+				fileHash: asSha256Hex(
+					"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				),
 			};
 		}
 
-		function partialFailureRegistry(): {
-			placeCalls: Array<PlaceCall>;
-			registry: DriverRegistry;
-		} {
-			const { placeCalls, registry } = recordingPlaceRegistry();
-			return {
-				placeCalls,
-				registry: {
-					...registry,
-					gamePass: {
-						async create(desired) {
-							if (desired.key === asResourceKey("alpha-pass")) {
-								return {
-									err: new OpenCloudError("create alpha-pass: 503"),
-									success: false,
-								};
-							}
-
-							return { data: vipPassCurrent(), success: true };
-						},
-					},
-				},
-			};
-		}
-
-		it("should persist the asset outputs and marker and return rebuildHookThrew when the hook throws", async () => {
+		it("should publish the on-disk artifact after provision and build with a single build invocation", async () => {
 			expect.assertions(5);
+
+			const { port, writes } = inMemoryStatePort();
+			const { placeCalls, registry } = recordingPlaceRegistry();
+			const { builds, step } = recordingBuildStep();
+
+			const result = await deploy({
+				build: step,
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: fusedCodegenConfig(),
+				emit: fusedEmit,
+				environment: "production",
+				readFile: readIcon,
+				registry,
+				statePort: port,
+			});
+
+			assert(result.success);
+
+			expect(builds).toStrictEqual(["production"]);
+			expect(writes).toHaveLength(2);
+			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
+			expect(writes[1]!.pendingRebuild).toBeUndefined();
+			expect(placeCalls).toStrictEqual([
+				{ key: startPlace, artifact: undefined, type: "create" },
+			]);
+		});
+
+		it("should run provision, codegen, build, and publish in that order", async () => {
+			expect.assertions(1);
+
+			const events: Array<string> = [];
+			const { registry } = recordingPlaceRegistry();
+			const place: ResourceDriver<"place"> = {
+				async create(desired) {
+					events.push("publish");
+					return { data: { ...desired, outputs: { versionNumber: 1 } }, success: true };
+				},
+			};
+
+			const result = await deploy({
+				build: async () => {
+					events.push("build");
+				},
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: fusedCodegenConfig(),
+				emit: () => {
+					events.push("codegen");
+					return [CODEGEN_FILE];
+				},
+				environment: "production",
+				readFile: readIcon,
+				registry: { ...registry, place },
+				statePort: inMemoryStatePort().port,
+			});
+
+			assert(result.success);
+
+			expect(events).toStrictEqual(["codegen", "build", "publish"]);
+		});
+
+		it("should surface missingBuildStep and mint nothing when codegen is enabled with no build step", async () => {
+			expect.assertions(3);
 
 			const { port, writes } = inMemoryStatePort();
 			const { placeCalls, registry } = recordingPlaceRegistry();
 
 			const result = await deploy({
 				codegenWriter: inMemoryCodegenWriter().port,
-				config: twoPhaseCodegenConfig(),
-				emit: twoPhaseEmit,
+				config: fusedCodegenConfig(),
+				emit: fusedEmit,
 				environment: "production",
 				readFile: readIcon,
-				rebuild: () => {
-					throw new Error("build blew up");
-				},
 				registry,
 				statePort: port,
 			});
 
 			assert(!result.success);
-			assert(result.err.kind === "rebuildHookThrew");
+
+			expect(result.err.kind).toBe("missingBuildStep");
+			expect(writes).toBeEmpty();
+			expect(placeCalls).toBeEmpty();
+		});
+
+		it("should publish places in a single pass without invoking the build step when codegen is not enabled", async () => {
+			expect.assertions(4);
+
+			const { port, writes } = inMemoryStatePort();
+			const { placeCalls, registry } = recordingPlaceRegistry();
+			const { builds, step } = recordingBuildStep();
+
+			const result = await deploy({
+				build: step,
+				config: fusedConfig(),
+				environment: "production",
+				readFile: readIcon,
+				registry,
+				statePort: port,
+			});
+
+			assert(result.success);
+
+			expect(builds).toBeEmpty();
+			expect(writes).toHaveLength(1);
+			expect(writes[0]!.pendingRebuild).toBeUndefined();
+			expect(placeCalls).toStrictEqual([
+				{ key: startPlace, artifact: undefined, type: "create" },
+			]);
+		});
+
+		it("should surface buildFailed with the checkpoint marker persisted when the build step throws", async () => {
+			expect.assertions(5);
+
+			const { port, writes } = inMemoryStatePort();
+			const { placeCalls, registry } = recordingPlaceRegistry();
+
+			const result = await deploy({
+				build: () => {
+					throw new Error("build blew up");
+				},
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: fusedCodegenConfig(),
+				emit: fusedEmit,
+				environment: "production",
+				readFile: readIcon,
+				registry,
+				statePort: port,
+			});
+
+			assert(!result.success);
+			assert(result.err.kind === "buildFailed");
 
 			expect(result.err.reason).toBe("build blew up");
 			expect(writes).toHaveLength(1);
@@ -2293,270 +1994,27 @@ describe(deploy, () => {
 			expect(placeCalls).toBeEmpty();
 		});
 
-		it("should stringify a non-Error thrown by the rebuild hook into the failure reason", async () => {
+		it("should stringify a non-Error thrown by the build step into the failure reason", async () => {
 			expect.assertions(1);
 
 			const result = await deploy({
+				build: vi.fn<BuildStep>().mockRejectedValue("kaboom"),
 				codegenWriter: inMemoryCodegenWriter().port,
-				config: twoPhaseCodegenConfig(),
-				emit: twoPhaseEmit,
+				config: fusedCodegenConfig(),
+				emit: fusedEmit,
 				environment: "production",
 				readFile: readIcon,
-				rebuild: vi.fn<RebuildHook>().mockRejectedValue("kaboom"),
 				registry: recordingPlaceRegistry().registry,
 				statePort: inMemoryStatePort().port,
 			});
 
 			assert(!result.success);
-			assert(result.err.kind === "rebuildHookThrew");
+			assert(result.err.kind === "buildFailed");
 
 			expect(result.err.reason).toBe("kaboom");
 		});
 
-		it("should emit codegen for resolved keys only on a partial asset failure", async () => {
-			expect.assertions(3);
-
-			const inputs: Array<EmitInput> = [];
-			const writer = inMemoryCodegenWriter();
-			const { registry } = partialFailureRegistry();
-
-			const result = await deploy({
-				codegenWriter: writer.port,
-				config: {
-					...twoPassPlaceConfig(),
-					codegen: { enabled: true, output: "src/generated" },
-				},
-				emit: async (input) => {
-					inputs.push(input);
-					return [CODEGEN_FILE];
-				},
-				environment: "production",
-				readFile: readIcon,
-				rebuild: cannedRebuild,
-				registry,
-				statePort: inMemoryStatePort().port,
-			});
-
-			assert(!result.success);
-
-			expect(result.err.kind).toBe("applyFailed");
-			expect(inputs[0]!.environments["production"]!.resources).toContainEqual(
-				vipPassCurrent(),
-			);
-			expect(inputs[0]!.environments["production"]!.resources).not.toContainEqual(
-				alphaPassCurrent(),
-			);
-		});
-
-		it("should re-activate two-phase from a marker and republish the marked place over a noop diff", async () => {
-			expect.assertions(3);
-
-			const { port, writes } = inMemoryStatePort(markedPriorState());
-			const { placeCalls, registry } = recordingPlaceRegistry();
-
-			const result = await deploy({
-				config: twoPhaseConfig(),
-				environment: "production",
-				readFile: readIcon,
-				rebuild: cannedRebuild,
-				registry,
-				statePort: port,
-			});
-
-			assert(result.success);
-
-			expect(placeCalls).toStrictEqual([
-				{ key: startPlace, artifact: rebuiltBytes, type: "update" },
-			]);
-			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
-			expect(writes[1]!.pendingRebuild).toBeUndefined();
-		});
-
-		it("should return pendingRebuildWithoutHook when a marker is present and no hook is available", async () => {
-			expect.assertions(2);
-
-			const { port, writes } = inMemoryStatePort(markedPriorState());
-
-			const result = await deploy({
-				config: twoPhaseConfig(),
-				environment: "production",
-				readFile: readIcon,
-				registry: recordingPlaceRegistry().registry,
-				statePort: port,
-			});
-
-			assert(!result.success);
-			assert(result.err.kind === "pendingRebuildWithoutHook");
-
-			expect(result.err.keys).toStrictEqual([startPlace]);
-			expect(writes).toBeEmpty();
-		});
-
-		it("should clear a stuck marker without rebuilding when clearPendingRebuild is set", async () => {
-			expect.assertions(2);
-
-			const { port, writes } = inMemoryStatePort(markedPriorState());
-			const { placeCalls, registry } = recordingPlaceRegistry();
-
-			const result = await deploy({
-				clearPendingRebuild: true,
-				config: twoPhaseConfig(),
-				environment: "production",
-				readFile: readIcon,
-				registry,
-				statePort: port,
-			});
-
-			assert(result.success);
-
-			expect(writes.at(-1)!.pendingRebuild).toBeUndefined();
-			expect(placeCalls).toBeEmpty();
-		});
-
-		it("should not re-activate two-phase from a marker when clearPendingRebuild is set even with a hook", async () => {
-			expect.assertions(3);
-
-			const { port, writes } = inMemoryStatePort(markedPriorState());
-			const { placeCalls, registry } = recordingPlaceRegistry();
-			let didCallHook = false;
-
-			const result = await deploy({
-				clearPendingRebuild: true,
-				config: twoPhaseConfig(),
-				environment: "production",
-				readFile: readIcon,
-				rebuild: () => {
-					didCallHook = true;
-					return cannedRebuild();
-				},
-				registry,
-				statePort: port,
-			});
-
-			assert(result.success);
-
-			expect(didCallHook).toBeFalse();
-			expect(writes.at(-1)!.pendingRebuild).toBeUndefined();
-			expect(placeCalls).toBeEmpty();
-		});
-
-		function priceEmit({ environments }: EmitInput): ReadonlyArray<CodegenFile> {
-			const pass = environments["production"]?.resources.find(
-				(resource) => resource.kind === "gamePass",
-			);
-			const price = pass !== undefined && "price" in pass ? pass.price : 0;
-			return [{ content: `return { price = ${String(price)} }\n`, path: "ids.luau" }];
-		}
-
-		function priceUpdateRegistry(updatedPass: ResourceCurrentState<"gamePass">): {
-			placeCalls: Array<PlaceCall>;
-			registry: DriverRegistry;
-		} {
-			const { placeCalls, registry } = recordingPlaceRegistry();
-			return {
-				placeCalls,
-				registry: {
-					...registry,
-					gamePass: {
-						async create() {
-							return { data: updatedPass, success: true };
-						},
-						async update() {
-							return { data: updatedPass, success: true };
-						},
-					},
-				},
-			};
-		}
-
-		function priceUpdateConfig(price: number): Config {
-			return withCodegen({
-				environments: { production: { places: { "start-place": { placeId: "4711" } } } },
-				passes: { "vip-pass": { ...VipPassEntry, price } },
-				places: { "start-place": { filePath: "places/start.rbxl" } },
-			});
-		}
-
-		it("should rebuild and republish on a price-only update whose codegen output changed", async () => {
-			expect.assertions(3);
-
-			const storedHash = await hashCodegenFiles([
-				{ content: "return { price = 500 }\n", path: "ids.luau" },
-			]);
-			const updatedPass = { ...vipPassCurrent(), price: 600 };
-			const { placeCalls, registry } = priceUpdateRegistry(updatedPass);
-			const { port, writes } = inMemoryStatePort({
-				codegenHash: storedHash,
-				environment: "production",
-				resources: [vipPassCurrent(), startPlaceInState()],
-				version: 1,
-			});
-
-			const result = await deploy({
-				codegenWriter: inMemoryCodegenWriter().port,
-				config: priceUpdateConfig(600),
-				emit: priceEmit,
-				environment: "production",
-				readFile: readIcon,
-				rebuild: cannedRebuild,
-				registry,
-				statePort: port,
-			});
-
-			assert(result.success);
-
-			expect(placeCalls).toStrictEqual([
-				{ key: startPlace, artifact: rebuiltBytes, type: "update" },
-			]);
-			expect(writes.at(-1)!.codegenHash).toBe(
-				await hashCodegenFiles([{ content: "return { price = 600 }\n", path: "ids.luau" }]),
-			);
-			expect(writes.at(-1)!.pendingRebuild).toBeUndefined();
-		});
-
-		it("should publish the pre-built file without rebuilding when codegen output is unchanged", async () => {
-			expect.assertions(3);
-
-			const storedHash = await hashCodegenFiles([CODEGEN_FILE]);
-			const priorPlace: ResourceCurrentState<"place"> = {
-				...startPlaceInState(),
-				fileHash: asSha256Hex(
-					"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				),
-			};
-			const { placeCalls, registry } = recordingPlaceRegistry();
-			let didCallHook = false;
-			const { port, writes } = inMemoryStatePort({
-				codegenHash: storedHash,
-				environment: "production",
-				resources: [vipPassCurrent(), priorPlace],
-				version: 1,
-			});
-
-			const result = await deploy({
-				codegenWriter: inMemoryCodegenWriter().port,
-				config: twoPhaseCodegenConfig(),
-				emit: twoPhaseEmit,
-				environment: "production",
-				readFile: readIcon,
-				rebuild: () => {
-					didCallHook = true;
-					return cannedRebuild();
-				},
-				registry,
-				statePort: port,
-			});
-
-			assert(result.success);
-
-			expect(didCallHook).toBeFalse();
-			expect(placeCalls).toStrictEqual([
-				{ key: startPlace, artifact: undefined, type: "update" },
-			]);
-			expect(writes.at(-1)!.codegenHash).toBe(storedHash);
-		});
-
-		it("should retain the stored hash and the marker when the rebuild hook throws", async () => {
+		it("should retain the stored codegen hash on the checkpoint when the build step fails", async () => {
 			expect.assertions(3);
 
 			const storedHash = asSha256Hex(
@@ -2570,28 +2028,405 @@ describe(deploy, () => {
 			});
 
 			const result = await deploy({
-				codegenWriter: inMemoryCodegenWriter().port,
-				config: twoPhaseCodegenConfig(),
-				emit: twoPhaseEmit,
-				environment: "production",
-				readFile: readIcon,
-				rebuild: () => {
+				build: () => {
 					throw new Error("build blew up");
 				},
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: fusedCodegenConfig(),
+				emit: fusedEmit,
+				environment: "production",
+				readFile: readIcon,
 				registry: recordingPlaceRegistry().registry,
 				statePort: port,
 			});
 
 			assert(!result.success);
-			assert(result.err.kind === "rebuildHookThrew");
+			assert(result.err.kind === "buildFailed");
 
 			expect(writes).toHaveLength(1);
 			expect(writes[0]!.codegenHash).toBe(storedHash);
 			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
 		});
 
-		it("should preserve the stored codegen hash on a marker retry without an active emitter", async () => {
+		it("should self-heal a marker left by a failed run on the next green deploy", async () => {
+			expect.assertions(3);
+
+			const { port, writes } = inMemoryStatePort({
+				...markedPriorState(),
+				resources: [vipPassCurrent(), stalePlaceInState()],
+			});
+			const { placeCalls, registry } = recordingPlaceRegistry();
+			const { builds, step } = recordingBuildStep();
+
+			const result = await deploy({
+				build: step,
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: fusedCodegenConfig(),
+				emit: fusedEmit,
+				environment: "production",
+				readFile: readIcon,
+				registry,
+				statePort: port,
+			});
+
+			assert(result.success);
+
+			expect(builds).toStrictEqual(["production"]);
+			expect(placeCalls).toStrictEqual([
+				{ key: startPlace, artifact: undefined, type: "update" },
+			]);
+			expect(writes.at(-1)!.pendingRebuild).toBeUndefined();
+		});
+
+		it("should not invoke the build step when the asset stage apply fails", async () => {
+			expect.assertions(3);
+
+			const { placeCalls, registry } = recordingPlaceRegistry();
+			const { builds, step } = recordingBuildStep();
+			const failingRegistry: DriverRegistry = {
+				...registry,
+				gamePass: {
+					async create() {
+						return { err: new OpenCloudError("create vip-pass: 503"), success: false };
+					},
+				},
+			};
+
+			const result = await deploy({
+				build: step,
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: fusedCodegenConfig(),
+				emit: fusedEmit,
+				environment: "production",
+				readFile: readIcon,
+				registry: failingRegistry,
+				statePort: inMemoryStatePort().port,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("applyFailed");
+			expect(builds).toBeEmpty();
+			expect(placeCalls).toBeEmpty();
+		});
+
+		it("should not invoke the build step when the checkpoint write fails", async () => {
+			expect.assertions(3);
+
+			const { placeCalls, registry } = recordingPlaceRegistry();
+			const { builds, step } = recordingBuildStep();
+			const port: StatePort = {
+				async read() {
+					return { data: undefined, success: true };
+				},
+				async write() {
+					return {
+						err: { file: "state.json", kind: "stateError", reason: "EACCES" },
+						success: false,
+					};
+				},
+			};
+
+			const result = await deploy({
+				build: step,
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: fusedCodegenConfig(),
+				emit: fusedEmit,
+				environment: "production",
+				readFile: readIcon,
+				registry,
+				statePort: port,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("stateWriteFailed");
+			expect(builds).toBeEmpty();
+			expect(placeCalls).toBeEmpty();
+		});
+
+		it("should run codegen with the minted IDs before the build step", async () => {
 			expect.assertions(2);
+
+			const inputs: Array<EmitInput> = [];
+			const writer = inMemoryCodegenWriter();
+			const { registry } = recordingPlaceRegistry();
+
+			await deploy({
+				build: recordingBuildStep().step,
+				codegenWriter: writer.port,
+				config: fusedCodegenConfig(),
+				emit: (input) => {
+					inputs.push(input);
+					return [CODEGEN_FILE];
+				},
+				environment: "production",
+				readFile: readIcon,
+				registry,
+				statePort: inMemoryStatePort().port,
+			});
+
+			expect(inputs[0]!.environments["production"]!.resources).toContainEqual(
+				vipPassCurrent(),
+			);
+			expect(writer.writes).toStrictEqual([CODEGEN_FILE]);
+		});
+
+		it("should abort before the build step and surface codegenFailed when codegen fails", async () => {
+			expect.assertions(4);
+
+			const { port, writes } = inMemoryStatePort();
+			const { placeCalls, registry } = recordingPlaceRegistry();
+			const { builds, step } = recordingBuildStep();
+			const rejectingWriter: CodegenWriterPort = {
+				async write() {
+					return {
+						err: { kind: "codegenWriteError", path: "ids.luau", reason: "no space" },
+						success: false,
+					};
+				},
+			};
+
+			const result = await deploy({
+				build: step,
+				codegenWriter: rejectingWriter,
+				config: fusedCodegenConfig(),
+				emit: fusedEmit,
+				environment: "production",
+				readFile: readIcon,
+				registry,
+				statePort: port,
+			});
+
+			assert(!result.success);
+			assert(result.err.kind === "codegenFailed");
+
+			expect(builds).toBeEmpty();
+			expect(placeCalls).toBeEmpty();
+			expect(writes).toHaveLength(1);
+			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
+		});
+
+		it("should emit codegen for resolved keys only on a partial asset failure", async () => {
+			expect.assertions(4);
+
+			const inputs: Array<EmitInput> = [];
+			const writer = inMemoryCodegenWriter();
+			const { registry } = recordingPlaceRegistry();
+			const { builds, step } = recordingBuildStep();
+			const partialRegistry: DriverRegistry = {
+				...registry,
+				gamePass: {
+					async create(desired) {
+						if (desired.key === asResourceKey("alpha-pass")) {
+							return {
+								err: new OpenCloudError("create alpha-pass: 503"),
+								success: false,
+							};
+						}
+
+						return { data: vipPassCurrent(), success: true };
+					},
+				},
+			};
+
+			const result = await deploy({
+				build: step,
+				codegenWriter: writer.port,
+				config: withCodegen({
+					environments: {
+						production: { places: { "start-place": { placeId: "4711" } } },
+					},
+					passes: {
+						"alpha-pass": {
+							name: "Alpha Pass",
+							description: "Grants alpha perks.",
+							icon: { "en-us": "assets/alpha-icon.png" },
+							price: 250,
+						},
+						"vip-pass": VipPassEntry,
+					},
+					places: { "start-place": { filePath: "places/start.rbxl" } },
+				}),
+				emit: (input) => {
+					inputs.push(input);
+					return [CODEGEN_FILE];
+				},
+				environment: "production",
+				readFile: readIcon,
+				registry: partialRegistry,
+				statePort: inMemoryStatePort().port,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("applyFailed");
+			expect(builds).toBeEmpty();
+			expect(inputs[0]!.environments["production"]!.resources).toContainEqual(
+				vipPassCurrent(),
+			);
+			expect(inputs[0]!.environments["production"]!.resources).not.toContainEqual(
+				alphaPassCurrent(),
+			);
+		});
+
+		it("should upload nothing and clear the marker when nothing changed on a green fused deploy", async () => {
+			expect.assertions(4);
+
+			const { port, writes } = inMemoryStatePort(markedPriorState());
+			const { placeCalls, registry } = recordingPlaceRegistry();
+			const { builds, step } = recordingBuildStep();
+
+			const result = await deploy({
+				build: step,
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: fusedCodegenConfig(),
+				emit: fusedEmit,
+				environment: "production",
+				readFile: readIcon,
+				registry,
+				statePort: port,
+			});
+
+			assert(result.success);
+
+			expect(builds).toStrictEqual(["production"]);
+			expect(placeCalls).toBeEmpty();
+			expect(writes).toHaveLength(2);
+			expect(writes.at(-1)!.pendingRebuild).toBeUndefined();
+		});
+
+		it("should surface stateReadFailed when the publish-stage reload fails after a green build", async () => {
+			expect.assertions(2);
+
+			const { builds, step } = recordingBuildStep();
+			let reads = 0;
+			const port: StatePort = {
+				async read() {
+					reads += 1;
+					if (reads > 1) {
+						return {
+							err: { file: "state.json", kind: "stateError", reason: "EIO" },
+							success: false,
+						};
+					}
+
+					return { data: undefined, success: true };
+				},
+				async write() {
+					return { data: undefined, success: true };
+				},
+			};
+
+			const result = await deploy({
+				build: step,
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: fusedCodegenConfig(),
+				emit: fusedEmit,
+				environment: "production",
+				readFile: readIcon,
+				registry: recordingPlaceRegistry().registry,
+				statePort: port,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("stateReadFailed");
+			expect(builds).toStrictEqual(["production"]);
+		});
+
+		it("should keep the marker for a place whose publish fails", async () => {
+			expect.assertions(3);
+
+			const { port, writes } = inMemoryStatePort({
+				environment: "production",
+				resources: [vipPassCurrent(), stalePlaceInState()],
+				version: 1,
+			});
+			const { registry } = recordingPlaceRegistry();
+			const failingPlaceRegistry: DriverRegistry = {
+				...registry,
+				place: {
+					async create() {
+						return {
+							err: new OpenCloudError("create start-place: 503"),
+							success: false,
+						};
+					},
+					async update() {
+						return {
+							err: new OpenCloudError("update start-place: 503"),
+							success: false,
+						};
+					},
+				},
+			};
+
+			const result = await deploy({
+				build: recordingBuildStep().step,
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: fusedCodegenConfig(),
+				emit: fusedEmit,
+				environment: "production",
+				readFile: readIcon,
+				registry: failingPlaceRegistry,
+				statePort: port,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("applyFailed");
+			expect(writes).toHaveLength(2);
+			expect(writes.at(-1)!.pendingRebuild).toStrictEqual(new Set([startPlace]));
+		});
+
+		it("should build once and publish every declared place for a multi-place universe", async () => {
+			expect.assertions(4);
+
+			const { port, writes } = inMemoryStatePort();
+			const { placeCalls, registry } = recordingPlaceRegistry();
+			const { builds, step } = recordingBuildStep();
+
+			const result = await deploy({
+				build: step,
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: withCodegen({
+					environments: {
+						production: {
+							places: { arena: { placeId: "200" }, lobby: { placeId: "100" } },
+						},
+					},
+					passes: { "vip-pass": VipPassEntry },
+					places: {
+						arena: { filePath: "places/arena.rbxl" },
+						lobby: { filePath: "places/lobby.rbxl" },
+					},
+				}),
+				emit: fusedEmit,
+				environment: "production",
+				readFile: readIcon,
+				registry,
+				statePort: port,
+			});
+
+			assert(result.success);
+
+			expect(builds).toStrictEqual(["production"]);
+			expect(placeCalls).toContainEqual({
+				key: asResourceKey("lobby"),
+				artifact: undefined,
+				type: "create",
+			});
+			expect(placeCalls).toContainEqual({
+				key: asResourceKey("arena"),
+				artifact: undefined,
+				type: "create",
+			});
+			expect(writes.at(-1)!.pendingRebuild).toBeUndefined();
+		});
+
+		it("should preserve the stored codegen hash across a green fused deploy", async () => {
+			expect.assertions(1);
 
 			const storedHash = asSha256Hex(
 				"2222222222222222222222222222222222222222222222222222222222222222",
@@ -2599,17 +2434,39 @@ describe(deploy, () => {
 			const { port, writes } = inMemoryStatePort({
 				codegenHash: storedHash,
 				environment: "production",
-				pendingRebuild: new Set([startPlace]),
 				resources: [vipPassCurrent(), startPlaceInState()],
 				version: 1,
+			});
+
+			const result = await deploy({
+				build: recordingBuildStep().step,
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: fusedCodegenConfig(),
+				emit: fusedEmit,
+				environment: "production",
+				readFile: readIcon,
+				registry: recordingPlaceRegistry().registry,
+				statePort: port,
+			});
+
+			assert(result.success);
+
+			expect(writes.at(-1)!.codegenHash).toBe(storedHash);
+		});
+
+		it("should publish the marked place and clear a leftover marker in a no-codegen deploy", async () => {
+			expect.assertions(3);
+
+			const { port, writes } = inMemoryStatePort({
+				...markedPriorState(),
+				resources: [vipPassCurrent(), stalePlaceInState()],
 			});
 			const { placeCalls, registry } = recordingPlaceRegistry();
 
 			const result = await deploy({
-				config: twoPhaseConfig(),
+				config: fusedConfig(),
 				environment: "production",
 				readFile: readIcon,
-				rebuild: cannedRebuild,
 				registry,
 				statePort: port,
 			});
@@ -2617,9 +2474,71 @@ describe(deploy, () => {
 			assert(result.success);
 
 			expect(placeCalls).toStrictEqual([
-				{ key: startPlace, artifact: rebuiltBytes, type: "update" },
+				{ key: startPlace, artifact: undefined, type: "update" },
 			]);
-			expect(writes.at(-1)!.codegenHash).toBe(storedHash);
+			expect(writes).toHaveLength(1);
+			expect(writes[0]!.pendingRebuild).toBeUndefined();
+		});
+
+		it("should clear a leftover marker when the marked place is already up to date in a no-codegen deploy", async () => {
+			expect.assertions(3);
+
+			const { port, writes } = inMemoryStatePort(markedPriorState());
+			const { placeCalls, registry } = recordingPlaceRegistry();
+
+			const result = await deploy({
+				config: fusedConfig(),
+				environment: "production",
+				readFile: readIcon,
+				registry,
+				statePort: port,
+			});
+
+			assert(result.success);
+
+			expect(placeCalls).toBeEmpty();
+			expect(writes).toHaveLength(1);
+			expect(writes[0]!.pendingRebuild).toBeUndefined();
+		});
+
+		it("should keep a leftover marker for a place whose publish fails in a no-codegen deploy", async () => {
+			expect.assertions(2);
+
+			const { port, writes } = inMemoryStatePort({
+				...markedPriorState(),
+				resources: [vipPassCurrent(), stalePlaceInState()],
+			});
+			const { registry } = recordingPlaceRegistry();
+			const failingPlaceRegistry: DriverRegistry = {
+				...registry,
+				place: {
+					async create() {
+						return {
+							err: new OpenCloudError("create start-place: 503"),
+							success: false,
+						};
+					},
+					async update() {
+						return {
+							err: new OpenCloudError("update start-place: 503"),
+							success: false,
+						};
+					},
+				},
+			};
+
+			const result = await deploy({
+				config: fusedConfig(),
+				environment: "production",
+				readFile: readIcon,
+				registry: failingPlaceRegistry,
+				statePort: port,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("applyFailed");
+			expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
 		});
 	});
 });

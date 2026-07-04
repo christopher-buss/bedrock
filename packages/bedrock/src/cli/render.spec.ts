@@ -153,16 +153,13 @@ describe(renderDeployError, () => {
 			expected: "codegen failed because the emitter threw: boom",
 		},
 		{
-			err: { kind: "rebuildHookThrew", reason: "build blew up" },
-			expected: "the rebuild hook threw: build blew up",
+			err: { kind: "buildFailed", reason: "build blew up" },
+			expected: "the build step failed: build blew up",
 		},
 		{
-			err: {
-				keys: [asResourceKey("start-place"), asResourceKey("arena")] as const,
-				kind: "pendingRebuildWithoutHook",
-			},
+			err: { kind: "missingBuildStep" },
 			expected:
-				"place(s) start-place, arena owe a rebuild but no rebuild hook is available: supply one (or set clearPendingRebuild to abandon two-phase) through a .bedrock/deploy.ts override",
+				"codegen is enabled but no build step is available: add a .bedrock/build.ts override that writes each place's built artifact to its configured file path, or disable codegen",
 		},
 		{
 			err: {

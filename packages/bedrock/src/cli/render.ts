@@ -374,6 +374,9 @@ function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFailed" }>):
 		case "buildDesiredFailed": {
 			return `build desired state failed ${buildDesiredDetail(err.cause)}`;
 		}
+		case "buildFailed": {
+			return `the build step failed: ${err.reason}`;
+		}
 		case "codegenFailed": {
 			return `codegen failed ${codegenErrorDetail(err.cause)}`;
 		}
@@ -389,14 +392,11 @@ function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFailed" }>):
 		case "incompleteUniverseEntry": {
 			return `universe is missing '${err.missingField}' under environment '${err.environment}'`;
 		}
+		case "missingBuildStep": {
+			return "codegen is enabled but no build step is available: add a .bedrock/build.ts override that writes each place's built artifact to its configured file path, or disable codegen";
+		}
 		case "missingCredential": {
 			return `missing credential: environment variable ${err.variable} is not set`;
-		}
-		case "pendingRebuildWithoutHook": {
-			return `place(s) ${err.keys.join(", ")} owe a rebuild but no rebuild hook is available: supply one (or set clearPendingRebuild to abandon two-phase) through a .bedrock/deploy.ts override`;
-		}
-		case "rebuildHookThrew": {
-			return `the rebuild hook threw: ${err.reason}`;
 		}
 		case "registryConfigMissing": {
 			return `registry config missing '${err.missing}' (${err.hint})`;
