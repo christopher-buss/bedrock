@@ -13,12 +13,10 @@ import {
 it('Example 1', () => {
   const built: Array<string> = []
   const build: BuildStep = ({ environment }) => {
-    built.push(`rojo build --output places/start.rbxl (${environment})`)
+    built.push(`build places/start.rbxl for ${environment}`)
   }
   return Promise.resolve(build({ environment: 'production' })).then(() => {
-    expect(built).toStrictEqual([
-      'rojo build --output places/start.rbxl (production)',
-    ])
+    expect(built).toStrictEqual(['build places/start.rbxl for production'])
   })
 })
 

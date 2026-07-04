@@ -6,7 +6,7 @@ import { createClackProgressAdapter } from "../../adapters/clack-progress-adapte
 import type { Config } from "../../core/schema.ts";
 import type { BedrockState } from "../../core/state.ts";
 import type { ProgressPort } from "../../ports/progress-port.ts";
-import type { DeployError } from "../../shell/deploy.ts";
+import type { BuildStep, DeployError } from "../../shell/deploy.ts";
 import {
 	loadConfig as defaultLoadConfig,
 	type LoadConfigOptions,
@@ -16,7 +16,7 @@ import { createClackPort } from "../clack-port.ts";
 import { buildCredentialOverrides } from "../credential-environment-overrides.ts";
 import { createDefaultSpawner } from "../default-spawner.ts";
 import { discoverOverride as defaultDiscoverOverride } from "../discover-override.ts";
-import { dispatchOverride } from "../dispatch-override.ts";
+import { dispatchOverride, type SpawnOverrideError } from "../dispatch-override.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps } from "../index.ts";
 import { type CommonOptions, parseCommonOptions } from "../parse-options.ts";
@@ -37,6 +37,13 @@ import type { Spawner } from "../spawner.ts";
 export interface ReconcileCommandSpec {
 	/** Subcommand name, used for override discovery and the clack labels. */
 	readonly command: string;
+	/**
+	 * When `true`, the command's pipeline is the fused deploy: on the shell
+	 * (non-override) path a `.bedrock/build.ts` override is also discovered and,
+	 * when present, injected as the pipeline's `build` step so the deploy spawns
+	 * it between its provision and publish stages.
+	 */
+	readonly fusedBuild?: boolean;
 	/** Picks the reconcile pipeline from the injected deps. */
 	readonly resolveRun: (deps: ProgDeps) => ReconcileRun;
 }
@@ -47,6 +54,7 @@ export interface ReconcileCommandSpec {
  * discovery, per-env dispatch, exit-code aggregation) is identical around it.
  */
 type ReconcileRun = (options: {
+	readonly build?: BuildStep;
 	readonly config: Config;
 	readonly environment: string;
 	readonly getEnv: (name: string) => string | undefined;
@@ -58,6 +66,7 @@ interface Resolved {
 	readonly command: string;
 	readonly discoverOverride: typeof defaultDiscoverOverride;
 	readonly exit: (code: number) => void;
+	readonly fusedBuild: boolean;
 	readonly loadConfig: typeof defaultLoadConfig;
 	readonly progressOverride: ProgressPort | undefined;
 	readonly projectRoot: string;
@@ -66,6 +75,7 @@ interface Resolved {
 }
 
 interface DispatchInputs {
+	readonly buildOverridePath: string | undefined;
 	readonly config: Config;
 	readonly getEnv: (name: string) => string | undefined;
 	readonly overridePath: string | undefined;
@@ -75,10 +85,17 @@ interface DispatchInputs {
 }
 
 interface DispatchAndReportInput {
+	readonly buildOverridePath: string | undefined;
 	readonly loaded: Config;
 	readonly overridePath: string | undefined;
 	readonly parsed: CommonOptions;
 	readonly resolved: Resolved;
+}
+
+interface SpawnBuildStepInputs {
+	readonly overridePath: string;
+	readonly parsed: CommonOptions;
+	readonly spawner: Spawner;
 }
 
 type OverrideDiscovery =
@@ -113,11 +130,29 @@ function resolveDeps(deps: ProgDeps, spec: ReconcileCommandSpec): Resolved {
 		command: spec.command,
 		discoverOverride: deps.discoverOverride ?? defaultDiscoverOverride,
 		exit: deps.exit ?? ((code: number) => process.exit(code)),
+		fusedBuild: spec.fusedBuild ?? false,
 		loadConfig: deps.loadConfig ?? defaultLoadConfig,
 		progressOverride: deps.progress,
 		projectRoot: deps.projectRoot ?? process.cwd(),
 		run: spec.resolveRun(deps),
 		spawner: deps.spawner ?? createDefaultSpawner(),
+	};
+}
+
+function describeBuildSpawnFailure(err: SpawnOverrideError): string {
+	return err.kind === "nonZeroExit"
+		? `.bedrock/build.ts exited with code ${String(err.exitCode)}`
+		: `failed to launch .bedrock/build.ts - ${err.cause.message}`;
+}
+
+function createSpawnBuildStep(inputs: SpawnBuildStepInputs): BuildStep {
+	const { overridePath, parsed, spawner } = inputs;
+	return async ({ environment }) => {
+		const invocation = buildOverrideInvocation({ environment, overridePath, parsed });
+		const result = await dispatchOverride(invocation, spawner);
+		if (!result.success) {
+			throw new Error(describeBuildSpawnFailure(result.err));
+		}
 	};
 }
 
@@ -129,8 +164,22 @@ function cancelAsFailed(resolved: Resolved): void {
 	resolved.clack.cancel(`${resolved.command} failed`);
 }
 
+function resolveBuildStep(inputs: DispatchInputs): BuildStep | undefined {
+	const { buildOverridePath, parsed, resolved } = inputs;
+	if (buildOverridePath === undefined) {
+		return undefined;
+	}
+
+	return createSpawnBuildStep({
+		overridePath: buildOverridePath,
+		parsed,
+		spawner: resolved.spawner,
+	});
+}
+
 async function dispatchEnvironments(inputs: DispatchInputs): Promise<ReadonlyArray<string>> {
 	const { config, getEnv, overridePath, parsed, progress, resolved } = inputs;
+	const build = resolveBuildStep(inputs);
 	const failed: Array<string> = [];
 	for (const environment of parsed.environments) {
 		if (overridePath !== undefined) {
@@ -144,7 +193,13 @@ async function dispatchEnvironments(inputs: DispatchInputs): Promise<ReadonlyArr
 			continue;
 		}
 
-		const result = await resolved.run({ config, environment, getEnv, progress });
+		const result = await resolved.run({
+			...(build === undefined ? {} : { build }),
+			config,
+			environment,
+			getEnv,
+			progress,
+		});
 		if (!result.success) {
 			failed.push(environment);
 		}
@@ -159,12 +214,13 @@ function buildGetEnvironment(parsed: CommonOptions): (name: string) => string | 
 }
 
 async function dispatchAndReport(input: DispatchAndReportInput): Promise<number> {
-	const { loaded, overridePath, parsed, resolved } = input;
+	const { buildOverridePath, loaded, overridePath, parsed, resolved } = input;
 	const progress: ProgressPort =
 		resolved.progressOverride ??
 		createClackProgressAdapter({ clack: resolved.clack, config: loaded });
 
 	const failures = await dispatchEnvironments({
+		buildOverridePath,
 		config: loaded,
 		getEnv: buildGetEnvironment(parsed),
 		overridePath,
@@ -181,17 +237,31 @@ async function dispatchAndReport(input: DispatchAndReportInput): Promise<number>
 	return EXIT_OK;
 }
 
-function discoverOverridePath(resolved: Resolved): OverrideDiscovery {
+function discoverOverridePath(resolved: Resolved, command: string): OverrideDiscovery {
 	try {
 		return {
 			kind: "discovered",
-			overridePath: resolved.discoverOverride(resolved.projectRoot, resolved.command),
+			overridePath: resolved.discoverOverride(resolved.projectRoot, command),
 		};
 	} catch (err) {
 		renderOverrideDiscoveryError(err, resolved.clack);
 		cancelAsFailed(resolved);
 		return { kind: "failed" };
 	}
+}
+
+function discoverBuildOverridePath(
+	resolved: Resolved,
+	commandOverridePath: string | undefined,
+): OverrideDiscovery {
+	// The build override matters only on the shell path of a fused command: a
+	// dispatched `.bedrock/<command>.ts` override owns its whole pipeline, and a
+	// non-fused command never builds.
+	if (!resolved.fusedBuild || commandOverridePath !== undefined) {
+		return { kind: "discovered", overridePath: undefined };
+	}
+
+	return discoverOverridePath(resolved, "build");
 }
 
 async function run(rawOptions: Record<string, unknown>, resolved: Resolved): Promise<number> {
@@ -211,12 +281,18 @@ async function run(rawOptions: Record<string, unknown>, resolved: Resolved): Pro
 		return EXIT_ERROR;
 	}
 
-	const discovery = discoverOverridePath(resolved);
+	const discovery = discoverOverridePath(resolved, resolved.command);
 	if (discovery.kind === "failed") {
 		return EXIT_ERROR;
 	}
 
+	const buildDiscovery = discoverBuildOverridePath(resolved, discovery.overridePath);
+	if (buildDiscovery.kind === "failed") {
+		return EXIT_ERROR;
+	}
+
 	return dispatchAndReport({
+		buildOverridePath: buildDiscovery.overridePath,
 		loaded: loaded.data,
 		overridePath: discovery.overridePath,
 		parsed: parsed.data,
