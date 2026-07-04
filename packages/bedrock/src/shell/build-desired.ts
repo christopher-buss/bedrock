@@ -7,6 +7,20 @@ import type { ResourceDesiredState, ResourceKind } from "../core/resources.ts";
 
 export type { BuildDesiredError } from "../core/kinds/module.ts";
 
+interface BuildDesiredInputs {
+	/**
+	 * Restricts processing to inputs whose kind satisfies the predicate. A
+	 * skipped input is neither read nor included, so a caller reconciling only a
+	 * subset of kinds (an asset-only provision, a place-only publish) does no
+	 * file I/O for the kinds it does not own. Omit to process every input.
+	 */
+	readonly includeKind?: ((kind: ResourceKind) => boolean) | undefined;
+	/** Reads file bytes for a given path; rejection becomes a `fileReadFailed` Err. */
+	readonly readFile: (path: string) => Promise<Uint8Array>;
+	/** Flat tagged resource inputs from `flattenConfig`. */
+	readonly resources: ReadonlyArray<ResourceDesiredInput>;
+}
+
 /**
  * Layer file I/O onto a flat tagged list of resource inputs to produce
  * `ResourceDesiredState`.
@@ -18,11 +32,10 @@ export type { BuildDesiredError } from "../core/kinds/module.ts";
  *
  * @since 0.1.0
  *
- * @param inputs - Flat tagged resource inputs from `flattenConfig`.
- * @param readFile - Reads file bytes for a given path; rejection becomes a
- * `fileReadFailed` Err.
- * @returns `Ok` with the desired-state array (same length and order as
- * `inputs`), or `Err` with the first I/O failure.
+ * @param inputs - The resource inputs, file reader, and optional `includeKind`
+ * filter. See {@link BuildDesiredInputs}.
+ * @returns `Ok` with the desired-state array (in input order, limited to the
+ * kinds `includeKind` admits), or `Err` with the first I/O failure.
  * @example
  *
  * ```ts
@@ -32,8 +45,9 @@ export type { BuildDesiredError } from "../core/kinds/module.ts";
  *     return new Uint8Array([1, 2, 3]);
  * }
  *
- * return buildDesired(
- *     [
+ * return buildDesired({
+ *     readFile,
+ *     resources: [
  *         {
  *             description: "Grants VIP perks.",
  *             icon: { "en-us": "assets/vip-icon.png" },
@@ -43,8 +57,7 @@ export type { BuildDesiredError } from "../core/kinds/module.ts";
  *             price: 500,
  *         },
  *     ],
- *     readFile,
- * ).then((result) => {
+ * }).then((result) => {
  *     expect(result.success).toBeTrue();
  *     if (result.success) {
  *         expect(result.data).toHaveLength(1);
@@ -54,12 +67,16 @@ export type { BuildDesiredError } from "../core/kinds/module.ts";
  * ```
  */
 export async function buildDesired(
-	inputs: ReadonlyArray<ResourceDesiredInput>,
-	readFile: (path: string) => Promise<Uint8Array>,
+	inputs: BuildDesiredInputs,
 ): Promise<Result<ReadonlyArray<ResourceDesiredState>, BuildDesiredError>> {
+	const { includeKind, readFile, resources } = inputs;
 	const desired: Array<ResourceDesiredState> = [];
 	const io = { readFile };
-	for (const input of inputs) {
+	for (const input of resources) {
+		if (includeKind !== undefined && !includeKind(input.kind)) {
+			continue;
+		}
+
 		// Registry index returns a union of per-kind modules; widening its
 		// type parameter lets us call normalize without per-kind
 		// discriminator narrowing. Safe because input.kind pins which

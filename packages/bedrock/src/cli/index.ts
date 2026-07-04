@@ -4,7 +4,11 @@ import type { Sade } from "sade";
 import manifest from "../../package.json" with { type: "json" };
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { buildStatePort as defaultBuildStatePort } from "../shell/build-state-port.ts";
-import type { deploy as defaultDeploy } from "../shell/deploy.ts";
+import type {
+	deploy as defaultDeploy,
+	provision as defaultProvision,
+	publish as defaultPublish,
+} from "../shell/deploy.ts";
 import type { loadConfig as defaultLoadConfig } from "../shell/load-config.ts";
 import type { migrateMantleState as defaultMigrateMantleState } from "../shell/migrate-mantle-state.ts";
 import type { previewDiff as defaultPreviewDiff } from "../shell/preview-diff.ts";
@@ -12,6 +16,8 @@ import { buildCommand } from "./commands/build.ts";
 import { deployCommand } from "./commands/deploy.ts";
 import { diffCommand } from "./commands/diff.ts";
 import { migrateCommand } from "./commands/migrate.ts";
+import { provisionCommand } from "./commands/provision.ts";
+import { publishCommand } from "./commands/publish.ts";
 import type { discoverOverride as defaultDiscoverOverride } from "./discover-override.ts";
 import type { MigratePromptPort } from "./migrate-prompt-port.ts";
 import type { ClackPort } from "./render.ts";
@@ -51,11 +57,48 @@ export interface ProgDeps {
 	readonly progress?: ProgressPort;
 	/** Project root passed to override discovery; defaults to `process.cwd()`. */
 	readonly projectRoot?: string;
+	/** Runs the asset stage plus codegen; defaults to the public `provision`. */
+	readonly provision?: typeof defaultProvision;
+	/** Publishes on-disk artifacts for pending-rebuild places; defaults to the public `publish`. */
+	readonly publish?: typeof defaultPublish;
 	/** Child-process spawner used to launch override scripts; defaults to `createDefaultSpawner()`. */
 	readonly spawner?: Spawner;
 	/** File-write seam used by the migrate command to emit the bedrock config file; defaults to `node:fs/promises.writeFile`. */
 	readonly writeFile?: (path: string, contents: string) => Promise<void>;
 }
+
+/**
+ * The reconcile-style subcommands, each sharing the `withCommonOptions` flag
+ * surface. `migrate` is registered separately because it takes a positional
+ * argument and its own flags.
+ */
+const RECONCILE_COMMANDS = [
+	{
+		name: "deploy",
+		action: deployCommand,
+		describe: "Reconcile a project's resources against the configured environment(s)",
+	},
+	{
+		name: "build",
+		action: buildCommand,
+		describe: "Run the project's .bedrock/build.ts override to produce place artifacts",
+	},
+	{
+		name: "diff",
+		action: diffCommand,
+		describe: "Preview the operations a deploy would apply, without writing state",
+	},
+	{
+		name: "provision",
+		action: provisionCommand,
+		describe: "Mint assets and run codegen without building or publishing a place",
+	},
+	{
+		name: "publish",
+		action: publishCommand,
+		describe: "Upload on-disk place artifacts pending a rebuild, without minting or codegen",
+	},
+] as const;
 
 /**
  * Construct the bedrock CLI program. Pure factory: no `process.argv` parsing,
@@ -65,28 +108,14 @@ export interface ProgDeps {
  *   resolves its own defaults from any omitted slots.
  * @returns A configured sade program with the bedrock name, description, and
  *   the currently installed `@bedrock-rbx/core` version, plus the registered
- *   `build`, `deploy`, `diff`, and `migrate` commands.
+ *   `build`, `deploy`, `diff`, `provision`, `publish`, and `migrate` commands.
  */
 export function createProg(deps: ProgDeps = {}): Sade {
 	const prog = sade(PROGRAM_NAME).describe(PROGRAM_DESCRIBE).version(manifest.version);
 
-	withCommonOptions(
-		prog
-			.command("deploy")
-			.describe("Reconcile a project's resources against the configured environment(s)"),
-	).action(deployCommand(deps));
-
-	withCommonOptions(
-		prog
-			.command("build")
-			.describe("Run the project's .bedrock/build.ts override to produce place artifacts"),
-	).action(buildCommand(deps));
-
-	withCommonOptions(
-		prog
-			.command("diff")
-			.describe("Preview the operations a deploy would apply, without writing state"),
-	).action(diffCommand(deps));
+	for (const { name, action, describe } of RECONCILE_COMMANDS) {
+		withCommonOptions(prog.command(name).describe(describe)).action(action(deps));
+	}
 
 	prog.command("migrate [stateFilePath]")
 		.describe("Translate a state file from another tool into a bedrock project")
@@ -98,11 +127,11 @@ export function createProg(deps: ProgDeps = {}): Sade {
 
 /**
  * Register the environment/config/credential flags shared by every
- * reconcile-style subcommand (`deploy`, `build`, `diff`) onto the sade command
- * the caller has just opened via `prog.command(...).describe(...)`. Keeping the
- * flag names and descriptions in one place stops the three registrations from
- * drifting apart. `migrate` has its own flag surface and is registered without
- * this helper.
+ * reconcile-style subcommand (`deploy`, `build`, `diff`, `provision`,
+ * `publish`) onto the sade command the caller has just opened via
+ * `prog.command(...).describe(...)`. Keeping the flag names and descriptions in
+ * one place stops the registrations from drifting apart. `migrate` has its own
+ * flag surface and is registered without this helper.
  * @param command - The sade instance positioned on the command being defined.
  * @returns The same sade instance so the caller can chain `.action(...)`.
  */

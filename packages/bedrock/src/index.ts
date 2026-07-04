@@ -168,7 +168,15 @@ export {
 	type UnsupportedBackendError,
 } from "./shell/build-state-port.ts";
 export { defineConfig, type ConfigContext, type ConfigInput } from "./shell/define-config.ts";
-export { deploy, type DeployError, type DeployOptions } from "./shell/deploy.ts";
+export {
+	deploy,
+	type DeployError,
+	type DeployOptions,
+	provision,
+	type ProvisionOptions,
+	publish,
+	type PublishOptions,
+} from "./shell/deploy.ts";
 export { loadConfig, type LoadConfigOptions } from "./shell/load-config.ts";
 export { migrateMantleState, type MigrateMantleStateDeps } from "./shell/migrate-mantle-state.ts";
 export type { CodegenError } from "./shell/run-codegen.ts";

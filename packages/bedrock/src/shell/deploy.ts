@@ -23,6 +23,7 @@ import type {
 	PlaceDesiredState,
 	ResourceCurrentState,
 	ResourceDesiredState,
+	ResourceKind,
 	ResourceRealDisplay,
 } from "../core/resources.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
@@ -119,6 +120,75 @@ export interface DeployOptions {
 }
 
 /**
+ * Inputs for `provision`, the asset half of a decomposed deploy. Mirrors the
+ * relevant slice of {@link DeployOptions} minus the place-stage hooks: there is
+ * no `rebuild` (provision never republishes a place) and no
+ * `clearPendingRebuild` (provision always re-marks every declared place). The
+ * codegen `emit`/`codegenWriter` seams remain because provision runs the
+ * emitter.
+ *
+ * @since 0.1.0
+ */
+export interface ProvisionOptions {
+	/**
+	 * Writer for codegen output; defaults to a node-fs writer rooted at
+	 * `config.codegen.output`. Only consulted when codegen is enabled.
+	 */
+	readonly codegenWriter?: CodegenWriterPort;
+	/** Pre-loaded, optionally-mutated project config. Omit to call `loadConfig()` automatically. */
+	readonly config?: Config;
+	/**
+	 * Codegen emitter. Supplied programmatically. When codegen is enabled in
+	 * config, `provision` runs it after the checkpoint write.
+	 */
+	readonly emit?: Emitter;
+	/** Environment name; threaded into `StatePort.read` and the persisted snapshot. */
+	readonly environment: string;
+	/** `fetch` override plumbed into the default-constructed gist adapter when `statePort` is omitted. */
+	readonly fetch?: GistFetch;
+	/** Reads an environment variable; defaults to `(name) => process.env[name]`. */
+	readonly getEnv?: (name: string) => string | undefined;
+	/** Loader invoked when `config` is omitted; defaults to `loadConfig` from this package. */
+	readonly loadConfig?: (options?: LoadConfigOptions) => Promise<Result<Config, ConfigError>>;
+	/** Optional sink for per-resource and aggregate progress events. Omit to run silently. */
+	readonly progress?: ProgressPort;
+	/** Reads file bytes for resources that have file-backed inputs. Defaults to `node:fs/promises.readFile`. */
+	readonly readFile?: (path: string) => Promise<Uint8Array>;
+	/** Per-kind driver table consulted for create / update dispatch. Default-constructed from `BEDROCK_API_KEY` when omitted. */
+	readonly registry?: DriverRegistry;
+	/** Backend used to read the prior snapshot and persist the new one. Default-constructed from `config.state` and `BEDROCK_GITHUB_TOKEN` when omitted. */
+	readonly statePort?: StatePort;
+}
+
+/**
+ * Inputs for `publish`, the place-uploader half of a decomposed deploy. A pure
+ * uploader: it mints nothing, runs no codegen, and builds no place, so it omits
+ * every asset- and codegen-related seam of {@link DeployOptions}.
+ *
+ * @since 0.1.0
+ */
+export interface PublishOptions {
+	/** Pre-loaded, optionally-mutated project config. Omit to call `loadConfig()` automatically. */
+	readonly config?: Config;
+	/** Environment name; threaded into `StatePort.read` and the persisted snapshot. */
+	readonly environment: string;
+	/** `fetch` override plumbed into the default-constructed gist adapter when `statePort` is omitted. */
+	readonly fetch?: GistFetch;
+	/** Reads an environment variable; defaults to `(name) => process.env[name]`. */
+	readonly getEnv?: (name: string) => string | undefined;
+	/** Loader invoked when `config` is omitted; defaults to `loadConfig` from this package. */
+	readonly loadConfig?: (options?: LoadConfigOptions) => Promise<Result<Config, ConfigError>>;
+	/** Optional sink for per-resource and aggregate progress events. Omit to run silently. */
+	readonly progress?: ProgressPort;
+	/** Reads on-disk place artifacts to publish. Defaults to `node:fs/promises.readFile`. */
+	readonly readFile?: (path: string) => Promise<Uint8Array>;
+	/** Per-kind driver table consulted for create / update dispatch. Default-constructed from `BEDROCK_API_KEY` when omitted. */
+	readonly registry?: DriverRegistry;
+	/** Backend used to read the prior snapshot and persist the new one. Default-constructed from `config.state` and `BEDROCK_GITHUB_TOKEN` when omitted. */
+	readonly statePort?: StatePort;
+}
+
+/**
  * Failure surfaced by `deploy`. Stage-tagged so callers can branch on
  * `kind` to distinguish reconciliation failures (`stateReadFailed`,
  * `applyFailed`, `codegenFailed`, `rebuildHookThrew`,
@@ -191,6 +261,22 @@ interface EmitTerminalEventInputs {
 	readonly result: Result<BedrockState, DeployError>;
 }
 
+/**
+ * A reconcile pipeline over resolved deps for one environment. `deploy`,
+ * `provision`, and `publish` each supply one, sharing the dep-resolution and
+ * progress-emission scaffolding around it.
+ */
+type ReconcileRunner = (
+	environment: string,
+	deps: ResolvedDependencies,
+) => Promise<Result<BedrockState, DeployError>>;
+
+interface RunContext {
+	readonly options: DeployOptions;
+	readonly progress: ProgressPort;
+	readonly runner: ReconcileRunner;
+}
+
 interface SinglePassInputs {
 	readonly deps: ResolvedDependencies;
 	readonly environment: string;
@@ -213,6 +299,17 @@ interface TwoPhaseInputs {
 interface CompleteTwoPhaseInputs extends TwoPhaseInputs {
 	readonly assetPass: ReconcilePass;
 	readonly codegen: Result<Sha256Hex, CodegenError> | undefined;
+}
+
+/**
+ * Outcome of the provision stage (asset stage + codegen + checkpoint). `outcome`
+ * is the caller-facing result: non-success aborts any following place stage,
+ * while `assetPass` and `codegen` let a two-phase deploy continue to republish.
+ */
+interface ProvisionStage {
+	readonly assetPass: ReconcilePass;
+	readonly codegen: Result<Sha256Hex, CodegenError> | undefined;
+	readonly outcome: Result<BedrockState, DeployError>;
 }
 
 interface AssetStageInputs {
@@ -341,15 +438,71 @@ export function isCliEnvironmentFlagSet(value: string | undefined): boolean {
  * ```
  */
 export async function deploy(options: DeployOptions): Promise<Result<BedrockState, DeployError>> {
-	if (options.progress !== undefined) {
-		return runAndEmit(options, options.progress);
-	}
+	return execute(options, runReconcile);
+}
 
-	if (!isCliEnvironmentFlagSet(getEnvironmentOf(options)("BEDROCK_CLI"))) {
-		return runAndEmit(options, createNoOpProgressAdapter());
-	}
+/**
+ * Run the asset half of a deploy: apply non-place ops (minting IDs), persist
+ * mutable asset fields, run codegen, and set the `pendingRebuild` marker at the
+ * checkpoint. Builds and publishes no place. The minted-but-unpublished state it
+ * leaves is exactly the one the marker models, so a later `publish` (or the next
+ * `deploy`) republishes the affected places. Default-constructs missing deps and
+ * resolves the progress port exactly as {@link deploy} does.
+ *
+ * @since 0.1.0
+ *
+ * @param options - Target environment plus optional overrides.
+ * @returns The checkpoint `BedrockState` on success, or a stage-tagged
+ *   `DeployError` on failure (a partial asset failure returns `applyFailed` with
+ *   survivors and the marker persisted).
+ * @example
+ *
+ * ```ts
+ * import { provision } from "@bedrock-rbx/core";
+ *
+ * return provision({ environment: "production" }).then((result) => {
+ *     expect(result.success).toBeFalse();
+ *     if (!result.success) {
+ *         expect(["configLoadFailed", "stateNotConfigured"]).toContain(result.err.kind);
+ *     }
+ * });
+ * ```
+ */
+export async function provision(
+	options: ProvisionOptions,
+): Promise<Result<BedrockState, DeployError>> {
+	return execute(options, runProvision);
+}
 
-	return runWithDeferredClackProgress(options);
+/**
+ * Publish the on-disk artifact for every place under a `pendingRebuild` marker,
+ * clearing the marker for each place actually republished. A pure uploader: it
+ * mints nothing, runs no codegen, and builds no place. An unchanged artifact
+ * (its file hash already matches state) is a no-op upload that keeps its marker,
+ * so the place still shows as owing a rebuild until its artifact changes.
+ * Default-constructs missing deps and resolves the progress port exactly as
+ * {@link deploy} does.
+ *
+ * @since 0.1.0
+ *
+ * @param options - Target environment plus optional overrides.
+ * @returns The persisted `BedrockState` on success, or a stage-tagged
+ *   `DeployError` on failure.
+ * @example
+ *
+ * ```ts
+ * import { publish } from "@bedrock-rbx/core";
+ *
+ * return publish({ environment: "production" }).then((result) => {
+ *     expect(result.success).toBeFalse();
+ *     if (!result.success) {
+ *         expect(["configLoadFailed", "stateNotConfigured"]).toContain(result.err.kind);
+ *     }
+ * });
+ * ```
+ */
+export async function publish(options: PublishOptions): Promise<Result<BedrockState, DeployError>> {
+	return execute(options, runPublish);
 }
 
 function readProcessEnvironment(name: string): string | undefined {
@@ -510,6 +663,69 @@ async function resolveDependencies(
 	};
 }
 
+function emitTerminalEvent(inputs: EmitTerminalEventInputs): void {
+	const { environment, progress, result } = inputs;
+	if (result.success) {
+		progress.emit({
+			environment,
+			kind: "deploySuccess",
+			resourceCount: result.data.resources.length,
+		});
+		return;
+	}
+
+	progress.emit({ environment, error: result.err, kind: "deployFailure" });
+}
+
+async function runAndEmit(context: RunContext): Promise<Result<BedrockState, DeployError>> {
+	const { options, progress, runner } = context;
+	const resolved = await resolveDependencies(options);
+	if (!resolved.success) {
+		emitTerminalEvent({ environment: options.environment, progress, result: resolved });
+		return resolved;
+	}
+
+	const result = await runner(options.environment, { ...resolved.data, progress });
+	emitTerminalEvent({ environment: options.environment, progress, result });
+	return result;
+}
+
+async function runWithDeferredClackProgress(
+	options: DeployOptions,
+	runner: ReconcileRunner,
+): Promise<Result<BedrockState, DeployError>> {
+	const resolved = await resolveDependencies(options);
+	const labelConfig = resolved.success ? resolved.data.config : options.config;
+	const progress = createDefaultProgressAdapter(labelConfig);
+
+	if (!resolved.success) {
+		emitTerminalEvent({ environment: options.environment, progress, result: resolved });
+		return resolved;
+	}
+
+	const result = await runner(options.environment, { ...resolved.data, progress });
+	emitTerminalEvent({ environment: options.environment, progress, result });
+	return result;
+}
+
+async function execute(
+	options: DeployOptions,
+	runner: ReconcileRunner,
+): Promise<Result<BedrockState, DeployError>> {
+	if (options.progress !== undefined) {
+		return runAndEmit({ options, progress: options.progress, runner });
+	}
+
+	// A non-empty `BEDROCK_CLI` selects the clack-backed adapter (resolved after
+	// the config loads, for its state-backend label); every other reading runs
+	// silently through the no-op adapter.
+	if (isCliEnvironmentFlagSet(getEnvironmentOf(options)("BEDROCK_CLI"))) {
+		return runWithDeferredClackProgress(options, runner);
+	}
+
+	return runAndEmit({ options, progress: createNoOpProgressAdapter(), runner });
+}
+
 function finalize(
 	pass: ReconcilePass,
 	codegen: Result<Sha256Hex, CodegenError> | undefined,
@@ -574,24 +790,6 @@ async function runSinglePass(inputs: SinglePassInputs): Promise<Result<BedrockSt
 
 	const codegen = await runCodegenStage(deps, pass);
 	return finalize(pass, codegen);
-}
-
-async function runAssetStage(inputs: AssetStageInputs): Promise<ReconcilePass> {
-	const { deps, environment, markPlaces, ops, priorResources, storedHash } = inputs;
-	// The checkpoint preserves the stored hash: only the write that completes a
-	// successful republish (or pre-built publish) advances it, so an aborted
-	// rebuild retains the stale hash and the next deploy retries.
-	return applyAndPersist({
-		codegenHash: storedHash,
-		environment,
-		ops,
-		pendingRebuild: new Set(markPlaces),
-		priorResources,
-		progress: deps.progress,
-		realDisplay: deps.realDisplay,
-		registry: deps.registry,
-		statePort: deps.statePort,
-	});
 }
 
 async function runRepublishStage(inputs: RepublishStageInputs): Promise<ReconcilePass> {
@@ -702,9 +900,39 @@ async function completeTwoPhase(
 	return finalize(republishPass, codegen);
 }
 
+async function runAssetStage(inputs: AssetStageInputs): Promise<ReconcilePass> {
+	const { deps, environment, markPlaces, ops, priorResources, storedHash } = inputs;
+	// The checkpoint preserves the stored hash: only the write that completes a
+	// successful republish (or pre-built publish) advances it, so an aborted
+	// rebuild retains the stale hash and the next deploy retries.
+	return applyAndPersist({
+		codegenHash: storedHash,
+		environment,
+		ops,
+		pendingRebuild: new Set(markPlaces),
+		priorResources,
+		progress: deps.progress,
+		realDisplay: deps.realDisplay,
+		registry: deps.registry,
+		statePort: deps.statePort,
+	});
+}
+
+async function runProvisionStage(inputs: AssetStageInputs): Promise<ProvisionStage> {
+	const assetPass = await runAssetStage(inputs);
+	const codegen = await runCodegenStage(inputs.deps, assetPass);
+	// `finalize` returns a non-success outcome exactly when the stage must abort:
+	// a partial asset failure (or failed checkpoint write) leaves survivors and
+	// the marker persisted, and a codegen failure after the checkpoint retains
+	// the stale hash; in every case the next run retries via the marker rather
+	// than building against missing IDs. A success outcome means the checkpoint
+	// is clean and a caller may proceed to a place stage.
+	return { assetPass, codegen, outcome: finalize(assetPass, codegen) };
+}
+
 async function runTwoPhase(inputs: TwoPhaseInputs): Promise<Result<BedrockState, DeployError>> {
 	const { deps, environment, plan, priorResources, storedHash } = inputs;
-	const assetPass = await runAssetStage({
+	const { assetPass, codegen, outcome } = await runProvisionStage({
 		deps,
 		environment,
 		markPlaces: plan.markPlaces,
@@ -713,32 +941,38 @@ async function runTwoPhase(inputs: TwoPhaseInputs): Promise<Result<BedrockState,
 		storedHash,
 	});
 
-	const codegen = await runCodegenStage(deps, assetPass);
-
-	// A partial asset failure (or a failed checkpoint write) aborts the rebuild:
-	// survivors and the marker are already persisted, codegen has emitted the
-	// resolved keys, and the asset-stage error stands so the next run retries
-	// via the marker instead of rebuilding against missing IDs. A codegen failure
-	// after the checkpoint aborts too: with no fresh hash the rebuild decision
-	// cannot be made, so the marker and the stale hash are retained.
-	if (!assetPass.written.success || !assetPass.applied.success) {
-		return finalize(assetPass, codegen);
-	}
-
-	if (codegen !== undefined && !codegen.success) {
-		return finalize(assetPass, codegen);
+	if (!outcome.success) {
+		return outcome;
 	}
 
 	return completeTwoPhase({ ...inputs, assetPass, codegen });
 }
 
-async function loadReconcileInputs(
-	environment: string,
+async function resolveDesiredState(
 	dependencies: ResolvedDependencies,
-): Promise<Result<ReconcileInputs, DeployError>> {
-	const desired = await buildDesired(flattenConfig(dependencies.config), dependencies.readFile);
+	includeKind?: (kind: ResourceKind) => boolean,
+): Promise<Result<ReadonlyArray<ResourceDesiredState>, DeployError>> {
+	const desired = await buildDesired({
+		includeKind,
+		readFile: dependencies.readFile,
+		resources: flattenConfig(dependencies.config),
+	});
 	if (!desired.success) {
 		return { err: { cause: desired.err, kind: "buildDesiredFailed" }, success: false };
+	}
+
+	return desired;
+}
+
+async function loadReconcileInputs(inputs: {
+	readonly dependencies: ResolvedDependencies;
+	readonly environment: string;
+	readonly includeKind?: (kind: ResourceKind) => boolean;
+}): Promise<Result<ReconcileInputs, DeployError>> {
+	const { dependencies, environment, includeKind } = inputs;
+	const desired = await resolveDesiredState(dependencies, includeKind);
+	if (!desired.success) {
+		return desired;
 	}
 
 	const prior = await dependencies.statePort.read(environment);
@@ -784,7 +1018,7 @@ async function runReconcile(
 	environment: string,
 	dependencies: ResolvedDependencies,
 ): Promise<Result<BedrockState, DeployError>> {
-	const loaded = await loadReconcileInputs(environment, dependencies);
+	const loaded = await loadReconcileInputs({ dependencies, environment });
 	if (!loaded.success) {
 		return loaded;
 	}
@@ -819,54 +1053,81 @@ async function runReconcile(
 	});
 }
 
-async function runDeploy(
-	options: DeployOptions,
-	progress: ProgressPort,
-): Promise<Result<BedrockState, DeployError>> {
-	const resolved = await resolveDependencies(options);
-	if (!resolved.success) {
-		return resolved;
-	}
-
-	return runReconcile(options.environment, { ...resolved.data, progress });
+function declaredPlaceKeys(config: ResolvedConfig): ReadonlyArray<ResourceKey> {
+	return flattenConfig(config)
+		.filter((input) => input.kind === "place")
+		.map((input) => input.key);
 }
 
-function emitTerminalEvent(inputs: EmitTerminalEventInputs): void {
-	const { environment, progress, result } = inputs;
-	if (result.success) {
-		progress.emit({
-			environment,
-			kind: "deploySuccess",
-			resourceCount: result.data.resources.length,
-		});
-		return;
+async function runProvision(
+	environment: string,
+	deps: ResolvedDependencies,
+): Promise<Result<BedrockState, DeployError>> {
+	// Reconcile assets only: provision never reads the place artifact, so it can
+	// run before the place is built. Every declared place is marked for a later
+	// publish, its key taken from config rather than a diffed op.
+	const loaded = await loadReconcileInputs({
+		dependencies: deps,
+		environment,
+		includeKind: (kind) => kind !== "place",
+	});
+	if (!loaded.success) {
+		return loaded;
 	}
 
-	progress.emit({ environment, error: result.err, kind: "deployFailure" });
+	const { ops, priorResources, storedHash } = loaded.data;
+	const { outcome } = await runProvisionStage({
+		deps,
+		environment,
+		markPlaces: declaredPlaceKeys(deps.config),
+		ops,
+		priorResources,
+		storedHash,
+	});
+	return outcome;
 }
 
-async function runAndEmit(
-	options: DeployOptions,
-	progress: ProgressPort,
-): Promise<Result<BedrockState, DeployError>> {
-	const result = await runDeploy(options, progress);
-	emitTerminalEvent({ environment: options.environment, progress, result });
-	return result;
+function remainingOwed(
+	owedRebuild: ReadonlySet<ResourceKey>,
+	survivors: ReadonlyArray<ResourceCurrentState>,
+): ReadonlySet<ResourceKey> {
+	// A survivor is a place that actually republished; clear its marker. A place
+	// whose op noop'd (unchanged artifact) or failed is absent and keeps its
+	// marker, so it still shows as owing a rebuild.
+	const republished = new Set(survivors.map((resource) => resource.key));
+	return new Set([...owedRebuild].filter((key) => !republished.has(key)));
 }
 
-async function runWithDeferredClackProgress(
-	options: DeployOptions,
+async function runPublish(
+	environment: string,
+	deps: ResolvedDependencies,
 ): Promise<Result<BedrockState, DeployError>> {
-	const resolved = await resolveDependencies(options);
-	const labelConfig = resolved.success ? resolved.data.config : options.config;
-	const progress = createDefaultProgressAdapter(labelConfig);
-
-	if (!resolved.success) {
-		emitTerminalEvent({ environment: options.environment, progress, result: resolved });
-		return resolved;
+	// Reconcile places only: publish never reads asset files. Publish just the
+	// places owing a rebuild; the diff already noop's a place whose on-disk
+	// artifact hash matches state, so an unchanged artifact is not dispatched (no
+	// upload). The stored hash threads through unchanged: publish runs no
+	// codegen.
+	const loaded = await loadReconcileInputs({
+		dependencies: deps,
+		environment,
+		includeKind: (kind) => kind === "place",
+	});
+	if (!loaded.success) {
+		return loaded;
 	}
 
-	const result = await runReconcile(options.environment, { ...resolved.data, progress });
-	emitTerminalEvent({ environment: options.environment, progress, result });
-	return result;
+	const { ops, owedRebuild, priorResources, storedHash } = loaded.data;
+	const placeOps = ops.filter((op) => owedRebuild.has(op.key));
+	const pass = await applyAndPersist({
+		codegenHash: storedHash,
+		environment,
+		ops: placeOps,
+		pendingRebuild: (survivors) => remainingOwed(owedRebuild, survivors),
+		priorResources,
+		progress: deps.progress,
+		realDisplay: deps.realDisplay,
+		registry: deps.registry,
+		statePort: deps.statePort,
+	});
+	return finalize(pass, undefined);
 }

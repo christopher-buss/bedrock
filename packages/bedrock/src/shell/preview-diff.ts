@@ -213,7 +213,10 @@ async function runPreview(
 	environment: string,
 	dependencies: ResolvedDependencies,
 ): Promise<Result<DiffPreview, PreviewDiffError>> {
-	const desired = await buildDesired(flattenConfig(dependencies.config), dependencies.readFile);
+	const desired = await buildDesired({
+		readFile: dependencies.readFile,
+		resources: flattenConfig(dependencies.config),
+	});
 	if (!desired.success) {
 		return { err: { cause: desired.err, kind: "buildDesiredFailed" }, success: false };
 	}

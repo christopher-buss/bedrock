@@ -58,7 +58,10 @@ describe("places pipeline end-to-end", () => {
 		const resolved = selectEnvironment(loaded.data, "production");
 		assert(resolved.success);
 
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readPlaceFile);
+		const desiredResult = await buildDesired({
+			readFile: readPlaceFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient().mockResponse({
@@ -107,7 +110,10 @@ describe("places pipeline end-to-end", () => {
 		const resolved = selectEnvironment(loaded.data, "production");
 		assert(resolved.success);
 
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readPlaceFile);
+		const desiredResult = await buildDesired({
+			readFile: readPlaceFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient()

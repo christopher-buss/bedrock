@@ -25,6 +25,16 @@ export interface ReconcilePass {
 }
 
 /**
+ * Place keys to record as owing a rebuild, or a resolver computing them from the
+ * pass's survivors. The resolver form runs after `applyOps`, so a caller can
+ * clear the marker only for the places that actually applied; a failed or
+ * withheld (noop) place is absent from the survivors and keeps its marker.
+ */
+type PendingRebuildInput =
+	| ((survivors: ReadonlyArray<ResourceCurrentState>) => ReadonlySet<ResourceKey>)
+	| ReadonlySet<ResourceKey>;
+
+/**
  * Inputs for a single {@link applyAndPersist} pass. `priorResources` is the
  * cumulative baseline the pass folds its survivors into before writing, so a
  * later pass receives the previous pass's `merged.resources` here.
@@ -45,10 +55,11 @@ interface ApplyAndPersistInputs {
 	/** Subset of reconcile ops applied in this pass, in declaration order. */
 	readonly ops: ReadonlyArray<Operation>;
 	/**
-	 * Place keys to record as owing a rebuild. Stamped onto the persisted
-	 * snapshot when non-empty; an empty or absent set leaves the marker off.
+	 * Place keys to record as owing a rebuild, or a resolver computing them from
+	 * the pass's survivors. Stamped onto the persisted snapshot when non-empty;
+	 * an empty or absent set leaves the marker off.
 	 */
-	readonly pendingRebuild?: ReadonlySet<ResourceKey>;
+	readonly pendingRebuild?: PendingRebuildInput;
 	/** Resources already persisted; survivors merge on top, none are dropped. */
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 	/** Sink for per-resource, summary, and `stateWritten` progress events. */
@@ -107,7 +118,7 @@ export async function applyAndPersist(inputs: ApplyAndPersistInputs): Promise<Re
 		applied,
 		codegenHash,
 		environment,
-		pendingRebuild,
+		pendingRebuild: resolvePendingRebuild(pendingRebuild, applied),
 		priorResources,
 		realDisplay,
 	});
@@ -118,6 +129,19 @@ export async function applyAndPersist(inputs: ApplyAndPersistInputs): Promise<Re
 	}
 
 	return { applied, merged, written };
+}
+
+function resolvePendingRebuild(
+	pendingRebuild: PendingRebuildInput | undefined,
+	applied: Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>,
+): ReadonlySet<ResourceKey> | undefined {
+	if (typeof pendingRebuild !== "function") {
+		return pendingRebuild;
+	}
+
+	// Resolve from the survivors so a caller clears the marker only for places
+	// that actually applied; failed and withheld places are absent and keep it.
+	return pendingRebuild(applied.success ? applied.data : applied.err.applied);
 }
 
 function mergeResources(

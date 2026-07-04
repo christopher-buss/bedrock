@@ -135,7 +135,10 @@ describe("passes-redacted pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const readFile = panicOnRealPath;
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		const desiredResult = await buildDesired({
+			readFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient().mockResponse({
@@ -202,7 +205,10 @@ describe("passes-redacted pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const readFile = panicOnRealPath;
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		const desiredResult = await buildDesired({
+			readFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient().mockResponse({
@@ -259,7 +265,10 @@ describe("passes-redacted pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const readFile = panicOnRealPath;
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		const desiredResult = await buildDesired({
+			readFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient().mockResponse({
@@ -307,7 +316,10 @@ describe("passes-redacted pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const readFile = panicOnRealPath;
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		const desiredResult = await buildDesired({
+			readFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient();
@@ -357,7 +369,10 @@ describe("passes-redacted pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const readFile = panicOnRealPath;
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		const desiredResult = await buildDesired({
+			readFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const ops = diff(desiredResult.data, [persistedPass(desiredResult.data), UNIVERSE_ADOPTED]);
@@ -396,7 +411,10 @@ describe("passes-redacted pipeline end-to-end", () => {
 			throw new Error(`readFile must not run for path: ${path}`);
 		}
 
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readOverrideIcon);
+		const desiredResult = await buildDesired({
+			readFile: readOverrideIcon,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient().mockResponse({
@@ -457,7 +475,10 @@ describe("passes-redacted pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const readFile = panicOnRealPath;
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		const desiredResult = await buildDesired({
+			readFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient().mockResponse({
@@ -518,7 +539,10 @@ describe("passes-redacted pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const readFile = readRealIcon;
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		const desiredResult = await buildDesired({
+			readFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient()
@@ -642,7 +666,10 @@ async function hashPlaceholderIcon(): Promise<
 	});
 	const resolved = selectEnvironment(probe, "production");
 	assert(resolved.success);
-	const desired = await buildDesired(flattenConfig(resolved.data), panicOnRealPath);
+	const desired = await buildDesired({
+		readFile: panicOnRealPath,
+		resources: flattenConfig(resolved.data),
+	});
 	assert(desired.success);
 	const entry = findGamePassDesired(desired.data);
 	return entry.iconFileHashes["en-us"];

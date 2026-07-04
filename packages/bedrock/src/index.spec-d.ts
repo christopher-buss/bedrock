@@ -17,6 +17,8 @@ import {
 	isRobloxAssetId,
 	isSha256Hex,
 	loadConfig,
+	provision,
+	publish,
 } from "./index.ts";
 import type {
 	AggregateApplyError,
@@ -35,6 +37,8 @@ import type {
 	PlaceDriverDeps as PlaceDriverDependencies,
 	PlaceEntry,
 	PlaceOutputs,
+	ProvisionOptions,
+	PublishOptions,
 	ResolvedConfig,
 	ResolvedPlaceEntry,
 	ResourceCurrentState,
@@ -170,12 +174,14 @@ type ExpectedDeployErrorKind =
 	| "unknownEnvironment"
 	| "unsupportedBackend";
 
+const RESOLVES_RESULT = "should resolve to a Result of BedrockState or DeployError";
+
 describe(deploy, () => {
 	it("should accept a single DeployOptions argument", () => {
 		expectTypeOf(deploy).parameter(0).toEqualTypeOf<DeployOptions>();
 	});
 
-	it("should resolve to a Result of BedrockState or DeployError", () => {
+	it(RESOLVES_RESULT, () => {
 		expectTypeOf<Awaited<ReturnType<typeof deploy>>>().toEqualTypeOf<
 			Result<BedrockState, DeployError>
 		>();
@@ -189,6 +195,30 @@ describe(deploy, () => {
 		expectTypeOf<
 			Extract<DeployError, { kind: "stateWriteFailed" }>["unsavedState"]
 		>().toEqualTypeOf<BedrockState>();
+	});
+});
+
+describe(provision, () => {
+	it("should accept a single ProvisionOptions argument", () => {
+		expectTypeOf(provision).parameter(0).toEqualTypeOf<ProvisionOptions>();
+	});
+
+	it(RESOLVES_RESULT, () => {
+		expectTypeOf<Awaited<ReturnType<typeof provision>>>().toEqualTypeOf<
+			Result<BedrockState, DeployError>
+		>();
+	});
+});
+
+describe(publish, () => {
+	it("should accept a single PublishOptions argument", () => {
+		expectTypeOf(publish).parameter(0).toEqualTypeOf<PublishOptions>();
+	});
+
+	it(RESOLVES_RESULT, () => {
+		expectTypeOf<Awaited<ReturnType<typeof publish>>>().toEqualTypeOf<
+			Result<BedrockState, DeployError>
+		>();
 	});
 });
 

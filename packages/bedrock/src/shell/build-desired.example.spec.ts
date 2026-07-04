@@ -6,8 +6,9 @@ it('Example 1', () => {
   async function readFile(): Promise<Uint8Array> {
     return new Uint8Array([1, 2, 3])
   }
-  return buildDesired(
-    [
+  return buildDesired({
+    readFile,
+    resources: [
       {
         description: 'Grants VIP perks.',
         icon: { 'en-us': 'assets/vip-icon.png' },
@@ -17,8 +18,7 @@ it('Example 1', () => {
         price: 500,
       },
     ],
-    readFile,
-  ).then((result) => {
+  }).then((result) => {
     expect(result.success).toBeTrue()
     if (result.success) {
       expect(result.data).toHaveLength(1)

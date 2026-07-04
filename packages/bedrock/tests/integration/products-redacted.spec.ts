@@ -134,7 +134,10 @@ describe("products-redacted pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const readFile = panicOnRealPath;
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		const desiredResult = await buildDesired({
+			readFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const expectedName = defaultRedactedProductName("gem-pack");
@@ -202,7 +205,10 @@ describe("products-redacted pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const readFile = panicOnRealPath;
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		const desiredResult = await buildDesired({
+			readFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const expectedName = defaultRedactedProductName("gem-pack");
@@ -260,7 +266,10 @@ describe("products-redacted pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const readFile = panicOnRealPath;
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		const desiredResult = await buildDesired({
+			readFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const expectedName = defaultRedactedProductName("soon-pack");
@@ -309,7 +318,10 @@ describe("products-redacted pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const readFile = panicOnRealPath;
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		const desiredResult = await buildDesired({
+			readFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient();
@@ -360,7 +372,10 @@ describe("products-redacted pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const readFile = panicOnRealPath;
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		const desiredResult = await buildDesired({
+			readFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const gemPack = findProductDesired(desiredResult.data, "gem-pack");
@@ -400,7 +415,10 @@ describe("products-redacted pipeline end-to-end", () => {
 			throw new Error(`readFile must not run for path: ${path}`);
 		}
 
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readOverrideIcon);
+		const desiredResult = await buildDesired({
+			readFile: readOverrideIcon,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const expectedName = defaultRedactedProductName("gem-pack");
@@ -462,7 +480,10 @@ describe("products-redacted pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const readFile = panicOnRealPath;
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		const desiredResult = await buildDesired({
+			readFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient().mockResponse({
@@ -523,7 +544,10 @@ describe("products-redacted pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const readFile = readRealIcon;
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		const desiredResult = await buildDesired({
+			readFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const httpClient = createFakeHttpClient().mockResponse({
@@ -594,7 +618,10 @@ describe("products-redacted pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const readFile = panicOnRealPath;
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), readFile);
+		const desiredResult = await buildDesired({
+			readFile,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const reconcilable = assertAllReconcilable(desiredResult.data, []);
@@ -679,7 +706,10 @@ describe("products-redacted pipeline end-to-end", () => {
 		const resolved = selectEnvironment(config, "production");
 		assert(resolved.success);
 
-		const desiredResult = await buildDesired(flattenConfig(resolved.data), panicOnRealPath);
+		const desiredResult = await buildDesired({
+			readFile: panicOnRealPath,
+			resources: flattenConfig(resolved.data),
+		});
 		assert(desiredResult.success);
 
 		const reconcilable = assertAllReconcilable(desiredResult.data, []);
@@ -760,7 +790,10 @@ async function hashPlaceholderIcon(): Promise<
 	});
 	const resolved = selectEnvironment(probe, "production");
 	assert(resolved.success);
-	const desired = await buildDesired(flattenConfig(resolved.data), panicOnRealPath);
+	const desired = await buildDesired({
+		readFile: panicOnRealPath,
+		resources: flattenConfig(resolved.data),
+	});
 	assert(desired.success);
 	const entry = findProductDesired(desired.data, "probe");
 	assert(entry.iconFileHashes !== undefined);

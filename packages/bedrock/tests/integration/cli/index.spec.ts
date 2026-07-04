@@ -191,6 +191,46 @@ describe("cli program factory", () => {
 		}
 	});
 
+	it("should describe the provision subcommand and each of its flags in 'provision --help' output", () => {
+		expect.assertions(5);
+
+		const prog = createProg();
+
+		const collect = startCapture();
+		try {
+			prog.parse(["node", "bedrock", "provision", "--help"]);
+		} finally {
+			const { stdout } = collect();
+			const captured = stdout.join("");
+
+			expect(captured).toContain("Mint assets and run codegen");
+			expect(captured).toContain("Target environment");
+			expect(captured).toContain("Config file path");
+			expect(captured).toContain("BEDROCK_API_KEY");
+			expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
+		}
+	});
+
+	it("should describe the publish subcommand and each of its flags in 'publish --help' output", () => {
+		expect.assertions(5);
+
+		const prog = createProg();
+
+		const collect = startCapture();
+		try {
+			prog.parse(["node", "bedrock", "publish", "--help"]);
+		} finally {
+			const { stdout } = collect();
+			const captured = stdout.join("");
+
+			expect(captured).toContain("Upload on-disk place artifacts");
+			expect(captured).toContain("Target environment");
+			expect(captured).toContain("Config file path");
+			expect(captured).toContain("BEDROCK_API_KEY");
+			expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
+		}
+	});
+
 	it("should describe the migrate subcommand and its --from flag in 'migrate --help' output", () => {
 		expect.assertions(3);
 

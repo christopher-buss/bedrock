@@ -5,6 +5,8 @@ import {
   type BedrockState,
   type DriverRegistry,
   type StatePort,
+  provision,
+  publish,
 } from '@bedrock-rbx/core'
 
 it('Example 1', () => {
@@ -65,6 +67,28 @@ it('Example 2', () => {
     if (result.success) {
       expect(result.data.environment).toBe('production')
       expect(result.data.resources).toBeEmpty()
+    }
+  })
+})
+
+it('Example 3', () => {
+  return provision({ environment: 'production' }).then((result) => {
+    expect(result.success).toBeFalse()
+    if (!result.success) {
+      expect(['configLoadFailed', 'stateNotConfigured']).toContain(
+        result.err.kind,
+      )
+    }
+  })
+})
+
+it('Example 4', () => {
+  return publish({ environment: 'production' }).then((result) => {
+    expect(result.success).toBeFalse()
+    if (!result.success) {
+      expect(['configLoadFailed', 'stateNotConfigured']).toContain(
+        result.err.kind,
+      )
     }
   })
 })
