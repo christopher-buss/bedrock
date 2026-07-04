@@ -8,6 +8,7 @@ import type { deploy as defaultDeploy } from "../shell/deploy.ts";
 import type { loadConfig as defaultLoadConfig } from "../shell/load-config.ts";
 import type { migrateMantleState as defaultMigrateMantleState } from "../shell/migrate-mantle-state.ts";
 import type { previewDiff as defaultPreviewDiff } from "../shell/preview-diff.ts";
+import { buildCommand } from "./commands/build.ts";
 import { deployCommand } from "./commands/deploy.ts";
 import { diffCommand } from "./commands/diff.ts";
 import { migrateCommand } from "./commands/migrate.ts";
@@ -64,26 +65,28 @@ export interface ProgDeps {
  *   resolves its own defaults from any omitted slots.
  * @returns A configured sade program with the bedrock name, description, and
  *   the currently installed `@bedrock-rbx/core` version, plus the registered
- *   `deploy`, `diff`, and `migrate` commands.
+ *   `build`, `deploy`, `diff`, and `migrate` commands.
  */
 export function createProg(deps: ProgDeps = {}): Sade {
 	const prog = sade(PROGRAM_NAME).describe(PROGRAM_DESCRIBE).version(manifest.version);
 
-	prog.command("deploy")
-		.describe("Reconcile a project's resources against the configured environment(s)")
-		.option("--env", "Target environment (repeat for multiple)")
-		.option("--config", "Config file path (overrides discovery)")
-		.option("--api-key", "Override the BEDROCK_API_KEY environment variable")
-		.option("--github-token", "Override the BEDROCK_GITHUB_TOKEN environment variable")
-		.action(deployCommand(deps));
+	withCommonOptions(
+		prog
+			.command("deploy")
+			.describe("Reconcile a project's resources against the configured environment(s)"),
+	).action(deployCommand(deps));
 
-	prog.command("diff")
-		.describe("Preview the operations a deploy would apply, without writing state")
-		.option("--env", "Target environment (repeat for multiple)")
-		.option("--config", "Config file path (overrides discovery)")
-		.option("--api-key", "Override the BEDROCK_API_KEY environment variable")
-		.option("--github-token", "Override the BEDROCK_GITHUB_TOKEN environment variable")
-		.action(diffCommand(deps));
+	withCommonOptions(
+		prog
+			.command("build")
+			.describe("Run the project's .bedrock/build.ts override to produce place artifacts"),
+	).action(buildCommand(deps));
+
+	withCommonOptions(
+		prog
+			.command("diff")
+			.describe("Preview the operations a deploy would apply, without writing state"),
+	).action(diffCommand(deps));
 
 	prog.command("migrate [stateFilePath]")
 		.describe("Translate a state file from another tool into a bedrock project")
@@ -91,4 +94,22 @@ export function createProg(deps: ProgDeps = {}): Sade {
 		.action(migrateCommand(deps));
 
 	return prog;
+}
+
+/**
+ * Register the environment/config/credential flags shared by every
+ * reconcile-style subcommand (`deploy`, `build`, `diff`) onto the sade command
+ * the caller has just opened via `prog.command(...).describe(...)`. Keeping the
+ * flag names and descriptions in one place stops the three registrations from
+ * drifting apart. `migrate` has its own flag surface and is registered without
+ * this helper.
+ * @param command - The sade instance positioned on the command being defined.
+ * @returns The same sade instance so the caller can chain `.action(...)`.
+ */
+function withCommonOptions(command: Sade): Sade {
+	return command
+		.option("--env", "Target environment (repeat for multiple)")
+		.option("--config", "Config file path (overrides discovery)")
+		.option("--api-key", "Override the BEDROCK_API_KEY environment variable")
+		.option("--github-token", "Override the BEDROCK_GITHUB_TOKEN environment variable");
 }

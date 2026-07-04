@@ -2,6 +2,8 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import process from "node:process";
 
+import type { LoadConfigOptions } from "../shell/load-config.ts";
+
 /**
  * Typed shape command actions consume after the raw sade options object has
  * been validated and normalized.
@@ -77,6 +79,18 @@ export function parseCommonOptions(
 		},
 		success: true,
 	};
+}
+
+/**
+ * Map the parsed common options to a `loadConfig` options object. Returns
+ * `undefined` when no `--config` path was supplied so the loader applies its
+ * own discovery rules; otherwise forwards the explicit path. Shared by the
+ * `deploy` and `build` commands' no-override paths.
+ * @param parsed - The validated common options.
+ * @returns `{ configFile }` when a path was supplied, otherwise `undefined`.
+ */
+export function loadOptionsFor(parsed: CommonOptions): LoadConfigOptions | undefined {
+	return parsed.configFile === undefined ? undefined : { configFile: parsed.configFile };
 }
 
 function resolveEnvironments(

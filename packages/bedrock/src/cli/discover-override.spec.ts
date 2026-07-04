@@ -49,6 +49,17 @@ describe(discoverOverride, () => {
 		expect(discoverOverride(cwd, "deploy")).toBe(expected);
 	});
 
+	it("should resolve a build override so 'build' is a recognized command name", () => {
+		expect.assertions(1);
+
+		const cwd = createTemporaryDirectory();
+		mkdirSync(join(cwd, ".bedrock"));
+		const expected = join(cwd, ".bedrock", "build.ts");
+		writeFileSync(expected, "export default () => {};");
+
+		expect(discoverOverride(cwd, "build")).toBe(expected);
+	});
+
 	it("should return undefined when the .bedrock directory does not exist", () => {
 		expect.assertions(1);
 
