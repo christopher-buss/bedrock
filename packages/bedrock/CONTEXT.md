@@ -136,45 +136,44 @@ returns the files to write; bedrock ships a default so the simple case needs no
 code, while a custom emitter owns its layout entirely. _Avoid_: generator,
 formatter, template, renderer
 
-**Two-phase deploy**: The deploy mode that rebuilds a place artifact when the
-generated source it embeds would change. Splits the apply into an **asset
-stage** (apply assets, checkpoint state, run **Codegen**) and, after the
-**Codegen fingerprint** check, either a **republish stage** (invoke the
-**Rebuild hook**, publish the rebuilt places) when the fingerprint changed or a
-normal publish of the pre-built file when it did not. Activates only when a
-**Rebuild hook** is supplied **and Codegen is active** (or a **Pending rebuild**
-marker is set); without codegen the hook is inert and places publish in a single
-pass. Because the rebuild recompiles after codegen rewrites source, the deploy
-environment needs the build toolchain, not just a pre-built artifact. _Avoid_:
-two-pass, multi-stage, rebuild deploy
+**Fused deploy**: The deploy mode for **Codegen** projects: one `deploy`
+invocation composing `provision` (apply assets, checkpoint state with every
+declared place marked **Pending rebuild**, run **Codegen**), the **Build step**
+(produce each place's artifact once, after codegen rewrote source), and
+`publish` (upload from disk, skipping any place whose file hash already matches
+state). The build always runs — the retired codegen-fingerprint gate is gone —
+so the deploy environment needs the build toolchain, not a pre-built artifact.
+Without codegen there is nothing to build and places publish from their
+pre-built files in a single pass. Environments with a test gate run the same
+stages as separate CI steps instead (`provision` → `build` → test → `publish`).
+_Avoid_: two-phase deploy, two-pass, rebuild deploy
 
-**Rebuild hook**: The injected callback bedrock invokes during a **Two-phase
-deploy** to regenerate the place artifact once new asset IDs exist. Bedrock owns
-the orchestration; the hook owns the build, taking the post-asset deploy state
-and returning an array of per-place entries, each carrying the place **Key** and
-its rebuilt artifact. Bedrock does not know how to build. _Avoid_: builder,
-build step, compile hook
+**Build step**: The mechanism that produces place artifacts between `provision`
+and `publish`: a spawned `.bedrock/build.ts` override (the CLI injects it into a
+**Fused deploy**; `bedrock build` runs it standalone), or a programmatic
+`DeployOptions.build` function. It writes each place's artifact to its
+configured `filePath` and returns nothing — bedrock does not know how to build.
+A codegen project with places and no build step is a hard `missingBuildStep`
+error. Replaces the retired in-process rebuild hook, which returned per-place
+bytes instead of writing to disk. _Avoid_: rebuild hook, builder, compile hook
 
 **Pending rebuild**: A presence-only bookkeeping marker — a place **Key** listed
 in the `$bedrock` envelope's `pendingRebuild` list — recording a place whose
 required asset IDs have been minted but not yet embedded and republished. Set
-for every place at the checkpoint write when a **Two-phase deploy** activates;
-cleared per place on a successful republish (the key is removed, never set
-`false`; an empty list is omitted), so a happy-path state never shows it. Lets a
-two-phase deploy self-heal after a failed **Rebuild hook**, since the assets
-themselves now `noop`; a marker present with no hook available is a hard error.
+for every declared place at `provision`'s checkpoint write; settled per place by
+a green `publish` or **Fused deploy** (the key is removed, never set `false`; an
+empty list is omitted), so a happy-path state never shows it. A failure anywhere
+after the checkpoint (failed **Build step**, failed upload, failed test in the
+CI gap) leaves the marker in place and the next green run self-heals; while it
+persists, `diff` reports the count of places minted but unpublished as drift.
 _Avoid_: dirty flag, needs-redeploy, stale marker
 
-**Codegen fingerprint**: A single `Sha256Hex` of the **Codegen** output the
-currently-published place was last built against, stored as `codegenHash` in the
-`$bedrock` envelope. A **Two-phase deploy** rebuilds and republishes iff the
-freshly emitted hash differs from the stored one (or a **Pending rebuild**
-marker forces it); an unchanged hash publishes the pre-built file. Stored only
-on a successful republish, retained stale on an aborted rebuild so the next
-deploy retries; the trigger that supersedes the old "any provisioned `create`"
-rule, catching mutable-field (price, name) drift the create rule missed.
-Diff-ignored like the marker; an absent stored hash (clean first deploy) reads
-as "differs". _Avoid_: checksum, etag, revision, dirty hash
+**Codegen fingerprint**: A single `Sha256Hex` of emitted **Codegen** output,
+stored as `codegenHash` in the `$bedrock` envelope. Bookkeeping only since the
+lifecycle decomposition: deploys thread the stored value through unchanged and
+nothing gates on it — no-op avoidance comes from the place file-hash comparison
+instead. Diff-ignored like the marker. _Avoid_: checksum, etag, revision, dirty
+hash
 
 **`$bedrock` namespace**: The reserved, **adapter-private** key on the on-disk
 state envelope carrying bedrock's own bookkeeping (the schema `version`, the

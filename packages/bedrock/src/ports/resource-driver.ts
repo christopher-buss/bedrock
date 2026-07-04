@@ -8,9 +8,10 @@ import type {
 
 /**
  * Per-operation context threaded to a driver alongside the desired state.
- * Carries the rebuilt artifact bytes a two-phase deploy's republish stage
- * supplies for a place; absent (and ignored) on every other dispatch. A driver
- * that does not consume an artifact simply ignores the parameter.
+ * Carries in-memory artifact bytes a caller supplies for a place through
+ * `applyOps`, overriding the driver's read of the on-disk file; absent (and
+ * ignored) on every other dispatch. A driver that does not consume an
+ * artifact simply ignores the parameter.
  *
  * @since 0.1.0
  *
