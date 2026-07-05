@@ -136,44 +136,28 @@ returns the files to write; bedrock ships a default so the simple case needs no
 code, while a custom emitter owns its layout entirely. _Avoid_: generator,
 formatter, template, renderer
 
-**Fused deploy**: The deploy mode for **Codegen** projects: one `deploy`
-invocation composing `provision` (apply assets, checkpoint state with every
-declared place marked **Pending rebuild**, run **Codegen**), the **Build step**
-(produce each place's artifact once, after codegen rewrote source), and
-`publish` (upload from disk, skipping any place whose file hash already matches
-state). The build always runs (the retired codegen-fingerprint gate is gone), so
-the deploy environment needs the build toolchain, not a pre-built artifact.
-Without codegen there is nothing to build and places publish from their
-pre-built files in a single pass. Environments with a test gate run the same
-stages as separate CI steps instead (`provision` → `build` → test → `publish`).
-_Avoid_: two-phase deploy, two-pass, rebuild deploy
+**Fused deploy**: The deploy mode for **Codegen** projects, a single `deploy`
+invocation composing `provision`, the **Build step**, and `publish` in one pass.
+The build always runs, so the deploy environment needs the build toolchain
+rather than a pre-built artifact. _Avoid_: two-phase deploy, two-pass, rebuild
+deploy
 
 **Build step**: The mechanism that produces place artifacts between `provision`
-and `publish`: a spawned `.bedrock/build.ts` override (the CLI injects it into a
-**Fused deploy**; `bedrock build` runs it standalone), or a programmatic
+and `publish`, either a spawned `.bedrock/build.ts` override or a programmatic
 `DeployOptions.build` function. It writes each place's artifact to its
-configured `filePath` and returns nothing; bedrock does not know how to build. A
-codegen project with places and no build step is a hard `missingBuildStep`
-error. Replaces the retired in-process rebuild hook, which returned per-place
-bytes instead of writing to disk. _Avoid_: rebuild hook, builder, compile hook
+configured `filePath` and replaces the retired in-process rebuild hook. _Avoid_:
+rebuild hook, builder, compile hook
 
-**Pending rebuild**: A presence-only bookkeeping marker (a place **Key** listed
-in the `$bedrock` envelope's `pendingRebuild` list) recording a place whose
-required asset IDs have been minted but not yet embedded and republished. Set
-for every declared place at `provision`'s checkpoint write; settled per place by
-a green `publish` or **Fused deploy** (the key is removed, never set `false`; an
-empty list is omitted), so a happy-path state never shows it. A failure anywhere
-after the checkpoint (failed **Build step**, failed upload, failed test in the
-CI gap) leaves the marker in place and the next green run self-heals; while it
-persists, `diff` reports the count of places minted but unpublished as drift.
-_Avoid_: dirty flag, needs-redeploy, stale marker
+**Pending rebuild**: A presence-only bookkeeping marker (a place **Key** in the
+`$bedrock` envelope's `pendingRebuild` list) recording a place whose assets are
+minted but not yet republished. Set at `provision`'s checkpoint and settled by a
+green `publish`, so it persists only after a failure and `diff` reports it as
+drift. _Avoid_: dirty flag, needs-redeploy, stale marker
 
 **Codegen fingerprint**: A single `Sha256Hex` of emitted **Codegen** output,
-stored as `codegenHash` in the `$bedrock` envelope. Bookkeeping only since the
-lifecycle decomposition: deploys thread the stored value through unchanged and
-nothing gates on it. No-op avoidance comes from the place file-hash comparison
-instead. Diff-ignored like the marker. _Avoid_: checksum, etag, revision, dirty
-hash
+stored as `codegenHash` in the `$bedrock` envelope. Bookkeeping only: deploys
+thread it through unchanged and nothing gates on it, so it is diff-ignored like
+the marker. _Avoid_: checksum, etag, revision, dirty hash
 
 **`$bedrock` namespace**: The reserved, **adapter-private** key on the on-disk
 state envelope carrying bedrock's own bookkeeping (the schema `version`, the
