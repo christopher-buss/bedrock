@@ -125,7 +125,7 @@ function renderPendingRebuild(preview: DiffPreview, clack: ClackPort): boolean {
 
 	const keys = preview.pendingRebuild.join(", ");
 	clack.logMessage(
-		`${String(preview.pendingRebuild.length)} place(s) minted but unpublished in "${preview.environment}": ${keys}`,
+		`${preview.pendingRebuild.length} place(s) minted but unpublished in "${preview.environment}": ${keys}`,
 	);
 	return true;
 }

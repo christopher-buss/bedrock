@@ -2,7 +2,7 @@ import { OpenCloudError } from "@bedrock-rbx/ocale";
 
 import { Buffer } from "node:buffer";
 import process from "node:process";
-import { assert, describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import {
 	gamePassDesired,
@@ -930,30 +930,30 @@ describe(deploy, () => {
 	it("should default getEnv to process.env when getEnv is not supplied", async () => {
 		expect.assertions(1);
 
-		vi.stubEnv("BEDROCK_API_KEY", "rbx-stub");
-		try {
-			// Prior universe state keeps the diff at noop so the
-			// default-constructed universe driver never hits Open Cloud.
-			const { port } = inMemoryStatePort({
-				environment: "production",
-				resources: [universeCurrent()],
-				version: 1,
-			});
-			const result = await deploy({
-				config: {
-					environments: { production: {} },
-					state: { backend: "gist", gistId: "abc" },
-					universe: { universeId: "1234567890" },
-				},
-				environment: "production",
-				readFile: readIcon,
-				statePort: port,
-			});
-
-			expect(result.success).toBeTrue();
-		} finally {
+		onTestFinished(() => {
 			vi.unstubAllEnvs();
-		}
+		});
+		vi.stubEnv("BEDROCK_API_KEY", "rbx-stub");
+
+		// Prior universe state keeps the diff at noop so the
+		// default-constructed universe driver never hits Open Cloud.
+		const { port } = inMemoryStatePort({
+			environment: "production",
+			resources: [universeCurrent()],
+			version: 1,
+		});
+		const result = await deploy({
+			config: {
+				environments: { production: {} },
+				state: { backend: "gist", gistId: "abc" },
+				universe: { universeId: "1234567890" },
+			},
+			environment: "production",
+			readFile: readIcon,
+			statePort: port,
+		});
+
+		expect(result.success).toBeTrue();
 	});
 
 	it("should not invoke getEnv when statePort, registry, config, and progress are all supplied", async () => {
@@ -2480,19 +2480,21 @@ describe(deploy, () => {
 		}
 
 		it("should read the place artifact only in the publish stage and asset files only in provision", async () => {
-			expect.assertions(2);
+			expect.assertions(4);
 
-			const reads: Array<string> = [];
+			const order: Array<string> = [];
 
 			async function readRecording(path: string): Promise<Uint8Array> {
-				reads.push(path);
+				order.push(path);
 				return ICON_BYTES;
 			}
 
 			const { registry } = recordingPlaceRegistry();
 
 			const result = await deploy({
-				build: recordingBuildStep().step,
+				build: async () => {
+					order.push("build");
+				},
 				codegenWriter: inMemoryCodegenWriter().port,
 				config: fusedCodegenConfig(),
 				emit: fusedEmit,
@@ -2504,8 +2506,10 @@ describe(deploy, () => {
 
 			assert(result.success);
 
-			expect(reads.filter((path) => path === "assets/vip-icon.png")).toHaveLength(1);
-			expect(reads.filter((path) => path === "places/start.rbxl")).toHaveLength(1);
+			expect(order.filter((entry) => entry === "assets/vip-icon.png")).toHaveLength(1);
+			expect(order.filter((entry) => entry === "places/start.rbxl")).toHaveLength(1);
+			expect(order.indexOf("assets/vip-icon.png")).toBeLessThan(order.indexOf("build"));
+			expect(order.indexOf("places/start.rbxl")).toBeGreaterThan(order.indexOf("build"));
 		});
 
 		it("should keep the marker when a game pass sharing the place's key republishes but the place fails", async () => {

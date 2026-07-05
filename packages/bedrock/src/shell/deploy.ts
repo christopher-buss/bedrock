@@ -766,8 +766,8 @@ function settleOwedPlaces(inputs: SettleOwedInputs): ReadonlySet<ResourceKey> {
 	const { ops, owed, survivors } = inputs;
 	// A green pass settles an owed place two ways: it republished (a place
 	// survivor of this pass) or its op noop'd because the on-disk artifact
-	// already matches what is live. Only a place whose dispatched op failed —
-	// absent from both sets — still owes a publish and keeps its marker.
+	// already matches what is live. Only a place whose dispatched op failed
+	// (absent from both sets) still owes a publish and keeps its marker.
 	const settled = new Set([
 		...survivors.filter((resource) => resource.kind === "place").map((entry) => entry.key),
 		...ops.filter((op) => op.type === "noop" && op.kind === "place").map((entry) => entry.key),
@@ -973,7 +973,7 @@ async function runReconcile(
 ): Promise<Result<BedrockState, DeployError>> {
 	// Without codegen there is nothing to build: publish the pre-built place
 	// files in a single pass. A leftover pending-rebuild marker settles in the
-	// same pass — published or already-current places clear it, failures keep it.
+	// same pass. Published or already-current places clear it, failures keep it.
 	if (dependencies.codegen === undefined) {
 		return runSinglePassReconcile(environment, dependencies);
 	}

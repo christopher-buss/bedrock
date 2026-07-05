@@ -55,7 +55,7 @@ export interface BedrockState {
 	/**
 	 * Fingerprint of previously emitted codegen output. Bookkeeping only:
 	 * deploys thread the stored value through unchanged and nothing gates on
-	 * it — no-op avoidance comes from the place file-hash comparison instead.
+	 * it. No-op avoidance comes from the place file-hash comparison instead.
 	 * The field is omitted entirely until a codegen-enabled deploy first stored
 	 * one, so a happy-path snapshot with no codegen never carries it.
 	 *

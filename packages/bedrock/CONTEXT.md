@@ -141,8 +141,8 @@ invocation composing `provision` (apply assets, checkpoint state with every
 declared place marked **Pending rebuild**, run **Codegen**), the **Build step**
 (produce each place's artifact once, after codegen rewrote source), and
 `publish` (upload from disk, skipping any place whose file hash already matches
-state). The build always runs — the retired codegen-fingerprint gate is gone —
-so the deploy environment needs the build toolchain, not a pre-built artifact.
+state). The build always runs (the retired codegen-fingerprint gate is gone), so
+the deploy environment needs the build toolchain, not a pre-built artifact.
 Without codegen there is nothing to build and places publish from their
 pre-built files in a single pass. Environments with a test gate run the same
 stages as separate CI steps instead (`provision` → `build` → test → `publish`).
@@ -152,13 +152,13 @@ _Avoid_: two-phase deploy, two-pass, rebuild deploy
 and `publish`: a spawned `.bedrock/build.ts` override (the CLI injects it into a
 **Fused deploy**; `bedrock build` runs it standalone), or a programmatic
 `DeployOptions.build` function. It writes each place's artifact to its
-configured `filePath` and returns nothing — bedrock does not know how to build.
-A codegen project with places and no build step is a hard `missingBuildStep`
+configured `filePath` and returns nothing; bedrock does not know how to build. A
+codegen project with places and no build step is a hard `missingBuildStep`
 error. Replaces the retired in-process rebuild hook, which returned per-place
 bytes instead of writing to disk. _Avoid_: rebuild hook, builder, compile hook
 
-**Pending rebuild**: A presence-only bookkeeping marker — a place **Key** listed
-in the `$bedrock` envelope's `pendingRebuild` list — recording a place whose
+**Pending rebuild**: A presence-only bookkeeping marker (a place **Key** listed
+in the `$bedrock` envelope's `pendingRebuild` list) recording a place whose
 required asset IDs have been minted but not yet embedded and republished. Set
 for every declared place at `provision`'s checkpoint write; settled per place by
 a green `publish` or **Fused deploy** (the key is removed, never set `false`; an
@@ -171,7 +171,7 @@ _Avoid_: dirty flag, needs-redeploy, stale marker
 **Codegen fingerprint**: A single `Sha256Hex` of emitted **Codegen** output,
 stored as `codegenHash` in the `$bedrock` envelope. Bookkeeping only since the
 lifecycle decomposition: deploys thread the stored value through unchanged and
-nothing gates on it — no-op avoidance comes from the place file-hash comparison
+nothing gates on it. No-op avoidance comes from the place file-hash comparison
 instead. Diff-ignored like the marker. _Avoid_: checksum, etag, revision, dirty
 hash
 
