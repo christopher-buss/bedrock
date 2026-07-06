@@ -1,5 +1,6 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
+import process from "node:process";
 import { assert, describe, expect, it } from "vitest";
 
 import { dispatchOverride } from "./dispatch-override.ts";
@@ -26,7 +27,7 @@ function okSpawner(exitCode: number): Recorder {
 }
 
 describe(dispatchOverride, () => {
-	it("should invoke 'bun' as the spawned command", async () => {
+	it("should invoke the runtime executing the cli as the spawned command", async () => {
 		expect.assertions(1);
 
 		const { invocations, spawner } = okSpawner(0);
@@ -36,7 +37,7 @@ describe(dispatchOverride, () => {
 			spawner,
 		);
 
-		expect(invocations[0]?.command).toBe("bun");
+		expect(invocations[0]?.command).toBe(process.execPath);
 	});
 
 	it("should pass the override path as the first argv entry", async () => {

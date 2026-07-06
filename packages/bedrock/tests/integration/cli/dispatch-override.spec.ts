@@ -1,7 +1,6 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it, vi } from "vitest";
 
@@ -38,7 +37,7 @@ function withProbe(): ProbeRun {
 	};
 }
 
-describe("dispatch-override against real bun", () => {
+describe("dispatch-override against the invoking runtime", () => {
 	it("should forward argv exactly when configFile is supplied", async () => {
 		expect.assertions(2);
 
@@ -139,10 +138,10 @@ describe("dispatch-override against real bun", () => {
 		expect(result.err.exitCode).toBe(3);
 	});
 
-	it("should surface a missing executable as Err(launchFailed) with an ENOENT cause", async () => {
-		expect.assertions(3);
+	it("should launch the override without consulting PATH", async () => {
+		expect.assertions(2);
 
-		const originalPath = process.env["PATH"];
+		const probe = withProbe();
 		vi.stubEnv("PATH", "");
 		try {
 			const result = await dispatchOverride(
@@ -150,19 +149,11 @@ describe("dispatch-override against real bun", () => {
 				createDefaultSpawner(),
 			);
 
-			expect(result.success).toBeFalse();
-
-			assert(!result.success);
-
-			expect(result.err.kind).toBe("launchFailed");
-
-			assert(result.err.kind === "launchFailed");
-
-			expect(result.err.cause.code).toBe("ENOENT");
+			expect(result.success).toBeTrue();
+			expect(probe.read().cli).toBe("1");
 		} finally {
-			if (originalPath !== undefined) {
-				vi.stubEnv("PATH", originalPath);
-			}
+			// probe.cleanup() removes every env stub, restoring PATH too.
+			probe.cleanup();
 		}
 	});
 });

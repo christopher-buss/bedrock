@@ -11,7 +11,7 @@ it('Example 1', () => {
     },
   }
   return spawner
-    .spawn({ args: ['--env', 'production'], command: 'bun', envOverrides: {} })
+    .spawn({ args: ['--env', 'production'], command: 'node', envOverrides: {} })
     .then((result) => {
       expect(result.success).toBeTrue()
       expect(invocations).toHaveLength(1)
