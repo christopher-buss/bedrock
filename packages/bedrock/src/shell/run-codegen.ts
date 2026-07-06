@@ -52,8 +52,7 @@ interface RunCodegenInputs {
  * @param inputs - Deployed snapshot, declared environments, emitter, state
  * backend, and writer.
  * @returns The fingerprint of the emitted output once all files are written,
- * or a stage-tagged {@link CodegenError}. A two-phase deploy compares the hash
- * against the stored one to decide whether to rebuild.
+ * or a stage-tagged {@link CodegenError}.
  */
 export async function runCodegen(
 	inputs: RunCodegenInputs,

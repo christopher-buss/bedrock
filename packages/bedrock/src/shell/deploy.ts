@@ -9,18 +9,14 @@ import { createFsCodegenWriter } from "../adapters/fs-codegen-writer.ts";
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import { createNoOpProgressAdapter } from "../adapters/no-op-progress-adapter.ts";
 import { assertAllReconcilable } from "../core/assert-all-reconcilable.ts";
-import { buildRepublishOps } from "../core/build-republish-ops.ts";
 import { type Emitter, isCodegenEnabled } from "../core/codegen.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { createDefaultEmitter, resolveCodegenOutputDirectory } from "../core/default-emitter.ts";
 import { diff } from "../core/diff.ts";
 import { flattenConfig } from "../core/flatten.ts";
 import type { Operation } from "../core/operations.ts";
-import { planTwoPhase, type TwoPhasePlan } from "../core/plan-two-phase.ts";
-import type { RebuildHook, RebuiltPlace } from "../core/rebuild.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
 import type {
-	PlaceDesiredState,
 	ResourceCurrentState,
 	ResourceDesiredState,
 	ResourceKind,
@@ -53,6 +49,35 @@ import { applyAndPersist, type ReconcilePass } from "./reconcile-pass.ts";
 import { type CodegenError, runCodegen } from "./run-codegen.ts";
 
 /**
+ * Build step a fused deploy invokes between its provision and publish stages,
+ * once per target environment. It runs after codegen rewrites source and must
+ * (re)write each declared place's artifact at its configured `filePath`; the
+ * publish stage then uploads from disk, skipping any place whose file hash
+ * already matches state. Supplied programmatically because a function cannot
+ * round-trip through a config file; the CLI supplies one that spawns the
+ * project's `.bedrock/build.ts` override. A throw aborts the deploy with a
+ * `buildFailed` error, leaving the checkpoint marker in place for the next run.
+ *
+ * @since 0.1.0
+ *
+ * @example
+ *
+ * ```ts
+ * import type { BuildStep } from "@bedrock-rbx/core";
+ *
+ * const built: Array<string> = [];
+ * const build: BuildStep = ({ environment }) => {
+ *     built.push(`build places/start.rbxl for ${environment}`);
+ * };
+ *
+ * return Promise.resolve(build({ environment: "production" })).then(() => {
+ *     expect(built).toStrictEqual(["build places/start.rbxl for production"]);
+ * });
+ * ```
+ */
+export type BuildStep = (input: { readonly environment: string }) => Promise<void> | void;
+
+/**
  * Inputs for `deploy`. Every field except `environment` is optional;
  * omitted dependencies are default-constructed from the project config
  * and the environment variables `BEDROCK_GITHUB_TOKEN` and `BEDROCK_API_KEY`.
@@ -61,15 +86,14 @@ import { type CodegenError, runCodegen } from "./run-codegen.ts";
  */
 export interface DeployOptions {
 	/**
-	 * Escape hatch for a deploy stuck behind a pending-rebuild marker. When
-	 * `true`, the incoming marker is treated as cleared: the deploy neither
-	 * re-activates two-phase from it nor hard-errors when no rebuild hook is
-	 * available, and the normal state write drops the marker. Use it to abandon
-	 * two-phase after dropping the rebuild hook; the place still publishes from
-	 * its pre-built file in a single pass. Omit (defaults to `false`) to honor
-	 * the marker.
+	 * Build step run between the provision and publish stages of a fused
+	 * deploy; see {@link BuildStep}. Required when codegen is enabled and a
+	 * place is declared (a codegen project owes a freshly built artifact on
+	 * every deploy, so its absence is a `missingBuildStep` error); ignored
+	 * when codegen is not enabled, because a no-codegen deploy publishes the
+	 * pre-built file in a single pass without building anything.
 	 */
-	readonly clearPendingRebuild?: boolean;
+	readonly build?: BuildStep;
 	/**
 	 * Writer for codegen output; defaults to a node-fs writer rooted at
 	 * `config.codegen.output`. Supplied to fake the write step at this seam.
@@ -101,18 +125,6 @@ export interface DeployOptions {
 	readonly progress?: ProgressPort;
 	/** Reads file bytes for resources that have file-backed inputs. Defaults to `node:fs/promises.readFile`. */
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
-	/**
-	 * Two-phase rebuild hook. Supplied programmatically (a function cannot
-	 * round-trip through a config file). When supplied alongside active codegen,
-	 * `deploy` mints the assets, runs codegen, and rebuilds + republishes each
-	 * place from the hook's bytes whenever the emitted source would change (its
-	 * fingerprint differs from the stored one); otherwise it publishes the
-	 * pre-built file. Because the rebuild re-runs the build after codegen
-	 * rewrites source, the deploy environment needs the build toolchain, not just
-	 * a pre-built artifact. Omit, or run without codegen, to publish places in a
-	 * single pass.
-	 */
-	readonly rebuild?: RebuildHook;
 	/** Per-kind driver table consulted for create / update dispatch. Default-constructed from `BEDROCK_API_KEY` when omitted. */
 	readonly registry?: DriverRegistry;
 	/** Backend used to read the prior snapshot and persist the new one. Default-constructed from `config.state` and `BEDROCK_GITHUB_TOKEN` when omitted. */
@@ -120,12 +132,10 @@ export interface DeployOptions {
 }
 
 /**
- * Inputs for `provision`, the asset half of a decomposed deploy. Mirrors the
- * relevant slice of {@link DeployOptions} minus the place-stage hooks: there is
- * no `rebuild` (provision never republishes a place) and no
- * `clearPendingRebuild` (provision always re-marks every declared place). The
- * codegen `emit`/`codegenWriter` seams remain because provision runs the
- * emitter.
+ * Inputs for `provision`, the asset stage of a decomposed deploy. Mirrors the
+ * relevant slice of {@link DeployOptions} minus the place-stage seam: there is
+ * no `build` (provision neither builds nor publishes a place). The codegen
+ * `emit`/`codegenWriter` seams remain because provision runs the emitter.
  *
  * @since 0.1.0
  */
@@ -191,18 +201,18 @@ export interface PublishOptions {
 /**
  * Failure surfaced by `deploy`. Stage-tagged so callers can branch on
  * `kind` to distinguish reconciliation failures (`stateReadFailed`,
- * `applyFailed`, `codegenFailed`, `rebuildHookThrew`,
- * `pendingRebuildWithoutHook`, ...) from default-construction failures
- * (`configLoadFailed`, `stateNotConfigured`, `unknownEnvironment`,
- * `incompletePlaceEntry`, `incompleteUniverseEntry`, `missingCredential`,
- * `unsupportedBackend`, `registryConfigMissing`).
+ * `applyFailed`, `codegenFailed`, `buildFailed`, ...) from
+ * default-construction failures (`configLoadFailed`, `stateNotConfigured`,
+ * `unknownEnvironment`, `incompletePlaceEntry`, `incompleteUniverseEntry`,
+ * `missingCredential`, `unsupportedBackend`, `registryConfigMissing`,
+ * `missingBuildStep`).
  * `codegenFailed` cannot mask an `applyFailed`: a partial apply still emits
  * codegen for the keys that resolved, but the returned error stays
- * `applyFailed`. A two-phase deploy whose asset stage partially fails aborts
- * the rebuild and returns `applyFailed`; a rebuild hook that throws returns
- * `rebuildHookThrew` with the checkpoint's outputs and marker still persisted;
- * a marker present with no rebuild hook available returns
- * `pendingRebuildWithoutHook` rather than reporting success over a stale place.
+ * `applyFailed`. A fused deploy whose provision stage fails never runs the
+ * build step; a build step that throws returns `buildFailed` with the
+ * checkpoint's outputs and marker still persisted, so the next green run
+ * self-heals; codegen enabled with no build step available returns
+ * `missingBuildStep` before anything is minted.
  *
  * @since 0.1.0
  */
@@ -225,8 +235,8 @@ export type DeployError =
 			readonly kind: "stateWriteFailed";
 			readonly unsavedState: BedrockState;
 	  }
-	| { readonly keys: ReadonlyArray<ResourceKey>; readonly kind: "pendingRebuildWithoutHook" }
-	| { readonly kind: "rebuildHookThrew"; readonly reason: string };
+	| { readonly kind: "buildFailed"; readonly reason: string }
+	| { readonly kind: "missingBuildStep" };
 
 /** Resolved codegen dependencies; present only when codegen is active. */
 interface CodegenBundle {
@@ -235,12 +245,11 @@ interface CodegenBundle {
 }
 
 interface ResolvedDependenciesBase {
-	readonly clearPendingRebuild: boolean;
+	readonly build: BuildStep | undefined;
 	readonly codegen: CodegenBundle | undefined;
 	readonly config: ResolvedConfig;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
-	readonly rebuild: RebuildHook | undefined;
 	readonly registry: DriverRegistry;
 	readonly statePort: StatePort;
 }
@@ -277,34 +286,25 @@ interface RunContext {
 	readonly runner: ReconcileRunner;
 }
 
-interface SinglePassInputs {
+interface SettledPassInputs {
 	readonly deps: ResolvedDependencies;
 	readonly environment: string;
 	readonly ops: ReadonlyArray<Operation>;
+	readonly owedRebuild: ReadonlySet<ResourceKey>;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 	readonly storedHash: Sha256Hex | undefined;
 }
 
-interface TwoPhaseInputs {
-	readonly deps: ResolvedDependencies;
-	readonly desired: ReadonlyArray<ResourceDesiredState>;
-	readonly environment: string;
-	readonly marker: ReadonlySet<ResourceKey>;
-	readonly plan: TwoPhasePlan;
-	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
-	readonly rebuild: RebuildHook;
-	readonly storedHash: Sha256Hex | undefined;
-}
-
-interface CompleteTwoPhaseInputs extends TwoPhaseInputs {
-	readonly assetPass: ReconcilePass;
-	readonly codegen: Result<Sha256Hex, CodegenError> | undefined;
+interface SettleOwedInputs {
+	readonly ops: ReadonlyArray<Operation>;
+	readonly owed: ReadonlySet<ResourceKey>;
+	readonly survivors: ReadonlyArray<ResourceCurrentState>;
 }
 
 /**
- * Outcome of the provision stage (asset stage + codegen + checkpoint). `outcome`
- * is the caller-facing result: non-success aborts any following place stage,
- * while `assetPass` and `codegen` let a two-phase deploy continue to republish.
+ * Outcome of the provision stage (asset stage + codegen + checkpoint).
+ * `outcome` is the caller-facing result: non-success aborts any following
+ * build or publish stage.
  */
 interface ProvisionStage {
 	readonly assetPass: ReconcilePass;
@@ -321,24 +321,6 @@ interface AssetStageInputs {
 	readonly storedHash: Sha256Hex | undefined;
 }
 
-interface PublishStageInputs {
-	readonly assetPass: ReconcilePass;
-	readonly codegen: Result<Sha256Hex, CodegenError> | undefined;
-	readonly codegenHash: Sha256Hex | undefined;
-	readonly deps: ResolvedDependencies;
-	readonly environment: string;
-	readonly placeOps: ReadonlyArray<Operation>;
-}
-
-interface RepublishStageInputs {
-	readonly assetPass: ReconcilePass;
-	readonly codegenHash: Sha256Hex | undefined;
-	readonly deps: ResolvedDependencies;
-	readonly desiredPlaces: ReadonlyArray<PlaceDesiredState>;
-	readonly environment: string;
-	readonly rebuilt: ReadonlyArray<RebuiltPlace>;
-}
-
 /** Driven dependencies picked from environment and config once the effective config resolves. */
 interface DrivenDependencies {
 	readonly codegen: CodegenBundle | undefined;
@@ -347,7 +329,6 @@ interface DrivenDependencies {
 }
 
 interface ReconcileInputs {
-	readonly desired: ReadonlyArray<ResourceDesiredState>;
 	readonly ops: ReadonlyArray<Operation>;
 	readonly owedRebuild: ReadonlySet<ResourceKey>;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
@@ -368,14 +349,20 @@ export function isCliEnvironmentFlagSet(value: string | undefined): boolean {
 }
 
 /**
- * Run a full reconcile end-to-end. Default-constructs missing deps from
- * the project config and the environment variables `BEDROCK_GITHUB_TOKEN`
- * and `BEDROCK_API_KEY`; emits a terminal `deploySuccess` or `deployFailure`
- * event through the resolved `progress` port. When `progress` is omitted,
- * the default port comes from `BEDROCK_CLI`: a non-empty value selects the
- * clack-backed adapter, any other reading selects the no-op adapter. No
- * environment lookups happen when `statePort`, `registry`, `config`, and
- * `progress` are all supplied explicitly.
+ * Run a full reconcile end-to-end. For a codegen project this is the fused
+ * composition of {@link provision}, the {@link BuildStep}, and
+ * {@link publish} in one invocation: assets are minted and codegen runs, the
+ * build step produces each place's artifact once, and the publish stage
+ * uploads from disk, skipping any place whose file hash already matches
+ * state. Without codegen the deploy publishes the pre-built place files in a
+ * single pass. Default-constructs missing deps from the project config and
+ * the environment variables `BEDROCK_GITHUB_TOKEN` and `BEDROCK_API_KEY`;
+ * emits a terminal `deploySuccess` or `deployFailure` event through the
+ * resolved `progress` port. When `progress` is omitted, the default port
+ * comes from `BEDROCK_CLI`: a non-empty value selects the clack-backed
+ * adapter, any other reading selects the no-op adapter. No environment
+ * lookups happen when `statePort`, `registry`, `config`, and `progress` are
+ * all supplied explicitly.
  *
  * @since 0.1.0
  *
@@ -653,11 +640,10 @@ async function resolveDependencies(
 	return {
 		data: {
 			...driven.data,
-			clearPendingRebuild: options.clearPendingRebuild ?? false,
+			build: options.build,
 			config: effective,
 			readFile,
 			realDisplay,
-			rebuild: options.rebuild,
 		},
 		success: true,
 	};
@@ -726,6 +712,27 @@ async function execute(
 	return runAndEmit({ options, progress: createNoOpProgressAdapter(), runner });
 }
 
+async function invokeBuildStep(
+	build: BuildStep,
+	environment: string,
+): Promise<Result<undefined, DeployError>> {
+	// The step owns an arbitrary build; a throw leaves the checkpoint's outputs
+	// and marker in place and surfaces a stage-tagged buildFailed error so the
+	// publish stage never runs and the next green deploy self-heals.
+	try {
+		await build({ environment });
+		return { data: undefined, success: true };
+	} catch (err) {
+		return {
+			err: {
+				kind: "buildFailed",
+				reason: err instanceof Error ? err.message : String(err),
+			},
+			success: false,
+		};
+	}
+}
+
 function finalize(
 	pass: ReconcilePass,
 	codegen: Result<Sha256Hex, CodegenError> | undefined,
@@ -755,32 +762,31 @@ function finalize(
 	return { data: pass.merged, success: true };
 }
 
-async function runCodegenStage(
-	dependencies: ResolvedDependencies,
-	pass: ReconcilePass,
-): Promise<Result<Sha256Hex, CodegenError> | undefined> {
-	if (!pass.written.success || dependencies.codegen === undefined) {
-		return undefined;
-	}
-
-	return runCodegen({
-		deployedState: pass.merged,
-		emit: dependencies.codegen.emit,
-		environments: Object.keys(dependencies.config.environments),
-		statePort: dependencies.statePort,
-		writer: dependencies.codegen.writer,
-	});
+function settleOwedPlaces(inputs: SettleOwedInputs): ReadonlySet<ResourceKey> {
+	const { ops, owed, survivors } = inputs;
+	// A green pass settles an owed place two ways: it republished (a place
+	// survivor of this pass) or its op noop'd because the on-disk artifact
+	// already matches what is live. Only a place whose dispatched op failed
+	// (absent from both sets) still owes a publish and keeps its marker.
+	const settled = new Set([
+		...survivors.filter((resource) => resource.kind === "place").map((entry) => entry.key),
+		...ops.filter((op) => op.type === "noop" && op.kind === "place").map((entry) => entry.key),
+	]);
+	return new Set([...owed].filter((key) => !settled.has(key)));
 }
 
-async function runSinglePass(inputs: SinglePassInputs): Promise<Result<BedrockState, DeployError>> {
-	const { deps, environment, ops, priorResources, storedHash } = inputs;
-	// A single pass never owns the fingerprint: it threads the stored hash back
-	// out unchanged so a codegen-only (no rebuild hook) deploy never claims the
-	// place was built against newly emitted source it could not have republished.
+async function runSettledPass(
+	inputs: SettledPassInputs,
+): Promise<Result<BedrockState, DeployError>> {
+	const { deps, environment, ops, owedRebuild, priorResources, storedHash } = inputs;
+	// This pass never owns the fingerprint: it threads the stored hash back out
+	// unchanged. No-op avoidance comes from the file-hash diff (an unchanged
+	// artifact op is a noop), not from the codegen fingerprint.
 	const pass = await applyAndPersist({
 		codegenHash: storedHash,
 		environment,
 		ops,
+		pendingRebuild: (survivors) => settleOwedPlaces({ ops, owed: owedRebuild, survivors }),
 		priorResources,
 		progress: deps.progress,
 		realDisplay: deps.realDisplay,
@@ -788,164 +794,7 @@ async function runSinglePass(inputs: SinglePassInputs): Promise<Result<BedrockSt
 		statePort: deps.statePort,
 	});
 
-	const codegen = await runCodegenStage(deps, pass);
-	return finalize(pass, codegen);
-}
-
-async function runRepublishStage(inputs: RepublishStageInputs): Promise<ReconcilePass> {
-	const { assetPass, codegenHash, deps, desiredPlaces, environment, rebuilt } = inputs;
-	const artifacts = new Map(rebuilt.map((place) => [place.key, place.bytes]));
-	// Clear the marker only for the places the hook actually republished; any
-	// declared place the hook skipped still owes a rebuild and keeps its marker.
-	const stillOwed = new Set(
-		desiredPlaces.map((place) => place.key).filter((key) => !artifacts.has(key)),
-	);
-	return applyAndPersist({
-		artifacts,
-		codegenHash,
-		environment,
-		ops: buildRepublishOps({
-			currentResources: assetPass.merged.resources,
-			desiredPlaces,
-			keys: [...artifacts.keys()],
-		}),
-		pendingRebuild: stillOwed,
-		priorResources: assetPass.merged.resources,
-		progress: deps.progress,
-		realDisplay: deps.realDisplay,
-		registry: deps.registry,
-		statePort: deps.statePort,
-	});
-}
-
-async function runPublishStage(
-	inputs: PublishStageInputs,
-): Promise<Result<BedrockState, DeployError>> {
-	const { assetPass, codegen, codegenHash, deps, environment, placeOps } = inputs;
-	// Codegen output matched the stored hash, so the pre-built place file is
-	// still current: replay the withheld place ops (the driver reads the file
-	// from disk), clear the marker (nothing owes a rebuild), and advance the
-	// stored hash to the value just emitted.
-	const publishPass = await applyAndPersist({
-		codegenHash,
-		environment,
-		ops: placeOps,
-		pendingRebuild: new Set(),
-		priorResources: assetPass.merged.resources,
-		progress: deps.progress,
-		realDisplay: deps.realDisplay,
-		registry: deps.registry,
-		statePort: deps.statePort,
-	});
-	return finalize(publishPass, codegen);
-}
-
-async function invokeRebuildHook(
-	rebuild: RebuildHook,
-	state: BedrockState,
-): Promise<Result<ReadonlyArray<RebuiltPlace>, DeployError>> {
-	// The hook owns an arbitrary build; a throw leaves the checkpoint's outputs
-	// and marker in place and surfaces a stage-tagged rebuildHookThrew error so
-	// the republish stage never runs.
-	try {
-		return { data: await rebuild({ state }), success: true };
-	} catch (err) {
-		return {
-			err: {
-				kind: "rebuildHookThrew",
-				reason: err instanceof Error ? err.message : String(err),
-			},
-			success: false,
-		};
-	}
-}
-
-async function completeTwoPhase(
-	inputs: CompleteTwoPhaseInputs,
-): Promise<Result<BedrockState, DeployError>> {
-	const { assetPass, codegen, deps, desired, environment, marker, plan, rebuild, storedHash } =
-		inputs;
-	const emittedHash = codegen?.success === true ? codegen.data : undefined;
-	const nextHash = emittedHash ?? storedHash;
-	// Rebuild when a leftover marker forces it or the freshly emitted codegen
-	// would differ from what the published place was last built against. A
-	// provisioned create changes the emitted output, so its hash differs and the
-	// create trigger is subsumed here, not duplicated. `emittedHash` is undefined
-	// only when codegen is inactive, which (per the activation rule) implies a
-	// forcing marker, so `marker.size > 0` already covers that case.
-	const shouldRebuild = marker.size > 0 || emittedHash !== storedHash;
-
-	if (!shouldRebuild) {
-		const args = { assetPass, codegen, codegenHash: nextHash, deps, environment };
-		return runPublishStage({ ...args, placeOps: plan.placeOps });
-	}
-
-	const rebuilt = await invokeRebuildHook(rebuild, assetPass.merged);
-	if (!rebuilt.success) {
-		return rebuilt;
-	}
-
-	const desiredPlaces = desired.filter(
-		(entry): entry is PlaceDesiredState => entry.kind === "place",
-	);
-	const republishPass = await runRepublishStage({
-		assetPass,
-		codegenHash: nextHash,
-		deps,
-		desiredPlaces,
-		environment,
-		rebuilt: rebuilt.data,
-	});
-
-	return finalize(republishPass, codegen);
-}
-
-async function runAssetStage(inputs: AssetStageInputs): Promise<ReconcilePass> {
-	const { deps, environment, markPlaces, ops, priorResources, storedHash } = inputs;
-	// The checkpoint preserves the stored hash: only the write that completes a
-	// successful republish (or pre-built publish) advances it, so an aborted
-	// rebuild retains the stale hash and the next deploy retries.
-	return applyAndPersist({
-		codegenHash: storedHash,
-		environment,
-		ops,
-		pendingRebuild: new Set(markPlaces),
-		priorResources,
-		progress: deps.progress,
-		realDisplay: deps.realDisplay,
-		registry: deps.registry,
-		statePort: deps.statePort,
-	});
-}
-
-async function runProvisionStage(inputs: AssetStageInputs): Promise<ProvisionStage> {
-	const assetPass = await runAssetStage(inputs);
-	const codegen = await runCodegenStage(inputs.deps, assetPass);
-	// `finalize` returns a non-success outcome exactly when the stage must abort:
-	// a partial asset failure (or failed checkpoint write) leaves survivors and
-	// the marker persisted, and a codegen failure after the checkpoint retains
-	// the stale hash; in every case the next run retries via the marker rather
-	// than building against missing IDs. A success outcome means the checkpoint
-	// is clean and a caller may proceed to a place stage.
-	return { assetPass, codegen, outcome: finalize(assetPass, codegen) };
-}
-
-async function runTwoPhase(inputs: TwoPhaseInputs): Promise<Result<BedrockState, DeployError>> {
-	const { deps, environment, plan, priorResources, storedHash } = inputs;
-	const { assetPass, codegen, outcome } = await runProvisionStage({
-		deps,
-		environment,
-		markPlaces: plan.markPlaces,
-		ops: plan.assetOps,
-		priorResources,
-		storedHash,
-	});
-
-	if (!outcome.success) {
-		return outcome;
-	}
-
-	return completeTwoPhase({ ...inputs, assetPass, codegen });
+	return finalize(pass, undefined);
 }
 
 async function resolveDesiredState(
@@ -988,7 +837,6 @@ async function loadReconcileInputs(inputs: {
 
 	return {
 		data: {
-			desired: desired.data,
 			ops: diff(desired.data, priorResources),
 			owedRebuild: prior.data?.pendingRebuild ?? new Set<ResourceKey>(),
 			priorResources,
@@ -998,23 +846,28 @@ async function loadReconcileInputs(inputs: {
 	};
 }
 
-function markerWithoutHookError(inputs: {
-	owedRebuild: ReadonlySet<ResourceKey>;
-	rebuild: RebuildHook | undefined;
-	shouldClearMarker: boolean;
-}): DeployError | undefined {
-	const { owedRebuild, rebuild, shouldClearMarker } = inputs;
-	// A marker present with no hook to satisfy it is a hard error: refuse to
-	// report success while a rebuild is owed and cannot be performed. The escape
-	// hatch lets a user deliberately abandoning two-phase clear it instead.
-	if (!shouldClearMarker && owedRebuild.size > 0 && rebuild === undefined) {
-		return { keys: [...owedRebuild], kind: "pendingRebuildWithoutHook" };
+async function runFusedPublishStage(
+	environment: string,
+	deps: ResolvedDependencies,
+): Promise<Result<BedrockState, DeployError>> {
+	// Reload the place inputs after the build step so the diff hashes the
+	// artifact the build just wrote; a place whose file hash already matches
+	// state noop's, so an unchanged artifact is never uploaded. Because the
+	// build ran green, a noop place is settled and its marker clears too.
+	const loaded = await loadReconcileInputs({
+		dependencies: deps,
+		environment,
+		includeKind: (kind) => kind === "place",
+	});
+	if (!loaded.success) {
+		return loaded;
 	}
 
-	return undefined;
+	const { ops, owedRebuild, priorResources, storedHash } = loaded.data;
+	return runSettledPass({ deps, environment, ops, owedRebuild, priorResources, storedHash });
 }
 
-async function runReconcile(
+async function runSinglePassReconcile(
 	environment: string,
 	dependencies: ResolvedDependencies,
 ): Promise<Result<BedrockState, DeployError>> {
@@ -1023,32 +876,13 @@ async function runReconcile(
 		return loaded;
 	}
 
-	const { desired, ops, owedRebuild, priorResources, storedHash } = loaded.data;
-	const { clearPendingRebuild: shouldClearMarker, codegen, rebuild } = dependencies;
-
-	const owedError = markerWithoutHookError({ owedRebuild, rebuild, shouldClearMarker });
-	if (owedError !== undefined) {
-		return { err: owedError, success: false };
-	}
-
-	const marker = shouldClearMarker ? new Set<ResourceKey>() : owedRebuild;
-	// Two-phase activates only when a rebuild hook is available and there is
-	// something for the post-codegen check to act on: active codegen (whose hash
-	// drives the rebuild decision) or a leftover marker forcing a retry. Without
-	// codegen there is no generated source to fingerprint, so a rebuild hook is
-	// inert and the deploy publishes the pre-built file in a single pass.
-	if (rebuild === undefined || (codegen === undefined && marker.size === 0)) {
-		return runSinglePass({ deps: dependencies, environment, ops, priorResources, storedHash });
-	}
-
-	return runTwoPhase({
+	const { ops, owedRebuild, priorResources, storedHash } = loaded.data;
+	return runSettledPass({
 		deps: dependencies,
-		desired,
 		environment,
-		marker,
-		plan: planTwoPhase(ops),
+		ops,
+		owedRebuild,
 		priorResources,
-		rebuild,
 		storedHash,
 	});
 }
@@ -1057,6 +891,52 @@ function declaredPlaceKeys(config: ResolvedConfig): ReadonlyArray<ResourceKey> {
 	return flattenConfig(config)
 		.filter((input) => input.kind === "place")
 		.map((input) => input.key);
+}
+
+async function runCodegenStage(
+	dependencies: ResolvedDependencies,
+	pass: ReconcilePass,
+): Promise<Result<Sha256Hex, CodegenError> | undefined> {
+	if (!pass.written.success || dependencies.codegen === undefined) {
+		return undefined;
+	}
+
+	return runCodegen({
+		deployedState: pass.merged,
+		emit: dependencies.codegen.emit,
+		environments: Object.keys(dependencies.config.environments),
+		statePort: dependencies.statePort,
+		writer: dependencies.codegen.writer,
+	});
+}
+
+async function runAssetStage(inputs: AssetStageInputs): Promise<ReconcilePass> {
+	const { deps, environment, markPlaces, ops, priorResources, storedHash } = inputs;
+	// The checkpoint preserves the stored hash; the fingerprint is bookkeeping
+	// only and no longer gates a rebuild decision.
+	return applyAndPersist({
+		codegenHash: storedHash,
+		environment,
+		ops,
+		pendingRebuild: new Set(markPlaces),
+		priorResources,
+		progress: deps.progress,
+		realDisplay: deps.realDisplay,
+		registry: deps.registry,
+		statePort: deps.statePort,
+	});
+}
+
+async function runProvisionStage(inputs: AssetStageInputs): Promise<ProvisionStage> {
+	const assetPass = await runAssetStage(inputs);
+	const codegen = await runCodegenStage(inputs.deps, assetPass);
+	// `finalize` returns a non-success outcome exactly when the stage must abort:
+	// a partial asset failure (or failed checkpoint write) leaves survivors and
+	// the marker persisted, and a codegen failure after the checkpoint retains
+	// the stale hash; in every case the next run retries via the marker rather
+	// than building against missing IDs. A success outcome means the checkpoint
+	// is clean and a caller may proceed to a place stage.
+	return { assetPass, codegen, outcome: finalize(assetPass, codegen) };
 }
 
 async function runProvision(
@@ -1085,6 +965,42 @@ async function runProvision(
 		storedHash,
 	});
 	return outcome;
+}
+
+async function runReconcile(
+	environment: string,
+	dependencies: ResolvedDependencies,
+): Promise<Result<BedrockState, DeployError>> {
+	// Without codegen there is nothing to build: publish the pre-built place
+	// files in a single pass. A leftover pending-rebuild marker settles in the
+	// same pass. Published or already-current places clear it, failures keep it.
+	if (dependencies.codegen === undefined) {
+		return runSinglePassReconcile(environment, dependencies);
+	}
+
+	// With no place declared there is nothing to build or publish: provision
+	// (asset ops plus codegen) is the whole deploy.
+	if (declaredPlaceKeys(dependencies.config).length === 0) {
+		return runProvision(environment, dependencies);
+	}
+
+	// A codegen project owes a freshly built artifact on every deploy, so the
+	// fused pipeline needs a build step before anything is minted.
+	if (dependencies.build === undefined) {
+		return { err: { kind: "missingBuildStep" }, success: false };
+	}
+
+	const provisioned = await runProvision(environment, dependencies);
+	if (!provisioned.success) {
+		return provisioned;
+	}
+
+	const built = await invokeBuildStep(dependencies.build, environment);
+	if (!built.success) {
+		return built;
+	}
+
+	return runFusedPublishStage(environment, dependencies);
 }
 
 function remainingOwed(

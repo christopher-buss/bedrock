@@ -53,13 +53,11 @@ import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
  */
 export interface BedrockState {
 	/**
-	 * Fingerprint of the codegen output the currently-published place was built
-	 * against, used to decide whether a two-phase deploy must rebuild. A deploy
-	 * compares the freshly emitted codegen hash against this stored value and
-	 * rebuilds + republishes when they differ; an unchanged hash publishes the
-	 * pre-built file. The field is omitted entirely until a codegen-enabled
-	 * deploy first stores one, so a happy-path snapshot with no codegen never
-	 * carries it.
+	 * Fingerprint of previously emitted codegen output. Bookkeeping only:
+	 * deploys thread the stored value through unchanged and nothing gates on
+	 * it. No-op avoidance comes from the place file-hash comparison instead.
+	 * The field is omitted entirely until a codegen-enabled deploy first stored
+	 * one, so a happy-path snapshot with no codegen never carries it.
 	 *
 	 * On disk it is stored alongside `version` inside the adapter-private
 	 * `$bedrock` envelope; `serializeStateFile` and `parseStateFile` own that

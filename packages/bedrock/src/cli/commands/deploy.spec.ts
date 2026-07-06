@@ -40,6 +40,12 @@ function discoverReturning(path: string | undefined): DiscoverOverrideFunc {
 	return vi.fn<DiscoverOverrideFunc>(() => path);
 }
 
+function discoverByCommand(
+	mapping: Readonly<Record<string, string | undefined>>,
+): DiscoverOverrideFunc {
+	return vi.fn<DiscoverOverrideFunc>((_root, command) => mapping[command]);
+}
+
 function makeDependencies(overrides: Partial<ProgDependencies> = {}): ProgDependencies {
 	return {
 		clack: fakeClackPort(),
@@ -497,7 +503,7 @@ describe(deployCommand, () => {
 
 		await deployCommand(dependencies)({ env: "production" });
 
-		expect(discoverOverride).toHaveBeenCalledExactlyOnceWith("/abs/project", "deploy");
+		expect(discoverOverride).toHaveBeenNthCalledWith(1, "/abs/project", "deploy");
 	});
 
 	it("should forward the discovered override path and parsed flags into the spawned invocation", async () => {
@@ -649,6 +655,172 @@ describe(deployCommand, () => {
 		await deployCommand(dependencies)({ env: ["production", "staging"] });
 
 		expect(invocations).toHaveLength(2);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should inject a build step that spawns the discovered .bedrock/build.ts override", async () => {
+		expect.assertions(4);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
+		const { invocations, spawner } = recordingSpawner({ data: 0, success: true });
+		const discoverOverride = discoverByCommand({ build: "/abs/.bedrock/build.ts" });
+		const dependencies = makeDependencies({
+			deploy,
+			discoverOverride,
+			loadConfig,
+			projectRoot: "/abs",
+			spawner,
+		});
+
+		await deployCommand(dependencies)({ "api-key": "rbx-key", "env": "production" });
+
+		const firstCall = vi.mocked(deploy).mock.calls[0];
+		assert(firstCall !== undefined);
+
+		const [call] = firstCall;
+		assert(call.build !== undefined);
+
+		expect(invocations).toHaveLength(0);
+
+		await call.build({ environment: "production" });
+
+		expect(invocations).toHaveLength(1);
+		expect(invocations[0]?.args).toStrictEqual([
+			"/abs/.bedrock/build.ts",
+			"--env",
+			"production",
+		]);
+		expect(invocations[0]?.envOverrides).toMatchObject({
+			BEDROCK_API_KEY: "rbx-key",
+			BEDROCK_CLI: "1",
+		});
+	});
+
+	it("should leave the build step undefined when no .bedrock/build.ts override exists", async () => {
+		expect.assertions(1);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
+		const discoverOverride = discoverByCommand({});
+		const dependencies = makeDependencies({ deploy, discoverOverride, loadConfig });
+
+		await deployCommand(dependencies)({ env: "production" });
+
+		const firstCall = vi.mocked(deploy).mock.calls[0];
+		assert(firstCall !== undefined);
+
+		expect(firstCall[0].build).toBeUndefined();
+	});
+
+	it("should reject from the injected build step when the spawned build exits non-zero", async () => {
+		expect.assertions(1);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
+		const { spawner } = recordingSpawner({ data: 3, success: true });
+		const discoverOverride = discoverByCommand({ build: "/abs/.bedrock/build.ts" });
+		const dependencies = makeDependencies({ deploy, discoverOverride, loadConfig, spawner });
+
+		await deployCommand(dependencies)({ env: "production" });
+
+		const firstCall = vi.mocked(deploy).mock.calls[0];
+		assert(firstCall !== undefined);
+		assert(firstCall[0].build !== undefined);
+
+		await expect(firstCall[0].build({ environment: "production" })).rejects.toThrow(
+			".bedrock/build.ts exited with code 3",
+		);
+	});
+
+	it("should reject from the injected build step when the spawned build cannot launch", async () => {
+		expect.assertions(1);
+
+		const cause: Error & { code?: string } = Object.assign(new Error("spawn bun ENOENT"), {
+			code: "ENOENT",
+		});
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
+		const { spawner } = recordingSpawner({
+			err: { cause, kind: "launchFailed" },
+			success: false,
+		});
+		const discoverOverride = discoverByCommand({ build: "/abs/.bedrock/build.ts" });
+		const dependencies = makeDependencies({ deploy, discoverOverride, loadConfig, spawner });
+
+		await deployCommand(dependencies)({ env: "production" });
+
+		const firstCall = vi.mocked(deploy).mock.calls[0];
+		assert(firstCall !== undefined);
+		assert(firstCall[0].build !== undefined);
+
+		await expect(firstCall[0].build({ environment: "production" })).rejects.toThrow(
+			"failed to launch .bedrock/build.ts - spawn bun ENOENT",
+		);
+	});
+
+	it("should discover the build override alongside the deploy override on the shell path", async () => {
+		expect.assertions(3);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
+		const discoverOverride = discoverByCommand({});
+		const dependencies = makeDependencies({
+			deploy,
+			discoverOverride,
+			loadConfig,
+			projectRoot: "/abs/project",
+		});
+
+		await deployCommand(dependencies)({ env: "production" });
+
+		expect(discoverOverride).toHaveBeenCalledTimes(2);
+		expect(discoverOverride).toHaveBeenNthCalledWith(1, "/abs/project", "deploy");
+		expect(discoverOverride).toHaveBeenNthCalledWith(2, "/abs/project", "build");
+	});
+
+	it("should not discover a build override when a .bedrock/deploy.ts override is dispatched", async () => {
+		expect.assertions(1);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const { spawner } = recordingSpawner({ data: 0, success: true });
+		const discoverOverride = discoverByCommand({ deploy: "/abs/.bedrock/deploy.ts" });
+		const dependencies = makeDependencies({
+			discoverOverride,
+			loadConfig,
+			projectRoot: "/abs",
+			spawner,
+		});
+
+		await deployCommand(dependencies)({ env: "production" });
+
+		expect(discoverOverride).toHaveBeenCalledExactlyOnceWith("/abs", "deploy");
+	});
+
+	it("should render an error and exit 1 when build override discovery throws", async () => {
+		expect.assertions(4);
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = vi.fn<DeployFunc>();
+		const discoverOverride = vi.fn<DiscoverOverrideFunc>((_root, command) => {
+			if (command === "build") {
+				throw new Error("EACCES: permission denied, stat '/project/.bedrock/build.ts'");
+			}
+		});
+		const dependencies = makeDependencies({
+			deploy,
+			discoverOverride,
+			loadConfig,
+			projectRoot: "/project",
+		});
+
+		await deployCommand(dependencies)({ env: "production" });
+
+		expect(deploy).not.toHaveBeenCalled();
+		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+			"override discovery failed: EACCES: permission denied, stat '/project/.bedrock/build.ts'",
+		);
+		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 

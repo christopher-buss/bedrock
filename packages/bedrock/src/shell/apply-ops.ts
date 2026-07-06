@@ -208,10 +208,10 @@ interface DispatchDependencies {
  *   one `resourceOpNoop` per noop op, and a final `applySummary` carrying
  *   the per-type counts and the wall-clock apply duration. When omitted,
  *   no events fire.
- * @param artifacts - Optional per-key rebuilt artifact bytes. When supplied,
- *   each dispatched op's driver receives a `ResourceApplyContext` carrying the
- *   matching key's bytes (a two-phase republish stage feeds rebuilt place
- *   bytes here); when omitted, drivers are called without a context argument.
+ * @param artifacts - Optional per-key artifact bytes. When supplied, each
+ *   dispatched op's driver receives a `ResourceApplyContext` carrying the
+ *   matching key's bytes in place of its on-disk file; when omitted, drivers
+ *   are called without a context argument.
  * @returns `Ok(state)` when every op succeeded; otherwise
  *   `Err(AggregateApplyError)` with the survivors and the non-empty
  *   failures tuple.

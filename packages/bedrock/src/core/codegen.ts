@@ -79,11 +79,11 @@ export function buildCodegenEnvironments(
 }
 
 /**
- * Fingerprint the emitted codegen output so a two-phase deploy can tell whether
- * the generated source would change. The digest is order-independent (files are
+ * Fingerprint the emitted codegen output so state can record what the
+ * generated source looked like. The digest is order-independent (files are
  * sorted by `path` first) so a reordered emitter return does not spuriously
- * trigger a rebuild, and the canonical form is a JSON array of `[path, content]`
- * pairs so no path/content boundary shift collides.
+ * change the fingerprint, and the canonical form is a JSON array of
+ * `[path, content]` pairs so no path/content boundary shift collides.
  *
  * @param files - The files the emitter returned for the deployed environment.
  * @returns The branded SHA-256 hex digest of the canonicalized output.

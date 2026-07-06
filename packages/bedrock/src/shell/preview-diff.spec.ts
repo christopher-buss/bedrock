@@ -392,6 +392,45 @@ describe(previewDiff, () => {
 		assert(result.success);
 	});
 
+	it("should surface the pending-rebuild keys recorded in prior state", async () => {
+		expect.assertions(1);
+
+		const { port } = inMemoryStatePort({
+			environment: "production",
+			pendingRebuild: new Set([asResourceKey("start-place")]),
+			resources: [vipPassCurrent()],
+			version: 1,
+		});
+
+		const result = await previewDiff({
+			config: vipPassConfig(),
+			environment: "production",
+			readFile: readIcon,
+			statePort: port,
+		});
+
+		assert(result.success);
+
+		expect(result.data.pendingRebuild).toStrictEqual([asResourceKey("start-place")]);
+	});
+
+	it("should return an empty pendingRebuild array when prior state carries no marker", async () => {
+		expect.assertions(1);
+
+		const { port } = inMemoryStatePort();
+
+		const result = await previewDiff({
+			config: vipPassConfig(),
+			environment: "production",
+			readFile: readIcon,
+			statePort: port,
+		});
+
+		assert(result.success);
+
+		expect(result.data.pendingRebuild).toStrictEqual([]);
+	});
+
 	it("should return an empty redactions array when no pass is flagged redacted", async () => {
 		expect.assertions(1);
 

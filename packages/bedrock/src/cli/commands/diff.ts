@@ -115,12 +115,31 @@ function renderRedactions(preview: DiffPreview, clack: ClackPort): void {
 	}
 }
 
+function renderPendingRebuild(preview: DiffPreview, clack: ClackPort): boolean {
+	// A persistent marker is "minted but unpublished" drift: assets were
+	// provisioned but the place artifact never published. It self-heals on the
+	// next green publish, so it is reported rather than failing the diff.
+	if (preview.pendingRebuild.length === 0) {
+		return false;
+	}
+
+	const keys = preview.pendingRebuild.join(", ");
+	clack.logMessage(
+		`${preview.pendingRebuild.length} place(s) minted but unpublished in "${preview.environment}": ${keys}`,
+	);
+	return true;
+}
+
 function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 	const drift = preview.ops.filter(isDriftOp);
 	if (drift.length === 0) {
-		clack.logSuccess(`No drift for "${preview.environment}"`);
+		const hasPendingPublish = renderPendingRebuild(preview, clack);
+		if (!hasPendingPublish) {
+			clack.logSuccess(`No drift for "${preview.environment}"`);
+		}
+
 		renderRedactions(preview, clack);
-		return false;
+		return hasPendingPublish;
 	}
 
 	clack.logMessage(`Pending changes for "${preview.environment}":`);
@@ -128,6 +147,7 @@ function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 		clack.logMessage(describeOp(op));
 	}
 
+	renderPendingRebuild(preview, clack);
 	renderRedactions(preview, clack);
 
 	return true;

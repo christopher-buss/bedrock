@@ -53,6 +53,29 @@ describe(provisionCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
+	it("should not discover a build override and dispatch provision without a build step", async () => {
+		expect.assertions(3);
+
+		const discoverOverride = vi.fn<DiscoverOverrideFunc>(() => {});
+		const provision = fakeProvision({ data: okState(), success: true });
+		const deps = makeDeps({
+			discoverOverride,
+			loadConfig: fakeLoad(),
+			projectRoot: "/abs",
+			provision,
+		});
+
+		await provisionCommand(deps)({ env: "production" });
+
+		// provision is not a fused command: only its own override is discovered
+		// and no build step is injected into the pipeline options.
+		expect(discoverOverride).toHaveBeenCalledExactlyOnceWith("/abs", "provision");
+		expect(provision).toHaveBeenCalledExactlyOnceWith(
+			expect.objectContaining({ environment: "production" }),
+		);
+		expect(vi.mocked(provision).mock.calls[0]?.[0]).not.toHaveProperty("build");
+	});
+
 	it("should discover a .bedrock/provision.ts override and spawn it instead of provision()", async () => {
 		expect.assertions(3);
 

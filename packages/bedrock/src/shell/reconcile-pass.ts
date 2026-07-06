@@ -40,14 +40,13 @@ type PendingRebuildInput =
  * later pass receives the previous pass's `merged.resources` here.
  */
 interface ApplyAndPersistInputs {
-	/** Optional per-key rebuilt artifact bytes forwarded to `applyOps` as apply context. */
+	/** Optional per-key artifact bytes forwarded to `applyOps` as apply context. */
 	readonly artifacts?: ReadonlyMap<ResourceKey, Uint8Array>;
 	/**
 	 * Codegen fingerprint to stamp onto the persisted snapshot. Omit (or pass
 	 * `undefined`) to leave the field off; a caller threads the stored hash
-	 * through to preserve it, and the freshly emitted hash on the write that
-	 * completes a successful rebuild. Stamped only when the pass fully applies:
-	 * a partial failure drops the hash so the next deploy re-detects the change.
+	 * through to preserve it. Stamped only when the pass fully applies: a
+	 * partial failure drops the hash.
 	 */
 	readonly codegenHash?: Sha256Hex | undefined;
 	/** Environment name threaded into `applyOps` reporting and the snapshot. */

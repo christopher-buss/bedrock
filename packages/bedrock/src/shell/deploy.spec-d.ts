@@ -1,9 +1,7 @@
 import { describe, expectTypeOf, it } from "vitest";
 
-import type { RebuildHook } from "../core/rebuild.ts";
 import type { StateConfig } from "../core/schema.ts";
-import type { ResourceKey } from "../types/ids.ts";
-import type { DeployError, DeployOptions } from "./deploy.ts";
+import type { BuildStep, DeployError, DeployOptions } from "./deploy.ts";
 
 describe("DeployOptions", () => {
 	it("should make every field optional except environment", () => {
@@ -14,12 +12,16 @@ describe("DeployOptions", () => {
 		expectTypeOf<DeployOptions["environment"]>().toEqualTypeOf<string>();
 	});
 
-	it("should accept an optional rebuild hook", () => {
-		expectTypeOf<DeployOptions["rebuild"]>().toEqualTypeOf<RebuildHook | undefined>();
+	it("should accept an optional build step", () => {
+		expectTypeOf<DeployOptions["build"]>().toEqualTypeOf<BuildStep | undefined>();
 	});
 
-	it("should accept an optional clearPendingRebuild escape hatch", () => {
-		expectTypeOf<DeployOptions["clearPendingRebuild"]>().toEqualTypeOf<boolean | undefined>();
+	it("should not accept the retired rebuild hook", () => {
+		expectTypeOf<DeployOptions>().not.toHaveProperty("rebuild");
+	});
+
+	it("should not accept the retired clearPendingRebuild escape hatch", () => {
+		expectTypeOf<DeployOptions>().not.toHaveProperty("clearPendingRebuild");
 	});
 });
 
@@ -69,17 +71,21 @@ describe("DeployError - registry and config variants", () => {
 	});
 });
 
-describe("DeployError - two-phase failure variants", () => {
-	it("should narrow rebuildHookThrew to expose the stringified reason", () => {
+describe("DeployError - fused-deploy failure variants", () => {
+	it("should narrow buildFailed to expose the stringified reason", () => {
 		expectTypeOf<
-			Extract<DeployError, { kind: "rebuildHookThrew" }>["reason"]
+			Extract<DeployError, { kind: "buildFailed" }>["reason"]
 		>().toEqualTypeOf<string>();
 	});
 
-	it("should narrow pendingRebuildWithoutHook to expose the owed place keys", () => {
+	it("should not expose the retired rebuildHookThrew variant", () => {
+		expectTypeOf<Extract<DeployError, { kind: "rebuildHookThrew" }>>().toEqualTypeOf<never>();
+	});
+
+	it("should not expose the retired pendingRebuildWithoutHook variant", () => {
 		expectTypeOf<
-			Extract<DeployError, { kind: "pendingRebuildWithoutHook" }>["keys"]
-		>().toEqualTypeOf<ReadonlyArray<ResourceKey>>();
+			Extract<DeployError, { kind: "pendingRebuildWithoutHook" }>
+		>().toEqualTypeOf<never>();
 	});
 });
 
