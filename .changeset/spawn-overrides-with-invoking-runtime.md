@@ -11,6 +11,6 @@ requires a Bun install, and running it through Bun keeps Bun.
 
 **Breaking** for projects whose overrides relied on the implicit Bun runtime:
 under node the override must use erasable-syntax TypeScript (no enums or
-namespaces), relative imports must spell out their `.ts` extension, and node
-22.18+ is required for native TypeScript execution. Invoke the CLI through Bun
-(`bunx bedrock ...`) to keep the previous behavior.
+namespaces) and relative imports must spell out their `.ts` extension. The
+package's supported node range (>= 24.12) executes TypeScript natively. Invoke
+the CLI through Bun (`bunx bedrock ...`) to keep the previous behavior.

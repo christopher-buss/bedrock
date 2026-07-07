@@ -94,7 +94,7 @@ describe("cli deploy override discovery end-to-end", () => {
 			index === 0 ? realpathSync.native(entry) : entry,
 		);
 
-		expect({ args, cli: probe.cli }).toStrictEqual({
+		expect({ ...probe, args }).toStrictEqual({
 			args: [realpathSync.native(project.overridePath), "--env", "production"],
 			cli: "1",
 		});
