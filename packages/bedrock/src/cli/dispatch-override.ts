@@ -1,5 +1,7 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
+import process from "node:process";
+
 import { buildCredentialOverrides } from "./credential-environment-overrides.ts";
 import type { Spawner, SpawnInvocation, SpawnLaunchCause } from "./spawner.ts";
 
@@ -26,10 +28,11 @@ export interface OverrideInvocation {
 /**
  * Failure modes returned by {@link dispatchOverride}.
  *
- * - `launchFailed` — the child process could not be started (e.g. `bun`
- *   missing, permission denied). Wraps the {@link SpawnLaunchCause} the
- *   underlying spawner surfaced so callers can render a precise diagnostic.
- * - `nonZeroExit` — the child started, ran, and exited with a non-zero
+ * - `launchFailed`: the child process could not be started (missing
+ *   runtime binary, permission denied). Wraps the {@link SpawnLaunchCause}
+ *   the underlying spawner surfaced so callers can render a precise
+ *   diagnostic.
+ * - `nonZeroExit`: the child started, ran, and exited with a non-zero
  *   exit code. Callers should propagate `exitCode` into the CLI's own
  *   process exit code so CI failure modes mirror the override's outcome.
  *
@@ -43,6 +46,12 @@ export type SpawnOverrideError =
  * Dispatch a single `.bedrock/<command>.ts` override invocation through the
  * supplied {@link Spawner}. Encapsulates the spawn protocol:
  *
+ * - The command is `process.execPath`: the override runs on the same
+ *   runtime already executing the CLI, so no extra runtime install is
+ *   required. Node 24.12+ (this package's engine floor) runs erasable-syntax
+ *   TypeScript natively; note that under Node, relative imports inside an
+ *   override must spell out their `.ts` extension. A CLI invoked through Bun
+ *   spawns Bun.
  * - argv = `[overridePath, "--env", environment]`, with `"--config", configFile`
  *   appended when supplied.
  * - `apiKey` becomes the `BEDROCK_API_KEY` env-var override; `githubToken`
@@ -52,8 +61,9 @@ export type SpawnOverrideError =
  *   adapter; absent that downstream wiring, the variable is a forward-
  *   compatible signal a future caller can act on.
  *
- * The dispatcher itself reads no ambient state: every input arrives via the
- * `invocation` argument and the `Spawner` port is the only side-effect seam.
+ * Beyond the static `process.execPath` read, the dispatcher reads no ambient
+ * state: every input arrives via the `invocation` argument and the `Spawner`
+ * port is the only side-effect seam.
  *
  * @since 0.1.0
  *
@@ -98,7 +108,7 @@ export async function dispatchOverride(
 
 	const launched = await spawner.spawn({
 		args,
-		command: "bun",
+		command: process.execPath,
 		envOverrides: { ...credentialOverrides, BEDROCK_CLI: "1" },
 	});
 	if (!launched.success) {

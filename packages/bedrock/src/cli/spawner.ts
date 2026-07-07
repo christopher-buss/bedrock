@@ -11,7 +11,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 export interface SpawnInvocation {
 	/** Argv to pass to the spawned executable, excluding the command itself. */
 	readonly args: ReadonlyArray<string>;
-	/** Executable name to spawn (e.g. `"bun"`). */
+	/** Executable to spawn: a name resolved via `PATH` or an absolute path (e.g. `process.execPath`). */
 	readonly command: string;
 	/** Env-var entries that should overlay the host process environment. */
 	readonly envOverrides: Readonly<Record<string, string>>;
@@ -71,7 +71,7 @@ export interface SpawnLaunchError {
  * };
  *
  * return spawner
- *     .spawn({ args: ["--env", "production"], command: "bun", envOverrides: {} })
+ *     .spawn({ args: ["--env", "production"], command: "node", envOverrides: {} })
  *     .then((result) => {
  *         expect(result.success).toBeTrue();
  *         expect(invocations).toHaveLength(1);

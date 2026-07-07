@@ -1,4 +1,4 @@
-// Bun-runnable fixture for the spawn-override integration test. Writes the
+// Runtime-agnostic fixture for the spawn-override integration test. Writes the
 // argv and selected env vars it observed to OVERRIDE_PROBE_OUTPUT so the
 // test can assert the dispatcher's protocol end-to-end.
 import { writeFileSync } from "node:fs";

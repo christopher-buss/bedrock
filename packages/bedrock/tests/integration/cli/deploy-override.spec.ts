@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +8,7 @@ import { createProg, type ProgDeps } from "#src/cli/index";
 import type { Config } from "#src/core/schema";
 import type { BedrockState } from "#src/core/state";
 import { fakeClackPort } from "#tests/helpers/clack";
+import { withProbe } from "#tests/helpers/override-probe";
 
 type DeployFunc = NonNullable<ProgDeps["deploy"]>;
 type ExitFunc = NonNullable<ProgDeps["exit"]>;
@@ -53,17 +54,6 @@ function withOverrideProject(sourceFixture: string): OverrideProject {
 	return { overridePath, projectRoot };
 }
 
-function withProbe(): () => JSONValue {
-	const directory = mkdtempSync(join(tmpdir(), "bedrock-override-probe-"));
-	const file = join(directory, "probe.json");
-	vi.stubEnv("OVERRIDE_PROBE_OUTPUT", file);
-	onTestFinished(() => {
-		vi.unstubAllEnvs();
-		rmSync(directory, { force: true, recursive: true });
-	});
-	return () => JSON.parse(readFileSync(file, "utf8"));
-}
-
 function buildHarness(projectRoot: string): Harness {
 	let resolveExit!: (code: number) => void;
 	const exitPromise = new Promise<number>((resolve) => {
@@ -82,7 +72,7 @@ function buildHarness(projectRoot: string): Harness {
 }
 
 describe("cli deploy override discovery end-to-end", () => {
-	it("should discover and execute .bedrock/deploy.ts via real bun, forwarding the spawn protocol", async () => {
+	it("should discover and execute .bedrock/deploy.ts via the invoking runtime, forwarding the spawn protocol", async () => {
 		expect.assertions(4);
 
 		const project = withOverrideProject(ECHO_PROTOCOL);
@@ -94,12 +84,17 @@ describe("cli deploy override discovery end-to-end", () => {
 
 		expect(code).toBe(0);
 		expect(harness.deploy).not.toHaveBeenCalled();
-		// bun canonicalizes the script path in argv[1]: on macOS the temp dir's
-		// `/var` symlink resolves to `/private/var`, and on Windows 8.3 short
-		// names (CHRIST~1) expand to their long form. realpathSync.native matches
-		// that OS-level canonicalization on every platform; the JS realpathSync
-		// leaves Windows short names intact and would mismatch.
-		expect(readProbe()).toStrictEqual({
+
+		// The runtime may canonicalize the script path in argv[1] (macOS's
+		// `/var` temp symlink resolves to `/private/var`, Windows 8.3 short
+		// names like CHRIST~1 can expand to their long form), so compare
+		// canonical forms of both sides rather than raw strings.
+		const probe = readProbe();
+		const args = probe.args.map((entry, index) =>
+			index === 0 ? realpathSync.native(entry) : entry,
+		);
+
+		expect({ ...probe, args }).toStrictEqual({
 			args: [realpathSync.native(project.overridePath), "--env", "production"],
 			cli: "1",
 		});
