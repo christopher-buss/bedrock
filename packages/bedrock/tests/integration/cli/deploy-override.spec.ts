@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +8,7 @@ import { createProg, type ProgDeps } from "#src/cli/index";
 import type { Config } from "#src/core/schema";
 import type { BedrockState } from "#src/core/state";
 import { fakeClackPort } from "#tests/helpers/clack";
+import { withProbe } from "#tests/helpers/override-probe";
 
 type DeployFunc = NonNullable<ProgDeps["deploy"]>;
 type ExitFunc = NonNullable<ProgDeps["exit"]>;
@@ -53,17 +54,6 @@ function withOverrideProject(sourceFixture: string): OverrideProject {
 	return { overridePath, projectRoot };
 }
 
-function withProbe(): () => JSONValue {
-	const directory = mkdtempSync(join(tmpdir(), "bedrock-override-probe-"));
-	const file = join(directory, "probe.json");
-	vi.stubEnv("OVERRIDE_PROBE_OUTPUT", file);
-	onTestFinished(() => {
-		vi.unstubAllEnvs();
-		rmSync(directory, { force: true, recursive: true });
-	});
-	return () => JSON.parse(readFileSync(file, "utf8"));
-}
-
 function buildHarness(projectRoot: string): Harness {
 	let resolveExit!: (code: number) => void;
 	const exitPromise = new Promise<number>((resolve) => {
@@ -83,7 +73,7 @@ function buildHarness(projectRoot: string): Harness {
 
 describe("cli deploy override discovery end-to-end", () => {
 	it("should discover and execute .bedrock/deploy.ts via the invoking runtime, forwarding the spawn protocol", async () => {
-		expect.assertions(5);
+		expect.assertions(4);
 
 		const project = withOverrideProject(ECHO_PROTOCOL);
 		const readProbe = withProbe();
@@ -99,14 +89,13 @@ describe("cli deploy override discovery end-to-end", () => {
 		// `/var` temp symlink resolves to `/private/var`, Windows 8.3 short
 		// names like CHRIST~1 can expand to their long form), so compare
 		// canonical forms of both sides rather than raw strings.
-		const probe = readProbe() as unknown as { args: ReadonlyArray<string>; cli: string };
-		const [scriptPath, ...restArgs] = probe.args;
-
-		expect(realpathSync.native(scriptPath ?? "")).toBe(
-			realpathSync.native(project.overridePath),
+		const probe = readProbe();
+		const args = probe.args.map((entry, index) =>
+			index === 0 ? realpathSync.native(entry) : entry,
 		);
-		expect({ args: restArgs, cli: probe.cli }).toStrictEqual({
-			args: ["--env", "production"],
+
+		expect({ args, cli: probe.cli }).toStrictEqual({
+			args: [realpathSync.native(project.overridePath), "--env", "production"],
 			cli: "1",
 		});
 		expect(harness.clack.outro).toHaveBeenCalledExactlyOnceWith("deploy succeeded");
