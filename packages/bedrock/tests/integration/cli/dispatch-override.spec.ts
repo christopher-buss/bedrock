@@ -37,7 +37,7 @@ describe("dispatch-override against the invoking runtime", () => {
 		]);
 	});
 
-	it("should set BEDROCK_API_KEY, GITHUB_TOKEN, and BEDROCK_CLI in the child's environment", async () => {
+	it("should set BEDROCK_API_KEY, BEDROCK_GITHUB_TOKEN, and BEDROCK_CLI in the child's environment", async () => {
 		expect.assertions(4);
 
 		const readProbe = withProbe();
@@ -103,10 +103,10 @@ describe("dispatch-override against the invoking runtime", () => {
 		expect.assertions(2);
 
 		const readProbe = withProbe();
-		vi.stubEnv("PATH", "");
 		onTestFinished(() => {
 			vi.unstubAllEnvs();
 		});
+		vi.stubEnv("PATH", "");
 
 		const result = await dispatchOverride(
 			{ environment: "production", overridePath: ECHO_PROTOCOL },

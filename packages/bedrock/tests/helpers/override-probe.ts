@@ -17,17 +17,19 @@ export interface ProbePayload {
 
 /**
  * Point `OVERRIDE_PROBE_OUTPUT` at a fresh temp file so a spawned override
- * fixture can record what it observed. Env-stub removal and temp-dir cleanup
- * are registered via `onTestFinished`.
+ * fixture can record what it observed. Cleanup registered via
+ * `onTestFinished` removes the temp dir and restores every stubbed env var,
+ * including any the calling test stubbed (vitest has no per-variable
+ * restore).
  * @returns A reader for the payload the spawned override wrote.
  */
 export function withProbe(): () => ProbePayload {
 	const directory = mkdtempSync(join(tmpdir(), "bedrock-override-probe-"));
 	const file = join(directory, "probe.json");
-	vi.stubEnv("OVERRIDE_PROBE_OUTPUT", file);
 	onTestFinished(() => {
 		vi.unstubAllEnvs();
 		rmSync(directory, { force: true, recursive: true });
 	});
+	vi.stubEnv("OVERRIDE_PROBE_OUTPUT", file);
 	return () => JSON.parse(readFileSync(file, "utf8")) as unknown as ProbePayload;
 }
