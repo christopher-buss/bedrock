@@ -213,6 +213,32 @@ describe(runCommitBackAction, () => {
 		]);
 	});
 
+	it("should strip the carriage return from a crlf-terminated listing line", async () => {
+		expect.assertions(1);
+
+		const { deps, gitCalls } = harness();
+		const listing = "includeif.gitdir:/w/.git.path\r\n";
+		const windowsGit: CommitBackActionDependencies = {
+			...deps,
+			git: async (args) => {
+				if (args[0] === "config" && args.includes("--list")) {
+					return ok(listing);
+				}
+
+				return deps.git(args);
+			},
+		};
+
+		await runCommitBackAction(windowsGit);
+
+		expect(gitCalls).toContainEqual([
+			"config",
+			"--local",
+			"--unset-all",
+			"includeif.gitdir:/w/.git.path",
+		]);
+	});
+
 	it("should unset a repeated includeif key only once", async () => {
 		expect.assertions(1);
 

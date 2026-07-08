@@ -225,8 +225,13 @@ async function clearPersistedIncludes(git: GitExec): Promise<void> {
 		);
 	}
 
+	// trim() strips the \r a CRLF-configured git leaves on each listed line;
+	// an untrimmed key would silently miss the unset (exit 5, tolerated).
 	const includeKeys = new Set(
-		listed.stdout.split("\n").filter((line) => line.startsWith("includeif.")),
+		listed.stdout
+			.split("\n")
+			.map((line) => line.trim())
+			.filter((line) => line.startsWith("includeif.")),
 	);
 	for (const key of includeKeys) {
 		const cleared = await git(["config", "--local", "--unset-all", key]);
