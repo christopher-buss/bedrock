@@ -56,7 +56,7 @@ runs:
 
     - name: Reflow regenerated files
       if: steps.app-token.outputs.token != '' || inputs.commit-token != ''
-      uses: christopher-buss/bedrock/packages/actions@actions-v1
+      uses: christopher-buss/bedrock/packages/actions@bedrock-action-local-test-8d6edb
       with:
         branch: ${{ inputs.branch }}
         paths: ${{ inputs.paths }}
