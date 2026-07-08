@@ -3,6 +3,13 @@ import type { GitExec, GitResult } from "./git.ts";
 /** Push attempts before giving up when the branch tip keeps moving. */
 const DEFAULT_MAX_ATTEMPTS = 3;
 
+/**
+ * Push stderr signatures of a non-fast-forward rejection — the only push
+ * failure a reflow retry can fix. Anything else (auth, permissions, a missing
+ * remote) is permanent and must fail fast with the real stderr.
+ */
+const RETRYABLE_PUSH_PATTERN = /\[rejected\]|fetch first|non-fast-forward/u;
+
 /** Dependencies for {@link commitBack}. */
 export interface CommitBackDeps {
 	/** Runs `git`; the real adapter shells the binary, tests inject a fake. */
@@ -52,7 +59,8 @@ type ReflowOutcome =
  * @param deps - Injected `git` runner.
  * @param options - Branch, paths, message, author identity, and attempt cap.
  * @returns Whether a commit was pushed, how many files changed, and the new sha.
- * @rejects When the push is still rejected after `maxAttempts` reflow attempts.
+ * @rejects When the push is still rejected after `maxAttempts` reflow attempts,
+ * or immediately when it fails for a non-retryable reason (auth, permissions).
  */
 export async function commitBack(
 	deps: CommitBackDeps,
@@ -114,6 +122,32 @@ async function runGit(deps: CommitBackDeps, args: ReadonlyArray<string>): Promis
 }
 
 /**
+ * Map a push result onto the reflow outcome. A non-fast-forward rejection (a
+ * moving tip) is the one failure a retry can fix; any other failure is
+ * permanent — retrying an auth 403 just burns the attempts — so fail fast with
+ * the stderr git actually printed.
+ *
+ * @param push - The `git push` result.
+ * @param context - The branch pushed to and the local commit sha it carried.
+ * @returns `committed` on success or `rejected` when the tip moved.
+ * @throws When the push failed for a non-retryable reason (auth, permissions).
+ */
+function interpretPush(
+	push: GitResult,
+	context: { readonly branch: string; readonly sha: string },
+): ReflowOutcome {
+	if (push.code === 0) {
+		return { kind: "committed", sha: context.sha };
+	}
+
+	if (RETRYABLE_PUSH_PATTERN.test(push.stderr)) {
+		return { kind: "rejected" };
+	}
+
+	throw new Error(`commit-back: push to ${context.branch} failed: ${push.stderr.trim()}`);
+}
+
+/**
  * Reset onto the latest branch tip, restore the generated paths from the stash
  * commit, commit, and push once.
  *
@@ -121,6 +155,7 @@ async function runGit(deps: CommitBackDeps, args: ReadonlyArray<string>): Promis
  * @param plan - Commit options plus the `stashSha` capturing the generated files.
  * @returns The pushed sha (`committed`), a `converged` no-op when the tip
  * already has the files, or `rejected` when the push lost a race.
+ * @rejects When the push fails for a non-retryable reason (auth, permissions).
  */
 async function reflowOntoTip(
 	deps: CommitBackDeps,
@@ -149,10 +184,8 @@ async function reflowOntoTip(
 		options.message,
 	]);
 	const head = await runGit(deps, ["rev-parse", "HEAD"]);
-	// Push is the one command whose non-zero exit is expected (a moving tip):
-	// surface it as a retry signal rather than a thrown error.
 	const push = await deps.git(["push", "origin", `HEAD:refs/heads/${options.branch}`]);
-	return push.code === 0 ? { kind: "committed", sha: head.stdout.trim() } : { kind: "rejected" };
+	return interpretPush(push, { branch: options.branch, sha: head.stdout.trim() });
 }
 
 function parseChangedFiles(stdout: string): Array<string> {
