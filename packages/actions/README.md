@@ -71,6 +71,11 @@ those files (codegen ids win — never a merge), commits, and pushes — retryin
 the tip moves under a concurrent push. The default `message` carries `[skip ci]`
 to avoid a redeploy loop; override `message` to change that.
 
+The push authenticates with `token` by rewriting the `origin` URL, and the
+action clears the read-only credentials `actions/checkout` persists by default
+(`persist-credentials: true`) so they cannot override that auth. No special
+checkout configuration is needed.
+
 | Input          | Default                                                 |                                                  |
 | -------------- | ------------------------------------------------------- | ------------------------------------------------ |
 | `token`        | — (required)                                            | Write-capable token the push authenticates with. |

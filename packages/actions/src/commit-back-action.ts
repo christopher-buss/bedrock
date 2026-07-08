@@ -9,6 +9,9 @@ const DEFAULT_AUTHOR_EMAIL = "41898282+github-actions[bot]@users.noreply.github.
 const DEFAULT_SERVER_URL = "https://github.com";
 const WHITESPACE_PATTERN = /\s+/u;
 
+/** `git config --unset-all` exit code meaning the key was not set. */
+const EXIT_CODE_CONFIG_KEY_ABSENT = 5;
+
 /**
  * The slice of `@actions/core` the action shell uses, narrowed so tests can
  * inject a fake without the real toolkit.
@@ -51,11 +54,13 @@ interface ExecuteCommitBackActionDependencies {
  * `origin` URL the push authenticates through.
  *
  * @param deps - Input and env readers.
- * @returns The commit-back options and the authenticated remote URL.
+ * @returns The commit-back options, the authenticated remote URL, and the git
+ * config key `actions/checkout` persists its credentials under.
  * @rejects When a required input (`token`, `paths`) or env (`GITHUB_REPOSITORY`)
  * is missing, or `max-attempts` is not a positive integer.
  */
 export function resolveActionConfig(deps: CommitBackActionDeps): {
+	extraheaderKey: string;
 	options: CommitBackOptions;
 	remoteUrl: string;
 } {
@@ -64,8 +69,12 @@ export function resolveActionConfig(deps: CommitBackActionDeps): {
 	const paths = requireInput(deps.readInput, "paths").split(WHITESPACE_PATTERN);
 	const serverUrl = deps.getEnv("GITHUB_SERVER_URL") ?? DEFAULT_SERVER_URL;
 	const repo = requireEnvironment(deps.getEnv, "GITHUB_REPOSITORY");
+	const { origin: serverOrigin } = new URL(serverUrl);
 
 	return {
+		// The same key actions/checkout persists its (read-only) credentials
+		// under: URL origin, so a trailing slash or path in the env normalizes.
+		extraheaderKey: `http.${serverOrigin}/.extraheader`,
 		options: {
 			authorEmail: optionalInput(deps.readInput("author-email"), DEFAULT_AUTHOR_EMAIL),
 			authorName: optionalInput(deps.readInput("author-name"), DEFAULT_AUTHOR_NAME),
@@ -80,18 +89,31 @@ export function resolveActionConfig(deps: CommitBackActionDeps): {
 
 /**
  * Run the commit-back GitHub Action: authenticate `origin` with the supplied
- * token, reflow the generated paths onto the branch tip, and record the
- * `committed`, `changed-files`, and `sha` outputs.
+ * token, clear any credentials `actions/checkout` persisted (they would
+ * override the URL credentials), reflow the generated paths onto the branch
+ * tip, and record the `committed`, `changed-files`, and `sha` outputs.
  *
  * @param deps - Injected git runner, input/env readers, and output sink.
  * @rejects When configuration is invalid or the push exhausts its attempts.
  */
 export async function runCommitBackAction(deps: CommitBackActionDeps): Promise<void> {
-	const { options, remoteUrl } = resolveActionConfig(deps);
+	const { extraheaderKey, options, remoteUrl } = resolveActionConfig(deps);
 	const urlResult = await deps.git(["remote", "set-url", "origin", remoteUrl]);
 	if (urlResult.code !== 0) {
 		// The error omits remoteUrl, which embeds the token.
 		throw new Error(`commit-back: failed to set the origin URL (exit code ${urlResult.code})`);
+	}
+
+	// actions/checkout with persist-credentials: true (its default) stores the
+	// workflow's read-only GITHUB_TOKEN as an http.extraheader, which overrides
+	// the URL credentials and 403s every push. Clear it defensively; exit code 5
+	// just means checkout persisted nothing. --local keeps the removal scoped to
+	// the repo config checkout wrote, never a runner-level global value.
+	const unset = await deps.git(["config", "--local", "--unset-all", extraheaderKey]);
+	if (unset.code !== 0 && unset.code !== EXIT_CODE_CONFIG_KEY_ABSENT) {
+		throw new Error(
+			`commit-back: failed to clear the persisted http.extraheader (exit code ${unset.code})`,
+		);
 	}
 
 	const result = await commitBack({ git: deps.git }, options);
