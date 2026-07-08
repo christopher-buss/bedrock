@@ -481,11 +481,10 @@ importers:
         version: 3.5.32(@typescript/typescript6@6.0.1)
 
   packages/actions:
-    dependencies:
+    devDependencies:
       '@actions/core':
         specifier: catalog:runtime
         version: 3.0.1
-    devDependencies:
       '@bedrock-rbx/testing':
         specifier: workspace:*
         version: link:../testing
