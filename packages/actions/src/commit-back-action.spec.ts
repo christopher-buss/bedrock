@@ -117,6 +117,72 @@ describe(runCommitBackAction, () => {
 		});
 	});
 
+	it("should clear the persisted checkout credentials right after authenticating origin", async () => {
+		expect.assertions(2);
+
+		const { deps, gitCalls } = harness({ status: " M src/shared/assets/places.ts\n" });
+
+		await runCommitBackAction(deps);
+
+		expect(gitCalls[0]?.[0]).toBe("remote");
+		expect(gitCalls[1]).toStrictEqual([
+			"config",
+			"--unset-all",
+			"http.https://github.com/.extraheader",
+		]);
+	});
+
+	it("should derive the extraheader key from GITHUB_SERVER_URL, normalizing a trailing slash", async () => {
+		expect.assertions(1);
+
+		const { deps, gitCalls } = harness({ env: { GITHUB_SERVER_URL: "https://ghe.corp/" } });
+
+		await runCommitBackAction(deps);
+
+		expect(gitCalls).toContainEqual([
+			"config",
+			"--unset-all",
+			"http.https://ghe.corp/.extraheader",
+		]);
+	});
+
+	it("should tolerate exit code 5 when no extraheader was persisted", async () => {
+		expect.assertions(1);
+
+		const { deps, outputs } = harness();
+		const absent: CommitBackActionDependencies = {
+			...deps,
+			git: async (args) =>
+				args[0] === "config" ? { code: 5, stderr: "", stdout: "" } : deps.git(args),
+		};
+
+		await runCommitBackAction(absent);
+
+		expect(outputs).toStrictEqual({
+			"changed-files": "0",
+			"committed": "false",
+			"sha": "",
+		});
+	});
+
+	it("should reject when clearing the extraheader fails for another reason", async () => {
+		expect.assertions(1);
+
+		const { deps } = harness();
+		const failing: CommitBackActionDependencies = {
+			...deps,
+			git: async (args) => {
+				return args[0] === "config"
+					? { code: 3, stderr: "error: invalid config file", stdout: "" }
+					: deps.git(args);
+			},
+		};
+
+		await expect(runCommitBackAction(failing)).rejects.toThrow(
+			"commit-back: failed to clear the persisted http.extraheader (exit code 3)",
+		);
+	});
+
 	it("should record a no-op with an empty sha when nothing changed", async () => {
 		expect.assertions(1);
 
