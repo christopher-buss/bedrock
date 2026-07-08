@@ -2,9 +2,9 @@
 #
 # The action's bundled dist (packages/actions/dist) is gitignored on main to
 # keep the tree clean. This workflow bakes it onto a tag so consumers can pin
-# `christopher-buss/bedrock/packages/actions@actions-v0.1.0`. Pre-1.0 releases
-# are pinned by exact tag; the `actions-v<major>` alias only becomes a stable
-# contract at 1.0.
+# `christopher-buss/bedrock/packages/actions@actions-v<x.y.z>`. Pre-1.0
+# releases are pinned by exact tag; the `actions-v<major>` alias only becomes
+# a stable contract at 1.0.
 #
 # Trigger: push an `actions-v<major>.<minor>.<patch>` tag (cut from a tested
 # main commit). The workflow bundles the action, commits the dist into a
@@ -27,8 +27,8 @@ on:
 # force-moves the tag refs (see the job-level `permissions` below).
 permissions: {}
 
-# Every actions-vX.y.z release force-moves the shared `actions-vX` alias, so all
-# releases must serialize — keying on the exact tag would let two same-major
+# Every actions-vX.y.z release force-moves the shared `actions-vX` alias, so
+# all releases must serialize; keying on the exact tag would let two same-major
 # releases race and leave the alias on whichever finished last.
 concurrency:
   group: release-actions
