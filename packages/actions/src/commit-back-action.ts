@@ -116,6 +116,8 @@ export async function runCommitBackAction(deps: CommitBackActionDeps): Promise<v
 		);
 	}
 
+	await clearPersistedIncludes(deps.git);
+
 	const result = await commitBack({ git: deps.git }, options);
 	deps.setOutput("committed", String(result.committed));
 	deps.setOutput("changed-files", String(result.changedFiles));
@@ -197,4 +199,46 @@ function requireInput(readInput: (name: string) => string, name: string): string
 	}
 
 	return value;
+}
+
+/**
+ * Clear every `includeIf` entry from the local git config before pushing.
+ *
+ * Newer actions/checkout releases persist their read-only credentials behind
+ * an `includeif.gitdir:<workspace>.path` entry pointing at a temp config file
+ * that carries the http.extraheader, rather than writing the extraheader into
+ * the local config directly. An included header cannot be removed by unsetting
+ * the extraheader key (the unset targets the local file, where the key never
+ * exists), so the include entries themselves must go. Exit code 5 on an unset
+ * means the key vanished between the listing and the unset; anything else is a
+ * real failure.
+ *
+ * @param git - The injected git runner.
+ * @rejects When the local config cannot be listed or an include entry cannot
+ * be cleared.
+ */
+async function clearPersistedIncludes(git: GitExec): Promise<void> {
+	const listed = await git(["config", "--local", "--list", "--name-only"]);
+	if (listed.code !== 0) {
+		throw new Error(
+			`commit-back: failed to list the local git config (exit code ${listed.code})`,
+		);
+	}
+
+	// trim() strips the \r a CRLF-configured git leaves on each listed line;
+	// an untrimmed key would silently miss the unset (exit 5, tolerated).
+	const includeKeys = new Set(
+		listed.stdout
+			.split("\n")
+			.map((line) => line.trim())
+			.filter((line) => line.startsWith("includeif.")),
+	);
+	for (const key of includeKeys) {
+		const cleared = await git(["config", "--local", "--unset-all", key]);
+		if (cleared.code !== 0 && cleared.code !== EXIT_CODE_CONFIG_KEY_ABSENT) {
+			throw new Error(
+				`commit-back: failed to clear the persisted include '${key}' (exit code ${cleared.code})`,
+			);
+		}
+	}
 }

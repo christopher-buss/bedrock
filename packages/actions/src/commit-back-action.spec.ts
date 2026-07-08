@@ -154,8 +154,11 @@ describe(runCommitBackAction, () => {
 		const { deps, outputs } = harness();
 		const absent: CommitBackActionDependencies = {
 			...deps,
-			git: async (args) =>
-				args[0] === "config" ? { code: 5, stderr: "", stdout: "" } : deps.git(args),
+			git: async (args) => {
+				return args.includes("--unset-all")
+					? { code: 5, stderr: "", stdout: "" }
+					: deps.git(args);
+			},
 		};
 
 		await runCommitBackAction(absent);
@@ -165,6 +168,191 @@ describe(runCommitBackAction, () => {
 			"committed": "false",
 			"sha": "",
 		});
+	});
+
+	it("should list the local config by key name to find persisted includes", async () => {
+		expect.assertions(1);
+
+		const { deps, gitCalls } = harness();
+
+		await runCommitBackAction(deps);
+
+		expect(gitCalls).toContainEqual(["config", "--local", "--list", "--name-only"]);
+	});
+
+	it("should unset every includeif key persisted in the local config", async () => {
+		expect.assertions(2);
+
+		const { deps, gitCalls } = harness();
+		const listing =
+			"core.bare\nincludeif.gitdir:/w/.git.path\nincludeif.gitdir:/w/.git/worktrees/*.path\n";
+		const withIncludes: CommitBackActionDependencies = {
+			...deps,
+			git: async (args) => {
+				if (args[0] === "config" && args.includes("--list")) {
+					return ok(listing);
+				}
+
+				return deps.git(args);
+			},
+		};
+
+		await runCommitBackAction(withIncludes);
+
+		expect(gitCalls).toContainEqual([
+			"config",
+			"--local",
+			"--unset-all",
+			"includeif.gitdir:/w/.git.path",
+		]);
+		expect(gitCalls).toContainEqual([
+			"config",
+			"--local",
+			"--unset-all",
+			"includeif.gitdir:/w/.git/worktrees/*.path",
+		]);
+	});
+
+	it("should strip the carriage return from a crlf-terminated listing line", async () => {
+		expect.assertions(1);
+
+		const { deps, gitCalls } = harness();
+		const listing = "includeif.gitdir:/w/.git.path\r\n";
+		const windowsGit: CommitBackActionDependencies = {
+			...deps,
+			git: async (args) => {
+				if (args[0] === "config" && args.includes("--list")) {
+					return ok(listing);
+				}
+
+				return deps.git(args);
+			},
+		};
+
+		await runCommitBackAction(windowsGit);
+
+		expect(gitCalls).toContainEqual([
+			"config",
+			"--local",
+			"--unset-all",
+			"includeif.gitdir:/w/.git.path",
+		]);
+	});
+
+	it("should unset a repeated includeif key only once", async () => {
+		expect.assertions(1);
+
+		const { deps, gitCalls } = harness();
+		const listing = "includeif.gitdir:/w/.git.path\nincludeif.gitdir:/w/.git.path\n";
+		const withIncludes: CommitBackActionDependencies = {
+			...deps,
+			git: async (args) => {
+				if (args[0] === "config" && args.includes("--list")) {
+					return ok(listing);
+				}
+
+				return deps.git(args);
+			},
+		};
+
+		await runCommitBackAction(withIncludes);
+
+		const clearedKeys = gitCalls.filter((args) => args[3] === "includeif.gitdir:/w/.git.path");
+
+		expect(clearedKeys).toHaveLength(1);
+	});
+
+	it("should not unset config keys outside the includeif section", async () => {
+		expect.assertions(1);
+
+		const { deps, gitCalls } = harness();
+		const listing = "core.bare\nremote.origin.url\nbranch.main.remote\n";
+		const withoutIncludes: CommitBackActionDependencies = {
+			...deps,
+			git: async (args) => {
+				if (args[0] === "config" && args.includes("--list")) {
+					return ok(listing);
+				}
+
+				return deps.git(args);
+			},
+		};
+
+		await runCommitBackAction(withoutIncludes);
+
+		const clearedKeys = gitCalls.filter((args) => args.includes("--unset-all"));
+
+		expect(clearedKeys).toStrictEqual([
+			["config", "--local", "--unset-all", "http.https://github.com/.extraheader"],
+		]);
+	});
+
+	it("should tolerate exit code 5 when an includeif key vanished before the unset", async () => {
+		expect.assertions(1);
+
+		const { deps, outputs } = harness();
+		const listing = "includeif.gitdir:/w/.git.path\n";
+		const racing: CommitBackActionDependencies = {
+			...deps,
+			git: async (args) => {
+				if (args[0] === "config" && args.includes("--list")) {
+					return ok(listing);
+				}
+
+				return args[3]?.startsWith("includeif.") === true
+					? { code: 5, stderr: "", stdout: "" }
+					: deps.git(args);
+			},
+		};
+
+		await runCommitBackAction(racing);
+
+		expect(outputs).toStrictEqual({
+			"changed-files": "0",
+			"committed": "false",
+			"sha": "",
+		});
+	});
+
+	it("should reject when listing the local config fails", async () => {
+		expect.assertions(1);
+
+		const { deps } = harness();
+		const failing: CommitBackActionDependencies = {
+			...deps,
+			git: async (args) => {
+				return args[0] === "config" && args.includes("--list")
+					? { code: 128, stderr: "fatal: bad config", stdout: "" }
+					: deps.git(args);
+			},
+		};
+
+		await expect(runCommitBackAction(failing)).rejects.toThrow(
+			"commit-back: failed to list the local git config (exit code 128)",
+		);
+	});
+
+	it("should reject when clearing an includeif key fails for another reason", async () => {
+		expect.assertions(1);
+
+		const { deps } = harness();
+		const listing = "includeif.gitdir:/w/.git.path\n";
+		const failing: CommitBackActionDependencies = {
+			...deps,
+			git: async (args) => {
+				if (args[0] === "config" && args.includes("--list")) {
+					return ok(listing);
+				}
+
+				return args[3]?.startsWith("includeif.") === true
+					? { code: 3, stderr: "error: invalid config file", stdout: "" }
+					: deps.git(args);
+			},
+		};
+
+		await expect(runCommitBackAction(failing)).rejects.toThrow(
+			"commit-back: failed to clear the persisted include 'includeif.gitdir:/w/.git.path' (exit code 3)",
+		);
 	});
 
 	it("should reject when clearing the extraheader fails for another reason", async () => {

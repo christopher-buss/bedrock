@@ -12,8 +12,10 @@ words:
   - ehostdown
   - extraheader
   - gameinternationalization
+  - gitdir
   - gsub
   - guilded
+  - includeif
   - luau
   - luaurc
   - lute
