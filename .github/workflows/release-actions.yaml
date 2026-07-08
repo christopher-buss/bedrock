@@ -2,7 +2,9 @@
 #
 # The action's bundled dist (packages/actions/dist) is gitignored on main to
 # keep the tree clean. This workflow bakes it onto a tag so consumers can pin
-# `christopher-buss/bedrock/packages/actions@actions-v1`.
+# `christopher-buss/bedrock/packages/actions@actions-v<x.y.z>`. Pre-1.0
+# releases are pinned by exact tag; the `actions-v<major>` alias only becomes
+# a stable contract at 1.0.
 #
 # Trigger: push an `actions-v<major>.<minor>.<patch>` tag (cut from a tested
 # main commit). The workflow bundles the action, commits the dist into a
@@ -25,9 +27,9 @@ on:
 # force-moves the tag refs (see the job-level `permissions` below).
 permissions: {}
 
-# Every actions-v1.x.y release force-moves the shared `actions-v1` alias, so all
-# releases must serialize — keying on the exact tag would let two v1 releases
-# race and leave the alias on whichever finished last.
+# Every actions-vX.y.z release force-moves the shared `actions-vX` alias, so
+# all releases must serialize; keying on the exact tag would let two same-major
+# releases race and leave the alias on whichever finished last.
 concurrency:
   group: release-actions
   cancel-in-progress: false
@@ -62,6 +64,12 @@ jobs:
           major="${TAG%%.*}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Pin the deploy composite's inner commit-back ref to the exact tag
+          # being baked, so every release resolves its own commit-back bundle
+          # instead of whatever the moving alias points at (and pre-1.0, the
+          # committed `actions-v1` placeholder does not exist at all).
+          sed -i "s|uses: christopher-buss/bedrock/packages/actions@.*|uses: christopher-buss/bedrock/packages/actions@${TAG}|" packages/actions/deploy/action.yaml
+          git add packages/actions/deploy/action.yaml
           git add --force packages/actions/dist
           git commit --message "build(actions): bundle dist for ${TAG}"
           git tag --force "${TAG}"

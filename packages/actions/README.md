@@ -6,10 +6,10 @@ regenerated codegen (asset ids) back to your repository.
 
 Two actions are published from this directory:
 
-| Action          | Path                                                          | Use                                                     |
-| --------------- | ------------------------------------------------------------- | ------------------------------------------------------- |
-| **Deploy**      | `christopher-buss/bedrock/packages/actions/deploy@actions-v1` | Full pipeline: deploy → mint token → reflow codegen.    |
-| **Commit-back** | `christopher-buss/bedrock/packages/actions@actions-v1`        | Just the race-safe codegen reflow, to compose yourself. |
+| Action          | Path                                                              | Use                                                     |
+| --------------- | ----------------------------------------------------------------- | ------------------------------------------------------- |
+| **Deploy**      | `christopher-buss/bedrock/packages/actions/deploy@actions-v0.1.0` | Full pipeline: deploy → mint token → reflow codegen.    |
+| **Commit-back** | `christopher-buss/bedrock/packages/actions@actions-v0.1.0`        | Just the race-safe codegen reflow, to compose yourself. |
 
 Both are built from public primitives, so you can wire your own pipeline if the
 drop-ins don't fit.
@@ -37,7 +37,7 @@ your GitHub App (see [Set up the deploy bot](#set-up-the-deploy-bot)):
 
 # ...build your place artifact / project here...
 
-- uses: christopher-buss/bedrock/packages/actions/deploy@actions-v1
+- uses: christopher-buss/bedrock/packages/actions/deploy@actions-v0.1.0
   with:
     api-key: ${{ secrets.BEDROCK_API_KEY }}
     app-client-id: ${{ secrets.DEPLOY_APP_CLIENT_ID }}
@@ -59,7 +59,7 @@ inputs. With neither, the commit-back step is skipped.
 Run the reflow on its own, after your own deploy step:
 
 ```yaml
-- uses: christopher-buss/bedrock/packages/actions@actions-v1
+- uses: christopher-buss/bedrock/packages/actions@actions-v0.1.0
   with:
     branch: main
     paths: src/shared/assets
