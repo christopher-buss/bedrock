@@ -19,10 +19,8 @@
 		"test": "vp test",
 		"typecheck": "tsgo --noEmit"
 	},
-	"dependencies": {
-		"@actions/core": "catalog:runtime"
-	},
 	"devDependencies": {
+		"@actions/core": "catalog:runtime",
 		"@bedrock-rbx/testing": "workspace:*",
 		"@bedrock-rbx/typescript-config": "workspace:*",
 		"@bedrock-rbx/vite-config": "workspace:*",
