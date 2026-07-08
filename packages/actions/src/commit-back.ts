@@ -4,11 +4,18 @@ import type { GitExec, GitResult } from "./git.ts";
 const DEFAULT_MAX_ATTEMPTS = 3;
 
 /**
- * Push stderr signatures of a non-fast-forward rejection — the only push
+ * Push stderr signatures of a non-fast-forward rejection, the only push
  * failure a reflow retry can fix. Anything else (auth, permissions, a missing
  * remote) is permanent and must fail fast with the real stderr.
  */
 const RETRYABLE_PUSH_PATTERN = /\[rejected\]|fetch first|non-fast-forward/u;
+
+/**
+ * URL userinfo (`scheme://user:pass@`) in git output. Push errors can echo the
+ * remote URL, which embeds the push token when the caller authenticated via
+ * the URL, so it is redacted before the stderr lands in an error message.
+ */
+const URL_CREDENTIALS_PATTERN = /(?<scheme>https?:\/\/)[^\s/@]+@/gu;
 
 /** Dependencies for {@link commitBack}. */
 export interface CommitBackDeps {
@@ -124,8 +131,8 @@ async function runGit(deps: CommitBackDeps, args: ReadonlyArray<string>): Promis
 /**
  * Map a push result onto the reflow outcome. A non-fast-forward rejection (a
  * moving tip) is the one failure a retry can fix; any other failure is
- * permanent — retrying an auth 403 just burns the attempts — so fail fast with
- * the stderr git actually printed.
+ * permanent (retrying an auth 403 just burns the attempts), so fail fast with
+ * the stderr git actually printed, minus any URL credentials it echoed.
  *
  * @param push - The `git push` result.
  * @param context - The branch pushed to and the local commit sha it carried.
@@ -144,7 +151,8 @@ function interpretPush(
 		return { kind: "rejected" };
 	}
 
-	throw new Error(`commit-back: push to ${context.branch} failed: ${push.stderr.trim()}`);
+	const stderr = push.stderr.replaceAll(URL_CREDENTIALS_PATTERN, "$<scheme>***@");
+	throw new Error(`commit-back: push to ${context.branch} failed: ${stderr.trim()}`);
 }
 
 /**

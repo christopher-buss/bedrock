@@ -176,6 +176,26 @@ describe(commitBack, () => {
 		expect(calls.filter((args) => args[0] === "push")).toHaveLength(1);
 	});
 
+	it("should redact url credentials from the push stderr in the failure message", async () => {
+		expect.assertions(2);
+
+		const { git } = fakeGit({
+			head: "abc1234\n",
+			pushFailures: 99,
+			pushStderr:
+				"fatal: unable to access 'https://x-access-token:ghs_secret@github.com/acme/game.git/': The requested URL returned error: 403",
+			stashSha: "stash99",
+			status: " M src/shared/assets/places.ts\n",
+		});
+
+		const rejection = commitBack({ git }, DefaultOptions);
+
+		await expect(rejection).rejects.toThrow(
+			"fatal: unable to access 'https://***@github.com/acme/game.git/': The requested URL returned error: 403",
+		);
+		await expect(rejection).rejects.not.toThrow("ghs_secret");
+	});
+
 	it.for([
 		" ! [rejected]        main -> main",
 		"hint: Updates were rejected because the remote contains work. Try fetch first.",
