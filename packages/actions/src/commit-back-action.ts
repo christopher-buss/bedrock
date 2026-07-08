@@ -107,8 +107,9 @@ export async function runCommitBackAction(deps: CommitBackActionDeps): Promise<v
 	// actions/checkout with persist-credentials: true (its default) stores the
 	// workflow's read-only GITHUB_TOKEN as an http.extraheader, which overrides
 	// the URL credentials and 403s every push. Clear it defensively; exit code 5
-	// just means checkout persisted nothing.
-	const unset = await deps.git(["config", "--unset-all", extraheaderKey]);
+	// just means checkout persisted nothing. --local keeps the removal scoped to
+	// the repo config checkout wrote, never a runner-level global value.
+	const unset = await deps.git(["config", "--local", "--unset-all", extraheaderKey]);
 	if (unset.code !== 0 && unset.code !== EXIT_CODE_CONFIG_KEY_ABSENT) {
 		throw new Error(
 			`commit-back: failed to clear the persisted http.extraheader (exit code ${unset.code})`,

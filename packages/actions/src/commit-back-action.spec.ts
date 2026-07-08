@@ -127,6 +127,7 @@ describe(runCommitBackAction, () => {
 		expect(gitCalls[0]?.[0]).toBe("remote");
 		expect(gitCalls[1]).toStrictEqual([
 			"config",
+			"--local",
 			"--unset-all",
 			"http.https://github.com/.extraheader",
 		]);
@@ -141,6 +142,7 @@ describe(runCommitBackAction, () => {
 
 		expect(gitCalls).toContainEqual([
 			"config",
+			"--local",
 			"--unset-all",
 			"http.https://ghe.corp/.extraheader",
 		]);
