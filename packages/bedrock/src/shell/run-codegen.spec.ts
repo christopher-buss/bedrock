@@ -190,6 +190,25 @@ describe(runCodegen, () => {
 		expect(result.err.reason).toBe("kaboom");
 	});
 
+	it("should carry the emitter throw's cause chain into the failure reason", async () => {
+		expect.assertions(1);
+
+		const result = await runCodegen({
+			deployedState: PRODUCTION,
+			emit: () => {
+				throw new Error("emit blew up", { cause: new Error("template not found") });
+			},
+			environments: ["production"],
+			statePort: statePortReading(STAGING),
+			writer: inMemoryWriter().port,
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "codegenEmitThrew");
+
+		expect(result.err.reason).toBe("emit blew up; caused by: template not found");
+	});
+
 	it("should fail with codegenWriteFailed when the writer rejects a file", async () => {
 		expect.assertions(1);
 

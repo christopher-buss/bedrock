@@ -6,6 +6,7 @@ import {
 	type Emitter,
 	hashCodegenFiles,
 } from "../core/codegen.ts";
+import { safeStringify } from "../core/error-chain.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
 import type { CodegenWriteError, CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { StatePort } from "../ports/state-port.ts";
@@ -69,7 +70,7 @@ export async function runCodegen(
 		return {
 			err: {
 				kind: "codegenEmitThrew",
-				reason: err instanceof Error ? err.message : String(err),
+				reason: safeStringify(err),
 			},
 			success: false,
 		};
