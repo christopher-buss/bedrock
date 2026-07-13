@@ -45,6 +45,20 @@ describe(parseBinaryInputResponse, () => {
 			expect(result.err.statusCode).toBe(200);
 		});
 
+		it("should carry the offending body on the malformed-response error", () => {
+			expect.assertions(1);
+
+			const result = parseBinaryInputResponse({
+				body: { unexpected: true },
+				headers: {},
+				status: 200,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.details).toStrictEqual({ unexpected: true });
+		});
+
 		it("should reject a body missing the path field", () => {
 			expect.assertions(1);
 

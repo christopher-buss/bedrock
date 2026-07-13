@@ -92,6 +92,20 @@ describe(parseGamePassResponse, () => {
 		expect(result.err.statusCode).toBe(422);
 	});
 
+	it("should carry the offending body on the malformed-response error", () => {
+		expect.assertions(1);
+
+		const result = parseGamePassResponse({
+			body: { unexpected: true },
+			headers: {},
+			status: 200,
+		});
+
+		assert(!result.success);
+
+		expect(result.err.details).toStrictEqual({ unexpected: true });
+	});
+
 	it.for([
 		{ badValue: '"12345"', field: "gamePassId" },
 		{ badValue: "42", field: "name" },
@@ -428,6 +442,20 @@ describe(parseGamePassesListResponse, () => {
 
 		expect(result.err).toBeInstanceOf(ApiError);
 		expect(result.err.message).toBe("Malformed game passes list response");
+	});
+
+	it("should carry the offending body on the malformed-response error for the list shape", () => {
+		expect.assertions(1);
+
+		const result = parseGamePassesListResponse({
+			body: { gamePasses: "nope" },
+			headers: {},
+			status: 200,
+		});
+
+		assert(!result.success);
+
+		expect(result.err.details).toStrictEqual({ gamePasses: "nope" });
 	});
 
 	it("should return an ApiError when gamePasses is missing", () => {

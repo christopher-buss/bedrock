@@ -183,6 +183,20 @@ describe(parsePlaceResponse, () => {
 			expect(result.err.statusCode).toBe(200);
 		});
 
+		it("should carry the offending body on the malformed-response error", () => {
+			expect.assertions(1);
+
+			const result = parsePlaceResponse({
+				body: { unexpected: true },
+				headers: {},
+				status: 200,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.details).toStrictEqual({ unexpected: true });
+		});
+
 		it.for(["createTime", "description", "displayName", "path", "updateTime"] as const)(
 			"should reject a body missing the required %s field",
 			(field) => {

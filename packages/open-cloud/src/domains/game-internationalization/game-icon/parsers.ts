@@ -20,7 +20,10 @@ export function parseIconListResponse(
 
 	if (!isGameIconListWire(body)) {
 		return {
-			err: new ApiError("Malformed icon list response", { statusCode }),
+			err: new ApiError("Malformed icon list response", {
+				details: body as JSONValue | undefined,
+				statusCode,
+			}),
 			success: false,
 		};
 	}

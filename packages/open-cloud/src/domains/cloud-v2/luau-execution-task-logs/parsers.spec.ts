@@ -208,6 +208,20 @@ describe(parseListLogsResponse, () => {
 			expect(result.err.statusCode).toBe(200);
 		});
 
+		it("should carry the offending body on the malformed-response error", () => {
+			expect.assertions(1);
+
+			const result = parseListLogsResponse({
+				body: { luauExecutionSessionTaskLogs: "nope" },
+				headers: {},
+				status: 200,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.details).toStrictEqual({ luauExecutionSessionTaskLogs: "nope" });
+		});
+
 		it("should reject a body whose luauExecutionSessionTaskLogs is not an array", () => {
 			expect.assertions(1);
 

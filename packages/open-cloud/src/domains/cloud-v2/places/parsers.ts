@@ -28,22 +28,25 @@ export function parsePlaceResponse(response: HttpResponse): Result<Place, ApiErr
 	const { body, status: statusCode } = response;
 
 	if (!isPlaceWire(body)) {
-		return malformedPlace(statusCode);
+		return malformedPlace(statusCode, body);
 	}
 
 	const match = PLACE_PATH_PATTERN.exec(body.path);
 	const universeId = match?.[1];
 	const id = match?.[2];
 	if (id === undefined || universeId === undefined) {
-		return malformedPlace(statusCode);
+		return malformedPlace(statusCode, body);
 	}
 
 	return { data: toPlace({ id, body, universeId }), success: true };
 }
 
-function malformedPlace(statusCode: number): Result<Place, ApiError> {
+function malformedPlace(statusCode: number, body: unknown): Result<Place, ApiError> {
 	return {
-		err: new ApiError(MALFORMED_PLACE_MESSAGE, { statusCode }),
+		err: new ApiError(MALFORMED_PLACE_MESSAGE, {
+			details: body as JSONValue | undefined,
+			statusCode,
+		}),
 		success: false,
 	};
 }

@@ -308,6 +308,7 @@ function enrichPermissionError<P, T>(
 	return new PermissionError(err.message, {
 		cause: err.cause,
 		code: err.code,
+		details: err.details,
 		operationKey: spec.operationLimit.operationKey,
 		requiredScopes: spec.requiredScopes,
 		statusCode: err.statusCode,

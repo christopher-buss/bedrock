@@ -52,26 +52,29 @@ export function parseUniverseResponse(response: HttpResponse): Result<Universe, 
 	const { body, status: statusCode } = response;
 
 	if (!isUniverseWire(body)) {
-		return malformed(statusCode);
+		return malformed(statusCode, body);
 	}
 
 	const ownerResult = resolveOwner(body);
 	if (!ownerResult.success) {
-		return malformed(statusCode);
+		return malformed(statusCode, body);
 	}
 
 	const idMatch = UNIVERSE_PATH_PATTERN.exec(body.path);
 	const id = idMatch?.[1];
 	if (id === undefined) {
-		return malformed(statusCode);
+		return malformed(statusCode, body);
 	}
 
 	return { data: toUniverse({ id, body, owner: ownerResult.data }), success: true };
 }
 
-function malformed(statusCode: number): Result<Universe, ApiError> {
+function malformed(statusCode: number, body: unknown): Result<Universe, ApiError> {
 	return {
-		err: new ApiError(MALFORMED_MESSAGE, { statusCode }),
+		err: new ApiError(MALFORMED_MESSAGE, {
+			details: body as JSONValue | undefined,
+			statusCode,
+		}),
 		success: false,
 	};
 }

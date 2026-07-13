@@ -22,7 +22,10 @@ export function parseBadgeResponse(response: HttpResponse): Result<Badge, ApiErr
 
 	if (!isBadgeResponseV2Wire(body)) {
 		return {
-			err: new ApiError("Malformed badge response", { statusCode }),
+			err: new ApiError("Malformed badge response", {
+				details: body as JSONValue | undefined,
+				statusCode,
+			}),
 			success: false,
 		};
 	}

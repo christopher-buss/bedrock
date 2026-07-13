@@ -135,6 +135,20 @@ describe(parseQueueItemResponse, () => {
 			expect(result.err.statusCode).toBe(200);
 		});
 
+		it("should carry the offending body on the malformed-response error", () => {
+			expect.assertions(1);
+
+			const result = parseQueueItemResponse({
+				body: { unexpected: true },
+				headers: {},
+				status: 200,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.details).toStrictEqual({ unexpected: true });
+		});
+
 		it.for(["data", "expireTime", "path"] as const)(
 			"should reject a body missing the required %s field",
 			(field) => {
@@ -351,6 +365,20 @@ describe(parseDequeueResponse, () => {
 
 		expect(result.err).toBeInstanceOf(ApiError);
 		expect(result.err.message).toBe("Malformed memory-store dequeue response");
+	});
+
+	it("should carry the offending body on the malformed-response error for the dequeue shape", () => {
+		expect.assertions(1);
+
+		const result = parseDequeueResponse({
+			body: { unexpected: true },
+			headers: {},
+			status: 200,
+		});
+
+		assert(!result.success);
+
+		expect(result.err.details).toStrictEqual({ unexpected: true });
 	});
 
 	it("should reject a body whose id is not a string", () => {

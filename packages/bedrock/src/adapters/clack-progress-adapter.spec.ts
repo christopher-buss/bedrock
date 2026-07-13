@@ -1,4 +1,4 @@
-import { NetworkError, OpenCloudError } from "@bedrock-rbx/ocale";
+import { NetworkError, OpenCloudError, PermissionError } from "@bedrock-rbx/ocale";
 
 import { describe, expect, it } from "vitest";
 
@@ -201,7 +201,36 @@ describe(createClackProgressAdapter, () => {
 		});
 
 		expect(clack.logError).toHaveBeenCalledExactlyOnceWith(
-			"gamePass.vip-pass unexpected error",
+			"gamePass.vip-pass failed: unexpected error: boom",
+		);
+	});
+
+	it("should render resourceOpFailed for a permission driverFailure with the scope guidance", () => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		const port = createClackProgressAdapter({ clack });
+		const key = asResourceKey("gem-pack");
+
+		port.emit({
+			key,
+			environment: "production",
+			error: {
+				key,
+				cause: new PermissionError("HTTP 403", {
+					operationKey: "developer-products.create",
+					requiredScopes: ["developer-product:write"],
+					statusCode: 403,
+				}),
+				kind: "driverFailure",
+			},
+			kind: "resourceOpFailed",
+			opType: "create",
+			resourceKind: "developerProduct",
+		});
+
+		expect(clack.logError).toHaveBeenCalledExactlyOnceWith(
+			"developerProduct.gem-pack failed: HTTP 403 on developer-products.create: missing required scope 'developer-product:write'. Grant it on the API key at https://create.roblox.com/credentials",
 		);
 	});
 
@@ -222,7 +251,7 @@ describe(createClackProgressAdapter, () => {
 		});
 
 		expect(clack.logError).toHaveBeenCalledExactlyOnceWith(
-			"universe.main update not supported",
+			"universe.main failed: update not supported",
 		);
 	});
 

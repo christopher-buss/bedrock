@@ -30,7 +30,10 @@ export function parseGamePassResponse(response: HttpResponse): Result<GamePass, 
 
 	if (!isGamePassConfigV2(body)) {
 		return {
-			err: new ApiError("Malformed game pass response", { statusCode }),
+			err: new ApiError("Malformed game pass response", {
+				details: body as JSONValue | undefined,
+				statusCode,
+			}),
 			success: false,
 		};
 	}
@@ -55,7 +58,10 @@ export function parseGamePassesListResponse(
 
 	if (!isListResponseWire(body)) {
 		return {
-			err: new ApiError("Malformed game passes list response", { statusCode }),
+			err: new ApiError("Malformed game passes list response", {
+				details: body as JSONValue | undefined,
+				statusCode,
+			}),
 			success: false,
 		};
 	}

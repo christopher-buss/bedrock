@@ -25,7 +25,7 @@ export function parseSortedMapItemResponse(
 ): Result<SortedMapItem, ApiError> {
 	const item = wireBodyToSortedMapItem(response.body);
 	if (item === undefined) {
-		return malformedSortedMapItem(response.status);
+		return malformedSortedMapItem(response.status, response.body);
 	}
 
 	return { data: item, success: true };
@@ -48,23 +48,23 @@ export function parseListResponse(
 ): Result<ListSortedMapItemsResult, ApiError> {
 	const { body, status: statusCode } = response;
 	if (!isRecord(body)) {
-		return malformedList(statusCode);
+		return malformedList(statusCode, body);
 	}
 
 	const { items: rawItemsField, nextPageToken } = body;
 	if (rawItemsField !== undefined && rawItemsField !== null && !Array.isArray(rawItemsField)) {
-		return malformedList(statusCode);
+		return malformedList(statusCode, body);
 	}
 
 	const normalizedToken = nextPageToken ?? undefined;
 	if (normalizedToken !== undefined && typeof normalizedToken !== "string") {
-		return malformedList(statusCode);
+		return malformedList(statusCode, body);
 	}
 
 	const rawItems = rawItemsField ?? [];
 	const items = rawItems.map(wireBodyToSortedMapItem);
 	if (!items.every(isSortedMapItem)) {
-		return malformedList(statusCode);
+		return malformedList(statusCode, body);
 	}
 
 	return { data: { items, nextPageToken: normalizedToken }, success: true };
@@ -140,9 +140,15 @@ function wireBodyToSortedMapItem(body: unknown): SortedMapItem | undefined {
 	};
 }
 
-function malformedSortedMapItem(statusCode: number): Result<SortedMapItem, ApiError> {
+function malformedSortedMapItem(
+	statusCode: number,
+	body: unknown,
+): Result<SortedMapItem, ApiError> {
 	return {
-		err: new ApiError(MALFORMED_MESSAGE, { statusCode }),
+		err: new ApiError(MALFORMED_MESSAGE, {
+			details: body as JSONValue | undefined,
+			statusCode,
+		}),
 		success: false,
 	};
 }
@@ -151,9 +157,15 @@ function isSortedMapItem(item: SortedMapItem | undefined): item is SortedMapItem
 	return item !== undefined;
 }
 
-function malformedList(statusCode: number): Result<ListSortedMapItemsResult, ApiError> {
+function malformedList(
+	statusCode: number,
+	body: unknown,
+): Result<ListSortedMapItemsResult, ApiError> {
 	return {
-		err: new ApiError(MALFORMED_LIST_MESSAGE, { statusCode }),
+		err: new ApiError(MALFORMED_LIST_MESSAGE, {
+			details: body as JSONValue | undefined,
+			statusCode,
+		}),
 		success: false,
 	};
 }

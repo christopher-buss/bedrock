@@ -328,7 +328,7 @@ describe(runCommitBackAction, () => {
 		};
 
 		await expect(runCommitBackAction(failing)).rejects.toThrow(
-			"commit-back: failed to list the local git config (exit code 128)",
+			"commit-back: failed to list the local git config (exit code 128): fatal: bad config",
 		);
 	});
 
@@ -351,7 +351,7 @@ describe(runCommitBackAction, () => {
 		};
 
 		await expect(runCommitBackAction(failing)).rejects.toThrow(
-			"commit-back: failed to clear the persisted include 'includeif.gitdir:/w/.git.path' (exit code 3)",
+			"commit-back: failed to clear the persisted include 'includeif.gitdir:/w/.git.path' (exit code 3): error: invalid config file",
 		);
 	});
 
@@ -369,7 +369,7 @@ describe(runCommitBackAction, () => {
 		};
 
 		await expect(runCommitBackAction(failing)).rejects.toThrow(
-			"commit-back: failed to clear the persisted http.extraheader (exit code 3)",
+			"commit-back: failed to clear the persisted http.extraheader (exit code 3): error: invalid config file",
 		);
 	});
 
@@ -388,14 +388,18 @@ describe(runCommitBackAction, () => {
 	});
 
 	it("should reject without leaking the token when the remote URL cannot be set", async () => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		const { deps } = harness();
 		const failing: CommitBackActionDependencies = {
 			...deps,
 			git: async (args) => {
 				return args[0] === "remote"
-					? { code: 1, stderr: "error", stdout: "" }
+					? {
+							code: 1,
+							stderr: "fatal: could not set 'https://x-access-token:ghs_secret@github.com/acme/game.git'",
+							stdout: "",
+						}
 					: { code: 0, stderr: "", stdout: "" };
 			},
 		};
@@ -403,6 +407,7 @@ describe(runCommitBackAction, () => {
 		const rejection = runCommitBackAction(failing);
 
 		await expect(rejection).rejects.toThrow("failed to set the origin URL");
+		await expect(rejection).rejects.toThrow("https://***@github.com/acme/game.git");
 		await expect(rejection).rejects.not.toThrow("ghs_secret");
 	});
 });
@@ -437,6 +442,25 @@ describe(executeCommitBackAction, () => {
 		await executeCommitBackAction({ environment, git, io });
 
 		expect(failures[0]).toContain("failed to set the origin URL");
+	});
+
+	it("should report a token-read failure via setFailed instead of rejecting", async () => {
+		expect.assertions(1);
+
+		const { failures, io } = fakeIo();
+		const throwingIo = {
+			...io,
+			getInput: (): string => {
+				throw new Error("input store corrupted");
+			},
+		};
+		async function git(): Promise<GitResult> {
+			return { code: 0, stderr: "", stdout: "" };
+		}
+
+		await executeCommitBackAction({ environment, git, io: throwingIo });
+
+		expect(failures).toStrictEqual(["input store corrupted"]);
 	});
 
 	it("should stringify a non-Error failure for setFailed", async () => {
