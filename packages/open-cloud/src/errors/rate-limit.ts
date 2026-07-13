@@ -7,6 +7,12 @@ import { OpenCloudError } from "./base.ts";
  */
 export interface RateLimitErrorOptions extends ErrorOptions {
 	/**
+	 * Parsed 429 response body, when present. Holds the server's throttle
+	 * explanation (JSON when the body parses, otherwise the truncated raw
+	 * text) so a rate limit stays diagnosable from the error alone.
+	 */
+	details?: JSONValue | undefined;
+	/**
 	 * Requests still allowed in the throttled window, read from
 	 * `x-ratelimit-remaining` (the most-constrained window). `undefined` when
 	 * the header is absent or carries no finite numeric token; parsed
@@ -16,6 +22,11 @@ export interface RateLimitErrorOptions extends ErrorOptions {
 	remaining?: number | undefined;
 	/** Seconds to wait before retrying the request. */
 	retryAfterSeconds: number;
+	/**
+	 * HTTP status code that produced the error. Always `429` when minted by the
+	 * SDK transport; `undefined` when constructed without one.
+	 */
+	statusCode?: number | undefined;
 }
 
 /**
@@ -38,10 +49,14 @@ export interface RateLimitErrorOptions extends ErrorOptions {
  * ```
  */
 export class RateLimitError extends OpenCloudError {
+	/** Parsed 429 response body, or `undefined` when none was carried. */
+	public readonly details: JSONValue | undefined;
 	public override readonly name = "RateLimitError";
 	/** Requests left in the throttled window, or `undefined` if not reported. */
 	public readonly remaining: number | undefined;
 	public readonly retryAfterSeconds: number;
+	/** HTTP status code that produced the error, or `undefined` if not set. */
+	public readonly statusCode: number | undefined;
 
 	/**
 	 * Creates a new RateLimitError.
@@ -53,5 +68,7 @@ export class RateLimitError extends OpenCloudError {
 		super(message, options);
 		this.retryAfterSeconds = options.retryAfterSeconds;
 		this.remaining = options.remaining;
+		this.details = options.details;
+		this.statusCode = options.statusCode;
 	}
 }
