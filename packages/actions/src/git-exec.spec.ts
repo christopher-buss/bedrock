@@ -91,4 +91,12 @@ describe(classifyExecFailure, () => {
 
 		expect(result).toStrictEqual({ code: 1, stderr: "", stdout: "" });
 	});
+
+	it("should normalize a launch failure with no message and no errno to an empty stderr", () => {
+		expect.assertions(1);
+
+		const result = classifyExecFailure({});
+
+		expect(result).toStrictEqual({ code: 1, stderr: "", stdout: "" });
+	});
 });

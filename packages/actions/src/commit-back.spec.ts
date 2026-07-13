@@ -267,17 +267,17 @@ describe(commitBack, () => {
 		await expect(rejection).rejects.not.toThrow("ghs_secret");
 	});
 
-	it("should fall back to the failing command's stdout when its stderr is empty", async () => {
+	it("should fall back to the failing command's trimmed stdout when its stderr is empty", async () => {
 		expect.assertions(1);
 
 		async function git(args: ReadonlyArray<string>): Promise<GitResult> {
 			return args[0] === "status"
 				? { code: 0, stderr: "", stdout: " M src/shared/assets/places.ts\n" }
-				: { code: 128, stderr: "", stdout: "error printed to stdout" };
+				: { code: 128, stderr: "", stdout: "error printed to stdout\n" };
 		}
 
 		await expect(commitBack({ git }, DefaultOptions)).rejects.toThrow(
-			"git add -- src/shared/assets failed with exit code 128: error printed to stdout",
+			/failed with exit code 128: error printed to stdout$/u,
 		);
 	});
 

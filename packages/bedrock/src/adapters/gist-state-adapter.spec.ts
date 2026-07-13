@@ -339,6 +339,70 @@ describe(createGistStateAdapter, () => {
 			);
 		});
 
+		it("should keep the bare status reason when the error body cannot be read", async () => {
+			expect.assertions(1);
+
+			// Consuming the body up front makes the adapter's own text() call
+			// reject (body already disturbed), exercising the unreadable-body
+			// path.
+			const disturbed = new Response("x", { status: 400 });
+			await disturbed.text();
+			const { fetchFn } = fakeFetch(() => disturbed);
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toBe("github returned 400");
+		});
+
+		it("should keep the bare status reason when the error body is whitespace-only", async () => {
+			expect.assertions(1);
+
+			const { fetchFn } = fakeFetch(() => new Response("   ", { status: 400 }));
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toBe("github returned 400");
+		});
+
+		it("should keep a github error body of exactly 500 characters untruncated", async () => {
+			expect.assertions(1);
+
+			const { fetchFn } = fakeFetch(() => new Response("x".repeat(500), { status: 400 }));
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toBe(`github returned 400 (body: ${"x".repeat(500)})`);
+		});
+
+		it("should keep the bare network-error reason when no transport code is present", async () => {
+			expect.assertions(1);
+
+			async function throwingFetch(): Promise<Response> {
+				throw new Error("connection reset");
+			}
+
+			const port = createGistStateAdapter({
+				fetch: throwingFetch,
+				gistId: GIST_ID,
+				token: TOKEN,
+			});
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toBe("network error: connection reset");
+		});
+
 		it("should truncate a github error body beyond 500 characters with an ellipsis", async () => {
 			expect.assertions(1);
 
