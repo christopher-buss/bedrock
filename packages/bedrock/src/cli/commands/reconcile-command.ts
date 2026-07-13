@@ -140,9 +140,12 @@ function resolveDeps(deps: ProgDeps, spec: ReconcileCommandSpec): Resolved {
 }
 
 function describeBuildSpawnFailure(err: SpawnOverrideError): string {
+	// A launch failure omits its cause message here and hands the cause Error
+	// to the throw below, so the reason renders once through the shared
+	// cause-chain walk rather than being flattened twice.
 	return err.kind === "nonZeroExit"
 		? `.bedrock/build.ts exited with code ${String(err.exitCode)}`
-		: `failed to launch .bedrock/build.ts - ${err.cause.message}`;
+		: "failed to launch .bedrock/build.ts";
 }
 
 function createSpawnBuildStep(inputs: SpawnBuildStepInputs): BuildStep {
@@ -151,7 +154,10 @@ function createSpawnBuildStep(inputs: SpawnBuildStepInputs): BuildStep {
 		const invocation = buildOverrideInvocation({ environment, overridePath, parsed });
 		const result = await dispatchOverride(invocation, spawner);
 		if (!result.success) {
-			throw new Error(describeBuildSpawnFailure(result.err));
+			const { err } = result;
+			throw new Error(describeBuildSpawnFailure(err), {
+				cause: err.kind === "launchFailed" ? err.cause : undefined,
+			});
 		}
 	};
 }

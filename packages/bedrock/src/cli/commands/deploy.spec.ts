@@ -754,9 +754,10 @@ describe(deployCommand, () => {
 		assert(firstCall !== undefined);
 		assert(firstCall[0].build !== undefined);
 
-		await expect(firstCall[0].build({ environment: "production" })).rejects.toThrow(
-			"failed to launch .bedrock/build.ts - spawn bun ENOENT",
-		);
+		await expect(firstCall[0].build({ environment: "production" })).rejects.toMatchObject({
+			cause,
+			message: "failed to launch .bedrock/build.ts",
+		});
 	});
 
 	it("should discover the build override alongside the deploy override on the shell path", async () => {
