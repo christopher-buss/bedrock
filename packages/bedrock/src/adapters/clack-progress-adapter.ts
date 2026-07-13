@@ -1,5 +1,6 @@
 import { createClackPort } from "../cli/clack-port.ts";
-import { type ClackPort, describeDriverCause, renderDeployError } from "../cli/render.ts";
+import { applyCauseDetail } from "../cli/failure-detail.ts";
+import { type ClackPort, renderDeployError } from "../cli/render.ts";
 import { resolveStateConfig } from "../core/resolve-state-config.ts";
 import {
 	type Config,
@@ -12,7 +13,6 @@ import type {
 	ProgressPort,
 	ResourceOpSucceededCreateEvent,
 } from "../ports/progress-port.ts";
-import type { ApplyError } from "../shell/apply-ops.ts";
 
 /**
  * Configuration for {@link createClackProgressAdapter}.
@@ -163,20 +163,6 @@ function renderResourceOpSucceeded(
 	);
 }
 
-function describeApplyError(error: ApplyError): string {
-	switch (error.kind) {
-		case "driverFailure": {
-			return `failed: ${describeDriverCause(error.cause)}`;
-		}
-		case "unexpectedThrow": {
-			return "unexpected error";
-		}
-		case "updateUnsupported": {
-			return "update not supported";
-		}
-	}
-}
-
 /* eslint-disable-next-line max-lines-per-function -- single exhaustive switch over every ProgressEvent variant is clearer than splitting into deploy-level vs per-resource halves, which would leave both halves non-exhaustive and required a boolean handoff that hides the dispatch surface. */
 function renderEvent(event: ProgressEvent, dependencies: ClackProgressAdapterDeps): void {
 	const { clack, config } = dependencies;
@@ -194,7 +180,9 @@ function renderEvent(event: ProgressEvent, dependencies: ClackProgressAdapterDep
 			return;
 		}
 		case "resourceOpFailed": {
-			clack.logError(`${event.resourceKind}.${event.key} ${describeApplyError(event.error)}`);
+			clack.logError(
+				`${event.resourceKind}.${event.key} failed: ${applyCauseDetail(event.error)}`,
+			);
 			return;
 		}
 		case "resourceOpNoop": {

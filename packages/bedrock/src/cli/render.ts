@@ -1,14 +1,12 @@
-import { NetworkError, type OpenCloudError, PermissionError } from "@bedrock-rbx/ocale";
-
 import type { ConfigError } from "../core/config-error.ts";
 import type { MigrateError, MigrationSummary } from "../core/migrate/migration-report.ts";
 import type { StateError } from "../core/state.ts";
-import type { ApplyError } from "../shell/apply-ops.ts";
 import type { BuildDesiredError } from "../shell/build-desired.ts";
 import type { MissingCredentialError, UnsupportedBackendError } from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
 import type { CodegenError } from "../shell/run-codegen.ts";
 import type { SpawnOverrideError } from "./dispatch-override.ts";
+import { applyCauseDetail, safeStringify } from "./failure-detail.ts";
 import type { ParseMigrateError } from "./parse-migrate-options.ts";
 import type { ParseOptionsError } from "./parse-options.ts";
 
@@ -218,98 +216,6 @@ export function renderStateWriteError(input: StateWriteErrorRender, port: ClackP
 	port.logError(
 		`state write failed for '${input.environment}' (${input.err.file}): ${input.err.reason}`,
 	);
-}
-
-function safeStringify(value: unknown): string {
-	if (value instanceof Error) {
-		return value.message;
-	}
-
-	// `String(value)` can throw on null-prototype objects or values whose
-	// `toString` / `Symbol.toPrimitive` rejects coercion; fall back so the
-	// renderer never crashes mid-diagnostic.
-	try {
-		return String(value);
-	} catch {
-		return "<unprintable cause>";
-	}
-}
-
-function permissionDetail(err: PermissionError): string {
-	const isPlural = err.requiredScopes.length > 1;
-	const label = isPlural ? "scopes" : "scope";
-	const pronoun = isPlural ? "them" : "it";
-	const scopeList = err.requiredScopes.map((scope) => `'${scope}'`).join(", ");
-	return `${err.message} on ${err.operationKey}: missing required ${label} ${scopeList}. Grant ${pronoun} on the API key at https://create.roblox.com/credentials`;
-}
-
-// Walks an error's `cause` chain for the first node-style string `code` (for
-// example `"ECONNRESET"`). A fetch transport reset surfaces as
-// `NetworkError → TypeError("fetch failed") → OS Error{code}`, so the code sits
-// several links down. Capped to avoid looping on a self-referential chain.
-// ocale computes this internally but does not export it; the bounded walk is
-// reproduced here so the renderer can name the transport failure.
-const MAX_CAUSE_DEPTH = 5;
-
-/**
- * Describes the {@link OpenCloudError} behind a driver failure for one
- * diagnostic line. A {@link NetworkError} otherwise collapses every transport
- * failure into the same static `"Network request failed"`; this expands it with
- * the node-style transport `code` (or the underlying cause's message) and the
- * failing `METHOD url`, so an intermittent connection reset reads differently
- * from a DNS failure without inspecting the cause by hand. Every other error
- * surfaces its own `message` unchanged.
- *
- * @param err - The Open Cloud error carried on the failing apply op.
- * @returns A single-line, human-readable failure detail.
- */
-export function describeDriverCause(err: OpenCloudError): string {
-	if (err instanceof NetworkError) {
-		return describeNetworkError(err);
-	}
-
-	return err.message;
-}
-
-function findTransportCode(error: unknown): string | undefined {
-	let current: unknown = error;
-	for (let depth = 0; depth < MAX_CAUSE_DEPTH && current instanceof Error; depth += 1) {
-		const code = Reflect.get(current, "code");
-		if (typeof code === "string") {
-			return code;
-		}
-
-		current = current.cause;
-	}
-
-	return undefined;
-}
-
-function describeNetworkError(err: NetworkError): string {
-	const reason =
-		findTransportCode(err) ?? (err.cause instanceof Error ? err.cause.message : undefined);
-	const because = reason === undefined ? "" : ` (${reason})`;
-	const target =
-		err.method !== undefined && err.url !== undefined ? ` on ${err.method} ${err.url}` : "";
-	return `${err.message}${because}${target}`;
-}
-
-function applyCauseDetail(cause: ApplyError): string {
-	switch (cause.kind) {
-		case "driverFailure": {
-			if (cause.cause instanceof PermissionError) {
-				return permissionDetail(cause.cause);
-			}
-
-			return describeDriverCause(cause.cause);
-		}
-		case "unexpectedThrow": {
-			return `unexpected error: ${safeStringify(cause.cause)}`;
-		}
-		case "updateUnsupported": {
-			return "update not supported";
-		}
-	}
 }
 
 function buildDesiredDetail(cause: BuildDesiredError): string {
