@@ -1,6 +1,7 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import type { ResourceKey } from "../../types/ids.ts";
+import { safeStringify } from "../error-chain.ts";
 import { isRedactedIconPath, REDACTED_ICON_BYTES } from "../redacted-icon.ts";
 import type { BuildDesiredError, KindIo } from "./module.ts";
 
@@ -32,7 +33,7 @@ export async function readBytes(
 				key: target.key,
 				filePath: target.filePath,
 				kind: "fileReadFailed",
-				reason: err instanceof Error ? err.message : String(err),
+				reason: safeStringify(err),
 			},
 			success: false,
 		};
