@@ -252,16 +252,6 @@ function createApiError(status: number, body: JSONValue | undefined): ApiError {
 	});
 }
 
-function createRateLimitError(response: Response): RateLimitError {
-	const headers = headersToRecord(response.headers);
-	return new RateLimitError("Rate limited", {
-		remaining: reduceRateLimitTokens(headers["x-ratelimit-remaining"], (a, b) =>
-			Math.min(a, b),
-		),
-		retryAfterSeconds: parseRetryAfterSeconds(headers["x-ratelimit-reset"]),
-	});
-}
-
 /**
  * Parses response text as JSON, returning the underlying `SyntaxError` on
  * failure rather than throwing. The synchronous sibling of {@link tryCatch}.
@@ -275,6 +265,21 @@ function parseJson(text: string): Result<JSONValue> {
 	} catch (err) {
 		return { err: err instanceof Error ? err : new Error(String(err)), success: false };
 	}
+}
+
+async function createRateLimitError(response: Response): Promise<RateLimitError> {
+	const headers = headersToRecord(response.headers);
+	const text = await response.text();
+	const parsed: Result<JSONValue | undefined> =
+		text === "" ? { data: undefined, success: true } : parseJson(text);
+	return new RateLimitError("Rate limited", {
+		details: parsed.success ? parsed.data : text.slice(0, MAX_DETAIL_LENGTH),
+		remaining: reduceRateLimitTokens(headers["x-ratelimit-remaining"], (a, b) =>
+			Math.min(a, b),
+		),
+		retryAfterSeconds: parseRetryAfterSeconds(headers["x-ratelimit-reset"]),
+		statusCode: response.status,
+	});
 }
 
 /**
@@ -308,7 +313,7 @@ function parseFailureError({ cause, response, text }: ParseFailureArgs): ApiErro
  */
 async function classifyResponse(response: Response): Promise<Result<HttpResponse, OpenCloudError>> {
 	if (response.status === 429) {
-		return { err: createRateLimitError(response), success: false };
+		return { err: await createRateLimitError(response), success: false };
 	}
 
 	const text = await response.text();
