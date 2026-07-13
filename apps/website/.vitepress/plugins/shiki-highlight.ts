@@ -19,7 +19,7 @@ let highlighterPromise: Promise<Highlighter> | undefined;
  * @returns An `Error` suitable for `PluginContext.error`.
  */
 export function buildHighlightError(filePath: string, err: unknown): Error {
-	const message = err instanceof Error ? err.message : String(err);
+	const message = err instanceof Error ? err.message : safeString(err);
 	return new Error(`shiki-highlight: ${filePath}: ${message}`, { cause: err });
 }
 
@@ -61,6 +61,22 @@ export function shikiHighlightPlugin(): Plugin {
 			return resolved ? `${resolved.id}${QUERY}` : undefined;
 		},
 	};
+}
+
+/**
+ * Coerces a non-Error thrown value to a string without ever throwing itself.
+ * `String(value)` can reject coercion (a null-prototype object with a hostile
+ * `toString`), which must not crash the plugin's own error reporting.
+ *
+ * @param value - The value to coerce.
+ * @returns The coerced string, or a placeholder when coercion fails.
+ */
+function safeString(value: unknown): string {
+	try {
+		return String(value);
+	} catch {
+		return "<unprintable value>";
+	}
 }
 
 async function getHighlighter(): Promise<Highlighter> {

@@ -28,4 +28,18 @@ describe(buildHighlightError, () => {
 		expect(error.message).toBe("shiki-highlight: /src/samples/deploy.ts: weird failure");
 		expect(error.cause).toBe("weird failure");
 	});
+
+	it("should not throw when the thrown value resists string coercion", () => {
+		expect.assertions(2);
+
+		const hostile = Object.create(null) as { toString: () => string };
+		hostile.toString = () => {
+			throw new Error("no coercion");
+		};
+
+		const error = buildHighlightError("/src/samples/deploy.ts", hostile);
+
+		expect(error.message).toBe("shiki-highlight: /src/samples/deploy.ts: <unprintable value>");
+		expect(error.cause).toBe(hostile);
+	});
 });
