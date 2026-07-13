@@ -13,6 +13,7 @@ import { type Emitter, isCodegenEnabled } from "../core/codegen.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { createDefaultEmitter, resolveCodegenOutputDirectory } from "../core/default-emitter.ts";
 import { diff } from "../core/diff.ts";
+import { safeStringify } from "../core/error-chain.ts";
 import { flattenConfig } from "../core/flatten.ts";
 import type { Operation } from "../core/operations.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
@@ -726,7 +727,7 @@ async function invokeBuildStep(
 		return {
 			err: {
 				kind: "buildFailed",
-				reason: err instanceof Error ? err.message : String(err),
+				reason: safeStringify(err),
 			},
 			success: false,
 		};
