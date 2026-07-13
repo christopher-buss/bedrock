@@ -10,6 +10,20 @@ const THEME = "bedrock-warm";
 let highlighterPromise: Promise<Highlighter> | undefined;
 
 /**
+ * Wraps a `load`-hook failure in an `Error` that names the plugin and file and
+ * carries the original throw as its `cause`. Rollup then logs the wrapper's
+ * stack together with the underlying Shiki failure instead of a bare message.
+ *
+ * @param filePath - The source file whose highlighting failed.
+ * @param err - The value thrown while highlighting.
+ * @returns An `Error` suitable for `PluginContext.error`.
+ */
+export function buildHighlightError(filePath: string, err: unknown): Error {
+	const message = err instanceof Error ? err.message : String(err);
+	return new Error(`shiki-highlight: ${filePath}: ${message}`, { cause: err });
+}
+
+/**
  * Vite plugin that exposes `import "./file.ts?highlighted"` virtual modules.
  * Reads the source file at build time, runs Shiki, and returns the resulting
  * HTML string as the module's default export. Lets landing-page code samples
@@ -31,8 +45,10 @@ export function shikiHighlightPlugin(): Plugin {
 				this.addWatchFile(filePath);
 				return await highlightToModule(filePath);
 			} catch (err) {
-				const message = err instanceof Error ? err.message : String(err);
-				this.error(`shiki-highlight: ${filePath}: ${message}`);
+				// Hand Rollup an Error that carries the original throw as its
+				// cause, so a Shiki failure keeps its stack and cause chain in
+				// the build log instead of collapsing to a bare message.
+				this.error(buildHighlightError(filePath, err));
 			}
 		},
 		async resolveId(source, importer) {
