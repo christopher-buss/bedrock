@@ -51,6 +51,16 @@ describe(detectLute, () => {
 		expect(detection).toStrictEqual({ available: false });
 	});
 
+	it("should surface a reason when the version probe times out", () => {
+		expect.assertions(2);
+
+		const error = Object.assign(new Error("spawnSync lute ETIMEDOUT"), { code: "ETIMEDOUT" });
+		const detection = detectLute(spawnReturning(fakeResult({ error })), {});
+
+		expect(detection.available).toBeFalse();
+		expect(detection.reason).toBe('lute "lute --version" timed out after 5000ms');
+	});
+
 	it("should skip silently for an older-but-valid version", () => {
 		expect.assertions(1);
 

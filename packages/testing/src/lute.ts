@@ -3,13 +3,18 @@ import process from "node:process";
 
 const MIN_MAJOR_VERSION = 1;
 
+// Bounds the module-load probe: a hung or misbehaving binary that never exits
+// would otherwise block `spawnSync` (and every test run that imports this
+// module) forever. A timeout kill surfaces as an ETIMEDOUT spawn error.
+const VERSION_PROBE_TIMEOUT_MS = 5_000;
+
 /**
  * The result of probing for a usable `lute` runtime.
  *
  * `reason` is present only when a lute binary was actually reached but is
- * unusable (it crashed, exited non-zero, or reported an unrecognized version),
- * so callers can surface why tests are skipped. A genuinely absent binary
- * leaves `reason` undefined and skips silently.
+ * unusable (it timed out, crashed, exited non-zero, or reported an
+ * unrecognized version), so callers can surface why tests are skipped. A
+ * genuinely absent binary leaves `reason` undefined and skips silently.
  */
 export interface LuteDetection {
 	/** Whether a usable lute runtime was found. */
@@ -24,7 +29,7 @@ export interface LuteDetection {
 type LuteSpawn = (
 	command: string,
 	args: ReadonlyArray<string>,
-	options: { readonly encoding: "utf8" },
+	options: { readonly encoding: "utf8"; readonly timeout: number },
 ) => SpawnSyncReturns<string>;
 
 /**
@@ -49,11 +54,16 @@ export function detectLute(
 	const override = environment["BEDROCK_LUTE_PATH"];
 	const bin = override !== undefined && override.length > 0 ? override : "lute";
 
-	const result = spawn(bin, ["--version"], { encoding: "utf8" });
+	const result = spawn(bin, ["--version"], {
+		encoding: "utf8",
+		timeout: VERSION_PROBE_TIMEOUT_MS,
+	});
 	if (result.error !== undefined) {
-		// Could not spawn the binary at all (ENOENT and friends): lute is simply
-		// absent, the expected state on machines without it. Skip silently.
-		return { available: false };
+		// A start failure is usually an absent binary (ENOENT), the expected
+		// state on machines without lute, skipped silently. A timeout means a
+		// present binary hung, so that is surfaced as a reason.
+		const timeout = timeoutReason(bin, result.error);
+		return timeout === undefined ? { available: false } : { available: false, reason: timeout };
 	}
 
 	const spawnReason = unusableSpawnReason(bin, result);
@@ -99,6 +109,14 @@ export function reportLute(
 	}
 
 	return detection.available;
+}
+
+function timeoutReason(bin: string, error: Error): string | undefined {
+	if (Reflect.get(error, "code") !== "ETIMEDOUT") {
+		return undefined;
+	}
+
+	return `lute "${bin} --version" timed out after ${VERSION_PROBE_TIMEOUT_MS}ms`;
 }
 
 function unusableSpawnReason(bin: string, result: SpawnSyncReturns<string>): string | undefined {
