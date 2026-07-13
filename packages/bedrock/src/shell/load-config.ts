@@ -7,6 +7,7 @@ import process from "node:process";
 
 import { createLuteLuauEvaluator } from "../adapters/lute-luau-evaluator.ts";
 import type { ConfigError } from "../core/config-error.ts";
+import { safeStringify } from "../core/error-chain.ts";
 import { type Config, validateConfig } from "../core/schema.ts";
 import type { LuauEvaluationError, LuauEvaluator } from "../ports/luau-evaluator.ts";
 
@@ -394,7 +395,7 @@ function attributeLoadError(err: unknown, cwd: string): ConfigError {
 		return err.configError;
 	}
 
-	const message = err instanceof Error ? err.message : String(err);
+	const message = safeStringify(err);
 	const frameFile = extractConfigFileFromStack(err);
 	if (frameFile !== undefined) {
 		return { kind: "configFunctionFailed", message, sourceFile: frameFile };

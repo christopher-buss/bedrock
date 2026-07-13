@@ -159,6 +159,27 @@ describe(loadConfig, () => {
 		});
 	});
 
+	it("should carry a config function throw's cause chain into the failure message", async () => {
+		expect.assertions(2);
+
+		await withTemporaryDirectory(async (cwd) => {
+			writeFixtureConfig(cwd, [
+				"import { defineConfig } from '@bedrock-rbx/core';",
+				"export default defineConfig(() => {",
+				"  throw new Error('outer boom', { cause: new Error('inner cause') });",
+				"});",
+			]);
+
+			const result = await loadConfig({ cwd });
+
+			assert(!result.success);
+			assert(result.err.kind === "configFunctionFailed");
+
+			expect(result.err.kind).toBe("configFunctionFailed");
+			expect(result.err.message).toBe("outer boom; caused by: inner cause");
+		});
+	});
+
 	it("should return a configFunctionFailed error when an asynchronous config function rejects", async () => {
 		expect.assertions(3);
 
