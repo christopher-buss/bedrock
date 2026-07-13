@@ -43,6 +43,22 @@ describe(safeStringify, () => {
 		);
 	});
 
+	it("should render a non-error cause and stop the chain", () => {
+		expect.assertions(1);
+
+		const err = new Error("outer", { cause: "string reason" });
+
+		expect(safeStringify(err)).toBe("outer; caused by: string reason");
+	});
+
+	it("should render a non-error cause reached after walking error causes", () => {
+		expect.assertions(1);
+
+		const err = new Error("outer", { cause: new Error("middle", { cause: 42 }) });
+
+		expect(safeStringify(err)).toBe("outer; caused by: middle; caused by: 42");
+	});
+
 	it("should stringify a non-error value", () => {
 		expect.assertions(1);
 

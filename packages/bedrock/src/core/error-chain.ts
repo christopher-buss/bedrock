@@ -29,9 +29,17 @@ export function safeStringify(value: unknown): string {
 function describeErrorChain(error: Error): string {
 	const parts = [error.message];
 	let current: unknown = error.cause;
-	while (parts.length < MAX_CAUSE_DEPTH && current instanceof Error) {
-		parts.push(current.message);
-		current = current.cause;
+	while (parts.length < MAX_CAUSE_DEPTH && current !== undefined) {
+		if (current instanceof Error) {
+			parts.push(current.message);
+			current = current.cause;
+			continue;
+		}
+
+		// A non-Error cause (a thrown string, say) ends the chain, but its
+		// value still carries diagnostic detail worth keeping on the line.
+		parts.push(safeStringify(current));
+		break;
 	}
 
 	return parts.join("; caused by: ");
