@@ -19,7 +19,7 @@ const MAX_RENDERED_BODY_LENGTH = 500;
  * failing `METHOD url`, so an intermittent connection reset reads differently
  * from a DNS failure without inspecting the cause by hand. An {@link ApiError}
  * carrying a response body appends it (bounded) so a status whose body had no
- * extractable `message` — the bare `HTTP 400` case — stays diagnosable from
+ * extractable `message` (the bare `HTTP 400` case) stays diagnosable from
  * the log alone. Every other error surfaces its own `message` unchanged.
  *
  * @param err - The Open Cloud error carried on the failing apply op.

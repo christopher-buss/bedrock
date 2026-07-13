@@ -7,7 +7,7 @@ const MAX_CAUSE_DEPTH = 5;
  * `TypeError("fetch failed") → OS Error{code}`, so the code sits one or more
  * links down; naming it lets a diagnostic line distinguish a connection reset
  * from a DNS failure. Ocale computes this internally but does not export it,
- * so the bounded walk is reproduced here..
+ * so the bounded walk is reproduced here.
  *
  * @param error - The error whose cause chain is walked.
  * @returns The first string `code` found, or `undefined` when none exists

@@ -22,7 +22,7 @@ export interface GitExecDeps {
  * code passes through, anything else (a launch errno such as `ENOENT`) collapses
  * to `1`, and absent output normalizes to an empty string. A launch failure
  * produced no process output, so its error message (e.g. `spawn git ENOENT`)
- * stands in as `stderr` — otherwise a missing binary would be
+ * stands in as `stderr`; otherwise a missing binary would be
  * indistinguishable from a generic exit-1 failure. Extracted so every branch
  * is unit-testable without provoking a real launch failure.
  *

@@ -383,6 +383,27 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toBe(`github returned 400 (body: ${"x".repeat(500)})`);
 		});
 
+		it("should stringify a non-Error throw as the network-error reason", async () => {
+			expect.assertions(1);
+
+			async function throwingFetch(): Promise<Response> {
+				// eslint-disable-next-line ts/only-throw-error -- exercises the non-Error catch branch
+				throw "socket refused";
+			}
+
+			const port = createGistStateAdapter({
+				fetch: throwingFetch,
+				gistId: GIST_ID,
+				token: TOKEN,
+			});
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toBe("network error: socket refused");
+		});
+
 		it("should keep the bare network-error reason when no transport code is present", async () => {
 			expect.assertions(1);
 
