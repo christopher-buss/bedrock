@@ -267,13 +267,43 @@ function parseJson(text: string): Result<JSONValue> {
 	}
 }
 
+/**
+ * Reads a response body once and parses it best-effort: an empty body is a
+ * successful `undefined`, otherwise the JSON parse result (which carries the
+ * `SyntaxError` on failure). Returns the raw `text` alongside so callers that
+ * need the original bytes (parse-failure diagnostics) do not re-read the
+ * consumed stream.
+ *
+ * @param response - The Response whose body to read.
+ * @returns The parse result and the raw text.
+ */
+async function readResponseBody(
+	response: Response,
+): Promise<{ parsed: Result<JSONValue | undefined>; text: string }> {
+	const text = await response.text();
+	return {
+		parsed: text === "" ? { data: undefined, success: true } : parseJson(text),
+		text,
+	};
+}
+
+/**
+ * Projects a read body to the detail carried on an error: the parsed JSON when
+ * it parsed, otherwise the raw text truncated to {@link MAX_DETAIL_LENGTH}.
+ *
+ * @param text - The raw response body text.
+ * @param parsed - The best-effort parse result from {@link readResponseBody}.
+ * @returns The parsed body, or the truncated raw text on a parse failure.
+ */
+function bodyDetail(text: string, parsed: Result<JSONValue | undefined>): JSONValue | undefined {
+	return parsed.success ? parsed.data : text.slice(0, MAX_DETAIL_LENGTH);
+}
+
 async function createRateLimitError(response: Response): Promise<RateLimitError> {
 	const headers = headersToRecord(response.headers);
-	const text = await response.text();
-	const parsed: Result<JSONValue | undefined> =
-		text === "" ? { data: undefined, success: true } : parseJson(text);
+	const { parsed, text } = await readResponseBody(response);
 	return new RateLimitError("Rate limited", {
-		details: parsed.success ? parsed.data : text.slice(0, MAX_DETAIL_LENGTH),
+		details: bodyDetail(text, parsed),
 		remaining: reduceRateLimitTokens(headers["x-ratelimit-remaining"], (a, b) =>
 			Math.min(a, b),
 		),
@@ -316,13 +346,10 @@ async function classifyResponse(response: Response): Promise<Result<HttpResponse
 		return { err: await createRateLimitError(response), success: false };
 	}
 
-	const text = await response.text();
-	const parsed: Result<JSONValue | undefined> =
-		text === "" ? { data: undefined, success: true } : parseJson(text);
+	const { parsed, text } = await readResponseBody(response);
 
 	if (response.status >= 300) {
-		const body = parsed.success ? parsed.data : text.slice(0, MAX_DETAIL_LENGTH);
-		return { err: createApiError(response.status, body), success: false };
+		return { err: createApiError(response.status, bodyDetail(text, parsed)), success: false };
 	}
 
 	if (!parsed.success) {
