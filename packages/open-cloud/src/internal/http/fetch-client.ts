@@ -169,19 +169,22 @@ export function createFetchHttpClient(
 			const url = buildUrl(httpRequest, config);
 			const options = buildFetchOptions(httpRequest, config);
 
+			const target = { method: httpRequest.method, url };
+
 			const fetchResult = await tryCatch(fetchFunc(url, options));
 			if (!fetchResult.success) {
-				return {
-					err: new NetworkError("Network request failed", {
-						cause: fetchResult.err,
-						method: httpRequest.method,
-						url,
-					}),
-					success: false,
-				};
+				return { err: networkError(fetchResult.err, target), success: false };
 			}
 
-			return classifyResponse(fetchResult.data);
+			// Reading and classifying the body can itself throw (an aborted or
+			// undecodable body stream rejects `response.text()`); keep the
+			// Result contract by mapping any such throw to a NetworkError.
+			const classified = await tryCatch(classifyResponse(fetchResult.data));
+			if (!classified.success) {
+				return { err: networkError(classified.err, target), success: false };
+			}
+
+			return classified.data;
 		},
 	};
 }
@@ -222,6 +225,14 @@ function extractLegacyMessage(body: object): string | undefined {
 
 	const message = Reflect.get(first, "message");
 	return typeof message === "string" ? message : undefined;
+}
+
+function networkError(cause: Error, target: { method: string; url: string }): NetworkError {
+	return new NetworkError("Network request failed", {
+		cause,
+		method: target.method,
+		url: target.url,
+	});
 }
 
 function formatApiErrorMessage(parts: ApiErrorMessageParts): string {

@@ -979,4 +979,30 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.method).toBe("POST");
 		expect(result.err.url).toBe("https://example.com/cloud/v2/ping");
 	});
+
+	it("should return NetworkError when reading the response body fails", async () => {
+		expect.assertions(3);
+
+		async function fakeFetch(): Promise<Response> {
+			const stream = new ReadableStream<Uint8Array>({
+				start(controller) {
+					controller.error(new Error("body stream aborted"));
+				},
+			});
+			return new Response(stream, { status: 500 });
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof NetworkError);
+
+		expect(result.err.method).toBe("GET");
+		expect(result.err.url).toBe("https://example.com/test");
+		expect(result.err.cause).toBeInstanceOf(Error);
+	});
 });
