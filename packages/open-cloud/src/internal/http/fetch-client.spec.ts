@@ -584,6 +584,86 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.retryAfterSeconds).toBe(0);
 	});
 
+	it("should carry the parsed 429 body and status on details", async () => {
+		expect.assertions(2);
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response(JSON.stringify({ message: "Too many requests" }), {
+				status: 429,
+			});
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof RateLimitError);
+
+		expect(result.err.details).toStrictEqual({ message: "Too many requests" });
+		expect(result.err.statusCode).toBe(429);
+	});
+
+	it("should carry a non-json 429 body as raw text on details", async () => {
+		expect.assertions(1);
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response("slow down", { status: 429 });
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof RateLimitError);
+
+		expect(result.err.details).toBe("slow down");
+	});
+
+	it("should leave details undefined for an empty 429 body", async () => {
+		expect.assertions(1);
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response("", { status: 429 });
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof RateLimitError);
+
+		expect(result.err.details).toBeUndefined();
+	});
+
+	it("should truncate an oversized non-json 429 body to 500 chars", async () => {
+		expect.assertions(1);
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response("x".repeat(600), { status: 429 });
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof RateLimitError);
+		assert(typeof result.err.details === "string");
+
+		expect(result.err.details).toHaveLength(500);
+	});
+
 	it("should compose ApiError message and details from a modern errorCode body", async () => {
 		expect.assertions(4);
 
@@ -898,5 +978,31 @@ describe(createFetchHttpClient, () => {
 
 		expect(result.err.method).toBe("POST");
 		expect(result.err.url).toBe("https://example.com/cloud/v2/ping");
+	});
+
+	it("should return NetworkError when reading the response body fails", async () => {
+		expect.assertions(3);
+
+		async function fakeFetch(): Promise<Response> {
+			const stream = new ReadableStream<Uint8Array>({
+				start(controller) {
+					controller.error(new Error("body stream aborted"));
+				},
+			});
+			return new Response(stream, { status: 500 });
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof NetworkError);
+
+		expect(result.err.method).toBe("GET");
+		expect(result.err.url).toBe("https://example.com/test");
+		expect(result.err.cause).toBeInstanceOf(Error);
 	});
 });

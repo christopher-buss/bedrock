@@ -68,4 +68,42 @@ describe(RateLimitError, () => {
 
 		expect(error.remaining).toBeUndefined();
 	});
+
+	it("should store details when provided", () => {
+		expect.assertions(1);
+
+		const error = new RateLimitError("rate limited", {
+			details: { message: "Too many requests" },
+			retryAfterSeconds: 30,
+		});
+
+		expect(error.details).toStrictEqual({ message: "Too many requests" });
+	});
+
+	it("should default details to undefined when omitted", () => {
+		expect.assertions(1);
+
+		const error = new RateLimitError("rate limited", { retryAfterSeconds: 5 });
+
+		expect(error.details).toBeUndefined();
+	});
+
+	it("should store statusCode when provided", () => {
+		expect.assertions(1);
+
+		const error = new RateLimitError("rate limited", {
+			retryAfterSeconds: 30,
+			statusCode: 429,
+		});
+
+		expect(error.statusCode).toBe(429);
+	});
+
+	it("should default statusCode to undefined when omitted", () => {
+		expect.assertions(1);
+
+		const error = new RateLimitError("rate limited", { retryAfterSeconds: 5 });
+
+		expect(error.statusCode).toBeUndefined();
+	});
 });

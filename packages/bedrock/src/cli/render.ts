@@ -1,4 +1,5 @@
 import type { ConfigError } from "../core/config-error.ts";
+import { safeStringify } from "../core/error-chain.ts";
 import type { MigrateError, MigrationSummary } from "../core/migrate/migration-report.ts";
 import type { StateError } from "../core/state.ts";
 import type { BuildDesiredError } from "../shell/build-desired.ts";
@@ -6,7 +7,7 @@ import type { MissingCredentialError, UnsupportedBackendError } from "../shell/b
 import type { DeployError } from "../shell/deploy.ts";
 import type { CodegenError } from "../shell/run-codegen.ts";
 import type { SpawnOverrideError } from "./dispatch-override.ts";
-import { applyCauseDetail, safeStringify } from "./failure-detail.ts";
+import { applyCauseDetail } from "./failure-detail.ts";
 import type { ParseMigrateError } from "./parse-migrate-options.ts";
 import type { ParseOptionsError } from "./parse-options.ts";
 

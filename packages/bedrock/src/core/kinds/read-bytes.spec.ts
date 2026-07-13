@@ -47,6 +47,24 @@ describe(readBytes, () => {
 		});
 	});
 
+	it("should carry the read rejection's cause chain into the failure reason", async () => {
+		expect.assertions(1);
+
+		const result = await readBytes(
+			{ key: asResourceKey("vip-pass"), filePath: "assets/missing.png" },
+			{
+				readFile: async () => {
+					throw new Error("read failed", { cause: new Error("EACCES: denied") });
+				},
+			},
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "fileReadFailed");
+
+		expect(result.err.reason).toBe("read failed; caused by: EACCES: denied");
+	});
+
 	it("should short-circuit the redacted-icon sentinel to a fresh copy of embedded bytes without invoking the reader", async () => {
 		expect.assertions(3);
 

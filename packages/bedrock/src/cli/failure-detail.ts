@@ -1,11 +1,9 @@
 import { ApiError, NetworkError, type OpenCloudError, PermissionError } from "@bedrock-rbx/ocale";
 
 import { boundDiagnostic } from "../core/bound-diagnostic.ts";
+import { safeStringify } from "../core/error-chain.ts";
 import { findTransportCode } from "../core/transport-code.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
-
-// Caps the error-chain rendering to avoid looping on a self-referential chain.
-const MAX_CAUSE_DEPTH = 5;
 
 /**
  * Describes the {@link OpenCloudError} behind a driver failure for one
@@ -31,30 +29,6 @@ export function describeDriverCause(err: OpenCloudError): string {
 	}
 
 	return err.message;
-}
-
-/**
- * Coerces an arbitrary thrown value to a one-line string without ever
- * throwing itself. Errors render as their message followed by the messages of
- * their `cause` chain (bounded), so a wrapped throw keeps its underlying
- * reason on the diagnostic line.
- *
- * @param value - The thrown value to describe.
- * @returns A single-line rendering of the value.
- */
-export function safeStringify(value: unknown): string {
-	if (value instanceof Error) {
-		return describeErrorChain(value);
-	}
-
-	// `String(value)` can throw on null-prototype objects or values whose
-	// `toString` / `Symbol.toPrimitive` rejects coercion; fall back so the
-	// renderer never crashes mid-diagnostic.
-	try {
-		return String(value);
-	} catch {
-		return "<unprintable cause>";
-	}
 }
 
 /**
@@ -97,17 +71,6 @@ function describeNetworkError(err: NetworkError): string {
 
 function renderResponseBody(details: JSONValue): string {
 	return boundDiagnostic(typeof details === "string" ? details : JSON.stringify(details));
-}
-
-function describeErrorChain(error: Error): string {
-	const parts = [error.message];
-	let current: unknown = error.cause;
-	while (parts.length < MAX_CAUSE_DEPTH && current instanceof Error) {
-		parts.push(current.message);
-		current = current.cause;
-	}
-
-	return parts.join("; caused by: ");
 }
 
 function permissionDetail(err: PermissionError): string {

@@ -169,19 +169,22 @@ export function createFetchHttpClient(
 			const url = buildUrl(httpRequest, config);
 			const options = buildFetchOptions(httpRequest, config);
 
+			const target = { method: httpRequest.method, url };
+
 			const fetchResult = await tryCatch(fetchFunc(url, options));
 			if (!fetchResult.success) {
-				return {
-					err: new NetworkError("Network request failed", {
-						cause: fetchResult.err,
-						method: httpRequest.method,
-						url,
-					}),
-					success: false,
-				};
+				return { err: networkError(fetchResult.err, target), success: false };
 			}
 
-			return classifyResponse(fetchResult.data);
+			// Reading and classifying the body can itself throw (an aborted or
+			// undecodable body stream rejects `response.text()`); keep the
+			// Result contract by mapping any such throw to a NetworkError.
+			const classified = await tryCatch(classifyResponse(fetchResult.data));
+			if (!classified.success) {
+				return { err: networkError(classified.err, target), success: false };
+			}
+
+			return classified.data;
 		},
 	};
 }
@@ -224,6 +227,14 @@ function extractLegacyMessage(body: object): string | undefined {
 	return typeof message === "string" ? message : undefined;
 }
 
+function networkError(cause: Error, target: { method: string; url: string }): NetworkError {
+	return new NetworkError("Network request failed", {
+		cause,
+		method: target.method,
+		url: target.url,
+	});
+}
+
 function formatApiErrorMessage(parts: ApiErrorMessageParts): string {
 	const { code, message, status } = parts;
 	const base = `HTTP ${status}`;
@@ -252,16 +263,6 @@ function createApiError(status: number, body: JSONValue | undefined): ApiError {
 	});
 }
 
-function createRateLimitError(response: Response): RateLimitError {
-	const headers = headersToRecord(response.headers);
-	return new RateLimitError("Rate limited", {
-		remaining: reduceRateLimitTokens(headers["x-ratelimit-remaining"], (a, b) =>
-			Math.min(a, b),
-		),
-		retryAfterSeconds: parseRetryAfterSeconds(headers["x-ratelimit-reset"]),
-	});
-}
-
 /**
  * Parses response text as JSON, returning the underlying `SyntaxError` on
  * failure rather than throwing. The synchronous sibling of {@link tryCatch}.
@@ -275,6 +276,51 @@ function parseJson(text: string): Result<JSONValue> {
 	} catch (err) {
 		return { err: err instanceof Error ? err : new Error(String(err)), success: false };
 	}
+}
+
+/**
+ * Reads a response body once and parses it best-effort: an empty body is a
+ * successful `undefined`, otherwise the JSON parse result (which carries the
+ * `SyntaxError` on failure). Returns the raw `text` alongside so callers that
+ * need the original bytes (parse-failure diagnostics) do not re-read the
+ * consumed stream.
+ *
+ * @param response - The Response whose body to read.
+ * @returns The parse result and the raw text.
+ */
+async function readResponseBody(
+	response: Response,
+): Promise<{ parsed: Result<JSONValue | undefined>; text: string }> {
+	const text = await response.text();
+	return {
+		parsed: text === "" ? { data: undefined, success: true } : parseJson(text),
+		text,
+	};
+}
+
+/**
+ * Projects a read body to the detail carried on an error: the parsed JSON when
+ * it parsed, otherwise the raw text truncated to {@link MAX_DETAIL_LENGTH}.
+ *
+ * @param text - The raw response body text.
+ * @param parsed - The best-effort parse result from {@link readResponseBody}.
+ * @returns The parsed body, or the truncated raw text on a parse failure.
+ */
+function bodyDetail(text: string, parsed: Result<JSONValue | undefined>): JSONValue | undefined {
+	return parsed.success ? parsed.data : text.slice(0, MAX_DETAIL_LENGTH);
+}
+
+async function createRateLimitError(response: Response): Promise<RateLimitError> {
+	const headers = headersToRecord(response.headers);
+	const { parsed, text } = await readResponseBody(response);
+	return new RateLimitError("Rate limited", {
+		details: bodyDetail(text, parsed),
+		remaining: reduceRateLimitTokens(headers["x-ratelimit-remaining"], (a, b) =>
+			Math.min(a, b),
+		),
+		retryAfterSeconds: parseRetryAfterSeconds(headers["x-ratelimit-reset"]),
+		statusCode: response.status,
+	});
 }
 
 /**
@@ -308,16 +354,13 @@ function parseFailureError({ cause, response, text }: ParseFailureArgs): ApiErro
  */
 async function classifyResponse(response: Response): Promise<Result<HttpResponse, OpenCloudError>> {
 	if (response.status === 429) {
-		return { err: createRateLimitError(response), success: false };
+		return { err: await createRateLimitError(response), success: false };
 	}
 
-	const text = await response.text();
-	const parsed: Result<JSONValue | undefined> =
-		text === "" ? { data: undefined, success: true } : parseJson(text);
+	const { parsed, text } = await readResponseBody(response);
 
 	if (response.status >= 300) {
-		const body = parsed.success ? parsed.data : text.slice(0, MAX_DETAIL_LENGTH);
-		return { err: createApiError(response.status, body), success: false };
+		return { err: createApiError(response.status, bodyDetail(text, parsed)), success: false };
 	}
 
 	if (!parsed.success) {

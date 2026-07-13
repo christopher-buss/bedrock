@@ -137,4 +137,23 @@ describe(createFsCodegenWriter, () => {
 		expect(result.err.kind).toBe("codegenWriteError");
 		expect(result.err.reason).toBe("disk full");
 	});
+
+	it("should carry a write rejection's cause chain into the failure reason", async () => {
+		expect.assertions(1);
+
+		const writeFile = vi
+			.fn<(path: string, data: string) => Promise<void>>()
+			.mockRejectedValue(new Error("write failed", { cause: new Error("ENOSPC: no space") }));
+		const writer = createFsCodegenWriter({
+			mkdir: fakeMkdir(),
+			outputDir: OUTPUT_DIR,
+			writeFile,
+		});
+
+		const result = await writer.write(FILE);
+
+		assert(!result.success);
+
+		expect(result.err.reason).toBe("write failed; caused by: ENOSPC: no space");
+	});
 });

@@ -2014,6 +2014,30 @@ describe(deploy, () => {
 			expect(result.err.reason).toBe("kaboom");
 		});
 
+		it("should carry the thrown error's cause chain into the failure reason", async () => {
+			expect.assertions(1);
+
+			const result = await deploy({
+				build: () => {
+					throw new Error("bundling failed", {
+						cause: new Error("esbuild: unexpected token"),
+					});
+				},
+				codegenWriter: inMemoryCodegenWriter().port,
+				config: fusedCodegenConfig(),
+				emit: fusedEmit,
+				environment: "production",
+				readFile: readIcon,
+				registry: recordingPlaceRegistry().registry,
+				statePort: inMemoryStatePort().port,
+			});
+
+			assert(!result.success);
+			assert(result.err.kind === "buildFailed");
+
+			expect(result.err.reason).toBe("bundling failed; caused by: esbuild: unexpected token");
+		});
+
 		it("should retain the stored codegen hash on the checkpoint when the build step fails", async () => {
 			expect.assertions(3);
 
