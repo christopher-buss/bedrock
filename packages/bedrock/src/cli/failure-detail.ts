@@ -1,15 +1,11 @@
 import { ApiError, NetworkError, type OpenCloudError, PermissionError } from "@bedrock-rbx/ocale";
 
+import { boundDiagnostic } from "../core/bound-diagnostic.ts";
 import { findTransportCode } from "../core/transport-code.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
 
 // Caps the error-chain rendering to avoid looping on a self-referential chain.
 const MAX_CAUSE_DEPTH = 5;
-
-// Bounds the response body appended to a failure line so a large JSON payload
-// or HTML gateway page does not swamp the diagnostic. Mirrors the transport's
-// own 500-character cap on bodies it could not parse.
-const MAX_RENDERED_BODY_LENGTH = 500;
 
 /**
  * Describes the {@link OpenCloudError} behind a driver failure for one
@@ -100,12 +96,7 @@ function describeNetworkError(err: NetworkError): string {
 }
 
 function renderResponseBody(details: JSONValue): string {
-	const rendered = typeof details === "string" ? details : JSON.stringify(details);
-	if (rendered.length > MAX_RENDERED_BODY_LENGTH) {
-		return `${rendered.slice(0, MAX_RENDERED_BODY_LENGTH)}…`;
-	}
-
-	return rendered;
+	return boundDiagnostic(typeof details === "string" ? details : JSON.stringify(details));
 }
 
 function describeErrorChain(error: Error): string {

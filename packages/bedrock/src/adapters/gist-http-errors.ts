@@ -1,9 +1,6 @@
+import { boundDiagnostic } from "../core/bound-diagnostic.ts";
 import type { StateError } from "../core/state.ts";
 import { findTransportCode } from "../core/transport-code.ts";
-
-// Bounds the response body appended to a failure reason so a large GitHub
-// error page does not swamp the diagnostic line.
-const MAX_ERROR_BODY_LENGTH = 500;
 
 /** Inputs for {@link mapHttpError}. */
 export interface HttpFailure {
@@ -38,11 +35,7 @@ export async function errorBodyDetail(response: Response): Promise<string> {
 		return "";
 	}
 
-	const bounded =
-		trimmed.length > MAX_ERROR_BODY_LENGTH
-			? `${trimmed.slice(0, MAX_ERROR_BODY_LENGTH)}…`
-			: trimmed;
-	return ` (body: ${bounded})`;
+	return ` (body: ${boundDiagnostic(trimmed)})`;
 }
 
 /**
