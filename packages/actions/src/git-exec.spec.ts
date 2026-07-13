@@ -50,6 +50,40 @@ describe(classifyExecFailure, () => {
 		expect(result.code).toBe(1);
 	});
 
+	it("should surface the launch failure message as stderr when the process never ran", () => {
+		expect.assertions(1);
+
+		const result = classifyExecFailure({
+			code: "ENOENT",
+			message: "spawn git ENOENT",
+			stderr: "",
+			stdout: "",
+		});
+
+		expect(result.stderr).toBe("spawn git ENOENT");
+	});
+
+	it("should fall back to the errno when a launch failure carries no message", () => {
+		expect.assertions(1);
+
+		const result = classifyExecFailure({ code: "EACCES", stderr: "", stdout: "" });
+
+		expect(result.stderr).toBe("EACCES");
+	});
+
+	it("should keep the captured stderr when a launch failure also produced output", () => {
+		expect.assertions(1);
+
+		const result = classifyExecFailure({
+			code: "ENOENT",
+			message: "spawn git ENOENT",
+			stderr: "real output",
+			stdout: "",
+		});
+
+		expect(result.stderr).toBe("real output");
+	});
+
 	it("should normalize absent stdout and stderr to empty strings", () => {
 		expect.assertions(1);
 

@@ -60,6 +60,25 @@ type ReflowOutcome =
 	| { readonly kind: "rejected" };
 
 /**
+ * Format a failed command's captured output for an error message: stderr when
+ * present, falling back to stdout (git prints some errors there), with any URL
+ * credentials redacted. Empty output yields an empty string so the caller's
+ * message keeps its bare exit-code form.
+ *
+ * @param result - The non-zero {@link GitResult} to describe.
+ * @returns `: <redacted output>`, or `""` when the command produced no output.
+ */
+export function gitFailureDetail(result: GitResult): string {
+	const stderr = result.stderr.trim();
+	const output = stderr === "" ? result.stdout.trim() : stderr;
+	if (output === "") {
+		return "";
+	}
+
+	return `: ${output.replaceAll(URL_CREDENTIALS_PATTERN, "$<scheme>***@")}`;
+}
+
+/**
  * Commit the changes under `paths` onto the latest `branch` tip and push them,
  * retrying when the tip moves under a concurrent push.
  *
@@ -110,9 +129,9 @@ export async function commitBack(
 
 /**
  * Run a git command that must succeed, rejecting if it exits non-zero so a
- * failure surfaces instead of silently corrupting the reflow. These commands
- * carry no secret (the authenticated remote URL is configured by the action
- * shell, not here), so the error can echo the full argument vector.
+ * failure surfaces instead of silently corrupting the reflow. The error
+ * carries the command's captured output (credential-redacted) alongside the
+ * argument vector, so a CI failure names git's actual reason.
  *
  * @param deps - Injected `git` runner.
  * @param args - The git argument vector.
@@ -122,7 +141,9 @@ export async function commitBack(
 async function runGit(deps: CommitBackDeps, args: ReadonlyArray<string>): Promise<GitResult> {
 	const result = await deps.git(args);
 	if (result.code !== 0) {
-		throw new Error(`commit-back: git ${args.join(" ")} failed with exit code ${result.code}`);
+		throw new Error(
+			`commit-back: git ${args.join(" ")} failed with exit code ${String(result.code)}${gitFailureDetail(result)}`,
+		);
 	}
 
 	return result;

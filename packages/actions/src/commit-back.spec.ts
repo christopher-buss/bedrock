@@ -234,7 +234,7 @@ describe(commitBack, () => {
 		expect(calls.filter((args) => args.includes("commit"))).toHaveLength(0);
 	});
 
-	it("should reject when a required git command fails", async () => {
+	it("should reject with the failing command's stderr when a required git command fails", async () => {
 		expect.assertions(1);
 
 		async function git(args: ReadonlyArray<string>): Promise<GitResult> {
@@ -244,7 +244,54 @@ describe(commitBack, () => {
 		}
 
 		await expect(commitBack({ git }, DefaultOptions)).rejects.toThrow(
-			"git add -- src/shared/assets failed with exit code 128",
+			"git add -- src/shared/assets failed with exit code 128: fatal: not a git repository",
+		);
+	});
+
+	it("should redact url credentials echoed in a failing command's stderr", async () => {
+		expect.assertions(2);
+
+		async function git(args: ReadonlyArray<string>): Promise<GitResult> {
+			return args[0] === "status"
+				? { code: 0, stderr: "", stdout: " M src/shared/assets/places.ts\n" }
+				: {
+						code: 128,
+						stderr: "fatal: unable to access 'https://x-access-token:ghs_secret@github.com/acme/game.git/': 403",
+						stdout: "",
+					};
+		}
+
+		const rejection = commitBack({ git }, DefaultOptions);
+
+		await expect(rejection).rejects.toThrow("https://***@github.com/acme/game.git");
+		await expect(rejection).rejects.not.toThrow("ghs_secret");
+	});
+
+	it("should fall back to the failing command's stdout when its stderr is empty", async () => {
+		expect.assertions(1);
+
+		async function git(args: ReadonlyArray<string>): Promise<GitResult> {
+			return args[0] === "status"
+				? { code: 0, stderr: "", stdout: " M src/shared/assets/places.ts\n" }
+				: { code: 128, stderr: "", stdout: "error printed to stdout" };
+		}
+
+		await expect(commitBack({ git }, DefaultOptions)).rejects.toThrow(
+			"git add -- src/shared/assets failed with exit code 128: error printed to stdout",
+		);
+	});
+
+	it("should keep the bare exit-code message when the failing command produced no output", async () => {
+		expect.assertions(1);
+
+		async function git(args: ReadonlyArray<string>): Promise<GitResult> {
+			return args[0] === "status"
+				? { code: 0, stderr: "", stdout: " M src/shared/assets/places.ts\n" }
+				: { code: 128, stderr: " ", stdout: "" };
+		}
+
+		await expect(commitBack({ git }, DefaultOptions)).rejects.toThrow(
+			/failed with exit code 128$/u,
 		);
 	});
 

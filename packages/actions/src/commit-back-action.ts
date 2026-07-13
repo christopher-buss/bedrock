@@ -1,4 +1,4 @@
-import { commitBack } from "./commit-back.ts";
+import { commitBack, gitFailureDetail } from "./commit-back.ts";
 import type { CommitBackOptions } from "./commit-back.ts";
 import type { GitExec } from "./git.ts";
 
@@ -100,8 +100,11 @@ export async function runCommitBackAction(deps: CommitBackActionDeps): Promise<v
 	const { extraheaderKey, options, remoteUrl } = resolveActionConfig(deps);
 	const urlResult = await deps.git(["remote", "set-url", "origin", remoteUrl]);
 	if (urlResult.code !== 0) {
-		// The error omits remoteUrl, which embeds the token.
-		throw new Error(`commit-back: failed to set the origin URL (exit code ${urlResult.code})`);
+		// The error omits remoteUrl, which embeds the token; the captured output
+		// is credential-redacted by gitFailureDetail before it is echoed.
+		throw new Error(
+			`commit-back: failed to set the origin URL (exit code ${urlResult.code})${gitFailureDetail(urlResult)}`,
+		);
 	}
 
 	// actions/checkout with persist-credentials: true (its default) stores the
@@ -112,7 +115,7 @@ export async function runCommitBackAction(deps: CommitBackActionDeps): Promise<v
 	const unset = await deps.git(["config", "--local", "--unset-all", extraheaderKey]);
 	if (unset.code !== 0 && unset.code !== EXIT_CODE_CONFIG_KEY_ABSENT) {
 		throw new Error(
-			`commit-back: failed to clear the persisted http.extraheader (exit code ${unset.code})`,
+			`commit-back: failed to clear the persisted http.extraheader (exit code ${unset.code})${gitFailureDetail(unset)}`,
 		);
 	}
 
@@ -137,8 +140,8 @@ export async function executeCommitBackAction(
 	deps: ExecuteCommitBackActionDependencies,
 ): Promise<void> {
 	const { environment, git, io } = deps;
-	io.setSecret(io.getInput("token"));
 	try {
+		io.setSecret(io.getInput("token"));
 		await runCommitBackAction({
 			getEnv: (name) => environment[name],
 			git,
@@ -221,7 +224,7 @@ async function clearPersistedIncludes(git: GitExec): Promise<void> {
 	const listed = await git(["config", "--local", "--list", "--name-only"]);
 	if (listed.code !== 0) {
 		throw new Error(
-			`commit-back: failed to list the local git config (exit code ${listed.code})`,
+			`commit-back: failed to list the local git config (exit code ${listed.code})${gitFailureDetail(listed)}`,
 		);
 	}
 
@@ -237,7 +240,7 @@ async function clearPersistedIncludes(git: GitExec): Promise<void> {
 		const cleared = await git(["config", "--local", "--unset-all", key]);
 		if (cleared.code !== 0 && cleared.code !== EXIT_CODE_CONFIG_KEY_ABSENT) {
 			throw new Error(
-				`commit-back: failed to clear the persisted include '${key}' (exit code ${cleared.code})`,
+				`commit-back: failed to clear the persisted include '${key}' (exit code ${cleared.code})${gitFailureDetail(cleared)}`,
 			);
 		}
 	}
