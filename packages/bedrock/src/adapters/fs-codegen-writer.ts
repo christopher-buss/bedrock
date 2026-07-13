@@ -4,6 +4,7 @@ import { mkdir as nodeMkdir, writeFile as nodeWriteFile } from "node:fs/promises
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
 import type { CodegenFile } from "../core/codegen.ts";
+import { safeStringify } from "../core/error-chain.ts";
 import type { CodegenWriteError, CodegenWriterPort } from "../ports/codegen-writer.ts";
 
 /**
@@ -88,7 +89,7 @@ export function createFsCodegenWriter(deps: FsCodegenWriterDeps): CodegenWriterP
 				return { data: undefined, success: true };
 			} catch (err) {
 				return {
-					err: { kind: "codegenWriteError", path, reason: toReason(err) },
+					err: { kind: "codegenWriteError", path, reason: safeStringify(err) },
 					success: false,
 				};
 			}
@@ -103,8 +104,4 @@ function isWithinOutputDirectory(outputDirectory: string, filePath: string): boo
 
 	const base = resolve(outputDirectory);
 	return !relative(base, resolve(base, filePath)).startsWith("..");
-}
-
-function toReason(err: unknown): string {
-	return err instanceof Error ? err.message : String(err);
 }
