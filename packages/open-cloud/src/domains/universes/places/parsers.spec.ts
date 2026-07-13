@@ -48,6 +48,35 @@ describe(parsePublishResponse, () => {
 		expect(result.err.statusCode).toBe(200);
 	});
 
+	it("should carry the raw string body and the parse error when the string body is not valid JSON", () => {
+		expect.assertions(2);
+
+		const result = parsePublishResponse({
+			body: "not-json",
+			headers: { "content-type": "text/plain" },
+			status: 200,
+		});
+
+		assert(!result.success);
+
+		expect(result.err.details).toBe("not-json");
+		expect(result.err.cause).toBeInstanceOf(SyntaxError);
+	});
+
+	it("should carry the offending body on the malformed-response error", () => {
+		expect.assertions(1);
+
+		const result = parsePublishResponse({
+			body: { unexpected: true },
+			headers: {},
+			status: 200,
+		});
+
+		assert(!result.success);
+
+		expect(result.err.details).toStrictEqual({ unexpected: true });
+	});
+
 	it("should return an ApiError when versionNumber is missing from an object body", () => {
 		expect.assertions(2);
 

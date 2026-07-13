@@ -127,6 +127,20 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.err.statusCode).toBe(422);
 	});
 
+	it("should carry the offending body on the malformed-response error", () => {
+		expect.assertions(1);
+
+		const result = parseDeveloperProductResponse({
+			body: { unexpected: true },
+			headers: {},
+			status: 200,
+		});
+
+		assert(!result.success);
+
+		expect(result.err.details).toStrictEqual({ unexpected: true });
+	});
+
 	it.for([
 		{ badValue: '"12345"', field: "productId" },
 		{ badValue: "42", field: "name" },

@@ -23,15 +23,15 @@ export function parseBinaryInputResponse(
 	const { body, status: statusCode } = response;
 
 	if (!isRecord(body)) {
-		return malformed(statusCode);
+		return malformed(statusCode, body);
 	}
 
 	if (typeof body["path"] !== "string" || !PATH_PATTERN.test(body["path"])) {
-		return malformed(statusCode);
+		return malformed(statusCode, body);
 	}
 
 	if (typeof body["uploadUri"] !== "string") {
-		return malformed(statusCode);
+		return malformed(statusCode, body);
 	}
 
 	return {
@@ -40,6 +40,15 @@ export function parseBinaryInputResponse(
 	};
 }
 
-function malformed(statusCode: number): Result<LuauExecutionTaskBinaryInput, ApiError> {
-	return { err: new ApiError(MALFORMED_MESSAGE, { statusCode }), success: false };
+function malformed(
+	statusCode: number,
+	body: unknown,
+): Result<LuauExecutionTaskBinaryInput, ApiError> {
+	return {
+		err: new ApiError(MALFORMED_MESSAGE, {
+			details: body as JSONValue | undefined,
+			statusCode,
+		}),
+		success: false,
+	};
 }

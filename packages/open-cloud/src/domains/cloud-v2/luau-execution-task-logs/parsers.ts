@@ -20,17 +20,17 @@ const MALFORMED_LOGS_MESSAGE = "Malformed list-luau-execution-task-logs response
 export function parseListLogsResponse(response: HttpResponse): Result<LogPage, ApiError> {
 	const { body, status: statusCode } = response;
 	if (!isRecord(body)) {
-		return malformed(statusCode);
+		return malformed(statusCode, body);
 	}
 
 	const rawChunks = body["luauExecutionSessionTaskLogs"] ?? undefined;
 	if (!isOptionalLogChunks(rawChunks)) {
-		return malformed(statusCode);
+		return malformed(statusCode, body);
 	}
 
 	const rawToken = body["nextPageToken"] ?? undefined;
 	if (rawToken !== undefined && typeof rawToken !== "string") {
-		return malformed(statusCode);
+		return malformed(statusCode, body);
 	}
 
 	const messages: Array<LogMessage> = [];
@@ -85,6 +85,12 @@ function isOptionalLogChunks(value: unknown): value is ReadonlyArray<LogChunkWir
 	);
 }
 
-function malformed(statusCode: number): Result<LogPage, ApiError> {
-	return { err: new ApiError(MALFORMED_LOGS_MESSAGE, { statusCode }), success: false };
+function malformed(statusCode: number, body: unknown): Result<LogPage, ApiError> {
+	return {
+		err: new ApiError(MALFORMED_LOGS_MESSAGE, {
+			details: body as JSONValue | undefined,
+			statusCode,
+		}),
+		success: false,
+	};
 }

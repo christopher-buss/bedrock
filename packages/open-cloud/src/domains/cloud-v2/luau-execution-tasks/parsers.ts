@@ -53,12 +53,12 @@ export function parseLuauExecutionTaskResponse(
 ): Result<LuauExecutionTask, ApiError> {
 	const { body, status: statusCode } = response;
 	if (!isLuauExecutionTaskWire(body)) {
-		return malformed(statusCode);
+		return malformed(statusCode, body);
 	}
 
 	const ref = parseTaskRef(body.path);
 	if (ref === undefined) {
-		return malformed(statusCode);
+		return malformed(statusCode, body);
 	}
 
 	const timeoutSeconds = parseTimeoutSeconds(body.timeout);
@@ -176,8 +176,14 @@ function parseTimeoutSeconds(value: string | undefined): number | undefined {
 	return Number.parseInt(seconds, 10);
 }
 
-function malformed(statusCode: number): Result<LuauExecutionTask, ApiError> {
-	return { err: new ApiError(MALFORMED_TASK_MESSAGE, { statusCode }), success: false };
+function malformed(statusCode: number, body: unknown): Result<LuauExecutionTask, ApiError> {
+	return {
+		err: new ApiError(MALFORMED_TASK_MESSAGE, {
+			details: body as JSONValue | undefined,
+			statusCode,
+		}),
+		success: false,
+	};
 }
 
 function parseInProgressTask(
@@ -203,7 +209,7 @@ function parseInProgressTask(
 function parseCompleteTask(args: ParseVariantArgs): Result<LuauExecutionTask, ApiError> {
 	const { body, createdAt, ref, statusCode, timeoutSeconds, updatedAt } = args;
 	if (body.output === undefined) {
-		return malformed(statusCode);
+		return malformed(statusCode, body);
 	}
 
 	return {
@@ -226,7 +232,7 @@ function parseCompleteTask(args: ParseVariantArgs): Result<LuauExecutionTask, Ap
 function parseFailedTask(args: ParseVariantArgs): Result<LuauExecutionTask, ApiError> {
 	const { body, createdAt, ref, statusCode, timeoutSeconds, updatedAt } = args;
 	if (body.error === undefined) {
-		return malformed(statusCode);
+		return malformed(statusCode, body);
 	}
 
 	return {

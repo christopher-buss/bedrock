@@ -22,7 +22,7 @@ const MALFORMED_DEQUEUE_MESSAGE = "Malformed memory-store dequeue response";
 export function parseQueueItemResponse(response: HttpResponse): Result<QueueItem, ApiError> {
 	const item = wireBodyToQueueItem(response.body);
 	if (item === undefined) {
-		return malformedQueueItem(response.status);
+		return malformedQueueItem(response.status, response.body);
 	}
 
 	return { data: item, success: true };
@@ -42,22 +42,22 @@ export function parseQueueItemResponse(response: HttpResponse): Result<QueueItem
 export function parseDequeueResponse(response: HttpResponse): Result<DequeueResult, ApiError> {
 	const { body, status: statusCode } = response;
 	if (!isRecord(body)) {
-		return malformedDequeue(statusCode);
+		return malformedDequeue(statusCode, body);
 	}
 
 	const { id, queueItems } = body;
 	if (typeof id !== "string") {
-		return malformedDequeue(statusCode);
+		return malformedDequeue(statusCode, body);
 	}
 
 	if (queueItems !== undefined && queueItems !== null && !Array.isArray(queueItems)) {
-		return malformedDequeue(statusCode);
+		return malformedDequeue(statusCode, body);
 	}
 
 	const rawItems = queueItems ?? [];
 	const items = rawItems.map(wireBodyToQueueItem);
 	if (!items.every(isQueueItem)) {
-		return malformedDequeue(statusCode);
+		return malformedDequeue(statusCode, body);
 	}
 
 	return { data: { items, readId: id }, success: true };
@@ -101,9 +101,12 @@ function wireBodyToQueueItem(body: unknown): QueueItem | undefined {
 	};
 }
 
-function malformedQueueItem(statusCode: number): Result<QueueItem, ApiError> {
+function malformedQueueItem(statusCode: number, body: unknown): Result<QueueItem, ApiError> {
 	return {
-		err: new ApiError(MALFORMED_QUEUE_ITEM_MESSAGE, { statusCode }),
+		err: new ApiError(MALFORMED_QUEUE_ITEM_MESSAGE, {
+			details: body as JSONValue | undefined,
+			statusCode,
+		}),
 		success: false,
 	};
 }
@@ -112,9 +115,12 @@ function isQueueItem(item: QueueItem | undefined): item is QueueItem {
 	return item !== undefined;
 }
 
-function malformedDequeue(statusCode: number): Result<DequeueResult, ApiError> {
+function malformedDequeue(statusCode: number, body: unknown): Result<DequeueResult, ApiError> {
 	return {
-		err: new ApiError(MALFORMED_DEQUEUE_MESSAGE, { statusCode }),
+		err: new ApiError(MALFORMED_DEQUEUE_MESSAGE, {
+			details: body as JSONValue | undefined,
+			statusCode,
+		}),
 		success: false,
 	};
 }

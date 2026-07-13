@@ -147,6 +147,20 @@ describe(parseListResponse, () => {
 		expect(result.err.message).toBe("Malformed memory-store sorted-map list response");
 	});
 
+	it("should carry the offending body on the malformed-response error for the list shape", () => {
+		expect.assertions(1);
+
+		const result = parseListResponse({
+			body: { items: "nope" },
+			headers: {},
+			status: 200,
+		});
+
+		assert(!result.success);
+
+		expect(result.err.details).toStrictEqual({ items: "nope" });
+	});
+
 	it("should reject a body whose items is not an array", () => {
 		expect.assertions(1);
 
@@ -442,6 +456,20 @@ describe(parseSortedMapItemResponse, () => {
 
 			expect(result.err).toBeInstanceOf(ApiError);
 			expect(result.err.statusCode).toBe(200);
+		});
+
+		it("should carry the offending body on the malformed-response error", () => {
+			expect.assertions(1);
+
+			const result = parseSortedMapItemResponse({
+				body: { unexpected: true },
+				headers: {},
+				status: 200,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.details).toStrictEqual({ unexpected: true });
 		});
 
 		it.for(["etag", "expireTime", "id", "path", "value"] as const)(

@@ -27,7 +27,10 @@ export function parsePublishResponse(response: HttpResponse): Result<PlaceVersio
 
 	if (!isPlaceVersionWire(decodeResult.data)) {
 		return {
-			err: new ApiError("Malformed publish response", { statusCode }),
+			err: new ApiError("Malformed publish response", {
+				details: body as JSONValue | undefined,
+				statusCode,
+			}),
 			success: false,
 		};
 	}
@@ -45,9 +48,13 @@ function decodeBody(body: unknown, statusCode: number): Result<unknown, ApiError
 
 	try {
 		return { data: JSON.parse(body), success: true };
-	} catch {
+	} catch (err) {
 		return {
-			err: new ApiError("Malformed publish response", { statusCode }),
+			err: new ApiError("Malformed publish response", {
+				cause: err,
+				details: body,
+				statusCode,
+			}),
 			success: false,
 		};
 	}

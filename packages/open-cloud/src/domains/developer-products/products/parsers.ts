@@ -27,10 +27,7 @@ export function parseDeveloperProductResponse(
 	const { body, status: statusCode } = response;
 
 	if (!isDeveloperProductConfigV2(body)) {
-		return {
-			err: new ApiError("Malformed developer product response", { statusCode }),
-			success: false,
-		};
+		return malformedDeveloperProduct(statusCode, body);
 	}
 
 	const priceWire = body.priceInformation ?? undefined;
@@ -51,6 +48,19 @@ export function parseDeveloperProductResponse(
 			updatedAt: new Date(body.updatedTimestamp),
 		},
 		success: true,
+	};
+}
+
+function malformedDeveloperProduct(
+	statusCode: number,
+	body: unknown,
+): Result<DeveloperProduct, ApiError> {
+	return {
+		err: new ApiError("Malformed developer product response", {
+			details: body as JSONValue | undefined,
+			statusCode,
+		}),
+		success: false,
 	};
 }
 

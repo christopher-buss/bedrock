@@ -610,13 +610,14 @@ describe(ResourceClient, () => {
 			expect(result.err.requiredScopes).toStrictEqual(["test:write"]);
 		});
 
-		it("should preserve message, code, and cause from the original ApiError on upgrade", async () => {
-			expect.assertions(4);
+		it("should preserve message, code, cause, and details from the original ApiError on upgrade", async () => {
+			expect.assertions(5);
 
 			const upstream = new Error("upstream-failure");
 			const original = new ApiError("missing scope", {
 				cause: upstream,
 				code: "INSUFFICIENT_SCOPE",
+				details: { message: "the api key lacks the required scope" },
 				statusCode: 403,
 			});
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockError(
@@ -642,6 +643,9 @@ describe(ResourceClient, () => {
 			expect(result.err.message).toBe("missing scope");
 			expect(result.err.code).toBe("INSUFFICIENT_SCOPE");
 			expect(result.err.cause).toBe(upstream);
+			expect(result.err.details).toStrictEqual({
+				message: "the api key lacks the required scope",
+			});
 			expect(result.err.name).toBe("PermissionError");
 		});
 

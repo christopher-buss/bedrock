@@ -48,6 +48,20 @@ describe(parseThumbnailUploadResponse, () => {
 		expect(result.err.message).toBe("Malformed thumbnail upload response");
 	});
 
+	it("should carry the offending body on the malformed-response error", () => {
+		expect.assertions(1);
+
+		const result = parseThumbnailUploadResponse({
+			body: { unexpected: true },
+			headers: {},
+			status: 200,
+		});
+
+		assert(!result.success);
+
+		expect(result.err.details).toStrictEqual({ unexpected: true });
+	});
+
 	it("should return an ApiError when the body is JSON null", () => {
 		expect.assertions(1);
 

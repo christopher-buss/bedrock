@@ -21,7 +21,10 @@ export function parseThumbnailUploadResponse(
 
 	if (!isGameThumbnailUploadWire(body)) {
 		return {
-			err: new ApiError("Malformed thumbnail upload response", { statusCode }),
+			err: new ApiError("Malformed thumbnail upload response", {
+				details: body as JSONValue | undefined,
+				statusCode,
+			}),
 			success: false,
 		};
 	}
