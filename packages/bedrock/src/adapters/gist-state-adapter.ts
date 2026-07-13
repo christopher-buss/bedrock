@@ -4,6 +4,12 @@ import { validateEnvironmentName } from "../core/environment.ts";
 import { parseStateFile, serializeStateFile } from "../core/state-file.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
 import type { StatePort } from "../ports/state-port.ts";
+import {
+	errorBodyDetail,
+	type HttpFailure,
+	mapHttpError,
+	networkError,
+} from "./gist-http-errors.ts";
 
 const GITHUB_API_BASE = "https://api.github.com";
 const GITHUB_API_VERSION = "2026-03-10";
@@ -65,12 +71,6 @@ interface GistFile {
 	readonly isTruncated: boolean;
 	readonly rawUrl: string | undefined;
 	readonly size: number;
-}
-
-interface HttpFailure {
-	readonly file: string;
-	readonly gistId: string;
-	readonly response: Response;
 }
 
 interface RetryDependencies {
@@ -178,41 +178,6 @@ function toGistFile(entry: unknown): GistFile | undefined {
 	return { content, isTruncated, rawUrl, size };
 }
 
-function isRateLimited(headers: Headers): boolean {
-	return headers.has("retry-after") || headers.get("x-ratelimit-remaining") === "0";
-}
-
-function rateLimitReason(status: number, headers: Headers): string {
-	const retryAfter = headers.get("retry-after");
-	if (retryAfter !== null) {
-		return `rate limited (${status}): retry after ${retryAfter}s`;
-	}
-
-	return `rate limited (${status})`;
-}
-
-function mapHttpError({ file, gistId, response }: HttpFailure): StateError {
-	const { headers, status } = response;
-	if (status === 404) {
-		return { file, kind: "stateError", reason: `gist ${gistId} not found: check gistId` };
-	}
-
-	if (status === 403 && isRateLimited(headers)) {
-		return { file, kind: "stateError", reason: rateLimitReason(status, headers) };
-	}
-
-	if (status === 401 || status === 403) {
-		return { file, kind: "stateError", reason: `auth failed (${status}): check token scopes` };
-	}
-
-	return { file, kind: "stateError", reason: `github returned ${status}` };
-}
-
-function networkError(error: unknown, file: string): StateError {
-	const message = error instanceof Error ? error.message : String(error);
-	return { file, kind: "stateError", reason: `network error: ${message}` };
-}
-
 function buildHeaders(token: string): Headers {
 	const headers = new Headers();
 	headers.set("Accept", "application/vnd.github+json");
@@ -276,7 +241,7 @@ async function fetchGistBody(
 
 	if (!response.ok) {
 		return {
-			err: mapHttpError({ file, gistId: ctx.gistId, response }),
+			err: await mapHttpError({ file, gistId: ctx.gistId, response }),
 			success: false,
 		};
 	}
@@ -406,6 +371,18 @@ async function waitForContentVisibility(
 	}
 }
 
+async function mapWriteFailure(failure: HttpFailure): Promise<Result<void, StateError>> {
+	const { file, response } = failure;
+	if (response.status === 422) {
+		return stateErr(
+			file,
+			`invalid PATCH body sent to github${await errorBodyDetail(response)}`,
+		);
+	}
+
+	return { err: await mapHttpError(failure), success: false };
+}
+
 async function writePath(
 	ctx: AdapterContext,
 	state: BedrockState,
@@ -433,12 +410,5 @@ async function writePath(
 		return { data: undefined, success: true };
 	}
 
-	if (response.status === 422) {
-		return stateErr(file, "invalid PATCH body sent to github");
-	}
-
-	return {
-		err: mapHttpError({ file, gistId: ctx.gistId, response }),
-		success: false,
-	};
+	return mapWriteFailure({ file, gistId: ctx.gistId, response });
 }

@@ -1,13 +1,9 @@
 import { ApiError, NetworkError, type OpenCloudError, PermissionError } from "@bedrock-rbx/ocale";
 
+import { findTransportCode } from "../core/transport-code.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
 
-// Walks an error's `cause` chain for the first node-style string `code` (for
-// example `"ECONNRESET"`). A fetch transport reset surfaces as
-// `NetworkError → TypeError("fetch failed") → OS Error{code}`, so the code sits
-// several links down. Capped to avoid looping on a self-referential chain.
-// ocale computes this internally but does not export it; the bounded walk is
-// reproduced here so the renderer can name the transport failure.
+// Caps the error-chain rendering to avoid looping on a self-referential chain.
 const MAX_CAUSE_DEPTH = 5;
 
 // Bounds the response body appended to a failure line so a large JSON payload
@@ -92,20 +88,6 @@ export function applyCauseDetail(cause: ApplyError): string {
 			return "update not supported";
 		}
 	}
-}
-
-function findTransportCode(error: unknown): string | undefined {
-	let current: unknown = error;
-	for (let depth = 0; depth < MAX_CAUSE_DEPTH && current instanceof Error; depth += 1) {
-		const code = Reflect.get(current, "code");
-		if (typeof code === "string") {
-			return code;
-		}
-
-		current = current.cause;
-	}
-
-	return undefined;
 }
 
 function describeNetworkError(err: NetworkError): string {

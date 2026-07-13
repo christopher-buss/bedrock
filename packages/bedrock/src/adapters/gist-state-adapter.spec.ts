@@ -322,6 +322,75 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).not.toMatch(/auth failed|not found/u);
 		});
 
+		it("should append github's error body to the fallback reason", async () => {
+			expect.assertions(1);
+
+			const { fetchFn } = fakeFetch(
+				() => new Response('{"message":"Something odd"}', { status: 400 }),
+			);
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toBe(
+				'github returned 400 (body: {"message":"Something odd"})',
+			);
+		});
+
+		it("should truncate a github error body beyond 500 characters with an ellipsis", async () => {
+			expect.assertions(1);
+
+			const { fetchFn } = fakeFetch(() => new Response("x".repeat(501), { status: 400 }));
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toBe(`github returned 400 (body: ${"x".repeat(500)}…)`);
+		});
+
+		it("should append github's error body to the auth-failed reason", async () => {
+			expect.assertions(1);
+
+			const { fetchFn } = fakeFetch(
+				() => new Response('{"message":"Bad credentials"}', { status: 401 }),
+			);
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toBe(
+				'auth failed (401): check token scopes (body: {"message":"Bad credentials"})',
+			);
+		});
+
+		it("should name the transport code from the fetch error's cause chain", async () => {
+			expect.assertions(1);
+
+			async function throwingFetch(): Promise<Response> {
+				throw new TypeError("fetch failed", {
+					cause: Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" }),
+				});
+			}
+
+			const port = createGistStateAdapter({
+				fetch: throwingFetch,
+				gistId: GIST_ID,
+				token: TOKEN,
+			});
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toBe("network error: fetch failed (ECONNRESET)");
+		});
+
 		it("should return ok(undefined) when the files dict is missing on the gist response", async () => {
 			expect.assertions(2);
 
@@ -667,6 +736,27 @@ describe(createGistStateAdapter, () => {
 
 			expect(result.success).toBeFalse();
 			expect(calls).toBeEmpty();
+		});
+
+		it("should append github's error body to the invalid-PATCH-body reason on 422", async () => {
+			expect.assertions(1);
+
+			const { fetchFn } = fakeFetch(
+				() => new Response('{"message":"Validation Failed"}', { status: 422 }),
+			);
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.write({
+				environment: "production",
+				resources: [],
+				version: 1,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.reason).toBe(
+				'invalid PATCH body sent to github (body: {"message":"Validation Failed"})',
+			);
 		});
 
 		it("should err with an invalid-PATCH-body reason on 422 from write", async () => {

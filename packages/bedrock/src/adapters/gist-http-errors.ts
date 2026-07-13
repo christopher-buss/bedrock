@@ -1,0 +1,109 @@
+import type { StateError } from "../core/state.ts";
+import { findTransportCode } from "../core/transport-code.ts";
+
+// Bounds the response body appended to a failure reason so a large GitHub
+// error page does not swamp the diagnostic line.
+const MAX_ERROR_BODY_LENGTH = 500;
+
+/** Inputs for {@link mapHttpError}. */
+export interface HttpFailure {
+	/** File label (`gist:<id>/state.<env>.json`) the failure is attributed to. */
+	readonly file: string;
+	/** Gist id, echoed into the not-found reason. */
+	readonly gistId: string;
+	/** The non-ok response to map. */
+	readonly response: Response;
+}
+
+/**
+ * Read a failed response's body for the failure reason, bounded and formatted
+ * as ` (body: …)`. GitHub's error bodies carry the actionable cause (a
+ * validation message, a secret-scanning block) that the status code alone
+ * hides. An empty or unreadable body yields an empty string so the reason
+ * keeps its bare status form.
+ *
+ * @param response - The non-ok `Response` whose body is read.
+ * @returns The formatted suffix, or `""` when no body is available.
+ */
+export async function errorBodyDetail(response: Response): Promise<string> {
+	let text: string;
+	try {
+		text = await response.text();
+	} catch {
+		return "";
+	}
+
+	const trimmed = text.trim();
+	if (trimmed === "") {
+		return "";
+	}
+
+	const bounded =
+		trimmed.length > MAX_ERROR_BODY_LENGTH
+			? `${trimmed.slice(0, MAX_ERROR_BODY_LENGTH)}…`
+			: trimmed;
+	return ` (body: ${bounded})`;
+}
+
+/**
+ * Map a non-ok GitHub response onto a `StateError` with an actionable reason:
+ * a named cause for 404 (bad gist id), rate limiting, and auth failures, and
+ * the (bounded) error body GitHub returned for everything the status code
+ * alone does not explain.
+ *
+ * @param failure - The failing file label, gist id, and raw `Response`.
+ * @returns The mapped `StateError`.
+ */
+export async function mapHttpError({ file, gistId, response }: HttpFailure): Promise<StateError> {
+	const { headers, status } = response;
+	if (status === 404) {
+		return { file, kind: "stateError", reason: `gist ${gistId} not found: check gistId` };
+	}
+
+	if (status === 403 && isRateLimited(headers)) {
+		return { file, kind: "stateError", reason: rateLimitReason(status, headers) };
+	}
+
+	if (status === 401 || status === 403) {
+		return {
+			file,
+			kind: "stateError",
+			reason: `auth failed (${status}): check token scopes${await errorBodyDetail(response)}`,
+		};
+	}
+
+	return {
+		file,
+		kind: "stateError",
+		reason: `github returned ${status}${await errorBodyDetail(response)}`,
+	};
+}
+
+/**
+ * Map a thrown fetch error onto a `StateError`, naming the node-style
+ * transport code (for example `ECONNRESET`) from the error's `cause` chain so
+ * a connection reset reads differently from a DNS failure.
+ *
+ * @param error - The value the fetch call threw.
+ * @param file - The file label the failure is attributed to.
+ * @returns The mapped `StateError`.
+ */
+export function networkError(error: unknown, file: string): StateError {
+	const message = error instanceof Error ? error.message : String(error);
+	const code = findTransportCode(error);
+	const suffix = code === undefined ? "" : ` (${code})`;
+	return { file, kind: "stateError", reason: `network error: ${message}${suffix}` };
+}
+
+function isRateLimited(headers: Headers): boolean {
+	return headers.has("retry-after") || headers.get("x-ratelimit-remaining") === "0";
+}
+
+function rateLimitReason(status: number, headers: Headers): string {
+	const retryAfter = headers.get("retry-after");
+	if (retryAfter !== null) {
+		return `rate limited (${status}): retry after ${retryAfter}s`;
+	}
+
+	return `rate limited (${status})`;
+}
