@@ -104,7 +104,10 @@ jobs:
         name: Open or refresh the Version PR
         run: |
           set -euo pipefail
-          if gh pr view "$RELEASE_BRANCH" --json number >/dev/null 2>&1; then
+          # `gh pr view <branch>` resolves the most recent PR for the branch
+          # in ANY state, so a previously merged Version PR would satisfy it
+          # and suppress creation of the next one. Filter to open PRs only.
+          if [ "$(gh pr list --head "$RELEASE_BRANCH" --state open --json number --jq length)" -gt 0 ]; then
             echo "Version PR already open; refreshed with the latest bump."
           else
             gh pr create \
