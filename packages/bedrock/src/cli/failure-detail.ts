@@ -67,6 +67,11 @@ function renderResponseBody(details: JSONValue): string {
 }
 
 function hasFoldedApiMessage(message: string): boolean {
+	// The transport folds an extracted API message into `HTTP <status>: <msg>`;
+	// when it did, the body is redundant and is not re-dumped. A bare `HTTP 400`,
+	// an `HTTP 418 (code X)`, or a non-status message (e.g. a parse failure) has
+	// no colon after the status and still surfaces its body. This mirrors ocale's
+	// format; the two packages version together, so it stays in sync.
 	return message.startsWith("HTTP ") && message.includes(": ");
 }
 
@@ -75,10 +80,6 @@ function apiErrorHead(err: ApiError): string {
 		return `${err.message} from gateway ("${err.gatewaySummary}")`;
 	}
 
-	// Dump the body only when the message did not already fold in the API's own
-	// message. A folded status line reads `HTTP <status>: …`; a bare `HTTP 400`,
-	// an `HTTP 418 (code X)`, or a non-status message (e.g. a parse failure)
-	// still carries a body worth showing.
 	if (err.details !== undefined && !hasFoldedApiMessage(err.message)) {
 		return `${err.message} (body: ${renderResponseBody(err.details)})`;
 	}
@@ -95,16 +96,8 @@ function formatElapsed(elapsedMs: number | undefined): string {
 }
 
 function formatHeaderSummary(headers: Record<string, string> | undefined): string {
-	if (headers === undefined) {
-		return "";
-	}
-
-	const pairs = Object.entries(headers).map(([name, value]) => `${name}=${value}`);
-	if (pairs.length === 0) {
-		return "";
-	}
-
-	return ` (${pairs.join(", ")})`;
+	const pairs = Object.entries(headers ?? {}).map(([name, value]) => `${name}=${value}`);
+	return pairs.length === 0 ? "" : ` (${pairs.join(", ")})`;
 }
 
 function formatCallTarget(method: string | undefined, url: string | undefined): string {
