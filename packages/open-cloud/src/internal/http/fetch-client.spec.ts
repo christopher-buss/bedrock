@@ -932,12 +932,12 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.details).toBe("x".repeat(500));
 	});
 
-	it("should classify a non-2xx response with a non-JSON body by its status", async () => {
+	it("should classify a non-2xx response with a non-JSON, non-HTML body by its status", async () => {
 		expect.assertions(4);
 
 		async function fakeFetch(): Promise<Response> {
-			return new Response("<html>502 Bad Gateway</html>", {
-				headers: { "content-type": "text/html" },
+			return new Response("upstream connect error or disconnect/reset before headers", {
+				headers: { "content-type": "text/plain" },
 				status: 502,
 			});
 		}
@@ -954,7 +954,105 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.statusCode).toBe(502);
 		expect(result.err.message).toBe("HTTP 502");
 		expect(result.err.code).toBeUndefined();
-		expect(result.err.details).toBe("<html>502 Bad Gateway</html>");
+		expect(result.err.details).toBe("upstream connect error or disconnect/reset before headers");
+	});
+
+	it("should summarize an HTML gateway error page and carry request context", async () => {
+		expect.assertions(6);
+
+		let clock = 1000;
+		function fakeNow(): number {
+			const value = clock;
+			clock += 74_700;
+			return value;
+		}
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response(
+				"<html><body><h1>400 Bad request</h1>\nYour browser sent an invalid request.\n</body></html>",
+				{ headers: { "content-type": "text/html", server: "haproxy" }, status: 400 },
+			);
+		}
+
+		const client = createFetchHttpClient(fakeFetch, fakeNow);
+		const result = await client.request(
+			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
+			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
+		expect(result.err.gatewaySummary).toBe("400 Bad request");
+		expect(result.err.details).toBeUndefined();
+		expect(result.err.method).toBe("POST");
+		expect(result.err.url).toBe("https://apis.roblox.com/universes/v1/1/places/2/versions");
+		expect(result.err.elapsedMs).toBe(74_700);
+		expect(result.err.responseHeaders).toStrictEqual({ server: "haproxy" });
+	});
+
+	it("should attach request context to a JSON API error without a gateway summary", async () => {
+		expect.assertions(6);
+
+		let clock = 0;
+		function fakeNow(): number {
+			const value = clock;
+			clock += 40_200;
+			return value;
+		}
+
+		const body = { message: "An error occurred while processing your request." };
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response(JSON.stringify(body), {
+				headers: {
+					"content-type": "application/json",
+					server: "public-gateway",
+					"x-roblox-edge": "c173",
+				},
+				status: 500,
+			});
+		}
+
+		const client = createFetchHttpClient(fakeFetch, fakeNow);
+		const result = await client.request(
+			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
+			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
+		expect(result.err.gatewaySummary).toBeUndefined();
+		expect(result.err.details).toStrictEqual(body);
+		expect(result.err.method).toBe("POST");
+		expect(result.err.elapsedMs).toBe(40_200);
+		expect(result.err.responseHeaders).toStrictEqual({
+			server: "public-gateway",
+			"x-roblox-edge": "c173",
+		});
+		expect(result.err.message).toBe("HTTP 500: An error occurred while processing your request.");
+	});
+
+	it("should measure elapsed time with the default clock when none is injected", async () => {
+		expect.assertions(2);
+
+		async function fakeFetch(): Promise<Response> {
+			return new Response(JSON.stringify({ message: "boom" }), { status: 500 });
+		}
+
+		const client = createFetchHttpClient(fakeFetch);
+		const result = await client.request(
+			{ method: "GET", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+		assert(result.err.elapsedMs !== undefined);
+
+		expect(typeof result.err.elapsedMs).toBe("number");
+		expect(result.err.elapsedMs).toBeGreaterThanOrEqual(0);
 	});
 
 	it("should truncate the raw body retained on a non-JSON error response", async () => {

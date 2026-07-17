@@ -34,6 +34,22 @@ interface ParseFailureArgs {
 	readonly text: string;
 }
 
+/**
+ * The request-level context threaded from the transport into error
+ * construction: which call failed and how long it was in flight.
+ */
+interface RequestContext {
+	readonly elapsedMs: number;
+	readonly method: string;
+	readonly url: string;
+}
+
+interface CreateApiErrorArgs extends RequestContext {
+	readonly body: JSONValue | undefined;
+	readonly rawText: string;
+	readonly response: Response;
+}
+
 interface ApiErrorMessageParts {
 	readonly code: string | undefined;
 	readonly message: string | undefined;
@@ -245,6 +261,7 @@ export function buildFetchOptions(request: HttpRequest, config: RequestConfig): 
  */
 export function createFetchHttpClient(
 	fetchFunc: (url: string, init: RequestInit) => Promise<Response> = globalThis.fetch,
+	now: () => number = Date.now,
 ): HttpClient {
 	return {
 		async request(
@@ -256,7 +273,9 @@ export function createFetchHttpClient(
 
 			const target = { method: httpRequest.method, url };
 
+			const start = now();
 			const fetchResult = await tryCatch(fetchFunc(url, options));
+			const elapsedMs = now() - start;
 			if (!fetchResult.success) {
 				return { err: networkError(fetchResult.err, target), success: false };
 			}
@@ -264,7 +283,8 @@ export function createFetchHttpClient(
 			// Reading and classifying the body can itself throw (an aborted or
 			// undecodable body stream rejects `response.text()`); keep the
 			// Result contract by mapping any such throw to a NetworkError.
-			const classified = await tryCatch(classifyResponse(fetchResult.data));
+			const context: RequestContext = { elapsedMs, method: target.method, url: target.url };
+			const classified = await tryCatch(classifyResponse(fetchResult.data, context));
 			if (!classified.success) {
 				return { err: networkError(classified.err, target), success: false };
 			}
@@ -338,13 +358,31 @@ function formatApiErrorMessage(parts: ApiErrorMessageParts): string {
 	return `${base}: ${message} (code ${code})`;
 }
 
-function createApiError(status: number, body: JSONValue | undefined): ApiError {
+function createApiError(args: CreateApiErrorArgs): ApiError {
+	const { body, elapsedMs, method, rawText, response, url } = args;
+	const status = response.status;
+	const headers = headersToRecord(response.headers);
+	const requestContext = {
+		elapsedMs,
+		method,
+		responseHeaders: pickDiagnosticHeaders(headers),
+		statusCode: status,
+		url,
+	};
+
+	// An HTML body is a load-balancer error page, not an Open Cloud response;
+	// summarize it rather than retaining the raw HTML on `details`.
+	const gatewaySummary = extractGatewaySummary(headers[CONTENT_TYPE_HEADER], rawText);
+	if (gatewaySummary !== undefined) {
+		return new ApiError(`HTTP ${status}`, { ...requestContext, gatewaySummary });
+	}
+
 	const code = extractErrorCode(body);
 	const message = extractErrorMessage(body);
 	return new ApiError(formatApiErrorMessage({ code, message, status }), {
+		...requestContext,
 		code,
 		details: body,
-		statusCode: status,
 	});
 }
 
@@ -429,15 +467,20 @@ function parseFailureError({ cause, response, text }: ParseFailureArgs): ApiErro
  * Classifies a fetch `Response` into a typed `Result`.
  *
  * The body is read once and parsed best-effort. Error responses (status >= 300)
- * never require valid JSON: an error body that is not valid JSON (for example
- * an HTML gateway page) degrades to a status-based {@link ApiError} carrying
- * the raw text. A parse failure is only fatal on a 2xx, where a parseable body is part
- * of the contract.
+ * never require valid JSON: an error body that is not valid JSON degrades to a
+ * status-based {@link ApiError} carrying the raw text, and an HTML gateway page
+ * is summarized rather than dumped. A parse failure is only fatal on a 2xx,
+ * where a parseable body is part of the contract.
  *
  * @param response - The raw fetch Response to classify.
+ * @param context - The request context (method, url, elapsed time) threaded
+ *   onto any {@link ApiError} built for an error response.
  * @returns A Result containing an HttpResponse on success or an OpenCloudError on failure.
  */
-async function classifyResponse(response: Response): Promise<Result<HttpResponse, OpenCloudError>> {
+async function classifyResponse(
+	response: Response,
+	context: RequestContext,
+): Promise<Result<HttpResponse, OpenCloudError>> {
 	if (response.status === 429) {
 		return { err: await createRateLimitError(response), success: false };
 	}
@@ -445,7 +488,15 @@ async function classifyResponse(response: Response): Promise<Result<HttpResponse
 	const { parsed, text } = await readResponseBody(response);
 
 	if (response.status >= 300) {
-		return { err: createApiError(response.status, bodyDetail(text, parsed)), success: false };
+		return {
+			err: createApiError({
+				...context,
+				body: bodyDetail(text, parsed),
+				rawText: text,
+				response,
+			}),
+			success: false,
+		};
 	}
 
 	if (!parsed.success) {
