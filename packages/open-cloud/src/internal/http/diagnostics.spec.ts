@@ -66,18 +66,46 @@ describe(extractGatewaySummary, () => {
 		expect(extractGatewaySummary("text/html; charset=utf-8", body)).toBe("502 Bad Gateway");
 	});
 
-	it("should match tags and the doctype case-insensitively", () => {
+	it("should detect a tag-led html body only after trimming leading whitespace", () => {
 		expect.assertions(1);
 
-		const body = "<!DOCTYPE html><HTML><BODY><H1>400  Bad   request</H1></BODY></HTML>";
+		const body = "\n  <html><h1>500 Internal</h1></html>";
+
+		expect(extractGatewaySummary(undefined, body)).toBe("500 Internal");
+	});
+
+	it("should collapse whitespace and trim the extracted summary", () => {
+		expect.assertions(1);
+
+		const body = "<!DOCTYPE html><HTML><BODY><H1>  400  Bad   request  </H1></BODY></HTML>";
 
 		expect(extractGatewaySummary(undefined, body)).toBe("400 Bad request");
+	});
+
+	it("should replace a nested tag with a space rather than deleting it", () => {
+		expect.assertions(1);
+
+		expect(extractGatewaySummary(undefined, "<html><h1>400<br>Bad request</h1></html>")).toBe(
+			"400 Bad request",
+		);
+	});
+
+	it("should return undefined when the matched heading collapses to empty text", () => {
+		expect.assertions(1);
+
+		expect(extractGatewaySummary("text/html", "<html><h1>   </h1></html>")).toBeUndefined();
 	});
 
 	it("should return undefined for a non-html body", () => {
 		expect.assertions(1);
 
 		expect(extractGatewaySummary("application/json", '{"message":"nope"}')).toBeUndefined();
+	});
+
+	it("should not treat a non-html body as a gateway page even when it embeds an h1", () => {
+		expect.assertions(1);
+
+		expect(extractGatewaySummary("text/plain", "intro <h1>Heading</h1>")).toBeUndefined();
 	});
 
 	it("should return undefined for an html page with no title or h1 text", () => {

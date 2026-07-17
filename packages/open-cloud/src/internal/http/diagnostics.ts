@@ -64,12 +64,11 @@ export function pickDiagnosticHeaders(headers: Record<string, string>): Record<s
 }
 
 function firstTagText(html: string, pattern: RegExp): string | undefined {
-	const match = pattern.exec(html);
-	if (!match) {
+	const inner = pattern.exec(html)?.[1];
+	if (inner === undefined) {
 		return undefined;
 	}
 
-	const inner = match[1] ?? "";
 	const text = inner.replace(TAG_PATTERN, " ").replace(WHITESPACE_PATTERN, " ").trim();
 	return text === "" ? undefined : text;
 }

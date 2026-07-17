@@ -890,7 +890,7 @@ describe(createFetchHttpClient, () => {
 	}
 
 	it("should summarize an HTML gateway error page rather than dumping the body", async () => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		const client = createFetchHttpClient(gatewayFetch, fixedClock(1000, 74_700));
 		const result = await client.request(
@@ -901,6 +901,7 @@ describe(createFetchHttpClient, () => {
 		assert(!result.success);
 		assert(result.err instanceof ApiError);
 
+		expect(result.err.message).toBe("HTTP 400");
 		expect(result.err.gatewaySummary).toBe("400 Bad request");
 		expect(result.err.details).toBeUndefined();
 	});
