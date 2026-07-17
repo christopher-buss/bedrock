@@ -165,6 +165,17 @@ describe(describeDriverCause, () => {
 		);
 	});
 
+	it("should bound an oversized diagnostic-header summary to 500 characters", () => {
+		expect.assertions(1);
+
+		const err = new ApiError("HTTP 500: boom", {
+			responseHeaders: { server: "x".repeat(501) },
+			statusCode: 500,
+		});
+
+		expect(describeDriverCause(err)).toBe(`HTTP 500: boom (server=${"x".repeat(493)}…)`);
+	});
+
 	it("should omit the header summary when no diagnostic headers were captured", () => {
 		expect.assertions(1);
 

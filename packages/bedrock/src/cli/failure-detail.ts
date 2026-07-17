@@ -95,9 +95,9 @@ function formatElapsed(elapsedMs: number | undefined): string {
 	return elapsedMs === undefined ? "" : ` after ${(elapsedMs / 1000).toFixed(1)}s`;
 }
 
-function formatHeaderSummary(headers: Record<string, string> | undefined): string {
+function formatHeaderSummary(headers: Readonly<Record<string, string>> | undefined): string {
 	const pairs = Object.entries(headers ?? {}).map(([name, value]) => `${name}=${value}`);
-	return pairs.length === 0 ? "" : ` (${pairs.join(", ")})`;
+	return pairs.length === 0 ? "" : ` (${boundDiagnostic(pairs.join(", "))})`;
 }
 
 function formatCallTarget(method: string | undefined, url: string | undefined): string {
