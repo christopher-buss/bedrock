@@ -30,7 +30,7 @@ export interface ApiErrorOptions extends ErrorOptions {
 	 * ids, edge/server identifiers). The full header set is never retained, to
 	 * avoid surfacing anything sensitive and to keep errors light.
 	 */
-	responseHeaders?: Record<string, string> | undefined;
+	responseHeaders?: Readonly<Record<string, string>> | undefined;
 	/** HTTP status code from the API response. */
 	statusCode: number;
 	/** Fully-qualified URL of the request that produced this error. */
@@ -70,7 +70,7 @@ export class ApiError extends OpenCloudError {
 	public readonly gatewaySummary: string | undefined;
 	public readonly method: string | undefined;
 	public override readonly name: string = "ApiError";
-	public readonly responseHeaders: Record<string, string> | undefined;
+	public readonly responseHeaders: Readonly<Record<string, string>> | undefined;
 	public readonly statusCode: number;
 	public readonly url: string | undefined;
 
