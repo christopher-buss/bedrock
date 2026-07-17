@@ -229,6 +229,13 @@ blocking CI check (`changeset status`) fails the PR otherwise. PRs touching only
 docs/CI/private packages need none. Releases ship by merging the auto-generated
 `ci: version packages` PR; never hand-edit package versions.
 
+**Pre-1.0 bump policy**: changesets applies bump types literally at any version
+(`major` on 0.x jumps straight to 1.0.0 — it has no special 0.x mode), so until
+1.0 never write `major` in a changeset. Breaking change → `minor` (0.1.0 →
+0.2.0, the breaking boundary for `^0.x` consumers); feature or fix → `patch`
+(0.1.0 → 0.1.1). The 1.0.0 release itself will be a deliberate, hand-authored
+`major`.
+
 ### Creating Issues
 
 Use GitHub issue templates for:
