@@ -116,7 +116,7 @@ describe(ApiError, () => {
 	});
 
 	it("should default the request-context fields to undefined when omitted", () => {
-		expect.assertions(4);
+		expect.assertions(5);
 
 		const error = new ApiError("not found", { statusCode: 404 });
 
@@ -124,5 +124,6 @@ describe(ApiError, () => {
 		expect(error.url).toBeUndefined();
 		expect(error.elapsedMs).toBeUndefined();
 		expect(error.gatewaySummary).toBeUndefined();
+		expect(error.responseHeaders).toBeUndefined();
 	});
 });

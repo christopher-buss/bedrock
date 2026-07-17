@@ -8,6 +8,7 @@ describe(pickDiagnosticHeaders, () => {
 
 		const headers = {
 			"authorization": "Bearer secret",
+			"cf-ray": "8f-EWR",
 			"content-length": "37",
 			"server": "haproxy",
 			"via": "1.1 edge",
@@ -16,6 +17,7 @@ describe(pickDiagnosticHeaders, () => {
 		};
 
 		expect(pickDiagnosticHeaders(headers)).toStrictEqual({
+			"cf-ray": "8f-EWR",
 			"server": "haproxy",
 			"via": "1.1 edge",
 			"x-request-id": "abc-123",
