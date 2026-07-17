@@ -31,17 +31,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Debug before setup (temporary)
-        run: git status --porcelain
-
       - name: Setup
         uses: ./.github/actions/setup
-
-      - name: Debug after setup (temporary)
-        run: |
-          set -x
-          git status --porcelain
-          git diff | head -80
 
       - name: Verify a changeset is present
         run: pnpm changeset status --since=origin/${{ github.base_ref }}
