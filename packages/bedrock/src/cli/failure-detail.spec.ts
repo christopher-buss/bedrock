@@ -139,6 +139,19 @@ describe(describeDriverCause, () => {
 		);
 	});
 
+	it("should still dump the body for a non-status message that happens to contain a colon", () => {
+		expect.assertions(1);
+
+		const err = new ApiError("Failed to parse response body (content-type: application/json)", {
+			details: "not json",
+			statusCode: 200,
+		});
+
+		expect(describeDriverCause(err)).toBe(
+			"Failed to parse response body (content-type: application/json) (body: not json)",
+		);
+	});
+
 	it("should omit the header summary when no diagnostic headers were captured", () => {
 		expect.assertions(1);
 

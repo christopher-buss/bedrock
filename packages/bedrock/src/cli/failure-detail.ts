@@ -66,15 +66,20 @@ function renderResponseBody(details: JSONValue): string {
 	return boundDiagnostic(typeof details === "string" ? details : JSON.stringify(details));
 }
 
+function hasFoldedApiMessage(message: string): boolean {
+	return message.startsWith("HTTP ") && message.includes(": ");
+}
+
 function apiErrorHead(err: ApiError): string {
 	if (err.gatewaySummary !== undefined) {
 		return `${err.message} from gateway ("${err.gatewaySummary}")`;
 	}
 
-	// Dump the body only when the status line carries no human message (a bare
-	// `HTTP 400`); when the message was folded into `err.message` the body is
-	// redundant.
-	if (err.details !== undefined && !err.message.includes(": ")) {
+	// Dump the body only when the message did not already fold in the API's own
+	// message. A folded status line reads `HTTP <status>: …`; a bare `HTTP 400`,
+	// an `HTTP 418 (code X)`, or a non-status message (e.g. a parse failure)
+	// still carries a body worth showing.
+	if (err.details !== undefined && !hasFoldedApiMessage(err.message)) {
 		return `${err.message} (body: ${renderResponseBody(err.details)})`;
 	}
 
