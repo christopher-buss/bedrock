@@ -106,6 +106,19 @@ describe(describeDriverCause, () => {
 		);
 	});
 
+	it("should bound an oversized gateway summary to 500 characters", () => {
+		expect.assertions(1);
+
+		const err = new ApiError("HTTP 400", {
+			gatewaySummary: "x".repeat(501),
+			statusCode: 400,
+		});
+
+		expect(describeDriverCause(err)).toBe(
+			`HTTP 400 from gateway ("${"x".repeat(500)}…") — request rejected before reaching Open Cloud`,
+		);
+	});
+
 	it("should append the call target, elapsed time, and headers to a json api error without re-dumping the body", () => {
 		expect.assertions(1);
 

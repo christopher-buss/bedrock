@@ -77,7 +77,7 @@ function hasFoldedApiMessage(message: string): boolean {
 
 function apiErrorHead(err: ApiError): string {
 	if (err.gatewaySummary !== undefined) {
-		return `${err.message} from gateway ("${err.gatewaySummary}")`;
+		return `${err.message} from gateway ("${boundDiagnostic(err.gatewaySummary)}")`;
 	}
 
 	if (err.details !== undefined && !hasFoldedApiMessage(err.message)) {
