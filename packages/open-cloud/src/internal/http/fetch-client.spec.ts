@@ -9,10 +9,8 @@ import {
 	createFetchHttpClient,
 	extractErrorCode,
 	extractErrorMessage,
-	extractGatewaySummary,
 	headersToRecord,
 	parseRetryAfterSeconds,
-	pickDiagnosticHeaders,
 } from "./fetch-client.ts";
 
 describe(headersToRecord, () => {
@@ -36,90 +34,6 @@ describe(headersToRecord, () => {
 		const headers = new Headers();
 
 		expect(headersToRecord(headers)).toStrictEqual({});
-	});
-});
-
-describe(pickDiagnosticHeaders, () => {
-	it("should keep allowlisted escalation headers and drop everything else", () => {
-		expect.assertions(1);
-
-		const headers = {
-			authorization: "Bearer secret",
-			"content-length": "37",
-			server: "haproxy",
-			via: "1.1 edge",
-			"x-ratelimit-remaining": "70000",
-			"x-request-id": "abc-123",
-		};
-
-		expect(pickDiagnosticHeaders(headers)).toStrictEqual({
-			server: "haproxy",
-			via: "1.1 edge",
-			"x-request-id": "abc-123",
-		});
-	});
-
-	it("should keep any x-roblox-* header by prefix", () => {
-		expect.assertions(1);
-
-		const headers = { "content-type": "text/html", "x-roblox-edge": "c173" };
-
-		expect(pickDiagnosticHeaders(headers)).toStrictEqual({ "x-roblox-edge": "c173" });
-	});
-
-	it("should return an empty record when no header is allowlisted", () => {
-		expect.assertions(1);
-
-		const headers = { "content-length": "0", "set-cookie": "sid=1" };
-
-		expect(pickDiagnosticHeaders(headers)).toStrictEqual({});
-	});
-});
-
-describe(extractGatewaySummary, () => {
-	it("should extract the h1 text from an html body when no content-type is given", () => {
-		expect.assertions(1);
-
-		const body =
-			"<html><body><h1>400 Bad request</h1>\nYour browser sent an invalid request.\n</body></html>";
-
-		expect(extractGatewaySummary(undefined, body)).toBe("400 Bad request");
-	});
-
-	it("should prefer the title over the h1 when both are present", () => {
-		expect.assertions(1);
-
-		const body = "<html><head><title>503 Service Unavailable</title></head><body><h1>oops</h1></body></html>";
-
-		expect(extractGatewaySummary("text/html", body)).toBe("503 Service Unavailable");
-	});
-
-	it("should detect an html page from the content-type even if the body is not tag-led", () => {
-		expect.assertions(1);
-
-		const body = "\n\n  <h1>502 Bad Gateway</h1>";
-
-		expect(extractGatewaySummary("text/html; charset=utf-8", body)).toBe("502 Bad Gateway");
-	});
-
-	it("should match tags and the doctype case-insensitively", () => {
-		expect.assertions(1);
-
-		const body = "<!DOCTYPE html><HTML><BODY><H1>400  Bad   request</H1></BODY></HTML>";
-
-		expect(extractGatewaySummary(undefined, body)).toBe("400 Bad request");
-	});
-
-	it("should return undefined for a non-html body", () => {
-		expect.assertions(1);
-
-		expect(extractGatewaySummary("application/json", '{"message":"nope"}')).toBeUndefined();
-	});
-
-	it("should return undefined for an html page with no title or h1 text", () => {
-		expect.assertions(1);
-
-		expect(extractGatewaySummary("text/html", "<html><body><p>hi</p></body></html>")).toBeUndefined();
 	});
 });
 
@@ -954,27 +868,31 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.statusCode).toBe(502);
 		expect(result.err.message).toBe("HTTP 502");
 		expect(result.err.code).toBeUndefined();
-		expect(result.err.details).toBe("upstream connect error or disconnect/reset before headers");
+		expect(result.err.details).toBe(
+			"upstream connect error or disconnect/reset before headers",
+		);
 	});
 
-	it("should summarize an HTML gateway error page and carry request context", async () => {
-		expect.assertions(6);
+	async function gatewayFetch(): Promise<Response> {
+		return new Response(
+			"<html><body><h1>400 Bad request</h1>\nYour browser sent an invalid request.\n</body></html>",
+			{ headers: { "content-type": "text/html", "server": "haproxy" }, status: 400 },
+		);
+	}
 
-		let clock = 1000;
-		function fakeNow(): number {
+	function fixedClock(startMs: number, deltaMs: number): () => number {
+		let clock = startMs;
+		return () => {
 			const value = clock;
-			clock += 74_700;
+			clock += deltaMs;
 			return value;
-		}
+		};
+	}
 
-		async function fakeFetch(): Promise<Response> {
-			return new Response(
-				"<html><body><h1>400 Bad request</h1>\nYour browser sent an invalid request.\n</body></html>",
-				{ headers: { "content-type": "text/html", server: "haproxy" }, status: 400 },
-			);
-		}
+	it("should summarize an HTML gateway error page rather than dumping the body", async () => {
+		expect.assertions(2);
 
-		const client = createFetchHttpClient(fakeFetch, fakeNow);
+		const client = createFetchHttpClient(gatewayFetch, fixedClock(1000, 74_700));
 		const result = await client.request(
 			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
 			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
@@ -985,36 +903,44 @@ describe(createFetchHttpClient, () => {
 
 		expect(result.err.gatewaySummary).toBe("400 Bad request");
 		expect(result.err.details).toBeUndefined();
+	});
+
+	it("should carry the call target, elapsed time, and headers on a gateway error", async () => {
+		expect.assertions(4);
+
+		const client = createFetchHttpClient(gatewayFetch, fixedClock(1000, 74_700));
+		const result = await client.request(
+			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
+			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
 		expect(result.err.method).toBe("POST");
 		expect(result.err.url).toBe("https://apis.roblox.com/universes/v1/1/places/2/versions");
 		expect(result.err.elapsedMs).toBe(74_700);
 		expect(result.err.responseHeaders).toStrictEqual({ server: "haproxy" });
 	});
 
-	it("should attach request context to a JSON API error without a gateway summary", async () => {
-		expect.assertions(6);
-
-		let clock = 0;
-		function fakeNow(): number {
-			const value = clock;
-			clock += 40_200;
-			return value;
-		}
-
-		const body = { message: "An error occurred while processing your request." };
-
-		async function fakeFetch(): Promise<Response> {
-			return new Response(JSON.stringify(body), {
+	async function jsonErrorFetch(): Promise<Response> {
+		return new Response(
+			JSON.stringify({ message: "An error occurred while processing your request." }),
+			{
 				headers: {
 					"content-type": "application/json",
-					server: "public-gateway",
+					"server": "public-gateway",
 					"x-roblox-edge": "c173",
 				},
 				status: 500,
-			});
-		}
+			},
+		);
+	}
 
-		const client = createFetchHttpClient(fakeFetch, fakeNow);
+	it("should not summarize a JSON API error as a gateway page", async () => {
+		expect.assertions(3);
+
+		const client = createFetchHttpClient(jsonErrorFetch, fixedClock(0, 40_200));
 		const result = await client.request(
 			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
 			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
@@ -1024,14 +950,33 @@ describe(createFetchHttpClient, () => {
 		assert(result.err instanceof ApiError);
 
 		expect(result.err.gatewaySummary).toBeUndefined();
-		expect(result.err.details).toStrictEqual(body);
+		expect(result.err.details).toStrictEqual({
+			message: "An error occurred while processing your request.",
+		});
+		expect(result.err.message).toBe(
+			"HTTP 500: An error occurred while processing your request.",
+		);
+	});
+
+	it("should attach the call target, elapsed time, and headers to a JSON API error", async () => {
+		expect.assertions(4);
+
+		const client = createFetchHttpClient(jsonErrorFetch, fixedClock(0, 40_200));
+		const result = await client.request(
+			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
+			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
 		expect(result.err.method).toBe("POST");
+		expect(result.err.url).toBe("https://apis.roblox.com/universes/v1/1/places/2/versions");
 		expect(result.err.elapsedMs).toBe(40_200);
 		expect(result.err.responseHeaders).toStrictEqual({
-			server: "public-gateway",
+			"server": "public-gateway",
 			"x-roblox-edge": "c173",
 		});
-		expect(result.err.message).toBe("HTTP 500: An error occurred while processing your request.");
 	});
 
 	it("should measure elapsed time with the default clock when none is injected", async () => {
@@ -1051,7 +996,7 @@ describe(createFetchHttpClient, () => {
 		assert(result.err instanceof ApiError);
 		assert(result.err.elapsedMs !== undefined);
 
-		expect(typeof result.err.elapsedMs).toBe("number");
+		expect(result.err.elapsedMs).toBeTypeOf("number");
 		expect(result.err.elapsedMs).toBeGreaterThanOrEqual(0);
 	});
 

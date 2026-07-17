@@ -89,6 +89,72 @@ describe(describeDriverCause, () => {
 		expect(describeDriverCause(err)).toBe("HTTP 504: gateway timeout");
 	});
 
+	it("should render an html gateway error as a summarized one-line diagnostic", () => {
+		expect.assertions(1);
+
+		const err = new ApiError("HTTP 400", {
+			elapsedMs: 74_700,
+			gatewaySummary: "400 Bad request",
+			method: "POST",
+			responseHeaders: { server: "haproxy" },
+			statusCode: 400,
+			url: "https://apis.roblox.com/universes/v1/1/places/2/versions",
+		});
+
+		expect(describeDriverCause(err)).toBe(
+			'HTTP 400 from gateway ("400 Bad request") on POST https://apis.roblox.com/universes/v1/1/places/2/versions after 74.7s — request rejected before reaching Open Cloud (server=haproxy)',
+		);
+	});
+
+	it("should append the call target, elapsed time, and headers to a json api error without re-dumping the body", () => {
+		expect.assertions(1);
+
+		const err = new ApiError("HTTP 500: An error occurred while processing your request.", {
+			details: { message: "An error occurred while processing your request." },
+			elapsedMs: 40_200,
+			method: "POST",
+			responseHeaders: { "server": "public-gateway", "x-roblox-edge": "c173" },
+			statusCode: 500,
+			url: "https://apis.roblox.com/universes/v1/1/places/2/versions",
+		});
+
+		expect(describeDriverCause(err)).toBe(
+			"HTTP 500: An error occurred while processing your request. on POST https://apis.roblox.com/universes/v1/1/places/2/versions after 40.2s (server=public-gateway, x-roblox-edge=c173)",
+		);
+	});
+
+	it("should keep the body dump for a bare status and still append the call target and elapsed time", () => {
+		expect.assertions(1);
+
+		const err = new ApiError("HTTP 400", {
+			details: { errorCode: "InvalidArgument" },
+			elapsedMs: 1_500,
+			method: "POST",
+			statusCode: 400,
+			url: "https://apis.roblox.com/x",
+		});
+
+		expect(describeDriverCause(err)).toBe(
+			'HTTP 400 (body: {"errorCode":"InvalidArgument"}) on POST https://apis.roblox.com/x after 1.5s',
+		);
+	});
+
+	it("should omit the header summary when no diagnostic headers were captured", () => {
+		expect.assertions(1);
+
+		const err = new ApiError("HTTP 500: boom", {
+			elapsedMs: 2_000,
+			method: "GET",
+			responseHeaders: {},
+			statusCode: 500,
+			url: "https://apis.roblox.com/y",
+		});
+
+		expect(describeDriverCause(err)).toBe(
+			"HTTP 500: boom on GET https://apis.roblox.com/y after 2.0s",
+		);
+	});
+
 	it("should append an api error's JSON response body so a bare status is diagnosable", () => {
 		expect.assertions(1);
 

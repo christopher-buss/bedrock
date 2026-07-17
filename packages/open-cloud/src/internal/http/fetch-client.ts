@@ -4,6 +4,7 @@ import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
 import type { Result } from "../../types.ts";
 import { tryCatch } from "../utils/try-catch.ts";
+import { extractGatewaySummary, pickDiagnosticHeaders } from "./diagnostics.ts";
 import { reduceRateLimitTokens } from "./rate-limit-sample.ts";
 import type { HttpClient, HttpRequest, HttpResponse, RequestConfig } from "./types.ts";
 
@@ -12,21 +13,6 @@ import type { HttpClient, HttpRequest, HttpResponse, RequestConfig } from "./typ
 const MAX_DETAIL_LENGTH = 500;
 
 const CONTENT_TYPE_HEADER = "content-type";
-
-// A small allowlist of response headers worth retaining on an ApiError for
-// diagnosis and escalation to Roblox. apis.roblox.com returns `server` (e.g.
-// `public-gateway`, or `haproxy` on a load-balancer error page) and
-// `x-roblox-edge` on every response; `via`, `x-request-id`, and `cf-ray` are
-// standard proxy/CDN request-id headers kept in case an edge adds them. The
-// full header set is never retained, to avoid surfacing anything sensitive.
-const DIAGNOSTIC_HEADER_ALLOWLIST: ReadonlySet<string> = new Set([
-	"cf-ray",
-	"server",
-	"via",
-	"x-request-id",
-]);
-
-const DIAGNOSTIC_HEADER_PREFIX = "x-roblox-";
 
 interface ParseFailureArgs {
 	readonly cause: Error;
@@ -44,8 +30,9 @@ interface RequestContext {
 	readonly url: string;
 }
 
-interface CreateApiErrorArgs extends RequestContext {
-	readonly body: JSONValue | undefined;
+interface ErrorResponseArgs {
+	readonly context: RequestContext;
+	readonly parsed: Result<JSONValue | undefined>;
 	readonly rawText: string;
 	readonly response: Response;
 }
@@ -64,76 +51,6 @@ interface ApiErrorMessageParts {
  */
 export function headersToRecord(headers: Headers): Record<string, string> {
 	return Object.fromEntries(headers);
-}
-
-/**
- * Filters a lowercased header record down to the diagnostic allowlist: a few
- * named escalation headers plus any `x-roblox-*` header. Keeps errors light and
- * avoids retaining anything sensitive from the full response header set.
- *
- * @param headers - The full header record (lowercased keys).
- * @returns A record containing only the allowlisted headers that were present.
- */
-export function pickDiagnosticHeaders(headers: Record<string, string>): Record<string, string> {
-	const picked: Record<string, string> = {};
-	for (const [name, value] of Object.entries(headers)) {
-		if (DIAGNOSTIC_HEADER_ALLOWLIST.has(name) || name.startsWith(DIAGNOSTIC_HEADER_PREFIX)) {
-			picked[name] = value;
-		}
-	}
-
-	return picked;
-}
-
-const TITLE_PATTERN = /<title[^>]*>([\S\s]*?)<\/title>/i;
-const H1_PATTERN = /<h1[^>]*>([\S\s]*?)<\/h1>/i;
-const TAG_PATTERN = /<[^>]*>/g;
-const WHITESPACE_PATTERN = /\s+/g;
-
-function isHtmlBody(contentType: string | undefined, rawText: string): boolean {
-	if (contentType !== undefined && contentType.toLowerCase().includes("text/html")) {
-		return true;
-	}
-
-	const head = rawText.trimStart().toLowerCase();
-	return head.startsWith("<html") || head.startsWith("<!doctype html");
-}
-
-function firstTagText(html: string, pattern: RegExp): string | undefined {
-	const match = pattern.exec(html);
-	if (!match) {
-		return undefined;
-	}
-
-	const inner = match[1] ?? "";
-	const text = inner.replace(TAG_PATTERN, " ").replace(WHITESPACE_PATTERN, " ").trim();
-	return text === "" ? undefined : text;
-}
-
-/**
- * Extracts a one-line human summary from an HTML gateway error page, or returns
- * `undefined` when the body is not such a page. A load balancer (HAProxy-style)
- * rejects a request before it reaches Open Cloud and answers with an HTML page,
- * not a JSON Open Cloud error; dumping that HTML whole is noise. The body is
- * treated as HTML when the content-type is `text/html` or the trimmed body is
- * tag-led (`<html`/`<!doctype html`), and the summary is taken from the
- * `<title>` (falling back to the first `<h1>`), tags stripped and whitespace
- * collapsed.
- *
- * @param contentType - The response `content-type` header, if present.
- * @param rawText - The raw response body text.
- * @returns The extracted summary, or `undefined` when the body is not an HTML
- *   gateway page (or carries no title/h1 text).
- */
-export function extractGatewaySummary(
-	contentType: string | undefined,
-	rawText: string,
-): string | undefined {
-	if (!isHtmlBody(contentType, rawText)) {
-		return undefined;
-	}
-
-	return firstTagText(rawText, TITLE_PATTERN) ?? firstTagText(rawText, H1_PATTERN);
 }
 
 /**
@@ -257,6 +174,8 @@ export function buildFetchOptions(request: HttpRequest, config: RequestConfig): 
  * Creates an {@link HttpClient} backed by the Fetch API.
  *
  * @param fetchFunc - The fetch implementation to use. Defaults to `globalThis.fetch`.
+ * @param now - Monotonic-ish clock used to measure request elapsed time.
+ *   Defaults to `Date.now`; injectable so tests can assert a fixed duration.
  * @returns An HttpClient that classifies responses into typed Results.
  */
 export function createFetchHttpClient(
@@ -273,9 +192,9 @@ export function createFetchHttpClient(
 
 			const target = { method: httpRequest.method, url };
 
-			const start = now();
-			const fetchResult = await tryCatch(fetchFunc(url, options));
-			const elapsedMs = now() - start;
+			const { elapsedMs, fetchResult } = await timedFetch(now, async () =>
+				fetchFunc(url, options),
+			);
 			if (!fetchResult.success) {
 				return { err: networkError(fetchResult.err, target), success: false };
 			}
@@ -332,6 +251,24 @@ function extractLegacyMessage(body: object): string | undefined {
 	return typeof message === "string" ? message : undefined;
 }
 
+/**
+ * Runs `send` and reports both its Result and how long it was in flight,
+ * measured with `now`. Isolated so the timing start need not sit in the request
+ * body ahead of the transport-failure early return.
+ *
+ * @param now - The clock used to bound the call.
+ * @param send - A thunk that issues the fetch.
+ * @returns The fetch Result and the elapsed milliseconds.
+ */
+async function timedFetch(
+	now: () => number,
+	send: () => Promise<Response>,
+): Promise<{ elapsedMs: number; fetchResult: Result<Response> }> {
+	const start = now();
+	const fetchResult = await tryCatch(send());
+	return { elapsedMs: now() - start, fetchResult };
+}
+
 function networkError(cause: Error, target: { method: string; url: string }): NetworkError {
 	return new NetworkError("Network request failed", {
 		cause,
@@ -358,16 +295,28 @@ function formatApiErrorMessage(parts: ApiErrorMessageParts): string {
 	return `${base}: ${message} (code ${code})`;
 }
 
-function createApiError(args: CreateApiErrorArgs): ApiError {
-	const { body, elapsedMs, method, rawText, response, url } = args;
-	const status = response.status;
+/**
+ * Projects a read body to the detail carried on an error: the parsed JSON when
+ * it parsed, otherwise the raw text truncated to {@link MAX_DETAIL_LENGTH}.
+ *
+ * @param text - The raw response body text.
+ * @param parsed - The best-effort parse result from {@link readResponseBody}.
+ * @returns The parsed body, or the truncated raw text on a parse failure.
+ */
+function bodyDetail(text: string, parsed: Result<JSONValue | undefined>): JSONValue | undefined {
+	return parsed.success ? parsed.data : text.slice(0, MAX_DETAIL_LENGTH);
+}
+
+function createApiError(args: ErrorResponseArgs): ApiError {
+	const { context, rawText, response } = args;
+	const { status } = response;
 	const headers = headersToRecord(response.headers);
 	const requestContext = {
-		elapsedMs,
-		method,
+		elapsedMs: context.elapsedMs,
+		method: context.method,
 		responseHeaders: pickDiagnosticHeaders(headers),
 		statusCode: status,
-		url,
+		url: context.url,
 	};
 
 	// An HTML body is a load-balancer error page, not an Open Cloud response;
@@ -377,6 +326,7 @@ function createApiError(args: CreateApiErrorArgs): ApiError {
 		return new ApiError(`HTTP ${status}`, { ...requestContext, gatewaySummary });
 	}
 
+	const body = bodyDetail(rawText, args.parsed);
 	const code = extractErrorCode(body);
 	const message = extractErrorMessage(body);
 	return new ApiError(formatApiErrorMessage({ code, message, status }), {
@@ -419,18 +369,6 @@ async function readResponseBody(
 		parsed: text === "" ? { data: undefined, success: true } : parseJson(text),
 		text,
 	};
-}
-
-/**
- * Projects a read body to the detail carried on an error: the parsed JSON when
- * it parsed, otherwise the raw text truncated to {@link MAX_DETAIL_LENGTH}.
- *
- * @param text - The raw response body text.
- * @param parsed - The best-effort parse result from {@link readResponseBody}.
- * @returns The parsed body, or the truncated raw text on a parse failure.
- */
-function bodyDetail(text: string, parsed: Result<JSONValue | undefined>): JSONValue | undefined {
-	return parsed.success ? parsed.data : text.slice(0, MAX_DETAIL_LENGTH);
 }
 
 async function createRateLimitError(response: Response): Promise<RateLimitError> {
@@ -489,12 +427,7 @@ async function classifyResponse(
 
 	if (response.status >= 300) {
 		return {
-			err: createApiError({
-				...context,
-				body: bodyDetail(text, parsed),
-				rawText: text,
-				response,
-			}),
+			err: createApiError({ context, parsed, rawText: text, response }),
 			success: false,
 		};
 	}

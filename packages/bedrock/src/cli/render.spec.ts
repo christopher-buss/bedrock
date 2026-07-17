@@ -371,6 +371,30 @@ describe(renderDeployError, () => {
 		{
 			err: {
 				cause: {
+					applied: [],
+					failures: [
+						{
+							key: asResourceKey("start"),
+							cause: new ApiError("HTTP 400", {
+								elapsedMs: 74_700,
+								gatewaySummary: "400 Bad request",
+								method: "POST",
+								responseHeaders: { server: "haproxy" },
+								statusCode: 400,
+								url: "https://apis.roblox.com/universes/v1/9110019856/places/84607999013117/versions?versionType=Published",
+							}),
+							kind: "driverFailure",
+						},
+					],
+				},
+				kind: "applyFailed",
+			},
+			expected:
+				"apply failed for 'start': HTTP 400 from gateway (\"400 Bad request\") on POST https://apis.roblox.com/universes/v1/9110019856/places/84607999013117/versions?versionType=Published after 74.7s — request rejected before reaching Open Cloud (server=haproxy)",
+		},
+		{
+			err: {
+				cause: {
 					kind: "parseFailed",
 					message: "unexpected end of the stream",
 					sourceFile: "bedrock.config.yaml",
