@@ -266,7 +266,9 @@ async function timedFetch(
 ): Promise<{ elapsedMs: number; fetchResult: Result<Response> }> {
 	const start = now();
 	const fetchResult = await tryCatch(send());
-	return { elapsedMs: now() - start, fetchResult };
+	// Clamp to zero: `Date.now` is wall-clock, so an NTP adjustment mid-request
+	// could otherwise report a negative "after -0.1s".
+	return { elapsedMs: Math.max(0, now() - start), fetchResult };
 }
 
 function networkError(cause: Error, target: { method: string; url: string }): NetworkError {

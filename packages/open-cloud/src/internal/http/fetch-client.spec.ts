@@ -1001,6 +1001,21 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.elapsedMs).toBeGreaterThanOrEqual(0);
 	});
 
+	it("should clamp a backwards-moving clock to a non-negative elapsed time", async () => {
+		expect.assertions(1);
+
+		const client = createFetchHttpClient(jsonErrorFetch, fixedClock(5000, -1000));
+		const result = await client.request(
+			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
+			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
+		expect(result.err.elapsedMs).toBe(0);
+	});
+
 	it("should truncate the raw body retained on a non-JSON error response", async () => {
 		expect.assertions(2);
 
