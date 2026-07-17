@@ -1,6 +1,6 @@
 ---
-"@bedrock-rbx/core": minor
-"@bedrock-rbx/ocale": minor
+"@bedrock-rbx/core": patch
+"@bedrock-rbx/ocale": patch
 ---
 
 Enrich API errors with request context and summarize gateway error pages.

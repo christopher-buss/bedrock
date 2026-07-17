@@ -1,6 +1,6 @@
 ---
-"@bedrock-rbx/core": minor
-"@bedrock-rbx/ocale": minor
+"@bedrock-rbx/core": patch
+"@bedrock-rbx/ocale": patch
 ---
 
 Preserve more diagnostic detail on failures. `RateLimitError` now carries the
