@@ -1,5 +1,27 @@
 # @bedrock-rbx/core
 
+## 0.1.1
+
+### Patch Changes
+
+- [#525](https://github.com/christopher-buss/bedrock/pull/525) [`e896fed`](https://github.com/christopher-buss/bedrock/commit/e896fed5540d8f70e3077146db3b93840d9e605f) Thanks [@christopher-buss](https://github.com/christopher-buss)! - Enrich API errors with request context and summarize gateway error pages.
+  `ApiError` now carries the request `method`, `url`, `elapsedMs`, and an
+  allowlisted set of `responseHeaders` (server/edge/request-id headers useful for
+  escalation), and an HTML load-balancer error page is captured as a short
+  `gatewaySummary` rather than retained whole. Deploy failure messages render this
+  context on one line — `on METHOD url after Ns`, a gateway summary in place of a
+  raw HTML dump, and any captured headers — and no longer re-dump a response body
+  whose message already appears in the status line.
+
+- [#524](https://github.com/christopher-buss/bedrock/pull/524) [`8a28977`](https://github.com/christopher-buss/bedrock/commit/8a28977a6f4bd795f0ca8cfe599f7b12ef882590) Thanks [@christopher-buss](https://github.com/christopher-buss)! - Preserve more diagnostic detail on failures. `RateLimitError` now carries the
+  429 response body on `details` (parsed JSON or truncated raw text) plus the
+  `statusCode`, mirroring `ApiError`. Deploy, codegen, and config-load failure
+  messages now render the underlying `cause` chain instead of only the outermost
+  error message, so a wrapped build, emit, write, file-read, or config-function
+  throw stays diagnosable from the log alone.
+- Updated dependencies [[`e896fed`](https://github.com/christopher-buss/bedrock/commit/e896fed5540d8f70e3077146db3b93840d9e605f), [`8a28977`](https://github.com/christopher-buss/bedrock/commit/8a28977a6f4bd795f0ca8cfe599f7b12ef882590)]:
+  - @bedrock-rbx/ocale@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes
