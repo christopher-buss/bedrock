@@ -71,4 +71,59 @@ describe(ApiError, () => {
 
 		expect(error.cause).toBe(cause);
 	});
+
+	it("should store the request method and url when provided", () => {
+		expect.assertions(2);
+
+		const error = new ApiError("HTTP 400", {
+			method: "POST",
+			statusCode: 400,
+			url: "https://apis.roblox.com/universes/v1/1/places/2/versions",
+		});
+
+		expect(error.method).toBe("POST");
+		expect(error.url).toBe("https://apis.roblox.com/universes/v1/1/places/2/versions");
+	});
+
+	it("should store the elapsed request time when provided", () => {
+		expect.assertions(1);
+
+		const error = new ApiError("HTTP 400", { elapsedMs: 74_700, statusCode: 400 });
+
+		expect(error.elapsedMs).toBe(74_700);
+	});
+
+	it("should store the allowlisted response headers when provided", () => {
+		expect.assertions(1);
+
+		const error = new ApiError("HTTP 400", {
+			responseHeaders: { server: "haproxy" },
+			statusCode: 400,
+		});
+
+		expect(error.responseHeaders).toStrictEqual({ server: "haproxy" });
+	});
+
+	it("should store the gateway summary when provided", () => {
+		expect.assertions(1);
+
+		const error = new ApiError("HTTP 400", {
+			gatewaySummary: "400 Bad request",
+			statusCode: 400,
+		});
+
+		expect(error.gatewaySummary).toBe("400 Bad request");
+	});
+
+	it("should default the request-context fields to undefined when omitted", () => {
+		expect.assertions(5);
+
+		const error = new ApiError("not found", { statusCode: 404 });
+
+		expect(error.method).toBeUndefined();
+		expect(error.url).toBeUndefined();
+		expect(error.elapsedMs).toBeUndefined();
+		expect(error.gatewaySummary).toBeUndefined();
+		expect(error.responseHeaders).toBeUndefined();
+	});
 });

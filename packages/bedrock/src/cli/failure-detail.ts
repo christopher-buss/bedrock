@@ -12,9 +12,11 @@ import type { ApplyError } from "../shell/apply-ops.ts";
  * the node-style transport `code` (or the underlying cause's message) and the
  * failing `METHOD url`, so an intermittent connection reset reads differently
  * from a DNS failure without inspecting the cause by hand. An {@link ApiError}
- * carrying a response body appends it (bounded) so a status whose body had no
- * extractable `message` (the bare `HTTP 400` case) stays diagnosable from
- * the log alone. Every other error surfaces its own `message` unchanged.
+ * gains the same `on METHOD url after Ns` request context when the transport
+ * captured it: an HTML load-balancer error page is summarized (never dumped
+ * whole), a bare status whose body carried no extractable `message` still
+ * appends the bounded body, and any captured escalation headers are rendered
+ * compactly. Every other error surfaces its own `message` unchanged.
  *
  * @param err - The Open Cloud error carried on the failing apply op.
  * @returns A single-line, human-readable failure detail.
@@ -24,8 +26,8 @@ export function describeDriverCause(err: OpenCloudError): string {
 		return describeNetworkError(err);
 	}
 
-	if (err instanceof ApiError && err.details !== undefined) {
-		return `${err.message} (body: ${renderResponseBody(err.details)})`;
+	if (err instanceof ApiError) {
+		return describeApiError(err);
 	}
 
 	return err.message;
@@ -60,17 +62,57 @@ export function applyCauseDetail(cause: ApplyError): string {
 	}
 }
 
+function renderResponseBody(details: JSONValue): string {
+	return boundDiagnostic(typeof details === "string" ? details : JSON.stringify(details));
+}
+
+function hasFoldedApiMessage(message: string): boolean {
+	// The transport folds an extracted API message into `HTTP <status>: <msg>`;
+	// when it did, the body is redundant and is not re-dumped. A bare `HTTP 400`,
+	// an `HTTP 418 (code X)`, or a non-status message (e.g. a parse failure) has
+	// no colon after the status and still surfaces its body. This mirrors ocale's
+	// format; the two packages version together, so it stays in sync.
+	return message.startsWith("HTTP ") && message.includes(": ");
+}
+
+function apiErrorHead(err: ApiError): string {
+	if (err.gatewaySummary !== undefined) {
+		return `${err.message} from gateway ("${boundDiagnostic(err.gatewaySummary)}")`;
+	}
+
+	if (err.details !== undefined && !hasFoldedApiMessage(err.message)) {
+		return `${err.message} (body: ${renderResponseBody(err.details)})`;
+	}
+
+	return err.message;
+}
+
+function gatewayTrailer(err: ApiError): string {
+	return err.gatewaySummary === undefined ? "" : " — request rejected before reaching Open Cloud";
+}
+
+function formatElapsed(elapsedMs: number | undefined): string {
+	return elapsedMs === undefined ? "" : ` after ${(elapsedMs / 1000).toFixed(1)}s`;
+}
+
+function formatHeaderSummary(headers: Readonly<Record<string, string>> | undefined): string {
+	const pairs = Object.entries(headers ?? {}).map(([name, value]) => `${name}=${value}`);
+	return pairs.length === 0 ? "" : ` (${boundDiagnostic(pairs.join(", "))})`;
+}
+
+function formatCallTarget(method: string | undefined, url: string | undefined): string {
+	return method !== undefined && url !== undefined ? ` on ${method} ${url}` : "";
+}
+
+function describeApiError(err: ApiError): string {
+	return `${apiErrorHead(err)}${formatCallTarget(err.method, err.url)}${formatElapsed(err.elapsedMs)}${gatewayTrailer(err)}${formatHeaderSummary(err.responseHeaders)}`;
+}
+
 function describeNetworkError(err: NetworkError): string {
 	const reason =
 		findTransportCode(err) ?? (err.cause instanceof Error ? err.cause.message : undefined);
 	const because = reason === undefined ? "" : ` (${reason})`;
-	const target =
-		err.method !== undefined && err.url !== undefined ? ` on ${err.method} ${err.url}` : "";
-	return `${err.message}${because}${target}`;
-}
-
-function renderResponseBody(details: JSONValue): string {
-	return boundDiagnostic(typeof details === "string" ? details : JSON.stringify(details));
+	return `${err.message}${because}${formatCallTarget(err.method, err.url)}`;
 }
 
 function permissionDetail(err: PermissionError): string {
