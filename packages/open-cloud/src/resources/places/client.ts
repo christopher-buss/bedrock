@@ -31,7 +31,7 @@ import {
 import { parsePublishResponse } from "../../domains/universes/places/parsers.ts";
 import type { PlaceVersion, PublishParameters } from "../../domains/universes/places/types.ts";
 import type { OpenCloudError } from "../../errors/base.ts";
-import { CREATE_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
+import { UPLOAD_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import { ResourceClient, type ResourceMethodSpec } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
 import { buildPollDependencies, submitAndPoll } from "../luau-execution/polling-helpers.ts";
@@ -139,7 +139,7 @@ function makePublishSpec(
 	return Object.freeze({
 		buildRequest: (parameters: PublishParameters) =>
 			buildPublishRequest(parameters, versionType),
-		methodDefaults: CREATE_METHOD_DEFAULTS,
+		methodDefaults: UPLOAD_METHOD_DEFAULTS,
 		methodKind: "create",
 		operationLimit: PUBLISH_OPERATION_LIMIT,
 		parse: parsePublishResponse,
@@ -173,6 +173,10 @@ const UPDATE_SPEC: ResourceMethodSpec<UpdatePlaceParameters, Place> = Object.fre
  * duplicates externally may opt back into 5xx retry per-call by passing
  * `retryableStatuses` on the second argument. The `update` method, by
  * contrast, is idempotent and retries both 429 and 5xx automatically.
+ *
+ * Failures that never reached Open Cloud *are* retried: transient transport
+ * errors, and responses served by an edge gateway rather than the API. Neither
+ * can have created a version, so neither risks the duplicate a 5xx does.
  *
  * @since 0.1.0
  *

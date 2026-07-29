@@ -7,12 +7,23 @@ import { tryCatch } from "../utils/try-catch.ts";
 import { extractGatewaySummary, pickDiagnosticHeaders } from "./diagnostics.ts";
 import { reduceRateLimitTokens } from "./rate-limit-sample.ts";
 import type { HttpClient, HttpRequest, HttpResponse, RequestConfig } from "./types.ts";
+import { isUploadRequest } from "./upload-request.ts";
 
 // Caps the raw body retained when a response cannot be parsed, so a multi-KB
 // HTML error page is not surfaced or logged whole.
 const MAX_DETAIL_LENGTH = 500;
 
 const CONTENT_TYPE_HEADER = "content-type";
+
+// Uploads opt out of keep-alive reuse. Roblox's edge gateway discards idle
+// pooled connections faster than a pooling `fetch` expects, and a request
+// written into a discarded connection never reaches Open Cloud: it surfaces as
+// a gateway error page or a socket reset, minutes later, having done nothing.
+// An upload holds a connection far longer than a JSON call, so it is the shape
+// that loses this race. The cost is a fresh handshake and a cold congestion
+// window per upload (real for a multi-megabyte body, and paid again on each
+// retry), but cheaper than a lost write. Small, frequent calls keep pooling.
+const CONNECTION_HEADER = "connection";
 
 interface ParseFailureArgs {
 	readonly cause: Error;
@@ -153,15 +164,7 @@ export function buildFetchOptions(request: HttpRequest, config: RequestConfig): 
 		options.body = JSON.stringify(request.body);
 	}
 
-	if (request.headers !== undefined) {
-		for (const [name, value] of Object.entries(request.headers)) {
-			if (name.toLowerCase() === "x-api-key") {
-				continue;
-			}
-
-			headers.set(name, value);
-		}
-	}
+	applyRequestHeaders(headers, request);
 
 	if (config.timeout !== undefined) {
 		options.signal = AbortSignal.timeout(config.timeout);
@@ -249,6 +252,30 @@ function extractLegacyMessage(body: object): string | undefined {
 
 	const message = Reflect.get(first, "message");
 	return typeof message === "string" ? message : undefined;
+}
+
+/**
+ * Merges the request's own headers onto the transport's, then applies the
+ * transport-owned connection directive. `x-api-key` is skipped so a request
+ * cannot override the configured credential, and the upload directive is set
+ * last so a request header cannot silently re-enable pooling for an upload.
+ *
+ * @param headers - The headers being built for the fetch call. Mutated.
+ * @param request - The request whose headers and body shape drive the merge.
+ */
+function applyRequestHeaders(headers: Headers, request: HttpRequest): void {
+	const requestHeaders = request.headers ?? {};
+	for (const [name, value] of Object.entries(requestHeaders)) {
+		if (name.toLowerCase() === "x-api-key") {
+			continue;
+		}
+
+		headers.set(name, value);
+	}
+
+	if (isUploadRequest(request)) {
+		headers.set(CONNECTION_HEADER, "close");
+	}
 }
 
 /**

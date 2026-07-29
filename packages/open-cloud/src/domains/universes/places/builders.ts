@@ -36,21 +36,9 @@ export function buildPublishRequest(
 ): Result<HttpRequest, ValidationError> {
 	const { body, format, placeId, universeId } = parameters;
 
-	if (body.length === 0) {
-		return {
-			err: new ValidationError("Place body is empty", { code: "empty_body" }),
-			success: false,
-		};
-	}
-
-	const expectedSignature = format === "rbxl" ? RBXL_SIGNATURE : RBXLX_SIGNATURE;
-	if (!matchesSignature(body, expectedSignature)) {
-		return {
-			err: new ValidationError(`Place body does not match the declared "${format}" format`, {
-				code: "format_mismatch",
-			}),
-			success: false,
-		};
+	const validationError = validateBody(body, format);
+	if (validationError !== undefined) {
+		return { err: validationError, success: false };
 	}
 
 	return {
@@ -62,4 +50,32 @@ export function buildPublishRequest(
 		},
 		success: true,
 	};
+}
+
+/**
+ * Checks a place body against the format its caller declared: non-empty, and
+ * carrying the magic bytes of `format`. Emptiness is checked first so a
+ * zero-byte body reports `empty_body` rather than a signature mismatch.
+ *
+ * @param body - The raw place file bytes.
+ * @param format - The format the caller declared the bytes to be in.
+ * @returns The {@link ValidationError} to fail with, or `undefined` when the
+ *   body is usable.
+ */
+function validateBody(
+	body: PublishParameters["body"],
+	format: PublishParameters["format"],
+): undefined | ValidationError {
+	if (body.length === 0) {
+		return new ValidationError("Place body is empty", { code: "empty_body" });
+	}
+
+	const expectedSignature = format === "rbxl" ? RBXL_SIGNATURE : RBXLX_SIGNATURE;
+	if (!matchesSignature(body, expectedSignature)) {
+		return new ValidationError(`Place body does not match the declared "${format}" format`, {
+			code: "format_mismatch",
+		});
+	}
+
+	return undefined;
 }

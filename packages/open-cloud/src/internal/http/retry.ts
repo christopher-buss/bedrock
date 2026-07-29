@@ -21,10 +21,11 @@ export interface RetryResolvable {
 	/** Status codes that are eligible for retry. */
 	readonly retryableStatuses: ReadonlyArray<number>;
 	/**
-	 * Node-style transport error codes ({@link findErrorCode}) eligible for
-	 * retry when surfaced as a {@link NetworkError}. Empty for create
-	 * operations by default; consumers opt a create in via a per-request
-	 * override.
+	 * Codes for failures that never reached Open Cloud and are eligible for
+	 * retry: node-style transport codes ({@link findErrorCode}) surfaced as a
+	 * {@link NetworkError}, plus the synthetic {@link GATEWAY_REJECTED} for a
+	 * response served by an edge gateway. Empty for create operations by
+	 * default; consumers opt a create in via a per-request override.
 	 */
 	readonly retryableTransportCodes: ReadonlyArray<string>;
 	/** Fallback delay function when no server hint is available. */
@@ -54,6 +55,18 @@ export const TRANSIENT_TRANSPORT_CODES: ReadonlyArray<string> = Object.freeze([
 	"UND_ERR_SOCKET",
 ]);
 
+/**
+ * Synthetic transport code for a response that came from an edge gateway
+ * rather than Open Cloud ({@link ApiError.gatewaySummary}). Such a response
+ * proves the request was rejected before any Open Cloud handler saw it, so it
+ * is classified alongside {@link TRANSIENT_TRANSPORT_CODES} rather than by its
+ * HTTP status: the status belongs to the gateway, not to the API, and a
+ * gateway `400` says nothing about the validity of the request.
+ *
+ * @since 0.1.2
+ */
+export const GATEWAY_REJECTED = "GATEWAY_REJECTED";
+
 /** Method-level retry defaults, keyed by {@link MethodKind}. */
 type MethodDefaults = Readonly<
 	Pick<RetryResolvable, "retryableStatuses" | "retryableTransportCodes">
@@ -78,6 +91,23 @@ export const IDEMPOTENT_METHOD_DEFAULTS: MethodDefaults = Object.freeze({
 export const CREATE_METHOD_DEFAULTS: MethodDefaults = Object.freeze({
 	retryableStatuses: Object.freeze([429] as const),
 	retryableTransportCodes: Object.freeze([] as const),
+});
+
+/**
+ * Default retry policy for upload operations (place publish and save). Keeps
+ * {@link CREATE_METHOD_DEFAULTS}'s 5xx guard (a 5xx comes from Open Cloud and
+ * may describe a write that partly landed), but retries failures that never
+ * reached Open Cloud at all: {@link TRANSIENT_TRANSPORT_CODES} and
+ * {@link GATEWAY_REJECTED}.
+ *
+ * The duplicate-write risk behind the create policy does not apply the same
+ * way to a place version: Roblox dedupes identical place content, so a retry
+ * that races a publish which did land returns that same version rather than
+ * creating a second one.
+ */
+export const UPLOAD_METHOD_DEFAULTS: MethodDefaults = Object.freeze({
+	...CREATE_METHOD_DEFAULTS,
+	retryableTransportCodes: Object.freeze([...TRANSIENT_TRANSPORT_CODES, GATEWAY_REJECTED]),
 });
 
 /** Kind of HTTP method the merge is being performed for. */
@@ -176,7 +206,10 @@ export function computeRetryWaitMs(
 /**
  * Decides whether a failed request is eligible for retry. {@link RateLimitError}
  * (checked against 429) and {@link ApiError} (checked against its `statusCode`)
- * are retryable when their status is in `retryableStatuses`. A
+ * are retryable when their status is in `retryableStatuses`. An
+ * {@link ApiError} carrying a `gatewaySummary` is the exception: it is checked
+ * against {@link GATEWAY_REJECTED} in `retryableTransportCodes` instead, and
+ * its status is never consulted. A
  * {@link NetworkError} is retryable when its transport code
  * ({@link findErrorCode}) is in `retryableTransportCodes`. This is how
  * transient connection resets recover. A self-aborted request timeout
@@ -227,6 +260,10 @@ export function shouldRetry(
 	}
 
 	if (error instanceof ApiError) {
+		if (error.gatewaySummary !== undefined) {
+			return config.retryableTransportCodes.includes(GATEWAY_REJECTED);
+		}
+
 		return config.retryableStatuses.includes(error.statusCode);
 	}
 

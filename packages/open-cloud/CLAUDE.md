@@ -78,15 +78,27 @@ the schema. A static per-operation token bucket sourced from the vendored
 OpenAPI schema remains the cold-start and header-absent fallback. Retries are
 idempotency-aware:
 
-| Operation | 429 (Rate Limit) | 5xx (Server Error) |
-| --------- | ---------------- | ------------------ |
-| Create    | Retry            | Do not retry       |
-| Read/List | Retry            | Retry              |
-| Update    | Retry            | Retry              |
-| Delete    | Retry            | Retry              |
+| Operation      | 429 (Rate Limit) | 5xx (Server Error) | Never reached Open Cloud |
+| -------------- | ---------------- | ------------------ | ------------------------ |
+| Create         | Retry            | Do not retry       | Do not retry             |
+| Upload (place) | Retry            | Do not retry       | Retry                    |
+| Read/List      | Retry            | Retry              | Retry                    |
+| Update         | Retry            | Retry              | Retry                    |
+| Delete         | Retry            | Retry              | Retry                    |
 
 Create operations only retry rate limits to prevent duplicate resources (Roblox
 does not support idempotency keys).
+
+"Never reached Open Cloud" covers transient transport failures and responses
+served by an edge gateway rather than the API (`ApiError.gatewaySummary`,
+classified by the synthetic `GATEWAY_REJECTED` transport code). Place uploads
+retry these: a request that was never seen cannot have created a version, and
+Roblox dedupes identical place content.
+
+Separately, the transport sends `connection: close` on every upload request
+(`isUploadRequest`, the same predicate that drops the default timeout), because
+the keep-alive reuse race against Roblox's gateway is what produces those
+failures in the first place.
 
 See [ADR-010](../../docs/adr/010-sdk-managed-rate-limiting-and-retry.md) for the
 implemented contract, including per-operation token buckets, the send-callback

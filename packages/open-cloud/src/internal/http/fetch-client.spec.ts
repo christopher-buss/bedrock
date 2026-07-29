@@ -279,6 +279,56 @@ describe(buildFetchOptions, () => {
 		expect(options.method).toBe("POST");
 	});
 
+	it("should opt uploads out of connection reuse", () => {
+		expect.assertions(2);
+
+		const binary = buildFetchOptions(
+			{ body: new Uint8Array([1, 2, 3]), method: "POST", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+		const multipart = buildFetchOptions(
+			{ body: new FormData(), method: "POST", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		const binaryHeaders = new Headers(binary.headers);
+		const multipartHeaders = new Headers(multipart.headers);
+
+		expect(binaryHeaders.get("connection")).toBe("close");
+		expect(multipartHeaders.get("connection")).toBe("close");
+	});
+
+	it("should leave non-upload requests on pooled connections", () => {
+		expect.assertions(1);
+
+		const options = buildFetchOptions(
+			{ body: { name: "Game Pass" }, method: "POST", url: "/test" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		const headers = new Headers(options.headers);
+
+		expect(headers.get("connection")).toBeNull();
+	});
+
+	it("should keep the transport's connection directive over a request header", () => {
+		expect.assertions(1);
+
+		const options = buildFetchOptions(
+			{
+				body: new Uint8Array([1, 2, 3]),
+				headers: { connection: "keep-alive" },
+				method: "POST",
+				url: "/test",
+			},
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		const headers = new Headers(options.headers);
+
+		expect(headers.get("connection")).toBe("close");
+	});
+
 	it("should set Content-Type and stringify body for object bodies", () => {
 		expect.assertions(2);
 
