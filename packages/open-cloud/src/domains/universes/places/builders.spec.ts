@@ -137,6 +137,16 @@ describe(buildPublishRequest, () => {
 			expect(result.data.url).toEndWith("?versionType=Saved");
 		});
 
+		it("should opt the upload out of connection reuse", () => {
+			expect.assertions(1);
+
+			const result = buildPublishRequest(makeParameters(), "Published");
+
+			assert(result.success);
+
+			expect(result.data.headers).toHaveProperty("connection", "close");
+		});
+
 		it("should set Content-Type application/octet-stream for the rbxl format", () => {
 			expect.assertions(1);
 
@@ -148,6 +158,7 @@ describe(buildPublishRequest, () => {
 			assert(result.success);
 
 			expect(result.data.headers).toStrictEqual({
+				"connection": "close",
 				"content-type": "application/octet-stream",
 			});
 		});
@@ -163,6 +174,7 @@ describe(buildPublishRequest, () => {
 			assert(result.success);
 
 			expect(result.data.headers).toStrictEqual({
+				"connection": "close",
 				"content-type": "application/xml",
 			});
 		});

@@ -71,6 +71,7 @@ describe(PlacesClient, () => {
 				"/universes/v1/111/places/999/versions?versionType=Published",
 			);
 			expect(captured.request.headers).toStrictEqual({
+				connection: "close",
 				"content-type": "application/octet-stream",
 			});
 		});
@@ -96,6 +97,7 @@ describe(PlacesClient, () => {
 			});
 
 			expect(httpClient.requests[0]?.request.headers).toStrictEqual({
+				connection: "close",
 				"content-type": "application/xml",
 			});
 		});
