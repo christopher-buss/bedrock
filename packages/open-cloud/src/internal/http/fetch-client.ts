@@ -21,8 +21,8 @@ const CONTENT_TYPE_HEADER = "content-type";
 // a gateway error page or a socket reset, minutes later, having done nothing.
 // An upload holds a connection far longer than a JSON call, so it is the shape
 // that loses this race. The cost is a fresh handshake and a cold congestion
-// window per upload — real for a multi-megabyte body, and paid again on each
-// retry — but cheaper than a lost write. Small, frequent calls keep pooling.
+// window per upload (real for a multi-megabyte body, and paid again on each
+// retry), but cheaper than a lost write. Small, frequent calls keep pooling.
 const CONNECTION_HEADER = "connection";
 
 interface ParseFailureArgs {

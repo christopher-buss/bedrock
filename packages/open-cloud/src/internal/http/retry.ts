@@ -95,8 +95,8 @@ export const CREATE_METHOD_DEFAULTS: MethodDefaults = Object.freeze({
 
 /**
  * Default retry policy for upload operations (place publish and save). Keeps
- * {@link CREATE_METHOD_DEFAULTS}'s 5xx guard — a 5xx comes from Open Cloud and
- * may describe a write that partly landed — but retries failures that never
+ * {@link CREATE_METHOD_DEFAULTS}'s 5xx guard (a 5xx comes from Open Cloud and
+ * may describe a write that partly landed), but retries failures that never
  * reached Open Cloud at all: {@link TRANSIENT_TRANSPORT_CODES} and
  * {@link GATEWAY_REJECTED}.
  *

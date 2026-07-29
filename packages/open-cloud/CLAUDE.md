@@ -96,7 +96,7 @@ retry these: a request that was never seen cannot have created a version, and
 Roblox dedupes identical place content.
 
 Separately, the transport sends `connection: close` on every upload request
-(`isUploadRequest` — the same predicate that drops the default timeout), because
+(`isUploadRequest`, the same predicate that drops the default timeout), because
 the keep-alive reuse race against Roblox's gateway is what produces those
 failures in the first place.
 
