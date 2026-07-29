@@ -92,9 +92,13 @@ does not support idempotency keys).
 "Never reached Open Cloud" covers transient transport failures and responses
 served by an edge gateway rather than the API (`ApiError.gatewaySummary`,
 classified by the synthetic `GATEWAY_REJECTED` transport code). Place uploads
-retry these — a request that was never seen cannot have created a version, and
-Roblox dedupes identical place content — and additionally send
-`connection: close`, because the keep-alive reuse race is what produces them.
+retry these: a request that was never seen cannot have created a version, and
+Roblox dedupes identical place content.
+
+Separately, the transport sends `connection: close` on every upload request
+(`isUploadRequest` — the same predicate that drops the default timeout), because
+the keep-alive reuse race against Roblox's gateway is what produces those
+failures in the first place.
 
 See [ADR-010](../../docs/adr/010-sdk-managed-rate-limiting-and-retry.md) for the
 implemented contract, including per-operation token buckets, the send-callback

@@ -486,9 +486,15 @@ payload size.
 
 The decision gains two parts:
 
-1. **Place uploads set `connection: close`.** One TLS handshake per publish, in
-   exchange for removing the race on the request that can least afford it. The
-   many small resource calls in a deploy keep their pooled connections.
+1. **Uploads set `connection: close`.** Applied by the transport to every
+   request `isUploadRequest` classifies — the same predicate that already drops
+   the default timeout, for the same reason: uploads are bandwidth-bound and
+   hold a connection far longer than a JSON call. Place publishes are the
+   observed victim, but icon, thumbnail, and binary-input uploads share the
+   exposure, so the directive belongs to the shape rather than to one endpoint.
+   The cost is a fresh handshake and a cold congestion window per upload, paid
+   again on each retry. The many small resource calls in a deploy keep their
+   pooled connections.
 2. **`UPLOAD_METHOD_DEFAULTS`.** Publish and save stay off the 5xx retry path,
    which is where the duplicate-write risk actually lives, but retry failures
    that never reached Open Cloud: the transient transport set, plus a synthetic

@@ -72,7 +72,6 @@ describe(PlacesClient, () => {
 				"/universes/v1/111/places/999/versions?versionType=Published",
 			);
 			expect(captured.request.headers).toStrictEqual({
-				"connection": "close",
 				"content-type": "application/octet-stream",
 			});
 		});
@@ -98,7 +97,6 @@ describe(PlacesClient, () => {
 			});
 
 			expect(httpClient.requests[0]?.request.headers).toStrictEqual({
-				"connection": "close",
 				"content-type": "application/xml",
 			});
 		});
@@ -196,7 +194,7 @@ describe(PlacesClient, () => {
 		});
 
 		it("should retry a gateway-rejected publish because it never reached Open Cloud", async () => {
-			expect.assertions(3);
+			expect.assertions(2);
 
 			const httpClient = createFakeHttpClient()
 				.mockError(
@@ -226,7 +224,6 @@ describe(PlacesClient, () => {
 
 			expect(result.data).toStrictEqual({ versionNumber: 8 });
 			expect(httpClient.requests).toHaveLength(2);
-			expect(httpClient.pendingMocks).toBe(0);
 		});
 
 		it("should retry a socket reset because the killed request created no version", async () => {

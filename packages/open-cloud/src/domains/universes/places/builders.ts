@@ -22,14 +22,6 @@ const CONTENT_TYPE_BY_FORMAT: Readonly<Record<PublishParameters["format"], strin
  * {@link HttpRequest}: a non-empty body check and a magic-byte check
  * that the bytes' actual format matches `parameters.format`.
  *
- * The request carries `connection: close`. Roblox's edge gateway discards
- * idle keep-alive connections faster than a pooling `fetch` implementation
- * expects, and a publish written into a discarded connection never reaches
- * Open Cloud: it surfaces as a gateway error page or a socket reset minutes
- * later, having created no version. Opting the upload out of connection reuse
- * costs one handshake per publish and removes the race. Small, frequent calls
- * on other endpoints keep their pooled connections.
- *
  * @param parameters - Universe and place identifiers, the place file
  *   bytes, and the declared `format` of those bytes.
  * @param versionType - `"Published"` for `publish()`, `"Saved"` for
@@ -52,10 +44,7 @@ export function buildPublishRequest(
 	return {
 		data: {
 			body,
-			headers: {
-				"connection": "close",
-				"content-type": CONTENT_TYPE_BY_FORMAT[format],
-			},
+			headers: { "content-type": CONTENT_TYPE_BY_FORMAT[format] },
 			method: "POST",
 			url: `/universes/v1/${universeId}/places/${placeId}/versions?versionType=${versionType}`,
 		},

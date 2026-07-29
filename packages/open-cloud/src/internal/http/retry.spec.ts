@@ -14,6 +14,7 @@ import {
 	mergeConfig,
 	type MethodKind,
 	shouldRetry,
+	TRANSIENT_TRANSPORT_CODES,
 	UPLOAD_METHOD_DEFAULTS,
 } from "./retry.ts";
 
@@ -147,12 +148,14 @@ describe(shouldRetry, () => {
 	it("should not mark gateway-rejected API errors as retryable when the gateway code is excluded", () => {
 		expect.assertions(1);
 
-		const error = new ApiError("HTTP 400", {
-			gatewaySummary: "400 Bad request",
-			statusCode: 400,
+		// The status is deliberately one the allow-list accepts: a gateway
+		// status is never consulted, so this must still be false.
+		const error = new ApiError("HTTP 503", {
+			gatewaySummary: "503 Service Unavailable",
+			statusCode: 503,
 		});
 
-		expect(shouldRetry(error, { retryableStatuses: [429], ...noTransport })).toBeFalse();
+		expect(shouldRetry(error, { retryableStatuses: [429, 503], ...noTransport })).toBeFalse();
 	});
 
 	it("should not mark an Open Cloud API error as retryable just because the gateway code is allowed", () => {
@@ -289,15 +292,10 @@ describe("method retry defaults", () => {
 	it("should let upload methods retry transient transport failures and gateway rejections", () => {
 		expect.assertions(1);
 
+		// The transient set is pinned literally by the idempotent case below;
+		// what matters here is that uploads are that set plus the gateway code.
 		expect(UPLOAD_METHOD_DEFAULTS.retryableTransportCodes).toStrictEqual([
-			"ECONNRESET",
-			"ECONNREFUSED",
-			"ETIMEDOUT",
-			"EPIPE",
-			"ENETUNREACH",
-			"EHOSTDOWN",
-			"EAI_AGAIN",
-			"UND_ERR_SOCKET",
+			...TRANSIENT_TRANSPORT_CODES,
 			GATEWAY_REJECTED,
 		]);
 	});
