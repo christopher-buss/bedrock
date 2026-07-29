@@ -9,10 +9,12 @@ import {
 	computeRetryWaitMs,
 	CREATE_METHOD_DEFAULTS,
 	defaultRetryDelay,
+	GATEWAY_REJECTED,
 	IDEMPOTENT_METHOD_DEFAULTS,
 	mergeConfig,
 	type MethodKind,
 	shouldRetry,
+	UPLOAD_METHOD_DEFAULTS,
 } from "./retry.ts";
 
 describe(defaultRetryDelay, () => {
@@ -126,6 +128,46 @@ describe(shouldRetry, () => {
 		expect(shouldRetry(error, { retryableStatuses: [429, 500], ...noTransport })).toBeFalse();
 	});
 
+	it("should mark gateway-rejected API errors as retryable when the gateway code is allowed", () => {
+		expect.assertions(1);
+
+		const error = new ApiError("HTTP 400", {
+			gatewaySummary: "400 Bad request",
+			statusCode: 400,
+		});
+
+		expect(
+			shouldRetry(error, {
+				retryableStatuses: [429],
+				retryableTransportCodes: [GATEWAY_REJECTED],
+			}),
+		).toBeTrue();
+	});
+
+	it("should not mark gateway-rejected API errors as retryable when the gateway code is excluded", () => {
+		expect.assertions(1);
+
+		const error = new ApiError("HTTP 400", {
+			gatewaySummary: "400 Bad request",
+			statusCode: 400,
+		});
+
+		expect(shouldRetry(error, { retryableStatuses: [429], ...noTransport })).toBeFalse();
+	});
+
+	it("should not mark an Open Cloud API error as retryable just because the gateway code is allowed", () => {
+		expect.assertions(1);
+
+		const error = new ApiError("HTTP 400: malformed body", { statusCode: 400 });
+
+		expect(
+			shouldRetry(error, {
+				retryableStatuses: [429],
+				retryableTransportCodes: [GATEWAY_REJECTED],
+			}),
+		).toBeFalse();
+	});
+
 	it("should mark network errors as retryable when their transport code is allowed", () => {
 		expect.assertions(1);
 
@@ -236,6 +278,28 @@ describe("method retry defaults", () => {
 		expect.assertions(1);
 
 		expect(CREATE_METHOD_DEFAULTS.retryableTransportCodes).toStrictEqual([]);
+	});
+
+	it("should keep upload methods off the 5xx retry path", () => {
+		expect.assertions(1);
+
+		expect(UPLOAD_METHOD_DEFAULTS.retryableStatuses).toStrictEqual([429]);
+	});
+
+	it("should let upload methods retry transient transport failures and gateway rejections", () => {
+		expect.assertions(1);
+
+		expect(UPLOAD_METHOD_DEFAULTS.retryableTransportCodes).toStrictEqual([
+			"ECONNRESET",
+			"ECONNREFUSED",
+			"ETIMEDOUT",
+			"EPIPE",
+			"ENETUNREACH",
+			"EHOSTDOWN",
+			"EAI_AGAIN",
+			"UND_ERR_SOCKET",
+			GATEWAY_REJECTED,
+		]);
 	});
 
 	it("should retry the transient transport set for idempotent methods", () => {

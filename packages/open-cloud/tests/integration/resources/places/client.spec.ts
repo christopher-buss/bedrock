@@ -5,6 +5,7 @@ import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
 import { ValidationError } from "#src/errors/validation";
 import { PlacesClient } from "#src/resources/places/client";
+import { CodedError } from "#tests/helpers/coded-error";
 import { createFakeClock } from "#tests/helpers/fake-clock";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
@@ -71,7 +72,7 @@ describe(PlacesClient, () => {
 				"/universes/v1/111/places/999/versions?versionType=Published",
 			);
 			expect(captured.request.headers).toStrictEqual({
-				connection: "close",
+				"connection": "close",
 				"content-type": "application/octet-stream",
 			});
 		});
@@ -97,7 +98,7 @@ describe(PlacesClient, () => {
 			});
 
 			expect(httpClient.requests[0]?.request.headers).toStrictEqual({
-				connection: "close",
+				"connection": "close",
 				"content-type": "application/xml",
 			});
 		});
@@ -192,6 +193,68 @@ describe(PlacesClient, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 			expect(result.err).toHaveProperty("statusCode", 500);
 			expect(httpClient.requests).toHaveLength(1);
+		});
+
+		it("should retry a gateway-rejected publish because it never reached Open Cloud", async () => {
+			expect.assertions(3);
+
+			const httpClient = createFakeHttpClient()
+				.mockError(
+					new ApiError("HTTP 400", {
+						gatewaySummary: "400 Bad request",
+						statusCode: 400,
+					}),
+				)
+				.mockResponse({
+					body: validPublishResponseBody({ versionNumber: 8 }),
+					status: 200,
+				});
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.publish({
+				body: rbxlBody(),
+				format: "rbxl",
+				placeId: "456",
+				universeId: "123",
+			});
+
+			assert(result.success);
+
+			expect(result.data).toStrictEqual({ versionNumber: 8 });
+			expect(httpClient.requests).toHaveLength(2);
+			expect(httpClient.pendingMocks).toBe(0);
+		});
+
+		it("should retry a socket reset because the killed request created no version", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockNetworkError({ cause: new CodedError("read ECONNRESET", "ECONNRESET") })
+				.mockResponse({
+					body: validPublishResponseBody({ versionNumber: 9 }),
+					status: 200,
+				});
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.publish({
+				body: rbxlBody(),
+				format: "rbxl",
+				placeId: "456",
+				universeId: "123",
+			});
+
+			assert(result.success);
+
+			expect(result.data).toStrictEqual({ versionNumber: 9 });
+			expect(httpClient.requests).toHaveLength(2);
 		});
 
 		it.for([400, 401, 403, 404, 409])(
@@ -323,6 +386,39 @@ describe(PlacesClient, () => {
 
 			expect(result.err).toHaveProperty("statusCode", 503);
 			expect(httpClient.requests).toHaveLength(1);
+		});
+
+		it("should retry a gateway-rejected save because it never reached Open Cloud", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient()
+				.mockError(
+					new ApiError("HTTP 400", {
+						gatewaySummary: "400 Bad request",
+						statusCode: 400,
+					}),
+				)
+				.mockResponse({
+					body: validPublishResponseBody({ versionNumber: 4 }),
+					status: 200,
+				});
+			const client = new PlacesClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.save({
+				body: rbxlBody(),
+				format: "rbxl",
+				placeId: "456",
+				universeId: "123",
+			});
+
+			assert(result.success);
+
+			expect(result.data).toStrictEqual({ versionNumber: 4 });
+			expect(httpClient.requests).toHaveLength(2);
 		});
 	});
 
