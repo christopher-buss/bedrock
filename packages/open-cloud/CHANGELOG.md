@@ -1,5 +1,18 @@
 # @bedrock-rbx/ocale
 
+## 0.1.2
+
+### Patch Changes
+
+- [#531](https://github.com/christopher-buss/bedrock/pull/531) [`8338686`](https://github.com/christopher-buss/bedrock/commit/833868626954ec6613d2268cbe8b7a8ccc52310b) Thanks [@christopher-buss](https://github.com/christopher-buss)! - Fix intermittent place publish failures caused by HTTP keep-alive connection
+  reuse. Roblox's edge gateway discards idle pooled connections faster than a
+  pooling `fetch` expects, and a request written into a discarded connection never
+  reaches Open Cloud, surfacing as a gateway error page or a socket reset, having
+  done nothing. Upload requests now send `connection: close`, and `publish` /
+  `save` retry failures that provably never reached Open Cloud (transient
+  transport errors and gateway-served responses). They still do not retry 5xx,
+  where the duplicate-write risk actually lies.
+
 ## 0.1.1
 
 ### Patch Changes
