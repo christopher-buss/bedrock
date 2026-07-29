@@ -456,3 +456,53 @@ and `RateLimitError` only gains a `remaining` field (additive). A consumer hook
 to observe proactive holds (`onRateLimitHeaders`) was considered and deferred to
 avoid overloading the existing `onRateLimit` callback, which already signals
 both static-bucket and retry waits.
+
+## Amendment: 2026-07-29, place uploads opt out of connection reuse and retry gateway rejections
+
+The 2026-05-24 amendment gave idempotent operations a transport retry axis and
+deliberately left create operations with an empty `retryableTransportCodes`, for
+the duplicate-resource reason behind the 5xx guard. Place publish and save are
+create operations, so they retried nothing but 429 — and they are the calls most
+exposed to the keep-alive socket-reuse race that amendment described, because an
+upload occupies a connection far longer than a JSON GET.
+
+A consumer repo's CI deploys failed on roughly two thirds of runs, each time
+with one of three places failing and the other two succeeding. The failure
+surfaced as `ApiError` with a `gatewaySummary` (an HAProxy `400 Bad request`
+page, ~75s in) or as `NetworkError`/`ECONNRESET`.
+
+A probe publishing to three places on the queue's own 2s cadence isolated the
+cause:
+
+- Pooling clients reproduce it. Node/undici and Bun both stall a request and
+  lose it (locally at exactly 19.0s, Windows TCP giving up on retransmission).
+- `curl`, one process per request, does not — no pooled connection to reuse.
+- The same client with `connection: close` does not: 6/6 succeed sub-second
+  where pooling lost one every time.
+
+It is not concurrency (a strictly sequential run reproduces it), not content
+processing (it reproduces on a payload the server rejects in 0.9s), and not
+payload size.
+
+The decision gains two parts:
+
+1. **Place uploads set `connection: close`.** One TLS handshake per publish, in
+   exchange for removing the race on the request that can least afford it. The
+   many small resource calls in a deploy keep their pooled connections.
+2. **`UPLOAD_METHOD_DEFAULTS`.** Publish and save stay off the 5xx retry path,
+   which is where the duplicate-write risk actually lives, but retry failures
+   that never reached Open Cloud: the transient transport set, plus a synthetic
+   `GATEWAY_REJECTED` code. `shouldRetry` classifies an `ApiError` carrying a
+   `gatewaySummary` by that code instead of its status, because the status came
+   from the gateway and says nothing about the request's validity.
+
+The duplicate-write objection is weaker than assumed for place versions.
+Version-number forensics confirmed a killed publish creates nothing, and Roblox
+dedupes identical place content — re-uploading unchanged bytes returns the
+existing version number rather than minting a new one, so a retry that races a
+publish which did land returns that same version.
+
+Not extended to other creates: game-pass and developer-product creates have no
+comparable dedupe, so their empty transport allowlist stands. Extending
+gateway-rejection retry to idempotent methods is a natural follow-up and is
+deliberately out of scope here.
