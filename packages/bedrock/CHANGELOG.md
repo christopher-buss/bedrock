@@ -1,5 +1,12 @@
 # @bedrock-rbx/core
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [[`8338686`](https://github.com/christopher-buss/bedrock/commit/833868626954ec6613d2268cbe8b7a8ccc52310b)]:
+  - @bedrock-rbx/ocale@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes
