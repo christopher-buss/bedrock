@@ -1,7 +1,7 @@
 import type { Mock } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 
-import { createHttp1Dispatcher, GLOBAL_DISPATCHER_KEYS } from "./http1-dispatcher.ts";
+import { createHttp1Dispatcher } from "./http1-dispatcher.ts";
 
 interface AgentOptions {
 	allowH2: boolean;
@@ -34,10 +34,10 @@ describe(createHttp1Dispatcher, () => {
 		expect(construct.mock.calls).toStrictEqual([[{ allowH2: false }]]);
 	});
 
-	it.for(GLOBAL_DISPATCHER_KEYS)("should find the global dispatcher at %s", (key) => {
+	it("should fall back to undici's pre-8 symbol", () => {
 		expect.assertions(1);
 
-		const { scope } = scopeWithAgent(key);
+		const { scope } = scopeWithAgent("undici.globalDispatcher.1");
 
 		expect(createHttp1Dispatcher(scope)).toBeDefined();
 	});
@@ -60,42 +60,43 @@ describe(createHttp1Dispatcher, () => {
 		expect(createHttp1Dispatcher({})).toBeUndefined();
 	});
 
-	it("should return undefined when the published dispatcher is not an object", () => {
-		expect.assertions(1);
-
-		const scope = { [Symbol.for("undici.globalDispatcher.2")]: "not-an-agent" };
-
-		expect(createHttp1Dispatcher(scope)).toBeUndefined();
-	});
-
-	it("should return undefined when the published dispatcher is null", () => {
-		expect.assertions(1);
-
+	// Every malformed shape reaches the same `catch`; the table records which
+	// shapes were considered, not distinct outcomes.
+	it.for<[label: string, published: unknown]>([
+		["a primitive", "not-an-agent"],
 		// eslint-disable-next-line unicorn/no-null -- typeof null is "object"
-		const scope = { [Symbol.for("undici.globalDispatcher.2")]: null };
-
-		expect(createHttp1Dispatcher(scope)).toBeUndefined();
-	});
-
-	it("should return undefined when the published dispatcher has no constructor", () => {
-		expect.assertions(1);
-
-		const scope = { [Symbol.for("undici.globalDispatcher.2")]: Object.create(null) };
-
-		expect(createHttp1Dispatcher(scope)).toBeUndefined();
-	});
-
-	it("should return undefined when constructing the dispatcher throws", () => {
-		expect.assertions(1);
-
-		const scope = {
-			[Symbol.for("undici.globalDispatcher.2")]: {
+		["null", null],
+		["an object with no constructor", Object.create(null)],
+		[
+			"a constructor that throws",
+			{
 				constructor: () => {
 					throw new Error("contract moved");
 				},
 			},
-		};
+		],
+	])("should return undefined when the runtime publishes %s", ([, published]) => {
+		expect.assertions(1);
+
+		const scope = { [Symbol.for("undici.globalDispatcher.2")]: published };
 
 		expect(createHttp1Dispatcher(scope)).toBeUndefined();
 	});
+
+	// A tripwire, not a unit test: the symbol is undici's internal contract and
+	// already moved once. Every other test here injects a fake scope, so only
+	// this one notices the day the real global stops being reachable — which is
+	// the day the h2 outage comes back, silently. Bun publishes no such global
+	// and does not negotiate h2 from `fetch`, so it is exempt.
+	it.skipIf("Bun" in globalThis)(
+		"should reach the dispatcher this runtime actually publishes",
+		async () => {
+			expect.assertions(1);
+
+			// undici publishes the global lazily, on first use.
+			await fetch("http://127.0.0.1:1/").catch(() => {});
+
+			expect(createHttp1Dispatcher()).toBeDefined();
+		},
+	);
 });

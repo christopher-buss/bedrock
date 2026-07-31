@@ -36,8 +36,9 @@ interface FetchOptions extends RequestInit {
 }
 
 /**
- * Test seams on {@link createFetchHttpClient}, bundled so the factory keeps a
- * two-argument signature as they accumulate.
+ * Collaborators of {@link createFetchHttpClient}, bundled so the factory keeps
+ * a two-argument signature as they accumulate. Both have production defaults;
+ * both are overridable, which is also what makes them testable.
  */
 interface FetchHttpClientSeams {
 	/**

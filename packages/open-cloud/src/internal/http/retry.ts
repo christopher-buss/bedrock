@@ -24,9 +24,8 @@ export interface RetryResolvable {
 	 * Codes for transport-level failures eligible for retry: node-style
 	 * transport codes ({@link findErrorCode}) surfaced as a
 	 * {@link NetworkError}, plus the synthetic {@link GATEWAY_REJECTED} for a
-	 * response served by an edge gateway. Most prove the request never reached
-	 * Open Cloud; the HTTP/2 codes in {@link TRANSIENT_TRANSPORT_CODES} do not,
-	 * and rest on the retry being safe to repeat instead. Empty for create
+	 * response served by an edge gateway. Not all of them prove the request went
+	 * unprocessed — see {@link TRANSIENT_TRANSPORT_CODES}. Empty for create
 	 * operations by default; consumers opt a create in via a per-request
 	 * override.
 	 */
@@ -45,14 +44,16 @@ export interface RetryResolvable {
  * {@link isTimeoutAbort}) for idempotent methods; create methods retry no
  * transport codes and so still never re-issue a timed-out write.
  *
- * The trailing three are HTTP/2 session and stream deaths, which a runtime
- * whose `fetch` negotiates h2 (Node 26 and later) surfaces instead of the
- * socket-level codes above. Unlike those, an h2 code does not prove the
- * request went unprocessed — `UND_ERR_INFO` covers both a `GOAWAY` that
- * declares a stream was never started and a stream that was fully sent — so
- * they are retryable on the strength of idempotence rather than on proof the
- * request was never delivered. See {@link UPLOAD_METHOD_DEFAULTS} for what
- * justifies them on a write.
+ * `ERR_HTTP2_STREAM_ERROR`, `ERR_HTTP2_SESSION_ERROR`, and `UND_ERR_INFO` are
+ * the same deaths as spelled by a runtime whose `fetch` negotiates HTTP/2
+ * (Node 26 and later). They differ from the socket codes in one way that
+ * matters: they do not prove the request went unprocessed. `UND_ERR_INFO`
+ * covers both a `GOAWAY` declaring a stream was never started and a stream
+ * that was fully sent, and `UND_ERR_SOCKET` can fire once a response is
+ * already streaming. Retrying them is therefore justified by the operation
+ * being safe to repeat, never by the request having gone unseen — which is
+ * why {@link UPLOAD_METHOD_DEFAULTS}, the one write policy that includes
+ * them, documents its own grounds.
  *
  * @since 0.1.0
  */
@@ -114,12 +115,12 @@ export const CREATE_METHOD_DEFAULTS: MethodDefaults = Object.freeze({
  * may describe a write that partly landed), but retries transport failures:
  * {@link TRANSIENT_TRANSPORT_CODES} and {@link GATEWAY_REJECTED}.
  *
- * The duplicate-write risk behind the create policy does not apply the same
- * way to a place version: Roblox dedupes identical place content, so a retry
- * that races a publish which did land returns that same version rather than
- * creating a second one. That is what makes the HTTP/2 codes safe here despite
- * not proving the upload went unprocessed, and it is load-bearing — an upload
- * operation without content dedupe would need its own allowlist.
+ * This is the one write policy that retries codes which do not prove the
+ * request went unprocessed, and the grounds are specific to a place version:
+ * Roblox dedupes identical place content, so a retry that races a publish
+ * which did land returns that same version rather than creating a second one.
+ * That is load-bearing, not incidental — an upload operation without content
+ * dedupe would need its own allowlist.
  */
 export const UPLOAD_METHOD_DEFAULTS: MethodDefaults = Object.freeze({
 	...CREATE_METHOD_DEFAULTS,

@@ -6,7 +6,7 @@
  * neither is present — which is also the Bun path, since Bun's `fetch` is not
  * undici-backed and never publishes these.
  */
-export const GLOBAL_DISPATCHER_KEYS: ReadonlyArray<string> = Object.freeze([
+const GLOBAL_DISPATCHER_KEYS: ReadonlyArray<string> = Object.freeze([
 	"undici.globalDispatcher.2",
 	"undici.globalDispatcher.1",
 ]);
@@ -31,16 +31,6 @@ type AgentConstructor = new (options: { allowH2: boolean }) => object;
  * internal, so every step is guarded: an absent symbol, a non-constructible
  * value, or a constructor that throws all yield `undefined`, and the caller
  * sends the request unmodified.
- *
- * @example
- *
- * ```ts
- * import { createHttp1Dispatcher } from "./http1-dispatcher";
- *
- * // A runtime that publishes no global dispatcher (Bun, or before the
- * // process's first fetch) opts out rather than failing.
- * expect(createHttp1Dispatcher({})).toBeUndefined();
- * ```
  *
  * @param scope - The object to read the global dispatcher from. Defaults to
  *   `globalThis`; injectable so tests need not mutate the real global.

@@ -1229,33 +1229,37 @@ describe(createFetchHttpClient, () => {
 			};
 		}
 
+		/**
+		 * Reads the dispatcher off a recorded call, asserting the call happened
+		 * so a request that never fired cannot pass as an absent dispatcher.
+		 *
+		 * @param calls - The inits recorded by {@link recordingFetch}.
+		 * @param index - Which call to read.
+		 * @returns The dispatcher that call carried, if any.
+		 */
+		function dispatcherOf(calls: Array<RequestInit>, index: number): unknown {
+			const call = calls[index];
+			assert(call !== undefined, `expected a fetch call at index ${index}`);
+			return Reflect.get(call, "dispatcher");
+		}
+
 		it("should resolve the dispatcher once and reuse it across uploads", async () => {
 			expect.assertions(2);
 
-			// A fresh instance per call, so a second resolution would be visible
+			// A distinct instance per call, so a second resolution would show up
 			// as a different dispatcher on the second request.
-			let built = 0;
-
-			/**
-			 * Stands in for the runtime's dispatcher factory.
-			 *
-			 * @returns A dispatcher distinguishable from every earlier one.
-			 */
-			function createDispatcher(): object {
-				built += 1;
-				return { marker: built };
-			}
-
+			const createDispatcher = vi
+				.fn<() => object | undefined>()
+				.mockReturnValueOnce({ marker: 1 })
+				.mockReturnValue({ marker: 2 });
 			const { calls, fetchFunc } = recordingFetch();
 
 			const client = createFetchHttpClient(fetchFunc, { createDispatcher });
 			await client.request(uploadRequest, config);
 			await client.request(uploadRequest, config);
 
-			expect(Reflect.get(calls[0] ?? {}, "dispatcher")).toStrictEqual({ marker: 1 });
-			expect(Reflect.get(calls[1] ?? {}, "dispatcher")).toBe(
-				Reflect.get(calls[0] ?? {}, "dispatcher"),
-			);
+			expect(dispatcherOf(calls, 0)).toStrictEqual({ marker: 1 });
+			expect(dispatcherOf(calls, 1)).toBe(dispatcherOf(calls, 0));
 		});
 
 		it("should not look for a dispatcher until an upload needs one", async () => {
@@ -1284,8 +1288,8 @@ describe(createFetchHttpClient, () => {
 			await client.request(uploadRequest, config);
 			await client.request(uploadRequest, config);
 
-			expect(Reflect.get(calls[0] ?? {}, "dispatcher")).toBeUndefined();
-			expect(Reflect.get(calls[1] ?? {}, "dispatcher")).toBe(dispatcher);
+			expect(dispatcherOf(calls, 0)).toBeUndefined();
+			expect(dispatcherOf(calls, 1)).toBe(dispatcher);
 		});
 	});
 });
