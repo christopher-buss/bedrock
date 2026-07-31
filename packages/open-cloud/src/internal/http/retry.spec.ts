@@ -312,7 +312,39 @@ describe("method retry defaults", () => {
 			"EHOSTDOWN",
 			"EAI_AGAIN",
 			"UND_ERR_SOCKET",
+			"ERR_HTTP2_STREAM_ERROR",
+			"ERR_HTTP2_SESSION_ERROR",
+			"UND_ERR_INFO",
 		]);
+	});
+});
+
+describe(shouldRetry, () => {
+	// Codes observed on a deploy whose HTTP/2 session the Roblox edge gateway
+	// killed mid-upload. Node >= 26 negotiates h2, so every upload shares one
+	// session and one drop fails all of them at once.
+	it.for([
+		["ERR_HTTP2_STREAM_ERROR", "Stream closed with error code NGHTTP2_PROTOCOL_ERROR"],
+		["ERR_HTTP2_SESSION_ERROR", "Session closed with error code 11"],
+		["UND_ERR_INFO", 'HTTP/2: "GOAWAY" frame received with code 0'],
+	] as const)("should let an upload retry %s", ([code, message]) => {
+		expect.assertions(1);
+
+		const error = new NetworkError("Network request failed", {
+			cause: new TypeError("fetch failed", { cause: new CodedError(message, code) }),
+		});
+
+		expect(shouldRetry(error, UPLOAD_METHOD_DEFAULTS)).toBeTrue();
+	});
+
+	it("should still refuse to retry an HTTP/2 failure for a plain create", () => {
+		expect.assertions(1);
+
+		const error = new NetworkError("Network request failed", {
+			cause: new CodedError("Stream closed", "ERR_HTTP2_STREAM_ERROR"),
+		});
+
+		expect(shouldRetry(error, CREATE_METHOD_DEFAULTS)).toBeFalse();
 	});
 });
 

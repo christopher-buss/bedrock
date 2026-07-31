@@ -5,6 +5,7 @@ import { RateLimitError } from "../../errors/rate-limit.ts";
 import type { Result } from "../../types.ts";
 import { tryCatch } from "../utils/try-catch.ts";
 import { extractGatewaySummary, pickDiagnosticHeaders } from "./diagnostics.ts";
+import { createHttp1Dispatcher } from "./http1-dispatcher.ts";
 import { reduceRateLimitTokens } from "./rate-limit-sample.ts";
 import type { HttpClient, HttpRequest, HttpResponse, RequestConfig } from "./types.ts";
 import { isUploadRequest } from "./upload-request.ts";
@@ -24,6 +25,30 @@ const CONTENT_TYPE_HEADER = "content-type";
 // window per upload (real for a multi-megabyte body, and paid again on each
 // retry), but cheaper than a lost write. Small, frequent calls keep pooling.
 const CONNECTION_HEADER = "connection";
+
+/**
+ * `RequestInit` plus undici's non-standard `dispatcher`, the only way to
+ * select a transport from `fetch`. Declared locally because it is absent from
+ * the DOM lib and runtimes that do not understand it ignore it.
+ */
+interface FetchOptions extends RequestInit {
+	dispatcher?: object | undefined;
+}
+
+/**
+ * Collaborators of {@link createFetchHttpClient}, bundled so the factory keeps
+ * a two-argument signature as they accumulate. Both have production defaults;
+ * both are overridable, which is also what makes them testable.
+ */
+interface FetchHttpClientSeams {
+	/**
+	 * Builds the HTTP/1.1-only transport uploads use, so the
+	 * `connection: close` directive is not dropped by an h2 transport.
+	 */
+	readonly createDispatcher?: () => object | undefined;
+	/** Monotonic-ish clock used to measure request elapsed time. */
+	readonly now?: () => number;
+}
 
 interface ParseFailureArgs {
 	readonly cause: Error;
@@ -144,12 +169,12 @@ export function buildUrl(request: HttpRequest, config: RequestConfig): string {
  * @param config - The request config containing API key and timeout.
  * @returns A `RequestInit` object ready for `fetch`.
  */
-export function buildFetchOptions(request: HttpRequest, config: RequestConfig): RequestInit {
+export function buildFetchOptions(request: HttpRequest, config: RequestConfig): FetchOptions {
 	const headers = new Headers({
 		"x-api-key": config.apiKey,
 	});
 
-	const options: RequestInit = {
+	const options: FetchOptions = {
 		headers,
 		method: request.method,
 	};
@@ -177,14 +202,17 @@ export function buildFetchOptions(request: HttpRequest, config: RequestConfig): 
  * Creates an {@link HttpClient} backed by the Fetch API.
  *
  * @param fetchFunc - The fetch implementation to use. Defaults to `globalThis.fetch`.
- * @param now - Monotonic-ish clock used to measure request elapsed time.
- *   Defaults to `Date.now`; injectable so tests can assert a fixed duration.
+ * @param seams - Injectable clock and dispatcher factory, so tests need not
+ *   depend on wall-clock time or on the runtime's global dispatcher.
  * @returns An HttpClient that classifies responses into typed Results.
  */
 export function createFetchHttpClient(
 	fetchFunc: (url: string, init: RequestInit) => Promise<Response> = globalThis.fetch,
-	now: () => number = Date.now,
+	seams: FetchHttpClientSeams = {},
 ): HttpClient {
+	const { createDispatcher = createHttp1Dispatcher, now = Date.now } = seams;
+	const dispatcherFor = createUploadDispatcherCache(createDispatcher);
+
 	return {
 		async request(
 			httpRequest: HttpRequest,
@@ -192,7 +220,9 @@ export function createFetchHttpClient(
 		): Promise<Result<HttpResponse, OpenCloudError>> {
 			const url = buildUrl(httpRequest, config);
 			const options = buildFetchOptions(httpRequest, config);
-
+			// Undefined is how `fetch` spells "use the runtime's own
+			// transport", so this is safe to assign unconditionally.
+			options.dispatcher = dispatcherFor(httpRequest);
 			const target = { method: httpRequest.method, url };
 
 			const { elapsedMs, fetchResult } = await timedFetch(now, async () =>
@@ -276,6 +306,34 @@ function applyRequestHeaders(headers: Headers, request: HttpRequest): void {
 	if (isUploadRequest(request)) {
 		headers.set(CONNECTION_HEADER, "close");
 	}
+}
+
+/**
+ * Wraps a dispatcher factory in the caching policy uploads need.
+ *
+ * Resolution happens on the first upload rather than at construction: undici
+ * publishes its global dispatcher lazily, so before a process's first `fetch`
+ * there is nothing to read. A resolved dispatcher is kept, and an unresolved
+ * one is retried on the next upload — so a runtime that publishes late is
+ * still picked up, and the first request of a process, which has no pooled
+ * connection to lose, is safe either way.
+ *
+ * @param createDispatcher - Builds the HTTP/1.1-only transport.
+ * @returns A function yielding the dispatcher for a request, or `undefined`
+ *   when the request is not an upload or no dispatcher is available.
+ */
+function createUploadDispatcherCache(
+	createDispatcher: () => object | undefined,
+): (request: HttpRequest) => object | undefined {
+	let cached: object | undefined;
+	return (request) => {
+		if (!isUploadRequest(request)) {
+			return;
+		}
+
+		cached ??= createDispatcher();
+		return cached;
+	};
 }
 
 /**

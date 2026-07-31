@@ -98,7 +98,11 @@ Roblox dedupes identical place content.
 Separately, the transport sends `connection: close` on every upload request
 (`isUploadRequest`, the same predicate that drops the default timeout), because
 the keep-alive reuse race against Roblox's gateway is what produces those
-failures in the first place.
+failures in the first place. That header is meaningless under HTTP/2, which Node
+26 negotiates by default, so uploads also carry a dispatcher that pins HTTP/1.1
+— built from the runtime's own global dispatcher rather than an undici import,
+and skipped entirely when no such global exists (Bun). See ADR-010's 2026-07-31
+amendment.
 
 See [ADR-010](../../docs/adr/010-sdk-managed-rate-limiting-and-retry.md) for the
 implemented contract, including per-operation token buckets, the send-callback

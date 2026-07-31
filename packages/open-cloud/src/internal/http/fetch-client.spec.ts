@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
@@ -12,6 +12,7 @@ import {
 	headersToRecord,
 	parseRetryAfterSeconds,
 } from "./fetch-client.ts";
+import type { HttpRequest } from "./types.ts";
 
 describe(headersToRecord, () => {
 	it("should convert Headers to a lowercased record", () => {
@@ -942,7 +943,7 @@ describe(createFetchHttpClient, () => {
 	it("should summarize an HTML gateway error page rather than dumping the body", async () => {
 		expect.assertions(3);
 
-		const client = createFetchHttpClient(gatewayFetch, fixedClock(1000, 74_700));
+		const client = createFetchHttpClient(gatewayFetch, { now: fixedClock(1000, 74_700) });
 		const result = await client.request(
 			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
 			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
@@ -959,7 +960,7 @@ describe(createFetchHttpClient, () => {
 	it("should carry the call target, elapsed time, and headers on a gateway error", async () => {
 		expect.assertions(4);
 
-		const client = createFetchHttpClient(gatewayFetch, fixedClock(1000, 74_700));
+		const client = createFetchHttpClient(gatewayFetch, { now: fixedClock(1000, 74_700) });
 		const result = await client.request(
 			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
 			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
@@ -991,7 +992,7 @@ describe(createFetchHttpClient, () => {
 	it("should not summarize a JSON API error as a gateway page", async () => {
 		expect.assertions(3);
 
-		const client = createFetchHttpClient(jsonErrorFetch, fixedClock(0, 40_200));
+		const client = createFetchHttpClient(jsonErrorFetch, { now: fixedClock(0, 40_200) });
 		const result = await client.request(
 			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
 			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
@@ -1012,7 +1013,7 @@ describe(createFetchHttpClient, () => {
 	it("should attach the call target, elapsed time, and headers to a JSON API error", async () => {
 		expect.assertions(4);
 
-		const client = createFetchHttpClient(jsonErrorFetch, fixedClock(0, 40_200));
+		const client = createFetchHttpClient(jsonErrorFetch, { now: fixedClock(0, 40_200) });
 		const result = await client.request(
 			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
 			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
@@ -1054,7 +1055,7 @@ describe(createFetchHttpClient, () => {
 	it("should clamp a backwards-moving clock to a non-negative elapsed time", async () => {
 		expect.assertions(1);
 
-		const client = createFetchHttpClient(jsonErrorFetch, fixedClock(5000, -1000));
+		const client = createFetchHttpClient(jsonErrorFetch, { now: fixedClock(5000, -1000) });
 		const result = await client.request(
 			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
 			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
@@ -1199,5 +1200,96 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.method).toBe("GET");
 		expect(result.err.url).toBe("https://example.com/test");
 		expect(result.err.cause).toBeInstanceOf(Error);
+	});
+
+	describe("http/1.1 dispatcher", () => {
+		const config = { apiKey: "key", baseUrl: "https://example.com" };
+		const uploadRequest: HttpRequest = {
+			body: new Uint8Array([1]),
+			method: "POST",
+			url: "/upload",
+		};
+
+		/**
+		 * A fetch double that records the `RequestInit` of every call.
+		 *
+		 * @returns The fake fetch and the inits it was called with.
+		 */
+		function recordingFetch(): {
+			calls: Array<RequestInit>;
+			fetchFunc: (url: string, init: RequestInit) => Promise<Response>;
+		} {
+			const calls: Array<RequestInit> = [];
+			return {
+				calls,
+				fetchFunc: async (_url, init) => {
+					calls.push(init);
+					return new Response("{}", { status: 200 });
+				},
+			};
+		}
+
+		/**
+		 * Reads the dispatcher off a recorded call, asserting the call happened
+		 * so a request that never fired cannot pass as an absent dispatcher.
+		 *
+		 * @param calls - The inits recorded by {@link recordingFetch}.
+		 * @param index - Which call to read.
+		 * @returns The dispatcher that call carried, if any.
+		 */
+		function dispatcherOf(calls: Array<RequestInit>, index: number): unknown {
+			const call = calls[index];
+			assert(call !== undefined, `expected a fetch call at index ${index}`);
+			return Reflect.get(call, "dispatcher");
+		}
+
+		it("should resolve the dispatcher once and reuse it across uploads", async () => {
+			expect.assertions(2);
+
+			// A distinct instance per call, so a second resolution would show up
+			// as a different dispatcher on the second request.
+			const createDispatcher = vi
+				.fn<() => object | undefined>()
+				.mockReturnValueOnce({ marker: 1 })
+				.mockReturnValue({ marker: 2 });
+			const { calls, fetchFunc } = recordingFetch();
+
+			const client = createFetchHttpClient(fetchFunc, { createDispatcher });
+			await client.request(uploadRequest, config);
+			await client.request(uploadRequest, config);
+
+			expect(dispatcherOf(calls, 0)).toStrictEqual({ marker: 1 });
+			expect(dispatcherOf(calls, 1)).toBe(dispatcherOf(calls, 0));
+		});
+
+		it("should not look for a dispatcher until an upload needs one", async () => {
+			expect.assertions(1);
+
+			const createDispatcher = vi.fn<() => object | undefined>(() => ({ marker: "http1" }));
+			const { fetchFunc } = recordingFetch();
+
+			const client = createFetchHttpClient(fetchFunc, { createDispatcher });
+			await client.request({ method: "GET", url: "/test" }, config);
+
+			expect(createDispatcher).not.toHaveBeenCalled();
+		});
+
+		it("should retry resolution while the runtime publishes no dispatcher", async () => {
+			expect.assertions(2);
+
+			const dispatcher = { marker: "http1" };
+			const createDispatcher = vi
+				.fn<() => object | undefined>()
+				.mockReturnValueOnce(undefined)
+				.mockReturnValue(dispatcher);
+			const { calls, fetchFunc } = recordingFetch();
+
+			const client = createFetchHttpClient(fetchFunc, { createDispatcher });
+			await client.request(uploadRequest, config);
+			await client.request(uploadRequest, config);
+
+			expect(dispatcherOf(calls, 0)).toBeUndefined();
+			expect(dispatcherOf(calls, 1)).toBe(dispatcher);
+		});
 	});
 });
