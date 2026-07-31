@@ -68,6 +68,15 @@ describe(createHttp1Dispatcher, () => {
 		expect(createHttp1Dispatcher(scope)).toBeUndefined();
 	});
 
+	it("should return undefined when the published dispatcher is null", () => {
+		expect.assertions(1);
+
+		// eslint-disable-next-line unicorn/no-null -- typeof null is "object"
+		const scope = { [Symbol.for("undici.globalDispatcher.2")]: null };
+
+		expect(createHttp1Dispatcher(scope)).toBeUndefined();
+	});
+
 	it("should return undefined when the published dispatcher has no constructor", () => {
 		expect.assertions(1);
 

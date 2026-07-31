@@ -32,7 +32,7 @@ const CONNECTION_HEADER = "connection";
  * the DOM lib and runtimes that do not understand it ignore it.
  */
 interface FetchOptions extends RequestInit {
-	dispatcher?: object;
+	dispatcher?: object | undefined;
 }
 
 /**

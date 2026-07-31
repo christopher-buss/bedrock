@@ -512,3 +512,72 @@ Not extended to other creates: game-pass and developer-product creates have no
 comparable dedupe, so their empty transport allowlist stands. Extending
 gateway-rejection retry to idempotent methods is a natural follow-up and is
 deliberately out of scope here.
+
+## Amendment: 2026-07-31, uploads pin HTTP/1.1 because the connection directive is inert under h2
+
+The 2026-07-29 amendment fixed the keep-alive race by having uploads send
+`connection: close`. That was verified on Node 24 and Bun, and it holds there.
+It does nothing on Node 26.
+
+Node 26 bundles undici 8, which enables HTTP/2 by default (undici
+[#4828](https://github.com/nodejs/undici/pull/4828), taken into Node in
+[nodejs/node#62384](https://github.com/nodejs/node/pull/62384)). `Connection` is
+a connection-specific header, forbidden in HTTP/2, so an h2 transport drops it
+before the wire. Worse, h2 multiplexes: every upload to `apis.roblox.com` shares
+one session, where HTTP/1.1 plus `connection: close` gave each its own.
+
+A consumer deploy failed with all three places lost, two of them at the same
+millisecond — one session died and took both in-flight streams with it. The
+codes were `ERR_HTTP2_STREAM_ERROR` and `UND_ERR_INFO`, neither of which was in
+`TRANSIENT_TRANSPORT_CODES`, so nothing retried.
+
+Measured against a local server offering ALPN `["h2", "http/1.1"]`:
+
+| Client              | ALPN     | TCP connections for 2 uploads | `connection` on the wire |
+| ------------------- | -------- | ----------------------------- | ------------------------ |
+| Node 26.5.1 `fetch` | h2       | 1                             | absent (stripped)        |
+| Node 24.18 `fetch`  | http/1.1 | 2                             | `close`                  |
+| Bun 1.3.14 `fetch`  | http/1.1 | 2                             | `close`                  |
+
+Bun implements `node:http2`, but its `fetch` does not offer h2 in ALPN, so Bun
+is unaffected. The exposure is Node 26 and later.
+
+The decision gains two parts:
+
+1. **Uploads pin HTTP/1.1.** There is no standard `fetch` option for this, and
+   the documented route — `setGlobalDispatcher(new Agent({ allowH2: false }))` —
+   means depending on undici, which ADR-008 rules out. Instead the transport
+   reconstructs the class of the runtime's own global dispatcher, reached via
+   undici's versioned global symbol, with `allowH2: false`. This costs no
+   dependency and re-arms the directive the previous amendment relies on.
+
+   The symbol is an internal contract that moved from `.1` to `.2` in undici 8
+   and can move again. Every step is therefore guarded — absent symbol,
+   non-constructible value, throwing constructor — and each falls back to the
+   runtime's default transport rather than failing the deploy. A future contract
+   move degrades to the pre-amendment behaviour, which part 2 covers. Resolution
+   is lazy, because undici publishes the global dispatcher only after the
+   process's first `fetch`; the first request of a process has no pooled
+   connection to lose, so nothing is exposed by the delay.
+
+2. **The h2 codes join `TRANSIENT_TRANSPORT_CODES`.** `ERR_HTTP2_STREAM_ERROR`,
+   `ERR_HTTP2_SESSION_ERROR`, and `UND_ERR_INFO` are the h2 spellings of the
+   socket deaths already in that set.
+
+Part 2 weakens a claim the previous amendment made. The transient set was
+described as failures that never reached Open Cloud. That is not true of the h2
+codes: `UND_ERR_INFO` covers both a `GOAWAY` declaring a stream was never
+started and a stream that was fully sent. It is not strictly true of
+`UND_ERR_SOCKET` either, which can fire once a response is already streaming.
+For idempotent methods this changes nothing. For uploads, retry safety rests
+where the previous amendment actually put it: Roblox dedupes identical place
+content, so a retry that races a publish which did land returns that same
+version. The doc comments now say so. An upload-classified operation without
+content dedupe would need its own allowlist.
+
+Deliberately out of scope: a wall-clock budget for uploads. A gateway
+`RST_STREAM(CANCEL)` produces no error event and undici dequeues the request
+without rejecting it, so a `fetch` never settles; uploads carry no timeout by
+design (ADR-010's upload exemption), which makes that hang unbounded. Retries
+cannot reach it, since nothing ever fails. It needs its own decision, and an
+upstream fix.

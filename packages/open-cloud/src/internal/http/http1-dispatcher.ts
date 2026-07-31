@@ -11,6 +11,9 @@ export const GLOBAL_DISPATCHER_KEYS: ReadonlyArray<string> = Object.freeze([
 	"undici.globalDispatcher.1",
 ]);
 
+/** The shape the global dispatcher's class is assumed to have. */
+type AgentConstructor = new (options: { allowH2: boolean }) => object;
+
 /**
  * Builds a request dispatcher that negotiates HTTP/1.1 only, by reusing the
  * class of the runtime's own global dispatcher.
@@ -58,22 +61,20 @@ export function createHttp1Dispatcher(scope: object = globalThis): object | unde
 /**
  * Reconstructs `agent`'s class with h2 disabled.
  *
+ * `agent` is validated by use rather than by inspection, because every way it
+ * can be wrong already throws: `Reflect.get` rejects a primitive, `null`, and
+ * an absent key, and `Reflect.construct` rejects a `constructor` that is not
+ * one, or that refuses the options. A single `catch` covers all of it, so
+ * there is no shape left worth testing for up front.
+ *
  * @param agent - The candidate global dispatcher; any value, since it comes
  *   from an undocumented global.
  * @returns The new dispatcher, or `undefined` when `agent` is not an object
  *   whose constructor accepts undici's agent options.
  */
 function constructHttp1(agent: unknown): object | undefined {
-	if (typeof agent !== "object" || agent === null) {
-		return undefined;
-	}
-
-	const agentClass: unknown = Reflect.get(agent, "constructor");
-	if (typeof agentClass !== "function") {
-		return undefined;
-	}
-
 	try {
+		const agentClass = Reflect.get(agent as object, "constructor") as AgentConstructor;
 		return Reflect.construct(agentClass, [{ allowH2: false }]);
 	} catch {
 		// An internal contract that moved under us is not worth failing a
