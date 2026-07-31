@@ -319,7 +319,7 @@ describe("method retry defaults", () => {
 	});
 });
 
-describe("http/2 transport failures", () => {
+describe(shouldRetry, () => {
 	// Codes observed on a deploy whose HTTP/2 session the Roblox edge gateway
 	// killed mid-upload. Node >= 26 negotiates h2, so every upload shares one
 	// session and one drop fails all of them at once.

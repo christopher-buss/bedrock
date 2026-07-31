@@ -9,18 +9,23 @@ interface AgentOptions {
 
 /**
  * Builds a scope mimicking the runtime global that carries undici's global
- * dispatcher: an agent instance whose `constructor` accepts an options bag.
- * Modelled as a plain object rather than a class so the spy sees the
- * construction the SDK performs, and only that one.
+ * dispatcher: an agent instance whose `constructor` accepts an options bag and
+ * yields something bearing undici's `Dispatcher` surface. Modelled as a plain
+ * object rather than a class so the spy sees the construction the SDK
+ * performs, and only that one.
  *
  * @param key - The well-known symbol key to publish the agent under.
  * @returns The scope plus the constructor spy, so tests can assert the options.
  */
 function scopeWithAgent(key: string): {
-	construct: Mock<(options: AgentOptions) => void>;
+	construct: Mock<(options: AgentOptions) => object>;
 	scope: object;
 } {
-	const construct = vi.fn<(options: AgentOptions) => void>();
+	// A `function`, not an arrow: the SDK reaches this through
+	// `Reflect.construct`, and only a constructible implementation survives it.
+	const construct = vi.fn<(options: AgentOptions) => object>(function fakeAgent() {
+		return { dispatch: (): undefined => undefined };
+	});
 	return { construct, scope: { [Symbol.for(key)]: { constructor: construct } } };
 }
 
@@ -67,6 +72,10 @@ describe(createHttp1Dispatcher, () => {
 		// eslint-disable-next-line unicorn/no-null -- typeof null is "object"
 		["null", null],
 		["an object with no constructor", Object.create(null)],
+		// The one shape that constructs without throwing: `{}.constructor` is
+		// `Object`, and `Reflect.construct(Object, [options])` hands back the
+		// options object rather than rejecting it.
+		["a plain object", {}],
 		[
 			"a constructor that throws",
 			{

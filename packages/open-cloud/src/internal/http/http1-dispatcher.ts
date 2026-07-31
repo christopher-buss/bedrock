@@ -51,11 +51,13 @@ export function createHttp1Dispatcher(scope: object = globalThis): object | unde
 /**
  * Reconstructs `agent`'s class with h2 disabled.
  *
- * `agent` is validated by use rather than by inspection, because every way it
- * can be wrong already throws: `Reflect.get` rejects a primitive, `null`, and
- * an absent key, and `Reflect.construct` rejects a `constructor` that is not
- * one, or that refuses the options. A single `catch` covers all of it, so
- * there is no shape left worth testing for up front.
+ * Most ways `agent` can be wrong already throw: `Reflect.get` rejects a
+ * primitive, `null`, and an absent key, and `Reflect.construct` rejects a
+ * `constructor` that is not one, or that refuses the options. One shape gets
+ * through — a plain object, whose `constructor` is `Object`, so constructing
+ * it hands back the options bag. The result is therefore checked against the
+ * one part of undici's surface that is public and stable: a `Dispatcher`
+ * exposes `dispatch`.
  *
  * @param agent - The candidate global dispatcher; any value, since it comes
  *   from an undocumented global.
@@ -65,7 +67,8 @@ export function createHttp1Dispatcher(scope: object = globalThis): object | unde
 function constructHttp1(agent: unknown): object | undefined {
 	try {
 		const agentClass = Reflect.get(agent as object, "constructor") as AgentConstructor;
-		return Reflect.construct(agentClass, [{ allowH2: false }]);
+		const dispatcher = Reflect.construct(agentClass, [{ allowH2: false }]);
+		return typeof Reflect.get(dispatcher, "dispatch") === "function" ? dispatcher : undefined;
 	} catch {
 		// An internal contract that moved under us is not worth failing a
 		// deploy over: fall back to the runtime's default transport.
