@@ -280,12 +280,12 @@ function copyButton(): HTMLElement {
 	return screen.getByRole("button", { name: "Copy install command" });
 }
 
-async function noopWrite(): Promise<void> {
+async function noopWriteAsync(): Promise<void> {
 	/* default: resolve immediately */
 }
 
-function installFakeClipboard(writeImpl: (text: string) => Promise<void> = noopWrite) {
-	const spy = vi.spyOn(globalThis.navigator.clipboard, "writeText");
+function installFakeClipboard(writeImpl: (text: string) => Promise<void> = noopWriteAsync) {
+	const spy = vi.spyOn(navigator.clipboard, "writeText");
 	onTestFinished(() => {
 		spy.mockRestore();
 	});

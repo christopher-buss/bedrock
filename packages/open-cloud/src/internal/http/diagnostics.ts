@@ -13,9 +13,12 @@ const DIAGNOSTIC_HEADER_ALLOWLIST: ReadonlySet<string> = new Set([
 
 const DIAGNOSTIC_HEADER_PREFIX = "x-roblox-";
 
-const TITLE_PATTERN = /<title[^>]*>([\S\s]*?)<\/title>/i;
-const H1_PATTERN = /<h1[^>]*>([\S\s]*?)<\/h1>/i;
-const TAG_PATTERN = /<[^>]*>/g;
+// Only the opening tag is matched; the closing tag is located with indexOf so
+// the inner text needs no unbounded pattern, which would backtrack
+// super-linearly on a hostile error page.
+const TITLE_OPEN_PATTERN = /<title[^>]*>/i;
+const H1_OPEN_PATTERN = /<h1[^>]*>/i;
+const TAG_PATTERN = /<[^<>]*>/g;
 const WHITESPACE_PATTERN = /\s+/g;
 
 /**
@@ -41,7 +44,10 @@ export function extractGatewaySummary(
 		return undefined;
 	}
 
-	return firstTagText(rawText, TITLE_PATTERN) ?? firstTagText(rawText, H1_PATTERN);
+	return (
+		firstTagText(rawText, { close: "</title>", open: TITLE_OPEN_PATTERN }) ??
+		firstTagText(rawText, { close: "</h1>", open: H1_OPEN_PATTERN })
+	);
 }
 
 /**
@@ -63,11 +69,19 @@ export function pickDiagnosticHeaders(headers: Record<string, string>): Record<s
 	return picked;
 }
 
-function firstTagText(html: string, pattern: RegExp): string | undefined {
-	const inner = pattern.exec(html)?.[1];
-	if (inner === undefined) {
+function firstTagText(html: string, tag: { close: string; open: RegExp }): string | undefined {
+	const open = tag.open.exec(html);
+	if (open === null) {
 		return undefined;
 	}
+
+	const start = open.index + open[0].length;
+	const end = html.toLowerCase().indexOf(tag.close, start);
+	if (end === -1) {
+		return undefined;
+	}
+
+	const inner = html.slice(start, end);
 
 	const text = inner.replace(TAG_PATTERN, " ").replace(WHITESPACE_PATTERN, " ").trim();
 	return text === "" ? undefined : text;

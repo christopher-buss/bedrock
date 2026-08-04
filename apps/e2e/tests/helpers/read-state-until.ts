@@ -43,18 +43,14 @@ export interface ReadStateUntilOptions {
  * @param options - Read target, convergence predicate, and retry budget.
  * @returns The first converged read, or the last read once the budget is spent.
  */
-export async function readStateUntil(
-	options: ReadStateUntilOptions,
-): Promise<Result<BedrockState | undefined, StateError>> {
-	const {
-		attempts = DEFAULT_ATTEMPTS,
-		baseDelayMs = DEFAULT_BASE_DELAY_MS,
-		environment,
-		predicate,
-		sleep = defaultSleep,
-		statePort,
-	} = options;
-
+export async function readStateUntilAsync({
+	attempts = DEFAULT_ATTEMPTS,
+	baseDelayMs = DEFAULT_BASE_DELAY_MS,
+	environment,
+	predicate,
+	sleep = defaultSleepAsync,
+	statePort,
+}: ReadStateUntilOptions): Promise<Result<BedrockState | undefined, StateError>> {
 	let result = await statePort.read(environment);
 	for (let attempt = 1; attempt < attempts; attempt += 1) {
 		if (result.success && result.data !== undefined && predicate(result.data)) {
@@ -70,7 +66,7 @@ export async function readStateUntil(
 	return result;
 }
 
-async function defaultSleep(ms: number): Promise<void> {
+async function defaultSleepAsync(ms: number): Promise<void> {
 	await new Promise<void>((resolve) => {
 		setTimeout(resolve, ms);
 	});

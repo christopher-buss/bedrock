@@ -1,5 +1,5 @@
 import { dirname, join } from "node:path";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it, vi } from "vitest";
 
 import { migrateMantleState } from "./migrate-mantle-state.ts";
 
@@ -521,7 +521,7 @@ function fakeFs(
 	};
 }
 
-async function readFileMissing(): Promise<Uint8Array> {
+async function readFileMissingAsync(): Promise<Uint8Array> {
 	throw Object.assign(new Error("not found"), { code: "ENOENT" });
 }
 
@@ -550,7 +550,7 @@ describe(migrateMantleState, () => {
 
 		const result = await migrateMantleState({
 			configFormat: "typescript",
-			readFile: readFileMissing,
+			readFile: readFileMissingAsync,
 			stateFilePath: "/tmp/missing.mantle-state.yml",
 		});
 
@@ -681,7 +681,7 @@ describe(migrateMantleState, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.universe?.universeId).toBe("6031475575");
+		expect(result.data.config.universe!.universeId).toBe("6031475575");
 	});
 
 	it("should return primaryEnvironmentRequired with an empty available list when no environments are declared", async () => {
@@ -746,13 +746,18 @@ describe(migrateMantleState, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.universe?.universeId).toBeUndefined();
-		expect(result.data.config.environments["development"]?.universe?.universeId).toBe(
-			"1111111111",
-		);
-		expect(result.data.config.environments["production"]?.universe?.universeId).toBe(
-			"6031475575",
-		);
+		const { environments, universe } = result.data.config;
+		const { development, production } = environments;
+		assert(development !== undefined);
+		assert(production !== undefined);
+		assert(development.universe !== undefined);
+		assert(production.universe !== undefined);
+
+		// Divergent universes factorize into per-environment overlays, leaving
+		// the root with no universe block to hoist.
+		expect(universe).toBeUndefined();
+		expect(development.universe.universeId).toBe("1111111111");
+		expect(production.universe.universeId).toBe("6031475575");
 	});
 
 	it("should keep each environment's BedrockState truthful to its own deployed values", async () => {
@@ -772,7 +777,8 @@ describe(migrateMantleState, () => {
 
 		const [developmentUniverse] = development.resources;
 		const [productionUniverse] = production.resources;
-		assert(developmentUniverse?.kind === "universe" && productionUniverse?.kind === "universe");
+		assert(developmentUniverse !== undefined && productionUniverse !== undefined);
+		assert(developmentUniverse.kind === "universe" && productionUniverse.kind === "universe");
 
 		expect(developmentUniverse.universeId).toBe("1111111111");
 		expect(productionUniverse.universeId).toBe("6031475575");
@@ -911,7 +917,7 @@ environments:
 		assert(state !== undefined);
 
 		const pass = state.resources.find((resource) => resource.kind === "gamePass");
-		assert(pass?.kind === "gamePass");
+		assert(pass !== undefined);
 
 		expect(pass.key).toBe("1-example");
 		expect(pass.iconFileHashes).toStrictEqual({ "en-us": ICON_BYTES_SHA256 });
@@ -939,8 +945,8 @@ environments:
 		assert(result.success);
 
 		const state = result.data.statesByEnvironment["production"];
-		const pass = state?.resources.find((resource) => resource.kind === "gamePass");
-		assert(pass?.kind === "gamePass");
+		const pass = state!.resources.find((resource) => resource.kind === "gamePass");
+		assert(pass !== undefined);
 
 		expect(pass.iconFileHashes).toStrictEqual({ "en-us": ICON_BYTES_SHA256 });
 	});
@@ -962,14 +968,15 @@ environments:
 		assert(result.success);
 
 		const state = result.data.statesByEnvironment["production"];
-		const pass = state?.resources.find((resource) => resource.kind === "gamePass");
-		assert(pass?.kind === "gamePass");
+		const pass = state!.resources.find((resource) => resource.kind === "gamePass");
+		assert(pass !== undefined);
 
 		expect(pass.iconFileHashes).toStrictEqual({ "en-us": SAMPLE_HASH });
 		expect(result.data.warnings).toHaveLength(1);
 
 		const [warning] = result.data.warnings;
-		assert(warning?.kind === "ambiguous");
+		assert(warning !== undefined);
+		assert(warning.kind === "ambiguous");
 
 		expect(warning.kind).toBe("ambiguous");
 		expect(warning.mantlePath).toBe("production.pass_1-example");
@@ -981,27 +988,24 @@ environments:
 	it("should fall back to the Mantle hash for any readFile rejection, not just ENOENT", async () => {
 		expect.assertions(2);
 
-		const yamlBytes = utf8(PASS_YAML);
-		async function readFile(path: string): Promise<Uint8Array> {
-			if (path === ".mantle-state.yml") {
-				return yamlBytes;
-			}
-
-			// eslint-disable-next-line ts/only-throw-error -- exercising the non-Error rejection branch
-			throw "permission denied";
-		}
+		// The state file is read first; every later read is an icon read, which
+		// rejects with a non-Error value to exercise that branch.
+		const readFileAsync = vi
+			.fn<(path: string) => Promise<Uint8Array>>()
+			.mockResolvedValueOnce(utf8(PASS_YAML))
+			.mockRejectedValue("permission denied");
 
 		const result = await migrateMantleState({
 			configFormat: "typescript",
-			readFile,
+			readFile: readFileAsync,
 			stateFilePath: ".mantle-state.yml",
 		});
 
 		assert(result.success);
 
 		const state = result.data.statesByEnvironment["production"];
-		const pass = state?.resources.find((resource) => resource.kind === "gamePass");
-		assert(pass?.kind === "gamePass");
+		const pass = state!.resources.find((resource) => resource.kind === "gamePass");
+		assert(pass !== undefined);
 
 		expect(pass.iconFileHashes).toStrictEqual({ "en-us": SAMPLE_HASH });
 		expect(result.data.summary.ambiguousCount).toBe(1);
@@ -1038,8 +1042,8 @@ environments:
 		assert(result.success);
 
 		const state = result.data.statesByEnvironment["production"];
-		const universe = state?.resources.find((resource) => resource.kind === "universe");
-		assert(universe?.kind === "universe");
+		const universe = state!.resources.find((resource) => resource.kind === "universe");
+		assert(universe !== undefined);
 
 		expect("icon" in universe).toBeFalse();
 		expect("iconFileHashes" in universe).toBeFalse();
@@ -1075,8 +1079,8 @@ environments:
 		assert(result.success);
 
 		const state = result.data.statesByEnvironment["production"];
-		const product = state?.resources.find((resource) => resource.kind === "developerProduct");
-		assert(product?.kind === "developerProduct");
+		const product = state!.resources.find((resource) => resource.kind === "developerProduct");
+		assert(product !== undefined);
 
 		expect(product.iconFileHashes).toStrictEqual({ "en-us": ICON_BYTES_SHA256 });
 		expect(result.data.warnings).toStrictEqual([]);
@@ -1094,8 +1098,8 @@ environments:
 		assert(result.success);
 
 		const state = result.data.statesByEnvironment["production"];
-		const product = state?.resources.find((resource) => resource.kind === "developerProduct");
-		assert(product?.kind === "developerProduct");
+		const product = state!.resources.find((resource) => resource.kind === "developerProduct");
+		assert(product !== undefined);
 
 		expect(product.iconFileHashes).toBeUndefined();
 		expect(product.icon).toBeUndefined();
@@ -1119,8 +1123,8 @@ environments:
 		assert(result.success);
 
 		const state = result.data.statesByEnvironment["production"];
-		const product = state?.resources.find((resource) => resource.kind === "developerProduct");
-		assert(product?.kind === "developerProduct");
+		const product = state!.resources.find((resource) => resource.kind === "developerProduct");
+		assert(product !== undefined);
 
 		expect(product.iconFileHashes).toStrictEqual({ "en-us": SAMPLE_HASH });
 	});
@@ -1144,7 +1148,8 @@ environments:
 		expect(result.data.warnings).toHaveLength(1);
 
 		const [warning] = result.data.warnings;
-		assert(warning?.kind === "ambiguous");
+		assert(warning !== undefined);
+		assert(warning.kind === "ambiguous");
 
 		expect(warning.mantlePath).toBe("production.product_1-gem-pack");
 		expect(warning.hint).toContain(
@@ -1197,8 +1202,8 @@ environments:
 		assert(result.success);
 
 		const state = result.data.statesByEnvironment["production"];
-		const product = state?.resources.find((resource) => resource.kind === "developerProduct");
-		assert(product?.kind === "developerProduct");
+		const product = state!.resources.find((resource) => resource.kind === "developerProduct");
+		assert(product !== undefined);
 
 		expect(product.key).toBe("1-gem-pack");
 		// Mantle's outputs.assetId is the canonical marketplace product id;
@@ -1207,7 +1212,7 @@ environments:
 		expect(product.outputs.productId).toBe("1835296153");
 		expect(product.outputs.iconImageAssetId).toBe("18280868488");
 		expect(product.iconFileHashes).toStrictEqual({ "en-us": ICON_BYTES_SHA256 });
-		expect(product.iconFileHashes?.["en-us"]).not.toBe(SAMPLE_HASH);
+		expect(product.iconFileHashes!["en-us"]).not.toBe(SAMPLE_HASH);
 	});
 
 	it("should migrate a product without an icon end-to-end", async () => {
@@ -1230,8 +1235,8 @@ environments:
 		});
 
 		const state = result.data.statesByEnvironment["production"];
-		const product = state?.resources.find((resource) => resource.kind === "developerProduct");
-		assert(product?.kind === "developerProduct");
+		const product = state!.resources.find((resource) => resource.kind === "developerProduct");
+		assert(product !== undefined);
 
 		expect(product.icon).toBeUndefined();
 		expect(product.iconFileHashes).toBeUndefined();
@@ -1254,7 +1259,7 @@ environments:
 		expect(ambiguous).toHaveLength(1);
 
 		const [warning] = ambiguous;
-		assert(warning?.kind === "ambiguous");
+		assert(warning !== undefined);
 
 		expect(warning.mantlePath).toBe("production.productIcon_1-orphan");
 		expect(result.data.summary.ambiguousCount).toBe(1);
@@ -1271,15 +1276,11 @@ environments:
 
 		assert(result.success);
 
-		const productKindDeferred = result.data.warnings.filter((warning) => {
-			if (warning.kind !== "deferred") {
-				return false;
-			}
-
-			const segments = warning.mantlePath.split(".");
-			const last = segments.at(-1) ?? "";
-			return last.startsWith("product_") || last.startsWith("productIcon_");
-		});
+		const productKindDeferred = result.data.warnings
+			.filter((warning) => warning.kind === "deferred")
+			.map((warning) => warning.mantlePath.split(".").at(-1))
+			.filter((leaf) => leaf !== undefined)
+			.filter((leaf) => leaf.startsWith("product"));
 
 		expect(productKindDeferred).toStrictEqual([]);
 	});
@@ -1303,11 +1304,11 @@ environments:
 			},
 		});
 
-		expect(result.data.config.environments["development"]?.products).toStrictEqual({
+		expect(result.data.config.environments["development"]!.products).toStrictEqual({
 			"1-gem-pack": { price: 50 },
 		});
 
-		expect(result.data.config.environments["production"]?.products).toStrictEqual({
+		expect(result.data.config.environments["production"]!.products).toStrictEqual({
 			"1-gem-pack": { price: 100 },
 		});
 	});
@@ -1372,7 +1373,7 @@ environments:
 
 		assert(result.success);
 
-		expect(result.data.config.environments["production"]?.places).toStrictEqual({
+		expect(result.data.config.environments["production"]!.places).toStrictEqual({
 			start: { placeId: "17613681043" },
 		});
 	});
@@ -1392,7 +1393,7 @@ environments:
 		assert(state !== undefined);
 
 		const placeResource = state.resources.find((resource) => resource.kind === "place");
-		assert(placeResource?.kind === "place");
+		assert(placeResource !== undefined);
 
 		expect(placeResource.key).toBe("start");
 		expect(placeResource.placeId).toBe("17613681043");
@@ -1414,7 +1415,8 @@ environments:
 		expect(result.data.warnings).toHaveLength(1);
 
 		const [warning] = result.data.warnings;
-		assert(warning?.kind === "ambiguous");
+		assert(warning !== undefined);
+		assert(warning.kind === "ambiguous");
 
 		expect(warning.mantlePath).toBe("production.place_orphan");
 		expect(result.data.summary.ambiguousCount).toBe(1);
@@ -1432,11 +1434,11 @@ environments:
 
 		assert(result.success);
 
-		expect(result.data.config.places?.["start"]?.filePath).toBe("place.rbxlx");
-		expect(result.data.config.environments["production"]?.places).toStrictEqual({
+		expect(result.data.config.places!["start"]!.filePath).toBe("place.rbxlx");
+		expect(result.data.config.environments["production"]!.places).toStrictEqual({
 			start: { placeId: "17613681043" },
 		});
-		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+		expect(result.data.config.environments["development"]!.places).toStrictEqual({
 			start: { filePath: "place.rbxl", placeId: "2222222222" },
 		});
 	});
@@ -1460,7 +1462,7 @@ environments:
 			(resource) => resource.kind === "place",
 		);
 		const productionPlace = production.resources.find((resource) => resource.kind === "place");
-		assert(developmentPlace?.kind === "place" && productionPlace?.kind === "place");
+		assert(developmentPlace !== undefined && productionPlace !== undefined);
 
 		expect(developmentPlace.placeId).toBe("2222222222");
 		expect(productionPlace.placeId).toBe("17613681043");
@@ -1492,7 +1494,7 @@ environments:
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+		expect(result.data.config.environments["development"]!.places).toStrictEqual({
 			start: { placeId: "2222222222" },
 		});
 	});

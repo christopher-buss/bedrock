@@ -66,7 +66,7 @@ export function buildCommand(
 ): (rawOptions: Record<string, unknown>) => Promise<void> {
 	const resolved = resolveBuild(deps);
 	return async (rawOptions) => {
-		const code = await runBuild(rawOptions, resolved);
+		const code = await runBuildAsync(rawOptions, resolved);
 		resolved.exit(code);
 	};
 }
@@ -103,8 +103,11 @@ function overrideExitCode(err: SpawnOverrideError): number {
 	return err.kind === "nonZeroExit" ? err.exitCode : EXIT_ERROR;
 }
 
-async function dispatchOverrideEnvironments(inputs: DispatchOverrideInputs): Promise<number> {
-	const { overridePath, parsed, resolved } = inputs;
+async function dispatchOverridesAsync({
+	overridePath,
+	parsed,
+	resolved,
+}: DispatchOverrideInputs): Promise<number> {
 	let worstExit = EXIT_OK;
 	for (const environment of parsed.environments) {
 		const invocation = buildOverrideInvocation({ environment, overridePath, parsed });
@@ -124,7 +127,10 @@ async function dispatchOverrideEnvironments(inputs: DispatchOverrideInputs): Pro
 	return EXIT_OK;
 }
 
-async function reportNoOverride(parsed: CommonOptions, resolved: ResolvedBuild): Promise<number> {
+async function reportNoOverrideAsync(
+	parsed: CommonOptions,
+	resolved: ResolvedBuild,
+): Promise<number> {
 	const loaded = await resolved.loadConfig(loadOptionsFor(parsed));
 	if (!loaded.success) {
 		renderDeployError({ cause: loaded.err, kind: "configLoadFailed" }, resolved.clack);
@@ -142,7 +148,7 @@ async function reportNoOverride(parsed: CommonOptions, resolved: ResolvedBuild):
 	return EXIT_OK;
 }
 
-async function runBuild(
+async function runBuildAsync(
 	rawOptions: Record<string, unknown>,
 	resolved: ResolvedBuild,
 ): Promise<number> {
@@ -161,12 +167,12 @@ async function runBuild(
 	}
 
 	if (discovery.overridePath !== undefined) {
-		return dispatchOverrideEnvironments({
+		return dispatchOverridesAsync({
 			overridePath: discovery.overridePath,
 			parsed: parsed.data,
 			resolved,
 		});
 	}
 
-	return reportNoOverride(parsed.data, resolved);
+	return reportNoOverrideAsync(parsed.data, resolved);
 }

@@ -1,5 +1,6 @@
 import { assert, describe, expect, it } from "vitest";
 
+import { environmentFrom } from "#tests/helpers/environment";
 import type { ResolvedConfig } from "../core/schema.ts";
 import { buildDefaultRegistry } from "./build-default-registry.ts";
 
@@ -13,11 +14,7 @@ function configWithUniverse(): ResolvedConfig {
 	};
 }
 
-function environmentFrom(values: Record<string, string>): (name: string) => string | undefined {
-	return (name) => values[name];
-}
-
-async function neverReadFile(): Promise<Uint8Array> {
+async function neverReadFileAsync(): Promise<Uint8Array> {
 	return new Uint8Array();
 }
 
@@ -28,7 +25,7 @@ describe(buildDefaultRegistry, () => {
 		const result = buildDefaultRegistry({
 			config: configWithUniverse(),
 			getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test" }),
-			readFile: neverReadFile,
+			readFile: neverReadFileAsync,
 		});
 
 		assert(result.success);
@@ -44,7 +41,7 @@ describe(buildDefaultRegistry, () => {
 		const result = buildDefaultRegistry({
 			config: configWithUniverse(),
 			getEnv: environmentFrom({}),
-			readFile: neverReadFile,
+			readFile: neverReadFileAsync,
 		});
 
 		assert(!result.success);
@@ -61,7 +58,7 @@ describe(buildDefaultRegistry, () => {
 		const result = buildDefaultRegistry({
 			config: { environments: { production: {} }, state: STATE_CONFIG },
 			getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test" }),
-			readFile: neverReadFile,
+			readFile: neverReadFileAsync,
 		});
 
 		assert(!result.success);
@@ -80,9 +77,9 @@ describe(buildDefaultRegistry, () => {
 			config: configWithUniverse(),
 			getEnv: (name) => {
 				reads.push(name);
-				return name === "BEDROCK_API_KEY" ? "rbx-test" : undefined;
+				return environmentFrom({ BEDROCK_API_KEY: "rbx-test" })(name);
 			},
-			readFile: neverReadFile,
+			readFile: neverReadFileAsync,
 		});
 
 		assert(result.success);

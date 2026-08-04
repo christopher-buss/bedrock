@@ -112,6 +112,7 @@ describe("@bedrock-rbx/core/config state and define-config re-exports", () => {
 
 	it("should re-export SocialLink so universe social-link fields type-check", () => {
 		const link: SocialLink = { title: "Discord", uri: "https://discord.gg/example" };
+
 		expectTypeOf<UniverseEntry["discordSocialLink"]>().toExtend<SocialLink | undefined>();
 		expectTypeOf(link).toExtend<SocialLink>();
 	});
@@ -127,6 +128,7 @@ describe("@bedrock-rbx/core/config runtime surface", () => {
 			| "loadConfig"
 			| "migrateMantleState";
 		type ConfigKeys = keyof typeof import("./config.ts");
+
 		expectTypeOf<Extract<ConfigKeys, ProgrammaticApi>>().toEqualTypeOf<never>();
 	});
 });

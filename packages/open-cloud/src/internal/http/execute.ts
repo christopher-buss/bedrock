@@ -8,8 +8,8 @@ import type { HttpRequest, HttpResponse, OpenCloudHooks } from "./types.ts";
 type SendFunc = (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>>;
 
 /**
- * Inputs to {@link executeWithRetry} bundled as an options object to keep the
- * function signature narrow.
+ * Inputs to {@link executeWithRetryAsync} bundled as an options object to keep
+ * the function signature narrow.
  */
 interface ExecuteOptions {
 	/** Fully-resolved retry config (post-merge). */
@@ -33,18 +33,16 @@ interface ExecuteOptions {
  * @param options - The transport callback, resolved config, hooks, and sleep.
  * @returns The first success, or the final error after retries are exhausted.
  */
-export async function executeWithRetry(
+export async function executeWithRetryAsync(
 	request: HttpRequest,
-	options: ExecuteOptions,
+	{ config, hooks, send, sleep }: ExecuteOptions,
 ): Promise<Result<HttpResponse, OpenCloudError>> {
-	const { config, hooks, send, sleep } = options;
-
-	async function attempt(): Promise<Result<HttpResponse, OpenCloudError>> {
+	async function attemptAsync(): Promise<Result<HttpResponse, OpenCloudError>> {
 		hooks.onRequest?.(request);
 		return send(request);
 	}
 
-	let result = await attempt();
+	let result = await attemptAsync();
 
 	for (let retry = 0; retry < config.maxRetries; retry++) {
 		if (result.success || !shouldRetry(result.err, config)) {
@@ -57,7 +55,7 @@ export async function executeWithRetry(
 		hooks.onRateLimit?.(waitMs);
 		await sleep(waitMs);
 
-		result = await attempt();
+		result = await attemptAsync();
 	}
 
 	return result;

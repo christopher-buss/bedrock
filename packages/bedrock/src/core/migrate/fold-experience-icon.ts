@@ -33,9 +33,9 @@ export function foldExperienceIcon(resources: ReadonlyArray<MantleResource>): Fo
 		.filter(
 			(resource) => resource.kind === EXPERIENCE_ICON_KIND && hasReadablePayload(resource),
 		)
-		.map((resource) =>
-			blockedWarning(`${EXPERIENCE_ICON_KIND}_${resource.key}`, BLOCKED_REASON),
-		);
+		.map((resource) => {
+			return blockedWarning(`${EXPERIENCE_ICON_KIND}_${resource.key}`, BLOCKED_REASON);
+		});
 
 	if (warnings.length === 0) {
 		return EMPTY_FRAGMENT;

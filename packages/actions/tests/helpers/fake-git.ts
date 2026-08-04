@@ -1,11 +1,20 @@
 import type { GitExec, GitResult } from "#src/git";
 
 /**
+ * Canned answers for {@link fakeGit}, keyed by {@link GitCommand}. A single
+ * {@link GitResult} answers every invocation of that command; an array is
+ * consumed in order and its final entry repeats once exhausted, which models
+ * "fails once, then succeeds" and "fails forever" without a mutable counter in
+ * the test.
+ */
+export type GitResponses = Partial<Record<GitCommand, GitResult | ReadonlyArray<GitResult>>>;
+
+/**
  * The distinct `git` invocations the commit-back reflow makes, one label per
  * call shape. Tests answer a fake by naming the command rather than matching
  * on the raw argument vector.
  */
-export type GitCommand =
+type GitCommand =
 	| "add"
 	| "checkout"
 	| "commit"
@@ -19,15 +28,6 @@ export type GitCommand =
 	| "revParse"
 	| "stashCreate"
 	| "status";
-
-/**
- * Canned answers for {@link fakeGit}, keyed by {@link GitCommand}. A single
- * {@link GitResult} answers every invocation of that command; an array is
- * consumed in order and its final entry repeats once exhausted, which models
- * "fails once, then succeeds" and "fails forever" without a mutable counter in
- * the test.
- */
-export type GitResponses = Partial<Record<GitCommand, GitResult | ReadonlyArray<GitResult>>>;
 
 /** Index of the config key in `git config --local --unset-all <key>`. */
 const CONFIG_KEY_INDEX = 3;

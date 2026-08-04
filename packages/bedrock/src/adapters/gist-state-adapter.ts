@@ -1,13 +1,14 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { validateEnvironmentName } from "../core/environment.ts";
+import { isRecord } from "../core/is-record.ts";
 import { parseStateFile, serializeStateFile } from "../core/state-file.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import {
-	errorBodyDetail,
+	errorBodyDetailAsync,
 	type HttpFailure,
-	mapHttpError,
+	mapHttpErrorAsync,
 	networkError,
 } from "./gist-http-errors.ts";
 
@@ -54,7 +55,10 @@ export interface GistStateAdapterDeps {
 	 * promise. Tests pass a fake to keep retry assertions deterministic.
 	 */
 	readonly sleep?: ((ms: number) => Promise<void>) | undefined;
-	/** GitHub token (fine-grained PAT or classic PAT) with gist read/write scope. */
+	/**
+	 * GitHub token (fine-grained PAT or classic PAT) with gist read/write
+	 * scope.
+	 */
 	readonly token: string;
 }
 
@@ -124,10 +128,10 @@ interface VisibilityTarget {
  */
 export function createGistStateAdapter(deps: GistStateAdapterDeps): StatePort {
 	const ctx: AdapterContext = {
-		fetchFn: deps.fetch ?? globalThis.fetch.bind(globalThis),
+		fetchFn: deps.fetch ?? fetch.bind(globalThis),
 		gistId: deps.gistId,
 		random: deps.random ?? Math.random,
-		sleep: deps.sleep ?? defaultSleep,
+		sleep: deps.sleep ?? defaultSleepAsync,
 		token: deps.token,
 	};
 
@@ -138,7 +142,7 @@ export function createGistStateAdapter(deps: GistStateAdapterDeps): StatePort {
 				return safe;
 			}
 
-			return readPath(ctx, safe.data);
+			return readPathAsync(ctx, safe.data);
 		},
 		async write(state) {
 			const safe = validateEnvironmentName(state.environment);
@@ -146,12 +150,12 @@ export function createGistStateAdapter(deps: GistStateAdapterDeps): StatePort {
 				return safe;
 			}
 
-			return writePath(ctx, state);
+			return writePathAsync(ctx, state);
 		},
 	};
 }
 
-async function defaultSleep(ms: number): Promise<void> {
+async function defaultSleepAsync(ms: number): Promise<void> {
 	await new Promise<void>((resolve) => {
 		setTimeout(resolve, ms);
 	});
@@ -165,12 +169,16 @@ function fileName(environment: string): string {
 	return `state.${environment}.json`;
 }
 
-function toGistFile(entry: unknown): GistFile | undefined {
-	if (typeof entry !== "object" || entry === null) {
+function toGistFile(files: unknown, name: string): GistFile | undefined {
+	if (!isRecord(files)) {
 		return undefined;
 	}
 
-	const record = entry as Record<string, unknown>;
+	const record = files[name];
+	if (!isRecord(record)) {
+		return undefined;
+	}
+
 	const content = typeof record["content"] === "string" ? record["content"] : undefined;
 	const rawUrl = typeof record["raw_url"] === "string" ? record["raw_url"] : undefined;
 	const size = typeof record["size"] === "number" ? record["size"] : 0;
@@ -187,7 +195,7 @@ function buildHeaders(token: string): Headers {
 	return headers;
 }
 
-async function sendGet(ctx: AdapterContext, etag?: string): Promise<Response> {
+async function sendGetAsync(ctx: AdapterContext, etag?: string): Promise<Response> {
 	const headers = buildHeaders(ctx.token);
 	if (etag !== undefined) {
 		// Conditional GET: a replica still serving the prior body answers 304,
@@ -211,7 +219,7 @@ function backoffMs(attempt: number, random: () => number): number {
 	return half + random() * half;
 }
 
-async function withRetry(
+async function withRetryAsync(
 	retry: RetryDependencies,
 	operation: () => Promise<Response>,
 ): Promise<Response> {
@@ -228,33 +236,39 @@ async function withRetry(
 	return response;
 }
 
-async function fetchGistBody(
+function stateErr<T>(file: string, reason: string): Result<T, StateError> {
+	return { err: { file, kind: "stateError", reason }, success: false };
+}
+
+async function fetchGistBodyAsync(
 	ctx: AdapterContext,
 	file: string,
 ): Promise<Result<Record<string, unknown>, StateError>> {
 	let response: Response;
 	try {
-		response = await withRetry(ctx, async () => sendGet(ctx));
+		response = await withRetryAsync(ctx, async () => sendGetAsync(ctx));
 	} catch (err) {
 		return { err: networkError(err, file), success: false };
 	}
 
 	if (!response.ok) {
 		return {
-			err: await mapHttpError({ file, gistId: ctx.gistId, response }),
+			err: await mapHttpErrorAsync({ file, gistId: ctx.gistId, response }),
 			success: false,
 		};
 	}
 
-	const body = (await response.json()) as Record<string, unknown>;
+	// `Response.json()` is typed `any` by the DOM lib, so the boundary is
+	// declared `unknown` and narrowed by the guard below.
+	const body: unknown = await response.json();
+	if (!isRecord(body)) {
+		return stateErr(file, "gist response body was not a JSON object");
+	}
+
 	return { data: body, success: true };
 }
 
-function stateErr<T>(file: string, reason: string): Result<T, StateError> {
-	return { err: { file, kind: "stateError", reason }, success: false };
-}
-
-async function readGistContent({
+async function readGistContentAsync({
 	entry,
 	fetchFn,
 	file,
@@ -272,7 +286,7 @@ async function readGistContent({
 		const { rawUrl } = entry;
 		let rawResponse: Response;
 		try {
-			rawResponse = await withRetry(retry, async () => fetchFn(rawUrl));
+			rawResponse = await withRetryAsync(retry, async () => fetchFn(rawUrl));
 		} catch (err) {
 			return { err: networkError(err, file), success: false };
 		}
@@ -288,26 +302,25 @@ async function readGistContent({
 	return parseStateFile(entry.content, file);
 }
 
-async function readPath(
+async function readPathAsync(
 	ctx: AdapterContext,
 	environment: string,
 ): Promise<Result<BedrockState | undefined, StateError>> {
 	const file = fileLabel(ctx.gistId, environment);
-	const gist = await fetchGistBody(ctx, file);
+	const gist = await fetchGistBodyAsync(ctx, file);
 	if (!gist.success) {
 		return gist;
 	}
 
-	const files = gist.data["files"] as Record<string, unknown> | undefined;
-	const entry = toGistFile(files?.[fileName(environment)]);
+	const entry = toGistFile(gist.data["files"], fileName(environment));
 	if (entry === undefined) {
 		return { data: undefined, success: true };
 	}
 
-	return readGistContent({ entry, fetchFn: ctx.fetchFn, file, retry: ctx });
+	return readGistContentAsync({ entry, fetchFn: ctx.fetchFn, file, retry: ctx });
 }
 
-async function sendPatch(ctx: AdapterContext, body: string): Promise<Response> {
+async function sendPatchAsync(ctx: AdapterContext, body: string): Promise<Response> {
 	const headers = buildHeaders(ctx.token);
 	headers.set("Content-Type", "application/json");
 	return ctx.fetchFn(`${GITHUB_API_BASE}/gists/${ctx.gistId}`, {
@@ -339,7 +352,7 @@ async function sendPatch(ctx: AdapterContext, body: string): Promise<Response> {
  * @param ctx - Adapter context carrying the injected fetch and sleep seams.
  * @param want - Environment file and serialized body the PATCH just wrote.
  */
-async function waitForContentVisibility(
+async function waitForContentVisibilityAsync(
 	ctx: AdapterContext,
 	want: VisibilityTarget,
 ): Promise<void> {
@@ -347,7 +360,7 @@ async function waitForContentVisibility(
 	let etag: string | undefined;
 	for (let attempt = 0; attempt < MAX_VISIBILITY_ATTEMPTS; attempt += 1) {
 		try {
-			const response = await sendGet(ctx, etag);
+			const response = await sendGetAsync(ctx, etag);
 			// Carry the replica's ETag forward (keeping the prior one when the
 			// response omits it) so later polls stay conditional. Compare the
 			// written body, not the filename: the name is stable across an
@@ -371,19 +384,19 @@ async function waitForContentVisibility(
 	}
 }
 
-async function mapWriteFailure(failure: HttpFailure): Promise<Result<void, StateError>> {
+async function mapWriteFailureAsync(failure: HttpFailure): Promise<Result<void, StateError>> {
 	const { file, response } = failure;
 	if (response.status === 422) {
 		return stateErr(
 			file,
-			`invalid PATCH body sent to github${await errorBodyDetail(response)}`,
+			`invalid PATCH body sent to github${await errorBodyDetailAsync(response)}`,
 		);
 	}
 
-	return { err: await mapHttpError(failure), success: false };
+	return { err: await mapHttpErrorAsync(failure), success: false };
 }
 
-async function writePath(
+async function writePathAsync(
 	ctx: AdapterContext,
 	state: BedrockState,
 ): Promise<Result<void, StateError>> {
@@ -395,20 +408,23 @@ async function writePath(
 
 	let response: Response;
 	try {
-		response = await withRetry(ctx, async () => sendPatch(ctx, body));
+		response = await withRetryAsync(ctx, async () => sendPatchAsync(ctx, body));
 	} catch (err) {
 		return { err: networkError(err, file), success: false };
 	}
 
 	if (response.ok) {
 		try {
-			await waitForContentVisibility(ctx, { content, environment: state.environment });
+			await waitForContentVisibilityAsync(ctx, { content, environment: state.environment });
 		} catch {
-			/* visibility poll errors are non-fatal; the PATCH already committed. */
+			/**
+			 * Visibility poll errors are non-fatal; the PATCH already
+			 * committed.
+			 */
 		}
 
 		return { data: undefined, success: true };
 	}
 
-	return mapWriteFailure({ file, gistId: ctx.gistId, response });
+	return mapWriteFailureAsync({ file, gistId: ctx.gistId, response });
 }

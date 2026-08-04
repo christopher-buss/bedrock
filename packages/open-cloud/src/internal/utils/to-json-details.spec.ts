@@ -56,6 +56,15 @@ describe(toJsonDetails, () => {
 		expect(toJsonDetails(cyclic)).toBeUndefined();
 	});
 
+	it("should return undefined when an array holds itself", () => {
+		expect.assertions(1);
+
+		const cyclic: Array<unknown> = [];
+		cyclic.push(cyclic);
+
+		expect(toJsonDetails(cyclic)).toBeUndefined();
+	});
+
 	it("should reject a class instance rather than coercing it to a record", () => {
 		expect.assertions(1);
 

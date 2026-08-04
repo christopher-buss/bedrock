@@ -62,10 +62,14 @@ export interface BedrockState {
 	 * On disk it is stored alongside `version` inside the adapter-private
 	 * `$bedrock` envelope; `serializeStateFile` and `parseStateFile` own that
 	 * mapping. Like the rebuild marker, it is bedrock bookkeeping and never
-	 * participates in drift detection: `diff` and the state merge never read it.
+	 * participates in drift detection: `diff` and the state merge never read
+	 * it.
 	 */
 	readonly codegenHash?: Sha256Hex;
-	/** Environment name this snapshot belongs to (e.g. `"production"`, `"staging"`). */
+	/**
+	 * Environment name this snapshot belongs to (e.g. `"production"`,
+	 * `"staging"`).
+	 */
 	readonly environment: string;
 	/**
 	 * Place keys recorded as owing a rebuild, surfaced so a later deploy can
@@ -89,12 +93,16 @@ export interface BedrockState {
 	 * `parseStateFile` own that mapping. The map never participates in drift
 	 * detection: `diff` and the state merge operate on the resources array and
 	 * never read it, so persisting real values keeps the diff redaction-blind.
-	 * A codegen emitter recovers the values through the `codegenView` projection.
+	 * A codegen emitter recovers the values through the `codegenView`
+	 * projection.
 	 */
 	readonly realDisplay?: Readonly<Record<string, ResourceRealDisplay>>;
 	/** Current state of every resource Bedrock manages in this environment. */
 	readonly resources: ReadonlyArray<ResourceCurrentState>;
-	/** Schema-version literal; bumped only for breaking changes to the on-disk format. */
+	/**
+	 * Schema-version literal; bumped only for breaking changes to the on-disk
+	 * format.
+	 */
 	readonly version: 1;
 }
 

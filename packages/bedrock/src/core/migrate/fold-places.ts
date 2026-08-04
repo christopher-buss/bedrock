@@ -26,9 +26,15 @@ const PLACE_CONFIGURATION_KIND = "placeConfiguration";
 export interface PlaceFoldEntry {
 	/** Bedrock root `Config.places.<key>` body (currently `filePath` only). */
 	readonly entry: PlaceEntry;
-	/** Mantle-recorded SHA-256 hex digest of the place file (fallback for hash recomputation). */
+	/**
+	 * Mantle-recorded SHA-256 hex digest of the place file (fallback for hash
+	 * recomputation).
+	 */
 	readonly fileHash: Sha256Hex;
-	/** Roblox-assigned identifiers carried into `BedrockState.resources[*].outputs`. */
+	/**
+	 * Roblox-assigned identifiers carried into
+	 * `BedrockState.resources[*].outputs`.
+	 */
 	readonly outputs: PlaceOutputs;
 	/** Roblox-assigned place ID copied from `place_<key>.outputs.assetId`. */
 	readonly placeId: string;
@@ -42,9 +48,14 @@ export interface PlaceFoldEntry {
  * `entries`.
  */
 interface PlaceFoldResult {
-	/** Folded entries keyed by Mantle's place key (the suffix after the first `_`). */
+	/**
+	 * Folded entries keyed by Mantle's place key (the suffix after the first
+	 * `_`).
+	 */
 	readonly entries: ReadonlyMap<string, PlaceFoldEntry>;
-	/** Per-rule diagnostics: orphan resources surface as `ambiguous` warnings. */
+	/**
+	 * Per-rule diagnostics: orphan resources surface as `ambiguous` warnings.
+	 */
 	readonly warnings: ReadonlyArray<MigrationWarning>;
 }
 
@@ -124,8 +135,11 @@ export function foldPlaces(resources: ReadonlyArray<MantleResource>): PlaceFoldR
 	};
 }
 
-function collectMatchedFolds(buckets: PlaceBuckets): PlaceFoldResult {
-	const { placeConfigurations, placeFiles, places } = buckets;
+function collectMatchedFolds({
+	placeConfigurations,
+	placeFiles,
+	places,
+}: PlaceBuckets): PlaceFoldResult {
 	const entries = new Map<string, PlaceFoldEntry>();
 	const warnings: Array<MigrationWarning> = [];
 	for (const [key, placeResource] of places) {
@@ -153,8 +167,11 @@ function collectMatchedFolds(buckets: PlaceBuckets): PlaceFoldResult {
 	return { entries, warnings };
 }
 
-function collectOrphanWarnings(buckets: PlaceBuckets): ReadonlyArray<MigrationWarning> {
-	const { placeConfigurations, placeFiles, places } = buckets;
+function collectOrphanWarnings({
+	placeConfigurations,
+	placeFiles,
+	places,
+}: PlaceBuckets): ReadonlyArray<MigrationWarning> {
 	const warnings: Array<MigrationWarning> = [];
 	for (const [key] of placeFiles) {
 		if (!places.has(key)) {
@@ -259,8 +276,12 @@ function readPlaceConfigFragment(
 	);
 }
 
-function applyPlaceConfigFields(inputs: ApplyPlaceConfigFieldsInputs): PlaceConfigFoldResult {
-	const { key, configResource, folded, isStart } = inputs;
+function applyPlaceConfigFields({
+	key,
+	configResource,
+	folded,
+	isStart,
+}: ApplyPlaceConfigFieldsInputs): PlaceConfigFoldResult {
 	if (configResource === undefined || !isObjectPayload(configResource.inputs)) {
 		return { entry: folded, warnings: [] };
 	}
@@ -303,8 +324,7 @@ function coerceRobloxId(value: unknown): string | undefined {
 	return undefined;
 }
 
-function readPlaceOutputs(resource: MantleResource): PlaceOutputsRaw | undefined {
-	const { outputs } = resource;
+function readPlaceOutputs({ outputs }: MantleResource): PlaceOutputsRaw | undefined {
 	if (!isObjectPayload(outputs)) {
 		return undefined;
 	}
@@ -317,8 +337,7 @@ function readPlaceOutputs(resource: MantleResource): PlaceOutputsRaw | undefined
 	return { assetId };
 }
 
-function readPlaceFileInputs(resource: MantleResource): PlaceFileInputsRaw | undefined {
-	const { inputs } = resource;
+function readPlaceFileInputs({ inputs }: MantleResource): PlaceFileInputsRaw | undefined {
 	if (!isObjectPayload(inputs)) {
 		return undefined;
 	}
@@ -331,8 +350,7 @@ function readPlaceFileInputs(resource: MantleResource): PlaceFileInputsRaw | und
 	return { fileHash, filePath };
 }
 
-function readPlaceFileOutputs(resource: MantleResource): PlaceFileOutputsRaw | undefined {
-	const { outputs } = resource;
+function readPlaceFileOutputs({ outputs }: MantleResource): PlaceFileOutputsRaw | undefined {
 	if (!isObjectPayload(outputs)) {
 		return undefined;
 	}

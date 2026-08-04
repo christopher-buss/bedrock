@@ -5,6 +5,7 @@ import { forbidReadOnlyProperties, getAjv } from "./_helpers.ts";
 describe(forbidReadOnlyProperties, () => {
 	it("should replace a readOnly property's schema with a never-match schema", () => {
 		expect.assertions(1);
+
 		expect(
 			forbidReadOnlyProperties({
 				properties: {
@@ -24,6 +25,7 @@ describe(forbidReadOnlyProperties, () => {
 
 	it("should also drop the readOnly property from required", () => {
 		expect.assertions(1);
+
 		expect(
 			forbidReadOnlyProperties({
 				properties: {
@@ -45,6 +47,7 @@ describe(forbidReadOnlyProperties, () => {
 
 	it("should leave non-readOnly properties unchanged", () => {
 		expect.assertions(1);
+
 		expect(
 			forbidReadOnlyProperties({
 				properties: { name: { type: "string" } },
@@ -58,6 +61,7 @@ describe(forbidReadOnlyProperties, () => {
 
 	it("should recurse into nested schemas", () => {
 		expect.assertions(1);
+
 		expect(
 			forbidReadOnlyProperties({
 				properties: {
@@ -85,6 +89,7 @@ describe(forbidReadOnlyProperties, () => {
 
 	it("should return primitives unchanged", () => {
 		expect.assertions(2);
+
 		expect(forbidReadOnlyProperties("hello")).toBe("hello");
 		expect(forbidReadOnlyProperties(42)).toBe(42);
 	});
@@ -100,7 +105,7 @@ describe(getAjv, () => {
 
 		expect(validator).toBeFunction();
 
-		const isValid = validator?.({ visibility: "PRIVATE" });
+		const isValid = validator!({ visibility: "PRIVATE" });
 
 		expect(isValid).toBeFalse();
 	});

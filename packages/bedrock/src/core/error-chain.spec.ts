@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { cyclicError } from "#tests/helpers/errors";
 import { safeStringify } from "./error-chain.ts";
 
 describe(safeStringify, () => {
@@ -35,8 +36,7 @@ describe(safeStringify, () => {
 	it("should stop walking a self-referential cause chain rather than loop forever", () => {
 		expect.assertions(1);
 
-		const cyclic = new Error("loop");
-		cyclic.cause = cyclic;
+		const cyclic = cyclicError("loop");
 
 		expect(safeStringify(cyclic)).toBe(
 			"loop; caused by: loop; caused by: loop; caused by: loop; caused by: loop",

@@ -63,10 +63,15 @@ import type { Simplify, Tagged } from "type-fest";
 
 // ── Branded primitives ────────────────────────────────────────────────────────
 
-/** User-supplied identifier for a resource within a config (e.g. "vip-pass"). */
+/**
+ * User-supplied identifier for a resource within a config (e.g. "vip-pass").
+ */
 export type ResourceKey = Tagged<string, "ResourceKey">;
 
-/** Roblox-assigned numeric asset ID, represented as a string to avoid int64 loss. */
+/**
+ * Roblox-assigned numeric asset ID, represented as a string to avoid int64
+ * loss.
+ */
 export type RobloxAssetId = Tagged<string, "RobloxAssetId">;
 
 /** Lowercase hex-encoded SHA-256 digest of a local file. */
@@ -76,11 +81,17 @@ export type Sha256Hex = Tagged<string, "Sha256Hex">;
 
 /** Desired state for a game pass, as declared in user config. */
 export interface GamePassDesiredState {
-	/** User-supplied key; stable across deploys; used to correlate desired ↔ current. */
+	/**
+	 * User-supplied key; stable across deploys; used to correlate desired ↔
+	 * current.
+	 */
 	readonly key: ResourceKey;
 	readonly name: string;
 	readonly description: string;
-	/** SHA-256 hex digest of the icon file, computed by `buildDesired` in shell. */
+	/**
+	 * SHA-256 hex digest of the icon file, computed by `buildDesired` in
+	 * shell.
+	 */
 	readonly iconFileHash: Sha256Hex;
 	/** Path to the icon file on disk, relative to the config file. */
 	readonly iconFilePath: string;
@@ -166,7 +177,10 @@ export interface NoopOperation extends BaseOperation {
 export type Operation = CreateOperation | NoopOperation | UpdateOperation;
 
 interface BaseOperation {
-	/** Resource key; hoisted to op-level for uniform access across all op types. */
+	/**
+	 * Resource key; hoisted to op-level for uniform access across all op
+	 * types.
+	 */
 	readonly key: ResourceKey;
 }
 ```
@@ -279,7 +293,9 @@ export interface StatePort {
 	 */
 	read(environment: string): Promise<Result<BedrockState | null, StateError>>;
 
-	/** Writes state for the given environment, overwriting any existing file. */
+	/**
+	 * Writes state for the given environment, overwriting any existing file.
+	 */
 	write(state: BedrockState): Promise<Result<void, StateError>>;
 }
 ```

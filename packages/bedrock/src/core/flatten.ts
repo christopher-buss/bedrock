@@ -1,9 +1,7 @@
 import type { SocialLink } from "@bedrock-rbx/ocale/universes";
 
 import type { ResourceKey, RobloxAssetId } from "../types/ids.ts";
-import { defaultKindRegistry } from "./kinds/index.ts";
-import type { ResourceKindModule } from "./kinds/module.ts";
-import type { ResourceKind } from "./resources.ts";
+import { flattenAllKinds } from "./kinds/dispatch.ts";
 import type { DeveloperProductEntry, GamePassEntry, ResolvedConfig } from "./schema.ts";
 
 /**
@@ -32,7 +30,9 @@ import type { DeveloperProductEntry, GamePassEntry, ResolvedConfig } from "./sch
  * ```
  */
 export interface GamePassDesiredInput extends Readonly<GamePassEntry> {
-	/** User-supplied handle, already validated against the `ResourceKey` brand. */
+	/**
+	 * User-supplied handle, already validated against the `ResourceKey` brand.
+	 */
 	readonly key: ResourceKey;
 	/** Discriminator tag for the `ResourceDesiredInput` union. */
 	readonly kind: "gamePass";
@@ -67,11 +67,18 @@ export interface GamePassDesiredInput extends Readonly<GamePassEntry> {
  * ```
  */
 export interface PlaceDesiredInput {
-	/** User-supplied handle, already validated against the `ResourceKey` brand. */
+	/**
+	 * User-supplied handle, already validated against the `ResourceKey` brand.
+	 */
 	readonly key: ResourceKey;
-	/** User-facing place description; `undefined` leaves the server value untouched. */
+	/**
+	 * User-facing place description; `undefined` leaves the server value
+	 * untouched.
+	 */
 	readonly description: string | undefined;
-	/** User-facing place name; `undefined` leaves the server value untouched. */
+	/**
+	 * User-facing place name; `undefined` leaves the server value untouched.
+	 */
 	readonly displayName: string | undefined;
 	/** Path to the `.rbxl` or `.rbxlx` file; read by `buildDesired`. */
 	readonly filePath: string;
@@ -79,7 +86,10 @@ export interface PlaceDesiredInput {
 	readonly kind: "place";
 	/** Existing Roblox place ID, validated and branded at flatten time. */
 	readonly placeId: RobloxAssetId;
-	/** Maximum players per server; `undefined` leaves the server value untouched. */
+	/**
+	 * Maximum players per server; `undefined` leaves the server value
+	 * untouched.
+	 */
 	readonly serverSize: number | undefined;
 }
 
@@ -115,13 +125,25 @@ export interface PlaceDesiredInput {
  * ```
  */
 export interface UniverseDesiredInput {
-	/** Synthesized singleton key (`"main"`), already validated against the `ResourceKey` brand. */
+	/**
+	 * Synthesized singleton key (`"main"`), already validated against the
+	 * `ResourceKey` brand.
+	 */
 	readonly key: ResourceKey;
-	/** Whether console players can join; `undefined` leaves the server value untouched. */
+	/**
+	 * Whether console players can join; `undefined` leaves the server value
+	 * untouched.
+	 */
 	readonly consoleEnabled: boolean | undefined;
-	/** Whether desktop players can join; `undefined` leaves the server value untouched. */
+	/**
+	 * Whether desktop players can join; `undefined` leaves the server value
+	 * untouched.
+	 */
 	readonly desktopEnabled: boolean | undefined;
-	/** Discord social link; tri-state (absent/undefined/set) — see `UniverseDesiredState`. */
+	/**
+	 * Discord social link; tri-state (absent/undefined/set) — see
+	 * `UniverseDesiredState`.
+	 */
 	readonly discordSocialLink?: SocialLink | undefined;
 	/**
 	 * Display name for the universe. `undefined` leaves the server value
@@ -130,9 +152,15 @@ export interface UniverseDesiredInput {
 	 * `displayName` as read-only.
 	 */
 	readonly displayName: string | undefined;
-	/** Facebook social link; tri-state (absent/undefined/set) — see `UniverseDesiredState`. */
+	/**
+	 * Facebook social link; tri-state (absent/undefined/set) — see
+	 * `UniverseDesiredState`.
+	 */
 	readonly facebookSocialLink?: SocialLink | undefined;
-	/** Guilded social link; tri-state (absent/undefined/set) — see `UniverseDesiredState`. */
+	/**
+	 * Guilded social link; tri-state (absent/undefined/set) — see
+	 * `UniverseDesiredState`.
+	 */
 	readonly guildedSocialLink?: SocialLink | undefined;
 	/**
 	 * Locale-keyed experience-icon paths copied from the user-supplied
@@ -141,7 +169,10 @@ export interface UniverseDesiredInput {
 	readonly icon?: Record<"en-us", string>;
 	/** Discriminator tag for the `ResourceDesiredInput` union. */
 	readonly kind: "universe";
-	/** Whether mobile players can join; `undefined` leaves the server value untouched. */
+	/**
+	 * Whether mobile players can join; `undefined` leaves the server value
+	 * untouched.
+	 */
 	readonly mobileEnabled: boolean | undefined;
 	/**
 	 * Private-server price in Robux. A present key with `undefined`
@@ -149,21 +180,42 @@ export interface UniverseDesiredInput {
 	 * leaves the server value untouched.
 	 */
 	readonly privateServerPriceRobux?: number | undefined;
-	/** Roblox Group social link; tri-state (absent/undefined/set) — see `UniverseDesiredState`. */
+	/**
+	 * Roblox Group social link; tri-state (absent/undefined/set) — see
+	 * `UniverseDesiredState`.
+	 */
 	readonly robloxGroupSocialLink?: SocialLink | undefined;
-	/** Whether tablet players can join; `undefined` leaves the server value untouched. */
+	/**
+	 * Whether tablet players can join; `undefined` leaves the server value
+	 * untouched.
+	 */
 	readonly tabletEnabled: boolean | undefined;
-	/** Twitch social link; tri-state (absent/undefined/set) — see `UniverseDesiredState`. */
+	/**
+	 * Twitch social link; tri-state (absent/undefined/set) — see
+	 * `UniverseDesiredState`.
+	 */
 	readonly twitchSocialLink?: SocialLink | undefined;
-	/** Twitter social link; tri-state (absent/undefined/set) — see `UniverseDesiredState`. */
+	/**
+	 * Twitter social link; tri-state (absent/undefined/set) — see
+	 * `UniverseDesiredState`.
+	 */
 	readonly twitterSocialLink?: SocialLink | undefined;
 	/** Existing Roblox universe ID, validated and branded at flatten time. */
 	readonly universeId: RobloxAssetId;
-	/** Whether voice chat is enabled; `undefined` leaves the server value untouched. */
+	/**
+	 * Whether voice chat is enabled; `undefined` leaves the server value
+	 * untouched.
+	 */
 	readonly voiceChatEnabled: boolean | undefined;
-	/** Whether VR players can join; `undefined` leaves the server value untouched. */
+	/**
+	 * Whether VR players can join; `undefined` leaves the server value
+	 * untouched.
+	 */
 	readonly vrEnabled: boolean | undefined;
-	/** YouTube social link; tri-state (absent/undefined/set) — see `UniverseDesiredState`. */
+	/**
+	 * YouTube social link; tri-state (absent/undefined/set) — see
+	 * `UniverseDesiredState`.
+	 */
 	readonly youtubeSocialLink?: SocialLink | undefined;
 }
 
@@ -191,7 +243,9 @@ export interface UniverseDesiredInput {
  * ```
  */
 export interface DeveloperProductDesiredInput extends Readonly<DeveloperProductEntry> {
-	/** User-supplied handle, already validated against the `ResourceKey` brand. */
+	/**
+	 * User-supplied handle, already validated against the `ResourceKey` brand.
+	 */
 	readonly key: ResourceKey;
 	/** Discriminator tag for the `ResourceDesiredInput` union. */
 	readonly kind: "developerProduct";
@@ -252,8 +306,5 @@ export type ResourceDesiredInput =
  * ```
  */
 export function flattenConfig(config: ResolvedConfig): ReadonlyArray<ResourceDesiredInput> {
-	const modules = Object.values(defaultKindRegistry) as ReadonlyArray<
-		ResourceKindModule<ResourceKind>
-	>;
-	return modules.flatMap((module) => module.flatten(config));
+	return flattenAllKinds(config);
 }

@@ -17,13 +17,6 @@ export interface FakeSleep {
 }
 
 /**
- * What a route answers with. An `Error` is thrown rather than resolved, which
- * models a transport failure; an array is consumed in order and its final
- * entry repeats once exhausted.
- */
-export type GistReply = Error | Response;
-
-/**
  * Canned answers keyed by the leg of the gist protocol they belong to, so a
  * test states which call gets which response instead of branching on the
  * request inside the fake.
@@ -36,6 +29,13 @@ export interface GistRoutes {
 	/** Answers a `raw_url` fetch, which the CDN serves from another host. */
 	readonly raw?: GistReply | ReadonlyArray<GistReply>;
 }
+
+/**
+ * What a route answers with. An `Error` is thrown rather than resolved, which
+ * models a transport failure; an array is consumed in order and its final
+ * entry repeats once exhausted.
+ */
+type GistReply = Error | Response;
 
 const GIST_API_HOST = "api.github.com";
 

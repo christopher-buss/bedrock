@@ -50,7 +50,7 @@ function readFormString(body: unknown, key: string): string {
 	return value;
 }
 
-async function readFormBytes(body: unknown, key: string): Promise<Uint8Array> {
+async function readFormBytesAsync(body: unknown, key: string): Promise<Uint8Array> {
 	assert(body instanceof FormData);
 	const value = body.get(key);
 	assert(value instanceof Blob);
@@ -180,7 +180,7 @@ describe(createDeveloperProductDriver, () => {
 
 		const captured = http.requests[0]!;
 
-		await expect(readFormBytes(captured.request.body, "imageFile")).resolves.toStrictEqual(
+		await expect(readFormBytesAsync(captured.request.body, "imageFile")).resolves.toStrictEqual(
 			ICON_BYTES,
 		);
 	});
@@ -188,11 +188,11 @@ describe(createDeveloperProductDriver, () => {
 	it("should omit imageFile from the multipart body when desired has no icon", async () => {
 		expect.assertions(1);
 
-		async function readFile(): Promise<Uint8Array> {
+		async function readFileAsync(): Promise<Uint8Array> {
 			throw new Error("readFile must not run when icon is absent");
 		}
 
-		const { driver, http } = makeDriver({ readFile });
+		const { driver, http } = makeDriver({ readFile: readFileAsync });
 		http.mockResponse({ body: WIRE_BODY, status: 200 });
 
 		await driver.create(developerProductDesired());
@@ -558,9 +558,9 @@ describe(createDeveloperProductDriver, () => {
 
 			const captured = http.requests[0]!;
 
-			await expect(readFormBytes(captured.request.body, "imageFile")).resolves.toStrictEqual(
-				ICON_BYTES,
-			);
+			await expect(
+				readFormBytesAsync(captured.request.body, "imageFile"),
+			).resolves.toStrictEqual(ICON_BYTES);
 		});
 
 		it("should attach imageFile to the PATCH body when desired adds an icon that current did not record", async () => {
@@ -579,9 +579,9 @@ describe(createDeveloperProductDriver, () => {
 
 			const captured = http.requests[0]!;
 
-			await expect(readFormBytes(captured.request.body, "imageFile")).resolves.toStrictEqual(
-				ICON_BYTES,
-			);
+			await expect(
+				readFormBytesAsync(captured.request.body, "imageFile"),
+			).resolves.toStrictEqual(ICON_BYTES);
 		});
 
 		it.for([["isRegionalPricingEnabled"], ["storePageEnabled"]] as const)(

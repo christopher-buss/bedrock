@@ -3,7 +3,8 @@ import { type BedrockState, createGistStateAdapter, type StatePort } from "@bedr
 import process from "node:process";
 import { assert, describe, expect, it, onTestFinished } from "vitest";
 
-import { pruneStateGist } from "../helpers/prune-state-gist.ts";
+import { assertOk } from "../helpers/assert-ok.ts";
+import { pruneStateGistAsync } from "../helpers/prune-state-gist.ts";
 
 const TOKEN = process.env["GITHUB_TOKEN"];
 const GIST_ID = process.env["BEDROCK_TEST_GIST_ID"];
@@ -13,7 +14,7 @@ const HAS_SECRETS = TOKEN !== undefined && GIST_ID !== undefined;
 const READ_VISIBILITY_BUDGET_MS = 40_000;
 const READ_POLL_INTERVAL_MS = 1_000;
 
-async function sleep(ms: number): Promise<void> {
+async function sleepAsync(ms: number): Promise<void> {
 	await new Promise<void>((resolve) => {
 		setTimeout(resolve, ms);
 	});
@@ -28,19 +29,22 @@ async function sleep(ms: number): Promise<void> {
  * @param inputs - State port, environment name, and the absolute poll deadline.
  * @returns The first read carrying data, or the last read once the deadline passes.
  */
-async function readUntilVisible(inputs: {
+async function readUntilVisibleAsync({
+	deadline,
+	environment,
+	port,
+}: {
 	readonly deadline: number;
 	readonly environment: string;
 	readonly port: StatePort;
 }): Promise<Awaited<ReturnType<StatePort["read"]>>> {
-	const { deadline, environment, port } = inputs;
 	for (;;) {
 		const read = await port.read(environment);
 		if (!read.success || read.data !== undefined || Date.now() >= deadline) {
 			return read;
 		}
 
-		await sleep(READ_POLL_INTERVAL_MS);
+		await sleepAsync(READ_POLL_INTERVAL_MS);
 	}
 }
 
@@ -54,7 +58,7 @@ describe("gist state adapter against real github", () => {
 			assert(GIST_ID !== undefined, "BEDROCK_TEST_GIST_ID must be set");
 
 			onTestFinished(async () => {
-				await pruneStateGist({
+				await pruneStateGistAsync({
 					filenamePrefix: "state.smoke-",
 					gistId: GIST_ID,
 					keep: 3,
@@ -76,12 +80,9 @@ describe("gist state adapter against real github", () => {
 			expect(firstRead).toStrictEqual({ data: undefined, success: true });
 
 			const writeResult = await port.write(state);
-			assert(
-				writeResult.success,
-				`write failed: ${JSON.stringify(writeResult.success ? undefined : writeResult.err)}`,
-			);
+			assertOk(writeResult, "write");
 
-			const secondRead = await readUntilVisible({
+			const secondRead = await readUntilVisibleAsync({
 				deadline: Date.now() + READ_VISIBILITY_BUDGET_MS,
 				environment,
 				port,

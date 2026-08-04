@@ -62,13 +62,12 @@ async function fetchUpstream(): Promise<UpstreamPayload> {
 	return raw;
 }
 
-function projectEntry(entry: UpstreamEntry): VendoredEntry {
-	const {
-		isEnabledForFullExperience,
-		isEnabledForInGameUgc,
-		isEnabledForSignupAndLogin,
-		locale,
-	} = entry;
+function projectEntry({
+	isEnabledForFullExperience,
+	isEnabledForInGameUgc,
+	isEnabledForSignupAndLogin,
+	locale,
+}: UpstreamEntry): VendoredEntry {
 	return {
 		name: locale.name,
 		isEnabledForFullExperience,
@@ -161,7 +160,9 @@ async function refreshPinnedDate(): Promise<void> {
 		throw new Error(`failed to locate creator-locales pinned-date line in ${README_PATH}`);
 	}
 
-	const updated = readme.replace(PINNED_DATE_PATTERN, `**Pinned date:** \`${today}\``);
+	// A replacer function inserts the text verbatim; a string replacement would
+	// interpret `$&` and friends in the interpolated value.
+	const updated = readme.replace(PINNED_DATE_PATTERN, () => `**Pinned date:** \`${today}\``);
 	await Bun.write(README_PATH, updated);
 }
 

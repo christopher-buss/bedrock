@@ -307,8 +307,8 @@ describe(parseDequeueResponse, () => {
 		assert(result.success);
 
 		expect(result.data.items).toHaveLength(2);
-		expect(result.data.items[0]?.id).toBe("first");
-		expect(result.data.items[1]?.priority).toBeUndefined();
+		expect(result.data.items[0]!.id).toBe("first");
+		expect(result.data.items[1]!.priority).toBeUndefined();
 	});
 
 	it("should accept an empty queueItems array", () => {

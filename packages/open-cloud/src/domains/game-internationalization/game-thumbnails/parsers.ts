@@ -1,6 +1,7 @@
 import type { HttpResponse } from "../../../client/types.ts";
 import { ApiError } from "../../../errors/api-error.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
+import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
 import type { UploadedExperienceThumbnail } from "./types.ts";
 import type { GameThumbnailUploadWire } from "./wire.ts";
@@ -14,15 +15,14 @@ import type { GameThumbnailUploadWire } from "./wire.ts";
  * @returns A success result wrapping the converted upload, or an
  *   `ApiError` when the body does not match the wire schema.
  */
-export function parseThumbnailUploadResponse(
-	response: HttpResponse,
-): Result<UploadedExperienceThumbnail, ApiError> {
-	const { body, status: statusCode } = response;
-
+export function parseThumbnailUploadResponse({
+	body,
+	status: statusCode,
+}: HttpResponse): Result<UploadedExperienceThumbnail, ApiError> {
 	if (!isGameThumbnailUploadWire(body)) {
 		return {
 			err: new ApiError("Malformed thumbnail upload response", {
-				details: body as JSONValue | undefined,
+				details: toJsonDetails(body),
 				statusCode,
 			}),
 			success: false,

@@ -19,6 +19,9 @@ export interface UpdateDeveloperProductNameDescriptionParameters {
 	 * `ar_001`).
 	 */
 	readonly languageCode: RobloxLanguageCode | RobloxLocale;
-	/** Stringified ID of the developer product whose localization is being updated. */
+	/**
+	 * Stringified ID of the developer product whose localization is being
+	 * updated.
+	 */
 	readonly productId: string;
 }

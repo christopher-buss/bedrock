@@ -85,6 +85,7 @@ describe(nullableToUnion, () => {
 		{ input: JSON.parse("null"), label: "null" },
 	])("should return a $label primitive unchanged", ({ input }) => {
 		expect.assertions(1);
+
 		expect(nullableToUnion(input)).toStrictEqual(input);
 	});
 
@@ -160,11 +161,13 @@ describe(nullableToUnion, () => {
 describe(isRecord, () => {
 	it("should return true for a plain object", () => {
 		expect.assertions(1);
+
 		expect(isRecord({ a: 1 })).toBeTrue();
 	});
 
 	it("should return false for arrays, null, and primitives", () => {
 		expect.assertions(4);
+
 		expect(isRecord([1, 2, 3])).toBeFalse();
 		expect(isRecord(JSON.parse("null"))).toBeFalse();
 		expect(isRecord("hello")).toBeFalse();
@@ -175,6 +178,7 @@ describe(isRecord, () => {
 describe(dropReadOnlyFromRequired, () => {
 	it("should drop a readOnly field from required", () => {
 		expect.assertions(1);
+
 		expect(
 			dropReadOnlyFromRequired({
 				properties: {
@@ -196,6 +200,7 @@ describe(dropReadOnlyFromRequired, () => {
 
 	it("should remove the required key entirely when every required field is readOnly", () => {
 		expect.assertions(1);
+
 		expect(
 			dropReadOnlyFromRequired({
 				properties: {
@@ -214,6 +219,7 @@ describe(dropReadOnlyFromRequired, () => {
 
 	it("should leave required unchanged when no field is readOnly", () => {
 		expect.assertions(1);
+
 		expect(
 			dropReadOnlyFromRequired({
 				properties: { name: { type: "string" } },
@@ -229,6 +235,7 @@ describe(dropReadOnlyFromRequired, () => {
 
 	it("should not alter nodes without a properties + required pair", () => {
 		expect.assertions(1);
+
 		expect(
 			dropReadOnlyFromRequired({
 				required: ["id"],
@@ -242,6 +249,7 @@ describe(dropReadOnlyFromRequired, () => {
 
 	it("should recurse into nested schemas and arrays", () => {
 		expect.assertions(1);
+
 		expect(
 			dropReadOnlyFromRequired({
 				properties: {
@@ -270,6 +278,7 @@ describe(dropReadOnlyFromRequired, () => {
 
 	it("should return primitives unchanged", () => {
 		expect.assertions(2);
+
 		expect(dropReadOnlyFromRequired("hello")).toBe("hello");
 		expect(dropReadOnlyFromRequired(42)).toBe(42);
 	});
@@ -278,11 +287,13 @@ describe(dropReadOnlyFromRequired, () => {
 describe(getAjv, () => {
 	it("should return distinct instances for response and request modes", () => {
 		expect.assertions(1);
+
 		expect(getAjv("response")).not.toBe(getAjv("request"));
 	});
 
 	it("should cache the instance per mode", () => {
 		expect.assertions(2);
+
 		expect(getAjv("response")).toBe(getAjv("response"));
 		expect(getAjv("request")).toBe(getAjv("request"));
 	});

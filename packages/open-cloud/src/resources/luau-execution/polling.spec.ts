@@ -17,7 +17,7 @@ import {
 	DEFAULT_POLL_TIMEOUT_MS,
 	defaultPollDelay,
 	type PollDependencies,
-	pollUntilDoneCore,
+	pollUntilDoneCoreAsync,
 	withBudgetRequestTimeout,
 } from "./polling.ts";
 
@@ -58,7 +58,7 @@ function makeDependencies(overrides: Partial<PollDependencies> = {}): PollDepend
 	};
 }
 
-describe(pollUntilDoneCore, () => {
+describe(pollUntilDoneCoreAsync, () => {
 	// Slice 3: resolves with COMPLETE on first poll
 	it("should resolve with the task when the first fetch returns COMPLETE", async () => {
 		expect.assertions(3);
@@ -70,7 +70,7 @@ describe(pollUntilDoneCore, () => {
 			.mockResolvedValue({ data: completeTask, success: true });
 		const dependencies = makeDependencies({ fetch, sleep });
 
-		const result = await pollUntilDoneCore(dependencies);
+		const result = await pollUntilDoneCoreAsync(dependencies);
 
 		assert(result.success);
 
@@ -90,7 +90,7 @@ describe(pollUntilDoneCore, () => {
 			.mockResolvedValue({ data: failedTask, success: true });
 		const dependencies = makeDependencies({ fetch, sleep });
 
-		const result = await pollUntilDoneCore(dependencies);
+		const result = await pollUntilDoneCoreAsync(dependencies);
 
 		assert(result.success);
 
@@ -110,7 +110,7 @@ describe(pollUntilDoneCore, () => {
 			.mockResolvedValue({ data: cancelledTask, success: true });
 		const dependencies = makeDependencies({ fetch, sleep });
 
-		const result = await pollUntilDoneCore(dependencies);
+		const result = await pollUntilDoneCoreAsync(dependencies);
 
 		assert(result.success);
 
@@ -130,7 +130,7 @@ describe(pollUntilDoneCore, () => {
 			.mockResolvedValueOnce({ data: makeTask("PROCESSING"), success: true })
 			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
 
-		const result = await pollUntilDoneCore(makeDependencies({ fetch, sleep }), {
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch, sleep }), {
 			pollDelay: () => 100,
 		});
 
@@ -152,7 +152,7 @@ describe(pollUntilDoneCore, () => {
 			.mockResolvedValueOnce({ data: makeTask("PROCESSING"), success: true })
 			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
 
-		await pollUntilDoneCore({ fetch, now: Date.now, sleep: clock.sleep }, { pollDelay });
+		await pollUntilDoneCoreAsync({ fetch, now: Date.now, sleep: clock.sleep }, { pollDelay });
 
 		// Each 100ms sleep advances the clock, so the second sleep observes
 		// elapsed=100, proving elapsed time, not the attempt index (which would
@@ -172,14 +172,14 @@ describe(pollUntilDoneCore, () => {
 			.mockResolvedValueOnce({ data: makeTask("QUEUED"), success: true })
 			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
 
-		await pollUntilDoneCore(makeDependencies({ fetch, sleep }));
+		await pollUntilDoneCoreAsync(makeDependencies({ fetch, sleep }));
 
 		expect(sleep.waits).toStrictEqual([defaultPollDelay(0)]);
 	});
 
 	// Slice 10: PollTimeoutError with last-observed task on exhaustion
 	it("should resolve with PollTimeoutError carrying the last observed task when the wall-clock budget is exhausted", async () => {
-		expect.assertions(5);
+		expect.assertions(4);
 
 		const clock = createFakeClock();
 		// Advance before the call so startedAt > 0; this makes now()-startedAt
@@ -190,7 +190,7 @@ describe(pollUntilDoneCore, () => {
 			.fn<PollDependencies["fetch"]>()
 			.mockResolvedValue({ data: processingTask, success: true });
 
-		const result = await pollUntilDoneCore(
+		const result = await pollUntilDoneCoreAsync(
 			{ fetch, now: Date.now, sleep: clock.sleep },
 			{
 				pollDelay: () => 100,
@@ -200,9 +200,8 @@ describe(pollUntilDoneCore, () => {
 
 		assert(!result.success);
 
-		expect(result.err).toBeInstanceOf(PollTimeoutError);
-
-		const err = result.err as PollTimeoutError<LuauExecutionTask>;
+		const { err } = result;
+		assert(err instanceof PollTimeoutError);
 
 		expect(err.lastObservedTask).toBe(processingTask);
 		expect(err.timeoutMs).toBe(300);
@@ -225,7 +224,7 @@ describe(pollUntilDoneCore, () => {
 		controller.abort("pre-aborted reason");
 		const fetch = vi.fn<PollDependencies["fetch"]>();
 
-		const result = await pollUntilDoneCore(makeDependencies({ fetch }), {
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch }), {
 			signal: controller.signal,
 		});
 
@@ -246,7 +245,7 @@ describe(pollUntilDoneCore, () => {
 		const controller = new AbortController();
 		let resolveSlowSleep: (() => void) | undefined;
 
-		async function slowSleep(_ms: number): Promise<void> {
+		async function slowSleepAsync(_ms: number): Promise<void> {
 			return new Promise<void>((resolve) => {
 				resolveSlowSleep = resolve;
 			});
@@ -256,15 +255,20 @@ describe(pollUntilDoneCore, () => {
 			.fn<PollDependencies["fetch"]>()
 			.mockResolvedValueOnce({ data: makeTask("PROCESSING"), success: true });
 
-		const pollingPromise = pollUntilDoneCore(makeDependencies({ fetch, sleep: slowSleep }), {
-			signal: controller.signal,
-		});
+		const pollingPromise = pollUntilDoneCoreAsync(
+			makeDependencies({ fetch, sleep: slowSleepAsync }),
+			{
+				signal: controller.signal,
+			},
+		);
 
 		// Let the first fetch complete, then abort mid-sleep
 		await vi.waitUntil(() => resolveSlowSleep !== undefined);
 		controller.abort("mid-sleep abort");
 
 		const result = await pollingPromise;
+		// The slow sleep promise never resolved; the loop returned early.
+		resolveSlowSleep!();
 
 		assert(!result.success);
 
@@ -272,9 +276,6 @@ describe(pollUntilDoneCore, () => {
 		// The mid-sleep return short-circuits the loop; without it the next
 		// iteration would call fetch a second time before catching the abort.
 		expect(fetch).toHaveBeenCalledExactlyOnceWith();
-
-		// The slow sleep promise never resolved; the loop returned early.
-		resolveSlowSleep?.();
 	});
 
 	it("should remove the abort listener after polling resolves", async () => {
@@ -287,7 +288,7 @@ describe(pollUntilDoneCore, () => {
 			.mockResolvedValueOnce({ data: makeTask("QUEUED"), success: true })
 			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
 
-		const result = await pollUntilDoneCore(makeDependencies({ fetch }), {
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch }), {
 			pollDelay: () => 0,
 			signal: controller.signal,
 		});
@@ -310,7 +311,7 @@ describe(pollUntilDoneCore, () => {
 			.mockResolvedValueOnce({ data: makeTask("QUEUED"), success: true })
 			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
 
-		const result = await pollUntilDoneCore(makeDependencies({ fetch, sleep }), {
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch, sleep }), {
 			pollDelay: () => 100,
 			signal: controller.signal,
 		});
@@ -334,7 +335,7 @@ describe(pollUntilDoneCore, () => {
 		});
 
 		const sleep = createFakeSleep();
-		const result = await pollUntilDoneCore(makeDependencies({ fetch, sleep }), {
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch, sleep }), {
 			signal: controller.signal,
 		});
 
@@ -351,7 +352,7 @@ describe(pollUntilDoneCore, () => {
 		const controller = new AbortController();
 		let resolveSlowFetch: (() => void) | undefined;
 
-		async function slowFetch(): ReturnType<PollDependencies["fetch"]> {
+		async function slowFetchAsync(): ReturnType<PollDependencies["fetch"]> {
 			return new Promise((resolve) => {
 				resolveSlowFetch = (): void => {
 					resolve({ data: makeTask("PROCESSING"), success: true });
@@ -360,21 +361,23 @@ describe(pollUntilDoneCore, () => {
 		}
 
 		const sleep = createFakeSleep();
-		const pollingPromise = pollUntilDoneCore(makeDependencies({ fetch: slowFetch, sleep }), {
-			signal: controller.signal,
-		});
+		const pollingPromise = pollUntilDoneCoreAsync(
+			makeDependencies({ fetch: slowFetchAsync, sleep }),
+			{
+				signal: controller.signal,
+			},
+		);
 
 		await vi.waitUntil(() => resolveSlowFetch !== undefined);
 		controller.abort("mid-fetch abort");
 
 		const result = await pollingPromise;
+		// The slow fetch never resolved; the loop returned early.
+		resolveSlowFetch!();
 
 		assert(!result.success);
 
 		expect(result.err).toBeInstanceOf(PollAbortedError);
-
-		// The slow fetch never resolved; the loop returned early.
-		resolveSlowFetch?.();
 	});
 
 	// Slice 15: underlying transport error is propagated
@@ -386,7 +389,7 @@ describe(pollUntilDoneCore, () => {
 			.fn<PollDependencies["fetch"]>()
 			.mockResolvedValue({ err: transportError, success: false });
 
-		const result = await pollUntilDoneCore(makeDependencies({ fetch }));
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch }));
 
 		assert(!result.success);
 
@@ -409,7 +412,7 @@ describe(pollUntilDoneCore, () => {
 			.mockResolvedValueOnce({ err: makeNetworkError(), success: false })
 			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
 
-		const result = await pollUntilDoneCore(makeDependencies({ fetch, sleep }), {
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch, sleep }), {
 			pollDelay: () => 100,
 		});
 
@@ -427,7 +430,7 @@ describe(pollUntilDoneCore, () => {
 			.fn<PollDependencies["fetch"]>()
 			.mockResolvedValue({ err: apiError, success: false });
 
-		const result = await pollUntilDoneCore(makeDependencies({ fetch }), {
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch }), {
 			maxConsecutivePollFailures: 3,
 			pollDelay: () => 0,
 		});
@@ -448,7 +451,7 @@ describe(pollUntilDoneCore, () => {
 			.fn<PollDependencies["fetch"]>()
 			.mockResolvedValue({ err: selfAbort, success: false });
 
-		const result = await pollUntilDoneCore(makeDependencies({ fetch }), {
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch }), {
 			maxConsecutivePollFailures: 3,
 			pollDelay: () => 0,
 		});
@@ -468,7 +471,7 @@ describe(pollUntilDoneCore, () => {
 			.fn<PollDependencies["fetch"]>()
 			.mockResolvedValue({ err: networkError, success: false });
 
-		const result = await pollUntilDoneCore(makeDependencies({ fetch }), {
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch }), {
 			maxConsecutivePollFailures: 3,
 			pollDelay: () => 0,
 		});
@@ -487,7 +490,7 @@ describe(pollUntilDoneCore, () => {
 			.fn<PollDependencies["fetch"]>()
 			.mockResolvedValue({ err: apiError, success: false });
 
-		const result = await pollUntilDoneCore(makeDependencies({ fetch }), {
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch }), {
 			maxConsecutivePollFailures: 3,
 			pollDelay: () => 0,
 		});
@@ -506,7 +509,7 @@ describe(pollUntilDoneCore, () => {
 			.fn<PollDependencies["fetch"]>()
 			.mockResolvedValue({ err: networkError, success: false });
 
-		const result = await pollUntilDoneCore(makeDependencies({ fetch }), {
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch }), {
 			maxConsecutivePollFailures: 3,
 			pollDelay: () => 0,
 		});
@@ -529,7 +532,7 @@ describe(pollUntilDoneCore, () => {
 			.mockResolvedValueOnce({ err: makeNetworkError(), success: false })
 			.mockResolvedValueOnce({ data: makeTask("COMPLETE"), success: true });
 
-		const result = await pollUntilDoneCore(makeDependencies({ fetch }), {
+		const result = await pollUntilDoneCoreAsync(makeDependencies({ fetch }), {
 			maxConsecutivePollFailures: 3,
 			pollDelay: () => 0,
 		});
@@ -549,7 +552,7 @@ describe(pollUntilDoneCore, () => {
 			.fn<PollDependencies["fetch"]>()
 			.mockResolvedValue({ err: makeNetworkError(), success: false });
 
-		await pollUntilDoneCore(makeDependencies({ fetch }), { pollDelay: () => 0 });
+		await pollUntilDoneCoreAsync(makeDependencies({ fetch }), { pollDelay: () => 0 });
 
 		expect(fetch).toHaveBeenCalledTimes(DEFAULT_POLL_FAILURE_CAP);
 	});

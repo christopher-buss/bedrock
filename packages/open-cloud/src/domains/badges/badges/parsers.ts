@@ -2,6 +2,7 @@ import type { HttpResponse } from "../../../client/types.ts";
 import { ApiError } from "../../../errors/api-error.ts";
 import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
+import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
 import type { Badge, BadgeAwarder, BadgeStatistics } from "./types.ts";
 import type { BadgeAwarderWire, BadgeResponseV2Wire, BadgeStatisticsWire } from "./wire.ts";
@@ -17,13 +18,14 @@ import type { BadgeAwarderWire, BadgeResponseV2Wire, BadgeStatisticsWire } from 
  * @returns A success result wrapping the converted `Badge`, or an
  *   `ApiError` when the body does not match the wire schema.
  */
-export function parseBadgeResponse(response: HttpResponse): Result<Badge, ApiError> {
-	const { body, status: statusCode } = response;
-
+export function parseBadgeResponse({
+	body,
+	status: statusCode,
+}: HttpResponse): Result<Badge, ApiError> {
 	if (!isBadgeResponseV2Wire(body)) {
 		return {
 			err: new ApiError("Malformed badge response", {
-				details: body as JSONValue | undefined,
+				details: toJsonDetails(body),
 				statusCode,
 			}),
 			success: false,

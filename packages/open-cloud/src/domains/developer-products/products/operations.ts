@@ -32,8 +32,9 @@ export const UPDATE_OPERATION_LIMIT: OperationLimit = Object.freeze({
 
 /**
  * Scopes the API key or OAuth token must carry to read a developer product,
- * sourced from `x-roblox-scopes` on the `DeveloperProducts_GetDeveloperProductConfigV2`
- * operation in the vendored OpenAPI schema.
+ * sourced from `x-roblox-scopes` on the
+ * `DeveloperProducts_GetDeveloperProductConfigV2` operation in the vendored
+ * OpenAPI schema.
  */
 export const GET_REQUIRED_SCOPES: ReadonlyArray<string> = Object.freeze(["developer-product:read"]);
 

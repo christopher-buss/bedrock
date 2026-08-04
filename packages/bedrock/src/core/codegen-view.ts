@@ -33,9 +33,15 @@ type Scalar = boolean | number | string | undefined;
  * @template T - The scalar field type.
  */
 interface RedactedField<T extends Scalar> {
-	/** The placeholder value bedrock pushed to Open Cloud in place of the real one. */
+	/**
+	 * The placeholder value bedrock pushed to Open Cloud in place of the real
+	 * one.
+	 */
 	readonly redacted: T;
-	/** The real (pre-redaction) value recovered from the diff-ignored state sibling. */
+	/**
+	 * The real (pre-redaction) value recovered from the diff-ignored state
+	 * sibling.
+	 */
 	readonly value: T;
 }
 
@@ -114,7 +120,10 @@ function isRedactedField<T extends Scalar>(field: Field<T>): field is RedactedFi
 	return typeof field === "object";
 }
 
-/** Redactable scalar fields projected to {@link Field} in a {@link CodegenView}. */
+/**
+ * Redactable scalar fields projected to {@link Field} in a {@link
+ * CodegenView}.
+ */
 const REDACTABLE_VIEW_FIELDS = ["name", "description", "price", "displayName"] as const;
 
 /**
@@ -190,26 +199,42 @@ type RedactableViewField = (typeof REDACTABLE_VIEW_FIELDS)[number];
 export function codegenView<Resource extends ResourceCurrentState>(
 	resource: Resource,
 	realDisplay?: ResourceRealDisplay,
-): CodegenView<Resource> {
-	const view = REDACTABLE_VIEW_FIELDS.reduce<Record<string, unknown>>(
-		(accumulator, field) => {
-			if (!(field in resource)) {
-				// Skip a field the kind does not own (e.g. a game pass has no
-				// `displayName`), even when a mismatched `realDisplay` carries
-				// it.
-				return accumulator;
-			}
+): CodegenView<Resource>;
+/**
+ * Runs against the concrete `ResourceCurrentState` union, where the mapped
+ * type resolves and every step type-checks: `Field<T>` includes the bare `T`,
+ * so a resource with no redacted fields already satisfies the view, and each
+ * step only widens one field to the redacted object form. The generic overload
+ * above carries the caller-facing precision, which TypeScript cannot check
+ * directly because it defers a mapped type over an unresolved generic.
+ *
+ * @param resource - The resource to project.
+ * @param realDisplay - Real values for the resource's redacted fields.
+ * @returns The projected view.
+ */
+export function codegenView(
+	resource: ResourceCurrentState,
+	realDisplay?: ResourceRealDisplay,
+): CodegenView<ResourceCurrentState> {
+	// Assigned into a fresh local rather than folded with a spread: the rule
+	// against spreading a reduce accumulator applies, and mutating a value that
+	// never escapes this function keeps the declared return type exact.
+	const view: CodegenView<ResourceCurrentState> = { ...resource };
+	for (const field of REDACTABLE_VIEW_FIELDS) {
+		// Skip a field the kind does not own (e.g. a game pass has no
+		// `displayName`), even when a mismatched `realDisplay` carries it.
+		if (!(field in resource)) {
+			continue;
+		}
 
-			const pushed = accumulator[field];
-			const real = realDisplay?.[field];
-			return real !== undefined && real !== pushed
-				? { ...accumulator, [field]: { redacted: pushed, value: real } }
-				: accumulator;
-		},
-		{ ...resource },
-	);
+		const pushed = Reflect.get(resource, field);
+		const real = realDisplay?.[field];
+		if (real !== undefined && real !== pushed) {
+			Object.assign(view, { [field]: { redacted: pushed, value: real } });
+		}
+	}
 
-	return view as CodegenView<Resource>;
+	return view;
 }
 
 /**

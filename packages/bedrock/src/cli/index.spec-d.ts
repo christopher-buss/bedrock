@@ -6,7 +6,7 @@ import type { buildStatePort } from "../shell/build-state-port.ts";
 import type { deploy, provision, publish } from "../shell/deploy.ts";
 import type { loadConfig } from "../shell/load-config.ts";
 import type { migrateMantleState } from "../shell/migrate-mantle-state.ts";
-import type { previewDiff } from "../shell/preview-diff.ts";
+import type { previewDiffAsync } from "../shell/preview-diff.ts";
 import type { discoverOverride } from "./discover-override.ts";
 import type { ProgDeps as ProgDependencies } from "./index.ts";
 import { createProg } from "./index.ts";
@@ -48,7 +48,7 @@ describe("ProgDeps deploy/diff slots", () => {
 
 	it("should accept the real previewDiff signature in the previewDiff slot", () => {
 		expectTypeOf<NonNullable<ProgDependencies["previewDiff"]>>().toEqualTypeOf<
-			typeof previewDiff
+			typeof previewDiffAsync
 		>();
 	});
 

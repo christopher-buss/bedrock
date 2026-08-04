@@ -26,11 +26,11 @@ describe(resolveDependencies, () => {
 	it("should use the provided sleep when supplied", () => {
 		expect.assertions(1);
 
-		async function customSleep(_ms: number): Promise<void> {}
+		async function customSleepAsync(_ms: number): Promise<void> {}
 
-		const resolved = resolveDependencies({ sleep: customSleep });
+		const resolved = resolveDependencies({ sleep: customSleepAsync });
 
-		expect(resolved.sleep).toBe(customSleep);
+		expect(resolved.sleep).toBe(customSleepAsync);
 	});
 
 	it("should fall back to the default sleep when omitted", () => {

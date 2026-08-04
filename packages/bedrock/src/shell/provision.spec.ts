@@ -2,6 +2,8 @@ import { OpenCloudError } from "@bedrock-rbx/ocale";
 
 import { assert, describe, expect, it, vi } from "vitest";
 
+import { outcomeByKey } from "#tests/helpers/drivers";
+import { fakeReadFile } from "#tests/helpers/files";
 import { gamePassCurrent } from "#tests/helpers/resources";
 import type { CodegenFile, EmitInput, Emitter } from "../core/codegen.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
@@ -15,7 +17,7 @@ import { provision } from "./deploy.ts";
 
 const ICON_BYTES = new Uint8Array();
 
-async function readIcon(): Promise<Uint8Array> {
+async function readIconAsync(): Promise<Uint8Array> {
 	return ICON_BYTES;
 }
 
@@ -139,7 +141,7 @@ describe(provision, () => {
 		const result = await provision({
 			config: provisionConfig(),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry: vipCreateRegistry(),
 			statePort: port,
 		});
@@ -161,7 +163,7 @@ describe(provision, () => {
 			config: withCodegen(provisionConfig()),
 			emit,
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry: vipCreateRegistry(),
 			statePort: inMemoryStatePort().port,
 		});
@@ -179,11 +181,7 @@ describe(provision, () => {
 		const cause = new OpenCloudError("create vip-pass: 503");
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
-			.mockImplementation(async (desired) => {
-				return desired.key === "alpha-pass"
-					? { data: alpha, success: true }
-					: { err: cause, success: false };
-			});
+			.mockImplementation(outcomeByKey({ "alpha-pass": alpha, "vip-pass": cause }));
 		const inputs: Array<EmitInput> = [];
 		const emit = vi.fn<Emitter>(async (input) => {
 			inputs.push(input);
@@ -200,7 +198,7 @@ describe(provision, () => {
 			}),
 			emit,
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry: {
 				developerProduct: developerProductStub,
 				gamePass: { create },
@@ -222,13 +220,16 @@ describe(provision, () => {
 		expect.assertions(2);
 
 		const { port, writes } = inMemoryStatePort();
-		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>(async (path) => {
-			if (path === "places/start.rbxl") {
-				throw new Error("place artifact must not be read during provision");
-			}
-
-			return ICON_BYTES;
-		});
+		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>(
+			fakeReadFile(
+				{
+					"places/start.rbxl": new Error(
+						"place artifact must not be read during provision",
+					),
+				},
+				ICON_BYTES,
+			),
+		);
 
 		const result = await provision({
 			config: provisionConfig(),
@@ -264,7 +265,7 @@ describe(provision, () => {
 		const result = await provision({
 			config: provisionConfig(),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry: vipCreateRegistry(),
 			statePort: port,
 		});

@@ -24,9 +24,9 @@ export interface RetryResolvable {
 	 * Codes for transport-level failures eligible for retry: node-style
 	 * transport codes ({@link findErrorCode}) surfaced as a
 	 * {@link NetworkError}, plus the synthetic {@link GATEWAY_REJECTED} for a
-	 * response served by an edge gateway. Not all of them prove the request went
-	 * unprocessed — see {@link TRANSIENT_TRANSPORT_CODES}. Empty for create
-	 * operations by default; consumers opt a create in via a per-request
+	 * response served by an edge gateway. Not all of them prove the request
+	 * went unprocessed — see {@link TRANSIENT_TRANSPORT_CODES}. Empty for
+	 * create operations by default; consumers opt a create in via a per-request
 	 * override.
 	 */
 	readonly retryableTransportCodes: ReadonlyArray<string>;
@@ -221,18 +221,17 @@ export function computeRetryWaitMs(
 }
 
 /**
- * Decides whether a failed request is eligible for retry. {@link RateLimitError}
- * (checked against 429) and {@link ApiError} (checked against its `statusCode`)
- * are retryable when their status is in `retryableStatuses`. An
- * {@link ApiError} carrying a `gatewaySummary` is the exception: it is checked
- * against {@link GATEWAY_REJECTED} in `retryableTransportCodes` instead, and
- * its status is never consulted. A
- * {@link NetworkError} is retryable when its transport code
- * ({@link findErrorCode}) is in `retryableTransportCodes`. This is how
- * transient connection resets recover. A self-aborted request timeout
- * ({@link isTimeoutAbort}) carries no transport code, so it is classified as
- * `ETIMEDOUT`: recovered for idempotent methods, never for creates (whose
- * list is empty). All other failures return `false`.
+ * Decides whether a failed request is eligible for retry. {@link
+ * RateLimitError} (checked against 429) and {@link ApiError} (checked against
+ * its `statusCode`) are retryable when their status is in `retryableStatuses`.
+ * An {@link ApiError} carrying a `gatewaySummary` is the exception: it is
+ * checked against {@link GATEWAY_REJECTED} in `retryableTransportCodes`
+ * instead, and its status is never consulted. A {@link NetworkError} is
+ * retryable when its transport code ({@link findErrorCode}) is in
+ * `retryableTransportCodes`. This is how transient connection resets recover.
+ * A self-aborted request timeout ({@link isTimeoutAbort}) carries no transport
+ * code, so it is classified as `ETIMEDOUT`: recovered for idempotent methods,
+ * never for creates (whose list is empty). All other failures return `false`.
  *
  * @example
  *
@@ -372,10 +371,8 @@ export function shouldRetry(
  */
 export function mergeConfig<T extends RetryResolvable>(
 	clientConfig: T,
-	options: MergeConfigOptions<T>,
+	{ methodDefaults, methodKind, requestOptions }: MergeConfigOptions<T>,
 ): T {
-	const { methodDefaults, methodKind, requestOptions } = options;
-
 	switch (methodKind) {
 		case "create": {
 			return { ...clientConfig, ...methodDefaults, ...requestOptions };

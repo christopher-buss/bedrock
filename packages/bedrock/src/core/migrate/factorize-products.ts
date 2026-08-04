@@ -20,13 +20,14 @@ interface FieldEqualInputs {
 
 /**
  * Project the per-environment product folds into bedrock's root `products`
- * block, giving each optional field (`icon`, `price`, `isRegionalPricingEnabled`,
- * `storePageEnabled`) a value only when every environment that owns the
- * product key agrees. Required fields (`name`, `description`) fall back to
- * the primary's values; divergence on those surfaces in each environment's
- * overlay. Optional fields that diverge stay off root so an environment that
- * omits an optional field does not silently inherit the primary's value
- * through defu's "undefined treated as empty" merge.
+ * block, giving each optional field (`icon`, `price`,
+ * `isRegionalPricingEnabled`, `storePageEnabled`) a value only when every
+ * environment that owns the product key agrees. Required fields (`name`,
+ * `description`) fall back to the primary's values; divergence on those
+ * surfaces in each environment's overlay. Optional fields that diverge stay
+ * off root so an environment that omits an optional field does not silently
+ * inherit the primary's value through defu's "undefined treated as empty"
+ * merge.
  *
  * @param folds - Per-environment fold results, keyed by environment name.
  * @param primaryFold - The chosen primary environment's fold; supplies the

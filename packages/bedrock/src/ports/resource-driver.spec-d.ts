@@ -20,6 +20,7 @@ describe("ResourceDriver", () => {
 
 	it("should accept an optional apply context as the update's third parameter", () => {
 		type UpdateFunc = NonNullable<ResourceDriver<"gamePass">["update"]>;
+
 		expectTypeOf<Parameters<UpdateFunc>[2]>().toEqualTypeOf<ResourceApplyContext | undefined>();
 	});
 
@@ -39,6 +40,7 @@ describe("DriverRegistry", () => {
 		// @ts-expect-error an empty object is missing the required `gamePass`
 		// entry.
 		const registry: DriverRegistry = {};
+
 		expectTypeOf(registry).toEqualTypeOf<DriverRegistry>();
 	});
 });

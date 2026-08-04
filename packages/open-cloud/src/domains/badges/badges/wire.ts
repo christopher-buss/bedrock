@@ -44,11 +44,16 @@ export interface BadgeResponseV2Wire {
 	readonly description: string;
 	/** Resolved description for the requesting locale. */
 	readonly displayDescription: string;
-	/** Int64 resolved icon image asset ID; `0` signals no icon for this locale. */
+	/**
+	 * Int64 resolved icon image asset ID; `0` signals no icon for this locale.
+	 */
 	readonly displayIconImageId: number;
 	/** Resolved name for the requesting locale. */
 	readonly displayName: string;
-	/** Whether the badge is currently active. Disabled badges cannot be awarded. */
+	/**
+	 * Whether the badge is currently active. Disabled badges cannot be
+	 * awarded.
+	 */
 	readonly enabled: boolean;
 	/** Int64 source-language icon image asset ID; `0` signals no icon. */
 	readonly iconImageId: number;

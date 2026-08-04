@@ -30,15 +30,22 @@ export interface DeveloperProductPrice {
  * @since 0.1.0
  */
 export interface DeveloperProduct {
-	/** Stringified developer product ID. The API returns an int64; always use this. */
+	/**
+	 * Stringified developer product ID. The API returns an int64; always use
+	 * this.
+	 */
 	readonly id: string;
 	/** Display name of the developer product. */
 	readonly name: string;
-	/** ISO timestamp at which the developer product was created, as a `Date`. */
+	/**
+	 * ISO timestamp at which the developer product was created, as a `Date`.
+	 */
 	readonly createdAt: Date;
 	/** Consumer-facing description shown on the storefront. */
 	readonly description: string;
-	/** Icon image asset ID as a string; `undefined` when no icon is uploaded. */
+	/**
+	 * Icon image asset ID as a string; `undefined` when no icon is uploaded.
+	 */
 	readonly iconImageAssetId: string | undefined;
 	/** Whether the developer product is currently purchasable. */
 	readonly isForSale: boolean;

@@ -22,6 +22,7 @@ describe("Config", () => {
 	it("should reject Config that omits the required environments field", () => {
 		// @ts-expect-error environments is required and must be present.
 		const config: Config = { state: STATE };
+
 		expectTypeOf(config).toExtend<Config>();
 	});
 
@@ -30,6 +31,7 @@ describe("Config", () => {
 			environments: { production: {} },
 			state: STATE,
 		} as const satisfies Config;
+
 		expectTypeOf(config).toExtend<Config>();
 	});
 
@@ -40,6 +42,7 @@ describe("Config", () => {
 				staging: { state: STATE },
 			},
 		} as const satisfies Config;
+
 		expectTypeOf(config).toExtend<Config>();
 	});
 
@@ -55,32 +58,38 @@ type PassesOverlayEntry = NonNullable<EnvironmentEntry["passes"]>[string];
 describe("EnvironmentEntry overlay shapes", () => {
 	it("should require placeId on a places overlay entry while making other fields optional", () => {
 		const overlay = { placeId: "1234" } as const satisfies PlaceOverlayEntry;
+
 		expectTypeOf(overlay).toExtend<PlaceOverlayEntry>();
 	});
 
 	it("should reject a places overlay entry that omits placeId", () => {
 		// @ts-expect-error placeId is required on every places overlay entry.
 		const overlay: PlaceOverlayEntry = { filePath: "places/staging.rbxl" };
+
 		expectTypeOf(overlay).toExtend<PlaceOverlayEntry>();
 	});
 
 	it("should accept a universe overlay declaring only universeId", () => {
 		const overlay = { universeId: "9999999999" } as const satisfies UniverseOverlayEntry;
+
 		expectTypeOf(overlay).toExtend<UniverseOverlayEntry>();
 	});
 
 	it("should accept a universe overlay that omits universeId in favour of root authority", () => {
 		const overlay = { voiceChatEnabled: true } as const satisfies UniverseOverlayEntry;
+
 		expectTypeOf(overlay).toExtend<UniverseOverlayEntry>();
 	});
 
 	it("should keep every universe overlay field optional so the runtime XOR rule decides whether universeId must appear", () => {
 		const overlay = {} as const satisfies UniverseOverlayEntry;
+
 		expectTypeOf(overlay).toExtend<UniverseOverlayEntry>();
 	});
 
 	it("should keep every passes overlay field optional", () => {
 		const overlay = {} as const satisfies PassesOverlayEntry;
+
 		expectTypeOf(overlay).toExtend<PassesOverlayEntry>();
 	});
 });
@@ -96,11 +105,13 @@ describe("EnvironmentEntry passes overlay redacted shape", () => {
 		const overlay = {
 			redacted: { name: "Closed Beta" },
 		} as const satisfies PassesOverlayEntry;
+
 		expectTypeOf(overlay).toExtend<PassesOverlayEntry>();
 	});
 
 	it("should still accept a passes overlay entry that declares redacted as a boolean", () => {
 		const overlay = { redacted: true } as const satisfies PassesOverlayEntry;
+
 		expectTypeOf(overlay).toExtend<PassesOverlayEntry>();
 	});
 });
@@ -125,6 +136,7 @@ describe("Config XOR — accepted root shapes", () => {
 			environments: { production: {} },
 			universe: { universeId: "111" },
 		} as const satisfies Config;
+
 		expectTypeOf(config).toExtend<Config>();
 	});
 
@@ -132,6 +144,7 @@ describe("Config XOR — accepted root shapes", () => {
 		const config = {
 			environments: { production: {} },
 		} as const satisfies Config;
+
 		expectTypeOf(config).toExtend<Config>();
 	});
 });
@@ -144,6 +157,7 @@ describe("Config XOR — accepted env shapes", () => {
 				staging: { universe: { universeId: "222" } },
 			},
 		} as const satisfies Config;
+
 		expectTypeOf(config).toExtend<Config>();
 	});
 
@@ -154,6 +168,7 @@ describe("Config XOR — accepted env shapes", () => {
 			},
 			universe: { desktopEnabled: true, voiceChatEnabled: true },
 		} as const satisfies Config;
+
 		expectTypeOf(config).toExtend<Config>();
 	});
 });
@@ -166,6 +181,7 @@ describe("Config XOR — rejected shapes", () => {
 			environments: { production: { universe: { universeId: "999" } } },
 			universe: { universeId: "111" },
 		};
+
 		expectTypeOf(config).toExtend<Config>();
 	});
 
@@ -178,6 +194,7 @@ describe("Config XOR — rejected shapes", () => {
 			},
 			universe: { universeId: "111" },
 		};
+
 		expectTypeOf(config).toExtend<Config>();
 	});
 });

@@ -38,23 +38,23 @@ op's outputs within the same apply:
 
 - `GamePass` and `DeveloperProduct` drivers bind `universeId` at driver
   construction
-  ([game-pass-driver.ts:46](../../packages/bedrock/src/adapters/game-pass-driver.ts:46),
-  [developer-product-driver.ts:53](../../packages/bedrock/src/adapters/developer-product-driver.ts:53)),
+  ([game-pass-driver.ts:46](../../packages/bedrock/src/adapters/game-pass-driver.ts),
+  [developer-product-driver.ts:53](../../packages/bedrock/src/adapters/developer-product-driver.ts)),
   so they never reach into another op's result.
 - `Universe` is adopted, not minted: the user supplies an existing `universeId`
   on the desired state
-  ([resources.ts:238](../../packages/bedrock/src/core/resources.ts:238)). No op
+  ([resources.ts:238](../../packages/bedrock/src/core/resources.ts)). No op
   produces a universeId for another to consume.
 - `Place.versionNumber` is the only Roblox-returned identifier and is not read
   back by any other op in the same apply.
 
 Output-flow independence holds. But there is one **shared-endpoint collision**:
 the `Universe` driver routes `displayName` updates through `PlacesClient.update`
-([resources.ts:208-213](../../packages/bedrock/src/core/resources.ts:208))
-because the universe PATCH endpoint treats `displayName` as read-only. If a
-configured `Place` is the root place of the same universe, two concurrent
-PATCHes can hit the same upstream resource. This invalidates "fully parallel"
-but admits an easy two-phase remedy (see Decision).
+([resources.ts:208-213](../../packages/bedrock/src/core/resources.ts)) because
+the universe PATCH endpoint treats `displayName` as read-only. If a configured
+`Place` is the root place of the same universe, two concurrent PATCHes can hit
+the same upstream resource. This invalidates "fully parallel" but admits an easy
+two-phase remedy (see Decision).
 
 Retry and rate limiting are absorbed inside `@bedrock-rbx/ocale` per
 [ADR-010](./010-sdk-managed-rate-limiting-and-retry.md); a failure surfaced to
@@ -109,7 +109,7 @@ new model can leave N. We accept this trade-off pre-1.0 with two explicit
 mitigations:
 
 1. **The `stateWriteFailed` error already carries `unsavedState`**
-   ([deploy.ts:77-81](../../packages/bedrock/src/shell/deploy.ts:77)). The CLI
+   ([deploy.ts:77-81](../../packages/bedrock/src/shell/deploy.ts)). The CLI
    renders the unsaved snapshot to stderr so an operator can manually reconcile
    the state file. This is a documented manual-recovery path, not an automatic
    one.
@@ -304,7 +304,7 @@ additive win — both surfaces previously had to recompute or omit the detail.
   concurrently. Not a practical concern at current project sizes; revisit if
   apply runs above the low thousands of resources.
 - The existing `@throws` contract on `applyOps`
-  ([apply-ops.ts:96](../../packages/bedrock/src/shell/apply-ops.ts:96)) changes
+  ([apply-ops.ts:96](../../packages/bedrock/src/shell/apply-ops.ts)) changes
   meaning under parallel + `allSettled`. Today a thrown driver propagates the
   rejection and halts the batch; under the new design that throw is captured as
   a settled rejection scoped to the throwing op alone, surfaced as an
@@ -399,7 +399,7 @@ failures become observable in practice.
   `Result<…, AggregateApplyError>`; `buildSnapshot`'s read of
   `inputs.applied.err.appliedSoFar` becomes `inputs.applied.err.applied`.
 - `ApplyError`'s own `@example` JSDoc
-  ([apply-ops.ts:44-48](../../packages/bedrock/src/shell/apply-ops.ts:44))
+  ([apply-ops.ts:44-48](../../packages/bedrock/src/shell/apply-ops.ts))
   references `appliedSoFar: []` and must be rewritten alongside the type change.
   `pnpm gen:example-tests` will fail until it is.
 - Existing `apply-ops.spec.ts` first-fail assertions must be inverted; new tests

@@ -1,6 +1,6 @@
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
-import { pruneStateGist, selectFilesToDelete } from "./prune-state-gist.ts";
+import { pruneStateGistAsync, selectFilesToDelete } from "./prune-state-gist.ts";
 
 interface FakeFetch {
 	readonly calls: Array<{ readonly init: RequestInit | undefined; readonly url: string }>;
@@ -15,7 +15,7 @@ interface FakeSleep {
 function fakeFetchSequence(responses: ReadonlyArray<Response>): FakeFetch {
 	const calls: Array<{ init: RequestInit | undefined; url: string }> = [];
 	let index = 0;
-	async function fetchFunc(input: string, init?: RequestInit): Promise<Response> {
+	async function fetchFuncAsync(input: string, init?: RequestInit): Promise<Response> {
 		calls.push({ init, url: input });
 		const response = responses[index];
 		if (response === undefined) {
@@ -26,16 +26,16 @@ function fakeFetchSequence(responses: ReadonlyArray<Response>): FakeFetch {
 		return response;
 	}
 
-	return { calls, fetchFn: fetchFunc };
+	return { calls, fetchFn: fetchFuncAsync };
 }
 
 function fakeSleep(): FakeSleep {
 	const calls: Array<number> = [];
-	async function sleep(ms: number): Promise<void> {
+	async function sleepAsync(ms: number): Promise<void> {
 		calls.push(ms);
 	}
 
-	return { calls, sleep };
+	return { calls, sleep: sleepAsync };
 }
 
 const TOKEN = "ghp_x";
@@ -91,7 +91,7 @@ describe(selectFilesToDelete, () => {
 	});
 });
 
-describe(pruneStateGist, () => {
+describe(pruneStateGistAsync, () => {
 	it("should retry the list GET on 409 and succeed on the second attempt", async () => {
 		expect.assertions(2);
 
@@ -106,7 +106,7 @@ describe(pruneStateGist, () => {
 		]);
 		const sleepFake = fakeSleep();
 
-		await pruneStateGist({
+		await pruneStateGistAsync({
 			fetch: fetchFn,
 			filenamePrefix: "state.smoke-",
 			gistId: GIST_ID,
@@ -135,7 +135,7 @@ describe(pruneStateGist, () => {
 		]);
 		const sleepFake = fakeSleep();
 
-		await pruneStateGist({
+		await pruneStateGistAsync({
 			fetch: fetchFn,
 			filenamePrefix: "state.smoke-",
 			gistId: GIST_ID,
@@ -167,7 +167,7 @@ describe(pruneStateGist, () => {
 		]);
 		const sleepFake = fakeSleep();
 
-		await pruneStateGist({
+		await pruneStateGistAsync({
 			fetch: fetchFn,
 			filenamePrefix: "state.smoke-",
 			gistId: GIST_ID,
@@ -177,7 +177,7 @@ describe(pruneStateGist, () => {
 		});
 
 		expect(calls).toHaveLength(3);
-		expect(calls[1]?.init?.method).toBe("PATCH");
+		expect(calls[1]!.init!.method).toBe("PATCH");
 		expect(sleepFake.calls).toStrictEqual([1000]);
 	});
 
@@ -204,7 +204,7 @@ describe(pruneStateGist, () => {
 		]);
 		const sleepFake = fakeSleep();
 
-		await pruneStateGist({
+		await pruneStateGistAsync({
 			fetch: fetchFn,
 			filenamePrefix: "state.smoke-",
 			gistId: GIST_ID,
@@ -233,7 +233,7 @@ describe(pruneStateGist, () => {
 			const { calls, fetchFn } = fakeFetchSequence([new Response("", { status })]);
 			const sleepFake = fakeSleep();
 
-			await pruneStateGist({
+			await pruneStateGistAsync({
 				fetch: fetchFn,
 				filenamePrefix: "state.smoke-",
 				gistId: GIST_ID,

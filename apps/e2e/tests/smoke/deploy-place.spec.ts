@@ -13,9 +13,10 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it, onTestFinished } from "vitest";
 
-import { pruneStateGist } from "../helpers/prune-state-gist.ts";
+import { assertOk } from "../helpers/assert-ok.ts";
+import { pruneStateGistAsync } from "../helpers/prune-state-gist.ts";
 
 const FIXTURE_PATH = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "place.rbxlx");
 
@@ -75,57 +76,51 @@ describe("deploy place to real Roblox", () => {
 				universe: unreachableDriver("universe block"),
 			} satisfies DriverRegistry;
 
-			try {
-				const result = await deploy({
-					config: {
-						environments: {
-							[environment]: {
-								places: { "smoke-place": { placeId } },
-							},
-						},
-						places: {
-							"smoke-place": {
-								filePath: FIXTURE_PATH,
-							},
-						},
-					},
-					environment,
-					readFile,
-					registry,
-					statePort,
-				});
-
-				assert(
-					result.success,
-					`deploy failed: ${JSON.stringify(result.success ? null : result.err)}`,
-				);
-
-				const persistedRead = await statePort.read(environment);
-				assert(
-					persistedRead.success,
-					`read failed: ${JSON.stringify(persistedRead.success ? undefined : persistedRead.err)}`,
-				);
-
-				const persisted = persistedRead.data;
-				assert(persisted !== undefined);
-
-				expect(persisted.environment).toBe(environment);
-				expect(persisted.resources).toHaveLength(1);
-
-				const resource = persisted.resources[0];
-				assert(resource !== undefined);
-				assert(resource.kind === "place");
-
-				expect(resource.placeId).toBe(placeId);
-				expect(resource.outputs.versionNumber).toBeGreaterThan(0);
-			} finally {
-				await pruneStateGist({
+			onTestFinished(async () => {
+				await pruneStateGistAsync({
 					filenamePrefix: "state.place-smoke-",
 					gistId: GIST_ID,
 					keep: 3,
 					token: TOKEN,
 				});
-			}
+			});
+
+			const result = await deploy({
+				config: {
+					environments: {
+						[environment]: {
+							places: { "smoke-place": { placeId } },
+						},
+					},
+					places: {
+						"smoke-place": {
+							filePath: FIXTURE_PATH,
+						},
+					},
+				},
+				environment,
+				readFile,
+				registry,
+				statePort,
+			});
+
+			assertOk(result, "deploy");
+
+			const persistedRead = await statePort.read(environment);
+			assertOk(persistedRead, "read");
+
+			const persisted = persistedRead.data;
+			assert(persisted !== undefined);
+
+			expect(persisted.environment).toBe(environment);
+			expect(persisted.resources).toHaveLength(1);
+
+			const resource = persisted.resources[0];
+			assert(resource !== undefined);
+			assert(resource.kind === "place");
+
+			expect(resource.placeId).toBe(placeId);
+			expect(resource.outputs.versionNumber).toBeGreaterThan(0);
 		},
 		60_000,
 	);

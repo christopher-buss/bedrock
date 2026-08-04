@@ -194,6 +194,8 @@ export interface UpdateSortedMapItemParameters {
 	readonly ttl?: number;
 	/** Stringified ID of the universe that owns the sorted map. */
 	readonly universeId: string;
-	/** Replacement value. Omitted entries leave the existing value unchanged. */
+	/**
+	 * Replacement value. Omitted entries leave the existing value unchanged.
+	 */
 	readonly value?: JSONValue;
 }

@@ -12,6 +12,7 @@ const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 describe("embedded redacted-icon bytes", () => {
 	it("should start with the eight-byte PNG signature", () => {
 		expect.assertions(1);
+
 		expect([...REDACTED_ICON_BYTES.slice(0, 8)]).toStrictEqual(PNG_SIGNATURE);
 	});
 
@@ -32,16 +33,19 @@ describe("embedded redacted-icon bytes", () => {
 describe(isRedactedIconPath, () => {
 	it("should return true for the sentinel path", () => {
 		expect.assertions(1);
+
 		expect(isRedactedIconPath(REDACTED_ICON_PATH)).toBeTrue();
 	});
 
 	it("should return false for an ordinary file path", () => {
 		expect.assertions(1);
+
 		expect(isRedactedIconPath("assets/vip-icon.png")).toBeFalse();
 	});
 
 	it("should return false for an empty string", () => {
 		expect.assertions(1);
+
 		expect(isRedactedIconPath("")).toBeFalse();
 	});
 });

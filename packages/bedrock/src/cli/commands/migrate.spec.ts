@@ -1,3 +1,5 @@
+import { fromAny } from "@total-typescript/shoehorn";
+
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -112,7 +114,7 @@ describe(migrateCommand, () => {
 		await migrateCommand(dependencies)("./.mantle-state.yml", {});
 
 		expect(
-			dependencies.migratePromptPort?.promptMigrationSource,
+			dependencies.migratePromptPort!.promptMigrationSource,
 		).toHaveBeenCalledExactlyOnceWith(["mantle"]);
 		expect(dependencies.migrateMantleState).toHaveBeenCalledExactlyOnceWith({
 			configFormat: "typescript",
@@ -132,7 +134,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)("./.mantle-state.yml", {});
 
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -143,7 +145,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)(undefined, { from: "universe" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			"unknown migration source 'universe' (supported: mantle)",
 		);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
@@ -157,16 +159,15 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(dependencies.clack?.intro).toHaveBeenCalledExactlyOnceWith("bedrock migrate");
+		expect(dependencies.clack!.intro).toHaveBeenCalledExactlyOnceWith("bedrock migrate");
 		expect(dependencies.migrateMantleState).toHaveBeenCalledExactlyOnceWith({
 			configFormat: "typescript",
 			stateFilePath: STATE_FILE_PATH,
 		});
 
-		const firstCallDependencies = vi.mocked(dependencies.migrateMantleState!).mock
-			.calls[0]?.[0];
+		const firstCallDependencies = vi.mocked(dependencies.migrateMantleState!).mock.calls[0]![0];
 
-		expect(Object.hasOwn(firstCallDependencies ?? {}, "primaryEnvironment")).toBeFalse();
+		expect(Object.hasOwn(firstCallDependencies, "primaryEnvironment")).toBeFalse();
 	});
 
 	it("should write each environment's state through the StatePort and log per-env success", async () => {
@@ -180,7 +181,7 @@ describe(migrateCommand, () => {
 		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(writeSpy).toHaveBeenCalledExactlyOnceWith(SAMPLE_STATE);
-		expect(dependencies.clack?.logSuccess).toHaveBeenCalledWith(
+		expect(dependencies.clack!.logSuccess).toHaveBeenCalledWith(
 			"production: 0 resources migrated",
 		);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
@@ -201,8 +202,8 @@ describe(migrateCommand, () => {
 			.mock.calls.filter(([path]) => path === CONFIG_TS_PATH);
 
 		expect(configWrites).toStrictEqual([[CONFIG_TS_PATH, expect.any(String)]]);
-		expect(dependencies.clack?.logSuccess).toHaveBeenCalledWith(`wrote ${CONFIG_TS_PATH}`);
-		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith("migrate succeeded");
+		expect(dependencies.clack!.logSuccess).toHaveBeenCalledWith(`wrote ${CONFIG_TS_PATH}`);
+		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith("migrate succeeded");
 	});
 
 	it("should write the migration report json and markdown alongside the state files", async () => {
@@ -240,10 +241,10 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			`migration report directory create failed (${REPORT_DIRECTORY}): EACCES: permission denied`,
 		);
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -260,10 +261,10 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			`migration report write failed (${REPORT_JSON_PATH}): EROFS: read-only file system`,
 		);
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -281,10 +282,10 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			`migration report write failed (${REPORT_MD_PATH}): ENOSPC: no space left on device`,
 		);
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -302,9 +303,9 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		const firstCall = vi.mocked(buildStatePort).mock.calls[0]?.[0];
+		const firstCall = vi.mocked(buildStatePort).mock.calls[0]![0];
 
-		expect(firstCall?.getEnv("BEDROCK_GITHUB_TOKEN")).toBe("from-process");
+		expect(firstCall.getEnv("BEDROCK_GITHUB_TOKEN")).toBe("from-process");
 	});
 
 	it("should render an io error and exit 1 when the migrator throws (e.g. EACCES)", async () => {
@@ -318,10 +319,10 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			`failed to read Mantle state file '${STATE_FILE_PATH}': EACCES: permission denied`,
 		);
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -335,7 +336,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			`failed to read Mantle state file '${STATE_FILE_PATH}': raw-string-failure`,
 		);
 	});
@@ -359,7 +360,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			`failed to read Mantle state file '${STATE_FILE_PATH}': ENOSPC: no space left on device`,
 		);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
@@ -375,10 +376,10 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			`config file write failed (${CONFIG_TS_PATH}): EROFS: read-only file system`,
 		);
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -391,7 +392,7 @@ describe(migrateCommand, () => {
 		await migrateCommand(dependencies)(undefined, { from: "mantle" });
 
 		expect(
-			dependencies.migratePromptPort?.promptStateFilePath,
+			dependencies.migratePromptPort!.promptStateFilePath,
 		).toHaveBeenCalledExactlyOnceWith();
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
@@ -436,10 +437,10 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			"Mantle state file not found at './.mantle-state.yml'",
 		);
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -469,7 +470,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			"primary environment 'ghost' not found (available: production, staging)",
 		);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
@@ -493,7 +494,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			"missing credential: environment variable BEDROCK_GITHUB_TOKEN is not set",
 		);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
@@ -513,7 +514,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			"unsupported state backend 's3' (pass a custom statePort)",
 		);
 	});
@@ -537,7 +538,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			"state write failed for 'production' (state.json): auth 401",
 		);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
@@ -556,7 +557,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -573,7 +574,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -590,7 +591,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -605,7 +606,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)(undefined, { from: "mantle" });
 
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -627,7 +628,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
 	});
 
 	it("should stay silent in the summary when every warning count is zero", async () => {
@@ -638,10 +639,10 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(dependencies.clack?.logError).not.toHaveBeenCalled();
+		expect(dependencies.clack!.logError).not.toHaveBeenCalled();
 		// logSuccess fires for state and config writes; assert only that the
 		// review-prompt success line does not.
-		expect(dependencies.clack?.logSuccess).not.toHaveBeenCalledWith(
+		expect(dependencies.clack!.logSuccess).not.toHaveBeenCalledWith(
 			expect.stringContaining("auto-mapped or skipped fields"),
 		);
 	});
@@ -666,13 +667,13 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledWith(
 			expect.stringMatching(
 				/^action required: 4 fields need your input\. See .*\.bedrock[\\/]migration-report\.md$/,
 			),
 		);
 		// Auto-mapped success line should not fire when ambiguous > 0.
-		expect(dependencies.clack?.logSuccess).not.toHaveBeenCalledWith(
+		expect(dependencies.clack!.logSuccess).not.toHaveBeenCalledWith(
 			expect.stringContaining("auto-mapped or skipped fields"),
 		);
 	});
@@ -697,12 +698,12 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)("./.mantle-state.yml", { from: "mantle" });
 
-		expect(dependencies.clack?.logSuccess).toHaveBeenCalledWith(
+		expect(dependencies.clack!.logSuccess).toHaveBeenCalledWith(
 			expect.stringMatching(
 				/^migration complete; see .*\.bedrock[\\/]migration-report\.md for 6 auto-mapped or skipped fields$/,
 			),
 		);
-		expect(dependencies.clack?.logError).not.toHaveBeenCalled();
+		expect(dependencies.clack!.logError).not.toHaveBeenCalled();
 	});
 
 	it("should write a yaml config when the user picks yaml format", async () => {
@@ -784,9 +785,9 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(dependencies.migratePromptPort?.promptGistId).not.toHaveBeenCalled();
+		expect(dependencies.migratePromptPort!.promptGistId).not.toHaveBeenCalled();
 		expect(buildStatePort).not.toHaveBeenCalled();
-		expect(dependencies.clack?.logSuccess).toHaveBeenCalledWith(
+		expect(dependencies.clack!.logSuccess).toHaveBeenCalledWith(
 			"production: 0 resources migrated",
 		);
 	});
@@ -815,10 +816,10 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			`local state directory create failed (${LOCAL_STATE_DIRECTORY}): EACCES: permission denied`,
 		);
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -870,10 +871,10 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			`local state write failed (${LOCAL_STATE_JSON_PATH}): EROFS: read-only file system`,
 		);
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("migrate failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -908,9 +909,7 @@ describe(migrateCommand, () => {
 		onTestFinished(() => {
 			exitSpy.mockRestore();
 		});
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation((() => {}) as typeof process.exit);
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(fromAny(() => {}));
 
 		await migrateCommand({ clack: fakeClackPort() })(undefined, { from: "universe" });
 

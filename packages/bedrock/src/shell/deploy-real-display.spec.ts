@@ -9,7 +9,6 @@ import {
 	REDACTED_PASS_NAME,
 	REDACTED_PRICE,
 } from "../core/redact-resources.ts";
-import type { ResourceCurrentState } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
 import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
@@ -41,7 +40,7 @@ const universeStub: ResourceDriver<"universe"> = {
 	},
 };
 
-async function readIcon(): Promise<Uint8Array> {
+async function readIconAsync(): Promise<Uint8Array> {
 	return new Uint8Array();
 }
 
@@ -108,7 +107,7 @@ describe("deploy persists real display values", () => {
 		const result = await deploy({
 			config: redactedVipConfig("VIP Pass"),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry: registryWith(echoGamePassDriver()),
 			statePort: port,
 		});
@@ -135,7 +134,7 @@ describe("deploy persists real display values", () => {
 		const result = await deploy({
 			config: redactedVipConfig("VIP Pass"),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry: registryWith(echoGamePassDriver()),
 			statePort: port,
 		});
@@ -147,7 +146,7 @@ describe("deploy persists real display values", () => {
 			description: REDACTED_DESCRIPTION,
 			price: REDACTED_PRICE,
 		});
-		expect(result.data.realDisplay?.["gamePass:vip-pass"]?.name).toBe("VIP Pass");
+		expect(result.data.realDisplay!["gamePass:vip-pass"]!.name).toBe("VIP Pass");
 	});
 
 	it("should expose the real value to a codegen emitter through the projected view", async () => {
@@ -169,15 +168,18 @@ describe("deploy persists real display values", () => {
 				return [];
 			},
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry: registryWith(echoGamePassDriver()),
 			statePort: port,
 		});
 
 		assert(captured !== undefined);
 		const state = captured.environments["production"]!;
-		const resource = state.resources[0] as ResourceCurrentState<"gamePass">;
-		const view = codegenView(resource, state.realDisplay?.["gamePass:vip-pass"]);
+		const resource = state.resources[0];
+		assert(resource !== undefined);
+		assert(resource.kind === "gamePass");
+
+		const view = codegenView(resource, state.realDisplay!["gamePass:vip-pass"]);
 
 		expect(realValue(view.name)).toBe("VIP Pass");
 		expect(realValue(view.price)).toBe(500);
@@ -190,7 +192,7 @@ describe("deploy persists real display values", () => {
 		await deploy({
 			config: redactedVipConfig("VIP Pass"),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry: registryWith(echoGamePassDriver()),
 			statePort: first.port,
 		});
@@ -212,14 +214,14 @@ describe("deploy persists real display values", () => {
 		const result = await deploy({
 			config: redactedVipConfig("VIP Pass Renamed"),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry: registryWith(trap),
 			statePort: second.port,
 		});
 
 		assert(result.success);
 
-		expect(result.data.realDisplay?.["gamePass:vip-pass"]?.name).toBe("VIP Pass Renamed");
+		expect(result.data.realDisplay!["gamePass:vip-pass"]!.name).toBe("VIP Pass Renamed");
 	});
 
 	it("should not persist real display values for a resource that failed to apply", async () => {
@@ -235,7 +237,7 @@ describe("deploy persists real display values", () => {
 		const result = await deploy({
 			config: redactedVipConfig("VIP Pass"),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry: registryWith(failing),
 			statePort: port,
 		});

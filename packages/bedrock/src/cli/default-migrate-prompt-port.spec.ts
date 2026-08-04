@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, vi } from "vitest";
 
 import {
 	createDefaultMigratePromptPort,
@@ -41,6 +41,17 @@ describe(createDefaultMigratePromptPort, () => {
 				{ label: "YAML", value: "yaml" },
 			],
 		});
+	});
+
+	it("should treat an answer matching no offered option as a cancellation", async () => {
+		expect.assertions(1);
+
+		const select = vi.fn<MigratePromptClackHelpers["select"]>(async () => "toml");
+		const port = createDefaultMigratePromptPort(makeHelpers({ select }));
+
+		const result = await port.promptConfigFormat();
+
+		expect(result).toStrictEqual({ err: { kind: "cancelled" }, success: false });
 	});
 
 	it("should resolve promptMigrationSource with the picked source and preselect the first option", async () => {
@@ -111,10 +122,12 @@ describe(createDefaultMigratePromptPort, () => {
 			],
 		});
 
-		const passedOptions = vi.mocked(select).mock.calls[0]?.[0];
+		const passedOptions = vi.mocked(select).mock.calls[0]![0];
+		const [firstOption] = passedOptions.options;
+		assert(firstOption !== undefined);
 
-		expect(Object.hasOwn(passedOptions ?? {}, "initialValue")).toBeFalse();
-		expect(Object.hasOwn(passedOptions?.options[0] ?? {}, "hint")).toBeFalse();
+		expect(Object.hasOwn(passedOptions, "initialValue")).toBeFalse();
+		expect(Object.hasOwn(firstOption, "hint")).toBeFalse();
 	});
 
 	it("should resolve promptStateFilePath via the path prompt with filesystem completion", async () => {
@@ -129,9 +142,9 @@ describe(createDefaultMigratePromptPort, () => {
 
 		const firstCall = vi.mocked(path).mock.calls[0];
 
-		expect(firstCall?.[0]?.message).toBe("Path to the Mantle state file?");
-		expect(firstCall?.[0]?.initialValue).toBe(".mantle-state.yml");
-		expect(firstCall?.[0]?.validate).toBeFunction();
+		expect(firstCall![0].message).toBe("Path to the Mantle state file?");
+		expect(firstCall![0].initialValue).toBe(".mantle-state.yml");
+		expect(firstCall![0].validate).toBeFunction();
 	});
 
 	it("should resolve promptGistId with the typed id and forward the prompt shape", async () => {
@@ -146,9 +159,9 @@ describe(createDefaultMigratePromptPort, () => {
 
 		const firstCall = vi.mocked(text).mock.calls[0];
 
-		expect(firstCall?.[0]?.message).toBe("Gist ID for state storage?");
-		expect(firstCall?.[0]?.placeholder).toBe("abc123");
-		expect(firstCall?.[0]?.validate).toBeFunction();
+		expect(firstCall![0].message).toBe("Gist ID for state storage?");
+		expect(firstCall![0].placeholder).toBe("abc123");
+		expect(firstCall![0].validate).toBeFunction();
 	});
 
 	it("should reject empty input on prompts that require a value via the validator", async () => {
@@ -160,12 +173,12 @@ describe(createDefaultMigratePromptPort, () => {
 		await port.promptStateFilePath();
 
 		const firstCall = vi.mocked(path).mock.calls[0];
-		const validate = firstCall?.[0]?.validate;
+		const { validate } = firstCall![0];
 
-		expect(validate?.("")).toBe("Required");
-		expect(validate?.("   ")).toBe("Required");
-		expect(validate?.(undefined)).toBe("Required");
-		expect(validate?.("path")).toBeUndefined();
+		expect(validate!("")).toBe("Required");
+		expect(validate!(" ".repeat(3))).toBe("Required");
+		expect(validate!(undefined)).toBe("Required");
+		expect(validate!("path")).toBeUndefined();
 	});
 
 	it.for<{ method: "promptConfigFormat" | "promptGistId" | "promptStateBackend" }>([

@@ -3,9 +3,9 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { type, type Type } from "arktype";
 
 import { asSha256Hex, type ResourceKey, type Sha256Hex } from "../types/ids.ts";
-import { sha256Hex } from "./kinds/hash.ts";
+import { sha256HexAsync } from "./kinds/hash.ts";
 import type { BuildDesiredError, KindIo } from "./kinds/module.ts";
-import { readBytes } from "./kinds/read-bytes.ts";
+import { readBytesAsync } from "./kinds/read-bytes.ts";
 
 /**
  * ArkType schema for the locale-keyed icon path map. Today the only
@@ -30,16 +30,16 @@ export const iconMap: Type<Record<"en-us", string>> = type({
  * @returns `Ok` with the branded digest, or `Err` with a `fileReadFailed`
  *   error carrying both `filePath` and `key` unchanged.
  */
-export async function hashIconFile(
+export async function hashIconFileAsync(
 	target: { readonly filePath: string; readonly key: ResourceKey },
 	io: KindIo,
 ): Promise<Result<Sha256Hex, BuildDesiredError>> {
-	const read = await readBytes(target, io);
+	const read = await readBytesAsync(target, io);
 	if (!read.success) {
 		return read;
 	}
 
-	return { data: asSha256Hex(await sha256Hex(read.data)), success: true };
+	return { data: asSha256Hex(await sha256HexAsync(read.data)), success: true };
 }
 
 /**
@@ -54,11 +54,11 @@ export async function hashIconFile(
  * @returns `Ok` with hashes mirroring the locale shape of the input, or
  *   `Err` from the first locale whose file could not be read.
  */
-export async function hashIconLocales(
+export async function hashIconLocalesAsync(
 	input: { readonly icon: Record<"en-us", string>; readonly key: ResourceKey },
 	io: KindIo,
 ): Promise<Result<Record<"en-us", Sha256Hex>, BuildDesiredError>> {
-	const enUs = await hashIconFile({ key: input.key, filePath: input.icon["en-us"] }, io);
+	const enUs = await hashIconFileAsync({ key: input.key, filePath: input.icon["en-us"] }, io);
 	if (!enUs.success) {
 		return enUs;
 	}

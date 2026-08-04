@@ -1,8 +1,18 @@
+import { fromAny } from "@total-typescript/shoehorn";
+
 import { assert, describe, expect, it } from "vitest";
 
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { coLocateRealDisplay, parseStateFile, serializeStateFile } from "./state-file.ts";
 import type { BedrockState } from "./state.ts";
+
+/**
+ * The serialized state as it appears on the wire, before `parseStateFile`
+ * lifts the `$realDisplay` siblings back out.
+ */
+interface WireState {
+	readonly resources: ReadonlyArray<Record<string, unknown>>;
+}
 
 const redactedPass: BedrockState["resources"][number] = {
 	key: asResourceKey("vip-pass"),
@@ -55,9 +65,7 @@ describe(serializeStateFile, () => {
 	it("should co-locate a $realDisplay sibling on the resource it describes", () => {
 		expect.assertions(1);
 
-		const wire = JSON.parse(serializeStateFile(stateWithRealDisplay)) as unknown as {
-			resources: ReadonlyArray<Record<string, unknown>>;
-		};
+		const wire: WireState = fromAny(JSON.parse(serializeStateFile(stateWithRealDisplay)));
 
 		expect(wire.resources[0]!["$realDisplay"]).toStrictEqual({
 			name: "VIP Pass",
@@ -69,13 +77,15 @@ describe(serializeStateFile, () => {
 	it("should omit $realDisplay from a resource with no real-display entry", () => {
 		expect.assertions(1);
 
-		const wire = JSON.parse(
-			serializeStateFile({
-				environment: "production",
-				resources: [redactedPass],
-				version: 1,
-			}),
-		) as unknown as { resources: ReadonlyArray<Record<string, unknown>> };
+		const wire: WireState = fromAny(
+			JSON.parse(
+				serializeStateFile({
+					environment: "production",
+					resources: [redactedPass],
+					version: 1,
+				}),
+			),
+		);
 
 		expect(wire.resources[0]).not.toContainKey("$realDisplay");
 	});
@@ -87,9 +97,14 @@ describe(serializeStateFile, () => {
 			...redactedPass,
 			key: asResourceKey("plain-pass"),
 		};
-		const wire = JSON.parse(
-			serializeStateFile({ ...stateWithRealDisplay, resources: [redactedPass, otherPass] }),
-		) as unknown as { resources: ReadonlyArray<Record<string, unknown>> };
+		const wire: WireState = fromAny(
+			JSON.parse(
+				serializeStateFile({
+					...stateWithRealDisplay,
+					resources: [redactedPass, otherPass],
+				}),
+			),
+		);
 
 		expect(wire.resources[0]).toContainKey("$realDisplay");
 	});
@@ -101,9 +116,14 @@ describe(serializeStateFile, () => {
 			...redactedPass,
 			key: asResourceKey("plain-pass"),
 		};
-		const wire = JSON.parse(
-			serializeStateFile({ ...stateWithRealDisplay, resources: [redactedPass, otherPass] }),
-		) as unknown as { resources: ReadonlyArray<Record<string, unknown>> };
+		const wire: WireState = fromAny(
+			JSON.parse(
+				serializeStateFile({
+					...stateWithRealDisplay,
+					resources: [redactedPass, otherPass],
+				}),
+			),
+		);
 
 		expect(wire.resources[1]).not.toContainKey("$realDisplay");
 	});
@@ -116,7 +136,7 @@ describe(parseStateFile, () => {
 		const parsed = parseStateFile(serializeStateFile(stateWithRealDisplay), "state.dev.json");
 		assert(parsed.success);
 
-		expect(parsed.data?.realDisplay).toStrictEqual({
+		expect(parsed.data!.realDisplay).toStrictEqual({
 			"gamePass:vip-pass": { name: "VIP Pass", description: "Grants VIP perks.", price: 500 },
 		});
 	});
@@ -127,7 +147,7 @@ describe(parseStateFile, () => {
 		const parsed = parseStateFile(serializeStateFile(stateWithRealDisplay), "state.dev.json");
 		assert(parsed.success);
 
-		expect(parsed.data?.resources[0]).not.toContainKey("$realDisplay");
+		expect(parsed.data!.resources[0]).not.toContainKey("$realDisplay");
 	});
 
 	it("should leave realDisplay absent when no resource carries a sibling", () => {

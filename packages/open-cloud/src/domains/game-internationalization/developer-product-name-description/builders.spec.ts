@@ -36,32 +36,29 @@ describe(buildUpdateRequest, () => {
 
 	it.for<
 		[
-			name: string | undefined,
-			description: string | undefined,
-			expected: Record<string, string>,
+			caseName: string,
+			fields: Partial<
+				Pick<UpdateDeveloperProductNameDescriptionParameters, "description" | "name">
+			>,
 		]
 	>([
-		["Gem Pack", "Premium gems", { name: "Gem Pack", description: "Premium gems" }],
-		["Gem Pack", undefined, { name: "Gem Pack" }],
-		[undefined, "Premium gems", { description: "Premium gems" }],
-		[undefined, undefined, {}],
-	])(
-		"should include name=%j description=%j in the JSON body",
-		([name, description, expected]) => {
-			expect.assertions(1);
+		["both name and description", { name: "Gem Pack", description: "Premium gems" }],
+		["only a name", { name: "Gem Pack" }],
+		["only a description", { description: "Premium gems" }],
+		["neither field", {}],
+	])("should include %s in the JSON body", ([, fields]) => {
+		expect.assertions(1);
 
-			const parameters = {
-				languageCode: "en_us",
-				productId: "12345",
-				...(name === undefined ? {} : { name }),
-				...(description === undefined ? {} : { description }),
-			} satisfies UpdateDeveloperProductNameDescriptionParameters;
+		const parameters = {
+			languageCode: "en_us",
+			productId: "12345",
+			...fields,
+		} satisfies UpdateDeveloperProductNameDescriptionParameters;
 
-			const request = buildUpdateRequest(parameters);
+		const request = buildUpdateRequest(parameters);
 
-			expect(request.body).toStrictEqual(expected);
-		},
-	);
+		expect(request.body).toStrictEqual(fields);
+	});
 
 	it("should produce a JSON-shaped body, not FormData", () => {
 		expect.assertions(2);

@@ -8,10 +8,10 @@ describe(findOperation, () => {
 
 		const match = findOperation("GET", "/game-passes/v1/universes/42/game-passes/999/creator");
 
-		expect(match?.pathTemplate).toBe(
+		expect(match!.pathTemplate).toBe(
 			"/game-passes/v1/universes/{universeId}/game-passes/{gamePassId}/creator",
 		);
-		expect(match?.pathParams).toStrictEqual({ gamePassId: "999", universeId: "42" });
+		expect(match!.pathParams).toStrictEqual({ gamePassId: "999", universeId: "42" });
 	});
 
 	it("should resolve a POST on the game-passes create endpoint", () => {
@@ -19,9 +19,9 @@ describe(findOperation, () => {
 
 		const match = findOperation("POST", "/game-passes/v1/universes/42/game-passes");
 
-		expect(match?.pathTemplate).toBe("/game-passes/v1/universes/{universeId}/game-passes");
-		expect(match?.pathParams).toStrictEqual({ universeId: "42" });
-		expect(match?.operation["operationId"]).toBeString();
+		expect(match!.pathTemplate).toBe("/game-passes/v1/universes/{universeId}/game-passes");
+		expect(match!.pathParams).toStrictEqual({ universeId: "42" });
+		expect(match!.operation["operationId"]).toBeString();
 	});
 
 	it("should accept a lowercase method", () => {
@@ -29,7 +29,7 @@ describe(findOperation, () => {
 
 		const match = findOperation("get", "/game-passes/v1/universes/42/game-passes/creator");
 
-		expect(match?.pathTemplate).toBe(
+		expect(match!.pathTemplate).toBe(
 			"/game-passes/v1/universes/{universeId}/game-passes/creator",
 		);
 	});
@@ -42,7 +42,7 @@ describe(findOperation, () => {
 			"https://apis.roblox.com/game-passes/v1/universes/42/game-passes",
 		);
 
-		expect(match?.pathTemplate).toBe("/game-passes/v1/universes/{universeId}/game-passes");
+		expect(match!.pathTemplate).toBe("/game-passes/v1/universes/{universeId}/game-passes");
 	});
 
 	it("should strip a query string before matching", () => {
@@ -53,7 +53,7 @@ describe(findOperation, () => {
 			"/game-passes/v1/universes/42/game-passes?maxPageSize=10",
 		);
 
-		expect(match?.pathTemplate).toBe("/game-passes/v1/universes/{universeId}/game-passes");
+		expect(match!.pathTemplate).toBe("/game-passes/v1/universes/{universeId}/game-passes");
 	});
 
 	it("should return undefined for an unknown url", () => {
@@ -75,7 +75,7 @@ describe(findOperation, () => {
 		const assignRole = findOperation("POST", "/cloud/v2/groups/42/memberships/abc:assignRole");
 		const plain = findOperation("POST", "/cloud/v2/groups/42/memberships/abc");
 
-		expect(assignRole?.pathTemplate).toBe(
+		expect(assignRole!.pathTemplate).toBe(
 			"/cloud/v2/groups/{group_id}/memberships/{membership_id}:assignRole",
 		);
 		// PATCH exists on the plain path, but POST does not - so a POST

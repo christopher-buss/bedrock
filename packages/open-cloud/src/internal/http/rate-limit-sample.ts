@@ -3,7 +3,9 @@
  * response headers. Both fields are non-negative integers.
  */
 export interface RateLimitSample {
-	/** Requests still allowed in the current window (the most-constrained one). */
+	/**
+	 * Requests still allowed in the current window (the most-constrained one).
+	 */
 	readonly remaining: number;
 	/** Seconds until the most-constrained window resets to full. */
 	readonly resetSeconds: number;
@@ -55,12 +57,12 @@ export function reduceRateLimitTokens(
 export function parseRateLimitHeaders(
 	headers: Readonly<Record<string, string>>,
 ): RateLimitSample | undefined {
-	const remaining = reduceRateLimitTokens(headers["x-ratelimit-remaining"], (a, b) =>
-		Math.min(a, b),
-	);
-	const resetSeconds = reduceRateLimitTokens(headers["x-ratelimit-reset"], (a, b) =>
-		Math.max(a, b),
-	);
+	const remaining = reduceRateLimitTokens(headers["x-ratelimit-remaining"], (a, b) => {
+		return Math.min(a, b);
+	});
+	const resetSeconds = reduceRateLimitTokens(headers["x-ratelimit-reset"], (a, b) => {
+		return Math.max(a, b);
+	});
 	if (remaining === undefined || resetSeconds === undefined) {
 		return undefined;
 	}

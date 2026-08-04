@@ -9,6 +9,7 @@ import { UniversesClient } from "@bedrock-rbx/ocale/universes";
 
 import { assert, describe, expect, it } from "vitest";
 
+import { jsonRequestBody } from "#tests/helpers/http";
 import { PLATFORM_FLAG_ROWS, universeCurrent, universeDesired } from "#tests/helpers/resources";
 import { SOCIAL_LINK_FIELDS, UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import { createUniverseDriver } from "./universe-driver.ts";
@@ -427,7 +428,7 @@ describe(createUniverseDriver, () => {
 
 				await driver.create(universeDesired({ [field]: undefined }));
 
-				const body = http.requests[0]!.request.body as Record<string, unknown>;
+				const body = jsonRequestBody(http.requests[0]!.request);
 
 				expect(body).toContainKey(field);
 				expect(body[field]).toBeNull();
@@ -465,7 +466,7 @@ describe(createUniverseDriver, () => {
 
 			await driver.create(universeDesired(overrides));
 
-			const body = http.requests[0]!.request.body as Record<string, unknown>;
+			const body = jsonRequestBody(http.requests[0]!.request);
 			for (const field of SOCIAL_LINK_FIELDS) {
 				expect(body[field]).toStrictEqual({
 					title: `t-${field}`,

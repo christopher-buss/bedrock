@@ -1,6 +1,7 @@
 import process from "node:process";
 import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
+import { environmentFrom } from "#tests/helpers/environment";
 import { getEnvironment } from "./get-environment.ts";
 
 function empty(): string | undefined {
@@ -23,9 +24,7 @@ describe(getEnvironment, () => {
 	it("should fall back to BEDROCK_ENVIRONMENT when no --env flag is present", () => {
 		expect.assertions(2);
 
-		const result = getEnvironment([], (name) =>
-			name === "BEDROCK_ENVIRONMENT" ? "staging" : undefined,
-		);
+		const result = getEnvironment([], environmentFrom({ BEDROCK_ENVIRONMENT: "staging" }));
 
 		expect(result.success).toBeTrue();
 

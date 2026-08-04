@@ -223,7 +223,7 @@ describe("developerProductKind", () => {
 				},
 			});
 
-			expect(inputs[0]?.icon).toStrictEqual({ "en-us": "assets/gem-pack.png" });
+			expect(inputs[0]!.icon).toStrictEqual({ "en-us": "assets/gem-pack.png" });
 		});
 
 		it("should omit icon from the flattened input when not declared", () => {

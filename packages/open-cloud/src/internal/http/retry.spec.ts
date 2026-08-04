@@ -1,3 +1,5 @@
+import { fromAny } from "@total-typescript/shoehorn";
+
 import { describe, expect, it, vi } from "vitest";
 
 import { CodedError } from "#tests/helpers/coded-error";
@@ -12,7 +14,6 @@ import {
 	GATEWAY_REJECTED,
 	IDEMPOTENT_METHOD_DEFAULTS,
 	mergeConfig,
-	type MethodKind,
 	shouldRetry,
 	TRANSIENT_TRANSPORT_CODES,
 	UPLOAD_METHOD_DEFAULTS,
@@ -530,7 +531,7 @@ describe(mergeConfig, () => {
 		expect(() => {
 			return mergeConfig(clientConfig, {
 				methodDefaults: CREATE_METHOD_DEFAULTS,
-				methodKind: "bogus" as MethodKind,
+				methodKind: fromAny("bogus"),
 			});
 		}).toThrowWithMessage(Error, "Unexpected methodKind: bogus");
 	});

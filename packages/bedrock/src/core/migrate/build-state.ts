@@ -72,8 +72,10 @@ export function buildState(inputs: BuildStateInputs): BedrockState {
 	};
 }
 
-function universeResource(inputs: UniverseResourceInputs): ResourceCurrentState<"universe"> {
-	const { entry, outputs } = inputs;
+function universeResource({
+	entry,
+	outputs,
+}: UniverseResourceInputs): ResourceCurrentState<"universe"> {
 	return {
 		key: UNIVERSE_SINGLETON_KEY,
 		consoleEnabled: entry.consoleEnabled,
@@ -145,8 +147,11 @@ function productResource(
 	};
 }
 
-function composeResources(inputs: BuildStateInputs): ReadonlyArray<ResourceCurrentState> {
-	const { folded, passIconHashesByKey, productIconHashesByKey } = inputs;
+function composeResources({
+	folded,
+	passIconHashesByKey,
+	productIconHashesByKey,
+}: BuildStateInputs): ReadonlyArray<ResourceCurrentState> {
 	const universeResources: ReadonlyArray<ResourceCurrentState> =
 		folded.universe === undefined
 			? []

@@ -88,17 +88,18 @@ export function createDefaultMigratePromptPort(
 	helpers: MigratePromptClackHelpers = defaultHelpers,
 ): MigratePromptPort {
 	return {
-		promptConfigFormat: async () => promptConfigFormatFrom(helpers),
-		promptGistId: async () => promptGistIdFrom(helpers),
-		promptMigrationSource: async (sources) => selectMigrationSource(helpers, sources),
-		promptPrimaryEnvironment: async (environments) =>
-			selectPrimaryEnvironment(helpers, environments),
-		promptStateBackend: async () => promptStateBackendFrom(helpers),
-		promptStateFilePath: async () => promptStateFilePathFrom(helpers),
+		promptConfigFormat: async () => promptConfigFormatFromAsync(helpers),
+		promptGistId: async () => promptGistIdFromAsync(helpers),
+		promptMigrationSource: async (sources) => selectMigrationSourceAsync(helpers, sources),
+		promptPrimaryEnvironment: async (environments) => {
+			return selectPrimaryEnvironmentAsync(helpers, environments);
+		},
+		promptStateBackend: async () => promptStateBackendFromAsync(helpers),
+		promptStateFilePath: async () => promptStateFilePathFromAsync(helpers),
 	};
 }
 
-async function fromSelect<T extends string>(
+async function fromSelectAsync<T extends string>(
 	helpers: MigratePromptClackHelpers,
 	inputs: FromSelectInputs<T>,
 ): Promise<MigratePromptResult<T>> {
@@ -117,24 +118,33 @@ async function fromSelect<T extends string>(
 		return { err: { kind: "cancelled" }, success: false };
 	}
 
-	return { data: result as T, success: true };
+	// `select` is an injection seam typed over bare `string`, so recover the
+	// caller's narrower value type by matching the answer back to the option
+	// it came from. An answer matching no option is not a choice this prompt
+	// offered, so it reads as a cancellation.
+	const chosen = inputs.options.find((option) => option.value === result);
+	if (chosen === undefined) {
+		return { err: { kind: "cancelled" }, success: false };
+	}
+
+	return { data: chosen.value, success: true };
 }
 
-async function selectMigrationSource(
+async function selectMigrationSourceAsync(
 	helpers: MigratePromptClackHelpers,
 	sources: readonly [MigrationSource, ...ReadonlyArray<MigrationSource>],
 ): Promise<MigratePromptResult<MigrationSource>> {
-	return fromSelect<MigrationSource>(helpers, {
+	return fromSelectAsync<MigrationSource>(helpers, {
 		initialValue: sources[0],
 		message: "Migrate from?",
 		options: sources.map((source) => ({ label: SOURCE_LABELS[source], value: source })),
 	});
 }
 
-async function promptConfigFormatFrom(
+async function promptConfigFormatFromAsync(
 	helpers: MigratePromptClackHelpers,
 ): Promise<MigratePromptResult<MigrateConfigFormat>> {
-	return fromSelect(helpers, {
+	return fromSelectAsync(helpers, {
 		initialValue: "typescript",
 		message: "Output config format?",
 		options: FORMAT_OPTIONS,
@@ -149,7 +159,7 @@ function validateNonEmpty(value: string | undefined): string | undefined {
 	return undefined;
 }
 
-async function fromText(
+async function fromTextAsync(
 	helpers: MigratePromptClackHelpers,
 	options: TextOptions,
 ): Promise<MigratePromptResult<string>> {
@@ -161,38 +171,38 @@ async function fromText(
 	return { data: result, success: true };
 }
 
-async function promptGistIdFrom(
+async function promptGistIdFromAsync(
 	helpers: MigratePromptClackHelpers,
 ): Promise<MigratePromptResult<string>> {
-	return fromText(helpers, {
+	return fromTextAsync(helpers, {
 		message: "Gist ID for state storage?",
 		placeholder: "abc123",
 		validate: validateNonEmpty,
 	});
 }
 
-async function selectPrimaryEnvironment(
+async function selectPrimaryEnvironmentAsync(
 	helpers: MigratePromptClackHelpers,
 	environments: ReadonlyArray<string>,
 ): Promise<MigratePromptResult<string>> {
-	return fromSelect(helpers, {
+	return fromSelectAsync(helpers, {
 		message:
 			"Which environment should be the primary?\nThe migrator uses it as the baseline for the generated config.",
 		options: environments.map((name) => ({ label: name, value: name })),
 	});
 }
 
-async function promptStateBackendFrom(
+async function promptStateBackendFromAsync(
 	helpers: MigratePromptClackHelpers,
 ): Promise<MigratePromptResult<MigrateStateBackend>> {
-	return fromSelect(helpers, {
+	return fromSelectAsync(helpers, {
 		initialValue: "gist",
 		message: "State backend?",
 		options: BACKEND_OPTIONS,
 	});
 }
 
-async function fromPath(
+async function fromPathAsync(
 	helpers: MigratePromptClackHelpers,
 	options: PathOptions,
 ): Promise<MigratePromptResult<string>> {
@@ -204,10 +214,10 @@ async function fromPath(
 	return { data: result, success: true };
 }
 
-async function promptStateFilePathFrom(
+async function promptStateFilePathFromAsync(
 	helpers: MigratePromptClackHelpers,
 ): Promise<MigratePromptResult<string>> {
-	return fromPath(helpers, {
+	return fromPathAsync(helpers, {
 		initialValue: ".mantle-state.yml",
 		message: "Path to the Mantle state file?",
 		validate: validateNonEmpty,

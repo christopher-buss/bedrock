@@ -86,9 +86,12 @@ function staticFieldWarnings(inputs: Record<string, unknown>): ReadonlyArray<Mig
 function avatarFieldWarnings(inputs: Record<string, unknown>): ReadonlyArray<MigrationWarning> {
 	return Object.keys(inputs)
 		.filter((key) => key.startsWith(UNIVERSE_AVATAR_PREFIX) && inputs[key] !== undefined)
-		.map((key) =>
-			blockedWarning(`experienceConfiguration_singleton.${key}`, UNIVERSE_AVATAR_REASON),
-		);
+		.map((key) => {
+			return blockedWarning(
+				`experienceConfiguration_singleton.${key}`,
+				UNIVERSE_AVATAR_REASON,
+			);
+		});
 }
 
 function configWarnings(resources: ReadonlyArray<MantleResource>): ReadonlyArray<MigrationWarning> {

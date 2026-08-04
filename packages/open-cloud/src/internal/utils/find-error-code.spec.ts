@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { CodedError } from "#tests/helpers/coded-error";
+import { cyclicError } from "#tests/helpers/cyclic-error";
 import { findErrorCode, isTimeoutAbort } from "./find-error-code.ts";
 
 describe(findErrorCode, () => {
@@ -50,8 +51,7 @@ describe(findErrorCode, () => {
 	it("should stop walking at the depth cap rather than loop forever", () => {
 		expect.assertions(1);
 
-		const cyclic: Error & { code?: unknown } = new Error("loop");
-		cyclic.cause = cyclic;
+		const cyclic: Error & { code?: unknown } = cyclicError("loop");
 
 		expect(findErrorCode(cyclic)).toBeUndefined();
 	});
@@ -112,8 +112,7 @@ describe(isTimeoutAbort, () => {
 	it("should stop walking at the depth cap rather than loop forever", () => {
 		expect.assertions(1);
 
-		const cyclic: Error = new Error("loop");
-		cyclic.cause = cyclic;
+		const cyclic: Error = cyclicError("loop");
 
 		expect(isTimeoutAbort(cyclic)).toBeFalse();
 	});

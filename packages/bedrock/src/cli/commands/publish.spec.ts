@@ -30,11 +30,11 @@ describe(publishCommand, () => {
 
 		await publishCommand(deps)({ env: "production" });
 
-		expect(deps.clack?.intro).toHaveBeenCalledExactlyOnceWith("bedrock publish");
+		expect(deps.clack!.intro).toHaveBeenCalledExactlyOnceWith("bedrock publish");
 		expect(publish).toHaveBeenCalledExactlyOnceWith(
 			expect.objectContaining({ config: sampleConfig, environment: "production" }),
 		);
-		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith("publish succeeded");
+		expect(deps.clack!.outro).toHaveBeenCalledExactlyOnceWith("publish succeeded");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
@@ -49,7 +49,7 @@ describe(publishCommand, () => {
 
 		await publishCommand(deps)({ env: "production" });
 
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("publish failed");
+		expect(deps.clack!.cancel).toHaveBeenCalledExactlyOnceWith("publish failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -77,6 +77,6 @@ describe(publishCommand, () => {
 
 		expect(discoverOverride).toHaveBeenCalledExactlyOnceWith("/abs", "publish");
 		expect(publish).not.toHaveBeenCalled();
-		expect(invocations[0]?.args[0]).toBe("/abs/.bedrock/publish.ts");
+		expect(invocations[0]!.args[0]).toBe("/abs/.bedrock/publish.ts");
 	});
 });

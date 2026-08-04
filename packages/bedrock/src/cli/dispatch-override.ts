@@ -15,11 +15,17 @@ import type { Spawner, SpawnInvocation, SpawnLaunchCause } from "./spawner.ts";
 export interface OverrideInvocation {
 	/** Optional `--api-key` value; translated to `BEDROCK_API_KEY` in env. */
 	readonly apiKey?: string;
-	/** Optional `--config <path>` value; forwarded unchanged in argv when present. */
+	/**
+	 * Optional `--config <path>` value; forwarded unchanged in argv when
+	 * present.
+	 */
 	readonly configFile?: string;
 	/** Target environment for this single override invocation. */
 	readonly environment: string;
-	/** Optional `--github-token` value; translated to `BEDROCK_GITHUB_TOKEN` in env. */
+	/**
+	 * Optional `--github-token` value; translated to `BEDROCK_GITHUB_TOKEN` in
+	 * env.
+	 */
 	readonly githubToken?: string;
 	/** Path to the override script file to invoke. */
 	readonly overridePath: string;
@@ -52,7 +58,8 @@ export type SpawnOverrideError =
  *   TypeScript natively; note that under Node, relative imports inside an
  *   override must spell out their `.ts` extension. A CLI invoked through Bun
  *   spawns Bun.
- * - argv = `[overridePath, "--env", environment]`, with `"--config", configFile`
+ * - argv = `[overridePath, "--env", environment]`, with `"--config",
+ * configFile`
  *   appended when supplied.
  * - `apiKey` becomes the `BEDROCK_API_KEY` env-var override; `githubToken`
  *   becomes `BEDROCK_GITHUB_TOKEN`. Neither value appears in argv.

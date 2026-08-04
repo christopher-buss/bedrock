@@ -67,7 +67,7 @@ describe(parseIconListResponse, () => {
 
 		assert(result.success);
 
-		expect(result.data[0]?.state).toBe(state);
+		expect(result.data[0]!.state).toBe(state);
 	});
 
 	it("should return success with an empty array when the API returns no entries", () => {

@@ -18,7 +18,7 @@ import type { MantleStateV6 } from "../core/migrate/types.ts";
 import { type Config, validateConfig } from "../core/schema.ts";
 import type { BedrockState } from "../core/state.ts";
 import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
-import { type IconHashRecomputation, recomputeIconHashes } from "./recompute-icon-hashes.ts";
+import { type IconHashRecomputation, recomputeIconHashesAsync } from "./recompute-icon-hashes.ts";
 
 type ConfigFormat = "typescript" | "yaml";
 
@@ -162,7 +162,7 @@ export async function migrateMantleState(
 		return parsed;
 	}
 
-	return assembleReport({
+	return assembleReportAsync({
 		configFormat: deps.configFormat,
 		primaryEnvironment: deps.primaryEnvironment,
 		readFile,
@@ -259,7 +259,7 @@ function finalizeReport(inputs: FinalizeReportInputs): Result<MigrationReport, M
 	return { data: buildReport(inputs, validated.data), success: true };
 }
 
-async function assembleReport(
+async function assembleReportAsync(
 	inputs: AssembleReportInputs,
 ): Promise<Result<MigrationReport, MigrateError>> {
 	const available = Object.keys(inputs.state.environments);
@@ -274,7 +274,7 @@ async function assembleReport(
 		return factorized;
 	}
 
-	const iconRecomputation = await recomputeIconHashes({
+	const iconRecomputation = await recomputeIconHashesAsync({
 		folds,
 		readFile: inputs.readFile,
 		stateFileDirectory: dirname(inputs.stateFilePath),

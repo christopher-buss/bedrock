@@ -59,7 +59,8 @@ export interface StatePort {
 	/**
 	 * Reads state for the given environment.
 	 *
-	 * - Returns `Ok(undefined)` when no state file exists (legitimate first deploy).
+	 * - Returns `Ok(undefined)` when no state file exists (legitimate first
+	 *   deploy).
 	 * - Returns `Err(StateError)` when a file exists but cannot be parsed
 	 *   (corrupt JSON, schema failure, unknown `$bedrock.version`).
 	 *
@@ -69,6 +70,8 @@ export interface StatePort {
 	 */
 	read(environment: string): Promise<Result<BedrockState | undefined, StateError>>;
 
-	/** Writes state for the given environment, overwriting any existing file. */
+	/**
+	 * Writes state for the given environment, overwriting any existing file.
+	 */
 	write(state: BedrockState): Promise<Result<void, StateError>>;
 }

@@ -28,6 +28,7 @@ describe("updateSortedMapItemParameters writable-keys pin", () => {
 		"should expose %s as a non-readOnly property on the MemoryStoreSortedMapItem schema",
 		(key) => {
 			expect.assertions(1);
+
 			expect(listWritablePropertyNames("MemoryStoreSortedMapItem")).toContain(key);
 		},
 	);

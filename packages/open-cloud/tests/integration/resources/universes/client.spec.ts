@@ -139,7 +139,7 @@ describe(UniversesClient, () => {
 
 			await client.get({ universeId: "123" }, { apiKey: "override-key" });
 
-			expect(httpClient.requests[0]?.config.apiKey).toBe("override-key");
+			expect(httpClient.requests[0]!.config.apiKey).toBe("override-key");
 		});
 	});
 
@@ -237,7 +237,7 @@ describe(UniversesClient, () => {
 				{ apiKey: "override-key" },
 			);
 
-			expect(httpClient.requests[0]?.config.apiKey).toBe("override-key");
+			expect(httpClient.requests[0]!.config.apiKey).toBe("override-key");
 		});
 	});
 
