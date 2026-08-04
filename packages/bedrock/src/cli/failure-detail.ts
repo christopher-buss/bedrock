@@ -123,10 +123,7 @@ function permissionDetail(err: PermissionError): string {
 	const scopeList = err.requiredScopes.map((scope) => `'${scope}'`).join(", ");
 	const head = `${err.message} on ${err.operationKey}: `;
 
-	// Only a 403 pins the failure on a missing scope. Roblox answers 401 for an
-	// invalid, disabled, or expired key *and* for one whose scopes fall short,
-	// so that branch names the scope as one thing to check rather than as the
-	// diagnosis.
+	// Only a 403 pins the failure on a missing scope; a 401 is ambiguous.
 	if (err.statusCode !== 403) {
 		return `${head}the API key was rejected. Check that it is enabled, has not expired, and grants ${label} ${scopeList} for this experience at ${CREDENTIALS_URL}`;
 	}
