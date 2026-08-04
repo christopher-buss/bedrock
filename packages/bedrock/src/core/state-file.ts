@@ -2,7 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { ArkErrors, type } from "arktype";
 
-import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
+import { asResourceKey, asSha256Hex, type ResourceKey, type Sha256Hex } from "../types/ids.ts";
 import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
 import type { BedrockState, StateError } from "./state.ts";
 
@@ -11,8 +11,18 @@ import type { BedrockState, StateError } from "./state.ts";
 // (game-pass vs place vs universe) is deferred. Bedrock is both the writer
 // and the reader of state files, so tampering is out of scope for v0.1;
 // a follow-up issue widens this to full per-kind schema + brand narrowing.
+// The `$realDisplay` sibling is validated in full, unlike the rest of the
+// resource body: `parseStateFile` lifts it straight into `BedrockState`, so a
+// malformed digest of real display values would otherwise reach the codegen
+// view unchecked.
 const resourceShape = type({
 	"key": "string",
+	"$realDisplay?": {
+		"description?": "string",
+		"displayName?": "string",
+		"name?": "string",
+		"price?": "number",
+	},
 	"[string]": "unknown",
 	"kind": "'developerProduct' | 'gamePass' | 'place' | 'universe'",
 	"outputs": "object",
@@ -159,12 +169,11 @@ export function parseStateFile(
 	return { data: toState(validated), success: true };
 }
 
-function bedrockMeta(state: BedrockState): {
+function bedrockMeta({ codegenHash, pendingRebuild, version }: BedrockState): {
 	codegenHash?: Sha256Hex;
 	pendingRebuild?: ReadonlyArray<ResourceKey>;
 	version: 1;
 } {
-	const { codegenHash, pendingRebuild, version } = state;
 	const marker =
 		pendingRebuild === undefined || pendingRebuild.size === 0
 			? {}
@@ -178,12 +187,17 @@ function splitRealDisplay(rawResources: typeof envelopeSchema.infer.resources): 
 	resources: ReadonlyArray<ResourceCurrentState>;
 } {
 	const realDisplay: Record<string, ResourceRealDisplay> = {};
-	const resources = rawResources.map((raw) => {
-		const { $realDisplay, ...rest } = raw;
+	const resources = rawResources.map(({ $realDisplay, ...rest }) => {
 		if ($realDisplay !== undefined) {
-			realDisplay[`${rest.kind}:${rest.key}`] = $realDisplay as ResourceRealDisplay;
+			realDisplay[`${rest.kind}:${rest.key}`] = $realDisplay;
 		}
 
+		// `resourceShape` deliberately validates the resource body shallowly
+		// (see its comment), so the parsed entry carries `[string]: unknown`
+		// rather than a per-kind shape. Constructing a `ResourceCurrentState`
+		// soundly needs the per-kind schemas and brand narrowing that comment
+		// defers.
+		// eslint-disable-next-line ts/no-unsafe-type-assertion -- shallow-by-design resource schema
 		return rest as unknown as ResourceCurrentState;
 	});
 
@@ -199,8 +213,9 @@ function toState(validated: typeof envelopeSchema.infer): BedrockState {
 	const pendingRebuild =
 		pendingKeys === undefined || pendingKeys.length === 0
 			? undefined
-			: new Set(pendingKeys as unknown as ReadonlyArray<ResourceKey>);
-	const codegenHash = validated.$bedrock.codegenHash as Sha256Hex | undefined;
+			: new Set(pendingKeys.map((key) => asResourceKey(key)));
+	const rawCodegenHash = validated.$bedrock.codegenHash;
+	const codegenHash = rawCodegenHash === undefined ? undefined : asSha256Hex(rawCodegenHash);
 
 	return {
 		...(codegenHash === undefined ? {} : { codegenHash }),

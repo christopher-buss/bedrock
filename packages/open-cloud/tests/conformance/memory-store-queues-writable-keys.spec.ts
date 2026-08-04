@@ -30,6 +30,7 @@ describe("enqueueQueueItemParameters writable-keys pin", () => {
 		"should expose %s as a non-readOnly property on the MemoryStoreQueueItem schema",
 		(key) => {
 			expect.assertions(1);
+
 			expect(listWritablePropertyNames("MemoryStoreQueueItem")).toContain(key);
 		},
 	);

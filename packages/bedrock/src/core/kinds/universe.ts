@@ -162,10 +162,13 @@ function buildBaseDesired(input: UniverseDesiredInput): UniverseDesiredState {
 		: base;
 }
 
-async function normalize(
+async function normalizeAsync(
 	input: UniverseDesiredInput,
 	_io: KindIo,
 ): Promise<Result<UniverseDesiredState, BuildDesiredError>> {
+	// A universe needs no icon bytes, so nothing is read; the await keeps this
+	// on the same async contract as the kinds that do reach for the filesystem.
+	await Promise.resolve();
 	return { data: buildBaseDesired(input), success: true };
 }
 
@@ -187,5 +190,5 @@ export const universeKind: ResourceKindModule<"universe"> = {
 	fieldsEqual,
 	flatten,
 	kind: "universe",
-	normalize,
+	normalize: normalizeAsync,
 };

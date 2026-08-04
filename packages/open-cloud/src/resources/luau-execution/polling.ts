@@ -16,7 +16,9 @@ export const DEFAULT_POLL_TIMEOUT_MS = 300_000;
 interface PollDelayTier {
 	/** Delay in ms to wait between polls while within this tier. */
 	readonly delayMs: number;
-	/** Upper elapsed-time bound (exclusive) at which this tier stops applying. */
+	/**
+	 * Upper elapsed-time bound (exclusive) at which this tier stops applying.
+	 */
 	readonly untilMs: number;
 }
 
@@ -62,7 +64,8 @@ export function defaultPollDelay(elapsedMs: number): number {
  * Default number of consecutive transport failures tolerated before the poll
  * loop gives up. With per-request retries already absorbing isolated blips,
  * three consecutive loop-level failures signals a genuinely unreachable
- * endpoint, so it bails in seconds rather than spinning out the wall-clock budget.
+ * endpoint, so it bails in seconds rather than spinning out the wall-clock
+ * budget.
  */
 export const DEFAULT_POLL_FAILURE_CAP = 3;
 
@@ -81,7 +84,8 @@ export interface PollDependencies {
 }
 
 /**
- * Public options accepted by `pollUntilDone` and `runUntilDone` on both client surfaces.
+ * Public options accepted by `pollUntilDone` and `runUntilDone` on both client
+ * surfaces.
  *
  * @since 0.1.0
  */
@@ -91,15 +95,24 @@ export type PollUntilDoneOptions = PollOptions & RequestOptions;
 interface PollOptions {
 	/**
 	 * Consecutive transient transport failures tolerated before the loop gives
-	 * up. Defaults to {@link DEFAULT_POLL_FAILURE_CAP}. A successful poll resets
-	 * the count.
+	 * up. Defaults to {@link DEFAULT_POLL_FAILURE_CAP}. A successful poll
+	 * resets the count.
 	 */
 	readonly maxConsecutivePollFailures?: number;
-	/** Returns the sleep duration given ms elapsed since polling started. Defaults to {@link defaultPollDelay}. */
+	/**
+	 * Returns the sleep duration given ms elapsed since polling started.
+	 * Defaults to {@link defaultPollDelay}.
+	 */
 	readonly pollDelay?: (elapsedMs: number) => number;
-	/** When aborted, the loop returns {@link PollAbortedError} rather than continuing. */
+	/**
+	 * When aborted, the loop returns {@link PollAbortedError} rather than
+	 * continuing.
+	 */
 	readonly signal?: AbortSignal;
-	/** Total wall-clock budget in ms before the loop returns {@link PollTimeoutError}. */
+	/**
+	 * Total wall-clock budget in ms before the loop returns {@link
+	 * PollTimeoutError}.
+	 */
 	readonly timeoutMs?: number;
 }
 
@@ -179,7 +192,7 @@ interface OutcomeContext {
  * @param options - Optional poll delay, timeout, failure cap, and abort signal.
  * @returns The terminal task, or an error if aborted, timed out, or the transport keeps failing.
  */
-export async function pollUntilDoneCore(
+export async function pollUntilDoneCoreAsync(
 	deps: PollDependencies,
 	options: PollOptions = {},
 ): Promise<Result<LuauExecutionTask, OpenCloudError>> {
@@ -199,14 +212,16 @@ export async function pollUntilDoneCore(
 			return { err: makeTimeout(state.lastTask, timeoutMs), success: false };
 		}
 
-		const outcome = await fetchOnce(deps, sig);
+		const outcome = await fetchOnceAsync(deps, sig);
 		const action = applyOutcome(outcome, { maxFailures, signal: sig, state });
 		if (action.kind === "return") {
 			return action.result;
 		}
 
 		({ state } = action);
-		if (await sleepWithAbort({ ms: pollDelay(elapsedMs), signal: sig, sleep: deps.sleep })) {
+		if (
+			await sleepWithAbortAsync({ ms: pollDelay(elapsedMs), signal: sig, sleep: deps.sleep })
+		) {
 			return abortedResult(sig);
 		}
 	}
@@ -230,8 +245,10 @@ function abortedResult(signal: AbortSignal | undefined): Result<LuauExecutionTas
  * @param context - The loop state, failure cap, and abort signal.
  * @returns Whether to return a final Result or continue with updated state.
  */
-function applyOutcome(outcome: FetchOutcome, context: OutcomeContext): LoopAction {
-	const { maxFailures, signal, state } = context;
+function applyOutcome(
+	outcome: FetchOutcome,
+	{ maxFailures, signal, state }: OutcomeContext,
+): LoopAction {
 	switch (outcome.kind) {
 		case "aborted": {
 			return { kind: "return", result: abortedResult(signal) };
@@ -270,7 +287,7 @@ function abortObserver(signal: AbortSignal): AbortObserver {
 	return { cleanup, promise };
 }
 
-async function raceWithAbort<T>(
+async function raceWithAbortAsync<T>(
 	promise: Promise<T>,
 	signal: AbortSignal | undefined,
 ): Promise<Aborted | T> {
@@ -290,9 +307,8 @@ async function raceWithAbort<T>(
 	}
 }
 
-async function sleepWithAbort(options: SleepWithAbortOptions): Promise<boolean> {
-	const { ms, signal, sleep } = options;
-	const raced = await raceWithAbort(sleep(ms), signal);
+async function sleepWithAbortAsync({ ms, signal, sleep }: SleepWithAbortOptions): Promise<boolean> {
+	const raced = await raceWithAbortAsync(sleep(ms), signal);
 	return raced === ABORTED;
 }
 
@@ -332,11 +348,11 @@ function isTransientTransport(error: OpenCloudError): error is NetworkError {
 	return code !== undefined && TRANSIENT_TRANSPORT_CODES.includes(code);
 }
 
-async function fetchOnce(
+async function fetchOnceAsync(
 	dependencies: PollDependencies,
 	signal: AbortSignal | undefined,
 ): Promise<FetchOutcome> {
-	const fetchResult = await raceWithAbort(dependencies.fetch(), signal);
+	const fetchResult = await raceWithAbortAsync(dependencies.fetch(), signal);
 	if (fetchResult === ABORTED) {
 		return { kind: "aborted" };
 	}

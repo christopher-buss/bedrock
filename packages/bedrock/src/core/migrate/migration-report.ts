@@ -126,9 +126,15 @@ export type MigrateError =
 export interface MigrationReport {
 	/** Validated bedrock config built from the Mantle state file. */
 	readonly config: Config;
-	/** Same `config` rendered as TypeScript source the caller can write to disk. */
+	/**
+	 * Same `config` rendered as TypeScript source the caller can write to
+	 * disk.
+	 */
 	readonly configFileContent: string;
-	/** One `BedrockState` per environment in the input, keyed by environment name. */
+	/**
+	 * One `BedrockState` per environment in the input, keyed by environment
+	 * name.
+	 */
 	readonly statesByEnvironment: StatesByEnvironment;
 	/** Aggregate counts of `warnings` by kind. */
 	readonly summary: MigrationSummary;

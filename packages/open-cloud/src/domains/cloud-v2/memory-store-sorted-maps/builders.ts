@@ -21,8 +21,14 @@ import type {
  *   value to store, and optional `sortKey` and `ttl`.
  * @returns A pure {@link HttpRequest} describing the create call.
  */
-export function buildCreateRequest(parameters: CreateSortedMapItemParameters): HttpRequest {
-	const { itemId, mapId, sortKey, ttl, universeId, value } = parameters;
+export function buildCreateRequest({
+	itemId,
+	mapId,
+	sortKey,
+	ttl,
+	universeId,
+	value,
+}: CreateSortedMapItemParameters): HttpRequest {
 	const body: Record<string, unknown> = { value };
 	if (ttl !== undefined) {
 		body["ttl"] = `${ttl}s`;
@@ -49,8 +55,11 @@ export function buildCreateRequest(parameters: CreateSortedMapItemParameters): H
  * @param parameters - Universe, sorted-map, and item identifiers.
  * @returns A pure {@link HttpRequest} describing the delete call.
  */
-export function buildDeleteRequest(parameters: DeleteSortedMapItemParameters): HttpRequest {
-	const { itemId, mapId, universeId } = parameters;
+export function buildDeleteRequest({
+	itemId,
+	mapId,
+	universeId,
+}: DeleteSortedMapItemParameters): HttpRequest {
 	return {
 		method: "DELETE",
 		url: `/cloud/v2/universes/${encodeURIComponent(universeId)}/memory-store/sorted-maps/${encodeURIComponent(mapId)}/items/${encodeURIComponent(itemId)}`,
@@ -67,8 +76,11 @@ export function buildDeleteRequest(parameters: DeleteSortedMapItemParameters): H
  * @param parameters - Universe, sorted-map, and item identifiers.
  * @returns A pure {@link HttpRequest} describing the get call.
  */
-export function buildGetRequest(parameters: GetSortedMapItemParameters): HttpRequest {
-	const { itemId, mapId, universeId } = parameters;
+export function buildGetRequest({
+	itemId,
+	mapId,
+	universeId,
+}: GetSortedMapItemParameters): HttpRequest {
 	return {
 		method: "GET",
 		url: `/cloud/v2/universes/${encodeURIComponent(universeId)}/memory-store/sorted-maps/${encodeURIComponent(mapId)}/items/${encodeURIComponent(itemId)}`,
@@ -85,8 +97,14 @@ export function buildGetRequest(parameters: GetSortedMapItemParameters): HttpReq
  *   optional pagination and filter parameters.
  * @returns A pure {@link HttpRequest} describing the list call.
  */
-export function buildListRequest(parameters: ListSortedMapItemsParameters): HttpRequest {
-	const { filter, mapId, maxPageSize, orderBy, pageToken, universeId } = parameters;
+export function buildListRequest({
+	filter,
+	mapId,
+	maxPageSize,
+	orderBy,
+	pageToken,
+	universeId,
+}: ListSortedMapItemsParameters): HttpRequest {
 	const query = new URLSearchParams();
 	if (maxPageSize !== undefined) {
 		query.append("maxPageSize", String(maxPageSize));
@@ -150,8 +168,11 @@ function applySortKeyToBody(body: Record<string, unknown>, sortKey: SortKey | un
 	body["numericSortKey"] = sortKey.value;
 }
 
-function buildUpdateBody(parameters: UpdateSortedMapItemParameters): Record<string, unknown> {
-	const { sortKey, ttl, value } = parameters;
+function buildUpdateBody({
+	sortKey,
+	ttl,
+	value,
+}: UpdateSortedMapItemParameters): Record<string, unknown> {
 	const body: Record<string, unknown> = {};
 	if (value !== undefined) {
 		body["value"] = value;

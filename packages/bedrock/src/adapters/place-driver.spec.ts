@@ -67,7 +67,7 @@ describe(createPlaceDriver, () => {
 		expect(captured.request.url).toBe(
 			`/universes/v1/${UNIVERSE_ID}/places/${PLACE_ID}/versions?versionType=Published`,
 		);
-		expect(captured.request.headers?.["content-type"]).toBe("application/octet-stream");
+		expect(captured.request.headers!["content-type"]).toBe("application/octet-stream");
 	});
 
 	it("should detect rbxlx from the filename and send application/xml", async () => {
@@ -78,7 +78,7 @@ describe(createPlaceDriver, () => {
 
 		await driver.create(placeDesired({ filePath: "places/start.rbxlx" }));
 
-		expect(http.requests[0]!.request.headers?.["content-type"]).toBe("application/xml");
+		expect(http.requests[0]!.request.headers!["content-type"]).toBe("application/xml");
 	});
 
 	it("should return an ApiError for unsupported file extensions without hitting the network", async () => {

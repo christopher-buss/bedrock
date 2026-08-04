@@ -157,9 +157,9 @@ describe(discoverOverride, () => {
 			const error = errnoError(code);
 			const stat = throwingStat(error);
 
-			expect(() =>
-				discoverOverrideWith({ command: "deploy", projectRoot: "/project", stat }),
-			).toThrow(error);
+			expect(() => {
+				return discoverOverrideWith({ command: "deploy", projectRoot: "/project", stat });
+			}).toThrow(error);
 		},
 	);
 
@@ -168,9 +168,9 @@ describe(discoverOverride, () => {
 
 		const stat = throwingStat("not an Error instance");
 
-		expect(() =>
-			discoverOverrideWith({ command: "deploy", projectRoot: "/project", stat }),
-		).toThrow("not an Error instance");
+		expect(() => {
+			return discoverOverrideWith({ command: "deploy", projectRoot: "/project", stat });
+		}).toThrow("not an Error instance");
 	});
 
 	it("should rethrow when the stat probe throws an Error without a code property", () => {
@@ -178,8 +178,8 @@ describe(discoverOverride, () => {
 
 		const stat = throwingStat(new Error("no code attached"));
 
-		expect(() =>
-			discoverOverrideWith({ command: "deploy", projectRoot: "/project", stat }),
-		).toThrow("no code attached");
+		expect(() => {
+			return discoverOverrideWith({ command: "deploy", projectRoot: "/project", stat });
+		}).toThrow("no code attached");
 	});
 });

@@ -26,7 +26,9 @@ export type ParseMigrateError =
 /** One element of {@link SUPPORTED_MIGRATION_SOURCES}. */
 export type MigrationSource = (typeof SUPPORTED_MIGRATION_SOURCES)[number];
 
-/** Typed shape the migrate command consumes after `--from` has been validated. */
+/**
+ * Typed shape the migrate command consumes after `--from` has been validated.
+ */
 interface MigrateOptions {
 	/**
 	 * Validated source to migrate from, or `undefined` when the flag was

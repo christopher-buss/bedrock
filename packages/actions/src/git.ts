@@ -14,7 +14,7 @@ export interface GitResult {
 
 /**
  * Runs one `git` command with the given argument vector and resolves with its
- * {@link GitResult}. The injection seam for commit-back: the real adapter shells
- * `git` via `node:child_process`; tests supply a fake transcript.
+ * {@link GitResult}. The injection seam for commit-back: the real adapter
+ * shells `git` via `node:child_process`; tests supply a fake transcript.
  */
 export type GitExec = (args: ReadonlyArray<string>) => Promise<GitResult>;

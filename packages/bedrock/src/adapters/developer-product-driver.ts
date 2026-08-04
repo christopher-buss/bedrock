@@ -48,9 +48,15 @@ import { asRobloxAssetId, type RobloxAssetId } from "../types/ids.ts";
  * ```
  */
 export interface DeveloperProductDriverDeps {
-	/** Configured developer-products client from `@bedrock-rbx/ocale/developer-products`. */
+	/**
+	 * Configured developer-products client from
+	 * `@bedrock-rbx/ocale/developer-products`.
+	 */
 	readonly client: DeveloperProductsClient;
-	/** Reads icon bytes for upload; rejections propagate out of `create` and `update`. */
+	/**
+	 * Reads icon bytes for upload; rejections propagate out of `create` and
+	 * `update`.
+	 */
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	/** Universe that owns every developer product this driver creates. */
 	readonly universeId: RobloxAssetId;
@@ -67,13 +73,13 @@ interface FollowUpPatchInputs {
 }
 
 /**
- * Wraps {@link DeveloperProductsClient} as a `ResourceDriver<"developerProduct">`
- * that maps a desired-state entry to an ocale create or update call and the
- * response back to a `ResourceCurrentState<"developerProduct">`. The
- * `update` path consumes the upstream `204 No Content` response and
- * synthesizes the post-update `ResourceCurrentState` from `desired` plus
- * the existing `current.outputs`, carrying `iconImageAssetId` forward when
- * present.
+ * Wraps {@link DeveloperProductsClient} as a
+ * `ResourceDriver<"developerProduct">` that maps a desired-state entry to an
+ * ocale create or update call and the response back to a
+ * `ResourceCurrentState<"developerProduct">`. The `update` path consumes the
+ * upstream `204 No Content` response and synthesizes the post-update
+ * `ResourceCurrentState` from `desired` plus the existing `current.outputs`,
+ * carrying `iconImageAssetId` forward when present.
  *
  * Upstream `OpenCloudError` results pass through as `Result` failures.
  *
@@ -155,10 +161,10 @@ export function createDeveloperProductDriver(
 	};
 	return {
 		async create(desired) {
-			return createOne(effective, desired);
+			return createOneAsync(effective, desired);
 		},
 		async update(current, desired) {
-			return updateOne(effective, { current, desired });
+			return updateOneAsync(effective, { current, desired });
 		},
 	};
 }
@@ -182,7 +188,7 @@ function toCurrentState(
 	};
 }
 
-async function applyFollowUpPatch(
+async function applyFollowUpPatchAsync(
 	dependencies: DeveloperProductDriverDeps,
 	{ created, desired }: FollowUpPatchInputs,
 ): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
@@ -207,7 +213,7 @@ async function applyFollowUpPatch(
 	return toCurrentState({ ...desired, storePageEnabled: created.storePageEnabled }, created);
 }
 
-async function createOne(
+async function createOneAsync(
 	dependencies: DeveloperProductDriverDeps,
 	desired: DeveloperProductDesiredState,
 ): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {
@@ -227,10 +233,10 @@ async function createOne(
 		return created;
 	}
 
-	return applyFollowUpPatch(dependencies, { created: created.data, desired });
+	return applyFollowUpPatchAsync(dependencies, { created: created.data, desired });
 }
 
-async function updateOne(
+async function updateOneAsync(
 	dependencies: DeveloperProductDriverDeps,
 	{ current, desired }: UpdateInputs,
 ): Promise<Result<ResourceCurrentState<"developerProduct">, OpenCloudError>> {

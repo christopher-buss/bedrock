@@ -11,7 +11,10 @@ import type { Result } from "@bedrock-rbx/ocale";
 export interface SpawnInvocation {
 	/** Argv to pass to the spawned executable, excluding the command itself. */
 	readonly args: ReadonlyArray<string>;
-	/** Executable to spawn: a name resolved via `PATH` or an absolute path (e.g. `process.execPath`). */
+	/**
+	 * Executable to spawn: a name resolved via `PATH` or an absolute path
+	 * (e.g. `process.execPath`).
+	 */
 	readonly command: string;
 	/** Env-var entries that should overlay the host process environment. */
 	readonly envOverrides: Readonly<Record<string, string>>;
@@ -26,7 +29,10 @@ export interface SpawnInvocation {
  * @since 0.1.0
  */
 export interface SpawnLaunchCause extends Error {
-	/** Errno code like `"ENOENT"`, `"EACCES"`, or `undefined` when the error did not carry one. */
+	/**
+	 * Errno code like `"ENOENT"`, `"EACCES"`, or `undefined` when the error
+	 * did not carry one.
+	 */
 	readonly code?: string | undefined;
 }
 
@@ -38,7 +44,10 @@ export interface SpawnLaunchCause extends Error {
  * @since 0.1.0
  */
 export interface SpawnLaunchError {
-	/** Underlying error from the spawn attempt; structurally an `Error` with an optional errno `code`. */
+	/**
+	 * Underlying error from the spawn attempt; structurally an `Error` with an
+	 * optional errno `code`.
+	 */
 	readonly cause: SpawnLaunchCause;
 	/** Discriminator tag. */
 	readonly kind: "launchFailed";

@@ -1,10 +1,11 @@
 import { assert, describe, expect, it, vi } from "vitest";
 
+import { environmentFrom } from "#tests/helpers/environment";
 import type { Config } from "../core/schema.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
-import { previewDiff, type PreviewDiffOptions } from "./preview-diff.ts";
+import { previewDiffAsync, type PreviewDiffOptions } from "./preview-diff.ts";
 
 type LoadConfigFunc = NonNullable<PreviewDiffOptions["loadConfig"]>;
 type ReadFileFunc = NonNullable<PreviewDiffOptions["readFile"]>;
@@ -12,7 +13,7 @@ type ReadFileFunc = NonNullable<PreviewDiffOptions["readFile"]>;
 const ICON_BYTES = new Uint8Array();
 const ICON_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
 
-async function readIcon(): Promise<Uint8Array> {
+async function readIconAsync(): Promise<Uint8Array> {
 	return ICON_BYTES;
 }
 
@@ -65,16 +66,16 @@ function vipPassCurrent() {
 	};
 }
 
-describe(previewDiff, () => {
+describe(previewDiffAsync, () => {
 	it("should compute create ops against empty prior state without writing", async () => {
 		expect.assertions(4);
 
 		const { port, writes } = inMemoryStatePort();
 
-		const result = await previewDiff({
+		const result = await previewDiffAsync({
 			config: vipPassConfig(),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			statePort: port,
 		});
 
@@ -99,10 +100,10 @@ describe(previewDiff, () => {
 			version: 1,
 		});
 
-		const result = await previewDiff({
+		const result = await previewDiffAsync({
 			config: vipPassConfig(),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			statePort: port,
 		});
 
@@ -122,10 +123,10 @@ describe(previewDiff, () => {
 			version: 1,
 		});
 
-		const result = await previewDiff({
+		const result = await previewDiffAsync({
 			config: vipPassConfig(),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			statePort: port,
 		});
 
@@ -145,7 +146,7 @@ describe(previewDiff, () => {
 			};
 		});
 
-		const result = await previewDiff({
+		const result = await previewDiffAsync({
 			environment: "production",
 			loadConfig,
 		});
@@ -165,10 +166,10 @@ describe(previewDiff, () => {
 
 		const { port } = inMemoryStatePort();
 
-		const result = await previewDiff({
+		const result = await previewDiffAsync({
 			config: vipPassConfig(),
 			environment: "ghost",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			statePort: port,
 		});
 
@@ -192,10 +193,10 @@ describe(previewDiff, () => {
 		};
 		const { port } = inMemoryStatePort();
 
-		const result = await previewDiff({
+		const result = await previewDiffAsync({
 			config,
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			statePort: port,
 		});
 
@@ -212,10 +213,10 @@ describe(previewDiff, () => {
 	it("should surface stateNotConfigured when no statePort is provided and config has no state", async () => {
 		expect.assertions(1);
 
-		const result = await previewDiff({
+		const result = await previewDiffAsync({
 			config: vipPassConfig(),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 		});
 
 		assert(!result.success);
@@ -234,11 +235,11 @@ describe(previewDiff, () => {
 			state: { backend: "gist", gistId: "abc-test" },
 		};
 
-		const result = await previewDiff({
+		const result = await previewDiffAsync({
 			config,
 			environment: "production",
 			getEnv: () => {},
-			readFile: readIcon,
+			readFile: readIconAsync,
 		});
 
 		assert(!result.success);
@@ -258,11 +259,11 @@ describe(previewDiff, () => {
 			state: { backend: "s3" },
 		};
 
-		const result = await previewDiff({
+		const result = await previewDiffAsync({
 			config,
 			environment: "production",
 			getEnv: () => "ghp_test",
-			readFile: readIcon,
+			readFile: readIconAsync,
 		});
 
 		assert(!result.success);
@@ -294,7 +295,7 @@ describe(previewDiff, () => {
 			version: 1,
 		});
 
-		const result = await previewDiff({
+		const result = await previewDiffAsync({
 			config: {
 				environments: { production: {} },
 				products: {
@@ -305,7 +306,7 @@ describe(previewDiff, () => {
 				},
 			},
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			statePort: port,
 		});
 
@@ -326,7 +327,7 @@ describe(previewDiff, () => {
 			throw new Error("ENOENT");
 		});
 
-		const result = await previewDiff({
+		const result = await previewDiffAsync({
 			config: vipPassConfig(),
 			environment: "production",
 			readFile,
@@ -357,10 +358,10 @@ describe(previewDiff, () => {
 			},
 		};
 
-		const result = await previewDiff({
+		const result = await previewDiffAsync({
 			config: vipPassConfig(),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			statePort: port,
 		});
 
@@ -379,17 +380,17 @@ describe(previewDiff, () => {
 		};
 		const loadConfig = vi.fn<LoadConfigFunc>(async () => ({ data: config, success: true }));
 
-		const result = await previewDiff({
+		const result = await previewDiffAsync({
 			environment: "production",
 			fetch: async () => new Response(JSON.stringify({ files: {} }), { status: 200 }),
-			getEnv: (name) => (name === "BEDROCK_GITHUB_TOKEN" ? "ghp_test" : undefined),
+			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
 			loadConfig,
-			readFile: readIcon,
+			readFile: readIconAsync,
 		});
 
-		expect(loadConfig).toHaveBeenCalledExactlyOnceWith();
-
 		assert(result.success);
+
+		expect(loadConfig).toHaveBeenCalledExactlyOnceWith();
 	});
 
 	it("should surface the pending-rebuild keys recorded in prior state", async () => {
@@ -402,10 +403,10 @@ describe(previewDiff, () => {
 			version: 1,
 		});
 
-		const result = await previewDiff({
+		const result = await previewDiffAsync({
 			config: vipPassConfig(),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			statePort: port,
 		});
 
@@ -419,10 +420,10 @@ describe(previewDiff, () => {
 
 		const { port } = inMemoryStatePort();
 
-		const result = await previewDiff({
+		const result = await previewDiffAsync({
 			config: vipPassConfig(),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			statePort: port,
 		});
 
@@ -436,10 +437,10 @@ describe(previewDiff, () => {
 
 		const { port } = inMemoryStatePort();
 
-		const result = await previewDiff({
+		const result = await previewDiffAsync({
 			config: vipPassConfig(),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			statePort: port,
 		});
 
@@ -465,10 +466,10 @@ describe(previewDiff, () => {
 		};
 		const { port } = inMemoryStatePort();
 
-		const result = await previewDiff({
+		const result = await previewDiffAsync({
 			config,
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			statePort: port,
 		});
 

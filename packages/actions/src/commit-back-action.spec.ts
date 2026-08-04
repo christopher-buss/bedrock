@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { GitResponses } from "#tests/helpers/fake-git";
+import { fakeGit, gitFail, gitOk } from "#tests/helpers/fake-git";
 import {
 	type ActionIo,
 	type CommitBackActionDeps as CommitBackActionDependencies,
@@ -7,7 +9,7 @@ import {
 	resolveActionConfig,
 	runCommitBackAction,
 } from "./commit-back-action.ts";
-import type { GitExec, GitResult } from "./git.ts";
+import type { GitResult } from "./git.ts";
 
 interface Harness {
 	deps: CommitBackActionDependencies;
@@ -39,14 +41,10 @@ function fakeIo(): {
 	};
 }
 
-function ok(stdout = ""): GitResult {
-	return { code: 0, stderr: "", stdout };
-}
-
 function harness(overrides?: {
 	env?: Record<string, string>;
+	git?: GitResponses;
 	inputs?: Record<string, string>;
-	status?: string;
 }): Harness {
 	const inputs: Record<string, string> = {
 		paths: "src/shared/assets",
@@ -58,40 +56,17 @@ function harness(overrides?: {
 		...overrides?.env,
 	};
 	const outputs: Record<string, string> = {};
-	const gitCalls: Array<ReadonlyArray<string>> = [];
-	async function git(args: ReadonlyArray<string>): Promise<GitResult> {
-		gitCalls.push(args);
-		if (args[0] === "status") {
-			return ok(overrides?.status ?? "");
-		}
-
-		if (args[0] === "rev-parse") {
-			return ok("sha123\n");
-		}
-
-		if (args[0] === "stash" && args[1] === "create") {
-			return ok("stash1");
-		}
-
-		if (args[0] === "diff") {
-			// Non-zero "differences exist" so the reflow proceeds to commit.
-			return { code: 1, stderr: "", stdout: "" };
-		}
-
-		return ok();
-	}
-
-	const git2: GitExec = git;
+	const { calls, git } = fakeGit(overrides?.git);
 	return {
 		deps: {
 			getEnv: (name) => environment[name],
-			git: git2,
+			git,
 			readInput: (name) => inputs[name] ?? "",
 			setOutput: (name, value) => {
 				outputs[name] = value;
 			},
 		},
-		gitCalls,
+		gitCalls: calls,
 		outputs,
 	};
 }
@@ -100,7 +75,9 @@ describe(runCommitBackAction, () => {
 	it("should authenticate origin with the token and record outputs on a commit", async () => {
 		expect.assertions(2);
 
-		const { deps, gitCalls, outputs } = harness({ status: " M src/shared/assets/places.ts\n" });
+		const { deps, gitCalls, outputs } = harness({
+			git: { status: gitOk(" M src/shared/assets/places.ts\n") },
+		});
 
 		await runCommitBackAction(deps);
 
@@ -120,11 +97,13 @@ describe(runCommitBackAction, () => {
 	it("should clear the persisted checkout credentials right after authenticating origin", async () => {
 		expect.assertions(2);
 
-		const { deps, gitCalls } = harness({ status: " M src/shared/assets/places.ts\n" });
+		const { deps, gitCalls } = harness({
+			git: { status: gitOk(" M src/shared/assets/places.ts\n") },
+		});
 
 		await runCommitBackAction(deps);
 
-		expect(gitCalls[0]?.[0]).toBe("remote");
+		expect(gitCalls[0]![0]).toBe("remote");
 		expect(gitCalls[1]).toStrictEqual([
 			"config",
 			"--local",
@@ -151,17 +130,9 @@ describe(runCommitBackAction, () => {
 	it("should tolerate exit code 5 when no extraheader was persisted", async () => {
 		expect.assertions(1);
 
-		const { deps, outputs } = harness();
-		const absent: CommitBackActionDependencies = {
-			...deps,
-			git: async (args) => {
-				return args.includes("--unset-all")
-					? { code: 5, stderr: "", stdout: "" }
-					: deps.git(args);
-			},
-		};
+		const { deps, outputs } = harness({ git: { configUnsetExtraheader: gitFail(5) } });
 
-		await runCommitBackAction(absent);
+		await runCommitBackAction(deps);
 
 		expect(outputs).toStrictEqual({
 			"changed-files": "0",
@@ -183,21 +154,11 @@ describe(runCommitBackAction, () => {
 	it("should unset every includeif key persisted in the local config", async () => {
 		expect.assertions(2);
 
-		const { deps, gitCalls } = harness();
 		const listing =
 			"core.bare\nincludeif.gitdir:/w/.git.path\nincludeif.gitdir:/w/.git/worktrees/*.path\n";
-		const withIncludes: CommitBackActionDependencies = {
-			...deps,
-			git: async (args) => {
-				if (args[0] === "config" && args.includes("--list")) {
-					return ok(listing);
-				}
+		const { deps, gitCalls } = harness({ git: { configList: gitOk(listing) } });
 
-				return deps.git(args);
-			},
-		};
-
-		await runCommitBackAction(withIncludes);
+		await runCommitBackAction(deps);
 
 		expect(gitCalls).toContainEqual([
 			"config",
@@ -216,20 +177,10 @@ describe(runCommitBackAction, () => {
 	it("should strip the carriage return from a crlf-terminated listing line", async () => {
 		expect.assertions(1);
 
-		const { deps, gitCalls } = harness();
 		const listing = "includeif.gitdir:/w/.git.path\r\n";
-		const windowsGit: CommitBackActionDependencies = {
-			...deps,
-			git: async (args) => {
-				if (args[0] === "config" && args.includes("--list")) {
-					return ok(listing);
-				}
+		const { deps, gitCalls } = harness({ git: { configList: gitOk(listing) } });
 
-				return deps.git(args);
-			},
-		};
-
-		await runCommitBackAction(windowsGit);
+		await runCommitBackAction(deps);
 
 		expect(gitCalls).toContainEqual([
 			"config",
@@ -242,20 +193,10 @@ describe(runCommitBackAction, () => {
 	it("should unset a repeated includeif key only once", async () => {
 		expect.assertions(1);
 
-		const { deps, gitCalls } = harness();
 		const listing = "includeif.gitdir:/w/.git.path\nincludeif.gitdir:/w/.git.path\n";
-		const withIncludes: CommitBackActionDependencies = {
-			...deps,
-			git: async (args) => {
-				if (args[0] === "config" && args.includes("--list")) {
-					return ok(listing);
-				}
+		const { deps, gitCalls } = harness({ git: { configList: gitOk(listing) } });
 
-				return deps.git(args);
-			},
-		};
-
-		await runCommitBackAction(withIncludes);
+		await runCommitBackAction(deps);
 
 		const clearedKeys = gitCalls.filter((args) => args[3] === "includeif.gitdir:/w/.git.path");
 
@@ -265,20 +206,10 @@ describe(runCommitBackAction, () => {
 	it("should not unset config keys outside the includeif section", async () => {
 		expect.assertions(1);
 
-		const { deps, gitCalls } = harness();
 		const listing = "core.bare\nremote.origin.url\nbranch.main.remote\n";
-		const withoutIncludes: CommitBackActionDependencies = {
-			...deps,
-			git: async (args) => {
-				if (args[0] === "config" && args.includes("--list")) {
-					return ok(listing);
-				}
+		const { deps, gitCalls } = harness({ git: { configList: gitOk(listing) } });
 
-				return deps.git(args);
-			},
-		};
-
-		await runCommitBackAction(withoutIncludes);
+		await runCommitBackAction(deps);
 
 		const clearedKeys = gitCalls.filter((args) => args.includes("--unset-all"));
 
@@ -290,22 +221,12 @@ describe(runCommitBackAction, () => {
 	it("should tolerate exit code 5 when an includeif key vanished before the unset", async () => {
 		expect.assertions(1);
 
-		const { deps, outputs } = harness();
 		const listing = "includeif.gitdir:/w/.git.path\n";
-		const racing: CommitBackActionDependencies = {
-			...deps,
-			git: async (args) => {
-				if (args[0] === "config" && args.includes("--list")) {
-					return ok(listing);
-				}
+		const { deps, outputs } = harness({
+			git: { configList: gitOk(listing), configUnsetInclude: gitFail(5) },
+		});
 
-				return args[3]?.startsWith("includeif.") === true
-					? { code: 5, stderr: "", stdout: "" }
-					: deps.git(args);
-			},
-		};
-
-		await runCommitBackAction(racing);
+		await runCommitBackAction(deps);
 
 		expect(outputs).toStrictEqual({
 			"changed-files": "0",
@@ -317,17 +238,11 @@ describe(runCommitBackAction, () => {
 	it("should reject when listing the local config fails", async () => {
 		expect.assertions(1);
 
-		const { deps } = harness();
-		const failing: CommitBackActionDependencies = {
-			...deps,
-			git: async (args) => {
-				return args[0] === "config" && args.includes("--list")
-					? { code: 128, stderr: "fatal: bad config", stdout: "" }
-					: deps.git(args);
-			},
-		};
+		const { deps } = harness({
+			git: { configList: gitFail(128, { stderr: "fatal: bad config" }) },
+		});
 
-		await expect(runCommitBackAction(failing)).rejects.toThrow(
+		await expect(runCommitBackAction(deps)).rejects.toThrow(
 			"commit-back: failed to list the local git config (exit code 128): fatal: bad config",
 		);
 	});
@@ -335,22 +250,15 @@ describe(runCommitBackAction, () => {
 	it("should reject when clearing an includeif key fails for another reason", async () => {
 		expect.assertions(1);
 
-		const { deps } = harness();
 		const listing = "includeif.gitdir:/w/.git.path\n";
-		const failing: CommitBackActionDependencies = {
-			...deps,
-			git: async (args) => {
-				if (args[0] === "config" && args.includes("--list")) {
-					return ok(listing);
-				}
-
-				return args[3]?.startsWith("includeif.") === true
-					? { code: 3, stderr: "error: invalid config file", stdout: "" }
-					: deps.git(args);
+		const { deps } = harness({
+			git: {
+				configList: gitOk(listing),
+				configUnsetInclude: gitFail(3, { stderr: "error: invalid config file" }),
 			},
-		};
+		});
 
-		await expect(runCommitBackAction(failing)).rejects.toThrow(
+		await expect(runCommitBackAction(deps)).rejects.toThrow(
 			"commit-back: failed to clear the persisted include 'includeif.gitdir:/w/.git.path' (exit code 3): error: invalid config file",
 		);
 	});
@@ -358,17 +266,11 @@ describe(runCommitBackAction, () => {
 	it("should reject when clearing the extraheader fails for another reason", async () => {
 		expect.assertions(1);
 
-		const { deps } = harness();
-		const failing: CommitBackActionDependencies = {
-			...deps,
-			git: async (args) => {
-				return args[0] === "config"
-					? { code: 3, stderr: "error: invalid config file", stdout: "" }
-					: deps.git(args);
-			},
-		};
+		const { deps } = harness({
+			git: { configUnsetExtraheader: gitFail(3, { stderr: "error: invalid config file" }) },
+		});
 
-		await expect(runCommitBackAction(failing)).rejects.toThrow(
+		await expect(runCommitBackAction(deps)).rejects.toThrow(
 			"commit-back: failed to clear the persisted http.extraheader (exit code 3): error: invalid config file",
 		);
 	});
@@ -390,21 +292,15 @@ describe(runCommitBackAction, () => {
 	it("should reject without leaking the token when the remote URL cannot be set", async () => {
 		expect.assertions(3);
 
-		const { deps } = harness();
-		const failing: CommitBackActionDependencies = {
-			...deps,
-			git: async (args) => {
-				return args[0] === "remote"
-					? {
-							code: 1,
-							stderr: "fatal: could not set 'https://x-access-token:ghs_secret@github.com/acme/game.git'",
-							stdout: "",
-						}
-					: { code: 0, stderr: "", stdout: "" };
+		const { deps } = harness({
+			git: {
+				remoteSetUrl: gitFail(1, {
+					stderr: "fatal: could not set 'https://x-access-token:ghs_secret@github.com/acme/game.git'",
+				}),
 			},
-		};
+		});
 
-		const rejection = runCommitBackAction(failing);
+		const rejection = runCommitBackAction(deps);
 
 		await expect(rejection).rejects.toThrow("failed to set the origin URL");
 		await expect(rejection).rejects.toThrow("https://***@github.com/acme/game.git");
@@ -433,11 +329,7 @@ describe(executeCommitBackAction, () => {
 		expect.assertions(1);
 
 		const { failures, io } = fakeIo();
-		async function git(args: ReadonlyArray<string>): Promise<GitResult> {
-			return args[0] === "remote"
-				? { code: 1, stderr: "", stdout: "" }
-				: { code: 0, stderr: "", stdout: "" };
-		}
+		const { git } = fakeGit({ remoteSetUrl: gitFail(1) });
 
 		await executeCommitBackAction({ environment, git, io });
 
@@ -502,7 +394,7 @@ describe(resolveActionConfig, () => {
 			inputs: {
 				"author-email": "  ",
 				"author-name": "\t",
-				"branch": "   ",
+				"branch": " ".repeat(3),
 				"message": " ",
 			},
 		});
@@ -586,7 +478,7 @@ describe(resolveActionConfig, () => {
 	it("should reject a whitespace-only token", () => {
 		expect.assertions(1);
 
-		const { deps } = harness({ inputs: { token: "   " } });
+		const { deps } = harness({ inputs: { token: " ".repeat(3) } });
 
 		expect(() => resolveActionConfig(deps)).toThrow("missing required input 'token'");
 	});
@@ -594,7 +486,7 @@ describe(resolveActionConfig, () => {
 	it("should reject a whitespace-only GITHUB_REPOSITORY", () => {
 		expect.assertions(1);
 
-		const { deps } = harness({ env: { GITHUB_REPOSITORY: "   " } });
+		const { deps } = harness({ env: { GITHUB_REPOSITORY: " ".repeat(3) } });
 
 		expect(() => resolveActionConfig(deps)).toThrow(
 			"missing required environment variable 'GITHUB_REPOSITORY'",

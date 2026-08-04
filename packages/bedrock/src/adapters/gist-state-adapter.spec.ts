@@ -1,8 +1,19 @@
+import { fromAny } from "@total-typescript/shoehorn";
+
 import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
+import {
+	emptyResponse,
+	fakeFetch,
+	fakeFetchSequence,
+	fakeGistFetch,
+	fakeRandom,
+	fakeSleep,
+	okJson,
+} from "#tests/helpers/fake-gist-fetch";
 import { serializeStateFile } from "../core/state-file.ts";
 import type { BedrockState } from "../core/state.ts";
-import { createGistStateAdapter, type GistFetch } from "./gist-state-adapter.ts";
+import { createGistStateAdapter } from "./gist-state-adapter.ts";
 
 const GIST_ID = "abc123def456";
 const TOKEN = "ghp_example_token";
@@ -12,67 +23,24 @@ const TOKEN = "ghp_example_token";
 const PRODUCTION_STATE: BedrockState = { environment: "production", resources: [], version: 1 };
 const PRODUCTION_CONTENT = serializeStateFile(PRODUCTION_STATE);
 
-interface FakeFetch {
-	readonly calls: Array<Request>;
-	readonly fetchFn: GistFetch;
-}
-
-interface FakeSleep {
-	readonly calls: Array<number>;
-	readonly sleep: (ms: number) => Promise<void>;
-}
-
-function fakeFetch(responder: (request: Request) => Promise<Response> | Response): FakeFetch {
-	const calls: Array<Request> = [];
-	async function fetchFunc(
-		input: globalThis.Request | string | URL,
-		init?: RequestInit,
-	): Promise<Response> {
-		const request = new Request(input, init);
-		calls.push(request);
-		return responder(request);
-	}
-
-	return { calls, fetchFn: fetchFunc };
-}
-
-function fakeFetchSequence(responses: ReadonlyArray<Response>): FakeFetch {
-	let index = 0;
-	return fakeFetch(() => {
-		const response = responses[index];
-		if (response === undefined) {
-			throw new Error(`fakeFetchSequence: no response queued for call ${String(index + 1)}`);
-		}
-
-		index += 1;
-		return response;
+/**
+ * Gist metadata for a file GitHub truncated, pointing the reader at the raw
+ * CDN copy.
+ *
+ * @param size - The untruncated byte size GitHub reports.
+ * @returns The metadata response.
+ */
+function truncatedMeta(size: number): Response {
+	return okJson({
+		files: {
+			"state.production.json": {
+				content: "",
+				raw_url: "https://gist.example/raw/abc",
+				size,
+				truncated: true,
+			},
+		},
 	});
-}
-
-function fakeSleep(): FakeSleep {
-	const calls: Array<number> = [];
-	async function sleep(ms: number): Promise<void> {
-		calls.push(ms);
-	}
-
-	return { calls, sleep };
-}
-
-function fakeRandom(values: ReadonlyArray<number> = [0]): () => number {
-	let index = 0;
-	return () => {
-		const value = values[index] ?? values.at(-1) ?? 0;
-		index += 1;
-		return value;
-	};
-}
-
-function okJson(body: unknown): Response {
-	return new Response(JSON.stringify(body), { status: 200 });
-}
-
-function emptyResponse(status: number): Response {
-	return new Response("", { status });
 }
 
 describe(createGistStateAdapter, () => {
@@ -196,6 +164,20 @@ describe(createGistStateAdapter, () => {
 			},
 		);
 
+		it("should err when a 200 response carries a JSON body that is not an object", async () => {
+			expect.assertions(2);
+
+			const { fetchFn } = fakeFetch(() => new Response("[]", { status: 200 }));
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/not a JSON object/u);
+			expect(result.err.kind).toBe("stateError");
+		});
+
 		it("should err with a rate-limited reason on 403 carrying a Retry-After header", async () => {
 			expect.assertions(4);
 
@@ -255,12 +237,12 @@ describe(createGistStateAdapter, () => {
 		it("should err with a network-error reason when fetch throws", async () => {
 			expect.assertions(2);
 
-			async function throwingFetch(): Promise<Response> {
+			async function throwingFetchAsync(): Promise<Response> {
 				throw new Error("connection reset");
 			}
 
 			const port = createGistStateAdapter({
-				fetch: throwingFetch,
+				fetch: throwingFetchAsync,
 				gistId: GIST_ID,
 				token: TOKEN,
 			});
@@ -277,22 +259,9 @@ describe(createGistStateAdapter, () => {
 		it("should err with a network-error reason when the raw_url fetch throws", async () => {
 			expect.assertions(2);
 
-			const { fetchFn } = fakeFetch((request) => {
-				const url = new URL(request.url);
-				if (url.protocol === "https:" && url.hostname === "api.github.com") {
-					return okJson({
-						files: {
-							"state.production.json": {
-								content: "",
-								raw_url: "https://gist.example/raw/abc",
-								size: 2_000_000,
-								truncated: true,
-							},
-						},
-					});
-				}
-
-				throw new Error("connection reset");
+			const { fetchFn } = fakeGistFetch({
+				get: truncatedMeta(2_000_000),
+				raw: new Error("connection reset"),
 			});
 			const port = createGistStateAdapter({
 				fetch: fetchFn,
@@ -360,7 +329,7 @@ describe(createGistStateAdapter, () => {
 		it("should keep the bare status reason when the error body is whitespace-only", async () => {
 			expect.assertions(1);
 
-			const { fetchFn } = fakeFetch(() => new Response("   ", { status: 400 }));
+			const { fetchFn } = fakeFetch(() => new Response(" ".repeat(3), { status: 400 }));
 			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
 
 			const result = await port.read("production");
@@ -386,13 +355,13 @@ describe(createGistStateAdapter, () => {
 		it("should stringify a non-Error throw as the network-error reason", async () => {
 			expect.assertions(1);
 
-			async function throwingFetch(): Promise<Response> {
+			async function throwingFetchAsync(): Promise<Response> {
 				// eslint-disable-next-line ts/only-throw-error -- exercises the non-Error catch branch
 				throw "socket refused";
 			}
 
 			const port = createGistStateAdapter({
-				fetch: throwingFetch,
+				fetch: throwingFetchAsync,
 				gistId: GIST_ID,
 				token: TOKEN,
 			});
@@ -407,12 +376,12 @@ describe(createGistStateAdapter, () => {
 		it("should keep the bare network-error reason when no transport code is present", async () => {
 			expect.assertions(1);
 
-			async function throwingFetch(): Promise<Response> {
+			async function throwingFetchAsync(): Promise<Response> {
 				throw new Error("connection reset");
 			}
 
 			const port = createGistStateAdapter({
-				fetch: throwingFetch,
+				fetch: throwingFetchAsync,
 				gistId: GIST_ID,
 				token: TOKEN,
 			});
@@ -457,14 +426,14 @@ describe(createGistStateAdapter, () => {
 		it("should name the transport code from the fetch error's cause chain", async () => {
 			expect.assertions(1);
 
-			async function throwingFetch(): Promise<Response> {
+			async function throwingFetchAsync(): Promise<Response> {
 				throw new TypeError("fetch failed", {
 					cause: Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" }),
 				});
 			}
 
 			const port = createGistStateAdapter({
-				fetch: throwingFetch,
+				fetch: throwingFetchAsync,
 				gistId: GIST_ID,
 				token: TOKEN,
 			});
@@ -528,22 +497,9 @@ describe(createGistStateAdapter, () => {
 		it("should err with a raw_url-fetch-returned reason when the cdn returns non-ok", async () => {
 			expect.assertions(2);
 
-			const { fetchFn } = fakeFetch((request) => {
-				const url = new URL(request.url);
-				if (url.protocol === "https:" && url.hostname === "api.github.com") {
-					return okJson({
-						files: {
-							"state.production.json": {
-								content: "",
-								raw_url: "https://gist.example/raw/abc",
-								size: 2_000_000,
-								truncated: true,
-							},
-						},
-					});
-				}
-
-				return emptyResponse(503);
+			const { fetchFn } = fakeGistFetch({
+				get: truncatedMeta(2_000_000),
+				raw: emptyResponse(503),
 			});
 			const sleepFake = fakeSleep();
 			const port = createGistStateAdapter({
@@ -604,22 +560,9 @@ describe(createGistStateAdapter, () => {
 
 			const state: BedrockState = { environment: "production", resources: [], version: 1 };
 			const content = serializeStateFile(state);
-			const { fetchFn } = fakeFetch((request) => {
-				const url = new URL(request.url);
-				if (url.protocol === "https:" && url.hostname === "api.github.com") {
-					return okJson({
-						files: {
-							"state.production.json": {
-								content: "",
-								raw_url: "https://gist.example/raw/abc",
-								size: 10_000_000,
-								truncated: true,
-							},
-						},
-					});
-				}
-
-				return new Response(content, { status: 200 });
+			const { fetchFn } = fakeGistFetch({
+				get: truncatedMeta(10_000_000),
+				raw: new Response(content, { status: 200 }),
 			});
 			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
 
@@ -657,22 +600,9 @@ describe(createGistStateAdapter, () => {
 
 			const state: BedrockState = { environment: "production", resources: [], version: 1 };
 			const content = serializeStateFile(state);
-			const { fetchFn } = fakeFetch((request) => {
-				const url = new URL(request.url);
-				if (url.protocol === "https:" && url.hostname === "api.github.com") {
-					return okJson({
-						files: {
-							"state.production.json": {
-								content: "",
-								raw_url: "https://gist.example/raw/abc",
-								size: 2_000_000,
-								truncated: true,
-							},
-						},
-					});
-				}
-
-				return new Response(content, { status: 200 });
+			const { fetchFn } = fakeGistFetch({
+				get: truncatedMeta(2_000_000),
+				raw: new Response(content, { status: 200 }),
 			});
 			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
 
@@ -758,12 +688,11 @@ describe(createGistStateAdapter, () => {
 		it("should PATCH the gist with the serialized state file on write", async () => {
 			expect.assertions(3);
 
-			const { calls, fetchFn } = fakeFetch((request) => {
-				return request.method === "PATCH"
-					? emptyResponse(200)
-					: okJson({
-							files: { "state.production.json": { content: PRODUCTION_CONTENT } },
-						});
+			const { calls, fetchFn } = fakeGistFetch({
+				get: okJson({
+					files: { "state.production.json": { content: PRODUCTION_CONTENT } },
+				}),
+				patch: emptyResponse(200),
 			});
 			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
 
@@ -779,9 +708,9 @@ describe(createGistStateAdapter, () => {
 
 			expect(patchRequest.method).toBe("PATCH");
 
-			const body = (await patchRequest.json()) as {
-				files: Record<string, { content: string }>;
-			};
+			const body: { files: Record<string, { content: string }> } = fromAny(
+				await patchRequest.json(),
+			);
 
 			expect(JSON.parse(body.files["state.production.json"]!.content)).toStrictEqual({
 				$bedrock: { version: 1 },
@@ -793,12 +722,11 @@ describe(createGistStateAdapter, () => {
 		it("should send a json content-type header on write", async () => {
 			expect.assertions(1);
 
-			const { calls, fetchFn } = fakeFetch((request) => {
-				return request.method === "PATCH"
-					? emptyResponse(200)
-					: okJson({
-							files: { "state.production.json": { content: PRODUCTION_CONTENT } },
-						});
+			const { calls, fetchFn } = fakeGistFetch({
+				get: okJson({
+					files: { "state.production.json": { content: PRODUCTION_CONTENT } },
+				}),
+				patch: emptyResponse(200),
 			});
 			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
 
@@ -885,12 +813,12 @@ describe(createGistStateAdapter, () => {
 		it("should err on network failure during write", async () => {
 			expect.assertions(2);
 
-			async function throwingFetch(): Promise<Response> {
+			async function throwingFetchAsync(): Promise<Response> {
 				throw new Error("connection reset");
 			}
 
 			const port = createGistStateAdapter({
-				fetch: throwingFetch,
+				fetch: throwingFetchAsync,
 				gistId: GIST_ID,
 				token: TOKEN,
 			});
@@ -1208,12 +1136,9 @@ describe(createGistStateAdapter, () => {
 			it("should resolve write success after exhausting the visibility budget", async () => {
 				expect.assertions(3);
 
-				const { calls, fetchFn } = fakeFetch((request) => {
-					if (request.method === "PATCH") {
-						return emptyResponse(200);
-					}
-
-					return okJson({ files: {} });
+				const { calls, fetchFn } = fakeGistFetch({
+					get: okJson({ files: {} }),
+					patch: emptyResponse(200),
 				});
 				const sleepFake = fakeSleep();
 				const port = createGistStateAdapter({
@@ -1268,17 +1193,18 @@ describe(createGistStateAdapter, () => {
 			it("should resolve write success when the injected sleep rejects during visibility polling", async () => {
 				expect.assertions(2);
 
-				const { calls, fetchFn } = fakeFetch((request) => {
-					return request.method === "PATCH" ? emptyResponse(200) : okJson({ files: {} });
+				const { calls, fetchFn } = fakeGistFetch({
+					get: okJson({ files: {} }),
+					patch: emptyResponse(200),
 				});
-				async function rejectingSleep(): Promise<void> {
+				async function rejectingSleepAsync(): Promise<void> {
 					throw new Error("aborted");
 				}
 
 				const port = createGistStateAdapter({
 					fetch: fetchFn,
 					gistId: GIST_ID,
-					sleep: rejectingSleep,
+					sleep: rejectingSleepAsync,
 					token: TOKEN,
 				});
 
@@ -1300,22 +1226,16 @@ describe(createGistStateAdapter, () => {
 					resources: [],
 					version: 1,
 				};
-				let pollCount = 0;
-				const { calls, fetchFn } = fakeFetch((request) => {
-					if (request.method === "PATCH") {
-						return emptyResponse(200);
-					}
-
-					pollCount += 1;
-					if (pollCount === 1) {
-						throw new Error("transient connection reset");
-					}
-
-					return okJson({
-						files: {
-							"state.production.json": { content: serializeStateFile(written) },
-						},
-					});
+				const { calls, fetchFn } = fakeGistFetch({
+					get: [
+						new Error("transient connection reset"),
+						okJson({
+							files: {
+								"state.production.json": { content: serializeStateFile(written) },
+							},
+						}),
+					],
+					patch: emptyResponse(200),
 				});
 				const sleepFake = fakeSleep();
 				const port = createGistStateAdapter({
@@ -1334,10 +1254,9 @@ describe(createGistStateAdapter, () => {
 			it("should keep polling when a present file carries no readable content", async () => {
 				expect.assertions(3);
 
-				const { calls, fetchFn } = fakeFetch((request) => {
-					return request.method === "PATCH"
-						? emptyResponse(200)
-						: okJson({ files: { "state.production.json": {} } });
+				const { calls, fetchFn } = fakeGistFetch({
+					get: okJson({ files: { "state.production.json": {} } }),
+					patch: emptyResponse(200),
 				});
 				const sleepFake = fakeSleep();
 				const port = createGistStateAdapter({
@@ -1363,18 +1282,18 @@ describe(createGistStateAdapter, () => {
 					version: 1,
 				};
 				const staleEtag = 'W/"stale-replica-etag"';
-				function staleFile(etag?: string): Response {
+				function staleFile(headers: Record<string, string> = {}): Response {
 					return new Response(
 						JSON.stringify({
 							files: { "state.production.json": { content: "stale prior content" } },
 						}),
-						etag === undefined ? { status: 200 } : { headers: { etag }, status: 200 },
+						{ headers, status: 200 },
 					);
 				}
 
 				const { calls, fetchFn } = fakeFetchSequence([
 					emptyResponse(200),
-					staleFile(staleEtag),
+					staleFile({ etag: staleEtag }),
 					new Response(undefined, { status: 304 }),
 					staleFile(),
 					okJson({
@@ -1406,10 +1325,9 @@ describe(createGistStateAdapter, () => {
 			it("should keep polling when a present file's value is malformed (non-object)", async () => {
 				expect.assertions(3);
 
-				const { calls, fetchFn } = fakeFetch((request) => {
-					return request.method === "PATCH"
-						? emptyResponse(200)
-						: okJson({ files: { "state.production.json": "unexpected string entry" } });
+				const { calls, fetchFn } = fakeGistFetch({
+					get: okJson({ files: { "state.production.json": "unexpected string entry" } }),
+					patch: emptyResponse(200),
 				});
 				const sleepFake = fakeSleep();
 				const port = createGistStateAdapter({

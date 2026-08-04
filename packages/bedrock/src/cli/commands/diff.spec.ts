@@ -1,4 +1,5 @@
 import type { Result } from "@bedrock-rbx/ocale";
+import { fromAny } from "@total-typescript/shoehorn";
 
 import process from "node:process";
 import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
@@ -148,9 +149,9 @@ describe(diffCommand, () => {
 
 		await diffCommand(dependencies)(rawOptions);
 
-		expect(dependencies.clack?.intro).toHaveBeenCalledExactlyOnceWith("bedrock diff");
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
+		expect(dependencies.clack!.intro).toHaveBeenCalledExactlyOnceWith("bedrock diff");
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -168,8 +169,8 @@ describe(diffCommand, () => {
 
 		await diffCommand(dependencies)({ env: "production" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -213,11 +214,11 @@ describe(diffCommand, () => {
 
 		await diffCommand(dependencies)({ env: "production" });
 
-		expect(dependencies.clack?.logSuccess).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logSuccess).toHaveBeenCalledExactlyOnceWith(
 			'No drift for "production"',
 		);
-		expect(dependencies.clack?.logMessage).not.toHaveBeenCalled();
-		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logMessage).not.toHaveBeenCalled();
+		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith(
 			"all environments are up to date",
 		);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
@@ -238,11 +239,11 @@ describe(diffCommand, () => {
 
 		await diffCommand(dependencies)({ env: "production" });
 
-		expect(dependencies.clack?.logSuccess).not.toHaveBeenCalled();
-		expect(dependencies.clack?.logMessage).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logSuccess).not.toHaveBeenCalled();
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
 			'2 place(s) minted but unpublished in "production": arena, lobby',
 		);
-		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith(
 			"run bedrock deploy to apply pending changes",
 		);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
@@ -318,7 +319,7 @@ describe(diffCommand, () => {
 		    ],
 		  ]
 		`);
-		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith(
 			"all environments are up to date",
 		);
 	});
@@ -341,16 +342,16 @@ describe(diffCommand, () => {
 
 		await diffCommand(dependencies)({ env: "production" });
 
-		expect(dependencies.clack?.logMessage).toHaveBeenNthCalledWith(
+		expect(dependencies.clack!.logMessage).toHaveBeenNthCalledWith(
 			1,
 			'Pending changes for "production":',
 		);
-		expect(dependencies.clack?.logMessage).toHaveBeenNthCalledWith(2, "+ gamePass:vip-pass");
-		expect(dependencies.clack?.logMessage).toHaveBeenNthCalledWith(
+		expect(dependencies.clack!.logMessage).toHaveBeenNthCalledWith(2, "+ gamePass:vip-pass");
+		expect(dependencies.clack!.logMessage).toHaveBeenNthCalledWith(
 			3,
 			"~ place:start-place fileHash updated",
 		);
-		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith(
 			"run bedrock deploy to apply pending changes",
 		);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
@@ -370,7 +371,7 @@ describe(diffCommand, () => {
 
 		await diffCommand(dependencies)({ env: "production" });
 
-		expect(dependencies.clack?.logMessage).toHaveBeenNthCalledWith(
+		expect(dependencies.clack!.logMessage).toHaveBeenNthCalledWith(
 			2,
 			"~ place:start-place displayName + description updated",
 		);
@@ -425,7 +426,7 @@ describe(diffCommand, () => {
 		    ],
 		  ]
 		`);
-		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith(
 			"run bedrock deploy to apply pending changes",
 		);
 	});
@@ -461,7 +462,7 @@ describe(diffCommand, () => {
 		    ],
 		  ]
 		`);
-		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith(
 			"run bedrock deploy to apply pending changes",
 		);
 	});
@@ -484,8 +485,8 @@ describe(diffCommand, () => {
 
 		await diffCommand(dependencies)({ env: "ghost" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -502,7 +503,7 @@ describe(diffCommand, () => {
 		await diffCommand(dependencies)({ env: ["production", "staging"] });
 
 		expect(previewDiff).toHaveBeenCalledTimes(2);
-		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith(
 			"all environments are up to date",
 		);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
@@ -520,7 +521,7 @@ describe(diffCommand, () => {
 
 		await diffCommand(dependencies)({ env: ["production", "staging"] });
 
-		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith(
 			"run bedrock deploy to apply pending changes",
 		);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
@@ -548,10 +549,10 @@ describe(diffCommand, () => {
 
 		await diffCommand(dependencies)({ env: ["production", "staging"] });
 
-		expect(dependencies.clack?.logMessage).toHaveBeenCalledWith(
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledWith(
 			"- gamePass:vip-pass (redacted, real values not pushed)",
 		);
-		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith(
 			"all environments are up to date",
 		);
 	});
@@ -572,10 +573,10 @@ describe(diffCommand, () => {
 		await diffCommand(dependencies)({ env: ["production", "staging"] });
 
 		expect(previewDiff).toHaveBeenCalledTimes(2);
-		expect(dependencies.clack?.logSuccess).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logSuccess).toHaveBeenCalledExactlyOnceWith(
 			'No drift for "staging"',
 		);
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("diff failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -583,33 +584,32 @@ describe(diffCommand, () => {
 		expect.assertions(4);
 
 		vi.stubEnv("UNRELATED_VAR", "from-process-unrelated");
-
-		try {
-			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-			const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
-			const dependencies = makeDependencies({ loadConfig, previewDiff });
-
-			await diffCommand(dependencies)({
-				"api-key": "BEDROCK_OVERRIDE",
-				"env": "production",
-				"github-token": "GH_OVERRIDE",
-			});
-
-			expect(previewDiff).toHaveBeenCalledExactlyOnceWith(
-				expect.objectContaining({ config: sampleConfig, environment: "production" }),
-			);
-
-			const firstCall = vi.mocked(previewDiff).mock.calls[0];
-			assert(firstCall !== undefined);
-
-			const [call] = firstCall;
-
-			expect(call.getEnv?.("BEDROCK_API_KEY")).toBe("BEDROCK_OVERRIDE");
-			expect(call.getEnv?.("BEDROCK_GITHUB_TOKEN")).toBe("GH_OVERRIDE");
-			expect(call.getEnv?.("UNRELATED_VAR")).toBe("from-process-unrelated");
-		} finally {
+		onTestFinished(() => {
 			vi.unstubAllEnvs();
-		}
+		});
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
+
+		await diffCommand(dependencies)({
+			"api-key": "BEDROCK_OVERRIDE",
+			"env": "production",
+			"github-token": "GH_OVERRIDE",
+		});
+
+		expect(previewDiff).toHaveBeenCalledExactlyOnceWith(
+			expect.objectContaining({ config: sampleConfig, environment: "production" }),
+		);
+
+		const firstCall = vi.mocked(previewDiff).mock.calls[0];
+		assert(firstCall !== undefined);
+
+		const [call] = firstCall;
+
+		expect(call.getEnv!("BEDROCK_API_KEY")).toBe("BEDROCK_OVERRIDE");
+		expect(call.getEnv!("BEDROCK_GITHUB_TOKEN")).toBe("GH_OVERRIDE");
+		expect(call.getEnv!("UNRELATED_VAR")).toBe("from-process-unrelated");
 	});
 
 	it("should overlay each credential flag only on its named slot, not the other", async () => {
@@ -617,25 +617,24 @@ describe(diffCommand, () => {
 
 		vi.stubEnv("BEDROCK_API_KEY", "from-process-bedrock");
 		vi.stubEnv("BEDROCK_GITHUB_TOKEN", "from-process-github");
-
-		try {
-			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-			const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
-			const dependencies = makeDependencies({ loadConfig, previewDiff });
-
-			await diffCommand(dependencies)({ "api-key": "FLAG_BEDROCK", "env": "production" });
-
-			const firstCall = vi.mocked(previewDiff).mock.calls[0];
-			assert(firstCall !== undefined);
-
-			const [call] = firstCall;
-
-			expect(call.getEnv?.("BEDROCK_API_KEY")).toBe("FLAG_BEDROCK");
-			expect(call.getEnv?.("BEDROCK_GITHUB_TOKEN")).toBe("from-process-github");
-			expect(call.getEnv?.("UNRELATED_VAR")).toBeUndefined();
-		} finally {
+		onTestFinished(() => {
 			vi.unstubAllEnvs();
-		}
+		});
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
+
+		await diffCommand(dependencies)({ "api-key": "FLAG_BEDROCK", "env": "production" });
+
+		const firstCall = vi.mocked(previewDiff).mock.calls[0];
+		assert(firstCall !== undefined);
+
+		const [call] = firstCall;
+
+		expect(call.getEnv!("BEDROCK_API_KEY")).toBe("FLAG_BEDROCK");
+		expect(call.getEnv!("BEDROCK_GITHUB_TOKEN")).toBe("from-process-github");
+		expect(call.getEnv!("UNRELATED_VAR")).toBeUndefined();
 	});
 
 	it("should fall back to process.env when neither --api-key nor --github-token is supplied", async () => {
@@ -643,24 +642,23 @@ describe(diffCommand, () => {
 
 		vi.stubEnv("BEDROCK_API_KEY", "process-bedrock");
 		vi.stubEnv("BEDROCK_GITHUB_TOKEN", "process-github");
-
-		try {
-			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-			const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
-			const dependencies = makeDependencies({ loadConfig, previewDiff });
-
-			await diffCommand(dependencies)({ env: "production" });
-
-			const firstCall = vi.mocked(previewDiff).mock.calls[0];
-			assert(firstCall !== undefined);
-
-			const [call] = firstCall;
-
-			expect(call.getEnv?.("BEDROCK_API_KEY")).toBe("process-bedrock");
-			expect(call.getEnv?.("BEDROCK_GITHUB_TOKEN")).toBe("process-github");
-		} finally {
+		onTestFinished(() => {
 			vi.unstubAllEnvs();
-		}
+		});
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
+		const dependencies = makeDependencies({ loadConfig, previewDiff });
+
+		await diffCommand(dependencies)({ env: "production" });
+
+		const firstCall = vi.mocked(previewDiff).mock.calls[0];
+		assert(firstCall !== undefined);
+
+		const [call] = firstCall;
+
+		expect(call.getEnv!("BEDROCK_API_KEY")).toBe("process-bedrock");
+		expect(call.getEnv!("BEDROCK_GITHUB_TOKEN")).toBe("process-github");
 	});
 
 	it("should preview with BEDROCK_ENVIRONMENT when --env is omitted", async () => {
@@ -686,16 +684,13 @@ describe(diffCommand, () => {
 	it("should default to process.exit when no exit slot is provided", async () => {
 		expect.assertions(1);
 
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation((() => {}) as typeof process.exit);
-
-		try {
-			await diffCommand({ clack: fakeClackPort() })({});
-
-			expect(exitSpy).toHaveBeenCalledExactlyOnceWith(1);
-		} finally {
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(fromAny(() => {}));
+		onTestFinished(() => {
 			exitSpy.mockRestore();
-		}
+		});
+
+		await diffCommand({ clack: fakeClackPort() })({});
+
+		expect(exitSpy).toHaveBeenCalledExactlyOnceWith(1);
 	});
 });

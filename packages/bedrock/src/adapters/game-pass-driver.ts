@@ -139,19 +139,18 @@ export function createGamePassDriver(deps: GamePassDriverDeps): ResourceDriver<"
 	};
 	return {
 		async create(desired) {
-			return createGamePass(effective, desired);
+			return createGamePassAsync(effective, desired);
 		},
 		async update(current, desired) {
-			return updateGamePass(effective, { current, desired });
+			return updateGamePassAsync(effective, { current, desired });
 		},
 	};
 }
 
 function toCurrentState(
 	desired: GamePassDesiredState,
-	data: GamePass,
+	{ id, iconAssetId }: GamePass,
 ): Result<ResourceCurrentState<"gamePass">, OpenCloudError> {
-	const { id, iconAssetId } = data;
 	if (iconAssetId === undefined) {
 		return {
 			err: new ApiError(
@@ -174,7 +173,7 @@ function toCurrentState(
 	};
 }
 
-async function createGamePass(
+async function createGamePassAsync(
 	dependencies: GamePassDriverDeps,
 	desired: GamePassDesiredState,
 ): Promise<Result<ResourceCurrentState<"gamePass">, OpenCloudError>> {
@@ -193,15 +192,18 @@ async function createGamePass(
 	return toCurrentState(desired, result.data);
 }
 
-async function resolveUpdatedState(
+async function resolveUpdatedStateAsync(
 	dependencies: GamePassDriverDeps,
-	context: {
+	{
+		current,
+		desired,
+		hasIconChanged,
+	}: {
 		readonly current: ResourceCurrentState<"gamePass">;
 		readonly desired: GamePassDesiredState;
 		readonly hasIconChanged: boolean;
 	},
 ): Promise<Result<ResourceCurrentState<"gamePass">, OpenCloudError>> {
-	const { current, desired, hasIconChanged } = context;
 	if (!hasIconChanged) {
 		return { data: { ...desired, outputs: current.outputs }, success: true };
 	}
@@ -217,14 +219,16 @@ async function resolveUpdatedState(
 	return toCurrentState(desired, fetched.data);
 }
 
-async function updateGamePass(
+async function updateGamePassAsync(
 	dependencies: GamePassDriverDeps,
-	states: {
+	{
+		current,
+		desired,
+	}: {
 		readonly current: ResourceCurrentState<"gamePass">;
 		readonly desired: GamePassDesiredState;
 	},
 ): Promise<Result<ResourceCurrentState<"gamePass">, OpenCloudError>> {
-	const { current, desired } = states;
 	const hasIconChanged = shouldReuploadIcon(current.iconFileHashes, desired.iconFileHashes);
 	const imageFile = hasIconChanged
 		? await dependencies.readFile(desired.icon["en-us"])
@@ -242,5 +246,5 @@ async function updateGamePass(
 		return result;
 	}
 
-	return resolveUpdatedState(dependencies, { current, desired, hasIconChanged });
+	return resolveUpdatedStateAsync(dependencies, { current, desired, hasIconChanged });
 }

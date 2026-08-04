@@ -141,7 +141,8 @@ describe(foldEnvironment, () => {
 		expect(result.warnings).toHaveLength(1);
 
 		const [warning] = result.warnings;
-		assert(warning?.kind === "ambiguous");
+		assert(warning !== undefined);
+		assert(warning.kind === "ambiguous");
 
 		expect(warning.mantlePath).toBe("place_start");
 	});
@@ -186,7 +187,7 @@ describe(foldEnvironment, () => {
 		expect(result.products.map((entry) => entry.key)).toStrictEqual([
 			asResourceKey("1-example"),
 		]);
-		expect(result.products[0]?.entry).toStrictEqual({
+		expect(result.products[0]!.entry).toStrictEqual({
 			name: "Example Product",
 			description: "This is an example product.",
 			price: 5,

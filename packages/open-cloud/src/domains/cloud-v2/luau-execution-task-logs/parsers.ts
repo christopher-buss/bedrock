@@ -1,6 +1,7 @@
 import type { HttpResponse } from "../../../client/types.ts";
 import { ApiError } from "../../../errors/api-error.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
+import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
 import type { LogMessage, LogPage } from "./types.ts";
 import type { LogChunkWire, LogMessageWire } from "./wire.ts";
@@ -17,8 +18,10 @@ const MALFORMED_LOGS_MESSAGE = "Malformed list-luau-execution-task-logs response
  * @returns A success result wrapping the parsed {@link LogPage}, or an
  *   {@link ApiError} when the body does not match a supported shape.
  */
-export function parseListLogsResponse(response: HttpResponse): Result<LogPage, ApiError> {
-	const { body, status: statusCode } = response;
+export function parseListLogsResponse({
+	body,
+	status: statusCode,
+}: HttpResponse): Result<LogPage, ApiError> {
 	if (!isRecord(body)) {
 		return malformed(statusCode, body);
 	}
@@ -88,7 +91,7 @@ function isOptionalLogChunks(value: unknown): value is ReadonlyArray<LogChunkWir
 function malformed(statusCode: number, body: unknown): Result<LogPage, ApiError> {
 	return {
 		err: new ApiError(MALFORMED_LOGS_MESSAGE, {
-			details: body as JSONValue | undefined,
+			details: toJsonDetails(body),
 			statusCode,
 		}),
 		success: false,

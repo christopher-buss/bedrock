@@ -29,7 +29,10 @@ export interface CapturedRequest {
  * repeating the last response.
  */
 export interface FakeHttpClient extends HttpClient {
-	/** Queues an {@link ApiError} with the given status code and optional message/code. */
+	/**
+	 * Queues an {@link ApiError} with the given status code and optional
+	 * message/code.
+	 */
 	mockApiError(options: { code?: string; message?: string; statusCode: number }): this;
 	/** Queues an error Result with the given error instance. */
 	mockError(error: OpenCloudError): this;
@@ -37,7 +40,10 @@ export interface FakeHttpClient extends HttpClient {
 	mockNetworkError(options?: { cause?: unknown; message?: string }): this;
 	/** Queues a {@link RateLimitError} with the given retry hint. */
 	mockRateLimit(options: { message?: string; retryAfterSeconds: number }): this;
-	/** Queues a successful {@link HttpResponse}. Body defaults to `{}`; headers default to `{}`. */
+	/**
+	 * Queues a successful {@link HttpResponse}. Body defaults to `{}`; headers
+	 * default to `{}`.
+	 */
 	mockResponse(options: {
 		body?: unknown;
 		headers?: Readonly<Record<string, string>>;
@@ -45,7 +51,9 @@ export interface FakeHttpClient extends HttpClient {
 	}): this;
 	/** Number of queued mocks that have not yet been consumed. */
 	readonly pendingMocks: number;
-	/** Chronological log of every `(request, config)` pair the fake received. */
+	/**
+	 * Chronological log of every `(request, config)` pair the fake received.
+	 */
 	readonly requests: ReadonlyArray<CapturedRequest>;
 }
 
@@ -113,13 +121,18 @@ function consumeNextMock(
 	return next;
 }
 
-async function handleRequest(options: {
+async function handleRequest({
+	config,
+	request,
+	state,
+}: {
 	readonly config: RequestConfig;
 	readonly request: HttpRequest;
 	readonly state: FakeState;
 }): Promise<Result<HttpResponse, OpenCloudError>> {
-	const { config, request, state } = options;
 	state.captured.push({ config, request });
+	// Resolve on a later microtask, as a real HTTP round trip does.
+	await Promise.resolve();
 	return consumeNextMock(state, request);
 }
 

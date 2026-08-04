@@ -43,13 +43,31 @@ import type { ResolvedConfig, ResourceEntryByKind } from "../schema.ts";
  */
 export type BuildDesiredError =
 	| {
+			/**
+			 * The two developer-product keys whose desired `name` resolves to
+			 * the same string.
+			 */
+			readonly keys: readonly [ResourceKey, ResourceKey];
+			/** Literal discriminator for narrowing. */
+			readonly kind: "redactedNameCollision";
+			/**
+			 * Human-readable explanation naming both keys and the override
+			 * remedy.
+			 */
+			readonly message: string;
+			/** The wire `name` value both products resolve to. */
+			readonly resolvedName: string;
+	  }
+	| {
 			/** Path of the file that failed to read. */
 			readonly filePath: string;
 			/** ResourceKey of the input whose file failed to read. */
 			readonly key: ResourceKey;
 			/** Literal discriminator for narrowing. */
 			readonly kind: "fileReadFailed";
-			/** Human-readable explanation; typically the caught error message. */
+			/**
+			 * Human-readable explanation; typically the caught error message.
+			 */
 			readonly reason: string;
 	  }
 	| {
@@ -57,18 +75,11 @@ export type BuildDesiredError =
 			readonly key: ResourceKey;
 			/** Literal discriminator for narrowing. */
 			readonly kind: "iconRemovalRejected";
-			/** Human-readable explanation naming the resource and the invariant. */
+			/**
+			 * Human-readable explanation naming the resource and the
+			 * invariant.
+			 */
 			readonly message: string;
-	  }
-	| {
-			/** The two developer-product keys whose desired `name` resolves to the same string. */
-			readonly keys: readonly [ResourceKey, ResourceKey];
-			/** Literal discriminator for narrowing. */
-			readonly kind: "redactedNameCollision";
-			/** Human-readable explanation naming both keys and the override remedy. */
-			readonly message: string;
-			/** The wire `name` value both products resolve to. */
-			readonly resolvedName: string;
 	  };
 
 /**
@@ -91,7 +102,10 @@ export type BuildDesiredError =
  * ```
  */
 export interface KindIo {
-	/** Reads file bytes for a given path; rejection becomes a `fileReadFailed` Err. */
+	/**
+	 * Reads file bytes for a given path; rejection becomes a `fileReadFailed`
+	 * Err.
+	 */
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 }
 

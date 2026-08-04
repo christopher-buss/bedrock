@@ -15,9 +15,14 @@ import type { StatePort } from "../ports/state-port.ts";
 export interface MissingCredentialError {
 	/** Literal discriminator for narrowing. */
 	readonly kind: "missingCredential";
-	/** Whether the credential was needed for the state backend or the driver registry. */
+	/**
+	 * Whether the credential was needed for the state backend or the driver
+	 * registry.
+	 */
 	readonly purpose: "registry" | "stateBackend";
-	/** Environment variable name the default-construction path tried to read. */
+	/**
+	 * Environment variable name the default-construction path tried to read.
+	 */
 	readonly variable: string;
 }
 
@@ -41,7 +46,10 @@ export interface UnsupportedBackendError {
 interface BuildStatePortDependencies {
 	/** Optional `fetch` seam plumbed through to the gist adapter for tests. */
 	readonly fetch?: GistFetch | undefined;
-	/** Reads an environment variable; injected so tests stay free of `process.env`. */
+	/**
+	 * Reads an environment variable; injected so tests stay free of
+	 * `process.env`.
+	 */
 	readonly getEnv: (name: string) => string | undefined;
 	/** Resolved state configuration for the target environment. */
 	readonly stateConfig: StateConfig;

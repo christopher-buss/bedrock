@@ -37,7 +37,7 @@ describe(dispatchOverride, () => {
 			spawner,
 		);
 
-		expect(invocations[0]?.command).toBe(process.execPath);
+		expect(invocations[0]!.command).toBe(process.execPath);
 	});
 
 	it("should pass the override path as the first argv entry", async () => {
@@ -50,7 +50,7 @@ describe(dispatchOverride, () => {
 			spawner,
 		);
 
-		expect(invocations[0]?.args[0]).toBe("/abs/.bedrock/deploy.ts");
+		expect(invocations[0]!.args[0]).toBe("/abs/.bedrock/deploy.ts");
 	});
 
 	it("should include exactly one '--env' flag in argv", async () => {
@@ -63,8 +63,7 @@ describe(dispatchOverride, () => {
 			spawner,
 		);
 
-		const occurrences =
-			invocations[0]?.args.filter((argument) => argument === "--env").length ?? 0;
+		const occurrences = invocations[0]!.args.filter((argument) => argument === "--env").length;
 
 		expect(occurrences).toBe(1);
 	});
@@ -79,7 +78,7 @@ describe(dispatchOverride, () => {
 			spawner,
 		);
 
-		const args = invocations[0]?.args ?? [];
+		const { args } = invocations[0]!;
 		const flagIndex = args.indexOf("--env");
 
 		expect(args[flagIndex + 1]).toBe("production");
@@ -99,7 +98,7 @@ describe(dispatchOverride, () => {
 			spawner,
 		);
 
-		const args = invocations[0]?.args ?? [];
+		const { args } = invocations[0]!;
 		const flagIndex = args.indexOf("--config");
 
 		expect(flagIndex).toBeGreaterThanOrEqual(0);
@@ -116,7 +115,7 @@ describe(dispatchOverride, () => {
 			spawner,
 		);
 
-		expect(invocations[0]?.args).not.toContain("--config");
+		expect(invocations[0]!.args).not.toContain("--config");
 	});
 
 	it("should set BEDROCK_API_KEY in envOverrides when apiKey is supplied", async () => {
@@ -133,7 +132,7 @@ describe(dispatchOverride, () => {
 			spawner,
 		);
 
-		expect(invocations[0]?.envOverrides).toMatchObject({ BEDROCK_API_KEY: "rbx-123" });
+		expect(invocations[0]!.envOverrides).toMatchObject({ BEDROCK_API_KEY: "rbx-123" });
 	});
 
 	it("should set BEDROCK_GITHUB_TOKEN in envOverrides when githubToken is supplied", async () => {
@@ -150,7 +149,7 @@ describe(dispatchOverride, () => {
 			spawner,
 		);
 
-		expect(invocations[0]?.envOverrides).toMatchObject({ BEDROCK_GITHUB_TOKEN: "ghp_456" });
+		expect(invocations[0]!.envOverrides).toMatchObject({ BEDROCK_GITHUB_TOKEN: "ghp_456" });
 	});
 
 	it("should set BEDROCK_CLI to '1' in envOverrides", async () => {
@@ -163,7 +162,7 @@ describe(dispatchOverride, () => {
 			spawner,
 		);
 
-		expect(invocations[0]?.envOverrides).toMatchObject({ BEDROCK_CLI: "1" });
+		expect(invocations[0]!.envOverrides).toMatchObject({ BEDROCK_CLI: "1" });
 	});
 
 	it("should keep credential values out of argv", async () => {
@@ -181,7 +180,7 @@ describe(dispatchOverride, () => {
 			spawner,
 		);
 
-		const args = invocations[0]?.args ?? [];
+		const { args } = invocations[0]!;
 
 		expect(args).not.toContain("--api-key");
 		expect(args).not.toContain("rbx-123");

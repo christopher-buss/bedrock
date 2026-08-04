@@ -282,7 +282,8 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toHaveLength(1);
 
 			const [warning] = result.warnings;
-			assert(warning?.kind === "blocked");
+			assert(warning !== undefined);
+			assert(warning.kind === "blocked");
 
 			expect(warning).toStrictEqual({
 				kind: "blocked",
@@ -304,7 +305,8 @@ describe(foldUniverse, () => {
 			expect(result.warnings).toHaveLength(1);
 
 			const [warning] = result.warnings;
-			assert(warning?.kind === "blocked");
+			assert(warning !== undefined);
+			assert(warning.kind === "blocked");
 
 			expect(warning.reason).toMatch(/Unknown playableDevices value/);
 		});
@@ -878,12 +880,9 @@ describe(foldUniverse, () => {
 				uri: "https://www.roblox.com/group/1",
 			});
 			expect(
-				result.warnings.filter((warning) => {
-					return (
-						warning.kind === "interpretive" &&
-						warning.bedrockPath === "universe.robloxGroupSocialLink"
-					);
-				}),
+				result.warnings
+					.filter((warning) => warning.kind === "interpretive")
+					.filter((warning) => warning.bedrockPath === "universe.robloxGroupSocialLink"),
 			).toHaveLength(2);
 		});
 	});
@@ -942,12 +941,9 @@ describe(foldUniverse, () => {
 
 			expect(result.entry.displayName).toBe("My Place");
 			expect(
-				result.warnings.filter((warning) => {
-					return (
-						warning.kind === "blocked" &&
-						warning.mantlePath === "placeConfiguration_lobby.name"
-					);
-				}),
+				result.warnings
+					.filter((warning) => warning.kind === "blocked")
+					.filter((warning) => warning.mantlePath === "placeConfiguration_lobby.name"),
 			).toStrictEqual([]);
 		});
 
@@ -1068,12 +1064,9 @@ describe(foldUniverse, () => {
 
 			expect(result.entry).toStrictEqual({ universeId: "1" });
 			expect(
-				result.warnings.filter((warning) => {
-					return (
-						warning.kind === "blocked" &&
-						warning.mantlePath === "placeConfiguration_start.name"
-					);
-				}),
+				result.warnings
+					.filter((warning) => warning.kind === "blocked")
+					.filter((warning) => warning.mantlePath === "placeConfiguration_start.name"),
 			).toStrictEqual([]);
 		});
 	});
@@ -1278,18 +1271,16 @@ describe(foldUniverse, () => {
 
 			assert(result !== undefined);
 
-			const groupIdBlocked = result.warnings.filter((warning) => {
-				return (
-					warning.kind === "blocked" &&
-					warning.mantlePath === "experience_singleton.groupId"
-				);
-			});
+			const groupIdBlocked = result.warnings
+				.filter((warning) => warning.kind === "blocked")
+				.filter((warning) => warning.mantlePath === "experience_singleton.groupId");
 
 			expect(groupIdBlocked).toHaveLength(1);
 
-			assert(groupIdBlocked[0]?.kind === "blocked");
+			const [blocked] = groupIdBlocked;
+			assert(blocked !== undefined);
 
-			expect(groupIdBlocked[0].reason).toBe(
+			expect(blocked.reason).toBe(
 				"Mantle used `groupId` to set the owning group when creating the experience. Bedrock requires pre-existing universe and place IDs and does not use this field.",
 			);
 		});

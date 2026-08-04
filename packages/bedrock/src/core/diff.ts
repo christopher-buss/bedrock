@@ -1,5 +1,4 @@
-import { defaultKindRegistry } from "./kinds/index.ts";
-import type { ResourceKindModule } from "./kinds/module.ts";
+import { changedFieldsBetween } from "./kinds/dispatch.ts";
 import type { Operation } from "./operations.ts";
 import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "./resources.ts";
 
@@ -112,8 +111,7 @@ function operationFor(
 		return { key: desired.key, desired, type: "create" };
 	}
 
-	const module = defaultKindRegistry[desired.kind] as ResourceKindModule<ResourceKind>;
-	const changedFields = module.changedFieldsBetween(desired, current);
+	const changedFields = changedFieldsBetween(desired, current);
 	if (changedFields.length === 0) {
 		return { key: desired.key, kind: desired.kind, type: "noop" };
 	}

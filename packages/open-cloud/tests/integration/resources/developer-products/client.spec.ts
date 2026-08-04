@@ -155,8 +155,8 @@ describe(DeveloperProductsClient, () => {
 			assert(result.success);
 
 			expect(result.data.id).toBe("12345");
-			expect(httpClient.requests[0]?.request.method).toBe("POST");
-			expect(httpClient.requests[0]?.request.body).toBeInstanceOf(FormData);
+			expect(httpClient.requests[0]!.request.method).toBe("POST");
+			expect(httpClient.requests[0]!.request.body).toBeInstanceOf(FormData);
 		});
 
 		it("should use a queue independent of get() on the same client", async () => {
@@ -228,9 +228,9 @@ describe(DeveloperProductsClient, () => {
 
 			expect(result.data).toBeUndefined();
 			expect(httpClient.requests).toHaveLength(1);
-			expect(httpClient.requests[0]?.request.method).toBe("PATCH");
-			expect(httpClient.requests[0]?.request.body).toBeInstanceOf(FormData);
-			expect(httpClient.requests[0]?.request.url).toBe(
+			expect(httpClient.requests[0]!.request.method).toBe("PATCH");
+			expect(httpClient.requests[0]!.request.body).toBeInstanceOf(FormData);
+			expect(httpClient.requests[0]!.request.url).toBe(
 				"/developer-products/v2/universes/999/developer-products/12345",
 			);
 		});

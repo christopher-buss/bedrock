@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { cyclicError } from "#tests/helpers/errors";
 import { findTransportCode } from "./transport-code.ts";
 
 describe(findTransportCode, () => {
@@ -16,10 +17,10 @@ describe(findTransportCode, () => {
 	it("should return the code from the error itself before walking the chain", () => {
 		expect.assertions(1);
 
-		const error = Object.assign(new Error("outer"), {
-			cause: Object.assign(new Error("inner"), { code: "ETIMEDOUT" }),
-			code: "ECONNREFUSED",
-		});
+		const error = Object.assign(
+			new Error("outer", { cause: Object.assign(new Error("inner"), { code: "ETIMEDOUT" }) }),
+			{ code: "ECONNREFUSED" },
+		);
 
 		expect(findTransportCode(error)).toBe("ECONNREFUSED");
 	});
@@ -27,10 +28,10 @@ describe(findTransportCode, () => {
 	it("should skip a non-string code and keep walking the chain", () => {
 		expect.assertions(1);
 
-		const error = Object.assign(new Error("outer"), {
-			cause: Object.assign(new Error("inner"), { code: "ETIMEDOUT" }),
-			code: 42,
-		});
+		const error = Object.assign(
+			new Error("outer", { cause: Object.assign(new Error("inner"), { code: "ETIMEDOUT" }) }),
+			{ code: 42 },
+		);
 
 		expect(findTransportCode(error)).toBe("ETIMEDOUT");
 	});
@@ -63,8 +64,7 @@ describe(findTransportCode, () => {
 	it("should stop walking a self-referential cause chain rather than loop forever", () => {
 		expect.assertions(1);
 
-		const cyclic = new Error("loop");
-		cyclic.cause = cyclic;
+		const cyclic = cyclicError("loop");
 
 		expect(findTransportCode(cyclic)).toBeUndefined();
 	});

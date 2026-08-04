@@ -1,7 +1,9 @@
 /* eslint-disable max-lines -- cohesive environment-resolution module: overlay merge, completeness validation, redaction/prefix application, and the real-display projection are one pipeline; the typed error declarations alone are a third of the file. */
+
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { defu } from "defu";
+import type { Except } from "type-fest";
 
 import { renderDisplayNamePrefix } from "./display-name-prefix.ts";
 import {
@@ -102,6 +104,25 @@ export interface IncompletePassEntryError {
 }
 
 /**
+ * Failure surfaced when a merged `products` entry is missing a required
+ * field. Mirrors {@link IncompletePassEntryError}: the overlay shape is
+ * `Partial<DeveloperProductEntry>`, so an overlay-only product declared
+ * under `environments.X.products` with no matching root entry (a typo on
+ * the ResourceKey, most often) would otherwise be pushed as a phantom
+ * product with no name.
+ */
+export interface IncompleteProductEntryError {
+	/** ResourceKey of the product entry that is missing a required field. */
+	readonly key: string;
+	/** Environment whose overlay was projected onto the config. */
+	readonly environment: string;
+	/** Literal discriminator for narrowing. */
+	readonly kind: "incompleteProductEntry";
+	/** Field that the merged entry lacks. */
+	readonly missingField: "description" | "name";
+}
+
+/**
  * Failure modes returned by {@link selectEnvironment}.
  *
  * @since 0.1.0
@@ -109,6 +130,7 @@ export interface IncompletePassEntryError {
 export type SelectEnvironmentError =
 	| IncompletePassEntryError
 	| IncompletePlaceEntryError
+	| IncompleteProductEntryError
 	| IncompleteUniverseEntryError
 	| UnknownEnvironmentError;
 
@@ -118,7 +140,10 @@ export type SelectEnvironmentError =
  * map derived from the same pre-redaction merge.
  */
 interface ResolvedEnvironment {
-	/** Redacted, prefixed `ResolvedConfig`, the same value {@link selectEnvironment} returns. */
+	/**
+	 * Redacted, prefixed `ResolvedConfig`, the same value {@link
+	 * selectEnvironment} returns.
+	 */
 	readonly config: ResolvedConfig;
 	/**
 	 * Real (pre-redaction) display values for redacted resources, keyed by the
@@ -138,6 +163,21 @@ interface MergedEnvironment {
 	 * before {@link selectEnvironment} substitutes them.
 	 */
 	readonly merged: ResolvedConfig;
+}
+
+/**
+ * The overlay merge before completeness resolution. Every collection entry
+ * may still be missing a field the resolved contract requires, because an
+ * overlay-only entry has no root entry to fall through to.
+ */
+interface MergedConfig extends Except<
+	ResolvedConfig,
+	"passes" | "places" | "products" | "universe"
+> {
+	readonly passes?: Record<string, Partial<GamePassEntry>>;
+	readonly places?: Record<string, Partial<ResolvedPlaceEntry>>;
+	readonly products?: Record<string, Partial<DeveloperProductEntry>>;
+	readonly universe?: Partial<UniverseEntry>;
 }
 
 /**
@@ -165,22 +205,15 @@ export function selectMergedEnvironment(
 	}
 
 	const merged = mergeOverlays(config, entry);
-	const incompletePass = findIncompletePass(merged, environment);
-	if (incompletePass !== undefined) {
-		return { err: incompletePass, success: false };
+	const resolved = resolveCollections(merged, environment);
+	if (!resolved.success) {
+		return resolved;
 	}
 
-	const incompletePlace = findIncompletePlace(merged, environment);
-	if (incompletePlace !== undefined) {
-		return { err: incompletePlace, success: false };
-	}
-
-	const incompleteUniverse = findIncompleteUniverse(merged, environment);
-	if (incompleteUniverse !== undefined) {
-		return { err: incompleteUniverse, success: false };
-	}
-
-	return { data: { entry, merged }, success: true };
+	return {
+		data: { entry, merged: { ...withoutCollections(merged), ...resolved.data } },
+		success: true,
+	};
 }
 
 /**
@@ -328,70 +361,28 @@ export function selectEnvironment(
 	return { data: resolved.data.config, success: true };
 }
 
-function findIncompletePass(
-	merged: ResolvedConfig,
-	environment: string,
-): IncompletePassEntryError | undefined {
-	const { passes } = merged;
-	if (passes === undefined) {
-		return undefined;
-	}
-
-	const candidates: Record<string, Partial<GamePassEntry>> = passes;
-	for (const [key, entry] of Object.entries(candidates)) {
-		if (entry.name === undefined) {
-			return { key, environment, kind: "incompletePassEntry", missingField: "name" };
-		}
-
-		if (entry.description === undefined) {
-			return {
-				key,
-				environment,
-				kind: "incompletePassEntry",
-				missingField: "description",
-			};
-		}
-
-		if (entry.icon === undefined) {
-			return { key, environment, kind: "incompletePassEntry", missingField: "icon" };
-		}
-	}
-
-	return undefined;
-}
-
 function mergeEntry<Resolved extends object>(
 	overlay: Partial<Resolved>,
 	base: Partial<Resolved> | undefined,
-): Resolved {
-	// Precondition for the cast: every public success path of
-	// `selectEnvironment` MUST run completeness validation (today only
-	// `findIncompletePlace`) before exposing the merged record to a caller.
-	// The cast trades compile-time soundness for the freedom to surface
-	// partial entries to a validator that can attribute the missing field to
-	// a typed error. New resource kinds that adopt this merge pattern owe
-	// their own `findIncomplete<Kind>Entry` validator before returning.
-	//
+): Partial<Resolved> {
 	// defu treats `undefined` as the empty object, so an overlay-only entry
-	// (no matching root) flows through unchanged. defu's return type is
-	// `MergeObjects<Partial<Resolved>, Partial<Resolved>>` which the compiler
-	// cannot prove equals `Resolved`.
-	return defu(overlay, base ?? {}) as Resolved;
+	// (no matching root) flows through unchanged, still missing whatever the
+	// root would have supplied. The `resolve<Kind>` pass downstream is what
+	// turns a complete merge into the resolved shape; a new resource kind
+	// adopting this merge pattern owes its own resolver.
+	return defu(overlay, base ?? {});
 }
 
 function mergeKeyedRecord<Resolved extends object>(
 	overlay: Record<string, Partial<Resolved>> | undefined,
 	base: Record<string, Partial<Resolved>> | undefined,
-): Record<string, Resolved> | undefined {
+): Record<string, Partial<Resolved>> | undefined {
 	if (overlay === undefined) {
-		// Same precondition as `mergeEntry`: passing the base record straight
-		// through is sound only when the caller validates completeness on the
-		// returned record before publishing it.
-		return base as Record<string, Resolved> | undefined;
+		return base;
 	}
 
 	return {
-		...((base ?? {}) as Record<string, Resolved>),
+		...base,
 		...Object.fromEntries(
 			Object.entries(overlay).map(([key, partial]) => {
 				return [key, mergeEntry<Resolved>(partial, base?.[key])];
@@ -403,18 +394,12 @@ function mergeKeyedRecord<Resolved extends object>(
 function mergeUniverse(
 	overlay: Partial<UniverseEntry> | undefined,
 	base: undefined | UniverseEntry,
-): ResolvedUniverseEntry | undefined {
+): Partial<UniverseEntry> | undefined {
 	if (overlay === undefined && base === undefined) {
 		return undefined;
 	}
 
-	// Precondition for the cast: see `mergeEntry`. The schema-level XOR rule
-	// guarantees a present `universeId` post-merge whenever the result is
-	// non-empty, and `findIncompleteUniverse` re-verifies the invariant on
-	// the success path. The `defu` call type-resolves to a wider partial
-	// because both sides declare `universeId` as optional; the cast collapses
-	// it to the resolved shape.
-	return defu(overlay ?? {}, base ?? {}) as ResolvedUniverseEntry;
+	return defu(overlay ?? {}, base ?? {});
 }
 
 function stripRedacted<T extends { readonly redacted?: unknown }>(
@@ -432,7 +417,7 @@ function stripRedacted<T extends { readonly redacted?: unknown }>(
 	);
 }
 
-function mergeOverlays(config: Config, entry: EnvironmentEntry): ResolvedConfig {
+function mergeOverlays(config: Config, entry: EnvironmentEntry): MergedConfig {
 	const passes = mergeKeyedRecord<GamePassEntry>(stripRedacted(entry.passes), config.passes);
 	const places = mergeKeyedRecord<ResolvedPlaceEntry>(stripRedacted(entry.places), config.places);
 	const products = mergeKeyedRecord<DeveloperProductEntry>(
@@ -467,62 +452,188 @@ function unknownEnvironment(config: Config, environment: string): UnknownEnviron
 	};
 }
 
-function findIncompleteUniverse(
-	projected: ResolvedConfig,
+function resolvePasses(
+	{ passes }: MergedConfig,
 	environment: string,
-): IncompleteUniverseEntryError | undefined {
-	const { universe } = projected;
-	if (universe === undefined) {
-		return undefined;
+): Result<Record<string, GamePassEntry> | undefined, IncompletePassEntryError> {
+	if (passes === undefined) {
+		return { data: undefined, success: true };
 	}
 
-	// `universe` is typed as `ResolvedUniverseEntry` (universeId required)
-	// because the merge boundary already promised completeness; this routine
-	// exists to honour that promise at runtime, so it widens the view back to
-	// `Partial<ResolvedUniverseEntry>` for the duration of the check.
-	const candidate: Partial<ResolvedUniverseEntry> = universe;
-	if (candidate.universeId === undefined) {
-		return { environment, kind: "incompleteUniverseEntry", missingField: "universeId" };
+	const resolved: Record<string, GamePassEntry> = {};
+	for (const [key, entry] of Object.entries(passes)) {
+		const { name, description, icon } = entry;
+		if (name === undefined) {
+			return {
+				err: { key, environment, kind: "incompletePassEntry", missingField: "name" },
+				success: false,
+			};
+		}
+
+		if (description === undefined) {
+			return {
+				err: { key, environment, kind: "incompletePassEntry", missingField: "description" },
+				success: false,
+			};
+		}
+
+		if (icon === undefined) {
+			return {
+				err: { key, environment, kind: "incompletePassEntry", missingField: "icon" },
+				success: false,
+			};
+		}
+
+		resolved[key] = { ...entry, name, description, icon };
 	}
 
-	return undefined;
+	return { data: resolved, success: true };
 }
 
-function findIncompletePlace(
-	projected: ResolvedConfig,
+function resolveProducts(
+	{ products }: MergedConfig,
 	environment: string,
-): IncompletePlaceEntryError | undefined {
-	const { places } = projected;
+): Result<Record<string, DeveloperProductEntry> | undefined, IncompleteProductEntryError> {
+	if (products === undefined) {
+		return { data: undefined, success: true };
+	}
+
+	const resolved: Record<string, DeveloperProductEntry> = {};
+	for (const [key, entry] of Object.entries(products)) {
+		const { name, description } = entry;
+		if (name === undefined) {
+			return {
+				err: { key, environment, kind: "incompleteProductEntry", missingField: "name" },
+				success: false,
+			};
+		}
+
+		if (description === undefined) {
+			return {
+				err: {
+					key,
+					environment,
+					kind: "incompleteProductEntry",
+					missingField: "description",
+				},
+				success: false,
+			};
+		}
+
+		resolved[key] = { ...entry, name, description };
+	}
+
+	return { data: resolved, success: true };
+}
+
+function resolveUniverse(
+	{ universe }: MergedConfig,
+	environment: string,
+): Result<ResolvedUniverseEntry | undefined, IncompleteUniverseEntryError> {
+	if (universe === undefined) {
+		return { data: undefined, success: true };
+	}
+
+	const { universeId } = universe;
+	if (universeId === undefined) {
+		return {
+			err: { environment, kind: "incompleteUniverseEntry", missingField: "universeId" },
+			success: false,
+		};
+	}
+
+	return { data: { ...universe, universeId }, success: true };
+}
+
+function resolvePlaces(
+	{ places }: MergedConfig,
+	environment: string,
+): Result<Record<string, ResolvedPlaceEntry> | undefined, IncompletePlaceEntryError> {
 	if (places === undefined) {
-		return undefined;
+		return { data: undefined, success: true };
 	}
 
-	// `places` is typed as `Record<string, ResolvedPlaceEntry>` because the
-	// merge boundary already promised completeness; this routine exists to
-	// honour that promise at runtime, so it widens the view back to
-	// `Partial<ResolvedPlaceEntry>` for the duration of the check.
-	const candidates: Record<string, Partial<ResolvedPlaceEntry>> = places;
-	for (const [key, entry] of Object.entries(candidates)) {
-		if (entry.placeId === undefined) {
+	const resolved: Record<string, ResolvedPlaceEntry> = {};
+	for (const [key, entry] of Object.entries(places)) {
+		const { filePath, placeId } = entry;
+		if (placeId === undefined) {
 			return {
-				key,
-				environment,
-				kind: "incompletePlaceEntry",
-				missingField: "placeId",
+				err: { key, environment, kind: "incompletePlaceEntry", missingField: "placeId" },
+				success: false,
 			};
 		}
 
-		if (entry.filePath === undefined) {
+		if (filePath === undefined) {
 			return {
-				key,
-				environment,
-				kind: "incompletePlaceEntry",
-				missingField: "filePath",
+				err: { key, environment, kind: "incompletePlaceEntry", missingField: "filePath" },
+				success: false,
 			};
 		}
+
+		resolved[key] = { ...entry, filePath, placeId };
 	}
 
-	return undefined;
+	return { data: resolved, success: true };
+}
+
+/**
+ * Resolve every collection on a merged config, short-circuiting on the first
+ * entry that is still missing a required field.
+ *
+ * @param merged - The post-overlay merge, before completeness resolution.
+ * @param environment - Environment name the merge projects onto.
+ * @returns Only the collections that are present, or the first failure.
+ */
+function resolveCollections(
+	merged: MergedConfig,
+	environment: string,
+): Result<Partial<ResolvedConfig>, SelectEnvironmentError> {
+	const passes = resolvePasses(merged, environment);
+	if (!passes.success) {
+		return passes;
+	}
+
+	const places = resolvePlaces(merged, environment);
+	if (!places.success) {
+		return places;
+	}
+
+	const products = resolveProducts(merged, environment);
+	if (!products.success) {
+		return products;
+	}
+
+	const universe = resolveUniverse(merged, environment);
+	if (!universe.success) {
+		return universe;
+	}
+
+	return {
+		data: {
+			...(passes.data === undefined ? {} : { passes: passes.data }),
+			...(places.data === undefined ? {} : { places: places.data }),
+			...(products.data === undefined ? {} : { products: products.data }),
+			...(universe.data === undefined ? {} : { universe: universe.data }),
+		},
+		success: true,
+	};
+}
+
+/**
+ * Strip the partial collections from a merged config, leaving the fields that
+ * pass through to the resolved shape untouched.
+ *
+ * @param merged - The post-overlay merge.
+ * @returns The merge without its resource collections.
+ */
+function withoutCollections({
+	passes: _passes,
+	places: _places,
+	products: _products,
+	universe: _universe,
+	...rest
+}: MergedConfig): Except<MergedConfig, "passes" | "places" | "products" | "universe"> {
+	return rest;
 }
 
 function extractRedactionLayer<Value>(
@@ -538,12 +649,11 @@ function extractRedactionLayer<Value>(
 	return layer;
 }
 
-function resolvePrefix(config: Config, entry: EnvironmentEntry): string | undefined {
+function resolvePrefix(config: Config, { label }: EnvironmentEntry): string | undefined {
 	if (config.displayNamePrefix?.enabled === false) {
 		return undefined;
 	}
 
-	const { label } = entry;
 	if (label === undefined || label === "") {
 		return undefined;
 	}
@@ -581,12 +691,15 @@ function applyPlacesPrefix(
 	);
 }
 
-function redactAndPrefix(inputs: {
+function redactAndPrefix({
+	config,
+	entry,
+	merged,
+}: {
 	readonly config: Config;
 	readonly entry: EnvironmentEntry;
 	readonly merged: ResolvedConfig;
 }): ResolvedConfig {
-	const { config, entry, merged } = inputs;
 	const redacted = applyRedaction(merged, {
 		envLevel: entry.redacted,
 		envResource: extractResourceRedaction(entry),

@@ -11,7 +11,10 @@ interface BuildOverrideInvocationInputs {
 	readonly environment: string;
 	/** Absolute path to the override script to invoke. */
 	readonly overridePath: string;
-	/** Parsed deploy options carrying the credential and config flags to forward. */
+	/**
+	 * Parsed deploy options carrying the credential and config flags to
+	 * forward.
+	 */
 	readonly parsed: CommonOptions;
 }
 
@@ -25,8 +28,11 @@ interface BuildOverrideInvocationInputs {
  * @param inputs - {@link BuildOverrideInvocationInputs}.
  * @returns A single-environment {@link OverrideInvocation}.
  */
-export function buildOverrideInvocation(inputs: BuildOverrideInvocationInputs): OverrideInvocation {
-	const { environment, overridePath, parsed } = inputs;
+export function buildOverrideInvocation({
+	environment,
+	overridePath,
+	parsed,
+}: BuildOverrideInvocationInputs): OverrideInvocation {
 	return {
 		...(parsed.apiKey === undefined ? {} : { apiKey: parsed.apiKey }),
 		...(parsed.configFile === undefined ? {} : { configFile: parsed.configFile }),

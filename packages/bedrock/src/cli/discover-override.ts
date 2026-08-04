@@ -38,9 +38,11 @@ interface DiscoverOverrideInputs {
  * @returns The absolute path to the override file when it exists, otherwise
  * `undefined`.
  */
-export function discoverOverrideWith(inputs: DiscoverOverrideInputs): string | undefined {
-	const { command, projectRoot, stat } = inputs;
-
+export function discoverOverrideWith({
+	command,
+	projectRoot,
+	stat,
+}: DiscoverOverrideInputs): string | undefined {
 	if (!VALID_COMMAND.test(command)) {
 		return undefined;
 	}

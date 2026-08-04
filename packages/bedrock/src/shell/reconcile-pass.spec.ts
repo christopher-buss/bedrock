@@ -1,7 +1,9 @@
 import { OpenCloudError } from "@bedrock-rbx/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
 import { describe, expect, it } from "vitest";
 
+import { outcomeByKey } from "#tests/helpers/drivers";
 import {
 	developerProductCurrent,
 	gamePassCurrent,
@@ -10,9 +12,10 @@ import {
 	placeDesired,
 	universeCurrent,
 } from "#tests/helpers/resources";
+import { resultsInOrder } from "#tests/helpers/sequence";
 import type { Operation } from "../core/operations.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
-import type { BedrockState } from "../core/state.ts";
+import type { BedrockState, StateError } from "../core/state.ts";
 import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
 import type {
 	DriverRegistry,
@@ -21,7 +24,7 @@ import type {
 } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { asResourceKey, asSha256Hex, type ResourceKey } from "../types/ids.ts";
-import { applyAndPersist } from "./reconcile-pass.ts";
+import { applyAndPersistAsync } from "./reconcile-pass.ts";
 
 const alpha = gamePassCurrent({
 	key: asResourceKey("alpha-pass"),
@@ -100,7 +103,7 @@ function inMemoryStatePort(): {
 	};
 }
 
-describe(applyAndPersist, () => {
+describe(applyAndPersistAsync, () => {
 	it("should persist a partial snapshot then a cumulative snapshot across two passes", async () => {
 		expect.assertions(4);
 
@@ -108,7 +111,7 @@ describe(applyAndPersist, () => {
 		const registry = gamePassRegistry({ "alpha-pass": alpha, "vip-pass": vip });
 		const { calls, port: progress } = recordingProgress();
 
-		const first = await applyAndPersist({
+		const first = await applyAndPersistAsync({
 			environment: "production",
 			ops: [createGamePassOp(asResourceKey("alpha-pass"))],
 			priorResources: [],
@@ -117,7 +120,7 @@ describe(applyAndPersist, () => {
 			statePort: port,
 		});
 
-		const second = await applyAndPersist({
+		const second = await applyAndPersistAsync({
 			environment: "production",
 			ops: [createGamePassOp(asResourceKey("vip-pass"))],
 			priorResources: first.merged.resources,
@@ -142,7 +145,7 @@ describe(applyAndPersist, () => {
 		const registry = gamePassRegistry({ "vip-pass": vip });
 		const { port: progress } = recordingProgress();
 
-		await applyAndPersist({
+		await applyAndPersistAsync({
 			environment: "production",
 			ops: [createGamePassOp(asResourceKey("vip-pass"))],
 			priorResources: [priorProduct, priorPlace, priorUniverse],
@@ -158,22 +161,19 @@ describe(applyAndPersist, () => {
 		expect.assertions(2);
 
 		const stateError = { file: "state.json", kind: "stateError" as const, reason: "EACCES" };
-		let writeCount = 0;
 		const port: StatePort = {
 			async read() {
 				return { data: undefined, success: true };
 			},
-			async write() {
-				writeCount += 1;
-				return writeCount === 1
-					? { data: undefined, success: true }
-					: { err: stateError, success: false };
-			},
+			write: resultsInOrder<Result<void, StateError>>([
+				{ data: undefined, success: true },
+				{ err: stateError, success: false },
+			]),
 		};
 		const registry = gamePassRegistry({ "alpha-pass": alpha, "vip-pass": vip });
 		const { port: progress } = recordingProgress();
 
-		const first = await applyAndPersist({
+		const first = await applyAndPersistAsync({
 			environment: "production",
 			ops: [createGamePassOp(asResourceKey("alpha-pass"))],
 			priorResources: [],
@@ -182,7 +182,7 @@ describe(applyAndPersist, () => {
 			statePort: port,
 		});
 
-		const second = await applyAndPersist({
+		const second = await applyAndPersistAsync({
 			environment: "production",
 			ops: [createGamePassOp(asResourceKey("vip-pass"))],
 			priorResources: first.merged.resources,
@@ -202,11 +202,7 @@ describe(applyAndPersist, () => {
 		const registry: DriverRegistry = {
 			developerProduct: developerProductStub,
 			gamePass: {
-				async create(desired) {
-					return desired.key === "alpha-pass"
-						? { data: alpha, success: true }
-						: { err: failure, success: false };
-				},
+				create: outcomeByKey({ "alpha-pass": alpha, "vip-pass": failure }),
 			},
 			place: placeStub,
 			universe: universeStub,
@@ -214,7 +210,7 @@ describe(applyAndPersist, () => {
 		const { port, writes } = inMemoryStatePort();
 		const { port: progress } = recordingProgress();
 
-		const pass = await applyAndPersist({
+		const pass = await applyAndPersistAsync({
 			environment: "production",
 			ops: [
 				createGamePassOp(asResourceKey("alpha-pass")),
@@ -245,7 +241,7 @@ describe(applyAndPersist, () => {
 		};
 		const marker = new Set([asResourceKey("start-place")]);
 
-		const pass = await applyAndPersist({
+		const pass = await applyAndPersistAsync({
 			environment: "production",
 			ops: [createGamePassOp(asResourceKey("vip-pass"))],
 			pendingRebuild: marker,
@@ -264,7 +260,7 @@ describe(applyAndPersist, () => {
 
 		let received: ReadonlyArray<ResourceCurrentState> | undefined;
 
-		const pass = await applyAndPersist({
+		const pass = await applyAndPersistAsync({
 			environment: "production",
 			ops: [createGamePassOp(asResourceKey("vip-pass"))],
 			pendingRebuild: (survivors) => {
@@ -288,18 +284,14 @@ describe(applyAndPersist, () => {
 		const registry: DriverRegistry = {
 			developerProduct: developerProductStub,
 			gamePass: {
-				async create(desired) {
-					return desired.key === "alpha-pass"
-						? { data: alpha, success: true }
-						: { err: failure, success: false };
-				},
+				create: outcomeByKey({ "alpha-pass": alpha, "vip-pass": failure }),
 			},
 			place: placeStub,
 			universe: universeStub,
 		};
 		let received: ReadonlyArray<ResourceCurrentState> | undefined;
 
-		await applyAndPersist({
+		await applyAndPersistAsync({
 			environment: "production",
 			ops: [
 				createGamePassOp(asResourceKey("alpha-pass")),
@@ -323,7 +315,7 @@ describe(applyAndPersist, () => {
 
 		const { port } = inMemoryStatePort();
 
-		const pass = await applyAndPersist({
+		const pass = await applyAndPersistAsync({
 			environment: "production",
 			ops: [createGamePassOp(asResourceKey("vip-pass"))],
 			pendingRebuild: new Set(),
@@ -353,7 +345,7 @@ describe(applyAndPersist, () => {
 			},
 		};
 
-		const pass = await applyAndPersist({
+		const pass = await applyAndPersistAsync({
 			codegenHash: hash,
 			environment: "production",
 			ops: [createGamePassOp(asResourceKey("vip-pass"))],
@@ -372,7 +364,7 @@ describe(applyAndPersist, () => {
 
 		const { port } = inMemoryStatePort();
 
-		const pass = await applyAndPersist({
+		const pass = await applyAndPersistAsync({
 			environment: "production",
 			ops: [createGamePassOp(asResourceKey("vip-pass"))],
 			priorResources: [],
@@ -394,18 +386,14 @@ describe(applyAndPersist, () => {
 		const registry: DriverRegistry = {
 			developerProduct: developerProductStub,
 			gamePass: {
-				async create(desired) {
-					return desired.key === "alpha-pass"
-						? { data: alpha, success: true }
-						: { err: failure, success: false };
-				},
+				create: outcomeByKey({ "alpha-pass": alpha, "vip-pass": failure }),
 			},
 			place: placeStub,
 			universe: universeStub,
 		};
 		const { port } = inMemoryStatePort();
 
-		const pass = await applyAndPersist({
+		const pass = await applyAndPersistAsync({
 			codegenHash: hash,
 			environment: "production",
 			ops: [
@@ -440,7 +428,7 @@ describe(applyAndPersist, () => {
 			universe: universeStub,
 		};
 
-		await applyAndPersist({
+		await applyAndPersistAsync({
 			artifacts: new Map([[desired.key, artifact]]),
 			environment: "production",
 			ops: [{ key: desired.key, desired, type: "create" }],

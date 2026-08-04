@@ -23,9 +23,15 @@ export interface FsCodegenWriterDeps {
 	readonly mkdir?:
 		| ((path: string, options: { readonly recursive: true }) => Promise<unknown>)
 		| undefined;
-	/** Directory generated files are written under; each file's path is joined onto it. */
+	/**
+	 * Directory generated files are written under; each file's path is joined
+	 * onto it.
+	 */
 	readonly outputDir: string;
-	/** Injection seam for the file write; defaults to `node:fs/promises.writeFile` (UTF-8). */
+	/**
+	 * Injection seam for the file write; defaults to
+	 * `node:fs/promises.writeFile` (UTF-8).
+	 */
 	readonly writeFile?: ((path: string, data: string) => Promise<void>) | undefined;
 }
 

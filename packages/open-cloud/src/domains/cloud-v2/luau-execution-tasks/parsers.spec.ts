@@ -501,8 +501,9 @@ describe(parseLuauExecutionTaskResponse, () => {
 
 			const body = validInProgressBody({
 				path: {
-					toString: (): string =>
-						"universes/123/places/456/luau-execution-session-tasks/task-1",
+					toString: (): string => {
+						return "universes/123/places/456/luau-execution-session-tasks/task-1";
+					},
 				},
 			});
 			const result = parseLuauExecutionTaskResponse({ body, headers: {}, status: 200 });

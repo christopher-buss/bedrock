@@ -15,8 +15,13 @@ import type {
  *   and optional priority and TTL.
  * @returns A pure {@link HttpRequest} describing the enqueue call.
  */
-export function buildEnqueueRequest(parameters: EnqueueQueueItemParameters): HttpRequest {
-	const { data, priority, queueId, ttl, universeId } = parameters;
+export function buildEnqueueRequest({
+	data,
+	priority,
+	queueId,
+	ttl,
+	universeId,
+}: EnqueueQueueItemParameters): HttpRequest {
 	const body: Record<string, unknown> = { data };
 	if (priority !== undefined) {
 		body["priority"] = priority;
@@ -81,8 +86,11 @@ export function buildDequeueRequest(parameters: DequeueQueueItemsParameters): Ht
  *   `readId` returned from a prior dequeue.
  * @returns A pure {@link HttpRequest} describing the discard call.
  */
-export function buildDiscardRequest(parameters: DiscardQueueItemsParameters): HttpRequest {
-	const { queueId, readId, universeId } = parameters;
+export function buildDiscardRequest({
+	queueId,
+	readId,
+	universeId,
+}: DiscardQueueItemsParameters): HttpRequest {
 	return {
 		body: { readId },
 		headers: { "content-type": "application/json" },

@@ -30,6 +30,7 @@ describe("updatePlaceParameters writable-keys pin", () => {
 		"should expose %s as a non-readOnly property on the Place schema",
 		(key) => {
 			expect.assertions(1);
+
 			expect(listWritablePropertyNames("Place")).toContain(key);
 		},
 	);

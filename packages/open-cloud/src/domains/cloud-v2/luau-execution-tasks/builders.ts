@@ -67,8 +67,10 @@ export function buildSubmitAtVersionRequest(parameters: SubmitAtVersionParameter
  *   {@link ValidationError} when the ref is missing `versionId` or
  *   `sessionId`.
  */
-export function buildGetRequest(parameters: GetParameters): Result<HttpRequest, ValidationError> {
-	const { ref, view } = parameters;
+export function buildGetRequest({
+	ref,
+	view,
+}: GetParameters): Result<HttpRequest, ValidationError> {
 	const { placeId, sessionId, taskId, universeId, versionId } = ref;
 
 	if (versionId === undefined) {
@@ -94,13 +96,12 @@ export function buildGetRequest(parameters: GetParameters): Result<HttpRequest, 
 	return { data: { method: "GET", url }, success: true };
 }
 
-function buildSubmitBody(parameters: SubmitBodyInput): Record<string, unknown> {
-	const {
-		binaryInput,
-		enableBinaryOutput: shouldEnableBinaryOutput,
-		script,
-		timeoutSeconds,
-	} = parameters;
+function buildSubmitBody({
+	binaryInput,
+	enableBinaryOutput: shouldEnableBinaryOutput,
+	script,
+	timeoutSeconds,
+}: SubmitBodyInput): Record<string, unknown> {
 	const body: Record<string, unknown> = { script };
 	if (timeoutSeconds !== undefined) {
 		body["timeout"] = `${timeoutSeconds}s`;

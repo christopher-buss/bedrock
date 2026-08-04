@@ -34,9 +34,9 @@ import {
 	type ResourceMethodSpec,
 } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import { buildPollDependencies, submitAndPoll } from "./polling-helpers.ts";
+import { buildPollDependencies, submitAndPollAsync } from "./polling-helpers.ts";
 import {
-	pollUntilDoneCore,
+	pollUntilDoneCoreAsync,
 	type PollUntilDoneOptions,
 	withBudgetRequestTimeout,
 } from "./polling.ts";
@@ -221,7 +221,7 @@ export class LuauExecutionClient {
 function createBinaryInputsHandle(inner: ResourceClient): BinaryInputsHandle {
 	return {
 		async create(parameters, options) {
-			return inner.execute({ options, parameters, spec: CREATE_BINARY_INPUT_SPEC });
+			return inner.executeAsync({ options, parameters, spec: CREATE_BINARY_INPUT_SPEC });
 		},
 	};
 }
@@ -229,27 +229,30 @@ function createBinaryInputsHandle(inner: ResourceClient): BinaryInputsHandle {
 function createTasksHandle(inner: ResourceClient): TasksHandle {
 	return {
 		async get(parameters, options) {
-			return inner.execute({ options, parameters, spec: GET_SPEC });
+			return inner.executeAsync({ options, parameters, spec: GET_SPEC });
 		},
 		async listLogs(parameters, options) {
-			return inner.execute({ options, parameters, spec: LIST_LOGS_SPEC });
+			return inner.executeAsync({ options, parameters, spec: LIST_LOGS_SPEC });
 		},
 		async pollUntilDone(ref, options = {}) {
 			const resolved = withBudgetRequestTimeout(options);
-			return pollUntilDoneCore(
+			return pollUntilDoneCoreAsync(
 				buildPollDependencies(inner, { options: resolved, ref }),
 				resolved,
 			);
 		},
 		async runUntilDone(parameters, options = {}) {
-			return submitAndPoll(inner, { options: withBudgetRequestTimeout(options), parameters });
+			return submitAndPollAsync(inner, {
+				options: withBudgetRequestTimeout(options),
+				parameters,
+			});
 		},
 		async submit(parameters, options) {
 			if ("versionId" in parameters) {
-				return inner.execute({ options, parameters, spec: SUBMIT_VERSION_SPEC });
+				return inner.executeAsync({ options, parameters, spec: SUBMIT_VERSION_SPEC });
 			}
 
-			return inner.execute({ options, parameters, spec: SUBMIT_HEAD_SPEC });
+			return inner.executeAsync({ options, parameters, spec: SUBMIT_HEAD_SPEC });
 		},
 	};
 }

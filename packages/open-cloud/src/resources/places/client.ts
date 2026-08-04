@@ -34,8 +34,8 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import { UPLOAD_METHOD_DEFAULTS } from "../../internal/http/retry.ts";
 import { ResourceClient, type ResourceMethodSpec } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import { buildPollDependencies, submitAndPoll } from "../luau-execution/polling-helpers.ts";
-import { pollUntilDoneCore, type PollUntilDoneOptions } from "../luau-execution/polling.ts";
+import { buildPollDependencies, submitAndPollAsync } from "../luau-execution/polling-helpers.ts";
+import { pollUntilDoneCoreAsync, type PollUntilDoneOptions } from "../luau-execution/polling.ts";
 
 /**
  * Operation Group exposed by {@link PlacesClient} as the
@@ -137,8 +137,9 @@ function makePublishSpec(
 	versionType: "Published" | "Saved",
 ): ResourceMethodSpec<PublishParameters, PlaceVersion> {
 	return Object.freeze({
-		buildRequest: (parameters: PublishParameters) =>
-			buildPublishRequest(parameters, versionType),
+		buildRequest: (parameters: PublishParameters) => {
+			return buildPublishRequest(parameters, versionType);
+		},
 		methodDefaults: UPLOAD_METHOD_DEFAULTS,
 		methodKind: "create",
 		operationLimit: PUBLISH_OPERATION_LIMIT,
@@ -222,7 +223,7 @@ export class PlacesClient {
 		parameters: PublishParameters,
 		options?: RequestOptions,
 	): Promise<Result<PlaceVersion, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: PUBLISH_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: PUBLISH_SPEC });
 	}
 
 	/**
@@ -246,7 +247,7 @@ export class PlacesClient {
 		parameters: PublishParameters,
 		options?: RequestOptions,
 	): Promise<Result<PlaceVersion, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: SAVE_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: SAVE_SPEC });
 	}
 
 	/**
@@ -268,30 +269,30 @@ export class PlacesClient {
 		parameters: UpdatePlaceParameters,
 		options?: RequestOptions,
 	): Promise<Result<Place, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: UPDATE_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: UPDATE_SPEC });
 	}
 }
 
 function createLuauExecutionHandle(inner: ResourceClient): LuauExecutionHandle {
 	return {
 		async get(parameters, options) {
-			return inner.execute({ options, parameters, spec: GET_SPEC });
+			return inner.executeAsync({ options, parameters, spec: GET_SPEC });
 		},
 		async listLogs(parameters, options) {
-			return inner.execute({ options, parameters, spec: LIST_LOGS_SPEC });
+			return inner.executeAsync({ options, parameters, spec: LIST_LOGS_SPEC });
 		},
 		async pollUntilDone(ref, options = {}) {
-			return pollUntilDoneCore(buildPollDependencies(inner, { options, ref }), options);
+			return pollUntilDoneCoreAsync(buildPollDependencies(inner, { options, ref }), options);
 		},
 		async runUntilDone(parameters, options = {}) {
-			return submitAndPoll(inner, { options, parameters });
+			return submitAndPollAsync(inner, { options, parameters });
 		},
 		async submit(parameters, options) {
 			if ("versionId" in parameters) {
-				return inner.execute({ options, parameters, spec: SUBMIT_VERSION_SPEC });
+				return inner.executeAsync({ options, parameters, spec: SUBMIT_VERSION_SPEC });
 			}
 
-			return inner.execute({ options, parameters, spec: SUBMIT_HEAD_SPEC });
+			return inner.executeAsync({ options, parameters, spec: SUBMIT_HEAD_SPEC });
 		},
 	};
 }

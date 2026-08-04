@@ -30,8 +30,8 @@ export interface RateLimitErrorOptions extends ErrorOptions {
 }
 
 /**
- * Thrown when the Roblox Open Cloud API returns a 429 Too Many Requests response.
- * Contains the server-suggested retry delay.
+ * Thrown when the Roblox Open Cloud API returns a 429 Too Many Requests
+ * response. Contains the server-suggested retry delay.
  *
  * @since 0.1.0
  *
@@ -52,7 +52,9 @@ export class RateLimitError extends OpenCloudError {
 	/** Parsed 429 response body, or `undefined` when none was carried. */
 	public readonly details: JSONValue | undefined;
 	public override readonly name = "RateLimitError";
-	/** Requests left in the throttled window, or `undefined` if not reported. */
+	/**
+	 * Requests left in the throttled window, or `undefined` if not reported.
+	 */
 	public readonly remaining: number | undefined;
 	public readonly retryAfterSeconds: number;
 	/** HTTP status code that produced the error, or `undefined` if not set. */

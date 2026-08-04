@@ -23,13 +23,22 @@ const PRODUCT_ICON_KIND = "productIcon";
 export interface ProductFoldEntry {
 	/** User-supplied Mantle key, branded as a bedrock `ResourceKey`. */
 	readonly key: ResourceKey;
-	/** Bedrock `Config.products[<k>]` block populated from the product resource. */
+	/**
+	 * Bedrock `Config.products[<k>]` block populated from the product
+	 * resource.
+	 */
 	readonly entry: DeveloperProductEntry;
-	/** Locale-keyed Mantle-recorded icon hashes; absent when no productIcon partner is paired. */
+	/**
+	 * Locale-keyed Mantle-recorded icon hashes; absent when no productIcon
+	 * partner is paired.
+	 */
 	readonly mantleIconFileHashes?: Record<"en-us", Sha256Hex>;
 	/** Resource-rooted Mantle path (`product_<k>`) used to anchor warnings. */
 	readonly mantlePath: string;
-	/** Roblox-assigned identifiers carried into `BedrockState.resources[*].outputs`. */
+	/**
+	 * Roblox-assigned identifiers carried into
+	 * `BedrockState.resources[*].outputs`.
+	 */
 	readonly outputs: DeveloperProductOutputs;
 }
 
@@ -44,7 +53,10 @@ export interface ProductFoldEntry {
 interface ProductsFoldResult {
 	/** One folded entry per well-formed Mantle `product_<k>` resource. */
 	readonly products: ReadonlyArray<ProductFoldEntry>;
-	/** Per-rule diagnostics: orphan productIcon resources surface as `ambiguous` warnings. */
+	/**
+	 * Per-rule diagnostics: orphan productIcon resources surface as
+	 * `ambiguous` warnings.
+	 */
 	readonly warnings: ReadonlyArray<MigrationWarning>;
 }
 

@@ -48,7 +48,7 @@ function readFormString(body: unknown, key: string): string {
 	return value;
 }
 
-async function readFormBytes(body: unknown, key: string): Promise<Uint8Array> {
+async function readFormBytesAsync(body: unknown, key: string): Promise<Uint8Array> {
 	assert(body instanceof FormData);
 	const value = body.get(key);
 	assert(value instanceof Blob);
@@ -103,7 +103,7 @@ describe(createGamePassDriver, () => {
 		expect(readFormString(captured.request.body, "name")).toBe("VIP Pass");
 		expect(readFormString(captured.request.body, "description")).toBe("Grants VIP perks.");
 		expect(readFormString(captured.request.body, "price")).toBe("500");
-		await expect(readFormBytes(captured.request.body, "imageFile")).resolves.toStrictEqual(
+		await expect(readFormBytesAsync(captured.request.body, "imageFile")).resolves.toStrictEqual(
 			ICON_BYTES,
 		);
 	});
@@ -385,7 +385,7 @@ describe(createGamePassDriver, () => {
 
 			const captured = http.requests[0]!;
 
-			await expect(readFormBytes(captured.request.body, "file")).resolves.toStrictEqual(
+			await expect(readFormBytesAsync(captured.request.body, "file")).resolves.toStrictEqual(
 				ICON_BYTES,
 			);
 		});
@@ -443,7 +443,7 @@ describe(createGamePassDriver, () => {
 
 			assert(result.success);
 
-			expect(http.requests[1]?.request.method).toBe("GET");
+			expect(http.requests[1]!.request.method).toBe("GET");
 			expect(result.data.outputs.iconAssetIds["en-us"]).toBe("5555555555");
 		});
 

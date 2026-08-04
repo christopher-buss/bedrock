@@ -9,13 +9,25 @@ import type { LoadConfigOptions } from "../shell/load-config.ts";
  * been validated and normalized.
  */
 export interface CommonOptions {
-	/** Roblox Open Cloud API key override; falls back to BEDROCK_API_KEY when undefined. */
+	/**
+	 * Roblox Open Cloud API key override; falls back to BEDROCK_API_KEY when
+	 * undefined.
+	 */
 	readonly apiKey?: string;
-	/** Explicit config file path; when undefined the loader's discovery rules apply. */
+	/**
+	 * Explicit config file path; when undefined the loader's discovery rules
+	 * apply.
+	 */
 	readonly configFile?: string;
-	/** Target environment names. Sade collects `--env` repeatedly into this list. */
+	/**
+	 * Target environment names. Sade collects `--env` repeatedly into this
+	 * list.
+	 */
 	readonly environments: ReadonlyArray<string>;
-	/** GitHub token override; falls back to BEDROCK_GITHUB_TOKEN when undefined. */
+	/**
+	 * GitHub token override; falls back to BEDROCK_GITHUB_TOKEN when
+	 * undefined.
+	 */
 	readonly githubToken?: string;
 }
 

@@ -12,7 +12,7 @@ const WORKSPACE_TEMP_ROOT = join(
 	".cache",
 );
 
-async function withTemporaryDirectory<T>(run: (directory: string) => Promise<T>): Promise<T> {
+async function withTemporaryDirectoryAsync<T>(run: (directory: string) => Promise<T>): Promise<T> {
 	mkdirSync(WORKSPACE_TEMP_ROOT, { recursive: true });
 	const directory = mkdtempSync(join(WORKSPACE_TEMP_ROOT, "bedrock-luau-timeout-"));
 	try {
@@ -28,18 +28,17 @@ describe("loadConfig + real lute", () => {
 		async () => {
 			expect.assertions(1);
 
-			await withTemporaryDirectory(async (cwd) => {
+			const result = await withTemporaryDirectoryAsync(async (cwd) => {
 				writeFileSync(
 					join(cwd, "bedrock.config.luau"),
 					["while true do end", ""].join("\n"),
 				);
-
-				const result = await loadConfig({ cwd });
-
-				assert(!result.success);
-
-				expect(result.err.kind).toBe("parseFailed");
+				return loadConfig({ cwd });
 			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("parseFailed");
 		},
 		15_000,
 	);

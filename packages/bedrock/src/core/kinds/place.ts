@@ -8,9 +8,9 @@ import { PLACE_MANAGED_METADATA_FIELDS } from "../resources.ts";
 import type { PlaceDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_POSITIVE_INTEGER } from "../schema.ts";
 import type { ResolvedConfig } from "../schema.ts";
-import { sha256Hex } from "./hash.ts";
+import { sha256HexAsync } from "./hash.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
-import { readBytes } from "./read-bytes.ts";
+import { readBytesAsync } from "./read-bytes.ts";
 
 const entrySchema = type({
 	"description?": "string | undefined",
@@ -45,14 +45,15 @@ export function changedPlaceMetadata(
 	desired: PlaceDesiredState,
 	current?: ResourceCurrentState<"place">,
 ): PlaceMetadataPatch {
-	return PLACE_MANAGED_METADATA_FIELDS.reduce<PlaceMetadataPatch>((accumulator, field) => {
+	const patch: PlaceMetadataPatch = {};
+	for (const field of PLACE_MANAGED_METADATA_FIELDS) {
 		const value = desired[field];
-		if (value === undefined || value === current?.[field]) {
-			return accumulator;
+		if (value !== undefined && value !== current?.[field]) {
+			Object.assign(patch, { [field]: value });
 		}
+	}
 
-		return { ...accumulator, [field]: value };
-	}, {});
+	return patch;
 }
 
 function flatten(config: ResolvedConfig): ReadonlyArray<PlaceDesiredInput> {
@@ -69,11 +70,11 @@ function flatten(config: ResolvedConfig): ReadonlyArray<PlaceDesiredInput> {
 	});
 }
 
-async function normalize(
+async function normalizeAsync(
 	input: PlaceDesiredInput,
 	io: KindIo,
 ): Promise<Result<PlaceDesiredState, BuildDesiredError>> {
-	const read = await readBytes({ key: input.key, filePath: input.filePath }, io);
+	const read = await readBytesAsync({ key: input.key, filePath: input.filePath }, io);
 	if (!read.success) {
 		return read;
 	}
@@ -83,7 +84,7 @@ async function normalize(
 			key: input.key,
 			description: input.description,
 			displayName: input.displayName,
-			fileHash: asSha256Hex(await sha256Hex(read.data)),
+			fileHash: asSha256Hex(await sha256HexAsync(read.data)),
 			filePath: input.filePath,
 			kind: "place",
 			placeId: input.placeId,
@@ -120,5 +121,5 @@ export const placeKind: ResourceKindModule<"place"> = {
 	fieldsEqual,
 	flatten,
 	kind: "place",
-	normalize,
+	normalize: normalizeAsync,
 };

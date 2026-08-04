@@ -25,6 +25,7 @@ describe("selectEnvironment signature", () => {
 		expectTypeOf<SelectEnvironmentError["kind"]>().toEqualTypeOf<
 			| "incompletePassEntry"
 			| "incompletePlaceEntry"
+			| "incompleteProductEntry"
 			| "incompleteUniverseEntry"
 			| "unknownEnvironment"
 		>();

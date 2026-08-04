@@ -3,9 +3,9 @@ import type { Result } from "@bedrock-rbx/ocale";
 import type { MigrationSource } from "./parse-migrate-options.ts";
 
 /**
- * Output config format the user picks via `MigratePromptPort.promptConfigFormat`.
- * The migrator already supports both formats; this union just constrains
- * the choices the prompt offers.
+ * Output config format the user picks via
+ * `MigratePromptPort.promptConfigFormat`. The migrator already supports both
+ * formats; this union just constrains the choices the prompt offers.
  */
 export type MigrateConfigFormat = "typescript" | "yaml";
 

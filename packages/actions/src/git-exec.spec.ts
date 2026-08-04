@@ -99,4 +99,31 @@ describe(classifyExecFailure, () => {
 
 		expect(result).toStrictEqual({ code: 1, stderr: "", stdout: "" });
 	});
+
+	it("should classify a rejection value that is not an object as a launch failure", () => {
+		expect.assertions(1);
+
+		const result = classifyExecFailure("git blew up");
+
+		expect(result).toStrictEqual({ code: 1, stderr: "", stdout: "" });
+	});
+
+	it("should classify a null rejection as a launch failure rather than reading fields off it", () => {
+		expect.assertions(1);
+
+		// `typeof null === "object"`, so the null check is what stops the field
+		// reads from throwing here.
+		// eslint-disable-next-line unicorn/no-null -- the rejection value under test is literally null
+		const result = classifyExecFailure(null);
+
+		expect(result).toStrictEqual({ code: 1, stderr: "", stdout: "" });
+	});
+
+	it("should ignore output fields that a rejection carries with a non-string type", () => {
+		expect.assertions(1);
+
+		const result = classifyExecFailure({ code: 3, stderr: 404, stdout: ["chunk"] });
+
+		expect(result).toStrictEqual({ code: 3, stderr: "", stdout: "" });
+	});
 });

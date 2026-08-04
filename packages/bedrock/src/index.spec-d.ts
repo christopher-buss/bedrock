@@ -1,4 +1,3 @@
-/* eslint-disable max-lines -- public-API type tests grow with the exported surface. */
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { describe, expectTypeOf, it } from "vitest";
@@ -164,6 +163,7 @@ type ExpectedDeployErrorKind =
 	| "configLoadFailed"
 	| "incompletePassEntry"
 	| "incompletePlaceEntry"
+	| "incompleteProductEntry"
 	| "incompleteUniverseEntry"
 	| "missingBuildStep"
 	| "missingCredential"
@@ -254,6 +254,7 @@ describe(defineConfig, () => {
 				},
 			},
 		};
+
 		expectTypeOf(defineConfig(literal)).toEqualTypeOf<typeof literal>();
 	});
 
@@ -343,6 +344,7 @@ describe("PlaceDriverDeps", () => {
 describe(createPlaceDriver, () => {
 	it("should return a ResourceDriver with create and an optional update", () => {
 		type Driver = ReturnType<typeof createPlaceDriver>;
+
 		expectTypeOf<Driver["create"]>().toBeFunction();
 		expectTypeOf<Driver["update"]>().not.toBeUndefined();
 	});

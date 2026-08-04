@@ -44,7 +44,10 @@ import type { RobloxAssetId } from "../types/ids.ts";
 export interface PlaceDriverDeps {
 	/** Configured places client from `@bedrock-rbx/ocale/places`. */
 	readonly client: PlacesClient;
-	/** Reads place-file bytes for upload; rejections propagate out of the driver. */
+	/**
+	 * Reads place-file bytes for upload; rejections propagate out of the
+	 * driver.
+	 */
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	/** Universe that owns every place this driver publishes. */
 	readonly universeId: RobloxAssetId;
@@ -131,11 +134,15 @@ interface PublishInputs {
 export function createPlaceDriver(deps: PlaceDriverDeps): ResourceDriver<"place"> {
 	return {
 		async create(desired, context) {
-			return publishPlace(deps, { artifact: context?.artifact, current: undefined, desired });
+			return publishPlaceAsync(deps, {
+				artifact: context?.artifact,
+				current: undefined,
+				desired,
+			});
 		},
 		// eslint-disable-next-line better-max-params/better-max-params -- signature is fixed by the ResourceDriver.update port contract (current, desired, context).
 		async update(current, desired, context) {
-			return publishPlace(deps, { artifact: context?.artifact, current, desired });
+			return publishPlaceAsync(deps, { artifact: context?.artifact, current, desired });
 		},
 	};
 }
@@ -152,11 +159,13 @@ function detectFormat(filePath: string): "rbxl" | "rbxlx" | undefined {
 	return undefined;
 }
 
-async function publishVersion(
+async function publishVersionAsync(
 	dependencies: PlaceDriverDeps,
-	inputs: { readonly artifact: Uint8Array | undefined; readonly desired: PlaceDesiredState },
+	{
+		artifact,
+		desired,
+	}: { readonly artifact: Uint8Array | undefined; readonly desired: PlaceDesiredState },
 ): Promise<Result<PlaceOutputs, OpenCloudError>> {
-	const { artifact, desired } = inputs;
 	const format = detectFormat(desired.filePath);
 	if (format === undefined) {
 		return {
@@ -179,12 +188,11 @@ async function publishVersion(
 	});
 }
 
-async function publishPlace(
+async function publishPlaceAsync(
 	dependencies: PlaceDriverDeps,
-	inputs: PublishInputs,
+	{ artifact, current, desired }: PublishInputs,
 ): Promise<Result<ResourceCurrentState<"place">, OpenCloudError>> {
-	const { artifact, current, desired } = inputs;
-	const publishResult = await publishVersion(dependencies, { artifact, desired });
+	const publishResult = await publishVersionAsync(dependencies, { artifact, desired });
 	if (!publishResult.success) {
 		return publishResult;
 	}

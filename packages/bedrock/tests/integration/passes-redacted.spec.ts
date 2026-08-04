@@ -27,6 +27,7 @@ import {
 	REDACTED_PRICE,
 } from "#src/core/redact-resources";
 import { REDACTED_ICON_BYTES, REDACTED_ICON_PATH } from "#src/core/redacted-icon";
+import { fakeReadFile } from "#tests/helpers/files";
 
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const PASSES_FIXTURE_DIR = join(FIXTURES_ROOT, "passes-redacted");
@@ -76,11 +77,11 @@ const UNIVERSE_TRAP: ResourceDriver<"universe"> = {
 
 const REAL_ICON_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x01, 0x02, 0x03]);
 
-async function panicOnRealPath(path: string): Promise<Uint8Array> {
+async function panicOnRealPathAsync(path: string): Promise<Uint8Array> {
 	throw new Error(`readFile must not run for path: ${path}`);
 }
 
-async function readRealIcon(path: string): Promise<Uint8Array> {
+async function readRealIconAsync(path: string): Promise<Uint8Array> {
 	if (path === "assets/vip.png") {
 		return REAL_ICON_BYTES;
 	}
@@ -88,7 +89,7 @@ async function readRealIcon(path: string): Promise<Uint8Array> {
 	throw new Error(`readFile must not run for path: ${path}`);
 }
 
-async function readFormBytes(body: unknown, key: string): Promise<Uint8Array> {
+async function readFormBytesAsync(body: unknown, key: string): Promise<Uint8Array> {
 	assert(body instanceof FormData);
 	const value = body.get(key);
 	assert(value instanceof Blob);
@@ -134,7 +135,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		const resolved = selectEnvironment(loaded.data, "production");
 		assert(resolved.success);
 
-		const readFile = panicOnRealPath;
+		const readFile = panicOnRealPathAsync;
 		const desiredResult = await buildDesired({
 			readFile,
 			resources: flattenConfig(resolved.data),
@@ -174,7 +175,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		expect(readFormString(captured.request.body, "name")).toBe(REDACTED_PASS_NAME);
 		expect(readFormString(captured.request.body, "description")).toBe(REDACTED_DESCRIPTION);
 		expect(readFormString(captured.request.body, "price")).toBe(String(REDACTED_PRICE));
-		await expect(readFormBytes(captured.request.body, "imageFile")).resolves.toStrictEqual(
+		await expect(readFormBytesAsync(captured.request.body, "imageFile")).resolves.toStrictEqual(
 			REDACTED_ICON_BYTES,
 		);
 
@@ -204,7 +205,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		const resolved = selectEnvironment(config, "production");
 		assert(resolved.success);
 
-		const readFile = panicOnRealPath;
+		const readFile = panicOnRealPathAsync;
 		const desiredResult = await buildDesired({
 			readFile,
 			resources: flattenConfig(resolved.data),
@@ -264,7 +265,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		const resolved = selectEnvironment(config, "production");
 		assert(resolved.success);
 
-		const readFile = panicOnRealPath;
+		const readFile = panicOnRealPathAsync;
 		const desiredResult = await buildDesired({
 			readFile,
 			resources: flattenConfig(resolved.data),
@@ -315,7 +316,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		const resolved = selectEnvironment(loaded.data, "production");
 		assert(resolved.success);
 
-		const readFile = panicOnRealPath;
+		const readFile = panicOnRealPathAsync;
 		const desiredResult = await buildDesired({
 			readFile,
 			resources: flattenConfig(resolved.data),
@@ -368,7 +369,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		const resolved = selectEnvironment(config, "production");
 		assert(resolved.success);
 
-		const readFile = panicOnRealPath;
+		const readFile = panicOnRealPathAsync;
 		const desiredResult = await buildDesired({
 			readFile,
 			resources: flattenConfig(resolved.data),
@@ -403,16 +404,10 @@ describe("passes-redacted pipeline end-to-end", () => {
 		const resolved = selectEnvironment(config, "production");
 		assert(resolved.success);
 
-		async function readOverrideIcon(path: string): Promise<Uint8Array> {
-			if (path === overrideIconPath) {
-				return overrideIconBytes;
-			}
-
-			throw new Error(`readFile must not run for path: ${path}`);
-		}
+		const readOverrideIconAsync = fakeReadFile({ [overrideIconPath]: overrideIconBytes });
 
 		const desiredResult = await buildDesired({
-			readFile: readOverrideIcon,
+			readFile: readOverrideIconAsync,
 			resources: flattenConfig(resolved.data),
 		});
 		assert(desiredResult.success);
@@ -435,7 +430,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 					httpClient,
 					sleep: async () => {},
 				}),
-				readFile: readOverrideIcon,
+				readFile: readOverrideIconAsync,
 				universeId: UNIVERSE_ID,
 			}),
 			place: PLACE_TRAP,
@@ -449,7 +444,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 
 		expect(readFormString(captured.request.body, "name")).toBe(REDACTED_PASS_NAME);
 		expect(readFormString(captured.request.body, "description")).toBe(REDACTED_DESCRIPTION);
-		await expect(readFormBytes(captured.request.body, "imageFile")).resolves.toStrictEqual(
+		await expect(readFormBytesAsync(captured.request.body, "imageFile")).resolves.toStrictEqual(
 			overrideIconBytes,
 		);
 	});
@@ -474,7 +469,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		const resolved = selectEnvironment(config, "production");
 		assert(resolved.success);
 
-		const readFile = panicOnRealPath;
+		const readFile = panicOnRealPathAsync;
 		const desiredResult = await buildDesired({
 			readFile,
 			resources: flattenConfig(resolved.data),
@@ -513,7 +508,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 
 		expect(readFormString(captured.request.body, "name")).toBe("Closed Beta");
 		expect(readFormString(captured.request.body, "description")).toBe(REDACTED_DESCRIPTION);
-		await expect(readFormBytes(captured.request.body, "imageFile")).resolves.toStrictEqual(
+		await expect(readFormBytesAsync(captured.request.body, "imageFile")).resolves.toStrictEqual(
 			REDACTED_ICON_BYTES,
 		);
 	});
@@ -538,7 +533,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		const resolved = selectEnvironment(config, "production");
 		assert(resolved.success);
 
-		const readFile = readRealIcon;
+		const readFile = readRealIconAsync;
 		const desiredResult = await buildDesired({
 			readFile,
 			resources: flattenConfig(resolved.data),
@@ -572,7 +567,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 		};
 
 		const desiredPass = findGamePassDesired(desiredResult.data);
-		const placeholderHash = await hashPlaceholderIcon();
+		const placeholderHash = await hashPlaceholderIconAsync();
 		const prior = persistedPass(desiredResult.data, {
 			name: REDACTED_PASS_NAME,
 			description: REDACTED_DESCRIPTION,
@@ -592,7 +587,7 @@ describe("passes-redacted pipeline end-to-end", () => {
 
 		const captured = httpClient.requests[0]!;
 
-		await expect(readFormBytes(captured.request.body, "file")).resolves.toStrictEqual(
+		await expect(readFormBytesAsync(captured.request.body, "file")).resolves.toStrictEqual(
 			REAL_ICON_BYTES,
 		);
 	});
@@ -608,7 +603,7 @@ describe("passes-redacted env-level toggle", () => {
 		const resolved = selectEnvironment(loaded.data, "dev");
 		assert(resolved.success);
 
-		const vip = resolved.data.passes?.["vip-pass"];
+		const vip = resolved.data.passes!["vip-pass"];
 		assert(vip !== undefined);
 
 		expect(vip.name).toBe(REDACTED_PASS_NAME);
@@ -625,7 +620,7 @@ describe("passes-redacted env-level toggle", () => {
 		const resolved = selectEnvironment(loaded.data, "dev");
 		assert(resolved.success);
 
-		const carve = resolved.data.passes?.["carve-out-pass"];
+		const carve = resolved.data.passes!["carve-out-pass"];
 		assert(carve !== undefined);
 
 		expect(carve.name).toBe("Carve Out");
@@ -642,15 +637,15 @@ describe("passes-redacted env-level toggle", () => {
 		const resolved = selectEnvironment(loaded.data, "production");
 		assert(resolved.success);
 
-		const vip = resolved.data.passes?.["vip-pass"];
-		const carve = resolved.data.passes?.["carve-out-pass"];
+		const vip = resolved.data.passes!["vip-pass"];
+		const carve = resolved.data.passes!["carve-out-pass"];
 
-		expect(vip?.name).toBe("VIP Pass");
-		expect(carve?.name).toBe("Carve Out");
+		expect(vip!.name).toBe("VIP Pass");
+		expect(carve!.name).toBe("Carve Out");
 	});
 });
 
-async function hashPlaceholderIcon(): Promise<
+async function hashPlaceholderIconAsync(): Promise<
 	ResourceCurrentState<"gamePass">["iconFileHashes"]["en-us"]
 > {
 	const probe = defineConfig({
@@ -667,7 +662,7 @@ async function hashPlaceholderIcon(): Promise<
 	const resolved = selectEnvironment(probe, "production");
 	assert(resolved.success);
 	const desired = await buildDesired({
-		readFile: panicOnRealPath,
+		readFile: panicOnRealPathAsync,
 		resources: flattenConfig(resolved.data),
 	});
 	assert(desired.success);

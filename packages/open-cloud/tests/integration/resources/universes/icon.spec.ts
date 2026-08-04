@@ -47,8 +47,8 @@ describe(UniversesClient, () => {
 					universeId: "1",
 				});
 
-				expect(httpClient.requests[0]?.request.method).toBe("POST");
-				expect(httpClient.requests[0]?.request.url).toBe(
+				expect(httpClient.requests[0]!.request.method).toBe("POST");
+				expect(httpClient.requests[0]!.request.url).toBe(
 					"/legacy-game-internationalization/v1/game-icon/games/1/language-codes/en_us",
 				);
 			});
@@ -111,8 +111,8 @@ describe(UniversesClient, () => {
 
 				await client.icon.delete({ languageCode: "fr_fr", universeId: "1" });
 
-				expect(httpClient.requests[0]?.request.method).toBe("DELETE");
-				expect(httpClient.requests[0]?.request.url).toBe(
+				expect(httpClient.requests[0]!.request.method).toBe("DELETE");
+				expect(httpClient.requests[0]!.request.url).toBe(
 					"/legacy-game-internationalization/v1/game-icon/games/1/language-codes/fr_fr",
 				);
 			});
@@ -179,8 +179,8 @@ describe(UniversesClient, () => {
 
 				await client.icon.list({ universeId: "67890" });
 
-				expect(httpClient.requests[0]?.request.method).toBe("GET");
-				expect(httpClient.requests[0]?.request.url).toBe(
+				expect(httpClient.requests[0]!.request.method).toBe("GET");
+				expect(httpClient.requests[0]!.request.url).toBe(
 					"/legacy-game-internationalization/v1/game-icon/games/67890",
 				);
 			});

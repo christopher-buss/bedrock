@@ -9,13 +9,10 @@
 		"types": ["bun"],
 		"rewriteRelativeImportExtensions": true,
 		"allowJs": false,
-		"exactOptionalPropertyTypes": true,
 		"declarationDir": "${configDir}/dist",
-		"noEmit": false,
-		"erasableSyntaxOnly": true
+		"noEmit": false
 	},
 	"files": ["dom-iterable.d.ts"],
-	"include": ["${configDir}/**/*"],
 	"exclude": [
 		"${configDir}/node_modules",
 		"${configDir}/**/.*/",

@@ -1,8 +1,8 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import type { ResourceDesiredInput } from "../core/flatten.ts";
-import { defaultKindRegistry } from "../core/kinds/index.ts";
-import type { BuildDesiredError, ResourceKindModule } from "../core/kinds/module.ts";
+import { normalizeInputAsync } from "../core/kinds/dispatch.ts";
+import type { BuildDesiredError } from "../core/kinds/module.ts";
 import type { ResourceDesiredState, ResourceKind } from "../core/resources.ts";
 
 export type { BuildDesiredError } from "../core/kinds/module.ts";
@@ -10,12 +10,15 @@ export type { BuildDesiredError } from "../core/kinds/module.ts";
 interface BuildDesiredInputs {
 	/**
 	 * Restricts processing to inputs whose kind satisfies the predicate. A
-	 * skipped input is neither read nor included, so a caller reconciling only a
-	 * subset of kinds (an asset-only provision, a place-only publish) does no
+	 * skipped input is neither read nor included, so a caller reconciling only
+	 * a subset of kinds (an asset-only provision, a place-only publish) does no
 	 * file I/O for the kinds it does not own. Omit to process every input.
 	 */
 	readonly includeKind?: ((kind: ResourceKind) => boolean) | undefined;
-	/** Reads file bytes for a given path; rejection becomes a `fileReadFailed` Err. */
+	/**
+	 * Reads file bytes for a given path; rejection becomes a `fileReadFailed`
+	 * Err.
+	 */
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	/** Flat tagged resource inputs from `flattenConfig`. */
 	readonly resources: ReadonlyArray<ResourceDesiredInput>;
@@ -66,10 +69,11 @@ interface BuildDesiredInputs {
  * });
  * ```
  */
-export async function buildDesired(
-	inputs: BuildDesiredInputs,
-): Promise<Result<ReadonlyArray<ResourceDesiredState>, BuildDesiredError>> {
-	const { includeKind, readFile, resources } = inputs;
+export async function buildDesired({
+	includeKind,
+	readFile,
+	resources,
+}: BuildDesiredInputs): Promise<Result<ReadonlyArray<ResourceDesiredState>, BuildDesiredError>> {
 	const desired: Array<ResourceDesiredState> = [];
 	const io = { readFile };
 	for (const input of resources) {
@@ -77,12 +81,7 @@ export async function buildDesired(
 			continue;
 		}
 
-		// Registry index returns a union of per-kind modules; widening its
-		// type parameter lets us call normalize without per-kind
-		// discriminator narrowing. Safe because input.kind pins which
-		// module is selected.
-		const module = defaultKindRegistry[input.kind] as ResourceKindModule<ResourceKind>;
-		const normalized = await module.normalize(input, io);
+		const normalized = await normalizeInputAsync(input, io);
 		if (!normalized.success) {
 			return normalized;
 		}

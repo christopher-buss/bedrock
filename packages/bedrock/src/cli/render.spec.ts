@@ -3,6 +3,7 @@ import { ApiError, NetworkError, PermissionError } from "@bedrock-rbx/ocale";
 import { describe, expect, it } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
+import { cyclicError } from "#tests/helpers/errors";
 import type { MigrateError } from "../core/migrate/migration-report.ts";
 import type { MissingCredentialError, UnsupportedBackendError } from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
@@ -272,11 +273,7 @@ describe(renderDeployError, () => {
 					failures: [
 						{
 							key: asResourceKey("vip-pass"),
-							cause: (() => {
-								const cyclic = new Error("loop");
-								cyclic.cause = cyclic;
-								return cyclic;
-							})(),
+							cause: cyclicError("loop"),
 							kind: "unexpectedThrow",
 						},
 					],
@@ -464,6 +461,15 @@ describe(renderDeployError, () => {
 				missingField: "placeId",
 			},
 			expected: "place 'main-place' is missing 'placeId' under environment 'production'",
+		},
+		{
+			err: {
+				key: "gem-pack",
+				environment: "production",
+				kind: "incompleteProductEntry",
+				missingField: "name",
+			},
+			expected: "product 'gem-pack' is missing 'name' under environment 'production'",
 		},
 		{
 			err: {

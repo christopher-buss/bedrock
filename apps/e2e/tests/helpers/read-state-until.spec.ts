@@ -3,7 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
-import { readStateUntil } from "./read-state-until.ts";
+import { readStateUntilAsync } from "./read-state-until.ts";
 
 type ReadResult = Result<BedrockState | undefined, StateError>;
 
@@ -20,7 +20,7 @@ interface FakeSleep {
 function fakeReadSequence(responses: ReadonlyArray<ReadResult>): FakeStatePort {
 	const reads: Array<string> = [];
 	let index = 0;
-	async function read(environment: string): Promise<ReadResult> {
+	async function readAsync(environment: string): Promise<ReadResult> {
 		reads.push(environment);
 		const response = responses[index];
 		if (response === undefined) {
@@ -31,16 +31,16 @@ function fakeReadSequence(responses: ReadonlyArray<ReadResult>): FakeStatePort {
 		return response;
 	}
 
-	return { reads, statePort: { read } };
+	return { reads, statePort: { read: readAsync } };
 }
 
 function fakeSleep(): FakeSleep {
 	const calls: Array<number> = [];
-	async function sleep(ms: number): Promise<void> {
+	async function sleepAsync(ms: number): Promise<void> {
 		calls.push(ms);
 	}
 
-	return { calls, sleep };
+	return { calls, sleep: sleepAsync };
 }
 
 function stateFor(environment: string): BedrockState {
@@ -58,14 +58,14 @@ function isReady(state: BedrockState): boolean {
 	return state.environment === READY;
 }
 
-describe(readStateUntil, () => {
+describe(readStateUntilAsync, () => {
 	it("should return the first read when it already satisfies the predicate", async () => {
 		expect.assertions(3);
 
 		const { reads, statePort } = fakeReadSequence([okResult(READY)]);
 		const sleepFake = fakeSleep();
 
-		const result = await readStateUntil({
+		const result = await readStateUntilAsync({
 			environment: ENVIRONMENT,
 			predicate: isReady,
 			sleep: sleepFake.sleep,
@@ -87,7 +87,7 @@ describe(readStateUntil, () => {
 		]);
 		const sleepFake = fakeSleep();
 
-		const result = await readStateUntil({
+		const result = await readStateUntilAsync({
 			baseDelayMs: 250,
 			environment: ENVIRONMENT,
 			predicate: isReady,
@@ -110,7 +110,7 @@ describe(readStateUntil, () => {
 		]);
 		const sleepFake = fakeSleep();
 
-		const result = await readStateUntil({
+		const result = await readStateUntilAsync({
 			attempts: 3,
 			baseDelayMs: 250,
 			environment: ENVIRONMENT,
@@ -133,7 +133,7 @@ describe(readStateUntil, () => {
 		]);
 		const sleepFake = fakeSleep();
 
-		const result = await readStateUntil({
+		const result = await readStateUntilAsync({
 			baseDelayMs: 250,
 			environment: ENVIRONMENT,
 			predicate: isReady,
@@ -160,7 +160,7 @@ describe(readStateUntil, () => {
 		const { reads, statePort } = fakeReadSequence([failure, failure, failure]);
 		const sleepFake = fakeSleep();
 
-		const result = await readStateUntil({
+		const result = await readStateUntilAsync({
 			attempts: 3,
 			baseDelayMs: 250,
 			environment: ENVIRONMENT,
@@ -184,7 +184,7 @@ describe(readStateUntil, () => {
 
 		const { reads, statePort } = fakeReadSequence([okResult(PENDING), okResult(READY)]);
 
-		const pending = readStateUntil({
+		const pending = readStateUntilAsync({
 			baseDelayMs: 10,
 			environment: ENVIRONMENT,
 			predicate: isReady,

@@ -60,7 +60,10 @@ export interface CreateBadgeParameters {
 	readonly icon: Blob | Uint8Array;
 	/** Whether the badge should be created in the active state. */
 	readonly isActive?: boolean;
-	/** Account that funds the badge creation fee. Defaults to user funds server-side. */
+	/**
+	 * Account that funds the badge creation fee. Defaults to user funds
+	 * server-side.
+	 */
 	readonly paymentSource?: BadgePaymentSource;
 	/** Stringified ID of the universe that owns the badge. */
 	readonly universeId: string;
@@ -102,15 +105,27 @@ export interface Badge {
 	readonly createdAt: Date;
 	/** Source-language description shown when no localized override applies. */
 	readonly description: string;
-	/** Resolved description for the requesting locale, or the source description. */
+	/**
+	 * Resolved description for the requesting locale, or the source
+	 * description.
+	 */
 	readonly displayDescription: string;
-	/** Resolved icon image asset ID for the requesting locale; `undefined` when no icon is uploaded. */
+	/**
+	 * Resolved icon image asset ID for the requesting locale; `undefined` when
+	 * no icon is uploaded.
+	 */
 	readonly displayIconImageId: string | undefined;
 	/** Resolved name for the requesting locale, or the source name. */
 	readonly displayName: string;
-	/** Whether the badge is currently active. Disabled badges cannot be awarded. */
+	/**
+	 * Whether the badge is currently active. Disabled badges cannot be
+	 * awarded.
+	 */
 	readonly enabled: boolean;
-	/** Source-language icon image asset ID; `undefined` when no icon is uploaded. */
+	/**
+	 * Source-language icon image asset ID; `undefined` when no icon is
+	 * uploaded.
+	 */
 	readonly iconImageId: string | undefined;
 	/** Award statistics for the badge. */
 	readonly statistics: BadgeStatistics;

@@ -15,7 +15,7 @@ describe(RateLimitQueue, () => {
 			clock.sleep,
 		);
 
-		const result = await queue.acquire(async () => "ok");
+		const result = await queue.acquireAsync(async () => "ok");
 
 		expect(result).toBe("ok");
 		expect(clock.waits).toStrictEqual([]);
@@ -32,8 +32,8 @@ describe(RateLimitQueue, () => {
 			clock.sleep,
 		);
 
-		await queue.acquire(async () => "first");
-		const result = await queue.acquire(async () => "second");
+		await queue.acquireAsync(async () => "first");
+		const result = await queue.acquireAsync(async () => "second");
 
 		expect(result).toBe("second");
 		expect(clock.waits).toStrictEqual([1000]);
@@ -49,10 +49,10 @@ describe(RateLimitQueue, () => {
 			clock.sleep,
 		);
 
-		await queue.acquire(async () => "a");
-		await queue.acquire(async () => "b");
-		await queue.acquire(async () => "c");
-		await queue.acquire(async () => "d");
+		await queue.acquireAsync(async () => "a");
+		await queue.acquireAsync(async () => "b");
+		await queue.acquireAsync(async () => "c");
+		await queue.acquireAsync(async () => "d");
 
 		expect(clock.waits).toStrictEqual([500, 500]);
 	});
@@ -68,11 +68,11 @@ describe(RateLimitQueue, () => {
 			clock.sleep,
 		);
 
-		await queue.acquire(async () => "a");
-		await queue.acquire(async () => "b");
-		await queue.acquire(async () => "c");
-		await queue.acquire(async () => "d");
-		await queue.acquire(async () => "e");
+		await queue.acquireAsync(async () => "a");
+		await queue.acquireAsync(async () => "b");
+		await queue.acquireAsync(async () => "c");
+		await queue.acquireAsync(async () => "d");
+		await queue.acquireAsync(async () => "e");
 
 		expect(clock.waits).toStrictEqual([250]);
 		expect(onRateLimit).toHaveBeenCalledExactlyOnceWith(250);
@@ -89,9 +89,9 @@ describe(RateLimitQueue, () => {
 		);
 
 		const results = await Promise.all([
-			queue.acquire(async () => "a"),
-			queue.acquire(async () => "b"),
-			queue.acquire(async () => "c"),
+			queue.acquireAsync(async () => "a"),
+			queue.acquireAsync(async () => "b"),
+			queue.acquireAsync(async () => "c"),
 		]);
 
 		expect(results).toStrictEqual(["a", "b", "c"]);
@@ -108,10 +108,10 @@ describe(RateLimitQueue, () => {
 			clock.sleep,
 		);
 
-		await queue.acquire(async () => "a");
-		await queue.acquire(async () => "b");
+		await queue.acquireAsync(async () => "a");
+		await queue.acquireAsync(async () => "b");
 		clock.advance(500);
-		await queue.acquire(async () => "c");
+		await queue.acquireAsync(async () => "c");
 
 		expect(clock.waits).toStrictEqual([]);
 	});
@@ -133,10 +133,10 @@ describe(RateLimitQueue, () => {
 			);
 
 			for (let index = 0; index < maxPerSecond; index++) {
-				await queue.acquire(async () => index);
+				await queue.acquireAsync(async () => index);
 			}
 
-			await queue.acquire(async () => "overflow");
+			await queue.acquireAsync(async () => "overflow");
 
 			expect(clock.waits).toStrictEqual([expectedWaitMs]);
 		},

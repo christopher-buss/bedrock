@@ -91,7 +91,7 @@ describe(ResourceClient, () => {
 				sleep,
 			});
 
-			const result = await client.execute({
+			const result = await client.executeAsync({
 				parameters: { id: "1" },
 				spec: {
 					buildRequest: () => ({ err: builderError, success: false }),
@@ -129,7 +129,7 @@ describe(ResourceClient, () => {
 				timeout: 30_000,
 			});
 
-			await client.execute({
+			await client.executeAsync({
 				options: {
 					apiKey: "override-key",
 					baseUrl: "https://override.example",
@@ -139,7 +139,7 @@ describe(ResourceClient, () => {
 				spec: TEST_GET_SPEC,
 			});
 
-			expect(httpClient.requests[0]?.config).toStrictEqual({
+			expect(httpClient.requests[0]!.config).toStrictEqual({
 				apiKey: "override-key",
 				baseUrl: "https://override.example",
 				timeout: 1000,
@@ -160,14 +160,14 @@ describe(ResourceClient, () => {
 				timeout: 5000,
 			});
 
-			await client.execute({
+			await client.executeAsync({
 				options: { apiKey: "override-key", timeout: 99 },
 				parameters: { id: "1" },
 				spec: TEST_GET_SPEC,
 			});
-			await client.execute({ parameters: { id: "2" }, spec: TEST_GET_SPEC });
+			await client.executeAsync({ parameters: { id: "2" }, spec: TEST_GET_SPEC });
 
-			expect(httpClient.requests[1]?.config).toStrictEqual({
+			expect(httpClient.requests[1]!.config).toStrictEqual({
 				apiKey: "client-key",
 				baseUrl: "https://apis.roblox.com",
 				timeout: 5000,
@@ -189,7 +189,7 @@ describe(ResourceClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			const result = await client.execute({
+			const result = await client.executeAsync({
 				options: { retryableStatuses: [429] },
 				parameters: { id: "1" },
 				spec: TEST_GET_SPEC,
@@ -217,7 +217,7 @@ describe(ResourceClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			const result = await client.execute({
+			const result = await client.executeAsync({
 				parameters: { id: "1" },
 				spec: TEST_CREATE_SPEC,
 			});
@@ -243,9 +243,9 @@ describe(ResourceClient, () => {
 				timeout: 30_000,
 			});
 
-			await client.execute({ parameters: { id: "1" }, spec: TEST_UPLOAD_SPEC });
+			await client.executeAsync({ parameters: { id: "1" }, spec: TEST_UPLOAD_SPEC });
 
-			expect(httpClient.requests[0]?.config).toStrictEqual({
+			expect(httpClient.requests[0]!.config).toStrictEqual({
 				apiKey: "client-key",
 				baseUrl: "https://apis.roblox.com",
 			});
@@ -264,13 +264,13 @@ describe(ResourceClient, () => {
 				timeout: 30_000,
 			});
 
-			await client.execute({
+			await client.executeAsync({
 				options: { timeout: 1000 },
 				parameters: { id: "1" },
 				spec: TEST_UPLOAD_SPEC,
 			});
 
-			expect(httpClient.requests[0]?.config.timeout).toBe(1000);
+			expect(httpClient.requests[0]!.config.timeout).toBe(1000);
 		});
 
 		it("should keep the default timeout for a JSON request with no per-request timeout", async () => {
@@ -286,9 +286,9 @@ describe(ResourceClient, () => {
 				timeout: 30_000,
 			});
 
-			await client.execute({ parameters: { id: "1" }, spec: TEST_CREATE_SPEC });
+			await client.executeAsync({ parameters: { id: "1" }, spec: TEST_CREATE_SPEC });
 
-			expect(httpClient.requests[0]?.config.timeout).toBe(30_000);
+			expect(httpClient.requests[0]!.config.timeout).toBe(30_000);
 		});
 	});
 
@@ -305,10 +305,10 @@ describe(ResourceClient, () => {
 			});
 
 			for (let index = 0; index < 10; index++) {
-				await client.execute({ parameters: { id: "x" }, spec: TEST_GET_SPEC });
+				await client.executeAsync({ parameters: { id: "x" }, spec: TEST_GET_SPEC });
 			}
 
-			await client.execute({
+			await client.executeAsync({
 				options: { apiKey: "override-key" },
 				parameters: { id: "x" },
 				spec: TEST_GET_SPEC,
@@ -332,7 +332,7 @@ describe(ResourceClient, () => {
 			});
 
 			for (let index = 0; index < 11; index++) {
-				await client.execute({ parameters: { id: "x" }, spec: TEST_GET_SPEC });
+				await client.executeAsync({ parameters: { id: "x" }, spec: TEST_GET_SPEC });
 			}
 
 			expect(clock.waits).toStrictEqual([100]);
@@ -353,7 +353,7 @@ describe(ResourceClient, () => {
 				sleep,
 			});
 
-			const result = await client.execute({
+			const result = await client.executeAsync({
 				parameters: { id: "1" },
 				spec: TEST_GET_SPEC,
 			});
@@ -376,7 +376,7 @@ describe(ResourceClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			const result = await client.execute({
+			const result = await client.executeAsync({
 				parameters: { id: "1" },
 				spec: TEST_GET_SPEC,
 			});
@@ -398,7 +398,7 @@ describe(ResourceClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			const result = await client.execute({
+			const result = await client.executeAsync({
 				parameters: { id: "1" },
 				spec: TEST_CREATE_SPEC,
 			});
@@ -420,7 +420,7 @@ describe(ResourceClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			const result = await client.execute({
+			const result = await client.executeAsync({
 				parameters: { id: "1" },
 				spec: TEST_CREATE_SPEC,
 			});
@@ -443,7 +443,7 @@ describe(ResourceClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			const result = await client.execute({
+			const result = await client.executeAsync({
 				parameters: { id: "1" },
 				spec: TEST_GET_SPEC,
 			});
@@ -466,7 +466,7 @@ describe(ResourceClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			const result = await client.execute({
+			const result = await client.executeAsync({
 				parameters: { id: "1" },
 				spec: TEST_CREATE_SPEC,
 			});
@@ -489,7 +489,7 @@ describe(ResourceClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			const result = await client.execute({
+			const result = await client.executeAsync({
 				options: { retryableTransportCodes: ["ECONNRESET"] },
 				parameters: { id: "1" },
 				spec: TEST_CREATE_SPEC,
@@ -512,7 +512,7 @@ describe(ResourceClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			const result = await client.execute({
+			const result = await client.executeAsync({
 				parameters: { id: "1" },
 				spec: TEST_GET_SPEC,
 			});
@@ -537,7 +537,7 @@ describe(ResourceClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			const result = await client.execute({
+			const result = await client.executeAsync({
 				parameters: { id: "1" },
 				spec: TEST_GET_SPEC,
 			});
@@ -562,7 +562,7 @@ describe(ResourceClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			const result = await client.execute({
+			const result = await client.executeAsync({
 				parameters: { id: "1" },
 				spec: {
 					...TEST_GET_SPEC,
@@ -595,7 +595,7 @@ describe(ResourceClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			const result = await client.execute({
+			const result = await client.executeAsync({
 				parameters: { id: "1" },
 				spec: {
 					...TEST_CREATE_SPEC,
@@ -629,7 +629,7 @@ describe(ResourceClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			const result = await client.execute({
+			const result = await client.executeAsync({
 				parameters: { id: "1" },
 				spec: {
 					...TEST_GET_SPEC,
@@ -666,7 +666,7 @@ describe(ResourceClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			const result = await client.execute({
+			const result = await client.executeAsync({
 				parameters: { id: "1" },
 				spec: {
 					...TEST_GET_SPEC,
@@ -691,7 +691,7 @@ describe(ResourceClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			const result = await client.execute({
+			const result = await client.executeAsync({
 				parameters: { id: "1" },
 				spec: TEST_GET_SPEC,
 			});
@@ -714,7 +714,7 @@ describe(ResourceClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			const result = await client.execute({
+			const result = await client.executeAsync({
 				parameters: { id: "1" },
 				spec: {
 					...TEST_GET_SPEC,
@@ -744,7 +744,7 @@ describe(ResourceClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			await client.execute({ parameters: { id: "1" }, spec: TEST_GET_SPEC });
+			await client.executeAsync({ parameters: { id: "1" }, spec: TEST_GET_SPEC });
 
 			expect(onRequest).toHaveBeenCalledTimes(2);
 		});
@@ -763,7 +763,7 @@ describe(ResourceClient, () => {
 				sleep: createFakeSleep(),
 			});
 
-			await client.execute({ parameters: { id: "1" }, spec: TEST_GET_SPEC });
+			await client.executeAsync({ parameters: { id: "1" }, spec: TEST_GET_SPEC });
 
 			expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, expect.any(Error));
 		});
@@ -783,7 +783,7 @@ describe(ResourceClient, () => {
 				sleep,
 			});
 
-			await client.execute({ parameters: { id: "1" }, spec: TEST_GET_SPEC });
+			await client.executeAsync({ parameters: { id: "1" }, spec: TEST_GET_SPEC });
 
 			expect(onRateLimit).toHaveBeenCalledExactlyOnceWith(2000);
 			expect(sleep.waits).toStrictEqual([2000]);
@@ -807,8 +807,11 @@ describe(ResourceClient, () => {
 				sleep: clock.sleep,
 			});
 
-			const first = await client.execute({ parameters: { id: "1" }, spec: TEST_GET_SPEC });
-			const second = await client.execute({
+			const first = await client.executeAsync({
+				parameters: { id: "1" },
+				spec: TEST_GET_SPEC,
+			});
+			const second = await client.executeAsync({
 				parameters: { id: "2" },
 				spec: TEST_CREATE_SPEC,
 			});
@@ -834,8 +837,8 @@ describe(ResourceClient, () => {
 				sleep: clock.sleep,
 			});
 
-			await client.execute({ parameters: { id: "1" }, spec: TEST_GET_SPEC });
-			await client.execute({ parameters: { id: "2" }, spec: TEST_CREATE_SPEC });
+			await client.executeAsync({ parameters: { id: "1" }, spec: TEST_GET_SPEC });
+			await client.executeAsync({ parameters: { id: "2" }, spec: TEST_CREATE_SPEC });
 
 			expect(clock.waits).toStrictEqual([]);
 		});

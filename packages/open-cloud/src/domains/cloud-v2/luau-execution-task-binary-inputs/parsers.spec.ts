@@ -128,8 +128,9 @@ describe(parseBinaryInputResponse, () => {
 
 			const body = validBody({
 				path: {
-					toString: (): string =>
-						"universes/123/luau-execution-session-task-binary-inputs/abc",
+					toString: (): string => {
+						return "universes/123/luau-execution-session-task-binary-inputs/abc";
+					},
 				},
 			});
 			const result = parseBinaryInputResponse({ body, headers: {}, status: 200 });

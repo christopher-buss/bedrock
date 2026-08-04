@@ -7,8 +7,8 @@ import type { buildStatePort as defaultBuildStatePort } from "../../shell/build-
 import type { MigrateConfigFormat } from "../migrate-prompt-port.ts";
 import type { ClackPort } from "../render.ts";
 import { describeUnknown } from "./describe-unknown.ts";
-import { type ResolvedStateTarget, writeMigratedStates } from "./write-migrated-states.ts";
-import { writeMigrationReport } from "./write-migration-report.ts";
+import { type ResolvedStateTarget, writeMigratedStatesAsync } from "./write-migrated-states.ts";
+import { writeMigrationReportAsync } from "./write-migration-report.ts";
 
 /** Subset of the migrate command's resolved deps the finalize step touches. */
 export interface FinalizeDeps {
@@ -16,13 +16,18 @@ export interface FinalizeDeps {
 	readonly buildStatePort: typeof defaultBuildStatePort;
 	/** Output port for diagnostics and success lines. */
 	readonly clack: ClackPort;
-	/** Recursively creates a directory; used for the local-dump and report dirs. */
+	/**
+	 * Recursively creates a directory; used for the local-dump and report
+	 * dirs.
+	 */
 	readonly mkdir: (path: string) => Promise<void>;
 	/** Writes a file's UTF-8 contents in one shot. */
 	readonly writeFile: (path: string, contents: string) => Promise<void>;
 }
 
-/** Inputs for {@link persistMigration} and the inner config-write helper. */
+/**
+ * Inputs for {@link persistMigrationAsync} and the inner config-write helper.
+ */
 export interface FinalizeInputs {
 	/** Path to the bedrock config file to emit. */
 	readonly configFilePath: string;
@@ -51,13 +56,13 @@ export interface FinalizeInputs {
  *   terminal summary line) once every writer succeeded; `Err(void)` once
  *   any writer reported failure.
  */
-export async function persistMigration(inputs: FinalizeInputs): Promise<Result<string, void>> {
-	const stateConfigWritten = await persistStateAndConfig(inputs);
+export async function persistMigrationAsync(inputs: FinalizeInputs): Promise<Result<string, void>> {
+	const stateConfigWritten = await persistStateAndConfigAsync(inputs);
 	if (!stateConfigWritten.success) {
 		return { err: undefined, success: false };
 	}
 
-	const reportPaths = await writeMigrationReport({
+	const reportPaths = await writeMigrationReportAsync({
 		deps: {
 			clack: inputs.deps.clack,
 			mkdir: inputs.deps.mkdir,
@@ -71,8 +76,13 @@ export async function persistMigration(inputs: FinalizeInputs): Promise<Result<s
 		: { err: undefined, success: false };
 }
 
-async function writeBedrockConfig(inputs: FinalizeInputs): Promise<Result<void, void>> {
-	const { configFilePath, configFormat, deps, report, target } = inputs;
+async function writeBedrockConfigAsync({
+	configFilePath,
+	configFormat,
+	deps,
+	report,
+	target,
+}: FinalizeInputs): Promise<Result<void, void>> {
 	const { state: _ignoredState, ...configWithoutState } = report.config;
 	const enrichedConfig: Config =
 		target.backend === "gist"
@@ -92,8 +102,8 @@ async function writeBedrockConfig(inputs: FinalizeInputs): Promise<Result<void, 
 	return { data: undefined, success: true };
 }
 
-async function persistStateAndConfig(inputs: FinalizeInputs): Promise<Result<void, void>> {
-	const stateWritten = await writeMigratedStates({
+async function persistStateAndConfigAsync(inputs: FinalizeInputs): Promise<Result<void, void>> {
+	const stateWritten = await writeMigratedStatesAsync({
 		deps: inputs.deps,
 		report: inputs.report,
 		target: inputs.target,
@@ -102,7 +112,7 @@ async function persistStateAndConfig(inputs: FinalizeInputs): Promise<Result<voi
 		return { err: undefined, success: false };
 	}
 
-	const written = await writeBedrockConfig(inputs);
+	const written = await writeBedrockConfigAsync(inputs);
 	return written.success
 		? { data: undefined, success: true }
 		: { err: undefined, success: false };

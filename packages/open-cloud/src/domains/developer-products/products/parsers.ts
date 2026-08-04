@@ -6,6 +6,7 @@ import {
 } from "../../../internal/price-information.ts";
 import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
+import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
 import type { DeveloperProduct } from "./types.ts";
 import type { DeveloperProductConfigV2, DeveloperProductPricingFeatureWire } from "./wire.ts";
@@ -21,11 +22,10 @@ import type { DeveloperProductConfigV2, DeveloperProductPricingFeatureWire } fro
  * @returns A success result wrapping the converted `DeveloperProduct`, or
  *   an `ApiError` when the body does not match the wire schema.
  */
-export function parseDeveloperProductResponse(
-	response: HttpResponse,
-): Result<DeveloperProduct, ApiError> {
-	const { body, status: statusCode } = response;
-
+export function parseDeveloperProductResponse({
+	body,
+	status: statusCode,
+}: HttpResponse): Result<DeveloperProduct, ApiError> {
 	if (!isDeveloperProductConfigV2(body)) {
 		return malformedDeveloperProduct(statusCode, body);
 	}
@@ -57,7 +57,7 @@ function malformedDeveloperProduct(
 ): Result<DeveloperProduct, ApiError> {
 	return {
 		err: new ApiError("Malformed developer product response", {
-			details: body as JSONValue | undefined,
+			details: toJsonDetails(body),
 			statusCode,
 		}),
 		success: false,

@@ -19,7 +19,9 @@ export interface CreateBinaryInputParameters {
  * @since 0.1.0
  */
 export interface LuauExecutionTaskBinaryInput {
-	/** Server-emitted resource path; pass to `tasks.submit` as `binaryInput`. */
+	/**
+	 * Server-emitted resource path; pass to `tasks.submit` as `binaryInput`.
+	 */
 	readonly path: string;
 	/** Presigned PUT target; perform the binary upload to this URI directly. */
 	readonly uploadUri: string;

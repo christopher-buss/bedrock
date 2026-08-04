@@ -26,7 +26,10 @@ import type {
  * ```
  */
 export interface ResourceApplyContext {
-	/** In-memory artifact bytes to publish instead of reading the declared file. */
+	/**
+	 * In-memory artifact bytes to publish instead of reading the declared
+	 * file.
+	 */
 	readonly artifact?: Uint8Array;
 }
 

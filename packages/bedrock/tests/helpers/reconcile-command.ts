@@ -33,7 +33,11 @@ export function makeDeps(overrides: Partial<ProgDeps> = {}): ProgDeps {
  * @returns A `vi.fn()` that resolves to an `Ok` wrapping {@link sampleConfig}.
  */
 export function fakeLoad(): LoadConfigFunc {
-	return vi.fn<LoadConfigFunc>(async () => ({ data: sampleConfig, success: true }));
+	return vi.fn<LoadConfigFunc>(async () => {
+		// Resolve on a later microtask, as a real config load does.
+		await Promise.resolve();
+		return { data: sampleConfig, success: true };
+	});
 }
 
 /**

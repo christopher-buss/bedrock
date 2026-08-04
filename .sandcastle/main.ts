@@ -42,11 +42,16 @@ import { join } from "node:path";
 const THINKING_MODEL = "claude-opus-4-7[1m]";
 const AGENT_MODEL = "claude-sonnet-4-6";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return Object.prototype.toString.call(value) === "[object Object]";
+}
+
 // Smart thinking model for the planner, designer, and reviewer phases.
 // effort "xhigh" is supported by Claude Opus 4.7's CLI but not yet typed
 // in sandcastle 0.5.10's ClaudeCodeOptions.effort union; the cast bypasses
 // the missing type without changing runtime behaviour.
 // cspell:ignore xhigh
+// eslint-disable-next-line ts/no-unsafe-type-assertion -- upstream ClaudeCodeOptions.effort union omits a value the CLI accepts
 const thinkingAgent = sandcastle.claudeCode(THINKING_MODEL, { effort: "xhigh" as never });
 const implementerAgent = sandcastle.claudeCode(AGENT_MODEL);
 
@@ -279,9 +284,20 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 	assert(planJson !== undefined, "Plan JSON is empty");
 
 	// The plan JSON contains an array of issues, each with id, title, branch.
-	const { issues } = JSON.parse(planJson) as {
-		issues: Array<{ branch: string; id: string; title: string }>;
-	};
+	// The agent writes it, so nothing upstream guarantees the shape: read it
+	// defensively and drop any entry that is not a complete issue.
+	const parsed = JSON.parse(planJson);
+	const rawIssues = isRecord(parsed) ? parsed["issues"] : undefined;
+	const issues = (Array.isArray(rawIssues) ? rawIssues : []).flatMap((issue) => {
+		if (!isRecord(issue)) {
+			return [];
+		}
+
+		const { id, branch, title } = issue;
+		return typeof branch === "string" && typeof id === "string" && typeof title === "string"
+			? [{ id, branch, title }]
+			: [];
+	});
 
 	if (issues.length === 0) {
 		// No unblocked work: either everything is done or everything is blocked.
@@ -308,7 +324,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 	let running = 0;
 	const queue: Array<() => void> = [];
 
-	async function acquire(): Promise<void> {
+	async function acquireAsync(): Promise<void> {
 		if (running < MAX_PARALLEL) {
 			running++;
 			return;
@@ -329,9 +345,8 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 	}
 
 	const settled = await Promise.allSettled(
-		// eslint-disable-next-line max-lines-per-function -- From upstream template
 		issues.map(async (issue) => {
-			await acquire();
+			await acquireAsync();
 
 			try {
 				await using sandbox = await sandcastle.createSandbox({
@@ -341,50 +356,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 					sandbox: docker({ env: sandboxEnvironment, mounts: worktreeSandboxMounts }),
 				});
 
-				const planPath = `.sandcastle/plans/${issue.id}.md`;
-				const sharedPromptArgs = {
-					BRANCH: issue.branch,
-					ISSUE_TITLE: issue.title,
-					PLAN_PATH: planPath,
-					TASK_ID: issue.id,
-				};
-
-				// Designer phase: opus, one iteration. Writes the plan to
-				// PLAN_PATH (gitignored). No code, no commits.
-				await sandbox.run({
-					name: `designer #${issue.id}`,
-					agent: thinkingAgent,
-					maxIterations: 1,
-					promptArgs: sharedPromptArgs,
-					promptFile: "./.sandcastle/design-prompt.md",
-				});
-
-				// Implementer phase: sonnet reads the plan and implements
-				// RED+GREEN slices on the branch.
-				const result = await sandbox.run({
-					name: `implementer #${issue.id}`,
-					agent: implementerAgent,
-					maxIterations: 100,
-					promptArgs: sharedPromptArgs,
-					promptFile: "./.sandcastle/implement-prompt.md",
-				});
-
-				// Reviewer phase: opus runs /simplify, reviews against the
-				// plan, fixes issues, then pushes, opens the PR, and watches
-				// CI. Skipped when the implementer made no commits.
-				if (result.commits.length > 0) {
-					await sandbox.run({
-						name: `reviewer #${issue.id}`,
-						agent: thinkingAgent,
-						// Reviewer also waits on CI and may need to push fixes
-						// across multiple turns if checks fail.
-						maxIterations: 5,
-						promptArgs: sharedPromptArgs,
-						promptFile: "./.sandcastle/review-prompt.md",
-					});
-				}
-
-				return result;
+				return await runPhasesAsync(sandbox, issue);
 			} finally {
 				release();
 			}
@@ -396,7 +368,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 		if (outcome.status === "rejected") {
 			console.error(
 				// eslint-disable-next-line ts/no-non-null-assertion -- Guaranteed
-				`  ✗ ${issues[index]!.id} (${issues[index]!.branch}) failed: ${outcome.reason}`,
+				`  ✗ ${issues[index]!.id} (${issues[index]!.branch}) failed: ${String(outcome.reason)}`,
 			);
 		}
 	}
@@ -418,3 +390,73 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 }
 
 console.log("\nAll done.");
+
+/**
+ * Run the reviewer phase: opus runs /simplify, reviews against the plan, fixes
+ * issues, then pushes, opens the PR, and watches CI.
+ *
+ * @param sandbox - Where the review run executes.
+ * @param id - The issue id, used to label the run.
+ * @param promptArgs - The prompt args shared across all three phases.
+ */
+async function runReviewerAsync(
+	sandbox: Awaited<ReturnType<typeof sandcastle.createSandbox>>,
+	id: string,
+	promptArgs: Record<string, string>,
+): Promise<void> {
+	await sandbox.run({
+		name: `reviewer #${id}`,
+		agent: thinkingAgent,
+		// The reviewer waits on CI and may need to push fixes across multiple
+		// turns if checks fail.
+		maxIterations: 5,
+		promptArgs,
+		promptFile: "./.sandcastle/review-prompt.md",
+	});
+}
+
+/**
+ * Run the designer, implementer, and reviewer phases for one issue inside an
+ * already-created sandbox.
+ *
+ * @param sandbox - Where the three agent runs execute.
+ * @param issue - Branch, id, and title threaded into every prompt.
+ * @returns What the implementer run produced, including its commit list.
+ */
+async function runPhasesAsync(
+	sandbox: Awaited<ReturnType<typeof sandcastle.createSandbox>>,
+	issue: { branch: string; id: string; title: string },
+): Promise<Awaited<ReturnType<typeof sandbox.run>>> {
+	const sharedPromptArgs = {
+		BRANCH: issue.branch,
+		ISSUE_TITLE: issue.title,
+		PLAN_PATH: `.sandcastle/plans/${issue.id}.md`,
+		TASK_ID: issue.id,
+	};
+
+	// Designer phase: opus, one iteration. Writes the plan to PLAN_PATH
+	// (gitignored). No code, no commits.
+	await sandbox.run({
+		name: `designer #${issue.id}`,
+		agent: thinkingAgent,
+		maxIterations: 1,
+		promptArgs: sharedPromptArgs,
+		promptFile: "./.sandcastle/design-prompt.md",
+	});
+
+	// Implementer phase: sonnet reads the plan and implements RED+GREEN slices
+	// on the branch.
+	const result = await sandbox.run({
+		name: `implementer #${issue.id}`,
+		agent: implementerAgent,
+		maxIterations: 100,
+		promptArgs: sharedPromptArgs,
+		promptFile: "./.sandcastle/implement-prompt.md",
+	});
+
+	if (result.commits.length > 0) {
+		await runReviewerAsync(sandbox, issue.id, sharedPromptArgs);
+	}
+
+	return result;
+}

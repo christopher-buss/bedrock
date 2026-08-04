@@ -15,7 +15,7 @@ import { type MigrationSource, SUPPORTED_MIGRATION_SOURCES } from "../parse-migr
  * @returns `Ok(path)` on success, or `Err("cancelled")` if the user
  *   aborted the prompt.
  */
-export async function resolveStateFilePath(
+export async function resolveStateFilePathAsync(
 	pathArgument: string | undefined,
 	promptPort: MigratePromptPort,
 ): Promise<Result<string, "cancelled">> {
@@ -44,7 +44,7 @@ export async function resolveStateFilePath(
  * @returns `Ok(source)` on success, or `Err("cancelled")` if the user
  *   aborted the prompt.
  */
-export async function resolveMigrationSource(
+export async function resolveMigrationSourceAsync(
 	from: MigrationSource | undefined,
 	promptPort: MigratePromptPort,
 ): Promise<Result<MigrationSource, "cancelled">> {

@@ -1,4 +1,4 @@
-import { assert, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
 	applyRedaction,
@@ -46,6 +46,7 @@ const startPlaceEntry = {
 describe("redacted price default", () => {
 	it("should pin REDACTED_PRICE to 99999 robux as a fail-safe deterrent", () => {
 		expect.assertions(1);
+
 		// 99_999 is a deterrent default: a misconfigured redacted resource
 		// priced this high is merely embarrassing, whereas one priced near
 		// zero risks revenue loss and premature reveal of monetization
@@ -63,7 +64,7 @@ describe(applyRedaction, () => {
 			passes: { "vip-pass": { ...vipEntry, redacted: true } },
 		});
 
-		expect(result.passes?.["vip-pass"]).toStrictEqual({
+		expect(result.passes!["vip-pass"]).toStrictEqual({
 			name: REDACTED_PASS_NAME,
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
@@ -86,7 +87,7 @@ describe(applyRedaction, () => {
 			passes: { "soon-pass": { ...offSale, redacted: true } },
 		});
 
-		expect(result.passes?.["soon-pass"]).toStrictEqual({
+		expect(result.passes!["soon-pass"]).toStrictEqual({
 			name: REDACTED_PASS_NAME,
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
@@ -102,7 +103,7 @@ describe(applyRedaction, () => {
 			passes: { "vip-pass": { ...vipEntry, redacted: { price: 500 } } },
 		});
 
-		expect(result.passes?.["vip-pass"]).toStrictEqual({
+		expect(result.passes!["vip-pass"]).toStrictEqual({
 			name: REDACTED_PASS_NAME,
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
@@ -119,7 +120,7 @@ describe(applyRedaction, () => {
 			passes: { "vip-pass": { ...vipEntry, redacted: { price: 0 } } },
 		});
 
-		expect(result.passes?.["vip-pass"]?.price).toBe(0);
+		expect(result.passes!["vip-pass"]!.price).toBe(0);
 	});
 
 	it("should ignore a price override on a redacted pass that is off-sale", () => {
@@ -136,7 +137,7 @@ describe(applyRedaction, () => {
 			passes: { "soon-pass": { ...offSale, redacted: { price: 500 } } },
 		});
 
-		expect(result.passes?.["soon-pass"]).not.toHaveProperty("price");
+		expect(result.passes!["soon-pass"]).not.toHaveProperty("price");
 	});
 
 	it("should leave a pass unchanged when redacted is false", () => {
@@ -148,7 +149,7 @@ describe(applyRedaction, () => {
 			passes: { "vip-pass": entry },
 		});
 
-		expect(result.passes?.["vip-pass"]).toStrictEqual(entry);
+		expect(result.passes!["vip-pass"]).toStrictEqual(entry);
 	});
 
 	it("should leave a pass unchanged when redacted is omitted", () => {
@@ -159,11 +160,12 @@ describe(applyRedaction, () => {
 			passes: { "vip-pass": vipEntry },
 		});
 
-		expect(result.passes?.["vip-pass"]).toStrictEqual(vipEntry);
+		expect(result.passes!["vip-pass"]).toStrictEqual(vipEntry);
 	});
 
 	it("should return the config unchanged when no passes collection is declared", () => {
 		expect.assertions(1);
+
 		expect(applyRedaction(baseConfig)).toStrictEqual(baseConfig);
 	});
 
@@ -224,7 +226,7 @@ describe(applyRedaction, () => {
 		const result = applyRedaction(input);
 
 		expect(input.passes["vip-pass"]).toStrictEqual({ ...vipEntry, redacted: true });
-		expect(result.passes?.["vip-pass"]).not.toBe(input.passes["vip-pass"]);
+		expect(result.passes!["vip-pass"]).not.toBe(input.passes["vip-pass"]);
 	});
 
 	it("should substitute only the supplied override fields and fall back to defaults for the rest", () => {
@@ -237,7 +239,7 @@ describe(applyRedaction, () => {
 			},
 		});
 
-		expect(result.passes?.["vip-pass"]).toStrictEqual({
+		expect(result.passes!["vip-pass"]).toStrictEqual({
 			name: "Closed Beta",
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
@@ -260,7 +262,7 @@ describe(applyRedaction, () => {
 			passes: { "vip-pass": { ...vipEntry, redacted: override } },
 		});
 
-		expect(result.passes?.["vip-pass"]).toStrictEqual({
+		expect(result.passes!["vip-pass"]).toStrictEqual({
 			name: "Beta Pass",
 			description: "Beta description",
 			icon: { "en-us": "assets/beta.png" },
@@ -282,7 +284,7 @@ describe(applyRedaction, () => {
 			},
 		});
 
-		expect(result.passes?.["vip-pass"]).toStrictEqual({
+		expect(result.passes!["vip-pass"]).toStrictEqual({
 			name: REDACTED_PASS_NAME,
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": "assets/override-icon.png" },
@@ -294,49 +296,46 @@ describe(applyRedaction, () => {
 	it.for([
 		{
 			caseName: "no flags set",
-			entryRedacted: undefined,
-			envRedacted: undefined,
-			expectRedacted: false,
+			entry: {},
+			envLevel: undefined,
+			expected: vipEntry.name,
 		},
 		{
 			caseName: "env-level true, no resource flag",
-			entryRedacted: undefined,
-			envRedacted: true,
-			expectRedacted: true,
+			entry: {},
+			envLevel: true,
+			expected: REDACTED_PASS_NAME,
 		},
 		{
 			caseName: "env-level false, no resource flag",
-			entryRedacted: undefined,
-			envRedacted: false,
-			expectRedacted: false,
+			entry: {},
+			envLevel: false,
+			expected: vipEntry.name,
 		},
 		{
 			caseName: "resource false carves out env-level true",
-			entryRedacted: false,
-			envRedacted: true,
-			expectRedacted: false,
+			entry: { redacted: false },
+			envLevel: true,
+			expected: vipEntry.name,
 		},
 		{
 			caseName: "resource true redacts despite env-level false",
-			entryRedacted: true,
-			envRedacted: false,
-			expectRedacted: true,
+			entry: { redacted: true },
+			envLevel: false,
+			expected: REDACTED_PASS_NAME,
 		},
 	] as const)(
 		"should redact a pass according to overlay > root > env precedence ($caseName)",
-		({ entryRedacted, envRedacted, expectRedacted }) => {
+		({ entry, envLevel, expected }) => {
 			expect.assertions(1);
 
-			const passEntry = (
-				entryRedacted === undefined ? vipEntry : { ...vipEntry, redacted: entryRedacted }
-			) satisfies GamePassEntry;
+			const passEntry = { ...vipEntry, ...entry } satisfies GamePassEntry;
 			const result = applyRedaction(
 				{ ...baseConfig, passes: { "vip-pass": passEntry } },
-				{ envLevel: envRedacted },
+				{ envLevel },
 			);
-			const expectedName = expectRedacted ? REDACTED_PASS_NAME : vipEntry.name;
 
-			expect(result.passes?.["vip-pass"]?.name).toBe(expectedName);
+			expect(result.passes!["vip-pass"]!.name).toBe(expected);
 		},
 	);
 
@@ -350,7 +349,7 @@ describe(applyRedaction, () => {
 			},
 		});
 
-		expect(result.places?.["start-place"]).toStrictEqual({
+		expect(result.places!["start-place"]).toStrictEqual({
 			...startPlaceEntry,
 			description: REDACTED_DESCRIPTION,
 			redacted: true,
@@ -366,7 +365,7 @@ describe(applyRedaction, () => {
 			places: { "start-place": entry },
 		});
 
-		expect(result.places?.["start-place"]).toStrictEqual(entry);
+		expect(result.places!["start-place"]).toStrictEqual(entry);
 	});
 
 	it("should leave a place unchanged when redacted is omitted", () => {
@@ -377,7 +376,7 @@ describe(applyRedaction, () => {
 			places: { "start-place": startPlaceEntry },
 		});
 
-		expect(result.places?.["start-place"]).toStrictEqual(startPlaceEntry);
+		expect(result.places!["start-place"]).toStrictEqual(startPlaceEntry);
 	});
 
 	it("should substitute displayName only when supplied explicitly in the override", () => {
@@ -393,7 +392,7 @@ describe(applyRedaction, () => {
 			},
 		});
 
-		expect(result.places?.["start-place"]).toStrictEqual({
+		expect(result.places!["start-place"]).toStrictEqual({
 			...startPlaceEntry,
 			description: REDACTED_DESCRIPTION,
 			displayName: "Hidden Project",
@@ -412,7 +411,7 @@ describe(applyRedaction, () => {
 			},
 		});
 
-		expect(result.places?.["start-place"]).toStrictEqual({
+		expect(result.places!["start-place"]).toStrictEqual({
 			...startPlaceEntry,
 			description: "Coming soon.",
 			displayName: "Hidden",
@@ -428,8 +427,8 @@ describe(applyRedaction, () => {
 			{ envLevel: true },
 		);
 
-		expect(result.places?.["start-place"]?.description).toBe(REDACTED_DESCRIPTION);
-		expect(result.places?.["start-place"]?.displayName).toBe(startPlaceEntry.displayName);
+		expect(result.places!["start-place"]!.description).toBe(REDACTED_DESCRIPTION);
+		expect(result.places!["start-place"]!.displayName).toBe(startPlaceEntry.displayName);
 	});
 
 	it("should not mutate the input config when redacting a place", () => {
@@ -441,59 +440,52 @@ describe(applyRedaction, () => {
 		const result = applyRedaction(input);
 
 		expect(input.places["start-place"]).toStrictEqual({ ...startPlaceEntry, redacted: true });
-		expect(result.places?.["start-place"]).not.toBe(input.places["start-place"]);
+		expect(result.places!["start-place"]).not.toBe(input.places["start-place"]);
 	});
 
 	it.for([
 		{
 			caseName: "no flags set",
-			entryRedacted: undefined,
-			envRedacted: undefined,
-			expectRedacted: false,
+			entry: {},
+			envLevel: undefined,
+			expected: startPlaceEntry.description,
 		},
 		{
 			caseName: "env-level true, no resource flag",
-			entryRedacted: undefined,
-			envRedacted: true,
-			expectRedacted: true,
+			entry: {},
+			envLevel: true,
+			expected: REDACTED_DESCRIPTION,
 		},
 		{
 			caseName: "env-level false, no resource flag",
-			entryRedacted: undefined,
-			envRedacted: false,
-			expectRedacted: false,
+			entry: {},
+			envLevel: false,
+			expected: startPlaceEntry.description,
 		},
 		{
 			caseName: "resource false carves out env-level true",
-			entryRedacted: false,
-			envRedacted: true,
-			expectRedacted: false,
+			entry: { redacted: false },
+			envLevel: true,
+			expected: startPlaceEntry.description,
 		},
 		{
 			caseName: "resource true redacts despite env-level false",
-			entryRedacted: true,
-			envRedacted: false,
-			expectRedacted: true,
+			entry: { redacted: true },
+			envLevel: false,
+			expected: REDACTED_DESCRIPTION,
 		},
 	] as const)(
 		"should redact a place description according to overlay > root > env precedence ($caseName)",
-		({ entryRedacted, envRedacted, expectRedacted }) => {
+		({ entry, envLevel, expected }) => {
 			expect.assertions(1);
 
-			const placeEntry = (
-				entryRedacted === undefined
-					? startPlaceEntry
-					: { ...startPlaceEntry, redacted: entryRedacted }
-			) satisfies ResolvedPlaceEntry;
+			const placeEntry = { ...startPlaceEntry, ...entry } satisfies ResolvedPlaceEntry;
 			const result = applyRedaction(
 				{ ...baseConfig, places: { "start-place": placeEntry } },
-				{ envLevel: envRedacted },
+				{ envLevel },
 			);
-			const expectedDescription = expectRedacted
-				? REDACTED_DESCRIPTION
-				: startPlaceEntry.description;
 
-			expect(result.places?.["start-place"]?.description).toBe(expectedDescription);
+			expect(result.places!["start-place"]!.description).toBe(expected);
 		},
 	);
 
@@ -512,8 +504,8 @@ describe(applyRedaction, () => {
 			},
 		});
 
-		expect(result.places?.["plain-place"]).toStrictEqual(plainPlace);
-		expect(result.places?.["secret-place"]?.description).toBe(REDACTED_DESCRIPTION);
+		expect(result.places!["plain-place"]).toStrictEqual(plainPlace);
+		expect(result.places!["secret-place"]!.description).toBe(REDACTED_DESCRIPTION);
 	});
 
 	it("should replace name, description, icon, and price with placeholders when a product redacted is true", () => {
@@ -524,7 +516,7 @@ describe(applyRedaction, () => {
 			products: { "gem-pack": { ...gemPackEntry, redacted: true } },
 		});
 
-		expect(result.products?.["gem-pack"]).toStrictEqual({
+		expect(result.products!["gem-pack"]).toStrictEqual({
 			name: defaultRedactedProductName("gem-pack"),
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
@@ -547,7 +539,7 @@ describe(applyRedaction, () => {
 			products: { "soon-pack": { ...offSale, redacted: true } },
 		});
 
-		expect(result.products?.["soon-pack"]).toStrictEqual({
+		expect(result.products!["soon-pack"]).toStrictEqual({
 			name: defaultRedactedProductName("soon-pack"),
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
@@ -563,7 +555,7 @@ describe(applyRedaction, () => {
 			products: { "gem-pack": { ...gemPackEntry, redacted: { price: 500 } } },
 		});
 
-		expect(result.products?.["gem-pack"]).toStrictEqual({
+		expect(result.products!["gem-pack"]).toStrictEqual({
 			name: defaultRedactedProductName("gem-pack"),
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
@@ -580,7 +572,7 @@ describe(applyRedaction, () => {
 			products: { "gem-pack": { ...gemPackEntry, redacted: { price: 0 } } },
 		});
 
-		expect(result.products?.["gem-pack"]?.price).toBe(0);
+		expect(result.products!["gem-pack"]!.price).toBe(0);
 	});
 
 	it("should ignore a price override on a redacted product that is off-sale", () => {
@@ -597,7 +589,7 @@ describe(applyRedaction, () => {
 			products: { "soon-pack": { ...offSale, redacted: { price: 500 } } },
 		});
 
-		expect(result.products?.["soon-pack"]).not.toHaveProperty("price");
+		expect(result.products!["soon-pack"]).not.toHaveProperty("price");
 	});
 
 	it("should give two redacted products distinct default names so a Roblox-side uniqueness check sees no collision", () => {
@@ -611,10 +603,8 @@ describe(applyRedaction, () => {
 			},
 		});
 
-		const gemName = result.products?.["gem-pack"]?.name;
-		const goldName = result.products?.["gold-pack"]?.name;
-		assert(gemName !== undefined);
-		assert(goldName !== undefined);
+		const gemName = result.products!["gem-pack"]!.name;
+		const goldName = result.products!["gold-pack"]!.name;
 
 		expect(gemName).not.toBe(goldName);
 		expect(
@@ -636,7 +626,7 @@ describe(applyRedaction, () => {
 			},
 		});
 
-		expect(result.products?.["plain-pack"]?.icon).toStrictEqual({
+		expect(result.products!["plain-pack"]!.icon).toStrictEqual({
 			"en-us": REDACTED_ICON_PATH,
 		});
 	});
@@ -650,7 +640,7 @@ describe(applyRedaction, () => {
 			products: { "gem-pack": entry },
 		});
 
-		expect(result.products?.["gem-pack"]).toStrictEqual(entry);
+		expect(result.products!["gem-pack"]).toStrictEqual(entry);
 	});
 
 	it("should leave a product unchanged when redacted is omitted", () => {
@@ -661,7 +651,7 @@ describe(applyRedaction, () => {
 			products: { "gem-pack": gemPackEntry },
 		});
 
-		expect(result.products?.["gem-pack"]).toStrictEqual(gemPackEntry);
+		expect(result.products!["gem-pack"]).toStrictEqual(gemPackEntry);
 	});
 
 	it("should not mutate the input config when redacting a product", () => {
@@ -673,59 +663,52 @@ describe(applyRedaction, () => {
 		const result = applyRedaction(input);
 
 		expect(input.products["gem-pack"]).toStrictEqual({ ...gemPackEntry, redacted: true });
-		expect(result.products?.["gem-pack"]).not.toBe(input.products["gem-pack"]);
+		expect(result.products!["gem-pack"]).not.toBe(input.products["gem-pack"]);
 	});
 
 	it.for([
 		{
 			caseName: "no flags set",
-			entryRedacted: undefined,
-			envRedacted: undefined,
-			expectRedacted: false,
+			entry: {},
+			envLevel: undefined,
+			expected: gemPackEntry.name,
 		},
 		{
 			caseName: "env-level true, no resource flag",
-			entryRedacted: undefined,
-			envRedacted: true,
-			expectRedacted: true,
+			entry: {},
+			envLevel: true,
+			expected: defaultRedactedProductName("gem-pack"),
 		},
 		{
 			caseName: "env-level false, no resource flag",
-			entryRedacted: undefined,
-			envRedacted: false,
-			expectRedacted: false,
+			entry: {},
+			envLevel: false,
+			expected: gemPackEntry.name,
 		},
 		{
 			caseName: "resource false carves out env-level true",
-			entryRedacted: false,
-			envRedacted: true,
-			expectRedacted: false,
+			entry: { redacted: false },
+			envLevel: true,
+			expected: gemPackEntry.name,
 		},
 		{
 			caseName: "resource true redacts despite env-level false",
-			entryRedacted: true,
-			envRedacted: false,
-			expectRedacted: true,
+			entry: { redacted: true },
+			envLevel: false,
+			expected: defaultRedactedProductName("gem-pack"),
 		},
 	] as const)(
 		"should redact a product according to overlay > root > env precedence ($caseName)",
-		({ entryRedacted, envRedacted, expectRedacted }) => {
+		({ entry, envLevel, expected }) => {
 			expect.assertions(1);
 
-			const productEntry = (
-				entryRedacted === undefined
-					? gemPackEntry
-					: { ...gemPackEntry, redacted: entryRedacted }
-			) satisfies DeveloperProductEntry;
+			const productEntry = { ...gemPackEntry, ...entry } satisfies DeveloperProductEntry;
 			const result = applyRedaction(
 				{ ...baseConfig, products: { "gem-pack": productEntry } },
-				{ envLevel: envRedacted },
+				{ envLevel },
 			);
-			const expectedName = expectRedacted
-				? defaultRedactedProductName("gem-pack")
-				: gemPackEntry.name;
 
-			expect(result.products?.["gem-pack"]?.name).toBe(expectedName);
+			expect(result.products!["gem-pack"]!.name).toBe(expected);
 		},
 	);
 
@@ -739,7 +722,7 @@ describe(applyRedaction, () => {
 			},
 		});
 
-		expect(result.products?.["gem-pack"]).toStrictEqual({
+		expect(result.products!["gem-pack"]).toStrictEqual({
 			name: "Closed Beta Pack",
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
@@ -762,7 +745,7 @@ describe(applyRedaction, () => {
 			products: { "gem-pack": { ...gemPackEntry, redacted: override } },
 		});
 
-		expect(result.products?.["gem-pack"]).toStrictEqual({
+		expect(result.products!["gem-pack"]).toStrictEqual({
 			name: "Beta Pack",
 			description: "Beta description",
 			icon: { "en-us": "assets/beta.png" },
@@ -784,7 +767,7 @@ describe(applyRedaction, () => {
 			},
 		});
 
-		expect(result.products?.["gem-pack"]).toStrictEqual({
+		expect(result.products!["gem-pack"]).toStrictEqual({
 			name: defaultRedactedProductName("gem-pack"),
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": "assets/override-icon.png" },
@@ -808,8 +791,8 @@ describe(applyRedaction, () => {
 				{ envLevel: { price: 1 } },
 			);
 
-			expect(result.passes?.["vip-pass"]?.price).toBe(1);
-			expect(result.passes?.["elite-pass"]?.price).toBe(1);
+			expect(result.passes!["vip-pass"]!.price).toBe(1);
+			expect(result.passes!["elite-pass"]!.price).toBe(1);
 		});
 
 		it("should apply an env-level price override to every on-sale product without per-resource repetition", () => {
@@ -826,8 +809,8 @@ describe(applyRedaction, () => {
 				{ envLevel: { price: 1 } },
 			);
 
-			expect(result.products?.["gem-pack"]?.price).toBe(1);
-			expect(result.products?.["gold-pack"]?.price).toBe(1);
+			expect(result.products!["gem-pack"]!.price).toBe(1);
+			expect(result.products!["gold-pack"]!.price).toBe(1);
 		});
 
 		it("should leave off-sale passes and products off-sale when an env-level price override is supplied", () => {
@@ -851,8 +834,8 @@ describe(applyRedaction, () => {
 				{ envLevel: { price: 1 } },
 			);
 
-			expect(result.passes?.["soon-pass"]).not.toHaveProperty("price");
-			expect(result.products?.["future-pack"]).not.toHaveProperty("price");
+			expect(result.passes!["soon-pass"]).not.toHaveProperty("price");
+			expect(result.products!["future-pack"]).not.toHaveProperty("price");
 		});
 
 		it("should apply an env-level description override to every redactable kind that supports description", () => {
@@ -868,9 +851,9 @@ describe(applyRedaction, () => {
 				{ envLevel: { description: "Reveal at launch." } },
 			);
 
-			expect(result.passes?.["vip-pass"]?.description).toBe("Reveal at launch.");
-			expect(result.places?.["start-place"]?.description).toBe("Reveal at launch.");
-			expect(result.products?.["gem-pack"]?.description).toBe("Reveal at launch.");
+			expect(result.passes!["vip-pass"]!.description).toBe("Reveal at launch.");
+			expect(result.places!["start-place"]!.description).toBe("Reveal at launch.");
+			expect(result.products!["gem-pack"]!.description).toBe("Reveal at launch.");
 		});
 
 		it("should apply an env-level displayName override only to places", () => {
@@ -886,11 +869,9 @@ describe(applyRedaction, () => {
 				{ envLevel: { displayName: "Hidden Project" } },
 			);
 
-			expect(result.places?.["start-place"]?.displayName).toBe("Hidden Project");
-			expect(result.passes?.["vip-pass"]?.name).toBe(REDACTED_PASS_NAME);
-			expect(result.products?.["gem-pack"]?.name).toBe(
-				defaultRedactedProductName("gem-pack"),
-			);
+			expect(result.places!["start-place"]!.displayName).toBe("Hidden Project");
+			expect(result.passes!["vip-pass"]!.name).toBe(REDACTED_PASS_NAME);
+			expect(result.products!["gem-pack"]!.name).toBe(defaultRedactedProductName("gem-pack"));
 		});
 
 		it("should apply an env-level icon override to passes and products and silently ignore it on places", () => {
@@ -907,9 +888,9 @@ describe(applyRedaction, () => {
 				{ envLevel: { icon: iconOverride } },
 			);
 
-			expect(result.passes?.["vip-pass"]?.icon).toStrictEqual(iconOverride);
-			expect(result.products?.["gem-pack"]?.icon).toStrictEqual(iconOverride);
-			expect(result.places?.["start-place"]).not.toHaveProperty("icon");
+			expect(result.passes!["vip-pass"]!.icon).toStrictEqual(iconOverride);
+			expect(result.products!["gem-pack"]!.icon).toStrictEqual(iconOverride);
+			expect(result.places!["start-place"]).not.toHaveProperty("icon");
 		});
 
 		it("should compose a root name override with an env-level price override into one field-merged product result", () => {
@@ -925,7 +906,7 @@ describe(applyRedaction, () => {
 				{ envLevel: { price: 1 } },
 			);
 
-			expect(result.products?.["gem-pack"]).toStrictEqual({
+			expect(result.products!["gem-pack"]).toStrictEqual({
 				name: "Hidden",
 				description: REDACTED_DESCRIPTION,
 				icon: { "en-us": REDACTED_ICON_PATH },
@@ -945,7 +926,7 @@ describe(applyRedaction, () => {
 				{ envLevel: { price: 1 } },
 			);
 
-			expect(result.products?.["gem-pack"]).toStrictEqual({
+			expect(result.products!["gem-pack"]).toStrictEqual({
 				name: defaultRedactedProductName("gem-pack"),
 				description: REDACTED_DESCRIPTION,
 				icon: { "en-us": REDACTED_ICON_PATH },
@@ -966,7 +947,7 @@ describe(applyRedaction, () => {
 				{ envLevel: { price: 1 } },
 			);
 
-			expect(result.products?.["gem-pack"]).toStrictEqual(entry);
+			expect(result.products!["gem-pack"]).toStrictEqual(entry);
 		});
 
 		it("should let a root field override win over the env-level value for the same field", () => {
@@ -982,7 +963,7 @@ describe(applyRedaction, () => {
 				{ envLevel: { price: 1 } },
 			);
 
-			expect(result.products?.["gem-pack"]?.price).toBe(500);
+			expect(result.products!["gem-pack"]!.price).toBe(500);
 		});
 
 		it("should redact a place from env-level alone when the place sets no redacted flag", () => {
@@ -996,8 +977,8 @@ describe(applyRedaction, () => {
 				{ envLevel: { displayName: "Hidden Project" } },
 			);
 
-			expect(result.places?.["start-place"]?.description).toBe(REDACTED_DESCRIPTION);
-			expect(result.places?.["start-place"]?.displayName).toBe("Hidden Project");
+			expect(result.places!["start-place"]!.description).toBe(REDACTED_DESCRIPTION);
+			expect(result.places!["start-place"]!.displayName).toBe("Hidden Project");
 		});
 	});
 
@@ -1021,7 +1002,7 @@ describe(applyRedaction, () => {
 				},
 			);
 
-			expect(result.products?.["gem-pack"]).toStrictEqual({
+			expect(result.products!["gem-pack"]).toStrictEqual({
 				name: "Env Resource Name",
 				description: REDACTED_DESCRIPTION,
 				icon: { "en-us": REDACTED_ICON_PATH },
@@ -1046,7 +1027,7 @@ describe(applyRedaction, () => {
 				},
 			);
 
-			expect(result.products?.["gem-pack"]).toStrictEqual({
+			expect(result.products!["gem-pack"]).toStrictEqual({
 				name: "Root Name",
 				description: REDACTED_DESCRIPTION,
 				icon: { "en-us": REDACTED_ICON_PATH },
@@ -1070,7 +1051,7 @@ describe(applyRedaction, () => {
 				},
 			);
 
-			expect(result.products?.["gem-pack"]).toStrictEqual(rootEntry);
+			expect(result.products!["gem-pack"]).toStrictEqual(rootEntry);
 		});
 
 		it("should let an env-resource object force redaction even when the root entry sets redacted false", () => {
@@ -1086,7 +1067,7 @@ describe(applyRedaction, () => {
 				},
 			);
 
-			expect(result.products?.["gem-pack"]).toStrictEqual({
+			expect(result.products!["gem-pack"]).toStrictEqual({
 				name: "Env Hidden",
 				description: REDACTED_DESCRIPTION,
 				icon: { "en-us": REDACTED_ICON_PATH },
@@ -1115,9 +1096,9 @@ describe(applyRedaction, () => {
 				},
 			);
 
-			expect(result.passes?.["vip-pass"]?.name).toBe("Hidden Pass");
-			expect(result.places?.["start-place"]?.displayName).toBe("Hidden Place");
-			expect(result.products?.["gem-pack"]?.name).toBe("Hidden Pack");
+			expect(result.passes!["vip-pass"]!.name).toBe("Hidden Pass");
+			expect(result.places!["start-place"]!.displayName).toBe("Hidden Place");
+			expect(result.products!["gem-pack"]!.name).toBe("Hidden Pack");
 		});
 	});
 });
@@ -1125,6 +1106,7 @@ describe(applyRedaction, () => {
 describe(collectRedactionAnnotations, () => {
 	it("should return an empty array when no passes collection is declared", () => {
 		expect.assertions(1);
+
 		expect(collectRedactionAnnotations(baseConfig)).toStrictEqual([]);
 	});
 
@@ -1510,21 +1492,25 @@ describe(collectRedactionAnnotations, () => {
 describe(redactedNameSuffix, () => {
 	it("should return six lowercase hex characters", () => {
 		expect.assertions(1);
+
 		expect(redactedNameSuffix("bp-1")).toMatch(/^[0-9a-f]{6}$/);
 	});
 
 	it("should be deterministic for the same input", () => {
 		expect.assertions(1);
+
 		expect(redactedNameSuffix("bp-1")).toBe(redactedNameSuffix("bp-1"));
 	});
 
 	it("should differ for two distinct keys to make Roblox-side name collisions unlikely", () => {
 		expect.assertions(1);
+
 		expect(redactedNameSuffix("bp-1")).not.toBe(redactedNameSuffix("bp-2"));
 	});
 
 	it("should match a known SHA-256 prefix for a fixed key so the wire-visible value is pinned", () => {
 		expect.assertions(1);
+
 		expect(redactedNameSuffix("bp-1")).toBe("f5df4b");
 	});
 });
@@ -1532,6 +1518,7 @@ describe(redactedNameSuffix, () => {
 describe(defaultRedactedProductName, () => {
 	it("should combine the placeholder prefix with the key's suffix separated by a space", () => {
 		expect.assertions(1);
+
 		expect(defaultRedactedProductName("bp-1")).toBe(
 			`${REDACTED_PRODUCT_NAME} ${redactedNameSuffix("bp-1")}`,
 		);

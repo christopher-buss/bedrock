@@ -45,10 +45,11 @@ interface WriteInputs {
  * @returns `Ok` with both file paths once both writes succeed; `Err` on the
  *   first failure (already rendered to clack).
  */
-export async function writeMigrationReport(
-	input: WriteInputs,
-): Promise<Result<MigrationReportPaths, void>> {
-	const { deps, report, stateFilePath } = input;
+export async function writeMigrationReportAsync({
+	deps,
+	report,
+	stateFilePath,
+}: WriteInputs): Promise<Result<MigrationReportPaths, void>> {
 	const reportDirectory = join(dirname(stateFilePath), REPORT_DIR_NAME);
 	const jsonPath = join(reportDirectory, JSON_FILE_NAME);
 	const mdPath = join(reportDirectory, MD_FILE_NAME);

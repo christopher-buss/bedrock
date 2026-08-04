@@ -80,7 +80,7 @@ describe(GamePassesClient, () => {
 
 			await client.get({ gamePassId: "12345", universeId: "1" });
 
-			expect(httpClient.requests[0]?.config).toStrictEqual({
+			expect(httpClient.requests[0]!.config).toStrictEqual({
 				apiKey: "test-key",
 				baseUrl: "https://apis.roblox.com",
 				timeout: 30_000,
@@ -104,7 +104,7 @@ describe(GamePassesClient, () => {
 
 			await client.get({ gamePassId: "12345", universeId: "1" });
 
-			expect(httpClient.requests[0]?.config).toStrictEqual({
+			expect(httpClient.requests[0]!.config).toStrictEqual({
 				apiKey: "configured-key",
 				baseUrl: "https://staging.apis.roblox.com",
 				timeout: 5000,
@@ -201,8 +201,8 @@ describe(GamePassesClient, () => {
 			assert(result.success);
 
 			expect(result.data.id).toBe("12345");
-			expect(httpClient.requests[0]?.request.method).toBe("POST");
-			expect(httpClient.requests[0]?.request.body).toBeInstanceOf(FormData);
+			expect(httpClient.requests[0]!.request.method).toBe("POST");
+			expect(httpClient.requests[0]!.request.body).toBeInstanceOf(FormData);
 		});
 
 		it("should use a queue independent of get() on the same client", async () => {
@@ -274,9 +274,9 @@ describe(GamePassesClient, () => {
 
 			expect(result.data).toBeUndefined();
 			expect(httpClient.requests).toHaveLength(1);
-			expect(httpClient.requests[0]?.request.method).toBe("PATCH");
-			expect(httpClient.requests[0]?.request.body).toBeInstanceOf(FormData);
-			expect(httpClient.requests[0]?.request.url).toBe(
+			expect(httpClient.requests[0]!.request.method).toBe("PATCH");
+			expect(httpClient.requests[0]!.request.body).toBeInstanceOf(FormData);
+			expect(httpClient.requests[0]!.request.url).toBe(
 				"/game-passes/v1/universes/1/game-passes/12345",
 			);
 		});
@@ -375,8 +375,8 @@ describe(GamePassesClient, () => {
 
 			expect(result.data.items.map((item) => item.id)).toStrictEqual(["1", "2"]);
 			expect(result.data.nextPageToken).toBe("cursor");
-			expect(httpClient.requests[0]?.request.method).toBe("GET");
-			expect(httpClient.requests[0]?.request.url).toBe(
+			expect(httpClient.requests[0]!.request.method).toBe("GET");
+			expect(httpClient.requests[0]!.request.url).toBe(
 				"/game-passes/v1/universes/1/game-passes/creator",
 			);
 		});
@@ -436,7 +436,7 @@ describe(GamePassesClient, () => {
 
 			await client.list({ pageSize: 10, pageToken: "cursor", universeId: "1" });
 
-			expect(httpClient.requests[0]?.request.url).toBe(
+			expect(httpClient.requests[0]!.request.url).toBe(
 				"/game-passes/v1/universes/1/game-passes/creator?pageSize=10&pageToken=cursor",
 			);
 		});

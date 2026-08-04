@@ -17,6 +17,7 @@ type ExportsMap = Parameters<
  * @returns A new map with `.` first and remaining keys in locale order.
  */
 export function sortExports(exportsMap: ExportsMap): ExportsMap {
+	const collator = new Intl.Collator();
 	const sorted = Object.entries(exportsMap).toSorted(([a], [b]) => {
 		if (a === ".") {
 			return -1;
@@ -26,7 +27,7 @@ export function sortExports(exportsMap: ExportsMap): ExportsMap {
 			return 1;
 		}
 
-		return a.localeCompare(b);
+		return collator.compare(a, b);
 	});
 	return Object.fromEntries(sorted);
 }

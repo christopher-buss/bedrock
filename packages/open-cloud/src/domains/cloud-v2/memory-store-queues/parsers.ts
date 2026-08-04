@@ -2,6 +2,7 @@ import type { HttpResponse } from "../../../client/types.ts";
 import { ApiError } from "../../../errors/api-error.ts";
 import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
+import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
 import type { DequeueResult, QueueItem } from "./types.ts";
 import type { MemoryStoreQueueItemWire } from "./wire.ts";
@@ -39,8 +40,10 @@ export function parseQueueItemResponse(response: HttpResponse): Result<QueueItem
  * @returns A success result wrapping the parsed {@link DequeueResult},
  *   or an {@link ApiError} when the response shape is wrong.
  */
-export function parseDequeueResponse(response: HttpResponse): Result<DequeueResult, ApiError> {
-	const { body, status: statusCode } = response;
+export function parseDequeueResponse({
+	body,
+	status: statusCode,
+}: HttpResponse): Result<DequeueResult, ApiError> {
 	if (!isRecord(body)) {
 		return malformedDequeue(statusCode, body);
 	}
@@ -104,7 +107,7 @@ function wireBodyToQueueItem(body: unknown): QueueItem | undefined {
 function malformedQueueItem(statusCode: number, body: unknown): Result<QueueItem, ApiError> {
 	return {
 		err: new ApiError(MALFORMED_QUEUE_ITEM_MESSAGE, {
-			details: body as JSONValue | undefined,
+			details: toJsonDetails(body),
 			statusCode,
 		}),
 		success: false,
@@ -118,7 +121,7 @@ function isQueueItem(item: QueueItem | undefined): item is QueueItem {
 function malformedDequeue(statusCode: number, body: unknown): Result<DequeueResult, ApiError> {
 	return {
 		err: new ApiError(MALFORMED_DEQUEUE_MESSAGE, {
-			details: body as JSONValue | undefined,
+			details: toJsonDetails(body),
 			statusCode,
 		}),
 		success: false,
