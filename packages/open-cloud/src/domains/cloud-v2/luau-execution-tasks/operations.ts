@@ -8,11 +8,12 @@ const SECONDS_PER_MINUTE = 60;
  * Per-second request ceiling for submitting a Luau execution task,
  * sourced from `x-roblox-rate-limits.perApiKeyOwner` on the
  * `Cloud_CreateLuauExecutionSessionTask__Using_Universes` operation
- * (40 requests per minute per API key owner). The two URL shapes
- * (head and version) share this queue because Roblox attributes both
- * to the same per-minute quota.
+ * (40 requests per minute per API key owner), which is also the burst
+ * the server allows. The two URL shapes (head and version) share this
+ * queue because Roblox attributes both to the same per-minute quota.
  */
 export const SUBMIT_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	burstCapacity: SUBMIT_PER_MINUTE,
 	maxPerSecond: SUBMIT_PER_MINUTE / SECONDS_PER_MINUTE,
 	operationKey: "luau-execution-tasks.submit",
 });

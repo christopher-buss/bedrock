@@ -7,6 +7,7 @@ describe("luau-execution-task-logs list operation limit", () => {
 		expect.assertions(1);
 
 		expect(LIST_LOGS_OPERATION_LIMIT).toStrictEqual({
+			burstCapacity: 45,
 			maxPerSecond: 45 / 60,
 			operationKey: "luau-execution-task-logs.list",
 		});

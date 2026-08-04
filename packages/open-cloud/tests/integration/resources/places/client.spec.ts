@@ -16,6 +16,32 @@ import {
 	validPublishResponseBody,
 } from "#tests/helpers/places";
 
+/**
+ * Burst and refill interval of the publish/save queue, mirroring
+ * `PUBLISH_OPERATION_LIMIT` (30 per minute), whose values are pinned in its own
+ * spec. The queue-accounting tests below spend the burst first, because pacing
+ * is the only observable that tells one queue from two.
+ */
+const PUBLISH_BURST = 30;
+const PUBLISH_INTERVAL_MS = 2000;
+
+/**
+ * Issues exactly enough publishes to spend the queue's burst, leaving it paced
+ * so the next call on the same queue sleeps one refill interval.
+ *
+ * @param client - The client whose default-key publish queue to spend.
+ */
+async function spendPublishBurst(client: PlacesClient): Promise<void> {
+	for (let index = 0; index < PUBLISH_BURST; index++) {
+		await client.publish({
+			body: rbxlBody(),
+			format: "rbxl",
+			placeId: "1",
+			universeId: "2",
+		});
+	}
+}
+
 describe(PlacesClient, () => {
 	describe("publish", () => {
 		it("should return a parsed PlaceVersion on a happy path", async () => {
@@ -158,13 +184,13 @@ describe(PlacesClient, () => {
 
 			// Two HTTP attempts (429 then 200); onRequest fires per attempt.
 			// onRetry fires once before the retry-after sleep. onRateLimit
-			// fires once for the queue's pre-call token wait (the 0.5/sec
-			// limit forces a wait on every call) and once more for the
-			// retry-after delay surfaced by the 429.
+			// fires only for that retry-after delay: the queue starts with
+			// its full burst, so the first call takes a token without
+			// waiting and reports no pre-call wait.
 			expect(httpClient.requests).toHaveLength(2);
 			expect(onRequest).toHaveBeenCalledTimes(2);
 			expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, expect.any(Error));
-			expect(onRateLimit.mock.calls).toStrictEqual([[1000], [1000]]);
+			expect(onRateLimit.mock.calls).toStrictEqual([[1000]]);
 		});
 
 		it("should not retry a 5xx so a transient publish failure does not duplicate the version", async () => {
@@ -557,15 +583,14 @@ describe(PlacesClient, () => {
 		it("should serialize publish and save through the same per-API-key queue", async () => {
 			expect.assertions(2);
 
-			// Against a single 0.5/sec queue, the first call pays a 1000ms
-			// init wait and leaves the bucket maxed out. The second call
-			// (the save) inherits that fully-drained bucket and pays a
-			// 2000ms wait — exposing the shared accounting. Two
-			// independent queues would each pay only their own 1000ms
-			// init and the second wait would be 1000ms.
-			const httpClient = createFakeHttpClient()
-				.mockResponse({ body: validPublishResponseBody(), status: 200 })
-				.mockResponse({ body: validPublishResponseBody(), status: 200 });
+			// Spending the whole burst on publishes leaves the queue paced,
+			// so the save that follows pays one refill interval. A save on
+			// its own queue would still hold a full burst and not wait.
+			const httpClient = createFakeHttpClient();
+			for (let index = 0; index <= PUBLISH_BURST; index++) {
+				httpClient.mockResponse({ body: validPublishResponseBody(), status: 200 });
+			}
+
 			const clock = createFakeClock();
 			const client = new PlacesClient({
 				apiKey: "test-key",
@@ -573,12 +598,7 @@ describe(PlacesClient, () => {
 				sleep: clock.sleep,
 			});
 
-			await client.publish({
-				body: rbxlBody(),
-				format: "rbxl",
-				placeId: "1",
-				universeId: "2",
-			});
+			await spendPublishBurst(client);
 			await client.save({
 				body: rbxlBody(),
 				format: "rbxl",
@@ -586,21 +606,22 @@ describe(PlacesClient, () => {
 				universeId: "2",
 			});
 
-			expect(httpClient.requests).toHaveLength(2);
-			expect(clock.waits).toStrictEqual([1000, 2000]);
+			expect(httpClient.requests).toHaveLength(PUBLISH_BURST + 1);
+			expect(clock.waits).toStrictEqual([PUBLISH_INTERVAL_MS]);
 		});
 
 		it("should route a per-request apiKey override into a queue independent of the default key", async () => {
 			expect.assertions(2);
 
-			// First call drains the default-key queue (forces a 1000ms
-			// wait). The second call uses an apiKey override; if the
-			// override correctly routes to a fresh queue it pays only the
-			// queue-init wait (1000ms again), not a wait coordinated with
-			// the default-key queue.
-			const httpClient = createFakeHttpClient()
-				.mockResponse({ body: validPublishResponseBody(), status: 200 })
-				.mockResponse({ body: validPublishResponseBody(), status: 200 });
+			// The override publish lands after the default key's burst is
+			// spent and must not wait, proving it drew on its own queue.
+			// The default-key publish after it does wait, proving the first
+			// queue really was spent and the override took nothing from it.
+			const httpClient = createFakeHttpClient();
+			for (let index = 0; index < PUBLISH_BURST + 2; index++) {
+				httpClient.mockResponse({ body: validPublishResponseBody(), status: 200 });
+			}
+
 			const clock = createFakeClock();
 			const client = new PlacesClient({
 				apiKey: "default-key",
@@ -608,12 +629,7 @@ describe(PlacesClient, () => {
 				sleep: clock.sleep,
 			});
 
-			await client.publish({
-				body: rbxlBody(),
-				format: "rbxl",
-				placeId: "1",
-				universeId: "2",
-			});
+			await spendPublishBurst(client);
 			await client.publish(
 				{
 					body: rbxlBody(),
@@ -623,12 +639,15 @@ describe(PlacesClient, () => {
 				},
 				{ apiKey: "override-key" },
 			);
+			await client.publish({
+				body: rbxlBody(),
+				format: "rbxl",
+				placeId: "1",
+				universeId: "2",
+			});
 
-			expect(httpClient.requests.map((capture) => capture.config.apiKey)).toStrictEqual([
-				"default-key",
-				"override-key",
-			]);
-			expect(clock.waits).toStrictEqual([1000, 1000]);
+			expect(httpClient.requests.at(-2)?.config.apiKey).toBe("override-key");
+			expect(clock.waits).toStrictEqual([PUBLISH_INTERVAL_MS]);
 		});
 	});
 
@@ -636,15 +655,18 @@ describe(PlacesClient, () => {
 		it("should account update and publish against separate queues", async () => {
 			expect.assertions(2);
 
-			// Publish's 0.5/sec queue forces a 1000ms init wait on its
-			// first call. Update's 100/min queue (intervalMs=600ms, max
-			// bucket 1000ms) has room on its first call and sleeps zero.
-			// If update wrongly shared publish's queue, it would inherit
-			// the drained bucket and pay a 2000ms wait; independent
-			// queues leave the second call wait-free.
-			const httpClient = createFakeHttpClient()
-				.mockResponse({ body: validPublishResponseBody(), status: 200 })
-				.mockResponse({ body: validPlaceBody(), status: 200 });
+			// The update lands after publish's burst is spent. On its own
+			// 100/min queue it does not wait; had it shared publish's queue
+			// it would have paid a refill interval of its own, making two
+			// waits rather than the one the trailing publish accounts for.
+			const httpClient = createFakeHttpClient();
+			for (let index = 0; index < PUBLISH_BURST; index++) {
+				httpClient.mockResponse({ body: validPublishResponseBody(), status: 200 });
+			}
+
+			httpClient
+				.mockResponse({ body: validPlaceBody(), status: 200 })
+				.mockResponse({ body: validPublishResponseBody(), status: 200 });
 			const clock = createFakeClock();
 			const client = new PlacesClient({
 				apiKey: "test-key",
@@ -652,20 +674,21 @@ describe(PlacesClient, () => {
 				sleep: clock.sleep,
 			});
 
+			await spendPublishBurst(client);
+			await client.update({
+				description: "Isolation test",
+				placeId: "1",
+				universeId: "2",
+			});
 			await client.publish({
 				body: rbxlBody(),
 				format: "rbxl",
 				placeId: "1",
 				universeId: "2",
 			});
-			await client.update({
-				description: "Isolation test",
-				placeId: "1",
-				universeId: "2",
-			});
 
-			expect(httpClient.requests).toHaveLength(2);
-			expect(clock.waits).toStrictEqual([1000]);
+			expect(httpClient.requests).toHaveLength(PUBLISH_BURST + 2);
+			expect(clock.waits).toStrictEqual([PUBLISH_INTERVAL_MS]);
 		});
 	});
 
