@@ -23,9 +23,13 @@ export interface PermissionErrorOptions extends ApiErrorOptions {
 /**
  * Thrown when the Roblox Open Cloud API returns a 401 or 403 for an operation
  * whose required scopes are known. Subclass of {@link ApiError} carrying the
- * scope strings the caller's credential is missing plus the operation key, so
- * a CLI consumer can tell the user exactly which scope to grant on their API
- * key.
+ * scope strings the operation requires plus the operation key, so a consumer
+ * can name them when guiding the user to their API key settings.
+ *
+ * The scopes are what the operation needs, not a diagnosis of what the
+ * credential lacks: a 403 does mean the scopes fall short, but Roblox also
+ * answers 401 for a key that is invalid, disabled, or expired. Check
+ * {@link ApiError.statusCode} before wording the failure as a missing scope.
  *
  * @since 0.1.0
  *
