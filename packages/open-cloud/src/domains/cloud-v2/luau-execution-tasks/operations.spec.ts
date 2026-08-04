@@ -12,6 +12,7 @@ describe("luau-execution-tasks submit operation limit", () => {
 		expect.assertions(1);
 
 		expect(SUBMIT_OPERATION_LIMIT).toStrictEqual({
+			burstCapacity: 40,
 			maxPerSecond: 40 / 60,
 			operationKey: "luau-execution-tasks.submit",
 		});

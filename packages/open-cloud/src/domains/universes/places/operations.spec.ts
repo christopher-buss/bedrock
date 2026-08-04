@@ -7,7 +7,8 @@ describe("places publish operation limit", () => {
 		expect.assertions(1);
 
 		expect(PUBLISH_OPERATION_LIMIT).toStrictEqual({
-			maxPerSecond: 0.5,
+			burstCapacity: 30,
+			maxPerSecond: 30 / 60,
 			operationKey: "places.publishVersion",
 		});
 	});

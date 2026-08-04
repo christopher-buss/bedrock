@@ -7,9 +7,10 @@ const SECONDS_PER_MINUTE = 60;
  * Per-second request ceiling for listing Luau execution task logs,
  * sourced from `x-roblox-rate-limits.perApiKeyOwner` on the
  * `Cloud_ListLuauExecutionSessionTaskLogs` operation (45 requests per
- * minute per API key owner).
+ * minute per API key owner), which is also the burst the server allows.
  */
 export const LIST_LOGS_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	burstCapacity: LIST_LOGS_PER_MINUTE,
 	maxPerSecond: LIST_LOGS_PER_MINUTE / SECONDS_PER_MINUTE,
 	operationKey: "luau-execution-task-logs.list",
 });

@@ -7,6 +7,7 @@ describe("luau-execution-task-binary-inputs operations", () => {
 		expect.assertions(1);
 
 		expect(CREATE_OPERATION_LIMIT).toStrictEqual({
+			burstCapacity: 5,
 			maxPerSecond: 5 / 60,
 			operationKey: "luau-execution-task-binary-inputs.create",
 		});
