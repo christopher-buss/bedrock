@@ -325,8 +325,53 @@ describe(renderDeployError, () => {
 					applied: [],
 					failures: [
 						{
+							key: asResourceKey("gem-pack"),
+							cause: new PermissionError("HTTP 403", {
+								operationKey: "developer-products.create",
+								requiredScopes: ["developer-product:write", "universe:write"],
+								statusCode: 403,
+							}),
+							kind: "driverFailure",
+						},
+					],
+				},
+				kind: "applyFailed",
+			},
+			expected:
+				"apply failed for 'gem-pack': HTTP 403 on developer-products.create: missing required scopes 'developer-product:write', 'universe:write'. Grant them on the API key at https://create.roblox.com/credentials",
+		},
+		{
+			err: {
+				cause: {
+					applied: [],
+					failures: [
+						{
 							key: asResourceKey("main-place"),
-							cause: new PermissionError("HTTP 401", {
+							cause: new PermissionError(
+								"HTTP 401: API Key has insufficient scopes.",
+								{
+									operationKey: "places.publishVersion",
+									requiredScopes: ["universe-places:write"],
+									statusCode: 401,
+								},
+							),
+							kind: "driverFailure",
+						},
+					],
+				},
+				kind: "applyFailed",
+			},
+			expected:
+				"apply failed for 'main-place': HTTP 401: API Key has insufficient scopes. on places.publishVersion: the API key was rejected. Check that it is enabled, has not expired, and grants scope 'universe-places:write' for this experience at https://create.roblox.com/credentials",
+		},
+		{
+			err: {
+				cause: {
+					applied: [],
+					failures: [
+						{
+							key: asResourceKey("main-place"),
+							cause: new PermissionError("HTTP 401: Invalid API Key", {
 								operationKey: "places.publishVersion",
 								requiredScopes: ["universe-places:write", "universe.place:write"],
 								statusCode: 401,
@@ -338,7 +383,7 @@ describe(renderDeployError, () => {
 				kind: "applyFailed",
 			},
 			expected:
-				"apply failed for 'main-place': HTTP 401 on places.publishVersion: missing required scopes 'universe-places:write', 'universe.place:write'. Grant them on the API key at https://create.roblox.com/credentials",
+				"apply failed for 'main-place': HTTP 401: Invalid API Key on places.publishVersion: the API key was rejected. Check that it is enabled, has not expired, and grants scopes 'universe-places:write', 'universe.place:write' for this experience at https://create.roblox.com/credentials",
 		},
 		{
 			err: {

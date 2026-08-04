@@ -5,6 +5,8 @@ import { safeStringify } from "../core/error-chain.ts";
 import { findTransportCode } from "../core/transport-code.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
 
+const CREDENTIALS_URL = "https://create.roblox.com/credentials";
+
 /**
  * Describes the {@link OpenCloudError} behind a driver failure for one
  * diagnostic line. A {@link NetworkError} otherwise collapses every transport
@@ -118,7 +120,14 @@ function describeNetworkError(err: NetworkError): string {
 function permissionDetail(err: PermissionError): string {
 	const isPlural = err.requiredScopes.length > 1;
 	const label = isPlural ? "scopes" : "scope";
-	const pronoun = isPlural ? "them" : "it";
 	const scopeList = err.requiredScopes.map((scope) => `'${scope}'`).join(", ");
-	return `${err.message} on ${err.operationKey}: missing required ${label} ${scopeList}. Grant ${pronoun} on the API key at https://create.roblox.com/credentials`;
+	const head = `${err.message} on ${err.operationKey}: `;
+
+	// Only a 403 pins the failure on a missing scope; a 401 is ambiguous.
+	if (err.statusCode !== 403) {
+		return `${head}the API key was rejected. Check that it is enabled, has not expired, and grants ${label} ${scopeList} for this experience at ${CREDENTIALS_URL}`;
+	}
+
+	const pronoun = isPlural ? "them" : "it";
+	return `${head}missing required ${label} ${scopeList}. Grant ${pronoun} on the API key at ${CREDENTIALS_URL}`;
 }
