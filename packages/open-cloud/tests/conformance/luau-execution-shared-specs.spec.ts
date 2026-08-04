@@ -17,6 +17,7 @@ describe("luau-execution specs are frozen module-scope singletons", () => {
 		"should be frozen so the dispatch wiring cannot be mutated at runtime",
 		([, spec]) => {
 			expect.assertions(1);
+
 			expect(Object.isFrozen(spec)).toBeTrue();
 		},
 	);

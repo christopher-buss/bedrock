@@ -5,9 +5,9 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it, onTestFinished } from "vitest";
 
-import { pruneStateGist } from "../helpers/prune-state-gist.ts";
+import { pruneStateGistAsync } from "../helpers/prune-state-gist.ts";
 
 const TOKEN = process.env["GITHUB_TOKEN"];
 const API_KEY = process.env["BEDROCK_API_KEY"];
@@ -33,7 +33,7 @@ interface SpawnResult {
 	readonly stdout: string;
 }
 
-async function runBin(args: ReadonlyArray<string>, cwd: string): Promise<SpawnResult> {
+async function runBinAsync(args: ReadonlyArray<string>, cwd: string): Promise<SpawnResult> {
 	return new Promise((resolve, reject) => {
 		const child = spawn("bun", ["--conditions", "source", BIN_ENTRY, ...args], {
 			cwd,
@@ -86,21 +86,9 @@ describe("bedrock deploy bin against real gist + open cloud", () => {
 			)}\n`;
 			await writeFile(configPath, configSource, "utf8");
 
-			try {
-				const result = await runBin(
-					["deploy", "--env", environment, "--config", configPath],
-					project,
-				);
-
-				expect(
-					result.code,
-					`bin exited ${String(result.code)}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
-				).toBe(0);
-				expect(result.stdout).toContain(environment);
-				expect(result.stdout).toMatch(/\d+ resources reconciled/);
-			} finally {
+			onTestFinished(async () => {
 				await Promise.all([
-					pruneStateGist({
+					pruneStateGistAsync({
 						filenamePrefix: "state.cli-smoke-",
 						gistId: GIST_ID,
 						keep: 3,
@@ -108,7 +96,19 @@ describe("bedrock deploy bin against real gist + open cloud", () => {
 					}),
 					rm(project, { force: true, recursive: true }),
 				]);
-			}
+			});
+
+			const result = await runBinAsync(
+				["deploy", "--env", environment, "--config", configPath],
+				project,
+			);
+
+			expect(
+				result.code,
+				`bin exited ${String(result.code)}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+			).toBe(0);
+			expect(result.stdout).toContain(environment);
+			expect(result.stdout).toMatch(/\d+ resources reconciled/);
 		},
 		120_000,
 	);

@@ -122,10 +122,11 @@ describe("list-response parsers align with OpenAPI optionality", () => {
 			const schema = loadResponseSchema(pin.schemaName);
 			const required = new Set(schema.required);
 			const properties = new Set(schema.properties);
+			const pinned = [...pin.acceptsMissingOrNull, ...Object.keys(pin.stricterThanSpec)];
 			const offenders = [
-				...pin.acceptsMissingOrNull,
-				...Object.keys(pin.stricterThanSpec),
-			].filter((field) => !properties.has(field) || required.has(field));
+				...pinned.filter((field) => !properties.has(field)),
+				...pinned.filter((field) => required.has(field)),
+			];
 
 			expect(offenders).toStrictEqual([]);
 		},

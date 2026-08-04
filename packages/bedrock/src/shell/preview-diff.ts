@@ -16,6 +16,7 @@ import {
 	extractResourceRedaction,
 	type IncompletePassEntryError,
 	type IncompletePlaceEntryError,
+	type IncompleteProductEntryError,
 	type IncompleteUniverseEntryError,
 	selectEnvironment,
 	selectMergedEnvironment,
@@ -39,19 +40,37 @@ import { loadConfig as defaultLoadConfig, type LoadConfigOptions } from "./load-
  * variables `BEDROCK_GITHUB_TOKEN` (gist state backend) when omitted.
  */
 export interface PreviewDiffOptions {
-	/** Pre-loaded, optionally-mutated project config. Omit to call `loadConfig()` automatically. */
+	/**
+	 * Pre-loaded, optionally-mutated project config. Omit to call
+	 * `loadConfig()` automatically.
+	 */
 	readonly config?: Config;
 	/** Environment name; threaded into `StatePort.read`. */
 	readonly environment: string;
-	/** `fetch` override plumbed into the default-constructed gist adapter when `statePort` is omitted. */
+	/**
+	 * `fetch` override plumbed into the default-constructed gist adapter when
+	 * `statePort` is omitted.
+	 */
 	readonly fetch?: GistFetch;
-	/** Reads an environment variable; defaults to `(name) => process.env[name]`. */
+	/**
+	 * Reads an environment variable; defaults to `(name) =>
+	 * process.env[name]`.
+	 */
 	readonly getEnv?: (name: string) => string | undefined;
-	/** Loader invoked when `config` is omitted; defaults to `loadConfig` from this package. */
+	/**
+	 * Loader invoked when `config` is omitted; defaults to `loadConfig` from
+	 * this package.
+	 */
 	readonly loadConfig?: (options?: LoadConfigOptions) => Promise<Result<Config, ConfigError>>;
-	/** Reads file bytes for resources that have file-backed inputs. Defaults to `node:fs/promises.readFile`. */
+	/**
+	 * Reads file bytes for resources that have file-backed inputs. Defaults to
+	 * `node:fs/promises.readFile`.
+	 */
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
-	/** Backend used to read the prior snapshot. Default-constructed from `config.state` and `BEDROCK_GITHUB_TOKEN` when omitted. */
+	/**
+	 * Backend used to read the prior snapshot. Default-constructed from
+	 * `config.state` and `BEDROCK_GITHUB_TOKEN` when omitted.
+	 */
 	readonly statePort?: StatePort;
 }
 
@@ -64,6 +83,7 @@ export interface PreviewDiffOptions {
 export type PreviewDiffError =
 	| IncompletePassEntryError
 	| IncompletePlaceEntryError
+	| IncompleteProductEntryError
 	| IncompleteUniverseEntryError
 	| MissingCredentialError
 	| StateNotConfiguredError
@@ -75,7 +95,10 @@ export type PreviewDiffError =
 
 /** Successful preview output. */
 export interface DiffPreview {
-	/** Environment the preview was computed against; matches `options.environment`. */
+	/**
+	 * Environment the preview was computed against; matches
+	 * `options.environment`.
+	 */
 	readonly environment: string;
 	/** Operations `diff` would apply during a deploy. */
 	readonly ops: ReadonlyArray<Operation>;
@@ -111,18 +134,20 @@ interface ResolvedDependencies {
  * @returns The computed operations on success, or a stage-tagged
  *   `PreviewDiffError` on failure.
  */
-export async function previewDiff(
+export async function previewDiffAsync(
 	options: PreviewDiffOptions,
 ): Promise<Result<DiffPreview, PreviewDiffError>> {
-	const resolved = await resolveDependencies(options);
+	const resolved = await resolveDependenciesAsync(options);
 	if (!resolved.success) {
 		return resolved;
 	}
 
-	return runPreview(options.environment, resolved.data);
+	return runPreviewAsync(options.environment, resolved.data);
 }
 
-async function pickConfig(options: PreviewDiffOptions): Promise<Result<Config, PreviewDiffError>> {
+async function pickConfigAsync(
+	options: PreviewDiffOptions,
+): Promise<Result<Config, PreviewDiffError>> {
 	if (options.config !== undefined) {
 		return { data: options.config, success: true };
 	}
@@ -191,10 +216,10 @@ function resolveEnvironmentView(
 	};
 }
 
-async function resolveDependencies(
+async function resolveDependenciesAsync(
 	options: PreviewDiffOptions,
 ): Promise<Result<ResolvedDependencies, PreviewDiffError>> {
-	const config = await pickConfig(options);
+	const config = await pickConfigAsync(options);
 	if (!config.success) {
 		return config;
 	}
@@ -217,7 +242,7 @@ async function resolveDependencies(
 	};
 }
 
-async function runPreview(
+async function runPreviewAsync(
 	environment: string,
 	dependencies: ResolvedDependencies,
 ): Promise<Result<DiffPreview, PreviewDiffError>> {

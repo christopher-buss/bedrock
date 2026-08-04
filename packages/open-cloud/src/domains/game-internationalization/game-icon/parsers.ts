@@ -1,6 +1,7 @@
 import type { HttpResponse } from "../../../client/types.ts";
 import { ApiError } from "../../../errors/api-error.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
+import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
 import type { ExperienceIcon } from "./types.ts";
 import type { GameIconListWire, GameIconState, GetGameIconResponseWire } from "./wire.ts";
@@ -13,15 +14,14 @@ import type { GameIconListWire, GameIconState, GetGameIconResponseWire } from ".
  * @returns A success result wrapping the converted icon list, or an
  *   `ApiError` when the body does not match the wire schema.
  */
-export function parseIconListResponse(
-	response: HttpResponse,
-): Result<ReadonlyArray<ExperienceIcon>, ApiError> {
-	const { body, status: statusCode } = response;
-
+export function parseIconListResponse({
+	body,
+	status: statusCode,
+}: HttpResponse): Result<ReadonlyArray<ExperienceIcon>, ApiError> {
 	if (!isGameIconListWire(body)) {
 		return {
 			err: new ApiError("Malformed icon list response", {
-				details: body as JSONValue | undefined,
+				details: toJsonDetails(body),
 				statusCode,
 			}),
 			success: false,

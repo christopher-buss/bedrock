@@ -22,7 +22,9 @@ import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from ".
  * ```
  */
 export interface BaseOperation {
-	/** Resource key copied from the desired or current entry the op describes. */
+	/**
+	 * Resource key copied from the desired or current entry the op describes.
+	 */
 	readonly key: ResourceKey;
 }
 
@@ -142,7 +144,9 @@ export interface UpdateOperation extends BaseOperation {
 	 * for "what changed" on this op; never empty for an `update` variant.
 	 */
 	readonly changedFields: ReadonlyArray<string>;
-	/** Last-known current state; the driver computes a patch against `desired`. */
+	/**
+	 * Last-known current state; the driver computes a patch against `desired`.
+	 */
 	readonly current: ResourceCurrentState;
 	/** Declared desired state to converge toward. */
 	readonly desired: ResourceDesiredState;
@@ -178,7 +182,10 @@ export interface UpdateOperation extends BaseOperation {
  * ```
  */
 export interface NoopOperation extends BaseOperation {
-	/** Resource-kind discriminator copied from the matching desired/current entry. */
+	/**
+	 * Resource-kind discriminator copied from the matching desired/current
+	 * entry.
+	 */
 	readonly kind: ResourceKind;
 	/** Discriminator tag for the `Operation` union. */
 	readonly type: "noop";

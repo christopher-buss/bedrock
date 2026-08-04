@@ -72,7 +72,7 @@ describe("universeKind", () => {
 				universe: { universeId: "1234567890" },
 			});
 
-			expect(inputs[0]?.voiceChatEnabled).toBeUndefined();
+			expect(inputs[0]!.voiceChatEnabled).toBeUndefined();
 		});
 	});
 

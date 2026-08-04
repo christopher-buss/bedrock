@@ -43,7 +43,7 @@ const UNIVERSE_TRAP: ResourceDriver<"universe"> = {
 	},
 };
 
-async function readPlaceFile(): Promise<Uint8Array> {
+async function readPlaceFileAsync(): Promise<Uint8Array> {
 	return RBXL_BYTES;
 }
 
@@ -87,7 +87,7 @@ describe("places-redacted pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const desiredResult = await buildDesired({
-			readFile: readPlaceFile,
+			readFile: readPlaceFileAsync,
 			resources: flattenConfig(resolved.data),
 		});
 		assert(desiredResult.success);
@@ -112,7 +112,7 @@ describe("places-redacted pipeline end-to-end", () => {
 					httpClient,
 					sleep: async () => {},
 				}),
-				readFile: readPlaceFile,
+				readFile: readPlaceFileAsync,
 				universeId: UNIVERSE_ID,
 			}),
 			universe: UNIVERSE_TRAP,
@@ -158,7 +158,7 @@ describe("places-redacted pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const desiredResult = await buildDesired({
-			readFile: readPlaceFile,
+			readFile: readPlaceFileAsync,
 			resources: flattenConfig(resolved.data),
 		});
 		assert(desiredResult.success);
@@ -182,7 +182,7 @@ describe("places-redacted pipeline end-to-end", () => {
 					httpClient,
 					sleep: async () => {},
 				}),
-				readFile: readPlaceFile,
+				readFile: readPlaceFileAsync,
 				universeId: UNIVERSE_ID,
 			}),
 			universe: UNIVERSE_TRAP,
@@ -228,13 +228,13 @@ describe("places-redacted pipeline end-to-end", () => {
 		const resolved = selectEnvironment(config, "staging");
 		assert(resolved.success);
 
-		expect(resolved.data.places?.["lobby"]).toStrictEqual({
+		expect(resolved.data.places!["lobby"]).toStrictEqual({
 			description: REDACTED_DESCRIPTION,
 			displayName: "Lobby",
 			filePath: "places/lobby.rbxl",
 			placeId: "2222",
 		});
-		expect(resolved.data.places?.["start-place"]).toStrictEqual({
+		expect(resolved.data.places!["start-place"]).toStrictEqual({
 			description: REDACTED_DESCRIPTION,
 			displayName: "Start Place",
 			filePath: "places/start.rbxl",
@@ -261,7 +261,7 @@ describe("places-redacted pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const desiredResult = await buildDesired({
-			readFile: readPlaceFile,
+			readFile: readPlaceFileAsync,
 			resources: flattenConfig(resolved.data),
 		});
 		assert(desiredResult.success);
@@ -291,6 +291,6 @@ describe("places-redacted pipeline end-to-end", () => {
 		const resolved = selectEnvironment(config, "production");
 		assert(resolved.success);
 
-		expect(resolved.data.places?.["start-place"]?.description).toBe("The lobby place.");
+		expect(resolved.data.places!["start-place"]!.description).toBe("The lobby place.");
 	});
 });

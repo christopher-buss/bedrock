@@ -3,13 +3,9 @@ import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
 
 import type { Operation } from "../core/operations.ts";
 import type {
-	DeveloperProductDesiredState,
-	GamePassDesiredState,
-	PlaceDesiredState,
 	ResourceCurrentState,
 	ResourceDesiredState,
 	ResourceKind,
-	UniverseDesiredState,
 } from "../core/resources.ts";
 import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
 import type {
@@ -118,10 +114,6 @@ export interface AggregateApplyError {
 }
 
 type NonNoopOp = Exclude<Operation, { readonly type: "noop" }>;
-type DeveloperProductOp = NonNoopOp & { readonly desired: DeveloperProductDesiredState };
-type GamePassOp = NonNoopOp & { readonly desired: GamePassDesiredState };
-type PlaceOp = NonNoopOp & { readonly desired: PlaceDesiredState };
-type UniverseOp = NonNoopOp & { readonly desired: UniverseDesiredState };
 
 interface OutcomePair {
 	readonly op: NonNoopOp;
@@ -241,7 +233,7 @@ export async function applyOps(
 ): Promise<Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>> {
 	const start = Date.now();
 	const { noopCount, phase1, phase2 } = partitionAndEmitNoops(ops, reporting);
-	const pairs = await dispatchInPhases({ artifacts, phase1, phase2, registry, reporting });
+	const pairs = await dispatchInPhasesAsync({ artifacts, phase1, phase2, registry, reporting });
 	const end = Date.now();
 
 	const { applied, failures } = partitionOutcomes(pairs.map((pair) => pair.outcome));
@@ -269,14 +261,23 @@ function kindMismatch(key: ResourceKey, mismatch: { actual: string; expected: st
 	);
 }
 
-async function applyOne<K extends ResourceKind>(
+function isCurrentOfKind<K extends ResourceKind>(
+	current: ResourceCurrentState,
+	kind: K,
+): current is ResourceCurrentState<K> {
+	return current.kind === kind;
+}
+
+async function applyOneAsync<K extends ResourceKind>(
 	op: NonNoopOp & { readonly desired: Extract<ResourceDesiredState, { kind: K }> },
-	dependencies: {
+	{
+		context,
+		driver,
+	}: {
 		readonly context: ResourceApplyContext | undefined;
 		readonly driver: ResourceDriver<K>;
 	},
 ): Promise<Result<ResourceCurrentState, ApplyError>> {
-	const { context, driver } = dependencies;
 	if (op.type === "create") {
 		const created =
 			context === undefined
@@ -289,107 +290,81 @@ async function applyOne<K extends ResourceKind>(
 		return { err: { key: op.key, kind: "updateUnsupported" }, success: false };
 	}
 
-	if (op.current.kind !== op.desired.kind) {
+	const { current } = op;
+	if (!isCurrentOfKind(current, op.desired.kind)) {
 		return driverFailure(
 			op.key,
-			kindMismatch(op.key, { actual: op.current.kind, expected: op.desired.kind }),
+			kindMismatch(op.key, { actual: current.kind, expected: op.desired.kind }),
 		);
 	}
 
-	const current = op.current as ResourceCurrentState<K>;
 	const updated = await (context === undefined
 		? driver.update(current, op.desired)
 		: driver.update(current, op.desired, context));
 	return updated.success ? updated : driverFailure(op.key, updated.err);
 }
 
-async function dispatchByKind(
+async function dispatchByKindAsync(
 	op: NonNoopOp,
-	dependencies: DispatchDependencies,
+	{ context, registry }: DispatchDependencies,
 ): Promise<Result<ResourceCurrentState, ApplyError>> {
-	const { context, registry } = dependencies;
 	// Exhaustive switch: adding a new ResourceKind is a compile error here
-	// until an arm lands. Each arm casts because custom type narrowing does
-	// not propagate through a non-distributive union.
-	switch (op.desired.kind) {
+	// until an arm lands. Narrowing `desired` on its own discriminator does
+	// not propagate to the operation that carries it, so each arm rebuilds
+	// the operation around the narrowed value.
+	const { desired } = op;
+	switch (desired.kind) {
 		case "developerProduct": {
-			return applyOne(op as DeveloperProductOp, {
-				context,
-				driver: registry.developerProduct,
-			});
+			return applyOneAsync(
+				{ ...op, desired },
+				{ context, driver: registry.developerProduct },
+			);
 		}
 		case "gamePass": {
-			return applyOne(op as GamePassOp, { context, driver: registry.gamePass });
+			return applyOneAsync({ ...op, desired }, { context, driver: registry.gamePass });
 		}
 		case "place": {
-			return applyOne(op as PlaceOp, { context, driver: registry.place });
+			return applyOneAsync({ ...op, desired }, { context, driver: registry.place });
 		}
 		case "universe": {
-			return applyOne(op as UniverseOp, { context, driver: registry.universe });
+			return applyOneAsync({ ...op, desired }, { context, driver: registry.universe });
 		}
 	}
 }
 
-async function dispatchOp(
+async function dispatchOpAsync(
 	op: NonNoopOp,
 	dependencies: DispatchDependencies,
 ): Promise<Result<ResourceCurrentState, ApplyError>> {
 	try {
-		return await dispatchByKind(op, dependencies);
+		return await dispatchByKindAsync(op, dependencies);
 	} catch (err) {
 		return { err: { key: op.key, cause: err, kind: "unexpectedThrow" }, success: false };
 	}
 }
 
-/* eslint-disable-next-line max-lines-per-function -- exhaustive per-ResourceKind switch with literal returns required for per-kind narrowing of `outputs`; consolidating would either reintroduce casts or hide the discriminator. */
-function createSucceededEvent(input: CreateSucceededInput): ProgressEvent {
-	const { key, environment, state } = input;
+function createSucceededEvent({ key, environment, state }: CreateSucceededInput): ProgressEvent {
+	// The four arms differ only in their `resourceKind` literal, but the event
+	// union correlates that literal with the matching `outputs` shape, so a
+	// single `resourceKind: state.kind` return does not type-check.
+	const base = { key, environment, kind: "resourceOpSucceeded", opType: "create" } as const;
 	switch (state.kind) {
 		case "developerProduct": {
-			return {
-				key,
-				environment,
-				kind: "resourceOpSucceeded",
-				opType: "create",
-				outputs: state.outputs,
-				resourceKind: "developerProduct",
-			};
+			return { ...base, outputs: state.outputs, resourceKind: "developerProduct" };
 		}
 		case "gamePass": {
-			return {
-				key,
-				environment,
-				kind: "resourceOpSucceeded",
-				opType: "create",
-				outputs: state.outputs,
-				resourceKind: "gamePass",
-			};
+			return { ...base, outputs: state.outputs, resourceKind: "gamePass" };
 		}
 		case "place": {
-			return {
-				key,
-				environment,
-				kind: "resourceOpSucceeded",
-				opType: "create",
-				outputs: state.outputs,
-				resourceKind: "place",
-			};
+			return { ...base, outputs: state.outputs, resourceKind: "place" };
 		}
 		case "universe": {
-			return {
-				key,
-				environment,
-				kind: "resourceOpSucceeded",
-				opType: "create",
-				outputs: state.outputs,
-				resourceKind: "universe",
-			};
+			return { ...base, outputs: state.outputs, resourceKind: "universe" };
 		}
 	}
 }
 
-function toTerminalEvent(input: TerminalEventInput): ProgressEvent {
-	const { environment, op, outcome } = input;
+function toTerminalEvent({ environment, op, outcome }: TerminalEventInput): ProgressEvent {
 	if (!outcome.success) {
 		return {
 			key: op.key,
@@ -415,8 +390,12 @@ function toTerminalEvent(input: TerminalEventInput): ProgressEvent {
 	return createSucceededEvent({ key: op.key, environment, state: outcome.data });
 }
 
-async function reportAndDispatch(input: ReportAndDispatchInput): Promise<OutcomePair> {
-	const { artifacts, op, registry, reporting } = input;
+async function reportAndDispatchAsync({
+	artifacts,
+	op,
+	registry,
+	reporting,
+}: ReportAndDispatchInput): Promise<OutcomePair> {
 	if (reporting !== undefined) {
 		reporting.progress.emit({
 			key: op.key,
@@ -429,7 +408,7 @@ async function reportAndDispatch(input: ReportAndDispatchInput): Promise<Outcome
 
 	const artifact = artifacts?.get(op.key);
 	const context = artifact === undefined ? undefined : { artifact };
-	const outcome = await dispatchOp(op, { context, registry });
+	const outcome = await dispatchOpAsync(op, { context, registry });
 	if (reporting !== undefined) {
 		reporting.progress.emit(
 			toTerminalEvent({ environment: reporting.environment, op, outcome }),
@@ -439,15 +418,20 @@ async function reportAndDispatch(input: ReportAndDispatchInput): Promise<Outcome
 	return { op, outcome };
 }
 
-async function dispatchInPhases(input: DispatchInPhasesInput): Promise<ReadonlyArray<OutcomePair>> {
-	const { artifacts, phase1, phase2, registry, reporting } = input;
+async function dispatchInPhasesAsync({
+	artifacts,
+	phase1,
+	phase2,
+	registry,
+	reporting,
+}: DispatchInPhasesInput): Promise<ReadonlyArray<OutcomePair>> {
 	const phase1Pairs: Array<OutcomePair> = [];
 	for (const op of phase1) {
-		phase1Pairs.push(await reportAndDispatch({ artifacts, op, registry, reporting }));
+		phase1Pairs.push(await reportAndDispatchAsync({ artifacts, op, registry, reporting }));
 	}
 
 	const phase2Pairs = await Promise.all(
-		phase2.map(async (op) => reportAndDispatch({ artifacts, op, registry, reporting })),
+		phase2.map(async (op) => reportAndDispatchAsync({ artifacts, op, registry, reporting })),
 	);
 	return [...phase1Pairs, ...phase2Pairs];
 }

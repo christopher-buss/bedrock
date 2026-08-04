@@ -1,4 +1,5 @@
 import type { Result } from "@bedrock-rbx/ocale";
+import { fromAny } from "@total-typescript/shoehorn";
 
 import process from "node:process";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -89,9 +90,9 @@ describe(buildCommand, () => {
 
 		await buildCommand(deps)(rawOptions);
 
-		expect(deps.clack?.intro).toHaveBeenCalledExactlyOnceWith("bedrock build");
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("build failed");
+		expect(deps.clack!.intro).toHaveBeenCalledExactlyOnceWith("bedrock build");
+		expect(deps.clack!.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
+		expect(deps.clack!.cancel).toHaveBeenCalledExactlyOnceWith("build failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -116,10 +117,10 @@ describe(buildCommand, () => {
 
 		await buildCommand(deps)({ env: "production" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(deps.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			"override discovery failed: EACCES: permission denied, stat '/project/.bedrock/build.ts'",
 		);
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("build failed");
+		expect(deps.clack!.cancel).toHaveBeenCalledExactlyOnceWith("build failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -133,7 +134,7 @@ describe(buildCommand, () => {
 		await buildCommand(deps)({ env: "production" });
 
 		expect(invocations).toHaveLength(1);
-		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith("build succeeded");
+		expect(deps.clack!.outro).toHaveBeenCalledExactlyOnceWith("build succeeded");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
@@ -151,7 +152,7 @@ describe(buildCommand, () => {
 			"github-token": "ghp-token",
 		});
 
-		const args = invocations[0]?.args ?? [];
+		const { args } = invocations[0]!;
 
 		expect(args).toStrictEqual([
 			"/abs/.bedrock/build.ts",
@@ -160,7 +161,7 @@ describe(buildCommand, () => {
 			"--config",
 			"./bedrock.staging.config.ts",
 		]);
-		expect(invocations[0]?.envOverrides).toMatchObject({
+		expect(invocations[0]!.envOverrides).toMatchObject({
 			BEDROCK_API_KEY: "rbx-key",
 			BEDROCK_CLI: "1",
 			BEDROCK_GITHUB_TOKEN: "ghp-token",
@@ -180,10 +181,7 @@ describe(buildCommand, () => {
 
 		expect(invocations).toHaveLength(2);
 
-		const environmentValues = invocations.map((invocation) => {
-			const { args } = invocation;
-			return args[args.indexOf("--env") + 1];
-		});
+		const environmentValues = invocations.map(({ args }) => args[args.indexOf("--env") + 1]);
 
 		expect(environmentValues).toStrictEqual(["production", "staging"]);
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
@@ -198,10 +196,10 @@ describe(buildCommand, () => {
 
 		await buildCommand(deps)({ env: "production" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(deps.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			"production: override exited with code 3",
 		);
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("build failed");
+		expect(deps.clack!.cancel).toHaveBeenCalledExactlyOnceWith("build failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(3);
 	});
 
@@ -220,10 +218,10 @@ describe(buildCommand, () => {
 
 		await buildCommand(deps)({ env: "production" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(deps.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			"production: failed to launch override - spawn bun ENOENT",
 		);
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("build failed");
+		expect(deps.clack!.cancel).toHaveBeenCalledExactlyOnceWith("build failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -268,7 +266,7 @@ describe(buildCommand, () => {
 
 		await buildCommand(deps)({ env: "production" });
 
-		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith("nothing to build");
+		expect(deps.clack!.outro).toHaveBeenCalledExactlyOnceWith("nothing to build");
 		expect(invocations).toHaveLength(0);
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
@@ -282,10 +280,10 @@ describe(buildCommand, () => {
 
 		await buildCommand(deps)({ env: "production" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(deps.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			"codegen is enabled but no .bedrock/build.ts override was found: add one that writes each place's built artifact to its configured file path, or disable codegen",
 		);
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("build failed");
+		expect(deps.clack!.cancel).toHaveBeenCalledExactlyOnceWith("build failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -301,8 +299,8 @@ describe(buildCommand, () => {
 
 		await buildCommand(deps)({ env: "production" });
 
-		expect(deps.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("build failed");
+		expect(deps.clack!.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
+		expect(deps.clack!.cancel).toHaveBeenCalledExactlyOnceWith("build failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -349,9 +347,7 @@ describe(buildCommand, () => {
 	it("should default to process.exit when no exit slot is provided", async () => {
 		expect.assertions(1);
 
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation((() => {}) as typeof process.exit);
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(fromAny(() => {}));
 		onTestFinished(() => {
 			exitSpy.mockRestore();
 		});

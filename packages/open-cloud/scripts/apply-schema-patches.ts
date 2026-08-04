@@ -154,7 +154,9 @@ export async function applySchemaPatches(): Promise<void> {
 	let already = 0;
 
 	for (const patch of PATCHES) {
-		const next = text.replace(patch.find, patch.replace);
+		// A replacer function inserts the text verbatim; a string replacement
+		// would interpret `$&` and friends in the patch payload.
+		const next = text.replace(patch.find, () => patch.replace);
 		if (next !== text) {
 			text = next;
 			applied += 1;

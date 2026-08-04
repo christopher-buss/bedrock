@@ -22,11 +22,19 @@ import type { MantleResource } from "./types.ts";
 export interface EnvironmentFoldResult {
 	/** Folded pass entries for this environment, in declaration order. */
 	readonly passes: ReadonlyArray<PassFoldEntry>;
-	/** Folded place entries for this environment, keyed by Mantle's place key. */
+	/**
+	 * Folded place entries for this environment, keyed by Mantle's place key.
+	 */
 	readonly places: ReadonlyMap<string, PlaceFoldEntry>;
-	/** Folded developer-product entries for this environment, in declaration order. */
+	/**
+	 * Folded developer-product entries for this environment, in declaration
+	 * order.
+	 */
 	readonly products: ReadonlyArray<ProductFoldEntry>;
-	/** Folded universe data for this environment, or `undefined` when no experience is present. */
+	/**
+	 * Folded universe data for this environment, or `undefined` when no
+	 * experience is present.
+	 */
 	readonly universe:
 		| undefined
 		| {

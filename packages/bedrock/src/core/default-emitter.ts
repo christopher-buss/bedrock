@@ -1,4 +1,5 @@
 import type { CodegenFile, EmitInput, Emitter } from "./codegen.ts";
+import { isRecord } from "./is-record.ts";
 import type { CodegenConfig } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
 
@@ -19,8 +20,8 @@ export interface DefaultEmitterOptions {
 /**
  * Default directory the generated files are written under, relative to the
  * working directory. Sits inside the managed `.bedrock/` directory but in its
- * own `generated/` subdirectory, so codegen output stays clear of the
- * `bedrock setup`-managed type files; consume it as `@bedrock/generated/resources`.
+ * own `generated/` subdirectory, so codegen output stays clear of the `bedrock
+ * setup`-managed type files; consume it as `@bedrock/generated/resources`.
  *
  * @since 0.1.0
  */
@@ -145,8 +146,8 @@ function renderLuauTable(record: Readonly<Record<string, unknown>>, indent: numb
 }
 
 function renderLuauValue(value: unknown, indent: number): string {
-	if (typeof value === "object") {
-		return renderLuauTable(value as Readonly<Record<string, unknown>>, indent);
+	if (isRecord(value)) {
+		return renderLuauTable(value, indent);
 	}
 
 	// Every scalar output is a Roblox asset ID (a numeric string) or a numeric
@@ -155,8 +156,8 @@ function renderLuauValue(value: unknown, indent: number): string {
 }
 
 function renderDeclarationType(value: unknown, indent: number): string {
-	if (typeof value === "object") {
-		return renderDeclarationObject(value as Readonly<Record<string, unknown>>, indent);
+	if (isRecord(value)) {
+		return renderDeclarationObject(value, indent);
 	}
 
 	return "number";

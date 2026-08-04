@@ -14,15 +14,28 @@
  * parser is intentionally generic.
  */
 export interface MantleResource {
-	/** Stable resource key (the suffix after the first `_` in Mantle's `id`). */
+	/**
+	 * Stable resource key (the suffix after the first `_` in Mantle's `id`).
+	 */
 	readonly key: string;
-	/** Other Mantle `id`s this resource depends on; copied verbatim from the YAML. */
+	/**
+	 * Other Mantle `id`s this resource depends on; copied verbatim from the
+	 * YAML.
+	 */
 	readonly dependencies: ReadonlyArray<string>;
-	/** Bare payload from `inputs[kind]`, with nulls normalized to `undefined`. */
+	/**
+	 * Bare payload from `inputs[kind]`, with nulls normalized to `undefined`.
+	 */
 	readonly inputs: unknown;
-	/** Resource discriminator (the prefix before the first `_` in Mantle's `id`). */
+	/**
+	 * Resource discriminator (the prefix before the first `_` in Mantle's
+	 * `id`).
+	 */
 	readonly kind: string;
-	/** Bare payload from `outputs[kind]`, or `undefined` for bare-string outputs. */
+	/**
+	 * Bare payload from `outputs[kind]`, or `undefined` for bare-string
+	 * outputs.
+	 */
 	readonly outputs: unknown;
 }
 

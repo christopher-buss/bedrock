@@ -96,7 +96,7 @@ describe(PlacesClient, () => {
 				universeId: "123",
 			});
 
-			expect(httpClient.requests[0]?.request.headers).toStrictEqual({
+			expect(httpClient.requests[0]!.request.headers).toStrictEqual({
 				"content-type": "application/xml",
 			});
 		});
@@ -305,7 +305,7 @@ describe(PlacesClient, () => {
 				{ apiKey: "override-key" },
 			);
 
-			expect(httpClient.requests[0]?.config.apiKey).toBe("override-key");
+			expect(httpClient.requests[0]!.config.apiKey).toBe("override-key");
 		});
 	});
 
@@ -333,7 +333,7 @@ describe(PlacesClient, () => {
 			assert(result.success);
 
 			expect(result.data).toStrictEqual({ versionNumber: 12 });
-			expect(httpClient.requests[0]?.request.url).toEndWith("?versionType=Saved");
+			expect(httpClient.requests[0]!.request.url).toEndWith("?versionType=Saved");
 		});
 
 		it("should short-circuit on a format mismatch without firing HTTP", async () => {
@@ -549,7 +549,7 @@ describe(PlacesClient, () => {
 				{ apiKey: "override-key" },
 			);
 
-			expect(httpClient.requests[0]?.config.apiKey).toBe("override-key");
+			expect(httpClient.requests[0]!.config.apiKey).toBe("override-key");
 		});
 	});
 

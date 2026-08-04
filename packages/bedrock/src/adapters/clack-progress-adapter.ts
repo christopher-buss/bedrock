@@ -33,9 +33,10 @@ export interface ClackProgressAdapterDeps {
 
 /**
  * Build a {@link ProgressPort} that renders events through a `ClackPort`.
- * Pattern-matches on the event `kind`: per-resource events render one line each,
- * the aggregate `applySummary` becomes the deploy footer, and `stateWritten`
- * names the persistence backend resolved from the loaded `Config`.
+ * Pattern-matches on the event `kind`: per-resource events render one line
+ * each, the aggregate `applySummary` becomes the deploy footer, and
+ * `stateWritten` names the persistence backend resolved from the loaded
+ * `Config`.
  *
  * @since 0.1.0
  *
@@ -130,6 +131,32 @@ function formatStateLabel(
 	return stateConfigLabel(resolved.data);
 }
 
+function renderDeployEvent(
+	event: Extract<
+		ProgressEvent,
+		{ kind: "applySummary" | "deployFailure" | "deploySuccess" | "stateWritten" }
+	>,
+	{ clack, config }: ClackProgressAdapterDeps,
+): void {
+	switch (event.kind) {
+		case "applySummary": {
+			clack.logMessage(applySummaryLine(event));
+			return;
+		}
+		case "deployFailure": {
+			renderDeployError(event.error, clack);
+			return;
+		}
+		case "deploySuccess": {
+			clack.logSuccess(`${event.environment}: ${event.resourceCount} resources reconciled`);
+			return;
+		}
+		case "stateWritten": {
+			clack.logMessage(`State written to ${formatStateLabel(config, event.environment)}`);
+		}
+	}
+}
+
 function extractResourceId(event: ResourceOpSucceededCreateEvent): string | undefined {
 	switch (event.resourceKind) {
 		case "developerProduct": {
@@ -163,22 +190,20 @@ function renderResourceOpSucceeded(
 	);
 }
 
-/* eslint-disable-next-line max-lines-per-function -- single exhaustive switch over every ProgressEvent variant is clearer than splitting into deploy-level vs per-resource halves, which would leave both halves non-exhaustive and required a boolean handoff that hides the dispatch surface. */
-function renderEvent(event: ProgressEvent, dependencies: ClackProgressAdapterDeps): void {
-	const { clack, config } = dependencies;
+function renderResourceOpEvent(
+	event: Extract<
+		ProgressEvent,
+		{
+			kind:
+				| "resourceOpFailed"
+				| "resourceOpNoop"
+				| "resourceOpStarted"
+				| "resourceOpSucceeded";
+		}
+	>,
+	clack: ClackPort,
+): void {
 	switch (event.kind) {
-		case "applySummary": {
-			clack.logMessage(applySummaryLine(event));
-			return;
-		}
-		case "deployFailure": {
-			renderDeployError(event.error, clack);
-			return;
-		}
-		case "deploySuccess": {
-			clack.logSuccess(`${event.environment}: ${event.resourceCount} resources reconciled`);
-			return;
-		}
 		case "resourceOpFailed": {
 			clack.logError(
 				`${event.resourceKind}.${event.key} failed: ${applyCauseDetail(event.error)}`,
@@ -194,10 +219,24 @@ function renderEvent(event: ProgressEvent, dependencies: ClackProgressAdapterDep
 		}
 		case "resourceOpSucceeded": {
 			renderResourceOpSucceeded(event, clack);
+		}
+	}
+}
+
+function renderEvent(event: ProgressEvent, dependencies: ClackProgressAdapterDeps): void {
+	switch (event.kind) {
+		case "applySummary":
+		case "deployFailure":
+		case "deploySuccess":
+		case "stateWritten": {
+			renderDeployEvent(event, dependencies);
 			return;
 		}
-		case "stateWritten": {
-			clack.logMessage(`State written to ${formatStateLabel(config, event.environment)}`);
+		case "resourceOpFailed":
+		case "resourceOpNoop":
+		case "resourceOpStarted":
+		case "resourceOpSucceeded": {
+			renderResourceOpEvent(event, dependencies.clack);
 		}
 	}
 }

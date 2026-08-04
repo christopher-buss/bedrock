@@ -168,8 +168,10 @@ export type RequestOptions = Partial<
 /**
  * Supported request body types.
  *
- * - `FormData` for multipart uploads (Content-Type set automatically by fetch).
- * - `Record<string, unknown>` for JSON bodies (serialized with `JSON.stringify`).
+ * - `FormData` for multipart uploads (Content-Type set automatically by
+ *   fetch).
+ * - `Record<string, unknown>` for JSON bodies (serialized with
+ *   `JSON.stringify`).
  * - `Uint8Array<ArrayBuffer>` for raw binary uploads (default Content-Type is
  *   `application/octet-stream`; override via {@link HttpRequest.headers}).
  *   `SharedArrayBuffer`-backed views are not accepted by `fetch`; wrap them

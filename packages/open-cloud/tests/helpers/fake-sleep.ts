@@ -20,6 +20,8 @@ export function createFakeSleep(): FakeSleep {
 
 	async function sleep(ms: number): Promise<void> {
 		waits.push(ms);
+		// Resolve on a later microtask, as a real timer-backed sleep does.
+		await Promise.resolve();
 	}
 
 	const fake: FakeSleep = Object.assign(sleep, {

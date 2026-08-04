@@ -1,9 +1,8 @@
 import { S_BAR, S_BAR_END, S_BAR_START, S_ERROR, S_SUCCESS } from "@clack/prompts";
 
-import { Buffer } from "node:buffer";
-import process from "node:process";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
+import { captureStreams } from "#tests/helpers/streams";
 import { createClackPort } from "./clack-port.ts";
 import type { ClackPort } from "./render.ts";
 
@@ -12,21 +11,9 @@ interface CapturedOutput {
 }
 
 function captureWith(act: (port: ClackPort) => void): CapturedOutput {
-	const chunks: Array<string> = [];
-	const spy = vi
-		.spyOn(process.stdout, "write")
-		.mockImplementation((chunk: string | Uint8Array): boolean => {
-			chunks.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
-			return true;
-		});
-
-	try {
-		act(createClackPort());
-	} finally {
-		spy.mockRestore();
-	}
-
-	return { text: chunks.join("") };
+	const { stdout } = captureStreams();
+	act(createClackPort());
+	return { text: stdout.join("") };
 }
 
 describe(createClackPort, () => {

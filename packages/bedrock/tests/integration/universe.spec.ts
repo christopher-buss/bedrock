@@ -19,6 +19,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it } from "vitest";
 
+import { jsonRequestBody } from "#tests/helpers/http";
+
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const UNIVERSE_FIXTURE_DIR = join(FIXTURES_ROOT, "universe");
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
@@ -42,7 +44,7 @@ const DEVELOPER_PRODUCT_TRAP: ResourceDriver<"developerProduct"> = {
 	},
 };
 
-async function readFileNever(): Promise<Uint8Array> {
+async function readFileNeverAsync(): Promise<Uint8Array> {
 	throw new Error("readFile must not run for a universe-only config");
 }
 
@@ -82,7 +84,7 @@ describe("universe pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const desiredResult = await buildDesired({
-			readFile: readFileNever,
+			readFile: readFileNeverAsync,
 			resources: flattenConfig(resolved.data),
 		});
 		assert(desiredResult.success);
@@ -137,7 +139,7 @@ describe("universe pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const desiredResult = await buildDesired({
-			readFile: readFileNever,
+			readFile: readFileNeverAsync,
 			resources: flattenConfig(resolved.data),
 		});
 		assert(desiredResult.success);
@@ -179,7 +181,7 @@ describe("universe pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const desiredResult = await buildDesired({
-			readFile: readFileNever,
+			readFile: readFileNeverAsync,
 			resources: flattenConfig(resolved.data),
 		});
 		assert(desiredResult.success);
@@ -199,7 +201,7 @@ describe("universe pipeline end-to-end", () => {
 		const [first] = httpClient.requests;
 		assert(first);
 
-		const body = first.request.body as Record<string, unknown>;
+		const body = jsonRequestBody(first.request);
 
 		expect(Object.keys(body).toSorted()).toStrictEqual(
 			[
@@ -224,7 +226,7 @@ describe("universe pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const desiredResult = await buildDesired({
-			readFile: readFileNever,
+			readFile: readFileNeverAsync,
 			resources: flattenConfig(resolved.data),
 		});
 		assert(desiredResult.success);
@@ -278,7 +280,7 @@ describe("universe pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const desiredResult = await buildDesired({
-			readFile: readFileNever,
+			readFile: readFileNeverAsync,
 			resources: flattenConfig(resolved.data),
 		});
 		assert(desiredResult.success);
@@ -304,7 +306,8 @@ describe("universe pipeline end-to-end", () => {
 		expect(ops.map((op) => op.type)).toStrictEqual(["update"]);
 
 		const [op] = ops;
-		assert(op?.type === "update");
+		assert(op !== undefined);
+		assert(op.type === "update");
 
 		expect(op.desired).toBe(desiredResult.data[0]);
 	});

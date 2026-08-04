@@ -65,7 +65,9 @@ export interface UniverseWire {
 	readonly mobileEnabled?: boolean | undefined;
 	/** Resource path, e.g. `"universes/{id}"`. */
 	readonly path: string;
-	/** Private server price in Robux; absent when private servers are disabled. */
+	/**
+	 * Private server price in Robux; absent when private servers are disabled.
+	 */
 	readonly privateServerPriceRobux?: number | undefined;
 	/** Roblox Group social link block. */
 	readonly robloxGroupSocialLink?: SocialLinkWire | undefined;

@@ -31,11 +31,9 @@ const CONTENT_TYPE_BY_FORMAT: Readonly<Record<PublishParameters["format"], strin
  *   disagree with `parameters.format`.
  */
 export function buildPublishRequest(
-	parameters: PublishParameters,
+	{ body, format, placeId, universeId }: PublishParameters,
 	versionType: VersionType,
 ): Result<HttpRequest, ValidationError> {
-	const { body, format, placeId, universeId } = parameters;
-
 	const validationError = validateBody(body, format);
 	if (validationError !== undefined) {
 		return { err: validationError, success: false };

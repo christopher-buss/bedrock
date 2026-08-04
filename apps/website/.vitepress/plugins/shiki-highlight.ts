@@ -43,7 +43,7 @@ export function shikiHighlightPlugin(): Plugin {
 			const filePath = id.slice(0, -QUERY.length);
 			try {
 				this.addWatchFile(filePath);
-				return await highlightToModule(filePath);
+				return await highlightToModuleAsync(filePath);
 			} catch (err) {
 				// Hand Rollup an Error that carries the original throw as its
 				// cause, so a Shiki failure keeps its stack and cause chain in
@@ -79,7 +79,7 @@ function safeString(value: unknown): string {
 	}
 }
 
-async function getHighlighter(): Promise<Highlighter> {
+async function getHighlighterAsync(): Promise<Highlighter> {
 	highlighterPromise ??= createHighlighter({
 		langs: ["typescript", "bash"],
 		themes: [BEDROCK_WARM],
@@ -106,9 +106,9 @@ function detectLang(filePath: string): string {
  * @param filePath - Absolute path to the source file (no `?highlighted` query).
  * @returns Module source that default-exports the highlighted HTML string.
  */
-async function highlightToModule(filePath: string): Promise<string> {
+async function highlightToModuleAsync(filePath: string): Promise<string> {
 	const source = await readFile(filePath, "utf8");
-	const highlighter = await getHighlighter();
+	const highlighter = await getHighlighterAsync();
 	const html = highlighter.codeToHtml(source, {
 		lang: detectLang(filePath),
 		theme: THEME,

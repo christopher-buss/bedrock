@@ -188,7 +188,7 @@ export class BadgesClient {
 		parameters: CreateBadgeParameters,
 		options?: RequestOptions,
 	): Promise<Result<Badge, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: CREATE_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: CREATE_SPEC });
 	}
 
 	/**
@@ -206,7 +206,7 @@ export class BadgesClient {
 		parameters: UpdateBadgeParameters,
 		options?: RequestOptions,
 	): Promise<Result<undefined, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: UPDATE_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: UPDATE_SPEC });
 	}
 
 	/**
@@ -227,17 +227,17 @@ export class BadgesClient {
 		parameters: UploadBadgeIconParameters,
 		options?: RequestOptions,
 	): Promise<Result<undefined, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: UPLOAD_ICON_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: UPLOAD_ICON_SPEC });
 	}
 }
 
 function createLocalizationHandle(inner: ResourceClient): BadgeLocalizationHandle {
 	return {
 		async updateNameDescription(parameters, options) {
-			return inner.execute({ options, parameters, spec: UPDATE_NAME_DESCRIPTION_SPEC });
+			return inner.executeAsync({ options, parameters, spec: UPDATE_NAME_DESCRIPTION_SPEC });
 		},
 		async uploadIcon(parameters, options) {
-			return inner.execute({ options, parameters, spec: UPLOAD_LOCALIZED_ICON_SPEC });
+			return inner.executeAsync({ options, parameters, spec: UPLOAD_LOCALIZED_ICON_SPEC });
 		},
 	};
 }

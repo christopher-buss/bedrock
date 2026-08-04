@@ -4,7 +4,7 @@ import { type } from "arktype";
 
 import { asResourceKey } from "../../types/ids.ts";
 import type { GamePassDesiredInput } from "../flatten.ts";
-import { hashIconLocales, iconHashesEqual, iconMap } from "../icons.ts";
+import { hashIconLocalesAsync, iconHashesEqual, iconMap } from "../icons.ts";
 import type { GamePassDesiredState, ResourceCurrentState } from "../resources.ts";
 import { OPTIONAL_ROBUX_PRICE, type ResolvedConfig } from "../schema.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
@@ -30,11 +30,11 @@ function flatten(config: ResolvedConfig): ReadonlyArray<GamePassDesiredInput> {
 	});
 }
 
-async function normalize(
+async function normalizeAsync(
 	input: GamePassDesiredInput,
 	io: KindIo,
 ): Promise<Result<GamePassDesiredState, BuildDesiredError>> {
-	const hashes = await hashIconLocales({ key: input.key, icon: input.icon }, io);
+	const hashes = await hashIconLocalesAsync({ key: input.key, icon: input.icon }, io);
 	if (!hashes.success) {
 		return hashes;
 	}
@@ -86,5 +86,5 @@ export const gamePassKind: ResourceKindModule<"gamePass"> = {
 	fieldsEqual,
 	flatten,
 	kind: "gamePass",
-	normalize,
+	normalize: normalizeAsync,
 };

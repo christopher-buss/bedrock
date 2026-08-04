@@ -44,11 +44,11 @@ interface CreateFlowResult {
 	readonly opTypes: ReadonlyArray<Operation["type"]>;
 }
 
-async function readIcon(): Promise<Uint8Array> {
+async function readIconAsync(): Promise<Uint8Array> {
 	return ICON_BYTES;
 }
 
-async function sha256HexOf(bytes: Uint8Array): Promise<string> {
+async function sha256HexOfAsync(bytes: Uint8Array): Promise<string> {
 	const buffer = await crypto.subtle.digest("SHA-256", Uint8Array.from(bytes));
 	return Array.from(new Uint8Array(buffer), (byte) => byte.toString(16).padStart(2, "0")).join(
 		"",
@@ -82,7 +82,7 @@ function makeLiveRegistry(httpClient: FakeHttpClient): DriverRegistry {
 				httpClient,
 				sleep: async () => {},
 			}),
-			readFile: readIcon,
+			readFile: readIconAsync,
 			universeId: UNIVERSE_ID,
 		}),
 		place: PLACE_STUB,
@@ -90,7 +90,7 @@ function makeLiveRegistry(httpClient: FakeHttpClient): DriverRegistry {
 	};
 }
 
-async function buildExistingPass(
+async function buildExistingPassAsync(
 	overrides: Partial<ResourceCurrentState<"gamePass">> = {},
 ): Promise<ResourceCurrentState<"gamePass">> {
 	return {
@@ -98,7 +98,7 @@ async function buildExistingPass(
 		name: "VIP Pass",
 		description: "Grants VIP perks.",
 		icon: { "en-us": "assets/vip-icon.png" },
-		iconFileHashes: { "en-us": asSha256Hex(await sha256HexOf(ICON_BYTES)) },
+		iconFileHashes: { "en-us": asSha256Hex(await sha256HexOfAsync(ICON_BYTES)) },
 		kind: "gamePass",
 		outputs: {
 			assetId: asRobloxAssetId("9876543210"),
@@ -109,7 +109,7 @@ async function buildExistingPass(
 	};
 }
 
-async function runPipelineFromFixture(cwd: string): Promise<CreateFlowResult> {
+async function runPipelineFromFixtureAsync(cwd: string): Promise<CreateFlowResult> {
 	const loaded = await loadConfig({ cwd });
 	assert(loaded.success);
 
@@ -117,7 +117,7 @@ async function runPipelineFromFixture(cwd: string): Promise<CreateFlowResult> {
 	assert(resolved.success);
 
 	const desiredResult = await buildDesired({
-		readFile: readIcon,
+		readFile: readIconAsync,
 		resources: flattenConfig(resolved.data),
 	});
 	assert(desiredResult.success);
@@ -144,7 +144,7 @@ describe("config pipeline end-to-end", () => {
 		async (format) => {
 			expect.assertions(4);
 
-			const { applyOutcome, httpClient, opTypes } = await runPipelineFromFixture(
+			const { applyOutcome, httpClient, opTypes } = await runPipelineFromFixtureAsync(
 				join(FIXTURES_ROOT, format),
 			);
 
@@ -162,7 +162,7 @@ describe("config pipeline end-to-end", () => {
 	it("should load a function-form typescript config, flatten it, and dispatch a create op for the declared game pass", async () => {
 		expect.assertions(2);
 
-		const { applyOutcome, opTypes } = await runPipelineFromFixture(
+		const { applyOutcome, opTypes } = await runPipelineFromFixtureAsync(
 			join(FIXTURES_ROOT, "typescript-function"),
 		);
 
@@ -173,7 +173,7 @@ describe("config pipeline end-to-end", () => {
 	it("should forward every declared game-pass field into the multipart body, including the icon bytes", async () => {
 		expect.assertions(4);
 
-		const { httpClient } = await runPipelineFromFixture(TYPESCRIPT_FIXTURE_DIR);
+		const { httpClient } = await runPipelineFromFixtureAsync(TYPESCRIPT_FIXTURE_DIR);
 		const [first] = httpClient.requests;
 		assert(first);
 		assert(first.request.body instanceof FormData);
@@ -197,12 +197,12 @@ describe("config pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const desiredResult = await buildDesired({
-			readFile: readIcon,
+			readFile: readIconAsync,
 			resources: flattenConfig(resolved.data),
 		});
 		assert(desiredResult.success);
 
-		const ops = diff(desiredResult.data, [await buildExistingPass()]);
+		const ops = diff(desiredResult.data, [await buildExistingPassAsync()]);
 
 		expect(ops.map((op) => op.type)).toStrictEqual(["noop"]);
 

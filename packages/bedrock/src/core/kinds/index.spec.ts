@@ -1,31 +1,28 @@
 import { describe, expect, it } from "vitest";
 
+import type { ResourceKind } from "../resources.ts";
 import { defaultKindRegistry } from "./index.ts";
-import type { KindRegistry } from "./module.ts";
+
+const KINDS = [
+	"developerProduct",
+	"gamePass",
+	"place",
+	"universe",
+] as const satisfies ReadonlyArray<ResourceKind>;
 
 describe("defaultKindRegistry", () => {
-	it("should key every entry by the kind discriminator its module declares", () => {
-		expect.assertions(1);
+	it.for(KINDS)(
+		"should key the %s slot by the kind discriminator its module declares",
+		(kind) => {
+			expect.assertions(1);
 
-		const mismatches = (
-			Object.entries(defaultKindRegistry) as Array<
-				[keyof KindRegistry, KindRegistry[keyof KindRegistry]]
-			>
-		)
-			.filter(([slot, module]) => slot !== module.kind)
-			.map(([slot]) => slot);
-
-		expect(mismatches).toBeEmpty();
-	});
+			expect(defaultKindRegistry[kind].kind).toBe(kind);
+		},
+	);
 
 	it("should cover every ResourceKind (developerProduct, gamePass, place, universe)", () => {
 		expect.assertions(1);
 
-		expect(Object.keys(defaultKindRegistry).toSorted()).toStrictEqual([
-			"developerProduct",
-			"gamePass",
-			"place",
-			"universe",
-		]);
+		expect(Object.keys(defaultKindRegistry).toSorted()).toStrictEqual([...KINDS]);
 	});
 });

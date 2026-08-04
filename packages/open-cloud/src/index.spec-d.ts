@@ -27,19 +27,11 @@ import type {
 
 describe("Result", () => {
 	it("should narrow to data branch when success is true", () => {
-		const result = {} as Result<string>;
-
-		if (result.success) {
-			expectTypeOf(result.data).toBeString();
-		}
+		expectTypeOf<Extract<Result<string>, { success: true }>["data"]>().toBeString();
 	});
 
 	it("should narrow to err branch when success is false", () => {
-		const result = {} as Result<string>;
-
-		if (!result.success) {
-			expectTypeOf(result.err).toEqualTypeOf<Error>();
-		}
+		expectTypeOf<Extract<Result<string>, { success: false }>["err"]>().toEqualTypeOf<Error>();
 	});
 
 	it("should default error type to Error", () => {
@@ -271,6 +263,7 @@ describe("RequestConfig", () => {
 	});
 });
 
+// eslint-disable-next-line vitest/prefer-describe-function-title -- SleepFunc is a type-only export and has no value to reference
 describe("SleepFunc", () => {
 	it("should accept ms and return a Promise<void>", () => {
 		expectTypeOf<SleepFunc>().toEqualTypeOf<(ms: number) => Promise<void>>();

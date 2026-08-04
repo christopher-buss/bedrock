@@ -39,6 +39,8 @@ export function createFakeClock(): FakeClock {
 		async sleep(ms) {
 			waits.push(ms);
 			time += ms;
+			// Resolve on a later microtask, as a real timer-backed sleep does.
+			await Promise.resolve();
 		},
 		waits,
 	};

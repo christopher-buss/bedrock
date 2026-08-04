@@ -347,7 +347,7 @@ export class UniversesClient {
 		parameters: GetUniverseParameters,
 		options?: RequestOptions,
 	): Promise<Result<Universe, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: GET_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: GET_SPEC });
 	}
 
 	/**
@@ -367,20 +367,20 @@ export class UniversesClient {
 		parameters: UpdateUniverseParameters,
 		options?: RequestOptions,
 	): Promise<Result<Universe, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: UPDATE_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: UPDATE_SPEC });
 	}
 }
 
 function createIconHandle(inner: ResourceClient): UniverseIconHandle {
 	return {
 		async delete(parameters, options) {
-			return inner.execute({ options, parameters, spec: ICON_DELETE_SPEC });
+			return inner.executeAsync({ options, parameters, spec: ICON_DELETE_SPEC });
 		},
 		async list(parameters, options) {
-			return inner.execute({ options, parameters, spec: ICON_LIST_SPEC });
+			return inner.executeAsync({ options, parameters, spec: ICON_LIST_SPEC });
 		},
 		async upload(parameters, options) {
-			return inner.execute({ options, parameters, spec: ICON_UPLOAD_SPEC });
+			return inner.executeAsync({ options, parameters, spec: ICON_UPLOAD_SPEC });
 		},
 	};
 }
@@ -388,13 +388,13 @@ function createIconHandle(inner: ResourceClient): UniverseIconHandle {
 function createThumbnailsHandle(inner: ResourceClient): UniverseThumbnailsHandle {
 	return {
 		async delete(parameters, options) {
-			return inner.execute({ options, parameters, spec: THUMBNAIL_DELETE_SPEC });
+			return inner.executeAsync({ options, parameters, spec: THUMBNAIL_DELETE_SPEC });
 		},
 		async reorder(parameters, options) {
-			return inner.execute({ options, parameters, spec: THUMBNAIL_REORDER_SPEC });
+			return inner.executeAsync({ options, parameters, spec: THUMBNAIL_REORDER_SPEC });
 		},
 		async upload(parameters, options) {
-			return inner.execute({ options, parameters, spec: THUMBNAIL_UPLOAD_SPEC });
+			return inner.executeAsync({ options, parameters, spec: THUMBNAIL_UPLOAD_SPEC });
 		},
 	};
 }

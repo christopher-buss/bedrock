@@ -82,7 +82,7 @@ function compileTemplate(pathTemplate: string): {
 	const escaped = pathTemplate.replace(/[.+*?^$()|[\]\\]/g, "\\$&");
 	const parts: Array<string> = [];
 	let lastIndex = 0;
-	for (const match of escaped.matchAll(/\{([^}]+)\}/g)) {
+	for (const match of escaped.matchAll(/\{([^{}]+)\}/g)) {
 		const [full, name] = match;
 		if (name === undefined) {
 			continue;

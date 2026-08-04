@@ -502,14 +502,14 @@ describe(createFetchHttpClient, () => {
 	it("should return success Result with parsed body for 200", async () => {
 		expect.assertions(3);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response(JSON.stringify({ id: "123" }), {
 				headers: { "content-type": "application/json" },
 				status: 200,
 			});
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -525,14 +525,14 @@ describe(createFetchHttpClient, () => {
 	it("should parse JSON body when response Content-Type is text/plain", async () => {
 		expect.assertions(3);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response(JSON.stringify({ id: "123" }), {
 				headers: { "content-type": "text/plain" },
 				status: 200,
 			});
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "POST", url: "/publish" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -548,14 +548,14 @@ describe(createFetchHttpClient, () => {
 	it("should return RateLimitError for 429 with x-ratelimit-reset header", async () => {
 		expect.assertions(3);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response("rate limited", {
 				headers: { "x-ratelimit-reset": "5" },
 				status: 429,
 			});
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -573,14 +573,14 @@ describe(createFetchHttpClient, () => {
 	it("should capture remaining from x-ratelimit-remaining on a 429", async () => {
 		expect.assertions(2);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response("rate limited", {
 				headers: { "x-ratelimit-remaining": "0, 70000", "x-ratelimit-reset": "22, 0" },
 				status: 429,
 			});
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -596,14 +596,14 @@ describe(createFetchHttpClient, () => {
 	it("should capture remaining even when the reset header is non-numeric", async () => {
 		expect.assertions(2);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response("rate limited", {
 				headers: { "x-ratelimit-remaining": "3", "x-ratelimit-reset": "abc" },
 				status: 429,
 			});
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -619,11 +619,11 @@ describe(createFetchHttpClient, () => {
 	it("should return RateLimitError with retryAfterSeconds 0 when header missing", async () => {
 		expect.assertions(1);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response("rate limited", { status: 429 });
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -638,13 +638,13 @@ describe(createFetchHttpClient, () => {
 	it("should carry the parsed 429 body and status on details", async () => {
 		expect.assertions(2);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response(JSON.stringify({ message: "Too many requests" }), {
 				status: 429,
 			});
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -660,11 +660,11 @@ describe(createFetchHttpClient, () => {
 	it("should carry a non-json 429 body as raw text on details", async () => {
 		expect.assertions(1);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response("slow down", { status: 429 });
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -679,11 +679,11 @@ describe(createFetchHttpClient, () => {
 	it("should leave details undefined for an empty 429 body", async () => {
 		expect.assertions(1);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response("", { status: 429 });
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -698,11 +698,11 @@ describe(createFetchHttpClient, () => {
 	it("should truncate an oversized non-json 429 body to 500 chars", async () => {
 		expect.assertions(1);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response("x".repeat(600), { status: 429 });
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -720,11 +720,11 @@ describe(createFetchHttpClient, () => {
 
 		const body = { errorCode: "INVALID_ARGUMENT", message: "bad" };
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response(JSON.stringify(body), { status: 400 });
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "POST", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -744,11 +744,11 @@ describe(createFetchHttpClient, () => {
 
 		const body = { errors: [{ code: 22, message: "Invalid language code" }] };
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response(JSON.stringify(body), { status: 400 });
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "POST", url: "/v1/game-icon/games/1/language-codes/en_us" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -766,11 +766,11 @@ describe(createFetchHttpClient, () => {
 	it("should return ApiError for 300 redirect responses", async () => {
 		expect.assertions(3);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response(JSON.stringify({}), { status: 300 });
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -787,11 +787,11 @@ describe(createFetchHttpClient, () => {
 	it("should compose ApiError message from a body that carries only a top-level message", async () => {
 		expect.assertions(4);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response(JSON.stringify({ message: "internal error" }), { status: 500 });
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -809,11 +809,11 @@ describe(createFetchHttpClient, () => {
 	it("should compose ApiError message from a body that carries only a code", async () => {
 		expect.assertions(3);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response(JSON.stringify({ errorCode: "ALONE" }), { status: 418 });
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -830,14 +830,14 @@ describe(createFetchHttpClient, () => {
 	it("should enrich the error when a 2xx body is not valid JSON", async () => {
 		expect.assertions(4);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response("not json", {
 				headers: { "content-type": "application/json" },
 				status: 200,
 			});
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -857,12 +857,12 @@ describe(createFetchHttpClient, () => {
 	it("should label content-type unknown when a 2xx parse failure has no content-type", async () => {
 		expect.assertions(1);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			const encoder = new TextEncoder();
 			return new Response(encoder.encode("not json"), { status: 200 });
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -878,14 +878,14 @@ describe(createFetchHttpClient, () => {
 		expect.assertions(1);
 
 		const rawBody = "x".repeat(1000);
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response(rawBody, {
 				headers: { "content-type": "application/json" },
 				status: 200,
 			});
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -900,14 +900,14 @@ describe(createFetchHttpClient, () => {
 	it("should classify a non-2xx response with a non-JSON, non-HTML body by its status", async () => {
 		expect.assertions(4);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response("upstream connect error or disconnect/reset before headers", {
 				headers: { "content-type": "text/plain" },
 				status: 502,
 			});
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -924,7 +924,7 @@ describe(createFetchHttpClient, () => {
 		);
 	});
 
-	async function gatewayFetch(): Promise<Response> {
+	async function gatewayFetchAsync(): Promise<Response> {
 		return new Response(
 			"<html><body><h1>400 Bad request</h1>\nYour browser sent an invalid request.\n</body></html>",
 			{ headers: { "content-type": "text/html", "server": "haproxy" }, status: 400 },
@@ -943,7 +943,7 @@ describe(createFetchHttpClient, () => {
 	it("should summarize an HTML gateway error page rather than dumping the body", async () => {
 		expect.assertions(3);
 
-		const client = createFetchHttpClient(gatewayFetch, { now: fixedClock(1000, 74_700) });
+		const client = createFetchHttpClient(gatewayFetchAsync, { now: fixedClock(1000, 74_700) });
 		const result = await client.request(
 			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
 			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
@@ -960,7 +960,7 @@ describe(createFetchHttpClient, () => {
 	it("should carry the call target, elapsed time, and headers on a gateway error", async () => {
 		expect.assertions(4);
 
-		const client = createFetchHttpClient(gatewayFetch, { now: fixedClock(1000, 74_700) });
+		const client = createFetchHttpClient(gatewayFetchAsync, { now: fixedClock(1000, 74_700) });
 		const result = await client.request(
 			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
 			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
@@ -975,7 +975,7 @@ describe(createFetchHttpClient, () => {
 		expect(result.err.responseHeaders).toStrictEqual({ server: "haproxy" });
 	});
 
-	async function jsonErrorFetch(): Promise<Response> {
+	async function jsonErrorFetchAsync(): Promise<Response> {
 		return new Response(
 			JSON.stringify({ message: "An error occurred while processing your request." }),
 			{
@@ -992,7 +992,7 @@ describe(createFetchHttpClient, () => {
 	it("should not summarize a JSON API error as a gateway page", async () => {
 		expect.assertions(3);
 
-		const client = createFetchHttpClient(jsonErrorFetch, { now: fixedClock(0, 40_200) });
+		const client = createFetchHttpClient(jsonErrorFetchAsync, { now: fixedClock(0, 40_200) });
 		const result = await client.request(
 			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
 			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
@@ -1013,7 +1013,7 @@ describe(createFetchHttpClient, () => {
 	it("should attach the call target, elapsed time, and headers to a JSON API error", async () => {
 		expect.assertions(4);
 
-		const client = createFetchHttpClient(jsonErrorFetch, { now: fixedClock(0, 40_200) });
+		const client = createFetchHttpClient(jsonErrorFetchAsync, { now: fixedClock(0, 40_200) });
 		const result = await client.request(
 			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
 			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
@@ -1034,11 +1034,11 @@ describe(createFetchHttpClient, () => {
 	it("should measure elapsed time with the default clock when none is injected", async () => {
 		expect.assertions(2);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response(JSON.stringify({ message: "boom" }), { status: 500 });
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -1055,7 +1055,7 @@ describe(createFetchHttpClient, () => {
 	it("should clamp a backwards-moving clock to a non-negative elapsed time", async () => {
 		expect.assertions(1);
 
-		const client = createFetchHttpClient(jsonErrorFetch, { now: fixedClock(5000, -1000) });
+		const client = createFetchHttpClient(jsonErrorFetchAsync, { now: fixedClock(5000, -1000) });
 		const result = await client.request(
 			{ method: "POST", url: "/universes/v1/1/places/2/versions" },
 			{ apiKey: "key", baseUrl: "https://apis.roblox.com" },
@@ -1071,11 +1071,11 @@ describe(createFetchHttpClient, () => {
 		expect.assertions(2);
 
 		const rawBody = "x".repeat(1000);
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			return new Response(rawBody, { status: 503 });
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -1093,11 +1093,11 @@ describe(createFetchHttpClient, () => {
 		async ({ status }) => {
 			expect.assertions(2);
 
-			async function fakeFetch(): Promise<Response> {
+			async function fakeFetchAsync(): Promise<Response> {
 				return new Response(undefined, { status });
 			}
 
-			const client = createFetchHttpClient(fakeFetch);
+			const client = createFetchHttpClient(fakeFetchAsync);
 			const result = await client.request(
 				{ method: "DELETE", url: "/test" },
 				{ apiKey: "key", baseUrl: "https://example.com" },
@@ -1115,11 +1115,11 @@ describe(createFetchHttpClient, () => {
 		async ({ status }) => {
 			expect.assertions(4);
 
-			async function fakeFetch(): Promise<Response> {
+			async function fakeFetchAsync(): Promise<Response> {
 				return new Response(undefined, { status });
 			}
 
-			const client = createFetchHttpClient(fakeFetch);
+			const client = createFetchHttpClient(fakeFetchAsync);
 			const result = await client.request(
 				{ method: "DELETE", url: "/test" },
 				{ apiKey: "key", baseUrl: "https://example.com" },
@@ -1139,11 +1139,11 @@ describe(createFetchHttpClient, () => {
 		expect.assertions(2);
 
 		const cause = new TypeError("Failed to fetch");
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			throw cause;
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -1159,11 +1159,11 @@ describe(createFetchHttpClient, () => {
 	it("should attach the request method and resolved url to the NetworkError", async () => {
 		expect.assertions(2);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			throw new TypeError("Failed to fetch");
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "POST", url: "/cloud/v2/ping" },
 			{ apiKey: "key", baseUrl: "https://example.com" },
@@ -1179,7 +1179,7 @@ describe(createFetchHttpClient, () => {
 	it("should return NetworkError when reading the response body fails", async () => {
 		expect.assertions(3);
 
-		async function fakeFetch(): Promise<Response> {
+		async function fakeFetchAsync(): Promise<Response> {
 			const stream = new ReadableStream<Uint8Array>({
 				start(controller) {
 					controller.error(new Error("body stream aborted"));
@@ -1188,7 +1188,7 @@ describe(createFetchHttpClient, () => {
 			return new Response(stream, { status: 500 });
 		}
 
-		const client = createFetchHttpClient(fakeFetch);
+		const client = createFetchHttpClient(fakeFetchAsync);
 		const result = await client.request(
 			{ method: "GET", url: "/test" },
 			{ apiKey: "key", baseUrl: "https://example.com" },

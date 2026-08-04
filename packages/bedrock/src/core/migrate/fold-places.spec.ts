@@ -161,7 +161,8 @@ describe(foldPlaces, () => {
 		expect(result.warnings).toHaveLength(1);
 
 		const [warning] = result.warnings;
-		assert(warning?.kind === "ambiguous");
+		assert(warning !== undefined);
+		assert(warning.kind === "ambiguous");
 
 		expect(warning.mantlePath).toBe("place_orphan");
 		expect(warning.hint).toMatch(/verify your mantle state/i);
@@ -182,7 +183,8 @@ describe(foldPlaces, () => {
 		expect(result.warnings).toHaveLength(1);
 
 		const [warning] = result.warnings;
-		assert(warning?.kind === "ambiguous");
+		assert(warning !== undefined);
+		assert(warning.kind === "ambiguous");
 
 		expect(warning.mantlePath).toBe("placeFile_orphan");
 	});
@@ -200,7 +202,8 @@ describe(foldPlaces, () => {
 		expect(result.warnings).toHaveLength(1);
 
 		const [warning] = result.warnings;
-		assert(warning?.kind === "ambiguous");
+		assert(warning !== undefined);
+		assert(warning.kind === "ambiguous");
 
 		expect(warning.mantlePath).toBe("place_lobby");
 	});
@@ -348,7 +351,8 @@ describe(foldPlaces, () => {
 			expect(result.warnings).toHaveLength(1);
 
 			const [warning] = result.warnings;
-			assert(warning?.kind === "ambiguous");
+			assert(warning !== undefined);
+			assert(warning.kind === "ambiguous");
 
 			expect(warning.mantlePath).toBe("placeConfiguration_orphan");
 			expect(warning.hint).toMatch(/verify your mantle state/i);
@@ -636,12 +640,9 @@ describe(foldPlaces, () => {
 			]);
 
 			expect(
-				result.warnings.filter((warning) => {
-					return (
-						warning.kind === "blocked" &&
-						warning.mantlePath === "placeConfiguration_start.name"
-					);
-				}),
+				result.warnings
+					.filter((warning) => warning.kind === "blocked")
+					.filter((warning) => warning.mantlePath === "placeConfiguration_start.name"),
 			).toStrictEqual([]);
 		});
 	});

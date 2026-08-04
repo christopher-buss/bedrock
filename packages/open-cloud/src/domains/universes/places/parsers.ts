@@ -1,6 +1,7 @@
 import type { HttpResponse } from "../../../client/types.ts";
 import { ApiError } from "../../../errors/api-error.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
+import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
 import type { PlaceVersion } from "./types.ts";
 import type { PlaceVersionWire } from "./wire.ts";
@@ -17,9 +18,10 @@ import type { PlaceVersionWire } from "./wire.ts";
  *   an {@link ApiError} when the body is malformed or its `versionNumber`
  *   field is missing/wrong-typed.
  */
-export function parsePublishResponse(response: HttpResponse): Result<PlaceVersion, ApiError> {
-	const { body, status: statusCode } = response;
-
+export function parsePublishResponse({
+	body,
+	status: statusCode,
+}: HttpResponse): Result<PlaceVersion, ApiError> {
 	const decodeResult = decodeBody(body, statusCode);
 	if (!decodeResult.success) {
 		return decodeResult;
@@ -28,7 +30,7 @@ export function parsePublishResponse(response: HttpResponse): Result<PlaceVersio
 	if (!isPlaceVersionWire(decodeResult.data)) {
 		return {
 			err: new ApiError("Malformed publish response", {
-				details: body as JSONValue | undefined,
+				details: toJsonDetails(body),
 				statusCode,
 			}),
 			success: false,

@@ -1,5 +1,5 @@
 import { asSha256Hex, type Sha256Hex } from "../types/ids.ts";
-import { sha256Hex } from "./kinds/hash.ts";
+import { sha256HexAsync } from "./kinds/hash.ts";
 import type { CodegenConfig } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
 
@@ -26,7 +26,9 @@ export interface CodegenFile {
  * @since 0.1.0
  */
 export interface EmitInput {
-	/** Current state of every declared environment, keyed by environment name. */
+	/**
+	 * Current state of every declared environment, keyed by environment name.
+	 */
 	readonly environments: Readonly<Record<string, BedrockState>>;
 }
 
@@ -88,7 +90,7 @@ export function buildCodegenEnvironments(
  * @param files - The files the emitter returned for the deployed environment.
  * @returns The branded SHA-256 hex digest of the canonicalized output.
  */
-export async function hashCodegenFiles(files: ReadonlyArray<CodegenFile>): Promise<Sha256Hex> {
+export async function hashCodegenFilesAsync(files: ReadonlyArray<CodegenFile>): Promise<Sha256Hex> {
 	// Each file becomes the unambiguous JSON of its `[path, content]` pair, the
 	// pairs are sorted as strings (a deterministic total order, so a reordered
 	// emitter return hashes the same), and the sorted list is hashed. JSON keys
@@ -97,7 +99,7 @@ export async function hashCodegenFiles(files: ReadonlyArray<CodegenFile>): Promi
 		files.map((file) => JSON.stringify([file.path, file.content])).sort(),
 	);
 	const encoder = new TextEncoder();
-	return asSha256Hex(await sha256Hex(encoder.encode(canonical)));
+	return asSha256Hex(await sha256HexAsync(encoder.encode(canonical)));
 }
 
 /**

@@ -41,7 +41,9 @@ export interface CommitBackOptions {
 
 /** Outcome of a commit-back run. */
 export interface CommitBackResult {
-	/** Count of changed files detected under {@link CommitBackOptions.paths}. */
+	/**
+	 * Count of changed files detected under {@link CommitBackOptions.paths}.
+	 */
 	readonly changedFiles: number;
 	/** Whether a commit was created and pushed. */
 	readonly committed: boolean;
@@ -188,9 +190,8 @@ function interpretPush(
  */
 async function reflowOntoTip(
 	deps: CommitBackDeps,
-	plan: CommitBackOptions & { readonly stashSha: string },
+	{ stashSha, ...options }: CommitBackOptions & { readonly stashSha: string },
 ): Promise<ReflowOutcome> {
-	const { stashSha, ...options } = plan;
 	await runGit(deps, ["fetch", "origin", options.branch]);
 	await runGit(deps, ["checkout", "-f", "-B", options.branch, "FETCH_HEAD"]);
 	await runGit(deps, ["checkout", stashSha, "--", ...options.paths]);

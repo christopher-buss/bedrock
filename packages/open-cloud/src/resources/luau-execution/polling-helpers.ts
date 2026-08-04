@@ -12,12 +12,16 @@ import type {
 import type { OpenCloudError } from "../../errors/base.ts";
 import type { ResourceClient } from "../../internal/resource-client.ts";
 import type { Result } from "../../types.ts";
-import { type PollDependencies, pollUntilDoneCore, type PollUntilDoneOptions } from "./polling.ts";
+import {
+	type PollDependencies,
+	pollUntilDoneCoreAsync,
+	type PollUntilDoneOptions,
+} from "./polling.ts";
 
 /**
- * Builds the {@link PollDependencies} bundle used by {@link pollUntilDoneCore},
- * closing over the supplied {@link ResourceClient}, task ref, and
- * per-request options so the core loop stays narrow.
+ * Builds the {@link PollDependencies} bundle used by {@link
+ * pollUntilDoneCoreAsync}, closing over the supplied {@link ResourceClient},
+ * task ref, and per-request options so the core loop stays narrow.
  *
  * @param inner - The {@link ResourceClient} that issues each `tasks.get` call.
  * @param args - The polling options and the task ref to fetch on every iteration.
@@ -29,7 +33,7 @@ export function buildPollDependencies(
 ): PollDependencies {
 	return {
 		fetch: async () => {
-			return inner.execute({
+			return inner.executeAsync({
 				options: args.options,
 				parameters: { ref: args.ref, view: "BASIC" },
 				spec: GET_SPEC,
@@ -41,31 +45,33 @@ export function buildPollDependencies(
 }
 
 /**
- * Submits a Luau execution task and polls it to a terminal state.
- * Dispatches to the head-version or specific-version submit spec based on
- * the presence of `versionId`, then delegates to {@link pollUntilDoneCore}.
+ * Submits a Luau execution task and polls it to a terminal state. Dispatches
+ * to the head-version or specific-version submit spec based on the presence of
+ * `versionId`, then delegates to {@link pollUntilDoneCoreAsync}.
  *
  * @param inner - The {@link ResourceClient} that issues submit and poll calls.
  * @param args - The polling options and submit parameters.
  * @returns A {@link Result} wrapping the terminal {@link LuauExecutionTask}, or
  *   the {@link OpenCloudError} that caused submit or polling to fail.
  */
-export async function submitAndPoll(
+export async function submitAndPollAsync(
 	inner: ResourceClient,
-	args: {
+	{
+		options,
+		parameters,
+	}: {
 		options: PollUntilDoneOptions;
 		parameters: SubmitAtHeadParameters | SubmitAtVersionParameters;
 	},
 ): Promise<Result<LuauExecutionTask, OpenCloudError>> {
-	const { options, parameters } = args;
 	const submitResult = await ("versionId" in parameters
-		? inner.execute({ options, parameters, spec: SUBMIT_VERSION_SPEC })
-		: inner.execute({ options, parameters, spec: SUBMIT_HEAD_SPEC }));
+		? inner.executeAsync({ options, parameters, spec: SUBMIT_VERSION_SPEC })
+		: inner.executeAsync({ options, parameters, spec: SUBMIT_HEAD_SPEC }));
 	if (!submitResult.success) {
 		return submitResult;
 	}
 
-	return pollUntilDoneCore(
+	return pollUntilDoneCoreAsync(
 		buildPollDependencies(inner, { options, ref: submitResult.data.ref }),
 		options,
 	);

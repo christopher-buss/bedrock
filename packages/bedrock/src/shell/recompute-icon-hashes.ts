@@ -1,6 +1,6 @@
 import { join } from "node:path";
 
-import { sha256Hex } from "../core/kinds/hash.ts";
+import { sha256HexAsync } from "../core/kinds/hash.ts";
 import type { EnvironmentFoldResult } from "../core/migrate/fold-environment.ts";
 import type { PassFoldEntry } from "../core/migrate/fold-passes.ts";
 import type { ProductFoldEntry } from "../core/migrate/fold-products.ts";
@@ -24,7 +24,10 @@ export interface IconHashRecomputation {
 		string,
 		ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>
 	>;
-	/** Recomputed product-icon digests keyed by environment then by product key. */
+	/**
+	 * Recomputed product-icon digests keyed by environment then by product
+	 * key.
+	 */
 	readonly productHashesByEnvironment: ReadonlyMap<
 		string,
 		ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>>
@@ -33,13 +36,18 @@ export interface IconHashRecomputation {
 	readonly warnings: ReadonlyArray<MigrationWarning>;
 }
 
-/** Inputs for {@link recomputeIconHashes}. */
+/** Inputs for {@link recomputeIconHashesAsync}. */
 interface RecomputeIconHashesInputs {
-	/** Per-environment fold results carrying pass and product entries to walk. */
+	/**
+	 * Per-environment fold results carrying pass and product entries to walk.
+	 */
 	readonly folds: ReadonlyMap<string, EnvironmentFoldResult>;
 	/** Reads file bytes; same shape as `MigrateMantleStateDeps.readFile`. */
 	readonly readFile: (path: string) => Promise<Uint8Array>;
-	/** Directory the state file lives in; relative icon paths resolve against it. */
+	/**
+	 * Directory the state file lives in; relative icon paths resolve against
+	 * it.
+	 */
 	readonly stateFileDirectory: string;
 }
 
@@ -93,12 +101,12 @@ interface WalkEnvironmentResult {
  * @returns Per-environment recomputed pass and product hashes plus
  *   accumulated ambiguous warnings.
  */
-export async function recomputeIconHashes(
+export async function recomputeIconHashesAsync(
 	inputs: RecomputeIconHashesInputs,
 ): Promise<IconHashRecomputation> {
 	const walked = await Promise.all(
 		Array.from(inputs.folds, async ([environment, folded]) => {
-			const result = await walkEnvironment({
+			const result = await walkEnvironmentAsync({
 				environmentName: environment,
 				folded,
 				readFile: inputs.readFile,
@@ -147,13 +155,13 @@ function productWalkEntries(entry: ProductFoldEntry): ReadonlyArray<IconWalkEntr
 	];
 }
 
-async function tryRecomputeHash(
+async function tryRecomputeHashAsync(
 	readFile: (path: string) => Promise<Uint8Array>,
 	path: string,
 ): Promise<Sha256Hex | undefined> {
 	try {
 		const bytes = await readFile(path);
-		return asSha256Hex(await sha256Hex(bytes));
+		return asSha256Hex(await sha256HexAsync(bytes));
 	} catch {
 		return undefined;
 	}
@@ -167,12 +175,12 @@ function buildAmbiguousIconWarning(inputs: AmbiguousIconWarningInputs): Migratio
 	};
 }
 
-async function walkIconEntries(inputs: IconWalkInputs): Promise<IconWalkResult> {
+async function walkIconEntriesAsync(inputs: IconWalkInputs): Promise<IconWalkResult> {
 	const perKey = new Map<ResourceKey, Record<"en-us", Sha256Hex>>();
 	const warnings: Array<MigrationWarning> = [];
 	for (const entry of inputs.entries) {
 		const resolved = join(inputs.stateFileDirectory, entry.iconPath);
-		const recomputed = await tryRecomputeHash(inputs.readFile, resolved);
+		const recomputed = await tryRecomputeHashAsync(inputs.readFile, resolved);
 		if (recomputed === undefined) {
 			warnings.push(
 				buildAmbiguousIconWarning({
@@ -189,14 +197,14 @@ async function walkIconEntries(inputs: IconWalkInputs): Promise<IconWalkResult> 
 	return { perKey, warnings };
 }
 
-async function walkEnvironment(inputs: WalkEnvironmentInputs): Promise<WalkEnvironmentResult> {
-	const passWalk = await walkIconEntries({
+async function walkEnvironmentAsync(inputs: WalkEnvironmentInputs): Promise<WalkEnvironmentResult> {
+	const passWalk = await walkIconEntriesAsync({
 		entries: inputs.folded.passes.map(passWalkEntry),
 		environmentName: inputs.environmentName,
 		readFile: inputs.readFile,
 		stateFileDirectory: inputs.stateFileDirectory,
 	});
-	const productWalk = await walkIconEntries({
+	const productWalk = await walkIconEntriesAsync({
 		entries: inputs.folded.products.flatMap(productWalkEntries),
 		environmentName: inputs.environmentName,
 		readFile: inputs.readFile,

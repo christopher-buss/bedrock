@@ -2,6 +2,7 @@ import type { HttpResponse } from "../../../client/types.ts";
 import { ApiError } from "../../../errors/api-error.ts";
 import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
+import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
 import type { Place } from "./types.ts";
 import type { PlaceWire } from "./wire.ts";
@@ -24,9 +25,10 @@ interface ToPlaceArgs {
  * @returns A success result wrapping the parsed {@link Place}, or an
  *   {@link ApiError} when the body does not match the wire schema.
  */
-export function parsePlaceResponse(response: HttpResponse): Result<Place, ApiError> {
-	const { body, status: statusCode } = response;
-
+export function parsePlaceResponse({
+	body,
+	status: statusCode,
+}: HttpResponse): Result<Place, ApiError> {
 	if (!isPlaceWire(body)) {
 		return malformedPlace(statusCode, body);
 	}
@@ -44,15 +46,14 @@ export function parsePlaceResponse(response: HttpResponse): Result<Place, ApiErr
 function malformedPlace(statusCode: number, body: unknown): Result<Place, ApiError> {
 	return {
 		err: new ApiError(MALFORMED_PLACE_MESSAGE, {
-			details: body as JSONValue | undefined,
+			details: toJsonDetails(body),
 			statusCode,
 		}),
 		success: false,
 	};
 }
 
-function toPlace(args: ToPlaceArgs): Place {
-	const { id, body, universeId } = args;
+function toPlace({ id, body, universeId }: ToPlaceArgs): Place {
 	return {
 		id,
 		createdAt: new Date(body.createTime),

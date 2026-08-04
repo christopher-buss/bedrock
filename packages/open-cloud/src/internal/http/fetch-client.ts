@@ -3,7 +3,7 @@ import type { OpenCloudError } from "../../errors/base.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
 import type { Result } from "../../types.ts";
-import { tryCatch } from "../utils/try-catch.ts";
+import { tryCatchAsync } from "../utils/try-catch.ts";
 import { extractGatewaySummary, pickDiagnosticHeaders } from "./diagnostics.ts";
 import { createHttp1Dispatcher } from "./http1-dispatcher.ts";
 import { reduceRateLimitTokens } from "./rate-limit-sample.ts";
@@ -137,11 +137,11 @@ export function extractErrorMessage(body: unknown): string | undefined {
 }
 
 /**
- * Parses the `x-ratelimit-reset` header value into seconds. On a 429 the header
- * is a comma-separated list of per-window reset times (e.g. `"22, 0"`, one entry
- * per rate-limit window); the largest value is the longest-resetting window and
- * the only safe wait that won't retry into a still-exhausted window. A single
- * value is treated as a one-element list.
+ * Parses the `x-ratelimit-reset` header value into seconds. On a 429 the
+ * header is a comma-separated list of per-window reset times (e.g. `"22, 0"`,
+ * one entry per rate-limit window); the largest value is the longest-resetting
+ * window and the only safe wait that won't retry into a still-exhausted
+ * window. A single value is treated as a one-element list.
  *
  * @param headerValue - The raw header value, or `undefined` if missing.
  * @returns The number of seconds to wait, or 0 if missing/invalid.
@@ -207,10 +207,9 @@ export function buildFetchOptions(request: HttpRequest, config: RequestConfig): 
  * @returns An HttpClient that classifies responses into typed Results.
  */
 export function createFetchHttpClient(
-	fetchFunc: (url: string, init: RequestInit) => Promise<Response> = globalThis.fetch,
-	seams: FetchHttpClientSeams = {},
+	fetchFunc: (url: string, init: RequestInit) => Promise<Response> = fetch,
+	{ createDispatcher = createHttp1Dispatcher, now = Date.now }: FetchHttpClientSeams = {},
 ): HttpClient {
-	const { createDispatcher = createHttp1Dispatcher, now = Date.now } = seams;
 	const dispatcherFor = createUploadDispatcherCache(createDispatcher);
 
 	return {
@@ -225,9 +224,9 @@ export function createFetchHttpClient(
 			options.dispatcher = dispatcherFor(httpRequest);
 			const target = { method: httpRequest.method, url };
 
-			const { elapsedMs, fetchResult } = await timedFetch(now, async () =>
-				fetchFunc(url, options),
-			);
+			const { elapsedMs, fetchResult } = await timedFetchAsync(now, async () => {
+				return fetchFunc(url, options);
+			});
 			if (!fetchResult.success) {
 				return { err: networkError(fetchResult.err, target), success: false };
 			}
@@ -236,7 +235,9 @@ export function createFetchHttpClient(
 			// undecodable body stream rejects `response.text()`); keep the
 			// Result contract by mapping any such throw to a NetworkError.
 			const context: RequestContext = { elapsedMs, method: target.method, url: target.url };
-			const classified = await tryCatch(classifyResponse(fetchResult.data, context));
+			const classified = await tryCatchAsync(
+				classifyResponseAsync(fetchResult.data, context),
+			);
 			if (!classified.success) {
 				return { err: networkError(classified.err, target), success: false };
 			}
@@ -345,12 +346,12 @@ function createUploadDispatcherCache(
  * @param send - A thunk that issues the fetch.
  * @returns The fetch Result and the elapsed milliseconds.
  */
-async function timedFetch(
+async function timedFetchAsync(
 	now: () => number,
 	send: () => Promise<Response>,
 ): Promise<{ elapsedMs: number; fetchResult: Result<Response> }> {
 	const start = now();
-	const fetchResult = await tryCatch(send());
+	const fetchResult = await tryCatchAsync(send());
 	// Clamp to zero: `Date.now` is wall-clock, so an NTP adjustment mid-request
 	// could otherwise report a negative "after -0.1s".
 	return { elapsedMs: Math.max(0, now() - start), fetchResult };
@@ -364,8 +365,7 @@ function networkError(cause: Error, target: { method: string; url: string }): Ne
 	});
 }
 
-function formatApiErrorMessage(parts: ApiErrorMessageParts): string {
-	const { code, message, status } = parts;
+function formatApiErrorMessage({ code, message, status }: ApiErrorMessageParts): string {
 	const base = `HTTP ${status}`;
 	if (message === undefined && code === undefined) {
 		return base;
@@ -387,7 +387,7 @@ function formatApiErrorMessage(parts: ApiErrorMessageParts): string {
  * it parsed, otherwise the raw text truncated to {@link MAX_DETAIL_LENGTH}.
  *
  * @param text - The raw response body text.
- * @param parsed - The best-effort parse result from {@link readResponseBody}.
+ * @param parsed - The best-effort parse result from {@link readResponseBodyAsync}.
  * @returns The parsed body, or the truncated raw text on a parse failure.
  */
 function bodyDetail(text: string, parsed: Result<JSONValue | undefined>): JSONValue | undefined {
@@ -425,7 +425,8 @@ function createApiError(args: ErrorResponseArgs): ApiError {
 
 /**
  * Parses response text as JSON, returning the underlying `SyntaxError` on
- * failure rather than throwing. The synchronous sibling of {@link tryCatch}.
+ * failure rather than throwing. The synchronous sibling of {@link
+ * tryCatchAsync}.
  *
  * @param text - The raw response body text.
  * @returns A Result wrapping the parsed value, or the parse error.
@@ -448,7 +449,7 @@ function parseJson(text: string): Result<JSONValue> {
  * @param response - The Response whose body to read.
  * @returns The parse result and the raw text.
  */
-async function readResponseBody(
+async function readResponseBodyAsync(
 	response: Response,
 ): Promise<{ parsed: Result<JSONValue | undefined>; text: string }> {
 	const text = await response.text();
@@ -458,14 +459,14 @@ async function readResponseBody(
 	};
 }
 
-async function createRateLimitError(response: Response): Promise<RateLimitError> {
+async function createRateLimitErrorAsync(response: Response): Promise<RateLimitError> {
 	const headers = headersToRecord(response.headers);
-	const { parsed, text } = await readResponseBody(response);
+	const { parsed, text } = await readResponseBodyAsync(response);
 	return new RateLimitError("Rate limited", {
 		details: bodyDetail(text, parsed),
-		remaining: reduceRateLimitTokens(headers["x-ratelimit-remaining"], (a, b) =>
-			Math.min(a, b),
-		),
+		remaining: reduceRateLimitTokens(headers["x-ratelimit-remaining"], (a, b) => {
+			return Math.min(a, b);
+		}),
 		retryAfterSeconds: parseRetryAfterSeconds(headers["x-ratelimit-reset"]),
 		statusCode: response.status,
 	});
@@ -502,15 +503,15 @@ function parseFailureError({ cause, response, text }: ParseFailureArgs): ApiErro
  *   onto any {@link ApiError} built for an error response.
  * @returns A Result containing an HttpResponse on success or an OpenCloudError on failure.
  */
-async function classifyResponse(
+async function classifyResponseAsync(
 	response: Response,
 	context: RequestContext,
 ): Promise<Result<HttpResponse, OpenCloudError>> {
 	if (response.status === 429) {
-		return { err: await createRateLimitError(response), success: false };
+		return { err: await createRateLimitErrorAsync(response), success: false };
 	}
 
-	const { parsed, text } = await readResponseBody(response);
+	const { parsed, text } = await readResponseBodyAsync(response);
 
 	if (response.status >= 300) {
 		return {

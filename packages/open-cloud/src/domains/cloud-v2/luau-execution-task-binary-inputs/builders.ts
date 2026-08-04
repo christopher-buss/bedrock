@@ -10,10 +10,10 @@ import type { CreateBinaryInputParameters } from "./types.ts";
  *   binary to be uploaded.
  * @returns A pure {@link HttpRequest} describing the create call.
  */
-export function buildCreateBinaryInputRequest(
-	parameters: CreateBinaryInputParameters,
-): HttpRequest {
-	const { size, universeId } = parameters;
+export function buildCreateBinaryInputRequest({
+	size,
+	universeId,
+}: CreateBinaryInputParameters): HttpRequest {
 	return {
 		body: { size },
 		headers: { "content-type": "application/json" },

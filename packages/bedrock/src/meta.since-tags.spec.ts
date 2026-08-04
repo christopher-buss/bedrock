@@ -44,11 +44,10 @@ describe("@bedrock-rbx/core public API @since coverage", () => {
 		expect.assertions(1);
 
 		const offenders = publicSymbols()
-			.filter((symbol) => symbol.sinceTag === undefined || !SEMVER.test(symbol.sinceTag))
-			.map(
-				(symbol) =>
-					`${symbol.name} (${path.relative(PACKAGE_ROOT, symbol.declarationFile)})`,
-			);
+			.filter((symbol) => !SEMVER.test(String(symbol.sinceTag)))
+			.map((symbol) => {
+				return `${symbol.name} (${path.relative(PACKAGE_ROOT, symbol.declarationFile)})`;
+			});
 
 		expect(offenders).toStrictEqual([]);
 	});

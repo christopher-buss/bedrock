@@ -144,10 +144,10 @@ interface GamePassLocalizationHandle {
 /**
  * Public client for the Roblox Open Cloud Game Passes API.
  *
- * Wires request builders, the injected {@link OpenCloudClientOptions.httpClient}, and response
- * parsers into a single ergonomic surface. Every method returns a
- * {@link Result} so callers handle failure explicitly; no thrown
- * `OpenCloudError` ever escapes the client.
+ * Wires request builders, the injected {@link
+ * OpenCloudClientOptions.httpClient}, and response parsers into a single
+ * ergonomic surface. Every method returns a {@link Result} so callers handle
+ * failure explicitly; no thrown `OpenCloudError` ever escapes the client.
  *
  * ```ts
  * import { GamePassesClient } from "@bedrock-rbx/ocale/game-passes";
@@ -235,7 +235,7 @@ export class GamePassesClient {
 		parameters: CreateGamePassParameters,
 		options?: RequestOptions,
 	): Promise<Result<GamePass, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: CREATE_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: CREATE_SPEC });
 	}
 
 	/**
@@ -251,7 +251,7 @@ export class GamePassesClient {
 		parameters: GetGamePassParameters,
 		options?: RequestOptions,
 	): Promise<Result<GamePass, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: GET_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: GET_SPEC });
 	}
 
 	/**
@@ -268,7 +268,7 @@ export class GamePassesClient {
 		parameters: ListGamePassesParameters,
 		options?: RequestOptions,
 	): Promise<Result<Page<GamePass>, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: LIST_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: LIST_SPEC });
 	}
 
 	/**
@@ -292,17 +292,17 @@ export class GamePassesClient {
 		parameters: UpdateGamePassParameters,
 		options?: RequestOptions,
 	): Promise<Result<undefined, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: UPDATE_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: UPDATE_SPEC });
 	}
 }
 
 function createLocalizationHandle(inner: ResourceClient): GamePassLocalizationHandle {
 	return {
 		async updateNameDescription(parameters, options) {
-			return inner.execute({ options, parameters, spec: UPDATE_NAME_DESCRIPTION_SPEC });
+			return inner.executeAsync({ options, parameters, spec: UPDATE_NAME_DESCRIPTION_SPEC });
 		},
 		async uploadIcon(parameters, options) {
-			return inner.execute({ options, parameters, spec: UPLOAD_ICON_SPEC });
+			return inner.executeAsync({ options, parameters, spec: UPLOAD_ICON_SPEC });
 		},
 	};
 }

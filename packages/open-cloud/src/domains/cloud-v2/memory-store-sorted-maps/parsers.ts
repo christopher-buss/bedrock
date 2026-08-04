@@ -2,6 +2,7 @@ import type { HttpResponse } from "../../../client/types.ts";
 import { ApiError } from "../../../errors/api-error.ts";
 import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
+import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
 import type { ListSortedMapItemsResult, SortedMapItem, SortKey } from "./types.ts";
 import type { MemoryStoreSortedMapItemWire } from "./wire.ts";
@@ -43,10 +44,10 @@ export function parseSortedMapItemResponse(
  *   {@link ListSortedMapItemsResult}, or an {@link ApiError} when the
  *   response shape is wrong.
  */
-export function parseListResponse(
-	response: HttpResponse,
-): Result<ListSortedMapItemsResult, ApiError> {
-	const { body, status: statusCode } = response;
+export function parseListResponse({
+	body,
+	status: statusCode,
+}: HttpResponse): Result<ListSortedMapItemsResult, ApiError> {
 	if (!isRecord(body)) {
 		return malformedList(statusCode, body);
 	}
@@ -146,7 +147,7 @@ function malformedSortedMapItem(
 ): Result<SortedMapItem, ApiError> {
 	return {
 		err: new ApiError(MALFORMED_MESSAGE, {
-			details: body as JSONValue | undefined,
+			details: toJsonDetails(body),
 			statusCode,
 		}),
 		success: false,
@@ -163,7 +164,7 @@ function malformedList(
 ): Result<ListSortedMapItemsResult, ApiError> {
 	return {
 		err: new ApiError(MALFORMED_LIST_MESSAGE, {
-			details: body as JSONValue | undefined,
+			details: toJsonDetails(body),
 			statusCode,
 		}),
 		success: false,

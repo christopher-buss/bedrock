@@ -1,7 +1,7 @@
 import type { Mock } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 
-import { createHttp1Dispatcher } from "./http1-dispatcher.ts";
+import { createHttp1Dispatcher, isAgentConstructor } from "./http1-dispatcher.ts";
 
 interface AgentOptions {
 	allowH2: boolean;
@@ -108,4 +108,18 @@ describe(createHttp1Dispatcher, () => {
 			expect(createHttp1Dispatcher()).toBeDefined();
 		},
 	);
+});
+
+describe(isAgentConstructor, () => {
+	it("should accept a function, which is what Reflect.construct requires", () => {
+		expect.assertions(1);
+
+		expect(isAgentConstructor(class {})).toBeTrue();
+	});
+
+	it("should reject a constructor slot holding a non-function", () => {
+		expect.assertions(1);
+
+		expect(isAgentConstructor(42)).toBeFalse();
+	});
 });

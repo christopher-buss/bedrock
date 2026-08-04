@@ -38,10 +38,17 @@ export class BudgetGate {
 	 *
 	 * @param scope - The scope key to gate on (the effective API key).
 	 */
-	public async gate(scope: string): Promise<void> {
+	public async gateAsync(scope: string): Promise<void> {
 		const previous = this.#chains.get(scope) ?? Promise.resolve();
-		const runGate = async (): Promise<void> => this.#gateOnce(scope);
-		const mine = previous.then(runGate, runGate);
+		const runGateAsync = async (): Promise<void> => this.#gateOnce(scope);
+		// The gate runs whether the previous link settled or rejected, so a
+		// failed wait never strands the scope's chain.
+		// Both handlers are the same function on purpose: this gate must run
+		// whether the previous link settled or rejected, so a failed wait never
+		// strands the scope's queue. `.then(...).catch(...)` would instead run
+		// the gate a second time when the gate itself rejects.
+		// eslint-disable-next-line unicorn/prefer-then-catch -- see above
+		const mine = previous.then(runGateAsync, runGateAsync);
 		this.#chains.set(scope, mine);
 		await mine;
 	}
@@ -51,7 +58,7 @@ export class BudgetGate {
 	 * sample (headers absent or non-numeric) is ignored, leaving the scope on
 	 * static pacing.
 	 *
-	 * @param scope - The same scope key passed to {@link gate}.
+	 * @param scope - The same scope key passed to {@link gateAsync}.
 	 * @param sample - Parsed sample, or `undefined` when none was reported.
 	 */
 	public observe(scope: string, sample: RateLimitSample | undefined): void {

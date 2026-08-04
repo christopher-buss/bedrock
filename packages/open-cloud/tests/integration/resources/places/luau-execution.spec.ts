@@ -50,7 +50,7 @@ describe(PlacesClient, () => {
 			assert(result.success);
 
 			expect(result.data.state).toBe("QUEUED");
-			expect(httpClient.requests[0]?.request.url).toBe(
+			expect(httpClient.requests[0]!.request.url).toBe(
 				"/cloud/v2/universes/123/places/456/luau-execution-session-tasks",
 			);
 		});
@@ -82,7 +82,7 @@ describe(PlacesClient, () => {
 			assert(result.success);
 
 			expect(result.data.ref.versionId).toBe("789");
-			expect(httpClient.requests[0]?.request.url).toBe(
+			expect(httpClient.requests[0]!.request.url).toBe(
 				"/cloud/v2/universes/123/places/456/versions/789/luau-execution-session-tasks",
 			);
 		});
@@ -115,8 +115,8 @@ describe(PlacesClient, () => {
 			assert(result.success);
 
 			expect(result.data.messages).toHaveLength(1);
-			expect(httpClient.requests[0]?.request.url).toContain("/tasks/task-1/logs");
-			expect(httpClient.requests[0]?.request.url).toContain("view=STRUCTURED");
+			expect(httpClient.requests[0]!.request.url).toContain("/tasks/task-1/logs");
+			expect(httpClient.requests[0]!.request.url).toContain("view=STRUCTURED");
 		});
 	});
 
@@ -151,7 +151,7 @@ describe(PlacesClient, () => {
 			assert(result.success);
 
 			expect(result.data.state).toBe("COMPLETE");
-			expect(httpClient.requests[0]?.request.url).toBe(
+			expect(httpClient.requests[0]!.request.url).toBe(
 				"/cloud/v2/universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
 			);
 		});

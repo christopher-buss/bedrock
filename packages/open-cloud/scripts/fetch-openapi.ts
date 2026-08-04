@@ -7,6 +7,10 @@ const README_PATH = "vendor/README.md";
 const SPEC_PATH = "vendor/roblox-openapi.json";
 const PINNED_COMMIT_PATTERN = /^\*\*Pinned commit:\*\* `[0-9a-f]{40}`$/m;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return Object.prototype.toString.call(value) === "[object Object]";
+}
+
 async function fetchLatestSha(): Promise<string> {
 	const response = await fetch(UPSTREAM_COMMITS_API, {
 		headers: { accept: "application/vnd.github+json" },
@@ -15,13 +19,16 @@ async function fetchLatestSha(): Promise<string> {
 		throw new Error(`failed to fetch upstream commit sha: ${String(response.status)}`);
 	}
 
-	const commits = (await response.json()) as ReadonlyArray<{ readonly sha: string }>;
-	const [latest] = commits;
-	if (latest === undefined) {
+	// `Response.json()` is typed `any` by the DOM lib, so the boundary is
+	// declared `unknown` and narrowed below.
+	const commits: unknown = await response.json();
+	const latest: unknown = Array.isArray(commits) ? commits[0] : undefined;
+	const sha = isRecord(latest) ? latest["sha"] : undefined;
+	if (typeof sha !== "string") {
 		throw new Error("upstream commits api returned no results");
 	}
 
-	return latest.sha;
+	return sha;
 }
 
 async function refreshSpec(): Promise<void> {
@@ -42,7 +49,9 @@ async function refreshAndPatchSpec(): Promise<void> {
 async function refreshPinnedCommit(): Promise<void> {
 	const sha = await fetchLatestSha();
 	const readme = await Bun.file(README_PATH).text();
-	const updated = readme.replace(PINNED_COMMIT_PATTERN, `**Pinned commit:** \`${sha}\``);
+	// A replacer function inserts the text verbatim; a string replacement would
+	// interpret `$&` and friends in the interpolated value.
+	const updated = readme.replace(PINNED_COMMIT_PATTERN, () => `**Pinned commit:** \`${sha}\``);
 	if (updated === readme) {
 		throw new Error(`failed to locate pinned-commit line in ${README_PATH}`);
 	}

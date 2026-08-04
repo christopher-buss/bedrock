@@ -42,6 +42,14 @@ describe(pickDiagnosticHeaders, () => {
 });
 
 describe(extractGatewaySummary, () => {
+	it("should ignore a title whose closing tag never arrives", () => {
+		expect.assertions(1);
+
+		const body = "<html><head><title>400 Bad request<body><h1>Fallback</h1></body></html>";
+
+		expect(extractGatewaySummary(undefined, body)).toBe("Fallback");
+	});
+
 	it("should extract the h1 text from an html body when no content-type is given", () => {
 		expect.assertions(1);
 

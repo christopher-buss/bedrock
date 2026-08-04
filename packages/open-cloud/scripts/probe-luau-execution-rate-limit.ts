@@ -54,7 +54,10 @@ const MS_PER_SECOND = 1000;
 /** Matches a windowed `x-ratelimit-limit` header value such as `200;w=60`. */
 const WINDOWED_LIMIT_PATTERN = /w=\d+/;
 
-/** Matches any of the four x-aep-resource path shapes the create call may return. */
+/**
+ * Matches any of the four x-aep-resource path shapes the create call may
+ * return.
+ */
 const PATH_PATTERN =
 	/^universes\/(\d+)\/places\/(\d+)(?:\/versions\/(\d+))?(?:\/luau-execution-sessions\/([^/]+)\/tasks\/([^/]+)|\/luau-execution-session-tasks\/([^/]+))$/;
 
@@ -108,8 +111,7 @@ function captureRateLimitHeaders(response: Response): Readonly<Record<string, st
 	return captured;
 }
 
-async function submitTask(credentials: Credentials): Promise<string> {
-	const { apiKey, placeId, universeId } = credentials;
+async function submitTask({ apiKey, placeId, universeId }: Credentials): Promise<string> {
 	const path = `/cloud/v2/universes/${universeId}/places/${placeId}/luau-execution-session-tasks`;
 	const body = JSON.stringify({ script: "return 1" });
 
@@ -158,8 +160,13 @@ function parseTaskRef(bodyText: string): TaskRef | undefined {
 	return { placeId, sessionId, taskId, universeId, versionId };
 }
 
-function buildGetUrl(ref: TaskRef): string | undefined {
-	const { placeId, sessionId, taskId, universeId, versionId } = ref;
+function buildGetUrl({
+	placeId,
+	sessionId,
+	taskId,
+	universeId,
+	versionId,
+}: TaskRef): string | undefined {
 	if (versionId === undefined || sessionId === undefined) {
 		return undefined;
 	}
@@ -182,11 +189,9 @@ function retryAfterSeconds(value: string | undefined): number {
 	return Number.isNaN(parsed) ? DEFAULT_RETRY_AFTER_SECONDS : parsed;
 }
 
-async function probeGet(args: ProbeGetArgs): Promise<GetSample> {
-	const { apiKey, index, url } = args;
+async function probeGet({ apiKey, index, url }: ProbeGetArgs): Promise<GetSample> {
 	const response = await fetch(`${API_BASE}${url}`, {
 		headers: { "x-api-key": apiKey },
-		method: "GET",
 	});
 	const time = performance.now();
 	// Drain the body so the connection is freed for the next iteration.

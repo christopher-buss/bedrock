@@ -36,36 +36,27 @@ describe(buildUpdateRequest, () => {
 
 	it.for<
 		[
-			name: string | undefined,
-			description: string | undefined,
-			expected: Record<string, string>,
+			caseName: string,
+			fields: Partial<Pick<UpdateGamePassNameDescriptionParameters, "description" | "name">>,
 		]
 	>([
-		[
-			"Epic Pass",
-			"Unlocks epic stuff",
-			{ name: "Epic Pass", description: "Unlocks epic stuff" },
-		],
-		["Epic Pass", undefined, { name: "Epic Pass" }],
-		[undefined, "Unlocks epic stuff", { description: "Unlocks epic stuff" }],
-		[undefined, undefined, {}],
-	])(
-		"should include name=%j description=%j in the JSON body",
-		([name, description, expected]) => {
-			expect.assertions(1);
+		["both name and description", { name: "Epic Pass", description: "Unlocks epic stuff" }],
+		["only a name", { name: "Epic Pass" }],
+		["only a description", { description: "Unlocks epic stuff" }],
+		["neither field", {}],
+	])("should include %s in the JSON body", ([, fields]) => {
+		expect.assertions(1);
 
-			const parameters = {
-				gamePassId: "12345",
-				languageCode: "en_us",
-				...(name === undefined ? {} : { name }),
-				...(description === undefined ? {} : { description }),
-			} satisfies UpdateGamePassNameDescriptionParameters;
+		const parameters = {
+			gamePassId: "12345",
+			languageCode: "en_us",
+			...fields,
+		} satisfies UpdateGamePassNameDescriptionParameters;
 
-			const request = buildUpdateRequest(parameters);
+		const request = buildUpdateRequest(parameters);
 
-			expect(request.body).toStrictEqual(expected);
-		},
-	);
+		expect(request.body).toStrictEqual(fields);
+	});
 
 	it("should produce a JSON-shaped body, not FormData", () => {
 		expect.assertions(2);

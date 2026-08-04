@@ -192,8 +192,7 @@ function buildPassesOverlay(
 	return Object.keys(overlay).length === 0 ? undefined : overlay;
 }
 
-function buildEnvironmentEntry(inputs: EnvironmentEntryInputs): EnvironmentEntry {
-	const { context, fold, label } = inputs;
+function buildEnvironmentEntry({ context, fold, label }: EnvironmentEntryInputs): EnvironmentEntry {
 	const passes = buildPassesOverlay(fold, context.primary);
 	const places = buildPlacesOverlay({ fold, label, rootPlaces: context.rootPlaces });
 	const products = buildProductsOverlay(fold, context.rootProducts);
@@ -239,8 +238,7 @@ function stripDisplayNamePrefix(
 	return { ...universe, displayName: extractDisplayNamePrefix(universe.displayName).body };
 }
 
-function buildConfig(inputs: BuildConfigInputs): Config {
-	const { folds, primaryFold, primaryName } = inputs;
+function buildConfig({ folds, primaryFold, primaryName }: BuildConfigInputs): Config {
 	const labels = buildEnvironmentLabels(folds);
 	const places = buildRootPlaces({ folds, labels, primaryFold });
 	const products = buildRootProducts(folds, primaryFold);
@@ -264,11 +262,14 @@ function buildConfig(inputs: BuildConfigInputs): Config {
 		...(products !== undefined ? { products } : {}),
 		...(universe !== undefined ? { universe } : {}),
 	};
-	// Precondition for the cast: `hasDivergentUniverseIds` decides
-	// `shouldOmitRootUniverseId` and `buildRootUniverse` and
-	// `buildUniverseOverlay` honour it, so the constructed config always
-	// lands in one arm of the discriminated `Config` union (root has
-	// `universeId` and no env carries one, or every env carries one and
-	// root omits it).
+	// `hasDivergentUniverseIds` decides `shouldOmitRootUniverseId`, and
+	// `buildRootUniverse` and `buildUniverseOverlay` honour it, so the
+	// constructed config always lands in one arm of the discriminated
+	// `Config` union (root has `universeId` and no env carries one, or every
+	// env carries one and root omits it). The env-universeId arm types the
+	// root `universeId` as a phantom error-brand for authoring-time
+	// diagnostics, which no runtime value can inhabit, so that arm has no
+	// sound construction.
+	// eslint-disable-next-line ts/no-unsafe-type-assertion -- target arm carries a compile-time-only error brand
 	return config as unknown as Config;
 }

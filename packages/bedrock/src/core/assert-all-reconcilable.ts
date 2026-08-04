@@ -1,8 +1,8 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import type { ResourceKey } from "../types/ids.ts";
-import { defaultKindRegistry } from "./kinds/index.ts";
-import type { BuildDesiredError, ResourceKindModule } from "./kinds/module.ts";
+import { assertReconcilable } from "./kinds/dispatch.ts";
+import type { BuildDesiredError } from "./kinds/module.ts";
 import type { ResourceCurrentState, ResourceDesiredState, ResourceKind } from "./resources.ts";
 
 /**
@@ -37,8 +37,7 @@ export function assertAllReconcilable(
 			continue;
 		}
 
-		const module = defaultKindRegistry[entry.kind] as ResourceKindModule<ResourceKind>;
-		const check = module.assertReconcilable?.(matched, entry);
+		const check = assertReconcilable(entry, matched);
 		if (check !== undefined && !check.success) {
 			return check;
 		}

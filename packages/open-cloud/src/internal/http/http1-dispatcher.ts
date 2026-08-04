@@ -1,3 +1,6 @@
+/** The shape the global dispatcher's class is assumed to have. */
+type AgentConstructor = new (options: { allowH2: boolean }) => object;
+
 /**
  * Well-known globals under which undici publishes its global dispatcher,
  * newest first. The suffix is undici's own contract version: it moved from
@@ -11,8 +14,18 @@ const GLOBAL_DISPATCHER_KEYS: ReadonlyArray<string> = Object.freeze([
 	"undici.globalDispatcher.1",
 ]);
 
-/** The shape the global dispatcher's class is assumed to have. */
-type AgentConstructor = new (options: { allowH2: boolean }) => object;
+/**
+ * Narrow a value read off the global dispatcher to something
+ * `Reflect.construct` accepts. Exported so the narrowing is unit-testable: at
+ * the call site every rejected shape funnels into the same `undefined`, which
+ * makes the branch unobservable from `createHttp1Dispatcher` alone.
+ *
+ * @param value - The candidate `constructor` read off the global dispatcher.
+ * @returns Whether the value can be constructed.
+ */
+export function isAgentConstructor(value: unknown): value is AgentConstructor {
+	return typeof value === "function";
+}
 
 /**
  * Builds a request dispatcher that negotiates HTTP/1.1 only, by reusing the
@@ -66,7 +79,14 @@ export function createHttp1Dispatcher(scope: object = globalThis): object | unde
  */
 function constructHttp1(agent: unknown): object | undefined {
 	try {
-		const agentClass = Reflect.get(agent as object, "constructor") as AgentConstructor;
+		// No shape guard ahead of this: `Reflect.get` already rejects a
+		// primitive, `null`, and an absent key, so every malformed value lands
+		// in the same catch.
+		const agentClass = Reflect.get(agent, "constructor");
+		if (!isAgentConstructor(agentClass)) {
+			return undefined;
+		}
+
 		const dispatcher = Reflect.construct(agentClass, [{ allowH2: false }]);
 		return typeof Reflect.get(dispatcher, "dispatch") === "function" ? dispatcher : undefined;
 	} catch {

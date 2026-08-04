@@ -1,12 +1,17 @@
-import type { ConfigError } from "../core/config-error.ts";
 import { safeStringify } from "../core/error-chain.ts";
 import type { MigrateError, MigrationSummary } from "../core/migrate/migration-report.ts";
 import type { StateError } from "../core/state.ts";
-import type { BuildDesiredError } from "../shell/build-desired.ts";
 import type { MissingCredentialError, UnsupportedBackendError } from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
-import type { CodegenError } from "../shell/run-codegen.ts";
-import type { SpawnOverrideError } from "./dispatch-override.ts";
+import type { OverrideErrorRender } from "./error-messages.ts";
+import {
+	buildStatePortErrorMessage,
+	deployErrorMessage,
+	migrateErrorMessage,
+	migrateParseErrorMessage,
+	overrideErrorMessage,
+	parseErrorMessage,
+} from "./error-messages.ts";
 import { applyCauseDetail } from "./failure-detail.ts";
 import type { ParseMigrateError } from "./parse-migrate-options.ts";
 import type { ParseOptionsError } from "./parse-options.ts";
@@ -62,18 +67,13 @@ interface StateWriteErrorRender {
 
 /** Inputs for {@link renderMigrationSummary}. */
 interface MigrationSummaryRender {
-	/** Path to the Markdown report on disk. Pointed at from the action-required and review-needed lines. */
+	/**
+	 * Path to the Markdown report on disk. Pointed at from the action-required
+	 * and review-needed lines.
+	 */
 	readonly reportPath: string;
 	/** Aggregate counts from a `MigrationReport`. */
 	readonly summary: MigrationSummary;
-}
-
-/** Inputs for {@link renderOverrideError}. */
-interface OverrideErrorRender {
-	/** Environment whose override spawn produced the error. */
-	readonly environment: string;
-	/** The spawn-override error returned by `dispatchOverride`. */
-	readonly err: SpawnOverrideError;
 }
 
 /**
@@ -217,176 +217,4 @@ export function renderStateWriteError(input: StateWriteErrorRender, port: ClackP
 	port.logError(
 		`state write failed for '${input.environment}' (${input.err.file}): ${input.err.reason}`,
 	);
-}
-
-function buildDesiredDetail(cause: BuildDesiredError): string {
-	switch (cause.kind) {
-		case "fileReadFailed": {
-			return `for '${cause.key}' (${cause.filePath}): ${cause.reason}`;
-		}
-		case "iconRemovalRejected": {
-			return `for '${cause.key}': ${cause.message}`;
-		}
-		case "redactedNameCollision": {
-			const [first, second] = cause.keys;
-			return `for '${first}' and '${second}': ${cause.message}`;
-		}
-	}
-}
-
-function configErrorDetail(err: ConfigError): string {
-	switch (err.kind) {
-		case "configFunctionFailed": {
-			return `${err.sourceFile}: config function threw: ${err.message}`;
-		}
-		case "fileNotFound": {
-			return `no bedrock config under ${err.searchedFrom}`;
-		}
-		case "luauRuntimeMissing": {
-			return `${err.sourceFile}: ${err.hint}`;
-		}
-		case "parseFailed": {
-			return `${err.sourceFile}: ${err.message}`;
-		}
-		case "validationFailed": {
-			const first = err.issues[0];
-			return first === undefined
-				? `${err.sourceFile}: invalid`
-				: `${err.sourceFile}: ${first.path.join(".")} ${first.message}`;
-		}
-	}
-}
-
-function stateErrorDetail(cause: StateError): string {
-	return `(${cause.file}): ${cause.reason}`;
-}
-
-function codegenErrorDetail(cause: CodegenError): string {
-	switch (cause.kind) {
-		case "codegenEmitThrew": {
-			return `because the emitter threw: ${cause.reason}`;
-		}
-		case "codegenStateReadFailed": {
-			return `reading environment '${cause.environment}' ${stateErrorDetail(cause.cause)}`;
-		}
-		case "codegenWriteFailed": {
-			return `writing '${cause.cause.path}': ${cause.cause.reason}`;
-		}
-	}
-}
-
-/* eslint-disable-next-line max-lines-per-function -- single exhaustive switch over every DeployError variant is clearer than splitting into a wrapped-vs-unwrapped predicate plus a parallel prefix table. */
-function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFailed" }>): string {
-	switch (err.kind) {
-		case "buildDesiredFailed": {
-			return `build desired state failed ${buildDesiredDetail(err.cause)}`;
-		}
-		case "buildFailed": {
-			return `the build step failed: ${err.reason}`;
-		}
-		case "codegenFailed": {
-			return `codegen failed ${codegenErrorDetail(err.cause)}`;
-		}
-		case "configLoadFailed": {
-			return `config load failed: ${configErrorDetail(err.cause)}`;
-		}
-		case "incompletePassEntry": {
-			return `pass '${err.key}' is missing '${err.missingField}' under environment '${err.environment}'`;
-		}
-		case "incompletePlaceEntry": {
-			return `place '${err.key}' is missing '${err.missingField}' under environment '${err.environment}'`;
-		}
-		case "incompleteUniverseEntry": {
-			return `universe is missing '${err.missingField}' under environment '${err.environment}'`;
-		}
-		case "missingBuildStep": {
-			return "codegen is enabled but no build step is available: add a .bedrock/build.ts override that writes each place's built artifact to its configured file path, or disable codegen";
-		}
-		case "missingCredential": {
-			return `missing credential: environment variable ${err.variable} is not set`;
-		}
-		case "registryConfigMissing": {
-			return `registry config missing '${err.missing}' (${err.hint})`;
-		}
-		case "stateNotConfigured": {
-			return `state not configured for environment '${err.environment}'`;
-		}
-		case "stateReadFailed": {
-			return `state read failed ${stateErrorDetail(err.cause)}`;
-		}
-		case "stateWriteFailed": {
-			return `state write failed ${stateErrorDetail(err.cause)}`;
-		}
-		case "unknownEnvironment": {
-			return `unknown environment '${err.environment}' (declared: ${err.declared.join(", ")})`;
-		}
-		case "unsupportedBackend": {
-			return `unsupported state backend '${err.backend}' (${err.hint})`;
-		}
-	}
-}
-
-function parseErrorMessage(err: ParseOptionsError): string {
-	switch (err.kind) {
-		case "invalidValue": {
-			return `invalid value for flag '--${err.flag}' (expected a string)`;
-		}
-		case "missingRequired": {
-			return `missing required flag --${err.flag}`;
-		}
-		case "unknownFlag": {
-			return `unknown flag '--${err.flag}'`;
-		}
-	}
-}
-
-function overrideErrorMessage(input: OverrideErrorRender): string {
-	const { environment, err } = input;
-	if (err.kind === "launchFailed") {
-		return `${environment}: failed to launch override - ${err.cause.message}`;
-	}
-
-	return `${environment}: override exited with code ${String(err.exitCode)}`;
-}
-
-function migrateParseErrorMessage(err: ParseMigrateError): string {
-	if (err.kind === "unknownSource") {
-		return `unknown migration source '${err.received}' (supported: ${err.supported.join(", ")})`;
-	}
-
-	return parseErrorMessage(err);
-}
-
-function migrateErrorMessage(err: MigrateError): string {
-	switch (err.kind) {
-		case "internalError": {
-			return `migrate internal error: ${err.reason} (${configErrorDetail(err.cause)})`;
-		}
-		case "primaryEnvironmentNotFound": {
-			return `primary environment '${err.primary}' not found (available: ${err.available.join(", ")})`;
-		}
-		case "primaryEnvironmentRequired": {
-			return `primary environment required (available: ${err.available.join(", ")})`;
-		}
-		case "stateFileNotFound": {
-			return `Mantle state file not found at '${err.path}'`;
-		}
-		case "stateParseFailed": {
-			return `Mantle state file at '${err.path}' could not be parsed: ${err.reason}`;
-		}
-		case "unsupportedMantleStateVersion": {
-			return `unsupported Mantle state version '${err.found}' (supported: ${err.supported.join(", ")})`;
-		}
-	}
-}
-
-function buildStatePortErrorMessage(err: MissingCredentialError | UnsupportedBackendError): string {
-	switch (err.kind) {
-		case "missingCredential": {
-			return `missing credential: environment variable ${err.variable} is not set`;
-		}
-		case "unsupportedBackend": {
-			return `unsupported state backend '${err.backend}' (${err.hint})`;
-		}
-	}
 }

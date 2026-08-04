@@ -15,7 +15,10 @@ interface BuildRootPlacesInputs {
 	 * is stripped via {@link extractDisplayNamePrefix} before comparison.
 	 */
 	readonly labels: ReadonlyMap<string, string | undefined>;
-	/** The chosen primary environment's fold; supplies `filePath` for every place entry on root. */
+	/**
+	 * The chosen primary environment's fold; supplies `filePath` for every
+	 * place entry on root.
+	 */
 	readonly primaryFold: EnvironmentFoldResult;
 }
 
@@ -25,9 +28,15 @@ interface BuildRootPlacesInputs {
 interface BuildPlacesOverlayInputs {
 	/** The per-environment fold whose places are being overlaid. */
 	readonly fold: EnvironmentFoldResult;
-	/** The environment's label (or `undefined`); enables prefix-stripping on the overlay's `displayName`. */
+	/**
+	 * The environment's label (or `undefined`); enables prefix-stripping on
+	 * the overlay's `displayName`.
+	 */
 	readonly label: string | undefined;
-	/** The already-built root `places` block; matching field values suppress overlay entries. */
+	/**
+	 * The already-built root `places` block; matching field values suppress
+	 * overlay entries.
+	 */
 	readonly rootPlaces: Record<string, PlaceEntry> | undefined;
 }
 
@@ -71,10 +80,11 @@ interface BuildPlaceOverlayEntryInputs {
  * @returns The root `places` block, or `undefined` when the primary has
  *   no place folds.
  */
-export function buildRootPlaces(
-	inputs: BuildRootPlacesInputs,
-): Record<string, PlaceEntry> | undefined {
-	const { folds, labels, primaryFold } = inputs;
+export function buildRootPlaces({
+	folds,
+	labels,
+	primaryFold,
+}: BuildRootPlacesInputs): Record<string, PlaceEntry> | undefined {
 	if (primaryFold.places.size === 0) {
 		return undefined;
 	}
@@ -103,10 +113,11 @@ export function buildRootPlaces(
  * @returns The overlay `places` block, or `undefined` when the fold has
  *   no place entries.
  */
-export function buildPlacesOverlay(
-	inputs: BuildPlacesOverlayInputs,
-): Record<string, PlaceOverlayEntry> | undefined {
-	const { fold, label, rootPlaces } = inputs;
+export function buildPlacesOverlay({
+	fold,
+	label,
+	rootPlaces,
+}: BuildPlacesOverlayInputs): Record<string, PlaceOverlayEntry> | undefined {
 	if (fold.places.size === 0) {
 		return undefined;
 	}
@@ -176,8 +187,11 @@ function buildRootPlaceEntry(
 	};
 }
 
-function buildPlaceOverlayEntry(inputs: BuildPlaceOverlayEntryInputs): PlaceOverlayEntry {
-	const { fold, label, rootEntry } = inputs;
+function buildPlaceOverlayEntry({
+	fold,
+	label,
+	rootEntry,
+}: BuildPlaceOverlayEntryInputs): PlaceOverlayEntry {
 	const { description, displayName: rawDisplayName, filePath, serverSize } = fold.entry;
 	const displayName = resolveDisplayName(rawDisplayName, label);
 	return {

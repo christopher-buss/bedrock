@@ -510,8 +510,8 @@ describe(validateConfig, () => {
 	it.for([
 		["negative", -1],
 		["fractional", 1.5],
-		["NaN", Number.NaN],
-		["Infinity", Number.POSITIVE_INFINITY],
+		["NaN", NaN],
+		["Infinity", Infinity],
 	] as const)("should reject %s as a redacted price override on a passes entry", ([, price]) => {
 		expect.assertions(1);
 
@@ -944,8 +944,8 @@ describe(validateConfig, () => {
 	it.for([
 		["negative", -1],
 		["fractional", 1.5],
-		["NaN", Number.NaN],
-		["Infinity", Number.POSITIVE_INFINITY],
+		["NaN", NaN],
+		["Infinity", Infinity],
 	] as const)(
 		"should reject %s as a redacted price override on a products entry",
 		([, price]) => {
@@ -1164,11 +1164,11 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		const overlay = result.data.environments["staging"]?.places?.["start-place"];
+		const overlay = result.data.environments["staging"]!.places!["start-place"];
 
-		expect(overlay?.displayName).toBe("Staging Start");
-		expect(overlay?.description).toBe("Staging lobby.");
-		expect(overlay?.serverSize).toBe(12);
+		expect(overlay!.displayName).toBe("Staging Start");
+		expect(overlay!.description).toBe("Staging lobby.");
+		expect(overlay!.serverSize).toBe(12);
 	});
 
 	it("should reject a non-positive serverSize on a per-environment places overlay", () => {
@@ -1721,22 +1721,23 @@ describe(validateConfig, () => {
 	});
 
 	it("should accept a universe block with all seven social links declared together", () => {
-		expect.assertions(7);
+		expect.assertions(1);
 
-		const entry: Record<string, unknown> = { universeId: "1234567890" };
-		for (const field of SOCIAL_LINK_FIELDS) {
-			entry[field] = { title: `t-${field}`, uri: `https://example.com/${field}` };
-		}
-
-		const result = validateConfig({ environments: MinEnvironments, universe: entry }, SOURCE);
+		const links = Object.fromEntries(
+			SOCIAL_LINK_FIELDS.map((field) => [
+				field,
+				{ title: `t-${field}`, uri: `https://example.com/${field}` },
+			]),
+		);
+		const result = validateConfig(
+			{ environments: MinEnvironments, universe: { ...links, universeId: "1234567890" } },
+			SOURCE,
+		);
 		assert(result.success);
 
-		for (const field of SOCIAL_LINK_FIELDS) {
-			expect(result.data.universe![field]).toStrictEqual({
-				title: `t-${field}`,
-				uri: `https://example.com/${field}`,
-			});
-		}
+		expect(SOCIAL_LINK_FIELDS.map((field) => result.data.universe![field])).toStrictEqual(
+			SOCIAL_LINK_FIELDS.map((field) => links[field]),
+		);
 	});
 
 	it("should accept environments[name].state with the same shape as root state", () => {
@@ -1754,7 +1755,7 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(result.data.environments["production"]?.state).toContainEntry([
+		expect(result.data.environments["production"]!.state).toContainEntry([
 			"gistId",
 			"prod-gist",
 		]);
@@ -1820,7 +1821,7 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(result.data.environments["production"]?.universe?.universeId).toBe("9999999999");
+		expect(result.data.environments["production"]!.universe!.universeId).toBe("9999999999");
 	});
 
 	it("should accept a per-environment universe overlay declaring universeId when the root universe block carries shared fields without universeId", () => {
@@ -1840,8 +1841,8 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(result.data.universe?.desktopEnabled).toBeTrue();
-		expect(result.data.environments["production"]?.universe?.universeId).toBe("9999999999");
+		expect(result.data.universe!.desktopEnabled).toBeTrue();
+		expect(result.data.environments["production"]!.universe!.universeId).toBe("9999999999");
 	});
 
 	it("should reject a per-environment universe overlay missing universeId when no root universeId is declared", () => {
@@ -1948,8 +1949,8 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(result.data.universe?.universeId).toBe("1234567890");
-		expect(result.data.environments["production"]?.universe?.voiceChatEnabled).toBeFalse();
+		expect(result.data.universe!.universeId).toBe("1234567890");
+		expect(result.data.environments["production"]!.universe!.voiceChatEnabled).toBeFalse();
 	});
 
 	it("should attribute the both-set rejection to the offending env's universeId path with a descriptive message", () => {
@@ -2018,8 +2019,8 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(result.data.universe?.desktopEnabled).toBeTrue();
-		expect(result.data.environments["production"]?.universe?.universeId).toBe("9999999999");
+		expect(result.data.universe!.desktopEnabled).toBeTrue();
+		expect(result.data.environments["production"]!.universe!.universeId).toBe("9999999999");
 	});
 
 	it("should reject a config where one env supplies universeId and another env declares a universe overlay without one", () => {
@@ -2068,7 +2069,7 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(result.data.environments["staging"]?.places?.["start-place"]?.placeId).toBe("5555");
+		expect(result.data.environments["staging"]!.places!["start-place"]!.placeId).toBe("5555");
 	});
 
 	it("should reject a per-environment places overlay entry that omits placeId", () => {
@@ -2152,7 +2153,7 @@ describe(validateConfig, () => {
 
 			assert(result.success);
 
-			expect(result.data.environments["staging"]?.passes?.["vip-pass"]?.redacted).toBe(
+			expect(result.data.environments["staging"]!.passes!["vip-pass"]!.redacted).toBe(
 				redacted,
 			);
 		},
@@ -2183,7 +2184,7 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(result.data.environments["staging"]?.passes?.["vip-pass"]?.redacted).toStrictEqual(
+		expect(result.data.environments["staging"]!.passes!["vip-pass"]!.redacted).toStrictEqual(
 			override,
 		);
 	});
@@ -2235,7 +2236,7 @@ describe(validateConfig, () => {
 
 			assert(result.success);
 
-			expect(result.data.environments["staging"]?.places?.["start-place"]?.redacted).toBe(
+			expect(result.data.environments["staging"]!.places!["start-place"]!.redacted).toBe(
 				redacted,
 			);
 		},
@@ -2265,9 +2266,9 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(
-			result.data.environments["staging"]?.places?.["start-place"]?.redacted,
-		).toStrictEqual(override);
+		expect(result.data.environments["staging"]!.places!["start-place"]!.redacted).toStrictEqual(
+			override,
+		);
 	});
 
 	it("should reject an empty object on a per-environment places overlay redacted field", () => {
@@ -2320,7 +2321,7 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(result.data.environments["staging"]?.products?.["gem-pack"]?.name).toBe(
+		expect(result.data.environments["staging"]!.products!["gem-pack"]!.name).toBe(
 			"Staging Gem Pack",
 		);
 	});
@@ -2344,7 +2345,7 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(result.data.environments["staging"]?.products?.["gem-pack"]?.price).toBe(100);
+		expect(result.data.environments["staging"]!.products!["gem-pack"]!.price).toBe(100);
 	});
 
 	it.for(INVALID_ROBUX_PRICES)(
@@ -2398,10 +2399,10 @@ describe(validateConfig, () => {
 		assert(result.success);
 
 		expect(
-			result.data.environments["staging"]?.products?.["gem-pack"]?.isRegionalPricingEnabled,
+			result.data.environments["staging"]!.products!["gem-pack"]!.isRegionalPricingEnabled,
 		).toBeTrue();
 		expect(
-			result.data.environments["staging"]?.products?.["gem-pack"]?.storePageEnabled,
+			result.data.environments["staging"]!.products!["gem-pack"]!.storePageEnabled,
 		).toBeFalse();
 	});
 
@@ -2486,7 +2487,7 @@ describe(validateConfig, () => {
 
 			assert(result.success);
 
-			expect(result.data.environments["staging"]?.products?.["gem-pack"]?.redacted).toBe(
+			expect(result.data.environments["staging"]!.products!["gem-pack"]!.redacted).toBe(
 				redacted,
 			);
 		},
@@ -2516,7 +2517,7 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(result.data.environments["staging"]?.products?.["gem-pack"]?.redacted).toStrictEqual(
+		expect(result.data.environments["staging"]!.products!["gem-pack"]!.redacted).toStrictEqual(
 			override,
 		);
 	});
@@ -2606,7 +2607,7 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(result.data.environments["staging"]?.passes?.["vip-pass"]?.price).toBe(250);
+		expect(result.data.environments["staging"]!.passes!["vip-pass"]!.price).toBe(250);
 	});
 
 	it("should reject an undeclared field inside a per-environment places overlay entry", () => {
@@ -2675,7 +2676,7 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(result.data.environments["production"]?.redacted).toBe(redacted);
+		expect(result.data.environments["production"]!.redacted).toBe(redacted);
 	});
 
 	it("should accept an object-form redacted on an environments entry that carries the cross-kind union of override fields", () => {
@@ -2699,7 +2700,7 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(result.data.environments["production"]?.redacted).toStrictEqual(override);
+		expect(result.data.environments["production"]!.redacted).toStrictEqual(override);
 	});
 
 	it("should reject an empty redacted override on an environments entry and recommend redacted: true for default placeholders", () => {
@@ -2829,7 +2830,7 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(result.data.environments["staging"]?.label).toBe("Staging");
+		expect(result.data.environments["staging"]!.label).toBe("Staging");
 	});
 
 	it("should reject a non-string label on an environment entry", () => {
@@ -2863,8 +2864,8 @@ describe(validateConfig, () => {
 
 		assert(result.success);
 
-		expect(result.data.displayNamePrefix?.enabled).toBeFalse();
-		expect(result.data.displayNamePrefix?.format).toBe("<{label}> ");
+		expect(result.data.displayNamePrefix!.enabled).toBeFalse();
+		expect(result.data.displayNamePrefix!.format).toBe("<{label}> ");
 	});
 
 	it("should reject a non-boolean enabled on displayNamePrefix", () => {

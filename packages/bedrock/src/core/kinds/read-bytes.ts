@@ -17,7 +17,7 @@ import type { BuildDesiredError, KindIo } from "./module.ts";
  * @param io - I/O surface carrying the injected `readFile` function.
  * @returns `Ok` with the bytes, or `Err` with a `fileReadFailed` error.
  */
-export async function readBytes(
+export async function readBytesAsync(
 	target: { readonly filePath: string; readonly key: ResourceKey },
 	io: KindIo,
 ): Promise<Result<Uint8Array, BuildDesiredError>> {

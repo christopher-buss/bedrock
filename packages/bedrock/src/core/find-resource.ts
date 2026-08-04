@@ -59,9 +59,8 @@ import type { ResourceCurrentState, ResourceKind } from "./resources.ts";
  */
 export function findResource<K extends ResourceKind>(
 	resources: ReadonlyArray<ResourceCurrentState>,
-	selector: { readonly key?: ResourceKey | undefined; readonly kind: K },
+	{ key, kind }: { readonly key?: ResourceKey | undefined; readonly kind: K },
 ): ResourceCurrentState<K> | undefined {
-	const { key, kind } = selector;
 	return resources.find((resource): resource is ResourceCurrentState<K> => {
 		return resource.kind === kind && (key === undefined || resource.key === key);
 	});

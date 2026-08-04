@@ -1,35 +1,13 @@
 import { assert, describe, expect, it } from "vitest";
 
-import type { GistFetch } from "../adapters/gist-state-adapter.ts";
+import { environmentFrom } from "#tests/helpers/environment";
+import { fakeFetch } from "#tests/helpers/fake-gist-fetch";
 import type { StateConfig } from "../core/schema.ts";
 import { buildStatePort } from "./build-state-port.ts";
 
 const GIST_CONFIG: StateConfig = { backend: "gist", gistId: "abc123" };
 
-interface FakeFetch {
-	readonly calls: Array<Request>;
-	readonly fetchFn: GistFetch;
-}
-
-function fakeFetch(responder: (request: Request) => Promise<Response> | Response): FakeFetch {
-	const calls: Array<Request> = [];
-	async function fetchFunc(
-		input: globalThis.Request | string | URL,
-		init?: RequestInit,
-	): Promise<Response> {
-		const request = new Request(input, init);
-		calls.push(request);
-		return responder(request);
-	}
-
-	return { calls, fetchFn: fetchFunc };
-}
-
-function environmentFrom(values: Record<string, string>): (name: string) => string | undefined {
-	return (name) => values[name];
-}
-
-async function neverFetch(): Promise<Response> {
+async function neverFetchAsync(): Promise<Response> {
 	return new Response("", { status: 500 });
 }
 
@@ -96,7 +74,7 @@ describe(buildStatePort, () => {
 		expect.assertions(3);
 
 		const result = buildStatePort({
-			fetch: neverFetch,
+			fetch: neverFetchAsync,
 			getEnv: environmentFrom({}),
 			stateConfig: GIST_CONFIG,
 		});
@@ -113,7 +91,7 @@ describe(buildStatePort, () => {
 		expect.assertions(1);
 
 		const result = buildStatePort({
-			fetch: neverFetch,
+			fetch: neverFetchAsync,
 			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
 			stateConfig: { backend: "s3" },
 		});
@@ -128,7 +106,7 @@ describe(buildStatePort, () => {
 		expect.assertions(1);
 
 		const result = buildStatePort({
-			fetch: neverFetch,
+			fetch: neverFetchAsync,
 			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
 			stateConfig: { backend: "s3" },
 		});

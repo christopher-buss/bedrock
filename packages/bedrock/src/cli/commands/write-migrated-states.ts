@@ -47,18 +47,21 @@ interface WriteInputs {
  * @returns `Ok(void)` once every environment has been written; `Err(void)`
  *   on the first failure (already rendered to clack).
  */
-export async function writeMigratedStates(inputs: WriteInputs): Promise<Result<void, void>> {
+export async function writeMigratedStatesAsync(inputs: WriteInputs): Promise<Result<void, void>> {
 	if (inputs.target.backend === "local") {
-		return writeStatesToLocal({ ...inputs, target: inputs.target });
+		return writeStatesToLocalAsync({ ...inputs, target: inputs.target });
 	}
 
-	return writeStatesToGist({ ...inputs, target: inputs.target });
+	return writeStatesToGistAsync({ ...inputs, target: inputs.target });
 }
 
-async function writeStatesToGist(
-	inputs: WriteInputs & { readonly target: { readonly stateConfig: GistStateConfig } },
-): Promise<Result<void, void>> {
-	const { deps, report, target } = inputs;
+async function writeStatesToGistAsync({
+	deps,
+	report,
+	target,
+}: WriteInputs & { readonly target: { readonly stateConfig: GistStateConfig } }): Promise<
+	Result<void, void>
+> {
 	const portResult = deps.buildStatePort({
 		getEnv: (name) => process.env[name],
 		stateConfig: target.stateConfig,
@@ -81,10 +84,11 @@ async function writeStatesToGist(
 	return { data: undefined, success: true };
 }
 
-async function writeStatesToLocal(
-	inputs: WriteInputs & { readonly target: { readonly outputDir: string } },
-): Promise<Result<void, void>> {
-	const { deps, report, target } = inputs;
+async function writeStatesToLocalAsync({
+	deps,
+	report,
+	target,
+}: WriteInputs & { readonly target: { readonly outputDir: string } }): Promise<Result<void, void>> {
 	try {
 		await deps.mkdir(target.outputDir);
 	} catch (err) {

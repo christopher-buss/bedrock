@@ -1,3 +1,5 @@
+import { fromPartial } from "@total-typescript/shoehorn";
+
 import type { SpawnSyncReturns } from "node:child_process";
 import { describe, expect, it, vi } from "vitest";
 
@@ -15,19 +17,19 @@ function fakeResult(overrides: FakeResultOverrides): SpawnSyncReturns<string> {
 	// detectLute distinguishes a signal kill from a real exit code. `null` for
 	// the absent fields is banned under src, so the partial is cast to the wire
 	// shape.
-	return {
+	return fromPartial({
 		output: [],
 		pid: 1,
 		stderr: "",
 		stdout: "",
 		...overrides,
-	} as unknown as SpawnSyncReturns<string>;
+	});
 }
 
 function spawnReturning(
 	result: SpawnSyncReturns<string>,
 ): typeof import("node:child_process").spawnSync {
-	return (() => result) as unknown as typeof import("node:child_process").spawnSync;
+	return fromPartial(() => result);
 }
 
 describe(detectLute, () => {

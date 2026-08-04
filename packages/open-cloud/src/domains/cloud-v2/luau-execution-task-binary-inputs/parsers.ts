@@ -1,6 +1,7 @@
 import type { HttpResponse } from "../../../client/types.ts";
 import { ApiError } from "../../../errors/api-error.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
+import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
 import type { LuauExecutionTaskBinaryInput } from "./types.ts";
 
@@ -17,11 +18,10 @@ const MALFORMED_MESSAGE = "Malformed luau-execution-session-task-binary-input re
  * @returns A success result wrapping the parsed binary input, or an
  *   {@link ApiError} when the body does not match the expected shape.
  */
-export function parseBinaryInputResponse(
-	response: HttpResponse,
-): Result<LuauExecutionTaskBinaryInput, ApiError> {
-	const { body, status: statusCode } = response;
-
+export function parseBinaryInputResponse({
+	body,
+	status: statusCode,
+}: HttpResponse): Result<LuauExecutionTaskBinaryInput, ApiError> {
 	if (!isRecord(body)) {
 		return malformed(statusCode, body);
 	}
@@ -46,7 +46,7 @@ function malformed(
 ): Result<LuauExecutionTaskBinaryInput, ApiError> {
 	return {
 		err: new ApiError(MALFORMED_MESSAGE, {
-			details: body as JSONValue | undefined,
+			details: toJsonDetails(body),
 			statusCode,
 		}),
 		success: false,

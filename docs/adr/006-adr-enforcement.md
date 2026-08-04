@@ -176,7 +176,7 @@ line 51). Explicit, mandatory language like ADR-003.
 
 - [CLAUDE.md current "Making Decisions" section](../../CLAUDE.md)
 - [ADR template](../templates/adr.md)
-- [.claude/agents/adr.md custom agent](../../.claude/agents/adr.md)
+- The `adr` custom agent
 
 ## Amendment: 2026-04-23, recalibrate the trigger bar
 

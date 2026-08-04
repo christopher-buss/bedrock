@@ -6,6 +6,7 @@ import {
 } from "../../../internal/price-information.ts";
 import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
+import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Page, Result } from "../../../types.ts";
 import type { GamePass } from "./types.ts";
 import type {
@@ -25,13 +26,14 @@ import type {
  * @returns A success result wrapping the converted `GamePass`, or an
  *   `ApiError` when the body does not match the wire schema.
  */
-export function parseGamePassResponse(response: HttpResponse): Result<GamePass, ApiError> {
-	const { body, status: statusCode } = response;
-
+export function parseGamePassResponse({
+	body,
+	status: statusCode,
+}: HttpResponse): Result<GamePass, ApiError> {
 	if (!isGamePassConfigV2(body)) {
 		return {
 			err: new ApiError("Malformed game pass response", {
-				details: body as JSONValue | undefined,
+				details: toJsonDetails(body),
 				statusCode,
 			}),
 			success: false,
@@ -51,15 +53,14 @@ export function parseGamePassResponse(response: HttpResponse): Result<GamePass, 
  * @returns A success result wrapping the converted page, or an
  *   `ApiError` when the body does not match the wire schema.
  */
-export function parseGamePassesListResponse(
-	response: HttpResponse,
-): Result<Page<GamePass>, ApiError> {
-	const { body, status: statusCode } = response;
-
+export function parseGamePassesListResponse({
+	body,
+	status: statusCode,
+}: HttpResponse): Result<Page<GamePass>, ApiError> {
 	if (!isListResponseWire(body)) {
 		return {
 			err: new ApiError("Malformed game passes list response", {
-				details: body as JSONValue | undefined,
+				details: toJsonDetails(body),
 				statusCode,
 			}),
 			success: false,

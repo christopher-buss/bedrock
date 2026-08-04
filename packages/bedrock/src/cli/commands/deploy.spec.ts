@@ -1,9 +1,11 @@
 import type { Result } from "@bedrock-rbx/ocale";
+import { fromAny } from "@total-typescript/shoehorn";
 
 import process from "node:process";
 import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
+import { resultsInOrder } from "#tests/helpers/sequence";
 import type { ResourceCurrentState } from "../../core/resources.ts";
 import type { Config } from "../../core/schema.ts";
 import type { BedrockState } from "../../core/state.ts";
@@ -44,6 +46,24 @@ function discoverByCommand(
 	mapping: Readonly<Record<string, string | undefined>>,
 ): DiscoverOverrideFunc {
 	return vi.fn<DiscoverOverrideFunc>((_root, command) => mapping[command]);
+}
+
+/**
+ * Build a discovery fake that throws for one command and resolves nothing for
+ * every other, so a test states which lookup fails as data.
+ *
+ * @param failing - The command whose discovery throws.
+ * @param message - The thrown error message.
+ * @returns The discovery fake.
+ */
+function discoverThrowingFor(failing: string, message: string): DiscoverOverrideFunc {
+	const thrown = new Error(message);
+	const byCommand: Readonly<Record<string, () => string | undefined>> = {
+		[failing]: () => {
+			throw thrown;
+		},
+	};
+	return vi.fn<DiscoverOverrideFunc>((_root, command) => byCommand[command]?.());
 }
 
 function makeDependencies(overrides: Partial<ProgDependencies> = {}): ProgDependencies {
@@ -130,9 +150,9 @@ describe(deployCommand, () => {
 
 		await deployCommand(dependencies)(rawOptions);
 
-		expect(dependencies.clack?.intro).toHaveBeenCalledExactlyOnceWith("bedrock deploy");
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
+		expect(dependencies.clack!.intro).toHaveBeenCalledExactlyOnceWith("bedrock deploy");
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -147,8 +167,8 @@ describe(deployCommand, () => {
 
 		await deployCommand(dependencies)({ env: "production" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -193,10 +213,10 @@ describe(deployCommand, () => {
 		expect(deploy).toHaveBeenCalledExactlyOnceWith(
 			expect.objectContaining({ config: sampleConfig, environment: "production" }),
 		);
-		expect(dependencies.clack?.logSuccess).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logSuccess).toHaveBeenCalledExactlyOnceWith(
 			"production: 3 resources reconciled",
 		);
-		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith("deploy succeeded");
+		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith("deploy succeeded");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
@@ -218,8 +238,8 @@ describe(deployCommand, () => {
 
 		await deployCommand(dependencies)({ env: "ghost" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(expect.any(String));
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -236,7 +256,7 @@ describe(deployCommand, () => {
 		await deployCommand(dependencies)({ env: ["production", "staging"] });
 
 		expect(deploy).toHaveBeenCalledTimes(2);
-		expect(dependencies.clack?.outro).toHaveBeenCalledExactlyOnceWith("deploy succeeded");
+		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith("deploy succeeded");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
@@ -256,10 +276,10 @@ describe(deployCommand, () => {
 		await deployCommand(dependencies)({ env: ["production", "staging"] });
 
 		expect(deploy).toHaveBeenCalledTimes(2);
-		expect(dependencies.clack?.logSuccess).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logSuccess).toHaveBeenCalledExactlyOnceWith(
 			"staging: 5 resources reconciled",
 		);
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -267,33 +287,32 @@ describe(deployCommand, () => {
 		expect.assertions(4);
 
 		vi.stubEnv("UNRELATED_VAR", "from-process-unrelated");
-
-		try {
-			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-			const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
-			const dependencies = makeDependencies({ deploy, loadConfig });
-
-			await deployCommand(dependencies)({
-				"api-key": "BEDROCK_OVERRIDE",
-				"env": "production",
-				"github-token": "GH_OVERRIDE",
-			});
-
-			expect(deploy).toHaveBeenCalledExactlyOnceWith(
-				expect.objectContaining({ config: sampleConfig, environment: "production" }),
-			);
-
-			const firstCall = vi.mocked(deploy).mock.calls[0];
-			assert(firstCall !== undefined);
-
-			const [call] = firstCall;
-
-			expect(call.getEnv?.("BEDROCK_API_KEY")).toBe("BEDROCK_OVERRIDE");
-			expect(call.getEnv?.("BEDROCK_GITHUB_TOKEN")).toBe("GH_OVERRIDE");
-			expect(call.getEnv?.("UNRELATED_VAR")).toBe("from-process-unrelated");
-		} finally {
+		onTestFinished(() => {
 			vi.unstubAllEnvs();
-		}
+		});
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
+		const dependencies = makeDependencies({ deploy, loadConfig });
+
+		await deployCommand(dependencies)({
+			"api-key": "BEDROCK_OVERRIDE",
+			"env": "production",
+			"github-token": "GH_OVERRIDE",
+		});
+
+		expect(deploy).toHaveBeenCalledExactlyOnceWith(
+			expect.objectContaining({ config: sampleConfig, environment: "production" }),
+		);
+
+		const firstCall = vi.mocked(deploy).mock.calls[0];
+		assert(firstCall !== undefined);
+
+		const [call] = firstCall;
+
+		expect(call.getEnv!("BEDROCK_API_KEY")).toBe("BEDROCK_OVERRIDE");
+		expect(call.getEnv!("BEDROCK_GITHUB_TOKEN")).toBe("GH_OVERRIDE");
+		expect(call.getEnv!("UNRELATED_VAR")).toBe("from-process-unrelated");
 	});
 
 	it("should overlay each credential flag only on its named slot, not the other", async () => {
@@ -301,25 +320,24 @@ describe(deployCommand, () => {
 
 		vi.stubEnv("BEDROCK_API_KEY", "from-process-bedrock");
 		vi.stubEnv("BEDROCK_GITHUB_TOKEN", "from-process-github");
-
-		try {
-			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-			const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
-			const dependencies = makeDependencies({ deploy, loadConfig });
-
-			await deployCommand(dependencies)({ "api-key": "FLAG_BEDROCK", "env": "production" });
-
-			const firstCall = vi.mocked(deploy).mock.calls[0];
-			assert(firstCall !== undefined);
-
-			const [call] = firstCall;
-
-			expect(call.getEnv?.("BEDROCK_API_KEY")).toBe("FLAG_BEDROCK");
-			expect(call.getEnv?.("BEDROCK_GITHUB_TOKEN")).toBe("from-process-github");
-			expect(call.getEnv?.("UNRELATED_VAR")).toBeUndefined();
-		} finally {
+		onTestFinished(() => {
 			vi.unstubAllEnvs();
-		}
+		});
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
+		const dependencies = makeDependencies({ deploy, loadConfig });
+
+		await deployCommand(dependencies)({ "api-key": "FLAG_BEDROCK", "env": "production" });
+
+		const firstCall = vi.mocked(deploy).mock.calls[0];
+		assert(firstCall !== undefined);
+
+		const [call] = firstCall;
+
+		expect(call.getEnv!("BEDROCK_API_KEY")).toBe("FLAG_BEDROCK");
+		expect(call.getEnv!("BEDROCK_GITHUB_TOKEN")).toBe("from-process-github");
+		expect(call.getEnv!("UNRELATED_VAR")).toBeUndefined();
 	});
 
 	it("should fall back to process.env when neither --api-key nor --github-token is supplied", async () => {
@@ -327,24 +345,23 @@ describe(deployCommand, () => {
 
 		vi.stubEnv("BEDROCK_API_KEY", "process-bedrock");
 		vi.stubEnv("BEDROCK_GITHUB_TOKEN", "process-github");
-
-		try {
-			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
-			const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
-			const dependencies = makeDependencies({ deploy, loadConfig });
-
-			await deployCommand(dependencies)({ env: "production" });
-
-			const firstCall = vi.mocked(deploy).mock.calls[0];
-			assert(firstCall !== undefined);
-
-			const [call] = firstCall;
-
-			expect(call.getEnv?.("BEDROCK_API_KEY")).toBe("process-bedrock");
-			expect(call.getEnv?.("BEDROCK_GITHUB_TOKEN")).toBe("process-github");
-		} finally {
+		onTestFinished(() => {
 			vi.unstubAllEnvs();
-		}
+		});
+
+		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
+		const dependencies = makeDependencies({ deploy, loadConfig });
+
+		await deployCommand(dependencies)({ env: "production" });
+
+		const firstCall = vi.mocked(deploy).mock.calls[0];
+		assert(firstCall !== undefined);
+
+		const [call] = firstCall;
+
+		expect(call.getEnv!("BEDROCK_API_KEY")).toBe("process-bedrock");
+		expect(call.getEnv!("BEDROCK_GITHUB_TOKEN")).toBe("process-github");
 	});
 
 	it("should deploy with BEDROCK_ENVIRONMENT when --env is omitted", async () => {
@@ -420,17 +437,14 @@ describe(deployCommand, () => {
 	it("should default to process.exit when no exit slot is provided", async () => {
 		expect.assertions(1);
 
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation((() => {}) as typeof process.exit);
-
-		try {
-			await deployCommand({ clack: fakeClackPort() })({});
-
-			expect(exitSpy).toHaveBeenCalledExactlyOnceWith(1);
-		} finally {
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(fromAny(() => {}));
+		onTestFinished(() => {
 			exitSpy.mockRestore();
-		}
+		});
+
+		await deployCommand({ clack: fakeClackPort() })({});
+
+		expect(exitSpy).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should thread the injected progress port into the underlying deploy() call", async () => {
@@ -456,7 +470,7 @@ describe(deployCommand, () => {
 		const clack = fakeClackPort();
 		const loadConfig = fakeLoad({ data: configWithGist, success: true });
 		const deploy = vi.fn<DeployFunc>(async (options) => {
-			options.progress?.emit({ environment: "production", kind: "stateWritten" });
+			options.progress!.emit({ environment: "production", kind: "stateWritten" });
 			return { data: bedrockState("production", 0), success: true };
 		});
 		const dependencies = makeDependencies({ clack, deploy, loadConfig });
@@ -526,7 +540,7 @@ describe(deployCommand, () => {
 			"github-token": "ghp-token",
 		});
 
-		const args = invocations[0]?.args ?? [];
+		const { args } = invocations[0]!;
 
 		expect(args).toStrictEqual([
 			"/abs/.bedrock/deploy.ts",
@@ -535,7 +549,7 @@ describe(deployCommand, () => {
 			"--config",
 			"./bedrock.staging.config.ts",
 		]);
-		expect(invocations[0]?.envOverrides).toMatchObject({
+		expect(invocations[0]!.envOverrides).toMatchObject({
 			BEDROCK_API_KEY: "rbx-key",
 			BEDROCK_CLI: "1",
 			BEDROCK_GITHUB_TOKEN: "ghp-token",
@@ -561,10 +575,7 @@ describe(deployCommand, () => {
 
 		expect(invocations).toHaveLength(2);
 
-		const environmentValues = invocations.map((invocation) => {
-			const { args } = invocation;
-			return args[args.indexOf("--env") + 1];
-		});
+		const environmentValues = invocations.map(({ args }) => args[args.indexOf("--env") + 1]);
 
 		expect(environmentValues).toStrictEqual(["production", "staging"]);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
@@ -597,10 +608,10 @@ describe(deployCommand, () => {
 
 		await deployCommand(dependencies)({ env: "production" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			"production: override exited with code 3",
 		);
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -620,10 +631,10 @@ describe(deployCommand, () => {
 
 		await deployCommand(dependencies)({ env: "production" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			"production: failed to launch override - spawn bun ENOENT",
 		);
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -631,21 +642,14 @@ describe(deployCommand, () => {
 		expect.assertions(2);
 
 		const invocations: Array<SpawnInvocation> = [];
-		let callIndex = 0;
-		const results: ReadonlyArray<Result<number, SpawnLaunchError>> = [
+		const results = resultsInOrder<Result<number, SpawnLaunchError>>([
 			{ data: 3, success: true },
 			{ data: 0, success: true },
-		];
+		]);
 		const spawner: Spawner = {
 			async spawn(invocation) {
 				invocations.push(invocation);
-				const next = results[callIndex];
-				callIndex += 1;
-				if (next === undefined) {
-					throw new Error("spawner invoked beyond scripted results");
-				}
-
-				return next;
+				return results();
 			},
 		};
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
@@ -686,12 +690,12 @@ describe(deployCommand, () => {
 		await call.build({ environment: "production" });
 
 		expect(invocations).toHaveLength(1);
-		expect(invocations[0]?.args).toStrictEqual([
+		expect(invocations[0]!.args).toStrictEqual([
 			"/abs/.bedrock/build.ts",
 			"--env",
 			"production",
 		]);
-		expect(invocations[0]?.envOverrides).toMatchObject({
+		expect(invocations[0]!.envOverrides).toMatchObject({
 			BEDROCK_API_KEY: "rbx-key",
 			BEDROCK_CLI: "1",
 		});
@@ -803,11 +807,10 @@ describe(deployCommand, () => {
 
 		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = vi.fn<DeployFunc>();
-		const discoverOverride = vi.fn<DiscoverOverrideFunc>((_root, command) => {
-			if (command === "build") {
-				throw new Error("EACCES: permission denied, stat '/project/.bedrock/build.ts'");
-			}
-		});
+		const discoverOverride = discoverThrowingFor(
+			"build",
+			"EACCES: permission denied, stat '/project/.bedrock/build.ts'",
+		);
 		const dependencies = makeDependencies({
 			deploy,
 			discoverOverride,
@@ -818,10 +821,10 @@ describe(deployCommand, () => {
 		await deployCommand(dependencies)({ env: "production" });
 
 		expect(deploy).not.toHaveBeenCalled();
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			"override discovery failed: EACCES: permission denied, stat '/project/.bedrock/build.ts'",
 		);
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -842,10 +845,10 @@ describe(deployCommand, () => {
 
 		await deployCommand(dependencies)({ env: "production" });
 
-		expect(dependencies.clack?.logError).toHaveBeenCalledExactlyOnceWith(
+		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			"override discovery failed: EACCES: permission denied, stat '/project/.bedrock/deploy.ts'",
 		);
-		expect(dependencies.clack?.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 });

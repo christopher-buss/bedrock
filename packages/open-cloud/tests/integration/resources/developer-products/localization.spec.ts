@@ -56,11 +56,11 @@ describe(DeveloperProductsClient, () => {
 					productId: "12345",
 				});
 
-				expect(httpClient.requests[0]?.request.method).toBe("PATCH");
-				expect(httpClient.requests[0]?.request.url).toBe(
+				expect(httpClient.requests[0]!.request.method).toBe("PATCH");
+				expect(httpClient.requests[0]!.request.url).toBe(
 					"/legacy-game-internationalization/v1/developer-products/12345/name-description/language-codes/fr_fr",
 				);
-				expect(httpClient.requests[0]?.request.body).toStrictEqual({
+				expect(httpClient.requests[0]!.request.body).toStrictEqual({
 					name: "Gem Pack",
 					description: "Premium gems",
 				});
@@ -178,11 +178,11 @@ describe(DeveloperProductsClient, () => {
 					productId: "12345",
 				});
 
-				expect(httpClient.requests[0]?.request.method).toBe("POST");
-				expect(httpClient.requests[0]?.request.url).toBe(
+				expect(httpClient.requests[0]!.request.method).toBe("POST");
+				expect(httpClient.requests[0]!.request.url).toBe(
 					"/legacy-game-internationalization/v1/developer-products/12345/icons/language-codes/fr_fr",
 				);
-				expect(httpClient.requests[0]?.request.body).toBeInstanceOf(FormData);
+				expect(httpClient.requests[0]!.request.body).toBeInstanceOf(FormData);
 			});
 
 			it("should not retry a 5xx so a duplicate icon upload can't be created", async () => {

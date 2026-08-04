@@ -66,7 +66,7 @@ const UNIVERSE_TRAP: ResourceDriver<"universe"> = {
 	},
 };
 
-async function readFileNever(): Promise<Uint8Array> {
+async function readFileNeverAsync(): Promise<Uint8Array> {
 	throw new Error("readFile must not run for developer-product slice 1");
 }
 
@@ -81,7 +81,7 @@ describe("developer-products pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const desiredResult = await buildDesired({
-			readFile: readFileNever,
+			readFile: readFileNeverAsync,
 			resources: flattenConfig(resolved.data),
 		});
 		assert(desiredResult.success);
@@ -103,7 +103,7 @@ describe("developer-products pipeline end-to-end", () => {
 					httpClient,
 					sleep: async () => {},
 				}),
-				readFile: readFileNever,
+				readFile: readFileNeverAsync,
 				universeId: UNIVERSE_ID,
 			}),
 			gamePass: GAME_PASS_TRAP,
@@ -145,7 +145,7 @@ describe("developer-products pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const desiredResult = await buildDesired({
-			readFile: readFileNever,
+			readFile: readFileNeverAsync,
 			resources: flattenConfig(resolved.data),
 		});
 		assert(desiredResult.success);
@@ -158,7 +158,7 @@ describe("developer-products pipeline end-to-end", () => {
 					httpClient,
 					sleep: async () => {},
 				}),
-				readFile: readFileNever,
+				readFile: readFileNeverAsync,
 				universeId: UNIVERSE_ID,
 			}),
 			gamePass: GAME_PASS_TRAP,
@@ -198,7 +198,7 @@ describe("developer-products pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const desiredResult = await buildDesired({
-			readFile: readFileNever,
+			readFile: readFileNeverAsync,
 			resources: flattenConfig(resolved.data),
 		});
 		assert(desiredResult.success);
@@ -214,7 +214,7 @@ describe("developer-products pipeline end-to-end", () => {
 					httpClient,
 					sleep: async () => {},
 				}),
-				readFile: readFileNever,
+				readFile: readFileNeverAsync,
 				universeId: UNIVERSE_ID,
 			}),
 			gamePass: GAME_PASS_TRAP,
@@ -244,7 +244,7 @@ describe("developer-products pipeline end-to-end", () => {
 		assert(applyResult.success);
 
 		expect(httpClient.requests).toHaveLength(1);
-		expect(httpClient.requests[0]?.request.method).toBe("PATCH");
+		expect(httpClient.requests[0]!.request.method).toBe("PATCH");
 
 		const updated = applyResult.data[0]!;
 		assert(updated.kind === "developerProduct");
@@ -270,7 +270,7 @@ describe("developer-products pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const desiredResult = await buildDesired({
-			readFile: readFileNever,
+			readFile: readFileNeverAsync,
 			resources: flattenConfig(resolved.data),
 		});
 		assert(desiredResult.success);
@@ -299,7 +299,7 @@ describe("developer-products pipeline end-to-end", () => {
 					httpClient: firstHttpClient,
 					sleep: async () => {},
 				}),
-				readFile: readFileNever,
+				readFile: readFileNeverAsync,
 				universeId: UNIVERSE_ID,
 			}),
 			gamePass: GAME_PASS_TRAP,
@@ -329,7 +329,7 @@ describe("developer-products pipeline end-to-end", () => {
 					httpClient: secondHttpClient,
 					sleep: async () => {},
 				}),
-				readFile: readFileNever,
+				readFile: readFileNeverAsync,
 				universeId: UNIVERSE_ID,
 			}),
 			gamePass: GAME_PASS_TRAP,

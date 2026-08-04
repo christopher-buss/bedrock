@@ -4,7 +4,7 @@ import {
 	buildCodegenEnvironments,
 	type CodegenFile,
 	type Emitter,
-	hashCodegenFiles,
+	hashCodegenFilesAsync,
 } from "../core/codegen.ts";
 import { safeStringify } from "../core/error-chain.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
@@ -13,8 +13,9 @@ import type { StatePort } from "../ports/state-port.ts";
 import type { Sha256Hex } from "../types/ids.ts";
 
 /**
- * Failure surfaced by {@link runCodegen}. Stage-tagged so callers can tell a
- * cross-environment read failure from a thrown emitter or a write failure.
+ * Failure surfaced by {@link runCodegenAsync}. Stage-tagged so callers can
+ * tell a cross-environment read failure from a thrown emitter or a write
+ * failure.
  *
  * @since 0.1.0
  */
@@ -28,7 +29,7 @@ export type CodegenError =
 	| { readonly kind: "codegenEmitThrew"; readonly reason: string };
 
 /**
- * Inputs for {@link runCodegen}.
+ * Inputs for {@link runCodegenAsync}.
  */
 interface RunCodegenInputs {
 	/** Freshly merged snapshot of the environment just deployed. */
@@ -55,10 +56,10 @@ interface RunCodegenInputs {
  * @returns The fingerprint of the emitted output once all files are written,
  * or a stage-tagged {@link CodegenError}.
  */
-export async function runCodegen(
+export async function runCodegenAsync(
 	inputs: RunCodegenInputs,
 ): Promise<Result<Sha256Hex, CodegenError>> {
-	const collected = await collectStates(inputs);
+	const collected = await collectStatesAsync(inputs);
 	if (!collected.success) {
 		return collected;
 	}
@@ -76,18 +77,19 @@ export async function runCodegen(
 		};
 	}
 
-	const written = await writeFiles(files, inputs.writer);
+	const written = await writeFilesAsync(files, inputs.writer);
 	if (!written.success) {
 		return written;
 	}
 
-	return { data: await hashCodegenFiles(files), success: true };
+	return { data: await hashCodegenFilesAsync(files), success: true };
 }
 
-async function collectStates(
-	inputs: RunCodegenInputs,
-): Promise<Result<Record<string, BedrockState | undefined>, CodegenError>> {
-	const { deployedState, environments, statePort } = inputs;
+async function collectStatesAsync({
+	deployedState,
+	environments,
+	statePort,
+}: RunCodegenInputs): Promise<Result<Record<string, BedrockState | undefined>, CodegenError>> {
 	const states: Record<string, BedrockState | undefined> = {};
 	for (const environment of environments) {
 		if (environment === deployedState.environment) {
@@ -109,7 +111,7 @@ async function collectStates(
 	return { data: states, success: true };
 }
 
-async function writeFiles(
+async function writeFilesAsync(
 	files: ReadonlyArray<CodegenFile>,
 	writer: CodegenWriterPort,
 ): Promise<Result<void, CodegenError>> {

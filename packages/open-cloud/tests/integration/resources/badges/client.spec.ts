@@ -46,11 +46,11 @@ describe(BadgesClient, () => {
 			assert(result.success);
 
 			expect(result.data.id).toBe("12345");
-			expect(httpClient.requests[0]?.request.method).toBe("POST");
-			expect(httpClient.requests[0]?.request.url).toBe(
+			expect(httpClient.requests[0]!.request.method).toBe("POST");
+			expect(httpClient.requests[0]!.request.url).toBe(
 				"/legacy-badges/v1/universes/999/badges",
 			);
-			expect(httpClient.requests[0]?.request.body).toBeInstanceOf(FormData);
+			expect(httpClient.requests[0]!.request.body).toBeInstanceOf(FormData);
 		});
 
 		it("should propagate the http error when the request fails", async () => {
@@ -180,13 +180,13 @@ describe(BadgesClient, () => {
 
 			expect(result.data).toBeUndefined();
 			expect(httpClient.requests).toHaveLength(1);
-			expect(httpClient.requests[0]?.request.method).toBe("PATCH");
-			expect(httpClient.requests[0]?.request.body).toStrictEqual({
+			expect(httpClient.requests[0]!.request.method).toBe("PATCH");
+			expect(httpClient.requests[0]!.request.body).toStrictEqual({
 				name: "Renamed",
 				description: "Renamed.",
 				enabled: false,
 			});
-			expect(httpClient.requests[0]?.request.url).toBe("/legacy-badges/v1/badges/12345");
+			expect(httpClient.requests[0]!.request.url).toBe("/legacy-badges/v1/badges/12345");
 		});
 
 		it("should propagate the http error when the PATCH fails", async () => {
@@ -269,11 +269,11 @@ describe(BadgesClient, () => {
 			assert(result.success);
 
 			expect(result.data).toBeUndefined();
-			expect(httpClient.requests[0]?.request.method).toBe("POST");
-			expect(httpClient.requests[0]?.request.url).toBe(
+			expect(httpClient.requests[0]!.request.method).toBe("POST");
+			expect(httpClient.requests[0]!.request.url).toBe(
 				"/legacy-publish/v1/badges/12345/icon",
 			);
-			expect(httpClient.requests[0]?.request.body).toBeInstanceOf(FormData);
+			expect(httpClient.requests[0]!.request.body).toBeInstanceOf(FormData);
 		});
 
 		it("should not retry a 5xx so a duplicate icon upload can't be created", async () => {

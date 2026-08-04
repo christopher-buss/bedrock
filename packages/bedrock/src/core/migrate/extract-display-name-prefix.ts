@@ -4,9 +4,15 @@
  * shape Mantle emits; in that case `body` echoes the input unchanged.
  */
 interface ExtractedDisplayName {
-	/** Display name with the bracketed prefix and trailing whitespace stripped, or the input verbatim when no prefix matched. */
+	/**
+	 * Display name with the bracketed prefix and trailing whitespace stripped,
+	 * or the input verbatim when no prefix matched.
+	 */
 	readonly body: string;
-	/** Captured label from the bracketed prefix, or `undefined` when the input did not match. */
+	/**
+	 * Captured label from the bracketed prefix, or `undefined` when the input
+	 * did not match.
+	 */
 	readonly label: string | undefined;
 }
 

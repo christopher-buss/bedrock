@@ -167,6 +167,7 @@ describe("ResourceOutputs", () => {
 
 	it("should reject an unmapped resource kind at compile time", () => {
 		type UnmappedKind = "nonexistent";
+
 		// @ts-expect-error UnmappedKind does not extend ResourceKind, so the
 		// generic constraint on ResourceOutputs refuses the lookup.
 		expectTypeOf<ResourceOutputs<UnmappedKind>>().toBeObject();
@@ -176,6 +177,7 @@ describe("ResourceOutputs", () => {
 describe("ResourceCurrentState per-kind narrowing", () => {
 	it("should attach DeveloperProductOutputs under outputs when narrowed to developerProduct", () => {
 		type Current = ResourceCurrentState<"developerProduct">;
+
 		expectTypeOf<Current["kind"]>().toEqualTypeOf<"developerProduct">();
 		expectTypeOf<Current["outputs"]>().toEqualTypeOf<DeveloperProductOutputs>();
 		expectTypeOf<Current>().toExtend<DeveloperProductDesiredState>();
@@ -183,6 +185,7 @@ describe("ResourceCurrentState per-kind narrowing", () => {
 
 	it("should attach GamePassOutputs under outputs when narrowed to gamePass", () => {
 		type Current = ResourceCurrentState<"gamePass">;
+
 		expectTypeOf<Current["kind"]>().toEqualTypeOf<"gamePass">();
 		expectTypeOf<Current["outputs"]>().toEqualTypeOf<GamePassOutputs>();
 		expectTypeOf<Current>().toExtend<GamePassDesiredState>();
@@ -190,6 +193,7 @@ describe("ResourceCurrentState per-kind narrowing", () => {
 
 	it("should attach PlaceOutputs under outputs when narrowed to place", () => {
 		type Current = ResourceCurrentState<"place">;
+
 		expectTypeOf<Current["kind"]>().toEqualTypeOf<"place">();
 		expectTypeOf<Current["outputs"]>().toEqualTypeOf<PlaceOutputs>();
 		expectTypeOf<Current>().toExtend<PlaceDesiredState>();
@@ -197,6 +201,7 @@ describe("ResourceCurrentState per-kind narrowing", () => {
 
 	it("should attach UniverseOutputs under outputs when narrowed to universe", () => {
 		type Current = ResourceCurrentState<"universe">;
+
 		expectTypeOf<Current["kind"]>().toEqualTypeOf<"universe">();
 		expectTypeOf<Current["outputs"]>().toEqualTypeOf<UniverseOutputs>();
 		expectTypeOf<Current>().toExtend<UniverseDesiredState>();

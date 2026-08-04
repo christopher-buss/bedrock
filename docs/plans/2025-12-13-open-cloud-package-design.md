@@ -265,8 +265,7 @@ mitigate content moderation account bans.
 
 ```typescript
 export type Result<T, E = Error> =
-	| { data: T; success: true }
-	| { err: E; success: false };
+	{ data: T; success: true } | { err: E; success: false };
 
 // All client methods return Promise<Result<T, OpenCloudError>>
 const result = await client.create(params);
@@ -473,12 +472,12 @@ const client = new GamePassesClient({
 
 	onRateLimit: (waitMs) => console.log(`[RATE LIMIT] Waiting ${waitMs}ms...`),
 	// Observability hooks (optional)
-	// eslint-disable-next-line arrow-style/arrow-return-style -- False positive
 	onRequest: (request) => {
 		return console.log(`[REQUEST] ${request.method} ${request.url}`);
 	},
-	onRetry: (attempt, error) =>
-		console.log(`[RETRY ${attempt}] ${error.message}`),
+	onRetry: (attempt, error) => {
+		return console.log(`[RETRY ${attempt}] ${error.message}`);
+	},
 });
 
 // Bedrock fires all 10 requests - SDK queues internally
@@ -572,11 +571,12 @@ class GamePassesClient {
 			retryableStatuses: config.retryableStatuses,
 			retryDelay:
 				config.retryDelay ??
-				((attemptNumber: number) => Math.min(1000 * 2 ** attemptNumber, 30000)),
+				((attemptNumber: number) => {
+					return Math.min(1000 * 2 ** attemptNumber, 30000);
+				}),
 		};
 	}
 
-	// eslint-disable-next-line max-lines-per-function -- Design sketch
 	private async executeWithRetry(
 		request: HttpRequest,
 		config: RequestConfig,
@@ -984,9 +984,9 @@ export type { Result } from "./types";
 ```typescript
 // ✅ CORRECT - Shared utilities from root
 import { RateLimitError, type Result } from "@bedrock-rbx/open-cloud";
-// ❌ IMPOSSIBLE - Clients NOT exported from root (prevents accidental barrel
-// import)
-import { GamePassesClient } from "@bedrock-rbx/open-cloud"; // TypeScript error!
+// ❌ IMPOSSIBLE - Clients are NOT exported from the root barrel, so
+// `import { GamePassesClient } from "@bedrock-rbx/open-cloud"` is a TypeScript
+// error; it prevents an accidental barrel import.
 // ✅ CORRECT - Subpath import (best tree-shaking)
 import { GamePassesClient } from "@bedrock-rbx/open-cloud/game-passes";
 import { UniversesClient } from "@bedrock-rbx/open-cloud/universes";
@@ -1071,7 +1071,6 @@ function createTestClient(http: HttpClient): GamePassesClient {
 	});
 }
 
-// eslint-disable-next-line max-lines-per-function -- Describe block
 describe(GamePassesClient, () => {
 	it("should create game pass successfully", async () => {
 		expect.assertions(3);

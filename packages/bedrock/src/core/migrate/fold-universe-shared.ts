@@ -21,7 +21,10 @@ export interface FoldFragment {
 	 * contributes to it.
 	 */
 	readonly entryFragment: UniverseEntryFragment;
-	/** Subset of universe outputs this rule populated; absent when the rule contributes no Roblox-assigned identifiers. */
+	/**
+	 * Subset of universe outputs this rule populated; absent when the rule
+	 * contributes no Roblox-assigned identifiers.
+	 */
 	readonly outputsFragment?: Partial<UniverseOutputs>;
 	/** Diagnostics this rule emitted. */
 	readonly warnings: ReadonlyArray<MigrationWarning>;

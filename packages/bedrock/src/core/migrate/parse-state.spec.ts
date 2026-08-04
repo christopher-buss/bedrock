@@ -35,7 +35,10 @@ describe(parseState, () => {
 
 		assert(result.success);
 
-		const [resource] = result.data.environments["production"] ?? [];
+		const { production } = result.data.environments;
+		assert(production !== undefined);
+
+		const [resource] = production;
 		assert(resource !== undefined);
 
 		expect(resource.kind).toBe("experience");
@@ -49,7 +52,10 @@ describe(parseState, () => {
 
 		assert(result.success);
 
-		const [resource] = result.data.environments["production"] ?? [];
+		const { production } = result.data.environments;
+		assert(production !== undefined);
+
+		const [resource] = production;
 		assert(resource !== undefined);
 
 		expect(resource.inputs).toStrictEqual({ groupId: undefined });
@@ -62,7 +68,10 @@ describe(parseState, () => {
 
 		assert(result.success);
 
-		const [resource] = result.data.environments["production"] ?? [];
+		const { production } = result.data.environments;
+		assert(production !== undefined);
+
+		const [resource] = production;
 		assert(resource !== undefined);
 
 		expect(resource.outputs).toStrictEqual({
@@ -78,7 +87,10 @@ describe(parseState, () => {
 
 		assert(result.success);
 
-		const [resource] = result.data.environments["production"] ?? [];
+		const { production } = result.data.environments;
+		assert(production !== undefined);
+
+		const [resource] = production;
 		assert(resource !== undefined);
 
 		expect(resource.dependencies).toStrictEqual([]);
@@ -321,7 +333,10 @@ environments:
 
 		assert(result.success);
 
-		const [resource] = result.data.environments["production"] ?? [];
+		const { production } = result.data.environments;
+		assert(production !== undefined);
+
+		const [resource] = production;
 		assert(resource !== undefined);
 
 		expect(resource.inputs).toStrictEqual({

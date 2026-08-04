@@ -13,16 +13,19 @@ const execFileAsync = promisify(execFile);
 export interface GitExecDeps {
 	/** Git executable to run; defaults to `git` resolved on the `PATH`. */
 	readonly binary?: string;
-	/** Working directory git runs in; defaults to the process working directory. */
+	/**
+	 * Working directory git runs in; defaults to the process working
+	 * directory.
+	 */
 	readonly cwd?: string;
 }
 
 /**
- * Translate a rejected `execFile` error into a {@link GitResult}: a numeric exit
- * code passes through, anything else (a launch errno such as `ENOENT`) collapses
- * to `1`, and absent output normalizes to an empty string. A launch failure
- * produced no process output, so its error message (e.g. `spawn git ENOENT`)
- * stands in as `stderr`; otherwise a missing binary would be
+ * Translate a rejected `execFile` error into a {@link GitResult}: a numeric
+ * exit code passes through, anything else (a launch errno such as `ENOENT`)
+ * collapses to `1`, and absent output normalizes to an empty string. A launch
+ * failure produced no process output, so its error message (e.g. `spawn git
+ * ENOENT`) stands in as `stderr`; otherwise a missing binary would be
  * indistinguishable from a generic exit-1 failure. Extracted so every branch
  * is unit-testable without provoking a real launch failure.
  *
@@ -30,25 +33,25 @@ export interface GitExecDeps {
  * when the binary could not be spawned; `stdout`/`stderr` carry whatever the
  * process emitted before failing.
  *
- * @param failure - The error thrown by `promisify(execFile)`.
+ * @param failure - The error thrown by `promisify(execFile)`. Typed as
+ *   `unknown` because a rejected promise carries no compile-time contract;
+ *   every field is read defensively.
  * @returns The equivalent non-success {@link GitResult}.
  */
-export function classifyExecFailure(failure: {
-	readonly code?: number | string | undefined;
-	readonly message?: string | undefined;
-	readonly stderr?: string | undefined;
-	readonly stdout?: string | undefined;
-}): GitResult {
-	const stderr = failure.stderr ?? "";
-	if (typeof failure.code === "number") {
-		return { code: failure.code, stderr, stdout: failure.stdout ?? "" };
+export function classifyExecFailure(failure: unknown): GitResult {
+	const code = fieldOf(failure, "code");
+	const stderr = stringFieldOf(failure, "stderr");
+	const stdout = stringFieldOf(failure, "stdout");
+	if (typeof code === "number") {
+		return { code, stderr, stdout };
 	}
 
-	const launchDetail = failure.message ?? (typeof failure.code === "string" ? failure.code : "");
+	const launchDetail =
+		stringFieldOf(failure, "message") || (typeof code === "string" ? code : "");
 	return {
 		code: 1,
 		stderr: stderr === "" ? launchDetail : stderr,
-		stdout: failure.stdout ?? "",
+		stdout,
 	};
 }
 
@@ -71,7 +74,16 @@ export function createGitExec(deps: GitExecDeps = {}): GitExec {
 			});
 			return { code: 0, stderr, stdout };
 		} catch (err) {
-			return classifyExecFailure(err as Parameters<typeof classifyExecFailure>[0]);
+			return classifyExecFailure(err);
 		}
 	};
+}
+
+function fieldOf(failure: unknown, name: string): unknown {
+	return typeof failure === "object" && failure !== null ? Reflect.get(failure, name) : undefined;
+}
+
+function stringFieldOf(failure: unknown, name: string): string {
+	const value = fieldOf(failure, name);
+	return typeof value === "string" ? value : "";
 }

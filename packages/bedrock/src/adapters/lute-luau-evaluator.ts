@@ -72,7 +72,7 @@ const LUTE_BOOTSTRAP_TIMEOUT_MS = 5_000;
  * @returns A `LuauEvaluator` that spawns `lute run` per call.
  */
 export function createLuteLuauEvaluator(): LuauEvaluator {
-	return evaluateLuauWithLute;
+	return evaluateLuauWithLuteAsync;
 }
 
 function setupBootstrapDirectory(userCwd: string): string {
@@ -89,8 +89,11 @@ function setupBootstrapDirectory(userCwd: string): string {
 	return bootstrapDirectory;
 }
 
-async function runLuteBootstrap(runOptions: LuteRunOptions): Promise<string> {
-	const { bin, bootstrapPath, userBasename } = runOptions;
+async function runLuteBootstrapAsync({
+	bin,
+	bootstrapPath,
+	userBasename,
+}: LuteRunOptions): Promise<string> {
 	return new Promise((resolve, reject) => {
 		execFile(
 			bin,
@@ -129,14 +132,14 @@ function parseBootstrapOutput(stdout: string): Record<string, unknown> {
 	return parsed;
 }
 
-async function evaluateLuauWithLute(
+async function evaluateLuauWithLuteAsync(
 	absPath: string,
 ): Promise<Result<Record<string, unknown>, LuauEvaluationError>> {
 	const overridePath = process.env["BEDROCK_LUTE_PATH"];
 	const lute = overridePath !== undefined && overridePath.length > 0 ? overridePath : "lute";
 	const bootstrapDirectory = setupBootstrapDirectory(dirname(absPath));
 	try {
-		const stdout = await runLuteBootstrap({
+		const stdout = await runLuteBootstrapAsync({
 			bin: lute,
 			bootstrapPath: join(bootstrapDirectory, "bootstrap.luau"),
 			userBasename: basename(absPath),

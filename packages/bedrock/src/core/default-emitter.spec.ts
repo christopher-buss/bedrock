@@ -23,15 +23,15 @@ function inputOf(environments: Record<string, BedrockState>): EmitInput {
 	return { environments };
 }
 
-async function emitFiles(
+async function emitFilesAsync(
 	input: EmitInput,
 	options?: DefaultEmitterOptions,
 ): Promise<ReadonlyArray<CodegenFile>> {
 	return createDefaultEmitter(options)(input);
 }
 
-async function luauContent(input: EmitInput): Promise<string> {
-	const files = await emitFiles(input);
+async function luauContentAsync(input: EmitInput): Promise<string> {
+	const files = await emitFilesAsync(input);
 	const file = files.find((entry) => entry.path === "resources.luau");
 	assert(file !== undefined);
 	return file.content;
@@ -41,7 +41,7 @@ describe(createDefaultEmitter, () => {
 	it("should write a Luau module of deployed IDs keyed by environment then key", async () => {
 		expect.assertions(1);
 
-		const content = await luauContent(
+		const content = await luauContentAsync(
 			inputOf({
 				production: stateOf("production", [gamePassCurrent()]),
 				staging: stateOf("staging", []),
@@ -79,7 +79,7 @@ describe(createDefaultEmitter, () => {
 				iconAssetIds: { "en-us": asRobloxAssetId("2222222222") },
 			},
 		};
-		const content = await luauContent(
+		const content = await luauContentAsync(
 			inputOf({
 				production: stateOf("production", [gamePassCurrent(), alphaPass]),
 				staging: stateOf("staging", []),
@@ -97,7 +97,7 @@ describe(createDefaultEmitter, () => {
 		// keeps its real minted IDs in `outputs`. The emitter reads only
 		// `outputs`, so redaction hides content, never the emitted identity.
 		const redacted = gamePassCurrent({ name: "Redacted Pass", description: "" });
-		const content = await luauContent(
+		const content = await luauContentAsync(
 			inputOf({ production: stateOf("production", [redacted]) }),
 		);
 
@@ -107,7 +107,7 @@ describe(createDefaultEmitter, () => {
 	it("should emit outputs for every resource kind, including numeric and nested fields", async () => {
 		expect.assertions(3);
 
-		const content = await luauContent(
+		const content = await luauContentAsync(
 			inputOf({
 				production: stateOf("production", [
 					placeCurrent({ outputs: { versionNumber: 7 } }),
@@ -129,7 +129,7 @@ describe(createDefaultEmitter, () => {
 	it("should omit an output field whose value is undefined", async () => {
 		expect.assertions(2);
 
-		const content = await luauContent(
+		const content = await luauContentAsync(
 			inputOf({
 				production: stateOf("production", [
 					developerProductCurrent({
@@ -146,7 +146,7 @@ describe(createDefaultEmitter, () => {
 	it("should write only the Luau module when type declarations are not requested", async () => {
 		expect.assertions(1);
 
-		const files = await emitFiles(
+		const files = await emitFilesAsync(
 			inputOf({ production: stateOf("production", [gamePassCurrent()]) }),
 		);
 
@@ -156,7 +156,7 @@ describe(createDefaultEmitter, () => {
 	it("should write a .d.ts companion beside the Luau module when type declarations are requested", async () => {
 		expect.assertions(2);
 
-		const files = await emitFiles(
+		const files = await emitFilesAsync(
 			inputOf({
 				production: stateOf("production", [gamePassCurrent()]),
 				staging: stateOf("staging", []),
@@ -189,11 +189,11 @@ describe(createDefaultEmitter, () => {
 		expect.assertions(2);
 
 		const base = createDefaultEmitter();
-		async function wrapped(input: EmitInput): Promise<ReadonlyArray<CodegenFile>> {
+		async function wrappedAsync(input: EmitInput): Promise<ReadonlyArray<CodegenFile>> {
 			return [...(await base(input)), { content: "return {}\n", path: "extra.luau" }];
 		}
 
-		const files = await wrapped(
+		const files = await wrappedAsync(
 			inputOf({ production: stateOf("production", [gamePassCurrent()]) }),
 		);
 

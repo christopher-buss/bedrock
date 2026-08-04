@@ -67,15 +67,14 @@ export function selectFilesToDelete(
  * passing smoke test to failed; the next run's prune will retry the cleanup.
  * @param options - Prune target, retention count, and credentials.
  */
-export async function pruneStateGist(options: PruneStateGistOptions): Promise<void> {
-	const {
-		fetch: fetchFunc = globalThis.fetch.bind(globalThis),
-		filenamePrefix,
-		gistId,
-		keep,
-		sleep = defaultSleep,
-		token,
-	} = options;
+export async function pruneStateGistAsync({
+	fetch: fetchFunc = fetch.bind(globalThis),
+	filenamePrefix,
+	gistId,
+	keep,
+	sleep = defaultSleepAsync,
+	token,
+}: PruneStateGistOptions): Promise<void> {
 	const ctx: PruneRequestContext = {
 		fetchFn: fetchFunc,
 		headers: gistHeaders(token),
@@ -84,19 +83,19 @@ export async function pruneStateGist(options: PruneStateGistOptions): Promise<vo
 	};
 
 	try {
-		const filenames = await listGistFilenames(ctx);
+		const filenames = await listGistFilenamesAsync(ctx);
 		const toDelete = selectFilesToDelete(filenames, filenamePrefix, keep);
 		if (toDelete.length === 0) {
 			return;
 		}
 
-		await deleteGistFiles(ctx, toDelete);
+		await deleteGistFilesAsync(ctx, toDelete);
 	} catch (err) {
 		console.warn(`pruneStateGist: ${String(err)}`);
 	}
 }
 
-async function defaultSleep(ms: number): Promise<void> {
+async function defaultSleepAsync(ms: number): Promise<void> {
 	await new Promise<void>((resolve) => {
 		setTimeout(resolve, ms);
 	});
@@ -119,7 +118,7 @@ function backoffMs(attempt: number): number {
 	return 1000 * 2 ** attempt;
 }
 
-async function withRetry(
+async function withRetryAsync(
 	sleep: (ms: number) => Promise<void>,
 	operation: () => Promise<Response>,
 ): Promise<Response> {
@@ -136,12 +135,12 @@ async function withRetry(
 	return response;
 }
 
-async function listGistFilenames(ctx: PruneRequestContext): Promise<ReadonlyArray<string>> {
-	async function sendList(): Promise<Response> {
+async function listGistFilenamesAsync(ctx: PruneRequestContext): Promise<ReadonlyArray<string>> {
+	async function sendListAsync(): Promise<Response> {
 		return ctx.fetchFn(ctx.url, { headers: ctx.headers });
 	}
 
-	const response = await withRetry(ctx.sleep, sendList);
+	const response = await withRetryAsync(ctx.sleep, sendListAsync);
 	if (!response.ok) {
 		// Return [] rather than throwing so a transient gist hiccup cannot flip
 		// an otherwise-passing smoke test to failed.
@@ -149,7 +148,9 @@ async function listGistFilenames(ctx: PruneRequestContext): Promise<ReadonlyArra
 		return [];
 	}
 
-	const body = (await response.json()) as JSONValue;
+	// `Response.json()` is typed `any` by the DOM lib, so the boundary is
+	// declared `unknown` and narrowed by the arktype parse below.
+	const body: unknown = await response.json();
 	const parsed = gistResponse(body);
 	if (parsed instanceof ArkErrors) {
 		return [];
@@ -158,18 +159,18 @@ async function listGistFilenames(ctx: PruneRequestContext): Promise<ReadonlyArra
 	return Object.keys(parsed.files);
 }
 
-async function deleteGistFiles(
+async function deleteGistFilesAsync(
 	ctx: PruneRequestContext,
 	names: ReadonlyArray<string>,
 ): Promise<void> {
 	const filesPayload = Object.fromEntries(names.map((name): [string, null] => [name, null]));
 	const body = JSON.stringify({ files: filesPayload });
 	const headers = { ...ctx.headers, "Content-Type": "application/json" };
-	async function sendDelete(): Promise<Response> {
+	async function sendDeleteAsync(): Promise<Response> {
 		return ctx.fetchFn(ctx.url, { body, headers, method: "PATCH" });
 	}
 
-	const response = await withRetry(ctx.sleep, sendDelete);
+	const response = await withRetryAsync(ctx.sleep, sendDeleteAsync);
 	if (!response.ok) {
 		console.warn(`pruneStateGist: prune failed with status ${String(response.status)}`);
 	}

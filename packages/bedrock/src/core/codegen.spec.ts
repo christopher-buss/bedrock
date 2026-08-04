@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { CodegenFile } from "./codegen.ts";
-import { buildCodegenEnvironments, hashCodegenFiles, isCodegenEnabled } from "./codegen.ts";
+import { buildCodegenEnvironments, hashCodegenFilesAsync, isCodegenEnabled } from "./codegen.ts";
 import type { CodegenConfig } from "./schema.ts";
 import type { BedrockState } from "./state.ts";
 
@@ -73,11 +73,11 @@ describe(isCodegenEnabled, () => {
 	});
 });
 
-describe(hashCodegenFiles, () => {
+describe(hashCodegenFilesAsync, () => {
 	it("should return a 64-character lowercase hex digest", async () => {
 		expect.assertions(1);
 
-		const hash = await hashCodegenFiles([fileA]);
+		const hash = await hashCodegenFilesAsync([fileA]);
 
 		expect(hash).toMatch(/^[0-9a-f]{64}$/u);
 	});
@@ -85,8 +85,8 @@ describe(hashCodegenFiles, () => {
 	it("should produce the same hash regardless of emitted file order", async () => {
 		expect.assertions(1);
 
-		const forward = await hashCodegenFiles([fileA, fileB]);
-		const reversed = await hashCodegenFiles([fileB, fileA]);
+		const forward = await hashCodegenFilesAsync([fileA, fileB]);
+		const reversed = await hashCodegenFilesAsync([fileB, fileA]);
 
 		expect(reversed).toBe(forward);
 	});
@@ -94,8 +94,10 @@ describe(hashCodegenFiles, () => {
 	it("should produce a different hash when file content changes", async () => {
 		expect.assertions(1);
 
-		const before = await hashCodegenFiles([fileA]);
-		const after = await hashCodegenFiles([{ content: "return { a = 2 }\n", path: "a.luau" }]);
+		const before = await hashCodegenFilesAsync([fileA]);
+		const after = await hashCodegenFilesAsync([
+			{ content: "return { a = 2 }\n", path: "a.luau" },
+		]);
 
 		expect(after).not.toBe(before);
 	});
@@ -103,8 +105,10 @@ describe(hashCodegenFiles, () => {
 	it("should produce a different hash when a file path changes", async () => {
 		expect.assertions(1);
 
-		const before = await hashCodegenFiles([fileA]);
-		const after = await hashCodegenFiles([{ content: fileA.content, path: "renamed.luau" }]);
+		const before = await hashCodegenFilesAsync([fileA]);
+		const after = await hashCodegenFilesAsync([
+			{ content: fileA.content, path: "renamed.luau" },
+		]);
 
 		expect(after).not.toBe(before);
 	});
@@ -112,11 +116,11 @@ describe(hashCodegenFiles, () => {
 	it("should distinguish a path/content boundary shift between two files", async () => {
 		expect.assertions(1);
 
-		const split = await hashCodegenFiles([
+		const split = await hashCodegenFilesAsync([
 			{ content: "y", path: "x" },
 			{ content: "", path: "z" },
 		]);
-		const shifted = await hashCodegenFiles([
+		const shifted = await hashCodegenFilesAsync([
 			{ content: "", path: "xy" },
 			{ content: "", path: "z" },
 		]);
