@@ -221,20 +221,26 @@ PR titles are linted by commitlint (`.github/workflows/lint-pr-title.yaml`) —
 
 ### Releases
 
-Versioning + publishing run on Changesets (ADR-027). `@bedrock-rbx/core` and
-`@bedrock-rbx/ocale` are **linked** (shared version, bump together). Any PR
-changing a published package MUST add a changeset (`pnpm changeset`, or
-`pnpm changeset add --empty` for a deliberately non-releasing change) — a
-blocking CI check (`changeset status`) fails the PR otherwise. PRs touching only
-docs/CI/private packages need none. Releases ship by merging the auto-generated
+Versioning + publishing run on pnpm's native versioning (ADR-029), configured
+under the `versioning` key in `pnpm-workspace.yaml`. `@bedrock-rbx/core` and
+`@bedrock-rbx/ocale` are a **fixed** group (shared version, release together).
+Any PR changing a published package MUST record a change intent (`pnpm change`,
+or `pnpm change --bump none <pkg>` for a deliberately non-releasing change) — a
+blocking CI check fails the PR otherwise. PRs touching only docs/CI/private
+packages need none. Releases ship by merging the auto-generated
 `ci: version packages` PR; never hand-edit package versions.
 
-**Pre-1.0 bump policy**: changesets applies bump types literally at any version
-(`major` on 0.x jumps straight to 1.0.0 — it has no special 0.x mode), so until
-1.0 never write `major` in a changeset. Breaking change → `minor` (0.1.0 →
-0.2.0, the breaking boundary for `^0.x` consumers); feature or fix → `patch`
-(0.1.0 → 0.1.1). The 1.0.0 release itself will be a deliberate, hand-authored
-`major`.
+Intent files live in `.changeset/` in the changesets format, but the Changesets
+CLI is gone: `pnpm change` records, `pnpm change status` previews,
+`pnpm version -r` consumes. `.changeset/ledger.yaml` is generated — never edit
+it.
+
+**Pre-1.0 bump policy**: bump types apply literally at any version (`major` on
+0.x jumps straight to 1.0.0 — there is no special 0.x mode), so until 1.0 never
+write `major`. Breaking change → `minor` (0.1.0 → 0.2.0, the breaking boundary
+for `^0.x` consumers); feature or fix → `patch` (0.1.0 → 0.1.1). This is now
+enforced by `versioning.maxBump: minor`, which must be lifted deliberately for
+the 1.0.0 release.
 
 ### Creating Issues
 

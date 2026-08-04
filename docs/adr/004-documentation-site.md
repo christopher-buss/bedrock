@@ -143,7 +143,8 @@ reviewing documentation changes before merge.
 - **2026-04-29:** Production docs deploy on release tags, not `main`. The Vercel
   project at `bedrock-livid.vercel.app` is driven by
   `.github/workflows/website-release.yaml`, which fires on push of a tag
-  matching `@bedrock-rbx/core@*` (the Changesets default), checks out the tagged
+  matching `@bedrock-rbx/core@*` (originally the Changesets default; since
+  ADR-029 the tags are created by `release.yaml` itself), checks out the tagged
   commit, and runs `vercel pull` / `vercel build --prod` /
   `vercel deploy --prebuilt --prod`. Required repo secrets: `VERCEL_TOKEN`,
   `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`. The dashboard's git integration for this

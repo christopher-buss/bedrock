@@ -8,35 +8,37 @@ things are the way they are.
 
 ## Index
 
-| ADR                                                            | Title                                                                               | Status   | Date       |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------- | -------- | ---------- |
-| [001](./001-typescript-bun-runtime.md)                         | TypeScript with Bun Runtime                                                         | Accepted | 2025-12-06 |
-| [002](./002-monorepo-fcis-architecture.md)                     | Monorepo with Turborepo and FCIS + Ports Architecture                               | Accepted | 2025-12-06 |
-| [003](./003-testing-strategy.md)                               | Testing Strategy                                                                    | Accepted | 2025-12-06 |
-| [004](./004-documentation-site.md)                             | Documentation Site                                                                  | Accepted | 2025-12-12 |
-| [005](./005-jsdoc-example-testing.md)                          | Tested JSDoc Examples                                                               | Accepted | 2025-12-13 |
-| [006](./006-adr-enforcement.md)                                | ADR Enforcement                                                                     | Accepted | 2025-12-13 |
-| [007](./007-open-cloud-only.md)                                | Open Cloud APIs Only                                                                | Accepted | 2025-12-13 |
-| [008](./008-zero-runtime-dependencies.md)                      | Zero Runtime Dependencies in `@bedrock-rbx/ocale`                                   | Accepted | 2026-04-12 |
-| [009](./009-result-types-over-exceptions.md)                   | Result Types Over Exceptions in `@bedrock-rbx/ocale`                                | Accepted | 2026-04-12 |
-| [010](./010-sdk-managed-rate-limiting-and-retry.md)            | SDK-Managed Rate Limiting and Retry in `@bedrock-rbx/ocale`                         | Accepted | 2026-04-12 |
-| [011](./011-simplified-architecture-for-library-packages.md)   | Simplified Architecture for Library Packages                                        | Accepted | 2026-04-12 |
-| [012](./012-class-based-clients-with-per-request-overrides.md) | Class-Based Clients with Per-Request Config Overrides                               | Accepted | 2026-04-12 |
-| [013](./013-hk-git-hook-manager-with-differentiated-gating.md) | hk for Git Hook Management with AI-vs-Human Differentiated Gating                   | Accepted | 2026-04-13 |
-| [014](./014-vite-plus-unified-toolchain.md)                    | Vite+ as Unified Build, Test, and Task Toolchain                                    | Accepted | 2026-04-15 |
-| [015](./015-mutation-testing-stryker.md)                       | Mutation Testing with StrykerJS                                                     | Accepted | 2026-04-16 |
-| [016](./016-knip-unused-code-detection.md)                     | Knip for Workspace-Level Unused Code Detection                                      | Accepted | 2026-04-17 |
-| [017](./017-product-framing-programmatic-iac-with-cli.md)      | Product Framing: Programmatic IaC with CLI Convenience (Level 2 Hybrid)             | Accepted | 2026-04-17 |
-| [018](./018-fcis-ports-with-primary-driven-distinction.md)     | Architecture Refinement: FCIS + Ports with Explicit Primary/Driven Port Distinction | Accepted | 2026-04-17 |
-| [019](./019-state-data-model-and-diff-algebra.md)              | State Data Model and Diff Algebra (Mantle Parity)                                   | Accepted | 2026-04-17 |
-| [020](./020-project-config-definition.md)                      | Project Config Definition                                                           | Accepted | 2026-04-22 |
-| [021](./021-file-backed-resource-kinds.md)                     | Resource Update Capability for File-Backed Kinds                                    | Accepted | 2026-04-22 |
-| [022](./022-by-domain-folder-layout-for-ocale.md)              | By-Domain Folder Layout for `@bedrock-rbx/ocale`                                    | Accepted | 2026-04-30 |
-| [023](./023-apply-semantics-parallel-continue-on-failure.md)   | Apply Semantics — Parallel, Continue-on-Failure, Per-Op Progress Events             | Accepted | 2026-05-14 |
-| [024](./024-resource-redaction.md)                             | Resource Redaction for Pre-Release Environments                                     | Accepted | 2026-05-14 |
-| [025](./025-luau-type-definitions.md)                          | Luau type definitions for `bedrock.config.luau`                                     | Accepted | 2026-05-19 |
-| [026](./026-codegen-and-two-phase-deploy.md)                   | Codegen and Two-Phase Deploy                                                        | Accepted | 2026-06-22 |
-| [027](./027-changesets-release-flow.md)                        | Changesets for Versioning and Automated npm Publishing                              | Accepted | 2026-06-22 |
+| ADR                                                            | Title                                                                               | Status     | Date       |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ---------- | ---------- |
+| [001](./001-typescript-bun-runtime.md)                         | TypeScript with Bun Runtime                                                         | Accepted   | 2025-12-06 |
+| [002](./002-monorepo-fcis-architecture.md)                     | Monorepo with Turborepo and FCIS + Ports Architecture                               | Accepted   | 2025-12-06 |
+| [003](./003-testing-strategy.md)                               | Testing Strategy                                                                    | Accepted   | 2025-12-06 |
+| [004](./004-documentation-site.md)                             | Documentation Site                                                                  | Accepted   | 2025-12-12 |
+| [005](./005-jsdoc-example-testing.md)                          | Tested JSDoc Examples                                                               | Accepted   | 2025-12-13 |
+| [006](./006-adr-enforcement.md)                                | ADR Enforcement                                                                     | Accepted   | 2025-12-13 |
+| [007](./007-open-cloud-only.md)                                | Open Cloud APIs Only                                                                | Accepted   | 2025-12-13 |
+| [008](./008-zero-runtime-dependencies.md)                      | Zero Runtime Dependencies in `@bedrock-rbx/ocale`                                   | Accepted   | 2026-04-12 |
+| [009](./009-result-types-over-exceptions.md)                   | Result Types Over Exceptions in `@bedrock-rbx/ocale`                                | Accepted   | 2026-04-12 |
+| [010](./010-sdk-managed-rate-limiting-and-retry.md)            | SDK-Managed Rate Limiting and Retry in `@bedrock-rbx/ocale`                         | Accepted   | 2026-04-12 |
+| [011](./011-simplified-architecture-for-library-packages.md)   | Simplified Architecture for Library Packages                                        | Accepted   | 2026-04-12 |
+| [012](./012-class-based-clients-with-per-request-overrides.md) | Class-Based Clients with Per-Request Config Overrides                               | Accepted   | 2026-04-12 |
+| [013](./013-hk-git-hook-manager-with-differentiated-gating.md) | hk for Git Hook Management with AI-vs-Human Differentiated Gating                   | Accepted   | 2026-04-13 |
+| [014](./014-vite-plus-unified-toolchain.md)                    | Vite+ as Unified Build, Test, and Task Toolchain                                    | Accepted   | 2026-04-15 |
+| [015](./015-mutation-testing-stryker.md)                       | Mutation Testing with StrykerJS                                                     | Accepted   | 2026-04-16 |
+| [016](./016-knip-unused-code-detection.md)                     | Knip for Workspace-Level Unused Code Detection                                      | Accepted   | 2026-04-17 |
+| [017](./017-product-framing-programmatic-iac-with-cli.md)      | Product Framing: Programmatic IaC with CLI Convenience (Level 2 Hybrid)             | Accepted   | 2026-04-17 |
+| [018](./018-fcis-ports-with-primary-driven-distinction.md)     | Architecture Refinement: FCIS + Ports with Explicit Primary/Driven Port Distinction | Accepted   | 2026-04-17 |
+| [019](./019-state-data-model-and-diff-algebra.md)              | State Data Model and Diff Algebra (Mantle Parity)                                   | Accepted   | 2026-04-17 |
+| [020](./020-project-config-definition.md)                      | Project Config Definition                                                           | Accepted   | 2026-04-22 |
+| [021](./021-file-backed-resource-kinds.md)                     | Resource Update Capability for File-Backed Kinds                                    | Accepted   | 2026-04-22 |
+| [022](./022-by-domain-folder-layout-for-ocale.md)              | By-Domain Folder Layout for `@bedrock-rbx/ocale`                                    | Accepted   | 2026-04-30 |
+| [023](./023-apply-semantics-parallel-continue-on-failure.md)   | Apply Semantics — Parallel, Continue-on-Failure, Per-Op Progress Events             | Accepted   | 2026-05-14 |
+| [024](./024-resource-redaction.md)                             | Resource Redaction for Pre-Release Environments                                     | Accepted   | 2026-05-14 |
+| [025](./025-luau-type-definitions.md)                          | Luau type definitions for `bedrock.config.luau`                                     | Accepted   | 2026-05-19 |
+| [026](./026-codegen-and-two-phase-deploy.md)                   | Codegen and Two-Phase Deploy                                                        | Accepted   | 2026-06-22 |
+| [027](./027-changesets-release-flow.md)                        | Changesets for Versioning and Automated npm Publishing                              | Superseded | 2026-06-22 |
+| [028](./028-deploy-actions-per-user-github-app-auth.md)        | Deploy Actions and Per-User GitHub App Auth for Codegen Commit-Back                 | Accepted   | 2026-06-23 |
+| [029](./029-pnpm-native-versioning.md)                         | pnpm Native Versioning in Place of the Changesets CLI                               | Accepted   | 2026-08-04 |
 
 ## Creating a New ADR
 
