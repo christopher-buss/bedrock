@@ -1,6 +1,7 @@
 import { assert, describe, expect, it, vi } from "vitest";
 
 import type { OpenCloudHooks } from "#src/client/types";
+import { PUBLISH_OPERATION_LIMIT } from "#src/domains/universes/places/operations";
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
 import { ValidationError } from "#src/errors/validation";
@@ -16,21 +17,10 @@ import {
 	validPublishResponseBody,
 } from "#tests/helpers/places";
 
-/**
- * Burst and refill interval of the publish/save queue, mirroring
- * `PUBLISH_OPERATION_LIMIT` (30 per minute), whose values are pinned in its own
- * spec. The queue-accounting tests below spend the burst first, because pacing
- * is the only observable that tells one queue from two.
- */
-const PUBLISH_BURST = 30;
-const PUBLISH_INTERVAL_MS = 2000;
+const { burstCapacity: PUBLISH_BURST = 1, maxPerSecond: PUBLISH_PER_SECOND } =
+	PUBLISH_OPERATION_LIMIT;
+const PUBLISH_INTERVAL_MS = 1000 / PUBLISH_PER_SECOND;
 
-/**
- * Issues exactly enough publishes to spend the queue's burst, leaving it paced
- * so the next call on the same queue sleeps one refill interval.
- *
- * @param client - The client whose default-key publish queue to spend.
- */
 async function spendPublishBurst(client: PlacesClient): Promise<void> {
 	for (let index = 0; index < PUBLISH_BURST; index++) {
 		await client.publish({
@@ -182,11 +172,6 @@ describe(PlacesClient, () => {
 
 			assert(result.success);
 
-			// Two HTTP attempts (429 then 200); onRequest fires per attempt.
-			// onRetry fires once before the retry-after sleep. onRateLimit
-			// fires only for that retry-after delay: the queue starts with
-			// its full burst, so the first call takes a token without
-			// waiting and reports no pre-call wait.
 			expect(httpClient.requests).toHaveLength(2);
 			expect(onRequest).toHaveBeenCalledTimes(2);
 			expect(onRetry).toHaveBeenCalledExactlyOnceWith(1, expect.any(Error));
@@ -580,12 +565,9 @@ describe(PlacesClient, () => {
 	});
 
 	describe("shared rate-limit bucket", () => {
-		it("should serialize publish and save through the same per-API-key queue", async () => {
+		it("should make a save wait once publishes have spent the shared per-API-key burst", async () => {
 			expect.assertions(2);
 
-			// Spending the whole burst on publishes leaves the queue paced,
-			// so the save that follows pays one refill interval. A save on
-			// its own queue would still hold a full burst and not wait.
 			const httpClient = createFakeHttpClient();
 			for (let index = 0; index <= PUBLISH_BURST; index++) {
 				httpClient.mockResponse({ body: validPublishResponseBody(), status: 200 });
@@ -610,13 +592,9 @@ describe(PlacesClient, () => {
 			expect(clock.waits).toStrictEqual([PUBLISH_INTERVAL_MS]);
 		});
 
-		it("should route a per-request apiKey override into a queue independent of the default key", async () => {
+		it("should let an apiKey override send without waiting once the default key's burst is spent", async () => {
 			expect.assertions(2);
 
-			// The override publish lands after the default key's burst is
-			// spent and must not wait, proving it drew on its own queue.
-			// The default-key publish after it does wait, proving the first
-			// queue really was spent and the override took nothing from it.
 			const httpClient = createFakeHttpClient();
 			for (let index = 0; index < PUBLISH_BURST + 2; index++) {
 				httpClient.mockResponse({ body: validPublishResponseBody(), status: 200 });
@@ -652,13 +630,9 @@ describe(PlacesClient, () => {
 	});
 
 	describe("independent rate-limit buckets", () => {
-		it("should account update and publish against separate queues", async () => {
+		it("should let an update send without waiting once publish's burst is spent", async () => {
 			expect.assertions(2);
 
-			// The update lands after publish's burst is spent. On its own
-			// 100/min queue it does not wait; had it shared publish's queue
-			// it would have paid a refill interval of its own, making two
-			// waits rather than the one the trailing publish accounts for.
 			const httpClient = createFakeHttpClient();
 			for (let index = 0; index < PUBLISH_BURST; index++) {
 				httpClient.mockResponse({ body: validPublishResponseBody(), status: 200 });

@@ -35,7 +35,7 @@ export interface OperationLimit {
  * advances by `waitMs` after every sleep so the algorithm stays correct
  * whether or not the injected sleep moves `Date.now()` forward. `#bucketLevel`
  * and `#maxBucketLevel` are both ms of drain debt, so the ceiling is the burst
- * expressed in that unit — `burstCapacity` refill intervals. Deriving it any
+ * expressed in that unit: `burstCapacity` refill intervals. Deriving it any
  * other way (notably `maxPerSecond * intervalMs`, whose units cancel to a
  * constant 1000) starves every operation slower than one request per second.
  */
