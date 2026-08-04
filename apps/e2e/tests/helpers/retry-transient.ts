@@ -20,7 +20,9 @@ const HTTP_SERVER_ERROR_TEXT = /\bHTTP 5\d\d\b/u;
 export interface RetryTransientOptions<T> {
 	/** Maximum number of attempts before giving up. Defaults to 3. */
 	readonly attempts?: number | undefined;
-	/** First inter-attempt delay in ms; doubles each retry. Defaults to 2000. */
+	/**
+	 * First inter-attempt delay in ms; doubles each retry. Defaults to 2000.
+	 */
 	readonly baseDelayMs?: number | undefined;
 	/** Returns true when the outcome is a failure worth re-attempting. */
 	readonly isTransient: (outcome: T) => boolean;
@@ -50,15 +52,13 @@ export interface RetryTransientOptions<T> {
  * @param options - Operation, transience test, and retry budget.
  * @returns The first non-transient outcome, or the last one once the budget is spent.
  */
-export async function retryTransient<T>(options: RetryTransientOptions<T>): Promise<T> {
-	const {
-		attempts = DEFAULT_ATTEMPTS,
-		baseDelayMs = DEFAULT_BASE_DELAY_MS,
-		isTransient,
-		operation,
-		sleep = defaultSleep,
-	} = options;
-
+export async function retryTransientAsync<T>({
+	attempts = DEFAULT_ATTEMPTS,
+	baseDelayMs = DEFAULT_BASE_DELAY_MS,
+	isTransient,
+	operation,
+	sleep = defaultSleepAsync,
+}: RetryTransientOptions<T>): Promise<T> {
 	let outcome = await operation();
 	for (let attempt = 1; attempt < attempts; attempt += 1) {
 		if (!isTransient(outcome)) {
@@ -103,7 +103,7 @@ export function hasTransientApiFailureText(output: string): boolean {
 	return HTTP_SERVER_ERROR_TEXT.test(output);
 }
 
-async function defaultSleep(ms: number): Promise<void> {
+async function defaultSleepAsync(ms: number): Promise<void> {
 	await new Promise<void>((resolve) => {
 		setTimeout(resolve, ms);
 	});

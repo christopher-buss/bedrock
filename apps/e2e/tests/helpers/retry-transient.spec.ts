@@ -7,7 +7,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import {
 	hasTransientApiFailureText,
 	isTransientDeployFailure,
-	retryTransient,
+	retryTransientAsync,
 } from "./retry-transient.ts";
 
 interface FakeSleep {
@@ -22,16 +22,16 @@ interface FakeOperation<T> {
 
 function fakeSleep(): FakeSleep {
 	const calls: Array<number> = [];
-	async function sleep(ms: number): Promise<void> {
+	async function sleepAsync(ms: number): Promise<void> {
 		calls.push(ms);
 	}
 
-	return { calls, sleep };
+	return { calls, sleep: sleepAsync };
 }
 
 function fakeOperation<T>(outcomes: ReadonlyArray<T>): FakeOperation<T> {
 	const attempts = { count: 0 };
-	async function operation(): Promise<T> {
+	async function operationAsync(): Promise<T> {
 		const outcome = outcomes[attempts.count];
 		if (outcome === undefined) {
 			throw new Error(
@@ -43,7 +43,7 @@ function fakeOperation<T>(outcomes: ReadonlyArray<T>): FakeOperation<T> {
 		return outcome;
 	}
 
-	return { attempts, operation };
+	return { attempts, operation: operationAsync };
 }
 
 const TRANSIENT = "transient";
@@ -64,14 +64,14 @@ function apiError(statusCode: number): ApiError {
 	return new ApiError(`HTTP ${String(statusCode)}`, { statusCode });
 }
 
-describe(retryTransient, () => {
+describe(retryTransientAsync, () => {
 	it("should return the first outcome when it is not transient", async () => {
 		expect.assertions(3);
 
 		const { attempts, operation } = fakeOperation([SETTLED]);
 		const sleepFake = fakeSleep();
 
-		const outcome = await retryTransient({
+		const outcome = await retryTransientAsync({
 			isTransient,
 			operation,
 			sleep: sleepFake.sleep,
@@ -88,7 +88,7 @@ describe(retryTransient, () => {
 		const { attempts, operation } = fakeOperation([TRANSIENT, TRANSIENT, SETTLED]);
 		const sleepFake = fakeSleep();
 
-		const outcome = await retryTransient({
+		const outcome = await retryTransientAsync({
 			baseDelayMs: 1000,
 			isTransient,
 			operation,
@@ -106,7 +106,7 @@ describe(retryTransient, () => {
 		const { attempts, operation } = fakeOperation([TRANSIENT, TRANSIENT, TRANSIENT]);
 		const sleepFake = fakeSleep();
 
-		const outcome = await retryTransient({
+		const outcome = await retryTransientAsync({
 			attempts: 3,
 			baseDelayMs: 1000,
 			isTransient,
@@ -129,7 +129,7 @@ describe(retryTransient, () => {
 
 		const { attempts, operation } = fakeOperation([TRANSIENT, SETTLED]);
 
-		const pending = retryTransient({ baseDelayMs: 10, isTransient, operation });
+		const pending = retryTransientAsync({ baseDelayMs: 10, isTransient, operation });
 		await vi.runAllTimersAsync();
 		const outcome = await pending;
 

@@ -17,6 +17,8 @@ import { assert, describe, expect, it, onTestFinished } from "vitest";
 
 import { assertOk } from "../helpers/assert-ok.ts";
 import { pruneStateGistAsync } from "../helpers/prune-state-gist.ts";
+import { readStateUntilAsync } from "../helpers/read-state-until.ts";
+import { isTransientDeployFailure, retryTransientAsync } from "../helpers/retry-transient.ts";
 
 const FIXTURE_PATH = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "place.rbxlx");
 
@@ -32,6 +34,10 @@ const HAS_SECRETS =
 	PLACE_ID_ENV !== undefined &&
 	TOKEN !== undefined &&
 	GIST_ID !== undefined;
+
+function isRetryableDeploy(outcome: Awaited<ReturnType<typeof deploy>>): boolean {
+	return !outcome.success && isTransientDeployFailure(outcome.err);
+}
 
 function unreachableDriver<K extends ResourceKind>(label: string): ResourceDriver<K> {
 	return {
@@ -85,28 +91,43 @@ describe("deploy place to real Roblox", () => {
 				});
 			});
 
-			const result = await deploy({
-				config: {
-					environments: {
-						[environment]: {
-							places: { "smoke-place": { placeId } },
+			// Roblox answers a place publish with a 5xx often enough to redden
+			// the suite, and ocale deliberately does not retry that in
+			// production; re-attempt here instead of loosening that policy.
+			const result = await retryTransientAsync({
+				isTransient: isRetryableDeploy,
+				operation: async () => {
+					return deploy({
+						config: {
+							environments: {
+								[environment]: {
+									places: { "smoke-place": { placeId } },
+								},
+							},
+							places: {
+								"smoke-place": {
+									filePath: FIXTURE_PATH,
+								},
+							},
 						},
-					},
-					places: {
-						"smoke-place": {
-							filePath: FIXTURE_PATH,
-						},
-					},
+						environment,
+						readFile,
+						registry,
+						statePort,
+					});
 				},
-				environment,
-				readFile,
-				registry,
-				statePort,
 			});
 
 			assertOk(result, "deploy");
 
-			const persistedRead = await statePort.read(environment);
+			// GitHub gist reads are not read-your-write across replicas, so the
+			// verification read can land on a replica that has not seen the
+			// deploy's write yet; poll until the place lands.
+			const persistedRead = await readStateUntilAsync({
+				environment,
+				predicate: (state) => state.resources.some((entry) => entry.kind === "place"),
+				statePort,
+			});
 			assertOk(persistedRead, "read");
 
 			const persisted = persistedRead.data;
