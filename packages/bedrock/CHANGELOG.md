@@ -1,5 +1,29 @@
 # @bedrock-rbx/core
 
+## 0.1.4
+
+### Patch Changes
+
+- [#538](https://github.com/christopher-buss/bedrock/pull/538) [`28d8379`](https://github.com/christopher-buss/bedrock/commit/28d8379f418cd1865a43825a8ba7b6a38b563fe4) Thanks [@christopher-buss](https://github.com/christopher-buss)! - Stop reporting an HTTP 401 as a missing scope. Roblox answers 401 for a key that
+  is invalid, disabled, or expired as well as for one whose scopes fall short, so
+  the deploy failure now reads "the API key was rejected" and lists the scope as
+  one thing to check. A 403 keeps the definite "missing required scope" wording.
+
+- [#537](https://github.com/christopher-buss/bedrock/pull/537) [`c46477c`](https://github.com/christopher-buss/bedrock/commit/c46477cc643df249aa9a94d3db7bd29cd9fc13ae) Thanks [@christopher-buss](https://github.com/christopher-buss)! - Reject an incomplete developer product instead of deploying it
+
+  A product declared only under `environments.<name>.products` had no root entry to
+  fall through to, so a missing `name` or `description` was never caught and the
+  product reached Roblox with placeholder-free empty fields. `selectEnvironment`
+  and `selectMergedEnvironment` now return the new `incompleteProductEntry` error
+  for that case, matching the existing behaviour for game passes and places.
+
+  `IncompleteProductEntryError` joins the `SelectEnvironmentError`, `DeployError`,
+  and `PreviewDiffError` unions, and the CLI renders it as
+  `product '<key>' is missing '<field>' under environment '<env>'`.
+
+- Updated dependencies [[`5ad2a35`](https://github.com/christopher-buss/bedrock/commit/5ad2a357d6c43ce57c37ca7263124b5c6aa10e12)]:
+  - @bedrock-rbx/ocale@0.1.4
+
 ## 0.1.3
 
 ### Patch Changes
