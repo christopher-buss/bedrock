@@ -6,6 +6,15 @@ import type { OpenCloudHooks } from "./types.ts";
  * limiting, e.g. `{ operationKey: "game-passes.create", maxPerSecond: 5 }`.
  */
 export interface OperationLimit {
+	/**
+	 * How many requests may be issued back to back before pacing begins,
+	 * as a whole number of requests. Defaults to `max(1, maxPerSecond)`,
+	 * which leaves operations at or above 1/s paced exactly as their
+	 * sustained rate allows while still granting a slower operation one
+	 * request after it has idled. Set this to the allowance the schema
+	 * documents (e.g. 5 per minute) to grant the burst the server permits.
+	 */
+	readonly burstCapacity?: number;
 	/** Maximum sustained request rate in requests per second. */
 	readonly maxPerSecond: number;
 	/**
@@ -19,12 +28,16 @@ export interface OperationLimit {
 /**
  * Token-bucket rate limiter for a single `(apiKey, operation)` pair. Every
  * call to `acquire` consumes one token; when the bucket is empty the call
- * waits until a token regenerates before invoking the task. Burst capacity
- * equals `maxPerSecond`, refilling at `maxPerSecond` tokens per second.
+ * waits until a token regenerates before invoking the task. Tokens refill at
+ * `maxPerSecond` per second, up to the operation's `burstCapacity`.
  *
  * Implemented as a leaky bucket tracking drain debt in ms. `#lastCheck`
  * advances by `waitMs` after every sleep so the algorithm stays correct
- * whether or not the injected sleep moves `Date.now()` forward.
+ * whether or not the injected sleep moves `Date.now()` forward. `#bucketLevel`
+ * and `#maxBucketLevel` are both ms of drain debt, so the ceiling is the burst
+ * expressed in that unit — `burstCapacity` refill intervals. Deriving it any
+ * other way (notably `maxPerSecond * intervalMs`, whose units cancel to a
+ * constant 1000) starves every operation slower than one request per second.
  */
 export class RateLimitQueue {
 	readonly #hooks: OpenCloudHooks;
@@ -46,7 +59,8 @@ export class RateLimitQueue {
 	 */
 	constructor(limit: OperationLimit, hooks: OpenCloudHooks, sleep: SleepFunc) {
 		this.#intervalMs = 1000 / limit.maxPerSecond;
-		this.#maxBucketLevel = limit.maxPerSecond * this.#intervalMs;
+		const burstCapacity = limit.burstCapacity ?? Math.max(1, limit.maxPerSecond);
+		this.#maxBucketLevel = burstCapacity * this.#intervalMs;
 		this.#hooks = hooks;
 		this.#sleep = sleep;
 	}

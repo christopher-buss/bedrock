@@ -116,6 +116,89 @@ describe(RateLimitQueue, () => {
 		expect(clock.waits).toStrictEqual([]);
 	});
 
+	it.for<[label: string, maxPerSecond: number]>([
+		["binary-input create", 5 / 60],
+		["place publish", 0.5],
+		["log listing", 45 / 60],
+		["task submission", 40 / 60],
+	])(
+		"should grant the first request immediately for %s, slower than one per second",
+		async ([, maxPerSecond]) => {
+			expect.assertions(2);
+
+			const onRateLimit = vi.fn<(waitMs: number) => void>();
+			const clock = createFakeClock();
+			const queue = new RateLimitQueue(
+				{ maxPerSecond, operationKey: "test.op" },
+				{ onRateLimit },
+				clock.sleep,
+			);
+
+			await queue.acquire(async () => "first");
+
+			expect(clock.waits).toStrictEqual([]);
+			expect(onRateLimit).not.toHaveBeenCalled();
+		},
+	);
+
+	it("should grant the whole burst before pacing the next request", async () => {
+		expect.assertions(1);
+
+		const clock = createFakeClock();
+		const queue = new RateLimitQueue(
+			{ burstCapacity: 5, maxPerSecond: 5 / 60, operationKey: "test.op" },
+			{},
+			clock.sleep,
+		);
+
+		for (let index = 0; index < 5; index++) {
+			await queue.acquire(async () => index);
+		}
+
+		await queue.acquire(async () => "overflow");
+
+		expect(clock.waits).toStrictEqual([12_000]);
+	});
+
+	it("should restore the whole burst after idling long enough to drain", async () => {
+		expect.assertions(1);
+
+		const clock = createFakeClock();
+		const queue = new RateLimitQueue(
+			{ burstCapacity: 5, maxPerSecond: 5 / 60, operationKey: "test.op" },
+			{},
+			clock.sleep,
+		);
+
+		for (let index = 0; index < 5; index++) {
+			await queue.acquire(async () => index);
+		}
+
+		clock.advance(60_000);
+
+		for (let index = 0; index < 5; index++) {
+			await queue.acquire(async () => index);
+		}
+
+		expect(clock.waits).toStrictEqual([]);
+	});
+
+	it("should default a sub-one-per-second operation to a burst of one request", async () => {
+		expect.assertions(1);
+
+		const clock = createFakeClock();
+		const queue = new RateLimitQueue(
+			{ maxPerSecond: 5 / 60, operationKey: "test.op" },
+			{},
+			clock.sleep,
+		);
+
+		await queue.acquire(async () => "first");
+		await queue.acquire(async () => "second");
+
+		expect(clock.waits).toStrictEqual([12_000]);
+	});
+
 	it.for<[maxPerSecond: number, expectedWaitMs: number]>([
 		[1, 1000],
 		[2, 500],
