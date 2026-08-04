@@ -12,8 +12,9 @@ export interface UploadedExperienceThumbnail {
 
 /**
  * Parameters for uploading a new localized experience thumbnail. Each upload
- * appends a new entry to the carousel; reorder via {@link ReorderExperienceThumbnailsParameters}
- * after multiple uploads to set the display order.
+ * appends a new entry to the carousel; reorder via {@link
+ * ReorderExperienceThumbnailsParameters} after multiple uploads to set the
+ * display order.
  *
  * @since 0.1.0
  */

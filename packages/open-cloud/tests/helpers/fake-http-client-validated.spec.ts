@@ -140,7 +140,7 @@ describe(createFakeHttpClient, () => {
 				assert(result.success);
 
 				expect(fake.schemaViolations).toHaveLength(1);
-				expect(fake.schemaViolations[0]?.direction).toBe("response");
+				expect(fake.schemaViolations[0]!.direction).toBe("response");
 			});
 
 			it("should stay silent on a schema-valid response", async () => {

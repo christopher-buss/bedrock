@@ -14,7 +14,7 @@ describe(findResource, () => {
 
 		const found = findResource([startPlace, vipPass, goldPass], { kind: "gamePass" });
 
-		expect(found?.key).toBe("vip-pass");
+		expect(found!.key).toBe("vip-pass");
 	});
 
 	it("should return undefined when no resource of the kind is present", () => {
@@ -31,7 +31,7 @@ describe(findResource, () => {
 			kind: "gamePass",
 		});
 
-		expect(found?.key).toBe("gold-pass");
+		expect(found!.key).toBe("gold-pass");
 	});
 
 	it("should return undefined when the kind matches but no resource has the key", () => {
@@ -51,7 +51,7 @@ describe(findResource, () => {
 
 		const found = findResource([pass, product], { key: sharedKey, kind: "developerProduct" });
 
-		expect(found?.kind).toBe("developerProduct");
+		expect(found!.kind).toBe("developerProduct");
 	});
 
 	it("should return the matched resource's outputs for the selected kind", () => {
@@ -59,6 +59,6 @@ describe(findResource, () => {
 
 		const found = findResource([startPlace, vipPass], { kind: "gamePass" });
 
-		expect(found?.outputs.assetId).toBe(asRobloxAssetId("9876543210"));
+		expect(found!.outputs.assetId).toBe(asRobloxAssetId("9876543210"));
 	});
 });

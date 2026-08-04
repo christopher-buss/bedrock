@@ -27,9 +27,14 @@ export interface ActionIo {
 	readonly setSecret: (value: string) => void;
 }
 
-/** Dependencies for {@link runCommitBackAction}, all injected for testability. */
+/**
+ * Dependencies for {@link runCommitBackAction}, all injected for testability.
+ */
 export interface CommitBackActionDeps {
-	/** Reads a GitHub workflow env var (e.g. `GITHUB_REPOSITORY`); `undefined` when absent. */
+	/**
+	 * Reads a GitHub workflow env var (e.g. `GITHUB_REPOSITORY`); `undefined`
+	 * when absent.
+	 */
 	readonly getEnv: (name: string) => string | undefined;
 	/** Runs `git`; the live shim injects the real git adapter. */
 	readonly git: GitExec;
@@ -39,19 +44,25 @@ export interface CommitBackActionDeps {
 	readonly setOutput: (name: string, value: string) => void;
 }
 
-/** Dependencies for {@link executeCommitBackAction}, the action composition root. */
+/**
+ * Dependencies for {@link executeCommitBackAction}, the action composition
+ * root.
+ */
 interface ExecuteCommitBackActionDependencies {
 	/** The process environment to read workflow vars from. */
 	readonly environment: Record<string, string | undefined>;
-	/** The git runner the reflow drives; the live shim injects the real adapter. */
+	/**
+	 * The git runner the reflow drives; the live shim injects the real
+	 * adapter.
+	 */
 	readonly git: GitExec;
 	/** The `@actions/core` slice: inputs, outputs, masking, and failure. */
 	readonly io: ActionIo;
 }
 
 /**
- * Resolve the action's inputs into a commit-back plan plus the token-authenticated
- * `origin` URL the push authenticates through.
+ * Resolve the action's inputs into a commit-back plan plus the
+ * token-authenticated `origin` URL the push authenticates through.
  *
  * @param deps - Input and env readers.
  * @returns The commit-back options, the authenticated remote URL, and the git
@@ -136,10 +147,11 @@ export async function runCommitBackAction(deps: CommitBackActionDeps): Promise<v
  *
  * @param deps - The `@actions/core` slice, process environment, and git runner.
  */
-export async function executeCommitBackAction(
-	deps: ExecuteCommitBackActionDependencies,
-): Promise<void> {
-	const { environment, git, io } = deps;
+export async function executeCommitBackAction({
+	environment,
+	git,
+	io,
+}: ExecuteCommitBackActionDependencies): Promise<void> {
 	try {
 		io.setSecret(io.getInput("token"));
 		await runCommitBackAction({

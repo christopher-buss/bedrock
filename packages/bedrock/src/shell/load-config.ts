@@ -40,7 +40,6 @@ interface LoadConfigDependencies {
 }
 
 interface LuauResolveResult {
-	/* eslint-disable-next-line flawless/naming-convention -- c12 reads `_configFile` to detect that a config file was found. */
 	readonly _configFile: string;
 	readonly config: Record<string, unknown>;
 	readonly configFile: string;
@@ -183,9 +182,9 @@ function locateLuauConfig(source: string, cwd: string): string | undefined {
 		// TypeScript / JavaScript / JSON / YAML beat Luau when both are
 		// present. Only claim the Luau file when it's the sole candidate.
 		if (
-			NATIVE_CONFIG_EXTENSIONS.some((extension) =>
-				existsSync(join(cwd, `bedrock.config.${extension}`)),
-			)
+			NATIVE_CONFIG_EXTENSIONS.some((extension) => {
+				return existsSync(join(cwd, `bedrock.config.${extension}`));
+			})
 		) {
 			return undefined;
 		}
@@ -300,8 +299,10 @@ function discoverConfigFallback(cwd: string): string | undefined {
  * caller's configFile path (or undefined when no explicit path was supplied).
  * @returns The absolute path of the Luau file to evaluate, or `undefined`.
  */
-function pickLuauTarget(source: string, context: PickLuauTargetContext): string | undefined {
-	const { callerConfigFile, cwd } = context;
+function pickLuauTarget(
+	source: string,
+	{ callerConfigFile, cwd }: PickLuauTargetContext,
+): string | undefined {
 	if (source === "." && callerConfigFile !== undefined) {
 		return callerConfigFile.endsWith(".luau") ? callerConfigFile : undefined;
 	}
@@ -352,6 +353,12 @@ const LUAU_CONFIG_BASENAME = "bedrock.config.luau";
 // `.luau` is intentionally absent: Luau errors travel through the evaluator
 // adapter's ERR sentinel, not JS stack frames, so the file path is attributed
 // by `discoverConfigFile` rather than scraped from the throw site.
+// The leading `[^\s():"']*` captures the directory prefix. sonar flags it as
+// super-linear because the class can also match the literal that follows, but
+// the input is one line of a `new Error().stack` produced on the developer's
+// own machine and already filtered to frames starting with `at `, so the
+// pathological input this guards against cannot reach it.
+// eslint-disable-next-line sonar/super-linear-regex -- bounded local stack-frame input, see above
 const CONFIG_FILE_IN_FRAME = /[^\s():"']*bedrock\.config\.(?:ts|js|mjs|cjs|yaml|yml|json)/;
 
 function extractConfigFileFromStack(err: unknown): string | undefined {

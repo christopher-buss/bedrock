@@ -8,7 +8,7 @@ import { deploy } from "@bedrock-rbx/core";
  * @param environment - Target environment from the webhook payload.
  * @returns Whether the deploy completed successfully.
  */
-export async function deployFromWebhook(environment: string): Promise<boolean> {
+export async function deployFromWebhookAsync(environment: string): Promise<boolean> {
 	const result = await deploy({ environment });
 	if (!result.success) {
 		console.error("bedrock deploy failed", { environment, err: result.err });

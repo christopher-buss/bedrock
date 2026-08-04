@@ -127,7 +127,9 @@ export interface Universe {
 	readonly privateServerPriceRobux: number | undefined;
 	/** Roblox Group social link; `undefined` when absent. */
 	readonly robloxGroupSocialLink: SocialLink | undefined;
-	/** Root place ID; `undefined` when the universe has no resolved root place. */
+	/**
+	 * Root place ID; `undefined` when the universe has no resolved root place.
+	 */
 	readonly rootPlaceId: string | undefined;
 	/** Whether tablet players can join. */
 	readonly tabletEnabled: boolean;

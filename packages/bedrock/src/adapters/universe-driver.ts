@@ -133,10 +133,10 @@ interface ReconcileInputs {
 export function createUniverseDriver(deps: UniverseDriverDeps): ResourceDriver<"universe"> {
 	return {
 		async create(desired) {
-			return reconcileUniverse({ current: undefined, deps, desired });
+			return reconcileUniverseAsync({ current: undefined, deps, desired });
 		},
 		async update(current, desired) {
-			return reconcileUniverse({ current, deps, desired });
+			return reconcileUniverseAsync({ current, deps, desired });
 		},
 	};
 }
@@ -155,19 +155,27 @@ function buildParameters(
 	desired: UniverseDesiredState,
 	fields: ReadonlySet<string>,
 ): UpdateUniverseParameters {
-	const base = UNIVERSE_MANAGED_FLAGS.reduce<UpdateUniverseParameters>(
-		(accumulator, flag) =>
-			fields.has(flag) ? { ...accumulator, [flag]: desired[flag] } : accumulator,
-		{ universeId: desired.universeId },
-	);
+	// Assigned into a fresh local rather than folded with a spread: the rule
+	// against spreading a reduce accumulator applies, and mutating a value that
+	// never escapes this function keeps the declared parameter type exact.
+	const parameters: UpdateUniverseParameters = { universeId: desired.universeId };
+	for (const flag of UNIVERSE_MANAGED_FLAGS) {
+		if (fields.has(flag)) {
+			Object.assign(parameters, { [flag]: desired[flag] });
+		}
+	}
 
-	const withPrice = fields.has("privateServerPriceRobux")
-		? { ...base, privateServerPriceRobux: desired.privateServerPriceRobux }
-		: base;
+	if (fields.has("privateServerPriceRobux")) {
+		Object.assign(parameters, { privateServerPriceRobux: desired.privateServerPriceRobux });
+	}
 
-	return SOCIAL_LINK_FIELDS.reduce<UpdateUniverseParameters>((accumulator, field) => {
-		return fields.has(field) ? { ...accumulator, [field]: desired[field] } : accumulator;
-	}, withPrice);
+	for (const field of SOCIAL_LINK_FIELDS) {
+		if (fields.has(field)) {
+			Object.assign(parameters, { [field]: desired[field] });
+		}
+	}
+
+	return parameters;
 }
 
 function wrapUpdateError(err: OpenCloudError, desired: UniverseDesiredState): OpenCloudError {
@@ -189,11 +197,10 @@ function hasUniverseLevelUpdate(fields: ReadonlySet<string>): boolean {
 	);
 }
 
-async function resolveUniverse(
+async function resolveUniverseAsync(
 	dependencies: UniverseDriverDeps,
-	target: { desired: UniverseDesiredState; fields: ReadonlySet<string> },
+	{ desired, fields }: { desired: UniverseDesiredState; fields: ReadonlySet<string> },
 ): Promise<Result<ResolvedUniverse, OpenCloudError>> {
-	const { desired, fields } = target;
 	const result = hasUniverseLevelUpdate(fields)
 		? await dependencies.universes.update(buildParameters(desired, fields))
 		: await dependencies.universes.get({ universeId: desired.universeId });
@@ -216,12 +223,13 @@ async function resolveUniverse(
 	return { data: { rootPlaceId }, success: true };
 }
 
-async function reconcileUniverse(
-	inputs: ReconcileInputs,
-): Promise<Result<ResourceCurrentState<"universe">, OpenCloudError>> {
-	const { current, deps, desired } = inputs;
+async function reconcileUniverseAsync({
+	current,
+	deps,
+	desired,
+}: ReconcileInputs): Promise<Result<ResourceCurrentState<"universe">, OpenCloudError>> {
 	const fields = changedUniverseFields(desired, current);
-	const universeResult = await resolveUniverse(deps, { desired, fields });
+	const universeResult = await resolveUniverseAsync(deps, { desired, fields });
 	if (!universeResult.success) {
 		return universeResult;
 	}

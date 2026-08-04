@@ -152,7 +152,7 @@ describe(StorageClient, () => {
 				{ apiKey: "override-key" },
 			);
 
-			expect(httpClient.requests[0]?.config.apiKey).toBe("override-key");
+			expect(httpClient.requests[0]!.config.apiKey).toBe("override-key");
 		});
 	});
 

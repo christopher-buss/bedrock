@@ -22,7 +22,10 @@ export interface PlaceWire {
 	readonly root?: boolean | undefined;
 	/** Maximum number of allowed users in a single server. */
 	readonly serverSize?: number | undefined;
-	/** Whether the place was created in-experience via `AssetService::CreatePlaceAsync()`. */
+	/**
+	 * Whether the place was created in-experience via
+	 * `AssetService::CreatePlaceAsync()`.
+	 */
 	readonly universeRuntimeCreation?: boolean | undefined;
 	/** ISO timestamp of the most recent update (`date-time`). */
 	readonly updateTime: string;

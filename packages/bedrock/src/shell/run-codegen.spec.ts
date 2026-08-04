@@ -1,11 +1,11 @@
 import { assert, describe, expect, it, vi } from "vitest";
 
-import { hashCodegenFiles } from "../core/codegen.ts";
+import { hashCodegenFilesAsync } from "../core/codegen.ts";
 import type { CodegenFile, Emitter } from "../core/codegen.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
 import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { StatePort } from "../ports/state-port.ts";
-import { runCodegen } from "./run-codegen.ts";
+import { runCodegenAsync } from "./run-codegen.ts";
 
 const PRODUCTION: BedrockState = { environment: "production", resources: [], version: 1 };
 const STAGING: BedrockState = { environment: "staging", resources: [], version: 1 };
@@ -41,12 +41,12 @@ function statePortReading(staging: BedrockState | StateError | undefined): State
 	};
 }
 
-describe(runCodegen, () => {
+describe(runCodegenAsync, () => {
 	it("should hand the emitter the deployed state plus every other environment's last-known state", async () => {
 		expect.assertions(1);
 
 		const emit = vi.fn<Emitter>().mockResolvedValue([]);
-		const result = await runCodegen({
+		const result = await runCodegenAsync({
 			deployedState: PRODUCTION,
 			emit,
 			environments: ["production", "staging"],
@@ -65,7 +65,7 @@ describe(runCodegen, () => {
 		expect.assertions(1);
 
 		const emit = vi.fn<Emitter>().mockResolvedValue([]);
-		await runCodegen({
+		await runCodegenAsync({
 			deployedState: PRODUCTION,
 			emit,
 			environments: ["production", "staging"],
@@ -85,7 +85,7 @@ describe(runCodegen, () => {
 		expect.assertions(1);
 
 		const statePort = statePortReading(STAGING);
-		await runCodegen({
+		await runCodegenAsync({
 			deployedState: PRODUCTION,
 			emit: vi.fn<Emitter>().mockResolvedValue([]),
 			environments: ["production", "staging"],
@@ -101,7 +101,7 @@ describe(runCodegen, () => {
 
 		const writer = inMemoryWriter();
 		const second: CodegenFile = { content: "return 2\n", path: "more.luau" };
-		const result = await runCodegen({
+		const result = await runCodegenAsync({
 			deployedState: PRODUCTION,
 			emit: vi.fn<Emitter>().mockResolvedValue([FILE, second]),
 			environments: ["production"],
@@ -118,7 +118,7 @@ describe(runCodegen, () => {
 		expect.assertions(1);
 
 		const second: CodegenFile = { content: "return 2\n", path: "more.luau" };
-		const result = await runCodegen({
+		const result = await runCodegenAsync({
 			deployedState: PRODUCTION,
 			emit: vi.fn<Emitter>().mockResolvedValue([FILE, second]),
 			environments: ["production"],
@@ -128,7 +128,7 @@ describe(runCodegen, () => {
 
 		assert(result.success);
 
-		expect(result.data).toBe(await hashCodegenFiles([FILE, second]));
+		expect(result.data).toBe(await hashCodegenFilesAsync([FILE, second]));
 	});
 
 	it("should fail with codegenStateReadFailed when another environment's state cannot be read", async () => {
@@ -139,7 +139,7 @@ describe(runCodegen, () => {
 			kind: "stateError",
 			reason: "corrupt JSON",
 		};
-		const result = await runCodegen({
+		const result = await runCodegenAsync({
 			deployedState: PRODUCTION,
 			emit: vi.fn<Emitter>().mockResolvedValue([]),
 			environments: ["production", "staging"],
@@ -157,7 +157,7 @@ describe(runCodegen, () => {
 	it("should fail with codegenEmitThrew when the emitter throws, capturing the message", async () => {
 		expect.assertions(1);
 
-		const result = await runCodegen({
+		const result = await runCodegenAsync({
 			deployedState: PRODUCTION,
 			emit: () => {
 				throw new Error("emit blew up");
@@ -176,7 +176,7 @@ describe(runCodegen, () => {
 	it("should stringify a non-Error emitter rejection into the failure reason", async () => {
 		expect.assertions(1);
 
-		const result = await runCodegen({
+		const result = await runCodegenAsync({
 			deployedState: PRODUCTION,
 			emit: vi.fn<Emitter>().mockRejectedValue("kaboom"),
 			environments: ["production"],
@@ -193,7 +193,7 @@ describe(runCodegen, () => {
 	it("should carry the emitter throw's cause chain into the failure reason", async () => {
 		expect.assertions(1);
 
-		const result = await runCodegen({
+		const result = await runCodegenAsync({
 			deployedState: PRODUCTION,
 			emit: () => {
 				throw new Error("emit blew up", { cause: new Error("template not found") });
@@ -220,7 +220,7 @@ describe(runCodegen, () => {
 				};
 			},
 		};
-		const result = await runCodegen({
+		const result = await runCodegenAsync({
 			deployedState: PRODUCTION,
 			emit: vi.fn<Emitter>().mockResolvedValue([FILE]),
 			environments: ["production"],

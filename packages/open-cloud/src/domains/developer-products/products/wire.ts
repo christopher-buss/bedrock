@@ -10,7 +10,8 @@
 import type { PriceInformationLike } from "../../../internal/price-information.ts";
 
 /**
- * Wire-level pricing feature flag, mirroring `DeveloperProducts.PricingFeature`.
+ * Wire-level pricing feature flag, mirroring
+ * `DeveloperProducts.PricingFeature`.
  */
 export type DeveloperProductPricingFeatureWire =
 	| "Invalid"
@@ -25,7 +26,9 @@ export type DeveloperProductPricingFeatureWire =
 export interface DeveloperProductConfigV2 {
 	/** Display name of the developer product. */
 	readonly name: string;
-	/** ISO timestamp at which the developer product was created (`date-time`). */
+	/**
+	 * ISO timestamp at which the developer product was created (`date-time`).
+	 */
 	readonly createdTimestamp: string;
 	/** Consumer-facing description shown on the storefront. */
 	readonly description: string;

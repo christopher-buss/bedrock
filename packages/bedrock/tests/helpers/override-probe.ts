@@ -1,3 +1,5 @@
+import { fromAny } from "@total-typescript/shoehorn";
+
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -31,5 +33,5 @@ export function withProbe(): () => ProbePayload {
 		rmSync(directory, { force: true, recursive: true });
 	});
 	vi.stubEnv("OVERRIDE_PROBE_OUTPUT", file);
-	return () => JSON.parse(readFileSync(file, "utf8")) as unknown as ProbePayload;
+	return () => fromAny(JSON.parse(readFileSync(file, "utf8")));
 }

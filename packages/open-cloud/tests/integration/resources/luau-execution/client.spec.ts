@@ -55,7 +55,7 @@ describe(LuauExecutionClient, () => {
 				"universes/123/luau-execution-session-task-binary-inputs/abc",
 			);
 			expect(result.data.uploadUri).toBe("https://storage.example.com/upload?token=xyz");
-			expect(httpClient.requests[0]?.request.url).toBe(
+			expect(httpClient.requests[0]!.request.url).toBe(
 				"/cloud/v2/universes/123/luau-execution-session-task-binary-inputs",
 			);
 		});
@@ -131,7 +131,7 @@ describe(LuauExecutionClient, () => {
 
 			expect(result.data.state).toBe("QUEUED");
 			expect(result.data.ref.taskId).toBe("task-1");
-			expect(httpClient.requests[0]?.request.url).toBe(
+			expect(httpClient.requests[0]!.request.url).toBe(
 				"/cloud/v2/universes/123/places/456/luau-execution-session-tasks",
 			);
 		});
@@ -163,7 +163,7 @@ describe(LuauExecutionClient, () => {
 			assert(result.success);
 
 			expect(result.data.ref.versionId).toBe("789");
-			expect(httpClient.requests[0]?.request.url).toBe(
+			expect(httpClient.requests[0]!.request.url).toBe(
 				"/cloud/v2/universes/123/places/456/versions/789/luau-execution-session-tasks",
 			);
 		});
@@ -196,8 +196,8 @@ describe(LuauExecutionClient, () => {
 			assert(result.success);
 
 			expect(result.data.messages).toHaveLength(1);
-			expect(httpClient.requests[0]?.request.url).toContain("/tasks/task-1/logs");
-			expect(httpClient.requests[0]?.request.url).toContain("view=STRUCTURED");
+			expect(httpClient.requests[0]!.request.url).toContain("/tasks/task-1/logs");
+			expect(httpClient.requests[0]!.request.url).toContain("view=STRUCTURED");
 		});
 	});
 
@@ -231,7 +231,7 @@ describe(LuauExecutionClient, () => {
 			assert(result.success);
 
 			expect(result.data.state).toBe("PROCESSING");
-			expect(httpClient.requests[0]?.request.url).toBe(
+			expect(httpClient.requests[0]!.request.url).toBe(
 				"/cloud/v2/universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
 			);
 		});
@@ -262,7 +262,7 @@ describe(LuauExecutionClient, () => {
 				view: "FULL",
 			});
 
-			expect(httpClient.requests[0]?.request.url).toEndWith("?view=FULL");
+			expect(httpClient.requests[0]!.request.url).toEndWith("?view=FULL");
 		});
 	});
 
@@ -296,7 +296,7 @@ describe(LuauExecutionClient, () => {
 			assert(submitResult.success);
 
 			expect(submitResult.data.state).toBe("QUEUED");
-			expect(httpClient.requests[1]?.request.body).toStrictEqual({
+			expect(httpClient.requests[1]!.request.body).toStrictEqual({
 				binaryInput: "universes/123/luau-execution-session-task-binary-inputs/abc",
 				script: "return 1",
 			});
@@ -372,8 +372,8 @@ describe(LuauExecutionClient, () => {
 				{ pollDelay: () => 0, timeoutMs: 120_000 },
 			);
 
-			expect(httpClient.requests[0]?.config.timeout).toBe(120_000);
-			expect(httpClient.requests[1]?.config.timeout).toBe(120_000);
+			expect(httpClient.requests[0]!.config.timeout).toBe(120_000);
+			expect(httpClient.requests[1]!.config.timeout).toBe(120_000);
 		});
 	});
 
@@ -418,7 +418,7 @@ describe(LuauExecutionClient, () => {
 				pollDelay: () => 0,
 			});
 
-			expect(httpClient.requests[0]?.config.apiKey).toBe("override-key");
+			expect(httpClient.requests[0]!.config.apiKey).toBe("override-key");
 		});
 
 		// Slice 20: 429 burst during polling is absorbed by rate-limit retry
@@ -457,7 +457,7 @@ describe(LuauExecutionClient, () => {
 
 			await client.tasks.pollUntilDone(fullRef, { pollDelay: () => 0, timeoutMs: 120_000 });
 
-			expect(httpClient.requests[0]?.config.timeout).toBe(120_000);
+			expect(httpClient.requests[0]!.config.timeout).toBe(120_000);
 		});
 
 		it("should forward an explicit per-request timeout ahead of the poll budget", async () => {
@@ -479,7 +479,7 @@ describe(LuauExecutionClient, () => {
 				timeoutMs: 120_000,
 			});
 
-			expect(httpClient.requests[0]?.config.timeout).toBe(5_000);
+			expect(httpClient.requests[0]!.config.timeout).toBe(5_000);
 		});
 
 		// Slice 17: always requests view=BASIC
@@ -498,9 +498,9 @@ describe(LuauExecutionClient, () => {
 
 			await client.tasks.pollUntilDone(fullRef, { pollDelay: () => 0 });
 
-			expect(httpClient.requests[0]?.request.url).toEndWith("?view=BASIC");
-			expect(httpClient.requests[1]?.request.url).toEndWith("?view=BASIC");
-			expect(httpClient.requests[2]?.request.url).toEndWith("?view=BASIC");
+			expect(httpClient.requests[0]!.request.url).toEndWith("?view=BASIC");
+			expect(httpClient.requests[1]!.request.url).toEndWith("?view=BASIC");
+			expect(httpClient.requests[2]!.request.url).toEndWith("?view=BASIC");
 		});
 	});
 });

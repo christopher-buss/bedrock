@@ -7,7 +7,7 @@ import { makeRetryConfig } from "#tests/helpers/retry-config";
 import { ApiError } from "../../errors/api-error.ts";
 import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
-import { executeWithRetry } from "./execute.ts";
+import { executeWithRetryAsync } from "./execute.ts";
 import { defaultRetryDelay, IDEMPOTENT_METHOD_DEFAULTS } from "./retry.ts";
 import type { HttpRequest, HttpResponse, OpenCloudHooks } from "./types.ts";
 
@@ -17,7 +17,7 @@ function okResponse(body: unknown = {}): HttpResponse {
 
 const request: HttpRequest = { method: "GET", url: "/v1/ping" };
 
-describe(executeWithRetry, () => {
+describe(executeWithRetryAsync, () => {
 	it("should return the first response when the initial attempt succeeds", async () => {
 		expect.assertions(4);
 
@@ -30,7 +30,7 @@ describe(executeWithRetry, () => {
 		});
 		const fakeSleep = createFakeSleep();
 
-		const result = await executeWithRetry(request, {
+		const result = await executeWithRetryAsync(request, {
 			config: makeRetryConfig(),
 			hooks,
 			send: fakeSend.send,
@@ -60,7 +60,7 @@ describe(executeWithRetry, () => {
 		});
 		const fakeSleep = createFakeSleep();
 
-		const result = await executeWithRetry(request, {
+		const result = await executeWithRetryAsync(request, {
 			config: makeRetryConfig(),
 			hooks,
 			send: fakeSend.send,
@@ -90,7 +90,7 @@ describe(executeWithRetry, () => {
 		});
 		const fakeSleep = createFakeSleep();
 
-		const result = await executeWithRetry(request, {
+		const result = await executeWithRetryAsync(request, {
 			config: makeRetryConfig({
 				retryableStatuses: IDEMPOTENT_METHOD_DEFAULTS.retryableStatuses,
 			}),
@@ -122,7 +122,7 @@ describe(executeWithRetry, () => {
 		});
 		const fakeSleep = createFakeSleep();
 
-		const result = await executeWithRetry(request, {
+		const result = await executeWithRetryAsync(request, {
 			config: makeRetryConfig({
 				retryableTransportCodes: IDEMPOTENT_METHOD_DEFAULTS.retryableTransportCodes,
 			}),
@@ -154,7 +154,7 @@ describe(executeWithRetry, () => {
 		});
 		const fakeSleep = createFakeSleep();
 
-		const result = await executeWithRetry(request, {
+		const result = await executeWithRetryAsync(request, {
 			config: makeRetryConfig({
 				retryableTransportCodes: IDEMPOTENT_METHOD_DEFAULTS.retryableTransportCodes,
 			}),
@@ -182,7 +182,7 @@ describe(executeWithRetry, () => {
 		});
 		const fakeSleep = createFakeSleep();
 
-		const result = await executeWithRetry(request, {
+		const result = await executeWithRetryAsync(request, {
 			config: makeRetryConfig({ retryableTransportCodes: [] }),
 			hooks,
 			send: fakeSend.send,
@@ -208,7 +208,7 @@ describe(executeWithRetry, () => {
 		});
 		const fakeSleep = createFakeSleep();
 
-		const result = await executeWithRetry(request, {
+		const result = await executeWithRetryAsync(request, {
 			config: makeRetryConfig(),
 			hooks,
 			send: fakeSend.send,
@@ -238,7 +238,7 @@ describe(executeWithRetry, () => {
 		});
 		const fakeSleep = createFakeSleep();
 
-		const result = await executeWithRetry(request, {
+		const result = await executeWithRetryAsync(request, {
 			config: makeRetryConfig({ maxRetries: 2 }),
 			hooks,
 			send: fakeSend.send,
@@ -267,7 +267,7 @@ describe(executeWithRetry, () => {
 		});
 		const fakeSleep = createFakeSleep();
 
-		const result = await executeWithRetry(request, {
+		const result = await executeWithRetryAsync(request, {
 			config: makeRetryConfig(),
 			hooks,
 			send: fakeSend.send,
@@ -296,7 +296,7 @@ describe(executeWithRetry, () => {
 		});
 		const fakeSleep = createFakeSleep();
 
-		await executeWithRetry(request, {
+		await executeWithRetryAsync(request, {
 			config: makeRetryConfig(),
 			hooks,
 			send: fakeSend.send,
@@ -323,7 +323,7 @@ describe(executeWithRetry, () => {
 		});
 		const fakeSleep = createFakeSleep();
 
-		await executeWithRetry(request, {
+		await executeWithRetryAsync(request, {
 			config: makeRetryConfig(),
 			hooks,
 			send: fakeSend.send,
@@ -349,7 +349,7 @@ describe(executeWithRetry, () => {
 		});
 		const fakeSleep = createFakeSleep();
 
-		await executeWithRetry(request, {
+		await executeWithRetryAsync(request, {
 			config: makeRetryConfig(),
 			hooks,
 			send: fakeSend.send,
@@ -372,7 +372,7 @@ describe(executeWithRetry, () => {
 		});
 		const fakeSleep = createFakeSleep();
 
-		await executeWithRetry(request, {
+		await executeWithRetryAsync(request, {
 			config: makeRetryConfig({ retryDelay }),
 			hooks: {},
 			send: fakeSend.send,
@@ -395,7 +395,7 @@ describe(executeWithRetry, () => {
 		});
 		const fakeSleep = createFakeSleep();
 
-		await executeWithRetry(request, {
+		await executeWithRetryAsync(request, {
 			config: makeRetryConfig({
 				retryableStatuses: [500],
 				retryDelay: defaultRetryDelay,
@@ -419,7 +419,7 @@ describe(executeWithRetry, () => {
 		});
 		const fakeSleep = createFakeSleep();
 
-		const result = await executeWithRetry(request, {
+		const result = await executeWithRetryAsync(request, {
 			config: makeRetryConfig({ retryableStatuses: [] }),
 			hooks,
 			send: fakeSend.send,
@@ -448,7 +448,7 @@ describe(executeWithRetry, () => {
 		});
 		const fakeSleep = createFakeSleep();
 
-		await executeWithRetry(request, {
+		await executeWithRetryAsync(request, {
 			config: makeRetryConfig({ maxRetries: 1 }),
 			hooks,
 			send: fakeSend.send,

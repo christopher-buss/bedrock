@@ -408,7 +408,8 @@ describe(buildState, () => {
 		});
 
 		const [resource] = state.resources;
-		assert(resource?.kind === "gamePass");
+		assert(resource !== undefined);
+		assert(resource.kind === "gamePass");
 
 		expect(resource.iconFileHashes).toStrictEqual({ "en-us": SAMPLE_HASH });
 	});
@@ -432,8 +433,8 @@ describe(buildState, () => {
 		});
 
 		expect(state.resources).toHaveLength(2);
-		expect(state.resources[0]?.kind).toBe("universe");
-		expect(state.resources[1]?.kind).toBe("gamePass");
+		expect(state.resources[0]!.kind).toBe("universe");
+		expect(state.resources[1]!.kind).toBe("gamePass");
 	});
 
 	it("should set price to undefined on the gamePass resource when the fold entry omits it", () => {
@@ -464,7 +465,8 @@ describe(buildState, () => {
 		});
 
 		const [resource] = state.resources;
-		assert(resource?.kind === "gamePass");
+		assert(resource !== undefined);
+		assert(resource.kind === "gamePass");
 
 		expect(resource.price).toBeUndefined();
 	});
@@ -513,7 +515,8 @@ describe(buildState, () => {
 		});
 
 		const [resource] = state.resources;
-		assert(resource?.kind === "developerProduct");
+		assert(resource !== undefined);
+		assert(resource.kind === "developerProduct");
 
 		expect(resource.outputs.productId).toBe(asRobloxAssetId("12345678"));
 	});
@@ -537,7 +540,8 @@ describe(buildState, () => {
 		});
 
 		const [resource] = state.resources;
-		assert(resource?.kind === "developerProduct");
+		assert(resource !== undefined);
+		assert(resource.kind === "developerProduct");
 
 		expect(resource.icon).toStrictEqual({ "en-us": "assets/marketing/gem-pack.png" });
 		expect(resource.iconFileHashes).toStrictEqual({ "en-us": PRODUCT_MANTLE_HASH });
@@ -562,7 +566,8 @@ describe(buildState, () => {
 		});
 
 		const [resource] = state.resources;
-		assert(resource?.kind === "developerProduct");
+		assert(resource !== undefined);
+		assert(resource.kind === "developerProduct");
 
 		expect(resource.icon).toBeUndefined();
 		expect(resource.iconFileHashes).toBeUndefined();
@@ -592,7 +597,8 @@ describe(buildState, () => {
 		});
 
 		const [resource] = state.resources;
-		assert(resource?.kind === "developerProduct");
+		assert(resource !== undefined);
+		assert(resource.kind === "developerProduct");
 
 		expect(resource.iconFileHashes).toStrictEqual({ "en-us": PRODUCT_RECOMPUTED_HASH });
 	});
@@ -616,7 +622,8 @@ describe(buildState, () => {
 		});
 
 		const [resource] = state.resources;
-		assert(resource?.kind === "developerProduct");
+		assert(resource !== undefined);
+		assert(resource.kind === "developerProduct");
 
 		expect(resource.iconFileHashes).toStrictEqual({ "en-us": PRODUCT_MANTLE_HASH });
 	});
@@ -640,7 +647,8 @@ describe(buildState, () => {
 		});
 
 		const [resource] = state.resources;
-		assert(resource?.kind === "developerProduct");
+		assert(resource !== undefined);
+		assert(resource.kind === "developerProduct");
 
 		expect(resource.isRegionalPricingEnabled).toBeUndefined();
 		expect(resource.storePageEnabled).toBeUndefined();
@@ -665,7 +673,8 @@ describe(buildState, () => {
 		});
 
 		const [resource] = state.resources;
-		assert(resource?.kind === "developerProduct");
+		assert(resource !== undefined);
+		assert(resource.kind === "developerProduct");
 
 		expect(resource.outputs.iconImageAssetId).toBe(asRobloxAssetId("99887766"));
 	});
@@ -689,7 +698,8 @@ describe(buildState, () => {
 		});
 
 		const [resource] = state.resources;
-		assert(resource?.kind === "developerProduct");
+		assert(resource !== undefined);
+		assert(resource.kind === "developerProduct");
 
 		expect(resource.outputs.iconImageAssetId).toBeUndefined();
 	});
@@ -720,7 +730,8 @@ describe(buildState, () => {
 		});
 
 		const [resource] = state.resources;
-		assert(resource?.kind === "developerProduct");
+		assert(resource !== undefined);
+		assert(resource.kind === "developerProduct");
 
 		expect("icon" in resource).toBeFalse();
 		expect("iconFileHashes" in resource).toBeFalse();
@@ -760,7 +771,8 @@ describe(buildState, () => {
 		});
 
 		const [resource] = state.resources;
-		assert(resource?.kind === "developerProduct");
+		assert(resource !== undefined);
+		assert(resource.kind === "developerProduct");
 
 		expect("icon" in resource).toBeFalse();
 		expect("iconFileHashes" in resource).toBeFalse();

@@ -32,9 +32,15 @@ export interface RegistryConfigError {
 
 /** Inputs for {@link buildDefaultRegistry}. */
 interface BuildDefaultRegistryDependencies {
-	/** Resolved project config; supplies `universe.universeId` and is read for nothing else. */
+	/**
+	 * Resolved project config; supplies `universe.universeId` and is read for
+	 * nothing else.
+	 */
 	readonly config: ResolvedConfig;
-	/** Reads an environment variable; injected so tests stay free of `process.env`. */
+	/**
+	 * Reads an environment variable; injected so tests stay free of
+	 * `process.env`.
+	 */
 	readonly getEnv: (name: string) => string | undefined;
 	/** Reader plumbed into kind-specific drivers that ingest file bytes. */
 	readonly readFile: (path: string) => Promise<Uint8Array>;
@@ -121,8 +127,11 @@ function missingUniverseId(): Result<DriverRegistry, RegistryConfigError> {
 	};
 }
 
-function assembleRegistry(inputs: AssembleRegistryInputs): DriverRegistry {
-	const { apiKey, readFile, universeId } = inputs;
+function assembleRegistry({
+	apiKey,
+	readFile,
+	universeId,
+}: AssembleRegistryInputs): DriverRegistry {
 	const developerProducts = new DeveloperProductsClient({ apiKey });
 	const gamePasses = new GamePassesClient({ apiKey });
 	const places = new PlacesClient({ apiKey });

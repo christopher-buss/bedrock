@@ -2,6 +2,7 @@ import { OpenCloudError } from "@bedrock-rbx/ocale";
 
 import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
+import { outcomeByKey } from "#tests/helpers/drivers";
 import {
 	developerProductCurrent,
 	developerProductDesired,
@@ -350,9 +351,7 @@ describe(applyOps, () => {
 				await firstGate;
 				return { data: firstCurrent, success: true };
 			})
-			.mockImplementationOnce(async () => {
-				return { data: secondCurrent, success: true };
-			});
+			.mockImplementationOnce(async () => ({ data: secondCurrent, success: true }));
 
 		const applyPromise = applyOps([first, second], registryWith(create));
 		await Promise.resolve();
@@ -1146,10 +1145,7 @@ describe(applyOps, () => {
 			const { calls, port } = fakeProgress();
 			const trackedPort: ProgressPort = {
 				emit(event) {
-					if (event.kind === "resourceOpStarted") {
-						sequence.push("started");
-					}
-
+					sequence.push(event.kind);
 					port.emit(event);
 				},
 			};
@@ -1159,7 +1155,12 @@ describe(applyOps, () => {
 				progress: trackedPort,
 			});
 
-			expect(sequence).toStrictEqual(["started", "driver"]);
+			expect(sequence).toStrictEqual([
+				"resourceOpStarted",
+				"driver",
+				"resourceOpSucceeded",
+				"applySummary",
+			]);
 			expect(calls[0]).toStrictEqual({
 				key: op.key,
 				environment: "production",
@@ -1252,11 +1253,11 @@ describe(applyOps, () => {
 				(event): event is Extract<ProgressEvent, { key: ResourceKey }> => "key" in event,
 			);
 
-			expect(
-				keyedEvents.some(
-					(event) => event.kind !== "resourceOpNoop" && event.key === noopKey,
-				),
-			).toBeFalse();
+			const nonNoopKeys = keyedEvents
+				.filter((event) => event.kind !== "resourceOpNoop")
+				.map((event) => event.key);
+
+			expect(nonNoopKeys).not.toContain(noopKey);
 		});
 
 		it("should emit a resourceOpFailed event carrying the driverFailure ApplyError", async () => {
@@ -1340,18 +1341,15 @@ describe(applyOps, () => {
 			const updateOne = updateOp(asResourceKey("update-one"));
 			const failOne = createOp(asResourceKey("fail-one"));
 			const failTwo = createOp(asResourceKey("fail-two"));
-			const create = vi
-				.fn<ResourceDriver<"gamePass">["create"]>()
-				.mockImplementation(async (desired) => {
-					if (
-						desired.key === failOne.desired.key ||
-						desired.key === failTwo.desired.key
-					) {
-						return { err: new OpenCloudError("boom"), success: false };
-					}
-
-					return { data: gamePassCurrent({ ...desired }), success: true };
-				});
+			const create = vi.fn<ResourceDriver<"gamePass">["create"]>().mockImplementation(
+				outcomeByKey({
+					"create-one": gamePassCurrent({ ...firstCreate.desired }),
+					"create-three": gamePassCurrent({ ...thirdCreate.desired }),
+					"create-two": gamePassCurrent({ ...secondCreate.desired }),
+					"fail-one": new OpenCloudError("boom"),
+					"fail-two": new OpenCloudError("boom"),
+				}),
+			);
 			const update = vi
 				.fn<NonNullable<ResourceDriver<"gamePass">["update"]>>()
 				.mockResolvedValue({
@@ -1378,7 +1376,7 @@ describe(applyOps, () => {
 			);
 
 			const summary = calls.find((event) => event.kind === "applySummary");
-			assert(summary?.kind === "applySummary");
+			assert(summary !== undefined);
 
 			expect(summary).toMatchObject({
 				created: 3,
@@ -1413,7 +1411,7 @@ describe(applyOps, () => {
 			});
 
 			const summary = calls.find((event) => event.kind === "applySummary");
-			assert(summary?.kind === "applySummary");
+			assert(summary !== undefined);
 
 			expect(summary.durationMs).toBe(750);
 			expect(dateNowSpy.mock.calls.length).toBeGreaterThanOrEqual(2);

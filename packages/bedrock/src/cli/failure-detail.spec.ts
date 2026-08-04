@@ -2,6 +2,7 @@ import { ApiError, NetworkError } from "@bedrock-rbx/ocale";
 
 import { describe, expect, it } from "vitest";
 
+import { cyclicError } from "#tests/helpers/errors";
 import { describeDriverCause } from "./failure-detail.ts";
 
 describe(describeDriverCause, () => {
@@ -25,10 +26,12 @@ describe(describeDriverCause, () => {
 		expect.assertions(1);
 
 		const err = new NetworkError("Network request failed", {
-			cause: Object.assign(new Error("outer"), {
-				cause: Object.assign(new Error("inner"), { code: "ETIMEDOUT" }),
-				code: 42,
-			}),
+			cause: Object.assign(
+				new Error("outer", {
+					cause: Object.assign(new Error("inner"), { code: "ETIMEDOUT" }),
+				}),
+				{ code: 42 },
+			),
 			method: "GET",
 			url: "https://apis.roblox.com/v2/places/1",
 		});
@@ -260,8 +263,7 @@ describe(describeDriverCause, () => {
 	it("should stop walking a self-referential cause chain rather than loop forever", () => {
 		expect.assertions(1);
 
-		const cyclic = new Error("loop");
-		cyclic.cause = cyclic;
+		const cyclic = cyclicError("loop");
 		const err = new NetworkError("Network request failed", {
 			cause: cyclic,
 			method: "POST",

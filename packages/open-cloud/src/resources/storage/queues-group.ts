@@ -115,7 +115,7 @@ export class MemoryStoreQueuesGroup {
 		parameters: DequeueQueueItemsParameters,
 		options?: RequestOptions,
 	): Promise<Result<DequeueResult, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: DEQUEUE_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: DEQUEUE_SPEC });
 	}
 
 	/**
@@ -139,7 +139,7 @@ export class MemoryStoreQueuesGroup {
 		parameters: DiscardQueueItemsParameters,
 		options?: RequestOptions,
 	): Promise<Result<undefined, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: DISCARD_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: DISCARD_SPEC });
 	}
 
 	/**
@@ -161,6 +161,6 @@ export class MemoryStoreQueuesGroup {
 		parameters: EnqueueQueueItemParameters,
 		options?: RequestOptions,
 	): Promise<Result<QueueItem, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: ENQUEUE_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: ENQUEUE_SPEC });
 	}
 }

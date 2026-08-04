@@ -48,11 +48,16 @@ export function collectPublicApiSymbols(
 	const barrel = parseModule(barrelPath, readSource);
 
 	for (const statement of barrel.statements) {
-		if (!ts.isExportDeclaration(statement) || statement.moduleSpecifier === undefined) {
+		if (!ts.isExportDeclaration(statement)) {
 			continue;
 		}
 
-		const specifier = (statement.moduleSpecifier as ts.StringLiteral).text;
+		const { moduleSpecifier } = statement;
+		if (moduleSpecifier === undefined || !ts.isStringLiteral(moduleSpecifier)) {
+			continue;
+		}
+
+		const specifier = moduleSpecifier.text;
 		if (!isRelativeSpecifier(specifier)) {
 			continue;
 		}
@@ -179,7 +184,12 @@ function reExportTargetFor(
 	name: string,
 ): undefined | { name: string; specifier: string } {
 	for (const statement of module.statements) {
-		if (!ts.isExportDeclaration(statement) || statement.moduleSpecifier === undefined) {
+		if (!ts.isExportDeclaration(statement)) {
+			continue;
+		}
+
+		const { moduleSpecifier } = statement;
+		if (moduleSpecifier === undefined || !ts.isStringLiteral(moduleSpecifier)) {
 			continue;
 		}
 
@@ -187,7 +197,7 @@ function reExportTargetFor(
 			if (element.name.text === name) {
 				return {
 					name: (element.propertyName ?? element.name).text,
-					specifier: (statement.moduleSpecifier as ts.StringLiteral).text,
+					specifier: moduleSpecifier.text,
 				};
 			}
 		}
@@ -229,9 +239,9 @@ function resolveDeclaration(
 
 		const module = parseModule(current.modulePath, readSource);
 		const currentName = current.name;
-		const declaration = module.statements.find((statement) =>
-			declaresName(statement, currentName),
-		);
+		const declaration = module.statements.find((statement) => {
+			return declaresName(statement, currentName);
+		});
 		if (declaration !== undefined) {
 			return {
 				declarationFile: current.modulePath,

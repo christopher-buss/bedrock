@@ -49,7 +49,8 @@ describe(foldUnsupported, () => {
 			expect(warnings).toHaveLength(2);
 
 			const [first, second] = warnings;
-			assert(first?.kind === "deferred" && second?.kind === "deferred");
+			assert(first !== undefined && second !== undefined);
+			assert(first.kind === "deferred" && second.kind === "deferred");
 
 			expect(first.reason).toBe(second.reason);
 		},

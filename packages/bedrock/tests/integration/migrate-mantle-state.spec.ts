@@ -1,4 +1,10 @@
-import { loadConfig, migrateMantleState, selectEnvironment } from "@bedrock-rbx/core";
+import {
+	asResourceKey,
+	findResource,
+	loadConfig,
+	migrateMantleState,
+	selectEnvironment,
+} from "@bedrock-rbx/core";
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -128,7 +134,7 @@ function utf8(content: string): Uint8Array {
 	return encoder.encode(content);
 }
 
-async function withTemporaryDirectory<T>(run: (directory: string) => Promise<T>): Promise<T> {
+async function withTemporaryDirectoryAsync<T>(run: (directory: string) => Promise<T>): Promise<T> {
 	mkdirSync(WORKSPACE_TEMP_ROOT, { recursive: true });
 	const directory = mkdtempSync(join(WORKSPACE_TEMP_ROOT, "bedrock-migrate-"));
 	try {
@@ -136,6 +142,24 @@ async function withTemporaryDirectory<T>(run: (directory: string) => Promise<T>)
 	} finally {
 		rmSync(directory, { force: true, recursive: true });
 	}
+}
+
+/**
+ * Write emitted config content into a throwaway directory and load it back, so
+ * a test can assert on the round-tripped config at its own top level.
+ *
+ * @param fileName - The config file name to write, e.g. `bedrock.config.ts`.
+ * @param content - The emitted config file content.
+ * @returns The `loadConfig` result.
+ */
+async function roundTripConfigAsync(
+	fileName: string,
+	content: string,
+): Promise<Awaited<ReturnType<typeof loadConfig>>> {
+	return withTemporaryDirectoryAsync(async (directory) => {
+		writeFileSync(join(directory, fileName), content);
+		return loadConfig({ cwd: directory });
+	});
 }
 
 describe(migrateMantleState, () => {
@@ -150,15 +174,15 @@ describe(migrateMantleState, () => {
 
 		assert(result.success);
 
-		await withTemporaryDirectory(async (directory) => {
-			writeFileSync(join(directory, "bedrock.config.ts"), result.data.configFileContent);
-			const loaded = await loadConfig({ cwd: directory });
+		const loaded = await roundTripConfigAsync(
+			"bedrock.config.ts",
+			result.data.configFileContent,
+		);
 
-			assert(loaded.success);
+		assert(loaded.success);
 
-			expect(loaded.data).toStrictEqual(result.data.config);
-			expect(loaded.data.environments["production"]?.universe?.universeId).toBe("6110424408");
-		});
+		expect(loaded.data).toStrictEqual(result.data.config);
+		expect(loaded.data.environments["production"]!.universe!.universeId).toBe("6110424408");
 	});
 
 	it("should produce a config that round-trips through loadConfig from the emitted YAML", async () => {
@@ -178,16 +202,16 @@ describe(migrateMantleState, () => {
 		assert(typescriptRun.success);
 		assert(yamlRun.success);
 
-		await withTemporaryDirectory(async (directory) => {
-			writeFileSync(join(directory, "bedrock.config.yaml"), yamlRun.data.configFileContent);
-			const loaded = await loadConfig({ cwd: directory });
+		const loaded = await roundTripConfigAsync(
+			"bedrock.config.yaml",
+			yamlRun.data.configFileContent,
+		);
 
-			assert(loaded.success);
+		assert(loaded.success);
 
-			expect(loaded.data).toStrictEqual(yamlRun.data.config);
-			expect(loaded.data).toStrictEqual(typescriptRun.data.config);
-			expect(loaded.data.environments["production"]?.universe?.universeId).toBe("6110424408");
-		});
+		expect(loaded.data).toStrictEqual(yamlRun.data.config);
+		expect(loaded.data).toStrictEqual(typescriptRun.data.config);
+		expect(loaded.data.environments["production"]!.universe!.universeId).toBe("6110424408");
 	});
 
 	it("should produce one BedrockState per Mantle environment with the universe resource folded", async () => {
@@ -206,7 +230,8 @@ describe(migrateMantleState, () => {
 
 		const [developmentUniverse] = development.resources;
 		const [productionUniverse] = production.resources;
-		assert(developmentUniverse?.kind === "universe" && productionUniverse?.kind === "universe");
+		assert(developmentUniverse !== undefined && productionUniverse !== undefined);
+		assert(developmentUniverse.kind === "universe" && productionUniverse.kind === "universe");
 
 		expect(developmentUniverse.universeId).toBe("6031475575");
 		expect(productionUniverse.universeId).toBe("6110424408");
@@ -228,7 +253,8 @@ describe(migrateMantleState, () => {
 		assert(productionState !== undefined);
 
 		const [universe] = productionState.resources;
-		assert(universe?.kind === "universe");
+		assert(universe !== undefined);
+		assert(universe.kind === "universe");
 
 		expect(universe.outputs.rootPlaceId).toBe("17834656300");
 	});
@@ -250,10 +276,10 @@ describe(migrateMantleState, () => {
 		const development = selectEnvironment(result.data.config, "development");
 		assert(development.success);
 
-		expect(production.data.places?.["start"]?.placeId).toBe("17834656300");
-		expect(production.data.places?.["start"]?.filePath).toBe("place.rbxlx");
-		expect(development.data.places?.["start"]?.placeId).toBe("17613681043");
-		expect(development.data.places?.["start"]?.filePath).toBe("place.rbxl");
+		expect(production.data.places!["start"]!.placeId).toBe("17834656300");
+		expect(production.data.places!["start"]!.filePath).toBe("place.rbxlx");
+		expect(development.data.places!["start"]!.placeId).toBe("17613681043");
+		expect(development.data.places!["start"]!.filePath).toBe("place.rbxl");
 	});
 
 	it("should emit one place ResourceCurrentState per environment from the real fixture", async () => {
@@ -274,7 +300,7 @@ describe(migrateMantleState, () => {
 			(resource) => resource.kind === "place",
 		);
 		const productionPlace = production.resources.find((resource) => resource.kind === "place");
-		assert(developmentPlace?.kind === "place" && productionPlace?.kind === "place");
+		assert(developmentPlace !== undefined && productionPlace !== undefined);
 
 		expect(developmentPlace.placeId).toBe("17613681043");
 		expect(developmentPlace.outputs.versionNumber).toBe(53);
@@ -296,10 +322,11 @@ describe(migrateMantleState, () => {
 		const productionState = result.data.statesByEnvironment["production"];
 		assert(productionState !== undefined);
 
-		const onSale = productionState.resources.find(
-			(resource) => resource.kind === "gamePass" && resource.key === "1-example",
-		);
-		assert(onSale?.kind === "gamePass");
+		const onSale = findResource(productionState.resources, {
+			key: asResourceKey("1-example"),
+			kind: "gamePass",
+		});
+		assert(onSale !== undefined);
 
 		expect(onSale.iconFileHashes).toStrictEqual({ "en-us": ICON_FILE_SHA256 });
 		expect(onSale.outputs.assetId).toBe("838516503");
@@ -321,18 +348,14 @@ describe(migrateMantleState, () => {
 		assert(productionState !== undefined);
 
 		const [universe] = productionState.resources;
-		assert(universe?.kind === "universe");
+		assert(universe !== undefined);
+		assert(universe.kind === "universe");
 
 		expect("icon" in universe).toBeFalse();
 		expect("iconFileHashes" in universe).toBeFalse();
-		expect(
-			result.data.warnings.some((warning) => {
-				return (
-					warning.kind === "blocked" &&
-					warning.mantlePath === "production.experienceIcon_singleton"
-				);
-			}),
-		).toBeTrue();
+		expect(result.data.warnings).toIncludeAllPartialMembers([
+			{ kind: "blocked", mantlePath: "production.experienceIcon_singleton" },
+		]);
 	});
 
 	it("should round-trip the universe overlay through selectEnvironment per environment", async () => {
@@ -351,8 +374,8 @@ describe(migrateMantleState, () => {
 		assert(production.success);
 		assert(development.success);
 
-		expect(production.data.universe?.universeId).toBe("6110424408");
-		expect(development.data.universe?.universeId).toBe("6031475575");
+		expect(production.data.universe!.universeId).toBe("6110424408");
+		expect(development.data.universe!.universeId).toBe("6031475575");
 	});
 
 	it("should set environment.label on environments mantle stamped with bracketed display-name prefixes", async () => {
@@ -366,8 +389,8 @@ describe(migrateMantleState, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.label).toBe("development");
-		expect(result.data.config.environments["production"]?.label).toBeUndefined();
+		expect(result.data.config.environments["development"]!.label).toBe("development");
+		expect(result.data.config.environments["production"]!.label).toBeUndefined();
 	});
 
 	it("should reapply the environment-label prefix to displayName via selectEnvironment after migration", async () => {
@@ -386,8 +409,8 @@ describe(migrateMantleState, () => {
 		assert(production.success);
 		assert(development.success);
 
-		expect(production.data.universe?.displayName).toBe("roblox-ts Project Template");
-		expect(development.data.universe?.displayName).toBe(
+		expect(production.data.universe!.displayName).toBe("roblox-ts Project Template");
+		expect(development.data.universe!.displayName).toBe(
 			"[DEVELOPMENT] roblox-ts Project Template",
 		);
 	});
@@ -403,20 +426,18 @@ describe(migrateMantleState, () => {
 
 		assert(result.success);
 
-		await withTemporaryDirectory(async (directory) => {
-			writeFileSync(join(directory, "bedrock.config.ts"), result.data.configFileContent);
-			const loaded = await loadConfig({ cwd: directory });
+		const loaded = await roundTripConfigAsync(
+			"bedrock.config.ts",
+			result.data.configFileContent,
+		);
 
-			assert(loaded.success);
+		assert(loaded.success);
 
-			const development = selectEnvironment(loaded.data, "development");
-			assert(development.success);
+		const development = selectEnvironment(loaded.data, "development");
+		assert(development.success);
 
-			expect(loaded.data.environments["development"]?.universe?.universeId).toBe(
-				"6031475575",
-			);
-			expect(development.data.universe?.universeId).toBe("6031475575");
-		});
+		expect(loaded.data.environments["development"]!.universe!.universeId).toBe("6031475575");
+		expect(development.data.universe!.universeId).toBe("6031475575");
 	});
 
 	it("should emit a resource-missing-from-env warning for a pass present only in one environment", async () => {
@@ -450,23 +471,23 @@ describe(migrateMantleState, () => {
 
 		assert(result.success);
 
-		await withTemporaryDirectory(async (directory) => {
-			writeFileSync(join(directory, "bedrock.config.ts"), result.data.configFileContent);
-			const loaded = await loadConfig({ cwd: directory });
+		const loaded = await roundTripConfigAsync(
+			"bedrock.config.ts",
+			result.data.configFileContent,
+		);
 
-			assert(loaded.success);
+		assert(loaded.success);
 
-			const production = selectEnvironment(loaded.data, "production");
-			const development = selectEnvironment(loaded.data, "development");
-			assert(production.success);
-			assert(development.success);
+		const production = selectEnvironment(loaded.data, "production");
+		const development = selectEnvironment(loaded.data, "development");
+		assert(production.success);
+		assert(development.success);
 
-			expect(loaded.data.environments["development"]?.passes).toStrictEqual({
-				vip: { price: 99 },
-			});
-			expect(production.data.passes?.["vip"]?.price).toBe(500);
-			expect(development.data.passes?.["vip"]?.price).toBe(99);
+		expect(loaded.data.environments["development"]!.passes).toStrictEqual({
+			vip: { price: 99 },
 		});
+		expect(production.data.passes!["vip"]!.price).toBe(500);
+		expect(development.data.passes!["vip"]!.price).toBe(99);
 	});
 
 	it("should round-trip a per-environment product price overlay through loadConfig and selectEnvironment", async () => {
@@ -481,21 +502,21 @@ describe(migrateMantleState, () => {
 
 		assert(result.success);
 
-		await withTemporaryDirectory(async (directory) => {
-			writeFileSync(join(directory, "bedrock.config.ts"), result.data.configFileContent);
-			const loaded = await loadConfig({ cwd: directory });
+		const loaded = await roundTripConfigAsync(
+			"bedrock.config.ts",
+			result.data.configFileContent,
+		);
 
-			assert(loaded.success);
+		assert(loaded.success);
 
-			const production = selectEnvironment(loaded.data, "production");
-			const development = selectEnvironment(loaded.data, "development");
-			assert(production.success);
-			assert(development.success);
+		const production = selectEnvironment(loaded.data, "production");
+		const development = selectEnvironment(loaded.data, "development");
+		assert(production.success);
+		assert(development.success);
 
-			expect(production.data.products?.["gem-pack"]?.price).toBe(100);
-			expect(development.data.products?.["gem-pack"]?.price).toBeUndefined();
-			expect(loaded.data.products?.["gem-pack"]?.price).toBeUndefined();
-		});
+		expect(production.data.products!["gem-pack"]!.price).toBe(100);
+		expect(development.data.products!["gem-pack"]!.price).toBeUndefined();
+		expect(loaded.data.products!["gem-pack"]!.price).toBeUndefined();
 	});
 
 	it("should migrate Mantle outputs.assetId (not outputs.productId) onto bedrock outputs.productId per environment", async () => {
@@ -515,14 +536,14 @@ describe(migrateMantleState, () => {
 		assert(result.success);
 
 		const { development, production } = result.data.statesByEnvironment;
-		const developmentProduct = development?.resources.find(
+		const developmentProduct = development!.resources.find(
 			(resource) => resource.kind === "developerProduct",
 		);
-		const productionProduct = production?.resources.find(
+		const productionProduct = production!.resources.find(
 			(resource) => resource.kind === "developerProduct",
 		);
-		assert(developmentProduct?.kind === "developerProduct");
-		assert(productionProduct?.kind === "developerProduct");
+		assert(developmentProduct !== undefined);
+		assert(productionProduct !== undefined);
 
 		expect(developmentProduct.outputs.productId).toBe("1000");
 		expect(productionProduct.outputs.productId).toBe("3000");
@@ -542,21 +563,23 @@ describe(migrateMantleState, () => {
 		const productionState = result.data.statesByEnvironment["production"];
 		assert(productionState !== undefined);
 
-		const stub = productionState.resources.find(
-			(resource) => resource.kind === "gamePass" && resource.key === "2-missing",
-		);
-		assert(stub?.kind === "gamePass");
+		const stub = findResource(productionState.resources, {
+			key: asResourceKey("2-missing"),
+			kind: "gamePass",
+		});
+		assert(stub !== undefined);
 
 		expect(stub.iconFileHashes).toStrictEqual({ "en-us": MANTLE_RECORDED_HASH });
 
 		const ambiguous = result.data.warnings.filter(
-			(warning) =>
-				warning.kind === "ambiguous" && warning.mantlePath === "production.pass_2-missing",
+			(warning) => warning.mantlePath === "production.pass_2-missing",
 		);
-		assert(ambiguous[0]?.kind === "ambiguous");
+		const [firstAmbiguous] = ambiguous;
+		assert(firstAmbiguous !== undefined);
+		assert(firstAmbiguous.kind === "ambiguous");
 
 		expect(ambiguous).toHaveLength(1);
-		expect(ambiguous[0].hint).toContain("missing-icon.png");
+		expect(firstAmbiguous.hint).toContain("missing-icon.png");
 		expect(result.data.summary.ambiguousCount).toBeGreaterThanOrEqual(1);
 	});
 
@@ -585,7 +608,7 @@ describe(migrateMantleState, () => {
 			},
 			voiceChatEnabled: true,
 		});
-		expect(result.data.config.environments["production"]?.universe).toStrictEqual({
+		expect(result.data.config.environments["production"]!.universe).toStrictEqual({
 			universeId: "6110424408",
 		});
 	});
@@ -611,7 +634,7 @@ describe(migrateMantleState, () => {
 			tabletEnabled: true,
 			voiceChatEnabled: true,
 		});
-		expect(result.data.config.environments["development"]?.universe).toStrictEqual({
+		expect(result.data.config.environments["development"]!.universe).toStrictEqual({
 			universeId: "6031475575",
 		});
 	});
@@ -628,10 +651,7 @@ describe(migrateMantleState, () => {
 		assert(result.success);
 
 		const isActiveBlocked = result.data.warnings.filter((warning) => {
-			return (
-				warning.kind === "blocked" &&
-				warning.mantlePath.endsWith(".experienceActivation_singleton.isActive")
-			);
+			return warning.mantlePath.endsWith(".experienceActivation_singleton.isActive");
 		});
 
 		expect(isActiveBlocked.map((warning) => warning.mantlePath)).toIncludeAllMembers([
@@ -715,11 +735,9 @@ describe(migrateMantleState, () => {
 		const paths = result.data.warnings
 			.filter((warning) => warning.kind === "blocked")
 			.map((warning) => warning.mantlePath);
-		const missingPrefix = paths.filter(
-			(path) => !path.startsWith("development.") && !path.startsWith("production."),
-		);
+		const roots = [...new Set(paths.map((path) => path.split(".", 1)[0]))];
 
-		expect(missingPrefix).toStrictEqual([]);
+		expect(roots).toIncludeSameMembers(["development", "production"]);
 		expect(paths.length).toBeGreaterThan(0);
 	});
 

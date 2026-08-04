@@ -7,7 +7,10 @@ import {
 	loadConfig as defaultLoadConfig,
 	type LoadConfigOptions,
 } from "../../shell/load-config.ts";
-import { previewDiff as defaultPreviewDiff, type DiffPreview } from "../../shell/preview-diff.ts";
+import {
+	previewDiffAsync as defaultPreviewDiff,
+	type DiffPreview,
+} from "../../shell/preview-diff.ts";
 import { createClackPort } from "../clack-port.ts";
 import { buildCredentialOverrides } from "../credential-environment-overrides.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
@@ -51,7 +54,7 @@ export function diffCommand(
 ): (rawOptions: Record<string, unknown>) => Promise<void> {
 	const resolved = resolveDiff(deps);
 	return async (rawOptions) => {
-		const code = await runDiff(rawOptions, resolved);
+		const code = await runDiffAsync(rawOptions, resolved);
 		resolved.exit(code);
 	};
 }
@@ -153,8 +156,12 @@ function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
 	return true;
 }
 
-async function dispatchEnvironments(inputs: DispatchInputs): Promise<DispatchOutcome> {
-	const { config, environments, getEnv, resolved } = inputs;
+async function dispatchEnvironmentsAsync({
+	config,
+	environments,
+	getEnv,
+	resolved,
+}: DispatchInputs): Promise<DispatchOutcome> {
 	const failed: Array<string> = [];
 	let hasDrift = false;
 	for (const environment of environments) {
@@ -182,7 +189,7 @@ function outroFor(hasDrift: boolean): string {
 		: "all environments are up to date";
 }
 
-async function runDiff(
+async function runDiffAsync(
 	rawOptions: Record<string, unknown>,
 	resolved: ResolvedDiff,
 ): Promise<number> {
@@ -202,7 +209,7 @@ async function runDiff(
 		return EXIT_ERROR;
 	}
 
-	const outcome = await dispatchEnvironments({
+	const outcome = await dispatchEnvironmentsAsync({
 		config: loaded.data,
 		environments: parsed.data.environments,
 		getEnv: buildGetEnvironment(parsed.data),

@@ -28,6 +28,7 @@ describe("luau-execution-tasks submit writable-keys pin", () => {
 		"should expose %s as a non-readOnly property on the LuauExecutionSessionTask schema",
 		(key) => {
 			expect.assertions(1);
+
 			expect(listWritablePropertyNames("LuauExecutionSessionTask")).toContain(
 				WIRE_NAMES[key],
 			);

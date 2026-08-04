@@ -2,6 +2,7 @@ import type { HttpResponse } from "../../../client/types.ts";
 import { ApiError } from "../../../errors/api-error.ts";
 import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
+import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
 import type {
 	SocialLink,
@@ -48,9 +49,10 @@ interface ToUniverseArgs {
  * @returns A success result wrapping the parsed {@link Universe}, or
  *   an {@link ApiError} when the body does not match the wire schema.
  */
-export function parseUniverseResponse(response: HttpResponse): Result<Universe, ApiError> {
-	const { body, status: statusCode } = response;
-
+export function parseUniverseResponse({
+	body,
+	status: statusCode,
+}: HttpResponse): Result<Universe, ApiError> {
 	if (!isUniverseWire(body)) {
 		return malformed(statusCode, body);
 	}
@@ -72,7 +74,7 @@ export function parseUniverseResponse(response: HttpResponse): Result<Universe, 
 function malformed(statusCode: number, body: unknown): Result<Universe, ApiError> {
 	return {
 		err: new ApiError(MALFORMED_MESSAGE, {
-			details: body as JSONValue | undefined,
+			details: toJsonDetails(body),
 			statusCode,
 		}),
 		success: false,
@@ -96,8 +98,7 @@ function toSocialLink(wire: SocialLinkWire | undefined): SocialLink | undefined 
 	return { title: wire.title, uri: wire.uri };
 }
 
-function toUniverse(args: ToUniverseArgs): Universe {
-	const { id, body, owner } = args;
+function toUniverse({ id, body, owner }: ToUniverseArgs): Universe {
 	return {
 		id,
 		ageRating: AGE_RATING_MAP[body.ageRating],

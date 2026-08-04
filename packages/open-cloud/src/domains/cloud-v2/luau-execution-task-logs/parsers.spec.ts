@@ -32,8 +32,8 @@ describe(parseListLogsResponse, () => {
 		assert(result.success);
 
 		expect(result.data.messages).toHaveLength(1);
-		expect(result.data.messages[0]?.message).toBe("Hello from Luau");
-		expect(result.data.messages[0]?.createTime).toBe("2026-01-01T00:00:00Z");
+		expect(result.data.messages[0]!.message).toBe("Hello from Luau");
+		expect(result.data.messages[0]!.createTime).toBe("2026-01-01T00:00:00Z");
 	});
 
 	it("should reject a body whose message contains the MESSAGE_TYPE_UNSPECIFIED sentinel", () => {
@@ -106,9 +106,9 @@ describe(parseListLogsResponse, () => {
 		assert(result.success);
 
 		expect(result.data.messages).toHaveLength(4);
-		expect(result.data.messages[0]?.message).toBe("chunk0-msg0");
-		expect(result.data.messages[2]?.message).toBe("chunk1-msg0");
-		expect(result.data.messages[3]?.message).toBe("chunk1-msg1");
+		expect(result.data.messages[0]!.message).toBe("chunk0-msg0");
+		expect(result.data.messages[2]!.message).toBe("chunk1-msg0");
+		expect(result.data.messages[3]!.message).toBe("chunk1-msg1");
 	});
 
 	it("should surface nextPageToken when the body sets it", () => {

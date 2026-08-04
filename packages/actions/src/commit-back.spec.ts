@@ -1,71 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { fakeGit, gitFail, gitOk } from "#tests/helpers/fake-git";
 import { commitBack } from "./commit-back.ts";
-import type { GitExec, GitResult } from "./git.ts";
 
-function ok(stdout = ""): GitResult {
-	return { code: 0, stderr: "", stdout };
-}
-
-/**
- * Build a fake {@link GitExec} that records every argument vector it receives
- * and answers `git status` / `git rev-parse` / `git stash create` from the
- * supplied transcript. Every other command resolves successfully with empty
- * output, and `git push` can be made to fail a number of times.
- *
- * @param transcript - Canned stdout and the push-failure count.
- * @returns The recorded `calls` and the fake `git` runner.
- */
-function fakeGit(transcript: {
-	head?: string;
-	pushFailures?: number;
-	pushStderr?: string;
-	stagedEmpty?: boolean;
-	stashSha?: string;
-	status?: string;
-}): {
-	calls: Array<ReadonlyArray<string>>;
-	git: GitExec;
-} {
-	const calls: Array<ReadonlyArray<string>> = [];
-	let pushes = 0;
-	async function git(args: ReadonlyArray<string>): Promise<GitResult> {
-		calls.push(args);
-		if (args[0] === "status") {
-			return ok(transcript.status ?? "");
-		}
-
-		if (args[0] === "rev-parse") {
-			return ok(transcript.head ?? "");
-		}
-
-		if (args[0] === "stash" && args[1] === "create") {
-			return ok(transcript.stashSha ?? "");
-		}
-
-		if (args[0] === "diff") {
-			// `--quiet` exits 0 when nothing staged, 1 when changes exist.
-			return { code: transcript.stagedEmpty === true ? 0 : 1, stderr: "", stdout: "" };
-		}
-
-		if (args[0] === "push") {
-			pushes += 1;
-			if (pushes <= (transcript.pushFailures ?? 0)) {
-				return {
-					code: 1,
-					stderr: transcript.pushStderr ?? " ! [rejected] main -> main (fetch first)",
-					stdout: "",
-				};
-			}
-
-			return ok();
-		}
-
-		return ok();
-	}
-
-	return { calls, git };
-}
+/** The stderr a moved branch tip produces, which the reflow retries. */
+const REJECTED = gitFail(1, { stderr: " ! [rejected] main -> main (fetch first)" });
 
 const DefaultOptions = {
 	authorEmail: "bot@example.com",
@@ -80,9 +19,9 @@ describe(commitBack, () => {
 		expect.assertions(2);
 
 		const { calls, git } = fakeGit({
-			head: "abc1234\n",
-			stashSha: "stash99\n",
-			status: " M src/shared/assets/places.ts\n",
+			revParse: gitOk("abc1234\n"),
+			stashCreate: gitOk("stash99\n"),
+			status: gitOk(" M src/shared/assets/places.ts\n"),
 		});
 
 		const result = await commitBack({ git }, DefaultOptions);
@@ -115,9 +54,9 @@ describe(commitBack, () => {
 		expect.assertions(1);
 
 		const { git } = fakeGit({
-			head: "abc1234\n",
-			stashSha: "stash99",
-			status: " M src/a.ts\n\n   \n?? src/b.ts\n",
+			revParse: gitOk("abc1234\n"),
+			stashCreate: gitOk("stash99"),
+			status: gitOk(" M src/a.ts\n\n   \n?? src/b.ts\n"),
 		});
 
 		const result = await commitBack({ git }, DefaultOptions);
@@ -129,10 +68,10 @@ describe(commitBack, () => {
 		expect.assertions(3);
 
 		const { calls, git } = fakeGit({
-			head: "abc1234\n",
-			pushFailures: 1,
-			stashSha: "stash99",
-			status: " M src/shared/assets/places.ts\n",
+			push: [REJECTED, gitOk()],
+			revParse: gitOk("abc1234\n"),
+			stashCreate: gitOk("stash99"),
+			status: gitOk(" M src/shared/assets/places.ts\n"),
 		});
 
 		const result = await commitBack({ git }, DefaultOptions);
@@ -146,10 +85,10 @@ describe(commitBack, () => {
 		expect.assertions(2);
 
 		const { calls, git } = fakeGit({
-			head: "abc1234\n",
-			pushFailures: 99,
-			stashSha: "stash99",
-			status: " M src/shared/assets/places.ts\n",
+			push: [REJECTED],
+			revParse: gitOk("abc1234\n"),
+			stashCreate: gitOk("stash99"),
+			status: gitOk(" M src/shared/assets/places.ts\n"),
 		});
 
 		await expect(commitBack({ git }, { ...DefaultOptions, maxAttempts: 2 })).rejects.toThrow(
@@ -162,12 +101,14 @@ describe(commitBack, () => {
 		expect.assertions(2);
 
 		const { calls, git } = fakeGit({
-			head: "abc1234\n",
-			pushFailures: 99,
-			pushStderr:
-				"remote: Permission to acme/game.git denied to deploy-bot.\nfatal: unable to access the repository: The requested URL returned error: 403\n",
-			stashSha: "stash99",
-			status: " M src/shared/assets/places.ts\n",
+			push: [
+				gitFail(1, {
+					stderr: "remote: Permission to acme/game.git denied to deploy-bot.\nfatal: unable to access the repository: The requested URL returned error: 403\n",
+				}),
+			],
+			revParse: gitOk("abc1234\n"),
+			stashCreate: gitOk("stash99"),
+			status: gitOk(" M src/shared/assets/places.ts\n"),
 		});
 
 		await expect(commitBack({ git }, DefaultOptions)).rejects.toThrow(
@@ -180,12 +121,14 @@ describe(commitBack, () => {
 		expect.assertions(2);
 
 		const { git } = fakeGit({
-			head: "abc1234\n",
-			pushFailures: 99,
-			pushStderr:
-				"fatal: unable to access 'https://x-access-token:ghs_secret@github.com/acme/game.git/': The requested URL returned error: 403",
-			stashSha: "stash99",
-			status: " M src/shared/assets/places.ts\n",
+			push: [
+				gitFail(1, {
+					stderr: "fatal: unable to access 'https://x-access-token:ghs_secret@github.com/acme/game.git/': The requested URL returned error: 403",
+				}),
+			],
+			revParse: gitOk("abc1234\n"),
+			stashCreate: gitOk("stash99"),
+			status: gitOk(" M src/shared/assets/places.ts\n"),
 		});
 
 		const rejection = commitBack({ git }, DefaultOptions);
@@ -204,11 +147,10 @@ describe(commitBack, () => {
 		expect.assertions(2);
 
 		const { calls, git } = fakeGit({
-			head: "abc1234\n",
-			pushFailures: 1,
-			pushStderr: stderr,
-			stashSha: "stash99",
-			status: " M src/shared/assets/places.ts\n",
+			push: [gitFail(1, { stderr }), gitOk()],
+			revParse: gitOk("abc1234\n"),
+			stashCreate: gitOk("stash99"),
+			status: gitOk(" M src/shared/assets/places.ts\n"),
 		});
 
 		const result = await commitBack({ git }, DefaultOptions);
@@ -221,10 +163,11 @@ describe(commitBack, () => {
 		expect.assertions(3);
 
 		const { calls, git } = fakeGit({
-			head: "abc1234\n",
-			stagedEmpty: true,
-			stashSha: "stash99",
-			status: " M src/shared/assets/places.ts\n",
+			// `diff --cached --quiet` exiting 0 means the tip already matches.
+			diff: gitOk(),
+			revParse: gitOk("abc1234\n"),
+			stashCreate: gitOk("stash99"),
+			status: gitOk(" M src/shared/assets/places.ts\n"),
 		});
 
 		const result = await commitBack({ git }, DefaultOptions);
@@ -237,11 +180,10 @@ describe(commitBack, () => {
 	it("should reject with the failing command's stderr when a required git command fails", async () => {
 		expect.assertions(1);
 
-		async function git(args: ReadonlyArray<string>): Promise<GitResult> {
-			return args[0] === "status"
-				? { code: 0, stderr: "", stdout: " M src/shared/assets/places.ts\n" }
-				: { code: 128, stderr: "fatal: not a git repository", stdout: "" };
-		}
+		const { git } = fakeGit({
+			add: gitFail(128, { stderr: "fatal: not a git repository" }),
+			status: gitOk(" M src/shared/assets/places.ts\n"),
+		});
 
 		await expect(commitBack({ git }, DefaultOptions)).rejects.toThrow(
 			"git add -- src/shared/assets failed with exit code 128: fatal: not a git repository",
@@ -251,15 +193,12 @@ describe(commitBack, () => {
 	it("should redact url credentials echoed in a failing command's stderr", async () => {
 		expect.assertions(2);
 
-		async function git(args: ReadonlyArray<string>): Promise<GitResult> {
-			return args[0] === "status"
-				? { code: 0, stderr: "", stdout: " M src/shared/assets/places.ts\n" }
-				: {
-						code: 128,
-						stderr: "fatal: unable to access 'https://x-access-token:ghs_secret@github.com/acme/game.git/': 403",
-						stdout: "",
-					};
-		}
+		const { git } = fakeGit({
+			add: gitFail(128, {
+				stderr: "fatal: unable to access 'https://x-access-token:ghs_secret@github.com/acme/game.git/': 403",
+			}),
+			status: gitOk(" M src/shared/assets/places.ts\n"),
+		});
 
 		const rejection = commitBack({ git }, DefaultOptions);
 
@@ -270,11 +209,10 @@ describe(commitBack, () => {
 	it("should fall back to the failing command's trimmed stdout when its stderr is empty", async () => {
 		expect.assertions(1);
 
-		async function git(args: ReadonlyArray<string>): Promise<GitResult> {
-			return args[0] === "status"
-				? { code: 0, stderr: "", stdout: " M src/shared/assets/places.ts\n" }
-				: { code: 128, stderr: "", stdout: "error printed to stdout\n" };
-		}
+		const { git } = fakeGit({
+			add: gitFail(128, { stdout: "error printed to stdout\n" }),
+			status: gitOk(" M src/shared/assets/places.ts\n"),
+		});
 
 		await expect(commitBack({ git }, DefaultOptions)).rejects.toThrow(
 			/failed with exit code 128: error printed to stdout$/u,
@@ -284,11 +222,10 @@ describe(commitBack, () => {
 	it("should keep the bare exit-code message when the failing command produced no output", async () => {
 		expect.assertions(1);
 
-		async function git(args: ReadonlyArray<string>): Promise<GitResult> {
-			return args[0] === "status"
-				? { code: 0, stderr: "", stdout: " M src/shared/assets/places.ts\n" }
-				: { code: 128, stderr: " ", stdout: "" };
-		}
+		const { git } = fakeGit({
+			add: gitFail(128, { stderr: " " }),
+			status: gitOk(" M src/shared/assets/places.ts\n"),
+		});
 
 		await expect(commitBack({ git }, DefaultOptions)).rejects.toThrow(
 			/failed with exit code 128$/u,
@@ -298,7 +235,7 @@ describe(commitBack, () => {
 	it("should not commit or push when nothing changed under the paths", async () => {
 		expect.assertions(2);
 
-		const { calls, git } = fakeGit({ status: "" });
+		const { calls, git } = fakeGit({ status: gitOk("") });
 
 		const result = await commitBack({ git }, DefaultOptions);
 

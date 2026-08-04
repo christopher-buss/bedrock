@@ -1,9 +1,11 @@
 import { OpenCloudError } from "@bedrock-rbx/ocale";
+import type { Result } from "@bedrock-rbx/ocale";
 
-import { Buffer } from "node:buffer";
 import process from "node:process";
 import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
+import { outcomeByKey } from "#tests/helpers/drivers";
+import { environmentFrom } from "#tests/helpers/environment";
 import {
 	gamePassDesired,
 	placeCurrent,
@@ -11,12 +13,14 @@ import {
 	universeCurrent,
 	universeDesired,
 } from "#tests/helpers/resources";
+import { resultsInOrder } from "#tests/helpers/sequence";
+import { captureStreams } from "#tests/helpers/streams";
 import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import type { CodegenFile, EmitInput, Emitter } from "../core/codegen.ts";
 import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
-import type { BedrockState } from "../core/state.ts";
+import type { BedrockState, StateError } from "../core/state.ts";
 import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
@@ -30,7 +34,7 @@ import { type BuildStep, deploy, type DeployError, isCliEnvironmentFlagSet } fro
 const ICON_BYTES = new Uint8Array();
 const ICON_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
 
-async function readIcon(): Promise<Uint8Array> {
+async function readIconAsync(): Promise<Uint8Array> {
 	return ICON_BYTES;
 }
 
@@ -142,10 +146,6 @@ function configWithState(): Config {
 	};
 }
 
-function environmentFrom(values: Record<string, string>): (name: string) => string | undefined {
-	return (name) => values[name];
-}
-
 function stubRegistry(): DriverRegistry {
 	return {
 		developerProduct: developerProductStub,
@@ -172,7 +172,7 @@ function stubRegistryWithVipCreate(): DriverRegistry {
 	};
 }
 
-async function failingLoadConfig(): Promise<{
+async function failingLoadConfigAsync(): Promise<{
 	err: { kind: "fileNotFound"; searchedFrom: string };
 	success: false;
 }> {
@@ -278,7 +278,7 @@ describe(deploy, () => {
 				universe: { universeId: "1234567890" },
 			},
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry,
 			statePort: port,
 		});
@@ -311,7 +311,7 @@ describe(deploy, () => {
 		const result = await deploy({
 			config: { environments: { production: {} }, passes: {} },
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry: stubRegistry(),
 			statePort: port,
 		});
@@ -340,7 +340,7 @@ describe(deploy, () => {
 		const result = await deploy({
 			config: vipPassConfig(),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry,
 			statePort: port,
 		});
@@ -373,7 +373,7 @@ describe(deploy, () => {
 		const result = await deploy({
 			config: vipPassConfig(),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry,
 			statePort: port,
 		});
@@ -421,7 +421,7 @@ describe(deploy, () => {
 		const result = await deploy({
 			config,
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry,
 			statePort: port,
 		});
@@ -438,13 +438,7 @@ describe(deploy, () => {
 		const cause = new OpenCloudError("create vip-pass: 503");
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
-			.mockImplementation(async (desired) => {
-				if (desired.key === "alpha-pass") {
-					return { data: alphaCurrent, success: true };
-				}
-
-				return { err: cause, success: false };
-			});
+			.mockImplementation(outcomeByKey({ "alpha-pass": alphaCurrent, "vip-pass": cause }));
 		const registry: DriverRegistry = {
 			developerProduct: developerProductStub,
 			gamePass: { create },
@@ -456,7 +450,7 @@ describe(deploy, () => {
 		const result = await deploy({
 			config: twoPassConfig(),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry,
 			statePort: port,
 		});
@@ -498,13 +492,7 @@ describe(deploy, () => {
 			.mockResolvedValue({ data: placeCreated, success: true });
 		const gamePassCreate = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
-			.mockImplementation(async (desired) => {
-				if (desired.key === "alpha-pass") {
-					return { data: alphaCurrent, success: true };
-				}
-
-				return { err: cause, success: false };
-			});
+			.mockImplementation(outcomeByKey({ "alpha-pass": alphaCurrent, "vip-pass": cause }));
 		const registry: DriverRegistry = {
 			developerProduct: developerProductStub,
 			gamePass: { create: gamePassCreate },
@@ -523,7 +511,7 @@ describe(deploy, () => {
 				universe: { universeId: "1234567890" },
 			},
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry,
 			statePort: port,
 		});
@@ -571,7 +559,7 @@ describe(deploy, () => {
 		const result = await deploy({
 			config: vipPassConfig(),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry,
 			statePort: port,
 		});
@@ -591,13 +579,7 @@ describe(deploy, () => {
 		const cause = new OpenCloudError("create vip-pass: 503");
 		const create = vi
 			.fn<ResourceDriver<"gamePass">["create"]>()
-			.mockImplementation(async (desired) => {
-				if (desired.key === "alpha-pass") {
-					return { data: alphaCurrent, success: true };
-				}
-
-				return { err: cause, success: false };
-			});
+			.mockImplementation(outcomeByKey({ "alpha-pass": alphaCurrent, "vip-pass": cause }));
 		const registry: DriverRegistry = {
 			developerProduct: developerProductStub,
 			gamePass: { create },
@@ -623,7 +605,7 @@ describe(deploy, () => {
 		const result = await deploy({
 			config: twoPassConfig(),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry,
 			statePort: port,
 		});
@@ -674,7 +656,7 @@ describe(deploy, () => {
 		const result = await deploy({
 			config: vipPassConfig(),
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry,
 			statePort: port,
 		});
@@ -708,11 +690,7 @@ describe(deploy, () => {
 			},
 		};
 
-		const fetchSpy = vi.fn<GistFetch>(async (_input, init) => {
-			if (init?.method === "PATCH") {
-				return new Response(JSON.stringify({ files: {} }), { status: 200 });
-			}
-
+		const fetchSpy = vi.fn<GistFetch>(async () => {
 			return new Response(JSON.stringify({ files: {} }), { status: 200 });
 		});
 
@@ -721,7 +699,7 @@ describe(deploy, () => {
 			environment: "production",
 			fetch: fetchSpy,
 			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry,
 		});
 
@@ -737,7 +715,7 @@ describe(deploy, () => {
 		const result = await deploy({
 			config: vipPassConfig(),
 			environment: "staging",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry: stubRegistry(),
 			statePort: inMemoryStatePort().port,
 		});
@@ -756,7 +734,7 @@ describe(deploy, () => {
 			config: { environments: { production: {} }, passes: {} },
 			environment: "production",
 			getEnv: environmentFrom({}),
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry: stubRegistry(),
 		});
 
@@ -774,7 +752,7 @@ describe(deploy, () => {
 			config: { environments: { production: {} }, state: { backend: "s3" } },
 			environment: "production",
 			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry: stubRegistry(),
 		});
 
@@ -792,7 +770,7 @@ describe(deploy, () => {
 			config: configWithState(),
 			environment: "production",
 			getEnv: environmentFrom({}),
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry: stubRegistry(),
 		});
 
@@ -826,7 +804,7 @@ describe(deploy, () => {
 				BEDROCK_API_KEY: "rbx-test",
 				BEDROCK_GITHUB_TOKEN: "ghp_test",
 			}),
-			readFile: readIcon,
+			readFile: readIconAsync,
 			statePort: port,
 		});
 
@@ -846,7 +824,7 @@ describe(deploy, () => {
 			},
 			environment: "production",
 			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
-			readFile: readIcon,
+			readFile: readIconAsync,
 			statePort: inMemoryStatePort().port,
 		});
 
@@ -870,7 +848,7 @@ describe(deploy, () => {
 				BEDROCK_API_KEY: "rbx-test",
 				BEDROCK_GITHUB_TOKEN: "ghp_test",
 			}),
-			readFile: readIcon,
+			readFile: readIconAsync,
 			statePort: inMemoryStatePort().port,
 		});
 
@@ -895,7 +873,7 @@ describe(deploy, () => {
 		const result = await deploy({
 			environment: "production",
 			loadConfig: loadConfigStub,
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry: stubRegistry(),
 			statePort: inMemoryStatePort().port,
 		});
@@ -915,7 +893,7 @@ describe(deploy, () => {
 		const result = await deploy({
 			environment: "production",
 			loadConfig: async () => ({ err: configError, success: false }),
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry: stubRegistry(),
 			statePort: inMemoryStatePort().port,
 		});
@@ -949,7 +927,7 @@ describe(deploy, () => {
 				universe: { universeId: "1234567890" },
 			},
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			statePort: port,
 		});
 
@@ -966,7 +944,7 @@ describe(deploy, () => {
 			environment: "production",
 			getEnv: getEnvironment,
 			progress: { emit() {} },
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry: stubRegistryWithVipCreate(),
 			statePort: inMemoryStatePort().port,
 		});
@@ -1017,7 +995,7 @@ describe(deploy, () => {
 				},
 			},
 			environment: "production",
-			readFile: readIcon,
+			readFile: readIconAsync,
 			registry,
 			statePort: port,
 		});
@@ -1097,7 +1075,7 @@ describe(deploy, () => {
 				config: vipPassConfig(),
 				environment: "production",
 				progress,
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: stubRegistryWithVipCreate(),
 				statePort,
 			});
@@ -1125,7 +1103,7 @@ describe(deploy, () => {
 				config: vipPassConfig(),
 				environment: "production",
 				progress,
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: stubRegistryWithVipCreate(),
 				statePort: writeFailure,
 			});
@@ -1144,7 +1122,7 @@ describe(deploy, () => {
 				config: vipPassConfig(),
 				environment: "production",
 				progress,
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: stubRegistryWithVipCreate(),
 				statePort,
 			});
@@ -1163,7 +1141,7 @@ describe(deploy, () => {
 				config: vipPassConfig(),
 				environment: "production",
 				progress,
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: stubRegistryWithVipCreate(),
 				statePort,
 			});
@@ -1184,8 +1162,8 @@ describe(deploy, () => {
 				arrange: () => {
 					return {
 						environment: "production",
-						loadConfig: failingLoadConfig,
-						readFile: readIcon,
+						loadConfig: failingLoadConfigAsync,
+						readFile: readIconAsync,
 						registry: stubRegistry(),
 						statePort: inMemoryStatePort().port,
 					};
@@ -1203,7 +1181,7 @@ describe(deploy, () => {
 					return {
 						config: vipPassConfig(),
 						environment: "production",
-						readFile: readIcon,
+						readFile: readIconAsync,
 						registry: stubRegistry(),
 						statePort: {
 							async read() {
@@ -1224,7 +1202,7 @@ describe(deploy, () => {
 					return {
 						config: vipPassConfig(),
 						environment: "production",
-						readFile: readIcon,
+						readFile: readIconAsync,
 						registry: {
 							...stubRegistry(),
 							gamePass: {
@@ -1249,7 +1227,7 @@ describe(deploy, () => {
 					return {
 						config: vipPassConfig(),
 						environment: "production",
-						readFile: readIcon,
+						readFile: readIconAsync,
 						registry: stubRegistryWithVipCreate(),
 						statePort: {
 							async read() {
@@ -1279,11 +1257,10 @@ describe(deploy, () => {
 
 				expect(failures).toHaveLength(1);
 
-				assert(failures[0]?.kind === "deployFailure");
+				const [failure] = failures;
+				assert(failure !== undefined);
 
-				expect(
-					matchError(failures[0].error) && failures[0].error === result.err,
-				).toBeTrue();
+				expect(matchError(failure.error) && failure.error === result.err).toBeTrue();
 			},
 		);
 
@@ -1296,7 +1273,7 @@ describe(deploy, () => {
 				config: vipPassConfig(),
 				environment: "ghost",
 				progress,
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: stubRegistry(),
 				statePort: inMemoryStatePort().port,
 			});
@@ -1318,16 +1295,16 @@ describe(deploy, () => {
 					calls.push(event);
 				},
 			};
-			const getEnvironment = vi.fn<(name: string) => string | undefined>((name) => {
-				return name === "BEDROCK_API_KEY" ? "rbx-test" : undefined;
-			});
+			const getEnvironment = vi.fn<(name: string) => string | undefined>(
+				environmentFrom({ BEDROCK_API_KEY: "rbx-test" }),
+			);
 
 			await deploy({
 				config: vipPassConfig(),
 				environment: "production",
 				getEnv: getEnvironment,
 				progress,
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: stubRegistryWithVipCreate(),
 				statePort,
 			});
@@ -1340,15 +1317,15 @@ describe(deploy, () => {
 			expect.assertions(1);
 
 			const { port: statePort } = inMemoryStatePort();
-			const getEnvironment = vi.fn<(name: string) => string | undefined>((name) => {
-				return name === "BEDROCK_API_KEY" ? "rbx-test" : undefined;
-			});
+			const getEnvironment = vi.fn<(name: string) => string | undefined>(
+				environmentFrom({ BEDROCK_API_KEY: "rbx-test" }),
+			);
 
 			await deploy({
 				config: vipPassConfig(),
 				environment: "production",
 				getEnv: getEnvironment,
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: stubRegistryWithVipCreate(),
 				statePort,
 			});
@@ -1359,98 +1336,68 @@ describe(deploy, () => {
 		it("should default to the clack adapter when progress is omitted and BEDROCK_CLI is set", async () => {
 			expect.assertions(1);
 
-			const chunks: Array<string> = [];
-			const writeSpy = vi
-				.spyOn(process.stdout, "write")
-				.mockImplementation((chunk: string | Uint8Array): boolean => {
-					chunks.push(
-						typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"),
-					);
-					return true;
-				});
+			const { stdout } = captureStreams();
+			const { port: statePort } = inMemoryStatePort();
 
-			try {
-				const { port: statePort } = inMemoryStatePort();
+			await deploy({
+				config: vipPassConfig(),
+				environment: "production",
+				getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test", BEDROCK_CLI: "1" }),
+				readFile: readIconAsync,
+				registry: stubRegistryWithVipCreate(),
+				statePort,
+			});
 
-				await deploy({
-					config: vipPassConfig(),
-					environment: "production",
-					getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test", BEDROCK_CLI: "1" }),
-					readFile: readIcon,
-					registry: stubRegistryWithVipCreate(),
-					statePort,
-				});
-			} finally {
-				writeSpy.mockRestore();
-			}
-
-			expect(chunks.join("")).toContain("production: 1 resources reconciled");
+			expect(stdout.join("")).toContain("production: 1 resources reconciled");
 		});
 
 		it("should render stateWritten with the loaded backend label when options.config is omitted but loadConfig succeeds and BEDROCK_CLI is set", async () => {
 			expect.assertions(1);
 
-			const chunks: Array<string> = [];
-			const writeSpy = vi
-				.spyOn(process.stdout, "write")
-				.mockImplementation((chunk: string | Uint8Array): boolean => {
-					chunks.push(
-						typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"),
-					);
-					return true;
-				});
-
-			try {
-				const loadedConfig: Config = {
-					environments: { production: {} },
-					passes: {
-						"vip-pass": {
-							name: "VIP Pass",
-							description: "Grants VIP perks.",
-							icon: { "en-us": "assets/vip-icon.png" },
-							price: 500,
-						},
+			const { stdout } = captureStreams();
+			const loadedConfig: Config = {
+				environments: { production: {} },
+				passes: {
+					"vip-pass": {
+						name: "VIP Pass",
+						description: "Grants VIP perks.",
+						icon: { "en-us": "assets/vip-icon.png" },
+						price: 500,
 					},
-					state: { backend: "gist", gistId: "abc-test" },
-				};
-				const { port: statePort } = inMemoryStatePort();
+				},
+				state: { backend: "gist", gistId: "abc-test" },
+			};
+			const { port: statePort } = inMemoryStatePort();
 
-				await deploy({
-					environment: "production",
-					getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test", BEDROCK_CLI: "1" }),
-					loadConfig: async () => ({ data: loadedConfig, success: true }),
-					readFile: readIcon,
-					registry: stubRegistryWithVipCreate(),
-					statePort,
-				});
-			} finally {
-				writeSpy.mockRestore();
-			}
+			await deploy({
+				environment: "production",
+				getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test", BEDROCK_CLI: "1" }),
+				loadConfig: async () => ({ data: loadedConfig, success: true }),
+				readFile: readIconAsync,
+				registry: stubRegistryWithVipCreate(),
+				statePort,
+			});
 
-			expect(chunks.join("")).toContain("State written to gist:abc-test");
+			expect(stdout.join("")).toContain("State written to gist:abc-test");
 		});
 
 		it("should surface resolveDeps failure through the default clack path when BEDROCK_CLI is set", async () => {
 			expect.assertions(1);
 
-			const writeSpy = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+			captureStreams();
 
-			try {
-				const result = await deploy({
-					config: vipPassConfig(),
-					environment: "ghost",
-					getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test", BEDROCK_CLI: "1" }),
-					readFile: readIcon,
-					registry: stubRegistry(),
-					statePort: inMemoryStatePort().port,
-				});
+			const result = await deploy({
+				config: vipPassConfig(),
+				environment: "ghost",
+				getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test", BEDROCK_CLI: "1" }),
+				readFile: readIconAsync,
+				registry: stubRegistry(),
+				statePort: inMemoryStatePort().port,
+			});
 
-				assert(!result.success);
+			assert(!result.success);
 
-				expect(result.err.kind).toBe("unknownEnvironment");
-			} finally {
-				writeSpy.mockRestore();
-			}
+			expect(result.err.kind).toBe("unknownEnvironment");
 		});
 
 		it("should default to a no-op port when progress is omitted and BEDROCK_CLI is unset", async () => {
@@ -1465,7 +1412,7 @@ describe(deploy, () => {
 					config: vipPassConfig(),
 					environment: "production",
 					getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test" }),
-					readFile: readIcon,
+					readFile: readIconAsync,
 					registry: stubRegistryWithVipCreate(),
 					statePort,
 				});
@@ -1488,7 +1435,7 @@ describe(deploy, () => {
 					config: vipPassConfig(),
 					environment: "production",
 					getEnv: environmentFrom({ BEDROCK_API_KEY: "rbx-test", BEDROCK_CLI: "" }),
-					readFile: readIcon,
+					readFile: readIconAsync,
 					registry: stubRegistryWithVipCreate(),
 					statePort,
 				});
@@ -1510,7 +1457,7 @@ describe(deploy, () => {
 				config: codegenVipConfig(),
 				emit: vi.fn<Emitter>().mockResolvedValue([CODEGEN_FILE]),
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: stubRegistryWithVipCreate(),
 				statePort: inMemoryStatePort().port,
 			});
@@ -1539,7 +1486,7 @@ describe(deploy, () => {
 				},
 				emit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: stubRegistryWithVipCreate(),
 				statePort: environmentAwareStatePort({}),
 			});
@@ -1562,7 +1509,7 @@ describe(deploy, () => {
 				config: vipPassConfig(),
 				emit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: stubRegistryWithVipCreate(),
 				statePort: inMemoryStatePort().port,
 			});
@@ -1581,7 +1528,7 @@ describe(deploy, () => {
 				codegenWriter: writer.port,
 				config: codegenVipConfig("src/generated"),
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: stubRegistryWithVipCreate(),
 				statePort: inMemoryStatePort().port,
 			});
@@ -1604,7 +1551,7 @@ describe(deploy, () => {
 					passes: { "vip-pass": VipPassEntry },
 				},
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: stubRegistryWithVipCreate(),
 				statePort: inMemoryStatePort().port,
 			});
@@ -1622,13 +1569,9 @@ describe(deploy, () => {
 			const cause = new OpenCloudError("create vip-pass: 503");
 			const create = vi
 				.fn<ResourceDriver<"gamePass">["create"]>()
-				.mockImplementation(async (desired) => {
-					if (desired.key === "alpha-pass") {
-						return { data: alphaCurrent, success: true };
-					}
-
-					return { err: cause, success: false };
-				});
+				.mockImplementation(
+					outcomeByKey({ "alpha-pass": alphaCurrent, "vip-pass": cause }),
+				);
 			const inputs: Array<EmitInput> = [];
 			const emit = vi.fn<Emitter>(async (input) => {
 				inputs.push(input);
@@ -1641,7 +1584,7 @@ describe(deploy, () => {
 				config: { ...twoPassConfig(), codegen: { enabled: true, output: "src/generated" } },
 				emit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: {
 					developerProduct: developerProductStub,
 					gamePass: { create },
@@ -1678,7 +1621,7 @@ describe(deploy, () => {
 				config: codegenVipConfig(),
 				emit: vi.fn<Emitter>().mockResolvedValue([CODEGEN_FILE]),
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: stubRegistryWithVipCreate(),
 				statePort: inMemoryStatePort().port,
 			});
@@ -1697,7 +1640,7 @@ describe(deploy, () => {
 				config: codegenVipConfig(),
 				emit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: stubRegistryWithVipCreate(),
 				statePort: inMemoryStatePort().port,
 			});
@@ -1723,7 +1666,7 @@ describe(deploy, () => {
 				config: codegenVipConfig("src/generated"),
 				emit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: stubRegistryWithVipCreate(),
 				statePort: inMemoryStatePort().port,
 			});
@@ -1867,7 +1810,7 @@ describe(deploy, () => {
 				config: fusedCodegenConfig(),
 				emit: fusedEmit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry,
 				statePort: port,
 			});
@@ -1906,7 +1849,7 @@ describe(deploy, () => {
 					return [CODEGEN_FILE];
 				},
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: { ...registry, place },
 				statePort: inMemoryStatePort().port,
 			});
@@ -1927,7 +1870,7 @@ describe(deploy, () => {
 				config: fusedCodegenConfig(),
 				emit: fusedEmit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry,
 				statePort: port,
 			});
@@ -1950,7 +1893,7 @@ describe(deploy, () => {
 				build: step,
 				config: fusedConfig(),
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry,
 				statePort: port,
 			});
@@ -1979,7 +1922,7 @@ describe(deploy, () => {
 				config: fusedCodegenConfig(),
 				emit: fusedEmit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry,
 				statePort: port,
 			});
@@ -2003,7 +1946,7 @@ describe(deploy, () => {
 				config: fusedCodegenConfig(),
 				emit: fusedEmit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: recordingPlaceRegistry().registry,
 				statePort: inMemoryStatePort().port,
 			});
@@ -2027,7 +1970,7 @@ describe(deploy, () => {
 				config: fusedCodegenConfig(),
 				emit: fusedEmit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: recordingPlaceRegistry().registry,
 				statePort: inMemoryStatePort().port,
 			});
@@ -2059,7 +2002,7 @@ describe(deploy, () => {
 				config: fusedCodegenConfig(),
 				emit: fusedEmit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: recordingPlaceRegistry().registry,
 				statePort: port,
 			});
@@ -2088,7 +2031,7 @@ describe(deploy, () => {
 				config: fusedCodegenConfig(),
 				emit: fusedEmit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry,
 				statePort: port,
 			});
@@ -2122,7 +2065,7 @@ describe(deploy, () => {
 				config: fusedCodegenConfig(),
 				emit: fusedEmit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: failingRegistry,
 				statePort: inMemoryStatePort().port,
 			});
@@ -2157,7 +2100,7 @@ describe(deploy, () => {
 				config: fusedCodegenConfig(),
 				emit: fusedEmit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry,
 				statePort: port,
 			});
@@ -2185,7 +2128,7 @@ describe(deploy, () => {
 					return [CODEGEN_FILE];
 				},
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry,
 				statePort: inMemoryStatePort().port,
 			});
@@ -2217,7 +2160,7 @@ describe(deploy, () => {
 				config: fusedCodegenConfig(),
 				emit: fusedEmit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry,
 				statePort: port,
 			});
@@ -2241,16 +2184,10 @@ describe(deploy, () => {
 			const partialRegistry: DriverRegistry = {
 				...registry,
 				gamePass: {
-					async create(desired) {
-						if (desired.key === asResourceKey("alpha-pass")) {
-							return {
-								err: new OpenCloudError("create alpha-pass: 503"),
-								success: false,
-							};
-						}
-
-						return { data: vipPassCurrent(), success: true };
-					},
+					create: outcomeByKey({
+						"alpha-pass": new OpenCloudError("create alpha-pass: 503"),
+						"vip-pass": vipPassCurrent(),
+					}),
 				},
 			};
 
@@ -2277,7 +2214,7 @@ describe(deploy, () => {
 					return [CODEGEN_FILE];
 				},
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: partialRegistry,
 				statePort: inMemoryStatePort().port,
 			});
@@ -2307,7 +2244,7 @@ describe(deploy, () => {
 				config: fusedCodegenConfig(),
 				emit: fusedEmit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry,
 				statePort: port,
 			});
@@ -2324,19 +2261,12 @@ describe(deploy, () => {
 			expect.assertions(2);
 
 			const { builds, step } = recordingBuildStep();
-			let reads = 0;
+			const reads = resultsInOrder<Result<BedrockState | undefined, StateError>>([
+				{ data: undefined, success: true },
+				{ err: { file: "state.json", kind: "stateError", reason: "EIO" }, success: false },
+			]);
 			const port: StatePort = {
-				async read() {
-					reads += 1;
-					if (reads > 1) {
-						return {
-							err: { file: "state.json", kind: "stateError", reason: "EIO" },
-							success: false,
-						};
-					}
-
-					return { data: undefined, success: true };
-				},
+				read: reads,
 				async write() {
 					return { data: undefined, success: true };
 				},
@@ -2348,7 +2278,7 @@ describe(deploy, () => {
 				config: fusedCodegenConfig(),
 				emit: fusedEmit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: recordingPlaceRegistry().registry,
 				statePort: port,
 			});
@@ -2392,7 +2322,7 @@ describe(deploy, () => {
 				config: fusedCodegenConfig(),
 				emit: fusedEmit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: failingPlaceRegistry,
 				statePort: port,
 			});
@@ -2428,7 +2358,7 @@ describe(deploy, () => {
 				}),
 				emit: fusedEmit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry,
 				statePort: port,
 			});
@@ -2468,7 +2398,7 @@ describe(deploy, () => {
 				config: fusedCodegenConfig(),
 				emit: fusedEmit,
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: recordingPlaceRegistry().registry,
 				statePort: port,
 			});
@@ -2508,7 +2438,7 @@ describe(deploy, () => {
 
 			const order: Array<string> = [];
 
-			async function readRecording(path: string): Promise<Uint8Array> {
+			async function readRecordingAsync(path: string): Promise<Uint8Array> {
 				order.push(path);
 				return ICON_BYTES;
 			}
@@ -2523,7 +2453,7 @@ describe(deploy, () => {
 				config: fusedCodegenConfig(),
 				emit: fusedEmit,
 				environment: "production",
-				readFile: readRecording,
+				readFile: readRecordingAsync,
 				registry,
 				statePort: inMemoryStatePort().port,
 			});
@@ -2562,7 +2492,7 @@ describe(deploy, () => {
 			const result = await deploy({
 				config: collisionConfig(),
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry,
 				statePort: port,
 			});
@@ -2590,7 +2520,7 @@ describe(deploy, () => {
 			const result = await deploy({
 				config: collisionConfig(),
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry,
 				statePort: port,
 			});
@@ -2613,7 +2543,7 @@ describe(deploy, () => {
 			const result = await deploy({
 				config: fusedConfig(),
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry,
 				statePort: port,
 			});
@@ -2636,7 +2566,7 @@ describe(deploy, () => {
 			const result = await deploy({
 				config: fusedConfig(),
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry,
 				statePort: port,
 			});
@@ -2677,7 +2607,7 @@ describe(deploy, () => {
 			const result = await deploy({
 				config: fusedConfig(),
 				environment: "production",
-				readFile: readIcon,
+				readFile: readIconAsync,
 				registry: failingPlaceRegistry,
 				statePort: port,
 			});
@@ -2693,31 +2623,37 @@ describe(deploy, () => {
 describe(isCliEnvironmentFlagSet, () => {
 	it("should return false when value is undefined", () => {
 		expect.assertions(1);
+
 		expect(isCliEnvironmentFlagSet(undefined)).toBeFalse();
 	});
 
 	it("should return false when value is the empty string", () => {
 		expect.assertions(1);
+
 		expect(isCliEnvironmentFlagSet("")).toBeFalse();
 	});
 
 	it("should return true when value is a single non-empty character", () => {
 		expect.assertions(1);
+
 		expect(isCliEnvironmentFlagSet("1")).toBeTrue();
 	});
 
 	it("should return true when value is the literal '0' since only the empty string is rejected", () => {
 		expect.assertions(1);
+
 		expect(isCliEnvironmentFlagSet("0")).toBeTrue();
 	});
 
 	it("should return true when value is a single-space string since only the empty string is rejected", () => {
 		expect.assertions(1);
+
 		expect(isCliEnvironmentFlagSet(" ")).toBeTrue();
 	});
 
 	it("should return true when value is a multi-character non-empty string", () => {
 		expect.assertions(1);
+
 		expect(isCliEnvironmentFlagSet("true")).toBeTrue();
 	});
 });

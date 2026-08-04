@@ -16,18 +16,27 @@ import { type AggregateApplyError, applyOps } from "./apply-ops.ts";
  * baseline, and passes the triple to the deploy-level `finalize`.
  */
 export interface ReconcilePass {
-	/** The `applyOps` outcome: survivors on success, survivors + failures on error. */
+	/**
+	 * The `applyOps` outcome: survivors on success, survivors + failures on
+	 * error.
+	 */
 	readonly applied: Result<ReadonlyArray<ResourceCurrentState>, AggregateApplyError>;
-	/** Cumulative snapshot built from `priorResources` plus this pass's survivors. */
+	/**
+	 * Cumulative snapshot built from `priorResources` plus this pass's
+	 * survivors.
+	 */
 	readonly merged: BedrockState;
-	/** The state-write outcome; carries `merged` as the unsaved snapshot on failure. */
+	/**
+	 * The state-write outcome; carries `merged` as the unsaved snapshot on
+	 * failure.
+	 */
 	readonly written: Result<void, StateError>;
 }
 
 /**
- * Place keys to record as owing a rebuild, or a resolver computing them from the
- * pass's survivors. The resolver form runs after `applyOps`, so a caller can
- * clear the marker only for the places that actually applied; a failed or
+ * Place keys to record as owing a rebuild, or a resolver computing them from
+ * the pass's survivors. The resolver form runs after `applyOps`, so a caller
+ * can clear the marker only for the places that actually applied; a failed or
  * withheld (noop) place is absent from the survivors and keeps its marker.
  */
 type PendingRebuildInput =
@@ -35,12 +44,15 @@ type PendingRebuildInput =
 	| ReadonlySet<ResourceKey>;
 
 /**
- * Inputs for a single {@link applyAndPersist} pass. `priorResources` is the
- * cumulative baseline the pass folds its survivors into before writing, so a
- * later pass receives the previous pass's `merged.resources` here.
+ * Inputs for a single {@link applyAndPersistAsync} pass. `priorResources` is
+ * the cumulative baseline the pass folds its survivors into before writing, so
+ * a later pass receives the previous pass's `merged.resources` here.
  */
 interface ApplyAndPersistInputs {
-	/** Optional per-key artifact bytes forwarded to `applyOps` as apply context. */
+	/**
+	 * Optional per-key artifact bytes forwarded to `applyOps` as apply
+	 * context.
+	 */
 	readonly artifacts?: ReadonlyMap<ResourceKey, Uint8Array>;
 	/**
 	 * Codegen fingerprint to stamp onto the persisted snapshot. Omit (or pass
@@ -54,12 +66,14 @@ interface ApplyAndPersistInputs {
 	/** Subset of reconcile ops applied in this pass, in declaration order. */
 	readonly ops: ReadonlyArray<Operation>;
 	/**
-	 * Place keys to record as owing a rebuild, or a resolver computing them from
-	 * the pass's survivors. Stamped onto the persisted snapshot when non-empty;
-	 * an empty or absent set leaves the marker off.
+	 * Place keys to record as owing a rebuild, or a resolver computing them
+	 * from the pass's survivors. Stamped onto the persisted snapshot when
+	 * non-empty; an empty or absent set leaves the marker off.
 	 */
 	readonly pendingRebuild?: PendingRebuildInput;
-	/** Resources already persisted; survivors merge on top, none are dropped. */
+	/**
+	 * Resources already persisted; survivors merge on top, none are dropped.
+	 */
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 	/** Sink for per-resource, summary, and `stateWritten` progress events. */
 	readonly progress: ProgressPort;
@@ -99,19 +113,18 @@ interface SnapshotInputs {
  *   registry, state port, and progress port the pass drives.
  * @returns The apply, snapshot, and write outcomes for the pass.
  */
-export async function applyAndPersist(inputs: ApplyAndPersistInputs): Promise<ReconcilePass> {
-	const {
-		artifacts,
-		codegenHash,
-		environment,
-		ops,
-		pendingRebuild,
-		priorResources,
-		progress,
-		realDisplay,
-		registry,
-		statePort,
-	} = inputs;
+export async function applyAndPersistAsync({
+	artifacts,
+	codegenHash,
+	environment,
+	ops,
+	pendingRebuild,
+	priorResources,
+	progress,
+	realDisplay,
+	registry,
+	statePort,
+}: ApplyAndPersistInputs): Promise<ReconcilePass> {
 	const applied = await applyOps(ops, registry, { environment, progress }, artifacts);
 	const merged = buildSnapshot({
 		applied,
@@ -172,9 +185,14 @@ function scopeRealDisplay(
 	return Object.fromEntries(Object.entries(realDisplay).filter(([key]) => present.has(key)));
 }
 
-function buildSnapshot(inputs: SnapshotInputs): BedrockState {
-	const { applied, codegenHash, environment, pendingRebuild, priorResources, realDisplay } =
-		inputs;
+function buildSnapshot({
+	applied,
+	codegenHash,
+	environment,
+	pendingRebuild,
+	priorResources,
+	realDisplay,
+}: SnapshotInputs): BedrockState {
 	const appliedResources = applied.success ? applied.data : applied.err.applied;
 	const resources = mergeResources(priorResources, appliedResources);
 	const marker =

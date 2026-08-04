@@ -2,6 +2,7 @@ import type { HttpResponse } from "../../../client/types.ts";
 import { ApiError } from "../../../errors/api-error.ts";
 import { isDateTimeString } from "../../../internal/utils/is-date-time-string.ts";
 import { isRecord } from "../../../internal/utils/is-record.ts";
+import { toJsonDetails } from "../../../internal/utils/to-json-details.ts";
 import type { Result } from "../../../types.ts";
 import type { LuauExecutionTask, LuauExecutionTaskRef } from "./types.ts";
 import type {
@@ -48,10 +49,10 @@ interface ParseVariantArgs {
  *   {@link ApiError} when the body or path do not match a supported
  *   shape.
  */
-export function parseLuauExecutionTaskResponse(
-	response: HttpResponse,
-): Result<LuauExecutionTask, ApiError> {
-	const { body, status: statusCode } = response;
+export function parseLuauExecutionTaskResponse({
+	body,
+	status: statusCode,
+}: HttpResponse): Result<LuauExecutionTask, ApiError> {
 	if (!isLuauExecutionTaskWire(body)) {
 		return malformed(statusCode, body);
 	}
@@ -179,17 +180,24 @@ function parseTimeoutSeconds(value: string | undefined): number | undefined {
 function malformed(statusCode: number, body: unknown): Result<LuauExecutionTask, ApiError> {
 	return {
 		err: new ApiError(MALFORMED_TASK_MESSAGE, {
-			details: body as JSONValue | undefined,
+			details: toJsonDetails(body),
 			statusCode,
 		}),
 		success: false,
 	};
 }
 
-function parseInProgressTask(
-	args: ParseVariantArgs & { readonly state: InProgressWireState },
-): Result<LuauExecutionTask, ApiError> {
-	const { body, createdAt, ref, state, timeoutSeconds, updatedAt } = args;
+function parseInProgressTask({
+	body,
+	createdAt,
+	ref,
+	state,
+	timeoutSeconds,
+	updatedAt,
+}: ParseVariantArgs & { readonly state: InProgressWireState }): Result<
+	LuauExecutionTask,
+	ApiError
+> {
 	return {
 		data: {
 			binaryInput: body.binaryInput,
@@ -206,8 +214,14 @@ function parseInProgressTask(
 	};
 }
 
-function parseCompleteTask(args: ParseVariantArgs): Result<LuauExecutionTask, ApiError> {
-	const { body, createdAt, ref, statusCode, timeoutSeconds, updatedAt } = args;
+function parseCompleteTask({
+	body,
+	createdAt,
+	ref,
+	statusCode,
+	timeoutSeconds,
+	updatedAt,
+}: ParseVariantArgs): Result<LuauExecutionTask, ApiError> {
 	if (body.output === undefined) {
 		return malformed(statusCode, body);
 	}
@@ -229,8 +243,14 @@ function parseCompleteTask(args: ParseVariantArgs): Result<LuauExecutionTask, Ap
 	};
 }
 
-function parseFailedTask(args: ParseVariantArgs): Result<LuauExecutionTask, ApiError> {
-	const { body, createdAt, ref, statusCode, timeoutSeconds, updatedAt } = args;
+function parseFailedTask({
+	body,
+	createdAt,
+	ref,
+	statusCode,
+	timeoutSeconds,
+	updatedAt,
+}: ParseVariantArgs): Result<LuauExecutionTask, ApiError> {
 	if (body.error === undefined) {
 		return malformed(statusCode, body);
 	}

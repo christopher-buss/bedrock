@@ -47,9 +47,14 @@ interface UniverseFoldResult {
 	 * invariant that `universeId` is present.
 	 */
 	readonly entry: ResolvedUniverseEntry;
-	/** Roblox-assigned identifiers carried into `BedrockState.resources[*].outputs`. */
+	/**
+	 * Roblox-assigned identifiers carried into
+	 * `BedrockState.resources[*].outputs`.
+	 */
 	readonly outputs: UniverseOutputs;
-	/** Per-rule diagnostics emitted while folding this environment's resources. */
+	/**
+	 * Per-rule diagnostics emitted while folding this environment's resources.
+	 */
 	readonly warnings: ReadonlyArray<MigrationWarning>;
 }
 
@@ -85,15 +90,14 @@ export function foldUniverse(
 
 	const fragments = collectUniverseFragments(resources);
 
-	const entry: ResolvedUniverseEntry = fragments.reduce<ResolvedUniverseEntry>(
-		(accumulator, fragment) => ({ ...accumulator, ...fragment.entryFragment }),
-		{ universeId: outputs.assetId },
-	);
-
-	const universeOutputs: UniverseOutputs = fragments.reduce<UniverseOutputs>(
-		(accumulator, fragment) => ({ ...accumulator, ...fragment.outputsFragment }),
-		{ rootPlaceId: asRobloxAssetId(outputs.startPlaceId) },
-	);
+	const entry: ResolvedUniverseEntry = { universeId: outputs.assetId };
+	const universeOutputs: UniverseOutputs = {
+		rootPlaceId: asRobloxAssetId(outputs.startPlaceId),
+	};
+	for (const fragment of fragments) {
+		Object.assign(entry, fragment.entryFragment);
+		Object.assign(universeOutputs, fragment.outputsFragment);
+	}
 
 	const warnings = fragments.flatMap((fragment) => fragment.warnings);
 

@@ -21,7 +21,7 @@ const { burstCapacity: PUBLISH_BURST = 1, maxPerSecond: PUBLISH_PER_SECOND } =
 	PUBLISH_OPERATION_LIMIT;
 const PUBLISH_INTERVAL_MS = 1000 / PUBLISH_PER_SECOND;
 
-async function spendPublishBurst(client: PlacesClient): Promise<void> {
+async function spendPublishBurstAsync(client: PlacesClient): Promise<void> {
 	for (let index = 0; index < PUBLISH_BURST; index++) {
 		await client.publish({
 			body: rbxlBody(),
@@ -112,7 +112,7 @@ describe(PlacesClient, () => {
 				universeId: "123",
 			});
 
-			expect(httpClient.requests[0]?.request.headers).toStrictEqual({
+			expect(httpClient.requests[0]!.request.headers).toStrictEqual({
 				"content-type": "application/xml",
 			});
 		});
@@ -316,7 +316,7 @@ describe(PlacesClient, () => {
 				{ apiKey: "override-key" },
 			);
 
-			expect(httpClient.requests[0]?.config.apiKey).toBe("override-key");
+			expect(httpClient.requests[0]!.config.apiKey).toBe("override-key");
 		});
 	});
 
@@ -344,7 +344,7 @@ describe(PlacesClient, () => {
 			assert(result.success);
 
 			expect(result.data).toStrictEqual({ versionNumber: 12 });
-			expect(httpClient.requests[0]?.request.url).toEndWith("?versionType=Saved");
+			expect(httpClient.requests[0]!.request.url).toEndWith("?versionType=Saved");
 		});
 
 		it("should short-circuit on a format mismatch without firing HTTP", async () => {
@@ -560,7 +560,7 @@ describe(PlacesClient, () => {
 				{ apiKey: "override-key" },
 			);
 
-			expect(httpClient.requests[0]?.config.apiKey).toBe("override-key");
+			expect(httpClient.requests[0]!.config.apiKey).toBe("override-key");
 		});
 	});
 
@@ -580,7 +580,7 @@ describe(PlacesClient, () => {
 				sleep: clock.sleep,
 			});
 
-			await spendPublishBurst(client);
+			await spendPublishBurstAsync(client);
 			await client.save({
 				body: rbxlBody(),
 				format: "rbxl",
@@ -607,7 +607,7 @@ describe(PlacesClient, () => {
 				sleep: clock.sleep,
 			});
 
-			await spendPublishBurst(client);
+			await spendPublishBurstAsync(client);
 			await client.publish(
 				{
 					body: rbxlBody(),
@@ -624,7 +624,10 @@ describe(PlacesClient, () => {
 				universeId: "2",
 			});
 
-			expect(httpClient.requests.at(-2)?.config.apiKey).toBe("override-key");
+			const overrideCapture = httpClient.requests.at(-2);
+			assert(overrideCapture !== undefined);
+
+			expect(overrideCapture.config.apiKey).toBe("override-key");
 			expect(clock.waits).toStrictEqual([PUBLISH_INTERVAL_MS]);
 		});
 	});
@@ -648,7 +651,7 @@ describe(PlacesClient, () => {
 				sleep: clock.sleep,
 			});
 
-			await spendPublishBurst(client);
+			await spendPublishBurstAsync(client);
 			await client.update({
 				description: "Isolation test",
 				placeId: "1",

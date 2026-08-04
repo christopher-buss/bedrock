@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..", "..", "..");
@@ -20,7 +20,7 @@ interface SpawnResult {
 	readonly stdout: string;
 }
 
-async function runBin(args: ReadonlyArray<string>, cwd: string): Promise<SpawnResult> {
+async function runBinAsync(args: ReadonlyArray<string>, cwd: string): Promise<SpawnResult> {
 	return new Promise((resolve, reject) => {
 		const child = spawn("bun", ["--conditions", "source", BIN_ENTRY, ...args], {
 			cwd,
@@ -43,7 +43,7 @@ async function runBin(args: ReadonlyArray<string>, cwd: string): Promise<SpawnRe
 	});
 }
 
-async function createProject(overrideFixture: string): Promise<string> {
+async function createProjectAsync(overrideFixture: string): Promise<string> {
 	const project = await mkdtemp(join(tmpdir(), "bedrock-override-e2e-"));
 	await writeFile(
 		join(project, "bedrock.config.json"),
@@ -59,37 +59,37 @@ describe("bedrock deploy override via the real cli", () => {
 	it("should discover .bedrock/deploy.ts, execute it with the spawn protocol, and exit 0", async () => {
 		expect.assertions(4);
 
-		const project = await createProject(ECHO_OVERRIDE);
-		try {
-			const result = await runBin(["deploy", "--env", "production"], project);
-
-			expect(
-				result.code,
-				`bin exited ${String(result.code)}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
-			).toBe(0);
-			expect(result.stdout).toContain("bedrock override deploy ran");
-			expect(
-				JSON.parse(await readFile(join(project, "override-ran.json"), "utf8")),
-			).toStrictEqual({ cli: "1", flags: ["--env", "production"], script: "deploy.ts" });
-			expect(result.stdout).toContain("deploy succeeded");
-		} finally {
+		const project = await createProjectAsync(ECHO_OVERRIDE);
+		onTestFinished(async () => {
 			await rm(project, { force: true, recursive: true });
-		}
+		});
+
+		const result = await runBinAsync(["deploy", "--env", "production"], project);
+
+		expect(
+			result.code,
+			`bin exited ${String(result.code)}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+		).toBe(0);
+		expect(result.stdout).toContain("bedrock override deploy ran");
+		expect(
+			JSON.parse(await readFile(join(project, "override-ran.json"), "utf8")),
+		).toStrictEqual({ cli: "1", flags: ["--env", "production"], script: "deploy.ts" });
+		expect(result.stdout).toContain("deploy succeeded");
 	}, 30_000);
 
 	it("should propagate a non-zero override exit as cli exit 1", async () => {
 		expect.assertions(2);
 
-		const project = await createProject(FAILING_OVERRIDE);
-		try {
-			const result = await runBin(["deploy", "--env", "production"], project);
-
-			expect(result.code).toBe(1);
-			expect(`${result.stdout}${result.stderr}`).toContain(
-				"production: override exited with code 3",
-			);
-		} finally {
+		const project = await createProjectAsync(FAILING_OVERRIDE);
+		onTestFinished(async () => {
 			await rm(project, { force: true, recursive: true });
-		}
+		});
+
+		const result = await runBinAsync(["deploy", "--env", "production"], project);
+
+		expect(result.code).toBe(1);
+		expect(`${result.stdout}${result.stderr}`).toContain(
+			"production: override exited with code 3",
+		);
 	}, 30_000);
 });

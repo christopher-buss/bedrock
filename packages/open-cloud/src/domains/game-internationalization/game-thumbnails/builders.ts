@@ -63,11 +63,11 @@ export function buildDeleteThumbnailRequest(
  *   {@link ValidationError} when `orderedImageIds` is empty or any ID is not
  *   a positive integer within the safe-integer range.
  */
-export function buildReorderThumbnailsRequest(
-	parameters: ReorderExperienceThumbnailsParameters,
-): Result<HttpRequest, ValidationError> {
-	const { languageCode, orderedImageIds, universeId } = parameters;
-
+export function buildReorderThumbnailsRequest({
+	languageCode,
+	orderedImageIds,
+	universeId,
+}: ReorderExperienceThumbnailsParameters): Result<HttpRequest, ValidationError> {
 	const idsResult = parseOrderedImageIds(orderedImageIds);
 	if (!idsResult.success) {
 		return idsResult;

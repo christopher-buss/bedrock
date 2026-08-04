@@ -58,8 +58,8 @@ describe(parseListResponse, () => {
 		assert(result.success);
 
 		expect(result.data.items).toHaveLength(1);
-		expect(result.data.items[0]?.id).toBe("name::id");
-		expect(result.data.items[0]?.value).toStrictEqual({ hello: "world" });
+		expect(result.data.items[0]!.id).toBe("name::id");
+		expect(result.data.items[0]!.value).toStrictEqual({ hello: "world" });
 		expect(result.data.nextPageToken).toBeUndefined();
 	});
 });

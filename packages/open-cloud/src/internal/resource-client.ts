@@ -15,7 +15,7 @@ import type { OpenCloudError } from "../errors/base.ts";
 import { PermissionError } from "../errors/permission-error.ts";
 import type { Result } from "../types.ts";
 import { BudgetGate } from "./http/budget-gate.ts";
-import { executeWithRetry } from "./http/execute.ts";
+import { executeWithRetryAsync } from "./http/execute.ts";
 import { rateLimitSampleFromResult } from "./http/rate-limit-observation.ts";
 import { type OperationLimit, RateLimitQueue } from "./http/rate-limit-queue.ts";
 import { resolveDependencies } from "./http/resolve-dependencies.ts";
@@ -58,7 +58,9 @@ export interface ResourceMethodSpec<P, T> {
 	 * so consumers can loosen retry globally.
 	 */
 	readonly methodKind: MethodKind;
-	/** Operation-level rate limit, keyed into the client's per-key queue map. */
+	/**
+	 * Operation-level rate limit, keyed into the client's per-key queue map.
+	 */
 	readonly operationLimit: OperationLimit;
 	/**
 	 * Converts the full {@link HttpResponse} into the resource-specific
@@ -91,7 +93,9 @@ interface ExecuteCall<P, T> {
 	readonly options?: RequestOptions | undefined;
 	/** Resource-specific request parameters. */
 	readonly parameters: P;
-	/** Per-method binding of builder, parser, method kind, and operation limit. */
+	/**
+	 * Per-method binding of builder, parser, method kind, and operation limit.
+	 */
 	readonly spec: ResourceMethodSpec<P, T>;
 }
 
@@ -145,7 +149,7 @@ interface RequestConfigInputs {
  * the frozen client config, observability hooks, injected HTTP client and
  * sleep, and the per-effective-key rate-limit queue registry. Resource
  * classes compose one instance and dispatch every public method through
- * {@link ResourceClient.execute} with a per-method {@link ResourceMethodSpec}.
+ * {@link ResourceClient.executeAsync} with a per-method {@link ResourceMethodSpec}.
  * Not exported from any package subpath; reachable only via sibling
  * `src/resources/**` modules in this package.
  */
@@ -165,8 +169,7 @@ export class ResourceClient {
 	 * @param options - Client-level configuration including the API key
 	 *   and optional construction-time test seams.
 	 */
-	constructor(options: OpenCloudClientOptions) {
-		const { apiKey, hooks, httpClient, sleep, ...overrides } = options;
+	constructor({ apiKey, hooks, httpClient, sleep, ...overrides }: OpenCloudClientOptions) {
 		const resolved = resolveDependencies({ httpClient, sleep });
 		this.#httpClient = resolved.httpClient;
 		this.#sleep = resolved.sleep;
@@ -191,8 +194,11 @@ export class ResourceClient {
 	 * @returns The parsed success payload or the {@link OpenCloudError} that
 	 *   caused the request to fail. Never throws.
 	 */
-	public async execute<P, T>(call: ExecuteCall<P, T>): Promise<Result<T, OpenCloudError>> {
-		const { options, parameters, spec } = call;
+	public async executeAsync<P, T>({
+		options,
+		parameters,
+		spec,
+	}: ExecuteCall<P, T>): Promise<Result<T, OpenCloudError>> {
 		const merged = mergeConfig(this.#config, {
 			methodDefaults: spec.methodDefaults,
 			methodKind: spec.methodKind,
@@ -205,8 +211,8 @@ export class ResourceClient {
 
 		const requestConfig = buildRequestConfig({ merged, options, request: requestResult.data });
 		const queue = this.#getQueue(merged.apiKey, spec.operationLimit);
-		const httpResult = await queue.acquire(async () => {
-			return executeWithRetry(requestResult.data, {
+		const httpResult = await queue.acquireAsync(async () => {
+			return executeWithRetryAsync(requestResult.data, {
 				config: merged,
 				hooks: this.#hooks,
 				send: this.#gatedSend(merged.apiKey, requestConfig),
@@ -237,14 +243,14 @@ export class ResourceClient {
 	 *
 	 * @param apiKey - The effective API key to gate on.
 	 * @param requestConfig - The resolved per-request transport config.
-	 * @returns A send callback for {@link executeWithRetry}.
+	 * @returns A send callback for {@link executeWithRetryAsync}.
 	 */
 	#gatedSend(
 		apiKey: string,
 		requestConfig: RequestConfig,
 	): (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>> {
 		return async (toSend) => {
-			await this.#budgets.gate(apiKey);
+			await this.#budgets.gateAsync(apiKey);
 			const sendResult = await this.#httpClient.request(toSend, requestConfig);
 			this.#budgets.observe(apiKey, rateLimitSampleFromResult(sendResult));
 			return sendResult;
@@ -275,8 +281,7 @@ export class ResourceClient {
  * @returns The config to hand to the transport, with `timeout` omitted when
  *   no client-side deadline should apply.
  */
-function buildRequestConfig(inputs: RequestConfigInputs): RequestConfig {
-	const { merged, options, request } = inputs;
+function buildRequestConfig({ merged, options, request }: RequestConfigInputs): RequestConfig {
 	const shouldOmitDefaultTimeout = options?.timeout === undefined && isUploadRequest(request);
 	return {
 		apiKey: merged.apiKey,

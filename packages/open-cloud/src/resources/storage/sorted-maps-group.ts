@@ -135,7 +135,7 @@ export class MemoryStoreSortedMapsGroup {
 		parameters: CreateSortedMapItemParameters,
 		options?: RequestOptions,
 	): Promise<Result<SortedMapItem, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: CREATE_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: CREATE_SPEC });
 	}
 
 	/**
@@ -153,7 +153,7 @@ export class MemoryStoreSortedMapsGroup {
 		parameters: DeleteSortedMapItemParameters,
 		options?: RequestOptions,
 	): Promise<Result<undefined, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: DELETE_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: DELETE_SPEC });
 	}
 
 	/**
@@ -171,7 +171,7 @@ export class MemoryStoreSortedMapsGroup {
 		parameters: GetSortedMapItemParameters,
 		options?: RequestOptions,
 	): Promise<Result<SortedMapItem, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: GET_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: GET_SPEC });
 	}
 
 	/**
@@ -192,7 +192,7 @@ export class MemoryStoreSortedMapsGroup {
 		parameters: ListSortedMapItemsParameters,
 		options?: RequestOptions,
 	): Promise<Result<ListSortedMapItemsResult, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: LIST_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: LIST_SPEC });
 	}
 
 	/**
@@ -215,6 +215,6 @@ export class MemoryStoreSortedMapsGroup {
 		parameters: UpdateSortedMapItemParameters,
 		options?: RequestOptions,
 	): Promise<Result<SortedMapItem, OpenCloudError>> {
-		return this.#inner.execute({ options, parameters, spec: UPDATE_SPEC });
+		return this.#inner.executeAsync({ options, parameters, spec: UPDATE_SPEC });
 	}
 }

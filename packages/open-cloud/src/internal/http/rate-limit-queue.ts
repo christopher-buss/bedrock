@@ -74,7 +74,7 @@ export class RateLimitQueue {
 	 * @param task - The request to run once a token is available.
 	 * @returns The value produced by `task`.
 	 */
-	public async acquire<T>(task: () => Promise<T>): Promise<T> {
+	public async acquireAsync<T>(task: () => Promise<T>): Promise<T> {
 		const myTurn = this.#chain.then(async () => this.#waitForToken());
 		this.#chain = myTurn;
 		await myTurn;

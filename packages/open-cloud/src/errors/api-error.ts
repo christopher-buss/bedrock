@@ -17,10 +17,10 @@ export interface ApiErrorOptions extends ErrorOptions {
 	 */
 	elapsedMs?: number | undefined;
 	/**
-	 * Human-readable summary extracted from an HTML gateway error page, set when
-	 * the error body was such a page (an HAProxy-style load-balancer rejection)
-	 * rather than an Open Cloud response. When present, the raw HTML is not
-	 * retained on {@link ApiError.details}.
+	 * Human-readable summary extracted from an HTML gateway error page, set
+	 * when the error body was such a page (an HAProxy-style load-balancer
+	 * rejection) rather than an Open Cloud response. When present, the raw HTML
+	 * is not retained on {@link ApiError.details}.
 	 */
 	gatewaySummary?: string | undefined;
 	/** HTTP method of the request that produced this error. */

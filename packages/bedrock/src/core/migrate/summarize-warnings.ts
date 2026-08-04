@@ -1,12 +1,5 @@
 import type { MigrationSummary, MigrationWarning } from "./migration-report.ts";
 
-const ZERO_SUMMARY: MigrationSummary = {
-	ambiguousCount: 0,
-	blockedCount: 0,
-	deferredCount: 0,
-	interpretiveCount: 0,
-};
-
 /**
  * Fold a `MigrationWarning` array into a `MigrationSummary` so the
  * report's aggregate counts are derived from the warning list rather
@@ -19,10 +12,17 @@ const ZERO_SUMMARY: MigrationSummary = {
  * @returns Per-kind counts.
  */
 export function summarizeWarnings(warnings: ReadonlyArray<MigrationWarning>): MigrationSummary {
-	return warnings.reduce<MigrationSummary>((accumulator, warning) => {
-		return {
-			...accumulator,
-			[`${warning.kind}Count`]: accumulator[`${warning.kind}Count`] + 1,
-		};
-	}, ZERO_SUMMARY);
+	return {
+		ambiguousCount: countOfKind(warnings, "ambiguous"),
+		blockedCount: countOfKind(warnings, "blocked"),
+		deferredCount: countOfKind(warnings, "deferred"),
+		interpretiveCount: countOfKind(warnings, "interpretive"),
+	};
+}
+
+function countOfKind(
+	warnings: ReadonlyArray<MigrationWarning>,
+	kind: MigrationWarning["kind"],
+): number {
+	return warnings.filter((warning) => warning.kind === kind).length;
 }

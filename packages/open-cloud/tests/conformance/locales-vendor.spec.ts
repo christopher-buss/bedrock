@@ -49,11 +49,13 @@ expectTypeOf<RobloxLanguageCode>().toEqualTypeOf<
 describe("locales-vendor", () => {
 	it("should mirror the vendor JSON entry count in the generated const", () => {
 		expect.assertions(1);
+
 		expect(ROBLOX_CREATOR_LOCALES).toHaveLength(upstream.length);
 	});
 
 	it("should expose every vendor JSON locale code on the const, in order", () => {
 		expect.assertions(1);
+
 		expect(ROBLOX_CREATOR_LOCALES.map((row) => row.locale)).toStrictEqual(
 			upstream.map((row) => row.locale),
 		);
@@ -61,6 +63,7 @@ describe("locales-vendor", () => {
 
 	it("should expose every vendor JSON language code on the const, in order", () => {
 		expect.assertions(1);
+
 		expect(ROBLOX_CREATOR_LOCALES.map((row) => row.languageCode)).toStrictEqual(
 			upstream.map((row) => row.languageCode),
 		);
@@ -70,6 +73,7 @@ describe("locales-vendor", () => {
 		"should encode locale $locale as Roblox's [a-z]{2,3}_[a-z0-9]{2,3} wire form",
 		(row) => {
 			expect.assertions(1);
+
 			expect(row.locale).toMatch(/^[a-z]{2,3}_[a-z0-9]{2,3}$/);
 		},
 	);
@@ -78,6 +82,7 @@ describe("locales-vendor", () => {
 		"should expose a non-empty languageCode for locale $locale",
 		(row) => {
 			expect.assertions(1);
+
 			expect(row.languageCode).not.toBe("");
 		},
 	);

@@ -2,6 +2,7 @@ import { OpenCloudError } from "@bedrock-rbx/ocale";
 
 import { assert, describe, expect, it, vi } from "vitest";
 
+import { fakeReadFile } from "#tests/helpers/files";
 import { placeCurrent } from "#tests/helpers/resources";
 import type { ResourceCurrentState } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
@@ -18,7 +19,7 @@ const PLACE_BYTES = new Uint8Array([1, 2, 3]);
 const STALE_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
 const startPlace = asResourceKey("start-place");
 
-async function readPlace(): Promise<Uint8Array> {
+async function readPlaceAsync(): Promise<Uint8Array> {
 	return PLACE_BYTES;
 }
 
@@ -125,7 +126,7 @@ describe(publish, () => {
 		const result = await publish({
 			config: publishConfig(),
 			environment: "production",
-			readFile: readPlace,
+			readFile: readPlaceAsync,
 			registry,
 			statePort: port,
 		});
@@ -143,13 +144,9 @@ describe(publish, () => {
 		const { port } = inMemoryStatePort(
 			priorWith(placeCurrent({ fileHash: STALE_HASH }), new Set([startPlace])),
 		);
-		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>(async (path) => {
-			if (path === "places/start.rbxl") {
-				return PLACE_BYTES;
-			}
-
-			throw new Error(`publish must not read non-place file: ${path}`);
-		});
+		const readFile = vi.fn<(path: string) => Promise<Uint8Array>>(
+			fakeReadFile({ "places/start.rbxl": PLACE_BYTES }),
+		);
 
 		const result = await publish({
 			config: {
@@ -187,7 +184,7 @@ describe(publish, () => {
 		const result = await publish({
 			config: publishConfig(),
 			environment: "production",
-			readFile: readPlace,
+			readFile: readPlaceAsync,
 			registry,
 			statePort: port,
 		});
@@ -214,7 +211,7 @@ describe(publish, () => {
 		const result = await publish({
 			config: publishConfig(),
 			environment: "production",
-			readFile: readPlace,
+			readFile: readPlaceAsync,
 			registry,
 			statePort: port,
 		});
@@ -241,7 +238,7 @@ describe(publish, () => {
 				products: { "gem-pack": { name: "Gem Pack", description: "1,000 gems." } },
 			},
 			environment: "production",
-			readFile: readPlace,
+			readFile: readPlaceAsync,
 			registry: { ...registry, developerProduct: { create: productCreate } },
 			statePort: port,
 		});
@@ -263,7 +260,7 @@ describe(publish, () => {
 		const result = await publish({
 			config: publishConfig(),
 			environment: "production",
-			readFile: readPlace,
+			readFile: readPlaceAsync,
 			registry,
 			statePort: port,
 		});
@@ -296,7 +293,7 @@ describe(publish, () => {
 		const result = await publish({
 			config: publishConfig(),
 			environment: "production",
-			readFile: readPlace,
+			readFile: readPlaceAsync,
 			registry,
 			statePort: port,
 		});

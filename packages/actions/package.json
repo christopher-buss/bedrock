@@ -11,6 +11,10 @@
 	],
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
 	"type": "module",
+	"imports": {
+		"#src/*": "./src/*.ts",
+		"#tests/*": "./tests/*.ts"
+	},
 	"exports": {
 		".": "./src/index.ts"
 	},

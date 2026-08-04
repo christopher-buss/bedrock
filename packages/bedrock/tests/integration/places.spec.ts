@@ -44,7 +44,7 @@ const UNIVERSE_TRAP: ResourceDriver<"universe"> = {
 	},
 };
 
-async function readPlaceFile(): Promise<Uint8Array> {
+async function readPlaceFileAsync(): Promise<Uint8Array> {
 	return RBXL_BYTES;
 }
 
@@ -59,7 +59,7 @@ describe("places pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const desiredResult = await buildDesired({
-			readFile: readPlaceFile,
+			readFile: readPlaceFileAsync,
 			resources: flattenConfig(resolved.data),
 		});
 		assert(desiredResult.success);
@@ -78,7 +78,7 @@ describe("places pipeline end-to-end", () => {
 					httpClient,
 					sleep: async () => {},
 				}),
-				readFile: readPlaceFile,
+				readFile: readPlaceFileAsync,
 				universeId: UNIVERSE_ID,
 			}),
 			universe: UNIVERSE_TRAP,
@@ -111,7 +111,7 @@ describe("places pipeline end-to-end", () => {
 		assert(resolved.success);
 
 		const desiredResult = await buildDesired({
-			readFile: readPlaceFile,
+			readFile: readPlaceFileAsync,
 			resources: flattenConfig(resolved.data),
 		});
 		assert(desiredResult.success);
@@ -136,7 +136,7 @@ describe("places pipeline end-to-end", () => {
 					httpClient,
 					sleep: async () => {},
 				}),
-				readFile: readPlaceFile,
+				readFile: readPlaceFileAsync,
 				universeId: UNIVERSE_ID,
 			}),
 			universe: UNIVERSE_TRAP,

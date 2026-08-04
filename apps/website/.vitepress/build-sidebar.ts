@@ -6,9 +6,15 @@ import type { DefaultTheme } from "vitepress";
  * sidebar builder does not depend on a deep import from the plugin.
  */
 export interface NavigationItem {
-	/** Nested entries when this item represents a group (kind, category, or module). */
+	/**
+	 * Nested entries when this item represents a group (kind, category, or
+	 * module).
+	 */
 	readonly children?: ReadonlyArray<NavigationItem>;
-	/** Relative markdown path (e.g. `"interfaces/UniverseEntry.md"`) when the item has its own page. */
+	/**
+	 * Relative markdown path (e.g. `"interfaces/UniverseEntry.md"`) when the
+	 * item has its own page.
+	 */
 	readonly path?: null | string;
 	/** Display title rendered in the sidebar. */
 	readonly title: string;

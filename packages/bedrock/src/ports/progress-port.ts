@@ -83,7 +83,9 @@ export type ResourceOpSucceededCreateEvent = {
 export interface ResourceOpSucceededUpdateEvent {
 	/** User-supplied resource key. */
 	readonly key: ResourceKey;
-	/** Top-level field names whose values differed between desired and current. */
+	/**
+	 * Top-level field names whose values differed between desired and current.
+	 */
 	readonly changedFields: ReadonlyArray<string>;
 	/** Environment whose reconcile is running. */
 	readonly environment: string;
@@ -155,7 +157,10 @@ export interface ResourceOpFailedEvent {
 export interface ApplySummaryEvent {
 	/** Count of successful create ops. */
 	readonly created: number;
-	/** Wall-clock duration between `applyOps` entry and Phase 2 resolution, in milliseconds. */
+	/**
+	 * Wall-clock duration between `applyOps` entry and Phase 2 resolution, in
+	 * milliseconds.
+	 */
 	readonly durationMs: number;
 	/** Environment whose reconcile is running. */
 	readonly environment: string;

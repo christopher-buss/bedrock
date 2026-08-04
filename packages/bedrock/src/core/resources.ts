@@ -40,7 +40,10 @@ import {
  * ```
  */
 export interface GamePassDesiredState {
-	/** User-supplied key; stable across deploys; used to correlate desired with current. */
+	/**
+	 * User-supplied key; stable across deploys; used to correlate desired with
+	 * current.
+	 */
 	readonly key: ResourceKey;
 	/** User-facing game-pass name as shown on the Roblox storefront. */
 	readonly name: string;
@@ -114,21 +117,41 @@ export interface GamePassDesiredState {
  * ```
  */
 export interface PlaceDesiredState {
-	/** User-supplied key; stable across deploys; used to correlate desired with current. */
+	/**
+	 * User-supplied key; stable across deploys; used to correlate desired with
+	 * current.
+	 */
 	readonly key: ResourceKey;
-	/** User-facing place description; `undefined` leaves the server value untouched. */
+	/**
+	 * User-facing place description; `undefined` leaves the server value
+	 * untouched.
+	 */
 	readonly description: string | undefined;
-	/** User-facing place name; `undefined` leaves the server value untouched. */
+	/**
+	 * User-facing place name; `undefined` leaves the server value untouched.
+	 */
 	readonly displayName: string | undefined;
-	/** SHA-256 hex digest of the place file, computed by `buildDesired` in shell. */
+	/**
+	 * SHA-256 hex digest of the place file, computed by `buildDesired` in
+	 * shell.
+	 */
 	readonly fileHash: Sha256Hex;
-	/** Path to the `.rbxl` or `.rbxlx` file on disk, relative to the config file. */
+	/**
+	 * Path to the `.rbxl` or `.rbxlx` file on disk, relative to the config
+	 * file.
+	 */
 	readonly filePath: string;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
 	readonly kind: "place";
-	/** Existing Roblox place ID; Open Cloud cannot create places, so this is an input, not an output. */
+	/**
+	 * Existing Roblox place ID; Open Cloud cannot create places, so this is an
+	 * input, not an output.
+	 */
 	readonly placeId: RobloxAssetId;
-	/** Maximum players per server; positive integer. `undefined` leaves the server value untouched. */
+	/**
+	 * Maximum players per server; positive integer. `undefined` leaves the
+	 * server value untouched.
+	 */
 	readonly serverSize: number | undefined;
 }
 
@@ -201,13 +224,25 @@ export interface PlaceOutputs {
  * ```
  */
 export interface UniverseDesiredState {
-	/** Fixed singleton key (`"main"`); bedrock synthesizes it in `flattenConfig`. */
+	/**
+	 * Fixed singleton key (`"main"`); bedrock synthesizes it in
+	 * `flattenConfig`.
+	 */
 	readonly key: ResourceKey;
-	/** Whether console players can join; `undefined` leaves the server value untouched. */
+	/**
+	 * Whether console players can join; `undefined` leaves the server value
+	 * untouched.
+	 */
 	readonly consoleEnabled: boolean | undefined;
-	/** Whether desktop players can join; `undefined` leaves the server value untouched. */
+	/**
+	 * Whether desktop players can join; `undefined` leaves the server value
+	 * untouched.
+	 */
 	readonly desktopEnabled: boolean | undefined;
-	/** Discord social link; tri-state (absent/undefined/set) — see interface JSDoc. */
+	/**
+	 * Discord social link; tri-state (absent/undefined/set) — see interface
+	 * JSDoc.
+	 */
 	readonly discordSocialLink?: SocialLink | undefined;
 	/**
 	 * Display name for the universe. `undefined` leaves the server
@@ -216,13 +251,22 @@ export interface UniverseDesiredState {
 	 * `displayName` as read-only.
 	 */
 	readonly displayName: string | undefined;
-	/** Facebook social link; tri-state (absent/undefined/set) — see interface JSDoc. */
+	/**
+	 * Facebook social link; tri-state (absent/undefined/set) — see interface
+	 * JSDoc.
+	 */
 	readonly facebookSocialLink?: SocialLink | undefined;
-	/** Guilded social link; tri-state (absent/undefined/set) — see interface JSDoc. */
+	/**
+	 * Guilded social link; tri-state (absent/undefined/set) — see interface
+	 * JSDoc.
+	 */
 	readonly guildedSocialLink?: SocialLink | undefined;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
 	readonly kind: "universe";
-	/** Whether mobile players can join; `undefined` leaves the server value untouched. */
+	/**
+	 * Whether mobile players can join; `undefined` leaves the server value
+	 * untouched.
+	 */
 	readonly mobileEnabled: boolean | undefined;
 	/**
 	 * Private-server price in Robux. A present key with `undefined`
@@ -230,26 +274,48 @@ export interface UniverseDesiredState {
 	 * value untouched.
 	 */
 	readonly privateServerPriceRobux?: number | undefined;
-	/** Roblox Group social link; tri-state (absent/undefined/set) — see interface JSDoc. */
+	/**
+	 * Roblox Group social link; tri-state (absent/undefined/set) — see
+	 * interface JSDoc.
+	 */
 	readonly robloxGroupSocialLink?: SocialLink | undefined;
-	/** Whether tablet players can join; `undefined` leaves the server value untouched. */
+	/**
+	 * Whether tablet players can join; `undefined` leaves the server value
+	 * untouched.
+	 */
 	readonly tabletEnabled: boolean | undefined;
-	/** Twitch social link; tri-state (absent/undefined/set) — see interface JSDoc. */
+	/**
+	 * Twitch social link; tri-state (absent/undefined/set) — see interface
+	 * JSDoc.
+	 */
 	readonly twitchSocialLink?: SocialLink | undefined;
-	/** Twitter social link; tri-state (absent/undefined/set) — see interface JSDoc. */
+	/**
+	 * Twitter social link; tri-state (absent/undefined/set) — see interface
+	 * JSDoc.
+	 */
 	readonly twitterSocialLink?: SocialLink | undefined;
 	/** User-supplied Roblox universe ID; the universe must already exist. */
 	readonly universeId: RobloxAssetId;
-	/** Whether voice chat is enabled; `undefined` leaves the server value untouched. */
+	/**
+	 * Whether voice chat is enabled; `undefined` leaves the server value
+	 * untouched.
+	 */
 	readonly voiceChatEnabled: boolean | undefined;
-	/** Whether VR players can join; `undefined` leaves the server value untouched. */
+	/**
+	 * Whether VR players can join; `undefined` leaves the server value
+	 * untouched.
+	 */
 	readonly vrEnabled: boolean | undefined;
-	/** YouTube social link; tri-state (absent/undefined/set) — see interface JSDoc. */
+	/**
+	 * YouTube social link; tri-state (absent/undefined/set) — see interface
+	 * JSDoc.
+	 */
 	readonly youtubeSocialLink?: SocialLink | undefined;
 }
 
 /**
- * Ordered list of optional boolean managed fields on {@link UniverseDesiredState}.
+ * Ordered list of optional boolean managed fields on {@link
+ * UniverseDesiredState}.
  *
  * The driver translator and the diff's per-field equality guard both iterate
  * this list so they cannot drift apart. Order drives `updateMask` sequence in
@@ -317,7 +383,10 @@ export type SocialLinkField = (typeof SOCIAL_LINK_FIELDS)[number];
  * ```
  */
 export interface DeveloperProductDesiredState {
-	/** User-supplied key; stable across deploys; used to correlate desired with current. */
+	/**
+	 * User-supplied key; stable across deploys; used to correlate desired with
+	 * current.
+	 */
 	readonly key: ResourceKey;
 	/** User-facing developer product name as shown on the storefront. */
 	readonly name: string;
@@ -406,7 +475,10 @@ export interface GamePassOutputs {
  * @since 0.1.0
  */
 export interface DeveloperProductOutputs {
-	/** Roblox asset ID of the uploaded icon image; `undefined` when no icon is uploaded. */
+	/**
+	 * Roblox asset ID of the uploaded icon image; `undefined` when no icon is
+	 * uploaded.
+	 */
 	readonly iconImageAssetId?: RobloxAssetId | undefined;
 	/** Roblox-assigned developer product ID; stable across re-deploys. */
 	readonly productId: RobloxAssetId;
@@ -560,11 +632,17 @@ export type ResourceCurrentState<K extends ResourceKind = ResourceKind> = K exte
 export interface ResourceRealDisplay {
 	/** Real name for a redacted `gamePass` or `developerProduct`. */
 	readonly name?: string;
-	/** Real description for a redacted `gamePass`, `developerProduct`, or `place`. */
+	/**
+	 * Real description for a redacted `gamePass`, `developerProduct`, or
+	 * `place`.
+	 */
 	readonly description?: string;
 	/** Real display name for a redacted `place`. */
 	readonly displayName?: string;
-	/** Real Robux price for a redacted on-sale `gamePass` or `developerProduct`. */
+	/**
+	 * Real Robux price for a redacted on-sale `gamePass` or
+	 * `developerProduct`.
+	 */
 	readonly price?: number;
 }
 

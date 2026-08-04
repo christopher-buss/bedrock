@@ -28,10 +28,7 @@ const VUE_GLOBALS = {
 function flattenRules(
 	configs: ReadonlyArray<{ rules?: Record<string, unknown> }>,
 ): Record<string, unknown> {
-	return configs.reduce<Record<string, unknown>>(
-		(accumulator, config) => ({ ...accumulator, ...config.rules }),
-		{},
-	);
+	return Object.fromEntries(configs.flatMap((config) => Object.entries(config.rules ?? {})));
 }
 
 const VUE_RULES: Rules = {
@@ -145,6 +142,18 @@ export default isentinel(
 		test: {
 			vitest: {
 				extended: true,
+				overrides: {
+					"flawless/prefer-ending-with-an-expect": [
+						"error",
+						{
+							assertFunctionNames: [
+								"expectValid",
+								"expectInvalid",
+								"expectParseFailed",
+							],
+						},
+					],
+				},
 				typecheck: true,
 			},
 		},
@@ -181,6 +190,64 @@ export default isentinel(
 		rules: {
 			"better-max-params/better-max-params": ["error", { func: 2 }],
 			"unicorn/no-null": "error",
+		},
+	},
+	{
+		// These files declare async symbols that are reachable from a
+		// published barrel, so their names are the package's public API and
+		// cannot take the Async suffix. The rule reports at the declaration
+		// site, never on a re-export, so the exemption has to live here
+		// rather than on `src/index.ts`. Interface members are not reported
+		// at all, so the ports need no entry.
+		name: "project/public-api-async-names",
+		files: [
+			"packages/bedrock/src/adapters/developer-product-driver.ts",
+			"packages/bedrock/src/adapters/fs-codegen-writer.ts",
+			"packages/bedrock/src/adapters/game-pass-driver.ts",
+			"packages/bedrock/src/adapters/gist-state-adapter.ts",
+			"packages/bedrock/src/adapters/place-driver.ts",
+			"packages/bedrock/src/adapters/universe-driver.ts",
+			"packages/bedrock/src/cli/dispatch-override.ts",
+			"packages/bedrock/src/shell/apply-ops.ts",
+			"packages/bedrock/src/shell/build-desired.ts",
+			"packages/bedrock/src/shell/deploy.ts",
+			"packages/bedrock/src/shell/migrate-mantle-state.ts",
+			"packages/open-cloud/src/resources/*/client.ts",
+			"packages/open-cloud/src/resources/storage/*-group.ts",
+			"packages/open-cloud/tests/helpers/**/*.ts",
+		],
+		rules: {
+			"small-rules/require-async-suffix": "off",
+		},
+	},
+	{
+		// Code fences in prose illustrate the published surface, so suffixing
+		// their async names would put the docs at odds with the real API, and
+		// they show a whole flow end-to-end rather than production-shaped
+		// functions, so the length cap does not apply.
+		name: "project/docs-snippets",
+		files: [`docs/**/*.md/**/${GLOB_SRC}`],
+		rules: {
+			"flawless/max-lines-per-function": "off",
+			"small-rules/require-async-suffix": "off",
+		},
+	},
+	{
+		// Async member names dictated by a contract this code implements
+		// rather than owns: driven-port fakes (`ResourceDriver.create`,
+		// `StatePort.read`/`write`, `CodegenWriterPort.write`), the
+		// `HttpClient.request` transport, and rolldown plugin hooks.
+		name: "project/contract-async-names",
+		files: [
+			"apps/e2e/tests/smoke/*.spec.ts",
+			"apps/website/.vitepress/plugins/*.ts",
+			"packages/bedrock/src/cli/**/*.spec.ts",
+			"packages/bedrock/src/shell/*.spec.ts",
+			"packages/bedrock/tests/integration/*.spec.ts",
+			"packages/open-cloud/src/internal/http/fetch-client.ts",
+		],
+		rules: {
+			"small-rules/require-async-suffix": "off",
 		},
 	},
 	{

@@ -90,9 +90,8 @@ describe("cli deploy override discovery end-to-end", () => {
 		// names like CHRIST~1 can expand to their long form), so compare
 		// canonical forms of both sides rather than raw strings.
 		const probe = readProbe();
-		const args = probe.args.map((entry, index) =>
-			index === 0 ? realpathSync.native(entry) : entry,
-		);
+		const [scriptPath = "", ...rest] = probe.args;
+		const args = [realpathSync.native(scriptPath), ...rest];
 
 		expect({ ...probe, args }).toStrictEqual({
 			args: [realpathSync.native(project.overridePath), "--env", "production"],

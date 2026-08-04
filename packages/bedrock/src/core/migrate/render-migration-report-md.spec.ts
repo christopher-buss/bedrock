@@ -2,18 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { MigrationReportFile, MigrationWarning } from "./migration-report.ts";
 import { renderMigrationReportMarkdown } from "./render-migration-report-md.ts";
+import { summarizeWarnings } from "./summarize-warnings.ts";
 
 function fileWith(warnings: ReadonlyArray<MigrationWarning>): MigrationReportFile {
 	return {
-		summary: warnings.reduce(
-			(accumulator, warning) => {
-				return {
-					...accumulator,
-					[`${warning.kind}Count`]: accumulator[`${warning.kind}Count`] + 1,
-				};
-			},
-			{ ambiguousCount: 0, blockedCount: 0, deferredCount: 0, interpretiveCount: 0 },
-		),
+		summary: summarizeWarnings(warnings),
 		warnings,
 	};
 }
@@ -68,7 +61,7 @@ describe(renderMigrationReportMarkdown, () => {
 			]),
 		);
 
-		const headings = md.match(/^### missing icon$/gm) ?? [];
+		const headings = [...md.matchAll(/^### missing icon$/gmu)];
 
 		expect(headings).toHaveLength(1);
 		expect(md).toContain("- pass_x (development, production, staging)");
@@ -228,7 +221,7 @@ describe(renderMigrationReportMarkdown, () => {
 		);
 
 		// Bullet should appear exactly once.
-		const bullets = md.match(/^- experienceConfiguration_singleton/gm) ?? [];
+		const bullets = [...md.matchAll(/^- experienceConfiguration_singleton/gmu)];
 
 		expect(bullets).toHaveLength(1);
 	});

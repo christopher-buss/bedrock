@@ -12,7 +12,10 @@ const IDENTIFIER_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 export interface SerializeConfigOptions {
 	/** Validated bedrock config to render. */
 	readonly config: Config;
-	/** Output format. TypeScript emits `defineConfig({...})`; YAML emits a `bedrock.config.yaml` body. */
+	/**
+	 * Output format. TypeScript emits `defineConfig({...})`; YAML emits a
+	 * `bedrock.config.yaml` body.
+	 */
 	readonly configFormat: "typescript" | "yaml";
 }
 

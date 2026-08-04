@@ -69,7 +69,7 @@ function comprehensiveInput(): EmitInput {
 	};
 }
 
-async function emitFile(input: EmitInput, path: string): Promise<string> {
+async function emitFileAsync(input: EmitInput, path: string): Promise<string> {
 	const files: ReadonlyArray<CodegenFile> = await createDefaultEmitter({
 		typeDeclarations: true,
 	})(input);
@@ -122,7 +122,7 @@ function consumerDiagnostics(declaration: string, consumer: string): ReadonlyArr
 	}
 }
 
-async function withTemporaryLuau<T>(
+async function withTemporaryLuauAsync<T>(
 	content: string,
 	run: (absolutePath: string) => Promise<T>,
 ): Promise<T> {
@@ -156,7 +156,7 @@ describe("default emitter golden fixtures", () => {
 		async () => {
 			expect.assertions(1);
 
-			const content = await emitFile(comprehensiveInput(), "resources.luau");
+			const content = await emitFileAsync(comprehensiveInput(), "resources.luau");
 
 			expect(content).toBe(committedFixture("resources.luau"));
 		},
@@ -167,7 +167,7 @@ describe("default emitter golden fixtures", () => {
 		async () => {
 			expect.assertions(1);
 
-			const content = await emitFile(comprehensiveInput(), "resources.d.ts");
+			const content = await emitFileAsync(comprehensiveInput(), "resources.d.ts");
 
 			expect(content).toBe(committedFixture("resources.d.ts"));
 		},
@@ -180,9 +180,9 @@ describe("default emitter Luau output validity", () => {
 		async () => {
 			expect.assertions(3);
 
-			const content = await emitFile(comprehensiveInput(), "resources.luau");
+			const content = await emitFileAsync(comprehensiveInput(), "resources.luau");
 
-			const result = await withTemporaryLuau(content, createLuteLuauEvaluator());
+			const result = await withTemporaryLuauAsync(content, createLuteLuauEvaluator());
 
 			assert(result.success);
 
@@ -208,7 +208,7 @@ describe("default emitter declaration validity", () => {
 	it("should type-check against a roblox-ts-style require consumer", async () => {
 		expect.assertions(1);
 
-		const declaration = await emitFile(comprehensiveInput(), "resources.d.ts");
+		const declaration = await emitFileAsync(comprehensiveInput(), "resources.d.ts");
 
 		const diagnostics = consumerDiagnostics(
 			declaration,
@@ -230,7 +230,7 @@ describe("default emitter declaration validity", () => {
 	it("should give a consumer real types that reject reading an asset ID as a string", async () => {
 		expect.assertions(1);
 
-		const declaration = await emitFile(comprehensiveInput(), "resources.d.ts");
+		const declaration = await emitFileAsync(comprehensiveInput(), "resources.d.ts");
 
 		const diagnostics = consumerDiagnostics(
 			declaration,

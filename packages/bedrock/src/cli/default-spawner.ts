@@ -74,10 +74,12 @@ export function classifySpawnClose(
  * ```
  */
 export function createDefaultSpawner(): Spawner {
-	return { spawn: spawnViaChildProcess };
+	return { spawn: spawnViaChildProcessAsync };
 }
 
-async function spawnViaChildProcess(invocation: SpawnInvocation): ReturnType<Spawner["spawn"]> {
+async function spawnViaChildProcessAsync(
+	invocation: SpawnInvocation,
+): ReturnType<Spawner["spawn"]> {
 	return new Promise((resolve) => {
 		const child = spawn(invocation.command, [...invocation.args], {
 			env: { ...process.env, ...invocation.envOverrides },

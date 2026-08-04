@@ -36,36 +36,30 @@ describe(buildUpdateRequest, () => {
 
 	it.for<
 		[
-			name: string | undefined,
-			description: string | undefined,
-			expected: Record<string, string>,
+			caseName: string,
+			fields: Partial<Pick<UpdateBadgeNameDescriptionParameters, "description" | "name">>,
 		]
 	>([
 		[
-			"First Goal",
-			"Awarded on first login.",
+			"both name and description",
 			{ name: "First Goal", description: "Awarded on first login." },
 		],
-		["First Goal", undefined, { name: "First Goal" }],
-		[undefined, "Awarded on first login.", { description: "Awarded on first login." }],
-		[undefined, undefined, {}],
-	])(
-		"should include name=%j description=%j in the JSON body",
-		([name, description, expected]) => {
-			expect.assertions(1);
+		["only a name", { name: "First Goal" }],
+		["only a description", { description: "Awarded on first login." }],
+		["neither field", {}],
+	])("should include %s in the JSON body", ([, fields]) => {
+		expect.assertions(1);
 
-			const parameters = {
-				badgeId: "12345",
-				languageCode: "en_us",
-				...(name === undefined ? {} : { name }),
-				...(description === undefined ? {} : { description }),
-			} satisfies UpdateBadgeNameDescriptionParameters;
+		const parameters = {
+			badgeId: "12345",
+			languageCode: "en_us",
+			...fields,
+		} satisfies UpdateBadgeNameDescriptionParameters;
 
-			const request = buildUpdateRequest(parameters);
+		const request = buildUpdateRequest(parameters);
 
-			expect(request.body).toStrictEqual(expected);
-		},
-	);
+		expect(request.body).toStrictEqual(fields);
+	});
 
 	it("should produce a JSON-shaped body, not FormData", () => {
 		expect.assertions(2);

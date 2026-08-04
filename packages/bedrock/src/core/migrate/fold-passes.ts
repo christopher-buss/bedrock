@@ -23,11 +23,17 @@ export interface PassFoldEntry {
 	readonly key: ResourceKey;
 	/** Bedrock `Config.passes[<k>]` block populated from the pass resource. */
 	readonly entry: GamePassEntry;
-	/** Locale-keyed Mantle-recorded icon hashes; retained as a fallback for hash recomputation. */
+	/**
+	 * Locale-keyed Mantle-recorded icon hashes; retained as a fallback for
+	 * hash recomputation.
+	 */
 	readonly mantleIconFileHashes: Record<"en-us", Sha256Hex>;
 	/** Resource-rooted Mantle path (`pass_<k>`) used to anchor warnings. */
 	readonly mantlePath: string;
-	/** Roblox-assigned identifiers carried into `BedrockState.resources[*].outputs`. */
+	/**
+	 * Roblox-assigned identifiers carried into
+	 * `BedrockState.resources[*].outputs`.
+	 */
 	readonly outputs: GamePassOutputs;
 }
 

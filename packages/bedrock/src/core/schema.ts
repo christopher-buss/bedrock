@@ -41,9 +41,14 @@ import { collectUniverseIdIssues } from "./validate-universe-xor.ts";
 export interface RedactedGamePassOverride {
 	/** Override name; falls through to the bedrock default when omitted. */
 	name?: string | undefined;
-	/** Override description; falls through to the bedrock default when omitted. */
+	/**
+	 * Override description; falls through to the bedrock default when omitted.
+	 */
 	description?: string | undefined;
-	/** Override icon path; falls through to the embedded placeholder when omitted. */
+	/**
+	 * Override icon path; falls through to the embedded placeholder when
+	 * omitted.
+	 */
 	icon?: Record<"en-us", string> | undefined;
 	/**
 	 * Override Robux price; falls through to the bedrock default (`99999`) when
@@ -82,9 +87,14 @@ export interface RedactedGamePassOverride {
  * ```
  */
 export interface RedactedPlaceOverride {
-	/** Override description; falls through to the bedrock default when omitted. */
+	/**
+	 * Override description; falls through to the bedrock default when omitted.
+	 */
 	description?: string | undefined;
-	/** Override display name; preserves the real entry value when omitted (no default). */
+	/**
+	 * Override display name; preserves the real entry value when omitted (no
+	 * default).
+	 */
 	displayName?: string | undefined;
 }
 
@@ -126,15 +136,30 @@ export interface RedactedPlaceOverride {
  * ```
  */
 export interface RedactedEnvironmentOverride {
-	/** Override name applied to every passes and products entry the env redacts. */
+	/**
+	 * Override name applied to every passes and products entry the env
+	 * redacts.
+	 */
 	name?: string | undefined;
-	/** Override description applied to every passes, products, and places entry the env redacts. */
+	/**
+	 * Override description applied to every passes, products, and places entry
+	 * the env redacts.
+	 */
 	description?: string | undefined;
-	/** Override display name applied only to places (and universes, when their redaction lands). */
+	/**
+	 * Override display name applied only to places (and universes, when their
+	 * redaction lands).
+	 */
 	displayName?: string | undefined;
-	/** Override icon path applied to every passes and products entry the env redacts. */
+	/**
+	 * Override icon path applied to every passes and products entry the env
+	 * redacts.
+	 */
 	icon?: Record<"en-us", string> | undefined;
-	/** Override Robux price applied to every on-sale passes and products entry the env redacts. */
+	/**
+	 * Override Robux price applied to every on-sale passes and products entry
+	 * the env redacts.
+	 */
 	price?: number | undefined;
 }
 
@@ -206,9 +231,14 @@ export interface GamePassEntry {
 export interface RedactedDeveloperProductOverride {
 	/** Override name; falls through to the bedrock default when omitted. */
 	name?: string | undefined;
-	/** Override description; falls through to the bedrock default when omitted. */
+	/**
+	 * Override description; falls through to the bedrock default when omitted.
+	 */
 	description?: string | undefined;
-	/** Override icon path; falls through to the embedded placeholder when omitted. */
+	/**
+	 * Override icon path; falls through to the embedded placeholder when
+	 * omitted.
+	 */
 	icon?: Record<"en-us", string> | undefined;
 	/**
 	 * Override Robux price; falls through to the bedrock default (`99999`) when
@@ -282,7 +312,10 @@ export interface PlaceEntry {
 	description?: string | undefined;
 	/** User-facing place name shown on the Roblox storefront. */
 	displayName?: string | undefined;
-	/** Path to the `.rbxl` or `.rbxlx` file; handed to `readFile` verbatim by `buildDesired`. */
+	/**
+	 * Path to the `.rbxl` or `.rbxlx` file; handed to `readFile` verbatim by
+	 * `buildDesired`.
+	 */
 	filePath: string;
 	/**
 	 * Set to `true` to deploy this place with bedrock-supplied placeholder
@@ -319,7 +352,10 @@ export interface ResolvedPlaceEntry {
 	description?: string | undefined;
 	/** User-facing place name shown on the Roblox storefront. */
 	displayName?: string | undefined;
-	/** Path to the `.rbxl` or `.rbxlx` file; handed to `readFile` verbatim by `buildDesired`. */
+	/**
+	 * Path to the `.rbxl` or `.rbxlx` file; handed to `readFile` verbatim by
+	 * `buildDesired`.
+	 */
 	filePath: string;
 	/** Existing Roblox place ID. */
 	placeId: string;
@@ -351,9 +387,15 @@ export interface ResolvedPlaceEntry {
  * @since 0.1.0
  */
 export interface UniverseEntry {
-	/** Whether console players can join; omit or set `undefined` to leave unmanaged. */
+	/**
+	 * Whether console players can join; omit or set `undefined` to leave
+	 * unmanaged.
+	 */
 	consoleEnabled?: boolean | undefined;
-	/** Whether desktop players can join; omit or set `undefined` to leave unmanaged. */
+	/**
+	 * Whether desktop players can join; omit or set `undefined` to leave
+	 * unmanaged.
+	 */
 	desktopEnabled?: boolean | undefined;
 	/**
 	 * Discord social link; omit to leave the server value untouched, set to
@@ -376,7 +418,10 @@ export interface UniverseEntry {
 	 * `undefined` to clear it, or set to a `SocialLink` to update it.
 	 */
 	guildedSocialLink?: SocialLink | undefined;
-	/** Whether mobile players can join; omit or set `undefined` to leave unmanaged. */
+	/**
+	 * Whether mobile players can join; omit or set `undefined` to leave
+	 * unmanaged.
+	 */
 	mobileEnabled?: boolean | undefined;
 	/**
 	 * Private-server price in Robux. Declare as `undefined` to disable
@@ -389,7 +434,10 @@ export interface UniverseEntry {
 	 * to `undefined` to clear it, or set to a `SocialLink` to update it.
 	 */
 	robloxGroupSocialLink?: SocialLink | undefined;
-	/** Whether tablet players can join; omit or set `undefined` to leave unmanaged. */
+	/**
+	 * Whether tablet players can join; omit or set `undefined` to leave
+	 * unmanaged.
+	 */
 	tabletEnabled?: boolean | undefined;
 	/**
 	 * Twitch social link; omit to leave the server value untouched, set to
@@ -408,9 +456,14 @@ export interface UniverseEntry {
 	 * universes), but never both.
 	 */
 	universeId?: string | undefined;
-	/** Whether voice chat is enabled; omit or set `undefined` to leave unmanaged. */
+	/**
+	 * Whether voice chat is enabled; omit or set `undefined` to leave
+	 * unmanaged.
+	 */
 	voiceChatEnabled?: boolean | undefined;
-	/** Whether VR players can join; omit or set `undefined` to leave unmanaged. */
+	/**
+	 * Whether VR players can join; omit or set `undefined` to leave unmanaged.
+	 */
 	vrEnabled?: boolean | undefined;
 	/**
 	 * YouTube social link; omit to leave the server value untouched, set to
@@ -474,9 +527,9 @@ export interface EnvironmentEntry {
 	 * fields fall through to the matching root `passes` entry at merge time.
 	 *
 	 * Uses a partial `GamePassEntry` directly rather than `Overlay<T, K>`
-	 * because game passes have no user-supplied identity key (Open Cloud
-	 * mints the asset ID). The `redacted` field accepts the same shape it
-	 * does at the root entry: a boolean toggle or a {@link RedactedGamePassOverride}
+	 * because game passes have no user-supplied identity key (Open Cloud mints
+	 * the asset ID). The `redacted` field accepts the same shape it does at the
+	 * root entry: a boolean toggle or a {@link RedactedGamePassOverride}
 	 * carrying per-field overrides for this resource in this environment.
 	 */
 	passes?: Record<string, Partial<GamePassEntry>>;
@@ -776,7 +829,10 @@ export interface ResolvedUniverseEntry extends Pick<
 	UniverseEntry,
 	Exclude<keyof UniverseEntry, "universeId">
 > {
-	/** Existing Roblox universe ID, resolved from the root or per-environment overlay. */
+	/**
+	 * Existing Roblox universe ID, resolved from the root or per-environment
+	 * overlay.
+	 */
 	universeId: string;
 }
 
@@ -821,7 +877,10 @@ export interface ResolvedConfig extends Pick<ConfigBase, Exclude<keyof ConfigBas
 	 * other environments after resolving the requested one.
 	 */
 	environments: Record<string, EnvironmentEntry>;
-	/** Keyed-map collection of resolved place entries; both `filePath` and `placeId` are present. */
+	/**
+	 * Keyed-map collection of resolved place entries; both `filePath` and
+	 * `placeId` are present.
+	 */
 	places?: Record<string, ResolvedPlaceEntry>;
 	/**
 	 * Singleton universe block after `selectEnvironment` has resolved the
@@ -862,13 +921,20 @@ interface ConfigBase {
 	displayNamePrefix?: DisplayNamePrefixConfig;
 	/** Reserved at the root for c12's config layering / overlay work. */
 	extends?: unknown;
-	/** Keyed-map collection of game-pass entries by user-supplied ResourceKey. */
+	/**
+	 * Keyed-map collection of game-pass entries by user-supplied ResourceKey.
+	 */
 	passes?: Record<string, GamePassEntry>;
 	/** Keyed-map collection of place entries by user-supplied ResourceKey. */
 	places?: Record<string, PlaceEntry>;
-	/** Keyed-map collection of developer-product entries by user-supplied ResourceKey. */
+	/**
+	 * Keyed-map collection of developer-product entries by user-supplied
+	 * ResourceKey.
+	 */
 	products?: Record<string, DeveloperProductEntry>;
-	/** Where Bedrock persists state for this project; required at deploy time. */
+	/**
+	 * Where Bedrock persists state for this project; required at deploy time.
+	 */
 	state?: StateConfig;
 }
 
@@ -1247,11 +1313,15 @@ export function validateConfig(input: unknown, sourceFile: string): Result<Confi
 		};
 	}
 
-	// Precondition for the cast: the runtime narrow rejects every value
-	// that violates the universeId XOR rule, so a successful validation
-	// always lands in one arm of the discriminated `Config` union. The
-	// schema's inferred type is the structurally loose authored-shape
-	// (universeId optional in both root and per-env overlays); the cast
-	// collapses it to the strict union without loss of safety.
+	// The runtime narrow rejects every value violating the universeId XOR
+	// rule, so a successful validation always lands in one arm of the
+	// discriminated `Config` union. It cannot be constructed rather than
+	// asserted: `ConfigEnvironmentUniverseId` types the root `universeId` as
+	// a phantom error-brand (`… & { errorBrand: never }`) so authoring a
+	// config in TypeScript reports the XOR violation as a readable message.
+	// No runtime value can inhabit that brand, so no sound construction of
+	// that arm exists; the assertion is what bridges validated data to the
+	// authoring-time type.
+	// eslint-disable-next-line ts/no-unsafe-type-assertion -- target arm carries a compile-time-only error brand
 	return { data: validated as unknown as Config, success: true };
 }

@@ -15,10 +15,11 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it, onTestFinished } from "vitest";
 
-import { pruneStateGist } from "../helpers/prune-state-gist.ts";
-import { readStateUntil } from "../helpers/read-state-until.ts";
+import { assertOk } from "../helpers/assert-ok.ts";
+import { pruneStateGistAsync } from "../helpers/prune-state-gist.ts";
+import { readStateUntilAsync } from "../helpers/read-state-until.ts";
 
 const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "developer-product");
 
@@ -46,7 +47,7 @@ function unreachableDriver<K extends ResourceKind>(label: string): ResourceDrive
 	};
 }
 
-async function fixtureReadFile(path: string): Promise<Uint8Array> {
+async function fixtureReadFileAsync(path: string): Promise<Uint8Array> {
 	return readFile(join(FIXTURE_DIR, path));
 }
 
@@ -88,15 +89,12 @@ describe("developer-product update via real Roblox", () => {
 			const statePort = createGistStateAdapter({ gistId: GIST_ID, token: TOKEN });
 
 			const loaded = await loadConfig({ cwd: FIXTURE_DIR });
-			assert(
-				loaded.success,
-				`loadConfig failed: ${JSON.stringify(loaded.success ? null : loaded.err)}`,
-			);
+			assertOk(loaded, "loadConfig");
 			const baseConfig = loaded.data;
 
 			const developerProductDriver = createDeveloperProductDriver({
 				client: new DeveloperProductsClient({ apiKey: API_KEY }),
-				readFile: fixtureReadFile,
+				readFile: fixtureReadFileAsync,
 				universeId,
 			});
 
@@ -109,81 +107,69 @@ describe("developer-product update via real Roblox", () => {
 
 			const bootstrapConfig = withEnvironment(baseConfig, STABLE_ENVIRONMENT);
 
-			try {
-				// The bootstrap deploy reconciles the product against the
-				// fixture baseline, creating on the first run and reverting any
-				// drift from a prior update otherwise. The update deploy then
-				// mutates name and description with a per-run timestamp.
-				const bootstrap = await deploy({
-					config: bootstrapConfig,
-					environment: STABLE_ENVIRONMENT,
-					readFile: fixtureReadFile,
-					registry,
-					statePort,
-				});
-				assert(
-					bootstrap.success,
-					`bootstrap deploy failed: ${JSON.stringify(bootstrap.success ? null : bootstrap.err)}`,
-				);
-
-				const stamp = String(Date.now());
-				const updatedConfig = withMutatedProduct(bootstrapConfig, {
-					name: `Smoke Test Product ${stamp}`,
-					description: `smoke description ${stamp}`,
-				});
-				const updated = await deploy({
-					config: updatedConfig,
-					environment: STABLE_ENVIRONMENT,
-					readFile: fixtureReadFile,
-					registry,
-					statePort,
-				});
-				assert(
-					updated.success,
-					`update deploy failed: ${JSON.stringify(updated.success ? null : updated.err)}`,
-				);
-
-				// GitHub gist reads are not read-your-write across replicas, so
-				// the verification read can land on a replica still serving the
-				// bootstrap state; poll until the update propagates.
-				const persistedRead = await readStateUntil({
-					environment: STABLE_ENVIRONMENT,
-					predicate: (state) => {
-						return state.resources.some((entry) => {
-							return (
-								entry.kind === "developerProduct" &&
-								entry.name === `Smoke Test Product ${stamp}`
-							);
-						});
-					},
-					statePort,
-				});
-				assert(
-					persistedRead.success,
-					`state read failed: ${JSON.stringify(persistedRead.success ? null : persistedRead.err)}`,
-				);
-
-				const persisted = persistedRead.data;
-				assert(persisted !== undefined);
-
-				expect(persisted.environment).toBe(STABLE_ENVIRONMENT);
-				expect(persisted.resources).toHaveLength(1);
-
-				const resource = persisted.resources[0];
-				assert(resource !== undefined);
-				assert(resource.kind === "developerProduct");
-
-				expect(resource.name).toBe(`Smoke Test Product ${stamp}`);
-				expect(resource.description).toBe(`smoke description ${stamp}`);
-				expect(resource.outputs.productId).toBeString();
-			} finally {
-				await pruneStateGist({
+			onTestFinished(async () => {
+				await pruneStateGistAsync({
 					filenamePrefix: `state.${STABLE_ENVIRONMENT}-`,
 					gistId: GIST_ID,
 					keep: 0,
 					token: TOKEN,
 				});
-			}
+			});
+
+			// The bootstrap deploy reconciles the product against the
+			// fixture baseline, creating on the first run and reverting any
+			// drift from a prior update otherwise. The update deploy then
+			// mutates name and description with a per-run timestamp.
+			const bootstrap = await deploy({
+				config: bootstrapConfig,
+				environment: STABLE_ENVIRONMENT,
+				readFile: fixtureReadFileAsync,
+				registry,
+				statePort,
+			});
+			assertOk(bootstrap, "bootstrap deploy");
+
+			const stamp = String(Date.now());
+			const updatedConfig = withMutatedProduct(bootstrapConfig, {
+				name: `Smoke Test Product ${stamp}`,
+				description: `smoke description ${stamp}`,
+			});
+			const updated = await deploy({
+				config: updatedConfig,
+				environment: STABLE_ENVIRONMENT,
+				readFile: fixtureReadFileAsync,
+				registry,
+				statePort,
+			});
+			assertOk(updated, "update deploy");
+
+			// GitHub gist reads are not read-your-write across replicas, so
+			// the verification read can land on a replica still serving the
+			// bootstrap state; poll until the update propagates.
+			const persistedRead = await readStateUntilAsync({
+				environment: STABLE_ENVIRONMENT,
+				predicate: (state) => {
+					return state.resources
+						.filter((entry) => entry.kind === "developerProduct")
+						.some((entry) => entry.name === `Smoke Test Product ${stamp}`);
+				},
+				statePort,
+			});
+			assertOk(persistedRead, "state read");
+
+			const persisted = persistedRead.data;
+			assert(persisted !== undefined);
+
+			expect(persisted.environment).toBe(STABLE_ENVIRONMENT);
+			expect(persisted.resources).toHaveLength(1);
+
+			const resource = persisted.resources[0];
+			assert(resource !== undefined);
+			assert(resource.kind === "developerProduct");
+
+			expect(resource.name).toBe(`Smoke Test Product ${stamp}`);
+			expect(resource.description).toBe(`smoke description ${stamp}`);
+			expect(resource.outputs.productId).toBeString();
 		},
 		60_000,
 	);

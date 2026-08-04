@@ -2,9 +2,11 @@ import { boundDiagnostic } from "../core/bound-diagnostic.ts";
 import type { StateError } from "../core/state.ts";
 import { findTransportCode } from "../core/transport-code.ts";
 
-/** Inputs for {@link mapHttpError}. */
+/** Inputs for {@link mapHttpErrorAsync}. */
 export interface HttpFailure {
-	/** File label (`gist:<id>/state.<env>.json`) the failure is attributed to. */
+	/**
+	 * File label (`gist:<id>/state.<env>.json`) the failure is attributed to.
+	 */
 	readonly file: string;
 	/** Gist id, echoed into the not-found reason. */
 	readonly gistId: string;
@@ -22,7 +24,7 @@ export interface HttpFailure {
  * @param response - The non-ok `Response` whose body is read.
  * @returns The formatted suffix, or `""` when no body is available.
  */
-export async function errorBodyDetail(response: Response): Promise<string> {
+export async function errorBodyDetailAsync(response: Response): Promise<string> {
 	let text: string;
 	try {
 		text = await response.text();
@@ -47,7 +49,11 @@ export async function errorBodyDetail(response: Response): Promise<string> {
  * @param failure - The failing file label, gist id, and raw `Response`.
  * @returns The mapped `StateError`.
  */
-export async function mapHttpError({ file, gistId, response }: HttpFailure): Promise<StateError> {
+export async function mapHttpErrorAsync({
+	file,
+	gistId,
+	response,
+}: HttpFailure): Promise<StateError> {
 	const { headers, status } = response;
 	if (status === 404) {
 		return { file, kind: "stateError", reason: `gist ${gistId} not found: check gistId` };
@@ -61,14 +67,14 @@ export async function mapHttpError({ file, gistId, response }: HttpFailure): Pro
 		return {
 			file,
 			kind: "stateError",
-			reason: `auth failed (${status}): check token scopes${await errorBodyDetail(response)}`,
+			reason: `auth failed (${status}): check token scopes${await errorBodyDetailAsync(response)}`,
 		};
 	}
 
 	return {
 		file,
 		kind: "stateError",
-		reason: `github returned ${status}${await errorBodyDetail(response)}`,
+		reason: `github returned ${status}${await errorBodyDetailAsync(response)}`,
 	};
 }
 

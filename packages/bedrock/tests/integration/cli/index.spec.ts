@@ -1,14 +1,17 @@
-import { Buffer } from "node:buffer";
+import { fromAny } from "@total-typescript/shoehorn";
+
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { createProg } from "#src/cli/index";
+import type { CapturedStreams } from "#tests/helpers/streams";
+import { captureStreams } from "#tests/helpers/streams";
 
 const require = createRequire(import.meta.url);
-const manifest = require("../../../package.json") as { readonly version: string };
+const manifest: { readonly version: string } = fromAny(require("../../../package.json"));
 
 // Static import keeps the CLI module's evaluation out of any individual
 // test's per-test coverage map. A `vi.resetModules() + await import(...)`
@@ -30,49 +33,21 @@ const CLI_ENTRY = fileURLToPath(new URL("../../../src/cli/index.ts", import.meta
 	"",
 );
 
-interface CapturedStreams {
-	readonly stderr: ReadonlyArray<string>;
-	readonly stdout: ReadonlyArray<string>;
-}
-
-function startCapture(): () => CapturedStreams {
-	const stdout: Array<string> = [];
-	const stderr: Array<string> = [];
-
-	const stdoutSpy = vi
-		.spyOn(process.stdout, "write")
-		.mockImplementation((chunk: string | Uint8Array): boolean => {
-			stdout.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
-			return true;
-		});
-	const stderrSpy = vi
-		.spyOn(process.stderr, "write")
-		.mockImplementation((chunk: string | Uint8Array): boolean => {
-			stderr.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8"));
-			return true;
-		});
-	const logSpy = vi
-		.spyOn(console, "log")
-		.mockImplementation((...messages: ReadonlyArray<unknown>) => {
-			stdout.push(`${messages.map((message) => String(message)).join(" ")}\n`);
-		});
-	const errorSpy = vi
-		.spyOn(console, "error")
-		.mockImplementation((...messages: ReadonlyArray<unknown>) => {
-			stderr.push(`${messages.map((message) => String(message)).join(" ")}\n`);
-		});
+/**
+ * Capture stdout, stderr and the console for the current test, and fail it if
+ * the parsed command reaches `process.exit`.
+ *
+ * @returns The live capture buffers.
+ */
+function startCapture(): CapturedStreams {
+	const streams = captureStreams({ console: true });
 	const exitSpy = vi.spyOn(process, "exit").mockImplementation((code): never => {
 		throw new Error(`unexpected process.exit(${String(code)}) during captured run`);
 	});
-
-	return () => {
-		stdoutSpy.mockRestore();
-		stderrSpy.mockRestore();
-		logSpy.mockRestore();
-		errorSpy.mockRestore();
+	onTestFinished(() => {
 		exitSpy.mockRestore();
-		return { stderr, stdout };
-	};
+	});
+	return streams;
 }
 
 describe("cli program factory", () => {
@@ -102,16 +77,14 @@ describe("cli program factory", () => {
 
 		const prog = createProg();
 
-		const collect = startCapture();
-		try {
-			prog.parse(["node", "bedrock", "--version"]);
-		} finally {
-			const { stdout } = collect();
-			const captured = stdout.join("");
+		const { stdout } = startCapture();
 
-			expect(captured).toContain("bedrock,");
-			expect(captured).toContain(manifest.version);
-		}
+		prog.parse(["node", "bedrock", "--version"]);
+
+		const captured = stdout.join("");
+
+		expect(captured).toContain("bedrock,");
+		expect(captured).toContain(manifest.version);
 	});
 
 	it("should describe the program in --help output", () => {
@@ -119,16 +92,14 @@ describe("cli program factory", () => {
 
 		const prog = createProg();
 
-		const collect = startCapture();
-		try {
-			prog.parse(["node", "bedrock", "--help"]);
-		} finally {
-			const { stdout } = collect();
-			const captured = stdout.join("");
+		const { stdout } = startCapture();
 
-			expect(captured).toContain("bedrock");
-			expect(captured).toContain("Roblox");
-		}
+		prog.parse(["node", "bedrock", "--help"]);
+
+		const captured = stdout.join("");
+
+		expect(captured).toContain("bedrock");
+		expect(captured).toContain("Roblox");
 	});
 
 	it("should describe the deploy subcommand and each of its flags in 'deploy --help' output", () => {
@@ -136,19 +107,17 @@ describe("cli program factory", () => {
 
 		const prog = createProg();
 
-		const collect = startCapture();
-		try {
-			prog.parse(["node", "bedrock", "deploy", "--help"]);
-		} finally {
-			const { stdout } = collect();
-			const captured = stdout.join("");
+		const { stdout } = startCapture();
 
-			expect(captured).toContain("Reconcile");
-			expect(captured).toContain("Target environment");
-			expect(captured).toContain("Config file path");
-			expect(captured).toContain("BEDROCK_API_KEY");
-			expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
-		}
+		prog.parse(["node", "bedrock", "deploy", "--help"]);
+
+		const captured = stdout.join("");
+
+		expect(captured).toContain("Reconcile");
+		expect(captured).toContain("Target environment");
+		expect(captured).toContain("Config file path");
+		expect(captured).toContain("BEDROCK_API_KEY");
+		expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
 	});
 
 	it("should describe the build subcommand and each of its flags in 'build --help' output", () => {
@@ -156,19 +125,17 @@ describe("cli program factory", () => {
 
 		const prog = createProg();
 
-		const collect = startCapture();
-		try {
-			prog.parse(["node", "bedrock", "build", "--help"]);
-		} finally {
-			const { stdout } = collect();
-			const captured = stdout.join("");
+		const { stdout } = startCapture();
 
-			expect(captured).toContain(".bedrock/build.ts");
-			expect(captured).toContain("Target environment");
-			expect(captured).toContain("Config file path");
-			expect(captured).toContain("BEDROCK_API_KEY");
-			expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
-		}
+		prog.parse(["node", "bedrock", "build", "--help"]);
+
+		const captured = stdout.join("");
+
+		expect(captured).toContain(".bedrock/build.ts");
+		expect(captured).toContain("Target environment");
+		expect(captured).toContain("Config file path");
+		expect(captured).toContain("BEDROCK_API_KEY");
+		expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
 	});
 
 	it("should describe the diff subcommand and each of its flags in 'diff --help' output", () => {
@@ -176,19 +143,17 @@ describe("cli program factory", () => {
 
 		const prog = createProg();
 
-		const collect = startCapture();
-		try {
-			prog.parse(["node", "bedrock", "diff", "--help"]);
-		} finally {
-			const { stdout } = collect();
-			const captured = stdout.join("");
+		const { stdout } = startCapture();
 
-			expect(captured).toContain("Preview the operations");
-			expect(captured).toContain("Target environment");
-			expect(captured).toContain("Config file path");
-			expect(captured).toContain("BEDROCK_API_KEY");
-			expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
-		}
+		prog.parse(["node", "bedrock", "diff", "--help"]);
+
+		const captured = stdout.join("");
+
+		expect(captured).toContain("Preview the operations");
+		expect(captured).toContain("Target environment");
+		expect(captured).toContain("Config file path");
+		expect(captured).toContain("BEDROCK_API_KEY");
+		expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
 	});
 
 	it("should describe the provision subcommand and each of its flags in 'provision --help' output", () => {
@@ -196,19 +161,17 @@ describe("cli program factory", () => {
 
 		const prog = createProg();
 
-		const collect = startCapture();
-		try {
-			prog.parse(["node", "bedrock", "provision", "--help"]);
-		} finally {
-			const { stdout } = collect();
-			const captured = stdout.join("");
+		const { stdout } = startCapture();
 
-			expect(captured).toContain("Mint assets and run codegen");
-			expect(captured).toContain("Target environment");
-			expect(captured).toContain("Config file path");
-			expect(captured).toContain("BEDROCK_API_KEY");
-			expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
-		}
+		prog.parse(["node", "bedrock", "provision", "--help"]);
+
+		const captured = stdout.join("");
+
+		expect(captured).toContain("Mint assets and run codegen");
+		expect(captured).toContain("Target environment");
+		expect(captured).toContain("Config file path");
+		expect(captured).toContain("BEDROCK_API_KEY");
+		expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
 	});
 
 	it("should describe the publish subcommand and each of its flags in 'publish --help' output", () => {
@@ -216,19 +179,17 @@ describe("cli program factory", () => {
 
 		const prog = createProg();
 
-		const collect = startCapture();
-		try {
-			prog.parse(["node", "bedrock", "publish", "--help"]);
-		} finally {
-			const { stdout } = collect();
-			const captured = stdout.join("");
+		const { stdout } = startCapture();
 
-			expect(captured).toContain("Upload on-disk place artifacts");
-			expect(captured).toContain("Target environment");
-			expect(captured).toContain("Config file path");
-			expect(captured).toContain("BEDROCK_API_KEY");
-			expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
-		}
+		prog.parse(["node", "bedrock", "publish", "--help"]);
+
+		const captured = stdout.join("");
+
+		expect(captured).toContain("Upload on-disk place artifacts");
+		expect(captured).toContain("Target environment");
+		expect(captured).toContain("Config file path");
+		expect(captured).toContain("BEDROCK_API_KEY");
+		expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
 	});
 
 	it("should describe the migrate subcommand and its --from flag in 'migrate --help' output", () => {
@@ -236,16 +197,14 @@ describe("cli program factory", () => {
 
 		const prog = createProg();
 
-		const collect = startCapture();
-		try {
-			prog.parse(["node", "bedrock", "migrate", "--help"]);
-		} finally {
-			const { stdout } = collect();
-			const captured = stdout.join("");
+		const { stdout } = startCapture();
 
-			expect(captured).toContain("Translate a state file from another tool");
-			expect(captured).toContain("--from");
-			expect(captured).toContain("Source format to migrate from");
-		}
+		prog.parse(["node", "bedrock", "migrate", "--help"]);
+
+		const captured = stdout.join("");
+
+		expect(captured).toContain("Translate a state file from another tool");
+		expect(captured).toContain("--from");
+		expect(captured).toContain("Source format to migrate from");
 	});
 });

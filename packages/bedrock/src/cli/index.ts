@@ -11,7 +11,7 @@ import type {
 } from "../shell/deploy.ts";
 import type { loadConfig as defaultLoadConfig } from "../shell/load-config.ts";
 import type { migrateMantleState as defaultMigrateMantleState } from "../shell/migrate-mantle-state.ts";
-import type { previewDiff as defaultPreviewDiff } from "../shell/preview-diff.ts";
+import type { previewDiffAsync as defaultPreviewDiff } from "../shell/preview-diff.ts";
 import { buildCommand } from "./commands/build.ts";
 import { deployCommand } from "./commands/deploy.ts";
 import { diffCommand } from "./commands/diff.ts";
@@ -33,37 +33,75 @@ const PROGRAM_DESCRIBE = "Infrastructure-as-Code deployment tool for Roblox";
  * command actions resolve a real default when a slot is omitted.
  */
 export interface ProgDeps {
-	/** Builds a `StatePort` from a resolved state config; defaults to the public `buildStatePort`. */
+	/**
+	 * Builds a `StatePort` from a resolved state config; defaults to the
+	 * public `buildStatePort`.
+	 */
 	readonly buildStatePort?: typeof defaultBuildStatePort;
-	/** Output port; defaults to a real `@clack/prompts` adapter inside command actions. */
+	/**
+	 * Output port; defaults to a real `@clack/prompts` adapter inside command
+	 * actions.
+	 */
 	readonly clack?: ClackPort;
 	/** Reconciles config to upstream state; defaults to the public `deploy`. */
 	readonly deploy?: typeof defaultDeploy;
-	/** Discovers a `.bedrock/<command>.ts` override path; defaults to the real `discoverOverride`. */
+	/**
+	 * Discovers a `.bedrock/<command>.ts` override path; defaults to the real
+	 * `discoverOverride`.
+	 */
 	readonly discoverOverride?: typeof defaultDiscoverOverride;
-	/** Process exit handle; defaults to `process.exit` so tests can intercept termination. The production default never returns; test stubs are free to return void. */
+	/**
+	 * Process exit handle; defaults to `process.exit` so tests can intercept
+	 * termination. The production default never returns; test stubs are free to
+	 * return void.
+	 */
 	readonly exit?: (code: number) => void;
 	/** Project config loader; defaults to the public `loadConfig`. */
 	readonly loadConfig?: typeof defaultLoadConfig;
 	/** Mantle state migrator; defaults to the public `migrateMantleState`. */
 	readonly migrateMantleState?: typeof defaultMigrateMantleState;
-	/** Domain-specific prompt port for the migrate command; defaults to `createDefaultMigratePromptPort()`. */
+	/**
+	 * Domain-specific prompt port for the migrate command; defaults to
+	 * `createDefaultMigratePromptPort()`.
+	 */
 	readonly migratePromptPort?: MigratePromptPort;
-	/** Directory-create seam used by the migrate command for the local-dump backend; defaults to `node:fs/promises.mkdir` with `recursive: true`. */
+	/**
+	 * Directory-create seam used by the migrate command for the local-dump
+	 * backend; defaults to `node:fs/promises.mkdir` with `recursive: true`.
+	 */
 	readonly mkdir?: (path: string) => Promise<void>;
-	/** Read-only preview of operations; defaults to the internal `previewDiff` shell helper. */
+	/**
+	 * Read-only preview of operations; defaults to the internal `previewDiff`
+	 * shell helper.
+	 */
 	readonly previewDiff?: typeof defaultPreviewDiff;
-	/** Progress port that receives per-env deploy outcomes; defaults to the clack-backed adapter. */
+	/**
+	 * Progress port that receives per-env deploy outcomes; defaults to the
+	 * clack-backed adapter.
+	 */
 	readonly progress?: ProgressPort;
-	/** Project root passed to override discovery; defaults to `process.cwd()`. */
+	/**
+	 * Project root passed to override discovery; defaults to `process.cwd()`.
+	 */
 	readonly projectRoot?: string;
-	/** Runs the asset stage plus codegen; defaults to the public `provision`. */
+	/**
+	 * Runs the asset stage plus codegen; defaults to the public `provision`.
+	 */
 	readonly provision?: typeof defaultProvision;
-	/** Publishes on-disk artifacts for pending-rebuild places; defaults to the public `publish`. */
+	/**
+	 * Publishes on-disk artifacts for pending-rebuild places; defaults to the
+	 * public `publish`.
+	 */
 	readonly publish?: typeof defaultPublish;
-	/** Child-process spawner used to launch override scripts; defaults to `createDefaultSpawner()`. */
+	/**
+	 * Child-process spawner used to launch override scripts; defaults to
+	 * `createDefaultSpawner()`.
+	 */
 	readonly spawner?: Spawner;
-	/** File-write seam used by the migrate command to emit the bedrock config file; defaults to `node:fs/promises.writeFile`. */
+	/**
+	 * File-write seam used by the migrate command to emit the bedrock config
+	 * file; defaults to `node:fs/promises.writeFile`.
+	 */
 	readonly writeFile?: (path: string, contents: string) => Promise<void>;
 }
 

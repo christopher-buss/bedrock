@@ -492,7 +492,7 @@ describe(parseStateFile, () => {
 			resources: [],
 			version: 1,
 		});
-		expect(result.data?.pendingRebuild).toBeUndefined();
+		expect(result.data!.pendingRebuild).toBeUndefined();
 	});
 
 	it("should err when pendingRebuild is not a list of strings", () => {

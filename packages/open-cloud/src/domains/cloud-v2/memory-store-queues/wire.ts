@@ -15,7 +15,10 @@ export interface MemoryStoreQueueItemWire {
 	readonly data: Exclude<JSONValue, null>;
 	/** ISO 8601 timestamp at which the item is removed from the queue. */
 	readonly expireTime: string;
-	/** Resource path: `cloud/v2/universes/{u}/memory-store/queues/{q}/items/{i}`. */
+	/**
+	 * Resource path:
+	 * `cloud/v2/universes/{u}/memory-store/queues/{q}/items/{i}`.
+	 */
 	readonly path: string;
 	/** Optional priority; higher values are dequeued first. */
 	readonly priority?: number | undefined;

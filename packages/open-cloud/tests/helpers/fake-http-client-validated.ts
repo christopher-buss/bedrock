@@ -38,7 +38,10 @@ export interface FakeHttpClient extends LiteFakeHttpClient {
  * Options accepted by {@link createFakeHttpClient}.
  */
 export interface FakeHttpClientOptions {
-	/** How strictly to enforce the vendored OpenAPI spec. Defaults to `"strict"`. */
+	/**
+	 * How strictly to enforce the vendored OpenAPI spec. Defaults to
+	 * `"strict"`.
+	 */
 	readonly schemaValidation?: SchemaValidationMode;
 }
 
@@ -84,13 +87,17 @@ function recordViolations(state: ViolationState, violations: ReadonlyArray<Schem
 	state.violations.push(...violations);
 }
 
-async function validatingRequest(options: {
+async function validatingRequest({
+	config,
+	lite,
+	request,
+	state,
+}: {
 	readonly config: RequestConfig;
 	readonly lite: LiteFakeHttpClient;
 	readonly request: HttpRequest;
 	readonly state: ViolationState;
 }): Promise<Result<HttpResponse, OpenCloudError>> {
-	const { config, lite, request, state } = options;
 	if (state.mode === "off") {
 		return lite.request(request, config);
 	}

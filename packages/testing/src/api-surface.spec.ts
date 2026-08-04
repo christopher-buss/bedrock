@@ -185,7 +185,7 @@ describe(collectPublicApiSymbols, () => {
 
 		const symbols = collectPublicApiSymbols(BARREL, read);
 
-		expect(symbols[0]?.sinceTag).toBeUndefined();
+		expect(symbols[0]!.sinceTag).toBeUndefined();
 	});
 
 	it("should ignore imports and local exports in the barrel", () => {
@@ -251,7 +251,7 @@ describe(collectPublicApiSymbols, () => {
 
 		const symbols = collectPublicApiSymbols(BARREL, read);
 
-		expect(symbols[0]?.sinceTag).toBe("2.3.0");
+		expect(symbols[0]!.sinceTag).toBe("2.3.0");
 	});
 });
 

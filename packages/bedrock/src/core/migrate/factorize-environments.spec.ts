@@ -196,8 +196,8 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.universe?.universeId).toBe("6031475575");
-		expect(result.data.config.environments["development"]?.universe).toBeUndefined();
+		expect(result.data.config.universe!.universeId).toBe("6031475575");
+		expect(result.data.config.environments["development"]!.universe).toBeUndefined();
 	});
 
 	it("should omit universeId from the root universe block when universes diverge across environments", () => {
@@ -259,10 +259,10 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.universe).toStrictEqual({
+		expect(result.data.config.environments["development"]!.universe).toStrictEqual({
 			universeId: "1111111111",
 		});
-		expect(result.data.config.environments["production"]?.universe).toStrictEqual({
+		expect(result.data.config.environments["production"]!.universe).toStrictEqual({
 			universeId: "6031475575",
 		});
 	});
@@ -287,8 +287,8 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.universe?.universeId).toBe("6031475575");
-		expect(result.data.config.environments["production"]?.universe).toBeUndefined();
+		expect(result.data.config.universe!.universeId).toBe("6031475575");
+		expect(result.data.config.environments["production"]!.universe).toBeUndefined();
 	});
 
 	it("should preserve shared root universe fields while omitting universeId when universes diverge", () => {
@@ -319,8 +319,8 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.universe?.displayName).toBe("Shared Name");
-		expect(result.data.config.universe?.universeId).toBeUndefined();
+		expect(result.data.config.universe!.displayName).toBe("Shared Name");
+		expect(result.data.config.universe!.universeId).toBeUndefined();
 	});
 
 	it("should omit the universe overlay when the env's universe matches the primary's and every env shares the same universe", () => {
@@ -351,7 +351,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.universe).toBeUndefined();
+		expect(result.data.config.environments["development"]!.universe).toBeUndefined();
 	});
 
 	it("should seed the root config from the chosen primary's pass entries", () => {
@@ -367,7 +367,7 @@ describe(factorizeEnvironments, () => {
 		assert(result.success);
 
 		expect(result.data.config.passes).toBeDefined();
-		expect(result.data.config.passes?.["vip"]?.name).toBe("Example Pass");
+		expect(result.data.config.passes!["vip"]!.name).toBe("Example Pass");
 	});
 
 	it("should omit the root passes block when the primary environment has no pass folds", () => {
@@ -403,7 +403,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.passes).toStrictEqual({
+		expect(result.data.config.environments["development"]!.passes).toStrictEqual({
 			vip: { name: "Dev VIP" },
 		});
 	});
@@ -431,7 +431,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.passes).toStrictEqual({
+		expect(result.data.config.environments["development"]!.passes).toStrictEqual({
 			vip: { description: "Dev only." },
 		});
 	});
@@ -464,7 +464,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.passes).toStrictEqual({
+		expect(result.data.config.environments["development"]!.passes).toStrictEqual({
 			vip: { icon: { "en-us": "assets/dev-icon.png" } },
 		});
 	});
@@ -490,7 +490,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.passes).toStrictEqual({
+		expect(result.data.config.environments["development"]!.passes).toStrictEqual({
 			vip: { price: 10 },
 		});
 	});
@@ -513,7 +513,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.passes).toStrictEqual({
+		expect(result.data.config.environments["development"]!.passes).toStrictEqual({
 			"dev-only": developmentOnlyEntry,
 		});
 	});
@@ -535,7 +535,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		const overlay = result.data.config.environments["development"]?.passes?.["off-sale"];
+		const overlay = result.data.config.environments["development"]!.passes!["off-sale"];
 
 		expect(overlay).toStrictEqual(offSaleEntry);
 		expect(overlay).not.toContainKey("price");
@@ -564,7 +564,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.passes).toStrictEqual({
+		expect(result.data.config.environments["development"]!.passes).toStrictEqual({
 			vip: { name: "Dev VIP", price: 10 },
 		});
 	});
@@ -587,7 +587,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.passes).toBeUndefined();
+		expect(result.data.config.environments["development"]!.passes).toBeUndefined();
 	});
 
 	it("should seed the root places block from the primary's place folds", () => {
@@ -623,7 +623,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+		expect(result.data.config.environments["development"]!.places).toStrictEqual({
 			start: { placeId: "2222222222" },
 		});
 	});
@@ -663,7 +663,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+		expect(result.data.config.environments["development"]!.places).toStrictEqual({
 			start: { filePath: "place.rbxl", placeId: "2222222222" },
 		});
 	});
@@ -704,8 +704,8 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.places?.["start"]?.description).toBe("Shared place.");
-		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+		expect(result.data.config.places!["start"]!.description).toBe("Shared place.");
+		expect(result.data.config.environments["development"]!.places).toStrictEqual({
 			start: { placeId: "17613681043" },
 		});
 	});
@@ -746,11 +746,11 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.places?.["start"]?.description).toBeUndefined();
-		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+		expect(result.data.config.places!["start"]!.description).toBeUndefined();
+		expect(result.data.config.environments["development"]!.places).toStrictEqual({
 			start: { description: "Dev place.", placeId: "17613681043" },
 		});
-		expect(result.data.config.environments["production"]?.places).toStrictEqual({
+		expect(result.data.config.environments["production"]!.places).toStrictEqual({
 			start: { description: "Prod place.", placeId: "17613681043" },
 		});
 	});
@@ -784,11 +784,11 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.places?.["start"]?.description).toBeUndefined();
-		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+		expect(result.data.config.places!["start"]!.description).toBeUndefined();
+		expect(result.data.config.environments["development"]!.places).toStrictEqual({
 			start: { placeId: "17613681043" },
 		});
-		expect(result.data.config.environments["production"]?.places).toStrictEqual({
+		expect(result.data.config.environments["production"]!.places).toStrictEqual({
 			start: { description: "Prod place.", placeId: "17613681043" },
 		});
 	});
@@ -829,8 +829,8 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.places?.["start"]?.displayName).toBe("Shared Name");
-		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+		expect(result.data.config.places!["start"]!.displayName).toBe("Shared Name");
+		expect(result.data.config.environments["development"]!.places).toStrictEqual({
 			start: { placeId: "17613681043" },
 		});
 	});
@@ -871,11 +871,11 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.places?.["start"]?.displayName).toBeUndefined();
-		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+		expect(result.data.config.places!["start"]!.displayName).toBeUndefined();
+		expect(result.data.config.environments["development"]!.places).toStrictEqual({
 			start: { displayName: "Dev Name", placeId: "17613681043" },
 		});
-		expect(result.data.config.environments["production"]?.places).toStrictEqual({
+		expect(result.data.config.environments["production"]!.places).toStrictEqual({
 			start: { displayName: "Prod Name", placeId: "17613681043" },
 		});
 	});
@@ -909,11 +909,11 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.places?.["start"]?.displayName).toBeUndefined();
-		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+		expect(result.data.config.places!["start"]!.displayName).toBeUndefined();
+		expect(result.data.config.environments["development"]!.places).toStrictEqual({
 			start: { placeId: "17613681043" },
 		});
-		expect(result.data.config.environments["production"]?.places).toStrictEqual({
+		expect(result.data.config.environments["production"]!.places).toStrictEqual({
 			start: { displayName: "Prod Name", placeId: "17613681043" },
 		});
 	});
@@ -942,7 +942,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.places?.["start"]?.displayName).toBe("Solo Name");
+		expect(result.data.config.places!["start"]!.displayName).toBe("Solo Name");
 	});
 
 	it("should lift the unprefixed displayName to root and label the environment when every place in an env shares a bracketed prefix", () => {
@@ -984,10 +984,10 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.places?.["start"]?.displayName).toBe("Anime Rush Match");
-		expect(result.data.config.environments["development"]?.label).toBe("development");
-		expect(result.data.config.environments["production"]?.label).toBeUndefined();
-		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+		expect(result.data.config.places!["start"]!.displayName).toBe("Anime Rush Match");
+		expect(result.data.config.environments["development"]!.label).toBe("development");
+		expect(result.data.config.environments["production"]!.label).toBeUndefined();
+		expect(result.data.config.environments["development"]!.places).toStrictEqual({
 			start: { placeId: "17613681043" },
 		});
 	});
@@ -1034,9 +1034,9 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.label).toBeUndefined();
-		expect(result.data.config.places?.["game"]?.displayName).toBeUndefined();
-		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+		expect(result.data.config.environments["development"]!.label).toBeUndefined();
+		expect(result.data.config.places!["game"]!.displayName).toBeUndefined();
+		expect(result.data.config.environments["development"]!.places).toStrictEqual({
 			game: { displayName: "[DEV] Match", placeId: "17613681043" },
 			start: { placeId: "17613681043" },
 		});
@@ -1078,10 +1078,10 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.places?.["start"]?.displayName).toBe("Lobby");
-		expect(result.data.config.environments["development"]?.label).toBe("dev");
-		expect(result.data.config.environments["staging"]?.label).toBe("staging");
-		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+		expect(result.data.config.places!["start"]!.displayName).toBe("Lobby");
+		expect(result.data.config.environments["development"]!.label).toBe("dev");
+		expect(result.data.config.environments["staging"]!.label).toBe("staging");
+		expect(result.data.config.environments["development"]!.places).toStrictEqual({
 			start: { placeId: "17613681043" },
 		});
 	});
@@ -1122,12 +1122,12 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.places?.["start"]?.displayName).toBeUndefined();
-		expect(result.data.config.environments["development"]?.label).toBe("dev");
-		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+		expect(result.data.config.places!["start"]!.displayName).toBeUndefined();
+		expect(result.data.config.environments["development"]!.label).toBe("dev");
+		expect(result.data.config.environments["development"]!.places).toStrictEqual({
 			start: { displayName: "Lobby", placeId: "17613681043" },
 		});
-		expect(result.data.config.environments["staging"]?.places).toStrictEqual({
+		expect(result.data.config.environments["staging"]!.places).toStrictEqual({
 			start: { displayName: "Foyer", placeId: "17613681043" },
 		});
 	});
@@ -1157,8 +1157,8 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.universe?.displayName).toBe("[BETA] My Game");
-		expect(result.data.config.environments["production"]?.label).toBeUndefined();
+		expect(result.data.config.universe!.displayName).toBe("[BETA] My Game");
+		expect(result.data.config.environments["production"]!.label).toBeUndefined();
 	});
 
 	it("should strip the primary environment's display-name prefix from the root universe entry when the env has a label", () => {
@@ -1194,8 +1194,8 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.universe?.displayName).toBe("My Game");
-		expect(result.data.config.environments["development"]?.label).toBe("development");
+		expect(result.data.config.universe!.displayName).toBe("My Game");
+		expect(result.data.config.environments["development"]!.label).toBe("development");
 	});
 
 	it("should land serverSize on root and omit the place overlay when both environments share the same serverSize", () => {
@@ -1224,8 +1224,8 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.places?.["start"]?.serverSize).toBe(50);
-		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+		expect(result.data.config.places!["start"]!.serverSize).toBe(50);
+		expect(result.data.config.environments["development"]!.places).toStrictEqual({
 			start: { placeId: "17613681043" },
 		});
 	});
@@ -1256,11 +1256,11 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.places?.["start"]?.serverSize).toBeUndefined();
-		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+		expect(result.data.config.places!["start"]!.serverSize).toBeUndefined();
+		expect(result.data.config.environments["development"]!.places).toStrictEqual({
 			start: { placeId: "17613681043", serverSize: 25 },
 		});
-		expect(result.data.config.environments["production"]?.places).toStrictEqual({
+		expect(result.data.config.environments["production"]!.places).toStrictEqual({
 			start: { placeId: "17613681043", serverSize: 50 },
 		});
 	});
@@ -1289,11 +1289,11 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.places?.["start"]?.serverSize).toBeUndefined();
-		expect(result.data.config.environments["development"]?.places).toStrictEqual({
+		expect(result.data.config.places!["start"]!.serverSize).toBeUndefined();
+		expect(result.data.config.environments["development"]!.places).toStrictEqual({
 			start: { placeId: "17613681043" },
 		});
-		expect(result.data.config.environments["production"]?.places).toStrictEqual({
+		expect(result.data.config.environments["production"]!.places).toStrictEqual({
 			start: { placeId: "17613681043", serverSize: 50 },
 		});
 	});
@@ -1471,7 +1471,7 @@ describe(factorizeEnvironments, () => {
 		assert(result.success);
 
 		expect(result.data.config.products).toBeDefined();
-		expect(result.data.config.products?.["starter-pack"]?.name).toBe("Example Product");
+		expect(result.data.config.products!["starter-pack"]!.name).toBe("Example Product");
 	});
 
 	it("should hoist a product identical across all environments to the root only", () => {
@@ -1491,8 +1491,8 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.products?.["starter-pack"]).toStrictEqual(primaryEntry);
-		expect(result.data.config.environments["development"]?.products).toBeUndefined();
+		expect(result.data.config.products!["starter-pack"]).toStrictEqual(primaryEntry);
+		expect(result.data.config.environments["development"]!.products).toBeUndefined();
 	});
 
 	it("should emit a per-environment overlay carrying only the diverging fields", () => {
@@ -1517,7 +1517,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.products).toStrictEqual({
+		expect(result.data.config.environments["development"]!.products).toStrictEqual({
 			"starter-pack": { price: 50 },
 		});
 	});
@@ -1550,7 +1550,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.products).toStrictEqual({
+		expect(result.data.config.environments["development"]!.products).toStrictEqual({
 			"starter-pack": { icon: { "en-us": "assets/dev-product-icon.png" } },
 		});
 	});
@@ -1576,7 +1576,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.products).toStrictEqual({
+		expect(result.data.config.environments["development"]!.products).toStrictEqual({
 			"starter-pack": { icon: { "en-us": "assets/dev-product-icon.png" } },
 		});
 	});
@@ -1638,7 +1638,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.products).toBeUndefined();
+		expect(result.data.config.environments["development"]!.products).toBeUndefined();
 	});
 
 	it("should override only the divergent product name on a non-primary overlay", () => {
@@ -1665,7 +1665,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.products).toStrictEqual({
+		expect(result.data.config.environments["development"]!.products).toStrictEqual({
 			"starter-pack": { name: "Dev Pack" },
 		});
 	});
@@ -1697,7 +1697,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.products).toStrictEqual({
+		expect(result.data.config.environments["development"]!.products).toStrictEqual({
 			"starter-pack": { description: "Dev only." },
 		});
 	});
@@ -1730,7 +1730,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.products).toStrictEqual({
+		expect(result.data.config.environments["development"]!.products).toStrictEqual({
 			"starter-pack": { isRegionalPricingEnabled: true },
 		});
 	});
@@ -1763,7 +1763,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.products).toStrictEqual({
+		expect(result.data.config.environments["development"]!.products).toStrictEqual({
 			"starter-pack": { storePageEnabled: true },
 		});
 	});
@@ -1788,7 +1788,7 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.environments["development"]?.products).toStrictEqual({
+		expect(result.data.config.environments["development"]!.products).toStrictEqual({
 			"dev-only": developmentOnlyEntry,
 		});
 	});
@@ -1820,11 +1820,11 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.products?.["starter-pack"]).toStrictEqual({
+		expect(result.data.config.products!["starter-pack"]).toStrictEqual({
 			name: "Example Product",
 			description: "This is an example product.",
 		});
-		expect(result.data.config.environments["production"]?.products).toStrictEqual({
+		expect(result.data.config.environments["production"]!.products).toStrictEqual({
 			"starter-pack": { price: 100 },
 		});
 	});
@@ -1865,10 +1865,10 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.products?.["starter-pack"]?.icon).toStrictEqual({
+		expect(result.data.config.products!["starter-pack"]!.icon).toStrictEqual({
 			"en-us": "assets/marketing/product-icon.png",
 		});
-		expect(result.data.config.environments["development"]?.products).toBeUndefined();
+		expect(result.data.config.environments["development"]!.products).toBeUndefined();
 	});
 
 	it("should hoist a shared isRegionalPricingEnabled flag to root when every environment agrees", () => {
@@ -1889,8 +1889,8 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.products?.["starter-pack"]?.isRegionalPricingEnabled).toBeTrue();
-		expect(result.data.config.environments["development"]?.products).toBeUndefined();
+		expect(result.data.config.products!["starter-pack"]!.isRegionalPricingEnabled).toBeTrue();
+		expect(result.data.config.environments["development"]!.products).toBeUndefined();
 	});
 
 	it("should hoist a shared storePageEnabled flag to root when every environment agrees", () => {
@@ -1911,8 +1911,8 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.products?.["starter-pack"]?.storePageEnabled).toBeFalse();
-		expect(result.data.config.environments["development"]?.products).toBeUndefined();
+		expect(result.data.config.products!["starter-pack"]!.storePageEnabled).toBeFalse();
+		expect(result.data.config.environments["development"]!.products).toBeUndefined();
 	});
 
 	it("should compute consensus per product key when an environment has multiple products", () => {
@@ -1953,8 +1953,8 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.products?.["alpha"]?.price).toBe(10);
-		expect(result.data.config.products?.["beta"]?.price).toBe(200);
+		expect(result.data.config.products!["alpha"]!.price).toBe(10);
+		expect(result.data.config.products!["beta"]!.price).toBe(200);
 	});
 
 	it("should keep a divergent icon off root so a non-primary env without one does not inherit it", () => {
@@ -1986,8 +1986,8 @@ describe(factorizeEnvironments, () => {
 
 		assert(result.success);
 
-		expect(result.data.config.products?.["starter-pack"]?.icon).toBeUndefined();
-		expect(result.data.config.environments["production"]?.products).toStrictEqual({
+		expect(result.data.config.products!["starter-pack"]!.icon).toBeUndefined();
+		expect(result.data.config.environments["production"]!.products).toStrictEqual({
 			"starter-pack": { icon: { "en-us": "assets/marketing/product-icon.png" } },
 		});
 	});

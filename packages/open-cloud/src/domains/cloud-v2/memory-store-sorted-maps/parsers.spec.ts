@@ -84,8 +84,8 @@ describe(parseListResponse, () => {
 		assert(result.success);
 
 		expect(result.data.items).toHaveLength(2);
-		expect(result.data.items[0]?.id).toBe("first");
-		expect(result.data.items[1]?.sortKey).toStrictEqual({ kind: "numeric", value: 7 });
+		expect(result.data.items[0]!.id).toBe("first");
+		expect(result.data.items[1]!.sortKey).toStrictEqual({ kind: "numeric", value: 7 });
 	});
 
 	it("should accept an empty items array", () => {
@@ -496,8 +496,9 @@ describe(parseSortedMapItemResponse, () => {
 			const body = {
 				...validSortedMapItemBody(),
 				path: {
-					toString: (): string =>
-						"cloud/v2/universes/1/memory-store/sorted-maps/m/items/i",
+					toString: (): string => {
+						return "cloud/v2/universes/1/memory-store/sorted-maps/m/items/i";
+					},
 				},
 			};
 			const result = parseSortedMapItemResponse({ body, headers: {}, status: 200 });

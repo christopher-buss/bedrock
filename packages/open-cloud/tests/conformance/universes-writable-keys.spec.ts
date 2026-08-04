@@ -48,6 +48,7 @@ describe("updateUniverseParameters writable-keys pin", () => {
 		"should expose %s as a non-readOnly property on the Universe schema",
 		(key) => {
 			expect.assertions(1);
+
 			expect(listWritablePropertyNames("Universe")).toContain(key);
 		},
 	);

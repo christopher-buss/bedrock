@@ -133,8 +133,8 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.universe?.voiceChatEnabled).toBeFalse();
-		expect(result.data.universe?.desktopEnabled).toBeTrue();
+		expect(result.data.universe!.voiceChatEnabled).toBeFalse();
+		expect(result.data.universe!.desktopEnabled).toBeTrue();
 	});
 
 	it("should overlay places onto matching root entries by key while preserving root fields", () => {
@@ -154,8 +154,8 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.places?.["start-place"]?.placeId).toBe("5555");
-		expect(result.data.places?.["start-place"]?.filePath).toBe("places/start.rbxl");
+		expect(result.data.places!["start-place"]!.placeId).toBe("5555");
+		expect(result.data.places!["start-place"]!.filePath).toBe("places/start.rbxl");
 	});
 
 	it("should preserve every root place that the overlay declares alongside the one it touches", () => {
@@ -181,9 +181,9 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.places?.["start-place"]?.placeId).toBe("5555");
-		expect(result.data.places?.["lobby"]?.placeId).toBe("2222");
-		expect(result.data.places?.["lobby"]?.filePath).toBe("places/lobby.rbxl");
+		expect(result.data.places!["start-place"]!.placeId).toBe("5555");
+		expect(result.data.places!["lobby"]!.placeId).toBe("2222");
+		expect(result.data.places!["lobby"]!.filePath).toBe("places/lobby.rbxl");
 	});
 
 	it("should overlay partial pass fields onto matching root entries by key", () => {
@@ -201,8 +201,8 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.passes?.["vip-pass"]?.price).toBe(250);
-		expect(result.data.passes?.["vip-pass"]?.name).toBe("VIP Pass");
+		expect(result.data.passes!["vip-pass"]!.price).toBe(250);
+		expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass");
 	});
 
 	it("should overlay partial product fields onto matching root entries by key", () => {
@@ -220,8 +220,8 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.products?.["gem-pack"]?.price).toBe(250);
-		expect(result.data.products?.["gem-pack"]?.name).toBe("Gem Pack");
+		expect(result.data.products!["gem-pack"]!.price).toBe(250);
+		expect(result.data.products!["gem-pack"]!.name).toBe("Gem Pack");
 	});
 
 	it("should pass a brand-new overlay-only product entry through the projection", () => {
@@ -242,8 +242,8 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.products?.["new-pack"]?.name).toBe("New Pack");
-		expect(result.data.products?.["new-pack"]?.description).toBe("Fresh.");
+		expect(result.data.products!["new-pack"]!.name).toBe("New Pack");
+		expect(result.data.products!["new-pack"]!.description).toBe("Fresh.");
 	});
 
 	it("should leave root products intact when the env entry has no products overlay", () => {
@@ -280,8 +280,8 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.places?.["debug-place"]?.placeId).toBe("9999");
-		expect(result.data.places?.["debug-place"]?.filePath).toBe("places/debug.rbxl");
+		expect(result.data.places!["debug-place"]!.placeId).toBe("9999");
+		expect(result.data.places!["debug-place"]!.filePath).toBe("places/debug.rbxl");
 	});
 
 	it("should return Err(incompletePlaceEntry) for an overlay-only place that omits filePath", () => {
@@ -319,7 +319,7 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.universe?.universeId).toBe("9999999999");
+		expect(result.data.universe!.universeId).toBe("9999999999");
 	});
 
 	it("should return root resources unchanged when the env entry has no overlays", () => {
@@ -403,8 +403,8 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.places?.["start-place"]?.placeId).toBe("1111");
-		expect(result.data.places?.["start-place"]?.filePath).toBe("places/start.rbxl");
+		expect(result.data.places!["start-place"]!.placeId).toBe("1111");
+		expect(result.data.places!["start-place"]!.filePath).toBe("places/start.rbxl");
 	});
 
 	it("should return Err(incompleteUniverseEntry) when neither root nor env overlay supplies universeId", () => {
@@ -438,7 +438,7 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.universe?.displayName).toBe("[STAGING] Anime Rush");
+		expect(result.data.universe!.displayName).toBe("[STAGING] Anime Rush");
 	});
 
 	it("should prefix universe.displayName with the project-supplied custom format", () => {
@@ -455,7 +455,7 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.universe?.displayName).toBe("Production - Anime Rush");
+		expect(result.data.universe!.displayName).toBe("Production - Anime Rush");
 	});
 
 	it("should not prefix universe.displayName when the project disables displayNamePrefix", () => {
@@ -472,7 +472,7 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.universe?.displayName).toBe("Anime Rush");
+		expect(result.data.universe!.displayName).toBe("Anime Rush");
 	});
 
 	it("should not prefix universe.displayName when the environment has no label", () => {
@@ -488,7 +488,7 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.universe?.displayName).toBe("Anime Rush");
+		expect(result.data.universe!.displayName).toBe("Anime Rush");
 	});
 
 	it("should treat an empty-string label as opting out of prefixing", () => {
@@ -504,7 +504,7 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.universe?.displayName).toBe("Anime Rush");
+		expect(result.data.universe!.displayName).toBe("Anime Rush");
 	});
 
 	it("should leave the universe block untouched when displayName is not declared even with a label", () => {
@@ -520,8 +520,8 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.universe?.universeId).toBe("1234567890");
-		expect(result.data.universe?.displayName).toBeUndefined();
+		expect(result.data.universe!.universeId).toBe("1234567890");
+		expect(result.data.universe!.displayName).toBeUndefined();
 	});
 
 	it("should leave universe absent when no universe block exists, even with prefixing enabled and a label declared", () => {
@@ -560,8 +560,8 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.places?.["lobby"]?.displayName).toBe("[STAGING] Lobby");
-		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Start Place");
+		expect(result.data.places!["lobby"]!.displayName).toBe("[STAGING] Lobby");
+		expect(result.data.places!["start-place"]!.displayName).toBe("[STAGING] Start Place");
 	});
 
 	it("should apply the prefix to a displayName declared on the per-environment overlay rather than the root", () => {
@@ -584,7 +584,7 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Dev Lobby");
+		expect(result.data.places!["start-place"]!.displayName).toBe("[STAGING] Dev Lobby");
 	});
 
 	it("should leave a place's displayName untouched when that place declares no displayName", () => {
@@ -608,8 +608,8 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.places?.["lobby"]?.displayName).toBeUndefined();
-		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Start Place");
+		expect(result.data.places!["lobby"]!.displayName).toBeUndefined();
+		expect(result.data.places!["start-place"]!.displayName).toBe("[STAGING] Start Place");
 	});
 
 	it("should not prefix any place displayName when displayNamePrefix.enabled is false", () => {
@@ -633,7 +633,7 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.places?.["start-place"]?.displayName).toBe("Start Place");
+		expect(result.data.places!["start-place"]!.displayName).toBe("Start Place");
 	});
 
 	it("should not prefix place displayNames when the environment has no label", () => {
@@ -653,7 +653,7 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.places?.["start-place"]?.displayName).toBe("Start Place");
+		expect(result.data.places!["start-place"]!.displayName).toBe("Start Place");
 	});
 
 	it("should apply the project-supplied custom format to every declared place displayName", () => {
@@ -677,7 +677,7 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.places?.["start-place"]?.displayName).toBe("Production: Start Place");
+		expect(result.data.places!["start-place"]!.displayName).toBe("Production: Start Place");
 	});
 
 	it("should preserve environments and extends so the returned shape stays assignable to Config", () => {
@@ -710,7 +710,7 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.passes?.["vip-pass"]).toStrictEqual({
+		expect(result.data.passes!["vip-pass"]).toStrictEqual({
 			name: REDACTED_PASS_NAME,
 			description: REDACTED_DESCRIPTION,
 			icon: { "en-us": REDACTED_ICON_PATH },
@@ -734,7 +734,7 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.passes?.["vip-pass"]?.name).toBe(REDACTED_PASS_NAME);
+		expect(result.data.passes!["vip-pass"]!.name).toBe(REDACTED_PASS_NAME);
 	});
 
 	it("should push real values when an env-overlay flips redacted to false while the root says true", () => {
@@ -752,8 +752,8 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.passes?.["vip-pass"]?.name).toBe("VIP Pass");
-		expect(result.data.passes?.["vip-pass"]?.icon["en-us"]).toBe("assets/vip.png");
+		expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass");
+		expect(result.data.passes!["vip-pass"]!.icon["en-us"]).toBe("assets/vip.png");
 	});
 
 	it.for<
@@ -790,6 +790,57 @@ describe(selectEnvironment, () => {
 		},
 	);
 
+	it.for<
+		[
+			label: string,
+			overlay: NonNullable<EnvironmentEntry["products"]>[string],
+			missingField: "description" | "name",
+		]
+	>([
+		["name", { description: "x", redacted: true }, "name"],
+		["description", { name: "x", redacted: true }, "description"],
+	])(
+		"should return Err(incompleteProductEntry) when an overlay-only product omits %s before redaction can substitute placeholders",
+		([, overlay, missingField]) => {
+			expect.assertions(4);
+
+			const config: Config = {
+				environments: {
+					staging: { products: { "gem-pack": overlay } },
+				},
+				state: ROOT_STATE,
+			};
+
+			const result = selectEnvironment(config, "staging");
+
+			assert(!result.success);
+			assert(result.err.kind === "incompleteProductEntry");
+
+			expect(result.err.environment).toBe("staging");
+			expect(result.err.key).toBe("gem-pack");
+			expect(result.err.missingField).toBe(missingField);
+			expect(result.err.kind).toBe("incompleteProductEntry");
+		},
+	);
+
+	it("should accept an overlay-only product when the overlay declares both name and description", () => {
+		expect.assertions(2);
+
+		const config: Config = {
+			environments: {
+				staging: { products: { "gem-pack": { name: "Gems", description: "Shiny." } } },
+			},
+			state: ROOT_STATE,
+		};
+
+		const result = selectEnvironment(config, "staging");
+
+		assert(result.success);
+
+		expect(result.data.products!["gem-pack"]!.name).toBe("Gems");
+		expect(result.data.products!["gem-pack"]!.description).toBe("Shiny.");
+	});
+
 	it("should accept an overlay-only redacted pass when the overlay declares name, description, and icon", () => {
 		expect.assertions(1);
 
@@ -813,7 +864,7 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.passes?.["vip-pass"]?.name).toBe(REDACTED_PASS_NAME);
+		expect(result.data.passes!["vip-pass"]!.name).toBe(REDACTED_PASS_NAME);
 	});
 
 	it("should still apply the display-name prefix to places when a redacted pass coexists", () => {
@@ -837,8 +888,8 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.passes?.["vip-pass"]?.name).toBe(REDACTED_PASS_NAME);
-		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Start Place");
+		expect(result.data.passes!["vip-pass"]!.name).toBe(REDACTED_PASS_NAME);
+		expect(result.data.places!["start-place"]!.displayName).toBe("[STAGING] Start Place");
 	});
 
 	it("should redact a place description and preserve the real displayName under the prefix when redacted is true", () => {
@@ -866,8 +917,8 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.places?.["start-place"]?.description).toBe(REDACTED_DESCRIPTION);
-		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Start Place");
+		expect(result.data.places!["start-place"]!.description).toBe(REDACTED_DESCRIPTION);
+		expect(result.data.places!["start-place"]!.displayName).toBe("[STAGING] Start Place");
 	});
 
 	it("should compose the display-name prefix with an explicit place displayName override", () => {
@@ -895,8 +946,8 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.places?.["start-place"]?.description).toBe(REDACTED_DESCRIPTION);
-		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Hidden");
+		expect(result.data.places!["start-place"]!.description).toBe(REDACTED_DESCRIPTION);
+		expect(result.data.places!["start-place"]!.displayName).toBe("[STAGING] Hidden");
 	});
 
 	it("should redact every place description while preserving displayNames when the env-level toggle is true", () => {
@@ -932,10 +983,10 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.places?.["lobby"]?.description).toBe(REDACTED_DESCRIPTION);
-		expect(result.data.places?.["lobby"]?.displayName).toBe("[STAGING] Lobby");
-		expect(result.data.places?.["start-place"]?.description).toBe(REDACTED_DESCRIPTION);
-		expect(result.data.places?.["start-place"]?.displayName).toBe("[STAGING] Start Place");
+		expect(result.data.places!["lobby"]!.description).toBe(REDACTED_DESCRIPTION);
+		expect(result.data.places!["lobby"]!.displayName).toBe("[STAGING] Lobby");
+		expect(result.data.places!["start-place"]!.description).toBe(REDACTED_DESCRIPTION);
+		expect(result.data.places!["start-place"]!.displayName).toBe("[STAGING] Start Place");
 	});
 
 	it("should compose env-resource, root-resource, and env-level redaction overrides field-by-field", () => {
@@ -962,12 +1013,12 @@ describe(selectEnvironment, () => {
 
 		assert(result.success);
 
-		const gemPack = result.data.products?.["gem-pack"];
+		const gemPack = result.data.products!["gem-pack"];
 
-		expect(gemPack?.name).toBe("Hidden Pack");
-		expect(gemPack?.icon).toStrictEqual({ "en-us": "assets/dev-override.png" });
-		expect(gemPack?.price).toBe(1);
-		expect(gemPack?.description).toBe(REDACTED_DESCRIPTION);
+		expect(gemPack!.name).toBe("Hidden Pack");
+		expect(gemPack!.icon).toStrictEqual({ "en-us": "assets/dev-override.png" });
+		expect(gemPack!.price).toBe(1);
+		expect(gemPack!.description).toBe(REDACTED_DESCRIPTION);
 	});
 });
 
@@ -984,9 +1035,9 @@ describe(selectMergedEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.merged.passes?.["vip-pass"]?.name).toBe(VIP_PASS.name);
-		expect(result.data.merged.passes?.["vip-pass"]?.description).toBe(VIP_PASS.description);
-		expect(result.data.merged.passes?.["vip-pass"]?.icon["en-us"]).toBe(VIP_PASS.icon["en-us"]);
+		expect(result.data.merged.passes!["vip-pass"]!.name).toBe(VIP_PASS.name);
+		expect(result.data.merged.passes!["vip-pass"]!.description).toBe(VIP_PASS.description);
+		expect(result.data.merged.passes!["vip-pass"]!.icon["en-us"]).toBe(VIP_PASS.icon["en-us"]);
 	});
 
 	it("should leave a place displayName unprefixed even when the env declares a label", () => {
@@ -1008,7 +1059,7 @@ describe(selectMergedEnvironment, () => {
 
 		assert(result.success);
 
-		expect(result.data.merged.places?.["start-place"]?.displayName).toBe("Start Place");
+		expect(result.data.merged.places!["start-place"]!.displayName).toBe("Start Place");
 	});
 
 	it("should return the matched env entry alongside the merged config", () => {

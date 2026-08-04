@@ -30,11 +30,11 @@ describe(provisionCommand, () => {
 
 		await provisionCommand(deps)({ env: "production" });
 
-		expect(deps.clack?.intro).toHaveBeenCalledExactlyOnceWith("bedrock provision");
+		expect(deps.clack!.intro).toHaveBeenCalledExactlyOnceWith("bedrock provision");
 		expect(provision).toHaveBeenCalledExactlyOnceWith(
 			expect.objectContaining({ config: sampleConfig, environment: "production" }),
 		);
-		expect(deps.clack?.outro).toHaveBeenCalledExactlyOnceWith("provision succeeded");
+		expect(deps.clack!.outro).toHaveBeenCalledExactlyOnceWith("provision succeeded");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
@@ -49,7 +49,7 @@ describe(provisionCommand, () => {
 
 		await provisionCommand(deps)({ env: "production" });
 
-		expect(deps.clack?.cancel).toHaveBeenCalledExactlyOnceWith("provision failed");
+		expect(deps.clack!.cancel).toHaveBeenCalledExactlyOnceWith("provision failed");
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
@@ -73,7 +73,7 @@ describe(provisionCommand, () => {
 		expect(provision).toHaveBeenCalledExactlyOnceWith(
 			expect.objectContaining({ environment: "production" }),
 		);
-		expect(vi.mocked(provision).mock.calls[0]?.[0]).not.toHaveProperty("build");
+		expect(vi.mocked(provision).mock.calls[0]![0]).not.toHaveProperty("build");
 	});
 
 	it("should discover a .bedrock/provision.ts override and spawn it instead of provision()", async () => {
@@ -100,6 +100,6 @@ describe(provisionCommand, () => {
 
 		expect(discoverOverride).toHaveBeenCalledExactlyOnceWith("/abs", "provision");
 		expect(provision).not.toHaveBeenCalled();
-		expect(invocations[0]?.args[0]).toBe("/abs/.bedrock/provision.ts");
+		expect(invocations[0]!.args[0]).toBe("/abs/.bedrock/provision.ts");
 	});
 });

@@ -1,8 +1,16 @@
-/** Credential flags that may be supplied on the CLI and translated to env-var overrides. */
+/**
+ * Credential flags that may be supplied on the CLI and translated to env-var
+ * overrides.
+ */
 interface CredentialFlags {
-	/** Roblox Open Cloud API key override; translates to BEDROCK_API_KEY when defined. */
+	/**
+	 * Roblox Open Cloud API key override; translates to BEDROCK_API_KEY when
+	 * defined.
+	 */
 	readonly apiKey?: string;
-	/** GitHub token override; translates to BEDROCK_GITHUB_TOKEN when defined. */
+	/**
+	 * GitHub token override; translates to BEDROCK_GITHUB_TOKEN when defined.
+	 */
 	readonly githubToken?: string;
 }
 

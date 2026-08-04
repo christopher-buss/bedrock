@@ -38,6 +38,8 @@ export function createFakeSend(options: {
 		requests.push(request);
 		const response = options.responses[index];
 		index += 1;
+		// Resolve on a later microtask, as a real HTTP round trip does.
+		await Promise.resolve();
 
 		if (response === undefined) {
 			throw new Error(

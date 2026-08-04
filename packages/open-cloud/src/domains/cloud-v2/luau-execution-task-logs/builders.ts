@@ -20,10 +20,11 @@ import type { ListLogsParameters } from "./types.ts";
  *   {@link ValidationError} when the ref is missing `versionId` or
  *   `sessionId`.
  */
-export function buildListLogsRequest(
-	parameters: ListLogsParameters,
-): Result<HttpRequest, ValidationError> {
-	const { pageSize, pageToken, ref } = parameters;
+export function buildListLogsRequest({
+	pageSize,
+	pageToken,
+	ref,
+}: ListLogsParameters): Result<HttpRequest, ValidationError> {
 	const { placeId, sessionId, taskId, universeId, versionId } = ref;
 
 	if (versionId === undefined) {
