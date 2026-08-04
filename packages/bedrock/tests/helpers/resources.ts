@@ -28,14 +28,14 @@ export const PLATFORM_FLAG_ROWS = UNIVERSE_MANAGED_FLAGS.filter(
 export const INVALID_ROBUX_PRICES = [
 	["a negative integer", -1],
 	["a fractional value", 99.5],
-	["NaN", Number.NaN],
-	["Infinity", Number.POSITIVE_INFINITY],
+	["NaN", NaN],
+	["Infinity", Infinity],
 ] as const;
 
 /**
  * Minimal valid `gamePass` entry shape (the user-facing fields, without the
- * derived `key`/`kind`/`iconFileHashes` that the desired-state fixture carries).
- * Spread into per-test inputs to exercise the entry schema without
+ * derived `key`/`kind`/`iconFileHashes` that the desired-state fixture
+ * carries). Spread into per-test inputs to exercise the entry schema without
  * re-stating the required fields.
  */
 export const ValidGamePassEntry = {
