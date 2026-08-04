@@ -15,6 +15,9 @@ smoke-results.json
 dist
 *.tsbuildinfo
 
+# Written by `pnpm publish --report-summary`; consumed by release.yaml
+pnpm-publish-summary.json
+
 # Migrate output (created when running `bedrock migrate` against a local fixture)
 /.bedrock/
 /.mantle-state.yml
