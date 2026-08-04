@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it, onTestFinished } from "vitest";
 
 import { pruneStateGistAsync } from "../helpers/prune-state-gist.ts";
+import { hasTransientApiFailureText, retryTransientAsync } from "../helpers/retry-transient.ts";
 
 const TOKEN = process.env["GITHUB_TOKEN"];
 const API_KEY = process.env["BEDROCK_API_KEY"];
@@ -31,6 +32,10 @@ interface SpawnResult {
 	readonly code: number;
 	readonly stderr: string;
 	readonly stdout: string;
+}
+
+function isRetryableRun(outcome: SpawnResult): boolean {
+	return outcome.code !== 0 && hasTransientApiFailureText(`${outcome.stdout}\n${outcome.stderr}`);
 }
 
 async function runBinAsync(args: ReadonlyArray<string>, cwd: string): Promise<SpawnResult> {
@@ -98,10 +103,14 @@ describe("bedrock deploy bin against real gist + open cloud", () => {
 				]);
 			});
 
-			const result = await runBinAsync(
-				["deploy", "--env", environment, "--config", configPath],
-				project,
-			);
+			// Roblox answers a place publish with a 5xx often enough to redden
+			// the suite, and ocale deliberately does not retry that in
+			// production; re-attempt here instead of loosening that policy.
+			const deployArgs = ["deploy", "--env", environment, "--config", configPath];
+			const result = await retryTransientAsync({
+				isTransient: isRetryableRun,
+				operation: async () => runBinAsync(deployArgs, project),
+			});
 
 			expect(
 				result.code,
