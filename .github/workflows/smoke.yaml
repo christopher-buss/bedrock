@@ -30,6 +30,16 @@ jobs:
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    # Every smoke test writes to the same state gist, and GitHub applies a
+    # secondary rate limit to content-mutating gist requests per user. Runs on
+    # different refs (a PR, the main push it merges into, the changeset release
+    # PR) would otherwise fire concurrently and exhaust that budget, failing the
+    # whole suite with `rate limited (403)`. Queue them instead: the workflow-
+    # level group above still cancels superseded runs on the *same* ref, so this
+    # only serializes genuinely distinct runs.
+    concurrency:
+      group: smoke-state-gist
+      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
