@@ -128,13 +128,33 @@ the real loss, and it remains recoverable from `git log` and the release tag.
 Post-processing the generated changelog to re-add links was rejected as bespoke,
 untested code standing between the release job and npm.
 
-### The blocking gate becomes ~15 lines of inline bash
+### The blocking gate becomes inline bash
 
 ADR-027's mandatory-intent policy is unchanged; only its implementation moves.
 `changeset-check.yaml` now derives the touched packages from
 `pnpm list -r --depth -1 --json --filter "[origin/<base>]"` and asserts that
-every published package in that set is named by a frontmatter line in some
-`.changeset/*.md`.
+every published package in that set is named by a frontmatter line in an intent
+**the PR itself adds or modifies**.
+
+Both halves of that last clause matter, and neither is free —
+`changeset status --since` enforced them implicitly:
+
+- **PR-scoped, not repo-wide.** Intents accumulate on `main` until a Version PR
+  consumes them, so at any time `main` may already carry an intent naming
+  `core`. Scanning every `.changeset/*.md` would let a later `core` change pass
+  on the strength of an unrelated pending intent and ship with no changelog
+  entry of its own. The candidate set is therefore
+  `git diff --name-only --diff-filter=AM "origin/<base>" HEAD -- .changeset`,
+  minus `README.md`.
+- **Frontmatter, not the whole file.** `pnpm version -r` builds its plan from
+  the frontmatter alone, so a body line reading `@bedrock-rbx/core: ...` would
+  satisfy a whole-file `grep` while producing no version bump and no changelog
+  entry. The scan stops at the closing `---`.
+
+Both comparisons are two-dot, matching how `pnpm list --filter "[<ref>]"`
+compares, so the two halves of the gate cannot disagree about what the PR
+changed. On a `pull_request` run `HEAD` is the merge commit, which already
+contains the base, so the two-dot and three-dot forms agree anyway.
 
 The `...` dependents prefix is deliberately **omitted** from the filter: an
 ocale-only change marks `core` as changed through the `workspace:*` edge, and
