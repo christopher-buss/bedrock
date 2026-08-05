@@ -155,56 +155,62 @@ jobs:
       #
       # `pnpm publish -r` skips versions already on the registry, so a rerun
       # after a partial failure resumes rather than double-publishing.
-      # --report-summary writes pnpm-publish-summary.json, which is the
-      # machine-readable list of what actually went out this run.
-      - id: publish
-        if: steps.changesets.outputs.pending == 'false'
+      - if: steps.changesets.outputs.pending == 'false'
         name: Publish to npm
-        run: |
-          set -euo pipefail
-          rm -f pnpm-publish-summary.json
-          pnpm publish -r --report-summary --no-git-checks
-          count=$(jq '.publishedPackages | length' pnpm-publish-summary.json)
-          if [ "$count" -gt 0 ]; then
-            echo "published=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "published=false" >> "$GITHUB_OUTPUT"
-          fi
+        run: pnpm publish -r --no-git-checks
         env:
           NPM_CONFIG_PROVENANCE: "true"
 
       # `pnpm publish` does not tag. Recreate the `<name>@<version>` tags that
       # `changeset publish` used to push — website-release.yaml triggers off
       # the `@bedrock-rbx/core@*` glob (ADR-004).
-      - if: steps.changesets.outputs.pending == 'false' && steps.publish.outputs.published == 'true'
+      #
+      # The tags are derived from the public workspace manifests, NOT from the
+      # run's publish summary. A `pnpm publish -r` that exits 0 leaves every
+      # public package's current version on the registry, whether this run put
+      # it there or an earlier one did; the summary lists only what this run
+      # published. After a partial failure the retry publishes the remaining
+      # package alone, so a summary-derived tag step would never tag the
+      # package the first attempt got out. Existing tags are skipped, which
+      # makes the step a no-op on a push to main that releases nothing.
+      - id: tags
+        if: steps.changesets.outputs.pending == 'false'
         name: Tag the published versions
         run: |
           set -euo pipefail
-          jq -r '.publishedPackages[] | "\(.name)@\(.version)"' pnpm-publish-summary.json \
-            | while read -r tag; do
-                if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-                  echo "Tag $tag already exists"
-                else
-                  git tag "$tag"
-                  echo "Tagged $tag"
-                fi
-              done
+          # Explicit, so the "already tagged?" test does not rest on whether
+          # actions/checkout happened to fetch tags. A tag missed here would
+          # re-dispatch the docs build on every later push to main.
+          git fetch --tags --force origin
+          core_tag=""
+          while read -r tag; do
+            if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+              echo "Tag $tag already exists"
+            else
+              git tag "$tag"
+              echo "Tagged $tag"
+              case "$tag" in
+                "@bedrock-rbx/core@"*) core_tag="$tag" ;;
+              esac
+            fi
+          done < <(
+            pnpm list -r --depth -1 --json \
+              | jq -r '.[] | select(.private | not) | "\(.name)@\(.version)"'
+          )
+          echo "core_tag=$core_tag" >> "$GITHUB_OUTPUT"
 
-      - if: steps.changesets.outputs.pending == 'false' && steps.publish.outputs.published == 'true'
+      - if: steps.changesets.outputs.pending == 'false'
         name: Push tags
         run: git push origin --tags
 
       # The tag push above uses GITHUB_TOKEN and so will not fire
       # website-release.yaml's `on: push: tags` trigger. Dispatch it
       # explicitly against the new core tag for a tagged-source docs build.
-      - if: steps.changesets.outputs.pending == 'false' && steps.publish.outputs.published == 'true'
+      # Gated on the tag being new, so a push to main that released nothing
+      # does not rebuild the docs off an already-released tag.
+      - if: steps.changesets.outputs.pending == 'false' && steps.tags.outputs.core_tag != ''
         name: Trigger docs release for the core tag
-        run: |
-          set -euo pipefail
-          # The `bedrock` package directory is the `@bedrock-rbx/core` package.
-          version=$(node -p "require('./packages/bedrock/package.json').version")
-          tag="@bedrock-rbx/core@${version}"
-          if git ls-remote --tags origin "refs/tags/$tag" | grep -q "$tag"; then
-            gh workflow run website-release.yaml --ref "$tag"
-          fi
+        run: gh workflow run website-release.yaml --ref "$CORE_TAG"
+        env:
+          CORE_TAG: ${{ steps.tags.outputs.core_tag }}
     timeout-minutes: 15

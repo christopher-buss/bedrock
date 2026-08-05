@@ -173,16 +173,30 @@ already explicit steps in `release.yaml` for the commit; the tag now becomes
 explicit too, because `changeset publish` used to create them and `pnpm publish`
 does not.
 
-`release.yaml` therefore derives `<name>@<version>` tags from
-`pnpm-publish-summary.json` (written by `--report-summary`) and pushes them.
-This also retires the `"New tag:"` stdout grep that detected whether anything
-published, in favour of reading that JSON. `website-release.yaml`'s
-`@bedrock-rbx/core@*` trigger and ADR-004 are untouched.
+`release.yaml` therefore derives `<name>@<version>` tags from the **public
+workspace manifests** (`pnpm list -r --depth -1 --json`, minus the private
+packages), creates the ones that do not already exist, and pushes them. This
+also retires the `"New tag:"` stdout grep that detected whether anything
+published: a newly created `@bedrock-rbx/core@*` tag is now the signal that
+gates the docs dispatch. `website-release.yaml`'s trigger and ADR-004 are
+untouched.
 
 `pnpm publish -r` skips versions already on the registry, so a rerun after a
 partial failure resumes rather than double-publishing — the same property
 `changeset publish` provided. OIDC trusted publishing is unchanged: the same
 `pnpm publish` is what exchanged the token before, one layer down.
+
+That resume property is exactly why the tags come from the manifests and not
+from `--report-summary`. The summary lists only what **this invocation** put on
+the registry. If `pnpm publish -r` gets `ocale` out and then fails on `core`,
+the job fails before tagging; the retry publishes `core` alone, and a
+summary-derived tag step would tag `core` and never tag `ocale`. Reading the
+manifests instead makes the step converge: a `pnpm publish -r` that exits 0
+leaves every public package's current version on the registry regardless of
+which run put it there, so tagging every public manifest version — skipping
+those already tagged — is correct after a clean run and self-healing after a
+partial one. The same idempotence makes the step a harmless no-op on a push to
+`main` that releases nothing.
 
 ### Not adopted: `pnpm/release`
 
@@ -294,10 +308,9 @@ command is a trap for the next reader.
 - `.changeset/README.md` — rewritten for the pnpm commands.
 - `.github/workflows/changeset-check.yaml` — the gate per Decision.
 - `.github/workflows/release.yaml` — `pnpm version -r --no-git-checks`;
-  `pnpm publish -r --report-summary --no-git-checks`; new tag-creation step.
-  `--no-git-checks` is required on both: `pnpm version -r` refuses a dirty tree,
-  and `pnpm publish` defaults its expected branch to `master`.
-- `.gitignore` — `pnpm-publish-summary.json`.
+  `pnpm publish -r --no-git-checks`; new tag-creation step. `--no-git-checks` is
+  required on both: `pnpm version -r` refuses a dirty tree, and `pnpm publish`
+  defaults its expected branch to `master`.
 - `CONTRIBUTING.md`, `CLAUDE.md`, `docs/adr/004-documentation-site.md` — command
   and terminology updates.
 
