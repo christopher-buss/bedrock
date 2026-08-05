@@ -1,9 +1,18 @@
 # ADR-027: Changesets for Versioning and Automated npm Publishing
 
-**Date:** 2026-06-22 **Status:** Accepted
+**Date:** 2026-06-22 **Status:** Superseded by
+[ADR-029](./029-pnpm-native-versioning.md) (2026-08-04)
 
 Decision Makers: Maintainer  
 Tags: developer-workflow, tooling, release, publishing, versioning, changesets
+
+> **2026-08-04:** superseded by [ADR-029](./029-pnpm-native-versioning.md),
+> which replaces the Changesets CLI with pnpm's native versioning. The release
+> _topology_ decided here — signed ghcommit, human-gated `ci: version packages`
+> PR, OIDC trusted publishing, tag-dispatched docs build — is unchanged and
+> still current; only the tool implementing each step changed. The `linked`
+> grouping decided below is the one substantive reversal: pnpm implements
+> `fixed` only.
 
 ## Context
 

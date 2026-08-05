@@ -1,5 +1,6 @@
-# Production docs deploy. Fires on a release tag matching the Changesets
-# default for `@bedrock-rbx/core`, builds TypeDoc + VitePress against the tagged
+# Production docs deploy. Fires on a release tag matching `@bedrock-rbx/core@*`
+# (pushed by release.yaml after publish, see ADR-029), builds TypeDoc +
+# VitePress against the tagged
 # source, and ships the output to the production Vercel project.
 # A separate Vercel project (configured via the dashboard) tracks `main` for
 # unreleased preview docs and is not driven by this workflow.

@@ -1,10 +1,14 @@
-# Blocking changeset gate (ADR-027). Fails a PR that changes a published
-# package (@bedrock-rbx/core, @bedrock-rbx/ocale) without recording a
-# changeset. `changeset status` exits non-zero only when a publishable
-# package changed and no changeset covers it; PRs that touch nothing
-# publishable (docs, CI, private packages) pass without one. For a
-# deliberately non-releasing change to a published package, add an empty
-# changeset: `pnpm changeset add --empty`.
+# Blocking change-intent gate (ADR-029). Fails a PR that changes a published
+# package (@bedrock-rbx/core, @bedrock-rbx/ocale) without recording an intent
+# under .changeset/. PRs that touch nothing publishable (docs, CI, private
+# packages) pass without one. For a deliberately non-releasing change to a
+# published package, record an explicit decline:
+# `pnpm change --bump none @bedrock-rbx/core`.
+#
+# This is hand-rolled because pnpm has no equivalent of
+# `changeset status --since`: `pnpm change status` reports only the pending
+# intents and the plan they produce, has no --since and no --json, and always
+# exits 0. See ADR-029 § Consequences.
 
 name: Changeset Check
 
@@ -22,7 +26,9 @@ concurrency:
 jobs:
   changeset:
     name: Require a changeset
-    # The release bot's Version PR legitimately consumes every changeset.
+    # The release bot's Version PR legitimately consumes every pending intent.
+    # The workflow, job and branch names keep the "changeset" wording: they are
+    # load-bearing for branch protection and the head-ref guards elsewhere.
     if: ${{ !startsWith(github.head_ref, 'changeset-release/') }}
     runs-on: ubuntu-latest
     steps:
@@ -34,6 +40,52 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
-      - name: Verify a changeset is present
-        run: pnpm changeset status --since=origin/${{ github.base_ref }}
+      # `--filter "[base]"` deliberately omits the `...` dependents prefix: an
+      # ocale-only change marks core as changed through the `workspace:*` edge,
+      # and that cascade is applied automatically by `pnpm version -r`. Asking
+      # for an intent to cover it would be a false failure.
+      - name: Verify a change intent is present
+        run: |
+          set -euo pipefail
+          changed=$(pnpm list -r --depth -1 --json --filter "[origin/$BASE_REF]" | jq -r '.[].name')
+          # Only the intents this PR adds or modifies count. Intents already on
+          # the base branch belong to earlier PRs and are waiting for the next
+          # Version PR to consume them; letting one of those satisfy the gate
+          # would let this PR ship with no changelog entry of its own.
+          #
+          # Two-dot, to match how `pnpm list --filter "[<ref>]"` above compares.
+          # On a `pull_request` run HEAD is the merge commit, so it already
+          # contains the base and the two forms agree; keeping them the same
+          # shape means the two halves of this gate can never disagree about
+          # what the PR changed.
+          mapfile -t intents < <(
+            git diff --name-only --diff-filter=AM "origin/$BASE_REF" HEAD -- .changeset \
+              | grep -E '^\.changeset/[^/]+\.md$' \
+              | grep -vxF '.changeset/README.md' || true
+          )
+          missing=""
+          for pkg in "@bedrock-rbx/core" "@bedrock-rbx/ocale"; do
+            echo "$changed" | grep -qxF "$pkg" || continue
+            covered=false
+            for intent in "${intents[@]}"; do
+              # Package names live in the YAML frontmatter. `sed` stops at its
+              # closing `---` so a body line that happens to read like
+              # `@bedrock-rbx/core: ...` cannot satisfy the gate — `pnpm version
+              # -r` builds its plan from the frontmatter alone.
+              if sed -n '2,/^---$/p' "$intent" | grep -qE "^\"?${pkg}\"?:"; then
+                covered=true
+                break
+              fi
+            done
+            [ "$covered" = true ] || missing="$missing $pkg"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::No change intent covers:$missing"
+            echo "Record one with 'pnpm change', or decline a release with" \
+                 "'pnpm change --bump none <package>'."
+            exit 1
+          fi
+          echo "Every touched published package is covered by a change intent."
+        env:
+          BASE_REF: ${{ github.base_ref }}
     timeout-minutes: 10

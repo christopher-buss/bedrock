@@ -83,9 +83,6 @@ catalogs:
     knip: 6.20.0
     publint: 0.3.21
     vue-eslint-parser: 10.4.1
-  release:
-    "@changesets/changelog-github": 0.7.0
-    "@changesets/cli": 2.31.0
   runtime:
     "@actions/core": 3.0.1
     "@clack/prompts": 1.2.0
@@ -126,3 +123,33 @@ allowBuilds:
   "@parcel/watcher": true
   esbuild: true
   msgpackr-extract: true
+
+# Native pnpm release management (ADR-029). Intent files still live in
+# .changeset/ in the changesets format; only the tooling changed.
+versioning:
+  # Defaults to `registry`, which commits no CHANGELOG.md and instead composes
+  # sections into the tarball at publish time. We keep committed changelogs.
+  changelog:
+    storage: repository
+
+  # core and ocale share one version number. pnpm has no `linked` equivalent,
+  # so a change to either releases both.
+  fixed:
+    - ["@bedrock-rbx/core", "@bedrock-rbx/ocale"]
+
+  # pnpm only auto-excludes private packages that carry no `version` field.
+  # All of ours have one, so the private packages are listed explicitly —
+  # otherwise apps/e2e and apps/website would be versioned and changelogged
+  # for depending on a released package.
+  ignore:
+    - "@bedrock-rbx/actions"
+    - "@bedrock-rbx/e2e"
+    - "@bedrock-rbx/testing"
+    - "@bedrock-rbx/typescript-config"
+    - "@bedrock-rbx/vite-config"
+    - "@bedrock-rbx/website"
+
+  # Pre-1.0: `major` would jump straight to 1.0.0. Enforced on the assembled
+  # release plan, so it also caps propagated bumps. Remove this deliberately
+  # for the 1.0.0 release.
+  maxBump: minor

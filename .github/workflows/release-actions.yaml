@@ -14,7 +14,7 @@
 # Baking on a TAG (not a branch) is deliberate: the repo's `all` ruleset
 # enforces required_signatures on every branch, so an unsigned dist commit
 # could not land on a branch. Reached only through a tag ref, it is not subject
-# to that branch rule. The tag scheme is disjoint from the Changesets package
+# to that branch rule. The tag scheme is disjoint from the published package
 # tags (`@bedrock-rbx/core@x.y.z`).
 name: Release actions
 

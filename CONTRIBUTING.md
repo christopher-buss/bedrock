@@ -91,8 +91,8 @@ The bar is the same whether a human or an agent writes the diff:
 - **Commit style.** `type(scope): kebab-case subject`. Scope-enum: `core`,
   `deps`, `e2e`, `global`, `ocale`, `testing`, `tsconfig`, `vite`, `website`.
   `ci`, `chore`, `docs`, `build`, `refactor` are types, not scopes.
-- **Changeset.** A change to a published package (`@bedrock-rbx/core`,
-  `@bedrock-rbx/ocale`) needs a changeset, or CI fails. See
+- **Change intent.** A change to a published package (`@bedrock-rbx/core`,
+  `@bedrock-rbx/ocale`) needs a `pnpm change` intent, or CI fails. See
   [Releases](#releases) below.
 - **Public API examples.** Exported symbols carry JSDoc `@example` blocks
   ([ADR-005](./docs/adr/005-jsdoc-example-testing.md)).
@@ -126,34 +126,39 @@ lint, typecheck, test, and build.
 ## Releases
 
 Versioning and publishing run on
-[Changesets](https://github.com/changesets/changesets) (see
-[ADR-027](./docs/adr/027-changesets-release-flow.md)). The two published
-packages — `@bedrock-rbx/core` and `@bedrock-rbx/ocale` — are _linked_: they
-share one version number and bump together.
+[pnpm's built-in release management](https://pnpm.io/versioning) (see
+[ADR-029](./docs/adr/029-pnpm-native-versioning.md)). The two published packages
+— `@bedrock-rbx/core` and `@bedrock-rbx/ocale` — are a _fixed_ group: they share
+one version number and release together.
 
-**Every PR that changes a published package must include a changeset.** A CI
-check (`changeset status`) fails the PR otherwise. Add one with:
+**Every PR that changes a published package must record a change intent.** A CI
+check fails the PR otherwise. Add one with:
 
 ```bash
-pnpm changeset
+pnpm change
 ```
 
-Pick the bumped packages and the semver level, and write a one-line summary — it
+Pick the affected packages and the semver level, and write a summary — it
 becomes the `CHANGELOG.md` entry, so phrase it for someone _installing_ the
-package, not for the diff. For a change that genuinely needs no release (a
-comment, a test-only tweak on a published package), record that intent
-explicitly:
+package, not for the diff. Pre-1.0, never pick `major`: a breaking change is a
+`minor`, everything else is a `patch`.
+
+For a change that genuinely needs no release (a comment, a test-only tweak on a
+published package), record that decision explicitly:
 
 ```bash
-pnpm changeset add --empty
+pnpm change --bump none @bedrock-rbx/core
 ```
 
-PRs that touch nothing publishable (docs, CI, private packages) do not need a
-changeset; the check passes without one.
+Preview what the pending intents will produce at any time with
+`pnpm change status`.
+
+PRs that touch nothing publishable (docs, CI, private packages) do not need an
+intent; the check passes without one.
 
 ### How a release happens
 
-1. Changesets accumulate on `main` as PRs merge.
+1. Change intents accumulate under `.changeset/` on `main` as PRs merge.
 2. The `Release` workflow opens (and keeps refreshing) a
    **`ci: version packages`** PR that applies the version bumps and writes the
    changelogs.
