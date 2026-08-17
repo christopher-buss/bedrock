@@ -79,6 +79,9 @@ export const TRANSIENT_TRANSPORT_CODES: ReadonlyArray<string> = Object.freeze([
  * HTTP status: the status belongs to the gateway, not to the API, and a
  * gateway `400` says nothing about the validity of the request.
  *
+ * Name it in a per-request `retryableTransportCodes` override to opt an
+ * operation into (or out of) gateway-rejection retry.
+ *
  * @since 0.1.2
  */
 export const GATEWAY_REJECTED = "GATEWAY_REJECTED";
@@ -98,7 +101,9 @@ export const GATEWAY_REJECTED = "GATEWAY_REJECTED";
  * request having gone unprocessed — a 200 proves it was processed. So this code
  * is in {@link IDEMPOTENT_METHOD_DEFAULTS} only. Creates and uploads leave it
  * out: their write landed, and re-issuing it to re-read the answer would risk a
- * second resource for a response body, which is the wrong trade.
+ * second resource for a response body, which is the wrong trade. A consumer who
+ * can tolerate that duplicate names this code in a per-request
+ * `retryableTransportCodes` override.
  *
  * @since 0.1.5
  */
