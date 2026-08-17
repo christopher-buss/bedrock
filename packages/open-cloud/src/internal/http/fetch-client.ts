@@ -4,15 +4,18 @@ import { NetworkError } from "../../errors/network-error.ts";
 import { RateLimitError } from "../../errors/rate-limit.ts";
 import type { Result } from "../../types.ts";
 import { tryCatchAsync } from "../utils/try-catch.ts";
-import { extractGatewaySummary, pickDiagnosticHeaders } from "./diagnostics.ts";
+import {
+	bodyDetail,
+	extractGatewaySummary,
+	headersToRecord,
+	parseFailureError,
+	pickDiagnosticHeaders,
+	type RequestContext,
+} from "./diagnostics.ts";
 import { createHttp1Dispatcher } from "./http1-dispatcher.ts";
 import { reduceRateLimitTokens } from "./rate-limit-sample.ts";
 import type { HttpClient, HttpRequest, HttpResponse, RequestConfig } from "./types.ts";
 import { isUploadRequest } from "./upload-request.ts";
-
-// Caps the raw body retained when a response cannot be parsed, so a multi-KB
-// HTML error page is not surfaced or logged whole.
-const MAX_DETAIL_LENGTH = 500;
 
 const CONTENT_TYPE_HEADER = "content-type";
 
@@ -50,22 +53,6 @@ interface FetchHttpClientSeams {
 	readonly now?: () => number;
 }
 
-interface ParseFailureArgs {
-	readonly cause: Error;
-	readonly response: Response;
-	readonly text: string;
-}
-
-/**
- * The request-level context threaded from the transport into error
- * construction: which call failed and how long it was in flight.
- */
-interface RequestContext {
-	readonly elapsedMs: number;
-	readonly method: string;
-	readonly url: string;
-}
-
 interface ErrorResponseArgs {
 	readonly context: RequestContext;
 	readonly parsed: Result<JSONValue | undefined>;
@@ -77,16 +64,6 @@ interface ApiErrorMessageParts {
 	readonly code: string | undefined;
 	readonly message: string | undefined;
 	readonly status: number;
-}
-
-/**
- * Converts a `Headers` object to a plain record with lowercased keys.
- *
- * @param headers - The `Headers` instance to convert.
- * @returns A record mapping lowercased header names to their values.
- */
-export function headersToRecord(headers: Headers): Record<string, string> {
-	return Object.fromEntries(headers);
 }
 
 /**
@@ -382,18 +359,6 @@ function formatApiErrorMessage({ code, message, status }: ApiErrorMessageParts):
 	return `${base}: ${message} (code ${code})`;
 }
 
-/**
- * Projects a read body to the detail carried on an error: the parsed JSON when
- * it parsed, otherwise the raw text truncated to {@link MAX_DETAIL_LENGTH}.
- *
- * @param text - The raw response body text.
- * @param parsed - The best-effort parse result from {@link readResponseBodyAsync}.
- * @returns The parsed body, or the truncated raw text on a parse failure.
- */
-function bodyDetail(text: string, parsed: Result<JSONValue | undefined>): JSONValue | undefined {
-	return parsed.success ? parsed.data : text.slice(0, MAX_DETAIL_LENGTH);
-}
-
 function createApiError(args: ErrorResponseArgs): ApiError {
 	const { context, rawText, response } = args;
 	const { status } = response;
@@ -473,23 +438,6 @@ async function createRateLimitErrorAsync(response: Response): Promise<RateLimitE
 }
 
 /**
- * Builds the error for a 2xx response whose body could not be parsed as JSON,
- * preserving the parse `cause`, the (truncated) raw body, and the declared
- * content-type so the failure can be diagnosed after the fact.
- *
- * @param args - The Response, raw body text, and underlying parse error.
- * @returns An ApiError carrying the diagnostic context.
- */
-function parseFailureError({ cause, response, text }: ParseFailureArgs): ApiError {
-	const contentType = response.headers.get(CONTENT_TYPE_HEADER) ?? "unknown";
-	return new ApiError(`Failed to parse response body (content-type: ${contentType})`, {
-		cause,
-		details: text.slice(0, MAX_DETAIL_LENGTH),
-		statusCode: response.status,
-	});
-}
-
-/**
  * Classifies a fetch `Response` into a typed `Result`.
  *
  * The body is read once and parsed best-effort. Error responses (status >= 300)
@@ -500,7 +448,8 @@ function parseFailureError({ cause, response, text }: ParseFailureArgs): ApiErro
  *
  * @param response - The raw fetch Response to classify.
  * @param context - The request context (method, url, elapsed time) threaded
- *   onto any {@link ApiError} built for an error response.
+ *   onto every {@link ApiError} built here, whether for an error response or
+ *   for a 2xx whose body would not parse.
  * @returns A Result containing an HttpResponse on success or an OpenCloudError on failure.
  */
 async function classifyResponseAsync(
@@ -521,7 +470,10 @@ async function classifyResponseAsync(
 	}
 
 	if (!parsed.success) {
-		return { err: parseFailureError({ cause: parsed.err, response, text }), success: false };
+		return {
+			err: parseFailureError({ cause: parsed.err, context, response, text }),
+			success: false,
+		};
 	}
 
 	return {

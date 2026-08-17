@@ -115,6 +115,17 @@ describe(ApiError, () => {
 		expect(error.gatewaySummary).toBe("400 Bad request");
 	});
 
+	it("should store the unparsed body length when provided", () => {
+		expect.assertions(1);
+
+		const error = new ApiError("Failed to parse response body", {
+			statusCode: 200,
+			unparsedBodyLength: 1_572_740,
+		});
+
+		expect(error.unparsedBodyLength).toBe(1_572_740);
+	});
+
 	it("should default the request-context fields to undefined when omitted", () => {
 		expect.assertions(5);
 
@@ -125,5 +136,13 @@ describe(ApiError, () => {
 		expect(error.elapsedMs).toBeUndefined();
 		expect(error.gatewaySummary).toBeUndefined();
 		expect(error.responseHeaders).toBeUndefined();
+	});
+
+	it("should leave the unparsed body length undefined on an API rejection", () => {
+		expect.assertions(1);
+
+		const error = new ApiError("not found", { statusCode: 404 });
+
+		expect(error.unparsedBodyLength).toBeUndefined();
 	});
 });

@@ -33,6 +33,15 @@ export interface ApiErrorOptions extends ErrorOptions {
 	responseHeaders?: Readonly<Record<string, string>> | undefined;
 	/** HTTP status code from the API response. */
 	statusCode: number;
+	/**
+	 * Length, in decoded characters, of a 2xx body that could not be parsed as
+	 * JSON. Set only by the transport, and only for that failure — nothing else
+	 * builds an {@link ApiError} over a successful status — so its presence is
+	 * also how a body-parse failure is told apart from an API rejection. The
+	 * number is the diagnostic one: a body that stops mid-token at exactly the
+	 * length the edge delivered is a truncated read, not malformed JSON.
+	 */
+	unparsedBodyLength?: number | undefined;
 	/** Fully-qualified URL of the request that produced this error. */
 	url?: string | undefined;
 }
@@ -72,6 +81,7 @@ export class ApiError extends OpenCloudError {
 	public override readonly name: string = "ApiError";
 	public readonly responseHeaders: Readonly<Record<string, string>> | undefined;
 	public readonly statusCode: number;
+	public readonly unparsedBodyLength: number | undefined;
 	public readonly url: string | undefined;
 
 	/**
@@ -93,5 +103,6 @@ export class ApiError extends OpenCloudError {
 		this.elapsedMs = options.elapsedMs;
 		this.responseHeaders = options.responseHeaders;
 		this.gatewaySummary = options.gatewaySummary;
+		this.unparsedBodyLength = options.unparsedBodyLength;
 	}
 }

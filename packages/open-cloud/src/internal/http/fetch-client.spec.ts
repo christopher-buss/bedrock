@@ -9,34 +9,9 @@ import {
 	createFetchHttpClient,
 	extractErrorCode,
 	extractErrorMessage,
-	headersToRecord,
 	parseRetryAfterSeconds,
 } from "./fetch-client.ts";
 import type { HttpRequest } from "./types.ts";
-
-describe(headersToRecord, () => {
-	it("should convert Headers to a lowercased record", () => {
-		expect.assertions(1);
-
-		const headers = new Headers({
-			"Content-Type": "application/json",
-			"X-Request-Id": "abc123",
-		});
-
-		expect(headersToRecord(headers)).toStrictEqual({
-			"content-type": "application/json",
-			"x-request-id": "abc123",
-		});
-	});
-
-	it("should return empty record for empty headers", () => {
-		expect.assertions(1);
-
-		const headers = new Headers();
-
-		expect(headersToRecord(headers)).toStrictEqual({});
-	});
-});
 
 describe(extractErrorCode, () => {
 	it("should extract errorCode string from body object", () => {
@@ -828,7 +803,7 @@ describe(createFetchHttpClient, () => {
 	});
 
 	it("should enrich the error when a 2xx body is not valid JSON", async () => {
-		expect.assertions(4);
+		expect.assertions(5);
 
 		async function fakeFetchAsync(): Promise<Response> {
 			return new Response("not json", {
@@ -848,10 +823,38 @@ describe(createFetchHttpClient, () => {
 
 		expect(result.err.statusCode).toBe(200);
 		expect(result.err.message).toBe(
-			"Failed to parse response body (content-type: application/json)",
+			"Failed to parse response body (content-type: application/json, 8 chars read)",
 		);
 		expect(result.err.details).toBe("not json");
 		expect(result.err.cause).toBeInstanceOf(SyntaxError);
+		expect(result.err.unparsedBodyLength).toBe(8);
+	});
+
+	it("should name the failing request on a 2xx parse failure", async () => {
+		expect.assertions(4);
+
+		async function fakeFetchAsync(): Promise<Response> {
+			return new Response('{"partial":', {
+				headers: { "content-type": "application/json", "x-roblox-edge": "edge-7" },
+				status: 200,
+			});
+		}
+
+		const client = createFetchHttpClient(fakeFetchAsync, { now: fixedClock(0, 120) });
+		const result = await client.request(
+			{ method: "GET", url: "/cloud/v2/universes/1/luau-execution-session-tasks/2" },
+			{ apiKey: "key", baseUrl: "https://example.com" },
+		);
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
+		expect(result.err.method).toBe("GET");
+		expect(result.err.url).toBe(
+			"https://example.com/cloud/v2/universes/1/luau-execution-session-tasks/2",
+		);
+		expect(result.err.elapsedMs).toBe(120);
+		expect(result.err.responseHeaders).toStrictEqual({ "x-roblox-edge": "edge-7" });
 	});
 
 	it("should label content-type unknown when a 2xx parse failure has no content-type", async () => {
@@ -871,7 +874,9 @@ describe(createFetchHttpClient, () => {
 		assert(!result.success);
 		assert(result.err instanceof ApiError);
 
-		expect(result.err.message).toBe("Failed to parse response body (content-type: unknown)");
+		expect(result.err.message).toBe(
+			"Failed to parse response body (content-type: unknown, 8 chars read)",
+		);
 	});
 
 	it("should truncate the raw body retained on a 2xx parse failure", async () => {
