@@ -1,11 +1,9 @@
 import { ApiError } from "../../errors/api-error.ts";
 import type { Result } from "../../types.ts";
 
-/**
- * Caps the raw body retained when a response cannot be parsed, so a multi-KB
- * HTML error page is not surfaced or logged whole.
- */
-export const MAX_DETAIL_LENGTH = 500;
+// Caps the raw body retained when a response cannot be parsed, so a multi-KB
+// HTML error page is not surfaced or logged whole.
+const MAX_DETAIL_LENGTH = 500;
 
 const CONTENT_TYPE_HEADER = "content-type";
 
