@@ -442,6 +442,33 @@ describe(LuauExecutionClient, () => {
 			expect(result.data.state).toBe("COMPLETE");
 		});
 
+		// A poll GET carries the task result envelope, the largest body in a
+		// run; when the edge delivers it short the parse fails on a 200, which
+		// no status allow-list can recover. One re-read fixes it.
+		it("should re-read a poll response whose body arrived truncated", async () => {
+			expect.assertions(2);
+
+			const truncated = new ApiError(
+				"Failed to parse response body (content-type: application/json, 1572740 chars read)",
+				{ statusCode: 200, unparsedBodyLength: 1_572_740 },
+			);
+			const httpClient = createFakeHttpClient()
+				.mockError(truncated)
+				.mockResponse({ body: completeBody, status: 200 });
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.tasks.pollUntilDone(fullRef, { pollDelay: () => 0 });
+
+			assert(result.success);
+
+			expect(result.data.state).toBe("COMPLETE");
+			expect(httpClient.requests).toHaveLength(2);
+		});
+
 		it("should derive the poll request timeout from the poll budget", async () => {
 			expect.assertions(1);
 
