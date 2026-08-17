@@ -581,3 +581,53 @@ without rejecting it, so a `fetch` never settles; uploads carry no timeout by
 design (ADR-010's upload exemption), which makes that hang unbounded. Retries
 cannot reach it, since nothing ever fails. It needs its own decision, and an
 upstream fix.
+
+## Amendment: 2026-08-17, an unparseable 2xx body is a retryable transport failure
+
+Every retry decision so far keyed an `ApiError` on its HTTP status, with the
+2026-07-29 amendment's `GATEWAY_REJECTED` as the one exception. That leaves a
+gap the status axis cannot express: the transport also builds an `ApiError` when
+a **2xx** body fails to parse as JSON, and its status is 200, which no
+`retryableStatuses` list contains. Such an error was therefore unretryable by
+construction.
+
+It was observed in a consumer repo's CI: a run over four packages failed with
+`SyntaxError: Unterminated string in JSON at position 1572740` under
+`Failed to parse response body`, and an immediate re-run passed. V8 reports that
+position as the length of the text it received, so the body stopped mid-string
+at exactly the bytes delivered. The response was HTTP 200 and the stream ended
+cleanly — an aborted body surfaces as a `NetworkError` from undici, not as a
+parse failure — so the edge served a short body. The failing call was the poll
+`GET` of a luau-execution task, whose result envelope is the largest body such a
+run reads.
+
+The decision gains two parts:
+
+1. **The parse failure carries its request.** The transport threads its request
+   context (method, url, elapsed time, allowlisted response headers) onto that
+   `ApiError`, as it already did for error responses, and records the received
+   body length on `ApiError.unparsedBodyLength` and in the message. The length
+   is the diagnostic number: `details` retains only the first 500 characters, so
+   for a body that stopped mid-token the head says nothing, while a
+   `SyntaxError` position equal to the length identifies a truncated read rather
+   than a malformed document.
+
+2. **`RESPONSE_UNPARSEABLE`.** A synthetic transport code, classified like
+   `GATEWAY_REJECTED`: `shouldRetry` checks an `ApiError` carrying an
+   `unparsedBodyLength` against `retryableTransportCodes` and never consults its
+   status. It joins `IDEMPOTENT_METHOD_DEFAULTS` only.
+
+Unlike `GATEWAY_REJECTED`, this code says nothing about whether the request was
+processed — a 200 proves it was. Retry safety therefore rests entirely on the
+operation being safe to repeat, which is why creates and uploads leave it out:
+their write landed, and re-issuing it merely to re-read the answer would risk a
+second resource for the sake of a response body. `UPLOAD_METHOD_DEFAULTS` gets
+no exception here, even though place content dedupes, because the failure it
+would recover from is a read problem and the retry would repeat a write.
+
+The alternative was widening the luau-execution poll loop's own tolerance so a
+parse failure counted against `maxConsecutivePollFailures`. Rejected as too
+narrow: the loop is one caller of a transport-level defect, and a truncated body
+can land on any idempotent read. Loop tolerance stays what it documents —
+`NetworkError` with a transient code — and by the time a parse failure reaches
+it, the request-level retry budget is already spent.
