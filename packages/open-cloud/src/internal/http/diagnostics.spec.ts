@@ -1,6 +1,30 @@
 import { describe, expect, it } from "vitest";
 
-import { extractGatewaySummary, pickDiagnosticHeaders } from "./diagnostics.ts";
+import { extractGatewaySummary, headersToRecord, pickDiagnosticHeaders } from "./diagnostics.ts";
+
+describe(headersToRecord, () => {
+	it("should convert Headers to a lowercased record", () => {
+		expect.assertions(1);
+
+		const headers = new Headers({
+			"Content-Type": "application/json",
+			"X-Request-Id": "abc123",
+		});
+
+		expect(headersToRecord(headers)).toStrictEqual({
+			"content-type": "application/json",
+			"x-request-id": "abc123",
+		});
+	});
+
+	it("should return empty record for empty headers", () => {
+		expect.assertions(1);
+
+		const headers = new Headers();
+
+		expect(headersToRecord(headers)).toStrictEqual({});
+	});
+});
 
 describe(pickDiagnosticHeaders, () => {
 	it("should keep allowlisted escalation headers and drop everything else", () => {

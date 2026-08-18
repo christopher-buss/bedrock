@@ -20,5 +20,9 @@ export {
 	type ValidationErrorCode,
 	type ValidationErrorOptions,
 } from "./errors/validation.ts";
-export { TRANSIENT_TRANSPORT_CODES } from "./internal/http/retry.ts";
+export {
+	GATEWAY_REJECTED,
+	RESPONSE_UNPARSEABLE,
+	TRANSIENT_TRANSPORT_CODES,
+} from "./internal/http/retry.ts";
 export type { Page, Result } from "./types.ts";

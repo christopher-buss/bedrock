@@ -89,6 +89,12 @@ idempotency-aware:
 Create operations only retry rate limits to prevent duplicate resources (Roblox
 does not support idempotency keys).
 
+A 2xx whose body will not parse as JSON is retried on read/list/update/delete
+only. It is classified by the synthetic `RESPONSE_UNPARSEABLE` code rather than
+by its status (a 200 is in no status allowlist), and the usual grounds do not
+apply: a 200 proves the request was processed, so only operations that are safe
+to repeat re-issue it. See ADR-010's 2026-08-17 amendment.
+
 "Never reached Open Cloud" covers transient transport failures and responses
 served by an edge gateway rather than the API (`ApiError.gatewaySummary`,
 classified by the synthetic `GATEWAY_REJECTED` transport code). Place uploads

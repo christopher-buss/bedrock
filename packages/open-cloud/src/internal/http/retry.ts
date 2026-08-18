@@ -79,9 +79,35 @@ export const TRANSIENT_TRANSPORT_CODES: ReadonlyArray<string> = Object.freeze([
  * HTTP status: the status belongs to the gateway, not to the API, and a
  * gateway `400` says nothing about the validity of the request.
  *
+ * Name it in a per-request `retryableTransportCodes` override to opt an
+ * operation into (or out of) gateway-rejection retry.
+ *
  * @since 0.1.2
  */
 export const GATEWAY_REJECTED = "GATEWAY_REJECTED";
+
+/**
+ * Synthetic transport code for a 2xx whose body could not be parsed as JSON
+ * ({@link ApiError.unparsedBodyLength}). Open Cloud does not answer a success
+ * status with a malformed document; what this failure describes in practice is
+ * a body the edge delivered short, ending mid-token at exactly the length that
+ * arrived. The next read is a fresh body and usually a whole one.
+ *
+ * Classifying it by transport code rather than by HTTP status is what makes it
+ * recoverable at all: the status is a 200, which no `retryableStatuses` list
+ * contains, so a status-keyed decision could only ever say "do not retry".
+ *
+ * Retrying is justified by the operation being safe to repeat, never by the
+ * request having gone unprocessed — a 200 proves it was processed. So this code
+ * is in {@link IDEMPOTENT_METHOD_DEFAULTS} only. Creates and uploads leave it
+ * out: their write landed, and re-issuing it to re-read the answer would risk a
+ * second resource for a response body, which is the wrong trade. A consumer who
+ * can tolerate that duplicate names this code in a per-request
+ * `retryableTransportCodes` override.
+ *
+ * @since 0.1.5
+ */
+export const RESPONSE_UNPARSEABLE = "RESPONSE_UNPARSEABLE";
 
 /** Method-level retry defaults, keyed by {@link MethodKind}. */
 type MethodDefaults = Readonly<
@@ -95,7 +121,7 @@ type MethodDefaults = Readonly<
  */
 export const IDEMPOTENT_METHOD_DEFAULTS: MethodDefaults = Object.freeze({
 	retryableStatuses: Object.freeze([429, 500, 502, 503, 504] as const),
-	retryableTransportCodes: TRANSIENT_TRANSPORT_CODES,
+	retryableTransportCodes: Object.freeze([...TRANSIENT_TRANSPORT_CODES, RESPONSE_UNPARSEABLE]),
 });
 
 /**
@@ -224,9 +250,11 @@ export function computeRetryWaitMs(
  * Decides whether a failed request is eligible for retry. {@link
  * RateLimitError} (checked against 429) and {@link ApiError} (checked against
  * its `statusCode`) are retryable when their status is in `retryableStatuses`.
- * An {@link ApiError} carrying a `gatewaySummary` is the exception: it is
- * checked against {@link GATEWAY_REJECTED} in `retryableTransportCodes`
- * instead, and its status is never consulted. A {@link NetworkError} is
+ * Two {@link ApiError} shapes are the exception, both checked against
+ * `retryableTransportCodes` with their status never consulted: one carrying a
+ * `gatewaySummary` is checked against {@link GATEWAY_REJECTED}, and one
+ * carrying an `unparsedBodyLength` — a 2xx whose body would not parse —
+ * against {@link RESPONSE_UNPARSEABLE}. A {@link NetworkError} is
  * retryable when its transport code ({@link findErrorCode}) is in
  * `retryableTransportCodes`. This is how transient connection resets recover.
  * A self-aborted request timeout ({@link isTimeoutAbort}) carries no transport
@@ -278,6 +306,10 @@ export function shouldRetry(
 	if (error instanceof ApiError) {
 		if (error.gatewaySummary !== undefined) {
 			return config.retryableTransportCodes.includes(GATEWAY_REJECTED);
+		}
+
+		if (error.unparsedBodyLength !== undefined) {
+			return config.retryableTransportCodes.includes(RESPONSE_UNPARSEABLE);
 		}
 
 		return config.retryableStatuses.includes(error.statusCode);

@@ -336,6 +336,12 @@ function isTerminal(task: LuauExecutionTask): boolean {
  * (which governs request-level retries inside each poll). Loop tolerance is
  * bounded separately by `maxConsecutivePollFailures`.
  *
+ * A 2xx whose body would not parse is deliberately not re-polled here: it is
+ * recovered a layer down, by the request-level retry that
+ * `RESPONSE_UNPARSEABLE` puts in every idempotent policy. Reaching this
+ * function means that retry budget is already spent, and a fourth read of the
+ * same body is not a different answer.
+ *
  * @param error - The error returned by a failed poll.
  * @returns `true` when the loop should tolerate and re-poll.
  */

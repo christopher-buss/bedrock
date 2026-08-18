@@ -14,6 +14,7 @@ import {
 	GATEWAY_REJECTED,
 	IDEMPOTENT_METHOD_DEFAULTS,
 	mergeConfig,
+	RESPONSE_UNPARSEABLE,
 	shouldRetry,
 	TRANSIENT_TRANSPORT_CODES,
 	UPLOAD_METHOD_DEFAULTS,
@@ -172,6 +173,35 @@ describe(shouldRetry, () => {
 		).toBeFalse();
 	});
 
+	it("should mark an unparseable 2xx body as retryable when the parse code is allowed", () => {
+		expect.assertions(1);
+
+		// A 200 is never in `retryableStatuses`, so the parse failure recovers
+		// only if it is classified by its transport code instead of its status.
+		const error = new ApiError("Failed to parse response body", {
+			statusCode: 200,
+			unparsedBodyLength: 1_572_740,
+		});
+
+		expect(
+			shouldRetry(error, {
+				retryableStatuses: [429, 500],
+				retryableTransportCodes: [RESPONSE_UNPARSEABLE],
+			}),
+		).toBeTrue();
+	});
+
+	it("should not mark an unparseable 2xx body as retryable when the parse code is excluded", () => {
+		expect.assertions(1);
+
+		const error = new ApiError("Failed to parse response body", {
+			statusCode: 200,
+			unparsedBodyLength: 1_572_740,
+		});
+
+		expect(shouldRetry(error, { retryableStatuses: [200, 429], ...noTransport })).toBeFalse();
+	});
+
 	it("should mark network errors as retryable when their transport code is allowed", () => {
 		expect.assertions(1);
 
@@ -316,7 +346,14 @@ describe("method retry defaults", () => {
 			"ERR_HTTP2_STREAM_ERROR",
 			"ERR_HTTP2_SESSION_ERROR",
 			"UND_ERR_INFO",
+			RESPONSE_UNPARSEABLE,
 		]);
+	});
+
+	it("should not re-read an unparseable body for upload methods", () => {
+		expect.assertions(1);
+
+		expect(UPLOAD_METHOD_DEFAULTS.retryableTransportCodes).not.toContain(RESPONSE_UNPARSEABLE);
 	});
 });
 
