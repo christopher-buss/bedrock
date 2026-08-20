@@ -12,9 +12,9 @@ against Roblox, then writes **State**. The side effects land before the write.
 
 That ordering decides everything here. When two CI jobs deploy one
 **Environment** concurrently, both have already created game passes by the time
-either could notice a conflict at write time. A lost write is not a lost
-edit; it is bedrock forgetting that a resource it created exists, so the next
-deploy creates a second one.
+either could notice a conflict at write time. A lost write is not a lost edit;
+it is bedrock forgetting that a resource it created exists, so the next deploy
+creates a second one.
 
 Object storage does not resolve this on its own. AWS states the constraint
 plainly: S3 does not support object locking for concurrent writers, and where

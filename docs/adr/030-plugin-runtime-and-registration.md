@@ -42,8 +42,8 @@ A top-level `plugins` field lists module specifiers:
 
 ```ts
 export default defineConfig({
-    plugins: ["@bedrock-rbx/state-s3"],
-    state: { backend: "s3", bucket: "my-bucket", region: "eu-west-2" },
+	plugins: ["@bedrock-rbx/state-s3"],
+	state: { backend: "s3", bucket: "my-bucket", region: "eu-west-2" },
 });
 ```
 
