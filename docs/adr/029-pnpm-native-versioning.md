@@ -352,6 +352,24 @@ published-package change carries no intent.
 - **ADR-016**: Knip — the Changesets plugin and the dependencies it accounted
   for are removed together.
 
+## Amendment: 2026-08-21, first-party plugins join the fixed group
+
+ADR-030 introduces plugin packages that extend core through its public
+contracts, the first being `@bedrock-rbx/state-s3`.
+
+The `fixed` group under `versioning` grows to include first-party plugin
+packages alongside `@bedrock-rbx/core` and `@bedrock-rbx/ocale`. A plugin
+implements contracts core owns, so the compatible pairing is the one released
+together, and the `workspace:*` edge already required expresses that exactly,
+with no range to reason about and no compatibility matrix to maintain.
+
+The cost is that a first-party plugin releases whenever core does, including
+when nothing in the plugin changed.
+
+Third-party plugins have no access to this mechanism and express compatibility
+as a peer range on `@bedrock-rbx/core` instead. The two paths differ, and a
+third-party author does not inherit the first-party guarantee.
+
 ## References
 
 - [pnpm release management](https://pnpm.io/versioning)

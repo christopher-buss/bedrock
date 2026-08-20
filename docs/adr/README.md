@@ -39,6 +39,8 @@ things are the way they are.
 | [027](./027-changesets-release-flow.md)                        | Changesets for Versioning and Automated npm Publishing                              | Superseded | 2026-06-22 |
 | [028](./028-deploy-actions-per-user-github-app-auth.md)        | Deploy Actions and Per-User GitHub App Auth for Codegen Commit-Back                 | Accepted   | 2026-06-23 |
 | [029](./029-pnpm-native-versioning.md)                         | pnpm Native Versioning in Place of the Changesets CLI                               | Accepted   | 2026-08-04 |
+| [030](./030-plugin-runtime-and-registration.md)                | Plugin Runtime and Registration                                                     | Accepted   | 2026-08-21 |
+| [031](./031-state-concurrency-model.md)                        | State Concurrency Model                                                             | Accepted   | 2026-08-21 |
 
 ## Creating a New ADR
 
