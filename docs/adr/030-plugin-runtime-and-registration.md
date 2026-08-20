@@ -98,8 +98,13 @@ carrying the module specifier alongside the plugin's payload. Enumerating every
 backend's error shapes in core is precisely the coupling this ADR removes.
 
 Concepts that any state backend has - not found, access denied, conflict - are
-backend-neutral and live in `StateError`, so the CLI can render them well.
+backend-neutral and belong in `StateError`, so the CLI can render them well.
 Backend-shaped detail stays in the opaque payload.
+
+`StateError` is a single shape today, `{ file, kind, reason }`, as sketched in
+ADR-019. It widens into a discriminated union to carry those concepts. The
+widening is additive: the existing shape stays as one arm, so the Gist
+**Backend** and every current consumer keep narrowing on the same discriminator.
 
 ### Migration is a plugin capability
 

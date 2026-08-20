@@ -47,9 +47,16 @@ so it is recorded separately from the plugin runtime in ADR-030 that carries it.
 ### Exclusion is taken before the work, not detected after it
 
 An optional `StateLockPort` sits beside `StatePort`. A hold is taken on one
-**Environment** before any **Operation** is applied and given up once **State**
-is written. Lifetime belongs to the deploy shell, the only layer that knows
-where the operation begins and ends.
+**Environment** before any **Operation** is applied and given up once the
+**State** write has been _attempted_, whether that attempt succeeded or failed.
+Lifetime belongs to the deploy shell, the only layer that knows where the
+operation begins and ends.
+
+Releasing on the attempt rather than on success matters: a write that fails
+after **Apply** is exactly when the operator needs to run again, and holding the
+**Environment** until the **Lease** expires would make the recovery path wait on
+a timeout. The failure that carries the unrecorded resources is preserved
+through release, so a release that also fails does not mask it.
 
 Detecting a conflict at write time is too late by construction. Waiting before
 touching Roblox is the entire point.
@@ -80,6 +87,13 @@ makes takeover safe here.
 
 `read` yields a version token alongside the **State**; `write` is conditional on
 it and fails rather than overwriting a newer record.
+
+This changes `StatePort`, which today is `read(environment)` returning the
+**State** or nothing and `write(state)` overwriting unconditionally, as sketched
+in ADR-019. The change is additive: the token is optional, and a write carrying
+no token is the unconditional write of today. A **Backend** whose store has no
+version primitive keeps working untouched, which is what the Gist **Backend**
+does. Nothing has to be migrated, and no second port version is needed.
 
 This is the fencing token. A holder that kept running past its expired lease
 cannot clobber the state written by whoever took over, because its write is
@@ -126,6 +140,12 @@ including under quorum loss.
 A store that fails the probe does not get locking. Refusing to lock is better
 than a lock that does not exclude.
 
+The wildcard is sent as a bare `*`, never quoted. At least one S3-compatible
+implementation compares the raw header value before stripping quotes, so a
+quoted wildcard falls through to an ETag comparison, the condition evaluates as
+satisfied, and the conditional create degrades into an unconditional overwrite.
+That failure is silent and grants two writers the same hold.
+
 ### Release writes a tombstone
 
 The hold is released by a conditional write marking it released, not by deleting
@@ -158,3 +178,38 @@ every test against S3 and delete other holders' locks elsewhere.
 - A partition in which bedrock can still reach Roblox but not the state store
   can still produce two runs applying at once. The lease bounds the window; it
   does not close it.
+
+## Survey scope
+
+The claim that no comparable tool makes the **State** write conditional on the
+**State** it read is load-bearing here, so the scope behind it is recorded
+rather than asserted. Surveyed on 2026-08-20, reading each tool's object-store
+backend source rather than its documentation: Terraform and OpenTofu (the `s3`
+backend, `use_lockfile` as shipped in 1.10 and 1.11), Pulumi (the self-managed
+object-store backend, and the Cloud backend's lease behaviour), Atlantis
+(pull-request-granularity locking over BoltDB and Redis), and Terragrunt (which
+provisions lock resources and adds no semantics of its own).
+
+In every one, the conditional primitive guards lock acquisition only; the state
+object itself is written unconditionally.
+
+## References
+
+- [Terraform `s3` backend](https://developer.hashicorp.com/terraform/language/backend/s3)
+  and its
+  [remote-state client](https://github.com/hashicorp/terraform/blob/main/internal/backend/remote-state/s3/client.go)
+- [`statemgr.Locker`](https://github.com/hashicorp/terraform/blob/main/internal/states/statemgr/locker.go)
+  and the optional
+  [`ClientLocker`](https://github.com/hashicorp/terraform/blob/main/internal/states/remote/remote.go)
+  interface that models locking as a capability
+- [OpenTofu `s3` backend client](https://github.com/opentofu/opentofu/blob/main/internal/backend/remote-state/s3/client.go)
+- [Pulumi self-managed backend locking](https://github.com/pulumi/pulumi/blob/master/pkg/backend/diy/lock.go)
+- [Amazon S3 conditional writes](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html)
+  and
+  [conditional deletes](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-deletes.html)
+- [Cloudflare R2 S3 API compatibility](https://developers.cloudflare.com/r2/api/s3/api/),
+  which lists conditional operations on `PutObject` and none on `DeleteObject`
+- [Stale locks left by interrupted runs](https://github.com/hashicorp/terraform/issues/25776),
+  open since 2020, and the
+  [lockfile retry gap under contention](https://github.com/hashicorp/terraform/issues/37324)
+- [Conditional writes silently ignored under quorum loss](https://github.com/minio/minio/issues/21603)
