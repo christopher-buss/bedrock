@@ -111,6 +111,20 @@ handler, type module
 runtime by the user's **Backend** choice in config. _Avoid_: storage,
 persistence layer
 
+**State lock port**: Optional plugin contract for mutual exclusion around a
+**Deploy**: takes a hold on one **Environment** before any **Operation** is
+applied and gives it up once **State** is written. Surfaced in code as
+`StateLockPort`. A **Backend** that cannot offer it is still a valid backend;
+what a backend supports is declared rather than discovered, so the guarantee in
+force is visible when a user chooses where **State** lives. _Avoid_: mutex,
+semaphore, guard
+
+**Lease**: The renewable liveness record a lock holder maintains while it works,
+so a hold left behind by a **Deploy** that was killed mid-run expires instead of
+blocking every later deploy. A holder that kept running but lost its lease still
+cannot overwrite the newer **State**, because the **State** write is guarded on
+its own. _Avoid_: ttl, timeout, expiry
+
 **Progress port**: Optional plugin contract for receiving per-**Resource** and
 aggregate progress events during **Deploy** (started, succeeded, failed, noop,
 summary, state-written). Surfaced in code as `ProgressPort` and supplied via
@@ -119,8 +133,28 @@ telemetry
 
 **Backend**: The user-facing discriminator in config that selects which **State
 port** adapter to construct at runtime (e.g. `state: { backend: "gist" }` picks
-the Gist adapter). Each backend value names exactly one adapter; today only the
-State port is backend-configurable. _Avoid_: provider, driver, storage
+the Gist adapter). Each backend value names exactly one adapter, either built in
+to core (`gist`) or contributed by a **Plugin**; two adapters claiming one name
+is an error rather than a silent shadowing. Today only the State port is
+backend-configurable. _Avoid_: provider, driver, storage
+
+**Plugin**: A separately-installed, opt-in package that extends core through its
+public contracts, named by module specifier in the top-level `plugins` config
+field (e.g. `plugins: ["@bedrock-rbx/state-s3"]`). Core imports each listed
+plugin when config loads and registers what it contributes; a specifier that
+fails to load fails the load rather than being skipped. The first plugin
+category is a **State port** **Backend**: the plugin supplies the adapter
+builder, an arktype schema fragment for its own `state` keys, the field
+descriptions `bedrock migrate` prompts from, and a **Migrate descriptor**.
+Authored by anyone against public API; core ships some as first-party packages.
+_Avoid_: extension, addon, integration, module
+
+**Migrate descriptor**: What a **Plugin** supplies so `bedrock migrate` can both
+read another tool's state from a **Backend** and write the converted **State**
+back to it: a translation of that tool's state-location config into bedrock's,
+plus the ability to fetch and store bytes at coordinates only the plugin
+understands. The plugin never learns the foreign format; core parses it.
+_Avoid_: importer, converter, adapter
 
 ### Code generation
 

@@ -555,3 +555,15 @@ export type DriverRegistry = {
   Its lifecycle (stored only on a successful republish/publish, retained stale
   on an aborted rebuild so the next deploy retries) and its role as the
   two-phase rebuild trigger are recorded in ADR-026's 2026-06-23 amendment.
+
+- **2026-08-21:** The `StatePort` and `StateError` sketches in this ADR are
+  revised by ADR-030 and ADR-031, additively in both cases. `read` gains an
+  optional version token alongside the **State**, and `write` may carry it so
+  the write is conditional on the record it read; a write with no token is the
+  unconditional write described here, so a **Backend** whose store has no
+  version primitive is unaffected. `StateError` widens from the single
+  `{ file, kind, reason }` shape into a discriminated union, keeping that shape
+  as one arm, so backend-neutral failures such as not-found, access-denied, and
+  conflict can be rendered without every consumer changing how it narrows.
+  Neither revision changes the state data model or the diff algebra this ADR
+  decides.
