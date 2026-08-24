@@ -9,7 +9,7 @@
 // String-surgery is preferred over `JSON.parse` + `JSON.stringify` so the
 // upstream formatting (compact short arrays, key ordering, whitespace)
 // survives the patch step. Diffs against the previous pinned commit show
-// only the five patched fields, not a whole-file reformat.
+// only the patched fields, not a whole-file reformat.
 
 const SPEC_PATH = "vendor/roblox-openapi.json";
 
@@ -68,19 +68,6 @@ const PATCHES: ReadonlyArray<Patch> = [
 		replace: "$1",
 	},
 	{
-		// Real-API probe (2026-05) shows the list endpoint returns the items
-		// array under `items`, not `memoryStoreSortedMapItems` as the spec
-		// claims. Same class of drift as the queue rename above. Without
-		// this patch the parser reads the wrong key and silently drops
-		// every real item on a non-empty page.
-		appliedMarker:
-			'"ListMemoryStoreSortedMapItemsResponse": {\n        "type": "object",\n        "properties": {\n          "items":',
-		description:
-			"ListMemoryStoreSortedMapItemsResponse renames memoryStoreSortedMapItems→items",
-		find: /("ListMemoryStoreSortedMapItemsResponse": \{\n {8}"type": "object",\n {8}"properties": \{\n {10})"memoryStoreSortedMapItems":/,
-		replace: '$1"items":',
-	},
-	{
 		// Anchored on `"The server generated tag of an item."`, which
 		// is the description of `MemoryStoreSortedMapItem.etag` and is
 		// unique to that schema. Same drift class as the queue ttl
@@ -135,28 +122,36 @@ export async function verifyPatchesStillNeeded(): Promise<void> {
 }
 
 /**
- * Applies the documented drift corrections to `vendor/roblox-openapi.json`.
- * Reads the file as text, applies each patch in turn via a targeted
- * regex replacement, and writes the result back. Each patch is idempotent:
- * when the find regex no longer matches, the script confirms that the
- * patched marker is present and continues. If neither matches, the
- * upstream schema has changed in a way the patch can no longer find, and
- * the script throws so the divergence is caught at refresh time.
+ * Applies every drift patch to `text` and reports how many changed it.
+ * Each patch is idempotent: when the find regex no longer matches, the
+ * patched marker must be present (the patch is already applied). If
+ * neither matches, the upstream schema has changed in a way the patch
+ * can no longer find, and the function throws so the divergence is
+ * caught at refresh time.
  *
- * @rejects {Error} If a patch's find regex no longer matches and its
+ * Patch payloads use `$1`/`$2` capture-group references, so they are
+ * passed as replacement strings — a replacer function would insert the
+ * `$n` tokens literally and corrupt the spec (that regression is pinned
+ * by the round-trip test in `apply-schema-patches.spec.ts`).
+ *
+ * @param original - Spec text to patch (fresh upstream or already patched).
+ * @returns The patched text with counts of applied and already-applied patches.
+ * @throws {Error} If a patch's find regex no longer matches and its
  *   applied-marker is also absent, indicating the upstream schema has
- *   shifted under the patch in a way the script cannot reconcile.
+ *   shifted under the patch in a way the function cannot reconcile.
  */
-export async function applySchemaPatches(): Promise<void> {
-	const original = await Bun.file(SPEC_PATH).text();
+export function applyPatchesToText(original: string): {
+	already: number;
+	applied: number;
+	text: string;
+} {
 	let text = original;
 	let applied = 0;
 	let already = 0;
 
 	for (const patch of PATCHES) {
-		// A replacer function inserts the text verbatim; a string replacement
-		// would interpret `$&` and friends in the patch payload.
-		const next = text.replace(patch.find, () => patch.replace);
+		// eslint-disable-next-line unicorn/no-unsafe-string-replacement -- Patch payloads intentionally use `$n` capture-group references; a function replacer would insert them literally (the exact regression pinned by the round-trip spec).
+		const next = text.replace(patch.find, patch.replace);
 		if (next !== text) {
 			text = next;
 			applied += 1;
@@ -172,6 +167,22 @@ export async function applySchemaPatches(): Promise<void> {
 			`failed to apply patch: ${patch.description} (upstream schema may have changed)`,
 		);
 	}
+
+	return { already, applied, text };
+}
+
+/**
+ * Applies the documented drift corrections to `vendor/roblox-openapi.json`.
+ * Reads the file as text, runs {@link applyPatchesToText}, and writes the
+ * result back when any patch changed the text.
+ *
+ * @rejects {Error} If a patch's find regex no longer matches and its
+ *   applied-marker is also absent, indicating the upstream schema has
+ *   shifted under the patch in a way the script cannot reconcile.
+ */
+export async function applySchemaPatches(): Promise<void> {
+	const original = await Bun.file(SPEC_PATH).text();
+	const { already, applied, text } = applyPatchesToText(original);
 
 	if (applied > 0) {
 		await Bun.write(SPEC_PATH, text);

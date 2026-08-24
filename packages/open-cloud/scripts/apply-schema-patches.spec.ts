@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { findObsoletePatchDescriptions } from "./apply-schema-patches.ts";
+import { applyPatchesToText, findObsoletePatchDescriptions } from "./apply-schema-patches.ts";
 
 const VENDOR_SPEC_PATH = fileURLToPath(new URL("../vendor/roblox-openapi.json", import.meta.url));
 
@@ -16,7 +16,6 @@ describe(findObsoletePatchDescriptions, () => {
 			"ReadMemoryStoreQueueItemsResponse renames items→queueItems and readId→id",
 			"MemoryStoreQueueItem.ttl drops invalid format: duration",
 			"Cloud_ReadMemoryStoreQueueItems.invisibilityWindow drops invalid format: duration",
-			"ListMemoryStoreSortedMapItemsResponse renames memoryStoreSortedMapItems→items",
 			"MemoryStoreSortedMapItem.ttl drops invalid format: duration",
 		]);
 	});
@@ -31,13 +30,13 @@ describe(findObsoletePatchDescriptions, () => {
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
 
-		expect(findObsoletePatchDescriptions(text)).toHaveLength(7);
+		expect(findObsoletePatchDescriptions(text)).toHaveLength(6);
 	});
 
 	it("should not flag a patch when its pre-patch shape is present in the input", () => {
 		// Reintroduce the pre-patch shape for the TTL patch: the field
 		// gains back `"format": "duration"` after the description. The
-		// other four patches' shapes remain absent, so they still flag.
+		// other patches' shapes remain absent, so they still flag.
 		expect.assertions(1);
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
@@ -66,7 +65,7 @@ describe(findObsoletePatchDescriptions, () => {
 		//     so it is still load-bearing)
 		// This pins both the cross-schema safety of patch #4's
 		// `(?!"MemoryStoreSortedMapItem":)` lookahead and the
-		// reverse-direction correctness of patch #7's find regex.
+		// reverse-direction correctness of patch #6's find regex.
 		expect.assertions(2);
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
@@ -79,6 +78,56 @@ describe(findObsoletePatchDescriptions, () => {
 		expect(obsolete).toContain("MemoryStoreQueueItem.ttl drops invalid format: duration");
 		expect(obsolete).not.toContain(
 			"MemoryStoreSortedMapItem.ttl drops invalid format: duration",
+		);
+	});
+});
+
+describe(applyPatchesToText, () => {
+	it("should report every patch as already applied on the post-patch vendored spec", () => {
+		expect.assertions(3);
+
+		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
+		const result = applyPatchesToText(text);
+
+		expect(result.applied).toBe(0);
+		expect(result.already).toBe(6);
+		expect(result.text).toBe(text);
+	});
+
+	it("should re-apply reverted patches and reproduce the committed spec byte-for-byte", () => {
+		// Reverts two patches with different payload shapes and checks
+		// the apply pass restores the committed post-patch state exactly.
+		// Patch 1's payload inserts text around `$1`/`$2` group references
+		// and patch 4's payload is the bare group reference `$1`, so a
+		// byte-for-byte round-trip proves the references expand instead of
+		// landing as literal `$n` tokens. That pins the 2026-08 regression
+		// where a function replacer (`() => patch.replace`) inserted the
+		// payload verbatim, corrupted the queue schema on the first patch,
+		// and broke every subsequent patch in the weekly refresh flow.
+		expect.assertions(3);
+
+		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
+		const reverted = text
+			.replace(
+				',\n        "required": ["data"]\n      },\n      "MemoryStoreSortedMapItem":',
+				'\n      },\n      "MemoryStoreSortedMapItem":',
+			)
+			.replace(
+				/(\{memory_store_queue_item_id\}`",[\s\S]*?"description": "The TTL for the item\.")(\n {10}\})/,
+				'$1,\n            "format": "duration"$2',
+			);
+		const result = applyPatchesToText(reverted);
+
+		expect(result.applied).toBe(2);
+		expect(result.already).toBe(4);
+		expect(result.text).toBe(text);
+	});
+
+	it("should throw when a patch matches neither its pre-patch shape nor its applied marker", () => {
+		expect.assertions(1);
+
+		expect(() => applyPatchesToText("")).toThrow(
+			"failed to apply patch: MemoryStoreQueueItem.required gains 'data'",
 		);
 	});
 });
