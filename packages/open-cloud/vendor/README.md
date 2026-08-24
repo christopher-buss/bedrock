@@ -4,7 +4,7 @@
 
 **File:** `roblox-openapi.json`
 **Upstream:** <https://github.com/Roblox/creator-docs/blob/main/content/en-us/reference/cloud/openapi.json>
-**Pinned commit:** `3dedc83c559bc97392afc7d5add766e74994969f`
+**Pinned commit:** `b0bf2f1557726e830129fd67075fe695883a91f7`
 **Format:** OpenAPI 3.0.4 (JSON)
 
 ### Refresh

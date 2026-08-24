@@ -39,6 +39,7 @@ it('Example 2', () => {
             gamePassId: 9876543210,
             iconAssetId: 1122334455,
             isForSale: true,
+            isManagedPricingEnabled: false,
             name: 'VIP Pass',
             updatedTimestamp: '2024-01-15T10:30:00.000Z',
           },

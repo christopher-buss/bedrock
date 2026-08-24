@@ -44,6 +44,7 @@ describe("game-passes fixtures", () => {
 					"Grants access to legendary loot, cosmetic flair, and the exclusive lobby.",
 				iconAssetId: "987654321",
 				isForSale: true,
+				isManagedPricingEnabled: false,
 				price: {
 					defaultPriceInRobux: 499,
 					enabledFeatures: ["RegionalPricing"],
@@ -68,6 +69,7 @@ describe("game-passes fixtures", () => {
 				description: "Back the creator and unlock bonus in-game tags.",
 				iconAssetId: "13600173502",
 				isForSale: false,
+				isManagedPricingEnabled: false,
 				price: undefined,
 				updatedAt: new Date("2024-12-20T12:00:00.000Z"),
 			});

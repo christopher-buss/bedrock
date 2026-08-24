@@ -42,6 +42,7 @@ export function parseDeveloperProductResponse({
 			iconImageAssetId: iconAssetId === undefined ? undefined : String(iconAssetId),
 			isForSale: body.isForSale,
 			isImmutable: body.isImmutable,
+			isManagedPricingEnabled: body.isManagedPricingEnabled,
 			price: priceWire === undefined ? undefined : copyPriceInformation(priceWire),
 			storePageEnabled: body.storePageEnabled,
 			universeId: String(body.universeId),
@@ -75,6 +76,7 @@ function hasRequiredPrimitiveFields(body: Record<string, unknown>): boolean {
 		typeof body["description"] === "string" &&
 		typeof body["isForSale"] === "boolean" &&
 		typeof body["isImmutable"] === "boolean" &&
+		typeof body["isManagedPricingEnabled"] === "boolean" &&
 		typeof body["storePageEnabled"] === "boolean" &&
 		isDateTimeString(body["createdTimestamp"]) &&
 		isDateTimeString(body["updatedTimestamp"])

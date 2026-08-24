@@ -16,6 +16,7 @@ describe(parseGamePassResponse, () => {
 			gamePassId: 12345,
 			iconAssetId: 67890,
 			isForSale: true,
+			isManagedPricingEnabled: true,
 			priceInformation: {
 				defaultPriceInRobux: 100,
 				enabledFeatures: ["RegionalPricing"],
@@ -34,6 +35,7 @@ describe(parseGamePassResponse, () => {
 			description: "Unlocks epic stuff",
 			iconAssetId: "67890",
 			isForSale: true,
+			isManagedPricingEnabled: true,
 			price: {
 				defaultPriceInRobux: 100,
 				enabledFeatures: ["RegionalPricing"],
@@ -55,6 +57,7 @@ describe(parseGamePassResponse, () => {
 				"gamePassId": 42,
 				"iconAssetId": 99,
 				"isForSale": false,
+				"isManagedPricingEnabled": false,
 				"name": "Free Pass",
 				"priceInformation": null,
 				"updatedTimestamp": "2024-03-20T14:45:00.000Z"
@@ -111,6 +114,7 @@ describe(parseGamePassResponse, () => {
 		{ badValue: "42", field: "name" },
 		{ badValue: "false", field: "description" },
 		{ badValue: '"yes"', field: "isForSale" },
+		{ badValue: '"yes"', field: "isManagedPricingEnabled" },
 		{ badValue: '"67890"', field: "iconAssetId" },
 		{ badValue: "12345", field: "createdTimestamp" },
 		{ badValue: "12345", field: "updatedTimestamp" },
@@ -127,6 +131,7 @@ describe(parseGamePassResponse, () => {
 					"gamePassId": 1,
 					"iconAssetId": 1,
 					"isForSale": true,
+					"isManagedPricingEnabled": false,
 					"name": "base",
 					"priceInformation": null,
 					"updatedTimestamp": "2024-03-20T14:45:00.000Z",
@@ -203,6 +208,7 @@ describe(parseGamePassResponse, () => {
 			gamePassId: 1,
 			iconAssetId: 1,
 			isForSale: true,
+			isManagedPricingEnabled: false,
 			priceInformation,
 			updatedTimestamp: "2024-03-20T14:45:00.000Z",
 		};
@@ -308,6 +314,7 @@ describe(parseGamePassResponse, () => {
 				"gamePassId": 7,
 				"iconAssetId": 7,
 				"isForSale": true,
+				"isManagedPricingEnabled": false,
 				"name": "Flex",
 				"priceInformation": { "defaultPriceInRobux": null, "enabledFeatures": [] },
 				"updatedTimestamp": "2024-03-20T14:45:00.000Z"
@@ -349,6 +356,7 @@ describe(parseGamePassResponse, () => {
 				"gamePassId": 9,
 				"iconAssetId": 9,
 				"isForSale": true,
+				"isManagedPricingEnabled": false,
 				"name": "Malformed",
 				"priceInformation": ${priceBody},
 				"updatedTimestamp": "2024-03-20T14:45:00.000Z"

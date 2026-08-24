@@ -51,6 +51,8 @@ export interface DeveloperProduct {
 	readonly isForSale: boolean;
 	/** Whether the developer product is locked from configuration changes. */
 	readonly isImmutable: boolean;
+	/** Whether managed pricing is enabled for the developer product. */
+	readonly isManagedPricingEnabled: boolean;
 	/** Pricing configuration; `undefined` when pricing is not yet set. */
 	readonly price: DeveloperProductPrice | undefined;
 	/** Whether the developer product appears on the external store page. */

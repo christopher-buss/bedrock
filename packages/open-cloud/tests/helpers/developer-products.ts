@@ -19,6 +19,7 @@ export function validDeveloperProductBody(
 		iconImageAssetId: 67_890,
 		isForSale: true,
 		isImmutable: false,
+		isManagedPricingEnabled: false,
 		priceInformation: { defaultPriceInRobux: 100, enabledFeatures: [] },
 		productId: 12_345,
 		storePageEnabled: true,

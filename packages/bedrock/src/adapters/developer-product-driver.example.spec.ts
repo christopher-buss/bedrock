@@ -38,6 +38,7 @@ it('Example 2', () => {
             iconImageAssetId: null,
             isForSale: false,
             isImmutable: false,
+            isManagedPricingEnabled: false,
             name: 'Gem Pack',
             priceInformation: null,
             productId: 9876543210,

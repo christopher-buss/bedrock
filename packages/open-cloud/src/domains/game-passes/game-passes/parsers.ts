@@ -85,6 +85,7 @@ function toGamePass(wire: GamePassConfigV2): GamePass {
 		description: wire.description,
 		iconAssetId: wire.iconAssetId === 0 ? undefined : String(wire.iconAssetId),
 		isForSale: wire.isForSale,
+		isManagedPricingEnabled: wire.isManagedPricingEnabled,
 		price: priceWire === undefined ? undefined : copyPriceInformation(priceWire),
 		updatedAt: new Date(wire.updatedTimestamp),
 	};
@@ -96,6 +97,7 @@ function hasRequiredPrimitiveFields(body: Record<string, unknown>): boolean {
 		typeof body["name"] === "string" &&
 		typeof body["description"] === "string" &&
 		typeof body["isForSale"] === "boolean" &&
+		typeof body["isManagedPricingEnabled"] === "boolean" &&
 		typeof body["iconAssetId"] === "number" &&
 		isDateTimeString(body["createdTimestamp"]) &&
 		isDateTimeString(body["updatedTimestamp"])

@@ -35,6 +35,8 @@ export interface GamePassConfigV2 {
 	readonly iconAssetId: number;
 	/** Whether the game pass is currently purchasable. */
 	readonly isForSale: boolean;
+	/** Whether managed pricing is enabled for the game pass. */
+	readonly isManagedPricingEnabled: boolean;
 	/** Pricing block; `undefined` when the schema returns null. */
 	readonly priceInformation: PriceInformationStructWire | undefined;
 	/** ISO timestamp of the most recent update (`date-time`). */
