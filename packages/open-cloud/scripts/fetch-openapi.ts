@@ -57,7 +57,9 @@ async function refreshPinnedCommit(): Promise<void> {
 	// interpret `$&` and friends in the interpolated value. The replace is a
 	// no-op (not an error) when the pinned sha is already current.
 	const updated = readme.replace(PINNED_COMMIT_PATTERN, () => `**Pinned commit:** \`${sha}\``);
-	await Bun.write(README_PATH, updated);
+	if (updated !== readme) {
+		await Bun.write(README_PATH, updated);
+	}
 }
 
 await Promise.all([refreshAndPatchSpec(), refreshPinnedCommit()]);

@@ -141,9 +141,9 @@ export async function verifyPatchesStillNeeded(): Promise<void> {
  *   shifted under the patch in a way the function cannot reconcile.
  */
 export function applyPatchesToText(original: string): {
-	already: number;
-	applied: number;
-	text: string;
+	readonly already: number;
+	readonly applied: number;
+	readonly text: string;
 } {
 	let text = original;
 	let applied = 0;

@@ -84,14 +84,11 @@ describe(findObsoletePatchDescriptions, () => {
 
 describe(applyPatchesToText, () => {
 	it("should report every patch as already applied on the post-patch vendored spec", () => {
-		expect.assertions(3);
+		expect.assertions(1);
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
-		const result = applyPatchesToText(text);
 
-		expect(result.applied).toBe(0);
-		expect(result.already).toBe(6);
-		expect(result.text).toBe(text);
+		expect(applyPatchesToText(text)).toStrictEqual({ already: 6, applied: 0, text });
 	});
 
 	it("should re-apply reverted patches and reproduce the committed spec byte-for-byte", () => {
@@ -104,7 +101,7 @@ describe(applyPatchesToText, () => {
 		// where a function replacer (`() => patch.replace`) inserted the
 		// payload verbatim, corrupted the queue schema on the first patch,
 		// and broke every subsequent patch in the weekly refresh flow.
-		expect.assertions(3);
+		expect.assertions(1);
 
 		const text = readFileSync(VENDOR_SPEC_PATH, "utf8");
 		const reverted = text
@@ -116,11 +113,8 @@ describe(applyPatchesToText, () => {
 				/(\{memory_store_queue_item_id\}`",[\s\S]*?"description": "The TTL for the item\.")(\n {10}\})/,
 				'$1,\n            "format": "duration"$2',
 			);
-		const result = applyPatchesToText(reverted);
 
-		expect(result.applied).toBe(2);
-		expect(result.already).toBe(4);
-		expect(result.text).toBe(text);
+		expect(applyPatchesToText(reverted)).toStrictEqual({ already: 4, applied: 2, text });
 	});
 
 	it("should throw when a patch matches neither its pre-patch shape nor its applied marker", () => {
