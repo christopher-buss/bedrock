@@ -11,7 +11,7 @@ import { parseListResponse, parseSortedMapItemResponse } from "./parsers.ts";
 //  - CREATE/LIST emit singular `memory-store` paths; GET emits plural
 //    `memory-stores` (parser regex accepts both).
 //  - LIST returns the array under `items`, not `memoryStoreSortedMapItems`
-//    (apply-schema-patches renames the spec field).
+//    (a spec drift Roblox fixed upstream in 2026-08).
 //  - Item ids with URL-reserved characters round-trip URL-encoded
 //    in `path`; the parser reads the decoded form from body.id.
 

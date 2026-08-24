@@ -4,7 +4,7 @@
 
 **File:** `roblox-openapi.json`
 **Upstream:** <https://github.com/Roblox/creator-docs/blob/main/content/en-us/reference/cloud/openapi.json>
-**Pinned commit:** `3dedc83c559bc97392afc7d5add766e74994969f`
+**Pinned commit:** `b0bf2f1557726e830129fd67075fe695883a91f7`
 **Format:** OpenAPI 3.0.4 (JSON)
 
 ### Refresh
@@ -30,7 +30,7 @@ fails loudly if any patch's pre-patch shape is absent. That signal
 catches the case where Roblox has fixed a drift upstream: the patch
 becomes obsolete and should be removed before the refresh succeeds.
 
-Active patches as of 2026-05-14:
+Active patches as of 2026-08-24:
 
 1. `components.schemas.MemoryStoreQueueItem.required` includes
    `"data"`. The server returns 400 `INVALID_ARGUMENT` when the
@@ -60,12 +60,7 @@ Active patches as of 2026-05-14:
    `Cloud_ReadMemoryStoreQueueItems` drops `"format": "duration"` for
    the same reason as patch 4. The example is `"3s"` and the server
    rejects ISO 8601 form.
-6. `components.schemas.ListMemoryStoreSortedMapItemsResponse.properties`
-   renames `memoryStoreSortedMapItems` to `items`. Real-API probe
-   (2026-05) shows the list endpoint returns the items array under
-   `items`; without the rename the parser silently drops every real
-   item on a non-empty page.
-7. `components.schemas.MemoryStoreSortedMapItem.properties.ttl` drops
+6. `components.schemas.MemoryStoreSortedMapItem.properties.ttl` drops
    `"format": "duration"`. Same drift class as patch 4: the schema's
    example is `"3s"` but the upstream `format: "duration"` annotation
    makes Ajv-formats demand ISO 8601. Roblox added this annotation

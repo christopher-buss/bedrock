@@ -89,6 +89,7 @@ export interface GamePassDriverDeps {
  *                     gamePassId: 9_876_543_210,
  *                     iconAssetId: 1_122_334_455,
  *                     isForSale: true,
+ *                     isManagedPricingEnabled: false,
  *                     name: "VIP Pass",
  *                     updatedTimestamp: "2024-01-15T10:30:00.000Z",
  *                 },

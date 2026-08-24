@@ -13,6 +13,7 @@ describe(validGamePassBody, () => {
 			gamePassId: 12_345,
 			iconAssetId: 67_890,
 			isForSale: true,
+			isManagedPricingEnabled: false,
 			priceInformation: { defaultPriceInRobux: 100, enabledFeatures: [] },
 			updatedTimestamp: "2024-03-20T14:45:00.000Z",
 		});

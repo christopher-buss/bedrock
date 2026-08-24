@@ -45,10 +45,11 @@ export interface MemoryStoreSortedMapItemWire {
  * empty maps come back with `items` omitted or JSON `null`. The
  * parser normalizes both forms to `items: []`.
  *
- * The upstream schema names this field `memoryStoreSortedMapItems`
- * (see `scripts/apply-schema-patches.ts`), but a real-API probe in
- * 2026-05 confirmed the wire shape is `items`. The vendored spec is
- * patched to match the server.
+ * The upstream schema used to name this field
+ * `memoryStoreSortedMapItems`; a real-API probe in 2026-05 confirmed
+ * the wire shape is `items`, and Roblox fixed the schema upstream in
+ * 2026-08 (the local drift patch that did the rename was removed
+ * from `scripts/apply-schema-patches.ts` at that point).
  */
 export interface ListSortedMapItemsResponseWire {
 	/**

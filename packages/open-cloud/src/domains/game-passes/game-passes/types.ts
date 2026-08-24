@@ -42,6 +42,8 @@ export interface GamePass {
 	readonly iconAssetId: string | undefined;
 	/** Whether the game pass is currently purchasable. */
 	readonly isForSale: boolean;
+	/** Whether managed pricing is enabled for the game pass. */
+	readonly isManagedPricingEnabled: boolean;
 	/** Pricing configuration; `undefined` when pricing is not yet set. */
 	readonly price: GamePassPrice | undefined;
 	/** ISO timestamp of the most recent update, as a `Date`. */

@@ -38,6 +38,8 @@ export interface DeveloperProductConfigV2 {
 	readonly isForSale: boolean;
 	/** Whether the developer product is locked from configuration changes. */
 	readonly isImmutable: boolean;
+	/** Whether managed pricing is enabled for the developer product. */
+	readonly isManagedPricingEnabled: boolean;
 	/** Pricing block; `undefined` when the schema returns null. */
 	readonly priceInformation: DeveloperProductPriceInformationWire | undefined;
 	/** Int64 developer product ID, serialized as a JSON number. */

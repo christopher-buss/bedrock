@@ -34,6 +34,7 @@ describe("developer-products fixtures", () => {
 				iconImageAssetId: "14502339875",
 				isForSale: true,
 				isImmutable: false,
+				isManagedPricingEnabled: false,
 				price: {
 					defaultPriceInRobux: 99,
 					enabledFeatures: ["RegionalPricing"],
@@ -61,6 +62,7 @@ describe("developer-products fixtures", () => {
 				iconImageAssetId: undefined,
 				isForSale: false,
 				isImmutable: false,
+				isManagedPricingEnabled: false,
 				price: undefined,
 				storePageEnabled: false,
 				universeId: "4567890123",

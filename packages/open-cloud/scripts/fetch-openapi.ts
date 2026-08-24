@@ -49,14 +49,17 @@ async function refreshAndPatchSpec(): Promise<void> {
 async function refreshPinnedCommit(): Promise<void> {
 	const sha = await fetchLatestSha();
 	const readme = await Bun.file(README_PATH).text();
-	// A replacer function inserts the text verbatim; a string replacement would
-	// interpret `$&` and friends in the interpolated value.
-	const updated = readme.replace(PINNED_COMMIT_PATTERN, () => `**Pinned commit:** \`${sha}\``);
-	if (updated === readme) {
+	if (!PINNED_COMMIT_PATTERN.test(readme)) {
 		throw new Error(`failed to locate pinned-commit line in ${README_PATH}`);
 	}
 
-	await Bun.write(README_PATH, updated);
+	// A replacer function inserts the text verbatim; a string replacement would
+	// interpret `$&` and friends in the interpolated value. The replace is a
+	// no-op (not an error) when the pinned sha is already current.
+	const updated = readme.replace(PINNED_COMMIT_PATTERN, () => `**Pinned commit:** \`${sha}\``);
+	if (updated !== readme) {
+		await Bun.write(README_PATH, updated);
+	}
 }
 
 await Promise.all([refreshAndPatchSpec(), refreshPinnedCommit()]);

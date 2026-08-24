@@ -109,6 +109,7 @@ interface FollowUpPatchInputs {
  *                     iconImageAssetId: null,
  *                     isForSale: false,
  *                     isImmutable: false,
+ *                     isManagedPricingEnabled: false,
  *                     name: "Gem Pack",
  *                     priceInformation: null,
  *                     productId: 9_876_543_210,
