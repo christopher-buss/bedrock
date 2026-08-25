@@ -7,6 +7,7 @@ language: en
 words:
   - arktype
   - bedrockrc
+  - checkpointed
   - codegen
   - defu
   - ehostdown
@@ -27,10 +28,13 @@ words:
   - pulumi
   - rbxl
   - rbxlx
+  - rbxts
+  - rbxtsc
   - redactable
   - redactions
   - regenerable
   - retryable
+  - rojo
   - shiki
   - stroustrup
   - unparseable

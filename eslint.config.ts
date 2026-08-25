@@ -132,6 +132,9 @@ export default isentinel(
 			"**/vendor/**",
 			".sandcastle/plans/**",
 			".sandcastle/worktrees/**",
+			// Game sources in the examples compile with roblox-ts or Luau
+			// toolchains, not the Node toolchain this config targets.
+			"examples/*/src/**",
 			"packages/bedrock/tests/fixtures/**/*.yml",
 			"packages/bedrock/tests/fixtures/codegen/**",
 			"packages/open-cloud/src/locales/data.generated.ts",

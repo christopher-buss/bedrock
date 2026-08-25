@@ -1,0 +1,5 @@
+{
+	"extends": "@bedrock-rbx/typescript-config/tsconfig.base.json",
+	"include": [".bedrock/**/*.ts", "bedrock.config.ts"],
+	"exclude": ["node_modules", "dist", "src"]
+}

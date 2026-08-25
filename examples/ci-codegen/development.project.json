@@ -1,0 +1,15 @@
+{
+	"name": "bedrock-example",
+	"globIgnorePaths": ["**/package.json", "**/tsconfig.json"],
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"rbxts_include": { "$path": "include" },
+			"shared": { "$path": "out/shared" }
+		},
+		"ServerScriptService": {
+			"dev": { "$path": "out/dev" },
+			"server": { "$path": "out/server" }
+		}
+	}
+}

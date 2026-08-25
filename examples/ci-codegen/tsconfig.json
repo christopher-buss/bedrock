@@ -1,0 +1,8 @@
+{
+	"extends": "@bedrock-rbx/typescript-config/tsconfig.base.json",
+	// Only the Bedrock-side sources are checked here. `src/` is roblox-ts game
+	// code: it compiles against `@rbxts/compiler-types`, a different type world
+	// from the Node scripts under `.bedrock/`.
+	"include": [".bedrock/**/*.ts", "bedrock.config.ts"],
+	"exclude": ["node_modules", "dist", "src"]
+}

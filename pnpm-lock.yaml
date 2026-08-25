@@ -467,6 +467,32 @@ importers:
         specifier: catalog:docs
         version: 3.5.32(@typescript/typescript6@6.0.1)
 
+  examples/ci-codegen:
+    dependencies:
+      '@bedrock-rbx/core':
+        specifier: workspace:*
+        version: link:../../packages/bedrock
+    devDependencies:
+      '@bedrock-rbx/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      typescript:
+        specifier: catalog:tsc
+        version: '@typescript/typescript6@6.0.1'
+
+  examples/minimal:
+    dependencies:
+      '@bedrock-rbx/core':
+        specifier: workspace:*
+        version: link:../../packages/bedrock
+    devDependencies:
+      '@bedrock-rbx/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      typescript:
+        specifier: catalog:tsc
+        version: '@typescript/typescript6@6.0.1'
+
   packages/actions:
     devDependencies:
       '@actions/core':
@@ -1941,12 +1967,12 @@ packages:
     resolution: {integrity: sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==}
     engines: {node: '>=12'}
 
-  '@isentinel/dict-rbxts@1.0.17':
-    resolution: {integrity: sha512-qIqhILOwiMfDT42H1Do07DsXipUKzVI2AdPznMxPJohtySdQmFIzXrApTj6zSgXv9IQGYS5WB0bprBqtapjj/Q==}
+  '@isentinel/dict-rbxts@1.0.20':
+    resolution: {integrity: sha512-G/CgNX00foLRvj3hm3lks94cV39dxfrdWc7hHi2i4E4acJqTzSxJLb6rtXPPs49Q538Ji13RJ2GOlRtimNXYOg==}
     engines: {node: '>=22'}
 
-  '@isentinel/dict-roblox@1.0.10':
-    resolution: {integrity: sha512-We84lknBpnMVtR4S5MDc8f06RXcNosPZGLha9oTHOc1aCEmtFxTf5dhrT2j+loBGQAgxnn9JioM/8+P2stWMNg==}
+  '@isentinel/dict-roblox@1.0.13':
+    resolution: {integrity: sha512-t66E0JBi+2+aIN3uhxhW+iYB+Qdgw2FR9rjz2qbUsiZ/VzGNkvWxewOGtGuk5RAdhwIHORg9lMod8R6e4BhnBQ==}
     engines: {node: '>=20.18.0'}
 
   '@isentinel/eslint-config@6.0.0-beta.38':
@@ -8845,9 +8871,9 @@ snapshots:
       wrap-ansi: 8.1.0
       wrap-ansi-cjs: wrap-ansi@7.0.0
 
-  '@isentinel/dict-rbxts@1.0.17': {}
+  '@isentinel/dict-rbxts@1.0.20': {}
 
-  '@isentinel/dict-roblox@1.0.10': {}
+  '@isentinel/dict-roblox@1.0.13': {}
 
   '@isentinel/eslint-config@6.0.0-beta.38(e5b7b44afa8593c85e7619bb89126c55)':
     dependencies:
@@ -8857,8 +8883,8 @@ snapshots:
       '@e18e/eslint-plugin': 0.5.1(eslint@10.6.0(jiti@2.7.0)(supports-color@10.2.2))
       '@eslint-community/eslint-plugin-eslint-comments': 4.7.2(eslint@10.6.0(jiti@2.7.0)(supports-color@10.2.2))
       '@eslint/markdown': 8.0.3(supports-color@10.2.2)
-      '@isentinel/dict-rbxts': 1.0.17
-      '@isentinel/dict-roblox': 1.0.10
+      '@isentinel/dict-rbxts': 1.0.20
+      '@isentinel/dict-roblox': 1.0.13
       '@oxlint/plugins': 1.74.0
       '@pobammer-ts/small-rules': 2.9.0(@typescript/typescript6@6.0.1)
       '@stylistic/eslint-plugin': 5.10.0(eslint@10.6.0(jiti@2.7.0)(supports-color@10.2.2))

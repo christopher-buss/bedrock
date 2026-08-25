@@ -24,6 +24,7 @@ trustPolicyIgnoreAfter: 10080 # 7 days
 
 packages:
   - apps/*
+  - examples/*
   - packages/*
   - scripts/*
 

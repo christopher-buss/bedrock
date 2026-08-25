@@ -66,7 +66,10 @@ pnpm add -D @bedrock-rbx/core
 ```
 
 See the [getting-started guide](https://bedrock-livid.vercel.app/) for a full
-walkthrough.
+walkthrough, or [`examples/`](./examples/) for two reference projects: a
+[minimal one](./examples/minimal/) deployed by hand, and one that
+[deploys from GitHub Actions](./examples/ci-codegen/) with codegen committed
+back to the branch.
 
 To develop Bedrock itself locally:
 
@@ -85,6 +88,7 @@ through [Vite+](./docs/adr/014-vite-plus-unified-toolchain.md).
 ## Documentation
 
 - [Documentation site](https://bedrock-livid.vercel.app/) (work in progress)
+- [Examples](./examples/) — reference projects wiring up config, codegen, and CI
 - [Architecture Decision Records](./docs/adr/) covering every significant design
   choice
 

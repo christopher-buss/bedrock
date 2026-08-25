@@ -39,6 +39,15 @@ const config: KnipConfig = {
 		"apps/website": {
 			entry: ["landing/examples/**/*.ts"],
 		},
+		"examples/ci-codegen": {
+			entry: ["bedrock.config.ts", ".bedrock/**/*.ts"],
+			// roblox-ts game sources; compiled by rbxtsc, not reachable from
+			// the Node entry points above.
+			ignore: ["src/**"],
+		},
+		"examples/minimal": {
+			entry: ["bedrock.config.ts", ".bedrock/**/*.ts"],
+		},
 		"packages/actions": {
 			entry: [STRYKER_CONFIG],
 		},

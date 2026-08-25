@@ -1,0 +1,16 @@
+{
+	"name": "bedrock-example-minimal",
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"Bedrock": {
+				"$path": ".bedrock/generated"
+			}
+		},
+		"ServerScriptService": {
+			"Server": {
+				"$path": "src/server"
+			}
+		}
+	}
+}
