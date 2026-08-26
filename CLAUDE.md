@@ -127,6 +127,24 @@ third block, the symbol probably needs clearer types or a split, not more docs.
 
 See `docs/adr/003-testing-strategy.md` for full details.
 
+### Public API `@since` tags
+
+Every symbol exported from a published package's barrel carries a `@since` JSDoc
+tag naming the version that introduced it. The tag is enforced by
+`packages/open-cloud/src/meta.since-tags.spec.ts` and rendered into the docs
+site and IDE hovers.
+
+Write `@since unreleased` on anything new. The shipping version is not knowable
+while the change is in review: the release plan is assembled from every pending
+change intent, so a `patch` intent becomes a `minor` the moment another one
+lands. `scripts/resolve-since-tags.ts` rewrites the placeholder to the real
+version when the Version PR is cut, and `main` keeps the placeholder until then
+so a re-cut PR re-derives it.
+
+Never hand-write a version on a new symbol, not even the package's current one:
+the symbol has not shipped in it. The guard rejects any `@since` above the
+package's own version, which is what a guess looks like.
+
 ## Type Conventions
 
 These conventions shape how new code is written and reviewed in this repo.
