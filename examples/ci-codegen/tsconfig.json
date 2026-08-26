@@ -1,11 +1,6 @@
 {
 	"extends": "@bedrock-rbx/typescript-config/tsconfig.base.json",
-	// `include` is an allowlist of the Bedrock-side sources. `src/` stays out:
-	// it is roblox-ts game code compiled against `@rbxts/compiler-types`, a
-	// different type world from the Node scripts under `.bedrock/`.
-	//
-	// `exclude` must be overridden — the shared base excludes every
-	// dot-directory, which would otherwise drop `.bedrock/` from the program.
 	"include": [".bedrock/**/*.ts", "bedrock.config.ts"],
+	// The shared base excludes every dot-directory, which would drop `.bedrock/`.
 	"exclude": ["node_modules"]
 }

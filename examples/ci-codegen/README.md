@@ -1,24 +1,10 @@
 # CI + codegen example
 
-The same project as [`../minimal`](../minimal), taken to where a real
-multi-environment game sits: a deploy override that supplies its own build step
-and emitter, generated TypeScript instead of a Luau table, and a GitHub Actions
-workflow that deploys and commits the regenerated ids back to `main`.
-
-Read [`../minimal`](../minimal) first if the deploy stages are new to you.
-
-## What it shows
-
-- A [`.bedrock/deploy.ts`](.bedrock/deploy.ts) override — the programmatic entry
-  point the CLI hands control to.
-- A custom [emitter](.bedrock/codegen/emit.ts) that generates typed TypeScript
-  and resolves ids per environment at runtime.
-- Reading real names and prices through redaction with `codegenViewOf` and
-  `realValue` — see [Redaction](#redaction).
-- A [build step](.bedrock/build/build-place.ts) that picks its Rojo project from
-  the environment being deployed.
-- A [deploy workflow](.github/workflows/deploy.yaml) built on the published
-  Bedrock actions.
+The [`../minimal`](../minimal) project taken multi-environment: a deploy
+override supplying its own build step and emitter, generated TypeScript instead
+of a Luau table, and a GitHub Actions workflow that commits the regenerated ids
+back to `main`. Read [`../minimal`](../minimal) first if the deploy stages are
+new to you.
 
 ## Layout
 
@@ -28,70 +14,51 @@ Read [`../minimal`](../minimal) first if the deploy stages are new to you.
 | `.bedrock/deploy.ts`             | Override the CLI spawns instead of its built-in deploy. |
 | `.bedrock/build/build-place.ts`  | Compiles the sources and builds the place artifact.     |
 | `.bedrock/codegen/emit.ts`       | Deploy state in, source files out. Pure function.       |
-| `src/shared/assets/resources.ts` | Generated. Committed, and reflowed by CI.               |
+| `src/shared/assets/resources.ts` | Generated. Committed, and rewritten by CI.              |
 | `src/server/main.server.ts`      | Resolves ids from `game.GameId` at runtime.             |
 | `src/dev/dev-only.server.ts`     | Mounted by the development Rojo project only.           |
 | `.github/workflows/deploy.yaml`  | Copy to your repository root to use.                    |
 
 ## Building it
 
-This example compiles. `roblox-ts` and `@rbxts/services` are real dependencies,
-so `rbxtsc` typechecks `src/` against the Roblox type definitions:
-
 ```bash
 pnpm --filter @bedrock-rbx/example-ci-codegen build
 ```
 
-That is the same command the deploy runs from
-[`build-place.ts`](.bedrock/build/build-place.ts), and it is what keeps the game
-sources honest — `src/` is not covered by this repo's `pnpm typecheck`, because
-roblox-ts pins its own TypeScript.
-
-roblox-ts reads [`tsconfig.roblox.json`](tsconfig.roblox.json) rather than
-`tsconfig.json`: the root config is the Node-side program for `.bedrock/`, and
-roblox-ts requires its `typeRoots` to resolve against its own directory.
+[`build-place.ts`](.bedrock/build/build-place.ts) runs the same command during a
+deploy, picking its Rojo project from the environment being deployed. roblox-ts
+reads [`tsconfig.roblox.json`](tsconfig.roblox.json) rather than
+`tsconfig.json`, which is the Node-side program for `.bedrock/`: rbxtsc requires
+its `typeRoots` to resolve against its own config's directory.
 
 ## Why an override
 
 A config file cannot hold functions, so anything Bedrock has to _call_ —
 building a place, generating source, reporting progress — is passed to
-`deploy()` in code. `.bedrock/deploy.ts` is where that wiring lives.
+`deploy()` in code. That is what [`.bedrock/deploy.ts`](.bedrock/deploy.ts) is,
+custom [emitter](.bedrock/codegen/emit.ts) included. When the file exists,
+`bedrock deploy --env X` spawns it with `--env X` in argv and the credentials in
+the environment; the same command still works locally and in CI.
 
-The CLI looks for the file by path. When it exists, `bedrock deploy --env X`
-spawns it with `--env X` in argv and the credentials in the environment, instead
-of running its own deploy. Nothing else changes: the same command works locally
-and in CI, whether or not an override is present.
-
-The pure-config path is still available for the build step alone — drop a
-`.bedrock/build.ts` and the CLI injects it, no `deploy.ts` needed. That is what
-[`../minimal`](../minimal) does. Reach for `deploy.ts` when you need a custom
-emitter or want to hold the result in your hands.
+For a build step alone, drop a `.bedrock/build.ts` and the CLI injects it;
+`deploy.ts` is for when you also need a custom emitter.
 
 ## Why the deploy commits to your branch
 
-Codegen rewrites `src/shared/assets` during the deploy. Those files are the
-game's source of truth for asset ids, so they have to end up on the branch —
-otherwise the next build regenerates them from scratch and the diff never
-settles.
+Codegen rewrites `src/shared/assets` during the deploy, and those files are the
+game's source of truth for asset ids. They have to land on the branch, or the
+next build regenerates them from scratch and the diff never settles. The
+`deploy` action runs `bedrock deploy --env production`, mints a short-lived
+installation token from your GitHub App, then commits only the changed files
+under `paths`, retrying if the branch tip moved. Its commit message carries
+`[skip ci]` so the push does not re-trigger the workflow.
 
-The `deploy` action does that in one composite:
-
-1. Runs `bedrock deploy --env production`, which provisions, generates, builds,
-   and publishes.
-2. Mints a short-lived installation token from your GitHub App.
-3. Commits and pushes only the files that changed under `paths`, retrying if the
-   branch tip moved.
-
-The default commit message carries `[skip ci]` so the push does not trigger the
-workflow again.
-
-The token matters because the built-in `GITHUB_TOKEN` cannot push to a protected
-`main`. The push needs an identity allowed to bypass branch protection, which is
-why the composite mints one from a GitHub App you own.
+The App token is there because the built-in `GITHUB_TOKEN` cannot push to a
+protected `main`.
 [Set up the deploy bot](../../packages/actions/README.md#set-up-the-deploy-bot)
-walks through creating it. If you already have a write-capable token, pass
-`commit-token` instead of the `app-*` inputs; with neither, the commit-back step
-is skipped and the deploy still runs.
+covers creating it; pass `commit-token` instead if you already have a
+write-capable token. With neither, the commit-back is skipped and the deploy
+still runs.
 
 ## Secrets the workflow needs
 
@@ -102,34 +69,28 @@ is skipped and the deploy still runs.
 | `DEPLOY_APP_CLIENT_ID`   | Client id of your deploy GitHub App.                                                |
 | `DEPLOY_APP_PRIVATE_KEY` | Full contents of that app's `.pem` private key.                                     |
 
-Every action is pinned by commit SHA with the version in a trailing comment,
-matching the rest of this repository. That includes the Bedrock deploy action: a
-tag can be repointed, and this job hands the action an Open Cloud API key and a
-GitHub App private key.
-
-One caveat the pin does not cover. The deploy composite resolves its own
-commit-back step through the `actions-v0.1.1` tag, so pinning the outer
-reference freezes which composite you get, not every step it runs.
+Every action is pinned by commit SHA, the Bedrock deploy action included: a tag
+can be repointed, and this job hands the action an Open Cloud API key and a
+GitHub App private key. The pin stops at the outer reference. The deploy
+composite resolves its own commit-back step through the `actions-v0.1.1` tag, so
+pinning freezes which composite you get, not every step it runs.
 
 ## Redaction
 
-`development` sets `redacted: true`, so Bedrock pushes placeholder name,
-description, and price to Roblox for that environment while recording the real
+`development` sets `redacted: true`: Bedrock pushes a placeholder name,
+description, and price to Roblox for that environment and records the real
 values in a sibling of the state file. The emitter reads them back with
-`realValue(view.name)`, so the generated source carries the real values in both
-environments even though only production shows them on the storefront.
-
-Drop `redacted` and nothing else changes — the same emitter code keeps working,
-because `codegenViewOf` returns the declared value when there is nothing to see
-through.
+`codegenViewOf` and `realValue`, so generated source carries the real values in
+both environments while only production shows them on the storefront. Drop
+`redacted` and the emitter is unchanged, because `codegenViewOf` returns the
+declared value when there is nothing to see through.
 
 ## Adapting it
 
 - Replace every placeholder id in `bedrock.config.ts`, and the `gistId`.
 - Replace `assets/icons/vip-pass.png` with a real 512x512 icon, or drop the
   `passes` block.
-- Add environments by adding a key under `environments`. The emitter picks them
-  up with no change: it generates one `GameId` member per environment that has
-  deployed at least once.
+- Add a key under `environments`; the emitter generates one `GameId` member per
+  environment that has deployed at least once.
 - To generate something else, edit `emit.ts`. It is a pure function of the
-  deploy state, so a unit test over it is a plain input/output comparison.
+  deploy state, so a test over it is an input/output comparison.

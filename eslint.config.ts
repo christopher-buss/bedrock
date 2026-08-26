@@ -132,9 +132,6 @@ export default isentinel(
 			"**/vendor/**",
 			".sandcastle/plans/**",
 			".sandcastle/worktrees/**",
-			// roblox-ts game sources. They typecheck under rbxtsc's own
-			// TypeScript 5.x on "pnpm build"; this repo runs the TS 6/7
-			// preview, which rejects the roblox-ts config idioms outright.
 			"examples/*/src/**",
 			"packages/bedrock/tests/fixtures/**/*.yml",
 			"packages/bedrock/tests/fixtures/codegen/**",

@@ -1,8 +1,4 @@
-# Copy this file to `.github/workflows/` at the root of your own repository.
-# Nested under `examples/`, GitHub never runs it.
-#
-# It assumes the roblox-ts toolchain this example does not ship; see the
-# README section "What this example does not ship".
+# Copy to `.github/workflows/` at the root of your own repository.
 
 name: Deploy
 
@@ -15,8 +11,8 @@ on:
 permissions:
   contents: read
 
-# One deploy at a time per environment. Do not cancel a running deploy: it may
-# be between provisioning ids and publishing the place.
+# Never cancel a running deploy: it may be between provisioning ids and
+# publishing the place.
 concurrency:
   cancel-in-progress: false
   group: deploy-production
@@ -27,12 +23,12 @@ jobs:
     environment: production
     runs-on: ubuntu-latest
     steps:
-      # `persist-credentials: true` is the default and is fine: the commit-back
-      # step clears the read-only credentials before it pushes with its own
-      # token.
+      # The default `persist-credentials: true` is fine: the commit-back step
+      # clears the read-only credentials before it pushes with its own token.
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
+      # pnpm first: setup-node reads it to locate the store for `cache`.
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
@@ -63,5 +59,4 @@ jobs:
           gist-token: ${{ secrets.BEDROCK_GIST_TOKEN }}
           # Must match `codegen.output` in bedrock.config.ts.
           paths: src/shared/assets
-
     timeout-minutes: 30
