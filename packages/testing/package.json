@@ -14,6 +14,7 @@
 		"./api-surface": "./src/api-surface.ts",
 		"./jest-extended": "./src/jest-extended.ts",
 		"./lute": "./src/lute.ts",
+		"./since-tags": "./src/since-tags.ts",
 		"./stryker": "./src/stryker.ts",
 		"./stryker-diff": "./src/stryker-diff.ts"
 	},

@@ -88,6 +88,13 @@ jobs:
           pnpm version -r --no-git-checks
           pnpm install --lockfile-only
 
+      # Resolved here rather than at `pnpm change` time, because the version a
+      # symbol ships in is not known until the bump above is applied. `main`
+      # keeps the placeholders, so a re-cut Version PR re-derives the tags.
+      - if: steps.changesets.outputs.pending == 'true'
+        name: Resolve @since placeholders
+        run: bun scripts/resolve-since-tags.ts
+
       # Move the bot branch ref onto main's (already-signed) tip. No new
       # commit is introduced, so required_signatures has nothing to verify;
       # the bump lands in the next step as a GitHub-signed API commit.
@@ -144,6 +151,13 @@ jobs:
         run: gh workflow run ci.yaml --ref "$RELEASE_BRANCH"
 
       # ---- Publish mode -------------------------------------------------
+      # A placeholder that reaches npm is baked into that release's docs and
+      # hovers for good. Nothing is bumped in publish mode, so any survivor has
+      # no release to resolve to and the resolver exits non-zero.
+      - if: steps.changesets.outputs.pending == 'false'
+        name: Guard against unresolved @since placeholders
+        run: bun scripts/resolve-since-tags.ts
+
       - if: steps.changesets.outputs.pending == 'false'
         name: Build
         run: pnpm build
