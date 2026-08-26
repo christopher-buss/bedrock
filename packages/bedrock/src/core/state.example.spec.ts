@@ -42,5 +42,11 @@ it('Example 2', () => {
     kind: 'stateError',
     reason: 'Corrupt JSON: unexpected token at line 1 column 5',
   }
+  const denied: StateError = {
+    file: 's3://my-bucket/production.json',
+    kind: 'stateAccessDenied',
+    reason: 'the credential lacks s3:GetObject',
+  }
   expect(err.kind).toBe('stateError')
+  expect(denied.kind).toBe('stateAccessDenied')
 })

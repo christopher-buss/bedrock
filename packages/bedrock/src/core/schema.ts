@@ -489,15 +489,30 @@ export interface GistStateConfig {
 }
 
 /**
+ * `state` block naming a **Backend** core does not ship. The keys
+ * alongside `backend` are whatever the plugin claiming that name declared,
+ * so they are open here and validated against the plugin's own schema
+ * fragment during config load.
+ *
+ * @since unreleased
+ */
+export interface PluginStateConfig {
+	/** Name of the plugin-declared **Backend** to persist state through. */
+	readonly backend: string & {};
+	/** Keys the plugin claiming this **Backend** declared. */
+	readonly [key: string]: unknown;
+}
+
+/**
  * Tagged union describing where Bedrock persists its state. The `backend`
  * tag is `"gist" | (string & {})` so unknown names autocomplete the
  * builtins while permitting custom values for plugin scenarios. The
- * dispatch path inside `deploy()` rejects unknown names with a typed
- * `unsupportedBackend` error.
+ * dispatch path inside `deploy()` rejects a name no loaded plugin claimed
+ * with a typed `unsupportedBackend` error.
  *
  * @since 0.1.0
  */
-export type StateConfig = GistStateConfig | { readonly backend: string & {} };
+export type StateConfig = GistStateConfig | PluginStateConfig;
 
 /**
  * Every `state.backend` value core ships an adapter for. Widening this as
@@ -1254,8 +1269,8 @@ function attributeIssues(ctx: IssueSink, issues: ReadonlyArray<AttributableIssue
  */
 function buildStateSchema(registry: PluginRegistry): Type<StateConfig> {
 	const byBackend = new Map(
-		Array.from(registry.stateBackends, ([name, fragment]) => {
-			return [name, composeStateBackendSchema(fragment)];
+		Array.from(registry.stateBackends, ([name, registered]) => {
+			return [name, composeStateBackendSchema(registered.declaration.schema)];
 		}),
 	);
 
@@ -1382,11 +1397,18 @@ export type ConfigValidator = (input: unknown, sourceFile: string) => Result<Con
  *
  * ```ts
  * import { createConfigValidator } from "@bedrock-rbx/core";
+ * import type { StateBackendDeclaration } from "@bedrock-rbx/core";
  *
  * import { type } from "arktype";
  *
+ * const s3: StateBackendDeclaration = {
+ *     name: "s3",
+ *     schema: type({ bucket: "string > 0" }),
+ *     createPort: () => ({ err: { reason: "example only" }, success: false }),
+ * };
+ *
  * const validate = createConfigValidator({
- *     stateBackends: new Map([["s3", type({ bucket: "string > 0" })]]),
+ *     stateBackends: new Map([["s3", { declaration: s3, specifier: "@example/state-s3" }]]),
  * });
  *
  * const result = validate(

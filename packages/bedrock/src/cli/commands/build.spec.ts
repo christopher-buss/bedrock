@@ -5,6 +5,8 @@ import process from "node:process";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
+import type { ConfigError } from "../../core/config-error.ts";
+import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../../core/plugin-registry.ts";
 import type { Config } from "../../core/schema.ts";
 import type { ProgDeps } from "../index.ts";
 import type { Spawner, SpawnInvocation, SpawnLaunchError } from "../spawner.ts";
@@ -12,8 +14,7 @@ import { buildCommand } from "./build.ts";
 
 type ExitFunc = NonNullable<ProgDeps["exit"]>;
 type DiscoverOverrideFunc = NonNullable<ProgDeps["discoverOverride"]>;
-type LoadConfigFunc = NonNullable<ProgDeps["loadConfig"]>;
-type LoadConfigResult = Awaited<ReturnType<LoadConfigFunc>>;
+type LoadProjectFunc = NonNullable<ProgDeps["loadProject"]>;
 
 const noCodegenConfig: Config = { environments: { production: {} } };
 const codegenConfig: Config = {
@@ -26,8 +27,22 @@ interface SpawnerRecorder {
 	readonly spawner: Spawner;
 }
 
-function fakeLoad(result: LoadConfigResult): LoadConfigFunc {
-	return vi.fn<LoadConfigFunc>(async () => result);
+/**
+ * A project loader answering with one canned config, or with the load
+ * failure a test scripted. Call sites state the config, so what the
+ * plugins declared stays out of the way until a test cares.
+ *
+ * @param result - The config to load, or the failure to report.
+ * @param plugins - What the load should report the plugins declared.
+ * @returns The loader to inject.
+ */
+function fakeLoad(
+	result: Result<Config, ConfigError>,
+	plugins: PluginRegistry = EMPTY_PLUGIN_REGISTRY,
+): LoadProjectFunc {
+	return vi.fn<LoadProjectFunc>(async () => {
+		return result.success ? { data: { config: result.data, plugins }, success: true } : result;
+	});
 }
 
 function recordingSpawner(result: Result<number, SpawnLaunchError>): SpawnerRecorder {
@@ -261,8 +276,8 @@ describe(buildCommand, () => {
 
 		const { invocations, spawner } = recordingSpawner({ data: 0, success: true });
 		const discoverOverride = discoverReturning(undefined);
-		const loadConfig = fakeLoad({ data: noCodegenConfig, success: true });
-		const deps = makeDeps({ discoverOverride, loadConfig, spawner });
+		const loadProject = fakeLoad({ data: noCodegenConfig, success: true });
+		const deps = makeDeps({ discoverOverride, loadProject, spawner });
 
 		await buildCommand(deps)({ env: "production" });
 
@@ -275,8 +290,8 @@ describe(buildCommand, () => {
 		expect.assertions(3);
 
 		const discoverOverride = discoverReturning(undefined);
-		const loadConfig = fakeLoad({ data: codegenConfig, success: true });
-		const deps = makeDeps({ discoverOverride, loadConfig });
+		const loadProject = fakeLoad({ data: codegenConfig, success: true });
+		const deps = makeDeps({ discoverOverride, loadProject });
 
 		await buildCommand(deps)({ env: "production" });
 
@@ -287,15 +302,15 @@ describe(buildCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should render configLoadFailed and exit 1 when loadConfig returns Err and no override exists", async () => {
+	it("should render configLoadFailed and exit 1 when loadProject returns Err and no override exists", async () => {
 		expect.assertions(3);
 
 		const discoverOverride = discoverReturning(undefined);
-		const loadConfig = fakeLoad({
+		const loadProject = fakeLoad({
 			err: { kind: "fileNotFound", searchedFrom: "/tmp/project" },
 			success: false,
 		});
-		const deps = makeDeps({ discoverOverride, loadConfig });
+		const deps = makeDeps({ discoverOverride, loadProject });
 
 		await buildCommand(deps)({ env: "production" });
 
@@ -304,30 +319,30 @@ describe(buildCommand, () => {
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should forward parsed configFile to loadConfig when no override exists", async () => {
+	it("should forward parsed configFile to loadProject when no override exists", async () => {
 		expect.assertions(1);
 
 		const discoverOverride = discoverReturning(undefined);
-		const loadConfig = fakeLoad({ data: noCodegenConfig, success: true });
-		const deps = makeDeps({ discoverOverride, loadConfig });
+		const loadProject = fakeLoad({ data: noCodegenConfig, success: true });
+		const deps = makeDeps({ discoverOverride, loadProject });
 
 		await buildCommand(deps)({ config: "./bedrock.staging.config.ts", env: "production" });
 
-		expect(loadConfig).toHaveBeenCalledExactlyOnceWith({
+		expect(loadProject).toHaveBeenCalledExactlyOnceWith({
 			configFile: "./bedrock.staging.config.ts",
 		});
 	});
 
-	it("should call loadConfig with no options when --config is absent and no override exists", async () => {
+	it("should call loadProject with no options when --config is absent and no override exists", async () => {
 		expect.assertions(1);
 
 		const discoverOverride = discoverReturning(undefined);
-		const loadConfig = fakeLoad({ data: noCodegenConfig, success: true });
-		const deps = makeDeps({ discoverOverride, loadConfig });
+		const loadProject = fakeLoad({ data: noCodegenConfig, success: true });
+		const deps = makeDeps({ discoverOverride, loadProject });
 
 		await buildCommand(deps)({ env: "production" });
 
-		expect(loadConfig).toHaveBeenCalledExactlyOnceWith(undefined);
+		expect(loadProject).toHaveBeenCalledExactlyOnceWith(undefined);
 	});
 
 	it("should not load config when an override is discovered so build stays decoupled", async () => {
@@ -335,12 +350,12 @@ describe(buildCommand, () => {
 
 		const { spawner } = recordingSpawner({ data: 0, success: true });
 		const discoverOverride = discoverReturning("/abs/.bedrock/build.ts");
-		const loadConfig = fakeLoad({ data: codegenConfig, success: true });
-		const deps = makeDeps({ discoverOverride, loadConfig, projectRoot: "/abs", spawner });
+		const loadProject = fakeLoad({ data: codegenConfig, success: true });
+		const deps = makeDeps({ discoverOverride, loadProject, projectRoot: "/abs", spawner });
 
 		await buildCommand(deps)({ env: "production" });
 
-		expect(loadConfig).not.toHaveBeenCalled();
+		expect(loadProject).not.toHaveBeenCalled();
 		expect(deps.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 

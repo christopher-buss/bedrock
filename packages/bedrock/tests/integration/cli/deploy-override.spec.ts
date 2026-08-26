@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { createProg, type ProgDeps } from "#src/cli/index";
+import { EMPTY_PLUGIN_REGISTRY } from "#src/core/plugin-registry";
 import type { Config } from "#src/core/schema";
 import type { BedrockState } from "#src/core/state";
 import { fakeClackPort } from "#tests/helpers/clack";
@@ -12,7 +13,7 @@ import { withProbe } from "#tests/helpers/override-probe";
 
 type DeployFunc = NonNullable<ProgDeps["deploy"]>;
 type ExitFunc = NonNullable<ProgDeps["exit"]>;
-type LoadConfigFunc = NonNullable<ProgDeps["loadConfig"]>;
+type LoadProjectFunc = NonNullable<ProgDeps["loadProject"]>;
 
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures", "overrides");
 const ECHO_PROTOCOL = join(FIXTURES_ROOT, "echo-protocol.ts");
@@ -62,12 +63,14 @@ function buildHarness(projectRoot: string): Harness {
 	const exit = vi.fn<ExitFunc>((code) => {
 		resolveExit(code);
 	});
-	const loadConfig = vi.fn<LoadConfigFunc>(async () => ({ data: fakeConfig, success: true }));
+	const loadProject = vi.fn<LoadProjectFunc>(async () => {
+		return { data: { config: fakeConfig, plugins: EMPTY_PLUGIN_REGISTRY }, success: true };
+	});
 	const deploy = vi.fn<DeployFunc>(async () => {
 		return { data: emptyState("production"), success: true };
 	});
 	const clack = fakeClackPort();
-	const prog = createProg({ clack, deploy, exit, loadConfig, projectRoot });
+	const prog = createProg({ clack, deploy, exit, loadProject, projectRoot });
 	return { clack, deploy, exitPromise, prog };
 }
 

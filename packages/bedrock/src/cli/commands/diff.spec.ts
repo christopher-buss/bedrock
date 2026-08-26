@@ -5,7 +5,9 @@ import process from "node:process";
 import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
+import type { ConfigError } from "../../core/config-error.ts";
 import type { Operation } from "../../core/operations.ts";
+import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../../core/plugin-registry.ts";
 import type { RedactionAnnotation } from "../../core/redact-resources.ts";
 import type { Config } from "../../core/schema.ts";
 import type { DiffPreview, PreviewDiffError } from "../../shell/preview-diff.ts";
@@ -13,8 +15,7 @@ import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts"
 import type { ProgDeps as ProgDependencies } from "../index.ts";
 import { diffCommand } from "./diff.ts";
 
-type LoadConfigFunc = NonNullable<ProgDependencies["loadConfig"]>;
-type LoadConfigResult = Awaited<ReturnType<LoadConfigFunc>>;
+type LoadProjectFunc = NonNullable<ProgDependencies["loadProject"]>;
 type PreviewDiffFunc = NonNullable<ProgDependencies["previewDiff"]>;
 type ExitFunc = NonNullable<ProgDependencies["exit"]>;
 
@@ -113,8 +114,22 @@ function preview(input: {
 	};
 }
 
-function fakeLoad(result: LoadConfigResult): LoadConfigFunc {
-	return vi.fn<LoadConfigFunc>(async () => result);
+/**
+ * A project loader answering with one canned config, or with the load
+ * failure a test scripted. Call sites state the config, so what the
+ * plugins declared stays out of the way until a test cares.
+ *
+ * @param result - The config to load, or the failure to report.
+ * @param plugins - What the load should report the plugins declared.
+ * @returns The loader to inject.
+ */
+function fakeLoad(
+	result: Result<Config, ConfigError>,
+	plugins: PluginRegistry = EMPTY_PLUGIN_REGISTRY,
+): LoadProjectFunc {
+	return vi.fn<LoadProjectFunc>(async () => {
+		return result.success ? { data: { config: result.data, plugins }, success: true } : result;
+	});
 }
 
 function fakePreview(
@@ -155,15 +170,15 @@ describe(diffCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should render configLoadFailed and exit 1 when loadConfig returns Err", async () => {
+	it("should render configLoadFailed and exit 1 when loadProject returns Err", async () => {
 		expect.assertions(3);
 
-		const loadConfig = fakeLoad({
+		const loadProject = fakeLoad({
 			err: { kind: "fileNotFound", searchedFrom: "/tmp/project" },
 			success: false,
 		});
 		const dependencies = makeDependencies({
-			loadConfig,
+			loadProject,
 			previewDiff: vi.fn<PreviewDiffFunc>(),
 		});
 
@@ -174,43 +189,43 @@ describe(diffCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should forward parsed configFile to loadConfig", async () => {
+	it("should forward parsed configFile to loadProject", async () => {
 		expect.assertions(1);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({
 			config: "./bedrock.staging.config.ts",
 			env: "production",
 		});
 
-		expect(loadConfig).toHaveBeenCalledExactlyOnceWith({
+		expect(loadProject).toHaveBeenCalledExactlyOnceWith({
 			configFile: "./bedrock.staging.config.ts",
 		});
 	});
 
-	it("should call loadConfig with no options when --config is absent", async () => {
+	it("should call loadProject with no options when --config is absent", async () => {
 		expect.assertions(1);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({ env: "production" });
 
-		expect(loadConfig).toHaveBeenCalledExactlyOnceWith(undefined);
+		expect(loadProject).toHaveBeenCalledExactlyOnceWith(undefined);
 	});
 
 	it("should render no-drift line and exit 0 when every op is a noop without any redacted section", async () => {
 		expect.assertions(4);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([
 			preview({ environment: "production", ops: [noopOp("vip-pass")] }),
 		]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({ env: "production" });
 
@@ -227,7 +242,7 @@ describe(diffCommand, () => {
 	it("should report places minted but unpublished as drift when a pending-rebuild marker persists", async () => {
 		expect.assertions(4);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([
 			preview({
 				environment: "production",
@@ -235,7 +250,7 @@ describe(diffCommand, () => {
 				pendingRebuild: ["arena", "lobby"],
 			}),
 		]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({ env: "production" });
 
@@ -252,7 +267,7 @@ describe(diffCommand, () => {
 	it("should render the pending-publish line after the drift ops when both are present", async () => {
 		expect.assertions(2);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([
 			preview({
 				environment: "production",
@@ -260,7 +275,7 @@ describe(diffCommand, () => {
 				pendingRebuild: ["start-place"],
 			}),
 		]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({ env: "production" });
 
@@ -283,7 +298,7 @@ describe(diffCommand, () => {
 	it("should annotate redacted noops after the no-drift line and keep the up-to-date outro", async () => {
 		expect.assertions(2);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([
 			preview({
 				environment: "production",
@@ -302,7 +317,7 @@ describe(diffCommand, () => {
 				],
 			}),
 		]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({ env: "production" });
 
@@ -327,7 +342,7 @@ describe(diffCommand, () => {
 	it("should render create and update ops with the kind:key prefix and suggest deploy", async () => {
 		expect.assertions(5);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([
 			preview({
 				environment: "production",
@@ -338,7 +353,7 @@ describe(diffCommand, () => {
 				],
 			}),
 		]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({ env: "production" });
 
@@ -360,14 +375,14 @@ describe(diffCommand, () => {
 	it("should join multiple changed fields with ' + ' for an update op", async () => {
 		expect.assertions(1);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([
 			preview({
 				environment: "production",
 				ops: [multiFieldUpdatePlaceOp("start-place")],
 			}),
 		]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({ env: "production" });
 
@@ -380,7 +395,7 @@ describe(diffCommand, () => {
 	it("should render the redacted section after the drift section and skip redactions whose op is a create or update", async () => {
 		expect.assertions(2);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([
 			preview({
 				environment: "production",
@@ -403,7 +418,7 @@ describe(diffCommand, () => {
 				],
 			}),
 		]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({ env: "production" });
 
@@ -434,7 +449,7 @@ describe(diffCommand, () => {
 	it("should skip the redacted annotation when the redaction's own kind+key has a drift op even if another kind shares the key", async () => {
 		expect.assertions(2);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([
 			preview({
 				environment: "production",
@@ -448,7 +463,7 @@ describe(diffCommand, () => {
 				],
 			}),
 		]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({ env: "production" });
 
@@ -470,7 +485,7 @@ describe(diffCommand, () => {
 	it("should render the previewDiff Err and exit 1 when the call returns unknownEnvironment", async () => {
 		expect.assertions(3);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([
 			{
 				err: {
@@ -481,7 +496,7 @@ describe(diffCommand, () => {
 				success: false,
 			},
 		]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({ env: "ghost" });
 
@@ -493,12 +508,12 @@ describe(diffCommand, () => {
 	it("should call previewDiff once per --env and outro up-to-date when no env has drift", async () => {
 		expect.assertions(3);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([
 			preview({ environment: "production", ops: [] }),
 			preview({ environment: "staging", ops: [] }),
 		]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({ env: ["production", "staging"] });
 
@@ -512,12 +527,12 @@ describe(diffCommand, () => {
 	it("should outro suggesting deploy when at least one env has drift across multiple envs", async () => {
 		expect.assertions(2);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([
 			preview({ environment: "production", ops: [noopOp("vip-pass")] }),
 			preview({ environment: "staging", ops: [createGamePassOp("beta-pass")] }),
 		]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({ env: ["production", "staging"] });
 
@@ -530,7 +545,7 @@ describe(diffCommand, () => {
 	it("should keep the up-to-date outro when only redacted noops appear across envs even though one env declares them", async () => {
 		expect.assertions(2);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([
 			preview({ environment: "production", ops: [noopOp("vip-pass")] }),
 			preview({
@@ -545,7 +560,7 @@ describe(diffCommand, () => {
 				],
 			}),
 		]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({ env: ["production", "staging"] });
 
@@ -560,7 +575,7 @@ describe(diffCommand, () => {
 	it("should call previewDiff for every env even when one fails, then exit 1", async () => {
 		expect.assertions(4);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([
 			{
 				err: { environment: "production", kind: "stateNotConfigured" },
@@ -568,7 +583,7 @@ describe(diffCommand, () => {
 			},
 			preview({ environment: "staging", ops: [noopOp("vip-pass")] }),
 		]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({ env: ["production", "staging"] });
 
@@ -588,9 +603,9 @@ describe(diffCommand, () => {
 			vi.unstubAllEnvs();
 		});
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({
 			"api-key": "BEDROCK_OVERRIDE",
@@ -621,9 +636,9 @@ describe(diffCommand, () => {
 			vi.unstubAllEnvs();
 		});
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({ "api-key": "FLAG_BEDROCK", "env": "production" });
 
@@ -646,9 +661,9 @@ describe(diffCommand, () => {
 			vi.unstubAllEnvs();
 		});
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({ env: "production" });
 
@@ -669,9 +684,9 @@ describe(diffCommand, () => {
 		});
 		vi.stubEnv("BEDROCK_ENVIRONMENT", "production");
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const previewDiff = fakePreview([preview({ environment: "production", ops: [] })]);
-		const dependencies = makeDependencies({ loadConfig, previewDiff });
+		const dependencies = makeDependencies({ loadProject, previewDiff });
 
 		await diffCommand(dependencies)({});
 

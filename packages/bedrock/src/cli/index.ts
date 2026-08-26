@@ -2,6 +2,7 @@ import sade from "sade";
 import type { Sade } from "sade";
 
 import manifest from "../../package.json" with { type: "json" };
+import type { PluginRegistry } from "../core/plugin-registry.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { buildStatePort as defaultBuildStatePort } from "../shell/build-state-port.ts";
 import type {
@@ -9,7 +10,7 @@ import type {
 	provision as defaultProvision,
 	publish as defaultPublish,
 } from "../shell/deploy.ts";
-import type { loadConfig as defaultLoadConfig } from "../shell/load-config.ts";
+import type { loadProjectAsync as defaultLoadProject } from "../shell/load-config.ts";
 import type { migrateMantleState as defaultMigrateMantleState } from "../shell/migrate-mantle-state.ts";
 import type { previewDiffAsync as defaultPreviewDiff } from "../shell/preview-diff.ts";
 import { buildCommand } from "./commands/build.ts";
@@ -56,8 +57,12 @@ export interface ProgDeps {
 	 * return void.
 	 */
 	readonly exit?: (code: number) => void;
-	/** Project config loader; defaults to the public `loadConfig`. */
-	readonly loadConfig?: typeof defaultLoadConfig;
+	/**
+	 * Project loader; defaults to the public `loadProjectAsync`, whose
+	 * result carries both the validated config and what its `plugins`
+	 * entries declared.
+	 */
+	readonly loadProject?: typeof defaultLoadProject;
 	/** Mantle state migrator; defaults to the public `migrateMantleState`. */
 	readonly migrateMantleState?: typeof defaultMigrateMantleState;
 	/**
@@ -70,6 +75,13 @@ export interface ProgDeps {
 	 * backend; defaults to `node:fs/promises.mkdir` with `recursive: true`.
 	 */
 	readonly mkdir?: (path: string) => Promise<void>;
+	/**
+	 * What the loaded plugins declared, which decides the **Backend**s the
+	 * migrate command offers beyond the builtins. Defaults to what a
+	 * discoverable project config registered, or to nothing when the
+	 * project has no config yet.
+	 */
+	readonly plugins?: PluginRegistry;
 	/**
 	 * Read-only preview of operations; defaults to the internal `previewDiff`
 	 * shell helper.

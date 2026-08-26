@@ -2,7 +2,11 @@ import type { ConfigError } from "../core/config-error.ts";
 import type { MigrateError } from "../core/migrate/migration-report.ts";
 import type { StateError } from "../core/state.ts";
 import type { BuildDesiredError } from "../shell/build-desired.ts";
-import type { MissingCredentialError, UnsupportedBackendError } from "../shell/build-state-port.ts";
+import type {
+	MissingCredentialError,
+	PluginStateBackendError,
+	UnsupportedBackendError,
+} from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
 import type { CodegenError } from "../shell/run-codegen.ts";
 import type { SpawnOverrideError } from "./dispatch-override.ts";
@@ -43,6 +47,7 @@ export function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFaile
 		case "unknownEnvironment": {
 			return configErrorMessage(err);
 		}
+		case "pluginStateBackend":
 		case "stateNotConfigured":
 		case "stateReadFailed":
 		case "stateWriteFailed":
@@ -113,8 +118,31 @@ function configErrorDetail(err: ConfigError): string {
 	}
 }
 
-function stateErrorDetail(cause: StateError): string {
-	return `(${cause.file}): ${cause.reason}`;
+// Prefix naming the backend-neutral condition each arm reports, so the
+// same failure reads identically whichever **Backend** produced it. The
+// original arm carries no prefix: its reason already says what went wrong.
+const STATE_ERROR_PREFIXES = {
+	stateAccessDenied: "access denied: ",
+	stateConflict: "conflict: ",
+	stateError: "",
+	stateNotFound: "not found: ",
+} as const satisfies Record<Exclude<StateError["kind"], "pluginStateBackend">, string>;
+
+/**
+ * Describe one {@link StateError} as the parenthesised location followed by
+ * the condition and the adapter's reason.
+ *
+ * @param cause - The state error to describe.
+ * @returns The detail fragment callers append to their own prefix.
+ */
+export function stateErrorDetail(cause: StateError): string {
+	return `(${cause.file}): ${stateErrorPrefix(cause)}${cause.reason}`;
+}
+
+function stateErrorPrefix(cause: StateError): string {
+	return cause.kind === "pluginStateBackend"
+		? `plugin '${cause.specifier}': `
+		: STATE_ERROR_PREFIXES[cause.kind];
 }
 
 function codegenErrorDetail(cause: CodegenError): string {
@@ -222,16 +250,45 @@ export function migrateErrorMessage(err: MigrateError): string {
  * @returns The message to print.
  */
 export function buildStatePortErrorMessage(
-	err: MissingCredentialError | UnsupportedBackendError,
+	err: MissingCredentialError | PluginStateBackendError | UnsupportedBackendError,
 ): string {
 	switch (err.kind) {
 		case "missingCredential": {
 			return `missing credential: environment variable ${err.variable} is not set`;
 		}
+		case "pluginStateBackend": {
+			return pluginStateBackendMessage(err);
+		}
 		case "unsupportedBackend": {
 			return `unsupported state backend '${err.backend}' (${err.hint})`;
 		}
 	}
+}
+
+/**
+ * Describe a plugin's refusal to fetch the state `bedrock migrate` is
+ * migrating from. Named separately from the build failure so the reader
+ * knows which step of migrate gave up.
+ *
+ * @param err - The plugin's refusal, plus the specifier naming it.
+ * @returns The message to print.
+ */
+export function migrationSourceErrorMessage(err: {
+	readonly reason: string;
+	readonly specifier: string;
+}): string {
+	return `plugin '${err.specifier}' could not read the mantle state: ${err.reason}`;
+}
+
+/**
+ * Describe a plugin's refusal to build its **Backend**, naming the plugin
+ * so the reader knows which package to look at.
+ *
+ * @param err - The wrapped refusal.
+ * @returns The message to print.
+ */
+function pluginStateBackendMessage(err: PluginStateBackendError): string {
+	return `state backend from plugin '${err.specifier}' failed to build: ${err.reason}`;
 }
 
 function configErrorMessage(
@@ -301,6 +358,7 @@ function stateErrorMessage(
 		DeployError,
 		{
 			kind:
+				| "pluginStateBackend"
 				| "stateNotConfigured"
 				| "stateReadFailed"
 				| "stateWriteFailed"
@@ -309,6 +367,9 @@ function stateErrorMessage(
 	>,
 ): string {
 	switch (err.kind) {
+		case "pluginStateBackend": {
+			return pluginStateBackendMessage(err);
+		}
 		case "stateNotConfigured": {
 			return `state not configured for environment '${err.environment}'`;
 		}

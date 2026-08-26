@@ -1,7 +1,7 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import type { ConfigError } from "./config-error.ts";
-import type { BedrockPlugin, StateBackendDeclaration, StateBackendSchema } from "./plugin.ts";
+import type { BedrockPlugin, StateBackendDeclaration } from "./plugin.ts";
 import type { BuiltinStateBackend } from "./schema.ts";
 
 /**
@@ -31,14 +31,27 @@ export interface LoadedPlugin {
 }
 
 /**
+ * One plugin-declared **Backend**, paired with the specifier that claimed
+ * its name so a failure it produces can name the plugin responsible.
+ *
+ * @since unreleased
+ */
+export interface RegisteredStateBackend {
+	/** What the plugin declared for this **Backend**. */
+	readonly declaration: StateBackendDeclaration;
+	/** Module specifier of the plugin that claimed the name. */
+	readonly specifier: string;
+}
+
+/**
  * What the loaded plugins collectively contribute, resolved once per
  * config load and read wherever a plugin's declaration is needed.
  *
  * @since unreleased
  */
 export interface PluginRegistry {
-	/** Schema fragment for each plugin-declared **Backend**, keyed by name. */
-	readonly stateBackends: ReadonlyMap<string, StateBackendSchema>;
+	/** Each plugin-declared **Backend**, keyed by the name it claimed. */
+	readonly stateBackends: ReadonlyMap<string, RegisteredStateBackend>;
 }
 
 /**
@@ -85,7 +98,13 @@ export function buildPluginRegistry(
 	}
 
 	return {
-		data: { stateBackends: new Map(claims.map((claim) => [claim.name, claim.schema])) },
+		data: {
+			stateBackends: new Map(
+				claims.map(({ specifier, ...declaration }) => {
+					return [declaration.name, { declaration, specifier }];
+				}),
+			),
+		},
 		success: true,
 	};
 }

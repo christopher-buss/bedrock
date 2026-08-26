@@ -3,7 +3,7 @@ import { vi } from "vitest";
 import type { MigratePromptPort } from "#src/cli/migrate-prompt-port";
 
 /**
- * Build a `MigratePromptPort` whose six methods are independent
+ * Build a `MigratePromptPort` whose methods are independent
  * `vi.fn()` spies. Tests script answers per scenario via
  * `mockResolvedValueOnce({ data: ..., success: true })` (or the
  * `cancelled` Err shape). Used by `migrate.spec.ts` to drive the
@@ -14,11 +14,13 @@ import type { MigratePromptPort } from "#src/cli/migrate-prompt-port";
  */
 export function fakeMigratePromptPort(): MigratePromptPort {
 	return {
+		promptBackendField: vi.fn<MigratePromptPort["promptBackendField"]>(),
 		promptConfigFormat: vi.fn<MigratePromptPort["promptConfigFormat"]>(),
 		promptGistId: vi.fn<MigratePromptPort["promptGistId"]>(),
 		promptMigrationSource: vi.fn<MigratePromptPort["promptMigrationSource"]>(),
 		promptPrimaryEnvironment: vi.fn<MigratePromptPort["promptPrimaryEnvironment"]>(),
 		promptStateBackend: vi.fn<MigratePromptPort["promptStateBackend"]>(),
 		promptStateFilePath: vi.fn<MigratePromptPort["promptStateFilePath"]>(),
+		promptStateSource: vi.fn<MigratePromptPort["promptStateSource"]>(),
 	};
 }

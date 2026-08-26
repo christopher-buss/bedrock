@@ -1,6 +1,8 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { createGistStateAdapter, type GistFetch } from "../adapters/gist-state-adapter.ts";
+import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../core/plugin-registry.ts";
+import type { RegisteredStateBackend } from "../core/plugin-registry.ts";
 import { type GistStateConfig, isGistStateConfig, type StateConfig } from "../core/schema.ts";
 import type { StatePort } from "../ports/state-port.ts";
 
@@ -42,6 +44,25 @@ export interface UnsupportedBackendError {
 	readonly kind: "unsupportedBackend";
 }
 
+/**
+ * Failure surfaced when a plugin's **Backend** builder refused to produce
+ * an adapter. Carries the plugin's own `reason` and `detail` untouched
+ * alongside the specifier that names the plugin, so core reports the
+ * failure without enumerating the shapes a **Backend** can fail in.
+ *
+ * @since unreleased
+ */
+export interface PluginStateBackendError {
+	/** The plugin's own payload, which core neither reads nor narrows. */
+	readonly detail?: unknown;
+	/** Literal discriminator for narrowing. */
+	readonly kind: "pluginStateBackend";
+	/** Why the plugin said it could not build the **Backend**. */
+	readonly reason: string;
+	/** Module specifier of the plugin whose **Backend** refused to build. */
+	readonly specifier: string;
+}
+
 /** Inputs for {@link buildStatePort}. */
 interface BuildStatePortDependencies {
 	/** Optional `fetch` seam plumbed through to the gist adapter for tests. */
@@ -51,6 +72,12 @@ interface BuildStatePortDependencies {
 	 * `process.env`.
 	 */
 	readonly getEnv: (name: string) => string | undefined;
+	/**
+	 * What the loaded plugins declared. A `state.backend` naming one of
+	 * their **Backend**s builds through that plugin; omit it when no
+	 * plugins are loaded.
+	 */
+	readonly plugins?: PluginRegistry | undefined;
 	/** Resolved state configuration for the target environment. */
 	readonly stateConfig: StateConfig;
 }
@@ -86,9 +113,16 @@ const STATE_PORT_HINT = "pass a custom statePort via opts.statePort";
  */
 export function buildStatePort(
 	deps: BuildStatePortDependencies,
-): Result<StatePort, MissingCredentialError | UnsupportedBackendError> {
+): Result<StatePort, MissingCredentialError | PluginStateBackendError | UnsupportedBackendError> {
 	if (isGistStateConfig(deps.stateConfig)) {
 		return buildGistStatePort(deps.stateConfig, deps);
+	}
+
+	const registered = (deps.plugins ?? EMPTY_PLUGIN_REGISTRY).stateBackends.get(
+		deps.stateConfig.backend,
+	);
+	if (registered !== undefined) {
+		return buildPluginStatePort(registered, deps);
 	}
 
 	return {
@@ -96,6 +130,40 @@ export function buildStatePort(
 			backend: deps.stateConfig.backend,
 			hint: STATE_PORT_HINT,
 			kind: "unsupportedBackend",
+		},
+		success: false,
+	};
+}
+
+/**
+ * Build one plugin-declared **Backend**, mapping the plugin's refusal onto
+ * the `pluginStateBackend` failure that names it.
+ *
+ * @param registered - The **Backend** the loaded plugins claimed for this
+ * `state.backend` value.
+ * @param dependencies - The resolved `state` block plus the credential and
+ * transport seams handed on to the plugin.
+ * @returns The plugin's adapter, or the wrapped refusal.
+ */
+function buildPluginStatePort(
+	registered: RegisteredStateBackend,
+	dependencies: BuildStatePortDependencies,
+): Result<StatePort, PluginStateBackendError> {
+	const built = registered.declaration.createPort({
+		fetch: dependencies.fetch,
+		getEnv: dependencies.getEnv,
+		stateConfig: dependencies.stateConfig,
+	});
+	if (built.success) {
+		return built;
+	}
+
+	return {
+		err: {
+			detail: built.err.detail,
+			kind: "pluginStateBackend",
+			reason: built.err.reason,
+			specifier: registered.specifier,
 		},
 		success: false,
 	};

@@ -1,7 +1,11 @@
 import { safeStringify } from "../core/error-chain.ts";
 import type { MigrateError, MigrationSummary } from "../core/migrate/migration-report.ts";
 import type { StateError } from "../core/state.ts";
-import type { MissingCredentialError, UnsupportedBackendError } from "../shell/build-state-port.ts";
+import type {
+	MissingCredentialError,
+	PluginStateBackendError,
+	UnsupportedBackendError,
+} from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
 import type { OverrideErrorRender } from "./error-messages.ts";
 import {
@@ -9,8 +13,10 @@ import {
 	deployErrorMessage,
 	migrateErrorMessage,
 	migrateParseErrorMessage,
+	migrationSourceErrorMessage,
 	overrideErrorMessage,
 	parseErrorMessage,
+	stateErrorDetail,
 } from "./error-messages.ts";
 import { applyCauseDetail } from "./failure-detail.ts";
 import type { ParseMigrateError } from "./parse-migrate-options.ts";
@@ -168,7 +174,7 @@ export function renderMigrateError(err: MigrateError, port: ClackPort): void {
  * @param port - The output port the diagnostic is written to.
  */
 export function renderBuildStatePortError(
-	err: MissingCredentialError | UnsupportedBackendError,
+	err: MissingCredentialError | PluginStateBackendError | UnsupportedBackendError,
 	port: ClackPort,
 ): void {
 	port.logError(buildStatePortErrorMessage(err));
@@ -207,6 +213,19 @@ export function renderMigrationSummary(input: MigrationSummaryRender, port: Clac
 }
 
 /**
+ * Render a plugin's refusal to fetch the state being migrated from.
+ *
+ * @param err - The plugin's refusal, plus the specifier naming it.
+ * @param port - The output port the diagnostic is written to.
+ */
+export function renderMigrationSourceError(
+	err: { readonly reason: string; readonly specifier: string },
+	port: ClackPort,
+): void {
+	port.logError(migrationSourceErrorMessage(err));
+}
+
+/**
  * Render a `StateError` produced when the migrator wrote a per-environment
  * state through the `StatePort`. Names the environment alongside the
  * adapter's failure reason so the reader knows which write failed.
@@ -214,7 +233,5 @@ export function renderMigrationSummary(input: MigrationSummaryRender, port: Clac
  * @param port - The output port the diagnostic is written to.
  */
 export function renderStateWriteError(input: StateWriteErrorRender, port: ClackPort): void {
-	port.logError(
-		`state write failed for '${input.environment}' (${input.err.file}): ${input.err.reason}`,
-	);
+	port.logError(`state write failed for '${input.environment}' ${stateErrorDetail(input.err)}`);
 }

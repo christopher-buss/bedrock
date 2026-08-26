@@ -127,7 +127,7 @@ describe(createGistStateAdapter, () => {
 		});
 
 		it("should err with a gist-not-found reason when the gist 404s", async () => {
-			expect.assertions(3);
+			expect.assertions(4);
 
 			const { fetchFn } = fakeFetch(() => emptyResponse(404));
 			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
@@ -138,14 +138,15 @@ describe(createGistStateAdapter, () => {
 
 			assert(!result.success);
 
+			expect(result.err.kind).toBe("stateNotFound");
 			expect(result.err.reason).toMatch(/gist .* not found/u);
 			expect(result.err.file).toBe(`gist:${GIST_ID}/state.production.json`);
 		});
 
 		it.for<[number]>([[401], [403]])(
-			"should err with an auth reason on %i",
+			"should err with an access-denied reason on %i",
 			async ([status]) => {
-				expect.assertions(2);
+				expect.assertions(3);
 
 				const { fetchFn } = fakeFetch(() => emptyResponse(status));
 				const port = createGistStateAdapter({
@@ -160,6 +161,7 @@ describe(createGistStateAdapter, () => {
 
 				assert(!result.success);
 
+				expect(result.err.kind).toBe("stateAccessDenied");
 				expect(result.err.reason).toMatch(/auth failed/u);
 			},
 		);

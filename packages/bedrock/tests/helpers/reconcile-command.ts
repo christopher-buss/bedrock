@@ -1,6 +1,7 @@
 import { vi } from "vitest";
 
 import type { ProgDeps } from "#src/cli/index";
+import { EMPTY_PLUGIN_REGISTRY } from "#src/core/plugin-registry";
 import type { Config } from "#src/core/schema";
 import type { BedrockState } from "#src/core/state";
 import { fakeClackPort } from "#tests/helpers/clack";
@@ -10,7 +11,7 @@ export type DiscoverOverrideFunc = NonNullable<ProgDeps["discoverOverride"]>;
 
 type ExitFunc = NonNullable<ProgDeps["exit"]>;
 
-type LoadConfigFunc = NonNullable<ProgDeps["loadConfig"]>;
+type LoadProjectFunc = NonNullable<ProgDeps["loadProject"]>;
 
 /** Minimal config every reconcile-command spec loads through `fakeLoad`. */
 export const sampleConfig: Config = { environments: { production: {} } };
@@ -28,15 +29,18 @@ export function makeDeps(overrides: Partial<ProgDeps> = {}): ProgDeps {
 }
 
 /**
- * A `loadConfig` spy resolving to {@link sampleConfig}.
+ * A `loadProject` spy resolving to {@link sampleConfig} with no plugins.
  *
  * @returns A `vi.fn()` that resolves to an `Ok` wrapping {@link sampleConfig}.
  */
-export function fakeLoad(): LoadConfigFunc {
-	return vi.fn<LoadConfigFunc>(async () => {
+export function fakeLoad(): LoadProjectFunc {
+	return vi.fn<LoadProjectFunc>(async () => {
 		// Resolve on a later microtask, as a real config load does.
 		await Promise.resolve();
-		return { data: sampleConfig, success: true };
+		return {
+			data: { config: sampleConfig, plugins: EMPTY_PLUGIN_REGISTRY },
+			success: true,
+		};
 	});
 }
 

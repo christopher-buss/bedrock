@@ -5,12 +5,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 
 import { createProg, type ProgDeps } from "#src/cli/index";
+import { EMPTY_PLUGIN_REGISTRY } from "#src/core/plugin-registry";
 import type { Config } from "#src/core/schema";
 import type { BedrockState } from "#src/core/state";
 import type { DeployError } from "#src/shell/deploy";
 import { fakeClackPort } from "#tests/helpers/clack";
 
-type LoadConfigFunc = NonNullable<ProgDeps["loadConfig"]>;
+type LoadProjectFunc = NonNullable<ProgDeps["loadProject"]>;
 type DeployFunc = NonNullable<ProgDeps["deploy"]>;
 type ExitFunc = NonNullable<ProgDeps["exit"]>;
 type DiscoverOverrideFunc = NonNullable<ProgDeps["discoverOverride"]>;
@@ -27,7 +28,7 @@ interface DeployHarness {
 	readonly clack: NonNullable<ProgDeps["clack"]>;
 	readonly deploy: ReturnType<typeof vi.fn<DeployFunc>>;
 	readonly exitPromise: Promise<number>;
-	readonly loadConfig: ReturnType<typeof vi.fn<LoadConfigFunc>>;
+	readonly loadProject: ReturnType<typeof vi.fn<LoadProjectFunc>>;
 	readonly prog: ReturnType<typeof createProg>;
 }
 
@@ -62,11 +63,13 @@ function buildHarness(
 
 		return next;
 	});
-	const loadConfig = vi.fn<LoadConfigFunc>(async () => ({ data: fakeConfig, success: true }));
+	const loadProject = vi.fn<LoadProjectFunc>(async () => {
+		return { data: { config: fakeConfig, plugins: EMPTY_PLUGIN_REGISTRY }, success: true };
+	});
 
 	const clack = fakeClackPort();
-	const prog = createProg({ clack, deploy, exit, loadConfig });
-	return { clack, deploy, exitPromise, loadConfig, prog };
+	const prog = createProg({ clack, deploy, exit, loadProject });
+	return { clack, deploy, exitPromise, loadProject, prog };
 }
 
 function buildOverrideHarness(discoveredPath: string): OverrideHarness {
@@ -77,11 +80,13 @@ function buildOverrideHarness(discoveredPath: string): OverrideHarness {
 	const exit = vi.fn<ExitFunc>((code) => {
 		resolveExit(code);
 	});
-	const loadConfig = vi.fn<LoadConfigFunc>(async () => ({ data: fakeConfig, success: true }));
+	const loadProject = vi.fn<LoadProjectFunc>(async () => {
+		return { data: { config: fakeConfig, plugins: EMPTY_PLUGIN_REGISTRY }, success: true };
+	});
 	const discoverOverride = vi.fn<DiscoverOverrideFunc>(() => discoveredPath);
 
 	const clack = fakeClackPort();
-	const prog = createProg({ clack, discoverOverride, exit, loadConfig });
+	const prog = createProg({ clack, discoverOverride, exit, loadProject });
 	return { clack, exitPromise, prog };
 }
 
@@ -104,7 +109,7 @@ describe("cli deploy dispatch", () => {
 		]);
 		const code = await harness.exitPromise;
 
-		expect(harness.loadConfig).toHaveBeenCalledExactlyOnceWith({
+		expect(harness.loadProject).toHaveBeenCalledExactlyOnceWith({
 			configFile: "./bedrock.staging.config.ts",
 		});
 		expect(harness.deploy).toHaveBeenCalledExactlyOnceWith(

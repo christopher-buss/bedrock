@@ -1,10 +1,11 @@
 import process from "node:process";
 
 import type { CreateOperation, Operation, UpdateOperation } from "../../core/operations.ts";
+import type { PluginRegistry } from "../../core/plugin-registry.ts";
 import type { RedactionAnnotation } from "../../core/redact-resources.ts";
 import type { Config } from "../../core/schema.ts";
 import {
-	loadConfig as defaultLoadConfig,
+	loadProjectAsync as defaultLoadProject,
 	type LoadConfigOptions,
 } from "../../shell/load-config.ts";
 import {
@@ -21,7 +22,7 @@ import { type ClackPort, renderDeployError, renderParseError } from "../render.t
 interface ResolvedDiff {
 	readonly clack: ClackPort;
 	readonly exit: (code: number) => void;
-	readonly loadConfig: typeof defaultLoadConfig;
+	readonly loadProject: typeof defaultLoadProject;
 	readonly previewDiff: typeof defaultPreviewDiff;
 }
 
@@ -29,6 +30,7 @@ interface DispatchInputs {
 	readonly config: Config;
 	readonly environments: ReadonlyArray<string>;
 	readonly getEnv: (name: string) => string | undefined;
+	readonly plugins: PluginRegistry;
 	readonly resolved: ResolvedDiff;
 }
 
@@ -63,7 +65,7 @@ function resolveDiff(dependencies: ProgDependencies): ResolvedDiff {
 	return {
 		clack: dependencies.clack ?? createClackPort(),
 		exit: dependencies.exit ?? ((code: number) => process.exit(code)),
-		loadConfig: dependencies.loadConfig ?? defaultLoadConfig,
+		loadProject: dependencies.loadProject ?? defaultLoadProject,
 		previewDiff: dependencies.previewDiff ?? defaultPreviewDiff,
 	};
 }
@@ -160,6 +162,7 @@ async function dispatchEnvironmentsAsync({
 	config,
 	environments,
 	getEnv,
+	plugins,
 	resolved,
 }: DispatchInputs): Promise<DispatchOutcome> {
 	const failed: Array<string> = [];
@@ -169,6 +172,7 @@ async function dispatchEnvironmentsAsync({
 			config,
 			environment,
 			getEnv,
+			plugins,
 		});
 		if (result.success) {
 			if (renderPreview(result.data, resolved.clack)) {
@@ -202,7 +206,7 @@ async function runDiffAsync(
 		return EXIT_ERROR;
 	}
 
-	const loaded = await resolved.loadConfig(loadOptionsFor(parsed.data));
+	const loaded = await resolved.loadProject(loadOptionsFor(parsed.data));
 	if (!loaded.success) {
 		renderDeployError({ cause: loaded.err, kind: "configLoadFailed" }, resolved.clack);
 		cancelAsFailed(resolved.clack);
@@ -210,9 +214,10 @@ async function runDiffAsync(
 	}
 
 	const outcome = await dispatchEnvironmentsAsync({
-		config: loaded.data,
+		config: loaded.data.config,
 		environments: parsed.data.environments,
 		getEnv: buildGetEnvironment(parsed.data),
+		plugins: loaded.data.plugins,
 		resolved,
 	});
 	if (outcome.failed.length > 0) {

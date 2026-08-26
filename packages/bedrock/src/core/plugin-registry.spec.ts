@@ -3,18 +3,28 @@ import { assert, describe, expect, it } from "vitest";
 
 import { buildPluginRegistry } from "./plugin-registry.ts";
 
+// Registry assembly never builds an adapter, so every declaration here
+// claims a name with a builder that refuses.
+const UNUSED = { err: { reason: "unused in registry tests" }, success: false } as const;
+
 describe(buildPluginRegistry, () => {
 	it("should expose a plugin-declared backend under the name the plugin claimed", () => {
 		expect.assertions(1);
 
 		const schema = type({ bucket: "string > 0" });
 		const registry = buildPluginRegistry([
-			{ plugin: { stateBackends: [{ name: "s3", schema }] }, specifier: "@example/state-s3" },
+			{
+				plugin: { stateBackends: [{ name: "s3", createPort: () => UNUSED, schema }] },
+				specifier: "@example/state-s3",
+			},
 		]);
 
 		assert(registry.success);
 
-		expect(registry.data.stateBackends.get("s3")).toBe(schema);
+		const registered = registry.data.stateBackends.get("s3");
+		assert(registered !== undefined);
+
+		expect(registered.declaration.schema).toBe(schema);
 	});
 
 	it("should register every backend across every loaded plugin", () => {
@@ -22,11 +32,27 @@ describe(buildPluginRegistry, () => {
 
 		const registry = buildPluginRegistry([
 			{
-				plugin: { stateBackends: [{ name: "s3", schema: type({ bucket: "string" }) }] },
+				plugin: {
+					stateBackends: [
+						{
+							name: "s3",
+							createPort: () => UNUSED,
+							schema: type({ bucket: "string" }),
+						},
+					],
+				},
 				specifier: "@example/state-s3",
 			},
 			{
-				plugin: { stateBackends: [{ name: "gcs", schema: type({ bucket: "string" }) }] },
+				plugin: {
+					stateBackends: [
+						{
+							name: "gcs",
+							createPort: () => UNUSED,
+							schema: type({ bucket: "string" }),
+						},
+					],
+				},
 				specifier: "@example/state-gcs",
 			},
 		]);
@@ -51,11 +77,23 @@ describe(buildPluginRegistry, () => {
 
 		const registry = buildPluginRegistry([
 			{
-				plugin: { stateBackends: [{ name: "s3", schema: type({ bucket: "string" }) }] },
+				plugin: {
+					stateBackends: [
+						{
+							name: "s3",
+							createPort: () => UNUSED,
+							schema: type({ bucket: "string" }),
+						},
+					],
+				},
 				specifier: "@example/state-s3",
 			},
 			{
-				plugin: { stateBackends: [{ name: "s3", schema: type({ path: "string" }) }] },
+				plugin: {
+					stateBackends: [
+						{ name: "s3", createPort: () => UNUSED, schema: type({ path: "string" }) },
+					],
+				},
 				specifier: "@other/state-s3",
 			},
 		]);
@@ -71,7 +109,15 @@ describe(buildPluginRegistry, () => {
 
 		const registry = buildPluginRegistry([
 			{
-				plugin: { stateBackends: [{ name: "gist", schema: type({ gistId: "string" }) }] },
+				plugin: {
+					stateBackends: [
+						{
+							name: "gist",
+							createPort: () => UNUSED,
+							schema: type({ gistId: "string" }),
+						},
+					],
+				},
 				specifier: "@example/state-gist",
 			},
 		]);
@@ -89,8 +135,12 @@ describe(buildPluginRegistry, () => {
 			{
 				plugin: {
 					stateBackends: [
-						{ name: "s3", schema: type({ bucket: "string" }) },
-						{ name: "s3", schema: type({ path: "string" }) },
+						{
+							name: "s3",
+							createPort: () => UNUSED,
+							schema: type({ bucket: "string" }),
+						},
+						{ name: "s3", createPort: () => UNUSED, schema: type({ path: "string" }) },
 					],
 				},
 				specifier: "@example/state-s3",

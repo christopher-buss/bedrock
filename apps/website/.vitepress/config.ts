@@ -47,7 +47,10 @@ export default defineConfig({
 		sidebar: {
 			"/bedrock/": [
 				{
-					items: [{ link: "/bedrock/guide/getting-started", text: "Getting Started" }],
+					items: [
+						{ link: "/bedrock/guide/getting-started", text: "Getting Started" },
+						{ link: "/bedrock/guide/plugins", text: "Plugins" },
+					],
 					text: "Bedrock",
 				},
 				{

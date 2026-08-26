@@ -1,0 +1,9 @@
+---
+"@bedrock-rbx/core": minor
+---
+
+Make a plugin-declared state **Backend** usable end to end. A `StateBackendDeclaration` now carries `createPort`, the builder for the adapter its schema describes, so a `state.backend` naming a loaded plugin constructs through that plugin instead of returning `unsupportedBackend`; the builder returns a `Result`, and its refusal reaches the user as a `pluginStateBackend` failure naming the plugin and carrying its payload untouched. The registry the config load produced travels with the config it validated, so naming a plugin under `plugins` is all a CLI user needs; a programmatic caller passing a pre-loaded `config` names the same registry through the new `opts.plugins`, and `opts.statePort` is unchanged. `loadProjectAsync` is the loader that returns both halves.
+
+`StateError` widens into a discriminated union, and `DeployError` and `PreviewDiffError` gain a `pluginStateBackend` arm, so an exhaustive `switch` over either needs a new case. `stateNotFound`, `stateAccessDenied`, and `stateConflict` are conditions any backend has and render identically whichever produced them; `pluginStateBackend` carries a plugin's own opaque detail. The original `stateError` arm is unchanged, so every existing consumer keeps narrowing on the same discriminator.
+
+`bedrock migrate` gains plugin backends as targets. A plugin declares the fields to ask for as data (label, placeholder, validation message, order, and a condition read against the answers already given) and core renders them, so a plugin backend looks like a builtin in the picker and the prompt port stays private. The emitted config records both the answered `state` block and the `plugins` entry that makes it resolve. A plugin may also declare `migrateSource`, supplying the bytes of the previous tool's state from coordinates only it understands while core keeps parsing the foreign format.

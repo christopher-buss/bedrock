@@ -3,13 +3,15 @@ import type { Result } from "@bedrock-rbx/ocale";
 import process from "node:process";
 
 import { createClackProgressAdapter } from "../../adapters/clack-progress-adapter.ts";
+import type { PluginRegistry } from "../../core/plugin-registry.ts";
 import type { Config } from "../../core/schema.ts";
 import type { BedrockState } from "../../core/state.ts";
 import type { ProgressPort } from "../../ports/progress-port.ts";
 import type { BuildStep, DeployError } from "../../shell/deploy.ts";
 import {
-	loadConfig as defaultLoadConfig,
+	loadProjectAsync as defaultLoadProject,
 	type LoadConfigOptions,
+	type LoadedProject,
 } from "../../shell/load-config.ts";
 import { buildOverrideInvocation } from "../build-override-invocation.ts";
 import { createClackPort } from "../clack-port.ts";
@@ -58,6 +60,7 @@ type ReconcileRun = (options: {
 	readonly config: Config;
 	readonly environment: string;
 	readonly getEnv: (name: string) => string | undefined;
+	readonly plugins: PluginRegistry;
 	readonly progress: ProgressPort;
 }) => Promise<Result<BedrockState, DeployError>>;
 
@@ -67,7 +70,7 @@ interface Resolved {
 	readonly discoverOverride: typeof defaultDiscoverOverride;
 	readonly exit: (code: number) => void;
 	readonly fusedBuild: boolean;
-	readonly loadConfig: typeof defaultLoadConfig;
+	readonly loadProject: typeof defaultLoadProject;
 	readonly progressOverride: ProgressPort | undefined;
 	readonly projectRoot: string;
 	readonly run: ReconcileRun;
@@ -80,13 +83,14 @@ interface DispatchInputs {
 	readonly getEnv: (name: string) => string | undefined;
 	readonly overridePath: string | undefined;
 	readonly parsed: CommonOptions;
+	readonly plugins: PluginRegistry;
 	readonly progress: ProgressPort;
 	readonly resolved: Resolved;
 }
 
 interface DispatchAndReportInput {
 	readonly buildOverridePath: string | undefined;
-	readonly loaded: Config;
+	readonly loaded: LoadedProject;
 	readonly overridePath: string | undefined;
 	readonly parsed: CommonOptions;
 	readonly resolved: Resolved;
@@ -131,7 +135,7 @@ function resolveDeps(deps: ProgDeps, spec: ReconcileCommandSpec): Resolved {
 		discoverOverride: deps.discoverOverride ?? defaultDiscoverOverride,
 		exit: deps.exit ?? ((code: number) => process.exit(code)),
 		fusedBuild: spec.fusedBuild ?? false,
-		loadConfig: deps.loadConfig ?? defaultLoadConfig,
+		loadProject: deps.loadProject ?? defaultLoadProject,
 		progressOverride: deps.progress,
 		projectRoot: deps.projectRoot ?? process.cwd(),
 		run: spec.resolveRun(deps),
@@ -186,7 +190,7 @@ function resolveBuildStep({
 }
 
 async function dispatchEnvironmentsAsync(inputs: DispatchInputs): Promise<ReadonlyArray<string>> {
-	const { config, getEnv, overridePath, parsed, progress, resolved } = inputs;
+	const { config, getEnv, overridePath, parsed, plugins, progress, resolved } = inputs;
 	const build = resolveBuildStep(inputs);
 	const failed: Array<string> = [];
 	for (const environment of parsed.environments) {
@@ -206,6 +210,7 @@ async function dispatchEnvironmentsAsync(inputs: DispatchInputs): Promise<Readon
 			config,
 			environment,
 			getEnv,
+			plugins,
 			progress,
 		});
 		if (!result.success) {
@@ -230,14 +235,15 @@ async function dispatchAndReportAsync({
 }: DispatchAndReportInput): Promise<number> {
 	const progress: ProgressPort =
 		resolved.progressOverride ??
-		createClackProgressAdapter({ clack: resolved.clack, config: loaded });
+		createClackProgressAdapter({ clack: resolved.clack, config: loaded.config });
 
 	const failures = await dispatchEnvironmentsAsync({
 		buildOverridePath,
-		config: loaded,
+		config: loaded.config,
 		getEnv: buildGetEnvironment(parsed),
 		overridePath,
 		parsed,
+		plugins: loaded.plugins,
 		progress,
 		resolved,
 	});
@@ -287,7 +293,7 @@ async function runAsync(rawOptions: Record<string, unknown>, resolved: Resolved)
 		return EXIT_ERROR;
 	}
 
-	const loaded = await resolved.loadConfig(loadOptionsFor(parsed.data));
+	const loaded = await resolved.loadProject(loadOptionsFor(parsed.data));
 	if (!loaded.success) {
 		renderDeployError({ cause: loaded.err, kind: "configLoadFailed" }, resolved.clack);
 		cancelAsFailed(resolved);

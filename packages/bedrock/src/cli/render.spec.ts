@@ -5,7 +5,11 @@ import { describe, expect, it } from "vitest";
 import { fakeClackPort } from "#tests/helpers/clack";
 import { cyclicError } from "#tests/helpers/errors";
 import type { MigrateError } from "../core/migrate/migration-report.ts";
-import type { MissingCredentialError, UnsupportedBackendError } from "../shell/build-state-port.ts";
+import type {
+	MissingCredentialError,
+	PluginStateBackendError,
+	UnsupportedBackendError,
+} from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
 import { asResourceKey } from "../types/ids.ts";
 import type { SpawnOverrideError } from "./dispatch-override.ts";
@@ -52,6 +56,16 @@ describe(renderDeployError, () => {
 				kind: "unsupportedBackend",
 			},
 			expected: "unsupported state backend 's3' (pass a custom statePort via opts.statePort)",
+		},
+		{
+			err: {
+				detail: { variable: "AWS_ACCESS_KEY_ID" },
+				kind: "pluginStateBackend",
+				reason: "no credentials",
+				specifier: "@example/state-s3",
+			},
+			expected:
+				"state backend from plugin '@example/state-s3' failed to build: no credentials",
 		},
 		{
 			err: {
@@ -123,6 +137,58 @@ describe(renderDeployError, () => {
 				unsavedState: { environment: "production", resources: [], version: 1 },
 			},
 			expected: "state write failed (state.json): network error",
+		},
+		{
+			err: {
+				cause: {
+					file: "s3://my-bucket/production.json",
+					kind: "stateNotFound",
+					reason: "the object does not exist",
+				},
+				kind: "stateReadFailed",
+			},
+			expected:
+				"state read failed (s3://my-bucket/production.json): not found: the object does not exist",
+		},
+		{
+			err: {
+				cause: {
+					file: "s3://my-bucket/production.json",
+					kind: "stateAccessDenied",
+					reason: "the credential lacks s3:GetObject",
+				},
+				kind: "stateReadFailed",
+			},
+			expected:
+				"state read failed (s3://my-bucket/production.json): access denied: the credential lacks s3:GetObject",
+		},
+		{
+			err: {
+				cause: {
+					file: "s3://my-bucket/production.json",
+					kind: "stateConflict",
+					reason: "the object changed since it was read",
+				},
+				kind: "stateWriteFailed",
+				unsavedState: { environment: "production", resources: [], version: 1 },
+			},
+			expected:
+				"state write failed (s3://my-bucket/production.json): conflict: the object changed since it was read",
+		},
+		{
+			err: {
+				cause: {
+					detail: { code: "SlowDown" },
+					file: "s3://my-bucket/production.json",
+					kind: "pluginStateBackend",
+					reason: "the upload was throttled",
+					specifier: "@bedrock-rbx/state-s3",
+				},
+				kind: "stateWriteFailed",
+				unsavedState: { environment: "production", resources: [], version: 1 },
+			},
+			expected:
+				"state write failed (s3://my-bucket/production.json): plugin '@bedrock-rbx/state-s3': the upload was throttled",
 		},
 		{
 			err: {
@@ -775,7 +841,10 @@ describe(renderMigrateError, () => {
 });
 
 describe(renderBuildStatePortError, () => {
-	it.for<{ err: MissingCredentialError | UnsupportedBackendError; expected: string }>([
+	it.for<{
+		err: MissingCredentialError | PluginStateBackendError | UnsupportedBackendError;
+		expected: string;
+	}>([
 		{
 			err: {
 				kind: "missingCredential",
@@ -783,6 +852,16 @@ describe(renderBuildStatePortError, () => {
 				variable: "BEDROCK_GITHUB_TOKEN",
 			},
 			expected: "missing credential: environment variable BEDROCK_GITHUB_TOKEN is not set",
+		},
+		{
+			err: {
+				detail: { variable: "AWS_ACCESS_KEY_ID" },
+				kind: "pluginStateBackend",
+				reason: "no credentials",
+				specifier: "@example/state-s3",
+			},
+			expected:
+				"state backend from plugin '@example/state-s3' failed to build: no credentials",
 		},
 		{
 			err: { backend: "s3", hint: "pass a custom statePort", kind: "unsupportedBackend" },
@@ -819,6 +898,28 @@ describe(renderStateWriteError, () => {
 
 		expect(port.logError).toHaveBeenCalledExactlyOnceWith(
 			"state write failed for 'production' (gist:abc/state.production.json): auth 401",
+		);
+	});
+
+	it("should name the backend-neutral condition so a plugin backend's write failure reads like a builtin's", () => {
+		expect.assertions(1);
+
+		const port = fakeClackPort();
+
+		renderStateWriteError(
+			{
+				environment: "production",
+				err: {
+					file: "s3://my-bucket/production.json",
+					kind: "stateAccessDenied",
+					reason: "the credential lacks s3:PutObject",
+				},
+			},
+			port,
+		);
+
+		expect(port.logError).toHaveBeenCalledExactlyOnceWith(
+			"state write failed for 'production' (s3://my-bucket/production.json): access denied: the credential lacks s3:PutObject",
 		);
 	});
 });

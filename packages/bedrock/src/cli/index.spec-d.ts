@@ -1,10 +1,11 @@
 import type { Sade } from "sade";
 import { describe, expectTypeOf, it } from "vitest";
 
+import type { PluginRegistry } from "../core/plugin-registry.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { buildStatePort } from "../shell/build-state-port.ts";
 import type { deploy, provision, publish } from "../shell/deploy.ts";
-import type { loadConfig } from "../shell/load-config.ts";
+import type { loadProjectAsync } from "../shell/load-config.ts";
 import type { migrateMantleState } from "../shell/migrate-mantle-state.ts";
 import type { previewDiffAsync } from "../shell/preview-diff.ts";
 import type { discoverOverride } from "./discover-override.ts";
@@ -22,10 +23,11 @@ describe("ProgDeps shape", () => {
 			| "deploy"
 			| "discoverOverride"
 			| "exit"
-			| "loadConfig"
+			| "loadProject"
 			| "migrateMantleState"
 			| "migratePromptPort"
 			| "mkdir"
+			| "plugins"
 			| "previewDiff"
 			| "progress"
 			| "projectRoot"
@@ -52,10 +54,14 @@ describe("ProgDeps deploy/diff slots", () => {
 		>();
 	});
 
-	it("should accept the real loadConfig signature in the loadConfig slot", () => {
-		expectTypeOf<NonNullable<ProgDependencies["loadConfig"]>>().toEqualTypeOf<
-			typeof loadConfig
+	it("should accept the real loadProject signature in the loadProject slot", () => {
+		expectTypeOf<NonNullable<ProgDependencies["loadProject"]>>().toEqualTypeOf<
+			typeof loadProjectAsync
 		>();
+	});
+
+	it("should accept a plugin registry in the plugins slot", () => {
+		expectTypeOf<NonNullable<ProgDependencies["plugins"]>>().toEqualTypeOf<PluginRegistry>();
 	});
 
 	it("should accept the real provision signature in the provision slot", () => {

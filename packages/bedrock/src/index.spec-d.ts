@@ -167,6 +167,7 @@ type ExpectedDeployErrorKind =
 	| "incompleteUniverseEntry"
 	| "missingBuildStep"
 	| "missingCredential"
+	| "pluginStateBackend"
 	| "registryConfigMissing"
 	| "stateNotConfigured"
 	| "stateReadFailed"

@@ -9,6 +9,7 @@ import type { ConfigError } from "../core/config-error.ts";
 import { diff } from "../core/diff.ts";
 import { flattenConfig } from "../core/flatten.ts";
 import type { Operation } from "../core/operations.ts";
+import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../core/plugin-registry.ts";
 import { collectRedactionAnnotations, type RedactionAnnotation } from "../core/redact-resources.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
 import type { Config, ResolvedConfig } from "../core/schema.ts";
@@ -29,9 +30,10 @@ import { buildDesired, type BuildDesiredError } from "./build-desired.ts";
 import {
 	buildStatePort,
 	type MissingCredentialError,
+	type PluginStateBackendError,
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
-import { loadConfig as defaultLoadConfig, type LoadConfigOptions } from "./load-config.ts";
+import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
 
 /**
  * Inputs for `previewDiff`. Mirrors `DeployOptions` minus the apply-side
@@ -58,10 +60,19 @@ export interface PreviewDiffOptions {
 	 */
 	readonly getEnv?: (name: string) => string | undefined;
 	/**
-	 * Loader invoked when `config` is omitted; defaults to `loadConfig` from
-	 * this package.
+	 * Loader invoked when `config` is omitted. Omit it too and the project
+	 * loads through `loadProjectAsync`, which also registers what the
+	 * config's `plugins` entries declared; a loader supplied here returns a
+	 * config alone, so name its **Backend**s through `plugins` instead.
 	 */
 	readonly loadConfig?: (options?: LoadConfigOptions) => Promise<Result<Config, ConfigError>>;
+	/**
+	 * What the loaded plugins declared, which decides the **Backend**s
+	 * `config.state.backend` can name beyond the builtins. Defaults to what
+	 * the config load registered; supply it alongside a pre-loaded `config`
+	 * so a plugin-declared **Backend** still resolves.
+	 */
+	readonly plugins?: PluginRegistry;
 	/**
 	 * Reads file bytes for resources that have file-backed inputs. Defaults to
 	 * `node:fs/promises.readFile`.
@@ -86,6 +97,7 @@ export type PreviewDiffError =
 	| IncompleteProductEntryError
 	| IncompleteUniverseEntryError
 	| MissingCredentialError
+	| PluginStateBackendError
 	| StateNotConfiguredError
 	| UnknownEnvironmentError
 	| UnsupportedBackendError
@@ -145,20 +157,60 @@ export async function previewDiffAsync(
 	return runPreviewAsync(options.environment, resolved.data);
 }
 
-async function pickConfigAsync(
+/**
+ * Load the project through whichever loader the caller left in place, on
+ * the same terms as `deploy`.
+ *
+ * @param options - The caller's preview options.
+ * @returns The loaded project, or the config error the loader reported.
+ */
+async function loadProjectThroughAsync(
 	options: PreviewDiffOptions,
-): Promise<Result<Config, PreviewDiffError>> {
-	if (options.config !== undefined) {
-		return { data: options.config, success: true };
+): Promise<Result<LoadedProject, ConfigError>> {
+	if (options.loadConfig === undefined) {
+		return loadProjectAsync();
 	}
 
-	const loader = options.loadConfig ?? defaultLoadConfig;
-	const loaded = await loader();
+	const loaded = await options.loadConfig();
+	return loaded.success
+		? { data: { config: loaded.data, plugins: EMPTY_PLUGIN_REGISTRY }, success: true }
+		: loaded;
+}
+
+/**
+ * Resolve the project config together with what the loaded plugins
+ * declared, on the same terms as `deploy`: a pre-loaded config or an
+ * injected loader carries no registry, so `options.plugins` is how a
+ * programmatic caller names the **Backend**s available to it.
+ *
+ * @param options - The caller's preview options.
+ * @returns The config and the registry its `state` block resolves against.
+ */
+async function pickConfigAsync(
+	options: PreviewDiffOptions,
+): Promise<Result<LoadedProject, PreviewDiffError>> {
+	if (options.config !== undefined) {
+		return {
+			data: {
+				config: options.config,
+				plugins: options.plugins ?? EMPTY_PLUGIN_REGISTRY,
+			},
+			success: true,
+		};
+	}
+
+	const loaded = await loadProjectThroughAsync(options);
 	if (!loaded.success) {
 		return { err: { cause: loaded.err, kind: "configLoadFailed" }, success: false };
 	}
 
-	return { data: loaded.data, success: true };
+	return {
+		data: {
+			config: loaded.data.config,
+			plugins: options.plugins ?? loaded.data.plugins,
+		},
+		success: true,
+	};
 }
 
 function readProcessEnvironment(name: string): string | undefined {
@@ -171,7 +223,7 @@ function getEnvironmentOf(options: PreviewDiffOptions): (name: string) => string
 
 function pickStatePort(
 	options: PreviewDiffOptions,
-	config: ResolvedConfig,
+	{ config, plugins }: { readonly config: ResolvedConfig; readonly plugins: PluginRegistry },
 ): Result<StatePort, PreviewDiffError> {
 	if (options.statePort !== undefined) {
 		return { data: options.statePort, success: true };
@@ -185,6 +237,7 @@ function pickStatePort(
 	return buildStatePort({
 		fetch: options.fetch,
 		getEnv: getEnvironmentOf(options),
+		plugins,
 		stateConfig: stateConfig.data,
 	});
 }
@@ -224,14 +277,17 @@ async function resolveDependenciesAsync(
 		return config;
 	}
 
-	const view = resolveEnvironmentView(config.data, options.environment);
+	const view = resolveEnvironmentView(config.data.config, options.environment);
 	if (!view.success) {
 		return view;
 	}
 
 	const { effective, redactions } = view.data;
 	const readFile = options.readFile ?? nodeReadFile;
-	const statePort = pickStatePort(options, effective);
+	const statePort = pickStatePort(options, {
+		config: effective,
+		plugins: config.data.plugins,
+	});
 	if (!statePort.success) {
 		return statePort;
 	}

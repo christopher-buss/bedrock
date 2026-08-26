@@ -57,6 +57,15 @@ export interface MigrateMantleStateDeps {
 	 * before YAML parsing.
 	 */
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
+	/**
+	 * The foreign state file's bytes, when the caller already has them.
+	 * Supplying them skips the read of `stateFilePath`, which is what lets
+	 * a **State port** plugin fetch the bytes from coordinates only it
+	 * understands while core keeps owning the format. `stateFilePath` is
+	 * still what icon paths resolve against and what a parse failure is
+	 * reported at.
+	 */
+	readonly stateFileBytes?: Uint8Array;
 	/** Absolute path to the `.mantle-state.yml` file to migrate. */
 	readonly stateFilePath: string;
 }
@@ -141,20 +150,12 @@ export async function migrateMantleState(
 ): Promise<Result<MigrationReport, MigrateError>> {
 	const readFile = deps.readFile ?? nodeReadFile;
 
-	let bytes: Uint8Array;
-	try {
-		bytes = await readFile(deps.stateFilePath);
-	} catch (err) {
-		if (isFileMissing(err)) {
-			return {
-				err: { kind: "stateFileNotFound", path: deps.stateFilePath },
-				success: false,
-			};
-		}
-
-		throw err;
+	const sourced = await readStateBytesAsync(deps, readFile);
+	if (!sourced.success) {
+		return sourced;
 	}
 
+	const bytes = sourced.data;
 	const decoder = new TextDecoder("utf-8");
 	const raw = decoder.decode(bytes);
 	const parsed = parseState(raw, deps.stateFilePath);
@@ -169,6 +170,38 @@ export async function migrateMantleState(
 		state: parsed.data,
 		stateFilePath: deps.stateFilePath,
 	});
+}
+
+/**
+ * Produce the foreign state file's bytes: the caller's, when it supplied
+ * them, and otherwise whatever `readFile` finds at `stateFilePath`.
+ *
+ * @param deps - The migrator's inputs.
+ * @param readFile - The reader to fall back on.
+ * @returns The bytes to parse, or the `stateFileNotFound` failure.
+ * @rejects Re-thrown `readFile` failure whose error code is not a
+ *   recognized "missing file" code.
+ */
+async function readStateBytesAsync(
+	deps: MigrateMantleStateDeps,
+	readFile: (path: string) => Promise<Uint8Array>,
+): Promise<Result<Uint8Array, MigrateError>> {
+	if (deps.stateFileBytes !== undefined) {
+		return { data: deps.stateFileBytes, success: true };
+	}
+
+	try {
+		return { data: await readFile(deps.stateFilePath), success: true };
+	} catch (err) {
+		if (isFileMissing(err)) {
+			return {
+				err: { kind: "stateFileNotFound", path: deps.stateFilePath },
+				success: false,
+			};
+		}
+
+		throw err;
+	}
 }
 
 const EMPTY_HASHES: ReadonlyMap<ResourceKey, Record<"en-us", Sha256Hex>> = new Map();

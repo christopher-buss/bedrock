@@ -85,8 +85,18 @@ export type {
 	Operation,
 	UpdateOperation,
 } from "./core/operations.ts";
-export type { PluginRegistry } from "./core/plugin-registry.ts";
-export type { BedrockPlugin, StateBackendDeclaration, StateBackendSchema } from "./core/plugin.ts";
+export type { PluginRegistry, RegisteredStateBackend } from "./core/plugin-registry.ts";
+export type {
+	BedrockPlugin,
+	StateBackendBuildError,
+	StateBackendContext,
+	StateBackendDeclaration,
+	StateBackendFetch,
+	StateBackendMigrateSource,
+	StateBackendPromptField,
+	StateBackendSchema,
+	StateBackendSourceContext,
+} from "./core/plugin.ts";
 export { resolveStateConfig, type StateNotConfiguredError } from "./core/resolve-state-config.ts";
 export {
 	SOCIAL_LINK_FIELDS,
@@ -122,6 +132,7 @@ export {
 	type GamePassEntry,
 	type GistStateConfig,
 	type PlaceEntry,
+	type PluginStateConfig,
 	type RedactedDeveloperProductOverride,
 	type RedactedEnvironmentOverride,
 	type RedactedGamePassOverride,
@@ -143,7 +154,7 @@ export {
 	type UnknownEnvironmentError,
 } from "./core/select-environment.ts";
 export { parseStateFile, serializeStateFile } from "./core/state-file.ts";
-export type { BedrockState, StateError } from "./core/state.ts";
+export type { BedrockState, StateError, StateErrorBase } from "./core/state.ts";
 export type { CodegenWriteError, CodegenWriterPort } from "./ports/codegen-writer.ts";
 export type {
 	ApplySummaryEvent,
@@ -172,6 +183,7 @@ export { buildDesired } from "./shell/build-desired.ts";
 export {
 	buildStatePort,
 	type MissingCredentialError,
+	type PluginStateBackendError,
 	type UnsupportedBackendError,
 } from "./shell/build-state-port.ts";
 export { defineConfig, type ConfigContext, type ConfigInput } from "./shell/define-config.ts";
@@ -185,7 +197,12 @@ export {
 	publish,
 	type PublishOptions,
 } from "./shell/deploy.ts";
-export { loadConfig, type LoadConfigOptions } from "./shell/load-config.ts";
+export {
+	loadConfig,
+	loadProjectAsync,
+	type LoadConfigOptions,
+	type LoadedProject,
+} from "./shell/load-config.ts";
 export { migrateMantleState, type MigrateMantleStateDeps } from "./shell/migrate-mantle-state.ts";
 export type { CodegenError } from "./shell/run-codegen.ts";
 export {

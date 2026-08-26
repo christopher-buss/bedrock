@@ -26,7 +26,7 @@ describe(provisionCommand, () => {
 		expect.assertions(4);
 
 		const provision = fakeProvision({ data: okState(), success: true });
-		const deps = makeDeps({ loadConfig: fakeLoad(), provision });
+		const deps = makeDeps({ loadProject: fakeLoad(), provision });
 
 		await provisionCommand(deps)({ env: "production" });
 
@@ -45,7 +45,7 @@ describe(provisionCommand, () => {
 			err: { environment: "production", kind: "stateNotConfigured" },
 			success: false,
 		});
-		const deps = makeDeps({ loadConfig: fakeLoad(), provision });
+		const deps = makeDeps({ loadProject: fakeLoad(), provision });
 
 		await provisionCommand(deps)({ env: "production" });
 
@@ -60,7 +60,7 @@ describe(provisionCommand, () => {
 		const provision = fakeProvision({ data: okState(), success: true });
 		const deps = makeDeps({
 			discoverOverride,
-			loadConfig: fakeLoad(),
+			loadProject: fakeLoad(),
 			projectRoot: "/abs",
 			provision,
 		});
@@ -90,7 +90,7 @@ describe(provisionCommand, () => {
 		const provision = vi.fn<ProvisionFunc>();
 		const deps = makeDeps({
 			discoverOverride,
-			loadConfig: fakeLoad(),
+			loadProject: fakeLoad(),
 			projectRoot: "/abs",
 			provision,
 			spawner,
