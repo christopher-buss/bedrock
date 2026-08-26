@@ -7,6 +7,7 @@ import type { PluginRegistry, RegisteredStateBackend } from "../../core/plugin-r
 import type { StateBackendBuildError, StateBackendMigrateSource } from "../../core/plugin.ts";
 import type { MigratePromptPort } from "../migrate-prompt-port.ts";
 import { type MigrationSource, SUPPORTED_MIGRATION_SOURCES } from "../parse-migrate-options.ts";
+import { describeUnknown } from "./describe-unknown.ts";
 import { collectBackendAnswersAsync, fetchableBackends } from "./resolve-state-target.ts";
 
 /** Default name a plugin-fetched state file is reported and rooted at. */
@@ -132,6 +133,27 @@ async function resolveLocalInputAsync(
 }
 
 /**
+ * Call a plugin's reader, mapping a rejection onto the same refusal a
+ * well-behaved plugin returns. A plugin is ordinary JavaScript, so one
+ * that throws instead of returning `Err` would otherwise escape the
+ * command and leave it without an exit code.
+ *
+ * @param source - What the **Backend** declared about fetching.
+ * @param coordinates - The answers naming what to fetch.
+ * @returns The bytes, or the refusal to report.
+ */
+async function readBytesAsync(
+	source: StateBackendMigrateSource,
+	coordinates: Readonly<Record<string, string>>,
+): Promise<Result<Uint8Array, StateBackendBuildError>> {
+	try {
+		return await source.readBytes({ coordinates, getEnv: (name) => process.env[name] });
+	} catch (err) {
+		return { err: { detail: err, reason: describeUnknown(err) }, success: false };
+	}
+}
+
+/**
  * Ask a plugin's source fields and have it fetch the bytes they name.
  *
  * @param chosen - The **Backend** the user picked and what it declared
@@ -153,10 +175,7 @@ async function fetchThroughPluginAsync(
 		return { err: "cancelled", success: false };
 	}
 
-	const fetched = await source.readBytes({
-		coordinates: coordinates.data,
-		getEnv: (name) => process.env[name],
-	});
+	const fetched = await readBytesAsync(source, coordinates.data);
 	if (!fetched.success) {
 		return {
 			err: { ...fetched.err, specifier: registered.specifier },

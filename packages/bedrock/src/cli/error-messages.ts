@@ -266,6 +266,21 @@ export function buildStatePortErrorMessage(
 }
 
 /**
+ * Describe a plugin's refusal to fetch the state `bedrock migrate` is
+ * migrating from. Named separately from the build failure so the reader
+ * knows which step of migrate gave up.
+ *
+ * @param err - The plugin's refusal, plus the specifier naming it.
+ * @returns The message to print.
+ */
+export function migrationSourceErrorMessage(err: {
+	readonly reason: string;
+	readonly specifier: string;
+}): string {
+	return `plugin '${err.specifier}' could not read the mantle state: ${err.reason}`;
+}
+
+/**
  * Describe a plugin's refusal to build its **Backend**, naming the plugin
  * so the reader knows which package to look at.
  *

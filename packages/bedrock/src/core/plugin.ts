@@ -197,7 +197,7 @@ export interface StateBackendMigrateSource {
  * @example
  *
  * ```ts
- * import type { StateBackendDeclaration } from "@bedrock-rbx/core";
+ * import type { BedrockState, StateBackendDeclaration } from "@bedrock-rbx/core";
  *
  * import { type } from "arktype";
  *
@@ -215,15 +215,18 @@ export interface StateBackendMigrateSource {
  *             };
  *         }
  *
- *         const objects = new Map<string, string>();
+ *         const objects = new Map<string, BedrockState>();
  *         const keyFor = (environment: string) =>
  *             `${stateConfig.bucket}/${environment}.json`;
  *
  *         return {
  *             data: {
- *                 read: async () => ({ data: undefined, success: true }),
+ *                 read: async (environment) => ({
+ *                     data: objects.get(keyFor(environment)),
+ *                     success: true,
+ *                 }),
  *                 write: async (state) => {
- *                     objects.set(keyFor(state.environment), key);
+ *                     objects.set(keyFor(state.environment), state);
  *                     return { data: undefined, success: true };
  *                 },
  *             },
@@ -238,7 +241,20 @@ export interface StateBackendMigrateSource {
  * });
  *
  * expect(s3.name).toBe("s3");
- * expect(built.success).toBeTrue();
+ *
+ * if (!built.success) {
+ *     throw new Error("unreachable: the credential was supplied");
+ * }
+ *
+ * return built.data
+ *     .write({ environment: "production", resources: [], version: 1 })
+ *     .then(() => built.data.read("production"))
+ *     .then((read) => {
+ *         expect(read.success).toBeTrue();
+ *         if (read.success) {
+ *             expect(read.data?.environment).toBe("production");
+ *         }
+ *     });
  * ```
  */
 export interface StateBackendDeclaration<TState extends object = object> {

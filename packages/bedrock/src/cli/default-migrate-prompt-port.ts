@@ -162,12 +162,19 @@ async function promptConfigFormatFromAsync(
 	});
 }
 
-function validateNonEmpty(value: string | undefined): string | undefined {
-	if (value === undefined || value.trim() === "") {
-		return "Required";
-	}
+/**
+ * Reject an empty answer with the message the plugin declared for it.
+ *
+ * @param value - What the user typed, absent until they type something.
+ * @param message - The plugin's own message for an empty answer.
+ * @returns The message when the answer is empty, `undefined` otherwise.
+ */
+function requiredWith(value: string | undefined, message: string): string | undefined {
+	return value === undefined || value.trim() === "" ? message : undefined;
+}
 
-	return undefined;
+function validateNonEmpty(value: string | undefined): string | undefined {
+	return requiredWith(value, "Required");
 }
 
 async function fromTextAsync(
@@ -245,17 +252,6 @@ async function promptStateSourceFromAsync(
 			}),
 		],
 	});
-}
-
-/**
- * Reject an empty answer with the message the plugin declared for it.
- *
- * @param value - What the user typed, absent until they type something.
- * @param message - The plugin's own message for an empty answer.
- * @returns The message when the answer is empty, `undefined` otherwise.
- */
-function requiredWith(value: string | undefined, message: string): string | undefined {
-	return value === undefined || value.trim() === "" ? message : undefined;
 }
 
 /**

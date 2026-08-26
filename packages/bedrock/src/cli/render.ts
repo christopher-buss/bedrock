@@ -13,6 +13,7 @@ import {
 	deployErrorMessage,
 	migrateErrorMessage,
 	migrateParseErrorMessage,
+	migrationSourceErrorMessage,
 	overrideErrorMessage,
 	parseErrorMessage,
 	stateErrorDetail,
@@ -209,6 +210,19 @@ export function renderMigrationSummary(input: MigrationSummaryRender, port: Clac
 			`migration complete; see ${input.reportPath} for ${String(reviewable)} auto-mapped or skipped fields`,
 		);
 	}
+}
+
+/**
+ * Render a plugin's refusal to fetch the state being migrated from.
+ *
+ * @param err - The plugin's refusal, plus the specifier naming it.
+ * @param port - The output port the diagnostic is written to.
+ */
+export function renderMigrationSourceError(
+	err: { readonly reason: string; readonly specifier: string },
+	port: ClackPort,
+): void {
+	port.logError(migrationSourceErrorMessage(err));
 }
 
 /**

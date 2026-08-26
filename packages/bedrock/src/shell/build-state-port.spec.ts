@@ -206,17 +206,20 @@ describe(buildStatePort, () => {
 		expect(result.err.detail).toStrictEqual({ variable: "AWS_ACCESS_KEY_ID" });
 	});
 
-	it("should keep dispatching a builtin backend name to its builtin adapter when plugins are loaded", () => {
+	it("should dispatch a builtin backend name to its builtin adapter even when a plugin claims that name", () => {
 		expect.assertions(1);
 
+		// A config load rejects this collision, so the registry can only
+		// hold it when something skipped that check. Dispatch still has to
+		// keep the builtin, or a plugin becomes a way to redirect state.
 		const result = buildStatePort({
 			fetch: neverFetchAsync,
 			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
 			plugins: fakeStateBackendPlugins({
-				name: "s3",
+				name: "gist",
 				createPort: () => ({ err: { reason: "unreachable" }, success: false }),
-				schema: type({ bucket: "string > 0" }),
-				specifier: "@example/state-s3",
+				schema: type({ gistId: "string > 0" }),
+				specifier: "@example/state-gist",
 			}),
 			stateConfig: GIST_CONFIG,
 		});

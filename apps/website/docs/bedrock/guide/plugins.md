@@ -130,7 +130,7 @@ a fake transport instead of a mocked client.
 ### Report failures your users can read
 
 The `StatePort` you return reports failures as
-[`StateError`](/bedrock/api/type-aliases/StateError). Four of its arms are
+[`StateError`](/bedrock/api/type-aliases/StateError). Three of its arms are
 backend-neutral, so the same condition reads the same whichever backend produced
 it:
 
@@ -139,9 +139,12 @@ it:
 | `stateNotFound`     | the store itself does not exist                  |
 | `stateAccessDenied` | the credential reached the store and was refused |
 | `stateConflict`     | the state changed underneath the operation       |
-| `stateError`        | state exists but cannot be trusted or parsed     |
 
-Reach for `pluginStateBackend` only when the failure is one only you can
+`stateError` is the fourth arm and is not one of those conditions: it says state
+exists but cannot be trusted, which is corrupt JSON, a schema failure, or a
+version bedrock does not know.
+
+Reach for `pluginStateBackend` only when the failure is one nobody but you can
 describe. It carries your `specifier` and an opaque `detail`, and bedrock
 neither reads nor enumerates what is inside.
 

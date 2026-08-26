@@ -21,10 +21,10 @@ import type { MigrateConfigFormat, MigratePromptPort } from "../migrate-prompt-p
 import { type MigrationSource, parseMigrateOptions } from "../parse-migrate-options.ts";
 import {
 	type ClackPort,
-	renderBuildStatePortError,
 	renderDeployError,
 	renderMigrateError,
 	renderMigrateParseError,
+	renderMigrationSourceError,
 	renderMigrationSummary,
 } from "../render.ts";
 import { describeUnknown } from "./describe-unknown.ts";
@@ -336,22 +336,14 @@ async function dispatchBySourceAsync(inputs: DispatchInputs): Promise<number> {
 
 /**
  * Report a plugin that could not fetch the previous tool's state, naming
- * the plugin the way a **Backend** that cannot build is named.
+ * the plugin and the step that gave up.
  *
  * @param err - The plugin's refusal.
  * @param resolved - The migrate command's resolved dependencies.
  * @returns The exit code for a failure already rendered.
  */
 function reportSourceFailure(err: MigrationSourceFailure, resolved: ResolvedMigrate): number {
-	renderBuildStatePortError(
-		{
-			detail: err.detail,
-			kind: "pluginStateBackend",
-			reason: err.reason,
-			specifier: err.specifier,
-		},
-		resolved.clack,
-	);
+	renderMigrationSourceError(err, resolved.clack);
 	return failAfterRender(resolved);
 }
 

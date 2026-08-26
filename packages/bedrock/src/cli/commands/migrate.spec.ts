@@ -833,7 +833,7 @@ describe(migrateCommand, () => {
 		await migrateCommand(dependencies)(undefined, { from: "mantle" });
 
 		expect(dependencies.clack!.logError).toHaveBeenCalledWith(
-			"state backend from plugin '@example/state-s3' failed to build: no such object",
+			"plugin '@example/state-s3' could not read the mantle state: no such object",
 		);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
@@ -866,6 +866,47 @@ describe(migrateCommand, () => {
 		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 
 		expect(port.promptBackendField).not.toHaveBeenCalled();
+	});
+
+	it("should record an answer under a key that names an object built-in", async () => {
+		expect.assertions(1);
+
+		const buildStatePort = vi.fn<BuildStatePortFunc>(() => happyPortResult());
+		const dependencies = makeDependencies({
+			buildStatePort,
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createPort: () => ({ data: happyPort(), success: true }),
+				migratePrompts: [{ key: "__proto__", label: "Prototype?" }],
+				schema: type({}),
+				specifier: "@example/state-s3",
+			}),
+		});
+		const port = dependencies.migratePromptPort!;
+		vi.mocked(port.promptStateFilePath).mockResolvedValueOnce({
+			data: STATE_FILE_PATH,
+			success: true,
+		});
+		vi.mocked(port.promptConfigFormat).mockResolvedValueOnce({
+			data: "typescript",
+			success: true,
+		});
+		vi.mocked(port.promptStateBackend).mockResolvedValueOnce({ data: "s3", success: true });
+		vi.mocked(port.promptBackendField).mockResolvedValueOnce({
+			data: "polluted",
+			success: true,
+		});
+
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
+
+		expect(
+			buildStatePort.mock.calls.map(([deps]) => Object.entries(deps.stateConfig)),
+		).toStrictEqual([
+			[
+				["__proto__", "polluted"],
+				["backend", "s3"],
+			],
+		]);
 	});
 
 	it("should cancel when the user aborts a plugin backend's field prompt", async () => {
@@ -953,6 +994,29 @@ describe(migrateCommand, () => {
 		await migrateCommand(dependencies)(undefined, { from: "mantle" });
 
 		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("migrate cancelled");
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should report a plugin whose fetch threw instead of letting the rejection escape", async () => {
+		expect.assertions(2);
+
+		const dependencies = makeDependencies({
+			plugins: s3PluginsWithSource(async () => {
+				throw new Error("socket hang up");
+			}),
+		});
+		const port = dependencies.migratePromptPort!;
+		vi.mocked(port.promptStateSource).mockResolvedValueOnce({ data: "s3", success: true });
+		vi.mocked(port.promptBackendField).mockResolvedValueOnce({
+			data: "state/mantle.yml",
+			success: true,
+		});
+
+		await migrateCommand(dependencies)(undefined, { from: "mantle" });
+
+		expect(dependencies.clack!.logError).toHaveBeenCalledWith(
+			"plugin '@example/state-s3' could not read the mantle state: socket hang up",
+		);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 

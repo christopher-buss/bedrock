@@ -30,7 +30,7 @@ export async function collectBackendAnswersAsync(
 	resolved: StateTargetPrompts,
 	fields: ReadonlyArray<StateBackendPromptField>,
 ): Promise<Result<Record<string, string>, "cancelled">> {
-	const answers: Record<string, string> = {};
+	let answers: Readonly<Record<string, string>> = {};
 	for (const field of fields) {
 		if (field.condition !== undefined && !field.condition(answers)) {
 			continue;
@@ -41,7 +41,10 @@ export async function collectBackendAnswersAsync(
 			return { err: "cancelled", success: false };
 		}
 
-		answers[field.key] = answer.data;
+		// Rebuilding rather than assigning is also what records a key like
+		// `__proto__`: a computed key in a literal is an own property,
+		// where the assignment form would reach the setter and vanish.
+		answers = { ...answers, [field.key]: answer.data };
 	}
 
 	return { data: answers, success: true };
