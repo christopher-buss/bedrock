@@ -21,6 +21,7 @@
 		"typescript": "catalog:tsc"
 	},
 	"engines": {
-		"bun": ">=1.0.0"
+		"node": ">=24.12.0",
+		"bun": ">=1.3.0"
 	}
 }

@@ -202,8 +202,8 @@ PR titles are linted by commitlint (`.github/workflows/lint-pr-title.yaml`) —
    `type(scope):`, including code identifiers (`mergeConfig` → `merge-config`,
    `GamePassesClient` → `game-passes-client`).
 2. **Scope-enum**: if a scope is present it MUST be one of
-   `core, deps, e2e, global, ocale, testing, tsconfig, vite, website`. The
-   `bedrock` package was renamed to `@bedrock-rbx/core`, so changes in
+   `core, deps, e2e, example-ci-codegen, example-minimal, global, ocale, testing, tsconfig, vite, website`.
+   The `bedrock` package was renamed to `@bedrock-rbx/core`, so changes in
    `packages/bedrock/` take the `core` scope. `ci`, `chore`, `docs`, `build`,
    `refactor` are **types, not scopes** — write `ci: …` with no scope, not
    `fix(ci): …`.

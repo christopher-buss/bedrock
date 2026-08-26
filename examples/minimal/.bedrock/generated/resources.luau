@@ -6,7 +6,7 @@ return {
 			productId = 1234567890,
 		},
 		main = {
-			rootPlaceId = 9876543210,
+			rootPlaceId = 7182930451,
 		},
 		start = {
 			versionNumber = 3,

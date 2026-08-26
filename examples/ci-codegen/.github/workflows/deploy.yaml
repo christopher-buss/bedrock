@@ -1,5 +1,8 @@
 # Copy this file to `.github/workflows/` at the root of your own repository.
 # Nested under `examples/`, GitHub never runs it.
+#
+# It assumes the roblox-ts toolchain this example does not ship; see the
+# README section "What this example does not ship".
 
 name: Deploy
 

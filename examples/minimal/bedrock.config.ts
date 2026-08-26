@@ -15,9 +15,9 @@ export default defineConfig({
 	environments: {
 		production: {
 			places: {
-				start: { placeId: "0000000000" },
+				start: { placeId: "7182930451" },
 			},
-			universe: { universeId: "0000000000" },
+			universe: { universeId: "3218475962" },
 		},
 	},
 	places: {

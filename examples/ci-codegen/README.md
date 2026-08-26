@@ -22,15 +22,35 @@ Read [`../minimal`](../minimal) first if the deploy stages are new to you.
 
 ## Layout
 
-| Path                             | Role                                                     |
-| -------------------------------- | -------------------------------------------------------- |
-| `bedrock.config.ts`              | Resources, two environments, `codegen.output`.           |
-| `.bedrock/deploy.ts`             | Override the CLI spawns instead of its built-in deploy.  |
-| `.bedrock/build/build-place.ts`  | Compiles and builds the place. Pure of Bedrock concerns. |
-| `.bedrock/codegen/emit.ts`       | Deploy state in, source files out. Pure function.        |
-| `src/shared/assets/resources.ts` | Generated. Committed, and reflowed by CI.                |
-| `src/server/main.server.ts`      | Resolves ids from `game.GameId` at runtime.              |
-| `.github/workflows/deploy.yaml`  | Copy to your repository root to use.                     |
+| Path                             | Role                                                    |
+| -------------------------------- | ------------------------------------------------------- |
+| `bedrock.config.ts`              | Resources, two environments, `codegen.output`.          |
+| `.bedrock/deploy.ts`             | Override the CLI spawns instead of its built-in deploy. |
+| `.bedrock/build/build-place.ts`  | Compiles the sources and builds the place artifact.     |
+| `.bedrock/codegen/emit.ts`       | Deploy state in, source files out. Pure function.       |
+| `src/shared/assets/resources.ts` | Generated. Committed, and reflowed by CI.               |
+| `src/server/main.server.ts`      | Resolves ids from `game.GameId` at runtime.             |
+| `src/dev/dev-only.server.ts`     | Mounted by the development Rojo project only.           |
+| `.github/workflows/deploy.yaml`  | Copy to your repository root to use.                    |
+
+## What this example does not ship
+
+The Bedrock-side wiring here is complete and typechecked. The roblox-ts half is
+not: `package.json` declares only `@bedrock-rbx/core`, so the `rbxtsc` call in
+the build step and the `@rbxts/services` import in `src/` have nothing behind
+them. Copied as-is into a fresh repository, the deploy would fail at
+`rbxtsc: not found`.
+
+That is deliberate — pulling a whole Roblox toolchain into this repository to
+make a docs folder run is not worth it. To make the example real in your own
+project:
+
+```bash
+pnpm add -D roblox-ts @rbxts/compiler-types @rbxts/types @rbxts/services
+```
+
+Then add the roblox-ts `tsconfig.json` that `rbxtsc` expects, compiling `src/`
+to `out/`. Everything under `.bedrock/` and `bedrock.config.ts` works unchanged.
 
 ## Why an override
 
