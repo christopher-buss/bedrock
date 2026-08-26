@@ -78,7 +78,7 @@ export interface StateBackend {
 	 * declares none. A deploy against a **Backend** that declares none runs
 	 * without taking a hold.
 	 */
-	readonly lockPort: StateLockPort | undefined;
+	readonly stateLockPort: StateLockPort | undefined;
 	/** Persistence for the per-environment snapshot. */
 	readonly statePort: StatePort;
 }
@@ -110,7 +110,7 @@ const STATE_PORT_HINT = "pass a custom statePort via opts.statePort";
  * that it locks. Dispatches on `stateConfig.backend` exactly as
  * {@link buildStatePort} does, and surfaces the same typed failures.
  *
- * A **Backend** that declares no locking yields `lockPort: undefined`,
+ * A **Backend** that declares no locking yields `stateLockPort: undefined`,
  * which is a valid **Backend**: the deploy then runs without exclusion
  * rather than refusing to run.
  *
@@ -130,7 +130,7 @@ const STATE_PORT_HINT = "pass a custom statePort via opts.statePort";
  *
  * expect(backend.success).toBeTrue();
  * if (backend.success) {
- *     expect(backend.data.lockPort).toBeUndefined();
+ *     expect(backend.data.stateLockPort).toBeUndefined();
  * }
  * ```
  *
@@ -249,14 +249,14 @@ function buildPluginStateBackend(
 
 	const lock = registered.declaration.createLockPort?.(context);
 	if (lock === undefined) {
-		return { data: { lockPort: undefined, statePort: built.data }, success: true };
+		return { data: { stateLockPort: undefined, statePort: built.data }, success: true };
 	}
 
 	if (!lock.success) {
 		return { err: wrapPluginRefusal(registered, lock.err), success: false };
 	}
 
-	return { data: { lockPort: lock.data, statePort: built.data }, success: true };
+	return { data: { stateLockPort: lock.data, statePort: built.data }, success: true };
 }
 
 /**
@@ -286,7 +286,7 @@ function buildGistStateBackend(
 
 	return {
 		data: {
-			lockPort: undefined,
+			stateLockPort: undefined,
 			statePort: createGistStateAdapter({
 				fetch: dependencies.fetch,
 				gistId: stateConfig.gistId,

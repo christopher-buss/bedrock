@@ -47,6 +47,7 @@ import {
 	buildStateBackend,
 	type MissingCredentialError,
 	type PluginStateBackendError,
+	type StateBackend,
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
 import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
@@ -483,12 +484,6 @@ interface DrivenDependencies {
 	readonly statePort: StatePort;
 }
 
-/** The **Backend**'s ports as the deploy boundary resolved them. */
-interface StateBackendPorts {
-	readonly stateLockPort: StateLockPort | undefined;
-	readonly statePort: StatePort;
-}
-
 interface ReconcileInputs {
 	readonly ops: ReadonlyArray<Operation>;
 	readonly owedRebuild: ReadonlySet<ResourceKey>;
@@ -749,7 +744,7 @@ function pickStateBackend({
 	config,
 	options,
 	plugins,
-}: DrivenInputs): Result<StateBackendPorts, DeployError> {
+}: DrivenInputs): Result<StateBackend, DeployError> {
 	if (options.statePort !== undefined) {
 		return {
 			data: { stateLockPort: options.stateLockPort, statePort: options.statePort },
@@ -772,13 +767,9 @@ function pickStateBackend({
 		return backend;
 	}
 
-	return {
-		data: {
-			stateLockPort: options.stateLockPort ?? backend.data.lockPort,
-			statePort: backend.data.statePort,
-		},
-		success: true,
-	};
+	return options.stateLockPort === undefined
+		? backend
+		: { data: { ...backend.data, stateLockPort: options.stateLockPort }, success: true };
 }
 
 function pickRegistry(inputs: DrivenInputs): Result<DriverRegistry, DeployError> {
@@ -934,6 +925,24 @@ async function runHeldAsync({
 	}
 }
 
+/**
+ * Run one reconcile under its hold and report the outcome through the
+ * progress port, which is where both default-port paths converge.
+ *
+ * @param context - The environment, the resolved dependencies, and the
+ * reconcile pipeline to run.
+ * @returns What the pipeline returned.
+ */
+async function runHeldAndEmitAsync({
+	deps,
+	environment,
+	runner,
+}: HeldRunContext): Promise<Result<BedrockState, DeployError>> {
+	const result = await runHeldAsync({ deps, environment, runner });
+	emitTerminalEvent({ environment, progress: deps.progress, result });
+	return result;
+}
+
 async function runAndEmitAsync({
 	options,
 	progress,
@@ -945,13 +954,11 @@ async function runAndEmitAsync({
 		return resolved;
 	}
 
-	const result = await runHeldAsync({
+	return runHeldAndEmitAsync({
 		deps: { ...resolved.data, progress },
 		environment: options.environment,
 		runner,
 	});
-	emitTerminalEvent({ environment: options.environment, progress, result });
-	return result;
 }
 
 async function runWithDeferredProgressAsync(
@@ -967,13 +974,11 @@ async function runWithDeferredProgressAsync(
 		return resolved;
 	}
 
-	const result = await runHeldAsync({
+	return runHeldAndEmitAsync({
 		deps: { ...resolved.data, progress },
 		environment: options.environment,
 		runner,
 	});
-	emitTerminalEvent({ environment: options.environment, progress, result });
-	return result;
 }
 
 async function executeAsync(

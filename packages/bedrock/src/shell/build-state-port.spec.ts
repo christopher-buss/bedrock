@@ -261,7 +261,7 @@ describe(buildStateBackend, () => {
 
 		assert(result.success);
 
-		expect(result.data.lockPort).toBeUndefined();
+		expect(result.data.stateLockPort).toBeUndefined();
 	});
 
 	it("should build the lock port a plugin backend declares", async () => {
@@ -287,9 +287,9 @@ describe(buildStateBackend, () => {
 		});
 
 		assert(result.success);
-		assert(result.data.lockPort !== undefined);
+		assert(result.data.stateLockPort !== undefined);
 
-		await expect(result.data.lockPort.acquire("production")).resolves.toStrictEqual({
+		await expect(result.data.stateLockPort.acquire("production")).resolves.toStrictEqual({
 			data: hold,
 			success: true,
 		});
@@ -311,7 +311,7 @@ describe(buildStateBackend, () => {
 
 		assert(result.success);
 
-		expect(result.data.lockPort).toBeUndefined();
+		expect(result.data.stateLockPort).toBeUndefined();
 	});
 
 	it("should hand the plugin's lock builder the state block, the credential reader, and the fetch seam", () => {
