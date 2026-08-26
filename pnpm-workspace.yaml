@@ -147,10 +147,10 @@ versioning:
   changelog:
     storage: repository
 
-  # core and ocale share one version number. pnpm has no `linked` equivalent,
-  # so a change to either releases both.
+  # core, ocale and the first-party plugins share one version number. pnpm
+  # has no `linked` equivalent, so a change to any of them releases all.
   fixed:
-    - [ "@bedrock-rbx/core", "@bedrock-rbx/ocale", "@bedrock-rbx/state-s3" ]
+    - ["@bedrock-rbx/core", "@bedrock-rbx/ocale", "@bedrock-rbx/state-s3"]
 
   # pnpm only auto-excludes private packages that carry no `version` field.
   # All of ours have one, so the private packages are listed explicitly —
