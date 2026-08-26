@@ -9,8 +9,7 @@ import { defineConfig } from "@bedrock-rbx/core/config";
 export default defineConfig({
 	codegen: {
 		enabled: true,
-		// The directory the emitter's files are written under, and the
-		// directory the deploy workflow commits back to the branch.
+		// The deploy workflow commits this directory back to the branch.
 		output: "src/shared/assets",
 	},
 	environments: {
@@ -32,7 +31,6 @@ export default defineConfig({
 		"vip-pass": {
 			name: "VIP Pass",
 			description: "Doubles coin earnings and unlocks the VIP lounge.",
-			// See assets/icons/README.md.
 			icon: { "en-us": "assets/icons/vip-pass.png" },
 			price: 500,
 		},
@@ -41,7 +39,7 @@ export default defineConfig({
 		start: {
 			description: "The place every player joins first.",
 			displayName: "Example Start Place",
-			filePath: "build/place.rbxl",
+			filePath: "place.rbxl",
 			serverSize: 30,
 		},
 	},
