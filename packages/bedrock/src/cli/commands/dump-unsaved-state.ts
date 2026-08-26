@@ -18,6 +18,12 @@ export interface DumpUnsavedStateDeps {
 
 /** The failed write to recover from, and the environment it was for. */
 interface DumpUnsavedStateInputs {
+	/**
+	 * Explicit config path the failed run was given, quoted back in the push
+	 * command so it resolves the same project. Omit when config discovery
+	 * ran.
+	 */
+	readonly configFile?: string;
 	/** Environment whose state write failed. */
 	readonly environment: string;
 	/** The write failure, carrying the record the **Backend** never took. */
@@ -39,7 +45,7 @@ interface DumpUnsavedStateInputs {
  */
 export async function dumpUnsavedStateAsync(
 	deps: DumpUnsavedStateDeps,
-	{ environment, err }: DumpUnsavedStateInputs,
+	{ configFile, environment, err }: DumpUnsavedStateInputs,
 ): Promise<void> {
 	if (err.unrecorded.length > 0) {
 		const named = err.unrecorded.map((resource) => `${resource.kind}.${resource.key}`);
@@ -56,6 +62,6 @@ export async function dumpUnsavedStateAsync(
 	}
 
 	deps.clack.logMessage(
-		`unsaved state written to ${filePath}; push it with: ${recoveryPushCommand(environment)}`,
+		`unsaved state written to ${filePath}; push it with: ${recoveryPushCommand(environment, configFile)}`,
 	);
 }

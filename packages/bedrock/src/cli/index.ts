@@ -114,6 +114,11 @@ export interface ProgDeps {
 	 */
 	readonly readTextFile?: (path: string) => Promise<string>;
 	/**
+	 * File-delete seam used by `state push` to consume a recovery dump it
+	 * pushed; defaults to `node:fs/promises.rm` with `force: true`.
+	 */
+	readonly removeFile?: (path: string) => Promise<void>;
+	/**
 	 * Child-process spawner used to launch override scripts; defaults to
 	 * `createDefaultSpawner()`.
 	 */

@@ -7,28 +7,29 @@ import { resolveStateConfig } from "../../core/resolve-state-config.ts";
 import type { Config } from "../../core/schema.ts";
 import { parseStateContents } from "../../core/state-file.ts";
 import type { BedrockState } from "../../core/state.ts";
+import type { StatePort } from "../../ports/state-port.ts";
 import { buildStatePort as defaultBuildStatePort } from "../../shell/build-state-port.ts";
 import {
 	loadProjectAsync as defaultLoadProject,
 	type LoadedProject,
 } from "../../shell/load-config.ts";
 import { createClackPort } from "../clack-port.ts";
-import { buildCredentialOverrides } from "../credential-environment-overrides.ts";
+import { buildEnvironmentReader } from "../credential-environment-overrides.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
-import { nodeReadTextFileAsync } from "../fs-seams.ts";
+import { nodeReadTextFileAsync, nodeRemoveFileAsync } from "../fs-seams.ts";
 import type { ProgDeps } from "../index.ts";
-import { type CommonOptions, loadOptionsFor, parseCommonOptions } from "../parse-options.ts";
+import type { CommonOptions } from "../parse-options.ts";
 import { recoveryFilePath } from "../recovery-file.ts";
 import {
 	type ClackPort,
 	renderBuildStatePortError,
 	renderDeployError,
-	renderParseError,
 	renderStateWriteError,
 } from "../render.ts";
 import { describeUnknown } from "./describe-unknown.ts";
+import { startCommandAsync } from "./start-command.ts";
 
-const FAILED_OUTRO = "state push failed";
+const COMMAND = "state push";
 
 /** The command's dependency slots, each resolved to a real default. */
 interface ResolvedStatePush {
@@ -38,6 +39,7 @@ interface ResolvedStatePush {
 	readonly loadProject: typeof defaultLoadProject;
 	readonly projectRoot: string;
 	readonly readTextFile: (path: string) => Promise<string>;
+	readonly removeFile: (path: string) => Promise<void>;
 }
 
 /** Every environment's push, over the project the command loaded once. */
@@ -88,12 +90,8 @@ function resolveStatePush(deps: ProgDeps): ResolvedStatePush {
 		loadProject: deps.loadProject ?? defaultLoadProject,
 		projectRoot: deps.projectRoot ?? process.cwd(),
 		readTextFile: deps.readTextFile ?? nodeReadTextFileAsync,
+		removeFile: deps.removeFile ?? nodeRemoveFileAsync,
 	};
-}
-
-function buildGetEnvironment(parsed: CommonOptions): (name: string) => string | undefined {
-	const overrides = buildCredentialOverrides(parsed);
-	return (name) => overrides[name] ?? process.env[name];
 }
 
 /**
@@ -114,7 +112,9 @@ async function readDumpAsync(
 	try {
 		raw = await resolved.readTextFile(filePath);
 	} catch (err) {
-		resolved.clack.logError(`no unsaved state to push at ${filePath}: ${describeUnknown(err)}`);
+		resolved.clack.logError(
+			`cannot read the unsaved state at ${filePath}: ${describeUnknown(err)}`,
+		);
 		return { err: undefined, success: false };
 	}
 
@@ -137,7 +137,30 @@ async function readDumpAsync(
 function describePushed(state: BedrockState, filePath: string): string {
 	const count = state.resources.length;
 	const noun = count === 1 ? "resource" : "resources";
-	return `${state.environment}: ${String(count)} ${noun} pushed from ${filePath}`;
+	return `${state.environment}: ${String(count)} ${noun} pushed from ${filePath}, which has been removed`;
+}
+
+/**
+ * Consume the dump that was just pushed. A dump left on disk outlives the
+ * failure it recorded, and pushing it again after a later deploy would
+ * revert that deploy's record, so removal is part of the push rather than
+ * housekeeping. A removal that fails leaves the push standing and says what
+ * is still there.
+ *
+ * @param resolved - The command's resolved dependency slots.
+ * @param filePath - The dump that was pushed.
+ * @returns Whether the dump is gone.
+ */
+async function consumeDumpAsync(resolved: ResolvedStatePush, filePath: string): Promise<boolean> {
+	try {
+		await resolved.removeFile(filePath);
+		return true;
+	} catch (err) {
+		resolved.clack.logMessage(
+			`${filePath} could not be removed (${describeUnknown(err)}). Delete it, so a later push cannot revert this state.`,
+		);
+		return false;
+	}
 }
 
 /**
@@ -146,18 +169,25 @@ function describePushed(state: BedrockState, filePath: string): string {
  * @param inputs - The environment being pushed and the loaded project.
  * @returns Whether the environment's state reached the **Backend**.
  */
-async function pushEnvironmentAsync(inputs: PushInputs): Promise<boolean> {
-	const { config, environment, getEnvironment, plugins, resolved } = inputs;
-	const filePath = recoveryFilePath(resolved.projectRoot, environment);
-	const dumped = await readDumpAsync(inputs, filePath);
-	if (!dumped.success) {
-		return false;
-	}
-
+/**
+ * Build the **Backend** this environment's state belongs in, reporting an
+ * environment with no state block or a backend that refused to build.
+ *
+ * @param inputs - The environment being pushed and the loaded project.
+ * @returns The port to write through, or `Err` once the reason has been
+ * rendered.
+ */
+function resolveStatePortFor({
+	config,
+	environment,
+	getEnvironment,
+	plugins,
+	resolved,
+}: PushInputs): Result<StatePort, void> {
 	const stateConfig = resolveStateConfig(config, environment);
 	if (!stateConfig.success) {
 		renderDeployError(stateConfig.err, resolved.clack);
-		return false;
+		return { err: undefined, success: false };
 	}
 
 	const port = resolved.buildStatePort({
@@ -165,8 +195,24 @@ async function pushEnvironmentAsync(inputs: PushInputs): Promise<boolean> {
 		plugins,
 		stateConfig: stateConfig.data,
 	});
+	if (port.success) {
+		return port;
+	}
+
+	renderBuildStatePortError(port.err, resolved.clack);
+	return { err: undefined, success: false };
+}
+
+async function pushEnvironmentAsync(inputs: PushInputs): Promise<boolean> {
+	const { environment, resolved } = inputs;
+	const filePath = recoveryFilePath(resolved.projectRoot, environment);
+	const dumped = await readDumpAsync(inputs, filePath);
+	if (!dumped.success) {
+		return false;
+	}
+
+	const port = resolveStatePortFor(inputs);
 	if (!port.success) {
-		renderBuildStatePortError(port.err, resolved.clack);
 		return false;
 	}
 
@@ -176,7 +222,11 @@ async function pushEnvironmentAsync(inputs: PushInputs): Promise<boolean> {
 		return false;
 	}
 
-	resolved.clack.logSuccess(describePushed(dumped.data, filePath));
+	const consumed = await consumeDumpAsync(resolved, filePath);
+	if (consumed) {
+		resolved.clack.logSuccess(describePushed(dumped.data, filePath));
+	}
+
 	return true;
 }
 
@@ -193,7 +243,7 @@ async function pushEnvironmentsAsync({
 	parsed,
 	resolved,
 }: PushEnvironmentsInputs): Promise<boolean> {
-	const getEnvironment = buildGetEnvironment(parsed);
+	const getEnvironment = buildEnvironmentReader(parsed);
 	let pushed = true;
 	for (const environment of parsed.environments) {
 		const ok = await pushEnvironmentAsync({
@@ -213,32 +263,20 @@ async function runAsync(
 	rawOptions: Readonly<Record<string, unknown>>,
 	resolved: ResolvedStatePush,
 ): Promise<number> {
-	resolved.clack.intro("bedrock state push");
-
-	const parsed = parseCommonOptions(rawOptions);
-	if (!parsed.success) {
-		renderParseError(parsed.err, resolved.clack);
-		resolved.clack.cancel(FAILED_OUTRO);
+	const started = await startCommandAsync(
+		{ clack: resolved.clack, command: COMMAND, loadProject: resolved.loadProject },
+		rawOptions,
+	);
+	if (!started.success) {
 		return EXIT_ERROR;
 	}
 
-	const loaded = await resolved.loadProject(loadOptionsFor(parsed.data));
-	if (!loaded.success) {
-		renderDeployError({ cause: loaded.err, kind: "configLoadFailed" }, resolved.clack);
-		resolved.clack.cancel(FAILED_OUTRO);
-		return EXIT_ERROR;
-	}
-
-	const pushed = await pushEnvironmentsAsync({
-		loaded: loaded.data,
-		parsed: parsed.data,
-		resolved,
-	});
+	const pushed = await pushEnvironmentsAsync({ ...started.data, resolved });
 	if (!pushed) {
-		resolved.clack.cancel(FAILED_OUTRO);
+		resolved.clack.cancel(`${COMMAND} failed`);
 		return EXIT_ERROR;
 	}
 
-	resolved.clack.outro("state push succeeded");
+	resolved.clack.outro(`${COMMAND} succeeded`);
 	return EXIT_OK;
 }

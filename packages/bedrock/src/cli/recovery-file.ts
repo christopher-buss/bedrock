@@ -30,11 +30,15 @@ export function recoveryFilePath(projectRoot: string, environment: string): stri
 
 /**
  * The command that pushes a dumped **State** to the configured **Backend**,
- * quoted back to the user at the moment the write failed.
+ * quoted back to the user at the moment the write failed. A deploy that was
+ * pointed at an explicit config quotes the same `--config`, so the push
+ * resolves the project the failed deploy was actually running.
  *
  * @param environment - Environment whose dump would be pushed.
+ * @param configFile - Explicit config path the failed run was given, if any.
  * @returns The command line to run.
  */
-export function recoveryPushCommand(environment: string): string {
-	return `bedrock state push --env ${environment}`;
+export function recoveryPushCommand(environment: string, configFile?: string): string {
+	const config = configFile === undefined ? "" : ` --config ${configFile}`;
+	return `bedrock state push --env ${environment}${config}`;
 }

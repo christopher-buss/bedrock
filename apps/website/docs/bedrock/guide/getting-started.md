@@ -143,7 +143,8 @@ pnpm bedrock state push --env production
 ```
 
 The push reports how many resources it wrote, and refuses a file that does not
-parse or that records a different environment. A deploy whose state write
+parse or that records a different environment. A pushed file is then removed, so
+it cannot be replayed over a later deploy's record. A deploy whose state write
 succeeded writes no recovery file.
 
 ## Deploy programmatically

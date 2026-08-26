@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, onTestFinished } from "vitest";
 
-import { nodeMkdirAsync, nodeReadTextFileAsync, nodeWriteTextFileAsync } from "./fs-seams.ts";
+import {
+	nodeMkdirAsync,
+	nodeReadTextFileAsync,
+	nodeRemoveFileAsync,
+	nodeWriteTextFileAsync,
+} from "./fs-seams.ts";
 
 function temporaryDirectory(): string {
 	const directory = mkdtempSync(join(tmpdir(), "bedrock-fs-seams-"));
@@ -44,5 +49,26 @@ describe(nodeReadTextFileAsync, () => {
 		const missing = join(temporaryDirectory(), "absent.json");
 
 		await expect(nodeReadTextFileAsync(missing)).rejects.toThrow("ENOENT");
+	});
+});
+
+describe(nodeRemoveFileAsync, () => {
+	it("should delete the file", async () => {
+		expect.assertions(1);
+
+		const filePath = join(temporaryDirectory(), "state.json");
+		await nodeWriteTextFileAsync(filePath, "{}");
+
+		await nodeRemoveFileAsync(filePath);
+
+		expect(existsSync(filePath)).toBeFalse();
+	});
+
+	it("should resolve when the file is already gone", async () => {
+		expect.assertions(1);
+
+		const missing = join(temporaryDirectory(), "absent.json");
+
+		await expect(nodeRemoveFileAsync(missing)).resolves.toBeUndefined();
 	});
 });

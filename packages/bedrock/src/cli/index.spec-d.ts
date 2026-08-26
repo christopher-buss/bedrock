@@ -34,6 +34,7 @@ describe("ProgDeps shape", () => {
 			| "provision"
 			| "publish"
 			| "readTextFile"
+			| "removeFile"
 			| "spawner"
 			| "writeFile"
 		>();

@@ -22,6 +22,7 @@ type BuildStatePortFunc = NonNullable<ProgDependencies["buildStatePort"]>;
 type ExitFunc = NonNullable<ProgDependencies["exit"]>;
 type LoadProjectFunc = NonNullable<ProgDependencies["loadProject"]>;
 type ReadTextFileFunc = NonNullable<ProgDependencies["readTextFile"]>;
+type RemoveFileFunc = NonNullable<ProgDependencies["removeFile"]>;
 
 const PROJECT_ROOT = "/project";
 const DUMP_PATH = join(PROJECT_ROOT, ".bedrock", "recovery", "production.json");
@@ -81,6 +82,7 @@ function makeDependencies(overrides: Partial<ProgDependencies> = {}): ProgDepend
 		loadProject: fakeLoad(),
 		projectRoot: PROJECT_ROOT,
 		readTextFile: fakeReadDump({ [DUMP_PATH]: serializeStateFile(dumpedState()) }),
+		removeFile: vi.fn<RemoveFileFunc>(async () => {}),
 		...overrides,
 	};
 }
@@ -97,10 +99,62 @@ describe(statePushCommand, () => {
 		expect(dependencies.clack!.intro).toHaveBeenCalledExactlyOnceWith("bedrock state push");
 		expect(write).toHaveBeenCalledExactlyOnceWith(dumpedState());
 		expect(dependencies.clack!.logSuccess).toHaveBeenCalledExactlyOnceWith(
-			`production: 1 resource pushed from ${DUMP_PATH}`,
+			`production: 1 resource pushed from ${DUMP_PATH}, which has been removed`,
 		);
 		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith("state push succeeded");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should remove the dump it pushed so a later push cannot revert the record", async () => {
+		expect.assertions(2);
+
+		const removeFile = vi.fn<RemoveFileFunc>(async () => {});
+		const dependencies = makeDependencies({ removeFile });
+
+		await statePushCommand(dependencies)({ env: "production" });
+
+		expect(removeFile).toHaveBeenCalledExactlyOnceWith(DUMP_PATH);
+		expect(dependencies.clack!.logSuccess).toHaveBeenCalledExactlyOnceWith(
+			`production: 1 resource pushed from ${DUMP_PATH}, which has been removed`,
+		);
+	});
+
+	it("should say the pushed dump is still on disk when it cannot be removed", async () => {
+		expect.assertions(2);
+
+		const dependencies = makeDependencies({
+			removeFile: vi.fn<RemoveFileFunc>(async () => {
+				throw new Error("EACCES");
+			}),
+		});
+
+		await statePushCommand(dependencies)({ env: "production" });
+
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
+			`${DUMP_PATH} could not be removed (EACCES). Delete it, so a later push cannot revert this state.`,
+		);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should leave the dump in place when the push itself failed", async () => {
+		expect.assertions(1);
+
+		const removeFile = vi.fn<RemoveFileFunc>();
+		const dependencies = makeDependencies({
+			buildStatePort: portReturning(
+				vi.fn<StatePort["write"]>(async () => {
+					return {
+						err: { file: "gist:abc123", kind: "stateAccessDenied", reason: "403" },
+						success: false,
+					};
+				}),
+			),
+			removeFile,
+		});
+
+		await statePushCommand(dependencies)({ env: "production" });
+
+		expect(removeFile).not.toHaveBeenCalled();
 	});
 
 	it("should build the state port from the environment's resolved state config", async () => {
@@ -222,7 +276,7 @@ describe(statePushCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should report that no dump exists when the recovery file cannot be read", async () => {
+	it("should report the read failure verbatim when the recovery file cannot be read", async () => {
 		expect.assertions(2);
 
 		const dependencies = makeDependencies({ readTextFile: fakeReadDump({}) });
@@ -230,7 +284,7 @@ describe(statePushCommand, () => {
 		await statePushCommand(dependencies)({ env: "production" });
 
 		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
-			`no unsaved state to push at ${DUMP_PATH}: ENOENT: no such file, open '${DUMP_PATH}'`,
+			`cannot read the unsaved state at ${DUMP_PATH}: ENOENT: no such file, open '${DUMP_PATH}'`,
 		);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
@@ -392,7 +446,7 @@ describe(statePushCommand, () => {
 		await statePushCommand(dependencies)({ env: "production" });
 
 		expect(dependencies.clack!.logSuccess).toHaveBeenCalledExactlyOnceWith(
-			`production: 2 resources pushed from ${DUMP_PATH}`,
+			`production: 2 resources pushed from ${DUMP_PATH}, which has been removed`,
 		);
 	});
 });

@@ -10,28 +10,22 @@ import type { ProgressPort } from "../../ports/progress-port.ts";
 import type { BuildStep, DeployError } from "../../shell/deploy.ts";
 import {
 	loadProjectAsync as defaultLoadProject,
-	type LoadConfigOptions,
 	type LoadedProject,
 } from "../../shell/load-config.ts";
 import { buildOverrideInvocation } from "../build-override-invocation.ts";
 import { createClackPort } from "../clack-port.ts";
-import { buildCredentialOverrides } from "../credential-environment-overrides.ts";
+import { buildEnvironmentReader } from "../credential-environment-overrides.ts";
 import { createDefaultSpawner } from "../default-spawner.ts";
 import { discoverOverride as defaultDiscoverOverride } from "../discover-override.ts";
 import { dispatchOverride, type SpawnOverrideError } from "../dispatch-override.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import { nodeMkdirAsync, nodeWriteTextFileAsync } from "../fs-seams.ts";
 import type { ProgDeps } from "../index.ts";
-import { type CommonOptions, parseCommonOptions } from "../parse-options.ts";
-import {
-	type ClackPort,
-	renderDeployError,
-	renderOverrideDiscoveryError,
-	renderOverrideError,
-	renderParseError,
-} from "../render.ts";
+import type { CommonOptions } from "../parse-options.ts";
+import { type ClackPort, renderOverrideDiscoveryError, renderOverrideError } from "../render.ts";
 import type { Spawner } from "../spawner.ts";
 import { dumpUnsavedStateAsync } from "./dump-unsaved-state.ts";
+import { startCommandAsync } from "./start-command.ts";
 
 /**
  * Static identity of a reconcile command: the subcommand name (used for
@@ -108,6 +102,7 @@ interface SpawnBuildStepInputs {
 
 /** One environment's failed pipeline run. */
 interface RunFailure {
+	readonly configFile?: string;
 	readonly environment: string;
 	readonly err: DeployError;
 }
@@ -155,10 +150,6 @@ function resolveDeps(deps: ProgDeps, spec: ReconcileCommandSpec): Resolved {
 	};
 }
 
-function loadOptionsFor(parsed: CommonOptions): LoadConfigOptions | undefined {
-	return parsed.configFile === undefined ? undefined : { configFile: parsed.configFile };
-}
-
 function cancelAsFailed(resolved: Resolved): void {
 	resolved.clack.cancel(`${resolved.command} failed`);
 }
@@ -202,6 +193,28 @@ function resolveBuildStep({
 }
 
 /**
+ * Spawn the discovered `.bedrock/<command>.ts` override for one
+ * environment, reporting a refusal against that environment.
+ *
+ * @param inputs - The command's dispatch inputs.
+ * @param target - The environment and the override to spawn for it.
+ * @returns Whether the override exited cleanly.
+ */
+async function spawnOverrideForAsync(
+	{ parsed, resolved }: DispatchInputs,
+	{ environment, overridePath }: { readonly environment: string; readonly overridePath: string },
+): Promise<boolean> {
+	const invocation = buildOverrideInvocation({ environment, overridePath, parsed });
+	const result = await dispatchOverride(invocation, resolved.spawner);
+	if (result.success) {
+		return true;
+	}
+
+	renderOverrideError({ environment, err: result.err }, resolved.clack);
+	return false;
+}
+
+/**
  * Follow up a failed pipeline run with whatever recovery its failure mode
  * affords. A refused **State** write is the one failure that leaves work
  * done upstream and unrecorded, so the record it could not persist is
@@ -214,59 +227,80 @@ function resolveBuildStep({
  */
 async function reportRunFailureAsync(
 	resolved: Resolved,
-	{ environment, err }: RunFailure,
+	{ configFile, environment, err }: RunFailure,
 ): Promise<void> {
 	if (err.kind !== "stateWriteFailed") {
 		return;
 	}
 
-	await dumpUnsavedStateAsync(
-		{
-			clack: resolved.clack,
-			mkdir: resolved.mkdir,
-			projectRoot: resolved.projectRoot,
-			writeFile: resolved.writeFile,
-		},
-		{ environment, err },
-	);
+	await dumpUnsavedStateAsync(resolved, {
+		...(configFile === undefined ? {} : { configFile }),
+		environment,
+		err,
+	});
+}
+
+/**
+ * Describe one environment's failed run, carrying the explicit config path
+ * the run was given so a recovery hint quotes the same project.
+ *
+ * @param parsed - The validated flags the command ran under.
+ * @param failed - The environment whose run failed and what it returned.
+ * @returns The failure to report.
+ */
+function runFailure(
+	parsed: CommonOptions,
+	failed: { readonly environment: string; readonly err: DeployError },
+): RunFailure {
+	return {
+		...(parsed.configFile === undefined ? {} : { configFile: parsed.configFile }),
+		...failed,
+	};
+}
+
+/**
+ * Run the built-in pipeline for one environment, following a failure with
+ * whatever recovery its failure mode affords.
+ *
+ * @param inputs - The command's dispatch inputs.
+ * @param target - The environment and the build step to run it with.
+ * @returns Whether the pipeline succeeded.
+ */
+async function runPipelineForAsync(
+	{ config, getEnv, parsed, plugins, progress, resolved }: DispatchInputs,
+	{ build, environment }: { readonly build: BuildStep | undefined; readonly environment: string },
+): Promise<boolean> {
+	const result = await resolved.run({
+		...(build === undefined ? {} : { build }),
+		config,
+		environment,
+		getEnv,
+		plugins,
+		progress,
+	});
+	if (result.success) {
+		return true;
+	}
+
+	await reportRunFailureAsync(resolved, runFailure(parsed, { environment, err: result.err }));
+	return false;
 }
 
 async function dispatchEnvironmentsAsync(inputs: DispatchInputs): Promise<ReadonlyArray<string>> {
-	const { config, getEnv, overridePath, parsed, plugins, progress, resolved } = inputs;
+	const { overridePath, parsed } = inputs;
 	const build = resolveBuildStep(inputs);
 	const failed: Array<string> = [];
 	for (const environment of parsed.environments) {
-		if (overridePath !== undefined) {
-			const invocation = buildOverrideInvocation({ environment, overridePath, parsed });
-			const result = await dispatchOverride(invocation, resolved.spawner);
-			if (!result.success) {
-				renderOverrideError({ environment, err: result.err }, resolved.clack);
-				failed.push(environment);
-			}
-
-			continue;
-		}
-
-		const result = await resolved.run({
-			...(build === undefined ? {} : { build }),
-			config,
-			environment,
-			getEnv,
-			plugins,
-			progress,
-		});
-		if (!result.success) {
-			await reportRunFailureAsync(resolved, { environment, err: result.err });
+		const succeeded =
+			overridePath === undefined
+				? await runPipelineForAsync(inputs, { build, environment })
+				: await spawnOverrideForAsync(inputs, { environment, overridePath });
+		if (!succeeded) {
 			failed.push(environment);
 		}
 	}
 
 	return failed;
-}
-
-function buildGetEnvironment(parsed: CommonOptions): (name: string) => string | undefined {
-	const overrides = buildCredentialOverrides(parsed);
-	return (name) => overrides[name] ?? process.env[name];
 }
 
 async function dispatchAndReportAsync({
@@ -283,7 +317,7 @@ async function dispatchAndReportAsync({
 	const failures = await dispatchEnvironmentsAsync({
 		buildOverridePath,
 		config: loaded.config,
-		getEnv: buildGetEnvironment(parsed),
+		getEnv: buildEnvironmentReader(parsed),
 		overridePath,
 		parsed,
 		plugins: loaded.plugins,
@@ -327,19 +361,11 @@ function discoverBuildOverridePath(
 }
 
 async function runAsync(rawOptions: Record<string, unknown>, resolved: Resolved): Promise<number> {
-	resolved.clack.intro(`bedrock ${resolved.command}`);
-
-	const parsed = parseCommonOptions(rawOptions);
-	if (!parsed.success) {
-		renderParseError(parsed.err, resolved.clack);
-		cancelAsFailed(resolved);
-		return EXIT_ERROR;
-	}
-
-	const loaded = await resolved.loadProject(loadOptionsFor(parsed.data));
-	if (!loaded.success) {
-		renderDeployError({ cause: loaded.err, kind: "configLoadFailed" }, resolved.clack);
-		cancelAsFailed(resolved);
+	const started = await startCommandAsync(
+		{ clack: resolved.clack, command: resolved.command, loadProject: resolved.loadProject },
+		rawOptions,
+	);
+	if (!started.success) {
 		return EXIT_ERROR;
 	}
 
@@ -355,9 +381,9 @@ async function runAsync(rawOptions: Record<string, unknown>, resolved: Resolved)
 
 	return dispatchAndReportAsync({
 		buildOverridePath: buildDiscovery.overridePath,
-		loaded: loaded.data,
+		loaded: started.data.loaded,
 		overridePath: discovery.overridePath,
-		parsed: parsed.data,
+		parsed: started.data.parsed,
 		resolved,
 	});
 }

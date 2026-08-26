@@ -118,8 +118,8 @@ export function serializeStateFile(state: BedrockState): string {
 
 /**
  * Parse state-file contents a caller already has in hand, where "no file"
- * is not one of the outcomes. {@link parseStateFile} Is the entry point for
- * an adapter read, which may legitimately find nothing..
+ * is not one of the outcomes. An adapter read, which may legitimately find
+ * nothing, goes through {@link parseStateFile} instead.
  *
  * @param raw - Raw file contents.
  * @param file - Adapter-specific identifier included in any `StateError`.

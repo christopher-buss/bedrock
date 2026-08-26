@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 
 /**
  * Create a directory, parents included. The default behind the CLI's
@@ -31,4 +31,14 @@ export async function nodeWriteTextFileAsync(path: string, contents: string): Pr
  */
 export async function nodeReadTextFileAsync(path: string): Promise<string> {
 	return readFile(path, "utf8");
+}
+
+/**
+ * Delete a file, treating an already-absent one as done. The default
+ * behind the CLI's `removeFile` dependency slot.
+ *
+ * @param path - File to delete.
+ */
+export async function nodeRemoveFileAsync(path: string): Promise<void> {
+	await rm(path, { force: true });
 }
