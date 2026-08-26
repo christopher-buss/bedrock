@@ -52,7 +52,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Deploy
-        uses: christopher-buss/bedrock/packages/actions/deploy@actions-v0.1.1
+        uses: christopher-buss/bedrock/packages/actions/deploy@f121cf989225692fed1acf5e36c54cb79412bbf7 # actions-v0.1.1
         with:
           api-key: ${{ secrets.BEDROCK_API_KEY }}
           app-client-id: ${{ secrets.DEPLOY_APP_CLIENT_ID }}

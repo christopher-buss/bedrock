@@ -102,14 +102,14 @@ is skipped and the deploy still runs.
 | `DEPLOY_APP_CLIENT_ID`   | Client id of your deploy GitHub App.                                                |
 | `DEPLOY_APP_PRIVATE_KEY` | Full contents of that app's `.pem` private key.                                     |
 
-Third-party actions are pinned by commit SHA. The Bedrock deploy action is
-pinned by release tag, because that is the channel its own
-[README](../../packages/actions/README.md) documents and how you would pick up a
-fix.
+Every action is pinned by commit SHA with the version in a trailing comment,
+matching the rest of this repository. That includes the Bedrock deploy action: a
+tag can be repointed, and this job hands the action an Open Cloud API key and a
+GitHub App private key.
 
-A tag is mutable, and this job hands the action an Open Cloud key and a GitHub
-App private key. If that trade does not suit you, pin the action by commit SHA
-too and upgrade deliberately.
+One caveat the pin does not cover. The deploy composite resolves its own
+commit-back step through the `actions-v0.1.1` tag, so pinning the outer
+reference freezes which composite you get, not every step it runs.
 
 ## Redaction
 
