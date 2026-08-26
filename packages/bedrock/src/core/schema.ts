@@ -9,6 +9,7 @@ import { RESOURCE_KEY_PATTERN_SOURCE } from "../types/ids.ts";
 import type { ConfigError } from "./config-error.ts";
 import { ENV_NAME_PATTERN_SOURCE } from "./environment.ts";
 import { iconMap } from "./icons.ts";
+import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "./plugin-registry.ts";
 import { collectUniverseIdIssues } from "./validate-universe-xor.ts";
 
 /**
@@ -1143,10 +1144,53 @@ const universeEntry = type({
 	"youtubeSocialLink?": socialLinkOrUndefined,
 }).onUndeclaredKey("reject");
 
-const stateConfig = type({
+// The shape every backend core knows about accepts, and the shape an
+// unrecognized backend name falls back to so a config can name a backend
+// this build has no declaration for.
+const BUILTIN_STATE_SCHEMA = type({
 	"backend": "string",
 	"gistId?": "string > 0",
 }).onUndeclaredKey("reject");
+
+/**
+ * Build the schema for one `state` block, dispatching on the authored
+ * `backend` value so a plugin's fragment validates only the block that
+ * named that plugin's backend.
+ *
+ * Dispatching rather than a union of arms is what keeps a failure
+ * attributed to the offending field: a union reports one aggregate message
+ * against the block itself.
+ *
+ * @param registry - What the loaded plugins declared.
+ * @returns The `state` block schema for this set of plugins.
+ */
+function buildStateSchema(registry: PluginRegistry): Type<StateConfig> {
+	const byBackend = new Map(
+		Array.from(registry.stateBackends, ([name, fragment]) => {
+			return [name, type({ backend: "string" }).merge(fragment).onUndeclaredKey("reject")];
+		}),
+	);
+
+	return type("object").narrow((value, ctx): value is StateConfig => {
+		const backend = Reflect.get(value, "backend");
+		const schema =
+			(typeof backend === "string" ? byBackend.get(backend) : undefined) ??
+			BUILTIN_STATE_SCHEMA;
+
+		const checked = schema(value);
+		if (!(checked instanceof ArkErrors)) {
+			return true;
+		}
+
+		// `ctx.reject` returns `false` for every issue and `reduce` walks the
+		// whole list so every offending field gets attributed; the seeded
+		// `true` flips to `false` on the first issue. `ctx.path` re-roots the
+		// sub-schema's own paths under wherever this block sits.
+		return [...checked].reduce<boolean>((_accumulator, issue) => {
+			return ctx.reject({ message: issue.message, path: [...ctx.path, ...issue.path] });
+		}, true);
+	});
+}
 
 const codegenConfig: Type<CodegenConfig> = type({
 	"enabled?": OPTIONAL_BOOLEAN,
@@ -1205,69 +1249,107 @@ const placesOverlayCollection = type({
 // where both sides of the relationship are in scope.
 const universeOverlay = universeEntry;
 
-const environmentEntry: Type<EnvironmentEntry> = type({
-	"label?": OPTIONAL_STRING,
-	"passes?": passesOverlayCollection,
-	"places?": placesOverlayCollection,
-	"products?": productsOverlayCollection,
-	[REDACTED_KEY]: environmentRedacted,
-	"state?": stateConfig,
-	"universe?": universeOverlay,
-}).onUndeclaredKey("reject");
+/**
+ * Build the schema for one entry under `environments`.
+ *
+ * @param stateSchema - Schema for this environment's `state` override.
+ * @returns The environment-entry schema.
+ */
+function buildEnvironmentEntry(stateSchema: Type<StateConfig>): Type<EnvironmentEntry> {
+	return type({
+		"label?": OPTIONAL_STRING,
+		"passes?": passesOverlayCollection,
+		"places?": placesOverlayCollection,
+		"products?": productsOverlayCollection,
+		[REDACTED_KEY]: environmentRedacted,
+		"state?": stateSchema,
+		"universe?": universeOverlay,
+	}).onUndeclaredKey("reject");
+}
 
 const displayNamePrefix: Type<DisplayNamePrefixConfig> = type({
 	"enabled?": OPTIONAL_BOOLEAN,
 	"format?": OPTIONAL_STRING,
 }).onUndeclaredKey("reject");
 
-const environmentsCollection = type({
-	[`[/${ENV_NAME_PATTERN_SOURCE}/]`]: environmentEntry,
-})
-	.onUndeclaredKey("reject")
-	.narrow((value, ctx) => {
-		if (Object.keys(value).length === 0) {
-			return ctx.mustBe("an environments record with at least one declared environment");
-		}
-
-		return true;
-	});
-
-// `rootSchema` is intentionally not annotated `Type<Config>` because
-// `Config` is a discriminated union enforcing the universeId XOR rule
-// at the type level. The arktype schema describes the loose
-// authored-shape that's structurally a supertype of every union arm;
-// the runtime narrow rejects any value that doesn't satisfy one arm so
-// `validateConfig` can cast the result to `Config` safely. Splitting
-// the schema into two `.or()` variants would mirror the type union but
-// duplicate every field declaration without buying additional runtime
-// coverage on top of the narrow.
-const rootSchema = type({
-	"codegen?": codegenConfig,
-	"displayNamePrefix?": displayNamePrefix,
-	"environments": environmentsCollection,
-	"extends?": "unknown",
-	"passes?": passesCollection,
-	"places?": placesCollection,
-	"plugins?": "string[] | undefined",
-	"products?": productsCollection,
-	"state?": stateConfig,
-	"universe?": universeEntry,
-})
-	.onUndeclaredKey("reject")
-	.narrow((value, ctx) => {
-		// `ctx.reject` returns `false` for every issue and `reduce` walks the
-		// whole list so every offending field gets attributed; the seeded
-		// `true` flips to `false` on the first issue.
-		return collectUniverseIdIssues(value).reduce<boolean>((_accumulator, issue) => {
-			return ctx.reject({ message: issue.message, path: [...issue.path] });
-		}, true);
-	});
+/**
+ * Validator for a parsed config value. Returns the validated `Config` on
+ * success or a `validationFailed` `ConfigError` with one issue per
+ * problem, each attributed to a field path. `sourceFile` appears in the
+ * error so callers can point a human at the offending file.
+ *
+ * @since unreleased
+ */
+export type ConfigValidator = (input: unknown, sourceFile: string) => Result<Config, ConfigError>;
 
 /**
- * Validate a parsed config value against the runtime schema. Returns the
- * validated `Config` on success or a `validationFailed` `ConfigError` with
- * one issue per problem, each attributed to a field path. `sourceFile`
- * appears in the error so callers can point a human at the offending file.
+ * Compile a config validator that knows what the loaded plugins declared,
+ * so a `state` block carrying a plugin backend's own keys validates.
+ *
+ * The schema is compiled once per call, so build one validator per config
+ * load rather than one per value checked.
+ *
+ * @since unreleased
+ *
+ * @param registry - What the loaded plugins declared, which decides which
+ * `state` keys count as declared.
+ * @returns A validator honouring those declarations.
+ * @example
+ *
+ * ```ts
+ * import { createConfigValidator } from "@bedrock-rbx/core";
+ *
+ * import { type } from "arktype";
+ *
+ * const validate = createConfigValidator({
+ *     stateBackends: new Map([["s3", type({ bucket: "string > 0" })]]),
+ * });
+ *
+ * const result = validate(
+ *     { environments: { production: {} }, state: { backend: "s3", bucket: "my-bucket" } },
+ *     "bedrock.config.ts",
+ * );
+ *
+ * expect(result.success).toBeTrue();
+ * ```
+ */
+export function createConfigValidator(registry: PluginRegistry): ConfigValidator {
+	const schema = buildRootSchema(registry);
+
+	return function validateConfig(input, sourceFile) {
+		const validated = schema(input);
+		if (validated instanceof ArkErrors) {
+			const issues = Array.from(validated, (issue) => {
+				return {
+					message: issue.message,
+					path: Array.from(issue.path, (segment) => String(segment)),
+				};
+			});
+
+			return {
+				err: { issues, kind: "validationFailed", sourceFile },
+				success: false,
+			};
+		}
+
+		// The runtime narrow rejects every value violating the universeId XOR
+		// rule, so a successful validation always lands in one arm of the
+		// discriminated `Config` union. It cannot be constructed rather than
+		// asserted: `ConfigEnvironmentUniverseId` types the root `universeId`
+		// as a phantom error-brand (`… & { errorBrand: never }`) so authoring
+		// a config in TypeScript reports the XOR violation as a readable
+		// message. No runtime value can inhabit that brand, so no sound
+		// construction of that arm exists; the assertion is what bridges
+		// validated data to the authoring-time type.
+		// eslint-disable-next-line ts/no-unsafe-type-assertion -- target arm carries a compile-time-only error brand
+		return { data: validated as unknown as Config, success: true };
+	};
+}
+
+/**
+ * Validate a parsed config value against the runtime schema, knowing only
+ * the backends core ships. Use {@link createConfigValidator} when plugins
+ * may have declared backends of their own.
  *
  * @since 0.1.0
  *
@@ -1308,31 +1390,69 @@ const rootSchema = type({
  * }
  * ```
  */
-export function validateConfig(input: unknown, sourceFile: string): Result<Config, ConfigError> {
-	const validated = rootSchema(input);
-	if (validated instanceof ArkErrors) {
-		const issues = Array.from(validated, (issue) => {
-			return {
-				message: issue.message,
-				path: Array.from(issue.path, (segment) => String(segment)),
-			};
+export const validateConfig: ConfigValidator = createConfigValidator(EMPTY_PLUGIN_REGISTRY);
+
+/**
+ * Build the schema for the `environments` collection.
+ *
+ * @param stateSchema - Schema for each environment's `state` override.
+ * @returns The environments-collection schema.
+ */
+function buildEnvironmentsCollection(
+	stateSchema: Type<StateConfig>,
+): Type<Record<string, EnvironmentEntry>> {
+	return type({
+		[`[/${ENV_NAME_PATTERN_SOURCE}/]`]: buildEnvironmentEntry(stateSchema),
+	})
+		.onUndeclaredKey("reject")
+		.narrow((value, ctx) => {
+			if (Object.keys(value).length === 0) {
+				return ctx.mustBe("an environments record with at least one declared environment");
+			}
+
+			return true;
 		});
+}
 
-		return {
-			err: { issues, kind: "validationFailed", sourceFile },
-			success: false,
-		};
-	}
+/**
+ * Build the root config schema.
+ *
+ * The result is intentionally not annotated `Type<Config>` because
+ * `Config` is a discriminated union enforcing the universeId XOR rule at
+ * the type level. The arktype schema describes the loose authored-shape
+ * that's structurally a supertype of every union arm; the runtime narrow
+ * rejects any value that doesn't satisfy one arm so `validateConfig` can
+ * cast the result to `Config` safely. Splitting the schema into two
+ * `.or()` variants would mirror the type union but duplicate every field
+ * declaration without buying additional runtime coverage on top of the
+ * narrow.
+ *
+ * @param registry - What the loaded plugins declared, which decides which
+ * `state` keys count as declared.
+ * @returns The root schema to validate a parsed config against.
+ */
+function buildRootSchema(registry: PluginRegistry): Type<object> {
+	const stateSchema = buildStateSchema(registry);
 
-	// The runtime narrow rejects every value violating the universeId XOR
-	// rule, so a successful validation always lands in one arm of the
-	// discriminated `Config` union. It cannot be constructed rather than
-	// asserted: `ConfigEnvironmentUniverseId` types the root `universeId` as
-	// a phantom error-brand (`… & { errorBrand: never }`) so authoring a
-	// config in TypeScript reports the XOR violation as a readable message.
-	// No runtime value can inhabit that brand, so no sound construction of
-	// that arm exists; the assertion is what bridges validated data to the
-	// authoring-time type.
-	// eslint-disable-next-line ts/no-unsafe-type-assertion -- target arm carries a compile-time-only error brand
-	return { data: validated as unknown as Config, success: true };
+	return type({
+		"codegen?": codegenConfig,
+		"displayNamePrefix?": displayNamePrefix,
+		"environments": buildEnvironmentsCollection(stateSchema),
+		"extends?": "unknown",
+		"passes?": passesCollection,
+		"places?": placesCollection,
+		"plugins?": "string[] | undefined",
+		"products?": productsCollection,
+		"state?": stateSchema,
+		"universe?": universeEntry,
+	})
+		.onUndeclaredKey("reject")
+		.narrow((value, ctx) => {
+			// `ctx.reject` returns `false` for every issue and `reduce` walks
+			// the whole list so every offending field gets attributed; the
+			// seeded `true` flips to `false` on the first issue.
+			return collectUniverseIdIssues(value).reduce<boolean>((_accumulator, issue) => {
+				return ctx.reject({ message: issue.message, path: [...issue.path] });
+			}, true);
+		});
 }

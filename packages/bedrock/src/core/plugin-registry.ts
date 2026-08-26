@@ -37,6 +37,13 @@ export interface PluginRegistry {
 	readonly stateBackends: ReadonlyMap<string, StateBackendSchema>;
 }
 
+/**
+ * The registry a config load with no plugins produces.
+ *
+ * @since unreleased
+ */
+export const EMPTY_PLUGIN_REGISTRY: PluginRegistry = { stateBackends: new Map() };
+
 /** One backend name claimed by one plugin, flattened for conflict checks. */
 interface BackendClaim extends StateBackendDeclaration {
 	/** Module specifier of the plugin that claimed the name. */

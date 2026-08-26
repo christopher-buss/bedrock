@@ -87,6 +87,7 @@ export type {
 } from "./core/operations.ts";
 export {
 	buildPluginRegistry,
+	EMPTY_PLUGIN_REGISTRY,
 	type LoadedPlugin,
 	type PluginRegistry,
 } from "./core/plugin-registry.ts";
@@ -112,11 +113,13 @@ export {
 	type UniverseOutputs,
 } from "./core/resources.ts";
 export {
+	createConfigValidator,
 	isGistStateConfig,
 	validateConfig,
 	type CodegenConfig,
 	type Config,
 	type ConfigEnvironmentUniverseId,
+	type ConfigValidator,
 	type ConfigRootUniverseId,
 	type DeveloperProductEntry,
 	type DisplayNamePrefixConfig,

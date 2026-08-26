@@ -16,8 +16,10 @@ import {
   selectEnvironment,
   type ResolvedConfig,
   isGistStateConfig,
+  createConfigValidator,
   validateConfig,
 } from '@bedrock-rbx/core'
+import { type } from 'arktype'
 
 it('Example 1', () => {
   const override: RedactedGamePassOverride = { name: 'Closed Beta', price: 500 }
@@ -124,6 +126,20 @@ it('Example 8', () => {
 })
 
 it('Example 9', () => {
+  const validate = createConfigValidator({
+    stateBackends: new Map([['s3', type({ bucket: 'string > 0' })]]),
+  })
+  const result = validate(
+    {
+      environments: { production: {} },
+      state: { backend: 's3', bucket: 'my-bucket' },
+    },
+    'bedrock.config.ts',
+  )
+  expect(result.success).toBeTrue()
+})
+
+it('Example 10', () => {
   const ok = validateConfig(
     {
       environments: { production: {} },
