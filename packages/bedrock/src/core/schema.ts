@@ -1178,7 +1178,7 @@ interface AttributableIssue {
 }
 
 /**
- * The slice of arktype's traversal context {@link rejectIssues} needs.
+ * The slice of arktype's traversal context {@link attributeIssues} needs.
  * Structural so it does not reach into `@ark/schema`, which arktype does
  * not re-export.
  */
@@ -1227,21 +1227,17 @@ function composeStateBackendSchema(fragment: StateBackendSchema): Type<object> {
 }
 
 /**
- * Attribute every issue to its own field and report whether the value
- * passed. `ctx.path` re-roots each issue under wherever the narrow sits, so
- * a bad value lands on the field carrying it rather than on the block as a
- * whole.
+ * Attribute every issue to its own field. `ctx.path` re-roots each issue
+ * under wherever the narrow sits, so a bad value lands on the field
+ * carrying it rather than on the block as a whole.
  *
  * @param ctx - Traversal context of the narrow reporting the issues.
  * @param issues - Issues to attribute; empty when the value is valid.
- * @returns `true` when there was nothing to reject.
  */
-function rejectIssues(ctx: IssueSink, issues: ReadonlyArray<AttributableIssue>): boolean {
+function attributeIssues(ctx: IssueSink, issues: ReadonlyArray<AttributableIssue>): void {
 	for (const issue of issues) {
 		ctx.reject({ message: issue.message, path: [...ctx.path, ...issue.path] });
 	}
-
-	return issues.length === 0;
 }
 
 /**
@@ -1270,7 +1266,13 @@ function buildStateSchema(registry: PluginRegistry): Type<StateConfig> {
 			BUILTIN_STATE_SCHEMA;
 
 		const checked = schema(value);
-		return rejectIssues(ctx, checked instanceof ArkErrors ? [...checked] : []);
+		if (checked instanceof ArkErrors) {
+			attributeIssues(ctx, [...checked]);
+		}
+
+		// A rejected issue is what fails the value; this predicate's own
+		// return says only what a value that was not rejected narrowed to.
+		return true;
 	});
 }
 
@@ -1529,5 +1531,11 @@ function buildRootSchema(registry: PluginRegistry): Type<object> {
 		"universe?": universeEntry,
 	})
 		.onUndeclaredKey("reject")
-		.narrow((value, ctx) => rejectIssues(ctx, collectUniverseIdIssues(value)));
+		.narrow((value, ctx) => {
+			attributeIssues(ctx, collectUniverseIdIssues(value));
+
+			// As in the `state` block above: rejecting is what fails the
+			// value, so this narrow reports no verdict of its own.
+			return true;
+		});
 }
