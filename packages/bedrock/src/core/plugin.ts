@@ -267,7 +267,7 @@ export interface StateBackendDeclaration<TState extends object = object> {
 	 * Supplying it is how a **Backend** declares that it locks; omitting it
 	 * declares that it does not, which is a valid **Backend** that deploys
 	 * without exclusion. The declaration is what
-	 * {@link "../core/state-locking".stateLockingCapabilityOf} reports, so
+	 * {@link "./state-locking".stateLockingCapabilityOf} reports, so
 	 * the guarantee is visible before a deploy relies on it.
 	 *
 	 * @param context - The validated `state` block plus the credential and

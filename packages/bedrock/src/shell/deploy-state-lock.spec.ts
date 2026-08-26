@@ -10,7 +10,7 @@ import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
-import { deploy } from "./deploy.ts";
+import { deploy, provision } from "./deploy.ts";
 
 const ICON_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
 
@@ -266,6 +266,40 @@ describe("deploy under a locking backend", () => {
 		expect(lock.released).toStrictEqual(["production"]);
 	});
 
+	it("should keep the deploy result when giving the hold up throws", async () => {
+		expect.assertions(2);
+
+		const released: Array<string> = [];
+
+		const result = await deploy({
+			config: vipPassConfig(),
+			environment: "production",
+			getEnv: environmentFrom({}),
+			progress: SILENT_PROGRESS,
+			readFile: readIconAsync,
+			registry: tracingRegistry([]),
+			stateLockPort: {
+				acquire: async (environment) => {
+					return {
+						data: {
+							release: async () => {
+								released.push(environment);
+								throw new Error("lock store unreachable");
+							},
+						},
+						success: true,
+					};
+				},
+			},
+			statePort: refusingWriteStatePort(),
+		});
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("stateWriteFailed");
+		expect(released).toStrictEqual(["production"]);
+	});
+
 	it("should take the hold the configured backend supplies", async () => {
 		expect.assertions(2);
 
@@ -287,6 +321,29 @@ describe("deploy under a locking backend", () => {
 			progress: SILENT_PROGRESS,
 			readFile: readIconAsync,
 			registry: tracingRegistry(trace),
+		});
+
+		assert(result.success);
+
+		expect(lock.acquired).toStrictEqual(["production"]);
+		expect(lock.released).toStrictEqual(["production"]);
+	});
+
+	it("should take the hold for a provision, which shares the deploy's lifetime", async () => {
+		expect.assertions(2);
+
+		const trace: Array<string> = [];
+		const lock = fakeStateLock();
+
+		const result = await provision({
+			config: vipPassConfig(),
+			environment: "production",
+			getEnv: environmentFrom({}),
+			progress: SILENT_PROGRESS,
+			readFile: readIconAsync,
+			registry: tracingRegistry(trace),
+			stateLockPort: lock.port,
+			statePort: tracingStatePort(trace),
 		});
 
 		assert(result.success);

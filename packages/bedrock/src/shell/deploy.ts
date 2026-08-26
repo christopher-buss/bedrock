@@ -37,7 +37,7 @@ import type { BedrockState, StateError } from "../core/state.ts";
 import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
-import type { StateLockError, StateLockPort } from "../ports/state-lock-port.ts";
+import type { StateLockError, StateLockHold, StateLockPort } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
 import type { AggregateApplyError } from "./apply-ops.ts";
@@ -878,6 +878,25 @@ function emitTerminalEvent({ environment, progress, result }: EmitTerminalEventI
 }
 
 /**
+ * Give a hold up without letting the attempt speak for the deploy.
+ *
+ * A refusal is a typed `Result` the port documents; a rejection is a lock
+ * store the adapter could not reach at all. Neither may reach the caller in
+ * place of the deploy's own outcome, because the result being replaced is
+ * the one carrying the resources that were applied but never recorded.
+ *
+ * @param hold - The hold to give up.
+ */
+async function releaseQuietlyAsync(hold: StateLockHold): Promise<void> {
+	try {
+		await hold.release();
+	} catch {
+		// A hold nobody could give up is the **Lease**'s problem, not this
+		// deploy's: it expires and the next run takes it over.
+	}
+}
+
+/**
  * Run one reconcile under the hold the resolved **Backend** declares.
  *
  * The hold is taken before the pipeline starts, so a **Backend** that locks
@@ -911,7 +930,7 @@ async function runHeldAsync({
 	try {
 		return await runner(environment, deps);
 	} finally {
-		await hold.data.release();
+		await releaseQuietlyAsync(hold.data);
 	}
 }
 
