@@ -2,6 +2,7 @@ import sade from "sade";
 import type { Sade } from "sade";
 
 import manifest from "../../package.json" with { type: "json" };
+import type { PluginRegistry } from "../core/plugin-registry.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { buildStatePort as defaultBuildStatePort } from "../shell/build-state-port.ts";
 import type {
@@ -70,6 +71,12 @@ export interface ProgDeps {
 	 * backend; defaults to `node:fs/promises.mkdir` with `recursive: true`.
 	 */
 	readonly mkdir?: (path: string) => Promise<void>;
+	/**
+	 * What the loaded plugins declared, which decides the **Backend**s the
+	 * migrate command offers beyond the builtins. Defaults to what the
+	 * project config registered, or to nothing when no config is present.
+	 */
+	readonly plugins?: PluginRegistry;
 	/**
 	 * Read-only preview of operations; defaults to the internal `previewDiff`
 	 * shell helper.

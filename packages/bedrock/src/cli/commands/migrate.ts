@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import process from "node:process";
 
 import type { MigrateError, MigrationReport } from "../../core/migrate/migration-report.ts";
+import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../../core/plugin-registry.ts";
 import { buildStatePort as defaultBuildStatePort } from "../../shell/build-state-port.ts";
 import {
 	migrateMantleState as defaultMigrateMantleState,
@@ -32,7 +33,7 @@ import {
 	resolveMigrationSourceAsync,
 	resolveStateFilePathAsync,
 } from "./resolve-migrate-inputs.ts";
-import type { ResolvedStateTarget } from "./write-migrated-states.ts";
+import { promptForStateTargetAsync } from "./resolve-state-target.ts";
 
 const FAILED_OUTRO = "migrate failed";
 
@@ -53,6 +54,7 @@ interface ResolvedMigrate {
 	readonly exit: (code: number) => void;
 	readonly migrateMantleState: typeof defaultMigrateMantleState;
 	readonly mkdir: (path: string) => Promise<void>;
+	readonly plugins: PluginRegistry;
 	readonly promptPort: MigratePromptPort;
 	readonly writeFile: (path: string, contents: string) => Promise<void>;
 }
@@ -116,6 +118,7 @@ function resolveMigrate(dependencies: ProgDependencies): ResolvedMigrate {
 		mkdir:
 			dependencies.mkdir ??
 			(async (path) => void (await nodeMkdir(path, { recursive: true }))),
+		plugins: dependencies.plugins ?? EMPTY_PLUGIN_REGISTRY,
 		promptPort: dependencies.migratePromptPort ?? createDefaultMigratePromptPort(),
 		writeFile:
 			dependencies.writeFile ??
@@ -223,41 +226,12 @@ function configFileFor(stateFilePath: string, format: MigrateConfigFormat): stri
 	return join(dirname(stateFilePath), `bedrock.config.${extension}`);
 }
 
-async function promptForStateTargetAsync(
-	resolved: ResolvedMigrate,
-	stateFilePath: string,
-): Promise<Result<ResolvedStateTarget, "cancelled">> {
-	const backend = await resolved.promptPort.promptStateBackend();
-	if (!backend.success) {
-		return { err: "cancelled", success: false };
-	}
-
-	if (backend.data === "local") {
-		return {
-			data: {
-				backend: "local",
-				outputDir: join(dirname(stateFilePath), ".bedrock", "state"),
-			},
-			success: true,
-		};
-	}
-
-	const gistId = await resolved.promptPort.promptGistId();
-	if (!gistId.success) {
-		return { err: "cancelled", success: false };
-	}
-
-	return {
-		data: { backend: "gist", stateConfig: { backend: "gist", gistId: gistId.data } },
-		success: true,
-	};
-}
-
 function finalizeDependencies(resolved: ResolvedMigrate): FinalizeDependencies {
 	return {
 		buildStatePort: resolved.buildStatePort,
 		clack: resolved.clack,
 		mkdir: resolved.mkdir,
+		plugins: resolved.plugins,
 		writeFile: resolved.writeFile,
 	};
 }

@@ -1,5 +1,6 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
+import type { StateBackendPromptField } from "../core/plugin.ts";
 import type { MigrationSource } from "./parse-migrate-options.ts";
 
 /**
@@ -10,13 +11,14 @@ import type { MigrationSource } from "./parse-migrate-options.ts";
 export type MigrateConfigFormat = "typescript" | "yaml";
 
 /**
- * State backend kind the user picks via `MigratePromptPort.promptStateBackend`.
+ * State backend the user picks via `MigratePromptPort.promptStateBackend`.
  * `gist` writes through the GitHub Gist `StatePort` adapter; `local` is a
  * migrate-only dump that writes each environment's state JSON to disk
  * beside the generated `bedrock.config` and leaves the config's `state:`
- * field unset for the user to fill in later.
+ * field unset for the user to fill in later. Any other value names a
+ * **Backend** a loaded plugin declared.
  */
-export type MigrateStateBackend = "gist" | "local";
+export type MigrateStateBackend = "gist" | "local" | (string & {});
 
 /**
  * Result returned by every method on {@link MigratePromptPort}.
@@ -36,6 +38,11 @@ export type MigratePromptResult<T> = Result<T, MigratePromptCancelled>;
  * answers per scenario.
  */
 export interface MigratePromptPort {
+	/**
+	 * Ask one field a plugin declared for its **Backend**'s coordinates.
+	 * The descriptor says what to render; the plugin never sees this port.
+	 */
+	promptBackendField(field: StateBackendPromptField): Promise<MigratePromptResult<string>>;
 	/** Pick the output `bedrock.config.*` format. */
 	promptConfigFormat(): Promise<MigratePromptResult<MigrateConfigFormat>>;
 	/** Ask for the GitHub Gist ID that will hold the migrated state files. */
@@ -56,8 +63,14 @@ export interface MigratePromptPort {
 	promptPrimaryEnvironment(
 		environments: ReadonlyArray<string>,
 	): Promise<MigratePromptResult<string>>;
-	/** Pick the state backend kind. */
-	promptStateBackend(): Promise<MigratePromptResult<MigrateStateBackend>>;
+	/**
+	 * Pick where migrated state is written. Caller passes the names of the
+	 * plugin-declared **Backend**s available as migrate targets, which are
+	 * offered alongside the builtins.
+	 */
+	promptStateBackend(
+		pluginBackends: ReadonlyArray<string>,
+	): Promise<MigratePromptResult<MigrateStateBackend>>;
 	/** Ask for the path to the input Mantle state file. */
 	promptStateFilePath(): Promise<MigratePromptResult<string>>;
 }

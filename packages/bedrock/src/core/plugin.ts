@@ -74,6 +74,40 @@ export interface StateBackendBuildError {
 }
 
 /**
+ * One field `bedrock migrate` asks for when a user picks this **Backend**,
+ * declared as data so core renders it the way it renders every other
+ * prompt.
+ *
+ * Fields are asked in declaration order. Answers accumulate under their
+ * `key`, and each field's `condition` decides against the answers already
+ * given whether it is asked at all.
+ *
+ * @since unreleased
+ */
+export interface StateBackendPromptField {
+	/** `state` key the answer is recorded under. */
+	readonly key: string;
+	/**
+	 * Whether to ask this field, given the answers already collected.
+	 * Omit to always ask.
+	 *
+	 * @param answers - Answers to the fields asked before this one, keyed
+	 * by their `key`.
+	 * @returns `true` to ask the field.
+	 */
+	readonly condition?: (answers: Readonly<Record<string, string>>) => boolean;
+	/** Question shown to the user. */
+	readonly label: string;
+	/** Example value shown while the field is empty. */
+	readonly placeholder?: string;
+	/**
+	 * What to say when the answer is empty. Supplying it makes the field
+	 * required; omitting it lets the user skip through.
+	 */
+	readonly validationMessage?: string;
+}
+
+/**
  * One **Backend** a plugin claims. `name` is the value users write as
  * `state.backend`, `schema` declares the keys that may sit alongside it,
  * and `createPort` builds the adapter those keys describe.
@@ -150,6 +184,12 @@ export interface StateBackendDeclaration<TState extends object = object> {
 	 * be built.
 	 */
 	createPort(context: StateBackendContext<TState>): Result<StatePort, StateBackendBuildError>;
+	/**
+	 * Fields `bedrock migrate` asks for when a user migrates onto this
+	 * **Backend**, in the order they are asked. Omit to leave the
+	 * **Backend** unavailable as a migrate target.
+	 */
+	readonly migratePrompts?: ReadonlyArray<StateBackendPromptField>;
 	/** Schema fragment declaring this **Backend**'s own `state` keys. */
 	readonly schema: StateBackendSchema<TState>;
 }

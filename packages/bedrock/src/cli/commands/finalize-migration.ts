@@ -2,6 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import type { MigrationReport } from "../../core/migrate/migration-report.ts";
 import { serializeConfig } from "../../core/migrate/serialize-config.ts";
+import type { PluginRegistry } from "../../core/plugin-registry.ts";
 import type { Config } from "../../core/schema.ts";
 import type { buildStatePort as defaultBuildStatePort } from "../../shell/build-state-port.ts";
 import type { MigrateConfigFormat } from "../migrate-prompt-port.ts";
@@ -21,6 +22,8 @@ export interface FinalizeDeps {
 	 * dirs.
 	 */
 	readonly mkdir: (path: string) => Promise<void>;
+	/** What the loaded plugins declared, so a plugin backend can build. */
+	readonly plugins: PluginRegistry;
 	/** Writes a file's UTF-8 contents in one shot. */
 	readonly writeFile: (path: string, contents: string) => Promise<void>;
 }
@@ -85,8 +88,12 @@ async function writeBedrockConfigAsync({
 }: FinalizeInputs): Promise<Result<void, void>> {
 	const { state: _ignoredState, ...configWithoutState } = report.config;
 	const enrichedConfig: Config =
-		target.backend === "gist"
-			? { ...configWithoutState, state: target.stateConfig }
+		target.backend === "port"
+			? {
+					...configWithoutState,
+					...(target.specifier === undefined ? {} : { plugins: [target.specifier] }),
+					state: target.stateConfig,
+				}
 			: configWithoutState;
 	const bytes = serializeConfig({ config: enrichedConfig, configFormat });
 	try {

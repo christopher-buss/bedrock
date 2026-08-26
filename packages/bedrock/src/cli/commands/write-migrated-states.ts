@@ -4,7 +4,8 @@ import { join } from "node:path";
 import process from "node:process";
 
 import type { MigrationReport } from "../../core/migrate/migration-report.ts";
-import type { GistStateConfig } from "../../core/schema.ts";
+import type { PluginRegistry } from "../../core/plugin-registry.ts";
+import type { StateConfig } from "../../core/schema.ts";
 import { serializeStateFile } from "../../core/state-file.ts";
 import type { buildStatePort as defaultBuildStatePort } from "../../shell/build-state-port.ts";
 import type { ClackPort } from "../render.ts";
@@ -12,20 +13,32 @@ import { renderBuildStatePortError, renderStateWriteError } from "../render.ts";
 import { describeUnknown } from "./describe-unknown.ts";
 
 /**
- * Where the migrate command persists per-environment states. The `gist`
- * arm carries the resolved {@link GistStateConfig} that gets written to
- * the bedrock config; the `local` arm carries the on-disk directory used
- * for the JSON-per-environment dump.
+ * Where the migrate command persists per-environment states. The `port`
+ * arm carries the resolved `state` block that gets written to the bedrock
+ * config and built into a `StatePort`, whether a builtin or a plugin
+ * claimed the backend it names; the `local` arm carries the on-disk
+ * directory used for the JSON-per-environment dump.
  */
 export type ResolvedStateTarget =
-	| { readonly backend: "gist"; readonly stateConfig: GistStateConfig }
-	| { readonly backend: "local"; readonly outputDir: string };
+	| { readonly backend: "local"; readonly outputDir: string }
+	| {
+			readonly backend: "port";
+			/**
+			 * Module specifier of the plugin that claimed the backend, so
+			 * the emitted config lists the plugin that has to be loaded for
+			 * this `state` block to resolve. Absent for a builtin.
+			 */
+			readonly specifier?: string;
+			readonly stateConfig: StateConfig;
+	  };
 
 /** Subset of the migrate command's resolved deps the writers need. */
 interface WriterDependencies {
 	readonly buildStatePort: typeof defaultBuildStatePort;
 	readonly clack: ClackPort;
 	readonly mkdir: (path: string) => Promise<void>;
+	/** What the loaded plugins declared, so a plugin backend can build. */
+	readonly plugins: PluginRegistry;
 	readonly writeFile: (path: string, contents: string) => Promise<void>;
 }
 
@@ -52,18 +65,19 @@ export async function writeMigratedStatesAsync(inputs: WriteInputs): Promise<Res
 		return writeStatesToLocalAsync({ ...inputs, target: inputs.target });
 	}
 
-	return writeStatesToGistAsync({ ...inputs, target: inputs.target });
+	return writeStatesThroughPortAsync({ ...inputs, target: inputs.target });
 }
 
-async function writeStatesToGistAsync({
+async function writeStatesThroughPortAsync({
 	deps,
 	report,
 	target,
-}: WriteInputs & { readonly target: { readonly stateConfig: GistStateConfig } }): Promise<
+}: WriteInputs & { readonly target: { readonly stateConfig: StateConfig } }): Promise<
 	Result<void, void>
 > {
 	const portResult = deps.buildStatePort({
 		getEnv: (name) => process.env[name],
+		plugins: deps.plugins,
 		stateConfig: target.stateConfig,
 	});
 	if (!portResult.success) {

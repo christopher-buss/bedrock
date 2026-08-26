@@ -26,6 +26,7 @@ describe("ProgDeps shape", () => {
 			| "migrateMantleState"
 			| "migratePromptPort"
 			| "mkdir"
+			| "plugins"
 			| "previewDiff"
 			| "progress"
 			| "projectRoot"

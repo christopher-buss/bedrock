@@ -8,6 +8,7 @@ import {
 	type TextOptions,
 } from "@clack/prompts";
 
+import type { StateBackendPromptField } from "../core/plugin.ts";
 import type {
 	MigrateConfigFormat,
 	MigratePromptPort,
@@ -47,15 +48,18 @@ const FORMAT_OPTIONS: ReadonlyArray<{ hint?: string; label: string; value: Migra
 		{ label: "YAML", value: "yaml" },
 	];
 
-const BACKEND_OPTIONS: ReadonlyArray<{ hint?: string; label: string; value: MigrateStateBackend }> =
-	[
-		{ label: "GitHub Gist", value: "gist" },
-		{
-			hint: "writes .bedrock/state/<env>.json next to bedrock.config",
-			label: "Local files",
-			value: "local",
-		},
-	];
+const BUILTIN_BACKEND_OPTIONS: ReadonlyArray<{
+	hint?: string;
+	label: string;
+	value: MigrateStateBackend;
+}> = [
+	{ label: "GitHub Gist", value: "gist" },
+	{
+		hint: "writes .bedrock/state/<env>.json next to bedrock.config",
+		label: "Local files",
+		value: "local",
+	},
+];
 
 const SOURCE_LABELS: Record<MigrationSource, string> = {
 	mantle: "Mantle",
@@ -88,13 +92,16 @@ export function createDefaultMigratePromptPort(
 	helpers: MigratePromptClackHelpers = defaultHelpers,
 ): MigratePromptPort {
 	return {
+		promptBackendField: async (field) => promptBackendFieldFromAsync(helpers, field),
 		promptConfigFormat: async () => promptConfigFormatFromAsync(helpers),
 		promptGistId: async () => promptGistIdFromAsync(helpers),
 		promptMigrationSource: async (sources) => selectMigrationSourceAsync(helpers, sources),
 		promptPrimaryEnvironment: async (environments) => {
 			return selectPrimaryEnvironmentAsync(helpers, environments);
 		},
-		promptStateBackend: async () => promptStateBackendFromAsync(helpers),
+		promptStateBackend: async (pluginBackends) => {
+			return promptStateBackendFromAsync(helpers, pluginBackends);
+		},
 		promptStateFilePath: async () => promptStateFilePathFromAsync(helpers),
 	};
 }
@@ -194,11 +201,50 @@ async function selectPrimaryEnvironmentAsync(
 
 async function promptStateBackendFromAsync(
 	helpers: MigratePromptClackHelpers,
+	pluginBackends: ReadonlyArray<string>,
 ): Promise<MigratePromptResult<MigrateStateBackend>> {
 	return fromSelectAsync(helpers, {
 		initialValue: "gist",
 		message: "State backend?",
-		options: BACKEND_OPTIONS,
+		options: [
+			...BUILTIN_BACKEND_OPTIONS,
+			...pluginBackends.map((name) => {
+				return { hint: "provided by a plugin", label: name, value: name };
+			}),
+		],
+	});
+}
+
+/**
+ * Reject an empty answer with the message the plugin declared for it.
+ *
+ * @param value - What the user typed, absent until they type something.
+ * @param message - The plugin's own message for an empty answer.
+ * @returns The message when the answer is empty, `undefined` otherwise.
+ */
+function requiredWith(value: string | undefined, message: string): string | undefined {
+	return value === undefined || value.trim() === "" ? message : undefined;
+}
+
+/**
+ * Render one plugin-declared field as an ordinary text prompt, so a
+ * plugin's coordinates are asked exactly the way core's own are.
+ *
+ * @param helpers - The clack primitives to render through.
+ * @param field - What the plugin declared for this field.
+ * @returns The answer, or the cancellation the user chose.
+ */
+async function promptBackendFieldFromAsync(
+	helpers: MigratePromptClackHelpers,
+	field: StateBackendPromptField,
+): Promise<MigratePromptResult<string>> {
+	const message = field.validationMessage ?? "";
+	return fromTextAsync(helpers, {
+		message: field.label,
+		...(field.placeholder === undefined ? {} : { placeholder: field.placeholder }),
+		...(field.validationMessage === undefined
+			? {}
+			: { validate: (value) => requiredWith(value, message) }),
 	});
 }
 

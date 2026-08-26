@@ -87,7 +87,7 @@ describe(createDefaultMigratePromptPort, () => {
 		const select = vi.fn<MigratePromptClackHelpers["select"]>(async () => "gist");
 		const port = createDefaultMigratePromptPort(makeHelpers({ select }));
 
-		const result = await port.promptStateBackend();
+		const result = await port.promptStateBackend([]);
 
 		expect(result).toStrictEqual({ data: "gist", success: true });
 		expect(select).toHaveBeenCalledExactlyOnceWith({
@@ -181,10 +181,23 @@ describe(createDefaultMigratePromptPort, () => {
 		expect(validate!("path")).toBeUndefined();
 	});
 
-	it.for<{ method: "promptConfigFormat" | "promptGistId" | "promptStateBackend" }>([
+	it("should map a clack cancel into Err({ kind: 'cancelled' }) on promptStateBackend", async () => {
+		expect.assertions(1);
+
+		const port = createDefaultMigratePromptPort(
+			makeHelpers({
+				select: vi.fn<MigratePromptClackHelpers["select"]>(async () => CANCEL_SENTINEL),
+			}),
+		);
+
+		const result = await port.promptStateBackend([]);
+
+		expect(result).toStrictEqual({ err: { kind: "cancelled" }, success: false });
+	});
+
+	it.for<{ method: "promptConfigFormat" | "promptGistId" }>([
 		{ method: "promptConfigFormat" },
 		{ method: "promptGistId" },
-		{ method: "promptStateBackend" },
 	])(
 		"should map a clack cancel into Err({ kind: 'cancelled' }) on $method",
 		async ({ method }) => {
