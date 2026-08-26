@@ -140,12 +140,13 @@ backend-configurable. _Avoid_: provider, driver, storage
 
 **Plugin**: A separately-installed, opt-in package that extends core through its
 public contracts, named by module specifier in the top-level `plugins` config
-field (e.g. `plugins: ["@bedrock-rbx/state-s3"]`). Core imports each listed
-plugin when config loads and registers what it contributes; a specifier that
-fails to load fails the load rather than being skipped. The first plugin
-category is a **State port** **Backend**: the plugin supplies the adapter
-builder, an arktype schema fragment for its own `state` keys, the field
-descriptions `bedrock migrate` prompts from, and a **Migrate descriptor**.
+field (e.g. `plugins: ["@bedrock-rbx/state-s3"]`). Surfaced in code as
+`BedrockPlugin`. Core imports each listed plugin when config loads and registers
+what it contributes into a `PluginRegistry`; a specifier that fails to load
+fails the load rather than being skipped. The first plugin category is a **State
+port** **Backend**, declared as a `StateBackendDeclaration`: the plugin supplies
+the adapter builder, an arktype schema fragment for its own `state` keys, the
+field descriptions `bedrock migrate` prompts from, and a **Migrate descriptor**.
 Authored by anyone against public API; core ships some as first-party packages.
 _Avoid_: extension, addon, integration, module
 
