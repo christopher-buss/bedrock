@@ -38,6 +38,26 @@ interface ResolvedEnvironment {
 	readonly universeId: string;
 }
 
+interface EntryInput {
+	/** Config key being rendered. */
+	readonly key: ResourceKey;
+	/** The environments contributing to the generated file. */
+	readonly environments: ReadonlyArray<ResolvedEnvironment>;
+	/** Resource kind being rendered. */
+	readonly kind: ProvisionedKind;
+}
+
+interface TableInput {
+	/** The environments contributing to the generated file. */
+	readonly environments: ReadonlyArray<ResolvedEnvironment>;
+	/** Name of the exported table. */
+	readonly exportName: string;
+	/** Resource kind the table is built from. */
+	readonly kind: ProvisionedKind;
+	/** Doc comment written above the exported table. */
+	readonly summary: string;
+}
+
 function pascalCase(value: string): string {
 	return value
 		.split("-")
@@ -78,16 +98,14 @@ function collectKeys(
 	environments: ReadonlyArray<ResolvedEnvironment>,
 	kind: ProvisionedKind,
 ): ReadonlyArray<ResourceKey> {
-	const keys = new Set<ResourceKey>();
-	for (const environment of environments) {
-		for (const resource of environment.state.resources) {
-			if (resource.kind === kind) {
-				keys.add(resource.key);
-			}
-		}
-	}
-
-	return [...keys].toSorted();
+	return [
+		...new Set(
+			environments
+				.flatMap((environment) => environment.state.resources)
+				.filter((resource) => resource.kind === kind)
+				.map((resource) => resource.key),
+		),
+	].toSorted();
 }
 
 /**
@@ -97,16 +115,10 @@ function collectKeys(
  * create failed on the last run — is simply absent from that record, which is
  * why the generated type is a `Partial`.
  *
- * @param environments - The contributing environments.
- * @param kind - Resource kind being rendered.
- * @param key - Config key being rendered.
+ * @param input - The contributing environments, and the kind and key to render.
  * @returns The lines of the record entry.
  */
-function entryLines(
-	environments: ReadonlyArray<ResolvedEnvironment>,
-	kind: ProvisionedKind,
-	key: ResourceKey,
-): ReadonlyArray<string> {
+function entryLines({ key, environments, kind }: EntryInput): ReadonlyArray<string> {
 	const perEnvironment = environments.flatMap((environment) => {
 		const resource: ResourceCurrentState<ProvisionedKind> | undefined = findResource(
 			environment.state.resources,
@@ -134,16 +146,18 @@ function entryLines(
 	return [`\t${JSON.stringify(key)}: {`, ...perEnvironment, "\t},"];
 }
 
-function tableLines(
-	environments: ReadonlyArray<ResolvedEnvironment>,
-	kind: ProvisionedKind,
-	exportName: string,
-	summary: string,
-): ReadonlyArray<string> {
+function tableLines({
+	environments,
+	exportName,
+	kind,
+	summary,
+}: TableInput): ReadonlyArray<string> {
 	return [
 		`/** ${summary} */`,
 		`export const ${exportName} = {`,
-		...collectKeys(environments, kind).flatMap((key) => entryLines(environments, kind, key)),
+		...collectKeys(environments, kind).flatMap((key) => {
+			return entryLines({ key, environments, kind });
+		}),
 		"} as const satisfies ResourceTable;",
 		"",
 	];
@@ -166,7 +180,7 @@ function generateResourceFile(environments: ReadonlyArray<ResolvedEnvironment>):
 	const lines: ReadonlyArray<string> = [
 		HEADER,
 		"",
-		"/** Universe id of every environment declared in bedrock.config.ts. */",
+		"/** Universe id of every environment that has been deployed at least once. */",
 		"export enum GameId {",
 		...environments.map(
 			(environment) => `\t${environment.memberName} = ${environment.universeId},`,
@@ -174,18 +188,18 @@ function generateResourceFile(environments: ReadonlyArray<ResolvedEnvironment>):
 		"}",
 		"",
 		...TYPE_DECLARATIONS,
-		...tableLines(
+		...tableLines({
 			environments,
-			"gamePass",
-			"GAME_PASSES",
-			"Game passes, keyed by config key then by universe.",
-		),
-		...tableLines(
+			exportName: "GAME_PASSES",
+			kind: "gamePass",
+			summary: "Game passes, keyed by config key then by universe.",
+		}),
+		...tableLines({
 			environments,
-			"developerProduct",
-			"PRODUCTS",
-			"Developer products, keyed by config key then by universe.",
-		),
+			exportName: "PRODUCTS",
+			kind: "developerProduct",
+			summary: "Developer products, keyed by config key then by universe.",
+		}),
 	];
 
 	return { content: `${lines.join("\n").trimEnd()}\n`, path: OUTPUT_PATH };

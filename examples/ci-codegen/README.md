@@ -103,7 +103,13 @@ is skipped and the deploy still runs.
 | `DEPLOY_APP_PRIVATE_KEY` | Full contents of that app's `.pem` private key.                                     |
 
 Third-party actions are pinned by commit SHA. The Bedrock deploy action is
-pinned by release tag, which is how it is versioned.
+pinned by release tag, because that is the channel its own
+[README](../../packages/actions/README.md) documents and how you would pick up a
+fix.
+
+A tag is mutable, and this job hands the action an Open Cloud key and a GitHub
+App private key. If that trade does not suit you, pin the action by commit SHA
+too and upgrade deliberately.
 
 ## Redaction
 
