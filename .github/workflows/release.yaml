@@ -152,19 +152,11 @@ jobs:
 
       # ---- Publish mode -------------------------------------------------
       # A placeholder that reaches npm is baked into that release's docs and
-      # hovers for good. Rerunning the resolver is the check: a second pass
-      # rewrites nothing, and it cannot drift from the first pass the way a
-      # restated grep would.
+      # hovers for good. Nothing is bumped in publish mode, so any survivor has
+      # no release to resolve to and the resolver exits non-zero.
       - if: steps.changesets.outputs.pending == 'false'
         name: Guard against unresolved @since placeholders
-        run: |
-          set -euo pipefail
-          bun scripts/resolve-since-tags.ts
-          if ! git diff --quiet -- packages; then
-            git diff --stat -- packages
-            echo "::error::Unresolved @since placeholders reached publish mode."
-            exit 1
-          fi
+        run: bun scripts/resolve-since-tags.ts
 
       - if: steps.changesets.outputs.pending == 'false'
         name: Build

@@ -4,12 +4,28 @@
 /** Stands in for a version that the release plan has not yet decided. */
 export const UNRELEASED_SINCE = "unreleased";
 
-// The triple is captured alone so a prerelease or build suffix is validated
-// but excluded from ordering: `0.1.5-beta.1` documents the same release.
-const VERSION = /^(\d+\.\d+\.\d+)(?:-[\dA-Za-z.-]+)?(?:\+[\dA-Za-z.-]+)?$/;
+/** One module's text, addressed by its path relative to the package root. */
+export interface SourceModule {
+	/** Module path relative to the package root. */
+	readonly path: string;
+	/** The module's full source text. */
+	readonly text: string;
+}
 
-// Zero-padding to a fixed width keeps versions lexically comparable.
-const COMPONENT_WIDTH = 10;
+const NUMERIC_IDENTIFIER = String.raw`0|[1-9]\d*`;
+const PRERELEASE_IDENTIFIER = String.raw`${NUMERIC_IDENTIFIER}|\d*[A-Za-z-][\dA-Za-z-]*`;
+const BUILD_IDENTIFIER = String.raw`[\dA-Za-z-]+`;
+
+// The core triple is captured alone: a prerelease or build suffix is validated
+// but excluded from ordering, since `0.1.5-beta.1` names the same release.
+const VERSION = new RegExp(
+	String.raw`^((?:${NUMERIC_IDENTIFIER})(?:\.(?:${NUMERIC_IDENTIFIER})){2})` +
+		String.raw`(?:-(?:${PRERELEASE_IDENTIFIER})(?:\.(?:${PRERELEASE_IDENTIFIER}))*)?` +
+		String.raw`(?:\+(?:${BUILD_IDENTIFIER})(?:\.(?:${BUILD_IDENTIFIER}))*)?$`,
+	"u",
+);
+
+const COMPARABLE_COMPONENT_WIDTH = 10;
 
 const TEST_MODULE = /\.(?:spec|spec-d|test)\.ts$/;
 
@@ -58,14 +74,26 @@ export function resolveUnreleasedSinceTags(source: string, version: string): str
 }
 
 /**
- * Whether a module should have its placeholders resolved. Tests declare no
- * public API, and one pinning the placeholder holds it as a fixture string.
+ * Plan the placeholder rewrites for one package's modules. Colocated tests are
+ * left alone: they declare no public API, and a test pinning the placeholder
+ * holds it as a fixture string.
  *
- * @param relativePath - Module path relative to the package root.
- * @returns `true` when the module's placeholders should be rewritten.
+ * @param modules - The package's modules, keyed by package-relative path.
+ * @param version - Version the pending symbols are shipping in.
+ * @returns Only the modules whose text changed, carrying their new text.
  */
-export function isResolvableSource(relativePath: string): boolean {
-	return !TEST_MODULE.test(relativePath);
+export function planSinceTagRewrites(
+	modules: ReadonlyArray<SourceModule>,
+	version: string,
+): ReadonlyArray<SourceModule> {
+	return modules.flatMap((module) => {
+		if (TEST_MODULE.test(module.path)) {
+			return [];
+		}
+
+		const text = resolveUnreleasedSinceTags(module.text, version);
+		return text === module.text ? [] : [{ path: module.path, text }];
+	});
 }
 
 /**
@@ -93,6 +121,6 @@ function comparableVersion(version: string): string | undefined {
 	const [, triple] = VERSION.exec(version) ?? [];
 	return triple
 		?.split(".")
-		.map((component) => component.padStart(COMPONENT_WIDTH, "0"))
+		.map((component) => component.padStart(COMPARABLE_COMPONENT_WIDTH, "0"))
 		.join(".");
 }

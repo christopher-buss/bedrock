@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-	isResolvableSource,
 	isValidSinceTag,
+	planSinceTagRewrites,
 	publishedVersion,
 	resolveUnreleasedSinceTags,
 	UNRELEASED_SINCE,
@@ -56,6 +56,10 @@ describe(isValidSinceTag, () => {
 		["a partial version", "0.1"],
 		["a version with trailing junk", "0.1.5abc"],
 		["a near-miss of the placeholder", `${UNRELEASED_SINCE}-soon`],
+		["a core component with a leading zero", "00.1.0"],
+		["an empty prerelease identifier", "0.1.0-.."],
+		["a prerelease identifier with a leading zero", "0.1.0-01"],
+		["an empty build identifier", "0.1.0+"],
 	])("should reject %s", ([, tag]) => {
 		expect.assertions(1);
 
@@ -135,24 +139,41 @@ describe(publishedVersion, () => {
 	});
 });
 
-describe(isResolvableSource, () => {
-	it.for<[label: string, relativePath: string]>([
-		["a module at the source root", "src/types.ts"],
-		["a nested module", "src/domains/game-passes/types.ts"],
-		["a package build script", "scripts/fetch-locales.ts"],
-	])("should resolve %s", ([, relativePath]) => {
+describe(planSinceTagRewrites, () => {
+	it("should return each rewritten module with its resolved text", () => {
 		expect.assertions(1);
 
-		expect(isResolvableSource(relativePath)).toBeTrue();
+		const modules = [
+			{ path: "src/types.ts", text: "/** @since unreleased */" },
+			{ path: "src/domains/game-passes/types.ts", text: "/** @since unreleased */" },
+		];
+
+		expect(planSinceTagRewrites(modules, "0.1.6")).toStrictEqual([
+			{ path: "src/types.ts", text: "/** @since 0.1.6 */" },
+			{ path: "src/domains/game-passes/types.ts", text: "/** @since 0.1.6 */" },
+		]);
 	});
 
-	it.for<[label: string, relativePath: string]>([
+	it("should omit a module that holds no placeholder", () => {
+		expect.assertions(1);
+
+		const modules = [{ path: "src/types.ts", text: "/** @since 0.1.0 */" }];
+
+		expect(planSinceTagRewrites(modules, "0.1.6")).toBeEmpty();
+	});
+
+	it.for<[label: string, modulePath: string]>([
 		["a colocated unit test", "src/types.spec.ts"],
 		["a type-level test", "src/types.spec-d.ts"],
 		["a generated example test", "src/types.example.spec.ts"],
-	])("should skip %s", ([, relativePath]) => {
+		["a .test.ts module", "src/types.test.ts"],
+	])("should skip %s", ([, modulePath]) => {
+		// A test pinning the placeholder's own behaviour holds it as a
+		// fixture string, and rewriting one would break that test.
 		expect.assertions(1);
 
-		expect(isResolvableSource(relativePath)).toBeFalse();
+		const modules = [{ path: modulePath, text: "/** @since unreleased */" }];
+
+		expect(planSinceTagRewrites(modules, "0.1.6")).toBeEmpty();
 	});
 });
