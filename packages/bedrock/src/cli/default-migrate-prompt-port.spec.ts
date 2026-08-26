@@ -151,14 +151,24 @@ describe(createDefaultMigratePromptPort, () => {
 		});
 
 		expect(result).toStrictEqual({ data: "my-bucket", success: true });
-		expect(text).toHaveBeenCalledExactlyOnceWith({
-			message: "Bucket name?",
-			placeholder: "my-bucket",
-		});
+		expect(text.mock.calls).toStrictEqual([
+			[{ message: "Bucket name?", placeholder: "my-bucket" }],
+		]);
+	});
+
+	it("should leave a field the plugin declared no validation message for optional", async () => {
+		expect.assertions(1);
+
+		const text = vi.fn<MigratePromptClackHelpers["text"]>(async () => "");
+		const port = createDefaultMigratePromptPort(makeHelpers({ text }));
+
+		await port.promptBackendField({ key: "endpoint", label: "Endpoint override?" });
+
+		expect(text.mock.calls).toStrictEqual([[{ message: "Endpoint override?" }]]);
 	});
 
 	it("should reject an empty answer with the message the plugin declared for the field", async () => {
-		expect.assertions(2);
+		expect.assertions(4);
 
 		const text = vi.fn<MigratePromptClackHelpers["text"]>(async () => "");
 		const port = createDefaultMigratePromptPort(makeHelpers({ text }));
@@ -172,6 +182,8 @@ describe(createDefaultMigratePromptPort, () => {
 		const { validate } = text.mock.calls[0]![0];
 
 		expect(validate!("")).toBe("A bucket is required");
+		expect(validate!(" ".repeat(3))).toBe("A bucket is required");
+		expect(validate!(undefined)).toBe("A bucket is required");
 		expect(validate!("my-bucket")).toBeUndefined();
 	});
 

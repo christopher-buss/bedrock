@@ -116,8 +116,6 @@ export interface StateBackendPromptField {
 export interface StateBackendSourceContext {
 	/** Answers to the source prompts, keyed by field. */
 	readonly coordinates: Readonly<Record<string, string>>;
-	/** `fetch` seam, present only when the caller injected one. */
-	readonly fetch?: StateBackendFetch | undefined;
 	/** Reads an environment variable. */
 	readonly getEnv: (name: string) => string | undefined;
 }
@@ -130,6 +128,38 @@ export interface StateBackendSourceContext {
  * plugin never learns what another tool's state file means.
  *
  * @since unreleased
+ *
+ * @example
+ *
+ * ```ts
+ * import type { StateBackendMigrateSource } from "@bedrock-rbx/core";
+ *
+ * const source: StateBackendMigrateSource = {
+ *     prompts: [{ key: "objectKey", label: "Object key of the Mantle state?" }],
+ *     readBytes: async ({ coordinates, getEnv }) => {
+ *         const key = getEnv("AWS_ACCESS_KEY_ID");
+ *         if (key === undefined) {
+ *             return { err: { reason: "no credentials" }, success: false };
+ *         }
+ *
+ *         return {
+ *             data: new TextEncoder().encode(`fetched ${coordinates["objectKey"]}`),
+ *             success: true,
+ *         };
+ *     },
+ * };
+ *
+ * return source
+ *     .readBytes({ coordinates: { objectKey: "state/mantle.yml" }, getEnv: () => "key" })
+ *     .then((fetched) => {
+ *         expect(fetched.success).toBeTrue();
+ *         if (fetched.success) {
+ *             expect(new TextDecoder().decode(fetched.data)).toBe(
+ *                 "fetched state/mantle.yml",
+ *             );
+ *         }
+ *     });
+ * ```
  */
 export interface StateBackendMigrateSource {
 	/**
@@ -140,8 +170,8 @@ export interface StateBackendMigrateSource {
 	/**
 	 * Fetch the foreign state's bytes.
 	 *
-	 * @param context - The answered coordinates plus the credential and
-	 * transport seams core injects.
+	 * @param context - The answered coordinates plus the credential seam
+	 * core injects.
 	 * @returns `Ok` with the bytes, or `Err` describing why they could not
 	 * be fetched.
 	 */

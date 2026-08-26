@@ -21,7 +21,10 @@ describe(buildPluginRegistry, () => {
 
 		assert(registry.success);
 
-		expect(registry.data.stateBackends.get("s3")!.declaration.schema).toBe(schema);
+		const registered = registry.data.stateBackends.get("s3");
+		assert(registered !== undefined);
+
+		expect(registered.declaration.schema).toBe(schema);
 	});
 
 	it("should register every backend across every loaded plugin", () => {

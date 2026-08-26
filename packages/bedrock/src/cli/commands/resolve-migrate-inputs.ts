@@ -7,7 +7,7 @@ import type { PluginRegistry, RegisteredStateBackend } from "../../core/plugin-r
 import type { StateBackendBuildError, StateBackendMigrateSource } from "../../core/plugin.ts";
 import type { MigratePromptPort } from "../migrate-prompt-port.ts";
 import { type MigrationSource, SUPPORTED_MIGRATION_SOURCES } from "../parse-migrate-options.ts";
-import { collectSourceCoordinatesAsync, fetchableBackends } from "./resolve-state-target.ts";
+import { collectBackendAnswersAsync, fetchableBackends } from "./resolve-state-target.ts";
 
 /** Default name a plugin-fetched state file is reported and rooted at. */
 const FETCHED_STATE_BASENAME = ".mantle-state.yml";
@@ -148,7 +148,7 @@ async function fetchThroughPluginAsync(
 	}: { readonly registered: RegisteredStateBackend; readonly source: StateBackendMigrateSource },
 	deps: MigrationInputDeps,
 ): Promise<Result<ResolvedMigrationInput, "cancelled" | MigrationSourceFailure>> {
-	const coordinates = await collectSourceCoordinatesAsync(deps, source.prompts);
+	const coordinates = await collectBackendAnswersAsync(deps, source.prompts);
 	if (!coordinates.success) {
 		return { err: "cancelled", success: false };
 	}

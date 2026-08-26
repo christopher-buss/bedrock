@@ -9,7 +9,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
 import { fakeMigratePromptPort } from "#tests/helpers/migrate-prompt-port";
-import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
+import { fakeStateBackendPlugins, mergeStateBackendPlugins } from "#tests/helpers/plugins";
 import type { MigrationReport } from "../../core/migrate/migration-report.ts";
 import type { Config } from "../../core/schema.ts";
 import type { BedrockState, StateError } from "../../core/state.ts";
@@ -783,9 +783,13 @@ describe(migrateCommand, () => {
 		const encoder = new TextEncoder();
 		const bytes = encoder.encode("version: '6'\n");
 		const seen: Array<unknown> = [];
+		process.env["BEDROCK_TEST_REGION"] = "eu-west-2";
+		onTestFinished(() => {
+			delete process.env["BEDROCK_TEST_REGION"];
+		});
 		const dependencies = makeDependencies({
 			plugins: s3PluginsWithSource(async ({ coordinates, getEnv }) => {
-				seen.push(coordinates, getEnv("AWS_REGION"));
+				seen.push(coordinates, getEnv("BEDROCK_TEST_REGION"));
 				return { data: bytes, success: true };
 			}),
 		});
@@ -802,7 +806,7 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)(undefined, { from: "mantle" });
 
-		expect(seen).toStrictEqual([{ objectKey: "state/mantle.yml" }, process.env["AWS_REGION"]]);
+		expect(seen).toStrictEqual([{ objectKey: "state/mantle.yml" }, "eu-west-2"]);
 		expect(dependencies.migrateMantleState).toHaveBeenCalledWith(
 			expect.objectContaining({ stateFileBytes: bytes }),
 		);
@@ -909,10 +913,9 @@ describe(migrateCommand, () => {
 
 		await migrateCommand(dependencies)(undefined, { from: "mantle" });
 
-		expect(dependencies.migrateMantleState).toHaveBeenCalledExactlyOnceWith({
-			configFormat: "typescript",
-			stateFilePath: STATE_FILE_PATH,
-		});
+		expect(vi.mocked(dependencies.migrateMantleState!).mock.calls).toStrictEqual([
+			[{ configFormat: "typescript", stateFilePath: STATE_FILE_PATH }],
+		]);
 	});
 
 	it("should cancel when the user aborts the local state-file prompt", async () => {
@@ -974,6 +977,48 @@ describe(migrateCommand, () => {
 		]);
 	});
 
+	it("should report a plugin the project config could not load rather than quietly dropping it", async () => {
+		expect.assertions(2);
+
+		const dependencies = makeDependencies({
+			loadProject: vi.fn<NonNullable<ProgDependencies["loadProject"]>>(async () => {
+				return {
+					err: {
+						kind: "pluginLoadFailed",
+						message: "Cannot find package '@example/state-s3'",
+						reason: "notInstalled",
+						specifier: "@example/state-s3",
+					},
+					success: false,
+				};
+			}),
+		});
+
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
+
+		expect(dependencies.clack!.logError).toHaveBeenCalledWith(
+			expect.stringContaining("@example/state-s3"),
+		);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should search for the project config from the project root the command was given", async () => {
+		expect.assertions(1);
+
+		const loadProject = vi.fn<NonNullable<ProgDependencies["loadProject"]>>(async () => {
+			return {
+				data: { config: SAMPLE_CONFIG, plugins: s3Plugins() },
+				success: true,
+			};
+		});
+		const dependencies = makeDependencies({ loadProject, projectRoot: "/projects/example" });
+		scriptPluginBackendPrompts(dependencies);
+
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
+
+		expect(loadProject).toHaveBeenCalledExactlyOnceWith({ cwd: "/projects/example" });
+	});
+
 	it("should offer no plugin backends when the project has no config to load", async () => {
 		expect.assertions(1);
 
@@ -1005,6 +1050,55 @@ describe(migrateCommand, () => {
 		expect(dependencies.migratePromptPort!.promptStateBackend).toHaveBeenCalledExactlyOnceWith([
 			"s3",
 		]);
+	});
+
+	it("should offer only the backends whose plugin declared what to ask for", async () => {
+		expect.assertions(1);
+
+		const dependencies = makeDependencies({
+			plugins: mergeStateBackendPlugins(
+				s3Plugins(),
+				fakeStateBackendPlugins({
+					name: "gcs",
+					createPort: () => ({ err: { reason: "unused" }, success: false }),
+					schema: type({ bucket: "string > 0" }),
+					specifier: "@example/state-gcs",
+				}),
+			),
+		});
+		scriptPluginBackendPrompts(dependencies);
+
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
+
+		expect(dependencies.migratePromptPort!.promptStateBackend).toHaveBeenCalledExactlyOnceWith([
+			"s3",
+		]);
+	});
+
+	it("should offer only the backends whose plugin can fetch the previous tool's state", async () => {
+		expect.assertions(1);
+
+		const dependencies = makeDependencies({
+			plugins: mergeStateBackendPlugins(
+				s3PluginsWithSource(async () => ({ data: Uint8Array.of(0), success: true })),
+				fakeStateBackendPlugins({
+					name: "gcs",
+					createPort: () => ({ err: { reason: "unused" }, success: false }),
+					migratePrompts: [],
+					schema: type({ bucket: "string > 0" }),
+					specifier: "@example/state-gcs",
+				}),
+			),
+		});
+		const port = dependencies.migratePromptPort!;
+		vi.mocked(port.promptStateSource).mockResolvedValueOnce({
+			err: { kind: "cancelled" },
+			success: false,
+		});
+
+		await migrateCommand(dependencies)(undefined, { from: "mantle" });
+
+		expect(port.promptStateSource).toHaveBeenCalledExactlyOnceWith(["s3"]);
 	});
 
 	it("should ask a plugin backend's declared fields in the declared order, skipping one whose condition is unmet", async () => {

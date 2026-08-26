@@ -4,6 +4,7 @@ import { mkdir as nodeMkdir, writeFile as nodeWriteFile } from "node:fs/promises
 import { dirname, join } from "node:path";
 import process from "node:process";
 
+import type { ConfigError } from "../../core/config-error.ts";
 import type { MigrateError, MigrationReport } from "../../core/migrate/migration-report.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../../core/plugin-registry.ts";
 import { buildStatePort as defaultBuildStatePort } from "../../shell/build-state-port.ts";
@@ -21,6 +22,7 @@ import { type MigrationSource, parseMigrateOptions } from "../parse-migrate-opti
 import {
 	type ClackPort,
 	renderBuildStatePortError,
+	renderDeployError,
 	renderMigrateError,
 	renderMigrateParseError,
 	renderMigrationSummary,
@@ -33,6 +35,7 @@ import {
 } from "./finalize-migration.ts";
 import {
 	type MigrationSourceFailure,
+	type ResolvedMigrationInput,
 	resolveMigrationInputAsync,
 	resolveMigrationSourceAsync,
 } from "./resolve-migrate-inputs.ts";
@@ -69,11 +72,9 @@ interface RunMigrateInputs {
 	readonly resolved: ResolvedMigrate;
 }
 
-interface RunMigratorInputs {
+interface RunMigratorInputs extends ResolvedMigrationInput {
 	readonly configFormat: MigrateConfigFormat;
 	readonly resolved: ResolvedMigrate;
-	readonly stateFileBytes?: Uint8Array;
-	readonly stateFilePath: string;
 }
 
 interface MigratorIoError {
@@ -82,11 +83,9 @@ interface MigratorIoError {
 	readonly path: string;
 }
 
-interface DispatchInputs {
+interface DispatchInputs extends ResolvedMigrationInput {
 	readonly resolved: ResolvedMigrate;
 	readonly source: MigrationSource;
-	readonly stateFileBytes?: Uint8Array;
-	readonly stateFilePath: string;
 }
 
 /**
@@ -109,7 +108,18 @@ export function migrateCommand(
 	rawOptions: Readonly<Record<string, unknown>>,
 ) => Promise<void> {
 	return async (pathArgument, rawOptions) => {
-		const resolved = resolveMigrate(deps, await resolvePluginsAsync(deps));
+		const projectRoot = deps.projectRoot ?? process.cwd();
+		const discovered = await resolvePluginsAsync(deps, projectRoot);
+		const resolved = resolveMigrate(deps, {
+			plugins: discovered.success ? discovered.data : EMPTY_PLUGIN_REGISTRY,
+			projectRoot,
+		});
+		if (!discovered.success) {
+			renderDeployError({ cause: discovered.err, kind: "configLoadFailed" }, resolved.clack);
+			resolved.exit(failAfterRender(resolved));
+			return;
+		}
+
 		const code = await runMigrateAsync({ pathArg: pathArgument, rawOptions, resolved });
 		resolved.exit(code);
 	};
@@ -119,23 +129,41 @@ export function migrateCommand(
  * What the project's own plugins declare, which is what decides the
  * **Backend**s migrate offers beyond the builtins.
  *
- * A project being migrated usually has no bedrock config yet, so a load
- * that fails is read as "no plugins declared" rather than as an error:
- * migrate's input is the other tool's state, not this config.
+ * A project being migrated usually has no bedrock config yet, so an
+ * absent config declares no plugins rather than failing: migrate's input
+ * is the other tool's state, not this config. A config that exists but
+ * cannot be loaded still fails, because a plugin the user installed to
+ * migrate onto would otherwise vanish from the picker unexplained.
  *
  * @param dependencies - The CLI dependency slots.
- * @returns The registry to offer targets from.
+ * @param projectRoot - Directory the config is searched from.
+ * @returns The registry to offer targets from, or the load failure.
  */
-async function resolvePluginsAsync(dependencies: ProgDependencies): Promise<PluginRegistry> {
+async function resolvePluginsAsync(
+	dependencies: ProgDependencies,
+	projectRoot: string,
+): Promise<Result<PluginRegistry, ConfigError>> {
 	if (dependencies.plugins !== undefined) {
-		return dependencies.plugins;
+		return { data: dependencies.plugins, success: true };
 	}
 
-	const loaded = await (dependencies.loadProject ?? defaultLoadProject)();
-	return loaded.success ? loaded.data.plugins : EMPTY_PLUGIN_REGISTRY;
+	const loaded = await (dependencies.loadProject ?? defaultLoadProject)({ cwd: projectRoot });
+	if (loaded.success) {
+		return { data: loaded.data.plugins, success: true };
+	}
+
+	// A project being migrated usually has no bedrock config yet, so an
+	// absent one declares no plugins. Any other failure is a config the
+	// user meant to have, and a plugin they meant to migrate onto.
+	return loaded.err.kind === "fileNotFound"
+		? { data: EMPTY_PLUGIN_REGISTRY, success: true }
+		: loaded;
 }
 
-function resolveMigrate(dependencies: ProgDependencies, plugins: PluginRegistry): ResolvedMigrate {
+function resolveMigrate(
+	dependencies: ProgDependencies,
+	project: { readonly plugins: PluginRegistry; readonly projectRoot: string },
+): ResolvedMigrate {
 	return {
 		buildStatePort: dependencies.buildStatePort ?? defaultBuildStatePort,
 		clack: dependencies.clack ?? createClackPort(),
@@ -144,8 +172,8 @@ function resolveMigrate(dependencies: ProgDependencies, plugins: PluginRegistry)
 		mkdir:
 			dependencies.mkdir ??
 			(async (path) => void (await nodeMkdir(path, { recursive: true }))),
-		plugins,
-		projectRoot: dependencies.projectRoot ?? process.cwd(),
+		plugins: project.plugins,
+		projectRoot: project.projectRoot,
 		promptPort: dependencies.migratePromptPort ?? createDefaultMigratePromptPort(),
 		writeFile:
 			dependencies.writeFile ??
@@ -175,16 +203,16 @@ function renderedFailure(
 async function callMigratorAsync(
 	inputs: RunMigratorInputs & { readonly primaryEnvironment?: string },
 ): Promise<Result<MigrationReport, MigrateError | MigratorIoError>> {
+	const { configFormat, primaryEnvironment, resolved, ...input } = inputs;
+	// `input` carries `stateFileBytes` only when a plugin fetched it, so
+	// spreading it is what keeps the key absent on the local-file path.
 	const callDependencies: MigrateMantleStateDependencies = {
-		configFormat: inputs.configFormat,
-		stateFilePath: inputs.stateFilePath,
-		...(inputs.stateFileBytes === undefined ? {} : { stateFileBytes: inputs.stateFileBytes }),
-		...(inputs.primaryEnvironment === undefined
-			? {}
-			: { primaryEnvironment: inputs.primaryEnvironment }),
+		configFormat,
+		...input,
+		...(primaryEnvironment === undefined ? {} : { primaryEnvironment }),
 	};
 	try {
-		return await inputs.resolved.migrateMantleState(callDependencies);
+		return await resolved.migrateMantleState(callDependencies);
 	} catch (err) {
 		return { err: { cause: err, kind: "ioError", path: inputs.stateFilePath }, success: false };
 	}
@@ -266,8 +294,8 @@ function finalizeDependencies(resolved: ResolvedMigrate): FinalizeDependencies {
 
 async function runWithStateFilePathAsync({
 	resolved,
-	stateFileBytes,
-	stateFilePath,
+	source: _ignoredSource,
+	...input
 }: DispatchInputs): Promise<number> {
 	const formatResult = await resolved.promptPort.promptConfigFormat();
 	if (!formatResult.success) {
@@ -277,24 +305,23 @@ async function runWithStateFilePathAsync({
 	const reportResult = await runMigratorWithPromptAsync({
 		configFormat: formatResult.data,
 		resolved,
-		...(stateFileBytes === undefined ? {} : { stateFileBytes }),
-		stateFilePath,
+		...input,
 	});
 	if (!reportResult.success) {
 		return reportResult.err === "cancelled" ? cancel(resolved) : EXIT_ERROR;
 	}
 
-	const targetResult = await promptForStateTargetAsync(resolved, stateFilePath);
+	const targetResult = await promptForStateTargetAsync(resolved, input.stateFilePath);
 	if (!targetResult.success) {
 		return cancel(resolved);
 	}
 
 	return finalizeAsync({
-		configFilePath: configFileFor(stateFilePath, formatResult.data),
+		configFilePath: configFileFor(input.stateFilePath, formatResult.data),
 		configFormat: formatResult.data,
 		deps: finalizeDependencies(resolved),
 		report: reportResult.data,
-		stateFilePath,
+		stateFilePath: input.stateFilePath,
 		target: targetResult.data,
 	});
 }
@@ -353,12 +380,5 @@ async function runMigrateAsync({
 			: reportSourceFailure(input.err, resolved);
 	}
 
-	return dispatchBySourceAsync({
-		resolved,
-		source: source.data,
-		...(input.data.stateFileBytes === undefined
-			? {}
-			: { stateFileBytes: input.data.stateFileBytes }),
-		stateFilePath: input.data.stateFilePath,
-	});
+	return dispatchBySourceAsync({ resolved, source: source.data, ...input.data });
 }

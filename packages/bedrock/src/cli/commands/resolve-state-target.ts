@@ -19,6 +19,35 @@ export interface StateTargetPrompts {
 }
 
 /**
+ * Ask a plugin's declared fields in order, skipping any whose condition
+ * does not hold against the answers already given.
+ *
+ * @param resolved - Where to ask, and what the plugins declared.
+ * @param fields - The plugin's declared fields, in the order to ask them.
+ * @returns The answers keyed by field, or the cancellation the user chose.
+ */
+export async function collectBackendAnswersAsync(
+	resolved: StateTargetPrompts,
+	fields: ReadonlyArray<StateBackendPromptField>,
+): Promise<Result<Record<string, string>, "cancelled">> {
+	const answers: Record<string, string> = {};
+	for (const field of fields) {
+		if (field.condition !== undefined && !field.condition(answers)) {
+			continue;
+		}
+
+		const answer = await resolved.promptPort.promptBackendField(field);
+		if (!answer.success) {
+			return { err: "cancelled", success: false };
+		}
+
+		answers[field.key] = answer.data;
+	}
+
+	return { data: answers, success: true };
+}
+
+/**
  * Ask where the migrated state should live, and resolve the answers into
  * the target the writers dispatch on.
  *
@@ -78,21 +107,6 @@ export function fetchableBackends(plugins: PluginRegistry): ReadonlyArray<string
 }
 
 /**
- * Ask a plugin's source fields and expose the answers, so the caller can
- * hand them to the plugin as the coordinates to fetch from.
- *
- * @param resolved - Where to ask, and what the plugins declared.
- * @param fields - The plugin's declared source fields, in order.
- * @returns The answers keyed by field, or the cancellation.
- */
-export async function collectSourceCoordinatesAsync(
-	resolved: StateTargetPrompts,
-	fields: ReadonlyArray<StateBackendPromptField>,
-): Promise<Result<Record<string, string>, "cancelled">> {
-	return collectBackendAnswersAsync(resolved, fields);
-}
-
-/**
  * Names of the plugin-declared **Backend**s a user can migrate onto,
  * which is the ones whose plugin declared what to ask for.
  *
@@ -103,35 +117,6 @@ function migratableBackends(plugins: PluginRegistry): ReadonlyArray<string> {
 	return [...plugins.stateBackends]
 		.filter(([, registered]) => registered.declaration.migratePrompts !== undefined)
 		.map(([name]) => name);
-}
-
-/**
- * Ask a plugin's declared fields in order, skipping any whose condition
- * does not hold against the answers already given.
- *
- * @param resolved - Where to ask, and what the plugins declared.
- * @param fields - The plugin's declared fields, in the order to ask them.
- * @returns The answers keyed by field, or the cancellation the user chose.
- */
-async function collectBackendAnswersAsync(
-	resolved: StateTargetPrompts,
-	fields: ReadonlyArray<StateBackendPromptField>,
-): Promise<Result<Record<string, string>, "cancelled">> {
-	const answers: Record<string, string> = {};
-	for (const field of fields) {
-		if (field.condition !== undefined && !field.condition(answers)) {
-			continue;
-		}
-
-		const answer = await resolved.promptPort.promptBackendField(field);
-		if (!answer.success) {
-			return { err: "cancelled", success: false };
-		}
-
-		answers[field.key] = answer.data;
-	}
-
-	return { data: answers, success: true };
 }
 
 /**

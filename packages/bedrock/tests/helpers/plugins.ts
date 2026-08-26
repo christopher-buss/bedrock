@@ -28,3 +28,18 @@ export function fakeStateBackendPlugins<TState extends object>({
 	const registered: RegisteredStateBackend = { declaration, specifier };
 	return { stateBackends: new Map([[declaration.name, registered]]) };
 }
+
+/**
+ * Combine registries so a test can state what several plugins declared
+ * while each declaration keeps the type its own schema gave it.
+ *
+ * @param registries - The registries to combine, in declaration order.
+ * @returns One registry holding every **Backend** they registered.
+ */
+export function mergeStateBackendPlugins(
+	...registries: ReadonlyArray<PluginRegistry>
+): PluginRegistry {
+	return {
+		stateBackends: new Map(registries.flatMap((registry) => [...registry.stateBackends])),
+	};
+}

@@ -46,6 +46,10 @@ export async function errorBodyDetailAsync(response: Response): Promise<string> 
  * the (bounded) error body GitHub returned for everything the status code
  * alone does not explain.
  *
+ * A missing gist and a refused credential are conditions any **Backend**
+ * has, so they take the backend-neutral `stateNotFound` and
+ * `stateAccessDenied` arms and read the same as any other backend's.
+ *
  * @param failure - The failing file label, gist id, and raw `Response`.
  * @returns The mapped `StateError`.
  */
@@ -56,7 +60,7 @@ export async function mapHttpErrorAsync({
 }: HttpFailure): Promise<StateError> {
 	const { headers, status } = response;
 	if (status === 404) {
-		return { file, kind: "stateError", reason: `gist ${gistId} not found: check gistId` };
+		return { file, kind: "stateNotFound", reason: `gist ${gistId} not found: check gistId` };
 	}
 
 	if (status === 403 && isRateLimited(headers)) {
@@ -66,7 +70,7 @@ export async function mapHttpErrorAsync({
 	if (status === 401 || status === 403) {
 		return {
 			file,
-			kind: "stateError",
+			kind: "stateAccessDenied",
 			reason: `auth failed (${status}): check token scopes${await errorBodyDetailAsync(response)}`,
 		};
 	}

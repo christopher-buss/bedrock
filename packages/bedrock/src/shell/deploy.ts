@@ -366,7 +366,7 @@ interface ResolvedDependencies extends ResolvedDependenciesBase {
 	readonly progress: ProgressPort;
 }
 
-interface PickRegistryInputs {
+interface DrivenInputs {
 	readonly config: ResolvedConfig;
 	readonly options: DeployOptions;
 	readonly plugins: PluginRegistry;
@@ -684,11 +684,7 @@ async function resolveEffectiveConfigAsync(options: DeployOptions): Promise<
 	};
 }
 
-function pickStatePort({
-	config,
-	options,
-	plugins,
-}: PickRegistryInputs): Result<StatePort, DeployError> {
+function pickStatePort({ config, options, plugins }: DrivenInputs): Result<StatePort, DeployError> {
 	if (options.statePort !== undefined) {
 		return { data: options.statePort, success: true };
 	}
@@ -706,7 +702,7 @@ function pickStatePort({
 	});
 }
 
-function pickRegistry(inputs: PickRegistryInputs): Result<DriverRegistry, DeployError> {
+function pickRegistry(inputs: DrivenInputs): Result<DriverRegistry, DeployError> {
 	if (inputs.options.registry !== undefined) {
 		return { data: inputs.options.registry, success: true };
 	}
@@ -740,9 +736,7 @@ function pickCodegen(
 	return { data: { emit, writer }, success: true };
 }
 
-function pickDrivenDependencies(
-	inputs: PickRegistryInputs,
-): Result<DrivenDependencies, DeployError> {
+function pickDrivenDependencies(inputs: DrivenInputs): Result<DrivenDependencies, DeployError> {
 	const { config, options } = inputs;
 	const statePort = pickStatePort(inputs);
 	if (!statePort.success) {

@@ -268,15 +268,14 @@ function requiredWith(value: string | undefined, message: string): string | unde
  */
 async function promptBackendFieldFromAsync(
 	helpers: MigratePromptClackHelpers,
-	field: StateBackendPromptField,
+	{ label, placeholder, validationMessage }: StateBackendPromptField,
 ): Promise<MigratePromptResult<string>> {
-	const message = field.validationMessage ?? "";
 	return fromTextAsync(helpers, {
-		message: field.label,
-		...(field.placeholder === undefined ? {} : { placeholder: field.placeholder }),
-		...(field.validationMessage === undefined
+		message: label,
+		...(placeholder === undefined ? {} : { placeholder }),
+		...(validationMessage === undefined
 			? {}
-			: { validate: (value) => requiredWith(value, message) }),
+			: { validate: (value) => requiredWith(value, validationMessage) }),
 	});
 }
 
