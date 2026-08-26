@@ -46,15 +46,15 @@ export async function loadPluginsAsync(
 /**
  * Read a module's default export without assuming the module is a plain
  * record: an ESM namespace object is not one, so `isRecord` cannot gate the
- * property access here the way it gates the export itself.
+ * property access here the way it gates the export itself. `Object()` boxes
+ * whatever the importer handed back, so no shape reaches `Reflect.get`
+ * that it would throw on.
  *
  * @param module - The imported module namespace.
  * @returns The module's `default` export, or `undefined` when it has none.
  */
 function defaultExportOf(module: unknown): unknown {
-	return typeof module === "object" && module !== null
-		? Reflect.get(module, "default")
-		: undefined;
+	return Reflect.get(Object(module), "default");
 }
 
 /**

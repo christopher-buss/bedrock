@@ -115,6 +115,10 @@ export async function loadConfigWith(
  * invokes it with an empty `ConfigContext` and awaits the result before
  * validating.
  *
+ * Every module specifier listed under `plugins` is imported before the rest
+ * of the config is validated, so a plugin that cannot be loaded fails the
+ * load rather than surfacing once something needs it.
+ *
  * Errors return via `Result`:
  * - `fileNotFound` - no config file was discovered under the search path.
  * - `parseFailed` - a config file was found but could not be parsed (for
@@ -123,6 +127,8 @@ export async function loadConfigWith(
  *   not satisfy the runtime schema.
  * - `configFunctionFailed` - a function-form config threw or its returned
  *   promise rejected while being invoked.
+ * - `pluginLoadFailed` - a module specifier listed under `plugins` did not
+ *   resolve, threw while evaluating, or exported no plugin.
  *
  * @since 0.1.0
  *

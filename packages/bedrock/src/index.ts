@@ -39,7 +39,11 @@ export {
 	type Field,
 } from "./core/codegen-view.ts";
 export type { CodegenFile, EmitInput, Emitter } from "./core/codegen.ts";
-export type { ConfigError, ConfigValidationIssue } from "./core/config-error.ts";
+export type {
+	ConfigError,
+	ConfigValidationIssue,
+	PluginLoadFailureReason,
+} from "./core/config-error.ts";
 export {
 	createDefaultEmitter,
 	DEFAULT_CODEGEN_OUTPUT_DIR,

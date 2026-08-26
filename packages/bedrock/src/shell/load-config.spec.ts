@@ -1022,6 +1022,26 @@ describe(loadConfigWith, () => {
 		expect(result.err.kind).toBe("pluginLoadFailed");
 	});
 
+	it("should import nothing and report a validation issue when plugins is not a list of specifiers", async () => {
+		expect.assertions(2);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			"export default { environments: { production: {} }, plugins: [42] };",
+		]);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: unusedImporter },
+			{ cwd },
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.kind).toBe("validationFailed");
+		expect(result.err.issues[0]!.path).toStrictEqual(["plugins", "0"]);
+	});
+
 	it("should import nothing when the config declares no plugins", async () => {
 		expect.assertions(1);
 
