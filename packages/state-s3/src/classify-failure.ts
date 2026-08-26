@@ -95,19 +95,15 @@ export function classifyS3Failure(error: unknown): S3Failure {
  * Read the HTTP status the client recorded alongside the error, which is
  * absent when the request never reached the store.
  *
+ * Each hop is boxed with `Object()` first, so nothing thrown - a string, a
+ * bare error carrying no metadata - reaches `Reflect.get` in a shape it
+ * would throw on.
+ *
  * @param error - Whatever the client threw.
  * @returns The status, or `undefined` when the error carries none.
  */
 function statusOf(error: unknown): number | undefined {
-	if (typeof error !== "object" || error === null) {
-		return undefined;
-	}
-
-	const metadata = Reflect.get(error, "$metadata");
-	if (typeof metadata !== "object" || metadata === null) {
-		return undefined;
-	}
-
-	const status = Reflect.get(metadata, "httpStatusCode");
+	const metadata = Reflect.get(Object(error), "$metadata");
+	const status = Reflect.get(Object(metadata), "httpStatusCode");
 	return typeof status === "number" ? status : undefined;
 }

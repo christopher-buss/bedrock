@@ -162,7 +162,7 @@ describe(createS3StateAdapter, () => {
 
 	describe("write", () => {
 		it("should store the state at the environment's own object", async () => {
-			expect.assertions(2);
+			expect.assertions(3);
 
 			const store = fakeS3();
 
@@ -174,6 +174,7 @@ describe(createS3StateAdapter, () => {
 			assert(result.success);
 
 			expect(store.calls[0]!.method).toBe("PUT");
+			expect(store.calls[0]!.headers["content-type"]).toBe("application/json");
 			expect(store.objects.get("/bedrock/production.json")).toBe(
 				serializeStateFile(PRODUCTION_STATE),
 			);
