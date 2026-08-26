@@ -123,7 +123,9 @@ function entryLines(
 		return [
 			`\t\t[GameId.${environment.memberName}]: {`,
 			`\t\t\tname: ${JSON.stringify(realValue(view.name))},`,
-			`\t\t\tprice: ${realValue(view.price) ?? 0},`,
+			// `undefined` is bedrock's off-sale state, not a missing value, so
+			// it is emitted verbatim rather than coalesced to a price of zero.
+			`\t\t\tprice: ${realValue(view.price) ?? "undefined"},`,
 			`\t\t\tassetId: ${resource.kind === "developerProduct" ? resource.outputs.productId : resource.outputs.assetId},`,
 			"\t\t},",
 		];
@@ -152,7 +154,7 @@ const TYPE_DECLARATIONS: ReadonlyArray<string> = [
 	"/** One provisioned resource, as deployed to one environment. */",
 	"export interface ResourceMetadata {",
 	"\treadonly name: string;",
-	"\treadonly price: number;",
+	"\treadonly price: number | undefined;",
 	"\treadonly assetId: number;",
 	"}",
 	"",

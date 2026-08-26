@@ -25,10 +25,13 @@ Both are workspace packages, so `pnpm typecheck` compiles their
 `bedrock.config.ts` and `.bedrock/` sources against the real `@bedrock-rbx/core`
 API. Those files cannot drift without CI failing.
 
-Their game sources under `src/` are checked by nothing here — Luau and roblox-ts
-need a Roblox toolchain this repo does not run. Treat those files as
-illustrative, along with the committed emitter output (`resources.luau`,
-`resources.ts`).
+`ci-codegen` also ships a real roblox-ts toolchain, so `pnpm build` compiles its
+game sources with `rbxtsc` — the only thing that typechecks `src/`, since
+roblox-ts pins its own TypeScript. `minimal` is Luau and has no such step.
+
+The committed emitter output in each example (`resources.luau`, `resources.ts`)
+is real generated content, reproduced from the emitters rather than written by
+hand.
 
 In your own project, install from npm rather than using the `workspace:*`
 dependency these use:

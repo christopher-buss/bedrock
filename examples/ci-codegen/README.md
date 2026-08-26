@@ -33,24 +33,23 @@ Read [`../minimal`](../minimal) first if the deploy stages are new to you.
 | `src/dev/dev-only.server.ts`     | Mounted by the development Rojo project only.           |
 | `.github/workflows/deploy.yaml`  | Copy to your repository root to use.                    |
 
-## What this example does not ship
+## Building it
 
-The Bedrock-side wiring here is complete and typechecked. The roblox-ts half is
-not: `package.json` declares only `@bedrock-rbx/core`, so the `rbxtsc` call in
-the build step and the `@rbxts/services` import in `src/` have nothing behind
-them. Copied as-is into a fresh repository, the deploy would fail at
-`rbxtsc: not found`.
-
-That is deliberate — pulling a whole Roblox toolchain into this repository to
-make a docs folder run is not worth it. To make the example real in your own
-project:
+This example compiles. `roblox-ts` and `@rbxts/services` are real dependencies,
+so `rbxtsc` typechecks `src/` against the Roblox type definitions:
 
 ```bash
-pnpm add -D roblox-ts @rbxts/compiler-types @rbxts/types @rbxts/services
+pnpm --filter @bedrock-rbx/example-ci-codegen build
 ```
 
-Then add the roblox-ts `tsconfig.json` that `rbxtsc` expects, compiling `src/`
-to `out/`. Everything under `.bedrock/` and `bedrock.config.ts` works unchanged.
+That is the same command the deploy runs from
+[`build-place.ts`](.bedrock/build/build-place.ts), and it is what keeps the game
+sources honest — `src/` is not covered by this repo's `pnpm typecheck`, because
+roblox-ts pins its own TypeScript.
+
+roblox-ts reads [`tsconfig.roblox.json`](tsconfig.roblox.json) rather than
+`tsconfig.json`: the root config is the Node-side program for `.bedrock/`, and
+roblox-ts requires its `typeRoots` to resolve against its own directory.
 
 ## Why an override
 

@@ -45,3 +45,7 @@ apps/website/docs/bedrock/api/
 # Sandcastle: defensive ignore in case pnpm ever falls back to an in-tree
 # store (the configured store lives in ~/.cache/sandcastle-pnpm-store).
 .pnpm-store/
+
+# roblox-ts build output in examples/
+examples/*/out/
+examples/*/include/

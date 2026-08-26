@@ -4,11 +4,23 @@
 	"tree": {
 		"$className": "DataModel",
 		"ReplicatedStorage": {
-			"rbxts_include": { "$path": "include" },
-			"shared": { "$path": "out/shared" }
+			"rbxts_include": {
+				"$path": "include",
+				"node_modules": {
+					"$className": "Folder",
+					"@rbxts": {
+						"$path": "node_modules/@rbxts"
+					}
+				}
+			},
+			"shared": {
+				"$path": "out/shared"
+			}
 		},
 		"ServerScriptService": {
-			"server": { "$path": "out/server" }
+			"server": {
+				"$path": "out/server"
+			}
 		}
 	}
 }

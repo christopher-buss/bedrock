@@ -9,7 +9,7 @@ export enum GameId {
 /** One provisioned resource, as deployed to one environment. */
 export interface ResourceMetadata {
 	readonly name: string;
-	readonly price: number;
+	readonly price: number | undefined;
 	readonly assetId: number;
 }
 

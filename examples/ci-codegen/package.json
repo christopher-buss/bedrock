@@ -11,13 +11,18 @@
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
 	"type": "module",
 	"scripts": {
+		"build": "rbxtsc --type game --project tsconfig.roblox.json --rojo development.project.json",
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
-		"@bedrock-rbx/core": "workspace:*"
+		"@bedrock-rbx/core": "workspace:*",
+		"@rbxts/services": "catalog:roblox"
 	},
 	"devDependencies": {
 		"@bedrock-rbx/typescript-config": "workspace:*",
+		"@rbxts/compiler-types": "catalog:roblox",
+		"@rbxts/types": "catalog:roblox",
+		"roblox-ts": "catalog:roblox",
 		"typescript": "catalog:tsc"
 	},
 	"engines": {

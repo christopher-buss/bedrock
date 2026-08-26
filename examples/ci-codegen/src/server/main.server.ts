@@ -1,6 +1,7 @@
 import { MarketplaceService, Players } from "@rbxts/services";
 
-import { GAME_PASSES, GameId, PRODUCTS } from "shared/assets/resources";
+import type { GameId } from "shared/assets/resources";
+import { GAME_PASSES, PRODUCTS } from "shared/assets/resources";
 
 // One built place serves both environments: the ids are resolved at runtime
 // from the universe the server is running in.
