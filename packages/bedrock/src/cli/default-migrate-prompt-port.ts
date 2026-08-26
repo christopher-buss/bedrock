@@ -14,6 +14,7 @@ import type {
 	MigratePromptPort,
 	MigratePromptResult,
 	MigrateStateBackend,
+	MigrateStateSource,
 } from "./migrate-prompt-port.ts";
 import type { MigrationSource } from "./parse-migrate-options.ts";
 
@@ -103,6 +104,9 @@ export function createDefaultMigratePromptPort(
 			return promptStateBackendFromAsync(helpers, pluginBackends);
 		},
 		promptStateFilePath: async () => promptStateFilePathFromAsync(helpers),
+		promptStateSource: async (pluginBackends) => {
+			return promptStateSourceFromAsync(helpers, pluginBackends);
+		},
 	};
 }
 
@@ -210,6 +214,34 @@ async function promptStateBackendFromAsync(
 			...BUILTIN_BACKEND_OPTIONS,
 			...pluginBackends.map((name) => {
 				return { hint: "provided by a plugin", label: name, value: name };
+			}),
+		],
+	});
+}
+
+/**
+ * Offer the places the previous tool's state could be read from: a local
+ * file, or any plugin that declared it can fetch one.
+ *
+ * @param helpers - The clack primitives to render through.
+ * @param pluginBackends - Names of the **Backend**s that can fetch.
+ * @returns The chosen source, or the cancellation the user chose.
+ */
+async function promptStateSourceFromAsync(
+	helpers: MigratePromptClackHelpers,
+	pluginBackends: ReadonlyArray<string>,
+): Promise<MigratePromptResult<MigrateStateSource>> {
+	return fromSelectAsync(helpers, {
+		initialValue: "local",
+		message: "Where is the Mantle state?",
+		options: [
+			{ label: "Local file", value: "local" },
+			...pluginBackends.map((name) => {
+				return {
+					hint: "fetched by a plugin",
+					label: name,
+					value: name,
+				};
 			}),
 		],
 	});

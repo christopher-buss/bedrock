@@ -21,6 +21,13 @@ export type MigrateConfigFormat = "typescript" | "yaml";
 export type MigrateStateBackend = "gist" | "local" | (string & {});
 
 /**
+ * Where `bedrock migrate` reads the previous tool's state from. `local`
+ * reads a file from disk; any other value names a **Backend** a loaded
+ * plugin declared a migrate source for.
+ */
+export type MigrateStateSource = "local" | (string & {});
+
+/**
  * Result returned by every method on {@link MigratePromptPort}.
  *
  * @template T - The data type returned on a successful prompt.
@@ -73,6 +80,15 @@ export interface MigratePromptPort {
 	): Promise<MigratePromptResult<MigrateStateBackend>>;
 	/** Ask for the path to the input Mantle state file. */
 	promptStateFilePath(): Promise<MigratePromptResult<string>>;
+	/**
+	 * Pick where the previous tool's state is read from. Caller passes the
+	 * names of the plugin-declared **Backend**s that can fetch it, which
+	 * are offered alongside reading a local file. Asked only when at least
+	 * one plugin can fetch.
+	 */
+	promptStateSource(
+		pluginBackends: ReadonlyArray<string>,
+	): Promise<MigratePromptResult<MigrateStateSource>>;
 }
 
 /**

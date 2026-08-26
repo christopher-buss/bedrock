@@ -108,6 +108,49 @@ export interface StateBackendPromptField {
 }
 
 /**
+ * What core hands a **Backend** when it asks the plugin to fetch the
+ * foreign state `bedrock migrate` is migrating from.
+ *
+ * @since unreleased
+ */
+export interface StateBackendSourceContext {
+	/** Answers to the source prompts, keyed by field. */
+	readonly coordinates: Readonly<Record<string, string>>;
+	/** `fetch` seam, present only when the caller injected one. */
+	readonly fetch?: StateBackendFetch | undefined;
+	/** Reads an environment variable. */
+	readonly getEnv: (name: string) => string | undefined;
+}
+
+/**
+ * How a **Backend** supplies the foreign state `bedrock migrate` reads.
+ *
+ * The split is bytes versus format: the plugin fetches bytes from
+ * coordinates only it understands, and core parses the foreign format. A
+ * plugin never learns what another tool's state file means.
+ *
+ * @since unreleased
+ */
+export interface StateBackendMigrateSource {
+	/**
+	 * Fields to ask for the coordinates the foreign state lives at, on the
+	 * same terms as {@link StateBackendDeclaration.migratePrompts}.
+	 */
+	readonly prompts: ReadonlyArray<StateBackendPromptField>;
+	/**
+	 * Fetch the foreign state's bytes.
+	 *
+	 * @param context - The answered coordinates plus the credential and
+	 * transport seams core injects.
+	 * @returns `Ok` with the bytes, or `Err` describing why they could not
+	 * be fetched.
+	 */
+	readBytes(
+		context: StateBackendSourceContext,
+	): Promise<Result<Uint8Array, StateBackendBuildError>>;
+}
+
+/**
  * One **Backend** a plugin claims. `name` is the value users write as
  * `state.backend`, `schema` declares the keys that may sit alongside it,
  * and `createPort` builds the adapter those keys describe.
@@ -190,6 +233,11 @@ export interface StateBackendDeclaration<TState extends object = object> {
 	 * **Backend** unavailable as a migrate target.
 	 */
 	readonly migratePrompts?: ReadonlyArray<StateBackendPromptField>;
+	/**
+	 * How `bedrock migrate` reads the previous tool's state through this
+	 * **Backend**. Omit when the foreign state is only ever a local file.
+	 */
+	readonly migrateSource?: StateBackendMigrateSource;
 	/** Schema fragment declaring this **Backend**'s own `state` keys. */
 	readonly schema: StateBackendSchema<TState>;
 }

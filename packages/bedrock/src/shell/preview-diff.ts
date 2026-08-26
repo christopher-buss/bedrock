@@ -156,6 +156,26 @@ export async function previewDiffAsync(
 }
 
 /**
+ * Load the project through whichever loader the caller left in place, on
+ * the same terms as `deploy`.
+ *
+ * @param options - The caller's preview options.
+ * @returns The loaded project, or the config error the loader reported.
+ */
+async function loadProjectThroughAsync(
+	options: PreviewDiffOptions,
+): Promise<Result<LoadedProject, ConfigError>> {
+	if (options.loadConfig === undefined) {
+		return loadProjectAsync();
+	}
+
+	const loaded = await options.loadConfig();
+	return loaded.success
+		? { data: { config: loaded.data, plugins: EMPTY_PLUGIN_REGISTRY }, success: true }
+		: loaded;
+}
+
+/**
  * Resolve the project config together with what the loaded plugins
  * declared, on the same terms as `deploy`: a pre-loaded config or an
  * injected loader carries no registry, so `options.plugins` is how a
@@ -167,27 +187,26 @@ export async function previewDiffAsync(
 async function pickConfigAsync(
 	options: PreviewDiffOptions,
 ): Promise<Result<LoadedProject, PreviewDiffError>> {
-	const declared = options.plugins ?? EMPTY_PLUGIN_REGISTRY;
 	if (options.config !== undefined) {
-		return { data: { config: options.config, plugins: declared }, success: true };
+		return {
+			data: {
+				config: options.config,
+				plugins: options.plugins ?? EMPTY_PLUGIN_REGISTRY,
+			},
+			success: true,
+		};
 	}
 
-	if (options.loadConfig !== undefined) {
-		const injected = await options.loadConfig();
-		if (!injected.success) {
-			return { err: { cause: injected.err, kind: "configLoadFailed" }, success: false };
-		}
-
-		return { data: { config: injected.data, plugins: declared }, success: true };
-	}
-
-	const loaded = await loadProjectAsync();
+	const loaded = await loadProjectThroughAsync(options);
 	if (!loaded.success) {
 		return { err: { cause: loaded.err, kind: "configLoadFailed" }, success: false };
 	}
 
 	return {
-		data: { config: loaded.data.config, plugins: options.plugins ?? loaded.data.plugins },
+		data: {
+			config: loaded.data.config,
+			plugins: options.plugins ?? loaded.data.plugins,
+		},
 		success: true,
 	};
 }

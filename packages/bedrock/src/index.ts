@@ -92,7 +92,10 @@ export type {
 	StateBackendContext,
 	StateBackendDeclaration,
 	StateBackendFetch,
+	StateBackendMigrateSource,
+	StateBackendPromptField,
 	StateBackendSchema,
+	StateBackendSourceContext,
 } from "./core/plugin.ts";
 export { resolveStateConfig, type StateNotConfiguredError } from "./core/resolve-state-config.ts";
 export {

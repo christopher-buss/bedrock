@@ -561,6 +561,22 @@ describe(migrateMantleState, () => {
 		expect(result.err.path).toBe("/tmp/missing.mantle-state.yml");
 	});
 
+	it("should migrate supplied bytes without reading the state file from disk", async () => {
+		expect.assertions(2);
+
+		const result = await migrateMantleState({
+			configFormat: "typescript",
+			readFile: readFileMissingAsync,
+			stateFileBytes: utf8(SINGLE_ENV_YAML),
+			stateFilePath: "/tmp/never-read.mantle-state.yml",
+		});
+
+		assert(result.success);
+
+		expect(result.data.config.universe!.universeId).toBe("6031475575");
+		expect(Object.keys(result.data.statesByEnvironment)).toStrictEqual(["production"]);
+	});
+
 	it("should propagate stateParseFailed when the YAML is malformed", async () => {
 		expect.assertions(2);
 

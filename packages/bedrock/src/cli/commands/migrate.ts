@@ -20,6 +20,7 @@ import type { MigrateConfigFormat, MigratePromptPort } from "../migrate-prompt-p
 import { type MigrationSource, parseMigrateOptions } from "../parse-migrate-options.ts";
 import {
 	type ClackPort,
+	renderBuildStatePortError,
 	renderMigrateError,
 	renderMigrateParseError,
 	renderMigrationSummary,
@@ -31,8 +32,9 @@ import {
 	persistMigrationAsync,
 } from "./finalize-migration.ts";
 import {
+	type MigrationSourceFailure,
+	resolveMigrationInputAsync,
 	resolveMigrationSourceAsync,
-	resolveStateFilePathAsync,
 } from "./resolve-migrate-inputs.ts";
 import { promptForStateTargetAsync } from "./resolve-state-target.ts";
 
@@ -56,6 +58,7 @@ interface ResolvedMigrate {
 	readonly migrateMantleState: typeof defaultMigrateMantleState;
 	readonly mkdir: (path: string) => Promise<void>;
 	readonly plugins: PluginRegistry;
+	readonly projectRoot: string;
 	readonly promptPort: MigratePromptPort;
 	readonly writeFile: (path: string, contents: string) => Promise<void>;
 }
@@ -69,6 +72,7 @@ interface RunMigrateInputs {
 interface RunMigratorInputs {
 	readonly configFormat: MigrateConfigFormat;
 	readonly resolved: ResolvedMigrate;
+	readonly stateFileBytes?: Uint8Array;
 	readonly stateFilePath: string;
 }
 
@@ -81,6 +85,7 @@ interface MigratorIoError {
 interface DispatchInputs {
 	readonly resolved: ResolvedMigrate;
 	readonly source: MigrationSource;
+	readonly stateFileBytes?: Uint8Array;
 	readonly stateFilePath: string;
 }
 
@@ -140,6 +145,7 @@ function resolveMigrate(dependencies: ProgDependencies, plugins: PluginRegistry)
 			dependencies.mkdir ??
 			(async (path) => void (await nodeMkdir(path, { recursive: true }))),
 		plugins,
+		projectRoot: dependencies.projectRoot ?? process.cwd(),
 		promptPort: dependencies.migratePromptPort ?? createDefaultMigratePromptPort(),
 		writeFile:
 			dependencies.writeFile ??
@@ -172,6 +178,7 @@ async function callMigratorAsync(
 	const callDependencies: MigrateMantleStateDependencies = {
 		configFormat: inputs.configFormat,
 		stateFilePath: inputs.stateFilePath,
+		...(inputs.stateFileBytes === undefined ? {} : { stateFileBytes: inputs.stateFileBytes }),
 		...(inputs.primaryEnvironment === undefined
 			? {}
 			: { primaryEnvironment: inputs.primaryEnvironment }),
@@ -257,10 +264,11 @@ function finalizeDependencies(resolved: ResolvedMigrate): FinalizeDependencies {
 	};
 }
 
-async function runWithStateFilePathAsync(
-	stateFilePath: string,
-	resolved: ResolvedMigrate,
-): Promise<number> {
+async function runWithStateFilePathAsync({
+	resolved,
+	stateFileBytes,
+	stateFilePath,
+}: DispatchInputs): Promise<number> {
 	const formatResult = await resolved.promptPort.promptConfigFormat();
 	if (!formatResult.success) {
 		return cancel(resolved);
@@ -269,6 +277,7 @@ async function runWithStateFilePathAsync(
 	const reportResult = await runMigratorWithPromptAsync({
 		configFormat: formatResult.data,
 		resolved,
+		...(stateFileBytes === undefined ? {} : { stateFileBytes }),
 		stateFilePath,
 	});
 	if (!reportResult.success) {
@@ -290,16 +299,33 @@ async function runWithStateFilePathAsync(
 	});
 }
 
-async function dispatchBySourceAsync({
-	resolved,
-	source,
-	stateFilePath,
-}: DispatchInputs): Promise<number> {
+async function dispatchBySourceAsync(inputs: DispatchInputs): Promise<number> {
 	const dispatch: Record<MigrationSource, () => Promise<number>> = {
-		mantle: async () => runWithStateFilePathAsync(stateFilePath, resolved),
+		mantle: async () => runWithStateFilePathAsync(inputs),
 	};
-	const handler = dispatch[source];
+	const handler = dispatch[inputs.source];
 	return handler();
+}
+
+/**
+ * Report a plugin that could not fetch the previous tool's state, naming
+ * the plugin the way a **Backend** that cannot build is named.
+ *
+ * @param err - The plugin's refusal.
+ * @param resolved - The migrate command's resolved dependencies.
+ * @returns The exit code for a failure already rendered.
+ */
+function reportSourceFailure(err: MigrationSourceFailure, resolved: ResolvedMigrate): number {
+	renderBuildStatePortError(
+		{
+			detail: err.detail,
+			kind: "pluginStateBackend",
+			reason: err.reason,
+			specifier: err.specifier,
+		},
+		resolved.clack,
+	);
+	return failAfterRender(resolved);
 }
 
 async function runMigrateAsync({
@@ -320,14 +346,19 @@ async function runMigrateAsync({
 		return cancel(resolved);
 	}
 
-	const stateFilePath = await resolveStateFilePathAsync(pathArg, resolved.promptPort);
-	if (!stateFilePath.success) {
-		return cancel(resolved);
+	const input = await resolveMigrationInputAsync(pathArg, resolved);
+	if (!input.success) {
+		return input.err === "cancelled"
+			? cancel(resolved)
+			: reportSourceFailure(input.err, resolved);
 	}
 
 	return dispatchBySourceAsync({
 		resolved,
 		source: source.data,
-		stateFilePath: stateFilePath.data,
+		...(input.data.stateFileBytes === undefined
+			? {}
+			: { stateFileBytes: input.data.stateFileBytes }),
+		stateFilePath: input.data.stateFilePath,
 	});
 }

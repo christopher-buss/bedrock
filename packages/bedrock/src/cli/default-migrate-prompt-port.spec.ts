@@ -104,6 +104,77 @@ describe(createDefaultMigratePromptPort, () => {
 		});
 	});
 
+	it("should offer a plugin-declared backend after the builtins when picking where state is written", async () => {
+		expect.assertions(1);
+
+		const select = vi.fn<MigratePromptClackHelpers["select"]>(async () => "s3");
+		const port = createDefaultMigratePromptPort(makeHelpers({ select }));
+
+		await port.promptStateBackend(["s3"]);
+
+		expect(select.mock.calls[0]![0].options.at(-1)).toStrictEqual({
+			hint: "provided by a plugin",
+			label: "s3",
+			value: "s3",
+		});
+	});
+
+	it("should offer a local file and every fetching plugin when picking where the mantle state is", async () => {
+		expect.assertions(2);
+
+		const select = vi.fn<MigratePromptClackHelpers["select"]>(async () => "s3");
+		const port = createDefaultMigratePromptPort(makeHelpers({ select }));
+
+		const result = await port.promptStateSource(["s3"]);
+
+		expect(result).toStrictEqual({ data: "s3", success: true });
+		expect(select).toHaveBeenCalledExactlyOnceWith({
+			initialValue: "local",
+			message: "Where is the Mantle state?",
+			options: [
+				{ label: "Local file", value: "local" },
+				{ hint: "fetched by a plugin", label: "s3", value: "s3" },
+			],
+		});
+	});
+
+	it("should render a plugin's declared field as a text prompt carrying its placeholder", async () => {
+		expect.assertions(2);
+
+		const text = vi.fn<MigratePromptClackHelpers["text"]>(async () => "my-bucket");
+		const port = createDefaultMigratePromptPort(makeHelpers({ text }));
+
+		const result = await port.promptBackendField({
+			key: "bucket",
+			label: "Bucket name?",
+			placeholder: "my-bucket",
+		});
+
+		expect(result).toStrictEqual({ data: "my-bucket", success: true });
+		expect(text).toHaveBeenCalledExactlyOnceWith({
+			message: "Bucket name?",
+			placeholder: "my-bucket",
+		});
+	});
+
+	it("should reject an empty answer with the message the plugin declared for the field", async () => {
+		expect.assertions(2);
+
+		const text = vi.fn<MigratePromptClackHelpers["text"]>(async () => "");
+		const port = createDefaultMigratePromptPort(makeHelpers({ text }));
+
+		await port.promptBackendField({
+			key: "bucket",
+			label: "Bucket name?",
+			validationMessage: "A bucket is required",
+		});
+
+		const { validate } = text.mock.calls[0]![0];
+
+		expect(validate!("")).toBe("A bucket is required");
+		expect(validate!("my-bucket")).toBeUndefined();
+	});
+
 	it("should resolve promptPrimaryEnvironment with the picked env and forward the env list", async () => {
 		expect.assertions(4);
 

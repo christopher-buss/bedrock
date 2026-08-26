@@ -2,7 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { dirname, join } from "node:path";
 
-import type { PluginRegistry } from "../../core/plugin-registry.ts";
+import type { PluginRegistry, RegisteredStateBackend } from "../../core/plugin-registry.ts";
 import type { StateBackendPromptField } from "../../core/plugin.ts";
 import type { MigratePromptPort } from "../migrate-prompt-port.ts";
 import type { ResolvedStateTarget } from "./write-migrated-states.ts";
@@ -48,8 +48,9 @@ export async function promptForStateTargetAsync(
 		};
 	}
 
-	if (backend.data !== "gist") {
-		return promptForPluginTargetAsync(resolved, backend.data);
+	const registered = resolved.plugins.stateBackends.get(backend.data);
+	if (registered !== undefined) {
+		return promptForPluginTargetAsync(resolved, registered);
 	}
 
 	const gistId = await resolved.promptPort.promptGistId();
@@ -61,6 +62,34 @@ export async function promptForStateTargetAsync(
 		data: { backend: "port", stateConfig: { backend: "gist", gistId: gistId.data } },
 		success: true,
 	};
+}
+
+/**
+ * Names of the **Backend**s that can fetch the previous tool's state,
+ * which is the ones whose plugin declared a migrate source.
+ *
+ * @param plugins - What the loaded plugins declared.
+ * @returns The backend names to offer alongside reading a local file.
+ */
+export function fetchableBackends(plugins: PluginRegistry): ReadonlyArray<string> {
+	return [...plugins.stateBackends]
+		.filter(([, registered]) => registered.declaration.migrateSource !== undefined)
+		.map(([name]) => name);
+}
+
+/**
+ * Ask a plugin's source fields and expose the answers, so the caller can
+ * hand them to the plugin as the coordinates to fetch from.
+ *
+ * @param resolved - Where to ask, and what the plugins declared.
+ * @param fields - The plugin's declared source fields, in order.
+ * @returns The answers keyed by field, or the cancellation.
+ */
+export async function collectSourceCoordinatesAsync(
+	resolved: StateTargetPrompts,
+	fields: ReadonlyArray<StateBackendPromptField>,
+): Promise<Result<Record<string, string>, "cancelled">> {
+	return collectBackendAnswersAsync(resolved, fields);
 }
 
 /**
@@ -110,17 +139,16 @@ async function collectBackendAnswersAsync(
  * the fields the plugin declared for it.
  *
  * @param resolved - Where to ask, and what the plugins declared.
- * @param backend - Name of the **Backend** the user picked.
+ * @param registered - The **Backend** the user picked.
  * @returns The target the writers dispatch on, or the cancellation.
  */
 async function promptForPluginTargetAsync(
 	resolved: StateTargetPrompts,
-	backend: string,
+	registered: RegisteredStateBackend,
 ): Promise<Result<ResolvedStateTarget, "cancelled">> {
-	const registered = resolved.plugins.stateBackends.get(backend);
 	const answers = await collectBackendAnswersAsync(
 		resolved,
-		registered?.declaration.migratePrompts ?? [],
+		registered.declaration.migratePrompts ?? [],
 	);
 	if (!answers.success) {
 		return { err: "cancelled", success: false };
@@ -129,8 +157,8 @@ async function promptForPluginTargetAsync(
 	return {
 		data: {
 			backend: "port",
-			stateConfig: { ...answers.data, backend },
-			...(registered === undefined ? {} : { specifier: registered.specifier }),
+			specifier: registered.specifier,
+			stateConfig: { ...answers.data, backend: registered.declaration.name },
 		},
 		success: true,
 	};

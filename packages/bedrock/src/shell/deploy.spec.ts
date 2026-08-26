@@ -804,6 +804,42 @@ describe(deploy, () => {
 		expect(written[0]!.environment).toBe("my-bucket");
 	});
 
+	it("should resolve a plugin backend from opts.plugins when the config came from an injected loader", async () => {
+		expect.assertions(1);
+
+		const result = await deploy({
+			environment: "production",
+			getEnv: environmentFrom({}),
+			loadConfig: async () => {
+				return {
+					data: {
+						environments: { production: {} },
+						state: { backend: "s3", bucket: "my-bucket" },
+					},
+					success: true,
+				};
+			},
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createPort: () => {
+					return {
+						data: {
+							read: async () => ({ data: undefined, success: true }),
+							write: async () => ({ data: undefined, success: true }),
+						},
+						success: true,
+					};
+				},
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			readFile: readIconAsync,
+			registry: stubRegistry(),
+		});
+
+		expect(result.success).toBeTrue();
+	});
+
 	it("should return Err(missingCredential) when BEDROCK_GITHUB_TOKEN is unset on the default-construction state-port path", async () => {
 		expect.assertions(2);
 
