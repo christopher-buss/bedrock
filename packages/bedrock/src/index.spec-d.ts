@@ -197,6 +197,12 @@ describe(deploy, () => {
 			Extract<DeployError, { kind: "stateWriteFailed" }>["unsavedState"]
 		>().toEqualTypeOf<BedrockState>();
 	});
+
+	it("should attach the applied-but-unrecorded resources to the stateWriteFailed variant", () => {
+		expectTypeOf<
+			Extract<DeployError, { kind: "stateWriteFailed" }>["unrecorded"]
+		>().toEqualTypeOf<ReadonlyArray<ResourceCurrentState>>();
+	});
 });
 
 describe(provision, () => {
