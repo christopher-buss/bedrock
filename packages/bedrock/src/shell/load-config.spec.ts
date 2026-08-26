@@ -642,7 +642,7 @@ describe(loadConfig, () => {
 			};
 		}
 
-		const result = await loadConfigWith({ evaluator }, { cwd });
+		const result = await loadConfigWith({ evaluator, importModule: unusedImporter }, { cwd });
 
 		assert(!result.success);
 		assert(result.err.kind === "parseFailed");
@@ -886,6 +886,55 @@ describe(loadConfig, () => {
 		assert(second.success);
 
 		expect(second.data.passes!["vip-pass"]!.price).toBe(500);
+	});
+});
+
+type FakeEvaluator = Parameters<typeof loadConfigWith>[0]["evaluator"];
+
+async function unusedEvaluator(): Promise<Awaited<ReturnType<FakeEvaluator>>> {
+	return { err: { kind: "evaluationFailed", message: "evaluator not used" }, success: false };
+}
+
+async function unusedImporter(specifier: string): Promise<unknown> {
+	throw new Error(`importer must not run, but was asked for '${specifier}'`);
+}
+
+describe(loadConfigWith, () => {
+	it("should import every specifier listed under plugins", async () => {
+		expect.assertions(2);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/first', '@example/second'],",
+			"};",
+		]);
+
+		const imported: Array<string> = [];
+		async function importModule(specifier: string): Promise<unknown> {
+			imported.push(specifier);
+			return { default: {} };
+		}
+
+		const result = await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
+
+		expect(result.success).toBeTrue();
+		expect(imported).toStrictEqual(["@example/first", "@example/second"]);
+	});
+
+	it("should import nothing when the config declares no plugins", async () => {
+		expect.assertions(1);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, ["export default { environments: { production: {} } };"]);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: unusedImporter },
+			{ cwd },
+		);
+
+		expect(result.success).toBeTrue();
 	});
 });
 

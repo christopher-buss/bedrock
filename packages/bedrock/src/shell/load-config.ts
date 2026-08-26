@@ -5,11 +5,14 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import { isAbsolute, join, resolve as resolvePath } from "node:path";
 import process from "node:process";
 
+import { importPluginModuleAsync } from "../adapters/dynamic-module-importer.ts";
 import { createLuteLuauEvaluator } from "../adapters/lute-luau-evaluator.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { safeStringify } from "../core/error-chain.ts";
 import { type Config, validateConfig } from "../core/schema.ts";
 import type { LuauEvaluationError, LuauEvaluator } from "../ports/luau-evaluator.ts";
+import type { ModuleImporter } from "../ports/module-importer.ts";
+import { loadPluginsAsync } from "./load-plugins.ts";
 
 /**
  * Options for {@link loadConfig}. Matches a subset of c12's loader options;
@@ -37,6 +40,7 @@ export interface LoadConfigOptions {
 
 interface LoadConfigDependencies {
 	readonly evaluator: LuauEvaluator;
+	readonly importModule: ModuleImporter;
 }
 
 interface LuauResolveResult {
@@ -47,11 +51,13 @@ interface LuauResolveResult {
 }
 
 /**
- * Internal entrypoint that lets tests inject a fake `LuauEvaluator`. The
- * public {@link loadConfig} wraps this with the real lute adapter; the rest
- * of the loader pipeline is identical.
+ * Internal entrypoint that lets tests inject a fake `LuauEvaluator` and a
+ * fake `ModuleImporter`. The public {@link loadConfig} wraps this with the
+ * real lute adapter and a dynamic `import()`; the rest of the loader
+ * pipeline is identical.
  *
- * @param deps - Injected dependencies. Only the evaluator is configurable.
+ * @param deps - Injected dependencies: the Luau evaluator and the plugin
+ * module importer.
  * @param options - Same loader options accepted by {@link loadConfig}.
  * @returns Same `Result<Config, ConfigError>` shape as `loadConfig`.
  */
@@ -86,6 +92,8 @@ export async function loadConfigWith(
 	if (resolved._configFile === undefined) {
 		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
 	}
+
+	await loadPluginsAsync(deps.importModule, resolved.config);
 
 	return validateConfig(resolved.config, resolved._configFile);
 }
@@ -137,7 +145,10 @@ export async function loadConfigWith(
 export async function loadConfig(
 	options?: LoadConfigOptions,
 ): Promise<Result<Config, ConfigError>> {
-	return loadConfigWith({ evaluator: createLuteLuauEvaluator() }, options);
+	return loadConfigWith(
+		{ evaluator: createLuteLuauEvaluator(), importModule: importPluginModuleAsync },
+		options,
+	);
 }
 
 function resolveConfigPath(cwd: string, configFile: string): string {

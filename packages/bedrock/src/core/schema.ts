@@ -928,6 +928,12 @@ interface ConfigBase {
 	/** Keyed-map collection of place entries by user-supplied ResourceKey. */
 	places?: Record<string, PlaceEntry>;
 	/**
+	 * Module specifiers of the plugins this project uses. Each is imported
+	 * while the config loads, before the rest of the config is validated, so
+	 * a plugin failing to import fails the load rather than surfacing later.
+	 */
+	plugins?: ReadonlyArray<string>;
+	/**
 	 * Keyed-map collection of developer-product entries by user-supplied
 	 * ResourceKey.
 	 */
@@ -1238,6 +1244,7 @@ const rootSchema = type({
 	"extends?": "unknown",
 	"passes?": passesCollection,
 	"places?": placesCollection,
+	"plugins?": "string[] | undefined",
 	"products?": productsCollection,
 	"state?": stateConfig,
 	"universe?": universeEntry,
