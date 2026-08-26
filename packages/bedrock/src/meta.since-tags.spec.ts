@@ -1,11 +1,12 @@
 import { barrelSourcePaths, collectPublicApiSymbols } from "@bedrock-rbx/testing/api-surface";
+import { isValidSinceTag, publishedVersion } from "@bedrock-rbx/testing/since-tags";
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 
 const PACKAGE_ROOT = path.resolve(import.meta.dirname, "..");
-const SEMVER = /^\d+\.\d+\.\d+(?:-[\dA-Za-z.-]+)?(?:\+[\dA-Za-z.-]+)?$/;
+const MANIFEST = readFileSync(path.join(PACKAGE_ROOT, "package.json"), "utf8");
 // Floor guarding against a barrel-discovery regression silently passing the
 // suite. Raise it if the public surface ever shrinks below this.
 const MINIMUM_PUBLIC_SYMBOLS = 80;
@@ -43,8 +44,11 @@ describe("@bedrock-rbx/core public API @since coverage", () => {
 	it("should carry a valid @since tag on every public symbol", () => {
 		expect.assertions(1);
 
+		const currentVersion = publishedVersion(MANIFEST);
+		assert(currentVersion !== undefined);
+
 		const offenders = publicSymbols()
-			.filter((symbol) => !SEMVER.test(String(symbol.sinceTag)))
+			.filter((symbol) => !isValidSinceTag(symbol.sinceTag, currentVersion))
 			.map((symbol) => {
 				return `${symbol.name} (${path.relative(PACKAGE_ROOT, symbol.declarationFile)})`;
 			});
