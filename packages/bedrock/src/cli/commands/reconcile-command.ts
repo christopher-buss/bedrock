@@ -102,7 +102,12 @@ interface SpawnBuildStepInputs {
 
 /** One environment's failed pipeline run. */
 interface RunFailure {
-	readonly configFile?: string;
+	// Explicit config path the run was given, or `undefined` when config
+	// discovery ran. Always present so the recovery hint reads one field
+	/**
+	 * Rather than branching on the key.
+	 */
+	readonly configFile: string | undefined;
 	readonly environment: string;
 	readonly err: DeployError;
 }
@@ -233,11 +238,7 @@ async function reportRunFailureAsync(
 		return;
 	}
 
-	await dumpUnsavedStateAsync(resolved, {
-		...(configFile === undefined ? {} : { configFile }),
-		environment,
-		err,
-	});
+	await dumpUnsavedStateAsync(resolved, { configFile, environment, err });
 }
 
 /**
@@ -252,10 +253,7 @@ function runFailure(
 	parsed: CommonOptions,
 	failed: { readonly environment: string; readonly err: DeployError },
 ): RunFailure {
-	return {
-		...(parsed.configFile === undefined ? {} : { configFile: parsed.configFile }),
-		...failed,
-	};
+	return { configFile: parsed.configFile, ...failed };
 }
 
 /**

@@ -51,6 +51,7 @@ describe(dumpUnsavedStateAsync, () => {
 		const deps = makeDeps();
 
 		await dumpUnsavedStateAsync(deps, {
+			configFile: undefined,
 			environment: "production",
 			err: writeFailure([passResource("vip-pass")]),
 		});
@@ -73,6 +74,7 @@ describe(dumpUnsavedStateAsync, () => {
 		});
 
 		await dumpUnsavedStateAsync(deps, {
+			configFile: undefined,
 			environment: "production",
 			err: writeFailure([passResource("vip-pass")]),
 		});
@@ -89,6 +91,7 @@ describe(dumpUnsavedStateAsync, () => {
 		const deps = makeDeps();
 
 		await dumpUnsavedStateAsync(deps, {
+			configFile: undefined,
 			environment: "production",
 			err: writeFailure([passResource("vip-pass"), passResource("alpha-pass")]),
 		});
@@ -104,6 +107,7 @@ describe(dumpUnsavedStateAsync, () => {
 		const deps = makeDeps();
 
 		await dumpUnsavedStateAsync(deps, {
+			configFile: undefined,
 			environment: "production",
 			err: writeFailure([]),
 		});
@@ -117,6 +121,7 @@ describe(dumpUnsavedStateAsync, () => {
 		const deps = makeDeps();
 
 		await dumpUnsavedStateAsync(deps, {
+			configFile: undefined,
 			environment: "production",
 			err: writeFailure([passResource("vip-pass")]),
 		});
@@ -136,6 +141,7 @@ describe(dumpUnsavedStateAsync, () => {
 		});
 
 		await dumpUnsavedStateAsync(deps, {
+			configFile: undefined,
 			environment: "production",
 			err: writeFailure([passResource("vip-pass")]),
 		});
@@ -156,6 +162,7 @@ describe(dumpUnsavedStateAsync, () => {
 		});
 
 		await dumpUnsavedStateAsync(deps, {
+			configFile: undefined,
 			environment: "production",
 			err: writeFailure([passResource("vip-pass")]),
 		});

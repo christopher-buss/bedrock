@@ -20,10 +20,10 @@ export interface DumpUnsavedStateDeps {
 interface DumpUnsavedStateInputs {
 	/**
 	 * Explicit config path the failed run was given, quoted back in the push
-	 * command so it resolves the same project. Omit when config discovery
-	 * ran.
+	 * command so it resolves the same project. `undefined` when config
+	 * discovery ran.
 	 */
-	readonly configFile?: string;
+	readonly configFile: string | undefined;
 	/** Environment whose state write failed. */
 	readonly environment: string;
 	/** The write failure, carrying the record the **Backend** never took. */
