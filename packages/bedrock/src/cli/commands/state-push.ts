@@ -134,10 +134,14 @@ async function readDumpAsync(
 	return { data: parsed.data, success: true };
 }
 
-function describePushed(state: BedrockState, filePath: string): string {
+function describePushed(
+	state: BedrockState,
+	dump: { readonly filePath: string; readonly removed: boolean },
+): string {
 	const count = state.resources.length;
 	const noun = count === 1 ? "resource" : "resources";
-	return `${state.environment}: ${String(count)} ${noun} pushed from ${filePath}, which has been removed`;
+	const fate = dump.removed ? ", which has been removed" : "";
+	return `${state.environment}: ${String(count)} ${noun} pushed from ${dump.filePath}${fate}`;
 }
 
 /**
@@ -222,11 +226,11 @@ async function pushEnvironmentAsync(inputs: PushInputs): Promise<boolean> {
 		return false;
 	}
 
-	const consumed = await consumeDumpAsync(resolved, filePath);
-	if (consumed) {
-		resolved.clack.logSuccess(describePushed(dumped.data, filePath));
-	}
-
+	// The warning, when there is one, precedes the success line: the push
+	// stands either way, and the leftover file is what the reader has to act
+	// on next.
+	const removed = await consumeDumpAsync(resolved, filePath);
+	resolved.clack.logSuccess(describePushed(dumped.data, { filePath, removed }));
 	return true;
 }
 

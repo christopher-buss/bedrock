@@ -929,6 +929,39 @@ describe(deployCommand, () => {
 		);
 	});
 
+	it("should quote the deploy's own --config in the push command it points at", async () => {
+		expect.assertions(1);
+
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = fakeDeploy([
+			{
+				err: {
+					cause: { file: "gist:abc123", kind: "stateError", reason: "403 Forbidden" },
+					kind: "stateWriteFailed",
+					unrecorded: [],
+					unsavedState: bedrockState("production"),
+				},
+				success: false,
+			},
+		]);
+		const dependencies = makeDependencies({
+			deploy,
+			loadProject,
+			mkdir: vi.fn<NonNullable<ProgDependencies["mkdir"]>>(),
+			projectRoot: "/project",
+			writeFile: vi.fn<NonNullable<ProgDependencies["writeFile"]>>(),
+		});
+
+		await deployCommand(dependencies)({
+			config: "./bedrock.staging.config.ts",
+			env: "production",
+		});
+
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
+			"unsaved state written to /project/.bedrock/recovery/production.json; push it with: bedrock state push --env production --config ./bedrock.staging.config.ts",
+		);
+	});
+
 	it("should dump nothing when the deploy failed before the state write", async () => {
 		expect.assertions(2);
 

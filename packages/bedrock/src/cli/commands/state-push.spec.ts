@@ -120,7 +120,7 @@ describe(statePushCommand, () => {
 	});
 
 	it("should say the pushed dump is still on disk when it cannot be removed", async () => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		const dependencies = makeDependencies({
 			removeFile: vi.fn<RemoveFileFunc>(async () => {
@@ -132,6 +132,9 @@ describe(statePushCommand, () => {
 
 		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
 			`${DUMP_PATH} could not be removed (EACCES). Delete it, so a later push cannot revert this state.`,
+		);
+		expect(dependencies.clack!.logSuccess).toHaveBeenCalledExactlyOnceWith(
+			`production: 1 resource pushed from ${DUMP_PATH}`,
 		);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
@@ -307,7 +310,7 @@ describe(statePushCommand, () => {
 	});
 
 	it("should report the backend refusal when the state write fails", async () => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		const dependencies = makeDependencies({
 			buildStatePort: portReturning(
@@ -325,6 +328,7 @@ describe(statePushCommand, () => {
 		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			expect.stringContaining("state write failed for 'production'"),
 		);
+		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("state push failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
