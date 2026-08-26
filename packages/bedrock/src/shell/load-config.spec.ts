@@ -1022,6 +1022,33 @@ describe(loadConfigWith, () => {
 		expect(result.err.kind).toBe("pluginLoadFailed");
 	});
 
+	it("should resolve plugin specifiers from the directory holding the config file", async () => {
+		expect.assertions(1);
+
+		const cwd = createTemporaryDirectory();
+		const bedrockDirectory = join(cwd, ".bedrock");
+		mkdirSync(bedrockDirectory, { recursive: true });
+		writeFileSync(
+			join(bedrockDirectory, "bedrock.config.ts"),
+			[
+				"export default {",
+				"  environments: { production: {} },",
+				"  plugins: ['./tools/local-plugin.mjs'],",
+				"};",
+			].join("\n"),
+		);
+
+		const seen: Array<string> = [];
+		async function importModule(_specifier: string, fromDirectory: string): Promise<unknown> {
+			seen.push(fromDirectory);
+			return { default: {} };
+		}
+
+		await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
+
+		expect(seen).toStrictEqual([bedrockDirectory]);
+	});
+
 	it("should import nothing and report a validation issue when plugins is not a list of specifiers", async () => {
 		expect.assertions(2);
 

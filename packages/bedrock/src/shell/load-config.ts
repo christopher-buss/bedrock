@@ -2,7 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { loadConfig as c12LoadConfig } from "c12";
 import { existsSync, readdirSync, statSync } from "node:fs";
-import { isAbsolute, join, resolve as resolvePath } from "node:path";
+import { dirname, isAbsolute, join, resolve as resolvePath } from "node:path";
 import process from "node:process";
 
 import { importPluginModuleAsync } from "../adapters/dynamic-module-importer.ts";
@@ -92,7 +92,11 @@ export async function loadConfigWith(
 		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
 	}
 
-	const pluginLoad = await loadPluginsAsync(deps.importModule, resolved.config);
+	const pluginLoad = await loadPluginsAsync({
+		config: resolved.config,
+		importModule: deps.importModule,
+		sourceDirectory: dirname(resolved._configFile),
+	});
 	if (!pluginLoad.success) {
 		return pluginLoad;
 	}
@@ -117,7 +121,8 @@ export async function loadConfigWith(
  *
  * Every module specifier listed under `plugins` is imported before the rest
  * of the config is validated, so a plugin that cannot be loaded fails the
- * load rather than surfacing once something needs it.
+ * load rather than surfacing once something needs it. Specifiers resolve
+ * from the directory holding the config file.
  *
  * Errors return via `Result`:
  * - `fileNotFound` - no config file was discovered under the search path.

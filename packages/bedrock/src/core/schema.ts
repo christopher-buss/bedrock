@@ -931,6 +931,10 @@ interface ConfigBase {
 	 * Module specifiers of the plugins this project uses. Each is imported
 	 * while the config loads, before the rest of the config is validated, so
 	 * a plugin failing to import fails the load rather than surfacing later.
+	 *
+	 * A specifier resolves from the directory holding this config file, so
+	 * a package name finds a plugin the project installed, and a relative
+	 * path finds one kept alongside the config.
 	 */
 	plugins?: ReadonlyArray<string>;
 	/**
