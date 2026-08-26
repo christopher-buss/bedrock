@@ -37,13 +37,14 @@ import type { BedrockState, StateError } from "../core/state.ts";
 import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
+import type { StateLockError, StateLockPort } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
 import type { AggregateApplyError } from "./apply-ops.ts";
 import { buildDefaultRegistry, type RegistryConfigError } from "./build-default-registry.ts";
 import { buildDesired, type BuildDesiredError } from "./build-desired.ts";
 import {
-	buildStatePort,
+	buildStateBackend,
 	type MissingCredentialError,
 	type PluginStateBackendError,
 	type UnsupportedBackendError,
@@ -162,6 +163,14 @@ export interface DeployOptions {
 	 */
 	readonly registry?: DriverRegistry;
 	/**
+	 * Exclusion taken on the target environment for the length of the run.
+	 * Defaults to whatever the resolved **Backend** declares, which for a
+	 * **Backend** that declares no locking is nothing at all: the deploy then
+	 * runs without a hold, exactly as it does today. Supplying it overrides
+	 * the **Backend**'s declaration.
+	 */
+	readonly stateLockPort?: StateLockPort;
+	/**
 	 * Backend used to read the prior snapshot and persist the new one.
 	 * Default-constructed from `config.state` and `BEDROCK_GITHUB_TOKEN` when
 	 * omitted.
@@ -238,6 +247,14 @@ export interface ProvisionOptions {
 	 */
 	readonly registry?: DriverRegistry;
 	/**
+	 * Exclusion taken on the target environment for the length of the run.
+	 * Defaults to whatever the resolved **Backend** declares, which for a
+	 * **Backend** that declares no locking is nothing at all: the deploy then
+	 * runs without a hold, exactly as it does today. Supplying it overrides
+	 * the **Backend**'s declaration.
+	 */
+	readonly stateLockPort?: StateLockPort;
+	/**
 	 * Backend used to read the prior snapshot and persist the new one.
 	 * Default-constructed from `config.state` and `BEDROCK_GITHUB_TOKEN` when
 	 * omitted.
@@ -303,6 +320,14 @@ export interface PublishOptions {
 	 */
 	readonly registry?: DriverRegistry;
 	/**
+	 * Exclusion taken on the target environment for the length of the run.
+	 * Defaults to whatever the resolved **Backend** declares, which for a
+	 * **Backend** that declares no locking is nothing at all: the deploy then
+	 * runs without a hold, exactly as it does today. Supplying it overrides
+	 * the **Backend**'s declaration.
+	 */
+	readonly stateLockPort?: StateLockPort;
+	/**
 	 * Backend used to read the prior snapshot and persist the new one.
 	 * Default-constructed from `config.state` and `BEDROCK_GITHUB_TOKEN` when
 	 * omitted.
@@ -318,6 +343,8 @@ export interface PublishOptions {
  * `unknownEnvironment`, `incompletePlaceEntry`, `incompleteUniverseEntry`,
  * `missingCredential`, `unsupportedBackend`, `registryConfigMissing`,
  * `missingBuildStep`).
+ * A hold the resolved **Backend** declares is taken before anything is
+ * applied; a `lockAcquireFailed` deploy applied no **Operation** at all.
  * `codegenFailed` cannot mask an `applyFailed`: a partial apply still emits
  * codegen for the keys that resolved, but the returned error stays
  * `applyFailed`. A fused deploy whose provision stage fails never runs the
@@ -349,6 +376,7 @@ export type DeployError =
 			readonly kind: "stateWriteFailed";
 			readonly unsavedState: BedrockState;
 	  }
+	| { readonly cause: StateLockError; readonly kind: "lockAcquireFailed" }
 	| { readonly kind: "buildFailed"; readonly reason: string }
 	| { readonly kind: "missingBuildStep" };
 
@@ -365,6 +393,7 @@ interface ResolvedDependenciesBase {
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly registry: DriverRegistry;
+	readonly stateLockPort: StateLockPort | undefined;
 	readonly statePort: StatePort;
 }
 
@@ -394,6 +423,13 @@ type ReconcileRunner = (
 	environment: string,
 	deps: ResolvedDependencies,
 ) => Promise<Result<BedrockState, DeployError>>;
+
+/** One reconcile plus the hold it runs under. */
+interface HeldRunContext {
+	readonly deps: ResolvedDependencies;
+	readonly environment: string;
+	readonly runner: ReconcileRunner;
+}
 
 interface RunContext {
 	readonly options: DeployOptions;
@@ -443,6 +479,13 @@ interface AssetStageInputs {
 interface DrivenDependencies {
 	readonly codegen: CodegenBundle | undefined;
 	readonly registry: DriverRegistry;
+	readonly stateLockPort: StateLockPort | undefined;
+	readonly statePort: StatePort;
+}
+
+/** The **Backend**'s ports as the deploy boundary resolved them. */
+interface StateBackendPorts {
+	readonly stateLockPort: StateLockPort | undefined;
 	readonly statePort: StatePort;
 }
 
@@ -690,9 +733,28 @@ async function resolveEffectiveConfigAsync(options: DeployOptions): Promise<
 	};
 }
 
-function pickStatePort({ config, options, plugins }: DrivenInputs): Result<StatePort, DeployError> {
+/**
+ * Resolve the ports the **Backend** contributes. A supplied `statePort` is
+ * the caller's whole **Backend**, so the config's `state` block is never
+ * read and the hold is whatever the caller supplied alongside it; otherwise
+ * both ports come from the configured **Backend**, and a supplied
+ * `stateLockPort` overrides the one it declared.
+ *
+ * @param inputs - The effective config, the caller's options, and what the
+ * loaded plugins declared.
+ * @returns The **State port** and the **State lock port** in force, or the
+ * failure that kept them from resolving.
+ */
+function pickStateBackend({
+	config,
+	options,
+	plugins,
+}: DrivenInputs): Result<StateBackendPorts, DeployError> {
 	if (options.statePort !== undefined) {
-		return { data: options.statePort, success: true };
+		return {
+			data: { stateLockPort: options.stateLockPort, statePort: options.statePort },
+			success: true,
+		};
 	}
 
 	const stateConfig = resolveStateConfig(config, options.environment);
@@ -700,12 +762,23 @@ function pickStatePort({ config, options, plugins }: DrivenInputs): Result<State
 		return { err: stateConfig.err, success: false };
 	}
 
-	return buildStatePort({
+	const backend = buildStateBackend({
 		fetch: options.fetch,
 		getEnv: getEnvironmentOf(options),
 		plugins,
 		stateConfig: stateConfig.data,
 	});
+	if (!backend.success) {
+		return backend;
+	}
+
+	return {
+		data: {
+			stateLockPort: options.stateLockPort ?? backend.data.lockPort,
+			statePort: backend.data.statePort,
+		},
+		success: true,
+	};
 }
 
 function pickRegistry(inputs: DrivenInputs): Result<DriverRegistry, DeployError> {
@@ -744,9 +817,9 @@ function pickCodegen(
 
 function pickDrivenDependencies(inputs: DrivenInputs): Result<DrivenDependencies, DeployError> {
 	const { config, options } = inputs;
-	const statePort = pickStatePort(inputs);
-	if (!statePort.success) {
-		return statePort;
+	const backend = pickStateBackend(inputs);
+	if (!backend.success) {
+		return backend;
 	}
 
 	const registry = pickRegistry(inputs);
@@ -760,7 +833,7 @@ function pickDrivenDependencies(inputs: DrivenInputs): Result<DrivenDependencies
 	}
 
 	return {
-		data: { codegen: codegen.data, registry: registry.data, statePort: statePort.data },
+		data: { ...backend.data, codegen: codegen.data, registry: registry.data },
 		success: true,
 	};
 }
@@ -804,6 +877,44 @@ function emitTerminalEvent({ environment, progress, result }: EmitTerminalEventI
 	progress.emit({ environment, error: result.err, kind: "deployFailure" });
 }
 
+/**
+ * Run one reconcile under the hold the resolved **Backend** declares.
+ *
+ * The hold is taken before the pipeline starts, so a **Backend** that locks
+ * dispatches no **Driver** until the **Environment** is the caller's; a
+ * refusal aborts with nothing applied. It is given up once the **State**
+ * write has been *attempted*, success or failure alike, because a write that
+ * failed after **Apply** is exactly when the operator needs to run again.
+ *
+ * A hold that could not be given up never changes the deploy's own result:
+ * the failure carrying resources that were applied but not recorded has to
+ * reach the operator intact.
+ *
+ * @param context - The environment, the resolved dependencies including the
+ * hold to take, and the reconcile pipeline to run under it.
+ * @returns What the pipeline returned, or `lockAcquireFailed`.
+ */
+async function runHeldAsync({
+	deps,
+	environment,
+	runner,
+}: HeldRunContext): Promise<Result<BedrockState, DeployError>> {
+	if (deps.stateLockPort === undefined) {
+		return runner(environment, deps);
+	}
+
+	const hold = await deps.stateLockPort.acquire(environment);
+	if (!hold.success) {
+		return { err: { cause: hold.err, kind: "lockAcquireFailed" }, success: false };
+	}
+
+	try {
+		return await runner(environment, deps);
+	} finally {
+		await hold.data.release();
+	}
+}
+
 async function runAndEmitAsync({
 	options,
 	progress,
@@ -815,7 +926,11 @@ async function runAndEmitAsync({
 		return resolved;
 	}
 
-	const result = await runner(options.environment, { ...resolved.data, progress });
+	const result = await runHeldAsync({
+		deps: { ...resolved.data, progress },
+		environment: options.environment,
+		runner,
+	});
 	emitTerminalEvent({ environment: options.environment, progress, result });
 	return result;
 }
@@ -833,7 +948,11 @@ async function runWithDeferredProgressAsync(
 		return resolved;
 	}
 
-	const result = await runner(options.environment, { ...resolved.data, progress });
+	const result = await runHeldAsync({
+		deps: { ...resolved.data, progress },
+		environment: options.environment,
+		runner,
+	});
 	emitTerminalEvent({ environment: options.environment, progress, result });
 	return result;
 }

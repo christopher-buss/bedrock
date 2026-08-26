@@ -10,7 +10,11 @@ import { isGistStateConfig, type StateConfig } from "./schema.ts";
  */
 export type StateLockingCapability = "exclusive" | "none";
 
-/** Inputs for {@link stateLockingCapabilityOf}. */
+/**
+ * Inputs for {@link stateLockingCapabilityOf}.
+ *
+ * @since unreleased
+ */
 export interface StateLockingInputs {
 	/**
 	 * What the loaded plugins declared. Omit it when no plugins are loaded;

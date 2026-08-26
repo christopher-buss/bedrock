@@ -69,6 +69,16 @@ describe(renderDeployError, () => {
 		},
 		{
 			err: {
+				cause: {
+					detail: { holder: "ci-run-42" },
+					reason: "production is held by another deploy",
+				},
+				kind: "lockAcquireFailed",
+			},
+			expected: "state lock not acquired: production is held by another deploy",
+		},
+		{
+			err: {
 				hint: "set universe.universeId in your bedrock config",
 				kind: "registryConfigMissing",
 				missing: "universeId",
