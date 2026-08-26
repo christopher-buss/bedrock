@@ -1,0 +1,6 @@
+{
+	"extends": "@bedrock-rbx/typescript-config/tsconfig.base.json",
+	"include": [".bedrock/**/*.ts", "bedrock.config.ts"],
+	// The shared base excludes every dot-directory, which would drop `.bedrock/`.
+	"exclude": ["node_modules"]
+}

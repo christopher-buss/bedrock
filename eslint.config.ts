@@ -132,6 +132,7 @@ export default isentinel(
 			"**/vendor/**",
 			".sandcastle/plans/**",
 			".sandcastle/worktrees/**",
+			"examples/*/src/**",
 			"packages/bedrock/tests/fixtures/**/*.yml",
 			"packages/bedrock/tests/fixtures/codegen/**",
 			"packages/open-cloud/src/locales/data.generated.ts",

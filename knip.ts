@@ -39,6 +39,24 @@ const config: KnipConfig = {
 		"apps/website": {
 			entry: ["landing/examples/**/*.ts"],
 		},
+		// Entry is the file the bedrock CLI spawns by path; knip follows its
+		// imports from there, so a dead export in an example still reports.
+		"examples/ci-codegen": {
+			entry: ["bedrock.config.ts", ".bedrock/deploy.ts"],
+			// roblox-ts game sources; rbxtsc compiles them on "pnpm build",
+			// with its own TypeScript rather than this repo's.
+			ignore: ["src/**"],
+			// The Roblox packages are invisible to knip: the type packages load
+			// through the roblox tsconfig's typeRoots and are never imported, and
+			// @rbxts/services is imported only from the ignored src tree above.
+			ignoreDependencies: ["@rbxts/compiler-types", "@rbxts/services", "@rbxts/types"],
+		},
+		// Pure Luau: no TypeScript to enter from, and @bedrock-rbx/core is used
+		// through its `bedrock` binary rather than imported.
+		"examples/minimal": {
+			entry: [],
+			ignoreDependencies: ["@bedrock-rbx/core"],
+		},
 		"packages/actions": {
 			entry: [STRYKER_CONFIG],
 		},

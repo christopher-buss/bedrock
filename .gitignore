@@ -45,3 +45,8 @@ apps/website/docs/bedrock/api/
 # Sandcastle: defensive ignore in case pnpm ever falls back to an in-tree
 # store (the configured store lives in ~/.cache/sandcastle-pnpm-store).
 .pnpm-store/
+
+# Build output in examples/
+examples/*/*.rbxl
+examples/*/include/
+examples/*/out/

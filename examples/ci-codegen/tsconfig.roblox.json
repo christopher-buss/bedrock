@@ -1,0 +1,22 @@
+{
+	"compilerOptions": {
+		"target": "ESNext",
+		"jsx": "react",
+		"jsxFactory": "Roact.createElement",
+		"moduleDetection": "force",
+		"noLib": true,
+		"baseUrl": "src",
+		"rootDir": "src",
+		"module": "commonjs",
+		"moduleResolution": "Node",
+		"resolveJsonModule": true,
+		"typeRoots": ["node_modules/@rbxts"],
+		"strict": true,
+		"declaration": false,
+		"downlevelIteration": true,
+		"outDir": "out",
+		"allowSyntheticDefaultImports": true,
+		"forceConsistentCasingInFileNames": true
+	},
+	"include": ["src/**/*"]
+}

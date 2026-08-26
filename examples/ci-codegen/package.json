@@ -1,0 +1,32 @@
+{
+	"name": "@bedrock-rbx/example-ci-codegen",
+	"private": true,
+	"description": "Bedrock project with a custom emitter, a build step, and a GitHub Actions deploy",
+	"keywords": [
+		"bedrock",
+		"example",
+		"roblox"
+	],
+	"license": "MIT",
+	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
+	"type": "module",
+	"scripts": {
+		"build": "rbxtsc --type game --project tsconfig.roblox.json --rojo development.project.json",
+		"typecheck": "tsgo --noEmit"
+	},
+	"dependencies": {
+		"@bedrock-rbx/core": "workspace:*",
+		"@rbxts/services": "catalog:roblox"
+	},
+	"devDependencies": {
+		"@bedrock-rbx/typescript-config": "workspace:*",
+		"@rbxts/compiler-types": "catalog:roblox",
+		"@rbxts/types": "catalog:roblox",
+		"roblox-ts": "catalog:roblox",
+		"typescript": "catalog:tsc"
+	},
+	"engines": {
+		"node": ">=24.12.0",
+		"bun": ">=1.3.0"
+	}
+}
