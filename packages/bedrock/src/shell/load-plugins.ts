@@ -2,12 +2,15 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import type { ConfigError } from "../core/config-error.ts";
 import { safeStringify } from "../core/error-chain.ts";
+import { isRecord } from "../core/is-record.ts";
 import type { ModuleImporter } from "../ports/module-importer.ts";
 
 // The code Node and Bun both set on the error an unresolvable specifier
 // rejects with. It is what separates "the package is not installed" from
 // "the package is installed and blew up while evaluating".
 const MODULE_NOT_FOUND_CODE = "ERR_MODULE_NOT_FOUND";
+
+const NO_PLUGIN_EXPORT_MESSAGE = "expected a default-exported plugin object";
 
 /**
  * Import every plugin named in the parsed config, in declaration order.
@@ -41,6 +44,20 @@ export async function loadPluginsAsync(
 }
 
 /**
+ * Read a module's default export without assuming the module is a plain
+ * record: an ESM namespace object is not one, so `isRecord` cannot gate the
+ * property access here the way it gates the export itself.
+ *
+ * @param module - The imported module namespace.
+ * @returns The module's `default` export, or `undefined` when it has none.
+ */
+function defaultExportOf(module: unknown): unknown {
+	return typeof module === "object" && module !== null
+		? Reflect.get(module, "default")
+		: undefined;
+}
+
+/**
  * Decide whether a rejected import means the package could not be resolved
  * at all, as opposed to resolving and then throwing.
  *
@@ -63,14 +80,27 @@ async function importPluginAsync(
 	importModule: ModuleImporter,
 	specifier: string,
 ): Promise<Result<undefined, ConfigError>> {
+	let module: unknown;
 	try {
-		await importModule(specifier);
+		module = await importModule(specifier);
 	} catch (err) {
 		return {
 			err: {
 				kind: "pluginLoadFailed",
 				message: safeStringify(err),
 				reason: isModuleNotFound(err) ? "notInstalled" : "importThrew",
+				specifier,
+			},
+			success: false,
+		};
+	}
+
+	if (!isRecord(defaultExportOf(module))) {
+		return {
+			err: {
+				kind: "pluginLoadFailed",
+				message: NO_PLUGIN_EXPORT_MESSAGE,
+				reason: "invalidExport",
 				specifier,
 			},
 			success: false,

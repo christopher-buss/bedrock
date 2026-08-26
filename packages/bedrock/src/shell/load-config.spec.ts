@@ -978,6 +978,34 @@ describe(loadConfigWith, () => {
 		expect(result.err.message).toBe("missing AWS_REGION");
 	});
 
+	it.for([
+		["no default export", { register: (): undefined => undefined }],
+		["a default export that is not an object", { default: "s3" }],
+	] as const)("should fail the load when a plugin module has %s", async ([, pluginModule]) => {
+		expect.assertions(3);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/not-a-plugin'],",
+			"};",
+		]);
+
+		async function importModule(): Promise<unknown> {
+			return pluginModule;
+		}
+
+		const result = await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
+
+		assert(!result.success);
+		assert(result.err.kind === "pluginLoadFailed");
+
+		expect(result.err.specifier).toBe("@example/not-a-plugin");
+		expect(result.err.reason).toBe("invalidExport");
+		expect(result.err.message).toBe("expected a default-exported plugin object");
+	});
+
 	it("should report a failed plugin import rather than the config's own validation issues", async () => {
 		expect.assertions(1);
 

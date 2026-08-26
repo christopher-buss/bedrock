@@ -34,7 +34,7 @@ interface ExpectedLuauRuntimeMissing {
 interface ExpectedPluginLoadFailed {
 	readonly kind: "pluginLoadFailed";
 	readonly message: string;
-	readonly reason: "importThrew" | "notInstalled";
+	readonly reason: "importThrew" | "invalidExport" | "notInstalled";
 	readonly specifier: string;
 }
 

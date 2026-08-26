@@ -31,10 +31,12 @@ export interface ConfigValidationIssue {
  * - `notInstalled` - the specifier did not resolve to a module at all, which
  *   is what a missing or misspelled dependency looks like.
  * - `importThrew` - the module resolved but threw while it was evaluated.
+ * - `invalidExport` - the module evaluated but exports nothing bedrock
+ *   recognizes as a plugin.
  *
  * @since 0.1.0
  */
-export type PluginLoadFailureReason = "importThrew" | "notInstalled";
+export type PluginLoadFailureReason = "importThrew" | "invalidExport" | "notInstalled";
 
 /**
  * Failure surfaced by `loadConfig` when a project config cannot be resolved,
@@ -55,8 +57,9 @@ export type PluginLoadFailureReason = "importThrew" | "notInstalled";
  *   error's message verbatim.
  * - `pluginLoadFailed` - a module specifier listed under `plugins` could not
  *   be loaded. `reason` separates a package that is not installed
- *   (`notInstalled`) from one that threw while evaluating (`importThrew`);
- *   `message` carries the underlying error verbatim.
+ *   (`notInstalled`) from one that threw while evaluating (`importThrew`) and
+ *   from one that exports no plugin (`invalidExport`); `message` carries the
+ *   underlying error verbatim.
  * - `luauRuntimeMissing` - a `bedrock.config.luau` file was found but the
  *   `lute` runtime needed to evaluate it could not be located on PATH or
  *   via the `BEDROCK_LUTE_PATH` environment variable. `hint` carries an
