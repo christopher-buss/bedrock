@@ -81,6 +81,9 @@ function configErrorDetail(err: ConfigError): string {
 		case "parseFailed": {
 			return `${err.sourceFile}: ${err.message}`;
 		}
+		case "pluginLoadFailed": {
+			return `plugin '${err.specifier}' failed to load (${err.reason}): ${err.message}`;
+		}
 		case "validationFailed": {
 			const first = err.issues[0];
 			return first === undefined

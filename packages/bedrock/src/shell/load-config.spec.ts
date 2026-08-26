@@ -642,7 +642,7 @@ describe(loadConfig, () => {
 			};
 		}
 
-		const result = await loadConfigWith({ evaluator }, { cwd });
+		const result = await loadConfigWith({ evaluator, importModule: unusedImporter }, { cwd });
 
 		assert(!result.success);
 		assert(result.err.kind === "parseFailed");
@@ -886,6 +886,213 @@ describe(loadConfig, () => {
 		assert(second.success);
 
 		expect(second.data.passes!["vip-pass"]!.price).toBe(500);
+	});
+});
+
+type FakeEvaluator = Parameters<typeof loadConfigWith>[0]["evaluator"];
+
+type ImportResult = Awaited<ReturnType<Parameters<typeof loadConfigWith>[0]["importModule"]>>;
+
+async function unusedEvaluator(): Promise<Awaited<ReturnType<FakeEvaluator>>> {
+	return { err: { kind: "evaluationFailed", message: "evaluator not used" }, success: false };
+}
+
+async function failToResolve(specifier: string): Promise<ImportResult> {
+	return {
+		err: { kind: "resolutionFailed", message: `Cannot find package '${specifier}'` },
+		success: false,
+	};
+}
+
+async function unusedImporter(specifier: string): Promise<ImportResult> {
+	throw new Error(`importer must not run, but was asked for '${specifier}'`);
+}
+
+describe(loadConfigWith, () => {
+	it("should import every specifier listed under plugins", async () => {
+		expect.assertions(2);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/first', '@example/second'],",
+			"};",
+		]);
+
+		const imported: Array<string> = [];
+		async function importModule(specifier: string): Promise<ImportResult> {
+			imported.push(specifier);
+			return { data: { default: {} }, success: true };
+		}
+
+		const result = await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
+
+		expect(result.success).toBeTrue();
+		expect(imported).toStrictEqual(["@example/first", "@example/second"]);
+	});
+
+	it("should fail the load when a plugin specifier cannot be resolved", async () => {
+		expect.assertions(3);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/missing'],",
+			"};",
+		]);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: failToResolve },
+			{ cwd },
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "pluginLoadFailed");
+
+		expect(result.err.specifier).toBe("@example/missing");
+		expect(result.err.reason).toBe("notInstalled");
+		expect(result.err.message).toBe("Cannot find package '@example/missing'");
+	});
+
+	it("should distinguish a plugin that throws while loading from one that is not installed", async () => {
+		expect.assertions(3);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/broken'],",
+			"};",
+		]);
+
+		async function importModule(): Promise<ImportResult> {
+			return {
+				err: { kind: "evaluationFailed", message: "missing AWS_REGION" },
+				success: false,
+			};
+		}
+
+		const result = await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
+
+		assert(!result.success);
+		assert(result.err.kind === "pluginLoadFailed");
+
+		expect(result.err.specifier).toBe("@example/broken");
+		expect(result.err.reason).toBe("importThrew");
+		expect(result.err.message).toBe("missing AWS_REGION");
+	});
+
+	it.for([
+		["no default export", { register: (): undefined => undefined }],
+		["a default export that is not an object", { default: "s3" }],
+	] as const)("should fail the load when a plugin module has %s", async ([, pluginModule]) => {
+		expect.assertions(3);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/not-a-plugin'],",
+			"};",
+		]);
+
+		async function importModule(): Promise<ImportResult> {
+			return { data: pluginModule, success: true };
+		}
+
+		const result = await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
+
+		assert(!result.success);
+		assert(result.err.kind === "pluginLoadFailed");
+
+		expect(result.err.specifier).toBe("@example/not-a-plugin");
+		expect(result.err.reason).toBe("invalidExport");
+		expect(result.err.message).toBe("expected a default-exported plugin object");
+	});
+
+	it("should report a failed plugin import rather than the config's own validation issues", async () => {
+		expect.assertions(1);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, ["export default { plugins: ['@example/missing'] };"]);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: failToResolve },
+			{ cwd },
+		);
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("pluginLoadFailed");
+	});
+
+	it("should resolve plugin specifiers from the directory holding the config file", async () => {
+		expect.assertions(1);
+
+		const cwd = createTemporaryDirectory();
+		const bedrockDirectory = join(cwd, ".bedrock");
+		mkdirSync(bedrockDirectory, { recursive: true });
+		writeFileSync(
+			join(bedrockDirectory, "bedrock.config.ts"),
+			[
+				"export default {",
+				"  environments: { production: {} },",
+				"  plugins: ['./tools/local-plugin.mjs'],",
+				"};",
+			].join("\n"),
+		);
+
+		const seen: Array<string> = [];
+		async function importModule(
+			_specifier: string,
+			fromDirectory: string,
+		): Promise<ImportResult> {
+			seen.push(fromDirectory);
+			return { data: { default: {} }, success: true };
+		}
+
+		await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
+
+		expect(seen).toStrictEqual([bedrockDirectory]);
+	});
+
+	it("should import nothing and report a validation issue when plugins is not a list of specifiers", async () => {
+		expect.assertions(2);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/first', 42],",
+			"};",
+		]);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: unusedImporter },
+			{ cwd },
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.kind).toBe("validationFailed");
+		expect(result.err.issues[0]!.path).toStrictEqual(["plugins", "1"]);
+	});
+
+	it("should import nothing when the config declares no plugins", async () => {
+		expect.assertions(1);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, ["export default { environments: { production: {} } };"]);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: unusedImporter },
+			{ cwd },
+		);
+
+		expect(result.success).toBeTrue();
 	});
 });
 

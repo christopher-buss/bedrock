@@ -31,13 +31,21 @@ interface ExpectedLuauRuntimeMissing {
 	readonly sourceFile: string;
 }
 
+interface ExpectedPluginLoadFailed {
+	readonly kind: "pluginLoadFailed";
+	readonly message: string;
+	readonly reason: "importThrew" | "invalidExport" | "notInstalled";
+	readonly specifier: string;
+}
+
 describe("ConfigError discriminant", () => {
-	it("should discriminate on kind across the five documented variants", () => {
+	it("should discriminate on kind across the six documented variants", () => {
 		expectTypeOf<ConfigError["kind"]>().toEqualTypeOf<
 			| "configFunctionFailed"
 			| "fileNotFound"
 			| "luauRuntimeMissing"
 			| "parseFailed"
+			| "pluginLoadFailed"
 			| "validationFailed"
 		>();
 	});
@@ -72,5 +80,11 @@ describe("ConfigError variants", () => {
 		expectTypeOf<
 			Extract<ConfigError, { kind: "luauRuntimeMissing" }>
 		>().toEqualTypeOf<ExpectedLuauRuntimeMissing>();
+	});
+
+	it("should narrow pluginLoadFailed to carry the specifier, reason, and message", () => {
+		expectTypeOf<
+			Extract<ConfigError, { kind: "pluginLoadFailed" }>
+		>().toEqualTypeOf<ExpectedPluginLoadFailed>();
 	});
 });

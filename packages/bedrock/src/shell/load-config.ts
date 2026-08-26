@@ -2,14 +2,17 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import { loadConfig as c12LoadConfig } from "c12";
 import { existsSync, readdirSync, statSync } from "node:fs";
-import { isAbsolute, join, resolve as resolvePath } from "node:path";
+import { dirname, isAbsolute, join, resolve as resolvePath } from "node:path";
 import process from "node:process";
 
+import { importPluginModuleAsync } from "../adapters/dynamic-module-importer.ts";
 import { createLuteLuauEvaluator } from "../adapters/lute-luau-evaluator.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { safeStringify } from "../core/error-chain.ts";
 import { type Config, validateConfig } from "../core/schema.ts";
 import type { LuauEvaluationError, LuauEvaluator } from "../ports/luau-evaluator.ts";
+import type { ModuleImporter } from "../ports/module-importer.ts";
+import { loadPluginsAsync } from "./load-plugins.ts";
 
 /**
  * Options for {@link loadConfig}. Matches a subset of c12's loader options;
@@ -37,6 +40,15 @@ export interface LoadConfigOptions {
 
 interface LoadConfigDependencies {
 	readonly evaluator: LuauEvaluator;
+	readonly importModule: ModuleImporter;
+}
+
+type C12Result = Awaited<ReturnType<typeof c12LoadConfig<Record<string, unknown>>>>;
+
+interface C12ResolveInput {
+	readonly configFile: string | undefined;
+	readonly cwd: string;
+	readonly evaluator: LuauEvaluator;
 }
 
 interface LuauResolveResult {
@@ -47,11 +59,13 @@ interface LuauResolveResult {
 }
 
 /**
- * Internal entrypoint that lets tests inject a fake `LuauEvaluator`. The
- * public {@link loadConfig} wraps this with the real lute adapter; the rest
- * of the loader pipeline is identical.
+ * Internal entrypoint that lets tests inject a fake `LuauEvaluator` and a
+ * fake `ModuleImporter`. The public {@link loadConfig} wraps this with the
+ * real lute adapter and a dynamic `import()`; the rest of the loader
+ * pipeline is identical.
  *
- * @param deps - Injected dependencies. Only the evaluator is configurable.
+ * @param deps - Injected dependencies: the Luau evaluator and the plugin
+ * module importer.
  * @param options - Same loader options accepted by {@link loadConfig}.
  * @returns Same `Result<Config, ConfigError>` shape as `loadConfig`.
  */
@@ -67,24 +81,24 @@ export async function loadConfigWith(
 
 	const configFile = explicit.data ?? discoverConfigFallback(cwd);
 
-	let resolved: Awaited<ReturnType<typeof c12LoadConfig<Record<string, unknown>>>>;
+	let resolved: C12Result;
 	try {
-		resolved = await c12LoadConfig<Record<string, unknown>>({
-			name: "bedrock",
-			cwd,
-			resolve: makeLuauResolver({
-				callerConfigFile: configFile,
-				defaultCwd: cwd,
-				evaluator: deps.evaluator,
-			}),
-			...(configFile === undefined ? {} : { configFile }),
-		});
+		resolved = await resolveWithC12Async({ configFile, cwd, evaluator: deps.evaluator });
 	} catch (err) {
 		return { err: attributeLoadError(err, cwd), success: false };
 	}
 
 	if (resolved._configFile === undefined) {
 		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
+	}
+
+	const pluginLoad = await loadPluginsAsync({
+		config: resolved.config,
+		importModule: deps.importModule,
+		sourceDirectory: dirname(resolved._configFile),
+	});
+	if (!pluginLoad.success) {
+		return pluginLoad;
 	}
 
 	return validateConfig(resolved.config, resolved._configFile);
@@ -105,6 +119,11 @@ export async function loadConfigWith(
  * invokes it with an empty `ConfigContext` and awaits the result before
  * validating.
  *
+ * Every module specifier listed under `plugins` is imported before the rest
+ * of the config is validated, so a plugin that cannot be loaded fails the
+ * load rather than surfacing once something needs it. Specifiers resolve
+ * from the directory holding the config file.
+ *
  * Errors return via `Result`:
  * - `fileNotFound` - no config file was discovered under the search path.
  * - `parseFailed` - a config file was found but could not be parsed (for
@@ -113,6 +132,8 @@ export async function loadConfigWith(
  *   not satisfy the runtime schema.
  * - `configFunctionFailed` - a function-form config threw or its returned
  *   promise rejected while being invoked.
+ * - `pluginLoadFailed` - a module specifier listed under `plugins` did not
+ *   resolve, threw while evaluating, or exported no plugin.
  *
  * @since 0.1.0
  *
@@ -137,7 +158,32 @@ export async function loadConfigWith(
 export async function loadConfig(
 	options?: LoadConfigOptions,
 ): Promise<Result<Config, ConfigError>> {
-	return loadConfigWith({ evaluator: createLuteLuauEvaluator() }, options);
+	return loadConfigWith(
+		{ evaluator: createLuteLuauEvaluator(), importModule: importPluginModuleAsync },
+		options,
+	);
+}
+
+/**
+ * Run c12's loader with the Luau resolver installed, so a `.luau` config is
+ * evaluated through the injected evaluator while every other format falls
+ * through to c12's own loaders.
+ *
+ * @param input - Search directory, explicit config path if the caller named
+ * one, and the injected Luau evaluator.
+ * @returns The resolved c12 result.
+ */
+async function resolveWithC12Async({
+	configFile,
+	cwd,
+	evaluator,
+}: C12ResolveInput): Promise<C12Result> {
+	return c12LoadConfig<Record<string, unknown>>({
+		name: "bedrock",
+		cwd,
+		resolve: makeLuauResolver({ callerConfigFile: configFile, defaultCwd: cwd, evaluator }),
+		...(configFile === undefined ? {} : { configFile }),
+	});
 }
 
 function resolveConfigPath(cwd: string, configFile: string): string {
