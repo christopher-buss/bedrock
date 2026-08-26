@@ -1,6 +1,7 @@
 /**
  * Driven port for resolving and evaluating a plugin module named in config.
- * The default adapter (`importPluginModule`) defers to a dynamic `import()`;
+ * The default adapter (`importPluginModuleAsync`) defers to a dynamic
+ * `import()`;
  * tests inject fakes so no package has to exist on disk.
  *
  * Rejects the way `import()` does when the specifier cannot be resolved or

@@ -29,7 +29,10 @@ export interface ConfigValidationIssue {
  * Why a module specifier listed under `plugins` could not be loaded.
  *
  * - `notInstalled` - the specifier did not resolve to a module at all, which
- *   is what a missing or misspelled dependency looks like.
+ *   is what a missing or misspelled dependency looks like. A plugin that is
+ *   installed but whose own dependency is missing resolves to the same
+ *   reason, since the runtime reports both the same way; `message` carries
+ *   the specifier the runtime could not find.
  * - `importThrew` - the module resolved but threw while it was evaluated.
  * - `invalidExport` - the module evaluated but exports nothing bedrock
  *   recognizes as a plugin.

@@ -1,7 +1,6 @@
 /**
- * Default module importer: resolves a plugin specifier against the project's
- * own module graph with a dynamic `import()`, so a plugin installed as an
- * ordinary dependency is found the way any other import of it would be.
+ * Default module importer: hands the specifier to a dynamic `import()`, so a
+ * plugin resolves the way any other import of it from this package would.
  *
  * @param specifier - Module specifier taken verbatim from the config's
  * `plugins` list.

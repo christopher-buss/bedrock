@@ -92,9 +92,9 @@ export async function loadConfigWith(
 		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
 	}
 
-	const plugins = await loadPluginsAsync(deps.importModule, resolved.config);
-	if (!plugins.success) {
-		return plugins;
+	const pluginLoad = await loadPluginsAsync(deps.importModule, resolved.config);
+	if (!pluginLoad.success) {
+		return pluginLoad;
 	}
 
 	return validateConfig(resolved.config, resolved._configFile);
