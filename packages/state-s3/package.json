@@ -44,9 +44,12 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
+		"@smithy/core": "catalog:runtime",
+		"@smithy/querystring-builder": "catalog:runtime",
 		"arktype": "catalog:runtime"
 	},
 	"devDependencies": {
+		"@bedrock-rbx/core": "workspace:*",
 		"@bedrock-rbx/testing": "workspace:*",
 		"@bedrock-rbx/typescript-config": "workspace:*",
 		"@bedrock-rbx/vite-config": "workspace:*",
@@ -58,6 +61,9 @@
 		"@types/bun": "catalog:types",
 		"typescript": "catalog:tsc",
 		"vitest": "catalog:test"
+	},
+	"peerDependencies": {
+		"@bedrock-rbx/core": "workspace:*"
 	},
 	"engines": {
 		"node": ">=24.12.0",
