@@ -1027,7 +1027,10 @@ describe(loadConfigWith, () => {
 
 		const cwd = createTemporaryDirectory();
 		writeFixtureConfig(cwd, [
-			"export default { environments: { production: {} }, plugins: [42] };",
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/first', 42],",
+			"};",
 		]);
 
 		const result = await loadConfigWith(
@@ -1039,7 +1042,7 @@ describe(loadConfigWith, () => {
 		assert(result.err.kind === "validationFailed");
 
 		expect(result.err.kind).toBe("validationFailed");
-		expect(result.err.issues[0]!.path).toStrictEqual(["plugins", "0"]);
+		expect(result.err.issues[0]!.path).toStrictEqual(["plugins", "1"]);
 	});
 
 	it("should import nothing when the config declares no plugins", async () => {
