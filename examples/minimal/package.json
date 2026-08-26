@@ -1,6 +1,5 @@
 {
 	"name": "@bedrock-rbx/example-minimal",
-	"version": "0.0.0",
 	"private": true,
 	"description": "Smallest Bedrock project: config, a build override, and the default Luau emitter",
 	"keywords": [
@@ -12,7 +11,6 @@
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
 	"type": "module",
 	"scripts": {
-		"lint": "eslint --cache .",
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {

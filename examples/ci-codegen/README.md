@@ -14,8 +14,7 @@ Read [`../minimal`](../minimal) first if the deploy stages are new to you.
 - A custom [emitter](.bedrock/codegen/emit.ts) that generates typed TypeScript
   and resolves ids per environment at runtime.
 - Reading real names and prices through redaction with `codegenViewOf` and
-  `realValue`, so an environment deployed with placeholder storefront content
-  still generates the values you declared.
+  `realValue` — see [Redaction](#redaction).
 - A [build step](.bedrock/build/build-place.ts) that picks its Rojo project from
   the environment being deployed.
 - A [deploy workflow](.github/workflows/deploy.yaml) built on the published
@@ -84,8 +83,8 @@ is skipped and the deploy still runs.
 | `DEPLOY_APP_CLIENT_ID`   | Client id of your deploy GitHub App.                                                |
 | `DEPLOY_APP_PRIVATE_KEY` | Full contents of that app's `.pem` private key.                                     |
 
-The workflow pins actions by tag for readability. Pin by commit SHA in a real
-repository.
+Third-party actions are pinned by commit SHA. The Bedrock deploy action is
+pinned by release tag, which is how it is versioned.
 
 ## Redaction
 
@@ -102,7 +101,8 @@ through.
 ## Adapting it
 
 - Replace every placeholder id in `bedrock.config.ts`, and the `gistId`.
-- Supply `assets/icons/vip-pass.png`, or drop the `passes` block.
+- Replace `assets/icons/vip-pass.png` with a real 512x512 icon, or drop the
+  `passes` block.
 - Add environments by adding a key under `environments`. The emitter picks them
   up with no change: it generates one `GameId` member per environment that has
   deployed at least once.

@@ -41,9 +41,8 @@ async function mainAsync(): Promise<void> {
 		// `configLoadFailed` and `applyFailed` are different problems with
 		// different fixes.
 		process.stderr.write(`deploy failed at stage: ${result.err.kind}\n`);
+		process.exitCode = 1;
 	}
-
-	process.exitCode = result.success ? 0 : 1;
 }
 
 mainAsync().catch((err: unknown) => {

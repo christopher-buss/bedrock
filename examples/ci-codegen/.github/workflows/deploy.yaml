@@ -28,23 +28,25 @@ jobs:
       # step clears the read-only credentials before it pushes with its own
       # token.
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           cache: pnpm
           node-version: 24
 
+      # Puts `rojo` on PATH from this project's `mise.toml`.
+      - name: Setup Roblox toolchain
+        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+        with:
+          install: true
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      # Puts `rojo` on PATH from `mise.toml`.
-      - name: Setup toolchain
-        uses: jdx/mise-action@v3
 
       - name: Deploy
         uses: christopher-buss/bedrock/packages/actions/deploy@actions-v0.1.1

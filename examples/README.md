@@ -16,25 +16,19 @@ assumes.
 
 Both declare their resources in `bedrock.config.ts`, keep deployed state in a
 GitHub Gist, and enable codegen so the ids Roblox assigns are written back out
-as source their game code reads by key.
-
-They differ in how much they hand to Bedrock in code:
-
-- `minimal` supplies only a build script at a known path and lets the CLI do
-  everything else, including generating a Luau table with the built-in emitter.
-- `ci-codegen` supplies a `.bedrock/deploy.ts` override that calls `deploy()`
-  itself, passing its own build step and emitter. That is the only way to
-  customize what codegen writes, since a config file cannot hold functions.
+as source their game code reads by key. Each example README explains where the
+two diverge.
 
 ## Keeping them honest
 
-Both are workspace packages, so `pnpm typecheck` compiles their config and
-`.bedrock/` sources against the real `@bedrock-rbx/core` API and CI fails when
-an example drifts. Their game sources under `src/` are excluded: Luau and
-roblox-ts compile with a different toolchain than the Node scripts beside them.
+Both are workspace packages, so `pnpm typecheck` compiles their
+`bedrock.config.ts` and `.bedrock/` sources against the real `@bedrock-rbx/core`
+API. Those files cannot drift without CI failing.
 
-The generated files committed in each example (`resources.luau`, `resources.ts`)
-are illustrative output, not test fixtures.
+Their game sources under `src/` are checked by nothing here — Luau and roblox-ts
+need a Roblox toolchain this repo does not run. Treat those files as
+illustrative, along with the committed emitter output (`resources.luau`,
+`resources.ts`).
 
 In your own project, install from npm rather than using the `workspace:*`
 dependency these use:

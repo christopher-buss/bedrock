@@ -4,10 +4,7 @@ import { defineConfig } from "@bedrock-rbx/core/config";
  * Two environments over one set of resource declarations. Every id is a
  * placeholder — replace them with ids of experiences you own.
  *
- * `development` deploys its game pass redacted: Bedrock pushes placeholder
- * name, description, and price to Roblox so an unreleased product is not
- * readable from the storefront, while the emitter still generates the real
- * values into source (see `.bedrock/codegen/emit.ts`).
+ * `development` sets `redacted: true`; see the README for what that does.
  */
 export default defineConfig({
 	codegen: {
@@ -19,24 +16,23 @@ export default defineConfig({
 	environments: {
 		development: {
 			places: {
-				start: { placeId: "0000000001" },
+				start: { placeId: "4471029385" },
 			},
 			redacted: true,
-			universe: { universeId: "0000000001" },
+			universe: { universeId: "3218475960" },
 		},
 		production: {
 			places: {
-				start: { placeId: "0000000002" },
+				start: { placeId: "4471029412" },
 			},
-			universe: { universeId: "0000000002" },
+			universe: { universeId: "3218475961" },
 		},
 	},
 	passes: {
 		"vip-pass": {
 			name: "VIP Pass",
 			description: "Doubles coin earnings and unlocks the VIP lounge.",
-			// Supply your own 512x512 image; Bedrock hashes the file so an
-			// unchanged icon is never re-uploaded.
+			// See assets/icons/README.md.
 			icon: { "en-us": "assets/icons/vip-pass.png" },
 			price: 500,
 		},

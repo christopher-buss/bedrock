@@ -39,14 +39,15 @@ const config: KnipConfig = {
 		"apps/website": {
 			entry: ["landing/examples/**/*.ts"],
 		},
+		// Entry is the file the bedrock CLI spawns by path; knip follows its
+		// imports from there, so a dead export in an example still reports.
 		"examples/ci-codegen": {
-			entry: ["bedrock.config.ts", ".bedrock/**/*.ts"],
-			// roblox-ts game sources; compiled by rbxtsc, not reachable from
-			// the Node entry points above.
+			entry: ["bedrock.config.ts", ".bedrock/deploy.ts"],
+			// roblox-ts game sources; a Roblox toolchain this repo does not run.
 			ignore: ["src/**"],
 		},
 		"examples/minimal": {
-			entry: ["bedrock.config.ts", ".bedrock/**/*.ts"],
+			entry: ["bedrock.config.ts", ".bedrock/build.ts"],
 		},
 		"packages/actions": {
 			entry: [STRYKER_CONFIG],
