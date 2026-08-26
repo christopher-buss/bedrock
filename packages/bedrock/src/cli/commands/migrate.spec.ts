@@ -1052,6 +1052,20 @@ describe(migrateCommand, () => {
 		]);
 	});
 
+	it("should build the gist state port from the gist id the user gave", async () => {
+		expect.assertions(1);
+
+		const buildStatePort = vi.fn<BuildStatePortFunc>(() => happyPortResult());
+		const dependencies = makeDependencies({ buildStatePort });
+		scriptHappyPrompts(dependencies);
+
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
+
+		expect(buildStatePort.mock.calls.map(([deps]) => deps.stateConfig)).toStrictEqual([
+			{ backend: "gist", gistId: "abc123" },
+		]);
+	});
+
 	it("should offer only the backends whose plugin declared what to ask for", async () => {
 		expect.assertions(1);
 

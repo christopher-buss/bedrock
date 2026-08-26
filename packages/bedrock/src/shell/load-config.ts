@@ -76,58 +76,6 @@ interface LuauResolveResult {
 }
 
 /**
- * Same load as {@link loadConfigWith}, keeping the plugin registry the
- * config was validated against. Callers that go on to construct a
- * **Backend** need it; callers that only want the config use
- * {@link loadConfigWith}.
- *
- * @param deps - Injected dependencies: the Luau evaluator and the plugin
- * module importer.
- * @param options - Same loader options accepted by {@link loadConfig}.
- * @returns The validated config paired with the plugin registry, or the
- * same `ConfigError` the config-only load would have returned.
- */
-export async function loadProjectWith(
-	deps: LoadConfigDependencies,
-	options?: LoadConfigOptions,
-): Promise<Result<LoadedProject, ConfigError>> {
-	const cwd = options?.cwd ?? process.cwd();
-	const explicit = resolveExplicitConfigFile(cwd, options?.configFile);
-	if (!explicit.success) {
-		return explicit;
-	}
-
-	const configFile = explicit.data ?? discoverConfigFallback(cwd);
-
-	let resolved: C12Result;
-	try {
-		resolved = await resolveWithC12Async({ configFile, cwd, evaluator: deps.evaluator });
-	} catch (err) {
-		return { err: attributeLoadError(err, cwd), success: false };
-	}
-
-	if (resolved._configFile === undefined) {
-		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
-	}
-
-	const pluginLoad = await loadPluginsAsync({
-		config: resolved.config,
-		importModule: deps.importModule,
-		sourceDirectory: dirname(resolved._configFile),
-	});
-	if (!pluginLoad.success) {
-		return pluginLoad;
-	}
-
-	const validated = createConfigValidator(pluginLoad.data)(resolved.config, resolved._configFile);
-	if (!validated.success) {
-		return validated;
-	}
-
-	return { data: { config: validated.data, plugins: pluginLoad.data }, success: true };
-}
-
-/**
  * Internal entrypoint that lets tests inject a fake `LuauEvaluator` and a
  * fake `ModuleImporter`. The public {@link loadConfig} wraps this with the
  * real lute adapter and a dynamic `import()`; the rest of the loader
@@ -260,6 +208,57 @@ async function resolveWithC12Async({
 		resolve: makeLuauResolver({ callerConfigFile: configFile, defaultCwd: cwd, evaluator }),
 		...(configFile === undefined ? {} : { configFile }),
 	});
+}
+
+/**
+ * Same load as {@link loadConfigWith}, keeping the plugin registry the
+ * config was validated against, which is what a caller that goes on to
+ * construct a **Backend** needs.
+ *
+ * @param deps - Injected dependencies: the Luau evaluator and the plugin
+ * module importer.
+ * @param options - Same loader options accepted by {@link loadConfig}.
+ * @returns The validated config paired with the plugin registry, or the
+ * same `ConfigError` the config-only load would have returned.
+ */
+async function loadProjectWith(
+	deps: LoadConfigDependencies,
+	options?: LoadConfigOptions,
+): Promise<Result<LoadedProject, ConfigError>> {
+	const cwd = options?.cwd ?? process.cwd();
+	const explicit = resolveExplicitConfigFile(cwd, options?.configFile);
+	if (!explicit.success) {
+		return explicit;
+	}
+
+	const configFile = explicit.data ?? discoverConfigFallback(cwd);
+
+	let resolved: C12Result;
+	try {
+		resolved = await resolveWithC12Async({ configFile, cwd, evaluator: deps.evaluator });
+	} catch (err) {
+		return { err: attributeLoadError(err, cwd), success: false };
+	}
+
+	if (resolved._configFile === undefined) {
+		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
+	}
+
+	const pluginLoad = await loadPluginsAsync({
+		config: resolved.config,
+		importModule: deps.importModule,
+		sourceDirectory: dirname(resolved._configFile),
+	});
+	if (!pluginLoad.success) {
+		return pluginLoad;
+	}
+
+	const validated = createConfigValidator(pluginLoad.data)(resolved.config, resolved._configFile);
+	if (!validated.success) {
+		return validated;
+	}
+
+	return { data: { config: validated.data, plugins: pluginLoad.data }, success: true };
 }
 
 function resolveConfigPath(cwd: string, configFile: string): string {
