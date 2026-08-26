@@ -13,6 +13,9 @@ this file points at the per-package `CONTEXT.md` glossaries.
   [`packages/bedrock/CONTEXT.md`](packages/bedrock/CONTEXT.md) — IaC engine
   vocabulary (Resource, Kind, Desired/Current state, Operation,
   Diff/Apply/Deploy, Driver, State port).
+- **`@bedrock-rbx/state-s3`** —
+  [`packages/state-s3/CONTEXT.md`](packages/state-s3/CONTEXT.md) — S3 state
+  backend plugin vocabulary (Object, Prefix, Store, Refusal, Transport).
 - **`@bedrock-rbx/actions`** —
   [`packages/actions/CONTEXT.md`](packages/actions/CONTEXT.md) —
   deploy/commit-back CI vocabulary (Commit-back, Reflow, Generated set, Deploy
@@ -27,6 +30,10 @@ this file points at the per-package `CONTEXT.md` glossaries.
 - **`@bedrock-rbx/core` → `@bedrock-rbx/ocale`**: core consumes ocale as a
   workspace dependency for all Roblox Open Cloud access; core never talks HTTP
   directly. Data crosses as ocale wire types in, core domain types out.
+- **`@bedrock-rbx/state-s3` → `@bedrock-rbx/core`**: a plugin core loads by the
+  specifier a user names under `plugins`. It reaches core only through the
+  published plugin contract and the state-file helpers, and holds no privileged
+  path a third-party backend could not take.
 - **`@bedrock-rbx/actions` → `@bedrock-rbx/core`**: the actions invoke the core
   CLI to run a deploy, then reflow the `codegen.output` files core wrote. The
   seam is the filesystem (generated set) and the process boundary, not a code

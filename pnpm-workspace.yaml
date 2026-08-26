@@ -94,7 +94,12 @@ catalogs:
     roblox-ts: 3.0.0
   runtime:
     "@actions/core": 3.0.1
+    "@aws-sdk/client-s3": 3.1112.0
+    "@aws-sdk/credential-provider-node": 3.972.81
     "@clack/prompts": 1.2.0
+    "@smithy/core": 3.33.3
+    "@smithy/querystring-builder": 4.5.2
+    "@smithy/types": 4.17.2
     arktype: 2.2.0
     c12: 3.3.4
     confbox: 0.2.4
@@ -142,10 +147,10 @@ versioning:
   changelog:
     storage: repository
 
-  # core and ocale share one version number. pnpm has no `linked` equivalent,
-  # so a change to either releases both.
+  # core, ocale and the first-party plugins share one version number. pnpm
+  # has no `linked` equivalent, so a change to any of them releases all.
   fixed:
-    - ["@bedrock-rbx/core", "@bedrock-rbx/ocale"]
+    - ["@bedrock-rbx/core", "@bedrock-rbx/ocale", "@bedrock-rbx/state-s3"]
 
   # pnpm only auto-excludes private packages that carry no `version` field.
   # All of ours have one, so the private packages are listed explicitly —

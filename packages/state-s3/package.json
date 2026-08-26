@@ -1,0 +1,81 @@
+{
+	"name": "@bedrock-rbx/state-s3",
+	"version": "0.1.5",
+	"description": "S3 state backend plugin for Bedrock",
+	"keywords": [
+		"bedrock",
+		"plugin",
+		"roblox",
+		"s3",
+		"state"
+	],
+	"homepage": "https://bedrock-livid.vercel.app/",
+	"bugs": {
+		"url": "https://github.com/christopher-buss/bedrock/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/christopher-buss/bedrock.git",
+		"directory": "packages/state-s3"
+	},
+	"license": "MIT",
+	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
+	"sideEffects": false,
+	"type": "module",
+	"imports": {
+		"#src/*": "./src/*.ts",
+		"#tests/*": "./tests/*.ts"
+	},
+	"exports": {
+		".": {
+			"source": "./src/index.ts",
+			"default": "./dist/index.mjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"types": "./dist/index.d.mts",
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "vp pack",
+		"dev": "vp pack --watch",
+		"test": "vp test",
+		"typecheck": "tsgo --noEmit"
+	},
+	"dependencies": {
+		"@aws-sdk/client-s3": "catalog:runtime",
+		"@aws-sdk/credential-provider-node": "catalog:runtime",
+		"@smithy/core": "catalog:runtime",
+		"@smithy/querystring-builder": "catalog:runtime",
+		"@smithy/types": "catalog:runtime",
+		"arktype": "catalog:runtime"
+	},
+	"devDependencies": {
+		"@bedrock-rbx/core": "workspace:*",
+		"@bedrock-rbx/testing": "workspace:*",
+		"@bedrock-rbx/typescript-config": "workspace:*",
+		"@bedrock-rbx/vite-config": "workspace:*",
+		"@stryker-mutator/api": "catalog:test",
+		"@stryker-mutator/core": "catalog:test",
+		"@stryker-mutator/typescript-checker": "catalog:test",
+		"@stryker-mutator/vitest-runner": "catalog:test",
+		"@types/bun": "catalog:types",
+		"typescript": "catalog:tsc",
+		"vitest": "catalog:test"
+	},
+	"peerDependencies": {
+		"@bedrock-rbx/core": "workspace:*"
+	},
+	"engines": {
+		"node": ">=24.12.0",
+		"bun": ">=1.3.0"
+	},
+	"publishConfig": {
+		"access": "public",
+		"exports": {
+			".": "./dist/index.mjs",
+			"./package.json": "./package.json"
+		}
+	}
+}

@@ -66,6 +66,9 @@ const config: KnipConfig = {
 		"packages/open-cloud": {
 			entry: [STRYKER_CONFIG, "scripts/**/*.ts", "src/**/index.ts", "tests/helpers/lite.ts"],
 		},
+		"packages/state-s3": {
+			entry: [STRYKER_CONFIG],
+		},
 		"packages/testing": {},
 		"packages/typescript-config": {},
 		"packages/vite-config": {},

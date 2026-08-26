@@ -1,0 +1,5 @@
+---
+"@bedrock-rbx/state-s3": patch
+---
+
+Add `@bedrock-rbx/state-s3`, a plugin that persists **State** in an S3 bucket. List it under `plugins` and point `state` at a bucket and region: `state: { backend: "s3", bucket: "my-bucket", region: "eu-west-2" }`, with optional `prefix`, `endpoint`, `forcePathStyle`, and `checksumCalculation` keys. Credentials resolve through the standard AWS Node credential chain, so environment variables, a shared profile, an SSO session, and CI role credentials all work with nothing bedrock-specific configured. **State** is stored one object per **Environment** under the configured prefix, so deploying two environments at once never puts them in contention. A missing object reads as no **State**, so a first **Deploy** into an empty bucket succeeds, while a corrupt one fails rather than collapsing to empty **State**. A bucket that does not resolve surfaces as `stateNotFound` and a credential the store refused as `stateAccessDenied`; no credential resolving at all, and any refusal the backend does not recognize, arrive as `pluginStateBackend` carrying the S3 error code and HTTP status.

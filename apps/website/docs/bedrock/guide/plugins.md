@@ -18,6 +18,10 @@ export default defineConfig({
 Without the `plugins` entry, `bucket` and `region` are keys bedrock does not
 know, and the config fails validation before `s3` is ever looked up.
 
+For the S3 backend bedrock publishes, see
+[S3 state backend](/bedrock/guide/state-s3). The rest of this page is about
+using any plugin, and about writing your own.
+
 ## Using a plugin
 
 Install the package, then list its module specifier under `plugins`. Relative
