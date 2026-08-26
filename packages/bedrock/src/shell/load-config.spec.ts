@@ -1225,6 +1225,18 @@ describe(loadConfigWith, () => {
 			{ stateBackends: [{ name: "", schema: type("object") }] },
 		],
 		[
+			"a declaration's schema is an ordinary function",
+			{ stateBackends: [{ name: "s3", schema: (): undefined => undefined }] },
+		],
+		[
+			"a declaration's schema is an arktype schema over a non-object",
+			{ stateBackends: [{ name: "s3", schema: type("string") }] },
+		],
+		[
+			"a declaration's schema is a bare definition rather than an arktype schema",
+			{ stateBackends: [{ name: "s3", schema: { bucket: "string" } }] },
+		],
+		[
 			"only some declarations are well-formed",
 			{ stateBackends: [{ name: "s3", schema: type("object") }, "nope"] },
 		],
@@ -1255,7 +1267,8 @@ describe(loadConfigWith, () => {
 
 			expect(result.err.reason).toBe("invalidExport");
 			expect(result.err.message).toBe(
-				"expected stateBackends to be a list of { name, schema } declarations",
+				"expected stateBackends to be a list of { name, schema } declarations, " +
+					"where schema is an arktype object schema",
 			);
 		},
 	);

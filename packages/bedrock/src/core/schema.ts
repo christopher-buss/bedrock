@@ -10,6 +10,7 @@ import type { ConfigError } from "./config-error.ts";
 import { ENV_NAME_PATTERN_SOURCE } from "./environment.ts";
 import { iconMap } from "./icons.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "./plugin-registry.ts";
+import type { StateBackendSchema } from "./plugin.ts";
 import { collectUniverseIdIssues } from "./validate-universe-xor.ts";
 
 /**
@@ -1153,6 +1154,10 @@ const universeEntry = type({
 	"youtubeSocialLink?": socialLinkOrUndefined,
 }).onUndeclaredKey("reject");
 
+// The one `state` key core owns whatever the backend is, merged into every
+// plugin fragment so a plugin never declares it.
+const STATE_BACKEND_BASE = { backend: "string" } as const;
+
 // The shape every backend core knows about accepts, and the shape an
 // unrecognized backend name falls back to so a config can name a backend
 // this build has no declaration for.
@@ -1182,6 +1187,43 @@ interface IssueSink {
 	readonly path: ReadonlyArray<PropertyKey>;
 	/** Record one problem against the value being traversed. */
 	reject: (issue: { message: string; path: ReadonlyArray<PropertyKey> }) => false;
+}
+
+/**
+ * Whether a value is a fragment {@link composeStateBackendSchema} can merge,
+ * which an arktype schema over anything but an object is not.
+ *
+ * Answered by attempting the merge through arktype's untyped parser rather
+ * than by inspecting the value, so the answer tracks what the composition
+ * actually accepts. A plugin is ordinary JavaScript at runtime, so the
+ * declared type is no guarantee, and an unmergeable fragment left to reach
+ * the composition throws out of `loadConfig` instead of failing the load
+ * with a typed error.
+ *
+ * Internal seam: not re-exported from `src/index.ts`.
+ *
+ * @param fragment - The raw `schema` value read off a plugin's declaration.
+ * @returns `true` when the fragment merges.
+ */
+export function isStateBackendSchema(fragment: unknown): boolean {
+	try {
+		// arktype requires the spread key first.
+		type.raw({ "...": fragment, ...STATE_BACKEND_BASE });
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Merge one plugin's fragment with the key core owns, producing the schema
+ * a `state` block naming that **Backend** validates against.
+ *
+ * @param fragment - The plugin's own declaration for its `state` keys.
+ * @returns The composed block schema, rejecting every undeclared key.
+ */
+function composeStateBackendSchema(fragment: StateBackendSchema): Type<object> {
+	return type(STATE_BACKEND_BASE).merge(fragment).onUndeclaredKey("reject");
 }
 
 /**
@@ -1217,7 +1259,7 @@ function rejectIssues(ctx: IssueSink, issues: ReadonlyArray<AttributableIssue>):
 function buildStateSchema(registry: PluginRegistry): Type<StateConfig> {
 	const byBackend = new Map(
 		Array.from(registry.stateBackends, ([name, fragment]) => {
-			return [name, type({ backend: "string" }).merge(fragment).onUndeclaredKey("reject")];
+			return [name, composeStateBackendSchema(fragment)];
 		}),
 	);
 

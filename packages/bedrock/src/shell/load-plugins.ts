@@ -8,6 +8,7 @@ import {
 	type PluginRegistry,
 } from "../core/plugin-registry.ts";
 import type { BedrockPlugin, StateBackendDeclaration } from "../core/plugin.ts";
+import { isStateBackendSchema } from "../core/schema.ts";
 import type { ModuleImporter, ModuleImportError } from "../ports/module-importer.ts";
 
 // A plugin that is absent and one that is installed but broken are the same
@@ -20,7 +21,8 @@ const IMPORT_FAILURE_REASON = {
 const NO_PLUGIN_EXPORT_MESSAGE = "expected a default-exported plugin object";
 
 const BAD_STATE_BACKENDS_MESSAGE =
-	"expected stateBackends to be a list of { name, schema } declarations";
+	"expected stateBackends to be a list of { name, schema } declarations, " +
+	"where schema is an arktype object schema";
 
 /**
  * Inputs for importing a single plugin.
@@ -125,8 +127,14 @@ function invalidExport(specifier: string, message: string): Result<never, Config
  * silently contributing nothing, because a plugin that declares a backend
  * core cannot read is a plugin whose config keys will not validate.
  *
+ * A plugin is ordinary JavaScript at runtime, so the schema is checked for
+ * what the `state` block does with it rather than trusted from its declared
+ * type: an arktype `Type` is callable, and one over anything but an object
+ * cannot be merged into the block.
+ *
  * @param value - The raw `stateBackends` value read off the plugin export.
- * @returns `true` when every entry names a backend and carries a schema.
+ * @returns `true` when every entry names a backend and carries a mergeable
+ * schema.
  */
 function isDeclarationList(value: unknown): value is ReadonlyArray<StateBackendDeclaration> {
 	return (
@@ -136,7 +144,8 @@ function isDeclarationList(value: unknown): value is ReadonlyArray<StateBackendD
 				isRecord(entry) &&
 				typeof entry["name"] === "string" &&
 				entry["name"].length > 0 &&
-				typeof entry["schema"] === "function"
+				typeof entry["schema"] === "function" &&
+				isStateBackendSchema(entry["schema"])
 			);
 		})
 	);
