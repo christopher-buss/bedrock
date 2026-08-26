@@ -131,8 +131,10 @@ export interface DeployOptions {
 	 */
 	readonly getEnv?: (name: string) => string | undefined;
 	/**
-	 * Loader invoked when `config` is omitted; defaults to `loadConfig` from
-	 * this package.
+	 * Loader invoked when `config` is omitted. Omit it too and the project
+	 * loads through `loadProjectAsync`, which also registers what the
+	 * config's `plugins` entries declared; a loader supplied here returns a
+	 * config alone, so name its **Backend**s through `plugins` instead.
 	 */
 	readonly loadConfig?: (options?: LoadConfigOptions) => Promise<Result<Config, ConfigError>>;
 	/**
@@ -207,8 +209,10 @@ export interface ProvisionOptions {
 	 */
 	readonly getEnv?: (name: string) => string | undefined;
 	/**
-	 * Loader invoked when `config` is omitted; defaults to `loadConfig` from
-	 * this package.
+	 * Loader invoked when `config` is omitted. Omit it too and the project
+	 * loads through `loadProjectAsync`, which also registers what the
+	 * config's `plugins` entries declared; a loader supplied here returns a
+	 * config alone, so name its **Backend**s through `plugins` instead.
 	 */
 	readonly loadConfig?: (options?: LoadConfigOptions) => Promise<Result<Config, ConfigError>>;
 	/**
@@ -270,8 +274,10 @@ export interface PublishOptions {
 	 */
 	readonly getEnv?: (name: string) => string | undefined;
 	/**
-	 * Loader invoked when `config` is omitted; defaults to `loadConfig` from
-	 * this package.
+	 * Loader invoked when `config` is omitted. Omit it too and the project
+	 * loads through `loadProjectAsync`, which also registers what the
+	 * config's `plugins` entries declared; a loader supplied here returns a
+	 * config alone, so name its **Backend**s through `plugins` instead.
 	 */
 	readonly loadConfig?: (options?: LoadConfigOptions) => Promise<Result<Config, ConfigError>>;
 	/**

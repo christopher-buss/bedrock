@@ -35,11 +35,19 @@ export function fakeStateBackendPlugins<TState extends object>({
  *
  * @param registries - The registries to combine, in declaration order.
  * @returns One registry holding every **Backend** they registered.
+ * @throws When two registries claim the same **Backend** name, which a
+ * real config load would have rejected.
  */
 export function mergeStateBackendPlugins(
 	...registries: ReadonlyArray<PluginRegistry>
 ): PluginRegistry {
-	return {
-		stateBackends: new Map(registries.flatMap((registry) => [...registry.stateBackends])),
-	};
+	const entries = registries.flatMap((registry) => [...registry.stateBackends]);
+	const merged = new Map(entries);
+	if (merged.size !== entries.length) {
+		// A real load rejects a contested name, so a test that reaches
+		// here is asserting against a registry that could not exist.
+		throw new Error("mergeStateBackendPlugins: two registries claim one backend name");
+	}
+
+	return { stateBackends: merged };
 }
