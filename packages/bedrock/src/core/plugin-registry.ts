@@ -2,6 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import type { ConfigError } from "./config-error.ts";
 import type { BedrockPlugin, StateBackendDeclaration, StateBackendSchema } from "./plugin.ts";
+import type { BuiltinStateBackend } from "./schema.ts";
 
 /**
  * Module specifier core reports as the claimant of a builtin **Backend**
@@ -10,14 +11,17 @@ import type { BedrockPlugin, StateBackendDeclaration, StateBackendSchema } from 
  */
 const BUILTIN_SPECIFIER = "@bedrock-rbx/core";
 
-/** **Backend** names core ships, which no plugin may claim. */
-const BUILTIN_STATE_BACKENDS: ReadonlySet<string> = new Set(["gist"]);
+// **Backend** names core ships, which no plugin may claim. Keyed by name
+// and checked against `BuiltinStateBackend` so core gaining a backend
+// without claiming its name here fails to compile, rather than leaving the
+// name free for a plugin to take.
+const BUILTIN_STATE_BACKENDS = { gist: true } satisfies Record<BuiltinStateBackend, true>;
 
 /**
  * One plugin module that imported successfully, paired with the specifier
  * the config named it by.
  *
- * @since unreleased
+ * Internal seam: not re-exported from `src/index.ts`.
  */
 export interface LoadedPlugin {
 	/** The plugin object the module default-exported. */
@@ -40,7 +44,7 @@ export interface PluginRegistry {
 /**
  * The registry a config load with no plugins produces.
  *
- * @since unreleased
+ * Internal seam: not re-exported from `src/index.ts`.
  */
 export const EMPTY_PLUGIN_REGISTRY: PluginRegistry = { stateBackends: new Map() };
 
@@ -48,14 +52,6 @@ export const EMPTY_PLUGIN_REGISTRY: PluginRegistry = { stateBackends: new Map() 
 interface BackendClaim extends StateBackendDeclaration {
 	/** Module specifier of the plugin that claimed the name. */
 	readonly specifier: string;
-}
-
-/** One claim paired with every claim that precedes it. */
-interface ClaimInContext {
-	/** The claim being resolved. */
-	readonly claim: BackendClaim;
-	/** Claims made before this one, in declaration order. */
-	readonly earlier: ReadonlyArray<BackendClaim>;
 }
 
 /** The `ConfigError` arm reporting a contested **Backend** name. */
@@ -70,30 +66,11 @@ type StateBackendConflict = Extract<ConfigError, { kind: "stateBackendConflict" 
  * silent override. Shadowing the state backend is how a deploy runs
  * against a different store than the operator intended.
  *
- * @since unreleased
+ * Internal seam: not re-exported from `src/index.ts`.
  *
  * @param plugins - Loaded plugins in the order the config listed them.
  * @returns `Ok` with the registry, or `Err` with the `stateBackendConflict`
  * error naming the contested backend and both claimants.
- * @example
- *
- * ```ts
- * import { buildPluginRegistry } from "@bedrock-rbx/core";
- *
- * import { type } from "arktype";
- *
- * const registry = buildPluginRegistry([
- *     {
- *         plugin: { stateBackends: [{ name: "s3", schema: type({ bucket: "string > 0" }) }] },
- *         specifier: "@example/state-s3",
- *     },
- * ]);
- *
- * expect(registry.success).toBeTrue();
- * if (registry.success) {
- *     expect(registry.data.stateBackends.has("s3")).toBeTrue();
- * }
- * ```
  */
 export function buildPluginRegistry(
 	plugins: ReadonlyArray<LoadedPlugin>,
@@ -115,13 +92,17 @@ export function buildPluginRegistry(
 
 /**
  * Report the conflict one claim produces, if any. Core holds every builtin
- * name; otherwise the earliest plugin that claimed the name holds it.
+ * name; otherwise the earliest claim on the name holds it.
  *
- * @param input - The claim to resolve and the claims that precede it.
+ * @param claim - The claim being resolved.
+ * @param earlier - Claims made before this one, in declaration order.
  * @returns The conflict error, or `undefined` when the name is free.
  */
-function conflictAt({ claim, earlier }: ClaimInContext): StateBackendConflict | undefined {
-	const holder = BUILTIN_STATE_BACKENDS.has(claim.name)
+function conflictAt(
+	claim: BackendClaim,
+	earlier: ReadonlyArray<BackendClaim>,
+): StateBackendConflict | undefined {
+	const holder = Object.hasOwn(BUILTIN_STATE_BACKENDS, claim.name)
 		? BUILTIN_SPECIFIER
 		: earlier.find((other) => other.name === claim.name)?.specifier;
 	if (holder === undefined) {
@@ -136,14 +117,14 @@ function conflictAt({ claim, earlier }: ClaimInContext): StateBackendConflict | 
 }
 
 /**
- * Find the first claim landing on a name something already holds, reading
- * the claim list in the order the config listed the plugins.
+ * Report the earliest claim landing on a name something already holds,
+ * reading the claim list in the order the config listed the plugins.
  *
  * @param claims - Every backend claim, flattened across the loaded plugins.
  * @returns The conflict error, or `undefined` when every name is unique.
  */
 function findConflict(claims: ReadonlyArray<BackendClaim>): StateBackendConflict | undefined {
 	return claims
-		.map((claim, index) => conflictAt({ claim, earlier: claims.slice(0, index) }))
+		.map((claim, index) => conflictAt(claim, claims.slice(0, index)))
 		.find((conflict) => conflict !== undefined);
 }

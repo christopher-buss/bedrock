@@ -516,6 +516,18 @@ describe(renderDeployError, () => {
 		},
 		{
 			err: {
+				cause: {
+					backend: "s3",
+					kind: "stateBackendConflict",
+					specifiers: ["@example/state-s3", "@example/state-s3"],
+				},
+				kind: "configLoadFailed",
+			},
+			expected:
+				"config load failed: state backend 's3' is claimed twice by '@example/state-s3'",
+		},
+		{
+			err: {
 				key: "vip-pass",
 				environment: "production",
 				kind: "incompletePassEntry",

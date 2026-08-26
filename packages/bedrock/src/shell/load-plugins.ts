@@ -135,6 +135,7 @@ function isDeclarationList(value: unknown): value is ReadonlyArray<StateBackendD
 			return (
 				isRecord(entry) &&
 				typeof entry["name"] === "string" &&
+				entry["name"].length > 0 &&
 				typeof entry["schema"] === "function"
 			);
 		})

@@ -82,7 +82,7 @@ describe(buildPluginRegistry, () => {
 		expect(registry.err.specifiers).toStrictEqual(["@bedrock-rbx/core", "@example/state-gist"]);
 	});
 
-	it("should reject one plugin claiming the same backend name twice", () => {
+	it("should reject one plugin claiming the same backend name twice, naming it alone", () => {
 		expect.assertions(1);
 
 		const registry = buildPluginRegistry([

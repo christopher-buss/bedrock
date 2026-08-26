@@ -499,6 +499,15 @@ export interface GistStateConfig {
 export type StateConfig = GistStateConfig | { readonly backend: string & {} };
 
 /**
+ * Every `state.backend` value core ships an adapter for. Widening this as
+ * core gains a **Backend** is what forces the name to be claimed against
+ * plugins, so a plugin cannot quietly take over a builtin.
+ *
+ * Internal: not re-exported from `src/index.ts`.
+ */
+export type BuiltinStateBackend = GistStateConfig["backend"];
+
+/**
  * Body of a single entry under `environments`. Per-environment overrides
  * narrow root-level settings for that environment without redefining
  * unrelated fields. Resource overlays (`passes`, `places`, `universe`)
@@ -1153,6 +1162,47 @@ const BUILTIN_STATE_SCHEMA = type({
 }).onUndeclaredKey("reject");
 
 /**
+ * One field-level problem to attribute, in the shape both the XOR collector
+ * and an `ArkErrors` entry already have.
+ */
+interface AttributableIssue {
+	/** Human-readable explanation of the problem. */
+	readonly message: string;
+	/** Path to the offending field, relative to the reporting narrow. */
+	readonly path: ReadonlyArray<PropertyKey>;
+}
+
+/**
+ * The slice of arktype's traversal context {@link rejectIssues} needs.
+ * Structural so it does not reach into `@ark/schema`, which arktype does
+ * not re-export.
+ */
+interface IssueSink {
+	/** Path of the value currently being traversed. */
+	readonly path: ReadonlyArray<PropertyKey>;
+	/** Record one problem against the value being traversed. */
+	reject: (issue: { message: string; path: ReadonlyArray<PropertyKey> }) => false;
+}
+
+/**
+ * Attribute every issue to its own field and report whether the value
+ * passed. `ctx.path` re-roots each issue under wherever the narrow sits, so
+ * a bad value lands on the field carrying it rather than on the block as a
+ * whole.
+ *
+ * @param ctx - Traversal context of the narrow reporting the issues.
+ * @param issues - Issues to attribute; empty when the value is valid.
+ * @returns `true` when there was nothing to reject.
+ */
+function rejectIssues(ctx: IssueSink, issues: ReadonlyArray<AttributableIssue>): boolean {
+	for (const issue of issues) {
+		ctx.reject({ message: issue.message, path: [...ctx.path, ...issue.path] });
+	}
+
+	return issues.length === 0;
+}
+
+/**
  * Build the schema for one `state` block, dispatching on the authored
  * `backend` value so a plugin's fragment validates only the block that
  * named that plugin's backend.
@@ -1178,17 +1228,7 @@ function buildStateSchema(registry: PluginRegistry): Type<StateConfig> {
 			BUILTIN_STATE_SCHEMA;
 
 		const checked = schema(value);
-		const failed = checked instanceof ArkErrors;
-		if (failed) {
-			// `ctx.path` re-roots the sub-schema's own paths under wherever
-			// this block sits, so a bad value is attributed to the field
-			// carrying it rather than to the block as a whole.
-			for (const issue of checked) {
-				ctx.reject({ message: issue.message, path: [...ctx.path, ...issue.path] });
-			}
-		}
-
-		return !failed;
+		return rejectIssues(ctx, checked instanceof ArkErrors ? [...checked] : []);
 	});
 }
 
@@ -1447,12 +1487,5 @@ function buildRootSchema(registry: PluginRegistry): Type<object> {
 		"universe?": universeEntry,
 	})
 		.onUndeclaredKey("reject")
-		.narrow((value, ctx) => {
-			// `ctx.reject` returns `false` for every issue and `reduce` walks
-			// the whole list so every offending field gets attributed; the
-			// seeded `true` flips to `false` on the first issue.
-			return collectUniverseIdIssues(value).reduce<boolean>((_accumulator, issue) => {
-				return ctx.reject({ message: issue.message, path: [...issue.path] });
-			}, true);
-		});
+		.narrow((value, ctx) => rejectIssues(ctx, collectUniverseIdIssues(value)));
 }

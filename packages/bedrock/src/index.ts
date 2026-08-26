@@ -85,12 +85,7 @@ export type {
 	Operation,
 	UpdateOperation,
 } from "./core/operations.ts";
-export {
-	buildPluginRegistry,
-	EMPTY_PLUGIN_REGISTRY,
-	type LoadedPlugin,
-	type PluginRegistry,
-} from "./core/plugin-registry.ts";
+export type { PluginRegistry } from "./core/plugin-registry.ts";
 export type { BedrockPlugin, StateBackendDeclaration, StateBackendSchema } from "./core/plugin.ts";
 export { resolveStateConfig, type StateNotConfiguredError } from "./core/resolve-state-config.ts";
 export {

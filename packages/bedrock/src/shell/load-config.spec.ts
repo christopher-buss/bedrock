@@ -1138,6 +1138,29 @@ describe(loadConfigWith, () => {
 		expect(result.err.issues[0]!.path).toStrictEqual(["state", "endpoint"]);
 	});
 
+	it("should attribute an invalid value for a plugin's own state key to that field", async () => {
+		expect.assertions(1);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/state-s3'],",
+			"  state: { backend: 's3', bucket: '' },",
+			"};",
+		]);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: importS3Plugin },
+			{ cwd },
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["state", "bucket"]);
+	});
+
 	it("should fail the load when two plugins claim one backend name", async () => {
 		expect.assertions(2);
 
@@ -1197,6 +1220,10 @@ describe(loadConfigWith, () => {
 		["a declaration is not an object", { stateBackends: ["s3"] }],
 		["a declaration has no name", { stateBackends: [{ schema: type("object") }] }],
 		["a declaration has no schema", { stateBackends: [{ name: "s3" }] }],
+		[
+			"a declaration names the empty string",
+			{ stateBackends: [{ name: "", schema: type("object") }] },
+		],
 		[
 			"only some declarations are well-formed",
 			{ stateBackends: [{ name: "s3", schema: type("object") }, "nope"] },
