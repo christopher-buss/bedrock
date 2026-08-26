@@ -43,6 +43,14 @@ interface LoadConfigDependencies {
 	readonly importModule: ModuleImporter;
 }
 
+type C12Result = Awaited<ReturnType<typeof c12LoadConfig<Record<string, unknown>>>>;
+
+interface C12ResolveInput {
+	readonly configFile: string | undefined;
+	readonly cwd: string;
+	readonly evaluator: LuauEvaluator;
+}
+
 interface LuauResolveResult {
 	readonly _configFile: string;
 	readonly config: Record<string, unknown>;
@@ -73,18 +81,9 @@ export async function loadConfigWith(
 
 	const configFile = explicit.data ?? discoverConfigFallback(cwd);
 
-	let resolved: Awaited<ReturnType<typeof c12LoadConfig<Record<string, unknown>>>>;
+	let resolved: C12Result;
 	try {
-		resolved = await c12LoadConfig<Record<string, unknown>>({
-			name: "bedrock",
-			cwd,
-			resolve: makeLuauResolver({
-				callerConfigFile: configFile,
-				defaultCwd: cwd,
-				evaluator: deps.evaluator,
-			}),
-			...(configFile === undefined ? {} : { configFile }),
-		});
+		resolved = await resolveWithC12Async({ configFile, cwd, evaluator: deps.evaluator });
 	} catch (err) {
 		return { err: attributeLoadError(err, cwd), success: false };
 	}
@@ -93,7 +92,10 @@ export async function loadConfigWith(
 		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
 	}
 
-	await loadPluginsAsync(deps.importModule, resolved.config);
+	const plugins = await loadPluginsAsync(deps.importModule, resolved.config);
+	if (!plugins.success) {
+		return plugins;
+	}
 
 	return validateConfig(resolved.config, resolved._configFile);
 }
@@ -149,6 +151,28 @@ export async function loadConfig(
 		{ evaluator: createLuteLuauEvaluator(), importModule: importPluginModuleAsync },
 		options,
 	);
+}
+
+/**
+ * Run c12's loader with the Luau resolver installed, so a `.luau` config is
+ * evaluated through the injected evaluator while every other format falls
+ * through to c12's own loaders.
+ *
+ * @param input - Search directory, explicit config path if the caller named
+ * one, and the injected Luau evaluator.
+ * @returns The resolved c12 result.
+ */
+async function resolveWithC12Async({
+	configFile,
+	cwd,
+	evaluator,
+}: C12ResolveInput): Promise<C12Result> {
+	return c12LoadConfig<Record<string, unknown>>({
+		name: "bedrock",
+		cwd,
+		resolve: makeLuauResolver({ callerConfigFile: configFile, defaultCwd: cwd, evaluator }),
+		...(configFile === undefined ? {} : { configFile }),
+	});
 }
 
 function resolveConfigPath(cwd: string, configFile: string): string {

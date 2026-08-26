@@ -26,6 +26,17 @@ export interface ConfigValidationIssue {
 }
 
 /**
+ * Why a module specifier listed under `plugins` could not be loaded.
+ *
+ * - `notInstalled` - the specifier did not resolve to a module at all, which
+ *   is what a missing or misspelled dependency looks like.
+ * - `importThrew` - the module resolved but threw while it was evaluated.
+ *
+ * @since 0.1.0
+ */
+export type PluginLoadFailureReason = "importThrew" | "notInstalled";
+
+/**
  * Failure surfaced by `loadConfig` when a project config cannot be resolved,
  * parsed, or validated. Plain-data discriminated union; narrow on `kind`
  * rather than using `instanceof`.
@@ -42,6 +53,10 @@ export interface ConfigValidationIssue {
  * - `configFunctionFailed` - a function-form config threw or its returned
  *   promise rejected while being invoked. `message` carries the thrown
  *   error's message verbatim.
+ * - `pluginLoadFailed` - a module specifier listed under `plugins` could not
+ *   be loaded. `reason` separates a package that is not installed
+ *   (`notInstalled`) from one that threw while evaluating (`importThrew`);
+ *   `message` carries the underlying error verbatim.
  * - `luauRuntimeMissing` - a `bedrock.config.luau` file was found but the
  *   `lute` runtime needed to evaluate it could not be located on PATH or
  *   via the `BEDROCK_LUTE_PATH` environment variable. `hint` carries an
@@ -73,6 +88,9 @@ export interface ConfigValidationIssue {
  *         }
  *         case "luauRuntimeMissing": {
  *             return `${err.sourceFile}: ${err.hint}`;
+ *         }
+ *         case "pluginLoadFailed": {
+ *             return `plugin '${err.specifier}' (${err.reason}): ${err.message}`;
  *         }
  *     }
  * }
@@ -108,6 +126,16 @@ export interface ConfigValidationIssue {
  *         hint: "install lute via mise",
  *     }),
  * ).toBe("bedrock.config.luau: install lute via mise");
+ * expect(
+ *     describe({
+ *         kind: "pluginLoadFailed",
+ *         specifier: "@bedrock-rbx/state-s3",
+ *         reason: "notInstalled",
+ *         message: "Cannot find package '@bedrock-rbx/state-s3'",
+ *     }),
+ * ).toBe(
+ *     "plugin '@bedrock-rbx/state-s3' (notInstalled): Cannot find package '@bedrock-rbx/state-s3'",
+ * );
  * ```
  */
 export type ConfigError =
@@ -134,4 +162,10 @@ export type ConfigError =
 			readonly kind: "parseFailed";
 			readonly message: string;
 			readonly sourceFile: string;
+	  }
+	| {
+			readonly kind: "pluginLoadFailed";
+			readonly message: string;
+			readonly reason: PluginLoadFailureReason;
+			readonly specifier: string;
 	  };

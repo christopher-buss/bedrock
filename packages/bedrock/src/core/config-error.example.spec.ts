@@ -31,6 +31,9 @@ it('Example 2', () => {
       case 'luauRuntimeMissing': {
         return `${err.sourceFile}: ${err.hint}`
       }
+      case 'pluginLoadFailed': {
+        return `plugin '${err.specifier}' (${err.reason}): ${err.message}`
+      }
     }
   }
   expect(describe({ kind: 'fileNotFound', searchedFrom: '/proj' })).toBe(
@@ -66,4 +69,14 @@ it('Example 2', () => {
       hint: 'install lute via mise',
     }),
   ).toBe('bedrock.config.luau: install lute via mise')
+  expect(
+    describe({
+      kind: 'pluginLoadFailed',
+      specifier: '@bedrock-rbx/state-s3',
+      reason: 'notInstalled',
+      message: "Cannot find package '@bedrock-rbx/state-s3'",
+    }),
+  ).toBe(
+    "plugin '@bedrock-rbx/state-s3' (notInstalled): Cannot find package '@bedrock-rbx/state-s3'",
+  )
 })

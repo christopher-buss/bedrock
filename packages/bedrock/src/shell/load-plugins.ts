@@ -1,26 +1,83 @@
+import type { Result } from "@bedrock-rbx/ocale";
+
+import type { ConfigError } from "../core/config-error.ts";
+import { safeStringify } from "../core/error-chain.ts";
 import type { ModuleImporter } from "../ports/module-importer.ts";
+
+// The code Node and Bun both set on the error an unresolvable specifier
+// rejects with. It is what separates "the package is not installed" from
+// "the package is installed and blew up while evaluating".
+const MODULE_NOT_FOUND_CODE = "ERR_MODULE_NOT_FOUND";
 
 /**
  * Import every plugin named in the parsed config, in declaration order.
  *
  * Runs after the config is parsed but before it is validated, so a plugin is
- * loaded before the fields it exists to make valid are checked.
+ * loaded before the fields it exists to make valid are checked, and a broken
+ * install is reported instead of the validation issues it causes.
  *
  * @param importModule - Injected module importer.
  * @param config - The parsed, not-yet-validated config object.
+ * @returns `Ok` once every specifier has been imported, or `Err` with the
+ * `pluginLoadFailed` error for the first specifier that could not be loaded.
  */
 export async function loadPluginsAsync(
 	importModule: ModuleImporter,
 	config: Record<string, unknown>,
-): Promise<void> {
+): Promise<Result<undefined, ConfigError>> {
 	const specifiers = config["plugins"];
 	if (!isSpecifierList(specifiers)) {
-		return;
+		return { data: undefined, success: true };
 	}
 
 	for (const specifier of specifiers) {
-		await importModule(specifier);
+		const outcome = await importPluginAsync(importModule, specifier);
+		if (!outcome.success) {
+			return outcome;
+		}
 	}
+
+	return { data: undefined, success: true };
+}
+
+/**
+ * Decide whether a rejected import means the package could not be resolved
+ * at all, as opposed to resolving and then throwing.
+ *
+ * @param err - The value the import rejected with.
+ * @returns `true` when the rejection carries the module-not-found code.
+ */
+function isModuleNotFound(err: unknown): boolean {
+	return err instanceof Error && Reflect.get(err, "code") === MODULE_NOT_FOUND_CODE;
+}
+
+/**
+ * Import one plugin, mapping an import rejection onto the
+ * `pluginLoadFailed` error that names the specifier that produced it.
+ *
+ * @param importModule - Injected module importer.
+ * @param specifier - The module specifier to import.
+ * @returns `Ok` when the module imported, `Err` otherwise.
+ */
+async function importPluginAsync(
+	importModule: ModuleImporter,
+	specifier: string,
+): Promise<Result<undefined, ConfigError>> {
+	try {
+		await importModule(specifier);
+	} catch (err) {
+		return {
+			err: {
+				kind: "pluginLoadFailed",
+				message: safeStringify(err),
+				reason: isModuleNotFound(err) ? "notInstalled" : "importThrew",
+				specifier,
+			},
+			success: false,
+		};
+	}
+
+	return { data: undefined, success: true };
 }
 
 /**

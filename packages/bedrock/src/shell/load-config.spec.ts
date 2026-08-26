@@ -895,6 +895,12 @@ async function unusedEvaluator(): Promise<Awaited<ReturnType<FakeEvaluator>>> {
 	return { err: { kind: "evaluationFailed", message: "evaluator not used" }, success: false };
 }
 
+async function rejectAsNotInstalled(specifier: string): Promise<unknown> {
+	throw Object.assign(new Error(`Cannot find package '${specifier}'`), {
+		code: "ERR_MODULE_NOT_FOUND",
+	});
+}
+
 async function unusedImporter(specifier: string): Promise<unknown> {
 	throw new Error(`importer must not run, but was asked for '${specifier}'`);
 }
@@ -921,6 +927,46 @@ describe(loadConfigWith, () => {
 
 		expect(result.success).toBeTrue();
 		expect(imported).toStrictEqual(["@example/first", "@example/second"]);
+	});
+
+	it("should fail the load when a plugin specifier cannot be resolved", async () => {
+		expect.assertions(3);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/missing'],",
+			"};",
+		]);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: rejectAsNotInstalled },
+			{ cwd },
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "pluginLoadFailed");
+
+		expect(result.err.specifier).toBe("@example/missing");
+		expect(result.err.reason).toBe("notInstalled");
+		expect(result.err.message).toBe("Cannot find package '@example/missing'");
+	});
+
+	it("should report a failed plugin import rather than the config's own validation issues", async () => {
+		expect.assertions(1);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, ["export default { plugins: ['@example/missing'] };"]);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: rejectAsNotInstalled },
+			{ cwd },
+		);
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("pluginLoadFailed");
 	});
 
 	it("should import nothing when the config declares no plugins", async () => {

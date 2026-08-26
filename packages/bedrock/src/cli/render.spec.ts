@@ -491,6 +491,19 @@ describe(renderDeployError, () => {
 		},
 		{
 			err: {
+				cause: {
+					kind: "pluginLoadFailed",
+					message: "Cannot find package '@example/plugin'",
+					reason: "notInstalled",
+					specifier: "@example/plugin",
+				},
+				kind: "configLoadFailed",
+			},
+			expected:
+				"config load failed: plugin '@example/plugin' failed to load (notInstalled): Cannot find package '@example/plugin'",
+		},
+		{
+			err: {
 				key: "vip-pass",
 				environment: "production",
 				kind: "incompletePassEntry",
