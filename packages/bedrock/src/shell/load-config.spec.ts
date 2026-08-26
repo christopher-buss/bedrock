@@ -895,13 +895,16 @@ async function unusedEvaluator(): Promise<Awaited<ReturnType<FakeEvaluator>>> {
 	return { err: { kind: "evaluationFailed", message: "evaluator not used" }, success: false };
 }
 
-async function rejectAsNotInstalled(specifier: string): Promise<unknown> {
-	throw Object.assign(new Error(`Cannot find package '${specifier}'`), {
-		code: "ERR_MODULE_NOT_FOUND",
-	});
+type ImportResult = Awaited<ReturnType<Parameters<typeof loadConfigWith>[0]["importModule"]>>;
+
+async function failToResolve(specifier: string): Promise<ImportResult> {
+	return {
+		err: { kind: "resolutionFailed", message: `Cannot find package '${specifier}'` },
+		success: false,
+	};
 }
 
-async function unusedImporter(specifier: string): Promise<unknown> {
+async function unusedImporter(specifier: string): Promise<ImportResult> {
 	throw new Error(`importer must not run, but was asked for '${specifier}'`);
 }
 
@@ -918,9 +921,9 @@ describe(loadConfigWith, () => {
 		]);
 
 		const imported: Array<string> = [];
-		async function importModule(specifier: string): Promise<unknown> {
+		async function importModule(specifier: string): Promise<ImportResult> {
 			imported.push(specifier);
-			return { default: {} };
+			return { data: { default: {} }, success: true };
 		}
 
 		const result = await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
@@ -941,7 +944,7 @@ describe(loadConfigWith, () => {
 		]);
 
 		const result = await loadConfigWith(
-			{ evaluator: unusedEvaluator, importModule: rejectAsNotInstalled },
+			{ evaluator: unusedEvaluator, importModule: failToResolve },
 			{ cwd },
 		);
 
@@ -964,8 +967,11 @@ describe(loadConfigWith, () => {
 			"};",
 		]);
 
-		async function importModule(): Promise<unknown> {
-			throw new Error("missing AWS_REGION");
+		async function importModule(): Promise<ImportResult> {
+			return {
+				err: { kind: "evaluationFailed", message: "missing AWS_REGION" },
+				success: false,
+			};
 		}
 
 		const result = await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
@@ -992,8 +998,8 @@ describe(loadConfigWith, () => {
 			"};",
 		]);
 
-		async function importModule(): Promise<unknown> {
-			return pluginModule;
+		async function importModule(): Promise<ImportResult> {
+			return { data: pluginModule, success: true };
 		}
 
 		const result = await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
@@ -1013,7 +1019,7 @@ describe(loadConfigWith, () => {
 		writeFixtureConfig(cwd, ["export default { plugins: ['@example/missing'] };"]);
 
 		const result = await loadConfigWith(
-			{ evaluator: unusedEvaluator, importModule: rejectAsNotInstalled },
+			{ evaluator: unusedEvaluator, importModule: failToResolve },
 			{ cwd },
 		);
 
@@ -1039,9 +1045,12 @@ describe(loadConfigWith, () => {
 		);
 
 		const seen: Array<string> = [];
-		async function importModule(_specifier: string, fromDirectory: string): Promise<unknown> {
+		async function importModule(
+			_specifier: string,
+			fromDirectory: string,
+		): Promise<ImportResult> {
 			seen.push(fromDirectory);
-			return { default: {} };
+			return { data: { default: {} }, success: true };
 		}
 
 		await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });

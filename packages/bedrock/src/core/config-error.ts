@@ -29,15 +29,38 @@ export interface ConfigValidationIssue {
  * Why a module specifier listed under `plugins` could not be loaded.
  *
  * - `notInstalled` - the specifier did not resolve to a module at all, which
- *   is what a missing or misspelled dependency looks like. A plugin that is
- *   installed but whose own dependency is missing resolves to the same
- *   reason, since the runtime reports both the same way; `message` carries
- *   the specifier the runtime could not find.
- * - `importThrew` - the module resolved but threw while it was evaluated.
+ *   is what a missing or misspelled dependency looks like.
+ * - `importThrew` - the module resolved but threw while it was evaluated,
+ *   which includes a plugin whose own dependency is missing.
  * - `invalidExport` - the module evaluated but exports nothing bedrock
  *   recognizes as a plugin.
  *
  * @since unreleased
+ *
+ * @example
+ *
+ * ```ts
+ * import type { PluginLoadFailureReason } from "@bedrock-rbx/core";
+ *
+ * function remedy(reason: PluginLoadFailureReason): string {
+ *     switch (reason) {
+ *         case "importThrew": {
+ *             return "the plugin threw while loading; check its own configuration";
+ *         }
+ *         case "invalidExport": {
+ *             return "the module is not a bedrock plugin";
+ *         }
+ *         case "notInstalled": {
+ *             return "install the package, or correct the specifier";
+ *         }
+ *     }
+ * }
+ *
+ * expect(remedy("notInstalled")).toBe("install the package, or correct the specifier");
+ * expect(remedy("importThrew")).toBe(
+ *     "the plugin threw while loading; check its own configuration",
+ * );
+ * ```
  */
 export type PluginLoadFailureReason = "importThrew" | "invalidExport" | "notInstalled";
 
@@ -62,7 +85,7 @@ export type PluginLoadFailureReason = "importThrew" | "invalidExport" | "notInst
  *   be loaded. `reason` separates a package that is not installed
  *   (`notInstalled`) from one that threw while evaluating (`importThrew`) and
  *   from one that exports no plugin (`invalidExport`); `message` carries the
- *   underlying error verbatim.
+ *   underlying error verbatim. See {@link PluginLoadFailureReason}.
  * - `luauRuntimeMissing` - a `bedrock.config.luau` file was found but the
  *   `lute` runtime needed to evaluate it could not be located on PATH or
  *   via the `BEDROCK_LUTE_PATH` environment variable. `hint` carries an

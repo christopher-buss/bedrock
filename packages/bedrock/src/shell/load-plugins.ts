@@ -1,14 +1,15 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import type { ConfigError } from "../core/config-error.ts";
-import { safeStringify } from "../core/error-chain.ts";
+import type { ConfigError, PluginLoadFailureReason } from "../core/config-error.ts";
 import { isRecord } from "../core/is-record.ts";
-import type { ModuleImporter } from "../ports/module-importer.ts";
+import type { ModuleImportError, ModuleImporter } from "../ports/module-importer.ts";
 
-// The code Node and Bun both set on the error an unresolvable specifier
-// rejects with. It is what separates "the package is not installed" from
-// "the package is installed and blew up while evaluating".
-const MODULE_NOT_FOUND_CODE = "ERR_MODULE_NOT_FOUND";
+// A plugin that is absent and one that is installed but broken are the same
+// runtime error code; only the importer knows which step produced it.
+const IMPORT_FAILURE_REASON = {
+	evaluationFailed: "importThrew",
+	resolutionFailed: "notInstalled",
+} as const satisfies Record<ModuleImportError["kind"], PluginLoadFailureReason>;
 
 const NO_PLUGIN_EXPORT_MESSAGE = "expected a default-exported plugin object";
 
@@ -91,17 +92,6 @@ function defaultExportOf(module: unknown): unknown {
 }
 
 /**
- * Decide whether a rejected import means the package could not be resolved
- * at all, as opposed to resolving and then throwing.
- *
- * @param err - The value the import rejected with.
- * @returns `true` when the rejection carries the module-not-found code.
- */
-function isModuleNotFound(err: unknown): boolean {
-	return err instanceof Error && Reflect.get(err, "code") === MODULE_NOT_FOUND_CODE;
-}
-
-/**
  * Import one plugin, mapping an import rejection onto the
  * `pluginLoadFailed` error that names the specifier that produced it.
  *
@@ -114,22 +104,20 @@ async function importPluginAsync({
 	sourceDirectory,
 	specifier,
 }: ImportPluginInput): Promise<Result<undefined, ConfigError>> {
-	let module: unknown;
-	try {
-		module = await importModule(specifier, sourceDirectory);
-	} catch (err) {
+	const imported = await importModule(specifier, sourceDirectory);
+	if (!imported.success) {
 		return {
 			err: {
 				kind: "pluginLoadFailed",
-				message: safeStringify(err),
-				reason: isModuleNotFound(err) ? "notInstalled" : "importThrew",
+				message: imported.err.message,
+				reason: IMPORT_FAILURE_REASON[imported.err.kind],
 				specifier,
 			},
 			success: false,
 		};
 	}
 
-	if (!isRecord(defaultExportOf(module))) {
+	if (!isRecord(defaultExportOf(imported.data))) {
 		return {
 			err: {
 				kind: "pluginLoadFailed",

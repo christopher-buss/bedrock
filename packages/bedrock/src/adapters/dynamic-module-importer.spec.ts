@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { assert, describe, expect, it, onTestFinished } from "vitest";
 
 import { importPluginModuleAsync } from "./dynamic-module-importer.ts";
 
@@ -41,9 +41,11 @@ describe(importPluginModuleAsync, () => {
 		const projectDirectory = createProjectDirectory();
 		writePluginPackage(projectDirectory, "example-plugin");
 
-		const module = await importPluginModuleAsync("example-plugin", projectDirectory);
+		const result = await importPluginModuleAsync("example-plugin", projectDirectory);
 
-		expect(module).toHaveProperty("default.name", "example-plugin");
+		assert(result.success);
+
+		expect(result.data).toHaveProperty("default.name", "example-plugin");
 	});
 
 	it.for([
@@ -58,20 +60,41 @@ describe(importPluginModuleAsync, () => {
 		writePluginFile(join(projectDirectory, "tools", "local.mjs"), "local");
 		writePluginFile(join(projectDirectory, "tools", "index.mjs"), "local");
 
-		const module = await importPluginModuleAsync(specifier, projectDirectory);
+		const result = await importPluginModuleAsync(specifier, projectDirectory);
 
-		expect(module).toHaveProperty("default.name", "local");
+		assert(result.success);
+
+		expect(result.data).toHaveProperty("default.name", "local");
 	});
 
-	it("should reject with the module-not-found code when the specifier resolves to nothing", async () => {
-		expect.assertions(1);
+	it("should report resolutionFailed when the specifier resolves to nothing", async () => {
+		expect.assertions(2);
 
 		const projectDirectory = createProjectDirectory();
 
-		const rejection = await importPluginModuleAsync("nope-plugin", projectDirectory).catch(
-			(err: unknown) => err,
+		const result = await importPluginModuleAsync("nope-plugin", projectDirectory);
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("resolutionFailed");
+		expect(result.err.message.length).toBeGreaterThan(0);
+	});
+
+	it("should report evaluationFailed when a resolved plugin's own dependency is missing", async () => {
+		expect.assertions(2);
+
+		const projectDirectory = createProjectDirectory();
+		writePluginPackage(projectDirectory, "example-plugin");
+		writeFileSync(
+			join(projectDirectory, "node_modules", "example-plugin", "index.mjs"),
+			'import "@nope/not-installed";\nexport default { name: "example-plugin" };\n',
 		);
 
-		expect(rejection).toHaveProperty("code", "ERR_MODULE_NOT_FOUND");
+		const result = await importPluginModuleAsync("example-plugin", projectDirectory);
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("evaluationFailed");
+		expect(result.err.message.length).toBeGreaterThan(0);
 	});
 });
