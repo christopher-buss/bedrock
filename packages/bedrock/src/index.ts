@@ -187,9 +187,11 @@ export type { AggregateApplyError, ApplyError, ApplyOpsReporting } from "./shell
 export { buildDefaultRegistry, type RegistryConfigError } from "./shell/build-default-registry.ts";
 export { buildDesired } from "./shell/build-desired.ts";
 export {
+	buildStateBackend,
 	buildStatePort,
 	type MissingCredentialError,
 	type PluginStateBackendError,
+	type StateBackend,
 	type UnsupportedBackendError,
 } from "./shell/build-state-port.ts";
 export { defineConfig, type ConfigContext, type ConfigInput } from "./shell/define-config.ts";

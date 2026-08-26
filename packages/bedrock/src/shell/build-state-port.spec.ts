@@ -5,7 +5,8 @@ import { environmentFrom } from "#tests/helpers/environment";
 import { fakeFetch } from "#tests/helpers/fake-gist-fetch";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
 import type { StateConfig } from "../core/schema.ts";
-import { buildStatePort } from "./build-state-port.ts";
+import type { StatePort } from "../ports/state-port.ts";
+import { buildStateBackend, buildStatePort } from "./build-state-port.ts";
 
 const GIST_CONFIG: StateConfig = { backend: "gist", gistId: "abc123" };
 
@@ -15,6 +16,13 @@ async function neverFetchAsync(): Promise<Response> {
 
 function emptyFilesResponse(): Response {
 	return new Response(JSON.stringify({ files: {} }), { status: 200 });
+}
+
+function okPort(): StatePort {
+	return {
+		read: async () => ({ data: undefined, success: true }),
+		write: async () => ({ data: undefined, success: true }),
+	};
 }
 
 describe(buildStatePort, () => {
@@ -238,5 +246,130 @@ describe(buildStatePort, () => {
 		assert(result.success);
 
 		expect(result.data.read).toBeFunction();
+	});
+});
+
+describe(buildStateBackend, () => {
+	it("should yield no lock port for the gist backend, which declares no locking", () => {
+		expect.assertions(1);
+
+		const result = buildStateBackend({
+			fetch: neverFetchAsync,
+			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
+			stateConfig: GIST_CONFIG,
+		});
+
+		assert(result.success);
+
+		expect(result.data.lockPort).toBeUndefined();
+	});
+
+	it("should build the lock port a plugin backend declares", async () => {
+		expect.assertions(1);
+
+		const hold = { release: async () => ({ data: undefined, success: true }) as const };
+
+		const result = buildStateBackend({
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: () => {
+					return {
+						data: { acquire: async () => ({ data: hold, success: true }) as const },
+						success: true,
+					};
+				},
+				createPort: () => ({ data: okPort(), success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			stateConfig: { backend: "s3", bucket: "my-bucket" },
+		});
+
+		assert(result.success);
+		assert(result.data.lockPort !== undefined);
+
+		await expect(result.data.lockPort.acquire("production")).resolves.toStrictEqual({
+			data: hold,
+			success: true,
+		});
+	});
+
+	it("should yield no lock port for a plugin backend that declares no lock builder", () => {
+		expect.assertions(1);
+
+		const result = buildStateBackend({
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createPort: () => ({ data: okPort(), success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			stateConfig: { backend: "s3", bucket: "my-bucket" },
+		});
+
+		assert(result.success);
+
+		expect(result.data.lockPort).toBeUndefined();
+	});
+
+	it("should hand the plugin's lock builder the state block, the credential reader, and the fetch seam", () => {
+		expect.assertions(3);
+
+		const { fetchFn } = fakeFetch(emptyFilesResponse);
+		const seen: Array<unknown> = [];
+
+		buildStateBackend({
+			fetch: fetchFn,
+			getEnv: environmentFrom({ AWS_ACCESS_KEY_ID: "example-access-key" }),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: (context) => {
+					seen.push(
+						context.stateConfig,
+						context.getEnv("AWS_ACCESS_KEY_ID"),
+						context.fetch,
+					);
+					return { err: { reason: "unused" }, success: false };
+				},
+				createPort: () => ({ data: okPort(), success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			stateConfig: { backend: "s3", bucket: "my-bucket" },
+		});
+
+		expect(seen[0]).toStrictEqual({ backend: "s3", bucket: "my-bucket" });
+		expect(seen[1]).toBe("example-access-key");
+		expect(seen[2]).toBe(fetchFn);
+	});
+
+	it("should wrap a plugin lock-builder failure in pluginStateBackend naming the plugin and keeping its payload", () => {
+		expect.assertions(3);
+
+		const result = buildStateBackend({
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: () => {
+					return {
+						err: { detail: { table: "locks" }, reason: "lock table unreachable" },
+						success: false,
+					};
+				},
+				createPort: () => ({ data: okPort(), success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			stateConfig: { backend: "s3", bucket: "my-bucket" },
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "pluginStateBackend");
+
+		expect(result.err.specifier).toBe("@example/state-s3");
+		expect(result.err.reason).toBe("lock table unreachable");
+		expect(result.err.detail).toStrictEqual({ table: "locks" });
 	});
 });

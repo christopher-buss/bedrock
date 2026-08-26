@@ -3,7 +3,9 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { createGistStateAdapter, type GistFetch } from "../adapters/gist-state-adapter.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../core/plugin-registry.ts";
 import type { RegisteredStateBackend } from "../core/plugin-registry.ts";
+import type { StateBackendBuildError } from "../core/plugin.ts";
 import { type GistStateConfig, isGistStateConfig, type StateConfig } from "../core/schema.ts";
+import type { StateLockPort } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
 
 /**
@@ -63,6 +65,24 @@ export interface PluginStateBackendError {
 	readonly specifier: string;
 }
 
+/**
+ * The ports one **Backend** contributes: the **State port** it always
+ * supplies, and the **State lock port** it supplies only when it declares
+ * that it locks.
+ *
+ * @since unreleased
+ */
+export interface StateBackend {
+	/**
+	 * Exclusion around a **Deploy**, or `undefined` when the **Backend**
+	 * declares none. A deploy against a **Backend** that declares none runs
+	 * without taking a hold.
+	 */
+	readonly lockPort: StateLockPort | undefined;
+	/** Persistence for the per-environment snapshot. */
+	readonly statePort: StatePort;
+}
+
 /** Inputs for {@link buildStatePort}. */
 interface BuildStatePortDependencies {
 	/** Optional `fetch` seam plumbed through to the gist adapter for tests. */
@@ -83,6 +103,67 @@ interface BuildStatePortDependencies {
 }
 
 const STATE_PORT_HINT = "pass a custom statePort via opts.statePort";
+
+/**
+ * Construct everything a **Backend** contributes from a resolved
+ * `StateConfig`: its `StatePort`, and its `StateLockPort` when it declares
+ * that it locks. Dispatches on `stateConfig.backend` exactly as
+ * {@link buildStatePort} does, and surfaces the same typed failures.
+ *
+ * A **Backend** that declares no locking yields `lockPort: undefined`,
+ * which is a valid **Backend**: the deploy then runs without exclusion
+ * rather than refusing to run.
+ *
+ * @since unreleased
+ *
+ * @example
+ *
+ * ```ts
+ * import { buildStateBackend } from "@bedrock-rbx/core";
+ *
+ * const backend = buildStateBackend({
+ *     fetch: async () =>
+ *         new Response(JSON.stringify({ files: {} }), { status: 200 }),
+ *     getEnv: (name) => (name === "BEDROCK_GITHUB_TOKEN" ? "ghp_example" : undefined),
+ *     stateConfig: { backend: "gist", gistId: "abc123" },
+ * });
+ *
+ * expect(backend.success).toBeTrue();
+ * if (backend.success) {
+ *     expect(backend.data.lockPort).toBeUndefined();
+ * }
+ * ```
+ *
+ * @param deps - Resolved state config plus credential-injection seams.
+ * @returns The **Backend**'s ports on success, or a typed Err describing
+ * the missing credential, the plugin's refusal, or the unsupported backend.
+ */
+export function buildStateBackend(
+	deps: BuildStatePortDependencies,
+): Result<
+	StateBackend,
+	MissingCredentialError | PluginStateBackendError | UnsupportedBackendError
+> {
+	if (isGistStateConfig(deps.stateConfig)) {
+		return buildGistStateBackend(deps.stateConfig, deps);
+	}
+
+	const registered = (deps.plugins ?? EMPTY_PLUGIN_REGISTRY).stateBackends.get(
+		deps.stateConfig.backend,
+	);
+	if (registered !== undefined) {
+		return buildPluginStateBackend(registered, deps);
+	}
+
+	return {
+		err: {
+			backend: deps.stateConfig.backend,
+			hint: STATE_PORT_HINT,
+			kind: "unsupportedBackend",
+		},
+		success: false,
+	};
+}
 
 /**
  * Construct a `StatePort` from a resolved `StateConfig`. Dispatches on
@@ -114,65 +195,82 @@ const STATE_PORT_HINT = "pass a custom statePort via opts.statePort";
 export function buildStatePort(
 	deps: BuildStatePortDependencies,
 ): Result<StatePort, MissingCredentialError | PluginStateBackendError | UnsupportedBackendError> {
-	if (isGistStateConfig(deps.stateConfig)) {
-		return buildGistStatePort(deps.stateConfig, deps);
-	}
+	const backend = buildStateBackend(deps);
+	return backend.success ? { data: backend.data.statePort, success: true } : backend;
+}
 
-	const registered = (deps.plugins ?? EMPTY_PLUGIN_REGISTRY).stateBackends.get(
-		deps.stateConfig.backend,
-	);
-	if (registered !== undefined) {
-		return buildPluginStatePort(registered, deps);
-	}
-
+/**
+ * Name the plugin responsible for a refusal while passing its own payload
+ * through untouched.
+ *
+ * @param registered - The **Backend** whose builder refused.
+ * @param refusal - What the plugin said, which core neither reads nor
+ * narrows.
+ * @returns The `pluginStateBackend` failure core reports.
+ */
+function wrapPluginRefusal(
+	registered: RegisteredStateBackend,
+	refusal: StateBackendBuildError,
+): PluginStateBackendError {
 	return {
-		err: {
-			backend: deps.stateConfig.backend,
-			hint: STATE_PORT_HINT,
-			kind: "unsupportedBackend",
-		},
-		success: false,
+		detail: refusal.detail,
+		kind: "pluginStateBackend",
+		reason: refusal.reason,
+		specifier: registered.specifier,
 	};
 }
 
 /**
  * Build one plugin-declared **Backend**, mapping the plugin's refusal onto
- * the `pluginStateBackend` failure that names it.
+ * the `pluginStateBackend` failure that names it. A declaration supplying
+ * no lock builder claims no locking, so the **Backend** resolves with no
+ * lock port rather than failing.
  *
  * @param registered - The **Backend** the loaded plugins claimed for this
  * `state.backend` value.
  * @param dependencies - The resolved `state` block plus the credential and
  * transport seams handed on to the plugin.
- * @returns The plugin's adapter, or the wrapped refusal.
+ * @returns The plugin's ports, or the wrapped refusal.
  */
-function buildPluginStatePort(
+function buildPluginStateBackend(
 	registered: RegisteredStateBackend,
 	dependencies: BuildStatePortDependencies,
-): Result<StatePort, PluginStateBackendError> {
-	const built = registered.declaration.createPort({
+): Result<StateBackend, PluginStateBackendError> {
+	const context = {
 		fetch: dependencies.fetch,
 		getEnv: dependencies.getEnv,
 		stateConfig: dependencies.stateConfig,
-	});
-	if (built.success) {
-		return built;
+	};
+
+	const built = registered.declaration.createPort(context);
+	if (!built.success) {
+		return { err: wrapPluginRefusal(registered, built.err), success: false };
 	}
 
-	return {
-		err: {
-			detail: built.err.detail,
-			kind: "pluginStateBackend",
-			reason: built.err.reason,
-			specifier: registered.specifier,
-		},
-		success: false,
-	};
+	const lock = registered.declaration.createLockPort?.(context);
+	if (lock === undefined) {
+		return { data: { lockPort: undefined, statePort: built.data }, success: true };
+	}
+
+	if (!lock.success) {
+		return { err: wrapPluginRefusal(registered, lock.err), success: false };
+	}
+
+	return { data: { lockPort: lock.data, statePort: built.data }, success: true };
 }
 
-function buildGistStatePort(
+/**
+ * Build the builtin gist **Backend**, which offers no atomic
+ * create-if-absent and so declares no locking.
+ *
+ * @param stateConfig - The resolved gist `state` block.
+ * @param dependencies - The credential and transport seams.
+ * @returns The gist adapter with no lock port, or the missing credential.
+ */
+function buildGistStateBackend(
 	stateConfig: GistStateConfig,
 	dependencies: BuildStatePortDependencies,
-): Result<StatePort, MissingCredentialError> {
+): Result<StateBackend, MissingCredentialError> {
 	const token =
 		dependencies.getEnv("BEDROCK_GITHUB_TOKEN") ?? dependencies.getEnv("GITHUB_TOKEN");
 	if (token === undefined) {
@@ -187,11 +285,14 @@ function buildGistStatePort(
 	}
 
 	return {
-		data: createGistStateAdapter({
-			fetch: dependencies.fetch,
-			gistId: stateConfig.gistId,
-			token,
-		}),
+		data: {
+			lockPort: undefined,
+			statePort: createGistStateAdapter({
+				fetch: dependencies.fetch,
+				gistId: stateConfig.gistId,
+				token,
+			}),
+		},
 		success: true,
 	};
 }
