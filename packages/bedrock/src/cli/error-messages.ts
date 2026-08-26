@@ -42,17 +42,18 @@ export function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFaile
 		case "incompleteUniverseEntry": {
 			return incompleteEntryMessage(err);
 		}
-		case "missingCredential":
-		case "registryConfigMissing":
-		case "unknownEnvironment": {
-			return configErrorMessage(err);
-		}
+		case "lockAcquireFailed":
 		case "pluginStateBackend":
 		case "stateNotConfigured":
 		case "stateReadFailed":
 		case "stateWriteFailed":
 		case "unsupportedBackend": {
 			return stateErrorMessage(err);
+		}
+		case "missingCredential":
+		case "registryConfigMissing":
+		case "unknownEnvironment": {
+			return configErrorMessage(err);
 		}
 	}
 }
@@ -358,6 +359,7 @@ function stateErrorMessage(
 		DeployError,
 		{
 			kind:
+				| "lockAcquireFailed"
 				| "pluginStateBackend"
 				| "stateNotConfigured"
 				| "stateReadFailed"
@@ -367,6 +369,9 @@ function stateErrorMessage(
 	>,
 ): string {
 	switch (err.kind) {
+		case "lockAcquireFailed": {
+			return `state lock not acquired: ${err.cause.reason}`;
+		}
 		case "pluginStateBackend": {
 			return pluginStateBackendMessage(err);
 		}

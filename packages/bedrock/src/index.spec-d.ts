@@ -165,6 +165,7 @@ type ExpectedDeployErrorKind =
 	| "incompletePlaceEntry"
 	| "incompleteProductEntry"
 	| "incompleteUniverseEntry"
+	| "lockAcquireFailed"
 	| "missingBuildStep"
 	| "missingCredential"
 	| "pluginStateBackend"

@@ -2,6 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import type { type } from "arktype";
 
+import type { StateLockPort } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
 
 /**
@@ -260,6 +261,23 @@ export interface StateBackendMigrateSource {
 export interface StateBackendDeclaration<TState extends object = object> {
 	/** Value users write as `state.backend` to select this **Backend**. */
 	readonly name: string;
+	/**
+	 * Build the **State lock port** for one validated `state` block.
+	 *
+	 * Supplying it is how a **Backend** declares that it locks; omitting it
+	 * declares that it does not, which is a valid **Backend** that deploys
+	 * without exclusion. The declaration is what
+	 * {@link "./state-locking".stateLockingCapabilityOf} reports, so
+	 * the guarantee is visible before a deploy relies on it.
+	 *
+	 * @param context - The validated `state` block plus the credential and
+	 * transport seams core injects.
+	 * @returns `Ok` with the lock port, or `Err` describing why it could not
+	 * be built.
+	 */
+	createLockPort?(
+		context: StateBackendContext<TState>,
+	): Result<StateLockPort, StateBackendBuildError>;
 	/**
 	 * Build the adapter for one validated `state` block.
 	 *
