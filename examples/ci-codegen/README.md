@@ -1,10 +1,10 @@
 # CI + codegen example
 
-The [`../minimal`](../minimal) project taken multi-environment: a deploy
-override supplying its own build step and emitter, generated TypeScript instead
-of a Luau table, and a GitHub Actions workflow that commits the regenerated ids
-back to `main`. Read [`../minimal`](../minimal) first if the deploy stages are
-new to you.
+This takes the [`../minimal`](../minimal) project multi-environment. It adds a
+deploy override supplying its own build step and emitter, generated TypeScript
+in place of a Luau table, and a GitHub Actions workflow that commits the
+regenerated ids back to `main`. Read [`../minimal`](../minimal) first if the
+deploy stages are new to you.
 
 ## Layout
 
@@ -79,11 +79,11 @@ pinning freezes which composite you get, not every step it runs.
 
 `development` sets `redacted: true`: Bedrock pushes a placeholder name,
 description, and price to Roblox for that environment and records the real
-values in a sibling of the state file. The emitter reads them back with
-`codegenViewOf` and `realValue`, so generated source carries the real values in
-both environments while only production shows them on the storefront. Drop
-`redacted` and the emitter is unchanged, because `codegenViewOf` returns the
-declared value when there is nothing to see through.
+values as a `$realDisplay` sibling of each resource inside the state file. The
+emitter reads them back with `codegenViewOf` and `realValue`, so generated
+source carries the real values in both environments while only production shows
+them on the storefront. Drop `redacted` and the emitter is unchanged, because
+`codegenViewOf` returns the declared value when there is nothing to see through.
 
 ## Adapting it
 

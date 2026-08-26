@@ -52,12 +52,12 @@ pnpm bedrock publish --env production
 
 ## Why three commands
 
-`provision` creates the universe and the developer product, so Roblox assigns
-ids that did not exist when you last built, then regenerates `resources.luau`
-from those ids. The place has to be rebuilt around the new file before it is
-published, which is why `rojo build` sits between the two Bedrock commands.
-Provisioned ids are written to state before the build runs, so a failed build
-never loses them.
+`provision` adopts the universe you declared and creates what Open Cloud can
+mint — here the developer product — so Roblox assigns ids that did not exist
+when you last built. It then regenerates `resources.luau` from those ids. The
+place has to be rebuilt around the new file before it is published, which is why
+`rojo build` sits between the two Bedrock commands. Provisioned ids are written
+to state before the build runs, so a failed build never loses them.
 
 `bedrock deploy` fuses all three into one, but it can only run the build itself
 if you hand it a build step: a `.bedrock/build.ts` override, which
