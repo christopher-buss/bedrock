@@ -9,6 +9,7 @@ import { importPluginModuleAsync } from "../adapters/dynamic-module-importer.ts"
 import { createLuteLuauEvaluator } from "../adapters/lute-luau-evaluator.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { safeStringify } from "../core/error-chain.ts";
+import type { PluginRegistry } from "../core/plugin-registry.ts";
 import { type Config, createConfigValidator } from "../core/schema.ts";
 import type { LuauEvaluationError, LuauEvaluator } from "../ports/luau-evaluator.ts";
 import type { ModuleImporter } from "../ports/module-importer.ts";
@@ -38,6 +39,22 @@ export interface LoadConfigOptions {
 	readonly cwd?: string;
 }
 
+/**
+ * A validated config together with what the plugins it named declared.
+ *
+ * The two travel as a pair because the registry is what the config was
+ * validated against: a `state` block naming a plugin **Backend** is only
+ * meaningful alongside the registry that made its keys declared.
+ *
+ * @since unreleased
+ */
+export interface LoadedProject {
+	/** The validated project config. */
+	readonly config: Config;
+	/** What the plugins listed under `plugins` declared. */
+	readonly plugins: PluginRegistry;
+}
+
 interface LoadConfigDependencies {
 	readonly evaluator: LuauEvaluator;
 	readonly importModule: ModuleImporter;
@@ -59,20 +76,21 @@ interface LuauResolveResult {
 }
 
 /**
- * Internal entrypoint that lets tests inject a fake `LuauEvaluator` and a
- * fake `ModuleImporter`. The public {@link loadConfig} wraps this with the
- * real lute adapter and a dynamic `import()`; the rest of the loader
- * pipeline is identical.
+ * Same load as {@link loadConfigWith}, keeping the plugin registry the
+ * config was validated against. Callers that go on to construct a
+ * **Backend** need it; callers that only want the config use
+ * {@link loadConfigWith}.
  *
  * @param deps - Injected dependencies: the Luau evaluator and the plugin
  * module importer.
  * @param options - Same loader options accepted by {@link loadConfig}.
- * @returns Same `Result<Config, ConfigError>` shape as `loadConfig`.
+ * @returns The validated config paired with the plugin registry, or the
+ * same `ConfigError` the config-only load would have returned.
  */
-export async function loadConfigWith(
+export async function loadProjectWith(
 	deps: LoadConfigDependencies,
 	options?: LoadConfigOptions,
-): Promise<Result<Config, ConfigError>> {
+): Promise<Result<LoadedProject, ConfigError>> {
 	const cwd = options?.cwd ?? process.cwd();
 	const explicit = resolveExplicitConfigFile(cwd, options?.configFile);
 	if (!explicit.success) {
@@ -101,7 +119,65 @@ export async function loadConfigWith(
 		return pluginLoad;
 	}
 
-	return createConfigValidator(pluginLoad.data)(resolved.config, resolved._configFile);
+	const validated = createConfigValidator(pluginLoad.data)(resolved.config, resolved._configFile);
+	if (!validated.success) {
+		return validated;
+	}
+
+	return { data: { config: validated.data, plugins: pluginLoad.data }, success: true };
+}
+
+/**
+ * Internal entrypoint that lets tests inject a fake `LuauEvaluator` and a
+ * fake `ModuleImporter`. The public {@link loadConfig} wraps this with the
+ * real lute adapter and a dynamic `import()`; the rest of the loader
+ * pipeline is identical.
+ *
+ * @param deps - Injected dependencies: the Luau evaluator and the plugin
+ * module importer.
+ * @param options - Same loader options accepted by {@link loadConfig}.
+ * @returns Same `Result<Config, ConfigError>` shape as `loadConfig`.
+ */
+export async function loadConfigWith(
+	deps: LoadConfigDependencies,
+	options?: LoadConfigOptions,
+): Promise<Result<Config, ConfigError>> {
+	const loaded = await loadProjectWith(deps, options);
+	return loaded.success ? { data: loaded.data.config, success: true } : loaded;
+}
+
+/**
+ * Same load as {@link loadConfig}, keeping the plugin registry the config
+ * was validated against so a caller can go on to construct a
+ * plugin-declared **Backend**.
+ *
+ * @since unreleased
+ *
+ * @param options - Loader options.
+ * @returns `Ok` with the validated config and its registry, or `Err` with
+ * a `ConfigError`.
+ * @example
+ *
+ * ```ts
+ * import { loadProjectAsync } from "@bedrock-rbx/core";
+ *
+ * return loadProjectAsync({
+ *     cwd: "/path/that/does/not/have/a/config",
+ * }).then((result) => {
+ *     expect(result.success).toBeFalse();
+ *     if (!result.success) {
+ *         expect(result.err.kind).toBe("fileNotFound");
+ *     }
+ * });
+ * ```
+ */
+export async function loadProjectAsync(
+	options?: LoadConfigOptions,
+): Promise<Result<LoadedProject, ConfigError>> {
+	return loadProjectWith(
+		{ evaluator: createLuteLuauEvaluator(), importModule: importPluginModuleAsync },
+		options,
+	);
 }
 
 /**
@@ -160,10 +236,8 @@ export async function loadConfigWith(
 export async function loadConfig(
 	options?: LoadConfigOptions,
 ): Promise<Result<Config, ConfigError>> {
-	return loadConfigWith(
-		{ evaluator: createLuteLuauEvaluator(), importModule: importPluginModuleAsync },
-		options,
-	);
+	const loaded = await loadProjectAsync(options);
+	return loaded.success ? { data: loaded.data.config, success: true } : loaded;
 }
 
 /**

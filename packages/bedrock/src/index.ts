@@ -194,7 +194,12 @@ export {
 	publish,
 	type PublishOptions,
 } from "./shell/deploy.ts";
-export { loadConfig, type LoadConfigOptions } from "./shell/load-config.ts";
+export {
+	loadConfig,
+	loadProjectAsync,
+	type LoadConfigOptions,
+	type LoadedProject,
+} from "./shell/load-config.ts";
 export { migrateMantleState, type MigrateMantleStateDeps } from "./shell/migrate-mantle-state.ts";
 export type { CodegenError } from "./shell/run-codegen.ts";
 export {

@@ -1,11 +1,13 @@
 import { OpenCloudError } from "@bedrock-rbx/ocale";
 import type { Result } from "@bedrock-rbx/ocale";
 
+import { type } from "arktype";
 import process from "node:process";
 import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { outcomeByKey } from "#tests/helpers/drivers";
 import { environmentFrom } from "#tests/helpers/environment";
+import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
 import {
 	gamePassDesired,
 	placeCurrent,
@@ -761,6 +763,45 @@ describe(deploy, () => {
 
 		expect(result.err.kind).toBe("unsupportedBackend");
 		expect(result.err.backend).toBe("s3");
+	});
+
+	it("should persist state through a plugin-declared backend named by config.state.backend", async () => {
+		expect.assertions(2);
+
+		const written: Array<BedrockState> = [];
+
+		const result = await deploy({
+			config: {
+				environments: { production: {} },
+				state: { backend: "s3", bucket: "my-bucket" },
+			},
+			environment: "production",
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createPort: ({ stateConfig }) => {
+					return {
+						data: {
+							read: async () => ({ data: undefined, success: true }),
+							write: async (state) => {
+								written.push({ ...state, environment: stateConfig.bucket });
+								return { data: undefined, success: true };
+							},
+						},
+						success: true,
+					};
+				},
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			readFile: readIconAsync,
+			registry: stubRegistry(),
+		});
+
+		assert(result.success);
+
+		expect(written).toHaveLength(1);
+		expect(written[0]!.environment).toBe("my-bucket");
 	});
 
 	it("should return Err(missingCredential) when BEDROCK_GITHUB_TOKEN is unset on the default-construction state-port path", async () => {

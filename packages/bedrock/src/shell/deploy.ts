@@ -16,6 +16,7 @@ import { diff } from "../core/diff.ts";
 import { safeStringify } from "../core/error-chain.ts";
 import { flattenConfig } from "../core/flatten.ts";
 import type { Operation } from "../core/operations.ts";
+import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../core/plugin-registry.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
 import type {
 	ResourceCurrentState,
@@ -47,7 +48,7 @@ import {
 	type PluginStateBackendError,
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
-import { loadConfig as defaultLoadConfig, type LoadConfigOptions } from "./load-config.ts";
+import { type LoadConfigOptions, type LoadedProject, loadProjectAsync } from "./load-config.ts";
 import { applyAndPersistAsync, type ReconcilePass } from "./reconcile-pass.ts";
 import { type CodegenError, runCodegenAsync } from "./run-codegen.ts";
 
@@ -135,6 +136,13 @@ export interface DeployOptions {
 	 */
 	readonly loadConfig?: (options?: LoadConfigOptions) => Promise<Result<Config, ConfigError>>;
 	/**
+	 * What the loaded plugins declared, which decides the **Backend**s
+	 * `config.state.backend` can name beyond the builtins. Defaults to what
+	 * the config load registered; supply it alongside a pre-loaded `config`
+	 * so a plugin-declared **Backend** still resolves.
+	 */
+	readonly plugins?: PluginRegistry;
+	/**
 	 * Optional sink for per-resource and aggregate progress events. When
 	 * supplied, `applyOps` emits one started/terminal pair per non-noop op
 	 * (plus per-noop and summary events), and `deploy` emits `stateWritten`
@@ -204,6 +212,13 @@ export interface ProvisionOptions {
 	 */
 	readonly loadConfig?: (options?: LoadConfigOptions) => Promise<Result<Config, ConfigError>>;
 	/**
+	 * What the loaded plugins declared, which decides the **Backend**s
+	 * `config.state.backend` can name beyond the builtins. Defaults to what
+	 * the config load registered; supply it alongside a pre-loaded `config`
+	 * so a plugin-declared **Backend** still resolves.
+	 */
+	readonly plugins?: PluginRegistry;
+	/**
 	 * Optional sink for per-resource and aggregate progress events. Omit to
 	 * run silently.
 	 */
@@ -259,6 +274,13 @@ export interface PublishOptions {
 	 * this package.
 	 */
 	readonly loadConfig?: (options?: LoadConfigOptions) => Promise<Result<Config, ConfigError>>;
+	/**
+	 * What the loaded plugins declared, which decides the **Backend**s
+	 * `config.state.backend` can name beyond the builtins. Defaults to what
+	 * the config load registered; supply it alongside a pre-loaded `config`
+	 * so a plugin-declared **Backend** still resolves.
+	 */
+	readonly plugins?: PluginRegistry;
 	/**
 	 * Optional sink for per-resource and aggregate progress events. Omit to
 	 * run silently.
@@ -347,6 +369,7 @@ interface ResolvedDependencies extends ResolvedDependenciesBase {
 interface PickRegistryInputs {
 	readonly config: ResolvedConfig;
 	readonly options: DeployOptions;
+	readonly plugins: PluginRegistry;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 }
 
@@ -589,24 +612,51 @@ function getEnvironmentOf(options: DeployOptions): (name: string) => string | un
 	return options.getEnv ?? readProcessEnvironment;
 }
 
-async function pickConfigAsync(options: DeployOptions): Promise<Result<Config, DeployError>> {
+/**
+ * Resolve the project config together with what the loaded plugins
+ * declared.
+ *
+ * A pre-loaded `config` or an injected loader carries no registry of its
+ * own, so `options.plugins` is how a programmatic caller names the
+ * **Backend**s available to that config. The default path takes the
+ * registry from the same load that validated the config against it.
+ *
+ * @param options - The caller's deploy options.
+ * @returns The config and the registry its `state` block resolves against.
+ */
+async function pickConfigAsync(
+	options: DeployOptions,
+): Promise<Result<LoadedProject, DeployError>> {
+	const declared = options.plugins ?? EMPTY_PLUGIN_REGISTRY;
 	if (options.config !== undefined) {
-		return { data: options.config, success: true };
+		return { data: { config: options.config, plugins: declared }, success: true };
 	}
 
-	const loader = options.loadConfig ?? defaultLoadConfig;
-	const loaded = await loader();
+	if (options.loadConfig !== undefined) {
+		const injected = await options.loadConfig();
+		if (!injected.success) {
+			return { err: { cause: injected.err, kind: "configLoadFailed" }, success: false };
+		}
+
+		return { data: { config: injected.data, plugins: declared }, success: true };
+	}
+
+	const loaded = await loadProjectAsync();
 	if (!loaded.success) {
 		return { err: { cause: loaded.err, kind: "configLoadFailed" }, success: false };
 	}
 
-	return { data: loaded.data, success: true };
+	return {
+		data: { config: loaded.data.config, plugins: options.plugins ?? loaded.data.plugins },
+		success: true,
+	};
 }
 
 async function resolveEffectiveConfigAsync(options: DeployOptions): Promise<
 	Result<
 		{
 			effective: ResolvedConfig;
+			plugins: PluginRegistry;
 			readFile: (path: string) => Promise<Uint8Array>;
 			realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 		},
@@ -618,7 +668,7 @@ async function resolveEffectiveConfigAsync(options: DeployOptions): Promise<
 		return config;
 	}
 
-	const selected = resolveEnvironment(config.data, options.environment);
+	const selected = resolveEnvironment(config.data.config, options.environment);
 	if (!selected.success) {
 		return { err: selected.err, success: false };
 	}
@@ -626,6 +676,7 @@ async function resolveEffectiveConfigAsync(options: DeployOptions): Promise<
 	return {
 		data: {
 			effective: selected.data.config,
+			plugins: config.data.plugins,
 			readFile: options.readFile ?? nodeReadFile,
 			realDisplay: selected.data.realDisplay,
 		},
@@ -633,10 +684,11 @@ async function resolveEffectiveConfigAsync(options: DeployOptions): Promise<
 	};
 }
 
-function pickStatePort(
-	options: DeployOptions,
-	config: ResolvedConfig,
-): Result<StatePort, DeployError> {
+function pickStatePort({
+	config,
+	options,
+	plugins,
+}: PickRegistryInputs): Result<StatePort, DeployError> {
 	if (options.statePort !== undefined) {
 		return { data: options.statePort, success: true };
 	}
@@ -649,6 +701,7 @@ function pickStatePort(
 	return buildStatePort({
 		fetch: options.fetch,
 		getEnv: getEnvironmentOf(options),
+		plugins,
 		stateConfig: stateConfig.data,
 	});
 }
@@ -687,17 +740,16 @@ function pickCodegen(
 	return { data: { emit, writer }, success: true };
 }
 
-function pickDrivenDependencies({
-	config,
-	options,
-	readFile,
-}: PickRegistryInputs): Result<DrivenDependencies, DeployError> {
-	const statePort = pickStatePort(options, config);
+function pickDrivenDependencies(
+	inputs: PickRegistryInputs,
+): Result<DrivenDependencies, DeployError> {
+	const { config, options } = inputs;
+	const statePort = pickStatePort(inputs);
 	if (!statePort.success) {
 		return statePort;
 	}
 
-	const registry = pickRegistry({ config, options, readFile });
+	const registry = pickRegistry(inputs);
 	if (!registry.success) {
 		return registry;
 	}
@@ -721,8 +773,8 @@ async function resolveDependenciesAsync(
 		return base;
 	}
 
-	const { effective, readFile, realDisplay } = base.data;
-	const driven = pickDrivenDependencies({ config: effective, options, readFile });
+	const { effective, plugins, readFile, realDisplay } = base.data;
+	const driven = pickDrivenDependencies({ config: effective, options, plugins, readFile });
 	if (!driven.success) {
 		return driven;
 	}
