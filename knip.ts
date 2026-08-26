@@ -51,8 +51,11 @@ const config: KnipConfig = {
 			// @rbxts/services is imported only from the ignored src tree above.
 			ignoreDependencies: ["@rbxts/compiler-types", "@rbxts/services", "@rbxts/types"],
 		},
+		// Pure Luau: no TypeScript to enter from, and @bedrock-rbx/core is used
+		// through its `bedrock` binary rather than imported.
 		"examples/minimal": {
-			entry: ["bedrock.config.ts", ".bedrock/build.ts"],
+			entry: [],
+			ignoreDependencies: ["@bedrock-rbx/core"],
 		},
 		"packages/actions": {
 			entry: [STRYKER_CONFIG],

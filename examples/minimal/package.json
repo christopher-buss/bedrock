@@ -1,7 +1,7 @@
 {
 	"name": "@bedrock-rbx/example-minimal",
 	"private": true,
-	"description": "Smallest Bedrock project: config, a build override, and the default Luau emitter",
+	"description": "Smallest Bedrock project: a Luau config, Rojo, and the default Luau emitter",
 	"keywords": [
 		"bedrock",
 		"example",
@@ -10,15 +10,8 @@
 	"license": "MIT",
 	"author": "Christopher Buss <christopher.buss@pm.me> (https://github.com/christopher-buss)",
 	"type": "module",
-	"scripts": {
-		"typecheck": "tsgo --noEmit"
-	},
 	"dependencies": {
 		"@bedrock-rbx/core": "workspace:*"
-	},
-	"devDependencies": {
-		"@bedrock-rbx/typescript-config": "workspace:*",
-		"typescript": "catalog:tsc"
 	},
 	"engines": {
 		"node": ">=24.12.0",

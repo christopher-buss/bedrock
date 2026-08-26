@@ -46,6 +46,7 @@ apps/website/docs/bedrock/api/
 # store (the configured store lives in ~/.cache/sandcastle-pnpm-store).
 .pnpm-store/
 
-# roblox-ts build output in examples/
-examples/*/out/
+# Build output in examples/
+examples/*/*.rbxl
 examples/*/include/
+examples/*/out/

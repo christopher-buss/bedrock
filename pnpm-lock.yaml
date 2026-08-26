@@ -510,13 +510,6 @@ importers:
       '@bedrock-rbx/core':
         specifier: workspace:*
         version: link:../../packages/bedrock
-    devDependencies:
-      '@bedrock-rbx/typescript-config':
-        specifier: workspace:*
-        version: link:../../packages/typescript-config
-      typescript:
-        specifier: catalog:tsc
-        version: '@typescript/typescript6@6.0.1'
 
   packages/actions:
     devDependencies:
