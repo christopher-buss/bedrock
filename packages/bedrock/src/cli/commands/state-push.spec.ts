@@ -87,7 +87,7 @@ function makeDependencies(overrides: Partial<ProgDependencies> = {}): ProgDepend
 
 describe(statePushCommand, () => {
 	it("should write the dumped state through the configured backend and report what it wrote", async () => {
-		expect.assertions(4);
+		expect.assertions(5);
 
 		const write = vi.fn<StatePort["write"]>(async () => ({ data: undefined, success: true }));
 		const dependencies = makeDependencies({ buildStatePort: portReturning(write) });
@@ -99,6 +99,7 @@ describe(statePushCommand, () => {
 		expect(dependencies.clack!.logSuccess).toHaveBeenCalledExactlyOnceWith(
 			`production: 1 resource pushed from ${DUMP_PATH}`,
 		);
+		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith("state push succeeded");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
@@ -298,7 +299,7 @@ describe(statePushCommand, () => {
 	});
 
 	it("should report that state is not configured for the environment", async () => {
-		expect.assertions(2);
+		expect.assertions(3);
 
 		const buildStatePort = vi.fn<BuildStatePortFunc>();
 		const dependencies = makeDependencies({
@@ -312,6 +313,7 @@ describe(statePushCommand, () => {
 		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			"state not configured for environment 'production'",
 		);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
 	it("should report the config load failure and exit 1", async () => {
