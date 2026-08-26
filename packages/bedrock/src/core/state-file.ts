@@ -117,6 +117,30 @@ export function serializeStateFile(state: BedrockState): string {
 }
 
 /**
+ * Parse state-file contents a caller already has in hand, where "no file"
+ * is not one of the outcomes. {@link parseStateFile} Is the entry point for
+ * an adapter read, which may legitimately find nothing..
+ *
+ * @param raw - Raw file contents.
+ * @param file - Adapter-specific identifier included in any `StateError`.
+ * @returns `Ok(state)` for a parseable file, or `Err(StateError)` for
+ * anything that cannot be trusted.
+ */
+export function parseStateContents(raw: string, file: string): Result<BedrockState, StateError> {
+	const parsed = parseJson(raw, file);
+	if (!parsed.success) {
+		return parsed;
+	}
+
+	const validated = envelopeSchema(parsed.data);
+	if (validated instanceof ArkErrors) {
+		return errState(file, `invalid state file: ${validated.summary}`);
+	}
+
+	return { data: toState(validated), success: true };
+}
+
+/**
  * Parse a raw on-disk state file into a {@link BedrockState}.
  *
  * A backend that reports "no state file for this environment yet" must pass
@@ -156,17 +180,7 @@ export function parseStateFile(
 		return { data: undefined, success: true };
 	}
 
-	const parsed = parseJson(raw, file);
-	if (!parsed.success) {
-		return parsed;
-	}
-
-	const validated = envelopeSchema(parsed.data);
-	if (validated instanceof ArkErrors) {
-		return errState(file, `invalid state file: ${validated.summary}`);
-	}
-
-	return { data: toState(validated), success: true };
+	return parseStateContents(raw, file);
 }
 
 function bedrockMeta({ codegenHash, pendingRebuild, version }: BedrockState): {
@@ -239,7 +253,7 @@ function parseJson(raw: string, file: string): Result<JSONValue, StateError> {
 	}
 }
 
-function errState(file: string, reason: string): Result<BedrockState | undefined, StateError> {
+function errState(file: string, reason: string): Result<BedrockState, StateError> {
 	return {
 		err: { file, kind: "stateError", reason },
 		success: false,

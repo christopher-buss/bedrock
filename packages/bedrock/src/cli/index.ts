@@ -19,6 +19,7 @@ import { diffCommand } from "./commands/diff.ts";
 import { migrateCommand } from "./commands/migrate.ts";
 import { provisionCommand } from "./commands/provision.ts";
 import { publishCommand } from "./commands/publish.ts";
+import { statePushCommand } from "./commands/state-push.ts";
 import type { discoverOverride as defaultDiscoverOverride } from "./discover-override.ts";
 import type { MigratePromptPort } from "./migrate-prompt-port.ts";
 import type { ClackPort } from "./render.ts";
@@ -72,7 +73,8 @@ export interface ProgDeps {
 	readonly migratePromptPort?: MigratePromptPort;
 	/**
 	 * Directory-create seam used by the migrate command for the local-dump
-	 * backend; defaults to `node:fs/promises.mkdir` with `recursive: true`.
+	 * backend and by a reconcile command dumping an unsaved state; defaults
+	 * to `node:fs/promises.mkdir` with `recursive: true`.
 	 */
 	readonly mkdir?: (path: string) => Promise<void>;
 	/**
@@ -93,7 +95,8 @@ export interface ProgDeps {
 	 */
 	readonly progress?: ProgressPort;
 	/**
-	 * Project root passed to override discovery; defaults to `process.cwd()`.
+	 * Project root passed to override discovery and used to locate the
+	 * recovery dumps; defaults to `process.cwd()`.
 	 */
 	readonly projectRoot?: string;
 	/**
@@ -106,13 +109,19 @@ export interface ProgDeps {
 	 */
 	readonly publish?: typeof defaultPublish;
 	/**
+	 * File-read seam used by `state push` to read a recovery dump; defaults
+	 * to `node:fs/promises.readFile` in UTF-8.
+	 */
+	readonly readTextFile?: (path: string) => Promise<string>;
+	/**
 	 * Child-process spawner used to launch override scripts; defaults to
 	 * `createDefaultSpawner()`.
 	 */
 	readonly spawner?: Spawner;
 	/**
 	 * File-write seam used by the migrate command to emit the bedrock config
-	 * file; defaults to `node:fs/promises.writeFile`.
+	 * file and by a reconcile command dumping an unsaved state; defaults to
+	 * `node:fs/promises.writeFile`.
 	 */
 	readonly writeFile?: (path: string, contents: string) => Promise<void>;
 }
@@ -158,7 +167,8 @@ const RECONCILE_COMMANDS = [
  *   resolves its own defaults from any omitted slots.
  * @returns A configured sade program with the bedrock name, description, and
  *   the currently installed `@bedrock-rbx/core` version, plus the registered
- *   `build`, `deploy`, `diff`, `provision`, `publish`, and `migrate` commands.
+ *   `build`, `deploy`, `diff`, `provision`, `publish`, `state push`, and
+ *   `migrate` commands.
  */
 export function createProg(deps: ProgDeps = {}): Sade {
 	const prog = sade(PROGRAM_NAME).describe(PROGRAM_DESCRIBE).version(manifest.version);
@@ -166,6 +176,12 @@ export function createProg(deps: ProgDeps = {}): Sade {
 	for (const { name, action, describe } of RECONCILE_COMMANDS) {
 		withCommonOptions(prog.command(name).describe(describe)).action(action(deps));
 	}
+
+	withCommonOptions(
+		prog
+			.command("state push")
+			.describe("Push a state file a failed write dumped locally to the configured backend"),
+	).action(statePushCommand(deps));
 
 	prog.command("migrate [stateFilePath]")
 		.describe("Translate a state file from another tool into a bedrock project")
