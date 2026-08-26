@@ -1,5 +1,6 @@
 import { HAS_LUTE } from "@bedrock-rbx/testing/lute";
 
+import { type } from "arktype";
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -908,6 +909,19 @@ async function unusedImporter(specifier: string): Promise<ImportResult> {
 	throw new Error(`importer must not run, but was asked for '${specifier}'`);
 }
 
+async function importS3Plugin(): Promise<ImportResult> {
+	return {
+		data: {
+			default: {
+				stateBackends: [
+					{ name: "s3", schema: type({ "bucket": "string > 0", "region?": "string" }) },
+				],
+			},
+		},
+		success: true,
+	};
+}
+
 describe(loadConfigWith, () => {
 	it("should import every specifier listed under plugins", async () => {
 		expect.assertions(2);
@@ -1080,6 +1094,184 @@ describe(loadConfigWith, () => {
 		expect(result.err.kind).toBe("validationFailed");
 		expect(result.err.issues[0]!.path).toStrictEqual(["plugins", "1"]);
 	});
+
+	it("should validate the state keys the loaded plugin's backend declared", async () => {
+		expect.assertions(1);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/state-s3'],",
+			"  state: { backend: 's3', bucket: 'my-bucket', region: 'eu-west-2' },",
+			"};",
+		]);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: importS3Plugin },
+			{ cwd },
+		);
+
+		expect(result.success).toBeTrue();
+	});
+
+	it("should reject a state key the loaded plugin's backend did not declare", async () => {
+		expect.assertions(1);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/state-s3'],",
+			"  state: { backend: 's3', bucket: 'my-bucket', endpoint: 'https://example.invalid' },",
+			"};",
+		]);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: importS3Plugin },
+			{ cwd },
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["state", "endpoint"]);
+	});
+
+	it("should attribute an invalid value for a plugin's own state key to that field", async () => {
+		expect.assertions(1);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/state-s3'],",
+			"  state: { backend: 's3', bucket: '' },",
+			"};",
+		]);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: importS3Plugin },
+			{ cwd },
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["state", "bucket"]);
+	});
+
+	it("should fail the load when two plugins claim one backend name", async () => {
+		expect.assertions(2);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/state-s3', '@other/state-s3'],",
+			"};",
+		]);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: importS3Plugin },
+			{ cwd },
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "stateBackendConflict");
+
+		expect(result.err.backend).toBe("s3");
+		expect(result.err.specifiers).toStrictEqual(["@example/state-s3", "@other/state-s3"]);
+	});
+
+	it("should fail the load when a plugin claims a builtin backend name", async () => {
+		expect.assertions(2);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/state-gist'],",
+			"};",
+		]);
+
+		async function importModule(): Promise<ImportResult> {
+			return {
+				data: {
+					default: {
+						stateBackends: [{ name: "gist", schema: type({ gistId: "string" }) }],
+					},
+				},
+				success: true,
+			};
+		}
+
+		const result = await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
+
+		assert(!result.success);
+		assert(result.err.kind === "stateBackendConflict");
+
+		expect(result.err.backend).toBe("gist");
+		expect(result.err.specifiers).toStrictEqual(["@bedrock-rbx/core", "@example/state-gist"]);
+	});
+
+	it.for([
+		["stateBackends is not a list", { stateBackends: {} }],
+		["a declaration is not an object", { stateBackends: ["s3"] }],
+		["a declaration has no name", { stateBackends: [{ schema: type("object") }] }],
+		["a declaration has no schema", { stateBackends: [{ name: "s3" }] }],
+		[
+			"a declaration names the empty string",
+			{ stateBackends: [{ name: "", schema: type("object") }] },
+		],
+		[
+			"a declaration's schema is an ordinary function",
+			{ stateBackends: [{ name: "s3", schema: (): undefined => undefined }] },
+		],
+		[
+			"a declaration's schema is an arktype schema over a non-object",
+			{ stateBackends: [{ name: "s3", schema: type("string") }] },
+		],
+		[
+			"a declaration's schema is a bare definition rather than an arktype schema",
+			{ stateBackends: [{ name: "s3", schema: { bucket: "string" } }] },
+		],
+		[
+			"only some declarations are well-formed",
+			{ stateBackends: [{ name: "s3", schema: type("object") }, "nope"] },
+		],
+	] as const)(
+		"should fail the load when a plugin declares backends where %s",
+		async ([, pluginModule]) => {
+			expect.assertions(2);
+
+			const cwd = createTemporaryDirectory();
+			writeFixtureConfig(cwd, [
+				"export default {",
+				"  environments: { production: {} },",
+				"  plugins: ['@example/malformed'],",
+				"};",
+			]);
+
+			async function importModule(): Promise<ImportResult> {
+				return { data: { default: pluginModule }, success: true };
+			}
+
+			const result = await loadConfigWith(
+				{ evaluator: unusedEvaluator, importModule },
+				{ cwd },
+			);
+
+			assert(!result.success);
+			assert(result.err.kind === "pluginLoadFailed");
+
+			expect(result.err.reason).toBe("invalidExport");
+			expect(result.err.message).toBe(
+				"expected stateBackends to be a list of { name, schema } declarations, " +
+					"where schema is an arktype object schema",
+			);
+		},
+	);
 
 	it("should import nothing when the config declares no plugins", async () => {
 		expect.assertions(1);

@@ -2,6 +2,13 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import type { ConfigError, PluginLoadFailureReason } from "../core/config-error.ts";
 import { isRecord } from "../core/is-record.ts";
+import {
+	buildPluginRegistry,
+	type LoadedPlugin,
+	type PluginRegistry,
+} from "../core/plugin-registry.ts";
+import type { BedrockPlugin, StateBackendDeclaration } from "../core/plugin.ts";
+import { isStateBackendSchema } from "../core/schema.ts";
 import type { ModuleImporter, ModuleImportError } from "../ports/module-importer.ts";
 
 // A plugin that is absent and one that is installed but broken are the same
@@ -12,6 +19,10 @@ const IMPORT_FAILURE_REASON = {
 } as const satisfies Record<ModuleImportError["kind"], PluginLoadFailureReason>;
 
 const NO_PLUGIN_EXPORT_MESSAGE = "expected a default-exported plugin object";
+
+const BAD_STATE_BACKENDS_MESSAGE =
+	"expected stateBackends to be a list of { name, schema } declarations, " +
+	"where schema is an arktype object schema";
 
 /**
  * Inputs for importing a single plugin.
@@ -46,7 +57,8 @@ interface LoadPluginsInput {
 }
 
 /**
- * Import every plugin named in the parsed config, in declaration order.
+ * Import every plugin named in the parsed config, in declaration order, and
+ * collect what they declare into one registry.
  *
  * Runs after the config is parsed but before it is validated, so a plugin is
  * loaded before the fields it exists to make valid are checked, and a broken
@@ -54,27 +66,30 @@ interface LoadPluginsInput {
  *
  * @param input - Parsed config, injected importer, and the directory
  * specifiers resolve from.
- * @returns `Ok` once every specifier has been imported, or `Err` with the
- * `pluginLoadFailed` error for the first specifier that could not be loaded.
+ * @returns `Ok` with the registry the loaded plugins produced, `Err` with
+ * the `pluginLoadFailed` error for the first specifier that could not be
+ * loaded, or `Err` with `stateBackendConflict` when two of them claim one
+ * backend name.
  */
 export async function loadPluginsAsync({
 	config,
 	importModule,
 	sourceDirectory,
-}: LoadPluginsInput): Promise<Result<undefined, ConfigError>> {
-	const specifiers = config["plugins"];
-	if (!isSpecifierList(specifiers)) {
-		return { data: undefined, success: true };
-	}
+}: LoadPluginsInput): Promise<Result<PluginRegistry, ConfigError>> {
+	const declared = config["plugins"];
+	const specifiers = isSpecifierList(declared) ? declared : [];
 
+	const loaded: Array<LoadedPlugin> = [];
 	for (const specifier of specifiers) {
 		const outcome = await importPluginAsync({ importModule, sourceDirectory, specifier });
 		if (!outcome.success) {
 			return outcome;
 		}
+
+		loaded.push({ plugin: outcome.data, specifier });
 	}
 
-	return { data: undefined, success: true };
+	return buildPluginRegistry(loaded);
 }
 
 /**
@@ -92,6 +107,51 @@ function defaultExportOf(module: unknown): unknown {
 }
 
 /**
+ * Build the `pluginLoadFailed` error for a module that imported cleanly but
+ * is not shaped like a plugin.
+ *
+ * @param specifier - Module specifier the config listed.
+ * @param message - What core expected to find on the export.
+ * @returns The `Err` result naming the specifier.
+ */
+function invalidExport(specifier: string, message: string): Result<never, ConfigError> {
+	return {
+		err: { kind: "pluginLoadFailed", message, reason: "invalidExport", specifier },
+		success: false,
+	};
+}
+
+/**
+ * Narrow a plugin's raw `stateBackends` value to the declarations core can
+ * register. Anything else is reported as an invalid export rather than
+ * silently contributing nothing, because a plugin that declares a backend
+ * core cannot read is a plugin whose config keys will not validate.
+ *
+ * A plugin is ordinary JavaScript at runtime, so the schema is checked for
+ * what the `state` block does with it rather than trusted from its declared
+ * type: an arktype `Type` is callable, and one over anything but an object
+ * cannot be merged into the block.
+ *
+ * @param value - The raw `stateBackends` value read off the plugin export.
+ * @returns `true` when every entry names a backend and carries a mergeable
+ * schema.
+ */
+function isDeclarationList(value: unknown): value is ReadonlyArray<StateBackendDeclaration> {
+	return (
+		Array.isArray(value) &&
+		value.every((entry) => {
+			return (
+				isRecord(entry) &&
+				typeof entry["name"] === "string" &&
+				entry["name"].length > 0 &&
+				typeof entry["schema"] === "function" &&
+				isStateBackendSchema(entry["schema"])
+			);
+		})
+	);
+}
+
+/**
  * Import one plugin, mapping an import rejection onto the
  * `pluginLoadFailed` error that names the specifier that produced it.
  *
@@ -103,7 +163,7 @@ async function importPluginAsync({
 	importModule,
 	sourceDirectory,
 	specifier,
-}: ImportPluginInput): Promise<Result<undefined, ConfigError>> {
+}: ImportPluginInput): Promise<Result<BedrockPlugin, ConfigError>> {
 	const imported = await importModule(specifier, sourceDirectory);
 	if (!imported.success) {
 		return {
@@ -117,19 +177,21 @@ async function importPluginAsync({
 		};
 	}
 
-	if (!isRecord(defaultExportOf(imported.data))) {
-		return {
-			err: {
-				kind: "pluginLoadFailed",
-				message: NO_PLUGIN_EXPORT_MESSAGE,
-				reason: "invalidExport",
-				specifier,
-			},
-			success: false,
-		};
+	const exported = defaultExportOf(imported.data);
+	if (!isRecord(exported)) {
+		return invalidExport(specifier, NO_PLUGIN_EXPORT_MESSAGE);
 	}
 
-	return { data: undefined, success: true };
+	const { stateBackends } = exported;
+	if (stateBackends === undefined) {
+		return { data: {}, success: true };
+	}
+
+	if (!isDeclarationList(stateBackends)) {
+		return invalidExport(specifier, BAD_STATE_BACKENDS_MESSAGE);
+	}
+
+	return { data: { stateBackends }, success: true };
 }
 
 /**

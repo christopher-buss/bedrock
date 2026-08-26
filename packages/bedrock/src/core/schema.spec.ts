@@ -1,12 +1,20 @@
+import { type } from "arktype";
 import { assert, describe, expect, it } from "vitest";
 
 import { INVALID_ROBUX_PRICES, PLATFORM_FLAG_ROWS } from "#tests/helpers/resources";
+import type { PluginRegistry } from "./plugin-registry.ts";
 import { SOCIAL_LINK_FIELDS } from "./resources.ts";
-import { validateConfig } from "./schema.ts";
+import { createConfigValidator, validateConfig } from "./schema.ts";
 
 const SOURCE = "bedrock.config.ts";
 
 const MinEnvironments = { production: {} } as const;
+
+const S3_REGISTRY: PluginRegistry = {
+	stateBackends: new Map([["s3", type({ "bucket": "string > 0", "region?": "string" })]]),
+};
+
+const validateWithS3 = createConfigValidator(S3_REGISTRY);
 
 describe(validateConfig, () => {
 	it("should reject a config missing the required environments collection", () => {
@@ -2947,5 +2955,101 @@ describe(validateConfig, () => {
 			["passes", "vip-pass", "name"],
 			["passes", "vip-pass", "price"],
 		]);
+	});
+});
+
+describe(createConfigValidator, () => {
+	it("should accept the custom state keys a plugin's backend declared", () => {
+		expect.assertions(1);
+
+		const result = validateWithS3(
+			{
+				environments: MinEnvironments,
+				state: { backend: "s3", bucket: "my-bucket", region: "eu-west-2" },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.state).toContainEntry(["bucket", "my-bucket"]);
+	});
+
+	it("should accept a plugin-declared backend on a per-environment state block", () => {
+		expect.assertions(1);
+
+		const result = validateWithS3(
+			{
+				environments: { production: { state: { backend: "s3", bucket: "prod-bucket" } } },
+			},
+			SOURCE,
+		);
+
+		expect(result.success).toBeTrue();
+	});
+
+	it("should attribute an invalid value for a plugin's own state key to that field", () => {
+		expect.assertions(1);
+
+		const result = validateWithS3(
+			{ environments: MinEnvironments, state: { backend: "s3", bucket: "" } },
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["state", "bucket"]);
+	});
+
+	it("should reject a state key that neither the plugin nor core declared", () => {
+		expect.assertions(1);
+
+		const result = validateWithS3(
+			{
+				environments: MinEnvironments,
+				state: { backend: "s3", bucket: "my-bucket", endpoint: "https://example.invalid" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["state", "endpoint"]);
+	});
+
+	it("should reject a gist key on a plugin-declared backend the plugin did not declare", () => {
+		expect.assertions(1);
+
+		const result = validateWithS3(
+			{
+				environments: MinEnvironments,
+				state: { backend: "s3", bucket: "my-bucket", gistId: "abc123" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["state", "gistId"]);
+	});
+
+	it("should still reject a plugin's own keys on a backend name the plugin did not claim", () => {
+		expect.assertions(1);
+
+		const result = validateWithS3(
+			{
+				environments: MinEnvironments,
+				state: { backend: "gist", bucket: "my-bucket" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["state", "bucket"]);
 	});
 });

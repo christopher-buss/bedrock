@@ -85,6 +85,8 @@ export type {
 	Operation,
 	UpdateOperation,
 } from "./core/operations.ts";
+export type { PluginRegistry } from "./core/plugin-registry.ts";
+export type { BedrockPlugin, StateBackendDeclaration, StateBackendSchema } from "./core/plugin.ts";
 export { resolveStateConfig, type StateNotConfiguredError } from "./core/resolve-state-config.ts";
 export {
 	SOCIAL_LINK_FIELDS,
@@ -106,11 +108,13 @@ export {
 	type UniverseOutputs,
 } from "./core/resources.ts";
 export {
+	createConfigValidator,
 	isGistStateConfig,
 	validateConfig,
 	type CodegenConfig,
 	type Config,
 	type ConfigEnvironmentUniverseId,
+	type ConfigValidator,
 	type ConfigRootUniverseId,
 	type DeveloperProductEntry,
 	type DisplayNamePrefixConfig,

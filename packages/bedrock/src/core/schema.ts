@@ -9,6 +9,8 @@ import { RESOURCE_KEY_PATTERN_SOURCE } from "../types/ids.ts";
 import type { ConfigError } from "./config-error.ts";
 import { ENV_NAME_PATTERN_SOURCE } from "./environment.ts";
 import { iconMap } from "./icons.ts";
+import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "./plugin-registry.ts";
+import type { StateBackendSchema } from "./plugin.ts";
 import { collectUniverseIdIssues } from "./validate-universe-xor.ts";
 
 /**
@@ -496,6 +498,15 @@ export interface GistStateConfig {
  * @since 0.1.0
  */
 export type StateConfig = GistStateConfig | { readonly backend: string & {} };
+
+/**
+ * Every `state.backend` value core ships an adapter for. Widening this as
+ * core gains a **Backend** is what forces the name to be claimed against
+ * plugins, so a plugin cannot quietly take over a builtin.
+ *
+ * Internal: not re-exported from `src/index.ts`.
+ */
+export type BuiltinStateBackend = GistStateConfig["backend"];
 
 /**
  * Body of a single entry under `environments`. Per-environment overrides
@@ -1143,10 +1154,127 @@ const universeEntry = type({
 	"youtubeSocialLink?": socialLinkOrUndefined,
 }).onUndeclaredKey("reject");
 
-const stateConfig = type({
+// The one `state` key core owns whatever the backend is, merged into every
+// plugin fragment so a plugin never declares it.
+const STATE_BACKEND_BASE = { backend: "string" } as const;
+
+// The shape every backend core knows about accepts, and the shape an
+// unrecognized backend name falls back to so a config can name a backend
+// this build has no declaration for.
+const BUILTIN_STATE_SCHEMA = type({
 	"backend": "string",
 	"gistId?": "string > 0",
 }).onUndeclaredKey("reject");
+
+/**
+ * One field-level problem to attribute, in the shape both the XOR collector
+ * and an `ArkErrors` entry already have.
+ */
+interface AttributableIssue {
+	/** Human-readable explanation of the problem. */
+	readonly message: string;
+	/** Path to the offending field, relative to the reporting narrow. */
+	readonly path: ReadonlyArray<PropertyKey>;
+}
+
+/**
+ * The slice of arktype's traversal context {@link attributeIssues} needs.
+ * Structural so it does not reach into `@ark/schema`, which arktype does
+ * not re-export.
+ */
+interface IssueSink {
+	/** Path of the value currently being traversed. */
+	readonly path: ReadonlyArray<PropertyKey>;
+	/** Record one problem against the value being traversed. */
+	readonly reject: (issue: { message: string; path: ReadonlyArray<PropertyKey> }) => false;
+}
+
+/**
+ * Whether a value is a fragment {@link composeStateBackendSchema} can merge,
+ * which an arktype schema over anything but an object is not.
+ *
+ * Answered by attempting the merge through arktype's untyped parser rather
+ * than by inspecting the value, so the answer tracks what the composition
+ * actually accepts. A plugin is ordinary JavaScript at runtime, so the
+ * declared type is no guarantee, and an unmergeable fragment left to reach
+ * the composition throws out of `loadConfig` instead of failing the load
+ * with a typed error.
+ *
+ * Internal seam: not re-exported from `src/index.ts`.
+ *
+ * @param fragment - The raw `schema` value read off a plugin's declaration.
+ * @returns `true` when the fragment merges.
+ */
+export function isStateBackendSchema(fragment: unknown): boolean {
+	try {
+		// arktype requires the spread key first.
+		type.raw({ "...": fragment, ...STATE_BACKEND_BASE });
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Merge one plugin's fragment with the key core owns, producing the schema
+ * a `state` block naming that **Backend** validates against.
+ *
+ * @param fragment - The plugin's own declaration for its `state` keys.
+ * @returns The composed block schema, rejecting every undeclared key.
+ */
+function composeStateBackendSchema(fragment: StateBackendSchema): Type<object> {
+	return type(STATE_BACKEND_BASE).merge(fragment).onUndeclaredKey("reject");
+}
+
+/**
+ * Attribute every issue to its own field. `ctx.path` re-roots each issue
+ * under wherever the narrow sits, so a bad value lands on the field
+ * carrying it rather than on the block as a whole.
+ *
+ * @param ctx - Traversal context of the narrow reporting the issues.
+ * @param issues - Issues to attribute; empty when the value is valid.
+ */
+function attributeIssues(ctx: IssueSink, issues: ReadonlyArray<AttributableIssue>): void {
+	for (const issue of issues) {
+		ctx.reject({ message: issue.message, path: [...ctx.path, ...issue.path] });
+	}
+}
+
+/**
+ * Build the schema for one `state` block, dispatching on the authored
+ * `backend` value so a plugin's fragment validates only the block that
+ * named that plugin's backend.
+ *
+ * Dispatching rather than a union of arms is what keeps a failure
+ * attributed to the offending field: a union reports one aggregate message
+ * against the block itself.
+ *
+ * @param registry - What the loaded plugins declared.
+ * @returns The `state` block schema for this set of plugins.
+ */
+function buildStateSchema(registry: PluginRegistry): Type<StateConfig> {
+	const byBackend = new Map(
+		Array.from(registry.stateBackends, ([name, fragment]) => {
+			return [name, composeStateBackendSchema(fragment)];
+		}),
+	);
+
+	return type("object").narrow((value, ctx): value is StateConfig => {
+		const backend = Reflect.get(value, "backend");
+		const schema =
+			(typeof backend === "string" ? byBackend.get(backend) : undefined) ??
+			BUILTIN_STATE_SCHEMA;
+
+		const checked = schema(value);
+		if (checked instanceof ArkErrors) {
+			attributeIssues(ctx, [...checked]);
+		}
+
+		// A rejected issue is what fails the value; this predicate's own
+		// return says only what a value that was not rejected narrowed to.
+		return true;
+	});
+}
 
 const codegenConfig: Type<CodegenConfig> = type({
 	"enabled?": OPTIONAL_BOOLEAN,
@@ -1205,69 +1333,107 @@ const placesOverlayCollection = type({
 // where both sides of the relationship are in scope.
 const universeOverlay = universeEntry;
 
-const environmentEntry: Type<EnvironmentEntry> = type({
-	"label?": OPTIONAL_STRING,
-	"passes?": passesOverlayCollection,
-	"places?": placesOverlayCollection,
-	"products?": productsOverlayCollection,
-	[REDACTED_KEY]: environmentRedacted,
-	"state?": stateConfig,
-	"universe?": universeOverlay,
-}).onUndeclaredKey("reject");
+/**
+ * Build the schema for one entry under `environments`.
+ *
+ * @param stateSchema - Schema for this environment's `state` override.
+ * @returns The environment-entry schema.
+ */
+function buildEnvironmentEntry(stateSchema: Type<StateConfig>): Type<EnvironmentEntry> {
+	return type({
+		"label?": OPTIONAL_STRING,
+		"passes?": passesOverlayCollection,
+		"places?": placesOverlayCollection,
+		"products?": productsOverlayCollection,
+		[REDACTED_KEY]: environmentRedacted,
+		"state?": stateSchema,
+		"universe?": universeOverlay,
+	}).onUndeclaredKey("reject");
+}
 
 const displayNamePrefix: Type<DisplayNamePrefixConfig> = type({
 	"enabled?": OPTIONAL_BOOLEAN,
 	"format?": OPTIONAL_STRING,
 }).onUndeclaredKey("reject");
 
-const environmentsCollection = type({
-	[`[/${ENV_NAME_PATTERN_SOURCE}/]`]: environmentEntry,
-})
-	.onUndeclaredKey("reject")
-	.narrow((value, ctx) => {
-		if (Object.keys(value).length === 0) {
-			return ctx.mustBe("an environments record with at least one declared environment");
-		}
-
-		return true;
-	});
-
-// `rootSchema` is intentionally not annotated `Type<Config>` because
-// `Config` is a discriminated union enforcing the universeId XOR rule
-// at the type level. The arktype schema describes the loose
-// authored-shape that's structurally a supertype of every union arm;
-// the runtime narrow rejects any value that doesn't satisfy one arm so
-// `validateConfig` can cast the result to `Config` safely. Splitting
-// the schema into two `.or()` variants would mirror the type union but
-// duplicate every field declaration without buying additional runtime
-// coverage on top of the narrow.
-const rootSchema = type({
-	"codegen?": codegenConfig,
-	"displayNamePrefix?": displayNamePrefix,
-	"environments": environmentsCollection,
-	"extends?": "unknown",
-	"passes?": passesCollection,
-	"places?": placesCollection,
-	"plugins?": "string[] | undefined",
-	"products?": productsCollection,
-	"state?": stateConfig,
-	"universe?": universeEntry,
-})
-	.onUndeclaredKey("reject")
-	.narrow((value, ctx) => {
-		// `ctx.reject` returns `false` for every issue and `reduce` walks the
-		// whole list so every offending field gets attributed; the seeded
-		// `true` flips to `false` on the first issue.
-		return collectUniverseIdIssues(value).reduce<boolean>((_accumulator, issue) => {
-			return ctx.reject({ message: issue.message, path: [...issue.path] });
-		}, true);
-	});
+/**
+ * Validator for a parsed config value. Returns the validated `Config` on
+ * success or a `validationFailed` `ConfigError` with one issue per
+ * problem, each attributed to a field path. `sourceFile` appears in the
+ * error so callers can point a human at the offending file.
+ *
+ * @since unreleased
+ */
+export type ConfigValidator = (input: unknown, sourceFile: string) => Result<Config, ConfigError>;
 
 /**
- * Validate a parsed config value against the runtime schema. Returns the
- * validated `Config` on success or a `validationFailed` `ConfigError` with
- * one issue per problem, each attributed to a field path. `sourceFile`
- * appears in the error so callers can point a human at the offending file.
+ * Compile a config validator that knows what the loaded plugins declared,
+ * so a `state` block carrying a plugin backend's own keys validates.
+ *
+ * The schema is compiled once per call, so build one validator per config
+ * load rather than one per value checked.
+ *
+ * @since unreleased
+ *
+ * @param registry - What the loaded plugins declared, which decides which
+ * `state` keys count as declared.
+ * @returns A validator honouring those declarations.
+ * @example
+ *
+ * ```ts
+ * import { createConfigValidator } from "@bedrock-rbx/core";
+ *
+ * import { type } from "arktype";
+ *
+ * const validate = createConfigValidator({
+ *     stateBackends: new Map([["s3", type({ bucket: "string > 0" })]]),
+ * });
+ *
+ * const result = validate(
+ *     { environments: { production: {} }, state: { backend: "s3", bucket: "my-bucket" } },
+ *     "bedrock.config.ts",
+ * );
+ *
+ * expect(result.success).toBeTrue();
+ * ```
+ */
+export function createConfigValidator(registry: PluginRegistry): ConfigValidator {
+	const schema = buildRootSchema(registry);
+
+	return function validateConfig(input, sourceFile) {
+		const validated = schema(input);
+		if (validated instanceof ArkErrors) {
+			const issues = Array.from(validated, (issue) => {
+				return {
+					message: issue.message,
+					path: Array.from(issue.path, (segment) => String(segment)),
+				};
+			});
+
+			return {
+				err: { issues, kind: "validationFailed", sourceFile },
+				success: false,
+			};
+		}
+
+		// The runtime narrow rejects every value violating the universeId XOR
+		// rule, so a successful validation always lands in one arm of the
+		// discriminated `Config` union. It cannot be constructed rather than
+		// asserted: `ConfigEnvironmentUniverseId` types the root `universeId`
+		// as a phantom error-brand (`… & { errorBrand: never }`) so authoring
+		// a config in TypeScript reports the XOR violation as a readable
+		// message. No runtime value can inhabit that brand, so no sound
+		// construction of that arm exists; the assertion is what bridges
+		// validated data to the authoring-time type.
+		// eslint-disable-next-line ts/no-unsafe-type-assertion -- target arm carries a compile-time-only error brand
+		return { data: validated as unknown as Config, success: true };
+	};
+}
+
+/**
+ * Validate a parsed config value against the runtime schema, knowing only
+ * the backends core ships. Use {@link createConfigValidator} when plugins
+ * may have declared backends of their own.
  *
  * @since 0.1.0
  *
@@ -1308,31 +1474,68 @@ const rootSchema = type({
  * }
  * ```
  */
-export function validateConfig(input: unknown, sourceFile: string): Result<Config, ConfigError> {
-	const validated = rootSchema(input);
-	if (validated instanceof ArkErrors) {
-		const issues = Array.from(validated, (issue) => {
-			return {
-				message: issue.message,
-				path: Array.from(issue.path, (segment) => String(segment)),
-			};
+export const validateConfig: ConfigValidator = createConfigValidator(EMPTY_PLUGIN_REGISTRY);
+
+/**
+ * Build the schema for the `environments` collection.
+ *
+ * @param stateSchema - Schema for each environment's `state` override.
+ * @returns The environments-collection schema.
+ */
+function buildEnvironmentsCollection(
+	stateSchema: Type<StateConfig>,
+): Type<Record<string, EnvironmentEntry>> {
+	return type({
+		[`[/${ENV_NAME_PATTERN_SOURCE}/]`]: buildEnvironmentEntry(stateSchema),
+	})
+		.onUndeclaredKey("reject")
+		.narrow((value, ctx) => {
+			if (Object.keys(value).length === 0) {
+				return ctx.mustBe("an environments record with at least one declared environment");
+			}
+
+			return true;
 		});
+}
 
-		return {
-			err: { issues, kind: "validationFailed", sourceFile },
-			success: false,
-		};
-	}
+/**
+ * Build the root config schema.
+ *
+ * The result is intentionally not annotated `Type<Config>` because
+ * `Config` is a discriminated union enforcing the universeId XOR rule at
+ * the type level. The arktype schema describes the loose authored-shape
+ * that's structurally a supertype of every union arm; the runtime narrow
+ * rejects any value that doesn't satisfy one arm so `validateConfig` can
+ * cast the result to `Config` safely. Splitting the schema into two
+ * `.or()` variants would mirror the type union but duplicate every field
+ * declaration without buying additional runtime coverage on top of the
+ * narrow.
+ *
+ * @param registry - What the loaded plugins declared, which decides which
+ * `state` keys count as declared.
+ * @returns The root schema to validate a parsed config against.
+ */
+function buildRootSchema(registry: PluginRegistry): Type<object> {
+	const stateSchema = buildStateSchema(registry);
 
-	// The runtime narrow rejects every value violating the universeId XOR
-	// rule, so a successful validation always lands in one arm of the
-	// discriminated `Config` union. It cannot be constructed rather than
-	// asserted: `ConfigEnvironmentUniverseId` types the root `universeId` as
-	// a phantom error-brand (`… & { errorBrand: never }`) so authoring a
-	// config in TypeScript reports the XOR violation as a readable message.
-	// No runtime value can inhabit that brand, so no sound construction of
-	// that arm exists; the assertion is what bridges validated data to the
-	// authoring-time type.
-	// eslint-disable-next-line ts/no-unsafe-type-assertion -- target arm carries a compile-time-only error brand
-	return { data: validated as unknown as Config, success: true };
+	return type({
+		"codegen?": codegenConfig,
+		"displayNamePrefix?": displayNamePrefix,
+		"environments": buildEnvironmentsCollection(stateSchema),
+		"extends?": "unknown",
+		"passes?": passesCollection,
+		"places?": placesCollection,
+		"plugins?": "string[] | undefined",
+		"products?": productsCollection,
+		"state?": stateSchema,
+		"universe?": universeEntry,
+	})
+		.onUndeclaredKey("reject")
+		.narrow((value, ctx) => {
+			attributeIssues(ctx, collectUniverseIdIssues(value));
+
+			// As in the `state` block above: rejecting is what fails the
+			// value, so this narrow reports no verdict of its own.
+			return true;
+		});
 }

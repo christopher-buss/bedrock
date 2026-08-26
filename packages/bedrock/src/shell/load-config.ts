@@ -9,7 +9,7 @@ import { importPluginModuleAsync } from "../adapters/dynamic-module-importer.ts"
 import { createLuteLuauEvaluator } from "../adapters/lute-luau-evaluator.ts";
 import type { ConfigError } from "../core/config-error.ts";
 import { safeStringify } from "../core/error-chain.ts";
-import { type Config, validateConfig } from "../core/schema.ts";
+import { type Config, createConfigValidator } from "../core/schema.ts";
 import type { LuauEvaluationError, LuauEvaluator } from "../ports/luau-evaluator.ts";
 import type { ModuleImporter } from "../ports/module-importer.ts";
 import { loadPluginsAsync } from "./load-plugins.ts";
@@ -101,7 +101,7 @@ export async function loadConfigWith(
 		return pluginLoad;
 	}
 
-	return validateConfig(resolved.config, resolved._configFile);
+	return createConfigValidator(pluginLoad.data)(resolved.config, resolved._configFile);
 }
 
 /**
@@ -134,6 +134,8 @@ export async function loadConfigWith(
  *   promise rejected while being invoked.
  * - `pluginLoadFailed` - a module specifier listed under `plugins` did not
  *   resolve, threw while evaluating, or exported no plugin.
+ * - `stateBackendConflict` - two loaded plugins, or a plugin and a builtin,
+ *   claimed the same `state.backend` name.
  *
  * @since 0.1.0
  *

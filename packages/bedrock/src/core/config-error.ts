@@ -86,6 +86,10 @@ export type PluginLoadFailureReason = "importThrew" | "invalidExport" | "notInst
  *   (`notInstalled`) from one that threw while evaluating (`importThrew`) and
  *   from one that exports no plugin (`invalidExport`); `message` carries the
  *   underlying error verbatim. See {@link PluginLoadFailureReason}.
+ * - `stateBackendConflict` - two loaded plugins, or a plugin and a builtin,
+ *   claimed the same `state.backend` name. `specifiers` names both
+ *   claimants; core reports itself as `@bedrock-rbx/core` when the contested
+ *   name is a builtin.
  * - `luauRuntimeMissing` - a `bedrock.config.luau` file was found but the
  *   `lute` runtime needed to evaluate it could not be located on PATH or
  *   via the `BEDROCK_LUTE_PATH` environment variable. `hint` carries an
@@ -120,6 +124,9 @@ export type PluginLoadFailureReason = "importThrew" | "invalidExport" | "notInst
  *         }
  *         case "pluginLoadFailed": {
  *             return `plugin '${err.specifier}' (${err.reason}): ${err.message}`;
+ *         }
+ *         case "stateBackendConflict": {
+ *             return `backend '${err.backend}' claimed by ${err.specifiers.join(" and ")}`;
  *         }
  *     }
  * }
@@ -165,9 +172,21 @@ export type PluginLoadFailureReason = "importThrew" | "invalidExport" | "notInst
  * ).toBe(
  *     "plugin '@bedrock-rbx/state-s3' (notInstalled): Cannot find package '@bedrock-rbx/state-s3'",
  * );
+ * expect(
+ *     describe({
+ *         kind: "stateBackendConflict",
+ *         backend: "s3",
+ *         specifiers: ["@example/state-s3", "@other/state-s3"],
+ *     }),
+ * ).toBe("backend 's3' claimed by @example/state-s3 and @other/state-s3");
  * ```
  */
 export type ConfigError =
+	| {
+			readonly backend: string;
+			readonly kind: "stateBackendConflict";
+			readonly specifiers: readonly [string, string];
+	  }
 	| {
 			readonly hint: string;
 			readonly kind: "luauRuntimeMissing";

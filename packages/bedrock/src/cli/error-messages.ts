@@ -67,6 +67,23 @@ function buildDesiredDetail(cause: BuildDesiredError): string {
 	}
 }
 
+/**
+ * Describe a contested **Backend** name. One plugin claiming a name twice
+ * is its own fault, not a collision between two installs, so it does not
+ * read as one.
+ *
+ * @param err - The conflict error to describe.
+ * @returns The detail fragment naming the backend and its claimants.
+ */
+function backendConflictDetail(
+	err: Extract<ConfigError, { kind: "stateBackendConflict" }>,
+): string {
+	const [first, second] = err.specifiers;
+	return first === second
+		? `state backend '${err.backend}' is claimed twice by '${first}'`
+		: `state backend '${err.backend}' is claimed by both '${first}' and '${second}'`;
+}
+
 function configErrorDetail(err: ConfigError): string {
 	switch (err.kind) {
 		case "configFunctionFailed": {
@@ -83,6 +100,9 @@ function configErrorDetail(err: ConfigError): string {
 		}
 		case "pluginLoadFailed": {
 			return `plugin '${err.specifier}' failed to load (${err.reason}): ${err.message}`;
+		}
+		case "stateBackendConflict": {
+			return backendConflictDetail(err);
 		}
 		case "validationFailed": {
 			const first = err.issues[0];

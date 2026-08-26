@@ -504,6 +504,30 @@ describe(renderDeployError, () => {
 		},
 		{
 			err: {
+				cause: {
+					backend: "gist",
+					kind: "stateBackendConflict",
+					specifiers: ["@bedrock-rbx/core", "@example/state-gist"],
+				},
+				kind: "configLoadFailed",
+			},
+			expected:
+				"config load failed: state backend 'gist' is claimed by both '@bedrock-rbx/core' and '@example/state-gist'",
+		},
+		{
+			err: {
+				cause: {
+					backend: "s3",
+					kind: "stateBackendConflict",
+					specifiers: ["@example/state-s3", "@example/state-s3"],
+				},
+				kind: "configLoadFailed",
+			},
+			expected:
+				"config load failed: state backend 's3' is claimed twice by '@example/state-s3'",
+		},
+		{
+			err: {
 				key: "vip-pass",
 				environment: "production",
 				kind: "incompletePassEntry",

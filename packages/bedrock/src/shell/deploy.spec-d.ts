@@ -67,6 +67,7 @@ describe("DeployError - registry and config variants", () => {
 			| "luauRuntimeMissing"
 			| "parseFailed"
 			| "pluginLoadFailed"
+			| "stateBackendConflict"
 			| "validationFailed"
 		>();
 	});
