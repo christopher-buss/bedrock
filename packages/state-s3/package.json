@@ -44,8 +44,11 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
+		"@aws-sdk/client-s3": "catalog:runtime",
+		"@aws-sdk/credential-provider-node": "catalog:runtime",
 		"@smithy/core": "catalog:runtime",
 		"@smithy/querystring-builder": "catalog:runtime",
+		"@smithy/types": "catalog:runtime",
 		"arktype": "catalog:runtime"
 	},
 	"devDependencies": {
