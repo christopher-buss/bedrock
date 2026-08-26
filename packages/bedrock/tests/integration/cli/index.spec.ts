@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { createProg } from "#src/cli/index";
+import { fakeClackPort } from "#tests/helpers/clack";
 import type { CapturedStreams } from "#tests/helpers/streams";
 import { captureStreams } from "#tests/helpers/streams";
 
@@ -48,6 +49,29 @@ function startCapture(): CapturedStreams {
 		exitSpy.mockRestore();
 	});
 	return streams;
+}
+
+/**
+ * An `exit` slot that resolves a promise with the code it was called with,
+ * so a test can await the end of an action `sade.parse` dispatched without
+ * awaiting its (typed `void`) return value.
+ *
+ * @returns The exit slot and the promise of the code it receives.
+ */
+function deferredExit(): { exit: (code: number) => void; exited: Promise<number> } {
+	function noop(): void {}
+
+	let settle: (code: number) => void = noop;
+
+	const exited = new Promise<number>((resolve) => {
+		settle = resolve;
+	});
+	return {
+		exit: (code) => {
+			settle(code);
+		},
+		exited,
+	};
 }
 
 describe("cli program factory", () => {
@@ -206,5 +230,45 @@ describe("cli program factory", () => {
 		expect(captured).toContain("Translate a state file from another tool");
 		expect(captured).toContain("--from");
 		expect(captured).toContain("Source format to migrate from");
+	});
+
+	it("should describe the state push subcommand and each of its flags in 'state push --help' output", () => {
+		expect.assertions(5);
+
+		const prog = createProg();
+
+		const { stdout } = startCapture();
+
+		prog.parse(["node", "bedrock", "state", "push", "--help"]);
+
+		const captured = stdout.join("");
+
+		expect(captured).toContain("Push a state file");
+		expect(captured).toContain("Target environment");
+		expect(captured).toContain("Config file path");
+		expect(captured).toContain("BEDROCK_API_KEY");
+		expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
+	});
+
+	it("should route 'bedrock state push' to the state-push action", async () => {
+		expect.assertions(2);
+
+		const clack = fakeClackPort();
+		const { exit, exited } = deferredExit();
+		const prog = createProg({
+			clack,
+			exit,
+			loadProject: async () => {
+				return {
+					err: { kind: "fileNotFound", searchedFrom: "/project" },
+					success: false,
+				};
+			},
+		});
+
+		prog.parse(["node", "bedrock", "state", "push", "--env", "production"]);
+
+		await expect(exited).resolves.toBe(1);
+		expect(clack.intro).toHaveBeenCalledExactlyOnceWith("bedrock state push");
 	});
 });

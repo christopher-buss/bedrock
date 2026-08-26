@@ -375,6 +375,12 @@ export type DeployError =
 	| {
 			readonly cause: StateError;
 			readonly kind: "stateWriteFailed";
+			/**
+			 * Resources this pass applied upstream and the failed write never
+			 * recorded, so a caller can name what is now untracked. Resources
+			 * an earlier write already persisted are absent, as are noops.
+			 */
+			readonly unrecorded: ReadonlyArray<ResourceCurrentState>;
 			readonly unsavedState: BedrockState;
 	  }
 	| { readonly cause: StateLockError; readonly kind: "lockAcquireFailed" }
@@ -1030,6 +1036,10 @@ function finalize(
 			err: {
 				cause: pass.written.err,
 				kind: "stateWriteFailed",
+				// The pass's survivors, not the whole snapshot: a resource an
+				// earlier write already persisted is recorded, whatever this
+				// write did.
+				unrecorded: pass.applied.success ? pass.applied.data : pass.applied.err.applied,
 				unsavedState: pass.merged,
 			},
 			success: false,

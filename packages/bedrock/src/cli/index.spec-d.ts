@@ -33,6 +33,8 @@ describe("ProgDeps shape", () => {
 			| "projectRoot"
 			| "provision"
 			| "publish"
+			| "readTextFile"
+			| "removeFile"
 			| "spawner"
 			| "writeFile"
 		>();

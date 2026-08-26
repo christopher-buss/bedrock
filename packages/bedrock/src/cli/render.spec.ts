@@ -144,6 +144,7 @@ describe(renderDeployError, () => {
 			err: {
 				cause: { file: "state.json", kind: "stateError", reason: "network error" },
 				kind: "stateWriteFailed",
+				unrecorded: [],
 				unsavedState: { environment: "production", resources: [], version: 1 },
 			},
 			expected: "state write failed (state.json): network error",
@@ -180,6 +181,7 @@ describe(renderDeployError, () => {
 					reason: "the object changed since it was read",
 				},
 				kind: "stateWriteFailed",
+				unrecorded: [],
 				unsavedState: { environment: "production", resources: [], version: 1 },
 			},
 			expected:
@@ -195,6 +197,7 @@ describe(renderDeployError, () => {
 					specifier: "@bedrock-rbx/state-s3",
 				},
 				kind: "stateWriteFailed",
+				unrecorded: [],
 				unsavedState: { environment: "production", resources: [], version: 1 },
 			},
 			expected:

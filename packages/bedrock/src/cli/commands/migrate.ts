@@ -1,6 +1,5 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import { mkdir as nodeMkdir, writeFile as nodeWriteFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import process from "node:process";
 
@@ -16,6 +15,7 @@ import {
 import { createClackPort } from "../clack-port.ts";
 import { createDefaultMigratePromptPort } from "../default-migrate-prompt-port.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
+import { nodeMkdirAsync, nodeWriteTextFileAsync } from "../fs-seams.ts";
 import type { ProgDeps as ProgDependencies } from "../index.ts";
 import type { MigrateConfigFormat, MigratePromptPort } from "../migrate-prompt-port.ts";
 import { type MigrationSource, parseMigrateOptions } from "../parse-migrate-options.ts";
@@ -169,15 +169,11 @@ function resolveMigrate(
 		clack: dependencies.clack ?? createClackPort(),
 		exit: dependencies.exit ?? ((code) => process.exit(code)),
 		migrateMantleState: dependencies.migrateMantleState ?? defaultMigrateMantleState,
-		mkdir:
-			dependencies.mkdir ??
-			(async (path) => void (await nodeMkdir(path, { recursive: true }))),
+		mkdir: dependencies.mkdir ?? nodeMkdirAsync,
 		plugins: project.plugins,
 		projectRoot: project.projectRoot,
 		promptPort: dependencies.migratePromptPort ?? createDefaultMigratePromptPort(),
-		writeFile:
-			dependencies.writeFile ??
-			(async (path, contents) => nodeWriteFile(path, contents, "utf8")),
+		writeFile: dependencies.writeFile ?? nodeWriteTextFileAsync,
 	};
 }
 

@@ -4,20 +4,17 @@ import type { CreateOperation, Operation, UpdateOperation } from "../../core/ope
 import type { PluginRegistry } from "../../core/plugin-registry.ts";
 import type { RedactionAnnotation } from "../../core/redact-resources.ts";
 import type { Config } from "../../core/schema.ts";
-import {
-	loadProjectAsync as defaultLoadProject,
-	type LoadConfigOptions,
-} from "../../shell/load-config.ts";
+import { loadProjectAsync as defaultLoadProject } from "../../shell/load-config.ts";
 import {
 	previewDiffAsync as defaultPreviewDiff,
 	type DiffPreview,
 } from "../../shell/preview-diff.ts";
 import { createClackPort } from "../clack-port.ts";
-import { buildCredentialOverrides } from "../credential-environment-overrides.ts";
+import { buildEnvironmentReader } from "../credential-environment-overrides.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps as ProgDependencies } from "../index.ts";
-import { type CommonOptions, parseCommonOptions } from "../parse-options.ts";
-import { type ClackPort, renderDeployError, renderParseError } from "../render.ts";
+import { type ClackPort, renderDeployError } from "../render.ts";
+import { startCommandAsync } from "./start-command.ts";
 
 interface ResolvedDiff {
 	readonly clack: ClackPort;
@@ -68,15 +65,6 @@ function resolveDiff(dependencies: ProgDependencies): ResolvedDiff {
 		loadProject: dependencies.loadProject ?? defaultLoadProject,
 		previewDiff: dependencies.previewDiff ?? defaultPreviewDiff,
 	};
-}
-
-function loadOptionsFor(parsed: CommonOptions): LoadConfigOptions | undefined {
-	return parsed.configFile === undefined ? undefined : { configFile: parsed.configFile };
-}
-
-function buildGetEnvironment(parsed: CommonOptions): (name: string) => string | undefined {
-	const overrides = buildCredentialOverrides(parsed);
-	return (name) => overrides[name] ?? process.env[name];
 }
 
 function cancelAsFailed(clack: ClackPort): void {
@@ -197,27 +185,20 @@ async function runDiffAsync(
 	rawOptions: Record<string, unknown>,
 	resolved: ResolvedDiff,
 ): Promise<number> {
-	resolved.clack.intro("bedrock diff");
-
-	const parsed = parseCommonOptions(rawOptions);
-	if (!parsed.success) {
-		renderParseError(parsed.err, resolved.clack);
-		cancelAsFailed(resolved.clack);
+	const started = await startCommandAsync(
+		{ clack: resolved.clack, command: "diff", loadProject: resolved.loadProject },
+		rawOptions,
+	);
+	if (!started.success) {
 		return EXIT_ERROR;
 	}
 
-	const loaded = await resolved.loadProject(loadOptionsFor(parsed.data));
-	if (!loaded.success) {
-		renderDeployError({ cause: loaded.err, kind: "configLoadFailed" }, resolved.clack);
-		cancelAsFailed(resolved.clack);
-		return EXIT_ERROR;
-	}
-
+	const { loaded, parsed } = started.data;
 	const outcome = await dispatchEnvironmentsAsync({
-		config: loaded.data.config,
-		environments: parsed.data.environments,
-		getEnv: buildGetEnvironment(parsed.data),
-		plugins: loaded.data.plugins,
+		config: loaded.config,
+		environments: parsed.environments,
+		getEnv: buildEnvironmentReader(parsed),
+		plugins: loaded.plugins,
 		resolved,
 	});
 	if (outcome.failed.length > 0) {

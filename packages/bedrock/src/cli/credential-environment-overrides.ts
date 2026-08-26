@@ -1,3 +1,5 @@
+import process from "node:process";
+
 /**
  * Credential flags that may be supplied on the CLI and translated to env-var
  * overrides.
@@ -31,4 +33,19 @@ export function buildCredentialOverrides(flags: CredentialFlags): Readonly<Recor
 	}
 
 	return overrides;
+}
+
+/**
+ * Build the environment-variable reader a command hands to the pipeline it
+ * dispatches: a credential flag wins over the process environment, and
+ * everything else reads straight through.
+ *
+ * @param flags - CLI credential flag values to translate.
+ * @returns A reader answering from the flags first, `process.env` second.
+ */
+export function buildEnvironmentReader(
+	flags: CredentialFlags,
+): (name: string) => string | undefined {
+	const overrides = buildCredentialOverrides(flags);
+	return (name) => overrides[name] ?? process.env[name];
 }

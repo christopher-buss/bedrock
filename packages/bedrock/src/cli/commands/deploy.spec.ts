@@ -889,4 +889,106 @@ describe(deployCommand, () => {
 		expect(dependencies.clack!.cancel).toHaveBeenCalledExactlyOnceWith("deploy failed");
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
+
+	it("should dump the unsaved state and name the untracked resources when the state write fails", async () => {
+		expect.assertions(3);
+
+		const created = gamePassResource(1);
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = fakeDeploy([
+			{
+				err: {
+					cause: { file: "gist:abc123", kind: "stateError", reason: "403 Forbidden" },
+					kind: "stateWriteFailed",
+					unrecorded: [created],
+					unsavedState: bedrockState("production"),
+				},
+				success: false,
+			},
+		]);
+		const writeFile = vi.fn<NonNullable<ProgDependencies["writeFile"]>>();
+		const dependencies = makeDependencies({
+			deploy,
+			loadProject,
+			mkdir: vi.fn<NonNullable<ProgDependencies["mkdir"]>>(),
+			projectRoot: "/project",
+			writeFile,
+		});
+
+		await deployCommand(dependencies)({ env: "production" });
+
+		expect(writeFile).toHaveBeenCalledExactlyOnceWith(
+			"/project/.bedrock/recovery/production.json",
+			expect.any(String),
+		);
+		expect(dependencies.clack!.logError).toHaveBeenCalledWith(
+			`applied but not recorded: gamePass.${created.key}`,
+		);
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
+			"unsaved state written to /project/.bedrock/recovery/production.json; push it with: bedrock state push --env production",
+		);
+	});
+
+	it("should quote the deploy's own --config in the push command it points at", async () => {
+		expect.assertions(1);
+
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = fakeDeploy([
+			{
+				err: {
+					cause: { file: "gist:abc123", kind: "stateError", reason: "403 Forbidden" },
+					kind: "stateWriteFailed",
+					unrecorded: [],
+					unsavedState: bedrockState("production"),
+				},
+				success: false,
+			},
+		]);
+		const dependencies = makeDependencies({
+			deploy,
+			loadProject,
+			mkdir: vi.fn<NonNullable<ProgDependencies["mkdir"]>>(),
+			projectRoot: "/project",
+			writeFile: vi.fn<NonNullable<ProgDependencies["writeFile"]>>(),
+		});
+
+		await deployCommand(dependencies)({
+			config: "./bedrock.staging.config.ts",
+			env: "production",
+		});
+
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
+			"unsaved state written to /project/.bedrock/recovery/production.json; push it with: bedrock state push --env production --config ./bedrock.staging.config.ts",
+		);
+	});
+
+	it("should dump nothing when the deploy failed before the state write", async () => {
+		expect.assertions(2);
+
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = fakeDeploy([
+			{ err: { environment: "production", kind: "stateNotConfigured" }, success: false },
+		]);
+		const writeFile = vi.fn<NonNullable<ProgDependencies["writeFile"]>>();
+		const dependencies = makeDependencies({ deploy, loadProject, writeFile });
+
+		await deployCommand(dependencies)({ env: "production" });
+
+		expect(writeFile).not.toHaveBeenCalled();
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should dump nothing when the state write succeeded", async () => {
+		expect.assertions(2);
+
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
+		const deploy = fakeDeploy([{ data: bedrockState("production", 1), success: true }]);
+		const writeFile = vi.fn<NonNullable<ProgDependencies["writeFile"]>>();
+		const dependencies = makeDependencies({ deploy, loadProject, writeFile });
+
+		await deployCommand(dependencies)({ env: "production" });
+
+		expect(writeFile).not.toHaveBeenCalled();
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
 });

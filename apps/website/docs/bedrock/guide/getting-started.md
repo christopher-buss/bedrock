@@ -130,6 +130,23 @@ when everything matches). `--env` repeats for multiple environments, and
 `--config` overrides config discovery. A `migrate` command is also available to
 translate a Mantle state file into a Bedrock project.
 
+### Recover a state write that failed
+
+A deploy applies to Roblox first and records what it did afterwards, so a state
+write the backend refuses leaves resources live but untracked. When that
+happens, Bedrock names the resources it applied but could not record and writes
+the unsaved state to `.bedrock/recovery/<environment>.json`. Push that file to
+the configured backend once the cause is fixed:
+
+```sh
+pnpm bedrock state push --env production
+```
+
+The push reports how many resources it wrote, and refuses a file that does not
+parse or that records a different environment. A pushed file is then removed, so
+it cannot be replayed over a later deploy's record. A deploy whose state write
+succeeded writes no recovery file.
+
 ## Deploy programmatically
 
 [`deploy()`](/bedrock/api/functions/deploy) runs the same reconcile end-to-end.

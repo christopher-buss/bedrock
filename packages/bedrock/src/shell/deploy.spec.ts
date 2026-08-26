@@ -618,6 +618,7 @@ describe(deploy, () => {
 			err: {
 				cause: stateError,
 				kind: "stateWriteFailed",
+				unrecorded: [alphaCurrent],
 				unsavedState: {
 					environment: "production",
 					resources: [alphaCurrent],
@@ -626,6 +627,53 @@ describe(deploy, () => {
 			},
 			success: false,
 		});
+	});
+
+	it("should report only the resources this deploy applied as unrecorded when the state write fails", async () => {
+		expect.assertions(2);
+
+		const alreadyRecorded = alphaPassCurrent();
+		const created = vipPassCurrent();
+		const create = vi
+			.fn<ResourceDriver<"gamePass">["create"]>()
+			.mockResolvedValue({ data: created, success: true });
+		const registry: DriverRegistry = {
+			developerProduct: developerProductStub,
+			gamePass: { create },
+			place: placeStub,
+			universe: universeStub,
+		};
+		const port: StatePort = {
+			async read() {
+				return {
+					data: {
+						environment: "production",
+						resources: [alreadyRecorded],
+						version: 1,
+					},
+					success: true,
+				};
+			},
+			async write() {
+				return {
+					err: { file: "state.json", kind: "stateError", reason: "EACCES" },
+					success: false,
+				};
+			},
+		};
+
+		const result = await deploy({
+			config: twoPassConfig(),
+			environment: "production",
+			readFile: readIconAsync,
+			registry,
+			statePort: port,
+		});
+
+		assert(!result.success && result.err.kind === "stateWriteFailed");
+
+		expect(result.err.unrecorded).toStrictEqual([created]);
+		expect(result.err.unsavedState.resources).toStrictEqual([alreadyRecorded, created]);
 	});
 
 	it("should surface stateWriteFailed with the unsaved snapshot when persistence fails after a successful apply", async () => {
@@ -668,6 +716,7 @@ describe(deploy, () => {
 			err: {
 				cause: stateError,
 				kind: "stateWriteFailed",
+				unrecorded: [created],
 				unsavedState: { environment: "production", resources: [created], version: 1 },
 			},
 			success: false,
