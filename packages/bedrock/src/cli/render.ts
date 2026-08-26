@@ -11,6 +11,7 @@ import {
 	migrateParseErrorMessage,
 	overrideErrorMessage,
 	parseErrorMessage,
+	stateErrorDetail,
 } from "./error-messages.ts";
 import { applyCauseDetail } from "./failure-detail.ts";
 import type { ParseMigrateError } from "./parse-migrate-options.ts";
@@ -214,7 +215,5 @@ export function renderMigrationSummary(input: MigrationSummaryRender, port: Clac
  * @param port - The output port the diagnostic is written to.
  */
 export function renderStateWriteError(input: StateWriteErrorRender, port: ClackPort): void {
-	port.logError(
-		`state write failed for '${input.environment}' (${input.err.file}): ${input.err.reason}`,
-	);
+	port.logError(`state write failed for '${input.environment}' ${stateErrorDetail(input.err)}`);
 }

@@ -127,6 +127,58 @@ describe(renderDeployError, () => {
 		{
 			err: {
 				cause: {
+					file: "s3://my-bucket/production.json",
+					kind: "stateNotFound",
+					reason: "the object does not exist",
+				},
+				kind: "stateReadFailed",
+			},
+			expected:
+				"state read failed (s3://my-bucket/production.json): not found: the object does not exist",
+		},
+		{
+			err: {
+				cause: {
+					file: "s3://my-bucket/production.json",
+					kind: "stateAccessDenied",
+					reason: "the credential lacks s3:GetObject",
+				},
+				kind: "stateReadFailed",
+			},
+			expected:
+				"state read failed (s3://my-bucket/production.json): access denied: the credential lacks s3:GetObject",
+		},
+		{
+			err: {
+				cause: {
+					file: "s3://my-bucket/production.json",
+					kind: "stateConflict",
+					reason: "the object changed since it was read",
+				},
+				kind: "stateWriteFailed",
+				unsavedState: { environment: "production", resources: [], version: 1 },
+			},
+			expected:
+				"state write failed (s3://my-bucket/production.json): conflict: the object changed since it was read",
+		},
+		{
+			err: {
+				cause: {
+					detail: { code: "SlowDown" },
+					file: "s3://my-bucket/production.json",
+					kind: "pluginStateBackend",
+					reason: "the upload was throttled",
+					specifier: "@bedrock-rbx/state-s3",
+				},
+				kind: "stateWriteFailed",
+				unsavedState: { environment: "production", resources: [], version: 1 },
+			},
+			expected:
+				"state write failed (s3://my-bucket/production.json): plugin '@bedrock-rbx/state-s3': the upload was throttled",
+		},
+		{
+			err: {
+				cause: {
 					cause: { kind: "codegenWriteError", path: "out/ids.luau", reason: "no space" },
 					kind: "codegenWriteFailed",
 				},
@@ -819,6 +871,28 @@ describe(renderStateWriteError, () => {
 
 		expect(port.logError).toHaveBeenCalledExactlyOnceWith(
 			"state write failed for 'production' (gist:abc/state.production.json): auth 401",
+		);
+	});
+
+	it("should name the backend-neutral condition so a plugin backend's write failure reads like a builtin's", () => {
+		expect.assertions(1);
+
+		const port = fakeClackPort();
+
+		renderStateWriteError(
+			{
+				environment: "production",
+				err: {
+					file: "s3://my-bucket/production.json",
+					kind: "stateAccessDenied",
+					reason: "the credential lacks s3:PutObject",
+				},
+			},
+			port,
+		);
+
+		expect(port.logError).toHaveBeenCalledExactlyOnceWith(
+			"state write failed for 'production' (s3://my-bucket/production.json): access denied: the credential lacks s3:PutObject",
 		);
 	});
 });

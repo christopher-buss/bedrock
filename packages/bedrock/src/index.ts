@@ -143,7 +143,7 @@ export {
 	type UnknownEnvironmentError,
 } from "./core/select-environment.ts";
 export { parseStateFile, serializeStateFile } from "./core/state-file.ts";
-export type { BedrockState, StateError } from "./core/state.ts";
+export type { BedrockState, StateError, StateErrorBase } from "./core/state.ts";
 export type { CodegenWriteError, CodegenWriterPort } from "./ports/codegen-writer.ts";
 export type {
 	ApplySummaryEvent,

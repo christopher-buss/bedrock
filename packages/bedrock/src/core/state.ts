@@ -107,11 +107,37 @@ export interface BedrockState {
 }
 
 /**
- * Failure surfaced by a `StatePort` when a state file exists but cannot be
- * trusted: corrupt JSON, schema failure, or an unknown `$bedrock.version`.
+ * Fields every {@link StateError} arm carries, whichever **Backend**
+ * produced it, so a caller can report the failure without narrowing first.
  *
- * Narrow on `kind` rather than using `instanceof`: `StateError` is plain data,
- * not a thrown error subclass.
+ * @since unreleased
+ */
+export interface StateErrorBase {
+	/** Adapter-specific path or identifier of the state that failed. */
+	readonly file: string;
+	/** Human-readable explanation of why the operation could not proceed. */
+	readonly reason: string;
+}
+
+/**
+ * Failure surfaced by a `StatePort`. Plain-data discriminated union; narrow
+ * on `kind` rather than using `instanceof`.
+ *
+ * Every arm carries {@link StateErrorBase}. The arms other than
+ * `pluginStateBackend` are backend-neutral, so the same condition reads the
+ * same whichever **Backend** produced it:
+ *
+ * - `stateError` - a state file exists but cannot be trusted: corrupt JSON,
+ *   schema failure, or an unknown `$bedrock.version`.
+ * - `stateNotFound` - the store the state lives in does not exist. An
+ *   environment that has simply never been deployed is `Ok(undefined)` from
+ *   `read`, not this.
+ * - `stateAccessDenied` - the credential reached the store and was refused.
+ * - `stateConflict` - the state changed underneath the operation, so
+ *   completing it would clobber a write the caller never saw.
+ * - `pluginStateBackend` - a failure only the plugin that produced it can
+ *   describe. `specifier` names that plugin and `detail` carries its own
+ *   payload verbatim, which core neither reads nor enumerates.
  *
  * @since 0.1.0
  *
@@ -126,14 +152,42 @@ export interface BedrockState {
  *     reason: "Corrupt JSON: unexpected token at line 1 column 5",
  * };
  *
+ * const denied: StateError = {
+ *     file: "s3://my-bucket/production.json",
+ *     kind: "stateAccessDenied",
+ *     reason: "the credential lacks s3:GetObject",
+ * };
+ *
  * expect(err.kind).toBe("stateError");
+ * expect(denied.kind).toBe("stateAccessDenied");
  * ```
  */
-export interface StateError {
-	/** Adapter-specific path or identifier of the file that failed to parse. */
-	readonly file: string;
-	/** Literal discriminator for narrowing. */
-	readonly kind: "stateError";
-	/** Human-readable explanation of why the file could not be trusted. */
-	readonly reason: string;
-}
+export type StateError =
+	| (StateErrorBase & {
+			/**
+			 * The plugin's own failure payload, passed through untouched.
+			 * Core treats it as opaque, so narrow it against the shape the
+			 * plugin documents.
+			 */
+			readonly detail: unknown;
+			/** Literal discriminator for narrowing. */
+			readonly kind: "pluginStateBackend";
+			/** Module specifier of the plugin whose **Backend** failed. */
+			readonly specifier: string;
+	  })
+	| (StateErrorBase & {
+			/** Literal discriminator for narrowing. */
+			readonly kind: "stateAccessDenied";
+	  })
+	| (StateErrorBase & {
+			/** Literal discriminator for narrowing. */
+			readonly kind: "stateConflict";
+	  })
+	| (StateErrorBase & {
+			/** Literal discriminator for narrowing. */
+			readonly kind: "stateError";
+	  })
+	| (StateErrorBase & {
+			/** Literal discriminator for narrowing. */
+			readonly kind: "stateNotFound";
+	  });

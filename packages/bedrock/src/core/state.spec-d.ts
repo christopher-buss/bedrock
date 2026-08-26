@@ -2,7 +2,7 @@ import { describe, expectTypeOf, it } from "vitest";
 
 import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
 import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
-import type { BedrockState, StateError } from "./state.ts";
+import type { BedrockState, StateError, StateErrorBase } from "./state.ts";
 
 describe("BedrockState", () => {
 	it("should expose readonly codegenHash, environment, pendingRebuild, realDisplay, resources, and version fields", () => {
@@ -32,15 +32,32 @@ describe("BedrockState", () => {
 });
 
 describe("StateError", () => {
-	it("should tag the error with the literal kind 'stateError'", () => {
-		expectTypeOf<StateError["kind"]>().toEqualTypeOf<"stateError">();
+	it("should discriminate the backend-neutral conditions alongside the original arm", () => {
+		expectTypeOf<StateError["kind"]>().toEqualTypeOf<
+			| "pluginStateBackend"
+			| "stateAccessDenied"
+			| "stateConflict"
+			| "stateError"
+			| "stateNotFound"
+		>();
 	});
 
-	it("should expose readonly file, kind, and reason fields", () => {
-		expectTypeOf<StateError>().toEqualTypeOf<{
-			readonly file: string;
-			readonly kind: "stateError";
-			readonly reason: string;
-		}>();
+	it("should carry readonly file and reason on every arm", () => {
+		expectTypeOf<StateError>().toExtend<StateErrorBase>();
+		expectTypeOf<StateError["file"]>().toEqualTypeOf<string>();
+		expectTypeOf<StateError["reason"]>().toEqualTypeOf<string>();
+	});
+
+	it("should keep the original arm carrying nothing beyond file, kind, and reason", () => {
+		expectTypeOf<keyof Extract<StateError, { kind: "stateError" }>>().toEqualTypeOf<
+			"file" | "kind" | "reason"
+		>();
+	});
+
+	it("should name the plugin and keep its payload opaque on the plugin arm", () => {
+		expectTypeOf<
+			Extract<StateError, { kind: "pluginStateBackend" }>["specifier"]
+		>().toEqualTypeOf<string>();
+		expectTypeOf<Extract<StateError, { kind: "pluginStateBackend" }>["detail"]>().toBeUnknown();
 	});
 });

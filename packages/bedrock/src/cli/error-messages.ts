@@ -113,8 +113,31 @@ function configErrorDetail(err: ConfigError): string {
 	}
 }
 
-function stateErrorDetail(cause: StateError): string {
-	return `(${cause.file}): ${cause.reason}`;
+// Prefix naming the backend-neutral condition each arm reports, so the
+// same failure reads identically whichever **Backend** produced it. The
+// original arm carries no prefix: its reason already says what went wrong.
+const STATE_ERROR_PREFIXES = {
+	stateAccessDenied: "access denied: ",
+	stateConflict: "conflict: ",
+	stateError: "",
+	stateNotFound: "not found: ",
+} as const satisfies Record<Exclude<StateError["kind"], "pluginStateBackend">, string>;
+
+/**
+ * Describe one {@link StateError} as the parenthesised location followed by
+ * the condition and the adapter's reason.
+ *
+ * @param cause - The state error to describe.
+ * @returns The detail fragment callers append to their own prefix.
+ */
+export function stateErrorDetail(cause: StateError): string {
+	return `(${cause.file}): ${stateErrorPrefix(cause)}${cause.reason}`;
+}
+
+function stateErrorPrefix(cause: StateError): string {
+	return cause.kind === "pluginStateBackend"
+		? `plugin '${cause.specifier}': `
+		: STATE_ERROR_PREFIXES[cause.kind];
 }
 
 function codegenErrorDetail(cause: CodegenError): string {
