@@ -2,7 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import type { ConfigError, PluginLoadFailureReason } from "../core/config-error.ts";
 import { isRecord } from "../core/is-record.ts";
-import type { ModuleImportError, ModuleImporter } from "../ports/module-importer.ts";
+import type { ModuleImporter, ModuleImportError } from "../ports/module-importer.ts";
 
 // A plugin that is absent and one that is installed but broken are the same
 // runtime error code; only the importer knows which step produced it.

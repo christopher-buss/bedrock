@@ -891,11 +891,11 @@ describe(loadConfig, () => {
 
 type FakeEvaluator = Parameters<typeof loadConfigWith>[0]["evaluator"];
 
+type ImportResult = Awaited<ReturnType<Parameters<typeof loadConfigWith>[0]["importModule"]>>;
+
 async function unusedEvaluator(): Promise<Awaited<ReturnType<FakeEvaluator>>> {
 	return { err: { kind: "evaluationFailed", message: "evaluator not used" }, success: false };
 }
-
-type ImportResult = Awaited<ReturnType<Parameters<typeof loadConfigWith>[0]["importModule"]>>;
 
 async function failToResolve(specifier: string): Promise<ImportResult> {
 	return {

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { safeStringify } from "../core/error-chain.ts";
-import type { ModuleImportError, ModuleImporter } from "../ports/module-importer.ts";
+import type { ModuleImporter, ModuleImportError } from "../ports/module-importer.ts";
 
 // Probed for a specifier naming a file without one, mirroring the config
 // formats bedrock already loads, so a plugin kept beside the config can be
