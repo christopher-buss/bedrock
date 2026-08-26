@@ -144,11 +144,12 @@ field (e.g. `plugins: ["@bedrock-rbx/state-s3"]`). Surfaced in code as
 `BedrockPlugin`. Core imports each listed plugin when config loads and registers
 what it contributes into a `PluginRegistry`; a specifier that fails to load
 fails the load rather than being skipped. The first plugin category is a **State
-port** **Backend**, declared as a `StateBackendDeclaration`: the plugin supplies
-the adapter builder, an arktype schema fragment for its own `state` keys, the
-field descriptions `bedrock migrate` prompts from, and a **Migrate descriptor**.
-Authored by anyone against public API; core ships some as first-party packages.
-_Avoid_: extension, addon, integration, module
+port** **Backend**: the plugin supplies the adapter builder, an arktype schema
+fragment for its own `state` keys, the field descriptions `bedrock migrate`
+prompts from, and a **Migrate descriptor**. A `StateBackendDeclaration` is where
+a backend's name and its schema fragment are claimed. Authored by anyone against
+public API; core ships some as first-party packages. _Avoid_: extension, addon,
+integration, module
 
 **Migrate descriptor**: What a **Plugin** supplies so `bedrock migrate` can both
 read another tool's state from a **Backend** and write the converted **State**

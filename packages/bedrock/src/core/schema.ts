@@ -1186,7 +1186,7 @@ interface IssueSink {
 	/** Path of the value currently being traversed. */
 	readonly path: ReadonlyArray<PropertyKey>;
 	/** Record one problem against the value being traversed. */
-	reject: (issue: { message: string; path: ReadonlyArray<PropertyKey> }) => false;
+	readonly reject: (issue: { message: string; path: ReadonlyArray<PropertyKey> }) => false;
 }
 
 /**
