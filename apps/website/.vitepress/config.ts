@@ -50,6 +50,7 @@ export default defineConfig({
 					items: [
 						{ link: "/bedrock/guide/getting-started", text: "Getting Started" },
 						{ link: "/bedrock/guide/plugins", text: "Plugins" },
+						{ link: "/bedrock/guide/state-s3", text: "S3 State Backend" },
 					],
 					text: "Bedrock",
 				},

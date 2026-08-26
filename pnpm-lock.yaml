@@ -728,9 +728,6 @@ importers:
       '@stryker-mutator/vitest-runner':
         specifier: catalog:test
         version: 9.6.1(@stryker-mutator/core@9.6.1(patch_hash=e91fc2011203722589e16b3dcfb4481127cb2dd5b94ce2d240971a1980f37c08)(@types/node@24.10.1)(supports-color@10.2.2))(vitest@4.1.9)
-      '@total-typescript/shoehorn':
-        specifier: catalog:test
-        version: 0.1.2
       '@types/bun':
         specifier: catalog:types
         version: 1.4.0

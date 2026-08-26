@@ -65,7 +65,7 @@ export const s3StateBackend: StateBackendDeclaration<S3StateConfig> = {
  * expect(s3Plugin.stateBackends).toHaveLength(1);
  * ```
  */
-export const s3StatePlugin: BedrockPlugin = { stateBackends: [s3StateBackend] };
+const s3StatePlugin: BedrockPlugin = { stateBackends: [s3StateBackend] };
 
 export default s3StatePlugin;
 
