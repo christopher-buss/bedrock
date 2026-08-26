@@ -1,6 +1,7 @@
 import type { StateBackendFetch } from "@bedrock-rbx/core";
 import type { HttpHandler, HttpResponse } from "@smithy/core/protocols";
 import { buildQueryString } from "@smithy/querystring-builder";
+import type { QueryParameterBag } from "@smithy/types";
 
 import { Readable } from "node:stream";
 
@@ -12,33 +13,6 @@ import { Readable } from "node:stream";
  * it does against AWS, and only the transport underneath it changes. That
  * is what lets this **Backend**'s tests exercise signing and error
  * deserialization instead of asserting against a stubbed `send`.
- *
- * @since unreleased
- *
- * @example
- *
- * ```ts
- * import { HttpRequest } from "@smithy/core/protocols";
- *
- * import { createFetchRequestHandler } from "@bedrock-rbx/state-s3";
- *
- * const handler = createFetchRequestHandler(async () => new Response("", { status: 200 }));
- *
- * return handler
- *     .handle(
- *         new HttpRequest({
- *             headers: {},
- *             hostname: "my-bucket.s3.eu-west-2.amazonaws.com",
- *             method: "GET",
- *             path: "/production.json",
- *             protocol: "https:",
- *         }),
- *     )
- *     .then(({ response }) => {
- *         expect(response.statusCode).toBe(200);
- *     });
- * ```
- *
  * @param fetchFunc - Transport the client's requests are sent through.
  * @returns A request handler the S3 client accepts as its transport.
  */
@@ -110,7 +84,7 @@ function requestUrl(request: {
 	path: string;
 	port?: number | undefined;
 	protocol: string;
-	query: Record<string, Array<string> | null | string>;
+	query: QueryParameterBag;
 }): string {
 	const port = request.port === undefined ? "" : `:${request.port}`;
 	const query = buildQueryString(request.query);

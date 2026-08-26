@@ -1,8 +1,8 @@
 import { type BedrockState, serializeStateFile } from "@bedrock-rbx/core";
 
-import process from "node:process";
 import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
+import { withEnvironment } from "#tests/helpers/environment";
 import { fakeS3, fakeS3Failure } from "#tests/helpers/fake-s3";
 import {
 	createS3StateAdapter,
@@ -48,30 +48,6 @@ function adapterFor(deps: Partial<S3StateAdapterDeps> & Pick<S3StateAdapterDeps,
 		region: REGION,
 		...deps,
 	});
-}
-
-/**
- * Put the named variables on the process environment for one test, so the
- * standard AWS credential chain has something to resolve, and take them
- * back off once it finishes.
- *
- * @param variables - Environment variables to set for the test.
- */
-function withEnvironment(variables: Readonly<Record<string, string>>): void {
-	const previous = Object.entries(variables).map(([name]) => [name, process.env[name]] as const);
-	onTestFinished(() => {
-		for (const [name, value] of previous) {
-			if (value === undefined) {
-				delete process.env[name];
-			} else {
-				process.env[name] = value;
-			}
-		}
-	});
-
-	for (const [name, value] of Object.entries(variables)) {
-		process.env[name] = value;
-	}
 }
 
 describe(createS3StateAdapter, () => {

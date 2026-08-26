@@ -31,7 +31,6 @@ function s3Error(name: string, httpStatusCode?: number): Error {
 describe(classifyS3Failure, () => {
 	it.for([
 		["NoSuchKey", "missingObject"],
-		["NotFound", "missingObject"],
 		["NoSuchBucket", "missingStore"],
 		["AccessDenied", "accessDenied"],
 		["CredentialsProviderError", "missingCredentials"],
@@ -41,13 +40,16 @@ describe(classifyS3Failure, () => {
 		expect(classifyS3Failure(s3Error(name)).kind).toBe(kind);
 	});
 
-	it.for([
-		[403, "accessDenied"],
-		[404, "missingObject"],
-	] as const)("should read a bare %i as a %s failure", ([status, kind]) => {
+	it("should read a refusal it knows only by its 403 as access denied", () => {
 		expect.assertions(1);
 
-		expect(classifyS3Failure(s3Error("UnknownToUs", status)).kind).toBe(kind);
+		expect(classifyS3Failure(s3Error("SignatureDoesNotMatch", 403)).kind).toBe("accessDenied");
+	});
+
+	it("should refuse to read a bare 404 as an environment that was never deployed", () => {
+		expect.assertions(1);
+
+		expect(classifyS3Failure(s3Error("NotFound", 404)).kind).toBe("requestFailed");
 	});
 
 	it("should read a refusal it recognizes neither by name nor by status as a request failure", () => {

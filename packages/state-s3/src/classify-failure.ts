@@ -21,8 +21,6 @@ export type S3FailureKind =
 /**
  * One refusal, read into the terms this **Backend** owns while keeping
  * what the client reported so a report can name it.
- *
- * @since unreleased
  */
 export interface S3Failure {
 	/** Error name the client deserialized, or `Error` when it threw none. */
@@ -36,47 +34,34 @@ export interface S3Failure {
 }
 
 // Codes worth reading as something other than a bare request failure.
-// `NotFound` is what a `HeadObject`-shaped refusal carries, where a `GET`
-// of the same missing object answers `NoSuchKey`.
+// Only `NoSuchKey` reads as an absent object, and only by name: it is the
+// code a `GET` of a missing object answers with, and reading anything
+// looser as absent is how a wrong endpoint or a proxy's own `404` would be
+// reported as an **Environment** that has never been deployed.
 const KIND_BY_NAME: Readonly<Record<string, S3FailureKind>> = {
 	AccessDenied: "accessDenied",
 	CredentialsProviderError: "missingCredentials",
 	NoSuchBucket: "missingStore",
 	NoSuchKey: "missingObject",
-	NotFound: "missingObject",
 };
 
-// Status fallbacks for the codes not named above: a store that refuses the
+// Status fallback for the codes not named above: a store that refuses the
 // credential answers `403` whichever code it chose (`InvalidAccessKeyId`,
-// `SignatureDoesNotMatch`, an expired token), and an absent object answers
-// `404`.
+// `SignatureDoesNotMatch`, an expired token), and every one of those is
+// the same condition.
 const KIND_BY_STATUS: Readonly<Record<number, S3FailureKind>> = {
 	403: "accessDenied",
-	404: "missingObject",
 };
 
 /**
  * Read what the S3 client threw into the terms this **Backend** owns.
  *
- * The name decides first and the status second: `NoSuchBucket` also
- * answers `404`, and reading it as a missing object would report a
- * mistyped bucket as an **Environment** that has never been deployed.
- *
- * @since unreleased
- *
- * @example
- *
- * ```ts
- * import { classifyS3Failure } from "@bedrock-rbx/state-s3";
- *
- * const refusal = Object.assign(new Error("Access Denied"), {
- *     $metadata: { httpStatusCode: 403 },
- *     name: "AccessDenied",
- * });
- *
- * expect(classifyS3Failure(refusal).kind).toBe("accessDenied");
- * ```
- *
+ * The name decides first and the status second, and only a name says an
+ * object is absent. A status alone never does: `NoSuchBucket` answers
+ * `404` too, as does a mistyped endpoint, and reading either as an absent
+ * object would report it as an **Environment** that has never been
+ * deployed - which is how a **Deploy** re-creates every resource it
+ * already owns.
  * @param error - Whatever the client threw.
  * @returns The refusal, classified.
  */

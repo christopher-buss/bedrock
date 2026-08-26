@@ -1,8 +1,8 @@
 import { type BedrockState, serializeStateFile, type StateBackendContext } from "@bedrock-rbx/core";
 
-import process from "node:process";
-import { assert, describe, expect, it, onTestFinished } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 
+import { withEnvironment } from "#tests/helpers/environment";
 import { fakeS3 } from "#tests/helpers/fake-s3";
 import s3Plugin, { s3StateBackend } from "./plugin.ts";
 import type { S3StateConfig } from "./state-schema.ts";
@@ -27,30 +27,6 @@ function environmentOf(
 	variables: Readonly<Record<string, string>>,
 ): (name: string) => string | undefined {
 	return (name) => variables[name];
-}
-
-/**
- * Put the named variables on the process environment for one test, so the
- * standard AWS credential chain has something to resolve, and take them
- * back off once it finishes.
- *
- * @param variables - Environment variables to set for the test.
- */
-function withEnvironment(variables: Readonly<Record<string, string>>): void {
-	const previous = Object.entries(variables).map(([name]) => [name, process.env[name]] as const);
-	onTestFinished(() => {
-		for (const [name, value] of previous) {
-			if (value === undefined) {
-				delete process.env[name];
-			} else {
-				process.env[name] = value;
-			}
-		}
-	});
-
-	for (const [name, value] of Object.entries(variables)) {
-		process.env[name] = value;
-	}
 }
 
 describe("s3 plugin", () => {

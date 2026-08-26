@@ -16,11 +16,10 @@ function publicSymbols(): Array<{
 	name: string;
 	sinceTag: string | undefined;
 }> {
-	const manifest = readFileSync(path.join(PACKAGE_ROOT, "package.json"), "utf8");
 	const seen = new Set<string>();
 	const symbols: Array<{ declarationFile: string; name: string; sinceTag: string | undefined }> =
 		[];
-	for (const barrel of barrelSourcePaths(manifest, PACKAGE_ROOT)) {
+	for (const barrel of barrelSourcePaths(MANIFEST, PACKAGE_ROOT)) {
 		const barrelSymbols = collectPublicApiSymbols(barrel, (file) => readFileSync(file, "utf8"));
 		for (const symbol of barrelSymbols) {
 			const key = `${symbol.declarationFile}#${symbol.name}`;

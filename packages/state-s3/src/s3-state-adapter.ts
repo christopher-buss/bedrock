@@ -31,10 +31,10 @@ const CHECKSUM_CALCULATION = {
 
 // Which refusals are conditions any **Backend** has, and so belong in
 // core's own vocabulary rather than in this plugin's opaque payload.
-const NEUTRAL_STATE_ERROR = {
+const NEUTRAL_STATE_ERROR: Partial<Record<S3FailureKind, NeutralStateErrorKind>> = {
 	accessDenied: "stateAccessDenied",
 	missingStore: "stateNotFound",
-} as const satisfies Partial<Record<S3FailureKind, StateError["kind"]>>;
+};
 
 /**
  * Everything {@link createS3StateAdapter} needs to reach one bucket.
@@ -93,6 +93,12 @@ interface BucketAccess {
 	/** Bucket coordinates the object key is built from. */
 	readonly deps: S3StateAdapterDeps;
 }
+
+/**
+ * The `StateError` arms describing a condition any **Backend** has, which
+ * this **Backend** reports in core's vocabulary rather than in its own.
+ */
+type NeutralStateErrorKind = "stateAccessDenied" | "stateNotFound";
 
 /**
  * What the client hands back as an object's body, narrowed to the one
@@ -192,8 +198,8 @@ export function createS3StateAdapter(deps: S3StateAdapterDeps): StatePort {
  * @returns The `StateError` a caller narrows on.
  */
 function toStateError(failure: S3Failure, file: string): StateError {
-	const neutral = Reflect.get(NEUTRAL_STATE_ERROR, failure.kind);
-	if (neutral === "stateAccessDenied" || neutral === "stateNotFound") {
+	const neutral = NEUTRAL_STATE_ERROR[failure.kind];
+	if (neutral !== undefined) {
 		return { file, kind: neutral, reason: failure.reason };
 	}
 

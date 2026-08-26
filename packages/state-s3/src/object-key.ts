@@ -9,20 +9,6 @@
  * `bedrock/state`, `/bedrock/state`, and `bedrock/state/` all place the
  * object in the same place. A key never opens with a separator, which S3
  * would otherwise keep as an empty leading path segment.
- *
- * @since unreleased
- *
- * @example
- *
- * ```ts
- * import { objectKeyFor } from "@bedrock-rbx/state-s3";
- *
- * expect(objectKeyFor("bedrock/state", "production")).toBe(
- *     "bedrock/state/production.json",
- * );
- * expect(objectKeyFor(undefined, "production")).toBe("production.json");
- * ```
- *
  * @param prefix - Configured prefix, or `undefined` to store at the
  * bucket root.
  * @param environment - Name of the **Environment** the **State** belongs
@@ -37,19 +23,6 @@ export function objectKeyFor(prefix: string | undefined, environment: string): s
 /**
  * Address one object the way an operator would write it, so a failure
  * names something they can paste into the AWS CLI.
- *
- * @since unreleased
- *
- * @example
- *
- * ```ts
- * import { objectLabelFor } from "@bedrock-rbx/state-s3";
- *
- * expect(objectLabelFor("my-bucket", "production.json")).toBe(
- *     "s3://my-bucket/production.json",
- * );
- * ```
- *
  * @param bucket - Bucket the object lives in.
  * @param key - Object key within that bucket.
  * @returns The `s3://` URI naming the object.
