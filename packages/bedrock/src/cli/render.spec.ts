@@ -504,6 +504,18 @@ describe(renderDeployError, () => {
 		},
 		{
 			err: {
+				cause: {
+					backend: "gist",
+					kind: "stateBackendConflict",
+					specifiers: ["@bedrock-rbx/core", "@example/state-gist"],
+				},
+				kind: "configLoadFailed",
+			},
+			expected:
+				"config load failed: state backend 'gist' is claimed by both '@bedrock-rbx/core' and '@example/state-gist'",
+		},
+		{
+			err: {
 				key: "vip-pass",
 				environment: "production",
 				kind: "incompletePassEntry",

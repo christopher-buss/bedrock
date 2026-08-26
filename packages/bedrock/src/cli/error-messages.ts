@@ -84,6 +84,10 @@ function configErrorDetail(err: ConfigError): string {
 		case "pluginLoadFailed": {
 			return `plugin '${err.specifier}' failed to load (${err.reason}): ${err.message}`;
 		}
+		case "stateBackendConflict": {
+			const [first, second] = err.specifiers;
+			return `state backend '${err.backend}' is claimed by both '${first}' and '${second}'`;
+		}
 		case "validationFailed": {
 			const first = err.issues[0];
 			return first === undefined

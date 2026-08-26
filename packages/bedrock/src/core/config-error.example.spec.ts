@@ -60,6 +60,9 @@ it('Example 3', () => {
       case 'pluginLoadFailed': {
         return `plugin '${err.specifier}' (${err.reason}): ${err.message}`
       }
+      case 'stateBackendConflict': {
+        return `backend '${err.backend}' claimed by ${err.specifiers.join(' and ')}`
+      }
     }
   }
   expect(describe({ kind: 'fileNotFound', searchedFrom: '/proj' })).toBe(
@@ -105,4 +108,11 @@ it('Example 3', () => {
   ).toBe(
     "plugin '@bedrock-rbx/state-s3' (notInstalled): Cannot find package '@bedrock-rbx/state-s3'",
   )
+  expect(
+    describe({
+      kind: 'stateBackendConflict',
+      backend: 's3',
+      specifiers: ['@example/state-s3', '@other/state-s3'],
+    }),
+  ).toBe("backend 's3' claimed by @example/state-s3 and @other/state-s3")
 })

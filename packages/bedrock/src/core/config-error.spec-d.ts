@@ -38,14 +38,21 @@ interface ExpectedPluginLoadFailed {
 	readonly specifier: string;
 }
 
+interface ExpectedStateBackendConflict {
+	readonly backend: string;
+	readonly kind: "stateBackendConflict";
+	readonly specifiers: readonly [string, string];
+}
+
 describe("ConfigError discriminant", () => {
-	it("should discriminate on kind across the six documented variants", () => {
+	it("should discriminate on kind across the seven documented variants", () => {
 		expectTypeOf<ConfigError["kind"]>().toEqualTypeOf<
 			| "configFunctionFailed"
 			| "fileNotFound"
 			| "luauRuntimeMissing"
 			| "parseFailed"
 			| "pluginLoadFailed"
+			| "stateBackendConflict"
 			| "validationFailed"
 		>();
 	});
@@ -86,5 +93,11 @@ describe("ConfigError variants", () => {
 		expectTypeOf<
 			Extract<ConfigError, { kind: "pluginLoadFailed" }>
 		>().toEqualTypeOf<ExpectedPluginLoadFailed>();
+	});
+
+	it("should narrow stateBackendConflict to carry the backend and both claimants", () => {
+		expectTypeOf<
+			Extract<ConfigError, { kind: "stateBackendConflict" }>
+		>().toEqualTypeOf<ExpectedStateBackendConflict>();
 	});
 });
