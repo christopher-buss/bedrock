@@ -1,7 +1,7 @@
 import process from "node:process";
 
 import { isCodegenEnabled } from "../../core/codegen.ts";
-import { loadConfig as defaultLoadConfig } from "../../shell/load-config.ts";
+import { loadProjectAsync as defaultLoadProject } from "../../shell/load-config.ts";
 import { buildOverrideInvocation } from "../build-override-invocation.ts";
 import { createClackPort } from "../clack-port.ts";
 import { createDefaultSpawner } from "../default-spawner.ts";
@@ -27,7 +27,7 @@ interface ResolvedBuild {
 	readonly clack: ClackPort;
 	readonly discoverOverride: typeof defaultDiscoverOverride;
 	readonly exit: (code: number) => void;
-	readonly loadConfig: typeof defaultLoadConfig;
+	readonly loadProject: typeof defaultLoadProject;
 	readonly projectRoot: string;
 	readonly spawner: Spawner;
 }
@@ -76,7 +76,7 @@ function resolveBuild(deps: ProgDeps): ResolvedBuild {
 		clack: deps.clack ?? createClackPort(),
 		discoverOverride: deps.discoverOverride ?? defaultDiscoverOverride,
 		exit: deps.exit ?? ((code: number) => process.exit(code)),
-		loadConfig: deps.loadConfig ?? defaultLoadConfig,
+		loadProject: deps.loadProject ?? defaultLoadProject,
 		projectRoot: deps.projectRoot ?? process.cwd(),
 		spawner: deps.spawner ?? createDefaultSpawner(),
 	};
@@ -131,14 +131,14 @@ async function reportNoOverrideAsync(
 	parsed: CommonOptions,
 	resolved: ResolvedBuild,
 ): Promise<number> {
-	const loaded = await resolved.loadConfig(loadOptionsFor(parsed));
+	const loaded = await resolved.loadProject(loadOptionsFor(parsed));
 	if (!loaded.success) {
 		renderDeployError({ cause: loaded.err, kind: "configLoadFailed" }, resolved.clack);
 		cancelAsFailed(resolved.clack);
 		return EXIT_ERROR;
 	}
 
-	if (isCodegenEnabled(loaded.data.codegen)) {
+	if (isCodegenEnabled(loaded.data.config.codegen)) {
 		resolved.clack.logError(MISSING_BUILD_OVERRIDE_MESSAGE);
 		cancelAsFailed(resolved.clack);
 		return EXIT_ERROR;

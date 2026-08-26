@@ -26,7 +26,7 @@ describe(publishCommand, () => {
 		expect.assertions(4);
 
 		const publish = fakePublish({ data: okState(), success: true });
-		const deps = makeDeps({ loadConfig: fakeLoad(), publish });
+		const deps = makeDeps({ loadProject: fakeLoad(), publish });
 
 		await publishCommand(deps)({ env: "production" });
 
@@ -45,7 +45,7 @@ describe(publishCommand, () => {
 			err: { environment: "production", kind: "stateNotConfigured" },
 			success: false,
 		});
-		const deps = makeDeps({ loadConfig: fakeLoad(), publish });
+		const deps = makeDeps({ loadProject: fakeLoad(), publish });
 
 		await publishCommand(deps)({ env: "production" });
 
@@ -67,7 +67,7 @@ describe(publishCommand, () => {
 		const publish = vi.fn<PublishFunc>();
 		const deps = makeDeps({
 			discoverOverride,
-			loadConfig: fakeLoad(),
+			loadProject: fakeLoad(),
 			projectRoot: "/abs",
 			publish,
 			spawner,

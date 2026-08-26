@@ -7,6 +7,7 @@ import process from "node:process";
 import type { MigrateError, MigrationReport } from "../../core/migrate/migration-report.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../../core/plugin-registry.ts";
 import { buildStatePort as defaultBuildStatePort } from "../../shell/build-state-port.ts";
+import { loadProjectAsync as defaultLoadProject } from "../../shell/load-config.ts";
 import {
 	migrateMantleState as defaultMigrateMantleState,
 	type MigrateMantleStateDeps as MigrateMantleStateDependencies,
@@ -102,14 +103,34 @@ export function migrateCommand(
 	pathArgument: string | undefined,
 	rawOptions: Readonly<Record<string, unknown>>,
 ) => Promise<void> {
-	const resolved = resolveMigrate(deps);
 	return async (pathArgument, rawOptions) => {
+		const resolved = resolveMigrate(deps, await resolvePluginsAsync(deps));
 		const code = await runMigrateAsync({ pathArg: pathArgument, rawOptions, resolved });
 		resolved.exit(code);
 	};
 }
 
-function resolveMigrate(dependencies: ProgDependencies): ResolvedMigrate {
+/**
+ * What the project's own plugins declare, which is what decides the
+ * **Backend**s migrate offers beyond the builtins.
+ *
+ * A project being migrated usually has no bedrock config yet, so a load
+ * that fails is read as "no plugins declared" rather than as an error:
+ * migrate's input is the other tool's state, not this config.
+ *
+ * @param dependencies - The CLI dependency slots.
+ * @returns The registry to offer targets from.
+ */
+async function resolvePluginsAsync(dependencies: ProgDependencies): Promise<PluginRegistry> {
+	if (dependencies.plugins !== undefined) {
+		return dependencies.plugins;
+	}
+
+	const loaded = await (dependencies.loadProject ?? defaultLoadProject)();
+	return loaded.success ? loaded.data.plugins : EMPTY_PLUGIN_REGISTRY;
+}
+
+function resolveMigrate(dependencies: ProgDependencies, plugins: PluginRegistry): ResolvedMigrate {
 	return {
 		buildStatePort: dependencies.buildStatePort ?? defaultBuildStatePort,
 		clack: dependencies.clack ?? createClackPort(),
@@ -118,7 +139,7 @@ function resolveMigrate(dependencies: ProgDependencies): ResolvedMigrate {
 		mkdir:
 			dependencies.mkdir ??
 			(async (path) => void (await nodeMkdir(path, { recursive: true }))),
-		plugins: dependencies.plugins ?? EMPTY_PLUGIN_REGISTRY,
+		plugins,
 		promptPort: dependencies.migratePromptPort ?? createDefaultMigratePromptPort(),
 		writeFile:
 			dependencies.writeFile ??

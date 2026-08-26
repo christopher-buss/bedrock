@@ -10,7 +10,7 @@ import type {
 	provision as defaultProvision,
 	publish as defaultPublish,
 } from "../shell/deploy.ts";
-import type { loadConfig as defaultLoadConfig } from "../shell/load-config.ts";
+import type { loadProjectAsync as defaultLoadProject } from "../shell/load-config.ts";
 import type { migrateMantleState as defaultMigrateMantleState } from "../shell/migrate-mantle-state.ts";
 import type { previewDiffAsync as defaultPreviewDiff } from "../shell/preview-diff.ts";
 import { buildCommand } from "./commands/build.ts";
@@ -57,8 +57,12 @@ export interface ProgDeps {
 	 * return void.
 	 */
 	readonly exit?: (code: number) => void;
-	/** Project config loader; defaults to the public `loadConfig`. */
-	readonly loadConfig?: typeof defaultLoadConfig;
+	/**
+	 * Project loader; defaults to the public `loadProjectAsync`, whose
+	 * result carries both the validated config and what its `plugins`
+	 * entries declared.
+	 */
+	readonly loadProject?: typeof defaultLoadProject;
 	/** Mantle state migrator; defaults to the public `migrateMantleState`. */
 	readonly migrateMantleState?: typeof defaultMigrateMantleState;
 	/**
@@ -73,8 +77,9 @@ export interface ProgDeps {
 	readonly mkdir?: (path: string) => Promise<void>;
 	/**
 	 * What the loaded plugins declared, which decides the **Backend**s the
-	 * migrate command offers beyond the builtins. Defaults to what the
-	 * project config registered, or to nothing when no config is present.
+	 * migrate command offers beyond the builtins. Defaults to what a
+	 * discoverable project config registered, or to nothing when the
+	 * project has no config yet.
 	 */
 	readonly plugins?: PluginRegistry;
 	/**

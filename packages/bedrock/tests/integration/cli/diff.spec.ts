@@ -3,11 +3,12 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { describe, expect, it, vi } from "vitest";
 
 import { createProg, type ProgDeps } from "#src/cli/index";
+import { EMPTY_PLUGIN_REGISTRY } from "#src/core/plugin-registry";
 import type { Config } from "#src/core/schema";
 import type { DiffPreview, PreviewDiffError } from "#src/shell/preview-diff";
 import { fakeClackPort } from "#tests/helpers/clack";
 
-type LoadConfigFunc = NonNullable<ProgDeps["loadConfig"]>;
+type LoadProjectFunc = NonNullable<ProgDeps["loadProject"]>;
 type PreviewDiffFunc = NonNullable<ProgDeps["previewDiff"]>;
 type ExitFunc = NonNullable<ProgDeps["exit"]>;
 
@@ -17,7 +18,7 @@ const fakeConfig: Config = {
 
 interface DiffHarness {
 	readonly exitPromise: Promise<number>;
-	readonly loadConfig: ReturnType<typeof vi.fn<LoadConfigFunc>>;
+	readonly loadProject: ReturnType<typeof vi.fn<LoadProjectFunc>>;
 	readonly previewDiff: ReturnType<typeof vi.fn<PreviewDiffFunc>>;
 	readonly prog: ReturnType<typeof createProg>;
 }
@@ -47,10 +48,12 @@ function buildHarness(
 
 		return next;
 	});
-	const loadConfig = vi.fn<LoadConfigFunc>(async () => ({ data: fakeConfig, success: true }));
+	const loadProject = vi.fn<LoadProjectFunc>(async () => {
+		return { data: { config: fakeConfig, plugins: EMPTY_PLUGIN_REGISTRY }, success: true };
+	});
 
-	const prog = createProg({ clack: fakeClackPort(), exit, loadConfig, previewDiff });
-	return { exitPromise, loadConfig, previewDiff, prog };
+	const prog = createProg({ clack: fakeClackPort(), exit, loadProject, previewDiff });
+	return { exitPromise, loadProject, previewDiff, prog };
 }
 
 function dispatch(prog: ReturnType<typeof createProg>, argv: ReadonlyArray<string>): void {
@@ -72,7 +75,7 @@ describe("cli diff dispatch", () => {
 		]);
 		const code = await harness.exitPromise;
 
-		expect(harness.loadConfig).toHaveBeenCalledExactlyOnceWith({
+		expect(harness.loadProject).toHaveBeenCalledExactlyOnceWith({
 			configFile: "./bedrock.staging.config.ts",
 		});
 		expect(harness.previewDiff).toHaveBeenCalledExactlyOnceWith(

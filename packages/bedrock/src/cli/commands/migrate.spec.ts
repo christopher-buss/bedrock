@@ -742,6 +742,47 @@ describe(migrateCommand, () => {
 			.mockResolvedValueOnce({ data: "eu-west-2", success: true });
 	}
 
+	it("should take its plugin backends from the project config when none were injected", async () => {
+		expect.assertions(1);
+
+		const plugins = s3Plugins();
+		const dependencies = makeDependencies({
+			loadProject: vi.fn<NonNullable<ProgDependencies["loadProject"]>>(async () => {
+				return {
+					data: { config: SAMPLE_CONFIG, plugins },
+					success: true,
+				};
+			}),
+		});
+		scriptPluginBackendPrompts(dependencies);
+
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
+
+		expect(dependencies.migratePromptPort!.promptStateBackend).toHaveBeenCalledExactlyOnceWith([
+			"s3",
+		]);
+	});
+
+	it("should offer no plugin backends when the project has no config to load", async () => {
+		expect.assertions(1);
+
+		const dependencies = makeDependencies({
+			loadProject: vi.fn<NonNullable<ProgDependencies["loadProject"]>>(async () => {
+				return {
+					err: { kind: "fileNotFound", searchedFrom: "/projects/example" },
+					success: false,
+				};
+			}),
+		});
+		scriptHappyPrompts(dependencies);
+
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
+
+		expect(dependencies.migratePromptPort!.promptStateBackend).toHaveBeenCalledExactlyOnceWith(
+			[],
+		);
+	});
+
 	it("should offer a plugin-declared backend alongside the builtins when picking where state lives", async () => {
 		expect.assertions(1);
 

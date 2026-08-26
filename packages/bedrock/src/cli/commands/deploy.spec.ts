@@ -1,11 +1,15 @@
 import type { Result } from "@bedrock-rbx/ocale";
 import { fromAny } from "@total-typescript/shoehorn";
 
+import { type } from "arktype";
 import process from "node:process";
 import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { fakeClackPort } from "#tests/helpers/clack";
+import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
 import { resultsInOrder } from "#tests/helpers/sequence";
+import type { ConfigError } from "../../core/config-error.ts";
+import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../../core/plugin-registry.ts";
 import type { ResourceCurrentState } from "../../core/resources.ts";
 import type { Config } from "../../core/schema.ts";
 import type { BedrockState } from "../../core/state.ts";
@@ -16,8 +20,7 @@ import type { ProgDeps as ProgDependencies } from "../index.ts";
 import type { Spawner, SpawnInvocation, SpawnLaunchError } from "../spawner.ts";
 import { deployCommand } from "./deploy.ts";
 
-type LoadConfigFunc = NonNullable<ProgDependencies["loadConfig"]>;
-type LoadConfigResult = Awaited<ReturnType<LoadConfigFunc>>;
+type LoadProjectFunc = NonNullable<ProgDependencies["loadProject"]>;
 type DeployFunc = NonNullable<ProgDependencies["deploy"]>;
 type ExitFunc = NonNullable<ProgDependencies["exit"]>;
 type DiscoverOverrideFunc = NonNullable<ProgDependencies["discoverOverride"]>;
@@ -102,8 +105,22 @@ function bedrockState(environment: string, resourceCount = 0): BedrockState {
 	return { environment, resources, version: 1 };
 }
 
-function fakeLoad(result: LoadConfigResult): LoadConfigFunc {
-	return vi.fn<LoadConfigFunc>(async () => result);
+/**
+ * A project loader answering with one canned config, or with the load
+ * failure a test scripted. Call sites state the config, so what the
+ * plugins declared stays out of the way until a test cares.
+ *
+ * @param result - The config to load, or the failure to report.
+ * @param plugins - What the load should report the plugins declared.
+ * @returns The loader to inject.
+ */
+function fakeLoad(
+	result: Result<Config, ConfigError>,
+	plugins: PluginRegistry = EMPTY_PLUGIN_REGISTRY,
+): LoadProjectFunc {
+	return vi.fn<LoadProjectFunc>(async () => {
+		return result.success ? { data: { config: result.data, plugins }, success: true } : result;
+	});
 }
 
 function fakeDeploy(mapping: ReadonlyArray<Result<BedrockState, DeployError>>): DeployFunc {
@@ -156,14 +173,14 @@ describe(deployCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should render configLoadFailed and exit 1 when loadConfig returns Err", async () => {
+	it("should render configLoadFailed and exit 1 when loadProject returns Err", async () => {
 		expect.assertions(3);
 
-		const loadConfig = fakeLoad({
+		const loadProject = fakeLoad({
 			err: { kind: "fileNotFound", searchedFrom: "/tmp/project" },
 			success: false,
 		});
-		const dependencies = makeDependencies({ deploy: vi.fn<DeployFunc>(), loadConfig });
+		const dependencies = makeDependencies({ deploy: vi.fn<DeployFunc>(), loadProject });
 
 		await deployCommand(dependencies)({ env: "production" });
 
@@ -172,41 +189,62 @@ describe(deployCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
-	it("should forward parsed configFile to loadConfig", async () => {
+	it("should hand deploy what the project load registered, so a plugin backend resolves", async () => {
 		expect.assertions(1);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const plugins = fakeStateBackendPlugins({
+			name: "s3",
+			createPort: () => ({ err: { reason: "unused in this test" }, success: false }),
+			schema: type({ bucket: "string > 0" }),
+			specifier: "@example/state-s3",
+		});
+		const loadProject = fakeLoad({ data: sampleConfig, success: true }, plugins);
+		const seen: Array<unknown> = [];
+		const deploy = vi.fn<DeployFunc>(async (options) => {
+			seen.push(options.plugins);
+			return { data: bedrockState("production"), success: true };
+		});
+
+		await deployCommand(makeDependencies({ deploy, loadProject }))({ env: "production" });
+
+		expect(seen).toStrictEqual([plugins]);
+	});
+
+	it("should forward parsed configFile to loadProject", async () => {
+		expect.assertions(1);
+
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
-		const dependencies = makeDependencies({ deploy, loadConfig });
+		const dependencies = makeDependencies({ deploy, loadProject });
 
 		await deployCommand(dependencies)({
 			config: "./bedrock.staging.config.ts",
 			env: "production",
 		});
 
-		expect(loadConfig).toHaveBeenCalledExactlyOnceWith({
+		expect(loadProject).toHaveBeenCalledExactlyOnceWith({
 			configFile: "./bedrock.staging.config.ts",
 		});
 	});
 
-	it("should call loadConfig with no options when --config is absent", async () => {
+	it("should call loadProject with no options when --config is absent", async () => {
 		expect.assertions(1);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
-		const dependencies = makeDependencies({ deploy, loadConfig });
+		const dependencies = makeDependencies({ deploy, loadProject });
 
 		await deployCommand(dependencies)({ env: "production" });
 
-		expect(loadConfig).toHaveBeenCalledExactlyOnceWith(undefined);
+		expect(loadProject).toHaveBeenCalledExactlyOnceWith(undefined);
 	});
 
 	it("should dispatch deploy with the loaded config and env, then log success and exit 0", async () => {
 		expect.assertions(4);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = fakeDeploy([{ data: bedrockState("production", 3), success: true }]);
-		const dependencies = makeDependencies({ deploy, loadConfig });
+		const dependencies = makeDependencies({ deploy, loadProject });
 
 		await deployCommand(dependencies)({ env: "production" });
 
@@ -223,7 +261,7 @@ describe(deployCommand, () => {
 	it("should render the DeployError and exit 1 when deploy returns Err", async () => {
 		expect.assertions(3);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = fakeDeploy([
 			{
 				err: {
@@ -234,7 +272,7 @@ describe(deployCommand, () => {
 				success: false,
 			},
 		]);
-		const dependencies = makeDependencies({ deploy, loadConfig });
+		const dependencies = makeDependencies({ deploy, loadProject });
 
 		await deployCommand(dependencies)({ env: "ghost" });
 
@@ -246,12 +284,12 @@ describe(deployCommand, () => {
 	it("should dispatch deploy once per --env in order and exit 0 when all succeed", async () => {
 		expect.assertions(3);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = fakeDeploy([
 			{ data: bedrockState("production", 1), success: true },
 			{ data: bedrockState("staging", 2), success: true },
 		]);
-		const dependencies = makeDependencies({ deploy, loadConfig });
+		const dependencies = makeDependencies({ deploy, loadProject });
 
 		await deployCommand(dependencies)({ env: ["production", "staging"] });
 
@@ -263,7 +301,7 @@ describe(deployCommand, () => {
 	it("should call deploy for every env even when one fails, then exit 1", async () => {
 		expect.assertions(4);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = fakeDeploy([
 			{
 				err: { environment: "production", kind: "stateNotConfigured" },
@@ -271,7 +309,7 @@ describe(deployCommand, () => {
 			},
 			{ data: bedrockState("staging", 5), success: true },
 		]);
-		const dependencies = makeDependencies({ deploy, loadConfig });
+		const dependencies = makeDependencies({ deploy, loadProject });
 
 		await deployCommand(dependencies)({ env: ["production", "staging"] });
 
@@ -291,9 +329,9 @@ describe(deployCommand, () => {
 			vi.unstubAllEnvs();
 		});
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
-		const dependencies = makeDependencies({ deploy, loadConfig });
+		const dependencies = makeDependencies({ deploy, loadProject });
 
 		await deployCommand(dependencies)({
 			"api-key": "BEDROCK_OVERRIDE",
@@ -324,9 +362,9 @@ describe(deployCommand, () => {
 			vi.unstubAllEnvs();
 		});
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
-		const dependencies = makeDependencies({ deploy, loadConfig });
+		const dependencies = makeDependencies({ deploy, loadProject });
 
 		await deployCommand(dependencies)({ "api-key": "FLAG_BEDROCK", "env": "production" });
 
@@ -349,9 +387,9 @@ describe(deployCommand, () => {
 			vi.unstubAllEnvs();
 		});
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
-		const dependencies = makeDependencies({ deploy, loadConfig });
+		const dependencies = makeDependencies({ deploy, loadProject });
 
 		await deployCommand(dependencies)({ env: "production" });
 
@@ -372,9 +410,9 @@ describe(deployCommand, () => {
 		});
 		vi.stubEnv("BEDROCK_ENVIRONMENT", "production");
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
-		const dependencies = makeDependencies({ deploy, loadConfig });
+		const dependencies = makeDependencies({ deploy, loadProject });
 
 		await deployCommand(dependencies)({});
 
@@ -424,9 +462,9 @@ describe(deployCommand, () => {
 					events = [...events, event];
 				},
 			};
-			const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+			const loadProject = fakeLoad({ data: sampleConfig, success: true });
 			const deploy = fakeDeploy([deployResult]);
-			const dependencies = makeDependencies({ deploy, loadConfig, progress });
+			const dependencies = makeDependencies({ deploy, loadProject, progress });
 
 			await deployCommand(dependencies)({ env });
 
@@ -450,10 +488,10 @@ describe(deployCommand, () => {
 	it("should thread the injected progress port into the underlying deploy() call", async () => {
 		expect.assertions(1);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = fakeDeploy([{ data: bedrockState("production", 0), success: true }]);
 		const progress: ProgressPort = { emit: vi.fn<ProgressPort["emit"]>() };
-		const dependencies = makeDependencies({ deploy, loadConfig, progress });
+		const dependencies = makeDependencies({ deploy, loadProject, progress });
 
 		await deployCommand(dependencies)({ env: "production" });
 
@@ -468,12 +506,12 @@ describe(deployCommand, () => {
 			state: { backend: "gist", gistId: "abc-test" },
 		};
 		const clack = fakeClackPort();
-		const loadConfig = fakeLoad({ data: configWithGist, success: true });
+		const loadProject = fakeLoad({ data: configWithGist, success: true });
 		const deploy = vi.fn<DeployFunc>(async (options) => {
 			options.progress!.emit({ environment: "production", kind: "stateWritten" });
 			return { data: bedrockState("production", 0), success: true };
 		});
-		const dependencies = makeDependencies({ clack, deploy, loadConfig });
+		const dependencies = makeDependencies({ clack, deploy, loadProject });
 
 		await deployCommand(dependencies)({ env: "production" });
 
@@ -483,14 +521,14 @@ describe(deployCommand, () => {
 	it("should dispatch the spawner instead of deploy() when an override is discovered", async () => {
 		expect.assertions(3);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = vi.fn<DeployFunc>();
 		const { invocations, spawner } = recordingSpawner({ data: 0, success: true });
 		const discoverOverride = discoverReturning("/abs/.bedrock/deploy.ts");
 		const dependencies = makeDependencies({
 			deploy,
 			discoverOverride,
-			loadConfig,
+			loadProject,
 			projectRoot: "/project",
 			spawner,
 		});
@@ -505,13 +543,13 @@ describe(deployCommand, () => {
 	it("should query discoverOverride with the configured projectRoot and the 'deploy' command name", async () => {
 		expect.assertions(1);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
 		const discoverOverride = discoverReturning(undefined);
 		const dependencies = makeDependencies({
 			deploy,
 			discoverOverride,
-			loadConfig,
+			loadProject,
 			projectRoot: "/abs/project",
 		});
 
@@ -523,12 +561,12 @@ describe(deployCommand, () => {
 	it("should forward the discovered override path and parsed flags into the spawned invocation", async () => {
 		expect.assertions(4);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const { invocations, spawner } = recordingSpawner({ data: 0, success: true });
 		const discoverOverride = discoverReturning("/abs/.bedrock/deploy.ts");
 		const dependencies = makeDependencies({
 			discoverOverride,
-			loadConfig,
+			loadProject,
 			projectRoot: "/abs",
 			spawner,
 		});
@@ -561,12 +599,12 @@ describe(deployCommand, () => {
 	it("should dispatch the spawner once per --env when multiple environments are requested", async () => {
 		expect.assertions(3);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const { invocations, spawner } = recordingSpawner({ data: 0, success: true });
 		const discoverOverride = discoverReturning("/abs/.bedrock/deploy.ts");
 		const dependencies = makeDependencies({
 			discoverOverride,
-			loadConfig,
+			loadProject,
 			projectRoot: "/abs",
 			spawner,
 		});
@@ -584,11 +622,11 @@ describe(deployCommand, () => {
 	it("should fall back to the shell deploy() when discoverOverride returns undefined", async () => {
 		expect.assertions(2);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
 		const { invocations, spawner } = recordingSpawner({ data: 0, success: true });
 		const discoverOverride = discoverReturning(undefined);
-		const dependencies = makeDependencies({ deploy, discoverOverride, loadConfig, spawner });
+		const dependencies = makeDependencies({ deploy, discoverOverride, loadProject, spawner });
 
 		await deployCommand(dependencies)({ env: "production" });
 
@@ -601,10 +639,10 @@ describe(deployCommand, () => {
 	it("should cancel and exit 1 when an override spawn returns a non-zero exit code", async () => {
 		expect.assertions(3);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const { spawner } = recordingSpawner({ data: 3, success: true });
 		const discoverOverride = discoverReturning("/abs/.bedrock/deploy.ts");
-		const dependencies = makeDependencies({ discoverOverride, loadConfig, spawner });
+		const dependencies = makeDependencies({ discoverOverride, loadProject, spawner });
 
 		await deployCommand(dependencies)({ env: "production" });
 
@@ -625,9 +663,9 @@ describe(deployCommand, () => {
 			err: { cause, kind: "launchFailed" },
 			success: false,
 		});
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const discoverOverride = discoverReturning("/abs/.bedrock/deploy.ts");
-		const dependencies = makeDependencies({ discoverOverride, loadConfig, spawner });
+		const dependencies = makeDependencies({ discoverOverride, loadProject, spawner });
 
 		await deployCommand(dependencies)({ env: "production" });
 
@@ -652,9 +690,9 @@ describe(deployCommand, () => {
 				return results();
 			},
 		};
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const discoverOverride = discoverReturning("/abs/.bedrock/deploy.ts");
-		const dependencies = makeDependencies({ discoverOverride, loadConfig, spawner });
+		const dependencies = makeDependencies({ discoverOverride, loadProject, spawner });
 
 		await deployCommand(dependencies)({ env: ["production", "staging"] });
 
@@ -665,14 +703,14 @@ describe(deployCommand, () => {
 	it("should inject a build step that spawns the discovered .bedrock/build.ts override", async () => {
 		expect.assertions(4);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
 		const { invocations, spawner } = recordingSpawner({ data: 0, success: true });
 		const discoverOverride = discoverByCommand({ build: "/abs/.bedrock/build.ts" });
 		const dependencies = makeDependencies({
 			deploy,
 			discoverOverride,
-			loadConfig,
+			loadProject,
 			projectRoot: "/abs",
 			spawner,
 		});
@@ -704,10 +742,10 @@ describe(deployCommand, () => {
 	it("should leave the build step undefined when no .bedrock/build.ts override exists", async () => {
 		expect.assertions(1);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
 		const discoverOverride = discoverByCommand({});
-		const dependencies = makeDependencies({ deploy, discoverOverride, loadConfig });
+		const dependencies = makeDependencies({ deploy, discoverOverride, loadProject });
 
 		await deployCommand(dependencies)({ env: "production" });
 
@@ -720,11 +758,11 @@ describe(deployCommand, () => {
 	it("should reject from the injected build step when the spawned build exits non-zero", async () => {
 		expect.assertions(1);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
 		const { spawner } = recordingSpawner({ data: 3, success: true });
 		const discoverOverride = discoverByCommand({ build: "/abs/.bedrock/build.ts" });
-		const dependencies = makeDependencies({ deploy, discoverOverride, loadConfig, spawner });
+		const dependencies = makeDependencies({ deploy, discoverOverride, loadProject, spawner });
 
 		await deployCommand(dependencies)({ env: "production" });
 
@@ -743,14 +781,14 @@ describe(deployCommand, () => {
 		const cause: Error & { code?: string } = Object.assign(new Error("spawn bun ENOENT"), {
 			code: "ENOENT",
 		});
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
 		const { spawner } = recordingSpawner({
 			err: { cause, kind: "launchFailed" },
 			success: false,
 		});
 		const discoverOverride = discoverByCommand({ build: "/abs/.bedrock/build.ts" });
-		const dependencies = makeDependencies({ deploy, discoverOverride, loadConfig, spawner });
+		const dependencies = makeDependencies({ deploy, discoverOverride, loadProject, spawner });
 
 		await deployCommand(dependencies)({ env: "production" });
 
@@ -767,13 +805,13 @@ describe(deployCommand, () => {
 	it("should discover the build override alongside the deploy override on the shell path", async () => {
 		expect.assertions(3);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = fakeDeploy([{ data: bedrockState("production"), success: true }]);
 		const discoverOverride = discoverByCommand({});
 		const dependencies = makeDependencies({
 			deploy,
 			discoverOverride,
-			loadConfig,
+			loadProject,
 			projectRoot: "/abs/project",
 		});
 
@@ -787,12 +825,12 @@ describe(deployCommand, () => {
 	it("should not discover a build override when a .bedrock/deploy.ts override is dispatched", async () => {
 		expect.assertions(1);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const { spawner } = recordingSpawner({ data: 0, success: true });
 		const discoverOverride = discoverByCommand({ deploy: "/abs/.bedrock/deploy.ts" });
 		const dependencies = makeDependencies({
 			discoverOverride,
-			loadConfig,
+			loadProject,
 			projectRoot: "/abs",
 			spawner,
 		});
@@ -805,7 +843,7 @@ describe(deployCommand, () => {
 	it("should render an error and exit 1 when build override discovery throws", async () => {
 		expect.assertions(4);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = vi.fn<DeployFunc>();
 		const discoverOverride = discoverThrowingFor(
 			"build",
@@ -814,7 +852,7 @@ describe(deployCommand, () => {
 		const dependencies = makeDependencies({
 			deploy,
 			discoverOverride,
-			loadConfig,
+			loadProject,
 			projectRoot: "/project",
 		});
 
@@ -831,7 +869,7 @@ describe(deployCommand, () => {
 	it("should render an error and exit 1 when discoverOverride throws", async () => {
 		expect.assertions(3);
 
-		const loadConfig = fakeLoad({ data: sampleConfig, success: true });
+		const loadProject = fakeLoad({ data: sampleConfig, success: true });
 		const deploy = vi.fn<DeployFunc>();
 		const discoverOverride = vi.fn<DiscoverOverrideFunc>(() => {
 			throw new Error("EACCES: permission denied, stat '/project/.bedrock/deploy.ts'");
@@ -839,7 +877,7 @@ describe(deployCommand, () => {
 		const dependencies = makeDependencies({
 			deploy,
 			discoverOverride,
-			loadConfig,
+			loadProject,
 			projectRoot: "/project",
 		});
 
