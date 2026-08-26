@@ -102,10 +102,10 @@ interface SpawnBuildStepInputs {
 
 /** One environment's failed pipeline run. */
 interface RunFailure {
-	// Explicit config path the run was given, or `undefined` when config
-	// discovery ran. Always present so the recovery hint reads one field
 	/**
-	 * Rather than branching on the key.
+	 * Explicit config path the run was given, or `undefined` when config
+	 * discovery ran. Always present, so the recovery hint reads one field
+	 * rather than branching on the key.
 	 */
 	readonly configFile: string | undefined;
 	readonly environment: string;

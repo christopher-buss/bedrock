@@ -168,12 +168,6 @@ async function consumeDumpAsync(resolved: ResolvedStatePush, filePath: string): 
 }
 
 /**
- * Push one environment's dump, reporting whichever step refused.
- *
- * @param inputs - The environment being pushed and the loaded project.
- * @returns Whether the environment's state reached the **Backend**.
- */
-/**
  * Build the **Backend** this environment's state belongs in, reporting an
  * environment with no state block or a backend that refused to build.
  *
@@ -207,6 +201,12 @@ function resolveStatePortFor({
 	return { err: undefined, success: false };
 }
 
+/**
+ * Push one environment's dump, reporting whichever step refused.
+ *
+ * @param inputs - The environment being pushed and the loaded project.
+ * @returns Whether the environment's state reached the **Backend**.
+ */
 async function pushEnvironmentAsync(inputs: PushInputs): Promise<boolean> {
 	const { environment, resolved } = inputs;
 	const filePath = recoveryFilePath(resolved.projectRoot, environment);

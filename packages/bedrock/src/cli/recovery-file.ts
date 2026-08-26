@@ -1,5 +1,10 @@
 import { join } from "node:path";
 
+// Characters every shell takes verbatim. Anything outside this set (a space
+// above all) is what makes a pasted command parse as something other than the
+// one argument it names.
+const SHELL_SAFE = /^[\w./:@=-]+$/u;
+
 /** Directory, relative to the project root, holding recovery dumps. */
 const RECOVERY_DIRECTORY = join(".bedrock", "recovery");
 
@@ -39,6 +44,24 @@ export function recoveryFilePath(projectRoot: string, environment: string): stri
  * @returns The command line to run.
  */
 export function recoveryPushCommand(environment: string, configFile?: string): string {
-	const config = configFile === undefined ? "" : ` --config ${configFile}`;
-	return `bedrock state push --env ${environment}${config}`;
+	const config = configFile === undefined ? "" : ` --config ${shellArgument(configFile)}`;
+	return `bedrock state push --env ${shellArgument(environment)}${config}`;
+}
+
+/**
+ * Render one value as an argument the reader can paste into a shell. A value
+ * a shell would take verbatim is left bare, so the common hint stays plain;
+ * anything else is double-quoted, with what stays live inside double quotes
+ * escaped.
+ *
+ * @param value - The environment name or path to render.
+ * @returns The argument as it should appear in the quoted command.
+ */
+function shellArgument(value: string): string {
+	if (SHELL_SAFE.test(value)) {
+		return value;
+	}
+
+	const escaped = value.replaceAll(/["$\\`]/gu, String.raw`\$&`);
+	return `"${escaped}"`;
 }

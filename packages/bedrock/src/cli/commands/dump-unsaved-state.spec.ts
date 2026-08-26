@@ -131,6 +131,22 @@ describe(dumpUnsavedStateAsync, () => {
 		);
 	});
 
+	it("should quote the run's own config path in the push command", async () => {
+		expect.assertions(1);
+
+		const deps = makeDeps();
+
+		await dumpUnsavedStateAsync(deps, {
+			configFile: "./bedrock.staging.config.ts",
+			environment: "production",
+			err: writeFailure([passResource("vip-pass")]),
+		});
+
+		expect(deps.clack.logMessage).toHaveBeenCalledExactlyOnceWith(
+			"unsaved state written to /repo/.bedrock/recovery/production.json; push it with: bedrock state push --env production --config ./bedrock.staging.config.ts",
+		);
+	});
+
 	it("should report the failure and skip the write when the recovery directory cannot be created", async () => {
 		expect.assertions(2);
 
