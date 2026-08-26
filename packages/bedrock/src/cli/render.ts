@@ -1,7 +1,11 @@
 import { safeStringify } from "../core/error-chain.ts";
 import type { MigrateError, MigrationSummary } from "../core/migrate/migration-report.ts";
 import type { StateError } from "../core/state.ts";
-import type { MissingCredentialError, UnsupportedBackendError } from "../shell/build-state-port.ts";
+import type {
+	MissingCredentialError,
+	PluginStateBackendError,
+	UnsupportedBackendError,
+} from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
 import type { OverrideErrorRender } from "./error-messages.ts";
 import {
@@ -169,7 +173,7 @@ export function renderMigrateError(err: MigrateError, port: ClackPort): void {
  * @param port - The output port the diagnostic is written to.
  */
 export function renderBuildStatePortError(
-	err: MissingCredentialError | UnsupportedBackendError,
+	err: MissingCredentialError | PluginStateBackendError | UnsupportedBackendError,
 	port: ClackPort,
 ): void {
 	port.logError(buildStatePortErrorMessage(err));

@@ -1,8 +1,8 @@
 import { type } from "arktype";
 import { assert, describe, expect, it } from "vitest";
 
+import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
 import { INVALID_ROBUX_PRICES, PLATFORM_FLAG_ROWS } from "#tests/helpers/resources";
-import type { PluginRegistry } from "./plugin-registry.ts";
 import { SOCIAL_LINK_FIELDS } from "./resources.ts";
 import { createConfigValidator, validateConfig } from "./schema.ts";
 
@@ -10,9 +10,12 @@ const SOURCE = "bedrock.config.ts";
 
 const MinEnvironments = { production: {} } as const;
 
-const S3_REGISTRY: PluginRegistry = {
-	stateBackends: new Map([["s3", type({ "bucket": "string > 0", "region?": "string" })]]),
-};
+const S3_REGISTRY = fakeStateBackendPlugins({
+	name: "s3",
+	createPort: () => ({ err: { reason: "unused in schema tests" }, success: false }),
+	schema: type({ "bucket": "string > 0", "region?": "string" }),
+	specifier: "@example/state-s3",
+});
 
 const validateWithS3 = createConfigValidator(S3_REGISTRY);
 

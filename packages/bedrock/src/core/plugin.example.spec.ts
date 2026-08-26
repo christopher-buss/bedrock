@@ -4,16 +4,56 @@ import type { StateBackendDeclaration, BedrockPlugin } from '@bedrock-rbx/core'
 import { type } from 'arktype'
 
 it('Example 1', () => {
-  const s3: StateBackendDeclaration = {
+  const schema = type({ bucket: 'string > 0' })
+  const s3: StateBackendDeclaration<typeof schema.infer> = {
     name: 's3',
-    schema: type({ bucket: 'string > 0', 'region?': 'string' }),
+    schema,
+    createPort({ getEnv, stateConfig }) {
+      const key = getEnv('AWS_ACCESS_KEY_ID')
+      if (key === undefined) {
+        return {
+          err: {
+            detail: { variable: 'AWS_ACCESS_KEY_ID' },
+            reason: 'no credentials',
+          },
+          success: false,
+        }
+      }
+      const objects = new Map<string, string>()
+      const keyFor = (environment: string) =>
+        `${stateConfig.bucket}/${environment}.json`
+      return {
+        data: {
+          read: async () => ({ data: undefined, success: true }),
+          write: async (state) => {
+            objects.set(keyFor(state.environment), key)
+            return { data: undefined, success: true }
+          },
+        },
+        success: true,
+      }
+    },
   }
+  const built = s3.createPort({
+    getEnv: () => 'example-access-key',
+    stateConfig: { bucket: 'my-bucket' },
+  })
   expect(s3.name).toBe('s3')
+  expect(built.success).toBeTrue()
 })
 
 it('Example 2', () => {
   const plugin: BedrockPlugin = {
-    stateBackends: [{ name: 's3', schema: type({ bucket: 'string > 0' }) }],
+    stateBackends: [
+      {
+        name: 's3',
+        schema: type({ bucket: 'string > 0' }),
+        createPort: () => ({
+          err: { reason: 'not implemented' },
+          success: false,
+        }),
+      },
+    ],
   }
   expect(plugin.stateBackends).toHaveLength(1)
 })

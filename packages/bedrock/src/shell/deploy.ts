@@ -44,6 +44,7 @@ import { buildDesired, type BuildDesiredError } from "./build-desired.ts";
 import {
 	buildStatePort,
 	type MissingCredentialError,
+	type PluginStateBackendError,
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
 import { loadConfig as defaultLoadConfig, type LoadConfigOptions } from "./load-config.ts";
@@ -305,6 +306,7 @@ export type DeployError =
 	| IncompleteProductEntryError
 	| IncompleteUniverseEntryError
 	| MissingCredentialError
+	| PluginStateBackendError
 	| RegistryConfigError
 	| StateNotConfiguredError
 	| UnknownEnvironmentError

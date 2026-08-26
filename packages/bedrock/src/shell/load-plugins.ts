@@ -21,8 +21,8 @@ const IMPORT_FAILURE_REASON = {
 const NO_PLUGIN_EXPORT_MESSAGE = "expected a default-exported plugin object";
 
 const BAD_STATE_BACKENDS_MESSAGE =
-	"expected stateBackends to be a list of { name, schema } declarations, " +
-	"where schema is an arktype object schema";
+	"expected stateBackends to be a list of { name, schema, createPort } declarations, " +
+	"where schema is an arktype object schema and createPort is a function";
 
 /**
  * Inputs for importing a single plugin.
@@ -133,8 +133,8 @@ function invalidExport(specifier: string, message: string): Result<never, Config
  * cannot be merged into the block.
  *
  * @param value - The raw `stateBackends` value read off the plugin export.
- * @returns `true` when every entry names a backend and carries a mergeable
- * schema.
+ * @returns `true` when every entry names a backend and carries both a
+ * mergeable schema and a builder.
  */
 function isDeclarationList(value: unknown): value is ReadonlyArray<StateBackendDeclaration> {
 	return (
@@ -145,7 +145,8 @@ function isDeclarationList(value: unknown): value is ReadonlyArray<StateBackendD
 				typeof entry["name"] === "string" &&
 				entry["name"].length > 0 &&
 				typeof entry["schema"] === "function" &&
-				isStateBackendSchema(entry["schema"])
+				isStateBackendSchema(entry["schema"]) &&
+				typeof entry["createPort"] === "function"
 			);
 		})
 	);

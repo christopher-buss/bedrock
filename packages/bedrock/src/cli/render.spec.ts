@@ -5,7 +5,11 @@ import { describe, expect, it } from "vitest";
 import { fakeClackPort } from "#tests/helpers/clack";
 import { cyclicError } from "#tests/helpers/errors";
 import type { MigrateError } from "../core/migrate/migration-report.ts";
-import type { MissingCredentialError, UnsupportedBackendError } from "../shell/build-state-port.ts";
+import type {
+	MissingCredentialError,
+	PluginStateBackendError,
+	UnsupportedBackendError,
+} from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
 import { asResourceKey } from "../types/ids.ts";
 import type { SpawnOverrideError } from "./dispatch-override.ts";
@@ -52,6 +56,16 @@ describe(renderDeployError, () => {
 				kind: "unsupportedBackend",
 			},
 			expected: "unsupported state backend 's3' (pass a custom statePort via opts.statePort)",
+		},
+		{
+			err: {
+				detail: { variable: "AWS_ACCESS_KEY_ID" },
+				kind: "pluginStateBackend",
+				reason: "no credentials",
+				specifier: "@example/state-s3",
+			},
+			expected:
+				"state backend from plugin '@example/state-s3' failed to build: no credentials",
 		},
 		{
 			err: {
@@ -827,7 +841,10 @@ describe(renderMigrateError, () => {
 });
 
 describe(renderBuildStatePortError, () => {
-	it.for<{ err: MissingCredentialError | UnsupportedBackendError; expected: string }>([
+	it.for<{
+		err: MissingCredentialError | PluginStateBackendError | UnsupportedBackendError;
+		expected: string;
+	}>([
 		{
 			err: {
 				kind: "missingCredential",
@@ -835,6 +852,16 @@ describe(renderBuildStatePortError, () => {
 				variable: "BEDROCK_GITHUB_TOKEN",
 			},
 			expected: "missing credential: environment variable BEDROCK_GITHUB_TOKEN is not set",
+		},
+		{
+			err: {
+				detail: { variable: "AWS_ACCESS_KEY_ID" },
+				kind: "pluginStateBackend",
+				reason: "no credentials",
+				specifier: "@example/state-s3",
+			},
+			expected:
+				"state backend from plugin '@example/state-s3' failed to build: no credentials",
 		},
 		{
 			err: { backend: "s3", hint: "pass a custom statePort", kind: "unsupportedBackend" },

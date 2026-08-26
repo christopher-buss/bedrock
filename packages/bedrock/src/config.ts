@@ -18,6 +18,7 @@ export type {
 	GamePassEntry,
 	GistStateConfig,
 	PlaceEntry,
+	PluginStateConfig,
 	RedactedDeveloperProductOverride,
 	RedactedEnvironmentOverride,
 	RedactedGamePassOverride,

@@ -2,7 +2,11 @@ import type { ConfigError } from "../core/config-error.ts";
 import type { MigrateError } from "../core/migrate/migration-report.ts";
 import type { StateError } from "../core/state.ts";
 import type { BuildDesiredError } from "../shell/build-desired.ts";
-import type { MissingCredentialError, UnsupportedBackendError } from "../shell/build-state-port.ts";
+import type {
+	MissingCredentialError,
+	PluginStateBackendError,
+	UnsupportedBackendError,
+} from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
 import type { CodegenError } from "../shell/run-codegen.ts";
 import type { SpawnOverrideError } from "./dispatch-override.ts";
@@ -43,6 +47,7 @@ export function deployErrorMessage(err: Exclude<DeployError, { kind: "applyFaile
 		case "unknownEnvironment": {
 			return configErrorMessage(err);
 		}
+		case "pluginStateBackend":
 		case "stateNotConfigured":
 		case "stateReadFailed":
 		case "stateWriteFailed":
@@ -245,16 +250,30 @@ export function migrateErrorMessage(err: MigrateError): string {
  * @returns The message to print.
  */
 export function buildStatePortErrorMessage(
-	err: MissingCredentialError | UnsupportedBackendError,
+	err: MissingCredentialError | PluginStateBackendError | UnsupportedBackendError,
 ): string {
 	switch (err.kind) {
 		case "missingCredential": {
 			return `missing credential: environment variable ${err.variable} is not set`;
 		}
+		case "pluginStateBackend": {
+			return pluginStateBackendMessage(err);
+		}
 		case "unsupportedBackend": {
 			return `unsupported state backend '${err.backend}' (${err.hint})`;
 		}
 	}
+}
+
+/**
+ * Describe a plugin's refusal to build its **Backend**, naming the plugin
+ * so the reader knows which package to look at.
+ *
+ * @param err - The wrapped refusal.
+ * @returns The message to print.
+ */
+function pluginStateBackendMessage(err: PluginStateBackendError): string {
+	return `state backend from plugin '${err.specifier}' failed to build: ${err.reason}`;
 }
 
 function configErrorMessage(
@@ -324,6 +343,7 @@ function stateErrorMessage(
 		DeployError,
 		{
 			kind:
+				| "pluginStateBackend"
 				| "stateNotConfigured"
 				| "stateReadFailed"
 				| "stateWriteFailed"
@@ -332,6 +352,9 @@ function stateErrorMessage(
 	>,
 ): string {
 	switch (err.kind) {
+		case "pluginStateBackend": {
+			return pluginStateBackendMessage(err);
+		}
 		case "stateNotConfigured": {
 			return `state not configured for environment '${err.environment}'`;
 		}

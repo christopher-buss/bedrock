@@ -1,7 +1,9 @@
+import { type } from "arktype";
 import { assert, describe, expect, it } from "vitest";
 
 import { environmentFrom } from "#tests/helpers/environment";
 import { fakeFetch } from "#tests/helpers/fake-gist-fetch";
+import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
 import type { StateConfig } from "../core/schema.ts";
 import { buildStatePort } from "./build-state-port.ts";
 
@@ -115,6 +117,111 @@ describe(buildStatePort, () => {
 		assert(result.err.kind === "unsupportedBackend");
 
 		expect(result.err.hint).toContain("opts.statePort");
+	});
+
+	it("should construct a state port from a plugin-declared backend", async () => {
+		expect.assertions(1);
+
+		const port = {
+			read: async () => ({ data: undefined, success: true }) as const,
+			write: async () => ({ data: undefined, success: true }) as const,
+		};
+
+		const result = buildStatePort({
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createPort: () => ({ data: port, success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			stateConfig: { backend: "s3", bucket: "my-bucket" },
+		});
+
+		assert(result.success);
+
+		await expect(result.data.read("production")).resolves.toStrictEqual({
+			data: undefined,
+			success: true,
+		});
+	});
+
+	it("should hand the plugin's builder the state block, the credential reader, and the fetch seam", () => {
+		expect.assertions(3);
+
+		const { fetchFn } = fakeFetch(emptyFilesResponse);
+		const seen: Array<unknown> = [];
+
+		buildStatePort({
+			fetch: fetchFn,
+			getEnv: environmentFrom({ AWS_ACCESS_KEY_ID: "example-access-key" }),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createPort: (context) => {
+					seen.push(
+						context.stateConfig,
+						context.getEnv("AWS_ACCESS_KEY_ID"),
+						context.fetch,
+					);
+					return { err: { reason: "unused" }, success: false };
+				},
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			stateConfig: { backend: "s3", bucket: "my-bucket" },
+		});
+
+		expect(seen[0]).toStrictEqual({ backend: "s3", bucket: "my-bucket" });
+		expect(seen[1]).toBe("example-access-key");
+		expect(seen[2]).toBe(fetchFn);
+	});
+
+	it("should wrap a plugin builder failure in pluginStateBackend naming the plugin and keeping its payload", () => {
+		expect.assertions(3);
+
+		const result = buildStatePort({
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createPort: () => {
+					return {
+						err: {
+							detail: { variable: "AWS_ACCESS_KEY_ID" },
+							reason: "no credentials",
+						},
+						success: false,
+					};
+				},
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			stateConfig: { backend: "s3", bucket: "my-bucket" },
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "pluginStateBackend");
+
+		expect(result.err.specifier).toBe("@example/state-s3");
+		expect(result.err.reason).toBe("no credentials");
+		expect(result.err.detail).toStrictEqual({ variable: "AWS_ACCESS_KEY_ID" });
+	});
+
+	it("should keep dispatching a builtin backend name to its builtin adapter when plugins are loaded", () => {
+		expect.assertions(1);
+
+		const result = buildStatePort({
+			fetch: neverFetchAsync,
+			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createPort: () => ({ err: { reason: "unreachable" }, success: false }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			stateConfig: GIST_CONFIG,
+		});
+
+		expect(result.success).toBeTrue();
 	});
 
 	it("should construct the gist adapter without a fetch override when none is supplied", () => {

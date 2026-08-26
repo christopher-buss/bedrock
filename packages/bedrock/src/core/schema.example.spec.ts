@@ -17,6 +17,7 @@ import {
   type ResolvedConfig,
   isGistStateConfig,
   createConfigValidator,
+  type StateBackendDeclaration,
   validateConfig,
 } from '@bedrock-rbx/core'
 import { type } from 'arktype'
@@ -126,8 +127,15 @@ it('Example 8', () => {
 })
 
 it('Example 9', () => {
+  const s3: StateBackendDeclaration = {
+    name: 's3',
+    schema: type({ bucket: 'string > 0' }),
+    createPort: () => ({ err: { reason: 'example only' }, success: false }),
+  }
   const validate = createConfigValidator({
-    stateBackends: new Map([['s3', type({ bucket: 'string > 0' })]]),
+    stateBackends: new Map([
+      ['s3', { declaration: s3, specifier: '@example/state-s3' }],
+    ]),
   })
   const result = validate(
     {

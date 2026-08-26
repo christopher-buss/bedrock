@@ -909,12 +909,26 @@ async function unusedImporter(specifier: string): Promise<ImportResult> {
 	throw new Error(`importer must not run, but was asked for '${specifier}'`);
 }
 
+/**
+ * A builder the config-loading tests never call: they observe what a plugin
+ * makes valid, not what its adapter does.
+ *
+ * @returns A refusal, so nothing downstream can mistake it for an adapter.
+ */
+function unusedBuilder(): { err: { reason: string }; success: false } {
+	return { err: { reason: "unused in config-loading tests" }, success: false };
+}
+
 async function importS3Plugin(): Promise<ImportResult> {
 	return {
 		data: {
 			default: {
 				stateBackends: [
-					{ name: "s3", schema: type({ "bucket": "string > 0", "region?": "string" }) },
+					{
+						name: "s3",
+						createPort: unusedBuilder,
+						schema: type({ "bucket": "string > 0", "region?": "string" }),
+					},
 				],
 			},
 		},
@@ -1199,7 +1213,13 @@ describe(loadConfigWith, () => {
 			return {
 				data: {
 					default: {
-						stateBackends: [{ name: "gist", schema: type({ gistId: "string" }) }],
+						stateBackends: [
+							{
+								name: "gist",
+								createPort: unusedBuilder,
+								schema: type({ gistId: "string" }),
+							},
+						],
 					},
 				},
 				success: true,
@@ -1220,6 +1240,14 @@ describe(loadConfigWith, () => {
 		["a declaration is not an object", { stateBackends: ["s3"] }],
 		["a declaration has no name", { stateBackends: [{ schema: type("object") }] }],
 		["a declaration has no schema", { stateBackends: [{ name: "s3" }] }],
+		[
+			"a declaration has no builder",
+			{ stateBackends: [{ name: "s3", schema: type("object") }] },
+		],
+		[
+			"a declaration's builder is not a function",
+			{ stateBackends: [{ name: "s3", createPort: "nope", schema: type("object") }] },
+		],
 		[
 			"a declaration names the empty string",
 			{ stateBackends: [{ name: "", schema: type("object") }] },
@@ -1267,8 +1295,9 @@ describe(loadConfigWith, () => {
 
 			expect(result.err.reason).toBe("invalidExport");
 			expect(result.err.message).toBe(
-				"expected stateBackends to be a list of { name, schema } declarations, " +
-					"where schema is an arktype object schema",
+				"expected stateBackends to be a list of { name, schema, createPort } " +
+					"declarations, where schema is an arktype object schema and createPort " +
+					"is a function",
 			);
 		},
 	);

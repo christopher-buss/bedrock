@@ -1,4 +1,20 @@
+import type { Result } from "@bedrock-rbx/ocale";
+
 import type { type } from "arktype";
+
+import type { StatePort } from "../ports/state-port.ts";
+
+/**
+ * `fetch` seam a **Backend** routes its HTTP through. Adapters take it as an
+ * injected dependency rather than reaching for `globalThis.fetch`, so a
+ * plugin's own tests drive it against a fake transport the way core's do.
+ *
+ * @since unreleased
+ */
+export type StateBackendFetch = (
+	input: globalThis.Request | string | URL,
+	init?: RequestInit,
+) => Promise<Response>;
 
 /**
  * An arktype schema describing the `state` keys one **Backend** adds.
@@ -6,19 +22,70 @@ import type { type } from "arktype";
  * merged in for you.
  *
  * @since unreleased
+ *
+ * @template TState - Shape the schema validates a `state` block into, which
+ * is what the **Backend**'s builder receives.
  */
-export type StateBackendSchema = type.Any<object>;
+export type StateBackendSchema<TState extends object = object> = type.Any<TState>;
+
+/**
+ * What core hands a **Backend**'s builder. `stateConfig` is the `state`
+ * block the user authored, already validated against the plugin's own
+ * schema, so the builder reads its keys without re-parsing them.
+ *
+ * @since unreleased
+ *
+ * @template TState - Shape the plugin's schema validates the `state` block
+ * into.
+ */
+export interface StateBackendContext<TState extends object = object> {
+	/**
+	 * `fetch` seam, present only when the caller injected one. Adapters that
+	 * talk HTTP should route through it and fall back to `globalThis.fetch`,
+	 * which is what makes them testable against a fake transport.
+	 */
+	readonly fetch?: StateBackendFetch | undefined;
+	/**
+	 * Reads an environment variable. Credentials arrive this way rather than
+	 * from `process.env` directly, so a plugin's tests stay free of ambient
+	 * process state.
+	 */
+	readonly getEnv: (name: string) => string | undefined;
+	/** The validated `state` block that named this **Backend**. */
+	readonly stateConfig: TState;
+}
+
+/**
+ * Failure a **Backend**'s builder returns when it cannot produce a
+ * `StatePort`: a missing credential, a coordinate that does not resolve, a
+ * client that refused to construct.
+ *
+ * Core renders `reason` and passes `detail` through untouched, so a plugin
+ * can carry its own typed payload without core enumerating the shapes a
+ * **Backend** can fail in.
+ *
+ * @since unreleased
+ */
+export interface StateBackendBuildError {
+	/** The plugin's own payload, which core neither reads nor narrows. */
+	readonly detail?: unknown;
+	/** Human-readable explanation of why the **Backend** could not build. */
+	readonly reason: string;
+}
 
 /**
  * One **Backend** a plugin claims. `name` is the value users write as
- * `state.backend`, and `schema` declares the keys that may sit alongside
- * it.
+ * `state.backend`, `schema` declares the keys that may sit alongside it,
+ * and `createPort` builds the adapter those keys describe.
  *
  * A name resolves to exactly one declaration: a name already claimed by
  * another loaded plugin, or by a builtin, fails the config load rather
  * than shadowing the existing claim.
  *
  * @since unreleased
+ *
+ * @template TState - Shape `schema` validates a `state` block into, which
+ * `createPort` then reads without re-parsing.
  *
  * @example
  *
@@ -27,19 +94,64 @@ export type StateBackendSchema = type.Any<object>;
  *
  * import { type } from "arktype";
  *
- * const s3: StateBackendDeclaration = {
+ * const schema = type({ bucket: "string > 0" });
+ *
+ * const s3: StateBackendDeclaration<typeof schema.infer> = {
  *     name: "s3",
- *     schema: type({ bucket: "string > 0", "region?": "string" }),
+ *     schema,
+ *     createPort({ getEnv, stateConfig }) {
+ *         const key = getEnv("AWS_ACCESS_KEY_ID");
+ *         if (key === undefined) {
+ *             return {
+ *                 err: { detail: { variable: "AWS_ACCESS_KEY_ID" }, reason: "no credentials" },
+ *                 success: false,
+ *             };
+ *         }
+ *
+ *         const objects = new Map<string, string>();
+ *         const keyFor = (environment: string) =>
+ *             `${stateConfig.bucket}/${environment}.json`;
+ *
+ *         return {
+ *             data: {
+ *                 read: async () => ({ data: undefined, success: true }),
+ *                 write: async (state) => {
+ *                     objects.set(keyFor(state.environment), key);
+ *                     return { data: undefined, success: true };
+ *                 },
+ *             },
+ *             success: true,
+ *         };
+ *     },
  * };
  *
+ * const built = s3.createPort({
+ *     getEnv: () => "example-access-key",
+ *     stateConfig: { bucket: "my-bucket" },
+ * });
+ *
  * expect(s3.name).toBe("s3");
+ * expect(built.success).toBeTrue();
  * ```
  */
-export interface StateBackendDeclaration {
-	/** Value users write as `state.backend` to select this backend. */
+export interface StateBackendDeclaration<TState extends object = object> {
+	/** Value users write as `state.backend` to select this **Backend**. */
 	readonly name: string;
-	/** Schema fragment declaring this backend's own `state` keys. */
-	readonly schema: StateBackendSchema;
+	/**
+	 * Build the adapter for one validated `state` block.
+	 *
+	 * Returns a `Result` rather than throwing so a missing credential or an
+	 * unusable coordinate reaches the user as a typed failure carrying the
+	 * plugin's own detail.
+	 *
+	 * @param context - The validated `state` block plus the credential and
+	 * transport seams core injects.
+	 * @returns `Ok` with the adapter, or `Err` describing why it could not
+	 * be built.
+	 */
+	createPort(context: StateBackendContext<TState>): Result<StatePort, StateBackendBuildError>;
+	/** Schema fragment declaring this **Backend**'s own `state` keys. */
+	readonly schema: StateBackendSchema<TState>;
 }
 
 /**
@@ -57,7 +169,13 @@ export interface StateBackendDeclaration {
  * import { type } from "arktype";
  *
  * const plugin: BedrockPlugin = {
- *     stateBackends: [{ name: "s3", schema: type({ bucket: "string > 0" }) }],
+ *     stateBackends: [
+ *         {
+ *             name: "s3",
+ *             schema: type({ bucket: "string > 0" }),
+ *             createPort: () => ({ err: { reason: "not implemented" }, success: false }),
+ *         },
+ *     ],
  * };
  *
  * expect(plugin.stateBackends).toHaveLength(1);

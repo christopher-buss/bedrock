@@ -85,8 +85,15 @@ export type {
 	Operation,
 	UpdateOperation,
 } from "./core/operations.ts";
-export type { PluginRegistry } from "./core/plugin-registry.ts";
-export type { BedrockPlugin, StateBackendDeclaration, StateBackendSchema } from "./core/plugin.ts";
+export type { PluginRegistry, RegisteredStateBackend } from "./core/plugin-registry.ts";
+export type {
+	BedrockPlugin,
+	StateBackendBuildError,
+	StateBackendContext,
+	StateBackendDeclaration,
+	StateBackendFetch,
+	StateBackendSchema,
+} from "./core/plugin.ts";
 export { resolveStateConfig, type StateNotConfiguredError } from "./core/resolve-state-config.ts";
 export {
 	SOCIAL_LINK_FIELDS,
@@ -122,6 +129,7 @@ export {
 	type GamePassEntry,
 	type GistStateConfig,
 	type PlaceEntry,
+	type PluginStateConfig,
 	type RedactedDeveloperProductOverride,
 	type RedactedEnvironmentOverride,
 	type RedactedGamePassOverride,
@@ -172,6 +180,7 @@ export { buildDesired } from "./shell/build-desired.ts";
 export {
 	buildStatePort,
 	type MissingCredentialError,
+	type PluginStateBackendError,
 	type UnsupportedBackendError,
 } from "./shell/build-state-port.ts";
 export { defineConfig, type ConfigContext, type ConfigInput } from "./shell/define-config.ts";
