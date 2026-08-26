@@ -953,6 +953,31 @@ describe(loadConfigWith, () => {
 		expect(result.err.message).toBe("Cannot find package '@example/missing'");
 	});
 
+	it("should distinguish a plugin that throws while loading from one that is not installed", async () => {
+		expect.assertions(3);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/broken'],",
+			"};",
+		]);
+
+		async function importModule(): Promise<unknown> {
+			throw new Error("missing AWS_REGION");
+		}
+
+		const result = await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
+
+		assert(!result.success);
+		assert(result.err.kind === "pluginLoadFailed");
+
+		expect(result.err.specifier).toBe("@example/broken");
+		expect(result.err.reason).toBe("importThrew");
+		expect(result.err.message).toBe("missing AWS_REGION");
+	});
+
 	it("should report a failed plugin import rather than the config's own validation issues", async () => {
 		expect.assertions(1);
 
