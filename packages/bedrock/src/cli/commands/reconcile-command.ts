@@ -20,6 +20,7 @@ import { createDefaultSpawner } from "../default-spawner.ts";
 import { discoverOverride as defaultDiscoverOverride } from "../discover-override.ts";
 import { dispatchOverride, type SpawnOverrideError } from "../dispatch-override.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
+import { nodeMkdirAsync, nodeWriteTextFileAsync } from "../fs-seams.ts";
 import type { ProgDeps } from "../index.ts";
 import { type CommonOptions, parseCommonOptions } from "../parse-options.ts";
 import {
@@ -30,6 +31,7 @@ import {
 	renderParseError,
 } from "../render.ts";
 import type { Spawner } from "../spawner.ts";
+import { dumpUnsavedStateAsync } from "./dump-unsaved-state.ts";
 
 /**
  * Static identity of a reconcile command: the subcommand name (used for
@@ -71,10 +73,12 @@ interface Resolved {
 	readonly exit: (code: number) => void;
 	readonly fusedBuild: boolean;
 	readonly loadProject: typeof defaultLoadProject;
+	readonly mkdir: (path: string) => Promise<void>;
 	readonly progressOverride: ProgressPort | undefined;
 	readonly projectRoot: string;
 	readonly run: ReconcileRun;
 	readonly spawner: Spawner;
+	readonly writeFile: (path: string, contents: string) => Promise<void>;
 }
 
 interface DispatchInputs {
@@ -100,6 +104,12 @@ interface SpawnBuildStepInputs {
 	readonly overridePath: string;
 	readonly parsed: CommonOptions;
 	readonly spawner: Spawner;
+}
+
+/** One environment's failed pipeline run. */
+interface RunFailure {
+	readonly environment: string;
+	readonly err: DeployError;
 }
 
 type OverrideDiscovery =
@@ -136,10 +146,12 @@ function resolveDeps(deps: ProgDeps, spec: ReconcileCommandSpec): Resolved {
 		exit: deps.exit ?? ((code: number) => process.exit(code)),
 		fusedBuild: spec.fusedBuild ?? false,
 		loadProject: deps.loadProject ?? defaultLoadProject,
+		mkdir: deps.mkdir ?? nodeMkdirAsync,
 		progressOverride: deps.progress,
 		projectRoot: deps.projectRoot ?? process.cwd(),
 		run: spec.resolveRun(deps),
 		spawner: deps.spawner ?? createDefaultSpawner(),
+		writeFile: deps.writeFile ?? nodeWriteTextFileAsync,
 	};
 }
 
@@ -189,6 +201,36 @@ function resolveBuildStep({
 	});
 }
 
+/**
+ * Follow up a failed pipeline run with whatever recovery its failure mode
+ * affords. A refused **State** write is the one failure that leaves work
+ * done upstream and unrecorded, so the record it could not persist is
+ * dumped locally; every other failure has already been rendered by the
+ * progress port.
+ *
+ * @param resolved - The command's resolved dependency slots.
+ * @param failure - The environment whose run failed and the failure it
+ *   returned.
+ */
+async function reportRunFailureAsync(
+	resolved: Resolved,
+	{ environment, err }: RunFailure,
+): Promise<void> {
+	if (err.kind !== "stateWriteFailed") {
+		return;
+	}
+
+	await dumpUnsavedStateAsync(
+		{
+			clack: resolved.clack,
+			mkdir: resolved.mkdir,
+			projectRoot: resolved.projectRoot,
+			writeFile: resolved.writeFile,
+		},
+		{ environment, err },
+	);
+}
+
 async function dispatchEnvironmentsAsync(inputs: DispatchInputs): Promise<ReadonlyArray<string>> {
 	const { config, getEnv, overridePath, parsed, plugins, progress, resolved } = inputs;
 	const build = resolveBuildStep(inputs);
@@ -214,6 +256,7 @@ async function dispatchEnvironmentsAsync(inputs: DispatchInputs): Promise<Readon
 			progress,
 		});
 		if (!result.success) {
+			await reportRunFailureAsync(resolved, { environment, err: result.err });
 			failed.push(environment);
 		}
 	}
