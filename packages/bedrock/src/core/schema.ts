@@ -1178,17 +1178,17 @@ function buildStateSchema(registry: PluginRegistry): Type<StateConfig> {
 			BUILTIN_STATE_SCHEMA;
 
 		const checked = schema(value);
-		if (!(checked instanceof ArkErrors)) {
-			return true;
+		const failed = checked instanceof ArkErrors;
+		if (failed) {
+			// `ctx.path` re-roots the sub-schema's own paths under wherever
+			// this block sits, so a bad value is attributed to the field
+			// carrying it rather than to the block as a whole.
+			for (const issue of checked) {
+				ctx.reject({ message: issue.message, path: [...ctx.path, ...issue.path] });
+			}
 		}
 
-		// `ctx.reject` returns `false` for every issue and `reduce` walks the
-		// whole list so every offending field gets attributed; the seeded
-		// `true` flips to `false` on the first issue. `ctx.path` re-roots the
-		// sub-schema's own paths under wherever this block sits.
-		return [...checked].reduce<boolean>((_accumulator, issue) => {
-			return ctx.reject({ message: issue.message, path: [...ctx.path, ...issue.path] });
-		}, true);
+		return !failed;
 	});
 }
 

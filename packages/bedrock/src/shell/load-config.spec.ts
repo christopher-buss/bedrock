@@ -1197,6 +1197,10 @@ describe(loadConfigWith, () => {
 		["a declaration is not an object", { stateBackends: ["s3"] }],
 		["a declaration has no name", { stateBackends: [{ schema: type("object") }] }],
 		["a declaration has no schema", { stateBackends: [{ name: "s3" }] }],
+		[
+			"only some declarations are well-formed",
+			{ stateBackends: [{ name: "s3", schema: type("object") }, "nope"] },
+		],
 	] as const)(
 		"should fail the load when a plugin declares backends where %s",
 		async ([, pluginModule]) => {
