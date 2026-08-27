@@ -69,12 +69,6 @@ export type LockCondition =
 	| { readonly etag: string; readonly kind: "unchanged" }
 	| { readonly kind: "absent" };
 
-/** A write the store declined the condition of. */
-export interface ContendedAttempt {
-	/** Which outcome this is. */
-	readonly kind: "contended";
-}
-
 /** One conditional write of the lock object, read as an outcome. */
 export type LockAttempt =
 	| ContendedAttempt
@@ -101,6 +95,12 @@ export type LockRead =
 	| { readonly etag: string | undefined; readonly kind: "read"; readonly record: S3LockRecord }
 	| { readonly failure: S3Failure; readonly kind: "failed" }
 	| { readonly kind: "unreadable" };
+
+/** A write the store declined the condition of. */
+interface ContendedAttempt {
+	/** Which outcome this is. */
+	readonly kind: "contended";
+}
 
 /**
  * Take away a lock object this acquisition wrote and can never give up.

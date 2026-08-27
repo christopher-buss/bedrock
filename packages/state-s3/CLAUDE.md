@@ -37,9 +37,9 @@ underneath them. Everything it exports is semver-bound and carries `@since`;
 keep `objectKeyFor`, `lockKeyFor`, `classifyS3Failure`, the lock record's
 parsing and serialization, the lock object's reads and writes, the owner
 reading, the backoff, the failure constructors, and the request handler
-internal. The shapes a caller reads off a
-result (`S3LockHolder`, and the failure detail types) are exported; the
-functions that build and parse them are not.
+internal. The shapes a caller reads off a result (`S3LockHolder`, and the
+failure detail types) are exported; the functions that build and parse them are
+not.
 
 ## Testing
 
