@@ -19,6 +19,8 @@ export interface S3LockClaim {
  * @since unreleased
  */
 export interface S3LockHolder {
+	/** ISO-8601 instant the hold's **Lease** runs out on. */
+	readonly expiresAt: string;
 	/** What the hold was taken for, as the holder named it. */
 	readonly operation: string;
 	/** Who the holder recorded itself as. */
@@ -28,7 +30,7 @@ export interface S3LockHolder {
 }
 
 /**
- * What one lock object holds: who took the hold, what for, when, and the
+ * What one lock object holds: who took the hold, what for, until when, and the
  * identity of the acquisition that wrote it.
  *
  * `id` is what keeps a retried acquisition from blocking on itself. A
@@ -47,11 +49,16 @@ export interface S3LockRecord extends S3LockHolder {
 	readonly releasedAt?: string;
 }
 
+// A field the record has to carry a value for: a blank identity names no
+// acquisition, and a blank instant names no moment.
+const PRESENT = "string > 0";
+
 const lockRecordSchema = type({
-	"id": "string > 0",
+	"id": PRESENT,
+	"expiresAt": PRESENT,
 	"operation": "string",
 	"owner": "string",
-	"releasedAt?": "string > 0",
+	"releasedAt?": PRESENT,
 	"since": "string",
 });
 
@@ -88,7 +95,12 @@ export function parseLockRecord(text: string): S3LockRecord | undefined {
  * @returns Who holds it and since when.
  */
 export function holderOf(record: S3LockRecord): S3LockHolder {
-	return { operation: record.operation, owner: record.owner, since: record.since };
+	return {
+		expiresAt: record.expiresAt,
+		operation: record.operation,
+		owner: record.owner,
+		since: record.since,
+	};
 }
 
 /**

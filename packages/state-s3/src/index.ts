@@ -1,4 +1,5 @@
 export { type S3FailureKind } from "./classify-failure.ts";
+export { DEFAULT_LOCK_LEASE_MS } from "./lease.ts";
 export type { S3LockFailureKind, S3StateLockErrorDetail } from "./lock-failure.ts";
 export type { S3LockHolder } from "./lock-record.ts";
 export { s3StateBackend } from "./plugin.ts";

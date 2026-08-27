@@ -24,6 +24,7 @@ const CREDENTIALS = { accessKeyId: "example-access-key", secretAccessKey: "examp
 
 const OTHER_HOLD: S3LockRecord = {
 	id: "other-run",
+	expiresAt: "2026-08-27T09:01:00.000Z",
 	operation: "deploy",
 	owner: "ci-run-3",
 	since: "2026-08-27T09:00:00.000Z",
@@ -217,6 +218,7 @@ function untaggedOwnRecord(): StateBackendFetch {
 	untaggedMethods.length = 0;
 	const own = serializeLockRecord({
 		id: THIS_RUN,
+		expiresAt: "2026-08-27T10:01:00.000Z",
 		operation: "deploy",
 		owner: OWNER,
 		since: "2026-08-27T10:00:00.000Z",
@@ -349,7 +351,7 @@ describe(createS3StateLockPort, () => {
 			expect(store.calls[0]!.headers["if-none-match"]).toBe("*");
 		});
 
-		it("should record who holds the environment, what for, and since when", async () => {
+		it("should record who holds the environment, what for, since when, and until when", async () => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -361,10 +363,28 @@ describe(createS3StateLockPort, () => {
 
 			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)).toStrictEqual({
 				id: THIS_RUN,
+				expiresAt: "2026-08-27T10:01:00.000Z",
 				operation: "deploy",
 				owner: OWNER,
 				since: "2026-08-27T10:00:00.000Z",
 			});
+		});
+
+		it("should give the hold the lease the config asked for", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3();
+			const clock = createFakeClock(TEN_O_CLOCK);
+
+			await lockFor({
+				fetch: store.fetchFunc,
+				lockLeaseMs: 90_000,
+				now: clock.now,
+			}).acquire("production");
+
+			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)!.expiresAt).toBe(
+				"2026-08-27T10:01:30.000Z",
+			);
 		});
 
 		it("should keep the lock under the configured prefix", async () => {
@@ -486,6 +506,7 @@ describe(createS3StateLockPort, () => {
 			const store = fakeS3({
 				[LOCK_PATH]: serializeLockRecord({
 					id: THIS_RUN,
+					expiresAt: "2026-08-27T10:01:00.000Z",
 					operation: "deploy",
 					owner: OWNER,
 					since: "2026-08-27T10:00:00.000Z",
@@ -518,12 +539,13 @@ describe(createS3StateLockPort, () => {
 			assert(!result.success);
 
 			expect(result.err.reason).toBe(
-				`${LOCK_LABEL} is held by ci-run-3 for deploy since 2026-08-27T09:00:00.000Z; gave up after 5.0s`,
+				`${LOCK_LABEL} is held by ci-run-3 for deploy since 2026-08-27T09:00:00.000Z, leased until 2026-08-27T09:01:00.000Z; gave up after 5.0s`,
 			);
 			expect(result.err.detail).toStrictEqual({
 				elapsedMs: 5000,
 				file: LOCK_LABEL,
 				holder: {
+					expiresAt: "2026-08-27T09:01:00.000Z",
 					operation: "deploy",
 					owner: "ci-run-3",
 					since: "2026-08-27T09:00:00.000Z",
@@ -868,6 +890,7 @@ describe(createS3StateLockPort, () => {
 
 			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)).toStrictEqual({
 				id: THIS_RUN,
+				expiresAt: "2026-08-27T10:01:00.000Z",
 				operation: "deploy",
 				owner: OWNER,
 				releasedAt: "2026-08-27T10:01:00.000Z",

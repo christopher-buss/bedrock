@@ -12,6 +12,7 @@ import {
 	type S3Failure,
 	type S3FailureKind,
 } from "./classify-failure.ts";
+import { leaseExpiryAt } from "./lease.ts";
 import { releaseRefused } from "./lock-failure.ts";
 import {
 	isoAt,
@@ -38,6 +39,8 @@ const PERMANENT_READ_REFUSAL: ReadonlySet<S3FailureKind> = new Set([
 
 /** The seams one acquisition runs on, settled from the deps once. */
 export interface LockSeams {
+	/** How long a hold is leased for before it expires, in milliseconds. */
+	readonly leaseMs: number;
 	/** Mints the identity this acquisition records. */
 	readonly mintId: () => string;
 	/** Reads the wall clock, in epoch milliseconds. */
@@ -195,9 +198,14 @@ export async function writeLockAsync(
 	{ key, bucket, claim, client, seams }: Acquisition,
 	condition: LockCondition,
 ): Promise<LockAttempt> {
-	// Stamped as the write goes out: a hold begins when the store takes it,
-	// not when the run that wanted it started asking.
-	const record: S3LockRecord = { ...claim, since: isoAt(seams.now()) };
+	// Stamped as the write goes out, so the **Lease** runs from the instant
+	// the store took the hold.
+	const takenAt = seams.now();
+	const record: S3LockRecord = {
+		...claim,
+		expiresAt: leaseExpiryAt(takenAt, seams.leaseMs),
+		since: isoAt(takenAt),
+	};
 
 	try {
 		const written = await client.send(

@@ -8,6 +8,7 @@ import {
 } from "@bedrock-rbx/core";
 
 import { backoffDelayMs } from "./backoff.ts";
+import { DEFAULT_LOCK_LEASE_MS } from "./lease.ts";
 import {
 	acquireRefused,
 	holdWithoutEntityTag,
@@ -47,6 +48,12 @@ const DEFAULT_OPERATION = "deploy";
  * @since unreleased
  */
 export interface S3StateLockAdapterDeps extends S3StoreDeps {
+	/**
+	 * How long a hold is leased for before a waiting deploy may take it
+	 * over, in milliseconds. Defaults to {@link DEFAULT_LOCK_LEASE_MS}. The
+	 * hold renews the lease while the deploy runs.
+	 */
+	readonly lockLeaseMs?: number | undefined;
 	/**
 	 * How long acquisition waits out contention before giving up, in
 	 * milliseconds. Defaults to {@link DEFAULT_LOCK_TIMEOUT_MS}.
@@ -146,6 +153,7 @@ export async function delayAsync(ms: number): Promise<void> {
 export function createS3StateLockPort(deps: S3StateLockAdapterDeps): StateLockPort {
 	const client = createConfiguredS3Client(deps);
 	const seams: LockSeams = {
+		leaseMs: deps.lockLeaseMs ?? DEFAULT_LOCK_LEASE_MS,
 		mintId: deps.mintId ?? randomLockId,
 		now: deps.now ?? Date.now,
 		sleepAsync: deps.sleep ?? delayAsync,

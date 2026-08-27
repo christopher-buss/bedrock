@@ -137,7 +137,7 @@ export function timedOut({ blocker, elapsedMs, label }: TimedOutWait): StateLock
 	const held =
 		blocker === undefined
 			? "is held by another run"
-			: `is held by ${blocker.owner} for ${blocker.operation} since ${blocker.since}`;
+			: `is held by ${blocker.owner} for ${blocker.operation} since ${blocker.since}, leased until ${blocker.expiresAt}`;
 	return {
 		detail,
 		reason: `${label} ${held}; gave up after ${(elapsedMs / 1000).toFixed(1)}s`,
