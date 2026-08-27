@@ -116,7 +116,8 @@ choice in config. _Avoid_: storage, persistence layer
 the write that follows, which fails rather than overwriting a record that moved
 in between. A **Backend** whose store has no version primitive carries none, and
 its writes overwrite. Surfaced in code as `StateVersion`, paired with the
-**State** in a `StateRecord`. _Avoid_: etag, generation, revision, fencing token
+**State** in a `StateRecord` whose arms admit only the pairings a `read` can
+actually observe. _Avoid_: etag, generation, revision, fencing token
 
 **State lock port**: Optional plugin contract for mutual exclusion around a
 **Deploy**: takes a hold on one **Environment** before any **Operation** is
