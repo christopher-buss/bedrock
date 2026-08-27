@@ -19,7 +19,11 @@ export interface S3LockClaim {
  * @since unreleased
  */
 export interface S3LockHolder {
-	/** ISO-8601 instant the hold's **Lease** runs out on. */
+	/**
+	 * ISO-8601 instant the hold's **Lease** runs out on. A value that is
+	 * not an instant reads as a deadline the clock has not reached, so a
+	 * record nothing here wrote is never taken over.
+	 */
 	readonly expiresAt: string;
 	/** What the hold was taken for, as the holder named it. */
 	readonly operation: string;

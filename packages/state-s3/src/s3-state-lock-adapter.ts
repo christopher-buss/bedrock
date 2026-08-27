@@ -143,7 +143,9 @@ export async function delayAsync(ms: number): Promise<void> {
  */
 export function intervalEvery(ms: number, run: () => Promise<void>): () => void {
 	const timer = setInterval(() => {
-		void run();
+		// The work reports its own outcome, and a rejection reaching the
+		// timer ends the process.
+		run().catch(() => undefined);
 	}, ms);
 	return () => {
 		clearInterval(timer);

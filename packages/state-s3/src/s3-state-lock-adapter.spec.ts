@@ -1337,7 +1337,7 @@ describe(createS3StateLockPort, () => {
 		});
 
 		it("should report the lease lost when no read can name what to write against", async () => {
-			expect.assertions(2);
+			expect.assertions(3);
 
 			const store = fakeS3();
 			const schedule = createFakeSchedule();
@@ -1356,6 +1356,7 @@ describe(createS3StateLockPort, () => {
 			await schedule.tickAsync();
 
 			expect(lost[0]!.detail).toStrictEqual({ file: LOCK_LABEL, kind: "leaseLost" });
+			expect(lost[0]!.reason).toContain("can no longer be shown to be its own");
 			expect(schedule.cancelled()).toBe(1);
 		});
 
@@ -1442,6 +1443,21 @@ describe(delayAsync, () => {
 });
 
 describe(intervalEvery, () => {
+	it("should carry on running after a run of its own rejects", async () => {
+		expect.assertions(1);
+
+		let runs = 0;
+		const cancel = intervalEvery(1, async () => {
+			runs += 1;
+			throw new Error("the renewal rejected");
+		});
+
+		await vi.waitUntil(() => runs > 1);
+		cancel();
+
+		expect(runs).toBeGreaterThan(1);
+	});
+
 	it("should run again and again until it is cancelled", async () => {
 		expect.assertions(1);
 

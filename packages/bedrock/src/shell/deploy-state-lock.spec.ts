@@ -167,7 +167,7 @@ function waitingLockPort(port: StateLockPort, waiting: StateLockWaiting): StateL
 function leaseLosingLockPort(port: StateLockPort, error: StateLockError): StateLockPort {
 	return {
 		async acquire(environment, options) {
-			const hold = await port.acquire(environment);
+			const hold = await port.acquire(environment, options);
 			options?.onLeaseLost?.(error);
 			return hold;
 		},

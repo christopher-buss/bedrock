@@ -98,21 +98,30 @@ export function acquireRefused(label: string, failure: S3Failure): StateLockErro
  * @returns The failure a caller sees.
  */
 export function holdWithoutEntityTag(label: string): StateLockError {
-	return untaggedWrite(label, "acquireFailed");
+	const detail: S3StateLockErrorDetail = { file: label, kind: "acquireFailed" };
+	return {
+		detail,
+		reason: `${label} was written without an entity tag, so the hold could never be given up safely`,
+	};
 }
 
 /**
  * Report a renewal the store took and named no entity tag for, that a read
  * back could not name one for either.
  *
- * The hold stands on the bytes of its last write, so a hold with nothing
- * to write against can be neither renewed again nor given up.
+ * Every write the hold makes is conditional on the bytes of its last one,
+ * so a holder that cannot name those bytes can no longer show the store
+ * that the **Environment** is still its own.
  *
  * @param label - The object the hold is recorded in.
  * @returns The failure the holder is told its lease is gone with.
  */
 export function leaseWithoutEntityTag(label: string): StateLockError {
-	return untaggedWrite(label, "leaseLost");
+	const detail: S3StateLockErrorDetail = { file: label, kind: "leaseLost" };
+	return {
+		detail,
+		reason: `${label} was renewed without an entity tag this run could name it by, so the hold can no longer be shown to be its own`,
+	};
 }
 
 /**
@@ -171,21 +180,5 @@ export function timedOut({ blocker, elapsedMs, label }: TimedOutWait): StateLock
 	return {
 		detail,
 		reason: `${label} ${held}; gave up after ${(elapsedMs / 1000).toFixed(1)}s`,
-	};
-}
-
-/**
- * Report a write the store took without naming what to write against
- * next.
- *
- * @param label - The object the write landed in.
- * @param kind - What the write was for.
- * @returns The failure a caller sees.
- */
-function untaggedWrite(label: string, kind: S3LockFailureKind): StateLockError {
-	const detail: S3StateLockErrorDetail = { file: label, kind };
-	return {
-		detail,
-		reason: `${label} was written without an entity tag, so the hold could never be given up safely`,
 	};
 }
