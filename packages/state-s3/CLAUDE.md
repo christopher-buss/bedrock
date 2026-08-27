@@ -21,6 +21,8 @@ contract a claim rather than a proof.
 | `state-schema.ts`          | Arktype fragment for the `state` keys this **Backend** adds, plus its config type. |
 | `object-key.ts`            | Pure key layout: one object per **Environment**, and the lock beside it.           |
 | `lock-record.ts`           | What one lock object holds, and reading it back.                                   |
+| `lease.ts`                 | Pure lease arithmetic: the deadline one is stamped with, and when it has run out.  |
+| `lease-renewal.ts`         | The hold that keeps its own lease alive until it is given up.                      |
 | `lock-object.ts`           | Every conditional read and write the lock object itself takes.                     |
 | `lock-failure.ts`          | How a hold that could not be taken or given up is reported.                        |
 | `lock-owner.ts`            | Pure reading of the environment into the run a hold is recorded as.                |
@@ -54,10 +56,11 @@ Credentials are supplied per test, either as static credentials on the adapter
 or through the environment core injects, so no test depends on the ambient AWS
 setup of the machine running it.
 
-The lock's clock is injected (`now`, `sleep`), so a test drains a five-minute
-timeout instantly and the instants a record carries are the same on every
-machine. The identity one acquisition writes is injected too (`mintId`), so a
-test can state which record it expects to find.
+The lock's clock is injected (`now`, `sleep`, `scheduleEvery`), so a test drains
+a five-minute timeout instantly, renews a lease exactly when it says to, and the
+instants a record carries are the same on every machine. The identity one
+acquisition writes is injected too (`mintId`), so a test can state which record
+it expects to find.
 
 `vite.config.ts` drops the `module` resolve condition. The AWS SDK's `module`
 build imports its own files without extensions, which only a bundler resolves;
@@ -65,6 +68,5 @@ without the override every test importing the client fails to load.
 
 ## Not here yet
 
-The lease that expires an abandoned hold, and the probe that proves a store
-honours conditional writes, are both ADR-031 and both still to come. Migrate
-support (`migratePrompts`, `migrateSource`) is tracked separately.
+The probe that proves a store honours conditional writes is ADR-031 and still to
+come. Migrate support (`migratePrompts`, `migrateSource`) is tracked separately.

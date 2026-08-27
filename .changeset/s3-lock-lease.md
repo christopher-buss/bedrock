@@ -1,0 +1,7 @@
+---
+"@bedrock-rbx/state-s3": patch
+---
+
+Give a hold on an **Environment** a renewable **Lease**, so a **Deploy** killed by a cancelled CI job no longer blocks every later deploy behind manual intervention. The lock record now carries the instant its lease runs out on, stamped as the winning write goes out, and the hold renews it on a schedule of its own for as long as the deploy runs. A hold whose lease is still being renewed is never taken over, however long the deploy holding it runs; a hold nothing renews past its deadline is taken over by the next acquisition, through the same conditional write a tombstone is taken over with, so two waiters racing for one expired hold cannot both win it.
+
+The new `lockLeaseMs` state key sets how long a hold is leased for, defaulting to one minute; a lease of zero is refused, since a hold expires the instant it is taken under one. Each renewal, and the release, is written against the entity tag the last renewal answered with, so a hold this run no longer has is never overwritten. A store that refuses one renewal for a reason a later one might not meet leaves the hold standing until its own deadline; a renewal the store refuses the condition of, and a deadline that passes with no renewal landing, are both reported through the new `onLeaseLost` so a run whose hold is gone never carries on as though it still held the **Environment**. Its **State** write is refused as a `stateConflict` rather than overwriting whatever the run that took over recorded.

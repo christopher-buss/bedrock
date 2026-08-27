@@ -29,6 +29,17 @@ operator expire abandoned **Hold**s without reaching **State**. A **Hold** is
 given up by writing a **Tombstone** over the record, never by deleting the
 object. _Avoid_: lock file, lease file
 
+**Lease**: The deadline a **Hold** carries, renewed on a schedule of its own
+while the **Deploy** runs and written against the exact bytes the last renewal
+left the **Hold** standing on. A **Hold** nothing renews past its deadline is
+taken over by the next acquisition, which is what keeps a **Deploy** killed by a
+cancelled CI job from blocking every later run. A renewal the **Store** refuses
+for a reason a later one might not meet leaves the **Hold** standing until its
+own deadline; a renewal the **Store** refuses the condition of, and a deadline
+that passes with no renewal landing, are both reported to the holder so a run
+whose **Hold** is gone never carries on as though it still had the
+**Environment**. _Avoid_: ttl, heartbeat, keepalive
+
 **Blocker**: The **Hold** one acquisition read in its way, carried only so a
 wait that runs out can name it. It is replaced by every round that reads the
 **Lock object**, so a run that has since released is never reported as still
@@ -89,10 +100,6 @@ tests rather than stubbed at `send`. _Avoid_: http client, mock, request handler
 
 ## Deliberately absent
 
-The **Lease** is not here yet. A **Hold** carries who took it, what for, and
-when, but nothing expires it, so a run killed mid-deploy leaves a **Hold** that
-stands until someone takes it over.
-
-Neither is the probe that proves a store honours conditional writes at all. A
+The probe that proves a store honours conditional writes at all is not here. A
 store that reports success on a condition it ignored has silently granted two
 writers the same **Hold**, and nothing here catches that yet.
