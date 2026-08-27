@@ -1,0 +1,11 @@
+---
+"@bedrock-rbx/core": minor
+---
+
+Turn locking on by default wherever the resolved **Backend** offers it, so concurrent deploys of one **Environment** are held apart without the operator having read about locking at all. A project that serializes its deploys some other way writes `state.locking: false`, which is a `state` key core owns whatever the **Backend** is; a **Backend** that offers no exclusion is unaffected by it. A deploy running without a hold because the config turned locking off says so on every run, through the new `stateLockDisabled` **Progress port** event, rather than running unprotected in silence. `buildStateBackend` now reports the exclusion in force alongside the ports, as `"exclusive"`, `"disabled"`, or `"none"`, and never asks a **Backend** whose locking is off to build a lock port. `stateLockingCapabilityOf` reports `"disabled"` for that case, so an exhaustive `switch` over `StateLockingCapability` needs a new arm.
+
+`StateLockPort` gains two members a locking **Backend** must implement: `inspect(environment)` reports who holds an **Environment** without taking a hold, and `forceRelease(environment)` takes a hold away whoever holds it and names who was displaced. Both are required rather than optional, because locking whose holds cannot be inspected or taken away turns a killed deploy into an unrecoverable **Environment**.
+
+`previewDiffAsync` asks who holds the **Environment** and reports it as `concurrentHold`, and never takes a hold of its own: `read` does not write, so a preview queues behind nothing, and a preview that raced a deploy says its answer may already be out of date instead of reading as settled. `bedrock diff` renders that. A lock store a preview could not reach is reported as nobody holding it rather than failing the preview.
+
+The new `forceReleaseStateLockAsync`, and the `bedrock state unlock --env <name>` command over it, take one **Environment**'s hold away. The command says what that does before doing it and names the run it displaced. Displacing a holder is safe because the **State** write is guarded on the record that was read: a displaced run that kept going fails its own write rather than overwriting whatever ran next.

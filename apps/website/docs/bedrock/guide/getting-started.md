@@ -130,6 +130,26 @@ when everything matches). `--env` repeats for multiple environments, and
 `--config` overrides config discovery. A `migrate` command is also available to
 translate a Mantle state file into a Bedrock project.
 
+`diff` takes no lock, so it never queues behind a running deploy. When the
+backend can report one, a diff computed while a deploy holds the environment
+says who holds it and that the answer may already be out of date.
+
+### Take a stuck lock away
+
+A deploy killed between taking its lock and giving it up leaves the environment
+held. On a backend that leases its locks the hold expires on its own; until it
+does, `state unlock` takes it away and names the run it displaced:
+
+```sh
+pnpm bedrock state unlock --env production
+```
+
+The displaced run is not stopped by this, and does not need to be: its state
+write is conditional on the state it read, so it fails rather than overwriting
+whatever the next deploy records. A backend that takes no lock, and an
+environment whose config turned locking off, both report that there is nothing
+to take away.
+
 ### Recover a state write that failed
 
 A deploy applies to Roblox first and records what it did afterwards, so a state
