@@ -98,8 +98,8 @@ describe(createS3StateAdapter, () => {
 			});
 		});
 
-		it("should carry no version when the store answers without an entity tag", async () => {
-			expect.assertions(1);
+		it("should refuse a store that answers without an entity tag rather than leave the next write unfenced", async () => {
+			expect.assertions(2);
 
 			const body = serializeStateFile(PRODUCTION_STATE);
 
@@ -107,9 +107,10 @@ describe(createS3StateAdapter, () => {
 				fetch: async () => new Response(body, { status: 200 }),
 			}).read("production");
 
-			assert(result.success);
+			assert(!result.success);
 
-			expect(result.data.version).toBeUndefined();
+			expect(result.err.kind).toBe("stateError");
+			expect(result.err.reason).toBe("the store answered without an entity tag");
 		});
 
 		it("should carry an absent version when the environment has never been deployed", async () => {

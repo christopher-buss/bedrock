@@ -42,7 +42,9 @@ it('Example 2', () => {
   const firstDeploy: StateVersion = { kind: 'absent' }
   const laterDeploy: StateVersion = { kind: 'present', token: '"9f3c1a"' }
   expect(firstDeploy.kind).toBe('absent')
-  expect(laterDeploy.kind === 'present' && laterDeploy.token).toBe('"9f3c1a"')
+  if (laterDeploy.kind === 'present') {
+    expect(laterDeploy.token).toBe('"9f3c1a"')
+  }
 })
 
 it('Example 3', () => {

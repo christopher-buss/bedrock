@@ -167,16 +167,25 @@ function toStateError(failure: S3Failure, file: string): StateError {
  * Read the entity tag the store answered a `GET` with as the version
  * naming that record.
  *
- * A store that answered without one leaves the record unversioned, so the
- * next write overwrites rather than being fenced against a tag that was
- * never read.
+ * A store that answered without one is refused rather than read as a
+ * record carrying no version: that reading would leave the write that
+ * follows unfenced, and a **State** write that silently overwrites a
+ * record it never saw is what the version exists to prevent.
  *
  * @param etag - Entity tag the store attached, absent when it attached
  * none.
- * @returns The version, or `undefined` when nothing can be fenced against.
+ * @param file - The object the tag was expected on.
+ * @returns The version, or the refusal, typed.
  */
-function versionOf(etag: string | undefined): StateVersion | undefined {
-	return etag === undefined ? undefined : { kind: "present", token: etag };
+function versionOf(etag: string | undefined, file: string): Result<StateVersion, StateError> {
+	if (etag === undefined) {
+		return {
+			err: { file, kind: "stateError", reason: "the store answered without an entity tag" },
+			success: false,
+		};
+	}
+
+	return { data: { kind: "present", token: etag }, success: true };
 }
 
 /**
@@ -202,7 +211,12 @@ async function readObjectAsync(
 			return parsed;
 		}
 
-		return { data: { state: parsed.data, version: versionOf(object.ETag) }, success: true };
+		const version = versionOf(object.ETag, label);
+		if (!version.success) {
+			return version;
+		}
+
+		return { data: { state: parsed.data, version: version.data }, success: true };
 	} catch (err) {
 		const failure = classifyS3Failure(err);
 		if (failure.kind === "missingObject") {

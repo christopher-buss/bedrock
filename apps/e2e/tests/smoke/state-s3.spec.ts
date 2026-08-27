@@ -1,4 +1,5 @@
 import {
+	asSha256Hex,
 	type BedrockState,
 	deploy,
 	type DriverRegistry,
@@ -30,6 +31,10 @@ const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "state
 
 // How many past runs stay in the bucket to be read by hand.
 const KEEP = 3;
+
+// A digest the moving write stamps so its bytes, and so the object's
+// entity tag, differ from what the first write left.
+const MOVED_DIGEST = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
 /**
  * Build a lock port over the smoke bucket, on the credentials the runner
@@ -171,7 +176,7 @@ describe("s3 state backend against real aws", () => {
 	it.skipIf(!HAS_SECRETS)(
 		"should refuse a write fenced on a record the bucket has moved past",
 		async () => {
-			expect.assertions(2);
+			expect.assertions(3);
 
 			const environment = `${ENVIRONMENT}-conflict-${Date.now()}`;
 			const state: BedrockState = { environment, resources: [], version: 1 };
@@ -201,10 +206,27 @@ describe("s3 state backend against real aws", () => {
 			const won = await port.write(state, first.data.version);
 			assertOk(won, "the first write fenced on an absent record");
 
-			const lost = await port.write(state, first.data.version);
-			assert(!lost.success);
+			const lostOnAbsence = await port.write(state, first.data.version);
+			assert(!lostOnAbsence.success);
 
-			expect(lost.err.kind).toBe("stateConflict");
+			expect(lostOnAbsence.err.kind).toBe("stateConflict");
+
+			// The steady-state arm: a stale entity tag, which the bucket
+			// evaluates rather than the create-if-absent wildcard.
+			const stale = await port.read(environment);
+			assertOk(stale, "read of the record the first write left");
+
+			// Different bytes, so the object's entity tag moves with it.
+			const moved = await port.write(
+				{ ...state, codegenHash: asSha256Hex(MOVED_DIGEST) },
+				stale.data.version,
+			);
+			assertOk(moved, "a write that moves the record on");
+
+			const lostOnTag = await port.write(state, stale.data.version);
+			assert(!lostOnTag.success);
+
+			expect(lostOnTag.err.kind).toBe("stateConflict");
 		},
 		60_000,
 	);

@@ -130,7 +130,10 @@ export interface BedrockState {
  * const laterDeploy: StateVersion = { kind: "present", token: '"9f3c1a"' };
  *
  * expect(firstDeploy.kind).toBe("absent");
- * expect(laterDeploy.kind === "present" && laterDeploy.token).toBe('"9f3c1a"');
+ *
+ * if (laterDeploy.kind === "present") {
+ *     expect(laterDeploy.token).toBe('"9f3c1a"');
+ * }
  * ```
  */
 export type StateVersion =

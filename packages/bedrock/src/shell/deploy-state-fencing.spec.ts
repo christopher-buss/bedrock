@@ -101,10 +101,14 @@ function fencingStatePort(version: StateVersion | undefined): {
 }
 
 describe("deploy against a fencing backend", () => {
-	it("should fence the state write against the version its read observed", async () => {
+	it.for<[string, StateVersion | undefined]>([
+		["a record it read", { kind: "present", token: '"9f3c1a"' }],
+		["the absence it read", { kind: "absent" }],
+		["nothing, against a backend that reports no version", undefined],
+	])("should fence the state write against %s", async ([, version]) => {
 		expect.assertions(1);
 
-		const { fenced, port } = fencingStatePort({ kind: "present", token: '"9f3c1a"' });
+		const { fenced, port } = fencingStatePort(version);
 
 		const result = await deploy({
 			config: vipPassConfig(),
@@ -118,47 +122,7 @@ describe("deploy against a fencing backend", () => {
 
 		assert(result.success);
 
-		expect(fenced).toStrictEqual([{ kind: "present", token: '"9f3c1a"' }]);
-	});
-
-	it("should fence on absence when its read found no record", async () => {
-		expect.assertions(1);
-
-		const { fenced, port } = fencingStatePort({ kind: "absent" });
-
-		const result = await deploy({
-			config: vipPassConfig(),
-			environment: "production",
-			getEnv: environmentFrom({}),
-			progress: SILENT_PROGRESS,
-			readFile: readIconAsync,
-			registry: creatingRegistry(),
-			statePort: port,
-		});
-
-		assert(result.success);
-
-		expect(fenced).toStrictEqual([{ kind: "absent" }]);
-	});
-
-	it("should write unconditionally against a backend that reports no version", async () => {
-		expect.assertions(1);
-
-		const { fenced, port } = fencingStatePort(undefined);
-
-		const result = await deploy({
-			config: vipPassConfig(),
-			environment: "production",
-			getEnv: environmentFrom({}),
-			progress: SILENT_PROGRESS,
-			readFile: readIconAsync,
-			registry: creatingRegistry(),
-			statePort: port,
-		});
-
-		assert(result.success);
-
-		expect(fenced).toStrictEqual([undefined]);
+		expect(fenced).toStrictEqual([version]);
 	});
 
 	it("should surface the applied-but-unrecorded resources when the write conflicts", async () => {
