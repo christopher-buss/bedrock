@@ -155,11 +155,20 @@ export type StateVersion =
  * What one `read` observed: the **State** the store held, and the version
  * naming exactly which record that was.
  *
- * Both fields are absent independently. No `state` is an **Environment**
- * that has never been deployed, which is an ordinary first **Deploy**
- * rather than a failure. No `version` is a **Backend** whose store has no
- * version primitive, so a write built from this record overwrites
- * unconditionally.
+ * The arms are the three readings a `read` can return. A **Backend** whose
+ * store can fence names the record it read, and the version it names
+ * agrees with what it found: a present version carries the **State** that
+ * record held, and an absent version carries none, which is an
+ * **Environment** that has never been deployed. A **Backend** whose store
+ * has no version primitive names no record at all, so a write built from
+ * that reading overwrites unconditionally.
+ *
+ * The pairings a store cannot observe are not expressible: **State** read
+ * from a record the version says was absent would fence the write that
+ * follows as a first **Deploy** against an **Environment** already
+ * deployed, and a present version naming a record that carried no
+ * **State** would reconcile from an empty snapshot and re-create every
+ * resource.
  *
  * @since unreleased
  *
@@ -177,18 +186,33 @@ export type StateVersion =
  * expect(unfenced.version).toBeUndefined();
  * ```
  */
-export interface StateRecord {
-	/**
-	 * The **State** the record holds, absent when the **Environment** has
-	 * never been deployed.
-	 */
-	readonly state?: BedrockState | undefined;
-	/**
-	 * Which record was read, absent when the **Backend** cannot fence a
-	 * write against it.
-	 */
-	readonly version?: StateVersion | undefined;
-}
+export type StateRecord =
+	| {
+			/**
+			 * The **State** the record held, which a present version names.
+			 */
+			readonly state: BedrockState;
+			/** Which record was read. */
+			readonly version: Extract<StateVersion, { readonly kind: "present" }>;
+	  }
+	| {
+			/**
+			 * The **State** the record holds, absent when the
+			 * **Environment** has never been deployed.
+			 */
+			readonly state?: BedrockState | undefined;
+			/**
+			 * No record is named, because the **Backend** cannot fence a
+			 * write against one.
+			 */
+			readonly version?: undefined;
+	  }
+	| {
+			/** No **State**: the **Environment** has never been deployed. */
+			readonly state?: undefined;
+			/** That no record existed is itself what the write is fenced on. */
+			readonly version: Extract<StateVersion, { readonly kind: "absent" }>;
+	  };
 
 /**
  * Fields every {@link StateError} arm carries, whichever **Backend**

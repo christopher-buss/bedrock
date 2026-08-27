@@ -4,7 +4,7 @@ import { environmentFrom } from "#tests/helpers/environment";
 import type { CodegenFile } from "../core/codegen.ts";
 import type { ResourceCurrentState, ResourceKind } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
-import type { BedrockState, StateVersion } from "../core/state.ts";
+import type { BedrockState, StateRecord, StateVersion } from "../core/state.ts";
 import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
@@ -17,6 +17,9 @@ const ICON_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca
 const SILENT_PROGRESS: ProgressPort = { emit: () => {} };
 
 const VIP_PASS_KEY = asResourceKey("vip-pass");
+
+// The snapshot a record that exists holds, which a present version names.
+const EMPTY_STATE: BedrockState = { environment: "production", resources: [], version: 1 };
 
 async function readIconAsync(): Promise<Uint8Array> {
 	return new Uint8Array();
@@ -74,14 +77,14 @@ function creatingRegistry(): DriverRegistry {
 }
 
 /**
- * Build a state port that reports the given version on every read and
+ * Build a state port that reports the given record on every read and
  * records the version each write was fenced against.
  *
- * @param version - What the read reports, absent for a backend that
- *   cannot fence.
+ * @param record - What the read reports, carrying no version for a
+ *   backend that cannot fence.
  * @returns The port and the versions its writes carried.
  */
-function fencingStatePort(version: StateVersion | undefined): {
+function fencingStatePort(record: StateRecord): {
 	fenced: Array<StateVersion | undefined>;
 	port: StatePort;
 } {
@@ -90,7 +93,7 @@ function fencingStatePort(version: StateVersion | undefined): {
 		fenced,
 		port: {
 			async read() {
-				return { data: { version }, success: true };
+				return { data: record, success: true };
 			},
 			async write(_state, expected) {
 				fenced.push(expected);
@@ -101,14 +104,17 @@ function fencingStatePort(version: StateVersion | undefined): {
 }
 
 describe("deploy against a fencing backend", () => {
-	it.for<[string, StateVersion | undefined]>([
-		["a record it read", { kind: "present", token: '"9f3c1a"' }],
-		["the absence it read", { kind: "absent" }],
-		["nothing, against a backend that reports no version", undefined],
-	])("should fence the state write against %s", async ([, version]) => {
+	it.for<[string, StateRecord]>([
+		[
+			"a record it read",
+			{ state: EMPTY_STATE, version: { kind: "present", token: '"9f3c1a"' } },
+		],
+		["the absence it read", { version: { kind: "absent" } }],
+		["nothing, against a backend that reports no version", {}],
+	])("should fence the state write against %s", async ([, record]) => {
 		expect.assertions(1);
 
-		const { fenced, port } = fencingStatePort(version);
+		const { fenced, port } = fencingStatePort(record);
 
 		const result = await deploy({
 			config: vipPassConfig(),
@@ -122,7 +128,7 @@ describe("deploy against a fencing backend", () => {
 
 		assert(result.success);
 
-		expect(fenced).toStrictEqual([version]);
+		expect(fenced).toStrictEqual([record.version]);
 	});
 
 	it("should surface the applied-but-unrecorded resources when the write conflicts", async () => {
@@ -181,11 +187,15 @@ function versioningStatePort(): {
 		fenced,
 		port: {
 			async read() {
-				const version: StateVersion =
-					stored === undefined
-						? { kind: "absent" }
-						: { kind: "present", token: `v${revision}` };
-				return { data: { state: stored, version }, success: true };
+				return stored === undefined
+					? { data: { version: { kind: "absent" } }, success: true }
+					: {
+							data: {
+								state: stored,
+								version: { kind: "present", token: `v${revision}` },
+							},
+							success: true,
+						};
 			},
 			async write(state, expected) {
 				fenced.push(expected);

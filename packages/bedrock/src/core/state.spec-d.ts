@@ -80,10 +80,32 @@ describe("StateVersion", () => {
 });
 
 describe("StateRecord", () => {
-	it("should carry an optional state and an optional version", () => {
-		expectTypeOf<StateRecord>().toEqualTypeOf<{
-			readonly state?: BedrockState | undefined;
-			readonly version?: StateVersion | undefined;
-		}>();
+	it("should pair a present version with the state that record held", () => {
+		expectTypeOf<{
+			readonly state: BedrockState;
+			readonly version: { readonly kind: "present"; readonly token: string };
+		}>().toExtend<StateRecord>();
+	});
+
+	it("should pair an absent version with no state", () => {
+		expectTypeOf<{ readonly version: { readonly kind: "absent" } }>().toExtend<StateRecord>();
+	});
+
+	it("should let a backend that cannot fence carry state with no version", () => {
+		expectTypeOf<{ readonly state: BedrockState }>().toExtend<StateRecord>();
+		expectTypeOf<Record<never, never>>().toExtend<StateRecord>();
+	});
+
+	it("should reject state read from a record the version says was absent", () => {
+		expectTypeOf<{
+			readonly state: BedrockState;
+			readonly version: { readonly kind: "absent" };
+		}>().not.toExtend<StateRecord>();
+	});
+
+	it("should reject a present version naming a record that carried no state", () => {
+		expectTypeOf<{
+			readonly version: { readonly kind: "present"; readonly token: string };
+		}>().not.toExtend<StateRecord>();
 	});
 });

@@ -153,7 +153,7 @@ export {
 	type SelectEnvironmentError,
 	type UnknownEnvironmentError,
 } from "./core/select-environment.ts";
-export { parseStateFile, serializeStateFile } from "./core/state-file.ts";
+export { parseStateContents, parseStateFile, serializeStateFile } from "./core/state-file.ts";
 export { stateLockingCapabilityOf, type StateLockingCapability } from "./core/state-locking.ts";
 export type {
 	BedrockState,

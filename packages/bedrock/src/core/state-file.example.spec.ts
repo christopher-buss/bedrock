@@ -3,6 +3,7 @@ import { expect, it } from "vitest";
 import {
   serializeStateFile,
   type BedrockState,
+  parseStateContents,
   parseStateFile,
 } from '@bedrock-rbx/core'
 
@@ -21,6 +22,21 @@ it('Example 1', () => {
 })
 
 it('Example 2', () => {
+  const parsed = parseStateContents(
+    JSON.stringify({
+      $bedrock: { version: 1 },
+      environment: 'production',
+      resources: [],
+    }),
+    's3://my-bucket/production.json',
+  )
+  expect(parsed.success).toBeTrue()
+  if (parsed.success) {
+    expect(parsed.data.environment).toBe('production')
+  }
+})
+
+it('Example 3', () => {
   const freshStart = parseStateFile(
     undefined,
     'gist:abc123/state.production.json',

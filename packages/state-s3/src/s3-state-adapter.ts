@@ -6,7 +6,7 @@ import {
 } from "@aws-sdk/client-s3";
 import {
 	type BedrockState,
-	parseStateFile,
+	parseStateContents,
 	type Result,
 	serializeStateFile,
 	type StateError,
@@ -75,6 +75,11 @@ interface WriteObjectInputs {
 	/** The configured client and the bucket coordinates. */
 	readonly store: BucketAccess;
 }
+
+/**
+ * The version naming a record that existed when it was read.
+ */
+type PresentVersion = Extract<StateVersion, { readonly kind: "present" }>;
 
 /**
  * The `StateError` arms describing a condition any **Backend** has, which
@@ -177,7 +182,7 @@ function toStateError(failure: S3Failure, file: string): StateError {
  * @param file - The object the tag was expected on.
  * @returns The version, or the refusal, typed.
  */
-function versionOf(etag: string | undefined, file: string): Result<StateVersion, StateError> {
+function versionOf(etag: string | undefined, file: string): Result<PresentVersion, StateError> {
 	if (etag === undefined) {
 		return {
 			err: { file, kind: "stateError", reason: "the store answered without an entity tag" },
@@ -206,7 +211,7 @@ async function readObjectAsync(
 
 	try {
 		const object = await client.send(new GetObjectCommand({ Bucket: deps.bucket, Key: key }));
-		const parsed = parseStateFile(await readObjectTextAsync(object.Body), label);
+		const parsed = parseStateContents(await readObjectTextAsync(object.Body), label);
 		if (!parsed.success) {
 			return parsed;
 		}
