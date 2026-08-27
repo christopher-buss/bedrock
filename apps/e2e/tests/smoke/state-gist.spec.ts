@@ -22,6 +22,14 @@ const KEEP = 4;
 const READ_ATTEMPTS = 7;
 const READ_BASE_DELAY_MS = 500;
 
+// The backoff doubles each retry, so the poll sleeps for
+// `base * (2 ** (attempts - 1) - 1)` before it spends its budget. A test here
+// polls at most twice, and each poll follows a write whose own visibility
+// check has to clear first, so the ceiling covers two full polls and the
+// requests around them.
+const READ_BUDGET_MS = READ_BASE_DELAY_MS * (2 ** (READ_ATTEMPTS - 1) - 1);
+const TEST_TIMEOUT_MS = READ_BUDGET_MS * 2 + 30_000;
+
 // A digest the second write stamps, so its bytes differ from what the first
 // write left and a read can tell the two apart.
 const OVERWRITE_DIGEST = "a3f1c2d4e5b60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90";
@@ -80,7 +88,7 @@ describe("gist state adapter against real github", () => {
 
 			expect(secondRead.data).toStrictEqual({ state });
 		},
-		60_000,
+		TEST_TIMEOUT_MS,
 	);
 
 	it.skipIf(!HAS_SECRETS)(
@@ -134,6 +142,6 @@ describe("gist state adapter against real github", () => {
 
 			expect(after.data.state.codegenHash).toBe(OVERWRITE_DIGEST);
 		},
-		60_000,
+		TEST_TIMEOUT_MS,
 	);
 });
