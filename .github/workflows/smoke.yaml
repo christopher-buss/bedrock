@@ -47,9 +47,14 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
+      - name: Build
+        run: pnpm build
+
       - name: Run smoke test
         run: pnpm test:smoke --reporter=verbose --reporter=json --outputFile=smoke-results.json
         env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.BEDROCK_TEST_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BEDROCK_TEST_AWS_SECRET_ACCESS_KEY }}
           BEDROCK_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
           BEDROCK_TEST_GIST_ID: ${{ secrets.BEDROCK_TEST_GIST_ID }}
           GITHUB_TOKEN: ${{ secrets.GIST_TOKEN }}
