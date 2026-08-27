@@ -252,13 +252,15 @@ describe("s3 state backend against real aws", () => {
 
 			const held = await port.inspect(environment);
 			assertOk(held, "inspect");
+			assert(held.data !== undefined);
 
-			expect(held.data!.owner).toBe("bedrock-smoke");
+			expect(held.data.owner).toBe("bedrock-smoke");
 
 			const displaced = await port.forceRelease(environment);
 			assertOk(displaced, "force release");
+			assert(displaced.data !== undefined);
 
-			expect(displaced.data!.operation).toBe("smoke");
+			expect(displaced.data.operation).toBe("smoke");
 
 			// The hold is gone for the next run, and reported as gone to
 			// anyone asking, which is what makes this a recovery path

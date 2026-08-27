@@ -24,7 +24,7 @@ import {
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
 import type { StateError } from "../core/state.ts";
-import type { StateLockHolding, StateLockPort } from "../ports/state-lock-port.ts";
+import type { StateLockError, StateLockHolding, StateLockPort } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import type { ResourceKey } from "../types/ids.ts";
 import { buildDesired, type BuildDesiredError } from "./build-desired.ts";
@@ -117,7 +117,7 @@ export type PreviewDiffError =
 export interface DiffPreview {
 	/**
 	 * Who held the **Environment** while the preview was computed, absent
-	 * when nothing held it, when the **Backend** offers no exclusion, or
+	 * when nothing held it, when the **Backend** offers no exclusion, and
 	 * when the lock store could not be asked.
 	 *
 	 * A preview takes no hold, so a deploy can be running against the
@@ -130,6 +130,17 @@ export interface DiffPreview {
 	 * `options.environment`.
 	 */
 	readonly environment: string;
+	/**
+	 * Why the **Backend** could not say who holds the **Environment**,
+	 * absent whenever it could.
+	 *
+	 * A lock store that cannot be reached is not an **Environment** nobody
+	 * holds, and a preview that reported it as one would read as settled
+	 * when it is only unasked. It never fails the preview: `read` does not
+	 * write, and refusing to answer at all would queue read-only work
+	 * behind a store outage the way taking a hold would.
+	 */
+	readonly holdUnknown?: StateLockError | undefined;
 	/** Operations `diff` would apply during a deploy. */
 	readonly ops: ReadonlyArray<Operation>;
 	/**
@@ -145,6 +156,14 @@ export interface DiffPreview {
 	 * real-value edits stay in config but never reach Open Cloud.
 	 */
 	readonly redactions: ReadonlyArray<RedactionAnnotation>;
+}
+
+/** What one preview learned about who holds the **Environment**. */
+interface ConcurrentHold {
+	/** Who holds it, absent when nobody does and when nobody could say. */
+	readonly concurrentHold?: StateLockHolding | undefined;
+	/** Why nobody could say, absent whenever somebody could. */
+	readonly holdUnknown?: StateLockError | undefined;
 }
 
 /** The **Backend** ports one preview reads through. */
@@ -349,26 +368,21 @@ async function resolveDependenciesAsync(
 /**
  * Ask who holds the **Environment**, never taking a hold of its own.
  *
- * A lock store that could not be asked is reported as nobody holding the
- * **Environment**: a preview that cannot reach the lock store still has an
- * answer to give, and refusing to give it would queue read-only work behind
- * a store outage the way taking a hold would.
- *
  * @param environment - **Environment** the preview was computed against.
  * @param stateLockPort - The exclusion the **Backend** provides, absent
  * when it provides none.
- * @returns Who holds it, or `undefined` when nobody does.
+ * @returns Who holds it, or why the **Backend** could not say.
  */
 async function readHoldAsync(
 	environment: string,
 	stateLockPort: StateLockPort | undefined,
-): Promise<StateLockHolding | undefined> {
+): Promise<ConcurrentHold> {
 	if (stateLockPort === undefined) {
-		return undefined;
+		return {};
 	}
 
 	const held = await stateLockPort.inspect(environment);
-	return held.success ? held.data : undefined;
+	return held.success ? { concurrentHold: held.data } : { holdUnknown: held.err };
 }
 
 async function runPreviewAsync(
@@ -394,9 +408,10 @@ async function runPreviewAsync(
 		return { err: { cause: validated.err, kind: "buildDesiredFailed" }, success: false };
 	}
 
+	const held = await readHoldAsync(environment, dependencies.stateLockPort);
 	return {
 		data: {
-			concurrentHold: await readHoldAsync(environment, dependencies.stateLockPort),
+			...held,
 			environment,
 			ops: diff(desired.data, priorResources),
 			pendingRebuild: [...(prior.data.state?.pendingRebuild ?? [])],

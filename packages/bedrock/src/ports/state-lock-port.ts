@@ -82,8 +82,6 @@ export interface StateLockAcquireOptions {
  * @since unreleased
  */
 export interface StateLockHolding {
-	/** The **Backend**'s own payload, which core neither reads nor narrows. */
-	readonly detail?: unknown;
 	/** What the hold was taken for, absent when the record names none. */
 	readonly operation?: string | undefined;
 	/** Who the holder recorded itself as, absent when it recorded nobody. */
@@ -234,7 +232,7 @@ export interface StateLockPort {
 	 *   **Environment**.
 	 * - Returns `Ok(undefined)` when nothing does.
 	 * - Returns `Err(StateLockError)` when the lock store could not be
-	 *   asked, which a read-only caller reports rather than fails on.
+	 *   asked, which is not the same answer as nobody holding it.
 	 *
 	 * @param environment - **Environment** to report the hold on.
 	 */

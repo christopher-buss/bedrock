@@ -67,12 +67,7 @@ export function holdingOf(record: S3LockRecord, nowMs: number): StateLockHolding
 	}
 
 	const holder = holderOf(record);
-	return {
-		detail: holder,
-		operation: holder.operation,
-		owner: holder.owner,
-		since: holder.since,
-	};
+	return { operation: holder.operation, owner: holder.owner, since: holder.since };
 }
 
 /**
@@ -133,6 +128,6 @@ export async function forceReleaseAsync(
 		return { data: undefined, success: true };
 	}
 
-	const written = await displaceAsync(object, { nowMs, record: found.record });
+	const written = await displaceAsync(object, { etag: found.etag, nowMs, record: found.record });
 	return written.success ? { data: displaced, success: true } : written;
 }

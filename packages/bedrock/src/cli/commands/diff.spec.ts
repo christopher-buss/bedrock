@@ -10,7 +10,7 @@ import type { Operation } from "../../core/operations.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../../core/plugin-registry.ts";
 import type { RedactionAnnotation } from "../../core/redact-resources.ts";
 import type { Config } from "../../core/schema.ts";
-import type { StateLockHolding } from "../../ports/state-lock-port.ts";
+import type { StateLockError, StateLockHolding } from "../../ports/state-lock-port.ts";
 import type { DiffPreview, PreviewDiffError } from "../../shell/preview-diff.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import type { ProgDeps as ProgDependencies } from "../index.ts";
@@ -101,6 +101,7 @@ function multiFieldUpdatePlaceOp(key: string): Operation {
 function preview(input: {
 	concurrentHold?: StateLockHolding;
 	environment: string;
+	holdUnknown?: StateLockError;
 	ops: ReadonlyArray<Operation>;
 	pendingRebuild?: ReadonlyArray<string>;
 	redactions?: ReadonlyArray<RedactionAnnotation>;
@@ -109,6 +110,7 @@ function preview(input: {
 		data: {
 			concurrentHold: input.concurrentHold,
 			environment: input.environment,
+			holdUnknown: input.holdUnknown,
 			ops: input.ops,
 			pendingRebuild: (input.pendingRebuild ?? []).map((key) => asResourceKey(key)),
 			redactions: input.redactions ?? [],
@@ -216,6 +218,27 @@ describe(diffCommand, () => {
 
 		expect(dependencies.clack!.logMessage).toHaveBeenCalledWith(
 			'"production" is held by ci-run-7, so this diff may already be out of date',
+		);
+	});
+
+	it("should report a lock store that could not say who holds the environment", async () => {
+		expect.assertions(1);
+
+		const dependencies = makeDependencies({
+			loadProject: fakeLoad({ data: sampleConfig, success: true }),
+			previewDiff: fakePreview([
+				preview({
+					environment: "production",
+					holdUnknown: { reason: "the lock store was unreachable" },
+					ops: [noopOp("vip-pass")],
+				}),
+			]),
+		});
+
+		await diffCommand(dependencies)({ env: "production" });
+
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledWith(
+			'who holds "production" could not be read (the lock store was unreachable), so this diff may already be out of date',
 		);
 	});
 

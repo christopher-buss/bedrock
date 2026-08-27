@@ -121,9 +121,6 @@ export async function forceReleaseStateLockAsync(
 		return { err: stateConfig.err, success: false };
 	}
 
-	// Only the exclusion is built, so an operator is told a **Backend**
-	// takes no hold rather than told to go and find the credential
-	// persistence would have needed.
 	const exclusion = buildStateLockPort({
 		fetch: options.fetch,
 		getEnv: options.getEnv ?? readProcessEnvironment,

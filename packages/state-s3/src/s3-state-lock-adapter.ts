@@ -238,9 +238,8 @@ export function createS3StateLockPort(deps: S3StateLockAdapterDeps): StateLockPo
 				: { err: opened.err, success: false };
 		},
 		async inspect(environment) {
-			// No probe: nothing here rests on a conditional write, and a
-			// read-only caller asking who holds an **Environment** should
-			// not be refused by a question about exclusion it never asked.
+			// Nothing here rests on a conditional write, so the store is
+			// not asked to prove it honours them.
 			const opened = openLockObject({ ...lockTarget, client, environment });
 			return opened.success
 				? readHoldingAsync(opened.data, seams.now())

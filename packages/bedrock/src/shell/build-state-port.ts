@@ -5,7 +5,7 @@ import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../core/plugin-regis
 import type { RegisteredStateBackend } from "../core/plugin-registry.ts";
 import type { StateBackendBuildError } from "../core/plugin.ts";
 import { type GistStateConfig, isGistStateConfig, type StateConfig } from "../core/schema.ts";
-import { isLockingTurnedOff, type StateLockingCapability } from "../core/state-locking.ts";
+import { type StateLockingCapability, stateLockingCapabilityOf } from "../core/state-locking.ts";
 import type { StateLockPort } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
 
@@ -122,11 +122,9 @@ const STATE_PORT_HINT = "pass a custom statePort via opts.statePort";
 
 /**
  * Construct the exclusion a **Backend** provides, without building the
- * **State port** beside it.
- *
- * This is what a caller that only acts on the hold asks: an operator
- * taking a stuck hold away should be told a **Backend** takes none rather
- * than told to go and find the credential persistence would have needed.
+ * **State port** beside it. This is what a caller that acts on the hold
+ * alone asks for, and it needs no credential persistence would have
+ * needed.
  *
  * @since unreleased
  *
@@ -144,9 +142,7 @@ export function buildStateLockPort(
 		return { data: { locking: "none", stateLockPort: undefined }, success: true };
 	}
 
-	const registered = (deps.plugins ?? EMPTY_PLUGIN_REGISTRY).stateBackends.get(
-		deps.stateConfig.backend,
-	);
+	const registered = registeredBackendOf(deps);
 	if (registered === undefined) {
 		return { err: unsupportedBackend(deps.stateConfig.backend), success: false };
 	}
@@ -201,9 +197,7 @@ export function buildStateBackend(
 		return buildGistStateBackend(deps.stateConfig, deps);
 	}
 
-	const registered = (deps.plugins ?? EMPTY_PLUGIN_REGISTRY).stateBackends.get(
-		deps.stateConfig.backend,
-	);
+	const registered = registeredBackendOf(deps);
 	if (registered !== undefined) {
 		return buildPluginStateBackend(registered, deps);
 	}
@@ -246,6 +240,18 @@ export function buildStatePort(
 }
 
 /**
+ * Read the **Backend** the loaded plugins claimed for one `state.backend`
+ * value.
+ *
+ * @param deps - Resolved state config plus what the loaded plugins
+ * declared.
+ * @returns The claimant, or `undefined` when nothing claimed the name.
+ */
+function registeredBackendOf(deps: BuildStatePortDependencies): RegisteredStateBackend | undefined {
+	return (deps.plugins ?? EMPTY_PLUGIN_REGISTRY).stateBackends.get(deps.stateConfig.backend);
+}
+
+/**
  * Report a `state.backend` value no builtin and no loaded plugin claims.
  *
  * @param backend - The name read off the `state` block.
@@ -277,11 +283,12 @@ function wrapPluginRefusal(
 }
 
 /**
- * Build the exclusion one plugin-declared **Backend** provides.
+ * Build the exclusion one plugin-declared **Backend** provides: the port
+ * it can take a hold with, and whether the config left holds turned on.
  *
- * A declaration supplying no lock builder claims no locking, and a config
- * that turned locking off is never asked for a lock port: the store it
- * would reach for is one the deploy has been told not to take a hold in.
+ * The port is built wherever the **Backend** declares one, config or no
+ * config. `state.locking: false` says a **Deploy** takes no hold; a hold
+ * an earlier run left behind still has to be reachable to be taken away.
  *
  * @param registered - The **Backend** the loaded plugins claimed.
  * @param dependencies - The resolved `state` block plus the seams handed on
@@ -293,12 +300,12 @@ function buildPluginExclusion(
 	registered: RegisteredStateBackend,
 	dependencies: BuildStatePortDependencies,
 ): Result<StateBackendExclusion, StateBackendBuildError> {
+	const locking = stateLockingCapabilityOf({
+		plugins: dependencies.plugins,
+		stateConfig: dependencies.stateConfig,
+	});
 	if (registered.declaration.createLockPort === undefined) {
-		return { data: { locking: "none", stateLockPort: undefined }, success: true };
-	}
-
-	if (isLockingTurnedOff(dependencies.stateConfig)) {
-		return { data: { locking: "disabled", stateLockPort: undefined }, success: true };
+		return { data: { locking, stateLockPort: undefined }, success: true };
 	}
 
 	const lock = registered.declaration.createLockPort({
@@ -306,9 +313,7 @@ function buildPluginExclusion(
 		getEnv: dependencies.getEnv,
 		stateConfig: dependencies.stateConfig,
 	});
-	return lock.success
-		? { data: { locking: "exclusive", stateLockPort: lock.data }, success: true }
-		: lock;
+	return lock.success ? { data: { locking, stateLockPort: lock.data }, success: true } : lock;
 }
 
 /**

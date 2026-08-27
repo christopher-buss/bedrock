@@ -164,17 +164,22 @@ describe(stateUnlockCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
 	});
 
-	it("should report locking the config turned off", async () => {
-		expect.assertions(1);
+	it("should take a hold away where locking is off and say that it was", async () => {
+		expect.assertions(2);
 
 		const dependencies = makeDependencies({
-			forceReleaseStateLock: fakeRelease(released({ locking: "disabled" })),
+			forceReleaseStateLock: fakeRelease(
+				released({ displaced: { owner: "ci-run-7" }, locking: "disabled" }),
+			),
 		});
 
 		await stateUnlockCommand(dependencies)({ env: "production" });
 
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledWith(
+			'Locking is off for "production" by config, so nothing takes a hold here; a hold an earlier run left behind is still taken away.',
+		);
 		expect(dependencies.clack!.logSuccess).toHaveBeenCalledExactlyOnceWith(
-			'locking is off for "production" by config, so there is no hold to take away',
+			'"production" was held by ci-run-7, and is not held now',
 		);
 	});
 

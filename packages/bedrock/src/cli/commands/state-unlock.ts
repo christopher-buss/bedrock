@@ -2,7 +2,6 @@ import process from "node:process";
 
 import type { PluginRegistry } from "../../core/plugin-registry.ts";
 import type { Config } from "../../core/schema.ts";
-import type { StateLockHolding } from "../../ports/state-lock-port.ts";
 import {
 	forceReleaseStateLockAsync as defaultForceReleaseStateLock,
 	type ForceReleaseStateLockError,
@@ -13,7 +12,7 @@ import { createClackPort } from "../clack-port.ts";
 import { buildEnvironmentReader } from "../credential-environment-overrides.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps } from "../index.ts";
-import { type ClackPort, renderDeployError } from "../render.ts";
+import { type ClackPort, describeHolder, renderDeployError } from "../render.ts";
 import { startCommandAsync } from "./start-command.ts";
 
 const COMMAND = "state unlock";
@@ -73,23 +72,6 @@ function resolveStateUnlock(deps: ProgDeps): ResolvedStateUnlock {
 }
 
 /**
- * Name who held an **Environment** out of whatever the **Backend**'s lock
- * record carried, which is best effort by contract.
- *
- * @param displaced - The hold as the **Backend** reported it.
- * @returns The phrase naming the holder.
- */
-function describeDisplaced(displaced: StateLockHolding): string {
-	if (displaced.owner === undefined) {
-		return "was held by another run";
-	}
-
-	const operation = displaced.operation === undefined ? "" : ` for ${displaced.operation}`;
-	const since = displaced.since === undefined ? "" : ` since ${displaced.since}`;
-	return `was held by ${displaced.owner}${operation}${since}`;
-}
-
-/**
  * Report what one release did, in terms of the **Environment** rather than
  * of the lock record.
  *
@@ -98,19 +80,13 @@ function describeDisplaced(displaced: StateLockHolding): string {
  */
 function describeOutcome(outcome: ForceReleaseStateLockOutcome): string {
 	const environment = `"${outcome.environment}"`;
-	switch (outcome.locking) {
-		case "disabled": {
-			return `locking is off for ${environment} by config, so there is no hold to take away`;
-		}
-		case "exclusive": {
-			return outcome.displaced === undefined
-				? `nothing was holding ${environment}`
-				: `${environment} ${describeDisplaced(outcome.displaced)}, and is not held now`;
-		}
-		case "none": {
-			return `${environment} runs on a backend that takes no hold, so there is none to take away`;
-		}
+	if (outcome.locking === "none") {
+		return `${environment} runs on a backend that takes no hold, so there is none to take away`;
 	}
+
+	return outcome.displaced === undefined
+		? `nothing was holding ${environment}`
+		: `${environment} was held by ${describeHolder(outcome.displaced)}, and is not held now`;
 }
 
 /**
@@ -149,6 +125,12 @@ async function releaseEnvironmentAsync(inputs: ReleaseInputs): Promise<boolean> 
 	if (!released.success) {
 		renderReleaseError(released.err, resolved.clack);
 		return false;
+	}
+
+	if (released.data.locking === "disabled") {
+		resolved.clack.logMessage(
+			`Locking is off for "${environment}" by config, so nothing takes a hold here; a hold an earlier run left behind is still taken away.`,
+		);
 	}
 
 	resolved.clack.logSuccess(describeOutcome(released.data));

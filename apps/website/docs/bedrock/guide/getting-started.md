@@ -146,9 +146,9 @@ pnpm bedrock state unlock --env production
 
 The displaced run is not stopped by this, and does not need to be: its state
 write is conditional on the state it read, so it fails rather than overwriting
-whatever the next deploy records. A backend that takes no lock, and an
-environment whose config turned locking off, both report that there is nothing
-to take away.
+whatever the next deploy records. A backend that takes no lock reports that
+there is nothing to take away; an environment whose config turned locking off
+still has any hold an earlier run left behind cleared.
 
 ### Recover a state write that failed
 

@@ -758,16 +758,18 @@ async function resolveEffectiveConfigAsync(options: DeployOptions): Promise<
 /**
  * Read the **Backend** the config named as the ports one deploy runs on.
  *
- * A caller that supplied a lock port asked for a hold, so it takes the
- * place of whatever the **Backend** declared and locking is not reported as
- * off however the config left it.
+ * A **Backend** hands back the port it can take a hold with whatever the
+ * config says; the config is what decides whether this deploy takes one. A
+ * caller that supplied a lock port asked for a hold, so it takes the place
+ * of the **Backend**'s own and locking is not reported as off.
  *
  * @param options - The caller's deploy options.
  * @param backend - What the configured **Backend** contributed.
  * @returns The ports the deploy runs on.
  */
 function configuredBackend(options: DeployOptions, backend: StateBackend): DeployStateBackend {
-	const stateLockPort = options.stateLockPort ?? backend.stateLockPort;
+	const declared = backend.locking === "exclusive" ? backend.stateLockPort : undefined;
+	const stateLockPort = options.stateLockPort ?? declared;
 	return {
 		lockingDisabled: stateLockPort === undefined && backend.locking === "disabled",
 		stateLockPort,

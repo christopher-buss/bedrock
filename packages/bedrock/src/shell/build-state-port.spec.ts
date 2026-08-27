@@ -407,18 +407,24 @@ describe(buildStateBackend, () => {
 		expect(result.data.stateLockPort).toBeUndefined();
 	});
 
-	it("should not ask a plugin backend for a lock port when the config turned locking off", () => {
+	it("should still build the lock port of a backend whose locking the config turned off", () => {
 		expect.assertions(2);
 
-		let asked = false;
-
+		// The hold a **Deploy** no longer takes is one an earlier run may
+		// have left behind, and taking it away needs the port.
 		const result = buildStateBackend({
 			getEnv: environmentFrom({}),
 			plugins: fakeStateBackendPlugins({
 				name: "s3",
 				createLockPort: () => {
-					asked = true;
-					return { err: { reason: "unused" }, success: false };
+					return {
+						data: {
+							acquire: neverAcquireAsync,
+							forceRelease: neverForceReleaseAsync,
+							inspect: neverInspectAsync,
+						},
+						success: true,
+					};
 				},
 				createPort: () => ({ data: okPort(), success: true }),
 				schema: type({ bucket: "string > 0" }),
@@ -429,8 +435,8 @@ describe(buildStateBackend, () => {
 
 		assert(result.success);
 
-		expect(result.data.stateLockPort).toBeUndefined();
-		expect(asked).toBeFalse();
+		expect(result.data.locking).toBe("disabled");
+		expect(result.data.stateLockPort).toBeDefined();
 	});
 
 	it.for([

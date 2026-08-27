@@ -28,25 +28,6 @@ interface StateLockingInputs {
 }
 
 /**
- * Whether the config turned locking off for one resolved `state` block.
- *
- * Locking is on for a **Backend** that offers it unless the config says
- * otherwise, so only an explicit `false` opts out: a user who serializes
- * deploys themselves says so, and everybody else is protected without
- * having read about it.
- *
- * Internal seam: not re-exported from `src/index.ts`. The **Backend**
- * builder reads it too, so the default lives in one place.
- *
- * @param stateConfig - Resolved state configuration for the target
- * environment.
- * @returns `true` when the block turned locking off.
- */
-export function isLockingTurnedOff(stateConfig: StateConfig): boolean {
-	return stateConfig.locking === false;
-}
-
-/**
  * Report the exclusion the configured **Backend** provides, so the CLI can
  * surface which guarantee applies before a deploy relies on it.
  *
@@ -90,5 +71,7 @@ export function stateLockingCapabilityOf({
 		return "none";
 	}
 
-	return isLockingTurnedOff(stateConfig) ? "disabled" : "exclusive";
+	// Locking is on for a **Backend** that offers it unless the config says
+	// otherwise, so only an explicit `false` opts out.
+	return stateConfig.locking === false ? "disabled" : "exclusive";
 }

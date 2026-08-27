@@ -130,6 +130,11 @@ export type LockRead =
 
 /** The hold one force release is taking away, and when. */
 export interface DisplacedHold {
+	/**
+	 * Entity tag the read that found the hold named, absent when the store
+	 * named none.
+	 */
+	readonly etag: string | undefined;
 	/** Epoch milliseconds the clock read. */
 	readonly nowMs: number;
 	/** The record found holding the **Environment**. */
@@ -277,11 +282,14 @@ export async function releaseAsync(
 /**
  * Write the tombstone that takes one hold away, whoever holds it.
  *
- * Unconditional by construction: a hold being taken away is one whose
- * holder is not coming back to give it up, so there is no reading of the
- * bytes that would make the write safer. What keeps the displaced holder
- * from doing damage is the **State** write it can no longer land, which is
- * guarded on the record it read rather than on the hold.
+ * Conditional on the bytes the hold was read as, so a holder that released
+ * in the meantime and a run that took the **Environment** over since are
+ * both left alone: what would be displaced is then not what was reported.
+ * A store that named no entity tag for the read leaves nothing to condition
+ * on, and the tombstone goes as it is.
+ *
+ * What keeps the displaced holder from doing damage is its **State** write,
+ * which is guarded on the record it read rather than on the hold.
  *
  * @param object - The lock object the hold is recorded in.
  * @param displaced - The record found holding the **Environment**, and the
@@ -293,7 +301,10 @@ export async function displaceAsync(
 	displaced: DisplacedHold,
 ): Promise<Result<void, StateLockError>> {
 	const written = await putLockAsync({
-		condition: { kind: "unconditional" },
+		condition:
+			displaced.etag === undefined
+				? { kind: "unconditional" }
+				: { etag: displaced.etag, kind: "unchanged" },
 		object,
 		record: { ...displaced.record, releasedAt: isoAt(displaced.nowMs) },
 	});

@@ -368,6 +368,9 @@ function untaggedStore(): StateBackendFetch {
 // Methods the untagged-write transports were asked for, in order.
 const untaggedMethods: Array<string> = [];
 
+// The condition each tombstone a force release wrote carried.
+const displacedConditions: Array<string | undefined> = [];
+
 /**
  * A store that answers every write without an entity tag, and every read
  * with the bytes the last write stored.
@@ -392,6 +395,28 @@ function untaggedWrites(etag?: string): StateBackendFetch {
 			...(etag === undefined ? {} : { headers: { etag } }),
 			status: 200,
 		});
+	};
+}
+
+/**
+ * A store that answers the read with another run's hold under no entity
+ * tag, and takes every write.
+ *
+ * @returns The transport to hand the lock port.
+ */
+function untaggedHolder(): StateBackendFetch {
+	untaggedMethods.length = 0;
+	displacedConditions.length = 0;
+
+	return async (input, init) => {
+		untaggedMethods.push(init?.method ?? "GET");
+		if (init?.method !== "PUT") {
+			return new Response(serializeLockRecord(OTHER_HOLD), { status: 200 });
+		}
+
+		const write = new Request(input, init);
+		displacedConditions.push(write.headers.get("if-match") ?? undefined);
+		return new Response("", { status: 200 });
 	};
 }
 
@@ -1549,12 +1574,6 @@ describe(createS3StateLockPort, () => {
 			assert(held.success);
 
 			expect(held.data).toStrictEqual({
-				detail: {
-					expiresAt: OTHER_HOLD.expiresAt,
-					operation: "deploy",
-					owner: "ci-run-3",
-					since: OTHER_HOLD.since,
-				},
 				operation: "deploy",
 				owner: "ci-run-3",
 				since: OTHER_HOLD.since,
@@ -1654,12 +1673,6 @@ describe(createS3StateLockPort, () => {
 			assert(released.success);
 
 			expect(released.data).toStrictEqual({
-				detail: {
-					expiresAt: OTHER_HOLD.expiresAt,
-					operation: "deploy",
-					owner: "ci-run-3",
-					since: OTHER_HOLD.since,
-				},
 				operation: "deploy",
 				owner: "ci-run-3",
 				since: OTHER_HOLD.since,
@@ -1671,7 +1684,7 @@ describe(createS3StateLockPort, () => {
 			expect(store.calls.map((call) => call.method)).toStrictEqual(["GET", "PUT"]);
 		});
 
-		it("should take the hold away whatever the store says about the bytes it read", async () => {
+		it("should take the hold away against the bytes it read", async () => {
 			expect.assertions(1);
 
 			const store = fakeS3();
@@ -1682,20 +1695,24 @@ describe(createS3StateLockPort, () => {
 				now: createFakeClock(TEN_O_CLOCK).now,
 			}).forceRelease("production");
 
-			expect(store.calls[1]!.headers["if-match"]).toBeUndefined();
+			// A holder that released in the meantime, and a run that took
+			// the environment over since, are both left where they are.
+			expect(store.calls[1]!.headers["if-match"]).toBe('"written-1"');
 		});
 
-		it("should leave an environment nothing is holding alone", async () => {
-			expect.assertions(2);
+		it("should take the hold away as it is when the store names no entity tag for it", async () => {
+			expect.assertions(3);
 
-			const store = fakeS3();
-
-			const released = await lockFor({ fetch: store.fetchFunc }).forceRelease("production");
+			const released = await lockFor({
+				fetch: untaggedHolder(),
+				now: createFakeClock(TEN_O_CLOCK).now,
+			}).forceRelease("production");
 
 			assert(released.success);
 
-			expect(released.data).toBeUndefined();
-			expect(store.calls.map((call) => call.method)).toStrictEqual(["GET"]);
+			expect(untaggedMethods).toStrictEqual(["GET", "PUT"]);
+			expect(displacedConditions).toStrictEqual([undefined]);
+			expect(released.data!.owner).toBe("ci-run-3");
 		});
 
 		it("should leave an environment whose hold was already given up alone", async () => {

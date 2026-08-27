@@ -150,8 +150,8 @@ describe(previewDiffAsync, () => {
 		expect(result.data.concurrentHold).toBeUndefined();
 	});
 
-	it("should preview without a holder when the lock store could not be asked", async () => {
-		expect.assertions(1);
+	it("should report why nobody could say who holds the environment", async () => {
+		expect.assertions(2);
 
 		const result = await previewDiffAsync({
 			config: vipPassConfig(),
@@ -172,6 +172,9 @@ describe(previewDiffAsync, () => {
 		assert(result.success);
 
 		expect(result.data.concurrentHold).toBeUndefined();
+		expect(result.data.holdUnknown).toStrictEqual({
+			reason: "the lock store was unreachable",
+		});
 	});
 
 	it("should compute create ops against empty prior state without writing", async () => {

@@ -1,6 +1,7 @@
 import { safeStringify } from "../core/error-chain.ts";
 import type { MigrateError, MigrationSummary } from "../core/migrate/migration-report.ts";
 import type { StateError } from "../core/state.ts";
+import type { StateLockHolding } from "../ports/state-lock-port.ts";
 import type {
 	MissingCredentialError,
 	PluginStateBackendError,
@@ -80,6 +81,23 @@ interface MigrationSummaryRender {
 	readonly reportPath: string;
 	/** Aggregate counts from a `MigrationReport`. */
 	readonly summary: MigrationSummary;
+}
+
+/**
+ * Name who holds an **Environment** out of whatever the **Backend**'s lock
+ * record carried, which is best effort by contract.
+ *
+ * @param holding - The hold as the **Backend** reported it.
+ * @returns The holder, named as far as the record allows.
+ */
+export function describeHolder(holding: StateLockHolding): string {
+	if (holding.owner === undefined) {
+		return "another run";
+	}
+
+	const operation = holding.operation === undefined ? "" : ` for ${holding.operation}`;
+	const since = holding.since === undefined ? "" : ` since ${holding.since}`;
+	return `${holding.owner}${operation}${since}`;
 }
 
 /**

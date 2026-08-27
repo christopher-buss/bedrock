@@ -127,9 +127,11 @@ describe(forceReleaseStateLockAsync, () => {
 		expect(result.data.displaced).toBeUndefined();
 	});
 
-	it("should release nothing when the config turned locking off", async () => {
-		expect.assertions(2);
+	it("should still take a hold away where the config turned locking off", async () => {
+		expect.assertions(3);
 
+		// Turning locking off stops the next **Deploy** taking a hold; it
+		// does not reach the hold an earlier run left behind.
 		const lock = releasingLockPort(HOLDER);
 
 		const result = await forceReleaseStateLockAsync({
@@ -142,7 +144,8 @@ describe(forceReleaseStateLockAsync, () => {
 		assert(result.success);
 
 		expect(result.data.locking).toBe("disabled");
-		expect(lock.released).toBeEmpty();
+		expect(result.data.displaced).toStrictEqual(HOLDER);
+		expect(lock.released).toStrictEqual(["production"]);
 	});
 
 	it("should surface a hold the backend refused to release", async () => {
