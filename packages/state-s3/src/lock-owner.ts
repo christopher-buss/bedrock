@@ -14,20 +14,35 @@ const ANONYMOUS = "unknown";
  * straight to the job holding the **Environment**. Anything else falls back
  * to the local user.
  *
+ * A variable set to nothing names nobody, so every reading here treats it
+ * as absent.
+ *
  * @param getEnvironment - Reads an environment variable.
  * @returns Who the hold is recorded as belonging to.
  */
 export function lockOwnerFrom(getEnvironment: StateBackendContext["getEnv"]): string {
-	const declared = getEnvironment("BEDROCK_LOCK_OWNER");
-	if (declared !== undefined && declared !== "") {
+	const declared = named(getEnvironment, "BEDROCK_LOCK_OWNER");
+	if (declared !== undefined) {
 		return declared;
 	}
 
-	const run = getEnvironment("GITHUB_RUN_ID");
-	if (run !== undefined && run !== "") {
-		const repo = getEnvironment("GITHUB_REPOSITORY") ?? ANONYMOUS;
+	const run = named(getEnvironment, "GITHUB_RUN_ID");
+	if (run !== undefined) {
+		const repo = named(getEnvironment, "GITHUB_REPOSITORY") ?? ANONYMOUS;
 		return `https://github.com/${repo}/actions/runs/${run}`;
 	}
 
-	return getEnvironment("USER") ?? getEnvironment("USERNAME") ?? ANONYMOUS;
+	return named(getEnvironment, "USER") ?? named(getEnvironment, "USERNAME") ?? ANONYMOUS;
+}
+
+/**
+ * Read one variable as what it names.
+ *
+ * @param getEnvironment - Reads an environment variable.
+ * @param name - Variable to read.
+ * @returns What it names, or `undefined` when it names nothing.
+ */
+function named(getEnvironment: StateBackendContext["getEnv"], name: string): string | undefined {
+	const value = getEnvironment(name);
+	return value === "" ? undefined : value;
 }

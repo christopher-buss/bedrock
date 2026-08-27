@@ -42,10 +42,13 @@ describe(lockOwnerFrom, () => {
 		expect(owner).toBe("https://github.com/christopher-buss/bedrock/actions/runs/12345");
 	});
 
-	it("should still name the run when the repository is missing from the environment", () => {
+	it.for([
+		["missing from the environment", {}],
+		["blank", { GITHUB_REPOSITORY: "" }],
+	] as const)("should still name the run when the repository is %s", ([, repo]) => {
 		expect.assertions(1);
 
-		expect(lockOwnerFrom(environmentOf({ GITHUB_RUN_ID: "12345" }))).toBe(
+		expect(lockOwnerFrom(environmentOf({ ...repo, GITHUB_RUN_ID: "12345" }))).toBe(
 			"https://github.com/unknown/actions/runs/12345",
 		);
 	});
@@ -66,11 +69,16 @@ describe(lockOwnerFrom, () => {
 	});
 
 	it.for([
-		["BEDROCK_LOCK_OWNER", { BEDROCK_LOCK_OWNER: "", USER: "ada" }],
-		["GITHUB_RUN_ID", { GITHUB_RUN_ID: "", USER: "ada" }],
-	] as const)("should read a blank %s as absent rather than as an owner", ([, variables]) => {
-		expect.assertions(1);
+		["BEDROCK_LOCK_OWNER", { BEDROCK_LOCK_OWNER: "", USER: "ada" }, "ada"],
+		["GITHUB_RUN_ID", { GITHUB_RUN_ID: "", USER: "ada" }, "ada"],
+		["USER", { USER: "", USERNAME: "ada" }, "ada"],
+		["USERNAME", { USER: "", USERNAME: "" }, "unknown"],
+	] as const)(
+		"should read a blank %s as absent rather than as an owner",
+		([, variables, owner]) => {
+			expect.assertions(1);
 
-		expect(lockOwnerFrom(environmentOf(variables))).toBe("ada");
-	});
+			expect(lockOwnerFrom(environmentOf(variables))).toBe(owner);
+		},
+	);
 });
