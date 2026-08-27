@@ -78,7 +78,11 @@ import type { BedrockPlugin, StateBackendDeclaration } from "@bedrock-rbx/core";
 
 import { type } from "arktype";
 
-const schema = type({ "bucket": "string > 0", "region?": "string" });
+const schema = type({
+	"bucket": "string > 0",
+	"prefix?": "string",
+	"region?": "string",
+});
 
 const s3: StateBackendDeclaration<typeof schema.infer> = {
 	name: "s3",
@@ -213,8 +217,8 @@ config - into the `state` keys bedrock records, and bedrock writes `backend`
 alongside them. A user who fetched through your backend and then migrates onto
 it gets that block, and none of your `migratePrompts` are asked, so return every
 key your schema requires. Omit `toStateConfig` when where the foreign state
-lived says nothing about where bedrock's should live, and your `migratePrompts`
-are asked as usual. If a translation fully describes your backend, declare
+lived says nothing about where bedrock's belongs, and your `migratePrompts` are
+asked as usual. If a translation fully describes your backend, declare
 `migratePrompts: []` so it still appears in the migrate picker.
 
 ### Version against core

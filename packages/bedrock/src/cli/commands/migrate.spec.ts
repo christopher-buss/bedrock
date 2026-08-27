@@ -843,7 +843,7 @@ describe(migrateCommand, () => {
 					},
 					toStateConfig: ({ bucket }) => ({ bucket, prefix: "bedrock/" }),
 				},
-				schema: type({ bucket: "string > 0" }),
+				schema: type({ "bucket": "string > 0", "prefix?": "string" }),
 				specifier: "@example/state-s3",
 			}),
 			projectRoot: "/projects/example",
