@@ -126,9 +126,7 @@ async function captureAsync(
 }
 
 /**
- * Build the answer S3 gives a request for a key the store holds nothing
- * at, which an entity-tag precondition on a `PUT` gets rather than the
- * `412` a tag that merely disagrees gets.
+ * Build the answer S3 gives a request for a key the store holds nothing at.
  *
  * @returns The `404` response, carrying the code the client deserializes.
  */
