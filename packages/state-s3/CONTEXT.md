@@ -17,10 +17,9 @@ different keys, so neither write can land on the other's record. _Avoid_: file,
 blob, state file
 
 **Hold**: One run's claim on an **Environment**, taken before a **Deploy**
-applies anything and given up once **State** has been written. It is a
-**Lock object** created conditionally, so exactly one run can hold an
-**Environment** at a time. _Avoid_: lock (for the claim itself), mutex,
-semaphore
+applies anything and given up once **State** has been written. It is a **Lock
+object** created conditionally, so exactly one run can hold an **Environment**
+at a time. _Avoid_: lock (for the claim itself), mutex, semaphore
 
 **Lock object**: The object one **Hold** is recorded in, keyed
 `<prefix>/locks/<environment>.json`. It sits under its own segment rather than

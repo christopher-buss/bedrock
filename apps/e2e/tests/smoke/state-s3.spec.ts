@@ -5,6 +5,7 @@ import {
 	OpenCloudError,
 	parseStateFile,
 } from "@bedrock-rbx/core";
+import { createS3StateLockPort } from "@bedrock-rbx/state-s3";
 
 import { dirname, join } from "node:path";
 import process from "node:process";
@@ -28,6 +29,24 @@ const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "state
 
 // How many past runs stay in the bucket to be read by hand.
 const KEEP = 3;
+
+/**
+ * Build a lock port over the smoke bucket, on the credentials the runner
+ * already carries.
+ *
+ * @param lockTimeoutMs - How long acquisition waits out a hold; omit to
+ * wait the default five minutes.
+ * @returns The lock port to take a hold with.
+ */
+function lockPort(lockTimeoutMs?: number) {
+	return createS3StateLockPort({
+		bucket: BUCKET,
+		lockTimeoutMs,
+		owner: "bedrock-smoke",
+		prefix: PREFIX,
+		region: REGION,
+	});
+}
 
 /**
  * A registry whose drivers all refuse. A deploy that succeeds against it
@@ -95,6 +114,55 @@ describe("s3 state backend against real aws", () => {
 				resources: [],
 				version: 1,
 			});
+		},
+		60_000,
+	);
+
+	it.skipIf(!HAS_SECRETS)(
+		"should hold the environment against a second run and hand it back on release",
+		async () => {
+			expect.assertions(4);
+
+			// A stamped environment gives every run its own lock object, so
+			// concurrent runs never contend and each acquisition is a first
+			// acquisition against a key holding nothing.
+			const environment = `${ENVIRONMENT}-lock-${Date.now()}`;
+
+			onTestFinished(async () => {
+				await pruneStateS3Async({
+					bucket: BUCKET,
+					keep: KEEP,
+					prefix: PREFIX,
+					region: REGION,
+				});
+			});
+
+			const hold = await lockPort().acquire(environment, { operation: "smoke" });
+			assertOk(hold, "acquire");
+
+			// No patience at all, so this refuses on the hold rather than on
+			// anything the network did.
+			const contended = await lockPort(0).acquire(environment);
+
+			expect(contended.success).toBeFalse();
+
+			const given = await hold.data.release();
+			assertOk(given, "release");
+
+			const tombstone = await readS3ObjectTextAsync({
+				key: `${PREFIX}/locks/${environment}.json`,
+				bucket: BUCKET,
+				region: REGION,
+			});
+
+			expect(tombstone).toInclude('"operation": "smoke"');
+			expect(tombstone).toInclude('"releasedAt"');
+
+			// The object outlives the hold, so the next run has to be able to
+			// take it over rather than find the environment blocked forever.
+			const again = await lockPort(0).acquire(environment);
+
+			expect(again.success).toBeTrue();
 		},
 		60_000,
 	);

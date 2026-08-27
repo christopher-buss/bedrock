@@ -43,14 +43,14 @@ Production state now lives at `s3://my-bucket/production.json`.
 
 ## Configuration
 
-| Key                   | Required | What it does                                                 |
-| --------------------- | -------- | ------------------------------------------------------------ |
-| `bucket`              | yes      | Bucket the state objects live in                             |
-| `region`              | yes      | Region the bucket lives in                                   |
-| `prefix`              | no       | Folder the objects are written under                         |
-| `endpoint`            | no       | Endpoint to address instead of AWS                           |
-| `forcePathStyle`      | no       | Address the bucket as a path segment rather than a subdomain |
-| `checksumCalculation` | no       | `whenSupported` (default) or `whenRequired`                  |
+| Key                   | Required | What it does                                                  |
+| --------------------- | -------- | ------------------------------------------------------------- |
+| `bucket`              | yes      | Bucket the state objects live in                              |
+| `region`              | yes      | Region the bucket lives in                                    |
+| `prefix`              | no       | Folder the objects are written under                          |
+| `endpoint`            | no       | Endpoint to address instead of AWS                            |
+| `forcePathStyle`      | no       | Address the bucket as a path segment rather than a subdomain  |
+| `checksumCalculation` | no       | `whenSupported` (default) or `whenRequired`                   |
 | `lockTimeoutMs`       | no       | How long to wait for a held environment; 5 minutes by default |
 
 ## Credentials

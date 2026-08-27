@@ -250,7 +250,7 @@ describe(createS3StateLockPort, () => {
 			assert(hold.success);
 
 			expect(clock.waits).toStrictEqual([1000]);
-			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)?.id).toBe(THIS_RUN);
+			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)!.id).toBe(THIS_RUN);
 		});
 
 		it("should report the wait and who it is waiting on while it waits", async () => {
@@ -437,8 +437,8 @@ describe(createS3StateLockPort, () => {
 				region: REGION,
 			}).acquire("production");
 
-			expect(parseLockRecord(first.objects.get(LOCK_PATH)!)?.id).not.toBe(
-				parseLockRecord(second.objects.get(LOCK_PATH)!)?.id,
+			expect(parseLockRecord(first.objects.get(LOCK_PATH)!)!.id).not.toBe(
+				parseLockRecord(second.objects.get(LOCK_PATH)!)!.id,
 			);
 		});
 
