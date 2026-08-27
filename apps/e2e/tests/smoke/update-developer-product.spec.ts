@@ -112,7 +112,7 @@ describe("developer-product update via real Roblox", () => {
 
 			const stamp = String(Date.now());
 			const updatedConfig = withMutatedProduct(bootstrapConfig, {
-				name: `Smoke Test Product ${stamp}`,
+				name: `Bedrock Smoke Product ${stamp}`,
 				description: `smoke description ${stamp}`,
 			});
 			const updated = await deploy({
@@ -137,7 +137,7 @@ describe("developer-product update via real Roblox", () => {
 			assert(resource !== undefined);
 			assert(resource.kind === "developerProduct");
 
-			expect(resource.name).toBe(`Smoke Test Product ${stamp}`);
+			expect(resource.name).toBe(`Bedrock Smoke Product ${stamp}`);
 			expect(resource.description).toBe(`smoke description ${stamp}`);
 			expect(resource.outputs.productId).toBeString();
 		},
