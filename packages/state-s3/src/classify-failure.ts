@@ -37,6 +37,21 @@ export interface S3Failure {
 	readonly statusCode: number | undefined;
 }
 
+/**
+ * The payload a failure only this **Backend** can describe carries, which
+ * core passes through untouched.
+ *
+ * @since unreleased
+ */
+export interface S3StateErrorDetail {
+	/** S3 error code the client read the refusal as. */
+	readonly name: string;
+	/** What the refusal means for reading or writing **State**. */
+	readonly kind: S3FailureKind;
+	/** Status the store answered with, absent when nothing reached it. */
+	readonly statusCode: number | undefined;
+}
+
 // Codes worth reading as something other than a bare request failure.
 // Only `NoSuchKey` reads as an absent object, and only by name: it is the
 // code a `GET` of a missing object answers with, and reading anything
@@ -105,6 +120,17 @@ export function isConditionRefusal(failure: S3Failure): boolean {
 		failure.kind === "conditionRefused" ||
 		(failure.statusCode !== undefined && CONDITION_REFUSED_STATUS.has(failure.statusCode))
 	);
+}
+
+/**
+ * Read one refusal into the payload a caller narrows on, which is what a
+ * **Deploy** and a migration both report their failures with.
+ *
+ * @param failure - The refusal, already classified.
+ * @returns The payload to carry alongside the reason.
+ */
+export function detailOf(failure: S3Failure): S3StateErrorDetail {
+	return { name: failure.name, kind: failure.kind, statusCode: failure.statusCode };
 }
 
 /**

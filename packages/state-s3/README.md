@@ -118,6 +118,10 @@ that shared one bucket under Mantle stay apart. Migrating onto a bucket you did
 not fetch from asks for the bucket, the region, and an endpoint you can skip.
 Credentials resolve exactly as they do for a deploy.
 
+Mantle's config carries nothing about `forcePathStyle` or `checksumCalculation`,
+so a migrated config has neither. Add them if your store needs them; see
+[S3-compatible stores](#s3-compatible-stores) below.
+
 ## S3-compatible stores
 
 `endpoint` and `forcePathStyle` make non-AWS stores reachable, and

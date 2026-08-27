@@ -71,8 +71,10 @@ capability check, preflight, health check
 
 **Prefix**: The folder the **Object**s are written under, read as a path however
 it was written (`bedrock/state`, `/bedrock/state/`, and `bedrock/state/` are one
-prefix). Absent, the **Object**s sit at the bucket root. _Avoid_: path, folder,
-namespace
+prefix). Absent, the **Object**s sit at the bucket root. A migration off another
+tool translates the name that tool keyed its own state by into this, so two
+projects that shared one bucket there keep their **Object**s apart here.
+_Avoid_: path, folder, namespace
 
 **Store**: The bucket the **Object**s live in, addressed either at AWS or at an
 `endpoint` an S3-compatible implementation serves. A **Store** that does not

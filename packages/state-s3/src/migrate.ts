@@ -9,11 +9,10 @@ import type {
 
 import { type } from "arktype";
 
-import { classifyS3Failure } from "./classify-failure.ts";
+import { classifyS3Failure, detailOf } from "./classify-failure.ts";
 import { credentialsFrom } from "./credentials.ts";
 import { objectLabelFor } from "./object-key.ts";
 import { createConfiguredS3Client, readObjectTextAsync } from "./s3-client.ts";
-import type { S3StateErrorDetail } from "./s3-state-adapter.ts";
 
 // A key present but blank is a coordinate the user never gave, which
 // would otherwise reach the client as an object nothing is stored at.
@@ -39,8 +38,6 @@ const mantleCoordinates = type({
  * user answered with.
  */
 interface MantleStateLocation {
-	/** Key the object is stored under. */
-	readonly key: string;
 	/** Bucket the object lives in. */
 	readonly bucket: string;
 	/** Endpoint to address instead of AWS, absent for AWS itself. */
@@ -71,8 +68,8 @@ export const s3MigratePrompts: ReadonlyArray<StateBackendPromptField> = [
 	},
 	{
 		key: "endpoint",
-		label: "Endpoint to address instead of AWS? (leave empty for AWS)",
-		placeholder: "https://<account>.r2.cloudflarestorage.com",
+		label: "Endpoint to store state at instead of AWS? (leave empty for AWS)",
+		placeholder: "https://s3.example.com",
 	},
 ];
 
@@ -90,13 +87,13 @@ export const s3MigrateSource: StateBackendMigrateSource = {
 	prompts: [
 		{
 			key: "bucket",
-			label: "Bucket the Mantle state lives in?",
+			label: "Bucket the Mantle state lives in (its `state.remote.bucket`)?",
 			placeholder: "my-mantle-states",
 			validationMessage: "A bucket is required",
 		},
 		{
 			key: "region",
-			label: "Region the bucket lives in?",
+			label: "Region Mantle used (`state.remote.region`, or its `custom.name`)?",
 			placeholder: "us-west-2",
 			validationMessage: "A region is required",
 		},
@@ -108,11 +105,11 @@ export const s3MigrateSource: StateBackendMigrateSource = {
 		},
 		{
 			key: "endpoint",
-			label: "Endpoint to address instead of AWS? (leave empty for AWS)",
-			placeholder: "https://<account>.r2.cloudflarestorage.com",
+			label: "Endpoint Mantle used (`region.custom.endpoint`, empty for AWS)?",
+			placeholder: "https://s3.example.com",
 		},
 	],
-	readBytes: async (context) => readMantleStateAsync(context),
+	readBytes: readMantleStateAsync,
 	toStateConfig: (coordinates) => {
 		const located = locateMantleState(coordinates);
 		if (!located.success) {
@@ -182,7 +179,6 @@ function locateMantleState(
 		: parsed.key;
 	return {
 		data: {
-			key: `${project}${MANTLE_STATE_SUFFIX}`,
 			bucket: parsed.bucket,
 			endpoint: parsed.endpoint,
 			project,
@@ -213,7 +209,8 @@ async function readMantleStateAsync({
 		return located;
 	}
 
-	const { key, bucket, endpoint, region } = located.data;
+	const { bucket, endpoint, project, region } = located.data;
+	const key = `${project}${MANTLE_STATE_SUFFIX}`;
 	const client = createConfiguredS3Client({
 		bucket,
 		credentials: credentialsFrom(getEnvironment),
@@ -228,13 +225,11 @@ async function readMantleStateAsync({
 		return { data: encoder.encode(text), success: true };
 	} catch (err) {
 		const failure = classifyS3Failure(err);
-		const detail: S3StateErrorDetail = {
-			name: failure.name,
-			kind: failure.kind,
-			statusCode: failure.statusCode,
-		};
 		return {
-			err: { detail, reason: `${objectLabelFor(bucket, key)}: ${failure.reason}` },
+			err: {
+				detail: detailOf(failure),
+				reason: `${objectLabelFor(bucket, key)}: ${failure.reason}`,
+			},
 			success: false,
 		};
 	}

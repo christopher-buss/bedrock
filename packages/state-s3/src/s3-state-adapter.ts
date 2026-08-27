@@ -16,7 +16,12 @@ import {
 	validateEnvironmentName,
 } from "@bedrock-rbx/core";
 
-import { classifyS3Failure, type S3Failure, type S3FailureKind } from "./classify-failure.ts";
+import {
+	classifyS3Failure,
+	detailOf,
+	type S3Failure,
+	type S3FailureKind,
+} from "./classify-failure.ts";
 import { objectKeyFor, objectLabelFor } from "./object-key.ts";
 import { createConfiguredS3Client, readObjectTextAsync, type S3StoreDeps } from "./s3-client.ts";
 
@@ -33,21 +38,6 @@ const NEUTRAL_STATE_ERROR: Partial<Record<S3FailureKind, NeutralStateErrorKind>>
 	conditionRefused: "stateConflict",
 	missingStore: "stateNotFound",
 };
-
-/**
- * The payload a failure only this **Backend** can describe carries, which
- * core passes through untouched.
- *
- * @since unreleased
- */
-export interface S3StateErrorDetail {
-	/** S3 error code the client read the refusal as. */
-	readonly name: string;
-	/** What the refusal means for reading or writing **State**. */
-	readonly kind: S3FailureKind;
-	/** Status the store answered with, absent when nothing reached it. */
-	readonly statusCode: number | undefined;
-}
 
 /**
  * The configured client paired with the coordinates its object keys are
@@ -154,13 +144,8 @@ function toStateError(failure: S3Failure, file: string): StateError {
 		return { file, kind: neutral, reason: failure.reason };
 	}
 
-	const detail: S3StateErrorDetail = {
-		name: failure.name,
-		kind: failure.kind,
-		statusCode: failure.statusCode,
-	};
 	return {
-		detail,
+		detail: detailOf(failure),
 		file,
 		kind: "pluginStateBackend",
 		reason: failure.reason,

@@ -29,7 +29,7 @@ contract a claim rather than a proof.
 | `lock-owner.ts`              | Pure reading of the environment into the run a hold is recorded as.                                                    |
 | `backoff.ts`                 | Pure retry schedule for a contended acquisition.                                                                       |
 | `s3-client.ts`               | The configured client both ports send through, plus the coordinates it needs.                                          |
-| `classify-failure.ts`        | Pure reading of what the client threw into this **Backend**'s own terms.                                               |
+| `classify-failure.ts`        | Pure reading of what the client threw into this **Backend**'s own terms, and the payload it is reported with.          |
 | `fetch-request-handler.ts`   | Smithy request handler routing the real client through an injected `fetch`.                                            |
 | `s3-state-adapter.ts`        | The `StatePort`: reads and writes objects, reports refusals as `StateError`.                                           |
 | `s3-state-lock-adapter.ts`   | The `StateLockPort`: takes a hold by conditional create, releases by tombstone.                                        |
