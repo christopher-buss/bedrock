@@ -266,6 +266,35 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).not.toMatch(/retry after/u);
 		});
 
+		it("should name github's throttle message in the rate-limited reason", async () => {
+			expect.assertions(2);
+
+			// Which limit GitHub enforced is only in the body: the primary
+			// hourly budget and the secondary content-creation throttle both
+			// answer 403 with the same headers.
+			const { fetchFn } = fakeFetch(() => {
+				return new Response(
+					JSON.stringify({ message: "You have exceeded a secondary rate limit." }),
+					{ headers: { "X-RateLimit-Remaining": "0" }, status: 403 },
+				);
+			});
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				random: fakeRandom(),
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/rate limited \(403\)/u);
+			expect(result.err.reason).toContain("secondary rate limit");
+		});
+
 		it("should err with an auth reason on 401 even when rate-limit headers are present", async () => {
 			expect.assertions(3);
 
