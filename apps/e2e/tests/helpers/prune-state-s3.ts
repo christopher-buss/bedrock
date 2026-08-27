@@ -1,4 +1,4 @@
-import { DeleteObjectCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, paginateListObjectsV2, S3Client } from "@aws-sdk/client-s3";
 
 /**
  * Options controlling a smoke-test state prune.
@@ -43,12 +43,14 @@ export async function pruneStateS3Async({
 	region,
 }: PruneStateS3Options): Promise<void> {
 	const client = new S3Client({ region });
-	const listed = await client.send(
-		new ListObjectsV2Command({ Bucket: bucket, Prefix: `${prefix}/` }),
+	const pages = await Array.fromAsync(
+		paginateListObjectsV2({ client }, { Bucket: bucket, Prefix: `${prefix}/` }),
 	);
 
-	const keys = (listed.Contents ?? []).flatMap((object) => {
-		return object.Key === undefined ? [] : [object.Key];
+	const keys = pages.flatMap((page) => {
+		return (page.Contents ?? []).flatMap((object) => {
+			return object.Key === undefined ? [] : [object.Key];
+		});
 	});
 
 	await Promise.all(
