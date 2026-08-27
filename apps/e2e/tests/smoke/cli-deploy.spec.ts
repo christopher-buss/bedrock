@@ -61,6 +61,10 @@ async function runBinAsync(args: ReadonlyArray<string>, cwd: string): Promise<Sp
 	});
 }
 
+// The gist stays this spec's backend on purpose. It is the only place the
+// `state: { backend: "gist" }` config path is exercised through the real bin,
+// and it costs the gist a single write per run. The deploys that reached for a
+// gist because a deploy needs somewhere to put state moved to the bucket.
 describe("bedrock deploy bin against real gist + open cloud", () => {
 	it.skipIf(!HAS_SECRETS)(
 		"should reconcile a place end-to-end and exit 0 with a success line",

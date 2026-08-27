@@ -221,13 +221,7 @@ describe(createGistStateAdapter, () => {
 			const { fetchFn } = fakeFetch(
 				() => new Response("", { headers: { "Retry-After": "60" }, status: 403 }),
 			);
-			const sleepFake = fakeSleep();
-			const port = createGistStateAdapter({
-				fetch: fetchFn,
-				gistId: GIST_ID,
-				sleep: sleepFake.sleep,
-				token: TOKEN,
-			});
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
 
 			const result = await port.read("production");
 
@@ -246,14 +240,7 @@ describe(createGistStateAdapter, () => {
 			const { fetchFn } = fakeFetch(
 				() => new Response("", { headers: { "X-RateLimit-Remaining": "0" }, status: 403 }),
 			);
-			const sleepFake = fakeSleep();
-			const port = createGistStateAdapter({
-				fetch: fetchFn,
-				gistId: GIST_ID,
-				random: fakeRandom(),
-				sleep: sleepFake.sleep,
-				token: TOKEN,
-			});
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
 
 			const result = await port.read("production");
 
@@ -278,14 +265,7 @@ describe(createGistStateAdapter, () => {
 					{ headers: { "X-RateLimit-Remaining": "0" }, status: 403 },
 				);
 			});
-			const sleepFake = fakeSleep();
-			const port = createGistStateAdapter({
-				fetch: fetchFn,
-				gistId: GIST_ID,
-				random: fakeRandom(),
-				sleep: sleepFake.sleep,
-				token: TOKEN,
-			});
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
 
 			const result = await port.read("production");
 
@@ -785,11 +765,85 @@ describe(createGistStateAdapter, () => {
 			expect(sleepFake.calls).toStrictEqual([2000]);
 		});
 
-		it("should retry a 403 that reports the rate-limit budget spent", async () => {
+		it("should refuse a 403 reporting the rate-limit budget spent without retrying", async () => {
+			expect.assertions(3);
+
+			// The spent budget is the hourly one, and it refills on a clock
+			// no retry budget reaches. Re-sending only spends more of it.
+			const { calls, fetchFn } = fakeFetchSequence([
+				throttled({ "X-RateLimit-Remaining": "0" }),
+			]);
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				random: fakeRandom(),
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/rate limited/u);
+			expect(calls).toHaveLength(1);
+			expect(sleepFake.calls).toStrictEqual([]);
+		});
+
+		it("should refuse a throttle naming a wait it will not sit out", async () => {
+			expect.assertions(3);
+
+			const { calls, fetchFn } = fakeFetchSequence([throttled({ "Retry-After": "3600" })]);
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				random: fakeRandom(),
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toContain("3600");
+			expect(calls).toHaveLength(1);
+			expect(sleepFake.calls).toStrictEqual([]);
+		});
+
+		it("should refuse a throttle whose Retry-After is not a count of seconds", async () => {
+			expect.assertions(3);
+
+			// HTTP allows Retry-After to carry an absolute date; GitHub sends
+			// seconds, so a date names no wait this adapter can sit out.
+			const { calls, fetchFn } = fakeFetchSequence([
+				throttled({ "Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT" }),
+			]);
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				random: fakeRandom(),
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/rate limited/u);
+			expect(calls).toHaveLength(1);
+			expect(sleepFake.calls).toStrictEqual([]);
+		});
+
+		it("should keep the backoff schedule for a retryable status that names a wait", async () => {
 			expect.assertions(3);
 
 			const { calls, fetchFn } = fakeFetchSequence([
-				throttled({ "X-RateLimit-Remaining": "0" }),
+				new Response("", { headers: { "Retry-After": "60" }, status: 503 }),
 				okJson({ files: {} }),
 			]);
 			const sleepFake = fakeSleep();
@@ -805,52 +859,6 @@ describe(createGistStateAdapter, () => {
 
 			expect(result.success).toBeTrue();
 			expect(calls).toHaveLength(2);
-			expect(sleepFake.calls).toStrictEqual([250]);
-		});
-
-		it("should bound a Retry-After that outlasts the maximum wait", async () => {
-			expect.assertions(2);
-
-			const { fetchFn } = fakeFetchSequence([
-				throttled({ "Retry-After": "3600" }),
-				okJson({ files: {} }),
-			]);
-			const sleepFake = fakeSleep();
-			const port = createGistStateAdapter({
-				fetch: fetchFn,
-				gistId: GIST_ID,
-				random: fakeRandom(),
-				sleep: sleepFake.sleep,
-				token: TOKEN,
-			});
-
-			const result = await port.read("production");
-
-			expect(result.success).toBeTrue();
-			expect(sleepFake.calls).toStrictEqual([30_000]);
-		});
-
-		it("should fall back to the backoff schedule when Retry-After is not a count of seconds", async () => {
-			expect.assertions(2);
-
-			// HTTP allows Retry-After to carry an absolute date; GitHub sends
-			// seconds, so a date is a shape the adapter cannot wait on.
-			const { fetchFn } = fakeFetchSequence([
-				throttled({ "Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT" }),
-				okJson({ files: {} }),
-			]);
-			const sleepFake = fakeSleep();
-			const port = createGistStateAdapter({
-				fetch: fetchFn,
-				gistId: GIST_ID,
-				random: fakeRandom(),
-				sleep: sleepFake.sleep,
-				token: TOKEN,
-			});
-
-			const result = await port.read("production");
-
-			expect(result.success).toBeTrue();
 			expect(sleepFake.calls).toStrictEqual([250]);
 		});
 

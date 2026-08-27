@@ -41,17 +41,6 @@ export async function errorBodyDetailAsync(response: Response): Promise<string> 
 }
 
 /**
- * Whether a response's headers say GitHub throttled the request: either it
- * named a wait, or it reported the budget spent.
- *
- * @param headers - Headers of the response to inspect.
- * @returns `true` when the response is a throttle rather than a refusal.
- */
-export function isRateLimited(headers: Headers): boolean {
-	return headers.has("retry-after") || headers.get("x-ratelimit-remaining") === "0";
-}
-
-/**
  * Map a non-ok GitHub response onto a `StateError` with an actionable reason:
  * a named cause for 404 (bad gist id), rate limiting, and auth failures, and
  * the (bounded) error body GitHub returned for everything the status code
@@ -110,6 +99,10 @@ export function networkError(error: unknown, file: string): StateError {
 	const code = findTransportCode(error);
 	const suffix = code === undefined ? "" : ` (${code})`;
 	return { file, kind: "stateError", reason: `network error: ${message}${suffix}` };
+}
+
+function isRateLimited(headers: Headers): boolean {
+	return headers.has("retry-after") || headers.get("x-ratelimit-remaining") === "0";
 }
 
 function rateLimitReason(status: number, headers: Headers): string {

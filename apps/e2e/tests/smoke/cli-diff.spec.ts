@@ -54,6 +54,9 @@ async function runBinAsync(args: ReadonlyArray<string>, cwd: string): Promise<Sp
 	});
 }
 
+// The gist stays this spec's backend on purpose. A diff only reads, so this
+// exercises the `state: { backend: "gist" }` config path through the real bin
+// at no cost to the gist's write budget.
 describe("bedrock diff bin against real gist + open cloud", () => {
 	it.skipIf(!HAS_SECRETS)(
 		"should preview pending changes against a fresh env and exit 0",

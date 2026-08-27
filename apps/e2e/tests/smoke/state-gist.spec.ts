@@ -22,9 +22,9 @@ const KEEP = 4;
 const READ_ATTEMPTS = 7;
 const READ_BASE_DELAY_MS = 500;
 
-// A digest the overwriting write stamps, so its bytes differ from what the
-// first write left and a read can tell the two apart.
-const MOVED_DIGEST = "a3f1c2d4e5b60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90";
+// A digest the second write stamps, so its bytes differ from what the first
+// write left and a read can tell the two apart.
+const OVERWRITE_DIGEST = "a3f1c2d4e5b60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90";
 
 /**
  * Prune the gist back to the newest {@link KEEP} smoke files once the calling
@@ -116,7 +116,7 @@ describe("gist state adapter against real github", () => {
 			// whatever is there, which is the contract the absent version above
 			// tells the caller to expect.
 			const overwrite = await port.write(
-				{ ...state, codegenHash: asSha256Hex(MOVED_DIGEST) },
+				{ ...state, codegenHash: asSha256Hex(OVERWRITE_DIGEST) },
 				{ kind: "absent" },
 			);
 			assertOk(overwrite, "a write fenced on a record that has since appeared");
@@ -132,7 +132,7 @@ describe("gist state adapter against real github", () => {
 			assert(after.success);
 			assert(after.data.state !== undefined);
 
-			expect(after.data.state.codegenHash).toBe(MOVED_DIGEST);
+			expect(after.data.state.codegenHash).toBe(OVERWRITE_DIGEST);
 		},
 		60_000,
 	);
