@@ -155,6 +155,99 @@ function untaggedStore(): StateBackendFetch {
 	return async () => new Response("", { status: 200 });
 }
 
+// Methods the untagged-write transports were asked for, in order.
+const untaggedMethods: Array<string> = [];
+
+/**
+ * A store that answers every write without an entity tag, and every read
+ * with the bytes the last write stored.
+ *
+ * @param etag - Entity tag a read names, absent when the store names none
+ * there either.
+ * @returns The transport to hand the lock port.
+ */
+function untaggedWrites(etag?: string): StateBackendFetch {
+	untaggedMethods.length = 0;
+	let stored = "";
+
+	return async (input, init) => {
+		untaggedMethods.push(init?.method ?? "GET");
+		if (init?.method === "PUT") {
+			const write = new Request(input, init);
+			stored = await write.text();
+			return new Response("", { status: 200 });
+		}
+
+		return new Response(stored, {
+			...(etag === undefined ? {} : { headers: { etag } }),
+			status: 200,
+		});
+	};
+}
+
+/**
+ * A store that answers a write without an entity tag and a read with
+ * another run's hold, which is a create that landed on a record this
+ * acquisition did not write.
+ *
+ * @returns The transport to hand the lock port.
+ */
+function untaggedOverAnother(): StateBackendFetch {
+	untaggedMethods.length = 0;
+
+	return async (_input, init) => {
+		untaggedMethods.push(init?.method ?? "GET");
+		return init?.method === "PUT"
+			? new Response("", { status: 200 })
+			: new Response(serializeLockRecord(OTHER_HOLD), {
+					headers: { etag: '"theirs"' },
+					status: 200,
+				});
+	};
+}
+
+/**
+ * A store that refuses the create and answers the read with this run's own
+ * record under no entity tag, which is a write that landed and can never
+ * be given up.
+ *
+ * @returns The transport to hand the lock port.
+ */
+function untaggedOwnRecord(): StateBackendFetch {
+	untaggedMethods.length = 0;
+	const own = serializeLockRecord({
+		id: THIS_RUN,
+		operation: "deploy",
+		owner: OWNER,
+		since: "2026-08-27T10:00:00.000Z",
+	});
+
+	return async (_input, init) => {
+		untaggedMethods.push(init?.method ?? "GET");
+		return init?.method === "PUT"
+			? new Response(errorBody("PreconditionFailed", "the pre-condition did not hold"), {
+					status: 412,
+				})
+			: new Response(own, { status: 200 });
+	};
+}
+
+/**
+ * A store that names no entity tag anywhere and refuses the delete that
+ * would discard the record left on the object.
+ *
+ * @returns The transport to hand the lock port.
+ */
+function undeletable(): StateBackendFetch {
+	return async (_input, init) => {
+		return init?.method === "DELETE"
+			? new Response(errorBody("AccessDenied", "the credential may not delete this object"), {
+					status: 403,
+				})
+			: new Response("", { status: 200 });
+	};
+}
+
 /**
  * Wrap a store so the run holding it releases part way through the wait
  * and another run takes the tombstone over first, which is how the holder
@@ -478,9 +571,10 @@ describe(createS3StateLockPort, () => {
 		});
 
 		it("should wait on a real timer when the caller injects none", async () => {
-			expect.assertions(1);
+			expect.assertions(2);
 
 			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
+			const startedAt = Date.now();
 			let ticks = 0;
 
 			const result = await lockFor({
@@ -494,7 +588,8 @@ describe(createS3StateLockPort, () => {
 
 			assert(!result.success);
 
-			expect(result.err.detail).toMatchObject({ elapsedMs: 30, kind: "acquireTimedOut" });
+			expect(result.err.detail).toMatchObject({ kind: "acquireTimedOut" });
+			expect(Date.now() - startedAt).toBeGreaterThanOrEqual(1);
 		});
 
 		it("should give each acquisition an identity of its own when the caller mints none", async () => {
@@ -531,6 +626,83 @@ describe(createS3StateLockPort, () => {
 			assert(!result.success);
 
 			expect(result.err.detail).toStrictEqual({ file: LOCK_LABEL, kind: "acquireFailed" });
+			expect(result.err.reason).toContain("could never be given up safely");
+		});
+
+		it("should record the hold as taken when it landed, not when the waiting began", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
+			const clock = createFakeClock(TEN_O_CLOCK);
+
+			const hold = await lockFor({
+				fetch: releasingAfter(store, 2),
+				now: clock.now,
+				sleep: clock.sleepAsync,
+			}).acquire("production");
+
+			assert(hold.success);
+
+			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)!.since).toBe(
+				"2026-08-27T10:00:01.000Z",
+			);
+		});
+
+		it("should take the hold on the entity tag a read names when the write named none", async () => {
+			expect.assertions(2);
+
+			const hold = await lockFor({ fetch: untaggedWrites('"recovered"') }).acquire(
+				"production",
+			);
+
+			assert(hold.success);
+
+			const given = await hold.data.release();
+
+			expect(given.success).toBeTrue();
+			expect(untaggedMethods).toStrictEqual(["PUT", "GET", "PUT"]);
+		});
+
+		it("should remove a record no entity tag can release rather than strand the environment", async () => {
+			expect.assertions(2);
+
+			const result = await lockFor({ fetch: untaggedWrites() }).acquire("production");
+
+			assert(!result.success);
+
+			expect(untaggedMethods).toStrictEqual(["PUT", "GET", "DELETE"]);
+			expect(result.err.detail).toStrictEqual({ file: LOCK_LABEL, kind: "acquireFailed" });
+		});
+
+		it("should leave a record another run wrote where it is", async () => {
+			expect.assertions(2);
+
+			const result = await lockFor({ fetch: untaggedOverAnother() }).acquire("production");
+
+			assert(!result.success);
+
+			expect(untaggedMethods).toStrictEqual(["PUT", "GET"]);
+			expect(result.err.detail).toStrictEqual({ file: LOCK_LABEL, kind: "acquireFailed" });
+		});
+
+		it("should report the missing entity tag even when the record cannot be removed", async () => {
+			expect.assertions(1);
+
+			const result = await lockFor({ fetch: undeletable() }).acquire("production");
+
+			assert(!result.success);
+
+			expect(result.err.detail).toStrictEqual({ file: LOCK_LABEL, kind: "acquireFailed" });
+		});
+
+		it("should remove a landed record of its own the store named no entity tag for", async () => {
+			expect.assertions(2);
+
+			const result = await lockFor({ fetch: untaggedOwnRecord() }).acquire("production");
+
+			assert(!result.success);
+
+			expect(untaggedMethods).toStrictEqual(["PUT", "GET", "DELETE"]);
 			expect(result.err.reason).toContain("could never be given up safely");
 		});
 

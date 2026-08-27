@@ -1,6 +1,19 @@
 import { type } from "arktype";
 
 /**
+ * What one acquisition writes itself down as, before the instant it took
+ * the hold is stamped on.
+ */
+export interface S3LockClaim {
+	/** Identity of the acquisition writing the record. */
+	readonly id: string;
+	/** What the hold is being taken for. */
+	readonly operation: string;
+	/** Who the hold belongs to. */
+	readonly owner: string;
+}
+
+/**
  * Who holds one **Environment**, and since when.
  *
  * @since unreleased

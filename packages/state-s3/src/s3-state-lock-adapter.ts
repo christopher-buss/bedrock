@@ -1,4 +1,4 @@
-import { GetObjectCommand, PutObjectCommand, type S3Client } from "@aws-sdk/client-s3";
+import type { S3Client } from "@aws-sdk/client-s3";
 import {
 	type Result,
 	type StateLockError,
@@ -9,29 +9,25 @@ import {
 
 import { backoffDelayMs } from "./backoff.ts";
 import {
-	classifyS3Failure,
-	isConditionRefusal,
-	type S3Failure,
-	type S3FailureKind,
-} from "./classify-failure.ts";
-import {
 	acquireRefused,
 	holdWithoutEntityTag,
 	invalidEnvironment,
-	releaseRefused,
 	timedOut,
 } from "./lock-failure.ts";
 import {
-	holderOf,
-	isoAt,
-	parseLockRecord,
-	randomLockId,
-	type S3LockHolder,
-	type S3LockRecord,
-	serializeLockRecord,
-} from "./lock-record.ts";
+	type Acquisition,
+	discardOwnAsync,
+	type LockSeams,
+	readLockAsync,
+	releaseAsync,
+	type SettledAttempt,
+	takeOverAsync,
+	type WonHold,
+	writeLockAsync,
+} from "./lock-object.ts";
+import { holderOf, randomLockId, type S3LockHolder, type S3LockRecord } from "./lock-record.ts";
 import { lockKeyFor, objectLabelFor } from "./object-key.ts";
-import { createConfiguredS3Client, readObjectTextAsync, type S3StoreDeps } from "./s3-client.ts";
+import { createConfiguredS3Client, type S3StoreDeps } from "./s3-client.ts";
 
 /**
  * How long acquisition waits out contention before giving up, when the
@@ -43,20 +39,6 @@ export const DEFAULT_LOCK_TIMEOUT_MS = 300_000;
 
 // What a hold is recorded as being for when the caller names no operation.
 const DEFAULT_OPERATION = "deploy";
-
-// The wildcard a conditional create requires the object to be absent with,
-// sent bare. At least one S3-compatible implementation compares the raw
-// header value before stripping quotes, so a quoted wildcard reads there as
-// an ETag comparison the store finds satisfied.
-const ABSENT = "*";
-
-// Refusals of a read that will still refuse however long acquisition waits.
-// Every other refusal is transient as far as this **Backend** can tell, so
-// the wait carries on through it.
-const PERMANENT_READ_REFUSAL: ReadonlySet<S3FailureKind> = new Set([
-	"accessDenied",
-	"missingCredentials",
-]);
 
 /**
  * Everything {@link createS3StateLockPort} needs beyond the bucket it
@@ -84,51 +66,6 @@ export interface S3StateLockAdapterDeps extends S3StoreDeps {
 	readonly sleep?: ((ms: number) => Promise<void>) | undefined;
 }
 
-/** The seams one acquisition runs on, settled from the deps once. */
-interface LockSeams {
-	/** Mints the identity this acquisition records. */
-	readonly mintId: () => string;
-	/** Reads the wall clock, in epoch milliseconds. */
-	readonly now: () => number;
-	/** Waits between attempts. */
-	readonly sleepAsync: (ms: number) => Promise<void>;
-	/** How long to wait out contention before giving up, in milliseconds. */
-	readonly timeoutMs: number;
-}
-
-/** One acquisition in progress, over the object it is contending for. */
-interface Acquisition {
-	/** The object the hold is recorded in. */
-	readonly key: string;
-	/** Bucket the lock object lives in. */
-	readonly bucket: string;
-	/** The configured S3 client. */
-	readonly client: S3Client;
-	/** That object addressed the way an operator would write it. */
-	readonly label: string;
-	/** What this acquisition writes when it wins. */
-	readonly record: S3LockRecord;
-	/** The clock, the waiting, and the identity this acquisition runs on. */
-	readonly seams: LockSeams;
-}
-
-/** What the lock object must look like for one write to land. */
-type LockCondition =
-	| { readonly etag: string; readonly kind: "unchanged" }
-	| { readonly kind: "absent" };
-
-/** One conditional write of the lock object, read as an outcome. */
-type LockAttempt =
-	| { readonly etag: string | undefined; readonly kind: "acquired" }
-	| { readonly failure: S3Failure; readonly kind: "failed" }
-	| { readonly kind: "contended" };
-
-/** What one read of the lock object came back with. */
-type LockRead =
-	| { readonly etag: string | undefined; readonly kind: "read"; readonly record: S3LockRecord }
-	| { readonly failure: S3Failure; readonly kind: "failed" }
-	| { readonly kind: "unreadable" };
-
 /** What one round of contention learned about who holds the **Environment**. */
 interface HolderReading {
 	/** Who holds it, absent when the round found nobody it could name. */
@@ -139,7 +76,7 @@ interface HolderReading {
 
 /** What one round of contention ended in. */
 type ContendOutcome =
-	| Exclude<LockAttempt, { kind: "contended" }>
+	| SettledAttempt
 	| { readonly kind: "contended"; readonly reading: HolderReading };
 
 /** What {@link openAcquisition} needs to open one. */
@@ -253,14 +190,13 @@ function openAcquisition({
 	return {
 		key,
 		bucket: deps.bucket,
-		client,
-		label: objectLabelFor(deps.bucket, key),
-		record: {
+		claim: {
 			id: seams.mintId(),
 			operation: operation ?? DEFAULT_OPERATION,
 			owner: deps.owner,
-			since: isoAt(seams.now()),
 		},
+		client,
+		label: objectLabelFor(deps.bucket, key),
 		seams,
 	};
 }
@@ -278,81 +214,33 @@ function contended(holder: S3LockHolder | undefined, identified: boolean): Conte
 }
 
 /**
- * Write the lock object, conditionally.
+ * Settle a create the store accepted without naming an entity tag.
+ *
+ * The record is on the object either way, so it is read back for the tag
+ * the write did not carry. A read that names one settles the hold; a read
+ * that names none leaves a record only this acquisition can take away. A
+ * record some other run wrote is left where it is.
  *
  * @param acquisition - The acquisition in progress.
- * @param condition - What the object must look like for the write to land.
- * @returns The hold, the refusal, or that the condition was declined.
+ * @param written - The record the create put on the object.
+ * @returns The hold, or an acquisition with no entity tag to release.
  */
-async function writeLockAsync(
-	{ key, bucket, client, record }: Acquisition,
-	condition: LockCondition,
-): Promise<LockAttempt> {
-	try {
-		const written = await client.send(
-			new PutObjectCommand({
-				...(condition.kind === "absent"
-					? { IfNoneMatch: ABSENT }
-					: { IfMatch: condition.etag }),
-				Body: serializeLockRecord(record),
-				Bucket: bucket,
-				ContentType: "application/json",
-				Key: key,
-			}),
-		);
-		return { etag: written.ETag, kind: "acquired" };
-	} catch (err) {
-		const failure = classifyS3Failure(err);
-		return isConditionRefusal(failure) ? { kind: "contended" } : { failure, kind: "failed" };
-	}
-}
-
-/**
- * Take a lock object with a tombstone in it over, conditional on the bytes
- * that were read.
- *
- * A store that answered the read without an entity tag leaves nothing to
- * condition on, so the takeover is not attempted and the wait carries on.
- *
- * @param acquisition - The acquisition in progress.
- * @param etag - Entity tag the read came back with.
- * @returns The hold, the refusal, or that the takeover was declined.
- */
-async function takeOverAsync(
+async function recoverHoldAsync(
 	acquisition: Acquisition,
-	etag: string | undefined,
-): Promise<LockAttempt> {
-	return etag === undefined
-		? { kind: "contended" }
-		: writeLockAsync(acquisition, { etag, kind: "unchanged" });
-}
+	written: S3LockRecord,
+): Promise<SettledAttempt> {
+	const found = await readLockAsync(acquisition);
+	if (found.kind === "read") {
+		if (found.record.id !== acquisition.claim.id) {
+			return { etag: undefined, kind: "acquired", record: written };
+		}
 
-/**
- * Read the lock object.
- *
- * A refusal the wait cannot outlast ends the acquisition: a credential that
- * cannot read the record will not start being able to, and waiting five
- * minutes before reporting the **Environment** as another run's would name
- * the wrong cause. Everything else reads as unreadable, and the wait
- * carries on.
- *
- * @param acquisition - The acquisition in progress.
- * @returns The record and its entity tag, that the read did not land, or
- * the refusal that ends the wait.
- */
-async function readLockAsync({ key, bucket, client }: Acquisition): Promise<LockRead> {
-	try {
-		const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-		const record = parseLockRecord(await readObjectTextAsync(object.Body));
-		return record === undefined
-			? { kind: "unreadable" }
-			: { etag: object.ETag, kind: "read", record };
-	} catch (err) {
-		const failure = classifyS3Failure(err);
-		return PERMANENT_READ_REFUSAL.has(failure.kind)
-			? { failure, kind: "failed" }
-			: { kind: "unreadable" };
+		if (found.etag !== undefined) {
+			return { etag: found.etag, kind: "acquired", record: found.record };
+		}
 	}
+
+	return discardOwnAsync(acquisition, written);
 }
 
 /**
@@ -365,7 +253,11 @@ async function readLockAsync({ key, bucket, client }: Acquisition): Promise<Lock
  */
 async function contendAsync(acquisition: Acquisition): Promise<ContendOutcome> {
 	const created = await writeLockAsync(acquisition, { kind: "absent" });
-	if (created.kind !== "contended") {
+	if (created.kind === "acquired") {
+		return created.etag === undefined ? recoverHoldAsync(acquisition, created.record) : created;
+	}
+
+	if (created.kind === "failed") {
 		return created;
 	}
 
@@ -381,8 +273,10 @@ async function contendAsync(acquisition: Acquisition): Promise<ContendOutcome> {
 	// A conditional create can land at the store and still be reported as a
 	// refusal, so the record in the way is sometimes this acquisition's own.
 	// Reporting it as the blocker would strand the very hold it just took.
-	if (found.record.id === acquisition.record.id) {
-		return { etag: found.etag, kind: "acquired" };
+	if (found.record.id === acquisition.claim.id) {
+		return found.etag === undefined
+			? discardOwnAsync(acquisition, found.record)
+			: { etag: found.etag, kind: "acquired", record: found.record };
 	}
 
 	if (found.record.releasedAt === undefined) {
@@ -397,44 +291,17 @@ async function contendAsync(acquisition: Acquisition): Promise<ContendOutcome> {
 }
 
 /**
- * Write the tombstone that gives one hold up.
- *
- * @param acquisition - The acquisition that won.
- * @param etag - Entity tag the store answered the winning write with.
- * @returns `Ok` once the tombstone is stored, or why it was refused.
- */
-async function releaseAsync(
-	{ key, bucket, client, label, record, seams }: Acquisition,
-	etag: string,
-): Promise<Result<void, StateLockError>> {
-	try {
-		await client.send(
-			new PutObjectCommand({
-				Body: serializeLockRecord({ ...record, releasedAt: isoAt(seams.now()) }),
-				Bucket: bucket,
-				ContentType: "application/json",
-				IfMatch: etag,
-				Key: key,
-			}),
-		);
-		return { data: undefined, success: true };
-	} catch (err) {
-		return { err: releaseRefused(label, classifyS3Failure(err)), success: false };
-	}
-}
-
-/**
  * Hand back the hold, which gives itself up by writing a tombstone over
  * the exact record it took.
  *
  * @param acquisition - The acquisition that won.
- * @param etag - Entity tag the store answered the winning write with.
+ * @param won - The record on the object, and the tag to write against.
  * @returns The hold the deploy shell gives up when the work is over.
  */
-function grantHold(acquisition: Acquisition, etag: string): StateLockHold {
+function grantHold(acquisition: Acquisition, won: WonHold): StateLockHold {
 	return {
 		async release() {
-			return releaseAsync(acquisition, etag);
+			return releaseAsync(acquisition, won);
 		},
 	};
 }
@@ -448,7 +315,7 @@ function grantHold(acquisition: Acquisition, etag: string): StateLockHold {
  */
 function settle(
 	acquisition: Acquisition,
-	attempt: Exclude<LockAttempt, { kind: "contended" }>,
+	attempt: SettledAttempt,
 ): Result<StateLockHold, StateLockError> {
 	const { label } = acquisition;
 
@@ -460,7 +327,10 @@ function settle(
 		return { err: holdWithoutEntityTag(label), success: false };
 	}
 
-	return { data: grantHold(acquisition, attempt.etag), success: true };
+	return {
+		data: grantHold(acquisition, { etag: attempt.etag, record: attempt.record }),
+		success: true,
+	};
 }
 
 /**
