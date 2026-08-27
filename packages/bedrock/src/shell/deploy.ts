@@ -908,6 +908,9 @@ async function releaseQuietlyAsync(hold: StateLockHold): Promise<void> {
  *
  * A **Backend** that waits out contention reports each backoff through the
  * **Progress port**, so a queued deploy is visible rather than a silent hang.
+ * A **Backend** that could not keep the hold's **Lease** reports that the
+ * same way, so a deploy running on a hold it no longer has says so rather
+ * than carrying on as though the **Environment** were still its own.
  *
  * A hold that could not be given up never changes the deploy's own result:
  * the failure carrying resources that were applied but not recorded has to
@@ -927,6 +930,9 @@ async function runHeldAsync({
 	}
 
 	const hold = await deps.stateLockPort.acquire(environment, {
+		onLeaseLost: (error) => {
+			deps.progress.emit({ environment, error, kind: "stateLockLeaseLost" });
+		},
 		onWaiting: (waiting) => {
 			deps.progress.emit({ ...waiting, environment, kind: "stateLockWaiting" });
 		},

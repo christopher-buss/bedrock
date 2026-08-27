@@ -313,6 +313,23 @@ describe(createClackProgressAdapter, () => {
 		);
 	});
 
+	it("should render a lease the backend could not keep as an error", () => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		const port = createClackProgressAdapter({ clack });
+
+		port.emit({
+			environment: "production",
+			error: { reason: "s3://my-bucket/locks/production.json is another run's now" },
+			kind: "stateLockLeaseLost",
+		});
+
+		expect(clack.logError).toHaveBeenCalledExactlyOnceWith(
+			"Lost the production state lock: s3://my-bucket/locks/production.json is another run's now",
+		);
+	});
+
 	it("should render stateWritten with the gist backend label resolved from the config", () => {
 		expect.assertions(1);
 

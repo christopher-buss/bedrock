@@ -2,6 +2,7 @@ import type { ResourceKind, ResourceOutputs } from "../core/resources.ts";
 import type { ApplyError } from "../shell/apply-ops.ts";
 import type { DeployError } from "../shell/deploy.ts";
 import type { ResourceKey } from "../types/ids.ts";
+import type { StateLockError } from "./state-lock-port.ts";
 
 /**
  * Per-environment outcome event emitted after a deploy completes
@@ -215,6 +216,24 @@ export interface StateLockWaitingEvent {
 }
 
 /**
+ * Per-environment event emitted when a locking **Backend** reports that it
+ * could not keep the **Lease** on the hold a deploy is running under. The
+ * hold is gone: another deploy may already have taken the **Environment**
+ * over, and this deploy's **State** write is refused rather than allowed to
+ * overwrite whatever that run recorded.
+ *
+ * @since unreleased
+ */
+export interface StateLockLeaseLostEvent {
+	/** Environment whose hold was lost. */
+	readonly environment: string;
+	/** Why the **Backend** could not keep the lease. */
+	readonly error: StateLockError;
+	/** Discriminator tag. */
+	readonly kind: "stateLockLeaseLost";
+}
+
+/**
  * Discriminated union of progress events the CLI emits while a deploy
  * runs. The variant set is additive: future per-stage and per-resource
  * events land as new `kind` values without breaking existing adapters.
@@ -229,6 +248,7 @@ export type ProgressEvent =
 	| ResourceOpNoopEvent
 	| ResourceOpStartedEvent
 	| ResourceOpSucceededEvent
+	| StateLockLeaseLostEvent
 	| StateLockWaitingEvent
 	| StateWrittenEvent;
 
