@@ -820,6 +820,157 @@ describe(migrateCommand, () => {
 		);
 	});
 
+	it("should record the state block a plugin translated from where it fetched the previous tool's state", async () => {
+		expect.assertions(3);
+
+		const encoder = new TextEncoder();
+		const buildStatePort = vi.fn<BuildStatePortFunc>(() => happyPortResult());
+		const writeFile = vi.fn<WriteFileFunc>();
+		writeFile.mockResolvedValue();
+		const dependencies = makeDependencies({
+			buildStatePort,
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createPort: () => ({ data: happyPort(), success: true }),
+				migratePrompts: [{ key: "bucket", label: "Bucket name?" }],
+				migrateSource: {
+					prompts: [
+						{ key: "bucket", label: "Bucket the Mantle state lives in?" },
+						{ key: "objectKey", label: "Object key of the Mantle state?" },
+					],
+					readBytes: async () => {
+						return { data: encoder.encode("version: '6'\n"), success: true };
+					},
+					toStateConfig: ({ bucket }) => ({ bucket, prefix: "bedrock/" }),
+				},
+				schema: type({ "bucket": "string > 0", "prefix?": "string" }),
+				specifier: "@example/state-s3",
+			}),
+			projectRoot: "/projects/example",
+			writeFile,
+		});
+		const port = dependencies.migratePromptPort!;
+		vi.mocked(port.promptStateSource).mockResolvedValueOnce({ data: "s3", success: true });
+		vi.mocked(port.promptBackendField)
+			.mockResolvedValueOnce({ data: "my-bucket", success: true })
+			.mockResolvedValueOnce({ data: "state/mantle.yml", success: true });
+		vi.mocked(port.promptConfigFormat).mockResolvedValueOnce({
+			data: "typescript",
+			success: true,
+		});
+		vi.mocked(port.promptStateBackend).mockResolvedValueOnce({ data: "s3", success: true });
+
+		await migrateCommand(dependencies)(undefined, { from: "mantle" });
+
+		expect(port.promptBackendField).toHaveBeenCalledTimes(2);
+		expect(buildStatePort).toHaveBeenCalledWith(
+			expect.objectContaining({
+				stateConfig: { backend: "s3", bucket: "my-bucket", prefix: "bedrock/" },
+			}),
+		);
+		expect(writeFile).toHaveBeenCalledWith(
+			CONFIG_TS_PATH,
+			expect.stringContaining('"@example/state-s3"'),
+		);
+	});
+
+	it("should ask a plugin's own fields when it declared no translation for what it fetched", async () => {
+		expect.assertions(2);
+
+		const encoder = new TextEncoder();
+		const buildStatePort = vi.fn<BuildStatePortFunc>(() => happyPortResult());
+		const dependencies = makeDependencies({
+			buildStatePort,
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createPort: () => ({ data: happyPort(), success: true }),
+				migratePrompts: [{ key: "bucket", label: "Bucket name?" }],
+				migrateSource: {
+					prompts: [{ key: "objectKey", label: "Object key of the Mantle state?" }],
+					readBytes: async () => {
+						return { data: encoder.encode("version: '6'\n"), success: true };
+					},
+				},
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+		});
+		const port = dependencies.migratePromptPort!;
+		vi.mocked(port.promptStateSource).mockResolvedValueOnce({ data: "s3", success: true });
+		vi.mocked(port.promptBackendField)
+			.mockResolvedValueOnce({ data: "state/mantle.yml", success: true })
+			.mockResolvedValueOnce({ data: "my-bucket", success: true });
+		vi.mocked(port.promptConfigFormat).mockResolvedValueOnce({
+			data: "typescript",
+			success: true,
+		});
+		vi.mocked(port.promptStateBackend).mockResolvedValueOnce({ data: "s3", success: true });
+
+		await migrateCommand(dependencies)(undefined, { from: "mantle" });
+
+		expect(port.promptBackendField).toHaveBeenNthCalledWith(
+			2,
+			expect.objectContaining({ key: "bucket" }),
+		);
+		expect(buildStatePort).toHaveBeenCalledWith(
+			expect.objectContaining({ stateConfig: { backend: "s3", bucket: "my-bucket" } }),
+		);
+	});
+
+	it("should ask a plugin's own fields when the user migrates onto a backend other than the one it fetched from", async () => {
+		expect.assertions(2);
+
+		const encoder = new TextEncoder();
+		const buildStatePort = vi.fn<BuildStatePortFunc>(() => happyPortResult());
+		const dependencies = makeDependencies({
+			buildStatePort,
+			plugins: mergeStateBackendPlugins(
+				fakeStateBackendPlugins({
+					name: "s3",
+					createPort: () => ({ data: happyPort(), success: true }),
+					migrateSource: {
+						prompts: [{ key: "bucket", label: "Bucket the Mantle state lives in?" }],
+						readBytes: async () => {
+							return { data: encoder.encode("version: '6'\n"), success: true };
+						},
+						toStateConfig: ({ bucket }) => ({ bucket }),
+					},
+					schema: type({ bucket: "string > 0" }),
+					specifier: "@example/state-s3",
+				}),
+				fakeStateBackendPlugins({
+					name: "r2",
+					createPort: () => ({ data: happyPort(), success: true }),
+					migratePrompts: [{ key: "container", label: "Container?" }],
+					schema: type({ container: "string > 0" }),
+					specifier: "@example/state-r2",
+				}),
+			),
+		});
+		const port = dependencies.migratePromptPort!;
+		vi.mocked(port.promptStateSource).mockResolvedValueOnce({ data: "s3", success: true });
+		vi.mocked(port.promptBackendField)
+			.mockResolvedValueOnce({ data: "my-bucket", success: true })
+			.mockResolvedValueOnce({ data: "my-container", success: true });
+		vi.mocked(port.promptConfigFormat).mockResolvedValueOnce({
+			data: "typescript",
+			success: true,
+		});
+		vi.mocked(port.promptStateBackend).mockResolvedValueOnce({ data: "r2", success: true });
+
+		await migrateCommand(dependencies)(undefined, { from: "mantle" });
+
+		expect(port.promptBackendField).toHaveBeenNthCalledWith(
+			2,
+			expect.objectContaining({ key: "container" }),
+		);
+		expect(buildStatePort).toHaveBeenCalledWith(
+			expect.objectContaining({
+				stateConfig: { backend: "r2", container: "my-container" },
+			}),
+		);
+	});
+
 	it("should report a plugin that could not fetch the previous tool's state", async () => {
 		expect.assertions(2);
 
@@ -1024,6 +1175,43 @@ describe(migrateCommand, () => {
 
 		expect(dependencies.clack!.logError).toHaveBeenCalledWith(
 			"plugin '@example/state-s3' could not read the mantle state: socket hang up",
+		);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
+	it("should report a plugin whose translation threw instead of letting the rejection escape", async () => {
+		expect.assertions(2);
+
+		const encoder = new TextEncoder();
+		const dependencies = makeDependencies({
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createPort: () => ({ data: happyPort(), success: true }),
+				migratePrompts: [{ key: "bucket", label: "Bucket name?" }],
+				migrateSource: {
+					prompts: [{ key: "bucket", label: "Bucket the Mantle state lives in?" }],
+					readBytes: async () => {
+						return { data: encoder.encode("version: '6'\n"), success: true };
+					},
+					toStateConfig: () => {
+						throw new Error("bucket name is not a valid host label");
+					},
+				},
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+		});
+		const port = dependencies.migratePromptPort!;
+		vi.mocked(port.promptStateSource).mockResolvedValueOnce({ data: "s3", success: true });
+		vi.mocked(port.promptBackendField).mockResolvedValueOnce({
+			data: "my-bucket",
+			success: true,
+		});
+
+		await migrateCommand(dependencies)(undefined, { from: "mantle" });
+
+		expect(dependencies.clack!.logError).toHaveBeenCalledWith(
+			"plugin '@example/state-s3' could not read the mantle state: bucket name is not a valid host label",
 		);
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});

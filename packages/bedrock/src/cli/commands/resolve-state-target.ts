@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import type { PluginRegistry, RegisteredStateBackend } from "../../core/plugin-registry.ts";
 import type { StateBackendPromptField } from "../../core/plugin.ts";
 import type { MigratePromptPort } from "../migrate-prompt-port.ts";
-import type { ResolvedStateTarget } from "./write-migrated-states.ts";
+import type { ResolvedPortTarget, ResolvedStateTarget } from "./write-migrated-states.ts";
 
 /**
  * What resolving a state target needs from the migrate command: somewhere
@@ -16,6 +16,31 @@ export interface StateTargetPrompts {
 	readonly plugins: PluginRegistry;
 	/** Port every question is asked through. */
 	readonly promptPort: MigratePromptPort;
+}
+
+/**
+ * What the migrate command already knows about where its state should
+ * live by the time the picker runs.
+ */
+export interface StateTargetInput {
+	/**
+	 * Path of the state file being migrated, which the local dump writes
+	 * beside.
+	 */
+	readonly stateFilePath: string;
+	/**
+	 * `state` block the plugin that fetched the previous tool's state
+	 * translated its coordinates into, if it declared a translation.
+	 */
+	readonly translatedTarget?: ResolvedPortTarget | undefined;
+}
+
+/** The plugin-declared **Backend** a migration is being written onto. */
+interface PickedPluginTarget {
+	/** The **Backend** the user picked. */
+	readonly registered: RegisteredStateBackend;
+	/** What the fetching plugin translated its coordinates into. */
+	readonly translated: ResolvedPortTarget | undefined;
 }
 
 /**
@@ -55,13 +80,13 @@ export async function collectBackendAnswersAsync(
  * the target the writers dispatch on.
  *
  * @param resolved - Where to ask, and what the plugins declared.
- * @param stateFilePath - Path of the state file being migrated, which the
- * local dump writes beside.
+ * @param input - Where the migration was read from, and the `state` block
+ * the plugin that read it translated its coordinates into.
  * @returns The resolved target, or the cancellation the user chose.
  */
 export async function promptForStateTargetAsync(
 	resolved: StateTargetPrompts,
-	stateFilePath: string,
+	input: StateTargetInput,
 ): Promise<Result<ResolvedStateTarget, "cancelled">> {
 	const backend = await resolved.promptPort.promptStateBackend(
 		migratableBackends(resolved.plugins),
@@ -74,7 +99,7 @@ export async function promptForStateTargetAsync(
 		return {
 			data: {
 				backend: "local",
-				outputDir: join(dirname(stateFilePath), ".bedrock", "state"),
+				outputDir: join(dirname(input.stateFilePath), ".bedrock", "state"),
 			},
 			success: true,
 		};
@@ -82,18 +107,13 @@ export async function promptForStateTargetAsync(
 
 	const registered = resolved.plugins.stateBackends.get(backend.data);
 	if (registered !== undefined) {
-		return promptForPluginTargetAsync(resolved, registered);
+		return promptForPluginTargetAsync(resolved, {
+			registered,
+			translated: input.translatedTarget,
+		});
 	}
 
-	const gistId = await resolved.promptPort.promptGistId();
-	if (!gistId.success) {
-		return { err: "cancelled", success: false };
-	}
-
-	return {
-		data: { backend: "port", stateConfig: { backend: "gist", gistId: gistId.data } },
-		success: true,
-	};
+	return promptForGistTargetAsync(resolved);
 }
 
 /**
@@ -123,17 +143,45 @@ function migratableBackends(plugins: PluginRegistry): ReadonlyArray<string> {
 }
 
 /**
+ * Resolve the `state` block for the builtin gist **Backend**.
+ *
+ * @param resolved - Where to ask, and what the plugins declared.
+ * @returns The target the writers dispatch on, or the cancellation.
+ */
+async function promptForGistTargetAsync(
+	resolved: StateTargetPrompts,
+): Promise<Result<ResolvedStateTarget, "cancelled">> {
+	const gistId = await resolved.promptPort.promptGistId();
+	if (!gistId.success) {
+		return { err: "cancelled", success: false };
+	}
+
+	return {
+		data: { backend: "port", stateConfig: { backend: "gist", gistId: gistId.data } },
+		success: true,
+	};
+}
+
+/**
  * Resolve the `state` block for a plugin-declared **Backend** by asking
  * the fields the plugin declared for it.
  *
+ * A **Backend** the migration was also read through supplies its
+ * translation, and its declared fields go unasked.
+ *
  * @param resolved - Where to ask, and what the plugins declared.
- * @param registered - The **Backend** the user picked.
+ * @param picked - The **Backend** the user picked, and the translation the
+ * fetching plugin supplied if there was one.
  * @returns The target the writers dispatch on, or the cancellation.
  */
 async function promptForPluginTargetAsync(
 	resolved: StateTargetPrompts,
-	registered: RegisteredStateBackend,
+	{ registered, translated }: PickedPluginTarget,
 ): Promise<Result<ResolvedStateTarget, "cancelled">> {
+	if (translated?.stateConfig.backend === registered.declaration.name) {
+		return { data: translated, success: true };
+	}
+
 	const answers = await collectBackendAnswersAsync(
 		resolved,
 		registered.declaration.migratePrompts ?? [],

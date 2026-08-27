@@ -136,7 +136,10 @@ export interface StateBackendSourceContext {
  * import type { StateBackendMigrateSource } from "@bedrock-rbx/core";
  *
  * const source: StateBackendMigrateSource = {
- *     prompts: [{ key: "objectKey", label: "Object key of the Mantle state?" }],
+ *     prompts: [
+ *         { key: "bucket", label: "Bucket the Mantle state lives in?" },
+ *         { key: "objectKey", label: "Object key of the Mantle state?" },
+ *     ],
  *     readBytes: async ({ coordinates, getEnv }) => {
  *         const key = getEnv("AWS_ACCESS_KEY_ID");
  *         if (key === undefined) {
@@ -148,10 +151,19 @@ export interface StateBackendSourceContext {
  *             success: true,
  *         };
  *     },
+ *     toStateConfig: ({ bucket }) => ({ bucket, prefix: "bedrock/" }),
  * };
  *
+ * expect(source.toStateConfig?.({ bucket: "my-bucket" })).toStrictEqual({
+ *     bucket: "my-bucket",
+ *     prefix: "bedrock/",
+ * });
+ *
  * return source
- *     .readBytes({ coordinates: { objectKey: "state/mantle.yml" }, getEnv: () => "key" })
+ *     .readBytes({
+ *         coordinates: { bucket: "my-bucket", objectKey: "state/mantle.yml" },
+ *         getEnv: () => "key",
+ *     })
  *     .then((fetched) => {
  *         expect(fetched.success).toBeTrue();
  *         if (fetched.success) {
@@ -179,6 +191,26 @@ export interface StateBackendMigrateSource {
 	readBytes(
 		context: StateBackendSourceContext,
 	): Promise<Result<Uint8Array, StateBackendBuildError>>;
+	/**
+	 * Translate the coordinates the foreign state was read from - the other
+	 * tool's state-location config - into the `state` keys bedrock records
+	 * for this **Backend**.
+	 *
+	 * A migration onto this **Backend** records what it returns and asks
+	 * none of {@link StateBackendDeclaration.migratePrompts}, so it must
+	 * return every key the **Backend**'s schema requires. Omit it when the
+	 * place the foreign state lived says nothing about where bedrock's
+	 * belongs, and those prompts are asked as usual. Pair it with an
+	 * empty `migratePrompts` for a **Backend** the translation fully
+	 * describes, which keeps it in the migrate picker.
+	 *
+	 * @param coordinates - Answers to {@link StateBackendMigrateSource.prompts}.
+	 * @returns The `state` keys to record, which core writes `backend`
+	 * alongside.
+	 */
+	toStateConfig?(
+		coordinates: Readonly<Record<string, string>>,
+	): Readonly<Record<string, unknown>>;
 }
 
 /**

@@ -10,7 +10,10 @@ import { type } from 'arktype'
 
 it('Example 1', () => {
   const source: StateBackendMigrateSource = {
-    prompts: [{ key: 'objectKey', label: 'Object key of the Mantle state?' }],
+    prompts: [
+      { key: 'bucket', label: 'Bucket the Mantle state lives in?' },
+      { key: 'objectKey', label: 'Object key of the Mantle state?' },
+    ],
     readBytes: async ({ coordinates, getEnv }) => {
       const key = getEnv('AWS_ACCESS_KEY_ID')
       if (key === undefined) {
@@ -21,10 +24,15 @@ it('Example 1', () => {
         success: true,
       }
     },
+    toStateConfig: ({ bucket }) => ({ bucket, prefix: 'bedrock/' }),
   }
+  expect(source.toStateConfig?.({ bucket: 'my-bucket' })).toStrictEqual({
+    bucket: 'my-bucket',
+    prefix: 'bedrock/',
+  })
   return source
     .readBytes({
-      coordinates: { objectKey: 'state/mantle.yml' },
+      coordinates: { bucket: 'my-bucket', objectKey: 'state/mantle.yml' },
       getEnv: () => 'key',
     })
     .then((fetched) => {

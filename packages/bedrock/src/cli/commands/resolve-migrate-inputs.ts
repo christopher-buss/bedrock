@@ -9,6 +9,7 @@ import type { MigratePromptPort } from "../migrate-prompt-port.ts";
 import { type MigrationSource, SUPPORTED_MIGRATION_SOURCES } from "../parse-migrate-options.ts";
 import { describeUnknown } from "./describe-unknown.ts";
 import { collectBackendAnswersAsync, fetchableBackends } from "./resolve-state-target.ts";
+import type { ResolvedPortTarget } from "./write-migrated-states.ts";
 
 /** Default name a plugin-fetched state file is reported and rooted at. */
 const FETCHED_STATE_BASENAME = ".mantle-state.yml";
@@ -24,6 +25,13 @@ export interface ResolvedMigrationInput {
 	readonly stateFileBytes?: Uint8Array;
 	/** Path the migration is rooted at. */
 	readonly stateFilePath: string;
+	/**
+	 * `state` block the fetching plugin translated its coordinates into,
+	 * present only when that plugin declared a translation. It is what a
+	 * user migrating back onto that same **Backend** gets instead of being
+	 * asked for the same coordinates a second time.
+	 */
+	readonly translatedTarget?: ResolvedPortTarget | undefined;
 }
 
 /** What resolving the migration input needs from the migrate command. */
@@ -154,6 +162,43 @@ async function readBytesAsync(
 }
 
 /**
+ * Build the target a plugin's translation names, mapping a throw onto
+ * the same refusal its reader reports. A plugin is ordinary JavaScript,
+ * so one that throws would otherwise escape the command and leave it
+ * without an exit code.
+ *
+ * @param chosen - The **Backend** the coordinates were fetched from and
+ * what it declared about fetching.
+ * @param coordinates - The answers the state was fetched from.
+ * @returns The target to record, `undefined` when the **Backend**
+ * declared no translation, or the refusal to report.
+ */
+function translateTarget(
+	{
+		registered,
+		source,
+	}: { readonly registered: RegisteredStateBackend; readonly source: StateBackendMigrateSource },
+	coordinates: Readonly<Record<string, string>>,
+): Result<ResolvedPortTarget | undefined, StateBackendBuildError> {
+	try {
+		const translated = source.toStateConfig?.(coordinates);
+		return {
+			data:
+				translated === undefined
+					? undefined
+					: {
+							backend: "port",
+							specifier: registered.specifier,
+							stateConfig: { ...translated, backend: registered.declaration.name },
+						},
+			success: true,
+		};
+	} catch (err) {
+		return { err: { detail: err, reason: describeUnknown(err) }, success: false };
+	}
+}
+
+/**
  * Ask a plugin's source fields and have it fetch the bytes they name.
  *
  * @param chosen - The **Backend** the user picked and what it declared
@@ -183,10 +228,19 @@ async function fetchThroughPluginAsync(
 		};
 	}
 
+	const translated = translateTarget({ registered, source }, coordinates.data);
+	if (!translated.success) {
+		return {
+			err: { ...translated.err, specifier: registered.specifier },
+			success: false,
+		};
+	}
+
 	return {
 		data: {
 			stateFileBytes: fetched.data,
 			stateFilePath: join(deps.projectRoot, FETCHED_STATE_BASENAME),
+			translatedTarget: translated.data,
 		},
 		success: true,
 	};
