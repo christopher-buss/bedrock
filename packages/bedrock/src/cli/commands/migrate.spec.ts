@@ -69,13 +69,6 @@ function happyPortResult(write?: StatePort["write"]): ReturnType<BuildStatePortF
 	return { data: happyPort(write), success: true };
 }
 
-/**
- * A project loader answering with a config that declares no plugins,
- * which is what the command reads for a test stating nothing of its own
- * about plugin discovery.
- *
- * @returns The loader to inject.
- */
 function fakeLoadProject(): NonNullable<ProgDependencies["loadProject"]> {
 	return vi.fn<NonNullable<ProgDependencies["loadProject"]>>(async () => {
 		return { data: { config: SAMPLE_CONFIG, plugins: EMPTY_PLUGIN_REGISTRY }, success: true };
