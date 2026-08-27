@@ -41,6 +41,23 @@ export function lockKeyFor(prefix: string | undefined, environment: string): str
 }
 
 /**
+ * Map one probe onto the scratch object it writes.
+ *
+ * The scratch object sits beside the lock objects, under the same segment
+ * a lifecycle rule expires, so a probe killed before it cleaned up leaves
+ * nothing an operator has to notice. The name is dotted and carries the
+ * probe's own identity, so it addresses neither a lock nor another probe
+ * running at the same time.
+ * @param prefix - Configured prefix, or `undefined` to store at the
+ * bucket root.
+ * @param id - Identity minted for this probe.
+ * @returns The object key the probe writes its scratch record at.
+ */
+export function probeKeyFor(prefix: string | undefined, id: string): string {
+	return lockKeyFor(prefix, `.probe-${id}`);
+}
+
+/**
  * Address one object the way an operator would write it, so a failure
  * names something they can paste into the AWS CLI.
  * @param bucket - Bucket the object lives in.
