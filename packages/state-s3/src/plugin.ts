@@ -3,6 +3,7 @@ import type {
 	StateBackendContext,
 	StateBackendDeclaration,
 } from "@bedrock-rbx/core";
+
 import { credentialsFrom } from "./credentials.ts";
 import { lockOwnerFrom } from "./lock-owner.ts";
 import { s3MigratePrompts, s3MigrateSource } from "./migrate.ts";

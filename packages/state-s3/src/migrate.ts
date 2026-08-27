@@ -15,6 +15,10 @@ import { objectLabelFor } from "./object-key.ts";
 import { createConfiguredS3Client, readObjectTextAsync } from "./s3-client.ts";
 import type { S3StateErrorDetail } from "./s3-state-adapter.ts";
 
+// A key present but blank is a coordinate the user never gave, which
+// would otherwise reach the client as an object nothing is stored at.
+const NON_EMPTY_STRING = "string > 0";
+
 // What mantle appends to the project name to name the object its state
 // lives in, which is the only naming convention a bucket it wrote holds.
 const MANTLE_STATE_SUFFIX = ".mantle-state.yml";
@@ -24,10 +28,10 @@ const MANTLE_STATE_SUFFIX = ".mantle-state.yml";
 // store is reached through arrives flattened: its `name` is the region and
 // its `endpoint` the endpoint.
 const mantleCoordinates = type({
-	"bucket": "string > 0",
-	"endpoint?": "string > 0",
-	"key": "string > 0",
-	"region": "string > 0",
+	"key": NON_EMPTY_STRING,
+	"bucket": NON_EMPTY_STRING,
+	"endpoint?": NON_EMPTY_STRING,
+	"region": NON_EMPTY_STRING,
 });
 
 /**
@@ -35,12 +39,12 @@ const mantleCoordinates = type({
  * user answered with.
  */
 interface MantleStateLocation {
+	/** Key the object is stored under. */
+	readonly key: string;
 	/** Bucket the object lives in. */
 	readonly bucket: string;
 	/** Endpoint to address instead of AWS, absent for AWS itself. */
 	readonly endpoint: string | undefined;
-	/** Key the object is stored under. */
-	readonly key: string;
 	/** Project name mantle keyed the object by. */
 	readonly project: string;
 	/** Region the bucket lives in. */
@@ -165,7 +169,10 @@ function locateMantleState(
 	const parsed = mantleCoordinates(coordinates);
 	if (parsed instanceof type.errors) {
 		return {
-			err: { detail: coordinates, reason: `the Mantle state coordinates are incomplete: ${parsed.summary}` },
+			err: {
+				detail: coordinates,
+				reason: `the Mantle state coordinates are incomplete: ${parsed.summary}`,
+			},
 			success: false,
 		};
 	}
@@ -175,9 +182,9 @@ function locateMantleState(
 		: parsed.key;
 	return {
 		data: {
+			key: `${project}${MANTLE_STATE_SUFFIX}`,
 			bucket: parsed.bucket,
 			endpoint: parsed.endpoint,
-			key: `${project}${MANTLE_STATE_SUFFIX}`,
 			project,
 			region: parsed.region,
 		},
@@ -206,18 +213,19 @@ async function readMantleStateAsync({
 		return located;
 	}
 
-	const { bucket, endpoint, key, region } = located.data;
+	const { key, bucket, endpoint, region } = located.data;
 	const client = createConfiguredS3Client({
 		bucket,
 		credentials: credentialsFrom(getEnvironment),
 		endpoint,
 		region,
 	});
+	const encoder = new TextEncoder();
 
 	try {
 		const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
 		const text = await readObjectTextAsync(object.Body);
-		return { data: new TextEncoder().encode(text), success: true };
+		return { data: encoder.encode(text), success: true };
 	} catch (err) {
 		const failure = classifyS3Failure(err);
 		const detail: S3StateErrorDetail = {

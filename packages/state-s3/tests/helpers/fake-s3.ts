@@ -3,21 +3,6 @@ import type { StateBackendFetch } from "@bedrock-rbx/core";
 import { onTestFinished, vi } from "vitest";
 
 /**
- * Put one transport in front of the runtime's own `fetch` for a test, and
- * take it back off once the test finishes. It is how a **Backend** that
- * core injects no transport into - the migrate source, which is handed
- * coordinates and an environment only - is driven against a fake store.
- *
- * @param transport - Transport the client's requests should reach.
- */
-export function stubGlobalFetch(transport: StateBackendFetch): void {
-	vi.stubGlobal("fetch", transport);
-	onTestFinished(() => {
-		vi.unstubAllGlobals();
-	});
-}
-
-/**
  * One request the S3 client sent, recorded as it reached the transport.
  */
 export interface CapturedS3Request {
@@ -60,6 +45,21 @@ interface StoredObjects {
 
 /** What a transport is handed as the thing to address. */
 type Addressed = Request | string | URL;
+
+/**
+ * Put one transport in front of the runtime's own `fetch` for a test, and
+ * take it back off once the test finishes. It is how a **Backend** that
+ * core injects no transport into - the migrate source, which is handed
+ * coordinates and an environment only - is driven against a fake store.
+ *
+ * @param transport - Transport the client's requests should reach.
+ */
+export function stubGlobalFetch(transport: StateBackendFetch): void {
+	vi.stubGlobal("fetch", transport);
+	onTestFinished(() => {
+		vi.unstubAllGlobals();
+	});
+}
 
 /**
  * Build the XML body S3 answers an error with, which is what the client's

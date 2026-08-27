@@ -50,7 +50,9 @@ describe("s3 plugin", () => {
 	it("should ask a migration onto this backend for the bucket, the region, and an endpoint it may skip", () => {
 		expect.assertions(2);
 
-		const fields = s3StateBackend.migratePrompts ?? [];
+		const fields = s3StateBackend.migratePrompts;
+
+		assert(fields !== undefined);
 
 		expect(fields.map((field) => field.key)).toStrictEqual(["bucket", "region", "endpoint"]);
 		expect(
@@ -61,7 +63,11 @@ describe("s3 plugin", () => {
 	it("should read the previous tool's state from the coordinates mantle kept it at", () => {
 		expect.assertions(1);
 
-		expect(s3StateBackend.migrateSource?.prompts.map((field) => field.key)).toStrictEqual([
+		const source = s3StateBackend.migrateSource;
+
+		assert(source !== undefined);
+
+		expect(source.prompts.map((field) => field.key)).toStrictEqual([
 			"bucket",
 			"region",
 			"key",
