@@ -791,6 +791,29 @@ describe(createGistStateAdapter, () => {
 			expect(sleepFake.calls).toStrictEqual([]);
 		});
 
+		it("should sit out a throttle naming the longest wait it serves", async () => {
+			expect.assertions(3);
+
+			const { calls, fetchFn } = fakeFetchSequence([
+				throttled({ "Retry-After": "30" }),
+				okJson({ files: {} }),
+			]);
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				random: fakeRandom(),
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			const result = await port.read("production");
+
+			expect(result.success).toBeTrue();
+			expect(calls).toHaveLength(2);
+			expect(sleepFake.calls).toStrictEqual([30_000]);
+		});
+
 		it("should refuse a throttle naming a wait it will not sit out", async () => {
 			expect.assertions(3);
 
@@ -843,7 +866,7 @@ describe(createGistStateAdapter, () => {
 			expect.assertions(3);
 
 			const { calls, fetchFn } = fakeFetchSequence([
-				new Response("", { headers: { "Retry-After": "60" }, status: 503 }),
+				new Response("", { headers: { "Retry-After": "2" }, status: 503 }),
 				okJson({ files: {} }),
 			]);
 			const sleepFake = fakeSleep();
