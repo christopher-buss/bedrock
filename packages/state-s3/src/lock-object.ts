@@ -93,12 +93,6 @@ export type LockAttempt =
 /** An attempt that is done contending, whichever way it went. */
 export type SettledAttempt = Exclude<LockAttempt, ContendedAttempt>;
 
-/** A renewal the store took without naming what to write against next. */
-export interface UntaggedHold {
-	/** The record the renewal put on the object. */
-	readonly record: S3LockRecord;
-}
-
 /** What a won acquisition gives up: the record it wrote, and its tag. */
 export interface WonHold extends UntaggedHold {
 	/** Entity tag the store answered the winning write with. */
@@ -131,6 +125,12 @@ export type LockRead =
 interface ContendedAttempt {
 	/** Which outcome this is. */
 	readonly kind: "contended";
+}
+
+/** A renewal the store took without naming what to write against next. */
+interface UntaggedHold {
+	/** The record the renewal put on the object. */
+	readonly record: S3LockRecord;
 }
 
 /** What one conditional write of the lock object came back with. */
