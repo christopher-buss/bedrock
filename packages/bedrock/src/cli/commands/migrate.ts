@@ -72,9 +72,13 @@ interface RunMigrateInputs {
 	readonly resolved: ResolvedMigrate;
 }
 
-interface RunMigratorInputs extends ResolvedMigrationInput {
+interface RunMigratorInputs {
 	readonly configFormat: MigrateConfigFormat;
 	readonly resolved: ResolvedMigrate;
+	/** Bytes a plugin fetched, absent when the state is a local file. */
+	readonly stateFileBytes?: Uint8Array;
+	/** Path the migration is rooted at. */
+	readonly stateFilePath: string;
 }
 
 interface MigratorIoError {
@@ -291,6 +295,7 @@ function finalizeDependencies(resolved: ResolvedMigrate): FinalizeDependencies {
 async function runWithStateFilePathAsync({
 	resolved,
 	source: _ignoredSource,
+	translatedTarget,
 	...input
 }: DispatchInputs): Promise<number> {
 	const formatResult = await resolved.promptPort.promptConfigFormat();
@@ -307,7 +312,10 @@ async function runWithStateFilePathAsync({
 		return reportResult.err === "cancelled" ? cancel(resolved) : EXIT_ERROR;
 	}
 
-	const targetResult = await promptForStateTargetAsync(resolved, input.stateFilePath);
+	const targetResult = await promptForStateTargetAsync(resolved, {
+		stateFilePath: input.stateFilePath,
+		translatedTarget,
+	});
 	if (!targetResult.success) {
 		return cancel(resolved);
 	}

@@ -9,6 +9,7 @@ import type { MigratePromptPort } from "../migrate-prompt-port.ts";
 import { type MigrationSource, SUPPORTED_MIGRATION_SOURCES } from "../parse-migrate-options.ts";
 import { describeUnknown } from "./describe-unknown.ts";
 import { collectBackendAnswersAsync, fetchableBackends } from "./resolve-state-target.ts";
+import type { ResolvedPortTarget } from "./write-migrated-states.ts";
 
 /** Default name a plugin-fetched state file is reported and rooted at. */
 const FETCHED_STATE_BASENAME = ".mantle-state.yml";
@@ -24,6 +25,13 @@ export interface ResolvedMigrationInput {
 	readonly stateFileBytes?: Uint8Array;
 	/** Path the migration is rooted at. */
 	readonly stateFilePath: string;
+	/**
+	 * `state` block the fetching plugin translated its coordinates into,
+	 * present only when that plugin declared a translation. It is what a
+	 * user migrating back onto that same **Backend** gets instead of being
+	 * asked for the same coordinates a second time.
+	 */
+	readonly translatedTarget?: ResolvedPortTarget | undefined;
 }
 
 /** What resolving the migration input needs from the migrate command. */
@@ -183,10 +191,19 @@ async function fetchThroughPluginAsync(
 		};
 	}
 
+	const translated = source.toStateConfig?.(coordinates.data);
 	return {
 		data: {
 			stateFileBytes: fetched.data,
 			stateFilePath: join(deps.projectRoot, FETCHED_STATE_BASENAME),
+			translatedTarget:
+				translated === undefined
+					? undefined
+					: {
+							backend: "port",
+							specifier: registered.specifier,
+							stateConfig: { ...translated, backend: registered.declaration.name },
+						},
 		},
 		success: true,
 	};

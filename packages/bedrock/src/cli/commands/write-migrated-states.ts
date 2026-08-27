@@ -12,6 +12,20 @@ import type { ClackPort } from "../render.ts";
 import { renderBuildStatePortError, renderStateWriteError } from "../render.ts";
 import { describeUnknown } from "./describe-unknown.ts";
 
+/** The {@link ResolvedStateTarget} arm that writes through a `StatePort`. */
+export interface ResolvedPortTarget {
+	/** Discriminator selecting the `StatePort` writer. */
+	readonly backend: "port";
+	/**
+	 * Module specifier of the plugin that claimed the backend, so the
+	 * emitted config lists the plugin that has to be loaded for this
+	 * `state` block to resolve. Absent for a builtin.
+	 */
+	readonly specifier?: string;
+	/** The `state` block written to the config and built into a port. */
+	readonly stateConfig: StateConfig;
+}
+
 /**
  * Where the migrate command persists per-environment states. The `port`
  * arm carries the resolved `state` block that gets written to the bedrock
@@ -20,17 +34,8 @@ import { describeUnknown } from "./describe-unknown.ts";
  * directory used for the JSON-per-environment dump.
  */
 export type ResolvedStateTarget =
-	| { readonly backend: "local"; readonly outputDir: string }
-	| {
-			readonly backend: "port";
-			/**
-			 * Module specifier of the plugin that claimed the backend, so
-			 * the emitted config lists the plugin that has to be loaded for
-			 * this `state` block to resolve. Absent for a builtin.
-			 */
-			readonly specifier?: string;
-			readonly stateConfig: StateConfig;
-	  };
+	| ResolvedPortTarget
+	| { readonly backend: "local"; readonly outputDir: string };
 
 /** Subset of the migrate command's resolved deps the writers need. */
 interface WriterDependencies {

@@ -193,16 +193,29 @@ To supply the state a user is migrating _from_, declare `migrateSource`. Its
 const s3: StateBackendDeclaration<typeof schema.infer> = {
 	// ...
 	migrateSource: {
-		prompts: [{ key: "objectKey", label: "Object key of the Mantle state?" }],
+		prompts: [
+			{ key: "bucket", label: "Bucket the Mantle state lives in?" },
+			{ key: "objectKey", label: "Object key of the Mantle state?" },
+		],
 		readBytes: async ({ coordinates, getEnv }) => {
 			return fetchObject(coordinates, getEnv);
 		},
+		toStateConfig: ({ bucket }) => ({ bucket, prefix: "bedrock/" }),
 	},
 };
 ```
 
 The split is bytes versus format. You never learn what the other tool's state
 means; bedrock parses it.
+
+`toStateConfig` translates those coordinates - the other tool's state-location
+config - into the `state` keys bedrock records, and bedrock writes `backend`
+alongside them. A user who fetched through your backend and then migrates onto
+it gets that block, and none of your `migratePrompts` are asked, so return every
+key your schema requires. Omit `toStateConfig` when where the foreign state
+lived says nothing about where bedrock's should live, and your `migratePrompts`
+are asked as usual. If a translation fully describes your backend, declare
+`migratePrompts: []` so it still appears in the migrate picker.
 
 ### Version against core
 
