@@ -36,6 +36,9 @@ interface StoredObjects {
 	written: number;
 }
 
+/** What a transport is handed as the thing to address. */
+type Addressed = Request | string | URL;
+
 /**
  * Build the XML body S3 answers an error with, which is what the client's
  * own deserializer turns back into a typed exception.
@@ -70,6 +73,88 @@ export function fakeS3Failure(
 		fetchFunc: async (input, init) => {
 			calls.push(await captureAsync(input, init));
 			return new Response(errorBody(code, `refused with ${code}`), { status });
+		},
+	};
+}
+
+// The segment naming a probe's scratch object, which is what tells one
+// apart from the lock object a test is exercising.
+const PROBE_SEGMENT = "/.probe-";
+
+/**
+ * Read the object path one request addressed.
+ *
+ * @param input - What the client addressed.
+ * @returns The URL path, prefix and key included.
+ */
+export function pathOf(input: Addressed): string {
+	const addressed = new URL(input instanceof Request ? input.url : input);
+	return addressed.pathname;
+}
+
+/**
+ * Whether one request addresses a probe's scratch object rather than a
+ * lock object.
+ *
+ * @param input - What the client addressed.
+ * @returns `true` when the request is the probe's.
+ */
+export function isProbeRequest(input: Addressed): boolean {
+	return pathOf(input).includes(PROBE_SEGMENT);
+}
+
+/**
+ * Wrap a transport so a probe's scratch object is answered by a store that
+ * honours conditional creates, leaving the transport under test to answer
+ * only for the lock object itself.
+ *
+ * A test stating how a store answers one acquisition is not stating how it
+ * answers the probe that runs first, and a transport that answered both on
+ * the same terms would be.
+ *
+ * @param inner - Transport answering everything that is not the probe's.
+ * @returns The transport to hand the lock port.
+ */
+export function honouringProbe(inner: StateBackendFetch): StateBackendFetch {
+	let written = false;
+
+	return async (input, init) => {
+		if (!isProbeRequest(input)) {
+			return inner(input, init);
+		}
+
+		if (init?.method === "DELETE") {
+			written = false;
+			return new Response("", { status: 204 });
+		}
+
+		if (written) {
+			return new Response(errorBody("PreconditionFailed", "the pre-condition did not hold"), {
+				status: 412,
+			});
+		}
+
+		written = true;
+		return new Response("", { headers: { etag: '"probe"' }, status: 200 });
+	};
+}
+
+/**
+ * A transport answering every write with success, which is how a store
+ * that never evaluates a condition answers.
+ *
+ * @returns The transport and the calls it recorded.
+ */
+export function fakeS3TakingEveryWrite(): {
+	calls: Array<CapturedS3Request>;
+	fetchFunc: StateBackendFetch;
+} {
+	const calls: Array<CapturedS3Request> = [];
+	return {
+		calls,
+		fetchFunc: async (input, init) => {
+			calls.push(await captureAsync(input, init));
+			return new Response("", { headers: { etag: '"taken"' }, status: 200 });
 		},
 	};
 }
@@ -223,6 +308,12 @@ function answer(store: StoredObjects, request: CapturedS3Request): Response {
 	}
 
 	const { pathname } = new URL(request.url);
+	if (request.method === "DELETE") {
+		store.objects.delete(pathname);
+		store.etags.delete(pathname);
+		return new Response("", { status: 204 });
+	}
+
 	const stored = store.objects.get(pathname);
 	if (stored === undefined) {
 		return noSuchKey();

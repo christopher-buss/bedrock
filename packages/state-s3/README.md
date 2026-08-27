@@ -60,12 +60,13 @@ environment variables, a shared profile, an SSO session, and CI role credentials
 all work with no bedrock-specific configuration.
 
 Grant `s3:GetObject` and `s3:PutObject` on the objects and on the locks beside
-them, under the prefix if you configured one:
+them, under the prefix if you configured one. `s3:DeleteObject` is what lets the
+conditional-write probe take its scratch object away again:
 
 ```json
 {
 	"Effect": "Allow",
-	"Action": ["s3:GetObject", "s3:PutObject"],
+	"Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
 	"Resource": "arn:aws:s3:::my-bucket/*"
 }
 ```
@@ -115,6 +116,24 @@ and one of them ignores the condition and deletes anyway.
 The run is recorded as `BEDROCK_LOCK_OWNER` when that is set, as the URL of the
 GitHub Actions run when `GITHUB_RUN_ID` is, and as the local user otherwise.
 
+### Proving the store first
+
+Before the first hold of a deploy is taken, the backend proves the store refuses
+a create of an object it already holds: it writes a scratch object under
+`locks/.probe-<id>.json`, writes it again requiring it to be absent, and reads
+the refusal as the proof. The scratch object is taken away once the store has
+answered, and the question is asked once per deploy however many holds follow.
+
+A store that takes the second write evaluated no condition, so it would grant
+every run that asks the same hold. It gets no locking and the deploy stops
+saying so, rather than running unprotected: exclusion that does not exclude is
+worse than none, and a deploy the user expected to be held is never quietly
+downgraded to one that is not. A store that could not be asked at all is refused
+on those terms too, naming what it answered.
+
+Without `s3:DeleteObject` the probe still answers, and the scratch objects are
+left for the lifecycle rule that expires the locks beside them.
+
 ## Failures
 
 A missing object is a first deploy, not a failure: reading it yields no state. A
@@ -129,7 +148,10 @@ refusal it does not recognize - arrives as `pluginStateBackend` carrying an
 
 A hold that could not be taken arrives as a `StateLockError` carrying an
 `S3StateLockErrorDetail` payload, which names the lock object, what went wrong,
-and on a timeout who held the environment and how long the wait ran.
+and on a timeout who held the environment and how long the wait ran. A store
+that failed the conditional-write probe arrives the same way, as
+`conditionalWritesIgnored` where the store took a create it should have refused
+and `conditionalWritesUnproven` where it could not be asked.
 
 ## License
 
