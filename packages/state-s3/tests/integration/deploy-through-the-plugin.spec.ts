@@ -151,7 +151,9 @@ describe("deploying through the s3 plugin", () => {
 		const record = parseLockRecord(held);
 		assert(record !== undefined);
 
-		expect(store.calls[0]!.url).toEndWith(`${LOCK_OBJECT}?x-id=PutObject`);
+		const lockCalls = store.calls.filter((call) => call.url.includes(LOCK_OBJECT));
+
+		expect(lockCalls[0]!.url).toEndWith(`${LOCK_OBJECT}?x-id=PutObject`);
 		expect(record.operation).toBe("deploy");
 		expect(record.releasedAt).toBeString();
 	});

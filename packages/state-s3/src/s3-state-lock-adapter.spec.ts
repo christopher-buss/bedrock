@@ -3,7 +3,16 @@ import type { StateBackendFetch, StateLockWaiting } from "@bedrock-rbx/core";
 import { assert, describe, expect, it } from "vitest";
 
 import { createFakeClock } from "#tests/helpers/fake-clock";
-import { errorBody, type FakeS3, fakeS3, fakeS3Failure } from "#tests/helpers/fake-s3";
+import {
+	errorBody,
+	type FakeS3,
+	fakeS3,
+	fakeS3Failure,
+	fakeS3TakingEveryWrite,
+	honouringProbe,
+	isProbeRequest,
+	pathOf,
+} from "#tests/helpers/fake-s3";
 import { parseLockRecord, type S3LockRecord, serializeLockRecord } from "./lock-record.ts";
 import {
 	createS3StateLockPort,
@@ -19,6 +28,7 @@ const THIS_RUN = "this-run";
 
 const LOCK_PATH = "/locks/production.json";
 const LOCK_LABEL = "s3://my-bucket/locks/production.json";
+const PROBE_PATH = "/locks/.probe-this-run.json";
 
 const CREDENTIALS = { accessKeyId: "example-access-key", secretAccessKey: "example-secret" };
 
@@ -40,7 +50,7 @@ const TEN_O_CLOCK = Date.parse("2026-08-27T10:00:00.000Z");
  * @param deps - What the test configures beyond bucket, region, and owner.
  * @returns The lock port under test.
  */
-function lockFor(deps: Partial<S3StateLockAdapterDeps> & Pick<S3StateLockAdapterDeps, "fetch">) {
+function lockFor(deps: Partial<S3StateLockAdapterDeps> & { fetch: StateBackendFetch }) {
 	return createS3StateLockPort({
 		bucket: BUCKET,
 		credentials: CREDENTIALS,
@@ -48,6 +58,49 @@ function lockFor(deps: Partial<S3StateLockAdapterDeps> & Pick<S3StateLockAdapter
 		owner: OWNER,
 		region: REGION,
 		...deps,
+		// The probe runs first against every store a test builds, and a
+		// transport stating how one acquisition is answered is not stating
+		// how that question is.
+		fetch: honouringProbe(deps.fetch),
+	});
+}
+
+/**
+ * Wrap a store so the first request the probe makes is refused and every
+ * later one is served, which is a refusal that answered nothing about the
+ * store rather than one that answered.
+ *
+ * @param store - The store every other request is served from.
+ * @returns The transport to hand the lock port.
+ */
+function refusingOneProbe(store: FakeS3): StateBackendFetch {
+	let refuse = true;
+	return async (input, init) => {
+		if (refuse && isProbeRequest(input)) {
+			refuse = false;
+			return new Response(errorBody("AccessDenied", "refused once"), { status: 403 });
+		}
+
+		return store.fetchFunc(input, init);
+	};
+}
+
+/**
+ * Build the lock port with the probe left to reach the transport, which is
+ * what a test of the probe itself needs.
+ *
+ * @param fetchFunc - Transport every request, the probe's included, is
+ * served from.
+ * @returns The lock port under test.
+ */
+function probedPort(fetchFunc: StateBackendFetch) {
+	return createS3StateLockPort({
+		bucket: BUCKET,
+		credentials: CREDENTIALS,
+		fetch: fetchFunc,
+		mintId: () => THIS_RUN,
+		owner: OWNER,
+		region: REGION,
 	});
 }
 
@@ -897,6 +950,95 @@ describe(createS3StateLockPort, () => {
 				statusCode: 412,
 			});
 			expect(given.err.reason).toBe("the pre-condition did not hold");
+		});
+	});
+
+	describe("conditional-write probe", () => {
+		it("should refuse to lock a store that takes a create of an object it already holds", async () => {
+			expect.assertions(2);
+
+			const result = await probedPort(fakeS3TakingEveryWrite().fetchFunc).acquire(
+				"production",
+			);
+			assert(!result.success);
+
+			expect(result.err.detail).toStrictEqual({
+				file: LOCK_LABEL,
+				kind: "conditionalWritesIgnored",
+			});
+			expect(result.err.reason).toBe(
+				`the store holding ${LOCK_LABEL} took a create of an object it already held, so a hold there would grant two runs the same environment; refusing to lock rather than reporting exclusion this store cannot give`,
+			);
+		});
+
+		it("should never reach the lock object of a store that ignores conditional creates", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3TakingEveryWrite();
+
+			await probedPort(store.fetchFunc).acquire("production");
+
+			expect(store.calls.map((call) => `${call.method} ${pathOf(call.url)}`)).toStrictEqual([
+				`PUT ${PROBE_PATH}`,
+				`PUT ${PROBE_PATH}`,
+				`DELETE ${PROBE_PATH}`,
+			]);
+		});
+
+		it("should refuse to lock a store that could not be asked at all", async () => {
+			expect.assertions(2);
+
+			const result = await probedPort(fakeS3Failure("AccessDenied", 403).fetchFunc).acquire(
+				"production",
+			);
+			assert(!result.success);
+
+			expect(result.err.detail).toStrictEqual({
+				name: "AccessDenied",
+				file: LOCK_LABEL,
+				kind: "conditionalWritesUnproven",
+				statusCode: 403,
+			});
+			expect(result.err.reason).toBe(
+				`the store holding ${LOCK_LABEL} could not be asked whether it honours conditional creates, so exclusion cannot be relied on here; it answered AccessDenied: refused with AccessDenied`,
+			);
+		});
+
+		it("should ask a store that proved nothing again on the next hold", async () => {
+			expect.assertions(2);
+
+			const port = probedPort(refusingOneProbe(fakeS3()));
+
+			const refused = await port.acquire("production");
+			assert(!refused.success);
+
+			expect(refused.err.detail).toMatchObject({ kind: "conditionalWritesUnproven" });
+
+			// The refusal answered nothing about the store, so holding on to
+			// it would refuse every later hold on a question never asked.
+			const taken = await port.acquire("production");
+
+			expect(taken.success).toBeTrue();
+		});
+
+		it("should ask the store once however many holds are taken through one port", async () => {
+			expect.assertions(3);
+
+			const store = fakeS3();
+			const port = probedPort(store.fetchFunc);
+
+			const first = await port.acquire("production");
+			assert(first.success);
+			await first.data.release();
+
+			const second = await port.acquire("staging");
+
+			expect(second.success).toBeTrue();
+
+			const probed = store.calls.filter((call) => isProbeRequest(call.url));
+
+			expect(probed.map((call) => call.method)).toStrictEqual(["PUT", "PUT", "DELETE"]);
+			expect(store.objects.has(PROBE_PATH)).toBeFalse();
 		});
 	});
 });

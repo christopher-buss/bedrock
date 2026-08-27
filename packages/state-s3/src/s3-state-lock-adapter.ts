@@ -9,7 +9,15 @@ import {
 
 import { backoffDelayMs } from "./backoff.ts";
 import {
+	type ConditionalWriteProbe,
+	type FailedProbe,
+	probeConditionalWritesAsync,
+	type ProbeTarget,
+} from "./conditional-write-probe.ts";
+import {
 	acquireRefused,
+	conditionalWritesIgnored,
+	conditionalWritesUnproven,
 	holdWithoutEntityTag,
 	invalidEnvironment,
 	timedOut,
@@ -26,7 +34,7 @@ import {
 	writeLockAsync,
 } from "./lock-object.ts";
 import { holderOf, randomLockId, type S3LockHolder, type S3LockRecord } from "./lock-record.ts";
-import { lockKeyFor, objectLabelFor } from "./object-key.ts";
+import { lockKeyFor, objectLabelFor, probeKeyFor } from "./object-key.ts";
 import { createConfiguredS3Client, type S3StoreDeps } from "./s3-client.ts";
 
 /**
@@ -85,7 +93,7 @@ interface AcquisitionInputs {
 	readonly client: S3Client;
 	/** Bucket coordinates and who the hold belongs to. */
 	readonly deps: S3StateLockAdapterDeps;
-	/** **Environment** the hold covers, already validated. */
+	/** **Environment** the hold covers, as the caller named it. */
 	readonly environment: string;
 	/** What the caller said the hold is for. */
 	readonly operation: string | undefined;
@@ -122,10 +130,22 @@ export async function delayAsync(ms: number): Promise<void> {
  * ```ts
  * import { createS3StateLockPort } from "@bedrock-rbx/state-s3";
  *
+ * // A store that refuses a create of an object it already holds, which is
+ * // what the port proves of one before it takes a hold with it.
+ * const stored = new Set<string>();
+ *
  * const port = createS3StateLockPort({
  *     bucket: "my-bucket",
  *     credentials: { accessKeyId: "example-access-key", secretAccessKey: "example-secret" },
- *     fetch: async () => new Response("", { headers: { etag: '"held"' }, status: 200 }),
+ *     fetch: async (input, init) => {
+ *         const request = new Request(input, init);
+ *         if (request.headers.get("if-none-match") === "*" && stored.has(request.url)) {
+ *             return new Response("", { status: 412 });
+ *         }
+ *
+ *         stored.add(request.url);
+ *         return new Response("", { headers: { etag: '"held"' }, status: 200 });
+ *     },
  *     owner: "ci-run-7",
  *     region: "eu-west-2",
  * });
@@ -145,30 +165,91 @@ export async function delayAsync(ms: number): Promise<void> {
  */
 export function createS3StateLockPort(deps: S3StateLockAdapterDeps): StateLockPort {
 	const client = createConfiguredS3Client(deps);
-	const seams: LockSeams = {
+	const seams = settleSeams(deps);
+	const probeStoreAsync = openProbe({
+		key: probeKeyFor(deps.prefix, seams.mintId()),
+		bucket: deps.bucket,
+		client,
+	});
+
+	return {
+		async acquire(environment, options) {
+			const opened = openAcquisition({
+				client,
+				deps,
+				environment,
+				operation: options?.operation,
+				seams,
+			});
+			if (!opened.success) {
+				return opened;
+			}
+
+			// Asked before anything reaches the lock object: a store that
+			// grants two runs the same hold has to be refused rather than
+			// answered with one.
+			const probed = await probeStoreAsync();
+			return probed.kind === "honoured"
+				? acquireAsync(opened.data, options)
+				: { err: probeRefusal(opened.data.label, probed), success: false };
+		},
+	};
+}
+
+/**
+ * Settle the clock, the waiting, and the identity every acquisition
+ * through one port runs on.
+ *
+ * @param deps - What the caller configured, where it configured anything.
+ * @returns The seams, defaulted.
+ */
+function settleSeams(deps: S3StateLockAdapterDeps): LockSeams {
+	return {
 		mintId: deps.mintId ?? randomLockId,
 		now: deps.now ?? Date.now,
 		sleepAsync: deps.sleep ?? delayAsync,
 		timeoutMs: deps.lockTimeoutMs ?? DEFAULT_LOCK_TIMEOUT_MS,
 	};
+}
 
-	return {
-		async acquire(environment, options) {
-			const safe = validateEnvironmentName(environment);
-			if (!safe.success) {
-				return { err: invalidEnvironment(safe.err.file, safe.err.reason), success: false };
-			}
-
-			const acquisition = openAcquisition({
-				client,
-				deps,
-				environment: safe.data,
-				operation: options?.operation,
-				seams,
-			});
-			return acquireAsync(acquisition, options);
-		},
+/**
+ * Open the standing question of whether this store honours conditional
+ * creates, which is asked at most once however many holds are taken.
+ *
+ * What the store proved is a property of the store rather than of the
+ * **Environment** being asked for, so asking again per acquisition would
+ * spend a round trip on a question already answered. A round that proved
+ * nothing is not an answer and is not held on to: the refusal that got in
+ * the way of one acquisition would otherwise refuse every later one on a
+ * question the store was never really asked.
+ *
+ * @param target - The scratch object to write, and the client to write it
+ * with.
+ * @returns Asking the store, which reaches it once per answer it gets.
+ */
+function openProbe(target: ProbeTarget): () => Promise<ConditionalWriteProbe> {
+	let answered: Promise<ConditionalWriteProbe> | undefined;
+	return async () => {
+		const asking = answered ?? probeConditionalWritesAsync(target);
+		const probed = await asking;
+		answered = probed.kind === "unproven" ? undefined : asking;
+		return probed;
 	};
+}
+
+/**
+ * Report a store whose conditional creates cannot be relied on, in terms
+ * of what that means for the **Environment** rather than in the store's
+ * own.
+ *
+ * @param label - The object the hold would have been recorded in.
+ * @param probed - What the probe learned.
+ * @returns The failure a caller sees.
+ */
+function probeRefusal(label: string, probed: FailedProbe): StateLockError {
+	return probed.kind === "ignored"
+		? conditionalWritesIgnored(label)
+		: conditionalWritesUnproven(label, probed.failure);
 }
 
 /**
@@ -177,7 +258,8 @@ export function createS3StateLockPort(deps: S3StateLockAdapterDeps): StateLockPo
  *
  * @param inputs - The bucket, the client, the seams, the **Environment**,
  * and what the hold is for.
- * @returns The acquisition, ready to contend.
+ * @returns The acquisition ready to contend, or the **Environment** name
+ * that could not address an object.
  */
 function openAcquisition({
 	client,
@@ -185,19 +267,27 @@ function openAcquisition({
 	environment,
 	operation,
 	seams,
-}: AcquisitionInputs): Acquisition {
-	const key = lockKeyFor(deps.prefix, environment);
+}: AcquisitionInputs): Result<Acquisition, StateLockError> {
+	const safe = validateEnvironmentName(environment);
+	if (!safe.success) {
+		return { err: invalidEnvironment(safe.err.file, safe.err.reason), success: false };
+	}
+
+	const key = lockKeyFor(deps.prefix, safe.data);
 	return {
-		key,
-		bucket: deps.bucket,
-		claim: {
-			id: seams.mintId(),
-			operation: operation ?? DEFAULT_OPERATION,
-			owner: deps.owner,
+		data: {
+			key,
+			bucket: deps.bucket,
+			claim: {
+				id: seams.mintId(),
+				operation: operation ?? DEFAULT_OPERATION,
+				owner: deps.owner,
+			},
+			client,
+			label: objectLabelFor(deps.bucket, key),
+			seams,
 		},
-		client,
-		label: objectLabelFor(deps.bucket, key),
-		seams,
+		success: true,
 	};
 }
 
