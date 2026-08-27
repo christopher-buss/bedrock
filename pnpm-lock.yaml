@@ -415,10 +415,16 @@ importers:
       '@bedrock-rbx/ocale':
         specifier: workspace:*
         version: link:../../packages/open-cloud
+      '@bedrock-rbx/state-s3':
+        specifier: workspace:*
+        version: link:../../packages/state-s3
       arktype:
         specifier: catalog:runtime
         version: 2.2.0
     devDependencies:
+      '@aws-sdk/client-s3':
+        specifier: catalog:runtime
+        version: 3.1112.0
       '@bedrock-rbx/testing':
         specifier: workspace:*
         version: link:../../packages/testing

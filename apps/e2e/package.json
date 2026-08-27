@@ -19,9 +19,11 @@
 	"dependencies": {
 		"@bedrock-rbx/core": "workspace:*",
 		"@bedrock-rbx/ocale": "workspace:*",
+		"@bedrock-rbx/state-s3": "workspace:*",
 		"arktype": "catalog:runtime"
 	},
 	"devDependencies": {
+		"@aws-sdk/client-s3": "catalog:runtime",
 		"@bedrock-rbx/testing": "workspace:*",
 		"@bedrock-rbx/typescript-config": "workspace:*",
 		"@bedrock-rbx/vite-config": "workspace:*",
