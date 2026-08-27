@@ -3,7 +3,7 @@ import type { StateBackendMigrateSource } from "@bedrock-rbx/core";
 import { assert, describe, expect, it } from "vitest";
 
 import { withEnvironment } from "#tests/helpers/environment";
-import { fakeS3, stubGlobalFetch } from "#tests/helpers/fake-s3";
+import { fakeS3 } from "#tests/helpers/fake-s3";
 import { s3MigrateSource } from "./migrate.ts";
 
 const MANTLE_STATE = ["version: '6'", "environments: {}", ""].join("\n");
@@ -41,10 +41,10 @@ describe("reading the mantle state a bucket holds", () => {
 		expect.assertions(2);
 
 		const store = fakeS3({ [MANTLE_OBJECT_PATH]: MANTLE_STATE });
-		stubGlobalFetch(store.fetchFunc);
 
 		const fetched = await s3MigrateSource.readBytes({
 			coordinates: COORDINATES,
+			fetch: store.fetchFunc,
 			getEnv: environmentOf(CREDENTIALS),
 		});
 
@@ -58,10 +58,10 @@ describe("reading the mantle state a bucket holds", () => {
 		expect.assertions(1);
 
 		const store = fakeS3({ [MANTLE_OBJECT_PATH]: MANTLE_STATE });
-		stubGlobalFetch(store.fetchFunc);
 
 		const fetched = await s3MigrateSource.readBytes({
 			coordinates: { ...COORDINATES, key: "pirate-wars.mantle-state.yml" },
+			fetch: store.fetchFunc,
 			getEnv: environmentOf(CREDENTIALS),
 		});
 
@@ -74,10 +74,10 @@ describe("reading the mantle state a bucket holds", () => {
 		expect.assertions(1);
 
 		const store = fakeS3({ [MANTLE_OBJECT_PATH]: MANTLE_STATE });
-		stubGlobalFetch(store.fetchFunc);
 
 		await s3MigrateSource.readBytes({
 			coordinates: COORDINATES,
+			fetch: store.fetchFunc,
 			getEnv: environmentOf(CREDENTIALS),
 		});
 
@@ -90,13 +90,16 @@ describe("reading the mantle state a bucket holds", () => {
 		expect.assertions(1);
 
 		const store = fakeS3({ [MANTLE_OBJECT_PATH]: MANTLE_STATE });
-		stubGlobalFetch(store.fetchFunc);
 		withEnvironment({
 			AWS_ACCESS_KEY_ID: "chain-access-key",
 			AWS_SECRET_ACCESS_KEY: "chain-secret",
 		});
 
-		await s3MigrateSource.readBytes({ coordinates: COORDINATES, getEnv: () => {} });
+		await s3MigrateSource.readBytes({
+			coordinates: COORDINATES,
+			fetch: store.fetchFunc,
+			getEnv: () => {},
+		});
 
 		expect(store.calls[0]!.headers["authorization"]).toStartWith(
 			"AWS4-HMAC-SHA256 Credential=chain-access-key/",
@@ -107,7 +110,6 @@ describe("reading the mantle state a bucket holds", () => {
 		expect.assertions(1);
 
 		const store = fakeS3({ [MANTLE_OBJECT_PATH]: MANTLE_STATE });
-		stubGlobalFetch(store.fetchFunc);
 
 		await s3MigrateSource.readBytes({
 			coordinates: {
@@ -115,6 +117,7 @@ describe("reading the mantle state a bucket holds", () => {
 				endpoint: "https://account-id.r2.example.com",
 				region: "auto",
 			},
+			fetch: store.fetchFunc,
 			getEnv: environmentOf(CREDENTIALS),
 		});
 
@@ -125,10 +128,10 @@ describe("reading the mantle state a bucket holds", () => {
 		expect.assertions(2);
 
 		const store = fakeS3();
-		stubGlobalFetch(store.fetchFunc);
 
 		const fetched = await s3MigrateSource.readBytes({
 			coordinates: COORDINATES,
+			fetch: store.fetchFunc,
 			getEnv: environmentOf(CREDENTIALS),
 		});
 
@@ -142,10 +145,10 @@ describe("reading the mantle state a bucket holds", () => {
 		expect.assertions(2);
 
 		const store = fakeS3();
-		stubGlobalFetch(store.fetchFunc);
 
 		const fetched = await s3MigrateSource.readBytes({
 			coordinates: { key: "pirate-wars", region: "us-west-2" },
+			fetch: store.fetchFunc,
 			getEnv: environmentOf(CREDENTIALS),
 		});
 

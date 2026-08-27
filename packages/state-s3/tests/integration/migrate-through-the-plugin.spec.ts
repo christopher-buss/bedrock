@@ -8,7 +8,7 @@ import {
 import { assert, describe, expect, it } from "vitest";
 
 import { s3StateBackend } from "#src/plugin";
-import { fakeS3, stubGlobalFetch } from "#tests/helpers/fake-s3";
+import { fakeS3 } from "#tests/helpers/fake-s3";
 
 const SPECIFIER = "@bedrock-rbx/state-s3";
 
@@ -79,10 +79,10 @@ describe("migrating through the s3 plugin", () => {
 		expect.assertions(2);
 
 		const store = fakeS3({ [MANTLE_OBJECT]: MANTLE_STATE });
-		stubGlobalFetch(store.fetchFunc);
 
 		const fetched = await migrateSource().readBytes({
 			coordinates: COORDINATES,
+			fetch: store.fetchFunc,
 			getEnv: (name) => ENVIRONMENT[name],
 		});
 

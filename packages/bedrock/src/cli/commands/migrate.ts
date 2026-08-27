@@ -6,6 +6,7 @@ import process from "node:process";
 import type { ConfigError } from "../../core/config-error.ts";
 import type { MigrateError, MigrationReport } from "../../core/migrate/migration-report.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../../core/plugin-registry.ts";
+import type { StateBackendFetch } from "../../core/plugin.ts";
 import { buildStatePort as defaultBuildStatePort } from "../../shell/build-state-port.ts";
 import { loadProjectAsync as defaultLoadProject } from "../../shell/load-config.ts";
 import {
@@ -58,6 +59,7 @@ interface ResolvedMigrate {
 	readonly buildStatePort: typeof defaultBuildStatePort;
 	readonly clack: ClackPort;
 	readonly exit: (code: number) => void;
+	readonly fetch: StateBackendFetch | undefined;
 	readonly migrateMantleState: typeof defaultMigrateMantleState;
 	readonly mkdir: (path: string) => Promise<void>;
 	readonly plugins: PluginRegistry;
@@ -172,6 +174,7 @@ function resolveMigrate(
 		buildStatePort: dependencies.buildStatePort ?? defaultBuildStatePort,
 		clack: dependencies.clack ?? createClackPort(),
 		exit: dependencies.exit ?? ((code) => process.exit(code)),
+		fetch: dependencies.fetch,
 		migrateMantleState: dependencies.migrateMantleState ?? defaultMigrateMantleState,
 		mkdir: dependencies.mkdir ?? nodeMkdirAsync,
 		plugins: project.plugins,

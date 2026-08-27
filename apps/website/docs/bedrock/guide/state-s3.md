@@ -111,11 +111,11 @@ export default defineConfig({
 });
 ```
 
-The project name Mantle keyed its object by becomes the `prefix`, so production
-lands at `s3://my-mantle-states/pirate-wars/production.json` and two projects
-that shared one bucket under Mantle stay apart rather than both writing
-`production.json` at the root. Bedrock never writes over the Mantle object: it
-is left where it is for as long as you want it.
+Mantle's `key` becomes the `prefix`, so production lands at
+`s3://my-mantle-states/pirate-wars/production.json` and two projects that shared
+one bucket under Mantle stay apart rather than both writing `production.json` at
+the root. Bedrock never writes over the Mantle object: it is left where it is
+for as long as you want it.
 
 Migrating onto a bucket you did not fetch from asks for the bucket, the region,
 and an endpoint you can skip. Either way the credentials are the ones a deploy

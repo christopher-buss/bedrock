@@ -112,11 +112,11 @@ export default defineConfig({
 });
 ```
 
-The project name Mantle keyed its object by becomes the `prefix`, so production
-lands at `s3://my-mantle-states/pirate-wars/production.json` and two projects
-that shared one bucket under Mantle stay apart. Migrating onto a bucket you did
-not fetch from asks for the bucket, the region, and an endpoint you can skip.
-Credentials resolve exactly as they do for a deploy.
+Mantle's `key` becomes the `prefix`, so production lands at
+`s3://my-mantle-states/pirate-wars/production.json` and two projects that shared
+one bucket under Mantle stay apart. Migrating onto a bucket you did not fetch
+from asks for the bucket, the region, and an endpoint you can skip. Credentials
+resolve exactly as they do for a deploy.
 
 Mantle's config carries nothing about `forcePathStyle` or `checksumCalculation`,
 so a migrated config has neither. Add them if your store needs them; see

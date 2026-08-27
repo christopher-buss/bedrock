@@ -98,9 +98,10 @@ The reading is by error code first and HTTP status second, because
 report a mistyped bucket as a first **Deploy**. _Avoid_: error code, exception
 
 **Transport**: The `fetch` the client's requests are routed through, injected by
-core and defaulted to the runtime's own. Swapping it leaves the client real, so
-signing, marshalling, and error deserialization are exercised by this package's
-tests rather than stubbed at `send`. _Avoid_: http client, mock, request handler
+core - for a **Deploy** and for a migration alike - and defaulted to the
+runtime's own. Swapping it leaves the client real, so signing, marshalling, and
+error deserialization are exercised by this package's tests rather than stubbed
+at `send`. _Avoid_: http client, mock, request handler
 
 ## Boundaries
 

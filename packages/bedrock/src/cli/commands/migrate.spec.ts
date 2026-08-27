@@ -820,6 +820,37 @@ describe(migrateCommand, () => {
 		);
 	});
 
+	it("should hand a fetching plugin the transport its caller injected", async () => {
+		expect.assertions(1);
+
+		const transport = vi.fn<NonNullable<ProgDependencies["fetch"]>>(
+			async () => new Response(""),
+		);
+		const seen: Array<unknown> = [];
+		const dependencies = makeDependencies({
+			fetch: transport,
+			plugins: s3PluginsWithSource(async ({ fetch: injected }) => {
+				seen.push(injected);
+				return { data: Uint8Array.of(0), success: true };
+			}),
+		});
+		const port = dependencies.migratePromptPort!;
+		vi.mocked(port.promptStateSource).mockResolvedValueOnce({ data: "s3", success: true });
+		vi.mocked(port.promptBackendField).mockResolvedValueOnce({
+			data: "state/mantle.yml",
+			success: true,
+		});
+		vi.mocked(port.promptConfigFormat).mockResolvedValueOnce({
+			data: "typescript",
+			success: true,
+		});
+		vi.mocked(port.promptStateBackend).mockResolvedValueOnce({ data: "local", success: true });
+
+		await migrateCommand(dependencies)(undefined, { from: "mantle" });
+
+		expect(seen).toStrictEqual([transport]);
+	});
+
 	it("should record the state block a plugin translated from where it fetched the previous tool's state", async () => {
 		expect.assertions(3);
 

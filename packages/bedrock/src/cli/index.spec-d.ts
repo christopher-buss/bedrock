@@ -23,6 +23,7 @@ describe("ProgDeps shape", () => {
 			| "deploy"
 			| "discoverOverride"
 			| "exit"
+			| "fetch"
 			| "loadProject"
 			| "migrateMantleState"
 			| "migratePromptPort"

@@ -173,6 +173,31 @@ describe("s3 plugin", () => {
 		);
 	});
 
+	it("should fall back to the standard aws chain when the environment holds a blank key", async () => {
+		expect.assertions(1);
+
+		const store = fakeS3();
+		withEnvironment({
+			AWS_ACCESS_KEY_ID: "chain-access-key",
+			AWS_SECRET_ACCESS_KEY: "chain-secret",
+		});
+		const built = s3StateBackend.createPort(
+			context({
+				fetch: store.fetchFunc,
+				getEnv: environmentOf({ ...CREDENTIALS, AWS_SECRET_ACCESS_KEY: " " }),
+				stateConfig: STATE_CONFIG,
+			}),
+		);
+
+		assert(built.success);
+
+		await built.data.read("production");
+
+		expect(store.calls[0]!.headers["authorization"]).toStartWith(
+			"AWS4-HMAC-SHA256 Credential=chain-access-key/",
+		);
+	});
+
 	it("should sign without a session token when the environment names none", async () => {
 		expect.assertions(1);
 

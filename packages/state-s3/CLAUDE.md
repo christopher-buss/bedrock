@@ -77,10 +77,8 @@ instants a record carries are the same on every machine. The identity one
 acquisition writes is injected too (`mintId`), so a test can state which record
 it expects to find.
 
-Core injects no transport into the migrate source: it hands a **Backend**
-coordinates and an environment only. Those tests put the fake store in front of
-the runtime's own `fetch` (`stubGlobalFetch` in `tests/helpers/fake-s3.ts`), so
-the client stays as real there as it is everywhere else.
+The migrate source is handed a **Transport** the same way the ports are, so its
+tests inject the fake store rather than replacing the runtime's own `fetch`.
 
 `vite.config.ts` drops the `module` resolve condition. The AWS SDK's `module`
 build imports its own files without extensions, which only a bundler resolves;
@@ -92,10 +90,10 @@ without the override every test importing the client fails to load.
 are mantle's own `state.remote` block, and its custom-region form arrives
 flattened: the region is the custom `name` and the endpoint the custom
 `endpoint`. Mantle keys one object `<project>.mantle-state.yml`, so the key
-answered names the project and the suffix is appended, whether or not the answer
-already carries it.
+answered names the project and the suffix is appended only when the answer does
+not already carry it.
 
-The translation makes that project name the **Prefix**, which is what keeps two
+The translation makes mantle's own key the **Prefix**, which is what keeps two
 projects that shared one bucket under mantle from both writing `production.json`
 at the root. Coordinates that could not have been fetched from are refused by
 throwing, which is core's own path for a translation that cannot be made.

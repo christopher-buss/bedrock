@@ -117,6 +117,13 @@ export interface StateBackendPromptField {
 export interface StateBackendSourceContext {
 	/** Answers to the source prompts, keyed by field. */
 	readonly coordinates: Readonly<Record<string, string>>;
+	/**
+	 * `fetch` seam, present only when the caller injected one. A reader that
+	 * talks HTTP should route through it and fall back to `globalThis.fetch`,
+	 * which is what makes it testable against a fake transport on the same
+	 * terms a **Backend**'s adapters are.
+	 */
+	readonly fetch?: StateBackendFetch | undefined;
 	/** Reads an environment variable. */
 	readonly getEnv: (name: string) => string | undefined;
 }

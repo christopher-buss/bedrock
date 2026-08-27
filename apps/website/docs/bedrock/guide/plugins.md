@@ -213,7 +213,10 @@ const s3: StateBackendDeclaration<typeof schema.infer> = {
 ```
 
 The split is bytes versus format. You never learn what the other tool's state
-means; bedrock parses it.
+means; bedrock parses it. `readBytes` is handed the same `fetch` seam a backend
+builder gets, so route your requests through it and fall back to
+`globalThis.fetch`; that is what lets your own tests drive it against a fake
+transport.
 
 `toStateConfig` translates those coordinates - the other tool's state-location
 config - into the `state` keys bedrock records, and bedrock writes `backend`

@@ -4,7 +4,11 @@ import { join } from "node:path";
 import process from "node:process";
 
 import type { PluginRegistry, RegisteredStateBackend } from "../../core/plugin-registry.ts";
-import type { StateBackendBuildError, StateBackendMigrateSource } from "../../core/plugin.ts";
+import type {
+	StateBackendBuildError,
+	StateBackendFetch,
+	StateBackendMigrateSource,
+} from "../../core/plugin.ts";
 import type { MigratePromptPort } from "../migrate-prompt-port.ts";
 import { type MigrationSource, SUPPORTED_MIGRATION_SOURCES } from "../parse-migrate-options.ts";
 import { describeUnknown } from "./describe-unknown.ts";
@@ -36,6 +40,11 @@ export interface ResolvedMigrationInput {
 
 /** What resolving the migration input needs from the migrate command. */
 export interface MigrationInputDeps {
+	/**
+	 * Transport a fetching plugin routes its requests through, absent when
+	 * the caller injected none and the plugin falls back to the runtime's.
+	 */
+	readonly fetch?: StateBackendFetch | undefined;
 	/** What the loaded plugins declared. */
 	readonly plugins: PluginRegistry;
 	/** Directory a plugin-fetched migration roots its outputs at. */
@@ -147,15 +156,23 @@ async function resolveLocalInputAsync(
  * command and leave it without an exit code.
  *
  * @param source - What the **Backend** declared about fetching.
- * @param coordinates - The answers naming what to fetch.
+ * @param fetched - The answers naming what to fetch, and the transport to
+ * hand the plugin.
  * @returns The bytes, or the refusal to report.
  */
 async function readBytesAsync(
 	source: StateBackendMigrateSource,
-	coordinates: Readonly<Record<string, string>>,
+	fetched: {
+		readonly coordinates: Readonly<Record<string, string>>;
+		readonly fetch: StateBackendFetch | undefined;
+	},
 ): Promise<Result<Uint8Array, StateBackendBuildError>> {
 	try {
-		return await source.readBytes({ coordinates, getEnv: (name) => process.env[name] });
+		return await source.readBytes({
+			coordinates: fetched.coordinates,
+			fetch: fetched.fetch,
+			getEnv: (name) => process.env[name],
+		});
 	} catch (err) {
 		return { err: { detail: err, reason: describeUnknown(err) }, success: false };
 	}
@@ -199,6 +216,21 @@ function translateTarget(
 }
 
 /**
+ * Name the plugin a refusal came from, which is what lets a report say
+ * whose payload it is carrying.
+ *
+ * @param err - What the plugin refused with.
+ * @param registered - The **Backend** the refusal came from.
+ * @returns The refusal, attributed.
+ */
+function attributedTo(
+	err: StateBackendBuildError,
+	registered: RegisteredStateBackend,
+): MigrationSourceFailure {
+	return { ...err, specifier: registered.specifier };
+}
+
+/**
  * Ask a plugin's source fields and have it fetch the bytes they name.
  *
  * @param chosen - The **Backend** the user picked and what it declared
@@ -220,20 +252,17 @@ async function fetchThroughPluginAsync(
 		return { err: "cancelled", success: false };
 	}
 
-	const fetched = await readBytesAsync(source, coordinates.data);
+	const fetched = await readBytesAsync(source, {
+		coordinates: coordinates.data,
+		fetch: deps.fetch,
+	});
 	if (!fetched.success) {
-		return {
-			err: { ...fetched.err, specifier: registered.specifier },
-			success: false,
-		};
+		return { err: attributedTo(fetched.err, registered), success: false };
 	}
 
 	const translated = translateTarget({ registered, source }, coordinates.data);
 	if (!translated.success) {
-		return {
-			err: { ...translated.err, specifier: registered.specifier },
-			success: false,
-		};
+		return { err: attributedTo(translated.err, registered), success: false };
 	}
 
 	return {

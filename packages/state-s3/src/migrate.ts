@@ -193,7 +193,8 @@ function locateMantleState(
  *
  * Credentials resolve exactly as they do for a **Deploy**: the key pair
  * the environment core injected holds, and the standard AWS Node chain
- * when it holds none.
+ * when it holds none. The request goes through the transport core
+ * injected, falling back to the runtime's own.
  *
  * @param context - The answered coordinates plus the credential seam core
  * injects.
@@ -202,6 +203,7 @@ function locateMantleState(
  */
 async function readMantleStateAsync({
 	coordinates,
+	fetch: fetchFunc,
 	getEnv: getEnvironment,
 }: StateBackendSourceContext): Promise<Result<Uint8Array, StateBackendBuildError>> {
 	const located = locateMantleState(coordinates);
@@ -215,6 +217,7 @@ async function readMantleStateAsync({
 		bucket,
 		credentials: credentialsFrom(getEnvironment),
 		endpoint,
+		fetch: fetchFunc,
 		region,
 	});
 	const encoder = new TextEncoder();
