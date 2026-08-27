@@ -47,6 +47,14 @@ export interface S3StateConfig {
 	 */
 	forcePathStyle?: boolean;
 	/**
+	 * How long a hold on an **Environment** is leased for, in milliseconds.
+	 * Defaults to one minute. A **Deploy** renews the lease while it runs;
+	 * a hold nothing renews past its deadline is taken over by the next
+	 * deploy, which is what keeps a cancelled CI job from blocking every
+	 * later run.
+	 */
+	lockLeaseMs?: number;
+	/**
 	 * How long a **Deploy** waits for an **Environment** another run holds
 	 * before giving up, in milliseconds. Defaults to five minutes. Zero
 	 * refuses immediately rather than waiting at all.
@@ -79,6 +87,7 @@ export const s3StateSchema: type.Any<S3StateConfig> = type({
 	"checksumCalculation?": "'whenRequired' | 'whenSupported'",
 	"endpoint?": NON_EMPTY_STRING,
 	"forcePathStyle?": "boolean",
+	"lockLeaseMs?": "number > 0",
 	"lockTimeoutMs?": "number >= 0",
 	"prefix?": "string",
 	"region": NON_EMPTY_STRING,

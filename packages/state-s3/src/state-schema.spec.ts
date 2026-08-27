@@ -27,6 +27,14 @@ describe(s3StateSchema, () => {
 		expect(s3StateSchema(block)).toStrictEqual(block);
 	});
 
+	it("should reject a lease no hold could be taken under", () => {
+		expect.assertions(1);
+
+		const parsed = s3StateSchema({ bucket: "my-bucket", lockLeaseMs: 0, region: "eu-west-2" });
+
+		expect(parsed).toBeInstanceOf(ArkErrors);
+	});
+
 	it("should reject a block that names no bucket", () => {
 		expect.assertions(1);
 

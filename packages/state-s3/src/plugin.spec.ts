@@ -4,6 +4,8 @@ import { assert, describe, expect, it } from "vitest";
 
 import { withEnvironment } from "#tests/helpers/environment";
 import { fakeS3 } from "#tests/helpers/fake-s3";
+import { DEFAULT_LOCK_LEASE_MS } from "./lease.ts";
+import { parseLockRecord } from "./lock-record.ts";
 import s3Plugin, { s3StateBackend } from "./plugin.ts";
 import type { S3StateConfig } from "./state-schema.ts";
 
@@ -44,6 +46,34 @@ describe("s3 plugin", () => {
 			STATE_CONFIG,
 		);
 		expect(s3StateBackend.schema({ region: "eu-west-2" })).not.toStrictEqual(STATE_CONFIG);
+	});
+
+	it("should build a lock port that leases a hold for as long as the state block asked", async () => {
+		expect.assertions(2);
+
+		const store = fakeS3();
+		const built = s3StateBackend.createLockPort!(
+			context({
+				fetch: store.fetchFunc,
+				getEnv: environmentOf(CREDENTIALS),
+				stateConfig: { ...STATE_CONFIG, lockLeaseMs: 600_000 },
+			}),
+		);
+
+		assert(built.success);
+
+		const takenAt = Date.now();
+		const hold = await built.data.acquire("production");
+
+		assert(hold.success);
+
+		const given = await hold.data.release();
+		const record = parseLockRecord(store.objects.get("/locks/production.json")!);
+
+		assert(record !== undefined);
+
+		expect(given.success).toBeTrue();
+		expect(Date.parse(record.expiresAt) - takenAt).toBeGreaterThan(DEFAULT_LOCK_LEASE_MS);
 	});
 
 	it("should build a port that reads the bucket the state block named", async () => {
