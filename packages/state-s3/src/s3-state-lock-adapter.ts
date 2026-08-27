@@ -17,8 +17,11 @@ import {
 	serializeLockRecord,
 } from "./lock-record.ts";
 import { lockKeyFor, objectLabelFor } from "./object-key.ts";
-import { createConfiguredS3Client, type S3StateAdapterDeps } from "./s3-client.ts";
-import { readObjectTextAsync } from "./s3-state-adapter.ts";
+import {
+	createConfiguredS3Client,
+	readObjectTextAsync,
+	type S3StateAdapterDeps,
+} from "./s3-client.ts";
 
 /**
  * How long acquisition waits out contention before giving up, when the

@@ -45,6 +45,16 @@ export interface S3StateAdapterDeps {
 }
 
 /**
+ * What the client hands back as an object's body, narrowed to the one
+ * method this **Backend** uses so an absent body can be covered without
+ * building a stream.
+ */
+interface ObjectBody {
+	/** Read the whole object into a string. */
+	transformToString: () => Promise<string>;
+}
+
+/**
  * Build the S3 client both of this **Backend**'s ports send through, with
  * the transport seam routed through the `fetch` core injected so the real
  * client's signing, marshalling, and error deserialization stay in play.
@@ -62,4 +72,21 @@ export function createConfiguredS3Client(deps: S3StateAdapterDeps): S3Client {
 			CHECKSUM_CALCULATION[deps.checksumCalculation ?? "whenSupported"],
 		requestHandler: createFetchRequestHandler(deps.fetch ?? fetch.bind(globalThis)),
 	});
+}
+
+/**
+ * Read an object's bytes as text, reading a body the client never
+ * produced as an empty object rather than as absent **State**: a **State**
+ * that reads as empty is how a **Deploy** forgets every resource it
+ * created.
+ *
+ * Exported for direct coverage of that distinction, which the client's
+ * types admit but a store never produces.
+ *
+ * @param body - What the client handed back for the object, absent when
+ * it attached nothing.
+ * @returns Everything the object holds, decoded as text.
+ */
+export async function readObjectTextAsync(body: ObjectBody | undefined): Promise<string> {
+	return body === undefined ? "" : body.transformToString();
 }

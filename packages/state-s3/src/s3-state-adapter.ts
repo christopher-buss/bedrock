@@ -11,7 +11,11 @@ import {
 
 import { classifyS3Failure, type S3Failure, type S3FailureKind } from "./classify-failure.ts";
 import { objectKeyFor, objectLabelFor } from "./object-key.ts";
-import { createConfiguredS3Client, type S3StateAdapterDeps } from "./s3-client.ts";
+import {
+	createConfiguredS3Client,
+	readObjectTextAsync,
+	type S3StateAdapterDeps,
+} from "./s3-client.ts";
 
 /**
  * Module specifier a failure this **Backend** produces is attributed to,
@@ -57,33 +61,6 @@ interface BucketAccess {
  * this **Backend** reports in core's vocabulary rather than in its own.
  */
 type NeutralStateErrorKind = "stateAccessDenied" | "stateNotFound";
-
-/**
- * What the client hands back as an object's body, narrowed to the one
- * method this **Backend** uses so an absent body can be covered without
- * building a stream.
- */
-interface ObjectBody {
-	/** Read the whole object into a string. */
-	transformToString: () => Promise<string>;
-}
-
-/**
- * Read an object's bytes as text, reading a body the client never
- * produced as an empty object rather than as absent **State**: a **State**
- * that reads as empty is how a **Deploy** forgets every resource it
- * created.
- *
- * Exported for direct coverage of that distinction, which the client's
- * types admit but a store never produces.
- *
- * @param body - What the client handed back for the object, absent when
- * it attached nothing.
- * @returns Everything the object holds, decoded as text.
- */
-export async function readObjectTextAsync(body: ObjectBody | undefined): Promise<string> {
-	return body === undefined ? "" : body.transformToString();
-}
 
 /**
  * Build a `StatePort` that persists Bedrock **State** in an S3 bucket,

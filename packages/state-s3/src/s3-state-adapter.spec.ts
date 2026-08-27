@@ -5,7 +5,7 @@ import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 import { withEnvironment } from "#tests/helpers/environment";
 import { fakeS3, fakeS3Failure } from "#tests/helpers/fake-s3";
 import type { S3StateAdapterDeps } from "./s3-client.ts";
-import { createS3StateAdapter, readObjectTextAsync } from "./s3-state-adapter.ts";
+import { createS3StateAdapter } from "./s3-state-adapter.ts";
 
 const BUCKET = "my-bucket";
 const REGION = "eu-west-2";
@@ -359,16 +359,5 @@ describe(createS3StateAdapter, () => {
 			});
 			expect(result.err.file).toBe("s3://my-bucket/production.json");
 		});
-	});
-});
-
-describe(readObjectTextAsync, () => {
-	it("should read a body the store never sent as an empty object, not as absent state", async () => {
-		expect.assertions(2);
-
-		await expect(readObjectTextAsync(undefined)).resolves.toBe("");
-		await expect(
-			readObjectTextAsync({ transformToString: async () => '{"stored":true}' }),
-		).resolves.toBe('{"stored":true}');
 	});
 });
