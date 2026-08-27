@@ -1021,6 +1021,27 @@ describe(createS3StateLockPort, () => {
 			expect(taken.success).toBeTrue();
 		});
 
+		it("should ask the store once for holds taken at the same time", async () => {
+			expect.assertions(3);
+
+			const store = fakeS3();
+			const port = probedPort(store.fetchFunc);
+
+			// Two acquisitions racing share one scratch object, so a second
+			// probe must never run against it: the first one's cleanup would
+			// leave the second's create landing on an absent object and
+			// reading a store that honours conditions as one that ignores
+			// them.
+			const held = await Promise.all([port.acquire("production"), port.acquire("staging")]);
+
+			expect(held.map((hold) => hold.success)).toStrictEqual([true, true]);
+
+			const probed = store.calls.filter((call) => isProbeRequest(call.url));
+
+			expect(probed.map((call) => call.method)).toStrictEqual(["PUT", "PUT", "DELETE"]);
+			expect(store.objects.has(PROBE_PATH)).toBeFalse();
+		});
+
 		it("should ask the store once however many holds are taken through one port", async () => {
 			expect.assertions(3);
 

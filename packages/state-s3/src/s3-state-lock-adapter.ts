@@ -223,17 +223,32 @@ function settleSeams(deps: S3StateLockAdapterDeps): LockSeams {
  * the way of one acquisition would otherwise refuse every later one on a
  * question the store was never really asked.
  *
+ * Two acquisitions racing share the asking rather than each starting one,
+ * because they would share the scratch object too: the first probe's
+ * cleanup would leave the second's create landing on an absent object,
+ * reading a store that honours conditions as one that ignores them. The
+ * asking is put away before it is waited on, and taken away again as it
+ * settles, so no round can be started while one is still in the air.
+ *
  * @param target - The scratch object to write, and the client to write it
  * with.
  * @returns Asking the store, which reaches it once per answer it gets.
  */
 function openProbe(target: ProbeTarget): () => Promise<ConditionalWriteProbe> {
-	let answered: Promise<ConditionalWriteProbe> | undefined;
+	let asking: Promise<ConditionalWriteProbe> | undefined;
+	let answered: ConditionalWriteProbe | undefined;
+
 	return async () => {
-		const asking = answered ?? probeConditionalWritesAsync(target);
-		const probed = await asking;
-		answered = probed.kind === "unproven" ? undefined : asking;
-		return probed;
+		if (answered !== undefined) {
+			return answered;
+		}
+
+		asking ??= probeConditionalWritesAsync(target).then((probed) => {
+			asking = undefined;
+			answered = probed.kind === "unproven" ? undefined : probed;
+			return probed;
+		});
+		return asking;
 	};
 }
 
