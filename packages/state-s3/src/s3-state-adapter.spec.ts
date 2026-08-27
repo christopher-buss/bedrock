@@ -30,6 +30,13 @@ class CredentialsProviderError extends Error {
 
 const CREDENTIALS = { accessKeyId: "example-access-key", secretAccessKey: "example-secret" };
 
+// The entity tag the fake store answers for the first object a test seeds.
+const SEEDED_ETAG = '"seed-0"';
+
+// A tag no object in the store answers with, so a write fenced on it is a
+// write whose record has moved on.
+const STALE_ETAG = '"a tag an earlier deploy read"';
+
 /**
  * Build the adapter against a fake store, with the credentials a test
  * signs with supplied so signing is exercised without reaching for the
@@ -58,7 +65,7 @@ describe(createS3StateAdapter, () => {
 
 			assert(result.success);
 
-			expect(result.data).toBeUndefined();
+			expect(result.data.state).toBeUndefined();
 			expect(store.calls[0]!.method).toBe("GET");
 		});
 
@@ -70,10 +77,37 @@ describe(createS3StateAdapter, () => {
 			const result = await adapterFor({ fetch: store.fetchFunc }).read("production");
 
 			assert(result.success);
-			assert(result.data !== undefined);
+			assert(result.data.state !== undefined);
 
-			expect(result.data.environment).toBe("production");
-			expect(result.data.version).toBe(1);
+			expect(result.data.state.environment).toBe("production");
+			expect(result.data.state.version).toBe(1);
+		});
+
+		it("should carry the store's entity tag as the version of the record it read", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3({ "/production.json": serializeStateFile(PRODUCTION_STATE) });
+
+			const result = await adapterFor({ fetch: store.fetchFunc }).read("production");
+
+			assert(result.success);
+
+			expect(result.data.version).toStrictEqual({
+				kind: "present",
+				token: SEEDED_ETAG,
+			});
+		});
+
+		it("should carry an absent version when the environment has never been deployed", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3();
+
+			const result = await adapterFor({ fetch: store.fetchFunc }).read("production");
+
+			assert(result.success);
+
+			expect(result.data.version).toStrictEqual({ kind: "absent" });
 		});
 
 		it("should fail rather than collapse to empty state when the object is corrupt", async () => {
@@ -153,6 +187,115 @@ describe(createS3StateAdapter, () => {
 			);
 		});
 
+		it("should fence on the entity tag when the caller read a record", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3({ "/production.json": serializeStateFile(PRODUCTION_STATE) });
+
+			const result = await adapterFor({ fetch: store.fetchFunc }).write(PRODUCTION_STATE, {
+				kind: "present",
+				token: SEEDED_ETAG,
+			});
+
+			assert(result.success);
+
+			expect(store.calls[0]!.headers["if-match"]).toBe(SEEDED_ETAG);
+			expect(store.calls[0]!.headers["if-none-match"]).toBeUndefined();
+		});
+
+		it("should fence on the object being absent when the caller read no record", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3();
+
+			const result = await adapterFor({ fetch: store.fetchFunc }).write(PRODUCTION_STATE, {
+				kind: "absent",
+			});
+
+			assert(result.success);
+
+			// A bare wildcard, never quoted: at least one S3-compatible store
+			// compares the raw header before stripping quotes, so a quoted one
+			// degrades into an unconditional overwrite.
+			expect(store.calls[0]!.headers["if-none-match"]).toBe("*");
+			expect(store.calls[0]!.headers["if-match"]).toBeUndefined();
+		});
+
+		it("should send no condition when the caller read no version", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3({ "/production.json": serializeStateFile(PRODUCTION_STATE) });
+
+			const result = await adapterFor({ fetch: store.fetchFunc }).write(PRODUCTION_STATE);
+
+			assert(result.success);
+
+			expect(store.calls[0]!.headers["if-match"]).toBeUndefined();
+			expect(store.calls[0]!.headers["if-none-match"]).toBeUndefined();
+		});
+
+		it("should conflict when the record moved since it was read", async () => {
+			expect.assertions(3);
+
+			const store = fakeS3({ "/production.json": serializeStateFile(PRODUCTION_STATE) });
+
+			const result = await adapterFor({ fetch: store.fetchFunc }).write(PRODUCTION_STATE, {
+				kind: "present",
+				token: STALE_ETAG,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("stateConflict");
+			expect(result.err.file).toBe("s3://my-bucket/production.json");
+			expect(store.objects.get("/production.json")).toBe(
+				serializeStateFile(PRODUCTION_STATE),
+			);
+		});
+
+		it("should conflict when a record appeared since the caller read none", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3({ "/production.json": "a record another deploy wrote" });
+
+			const result = await adapterFor({ fetch: store.fetchFunc }).write(PRODUCTION_STATE, {
+				kind: "absent",
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("stateConflict");
+		});
+
+		it("should conflict when the store reports a concurrent conditional write", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3Failure("ConditionalRequestConflict", 409);
+
+			const result = await adapterFor({ fetch: store.fetchFunc }).write(PRODUCTION_STATE, {
+				kind: "absent",
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("stateConflict");
+		});
+
+		it("should store the state when the record has not moved since it was read", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3();
+			const port = adapterFor({ fetch: store.fetchFunc });
+
+			await port.write(PRODUCTION_STATE, { kind: "absent" });
+			const reread = await port.read("production");
+			assert(reread.success);
+
+			const result = await port.write(PRODUCTION_STATE, reread.data.version);
+
+			expect(result.success).toBeTrue();
+		});
+
 		it("should read back the state it just wrote", async () => {
 			expect.assertions(1);
 
@@ -164,7 +307,7 @@ describe(createS3StateAdapter, () => {
 
 			assert(result.success);
 
-			expect(result.data).toStrictEqual(PRODUCTION_STATE);
+			expect(result.data.state).toStrictEqual(PRODUCTION_STATE);
 		});
 
 		it("should leave every other environment's object untouched", async () => {
