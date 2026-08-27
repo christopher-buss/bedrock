@@ -1,8 +1,10 @@
 import { assert, describe, expect, it, vi } from "vitest";
 
 import { environmentFrom } from "#tests/helpers/environment";
+import { neverForceReleaseAsync } from "#tests/helpers/state-lock";
 import type { Config } from "../core/schema.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
+import type { StateLockHolding, StateLockPort } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { previewDiffAsync, type PreviewDiffOptions } from "./preview-diff.ts";
@@ -66,7 +68,115 @@ function vipPassCurrent() {
 	};
 }
 
+/**
+ * Build a lock port that reports one **Environment** as held, and records
+ * that nothing asked it for a hold.
+ *
+ * @param holding - Who the port reports as holding it, or `undefined` for
+ * an environment nothing holds.
+ * @returns The port plus the log of what the preview asked of it.
+ */
+function holdReportingLockPort(holding: StateLockHolding | undefined): {
+	asked: Array<string>;
+	port: StateLockPort;
+} {
+	const asked: Array<string> = [];
+	return {
+		asked,
+		port: {
+			async acquire() {
+				throw new Error("a preview must not take a hold");
+			},
+			forceRelease: neverForceReleaseAsync,
+			async inspect(environment) {
+				asked.push(environment);
+				return { data: holding, success: true };
+			},
+		},
+	};
+}
+
 describe(previewDiffAsync, () => {
+	it("should report the holder of an environment a deploy is holding", async () => {
+		expect.assertions(2);
+
+		const lock = holdReportingLockPort({ operation: "deploy", owner: "ci-run-7" });
+
+		const result = await previewDiffAsync({
+			config: vipPassConfig(),
+			environment: "production",
+			readFile: readIconAsync,
+			stateLockPort: lock.port,
+			statePort: inMemoryStatePort().port,
+		});
+
+		assert(result.success);
+
+		expect(result.data.concurrentHold).toStrictEqual({
+			operation: "deploy",
+			owner: "ci-run-7",
+		});
+		expect(lock.asked).toStrictEqual(["production"]);
+	});
+
+	it("should report no holder for an environment nothing is holding", async () => {
+		expect.assertions(1);
+
+		const result = await previewDiffAsync({
+			config: vipPassConfig(),
+			environment: "production",
+			readFile: readIconAsync,
+			stateLockPort: holdReportingLockPort(undefined).port,
+			statePort: inMemoryStatePort().port,
+		});
+
+		assert(result.success);
+
+		expect(result.data.concurrentHold).toBeUndefined();
+	});
+
+	it("should preview without a holder when the backend offers no locking", async () => {
+		expect.assertions(1);
+
+		const result = await previewDiffAsync({
+			config: vipPassConfig(),
+			environment: "production",
+			readFile: readIconAsync,
+			statePort: inMemoryStatePort().port,
+		});
+
+		assert(result.success);
+
+		expect(result.data.concurrentHold).toBeUndefined();
+	});
+
+	it("should report why nobody could say who holds the environment", async () => {
+		expect.assertions(2);
+
+		const result = await previewDiffAsync({
+			config: vipPassConfig(),
+			environment: "production",
+			readFile: readIconAsync,
+			stateLockPort: {
+				async acquire() {
+					throw new Error("a preview must not take a hold");
+				},
+				forceRelease: neverForceReleaseAsync,
+				async inspect() {
+					return { err: { reason: "the lock store was unreachable" }, success: false };
+				},
+			},
+			statePort: inMemoryStatePort().port,
+		});
+
+		assert(result.success);
+
+		expect(result.data.concurrentHold).toBeUndefined();
+		expect(result.data.holdUnknown).toStrictEqual({
+			reason: "the lock store was unreachable",
+		});
+	});
+
 	it("should compute create ops against empty prior state without writing", async () => {
 		expect.assertions(4);
 

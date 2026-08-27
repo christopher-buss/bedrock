@@ -13,6 +13,7 @@ import type { S3LockHolder } from "./lock-record.ts";
  *   the hold being taken.
  * - `releaseFailed` - the tombstone could not be written, so the hold
  *   stands until it is taken over.
+ * - `inspectFailed` - who holds the **Environment** could not be read.
  * - `invalidEnvironment` - the **Environment** name could not address an
  *   object.
  * - `conditionalWritesIgnored` - the store took a create of an object it
@@ -29,6 +30,7 @@ export type S3LockFailureKind =
 	| "acquireTimedOut"
 	| "conditionalWritesIgnored"
 	| "conditionalWritesUnproven"
+	| "inspectFailed"
 	| "invalidEnvironment"
 	| "leaseLost"
 	| "releaseFailed";
@@ -101,6 +103,21 @@ export function acquireRefused(label: string, failure: S3Failure): StateLockErro
 }
 
 /**
+ * Report a lock record that could not be read at all, which is what a
+ * read-only caller asking who holds an **Environment** is told.
+ *
+ * @param label - The object the hold is recorded in.
+ * @param failure - The refusal, already classified.
+ * @returns The failure a caller sees.
+ */
+export function inspectRefused(label: string, failure: S3Failure): StateLockError {
+	return {
+		detail: refusalDetail({ failure, kind: "inspectFailed", label }),
+		reason: failure.reason,
+	};
+}
+
+/**
  * Report a winning write the store answered without an entity tag.
  *
  * The tombstone that gives a hold up is written against the bytes the hold
@@ -115,6 +132,26 @@ export function holdWithoutEntityTag(label: string): StateLockError {
 	return {
 		detail,
 		reason: `${label} was written without an entity tag, so the hold could never be given up safely`,
+	};
+}
+
+/**
+ * Report a hold the store named no entity tag for, which is one no force
+ * release can take away safely.
+ *
+ * The tombstone is written against the bytes the hold was read as, so a
+ * hold with nothing to write against would be taken away blind: a deploy
+ * that took the **Environment** over between the read and the write would
+ * lose the hold it is applying under.
+ *
+ * @param label - The object the hold is recorded in.
+ * @returns The failure a caller sees.
+ */
+export function displaceWithoutEntityTag(label: string): StateLockError {
+	const detail: S3StateLockErrorDetail = { file: label, kind: "releaseFailed" };
+	return {
+		detail,
+		reason: `${label} was read without an entity tag, so the hold could not be taken away without risking a newer one`,
 	};
 }
 

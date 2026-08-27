@@ -4,9 +4,11 @@ import { assert, describe, expect, it } from "vitest";
 import { environmentFrom } from "#tests/helpers/environment";
 import { fakeFetch } from "#tests/helpers/fake-gist-fetch";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
+import { neverForceReleaseAsync, neverInspectAsync } from "#tests/helpers/state-lock";
 import type { StateConfig } from "../core/schema.ts";
+import type { StateLockingCapability } from "../core/state-locking.ts";
 import type { StatePort } from "../ports/state-port.ts";
-import { buildStateBackend, buildStatePort } from "./build-state-port.ts";
+import { buildStateBackend, buildStateLockPort, buildStatePort } from "./build-state-port.ts";
 
 const GIST_CONFIG: StateConfig = { backend: "gist", gistId: "abc123" };
 
@@ -16,6 +18,10 @@ async function neverFetchAsync(): Promise<Response> {
 
 function emptyFilesResponse(): Response {
 	return new Response(JSON.stringify({ files: {} }), { status: 200 });
+}
+
+async function neverAcquireAsync(): Promise<never> {
+	throw new Error("the lock port must not be acquired by capability reporting");
 }
 
 function okPort(): StatePort {
@@ -249,6 +255,89 @@ describe(buildStatePort, () => {
 	});
 });
 
+describe(buildStateLockPort, () => {
+	it("should report the gist backend as taking no hold without asking for a credential", () => {
+		expect.assertions(2);
+
+		const result = buildStateLockPort({
+			getEnv: environmentFrom({}),
+			stateConfig: GIST_CONFIG,
+		});
+
+		assert(result.success);
+
+		expect(result.data.locking).toBe("none");
+		expect(result.data.stateLockPort).toBeUndefined();
+	});
+
+	it("should build the lock port a plugin backend declares", () => {
+		expect.assertions(2);
+
+		const result = buildStateLockPort({
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: () => {
+					return {
+						data: {
+							acquire: neverAcquireAsync,
+							forceRelease: neverForceReleaseAsync,
+							inspect: neverInspectAsync,
+						},
+						success: true,
+					};
+				},
+				createPort: () => ({ data: okPort(), success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			stateConfig: { backend: "s3", bucket: "my-bucket" },
+		});
+
+		assert(result.success);
+
+		expect(result.data.locking).toBe("exclusive");
+		expect(result.data.stateLockPort).toBeDefined();
+	});
+
+	it("should report a backend name no builtin and no plugin claims", () => {
+		expect.assertions(1);
+
+		const result = buildStateLockPort({
+			getEnv: environmentFrom({}),
+			stateConfig: { backend: "s3", bucket: "my-bucket" },
+		});
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("unsupportedBackend");
+	});
+
+	it("should wrap a plugin lock-builder failure in pluginStateBackend naming the plugin", () => {
+		expect.assertions(2);
+
+		const result = buildStateLockPort({
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: () => {
+					return { err: { reason: "lock table unreachable" }, success: false };
+				},
+				createPort: () => ({ data: okPort(), success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			stateConfig: { backend: "s3", bucket: "my-bucket" },
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "pluginStateBackend");
+
+		expect(result.err.specifier).toBe("@example/state-s3");
+		expect(result.err.reason).toBe("lock table unreachable");
+	});
+});
+
 describe(buildStateBackend, () => {
 	it("should yield no lock port for the gist backend, which declares no locking", () => {
 		expect.assertions(1);
@@ -275,7 +364,11 @@ describe(buildStateBackend, () => {
 				name: "s3",
 				createLockPort: () => {
 					return {
-						data: { acquire: async () => ({ data: hold, success: true }) as const },
+						data: {
+							acquire: async () => ({ data: hold, success: true }) as const,
+							forceRelease: neverForceReleaseAsync,
+							inspect: neverInspectAsync,
+						},
 						success: true,
 					};
 				},
@@ -312,6 +405,96 @@ describe(buildStateBackend, () => {
 		assert(result.success);
 
 		expect(result.data.stateLockPort).toBeUndefined();
+	});
+
+	it("should still build the lock port of a backend whose locking the config turned off", () => {
+		expect.assertions(2);
+
+		// The hold a **Deploy** no longer takes is one an earlier run may
+		// have left behind, and taking it away needs the port.
+		const result = buildStateBackend({
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: () => {
+					return {
+						data: {
+							acquire: neverAcquireAsync,
+							forceRelease: neverForceReleaseAsync,
+							inspect: neverInspectAsync,
+						},
+						success: true,
+					};
+				},
+				createPort: () => ({ data: okPort(), success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			stateConfig: { backend: "s3", bucket: "my-bucket", locking: false },
+		});
+
+		assert(result.success);
+
+		expect(result.data.locking).toBe("disabled");
+		expect(result.data.stateLockPort).toBeDefined();
+	});
+
+	it.for([
+		{
+			expected: "exclusive",
+			label: "a backend that locks and a config that left locking on",
+			stateConfig: { backend: "s3", bucket: "my-bucket" },
+		},
+		{
+			expected: "disabled",
+			label: "a backend that locks and a config that turned locking off",
+			stateConfig: { backend: "s3", bucket: "my-bucket", locking: false },
+		},
+	] satisfies ReadonlyArray<{
+		expected: StateLockingCapability;
+		label: string;
+		stateConfig: StateConfig;
+	}>)("should report $expected exclusion for $label", ({ expected, stateConfig }) => {
+		expect.assertions(1);
+
+		const result = buildStateBackend({
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: () => {
+					return {
+						data: {
+							acquire: neverAcquireAsync,
+							forceRelease: neverForceReleaseAsync,
+							inspect: neverInspectAsync,
+						},
+						success: true,
+					};
+				},
+				createPort: () => ({ data: okPort(), success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			stateConfig,
+		});
+
+		assert(result.success);
+
+		expect(result.data.locking).toBe(expected);
+	});
+
+	it("should report no exclusion for the gist backend", () => {
+		expect.assertions(1);
+
+		const result = buildStateBackend({
+			fetch: neverFetchAsync,
+			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
+			stateConfig: GIST_CONFIG,
+		});
+
+		assert(result.success);
+
+		expect(result.data.locking).toBe("none");
 	});
 
 	it("should hand the plugin's lock builder the state block, the credential reader, and the fetch seam", () => {

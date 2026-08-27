@@ -52,6 +52,24 @@ describe(stateLockingCapabilityOf, () => {
 			stateConfig: S3_CONFIG,
 		},
 		{
+			expected: "disabled",
+			label: "a locking backend the config turned locking off for",
+			plugins: pluginsDeclaring({ locking: true }),
+			stateConfig: { ...S3_CONFIG, locking: false },
+		},
+		{
+			expected: "exclusive",
+			label: "a locking backend the config turned locking on for",
+			plugins: pluginsDeclaring({ locking: true }),
+			stateConfig: { ...S3_CONFIG, locking: true },
+		},
+		{
+			expected: "none",
+			label: "a backend that offers no exclusion to turn off",
+			plugins: pluginsDeclaring({ locking: false }),
+			stateConfig: { ...S3_CONFIG, locking: false },
+		},
+		{
 			expected: "none",
 			label: "a backend no loaded plugin claims",
 			plugins: undefined,

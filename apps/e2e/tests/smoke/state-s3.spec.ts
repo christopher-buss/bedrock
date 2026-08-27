@@ -231,6 +231,53 @@ describe("s3 state backend against real aws", () => {
 	);
 
 	it.skipIf(!HAS_SECRETS)(
+		"should report who holds an environment and take that hold away",
+		async () => {
+			expect.assertions(4);
+
+			const environment = `${ENVIRONMENT}-unlock-${Date.now()}`;
+
+			onTestFinished(async () => {
+				await pruneStateS3Async({
+					bucket: BUCKET,
+					keep: KEEP,
+					prefix: PREFIX,
+					region: REGION,
+				});
+			});
+
+			const port = lockPort();
+			const hold = await port.acquire(environment, { operation: "smoke" });
+			assertOk(hold, "acquire");
+
+			const held = await port.inspect(environment);
+			assertOk(held, "inspect");
+			assert(held.data !== undefined);
+
+			expect(held.data.owner).toBe("bedrock-smoke");
+
+			const displaced = await port.forceRelease(environment);
+			assertOk(displaced, "force release");
+			assert(displaced.data !== undefined);
+
+			expect(displaced.data.operation).toBe("smoke");
+
+			// The hold is gone for the next run, and reported as gone to
+			// anyone asking, which is what makes this a recovery path
+			// rather than a write nobody can act on.
+			const after = await port.inspect(environment);
+			assertOk(after, "inspect after the hold was taken away");
+
+			expect(after.data).toBeUndefined();
+
+			const taken = await lockPort({ lockTimeoutMs: 0 }).acquire(environment);
+
+			expect(taken.success).toBeTrue();
+		},
+		60_000,
+	);
+
+	it.skipIf(!HAS_SECRETS)(
 		"should take over a hold whose lease ran out and refuse what that holder writes next",
 		async () => {
 			expect.assertions(3);

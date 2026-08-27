@@ -396,6 +396,23 @@ function untaggedWrites(etag?: string): StateBackendFetch {
 }
 
 /**
+ * A store that answers the read with another run's hold under no entity
+ * tag, and takes every write.
+ *
+ * @returns The transport to hand the lock port.
+ */
+function untaggedHolder(): StateBackendFetch {
+	untaggedMethods.length = 0;
+
+	return async (_input, init) => {
+		untaggedMethods.push(init?.method ?? "GET");
+		return init?.method === "PUT"
+			? new Response("", { status: 200 })
+			: new Response(serializeLockRecord(OTHER_HOLD), { status: 200 });
+	};
+}
+
+/**
  * A store that answers a write without an entity tag and a read with
  * another run's hold, which is a create that landed on a record this
  * acquisition did not write.
@@ -1041,7 +1058,7 @@ describe(createS3StateLockPort, () => {
 		});
 
 		it("should leave a record another run wrote where it is", async () => {
-			expect.assertions(2);
+			expect.assertions(3);
 
 			const result = await lockFor({ fetch: untaggedOverAnother() }).acquire("production");
 
@@ -1049,6 +1066,12 @@ describe(createS3StateLockPort, () => {
 
 			expect(untaggedMethods).toStrictEqual(["PUT", "GET"]);
 			expect(result.err.detail).toStrictEqual({ file: LOCK_LABEL, kind: "acquireFailed" });
+			// The entity tag the read named belongs to the other run's
+			// record, so a hold taken on it would be one taken on somebody
+			// else's bytes.
+			expect(result.err.reason).toBe(
+				`${LOCK_LABEL} was written without an entity tag, so the hold could never be given up safely`,
+			);
 		});
 
 		it("should report the missing entity tag even when the record cannot be removed", async () => {
@@ -1525,6 +1548,255 @@ describe(createS3StateLockPort, () => {
 				statusCode: 412,
 			});
 			expect(given.err.reason).toBe("the pre-condition did not hold");
+		});
+	});
+
+	describe("inspect", () => {
+		it("should report who holds the environment, what for, and since when", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3();
+			store.put(LOCK_PATH, serializeLockRecord(OTHER_HOLD));
+			const clock = createFakeClock(TEN_O_CLOCK);
+
+			const held = await lockFor({ fetch: store.fetchFunc, now: clock.now }).inspect(
+				"production",
+			);
+
+			assert(held.success);
+
+			expect(held.data).toStrictEqual({
+				operation: "deploy",
+				owner: "ci-run-3",
+				since: OTHER_HOLD.since,
+			});
+			expect(store.calls.map((call) => call.method)).toStrictEqual(["GET"]);
+		});
+
+		it("should report nobody holding an environment no run has locked", async () => {
+			expect.assertions(1);
+
+			const held = await lockFor({ fetch: fakeS3().fetchFunc }).inspect("production");
+
+			assert(held.success);
+
+			expect(held.data).toBeUndefined();
+		});
+
+		it("should report nobody holding an environment whose hold was given up", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3();
+			store.put(
+				LOCK_PATH,
+				serializeLockRecord({ ...OTHER_HOLD, releasedAt: "2026-08-27T09:30:00.000Z" }),
+			);
+
+			const held = await lockFor({
+				fetch: store.fetchFunc,
+				now: createFakeClock(TEN_O_CLOCK).now,
+			}).inspect("production");
+
+			assert(held.success);
+
+			expect(held.data).toBeUndefined();
+		});
+
+		it("should report nobody holding an environment whose hold ran its lease out", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3();
+			store.put(LOCK_PATH, serializeLockRecord(OTHER_HOLD));
+
+			const held = await lockFor({
+				fetch: store.fetchFunc,
+				now: createFakeClock(Date.parse("2026-08-27T10:05:00.000Z")).now,
+			}).inspect("production");
+
+			assert(held.success);
+
+			expect(held.data).toBeUndefined();
+		});
+
+		it("should report a lock store the credential may not read", async () => {
+			expect.assertions(2);
+
+			const held = await lockFor({
+				fetch: fakeS3Failure("AccessDenied", 403).fetchFunc,
+			}).inspect("production");
+
+			assert(!held.success);
+
+			expect(held.err.detail).toStrictEqual({
+				name: "AccessDenied",
+				file: LOCK_LABEL,
+				kind: "inspectFailed",
+				statusCode: 403,
+			});
+			expect(held.err.reason).toBe("refused with AccessDenied");
+		});
+
+		it("should refuse an environment name that could escape the object layout", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3();
+
+			const held = await lockFor({ fetch: store.fetchFunc }).inspect("../escaped");
+
+			assert(!held.success);
+
+			expect(store.calls).toBeEmpty();
+		});
+	});
+
+	describe("force release", () => {
+		it("should take a hold away by writing a tombstone over it, naming who held it", async () => {
+			expect.assertions(3);
+
+			const store = fakeS3();
+			store.put(LOCK_PATH, serializeLockRecord(OTHER_HOLD));
+			const clock = createFakeClock(TEN_O_CLOCK);
+
+			const released = await lockFor({
+				fetch: store.fetchFunc,
+				now: clock.now,
+			}).forceRelease("production");
+
+			assert(released.success);
+
+			expect(released.data).toStrictEqual({
+				operation: "deploy",
+				owner: "ci-run-3",
+				since: OTHER_HOLD.since,
+			});
+			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)).toStrictEqual({
+				...OTHER_HOLD,
+				releasedAt: "2026-08-27T10:00:00.000Z",
+			});
+			expect(store.calls.map((call) => call.method)).toStrictEqual(["GET", "PUT"]);
+		});
+
+		it("should take the hold away against the bytes it read", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3();
+			store.put(LOCK_PATH, serializeLockRecord(OTHER_HOLD));
+
+			await lockFor({
+				fetch: store.fetchFunc,
+				now: createFakeClock(TEN_O_CLOCK).now,
+			}).forceRelease("production");
+
+			// A holder that released in the meantime, and a run that took
+			// the environment over since, are both left where they are.
+			expect(store.calls[1]!.headers["if-match"]).toBe('"written-1"');
+		});
+
+		it("should refuse a hold the store named no entity tag for", async () => {
+			expect.assertions(3);
+
+			// A tombstone written blind would take away whatever hold the
+			// environment carries by then, which need not be the one read.
+			const released = await lockFor({
+				fetch: untaggedHolder(),
+				now: createFakeClock(TEN_O_CLOCK).now,
+			}).forceRelease("production");
+
+			assert(!released.success);
+
+			expect(untaggedMethods).toStrictEqual(["GET"]);
+			expect(released.err.detail).toStrictEqual({
+				file: LOCK_LABEL,
+				kind: "releaseFailed",
+			});
+			expect(released.err.reason).toBe(
+				`${LOCK_LABEL} was read without an entity tag, so the hold could not be taken away without risking a newer one`,
+			);
+		});
+
+		it("should leave an environment no run has locked alone", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3();
+
+			const released = await lockFor({ fetch: store.fetchFunc }).forceRelease("production");
+
+			assert(released.success);
+
+			expect(released.data).toBeUndefined();
+			expect(store.calls.map((call) => call.method)).toStrictEqual(["GET"]);
+		});
+
+		it("should leave an environment whose hold was already given up alone", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3();
+			store.put(
+				LOCK_PATH,
+				serializeLockRecord({ ...OTHER_HOLD, releasedAt: "2026-08-27T09:30:00.000Z" }),
+			);
+
+			const released = await lockFor({
+				fetch: store.fetchFunc,
+				now: createFakeClock(TEN_O_CLOCK).now,
+			}).forceRelease("production");
+
+			assert(released.success);
+
+			expect(released.data).toBeUndefined();
+			expect(store.calls.map((call) => call.method)).toStrictEqual(["GET"]);
+		});
+
+		it("should report a hold whose tombstone the store refused", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3();
+			store.put(LOCK_PATH, serializeLockRecord(OTHER_HOLD));
+
+			const released = await lockFor({
+				fetch: refusingPut(store, 1),
+				now: createFakeClock(TEN_O_CLOCK).now,
+			}).forceRelease("production");
+
+			assert(!released.success);
+
+			expect(released.err.detail).toStrictEqual({
+				name: "PreconditionFailed",
+				file: LOCK_LABEL,
+				kind: "releaseFailed",
+				statusCode: 412,
+			});
+			expect(released.err.reason).toBe("the pre-condition did not hold");
+		});
+
+		it("should report a lock store whose record the credential may not read", async () => {
+			expect.assertions(2);
+
+			const released = await lockFor({
+				fetch: fakeS3Failure("AccessDenied", 403).fetchFunc,
+			}).forceRelease("production");
+
+			assert(!released.success);
+
+			expect(released.err.detail).toStrictEqual({
+				name: "AccessDenied",
+				file: LOCK_LABEL,
+				kind: "inspectFailed",
+				statusCode: 403,
+			});
+			expect(released.err.reason).toBe("refused with AccessDenied");
+		});
+
+		it("should refuse an environment name that could escape the object layout", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3();
+
+			const released = await lockFor({ fetch: store.fetchFunc }).forceRelease("../escaped");
+
+			assert(!released.success);
+
+			expect(store.calls).toBeEmpty();
 		});
 	});
 

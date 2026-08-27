@@ -13,7 +13,7 @@ import { createClackPort } from "../clack-port.ts";
 import { buildEnvironmentReader } from "../credential-environment-overrides.ts";
 import { EXIT_ERROR, EXIT_OK } from "../exit-codes.ts";
 import type { ProgDeps as ProgDependencies } from "../index.ts";
-import { type ClackPort, renderDeployError } from "../render.ts";
+import { type ClackPort, describeHolder, renderDeployError } from "../render.ts";
 import { startCommandAsync } from "./start-command.ts";
 
 interface ResolvedDiff {
@@ -123,7 +123,34 @@ function renderPendingRebuild(preview: DiffPreview, clack: ClackPort): boolean {
 	return true;
 }
 
+/**
+ * Report a deploy holding the **Environment** while the preview ran, which
+ * is what says the answer may already be behind. A diff takes no hold, so
+ * it never queues behind a deploy and never learns that one landed.
+ *
+ * @param preview - The preview just computed.
+ * @param clack - Where the line is written.
+ */
+function renderConcurrentHold(preview: DiffPreview, clack: ClackPort): void {
+	const { concurrentHold, holdUnknown } = preview;
+	if (holdUnknown !== undefined) {
+		clack.logMessage(
+			`who holds "${preview.environment}" could not be read (${holdUnknown.reason}), so this diff may already be out of date`,
+		);
+		return;
+	}
+
+	if (concurrentHold === undefined) {
+		return;
+	}
+
+	clack.logMessage(
+		`"${preview.environment}" is held by ${describeHolder(concurrentHold)}, so this diff may already be out of date`,
+	);
+}
+
 function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
+	renderConcurrentHold(preview, clack);
 	const drift = preview.ops.filter(isDriftOp);
 	if (drift.length === 0) {
 		const hasPendingPublish = renderPendingRebuild(preview, clack);

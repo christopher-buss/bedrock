@@ -61,18 +61,22 @@ export interface LockSeams {
 	readonly timeoutMs: number;
 }
 
-/** One acquisition in progress, over the object it is contending for. */
-export interface Acquisition {
+/** The lock object one **Environment**'s hold is recorded in. */
+export interface LockObject {
 	/** The object the hold is recorded in. */
 	readonly key: string;
 	/** Bucket the lock object lives in. */
 	readonly bucket: string;
-	/** Who this acquisition writes itself down as when it wins. */
-	readonly claim: S3LockClaim;
 	/** The configured S3 client. */
 	readonly client: S3Client;
 	/** That object addressed the way an operator would write it. */
 	readonly label: string;
+}
+
+/** One acquisition in progress, over the object it is contending for. */
+export interface Acquisition extends LockObject {
+	/** Who this acquisition writes itself down as when it wins. */
+	readonly claim: S3LockClaim;
 	/** The clock, the waiting, and the identity this acquisition runs on. */
 	readonly seams: LockSeams;
 }
@@ -123,6 +127,16 @@ export type LockRead =
 	| { readonly failure: S3Failure; readonly kind: "failed" }
 	| { readonly kind: "unreadable" };
 
+/** The hold one force release is taking away, and when. */
+export interface DisplacedHold {
+	/** Entity tag the read that found the hold named. */
+	readonly etag: string;
+	/** Epoch milliseconds the clock read. */
+	readonly nowMs: number;
+	/** The record found holding the **Environment**. */
+	readonly record: S3LockRecord;
+}
+
 /** A write the store declined the condition of. */
 interface ContendedAttempt {
 	/** Which outcome this is. */
@@ -142,10 +156,10 @@ type LockWrite =
 
 /** What {@link putLockAsync} needs to write the lock object once. */
 interface LockWriteInputs {
-	/** The acquisition the write belongs to. */
-	readonly acquisition: Acquisition;
 	/** What the object must look like for the write to land. */
 	readonly condition: LockCondition;
+	/** The object the write lands in. */
+	readonly object: LockObject;
 	/** The record to store. */
 	readonly record: S3LockRecord;
 }
@@ -186,11 +200,11 @@ export async function discardOwnAsync(
  * the wrong cause. Everything else reads as unreadable, and the wait
  * carries on.
  *
- * @param acquisition - The acquisition in progress.
+ * @param object - The lock object to read.
  * @returns The record and its entity tag, that the read did not land, or
  * the refusal that ends the wait.
  */
-export async function readLockAsync({ key, bucket, client }: Acquisition): Promise<LockRead> {
+export async function readLockAsync({ key, bucket, client }: LockObject): Promise<LockRead> {
 	try {
 		const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
 		const record = parseLockRecord(await readObjectTextAsync(object.Body));
@@ -224,8 +238,8 @@ export async function renewLeaseAsync(
 	};
 
 	const written = await putLockAsync({
-		acquisition,
 		condition: { etag, kind: "unchanged" },
+		object: acquisition,
 		record: renewed,
 	});
 	if (written.kind === "refused") {
@@ -252,12 +266,41 @@ export async function releaseAsync(
 	{ etag, record }: WonHold,
 ): Promise<Result<void, StateLockError>> {
 	const written = await putLockAsync({
-		acquisition,
 		condition: { etag, kind: "unchanged" },
+		object: acquisition,
 		record: { ...record, releasedAt: isoAt(acquisition.seams.now()) },
 	});
 	return written.kind === "refused"
 		? { err: releaseRefused(acquisition.label, written.failure), success: false }
+		: { data: undefined, success: true };
+}
+
+/**
+ * Write the tombstone that takes one hold away, whoever holds it.
+ *
+ * Conditional on the bytes the hold was read as, so a holder that released
+ * in the meantime and a run that took the **Environment** over since are
+ * both left alone: what would be displaced is then not what was reported.
+ *
+ * What keeps the displaced holder from doing damage is its **State** write,
+ * which is guarded on the record it read rather than on the hold.
+ *
+ * @param object - The lock object the hold is recorded in.
+ * @param displaced - The record found holding the **Environment**, and the
+ * instant the tombstone is stamped with.
+ * @returns `Ok` once the tombstone is stored, or why it was refused.
+ */
+export async function displaceAsync(
+	object: LockObject,
+	displaced: DisplacedHold,
+): Promise<Result<void, StateLockError>> {
+	const written = await putLockAsync({
+		condition: { etag: displaced.etag, kind: "unchanged" },
+		object,
+		record: { ...displaced.record, releasedAt: isoAt(displaced.nowMs) },
+	});
+	return written.kind === "refused"
+		? { err: releaseRefused(object.label, written.failure), success: false }
 		: { data: undefined, success: true };
 }
 
@@ -282,7 +325,7 @@ export async function writeLockAsync(
 		since: isoAt(takenAt),
 	};
 
-	const written = await putLockAsync({ acquisition, condition, record });
+	const written = await putLockAsync({ condition, object: acquisition, record });
 	if (written.kind === "stored") {
 		return { etag: written.etag, kind: "acquired", record };
 	}
@@ -313,6 +356,26 @@ export async function takeOverAsync(
 }
 
 /**
+ * Render one condition as the headers the store evaluates it from.
+ *
+ * @param condition - What the object must look like for the write to land.
+ * @returns The conditional headers, empty for a write that carries none.
+ */
+function conditionHeaders(condition: LockCondition): {
+	IfMatch?: string;
+	IfNoneMatch?: string;
+} {
+	switch (condition.kind) {
+		case "absent": {
+			return { IfNoneMatch: ABSENT };
+		}
+		case "unchanged": {
+			return { IfMatch: condition.etag };
+		}
+	}
+}
+
+/**
  * Write one record into the lock object, on the condition the caller
  * named.
  *
@@ -320,19 +383,13 @@ export async function takeOverAsync(
  * look like for the write to land.
  * @returns The entity tag the store answered with, or the refusal.
  */
-async function putLockAsync({
-	acquisition,
-	condition,
-	record,
-}: LockWriteInputs): Promise<LockWrite> {
-	const { key, bucket, client } = acquisition;
+async function putLockAsync({ condition, object, record }: LockWriteInputs): Promise<LockWrite> {
+	const { key, bucket, client } = object;
 
 	try {
 		const written = await client.send(
 			new PutObjectCommand({
-				...(condition.kind === "absent"
-					? { IfNoneMatch: ABSENT }
-					: { IfMatch: condition.etag }),
+				...conditionHeaders(condition),
 				Body: serializeLockRecord(record),
 				Bucket: bucket,
 				ContentType: LOCK_CONTENT_TYPE,

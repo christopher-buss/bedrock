@@ -118,6 +118,19 @@ A run that finds the environment held waits, retrying with exponential backoff
 for five minutes by default. `lockTimeoutMs` changes that bound, and `0` refuses
 immediately. Giving up names who holds the environment and since when.
 
+Locking is on by default wherever the backend offers it. A project that
+serializes its deploys some other way turns it off with `locking: false` in the
+`state` block, and every deploy of that environment then reports that concurrent
+deploys are not being held apart.
+
+`bedrock diff` takes no hold at all, and reports one it finds instead: a preview
+that queued behind every running deploy would be the worst of both, and one that
+raced a deploy silently would read as settled. `bedrock state unlock` takes a
+hold away, whoever holds it, by writing the same tombstone a release writes,
+against the bytes it read the hold as; a hold the store names no entity tag for
+is refused rather than taken away blind. Turning locking off does not put a hold
+an earlier run left behind out of reach: `state unlock` still clears it.
+
 ### A hold is leased
 
 A hold carries a deadline it renews while the deploy runs, so a deploy killed by
