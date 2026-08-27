@@ -41,6 +41,8 @@ interface MantleStateLocation {
 	readonly endpoint: string | undefined;
 	/** Key the object is stored under. */
 	readonly key: string;
+	/** Project name mantle keyed the object by. */
+	readonly project: string;
 	/** Region the bucket lives in. */
 	readonly region: string;
 }
@@ -107,7 +109,42 @@ export const s3MigrateSource: StateBackendMigrateSource = {
 		},
 	],
 	readBytes: async (context) => readMantleStateAsync(context),
+	toStateConfig: (coordinates) => {
+		const located = locateMantleState(coordinates);
+		if (!located.success) {
+			throw new TypeError(located.err.reason);
+		}
+
+		return stateConfigFrom(located.data);
+	},
 };
+
+/**
+ * Translate where mantle kept its state into the `state` keys a **Deploy**
+ * through this **Backend** reads.
+ *
+ * The project name mantle keyed its object by becomes the prefix the
+ * **Environment** objects are written under, so two projects that shared
+ * one bucket under mantle stay apart under bedrock rather than both
+ * writing `production.json` at the root.
+ *
+ * @param located - Where the mantle state was read from.
+ * @returns The `state` keys to record, which core writes `backend`
+ * alongside.
+ */
+function stateConfigFrom({
+	bucket,
+	endpoint,
+	project,
+	region,
+}: MantleStateLocation): Readonly<Record<string, unknown>> {
+	return {
+		bucket,
+		prefix: project,
+		region,
+		...(endpoint === undefined ? {} : { endpoint }),
+	};
+}
 
 /**
  * Read where the mantle state object lives out of the coordinates the
@@ -141,6 +178,7 @@ function locateMantleState(
 			bucket: parsed.bucket,
 			endpoint: parsed.endpoint,
 			key: `${project}${MANTLE_STATE_SUFFIX}`,
+			project,
 			region: parsed.region,
 		},
 		success: true,

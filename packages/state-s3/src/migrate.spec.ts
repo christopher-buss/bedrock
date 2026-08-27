@@ -155,3 +155,50 @@ describe("reading the mantle state a bucket holds", () => {
 		expect(store.calls).toBeEmpty();
 	});
 });
+
+describe("translating mantle's remote state into a state block", () => {
+	it("should keep the project's state under the name mantle keyed it by", () => {
+		expect.assertions(2);
+
+		const translated = s3MigrateSource.toStateConfig?.(COORDINATES);
+
+		expect(translated).toStrictEqual({
+			bucket: "mantle-states",
+			prefix: "pirate-wars",
+			region: "us-west-2",
+		});
+		expect(
+			s3MigrateSource.toStateConfig?.({
+				...COORDINATES,
+				key: "pirate-wars.mantle-state.yml",
+			}),
+		).toStrictEqual(translated);
+	});
+
+	it("should carry the endpoint mantle's custom region form names", () => {
+		expect.assertions(1);
+
+		expect(
+			s3MigrateSource.toStateConfig?.({
+				...COORDINATES,
+				endpoint: "https://account-id.r2.cloudflarestorage.com",
+				region: "auto",
+			}),
+		).toStrictEqual({
+			bucket: "mantle-states",
+			endpoint: "https://account-id.r2.cloudflarestorage.com",
+			prefix: "pirate-wars",
+			region: "auto",
+		});
+	});
+
+	it("should refuse coordinates no state could have been fetched from", () => {
+		expect.assertions(1);
+
+		expect(() => s3MigrateSource.toStateConfig?.({ key: "pirate-wars" })).toThrowWithMessage(
+			TypeError,
+			/^the Mantle state coordinates are incomplete:/,
+		);
+	});
+});
+
