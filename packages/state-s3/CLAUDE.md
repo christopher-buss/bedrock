@@ -21,6 +21,7 @@ contract a claim rather than a proof.
 | `state-schema.ts`          | Arktype fragment for the `state` keys this **Backend** adds, plus its config type. |
 | `object-key.ts`            | Pure key layout: one object per **Environment**, and the lock beside it.           |
 | `lock-record.ts`           | What one lock object holds, and reading it back.                                   |
+| `lock-object.ts`           | Every conditional read and write the lock object itself takes.                     |
 | `lock-failure.ts`          | How a hold that could not be taken or given up is reported.                        |
 | `lock-owner.ts`            | Pure reading of the environment into the run a hold is recorded as.                |
 | `backoff.ts`               | Pure retry schedule for a contended acquisition.                                   |
@@ -31,11 +32,14 @@ contract a claim rather than a proof.
 | `s3-state-lock-adapter.ts` | The `StateLockPort`: takes a hold by conditional create, releases by tombstone.    |
 | `plugin.ts`                | The declaration core registers, and the default export a user names.               |
 
-`src/index.ts` publishes the plugin contract and the adapter, not the mechanics
+`src/index.ts` publishes the plugin contract and the adapters, not the mechanics
 underneath them. Everything it exports is semver-bound and carries `@since`;
-keep `objectKeyFor`, `lockKeyFor`, `classifyS3Failure`, the lock record, the
-owner reading, the backoff, the failure constructors, and the request handler
-internal.
+keep `objectKeyFor`, `lockKeyFor`, `classifyS3Failure`, the lock record's
+parsing and serialization, the lock object's reads and writes, the owner
+reading, the backoff, the failure constructors, and the request handler
+internal. The shapes a caller reads off a
+result (`S3LockHolder`, and the failure detail types) are exported; the
+functions that build and parse them are not.
 
 ## Testing
 
