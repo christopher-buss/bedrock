@@ -23,7 +23,7 @@ const RENEWALS_PER_LEASE = 3;
  * @param leaseMs - How long the hold is leased for.
  * @returns The deadline, in ISO-8601.
  */
-export function leaseExpiryAt(nowMs: number, leaseMs: number): string {
+export function leaseDeadlineAt(nowMs: number, leaseMs: number): string {
 	return isoAt(nowMs + leaseMs);
 }
 
@@ -33,6 +33,10 @@ export function leaseExpiryAt(nowMs: number, leaseMs: number): string {
  * A hold is renewed while the deploy holding it runs, so a deadline the
  * clock has reached is a holder that stopped renewing: the run died, and
  * the **Environment** is free to be taken over.
+ *
+ * A deadline that is not an instant reads as one the clock has not reached,
+ * leaving the hold where it is: a record nothing here wrote is not one to
+ * take an **Environment** away from a run that may still be holding it.
  *
  * @param record - The record found holding the **Environment**.
  * @param nowMs - Epoch milliseconds the clock read.

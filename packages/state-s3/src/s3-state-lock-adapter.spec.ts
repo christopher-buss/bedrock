@@ -164,6 +164,30 @@ function untaggedAfter(store: FakeS3, nth: number): StateBackendFetch {
 }
 
 /**
+ * Wrap a store so it names no entity tag on anything from one request on,
+ * which leaves both a renewal and the read after it nothing to name the
+ * bytes the hold stands on.
+ *
+ * @param store - The store the requests are served from.
+ * @param from - Which request to stop naming tags on, counting from 1.
+ * @returns The transport to hand the lock port.
+ */
+function untaggedFrom(store: FakeS3, from: number): StateBackendFetch {
+	let calls = 0;
+	return async (input, init) => {
+		calls += 1;
+		const response = await store.fetchFunc(input, init);
+		if (calls < from) {
+			return response;
+		}
+
+		const headers = new Headers(response.headers);
+		headers.delete("etag");
+		return new Response(await response.text(), { headers, status: response.status });
+	};
+}
+
+/**
  * Wrap a store so the holder's record can never be read, which is the
  * condition contention itself produces.
  *
@@ -553,6 +577,27 @@ describe(createS3StateLockPort, () => {
 			assert(hold.success);
 
 			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)!.id).toBe(THIS_RUN);
+		});
+
+		it("should never take over a hold whose deadline is not an instant", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3({
+				[LOCK_PATH]: serializeLockRecord({ ...OTHER_HOLD, expiresAt: "whenever" }),
+			});
+			const clock = createFakeClock(TEN_O_CLOCK);
+
+			const result = await lockFor({
+				fetch: store.fetchFunc,
+				lockTimeoutMs: 1000,
+				now: clock.now,
+				sleep: clock.sleepAsync,
+			}).acquire("production");
+
+			assert(!result.success);
+
+			expect(result.err.detail).toMatchObject({ kind: "acquireTimedOut" });
+			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)!.id).toBe("other-run");
 		});
 
 		it("should never take over a hold whose lease is still being renewed", async () => {
@@ -1045,7 +1090,7 @@ describe(createS3StateLockPort, () => {
 	});
 
 	describe("renewal", () => {
-		it("should renew the lease three times over while the hold is held", async () => {
+		it("should renew the lease well before it runs out while the hold is held", async () => {
 			expect.assertions(3);
 
 			const store = fakeS3();
@@ -1213,8 +1258,8 @@ describe(createS3StateLockPort, () => {
 			expect(schedule.cancelled()).toBe(1);
 		});
 
-		it("should report a renewal the store answered without an entity tag", async () => {
-			expect.assertions(2);
+		it("should keep the hold on the entity tag a read names when a renewal named none", async () => {
+			expect.assertions(3);
 
 			const store = fakeS3();
 			const schedule = createFakeSchedule();
@@ -1231,8 +1276,33 @@ describe(createS3StateLockPort, () => {
 			assert(hold.success);
 
 			await schedule.tickAsync();
+			const given = await hold.data.release();
 
-			expect(lost[0]!.reason).toContain("could never be given up safely");
+			expect(lost).toBeEmpty();
+			expect(schedule.cancelled()).toBe(1);
+			expect(given.success).toBeTrue();
+		});
+
+		it("should report the lease lost when no read can name what to write against", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3();
+			const schedule = createFakeSchedule();
+			const lost: Array<StateLockError> = [];
+
+			const hold = await lockFor({
+				fetch: untaggedFrom(store, 2),
+				scheduleEvery: schedule.scheduleEvery,
+			}).acquire("production", {
+				onLeaseLost: (error) => {
+					lost.push(error);
+				},
+			});
+			assert(hold.success);
+
+			await schedule.tickAsync();
+
+			expect(lost[0]!.detail).toStrictEqual({ file: LOCK_LABEL, kind: "leaseLost" });
 			expect(schedule.cancelled()).toBe(1);
 		});
 

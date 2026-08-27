@@ -33,12 +33,18 @@ object. _Avoid_: lock file, lease file
 while the **Deploy** runs and written against the exact bytes the last renewal
 left the **Hold** standing on. A **Hold** nothing renews past its deadline is
 taken over by the next acquisition, which is what keeps a **Deploy** killed by a
-cancelled CI job from blocking every later run. A renewal the **Store** refuses
-for a reason a later one might not meet leaves the **Hold** standing until its
-own deadline; a renewal the **Store** refuses the condition of, and a deadline
-that passes with no renewal landing, are both reported to the holder so a run
-whose **Hold** is gone never carries on as though it still had the
-**Environment**. _Avoid_: ttl, heartbeat, keepalive
+cancelled CI job from blocking every later run. A deadline that is not an
+instant reads as one the clock has not reached, so a record nothing here wrote
+takes no **Environment** away from a run that may still be holding it.
+
+A renewal the **Store** refuses for a reason a later one might not meet leaves
+the **Hold** standing until its own deadline. A renewal the **Store** takes
+without naming an **Entity tag** is read back for one, on the same terms
+acquisition reads its own landed write back. A renewal the **Store** refuses the
+condition of, a read back that names no tag either, and a deadline that passes
+with no renewal landing are all reported to the holder, so a run whose **Hold**
+is gone never carries on as though it still had the **Environment**. _Avoid_:
+ttl, heartbeat, keepalive
 
 **Blocker**: The **Hold** one acquisition read in its way, carried only so a
 wait that runs out can name it. It is replaced by every round that reads the

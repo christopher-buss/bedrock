@@ -4,7 +4,6 @@ import { assert, describe, expect, it } from "vitest";
 
 import { withEnvironment } from "#tests/helpers/environment";
 import { fakeS3 } from "#tests/helpers/fake-s3";
-import { DEFAULT_LOCK_LEASE_MS } from "./lease.ts";
 import { parseLockRecord } from "./lock-record.ts";
 import s3Plugin, { s3StateBackend } from "./plugin.ts";
 import type { S3StateConfig } from "./state-schema.ts";
@@ -73,7 +72,7 @@ describe("s3 plugin", () => {
 		assert(record !== undefined);
 
 		expect(given.success).toBeTrue();
-		expect(Date.parse(record.expiresAt) - takenAt).toBeGreaterThan(DEFAULT_LOCK_LEASE_MS);
+		expect(Date.parse(record.expiresAt) - takenAt).toBeWithin(600_000, 610_000);
 	});
 
 	it("should build a port that reads the bucket the state block named", async () => {

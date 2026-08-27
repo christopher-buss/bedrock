@@ -51,14 +51,14 @@ export interface S3LockRecord extends S3LockHolder {
 
 // A field the record has to carry a value for: a blank identity names no
 // acquisition, and a blank instant names no moment.
-const PRESENT = "string > 0";
+const NON_EMPTY_STRING = "string > 0";
 
 const lockRecordSchema = type({
-	"id": PRESENT,
-	"expiresAt": PRESENT,
+	"id": NON_EMPTY_STRING,
+	"expiresAt": NON_EMPTY_STRING,
 	"operation": "string",
 	"owner": "string",
-	"releasedAt?": PRESENT,
+	"releasedAt?": NON_EMPTY_STRING,
 	"since": "string",
 });
 

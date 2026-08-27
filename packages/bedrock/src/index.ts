@@ -175,6 +175,7 @@ export type {
 	ResourceOpSucceededCreateEvent,
 	ResourceOpSucceededEvent,
 	ResourceOpSucceededUpdateEvent,
+	StateLockLeaseLostEvent,
 	StateLockWaitingEvent,
 	StateWrittenEvent,
 } from "./ports/progress-port.ts";

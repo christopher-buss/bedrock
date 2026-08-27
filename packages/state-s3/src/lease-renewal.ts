@@ -1,7 +1,15 @@
 import type { StateLockError, StateLockHold } from "@bedrock-rbx/core";
 
 import { isLeaseExpired, renewalIntervalMs } from "./lease.ts";
-import { type Acquisition, releaseAsync, renewLeaseAsync, type WonHold } from "./lock-object.ts";
+import { leaseWithoutEntityTag } from "./lock-failure.ts";
+import {
+	type Acquisition,
+	type LeaseRenewal,
+	readLockAsync,
+	releaseAsync,
+	renewLeaseAsync,
+	type WonHold,
+} from "./lock-object.ts";
 
 /** What one held **Lease** runs on. */
 export interface HeldLeaseInputs {
@@ -20,6 +28,14 @@ interface StandingHold {
 	/** Whether the hold is another run's now. */
 	lost: boolean;
 }
+
+/**
+ * What one renewal left behind: the hold as it now stands, or why the
+ * **Lease** could not be kept.
+ */
+type KeptLease =
+	| Extract<LeaseRenewal, { readonly kind: "failed" } | { readonly kind: "refused" }>
+	| { readonly held: WonHold; readonly kind: "kept" };
 
 /** What one renewal needs to know about the hold it is keeping alive. */
 interface RenewalStep {
@@ -79,6 +95,36 @@ export function holdWithRenewedLease({
 }
 
 /**
+ * Renew one hold's **Lease**, reading the object back for an entity tag
+ * the store took the renewal without naming.
+ *
+ * The deadline moved either way, so a renewal answered untagged leaves a
+ * hold that stands on bytes it cannot name. The read is what names them
+ * again, on the same terms acquisition reads its own landed write back.
+ *
+ * @param acquisition - The acquisition that won the hold.
+ * @param held - The hold as it stands.
+ * @returns The hold as it now stands, or why the lease could not be kept.
+ */
+async function keepLeaseAsync(acquisition: Acquisition, held: WonHold): Promise<KeptLease> {
+	const renewal = await renewLeaseAsync(acquisition, held);
+	if (renewal.kind === "renewed") {
+		return { held: renewal.held, kind: "kept" };
+	}
+
+	if (renewal.kind !== "untagged") {
+		return renewal;
+	}
+
+	const found = await readLockAsync(acquisition);
+	return found.kind === "read" &&
+		found.etag !== undefined &&
+		found.record.id === acquisition.claim.id
+		? { held: { etag: found.etag, record: found.record }, kind: "kept" }
+		: { error: leaseWithoutEntityTag(acquisition.label), kind: "refused" };
+}
+
+/**
  * Push one hold's deadline out, and read what the store made of it.
  *
  * A refusal a later renewal might not meet leaves the hold standing until
@@ -99,20 +145,17 @@ async function renewOnceAsync({
 		return;
 	}
 
-	const renewal = await renewLeaseAsync(acquisition, standing.held);
-	if (renewal.kind === "renewed") {
-		standing.held = renewal.held;
+	const kept = await keepLeaseAsync(acquisition, standing.held);
+	if (kept.kind === "kept") {
+		standing.held = kept.held;
 		return;
 	}
 
-	if (
-		renewal.kind === "failed" &&
-		!isLeaseExpired(standing.held.record, acquisition.seams.now())
-	) {
+	if (kept.kind === "failed" && !isLeaseExpired(standing.held.record, acquisition.seams.now())) {
 		return;
 	}
 
 	standing.lost = true;
 	cancel();
-	onLeaseLost?.(renewal.error);
+	onLeaseLost?.(kept.error);
 }

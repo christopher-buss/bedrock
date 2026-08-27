@@ -353,7 +353,7 @@ function settle({
 	}
 
 	if (attempt.etag === undefined) {
-		return { err: holdWithoutEntityTag(label, "acquireFailed"), success: false };
+		return { err: holdWithoutEntityTag(label), success: false };
 	}
 
 	return {
