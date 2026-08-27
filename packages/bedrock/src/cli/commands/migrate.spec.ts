@@ -1442,6 +1442,29 @@ describe(migrateCommand, () => {
 		]);
 	});
 
+	it("should record no answer for an optional field the user skipped", async () => {
+		expect.assertions(1);
+
+		const buildStatePort = vi.fn<BuildStatePortFunc>(() => happyPortResult());
+		const dependencies = makeDependencies({ buildStatePort, plugins: s3Plugins() });
+		const port = dependencies.migratePromptPort!;
+		vi.mocked(port.promptConfigFormat).mockResolvedValueOnce({
+			data: "typescript",
+			success: true,
+		});
+		vi.mocked(port.promptStateBackend).mockResolvedValueOnce({ data: "s3", success: true });
+		vi.mocked(port.promptBackendField)
+			.mockResolvedValueOnce({ data: "my-bucket", success: true })
+			.mockResolvedValueOnce({ data: "custom", success: true })
+			.mockResolvedValueOnce({ data: "", success: true });
+
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
+
+		expect(buildStatePort.mock.calls.map(([deps]) => deps.stateConfig)).toStrictEqual([
+			{ backend: "s3", bucket: "my-bucket", region: "custom" },
+		]);
+	});
+
 	it("should record the plugin that owns the chosen backend in the emitted config", async () => {
 		expect.assertions(1);
 

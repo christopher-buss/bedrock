@@ -66,6 +66,14 @@ export async function collectBackendAnswersAsync(
 			return { err: "cancelled", success: false };
 		}
 
+		// An empty answer is a field the user skipped, which only an optional
+		// one accepts. Recording it would put a key in the `state` block the
+		// user never gave, and a **Backend** whose schema wants that key
+		// non-empty refuses the block it was asked for.
+		if (answer.data === "") {
+			continue;
+		}
+
 		// Rebuilding rather than assigning is also what records a key like
 		// `__proto__`: a computed key in a literal is an own property,
 		// where the assignment form would reach the setter and vanish.
