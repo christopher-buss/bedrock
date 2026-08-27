@@ -47,6 +47,17 @@ describe("s3 plugin", () => {
 		expect(s3StateBackend.schema({ region: "eu-west-2" })).not.toStrictEqual(STATE_CONFIG);
 	});
 
+	it("should ask a migration onto this backend for the bucket, the region, and an endpoint it may skip", () => {
+		expect.assertions(2);
+
+		const fields = s3StateBackend.migratePrompts ?? [];
+
+		expect(fields.map((field) => field.key)).toStrictEqual(["bucket", "region", "endpoint"]);
+		expect(
+			fields.filter((field) => field.validationMessage !== undefined).map(({ key }) => key),
+		).toStrictEqual(["bucket", "region"]);
+	});
+
 	it("should build a lock port that leases a hold for as long as the state block asked", async () => {
 		expect.assertions(2);
 

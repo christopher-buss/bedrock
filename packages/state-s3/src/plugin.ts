@@ -6,6 +6,7 @@ import type {
 import type { AwsCredentialIdentity } from "@smithy/types";
 
 import { lockOwnerFrom } from "./lock-owner.ts";
+import { s3MigratePrompts } from "./migrate.ts";
 import type { S3StoreDeps } from "./s3-client.ts";
 import { createS3StateAdapter } from "./s3-state-adapter.ts";
 import { createS3StateLockPort } from "./s3-state-lock-adapter.ts";
@@ -49,6 +50,7 @@ export const s3StateBackend: StateBackendDeclaration<S3StateConfig> = {
 	createPort(context) {
 		return { data: createS3StateAdapter(bucketAccessFrom(context)), success: true };
 	},
+	migratePrompts: s3MigratePrompts,
 	schema: s3StateSchema,
 };
 
