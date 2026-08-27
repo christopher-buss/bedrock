@@ -70,11 +70,11 @@ function happyPortResult(write?: StatePort["write"]): ReturnType<BuildStatePortF
 }
 
 /**
- * A project loader reporting a config that declares no plugins. Injected
- * by default so the command reads a stated registry instead of the real
- * loader, whose result depends on the runner's working directory.
+ * A project loader answering with a config that declares no plugins,
+ * which is what the command reads for a test stating nothing of its own
+ * about plugin discovery.
  *
- * @returns A loader spy the command reads exactly as it reads the real one.
+ * @returns The loader to inject.
  */
 function fakeLoadProject(): NonNullable<ProgDependencies["loadProject"]> {
 	return vi.fn<NonNullable<ProgDependencies["loadProject"]>>(async () => {
