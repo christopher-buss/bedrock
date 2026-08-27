@@ -7,7 +7,11 @@ import {
 	OpenCloudError,
 	parseStateFile,
 } from "@bedrock-rbx/core";
-import { createS3StateAdapter, createS3StateLockPort } from "@bedrock-rbx/state-s3";
+import {
+	createS3StateAdapter,
+	createS3StateLockPort,
+	type S3StateLockAdapterDeps,
+} from "@bedrock-rbx/state-s3";
 
 import { dirname, join } from "node:path";
 import process from "node:process";
@@ -44,17 +48,29 @@ const MOVED_DIGEST = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b78
  * Build a lock port over the smoke bucket, on the credentials the runner
  * already carries.
  *
- * @param lockTimeoutMs - How long acquisition waits out a hold; omit to
- * wait the default five minutes.
+ * @param deps - What one acquisition configures beyond the bucket: how
+ * long it waits out a hold, how long its own hold is leased for, and the
+ * schedule it renews that lease on.
  * @returns The lock port to take a hold with.
  */
-function lockPort(lockTimeoutMs?: number) {
+function lockPort(deps: Partial<S3StateLockAdapterDeps> = {}) {
 	return createS3StateLockPort({
 		bucket: BUCKET,
-		lockTimeoutMs,
 		owner: "bedrock-smoke",
 		prefix: PREFIX,
 		region: REGION,
+		...deps,
+	});
+}
+
+/**
+ * Wait, so a lease taken out over the bucket has time to run out.
+ *
+ * @param ms - Milliseconds to wait.
+ */
+async function waitAsync(ms: number): Promise<void> {
+	await new Promise<void>((resolve) => {
+		setTimeout(resolve, ms);
 	});
 }
 
@@ -152,7 +168,7 @@ describe("s3 state backend against real aws", () => {
 
 			// No patience at all, so this refuses on the hold rather than on
 			// anything the network did.
-			const contended = await lockPort(0).acquire(environment);
+			const contended = await lockPort({ lockTimeoutMs: 0 }).acquire(environment);
 
 			expect(contended.success).toBeFalse();
 
@@ -170,9 +186,62 @@ describe("s3 state backend against real aws", () => {
 
 			// The object outlives the hold, so the next run has to be able to
 			// take it over rather than find the environment blocked forever.
-			const again = await lockPort(0).acquire(environment);
+			const again = await lockPort({ lockTimeoutMs: 0 }).acquire(environment);
 
 			expect(again.success).toBeTrue();
+		},
+		60_000,
+	);
+
+	it.skipIf(!HAS_SECRETS)(
+		"should take over a hold whose lease ran out and refuse what that holder writes next",
+		async () => {
+			expect.assertions(3);
+
+			const environment = `${ENVIRONMENT}-lease-${Date.now()}`;
+
+			onTestFinished(async () => {
+				await pruneStateS3Async({
+					bucket: BUCKET,
+					keep: KEEP,
+					prefix: PREFIX,
+					region: REGION,
+				});
+			});
+
+			// A schedule that never runs is a run killed mid-deploy: the hold
+			// is taken, and nothing ever renews the lease on it.
+			const abandoned = await lockPort({
+				lockLeaseMs: 1000,
+				scheduleEvery: () => () => {},
+			}).acquire(environment, { operation: "smoke" });
+			assertOk(abandoned, "acquire");
+
+			await waitAsync(1500);
+
+			// No patience at all, so this takes the expired hold over rather
+			// than waiting anything out.
+			const takeover = await lockPort({ lockTimeoutMs: 0 }).acquire(environment);
+			assertOk(takeover, "takeover of an expired hold");
+
+			// The abandoned run is still alive and still thinks it holds the
+			// environment. Its tombstone is fenced on the record it took, and
+			// the bucket has moved past that.
+			const stale = await abandoned.data.release();
+
+			expect(stale.success).toBeFalse();
+
+			const given = await takeover.data.release();
+			assertOk(given, "release of the taken-over hold");
+
+			const tombstone = await readS3ObjectTextAsync({
+				key: `${PREFIX}/locks/${environment}.json`,
+				bucket: BUCKET,
+				region: REGION,
+			});
+
+			expect(tombstone).toInclude('"releasedAt"');
+			expect(tombstone).toInclude('"expiresAt"');
 		},
 		60_000,
 	);
