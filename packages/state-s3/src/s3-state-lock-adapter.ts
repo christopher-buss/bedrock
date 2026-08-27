@@ -1,11 +1,5 @@
 import type { S3Client } from "@aws-sdk/client-s3";
-import {
-	type Result,
-	type StateLockError,
-	type StateLockHold,
-	type StateLockPort,
-	validateEnvironmentName,
-} from "@bedrock-rbx/core";
+import type { Result, StateLockError, StateLockHold, StateLockPort } from "@bedrock-rbx/core";
 
 import { backoffDelayMs } from "./backoff.ts";
 import {
@@ -21,10 +15,10 @@ import {
 	conditionalWritesIgnored,
 	conditionalWritesUnproven,
 	holdWithoutEntityTag,
-	invalidEnvironment,
 	leaseAlreadyRunOut,
 	timedOut,
 } from "./lock-failure.ts";
+import { forceReleaseAsync, openLockObject, readHoldingAsync } from "./lock-holding.ts";
 import {
 	type Acquisition,
 	discardOwnAsync,
@@ -35,7 +29,7 @@ import {
 	writeLockAsync,
 } from "./lock-object.ts";
 import { holderOf, randomLockId, type S3LockHolder, type S3LockRecord } from "./lock-record.ts";
-import { lockKeyFor, objectLabelFor, probeKeyFor } from "./object-key.ts";
+import { probeKeyFor } from "./object-key.ts";
 import { createConfiguredS3Client, type S3StoreDeps } from "./s3-client.ts";
 
 /**
@@ -115,6 +109,22 @@ interface AcquisitionInputs {
 
 /** What the caller said the hold is for, and where to report a wait. */
 type AcquireOptions = Parameters<StateLockPort["acquire"]>[1];
+
+/** What {@link takeHoldAsync} needs to take one. */
+interface TakeHoldInputs {
+	/** The configured S3 client. */
+	readonly client: S3Client;
+	/** Bucket coordinates and who the hold belongs to. */
+	readonly deps: S3StateLockAdapterDeps;
+	/** **Environment** the hold covers, as the caller named it. */
+	readonly environment: string;
+	/** Where to report a wait, and what the hold is for. */
+	readonly options: AcquireOptions;
+	/** Asking the store whether it honours conditional creates. */
+	readonly probeStoreAsync: () => Promise<ConditionalWriteProbe>;
+	/** The clock, the waiting, and the identity to run on. */
+	readonly seams: LockSeams;
+}
 
 /** What {@link settle} needs to read one settled attempt. */
 interface SettleInputs {
@@ -210,6 +220,7 @@ export function intervalEvery(ms: number, run: () => Promise<void>): () => void 
 export function createS3StateLockPort(deps: S3StateLockAdapterDeps): StateLockPort {
 	const client = createConfiguredS3Client(deps);
 	const seams = settleSeams(deps);
+	const lockTarget = { bucket: deps.bucket, prefix: deps.prefix };
 	const probeStoreAsync = openProbe({
 		key: probeKeyFor(deps.prefix, seams.mintId()),
 		bucket: deps.bucket,
@@ -218,99 +229,23 @@ export function createS3StateLockPort(deps: S3StateLockAdapterDeps): StateLockPo
 
 	return {
 		async acquire(environment, options) {
-			const opened = openAcquisition({
-				client,
-				deps,
-				environment,
-				operation: options?.operation,
-				seams,
-			});
-			if (!opened.success) {
-				return opened;
-			}
-
-			// Asked before anything reaches the lock object: a store that
-			// grants two runs the same hold has to be refused rather than
-			// answered with one.
-			const probed = await probeStoreAsync();
-			return probed.kind === "honoured"
-				? acquireAsync(opened.data, options)
-				: { err: probeRefusal(opened.data.label, probed), success: false };
+			return takeHoldAsync({ client, deps, environment, options, probeStoreAsync, seams });
+		},
+		async forceRelease(environment) {
+			const opened = openLockObject({ ...lockTarget, client, environment });
+			return opened.success
+				? forceReleaseAsync(opened.data, seams.now())
+				: { err: opened.err, success: false };
+		},
+		async inspect(environment) {
+			// Nothing here rests on a conditional write, so the store is
+			// not asked to prove it honours them.
+			const opened = openLockObject({ ...lockTarget, client, environment });
+			return opened.success
+				? readHoldingAsync(opened.data, seams.now())
+				: { err: opened.err, success: false };
 		},
 	};
-}
-
-/**
- * Settle the clock, the waiting, and the identity every acquisition
- * through one port runs on.
- *
- * @param deps - What the caller configured, where it configured anything.
- * @returns The seams, defaulted.
- */
-function settleSeams(deps: S3StateLockAdapterDeps): LockSeams {
-	return {
-		leaseMs: deps.lockLeaseMs ?? DEFAULT_LOCK_LEASE_MS,
-		mintId: deps.mintId ?? randomLockId,
-		now: deps.now ?? Date.now,
-		scheduleEvery: deps.scheduleEvery ?? intervalEvery,
-		sleepAsync: deps.sleep ?? delayAsync,
-		timeoutMs: deps.lockTimeoutMs ?? DEFAULT_LOCK_TIMEOUT_MS,
-	};
-}
-
-/**
- * Open the standing question of whether this store honours conditional
- * creates, which is asked at most once however many holds are taken.
- *
- * What the store proved is a property of the store rather than of the
- * **Environment** being asked for, so asking again per acquisition would
- * spend a round trip on a question already answered. A round that proved
- * nothing is not an answer and is not held on to: the refusal that got in
- * the way of one acquisition would otherwise refuse every later one on a
- * question the store was never really asked.
- *
- * Two acquisitions racing share the asking rather than each starting one,
- * because they would share the scratch object too: the first probe's
- * cleanup would leave the second's create landing on an absent object,
- * reading a store that honours conditions as one that ignores them. The
- * asking is put away before it is waited on, and taken away again as it
- * settles, so no round can be started while one is still in the air.
- *
- * @param target - The scratch object to write, and the client to write it
- * with.
- * @returns Asking the store, which reaches it once per answer it gets.
- */
-function openProbe(target: ProbeTarget): () => Promise<ConditionalWriteProbe> {
-	let asking: Promise<ConditionalWriteProbe> | undefined;
-	let answered: ConditionalWriteProbe | undefined;
-
-	return async () => {
-		if (answered !== undefined) {
-			return answered;
-		}
-
-		asking ??= probeConditionalWritesAsync(target).then((probed) => {
-			asking = undefined;
-			answered = probed.kind === "unproven" ? undefined : probed;
-			return probed;
-		});
-		return asking;
-	};
-}
-
-/**
- * Report a store whose conditional creates cannot be relied on, in terms
- * of what that means for the **Environment** rather than in the store's
- * own.
- *
- * @param label - The object the hold would have been recorded in.
- * @param probed - What the probe learned.
- * @returns The failure a caller sees.
- */
-function probeRefusal(label: string, probed: FailedProbe): StateLockError {
-	return probed.kind === "ignored"
-		? conditionalWritesIgnored(label)
-		: conditionalWritesUnproven(label, probed.failure);
 }
 
 /**
@@ -329,27 +264,43 @@ function openAcquisition({
 	operation,
 	seams,
 }: AcquisitionInputs): Result<Acquisition, StateLockError> {
-	const safe = validateEnvironmentName(environment);
-	if (!safe.success) {
-		return { err: invalidEnvironment(safe.err.file, safe.err.reason), success: false };
+	const opened = openLockObject({
+		bucket: deps.bucket,
+		client,
+		environment,
+		prefix: deps.prefix,
+	});
+	if (!opened.success) {
+		return opened;
 	}
 
-	const key = lockKeyFor(deps.prefix, safe.data);
 	return {
 		data: {
-			key,
-			bucket: deps.bucket,
+			...opened.data,
 			claim: {
 				id: seams.mintId(),
 				operation: operation ?? DEFAULT_OPERATION,
 				owner: deps.owner,
 			},
-			client,
-			label: objectLabelFor(deps.bucket, key),
 			seams,
 		},
 		success: true,
 	};
+}
+
+/**
+ * Report a store whose conditional creates cannot be relied on, in terms
+ * of what that means for the **Environment** rather than in the store's
+ * own.
+ *
+ * @param label - The object the hold would have been recorded in.
+ * @param probed - What the probe learned.
+ * @returns The failure a caller sees.
+ */
+function probeRefusal(label: string, probed: FailedProbe): StateLockError {
+	return probed.kind === "ignored"
+		? conditionalWritesIgnored(label)
+		: conditionalWritesUnproven(label, probed.failure);
 }
 
 /**
@@ -524,4 +475,98 @@ async function acquireAsync(
 		options?.onWaiting?.({ elapsedMs, holder: blocker?.owner, remainingMs });
 		await sleepAsync(backoffDelayMs({ attempt, remainingMs }));
 	}
+}
+
+/**
+ * Take one hold, once the store has been shown to honour the conditional
+ * create the hold rests on.
+ *
+ * @param inputs - The bucket, the seams, the **Environment**, what the
+ * caller said the hold is for, and the standing question about the store.
+ * @returns The hold, or why it could not be taken.
+ */
+async function takeHoldAsync({
+	client,
+	deps,
+	environment,
+	options,
+	probeStoreAsync,
+	seams,
+}: TakeHoldInputs): Promise<Result<StateLockHold, StateLockError>> {
+	const opened = openAcquisition({
+		client,
+		deps,
+		environment,
+		operation: options?.operation,
+		seams,
+	});
+	if (!opened.success) {
+		return opened;
+	}
+
+	// Asked before anything reaches the lock object: a store that grants
+	// two runs the same hold has to be refused rather than answered with
+	// one.
+	const probed = await probeStoreAsync();
+	return probed.kind === "honoured"
+		? acquireAsync(opened.data, options)
+		: { err: probeRefusal(opened.data.label, probed), success: false };
+}
+
+/**
+ * Settle the clock, the waiting, and the identity every acquisition
+ * through one port runs on.
+ *
+ * @param deps - What the caller configured, where it configured anything.
+ * @returns The seams, defaulted.
+ */
+function settleSeams(deps: S3StateLockAdapterDeps): LockSeams {
+	return {
+		leaseMs: deps.lockLeaseMs ?? DEFAULT_LOCK_LEASE_MS,
+		mintId: deps.mintId ?? randomLockId,
+		now: deps.now ?? Date.now,
+		scheduleEvery: deps.scheduleEvery ?? intervalEvery,
+		sleepAsync: deps.sleep ?? delayAsync,
+		timeoutMs: deps.lockTimeoutMs ?? DEFAULT_LOCK_TIMEOUT_MS,
+	};
+}
+
+/**
+ * Open the standing question of whether this store honours conditional
+ * creates, which is asked at most once however many holds are taken.
+ *
+ * What the store proved is a property of the store rather than of the
+ * **Environment** being asked for, so asking again per acquisition would
+ * spend a round trip on a question already answered. A round that proved
+ * nothing is not an answer and is not held on to: the refusal that got in
+ * the way of one acquisition would otherwise refuse every later one on a
+ * question the store was never really asked.
+ *
+ * Two acquisitions racing share the asking rather than each starting one,
+ * because they would share the scratch object too: the first probe's
+ * cleanup would leave the second's create landing on an absent object,
+ * reading a store that honours conditions as one that ignores them. The
+ * asking is put away before it is waited on, and taken away again as it
+ * settles, so no round can be started while one is still in the air.
+ *
+ * @param target - The scratch object to write, and the client to write it
+ * with.
+ * @returns Asking the store, which reaches it once per answer it gets.
+ */
+function openProbe(target: ProbeTarget): () => Promise<ConditionalWriteProbe> {
+	let asking: Promise<ConditionalWriteProbe> | undefined;
+	let answered: ConditionalWriteProbe | undefined;
+
+	return async () => {
+		if (answered !== undefined) {
+			return answered;
+		}
+
+		asking ??= probeConditionalWritesAsync(target).then((probed) => {
+			asking = undefined;
+			answered = probed.kind === "unproven" ? undefined : probed;
+			return probed;
+		});
+		return asking;
+	};
 }

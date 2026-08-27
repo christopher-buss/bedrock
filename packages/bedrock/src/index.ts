@@ -175,6 +175,7 @@ export type {
 	ResourceOpSucceededCreateEvent,
 	ResourceOpSucceededEvent,
 	ResourceOpSucceededUpdateEvent,
+	StateLockDisabledEvent,
 	StateLockLeaseLostEvent,
 	StateLockWaitingEvent,
 	StateWrittenEvent,
@@ -188,6 +189,7 @@ export type {
 	StateLockAcquireOptions,
 	StateLockError,
 	StateLockHold,
+	StateLockHolding,
 	StateLockPort,
 	StateLockWaiting,
 } from "./ports/state-lock-port.ts";
@@ -202,6 +204,7 @@ export {
 	type MissingCredentialError,
 	type PluginStateBackendError,
 	type StateBackend,
+	type StateBackendExclusion,
 	type UnsupportedBackendError,
 } from "./shell/build-state-port.ts";
 export { defineConfig, type ConfigContext, type ConfigInput } from "./shell/define-config.ts";
@@ -215,6 +218,12 @@ export {
 	publish,
 	type PublishOptions,
 } from "./shell/deploy.ts";
+export {
+	forceReleaseStateLockAsync,
+	type ForceReleaseStateLockError,
+	type ForceReleaseStateLockOptions,
+	type ForceReleaseStateLockOutcome,
+} from "./shell/force-release-state-lock.ts";
 export {
 	loadConfig,
 	loadProjectAsync,

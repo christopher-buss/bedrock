@@ -250,6 +250,44 @@ describe("cli program factory", () => {
 		expect(captured).toContain("BEDROCK_GITHUB_TOKEN");
 	});
 
+	it("should describe the state unlock subcommand and each of its flags in 'state unlock --help' output", () => {
+		expect.assertions(3);
+
+		const prog = createProg();
+
+		const { stdout } = startCapture();
+
+		prog.parse(["node", "bedrock", "state", "unlock", "--help"]);
+
+		const captured = stdout.join("");
+
+		expect(captured).toContain("Take an environment's state lock away");
+		expect(captured).toContain("Target environment");
+		expect(captured).toContain("Config file path");
+	});
+
+	it("should route 'bedrock state unlock' to the state-unlock action", async () => {
+		expect.assertions(2);
+
+		const clack = fakeClackPort();
+		const { exit, exited } = deferredExit();
+		const prog = createProg({
+			clack,
+			exit,
+			loadProject: async () => {
+				return {
+					err: { kind: "fileNotFound", searchedFrom: "/project" },
+					success: false,
+				};
+			},
+		});
+
+		prog.parse(["node", "bedrock", "state", "unlock", "--env", "production"]);
+
+		await expect(exited).resolves.toBe(1);
+		expect(clack.intro).toHaveBeenCalledExactlyOnceWith("bedrock state unlock");
+	});
+
 	it("should route 'bedrock state push' to the state-push action", async () => {
 		expect.assertions(2);
 

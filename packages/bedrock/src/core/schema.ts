@@ -486,6 +486,14 @@ export interface GistStateConfig {
 	readonly backend: "gist";
 	/** ID of an existing GitHub Gist that holds this project's state files. */
 	readonly gistId: string;
+	/**
+	 * Whether a **Deploy** takes a hold on the **Environment** before
+	 * applying anything. Defaults to on wherever the **Backend** offers
+	 * exclusion; set it to `false` to deploy without one, which is for
+	 * projects that serialize their deploys some other way. A **Backend**
+	 * that offers no exclusion is unaffected by it.
+	 */
+	readonly locking?: boolean;
 }
 
 /**
@@ -499,6 +507,14 @@ export interface GistStateConfig {
 export interface PluginStateConfig {
 	/** Name of the plugin-declared **Backend** to persist state through. */
 	readonly backend: string & {};
+	/**
+	 * Whether a **Deploy** takes a hold on the **Environment** before
+	 * applying anything. Defaults to on wherever the **Backend** offers
+	 * exclusion; set it to `false` to deploy without one, which is for
+	 * projects that serialize their deploys some other way. A **Backend**
+	 * that offers no exclusion is unaffected by it.
+	 */
+	readonly locking?: boolean;
 	/** Keys the plugin claiming this **Backend** declared. */
 	readonly [key: string]: unknown;
 }
@@ -1169,15 +1185,15 @@ const universeEntry = type({
 	"youtubeSocialLink?": socialLinkOrUndefined,
 }).onUndeclaredKey("reject");
 
-// The one `state` key core owns whatever the backend is, merged into every
-// plugin fragment so a plugin never declares it.
-const STATE_BACKEND_BASE = { backend: "string" } as const;
+// The `state` keys core owns whatever the backend is, merged into every
+// plugin fragment so a plugin never declares them.
+const STATE_BACKEND_BASE = { "backend": "string", "locking?": "boolean" } as const;
 
 // The shape every backend core knows about accepts, and the shape an
 // unrecognized backend name falls back to so a config can name a backend
 // this build has no declaration for.
 const BUILTIN_STATE_SCHEMA = type({
-	"backend": "string",
+	...STATE_BACKEND_BASE,
 	"gistId?": "string > 0",
 }).onUndeclaredKey("reject");
 

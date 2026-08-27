@@ -276,6 +276,19 @@ describe(createClackProgressAdapter, () => {
 		);
 	});
 
+	it("should render locking being off as a warning naming the environment", () => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		const port = createClackProgressAdapter({ clack });
+
+		port.emit({ environment: "production", kind: "stateLockDisabled" });
+
+		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith(
+			"Locking is off for production by config: concurrent deploys are not held apart",
+		);
+	});
+
 	it("should render a contended lock wait naming the holder and the time left", () => {
 		expect.assertions(1);
 

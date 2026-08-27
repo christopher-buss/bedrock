@@ -397,6 +397,7 @@ interface ResolvedDependenciesBase {
 	readonly build: BuildStep | undefined;
 	readonly codegen: CodegenBundle | undefined;
 	readonly config: ResolvedConfig;
+	readonly lockingDisabled: boolean;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly registry: DriverRegistry;
@@ -487,8 +488,24 @@ interface AssetStageInputs {
  */
 interface DrivenDependencies {
 	readonly codegen: CodegenBundle | undefined;
+	readonly lockingDisabled: boolean;
 	readonly registry: DriverRegistry;
 	readonly stateLockPort: StateLockPort | undefined;
+	readonly statePort: StatePort;
+}
+
+/**
+ * The **Backend** ports one **Deploy** runs on, and what it says about them.
+ */
+interface DeployStateBackend {
+	/**
+	 * Whether the config turned off locking a **Backend** offers, which the
+	 * deploy reports so running without a hold is never silent.
+	 */
+	readonly lockingDisabled: boolean;
+	/** Exclusion around the deploy, absent when none is in force. */
+	readonly stateLockPort: StateLockPort | undefined;
+	/** Persistence for the per-environment snapshot. */
 	readonly statePort: StatePort;
 }
 
@@ -739,11 +756,33 @@ async function resolveEffectiveConfigAsync(options: DeployOptions): Promise<
 }
 
 /**
+ * Read the **Backend** the config named as the ports one deploy runs on.
+ *
+ * A **Backend** hands back the port it can take a hold with whatever the
+ * config says; the config is what decides whether this deploy takes one. A
+ * caller that supplied a lock port asked for a hold, so it takes the place
+ * of the **Backend**'s own and locking is not reported as off.
+ *
+ * @param options - The caller's deploy options.
+ * @param backend - What the configured **Backend** contributed.
+ * @returns The ports the deploy runs on.
+ */
+function configuredBackend(options: DeployOptions, backend: StateBackend): DeployStateBackend {
+	const declared = backend.locking === "exclusive" ? backend.stateLockPort : undefined;
+	const stateLockPort = options.stateLockPort ?? declared;
+	return {
+		lockingDisabled: stateLockPort === undefined && backend.locking === "disabled",
+		stateLockPort,
+		statePort: backend.statePort,
+	};
+}
+
+/**
  * Resolve the ports the **Backend** contributes. A supplied `statePort` is
  * the caller's whole **Backend**, so the config's `state` block is never
  * read and the hold is whatever the caller supplied alongside it; otherwise
  * both ports come from the configured **Backend**, and a supplied
- * `stateLockPort` overrides the one it declared.
+ * `stateLockPort` takes the place of the one it declared.
  *
  * @param inputs - The effective config, the caller's options, and what the
  * loaded plugins declared.
@@ -754,10 +793,14 @@ function pickStateBackend({
 	config,
 	options,
 	plugins,
-}: DrivenInputs): Result<StateBackend, DeployError> {
+}: DrivenInputs): Result<DeployStateBackend, DeployError> {
 	if (options.statePort !== undefined) {
 		return {
-			data: { stateLockPort: options.stateLockPort, statePort: options.statePort },
+			data: {
+				lockingDisabled: false,
+				stateLockPort: options.stateLockPort,
+				statePort: options.statePort,
+			},
 			success: true,
 		};
 	}
@@ -773,13 +816,9 @@ function pickStateBackend({
 		plugins,
 		stateConfig: stateConfig.data,
 	});
-	if (!backend.success) {
-		return backend;
-	}
-
-	return options.stateLockPort === undefined
-		? backend
-		: { data: { ...backend.data, stateLockPort: options.stateLockPort }, success: true };
+	return backend.success
+		? { data: configuredBackend(options, backend.data), success: true }
+		: backend;
 }
 
 function pickRegistry(inputs: DrivenInputs): Result<DriverRegistry, DeployError> {
@@ -925,6 +964,10 @@ async function runHeldAsync({
 	environment,
 	runner,
 }: HeldRunContext): Promise<Result<BedrockState, DeployError>> {
+	if (deps.lockingDisabled) {
+		deps.progress.emit({ environment, kind: "stateLockDisabled" });
+	}
+
 	if (deps.stateLockPort === undefined) {
 		return runner(environment, deps);
 	}

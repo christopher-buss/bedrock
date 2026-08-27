@@ -3,7 +3,11 @@ import { assert, describe, expect, it } from "vitest";
 
 import { environmentFrom } from "#tests/helpers/environment";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
-import { fakeStateLock } from "#tests/helpers/state-lock";
+import {
+	fakeStateLock,
+	neverForceReleaseAsync,
+	neverInspectAsync,
+} from "#tests/helpers/state-lock";
 import type { ResourceKind } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
 import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
@@ -149,6 +153,7 @@ function recordingProgress(events: Array<ProgressEvent>): ProgressPort {
  */
 function waitingLockPort(port: StateLockPort, waiting: StateLockWaiting): StateLockPort {
 	return {
+		...port,
 		async acquire(environment, options) {
 			options?.onWaiting?.(waiting);
 			return port.acquire(environment);
@@ -166,6 +171,7 @@ function waitingLockPort(port: StateLockPort, waiting: StateLockWaiting): StateL
  */
 function leaseLosingLockPort(port: StateLockPort, error: StateLockError): StateLockPort {
 	return {
+		...port,
 		async acquire(environment, options) {
 			const hold = await port.acquire(environment, options);
 			options?.onLeaseLost?.(error);
@@ -186,6 +192,7 @@ function operationRecordingLockPort(
 	asked: Array<string | undefined>,
 ): StateLockPort {
 	return {
+		...port,
 		async acquire(environment, options) {
 			asked.push(options?.operation);
 			return port.acquire(environment);
@@ -212,6 +219,8 @@ describe("deploy under a locking backend", () => {
 					trace.push("acquire");
 					return lock.port.acquire(environment);
 				},
+				forceRelease: neverForceReleaseAsync,
+				inspect: neverInspectAsync,
 			},
 			statePort: tracingStatePort(trace),
 		});
@@ -441,6 +450,8 @@ describe("deploy under a locking backend", () => {
 						success: true,
 					};
 				},
+				forceRelease: neverForceReleaseAsync,
+				inspect: neverInspectAsync,
 			},
 			statePort: refusingWriteStatePort(),
 		});
@@ -478,6 +489,176 @@ describe("deploy under a locking backend", () => {
 
 		expect(lock.acquired).toStrictEqual(["production"]);
 		expect(lock.released).toStrictEqual(["production"]);
+	});
+
+	it("should take the hold the caller supplies over the one the backend declares", async () => {
+		expect.assertions(2);
+
+		const declared = fakeStateLock();
+		const supplied = fakeStateLock();
+		const statePort = tracingStatePort([]);
+
+		const result = await deploy({
+			config: { ...vipPassConfig(), state: { backend: "s3", bucket: "my-bucket" } },
+			environment: "production",
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: () => ({ data: declared.port, success: true }),
+				createPort: () => ({ data: statePort, success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			progress: SILENT_PROGRESS,
+			readFile: readIconAsync,
+			registry: tracingRegistry([]),
+			stateLockPort: supplied.port,
+		});
+
+		assert(result.success);
+
+		expect(supplied.acquired).toStrictEqual(["production"]);
+		expect(declared.acquired).toBeEmpty();
+	});
+
+	it("should take the hold a caller supplies even where the config turned locking off", async () => {
+		expect.assertions(2);
+
+		const supplied = fakeStateLock();
+		const events: Array<ProgressEvent> = [];
+		const statePort = tracingStatePort([]);
+
+		const result = await deploy({
+			config: {
+				...vipPassConfig(),
+				state: { backend: "s3", bucket: "my-bucket", locking: false },
+			},
+			environment: "production",
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: () => ({ data: fakeStateLock().port, success: true }),
+				createPort: () => ({ data: statePort, success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			progress: recordingProgress(events),
+			readFile: readIconAsync,
+			registry: tracingRegistry([]),
+			stateLockPort: supplied.port,
+		});
+
+		assert(result.success);
+
+		expect(supplied.acquired).toStrictEqual(["production"]);
+		expect(events.map((event) => event.kind)).not.toContain("stateLockDisabled");
+	});
+
+	it("should deploy without taking a hold when the config turned locking off", async () => {
+		expect.assertions(2);
+
+		const lock = fakeStateLock();
+		const statePort = tracingStatePort([]);
+
+		const result = await deploy({
+			config: {
+				...vipPassConfig(),
+				state: { backend: "s3", bucket: "my-bucket", locking: false },
+			},
+			environment: "production",
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: () => ({ data: lock.port, success: true }),
+				createPort: () => ({ data: statePort, success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			progress: SILENT_PROGRESS,
+			readFile: readIconAsync,
+			registry: tracingRegistry([]),
+		});
+
+		assert(result.success);
+
+		expect(result.data.resources).toHaveLength(1);
+		expect(lock.acquired).toBeEmpty();
+	});
+
+	it("should report that locking is off when the config turned it off", async () => {
+		expect.assertions(1);
+
+		const events: Array<ProgressEvent> = [];
+		const statePort = tracingStatePort([]);
+
+		const result = await deploy({
+			config: {
+				...vipPassConfig(),
+				state: { backend: "s3", bucket: "my-bucket", locking: false },
+			},
+			environment: "production",
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: () => ({ data: fakeStateLock().port, success: true }),
+				createPort: () => ({ data: statePort, success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			progress: recordingProgress(events),
+			readFile: readIconAsync,
+			registry: tracingRegistry([]),
+		});
+
+		assert(result.success);
+
+		expect(events[0]).toStrictEqual({ environment: "production", kind: "stateLockDisabled" });
+	});
+
+	it("should say nothing about locking when the configured backend offers none", async () => {
+		expect.assertions(1);
+
+		const events: Array<ProgressEvent> = [];
+		const statePort = tracingStatePort([]);
+
+		const result = await deploy({
+			config: { ...vipPassConfig(), state: { backend: "s3", bucket: "my-bucket" } },
+			environment: "production",
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createPort: () => ({ data: statePort, success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			progress: recordingProgress(events),
+			readFile: readIconAsync,
+			registry: tracingRegistry([]),
+		});
+
+		assert(result.success);
+
+		expect(events.map((event) => event.kind)).not.toContain("stateLockDisabled");
+	});
+
+	it("should say nothing about locking when the backend offers none to turn off", async () => {
+		expect.assertions(1);
+
+		const events: Array<ProgressEvent> = [];
+
+		const result = await deploy({
+			config: vipPassConfig(),
+			environment: "production",
+			getEnv: environmentFrom({}),
+			progress: recordingProgress(events),
+			readFile: readIconAsync,
+			registry: tracingRegistry([]),
+			statePort: tracingStatePort([]),
+		});
+
+		assert(result.success);
+
+		expect(events.map((event) => event.kind)).not.toContain("stateLockDisabled");
 	});
 
 	it("should take the hold for a provision, which shares the deploy's lifetime", async () => {

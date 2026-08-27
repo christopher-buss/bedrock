@@ -71,6 +71,26 @@ export interface StateLockAcquireOptions {
 }
 
 /**
+ * Who holds one **Environment**, as a **Backend** reports it without
+ * taking a hold of its own.
+ *
+ * Every field is best effort: a **Backend** records what its own lock
+ * record carries, and core renders whichever parts are there. What core
+ * relies on is the presence of the holding itself, which is what tells a
+ * read-only command that its answer may already be behind a deploy.
+ *
+ * @since unreleased
+ */
+export interface StateLockHolding {
+	/** What the hold was taken for, absent when the record names none. */
+	readonly operation?: string | undefined;
+	/** Who the holder recorded itself as, absent when it recorded nobody. */
+	readonly owner?: string | undefined;
+	/** When the hold was taken, absent when the record says nothing. */
+	readonly since?: string | undefined;
+}
+
+/**
  * A hold taken on one **Environment**, handed back so the deploy shell can
  * give it up when the work is over.
  *
@@ -135,6 +155,16 @@ export interface StateLockHold {
  *             success: true,
  *         };
  *     },
+ *     async forceRelease(environment) {
+ *         const displaced = held.delete(environment);
+ *         return { data: displaced ? { owner: "the run that took it" } : undefined, success: true };
+ *     },
+ *     async inspect(environment) {
+ *         return {
+ *             data: held.has(environment) ? { owner: "the run that took it" } : undefined,
+ *             success: true,
+ *         };
+ *     },
  * };
  *
  * return lockPort.acquire("production").then(async (first) => {
@@ -143,9 +173,14 @@ export interface StateLockHold {
  *     const second = await lockPort.acquire("production");
  *     expect(second.success).toBeFalse();
  *
- *     if (first.success) {
- *         await first.data.release();
- *     }
+ *     const holding = await lockPort.inspect("production");
+ *     expect(holding).toStrictEqual({ data: { owner: "the run that took it" }, success: true });
+ *
+ *     const displaced = await lockPort.forceRelease("production");
+ *     expect(displaced).toStrictEqual({
+ *         data: { owner: "the run that took it" },
+ *         success: true,
+ *     });
  *
  *     const third = await lockPort.acquire("production");
  *     expect(third.success).toBeTrue();
@@ -168,4 +203,38 @@ export interface StateLockPort {
 		environment: string,
 		options?: StateLockAcquireOptions,
 	): Promise<Result<StateLockHold, StateLockError>>;
+	/**
+	 * Take one **Environment**'s hold away, whoever holds it.
+	 *
+	 * The escape hatch locking cannot ship without: a hold left behind by a
+	 * **Deploy** that was killed would otherwise block every later deploy
+	 * until its **Lease** runs out, and on a **Backend** that leases
+	 * nothing, forever.
+	 *
+	 * - Returns `Ok(StateLockHolding)` naming who was displaced.
+	 * - Returns `Ok(undefined)` when nothing held the **Environment**.
+	 * - Returns `Err(StateLockError)` when the hold could not be taken
+	 *   away.
+	 *
+	 * @param environment - **Environment** to take the hold away from.
+	 */
+	forceRelease(
+		environment: string,
+	): Promise<Result<StateLockHolding | undefined, StateLockError>>;
+	/**
+	 * Report who holds one **Environment**, without taking a hold.
+	 *
+	 * This is what a read-only command asks. `read` does not write, so
+	 * preview and diff queue behind nothing; what they owe the reader is
+	 * the fact that a deploy is running and their answer may be stale.
+	 *
+	 * - Returns `Ok(StateLockHolding)` while a run holds the
+	 *   **Environment**.
+	 * - Returns `Ok(undefined)` when nothing does.
+	 * - Returns `Err(StateLockError)` when the lock store could not be
+	 *   asked, which is not the same answer as nobody holding it.
+	 *
+	 * @param environment - **Environment** to report the hold on.
+	 */
+	inspect(environment: string): Promise<Result<StateLockHolding | undefined, StateLockError>>;
 }

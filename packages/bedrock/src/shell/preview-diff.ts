@@ -24,11 +24,12 @@ import {
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
 import type { StateError } from "../core/state.ts";
+import type { StateLockError, StateLockHolding, StateLockPort } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import type { ResourceKey } from "../types/ids.ts";
 import { buildDesired, type BuildDesiredError } from "./build-desired.ts";
 import {
-	buildStatePort,
+	buildStateBackend,
 	type MissingCredentialError,
 	type PluginStateBackendError,
 	type UnsupportedBackendError,
@@ -79,6 +80,13 @@ export interface PreviewDiffOptions {
 	 */
 	readonly readFile?: (path: string) => Promise<Uint8Array>;
 	/**
+	 * Exclusion the **Backend** provides, asked - never taken - so a
+	 * preview racing a deploy says so. Supplied alongside `statePort` when
+	 * the caller supplies its own **Backend**; omit it to preview without
+	 * reporting a hold.
+	 */
+	readonly stateLockPort?: StateLockPort;
+	/**
 	 * Backend used to read the prior snapshot. Default-constructed from
 	 * `config.state` and `BEDROCK_GITHUB_TOKEN` when omitted.
 	 */
@@ -108,10 +116,31 @@ export type PreviewDiffError =
 /** Successful preview output. */
 export interface DiffPreview {
 	/**
+	 * Who held the **Environment** while the preview was computed, absent
+	 * when nothing held it, when the **Backend** offers no exclusion, and
+	 * when the lock store could not be asked.
+	 *
+	 * A preview takes no hold, so a deploy can be running against the
+	 * **Environment** the whole time this was computed and the answer can
+	 * already be behind. Reporting the holder is what says so.
+	 */
+	readonly concurrentHold?: StateLockHolding | undefined;
+	/**
 	 * Environment the preview was computed against; matches
 	 * `options.environment`.
 	 */
 	readonly environment: string;
+	/**
+	 * Why the **Backend** could not say who holds the **Environment**,
+	 * absent whenever it could.
+	 *
+	 * A lock store that cannot be reached is not an **Environment** nobody
+	 * holds, and a preview that reported it as one would read as settled
+	 * when it is only unasked. It never fails the preview: `read` does not
+	 * write, and refusing to answer at all would queue read-only work
+	 * behind a store outage the way taking a hold would.
+	 */
+	readonly holdUnknown?: StateLockError | undefined;
 	/** Operations `diff` would apply during a deploy. */
 	readonly ops: ReadonlyArray<Operation>;
 	/**
@@ -129,11 +158,29 @@ export interface DiffPreview {
 	readonly redactions: ReadonlyArray<RedactionAnnotation>;
 }
 
-interface ResolvedDependencies {
+/** What one preview learned about who holds the **Environment**. */
+interface ConcurrentHold {
+	/** Who holds it, absent when nobody does and when nobody could say. */
+	readonly concurrentHold?: StateLockHolding | undefined;
+	/** Why nobody could say, absent whenever somebody could. */
+	readonly holdUnknown?: StateLockError | undefined;
+}
+
+/** The **Backend** ports one preview reads through. */
+interface PreviewStatePorts {
+	/**
+	 * Exclusion the **Backend** provides, asked so a preview racing a
+	 * deploy says so, and absent when the **Backend** provides none.
+	 */
+	readonly stateLockPort: StateLockPort | undefined;
+	/** Persistence the prior snapshot is read from. */
+	readonly statePort: StatePort;
+}
+
+interface ResolvedDependencies extends PreviewStatePorts {
 	readonly config: ResolvedConfig;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly redactions: ReadonlyArray<RedactionAnnotation>;
-	readonly statePort: StatePort;
 }
 
 /**
@@ -221,12 +268,15 @@ function getEnvironmentOf(options: PreviewDiffOptions): (name: string) => string
 	return options.getEnv ?? readProcessEnvironment;
 }
 
-function pickStatePort(
+function pickStatePorts(
 	options: PreviewDiffOptions,
 	{ config, plugins }: { readonly config: ResolvedConfig; readonly plugins: PluginRegistry },
-): Result<StatePort, PreviewDiffError> {
+): Result<PreviewStatePorts, PreviewDiffError> {
 	if (options.statePort !== undefined) {
-		return { data: options.statePort, success: true };
+		return {
+			data: { stateLockPort: options.stateLockPort, statePort: options.statePort },
+			success: true,
+		};
 	}
 
 	const stateConfig = resolveStateConfig(config, options.environment);
@@ -234,12 +284,23 @@ function pickStatePort(
 		return { err: stateConfig.err, success: false };
 	}
 
-	return buildStatePort({
+	const backend = buildStateBackend({
 		fetch: options.fetch,
 		getEnv: getEnvironmentOf(options),
 		plugins,
 		stateConfig: stateConfig.data,
 	});
+	if (!backend.success) {
+		return backend;
+	}
+
+	return {
+		data: {
+			stateLockPort: backend.data.stateLockPort,
+			statePort: backend.data.statePort,
+		},
+		success: true,
+	};
 }
 
 function resolveEnvironmentView(
@@ -284,18 +345,44 @@ async function resolveDependenciesAsync(
 
 	const { effective, redactions } = view.data;
 	const readFile = options.readFile ?? nodeReadFile;
-	const statePort = pickStatePort(options, {
+	const backend = pickStatePorts(options, {
 		config: effective,
 		plugins: config.data.plugins,
 	});
-	if (!statePort.success) {
-		return statePort;
+	if (!backend.success) {
+		return backend;
 	}
 
 	return {
-		data: { config: effective, readFile, redactions, statePort: statePort.data },
+		data: {
+			config: effective,
+			readFile,
+			redactions,
+			stateLockPort: backend.data.stateLockPort,
+			statePort: backend.data.statePort,
+		},
 		success: true,
 	};
+}
+
+/**
+ * Ask who holds the **Environment**, never taking a hold of its own.
+ *
+ * @param environment - **Environment** the preview was computed against.
+ * @param stateLockPort - The exclusion the **Backend** provides, absent
+ * when it provides none.
+ * @returns Who holds it, or why the **Backend** could not say.
+ */
+async function readHoldAsync(
+	environment: string,
+	stateLockPort: StateLockPort | undefined,
+): Promise<ConcurrentHold> {
+	if (stateLockPort === undefined) {
+		return {};
+	}
+
+	const held = await stateLockPort.inspect(environment);
+	return held.success ? { concurrentHold: held.data } : { holdUnknown: held.err };
 }
 
 async function runPreviewAsync(
@@ -321,8 +408,10 @@ async function runPreviewAsync(
 		return { err: { cause: validated.err, kind: "buildDesiredFailed" }, success: false };
 	}
 
+	const held = await readHoldAsync(environment, dependencies.stateLockPort);
 	return {
 		data: {
+			...held,
 			environment,
 			ops: diff(desired.data, priorResources),
 			pendingRebuild: [...(prior.data.state?.pendingRebuild ?? [])],

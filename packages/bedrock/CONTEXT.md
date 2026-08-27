@@ -122,10 +122,26 @@ actually observe. _Avoid_: etag, generation, revision, fencing token
 **State lock port**: Optional plugin contract for mutual exclusion around a
 **Deploy**: takes a hold on one **Environment** before any **Operation** is
 applied and gives it up once **State** is written. Surfaced in code as
-`StateLockPort`. A **Backend** that cannot offer it is still a valid backend;
-what a backend supports is declared rather than discovered, so the guarantee in
-force is visible when a user chooses where **State** lives. _Avoid_: mutex,
-semaphore, guard
+`StateLockPort`, which also reports who holds an **Environment** without taking
+a hold (`inspect`) and takes a hold away whoever holds it (`forceRelease`). A
+**Backend** that cannot offer it is still a valid backend; what a backend
+supports is declared rather than discovered, so the guarantee in force is
+visible when a user chooses where **State** lives. _Avoid_: mutex, semaphore,
+guard
+
+**Exclusion**: What is actually in force around one **Deploy**, as against what
+the **Backend** could offer: `"exclusive"` when a hold is taken, `"disabled"`
+when the **Backend** locks and the config's `state.locking: false` turned it
+off, `"none"` when the **Backend** offers none. Surfaced in code as
+`StateLockingCapability`. Locking is on by default wherever it is offered, and a
+deploy running without it says which of the two reasons applies. _Avoid_:
+locking mode, lock level
+
+**Force release**: Taking one **Environment**'s hold away without being the run
+that holds it, so a hold left behind by a killed **Deploy** does not have to be
+waited out. Surfaced as `forceReleaseStateLockAsync` and `bedrock state unlock`.
+Safe because the displaced holder's **State** write is guarded on the
+**Version** it read, not on the hold. _Avoid_: force unlock, break lock, steal
 
 **Lease**: The renewable liveness record a lock holder maintains while it works,
 so a hold left behind by a **Deploy** that was killed mid-run expires instead of

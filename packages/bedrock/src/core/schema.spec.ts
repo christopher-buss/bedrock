@@ -1751,6 +1751,22 @@ describe(validateConfig, () => {
 		);
 	});
 
+	it("should accept locking turned off on a builtin backend", () => {
+		expect.assertions(1);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				state: { backend: "gist", gistId: "root-gist", locking: false },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.state).toContainEntry(["locking", false]);
+	});
+
 	it("should accept environments[name].state with the same shape as root state", () => {
 		expect.assertions(1);
 
@@ -3037,6 +3053,39 @@ describe(createConfigValidator, () => {
 		assert(result.err.kind === "validationFailed");
 
 		expect(result.err.issues[0]!.path).toStrictEqual(["state", "gistId"]);
+	});
+
+	it("should accept locking turned off on a plugin-declared backend", () => {
+		expect.assertions(1);
+
+		const result = validateWithS3(
+			{
+				environments: MinEnvironments,
+				state: { backend: "s3", bucket: "my-bucket", locking: false },
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.state).toContainEntry(["locking", false]);
+	});
+
+	it("should reject a locking value that is not a boolean", () => {
+		expect.assertions(1);
+
+		const result = validateWithS3(
+			{
+				environments: MinEnvironments,
+				state: { backend: "s3", bucket: "my-bucket", locking: "off" },
+			},
+			SOURCE,
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "validationFailed");
+
+		expect(result.err.issues[0]!.path).toStrictEqual(["state", "locking"]);
 	});
 
 	it("should still reject a plugin's own keys on a backend name the plugin did not claim", () => {
