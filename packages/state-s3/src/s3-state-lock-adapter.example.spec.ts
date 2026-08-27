@@ -3,14 +3,24 @@ import { expect, it } from "vitest";
 import { createS3StateLockPort } from '@bedrock-rbx/state-s3'
 
 it('Example 1', () => {
+  const stored = new Set<string>()
   const port = createS3StateLockPort({
     bucket: 'my-bucket',
     credentials: {
       accessKeyId: 'example-access-key',
       secretAccessKey: 'example-secret',
     },
-    fetch: async () =>
-      new Response('', { headers: { etag: '"held"' }, status: 200 }),
+    fetch: async (input, init) => {
+      const request = new Request(input, init)
+      if (
+        request.headers.get('if-none-match') === '*' &&
+        stored.has(request.url)
+      ) {
+        return new Response('', { status: 412 })
+      }
+      stored.add(request.url)
+      return new Response('', { headers: { etag: '"held"' }, status: 200 })
+    },
     owner: 'ci-run-7',
     region: 'eu-west-2',
   })

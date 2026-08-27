@@ -60,6 +60,15 @@ alternative and is not portable: recent on S3, undocumented on R2, and silently
 ignored by at least one S3-compatible implementation which deletes anyway and
 reports success. _Avoid_: delete marker, unlock record
 
+**Probe**: The proof a **Store** refuses a create of an **Object** it already
+holds, taken once per **Deploy** before the first **Hold** is. It writes a
+scratch **Object** under the **Lock object**'s own segment, writes it again
+fenced on the **Object** being absent, and reads the refusal as the proof, then
+takes the scratch **Object** away. A **Store** that takes the second write
+evaluated nothing, so it would grant every run the same **Hold**; it gets no
+locking, and the **Deploy** stops rather than running unprotected. _Avoid_:
+capability check, preflight, health check
+
 **Prefix**: The folder the **Object**s are written under, read as a path however
 it was written (`bedrock/state`, `/bedrock/state/`, and `bedrock/state/` are one
 prefix). Absent, the **Object**s sit at the bucket root. _Avoid_: path, folder,
@@ -103,9 +112,3 @@ tests rather than stubbed at `send`. _Avoid_: http client, mock, request handler
   Credentials resolve through the standard AWS Node credential chain, except
   where the environment core injects already holds a key pair, which the
   **Backend** reads rather than reaching for `process.env`.
-
-## Deliberately absent
-
-The probe that proves a store honours conditional writes at all is not here. A
-store that reports success on a condition it ignored has silently granted two
-writers the same **Hold**, and nothing here catches that yet.

@@ -6,6 +6,7 @@ import {
 	loadProjectAsync,
 	OpenCloudError,
 	parseStateFile,
+	type StateBackendFetch,
 } from "@bedrock-rbx/core";
 import {
 	createS3StateAdapter,
@@ -44,13 +45,26 @@ const KEEP = 3;
 // entity tag, differ from what the first write left.
 const MOVED_DIGEST = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
+/** One request the bucket answered, as it went over the wire. */
+interface AnsweredRequest {
+	/** The absent-object condition the request carried, `-` for none. */
+	readonly ifNoneMatch: string;
+	/** HTTP method the client used. */
+	readonly method: string;
+	/** Object path the request addressed. */
+	readonly path: string;
+	/** Status the bucket answered with. */
+	readonly status: number;
+}
+
 /**
  * Build a lock port over the smoke bucket, on the credentials the runner
  * already carries.
  *
  * @param deps - What one acquisition configures beyond the bucket: how
- * long it waits out a hold, how long its own hold is leased for, and the
- * schedule it renews that lease on.
+ * long it waits out a hold, how long its own hold is leased for, the
+ * schedule it renews that lease on, the transport it is watched through,
+ * and the identity it mints.
  * @returns The lock port to take a hold with.
  */
 function lockPort(deps: Partial<S3StateLockAdapterDeps> = {}) {
@@ -72,6 +86,29 @@ async function waitAsync(ms: number): Promise<void> {
 	await new Promise<void>((resolve) => {
 		setTimeout(resolve, ms);
 	});
+}
+
+/**
+ * Record what the bucket was asked and what it answered, on the real
+ * transport, so a test can state what AWS itself did with a condition.
+ *
+ * @param calls - Where to record each request and its answer.
+ * @returns The transport to hand the lock port.
+ */
+function recording(calls: Array<AnsweredRequest>): StateBackendFetch {
+	return async (input, init) => {
+		const answered = await fetch(input, init);
+		const addressed = new Request(input);
+		const url = new URL(addressed.url);
+		const sent = new Headers(init?.headers);
+		calls.push({
+			ifNoneMatch: sent.get("if-none-match") ?? "-",
+			method: init?.method ?? "GET",
+			path: url.pathname,
+			status: answered.status,
+		});
+		return answered;
+	};
 }
 
 /**
@@ -244,6 +281,59 @@ describe("s3 state backend against real aws", () => {
 
 			expect(tombstone).toInclude('"releasedAt"');
 			expect(tombstone).toInclude('"expiresAt"');
+		},
+		60_000,
+	);
+
+	it.skipIf(!HAS_SECRETS)(
+		"should prove the bucket refuses a create of an object it already holds",
+		async () => {
+			expect.assertions(3);
+
+			// A stamped environment gives every run its own lock object, and
+			// a stamped probe its own scratch object, so concurrent runs
+			// never contend over either.
+			const stamp = Date.now();
+			const environment = `${ENVIRONMENT}-probe-${stamp}`;
+			const probeId = `smoke-${stamp}`;
+			const probeKey = `${PREFIX}/locks/.probe-${probeId}.json`;
+			const calls: Array<AnsweredRequest> = [];
+
+			onTestFinished(async () => {
+				await pruneStateS3Async({
+					bucket: BUCKET,
+					keep: KEEP,
+					prefix: PREFIX,
+					region: REGION,
+				});
+			});
+
+			// A hold is taken only where the probe passed: a bucket that took
+			// the second create is refused before acquisition reaches the
+			// lock object at all.
+			const hold = await lockPort({
+				fetch: recording(calls),
+				lockTimeoutMs: 0,
+				mintId: () => probeId,
+			}).acquire(environment, { operation: "smoke" });
+
+			expect(hold.success).toBeTrue();
+
+			assertOk(hold, "acquire against a bucket that honours conditional creates");
+
+			// What the bucket itself did with the probe: took the scratch
+			// object, refused the create of the object it was by then
+			// holding, and gave it up again.
+			const probed = calls.filter((call) => call.path.endsWith(`/${probeKey}`));
+
+			expect(
+				probed.map((call) => `${call.method} ${call.ifNoneMatch} ${call.status}`),
+			).toStrictEqual(["PUT - 200", "PUT * 412", "DELETE - 204"]);
+
+			// Nothing the probe wrote outlives it.
+			await expect(
+				headS3ObjectAsync({ key: probeKey, bucket: BUCKET, region: REGION }),
+			).rejects.toMatchObject({ name: "NotFound" });
 		},
 		60_000,
 	);

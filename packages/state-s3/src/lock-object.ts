@@ -23,11 +23,13 @@ import {
 } from "./lock-record.ts";
 import { readObjectTextAsync } from "./s3-client.ts";
 
-// The wildcard a conditional create requires the object to be absent with,
-// sent bare. At least one S3-compatible implementation compares the raw
-// header value before stripping quotes, so a quoted wildcard reads there as
-// an ETag comparison the store finds satisfied.
-const ABSENT = "*";
+/**
+ * The wildcard a conditional create requires the object to be absent with,
+ * sent bare. At least one S3-compatible implementation compares the raw
+ * header value before stripping quotes, so a quoted wildcard reads there as
+ * an ETag comparison the store finds satisfied.
+ */
+export const ABSENT = "*";
 
 // What the lock object's bytes are written as.
 const LOCK_CONTENT_TYPE = "application/json";

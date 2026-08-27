@@ -44,12 +44,16 @@ environment variables, a shared profile, an SSO session, and CI role credentials
 all work with nothing bedrock-specific configured. Point the chain at the
 account you want the way you would for any other AWS tool.
 
-The credential needs `s3:GetObject` and `s3:PutObject` on the objects:
+The credential needs `s3:GetObject` and `s3:PutObject` on the objects and on the
+locks beside them. `s3:DeleteObject` is what lets the conditional-write probe
+take its scratch object away again; without it the probe still answers, and the
+scratch objects are left for the lifecycle rule that expires the locks beside
+them:
 
 ```json
 {
 	"Effect": "Allow",
-	"Action": ["s3:GetObject", "s3:PutObject"],
+	"Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
 	"Resource": "arn:aws:s3:::my-bucket/*"
 }
 ```
@@ -102,5 +106,43 @@ of those two conditions it was, the S3 error code, and the HTTP status.
 
 ## Locking
 
-There is none yet. Bedrock writes state unconditionally, so serialize concurrent
-deploys of one environment yourself until conditional writes land.
+A deploy takes a hold on its environment before it applies anything and gives it
+up once state has been written, so two CI jobs pointed at one environment are
+serialized instead of both creating resources on Roblox. The hold is a
+`locks/<environment>.json` object beside the state objects, created
+conditionally so exactly one run can hold it. Because locks sit under their own
+prefix segment, a bucket lifecycle rule can expire abandoned ones without
+touching state.
+
+A run that finds the environment held waits, retrying with exponential backoff
+for five minutes by default. `lockTimeoutMs` changes that bound, and `0` refuses
+immediately. Giving up names who holds the environment and since when.
+
+### A hold is leased
+
+A hold carries a deadline it renews while the deploy runs, so a deploy killed by
+a cancelled CI job stops blocking every later one behind manual intervention. A
+hold whose lease is still being renewed is never taken over, however long the
+deploy holding it runs; a hold nothing renews past its deadline is taken over by
+the next deploy, through the same conditional write a released hold is taken
+over with. `lockLeaseMs` sets how long a hold is leased for, one minute by
+default and one second at the shortest.
+
+A lease the backend could not keep is reported through the progress port rather
+than left to be discovered at the end. The state write is what keeps a takeover
+safe either way: it is conditional on the state that was read, so a run that
+kept going past its expired lease has its write refused rather than overwriting
+what the run that took the environment over recorded.
+
+### The store is proved first
+
+Exclusion rests on the store refusing a create of an object it already holds, so
+bedrock proves it rather than assuming it. Before the first hold of a deploy, it
+writes a scratch object under `locks/.probe-<id>.json`, writes it again
+requiring the object to be absent, and reads the refusal as the proof. The
+scratch object is taken away once the store has answered.
+
+A store that takes the second write evaluated no condition and would hand every
+run that asks the same hold. It gets no locking, and the deploy stops saying so
+rather than running unprotected: exclusion that does not exclude is worse than
+none.

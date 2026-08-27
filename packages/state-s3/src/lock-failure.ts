@@ -11,18 +11,24 @@ import type { S3LockHolder } from "./lock-record.ts";
  *   than acquisition was willing to wait.
  * - `acquireFailed` - the store refused the attempt for a reason other than
  *   the hold being taken.
- * - `leaseLost` - the hold's **Lease** could not be renewed, so the hold
- *   is another run's to take over.
  * - `releaseFailed` - the tombstone could not be written, so the hold
  *   stands until it is taken over.
  * - `invalidEnvironment` - the **Environment** name could not address an
  *   object.
+ * - `conditionalWritesIgnored` - the store took a create of an object it
+ *   already held, so a hold there would not exclude anything.
+ * - `conditionalWritesUnproven` - the store could not be asked whether it
+ *   honours conditional creates, so a hold there rests on nothing.
+ * - `leaseLost` - the hold's **Lease** could not be renewed, so the hold
+ *   is another run's to take over.
  *
  * @since unreleased
  */
 export type S3LockFailureKind =
 	| "acquireFailed"
 	| "acquireTimedOut"
+	| "conditionalWritesIgnored"
+	| "conditionalWritesUnproven"
 	| "invalidEnvironment"
 	| "leaseLost"
 	| "releaseFailed";
@@ -58,6 +64,16 @@ export interface TimedOutWait {
 	readonly label: string;
 }
 
+/** One refusal, and the object it was answered about. */
+interface Refusal {
+	/** The refusal, already classified. */
+	readonly failure: S3Failure;
+	/** What went wrong, in this **Backend**'s terms. */
+	readonly kind: S3LockFailureKind;
+	/** The object the refusal was answered about. */
+	readonly label: string;
+}
+
 /**
  * Report an **Environment** name that could not address an object.
  *
@@ -78,13 +94,10 @@ export function invalidEnvironment(file: string, reason: string): StateLockError
  * @returns The failure a caller sees.
  */
 export function acquireRefused(label: string, failure: S3Failure): StateLockError {
-	const detail: S3StateLockErrorDetail = {
-		name: failure.name,
-		file: label,
-		kind: "acquireFailed",
-		statusCode: failure.statusCode,
+	return {
+		detail: refusalDetail({ failure, kind: "acquireFailed", label }),
+		reason: failure.reason,
 	};
-	return { detail, reason: failure.reason };
 }
 
 /**
@@ -102,6 +115,39 @@ export function holdWithoutEntityTag(label: string): StateLockError {
 	return {
 		detail,
 		reason: `${label} was written without an entity tag, so the hold could never be given up safely`,
+	};
+}
+
+/**
+ * Report a store that granted the same object to two creates.
+ *
+ * Named for what it means rather than for the `200` that revealed it: the
+ * store evaluated no condition, so every run asking it for this
+ * **Environment** would be told it holds one.
+ *
+ * @param label - The object the hold would have been recorded in.
+ * @returns The failure a caller sees.
+ */
+export function conditionalWritesIgnored(label: string): StateLockError {
+	const detail: S3StateLockErrorDetail = { file: label, kind: "conditionalWritesIgnored" };
+	return {
+		detail,
+		reason: `the store holding ${label} took a create of an object it already held, so a hold there would grant two runs the same environment; refusing to lock rather than reporting exclusion this store cannot give`,
+	};
+}
+
+/**
+ * Report a store that could not be asked whether it honours conditional
+ * creates.
+ *
+ * @param label - The object the hold would have been recorded in.
+ * @param failure - The refusal that got in the way, already classified.
+ * @returns The failure a caller sees.
+ */
+export function conditionalWritesUnproven(label: string, failure: S3Failure): StateLockError {
+	return {
+		detail: refusalDetail({ failure, kind: "conditionalWritesUnproven", label }),
+		reason: `the store holding ${label} could not be asked whether it honours conditional creates, so exclusion cannot be relied on here; it answered ${failure.name}: ${failure.reason}`,
 	};
 }
 
@@ -151,13 +197,10 @@ export function leaseWithoutEntityTag(label: string): StateLockError {
  * @returns The failure the holder is told its lease is gone with.
  */
 export function renewRefused(label: string, failure: S3Failure): StateLockError {
-	const detail: S3StateLockErrorDetail = {
-		name: failure.name,
-		file: label,
-		kind: "leaseLost",
-		statusCode: failure.statusCode,
+	return {
+		detail: refusalDetail({ failure, kind: "leaseLost", label }),
+		reason: failure.reason,
 	};
-	return { detail, reason: failure.reason };
 }
 
 /**
@@ -168,13 +211,10 @@ export function renewRefused(label: string, failure: S3Failure): StateLockError 
  * @returns The failure a caller sees.
  */
 export function releaseRefused(label: string, failure: S3Failure): StateLockError {
-	const detail: S3StateLockErrorDetail = {
-		name: failure.name,
-		file: label,
-		kind: "releaseFailed",
-		statusCode: failure.statusCode,
+	return {
+		detail: refusalDetail({ failure, kind: "releaseFailed", label }),
+		reason: failure.reason,
 	};
-	return { detail, reason: failure.reason };
 }
 
 /**
@@ -200,4 +240,17 @@ export function timedOut({ blocker, elapsedMs, label }: TimedOutWait): StateLock
 		detail,
 		reason: `${label} ${held}; gave up after ${(elapsedMs / 1000).toFixed(1)}s`,
 	};
+}
+
+/**
+ * Carry one refusal's own terms alongside the object it was answered
+ * about, which is what lets a report name the store's code and status
+ * without reading them.
+ *
+ * @param refusal - What went wrong, the refusal itself, and the object it
+ * was answered about.
+ * @returns The payload a caller reads off the failure.
+ */
+function refusalDetail({ failure, kind, label }: Refusal): S3StateLockErrorDetail {
+	return { name: failure.name, file: label, kind, statusCode: failure.statusCode };
 }
