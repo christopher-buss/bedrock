@@ -66,11 +66,12 @@ export async function collectBackendAnswersAsync(
 			return { err: "cancelled", success: false };
 		}
 
-		// An empty answer is a field the user skipped, which only an optional
-		// one accepts. Recording it would put a key in the `state` block the
-		// user never gave, and a **Backend** whose schema wants that key
-		// non-empty refuses the block it was asked for.
-		if (answer.data === "") {
+		// An answer holding nothing but whitespace is a field the user
+		// skipped, which only an optional one accepts: it is what a required
+		// field's own validation rejects. Recording it would put a key in the
+		// `state` block the user never gave, and one a **Backend** schema
+		// asking only for a non-empty string would take at face value.
+		if (answer.data.trim() === "") {
 			continue;
 		}
 

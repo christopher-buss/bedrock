@@ -1456,7 +1456,7 @@ describe(migrateCommand, () => {
 		vi.mocked(port.promptBackendField)
 			.mockResolvedValueOnce({ data: "my-bucket", success: true })
 			.mockResolvedValueOnce({ data: "custom", success: true })
-			.mockResolvedValueOnce({ data: "", success: true });
+			.mockResolvedValueOnce({ data: " ".repeat(3), success: true });
 
 		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
 

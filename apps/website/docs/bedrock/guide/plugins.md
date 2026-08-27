@@ -189,8 +189,9 @@ const s3: StateBackendDeclaration<typeof schema.infer> = {
 A field with a `validationMessage` is required, and the message is what an empty
 answer is rejected with. A field without one can be skipped, and a skipped field
 records no answer, so an optional key stays out of the `state` block rather than
-reaching your schema as an empty string. Omitting `migratePrompts` leaves your
-backend out of the migrate picker while keeping it usable in config.
+reaching your schema as an empty string. An answer holding nothing but
+whitespace counts as skipped. Omitting `migratePrompts` leaves your backend out
+of the migrate picker while keeping it usable in config.
 
 To supply the state a user is migrating _from_, declare `migrateSource`. Its
 `prompts` ask for the coordinates, and `readBytes` returns the bytes at them:
