@@ -121,6 +121,43 @@ interface BuildStatePortDependencies {
 const STATE_PORT_HINT = "pass a custom statePort via opts.statePort";
 
 /**
+ * Construct the exclusion a **Backend** provides, without building the
+ * **State port** beside it.
+ *
+ * This is what a caller that only acts on the hold asks: an operator
+ * taking a stuck hold away should be told a **Backend** takes none rather
+ * than told to go and find the credential persistence would have needed.
+ *
+ * @since unreleased
+ *
+ * @param deps - Resolved state config plus credential-injection seams.
+ * @returns The exclusion in force and the port providing it, or a typed
+ * Err describing the plugin's refusal or the unsupported backend.
+ */
+export function buildStateLockPort(
+	deps: BuildStatePortDependencies,
+): Result<StateBackendExclusion, PluginStateBackendError | UnsupportedBackendError> {
+	// The gist **Backend** cannot offer atomic create-if-absent and claims
+	// no locking, and a builtin name resolves to its builtin adapter even
+	// when a plugin claims one.
+	if (isGistStateConfig(deps.stateConfig)) {
+		return { data: { locking: "none", stateLockPort: undefined }, success: true };
+	}
+
+	const registered = (deps.plugins ?? EMPTY_PLUGIN_REGISTRY).stateBackends.get(
+		deps.stateConfig.backend,
+	);
+	if (registered === undefined) {
+		return { err: unsupportedBackend(deps.stateConfig.backend), success: false };
+	}
+
+	const exclusion = buildPluginExclusion(registered, deps);
+	return exclusion.success
+		? exclusion
+		: { err: wrapPluginRefusal(registered, exclusion.err), success: false };
+}
+
+/**
  * Construct everything a **Backend** contributes from a resolved
  * `StateConfig`: its `StatePort`, and its `StateLockPort` when it declares
  * that it locks. Dispatches on `stateConfig.backend` exactly as
@@ -171,14 +208,7 @@ export function buildStateBackend(
 		return buildPluginStateBackend(registered, deps);
 	}
 
-	return {
-		err: {
-			backend: deps.stateConfig.backend,
-			hint: STATE_PORT_HINT,
-			kind: "unsupportedBackend",
-		},
-		success: false,
-	};
+	return { err: unsupportedBackend(deps.stateConfig.backend), success: false };
 }
 
 /**
@@ -213,6 +243,16 @@ export function buildStatePort(
 ): Result<StatePort, MissingCredentialError | PluginStateBackendError | UnsupportedBackendError> {
 	const backend = buildStateBackend(deps);
 	return backend.success ? { data: backend.data.statePort, success: true } : backend;
+}
+
+/**
+ * Report a `state.backend` value no builtin and no loaded plugin claims.
+ *
+ * @param backend - The name read off the `state` block.
+ * @returns The failure a caller sees.
+ */
+function unsupportedBackend(backend: string): UnsupportedBackendError {
+	return { backend, hint: STATE_PORT_HINT, kind: "unsupportedBackend" };
 }
 
 /**

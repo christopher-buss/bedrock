@@ -198,6 +198,27 @@ describe(diffCommand, () => {
 		);
 	});
 
+	it("should name a holder whose record says only who it is", async () => {
+		expect.assertions(1);
+
+		const dependencies = makeDependencies({
+			loadProject: fakeLoad({ data: sampleConfig, success: true }),
+			previewDiff: fakePreview([
+				preview({
+					concurrentHold: { owner: "ci-run-7" },
+					environment: "production",
+					ops: [noopOp("vip-pass")],
+				}),
+			]),
+		});
+
+		await diffCommand(dependencies)({ env: "production" });
+
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledWith(
+			'"production" is held by ci-run-7, so this diff may already be out of date',
+		);
+	});
+
 	it("should say nothing about a hold when nothing holds the environment", async () => {
 		expect.assertions(1);
 

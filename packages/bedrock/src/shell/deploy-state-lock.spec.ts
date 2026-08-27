@@ -491,6 +491,69 @@ describe("deploy under a locking backend", () => {
 		expect(lock.released).toStrictEqual(["production"]);
 	});
 
+	it("should take the hold the caller supplies over the one the backend declares", async () => {
+		expect.assertions(2);
+
+		const declared = fakeStateLock();
+		const supplied = fakeStateLock();
+		const statePort = tracingStatePort([]);
+
+		const result = await deploy({
+			config: { ...vipPassConfig(), state: { backend: "s3", bucket: "my-bucket" } },
+			environment: "production",
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: () => ({ data: declared.port, success: true }),
+				createPort: () => ({ data: statePort, success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			progress: SILENT_PROGRESS,
+			readFile: readIconAsync,
+			registry: tracingRegistry([]),
+			stateLockPort: supplied.port,
+		});
+
+		assert(result.success);
+
+		expect(supplied.acquired).toStrictEqual(["production"]);
+		expect(declared.acquired).toBeEmpty();
+	});
+
+	it("should take the hold a caller supplies even where the config turned locking off", async () => {
+		expect.assertions(2);
+
+		const supplied = fakeStateLock();
+		const events: Array<ProgressEvent> = [];
+		const statePort = tracingStatePort([]);
+
+		const result = await deploy({
+			config: {
+				...vipPassConfig(),
+				state: { backend: "s3", bucket: "my-bucket", locking: false },
+			},
+			environment: "production",
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: () => ({ data: fakeStateLock().port, success: true }),
+				createPort: () => ({ data: statePort, success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			progress: recordingProgress(events),
+			readFile: readIconAsync,
+			registry: tracingRegistry([]),
+			stateLockPort: supplied.port,
+		});
+
+		assert(result.success);
+
+		expect(supplied.acquired).toStrictEqual(["production"]);
+		expect(events.map((event) => event.kind)).not.toContain("stateLockDisabled");
+	});
+
 	it("should deploy without taking a hold when the config turned locking off", async () => {
 		expect.assertions(2);
 

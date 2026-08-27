@@ -8,7 +8,7 @@ import { neverForceReleaseAsync, neverInspectAsync } from "#tests/helpers/state-
 import type { StateConfig } from "../core/schema.ts";
 import type { StateLockingCapability } from "../core/state-locking.ts";
 import type { StatePort } from "../ports/state-port.ts";
-import { buildStateBackend, buildStatePort } from "./build-state-port.ts";
+import { buildStateBackend, buildStateLockPort, buildStatePort } from "./build-state-port.ts";
 
 const GIST_CONFIG: StateConfig = { backend: "gist", gistId: "abc123" };
 
@@ -252,6 +252,89 @@ describe(buildStatePort, () => {
 		assert(result.success);
 
 		expect(result.data.read).toBeFunction();
+	});
+});
+
+describe(buildStateLockPort, () => {
+	it("should report the gist backend as taking no hold without asking for a credential", () => {
+		expect.assertions(2);
+
+		const result = buildStateLockPort({
+			getEnv: environmentFrom({}),
+			stateConfig: GIST_CONFIG,
+		});
+
+		assert(result.success);
+
+		expect(result.data.locking).toBe("none");
+		expect(result.data.stateLockPort).toBeUndefined();
+	});
+
+	it("should build the lock port a plugin backend declares", () => {
+		expect.assertions(2);
+
+		const result = buildStateLockPort({
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: () => {
+					return {
+						data: {
+							acquire: neverAcquireAsync,
+							forceRelease: neverForceReleaseAsync,
+							inspect: neverInspectAsync,
+						},
+						success: true,
+					};
+				},
+				createPort: () => ({ data: okPort(), success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			stateConfig: { backend: "s3", bucket: "my-bucket" },
+		});
+
+		assert(result.success);
+
+		expect(result.data.locking).toBe("exclusive");
+		expect(result.data.stateLockPort).toBeDefined();
+	});
+
+	it("should report a backend name no builtin and no plugin claims", () => {
+		expect.assertions(1);
+
+		const result = buildStateLockPort({
+			getEnv: environmentFrom({}),
+			stateConfig: { backend: "s3", bucket: "my-bucket" },
+		});
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("unsupportedBackend");
+	});
+
+	it("should wrap a plugin lock-builder failure in pluginStateBackend naming the plugin", () => {
+		expect.assertions(2);
+
+		const result = buildStateLockPort({
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: () => {
+					return { err: { reason: "lock table unreachable" }, success: false };
+				},
+				createPort: () => ({ data: okPort(), success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			stateConfig: { backend: "s3", bucket: "my-bucket" },
+		});
+
+		assert(!result.success);
+		assert(result.err.kind === "pluginStateBackend");
+
+		expect(result.err.specifier).toBe("@example/state-s3");
+		expect(result.err.reason).toBe("lock table unreachable");
 	});
 });
 

@@ -9,8 +9,7 @@ import type { Config } from "../core/schema.ts";
 import type { StateLockingCapability } from "../core/state-locking.ts";
 import type { StateLockError, StateLockHolding } from "../ports/state-lock-port.ts";
 import {
-	buildStateBackend,
-	type MissingCredentialError,
+	buildStateLockPort,
 	type PluginStateBackendError,
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
@@ -68,7 +67,6 @@ export interface ForceReleaseStateLockOutcome {
  * @since unreleased
  */
 export type ForceReleaseStateLockError =
-	| MissingCredentialError
 	| PluginStateBackendError
 	| StateNotConfiguredError
 	| UnsupportedBackendError
@@ -123,17 +121,20 @@ export async function forceReleaseStateLockAsync(
 		return { err: stateConfig.err, success: false };
 	}
 
-	const backend = buildStateBackend({
+	// Only the exclusion is built, so an operator is told a **Backend**
+	// takes no hold rather than told to go and find the credential
+	// persistence would have needed.
+	const exclusion = buildStateLockPort({
 		fetch: options.fetch,
 		getEnv: options.getEnv ?? readProcessEnvironment,
 		plugins: options.plugins,
 		stateConfig: stateConfig.data,
 	});
-	if (!backend.success) {
-		return backend;
+	if (!exclusion.success) {
+		return exclusion;
 	}
 
-	const { locking, stateLockPort } = backend.data;
+	const { locking, stateLockPort } = exclusion.data;
 	if (stateLockPort === undefined) {
 		return {
 			data: { displaced: undefined, environment: options.environment, locking },

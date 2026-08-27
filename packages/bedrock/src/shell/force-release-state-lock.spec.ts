@@ -1,5 +1,5 @@
 import { type } from "arktype";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { environmentFrom } from "#tests/helpers/environment";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
@@ -109,13 +109,16 @@ describe(forceReleaseStateLockAsync, () => {
 		expect(result.data.displaced).toBeUndefined();
 	});
 
-	it("should release nothing on a backend that takes no hold", async () => {
+	it("should release nothing on a backend that takes no hold, credential or not", async () => {
 		expect.assertions(2);
 
+		// No credential: an operator asking to take a hold away should be
+		// told there is none to take rather than told to go and find a
+		// token first.
 		const result = await forceReleaseStateLockAsync({
 			config: { environments: { production: {} }, state: { backend: "gist", gistId: "abc" } },
 			environment: "production",
-			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
+			getEnv: environmentFrom({}),
 		});
 
 		assert(result.success);
@@ -165,6 +168,51 @@ describe(forceReleaseStateLockAsync, () => {
 
 		expect(result.err.cause.reason).toBe("the lock store was unreachable");
 		expect(result.err.kind).toBe("lockReleaseFailed");
+	});
+
+	it("should read credentials from the process environment when the caller injects none", async () => {
+		expect.assertions(2);
+
+		onTestFinished(() => {
+			vi.unstubAllEnvs();
+		});
+		vi.stubEnv("AWS_ACCESS_KEY_ID", "example-access-key");
+
+		const seen: Array<string | undefined> = [];
+
+		const result = await forceReleaseStateLockAsync({
+			config: s3Config(),
+			environment: "production",
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: (context) => {
+					seen.push(context.getEnv("AWS_ACCESS_KEY_ID"));
+					return { data: releasingLockPort(undefined).port, success: true };
+				},
+				createPort: () => ({ data: neverStatePort(), success: true }),
+				schema: S3_SCHEMA,
+				specifier: "@example/state-s3",
+			}),
+		});
+
+		assert(result.success);
+
+		expect(seen).toStrictEqual(["example-access-key"]);
+		expect(result.data.locking).toBe("exclusive");
+	});
+
+	it("should surface a backend name no builtin and no plugin claims", async () => {
+		expect.assertions(1);
+
+		const result = await forceReleaseStateLockAsync({
+			config: s3Config(),
+			environment: "production",
+			getEnv: environmentFrom({}),
+		});
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("unsupportedBackend");
 	});
 
 	it("should surface an environment the config declares no state for", async () => {

@@ -33,7 +33,6 @@ import {
 	resolveEnvironment,
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
-import type { StateLockingCapability } from "../core/state-locking.ts";
 import type { BedrockState, StateError, StateVersion } from "../core/state.ts";
 import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
@@ -398,7 +397,7 @@ interface ResolvedDependenciesBase {
 	readonly build: BuildStep | undefined;
 	readonly codegen: CodegenBundle | undefined;
 	readonly config: ResolvedConfig;
-	readonly locking: StateLockingCapability;
+	readonly lockingDisabled: boolean;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly registry: DriverRegistry;
@@ -489,9 +488,24 @@ interface AssetStageInputs {
  */
 interface DrivenDependencies {
 	readonly codegen: CodegenBundle | undefined;
-	readonly locking: StateLockingCapability;
+	readonly lockingDisabled: boolean;
 	readonly registry: DriverRegistry;
 	readonly stateLockPort: StateLockPort | undefined;
+	readonly statePort: StatePort;
+}
+
+/**
+ * The **Backend** ports one **Deploy** runs on, and what it says about them.
+ */
+interface DeployStateBackend {
+	/**
+	 * Whether the config turned off locking a **Backend** offers, which the
+	 * deploy reports so running without a hold is never silent.
+	 */
+	readonly lockingDisabled: boolean;
+	/** Exclusion around the deploy, absent when none is in force. */
+	readonly stateLockPort: StateLockPort | undefined;
+	/** Persistence for the per-environment snapshot. */
 	readonly statePort: StatePort;
 }
 
@@ -742,19 +756,22 @@ async function resolveEffectiveConfigAsync(options: DeployOptions): Promise<
 }
 
 /**
- * Read the **Backend** a caller supplied its own ports for. Supplying them
- * supplies the whole **Backend**, so the exclusion in force is whatever
- * came with them rather than anything the config says.
+ * Read the **Backend** the config named as the ports one deploy runs on.
+ *
+ * A caller that supplied a lock port asked for a hold, so it takes the
+ * place of whatever the **Backend** declared and locking is not reported as
+ * off however the config left it.
  *
  * @param options - The caller's deploy options.
- * @param statePort - The **State port** the caller supplied.
- * @returns The caller's **Backend**.
+ * @param backend - What the configured **Backend** contributed.
+ * @returns The ports the deploy runs on.
  */
-function suppliedStateBackend(options: DeployOptions, statePort: StatePort): StateBackend {
+function configuredBackend(options: DeployOptions, backend: StateBackend): DeployStateBackend {
+	const stateLockPort = options.stateLockPort ?? backend.stateLockPort;
 	return {
-		locking: options.stateLockPort === undefined ? "none" : "exclusive",
-		stateLockPort: options.stateLockPort,
-		statePort,
+		lockingDisabled: stateLockPort === undefined && backend.locking === "disabled",
+		stateLockPort,
+		statePort: backend.statePort,
 	};
 }
 
@@ -763,7 +780,7 @@ function suppliedStateBackend(options: DeployOptions, statePort: StatePort): Sta
  * the caller's whole **Backend**, so the config's `state` block is never
  * read and the hold is whatever the caller supplied alongside it; otherwise
  * both ports come from the configured **Backend**, and a supplied
- * `stateLockPort` overrides the one it declared.
+ * `stateLockPort` takes the place of the one it declared.
  *
  * @param inputs - The effective config, the caller's options, and what the
  * loaded plugins declared.
@@ -774,9 +791,16 @@ function pickStateBackend({
 	config,
 	options,
 	plugins,
-}: DrivenInputs): Result<StateBackend, DeployError> {
+}: DrivenInputs): Result<DeployStateBackend, DeployError> {
 	if (options.statePort !== undefined) {
-		return { data: suppliedStateBackend(options, options.statePort), success: true };
+		return {
+			data: {
+				lockingDisabled: false,
+				stateLockPort: options.stateLockPort,
+				statePort: options.statePort,
+			},
+			success: true,
+		};
 	}
 
 	const stateConfig = resolveStateConfig(config, options.environment);
@@ -790,14 +814,9 @@ function pickStateBackend({
 		plugins,
 		stateConfig: stateConfig.data,
 	});
-	if (!backend.success || options.stateLockPort === undefined) {
-		return backend;
-	}
-
-	return {
-		data: { ...backend.data, locking: "exclusive", stateLockPort: options.stateLockPort },
-		success: true,
-	};
+	return backend.success
+		? { data: configuredBackend(options, backend.data), success: true }
+		: backend;
 }
 
 function pickRegistry(inputs: DrivenInputs): Result<DriverRegistry, DeployError> {
@@ -943,7 +962,7 @@ async function runHeldAsync({
 	environment,
 	runner,
 }: HeldRunContext): Promise<Result<BedrockState, DeployError>> {
-	if (deps.locking === "disabled") {
+	if (deps.lockingDisabled) {
 		deps.progress.emit({ environment, kind: "stateLockDisabled" });
 	}
 
