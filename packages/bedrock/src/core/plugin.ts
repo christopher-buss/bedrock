@@ -198,8 +198,8 @@ export interface StateBackendMigrateSource {
 	 *
 	 * A migration onto this **Backend** records what it returns and asks
 	 * none of {@link StateBackendDeclaration.migratePrompts}, so it must
-	 * return every key the **Backend**'s schema requires. Omit it when
-	 * where the foreign state lived says nothing about where bedrock's
+	 * return every key the **Backend**'s schema requires. Omit it when the
+	 * place the foreign state lived says nothing about where bedrock's
 	 * belongs, and those prompts are asked as usual. Pair it with an
 	 * empty `migratePrompts` for a **Backend** the translation fully
 	 * describes, which keeps it in the migrate picker.

@@ -216,7 +216,7 @@ means; bedrock parses it.
 config - into the `state` keys bedrock records, and bedrock writes `backend`
 alongside them. A user who fetched through your backend and then migrates onto
 it gets that block, and none of your `migratePrompts` are asked, so return every
-key your schema requires. Omit `toStateConfig` when where the foreign state
+key your schema requires. Omit `toStateConfig` when the place the foreign state
 lived says nothing about where bedrock's belongs, and your `migratePrompts` are
 asked as usual. If a translation fully describes your backend, declare
 `migratePrompts: []` so it still appears in the migrate picker.
