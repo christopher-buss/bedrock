@@ -13,6 +13,20 @@ export interface FakeClock {
 }
 
 /**
+ * A repeating schedule nothing fires but the test itself.
+ */
+export interface FakeSchedule {
+	/** How many times the schedule was cancelled. */
+	readonly cancelled: () => number;
+	/** Every interval the schedule was asked for, in order. */
+	readonly every: ReadonlyArray<number>;
+	/** The seam to hand the code under test. */
+	readonly scheduleEvery: (ms: number, run: () => Promise<void>) => () => void;
+	/** Fire the schedule once, settling whatever it started. */
+	readonly tickAsync: () => Promise<void>;
+}
+
+/**
  * Build a clock that only moves when something waits on it.
  *
  * @param startAt - Instant the clock reads before anything waits.
@@ -31,5 +45,32 @@ export function createFakeClock(startAt = 0): FakeClock {
 			await Promise.resolve();
 		},
 		waits,
+	};
+}
+
+/**
+ * Build a repeating schedule a test drives by hand, so work that would run
+ * on a timer runs exactly when the test says it does.
+ *
+ * @returns The schedule, plus what was asked of it.
+ */
+export function createFakeSchedule(): FakeSchedule {
+	const every: Array<number> = [];
+	let cancels = 0;
+	let scheduled: (() => Promise<void>) | undefined;
+
+	return {
+		cancelled: () => cancels,
+		every,
+		scheduleEvery(ms, run) {
+			every.push(ms);
+			scheduled = run;
+			return () => {
+				cancels += 1;
+			};
+		},
+		async tickAsync() {
+			await scheduled?.();
+		},
 	};
 }

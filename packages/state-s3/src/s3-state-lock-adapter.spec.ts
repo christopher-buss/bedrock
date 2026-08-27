@@ -1,8 +1,8 @@
-import type { StateBackendFetch, StateLockWaiting } from "@bedrock-rbx/core";
+import type { StateBackendFetch, StateLockError, StateLockWaiting } from "@bedrock-rbx/core";
 
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it, vi } from "vitest";
 
-import { createFakeClock, type FakeClock } from "#tests/helpers/fake-clock";
+import { createFakeClock, createFakeSchedule, type FakeClock } from "#tests/helpers/fake-clock";
 import { errorBody, type FakeS3, fakeS3, fakeS3Failure } from "#tests/helpers/fake-s3";
 import { isoAt, parseLockRecord, type S3LockRecord, serializeLockRecord } from "./lock-record.ts";
 import {
@@ -31,6 +31,16 @@ const OTHER_HOLD: S3LockRecord = {
 };
 
 const TEN_O_CLOCK = Date.parse("2026-08-27T10:00:00.000Z");
+
+/** A store a test can make briefly unwell, and well again. */
+interface UnwellStore {
+	/** The transport to hand the lock port. */
+	readonly fetchFunc: StateBackendFetch;
+	/** Serve writes again. */
+	readonly recover: () => void;
+	/** Refuse every write from here on, for a reason a retry may not meet. */
+	readonly sicken: () => void;
+}
 
 /**
  * Build the lock port against a fake store, with the credentials a test
@@ -98,6 +108,54 @@ function renewingHolder(store: FakeS3, clock: FakeClock): StateBackendFetch {
 					expiresAt: isoAt(clock.now() + 60_000),
 				}),
 			);
+		}
+
+		return store.fetchFunc(input, init);
+	};
+}
+
+/**
+ * Wrap a store so a test can refuse its writes for a stretch, which is a
+ * store that is briefly unwell rather than a hold that has moved on.
+ *
+ * @param store - The store the requests are served from while it is well.
+ * @returns The transport, plus what makes the store unwell and well.
+ */
+function unwellStore(store: FakeS3): UnwellStore {
+	let unwell = false;
+	return {
+		fetchFunc: async (input, init) => {
+			return unwell && init?.method === "PUT"
+				? new Response(errorBody("InternalError", "We encountered an internal error."), {
+						status: 500,
+					})
+				: store.fetchFunc(input, init);
+		},
+		recover: () => {
+			unwell = false;
+		},
+		sicken: () => {
+			unwell = true;
+		},
+	};
+}
+
+/**
+ * Wrap a store so one write is answered without an entity tag, which
+ * leaves the next write against it nothing to be conditional on.
+ *
+ * @param store - The store the other requests are served from.
+ * @param nth - Which write to answer untagged, counting from 1.
+ * @returns The transport to hand the lock port.
+ */
+function untaggedAfter(store: FakeS3, nth: number): StateBackendFetch {
+	let puts = 0;
+	return async (input, init) => {
+		if (init?.method === "PUT") {
+			puts += 1;
+			if (puts === nth) {
+				return new Response("", { status: 200 });
+			}
 		}
 
 		return store.fetchFunc(input, init);
@@ -982,6 +1040,215 @@ describe(createS3StateLockPort, () => {
 				statusCode: 403,
 			});
 			expect(result.err.reason).toBe("refused with AccessDenied");
+		});
+	});
+
+	describe("renewal", () => {
+		it("should renew the lease three times over while the hold is held", async () => {
+			expect.assertions(3);
+
+			const store = fakeS3();
+			const clock = createFakeClock(TEN_O_CLOCK);
+			const schedule = createFakeSchedule();
+
+			const hold = await lockFor({
+				fetch: store.fetchFunc,
+				lockLeaseMs: 60_000,
+				now: clock.now,
+				scheduleEvery: schedule.scheduleEvery,
+			}).acquire("production");
+			assert(hold.success);
+
+			await clock.sleepAsync(20_000);
+			await schedule.tickAsync();
+
+			expect(schedule.every).toStrictEqual([20_000]);
+			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)).toStrictEqual({
+				id: THIS_RUN,
+				expiresAt: "2026-08-27T10:01:20.000Z",
+				operation: "deploy",
+				owner: OWNER,
+				since: "2026-08-27T10:00:00.000Z",
+			});
+			// Written against the bytes the hold was taken as, so a renewal
+			// cannot overwrite a run that took the hold over.
+			expect(store.calls[1]!.headers["if-match"]).toBe('"written-1"');
+		});
+
+		it("should give the hold up on the entity tag its last renewal answered with", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3();
+			const clock = createFakeClock(TEN_O_CLOCK);
+			const schedule = createFakeSchedule();
+
+			const hold = await lockFor({
+				fetch: store.fetchFunc,
+				now: clock.now,
+				scheduleEvery: schedule.scheduleEvery,
+			}).acquire("production");
+			assert(hold.success);
+
+			await schedule.tickAsync();
+			const given = await hold.data.release();
+
+			expect(given.success).toBeTrue();
+			expect(store.calls.at(-1)!.headers["if-match"]).toBe('"written-2"');
+		});
+
+		it("should stop renewing once the hold is given up", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3();
+			const schedule = createFakeSchedule();
+
+			const hold = await lockFor({
+				fetch: store.fetchFunc,
+				scheduleEvery: schedule.scheduleEvery,
+			}).acquire("production");
+			assert(hold.success);
+
+			await hold.data.release();
+			await schedule.tickAsync();
+
+			expect(schedule.cancelled()).toBe(1);
+			expect(store.calls.map((call) => call.method)).toStrictEqual(["PUT", "PUT"]);
+		});
+
+		it("should keep renewing after a refusal the next renewal may not meet", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3();
+			const unwell = unwellStore(store);
+			const clock = createFakeClock(TEN_O_CLOCK);
+			const schedule = createFakeSchedule();
+			const lost: Array<StateLockError> = [];
+
+			const hold = await lockFor({
+				fetch: unwell.fetchFunc,
+				now: clock.now,
+				scheduleEvery: schedule.scheduleEvery,
+			}).acquire("production", {
+				onLeaseLost: (error) => {
+					lost.push(error);
+				},
+			});
+			assert(hold.success);
+
+			unwell.sicken();
+			await clock.sleepAsync(20_000);
+			await schedule.tickAsync();
+			unwell.recover();
+			await clock.sleepAsync(20_000);
+			await schedule.tickAsync();
+
+			expect(lost).toBeEmpty();
+			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)!.expiresAt).toBe(
+				"2026-08-27T10:01:40.000Z",
+			);
+		});
+
+		it("should report a lease it could not keep until the deadline it was leased to", async () => {
+			expect.assertions(3);
+
+			const unwell = unwellStore(fakeS3());
+			const clock = createFakeClock(TEN_O_CLOCK);
+			const schedule = createFakeSchedule();
+			const lost: Array<StateLockError> = [];
+
+			const hold = await lockFor({
+				fetch: unwell.fetchFunc,
+				now: clock.now,
+				scheduleEvery: schedule.scheduleEvery,
+			}).acquire("production", {
+				onLeaseLost: (error) => {
+					lost.push(error);
+				},
+			});
+			assert(hold.success);
+
+			unwell.sicken();
+			await clock.sleepAsync(20_000);
+			await schedule.tickAsync();
+			await clock.sleepAsync(40_000);
+			await schedule.tickAsync();
+			await schedule.tickAsync();
+
+			expect(lost).toHaveLength(1);
+			expect(lost[0]!.detail).toStrictEqual({
+				name: "InternalError",
+				file: LOCK_LABEL,
+				kind: "leaseLost",
+				statusCode: 500,
+			});
+			expect(schedule.cancelled()).toBe(1);
+		});
+
+		it("should report a lease another run has taken the hold over from", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3();
+			const schedule = createFakeSchedule();
+			const lost: Array<StateLockError> = [];
+
+			const hold = await lockFor({
+				fetch: refusingPut(store, 2),
+				scheduleEvery: schedule.scheduleEvery,
+			}).acquire("production", {
+				onLeaseLost: (error) => {
+					lost.push(error);
+				},
+			});
+			assert(hold.success);
+
+			await schedule.tickAsync();
+
+			expect(lost[0]!.detail).toStrictEqual({
+				name: "PreconditionFailed",
+				file: LOCK_LABEL,
+				kind: "leaseLost",
+				statusCode: 412,
+			});
+			expect(schedule.cancelled()).toBe(1);
+		});
+
+		it("should report a renewal the store answered without an entity tag", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3();
+			const schedule = createFakeSchedule();
+			const lost: Array<StateLockError> = [];
+
+			const hold = await lockFor({
+				fetch: untaggedAfter(store, 2),
+				scheduleEvery: schedule.scheduleEvery,
+			}).acquire("production", {
+				onLeaseLost: (error) => {
+					lost.push(error);
+				},
+			});
+			assert(hold.success);
+
+			await schedule.tickAsync();
+
+			expect(lost[0]!.reason).toContain("could never be given up safely");
+			expect(schedule.cancelled()).toBe(1);
+		});
+
+		it("should renew on a real timer when the caller injects no schedule", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3();
+
+			const hold = await lockFor({ fetch: store.fetchFunc, lockLeaseMs: 3 }).acquire(
+				"production",
+			);
+			assert(hold.success);
+
+			await vi.waitUntil(() => store.calls.length > 1);
+			await hold.data.release();
+
+			expect(store.calls[1]!.headers["if-match"]).toBe('"written-1"');
 		});
 	});
 

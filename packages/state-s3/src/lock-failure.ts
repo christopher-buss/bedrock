@@ -11,6 +11,8 @@ import type { S3LockHolder } from "./lock-record.ts";
  *   than acquisition was willing to wait.
  * - `acquireFailed` - the store refused the attempt for a reason other than
  *   the hold being taken.
+ * - `leaseLost` - the hold's **Lease** could not be renewed, so the hold
+ *   is another run's to take over.
  * - `releaseFailed` - the tombstone could not be written, so the hold
  *   stands until it is taken over.
  * - `invalidEnvironment` - the **Environment** name could not address an
@@ -22,6 +24,7 @@ export type S3LockFailureKind =
 	| "acquireFailed"
 	| "acquireTimedOut"
 	| "invalidEnvironment"
+	| "leaseLost"
 	| "releaseFailed";
 
 /**
@@ -92,14 +95,33 @@ export function acquireRefused(label: string, failure: S3Failure): StateLockErro
  * could never give up safely.
  *
  * @param label - The object the hold would have been recorded in.
+ * @param kind - Whether the write was the one taking the hold or the one
+ * keeping it.
  * @returns The failure a caller sees.
  */
-export function holdWithoutEntityTag(label: string): StateLockError {
-	const detail: S3StateLockErrorDetail = { file: label, kind: "acquireFailed" };
+export function holdWithoutEntityTag(label: string, kind: S3LockFailureKind): StateLockError {
+	const detail: S3StateLockErrorDetail = { file: label, kind };
 	return {
 		detail,
 		reason: `${label} was written without an entity tag, so the hold could never be given up safely`,
 	};
+}
+
+/**
+ * Report a **Lease** the store would not let the holder keep.
+ *
+ * @param label - The object the hold is recorded in.
+ * @param failure - The refusal, already classified.
+ * @returns The failure the holder is told its lease is gone with.
+ */
+export function renewRefused(label: string, failure: S3Failure): StateLockError {
+	const detail: S3StateLockErrorDetail = {
+		name: failure.name,
+		file: label,
+		kind: "leaseLost",
+		statusCode: failure.statusCode,
+	};
+	return { detail, reason: failure.reason };
 }
 
 /**

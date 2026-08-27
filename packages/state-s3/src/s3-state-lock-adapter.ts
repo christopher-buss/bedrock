@@ -8,6 +8,7 @@ import {
 } from "@bedrock-rbx/core";
 
 import { backoffDelayMs } from "./backoff.ts";
+import { holdWithRenewedLease } from "./lease-renewal.ts";
 import { DEFAULT_LOCK_LEASE_MS, isLeaseExpired } from "./lease.ts";
 import {
 	acquireRefused,
@@ -20,10 +21,8 @@ import {
 	discardOwnAsync,
 	type LockSeams,
 	readLockAsync,
-	releaseAsync,
 	type SettledAttempt,
 	takeOverAsync,
-	type WonHold,
 	writeLockAsync,
 } from "./lock-object.ts";
 import { holderOf, randomLockId, type S3LockHolder, type S3LockRecord } from "./lock-record.ts";
@@ -69,6 +68,11 @@ export interface S3StateLockAdapterDeps extends S3StoreDeps {
 	readonly now?: (() => number) | undefined;
 	/** Who the hold is recorded as belonging to. */
 	readonly owner: string;
+	/**
+	 * Starts the repeating schedule a hold renews its **Lease** on,
+	 * handing back what cancels it. Defaults to an interval timer.
+	 */
+	readonly scheduleEvery?: ((ms: number, run: () => Promise<void>) => () => void) | undefined;
 	/** Waits between attempts. Defaults to a timer. */
 	readonly sleep?: ((ms: number) => Promise<void>) | undefined;
 }
@@ -103,6 +107,16 @@ interface AcquisitionInputs {
 /** What the caller said the hold is for, and where to report a wait. */
 type AcquireOptions = Parameters<StateLockPort["acquire"]>[1];
 
+/** What {@link settle} needs to read one settled attempt. */
+interface SettleInputs {
+	/** The acquisition in progress. */
+	readonly acquisition: Acquisition;
+	/** What the store answered. */
+	readonly attempt: SettledAttempt;
+	/** Where a **Lease** the hold could not keep is reported. */
+	readonly options: AcquireOptions;
+}
+
 /**
  * Wait, on a real timer.
  *
@@ -115,6 +129,25 @@ export async function delayAsync(ms: number): Promise<void> {
 	await new Promise<void>((resolve) => {
 		setTimeout(resolve, ms);
 	});
+}
+
+/**
+ * Start a repeating schedule, on a real timer.
+ *
+ * Exported for direct coverage of the timer itself, which a test driving
+ * renewal on an injected schedule cannot observe.
+ *
+ * @param ms - Milliseconds between runs.
+ * @param run - What to run each time.
+ * @returns What cancels the schedule.
+ */
+export function intervalEvery(ms: number, run: () => Promise<void>): () => void {
+	const timer = setInterval(() => {
+		void run();
+	}, ms);
+	return () => {
+		clearInterval(timer);
+	};
 }
 
 /**
@@ -156,6 +189,7 @@ export function createS3StateLockPort(deps: S3StateLockAdapterDeps): StateLockPo
 		leaseMs: deps.lockLeaseMs ?? DEFAULT_LOCK_LEASE_MS,
 		mintId: deps.mintId ?? randomLockId,
 		now: deps.now ?? Date.now,
+		scheduleEvery: deps.scheduleEvery ?? intervalEvery,
 		sleepAsync: deps.sleep ?? delayAsync,
 		timeoutMs: deps.lockTimeoutMs ?? DEFAULT_LOCK_TIMEOUT_MS,
 	};
@@ -301,32 +335,17 @@ async function contendAsync(acquisition: Acquisition): Promise<ContendOutcome> {
 }
 
 /**
- * Hand back the hold, which gives itself up by writing a tombstone over
- * the exact record it took.
- *
- * @param acquisition - The acquisition that won.
- * @param won - The record on the object, and the tag to write against.
- * @returns The hold the deploy shell gives up when the work is over.
- */
-function grantHold(acquisition: Acquisition, won: WonHold): StateLockHold {
-	return {
-		async release() {
-			return releaseAsync(acquisition, won);
-		},
-	};
-}
-
-/**
  * Turn a settled attempt into the hold or the failure a caller sees.
  *
- * @param acquisition - The acquisition in progress.
- * @param attempt - What the store answered.
+ * @param inputs - The acquisition in progress, what the store answered,
+ * and where a **Lease** the hold could not keep is reported.
  * @returns The hold, or why it could not be taken.
  */
-function settle(
-	acquisition: Acquisition,
-	attempt: SettledAttempt,
-): Result<StateLockHold, StateLockError> {
+function settle({
+	acquisition,
+	attempt,
+	options,
+}: SettleInputs): Result<StateLockHold, StateLockError> {
 	const { label } = acquisition;
 
 	if (attempt.kind === "failed") {
@@ -334,11 +353,15 @@ function settle(
 	}
 
 	if (attempt.etag === undefined) {
-		return { err: holdWithoutEntityTag(label), success: false };
+		return { err: holdWithoutEntityTag(label, "acquireFailed"), success: false };
 	}
 
 	return {
-		data: grantHold(acquisition, { etag: attempt.etag, record: attempt.record }),
+		data: holdWithRenewedLease({
+			acquisition,
+			onLeaseLost: options?.onLeaseLost,
+			won: { etag: attempt.etag, record: attempt.record },
+		}),
 		success: true,
 	};
 }
@@ -370,7 +393,7 @@ async function acquireAsync(
 	for (let attempt = 1; ; attempt += 1) {
 		const round = await contendAsync(acquisition);
 		if (round.kind !== "contended") {
-			return settle(acquisition, round);
+			return settle({ acquisition, attempt: round, options });
 		}
 
 		// A round that read the object replaces what the last one knew, so a

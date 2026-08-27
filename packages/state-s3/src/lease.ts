@@ -12,6 +12,10 @@ import { isoAt, type S3LockRecord } from "./lock-record.ts";
  */
 export const DEFAULT_LOCK_LEASE_MS = 60_000;
 
+// How many renewals one lease is given room for, which is how many the
+// store may refuse before the hold runs out.
+const RENEWALS_PER_LEASE = 3;
+
 /**
  * Stamp the deadline a hold taken now runs out on.
  *
@@ -36,4 +40,17 @@ export function leaseExpiryAt(nowMs: number, leaseMs: number): string {
  */
 export function isLeaseExpired(record: S3LockRecord, nowMs: number): boolean {
 	return Date.parse(record.expiresAt) <= nowMs;
+}
+
+/**
+ * How often a hold renews the **Lease** it was taken under.
+ *
+ * The lease is renewed several times over, so a store that refuses one
+ * renewal has more than one attempt left before the hold runs out.
+ *
+ * @param leaseMs - How long the hold is leased for.
+ * @returns Milliseconds between renewals.
+ */
+export function renewalIntervalMs(leaseMs: number): number {
+	return leaseMs / RENEWALS_PER_LEASE;
 }

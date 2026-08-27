@@ -46,6 +46,15 @@ export interface StateLockWaiting {
  */
 export interface StateLockAcquireOptions {
 	/**
+	 * Called when a **Backend** that leases its holds could not keep the
+	 * **Lease** on this one, so a run whose hold has expired is never left
+	 * carrying on as though it still held the **Environment**. The hold is
+	 * gone: another deploy may already have taken it over.
+	 *
+	 * @param error - Why the **Lease** could not be kept.
+	 */
+	readonly onLeaseLost?: (error: StateLockError) => void;
+	/**
 	 * Called each time the **Backend** backs off under contention. Core
 	 * forwards it to the **Progress port**, which is what keeps a queued
 	 * deploy from looking like a hang.
