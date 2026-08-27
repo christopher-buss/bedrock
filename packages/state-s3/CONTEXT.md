@@ -5,8 +5,8 @@ plugin, not a part of core: everything it reaches for is published on the plugin
 contract, so a third-party backend can be built the same way.
 
 This context borrows core's vocabulary (**State**, **Environment**, **Deploy**,
-**Backend**, **State port**) unchanged. The terms below are the ones this
-package adds.
+**Backend**, **State port**, **Version**) unchanged. The terms below are the
+ones this package adds.
 
 ## Language
 
@@ -54,12 +54,20 @@ resolve is `stateNotFound`; a missing **Object** inside one is an
 **Environment** that has never been deployed. _Avoid_: bucket (in prose about
 failures), backend
 
+**Entity tag**: What the **Store** answers a read of an **Object** with, carried
+back to core as the **Version** of that record and returned as the write's
+`If-Match`. An **Object** that is absent is fenced with a bare
+`If-None-Match: *` instead, never quoted: at least one S3-compatible
+implementation compares the raw header before stripping quotes, so a quoted
+wildcard degrades into an unconditional overwrite. _Avoid_: etag (lowercase, in
+prose), hash, checksum
+
 **Refusal**: What the S3 client threw, read into the terms this package owns
-(`missingObject`, `missingStore`, `accessDenied`, `missingCredentials`,
-`requestFailed`) before it is reported as a `StateError`. The reading is by
-error code first and HTTP status second, because `NoSuchBucket` also answers
-`404` and reading it as a missing **Object** would report a mistyped bucket as a
-first **Deploy**. _Avoid_: error code, exception
+(`missingObject`, `missingStore`, `accessDenied`, `conflict`,
+`missingCredentials`, `requestFailed`) before it is reported as a `StateError`.
+The reading is by error code first and HTTP status second, because
+`NoSuchBucket` also answers `404` and reading it as a missing **Object** would
+report a mistyped bucket as a first **Deploy**. _Avoid_: error code, exception
 
 **Transport**: The `fetch` the client's requests are routed through, injected by
 core and defaulted to the runtime's own. Swapping it leaves the client real, so
@@ -84,11 +92,6 @@ tests rather than stubbed at `send`. _Avoid_: http client, mock, request handler
 The **Lease** is not here yet. A **Hold** carries who took it, what for, and
 when, but nothing expires it, so a run killed mid-deploy leaves a **Hold** that
 stands until someone takes it over.
-
-Conditional **State** writes are not here either: `StatePort` has no version
-token to make a write conditional on, so this **Backend** writes **State**
-unconditionally, exactly as the Gist **Backend** does. The **Hold** is what
-keeps two runs apart in the meantime.
 
 Neither is the probe that proves a store honours conditional writes at all. A
 store that reports success on a condition it ignored has silently granted two

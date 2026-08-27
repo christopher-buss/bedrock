@@ -106,10 +106,17 @@ registered in a `KindRegistry` keyed by **Kind**. _Avoid_: schema module,
 handler, type module
 
 **State port**: The plugin contract for **State** persistence:
-`read(environment)` returns the existing **State** or `undefined`,
-`write(state)` overwrites it. Surfaced in code as `StatePort`; selected at
-runtime by the user's **Backend** choice in config. _Avoid_: storage,
-persistence layer
+`read(environment)` returns the existing **State** and the **Version** naming
+that record, `write(state, expected)` persists a new one fenced against it.
+Surfaced in code as `StatePort`; selected at runtime by the user's **Backend**
+choice in config. _Avoid_: storage, persistence layer
+
+**Version**: The **Backend**'s own identifier for the exact **State** record a
+`read` observed, or for the absence it observed in its place. Carried back into
+the write that follows, which fails rather than overwriting a record that moved
+in between. A **Backend** whose store has no version primitive carries none, and
+its writes overwrite. Surfaced in code as `StateVersion`, paired with the
+**State** in a `StateRecord`. _Avoid_: etag, generation, revision, fencing token
 
 **State lock port**: Optional plugin contract for mutual exclusion around a
 **Deploy**: takes a hold on one **Environment** before any **Operation** is

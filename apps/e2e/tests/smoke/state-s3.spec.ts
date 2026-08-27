@@ -1,16 +1,17 @@
 import {
+	type BedrockState,
 	deploy,
 	type DriverRegistry,
 	loadProjectAsync,
 	OpenCloudError,
 	parseStateFile,
 } from "@bedrock-rbx/core";
-import { createS3StateLockPort } from "@bedrock-rbx/state-s3";
+import { createS3StateAdapter, createS3StateLockPort } from "@bedrock-rbx/state-s3";
 
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { assert, describe, expect, it, onTestFinished } from "vitest";
 
 import { assertOk } from "../helpers/assert-ok.ts";
 import { pruneStateS3Async } from "../helpers/prune-state-s3.ts";
@@ -163,6 +164,47 @@ describe("s3 state backend against real aws", () => {
 			const again = await lockPort(0).acquire(environment);
 
 			expect(again.success).toBeTrue();
+		},
+		60_000,
+	);
+
+	it.skipIf(!HAS_SECRETS)(
+		"should refuse a write fenced on a record the bucket has moved past",
+		async () => {
+			expect.assertions(2);
+
+			const environment = `${ENVIRONMENT}-conflict-${Date.now()}`;
+			const state: BedrockState = { environment, resources: [], version: 1 };
+
+			onTestFinished(async () => {
+				await pruneStateS3Async({
+					bucket: BUCKET,
+					keep: KEEP,
+					prefix: PREFIX,
+					region: REGION,
+				});
+			});
+
+			const port = createS3StateAdapter({
+				bucket: BUCKET,
+				prefix: PREFIX,
+				region: REGION,
+			});
+
+			const first = await port.read(environment);
+			assertOk(first, "read of an environment never deployed");
+
+			expect(first.data.version).toStrictEqual({ kind: "absent" });
+
+			// Two writes fenced on the same absent record: whoever gets there
+			// second is the run whose hold was never really held.
+			const won = await port.write(state, first.data.version);
+			assertOk(won, "the first write fenced on an absent record");
+
+			const lost = await port.write(state, first.data.version);
+			assert(!lost.success);
+
+			expect(lost.err.kind).toBe("stateConflict");
 		},
 		60_000,
 	);
