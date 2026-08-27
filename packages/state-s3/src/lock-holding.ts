@@ -8,7 +8,7 @@ import {
 
 import { isLeaseExpired } from "./lease.ts";
 import { inspectRefused, invalidEnvironment } from "./lock-failure.ts";
-import { type LockObject, readLockAsync } from "./lock-object.ts";
+import { displaceAsync, type LockObject, readLockAsync } from "./lock-object.ts";
 import { holderOf, type S3LockRecord } from "./lock-record.ts";
 import { lockKeyFor, objectLabelFor } from "./object-key.ts";
 
@@ -101,4 +101,38 @@ export async function readHoldingAsync(
 		data: found.kind === "read" ? holdingOf(found.record, nowMs) : undefined,
 		success: true,
 	};
+}
+
+/**
+ * Take one **Environment**'s hold away, whoever holds it.
+ *
+ * An **Environment** nothing is holding is left exactly as it is: a
+ * tombstone written over a record that already carries one, or over a
+ * **Lease** the clock has passed, would displace nobody while overwriting
+ * what the next deploy takes over.
+ *
+ * @param object - The lock object the hold is recorded in.
+ * @param nowMs - Epoch milliseconds the clock read.
+ * @returns Who was displaced, or `undefined` when nobody was.
+ */
+export async function forceReleaseAsync(
+	object: LockObject,
+	nowMs: number,
+): Promise<Result<StateLockHolding | undefined, StateLockError>> {
+	const found = await readLockAsync(object);
+	if (found.kind === "failed") {
+		return { err: inspectRefused(object.label, found.failure), success: false };
+	}
+
+	if (found.kind !== "read") {
+		return { data: undefined, success: true };
+	}
+
+	const displaced = holdingOf(found.record, nowMs);
+	if (displaced === undefined) {
+		return { data: undefined, success: true };
+	}
+
+	const written = await displaceAsync(object, { nowMs, record: found.record });
+	return written.success ? { data: displaced, success: true } : written;
 }

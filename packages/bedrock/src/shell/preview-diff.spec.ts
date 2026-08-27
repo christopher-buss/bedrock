@@ -1,6 +1,7 @@
 import { assert, describe, expect, it, vi } from "vitest";
 
 import { environmentFrom } from "#tests/helpers/environment";
+import { neverForceReleaseAsync } from "#tests/helpers/state-lock";
 import type { Config } from "../core/schema.ts";
 import type { BedrockState, StateError } from "../core/state.ts";
 import type { StateLockHolding, StateLockPort } from "../ports/state-lock-port.ts";
@@ -86,6 +87,7 @@ function holdReportingLockPort(holding: StateLockHolding | undefined): {
 			async acquire() {
 				throw new Error("a preview must not take a hold");
 			},
+			forceRelease: neverForceReleaseAsync,
 			async inspect(environment) {
 				asked.push(environment);
 				return { data: holding, success: true };
@@ -159,6 +161,7 @@ describe(previewDiffAsync, () => {
 				async acquire() {
 					throw new Error("a preview must not take a hold");
 				},
+				forceRelease: neverForceReleaseAsync,
 				async inspect() {
 					return { err: { reason: "the lock store was unreachable" }, success: false };
 				},

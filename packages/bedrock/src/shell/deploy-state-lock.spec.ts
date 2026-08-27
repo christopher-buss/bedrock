@@ -3,7 +3,11 @@ import { assert, describe, expect, it } from "vitest";
 
 import { environmentFrom } from "#tests/helpers/environment";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
-import { fakeStateLock, neverInspectAsync } from "#tests/helpers/state-lock";
+import {
+	fakeStateLock,
+	neverForceReleaseAsync,
+	neverInspectAsync,
+} from "#tests/helpers/state-lock";
 import type { ResourceKind } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
 import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
@@ -215,6 +219,7 @@ describe("deploy under a locking backend", () => {
 					trace.push("acquire");
 					return lock.port.acquire(environment);
 				},
+				forceRelease: neverForceReleaseAsync,
 				inspect: neverInspectAsync,
 			},
 			statePort: tracingStatePort(trace),
@@ -445,6 +450,7 @@ describe("deploy under a locking backend", () => {
 						success: true,
 					};
 				},
+				forceRelease: neverForceReleaseAsync,
 				inspect: neverInspectAsync,
 			},
 			statePort: refusingWriteStatePort(),

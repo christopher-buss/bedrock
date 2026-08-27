@@ -10,6 +10,7 @@ import type {
 	provision as defaultProvision,
 	publish as defaultPublish,
 } from "../shell/deploy.ts";
+import type { forceReleaseStateLockAsync as defaultForceReleaseStateLock } from "../shell/force-release-state-lock.ts";
 import type { loadProjectAsync as defaultLoadProject } from "../shell/load-config.ts";
 import type { migrateMantleState as defaultMigrateMantleState } from "../shell/migrate-mantle-state.ts";
 import type { previewDiffAsync as defaultPreviewDiff } from "../shell/preview-diff.ts";
@@ -20,6 +21,7 @@ import { migrateCommand } from "./commands/migrate.ts";
 import { provisionCommand } from "./commands/provision.ts";
 import { publishCommand } from "./commands/publish.ts";
 import { statePushCommand } from "./commands/state-push.ts";
+import { stateUnlockCommand } from "./commands/state-unlock.ts";
 import type { discoverOverride as defaultDiscoverOverride } from "./discover-override.ts";
 import type { MigratePromptPort } from "./migrate-prompt-port.ts";
 import type { ClackPort } from "./render.ts";
@@ -58,6 +60,11 @@ export interface ProgDeps {
 	 * return void.
 	 */
 	readonly exit?: (code: number) => void;
+	/**
+	 * Takes an environment's hold away; defaults to the public
+	 * `forceReleaseStateLockAsync`.
+	 */
+	readonly forceReleaseStateLock?: typeof defaultForceReleaseStateLock;
 	/**
 	 * Project loader; defaults to the public `loadProjectAsync`, whose
 	 * result carries both the validated config and what its `plugins`
@@ -172,8 +179,8 @@ const RECONCILE_COMMANDS = [
  *   resolves its own defaults from any omitted slots.
  * @returns A configured sade program with the bedrock name, description, and
  *   the currently installed `@bedrock-rbx/core` version, plus the registered
- *   `build`, `deploy`, `diff`, `provision`, `publish`, `state push`, and
- *   `migrate` commands.
+ *   `build`, `deploy`, `diff`, `provision`, `publish`, `state push`,
+ *   `state unlock`, and `migrate` commands.
  */
 export function createProg(deps: ProgDeps = {}): Sade {
 	const prog = sade(PROGRAM_NAME).describe(PROGRAM_DESCRIBE).version(manifest.version);
@@ -187,6 +194,12 @@ export function createProg(deps: ProgDeps = {}): Sade {
 			.command("state push")
 			.describe("Push a state file a failed write dumped locally to the configured backend"),
 	).action(statePushCommand(deps));
+
+	withCommonOptions(
+		prog
+			.command("state unlock")
+			.describe("Take an environment's state lock away, whichever run is holding it"),
+	).action(stateUnlockCommand(deps));
 
 	prog.command("migrate [stateFilePath]")
 		.describe("Translate a state file from another tool into a bedrock project")

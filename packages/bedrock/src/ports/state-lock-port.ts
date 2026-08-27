@@ -157,6 +157,10 @@ export interface StateLockHold {
  *             success: true,
  *         };
  *     },
+ *     async forceRelease(environment) {
+ *         const displaced = held.delete(environment);
+ *         return { data: displaced ? { owner: "the run that took it" } : undefined, success: true };
+ *     },
  *     async inspect(environment) {
  *         return {
  *             data: held.has(environment) ? { owner: "the run that took it" } : undefined,
@@ -174,9 +178,11 @@ export interface StateLockHold {
  *     const holding = await lockPort.inspect("production");
  *     expect(holding).toStrictEqual({ data: { owner: "the run that took it" }, success: true });
  *
- *     if (first.success) {
- *         await first.data.release();
- *     }
+ *     const displaced = await lockPort.forceRelease("production");
+ *     expect(displaced).toStrictEqual({
+ *         data: { owner: "the run that took it" },
+ *         success: true,
+ *     });
  *
  *     const third = await lockPort.acquire("production");
  *     expect(third.success).toBeTrue();
@@ -199,6 +205,24 @@ export interface StateLockPort {
 		environment: string,
 		options?: StateLockAcquireOptions,
 	): Promise<Result<StateLockHold, StateLockError>>;
+	/**
+	 * Take one **Environment**'s hold away, whoever holds it.
+	 *
+	 * The escape hatch locking cannot ship without: a hold left behind by a
+	 * **Deploy** that was killed would otherwise block every later deploy
+	 * until its **Lease** runs out, and on a **Backend** that leases
+	 * nothing, forever.
+	 *
+	 * - Returns `Ok(StateLockHolding)` naming who was displaced.
+	 * - Returns `Ok(undefined)` when nothing held the **Environment**.
+	 * - Returns `Err(StateLockError)` when the hold could not be taken
+	 *   away.
+	 *
+	 * @param environment - **Environment** to take the hold away from.
+	 */
+	forceRelease(
+		environment: string,
+	): Promise<Result<StateLockHolding | undefined, StateLockError>>;
 	/**
 	 * Report who holds one **Environment**, without taking a hold.
 	 *

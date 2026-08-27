@@ -29,6 +29,21 @@ interface HoldInputs {
 }
 
 /**
+ * Take an **Environment**'s hold away in a test that never does.
+ *
+ * A **Deploy** gives its own hold up rather than taking anyone's away, so
+ * a fake reached here is doing something the shell should not have asked.
+ *
+ * @returns Never; the release is one the shell should not have asked for.
+ * @rejects Always, naming what should not have been asked.
+ */
+export async function neverForceReleaseAsync(): Promise<never> {
+	// Settle on a later microtask, as a real lock store does.
+	await Promise.resolve();
+	throw new Error("a deploy must not take a hold away");
+}
+
+/**
  * Report who holds an **Environment** in a test that never asks.
  *
  * A **Deploy** takes a hold rather than asking who has one, so a fake
@@ -70,6 +85,7 @@ export function fakeStateLock(options: FakeStateLockOptions = {}): FakeStateLock
 						}
 					: { err: options.refuseAcquire, success: false };
 			},
+			forceRelease: neverForceReleaseAsync,
 			inspect: neverInspectAsync,
 		},
 		released,

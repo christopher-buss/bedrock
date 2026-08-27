@@ -23,6 +23,13 @@ it('Example 1', () => {
         success: true,
       }
     },
+    async forceRelease(environment) {
+      const displaced = held.delete(environment)
+      return {
+        data: displaced ? { owner: 'the run that took it' } : undefined,
+        success: true,
+      }
+    },
     async inspect(environment) {
       return {
         data: held.has(environment)
@@ -41,9 +48,11 @@ it('Example 1', () => {
       data: { owner: 'the run that took it' },
       success: true,
     })
-    if (first.success) {
-      await first.data.release()
-    }
+    const displaced = await lockPort.forceRelease('production')
+    expect(displaced).toStrictEqual({
+      data: { owner: 'the run that took it' },
+      success: true,
+    })
     const third = await lockPort.acquire('production')
     expect(third.success).toBeTrue()
   })

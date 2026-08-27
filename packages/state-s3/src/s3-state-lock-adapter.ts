@@ -18,7 +18,7 @@ import {
 	leaseAlreadyRunOut,
 	timedOut,
 } from "./lock-failure.ts";
-import { openLockObject, readHoldingAsync } from "./lock-inspection.ts";
+import { forceReleaseAsync, openLockObject, readHoldingAsync } from "./lock-holding.ts";
 import {
 	type Acquisition,
 	discardOwnAsync,
@@ -230,6 +230,12 @@ export function createS3StateLockPort(deps: S3StateLockAdapterDeps): StateLockPo
 	return {
 		async acquire(environment, options) {
 			return takeHoldAsync({ client, deps, environment, options, probeStoreAsync, seams });
+		},
+		async forceRelease(environment) {
+			const opened = openLockObject({ ...lockTarget, client, environment });
+			return opened.success
+				? forceReleaseAsync(opened.data, seams.now())
+				: { err: opened.err, success: false };
 		},
 		async inspect(environment) {
 			// No probe: nothing here rests on a conditional write, and a

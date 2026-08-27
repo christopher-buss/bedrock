@@ -1632,6 +1632,101 @@ describe(createS3StateLockPort, () => {
 		});
 	});
 
+	describe("force release", () => {
+		it("should take a hold away by writing a tombstone over it, naming who held it", async () => {
+			expect.assertions(3);
+
+			const store = fakeS3();
+			store.put(LOCK_PATH, serializeLockRecord(OTHER_HOLD));
+			const clock = createFakeClock(TEN_O_CLOCK);
+
+			const released = await lockFor({
+				fetch: store.fetchFunc,
+				now: clock.now,
+			}).forceRelease("production");
+
+			assert(released.success);
+
+			expect(released.data).toStrictEqual({
+				detail: {
+					expiresAt: OTHER_HOLD.expiresAt,
+					operation: "deploy",
+					owner: "ci-run-3",
+					since: OTHER_HOLD.since,
+				},
+				operation: "deploy",
+				owner: "ci-run-3",
+				since: OTHER_HOLD.since,
+			});
+			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)).toStrictEqual({
+				...OTHER_HOLD,
+				releasedAt: "2026-08-27T10:00:00.000Z",
+			});
+			expect(store.calls.map((call) => call.method)).toStrictEqual(["GET", "PUT"]);
+		});
+
+		it("should take the hold away whatever the store says about the bytes it read", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3();
+			store.put(LOCK_PATH, serializeLockRecord(OTHER_HOLD));
+
+			await lockFor({
+				fetch: store.fetchFunc,
+				now: createFakeClock(TEN_O_CLOCK).now,
+			}).forceRelease("production");
+
+			expect(store.calls[1]!.headers["if-match"]).toBeUndefined();
+		});
+
+		it("should leave an environment nothing is holding alone", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3();
+
+			const released = await lockFor({ fetch: store.fetchFunc }).forceRelease("production");
+
+			assert(released.success);
+
+			expect(released.data).toBeUndefined();
+			expect(store.calls.map((call) => call.method)).toStrictEqual(["GET"]);
+		});
+
+		it("should report a hold whose tombstone the store refused", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3();
+			store.put(LOCK_PATH, serializeLockRecord(OTHER_HOLD));
+
+			const released = await lockFor({
+				fetch: refusingPut(store, 1),
+				now: createFakeClock(TEN_O_CLOCK).now,
+			}).forceRelease("production");
+
+			assert(!released.success);
+
+			expect(released.err.detail).toStrictEqual({
+				name: "PreconditionFailed",
+				file: LOCK_LABEL,
+				kind: "releaseFailed",
+				statusCode: 412,
+			});
+			expect(released.err.reason).toBe("the pre-condition did not hold");
+		});
+
+		it("should refuse an environment name that could escape the object layout", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3();
+
+			const released = await lockFor({ fetch: store.fetchFunc }).forceRelease("../escaped");
+
+			assert(!released.success);
+
+			expect(store.calls).toBeEmpty();
+		});
+	});
+
 	describe("conditional-write probe", () => {
 		it("should refuse to lock a store that takes a create of an object it already holds", async () => {
 			expect.assertions(2);
