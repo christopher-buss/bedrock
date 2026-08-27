@@ -315,7 +315,7 @@ async function runPreviewAsync(
 		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
 	}
 
-	const priorResources = prior.data?.resources ?? [];
+	const priorResources = prior.data.state?.resources ?? [];
 	const validated = assertAllReconcilable(desired.data, priorResources);
 	if (!validated.success) {
 		return { err: { cause: validated.err, kind: "buildDesiredFailed" }, success: false };
@@ -325,7 +325,7 @@ async function runPreviewAsync(
 		data: {
 			environment,
 			ops: diff(desired.data, priorResources),
-			pendingRebuild: [...(prior.data?.pendingRebuild ?? [])],
+			pendingRebuild: [...(prior.data.state?.pendingRebuild ?? [])],
 			redactions: dependencies.redactions,
 		},
 		success: true,

@@ -2,7 +2,13 @@ import { describe, expectTypeOf, it } from "vitest";
 
 import type { ResourceKey, Sha256Hex } from "../types/ids.ts";
 import type { ResourceCurrentState, ResourceRealDisplay } from "./resources.ts";
-import type { BedrockState, StateError, StateErrorBase } from "./state.ts";
+import type {
+	BedrockState,
+	StateError,
+	StateErrorBase,
+	StateRecord,
+	StateVersion,
+} from "./state.ts";
 
 describe("BedrockState", () => {
 	it("should expose readonly codegenHash, environment, pendingRebuild, realDisplay, resources, and version fields", () => {
@@ -59,5 +65,25 @@ describe("StateError", () => {
 			Extract<StateError, { kind: "pluginStateBackend" }>["specifier"]
 		>().toEqualTypeOf<string>();
 		expectTypeOf<Extract<StateError, { kind: "pluginStateBackend" }>["detail"]>().toBeUnknown();
+	});
+});
+
+describe("StateVersion", () => {
+	it("should discriminate a record that existed from one that did not", () => {
+		expectTypeOf<StateVersion["kind"]>().toEqualTypeOf<"absent" | "present">();
+	});
+
+	it("should carry the backend's own token only on the present arm", () => {
+		expectTypeOf<Extract<StateVersion, { kind: "present" }>["token"]>().toEqualTypeOf<string>();
+		expectTypeOf<keyof Extract<StateVersion, { kind: "absent" }>>().toEqualTypeOf<"kind">();
+	});
+});
+
+describe("StateRecord", () => {
+	it("should carry an optional state and an optional version", () => {
+		expectTypeOf<StateRecord>().toEqualTypeOf<{
+			readonly state?: BedrockState | undefined;
+			readonly version?: StateVersion | undefined;
+		}>();
 	});
 });

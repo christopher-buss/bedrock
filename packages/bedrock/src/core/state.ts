@@ -107,6 +107,84 @@ export interface BedrockState {
 }
 
 /**
+ * Which **State** record a write is fenced against: the one a `read`
+ * observed, or the absence a `read` observed in its place.
+ *
+ * `token` is the **Backend**'s own identifier for that exact record - an
+ * ETag, a generation number, a revision id - which core carries back to
+ * the **Backend** untouched and never parses.
+ *
+ * The `absent` arm is not the same as carrying no version at all. It says
+ * a `read` looked and found nothing, so the write must still fail if a
+ * record has appeared since. Carrying no version says the **Backend**
+ * cannot fence at all, and the write overwrites whatever is there.
+ *
+ * @since unreleased
+ *
+ * @example
+ *
+ * ```ts
+ * import type { StateVersion } from "@bedrock-rbx/core";
+ *
+ * const firstDeploy: StateVersion = { kind: "absent" };
+ * const laterDeploy: StateVersion = { kind: "present", token: '"9f3c1a"' };
+ *
+ * expect(firstDeploy.kind).toBe("absent");
+ * expect(laterDeploy.kind === "present" && laterDeploy.token).toBe('"9f3c1a"');
+ * ```
+ */
+export type StateVersion =
+	| {
+			/** Literal discriminator: no record existed when the **State** was read. */
+			readonly kind: "absent";
+	  }
+	| {
+			/** Literal discriminator: a record existed when the **State** was read. */
+			readonly kind: "present";
+			/** The **Backend**'s own identifier for that record, which core never parses. */
+			readonly token: string;
+	  };
+
+/**
+ * What one `read` observed: the **State** the store held, and the version
+ * naming exactly which record that was.
+ *
+ * Both fields are absent independently. No `state` is an **Environment**
+ * that has never been deployed, which is an ordinary first **Deploy**
+ * rather than a failure. No `version` is a **Backend** whose store has no
+ * version primitive, so a write built from this record overwrites
+ * unconditionally.
+ *
+ * @since unreleased
+ *
+ * @example
+ *
+ * ```ts
+ * import type { StateRecord } from "@bedrock-rbx/core";
+ *
+ * const neverDeployed: StateRecord = { version: { kind: "absent" } };
+ * const unfenced: StateRecord = {
+ *     state: { environment: "production", resources: [], version: 1 },
+ * };
+ *
+ * expect(neverDeployed.state).toBeUndefined();
+ * expect(unfenced.version).toBeUndefined();
+ * ```
+ */
+export interface StateRecord {
+	/**
+	 * The **State** the record holds, absent when the **Environment** has
+	 * never been deployed.
+	 */
+	readonly state?: BedrockState | undefined;
+	/**
+	 * Which record was read, absent when the **Backend** cannot fence a
+	 * write against it.
+	 */
+	readonly version?: StateVersion | undefined;
+}
+
+/**
  * Fields every {@link StateError} arm carries, whichever **Backend**
  * produced it, so a caller can report the failure without narrowing first.
  *

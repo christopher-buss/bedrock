@@ -12,7 +12,7 @@ it('Example 1', () => {
   return port.read('production').then((result) => {
     expect(result.success).toBeTrue()
     if (result.success) {
-      expect(result.data).toBeUndefined()
+      expect(result.data.state).toBeUndefined()
     }
   })
 })

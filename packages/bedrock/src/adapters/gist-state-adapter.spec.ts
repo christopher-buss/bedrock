@@ -84,7 +84,7 @@ describe(createGistStateAdapter, () => {
 			expect(calls[0]!.headers.get("user-agent")).toBe("bedrock");
 		});
 
-		it("should return ok(undefined) when the environment file is absent", async () => {
+		it("should report no state when the environment file is absent", async () => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeFetch(() => okJson({ files: {} }));
@@ -96,7 +96,7 @@ describe(createGistStateAdapter, () => {
 
 			assert(result.success);
 
-			expect(result.data).toBeUndefined();
+			expect(result.data.state).toBeUndefined();
 		});
 
 		it("should parse a present environment file into state", async () => {
@@ -123,7 +123,32 @@ describe(createGistStateAdapter, () => {
 
 			assert(result.success);
 
-			expect(result.data).toStrictEqual(state);
+			expect(result.data.state).toStrictEqual(state);
+		});
+
+		it("should carry no version, leaving the next write unconditional", async () => {
+			expect.assertions(1);
+
+			const state: BedrockState = { environment: "production", resources: [], version: 1 };
+			const content = serializeStateFile(state);
+			const { fetchFn } = fakeFetch(() => {
+				return okJson({
+					files: {
+						"state.production.json": {
+							content,
+							size: content.length,
+							truncated: false,
+						},
+					},
+				});
+			});
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.read("production");
+
+			assert(result.success);
+
+			expect(result.data.version).toBeUndefined();
 		});
 
 		it("should err with a gist-not-found reason when the gist 404s", async () => {
@@ -447,7 +472,7 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toBe("network error: fetch failed (ECONNRESET)");
 		});
 
-		it("should return ok(undefined) when the files dict is missing on the gist response", async () => {
+		it("should report no state when the files dict is missing on the gist response", async () => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeFetch(() => okJson({}));
@@ -459,10 +484,10 @@ describe(createGistStateAdapter, () => {
 
 			assert(result.success);
 
-			expect(result.data).toBeUndefined();
+			expect(result.data.state).toBeUndefined();
 		});
 
-		it("should return ok(undefined) when the file entry is null in the gist response", async () => {
+		it("should report no state when the file entry is null in the gist response", async () => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeFetch(
@@ -476,10 +501,10 @@ describe(createGistStateAdapter, () => {
 
 			assert(result.success);
 
-			expect(result.data).toBeUndefined();
+			expect(result.data.state).toBeUndefined();
 		});
 
-		it("should return ok(undefined) when the file entry is a non-object primitive", async () => {
+		it("should report no state when the file entry is a non-object primitive", async () => {
 			expect.assertions(2);
 
 			const { fetchFn } = fakeFetch(() => {
@@ -493,7 +518,7 @@ describe(createGistStateAdapter, () => {
 
 			assert(result.success);
 
-			expect(result.data).toBeUndefined();
+			expect(result.data.state).toBeUndefined();
 		});
 
 		it("should err with a raw_url-fetch-returned reason when the cdn returns non-ok", async () => {
@@ -614,7 +639,7 @@ describe(createGistStateAdapter, () => {
 
 			assert(result.success);
 
-			expect(result.data).toStrictEqual(state);
+			expect(result.data.state).toStrictEqual(state);
 		});
 
 		it.for<[number]>([[502], [503], [504]])(

@@ -155,7 +155,13 @@ export {
 } from "./core/select-environment.ts";
 export { parseStateFile, serializeStateFile } from "./core/state-file.ts";
 export { stateLockingCapabilityOf, type StateLockingCapability } from "./core/state-locking.ts";
-export type { BedrockState, StateError, StateErrorBase } from "./core/state.ts";
+export type {
+	BedrockState,
+	StateError,
+	StateErrorBase,
+	StateRecord,
+	StateVersion,
+} from "./core/state.ts";
 export type { CodegenWriteError, CodegenWriterPort } from "./ports/codegen-writer.ts";
 export type {
 	ApplySummaryEvent,

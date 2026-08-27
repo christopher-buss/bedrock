@@ -3,7 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { validateEnvironmentName } from "../core/environment.ts";
 import { isRecord } from "../core/is-record.ts";
 import { parseStateFile, serializeStateFile } from "../core/state-file.ts";
-import type { BedrockState, StateError } from "../core/state.ts";
+import type { BedrockState, StateError, StateRecord } from "../core/state.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import {
 	errorBodyDetailAsync,
@@ -118,7 +118,7 @@ interface VisibilityTarget {
  * return port.read("production").then((result) => {
  *     expect(result.success).toBeTrue();
  *     if (result.success) {
- *         expect(result.data).toBeUndefined();
+ *         expect(result.data.state).toBeUndefined();
  *     }
  * });
  * ```
@@ -305,7 +305,7 @@ async function readGistContentAsync({
 async function readPathAsync(
 	ctx: AdapterContext,
 	environment: string,
-): Promise<Result<BedrockState | undefined, StateError>> {
+): Promise<Result<StateRecord, StateError>> {
 	const file = fileLabel(ctx.gistId, environment);
 	const gist = await fetchGistBodyAsync(ctx, file);
 	if (!gist.success) {
@@ -314,10 +314,18 @@ async function readPathAsync(
 
 	const entry = toGistFile(gist.data["files"], fileName(environment));
 	if (entry === undefined) {
-		return { data: undefined, success: true };
+		return { data: {}, success: true };
 	}
 
-	return readGistContentAsync({ entry, fetchFn: ctx.fetchFn, file, retry: ctx });
+	// No version travels with the record: a gist offers no conditional
+	// update, so the next write overwrites whatever is there.
+	const parsed = await readGistContentAsync({
+		entry,
+		fetchFn: ctx.fetchFn,
+		file,
+		retry: ctx,
+	});
+	return parsed.success ? { data: { state: parsed.data }, success: true } : parsed;
 }
 
 async function sendPatchAsync(ctx: AdapterContext, body: string): Promise<Response> {

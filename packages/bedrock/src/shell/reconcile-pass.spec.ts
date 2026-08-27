@@ -15,7 +15,7 @@ import {
 import { resultsInOrder } from "#tests/helpers/sequence";
 import type { Operation } from "../core/operations.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
-import type { BedrockState, StateError } from "../core/state.ts";
+import type { BedrockState, StateError, StateVersion } from "../core/state.ts";
 import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
 import type {
 	DriverRegistry,
@@ -92,7 +92,7 @@ function inMemoryStatePort(): {
 	return {
 		port: {
 			async read() {
-				return { data: undefined, success: true };
+				return { data: {}, success: true };
 			},
 			async write(state) {
 				writes.push(state.resources);
@@ -104,6 +104,60 @@ function inMemoryStatePort(): {
 }
 
 describe(applyAndPersistAsync, () => {
+	it("should fence the write against the version the caller read", async () => {
+		expect.assertions(2);
+
+		const fenced: Array<StateVersion | undefined> = [];
+		const port: StatePort = {
+			async read() {
+				return { data: {}, success: true };
+			},
+			async write(_state, expected) {
+				fenced.push(expected);
+				return { data: undefined, success: true };
+			},
+		};
+
+		const pass = await applyAndPersistAsync({
+			environment: "production",
+			expectedVersion: { kind: "present", token: '"abc"' },
+			ops: [],
+			priorResources: [],
+			progress: recordingProgress().port,
+			registry: gamePassRegistry({}),
+			statePort: port,
+		});
+
+		expect(pass.written.success).toBeTrue();
+		expect(fenced).toStrictEqual([{ kind: "present", token: '"abc"' }]);
+	});
+
+	it("should write unconditionally when the caller read no version", async () => {
+		expect.assertions(1);
+
+		const fenced: Array<StateVersion | undefined> = [];
+		const port: StatePort = {
+			async read() {
+				return { data: {}, success: true };
+			},
+			async write(_state, expected) {
+				fenced.push(expected);
+				return { data: undefined, success: true };
+			},
+		};
+
+		await applyAndPersistAsync({
+			environment: "production",
+			ops: [],
+			priorResources: [],
+			progress: recordingProgress().port,
+			registry: gamePassRegistry({}),
+			statePort: port,
+		});
+
+		expect(fenced).toStrictEqual([undefined]);
+	});
+
 	it("should persist a partial snapshot then a cumulative snapshot across two passes", async () => {
 		expect.assertions(4);
 
@@ -163,7 +217,7 @@ describe(applyAndPersistAsync, () => {
 		const stateError = { file: "state.json", kind: "stateError" as const, reason: "EACCES" };
 		const port: StatePort = {
 			async read() {
-				return { data: undefined, success: true };
+				return { data: {}, success: true };
 			},
 			write: resultsInOrder<Result<void, StateError>>([
 				{ data: undefined, success: true },
@@ -232,7 +286,7 @@ describe(applyAndPersistAsync, () => {
 		const states: Array<BedrockState> = [];
 		const port: StatePort = {
 			async read() {
-				return { data: undefined, success: true };
+				return { data: {}, success: true };
 			},
 			async write(state) {
 				states.push(state);
@@ -337,7 +391,7 @@ describe(applyAndPersistAsync, () => {
 		const states: Array<BedrockState> = [];
 		const port: StatePort = {
 			async read() {
-				return { data: undefined, success: true };
+				return { data: {}, success: true };
 			},
 			async write(state) {
 				states.push(state);

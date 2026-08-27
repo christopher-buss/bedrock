@@ -1,6 +1,6 @@
 import type { Result } from "@bedrock-rbx/ocale";
 
-import type { BedrockState, StateError } from "../core/state.ts";
+import type { BedrockState, StateError, StateRecord, StateVersion } from "../core/state.ts";
 
 /**
  * Plugin contract for persisting deployment state: the interface an adapter
@@ -21,7 +21,8 @@ import type { BedrockState, StateError } from "../core/state.ts";
  *
  * const statePort: StatePort = {
  *     async read(environment) {
- *         return { data: store.get(environment), success: true };
+ *         const state = store.get(environment);
+ *         return { data: state === undefined ? {} : { state }, success: true };
  *     },
  *     async write(state) {
  *         store.set(state.environment, state);
@@ -34,7 +35,7 @@ import type { BedrockState, StateError } from "../core/state.ts";
  *     .then((firstRead) => {
  *         expect(firstRead.success).toBeTrue();
  *         if (firstRead.success) {
- *             expect(firstRead.data).toBeUndefined();
+ *             expect(firstRead.data.state).toBeUndefined();
  *         }
  *         return statePort.write({
  *             environment: "production",
@@ -48,19 +49,22 @@ import type { BedrockState, StateError } from "../core/state.ts";
  *     })
  *     .then((secondRead) => {
  *         expect(secondRead.success).toBeTrue();
- *         if (secondRead.success && secondRead.data !== undefined) {
- *             expect(secondRead.data.environment).toBe("production");
- *             expect(secondRead.data.resources).toBeEmpty();
+ *         if (secondRead.success && secondRead.data.state !== undefined) {
+ *             expect(secondRead.data.state.environment).toBe("production");
+ *             expect(secondRead.data.state.resources).toBeEmpty();
  *         }
  *     });
  * ```
  */
 export interface StatePort {
 	/**
-	 * Reads state for the given environment.
+	 * Reads state for the given environment, together with the version
+	 * naming the record it read.
 	 *
-	 * - Returns `Ok(undefined)` when no state file exists (legitimate first
-	 *   deploy).
+	 * - Returns `Ok` with no `state` when no state file exists (legitimate
+	 *   first deploy).
+	 * - Returns `Ok` with no `version` when the backend's store has no
+	 *   version primitive, which makes the next write unconditional.
 	 * - Returns `Err(StateError)` when a file exists but cannot be parsed
 	 *   (corrupt JSON, schema failure, unknown `$bedrock.version`).
 	 *
@@ -68,10 +72,20 @@ export interface StatePort {
 	 * to `{ resources: [] }` would cause the next apply to re-create every
 	 * resource on Roblox.
 	 */
-	read(environment: string): Promise<Result<BedrockState | undefined, StateError>>;
+	read(environment: string): Promise<Result<StateRecord, StateError>>;
 
 	/**
-	 * Writes state for the given environment, overwriting any existing file.
+	 * Writes state for the given environment.
+	 *
+	 * Pass the `version` a `read` returned to fence the write against the
+	 * record that read observed: a store whose record has moved since
+	 * fails with a `stateConflict` rather than overwriting a write the
+	 * caller never saw. That includes the case where the read found
+	 * nothing, which fails if a record has appeared since.
+	 *
+	 * Passing no version overwrites whatever is there, which is what a
+	 * backend with no version primitive can offer and what a deliberate
+	 * operator-driven push wants.
 	 */
-	write(state: BedrockState): Promise<Result<void, StateError>>;
+	write(state: BedrockState, expected?: StateVersion): Promise<Result<void, StateError>>;
 }

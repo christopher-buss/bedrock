@@ -96,7 +96,7 @@ function tracingRegistry(trace: Array<string>): DriverRegistry {
 function tracingStatePort(trace: Array<string>): StatePort {
 	return {
 		async read() {
-			return { data: undefined, success: true };
+			return { data: {}, success: true };
 		},
 		async write() {
 			trace.push("write");
@@ -108,7 +108,7 @@ function tracingStatePort(trace: Array<string>): StatePort {
 function refusingWriteStatePort(): StatePort {
 	return {
 		async read() {
-			return { data: undefined, success: true };
+			return { data: {}, success: true };
 		},
 		async write() {
 			return {

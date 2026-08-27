@@ -6,7 +6,8 @@ it('Example 1', () => {
   const store = new Map<string, BedrockState>()
   const statePort: StatePort = {
     async read(environment) {
-      return { data: store.get(environment), success: true }
+      const state = store.get(environment)
+      return { data: state === undefined ? {} : { state }, success: true }
     },
     async write(state) {
       store.set(state.environment, state)
@@ -18,7 +19,7 @@ it('Example 1', () => {
     .then((firstRead) => {
       expect(firstRead.success).toBeTrue()
       if (firstRead.success) {
-        expect(firstRead.data).toBeUndefined()
+        expect(firstRead.data.state).toBeUndefined()
       }
       return statePort.write({
         environment: 'production',
@@ -32,9 +33,9 @@ it('Example 1', () => {
     })
     .then((secondRead) => {
       expect(secondRead.success).toBeTrue()
-      if (secondRead.success && secondRead.data !== undefined) {
-        expect(secondRead.data.environment).toBe('production')
-        expect(secondRead.data.resources).toBeEmpty()
+      if (secondRead.success && secondRead.data.state !== undefined) {
+        expect(secondRead.data.state.environment).toBe('production')
+        expect(secondRead.data.state.resources).toBeEmpty()
       }
     })
 })

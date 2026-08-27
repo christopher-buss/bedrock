@@ -2,7 +2,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 
 import type { Operation } from "../core/operations.ts";
 import type { ResourceCurrentState, ResourceRealDisplay } from "../core/resources.ts";
-import type { BedrockState, StateError } from "../core/state.ts";
+import type { BedrockState, StateError, StateVersion } from "../core/state.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
 import type { StatePort } from "../ports/state-port.ts";
@@ -63,6 +63,12 @@ interface ApplyAndPersistInputs {
 	readonly codegenHash?: Sha256Hex | undefined;
 	/** Environment name threaded into `applyOps` reporting and the snapshot. */
 	readonly environment: string;
+	/**
+	 * Version the caller's `read` observed, which fences the write against
+	 * that exact record. Omit to overwrite unconditionally, which is what a
+	 * backend with no version primitive offers.
+	 */
+	readonly expectedVersion?: StateVersion | undefined;
 	/** Subset of reconcile ops applied in this pass, in declaration order. */
 	readonly ops: ReadonlyArray<Operation>;
 	/**
@@ -109,14 +115,16 @@ interface SnapshotInputs {
  * Invoking it more than once over disjoint op subsets accumulates one
  * cumulative snapshot across the writes; a single-pass deploy calls it once.
  *
- * @param inputs - The op subset, the prior-resource baseline, and the
- *   registry, state port, and progress port the pass drives.
+ * @param inputs - The op subset, the prior-resource baseline, the version
+ *   the write is fenced against, and the registry, state port, and progress
+ *   port the pass drives.
  * @returns The apply, snapshot, and write outcomes for the pass.
  */
 export async function applyAndPersistAsync({
 	artifacts,
 	codegenHash,
 	environment,
+	expectedVersion,
 	ops,
 	pendingRebuild,
 	priorResources,
@@ -135,7 +143,7 @@ export async function applyAndPersistAsync({
 		realDisplay,
 	});
 
-	const written = await statePort.write(merged);
+	const written = await statePort.write(merged, expectedVersion);
 	if (written.success) {
 		progress.emit({ environment, kind: "stateWritten" });
 	}

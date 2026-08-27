@@ -552,7 +552,8 @@ export function isCliEnvironmentFlagSet(value: string | undefined): boolean {
  * const store = new Map<string, BedrockState>();
  * const statePort: StatePort = {
  *     async read(environment) {
- *         return { data: store.get(environment), success: true };
+ *         const state = store.get(environment);
+ *         return { data: state === undefined ? {} : { state }, success: true };
  *     },
  *     async write(state) {
  *         store.set(state.environment, state);
@@ -1140,7 +1141,7 @@ async function loadReconcileInputsAsync({
 		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
 	}
 
-	const priorResources = prior.data?.resources ?? [];
+	const priorResources = prior.data.state?.resources ?? [];
 	const validated = assertAllReconcilable(desired.data, priorResources);
 	if (!validated.success) {
 		return { err: { cause: validated.err, kind: "buildDesiredFailed" }, success: false };
@@ -1149,9 +1150,9 @@ async function loadReconcileInputsAsync({
 	return {
 		data: {
 			ops: diff(desired.data, priorResources),
-			owedRebuild: prior.data?.pendingRebuild ?? new Set<ResourceKey>(),
+			owedRebuild: prior.data.state?.pendingRebuild ?? new Set<ResourceKey>(),
 			priorResources,
-			storedHash: prior.data?.codegenHash,
+			storedHash: prior.data.state?.codegenHash,
 		},
 		success: true,
 	};

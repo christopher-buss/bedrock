@@ -5,6 +5,8 @@ import {
   asRobloxAssetId,
   asSha256Hex,
   type BedrockState,
+  type StateVersion,
+  type StateRecord,
   type StateError,
 } from '@bedrock-rbx/core'
 
@@ -37,6 +39,22 @@ it('Example 1', () => {
 })
 
 it('Example 2', () => {
+  const firstDeploy: StateVersion = { kind: 'absent' }
+  const laterDeploy: StateVersion = { kind: 'present', token: '"9f3c1a"' }
+  expect(firstDeploy.kind).toBe('absent')
+  expect(laterDeploy.kind === 'present' && laterDeploy.token).toBe('"9f3c1a"')
+})
+
+it('Example 3', () => {
+  const neverDeployed: StateRecord = { version: { kind: 'absent' } }
+  const unfenced: StateRecord = {
+    state: { environment: 'production', resources: [], version: 1 },
+  }
+  expect(neverDeployed.state).toBeUndefined()
+  expect(unfenced.version).toBeUndefined()
+})
+
+it('Example 4', () => {
   const err: StateError = {
     file: '.bedrock/state/production.json',
     kind: 'stateError',
