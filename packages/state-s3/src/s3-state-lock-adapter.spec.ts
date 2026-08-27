@@ -2,9 +2,9 @@ import type { StateBackendFetch, StateLockWaiting } from "@bedrock-rbx/core";
 
 import { assert, describe, expect, it } from "vitest";
 
-import { createFakeClock } from "#tests/helpers/fake-clock";
+import { createFakeClock, type FakeClock } from "#tests/helpers/fake-clock";
 import { errorBody, type FakeS3, fakeS3, fakeS3Failure } from "#tests/helpers/fake-s3";
-import { parseLockRecord, type S3LockRecord, serializeLockRecord } from "./lock-record.ts";
+import { isoAt, parseLockRecord, type S3LockRecord, serializeLockRecord } from "./lock-record.ts";
 import {
 	createS3StateLockPort,
 	DEFAULT_LOCK_TIMEOUT_MS,
@@ -24,7 +24,7 @@ const CREDENTIALS = { accessKeyId: "example-access-key", secretAccessKey: "examp
 
 const OTHER_HOLD: S3LockRecord = {
 	id: "other-run",
-	expiresAt: "2026-08-27T09:01:00.000Z",
+	expiresAt: "2026-08-27T10:05:00.000Z",
 	operation: "deploy",
 	owner: "ci-run-3",
 	since: "2026-08-27T09:00:00.000Z",
@@ -77,6 +77,30 @@ function releasingAfter(store: FakeS3, afterPuts: number): StateBackendFetch {
 		}
 
 		return response;
+	};
+}
+
+/**
+ * Wrap a store so the holder keeps its **Lease** alive, restamping the
+ * deadline on the record every time the record is read.
+ *
+ * @param store - The store the requests are served from.
+ * @param clock - The clock the deadline is restamped against.
+ * @returns The transport to hand the lock port.
+ */
+function renewingHolder(store: FakeS3, clock: FakeClock): StateBackendFetch {
+	return async (input, init) => {
+		if (init?.method !== "PUT") {
+			store.objects.set(
+				LOCK_PATH,
+				serializeLockRecord({
+					...OTHER_HOLD,
+					expiresAt: isoAt(clock.now() + 60_000),
+				}),
+			);
+		}
+
+		return store.fetchFunc(input, init);
 	};
 }
 
@@ -424,6 +448,96 @@ describe(createS3StateLockPort, () => {
 			expect(takeover!.headers["if-match"]).toBe('"seed-0"');
 		});
 
+		it("should take over a hold whose lease has run out", async () => {
+			expect.assertions(3);
+
+			const store = fakeS3({
+				[LOCK_PATH]: serializeLockRecord({
+					...OTHER_HOLD,
+					expiresAt: "2026-08-27T09:59:59.999Z",
+				}),
+			});
+			const clock = createFakeClock(TEN_O_CLOCK);
+
+			const hold = await lockFor({
+				fetch: store.fetchFunc,
+				now: clock.now,
+				sleep: clock.sleepAsync,
+			}).acquire("production");
+
+			assert(hold.success);
+
+			expect(clock.waits).toBeEmpty();
+			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)!.id).toBe(THIS_RUN);
+			// Written against the exact bytes the expired hold was read as, so
+			// a second waiter cannot take the same hold over.
+			expect(store.calls.at(-1)!.headers["if-match"]).toBe('"seed-0"');
+		});
+
+		it("should take over a hold at the instant its lease runs out", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3({
+				[LOCK_PATH]: serializeLockRecord({
+					...OTHER_HOLD,
+					expiresAt: "2026-08-27T10:00:00.000Z",
+				}),
+			});
+			const clock = createFakeClock(TEN_O_CLOCK);
+
+			const hold = await lockFor({
+				fetch: store.fetchFunc,
+				now: clock.now,
+				sleep: clock.sleepAsync,
+			}).acquire("production");
+
+			assert(hold.success);
+
+			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)!.id).toBe(THIS_RUN);
+		});
+
+		it("should never take over a hold whose lease is still being renewed", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
+			const clock = createFakeClock(TEN_O_CLOCK);
+
+			const result = await lockFor({
+				fetch: renewingHolder(store, clock),
+				lockTimeoutMs: 300_000,
+				now: clock.now,
+				sleep: clock.sleepAsync,
+			}).acquire("production");
+
+			assert(!result.success);
+
+			expect(result.err.detail).toMatchObject({ kind: "acquireTimedOut" });
+			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)!.id).toBe("other-run");
+		});
+
+		it("should keep waiting when another waiter takes the expired hold over first", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3({
+				[LOCK_PATH]: serializeLockRecord({
+					...OTHER_HOLD,
+					expiresAt: "2026-08-27T09:59:59.999Z",
+				}),
+			});
+			const clock = createFakeClock(TEN_O_CLOCK);
+
+			const hold = await lockFor({
+				fetch: refusingPut(store, 2),
+				now: clock.now,
+				sleep: clock.sleepAsync,
+			}).acquire("production");
+
+			assert(hold.success);
+
+			expect(clock.waits).toStrictEqual([1000]);
+			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)!.id).toBe(THIS_RUN);
+		});
+
 		it("should keep waiting when another run takes the tombstone over first", async () => {
 			expect.assertions(2);
 
@@ -539,13 +653,13 @@ describe(createS3StateLockPort, () => {
 			assert(!result.success);
 
 			expect(result.err.reason).toBe(
-				`${LOCK_LABEL} is held by ci-run-3 for deploy since 2026-08-27T09:00:00.000Z, leased until 2026-08-27T09:01:00.000Z; gave up after 5.0s`,
+				`${LOCK_LABEL} is held by ci-run-3 for deploy since 2026-08-27T09:00:00.000Z, leased until 2026-08-27T10:05:00.000Z; gave up after 5.0s`,
 			);
 			expect(result.err.detail).toStrictEqual({
 				elapsedMs: 5000,
 				file: LOCK_LABEL,
 				holder: {
-					expiresAt: "2026-08-27T09:01:00.000Z",
+					expiresAt: "2026-08-27T10:05:00.000Z",
 					operation: "deploy",
 					owner: "ci-run-3",
 					since: "2026-08-27T09:00:00.000Z",

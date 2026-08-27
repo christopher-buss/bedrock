@@ -8,7 +8,7 @@ import {
 } from "@bedrock-rbx/core";
 
 import { backoffDelayMs } from "./backoff.ts";
-import { DEFAULT_LOCK_LEASE_MS } from "./lease.ts";
+import { DEFAULT_LOCK_LEASE_MS, isLeaseExpired } from "./lease.ts";
 import {
 	acquireRefused,
 	holdWithoutEntityTag,
@@ -260,6 +260,7 @@ async function recoverHoldAsync(
  * the way.
  */
 async function contendAsync(acquisition: Acquisition): Promise<ContendOutcome> {
+	const { seams } = acquisition;
 	const created = await writeLockAsync(acquisition, { kind: "absent" });
 	if (created.kind === "acquired") {
 		return created.etag === undefined ? recoverHoldAsync(acquisition, created.record) : created;
@@ -287,13 +288,14 @@ async function contendAsync(acquisition: Acquisition): Promise<ContendOutcome> {
 			: { etag: found.etag, kind: "acquired", record: found.record };
 	}
 
-	if (found.record.releasedAt === undefined) {
+	if (found.record.releasedAt === undefined && !isLeaseExpired(found.record, seams.now())) {
 		return contended(holderOf(found.record), true);
 	}
 
-	// The object outlives the hold: release writes a tombstone into it. The
-	// takeover is conditional on the exact bytes that were read, so a run
-	// that got there first keeps what it took.
+	// The object outlives the hold: release writes a tombstone into it, and a
+	// run killed mid-deploy leaves a **Lease** nothing renews. The takeover is
+	// conditional on the exact bytes that were read, so a run that got there
+	// first keeps what it took.
 	const takenOver = await takeOverAsync(acquisition, found.etag);
 	return takenOver.kind === "contended" ? contended(undefined, true) : takenOver;
 }
