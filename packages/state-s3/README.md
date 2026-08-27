@@ -72,6 +72,52 @@ conditional-write probe take its scratch object away again:
 }
 ```
 
+## Migrating from Mantle
+
+`bedrock migrate` reads a Mantle state file straight out of the bucket it has
+always lived in, so state that was never on disk needs no downloading first.
+Install this plugin and name it under `plugins` first, then run
+`bedrock migrate` with no path and pick S3 as the source.
+
+The coordinates asked for are Mantle's own `state.remote` block. Mantle keys one
+object `<project>.mantle-state.yml`, so the `key` you answer with is the project
+name, and the object name itself is accepted too:
+
+```yaml
+# mantle.yml
+state:
+  remote:
+    bucket: my-mantle-states
+    key: pirate-wars
+    region:
+      custom:
+        name: auto
+        endpoint: https://<account>.r2.cloudflarestorage.com
+```
+
+Migrating onto S3 records what that block says, so the bucket is named once
+rather than answered again:
+
+```ts
+export default defineConfig({
+	environments: { production: {} },
+	plugins: ["@bedrock-rbx/state-s3"],
+	state: {
+		backend: "s3",
+		bucket: "my-mantle-states",
+		endpoint: "https://<account>.r2.cloudflarestorage.com",
+		prefix: "pirate-wars",
+		region: "auto",
+	},
+});
+```
+
+The project name Mantle keyed its object by becomes the `prefix`, so production
+lands at `s3://my-mantle-states/pirate-wars/production.json` and two projects
+that shared one bucket under Mantle stay apart. Migrating onto a bucket you did
+not fetch from asks for the bucket, the region, and an endpoint you can skip.
+Credentials resolve exactly as they do for a deploy.
+
 ## S3-compatible stores
 
 `endpoint` and `forcePathStyle` make non-AWS stores reachable, and

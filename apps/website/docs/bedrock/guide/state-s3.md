@@ -61,6 +61,66 @@ them:
 Enable versioning on the bucket. Bedrock overwrites the object on every deploy,
 and a version history is what lets you recover a state file someone clobbered.
 
+## Migrating from Mantle
+
+If your Mantle state has only ever lived in a bucket, `bedrock migrate` reads it
+from there; there is nothing to download first. Install this plugin and name it
+under `plugins` before you migrate, since migrate reads the plugins from a
+`bedrock.config` already in the project. Then run `bedrock migrate` with no path
+and pick S3 as the source.
+
+What it asks for is Mantle's own `state.remote` block:
+
+```yaml
+# mantle.yml
+state:
+  remote:
+    bucket: my-mantle-states
+    key: pirate-wars
+    region:
+      custom:
+        name: auto
+        endpoint: https://<account>.r2.cloudflarestorage.com
+```
+
+| Answer   | Mantle's key                             |
+| -------- | ---------------------------------------- |
+| Bucket   | `bucket`                                 |
+| Region   | `region`, or `region.custom.name` for R2 |
+| Key      | `key`, the project name                  |
+| Endpoint | `region.custom.endpoint`, empty for AWS  |
+
+Mantle keys one object `<project>.mantle-state.yml`, so the key is the project
+name; answering with the object name you read off the bucket console names the
+same object.
+
+Migrating onto S3 then records what that block said, so the bucket is named once
+rather than answered a second time:
+
+```ts
+export default defineConfig({
+	environments: { production: {} },
+	plugins: ["@bedrock-rbx/state-s3"],
+	state: {
+		backend: "s3",
+		bucket: "my-mantle-states",
+		endpoint: "https://<account>.r2.cloudflarestorage.com",
+		prefix: "pirate-wars",
+		region: "auto",
+	},
+});
+```
+
+The project name Mantle keyed its object by becomes the `prefix`, so production
+lands at `s3://my-mantle-states/pirate-wars/production.json` and two projects
+that shared one bucket under Mantle stay apart rather than both writing
+`production.json` at the root. Bedrock never writes over the Mantle object: it
+is left where it is for as long as you want it.
+
+Migrating onto a bucket you did not fetch from asks for the bucket, the region,
+and an endpoint you can skip. Either way the credentials are the ones a deploy
+resolves, so the chain that reaches your bucket already reaches it here.
+
 ## S3-compatible stores
 
 `endpoint` and `forcePathStyle` reach a store that speaks the S3 protocol
