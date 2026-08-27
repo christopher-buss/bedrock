@@ -11,6 +11,7 @@ import { fakeClackPort } from "#tests/helpers/clack";
 import { fakeMigratePromptPort } from "#tests/helpers/migrate-prompt-port";
 import { fakeStateBackendPlugins, mergeStateBackendPlugins } from "#tests/helpers/plugins";
 import type { MigrationReport } from "../../core/migrate/migration-report.ts";
+import { EMPTY_PLUGIN_REGISTRY } from "../../core/plugin-registry.ts";
 import type { Config } from "../../core/schema.ts";
 import type { BedrockState, StateError } from "../../core/state.ts";
 import type { StatePort } from "../../ports/state-port.ts";
@@ -68,6 +69,19 @@ function happyPortResult(write?: StatePort["write"]): ReturnType<BuildStatePortF
 	return { data: happyPort(write), success: true };
 }
 
+/**
+ * A project loader reporting a config that declares no plugins. Injected
+ * by default so the command reads a stated registry instead of the real
+ * loader, whose result depends on the runner's working directory.
+ *
+ * @returns A loader spy the command reads exactly as it reads the real one.
+ */
+function fakeLoadProject(): NonNullable<ProgDependencies["loadProject"]> {
+	return vi.fn<NonNullable<ProgDependencies["loadProject"]>>(async () => {
+		return { data: { config: SAMPLE_CONFIG, plugins: EMPTY_PLUGIN_REGISTRY }, success: true };
+	});
+}
+
 function makeDependencies(overrides: Partial<ProgDependencies> = {}): ProgDependencies {
 	const migrate = vi.fn<MigrateFunc>();
 	migrate.mockResolvedValue({ data: SAMPLE_REPORT, success: true });
@@ -79,6 +93,7 @@ function makeDependencies(overrides: Partial<ProgDependencies> = {}): ProgDepend
 		buildStatePort: vi.fn<BuildStatePortFunc>(() => ({ data: happyPort(), success: true })),
 		clack: fakeClackPort(),
 		exit: vi.fn<ExitFunc>(),
+		loadProject: fakeLoadProject(),
 		migrateMantleState: migrate,
 		migratePromptPort: fakeMigratePromptPort(),
 		mkdir,
@@ -1083,6 +1098,18 @@ describe(migrateCommand, () => {
 		expect(loadProject).toHaveBeenCalledExactlyOnceWith({ cwd: "/projects/example" });
 	});
 
+	it("should search for the project config from the working directory when given no project root", async () => {
+		expect.assertions(1);
+
+		const loadProject = fakeLoadProject();
+		const dependencies = makeDependencies({ loadProject });
+		scriptHappyPrompts(dependencies);
+
+		await migrateCommand(dependencies)(STATE_FILE_PATH, { from: "mantle" });
+
+		expect(loadProject).toHaveBeenCalledExactlyOnceWith({ cwd: process.cwd() });
+	});
+
 	it("should offer no plugin backends when the project has no config to load", async () => {
 		expect.assertions(1);
 
@@ -1397,6 +1424,7 @@ describe(migrateCommand, () => {
 			exit,
 			migrateMantleState: migrate,
 			migratePromptPort: promptPort,
+			projectRoot: temporaryDirectory,
 		})(stateFilePath, { from: "mantle" });
 
 		expect(
@@ -1455,7 +1483,9 @@ describe(migrateCommand, () => {
 		});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(fromAny(() => {}));
 
-		await migrateCommand({ clack: fakeClackPort() })(undefined, { from: "universe" });
+		const dependencies = { clack: fakeClackPort(), loadProject: fakeLoadProject() };
+
+		await migrateCommand(dependencies)(undefined, { from: "universe" });
 
 		expect(exitSpy).toHaveBeenCalledExactlyOnceWith(1);
 	});
