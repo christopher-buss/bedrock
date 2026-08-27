@@ -9,6 +9,7 @@ import {
 	createS3StateLockPort,
 	DEFAULT_LOCK_TIMEOUT_MS,
 	delayAsync,
+	intervalEvery,
 	type S3StateLockAdapterDeps,
 } from "./s3-state-lock-adapter.ts";
 
@@ -1314,5 +1315,23 @@ describe(delayAsync, () => {
 		await delayAsync(25);
 
 		expect(Date.now() - startedAt).toBeGreaterThanOrEqual(20);
+	});
+});
+
+describe(intervalEvery, () => {
+	it("should run again and again until it is cancelled", async () => {
+		expect.assertions(1);
+
+		let runs = 0;
+		const cancel = intervalEvery(1, async () => {
+			runs += 1;
+		});
+
+		await vi.waitUntil(() => runs > 1);
+		cancel();
+		const cancelledAfter = runs;
+		await delayAsync(25);
+
+		expect(runs).toBe(cancelledAfter);
 	});
 });
