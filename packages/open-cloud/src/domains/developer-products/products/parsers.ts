@@ -32,6 +32,7 @@ export function parseDeveloperProductResponse({
 
 	const priceWire = body.priceInformation ?? undefined;
 	const iconAssetId = body.iconImageAssetId ?? undefined;
+	const storePageEnabled = body.storePageEnabled ?? undefined;
 
 	return {
 		data: {
@@ -44,7 +45,7 @@ export function parseDeveloperProductResponse({
 			isImmutable: body.isImmutable,
 			isManagedPricingEnabled: body.isManagedPricingEnabled,
 			price: priceWire === undefined ? undefined : copyPriceInformation(priceWire),
-			storePageEnabled: body.storePageEnabled,
+			storePageEnabled,
 			universeId: String(body.universeId),
 			updatedAt: new Date(body.updatedTimestamp),
 		},
@@ -77,7 +78,6 @@ function hasRequiredPrimitiveFields(body: Record<string, unknown>): boolean {
 		typeof body["isForSale"] === "boolean" &&
 		typeof body["isImmutable"] === "boolean" &&
 		typeof body["isManagedPricingEnabled"] === "boolean" &&
-		typeof body["storePageEnabled"] === "boolean" &&
 		isDateTimeString(body["createdTimestamp"]) &&
 		isDateTimeString(body["updatedTimestamp"])
 	);
@@ -108,6 +108,11 @@ function isDeveloperProductConfigV2(body: unknown): body is DeveloperProductConf
 
 	const price = body["priceInformation"] ?? undefined;
 	if (price !== undefined && !isPriceInformationLike(price, isPricingFeatureWire)) {
+		return false;
+	}
+
+	const storePageEnabled = body["storePageEnabled"] ?? undefined;
+	if (storePageEnabled !== undefined && typeof storePageEnabled !== "boolean") {
 		return false;
 	}
 

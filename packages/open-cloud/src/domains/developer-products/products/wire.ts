@@ -44,8 +44,12 @@ export interface DeveloperProductConfigV2 {
 	readonly priceInformation: DeveloperProductPriceInformationWire | undefined;
 	/** Int64 developer product ID, serialized as a JSON number. */
 	readonly productId: number;
-	/** Whether the developer product appears on the external store page. */
-	readonly storePageEnabled: boolean;
+	/**
+	 * Whether the developer product appears on the external store page.
+	 * `undefined` when the response omits the field, as the create endpoint
+	 * does.
+	 */
+	readonly storePageEnabled?: boolean | undefined;
 	/** Int64 universe ID that owns the developer product. */
 	readonly universeId: number;
 	/** ISO timestamp of the most recent update (`date-time`). */

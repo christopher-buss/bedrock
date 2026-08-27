@@ -55,8 +55,12 @@ export interface DeveloperProduct {
 	readonly isManagedPricingEnabled: boolean;
 	/** Pricing configuration; `undefined` when pricing is not yet set. */
 	readonly price: DeveloperProductPrice | undefined;
-	/** Whether the developer product appears on the external store page. */
-	readonly storePageEnabled: boolean;
+	/**
+	 * Whether the developer product appears on the external store page.
+	 * `undefined` when the response omits the field, as the create endpoint
+	 * does.
+	 */
+	readonly storePageEnabled: boolean | undefined;
 	/** Stringified ID of the universe that owns the developer product. */
 	readonly universeId: string;
 	/** ISO timestamp of the most recent update, as a `Date`. */

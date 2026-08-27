@@ -344,6 +344,35 @@ describe(parseDeveloperProductResponse, () => {
 		expect(result.data.storePageEnabled).toBeFalse();
 	});
 
+	it("should leave storePageEnabled undefined when the response omits it", () => {
+		expect.assertions(2);
+
+		// The v2 create endpoint answers without the field the read endpoint
+		// reports it on, so a product is parseable without it.
+		const body = JSON.parse(
+			`{
+				"createdTimestamp": "2024-01-15T10:30:00.000Z",
+				"description": "A premium gem pack",
+				"iconImageAssetId": 67890,
+				"isForSale": true,
+				"isImmutable": false,
+				"isManagedPricingEnabled": false,
+				"name": "Gem Pack",
+				"priceInformation": { "defaultPriceInRobux": 100, "enabledFeatures": [] },
+				"productId": 12345,
+				"universeId": 999,
+				"updatedTimestamp": "2024-03-20T14:45:00.000Z"
+			}`,
+		);
+
+		const result = parseDeveloperProductResponse({ body, headers: {}, status: 200 });
+
+		assert(result.success);
+
+		expect(result.data.storePageEnabled).toBeUndefined();
+		expect(result.data.id).toBe("12345");
+	});
+
 	it("should preserve enabledFeatures on the converted price", () => {
 		expect.assertions(1);
 
