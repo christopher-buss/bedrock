@@ -12,11 +12,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, onTestFinished } from "vitest";
 
 import { assertOk } from "../helpers/assert-ok.ts";
-import {
-	deleteS3ObjectAsync,
-	headS3ObjectAsync,
-	readS3ObjectTextAsync,
-} from "../helpers/s3-object.ts";
+import { pruneStateS3Async } from "../helpers/prune-state-s3.ts";
+import { headS3ObjectAsync, readS3ObjectTextAsync } from "../helpers/s3-object.ts";
 import { BUCKET, ENVIRONMENT, PREFIX, REGION } from "./fixtures/state-s3/coordinates.ts";
 
 // Unset, the AWS default provider queries EC2 instance metadata, which on a
@@ -25,8 +22,8 @@ const HAS_SECRETS = process.env["AWS_ACCESS_KEY_ID"] !== undefined;
 
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "state-s3");
 
-const KEY = `${PREFIX}/${ENVIRONMENT}.json`;
-const OBJECT = { key: KEY, bucket: BUCKET, region: REGION };
+// How many past runs stay in the bucket to be read by hand.
+const KEEP = 3;
 
 /**
  * A registry whose drivers all refuse. A deploy that succeeds against it
@@ -53,11 +50,20 @@ describe("s3 state backend against real aws", () => {
 		async () => {
 			expect.assertions(3);
 
-			// Start from an empty key: this covers a first deploy into a
-			// bucket holding no state for this environment.
-			await deleteS3ObjectAsync(OBJECT);
+			// A stamped environment gives every run its own object, so
+			// concurrent runs never contend and each deploy is a first
+			// deploy into a key holding nothing.
+			const environment = `${ENVIRONMENT}-${Date.now()}`;
+			const key = `${PREFIX}/${environment}.json`;
+			const object = { key, bucket: BUCKET, region: REGION };
+
 			onTestFinished(async () => {
-				await deleteS3ObjectAsync(OBJECT);
+				await pruneStateS3Async({
+					bucket: BUCKET,
+					keep: KEEP,
+					prefix: PREFIX,
+					region: REGION,
+				});
 			});
 
 			const loaded = await loadProjectAsync({ cwd: FIXTURE });
@@ -66,22 +72,22 @@ describe("s3 state backend against real aws", () => {
 			expect(loaded.data.plugins.stateBackends.has("s3")).toBeTrue();
 
 			const result = await deploy({
-				config: loaded.data.config,
-				environment: ENVIRONMENT,
+				config: { ...loaded.data.config, environments: { [environment]: {} } },
+				environment,
 				plugins: loaded.data.plugins,
 				registry: refusingRegistry(),
 			});
 			assertOk(result, "deploy");
 
-			const head = await headS3ObjectAsync(OBJECT);
+			const head = await headS3ObjectAsync(object);
 
 			expect(head.ContentType).toBe("application/json");
 
-			const parsed = parseStateFile(await readS3ObjectTextAsync(OBJECT), KEY);
+			const parsed = parseStateFile(await readS3ObjectTextAsync(object), key);
 			assertOk(parsed, "parseStateFile");
 
 			expect(parsed.data).toStrictEqual({
-				environment: ENVIRONMENT,
+				environment,
 				resources: [],
 				version: 1,
 			});

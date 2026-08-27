@@ -1,9 +1,4 @@
-import {
-	DeleteObjectCommand,
-	GetObjectCommand,
-	HeadObjectCommand,
-	S3Client,
-} from "@aws-sdk/client-s3";
+import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import type { HeadObjectCommandOutput } from "@aws-sdk/client-s3";
 
 /** Coordinates of one object in a real bucket. */
@@ -36,14 +31,6 @@ export async function readS3ObjectTextAsync(ref: S3ObjectRef): Promise<string> {
 		new GetObjectCommand({ Bucket: ref.bucket, Key: ref.key }),
 	);
 	return object.Body === undefined ? "" : object.Body.transformToString();
-}
-
-/**
- * Remove one object.
- * @param ref - Bucket, key, and region naming the object.
- */
-export async function deleteS3ObjectAsync(ref: S3ObjectRef): Promise<void> {
-	await clientFor(ref).send(new DeleteObjectCommand({ Bucket: ref.bucket, Key: ref.key }));
 }
 
 function clientFor({ region }: S3ObjectRef): S3Client {
