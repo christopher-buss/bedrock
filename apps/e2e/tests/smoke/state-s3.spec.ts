@@ -16,9 +16,13 @@ import { pruneStateS3Async } from "../helpers/prune-state-s3.ts";
 import { headS3ObjectAsync, readS3ObjectTextAsync } from "../helpers/s3-object.ts";
 import { BUCKET, ENVIRONMENT, PREFIX, REGION } from "./fixtures/state-s3/coordinates.ts";
 
-// Unset, the AWS default provider queries EC2 instance metadata, which on a
-// runner outside AWS only fails after a wait.
-const HAS_SECRETS = process.env["AWS_ACCESS_KEY_ID"] !== undefined;
+// Both halves must be present and non-empty. Given one, the AWS default
+// provider carries on to the rest of the chain and queries EC2 instance
+// metadata, which on a runner outside AWS only fails after a wait. An unset
+// GitHub secret reaches the process as an empty string, not as absent.
+const HAS_SECRETS = [process.env["AWS_ACCESS_KEY_ID"], process.env["AWS_SECRET_ACCESS_KEY"]].every(
+	(value) => value !== undefined && value !== "",
+);
 
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "state-s3");
 
