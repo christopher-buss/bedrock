@@ -81,7 +81,9 @@ describe(stateUnlockCommand, () => {
 
 		await stateUnlockCommand(dependencies)({ env: "production" });
 
-		expect(dependencies.clack!.logMessage).toHaveBeenCalledWith(
+		// The only line before the outcome: an environment that locks says
+		// nothing about locking being off.
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
 			'Taking the hold on "production" away: a deploy still holding it keeps running, and fails its own state write rather than overwriting whatever runs next.',
 		);
 	});
