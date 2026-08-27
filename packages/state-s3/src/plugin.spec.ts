@@ -58,6 +58,17 @@ describe("s3 plugin", () => {
 		).toStrictEqual(["bucket", "region"]);
 	});
 
+	it("should read the previous tool's state from the coordinates mantle kept it at", () => {
+		expect.assertions(1);
+
+		expect(s3StateBackend.migrateSource?.prompts.map((field) => field.key)).toStrictEqual([
+			"bucket",
+			"region",
+			"key",
+			"endpoint",
+		]);
+	});
+
 	it("should build a lock port that leases a hold for as long as the state block asked", async () => {
 		expect.assertions(2);
 

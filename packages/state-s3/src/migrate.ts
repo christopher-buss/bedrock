@@ -1,4 +1,49 @@
-import type { StateBackendPromptField } from "@bedrock-rbx/core";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import type {
+	Result,
+	StateBackendBuildError,
+	StateBackendMigrateSource,
+	StateBackendPromptField,
+	StateBackendSourceContext,
+} from "@bedrock-rbx/core";
+
+import { type } from "arktype";
+
+import { classifyS3Failure } from "./classify-failure.ts";
+import { credentialsFrom } from "./credentials.ts";
+import { objectLabelFor } from "./object-key.ts";
+import { createConfiguredS3Client, readObjectTextAsync } from "./s3-client.ts";
+import type { S3StateErrorDetail } from "./s3-state-adapter.ts";
+
+// What mantle appends to the project name to name the object its state
+// lives in, which is the only naming convention a bucket it wrote holds.
+const MANTLE_STATE_SUFFIX = ".mantle-state.yml";
+
+// The coordinates mantle's own `state.remote` block names, which is what
+// the source's prompts collect. The custom-region form an S3-compatible
+// store is reached through arrives flattened: its `name` is the region and
+// its `endpoint` the endpoint.
+const mantleCoordinates = type({
+	"bucket": "string > 0",
+	"endpoint?": "string > 0",
+	"key": "string > 0",
+	"region": "string > 0",
+});
+
+/**
+ * Where one mantle state object lives, read out of the coordinates the
+ * user answered with.
+ */
+interface MantleStateLocation {
+	/** Bucket the object lives in. */
+	readonly bucket: string;
+	/** Endpoint to address instead of AWS, absent for AWS itself. */
+	readonly endpoint: string | undefined;
+	/** Key the object is stored under. */
+	readonly key: string;
+	/** Region the bucket lives in. */
+	readonly region: string;
+}
 
 /**
  * Fields `bedrock migrate` asks for when a user writes their migrated
@@ -24,3 +69,127 @@ export const s3MigratePrompts: ReadonlyArray<StateBackendPromptField> = [
 		placeholder: "https://<account>.r2.cloudflarestorage.com",
 	},
 ];
+
+/**
+ * How `bedrock migrate` reads a mantle state object out of the bucket it
+ * has always lived in, so a user whose state was never on disk migrates
+ * without downloading it first.
+ *
+ * The coordinates are mantle's own `state.remote` block, asked field by
+ * field: the bucket, the project name it keyed the object with, the
+ * region, and the endpoint its custom-region form names for an
+ * S3-compatible store.
+ */
+export const s3MigrateSource: StateBackendMigrateSource = {
+	prompts: [
+		{
+			key: "bucket",
+			label: "Bucket the Mantle state lives in?",
+			placeholder: "my-mantle-states",
+			validationMessage: "A bucket is required",
+		},
+		{
+			key: "region",
+			label: "Region the bucket lives in?",
+			placeholder: "us-west-2",
+			validationMessage: "A region is required",
+		},
+		{
+			key: "key",
+			label: "Key Mantle stored the state under (its `state.remote.key`)?",
+			placeholder: "pirate-wars",
+			validationMessage: "A key is required",
+		},
+		{
+			key: "endpoint",
+			label: "Endpoint to address instead of AWS? (leave empty for AWS)",
+			placeholder: "https://<account>.r2.cloudflarestorage.com",
+		},
+	],
+	readBytes: async (context) => readMantleStateAsync(context),
+};
+
+/**
+ * Read where the mantle state object lives out of the coordinates the
+ * user answered with.
+ *
+ * The key is the project name mantle was configured with, which it names
+ * the object `<project>.mantle-state.yml` after. A user who answers with
+ * the object name they read off their bucket console names the same
+ * object, rather than one carrying the suffix twice.
+ *
+ * @param coordinates - The answered coordinates.
+ * @returns The location, or the refusal naming what the coordinates left
+ * out.
+ */
+function locateMantleState(
+	coordinates: Readonly<Record<string, string>>,
+): Result<MantleStateLocation, StateBackendBuildError> {
+	const parsed = mantleCoordinates(coordinates);
+	if (parsed instanceof type.errors) {
+		return {
+			err: { detail: coordinates, reason: `the Mantle state coordinates are incomplete: ${parsed.summary}` },
+			success: false,
+		};
+	}
+
+	const project = parsed.key.endsWith(MANTLE_STATE_SUFFIX)
+		? parsed.key.slice(0, -MANTLE_STATE_SUFFIX.length)
+		: parsed.key;
+	return {
+		data: {
+			bucket: parsed.bucket,
+			endpoint: parsed.endpoint,
+			key: `${project}${MANTLE_STATE_SUFFIX}`,
+			region: parsed.region,
+		},
+		success: true,
+	};
+}
+
+/**
+ * Fetch the bytes of the mantle state object the coordinates name.
+ *
+ * Credentials resolve exactly as they do for a **Deploy**: the key pair
+ * the environment core injected holds, and the standard AWS Node chain
+ * when it holds none.
+ *
+ * @param context - The answered coordinates plus the credential seam core
+ * injects.
+ * @returns The object's bytes, or the refusal naming the object and what
+ * the store said about it.
+ */
+async function readMantleStateAsync({
+	coordinates,
+	getEnv: getEnvironment,
+}: StateBackendSourceContext): Promise<Result<Uint8Array, StateBackendBuildError>> {
+	const located = locateMantleState(coordinates);
+	if (!located.success) {
+		return located;
+	}
+
+	const { bucket, endpoint, key, region } = located.data;
+	const client = createConfiguredS3Client({
+		bucket,
+		credentials: credentialsFrom(getEnvironment),
+		endpoint,
+		region,
+	});
+
+	try {
+		const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+		const text = await readObjectTextAsync(object.Body);
+		return { data: new TextEncoder().encode(text), success: true };
+	} catch (err) {
+		const failure = classifyS3Failure(err);
+		const detail: S3StateErrorDetail = {
+			name: failure.name,
+			kind: failure.kind,
+			statusCode: failure.statusCode,
+		};
+		return {
+			err: { detail, reason: `${objectLabelFor(bucket, key)}: ${failure.reason}` },
+			success: false,
+		};
+	}
+}
