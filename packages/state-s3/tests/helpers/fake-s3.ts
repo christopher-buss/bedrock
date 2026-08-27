@@ -75,6 +75,26 @@ export function fakeS3Failure(
 }
 
 /**
+ * A transport answering every write with success, which is how a store
+ * that never evaluates a condition answers.
+ *
+ * @returns The transport and the calls it recorded.
+ */
+export function fakeS3TakingEveryWrite(): {
+	calls: Array<CapturedS3Request>;
+	fetchFunc: StateBackendFetch;
+} {
+	const calls: Array<CapturedS3Request> = [];
+	return {
+		calls,
+		fetchFunc: async (input, init) => {
+			calls.push(await captureAsync(input, init));
+			return new Response("", { headers: { etag: '"taken"' }, status: 200 });
+		},
+	};
+}
+
+/**
  * Build an in-memory S3 the real client can read from and write to, so a
  * test exercises signing, marshalling and error deserialization instead
  * of a stubbed `send`.
@@ -223,6 +243,12 @@ function answer(store: StoredObjects, request: CapturedS3Request): Response {
 	}
 
 	const { pathname } = new URL(request.url);
+	if (request.method === "DELETE") {
+		store.objects.delete(pathname);
+		store.etags.delete(pathname);
+		return new Response("", { status: 204 });
+	}
+
 	const stored = store.objects.get(pathname);
 	if (stored === undefined) {
 		return noSuchKey();
