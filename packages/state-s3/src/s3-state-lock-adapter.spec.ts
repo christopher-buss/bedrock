@@ -33,6 +33,9 @@ const OTHER_HOLD: S3LockRecord = {
 
 const TEN_O_CLOCK = Date.parse("2026-08-27T10:00:00.000Z");
 
+// How long a hold is leased for where a test states the lease itself.
+const LEASE_MS = 60_000;
+
 /** A store a test can make briefly unwell, and well again. */
 interface UnwellStore {
 	/** The transport to hand the lock port. */
@@ -214,6 +217,22 @@ function overwrittenAfter(store: FakeS3, nth: number): StateBackendFetch {
 					status: 200,
 				})
 			: store.fetchFunc(input, init);
+	};
+}
+
+/**
+ * Wrap a store so it answers only once the whole lease has passed, which
+ * is a hold stamped with a deadline the store spends longer than.
+ *
+ * @param store - The store the requests are served from.
+ * @param clock - The clock the wait moves, by the whole of the lease.
+ * @returns The transport to hand the lock port.
+ */
+function slowerThanTheLease(store: FakeS3, clock: FakeClock): StateBackendFetch {
+	return async (input, init) => {
+		const response = await store.fetchFunc(input, init);
+		await clock.sleepAsync(LEASE_MS);
+		return response;
 	};
 }
 
@@ -761,9 +780,13 @@ describe(createS3StateLockPort, () => {
 				}),
 			});
 
-			const hold = await lockFor({ fetch: store.fetchFunc, lockTimeoutMs: 0 }).acquire(
-				"production",
-			);
+			const clock = createFakeClock(TEN_O_CLOCK);
+
+			const hold = await lockFor({
+				fetch: store.fetchFunc,
+				lockTimeoutMs: 0,
+				now: clock.now,
+			}).acquire("production");
 
 			assert(hold.success);
 
@@ -886,6 +909,26 @@ describe(createS3StateLockPort, () => {
 			expect(parseLockRecord(first.objects.get(LOCK_PATH)!)!.id).not.toBe(
 				parseLockRecord(second.objects.get(LOCK_PATH)!)!.id,
 			);
+		});
+
+		it("should take no hold the store answered a whole lease later", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3();
+			const clock = createFakeClock(TEN_O_CLOCK);
+
+			const result = await lockFor({
+				fetch: slowerThanTheLease(store, clock),
+				lockLeaseMs: LEASE_MS,
+				lockTimeoutMs: 0,
+				now: clock.now,
+				sleep: clock.sleepAsync,
+			}).acquire("production");
+
+			assert(!result.success);
+
+			expect(result.err.detail).toStrictEqual({ file: LOCK_LABEL, kind: "acquireFailed" });
+			expect(result.err.reason).toContain("already run out by the time the store answered");
 		});
 
 		it("should take no hold the store gave no entity tag to give it up with", async () => {

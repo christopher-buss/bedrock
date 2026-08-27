@@ -106,6 +106,25 @@ export function holdWithoutEntityTag(label: string): StateLockError {
 }
 
 /**
+ * Report a hold the store took longer to answer for than the hold is
+ * leased for.
+ *
+ * The deadline is stamped as the write goes out, so a store that answers a
+ * whole lease later hands back a hold the next acquisition may take over
+ * at once. Refusing it keeps a granted hold one that is actually held.
+ *
+ * @param label - The object the hold was recorded in.
+ * @returns The failure a caller sees.
+ */
+export function leaseAlreadyRunOut(label: string): StateLockError {
+	const detail: S3StateLockErrorDetail = { file: label, kind: "acquireFailed" };
+	return {
+		detail,
+		reason: `${label} was taken under a lease that had already run out by the time the store answered`,
+	};
+}
+
+/**
  * Report a renewal the store took and named no entity tag for, that a read
  * back could not name one for either.
  *

@@ -14,6 +14,7 @@ import {
 	acquireRefused,
 	holdWithoutEntityTag,
 	invalidEnvironment,
+	leaseAlreadyRunOut,
 	timedOut,
 } from "./lock-failure.ts";
 import {
@@ -143,9 +144,10 @@ export async function delayAsync(ms: number): Promise<void> {
  */
 export function intervalEvery(ms: number, run: () => Promise<void>): () => void {
 	const timer = setInterval(() => {
-		// The work reports its own outcome, and a rejection reaching the
-		// timer ends the process.
-		run().catch(() => undefined);
+		run().catch(() => {
+			// The work reports its own outcome, and nothing here can act on
+			// a rejection the timer would otherwise end the process over.
+		});
 	}, ms);
 	return () => {
 		clearInterval(timer);
@@ -356,6 +358,10 @@ function settle({
 
 	if (attempt.etag === undefined) {
 		return { err: holdWithoutEntityTag(label), success: false };
+	}
+
+	if (isLeaseExpired(attempt.record, acquisition.seams.now())) {
+		return { err: leaseAlreadyRunOut(label), success: false };
 	}
 
 	return {
