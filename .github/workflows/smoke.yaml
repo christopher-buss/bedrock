@@ -30,15 +30,18 @@ jobs:
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    # Every smoke test writes to the same state gist, and GitHub applies a
-    # secondary rate limit to content-mutating gist requests per user. Runs on
-    # different refs (a PR, the main push it merges into, the changeset release
-    # PR) would otherwise fire concurrently and exhaust that budget, failing the
-    # whole suite with `rate limited (403)`. Queue them instead: the workflow-
-    # level group above still cancels superseded runs on the *same* ref, so this
-    # only serializes genuinely distinct runs.
+    # The suite shares two pieces of mutable state between runs, and both need
+    # runs to take turns. GitHub throttles content-mutating gist requests per
+    # user, below its own published figures, so concurrent runs exhaust that
+    # budget and fail the gist specs with `rate limited (403)`. The game-pass
+    # and developer-product specs each carry one stable state object holding an
+    # id Open Cloud will not let them re-create, so concurrent runs would race
+    # on the same key. Runs on different refs (a PR, the main push it merges
+    # into, the release PR) would otherwise fire together. Queue them instead:
+    # the workflow-level group above still cancels superseded runs on the
+    # *same* ref, so this only serializes genuinely distinct runs.
     concurrency:
-      group: smoke-state-gist
+      group: smoke-shared-state
       cancel-in-progress: false
     steps:
       - name: Checkout

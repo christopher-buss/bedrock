@@ -24,6 +24,16 @@ const PRODUCTION_STATE: BedrockState = { environment: "production", resources: [
 const PRODUCTION_CONTENT = serializeStateFile(PRODUCTION_STATE);
 
 /**
+ * A 403 carrying the headers GitHub attaches when it throttles a request.
+ *
+ * @param headers - The rate-limit headers the response carries.
+ * @returns The throttled response.
+ */
+function throttled(headers: Record<string, string>): Response {
+	return new Response("", { headers, status: 403 });
+}
+
+/**
  * Gist metadata for a file GitHub truncated, pointing the reader at the raw
  * CDN copy.
  *
@@ -241,6 +251,28 @@ describe(createGistStateAdapter, () => {
 			expect(result.err.reason).toMatch(/rate limit/u);
 			expect(result.err.reason).not.toMatch(/auth failed/u);
 			expect(result.err.reason).not.toMatch(/retry after/u);
+		});
+
+		it("should name github's throttle message in the rate-limited reason", async () => {
+			expect.assertions(2);
+
+			// Which limit GitHub enforced is only in the body: the primary
+			// hourly budget and the secondary content-creation throttle both
+			// answer 403 with the same headers.
+			const { fetchFn } = fakeFetch(() => {
+				return new Response(
+					JSON.stringify({ message: "You have exceeded a secondary rate limit." }),
+					{ headers: { "X-RateLimit-Remaining": "0" }, status: 403 },
+				);
+			});
+			const port = createGistStateAdapter({ fetch: fetchFn, gistId: GIST_ID, token: TOKEN });
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/rate limited \(403\)/u);
+			expect(result.err.reason).toContain("secondary rate limit");
 		});
 
 		it("should err with an auth reason on 401 even when rate-limit headers are present", async () => {
@@ -709,6 +741,196 @@ describe(createGistStateAdapter, () => {
 				expect(sleepFake.calls).toStrictEqual([250]);
 			},
 		);
+
+		it("should retry a throttled read GET and succeed on the second attempt", async () => {
+			expect.assertions(3);
+
+			const { calls, fetchFn } = fakeFetchSequence([
+				throttled({ "Retry-After": "2" }),
+				okJson({ files: {} }),
+			]);
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				random: fakeRandom(),
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			const result = await port.read("production");
+
+			expect(result.success).toBeTrue();
+			expect(calls).toHaveLength(2);
+			expect(sleepFake.calls).toStrictEqual([2000]);
+		});
+
+		it("should refuse a 403 reporting the rate-limit budget spent without retrying", async () => {
+			expect.assertions(3);
+
+			// The spent budget is the hourly one, and it refills on a clock
+			// no retry budget reaches. Re-sending only spends more of it.
+			const { calls, fetchFn } = fakeFetchSequence([
+				throttled({ "X-RateLimit-Remaining": "0" }),
+			]);
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				random: fakeRandom(),
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/rate limited/u);
+			expect(calls).toHaveLength(1);
+			expect(sleepFake.calls).toStrictEqual([]);
+		});
+
+		it("should sit out a throttle naming the longest wait it serves", async () => {
+			expect.assertions(3);
+
+			const { calls, fetchFn } = fakeFetchSequence([
+				throttled({ "Retry-After": "30" }),
+				okJson({ files: {} }),
+			]);
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				random: fakeRandom(),
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			const result = await port.read("production");
+
+			expect(result.success).toBeTrue();
+			expect(calls).toHaveLength(2);
+			expect(sleepFake.calls).toStrictEqual([30_000]);
+		});
+
+		it("should refuse a throttle naming a wait it will not sit out", async () => {
+			expect.assertions(3);
+
+			const { calls, fetchFn } = fakeFetchSequence([throttled({ "Retry-After": "3600" })]);
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				random: fakeRandom(),
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toContain("3600");
+			expect(calls).toHaveLength(1);
+			expect(sleepFake.calls).toStrictEqual([]);
+		});
+
+		it("should refuse a throttle whose Retry-After is not a count of seconds", async () => {
+			expect.assertions(3);
+
+			// HTTP allows Retry-After to carry an absolute date; GitHub sends
+			// seconds, so a date names no wait this adapter can sit out.
+			const { calls, fetchFn } = fakeFetchSequence([
+				throttled({ "Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT" }),
+			]);
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				random: fakeRandom(),
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.reason).toMatch(/rate limited/u);
+			expect(calls).toHaveLength(1);
+			expect(sleepFake.calls).toStrictEqual([]);
+		});
+
+		it.for<[string]>([[""], ["0"], ["-1"]])(
+			"should refuse a throttle whose Retry-After of %o names no wait to sit out",
+			async ([value]) => {
+				expect.assertions(3);
+
+				const { calls, fetchFn } = fakeFetchSequence([throttled({ "Retry-After": value })]);
+				const sleepFake = fakeSleep();
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					random: fakeRandom(),
+					sleep: sleepFake.sleep,
+					token: TOKEN,
+				});
+
+				const result = await port.read("production");
+
+				assert(!result.success);
+
+				expect(result.err.reason).toMatch(/rate limited/u);
+				expect(calls).toHaveLength(1);
+				expect(sleepFake.calls).toStrictEqual([]);
+			},
+		);
+
+		it("should keep the backoff schedule for a retryable status that names a wait", async () => {
+			expect.assertions(3);
+
+			const { calls, fetchFn } = fakeFetchSequence([
+				new Response("", { headers: { "Retry-After": "2" }, status: 503 }),
+				okJson({ files: {} }),
+			]);
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				random: fakeRandom(),
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			const result = await port.read("production");
+
+			expect(result.success).toBeTrue();
+			expect(calls).toHaveLength(2);
+			expect(sleepFake.calls).toStrictEqual([250]);
+		});
+
+		it("should refuse a 403 carrying no rate-limit headers without retrying", async () => {
+			expect.assertions(3);
+
+			const { calls, fetchFn } = fakeFetchSequence([emptyResponse(403)]);
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				random: fakeRandom(),
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			const result = await port.read("production");
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("stateAccessDenied");
+			expect(calls).toHaveLength(1);
+			expect(sleepFake.calls).toStrictEqual([]);
+		});
 	});
 
 	describe("write", () => {
@@ -889,6 +1111,34 @@ describe(createGistStateAdapter, () => {
 			expect(result.success).toBeTrue();
 			expect(calls).toHaveLength(3);
 			expect(sleepFake.calls).toStrictEqual([250]);
+		});
+
+		it("should retry a throttled PATCH and succeed on the second attempt", async () => {
+			expect.assertions(3);
+
+			const { calls, fetchFn } = fakeFetchSequence([
+				throttled({ "Retry-After": "2" }),
+				emptyResponse(200),
+				okJson({ files: { "state.production.json": { content: PRODUCTION_CONTENT } } }),
+			]);
+			const sleepFake = fakeSleep();
+			const port = createGistStateAdapter({
+				fetch: fetchFn,
+				gistId: GIST_ID,
+				random: fakeRandom(),
+				sleep: sleepFake.sleep,
+				token: TOKEN,
+			});
+
+			const result = await port.write({
+				environment: "production",
+				resources: [],
+				version: 1,
+			});
+
+			expect(result.success).toBeTrue();
+			expect(calls).toHaveLength(3);
+			expect(sleepFake.calls).toStrictEqual([2000]);
 		});
 
 		it("should err with the github-returned-409 reason after exhausting the retry budget", async () => {

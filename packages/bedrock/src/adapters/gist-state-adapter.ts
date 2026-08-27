@@ -11,15 +11,12 @@ import {
 	mapHttpErrorAsync,
 	networkError,
 } from "./gist-http-errors.ts";
+import { type RetryDependencies, withRetryAsync } from "./gist-retry.ts";
 
 const GITHUB_API_BASE = "https://api.github.com";
 const GITHUB_API_VERSION = "2026-03-10";
 const USER_AGENT = "bedrock";
 const MAX_INLINE_BYTES = 10_000_000;
-const MAX_RETRIES = 6;
-const BASE_BACKOFF_MS = 500;
-const MAX_BACKOFF_MS = 16_000;
-const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([409, 502, 503, 504]);
 const MAX_VISIBILITY_ATTEMPTS = 5;
 const VISIBILITY_BASE_DELAY_MS = 250;
 
@@ -75,11 +72,6 @@ interface GistFile {
 	readonly isTruncated: boolean;
 	readonly rawUrl: string | undefined;
 	readonly size: number;
-}
-
-interface RetryDependencies {
-	readonly random: () => number;
-	readonly sleep: (ms: number) => Promise<void>;
 }
 
 interface ReadContentParameters {
@@ -207,33 +199,6 @@ async function sendGetAsync(ctx: AdapterContext, etag?: string): Promise<Respons
 		headers,
 		method: "GET",
 	});
-}
-
-function isRetryableStatus(status: number): boolean {
-	return RETRYABLE_STATUSES.has(status);
-}
-
-function backoffMs(attempt: number, random: () => number): number {
-	const cap = Math.min(MAX_BACKOFF_MS, BASE_BACKOFF_MS * 2 ** attempt);
-	const half = cap / 2;
-	return half + random() * half;
-}
-
-async function withRetryAsync(
-	retry: RetryDependencies,
-	operation: () => Promise<Response>,
-): Promise<Response> {
-	let response = await operation();
-	for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
-		if (response.ok || !isRetryableStatus(response.status)) {
-			return response;
-		}
-
-		await retry.sleep(backoffMs(attempt, retry.random));
-		response = await operation();
-	}
-
-	return response;
 }
 
 function stateErr<T>(file: string, reason: string): Result<T, StateError> {

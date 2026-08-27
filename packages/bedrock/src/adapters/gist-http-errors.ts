@@ -64,7 +64,10 @@ export async function mapHttpErrorAsync({
 	}
 
 	if (status === 403 && isRateLimited(headers)) {
-		return { file, kind: "stateError", reason: rateLimitReason(status, headers) };
+		// Which limit GitHub enforced is only in the body: the primary hourly
+		// budget and the secondary content-creation throttle answer alike.
+		const detail = await errorBodyDetailAsync(response);
+		return { file, kind: "stateError", reason: `${rateLimitReason(status, headers)}${detail}` };
 	}
 
 	if (status === 401 || status === 403) {
