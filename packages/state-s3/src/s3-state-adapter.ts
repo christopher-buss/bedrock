@@ -11,11 +11,7 @@ import {
 
 import { classifyS3Failure, type S3Failure, type S3FailureKind } from "./classify-failure.ts";
 import { objectKeyFor, objectLabelFor } from "./object-key.ts";
-import {
-	createConfiguredS3Client,
-	readObjectTextAsync,
-	type S3StateAdapterDeps,
-} from "./s3-client.ts";
+import { createConfiguredS3Client, readObjectTextAsync, type S3StoreDeps } from "./s3-client.ts";
 
 /**
  * Module specifier a failure this **Backend** produces is attributed to,
@@ -53,7 +49,7 @@ interface BucketAccess {
 	/** The configured S3 client. */
 	readonly client: S3Client;
 	/** Bucket coordinates the object key is built from. */
-	readonly deps: S3StateAdapterDeps;
+	readonly deps: S3StoreDeps;
 }
 
 /**
@@ -92,7 +88,7 @@ type NeutralStateErrorKind = "stateAccessDenied" | "stateNotFound";
  * seams.
  * @returns A `StatePort` ready to be handed to a **Deploy**.
  */
-export function createS3StateAdapter(deps: S3StateAdapterDeps): StatePort {
+export function createS3StateAdapter(deps: S3StoreDeps): StatePort {
 	const store: BucketAccess = { client: createConfiguredS3Client(deps), deps };
 
 	return {

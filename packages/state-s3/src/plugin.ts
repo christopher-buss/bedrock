@@ -6,7 +6,7 @@ import type {
 import type { AwsCredentialIdentity } from "@smithy/types";
 
 import { lockOwnerFrom } from "./lock-owner.ts";
-import type { S3StateAdapterDeps } from "./s3-client.ts";
+import type { S3StoreDeps } from "./s3-client.ts";
 import { createS3StateAdapter } from "./s3-state-adapter.ts";
 import { createS3StateLockPort } from "./s3-state-lock-adapter.ts";
 import { type S3StateConfig, s3StateSchema } from "./state-schema.ts";
@@ -112,7 +112,7 @@ function bucketAccessFrom({
 	fetch: fetchFunc,
 	getEnv: getEnvironment,
 	stateConfig,
-}: StateBackendContext<S3StateConfig>): S3StateAdapterDeps {
+}: StateBackendContext<S3StateConfig>): S3StoreDeps {
 	return {
 		bucket: stateConfig.bucket,
 		checksumCalculation: stateConfig.checksumCalculation,

@@ -4,7 +4,7 @@ import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { withEnvironment } from "#tests/helpers/environment";
 import { fakeS3, fakeS3Failure } from "#tests/helpers/fake-s3";
-import type { S3StateAdapterDeps } from "./s3-client.ts";
+import type { S3StoreDeps } from "./s3-client.ts";
 import { createS3StateAdapter } from "./s3-state-adapter.ts";
 
 const BUCKET = "my-bucket";
@@ -38,7 +38,7 @@ const CREDENTIALS = { accessKeyId: "example-access-key", secretAccessKey: "examp
  * @param deps - What the test configures beyond bucket and region.
  * @returns The adapter under test.
  */
-function adapterFor(deps: Partial<S3StateAdapterDeps> & Pick<S3StateAdapterDeps, "fetch">) {
+function adapterFor(deps: Partial<S3StoreDeps> & Pick<S3StoreDeps, "fetch">) {
 	return createS3StateAdapter({
 		bucket: BUCKET,
 		credentials: CREDENTIALS,

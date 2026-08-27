@@ -154,6 +154,80 @@ function untaggedStore(): StateBackendFetch {
 	return async () => new Response("", { status: 200 });
 }
 
+/**
+ * Wrap a store so the run holding it releases part way through the wait
+ * and another run takes the tombstone over first, which is how the holder
+ * this acquisition read stops being the one in the way.
+ *
+ * @param store - The store the reads are served from.
+ * @param afterPuts - How many refused writes to let by before the holder
+ * releases.
+ * @returns The transport to hand the lock port.
+ */
+function outbidAfter(store: FakeS3, afterPuts: number): StateBackendFetch {
+	let puts = 0;
+	return async (input, init) => {
+		if (init?.method !== "PUT") {
+			return store.fetchFunc(input, init);
+		}
+
+		puts += 1;
+		if (puts === afterPuts) {
+			store.objects.set(
+				LOCK_PATH,
+				serializeLockRecord({ ...OTHER_HOLD, releasedAt: "2026-08-27T09:30:00.000Z" }),
+			);
+		}
+
+		return new Response(errorBody("PreconditionFailed", "the pre-condition did not hold"), {
+			status: 412,
+		});
+	};
+}
+
+// Methods {@link untaggedTombstone} was asked for, in order.
+const methods: Array<string> = [];
+
+/**
+ * A store holding a tombstone it answers without an entity tag, which
+ * leaves a takeover nothing to be conditional on.
+ *
+ * @returns The transport to hand the lock port.
+ */
+function untaggedTombstone(): StateBackendFetch {
+	methods.length = 0;
+	const tombstone = serializeLockRecord({
+		...OTHER_HOLD,
+		releasedAt: "2026-08-27T09:30:00.000Z",
+	});
+
+	return async (_input, init) => {
+		methods.push(init?.method ?? "GET");
+		return init?.method === "PUT"
+			? new Response(errorBody("PreconditionFailed", "the pre-condition did not hold"), {
+					status: 412,
+				})
+			: new Response(tombstone, { status: 200 });
+	};
+}
+
+/**
+ * Wrap a store so the holder's record is refused rather than unreachable,
+ * which is a credential that will still be refused after any wait.
+ *
+ * @param store - The store the writes are served from.
+ * @returns The transport to hand the lock port.
+ */
+function refusingReads(store: FakeS3): StateBackendFetch {
+	return async (input, init) => {
+		return init?.method === "PUT"
+			? store.fetchFunc(input, init)
+			: new Response(errorBody("AccessDenied", "the credential may not read this object"), {
+					status: 403,
+				});
+	};
+}
+
 describe(createS3StateLockPort, () => {
 	describe("acquire", () => {
 		it("should take the hold with a conditional create against its own prefix segment", async () => {
@@ -442,6 +516,104 @@ describe(createS3StateLockPort, () => {
 			);
 		});
 
+		it("should take no hold the store gave no entity tag to give it up with", async () => {
+			expect.assertions(2);
+
+			const result = await lockFor({ fetch: untaggedStore() }).acquire("production");
+
+			assert(!result.success);
+
+			expect(result.err.detail).toStrictEqual({ file: LOCK_LABEL, kind: "acquireFailed" });
+			expect(result.err.reason).toContain("could never be given up safely");
+		});
+
+		it("should stop naming a holder once a later round finds it gone", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
+			const clock = createFakeClock();
+
+			const result = await lockFor({
+				fetch: outbidAfter(store, 2),
+				lockTimeoutMs: 3000,
+				now: clock.now,
+				sleep: clock.sleepAsync,
+			}).acquire("production");
+
+			assert(!result.success);
+
+			expect(result.err.detail).toMatchObject({ holder: undefined, kind: "acquireTimedOut" });
+			expect(result.err.reason).toContain("is held by another run");
+		});
+
+		it("should give up at once when the holder's record is refused rather than unreachable", async () => {
+			expect.assertions(3);
+
+			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
+			const clock = createFakeClock();
+
+			const result = await lockFor({
+				fetch: refusingReads(store),
+				now: clock.now,
+				sleep: clock.sleepAsync,
+			}).acquire("production");
+
+			assert(!result.success);
+
+			expect(result.err.detail).toStrictEqual({
+				name: "AccessDenied",
+				file: LOCK_LABEL,
+				kind: "acquireFailed",
+				statusCode: 403,
+			});
+			expect(clock.waits).toBeEmpty();
+			expect(result.err.reason).toBe("the credential may not read this object");
+		});
+
+		it("should leave a tombstone alone when the store named no entity tag to take it over against", async () => {
+			expect.assertions(2);
+
+			const clock = createFakeClock();
+
+			const result = await lockFor({
+				fetch: untaggedTombstone(),
+				lockTimeoutMs: 1000,
+				now: clock.now,
+				sleep: clock.sleepAsync,
+			}).acquire("production");
+
+			assert(!result.success);
+
+			// Two rounds of create-then-read, and no takeover write between
+			// them: there was nothing to make one conditional on.
+			expect(methods).toStrictEqual(["PUT", "GET", "PUT", "GET"]);
+			expect(result.err.detail).toMatchObject({ holder: undefined, kind: "acquireTimedOut" });
+		});
+
+		it("should keep waiting when the object holds bytes that are not a record", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3({ [LOCK_PATH]: "{ not a lock record" });
+			const clock = createFakeClock();
+			const waits: Array<StateLockWaiting> = [];
+
+			const result = await lockFor({
+				fetch: store.fetchFunc,
+				lockTimeoutMs: 1000,
+				now: clock.now,
+				sleep: clock.sleepAsync,
+			}).acquire("production", {
+				onWaiting: (waiting) => {
+					waits.push(waiting);
+				},
+			});
+
+			assert(!result.success);
+
+			expect(waits).toStrictEqual([{ elapsedMs: 0, holder: undefined, remainingMs: 1000 }]);
+			expect(result.err.detail).toMatchObject({ holder: undefined, kind: "acquireTimedOut" });
+		});
+
 		it("should refuse an environment name that could escape the object layout", async () => {
 			expect.assertions(2);
 
@@ -521,20 +693,6 @@ describe(createS3StateLockPort, () => {
 				statusCode: 412,
 			});
 			expect(given.err.reason).toBe("the pre-condition did not hold");
-		});
-
-		it("should refuse to give up a hold the store gave no entity tag for", async () => {
-			expect.assertions(2);
-
-			const hold = await lockFor({ fetch: untaggedStore() }).acquire("production");
-			assert(hold.success);
-
-			const given = await hold.data.release();
-
-			assert(!given.success);
-
-			expect(given.err.detail).toStrictEqual({ file: LOCK_LABEL, kind: "releaseFailed" });
-			expect(given.err.reason).toContain("cannot be given up");
 		});
 	});
 });

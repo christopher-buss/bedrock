@@ -29,6 +29,12 @@ operator expire abandoned **Hold**s without reaching **State**. A **Hold** is
 given up by writing a **Tombstone** over the record, never by deleting the
 object. _Avoid_: lock file, lease file
 
+**Blocker**: The **Hold** one acquisition read in its way, carried only so a
+wait that runs out can name it. It is replaced by every round that reads the
+**Lock object**, so a run that has since released is never reported as still
+holding, and it is absent whenever no round could name one. _Avoid_: holder (for
+the reading rather than the run), owner
+
 **Tombstone**: The record a release writes back, marked with the instant the
 **Hold** was given up. It is written conditionally on the exact bytes the
 **Hold** was taken as, so a run that took the **Environment** over in the

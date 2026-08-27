@@ -126,6 +126,26 @@ async function captureAsync(
 }
 
 /**
+ * Read the entity tag one stored object answers with, minting one for an
+ * object a test put into the store by hand.
+ *
+ * @param store - What the fake store holds.
+ * @param pathname - URL path the object is stored at.
+ * @returns The entity tag.
+ */
+function etagOf(store: StoredObjects, pathname: string): string {
+	const known = store.etags.get(pathname);
+	if (known !== undefined) {
+		return known;
+	}
+
+	store.written += 1;
+	const minted = `"written-${store.written}"`;
+	store.etags.set(pathname, minted);
+	return minted;
+}
+
+/**
  * Decide whether a conditional write may land, on the terms S3 states
  * them: a wildcard `If-None-Match` requires the object to be absent, and
  * `If-Match` requires the stored entity tag to be the one named.
@@ -158,7 +178,7 @@ function conditionHolds(
 function write(store: StoredObjects, request: CapturedS3Request): Response {
 	const { pathname } = new URL(request.url);
 	const held = store.objects.has(pathname);
-	if (!conditionHolds(request.headers, held ? store.etags.get(pathname) : undefined)) {
+	if (!conditionHolds(request.headers, held ? etagOf(store, pathname) : undefined)) {
 		return new Response(
 			errorBody(
 				"PreconditionFailed",
@@ -183,21 +203,17 @@ function write(store: StoredObjects, request: CapturedS3Request): Response {
  * @returns The response to hand back to the client.
  */
 function answer(store: StoredObjects, request: CapturedS3Request): Response {
-	const { pathname } = new URL(request.url);
-	const stored = store.objects.get(pathname);
-
 	if (request.method === "PUT") {
 		return write(store, request);
 	}
 
+	const { pathname } = new URL(request.url);
+	const stored = store.objects.get(pathname);
 	if (stored === undefined) {
 		return new Response(errorBody("NoSuchKey", "The specified key does not exist."), {
 			status: 404,
 		});
 	}
 
-	return new Response(stored, {
-		headers: { etag: store.etags.get(pathname) ?? '"fake-etag"' },
-		status: 200,
-	});
+	return new Response(stored, { headers: { etag: etagOf(store, pathname) }, status: 200 });
 }

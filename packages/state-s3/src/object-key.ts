@@ -1,5 +1,6 @@
-// Segment the lock objects live under, so a bucket lifecycle rule can
-// expire them by prefix without reaching the **State** objects.
+// Segment the lock objects live under. A bucket lifecycle rule filters by
+// prefix and cannot filter by suffix, so this is the name an operator gives
+// a rule that expires abandoned holds.
 const LOCK_SEGMENT = "locks";
 
 /**
@@ -27,10 +28,9 @@ export function objectKeyFor(prefix: string | undefined, environment: string): s
 /**
  * Map one **Environment** onto the object that holds its lock.
  *
- * Locks sit under their own segment beneath the prefix rather than beside
- * the **State** objects, because a bucket lifecycle rule filters by prefix
- * and cannot filter by suffix: keeping them apart is what lets an operator
- * expire abandoned holds without touching **State**.
+ * Locks live under their own segment beneath the prefix, which is what
+ * lets a bucket lifecycle rule expire abandoned holds without reaching the
+ * **State** objects.
  * @param prefix - Configured prefix, or `undefined` to store at the
  * bucket root.
  * @param environment - Name of the **Environment** the hold covers.

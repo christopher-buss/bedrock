@@ -104,7 +104,9 @@ rule can expire abandoned ones without touching state.
 A run that finds the environment held waits, retrying with exponential backoff
 for five minutes by default; `lockTimeoutMs` changes that bound and `0` refuses
 immediately. The wait is reported through the progress port while it happens,
-and giving up names who holds the environment and since when.
+and giving up names who holds the environment and since when. A credential that
+cannot read the lock record ends the wait at once, so a missing `s3:GetObject`
+is reported as itself rather than as five minutes of contention.
 
 A hold is given up by writing a tombstone over its own record, never by deleting
 the lock object: conditional delete is not portable across S3-compatible stores,

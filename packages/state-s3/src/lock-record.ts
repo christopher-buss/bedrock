@@ -24,9 +24,8 @@ export interface S3LockHolder {
  * is sometimes the caller's own; comparing ids is how that is told apart
  * from another run's hold.
  *
- * `releasedAt` is the tombstone. A hold is given up by writing the record
- * back with it set rather than by deleting the object, because conditional
- * delete is not portable across S3-compatible stores.
+ * `releasedAt` is the tombstone: a hold is given up by writing the record
+ * back with it set.
  */
 export interface S3LockRecord extends S3LockHolder {
 	/** Identity of the acquisition that wrote this record. */
@@ -56,10 +55,9 @@ export function serializeLockRecord(record: S3LockRecord): string {
 /**
  * Read one lock object's bytes back into a record.
  *
- * A record that does not parse is reported as absent rather than as a
- * failure: the caller reads a blocking holder only to name it and to tell
- * it apart from itself, and neither is worth abandoning an acquisition
- * over.
+ * A record that does not parse is reported as absent. The caller reads a
+ * blocking holder only to name it and to tell it apart from itself, and
+ * neither needs the bytes to be well formed.
  *
  * @param text - Everything the lock object holds.
  * @returns The record, or `undefined` when the bytes are not one.
@@ -78,6 +76,26 @@ export function parseLockRecord(text: string): S3LockRecord | undefined {
  */
 export function holderOf(record: S3LockRecord): S3LockHolder {
 	return { operation: record.operation, owner: record.owner, since: record.since };
+}
+
+/**
+ * Stamp one instant the way a lock record carries it.
+ *
+ * @param ms - Epoch milliseconds the clock read.
+ * @returns The instant, in ISO-8601.
+ */
+export function isoAt(ms: number): string {
+	const at = new Date(ms);
+	return at.toISOString();
+}
+
+/**
+ * Mint the identity one acquisition records.
+ *
+ * @returns An identity no other acquisition writes.
+ */
+export function randomLockId(): string {
+	return crypto.randomUUID();
 }
 
 /**

@@ -21,6 +21,7 @@ contract a claim rather than a proof.
 | `state-schema.ts`          | Arktype fragment for the `state` keys this **Backend** adds, plus its config type. |
 | `object-key.ts`            | Pure key layout: one object per **Environment**, and the lock beside it.           |
 | `lock-record.ts`           | What one lock object holds, and reading it back.                                   |
+| `lock-failure.ts`          | How a hold that could not be taken or given up is reported.                        |
 | `lock-owner.ts`            | Pure reading of the environment into the run a hold is recorded as.                |
 | `backoff.ts`               | Pure retry schedule for a contended acquisition.                                   |
 | `s3-client.ts`             | The configured client both ports send through, plus the coordinates it needs.      |
@@ -33,7 +34,8 @@ contract a claim rather than a proof.
 `src/index.ts` publishes the plugin contract and the adapter, not the mechanics
 underneath them. Everything it exports is semver-bound and carries `@since`;
 keep `objectKeyFor`, `lockKeyFor`, `classifyS3Failure`, the lock record, the
-owner reading, the backoff, and the request handler internal.
+owner reading, the backoff, the failure constructors, and the request handler
+internal.
 
 ## Testing
 

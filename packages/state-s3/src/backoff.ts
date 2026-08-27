@@ -1,6 +1,5 @@
-// Where the backoff starts and where it stops growing. The ceiling keeps a
-// long wait checking often enough that a hold given up early is picked up
-// soon after, rather than after a doubling that outlives the deploy.
+// Where the backoff starts and where it stops growing. The ceiling bounds
+// how long a hold given up early sits unnoticed.
 const BASE_DELAY_MS = 1000;
 const MAX_DELAY_MS = 30_000;
 
@@ -17,9 +16,8 @@ export interface BackoffInputs {
 /**
  * How long to wait before the next acquisition attempt.
  *
- * The delay doubles per refused attempt up to a ceiling, and is clamped to
- * what is left of the timeout so the last attempt lands at the deadline
- * rather than past it.
+ * The delay doubles per refused attempt up to a ceiling, clamped to what is
+ * left of the timeout so the last attempt lands on the deadline.
  *
  * @param inputs - How many attempts have been refused, and how long is
  * left.

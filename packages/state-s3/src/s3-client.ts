@@ -13,11 +13,12 @@ const CHECKSUM_CALCULATION = {
 } as const satisfies Record<S3ChecksumCalculation, string>;
 
 /**
- * Everything a port this **Backend** builds needs to reach one bucket.
+ * Everything a port this **Backend** builds needs to reach one **Store**:
+ * where the bucket is, how to sign for it, and what to send through.
  *
  * @since unreleased
  */
-export interface S3StateAdapterDeps {
+export interface S3StoreDeps {
 	/** Bucket the **State** objects live in. */
 	readonly bucket: string;
 	/**
@@ -62,7 +63,7 @@ interface ObjectBody {
  * @param deps - Bucket coordinates plus the credential and transport seams.
  * @returns The configured client.
  */
-export function createConfiguredS3Client(deps: S3StateAdapterDeps): S3Client {
+export function createConfiguredS3Client(deps: S3StoreDeps): S3Client {
 	return new S3Client({
 		...(deps.endpoint === undefined ? {} : { endpoint: deps.endpoint }),
 		credentials: deps.credentials ?? defaultProvider(),
