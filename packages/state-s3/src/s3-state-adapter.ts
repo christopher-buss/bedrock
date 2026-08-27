@@ -252,6 +252,27 @@ function conditionFor(
 }
 
 /**
+ * Read what a conditional `PUT` was refused with, in the terms this
+ * **Backend** owns.
+ *
+ * A `PUT` fenced on an entity tag is answered with the absent-object code
+ * when the record has been deleted since it was read, which is the same
+ * condition as a tag that no longer agrees: the record the caller read is
+ * gone. It is read as a conflict on this path only, so a `GET` of an
+ * **Environment** that has never been deployed still reads as an ordinary
+ * first **Deploy**.
+ *
+ * @param failure - The refusal, already classified.
+ * @param expected - What the caller's read observed, absent when the
+ * write is unconditional.
+ * @returns The refusal, with the write path's reading applied.
+ */
+function refusalOf(failure: S3Failure, expected: StateVersion | undefined): S3Failure {
+	const deleted = failure.kind === "missingObject" && expected?.kind === "present";
+	return deleted ? { ...failure, kind: "conditionRefused" } : failure;
+}
+
+/**
  * Write one **Environment**'s **State** into the bucket, fenced against
  * the record the caller read.
  *
@@ -280,6 +301,9 @@ async function writeObjectAsync({
 		);
 		return { data: undefined, success: true };
 	} catch (err) {
-		return { err: toStateError(classifyS3Failure(err), label), success: false };
+		return {
+			err: toStateError(refusalOf(classifyS3Failure(err), expected), label),
+			success: false,
+		};
 	}
 }

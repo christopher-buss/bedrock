@@ -16,7 +16,11 @@ import { assert, describe, expect, it, onTestFinished } from "vitest";
 
 import { assertOk } from "../helpers/assert-ok.ts";
 import { pruneStateS3Async } from "../helpers/prune-state-s3.ts";
-import { headS3ObjectAsync, readS3ObjectTextAsync } from "../helpers/s3-object.ts";
+import {
+	deleteS3ObjectAsync,
+	headS3ObjectAsync,
+	readS3ObjectTextAsync,
+} from "../helpers/s3-object.ts";
 import { BUCKET, ENVIRONMENT, PREFIX, REGION } from "./fixtures/state-s3/coordinates.ts";
 
 // Both halves must be present and non-empty. Given one, the AWS default
@@ -227,6 +231,53 @@ describe("s3 state backend against real aws", () => {
 			assert(!lostOnTag.success);
 
 			expect(lostOnTag.err.kind).toBe("stateConflict");
+		},
+		60_000,
+	);
+
+	it.skipIf(!HAS_SECRETS)(
+		"should refuse a write fenced on a record the bucket no longer holds",
+		async () => {
+			expect.assertions(2);
+
+			const environment = `${ENVIRONMENT}-deleted-${Date.now()}`;
+			const key = `${PREFIX}/${environment}.json`;
+			const state: BedrockState = { environment, resources: [], version: 1 };
+
+			onTestFinished(async () => {
+				await pruneStateS3Async({
+					bucket: BUCKET,
+					keep: KEEP,
+					prefix: PREFIX,
+					region: REGION,
+				});
+			});
+
+			const port = createS3StateAdapter({
+				bucket: BUCKET,
+				prefix: PREFIX,
+				region: REGION,
+			});
+
+			const first = await port.write(state, { kind: "absent" });
+			assertOk(first, "the first write fenced on an absent record");
+
+			const read = await port.read(environment);
+			assertOk(read, "read of the record the first write left");
+
+			assert(read.data.version !== undefined);
+
+			expect(read.data.version.kind).toBe("present");
+
+			// The record the read named is gone by the time the write lands,
+			// which the bucket answers with the absent-object code rather than
+			// the `412` a disagreeing entity tag gets.
+			await deleteS3ObjectAsync({ key, bucket: BUCKET, region: REGION });
+
+			const lost = await port.write(state, read.data.version);
+			assert(!lost.success);
+
+			expect(lost.err.kind).toBe("stateConflict");
 		},
 		60_000,
 	);

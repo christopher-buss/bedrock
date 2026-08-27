@@ -268,6 +268,48 @@ describe(createS3StateAdapter, () => {
 			);
 		});
 
+		it("should conflict when the record was deleted since it was read", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3();
+
+			const result = await adapterFor({ fetch: store.fetchFunc }).write(PRODUCTION_STATE, {
+				kind: "present",
+				token: STALE_ETAG,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("stateConflict");
+		});
+
+		it("should report a refused credential as denied even on a fenced write", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3Failure("AccessDenied", 403);
+
+			const result = await adapterFor({ fetch: store.fetchFunc }).write(PRODUCTION_STATE, {
+				kind: "present",
+				token: STALE_ETAG,
+			});
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("stateAccessDenied");
+		});
+
+		it("should carry what the store reported when an unfenced write finds no key", async () => {
+			expect.assertions(1);
+
+			const store = fakeS3Failure("NoSuchKey", 404);
+
+			const result = await adapterFor({ fetch: store.fetchFunc }).write(PRODUCTION_STATE);
+
+			assert(!result.success);
+
+			expect(result.err.kind).toBe("pluginStateBackend");
+		});
+
 		it("should conflict when a record appeared since the caller read none", async () => {
 			expect.assertions(1);
 
