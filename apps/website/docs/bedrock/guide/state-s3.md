@@ -127,7 +127,8 @@ deploys are not being held apart.
 that queued behind every running deploy would be the worst of both, and one that
 raced a deploy silently would read as settled. `bedrock state unlock` takes a
 hold away, whoever holds it, by writing the same tombstone a release writes,
-against the bytes it read the hold as. Turning locking off does not put a hold
+against the bytes it read the hold as; a hold the store names no entity tag for
+is refused rather than taken away blind. Turning locking off does not put a hold
 an earlier run left behind out of reach: `state unlock` still clears it.
 
 ### A hold is leased

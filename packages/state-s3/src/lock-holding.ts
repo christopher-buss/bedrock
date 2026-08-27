@@ -7,7 +7,7 @@ import {
 } from "@bedrock-rbx/core";
 
 import { isLeaseExpired } from "./lease.ts";
-import { inspectRefused, invalidEnvironment } from "./lock-failure.ts";
+import { displaceWithoutEntityTag, inspectRefused, invalidEnvironment } from "./lock-failure.ts";
 import { displaceAsync, type LockObject, readLockAsync } from "./lock-object.ts";
 import { holderOf, type S3LockRecord } from "./lock-record.ts";
 import { lockKeyFor, objectLabelFor } from "./object-key.ts";
@@ -106,6 +106,10 @@ export async function forceReleaseAsync(
 	const displaced = holdingOf(found.record, nowMs);
 	if (displaced === undefined) {
 		return { data: undefined, success: true };
+	}
+
+	if (found.etag === undefined) {
+		return { err: displaceWithoutEntityTag(object.label), success: false };
 	}
 
 	const written = await displaceAsync(object, { etag: found.etag, nowMs, record: found.record });

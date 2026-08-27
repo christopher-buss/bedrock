@@ -72,7 +72,7 @@ function makeDependencies(overrides: Partial<ProgDependencies> = {}): ProgDepend
 }
 
 describe(stateUnlockCommand, () => {
-	it("should say what taking a hold away does before taking it", async () => {
+	it("should say what taking a hold away does before it knows there is one", async () => {
 		expect.assertions(1);
 
 		const dependencies = makeDependencies({
@@ -84,7 +84,7 @@ describe(stateUnlockCommand, () => {
 		// The only line before the outcome: an environment that locks says
 		// nothing about locking being off.
 		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
-			'Taking the hold on "production" away: a deploy still holding it keeps running, and fails its own state write rather than overwriting whatever runs next.',
+			'Taking any hold on "production" away: a deploy still holding one keeps running, and fails its own state write rather than overwriting whatever runs next.',
 		);
 	});
 

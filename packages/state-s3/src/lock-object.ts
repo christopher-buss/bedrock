@@ -84,8 +84,7 @@ export interface Acquisition extends LockObject {
 /** What the lock object must look like for one write to land. */
 export type LockCondition =
 	| { readonly etag: string; readonly kind: "unchanged" }
-	| { readonly kind: "absent" }
-	| { readonly kind: "unconditional" };
+	| { readonly kind: "absent" };
 
 /** One conditional write of the lock object, read as an outcome. */
 export type LockAttempt =
@@ -130,11 +129,8 @@ export type LockRead =
 
 /** The hold one force release is taking away, and when. */
 export interface DisplacedHold {
-	/**
-	 * Entity tag the read that found the hold named, absent when the store
-	 * named none.
-	 */
-	readonly etag: string | undefined;
+	/** Entity tag the read that found the hold named. */
+	readonly etag: string;
 	/** Epoch milliseconds the clock read. */
 	readonly nowMs: number;
 	/** The record found holding the **Environment**. */
@@ -285,8 +281,6 @@ export async function releaseAsync(
  * Conditional on the bytes the hold was read as, so a holder that released
  * in the meantime and a run that took the **Environment** over since are
  * both left alone: what would be displaced is then not what was reported.
- * A store that named no entity tag for the read leaves nothing to condition
- * on, and the tombstone goes as it is.
  *
  * What keeps the displaced holder from doing damage is its **State** write,
  * which is guarded on the record it read rather than on the hold.
@@ -301,10 +295,7 @@ export async function displaceAsync(
 	displaced: DisplacedHold,
 ): Promise<Result<void, StateLockError>> {
 	const written = await putLockAsync({
-		condition:
-			displaced.etag === undefined
-				? { kind: "unconditional" }
-				: { etag: displaced.etag, kind: "unchanged" },
+		condition: { etag: displaced.etag, kind: "unchanged" },
 		object,
 		record: { ...displaced.record, releasedAt: isoAt(displaced.nowMs) },
 	});
@@ -380,9 +371,6 @@ function conditionHeaders(condition: LockCondition): {
 		}
 		case "unchanged": {
 			return { IfMatch: condition.etag };
-		}
-		case "unconditional": {
-			return {};
 		}
 	}
 }

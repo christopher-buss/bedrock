@@ -138,7 +138,7 @@ says who holds it and that the answer may already be out of date.
 
 A deploy killed between taking its lock and giving it up leaves the environment
 held. On a backend that leases its locks the hold expires on its own; until it
-does, `state unlock` takes it away and names the run it displaced:
+does, `state unlock` takes any hold away and names the run it displaced:
 
 ```sh
 pnpm bedrock state unlock --env production

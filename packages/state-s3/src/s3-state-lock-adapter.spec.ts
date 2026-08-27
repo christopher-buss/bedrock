@@ -368,9 +368,6 @@ function untaggedStore(): StateBackendFetch {
 // Methods the untagged-write transports were asked for, in order.
 const untaggedMethods: Array<string> = [];
 
-// The condition each tombstone a force release wrote carried.
-const displacedConditions: Array<string | undefined> = [];
-
 /**
  * A store that answers every write without an entity tag, and every read
  * with the bytes the last write stored.
@@ -406,17 +403,12 @@ function untaggedWrites(etag?: string): StateBackendFetch {
  */
 function untaggedHolder(): StateBackendFetch {
 	untaggedMethods.length = 0;
-	displacedConditions.length = 0;
 
-	return async (input, init) => {
+	return async (_input, init) => {
 		untaggedMethods.push(init?.method ?? "GET");
-		if (init?.method !== "PUT") {
-			return new Response(serializeLockRecord(OTHER_HOLD), { status: 200 });
-		}
-
-		const write = new Request(input, init);
-		displacedConditions.push(write.headers.get("if-match") ?? undefined);
-		return new Response("", { status: 200 });
+		return init?.method === "PUT"
+			? new Response("", { status: 200 })
+			: new Response(serializeLockRecord(OTHER_HOLD), { status: 200 });
 	};
 }
 
@@ -1700,19 +1692,39 @@ describe(createS3StateLockPort, () => {
 			expect(store.calls[1]!.headers["if-match"]).toBe('"written-1"');
 		});
 
-		it("should take the hold away as it is when the store names no entity tag for it", async () => {
+		it("should refuse a hold the store named no entity tag for", async () => {
 			expect.assertions(3);
 
+			// A tombstone written blind would take away whatever hold the
+			// environment carries by then, which need not be the one read.
 			const released = await lockFor({
 				fetch: untaggedHolder(),
 				now: createFakeClock(TEN_O_CLOCK).now,
 			}).forceRelease("production");
 
+			assert(!released.success);
+
+			expect(untaggedMethods).toStrictEqual(["GET"]);
+			expect(released.err.detail).toStrictEqual({
+				file: LOCK_LABEL,
+				kind: "releaseFailed",
+			});
+			expect(released.err.reason).toBe(
+				`${LOCK_LABEL} was read without an entity tag, so the hold could not be taken away without risking a newer one`,
+			);
+		});
+
+		it("should leave an environment no run has locked alone", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3();
+
+			const released = await lockFor({ fetch: store.fetchFunc }).forceRelease("production");
+
 			assert(released.success);
 
-			expect(untaggedMethods).toStrictEqual(["GET", "PUT"]);
-			expect(displacedConditions).toStrictEqual([undefined]);
-			expect(released.data!.owner).toBe("ci-run-3");
+			expect(released.data).toBeUndefined();
+			expect(store.calls.map((call) => call.method)).toStrictEqual(["GET"]);
 		});
 
 		it("should leave an environment whose hold was already given up alone", async () => {

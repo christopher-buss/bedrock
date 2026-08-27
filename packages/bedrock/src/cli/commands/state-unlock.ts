@@ -113,7 +113,7 @@ function renderReleaseError(err: ForceReleaseStateLockError, clack: ClackPort): 
 async function releaseEnvironmentAsync(inputs: ReleaseInputs): Promise<boolean> {
 	const { environment, resolved } = inputs;
 	resolved.clack.logMessage(
-		`Taking the hold on "${environment}" away: a deploy still holding it keeps running, and fails its own state write rather than overwriting whatever runs next.`,
+		`Taking any hold on "${environment}" away: a deploy still holding one keeps running, and fails its own state write rather than overwriting whatever runs next.`,
 	);
 
 	const released = await resolved.forceReleaseStateLock({

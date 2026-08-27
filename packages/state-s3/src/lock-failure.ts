@@ -136,6 +136,26 @@ export function holdWithoutEntityTag(label: string): StateLockError {
 }
 
 /**
+ * Report a hold the store named no entity tag for, which is one no force
+ * release can take away safely.
+ *
+ * The tombstone is written against the bytes the hold was read as, so a
+ * hold with nothing to write against would be taken away blind: a deploy
+ * that took the **Environment** over between the read and the write would
+ * lose the hold it is applying under.
+ *
+ * @param label - The object the hold is recorded in.
+ * @returns The failure a caller sees.
+ */
+export function displaceWithoutEntityTag(label: string): StateLockError {
+	const detail: S3StateLockErrorDetail = { file: label, kind: "releaseFailed" };
+	return {
+		detail,
+		reason: `${label} was read without an entity tag, so the hold could not be taken away without risking a newer one`,
+	};
+}
+
+/**
  * Report a store that granted the same object to two creates.
  *
  * Named for what it means rather than for the `200` that revealed it: the
