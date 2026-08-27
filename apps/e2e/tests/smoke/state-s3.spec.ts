@@ -210,14 +210,16 @@ describe("s3 state backend against real aws", () => {
 			});
 
 			// A schedule that never runs is a run killed mid-deploy: the hold
-			// is taken, and nothing ever renews the lease on it.
+			// is taken, and nothing ever renews the lease on it. The lease is
+			// long enough for the bucket to answer the write well inside it,
+			// which is what a hold has to outlive to be granted at all.
 			const abandoned = await lockPort({
-				lockLeaseMs: 1000,
+				lockLeaseMs: 5000,
 				scheduleEvery: () => () => {},
 			}).acquire(environment, { operation: "smoke" });
 			assertOk(abandoned, "acquire");
 
-			await waitAsync(1500);
+			await waitAsync(5500);
 
 			// No patience at all, so this takes the expired hold over rather
 			// than waiting anything out.

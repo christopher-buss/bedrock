@@ -1408,12 +1408,15 @@ describe(createS3StateLockPort, () => {
 
 			const store = fakeS3();
 
-			const hold = await lockFor({ fetch: store.fetchFunc, lockLeaseMs: 3 }).acquire(
+			// Long enough that the write itself lands well inside the lease,
+			// which is what a hold has to outlive to be granted at all, and
+			// short enough that the renewal a third of the way in is quick.
+			const hold = await lockFor({ fetch: store.fetchFunc, lockLeaseMs: 900 }).acquire(
 				"production",
 			);
 			assert(hold.success);
 
-			await vi.waitUntil(() => store.calls.length > 1);
+			await vi.waitUntil(() => store.calls.length > 1, { timeout: 10_000 });
 			await hold.data.release();
 
 			expect(store.calls[1]!.headers["if-match"]).toBe('"written-1"');
