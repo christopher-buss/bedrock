@@ -1,4 +1,4 @@
-import type { BedrockState, StateError, StatePort } from "@bedrock-rbx/core";
+import type { BedrockState, StateError, StatePort, StateRecord } from "@bedrock-rbx/core";
 import type { Result } from "@bedrock-rbx/ocale";
 
 const DEFAULT_ATTEMPTS = 6;
@@ -50,10 +50,10 @@ export async function readStateUntilAsync({
 	predicate,
 	sleep = defaultSleepAsync,
 	statePort,
-}: ReadStateUntilOptions): Promise<Result<BedrockState | undefined, StateError>> {
+}: ReadStateUntilOptions): Promise<Result<StateRecord, StateError>> {
 	let result = await statePort.read(environment);
 	for (let attempt = 1; attempt < attempts; attempt += 1) {
-		if (result.success && result.data !== undefined && predicate(result.data)) {
+		if (result.success && result.data.state !== undefined && predicate(result.data.state)) {
 			return result;
 		}
 

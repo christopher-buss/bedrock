@@ -40,7 +40,7 @@ async function readUntilVisibleAsync({
 }): Promise<Awaited<ReturnType<StatePort["read"]>>> {
 	for (;;) {
 		const read = await port.read(environment);
-		if (!read.success || read.data !== undefined || Date.now() >= deadline) {
+		if (!read.success || read.data.state !== undefined || Date.now() >= deadline) {
 			return read;
 		}
 

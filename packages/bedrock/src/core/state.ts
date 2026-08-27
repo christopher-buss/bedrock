@@ -135,14 +135,17 @@ export interface BedrockState {
  */
 export type StateVersion =
 	| {
-			/** Literal discriminator: no record existed when the **State** was read. */
-			readonly kind: "absent";
+			/** Literal discriminator: a record existed when it was read. */
+			readonly kind: "present";
+			/**
+			 * The **Backend**'s own identifier for that record, which core
+			 * never parses.
+			 */
+			readonly token: string;
 	  }
 	| {
-			/** Literal discriminator: a record existed when the **State** was read. */
-			readonly kind: "present";
-			/** The **Backend**'s own identifier for that record, which core never parses. */
-			readonly token: string;
+			/** Literal discriminator: no record existed when it was read. */
+			readonly kind: "absent";
 	  };
 
 /**

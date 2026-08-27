@@ -130,7 +130,7 @@ describe("deploy place to real Roblox", () => {
 			});
 			assertOk(persistedRead, "read");
 
-			const persisted = persistedRead.data;
+			const persisted = persistedRead.data.state;
 			assert(persisted !== undefined);
 
 			expect(persisted.environment).toBe(environment);
