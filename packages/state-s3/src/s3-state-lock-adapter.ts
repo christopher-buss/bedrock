@@ -160,6 +160,20 @@ interface AcquisitionInputs {
 type AcquireOptions = Parameters<StateLockPort["acquire"]>[1];
 
 /**
+ * Wait, on a real timer.
+ *
+ * Exported for direct coverage of the waiting itself, which a test driving
+ * acquisition on an injected clock cannot observe.
+ *
+ * @param ms - Milliseconds to wait.
+ */
+export async function delayAsync(ms: number): Promise<void> {
+	await new Promise<void>((resolve) => {
+		setTimeout(resolve, ms);
+	});
+}
+
+/**
  * Build a `StateLockPort` that takes exclusion on one **Environment**
  * through a conditional create in the bucket, waiting out a hold another
  * run has rather than refusing outright.
@@ -494,15 +508,4 @@ async function acquireAsync(
 		options?.onWaiting?.({ elapsedMs, holder: blocker?.owner, remainingMs });
 		await sleepAsync(backoffDelayMs({ attempt, remainingMs }));
 	}
-}
-
-/**
- * Wait, on a real timer.
- *
- * @param ms - Milliseconds to wait.
- */
-async function delayAsync(ms: number): Promise<void> {
-	await new Promise<void>((resolve) => {
-		setTimeout(resolve, ms);
-	});
 }

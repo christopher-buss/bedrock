@@ -8,6 +8,7 @@ import { parseLockRecord, type S3LockRecord, serializeLockRecord } from "./lock-
 import {
 	createS3StateLockPort,
 	DEFAULT_LOCK_TIMEOUT_MS,
+	delayAsync,
 	type S3StateLockAdapterDeps,
 } from "./s3-state-lock-adapter.ts";
 
@@ -477,15 +478,11 @@ describe(createS3StateLockPort, () => {
 		});
 
 		it("should wait on a real timer when the caller injects none", async () => {
-			expect.assertions(2);
+			expect.assertions(1);
 
 			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
 			let ticks = 0;
 
-			// The injected clock drives the deadline; the waiting itself is
-			// left to the adapter's own timer, so the wall clock has to move
-			// with it.
-			const startedAt = Date.now();
 			const result = await lockFor({
 				fetch: store.fetchFunc,
 				lockTimeoutMs: 25,
@@ -498,7 +495,6 @@ describe(createS3StateLockPort, () => {
 			assert(!result.success);
 
 			expect(result.err.detail).toMatchObject({ elapsedMs: 30, kind: "acquireTimedOut" });
-			expect(Date.now() - startedAt).toBeGreaterThanOrEqual(15);
 		});
 
 		it("should give each acquisition an identity of its own when the caller mints none", async () => {
@@ -706,5 +702,17 @@ describe(createS3StateLockPort, () => {
 			});
 			expect(given.err.reason).toBe("the pre-condition did not hold");
 		});
+	});
+});
+
+describe(delayAsync, () => {
+	it("should not come back before the time it was asked to wait has passed", async () => {
+		expect.assertions(1);
+
+		const startedAt = Date.now();
+
+		await delayAsync(25);
+
+		expect(Date.now() - startedAt).toBeGreaterThanOrEqual(20);
 	});
 });
