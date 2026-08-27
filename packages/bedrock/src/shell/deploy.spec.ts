@@ -22,7 +22,7 @@ import type { CodegenFile, EmitInput, Emitter } from "../core/codegen.ts";
 import { UNIVERSE_SINGLETON_KEY } from "../core/resources.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
-import type { BedrockState, StateError } from "../core/state.ts";
+import type { BedrockState, StateError, StateRecord } from "../core/state.ts";
 import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
@@ -67,7 +67,7 @@ function inMemoryStatePort(initial?: BedrockState): {
 	return {
 		port: {
 			async read() {
-				return { data: current, success: true };
+				return { data: { state: current }, success: true };
 			},
 			async write(state) {
 				writes.push(state);
@@ -219,7 +219,7 @@ function environmentAwareStatePort(initial: Record<string, BedrockState>): State
 	const store = new Map<string, BedrockState>(Object.entries(initial));
 	return {
 		async read(environment) {
-			return { data: store.get(environment), success: true };
+			return { data: { state: store.get(environment) }, success: true };
 		},
 		async write(state) {
 			store.set(state.environment, state);
@@ -596,7 +596,7 @@ describe(deploy, () => {
 		const writeAttempts: Array<BedrockState> = [];
 		const port: StatePort = {
 			async read() {
-				return { data: undefined, success: true };
+				return { data: {}, success: true };
 			},
 			async write(state) {
 				writeAttempts.push(state);
@@ -647,9 +647,11 @@ describe(deploy, () => {
 			async read() {
 				return {
 					data: {
-						environment: "production",
-						resources: [alreadyRecorded],
-						version: 1,
+						state: {
+							environment: "production",
+							resources: [alreadyRecorded],
+							version: 1,
+						},
 					},
 					success: true,
 				};
@@ -696,7 +698,7 @@ describe(deploy, () => {
 		};
 		const port: StatePort = {
 			async read() {
-				return { data: undefined, success: true };
+				return { data: {}, success: true };
 			},
 			async write() {
 				return { err: stateError, success: false };
@@ -831,7 +833,7 @@ describe(deploy, () => {
 				createPort: ({ stateConfig }) => {
 					return {
 						data: {
-							read: async () => ({ data: undefined, success: true }),
+							read: async () => ({ data: {}, success: true }),
 							write: async (state) => {
 								written.push({ ...state, environment: stateConfig.bucket });
 								return { data: undefined, success: true };
@@ -873,7 +875,7 @@ describe(deploy, () => {
 				createPort: () => {
 					return {
 						data: {
-							read: async () => ({ data: undefined, success: true }),
+							read: async () => ({ data: {}, success: true }),
 							write: async () => ({ data: undefined, success: true }),
 						},
 						success: true,
@@ -1214,7 +1216,7 @@ describe(deploy, () => {
 
 			const writeFailure: StatePort = {
 				async read() {
-					return { data: undefined, success: true };
+					return { data: {}, success: true };
 				},
 				async write() {
 					return {
@@ -1357,7 +1359,7 @@ describe(deploy, () => {
 						registry: stubRegistryWithVipCreate(),
 						statePort: {
 							async read() {
-								return { data: undefined, success: true };
+								return { data: {}, success: true };
 							},
 							async write() {
 								return { err: stateError, success: false };
@@ -2210,7 +2212,7 @@ describe(deploy, () => {
 			const { builds, step } = recordingBuildStep();
 			const port: StatePort = {
 				async read() {
-					return { data: undefined, success: true };
+					return { data: {}, success: true };
 				},
 				async write() {
 					return {
@@ -2387,8 +2389,8 @@ describe(deploy, () => {
 			expect.assertions(2);
 
 			const { builds, step } = recordingBuildStep();
-			const reads = resultsInOrder<Result<BedrockState | undefined, StateError>>([
-				{ data: undefined, success: true },
+			const reads = resultsInOrder<Result<StateRecord, StateError>>([
+				{ data: {}, success: true },
 				{ err: { file: "state.json", kind: "stateError", reason: "EIO" }, success: false },
 			]);
 			const port: StatePort = {

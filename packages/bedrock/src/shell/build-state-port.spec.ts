@@ -20,7 +20,7 @@ function emptyFilesResponse(): Response {
 
 function okPort(): StatePort {
 	return {
-		read: async () => ({ data: undefined, success: true }),
+		read: async () => ({ data: {}, success: true }),
 		write: async () => ({ data: undefined, success: true }),
 	};
 }
@@ -131,7 +131,7 @@ describe(buildStatePort, () => {
 		expect.assertions(1);
 
 		const port = {
-			read: async () => ({ data: undefined, success: true }) as const,
+			read: async () => ({ data: {}, success: true }) as const,
 			write: async () => ({ data: undefined, success: true }) as const,
 		};
 
@@ -149,7 +149,7 @@ describe(buildStatePort, () => {
 		assert(result.success);
 
 		await expect(result.data.read("production")).resolves.toStrictEqual({
-			data: undefined,
+			data: {},
 			success: true,
 		});
 	});

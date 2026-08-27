@@ -222,10 +222,10 @@ export interface StateBackendMigrateSource {
  *
  *         return {
  *             data: {
- *                 read: async (environment) => ({
- *                     data: objects.get(keyFor(environment)),
- *                     success: true,
- *                 }),
+ *                 read: async (environment) => {
+ *                     const state = objects.get(keyFor(environment));
+ *                     return { data: state === undefined ? {} : { state }, success: true };
+ *                 },
  *                 write: async (state) => {
  *                     objects.set(keyFor(state.environment), state);
  *                     return { data: undefined, success: true };
@@ -253,7 +253,7 @@ export interface StateBackendMigrateSource {
  *     .then((read) => {
  *         expect(read.success).toBeTrue();
  *         if (read.success) {
- *             expect(read.data?.environment).toBe("production");
+ *             expect(read.data.state?.environment).toBe("production");
  *         }
  *     });
  * ```

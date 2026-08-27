@@ -66,7 +66,7 @@ describe("s3 plugin", () => {
 
 		const sent = new URL(store.calls[0]!.url);
 
-		expect(read.data).toStrictEqual(PRODUCTION_STATE);
+		expect(read.data.state).toStrictEqual(PRODUCTION_STATE);
 		expect(sent.hostname).toBe("my-bucket.s3.eu-west-2.amazonaws.com");
 	});
 

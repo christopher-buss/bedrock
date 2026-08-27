@@ -64,7 +64,7 @@ function portReturning(write: StatePort["write"]): BuildStatePortFunc {
 	return vi.fn<BuildStatePortFunc>(() => {
 		return {
 			data: {
-				read: vi.fn<StatePort["read"]>(async () => ({ data: undefined, success: true })),
+				read: vi.fn<StatePort["read"]>(async () => ({ data: {}, success: true })),
 				write,
 			},
 			success: true,

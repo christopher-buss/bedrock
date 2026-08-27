@@ -53,7 +53,7 @@ const SAMPLE_REPORT: MigrationReport = {
 
 function happyPort(write?: StatePort["write"]): StatePort {
 	return {
-		read: vi.fn<StatePort["read"]>(async () => ({ data: undefined, success: true })),
+		read: vi.fn<StatePort["read"]>(async () => ({ data: {}, success: true })),
 		write: write ?? vi.fn<StatePort["write"]>(async () => ({ data: undefined, success: true })),
 	};
 }

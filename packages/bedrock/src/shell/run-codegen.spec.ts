@@ -32,7 +32,7 @@ function statePortReading(staging: BedrockState | StateError | undefined): State
 					return { err: staging, success: false };
 				}
 
-				return { data: staging, success: true };
+				return { data: { state: staging }, success: true };
 			}
 
 			throw new Error(`unexpected read for ${environment}`);

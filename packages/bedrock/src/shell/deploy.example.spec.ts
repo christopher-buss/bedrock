@@ -35,7 +35,8 @@ it('Example 3', () => {
   const store = new Map<string, BedrockState>()
   const statePort: StatePort = {
     async read(environment) {
-      return { data: store.get(environment), success: true }
+      const state = store.get(environment)
+      return { data: state === undefined ? {} : { state }, success: true }
     },
     async write(state) {
       store.set(state.environment, state)

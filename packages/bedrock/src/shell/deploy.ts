@@ -33,7 +33,7 @@ import {
 	resolveEnvironment,
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
-import type { BedrockState, StateError } from "../core/state.ts";
+import type { BedrockState, StateError, StateVersion } from "../core/state.ts";
 import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry } from "../ports/resource-driver.ts";
@@ -451,6 +451,7 @@ interface SettledPassInputs {
 	readonly owedRebuild: ReadonlySet<ResourceKey>;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 	readonly storedHash: Sha256Hex | undefined;
+	readonly version: StateVersion | undefined;
 }
 
 interface SettleOwedInputs {
@@ -477,6 +478,7 @@ interface AssetStageInputs {
 	readonly ops: ReadonlyArray<Operation>;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 	readonly storedHash: Sha256Hex | undefined;
+	readonly version: StateVersion | undefined;
 }
 
 /**
@@ -495,6 +497,7 @@ interface ReconcileInputs {
 	readonly owedRebuild: ReadonlySet<ResourceKey>;
 	readonly priorResources: ReadonlyArray<ResourceCurrentState>;
 	readonly storedHash: Sha256Hex | undefined;
+	readonly version: StateVersion | undefined;
 }
 
 /**
@@ -552,7 +555,8 @@ export function isCliEnvironmentFlagSet(value: string | undefined): boolean {
  * const store = new Map<string, BedrockState>();
  * const statePort: StatePort = {
  *     async read(environment) {
- *         return { data: store.get(environment), success: true };
+ *         const state = store.get(environment);
+ *         return { data: state === undefined ? {} : { state }, success: true };
  *     },
  *     async write(state) {
  *         store.set(state.environment, state);
@@ -1086,6 +1090,7 @@ async function runSettledPassAsync({
 	owedRebuild,
 	priorResources,
 	storedHash,
+	version,
 }: SettledPassInputs): Promise<Result<BedrockState, DeployError>> {
 	// This pass never owns the fingerprint: it threads the stored hash back out
 	// unchanged. No-op avoidance comes from the file-hash diff (an unchanged
@@ -1093,6 +1098,7 @@ async function runSettledPassAsync({
 	const pass = await applyAndPersistAsync({
 		codegenHash: storedHash,
 		environment,
+		expectedVersion: version,
 		ops,
 		pendingRebuild: (survivors) => settleOwedPlaces({ ops, owed: owedRebuild, survivors }),
 		priorResources,
@@ -1140,7 +1146,7 @@ async function loadReconcileInputsAsync({
 		return { err: { cause: prior.err, kind: "stateReadFailed" }, success: false };
 	}
 
-	const priorResources = prior.data?.resources ?? [];
+	const priorResources = prior.data.state?.resources ?? [];
 	const validated = assertAllReconcilable(desired.data, priorResources);
 	if (!validated.success) {
 		return { err: { cause: validated.err, kind: "buildDesiredFailed" }, success: false };
@@ -1149,9 +1155,10 @@ async function loadReconcileInputsAsync({
 	return {
 		data: {
 			ops: diff(desired.data, priorResources),
-			owedRebuild: prior.data?.pendingRebuild ?? new Set<ResourceKey>(),
+			owedRebuild: prior.data.state?.pendingRebuild ?? new Set<ResourceKey>(),
 			priorResources,
-			storedHash: prior.data?.codegenHash,
+			storedHash: prior.data.state?.codegenHash,
+			version: prior.data.version,
 		},
 		success: true,
 	};
@@ -1174,8 +1181,16 @@ async function runFusedPublishStageAsync(
 		return loaded;
 	}
 
-	const { ops, owedRebuild, priorResources, storedHash } = loaded.data;
-	return runSettledPassAsync({ deps, environment, ops, owedRebuild, priorResources, storedHash });
+	const { ops, owedRebuild, priorResources, storedHash, version } = loaded.data;
+	return runSettledPassAsync({
+		deps,
+		environment,
+		ops,
+		owedRebuild,
+		priorResources,
+		storedHash,
+		version,
+	});
 }
 
 async function runSinglePassReconcileAsync(
@@ -1187,7 +1202,7 @@ async function runSinglePassReconcileAsync(
 		return loaded;
 	}
 
-	const { ops, owedRebuild, priorResources, storedHash } = loaded.data;
+	const { ops, owedRebuild, priorResources, storedHash, version } = loaded.data;
 	return runSettledPassAsync({
 		deps: dependencies,
 		environment,
@@ -1195,6 +1210,7 @@ async function runSinglePassReconcileAsync(
 		owedRebuild,
 		priorResources,
 		storedHash,
+		version,
 	});
 }
 
@@ -1228,12 +1244,14 @@ async function runAssetStageAsync({
 	ops,
 	priorResources,
 	storedHash,
+	version,
 }: AssetStageInputs): Promise<ReconcilePass> {
 	// The checkpoint preserves the stored hash; the fingerprint is bookkeeping
 	// only and no longer gates a rebuild decision.
 	return applyAndPersistAsync({
 		codegenHash: storedHash,
 		environment,
+		expectedVersion: version,
 		ops,
 		pendingRebuild: new Set(markPlaces),
 		priorResources,
@@ -1272,7 +1290,7 @@ async function runProvisionAsync(
 		return loaded;
 	}
 
-	const { ops, priorResources, storedHash } = loaded.data;
+	const { ops, priorResources, storedHash, version } = loaded.data;
 	const { outcome } = await runProvisionStageAsync({
 		deps,
 		environment,
@@ -1280,6 +1298,7 @@ async function runProvisionAsync(
 		ops,
 		priorResources,
 		storedHash,
+		version,
 	});
 	return outcome;
 }
@@ -1349,11 +1368,12 @@ async function runPublishAsync(
 		return loaded;
 	}
 
-	const { ops, owedRebuild, priorResources, storedHash } = loaded.data;
+	const { ops, owedRebuild, priorResources, storedHash, version } = loaded.data;
 	const placeOps = ops.filter((op) => owedRebuild.has(op.key));
 	const pass = await applyAndPersistAsync({
 		codegenHash: storedHash,
 		environment,
+		expectedVersion: version,
 		ops: placeOps,
 		pendingRebuild: (survivors) => remainingOwed(owedRebuild, survivors),
 		priorResources,

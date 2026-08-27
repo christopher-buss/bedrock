@@ -1,20 +1,26 @@
 import {
+	asSha256Hex,
+	type BedrockState,
 	deploy,
 	type DriverRegistry,
 	loadProjectAsync,
 	OpenCloudError,
 	parseStateFile,
 } from "@bedrock-rbx/core";
-import { createS3StateLockPort } from "@bedrock-rbx/state-s3";
+import { createS3StateAdapter, createS3StateLockPort } from "@bedrock-rbx/state-s3";
 
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it, onTestFinished } from "vitest";
+import { assert, describe, expect, it, onTestFinished } from "vitest";
 
 import { assertOk } from "../helpers/assert-ok.ts";
 import { pruneStateS3Async } from "../helpers/prune-state-s3.ts";
-import { headS3ObjectAsync, readS3ObjectTextAsync } from "../helpers/s3-object.ts";
+import {
+	deleteS3ObjectAsync,
+	headS3ObjectAsync,
+	readS3ObjectTextAsync,
+} from "../helpers/s3-object.ts";
 import { BUCKET, ENVIRONMENT, PREFIX, REGION } from "./fixtures/state-s3/coordinates.ts";
 
 // Both halves must be present and non-empty. Given one, the AWS default
@@ -29,6 +35,10 @@ const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "state
 
 // How many past runs stay in the bucket to be read by hand.
 const KEEP = 3;
+
+// A digest the moving write stamps so its bytes, and so the object's
+// entity tag, differ from what the first write left.
+const MOVED_DIGEST = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
 /**
  * Build a lock port over the smoke bucket, on the credentials the runner
@@ -163,6 +173,111 @@ describe("s3 state backend against real aws", () => {
 			const again = await lockPort(0).acquire(environment);
 
 			expect(again.success).toBeTrue();
+		},
+		60_000,
+	);
+
+	it.skipIf(!HAS_SECRETS)(
+		"should refuse a write fenced on a record the bucket has moved past",
+		async () => {
+			expect.assertions(3);
+
+			const environment = `${ENVIRONMENT}-conflict-${Date.now()}`;
+			const state: BedrockState = { environment, resources: [], version: 1 };
+
+			onTestFinished(async () => {
+				await pruneStateS3Async({
+					bucket: BUCKET,
+					keep: KEEP,
+					prefix: PREFIX,
+					region: REGION,
+				});
+			});
+
+			const port = createS3StateAdapter({
+				bucket: BUCKET,
+				prefix: PREFIX,
+				region: REGION,
+			});
+
+			const first = await port.read(environment);
+			assertOk(first, "read of an environment never deployed");
+
+			expect(first.data.version).toStrictEqual({ kind: "absent" });
+
+			// Two writes fenced on the same absent record: whoever gets there
+			// second is the run whose hold was never really held.
+			const won = await port.write(state, first.data.version);
+			assertOk(won, "the first write fenced on an absent record");
+
+			const lostOnAbsence = await port.write(state, first.data.version);
+			assert(!lostOnAbsence.success);
+
+			expect(lostOnAbsence.err.kind).toBe("stateConflict");
+
+			// The steady-state arm: a stale entity tag, which the bucket
+			// evaluates rather than the create-if-absent wildcard.
+			const stale = await port.read(environment);
+			assertOk(stale, "read of the record the first write left");
+
+			// Different bytes, so the object's entity tag moves with it.
+			const moved = await port.write(
+				{ ...state, codegenHash: asSha256Hex(MOVED_DIGEST) },
+				stale.data.version,
+			);
+			assertOk(moved, "a write that moves the record on");
+
+			const lostOnTag = await port.write(state, stale.data.version);
+			assert(!lostOnTag.success);
+
+			expect(lostOnTag.err.kind).toBe("stateConflict");
+		},
+		60_000,
+	);
+
+	it.skipIf(!HAS_SECRETS)(
+		"should refuse a write fenced on a record the bucket no longer holds",
+		async () => {
+			expect.assertions(2);
+
+			const environment = `${ENVIRONMENT}-deleted-${Date.now()}`;
+			const key = `${PREFIX}/${environment}.json`;
+			const state: BedrockState = { environment, resources: [], version: 1 };
+
+			onTestFinished(async () => {
+				await pruneStateS3Async({
+					bucket: BUCKET,
+					keep: KEEP,
+					prefix: PREFIX,
+					region: REGION,
+				});
+			});
+
+			const port = createS3StateAdapter({
+				bucket: BUCKET,
+				prefix: PREFIX,
+				region: REGION,
+			});
+
+			const first = await port.write(state, { kind: "absent" });
+			assertOk(first, "the first write fenced on an absent record");
+
+			const read = await port.read(environment);
+			assertOk(read, "read of the record the first write left");
+
+			assert(read.data.version !== undefined);
+
+			expect(read.data.version.kind).toBe("present");
+
+			// The record the read named is gone by the time the write lands,
+			// which the bucket answers with the absent-object code rather than
+			// the `412` a disagreeing entity tag gets.
+			await deleteS3ObjectAsync({ key, bucket: BUCKET, region: REGION });
+
+			const lost = await port.write(state, read.data.version);
+			assert(!lost.success);
+
+			expect(lost.err.kind).toBe("stateConflict");
 		},
 		60_000,
 	);

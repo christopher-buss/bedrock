@@ -1,11 +1,11 @@
-import type { BedrockState, StateError, StatePort } from "@bedrock-rbx/core";
+import type { BedrockState, StateError, StatePort, StateRecord } from "@bedrock-rbx/core";
 import type { Result } from "@bedrock-rbx/ocale";
 
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { readStateUntilAsync } from "./read-state-until.ts";
 
-type ReadResult = Result<BedrockState | undefined, StateError>;
+type ReadResult = Result<StateRecord, StateError>;
 
 interface FakeStatePort {
 	readonly reads: Array<string>;
@@ -48,7 +48,7 @@ function stateFor(environment: string): BedrockState {
 }
 
 function okResult(environment: string): ReadResult {
-	return { data: stateFor(environment), success: true };
+	return { data: { state: stateFor(environment) }, success: true };
 }
 
 const ENVIRONMENT = "smoke";
@@ -128,7 +128,7 @@ describe(readStateUntilAsync, () => {
 		expect.assertions(3);
 
 		const { reads, statePort } = fakeReadSequence([
-			{ data: undefined, success: true },
+			{ data: {}, success: true },
 			okResult(READY),
 		]);
 		const sleepFake = fakeSleep();

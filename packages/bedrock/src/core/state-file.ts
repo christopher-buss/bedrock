@@ -121,6 +121,24 @@ export function serializeStateFile(state: BedrockState): string {
  * is not one of the outcomes. An adapter read, which may legitimately find
  * nothing, goes through {@link parseStateFile} instead.
  *
+ * @since unreleased
+ *
+ * @example
+ *
+ * ```ts
+ * import { parseStateContents } from "@bedrock-rbx/core";
+ *
+ * const parsed = parseStateContents(
+ *     JSON.stringify({ $bedrock: { version: 1 }, environment: "production", resources: [] }),
+ *     "s3://my-bucket/production.json",
+ * );
+ *
+ * expect(parsed.success).toBeTrue();
+ * if (parsed.success) {
+ *     expect(parsed.data.environment).toBe("production");
+ * }
+ * ```
+ *
  * @param raw - Raw file contents.
  * @param file - Adapter-specific identifier included in any `StateError`.
  * @returns `Ok(state)` for a parseable file, or `Err(StateError)` for

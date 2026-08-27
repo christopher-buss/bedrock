@@ -126,6 +126,17 @@ async function captureAsync(
 }
 
 /**
+ * Build the answer S3 gives a request for a key the store holds nothing at.
+ *
+ * @returns The `404` response, carrying the code the client deserializes.
+ */
+function noSuchKey(): Response {
+	return new Response(errorBody("NoSuchKey", "The specified key does not exist."), {
+		status: 404,
+	});
+}
+
+/**
  * Read the entity tag one stored object answers with, minting one for an
  * object a test put into the store by hand.
  *
@@ -178,6 +189,10 @@ function conditionHolds(
 function write(store: StoredObjects, request: CapturedS3Request): Response {
 	const { pathname } = new URL(request.url);
 	const held = store.objects.has(pathname);
+	if (!held && request.headers["if-match"] !== undefined) {
+		return noSuchKey();
+	}
+
 	if (!conditionHolds(request.headers, held ? etagOf(store, pathname) : undefined)) {
 		return new Response(
 			errorBody(
@@ -210,9 +225,7 @@ function answer(store: StoredObjects, request: CapturedS3Request): Response {
 	const { pathname } = new URL(request.url);
 	const stored = store.objects.get(pathname);
 	if (stored === undefined) {
-		return new Response(errorBody("NoSuchKey", "The specified key does not exist."), {
-			status: 404,
-		});
+		return noSuchKey();
 	}
 
 	return new Response(stored, { headers: { etag: etagOf(store, pathname) }, status: 200 });

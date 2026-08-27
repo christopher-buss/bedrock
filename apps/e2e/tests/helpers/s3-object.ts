@@ -1,4 +1,9 @@
-import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+	DeleteObjectCommand,
+	GetObjectCommand,
+	HeadObjectCommand,
+	S3Client,
+} from "@aws-sdk/client-s3";
 import type { HeadObjectCommandOutput } from "@aws-sdk/client-s3";
 
 /** Coordinates of one object in a real bucket. */
@@ -19,6 +24,15 @@ export interface S3ObjectRef {
  */
 export async function headS3ObjectAsync(ref: S3ObjectRef): Promise<HeadObjectCommandOutput> {
 	return clientFor(ref).send(new HeadObjectCommand({ Bucket: ref.bucket, Key: ref.key }));
+}
+
+/**
+ * Delete one object from S3, so a test can observe how the bucket answers
+ * a write fenced on the record that object was.
+ * @param ref - Bucket, key, and region naming the object.
+ */
+export async function deleteS3ObjectAsync(ref: S3ObjectRef): Promise<void> {
+	await clientFor(ref).send(new DeleteObjectCommand({ Bucket: ref.bucket, Key: ref.key }));
 }
 
 /**

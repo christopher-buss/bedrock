@@ -54,7 +54,7 @@ function inMemoryStatePort(initial?: BedrockState): {
 	return {
 		port: {
 			async read() {
-				return { data: current, success: true };
+				return { data: { state: current }, success: true };
 			},
 			async write(state) {
 				writes.push(state);

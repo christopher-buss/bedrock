@@ -65,9 +65,6 @@ without the override every test importing the client fails to load.
 
 ## Not here yet
 
-The lease that expires an abandoned hold, the probe that proves a store honours
-conditional writes, and the conditional **State** write that fences a holder
-which outlived its lease are all ADR-031 and all still to come. The conditional
-write needs a version token `StatePort` does not carry yet, so this **Backend**
-writes **State** unconditionally, exactly as the Gist **Backend** does. Migrate
+The lease that expires an abandoned hold, and the probe that proves a store
+honours conditional writes, are both ADR-031 and both still to come. Migrate
 support (`migratePrompts`, `migrateSource`) is tracked separately.

@@ -40,7 +40,7 @@ async function readUntilVisibleAsync({
 }): Promise<Awaited<ReturnType<StatePort["read"]>>> {
 	for (;;) {
 		const read = await port.read(environment);
-		if (!read.success || read.data !== undefined || Date.now() >= deadline) {
+		if (!read.success || read.data.state !== undefined || Date.now() >= deadline) {
 			return read;
 		}
 
@@ -77,7 +77,7 @@ describe("gist state adapter against real github", () => {
 
 			const firstRead = await port.read(environment);
 
-			expect(firstRead).toStrictEqual({ data: undefined, success: true });
+			expect(firstRead).toStrictEqual({ data: {}, success: true });
 
 			const writeResult = await port.write(state);
 			assertOk(writeResult, "write");
@@ -90,7 +90,7 @@ describe("gist state adapter against real github", () => {
 
 			assert(secondRead.success);
 
-			expect(secondRead.data).toStrictEqual(state);
+			expect(secondRead.data).toStrictEqual({ state });
 		},
 		60_000,
 	);

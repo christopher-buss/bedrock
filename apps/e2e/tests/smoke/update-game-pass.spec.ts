@@ -154,7 +154,7 @@ describe("game-pass update via real Roblox", () => {
 			});
 			assertOk(persistedRead, "state read");
 
-			const persisted = persistedRead.data;
+			const persisted = persistedRead.data.state;
 			assert(persisted !== undefined);
 
 			expect(persisted.environment).toBe(STABLE_ENVIRONMENT);

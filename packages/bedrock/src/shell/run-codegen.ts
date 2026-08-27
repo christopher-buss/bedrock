@@ -105,7 +105,7 @@ async function collectStatesAsync({
 			};
 		}
 
-		states[environment] = read.data;
+		states[environment] = read.data.state;
 	}
 
 	return { data: states, success: true };

@@ -107,6 +107,114 @@ export interface BedrockState {
 }
 
 /**
+ * Which **State** record a write is fenced against: the one a `read`
+ * observed, or the absence a `read` observed in its place.
+ *
+ * `token` is the **Backend**'s own identifier for that exact record - an
+ * ETag, a generation number, a revision id - which core carries back to
+ * the **Backend** untouched and never parses.
+ *
+ * The `absent` arm is not the same as carrying no version at all. It says
+ * a `read` looked and found nothing, so the write must still fail if a
+ * record has appeared since. Carrying no version says the **Backend**
+ * cannot fence at all, and the write overwrites whatever is there.
+ *
+ * @since unreleased
+ *
+ * @example
+ *
+ * ```ts
+ * import type { StateVersion } from "@bedrock-rbx/core";
+ *
+ * const firstDeploy: StateVersion = { kind: "absent" };
+ * const laterDeploy: StateVersion = { kind: "present", token: '"9f3c1a"' };
+ *
+ * expect(firstDeploy.kind).toBe("absent");
+ *
+ * if (laterDeploy.kind === "present") {
+ *     expect(laterDeploy.token).toBe('"9f3c1a"');
+ * }
+ * ```
+ */
+export type StateVersion =
+	| {
+			/** Literal discriminator: a record existed when it was read. */
+			readonly kind: "present";
+			/**
+			 * The **Backend**'s own identifier for that record, which core
+			 * never parses.
+			 */
+			readonly token: string;
+	  }
+	| {
+			/** Literal discriminator: no record existed when it was read. */
+			readonly kind: "absent";
+	  };
+
+/**
+ * What one `read` observed: the **State** the store held, and the version
+ * naming exactly which record that was.
+ *
+ * The arms are the three readings a `read` can return. A **Backend** whose
+ * store can fence names the record it read, and the version it names
+ * agrees with what it found: a present version carries the **State** that
+ * record held, and an absent version carries none, which is an
+ * **Environment** that has never been deployed. A **Backend** whose store
+ * has no version primitive names no record at all, so a write built from
+ * that reading overwrites unconditionally.
+ *
+ * The pairings a store cannot observe are not expressible: **State** read
+ * from a record the version says was absent would fence the write that
+ * follows as a first **Deploy** against an **Environment** already
+ * deployed, and a present version naming a record that carried no
+ * **State** would reconcile from an empty snapshot and re-create every
+ * resource.
+ *
+ * @since unreleased
+ *
+ * @example
+ *
+ * ```ts
+ * import type { StateRecord } from "@bedrock-rbx/core";
+ *
+ * const neverDeployed: StateRecord = { version: { kind: "absent" } };
+ * const unfenced: StateRecord = {
+ *     state: { environment: "production", resources: [], version: 1 },
+ * };
+ *
+ * expect(neverDeployed.state).toBeUndefined();
+ * expect(unfenced.version).toBeUndefined();
+ * ```
+ */
+export type StateRecord =
+	| {
+			/**
+			 * The **State** the record held, which a present version names.
+			 */
+			readonly state: BedrockState;
+			/** Which record was read. */
+			readonly version: Extract<StateVersion, { readonly kind: "present" }>;
+	  }
+	| {
+			/**
+			 * The **State** the record holds, absent when the
+			 * **Environment** has never been deployed.
+			 */
+			readonly state?: BedrockState | undefined;
+			/**
+			 * No record is named, because the **Backend** cannot fence a
+			 * write against one.
+			 */
+			readonly version?: undefined;
+	  }
+	| {
+			/** No **State**: the **Environment** has never been deployed. */
+			readonly state?: undefined;
+			/** That no record existed is itself what the write is fenced on. */
+			readonly version: Extract<StateVersion, { readonly kind: "absent" }>;
+	  };
+
+/**
  * Fields every {@link StateError} arm carries, whichever **Backend**
  * produced it, so a caller can report the failure without narrowing first.
  *

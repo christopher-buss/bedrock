@@ -1,11 +1,18 @@
-import { GetObjectCommand, PutObjectCommand, type S3Client } from "@aws-sdk/client-s3";
+import {
+	GetObjectCommand,
+	PutObjectCommand,
+	type PutObjectCommandInput,
+	type S3Client,
+} from "@aws-sdk/client-s3";
 import {
 	type BedrockState,
-	parseStateFile,
+	parseStateContents,
 	type Result,
 	serializeStateFile,
 	type StateError,
 	type StatePort,
+	type StateRecord,
+	type StateVersion,
 	validateEnvironmentName,
 } from "@bedrock-rbx/core";
 
@@ -23,6 +30,7 @@ const SPECIFIER = "@bedrock-rbx/state-s3";
 // core's own vocabulary rather than in this plugin's opaque payload.
 const NEUTRAL_STATE_ERROR: Partial<Record<S3FailureKind, NeutralStateErrorKind>> = {
 	accessDenied: "stateAccessDenied",
+	conditionRefused: "stateConflict",
 	missingStore: "stateNotFound",
 };
 
@@ -53,10 +61,31 @@ interface BucketAccess {
 }
 
 /**
+ * Everything one conditional write needs: the snapshot, the record it is
+ * fenced against, and where to send it.
+ */
+interface WriteObjectInputs {
+	/**
+	 * What the caller's read observed, absent when the write is
+	 * unconditional.
+	 */
+	readonly expected: StateVersion | undefined;
+	/** The snapshot to persist. */
+	readonly state: BedrockState;
+	/** The configured client and the bucket coordinates. */
+	readonly store: BucketAccess;
+}
+
+/**
+ * The version naming a record that existed when it was read.
+ */
+type PresentVersion = Extract<StateVersion, { readonly kind: "present" }>;
+
+/**
  * The `StateError` arms describing a condition any **Backend** has, which
  * this **Backend** reports in core's vocabulary rather than in its own.
  */
-type NeutralStateErrorKind = "stateAccessDenied" | "stateNotFound";
+type NeutralStateErrorKind = "stateAccessDenied" | "stateConflict" | "stateNotFound";
 
 /**
  * Build a `StatePort` that persists Bedrock **State** in an S3 bucket,
@@ -79,7 +108,7 @@ type NeutralStateErrorKind = "stateAccessDenied" | "stateNotFound";
  * return port.read("production").then((state) => {
  *     expect(state.success).toBeTrue();
  *     if (state.success) {
- *         expect(state.data).toBeUndefined();
+ *         expect(state.data.state).toBeUndefined();
  *     }
  * });
  * ```
@@ -100,13 +129,13 @@ export function createS3StateAdapter(deps: S3StoreDeps): StatePort {
 
 			return readObjectAsync(store, safe.data);
 		},
-		async write(state) {
+		async write(state, expected) {
 			const safe = validateEnvironmentName(state.environment);
 			if (!safe.success) {
 				return safe;
 			}
 
-			return writeObjectAsync(store, state);
+			return writeObjectAsync({ expected, state, store });
 		},
 	};
 }
@@ -140,27 +169,63 @@ function toStateError(failure: S3Failure, file: string): StateError {
 }
 
 /**
+ * Read the entity tag the store answered a `GET` with as the version
+ * naming that record.
+ *
+ * A store that answered without one is refused rather than read as a
+ * record carrying no version: that reading would leave the write that
+ * follows unfenced, and a **State** write that silently overwrites a
+ * record it never saw is what the version exists to prevent.
+ *
+ * @param etag - Entity tag the store attached, absent when it attached
+ * none.
+ * @param file - The object the tag was expected on.
+ * @returns The version, or the refusal, typed.
+ */
+function versionOf(etag: string | undefined, file: string): Result<PresentVersion, StateError> {
+	if (etag === undefined) {
+		return {
+			err: { file, kind: "stateError", reason: "the store answered without an entity tag" },
+			success: false,
+		};
+	}
+
+	return { data: { kind: "present", token: etag }, success: true };
+}
+
+/**
  * Read one **Environment**'s **State** out of the bucket.
  *
  * @param store - The configured client and the bucket coordinates.
  * @param environment - Name of the **Environment** to read.
- * @returns The stored **State**, `Ok(undefined)` when the
- * **Environment** has never been deployed, or the refusal, typed.
+ * @returns The stored **State** and the version naming that record, a
+ * record holding no **State** when the **Environment** has never been
+ * deployed, or the refusal, typed.
  */
 async function readObjectAsync(
 	{ client, deps }: BucketAccess,
 	environment: string,
-): Promise<Result<BedrockState | undefined, StateError>> {
+): Promise<Result<StateRecord, StateError>> {
 	const key = objectKeyFor(deps.prefix, environment);
 	const label = objectLabelFor(deps.bucket, key);
 
 	try {
 		const object = await client.send(new GetObjectCommand({ Bucket: deps.bucket, Key: key }));
-		return parseStateFile(await readObjectTextAsync(object.Body), label);
+		const parsed = parseStateContents(await readObjectTextAsync(object.Body), label);
+		if (!parsed.success) {
+			return parsed;
+		}
+
+		const version = versionOf(object.ETag, label);
+		if (!version.success) {
+			return version;
+		}
+
+		return { data: { state: parsed.data, version: version.data }, success: true };
 	} catch (err) {
 		const failure = classifyS3Failure(err);
 		if (failure.kind === "missingObject") {
-			return { data: undefined, success: true };
+			return { data: { version: { kind: "absent" } }, success: true };
 		}
 
 		return { err: toStateError(failure, label), success: false };
@@ -168,23 +233,71 @@ async function readObjectAsync(
 }
 
 /**
- * Write one **Environment**'s **State** into the bucket, overwriting
- * whatever the last **Deploy** left there.
+ * Turn the version a caller read into the precondition the `PUT` carries.
  *
- * @param store - The configured client and the bucket coordinates.
- * @param state - The snapshot to persist.
- * @returns `Ok` once the object is stored, or the refusal, typed.
+ * The wildcard is sent bare, never quoted: at least one S3-compatible
+ * store compares the raw header value before stripping quotes, so a
+ * quoted wildcard falls through to an entity-tag comparison, the
+ * condition reads as satisfied, and the create-if-absent degrades into an
+ * unconditional overwrite.
+ *
+ * @param expected - What the caller's read observed, absent when the
+ * write is unconditional.
+ * @returns The command fields carrying the precondition, empty when there
+ * is none.
  */
-async function writeObjectAsync(
-	{ client, deps }: BucketAccess,
-	state: BedrockState,
-): Promise<Result<void, StateError>> {
+function conditionFor(
+	expected: StateVersion | undefined,
+): Pick<PutObjectCommandInput, "IfMatch" | "IfNoneMatch"> {
+	if (expected === undefined) {
+		return {};
+	}
+
+	return expected.kind === "absent" ? { IfNoneMatch: "*" } : { IfMatch: expected.token };
+}
+
+/**
+ * Read what a conditional `PUT` was refused with, in the terms this
+ * **Backend** owns.
+ *
+ * A `PUT` fenced on an entity tag is answered with the absent-object code
+ * when the record has been deleted since it was read, which is the same
+ * condition as a tag that no longer agrees: the record the caller read is
+ * gone. It is read as a conflict on this path only, so a `GET` of an
+ * **Environment** that has never been deployed still reads as an ordinary
+ * first **Deploy**.
+ *
+ * @param failure - The refusal, already classified.
+ * @param expected - What the caller's read observed, absent when the
+ * write is unconditional.
+ * @returns The refusal, with the write path's reading applied.
+ */
+function refusalOf(failure: S3Failure, expected: StateVersion | undefined): S3Failure {
+	const deleted = failure.kind === "missingObject" && expected?.kind === "present";
+	return deleted ? { ...failure, kind: "conditionRefused" } : failure;
+}
+
+/**
+ * Write one **Environment**'s **State** into the bucket, fenced against
+ * the record the caller read.
+ *
+ * @param inputs - The snapshot to persist, what the caller's read
+ * observed, and the client and bucket coordinates to send it through.
+ * @returns `Ok` once the object is stored, the conflict when the record
+ * moved, or the refusal, typed.
+ */
+async function writeObjectAsync({
+	expected,
+	state,
+	store: { client, deps },
+}: WriteObjectInputs): Promise<Result<void, StateError>> {
 	const key = objectKeyFor(deps.prefix, state.environment);
 	const label = objectLabelFor(deps.bucket, key);
 
 	try {
 		await client.send(
 			new PutObjectCommand({
+				...conditionFor(expected),
 				Body: serializeStateFile(state),
 				Bucket: deps.bucket,
 				ContentType: "application/json",
@@ -193,6 +306,9 @@ async function writeObjectAsync(
 		);
 		return { data: undefined, success: true };
 	} catch (err) {
-		return { err: toStateError(classifyS3Failure(err), label), success: false };
+		return {
+			err: toStateError(refusalOf(classifyS3Failure(err), expected), label),
+			success: false,
+		};
 	}
 }
