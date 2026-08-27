@@ -52,6 +52,7 @@ Production state now lives at `s3://my-bucket/production.json`.
 | `forcePathStyle`      | no       | Address the bucket as a path segment rather than a subdomain  |
 | `checksumCalculation` | no       | `whenSupported` (default) or `whenRequired`                   |
 | `lockTimeoutMs`       | no       | How long to wait for a held environment; 5 minutes by default |
+| `lockLeaseMs`         | no       | How long a hold is leased for; 1 minute by default            |
 
 ## Credentials
 
@@ -108,6 +109,16 @@ immediately. The wait is reported through the progress port while it happens,
 and giving up names who holds the environment and since when. A credential that
 cannot read the lock record ends the wait at once, so a missing `s3:GetObject`
 is reported as itself rather than as five minutes of contention.
+
+A hold carries a deadline it renews while the deploy runs, so a deploy killed by
+a cancelled CI job stops blocking every later one. A hold whose lease is still
+being renewed is never taken over, however long the deploy holding it runs; a
+hold nothing renews past its deadline is taken over by the next deploy, through
+the same conditional write a released hold is taken over with. `lockLeaseMs`
+sets how long a hold is leased for, one minute by default and one second at the
+shortest. A lease the backend could not keep is reported through the progress
+port, and the state write of a run whose hold was taken over is refused rather
+than allowed to overwrite what the run that took it over recorded.
 
 A hold is given up by writing a tombstone over its own record, never by deleting
 the lock object: conditional delete is not portable across S3-compatible stores,

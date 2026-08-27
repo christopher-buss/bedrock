@@ -39,6 +39,7 @@ export const s3StateBackend: StateBackendDeclaration<S3StateConfig> = {
 		return {
 			data: createS3StateLockPort({
 				...bucketAccessFrom(context),
+				lockLeaseMs: context.stateConfig.lockLeaseMs,
 				lockTimeoutMs: context.stateConfig.lockTimeoutMs,
 				owner: lockOwnerFrom(context.getEnv),
 			}),

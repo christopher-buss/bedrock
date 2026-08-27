@@ -153,6 +153,7 @@ function renderDeployEvent(
 				| "applySummary"
 				| "deployFailure"
 				| "deploySuccess"
+				| "stateLockLeaseLost"
 				| "stateLockWaiting"
 				| "stateWritten";
 		}
@@ -170,6 +171,10 @@ function renderDeployEvent(
 		}
 		case "deploySuccess": {
 			clack.logSuccess(`${event.environment}: ${event.resourceCount} resources reconciled`);
+			return;
+		}
+		case "stateLockLeaseLost": {
+			clack.logError(`Lost the ${event.environment} state lock: ${event.error.reason}`);
 			return;
 		}
 		case "stateLockWaiting": {
@@ -253,6 +258,7 @@ function renderEvent(event: ProgressEvent, dependencies: ClackProgressAdapterDep
 		case "applySummary":
 		case "deployFailure":
 		case "deploySuccess":
+		case "stateLockLeaseLost":
 		case "stateLockWaiting":
 		case "stateWritten": {
 			renderDeployEvent(event, dependencies);

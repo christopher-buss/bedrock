@@ -28,6 +28,12 @@ describe("StateLockPort.acquire", () => {
 		expectTypeOf<StateLockWaiting["holder"]>().toEqualTypeOf<string | undefined>();
 	});
 
+	it("should report a lease it could not keep through onLeaseLost", () => {
+		expectTypeOf<StateLockAcquireOptions["onLeaseLost"]>().toEqualTypeOf<
+			((error: StateLockError) => void) | undefined
+		>();
+	});
+
 	it("should return Promise<Result<StateLockHold, StateLockError>>", () => {
 		expectTypeOf<ReturnType<StateLockPort["acquire"]>>().toEqualTypeOf<
 			Promise<Result<StateLockHold, StateLockError>>

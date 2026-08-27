@@ -19,6 +19,8 @@ import type { S3LockHolder } from "./lock-record.ts";
  *   already held, so a hold there would not exclude anything.
  * - `conditionalWritesUnproven` - the store could not be asked whether it
  *   honours conditional creates, so a hold there rests on nothing.
+ * - `leaseLost` - the hold's **Lease** could not be renewed, so the hold
+ *   is another run's to take over.
  *
  * @since unreleased
  */
@@ -28,6 +30,7 @@ export type S3LockFailureKind =
 	| "conditionalWritesIgnored"
 	| "conditionalWritesUnproven"
 	| "invalidEnvironment"
+	| "leaseLost"
 	| "releaseFailed";
 
 /**
@@ -149,6 +152,58 @@ export function conditionalWritesUnproven(label: string, failure: S3Failure): St
 }
 
 /**
+ * Report a hold the store took longer to answer for than the hold is
+ * leased for.
+ *
+ * The deadline is stamped as the write goes out, so a store that answers a
+ * whole lease later hands back a hold the next acquisition may take over
+ * at once. Refusing it keeps a granted hold one that is actually held.
+ *
+ * @param label - The object the hold was recorded in.
+ * @returns The failure a caller sees.
+ */
+export function leaseAlreadyRunOut(label: string): StateLockError {
+	const detail: S3StateLockErrorDetail = { file: label, kind: "acquireFailed" };
+	return {
+		detail,
+		reason: `${label} was taken under a lease that had already run out by the time the store answered`,
+	};
+}
+
+/**
+ * Report a renewal the store took and named no entity tag for, that a read
+ * back could not name one for either.
+ *
+ * Every write the hold makes is conditional on the bytes of its last one,
+ * so a holder that cannot name those bytes can no longer show the store
+ * that the **Environment** is still its own.
+ *
+ * @param label - The object the hold is recorded in.
+ * @returns The failure the holder is told its lease is gone with.
+ */
+export function leaseWithoutEntityTag(label: string): StateLockError {
+	const detail: S3StateLockErrorDetail = { file: label, kind: "leaseLost" };
+	return {
+		detail,
+		reason: `${label} was renewed without an entity tag this run could name it by, so the hold can no longer be shown to be its own`,
+	};
+}
+
+/**
+ * Report a **Lease** the store would not let the holder keep.
+ *
+ * @param label - The object the hold is recorded in.
+ * @param failure - The refusal, already classified.
+ * @returns The failure the holder is told its lease is gone with.
+ */
+export function renewRefused(label: string, failure: S3Failure): StateLockError {
+	return {
+		detail: refusalDetail({ failure, kind: "leaseLost", label }),
+		reason: failure.reason,
+	};
+}
+
+/**
  * Report a tombstone the store refused.
  *
  * @param label - The object the hold is recorded in.
@@ -180,7 +235,7 @@ export function timedOut({ blocker, elapsedMs, label }: TimedOutWait): StateLock
 	const held =
 		blocker === undefined
 			? "is held by another run"
-			: `is held by ${blocker.owner} for ${blocker.operation} since ${blocker.since}`;
+			: `is held by ${blocker.owner} for ${blocker.operation} since ${blocker.since}, leased until ${blocker.expiresAt}`;
 	return {
 		detail,
 		reason: `${label} ${held}; gave up after ${(elapsedMs / 1000).toFixed(1)}s`,

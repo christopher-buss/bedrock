@@ -118,6 +118,22 @@ A run that finds the environment held waits, retrying with exponential backoff
 for five minutes by default. `lockTimeoutMs` changes that bound, and `0` refuses
 immediately. Giving up names who holds the environment and since when.
 
+### A hold is leased
+
+A hold carries a deadline it renews while the deploy runs, so a deploy killed by
+a cancelled CI job stops blocking every later one behind manual intervention. A
+hold whose lease is still being renewed is never taken over, however long the
+deploy holding it runs; a hold nothing renews past its deadline is taken over by
+the next deploy, through the same conditional write a released hold is taken
+over with. `lockLeaseMs` sets how long a hold is leased for, one minute by
+default and one second at the shortest.
+
+A lease the backend could not keep is reported through the progress port rather
+than left to be discovered at the end. The state write is what keeps a takeover
+safe either way: it is conditional on the state that was read, so a run that
+kept going past its expired lease has its write refused rather than overwriting
+what the run that took the environment over recorded.
+
 ### The store is proved first
 
 Exclusion rests on the store refusing a create of an object it already holds, so

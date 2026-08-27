@@ -12,7 +12,8 @@ import {
 	type S3Failure,
 	type S3FailureKind,
 } from "./classify-failure.ts";
-import { releaseRefused } from "./lock-failure.ts";
+import { leaseDeadlineAt } from "./lease.ts";
+import { releaseRefused, renewRefused } from "./lock-failure.ts";
 import {
 	isoAt,
 	parseLockRecord,
@@ -30,6 +31,9 @@ import { readObjectTextAsync } from "./s3-client.ts";
  */
 export const ABSENT = "*";
 
+// What the lock object's bytes are written as.
+const LOCK_CONTENT_TYPE = "application/json";
+
 // Refusals of a read that will still refuse however long acquisition waits.
 // Every other refusal is transient as far as this **Backend** can tell, so
 // the wait carries on through it.
@@ -40,10 +44,17 @@ const PERMANENT_READ_REFUSAL: ReadonlySet<S3FailureKind> = new Set([
 
 /** The seams one acquisition runs on, settled from the deps once. */
 export interface LockSeams {
+	/** How long a hold is leased for before it expires, in milliseconds. */
+	readonly leaseMs: number;
 	/** Mints the identity this acquisition records. */
 	readonly mintId: () => string;
 	/** Reads the wall clock, in epoch milliseconds. */
 	readonly now: () => number;
+	/**
+	 * Starts a repeating schedule, handing back what cancels it. This is
+	 * what keeps a hold's **Lease** alive while the deploy runs.
+	 */
+	readonly scheduleEvery: (ms: number, run: () => Promise<void>) => () => void;
 	/** Waits between attempts. */
 	readonly sleepAsync: (ms: number) => Promise<void>;
 	/** How long to wait out contention before giving up, in milliseconds. */
@@ -85,12 +96,26 @@ export type LockAttempt =
 export type SettledAttempt = Exclude<LockAttempt, ContendedAttempt>;
 
 /** What a won acquisition gives up: the record it wrote, and its tag. */
-export interface WonHold {
+export interface WonHold extends UntaggedHold {
 	/** Entity tag the store answered the winning write with. */
 	readonly etag: string;
-	/** The record the winning write put on the object. */
-	readonly record: S3LockRecord;
 }
+
+/**
+ * One renewal of a hold's **Lease**, read as an outcome.
+ *
+ * `refused` is the store declining the write the hold is conditional on,
+ * which is another run holding the **Environment** now. `failed` is every
+ * other refusal, which the hold outlives as long as a later renewal lands
+ * before its deadline. `untagged` is a renewal the store took and named no
+ * entity tag for, which leaves the deadline pushed out and the next write
+ * nothing to be conditional on.
+ */
+export type LeaseRenewal =
+	| { readonly error: StateLockError; readonly kind: "failed" }
+	| { readonly error: StateLockError; readonly kind: "refused" }
+	| { readonly held: UntaggedHold; readonly kind: "untagged" }
+	| { readonly held: WonHold; readonly kind: "renewed" };
 
 /** What one read of the lock object came back with. */
 export type LockRead =
@@ -102,6 +127,27 @@ export type LockRead =
 interface ContendedAttempt {
 	/** Which outcome this is. */
 	readonly kind: "contended";
+}
+
+/** A renewal the store took without naming what to write against next. */
+interface UntaggedHold {
+	/** The record the renewal put on the object. */
+	readonly record: S3LockRecord;
+}
+
+/** What one conditional write of the lock object came back with. */
+type LockWrite =
+	| { readonly etag: string | undefined; readonly kind: "stored" }
+	| { readonly failure: S3Failure; readonly kind: "refused" };
+
+/** What {@link putLockAsync} needs to write the lock object once. */
+interface LockWriteInputs {
+	/** The acquisition the write belongs to. */
+	readonly acquisition: Acquisition;
+	/** What the object must look like for the write to land. */
+	readonly condition: LockCondition;
+	/** The record to store. */
+	readonly record: S3LockRecord;
 }
 
 /**
@@ -160,6 +206,41 @@ export async function readLockAsync({ key, bucket, client }: Acquisition): Promi
 }
 
 /**
+ * Push one hold's **Lease** deadline out, conditional on the bytes the
+ * hold currently stands on.
+ *
+ * @param acquisition - The acquisition that won.
+ * @param held - The record on the object, and the tag to write against.
+ * @returns The renewed hold, or why the **Lease** could not be kept.
+ */
+export async function renewLeaseAsync(
+	acquisition: Acquisition,
+	{ etag, record }: WonHold,
+): Promise<LeaseRenewal> {
+	const { label, seams } = acquisition;
+	const renewed: S3LockRecord = {
+		...record,
+		expiresAt: leaseDeadlineAt(seams.now(), seams.leaseMs),
+	};
+
+	const written = await putLockAsync({
+		acquisition,
+		condition: { etag, kind: "unchanged" },
+		record: renewed,
+	});
+	if (written.kind === "refused") {
+		return {
+			error: renewRefused(label, written.failure),
+			kind: isConditionRefusal(written.failure) ? "refused" : "failed",
+		};
+	}
+
+	return written.etag === undefined
+		? { held: { record: renewed }, kind: "untagged" }
+		: { held: { etag: written.etag, record: renewed }, kind: "renewed" };
+}
+
+/**
  * Write the tombstone that gives one hold up.
  *
  * @param acquisition - The acquisition that won.
@@ -167,23 +248,17 @@ export async function readLockAsync({ key, bucket, client }: Acquisition): Promi
  * @returns `Ok` once the tombstone is stored, or why it was refused.
  */
 export async function releaseAsync(
-	{ key, bucket, client, label, seams }: Acquisition,
+	acquisition: Acquisition,
 	{ etag, record }: WonHold,
 ): Promise<Result<void, StateLockError>> {
-	try {
-		await client.send(
-			new PutObjectCommand({
-				Body: serializeLockRecord({ ...record, releasedAt: isoAt(seams.now()) }),
-				Bucket: bucket,
-				ContentType: "application/json",
-				IfMatch: etag,
-				Key: key,
-			}),
-		);
-		return { data: undefined, success: true };
-	} catch (err) {
-		return { err: releaseRefused(label, classifyS3Failure(err)), success: false };
-	}
+	const written = await putLockAsync({
+		acquisition,
+		condition: { etag, kind: "unchanged" },
+		record: { ...record, releasedAt: isoAt(acquisition.seams.now()) },
+	});
+	return written.kind === "refused"
+		? { err: releaseRefused(acquisition.label, written.failure), success: false }
+		: { data: undefined, success: true };
 }
 
 /**
@@ -194,30 +269,27 @@ export async function releaseAsync(
  * @returns The hold, the refusal, or that the condition was declined.
  */
 export async function writeLockAsync(
-	{ key, bucket, claim, client, seams }: Acquisition,
+	acquisition: Acquisition,
 	condition: LockCondition,
 ): Promise<LockAttempt> {
-	// Stamped as the write goes out: a hold begins when the store takes it,
-	// not when the run that wanted it started asking.
-	const record: S3LockRecord = { ...claim, since: isoAt(seams.now()) };
+	const { claim, seams } = acquisition;
+	// Stamped as the write goes out, so the **Lease** runs from the instant
+	// the store took the hold.
+	const takenAt = seams.now();
+	const record: S3LockRecord = {
+		...claim,
+		expiresAt: leaseDeadlineAt(takenAt, seams.leaseMs),
+		since: isoAt(takenAt),
+	};
 
-	try {
-		const written = await client.send(
-			new PutObjectCommand({
-				...(condition.kind === "absent"
-					? { IfNoneMatch: ABSENT }
-					: { IfMatch: condition.etag }),
-				Body: serializeLockRecord(record),
-				Bucket: bucket,
-				ContentType: "application/json",
-				Key: key,
-			}),
-		);
-		return { etag: written.ETag, kind: "acquired", record };
-	} catch (err) {
-		const failure = classifyS3Failure(err);
-		return isConditionRefusal(failure) ? { kind: "contended" } : { failure, kind: "failed" };
+	const written = await putLockAsync({ acquisition, condition, record });
+	if (written.kind === "stored") {
+		return { etag: written.etag, kind: "acquired", record };
 	}
+
+	return isConditionRefusal(written.failure)
+		? { kind: "contended" }
+		: { failure: written.failure, kind: "failed" };
 }
 
 /**
@@ -238,4 +310,37 @@ export async function takeOverAsync(
 	return etag === undefined
 		? { kind: "contended" }
 		: writeLockAsync(acquisition, { etag, kind: "unchanged" });
+}
+
+/**
+ * Write one record into the lock object, on the condition the caller
+ * named.
+ *
+ * @param inputs - The acquisition, the record, and what the object must
+ * look like for the write to land.
+ * @returns The entity tag the store answered with, or the refusal.
+ */
+async function putLockAsync({
+	acquisition,
+	condition,
+	record,
+}: LockWriteInputs): Promise<LockWrite> {
+	const { key, bucket, client } = acquisition;
+
+	try {
+		const written = await client.send(
+			new PutObjectCommand({
+				...(condition.kind === "absent"
+					? { IfNoneMatch: ABSENT }
+					: { IfMatch: condition.etag }),
+				Body: serializeLockRecord(record),
+				Bucket: bucket,
+				ContentType: LOCK_CONTENT_TYPE,
+				Key: key,
+			}),
+		);
+		return { etag: written.ETag, kind: "stored" };
+	} catch (err) {
+		return { failure: classifyS3Failure(err), kind: "refused" };
+	}
 }

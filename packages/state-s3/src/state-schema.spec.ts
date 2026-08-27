@@ -27,6 +27,18 @@ describe(s3StateSchema, () => {
 		expect(s3StateSchema(block)).toStrictEqual(block);
 	});
 
+	it("should reject a lease no round trip fits inside", () => {
+		expect.assertions(1);
+
+		const parsed = s3StateSchema({
+			bucket: "my-bucket",
+			lockLeaseMs: 100,
+			region: "eu-west-2",
+		});
+
+		expect(parsed).toBeInstanceOf(ArkErrors);
+	});
+
 	it("should reject a block that names no bucket", () => {
 		expect.assertions(1);
 

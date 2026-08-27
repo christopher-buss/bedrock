@@ -8,7 +8,7 @@ import type { ResourceKind } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
 import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
-import type { StateLockPort, StateLockWaiting } from "../ports/state-lock-port.ts";
+import type { StateLockError, StateLockPort, StateLockWaiting } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { deploy, provision } from "./deploy.ts";
@@ -24,6 +24,8 @@ const CONTENDED_WAIT: StateLockWaiting = {
 };
 
 const WAIT_EVENT_TAIL = { environment: "production", kind: "stateLockWaiting" } as const;
+
+const LEASE_LOST: StateLockError = { reason: "the hold is another run's now" };
 
 async function readIconAsync(): Promise<Uint8Array> {
 	return new Uint8Array();
@@ -155,6 +157,24 @@ function waitingLockPort(port: StateLockPort, waiting: StateLockWaiting): StateL
 }
 
 /**
+ * Wrap a lock port so the hold it grants loses its **Lease** while the
+ * deploy is still running.
+ *
+ * @param port - The port that grants the hold.
+ * @param error - Why the lease could not be kept.
+ * @returns A port whose hold reports a lease it could not keep.
+ */
+function leaseLosingLockPort(port: StateLockPort, error: StateLockError): StateLockPort {
+	return {
+		async acquire(environment, options) {
+			const hold = await port.acquire(environment, options);
+			options?.onLeaseLost?.(error);
+			return hold;
+		},
+	};
+}
+
+/**
  * Wrap a lock port so it records what the caller said the hold is for.
  *
  * @param port - The port that grants the hold.
@@ -221,6 +241,36 @@ describe("deploy under a locking backend", () => {
 		assert(result.success);
 
 		expect(events[0]).toStrictEqual({ ...CONTENDED_WAIT, ...WAIT_EVENT_TAIL });
+	});
+
+	it("should surface a lease the backend could not keep", async () => {
+		expect.assertions(1);
+
+		const events: Array<ProgressEvent> = [];
+		const progress: ProgressPort = {
+			emit: (event) => {
+				events.push(event);
+			},
+		};
+
+		const result = await deploy({
+			config: vipPassConfig(),
+			environment: "production",
+			getEnv: environmentFrom({}),
+			progress,
+			readFile: readIconAsync,
+			registry: tracingRegistry([]),
+			stateLockPort: leaseLosingLockPort(fakeStateLock().port, LEASE_LOST),
+			statePort: tracingStatePort([]),
+		});
+
+		assert(result.success);
+
+		expect(events[0]).toStrictEqual({
+			environment: "production",
+			error: LEASE_LOST,
+			kind: "stateLockLeaseLost",
+		});
 	});
 
 	it("should tell the backend which operation the hold is for", async () => {

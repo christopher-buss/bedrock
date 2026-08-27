@@ -9,13 +9,14 @@ import {
 
 const HELD: S3LockRecord = {
 	id: "01J0000000000000000000",
+	expiresAt: "2026-08-27T10:01:00.000Z",
 	operation: "deploy",
 	owner: "ci-run-7",
 	since: "2026-08-27T10:00:00.000Z",
 };
 
 describe(serializeLockRecord, () => {
-	it("should round-trip who holds the environment, what for, and since when", () => {
+	it("should round-trip who holds the environment, what for, since when, and until when", () => {
 		expect.assertions(1);
 
 		expect(parseLockRecord(serializeLockRecord(HELD))).toStrictEqual(HELD);
@@ -34,11 +35,21 @@ describe(parseLockRecord, () => {
 	it.for([
 		["not json at all", "{ not json"],
 		["a json value that is not a record", '"a string"'],
-		["a record missing the identity acquisition compares", '{"owner":"a","since":"b"}'],
-		["a record whose identity is blank", '{"id":"","operation":"d","owner":"a","since":"b"}'],
+		[
+			"a record missing the identity acquisition compares",
+			'{"expiresAt":"c","owner":"a","since":"b"}',
+		],
+		[
+			"a record whose identity is blank",
+			'{"id":"","expiresAt":"c","operation":"d","owner":"a","since":"b"}',
+		],
+		[
+			"a record carrying no deadline to expire on",
+			'{"id":"x","operation":"d","owner":"a","since":"b"}',
+		],
 		[
 			"a record whose tombstone is blank",
-			'{"id":"x","operation":"d","owner":"a","releasedAt":"","since":"b"}',
+			'{"id":"x","expiresAt":"c","operation":"d","owner":"a","releasedAt":"","since":"b"}',
 		],
 	] as const)("should report %s as no holder rather than as a failure", ([, text]) => {
 		expect.assertions(1);
@@ -52,6 +63,7 @@ describe(holderOf, () => {
 		expect.assertions(1);
 
 		expect(holderOf({ ...HELD, releasedAt: "2026-08-27T10:01:00.000Z" })).toStrictEqual({
+			expiresAt: "2026-08-27T10:01:00.000Z",
 			operation: "deploy",
 			owner: "ci-run-7",
 			since: "2026-08-27T10:00:00.000Z",
