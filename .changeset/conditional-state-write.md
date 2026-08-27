@@ -2,7 +2,7 @@
 "@bedrock-rbx/core": minor
 ---
 
-Make the **State** write conditional on the **State** that was read. `StatePort.read` now returns a `StateRecord` carrying the **State** it found under `state` and, under `version`, the `StateVersion` naming that exact record: `{ kind: "present", token }` for a record that existed, `{ kind: "absent" }` for an **Environment** that has never been deployed. `StatePort.write` takes that version as an optional second argument and fails with a `stateConflict` rather than overwriting a record that moved in between, including the case where a record appeared after a read that found none.
+Make the **State** write conditional on the **State** that was read. `StatePort.read` now returns a `StateRecord` carrying the **State** it found under `state` and, under `version`, the `StateVersion` naming that exact record: `{ kind: "present", token }` for a record that existed, `{ kind: "absent" }` for an **Environment** a versioned **Backend** has never had deployed. `StatePort.write` takes that version as an optional second argument and fails with a `stateConflict` rather than overwriting a record that moved in between, including the case where a record appeared after a read that found none.
 
 This is the fencing token, and it is worth having before any locking exists: it turns a silently lost write into a detectable conflict. A conflict surfaces through the existing `stateWriteFailed` path, so the resources that were applied but never recorded reach the operator along with the unsaved snapshot and the `bedrock state push` recovery command; it is never retried into an overwrite.
 

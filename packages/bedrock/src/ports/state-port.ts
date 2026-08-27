@@ -62,7 +62,9 @@ export interface StatePort {
 	 * naming the record it read.
 	 *
 	 * - Returns `Ok` with no `state` when no state file exists (legitimate
-	 *   first deploy).
+	 *   first deploy). A backend whose store can fence still carries a
+	 *   version on that read, `{ kind: "absent" }`, which is what makes the
+	 *   write that follows a create rather than an overwrite.
 	 * - Returns `Ok` with no `version` when the backend's store has no
 	 *   version primitive, which makes the next write unconditional.
 	 * - Returns `Err(StateError)` when a file exists but cannot be parsed
