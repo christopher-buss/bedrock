@@ -16,6 +16,28 @@ that keeps two environments deploying at once out of contention: they address
 different keys, so neither write can land on the other's record. _Avoid_: file,
 blob, state file
 
+**Hold**: One run's claim on an **Environment**, taken before a **Deploy**
+applies anything and given up once **State** has been written. It is a
+**Lock object** created conditionally, so exactly one run can hold an
+**Environment** at a time. _Avoid_: lock (for the claim itself), mutex,
+semaphore
+
+**Lock object**: The object one **Hold** is recorded in, keyed
+`<prefix>/locks/<environment>.json`. It sits under its own segment rather than
+beside the **State** **Object**s because a bucket lifecycle rule filters by
+prefix and cannot filter by suffix, so keeping them apart is what lets an
+operator expire abandoned **Hold**s without reaching **State**. A **Hold** is
+given up by writing a **Tombstone** over the record, never by deleting the
+object. _Avoid_: lock file, lease file
+
+**Tombstone**: The record a release writes back, marked with the instant the
+**Hold** was given up. It is written conditionally on the exact bytes the
+**Hold** was taken as, so a run that took the **Environment** over in the
+meantime keeps its own **Hold**. Conditional delete would be the obvious
+alternative and is not portable: recent on S3, undocumented on R2, and silently
+ignored by at least one S3-compatible implementation which deletes anyway and
+reports success. _Avoid_: delete marker, unlock record
+
 **Prefix**: The folder the **Object**s are written under, read as a path however
 it was written (`bedrock/state`, `/bedrock/state/`, and `bedrock/state/` are one
 prefix). Absent, the **Object**s sit at the bucket root. _Avoid_: path, folder,
@@ -54,6 +76,15 @@ tests rather than stubbed at `send`. _Avoid_: http client, mock, request handler
 
 ## Deliberately absent
 
-Locking and conditional writes (ADR-031) are not here yet: `StatePort` has no
-version token to make a write conditional on, so this **Backend** writes
-unconditionally, exactly as the Gist **Backend** does.
+The **Lease** is not here yet. A **Hold** carries who took it, what for, and
+when, but nothing expires it, so a run killed mid-deploy leaves a **Hold** that
+stands until someone takes it over.
+
+Conditional **State** writes are not here either: `StatePort` has no version
+token to make a write conditional on, so this **Backend** writes **State**
+unconditionally, exactly as the Gist **Backend** does. The **Hold** is what
+keeps two runs apart in the meantime.
+
+Neither is the probe that proves a store honours conditional writes at all. A
+store that reports success on a condition it ignored has silently granted two
+writers the same **Hold**, and nothing here catches that yet.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { classifyS3Failure } from "./classify-failure.ts";
+import { classifyS3Failure, isConditionRefusal } from "./classify-failure.ts";
 
 /**
  * The shape the S3 client throws: a named error carrying the HTTP status
@@ -34,6 +34,8 @@ describe(classifyS3Failure, () => {
 		["NoSuchBucket", "missingStore"],
 		["AccessDenied", "accessDenied"],
 		["CredentialsProviderError", "missingCredentials"],
+		["PreconditionFailed", "conditionRefused"],
+		["ConditionalRequestConflict", "conditionRefused"],
 	] as const)("should read %s as a %s failure", ([name, kind]) => {
 		expect.assertions(1);
 
@@ -84,5 +86,43 @@ describe(classifyS3Failure, () => {
 		expect.assertions(1);
 
 		expect(classifyS3Failure(s3Error("CredentialsProviderError")).statusCode).toBeUndefined();
+	});
+});
+
+describe(isConditionRefusal, () => {
+	it.for(["PreconditionFailed", "ConditionalRequestConflict"] as const)(
+		"should read %s as the store declining the condition",
+		(name) => {
+			expect.assertions(1);
+
+			expect(isConditionRefusal(classifyS3Failure(s3Error(name)))).toBeTrue();
+		},
+	);
+
+	it.for([409, 412] as const)(
+		"should read a %d the client did not model as the store declining the condition",
+		(status) => {
+			expect.assertions(1);
+
+			expect(
+				isConditionRefusal(
+					classifyS3Failure(s3Error("SomeCodeTheClientDoesNotName", status)),
+				),
+			).toBeTrue();
+		},
+	);
+
+	it("should read a refusal that carries no status as something other than the condition", () => {
+		expect.assertions(1);
+
+		expect(
+			isConditionRefusal(classifyS3Failure(new Error("the transport gave up"))),
+		).toBeFalse();
+	});
+
+	it("should leave a status the store answers for other reasons alone", () => {
+		expect.assertions(1);
+
+		expect(isConditionRefusal(classifyS3Failure(s3Error("AccessDenied", 403)))).toBeFalse();
 	});
 });

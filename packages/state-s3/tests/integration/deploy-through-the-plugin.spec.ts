@@ -10,10 +10,14 @@ import {
 
 import { assert, describe, expect, it } from "vitest";
 
+import { parseLockRecord } from "#src/lock-record";
 import { s3StateBackend } from "#src/plugin";
 import { fakeS3 } from "#tests/helpers/fake-s3";
 
 const SPECIFIER = "@bedrock-rbx/state-s3";
+
+const STATE_OBJECT = "/bedrock/production.json";
+const LOCK_OBJECT = "/bedrock/locks/production.json";
 
 const CONFIG: Config = {
 	environments: { production: {} },
@@ -119,7 +123,36 @@ describe("deploying through the s3 plugin", () => {
 
 		assert(second.success);
 
-		expect(store.calls[0]!.method).toBe("GET");
-		expect(store.calls[0]!.url).toEndWith("/bedrock/production.json?x-id=GetObject");
+		const stateCalls = store.calls.filter((call) => call.url.includes(STATE_OBJECT));
+
+		expect(stateCalls[0]!.method).toBe("GET");
+		expect(stateCalls[0]!.url).toEndWith(`${STATE_OBJECT}?x-id=GetObject`);
+	});
+
+	it("should hold the environment across the deploy and give it up afterwards", async () => {
+		expect.assertions(3);
+
+		const store = fakeS3();
+
+		const result = await deploy({
+			config: CONFIG,
+			environment: "production",
+			fetch: store.fetchFunc,
+			getEnv: (name) => ENVIRONMENT[name],
+			plugins: PLUGINS,
+			registry: refusingRegistry(),
+		});
+
+		assert(result.success);
+
+		const held = store.objects.get(LOCK_OBJECT);
+		assert(held !== undefined);
+
+		const record = parseLockRecord(held);
+		assert(record !== undefined);
+
+		expect(store.calls[0]!.url).toEndWith(`${LOCK_OBJECT}?x-id=PutObject`);
+		expect(record.operation).toBe("deploy");
+		expect(record.releasedAt).toBeString();
 	});
 });

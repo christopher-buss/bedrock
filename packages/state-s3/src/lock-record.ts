@@ -1,0 +1,95 @@
+import { type } from "arktype";
+
+/**
+ * Who holds one **Environment**, and since when.
+ *
+ * @since unreleased
+ */
+export interface S3LockHolder {
+	/** What the hold was taken for, as the holder named it. */
+	readonly operation: string;
+	/** Who the holder recorded itself as. */
+	readonly owner: string;
+	/** ISO-8601 instant the hold was taken. */
+	readonly since: string;
+}
+
+/**
+ * What one lock object holds: who took the hold, what for, when, and the
+ * identity of the acquisition that wrote it.
+ *
+ * `id` is what keeps a retried acquisition from blocking on itself. A
+ * conditional create can land at the store and still be reported to the
+ * caller as a failure, so the record found in the way of the next attempt
+ * is sometimes the caller's own; comparing ids is how that is told apart
+ * from another run's hold.
+ *
+ * `releasedAt` is the tombstone. A hold is given up by writing the record
+ * back with it set rather than by deleting the object, because conditional
+ * delete is not portable across S3-compatible stores.
+ */
+export interface S3LockRecord extends S3LockHolder {
+	/** Identity of the acquisition that wrote this record. */
+	readonly id: string;
+	/** ISO-8601 instant the hold was given up, absent while it is held. */
+	readonly releasedAt?: string;
+}
+
+const lockRecordSchema = type({
+	"id": "string > 0",
+	"operation": "string",
+	"owner": "string",
+	"releasedAt?": "string > 0",
+	"since": "string",
+});
+
+/**
+ * Render one lock record as the bytes the lock object holds.
+ *
+ * @param record - The hold to write.
+ * @returns The object body.
+ */
+export function serializeLockRecord(record: S3LockRecord): string {
+	return JSON.stringify(record, undefined, 2);
+}
+
+/**
+ * Read one lock object's bytes back into a record.
+ *
+ * A record that does not parse is reported as absent rather than as a
+ * failure: the caller reads a blocking holder only to name it and to tell
+ * it apart from itself, and neither is worth abandoning an acquisition
+ * over.
+ *
+ * @param text - Everything the lock object holds.
+ * @returns The record, or `undefined` when the bytes are not one.
+ */
+export function parseLockRecord(text: string): S3LockRecord | undefined {
+	const parsed = lockRecordSchema(safeParse(text));
+	return parsed instanceof type.errors ? undefined : parsed;
+}
+
+/**
+ * Read the holder out of a record, dropping the parts only acquisition
+ * uses.
+ *
+ * @param record - The record found holding the **Environment**.
+ * @returns Who holds it and since when.
+ */
+export function holderOf(record: S3LockRecord): S3LockHolder {
+	return { operation: record.operation, owner: record.owner, since: record.since };
+}
+
+/**
+ * Parse JSON that may not be JSON at all.
+ *
+ * @param text - Bytes read from the lock object.
+ * @returns Whatever the text parsed to, or `undefined` when it is not JSON.
+ */
+function safeParse(text: string): JSONValue | undefined {
+	try {
+		return JSON.parse(text);
+	} catch {
+		return undefined;
+	}
+}

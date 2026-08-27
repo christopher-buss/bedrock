@@ -5,7 +5,10 @@ import type {
 } from "@bedrock-rbx/core";
 import type { AwsCredentialIdentity } from "@smithy/types";
 
+import { lockOwnerFrom } from "./lock-owner.ts";
+import type { S3StateAdapterDeps } from "./s3-client.ts";
 import { createS3StateAdapter } from "./s3-state-adapter.ts";
+import { createS3StateLockPort } from "./s3-state-lock-adapter.ts";
 import { type S3StateConfig, s3StateSchema } from "./state-schema.ts";
 
 /**
@@ -32,20 +35,18 @@ import { type S3StateConfig, s3StateSchema } from "./state-schema.ts";
  */
 export const s3StateBackend: StateBackendDeclaration<S3StateConfig> = {
 	name: "s3",
-	createPort({ fetch: fetchFunc, getEnv: getEnvironment, stateConfig }) {
+	createLockPort(context) {
 		return {
-			data: createS3StateAdapter({
-				bucket: stateConfig.bucket,
-				checksumCalculation: stateConfig.checksumCalculation,
-				credentials: credentialsFrom(getEnvironment),
-				endpoint: stateConfig.endpoint,
-				fetch: fetchFunc,
-				forcePathStyle: stateConfig.forcePathStyle,
-				prefix: stateConfig.prefix,
-				region: stateConfig.region,
+			data: createS3StateLockPort({
+				...bucketAccessFrom(context),
+				lockTimeoutMs: context.stateConfig.lockTimeoutMs,
+				owner: lockOwnerFrom(context.getEnv),
 			}),
 			success: true,
 		};
+	},
+	createPort(context) {
+		return { data: createS3StateAdapter(bucketAccessFrom(context)), success: true };
 	},
 	schema: s3StateSchema,
 };
@@ -96,4 +97,30 @@ function credentialsFrom(
 	return sessionToken === undefined
 		? { accessKeyId, secretAccessKey }
 		: { accessKeyId, secretAccessKey, sessionToken };
+}
+
+/**
+ * Read the bucket both of this **Backend**'s ports reach out of what core
+ * validated, so the **State** objects and the locks beside them are
+ * addressed on identical terms.
+ *
+ * @param context - The validated `state` block plus the credential and
+ * transport seams core injects.
+ * @returns The bucket coordinates and the seams to build a port over.
+ */
+function bucketAccessFrom({
+	fetch: fetchFunc,
+	getEnv: getEnvironment,
+	stateConfig,
+}: StateBackendContext<S3StateConfig>): S3StateAdapterDeps {
+	return {
+		bucket: stateConfig.bucket,
+		checksumCalculation: stateConfig.checksumCalculation,
+		credentials: credentialsFrom(getEnvironment),
+		endpoint: stateConfig.endpoint,
+		fetch: fetchFunc,
+		forcePathStyle: stateConfig.forcePathStyle,
+		prefix: stateConfig.prefix,
+		region: stateConfig.region,
+	};
 }

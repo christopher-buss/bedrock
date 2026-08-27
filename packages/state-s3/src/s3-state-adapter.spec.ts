@@ -4,11 +4,8 @@ import { assert, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { withEnvironment } from "#tests/helpers/environment";
 import { fakeS3, fakeS3Failure } from "#tests/helpers/fake-s3";
-import {
-	createS3StateAdapter,
-	readObjectTextAsync,
-	type S3StateAdapterDeps,
-} from "./s3-state-adapter.ts";
+import type { S3StateAdapterDeps } from "./s3-client.ts";
+import { createS3StateAdapter, readObjectTextAsync } from "./s3-state-adapter.ts";
 
 const BUCKET = "my-bucket";
 const REGION = "eu-west-2";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { objectKeyFor, objectLabelFor } from "./object-key.ts";
+import { lockKeyFor, objectKeyFor, objectLabelFor } from "./object-key.ts";
 
 describe(objectKeyFor, () => {
 	it("should name one object per environment when no prefix is configured", () => {
@@ -35,6 +35,23 @@ describe(objectKeyFor, () => {
 
 		expect(objectKeyFor("", "production")).toBe("production.json");
 		expect(objectKeyFor("/", "production")).toBe("production.json");
+	});
+});
+
+describe(lockKeyFor, () => {
+	it("should keep the lock under its own segment so a lifecycle rule can expire it", () => {
+		expect.assertions(2);
+
+		expect(lockKeyFor(undefined, "production")).toBe("locks/production.json");
+		expect(lockKeyFor("bedrock/state", "production")).toBe(
+			"bedrock/state/locks/production.json",
+		);
+	});
+
+	it("should never collide with the state object of the same environment", () => {
+		expect.assertions(1);
+
+		expect(lockKeyFor("bedrock", "production")).not.toBe(objectKeyFor("bedrock", "production"));
 	});
 });
 
