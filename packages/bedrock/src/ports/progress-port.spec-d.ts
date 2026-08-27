@@ -18,6 +18,7 @@ describe("ProgressEvent", () => {
 			| "resourceOpNoop"
 			| "resourceOpStarted"
 			| "resourceOpSucceeded"
+			| "stateLockWaiting"
 			| "stateWritten"
 		>();
 	});

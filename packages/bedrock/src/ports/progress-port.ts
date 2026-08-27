@@ -191,6 +191,30 @@ export interface StateWrittenEvent {
 }
 
 /**
+ * Per-environment event emitted each time a locking **Backend** backs off
+ * because another run holds the **Environment**. It fires once per backoff,
+ * so a renderer can keep a queued deploy visible for as long as the wait
+ * runs.
+ *
+ * `holder` is best effort: reading the current holder's record is exactly
+ * what fails under contention, and acquisition keeps retrying without it.
+ *
+ * @since unreleased
+ */
+export interface StateLockWaitingEvent {
+	/** Milliseconds spent waiting so far. */
+	readonly elapsedMs: number;
+	/** Environment whose hold is contended. */
+	readonly environment: string;
+	/** Who holds the environment, absent when the record was unreadable. */
+	readonly holder?: string | undefined;
+	/** Discriminator tag. */
+	readonly kind: "stateLockWaiting";
+	/** Milliseconds left before acquisition gives up. */
+	readonly remainingMs: number;
+}
+
+/**
  * Discriminated union of progress events the CLI emits while a deploy
  * runs. The variant set is additive: future per-stage and per-resource
  * events land as new `kind` values without breaking existing adapters.
@@ -205,6 +229,7 @@ export type ProgressEvent =
 	| ResourceOpNoopEvent
 	| ResourceOpStartedEvent
 	| ResourceOpSucceededEvent
+	| StateLockWaitingEvent
 	| StateWrittenEvent;
 
 /**

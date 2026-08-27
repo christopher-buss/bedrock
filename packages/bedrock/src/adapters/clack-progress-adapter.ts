@@ -107,6 +107,20 @@ function applySummaryLine(event: Extract<ProgressEvent, { kind: "applySummary" }
 	return `Succeeded in ${seconds}s: ${parts.join(", ")}`;
 }
 
+/**
+ * Render one backoff while another run holds the environment, naming the
+ * holder when the **Backend** could read it and how long acquisition will
+ * keep waiting.
+ *
+ * @param event - The wait as the **Backend** reported it.
+ * @returns The line to log.
+ */
+function stateLockWaitingLine(event: Extract<ProgressEvent, { kind: "stateLockWaiting" }>): string {
+	const holder = event.holder === undefined ? "" : `, held by ${event.holder}`;
+	const seconds = (event.remainingMs / 1000).toFixed(1);
+	return `Waiting for the ${event.environment} state lock${holder}: ${seconds}s left`;
+}
+
 function stateConfigLabel(state: StateConfig): string {
 	if (isGistStateConfig(state)) {
 		return `gist:${state.gistId}`;
@@ -134,7 +148,14 @@ function formatStateLabel(
 function renderDeployEvent(
 	event: Extract<
 		ProgressEvent,
-		{ kind: "applySummary" | "deployFailure" | "deploySuccess" | "stateWritten" }
+		{
+			kind:
+				| "applySummary"
+				| "deployFailure"
+				| "deploySuccess"
+				| "stateLockWaiting"
+				| "stateWritten";
+		}
 	>,
 	{ clack, config }: ClackProgressAdapterDeps,
 ): void {
@@ -149,6 +170,10 @@ function renderDeployEvent(
 		}
 		case "deploySuccess": {
 			clack.logSuccess(`${event.environment}: ${event.resourceCount} resources reconciled`);
+			return;
+		}
+		case "stateLockWaiting": {
+			clack.logMessage(stateLockWaitingLine(event));
 			return;
 		}
 		case "stateWritten": {
@@ -228,6 +253,7 @@ function renderEvent(event: ProgressEvent, dependencies: ClackProgressAdapterDep
 		case "applySummary":
 		case "deployFailure":
 		case "deploySuccess":
+		case "stateLockWaiting":
 		case "stateWritten": {
 			renderDeployEvent(event, dependencies);
 			return;

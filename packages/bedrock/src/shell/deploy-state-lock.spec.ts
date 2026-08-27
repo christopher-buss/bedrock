@@ -6,8 +6,9 @@ import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
 import { fakeStateLock } from "#tests/helpers/state-lock";
 import type { ResourceKind } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
-import type { ProgressPort } from "../ports/progress-port.ts";
+import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
 import type { DriverRegistry, ResourceDriver } from "../ports/resource-driver.ts";
+import type { StateLockPort, StateLockWaiting } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../types/ids.ts";
 import { deploy, provision } from "./deploy.ts";
@@ -15,6 +16,14 @@ import { deploy, provision } from "./deploy.ts";
 const ICON_HASH = asSha256Hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
 
 const SILENT_PROGRESS: ProgressPort = { emit: () => {} };
+
+const CONTENDED_WAIT: StateLockWaiting = {
+	elapsedMs: 1000,
+	holder: "ci-run-7",
+	remainingMs: 299_000,
+};
+
+const WAIT_EVENT_TAIL = { environment: "production", kind: "stateLockWaiting" } as const;
 
 async function readIconAsync(): Promise<Uint8Array> {
 	return new Uint8Array();
@@ -114,6 +123,56 @@ function refusingWriteStatePort(): StatePort {
 	};
 }
 
+/**
+ * Collect every progress event the deploy emits, in order.
+ *
+ * @param events - Log each event is appended to.
+ * @returns A progress port that records rather than renders.
+ */
+function recordingProgress(events: Array<ProgressEvent>): ProgressPort {
+	return {
+		emit(event) {
+			events.push(event);
+		},
+	};
+}
+
+/**
+ * Wrap a lock port so it reports one wait before granting the hold, which
+ * is what a **Backend** does while another run holds the environment.
+ *
+ * @param port - The port that grants the hold once the wait is reported.
+ * @param waiting - The wait to report.
+ * @returns A port that reports the wait, then delegates.
+ */
+function waitingLockPort(port: StateLockPort, waiting: StateLockWaiting): StateLockPort {
+	return {
+		async acquire(environment, options) {
+			options?.onWaiting?.(waiting);
+			return port.acquire(environment);
+		},
+	};
+}
+
+/**
+ * Wrap a lock port so it records what the caller said the hold is for.
+ *
+ * @param port - The port that grants the hold.
+ * @param asked - Log each acquisition's operation is appended to.
+ * @returns A port that records the operation, then delegates.
+ */
+function operationRecordingLockPort(
+	port: StateLockPort,
+	asked: Array<string | undefined>,
+): StateLockPort {
+	return {
+		async acquire(environment, options) {
+			asked.push(options?.operation);
+			return port.acquire(environment);
+		},
+	};
+}
+
 describe("deploy under a locking backend", () => {
 	it("should take the hold before dispatching any driver", async () => {
 		expect.assertions(2);
@@ -141,6 +200,48 @@ describe("deploy under a locking backend", () => {
 
 		expect(trace).toStrictEqual(["acquire", "create", "write"]);
 		expect(lock.acquired).toStrictEqual(["production"]);
+	});
+
+	it("should report a contended wait through the progress port before applying anything", async () => {
+		expect.assertions(1);
+
+		const events: Array<ProgressEvent> = [];
+
+		const result = await deploy({
+			config: vipPassConfig(),
+			environment: "production",
+			getEnv: environmentFrom({}),
+			progress: recordingProgress(events),
+			readFile: readIconAsync,
+			registry: tracingRegistry([]),
+			stateLockPort: waitingLockPort(fakeStateLock().port, CONTENDED_WAIT),
+			statePort: tracingStatePort([]),
+		});
+
+		assert(result.success);
+
+		expect(events[0]).toStrictEqual({ ...CONTENDED_WAIT, ...WAIT_EVENT_TAIL });
+	});
+
+	it("should tell the backend which operation the hold is for", async () => {
+		expect.assertions(1);
+
+		const asked: Array<string | undefined> = [];
+
+		const result = await deploy({
+			config: vipPassConfig(),
+			environment: "production",
+			getEnv: environmentFrom({}),
+			progress: SILENT_PROGRESS,
+			readFile: readIconAsync,
+			registry: tracingRegistry([]),
+			stateLockPort: operationRecordingLockPort(fakeStateLock().port, asked),
+			statePort: tracingStatePort([]),
+		});
+
+		assert(result.success);
+
+		expect(asked).toStrictEqual(["deploy"]);
 	});
 
 	it("should give the hold up once the state write has been attempted", async () => {

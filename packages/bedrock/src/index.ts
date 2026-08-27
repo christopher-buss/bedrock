@@ -169,6 +169,7 @@ export type {
 	ResourceOpSucceededCreateEvent,
 	ResourceOpSucceededEvent,
 	ResourceOpSucceededUpdateEvent,
+	StateLockWaitingEvent,
 	StateWrittenEvent,
 } from "./ports/progress-port.ts";
 export type {
@@ -176,7 +177,13 @@ export type {
 	ResourceApplyContext,
 	ResourceDriver,
 } from "./ports/resource-driver.ts";
-export type { StateLockError, StateLockHold, StateLockPort } from "./ports/state-lock-port.ts";
+export type {
+	StateLockAcquireOptions,
+	StateLockError,
+	StateLockHold,
+	StateLockPort,
+	StateLockWaiting,
+} from "./ports/state-lock-port.ts";
 export type { StatePort } from "./ports/state-port.ts";
 export { applyOps } from "./shell/apply-ops.ts";
 export type { AggregateApplyError, ApplyError, ApplyOpsReporting } from "./shell/apply-ops.ts";
