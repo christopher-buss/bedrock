@@ -1041,7 +1041,7 @@ describe(createS3StateLockPort, () => {
 		});
 
 		it("should leave a record another run wrote where it is", async () => {
-			expect.assertions(2);
+			expect.assertions(3);
 
 			const result = await lockFor({ fetch: untaggedOverAnother() }).acquire("production");
 
@@ -1049,6 +1049,12 @@ describe(createS3StateLockPort, () => {
 
 			expect(untaggedMethods).toStrictEqual(["PUT", "GET"]);
 			expect(result.err.detail).toStrictEqual({ file: LOCK_LABEL, kind: "acquireFailed" });
+			// The entity tag the read named belongs to the other run's
+			// record, so a hold taken on it would be one taken on somebody
+			// else's bytes.
+			expect(result.err.reason).toBe(
+				`${LOCK_LABEL} was written without an entity tag, so the hold could never be given up safely`,
+			);
 		});
 
 		it("should report the missing entity tag even when the record cannot be removed", async () => {
@@ -1685,6 +1691,26 @@ describe(createS3StateLockPort, () => {
 			const store = fakeS3();
 
 			const released = await lockFor({ fetch: store.fetchFunc }).forceRelease("production");
+
+			assert(released.success);
+
+			expect(released.data).toBeUndefined();
+			expect(store.calls.map((call) => call.method)).toStrictEqual(["GET"]);
+		});
+
+		it("should leave an environment whose hold was already given up alone", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3();
+			store.put(
+				LOCK_PATH,
+				serializeLockRecord({ ...OTHER_HOLD, releasedAt: "2026-08-27T09:30:00.000Z" }),
+			);
+
+			const released = await lockFor({
+				fetch: store.fetchFunc,
+				now: createFakeClock(TEN_O_CLOCK).now,
+			}).forceRelease("production");
 
 			assert(released.success);
 
