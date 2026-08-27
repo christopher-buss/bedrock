@@ -140,8 +140,8 @@ locking mode, lock level
 **Force release**: Taking one **Environment**'s hold away without being the run
 that holds it, so a hold left behind by a killed **Deploy** does not have to be
 waited out. Surfaced as `forceReleaseStateLockAsync` and `bedrock state unlock`.
-Safe because the displaced holder's **State** write is guarded on the **Version**
-it read, not on the hold. _Avoid_: force unlock, break lock, steal
+Safe because the displaced holder's **State** write is guarded on the
+**Version** it read, not on the hold. _Avoid_: force unlock, break lock, steal
 
 **Lease**: The renewable liveness record a lock holder maintains while it works,
 so a hold left behind by a **Deploy** that was killed mid-run expires instead of
