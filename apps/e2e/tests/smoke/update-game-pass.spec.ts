@@ -2,7 +2,6 @@ import {
 	asRobloxAssetId,
 	type Config,
 	createGamePassDriver,
-	createGistStateAdapter,
 	deploy,
 	type DriverRegistry,
 	loadConfig,
@@ -15,26 +14,19 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it, onTestFinished } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 
 import { assertOk } from "../helpers/assert-ok.ts";
-import { pruneStateGistAsync } from "../helpers/prune-state-gist.ts";
-import { readStateUntilAsync } from "../helpers/read-state-until.ts";
+import { HAS_AWS_CREDENTIALS, RESOURCE_PREFIX, smokeStatePort } from "../helpers/smoke-state-s3.ts";
 
 const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "game-pass");
 
 const API_KEY = process.env["BEDROCK_API_KEY"];
 const UNIVERSE_ID_ENV = process.env["ROBLOX_TEST_UNIVERSE_ID"];
-const TOKEN = process.env["GITHUB_TOKEN"];
-const GIST_ID = process.env["BEDROCK_TEST_GIST_ID"];
 
-const HAS_SECRETS =
-	API_KEY !== undefined &&
-	UNIVERSE_ID_ENV !== undefined &&
-	TOKEN !== undefined &&
-	GIST_ID !== undefined;
+const HAS_SECRETS = API_KEY !== undefined && UNIVERSE_ID_ENV !== undefined && HAS_AWS_CREDENTIALS;
 
-// All runs share one game pass via the gist's persistent state. Open Cloud
+// All runs share one game pass via the bucket's persistent state. Open Cloud
 // v2 has no DELETE for game passes and caps creation at 5/day per universe,
 // so reusing the stored assetId is required to stay within quota.
 const STABLE_ENVIRONMENT = "game-pass-smoke";
@@ -73,17 +65,15 @@ function withMutatedPass(base: Config, overrides: { description: string; name: s
 
 describe("game-pass update via real Roblox", () => {
 	it.skipIf(!HAS_SECRETS)(
-		"should update an existing game pass via deploy and persist outputs to a real gist",
+		"should update an existing game pass via deploy and persist outputs to a real bucket",
 		async () => {
 			expect.assertions(5);
 
 			assert(API_KEY !== undefined, "BEDROCK_API_KEY must be set");
 			assert(UNIVERSE_ID_ENV !== undefined, "ROBLOX_TEST_UNIVERSE_ID must be set");
-			assert(TOKEN !== undefined, "GITHUB_TOKEN must be set");
-			assert(GIST_ID !== undefined, "BEDROCK_TEST_GIST_ID must be set");
 
 			const universeId = asRobloxAssetId(UNIVERSE_ID_ENV);
-			const statePort = createGistStateAdapter({ gistId: GIST_ID, token: TOKEN });
+			const statePort = smokeStatePort(RESOURCE_PREFIX);
 
 			const loaded = await loadConfig({ cwd: FIXTURE_DIR });
 			assertOk(loaded, "loadConfig");
@@ -103,15 +93,6 @@ describe("game-pass update via real Roblox", () => {
 			} satisfies DriverRegistry;
 
 			const bootstrapConfig = withEnvironment(baseConfig, STABLE_ENVIRONMENT);
-
-			onTestFinished(async () => {
-				await pruneStateGistAsync({
-					filenamePrefix: `state.${STABLE_ENVIRONMENT}-`,
-					gistId: GIST_ID,
-					keep: 0,
-					token: TOKEN,
-				});
-			});
 
 			// The bootstrap deploy reconciles the pass against the fixture
 			// baseline, creating on the first run and reverting any drift
@@ -140,18 +121,7 @@ describe("game-pass update via real Roblox", () => {
 			});
 			assertOk(updated, "update deploy");
 
-			// GitHub gist reads are not read-your-write across replicas, so
-			// the verification read can land on a replica still serving the
-			// bootstrap state; poll until the update propagates.
-			const persistedRead = await readStateUntilAsync({
-				environment: STABLE_ENVIRONMENT,
-				predicate: (state) => {
-					return state.resources
-						.filter((entry) => entry.kind === "gamePass")
-						.some((entry) => entry.name === `Smoke Test Pass ${stamp}`);
-				},
-				statePort,
-			});
+			const persistedRead = await statePort.read(STABLE_ENVIRONMENT);
 			assertOk(persistedRead, "state read");
 
 			const persisted = persistedRead.data.state;

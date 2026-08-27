@@ -1,6 +1,5 @@
 import {
 	asRobloxAssetId,
-	createGistStateAdapter,
 	createPlaceDriver,
 	deploy,
 	type DriverRegistry,
@@ -16,24 +15,25 @@ import { fileURLToPath } from "node:url";
 import { assert, describe, expect, it, onTestFinished } from "vitest";
 
 import { assertOk } from "../helpers/assert-ok.ts";
-import { pruneStateGistAsync } from "../helpers/prune-state-gist.ts";
-import { readStateUntilAsync } from "../helpers/read-state-until.ts";
+import { pruneStateS3Async } from "../helpers/prune-state-s3.ts";
 import { isTransientDeployFailure, retryTransientAsync } from "../helpers/retry-transient.ts";
+import { HAS_AWS_CREDENTIALS, PLACE_PREFIX, smokeStatePort } from "../helpers/smoke-state-s3.ts";
+import { BUCKET, REGION } from "./fixtures/state-s3/coordinates.ts";
 
 const FIXTURE_PATH = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "place.rbxlx");
 
 const API_KEY = process.env["BEDROCK_API_KEY"];
 const UNIVERSE_ID_ENV = process.env["ROBLOX_TEST_UNIVERSE_ID"];
 const PLACE_ID_ENV = process.env["ROBLOX_TEST_PLACE_ID"];
-const TOKEN = process.env["GITHUB_TOKEN"];
-const GIST_ID = process.env["BEDROCK_TEST_GIST_ID"];
+
+// How many past runs stay in the bucket to be read by hand.
+const KEEP = 3;
 
 const HAS_SECRETS =
 	API_KEY !== undefined &&
 	UNIVERSE_ID_ENV !== undefined &&
 	PLACE_ID_ENV !== undefined &&
-	TOKEN !== undefined &&
-	GIST_ID !== undefined;
+	HAS_AWS_CREDENTIALS;
 
 function isRetryableDeploy(outcome: Awaited<ReturnType<typeof deploy>>): boolean {
 	return !outcome.success && isTransientDeployFailure(outcome.err);
@@ -49,7 +49,7 @@ function unreachableDriver<K extends ResourceKind>(label: string): ResourceDrive
 
 describe("deploy place to real Roblox", () => {
 	it.skipIf(!HAS_SECRETS)(
-		"should publish a place via deploy and persist state to a real gist",
+		"should publish a place via deploy and persist state to a real bucket",
 		async () => {
 			expect.assertions(4);
 
@@ -59,14 +59,12 @@ describe("deploy place to real Roblox", () => {
 			assert(API_KEY !== undefined, "BEDROCK_API_KEY must be set");
 			assert(UNIVERSE_ID_ENV !== undefined, "ROBLOX_TEST_UNIVERSE_ID must be set");
 			assert(PLACE_ID_ENV !== undefined, "ROBLOX_TEST_PLACE_ID must be set");
-			assert(TOKEN !== undefined, "GITHUB_TOKEN must be set");
-			assert(GIST_ID !== undefined, "BEDROCK_TEST_GIST_ID must be set");
 
 			const universeId = asRobloxAssetId(UNIVERSE_ID_ENV);
 			const placeId = asRobloxAssetId(PLACE_ID_ENV);
 
 			const environment = `place-smoke-${String(Date.now())}`;
-			const statePort = createGistStateAdapter({ gistId: GIST_ID, token: TOKEN });
+			const statePort = smokeStatePort(PLACE_PREFIX);
 
 			const placesClient = new PlacesClient({ apiKey: API_KEY });
 			const placeDriver = createPlaceDriver({
@@ -83,11 +81,11 @@ describe("deploy place to real Roblox", () => {
 			} satisfies DriverRegistry;
 
 			onTestFinished(async () => {
-				await pruneStateGistAsync({
-					filenamePrefix: "state.place-smoke-",
-					gistId: GIST_ID,
-					keep: 3,
-					token: TOKEN,
+				await pruneStateS3Async({
+					bucket: BUCKET,
+					keep: KEEP,
+					prefix: PLACE_PREFIX,
+					region: REGION,
 				});
 			});
 
@@ -120,14 +118,7 @@ describe("deploy place to real Roblox", () => {
 
 			assertOk(result, "deploy");
 
-			// GitHub gist reads are not read-your-write across replicas, so the
-			// verification read can land on a replica that has not seen the
-			// deploy's write yet; poll until the place lands.
-			const persistedRead = await readStateUntilAsync({
-				environment,
-				predicate: (state) => state.resources.some((entry) => entry.kind === "place"),
-				statePort,
-			});
+			const persistedRead = await statePort.read(environment);
 			assertOk(persistedRead, "read");
 
 			const persisted = persistedRead.data.state;
