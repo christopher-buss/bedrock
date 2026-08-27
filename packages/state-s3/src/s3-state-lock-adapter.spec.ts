@@ -231,7 +231,7 @@ function refusingReads(store: FakeS3): StateBackendFetch {
 describe(createS3StateLockPort, () => {
 	describe("acquire", () => {
 		it("should take the hold with a conditional create against its own prefix segment", async () => {
-			expect.assertions(3);
+			expect.assertions(4);
 
 			const store = fakeS3();
 
@@ -240,6 +240,7 @@ describe(createS3StateLockPort, () => {
 			assert(hold.success);
 
 			expect(store.calls[0]!.method).toBe("PUT");
+			expect(store.calls[0]!.headers["content-type"]).toBe("application/json");
 			expect(store.objects.has(LOCK_PATH)).toBeTrue();
 			expect(store.calls).toHaveLength(1);
 		});
@@ -287,7 +288,7 @@ describe(createS3StateLockPort, () => {
 		});
 
 		it("should take the hold when the run holding it releases part way through the wait", async () => {
-			expect.assertions(2);
+			expect.assertions(3);
 
 			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
 			const clock = createFakeClock();
@@ -300,8 +301,13 @@ describe(createS3StateLockPort, () => {
 
 			assert(hold.success);
 
+			const takeover = store.calls.findLast((call) => call.method === "PUT");
+
 			expect(clock.waits).toStrictEqual([1000]);
 			expect(parseLockRecord(store.objects.get(LOCK_PATH)!)!.id).toBe(THIS_RUN);
+			// Written against the exact bytes the tombstone was read as, so a
+			// run that got there first is not overwritten.
+			expect(takeover!.headers["if-match"]).toBe('"seed-0"');
 		});
 
 		it("should keep waiting when another run takes the tombstone over first", async () => {
@@ -471,11 +477,15 @@ describe(createS3StateLockPort, () => {
 		});
 
 		it("should wait on a real timer when the caller injects none", async () => {
-			expect.assertions(1);
+			expect.assertions(2);
 
 			const store = fakeS3({ [LOCK_PATH]: serializeLockRecord(OTHER_HOLD) });
 			let ticks = 0;
 
+			// The injected clock drives the deadline; the waiting itself is
+			// left to the adapter's own timer, so the wall clock has to move
+			// with it.
+			const startedAt = Date.now();
 			const result = await lockFor({
 				fetch: store.fetchFunc,
 				lockTimeoutMs: 25,
@@ -488,6 +498,7 @@ describe(createS3StateLockPort, () => {
 			assert(!result.success);
 
 			expect(result.err.detail).toMatchObject({ elapsedMs: 30, kind: "acquireTimedOut" });
+			expect(Date.now() - startedAt).toBeGreaterThanOrEqual(15);
 		});
 
 		it("should give each acquisition an identity of its own when the caller mints none", async () => {
@@ -648,7 +659,7 @@ describe(createS3StateLockPort, () => {
 
 	describe("release", () => {
 		it("should give the hold up by writing a tombstone over its own record", async () => {
-			expect.assertions(3);
+			expect.assertions(4);
 
 			const store = fakeS3();
 			const clock = createFakeClock(TEN_O_CLOCK);
@@ -672,6 +683,7 @@ describe(createS3StateLockPort, () => {
 			});
 			expect(store.calls.map((call) => call.method)).toStrictEqual(["PUT", "PUT"]);
 			expect(store.calls[1]!.headers["if-match"]).toBe('"written-1"');
+			expect(store.calls[1]!.headers["content-type"]).toBe("application/json");
 		});
 
 		it("should report a hold the store no longer recognizes as the caller's", async () => {
