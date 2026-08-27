@@ -276,6 +276,43 @@ describe(createClackProgressAdapter, () => {
 		);
 	});
 
+	it("should render a contended lock wait naming the holder and the time left", () => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		const port = createClackProgressAdapter({ clack });
+
+		port.emit({
+			elapsedMs: 1000,
+			environment: "production",
+			holder: "ci-run-7",
+			kind: "stateLockWaiting",
+			remainingMs: 299_000,
+		});
+
+		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith(
+			"Waiting for the production state lock, held by ci-run-7: 299.0s left",
+		);
+	});
+
+	it("should render a contended lock wait without a holder when the record was unreadable", () => {
+		expect.assertions(1);
+
+		const clack = fakeClackPort();
+		const port = createClackProgressAdapter({ clack });
+
+		port.emit({
+			elapsedMs: 1000,
+			environment: "production",
+			kind: "stateLockWaiting",
+			remainingMs: 299_000,
+		});
+
+		expect(clack.logMessage).toHaveBeenCalledExactlyOnceWith(
+			"Waiting for the production state lock: 299.0s left",
+		);
+	});
+
 	it("should render stateWritten with the gist backend label resolved from the config", () => {
 		expect.assertions(1);
 

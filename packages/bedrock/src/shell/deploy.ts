@@ -902,6 +902,9 @@ async function releaseQuietlyAsync(hold: StateLockHold): Promise<void> {
  * write has been *attempted*, success or failure alike, because a write that
  * failed after **Apply** is exactly when the operator needs to run again.
  *
+ * A **Backend** that waits out contention reports each backoff through the
+ * **Progress port**, so a queued deploy is visible rather than a silent hang.
+ *
  * A hold that could not be given up never changes the deploy's own result:
  * the failure carrying resources that were applied but not recorded has to
  * reach the operator intact.
@@ -919,7 +922,12 @@ async function runHeldAsync({
 		return runner(environment, deps);
 	}
 
-	const hold = await deps.stateLockPort.acquire(environment);
+	const hold = await deps.stateLockPort.acquire(environment, {
+		onWaiting: (waiting) => {
+			deps.progress.emit({ ...waiting, environment, kind: "stateLockWaiting" });
+		},
+		operation: "deploy",
+	});
 	if (!hold.success) {
 		return { err: { cause: hold.err, kind: "lockAcquireFailed" }, success: false };
 	}

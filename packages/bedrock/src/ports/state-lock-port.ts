@@ -17,6 +17,51 @@ export interface StateLockError {
 }
 
 /**
+ * What a **Backend** reports each time it backs off while another run holds
+ * the **Environment**, so a queued deploy is visible rather than silent.
+ *
+ * `holder` is best effort. Reading the current holder's record is exactly
+ * what fails under contention, and a **Backend** keeps retrying without it,
+ * so the field is absent whenever the read did not land.
+ *
+ * @since unreleased
+ */
+export interface StateLockWaiting {
+	/** Milliseconds spent waiting so far. */
+	readonly elapsedMs: number;
+	/** Who holds the **Environment**, absent when the record was unreadable. */
+	readonly holder?: string | undefined;
+	/** Milliseconds left before acquisition gives up. */
+	readonly remainingMs: number;
+}
+
+/**
+ * What the caller tells a **Backend** about the hold it is asking for.
+ *
+ * Both fields are optional, so a **Backend** that neither records what the
+ * hold is for nor waits under contention implements
+ * {@link StateLockPort.acquire} with the environment alone.
+ *
+ * @since unreleased
+ */
+export interface StateLockAcquireOptions {
+	/**
+	 * Called each time the **Backend** backs off under contention. Core
+	 * forwards it to the **Progress port**, which is what keeps a queued
+	 * deploy from looking like a hang.
+	 *
+	 * @param waiting - How long the wait has run and who holds the
+	 * **Environment**, when the **Backend** could read that.
+	 */
+	readonly onWaiting?: (waiting: StateLockWaiting) => void;
+	/**
+	 * What the hold is being taken for, recorded by a **Backend** whose lock
+	 * record carries it so a blocked run can name what it is waiting on.
+	 */
+	readonly operation?: string;
+}
+
+/**
  * A hold taken on one **Environment**, handed back so the deploy shell can
  * give it up when the work is over.
  *
@@ -106,6 +151,12 @@ export interface StateLockPort {
 	 * - Returns `Ok(StateLockHold)` once the hold is the caller's.
 	 * - Returns `Err(StateLockError)` when it is not, which aborts the deploy
 	 *   before anything is applied.
+	 *
+	 * @param environment - **Environment** to take the hold on.
+	 * @param options - What the hold is for, and where to report a wait.
 	 */
-	acquire(environment: string): Promise<Result<StateLockHold, StateLockError>>;
+	acquire(
+		environment: string,
+		options?: StateLockAcquireOptions,
+	): Promise<Result<StateLockHold, StateLockError>>;
 }

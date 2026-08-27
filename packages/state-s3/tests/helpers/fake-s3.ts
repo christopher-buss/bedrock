@@ -26,6 +26,32 @@ export interface FakeS3 {
 	readonly objects: Map<string, string>;
 }
 
+/** What the fake store holds, and the counter its entity tags come from. */
+interface StoredObjects {
+	/** Entity tag each stored object answers with, keyed by URL path. */
+	readonly etags: Map<string, string>;
+	/** Stored objects, keyed by URL path. */
+	readonly objects: Map<string, string>;
+	/** How many writes have landed, which is what makes each tag distinct. */
+	written: number;
+}
+
+/**
+ * Build the XML body S3 answers an error with, which is what the client's
+ * own deserializer turns back into a typed exception.
+ *
+ * @param code - S3 error code, which becomes the exception's name.
+ * @param message - Human-readable message S3 pairs with the code.
+ * @returns The error document.
+ */
+export function errorBody(code: string, message: string): string {
+	return (
+		'<?xml version="1.0" encoding="UTF-8"?>' +
+		`<Error><Code>${code}</Code><Message>${message}</Message>` +
+		"<RequestId>0123456789ABCDEF</RequestId><HostId>fake-host</HostId></Error>"
+	);
+}
+
 /**
  * A transport answering every request with one S3 error, so a test can
  * state what the store refused and let the client deserialize it.
@@ -53,52 +79,30 @@ export function fakeS3Failure(
  * test exercises signing, marshalling and error deserialization instead
  * of a stubbed `send`.
  *
+ * Conditional writes are honoured the way S3 honours them: `If-None-Match`
+ * requires the object to be absent and `If-Match` requires it to still
+ * answer with the given entity tag, and either refused answers `412
+ * PreconditionFailed`. Each stored object carries its own entity tag,
+ * which changes on every write.
+ *
  * @param seed - Objects already in the store, keyed by URL path.
  * @returns The store, the transport, and the calls it records.
  */
 export function fakeS3(seed: Readonly<Record<string, string>> = {}): FakeS3 {
 	const calls: Array<CapturedS3Request> = [];
 	const objects = new Map(Object.entries(seed));
+	const etags = new Map(Array.from(objects.keys(), (path, index) => [path, `"seed-${index}"`]));
+	const store: StoredObjects = { etags, objects, written: 0 };
 
 	return {
 		calls,
 		fetchFunc: async (input, init) => {
 			const captured = await captureAsync(input, init);
 			calls.push(captured);
-			const { pathname } = new URL(captured.url);
-
-			if (captured.method === "PUT") {
-				objects.set(pathname, captured.body);
-				return new Response("", { headers: { etag: '"fake-etag"' }, status: 200 });
-			}
-
-			const stored = objects.get(pathname);
-			if (stored === undefined) {
-				return new Response(errorBody("NoSuchKey", "The specified key does not exist."), {
-					status: 404,
-				});
-			}
-
-			return new Response(stored, { status: 200 });
+			return answer(store, captured);
 		},
 		objects,
 	};
-}
-
-/**
- * Build the XML body S3 answers an error with, which is what the client's
- * own deserializer turns back into a typed exception.
- *
- * @param code - S3 error code, which becomes the exception's name.
- * @param message - Human-readable message S3 pairs with the code.
- * @returns The error document.
- */
-function errorBody(code: string, message: string): string {
-	return (
-		'<?xml version="1.0" encoding="UTF-8"?>' +
-		`<Error><Code>${code}</Code><Message>${message}</Message>` +
-		"<RequestId>0123456789ABCDEF</RequestId><HostId>fake-host</HostId></Error>"
-	);
 }
 
 /**
@@ -119,4 +123,97 @@ async function captureAsync(
 		method: request.method,
 		url: request.url,
 	};
+}
+
+/**
+ * Read the entity tag one stored object answers with, minting one for an
+ * object a test put into the store by hand.
+ *
+ * @param store - What the fake store holds.
+ * @param pathname - URL path the object is stored at.
+ * @returns The entity tag.
+ */
+function etagOf(store: StoredObjects, pathname: string): string {
+	const known = store.etags.get(pathname);
+	if (known !== undefined) {
+		return known;
+	}
+
+	store.written += 1;
+	const minted = `"written-${store.written}"`;
+	store.etags.set(pathname, minted);
+	return minted;
+}
+
+/**
+ * Decide whether a conditional write may land, on the terms S3 states
+ * them: a wildcard `If-None-Match` requires the object to be absent, and
+ * `If-Match` requires the stored entity tag to be the one named.
+ *
+ * @param headers - Headers the client signed the request with.
+ * @param etag - Entity tag the stored object answers with, absent when the
+ * store holds nothing at that path.
+ * @returns `true` when the write may land.
+ */
+function conditionHolds(
+	headers: Readonly<Record<string, string>>,
+	etag: string | undefined,
+): boolean {
+	const ifNoneMatch = headers["if-none-match"];
+	if (ifNoneMatch !== undefined) {
+		return ifNoneMatch === "*" && etag === undefined;
+	}
+
+	const ifMatch = headers["if-match"];
+	return ifMatch === undefined || ifMatch === etag;
+}
+
+/**
+ * Store one object, unless the condition the write carried rules it out.
+ *
+ * @param store - What the fake store holds.
+ * @param request - The write as it reached the transport.
+ * @returns The response to hand back to the client.
+ */
+function write(store: StoredObjects, request: CapturedS3Request): Response {
+	const { pathname } = new URL(request.url);
+	const held = store.objects.has(pathname);
+	if (!conditionHolds(request.headers, held ? etagOf(store, pathname) : undefined)) {
+		return new Response(
+			errorBody(
+				"PreconditionFailed",
+				"At least one of the pre-conditions you specified did not hold",
+			),
+			{ status: 412 },
+		);
+	}
+
+	store.written += 1;
+	const etag = `"written-${store.written}"`;
+	store.objects.set(pathname, request.body);
+	store.etags.set(pathname, etag);
+	return new Response("", { headers: { etag }, status: 200 });
+}
+
+/**
+ * Answer one request the way S3 answers it.
+ *
+ * @param store - What the fake store holds.
+ * @param request - The request as it reached the transport.
+ * @returns The response to hand back to the client.
+ */
+function answer(store: StoredObjects, request: CapturedS3Request): Response {
+	if (request.method === "PUT") {
+		return write(store, request);
+	}
+
+	const { pathname } = new URL(request.url);
+	const stored = store.objects.get(pathname);
+	if (stored === undefined) {
+		return new Response(errorBody("NoSuchKey", "The specified key does not exist."), {
+			status: 404,
+		});
+	}
+
+	return new Response(stored, { headers: { etag: etagOf(store, pathname) }, status: 200 });
 }

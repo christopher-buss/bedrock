@@ -46,6 +46,12 @@ export interface S3StateConfig {
 	 * subdomain, which is what most S3-compatible stores serve.
 	 */
 	forcePathStyle?: boolean;
+	/**
+	 * How long a **Deploy** waits for an **Environment** another run holds
+	 * before giving up, in milliseconds. Defaults to five minutes. Zero
+	 * refuses immediately rather than waiting at all.
+	 */
+	lockTimeoutMs?: number;
 	/** Folder the **State** objects are written under. */
 	prefix?: string;
 	/** Region the bucket lives in. */
@@ -73,6 +79,7 @@ export const s3StateSchema: type.Any<S3StateConfig> = type({
 	"checksumCalculation?": "'whenRequired' | 'whenSupported'",
 	"endpoint?": NON_EMPTY_STRING,
 	"forcePathStyle?": "boolean",
+	"lockTimeoutMs?": "number >= 0",
 	"prefix?": "string",
 	"region": NON_EMPTY_STRING,
 });

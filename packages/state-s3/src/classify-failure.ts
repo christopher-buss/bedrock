@@ -2,6 +2,9 @@
  * What went wrong beneath a read or a write, in terms this **Backend**
  * owns rather than in the S3 error codes that produced them.
  *
+ * - `conditionRefused` - a conditional write found the object in a state
+ *   its condition ruled out, which under a lock is another run holding the
+ *   **Environment** rather than a failure.
  * - `missingObject` - the **Environment** has no **State** object yet,
  *   which is an ordinary first **Deploy** rather than a failure.
  * - `missingStore` - the bucket itself does not resolve.
@@ -13,6 +16,7 @@
  */
 export type S3FailureKind =
 	| "accessDenied"
+	| "conditionRefused"
 	| "missingCredentials"
 	| "missingObject"
 	| "missingStore"
@@ -40,9 +44,11 @@ export interface S3Failure {
 // reported as an **Environment** that has never been deployed.
 const KIND_BY_NAME: Readonly<Record<string, S3FailureKind>> = {
 	AccessDenied: "accessDenied",
+	ConditionalRequestConflict: "conditionRefused",
 	CredentialsProviderError: "missingCredentials",
 	NoSuchBucket: "missingStore",
 	NoSuchKey: "missingObject",
+	PreconditionFailed: "conditionRefused",
 };
 
 // Status fallback for the codes not named above: a store that refuses the
@@ -52,6 +58,12 @@ const KIND_BY_NAME: Readonly<Record<string, S3FailureKind>> = {
 const KIND_BY_STATUS: Readonly<Record<number, S3FailureKind>> = {
 	403: "accessDenied",
 };
+
+// The two statuses a conditional write is refused with. They read as a
+// refused condition only for a request that carried one: `409` is also how
+// a store answers `BucketAlreadyExists` and `OperationAborted`, so a
+// request with no condition attached must never be read through them.
+const CONDITION_REFUSED_STATUS: ReadonlySet<number> = new Set([409, 412]);
 
 /**
  * Read what the S3 client threw into the terms this **Backend** owns.
@@ -74,6 +86,25 @@ export function classifyS3Failure(error: unknown): S3Failure {
 		"requestFailed";
 
 	return { name: thrown.name, kind, reason: thrown.message, statusCode };
+}
+
+/**
+ * Whether one refusal is the store declining the condition a conditional
+ * write carried, which under a lock is another run holding the
+ * **Environment** rather than a failure.
+ *
+ * The name decides first, and the status only stands in for the names the
+ * client does not model as exception classes. Read this only against a
+ * request that actually carried a condition: `409` answers conditions that
+ * were never sent as well.
+ * @param failure - The refusal, already classified.
+ * @returns `true` when the store refused the condition.
+ */
+export function isConditionRefusal(failure: S3Failure): boolean {
+	return (
+		failure.kind === "conditionRefused" ||
+		(failure.statusCode !== undefined && CONDITION_REFUSED_STATUS.has(failure.statusCode))
+	);
 }
 
 /**
