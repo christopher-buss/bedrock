@@ -51,26 +51,6 @@ export function openLockObject({
 }
 
 /**
- * Read one record as the hold a read-only caller is told about.
- *
- * A tombstone and a **Lease** the clock has passed are both holds the next
- * deploy takes over rather than waits on, so neither is reported as one
- * holding the **Environment** now.
- *
- * @param record - The record found on the lock object.
- * @param nowMs - Epoch milliseconds the clock read.
- * @returns Who holds it, or `undefined` when nobody does.
- */
-export function holdingOf(record: S3LockRecord, nowMs: number): StateLockHolding | undefined {
-	if (record.releasedAt !== undefined || isLeaseExpired(record, nowMs)) {
-		return undefined;
-	}
-
-	const holder = holderOf(record);
-	return { operation: holder.operation, owner: holder.owner, since: holder.since };
-}
-
-/**
  * Read who holds one **Environment**, without taking a hold.
  *
  * A record the store would not hand over at all is reported as a failure:
@@ -130,4 +110,24 @@ export async function forceReleaseAsync(
 
 	const written = await displaceAsync(object, { etag: found.etag, nowMs, record: found.record });
 	return written.success ? { data: displaced, success: true } : written;
+}
+
+/**
+ * Read one record as the hold a read-only caller is told about.
+ *
+ * A tombstone and a **Lease** the clock has passed are both holds the next
+ * deploy takes over rather than waits on, so neither is reported as one
+ * holding the **Environment** now.
+ *
+ * @param record - The record found on the lock object.
+ * @param nowMs - Epoch milliseconds the clock read.
+ * @returns Who holds it, or `undefined` when nobody does.
+ */
+function holdingOf(record: S3LockRecord, nowMs: number): StateLockHolding | undefined {
+	if (record.releasedAt !== undefined || isLeaseExpired(record, nowMs)) {
+		return undefined;
+	}
+
+	const holder = holderOf(record);
+	return { operation: holder.operation, owner: holder.owner, since: holder.since };
 }
