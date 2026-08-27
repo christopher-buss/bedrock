@@ -862,6 +862,31 @@ describe(createGistStateAdapter, () => {
 			expect(sleepFake.calls).toStrictEqual([]);
 		});
 
+		it.for<[string]>([[""], ["0"], ["-1"]])(
+			"should refuse a throttle whose Retry-After of %o names no wait to sit out",
+			async ([value]) => {
+				expect.assertions(3);
+
+				const { calls, fetchFn } = fakeFetchSequence([throttled({ "Retry-After": value })]);
+				const sleepFake = fakeSleep();
+				const port = createGistStateAdapter({
+					fetch: fetchFn,
+					gistId: GIST_ID,
+					random: fakeRandom(),
+					sleep: sleepFake.sleep,
+					token: TOKEN,
+				});
+
+				const result = await port.read("production");
+
+				assert(!result.success);
+
+				expect(result.err.reason).toMatch(/rate limited/u);
+				expect(calls).toHaveLength(1);
+				expect(sleepFake.calls).toStrictEqual([]);
+			},
+		);
+
 		it("should keep the backoff schedule for a retryable status that names a wait", async () => {
 			expect.assertions(3);
 

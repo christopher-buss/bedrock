@@ -55,7 +55,8 @@ function backoffMs(attempt: number, random: () => number): number {
  * A 403 is the only status GitHub throttles with, and `Retry-After` is the
  * only header naming how long for. Its absence leaves a 403 that no wait
  * clears: a refused credential, or the hourly budget, which refills on a
- * clock beyond this schedule's reach.
+ * clock beyond this schedule's reach. A header naming a wait of zero or less
+ * leaves the same 403.
  *
  * @param response - The response to read a wait from.
  * @returns The wait in milliseconds, or `undefined` when there is none to
@@ -72,9 +73,10 @@ function throttleWaitMs(response: Response): number | undefined {
 	}
 
 	// GitHub sends a count of seconds. HTTP also permits an absolute date,
-	// which parses to NaN here and names no wait this schedule can sit out.
+	// which parses to NaN here. A blank or non-positive value names no wait
+	// either: retrying the instant a 403 arrives clears nothing.
 	const seconds = Number(value);
-	if (!Number.isInteger(seconds)) {
+	if (!Number.isInteger(seconds) || seconds <= 0) {
 		return undefined;
 	}
 
