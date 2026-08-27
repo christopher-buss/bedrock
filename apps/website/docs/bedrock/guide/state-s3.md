@@ -45,8 +45,10 @@ all work with nothing bedrock-specific configured. Point the chain at the
 account you want the way you would for any other AWS tool.
 
 The credential needs `s3:GetObject` and `s3:PutObject` on the objects and on the
-locks beside them, plus `s3:DeleteObject` so the conditional-write probe can
-take its scratch object away again:
+locks beside them. `s3:DeleteObject` is what lets the conditional-write probe
+take its scratch object away again; without it the probe still answers, and the
+scratch objects are left for the lifecycle rule that expires the locks beside
+them:
 
 ```json
 {

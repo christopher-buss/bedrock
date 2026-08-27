@@ -61,8 +61,10 @@ interface UnprovenProbe {
  * store that takes it evaluated nothing, and every run that ever asks it
  * for the same **Environment** would be told it holds one.
  *
- * The scratch object is taken away once the answer is in, so nothing the
- * probe wrote outlives it.
+ * The scratch object is taken away once the answer is in, whichever answer
+ * that is. A write can land at the store and lose its answer on the way
+ * back, so the refused round takes it away too and nothing the probe
+ * wrote outlives it.
  *
  * @param target - The scratch object to write, and the client to write it
  * with.
@@ -73,6 +75,7 @@ export async function probeConditionalWritesAsync(
 ): Promise<ConditionalWriteProbe> {
 	const seeded = await writeScratchAsync(target, undefined);
 	if (seeded !== undefined) {
+		await discardScratchAsync(target);
 		return { failure: seeded, kind: "unproven" };
 	}
 

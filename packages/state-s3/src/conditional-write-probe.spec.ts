@@ -150,9 +150,7 @@ describe(probeConditionalWritesAsync, () => {
 
 		expect(probed.failure.name).toBe("AccessDenied");
 		expect(probed.failure.statusCode).toBe(403);
-
-		// Nothing was written, so there is nothing to take away.
-		expect(methodsOf(store.calls)).toStrictEqual(["PUT"]);
+		expect(methodsOf(store.calls)).toStrictEqual(["PUT", "DELETE"]);
 	});
 
 	it("should prove nothing when the conditional write is refused for another reason", async () => {

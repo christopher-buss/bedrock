@@ -55,15 +55,17 @@ Credentials are supplied per test, either as static credentials on the adapter
 or through the environment core injects, so no test depends on the ambient AWS
 setup of the machine running it.
 
-The probe runs before every acquisition, so a test stating how a store answers
-one acquisition would otherwise be stating how it answers the probe too.
-`honouringProbe` in `tests/helpers/fake-s3.ts` answers the scratch object on
-compliant terms and passes everything else through, which is what keeps the two
-questions apart. The probe's own unit tests live in
-`conditional-write-probe.spec.ts` and call `probeConditionalWritesAsync`
-directly; the tests for what an acquisition does with its answer live in
-`s3-state-lock-adapter.spec.ts` and build the port unwrapped, so the transport
-under test answers the probe too.
+The first acquisition through a port probes the store before it reaches the lock
+object, and the answer is kept for the holds that follow unless the round proved
+nothing. Every test builds its own port, so every test's first acquisition
+probes, and a transport stating how one acquisition is answered would otherwise
+be stating how it answers the probe too. `honouringProbe` in
+`tests/helpers/fake-s3.ts` answers the scratch object on compliant terms and
+passes everything else through, which is what keeps the two questions apart. The
+probe's own unit tests live in `conditional-write-probe.spec.ts` and call
+`probeConditionalWritesAsync` directly; the tests for what an acquisition does
+with its answer live in `s3-state-lock-adapter.spec.ts` and build the port
+unwrapped, so the transport under test answers the probe too.
 
 The lock's clock is injected (`now`, `sleep`), so a test drains a five-minute
 timeout instantly and the instants a record carries are the same on every
