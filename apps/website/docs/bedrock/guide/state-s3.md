@@ -44,12 +44,14 @@ environment variables, a shared profile, an SSO session, and CI role credentials
 all work with nothing bedrock-specific configured. Point the chain at the
 account you want the way you would for any other AWS tool.
 
-The credential needs `s3:GetObject` and `s3:PutObject` on the objects:
+The credential needs `s3:GetObject` and `s3:PutObject` on the objects and on the
+locks beside them, plus `s3:DeleteObject` so the conditional-write probe can
+take its scratch object away again:
 
 ```json
 {
 	"Effect": "Allow",
-	"Action": ["s3:GetObject", "s3:PutObject"],
+	"Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
 	"Resource": "arn:aws:s3:::my-bucket/*"
 }
 ```
@@ -102,5 +104,27 @@ of those two conditions it was, the S3 error code, and the HTTP status.
 
 ## Locking
 
-There is none yet. Bedrock writes state unconditionally, so serialize concurrent
-deploys of one environment yourself until conditional writes land.
+A deploy takes a hold on its environment before it applies anything and gives it
+up once state has been written, so two CI jobs pointed at one environment are
+serialized instead of both creating resources on Roblox. The hold is a
+`locks/<environment>.json` object beside the state objects, created
+conditionally so exactly one run can hold it. Because locks sit under their own
+prefix segment, a bucket lifecycle rule can expire abandoned ones without
+touching state.
+
+A run that finds the environment held waits, retrying with exponential backoff
+for five minutes by default. `lockTimeoutMs` changes that bound, and `0` refuses
+immediately. Giving up names who holds the environment and since when.
+
+### The store is proved first
+
+Exclusion rests on the store refusing a create of an object it already holds, so
+bedrock proves it rather than assuming it. Before the first hold of a deploy, it
+writes a scratch object under `locks/.probe-<id>.json`, writes it again
+requiring the object to be absent, and reads the refusal as the proof. The
+scratch object is taken away once the store has answered.
+
+A store that takes the second write evaluated no condition and would hand every
+run that asks the same hold. It gets no locking, and the deploy stops saying so
+rather than running unprotected: exclusion that does not exclude is worse than
+none.
