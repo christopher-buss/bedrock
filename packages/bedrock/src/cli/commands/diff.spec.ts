@@ -10,6 +10,7 @@ import type { Operation } from "../../core/operations.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../../core/plugin-registry.ts";
 import type { RedactionAnnotation } from "../../core/redact-resources.ts";
 import type { Config } from "../../core/schema.ts";
+import type { StateLockHolding } from "../../ports/state-lock-port.ts";
 import type { DiffPreview, PreviewDiffError } from "../../shell/preview-diff.ts";
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
 import type { ProgDeps as ProgDependencies } from "../index.ts";
@@ -98,6 +99,7 @@ function multiFieldUpdatePlaceOp(key: string): Operation {
 }
 
 function preview(input: {
+	concurrentHold?: StateLockHolding;
 	environment: string;
 	ops: ReadonlyArray<Operation>;
 	pendingRebuild?: ReadonlyArray<string>;
@@ -105,6 +107,7 @@ function preview(input: {
 }): Result<DiffPreview, PreviewDiffError> {
 	return {
 		data: {
+			concurrentHold: input.concurrentHold,
 			environment: input.environment,
 			ops: input.ops,
 			pendingRebuild: (input.pendingRebuild ?? []).map((key) => asResourceKey(key)),
@@ -148,6 +151,66 @@ function fakePreview(
 }
 
 describe(diffCommand, () => {
+	it("should report that the preview may be stale while a deploy holds the environment", async () => {
+		expect.assertions(2);
+
+		const dependencies = makeDependencies({
+			loadProject: fakeLoad({ data: sampleConfig, success: true }),
+			previewDiff: fakePreview([
+				preview({
+					concurrentHold: {
+						operation: "deploy",
+						owner: "ci-run-7",
+						since: "2026-08-27T10:00:00.000Z",
+					},
+					environment: "production",
+					ops: [noopOp("vip-pass")],
+				}),
+			]),
+		});
+
+		await diffCommand(dependencies)({ env: "production" });
+
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledWith(
+			'"production" is held by ci-run-7 for deploy since 2026-08-27T10:00:00.000Z, so this diff may already be out of date',
+		);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(0);
+	});
+
+	it("should report a hold whose record names no holder", async () => {
+		expect.assertions(1);
+
+		const dependencies = makeDependencies({
+			loadProject: fakeLoad({ data: sampleConfig, success: true }),
+			previewDiff: fakePreview([
+				preview({
+					concurrentHold: {},
+					environment: "production",
+					ops: [noopOp("vip-pass")],
+				}),
+			]),
+		});
+
+		await diffCommand(dependencies)({ env: "production" });
+
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledWith(
+			'"production" is held by another run, so this diff may already be out of date',
+		);
+	});
+
+	it("should say nothing about a hold when nothing holds the environment", async () => {
+		expect.assertions(1);
+
+		const dependencies = makeDependencies({
+			loadProject: fakeLoad({ data: sampleConfig, success: true }),
+			previewDiff: fakePreview([preview({ environment: "production", ops: [noopOp("x")] })]),
+		});
+
+		await diffCommand(dependencies)({ env: "production" });
+
+		expect(dependencies.clack!.logMessage).not.toHaveBeenCalled();
+	});
+
 	it.for<{ label: string; rawOptions: Record<string, unknown> }>([
 		{ label: "missingRequired", rawOptions: {} },
 		{ label: "unknownFlag", rawOptions: { env: "production", verbose: true } },

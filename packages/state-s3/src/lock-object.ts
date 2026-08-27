@@ -61,18 +61,22 @@ export interface LockSeams {
 	readonly timeoutMs: number;
 }
 
-/** One acquisition in progress, over the object it is contending for. */
-export interface Acquisition {
+/** The lock object one **Environment**'s hold is recorded in. */
+export interface LockObject {
 	/** The object the hold is recorded in. */
 	readonly key: string;
 	/** Bucket the lock object lives in. */
 	readonly bucket: string;
-	/** Who this acquisition writes itself down as when it wins. */
-	readonly claim: S3LockClaim;
 	/** The configured S3 client. */
 	readonly client: S3Client;
 	/** That object addressed the way an operator would write it. */
 	readonly label: string;
+}
+
+/** One acquisition in progress, over the object it is contending for. */
+export interface Acquisition extends LockObject {
+	/** Who this acquisition writes itself down as when it wins. */
+	readonly claim: S3LockClaim;
 	/** The clock, the waiting, and the identity this acquisition runs on. */
 	readonly seams: LockSeams;
 }
@@ -186,11 +190,11 @@ export async function discardOwnAsync(
  * the wrong cause. Everything else reads as unreadable, and the wait
  * carries on.
  *
- * @param acquisition - The acquisition in progress.
+ * @param object - The lock object to read.
  * @returns The record and its entity tag, that the read did not land, or
  * the refusal that ends the wait.
  */
-export async function readLockAsync({ key, bucket, client }: Acquisition): Promise<LockRead> {
+export async function readLockAsync({ key, bucket, client }: LockObject): Promise<LockRead> {
 	try {
 		const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
 		const record = parseLockRecord(await readObjectTextAsync(object.Body));

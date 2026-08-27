@@ -189,6 +189,7 @@ export type {
 	StateLockAcquireOptions,
 	StateLockError,
 	StateLockHold,
+	StateLockHolding,
 	StateLockPort,
 	StateLockWaiting,
 } from "./ports/state-lock-port.ts";

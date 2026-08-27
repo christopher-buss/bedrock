@@ -4,6 +4,7 @@ import type { CreateOperation, Operation, UpdateOperation } from "../../core/ope
 import type { PluginRegistry } from "../../core/plugin-registry.ts";
 import type { RedactionAnnotation } from "../../core/redact-resources.ts";
 import type { Config } from "../../core/schema.ts";
+import type { StateLockHolding } from "../../ports/state-lock-port.ts";
 import { loadProjectAsync as defaultLoadProject } from "../../shell/load-config.ts";
 import {
 	previewDiffAsync as defaultPreviewDiff,
@@ -123,7 +124,44 @@ function renderPendingRebuild(preview: DiffPreview, clack: ClackPort): boolean {
 	return true;
 }
 
+/**
+ * Name who holds an **Environment** out of whatever the **Backend**'s lock
+ * record carried, which is best effort by contract.
+ *
+ * @param holding - The hold as the **Backend** reported it.
+ * @returns The phrase naming the holder.
+ */
+function describeHolder(holding: StateLockHolding): string {
+	if (holding.owner === undefined) {
+		return "held by another run";
+	}
+
+	const operation = holding.operation === undefined ? "" : ` for ${holding.operation}`;
+	const since = holding.since === undefined ? "" : ` since ${holding.since}`;
+	return `held by ${holding.owner}${operation}${since}`;
+}
+
+/**
+ * Report a deploy holding the **Environment** while the preview ran, which
+ * is what says the answer may already be behind. A diff takes no hold, so
+ * it never queues behind a deploy and never learns that one landed.
+ *
+ * @param preview - The preview just computed.
+ * @param clack - Where the line is written.
+ */
+function renderConcurrentHold(preview: DiffPreview, clack: ClackPort): void {
+	const { concurrentHold } = preview;
+	if (concurrentHold === undefined) {
+		return;
+	}
+
+	clack.logMessage(
+		`"${preview.environment}" is ${describeHolder(concurrentHold)}, so this diff may already be out of date`,
+	);
+}
+
 function renderPreview(preview: DiffPreview, clack: ClackPort): boolean {
+	renderConcurrentHold(preview, clack);
 	const drift = preview.ops.filter(isDriftOp);
 	if (drift.length === 0) {
 		const hasPendingPublish = renderPendingRebuild(preview, clack);

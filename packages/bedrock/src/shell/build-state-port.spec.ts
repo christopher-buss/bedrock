@@ -4,6 +4,7 @@ import { assert, describe, expect, it } from "vitest";
 import { environmentFrom } from "#tests/helpers/environment";
 import { fakeFetch } from "#tests/helpers/fake-gist-fetch";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
+import { neverInspectAsync } from "#tests/helpers/state-lock";
 import type { StateConfig } from "../core/schema.ts";
 import type { StateLockingCapability } from "../core/state-locking.ts";
 import type { StatePort } from "../ports/state-port.ts";
@@ -280,7 +281,10 @@ describe(buildStateBackend, () => {
 				name: "s3",
 				createLockPort: () => {
 					return {
-						data: { acquire: async () => ({ data: hold, success: true }) as const },
+						data: {
+							acquire: async () => ({ data: hold, success: true }) as const,
+							inspect: neverInspectAsync,
+						},
 						success: true,
 					};
 				},
@@ -367,7 +371,12 @@ describe(buildStateBackend, () => {
 			getEnv: environmentFrom({}),
 			plugins: fakeStateBackendPlugins({
 				name: "s3",
-				createLockPort: () => ({ data: { acquire: neverAcquireAsync }, success: true }),
+				createLockPort: () => {
+					return {
+						data: { acquire: neverAcquireAsync, inspect: neverInspectAsync },
+						success: true,
+					};
+				},
 				createPort: () => ({ data: okPort(), success: true }),
 				schema: type({ bucket: "string > 0" }),
 				specifier: "@example/state-s3",

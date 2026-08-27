@@ -13,6 +13,7 @@ import type { S3LockHolder } from "./lock-record.ts";
  *   the hold being taken.
  * - `releaseFailed` - the tombstone could not be written, so the hold
  *   stands until it is taken over.
+ * - `inspectFailed` - who holds the **Environment** could not be read.
  * - `invalidEnvironment` - the **Environment** name could not address an
  *   object.
  * - `conditionalWritesIgnored` - the store took a create of an object it
@@ -29,6 +30,7 @@ export type S3LockFailureKind =
 	| "acquireTimedOut"
 	| "conditionalWritesIgnored"
 	| "conditionalWritesUnproven"
+	| "inspectFailed"
 	| "invalidEnvironment"
 	| "leaseLost"
 	| "releaseFailed";
@@ -96,6 +98,21 @@ export function invalidEnvironment(file: string, reason: string): StateLockError
 export function acquireRefused(label: string, failure: S3Failure): StateLockError {
 	return {
 		detail: refusalDetail({ failure, kind: "acquireFailed", label }),
+		reason: failure.reason,
+	};
+}
+
+/**
+ * Report a lock record that could not be read at all, which is what a
+ * read-only caller asking who holds an **Environment** is told.
+ *
+ * @param label - The object the hold is recorded in.
+ * @param failure - The refusal, already classified.
+ * @returns The failure a caller sees.
+ */
+export function inspectRefused(label: string, failure: S3Failure): StateLockError {
+	return {
+		detail: refusalDetail({ failure, kind: "inspectFailed", label }),
 		reason: failure.reason,
 	};
 }

@@ -29,6 +29,21 @@ interface HoldInputs {
 }
 
 /**
+ * Report who holds an **Environment** in a test that never asks.
+ *
+ * A **Deploy** takes a hold rather than asking who has one, so a fake
+ * reached here is answering a question the shell should not have put.
+ *
+ * @returns Never; the question is one the shell should not have put.
+ * @rejects Always, naming the question that should not have been asked.
+ */
+export async function neverInspectAsync(): Promise<never> {
+	// Settle on a later microtask, as a real lock store does.
+	await Promise.resolve();
+	throw new Error("a deploy must not ask who holds the environment");
+}
+
+/**
  * Build a **State lock port** that records what the deploy shell asked of
  * it, so a test states the hold's lifetime rather than the store's.
  *
@@ -55,6 +70,7 @@ export function fakeStateLock(options: FakeStateLockOptions = {}): FakeStateLock
 						}
 					: { err: options.refuseAcquire, success: false };
 			},
+			inspect: neverInspectAsync,
 		},
 		released,
 	};

@@ -23,11 +23,24 @@ it('Example 1', () => {
         success: true,
       }
     },
+    async inspect(environment) {
+      return {
+        data: held.has(environment)
+          ? { owner: 'the run that took it' }
+          : undefined,
+        success: true,
+      }
+    },
   }
   return lockPort.acquire('production').then(async (first) => {
     expect(first.success).toBeTrue()
     const second = await lockPort.acquire('production')
     expect(second.success).toBeFalse()
+    const holding = await lockPort.inspect('production')
+    expect(holding).toStrictEqual({
+      data: { owner: 'the run that took it' },
+      success: true,
+    })
     if (first.success) {
       await first.data.release()
     }

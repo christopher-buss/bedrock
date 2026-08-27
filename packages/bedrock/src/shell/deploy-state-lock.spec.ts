@@ -3,7 +3,7 @@ import { assert, describe, expect, it } from "vitest";
 
 import { environmentFrom } from "#tests/helpers/environment";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
-import { fakeStateLock } from "#tests/helpers/state-lock";
+import { fakeStateLock, neverInspectAsync } from "#tests/helpers/state-lock";
 import type { ResourceKind } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
 import type { ProgressEvent, ProgressPort } from "../ports/progress-port.ts";
@@ -149,6 +149,7 @@ function recordingProgress(events: Array<ProgressEvent>): ProgressPort {
  */
 function waitingLockPort(port: StateLockPort, waiting: StateLockWaiting): StateLockPort {
 	return {
+		...port,
 		async acquire(environment, options) {
 			options?.onWaiting?.(waiting);
 			return port.acquire(environment);
@@ -166,6 +167,7 @@ function waitingLockPort(port: StateLockPort, waiting: StateLockWaiting): StateL
  */
 function leaseLosingLockPort(port: StateLockPort, error: StateLockError): StateLockPort {
 	return {
+		...port,
 		async acquire(environment, options) {
 			const hold = await port.acquire(environment, options);
 			options?.onLeaseLost?.(error);
@@ -186,6 +188,7 @@ function operationRecordingLockPort(
 	asked: Array<string | undefined>,
 ): StateLockPort {
 	return {
+		...port,
 		async acquire(environment, options) {
 			asked.push(options?.operation);
 			return port.acquire(environment);
@@ -212,6 +215,7 @@ describe("deploy under a locking backend", () => {
 					trace.push("acquire");
 					return lock.port.acquire(environment);
 				},
+				inspect: neverInspectAsync,
 			},
 			statePort: tracingStatePort(trace),
 		});
@@ -441,6 +445,7 @@ describe("deploy under a locking backend", () => {
 						success: true,
 					};
 				},
+				inspect: neverInspectAsync,
 			},
 			statePort: refusingWriteStatePort(),
 		});
