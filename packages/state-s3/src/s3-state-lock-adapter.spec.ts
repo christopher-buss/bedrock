@@ -806,6 +806,30 @@ describe(createS3StateLockPort, () => {
 			expect(store.calls).toBeEmpty();
 		});
 
+		it("should report a write refused for a reason a read would have waited out", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3Failure("InternalError", 500);
+			const clock = createFakeClock();
+
+			const result = await lockFor({
+				fetch: store.fetchFunc,
+				lockTimeoutMs: 1000,
+				now: clock.now,
+				sleep: clock.sleepAsync,
+			}).acquire("production");
+
+			assert(!result.success);
+
+			expect(result.err.detail).toStrictEqual({
+				name: "InternalError",
+				file: LOCK_LABEL,
+				kind: "acquireFailed",
+				statusCode: 500,
+			});
+			expect(clock.waits).toBeEmpty();
+		});
+
 		it("should report a refusal that is not the store handing the hold to someone else", async () => {
 			expect.assertions(2);
 
