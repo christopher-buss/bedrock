@@ -175,6 +175,7 @@ export type {
 	ResourceOpSucceededCreateEvent,
 	ResourceOpSucceededEvent,
 	ResourceOpSucceededUpdateEvent,
+	StateLockDisabledEvent,
 	StateLockLeaseLostEvent,
 	StateLockWaitingEvent,
 	StateWrittenEvent,

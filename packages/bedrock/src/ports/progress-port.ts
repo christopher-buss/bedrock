@@ -192,6 +192,22 @@ export interface StateWrittenEvent {
 }
 
 /**
+ * Per-environment event emitted once, before anything is applied, when the
+ * config turned locking off for a **Backend** that offers it. A deploy
+ * running without exclusion because somebody asked for that says so; a
+ * **Backend** that offers no exclusion to begin with emits nothing, having
+ * nothing to report.
+ *
+ * @since unreleased
+ */
+export interface StateLockDisabledEvent {
+	/** Environment being deployed without a hold. */
+	readonly environment: string;
+	/** Discriminator tag. */
+	readonly kind: "stateLockDisabled";
+}
+
+/**
  * Per-environment event emitted each time a locking **Backend** backs off
  * because another run holds the **Environment**. It fires once per backoff,
  * so a renderer can keep a queued deploy visible for as long as the wait
@@ -248,6 +264,7 @@ export type ProgressEvent =
 	| ResourceOpNoopEvent
 	| ResourceOpStartedEvent
 	| ResourceOpSucceededEvent
+	| StateLockDisabledEvent
 	| StateLockLeaseLostEvent
 	| StateLockWaitingEvent
 	| StateWrittenEvent;

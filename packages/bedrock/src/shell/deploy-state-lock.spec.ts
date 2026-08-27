@@ -480,6 +480,87 @@ describe("deploy under a locking backend", () => {
 		expect(lock.released).toStrictEqual(["production"]);
 	});
 
+	it("should deploy without taking a hold when the config turned locking off", async () => {
+		expect.assertions(2);
+
+		const lock = fakeStateLock();
+		const statePort = tracingStatePort([]);
+
+		const result = await deploy({
+			config: {
+				...vipPassConfig(),
+				state: { backend: "s3", bucket: "my-bucket", locking: false },
+			},
+			environment: "production",
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: () => ({ data: lock.port, success: true }),
+				createPort: () => ({ data: statePort, success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			progress: SILENT_PROGRESS,
+			readFile: readIconAsync,
+			registry: tracingRegistry([]),
+		});
+
+		assert(result.success);
+
+		expect(result.data.resources).toHaveLength(1);
+		expect(lock.acquired).toBeEmpty();
+	});
+
+	it("should report that locking is off when the config turned it off", async () => {
+		expect.assertions(1);
+
+		const events: Array<ProgressEvent> = [];
+		const statePort = tracingStatePort([]);
+
+		const result = await deploy({
+			config: {
+				...vipPassConfig(),
+				state: { backend: "s3", bucket: "my-bucket", locking: false },
+			},
+			environment: "production",
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: () => ({ data: fakeStateLock().port, success: true }),
+				createPort: () => ({ data: statePort, success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			progress: recordingProgress(events),
+			readFile: readIconAsync,
+			registry: tracingRegistry([]),
+		});
+
+		assert(result.success);
+
+		expect(events[0]).toStrictEqual({ environment: "production", kind: "stateLockDisabled" });
+	});
+
+	it("should say nothing about locking when the backend offers none to turn off", async () => {
+		expect.assertions(1);
+
+		const events: Array<ProgressEvent> = [];
+
+		const result = await deploy({
+			config: vipPassConfig(),
+			environment: "production",
+			getEnv: environmentFrom({}),
+			progress: recordingProgress(events),
+			readFile: readIconAsync,
+			registry: tracingRegistry([]),
+			statePort: tracingStatePort([]),
+		});
+
+		assert(result.success);
+
+		expect(events.map((event) => event.kind)).not.toContain("stateLockDisabled");
+	});
+
 	it("should take the hold for a provision, which shares the deploy's lifetime", async () => {
 		expect.assertions(2);
 

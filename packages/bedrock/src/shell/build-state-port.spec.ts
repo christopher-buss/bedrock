@@ -5,6 +5,7 @@ import { environmentFrom } from "#tests/helpers/environment";
 import { fakeFetch } from "#tests/helpers/fake-gist-fetch";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
 import type { StateConfig } from "../core/schema.ts";
+import type { StateLockingCapability } from "../core/state-locking.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import { buildStateBackend, buildStatePort } from "./build-state-port.ts";
 
@@ -16,6 +17,10 @@ async function neverFetchAsync(): Promise<Response> {
 
 function emptyFilesResponse(): Response {
 	return new Response(JSON.stringify({ files: {} }), { status: 200 });
+}
+
+async function neverAcquireAsync(): Promise<never> {
+	throw new Error("the lock port must not be acquired by capability reporting");
 }
 
 function okPort(): StatePort {
@@ -312,6 +317,81 @@ describe(buildStateBackend, () => {
 		assert(result.success);
 
 		expect(result.data.stateLockPort).toBeUndefined();
+	});
+
+	it("should not ask a plugin backend for a lock port when the config turned locking off", () => {
+		expect.assertions(2);
+
+		let asked = false;
+
+		const result = buildStateBackend({
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: () => {
+					asked = true;
+					return { err: { reason: "unused" }, success: false };
+				},
+				createPort: () => ({ data: okPort(), success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			stateConfig: { backend: "s3", bucket: "my-bucket", locking: false },
+		});
+
+		assert(result.success);
+
+		expect(result.data.stateLockPort).toBeUndefined();
+		expect(asked).toBeFalse();
+	});
+
+	it.for([
+		{
+			expected: "exclusive",
+			label: "a backend that locks and a config that left locking on",
+			stateConfig: { backend: "s3", bucket: "my-bucket" },
+		},
+		{
+			expected: "disabled",
+			label: "a backend that locks and a config that turned locking off",
+			stateConfig: { backend: "s3", bucket: "my-bucket", locking: false },
+		},
+	] satisfies ReadonlyArray<{
+		expected: StateLockingCapability;
+		label: string;
+		stateConfig: StateConfig;
+	}>)("should report $expected exclusion for $label", ({ expected, stateConfig }) => {
+		expect.assertions(1);
+
+		const result = buildStateBackend({
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createLockPort: () => ({ data: { acquire: neverAcquireAsync }, success: true }),
+				createPort: () => ({ data: okPort(), success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			stateConfig,
+		});
+
+		assert(result.success);
+
+		expect(result.data.locking).toBe(expected);
+	});
+
+	it("should report no exclusion for the gist backend", () => {
+		expect.assertions(1);
+
+		const result = buildStateBackend({
+			fetch: neverFetchAsync,
+			getEnv: environmentFrom({ BEDROCK_GITHUB_TOKEN: "ghp_test" }),
+			stateConfig: GIST_CONFIG,
+		});
+
+		assert(result.success);
+
+		expect(result.data.locking).toBe("none");
 	});
 
 	it("should hand the plugin's lock builder the state block, the credential reader, and the fetch seam", () => {

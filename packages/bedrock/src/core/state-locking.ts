@@ -2,13 +2,18 @@ import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "./plugin-registry.ts
 import { isGistStateConfig, type StateConfig } from "./schema.ts";
 
 /**
- * The exclusion a **Backend** provides around a **Deploy**: `"exclusive"`
- * when it takes a hold on the **Environment** before anything is applied,
- * `"none"` when concurrent deploys are the operator's problem to serialize.
+ * The exclusion in force around a **Deploy**: `"exclusive"` when a hold is
+ * taken on the **Environment** before anything is applied, `"disabled"`
+ * when the **Backend** would have taken one and the config turned locking
+ * off, `"none"` when the **Backend** offers none to begin with.
+ *
+ * `"disabled"` is told apart from `"none"` so a deploy running without
+ * exclusion says which of the two it is: one is a choice the operator made
+ * and can unmake, and the other is the **Backend** they picked.
  *
  * @since unreleased
  */
-export type StateLockingCapability = "exclusive" | "none";
+export type StateLockingCapability = "disabled" | "exclusive" | "none";
 
 /** Inputs for {@link stateLockingCapabilityOf}. */
 interface StateLockingInputs {
@@ -20,6 +25,25 @@ interface StateLockingInputs {
 	readonly plugins?: PluginRegistry | undefined;
 	/** Resolved state configuration for the target environment. */
 	readonly stateConfig: StateConfig;
+}
+
+/**
+ * Whether the config turned locking off for one resolved `state` block.
+ *
+ * Locking is on for a **Backend** that offers it unless the config says
+ * otherwise, so only an explicit `false` opts out: a user who serializes
+ * deploys themselves says so, and everybody else is protected without
+ * having read about it.
+ *
+ * Internal seam: not re-exported from `src/index.ts`. The **Backend**
+ * builder reads it too, so the default lives in one place.
+ *
+ * @param stateConfig - Resolved state configuration for the target
+ * environment.
+ * @returns `true` when the block turned locking off.
+ */
+export function isLockingTurnedOff(stateConfig: StateConfig): boolean {
+	return stateConfig.locking === false;
 }
 
 /**
@@ -46,7 +70,9 @@ interface StateLockingInputs {
  *
  * @param inputs - The resolved `state` block plus what the loaded plugins
  * declared.
- * @returns `"exclusive"` when the **Backend** locks, `"none"` otherwise.
+ * @returns `"exclusive"` when the **Backend** locks and the config left it
+ * on, `"disabled"` when the config turned it off, `"none"` when the
+ * **Backend** offers no exclusion.
  */
 export function stateLockingCapabilityOf({
 	plugins,
@@ -60,5 +86,9 @@ export function stateLockingCapabilityOf({
 	}
 
 	const registered = (plugins ?? EMPTY_PLUGIN_REGISTRY).stateBackends.get(stateConfig.backend);
-	return registered?.declaration.createLockPort === undefined ? "none" : "exclusive";
+	if (registered?.declaration.createLockPort === undefined) {
+		return "none";
+	}
+
+	return isLockingTurnedOff(stateConfig) ? "disabled" : "exclusive";
 }

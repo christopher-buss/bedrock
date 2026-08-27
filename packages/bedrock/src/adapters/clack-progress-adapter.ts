@@ -108,19 +108,12 @@ function applySummaryLine(event: Extract<ProgressEvent, { kind: "applySummary" }
 }
 
 /**
- * Render one backoff while another run holds the environment, naming the
- * holder when the **Backend** could read it and how long acquisition will
- * keep waiting.
+ * Name the **Backend** one environment's state lives in, for a line that
+ * reports where a snapshot was written.
  *
- * @param event - The wait as the **Backend** reported it.
- * @returns The line to log.
+ * @param state - The resolved `state` block.
+ * @returns The label to log.
  */
-function stateLockWaitingLine(event: Extract<ProgressEvent, { kind: "stateLockWaiting" }>): string {
-	const holder = event.holder === undefined ? "" : `, held by ${event.holder}`;
-	const seconds = (event.remainingMs / 1000).toFixed(1);
-	return `Waiting for the ${event.environment} state lock${holder}: ${seconds}s left`;
-}
-
 function stateConfigLabel(state: StateConfig): string {
 	if (isGistStateConfig(state)) {
 		return `gist:${state.gistId}`;
@@ -129,6 +122,14 @@ function stateConfigLabel(state: StateConfig): string {
 	return state.backend;
 }
 
+/**
+ * Name where one environment's state was written, falling back to a bare
+ * label when the config names no **Backend** for it.
+ *
+ * @param config - The project config, when the adapter was given one.
+ * @param environment - Environment whose state was written.
+ * @returns The label to log.
+ */
 function formatStateLabel(
 	config: Config | ResolvedConfig | undefined,
 	environment: string,
@@ -149,13 +150,7 @@ function renderDeployEvent(
 	event: Extract<
 		ProgressEvent,
 		{
-			kind:
-				| "applySummary"
-				| "deployFailure"
-				| "deploySuccess"
-				| "stateLockLeaseLost"
-				| "stateLockWaiting"
-				| "stateWritten";
+			kind: "applySummary" | "deployFailure" | "deploySuccess" | "stateWritten";
 		}
 	>,
 	{ clack, config }: ClackProgressAdapterDeps,
@@ -173,16 +168,63 @@ function renderDeployEvent(
 			clack.logSuccess(`${event.environment}: ${event.resourceCount} resources reconciled`);
 			return;
 		}
+		case "stateWritten": {
+			clack.logMessage(`State written to ${formatStateLabel(config, event.environment)}`);
+		}
+	}
+}
+
+/**
+ * Render one backoff while another run holds the environment, naming the
+ * holder when the **Backend** could read it and how long acquisition will
+ * keep waiting.
+ *
+ * @param event - The wait as the **Backend** reported it.
+ * @returns The line to log.
+ */
+function stateLockWaitingLine(event: Extract<ProgressEvent, { kind: "stateLockWaiting" }>): string {
+	const holder = event.holder === undefined ? "" : `, held by ${event.holder}`;
+	const seconds = (event.remainingMs / 1000).toFixed(1);
+	return `Waiting for the ${event.environment} state lock${holder}: ${seconds}s left`;
+}
+
+/**
+ * Render a deploy running without a hold because the config turned locking
+ * off, so the guarantee that is not in force is on screen.
+ *
+ * @param event - The environment being deployed without a hold.
+ * @returns The line to log.
+ */
+function stateLockDisabledLine(
+	event: Extract<ProgressEvent, { kind: "stateLockDisabled" }>,
+): string {
+	return `Locking is off for ${event.environment} by config: concurrent deploys are not held apart`;
+}
+
+/**
+ * Render one event about the hold a **Deploy** runs under.
+ *
+ * @param event - The lock event to render.
+ * @param clack - Where the line is written.
+ */
+function renderStateLockEvent(
+	event: Extract<
+		ProgressEvent,
+		{ kind: "stateLockDisabled" | "stateLockLeaseLost" | "stateLockWaiting" }
+	>,
+	clack: ClackPort,
+): void {
+	switch (event.kind) {
+		case "stateLockDisabled": {
+			clack.logMessage(stateLockDisabledLine(event));
+			return;
+		}
 		case "stateLockLeaseLost": {
 			clack.logError(`Lost the ${event.environment} state lock: ${event.error.reason}`);
 			return;
 		}
 		case "stateLockWaiting": {
 			clack.logMessage(stateLockWaitingLine(event));
-			return;
-		}
-		case "stateWritten": {
-			clack.logMessage(`State written to ${formatStateLabel(config, event.environment)}`);
 		}
 	}
 }
@@ -258,10 +300,14 @@ function renderEvent(event: ProgressEvent, dependencies: ClackProgressAdapterDep
 		case "applySummary":
 		case "deployFailure":
 		case "deploySuccess":
-		case "stateLockLeaseLost":
-		case "stateLockWaiting":
 		case "stateWritten": {
 			renderDeployEvent(event, dependencies);
+			return;
+		}
+		case "stateLockDisabled":
+		case "stateLockLeaseLost":
+		case "stateLockWaiting": {
+			renderStateLockEvent(event, dependencies.clack);
 			return;
 		}
 		case "resourceOpFailed":

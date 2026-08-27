@@ -5,6 +5,7 @@ import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "../core/plugin-regis
 import type { RegisteredStateBackend } from "../core/plugin-registry.ts";
 import type { StateBackendBuildError } from "../core/plugin.ts";
 import { type GistStateConfig, isGistStateConfig, type StateConfig } from "../core/schema.ts";
+import { isLockingTurnedOff, type StateLockingCapability } from "../core/state-locking.ts";
 import type { StateLockPort } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
 
@@ -66,19 +67,34 @@ export interface PluginStateBackendError {
 }
 
 /**
+ * The exclusion one **Backend** provides around a **Deploy**, and the port
+ * that provides it.
+ *
+ * @since unreleased
+ */
+export interface StateBackendExclusion {
+	/**
+	 * The exclusion in force, which tells a **Backend** that offers none
+	 * apart from one whose locking the config turned off. A deploy reports
+	 * it so running without a hold is never silent.
+	 */
+	readonly locking: StateLockingCapability;
+	/**
+	 * Exclusion around a **Deploy**, or `undefined` when none is in force.
+	 * A deploy against a **Backend** that declares none, or one whose
+	 * locking the config turned off, runs without taking a hold.
+	 */
+	readonly stateLockPort: StateLockPort | undefined;
+}
+
+/**
  * The ports one **Backend** contributes: the **State port** it always
  * supplies, and the **State lock port** it supplies only when it declares
  * that it locks.
  *
  * @since unreleased
  */
-export interface StateBackend {
-	/**
-	 * Exclusion around a **Deploy**, or `undefined` when the **Backend**
-	 * declares none. A deploy against a **Backend** that declares none runs
-	 * without taking a hold.
-	 */
-	readonly stateLockPort: StateLockPort | undefined;
+export interface StateBackend extends StateBackendExclusion {
 	/** Persistence for the per-environment snapshot. */
 	readonly statePort: StatePort;
 }
@@ -221,10 +237,46 @@ function wrapPluginRefusal(
 }
 
 /**
+ * Build the exclusion one plugin-declared **Backend** provides.
+ *
+ * A declaration supplying no lock builder claims no locking, and a config
+ * that turned locking off is never asked for a lock port: the store it
+ * would reach for is one the deploy has been told not to take a hold in.
+ *
+ * @param registered - The **Backend** the loaded plugins claimed.
+ * @param dependencies - The resolved `state` block plus the seams handed on
+ * to the plugin.
+ * @returns The exclusion in force and the port providing it, or the
+ * plugin's refusal.
+ */
+function buildPluginExclusion(
+	registered: RegisteredStateBackend,
+	dependencies: BuildStatePortDependencies,
+): Result<StateBackendExclusion, StateBackendBuildError> {
+	if (registered.declaration.createLockPort === undefined) {
+		return { data: { locking: "none", stateLockPort: undefined }, success: true };
+	}
+
+	if (isLockingTurnedOff(dependencies.stateConfig)) {
+		return { data: { locking: "disabled", stateLockPort: undefined }, success: true };
+	}
+
+	const lock = registered.declaration.createLockPort({
+		fetch: dependencies.fetch,
+		getEnv: dependencies.getEnv,
+		stateConfig: dependencies.stateConfig,
+	});
+	return lock.success
+		? { data: { locking: "exclusive", stateLockPort: lock.data }, success: true }
+		: lock;
+}
+
+/**
  * Build one plugin-declared **Backend**, mapping the plugin's refusal onto
  * the `pluginStateBackend` failure that names it. A declaration supplying
- * no lock builder claims no locking, so the **Backend** resolves with no
- * lock port rather than failing.
+ * no lock builder claims no locking, and a config that turned locking off
+ * is never asked for one; either way the **Backend** resolves with no lock
+ * port rather than failing.
  *
  * @param registered - The **Backend** the loaded plugins claimed for this
  * `state.backend` value.
@@ -247,16 +299,12 @@ function buildPluginStateBackend(
 		return { err: wrapPluginRefusal(registered, built.err), success: false };
 	}
 
-	const lock = registered.declaration.createLockPort?.(context);
-	if (lock === undefined) {
-		return { data: { stateLockPort: undefined, statePort: built.data }, success: true };
+	const exclusion = buildPluginExclusion(registered, dependencies);
+	if (!exclusion.success) {
+		return { err: wrapPluginRefusal(registered, exclusion.err), success: false };
 	}
 
-	if (!lock.success) {
-		return { err: wrapPluginRefusal(registered, lock.err), success: false };
-	}
-
-	return { data: { stateLockPort: lock.data, statePort: built.data }, success: true };
+	return { data: { ...exclusion.data, statePort: built.data }, success: true };
 }
 
 /**
@@ -286,6 +334,7 @@ function buildGistStateBackend(
 
 	return {
 		data: {
+			locking: "none",
 			stateLockPort: undefined,
 			statePort: createGistStateAdapter({
 				fetch: dependencies.fetch,

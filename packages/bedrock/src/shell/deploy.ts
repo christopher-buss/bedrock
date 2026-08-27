@@ -33,6 +33,7 @@ import {
 	resolveEnvironment,
 	type UnknownEnvironmentError,
 } from "../core/select-environment.ts";
+import type { StateLockingCapability } from "../core/state-locking.ts";
 import type { BedrockState, StateError, StateVersion } from "../core/state.ts";
 import type { CodegenWriterPort } from "../ports/codegen-writer.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
@@ -397,6 +398,7 @@ interface ResolvedDependenciesBase {
 	readonly build: BuildStep | undefined;
 	readonly codegen: CodegenBundle | undefined;
 	readonly config: ResolvedConfig;
+	readonly locking: StateLockingCapability;
 	readonly readFile: (path: string) => Promise<Uint8Array>;
 	readonly realDisplay: Readonly<Record<string, ResourceRealDisplay>>;
 	readonly registry: DriverRegistry;
@@ -487,6 +489,7 @@ interface AssetStageInputs {
  */
 interface DrivenDependencies {
 	readonly codegen: CodegenBundle | undefined;
+	readonly locking: StateLockingCapability;
 	readonly registry: DriverRegistry;
 	readonly stateLockPort: StateLockPort | undefined;
 	readonly statePort: StatePort;
@@ -739,6 +742,23 @@ async function resolveEffectiveConfigAsync(options: DeployOptions): Promise<
 }
 
 /**
+ * Read the **Backend** a caller supplied its own ports for. Supplying them
+ * supplies the whole **Backend**, so the exclusion in force is whatever
+ * came with them rather than anything the config says.
+ *
+ * @param options - The caller's deploy options.
+ * @param statePort - The **State port** the caller supplied.
+ * @returns The caller's **Backend**.
+ */
+function suppliedStateBackend(options: DeployOptions, statePort: StatePort): StateBackend {
+	return {
+		locking: options.stateLockPort === undefined ? "none" : "exclusive",
+		stateLockPort: options.stateLockPort,
+		statePort,
+	};
+}
+
+/**
  * Resolve the ports the **Backend** contributes. A supplied `statePort` is
  * the caller's whole **Backend**, so the config's `state` block is never
  * read and the hold is whatever the caller supplied alongside it; otherwise
@@ -756,10 +776,7 @@ function pickStateBackend({
 	plugins,
 }: DrivenInputs): Result<StateBackend, DeployError> {
 	if (options.statePort !== undefined) {
-		return {
-			data: { stateLockPort: options.stateLockPort, statePort: options.statePort },
-			success: true,
-		};
+		return { data: suppliedStateBackend(options, options.statePort), success: true };
 	}
 
 	const stateConfig = resolveStateConfig(config, options.environment);
@@ -773,13 +790,14 @@ function pickStateBackend({
 		plugins,
 		stateConfig: stateConfig.data,
 	});
-	if (!backend.success) {
+	if (!backend.success || options.stateLockPort === undefined) {
 		return backend;
 	}
 
-	return options.stateLockPort === undefined
-		? backend
-		: { data: { ...backend.data, stateLockPort: options.stateLockPort }, success: true };
+	return {
+		data: { ...backend.data, locking: "exclusive", stateLockPort: options.stateLockPort },
+		success: true,
+	};
 }
 
 function pickRegistry(inputs: DrivenInputs): Result<DriverRegistry, DeployError> {
@@ -925,6 +943,10 @@ async function runHeldAsync({
 	environment,
 	runner,
 }: HeldRunContext): Promise<Result<BedrockState, DeployError>> {
+	if (deps.locking === "disabled") {
+		deps.progress.emit({ environment, kind: "stateLockDisabled" });
+	}
+
 	if (deps.stateLockPort === undefined) {
 		return runner(environment, deps);
 	}
