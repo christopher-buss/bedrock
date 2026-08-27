@@ -1179,6 +1179,43 @@ describe(migrateCommand, () => {
 		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
 	});
 
+	it("should report a plugin whose translation threw instead of letting the rejection escape", async () => {
+		expect.assertions(2);
+
+		const encoder = new TextEncoder();
+		const dependencies = makeDependencies({
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createPort: () => ({ data: happyPort(), success: true }),
+				migratePrompts: [{ key: "bucket", label: "Bucket name?" }],
+				migrateSource: {
+					prompts: [{ key: "bucket", label: "Bucket the Mantle state lives in?" }],
+					readBytes: async () => {
+						return { data: encoder.encode("version: '6'\n"), success: true };
+					},
+					toStateConfig: () => {
+						throw new Error("bucket name is not a valid host label");
+					},
+				},
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+		});
+		const port = dependencies.migratePromptPort!;
+		vi.mocked(port.promptStateSource).mockResolvedValueOnce({ data: "s3", success: true });
+		vi.mocked(port.promptBackendField).mockResolvedValueOnce({
+			data: "my-bucket",
+			success: true,
+		});
+
+		await migrateCommand(dependencies)(undefined, { from: "mantle" });
+
+		expect(dependencies.clack!.logError).toHaveBeenCalledWith(
+			"plugin '@example/state-s3' could not read the mantle state: bucket name is not a valid host label",
+		);
+		expect(dependencies.exit).toHaveBeenCalledExactlyOnceWith(1);
+	});
+
 	it("should take its plugin backends from the project config when none were injected", async () => {
 		expect.assertions(1);
 
