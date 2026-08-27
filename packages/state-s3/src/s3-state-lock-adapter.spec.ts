@@ -188,6 +188,36 @@ function untaggedFrom(store: FakeS3, from: number): StateBackendFetch {
 }
 
 /**
+ * Wrap a store so one write is answered without an entity tag and every
+ * read after it finds another run's record, which is a renewal that landed
+ * on an object another run has since taken over.
+ *
+ * @param store - The store the earlier requests are served from.
+ * @param nth - Which write to answer untagged, counting from 1.
+ * @returns The transport to hand the lock port.
+ */
+function overwrittenAfter(store: FakeS3, nth: number): StateBackendFetch {
+	let puts = 0;
+	let taken = false;
+	return async (input, init) => {
+		if (init?.method === "PUT") {
+			puts += 1;
+			if (puts === nth) {
+				taken = true;
+				return new Response("", { status: 200 });
+			}
+		}
+
+		return taken
+			? new Response(serializeLockRecord(OTHER_HOLD), {
+					headers: { etag: '"theirs"' },
+					status: 200,
+				})
+			: store.fetchFunc(input, init);
+	};
+}
+
+/**
  * Wrap a store so the holder's record can never be read, which is the
  * condition contention itself produces.
  *
@@ -1281,6 +1311,29 @@ describe(createS3StateLockPort, () => {
 			expect(lost).toBeEmpty();
 			expect(schedule.cancelled()).toBe(1);
 			expect(given.success).toBeTrue();
+		});
+
+		it("should report the lease lost when the read back finds another run's record", async () => {
+			expect.assertions(2);
+
+			const store = fakeS3();
+			const schedule = createFakeSchedule();
+			const lost: Array<StateLockError> = [];
+
+			const hold = await lockFor({
+				fetch: overwrittenAfter(store, 2),
+				scheduleEvery: schedule.scheduleEvery,
+			}).acquire("production", {
+				onLeaseLost: (error) => {
+					lost.push(error);
+				},
+			});
+			assert(hold.success);
+
+			await schedule.tickAsync();
+
+			expect(lost[0]!.detail).toStrictEqual({ file: LOCK_LABEL, kind: "leaseLost" });
+			expect(schedule.cancelled()).toBe(1);
 		});
 
 		it("should report the lease lost when no read can name what to write against", async () => {
