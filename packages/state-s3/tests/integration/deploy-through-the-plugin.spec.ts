@@ -1,4 +1,5 @@
 import {
+	type BedrockState,
 	type Config,
 	createConfigValidator,
 	deploy,
@@ -6,13 +7,15 @@ import {
 	OpenCloudError,
 	parseStateFile,
 	type PluginRegistry,
+	serializeStateFile,
+	type StateBackendFetch,
 } from "@bedrock-rbx/core";
 
 import { assert, describe, expect, it } from "vitest";
 
 import { parseLockRecord } from "#src/lock-record";
 import { s3StateBackend } from "#src/plugin";
-import { fakeS3 } from "#tests/helpers/fake-s3";
+import { type FakeS3, fakeS3 } from "#tests/helpers/fake-s3";
 
 const SPECIFIER = "@bedrock-rbx/state-s3";
 
@@ -49,6 +52,28 @@ function refusingRegistry(): DriverRegistry {
 		gamePass: { create: refuseAsync },
 		place: { create: refuseAsync },
 		universe: { create: refuseAsync },
+	};
+}
+
+/**
+ * Wrap a store so another run takes the **Environment** over the moment
+ * this deploy has read the **State** it is about to write past, which is
+ * what a hold whose **Lease** ran out leaves open.
+ *
+ * @param store - The store the requests are served from.
+ * @param theirs - The **State** that run records.
+ * @returns The transport to hand the **Deploy**.
+ */
+function takenOverAfterRead(store: FakeS3, theirs: BedrockState): StateBackendFetch {
+	return async (input, init) => {
+		const request = new Request(input, init);
+		const { pathname } = new URL(request.url);
+		const response = await store.fetchFunc(input, init);
+		if (pathname === STATE_OBJECT && request.method !== "PUT") {
+			store.put(STATE_OBJECT, serializeStateFile(theirs));
+		}
+
+		return response;
 	};
 }
 
@@ -127,6 +152,34 @@ describe("deploying through the s3 plugin", () => {
 
 		expect(stateCalls[0]!.method).toBe("GET");
 		expect(stateCalls[0]!.url).toEndWith(`${STATE_OBJECT}?x-id=GetObject`);
+	});
+
+	it("should refuse the state write of a run whose hold was taken over", async () => {
+		expect.assertions(3);
+
+		const store = fakeS3();
+		const theirs: BedrockState = {
+			environment: "production",
+			resources: [],
+			version: 1,
+		};
+
+		const result = await deploy({
+			config: CONFIG,
+			environment: "production",
+			fetch: takenOverAfterRead(store, theirs),
+			getEnv: (name) => ENVIRONMENT[name],
+			plugins: PLUGINS,
+			registry: refusingRegistry(),
+		});
+
+		assert(!result.success);
+
+		assert(result.err.kind === "stateWriteFailed");
+
+		expect(result.err.cause.kind).toBe("stateConflict");
+		expect(result.err.unsavedState.environment).toBe("production");
+		expect(store.objects.get(STATE_OBJECT)).toBe(serializeStateFile(theirs));
 	});
 
 	it("should hold the environment across the deploy and give it up afterwards", async () => {

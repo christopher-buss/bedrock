@@ -24,6 +24,11 @@ export interface FakeS3 {
 	readonly fetchFunc: StateBackendFetch;
 	/** Stored objects, keyed by the URL path they were written at. */
 	readonly objects: Map<string, string>;
+	/**
+	 * Store one object the way another writer would, minting the fresh
+	 * entity tag that makes every condition read before it stale.
+	 */
+	readonly put: (pathname: string, body: string) => void;
 }
 
 /** What the fake store holds, and the counter its entity tags come from. */
@@ -102,6 +107,11 @@ export function fakeS3(seed: Readonly<Record<string, string>> = {}): FakeS3 {
 			return answer(store, captured);
 		},
 		objects,
+		put: (pathname, body) => {
+			store.written += 1;
+			objects.set(pathname, body);
+			etags.set(pathname, `"written-${store.written}"`);
+		},
 	};
 }
 
