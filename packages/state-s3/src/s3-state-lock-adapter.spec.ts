@@ -1740,6 +1740,24 @@ describe(createS3StateLockPort, () => {
 			expect(released.err.reason).toBe("the pre-condition did not hold");
 		});
 
+		it("should report a lock store whose record the credential may not read", async () => {
+			expect.assertions(2);
+
+			const released = await lockFor({
+				fetch: fakeS3Failure("AccessDenied", 403).fetchFunc,
+			}).forceRelease("production");
+
+			assert(!released.success);
+
+			expect(released.err.detail).toStrictEqual({
+				name: "AccessDenied",
+				file: LOCK_LABEL,
+				kind: "inspectFailed",
+				statusCode: 403,
+			});
+			expect(released.err.reason).toBe("refused with AccessDenied");
+		});
+
 		it("should refuse an environment name that could escape the object layout", async () => {
 			expect.assertions(1);
 

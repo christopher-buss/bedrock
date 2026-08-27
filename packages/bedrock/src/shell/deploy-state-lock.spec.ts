@@ -615,6 +615,32 @@ describe("deploy under a locking backend", () => {
 		expect(events[0]).toStrictEqual({ environment: "production", kind: "stateLockDisabled" });
 	});
 
+	it("should say nothing about locking when the configured backend offers none", async () => {
+		expect.assertions(1);
+
+		const events: Array<ProgressEvent> = [];
+		const statePort = tracingStatePort([]);
+
+		const result = await deploy({
+			config: { ...vipPassConfig(), state: { backend: "s3", bucket: "my-bucket" } },
+			environment: "production",
+			getEnv: environmentFrom({}),
+			plugins: fakeStateBackendPlugins({
+				name: "s3",
+				createPort: () => ({ data: statePort, success: true }),
+				schema: type({ bucket: "string > 0" }),
+				specifier: "@example/state-s3",
+			}),
+			progress: recordingProgress(events),
+			readFile: readIconAsync,
+			registry: tracingRegistry([]),
+		});
+
+		assert(result.success);
+
+		expect(events.map((event) => event.kind)).not.toContain("stateLockDisabled");
+	});
+
 	it("should say nothing about locking when the backend offers none to turn off", async () => {
 		expect.assertions(1);
 
