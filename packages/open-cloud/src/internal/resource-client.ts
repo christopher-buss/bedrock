@@ -14,7 +14,7 @@ import { ApiError, requestContextOf } from "../errors/api-error.ts";
 import type { OpenCloudError } from "../errors/base.ts";
 import { PermissionError } from "../errors/permission-error.ts";
 import type { Result } from "../types.ts";
-import { BudgetGate } from "./http/budget-gate.ts";
+import { BudgetGate, type BudgetScope } from "./http/budget-gate.ts";
 import { executeWithRetryAsync } from "./http/execute.ts";
 import { rateLimitSampleFromResult } from "./http/rate-limit-observation.ts";
 import { type OperationLimit, RateLimitQueue } from "./http/rate-limit-queue.ts";
@@ -215,7 +215,10 @@ export class ResourceClient {
 			return executeWithRetryAsync(requestResult.data, {
 				config: merged,
 				hooks: this.#hooks,
-				send: this.#gatedSend(merged.apiKey, requestConfig),
+				send: this.#gatedSend(
+					{ apiKey: merged.apiKey, operationKey: spec.operationLimit.operationKey },
+					requestConfig,
+				),
 				sleep: this.#sleep,
 			});
 		});
@@ -237,22 +240,22 @@ export class ResourceClient {
 
 	/**
 	 * Builds the transport callback for one logical call, wrapping the HTTP
-	 * client with the budget gate: each attempt waits on the API key's budget
+	 * client with the budget gate: each attempt waits on the scope's budget
 	 * before sending, then folds the response's reported budget back in so the
-	 * next attempt (or a sibling operation on the same key) can head off a 429.
+	 * next attempt (or a later call on the same scope) can head off a 429.
 	 *
-	 * @param apiKey - The effective API key to gate on.
+	 * @param scope - The API key and operation whose bucket to gate on.
 	 * @param requestConfig - The resolved per-request transport config.
 	 * @returns A send callback for {@link executeWithRetryAsync}.
 	 */
 	#gatedSend(
-		apiKey: string,
+		scope: BudgetScope,
 		requestConfig: RequestConfig,
 	): (request: HttpRequest) => Promise<Result<HttpResponse, OpenCloudError>> {
 		return async (toSend) => {
-			await this.#budgets.gateAsync(apiKey);
+			await this.#budgets.gateAsync(scope);
 			const sendResult = await this.#httpClient.request(toSend, requestConfig);
-			this.#budgets.observe(apiKey, rateLimitSampleFromResult(sendResult));
+			this.#budgets.observe(scope, rateLimitSampleFromResult(sendResult));
 			return sendResult;
 		};
 	}

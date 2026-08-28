@@ -631,3 +631,69 @@ narrow: the loop is one caller of a transport-level defect, and a truncated body
 can land on any idempotent read. Loop tolerance stays what it documents —
 `NetworkError` with a transient code — and by the time a parse failure reaches
 it, the request-level retry budget is already spent.
+
+## Amendment: 2026-08-28, the header-primed gate tracks a window per operation
+
+The 2026-06-22 amendment scoped the budget gate per API key, on the premise that
+"every operation reports the same most-constrained `remaining`, and a per-key
+tracker drawn down by all operations is always the binding constraint, so a
+per-operation tracker could never independently fire". Measurement since has
+shown that premise to be wrong.
+
+A live probe against the Luau Execution submit endpoints
+(`docs/spikes/luau-submit-rate-limits/README.md`, run for issue #541) read two
+operations on **one API key at one instant** reporting different budgets: the
+head submit at 38 of 40 remaining, the version-pinned submit at 1 of 5. Three
+pinned submits moved head's `remaining` by exactly one, the reader's own head
+call. Roblox meters each operation in its own per-key bucket, and the ceilings
+are additive rather than a shared minimum. The values match
+`x-roblox-rate-limits` in the vendored schema, which already encodes 40 for the
+head operation and 5 for the pinned one.
+
+Because `BudgetTracker.observe` is last-writer-wins, one tracker fed by several
+operations thrashes between unrelated windows. Both directions are reachable in
+a single `runUntilDone`, where submit (40/min), get (200/min) and listLogs
+(45/min) responses all land on one tracker:
+
+- **Under-pacing.** A get reporting `remaining=199` erases a submit's
+  near-exhausted window, so the next submit goes out unpaced into a bucket with
+  nothing left. This is the failure the header-primed gate exists to prevent.
+- **Over-pacing.** A submit reporting `remaining=0` holds the polling gets until
+  the submit window resets, against a bucket with hundreds of calls to spare.
+
+The gate now keys its tracker map and its serializing promise chain on a
+`BudgetScope` of API key and operation key, the pairing `ResourceClient` already
+uses for its `RateLimitQueue` registry. Each operation holds its own window, and
+a reading from one no longer moves another. Concurrent requests on different
+operations of one key no longer serialize behind each other either, which is
+correct: they draw down independent windows.
+
+The rest of the 2026-06-22 amendment stands. Observation is still
+last-writer-wins, now within one operation's window, where monotonic observe
+time makes the latest sample the best estimate. The static per-operation token
+bucket remains the cold-start and header-absent fallback, and the reactive 429
+retry path remains as defense in depth.
+
+Two limitations recorded in 2026-06-22 change shape. The over-throttling one is
+resolved: a route-specific window reaching zero no longer holds unrelated
+operations. What replaces it is narrower and accepted: a per-operation window is
+blind to the account-wide quota Roblox also enforces (the trailing `70000` token
+in `x-ratelimit-limit`), so a deploy fanning out across many operations can
+still reach a ceiling no single tracker is watching. The reactive 429 path
+covers it, and modelling the global window is deferred until a deploy is
+observed hitting it.
+
+The same shape applies wherever several operation keys name one upstream bucket.
+The legacy `gameinternationalization` endpoints are documented in this package
+as one 100/minute per-key service budget, yet carry five operation keys, so they
+now hold five windows over one bucket and can collectively out-send it between
+observations. `RateLimitQueue` already splits them the same way, so the static
+layer over-sends this family on its own; the mismatch lives in the operation
+keys rather than in either limiter, and the vendored schema carries no
+`x-roblox-rate-limits` extension for those paths to settle it. Correcting the
+keys needs the same live probe #541 used, and is tracked in #587.
+
+The multi-client and multi-process per-key hazard from the original Decision is
+unchanged.
+
+`BudgetScope` is internal, so there is no public surface change.

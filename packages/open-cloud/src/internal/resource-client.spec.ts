@@ -855,7 +855,38 @@ describe(ResourceClient, () => {
 	});
 
 	describe("adaptive throttling", () => {
-		it("should hold a same-key operation when an earlier response reported zero remaining", async () => {
+		it("should hold the same operation when an earlier response reported zero remaining", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockResponse({
+					headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "60" },
+					status: 200,
+				})
+				.mockResponse({ status: 200 });
+			const clock = createFakeClock();
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			const first = await client.executeAsync({
+				parameters: { id: "1" },
+				spec: TEST_GET_SPEC,
+			});
+			const second = await client.executeAsync({
+				parameters: { id: "2" },
+				spec: TEST_GET_SPEC,
+			});
+
+			assert(first.success);
+			assert(second.success);
+
+			expect(clock.waits).toStrictEqual([60_000]);
+		});
+
+		it("should not hold a sibling operation on the key that reported zero remaining", async () => {
 			expect.assertions(1);
 
 			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
@@ -883,8 +914,33 @@ describe(ResourceClient, () => {
 			assert(first.success);
 			assert(second.success);
 
-			// The GET drained the shared per-key window to 0, so the CREATE on
-			// the same key holds for the full reset before its request goes out.
+			expect(clock.waits).toStrictEqual([]);
+		});
+
+		it("should not let a roomy operation erase an exhausted sibling's window", async () => {
+			expect.assertions(1);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" })
+				.mockResponse({
+					headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": "60" },
+					status: 200,
+				})
+				.mockResponse({
+					headers: { "x-ratelimit-remaining": "199", "x-ratelimit-reset": "60" },
+					status: 200,
+				})
+				.mockResponse({ status: 200 });
+			const clock = createFakeClock();
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			await client.executeAsync({ parameters: { id: "1" }, spec: TEST_CREATE_SPEC });
+			await client.executeAsync({ parameters: { id: "2" }, spec: TEST_GET_SPEC });
+			await client.executeAsync({ parameters: { id: "3" }, spec: TEST_CREATE_SPEC });
+
 			expect(clock.waits).toStrictEqual([60_000]);
 		});
 
