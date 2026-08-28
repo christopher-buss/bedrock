@@ -27,6 +27,11 @@ interface FakeStateStoreOptions {
 	readonly refuseRead?: Readonly<Record<string, StateError>>;
 	/** Refusals to return from `write`, keyed by **Environment**. */
 	readonly refuseWrite?: Readonly<Record<string, StateError>>;
+	/**
+	 * Log each call appends to, so a test states the order a store was
+	 * reached in against whatever else appends to the same log.
+	 */
+	readonly trace?: Array<string>;
 }
 
 /**
@@ -42,6 +47,7 @@ export function fakeStateStore(options: FakeStateStoreOptions = {}): FakeStateSt
 
 	const port: StatePort = {
 		read: async (environment) => {
+			options.trace?.push(`read:${environment}`);
 			await Promise.resolve();
 			const refusal = options.refuseRead?.[environment];
 			if (refusal !== undefined) {
@@ -51,6 +57,7 @@ export function fakeStateStore(options: FakeStateStoreOptions = {}): FakeStateSt
 			return { data: recordOf(states.get(environment)), success: true };
 		},
 		write: async (state, expected) => {
+			options.trace?.push(`write:${state.environment}`);
 			await Promise.resolve();
 			writes.push({ environment: state.environment, expected });
 			const refusal = options.refuseWrite?.[state.environment];

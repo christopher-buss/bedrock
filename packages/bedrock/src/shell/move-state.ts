@@ -4,6 +4,7 @@ import type { GistFetch } from "../adapters/gist-state-adapter.ts";
 import type { PluginRegistry } from "../core/plugin-registry.ts";
 import { resolveStateConfig, type StateNotConfiguredError } from "../core/resolve-state-config.ts";
 import type { Config, StateConfig } from "../core/schema.ts";
+import type { StateLockingCapability } from "../core/state-locking.ts";
 import {
 	planStateMove,
 	type StateMoveBlocker,
@@ -11,13 +12,18 @@ import {
 	type StateMoveSurvey,
 } from "../core/state-move.ts";
 import type { StateError } from "../core/state.ts";
+import type { StateLockError, StateLockHold, StateLockPort } from "../ports/state-lock-port.ts";
 import type { StatePort } from "../ports/state-port.ts";
 import {
+	buildStateBackend,
 	buildStatePort,
 	type MissingCredentialError,
 	type PluginStateBackendError,
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
+
+/** What a hold this command takes is recorded as. */
+const OPERATION = "state move";
 
 /** Why one side's **Backend** could not be reached at all. */
 export type StateBackendUnavailable =
@@ -57,6 +63,14 @@ export type MoveStateError =
 			readonly kind: "destinationUnavailable";
 	  }
 	| {
+			/** Why the hold was refused. */
+			readonly cause: StateLockError;
+			/** **Environment** whose hold was refused. */
+			readonly environment: string;
+			/** Literal discriminator for narrowing. */
+			readonly kind: "lockAcquireFailed";
+	  }
+	| {
 			/** Why the source could not be reached. */
 			readonly cause: StateBackendUnavailable;
 			/** **Environment** whose source could not be reached. */
@@ -69,6 +83,11 @@ export type MoveStateError =
 export interface StateMoveOutcome {
 	/** What the survey decided, keyed by **Environment**. */
 	readonly decisions: ReadonlyMap<string, StateMoveDecision>;
+	/**
+	 * The exclusion each **Environment** moved under, keyed by its name, so
+	 * a move that ran without a hold says so rather than implying one.
+	 */
+	readonly locking: ReadonlyMap<string, StateLockingCapability>;
 	/** **Environment**s whose state reached the destination, in order. */
 	readonly moved: ReadonlyArray<string>;
 }
@@ -105,11 +124,13 @@ interface BuildSourcePortsInputs {
 	readonly inputs: MoveStateInputs;
 }
 
-/** One **Environment**'s two ports, both built. */
+/** One **Environment**'s ports, and the exclusion its source offers. */
 interface EnvironmentPorts {
 	readonly destination: StatePort;
 	readonly environment: string;
+	readonly locking: StateLockingCapability;
 	readonly source: StatePort;
+	readonly stateLockPort: StateLockPort | undefined;
 }
 
 /**
@@ -145,14 +166,7 @@ export async function moveStateAsync(
 		return ports;
 	}
 
-	const surveys = await Promise.all(ports.data.map(surveyAsync));
-	const decisions = planStateMove(surveys, { force: inputs.force });
-	const blocked = blockedOf(decisions);
-	if (blocked.size > 0) {
-		return { err: { blocked, kind: "moveBlocked" }, success: false };
-	}
-
-	return writeAllAsync(ports.data, decisions);
+	return withHoldsAsync(ports.data, async () => moveHeldAsync(ports.data, inputs.force));
 }
 
 function blockedOf(
@@ -165,50 +179,6 @@ function blockedOf(
 	);
 }
 
-function buildPort(
-	deps: MoveStateDeps,
-	stateConfig: StateConfig,
-): Result<StatePort, StateBackendUnavailable> {
-	return buildStatePort({ ...deps, stateConfig });
-}
-
-/**
- * Build one source port per **Environment**, pairing each with the one
- * destination port every write goes through.
- *
- * @param built - The seams to build over, the destination every write goes
- *   through, and the **Environment**s being moved.
- * @returns Both ports per **Environment**, or the first one that refused.
- */
-function buildSourcePorts({
-	deps,
-	destination,
-	inputs,
-}: BuildSourcePortsInputs): Result<ReadonlyArray<EnvironmentPorts>, MoveStateError> {
-	const ports: Array<EnvironmentPorts> = [];
-	for (const environment of inputs.environments) {
-		const stateConfig = resolveStateConfig(inputs.config, environment);
-		if (!stateConfig.success) {
-			return {
-				err: { cause: stateConfig.err, environment, kind: "sourceUnavailable" },
-				success: false,
-			};
-		}
-
-		const source = buildPort(deps, stateConfig.data);
-		if (!source.success) {
-			return {
-				err: { cause: source.err, environment, kind: "sourceUnavailable" },
-				success: false,
-			};
-		}
-
-		ports.push({ destination, environment, source: source.data });
-	}
-
-	return { data: ports, success: true };
-}
-
 async function surveyAsync({
 	destination,
 	environment,
@@ -219,6 +189,12 @@ async function surveyAsync({
 		destination.read(environment),
 	]);
 	return { destination: destinationRead, environment, source: sourceRead };
+}
+
+function lockingOf(
+	ports: ReadonlyArray<EnvironmentPorts>,
+): ReadonlyMap<string, StateLockingCapability> {
+	return new Map(ports.map(({ environment, locking }) => [environment, locking] as const));
 }
 
 /**
@@ -251,5 +227,123 @@ async function writeAllAsync(
 		moved.push(environment);
 	}
 
-	return { data: { decisions, moved }, success: true };
+	return { data: { decisions, locking: lockingOf(ports), moved }, success: true };
+}
+
+/**
+ * Survey both sides, decide, and write whatever the survey cleared.
+ *
+ * @param ports - Both ports per **Environment**.
+ * @param force - Whether to overwrite an occupied destination.
+ * @returns What landed, or what stopped the move.
+ */
+async function moveHeldAsync(
+	ports: ReadonlyArray<EnvironmentPorts>,
+	force: boolean,
+): Promise<Result<StateMoveOutcome, MoveStateError>> {
+	const surveys = await Promise.all(ports.map(surveyAsync));
+	const decisions = planStateMove(surveys, { force });
+	const blocked = blockedOf(decisions);
+	if (blocked.size > 0) {
+		return { err: { blocked, kind: "moveBlocked" }, success: false };
+	}
+
+	return writeAllAsync(ports, decisions);
+}
+
+async function releaseAllAsync(holds: ReadonlyArray<StateLockHold>): Promise<void> {
+	await Promise.all(holds.map(async (hold) => hold.release()));
+}
+
+/**
+ * Take a hold on every **Environment** whose source offers one, run the
+ * move under them, and give every hold back however it ended.
+ *
+ * A **Backend** that offers no exclusion is moved without a hold rather
+ * than refused, which is the same bargain a deploy against it strikes. A hold
+ * that could not be given up never changes the move's own result: the
+ * state has already landed, and reporting otherwise would send an operator
+ * looking for a failure that did not happen.
+ *
+ * @param ports - Both ports per **Environment**, in the order named.
+ * @param runAsync - The move to run under the holds.
+ * @returns What the move returned, or the hold that was refused.
+ */
+async function withHoldsAsync(
+	ports: ReadonlyArray<EnvironmentPorts>,
+	runAsync: () => Promise<Result<StateMoveOutcome, MoveStateError>>,
+): Promise<Result<StateMoveOutcome, MoveStateError>> {
+	const holds: Array<StateLockHold> = [];
+	for (const { environment, stateLockPort } of ports) {
+		if (stateLockPort === undefined) {
+			continue;
+		}
+
+		const hold = await stateLockPort.acquire(environment, { operation: OPERATION });
+		if (!hold.success) {
+			await releaseAllAsync(holds);
+			return {
+				err: { cause: hold.err, environment, kind: "lockAcquireFailed" },
+				success: false,
+			};
+		}
+
+		holds.push(hold.data);
+	}
+
+	try {
+		return await runAsync();
+	} finally {
+		await releaseAllAsync(holds);
+	}
+}
+
+function buildPort(
+	deps: MoveStateDeps,
+	stateConfig: StateConfig,
+): Result<StatePort, StateBackendUnavailable> {
+	return buildStatePort({ ...deps, stateConfig });
+}
+
+/**
+ * Build one source port per **Environment**, pairing each with the one
+ * destination port every write goes through.
+ *
+ * @param built - The seams to build over, the destination every write goes
+ *   through, and the **Environment**s being moved.
+ * @returns Both ports per **Environment**, or the first one that refused.
+ */
+function buildSourcePorts({
+	deps,
+	destination,
+	inputs,
+}: BuildSourcePortsInputs): Result<ReadonlyArray<EnvironmentPorts>, MoveStateError> {
+	const ports: Array<EnvironmentPorts> = [];
+	for (const environment of inputs.environments) {
+		const stateConfig = resolveStateConfig(inputs.config, environment);
+		if (!stateConfig.success) {
+			return {
+				err: { cause: stateConfig.err, environment, kind: "sourceUnavailable" },
+				success: false,
+			};
+		}
+
+		const source = buildStateBackend({ ...deps, stateConfig: stateConfig.data });
+		if (!source.success) {
+			return {
+				err: { cause: source.err, environment, kind: "sourceUnavailable" },
+				success: false,
+			};
+		}
+
+		ports.push({
+			destination,
+			environment,
+			locking: source.data.locking,
+			source: source.data.statePort,
+			stateLockPort: source.data.stateLockPort,
+		});
+	}
+
+	return { data: ports, success: true };
 }
