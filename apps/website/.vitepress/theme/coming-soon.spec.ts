@@ -70,7 +70,7 @@ describe(ComingSoon, () => {
 		expect(linkTargets().filter((href) => /^\/(?:bedrock|ocale)\//.test(href))).toHaveLength(0);
 	});
 
-	it("should point readers at the github repository instead", () => {
+	it("should point readers at the GitHub repository instead", () => {
 		expect.assertions(1);
 
 		renderComingSoon();
@@ -153,6 +153,19 @@ describe(ComingSoon, () => {
 
 		expect(themeToggle().querySelector(".icon-sun")).not.toBeNull();
 		expect(themeToggle().querySelector(".icon-moon")).toBeNull();
+	});
+
+	it("should expose the active theme on the toggle", async () => {
+		expect.assertions(2);
+
+		renderComingSoon();
+		const user = userEvent.setup();
+
+		expect(themeToggle().getAttribute("aria-pressed")).toBe("false");
+
+		await user.click(themeToggle());
+
+		expect(themeToggle().getAttribute("aria-pressed")).toBe("true");
 	});
 
 	it("should swap the sun icon back to the moon icon on a second click", async () => {
