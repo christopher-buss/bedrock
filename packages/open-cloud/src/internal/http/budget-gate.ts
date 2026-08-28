@@ -3,18 +3,28 @@ import { BudgetTracker } from "./budget-tracker.ts";
 import type { RateLimitSample } from "./rate-limit-sample.ts";
 
 /**
+ * Identifies the rate-limit bucket one request draws on. Roblox meters each
+ * operation in its own per-API-key bucket, so both halves are needed to name
+ * a window.
+ */
+export interface BudgetScope {
+	/** The effective API key the request authenticates with. */
+	readonly apiKey: string;
+	/** The operation the request belongs to. */
+	readonly operationKey: string;
+}
+
+/**
  * Header-primed rate-limit gate shared across a client. Holds one
- * {@link BudgetTracker} per API key, since the tightest Roblox window is the
- * per-key one shared across every operation. Before each request the caller
- * gates on the request's key (sleeping if its budget is spent), and after each
- * response folds the parsed sample back in, so a sibling operation on the same
- * key can head off a 429 the static per-operation token bucket cannot foresee.
- * A per-operation tracker is deliberately not kept: every operation reports the
- * same most-constrained `remaining`, so a per-key tracker (drawn down by all
- * operations) is always the binding constraint.
+ * {@link BudgetTracker} per {@link BudgetScope}, since Roblox meters each
+ * operation in its own per-API-key bucket and the ceilings differ between them.
+ * Before each request the caller gates on the request's scope (sleeping if that
+ * budget is spent), and after each response folds the parsed sample back in, so
+ * a later call on the same scope can head off a 429 the static per-operation
+ * token bucket cannot foresee.
  *
  * Gating is serialized per scope through a promise chain so concurrent
- * requests on one key cannot read the same budget and reserve the same slot;
+ * requests on one scope cannot read the same budget and reserve the same slot;
  * each waits for the prior gate's reserve before computing its own.
  */
 export class BudgetGate {
@@ -34,13 +44,15 @@ export class BudgetGate {
 	/**
 	 * Holds until the scope's budget permits a send, then reserves one slot.
 	 * Runs after the prior gate on the same scope settles, whether it resolved
-	 * or rejected, so one failed attempt cannot poison later gates on the key.
+	 * or rejected, so one failed attempt cannot poison later gates on the
+	 * scope.
 	 *
-	 * @param scope - The scope key to gate on (the effective API key).
+	 * @param scope - The API key and operation to gate on.
 	 */
-	public async gateAsync(scope: string): Promise<void> {
-		const previous = this.#chains.get(scope) ?? Promise.resolve();
-		const runGateAsync = async (): Promise<void> => this.#gateOnce(scope);
+	public async gateAsync(scope: BudgetScope): Promise<void> {
+		const key = scopeKey(scope);
+		const previous = this.#chains.get(key) ?? Promise.resolve();
+		const runGateAsync = async (): Promise<void> => this.#gateOnce(key);
 		// The gate runs whether the previous link settled or rejected, so a
 		// failed wait never strands the scope's chain.
 		// Both handlers are the same function on purpose: this gate must run
@@ -49,7 +61,7 @@ export class BudgetGate {
 		// the gate a second time when the gate itself rejects.
 		// eslint-disable-next-line unicorn/prefer-then-catch -- see above
 		const mine = previous.then(runGateAsync, runGateAsync);
-		this.#chains.set(scope, mine);
+		this.#chains.set(key, mine);
 		await mine;
 	}
 
@@ -58,19 +70,19 @@ export class BudgetGate {
 	 * sample (headers absent or non-numeric) is ignored, leaving the scope on
 	 * static pacing.
 	 *
-	 * @param scope - The same scope key passed to {@link gateAsync}.
+	 * @param scope - The same scope passed to {@link gateAsync}.
 	 * @param sample - Parsed sample, or `undefined` when none was reported.
 	 */
-	public observe(scope: string, sample: RateLimitSample | undefined): void {
+	public observe(scope: BudgetScope, sample: RateLimitSample | undefined): void {
 		if (sample === undefined) {
 			return;
 		}
 
-		this.#tracker(scope).observe(sample, Date.now());
+		this.#tracker(scopeKey(scope)).observe(sample, Date.now());
 	}
 
-	async #gateOnce(scope: string): Promise<void> {
-		const tracker = this.#tracker(scope);
+	async #gateOnce(key: string): Promise<void> {
+		const tracker = this.#tracker(key);
 		const waitMs = tracker.waitMs(Date.now());
 		if (waitMs > 0) {
 			await this.#sleep(waitMs);
@@ -79,14 +91,24 @@ export class BudgetGate {
 		tracker.reserve(Date.now());
 	}
 
-	#tracker(scope: string): BudgetTracker {
-		const existing = this.#trackers.get(scope);
+	#tracker(key: string): BudgetTracker {
+		const existing = this.#trackers.get(key);
 		if (existing !== undefined) {
 			return existing;
 		}
 
 		const tracker = new BudgetTracker();
-		this.#trackers.set(scope, tracker);
+		this.#trackers.set(key, tracker);
 		return tracker;
 	}
+}
+
+/**
+ * Composes the map key one budget window is tracked under.
+ *
+ * @param scope - The API key and operation naming the window.
+ * @returns The key for the tracker and chain maps.
+ */
+function scopeKey({ apiKey, operationKey }: BudgetScope): string {
+	return `${apiKey}::${operationKey}`;
 }

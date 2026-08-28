@@ -70,13 +70,13 @@ resource clients; consumers pay only for the services they import.
 ### 4. Rate Limiting and Retries Built-In
 
 The SDK manages concurrency, rate limiting, and retries internally. Consumers
-fire requests and the SDK queues them. Pacing is **header-primed**: a
-per-API-key budget gate reads `x-ratelimit-remaining`/`-reset` off every
-response and spaces requests across the live window (holding until reset once
-the budget is spent), self-correcting when the server's real limit differs from
-the schema. A static per-operation token bucket sourced from the vendored
-OpenAPI schema remains the cold-start and header-absent fallback. Retries are
-idempotency-aware:
+fire requests and the SDK queues them. Pacing is **header-primed**: a budget
+gate scoped to each API key and operation reads `x-ratelimit-remaining`/`-reset`
+off every response and spaces requests across that operation's live window
+(holding until reset once the budget is spent), self-correcting when the
+server's real limit differs from the schema. A static per-operation token bucket
+sourced from the vendored OpenAPI schema remains the cold-start and
+header-absent fallback. Retries are idempotency-aware:
 
 | Operation      | 429 (Rate Limit) | 5xx (Server Error) | Never reached Open Cloud |
 | -------------- | ---------------- | ------------------ | ------------------------ |
