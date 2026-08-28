@@ -28,9 +28,13 @@ local genExampleTests = new Step {
     exclusive = true
 }
 
+// `package-json/valid-repository-directory` shells out to `git rev-parse
+// --show-toplevel`, inheriting the hook's exported git env. `GIT_DIR` makes
+// every package resolve as its own toplevel, so `repository.directory` never
+// matches. Clearing them restores worktree discovery from the cwd.
 local lint = new Step {
-	check = "pnpm lint:affected"
-	fix = "pnpm lint:affected --fix"
+	check = "unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE; pnpm lint:affected"
+	fix = "unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE; pnpm lint:affected --fix"
 	shell = bash
 }
 
