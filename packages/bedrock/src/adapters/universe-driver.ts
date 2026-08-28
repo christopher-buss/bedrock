@@ -1,4 +1,4 @@
-import { ApiError, type OpenCloudError, type Result } from "@bedrock-rbx/ocale";
+import { ApiError, type OpenCloudError, requestContextOf, type Result } from "@bedrock-rbx/ocale";
 import type { PlacesClient } from "@bedrock-rbx/ocale/places";
 import type { UniversesClient, UpdateUniverseParameters } from "@bedrock-rbx/ocale/universes";
 
@@ -182,7 +182,7 @@ function wrapUpdateError(err: OpenCloudError, desired: UniverseDesiredState): Op
 	if (err instanceof ApiError && err.statusCode === 404) {
 		return new ApiError(
 			`Universe ${desired.universeId} (key '${desired.key}') was not found; adoption failed`,
-			{ statusCode: 404 },
+			{ ...requestContextOf(err), cause: err, statusCode: 404 },
 		);
 	}
 

@@ -47,6 +47,22 @@ export interface ApiErrorOptions extends ErrorOptions {
 }
 
 /**
+ * Everything in {@link ApiErrorOptions} except what the API answered ({@link
+ * ApiErrorOptions.code}, {@link ApiErrorOptions.details}, and {@link
+ * ApiErrorOptions.statusCode}): the request the transport made, how long it was
+ * in flight, and what the response carried alongside its body. Every field is
+ * required, and every one accepts `undefined` for a field the transport did not
+ * capture.
+ *
+ * @since unreleased
+ */
+export type ApiRequestContext = {
+	[K in Exclude<keyof ApiErrorOptions, "cause" | "code" | "details" | "statusCode">]-?:
+		| ApiErrorOptions[K]
+		| undefined;
+};
+
+/**
  * Thrown when the Roblox Open Cloud API returns a non-2xx response
  * that is not a rate limit (429).
  *
@@ -105,4 +121,48 @@ export class ApiError extends OpenCloudError {
 		this.gatewaySummary = options.gatewaySummary;
 		this.unparsedBodyLength = options.unparsedBodyLength;
 	}
+}
+
+/**
+ * Reads the request context off an {@link ApiError} so a replacement error can
+ * carry it. Spread the result into the options of the new error. {@link
+ * ApiError.code}, {@link ApiError.details}, and {@link ApiError.statusCode}
+ * describe the API's answer and are left to the caller.
+ *
+ * @since unreleased
+ *
+ * @param err - The error to read the request context from.
+ * @returns The transport-captured fields, each undefined when unset.
+ *
+ * @example
+ *
+ * ```ts
+ * import { ApiError, requestContextOf } from "@bedrock-rbx/ocale";
+ *
+ * const original = new ApiError("HTTP 404", {
+ *     elapsedMs: 512,
+ *     method: "GET",
+ *     statusCode: 404,
+ *     url: "https://apis.roblox.com/cloud/v2/universes/1",
+ * });
+ *
+ * const rewrapped = new ApiError("Universe 1 was not found; adoption failed", {
+ *     ...requestContextOf(original),
+ *     statusCode: 404,
+ * });
+ *
+ * expect(rewrapped.method).toBe("GET");
+ * expect(rewrapped.url).toBe("https://apis.roblox.com/cloud/v2/universes/1");
+ * expect(rewrapped.elapsedMs).toBe(512);
+ * ```
+ */
+export function requestContextOf(err: ApiError): ApiRequestContext {
+	return {
+		elapsedMs: err.elapsedMs,
+		gatewaySummary: err.gatewaySummary,
+		method: err.method,
+		responseHeaders: err.responseHeaders,
+		unparsedBodyLength: err.unparsedBodyLength,
+		url: err.url,
+	};
 }

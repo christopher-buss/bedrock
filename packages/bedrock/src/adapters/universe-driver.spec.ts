@@ -269,6 +269,29 @@ describe(createUniverseDriver, () => {
 		expect(result.err.message).toMatch(/adoption/i);
 	});
 
+	it("should keep the request context when repackaging a 404 as an adoption error", async () => {
+		expect.assertions(4);
+
+		const { driver, http } = makeDriver();
+		const original = new ApiError("Not found", {
+			elapsedMs: 512,
+			method: "GET",
+			statusCode: 404,
+			url: `https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}`,
+		});
+		http.mockError(original);
+
+		const result = await driver.create(universeDesired({ voiceChatEnabled: true }));
+
+		assert(!result.success);
+		assert(result.err instanceof ApiError);
+
+		expect(result.err.method).toBe("GET");
+		expect(result.err.url).toBe(`https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}`);
+		expect(result.err.elapsedMs).toBe(512);
+		expect(result.err.cause).toBe(original);
+	});
+
 	it("should pass through a non-404 OpenCloudError without repackaging", async () => {
 		expect.assertions(2);
 

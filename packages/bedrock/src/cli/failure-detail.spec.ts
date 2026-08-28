@@ -1,9 +1,10 @@
-import { ApiError, NetworkError } from "@bedrock-rbx/ocale";
+import { ApiError, NetworkError, PermissionError } from "@bedrock-rbx/ocale";
 
 import { describe, expect, it } from "vitest";
 
 import { cyclicError } from "#tests/helpers/errors";
-import { describeDriverCause } from "./failure-detail.ts";
+import { asResourceKey } from "../types/ids.ts";
+import { applyCauseDetail, describeDriverCause } from "./failure-detail.ts";
 
 describe(describeDriverCause, () => {
 	it("should expand a network error with its transport code and failing call", () => {
@@ -272,6 +273,95 @@ describe(describeDriverCause, () => {
 
 		expect(describeDriverCause(err)).toBe(
 			"Network request failed (loop) on POST https://apis.roblox.com/v2/places/1",
+		);
+	});
+});
+
+describe(applyCauseDetail, () => {
+	it("should name the failing call and its elapsed time on a permission failure", () => {
+		expect.assertions(1);
+
+		const cause = new PermissionError("HTTP 403", {
+			elapsedMs: 1234,
+			method: "POST",
+			operationKey: "developer-products.create",
+			requiredScopes: ["developer-product:write"],
+			statusCode: 403,
+			url: "https://apis.roblox.com/cloud/v2/universes/1/developer-products",
+		});
+
+		const detail = applyCauseDetail({
+			key: asResourceKey("gem-pack"),
+			cause,
+			kind: "driverFailure",
+		});
+
+		expect(detail).toBe(
+			"HTTP 403 on developer-products.create (POST https://apis.roblox.com/cloud/v2/universes/1/developer-products after 1.2s): missing required scope 'developer-product:write'. Grant it on the API key at https://create.roblox.com/credentials",
+		);
+	});
+
+	it("should carry the escalation headers alongside the failing call", () => {
+		expect.assertions(1);
+
+		const cause = new PermissionError("HTTP 403", {
+			method: "POST",
+			operationKey: "developer-products.create",
+			requiredScopes: ["developer-product:write"],
+			responseHeaders: { "x-request-id": "abc-123" },
+			statusCode: 403,
+			url: "https://apis.roblox.com/cloud/v2/universes/1/developer-products",
+		});
+
+		const detail = applyCauseDetail({
+			key: asResourceKey("gem-pack"),
+			cause,
+			kind: "driverFailure",
+		});
+
+		expect(detail).toBe(
+			"HTTP 403 on developer-products.create (POST https://apis.roblox.com/cloud/v2/universes/1/developer-products, x-request-id=abc-123): missing required scope 'developer-product:write'. Grant it on the API key at https://create.roblox.com/credentials",
+		);
+	});
+
+	it("should surface the response body a bare permission status carried", () => {
+		expect.assertions(1);
+
+		const cause = new PermissionError("HTTP 401", {
+			details: { message: "The API key is disabled" },
+			operationKey: "developer-products.create",
+			requiredScopes: ["developer-product:write"],
+			statusCode: 401,
+		});
+
+		const detail = applyCauseDetail({
+			key: asResourceKey("gem-pack"),
+			cause,
+			kind: "driverFailure",
+		});
+
+		expect(detail).toBe(
+			'HTTP 401 (body: {"message":"The API key is disabled"}) on developer-products.create: the API key was rejected. Check that it is enabled, has not expired, and grants scope \'developer-product:write\' for this experience at https://create.roblox.com/credentials',
+		);
+	});
+
+	it("should omit the call context when the transport did not capture it", () => {
+		expect.assertions(1);
+
+		const cause = new PermissionError("HTTP 401", {
+			operationKey: "developer-products.create",
+			requiredScopes: ["developer-product:write"],
+			statusCode: 401,
+		});
+
+		const detail = applyCauseDetail({
+			key: asResourceKey("gem-pack"),
+			cause,
+			kind: "driverFailure",
+		});
+
+		expect(detail).toBe(
+			"HTTP 401 on developer-products.create: the API key was rejected. Check that it is enabled, has not expired, and grants scope 'developer-product:write' for this experience at https://create.roblox.com/credentials",
 		);
 	});
 });

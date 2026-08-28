@@ -8,7 +8,12 @@ export type {
 	RequestOptions,
 	SleepFunc,
 } from "./client/types.ts";
-export { ApiError, type ApiErrorOptions } from "./errors/api-error.ts";
+export {
+	ApiError,
+	type ApiErrorOptions,
+	type ApiRequestContext,
+	requestContextOf,
+} from "./errors/api-error.ts";
 export { OpenCloudError } from "./errors/base.ts";
 export { NetworkError, type NetworkErrorOptions } from "./errors/network-error.ts";
 export { PermissionError, type PermissionErrorOptions } from "./errors/permission-error.ts";

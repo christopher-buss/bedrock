@@ -3,6 +3,7 @@ import { describe, expectTypeOf, it } from "vitest";
 import type {
 	ApiError,
 	ApiErrorOptions,
+	ApiRequestContext,
 	HttpClient,
 	HttpRequest,
 	HttpResponse,
@@ -109,6 +110,22 @@ describe("ApiErrorOptions", () => {
 
 	it("should extend ErrorOptions", () => {
 		expectTypeOf<ApiErrorOptions>().toExtend<ErrorOptions>();
+	});
+});
+
+describe("ApiRequestContext", () => {
+	it("should require every field, so a rewrap cannot leave one out", () => {
+		expectTypeOf<
+			Pick<ApiRequestContext, Exclude<keyof ApiRequestContext, "url">>
+		>().not.toExtend<ApiRequestContext>();
+	});
+
+	it("should accept an unset field rather than demanding a value", () => {
+		expectTypeOf<Record<keyof ApiRequestContext, undefined>>().toExtend<ApiRequestContext>();
+	});
+
+	it("should be assignable into ApiErrorOptions alongside a status code", () => {
+		expectTypeOf<ApiRequestContext & { statusCode: number }>().toExtend<ApiErrorOptions>();
 	});
 });
 
