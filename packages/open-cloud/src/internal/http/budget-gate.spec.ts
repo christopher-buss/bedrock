@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, vi } from "vitest";
 
 import { createFakeClock } from "#tests/helpers/fake-clock";
 import { BudgetGate, type BudgetScope } from "./budget-gate.ts";
@@ -77,6 +77,34 @@ describe(BudgetGate, () => {
 		await gate.gateAsync(SCOPE);
 
 		expect(clock.waits).toStrictEqual([60_000]);
+	});
+
+	it("should not hold one operation behind another operation's wait", async () => {
+		expect.assertions(1);
+
+		let releaseHold: (() => void) | undefined;
+		async function holdAsync(): Promise<void> {
+			return new Promise<void>((resolve) => {
+				releaseHold = resolve;
+			});
+		}
+
+		const gate = new BudgetGate(holdAsync);
+
+		gate.observe(SCOPE, { remaining: 0, resetSeconds: 60 });
+		const held = gate.gateAsync(SCOPE);
+		await vi.waitUntil(() => releaseHold !== undefined);
+
+		const first = await Promise.race([
+			gate.gateAsync({ ...SCOPE, operationKey: "other" }).then(() => "other"),
+			held.then(() => "held"),
+		]);
+
+		assert(releaseHold !== undefined);
+		releaseHold();
+		await held;
+
+		expect(first).toBe("other");
 	});
 
 	it("should serialize concurrent gates on the same scope", async () => {

@@ -243,8 +243,6 @@ export class ResourceClient {
 	 * client with the budget gate: each attempt waits on the scope's budget
 	 * before sending, then folds the response's reported budget back in so the
 	 * next attempt (or a later call on the same scope) can head off a 429.
-	 * Roblox meters each operation in its own per-key bucket, so the scope
-	 * names both.
 	 *
 	 * @param scope - The API key and operation whose bucket to gate on.
 	 * @param requestConfig - The resolved per-request transport config.

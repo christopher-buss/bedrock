@@ -3,9 +3,8 @@ import { BudgetTracker } from "./budget-tracker.ts";
 import type { RateLimitSample } from "./rate-limit-sample.ts";
 
 /**
- * Identifies the rate-limit bucket one request draws on. Roblox meters each
- * operation in its own per-API-key bucket, so both halves are needed to name
- * a window.
+ * Identifies the rate-limit bucket one request draws on: Roblox meters each
+ * operation in its own per-API-key bucket.
  */
 export interface BudgetScope {
 	/** The effective API key the request authenticates with. */
@@ -16,12 +15,11 @@ export interface BudgetScope {
 
 /**
  * Header-primed rate-limit gate shared across a client. Holds one
- * {@link BudgetTracker} per {@link BudgetScope}, since Roblox meters each
- * operation in its own per-API-key bucket and the ceilings differ between them.
- * Before each request the caller gates on the request's scope (sleeping if that
- * budget is spent), and after each response folds the parsed sample back in, so
- * a later call on the same scope can head off a 429 the static per-operation
- * token bucket cannot foresee.
+ * {@link BudgetTracker} per {@link BudgetScope}. Before each request the caller
+ * gates on the request's scope (sleeping if that budget is spent), and after
+ * each response folds the parsed sample back in, so a later call on the same
+ * scope can head off a 429 the static per-operation token bucket cannot
+ * foresee.
  *
  * Gating is serialized per scope through a promise chain so concurrent
  * requests on one scope cannot read the same budget and reserve the same slot;
