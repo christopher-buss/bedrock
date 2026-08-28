@@ -132,7 +132,12 @@ export interface MoveStateInputs {
 	 * and holding one would block a deploy over a question.
 	 */
 	readonly dryRun: boolean;
-	/** **Environment**s to move, which the caller named. */
+	/**
+	 * **Environment**s to move, which the caller named. A name given twice
+	 * is moved once: the second write would be fenced on the record the
+	 * first one replaced, and report a conflict over state that had already
+	 * landed.
+	 */
 	readonly environments: ReadonlyArray<string>;
 	/** Whether to overwrite a destination that already holds state. */
 	readonly force: boolean;
@@ -329,8 +334,17 @@ async function moveHeldAsync(
 	return decided.success ? writeAllAsync(ports, decided.data.decisions) : decided;
 }
 
+async function releaseQuietlyAsync(hold: StateLockHold): Promise<void> {
+	try {
+		await hold.release();
+	} catch {
+		// A hold nobody could give up is the **Lease**'s problem, not this
+		// move's: it expires and the next run takes it over.
+	}
+}
+
 async function releaseAllAsync(holds: ReadonlyArray<StateLockHold>): Promise<void> {
-	await Promise.all(holds.map(async (hold) => hold.release()));
+	await Promise.all(holds.map(async (hold) => releaseQuietlyAsync(hold)));
 }
 
 /**
@@ -397,7 +411,8 @@ function buildSourcePorts({
 	inputs,
 }: BuildSourcePortsInputs): Result<ReadonlyArray<EnvironmentPorts>, MoveStateError> {
 	const ports: Array<EnvironmentPorts> = [];
-	for (const environment of inputs.environments) {
+	const named = new Set(inputs.environments);
+	for (const environment of named) {
 		const stateConfig = resolveStateConfig(inputs.config, environment);
 		if (!stateConfig.success) {
 			return {

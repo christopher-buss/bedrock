@@ -34,6 +34,8 @@ interface FakeLockOptions {
 	readonly refuseAcquire?: Readonly<Record<string, StateLockError>>;
 	/** Refusal every release returns, omitted when they all succeed. */
 	readonly refuseRelease?: StateLockError;
+	/** Whether every release rejects, as a misbehaving plugin's would. */
+	readonly rejectRelease?: boolean;
 	/** Log each call appends to. */
 	readonly trace?: Array<string>;
 }
@@ -52,6 +54,10 @@ function fakeLockPort(options: FakeLockOptions = {}): StateLockPort {
 			release: async () => {
 				options.trace?.push(`release:${environment}`);
 				await Promise.resolve();
+				if (options.rejectRelease === true) {
+					throw new Error(`release rejected for ${environment}`);
+				}
+
 				return options.refuseRelease === undefined
 					? { data: undefined, success: true }
 					: { err: options.refuseRelease, success: false };
@@ -610,5 +616,79 @@ describe(moveStateAsync, () => {
 		assert(!moved.success);
 
 		expect(moved.err.kind).toBe("moveBlocked");
+	});
+
+	it("should move an environment named twice only once", async () => {
+		expect.assertions(2);
+
+		const source = fakeStateStore({ initial: { production: PRODUCTION } });
+		const destination = fakeStateStore();
+
+		const moved = await moveStateAsync(
+			{ getEnv: noEnvironment, plugins: pluginsFor(source, destination) },
+			{
+				config: CONFIG,
+				destination: { backend: "onto" },
+				dryRun: false,
+				environments: ["production", "production"],
+				force: false,
+			},
+		);
+
+		assert(moved.success);
+
+		expect(moved.data.moved).toStrictEqual(["production"]);
+		expect(destination.writes).toStrictEqual([
+			{ environment: "production", expected: { kind: "absent" } },
+		]);
+	});
+
+	it("should stand by a move whose hold rejected being given up", async () => {
+		expect.assertions(1);
+
+		const source = fakeStateStore({ initial: { production: PRODUCTION } });
+		const destination = fakeStateStore();
+		const lock = fakeLockPort({ rejectRelease: true });
+
+		const moved = await moveStateAsync(
+			{ getEnv: noEnvironment, plugins: lockingPluginsFor({ destination, lock, source }) },
+			{
+				config: CONFIG,
+				destination: { backend: "onto" },
+				dryRun: false,
+				environments: ["production"],
+				force: false,
+			},
+		);
+
+		assert(moved.success);
+
+		expect(moved.data.moved).toStrictEqual(["production"]);
+	});
+
+	it("should report the refused hold when giving an earlier one back rejects", async () => {
+		expect.assertions(1);
+
+		const source = fakeStateStore({ initial: { production: PRODUCTION, staging: STAGING } });
+		const destination = fakeStateStore();
+		const lock = fakeLockPort({
+			refuseAcquire: { staging: LOCK_REFUSAL },
+			rejectRelease: true,
+		});
+
+		const moved = await moveStateAsync(
+			{ getEnv: noEnvironment, plugins: lockingPluginsFor({ destination, lock, source }) },
+			{
+				config: CONFIG,
+				destination: { backend: "onto" },
+				dryRun: false,
+				environments: ["production", "staging"],
+				force: false,
+			},
+		);
+
+		assert(!moved.success);
+
+		expect(moved.err.kind).toBe("lockAcquireFailed");
 	});
 });
