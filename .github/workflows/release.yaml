@@ -14,13 +14,18 @@
 #
 #   Publish mode (no intents — i.e. a Version PR just merged): build and
 #   `pnpm publish -r` to npm with provenance, tag each newly published
-#   version, push the tags, and dispatch website-release.yaml for the new
-#   core tag (a GITHUB_TOKEN tag push does not fire the `on: push: tags`
-#   trigger on its own).
+#   version alongside one `v<x.y.z>` tag for the release as a whole, push the
+#   tags, cut the GitHub Release on that `v` tag, and dispatch
+#   website-release.yaml for the new core tag (a GITHUB_TOKEN tag push does
+#   not fire the `on: push: tags` trigger on its own).
 #
 # `pnpm version -r` never commits or tags — a recursive run can bump packages
 # to different versions, so there is no single version to tag. Both are done
 # explicitly below.
+#
+# Three tag schemes coexist and never overlap: `<pkg>@<x.y.z>` names an npm
+# version, `v<x.y.z>` names a release, and `actions-v*` (release-actions.yaml)
+# names a baked composite action.
 #
 # Auth is via OIDC trusted publishing (no npm token) — `id-token: write` lets
 # pnpm exchange a short-lived token at publish time.
@@ -196,8 +201,16 @@ jobs:
           # actions/checkout happened to fetch tags. A tag missed here would
           # re-dispatch the docs build on every later push to main.
           git fetch --tags --force origin
+          # Read before any new tag is created, so it names the previous
+          # release rather than the one being cut. `actions-v*` does not match
+          # the glob, which keeps that scheme out of the range.
+          previous_tag=$(git tag --list 'v[0-9]*' | sort -V | tail -n1)
           core_tag=""
+          version=""
           while read -r tag; do
+            case "$tag" in
+              "@bedrock-rbx/core@"*) version="${tag#@bedrock-rbx/core@}" ;;
+            esac
             if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
               echo "Tag $tag already exists"
             else
@@ -211,11 +224,52 @@ jobs:
             pnpm list -r --depth -1 --json \
               | jq -r '.[] | select(.private | not) | "\(.name)@\(.version)"'
           )
+          # The fixed group gives every published package one shared version,
+          # so a single `v<x.y.z>` names the release as a whole. It carries the
+          # GitHub Release; the per-package tags carry the npm versions.
+          release_tag="v$version"
+          if git rev-parse -q --verify "refs/tags/$release_tag" >/dev/null; then
+            echo "Tag $release_tag already exists"
+            release_tag=""
+          else
+            git tag "$release_tag"
+            echo "Tagged $release_tag"
+          fi
           echo "core_tag=$core_tag" >> "$GITHUB_OUTPUT"
+          echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
 
       - if: steps.changesets.outputs.pending == 'false'
         name: Push tags
         run: git push origin --tags
+
+      # Notes come from the conventional commits in the range, not from the
+      # committed CHANGELOG.md: the changelog carries the intent prose and
+      # ships in the tarball, the release carries the PR and author attribution
+      # ADR-029 gave up along with @changesets/changelog-github.
+      #
+      # changelogithub's default types are feat, fix and perf — the set this
+      # repo treats as consumer-facing — and its default grouping nests each
+      # commit under its scope, so one aggregate release reads per package. The
+      # range is passed explicitly because the tag-scheme knobs that would
+      # otherwise resolve it live only in a config file.
+      #
+      # Nothing here can cost a release: it runs after publish, a failure is
+      # skipped, and a re-run updates the release in place.
+      - if: steps.changesets.outputs.pending == 'false' && steps.tags.outputs.release_tag != ''
+        name: Create the GitHub Release
+        run: |
+          set -euo pipefail
+          from=()
+          if [ -n "$PREVIOUS_TAG" ]; then
+            from=(--from "$PREVIOUS_TAG")
+          fi
+          pnpm dlx changelogithub@15 "${from[@]}" --to "$RELEASE_TAG"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIOUS_TAG: ${{ steps.tags.outputs.previous_tag }}
+          RELEASE_TAG: ${{ steps.tags.outputs.release_tag }}
+        continue-on-error: true
 
       # The tag push above uses GITHUB_TOKEN and so will not fire
       # website-release.yaml's `on: push: tags` trigger. Dispatch it
