@@ -124,9 +124,11 @@ is exactly where contention makes 429s most likely.
 2. A limiter reasoning in sliding averages mis-predicts at window edges, since a
    60 second view straddling two fixed windows can legitimately observe 45 head
    or 8 pinned calls.
-3. Reading the server's counter off response headers would make a hardcoded
-   ceiling unable to drift from reality, and would give a correct wait on 429
-   where `retry-after` does not.
+3. The header-primed budget gate already reads the server's counter, but keys
+   one tracker per API key. These two operations report different `remaining`
+   values on one key at the same instant, so a pinned reading gates head submits
+   and the next head reading erases it. The gate needs a tracker per operation
+   to hold both windows.
 
 ## Related
 

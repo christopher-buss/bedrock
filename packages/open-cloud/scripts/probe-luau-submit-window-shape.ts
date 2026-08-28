@@ -122,7 +122,7 @@ async function submitPinned(target: PinnedTarget, label: string): Promise<Sample
 	const bodyText = await response.text();
 	const sample: Sample = {
 		bodyText,
-		envoyRateLimited: response.headers.get("x-envoy-ratelimited") !== null,
+		envoyRateLimited: response.headers.has("x-envoy-ratelimited"),
 		limit: leadingValue(response.headers.get("x-ratelimit-limit") ?? undefined),
 		remaining: leadingValue(response.headers.get("x-ratelimit-remaining") ?? undefined),
 		reset: leadingValue(response.headers.get("x-ratelimit-reset") ?? undefined),
@@ -270,9 +270,10 @@ async function runSubmitLoop(target: PinnedTarget): Promise<ReportArguments> {
 	for (let index = 0; index < MAX_SUBMITS; index += 1) {
 		const sample = await submitPinned(target, `submit #${(index + 1).toString()}`);
 		throttled ??= sample.status === TOO_MANY_REQUESTS ? sample : undefined;
-		crossing ??= detectCrossing(samples, sample);
-		if (crossing !== undefined && samples.at(-1) !== undefined) {
+		const detected = crossing === undefined ? detectCrossing(samples, sample) : undefined;
+		if (detected !== undefined) {
 			console.log("    ^ window boundary crossed");
+			crossing = detected;
 		}
 
 		samples.push(sample);
