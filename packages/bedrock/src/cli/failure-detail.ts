@@ -89,8 +89,15 @@ function apiErrorHead(err: ApiError): string {
 	return err.message;
 }
 
+function gatewayPhrase(err: ApiError): string | undefined {
+	return err.gatewaySummary === undefined
+		? undefined
+		: "request rejected before reaching Open Cloud";
+}
+
 function gatewayTrailer(err: ApiError): string {
-	return err.gatewaySummary === undefined ? "" : " — request rejected before reaching Open Cloud";
+	const phrase = gatewayPhrase(err);
+	return phrase === undefined ? "" : ` — ${phrase}`;
 }
 
 function elapsedPhrase(elapsedMs: number | undefined): string | undefined {
@@ -102,9 +109,14 @@ function formatElapsed(elapsedMs: number | undefined): string {
 	return phrase === undefined ? "" : ` ${phrase}`;
 }
 
-function formatHeaderSummary(headers: Readonly<Record<string, string>> | undefined): string {
+function headerPhrase(headers: Readonly<Record<string, string>> | undefined): string | undefined {
 	const pairs = Object.entries(headers ?? {}).map(([name, value]) => `${name}=${value}`);
-	return pairs.length === 0 ? "" : ` (${boundDiagnostic(pairs.join(", "))})`;
+	return pairs.length === 0 ? undefined : boundDiagnostic(pairs.join(", "));
+}
+
+function formatHeaderSummary(headers: Readonly<Record<string, string>> | undefined): string {
+	const phrase = headerPhrase(headers);
+	return phrase === undefined ? "" : ` (${phrase})`;
 }
 
 function callTarget(method: string | undefined, url: string | undefined): string | undefined {
@@ -127,18 +139,25 @@ function describeNetworkError(err: NetworkError): string {
 	return `${err.message}${because}${formatCallTarget(err.method, err.url)}`;
 }
 
-function formatCallContext(err: ApiError): string {
+function callPhrase(err: ApiError): string | undefined {
 	const parts = [callTarget(err.method, err.url), elapsedPhrase(err.elapsedMs)].filter(
 		(part) => part !== undefined,
 	);
-	return parts.length === 0 ? "" : ` (${parts.join(" ")})`;
+	return parts.length === 0 ? undefined : parts.join(" ");
+}
+
+function formatCallContext(err: ApiError): string {
+	const parts = [callPhrase(err), gatewayPhrase(err), headerPhrase(err.responseHeaders)].filter(
+		(part) => part !== undefined,
+	);
+	return parts.length === 0 ? "" : ` (${parts.join(", ")})`;
 }
 
 function permissionDetail(err: PermissionError): string {
 	const isPlural = err.requiredScopes.length > 1;
 	const label = isPlural ? "scopes" : "scope";
 	const scopeList = err.requiredScopes.map((scope) => `'${scope}'`).join(", ");
-	const head = `${err.message} on ${err.operationKey}${formatCallContext(err)}: `;
+	const head = `${apiErrorHead(err)} on ${err.operationKey}${formatCallContext(err)}: `;
 
 	// Only a 403 pins the failure on a missing scope; a 401 is ambiguous.
 	if (err.statusCode !== 403) {

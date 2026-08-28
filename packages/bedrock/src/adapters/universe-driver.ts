@@ -182,7 +182,7 @@ function wrapUpdateError(err: OpenCloudError, desired: UniverseDesiredState): Op
 	if (err instanceof ApiError && err.statusCode === 404) {
 		return new ApiError(
 			`Universe ${desired.universeId} (key '${desired.key}') was not found; adoption failed`,
-			{ ...requestContextOf(err), statusCode: 404 },
+			{ ...requestContextOf(err), cause: err, statusCode: 404 },
 		);
 	}
 

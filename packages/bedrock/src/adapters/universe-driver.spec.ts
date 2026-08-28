@@ -270,19 +270,16 @@ describe(createUniverseDriver, () => {
 	});
 
 	it("should keep the request context when repackaging a 404 as an adoption error", async () => {
-		expect.assertions(5);
+		expect.assertions(4);
 
 		const { driver, http } = makeDriver();
-		http.mockError(
-			new ApiError("Not found", {
-				elapsedMs: 512,
-				gatewaySummary: "404 Not Found",
-				method: "GET",
-				responseHeaders: { "x-request-id": "abc-123" },
-				statusCode: 404,
-				url: `https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}`,
-			}),
-		);
+		const original = new ApiError("Not found", {
+			elapsedMs: 512,
+			method: "GET",
+			statusCode: 404,
+			url: `https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}`,
+		});
+		http.mockError(original);
 
 		const result = await driver.create(universeDesired({ voiceChatEnabled: true }));
 
@@ -292,8 +289,7 @@ describe(createUniverseDriver, () => {
 		expect(result.err.method).toBe("GET");
 		expect(result.err.url).toBe(`https://apis.roblox.com/cloud/v2/universes/${UNIVERSE_ID}`);
 		expect(result.err.elapsedMs).toBe(512);
-		expect(result.err.gatewaySummary).toBe("404 Not Found");
-		expect(result.err.responseHeaders).toStrictEqual({ "x-request-id": "abc-123" });
+		expect(result.err.cause).toBe(original);
 	});
 
 	it("should pass through a non-404 OpenCloudError without repackaging", async () => {

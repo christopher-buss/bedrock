@@ -301,6 +301,49 @@ describe(applyCauseDetail, () => {
 		);
 	});
 
+	it("should carry the gateway summary and escalation headers onto a permission failure", () => {
+		expect.assertions(1);
+
+		const cause = new PermissionError("HTTP 403", {
+			gatewaySummary: "403 Forbidden",
+			operationKey: "developer-products.create",
+			requiredScopes: ["developer-product:write"],
+			responseHeaders: { "x-request-id": "abc-123" },
+			statusCode: 403,
+		});
+
+		const detail = applyCauseDetail({
+			key: asResourceKey("gem-pack"),
+			cause,
+			kind: "driverFailure",
+		});
+
+		expect(detail).toBe(
+			"HTTP 403 from gateway (\"403 Forbidden\") on developer-products.create (request rejected before reaching Open Cloud, x-request-id=abc-123): missing required scope 'developer-product:write'. Grant it on the API key at https://create.roblox.com/credentials",
+		);
+	});
+
+	it("should surface the response body a bare permission status carried", () => {
+		expect.assertions(1);
+
+		const cause = new PermissionError("HTTP 401", {
+			details: { message: "The API key is disabled" },
+			operationKey: "developer-products.create",
+			requiredScopes: ["developer-product:write"],
+			statusCode: 401,
+		});
+
+		const detail = applyCauseDetail({
+			key: asResourceKey("gem-pack"),
+			cause,
+			kind: "driverFailure",
+		});
+
+		expect(detail).toBe(
+			'HTTP 401 (body: {"message":"The API key is disabled"}) on developer-products.create: the API key was rejected. Check that it is enabled, has not expired, and grants scope \'developer-product:write\' for this experience at https://create.roblox.com/credentials',
+		);
+	});
+
 	it("should omit the call context when the transport did not capture it", () => {
 		expect.assertions(1);
 
