@@ -125,14 +125,10 @@ async function fromSelectAsync<T extends string>(
 		}),
 		...(inputs.initialValue === undefined ? {} : { initialValue: inputs.initialValue }),
 	});
-	if (helpers.isCancel(result)) {
-		return { err: { kind: "cancelled" }, success: false };
-	}
-
 	// `select` is an injection seam typed over bare `string`, so recover the
 	// caller's narrower value type by matching the answer back to the option
-	// it came from. An answer matching no option is not a choice this prompt
-	// offered, so it reads as a cancellation.
+	// it came from. A cancel sentinel matches no option, as does any other
+	// answer this prompt did not offer, and both read as a cancellation.
 	const chosen = inputs.options.find((option) => option.value === result);
 	if (chosen === undefined) {
 		return { err: { kind: "cancelled" }, success: false };
