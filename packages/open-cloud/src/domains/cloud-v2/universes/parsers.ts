@@ -90,8 +90,16 @@ function extractRootPlaceId(rootPlace: string | undefined): string | undefined {
 	return match?.[1];
 }
 
-function toSocialLink(wire: SocialLinkWire | undefined): SocialLink | undefined {
-	if (wire === undefined) {
+function isSocialLinkWire(value: unknown): value is SocialLinkWire {
+	if (!isRecord(value)) {
+		return false;
+	}
+
+	return typeof value["title"] === "string" && typeof value["uri"] === "string";
+}
+
+function toSocialLink(wire: unknown): SocialLink | undefined {
+	if (!isSocialLinkWire(wire)) {
 		return undefined;
 	}
 
@@ -150,14 +158,6 @@ function hasValidRequiredFields(body: Record<string, unknown>): boolean {
 		isVisibilityWire(body["visibility"]) &&
 		isAgeRatingWire(body["ageRating"])
 	);
-}
-
-function isSocialLinkWire(value: unknown): value is SocialLinkWire {
-	if (!isRecord(value)) {
-		return false;
-	}
-
-	return typeof value["title"] === "string" && typeof value["uri"] === "string";
 }
 
 function isOptionalSocialLink(value: unknown): boolean {

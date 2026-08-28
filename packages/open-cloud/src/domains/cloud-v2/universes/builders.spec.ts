@@ -150,6 +150,16 @@ describe(buildUpdateRequest, () => {
 			});
 		});
 
+		it("should send application/json as the content-type header", () => {
+			expect.assertions(1);
+
+			const result = buildUpdateRequest({ universeId: "123", voiceChatEnabled: true });
+
+			assert(result.success);
+
+			expect(result.data.headers).toStrictEqual({ "content-type": "application/json" });
+		});
+
 		it("should emit the numeric value for privateServerPriceRobux when set to a number", () => {
 			expect.assertions(1);
 

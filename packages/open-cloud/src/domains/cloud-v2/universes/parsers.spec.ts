@@ -146,6 +146,36 @@ describe(parseUniverseResponse, () => {
 			expect(result.data.rootPlaceId).toBeUndefined();
 		});
 
+		it("should normalize a JSON null voiceChatEnabled to false", () => {
+			expect.assertions(1);
+
+			const body: Record<string, unknown> = {
+				...validUniverseBody(),
+				voiceChatEnabled: JSON.parse("null"),
+			};
+
+			const result = parseUniverseResponse({ body, headers: {}, status: 200 });
+
+			assert(result.success);
+
+			expect(result.data.voiceChatEnabled).toBeFalse();
+		});
+
+		it("should normalize a JSON null social link to undefined", () => {
+			expect.assertions(1);
+
+			const body: Record<string, unknown> = {
+				...validUniverseBody(),
+				facebookSocialLink: JSON.parse("null"),
+			};
+
+			const result = parseUniverseResponse({ body, headers: {}, status: 200 });
+
+			assert(result.success);
+
+			expect(result.data.facebookSocialLink).toBeUndefined();
+		});
+
 		it("should surface each social link as its public shape when present", () => {
 			expect.assertions(2);
 
@@ -379,13 +409,116 @@ describe(parseUniverseResponse, () => {
 			expect(result.err).toBeInstanceOf(ApiError);
 		});
 
-		it("should reject a body whose social link is not a well-formed object", () => {
+		it.for([
+			"facebookSocialLink",
+			"twitterSocialLink",
+			"youtubeSocialLink",
+			"twitchSocialLink",
+			"discordSocialLink",
+			"robloxGroupSocialLink",
+			"guildedSocialLink",
+		] as const)("should reject a body whose %s carries a non-string uri", (field) => {
+			expect.assertions(1);
+
+			const body = { ...validUniverseBody(), [field]: { title: "Link", uri: 123 } };
+			const result = parseUniverseResponse({ body, headers: {}, status: 200 });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
+
+		it("should reject a social link whose title is not a string", () => {
 			expect.assertions(1);
 
 			const body = {
 				...validUniverseBody(),
-				facebookSocialLink: { title: "Facebook", uri: 123 },
+				facebookSocialLink: { title: 123, uri: "https://facebook.com/example" },
 			};
+			const result = parseUniverseResponse({ body, headers: {}, status: 200 });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
+
+		it("should reject a social link that is not an object", () => {
+			expect.assertions(1);
+
+			const body = {
+				...validUniverseBody(),
+				facebookSocialLink: "https://facebook.com/example",
+			};
+			const result = parseUniverseResponse({ body, headers: {}, status: 200 });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
+
+		it.for([
+			"voiceChatEnabled",
+			"desktopEnabled",
+			"mobileEnabled",
+			"tabletEnabled",
+			"consoleEnabled",
+			"vrEnabled",
+		] as const)("should reject a body whose %s is not a boolean", (field) => {
+			expect.assertions(1);
+
+			const body = { ...validUniverseBody(), [field]: "yes" };
+			const result = parseUniverseResponse({ body, headers: {}, status: 200 });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
+
+		it.for(["displayName", "description"] as const)(
+			"should reject a body whose %s is not a string",
+			(field) => {
+				expect.assertions(1);
+
+				const body = { ...validUniverseBody(), [field]: 123 };
+				const result = parseUniverseResponse({ body, headers: {}, status: 200 });
+
+				assert(!result.success);
+
+				expect(result.err).toBeInstanceOf(ApiError);
+			},
+		);
+
+		it("should reject a body whose rootPlace is not a string", () => {
+			expect.assertions(1);
+
+			const body = { ...validUniverseBody(), rootPlace: 98765 };
+			const result = parseUniverseResponse({ body, headers: {}, status: 200 });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
+
+		it("should reject a non-string path that stringifies to a valid resource path", () => {
+			expect.assertions(1);
+
+			// A single-element array stringifies to that element, so the
+			// universes/{id} pattern matches once the string check is past.
+			const body = { ...validUniverseBody(), path: ["universes/555"] };
+			const result = parseUniverseResponse({ body, headers: {}, status: 200 });
+
+			assert(!result.success);
+
+			expect(result.err).toBeInstanceOf(ApiError);
+		});
+
+		it("should reject an array body even when it carries every universe field", () => {
+			expect.assertions(1);
+
+			// An array carrying named properties keeps the class tag
+			// `[object Array]`, which the record discriminator reads before
+			// any field check runs.
+			const body = Object.assign([], validUniverseBody());
 			const result = parseUniverseResponse({ body, headers: {}, status: 200 });
 
 			assert(!result.success);
