@@ -1,9 +1,14 @@
 import { assert, describe, expect, it } from "vitest";
 
+import {
+	SUBMIT_HEAD_OPERATION_LIMIT,
+	SUBMIT_VERSION_OPERATION_LIMIT,
+} from "#src/domains/cloud-v2/luau-execution-tasks/operations";
 import { ApiError } from "#src/errors/api-error";
 import { PermissionError } from "#src/errors/permission-error";
 import { LuauExecutionClient } from "#src/resources/luau-execution/index";
 import type { LuauExecutionTaskRef } from "#src/resources/luau-execution/index";
+import { createFakeClock } from "#tests/helpers/fake-clock";
 import { createFakeHttpClient } from "#tests/helpers/fake-http-client-validated";
 import { createFakeSleep } from "#tests/helpers/fake-sleep";
 import { validBinaryInputBody } from "#tests/helpers/luau-execution-task-binary-inputs";
@@ -17,6 +22,25 @@ const fullRef: LuauExecutionTaskRef = {
 	universeId: "123",
 	versionId: "789",
 };
+
+const { burstCapacity: HEAD_BURST = 1 } = SUBMIT_HEAD_OPERATION_LIMIT;
+const { burstCapacity: VERSION_BURST = 1, maxPerSecond: VERSION_PER_SECOND } =
+	SUBMIT_VERSION_OPERATION_LIMIT;
+const VERSION_INTERVAL_MS = 1000 / VERSION_PER_SECOND;
+
+async function spendSubmitBurstAsync(
+	client: LuauExecutionClient,
+	{ count, versionId }: { count: number; versionId?: string },
+): Promise<void> {
+	for (let index = 0; index < count; index++) {
+		await client.tasks.submit({
+			placeId: "456",
+			script: "return 1",
+			universeId: "123",
+			...(versionId === undefined ? {} : { versionId }),
+		});
+	}
+}
 
 const processingBody = validInProgressTaskBody({
 	path: "universes/123/places/456/versions/789/luau-execution-sessions/session-1/tasks/task-1",
@@ -166,6 +190,51 @@ describe(LuauExecutionClient, () => {
 			expect(httpClient.requests[0]!.request.url).toBe(
 				"/cloud/v2/universes/123/places/456/versions/789/luau-execution-session-tasks",
 			);
+		});
+	});
+
+	describe("tasks.submit rate-limit pacing", () => {
+		it("should pace version-pinned submits from their own quota once their burst is spent", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient();
+			for (let index = 0; index <= VERSION_BURST; index++) {
+				httpClient.mockResponse({ body: validInProgressTaskBody(), status: 200 });
+			}
+
+			const clock = createFakeClock();
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			await spendSubmitBurstAsync(client, { count: VERSION_BURST + 1, versionId: "789" });
+
+			expect(httpClient.requests).toHaveLength(VERSION_BURST + 1);
+			expect(clock.waits).toStrictEqual([VERSION_INTERVAL_MS]);
+		});
+
+		it("should let a version-pinned submit send without waiting once the head burst is spent", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient();
+			for (let index = 0; index <= HEAD_BURST; index++) {
+				httpClient.mockResponse({ body: validInProgressTaskBody(), status: 200 });
+			}
+
+			const clock = createFakeClock();
+			const client = new LuauExecutionClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: clock.sleep,
+			});
+
+			await spendSubmitBurstAsync(client, { count: HEAD_BURST });
+			await spendSubmitBurstAsync(client, { count: 1, versionId: "789" });
+
+			expect(httpClient.requests).toHaveLength(HEAD_BURST + 1);
+			expect(clock.waits).toStrictEqual([]);
 		});
 	});
 

@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
 	GET_OPERATION_LIMIT,
 	GET_REQUIRED_SCOPES,
-	SUBMIT_OPERATION_LIMIT,
+	SUBMIT_HEAD_OPERATION_LIMIT,
 	SUBMIT_REQUIRED_SCOPES,
+	SUBMIT_VERSION_OPERATION_LIMIT,
 } from "./operations.ts";
 import { parseLuauExecutionTaskResponse } from "./parsers.ts";
 import { GET_SPEC, SUBMIT_HEAD_SPEC, SUBMIT_VERSION_SPEC } from "./specs.ts";
@@ -14,18 +15,18 @@ describe("submit-head spec", () => {
 		expect.assertions(4);
 
 		expect(SUBMIT_HEAD_SPEC.methodKind).toBe("create");
-		expect(SUBMIT_HEAD_SPEC.operationLimit).toBe(SUBMIT_OPERATION_LIMIT);
+		expect(SUBMIT_HEAD_SPEC.operationLimit).toBe(SUBMIT_HEAD_OPERATION_LIMIT);
 		expect(SUBMIT_HEAD_SPEC.requiredScopes).toBe(SUBMIT_REQUIRED_SCOPES);
 		expect(SUBMIT_HEAD_SPEC.parse).toBe(parseLuauExecutionTaskResponse);
 	});
 });
 
 describe("submit-version spec", () => {
-	it("should be a create-kind spec sharing the submit limit and write scope with SUBMIT_HEAD_SPEC", () => {
+	it("should be a create-kind spec wired to its own submit limit, sharing the write scope with SUBMIT_HEAD_SPEC", () => {
 		expect.assertions(4);
 
 		expect(SUBMIT_VERSION_SPEC.methodKind).toBe("create");
-		expect(SUBMIT_VERSION_SPEC.operationLimit).toBe(SUBMIT_OPERATION_LIMIT);
+		expect(SUBMIT_VERSION_SPEC.operationLimit).toBe(SUBMIT_VERSION_OPERATION_LIMIT);
 		expect(SUBMIT_VERSION_SPEC.requiredScopes).toBe(SUBMIT_REQUIRED_SCOPES);
 		expect(SUBMIT_VERSION_SPEC.parse).toBe(parseLuauExecutionTaskResponse);
 	});

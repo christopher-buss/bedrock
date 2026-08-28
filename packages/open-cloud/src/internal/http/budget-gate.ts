@@ -4,14 +4,10 @@ import type { RateLimitSample } from "./rate-limit-sample.ts";
 
 /**
  * Header-primed rate-limit gate shared across a client. Holds one
- * {@link BudgetTracker} per API key, since the tightest Roblox window is the
- * per-key one shared across every operation. Before each request the caller
- * gates on the request's key (sleeping if its budget is spent), and after each
- * response folds the parsed sample back in, so a sibling operation on the same
- * key can head off a 429 the static per-operation token bucket cannot foresee.
- * A per-operation tracker is deliberately not kept: every operation reports the
- * same most-constrained `remaining`, so a per-key tracker (drawn down by all
- * operations) is always the binding constraint.
+ * {@link BudgetTracker} per API key. Before each request the caller gates on
+ * the request's key (sleeping if its budget is spent), and after each response
+ * folds the parsed sample back in, so a sibling operation on the same key can
+ * head off a 429 the static per-operation token bucket cannot foresee.
  *
  * Gating is serialized per scope through a promise chain so concurrent
  * requests on one key cannot read the same budget and reserve the same slot;
