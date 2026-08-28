@@ -9,7 +9,7 @@ import type { BedrockState, StateError, StateRecord, StateVersion } from "./stat
  * simply occupied, because one is a store the operator has to fix and the
  * other is a state they have to decide about.
  *
- * @since unreleased
+ * @since 0.2.2
  */
 export type StateMoveBlocker =
 	| {
@@ -36,7 +36,7 @@ export type StateMoveBlocker =
  * write, the reason there is nothing to write, or the reason it cannot be
  * written.
  *
- * @since unreleased
+ * @since 0.2.2
  */
 export type StateMoveDecision =
 	| {

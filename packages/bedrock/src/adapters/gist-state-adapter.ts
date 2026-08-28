@@ -25,7 +25,7 @@ const VISIBILITY_BASE_DELAY_MS = 250;
  * `typeof globalThis.fetch` so test fakes do not have to stub runtime
  * extensions such as `fetch.preconnect`.
  *
- * @since unreleased
+ * @since 0.2.2
  */
 export type GistFetch = (
 	input: globalThis.Request | string | URL,

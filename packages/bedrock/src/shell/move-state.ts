@@ -29,7 +29,7 @@ const OPERATION = "state move";
 /**
  * Why one side's **Backend** could not be reached at all.
  *
- * @since unreleased
+ * @since 0.2.2
  */
 export type StateBackendUnavailable =
 	| MissingCredentialError
@@ -44,7 +44,7 @@ export type StateBackendUnavailable =
  * standing in the way at once, because an operator fixing one only to meet
  * the next has learned nothing they could not have been told up front.
  *
- * @since unreleased
+ * @since 0.2.2
  */
 export type MoveStateError =
 	| {
@@ -89,7 +89,7 @@ export type MoveStateError =
 /**
  * What a completed move did.
  *
- * @since unreleased
+ * @since 0.2.2
  */
 export interface StateMoveOutcome {
 	/** What the survey decided, keyed by **Environment**. */
@@ -106,7 +106,7 @@ export interface StateMoveOutcome {
 /**
  * Seams {@link moveStateAsync} builds both sides' **Backend**s through.
  *
- * @since unreleased
+ * @since 0.2.2
  */
 export interface MoveStateDeps {
 	/** `fetch` override plumbed into a default-constructed adapter. */
@@ -120,7 +120,7 @@ export interface MoveStateDeps {
 /**
  * What one move covers.
  *
- * @since unreleased
+ * @since 0.2.2
  */
 export interface MoveStateInputs {
 	/** Validated project config, whose `state` blocks name the source. */
@@ -187,7 +187,7 @@ interface EnvironmentPorts {
  * copy of their own state is a separate decision with a blast radius of
  * its own.
  *
- * @since unreleased
+ * @since 0.2.2
  *
  * @example
  *
