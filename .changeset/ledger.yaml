@@ -37,3 +37,7 @@
     - s3-lock-lease
     - s3-state-lock
     - state-s3-conditional-write
+"@bedrock-rbx/state-s3@0.2.1":
+  dir: packages/state-s3
+  intents:
+    - petite-worlds-check
