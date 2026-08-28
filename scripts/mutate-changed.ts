@@ -14,6 +14,8 @@ import { glob } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
+const LUTE_HELPER_SPECIFIER = "@bedrock-rbx/testing/lute";
+
 function readGitDiff(): string {
 	// The remote-offload runner ships a precomputed diff via this env
 	// var so the receiving container does not need a working `.git`.
@@ -47,11 +49,38 @@ async function discoverStrykerPackages(): Promise<Array<string>> {
 }
 
 /**
- * Refuses to mutate without a usable `lute`. Called from the runner rather
- * than at entry, so a diff with nothing to mutate still exits clean: the
- * check protects a score, and there is no score without a Stryker run.
+ * Whether a package's own tests reach for the `lute` runtime, and so skip
+ * themselves when it is absent.
+ *
+ * @param packageDirectory - Package to scan.
+ * @returns `true` when any of its sources name the lute test helper.
  */
-function assertLuteAvailable(): void {
+async function usesLuteAsync(packageDirectory: string): Promise<boolean> {
+	const roots = [`${packageDirectory}/src/**/*.ts`, `${packageDirectory}/tests/**/*.ts`];
+	for await (const file of glob(roots)) {
+		if (readFileSync(file, "utf8").includes(LUTE_HELPER_SPECIFIER)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Refuses to mutate a package whose tests need `lute` while the runtime is
+ * unusable: those tests skip, and the mutants they would have killed report
+ * as survived. A run covering only packages that never reach for lute is
+ * left alone, as is a diff with nothing to mutate.
+ *
+ * @param packageDirectories - Packages this run is about to mutate.
+ * @rejects When a package needs lute and no usable runtime is reachable.
+ */
+async function assertLuteAvailableAsync(packageDirectories: Iterable<string>): Promise<void> {
+	const usage = await Promise.all(Array.from(packageDirectories, usesLuteAsync));
+	if (!usage.includes(true)) {
+		return;
+	}
+
 	const failure = luteRequirementFailure(detectLute());
 	if (failure !== undefined) {
 		throw new Error(failure);
@@ -65,7 +94,6 @@ function runStrykerForEach(
 	>,
 	packagesWithSpecChanges: ReadonlySet<string>,
 ): boolean {
-	assertLuteAvailable();
 	const statuses = Array.from(grouped, ([packageDirectory, files]) => {
 		const args = buildMutateArgs(files);
 		const force = packagesWithSpecChanges.has(packageDirectory) ? ["--force"] : [];
@@ -81,6 +109,21 @@ function runStrykerForEach(
 		).status;
 	});
 	return statuses.some((status) => status !== 0);
+}
+
+/**
+ * The changed files worth mutating: mutable by path, and carrying something
+ * to mutate once a types-only module is set aside.
+ *
+ * @param files - Every changed file the diff reported.
+ * @returns The subset Stryker is asked to mutate.
+ */
+function mutableSourceFiles(
+	files: Parameters<typeof filterMutableFiles>[0],
+): ReturnType<typeof filterMutableFiles> {
+	return filterMutableFiles(files).filter((file) => {
+		return !isTypesOnlyModule(readFileSync(file.path, "utf8"));
+	});
 }
 
 function reportReject(reason: { kind: string; path: string }): void {
@@ -101,9 +144,7 @@ async function main(): Promise<void> {
 		reportReject(reason);
 	}
 
-	const mutable = filterMutableFiles(parsed.files).filter((file) => {
-		return !isTypesOnlyModule(readFileSync(file.path, "utf8"));
-	});
+	const mutable = mutableSourceFiles(parsed.files);
 	if (mutable.length === 0) {
 		console.log("No modified files — nothing to mutate.");
 		return;
@@ -117,6 +158,7 @@ async function main(): Promise<void> {
 		return;
 	}
 
+	await assertLuteAvailableAsync(grouped.keys());
 	const packagesWithSpecChanges = findPackagesWithChangedSpecs(parsed.files, packageDirectories);
 	const hasFailed = runStrykerForEach(grouped, packagesWithSpecChanges);
 	if (hasFailed) {

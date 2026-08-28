@@ -125,10 +125,10 @@ async function fromSelectAsync<T extends string>(
 		}),
 		...(inputs.initialValue === undefined ? {} : { initialValue: inputs.initialValue }),
 	});
-	// `select` is an injection seam typed over bare `string`, so recover the
-	// caller's narrower value type by matching the answer back to the option
-	// it came from. A cancel sentinel matches no option, as does any other
-	// answer this prompt did not offer, and both read as a cancellation.
+	// `select` is an injection seam typed over bare `string`, so the answer is
+	// matched back to the option it came from to recover the caller's narrower
+	// value type. A cancel sentinel matches no option, and neither does any
+	// answer this prompt did not offer.
 	const chosen = inputs.options.find((option) => option.value === result);
 	if (chosen === undefined) {
 		return { err: { kind: "cancelled" }, success: false };

@@ -175,12 +175,12 @@ describe(luteRequirementFailure, () => {
 		expect(failure).toContain('lute "lute --version" exited with status 127');
 	});
 
-	it("should say the binary was unreachable when the probe gives no reason", () => {
+	it("should not claim a binary was absent when the probe gives no reason", () => {
 		expect.assertions(1);
 
 		const failure = luteRequirementFailure({ available: false });
 
-		expect(failure).toContain("no lute binary was reachable");
+		expect(failure).toContain("no usable lute binary was found");
 	});
 
 	it("should tell the reader how to supply lute", () => {
