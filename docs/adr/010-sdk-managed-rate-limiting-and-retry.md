@@ -681,7 +681,19 @@ blind to the account-wide quota Roblox also enforces (the trailing `70000` token
 in `x-ratelimit-limit`), so a deploy fanning out across many operations can
 still reach a ceiling no single tracker is watching. The reactive 429 path
 covers it, and modelling the global window is deferred until a deploy is
-observed hitting it. The multi-client and multi-process per-key hazard from the
-original Decision is unchanged.
+observed hitting it.
+
+The same shape applies wherever several operation keys name one upstream bucket.
+The legacy `gameinternationalization` endpoints are documented in this package
+as one 100/minute per-key service budget, yet carry five operation keys, so they
+now hold five windows over one bucket and can collectively out-send it between
+observations. `RateLimitQueue` already splits them the same way, so the static
+layer over-sends this family on its own; the mismatch lives in the operation
+keys rather than in either limiter, and the vendored schema carries no
+`x-roblox-rate-limits` extension for those paths to settle it. Correcting the
+keys needs the same live probe #541 used, and is tracked in #587.
+
+The multi-client and multi-process per-key hazard from the original Decision is
+unchanged.
 
 `BudgetScope` is internal, so there is no public surface change.
