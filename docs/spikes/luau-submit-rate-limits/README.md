@@ -6,14 +6,17 @@ whether the two Luau Execution submit URL shapes share one rate-limit bucket.
 
 ## Question
 
-`SUBMIT_OPERATION_LIMIT` in
-[operations.ts](../../../packages/open-cloud/src/domains/cloud-v2/luau-execution-tasks/operations.ts)
-paces both submit shapes from a single 40 requests/minute queue, because
+This section records the state of the client when the spike ran, before the fix
+in [#583](https://github.com/christopher-buss/bedrock/pull/583) split the two
+limits.
+
 `SUBMIT_HEAD_SPEC` and `SUBMIT_VERSION_SPEC` in
 [specs.ts](../../../packages/open-cloud/src/domains/cloud-v2/luau-execution-tasks/specs.ts)
-share the same `operationLimit` reference. The JSDoc states that Roblox
-attributes both URL shapes to the same per-minute quota. If that is wrong, the
-version-pinned shape is paced at several times its real ceiling.
+shared one `operationLimit` reference, a single 40 requests/minute entry in
+[operations.ts](../../../packages/open-cloud/src/domains/cloud-v2/luau-execution-tasks/operations.ts).
+Its JSDoc stated that Roblox attributes both URL shapes to the same per-minute
+quota. If that was wrong, the version-pinned shape was paced at several times
+its real ceiling.
 
 ## Method
 
@@ -112,9 +115,9 @@ non-zero.
 
 ## What this means for the fix
 
-The single shared `SUBMIT_OPERATION_LIMIT` is wrong. The pinned shape is paced
-at eight times its real ceiling, on the optimistic-concurrency retry path, which
-is exactly where contention makes 429s most likely.
+The single shared submit limit was wrong. The pinned shape was paced at eight
+times its real ceiling, on the optimistic-concurrency retry path, which is
+exactly where contention makes 429s most likely.
 
 1. Give each submit spec its own operation limit, sourced from its own
    operation's `x-roblox-rate-limits` rather than from head's. Head keeps

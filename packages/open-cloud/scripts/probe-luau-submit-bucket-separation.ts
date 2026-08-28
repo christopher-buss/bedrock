@@ -2,10 +2,10 @@
 // share one rate-limit bucket or hold separate ones, and what each
 // ceiling is.
 //
-// Why this probe exists: `src/domains/cloud-v2/luau-execution-tasks/`
-// paces both submit shapes from a single 40/min `SUBMIT_OPERATION_LIMIT`,
-// on the stated belief that Roblox attributes both to one per-minute
-// quota. The vendored OpenAPI disagrees: the head operation
+// When this probe was written, `src/domains/cloud-v2/luau-execution-tasks/`
+// paced both submit shapes from a single 40/min operation limit, on the
+// stated belief that Roblox attributes both to one per-minute quota. The
+// vendored OpenAPI disagreed: the head operation
 // (`Cloud_CreateLuauExecutionSessionTask__Using_Universes`) carries
 // `x-roblox-rate-limits.perApiKeyOwner = 40`, while the version-pinned
 // operation (`..._Using_Universes_Places`) carries 5. Both operations'
