@@ -114,10 +114,14 @@ describe("ApiErrorOptions", () => {
 });
 
 describe("ApiRequestContext", () => {
-	it("should account for every ApiErrorOptions key as context or as response detail", () => {
+	it("should require every field, so a rewrap cannot leave one out", () => {
 		expectTypeOf<
-			"cause" | "code" | "details" | "statusCode" | keyof ApiRequestContext
-		>().toEqualTypeOf<keyof ApiErrorOptions>();
+			Pick<ApiRequestContext, Exclude<keyof ApiRequestContext, "url">>
+		>().not.toExtend<ApiRequestContext>();
+	});
+
+	it("should accept an unset field rather than demanding a value", () => {
+		expectTypeOf<Record<keyof ApiRequestContext, undefined>>().toExtend<ApiRequestContext>();
 	});
 
 	it("should be assignable into ApiErrorOptions alongside a status code", () => {

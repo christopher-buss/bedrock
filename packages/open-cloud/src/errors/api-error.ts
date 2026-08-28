@@ -47,16 +47,20 @@ export interface ApiErrorOptions extends ErrorOptions {
 }
 
 /**
- * The fields of {@link ApiErrorOptions} the transport captures about the
- * request itself: what was sent, where, how long it was in flight, and what the
- * response carried alongside its body.
+ * Everything in {@link ApiErrorOptions} except what the API answered ({@link
+ * ApiErrorOptions.code}, {@link ApiErrorOptions.details}, and {@link
+ * ApiErrorOptions.statusCode}): the request the transport made, how long it was
+ * in flight, and what the response carried alongside its body. Every field is
+ * required, and every one accepts `undefined` for a field the transport did not
+ * capture.
  *
  * @since unreleased
  */
-export type ApiRequestContext = Pick<
-	ApiErrorOptions,
-	"elapsedMs" | "gatewaySummary" | "method" | "responseHeaders" | "unparsedBodyLength" | "url"
->;
+export type ApiRequestContext = {
+	[K in Exclude<keyof ApiErrorOptions, "cause" | "code" | "details" | "statusCode">]-?:
+		| ApiErrorOptions[K]
+		| undefined;
+};
 
 /**
  * Thrown when the Roblox Open Cloud API returns a non-2xx response
