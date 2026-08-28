@@ -630,6 +630,23 @@ describe(foldPlaces, () => {
 			expect(result.warnings).toStrictEqual([]);
 		});
 
+		it("should not emit a blocked warning for a resource of another kind carrying a blocked field", () => {
+			expect.assertions(1);
+
+			const result = foldPlaces([
+				place({
+					key: "start",
+					inputs: { allowCopying: true, isStart: false },
+					outputs: { assetId: 17613681043 },
+				}),
+				defaultPlaceFile("start"),
+			]);
+
+			expect(result.warnings.filter((warning) => warning.kind === "blocked")).toStrictEqual(
+				[],
+			);
+		});
+
 		it("should not emit a blocked warning for the name field (foldDisplayName owns it)", () => {
 			expect.assertions(1);
 

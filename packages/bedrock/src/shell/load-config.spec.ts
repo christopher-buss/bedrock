@@ -731,6 +731,55 @@ describe(loadConfig, () => {
 		},
 	);
 
+	it.skipIf(!HAS_LUTE)(
+		"should defer a non-Luau extends to c12 while a Luau config sits beside it",
+		async () => {
+			expect.assertions(2);
+
+			const cwd = createTemporaryDirectory();
+			writeFileSync(
+				join(cwd, "base.ts"),
+				[
+					"export default {",
+					"  passes: {",
+					"    'vip-pass': {",
+					"      description: 'VIP perks.',",
+					"      icon: { 'en-us': 'assets/vip.png' },",
+					"      name: 'VIP Pass',",
+					"      price: 500,",
+					"    },",
+					"  },",
+					"};",
+				].join("\n"),
+			);
+			writeFileSync(
+				join(cwd, "bedrock.config.luau"),
+				[
+					"return {",
+					"  extends = './base.ts',",
+					"  environments = { production = {} },",
+					"  passes = {",
+					"    ['gold-pass'] = {",
+					"      description = 'Gold tier perks.',",
+					"      icon = { ['en-us'] = 'assets/gold.png' },",
+					"      name = 'Gold Pass',",
+					"      price = 1000,",
+					"    },",
+					"  },",
+					"}",
+					"",
+				].join("\n"),
+			);
+
+			const result = await loadConfig({ cwd });
+
+			assert(result.success);
+
+			expect(result.data.passes!["vip-pass"]!.name).toBe("VIP Pass");
+			expect(result.data.passes!["gold-pass"]!.name).toBe("Gold Pass");
+		},
+	);
+
 	it("should discover bedrock.config.ts inside .bedrock/ when the project root has no config", async () => {
 		expect.assertions(1);
 
@@ -1250,23 +1299,36 @@ describe(loadConfigWith, () => {
 		],
 		[
 			"a declaration names the empty string",
-			{ stateBackends: [{ name: "", schema: type("object") }] },
+			{ stateBackends: [{ name: "", createPort: unusedBuilder, schema: type("object") }] },
 		],
 		[
 			"a declaration's schema is an ordinary function",
-			{ stateBackends: [{ name: "s3", schema: (): undefined => undefined }] },
+			{
+				stateBackends: [
+					{ name: "s3", createPort: unusedBuilder, schema: (): undefined => undefined },
+				],
+			},
 		],
 		[
 			"a declaration's schema is an arktype schema over a non-object",
-			{ stateBackends: [{ name: "s3", schema: type("string") }] },
+			{ stateBackends: [{ name: "s3", createPort: unusedBuilder, schema: type("string") }] },
 		],
 		[
 			"a declaration's schema is a bare definition rather than an arktype schema",
-			{ stateBackends: [{ name: "s3", schema: { bucket: "string" } }] },
+			{
+				stateBackends: [
+					{ name: "s3", createPort: unusedBuilder, schema: { bucket: "string" } },
+				],
+			},
 		],
 		[
 			"only some declarations are well-formed",
-			{ stateBackends: [{ name: "s3", schema: type("object") }, "nope"] },
+			{
+				stateBackends: [
+					{ name: "s3", createPort: unusedBuilder, schema: type("object") },
+					"nope",
+				],
+			},
 		],
 	] as const)(
 		"should fail the load when a plugin declares backends where %s",

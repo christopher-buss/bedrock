@@ -3,7 +3,7 @@ import { fromPartial } from "@total-typescript/shoehorn";
 import type { SpawnSyncReturns } from "node:child_process";
 import { describe, expect, it, vi } from "vitest";
 
-import { detectLute, reportLute } from "./lute.ts";
+import { detectLute, luteRequirementFailure, reportLute } from "./lute.ts";
 
 interface FakeResultOverrides {
 	readonly error?: Error;
@@ -154,5 +154,49 @@ describe(reportLute, () => {
 
 		expect(isAvailable).toBeTrue();
 		expect(warn).not.toHaveBeenCalled();
+	});
+});
+
+describe(luteRequirementFailure, () => {
+	it("should raise no objection when lute is usable", () => {
+		expect.assertions(1);
+
+		expect(luteRequirementFailure({ available: true })).toBeUndefined();
+	});
+
+	it("should name the probe's reason when a reached lute is unusable", () => {
+		expect.assertions(1);
+
+		const failure = luteRequirementFailure({
+			available: false,
+			reason: 'lute "lute --version" exited with status 127',
+		});
+
+		expect(failure).toContain('lute "lute --version" exited with status 127');
+	});
+
+	it("should not claim a binary was absent when the probe gives no reason", () => {
+		expect.assertions(1);
+
+		const failure = luteRequirementFailure({ available: false });
+
+		expect(failure).toContain("no usable lute binary was found");
+	});
+
+	it("should tell the reader how to supply lute", () => {
+		expect.assertions(2);
+
+		const failure = luteRequirementFailure({ available: false });
+
+		expect(failure).toContain("mise install");
+		expect(failure).toContain("BEDROCK_LUTE_PATH");
+	});
+
+	it("should say why a missing lute invalidates the run", () => {
+		expect.assertions(1);
+
+		const failure = luteRequirementFailure({ available: false });
+
+		expect(failure).toContain("survived");
 	});
 });
