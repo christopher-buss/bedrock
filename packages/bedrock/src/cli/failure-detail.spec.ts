@@ -301,14 +301,16 @@ describe(applyCauseDetail, () => {
 		);
 	});
 
-	it("should carry the escalation headers onto a permission failure", () => {
+	it("should carry the escalation headers alongside the failing call", () => {
 		expect.assertions(1);
 
 		const cause = new PermissionError("HTTP 403", {
+			method: "POST",
 			operationKey: "developer-products.create",
 			requiredScopes: ["developer-product:write"],
 			responseHeaders: { "x-request-id": "abc-123" },
 			statusCode: 403,
+			url: "https://apis.roblox.com/cloud/v2/universes/1/developer-products",
 		});
 
 		const detail = applyCauseDetail({
@@ -318,7 +320,7 @@ describe(applyCauseDetail, () => {
 		});
 
 		expect(detail).toBe(
-			"HTTP 403 on developer-products.create (x-request-id=abc-123): missing required scope 'developer-product:write'. Grant it on the API key at https://create.roblox.com/credentials",
+			"HTTP 403 on developer-products.create (POST https://apis.roblox.com/cloud/v2/universes/1/developer-products, x-request-id=abc-123): missing required scope 'developer-product:write'. Grant it on the API key at https://create.roblox.com/credentials",
 		);
 	});
 
