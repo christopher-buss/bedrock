@@ -8,6 +8,8 @@ import type { BedrockState, StateError, StateRecord, StateVersion } from "./stat
  * A side that cannot be read is told apart from a destination that is
  * simply occupied, because one is a store the operator has to fix and the
  * other is a state they have to decide about.
+ *
+ * @since unreleased
  */
 export type StateMoveBlocker =
 	| {
@@ -33,6 +35,8 @@ export type StateMoveBlocker =
  * What the survey decided about one **Environment**: the **State** to
  * write, the reason there is nothing to write, or the reason it cannot be
  * written.
+ *
+ * @since unreleased
  */
 export type StateMoveDecision =
 	| {

@@ -155,6 +155,7 @@ export {
 } from "./core/select-environment.ts";
 export { parseStateContents, parseStateFile, serializeStateFile } from "./core/state-file.ts";
 export { stateLockingCapabilityOf, type StateLockingCapability } from "./core/state-locking.ts";
+export type { StateMoveBlocker, StateMoveDecision } from "./core/state-move.ts";
 export type {
 	BedrockState,
 	StateError,
@@ -231,6 +232,14 @@ export {
 	type LoadedProject,
 } from "./shell/load-config.ts";
 export { migrateMantleState, type MigrateMantleStateDeps } from "./shell/migrate-mantle-state.ts";
+export {
+	type MoveStateDeps,
+	type MoveStateError,
+	type MoveStateInputs,
+	moveStateAsync,
+	type StateBackendUnavailable,
+	type StateMoveOutcome,
+} from "./shell/move-state.ts";
 export type { CodegenError } from "./shell/run-codegen.ts";
 export {
 	asResourceKey,

@@ -25,7 +25,11 @@ import {
 /** What a hold this command takes is recorded as. */
 const OPERATION = "state move";
 
-/** Why one side's **Backend** could not be reached at all. */
+/**
+ * Why one side's **Backend** could not be reached at all.
+ *
+ * @since unreleased
+ */
 export type StateBackendUnavailable =
 	| MissingCredentialError
 	| PluginStateBackendError
@@ -38,6 +42,8 @@ export type StateBackendUnavailable =
  * `moveBlocked` is the survey's answer and carries every **Environment**
  * standing in the way at once, because an operator fixing one only to meet
  * the next has learned nothing they could not have been told up front.
+ *
+ * @since unreleased
  */
 export type MoveStateError =
 	| {
@@ -79,7 +85,11 @@ export type MoveStateError =
 			readonly kind: "sourceUnavailable";
 	  };
 
-/** What a completed move did. */
+/**
+ * What a completed move did.
+ *
+ * @since unreleased
+ */
 export interface StateMoveOutcome {
 	/** What the survey decided, keyed by **Environment**. */
 	readonly decisions: ReadonlyMap<string, StateMoveDecision>;
@@ -92,7 +102,11 @@ export interface StateMoveOutcome {
 	readonly moved: ReadonlyArray<string>;
 }
 
-/** Seams {@link moveStateAsync} builds both sides' **Backend**s through. */
+/**
+ * Seams {@link moveStateAsync} builds both sides' **Backend**s through.
+ *
+ * @since unreleased
+ */
 export interface MoveStateDeps {
 	/** `fetch` override plumbed into a default-constructed adapter. */
 	readonly fetch?: GistFetch | undefined;
@@ -102,7 +116,11 @@ export interface MoveStateDeps {
 	readonly plugins?: PluginRegistry;
 }
 
-/** What one move covers. */
+/**
+ * What one move covers.
+ *
+ * @since unreleased
+ */
 export interface MoveStateInputs {
 	/** Validated project config, whose `state` blocks name the source. */
 	readonly config: Config;
@@ -152,6 +170,40 @@ interface EnvironmentPorts {
  * The source is left holding what it held. Deleting the operator's other
  * copy of their own state is a separate decision with a blast radius of
  * its own.
+ *
+ * @since unreleased
+ *
+ * @example
+ *
+ * ```ts
+ * import { moveStateAsync } from "@bedrock-rbx/core";
+ *
+ * return moveStateAsync(
+ *     {
+ *         fetch: async () => new Response(JSON.stringify({ files: {} }), { status: 200 }),
+ *         getEnv: () => "ghp_example",
+ *     },
+ *     {
+ *         config: {
+ *             environments: { production: {} },
+ *             state: { backend: "gist", gistId: "source-gist" },
+ *         },
+ *         destination: { backend: "gist", gistId: "destination-gist" },
+ *         dryRun: false,
+ *         environments: ["production"],
+ *         force: false,
+ *     },
+ * ).then((moved) => {
+ *     expect(moved.success).toBeTrue();
+ *     if (moved.success) {
+ *         expect(moved.data.moved).toBeEmpty();
+ *         expect(moved.data.decisions.get("production")).toStrictEqual({
+ *             kind: "skip",
+ *             reason: "sourceEmpty",
+ *         });
+ *     }
+ * });
+ * ```
  *
  * @param deps - Credential and transport seams the **Backend**s build over.
  * @param inputs - The project, the destination, and what to move.
