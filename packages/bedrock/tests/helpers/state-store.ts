@@ -1,14 +1,6 @@
 import type { BedrockState, StateError, StateRecord, StateVersion } from "#src/core/state";
 import type { StatePort } from "#src/ports/state-port";
 
-/** One write a fake store was asked for, in the order it was asked. */
-export interface RecordedWrite {
-	/** **Environment** the write was for. */
-	readonly environment: string;
-	/** The record the write was fenced against, if it was fenced. */
-	readonly expected: StateVersion | undefined;
-}
-
 /** An in-memory **State** store plus the log of what was done to it. */
 export interface FakeStateStore {
 	/** The port to build a **Backend** over. */
@@ -17,6 +9,14 @@ export interface FakeStateStore {
 	readonly states: ReadonlyMap<string, BedrockState>;
 	/** Every write the store was asked for, in call order. */
 	readonly writes: ReadonlyArray<RecordedWrite>;
+}
+
+/** One write a fake store was asked for, in the order it was asked. */
+interface RecordedWrite {
+	/** **Environment** the write was for. */
+	readonly environment: string;
+	/** The record the write was fenced against, if it was fenced. */
+	readonly expected: StateVersion | undefined;
 }
 
 /** What a fake store holds, and what it refuses. */

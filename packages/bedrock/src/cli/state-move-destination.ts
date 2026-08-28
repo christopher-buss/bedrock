@@ -32,17 +32,6 @@ export type StateMoveDestinationError =
 const BUILTIN_BACKEND = "gist";
 
 /**
- * Name every **Backend** a move can land on: the builtin, plus whatever
- * the loaded plugins claimed.
- *
- * @param plugins - What the loaded plugins declared.
- * @returns The names, in the order they read to someone picking one.
- */
-export function availableBackends(plugins: PluginRegistry): ReadonlyArray<string> {
-	return [BUILTIN_BACKEND, ...plugins.stateBackends.keys()].sort();
-}
-
-/**
  * Assemble the `state` block the flags describe and check it against the
  * **Backend** it names.
  *
@@ -76,4 +65,15 @@ export function resolveMoveDestination(
 	}
 
 	return { err: { issues: parsed.err, kind: "invalidCoordinates" }, success: false };
+}
+
+/**
+ * Name every **Backend** a move can land on: the builtin, plus whatever
+ * the loaded plugins claimed.
+ *
+ * @param plugins - What the loaded plugins declared.
+ * @returns The names, in the order they read to someone picking one.
+ */
+function availableBackends(plugins: PluginRegistry): ReadonlyArray<string> {
+	return [BUILTIN_BACKEND, ...plugins.stateBackends.keys()].sort();
 }
