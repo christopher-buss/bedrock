@@ -59,6 +59,10 @@ const LABEL_WIDTH = 18;
 
 const SHAPE_WIDTH = 6;
 
+const OK = 200;
+
+const REDIRECTION = 300;
+
 /** Matches the head-submit response path, capturing the resolved version. */
 const VERSION_PATH_PATTERN = /^universes\/\d+\/places\/\d+\/versions\/(\d+)\//;
 
@@ -201,6 +205,10 @@ async function alignToWindow(credentials: Credentials): Promise<void> {
 	await sleep((reset + 1) * MS_PER_SECOND);
 }
 
+function isAccepted(sample: Sample): boolean {
+	return sample.status >= OK && sample.status < REDIRECTION;
+}
+
 function reportSeparation({ headAfter, headBefore, pinned }: VerdictArguments): void {
 	const beforeRemaining = toNumber(headBefore.remaining);
 	const afterRemaining = toNumber(headAfter.remaining);
@@ -213,6 +221,15 @@ function reportSeparation({ headAfter, headBefore, pinned }: VerdictArguments): 
 		`head remaining: ${headBefore.remaining ?? "(none)"} -> ` +
 			`${headAfter.remaining ?? "(none)"} across ${PINNED_SUBMITS.toString()} pinned submits`,
 	);
+
+	if (![headBefore, headAfter, ...pinned].every(isAccepted)) {
+		console.log(
+			"bucket separation: INCONCLUSIVE (a submit was rejected, so it spent no " +
+				"pinned budget and the head counter cannot discriminate)",
+		);
+		console.log("=============================");
+		return;
+	}
 
 	if (beforeRemaining === undefined || afterRemaining === undefined) {
 		console.log("bucket separation: INCONCLUSIVE (missing remaining headers)");

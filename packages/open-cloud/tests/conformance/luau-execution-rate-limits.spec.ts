@@ -10,10 +10,6 @@ import { getOpenApiDocument, isRecord } from "./_helpers.ts";
 
 const SECONDS_PER_MINUTE = 60;
 
-// Every spec is paced by the operation it actually calls, never by a
-// sibling's allowance. The two submit URL shapes are metered in separate
-// buckets whose ceilings differ eightfold, so a spec paced from the
-// wrong operation sends the smaller shape into a guaranteed 429.
 const PINS = [
 	["Cloud_CreateLuauExecutionSessionTask__Using_Universes", SUBMIT_HEAD_SPEC.operationLimit],
 	[
@@ -31,7 +27,7 @@ const PINS = [
  * @param operationId - The `operationId` to look up under `paths`.
  * @returns The operation object.
  */
-function findOperation(operationId: string): Record<string, unknown> {
+function findOperation(operationId: string): Readonly<Record<string, unknown>> {
 	const { paths } = getOpenApiDocument();
 	assert(isRecord(paths), "OpenAPI document missing paths");
 
