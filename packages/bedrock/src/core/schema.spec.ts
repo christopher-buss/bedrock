@@ -4,7 +4,7 @@ import { assert, describe, expect, it } from "vitest";
 import { fakeStateBackendPlugins } from "#tests/helpers/plugins";
 import { INVALID_ROBUX_PRICES, PLATFORM_FLAG_ROWS } from "#tests/helpers/resources";
 import { SOCIAL_LINK_FIELDS } from "./resources.ts";
-import { createConfigValidator, validateConfig } from "./schema.ts";
+import { createConfigValidator, parseStateConfig, validateConfig } from "./schema.ts";
 
 const SOURCE = "bedrock.config.ts";
 
@@ -3103,5 +3103,61 @@ describe(createConfigValidator, () => {
 		assert(result.err.kind === "validationFailed");
 
 		expect(result.err.issues[0]!.path).toStrictEqual(["state", "bucket"]);
+	});
+});
+
+describe(parseStateConfig, () => {
+	it("should return the block a plugin backend's schema accepts", () => {
+		expect.assertions(1);
+
+		const parsed = parseStateConfig({ backend: "s3", bucket: "my-state" }, S3_REGISTRY);
+
+		assert(parsed.success);
+
+		expect(parsed.data).toStrictEqual({ backend: "s3", bucket: "my-state" });
+	});
+
+	it("should attribute a key the backend's schema rejects to the key itself", () => {
+		expect.assertions(2);
+
+		const parsed = parseStateConfig({ backend: "s3", bucket: "" }, S3_REGISTRY);
+
+		assert(!parsed.success);
+
+		expect(parsed.err[0]!.path).toStrictEqual(["bucket"]);
+		expect(parsed.err[0]!.message).toBeString();
+	});
+
+	it("should reject a key the backend never declared", () => {
+		expect.assertions(1);
+
+		const parsed = parseStateConfig(
+			{ backend: "s3", bucket: "my-state", nonsense: "x" },
+			S3_REGISTRY,
+		);
+
+		assert(!parsed.success);
+
+		expect(parsed.err[0]!.path).toStrictEqual(["nonsense"]);
+	});
+
+	it("should report every key a backend requires and the block omits", () => {
+		expect.assertions(1);
+
+		const parsed = parseStateConfig({ backend: "s3" }, S3_REGISTRY);
+
+		assert(!parsed.success);
+
+		expect(parsed.err[0]!.path).toStrictEqual(["bucket"]);
+	});
+
+	it("should accept the builtin gist block against a registry that never claimed it", () => {
+		expect.assertions(1);
+
+		const parsed = parseStateConfig({ backend: "gist", gistId: "abc123" }, S3_REGISTRY);
+
+		assert(parsed.success);
+
+		expect(parsed.data).toStrictEqual({ backend: "gist", gistId: "abc123" });
 	});
 });
