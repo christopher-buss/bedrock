@@ -1,5 +1,14 @@
 # @bedrock-rbx/core
 
+## 0.2.2
+
+### Patch Changes
+
+- add a bedrock state move command that relocates an environment's state onto another backend
+
+- Updated dependencies:
+  - @bedrock-rbx/ocale@0.2.2
+
 ## 0.2.1
 
 ### Patch Changes
