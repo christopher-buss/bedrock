@@ -78,6 +78,13 @@ export default defineConfig({
 		socialLinks: [{ icon: "github", link: "https://github.com/christopher-buss/bedrock" }],
 	},
 	title: IS_PREVIEW_CHANNEL ? "Bedrock (preview)" : "Bedrock",
+	transformHead({ pageData }) {
+		if (pageData.relativePath === "index.md") {
+			return [];
+		}
+
+		return [["meta", { name: "robots", content: "noindex, nofollow" }]];
+	},
 	vite: {
 		plugins: [shikiHighlightPlugin()],
 	},
