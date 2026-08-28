@@ -1,3 +1,4 @@
+import { detectLute, luteRequirementFailure } from "@bedrock-rbx/testing/lute";
 import {
 	buildMutateArgs,
 	filterMutableFiles,
@@ -45,6 +46,18 @@ async function discoverStrykerPackages(): Promise<Array<string>> {
 	return directories;
 }
 
+/**
+ * Refuses to mutate without a usable `lute`. Called from the runner rather
+ * than at entry, so a diff with nothing to mutate still exits clean: the
+ * check protects a score, and there is no score without a Stryker run.
+ */
+function assertLuteAvailable(): void {
+	const failure = luteRequirementFailure(detectLute());
+	if (failure !== undefined) {
+		throw new Error(failure);
+	}
+}
+
 function runStrykerForEach(
 	grouped: Map<
 		string,
@@ -52,6 +65,7 @@ function runStrykerForEach(
 	>,
 	packagesWithSpecChanges: ReadonlySet<string>,
 ): boolean {
+	assertLuteAvailable();
 	const statuses = Array.from(grouped, ([packageDirectory, files]) => {
 		const args = buildMutateArgs(files);
 		const force = packagesWithSpecChanges.has(packageDirectory) ? ["--force"] : [];

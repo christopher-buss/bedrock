@@ -92,6 +92,32 @@ export function detectLute(
 }
 
 /**
+ * Why a mutation run must not start, or `undefined` when lute is usable.
+ *
+ * A plain test run treats an absent lute as a silent skip, which is the right
+ * call on a machine without the runtime. A mutation run cannot: the tests that
+ * would have killed the Luau-path mutants are the ones that skip, so their
+ * mutants report as survived and the score reads as a test gap that is not
+ * there.
+ *
+ * @param detection - The probe result to judge.
+ * @returns The message to fail with, or `undefined` when lute is usable.
+ */
+export function luteRequirementFailure(detection: LuteDetection): string | undefined {
+	if (detection.available) {
+		return undefined;
+	}
+
+	const cause = detection.reason ?? "no lute binary was reachable";
+	return (
+		`Mutation testing needs a usable lute: ${cause}. ` +
+		"Without it the tests covering Luau config evaluation skip, and their " +
+		"mutants report as survived. Install it with `mise install`, or point " +
+		"BEDROCK_LUTE_PATH at the binary."
+	);
+}
+
+/**
  * Applies a {@link LuteDetection}: warns when a reached lute is unusable so the
  * skip is not silent, and returns whether a usable lute is available.
  *
