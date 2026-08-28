@@ -146,3 +146,6 @@ earns its place.
 - Moving a subset of a single environment's resources.
 - A source located by prompted coordinates rather than by the project's config,
   which is what a recovery tool would need and a relocation does not.
+- An interactive picker filling in a destination the flags left unnamed. The
+  refusal names every **Backend** available and the coordinates each one needs,
+  which is what both a person and an agent act on.
