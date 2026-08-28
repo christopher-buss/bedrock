@@ -10,7 +10,7 @@ import type {
 	RequestOptions,
 	SleepFunc,
 } from "../client/types.ts";
-import { ApiError } from "../errors/api-error.ts";
+import { ApiError, requestContextOf } from "../errors/api-error.ts";
 import type { OpenCloudError } from "../errors/base.ts";
 import { PermissionError } from "../errors/permission-error.ts";
 import type { Result } from "../types.ts";
@@ -311,6 +311,7 @@ function enrichPermissionError<P, T>(
 	}
 
 	return new PermissionError(err.message, {
+		...requestContextOf(err),
 		cause: err.cause,
 		code: err.code,
 		details: err.details,

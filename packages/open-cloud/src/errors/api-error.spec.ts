@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError } from "./api-error.ts";
+import { ApiError, requestContextOf } from "./api-error.ts";
 import { OpenCloudError } from "./base.ts";
 
 describe(ApiError, () => {
@@ -144,5 +144,47 @@ describe(ApiError, () => {
 		const error = new ApiError("not found", { statusCode: 404 });
 
 		expect(error.unparsedBodyLength).toBeUndefined();
+	});
+});
+
+describe(requestContextOf, () => {
+	it("should copy every transport-captured field off the error", () => {
+		expect.assertions(1);
+
+		const error = new ApiError("HTTP 403", {
+			code: "InsufficientScope",
+			details: { message: "missing scope" },
+			elapsedMs: 1234,
+			gatewaySummary: "403 Forbidden",
+			method: "POST",
+			responseHeaders: { "x-request-id": "abc-123" },
+			statusCode: 403,
+			unparsedBodyLength: 4096,
+			url: "https://apis.roblox.com/cloud/v2/universes/1",
+		});
+
+		expect(requestContextOf(error)).toStrictEqual({
+			elapsedMs: 1234,
+			gatewaySummary: "403 Forbidden",
+			method: "POST",
+			responseHeaders: { "x-request-id": "abc-123" },
+			unparsedBodyLength: 4096,
+			url: "https://apis.roblox.com/cloud/v2/universes/1",
+		});
+	});
+
+	it("should leave a field undefined when the transport did not capture it", () => {
+		expect.assertions(1);
+
+		const error = new ApiError("not found", { statusCode: 404 });
+
+		expect(requestContextOf(error)).toStrictEqual({
+			elapsedMs: undefined,
+			gatewaySummary: undefined,
+			method: undefined,
+			responseHeaders: undefined,
+			unparsedBodyLength: undefined,
+			url: undefined,
+		});
 	});
 });

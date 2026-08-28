@@ -649,6 +649,44 @@ describe(ResourceClient, () => {
 			expect(result.err.name).toBe("PermissionError");
 		});
 
+		it("should preserve the transport request context from the original ApiError on upgrade", async () => {
+			expect.assertions(5);
+
+			const original = new ApiError("HTTP 403", {
+				elapsedMs: 1234,
+				gatewaySummary: "403 Forbidden",
+				method: "POST",
+				responseHeaders: { "x-request-id": "abc-123" },
+				statusCode: 403,
+				url: "https://apis.roblox.com/cloud/v2/universes/1",
+			});
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockError(
+				original,
+			);
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.executeAsync({
+				parameters: { id: "1" },
+				spec: {
+					...TEST_GET_SPEC,
+					requiredScopes: ["test:read"],
+				},
+			});
+
+			assert(!result.success);
+			assert(result.err instanceof PermissionError);
+
+			expect(result.err.method).toBe("POST");
+			expect(result.err.url).toBe("https://apis.roblox.com/cloud/v2/universes/1");
+			expect(result.err.elapsedMs).toBe(1234);
+			expect(result.err.gatewaySummary).toBe("403 Forbidden");
+			expect(result.err.responseHeaders).toStrictEqual({ "x-request-id": "abc-123" });
+		});
+
 		it("should return an existing PermissionError unchanged instead of re-wrapping it", async () => {
 			expect.assertions(1);
 

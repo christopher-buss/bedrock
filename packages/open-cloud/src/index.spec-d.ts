@@ -3,6 +3,7 @@ import { describe, expectTypeOf, it } from "vitest";
 import type {
 	ApiError,
 	ApiErrorOptions,
+	ApiRequestContext,
 	HttpClient,
 	HttpRequest,
 	HttpResponse,
@@ -109,6 +110,18 @@ describe("ApiErrorOptions", () => {
 
 	it("should extend ErrorOptions", () => {
 		expectTypeOf<ApiErrorOptions>().toExtend<ErrorOptions>();
+	});
+});
+
+describe("ApiRequestContext", () => {
+	it("should account for every ApiErrorOptions key as context or as response detail", () => {
+		expectTypeOf<
+			"cause" | "code" | "details" | "statusCode" | keyof ApiRequestContext
+		>().toEqualTypeOf<keyof ApiErrorOptions>();
+	});
+
+	it("should be assignable into ApiErrorOptions alongside a status code", () => {
+		expectTypeOf<ApiRequestContext & { statusCode: number }>().toExtend<ApiErrorOptions>();
 	});
 });
 
