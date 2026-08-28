@@ -267,7 +267,7 @@ describe("cli program factory", () => {
 	});
 
 	it("should describe the state move subcommand and each of its flags in 'state move --help' output", () => {
-		expect.assertions(4);
+		expect.assertions(5);
 
 		const prog = createProg();
 
@@ -286,6 +286,9 @@ describe("cli program factory", () => {
 		expect(
 			lines.find((line) => line.includes("Overwrite state the destination already holds")),
 		).toContain("--force");
+		expect(lines.find((line) => line.includes("Survey what would move"))).toContain(
+			"--dry-run",
+		);
 	});
 
 	it("should route 'bedrock state unlock' to the state-unlock action", async () => {

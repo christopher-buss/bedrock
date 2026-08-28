@@ -145,7 +145,9 @@ describe(stateMoveCommand, () => {
 		expect(dependencies.clack!.logSuccess).toHaveBeenCalledExactlyOnceWith(
 			"production: 0 resources moved to s3",
 		);
-		expect(dependencies.clack!.logMessage).not.toHaveBeenCalled();
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
+			'the move is not in effect until your config\'s state block reads: {"bucket":"my-state","backend":"s3"}',
+		);
 	});
 
 	it("should report an environment there was nothing to move for", async () => {
@@ -576,6 +578,61 @@ describe(stateMoveCommand, () => {
 
 		expect(dependencies.clack!.logError).toHaveBeenCalledExactlyOnceWith(
 			"no destination: pass --to with one of azure, gist and the coordinates it needs",
+		);
+	});
+
+	it("should survey without writing when the move is a dry run", async () => {
+		expect.assertions(3);
+
+		const dependencies = depsWith({
+			moveState: fakeMove({
+				data: {
+					decisions: new Map([
+						["production", { expected: undefined, kind: "move", state: PRODUCTION }],
+					]),
+					locking: new Map([["production", "exclusive"]]),
+					moved: [],
+				},
+				success: true,
+			}),
+		});
+
+		await runCommandAsync(dependencies, {
+			"dry-run": true,
+			"env": "production",
+			"to": "s3",
+			"to-bucket": "my-state",
+		});
+
+		expect(dependencies.moveState).toHaveBeenCalledWith(
+			expect.anything(),
+			expect.objectContaining({ dryRun: true }),
+		);
+		expect(dependencies.clack!.logSuccess).toHaveBeenCalledExactlyOnceWith(
+			"production: 0 resources would move to s3",
+		);
+		expect(dependencies.clack!.outro).toHaveBeenCalledExactlyOnceWith("state move dry run");
+	});
+
+	it("should spell out the block a dry run would have the config carry", async () => {
+		expect.assertions(1);
+
+		const dependencies = depsWith({
+			moveState: fakeMove({
+				data: { decisions: new Map(), locking: new Map(), moved: [] },
+				success: true,
+			}),
+		});
+
+		await runCommandAsync(dependencies, {
+			"dry-run": true,
+			"env": "production",
+			"to": "s3",
+			"to-bucket": "my-state",
+		});
+
+		expect(dependencies.clack!.logMessage).toHaveBeenCalledExactlyOnceWith(
+			'nothing was written. The move would put this in your config\'s state block: {"bucket":"my-state","backend":"s3"}',
 		);
 	});
 });

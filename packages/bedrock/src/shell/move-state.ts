@@ -108,6 +108,12 @@ export interface MoveStateInputs {
 	readonly config: Config;
 	/** The `state` block naming where the state is being moved to. */
 	readonly destination: StateConfig;
+	/**
+	 * Whether to survey and decide without writing. A dry run takes no
+	 * hold either: nothing it does needs the **Environment** to itself,
+	 * and holding one would block a deploy over a question.
+	 */
+	readonly dryRun: boolean;
 	/** **Environment**s to move, which the caller named. */
 	readonly environments: ReadonlyArray<string>;
 	/** Whether to overwrite a destination that already holds state. */
@@ -166,7 +172,17 @@ export async function moveStateAsync(
 		return ports;
 	}
 
+	if (inputs.dryRun) {
+		return surveyOnlyAsync(ports.data, inputs.force);
+	}
+
 	return withHoldsAsync(ports.data, async () => moveHeldAsync(ports.data, inputs.force));
+}
+
+function lockingOf(
+	ports: ReadonlyArray<EnvironmentPorts>,
+): ReadonlyMap<string, StateLockingCapability> {
+	return new Map(ports.map(({ environment, locking }) => [environment, locking] as const));
 }
 
 function blockedOf(
@@ -191,10 +207,26 @@ async function surveyAsync({
 	return { destination: destinationRead, environment, source: sourceRead };
 }
 
-function lockingOf(
+/**
+ * Survey both sides and decide, without writing anything.
+ *
+ * @param ports - Both ports per **Environment**.
+ * @param force - Whether to overwrite an occupied destination.
+ * @returns What the survey decided, with nothing moved, or what stands in
+ * the way.
+ */
+async function surveyOnlyAsync(
 	ports: ReadonlyArray<EnvironmentPorts>,
-): ReadonlyMap<string, StateLockingCapability> {
-	return new Map(ports.map(({ environment, locking }) => [environment, locking] as const));
+	force: boolean,
+): Promise<Result<StateMoveOutcome, MoveStateError>> {
+	const surveys = await Promise.all(ports.map(surveyAsync));
+	const decisions = planStateMove(surveys, { force });
+	const blocked = blockedOf(decisions);
+	if (blocked.size > 0) {
+		return { err: { blocked, kind: "moveBlocked" }, success: false };
+	}
+
+	return { data: { decisions, locking: lockingOf(ports), moved: [] }, success: true };
 }
 
 /**
@@ -241,14 +273,8 @@ async function moveHeldAsync(
 	ports: ReadonlyArray<EnvironmentPorts>,
 	force: boolean,
 ): Promise<Result<StateMoveOutcome, MoveStateError>> {
-	const surveys = await Promise.all(ports.map(surveyAsync));
-	const decisions = planStateMove(surveys, { force });
-	const blocked = blockedOf(decisions);
-	if (blocked.size > 0) {
-		return { err: { blocked, kind: "moveBlocked" }, success: false };
-	}
-
-	return writeAllAsync(ports, decisions);
+	const decided = await surveyOnlyAsync(ports, force);
+	return decided.success ? writeAllAsync(ports, decided.data.decisions) : decided;
 }
 
 async function releaseAllAsync(holds: ReadonlyArray<StateLockHold>): Promise<void> {

@@ -101,6 +101,7 @@ async function moveAsync(
 		{
 			config: project.config,
 			destination,
+			dryRun: options.dryRun,
 			environments: options.common.environments,
 			force: options.force,
 		},
@@ -111,10 +112,10 @@ async function moveAsync(
 	}
 
 	renderStateMoveOutcome(
-		{ destination: destination.backend, outcome: moved.data },
+		{ destination, dryRun: options.dryRun, outcome: moved.data },
 		resolved.clack,
 	);
-	resolved.clack.outro(`${COMMAND} succeeded`);
+	resolved.clack.outro(options.dryRun ? `${COMMAND} dry run` : `${COMMAND} succeeded`);
 	return EXIT_OK;
 }
 

@@ -121,6 +121,7 @@ describe(moveStateAsync, () => {
 			{
 				config: CONFIG,
 				destination: { backend: "onto" },
+				dryRun: false,
 				environments: ["production", "staging"],
 				force: false,
 			},
@@ -144,6 +145,7 @@ describe(moveStateAsync, () => {
 			{
 				config: CONFIG,
 				destination: { backend: "onto" },
+				dryRun: false,
 				environments: ["production"],
 				force: false,
 			},
@@ -165,6 +167,7 @@ describe(moveStateAsync, () => {
 			{
 				config: CONFIG,
 				destination: { backend: "onto" },
+				dryRun: false,
 				environments: ["production"],
 				force: false,
 			},
@@ -185,6 +188,7 @@ describe(moveStateAsync, () => {
 			{
 				config: CONFIG,
 				destination: { backend: "onto" },
+				dryRun: false,
 				environments: ["production", "staging"],
 				force: false,
 			},
@@ -207,6 +211,7 @@ describe(moveStateAsync, () => {
 			{
 				config: CONFIG,
 				destination: { backend: "onto" },
+				dryRun: false,
 				environments: ["production", "staging"],
 				force: false,
 			},
@@ -231,6 +236,7 @@ describe(moveStateAsync, () => {
 			{
 				config: CONFIG,
 				destination: { backend: "onto" },
+				dryRun: false,
 				environments: ["production"],
 				force: true,
 			},
@@ -255,6 +261,7 @@ describe(moveStateAsync, () => {
 			{
 				config: { environments: { production: {} } },
 				destination: { backend: "onto" },
+				dryRun: false,
 				environments: ["production"],
 				force: false,
 			},
@@ -280,6 +287,7 @@ describe(moveStateAsync, () => {
 			{
 				config: { environments: { production: {} }, state: { backend: "nowhere" } },
 				destination: { backend: "onto" },
+				dryRun: false,
 				environments: ["production"],
 				force: false,
 			},
@@ -302,6 +310,7 @@ describe(moveStateAsync, () => {
 			{
 				config: CONFIG,
 				destination: { backend: "nowhere" },
+				dryRun: false,
 				environments: ["production"],
 				force: false,
 			},
@@ -324,6 +333,7 @@ describe(moveStateAsync, () => {
 			{
 				config: CONFIG,
 				destination: { backend: "onto" },
+				dryRun: false,
 				environments: ["production", "staging"],
 				force: false,
 			},
@@ -350,6 +360,7 @@ describe(moveStateAsync, () => {
 			{
 				config: CONFIG,
 				destination: { backend: "onto" },
+				dryRun: false,
 				environments: ["production"],
 				force: false,
 			},
@@ -379,6 +390,7 @@ describe(moveStateAsync, () => {
 			{
 				config: CONFIG,
 				destination: { backend: "onto" },
+				dryRun: false,
 				environments: ["production"],
 				force: false,
 			},
@@ -408,6 +420,7 @@ describe(moveStateAsync, () => {
 			{
 				config: CONFIG,
 				destination: { backend: "onto" },
+				dryRun: false,
 				environments: ["production"],
 				force: false,
 			},
@@ -429,6 +442,7 @@ describe(moveStateAsync, () => {
 			{
 				config: CONFIG,
 				destination: { backend: "onto" },
+				dryRun: false,
 				environments: ["production"],
 				force: false,
 			},
@@ -453,6 +467,7 @@ describe(moveStateAsync, () => {
 			{
 				config: CONFIG,
 				destination: { backend: "onto" },
+				dryRun: false,
 				environments: ["production", "staging"],
 				force: false,
 			},
@@ -484,6 +499,7 @@ describe(moveStateAsync, () => {
 			{
 				config: CONFIG,
 				destination: { backend: "onto" },
+				dryRun: false,
 				environments: ["production"],
 				force: false,
 			},
@@ -513,11 +529,86 @@ describe(moveStateAsync, () => {
 			{
 				config: CONFIG,
 				destination: { backend: "onto" },
+				dryRun: false,
 				environments: ["production"],
 				force: false,
 			},
 		);
 
 		expect(operations).toStrictEqual(["state move"]);
+	});
+
+	it("should write nothing when the move is a dry run", async () => {
+		expect.assertions(3);
+
+		const source = fakeStateStore({ initial: { production: PRODUCTION } });
+		const destination = fakeStateStore();
+
+		const moved = await moveStateAsync(
+			{ getEnv: noEnvironment, plugins: pluginsFor(source, destination) },
+			{
+				config: CONFIG,
+				destination: { backend: "onto" },
+				dryRun: true,
+				environments: ["production"],
+				force: false,
+			},
+		);
+
+		assert(moved.success);
+
+		expect(destination.writes).toBeEmpty();
+		expect(moved.data.moved).toBeEmpty();
+		expect(moved.data.decisions.get("production")!.kind).toBe("move");
+	});
+
+	it("should take no hold for a dry run", async () => {
+		expect.assertions(1);
+
+		const trace: Array<string> = [];
+		const source = fakeStateStore({ initial: { production: PRODUCTION } });
+		const destination = fakeStateStore();
+
+		await moveStateAsync(
+			{
+				getEnv: noEnvironment,
+				plugins: lockingPluginsFor({
+					destination,
+					lock: fakeLockPort({ trace }),
+					source,
+				}),
+			},
+			{
+				config: CONFIG,
+				destination: { backend: "onto" },
+				dryRun: true,
+				environments: ["production"],
+				force: false,
+			},
+		);
+
+		expect(trace).toBeEmpty();
+	});
+
+	it("should still report what stands in the way of a dry run", async () => {
+		expect.assertions(1);
+
+		const source = fakeStateStore({ initial: { production: PRODUCTION } });
+		const destination = fakeStateStore({ initial: { production: STAGING } });
+
+		const moved = await moveStateAsync(
+			{ getEnv: noEnvironment, plugins: pluginsFor(source, destination) },
+			{
+				config: CONFIG,
+				destination: { backend: "onto" },
+				dryRun: true,
+				environments: ["production"],
+				force: false,
+			},
+		);
+
+		assert(!moved.success);
+
+		expect(moved.err.kind).toBe("moveBlocked");
 	});
 });

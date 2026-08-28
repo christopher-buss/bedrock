@@ -221,7 +221,8 @@ export function createProg(deps: ProgDeps = {}): Sade {
 			.describe("Move an environment's state onto another backend, leaving the source copy")
 			.option("--to", "Backend to move onto (gist, or one a loaded plugin declared)")
 			.option("--to-<key>", "One destination coordinate, named as that backend declares it")
-			.option("--force", "Overwrite state the destination already holds"),
+			.option("--force", "Overwrite state the destination already holds")
+			.option("--dry-run", "Survey what would move and write nothing"),
 	).action(stateMoveCommand(deps));
 
 	prog.command("migrate [stateFilePath]")

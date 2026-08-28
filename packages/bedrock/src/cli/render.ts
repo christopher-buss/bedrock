@@ -1,5 +1,6 @@
 import { safeStringify } from "../core/error-chain.ts";
 import type { MigrateError, MigrationSummary } from "../core/migrate/migration-report.ts";
+import type { StateConfig } from "../core/schema.ts";
 import type { StateError } from "../core/state.ts";
 import type { StateLockHolding } from "../ports/state-lock-port.ts";
 import type {
@@ -77,8 +78,10 @@ interface StateWriteErrorRender {
 
 /** Inputs for {@link renderStateMoveOutcome}. */
 interface StateMoveOutcomeRender {
-	/** Name of the **Backend** the move landed on. */
-	readonly destination: string;
+	/** The `state` block the move landed on. */
+	readonly destination: StateConfig;
+	/** Whether the move surveyed without writing. */
+	readonly dryRun: boolean;
 	/** What the move did. */
 	readonly outcome: StateMoveOutcome;
 }
@@ -303,8 +306,10 @@ export function renderStateMoveOutcome(input: StateMoveOutcomeRender, port: Clac
 	for (const [environment, decision] of input.outcome.decisions) {
 		if (decision.kind === "move") {
 			const count = decision.state.resources.length;
+			const noun = count === 1 ? "resource" : "resources";
+			const verb = input.dryRun ? "would move to" : "moved to";
 			port.logSuccess(
-				`${environment}: ${String(count)} ${count === 1 ? "resource" : "resources"} moved to ${input.destination}`,
+				`${environment}: ${String(count)} ${noun} ${verb} ${input.destination.backend}`,
 			);
 			continue;
 		}
@@ -319,4 +324,23 @@ export function renderStateMoveOutcome(input: StateMoveOutcomeRender, port: Clac
 			);
 		}
 	}
+
+	port.logMessage(stateBlockToApply(input.destination, input.dryRun));
+}
+
+/**
+ * Spell out the `state` block the config has to carry for the move to be
+ * in effect. The config is left alone: it may be TypeScript, YAML, JSON,
+ * or Luau, and carry comments and computed values that writing over it
+ * would flatten.
+ *
+ * @param destination - The block the move landed on.
+ * @param dryRun - Whether the move surveyed without writing.
+ * @returns The line naming the block and what it is for.
+ */
+function stateBlockToApply(destination: StateConfig, dryRun: boolean): string {
+	const block = JSON.stringify(destination);
+	return dryRun
+		? `nothing was written. The move would put this in your config's state block: ${block}`
+		: `the move is not in effect until your config's state block reads: ${block}`;
 }
