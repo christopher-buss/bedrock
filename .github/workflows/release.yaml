@@ -293,20 +293,24 @@ jobs:
       # changelogithub's default types are feat, fix and perf, which is the
       # set this repo treats as consumer-facing, and its default grouping nests
       # each commit under its scope, so one aggregate release reads per
-      # package. The
-      # range is passed explicitly because the tag-scheme knobs that would
-      # otherwise resolve it live only in a config file.
+      # package. The range is passed explicitly because the tag-scheme knobs
+      # that would otherwise resolve it live only in a config file.
+      #
+      # Pinned to an exact version, as the actions above are pinned to a SHA:
+      # `pnpm dlx` resolves and executes at run time, so a range would run
+      # whatever the registry served that day. `pnpm dlx` has nowhere to put an
+      # integrity hash, which makes the exact version the whole of the pin.
       #
       # Nothing here can cost a release: it runs after publish, a failure is
-      # skipped, and a re-run updates the release in place.
+      # skipped, and a re-run generates the notes the next time round.
       - if: steps.changesets.outputs.pending == 'false' && steps.tags.outputs.release_tag != ''
         name: Create the GitHub Release
         run: |
           set -euo pipefail
           if [ -n "$PREVIOUS_TAG" ]; then
-            pnpm dlx changelogithub@15 --from "$PREVIOUS_TAG" --to "$RELEASE_TAG"
+            pnpm dlx changelogithub@15.0.5 --from "$PREVIOUS_TAG" --to "$RELEASE_TAG"
           else
-            pnpm dlx changelogithub@15 --to "$RELEASE_TAG"
+            pnpm dlx changelogithub@15.0.5 --to "$RELEASE_TAG"
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
