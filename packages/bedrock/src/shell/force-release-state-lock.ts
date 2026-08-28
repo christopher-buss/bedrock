@@ -17,7 +17,7 @@ import {
 /**
  * Inputs for {@link forceReleaseStateLockAsync}.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface ForceReleaseStateLockOptions {
 	/** Validated project config, whose `state` block names the **Backend**. */
@@ -41,7 +41,7 @@ export interface ForceReleaseStateLockOptions {
 /**
  * What one force release did.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface ForceReleaseStateLockOutcome {
 	/**
@@ -64,7 +64,7 @@ export interface ForceReleaseStateLockOutcome {
  * could not be built for this **Environment**, or the hold could not be
  * taken away.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export type ForceReleaseStateLockError =
 	| PluginStateBackendError
@@ -86,7 +86,7 @@ export type ForceReleaseStateLockError =
  * record that was read, so a holder that kept running fails its write
  * rather than overwriting whatever the next run recorded.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @example
  *

@@ -54,7 +54,7 @@ export interface ApiErrorOptions extends ErrorOptions {
  * required, and every one accepts `undefined` for a field the transport did not
  * capture.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export type ApiRequestContext = {
 	[K in Exclude<keyof ApiErrorOptions, "cause" | "code" | "details" | "statusCode">]-?:
@@ -129,7 +129,7 @@ export class ApiError extends OpenCloudError {
  * ApiError.code}, {@link ApiError.details}, and {@link ApiError.statusCode}
  * describe the API's answer and are left to the caller.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @param err - The error to read the request context from.
  * @returns The transport-captured fields, each undefined when unset.

@@ -81,7 +81,7 @@ type NeutralStateErrorKind = "stateAccessDenied" | "stateConflict" | "stateNotFo
  * Build a `StatePort` that persists Bedrock **State** in an S3 bucket,
  * one object per **Environment** under the configured prefix.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @example
  *

@@ -7,7 +7,7 @@ import type { Result } from "@bedrock-rbx/ocale";
  * **Backend** carries its own payload (the recorded holder, the deadline it
  * read) without core enumerating the shapes a lock store can fail in.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface StateLockError {
 	/** The **Backend**'s own payload, which core neither reads nor narrows. */
@@ -24,7 +24,7 @@ export interface StateLockError {
  * what fails under contention, and a **Backend** keeps retrying without it,
  * so the field is absent whenever the read did not land.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface StateLockWaiting {
 	/** Milliseconds spent waiting so far. */
@@ -42,7 +42,7 @@ export interface StateLockWaiting {
  * hold is for nor waits under contention implements
  * {@link StateLockPort.acquire} with the environment alone.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface StateLockAcquireOptions {
 	/**
@@ -79,7 +79,7 @@ export interface StateLockAcquireOptions {
  * relies on is the presence of the holding itself, which is what tells a
  * read-only command that its answer may already be behind a deploy.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface StateLockHolding {
 	/** What the hold was taken for, absent when the record names none. */
@@ -94,7 +94,7 @@ export interface StateLockHolding {
  * A hold taken on one **Environment**, handed back so the deploy shell can
  * give it up when the work is over.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface StateLockHold {
 	/**
@@ -129,7 +129,7 @@ export interface StateLockHold {
  * locking and is still a valid **Backend**; the guarantee in force is
  * reportable rather than discovered during an incident.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @example
  *

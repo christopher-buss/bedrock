@@ -12,7 +12,7 @@
  * - `missingCredentials` - no credential resolved, so nothing was sent.
  * - `requestFailed` - anything else the store or the transport reported.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export type S3FailureKind =
 	| "accessDenied"
@@ -41,7 +41,7 @@ export interface S3Failure {
  * The payload a failure only this **Backend** can describe carries, which
  * core passes through untouched.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface S3StateErrorDetail {
 	/** S3 error code the client read the refusal as. */

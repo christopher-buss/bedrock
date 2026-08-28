@@ -36,7 +36,7 @@ import { createConfiguredS3Client, type S3StoreDeps } from "./s3-client.ts";
  * How long acquisition waits out contention before giving up, when the
  * config names no bound of its own.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export const DEFAULT_LOCK_TIMEOUT_MS = 300_000;
 
@@ -47,7 +47,7 @@ const DEFAULT_OPERATION = "deploy";
  * Everything {@link createS3StateLockPort} needs beyond the bucket it
  * shares with the **State port**.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface S3StateLockAdapterDeps extends S3StoreDeps {
 	/**
@@ -177,7 +177,7 @@ export function intervalEvery(ms: number, run: () => Promise<void>): () => void 
  * through a conditional create in the bucket, waiting out a hold another
  * run has rather than refusing outright.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @example
  *

@@ -34,7 +34,7 @@ export interface LoadedPlugin {
  * One plugin-declared **Backend**, paired with the specifier that claimed
  * its name so a failure it produces can name the plugin responsible.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface RegisteredStateBackend {
 	/** What the plugin declared for this **Backend**. */
@@ -47,7 +47,7 @@ export interface RegisteredStateBackend {
  * What the loaded plugins collectively contribute, resolved once per
  * config load and read wherever a plugin's declaration is needed.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface PluginRegistry {
 	/** Each plugin-declared **Backend**, keyed by the name it claimed. */

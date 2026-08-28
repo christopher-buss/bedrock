@@ -16,7 +16,7 @@ const CHECKSUM_CALCULATION = {
  * Everything a port this **Backend** builds needs to reach one **Store**:
  * where the bucket is, how to sign for it, and what to send through.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface S3StoreDeps {
 	/** Bucket the **State** objects live in. */

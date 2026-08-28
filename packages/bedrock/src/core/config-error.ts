@@ -35,7 +35,7 @@ export interface ConfigValidationIssue {
  * - `invalidExport` - the module evaluated but exports nothing bedrock
  *   recognizes as a plugin.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @example
  *

@@ -119,7 +119,7 @@ export interface BedrockState {
  * record has appeared since. Carrying no version says the **Backend**
  * cannot fence at all, and the write overwrites whatever is there.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @example
  *
@@ -170,7 +170,7 @@ export type StateVersion =
  * **State** would reconcile from an empty snapshot and re-create every
  * resource.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @example
  *
@@ -218,7 +218,7 @@ export type StateRecord =
  * Fields every {@link StateError} arm carries, whichever **Backend**
  * produced it, so a caller can report the failure without narrowing first.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface StateErrorBase {
 	/** Adapter-specific path or identifier of the state that failed. */

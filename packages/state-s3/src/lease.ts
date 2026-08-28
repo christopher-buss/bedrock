@@ -8,7 +8,7 @@ import { isoAt, type S3LockRecord } from "./lock-record.ts";
  * is how long an **Environment** a cancelled CI job left behind stays out
  * of reach of the next deploy.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export const DEFAULT_LOCK_LEASE_MS = 60_000;
 
