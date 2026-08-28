@@ -47,6 +47,34 @@ describe("s3 plugin", () => {
 		expect(s3StateBackend.schema({ region: "eu-west-2" })).not.toStrictEqual(STATE_CONFIG);
 	});
 
+	it("should ask a migration onto this backend for the bucket, the region, and an endpoint it may skip", () => {
+		expect.assertions(2);
+
+		const fields = s3StateBackend.migratePrompts;
+
+		assert(fields !== undefined);
+
+		expect(fields.map((field) => field.key)).toStrictEqual(["bucket", "region", "endpoint"]);
+		expect(
+			fields.filter((field) => field.validationMessage !== undefined).map(({ key }) => key),
+		).toStrictEqual(["bucket", "region"]);
+	});
+
+	it("should read the previous tool's state from the coordinates mantle kept it at", () => {
+		expect.assertions(1);
+
+		const source = s3StateBackend.migrateSource;
+
+		assert(source !== undefined);
+
+		expect(source.prompts.map((field) => field.key)).toStrictEqual([
+			"bucket",
+			"region",
+			"key",
+			"endpoint",
+		]);
+	});
+
 	it("should build a lock port that leases a hold for as long as the state block asked", async () => {
 		expect.assertions(2);
 
@@ -134,6 +162,31 @@ describe("s3 plugin", () => {
 		});
 		const built = s3StateBackend.createPort(
 			context({ fetch: store.fetchFunc, stateConfig: STATE_CONFIG }),
+		);
+
+		assert(built.success);
+
+		await built.data.read("production");
+
+		expect(store.calls[0]!.headers["authorization"]).toStartWith(
+			"AWS4-HMAC-SHA256 Credential=chain-access-key/",
+		);
+	});
+
+	it("should fall back to the standard aws chain when the environment holds a blank key", async () => {
+		expect.assertions(1);
+
+		const store = fakeS3();
+		withEnvironment({
+			AWS_ACCESS_KEY_ID: "chain-access-key",
+			AWS_SECRET_ACCESS_KEY: "chain-secret",
+		});
+		const built = s3StateBackend.createPort(
+			context({
+				fetch: store.fetchFunc,
+				getEnv: environmentOf({ ...CREDENTIALS, AWS_SECRET_ACCESS_KEY: " " }),
+				stateConfig: STATE_CONFIG,
+			}),
 		);
 
 		assert(built.success);

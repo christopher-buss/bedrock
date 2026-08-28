@@ -29,10 +29,12 @@ contract a claim rather than a proof.
 | `lock-owner.ts`              | Pure reading of the environment into the run a hold is recorded as.                                                    |
 | `backoff.ts`                 | Pure retry schedule for a contended acquisition.                                                                       |
 | `s3-client.ts`               | The configured client both ports send through, plus the coordinates it needs.                                          |
-| `classify-failure.ts`        | Pure reading of what the client threw into this **Backend**'s own terms.                                               |
+| `classify-failure.ts`        | Pure reading of what the client threw into this **Backend**'s own terms, and the payload it is reported with.          |
 | `fetch-request-handler.ts`   | Smithy request handler routing the real client through an injected `fetch`.                                            |
 | `s3-state-adapter.ts`        | The `StatePort`: reads and writes objects, reports refusals as `StateError`.                                           |
 | `s3-state-lock-adapter.ts`   | The `StateLockPort`: takes a hold by conditional create, releases by tombstone.                                        |
+| `credentials.ts`             | Reading the key pair core's environment holds, which both a deploy and a migration sign with.                          |
+| `migrate.ts`                 | What `bedrock migrate` asks for, and reading the mantle state a bucket holds.                                          |
 | `plugin.ts`                  | The declaration core registers, and the default export a user names.                                                   |
 
 `src/index.ts` publishes the plugin contract and the adapters, not the mechanics
@@ -75,10 +77,23 @@ instants a record carries are the same on every machine. The identity one
 acquisition writes is injected too (`mintId`), so a test can state which record
 it expects to find.
 
+The migrate source is handed a **Transport** the same way the ports are, so its
+tests inject the fake store rather than replacing the runtime's own `fetch`.
+
 `vite.config.ts` drops the `module` resolve condition. The AWS SDK's `module`
 build imports its own files without extensions, which only a bundler resolves;
 without the override every test importing the client fails to load.
 
-## Not here yet
+## Migrating
 
-Migrate support (`migratePrompts`, `migrateSource`) is tracked separately.
+`migrate.ts` declares both halves of migrate support. The source's coordinates
+are mantle's own `state.remote` block, and its custom-region form arrives
+flattened: the region is the custom `name` and the endpoint the custom
+`endpoint`. Mantle keys one object `<project>.mantle-state.yml`, so the key
+answered names the project and the suffix is appended only when the answer does
+not already carry it.
+
+The translation makes mantle's own key the **Prefix**, which is what keeps two
+projects that shared one bucket under mantle from both writing `production.json`
+at the root. Coordinates that could not have been fetched from are refused by
+throwing, which is core's own path for a translation that cannot be made.

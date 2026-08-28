@@ -24,6 +24,7 @@ describe("ProgDeps shape", () => {
 			| "deploy"
 			| "discoverOverride"
 			| "exit"
+			| "fetch"
 			| "forceReleaseStateLock"
 			| "loadProject"
 			| "migrateMantleState"

@@ -187,8 +187,11 @@ const s3: StateBackendDeclaration<typeof schema.infer> = {
 ```
 
 A field with a `validationMessage` is required, and the message is what an empty
-answer is rejected with. Omitting `migratePrompts` leaves your backend out of
-the migrate picker while keeping it usable in config.
+answer is rejected with. A field without one can be skipped, and a skipped field
+records no answer, so an optional key stays out of the `state` block rather than
+reaching your schema as an empty string. An answer holding nothing but
+whitespace counts as skipped. Omitting `migratePrompts` leaves your backend out
+of the migrate picker while keeping it usable in config.
 
 To supply the state a user is migrating _from_, declare `migrateSource`. Its
 `prompts` ask for the coordinates, and `readBytes` returns the bytes at them:
@@ -210,7 +213,10 @@ const s3: StateBackendDeclaration<typeof schema.infer> = {
 ```
 
 The split is bytes versus format. You never learn what the other tool's state
-means; bedrock parses it.
+means; bedrock parses it. `readBytes` is handed the same `fetch` seam a backend
+builder gets, so route your requests through it and fall back to
+`globalThis.fetch`; that is what lets your own tests drive it against a fake
+transport.
 
 `toStateConfig` translates those coordinates - the other tool's state-location
 config - into the `state` keys bedrock records, and bedrock writes `backend`

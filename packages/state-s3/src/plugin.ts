@@ -3,9 +3,10 @@ import type {
 	StateBackendContext,
 	StateBackendDeclaration,
 } from "@bedrock-rbx/core";
-import type { AwsCredentialIdentity } from "@smithy/types";
 
+import { credentialsFrom } from "./credentials.ts";
 import { lockOwnerFrom } from "./lock-owner.ts";
+import { s3MigratePrompts, s3MigrateSource } from "./migrate.ts";
 import type { S3StoreDeps } from "./s3-client.ts";
 import { createS3StateAdapter } from "./s3-state-adapter.ts";
 import { createS3StateLockPort } from "./s3-state-lock-adapter.ts";
@@ -49,6 +50,8 @@ export const s3StateBackend: StateBackendDeclaration<S3StateConfig> = {
 	createPort(context) {
 		return { data: createS3StateAdapter(bucketAccessFrom(context)), success: true };
 	},
+	migratePrompts: s3MigratePrompts,
+	migrateSource: s3MigrateSource,
 	schema: s3StateSchema,
 };
 
@@ -70,35 +73,6 @@ export const s3StateBackend: StateBackendDeclaration<S3StateConfig> = {
 const s3StatePlugin: BedrockPlugin = { stateBackends: [s3StateBackend] };
 
 export default s3StatePlugin;
-
-/**
- * Read static credentials out of the environment core injected, so a
- * **Deploy** signs with what the caller handed it rather than with
- * whatever the process happens to hold.
- *
- * Only the environment-variable step of the standard AWS chain is read
- * here, and only when it has both halves of a credential. Anything else -
- * a shared profile, an SSO session, CI role credentials - is left to the
- * chain itself, which the adapter falls back to.
- *
- * @param getEnvironment - Reads an environment variable.
- * @returns The credential the environment names, or `undefined` to leave
- * resolution to the standard chain.
- */
-function credentialsFrom(
-	getEnvironment: StateBackendContext["getEnv"],
-): AwsCredentialIdentity | undefined {
-	const accessKeyId = getEnvironment("AWS_ACCESS_KEY_ID");
-	const secretAccessKey = getEnvironment("AWS_SECRET_ACCESS_KEY");
-	if (accessKeyId === undefined || secretAccessKey === undefined) {
-		return undefined;
-	}
-
-	const sessionToken = getEnvironment("AWS_SESSION_TOKEN");
-	return sessionToken === undefined
-		? { accessKeyId, secretAccessKey }
-		: { accessKeyId, secretAccessKey, sessionToken };
-}
 
 /**
  * Read the bucket both of this **Backend**'s ports reach out of what core

@@ -3,6 +3,7 @@ import type { Sade } from "sade";
 
 import manifest from "../../package.json" with { type: "json" };
 import type { PluginRegistry } from "../core/plugin-registry.ts";
+import type { StateBackendFetch } from "../core/plugin.ts";
 import type { ProgressPort } from "../ports/progress-port.ts";
 import type { buildStatePort as defaultBuildStatePort } from "../shell/build-state-port.ts";
 import type {
@@ -60,6 +61,12 @@ export interface ProgDeps {
 	 * return void.
 	 */
 	readonly exit?: (code: number) => void;
+	/**
+	 * Transport a plugin fetching the previous tool's state routes its
+	 * requests through; omitted, the plugin falls back to the runtime's own
+	 * `fetch`.
+	 */
+	readonly fetch?: StateBackendFetch;
 	/**
 	 * Takes an environment's hold away; defaults to the public
 	 * `forceReleaseStateLockAsync`.

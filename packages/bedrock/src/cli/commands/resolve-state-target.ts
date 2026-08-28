@@ -66,6 +66,15 @@ export async function collectBackendAnswersAsync(
 			return { err: "cancelled", success: false };
 		}
 
+		// An answer holding nothing but whitespace is a field the user
+		// skipped, which only an optional one accepts: it is what a required
+		// field's own validation rejects. Recording it would put a key in the
+		// `state` block the user never gave, and one a **Backend** schema
+		// asking only for a non-empty string would take at face value.
+		if (answer.data.trim() === "") {
+			continue;
+		}
+
 		// Rebuilding rather than assigning is also what records a key like
 		// `__proto__`: a computed key in a literal is an own property,
 		// where the assignment form would reach the setter and vanish.

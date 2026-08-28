@@ -71,8 +71,10 @@ capability check, preflight, health check
 
 **Prefix**: The folder the **Object**s are written under, read as a path however
 it was written (`bedrock/state`, `/bedrock/state/`, and `bedrock/state/` are one
-prefix). Absent, the **Object**s sit at the bucket root. _Avoid_: path, folder,
-namespace
+prefix). Absent, the **Object**s sit at the bucket root. A migration off another
+tool translates the name that tool keyed its own state by into this, so two
+projects that shared one bucket there keep their **Object**s apart here.
+_Avoid_: path, folder, namespace
 
 **Store**: The bucket the **Object**s live in, addressed either at AWS or at an
 `endpoint` an S3-compatible implementation serves. A **Store** that does not
@@ -96,9 +98,10 @@ The reading is by error code first and HTTP status second, because
 report a mistyped bucket as a first **Deploy**. _Avoid_: error code, exception
 
 **Transport**: The `fetch` the client's requests are routed through, injected by
-core and defaulted to the runtime's own. Swapping it leaves the client real, so
-signing, marshalling, and error deserialization are exercised by this package's
-tests rather than stubbed at `send`. _Avoid_: http client, mock, request handler
+core - for a **Deploy** and for a migration alike - and defaulted to the
+runtime's own. Swapping it leaves the client real, so signing, marshalling, and
+error deserialization are exercised by this package's tests rather than stubbed
+at `send`. _Avoid_: http client, mock, request handler
 
 ## Boundaries
 
