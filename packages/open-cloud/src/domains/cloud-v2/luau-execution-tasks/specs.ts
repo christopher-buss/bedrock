@@ -11,8 +11,9 @@ import {
 import {
 	GET_OPERATION_LIMIT,
 	GET_REQUIRED_SCOPES,
-	SUBMIT_OPERATION_LIMIT,
+	SUBMIT_HEAD_OPERATION_LIMIT,
 	SUBMIT_REQUIRED_SCOPES,
+	SUBMIT_VERSION_OPERATION_LIMIT,
 } from "./operations.ts";
 import { parseLuauExecutionTaskResponse } from "./parsers.ts";
 import type {
@@ -38,22 +39,23 @@ export const SUBMIT_HEAD_SPEC = makeSpec<SubmitAtHeadParameters>({
 	buildRequest: (parameters) => okRequest(buildSubmitAtHeadRequest(parameters)),
 	methodDefaults: CREATE_METHOD_DEFAULTS,
 	methodKind: "create",
-	operationLimit: SUBMIT_OPERATION_LIMIT,
+	operationLimit: SUBMIT_HEAD_OPERATION_LIMIT,
 	parse: parseLuauExecutionTaskResponse,
 	requiredScopes: SUBMIT_REQUIRED_SCOPES,
 });
 
 /**
  * Per-method dispatch spec for submitting a Luau execution task at a
- * specific place version. Shares the rate-limit queue and required
- * scope set with {@link SUBMIT_HEAD_SPEC} because Roblox attributes
- * both URL shapes to one per-minute quota.
+ * specific place version. Shares the required scope set with {@link
+ * SUBMIT_HEAD_SPEC} but carries its own rate-limit queue: the server
+ * meters the version-pinned URL shape at 5 requests per minute in a
+ * bucket separate from the head shape's 40.
  */
 export const SUBMIT_VERSION_SPEC = makeSpec<SubmitAtVersionParameters>({
 	buildRequest: (parameters) => okRequest(buildSubmitAtVersionRequest(parameters)),
 	methodDefaults: CREATE_METHOD_DEFAULTS,
 	methodKind: "create",
-	operationLimit: SUBMIT_OPERATION_LIMIT,
+	operationLimit: SUBMIT_VERSION_OPERATION_LIMIT,
 	parse: parseLuauExecutionTaskResponse,
 	requiredScopes: SUBMIT_REQUIRED_SCOPES,
 });

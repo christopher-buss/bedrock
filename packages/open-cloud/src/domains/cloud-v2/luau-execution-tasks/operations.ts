@@ -1,21 +1,40 @@
 import type { OperationLimit } from "../../../internal/http/rate-limit-queue.ts";
 
-const SUBMIT_PER_MINUTE = 40;
+const SUBMIT_AT_HEAD_PER_MINUTE = 40;
+const SUBMIT_AT_VERSION_PER_MINUTE = 5;
 const GET_PER_MINUTE = 200;
 const SECONDS_PER_MINUTE = 60;
 
 /**
- * Per-second request ceiling for submitting a Luau execution task,
- * sourced from `x-roblox-rate-limits.perApiKeyOwner` on the
+ * Per-second request ceiling for submitting a Luau execution task at a
+ * place's head version, sourced from
+ * `x-roblox-rate-limits.perApiKeyOwner` on the
  * `Cloud_CreateLuauExecutionSessionTask__Using_Universes` operation
  * (40 requests per minute per API key owner), which is also the burst
- * the server allows. The two URL shapes (head and version) share this
- * queue because Roblox attributes both to the same per-minute quota.
+ * the server allows. The operation's prose description claims 5 per
+ * minute; the machine-readable extension is the enforced figure.
  */
-export const SUBMIT_OPERATION_LIMIT: OperationLimit = Object.freeze({
-	burstCapacity: SUBMIT_PER_MINUTE,
-	maxPerSecond: SUBMIT_PER_MINUTE / SECONDS_PER_MINUTE,
+export const SUBMIT_HEAD_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	burstCapacity: SUBMIT_AT_HEAD_PER_MINUTE,
+	maxPerSecond: SUBMIT_AT_HEAD_PER_MINUTE / SECONDS_PER_MINUTE,
 	operationKey: "luau-execution-tasks.submit",
+});
+
+/**
+ * Per-second request ceiling for submitting a Luau execution task at a
+ * specific place version, sourced from
+ * `x-roblox-rate-limits.perApiKeyOwner` on the
+ * `Cloud_CreateLuauExecutionSessionTask__Using_Universes_Places`
+ * operation (5 requests per minute per API key owner), which is also
+ * the burst the server allows. Carries its own operation key so the
+ * version-pinned URL shape is paced from its own quota: the server
+ * meters the two shapes in separate buckets whose ceilings are
+ * additive, and pinned traffic does not consume head budget.
+ */
+export const SUBMIT_VERSION_OPERATION_LIMIT: OperationLimit = Object.freeze({
+	burstCapacity: SUBMIT_AT_VERSION_PER_MINUTE,
+	maxPerSecond: SUBMIT_AT_VERSION_PER_MINUTE / SECONDS_PER_MINUTE,
+	operationKey: "luau-execution-tasks.submit-at-version",
 });
 
 /**
