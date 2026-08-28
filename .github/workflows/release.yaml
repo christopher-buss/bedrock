@@ -207,6 +207,9 @@ jobs:
           previous_tag=$(git tag --list 'v[0-9]*' | sort -V | tail -n1)
           core_tag=""
           version=""
+          # Space-separated, which the push step splits back apart. No
+          # package name or version carries a space.
+          created_tags=""
           while read -r tag; do
             case "$tag" in
               "@bedrock-rbx/core@"*) version="${tag#@bedrock-rbx/core@}" ;;
@@ -216,6 +219,7 @@ jobs:
             else
               git tag "$tag"
               echo "Tagged $tag"
+              created_tags="$created_tags $tag"
               case "$tag" in
                 "@bedrock-rbx/core@"*) core_tag="$tag" ;;
               esac
@@ -234,14 +238,32 @@ jobs:
           else
             git tag "$release_tag"
             echo "Tagged $release_tag"
+            created_tags="$created_tags $release_tag"
           fi
           echo "core_tag=$core_tag" >> "$GITHUB_OUTPUT"
+          echo "created_tags=${created_tags# }" >> "$GITHUB_OUTPUT"
           echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
           echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
 
-      - if: steps.changesets.outputs.pending == 'false'
+      # One ref per push: the repo's `all` ruleset refuses a push updating more
+      # than three, and a release now cuts one tag per published package plus
+      # the `v<x.y.z>`. Pushing them together was already at that ceiling with
+      # three packages, and the fixed group takes another slot with every
+      # first-party plugin that joins it.
+      #
+      # A tag created but not pushed does not survive the run — the next one
+      # checks out fresh and re-derives from the manifests — so pushing only
+      # what this run created loses no healing.
+      - if: steps.changesets.outputs.pending == 'false' && steps.tags.outputs.created_tags != ''
         name: Push tags
-        run: git push origin --tags
+        run: |
+          set -euo pipefail
+          read -ra tags <<< "$CREATED_TAGS"
+          for tag in "${tags[@]}"; do
+            git push origin "refs/tags/$tag"
+          done
+        env:
+          CREATED_TAGS: ${{ steps.tags.outputs.created_tags }}
 
       # Notes come from the conventional commits in the range, not from the
       # committed CHANGELOG.md: the changelog carries the intent prose and
@@ -260,11 +282,11 @@ jobs:
         name: Create the GitHub Release
         run: |
           set -euo pipefail
-          from=()
           if [ -n "$PREVIOUS_TAG" ]; then
-            from=(--from "$PREVIOUS_TAG")
+            pnpm dlx changelogithub@15 --from "$PREVIOUS_TAG" --to "$RELEASE_TAG"
+          else
+            pnpm dlx changelogithub@15 --to "$RELEASE_TAG"
           fi
-          pnpm dlx changelogithub@15 "${from[@]}" --to "$RELEASE_TAG"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PREVIOUS_TAG: ${{ steps.tags.outputs.previous_tag }}
