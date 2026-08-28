@@ -95,7 +95,7 @@ export interface StateMoveOutcome {
 /** Seams {@link moveStateAsync} builds both sides' **Backend**s through. */
 export interface MoveStateDeps {
 	/** `fetch` override plumbed into a default-constructed adapter. */
-	readonly fetch?: GistFetch;
+	readonly fetch?: GistFetch | undefined;
 	/** Reads an environment variable, which is where credentials come from. */
 	readonly getEnv: (name: string) => string | undefined;
 	/** What the loaded plugins declared, which names the valid backends. */

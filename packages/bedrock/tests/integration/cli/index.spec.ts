@@ -266,6 +266,28 @@ describe("cli program factory", () => {
 		expect(captured).toContain("Config file path");
 	});
 
+	it("should describe the state move subcommand and each of its flags in 'state move --help' output", () => {
+		expect.assertions(4);
+
+		const prog = createProg();
+
+		const { stdout } = startCapture();
+
+		prog.parse(["node", "bedrock", "state", "move", "--help"]);
+
+		const captured = stdout.join("");
+		const lines = captured.split("\n");
+
+		expect(captured).toContain("Move an environment's state onto another backend");
+		expect(lines.find((line) => line.includes("Backend to move onto"))).toContain("--to ");
+		expect(lines.find((line) => line.includes("One destination coordinate"))).toContain(
+			"--to-<key>",
+		);
+		expect(
+			lines.find((line) => line.includes("Overwrite state the destination already holds")),
+		).toContain("--force");
+	});
+
 	it("should route 'bedrock state unlock' to the state-unlock action", async () => {
 		expect.assertions(2);
 
