@@ -47,10 +47,9 @@ export interface ApiErrorOptions extends ErrorOptions {
 }
 
 /**
- * The transport-captured half of {@link ApiErrorOptions}: what the request was
- * and how it went, as opposed to what the API answered ({@link
- * ApiErrorOptions.code}, {@link ApiErrorOptions.details}, {@link
- * ApiErrorOptions.statusCode}).
+ * The fields of {@link ApiErrorOptions} the transport captures about the
+ * request itself: what was sent, where, how long it was in flight, and what the
+ * response carried alongside its body.
  *
  * @since unreleased
  */
@@ -122,9 +121,9 @@ export class ApiError extends OpenCloudError {
 
 /**
  * Reads the request context off an {@link ApiError} so a replacement error can
- * carry it. Spread the result into the options of the new error; the fields
- * describing the API's answer are left behind for the caller to decide on,
- * because a replacement that rewrites the message often means to drop them.
+ * carry it. Spread the result into the options of the new error. {@link
+ * ApiError.code}, {@link ApiError.details}, and {@link ApiError.statusCode}
+ * describe the API's answer and are left to the caller.
  *
  * @since unreleased
  *
