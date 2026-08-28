@@ -43,7 +43,7 @@ what may move, and the command that drives it.
 | 8   | The source copy is left in place.                                                                                                                  | Deleting the operator's other copy of their own state is not a call a move makes for them. A delete flag is a separate decision with a separate blast radius.                                                                                                                                                                  |
 | 9   | The config file is not rewritten. The command prints the `state` block to apply and says the move is not complete until it is.                     | Configs are TS, JS, YAML, JSON, or Luau, and carry comments, imports, and computed values. Serializing a loaded config back over the authored file would flatten all of it. Opt-in rewriting for the mechanical formats is a follow-up.                                                                                        |
 | 10  | `--dry-run` surveys, decides, and writes nothing. It takes no hold either.                                                                         | An agent checks before it commits. Nothing a survey does needs the **Environment** to itself, and holding one would block a deploy over a question.                                                                                                                                                                            |
-| 10  | An environment the source holds no state for is reported and skipped.                                                                              | A first-deploy environment has no state. Writing empty state to the destination would turn "never deployed" into "deployed nothing", and the next deploy would re-create every resource.                                                                                                                                       |
+| 11  | An environment the source holds no state for is reported and skipped.                                                                              | A first-deploy environment has no state. Writing empty state to the destination would turn "never deployed" into "deployed nothing", and the next deploy would re-create every resource.                                                                                                                                       |
 
 ## Shapes
 
@@ -53,8 +53,9 @@ has already read; nothing in here does I/O.
 ```ts
 /** Why an environment cannot move. */
 type StateMoveBlocker =
+	| { readonly err: StateError; readonly kind: "destinationUnreadable" }
 	| { readonly err: StateError; readonly kind: "sourceUnreadable" }
-	| { readonly kind: "destinationOccupied" };
+	| { readonly held: BedrockState; readonly kind: "destinationOccupied" };
 
 /** What the survey decided about one environment. */
 type StateMoveDecision =

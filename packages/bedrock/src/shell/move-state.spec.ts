@@ -385,8 +385,12 @@ describe(moveStateAsync, () => {
 		expect.assertions(1);
 
 		const trace: Array<string> = [];
-		const source = fakeStateStore({ initial: { production: PRODUCTION } });
-		const destination = fakeStateStore({ trace });
+		const source = fakeStateStore({
+			initial: { production: PRODUCTION },
+			label: "source",
+			trace,
+		});
+		const destination = fakeStateStore({ label: "destination", trace });
 
 		const moved = await moveStateAsync(
 			{
@@ -406,8 +410,9 @@ describe(moveStateAsync, () => {
 
 		expect(trace).toStrictEqual([
 			"acquire:production",
-			"read:production",
-			"write:production",
+			"source-read:production",
+			"destination-read:production",
+			"destination-write:production",
 			"release:production",
 		]);
 	});

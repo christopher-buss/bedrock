@@ -23,6 +23,11 @@ interface RecordedWrite {
 interface FakeStateStoreOptions {
 	/** **State** the store already holds, keyed by **Environment**. */
 	readonly initial?: Readonly<Record<string, BedrockState>>;
+	/**
+	 * What this store's entries are labelled with in the trace, so two
+	 * stores sharing one log are told apart.
+	 */
+	readonly label?: string;
 	/** Refusals to return from `read`, keyed by **Environment**. */
 	readonly refuseRead?: Readonly<Record<string, StateError>>;
 	/** Refusals to return from `write`, keyed by **Environment**. */
@@ -47,7 +52,7 @@ export function fakeStateStore(options: FakeStateStoreOptions = {}): FakeStateSt
 
 	const port: StatePort = {
 		read: async (environment) => {
-			options.trace?.push(`read:${environment}`);
+			options.trace?.push(`${labelOf(options)}read:${environment}`);
 			await Promise.resolve();
 			const refusal = options.refuseRead?.[environment];
 			if (refusal !== undefined) {
@@ -57,7 +62,7 @@ export function fakeStateStore(options: FakeStateStoreOptions = {}): FakeStateSt
 			return { data: recordOf(states.get(environment)), success: true };
 		},
 		write: async (state, expected) => {
-			options.trace?.push(`write:${state.environment}`);
+			options.trace?.push(`${labelOf(options)}write:${state.environment}`);
 			await Promise.resolve();
 			writes.push({ environment: state.environment, expected });
 			const refusal = options.refuseWrite?.[state.environment];
@@ -71,6 +76,10 @@ export function fakeStateStore(options: FakeStateStoreOptions = {}): FakeStateSt
 	};
 
 	return { port, states, writes };
+}
+
+function labelOf(options: FakeStateStoreOptions): string {
+	return options.label === undefined ? "" : `${options.label}-`;
 }
 
 function recordOf(state: BedrockState | undefined): StateRecord {

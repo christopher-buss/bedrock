@@ -1247,18 +1247,6 @@ export function isStateBackendSchema(fragment: unknown): boolean {
 }
 
 /**
- * Build the schema for one `state` block, dispatching on the authored
- * `backend` value so a plugin's fragment validates only the block that
- * named that plugin's backend.
- *
- * Dispatching rather than a union of arms is what keeps a failure
- * attributed to the offending field: a union reports one aggregate message
- * against the block itself.
- *
- * @param registry - What the loaded plugins declared.
- * @returns The `state` block schema for this set of plugins.
- */
-/**
  * Check one `state` block against the **Backend** its `backend` key names.
  *
  * A block assembled from somewhere other than a config file, such as the
@@ -1317,6 +1305,18 @@ function attributeIssues(ctx: IssueSink, issues: ReadonlyArray<AttributableIssue
 	}
 }
 
+/**
+ * Build the schema for one `state` block, dispatching on the authored
+ * `backend` value so a plugin's fragment validates only the block that
+ * named that plugin's backend.
+ *
+ * Dispatching rather than a union of arms is what keeps a failure
+ * attributed to the offending field: a union reports one aggregate message
+ * against the block itself.
+ *
+ * @param registry - What the loaded plugins declared.
+ * @returns The `state` block schema for this set of plugins.
+ */
 function buildStateSchema(registry: PluginRegistry): Type<StateConfig> {
 	const byBackend = new Map(
 		Array.from(registry.stateBackends, ([name, registered]) => {

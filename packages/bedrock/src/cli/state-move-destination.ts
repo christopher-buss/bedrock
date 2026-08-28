@@ -75,5 +75,5 @@ export function resolveMoveDestination(
  * @returns The names, in the order they read to someone picking one.
  */
 function availableBackends(plugins: PluginRegistry): ReadonlyArray<string> {
-	return [BUILTIN_BACKEND, ...plugins.stateBackends.keys()].sort();
+	return [BUILTIN_BACKEND, ...plugins.stateBackends.keys()].toSorted();
 }

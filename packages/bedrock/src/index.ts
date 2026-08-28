@@ -10,6 +10,7 @@ export { createFsCodegenWriter, type FsCodegenWriterDeps } from "./adapters/fs-c
 export { createGamePassDriver, type GamePassDriverDeps } from "./adapters/game-pass-driver.ts";
 export {
 	createGistStateAdapter,
+	type GistFetch,
 	type GistStateAdapterDeps,
 } from "./adapters/gist-state-adapter.ts";
 export { createNoOpProgressAdapter } from "./adapters/no-op-progress-adapter.ts";

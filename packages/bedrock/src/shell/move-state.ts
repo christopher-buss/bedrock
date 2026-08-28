@@ -19,6 +19,7 @@ import {
 	buildStatePort,
 	type MissingCredentialError,
 	type PluginStateBackendError,
+	type StateBackend,
 	type UnsupportedBackendError,
 } from "./build-state-port.ts";
 
@@ -151,6 +152,16 @@ interface BuildSourcePortsInputs {
 	readonly destination: StatePort;
 	/** The project and the **Environment**s being moved. */
 	readonly inputs: MoveStateInputs;
+}
+
+/** What pairing one **Environment**'s two sides needs. */
+interface PortsForInputs {
+	/** Everything the source **Backend** contributes. */
+	readonly backend: StateBackend;
+	/** The port every write goes through. */
+	readonly destination: StatePort;
+	/** **Environment** the pair belongs to. */
+	readonly environment: string;
 }
 
 /** One **Environment**'s ports, and the exclusion its source offers. */
@@ -298,7 +309,7 @@ async function writeAllAsync(
 	ports: ReadonlyArray<EnvironmentPorts>,
 	decisions: ReadonlyMap<string, StateMoveDecision>,
 ): Promise<Result<StateMoveOutcome, MoveStateError>> {
-	const moved: Array<string> = [];
+	let moved: ReadonlyArray<string> = [];
 	for (const { destination, environment } of ports) {
 		const decision = decisions.get(environment);
 		if (decision?.kind !== "move") {
@@ -313,7 +324,7 @@ async function writeAllAsync(
 			};
 		}
 
-		moved.push(environment);
+		moved = [...moved, environment];
 	}
 
 	return { data: { decisions, locking: lockingOf(ports), moved }, success: true };
@@ -365,7 +376,7 @@ async function withHoldsAsync(
 	ports: ReadonlyArray<EnvironmentPorts>,
 	runAsync: () => Promise<Result<StateMoveOutcome, MoveStateError>>,
 ): Promise<Result<StateMoveOutcome, MoveStateError>> {
-	const holds: Array<StateLockHold> = [];
+	let holds: ReadonlyArray<StateLockHold> = [];
 	for (const { environment, stateLockPort } of ports) {
 		if (stateLockPort === undefined) {
 			continue;
@@ -380,7 +391,7 @@ async function withHoldsAsync(
 			};
 		}
 
-		holds.push(hold.data);
+		holds = [...holds, hold.data];
 	}
 
 	try {
@@ -397,6 +408,16 @@ function buildPort(
 	return buildStatePort({ ...deps, stateConfig });
 }
 
+function portsFor({ backend, destination, environment }: PortsForInputs): EnvironmentPorts {
+	return {
+		destination,
+		environment,
+		locking: backend.locking,
+		source: backend.statePort,
+		stateLockPort: backend.stateLockPort,
+	};
+}
+
 /**
  * Build one source port per **Environment**, pairing each with the one
  * destination port every write goes through.
@@ -410,7 +431,7 @@ function buildSourcePorts({
 	destination,
 	inputs,
 }: BuildSourcePortsInputs): Result<ReadonlyArray<EnvironmentPorts>, MoveStateError> {
-	const ports: Array<EnvironmentPorts> = [];
+	let ports: ReadonlyArray<EnvironmentPorts> = [];
 	const named = new Set(inputs.environments);
 	for (const environment of named) {
 		const stateConfig = resolveStateConfig(inputs.config, environment);
@@ -429,13 +450,7 @@ function buildSourcePorts({
 			};
 		}
 
-		ports.push({
-			destination,
-			environment,
-			locking: source.data.locking,
-			source: source.data.statePort,
-			stateLockPort: source.data.stateLockPort,
-		});
+		ports = [...ports, portsFor({ backend: source.data, destination, environment })];
 	}
 
 	return { data: ports, success: true };
