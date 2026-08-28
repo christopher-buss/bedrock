@@ -7,6 +7,7 @@ language: en
 words:
   - arktype
   - bedrockrc
+  - changelogithub
   - checkpointed
   - codegen
   - defu

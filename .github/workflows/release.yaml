@@ -14,13 +14,18 @@
 #
 #   Publish mode (no intents — i.e. a Version PR just merged): build and
 #   `pnpm publish -r` to npm with provenance, tag each newly published
-#   version, push the tags, and dispatch website-release.yaml for the new
-#   core tag (a GITHUB_TOKEN tag push does not fire the `on: push: tags`
-#   trigger on its own).
+#   version alongside one `v<x.y.z>` tag for the release as a whole, push the
+#   tags, cut the GitHub Release on that `v` tag, and dispatch
+#   website-release.yaml for the new core tag (a GITHUB_TOKEN tag push does
+#   not fire the `on: push: tags` trigger on its own).
 #
 # `pnpm version -r` never commits or tags — a recursive run can bump packages
 # to different versions, so there is no single version to tag. Both are done
 # explicitly below.
+#
+# Three tag schemes coexist and never overlap: `<pkg>@<x.y.z>` names an npm
+# version, `v<x.y.z>` names a release, and `actions-v*` (release-actions.yaml)
+# names a baked composite action.
 #
 # Auth is via OIDC trusted publishing (no npm token) — `id-token: write` lets
 # pnpm exchange a short-lived token at publish time.
@@ -197,12 +202,20 @@ jobs:
           # re-dispatch the docs build on every later push to main.
           git fetch --tags --force origin
           core_tag=""
+          version=""
+          # Space-separated, which the push step splits back apart. No
+          # package name or version carries a space.
+          created_tags=""
           while read -r tag; do
+            case "$tag" in
+              "@bedrock-rbx/core@"*) version="${tag#@bedrock-rbx/core@}" ;;
+            esac
             if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
               echo "Tag $tag already exists"
             else
               git tag "$tag"
               echo "Tagged $tag"
+              created_tags="$created_tags $tag"
               case "$tag" in
                 "@bedrock-rbx/core@"*) core_tag="$tag" ;;
               esac
@@ -211,11 +224,99 @@ jobs:
             pnpm list -r --depth -1 --json \
               | jq -r '.[] | select(.private | not) | "\(.name)@\(.version)"'
           )
+          # The fixed group gives every published package one shared version,
+          # so a single `v<x.y.z>` names the release as a whole. It carries the
+          # GitHub Release; the per-package tags carry the npm versions.
+          #
+          # An empty version means the derivation above found no core package,
+          # which would tag a bare `v` and name a release nothing published.
+          if [ -z "$version" ]; then
+            echo "::error::No @bedrock-rbx/core version among the public manifests"
+            exit 1
+          fi
+          release_tag="v$version"
+          if git rev-parse -q --verify "refs/tags/$release_tag" >/dev/null; then
+            echo "Tag $release_tag already exists"
+          else
+            git tag "$release_tag"
+            echo "Tagged $release_tag"
+            created_tags="$created_tags $release_tag"
+          fi
+          # Whether the notes still have to be generated, asked of the releases
+          # themselves rather than of the tag. A run whose tag push landed and
+          # whose note generation then failed leaves the tag in place, so a tag
+          # that already exists is no reason to skip: the version would keep
+          # its tag and never get its release. Asking about the release makes
+          # the retry work and still leaves a push to main that released
+          # nothing with nothing to do.
+          if gh release view "$release_tag" >/dev/null 2>&1; then
+            echo "Release $release_tag already exists"
+            release_tag=""
+          fi
+          # The release the notes are generated from. Excluding the tag being
+          # released by name covers the retry, where that tag is already in the
+          # list and would otherwise make the range empty. `actions-v*` does
+          # not match the glob, which keeps that scheme out of it.
+          previous_tag=$(
+            git tag --list 'v[0-9]*' | grep -vFx "v$version" | sort -V | tail -n1 || true
+          )
           echo "core_tag=$core_tag" >> "$GITHUB_OUTPUT"
+          echo "created_tags=${created_tags# }" >> "$GITHUB_OUTPUT"
+          echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
 
-      - if: steps.changesets.outputs.pending == 'false'
+      # One ref per push: the repo's `all` ruleset refuses a push updating more
+      # than three, and a release now cuts one tag per published package plus
+      # the `v<x.y.z>`. Pushing them together was already at that ceiling with
+      # three packages, and the fixed group takes another slot with every
+      # first-party plugin that joins it.
+      #
+      # A tag created but not pushed does not survive the run (the next one
+      # checks out fresh and re-derives from the manifests), so pushing only
+      # what this run created loses no healing.
+      - if: steps.changesets.outputs.pending == 'false' && steps.tags.outputs.created_tags != ''
         name: Push tags
-        run: git push origin --tags
+        run: |
+          set -euo pipefail
+          read -ra tags <<< "$CREATED_TAGS"
+          for tag in "${tags[@]}"; do
+            git push origin "refs/tags/$tag"
+          done
+        env:
+          CREATED_TAGS: ${{ steps.tags.outputs.created_tags }}
+
+      # Notes come from the conventional commits in the range, not from the
+      # committed CHANGELOG.md: the changelog carries the intent prose and
+      # ships in the tarball, the release carries the PR and author attribution
+      # ADR-029 gave up along with @changesets/changelog-github.
+      #
+      # changelogithub's default types are feat, fix and perf, which is the
+      # set this repo treats as consumer-facing, and its default grouping nests
+      # each commit under its scope, so one aggregate release reads per
+      # package. The range is passed explicitly because the tag-scheme knobs
+      # that would otherwise resolve it live only in a config file.
+      #
+      # Pinned to an exact version, as the actions above are pinned to a SHA:
+      # `pnpm dlx` resolves and executes at run time, so a range would run
+      # whatever the registry served that day. `pnpm dlx` has nowhere to put an
+      # integrity hash, which makes the exact version the whole of the pin.
+      #
+      # Nothing here can cost a release: it runs after publish, a failure is
+      # skipped, and a re-run generates the notes the next time round.
+      - if: steps.changesets.outputs.pending == 'false' && steps.tags.outputs.release_tag != ''
+        name: Create the GitHub Release
+        run: |
+          set -euo pipefail
+          if [ -n "$PREVIOUS_TAG" ]; then
+            pnpm dlx changelogithub@15.0.5 --from "$PREVIOUS_TAG" --to "$RELEASE_TAG"
+          else
+            pnpm dlx changelogithub@15.0.5 --to "$RELEASE_TAG"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIOUS_TAG: ${{ steps.tags.outputs.previous_tag }}
+          RELEASE_TAG: ${{ steps.tags.outputs.release_tag }}
+        continue-on-error: true
 
       # The tag push above uses GITHUB_TOKEN and so will not fire
       # website-release.yaml's `on: push: tags` trigger. Dispatch it
