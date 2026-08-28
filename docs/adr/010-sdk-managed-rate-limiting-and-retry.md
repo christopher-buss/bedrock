@@ -640,12 +640,13 @@ tracker drawn down by all operations is always the binding constraint, so a
 per-operation tracker could never independently fire". Measurement since has
 shown that premise to be wrong.
 
-A live probe against the Luau Execution submit endpoints, run for issue #541,
-read two operations on **one API key at one instant** reporting different
-budgets: the head submit at 38 of 40 remaining, the version-pinned submit at 1
-of 5. Three pinned submits moved head's `remaining` by exactly one, the reader's
-own head call. Roblox meters each operation in its own per-key bucket, and the
-ceilings are additive rather than a shared minimum. The values match
+A live probe against the Luau Execution submit endpoints
+(`docs/spikes/luau-submit-rate-limits/README.md`, run for issue #541) read two
+operations on **one API key at one instant** reporting different budgets: the
+head submit at 38 of 40 remaining, the version-pinned submit at 1 of 5. Three
+pinned submits moved head's `remaining` by exactly one, the reader's own head
+call. Roblox meters each operation in its own per-key bucket, and the ceilings
+are additive rather than a shared minimum. The values match
 `x-roblox-rate-limits` in the vendored schema, which already encodes 40 for the
 head operation and 5 for the pinned one.
 

@@ -3,18 +3,29 @@ import { describe, expect, it } from "vitest";
 import {
 	GET_OPERATION_LIMIT,
 	GET_REQUIRED_SCOPES,
-	SUBMIT_OPERATION_LIMIT,
+	SUBMIT_HEAD_OPERATION_LIMIT,
 	SUBMIT_REQUIRED_SCOPES,
+	SUBMIT_VERSION_OPERATION_LIMIT,
 } from "./operations.ts";
 
-describe("luau-execution-tasks submit operation limit", () => {
-	it("should cap submit at 40 requests per minute under the luau-execution-tasks.submit key", () => {
+describe("luau-execution-tasks submit operation limits", () => {
+	it("should cap submit at head at 40 requests per minute under the luau-execution-tasks.submit key", () => {
 		expect.assertions(1);
 
-		expect(SUBMIT_OPERATION_LIMIT).toStrictEqual({
+		expect(SUBMIT_HEAD_OPERATION_LIMIT).toStrictEqual({
 			burstCapacity: 40,
 			maxPerSecond: 40 / 60,
 			operationKey: "luau-execution-tasks.submit",
+		});
+	});
+
+	it("should cap submit at a version at 5 requests per minute under a key of its own", () => {
+		expect.assertions(1);
+
+		expect(SUBMIT_VERSION_OPERATION_LIMIT).toStrictEqual({
+			burstCapacity: 5,
+			maxPerSecond: 5 / 60,
+			operationKey: "luau-execution-tasks.submit-at-version",
 		});
 	});
 });
