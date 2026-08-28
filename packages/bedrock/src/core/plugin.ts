@@ -10,7 +10,7 @@ import type { StatePort } from "../ports/state-port.ts";
  * injected dependency rather than reaching for `globalThis.fetch`, so a
  * plugin's own tests drive it against a fake transport the way core's do.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export type StateBackendFetch = (
 	input: globalThis.Request | string | URL,
@@ -22,7 +22,7 @@ export type StateBackendFetch = (
  * Declare only the plugin's own keys; `backend` itself is core's and is
  * merged in for you.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @template TState - Shape the schema validates a `state` block into, which
  * is what the **Backend**'s builder receives.
@@ -34,7 +34,7 @@ export type StateBackendSchema<TState extends object = object> = type.Any<TState
  * block the user authored, already validated against the plugin's own
  * schema, so the builder reads its keys without re-parsing them.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @template TState - Shape the plugin's schema validates the `state` block
  * into.
@@ -65,7 +65,7 @@ export interface StateBackendContext<TState extends object = object> {
  * can carry its own typed payload without core enumerating the shapes a
  * **Backend** can fail in.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface StateBackendBuildError {
 	/** The plugin's own payload, which core neither reads nor narrows. */
@@ -83,7 +83,7 @@ export interface StateBackendBuildError {
  * `key`, and each field's `condition` decides against the answers already
  * given whether it is asked at all.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface StateBackendPromptField {
 	/** `state` key the answer is recorded under. */
@@ -112,7 +112,7 @@ export interface StateBackendPromptField {
  * What core hands a **Backend** when it asks the plugin to fetch the
  * foreign state `bedrock migrate` is migrating from.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface StateBackendSourceContext {
 	/** Answers to the source prompts, keyed by field. */
@@ -135,7 +135,7 @@ export interface StateBackendSourceContext {
  * coordinates only it understands, and core parses the foreign format. A
  * plugin never learns what another tool's state file means.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @example
  *
@@ -229,7 +229,7 @@ export interface StateBackendMigrateSource {
  * another loaded plugin, or by a builtin, fails the config load rather
  * than shadowing the existing claim.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @template TState - Shape `schema` validates a `state` block into, which
  * `createPort` then reads without re-parsing.
@@ -350,7 +350,7 @@ export interface StateBackendDeclaration<TState extends object = object> {
  * Every field is optional: a plugin contributes only the categories it
  * implements.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @example
  *

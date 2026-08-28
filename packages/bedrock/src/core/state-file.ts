@@ -121,7 +121,7 @@ export function serializeStateFile(state: BedrockState): string {
  * is not one of the outcomes. An adapter read, which may legitimately find
  * nothing, goes through {@link parseStateFile} instead.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @example
  *

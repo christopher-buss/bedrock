@@ -46,7 +46,7 @@ export interface LoadConfigOptions {
  * validated against: a `state` block naming a plugin **Backend** is only
  * meaningful alongside the registry that made its keys declared.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface LoadedProject {
 	/** The validated project config. */
@@ -99,7 +99,7 @@ export async function loadConfigWith(
  * was validated against so a caller can go on to construct a
  * plugin-declared **Backend**.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @param options - Loader options.
  * @returns `Ok` with the validated config and its registry, or `Err` with

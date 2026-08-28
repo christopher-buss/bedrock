@@ -17,7 +17,7 @@ import { type S3StateConfig, s3StateSchema } from "./state-schema.ts";
  * writing `state.backend: "s3"` alongside the keys
  * {@link s3StateSchema} declares.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @example
  *
@@ -60,7 +60,7 @@ export const s3StateBackend: StateBackendDeclaration<S3StateConfig> = {
  * default-exports, which is how a user gets this **Backend** into a
  * **Deploy**.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @example
  *

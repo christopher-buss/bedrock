@@ -53,7 +53,7 @@ export interface UnsupportedBackendError {
  * alongside the specifier that names the plugin, so core reports the
  * failure without enumerating the shapes a **Backend** can fail in.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface PluginStateBackendError {
 	/** The plugin's own payload, which core neither reads nor narrows. */
@@ -70,7 +70,7 @@ export interface PluginStateBackendError {
  * The exclusion one **Backend** provides around a **Deploy**, and the port
  * that provides it.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface StateBackendExclusion {
 	/**
@@ -92,7 +92,7 @@ export interface StateBackendExclusion {
  * supplies, and the **State lock port** it supplies only when it declares
  * that it locks.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface StateBackend extends StateBackendExclusion {
 	/** Persistence for the per-environment snapshot. */
@@ -126,7 +126,7 @@ const STATE_PORT_HINT = "pass a custom statePort via opts.statePort";
  * alone asks for, and it needs no credential persistence would have
  * needed.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @param deps - Resolved state config plus credential-injection seams.
  * @returns The exclusion in force and the port providing it, or a typed
@@ -163,7 +163,7 @@ export function buildStateLockPort(
  * which is a valid **Backend**: the deploy then runs without exclusion
  * rather than refusing to run.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @example
  *

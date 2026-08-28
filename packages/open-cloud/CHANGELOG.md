@@ -1,5 +1,29 @@
 # @bedrock-rbx/ocale
 
+## 0.2.0
+
+### Minor Changes
+
+- Parse a developer product the create endpoint answered with. `POST /developer-products/v2/universes/{universeId}/developer-products` returns a body without `storePageEnabled`, which the read endpoint reports it on and the vendored schema marks required, so every create was rejected as a malformed response and the product it had just made was unreachable. The field is now read as absent rather than invalid, and `DeveloperProduct.storePageEnabled` is `boolean | undefined` to say so. A present value that is not a boolean is still malformed.
+
+  Callers assigning `storePageEnabled` straight to a `boolean` need to handle the absent case; reading it as a condition is unchanged.
+
+- Refresh the vendored Open Cloud OpenAPI spec and surface the new required isManagedPricingEnabled field on GamePass and DeveloperProduct responses. Response parsers now require the field, and constructing these response types (for example in test fakes) needs the new property, so this is a breaking boundary for 0.x consumers. Also repairs the spec refresh flow: schema patches expand $n capture groups again instead of inserting them literally, the sorted-map items rename patch (fixed upstream by Roblox) is removed, and an unchanged pinned commit no longer aborts the refresh.
+
+### Patch Changes
+
+- Pace each operation against its own live rate-limit window. The header-primed budget gate read `x-ratelimit-remaining`/`-reset` off every response into a single window per API key, but Roblox meters each operation in its own per-key bucket, and those buckets have different ceilings: on one key at one instant, the Luau Execution head submit reports 38 of 40 left while the version-pinned submit reports 1 of 5. Folding both into one window made the gate thrash between unrelated buckets. A roomy reading from a `get` erased a near-exhausted `submit` window, so submits went out unpaced into a bucket with nothing left; an exhausted `submit` reading held polling `get`s until the submit window reset, minutes of waiting against a bucket with hundreds of calls to spare. Each operation now holds its own window per key, so a reading from one no longer moves another. The static per-operation token bucket, the cold-start and header-absent fallback, is unchanged.
+
+- pace version-pinned luau submits from their own 5/min quota
+
+- Keep the request context when a 401 or 403 is upgraded to a `PermissionError`. The upgrade rebuilt the transport's `ApiError` and carried only `cause`, `code`, `details`, and `statusCode`, so `elapsedMs`, `gatewaySummary`, `method`, `responseHeaders`, and `url` came back undefined on exactly the two statuses where naming the failing call and the credential is the whole question. Every other status already reported them.
+
+  A 401 or 403 served by an edge gateway is no longer upgraded at all. It arrives with a `gatewaySummary` and never reached the operation whose scopes the upgrade would name, so reporting it as a scope failure sent the caller to their API key settings over a request Open Cloud never saw. It stays an `ApiError`, as the other statuses a gateway answers with already did.
+
+  New `requestContextOf(err)` reads those transport-captured fields off an `ApiError` for spreading into the options of a replacement error, so a consumer that rewraps a failure with its own message keeps the context instead of enumerating the fields by hand.
+
+- Parse a universe whose social link comes back as JSON `null`. The wire validator accepted `null` for every optional social link, and the mapper then read `.title` off it and threw `TypeError: Cannot read properties of null`, so one null link failed the whole `universes.get` or `universes.update` response. A null link now parses to `undefined`, the same normalization `privateServerPriceRobux` already applies.
+
 ## 0.1.5
 
 ### Patch Changes

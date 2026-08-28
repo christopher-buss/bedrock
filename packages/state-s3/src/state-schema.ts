@@ -15,7 +15,7 @@ const NON_EMPTY_STRING = "string > 0";
  *   what an S3-compatible store that rejects the default checksum headers
  *   needs.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export type S3ChecksumCalculation = "whenRequired" | "whenSupported";
 
@@ -24,7 +24,7 @@ export type S3ChecksumCalculation = "whenRequired" | "whenSupported";
  * hands its builder once the block has been checked against
  * {@link s3StateSchema}.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface S3StateConfig {
 	/** Bucket the **State** objects live in. */
@@ -71,7 +71,7 @@ export interface S3StateConfig {
  * The `state` keys this **Backend** adds alongside core's own `backend`,
  * which core merges in when it builds the `state` block's schema.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @example
  *

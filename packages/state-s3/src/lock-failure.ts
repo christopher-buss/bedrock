@@ -23,7 +23,7 @@ import type { S3LockHolder } from "./lock-record.ts";
  * - `leaseLost` - the hold's **Lease** could not be renewed, so the hold
  *   is another run's to take over.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export type S3LockFailureKind =
 	| "acquireFailed"
@@ -39,7 +39,7 @@ export type S3LockFailureKind =
  * The payload a lock failure only this **Backend** can describe carries,
  * which core passes through untouched.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface S3StateLockErrorDetail {
 	/** S3 error code the client read the refusal as. */

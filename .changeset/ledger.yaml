@@ -1,4 +1,39 @@
+"@bedrock-rbx/core@0.2.0":
+  dir: packages/bedrock
+  intents:
+    - adoption-and-permission-detail-context
+    - conditional-state-write
+    - gist-throttle-retry
+    - migrate-source-state-translation
+    - plugin-config-load
+    - plugin-state-backend-runtime
+    - plugin-state-backends
+    - slow-maps-sell
+    - state-lock-lease-lost
+    - state-lock-port
+    - state-lock-wait-progress
+    - state-locking-default
+    - state-write-recovery
 "@bedrock-rbx/ocale@0.1.5":
   dir: packages/open-cloud
   intents:
     - open-colts-cheat
+"@bedrock-rbx/ocale@0.2.0":
+  dir: packages/open-cloud
+  intents:
+    - budget-gate-per-operation
+    - developer-product-store-page-absent
+    - luau-submit-version-quota
+    - permission-error-request-context
+    - tired-beds-live
+    - universe-null-social-link
+"@bedrock-rbx/state-s3@0.2.0":
+  dir: packages/state-s3
+  intents:
+    - bumpy-meteors-write
+    - common-lizards-guess
+    - s3-conditional-write-probe
+    - s3-lock-inspection
+    - s3-lock-lease
+    - s3-state-lock
+    - state-s3-conditional-write

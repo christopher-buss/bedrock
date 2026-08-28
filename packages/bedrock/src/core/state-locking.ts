@@ -11,7 +11,7 @@ import { isGistStateConfig, type StateConfig } from "./schema.ts";
  * exclusion says which of the two it is: one is a choice the operator made
  * and can unmake, and the other is the **Backend** they picked.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export type StateLockingCapability = "disabled" | "exclusive" | "none";
 
@@ -35,7 +35,7 @@ interface StateLockingInputs {
  * point of declaring it is that a user choosing where **State** lives sees
  * the difference then, rather than discovering it during an incident.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @example
  *

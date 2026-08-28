@@ -502,7 +502,7 @@ export interface GistStateConfig {
  * so they are open here and validated against the plugin's own schema
  * fragment during config load.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface PluginStateConfig {
 	/** Name of the plugin-declared **Backend** to persist state through. */
@@ -1393,7 +1393,7 @@ const displayNamePrefix: Type<DisplayNamePrefixConfig> = type({
  * problem, each attributed to a field path. `sourceFile` appears in the
  * error so callers can point a human at the offending file.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export type ConfigValidator = (input: unknown, sourceFile: string) => Result<Config, ConfigError>;
 
@@ -1404,7 +1404,7 @@ export type ConfigValidator = (input: unknown, sourceFile: string) => Result<Con
  * The schema is compiled once per call, so build one validator per config
  * load rather than one per value checked.
  *
- * @since unreleased
+ * @since 0.2.0
  *
  * @param registry - What the loaded plugins declared, which decides which
  * `state` keys count as declared.

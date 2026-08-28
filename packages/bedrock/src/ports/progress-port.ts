@@ -198,7 +198,7 @@ export interface StateWrittenEvent {
  * **Backend** that offers no exclusion to begin with emits nothing, having
  * nothing to report.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface StateLockDisabledEvent {
 	/** Environment being deployed without a hold. */
@@ -216,7 +216,7 @@ export interface StateLockDisabledEvent {
  * `holder` is best effort: reading the current holder's record is exactly
  * what fails under contention, and acquisition keeps retrying without it.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface StateLockWaitingEvent {
 	/** Milliseconds spent waiting so far. */
@@ -238,7 +238,7 @@ export interface StateLockWaitingEvent {
  * over, and this deploy's **State** write is refused rather than allowed to
  * overwrite whatever that run recorded.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface StateLockLeaseLostEvent {
 	/** Environment whose hold was lost. */

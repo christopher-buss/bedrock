@@ -16,7 +16,7 @@ export interface S3LockClaim {
 /**
  * Who holds one **Environment**, and since when.
  *
- * @since unreleased
+ * @since 0.2.0
  */
 export interface S3LockHolder {
 	/**

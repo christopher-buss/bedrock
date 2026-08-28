@@ -1,6 +1,6 @@
 {
 	"name": "@bedrock-rbx/state-s3",
-	"version": "0.1.5",
+	"version": "0.2.0",
 	"description": "S3 state backend plugin for Bedrock",
 	"keywords": [
 		"bedrock",
