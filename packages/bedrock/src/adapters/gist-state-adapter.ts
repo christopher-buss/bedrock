@@ -24,6 +24,8 @@ const VISIBILITY_BASE_DELAY_MS = 250;
  * Minimal `fetch`-compatible signature the adapter needs, narrower than
  * `typeof globalThis.fetch` so test fakes do not have to stub runtime
  * extensions such as `fetch.preconnect`.
+ *
+ * @since unreleased
  */
 export type GistFetch = (
 	input: globalThis.Request | string | URL,

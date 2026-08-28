@@ -6,7 +6,7 @@ import { ArkErrors, type, type Type } from "arktype";
 import type { SetRequired } from "type-fest";
 
 import { RESOURCE_KEY_PATTERN_SOURCE } from "../types/ids.ts";
-import type { ConfigError } from "./config-error.ts";
+import type { ConfigError, ConfigValidationIssue } from "./config-error.ts";
 import { ENV_NAME_PATTERN_SOURCE } from "./environment.ts";
 import { iconMap } from "./icons.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "./plugin-registry.ts";
@@ -1244,6 +1244,40 @@ export function isStateBackendSchema(fragment: unknown): boolean {
 	} catch {
 		return false;
 	}
+}
+
+/**
+ * Check one `state` block against the **Backend** its `backend` key names.
+ *
+ * A block assembled from somewhere other than a config file, such as the
+ * flags `bedrock state move` reads its destination off, otherwise reaches
+ * a **Backend** builder unchecked: a missing coordinate would surface as
+ * an opaque request failure against a store nothing addresses.
+ *
+ * Internal seam: not re-exported from `src/index.ts`.
+ *
+ * @param value - The assembled block, including its `backend` key.
+ * @param registry - What the loaded plugins declared, which decides which
+ * keys count as declared.
+ * @returns The validated block, or every problem attributed to its key.
+ */
+export function parseStateConfig(
+	value: unknown,
+	registry: PluginRegistry,
+): Result<StateConfig, ReadonlyArray<ConfigValidationIssue>> {
+	const checked = buildStateSchema(registry)(value);
+	if (checked instanceof ArkErrors) {
+		const issues = Array.from(checked, (issue) => {
+			return {
+				message: issue.message,
+				path: Array.from(issue.path, (segment) => String(segment)),
+			};
+		});
+
+		return { err: issues, success: false };
+	}
+
+	return { data: checked, success: true };
 }
 
 /**

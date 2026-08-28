@@ -14,6 +14,7 @@ import type {
 import type { forceReleaseStateLockAsync as defaultForceReleaseStateLock } from "../shell/force-release-state-lock.ts";
 import type { loadProjectAsync as defaultLoadProject } from "../shell/load-config.ts";
 import type { migrateMantleState as defaultMigrateMantleState } from "../shell/migrate-mantle-state.ts";
+import type { moveStateAsync as defaultMoveState } from "../shell/move-state.ts";
 import type { previewDiffAsync as defaultPreviewDiff } from "../shell/preview-diff.ts";
 import { buildCommand } from "./commands/build.ts";
 import { deployCommand } from "./commands/deploy.ts";
@@ -21,6 +22,7 @@ import { diffCommand } from "./commands/diff.ts";
 import { migrateCommand } from "./commands/migrate.ts";
 import { provisionCommand } from "./commands/provision.ts";
 import { publishCommand } from "./commands/publish.ts";
+import { stateMoveCommand } from "./commands/state-move.ts";
 import { statePushCommand } from "./commands/state-push.ts";
 import { stateUnlockCommand } from "./commands/state-unlock.ts";
 import type { discoverOverride as defaultDiscoverOverride } from "./discover-override.ts";
@@ -91,6 +93,11 @@ export interface ProgDeps {
 	 * to `node:fs/promises.mkdir` with `recursive: true`.
 	 */
 	readonly mkdir?: (path: string) => Promise<void>;
+	/**
+	 * Relocates state between **Backend**s; defaults to the public
+	 * `moveStateAsync`.
+	 */
+	readonly moveState?: typeof defaultMoveState;
 	/**
 	 * What the loaded plugins declared, which decides the **Backend**s the
 	 * migrate command offers beyond the builtins. Defaults to what a
@@ -207,6 +214,16 @@ export function createProg(deps: ProgDeps = {}): Sade {
 			.command("state unlock")
 			.describe("Take an environment's state lock away, whichever run is holding it"),
 	).action(stateUnlockCommand(deps));
+
+	withCommonOptions(
+		prog
+			.command("state move")
+			.describe("Move an environment's state onto another backend, leaving the source copy")
+			.option("--to", "Backend to move onto (gist, or one a loaded plugin declared)")
+			.option("--to-<key>", "One destination coordinate, named as that backend declares it")
+			.option("--force", "Overwrite state the destination already holds")
+			.option("--dry-run", "Survey what would move and write nothing"),
+	).action(stateMoveCommand(deps));
 
 	prog.command("migrate [stateFilePath]")
 		.describe("Translate a state file from another tool into a bedrock project")

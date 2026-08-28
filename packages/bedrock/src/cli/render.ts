@@ -1,5 +1,6 @@
 import { safeStringify } from "../core/error-chain.ts";
 import type { MigrateError, MigrationSummary } from "../core/migrate/migration-report.ts";
+import type { StateConfig } from "../core/schema.ts";
 import type { StateError } from "../core/state.ts";
 import type { StateLockHolding } from "../ports/state-lock-port.ts";
 import type {
@@ -8,6 +9,7 @@ import type {
 	UnsupportedBackendError,
 } from "../shell/build-state-port.ts";
 import type { DeployError } from "../shell/deploy.ts";
+import type { MoveStateError, StateMoveOutcome } from "../shell/move-state.ts";
 import type { OverrideErrorRender } from "./error-messages.ts";
 import {
 	buildStatePortErrorMessage,
@@ -22,6 +24,8 @@ import {
 import { applyCauseDetail } from "./failure-detail.ts";
 import type { ParseMigrateError } from "./parse-migrate-options.ts";
 import type { ParseOptionsError } from "./parse-options.ts";
+import type { StateMoveDestinationError } from "./state-move-destination.ts";
+import { moveDestinationMessages, moveStateErrorMessages } from "./state-move-messages.ts";
 
 /**
  * Output port the CLI renders through. Mirrors the subset of `@clack/prompts`
@@ -70,6 +74,16 @@ interface StateWriteErrorRender {
 	readonly environment: string;
 	/** The state-error returned by the adapter. */
 	readonly err: StateError;
+}
+
+/** Inputs for {@link renderStateMoveOutcome}. */
+interface StateMoveOutcomeRender {
+	/** The `state` block the move landed on. */
+	readonly destination: StateConfig;
+	/** Whether the move surveyed without writing. */
+	readonly dryRun: boolean;
+	/** What the move did. */
+	readonly outcome: StateMoveOutcome;
 }
 
 /** Inputs for {@link renderMigrationSummary}. */
@@ -252,4 +266,81 @@ export function renderMigrationSourceError(
  */
 export function renderStateWriteError(input: StateWriteErrorRender, port: ClackPort): void {
 	port.logError(`state write failed for '${input.environment}' ${stateErrorDetail(input.err)}`);
+}
+
+/**
+ * Render why the flags did not name a destination a move could land on.
+ *
+ * @param err - What the destination resolution refused.
+ * @param port - The output port the diagnostic is written to.
+ */
+export function renderMoveDestinationError(err: StateMoveDestinationError, port: ClackPort): void {
+	for (const message of moveDestinationMessages(err)) {
+		port.logError(message);
+	}
+}
+
+/**
+ * Render why a move did not happen. A blocked move reports every
+ * **Environment** standing in the way at once, so an operator fixes them
+ * together rather than one run at a time.
+ *
+ * @param err - What stopped the move.
+ * @param port - The output port the diagnostic is written to.
+ */
+export function renderMoveStateError(err: MoveStateError, port: ClackPort): void {
+	for (const message of moveStateErrorMessages(err)) {
+		port.logError(message);
+	}
+}
+
+/**
+ * Render what a completed move did, one line per **Environment**, plus a
+ * line for every one that moved without a hold on it: a move that ran
+ * without exclusion should say so rather than imply one was in force.
+ *
+ * @param input - What the move did, and the **Backend** it landed on.
+ * @param port - The output port the lines are written to.
+ */
+export function renderStateMoveOutcome(input: StateMoveOutcomeRender, port: ClackPort): void {
+	for (const [environment, decision] of input.outcome.decisions) {
+		if (decision.kind === "move") {
+			const count = decision.state.resources.length;
+			const noun = count === 1 ? "resource" : "resources";
+			const verb = input.dryRun ? "would move to" : "moved to";
+			port.logSuccess(
+				`${environment}: ${String(count)} ${noun} ${verb} ${input.destination.backend}`,
+			);
+			continue;
+		}
+
+		port.logMessage(`${environment}: nothing to move, the source holds no state`);
+	}
+
+	for (const environment of input.outcome.moved) {
+		if (input.outcome.locking.get(environment) !== "exclusive") {
+			port.logMessage(
+				`${environment} moved without a hold: the backend it was on offers no exclusion`,
+			);
+		}
+	}
+
+	port.logMessage(stateBlockToApply(input.destination, input.dryRun));
+}
+
+/**
+ * Spell out the `state` block the config has to carry for the move to be
+ * in effect. The config is left alone: it may be TypeScript, YAML, JSON,
+ * or Luau, and carry comments and computed values that writing over it
+ * would flatten.
+ *
+ * @param destination - The block the move landed on.
+ * @param dryRun - Whether the move surveyed without writing.
+ * @returns The line naming the block and what it is for.
+ */
+function stateBlockToApply(destination: StateConfig, dryRun: boolean): string {
+	const block = JSON.stringify(destination);
+	return dryRun
+		? `nothing was written. The move would put this in your config's state block: ${block}`
+		: `the move is not in effect until your config's state block reads: ${block}`;
 }
