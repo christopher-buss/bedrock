@@ -201,10 +201,6 @@ jobs:
           # actions/checkout happened to fetch tags. A tag missed here would
           # re-dispatch the docs build on every later push to main.
           git fetch --tags --force origin
-          # Read before any new tag is created, so it names the previous
-          # release rather than the one being cut. `actions-v*` does not match
-          # the glob, which keeps that scheme out of the range.
-          previous_tag=$(git tag --list 'v[0-9]*' | sort -V | tail -n1)
           core_tag=""
           version=""
           # Space-separated, which the push step splits back apart. No
@@ -231,15 +227,39 @@ jobs:
           # The fixed group gives every published package one shared version,
           # so a single `v<x.y.z>` names the release as a whole. It carries the
           # GitHub Release; the per-package tags carry the npm versions.
+          #
+          # An empty version means the derivation above found no core package,
+          # which would tag a bare `v` and name a release nothing published.
+          if [ -z "$version" ]; then
+            echo "::error::No @bedrock-rbx/core version among the public manifests"
+            exit 1
+          fi
           release_tag="v$version"
           if git rev-parse -q --verify "refs/tags/$release_tag" >/dev/null; then
             echo "Tag $release_tag already exists"
-            release_tag=""
           else
             git tag "$release_tag"
             echo "Tagged $release_tag"
             created_tags="$created_tags $release_tag"
           fi
+          # Whether the notes still have to be generated, asked of the releases
+          # themselves rather than of the tag. A run whose tag push landed and
+          # whose note generation then failed leaves the tag in place, so a tag
+          # that already exists is no reason to skip: the version would keep
+          # its tag and never get its release. Asking about the release makes
+          # the retry work and still leaves a push to main that released
+          # nothing with nothing to do.
+          if gh release view "$release_tag" >/dev/null 2>&1; then
+            echo "Release $release_tag already exists"
+            release_tag=""
+          fi
+          # The release the notes are generated from. Excluding the tag being
+          # released by name covers the retry, where that tag is already in the
+          # list and would otherwise make the range empty. `actions-v*` does
+          # not match the glob, which keeps that scheme out of it.
+          previous_tag=$(
+            git tag --list 'v[0-9]*' | grep -vFx "v$version" | sort -V | tail -n1 || true
+          )
           echo "core_tag=$core_tag" >> "$GITHUB_OUTPUT"
           echo "created_tags=${created_tags# }" >> "$GITHUB_OUTPUT"
           echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
@@ -251,8 +271,8 @@ jobs:
       # three packages, and the fixed group takes another slot with every
       # first-party plugin that joins it.
       #
-      # A tag created but not pushed does not survive the run — the next one
-      # checks out fresh and re-derives from the manifests — so pushing only
+      # A tag created but not pushed does not survive the run (the next one
+      # checks out fresh and re-derives from the manifests), so pushing only
       # what this run created loses no healing.
       - if: steps.changesets.outputs.pending == 'false' && steps.tags.outputs.created_tags != ''
         name: Push tags
@@ -270,9 +290,10 @@ jobs:
       # ships in the tarball, the release carries the PR and author attribution
       # ADR-029 gave up along with @changesets/changelog-github.
       #
-      # changelogithub's default types are feat, fix and perf — the set this
-      # repo treats as consumer-facing — and its default grouping nests each
-      # commit under its scope, so one aggregate release reads per package. The
+      # changelogithub's default types are feat, fix and perf, which is the
+      # set this repo treats as consumer-facing, and its default grouping nests
+      # each commit under its scope, so one aggregate release reads per
+      # package. The
       # range is passed explicitly because the tag-scheme knobs that would
       # otherwise resolve it live only in a config file.
       #
