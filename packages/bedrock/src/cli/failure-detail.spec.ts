@@ -301,11 +301,10 @@ describe(applyCauseDetail, () => {
 		);
 	});
 
-	it("should carry the gateway summary and escalation headers onto a permission failure", () => {
+	it("should carry the escalation headers onto a permission failure", () => {
 		expect.assertions(1);
 
 		const cause = new PermissionError("HTTP 403", {
-			gatewaySummary: "403 Forbidden",
 			operationKey: "developer-products.create",
 			requiredScopes: ["developer-product:write"],
 			responseHeaders: { "x-request-id": "abc-123" },
@@ -319,7 +318,7 @@ describe(applyCauseDetail, () => {
 		});
 
 		expect(detail).toBe(
-			"HTTP 403 from gateway (\"403 Forbidden\") on developer-products.create (request rejected before reaching Open Cloud, x-request-id=abc-123): missing required scope 'developer-product:write'. Grant it on the API key at https://create.roblox.com/credentials",
+			"HTTP 403 on developer-products.create (x-request-id=abc-123): missing required scope 'developer-product:write'. Grant it on the API key at https://create.roblox.com/credentials",
 		);
 	});
 

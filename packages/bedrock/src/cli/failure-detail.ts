@@ -89,15 +89,8 @@ function apiErrorHead(err: ApiError): string {
 	return err.message;
 }
 
-function gatewayPhrase(err: ApiError): string | undefined {
-	return err.gatewaySummary === undefined
-		? undefined
-		: "request rejected before reaching Open Cloud";
-}
-
 function gatewayTrailer(err: ApiError): string {
-	const phrase = gatewayPhrase(err);
-	return phrase === undefined ? "" : ` — ${phrase}`;
+	return err.gatewaySummary === undefined ? "" : " — request rejected before reaching Open Cloud";
 }
 
 function elapsedPhrase(elapsedMs: number | undefined): string | undefined {
@@ -147,7 +140,7 @@ function callPhrase(err: ApiError): string | undefined {
 }
 
 function formatCallContext(err: ApiError): string {
-	const parts = [callPhrase(err), gatewayPhrase(err), headerPhrase(err.responseHeaders)].filter(
+	const parts = [callPhrase(err), headerPhrase(err.responseHeaders)].filter(
 		(part) => part !== undefined,
 	);
 	return parts.length === 0 ? "" : ` (${parts.join(", ")})`;

@@ -310,6 +310,12 @@ function enrichPermissionError<P, T>(
 		return err;
 	}
 
+	// An edge gateway answers 401 and 403 for its own reasons, and the request
+	// never reached the operation whose scopes these are.
+	if (err.gatewaySummary !== undefined) {
+		return err;
+	}
+
 	return new PermissionError(err.message, {
 		...requestContextOf(err),
 		cause: err.cause,

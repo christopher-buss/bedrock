@@ -610,6 +610,36 @@ describe(ResourceClient, () => {
 			expect(result.err.requiredScopes).toStrictEqual(["test:write"]);
 		});
 
+		it("should leave a gateway rejection an ApiError rather than blaming the credential", async () => {
+			expect.assertions(2);
+
+			const httpClient = createFakeHttpClient({ schemaValidation: "off" }).mockError(
+				new ApiError("HTTP 403", {
+					gatewaySummary: "403 Forbidden",
+					statusCode: 403,
+				}),
+			);
+			const client = new ResourceClient({
+				apiKey: "test-key",
+				httpClient,
+				sleep: createFakeSleep(),
+			});
+
+			const result = await client.executeAsync({
+				parameters: { id: "1" },
+				spec: {
+					...TEST_GET_SPEC,
+					requiredScopes: ["test:read"],
+				},
+			});
+
+			assert(!result.success);
+			assert(result.err instanceof ApiError);
+
+			expect(result.err).not.toBeInstanceOf(PermissionError);
+			expect(result.err.gatewaySummary).toBe("403 Forbidden");
+		});
+
 		it("should preserve message, code, cause, and details from the original ApiError on upgrade", async () => {
 			expect.assertions(5);
 
