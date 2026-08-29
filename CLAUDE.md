@@ -220,11 +220,16 @@ PR titles are linted by commitlint (`.github/workflows/lint-pr-title.yaml`) —
    `type(scope):`, including code identifiers (`mergeConfig` → `merge-config`,
    `GamePassesClient` → `game-passes-client`).
 2. **Scope-enum**: if a scope is present it MUST be one of
-   `core, deps, e2e, example-ci-codegen, example-minimal, global, ocale, testing, tsconfig, vite, website`.
-   The `bedrock` package was renamed to `@bedrock-rbx/core`, so changes in
-   `packages/bedrock/` take the `core` scope. `ci`, `chore`, `docs`, `build`,
-   `refactor` are **types, not scopes** — write `ci: …` with no scope, not
-   `fix(ci): …`.
+   `actions, core, deps, e2e, example-ci-codegen, example-minimal, global, ocale, state-s3, testing, tsconfig, vite, website`.
+   `commitlint.config.ts` derives that list from the workspace package names,
+   aliasing three of them (`open-cloud` to `ocale`, `typescript-config` to
+   `tsconfig`, `vite-config` to `vite`) and adding `deps`, so a new package
+   brings its own scope with it. Print the list commitlint is enforcing with
+   `echo "feat(bogus): subject" | pnpm commitlint`. `global` is accepted but
+   says nothing: reach for the narrowest scope that fits, or none. The `bedrock`
+   package was renamed to `@bedrock-rbx/core`, so changes in `packages/bedrock/`
+   take the `core` scope. `ci`, `chore`, `docs`, `build`, `refactor` are
+   **types, not scopes** — write `ci: …` with no scope, not `fix(ci): …`.
 3. **Consumer-useful subject**: PR titles become changelog entries for people
    installing the published package. Write what _changed in the package from the
    consumer's perspective_, not how the work was organised. Internal terminology
