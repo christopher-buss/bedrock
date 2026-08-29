@@ -58,8 +58,9 @@ name widens nothing about what runs; it only lets the type system watch.
 | 5   | Diagnostics name the specifier when the config wrote one, and `plugin.name` otherwise.                                                                             | The specifier is the text the user can go and edit. For an object entry there is no such text, and the plugin's own name is what the import statement above it says.                                                                                                                        |
 | 6   | The loader normalizes `plugins` to a list of names before validating, so the validated `Config` keeps `plugins?: ReadonlyArray<string>` and `state?: StateConfig`. | `serializeConfig` renders a `Config` as an object literal. A plugin object reaching it would emit arktype internals and `createPort` bodies into a generated `bedrock.config.ts`. Normalizing also leaves the root arktype schema and every downstream consumer of `Config` untouched.      |
 | 7   | The plugin-aware types live on `defineConfig`'s input, never on `Config`.                                                                                          | `Config` is what the loader returns and what the whole pipeline reads; the plugin tuple is knowable only where the config is authored. Genericizing `Config` would push a type parameter through `EnvironmentEntry`, `ResolvedConfig`, and both arms of the universeId union to no benefit. |
-| 8   | `defineConfig` becomes three overloads: async function, sync function, then object literal last.                                                                   | Overload order decides which failure TypeScript reports. With the object form last, a bad key in the common form is attributed to that key. The function forms attribute to the call, which is the cost of accepting a callback at all.                                                     |
+| 8   | `defineConfig` becomes three overloads: async function, sync function, then object literal last.                                                                   | Overload order decides which failure TypeScript reports. With the object form last, a bad key in the common form is attributed to that key under tsgo. The function forms attribute to the call, which is the cost of accepting a callback at all.                                          |
 | 9   | `StateBackendDeclaration` gains a second type parameter for its backend name, defaulted to `string`.                                                               | The `state` union is keyed on `backend`, so the name has to survive as a literal. Defaulting it keeps every existing single-argument use compiling unchanged.                                                                                                                               |
+| 10  | Negative cases are asserted against the authored `state` type, not by putting `@ts-expect-error` on a `defineConfig` call.                                         | tsgo and tsc disagree on where an overload failure is reported: tsgo names the offending property, tsc names the call. Both check this repo, so no single directive placement satisfies them. Asserting the type states the same contract and holds under either.                           |
 
 ## Shapes
 
@@ -145,10 +146,11 @@ earns its place.
    `StateBackendDeclaration` gains `TName`; `s3StateBackend` is re-annotated so
    `.name` is `"s3"`. Type tests cover both the annotated and the defaulted
    form.
-2. **A plugin names itself.** `BedrockPlugin.name` is required, the export check
-   in `load-plugins.ts` rejects a default export missing it, and the s3 plugin
-   supplies one. The rejection reads as an `invalidExport` alongside the
-   existing `stateBackends` message.
+2. **A plugin names itself.** `BedrockPlugin.name` is required, the shape check
+   in `load-plugins.ts` rejects a plugin missing it, and the s3 plugin supplies
+   one. The rejection reads as an `invalidExport` alongside the existing
+   `stateBackends` message, and names an inline plugin by its position in the
+   list, which is all there is to point at before a name is read.
 3. **`defineConfig` types `state` from an object-plugin tuple.** The three
    overloads and the `StateFor` derivation, proved by `.spec-d.ts` over the
    whole table: keys complete, a typo fails, a missing required key fails, an

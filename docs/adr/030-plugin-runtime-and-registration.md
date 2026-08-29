@@ -152,3 +152,43 @@ amendment to ADR-029.
 - Declarative prompts trade expressiveness for a private prompt port.
 - A fixed version group means a first-party plugin releases whenever core does,
   including when nothing in the plugin changed.
+
+## Amendment: 2026-08-29, a TypeScript config lists the plugin itself
+
+`plugins` accepts a plugin value alongside a module specifier:
+
+```ts
+import { defineConfig } from "@bedrock-rbx/core/config";
+import { bedrockS3Plugin } from "@bedrock-rbx/state-s3";
+
+export default defineConfig({
+	environments: { production: {} },
+	plugins: [bedrockS3Plugin],
+	state: { backend: "s3", bucket: "my-bucket", region: "eu-west-2" },
+});
+```
+
+A specifier is the only form a YAML, JSON, or Luau config can express, so it
+stays. What the value form adds is the type: a **Backend** declaration carries
+its name as a literal and a plugin carries its declarations as a tuple, so
+`defineConfig` derives the `state` blocks the config may write from the plugins
+it lists. The keys a **Backend** declares complete in the editor, and a
+misspelled key, a missing required key, or a `backend` no listed plugin claims
+is a compile error rather than a validation failure at deploy time.
+
+The union closes. A config listing only plugin values may write the builtin
+**Backend** or one those plugins declare, and nothing else; a config listing no
+plugins at all may write only the builtin. A specifier anywhere in the list
+reopens it, because core cannot see through a string to what the module
+declares.
+
+Every plugin names itself. A value arrives with no specifier to point a user at,
+and a conflict error that names one claimant and shrugs at the other is worse
+than the conflict, so `name` is required and diagnostics report the specifier
+the config wrote or the plugin's own name.
+
+The plugin-aware types live on what `defineConfig` accepts, not on `Config`.
+Every entry is resolved to the name of the plugin it loaded before the config is
+validated, so the config the loader returns lists names. That keeps a plugin out
+of a config rendered back as source, and keeps the type parameter off the shape
+the rest of the pipeline reads.
