@@ -20,6 +20,8 @@ const IMPORT_FAILURE_REASON = {
 
 const NO_PLUGIN_EXPORT_MESSAGE = "expected a default-exported plugin object";
 
+const NO_PLUGIN_NAME_MESSAGE = "expected the plugin to name itself";
+
 const BAD_STATE_BACKENDS_MESSAGE =
 	"expected stateBackends to be a list of { name, schema, createPort } declarations, " +
 	"where schema is an arktype object schema and createPort is a function";
@@ -153,6 +155,38 @@ function isDeclarationList(value: unknown): value is ReadonlyArray<StateBackendD
 }
 
 /**
+ * Read a plugin off a record that is shaped like one, whether it arrived
+ * from an imported module or straight out of a config authored in
+ * TypeScript.
+ *
+ * A plugin is ordinary JavaScript at runtime, so its own declared type says
+ * nothing here: both routes reach this check.
+ *
+ * @param exported - The record claiming to be a plugin.
+ * @param specifier - How the failure names this plugin.
+ * @returns `Ok` with the plugin core registers, or `Err` naming what the
+ * export is missing.
+ */
+function readPluginShape(
+	{ name, stateBackends }: Record<string, unknown>,
+	specifier: string,
+): Result<BedrockPlugin, ConfigError> {
+	if (typeof name !== "string" || name.length === 0) {
+		return invalidExport(specifier, NO_PLUGIN_NAME_MESSAGE);
+	}
+
+	if (stateBackends === undefined) {
+		return { data: { name }, success: true };
+	}
+
+	if (!isDeclarationList(stateBackends)) {
+		return invalidExport(specifier, BAD_STATE_BACKENDS_MESSAGE);
+	}
+
+	return { data: { name, stateBackends }, success: true };
+}
+
+/**
  * Import one plugin, mapping an import rejection onto the
  * `pluginLoadFailed` error that names the specifier that produced it.
  *
@@ -183,16 +217,7 @@ async function importPluginAsync({
 		return invalidExport(specifier, NO_PLUGIN_EXPORT_MESSAGE);
 	}
 
-	const { stateBackends } = exported;
-	if (stateBackends === undefined) {
-		return { data: {}, success: true };
-	}
-
-	if (!isDeclarationList(stateBackends)) {
-		return invalidExport(specifier, BAD_STATE_BACKENDS_MESSAGE);
-	}
-
-	return { data: { stateBackends }, success: true };
+	return readPluginShape(exported, specifier);
 }
 
 /**

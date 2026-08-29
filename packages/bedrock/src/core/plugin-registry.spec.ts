@@ -14,7 +14,10 @@ describe(buildPluginRegistry, () => {
 		const schema = type({ bucket: "string > 0" });
 		const registry = buildPluginRegistry([
 			{
-				plugin: { stateBackends: [{ name: "s3", createPort: () => UNUSED, schema }] },
+				plugin: {
+					name: "@example/state-s3",
+					stateBackends: [{ name: "s3", createPort: () => UNUSED, schema }],
+				},
 				specifier: "@example/state-s3",
 			},
 		]);
@@ -33,6 +36,7 @@ describe(buildPluginRegistry, () => {
 		const registry = buildPluginRegistry([
 			{
 				plugin: {
+					name: "@example/state-s3",
 					stateBackends: [
 						{
 							name: "s3",
@@ -45,6 +49,7 @@ describe(buildPluginRegistry, () => {
 			},
 			{
 				plugin: {
+					name: "@example/state-gcs",
 					stateBackends: [
 						{
 							name: "gcs",
@@ -65,7 +70,9 @@ describe(buildPluginRegistry, () => {
 	it("should register nothing for a plugin that declares no backends", () => {
 		expect.assertions(1);
 
-		const registry = buildPluginRegistry([{ plugin: {}, specifier: "@example/noop" }]);
+		const registry = buildPluginRegistry([
+			{ plugin: { name: "@example/noop" }, specifier: "@example/noop" },
+		]);
 
 		assert(registry.success);
 
@@ -78,6 +85,7 @@ describe(buildPluginRegistry, () => {
 		const registry = buildPluginRegistry([
 			{
 				plugin: {
+					name: "@example/state-s3",
 					stateBackends: [
 						{
 							name: "s3",
@@ -90,6 +98,7 @@ describe(buildPluginRegistry, () => {
 			},
 			{
 				plugin: {
+					name: "@other/state-s3",
 					stateBackends: [
 						{ name: "s3", createPort: () => UNUSED, schema: type({ path: "string" }) },
 					],
@@ -110,6 +119,7 @@ describe(buildPluginRegistry, () => {
 		const registry = buildPluginRegistry([
 			{
 				plugin: {
+					name: "@example/state-gist",
 					stateBackends: [
 						{
 							name: "gist",
@@ -134,6 +144,7 @@ describe(buildPluginRegistry, () => {
 		const registry = buildPluginRegistry([
 			{
 				plugin: {
+					name: "@example/state-s3",
 					stateBackends: [
 						{
 							name: "s3",

@@ -17,13 +17,25 @@ describe("StateBackendSchema assignability", () => {
 
 describe("BedrockPlugin", () => {
 	it("should let a plugin contribute no backends at all", () => {
-		expectTypeOf<Record<string, never>>().toExtend<BedrockPlugin>();
+		expectTypeOf<{ name: string }>().toExtend<BedrockPlugin>();
 	});
 
 	it("should carry the declarations a plugin contributes", () => {
 		expectTypeOf<Required<BedrockPlugin>["stateBackends"]>().toEqualTypeOf<
 			ReadonlyArray<StateBackendDeclaration>
 		>();
+	});
+
+	it("should reject a plugin that does not name itself", () => {
+		expectTypeOf<{ stateBackends: [] }>().not.toExtend<BedrockPlugin>();
+	});
+
+	it("should narrow to the declarations a parameterized plugin carries", () => {
+		type S3Declaration = StateBackendDeclaration<{ bucket: string }, "s3">;
+
+		expectTypeOf<
+			Required<BedrockPlugin<readonly [S3Declaration]>>["stateBackends"]
+		>().toEqualTypeOf<readonly [S3Declaration]>();
 	});
 });
 

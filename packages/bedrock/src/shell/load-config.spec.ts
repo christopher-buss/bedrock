@@ -972,6 +972,7 @@ async function importS3Plugin(): Promise<ImportResult> {
 	return {
 		data: {
 			default: {
+				name: "@example/state-s3",
 				stateBackends: [
 					{
 						name: "s3",
@@ -1000,7 +1001,7 @@ describe(loadConfigWith, () => {
 		const imported: Array<string> = [];
 		async function importModule(specifier: string): Promise<ImportResult> {
 			imported.push(specifier);
-			return { data: { default: {} }, success: true };
+			return { data: { default: { name: specifier } }, success: true };
 		}
 
 		const result = await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
@@ -1089,6 +1090,35 @@ describe(loadConfigWith, () => {
 		expect(result.err.message).toBe("expected a default-exported plugin object");
 	});
 
+	it.for([
+		["no name", {}],
+		["an empty name", { name: "" }],
+		["a name that is not a string", { name: 42 }],
+	] as const)("should fail the load when a plugin declares %s", async ([, pluginModule]) => {
+		expect.assertions(3);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/nameless'],",
+			"};",
+		]);
+
+		async function importModule(): Promise<ImportResult> {
+			return { data: { default: pluginModule }, success: true };
+		}
+
+		const result = await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
+
+		assert(!result.success);
+		assert(result.err.kind === "pluginLoadFailed");
+
+		expect(result.err.specifier).toBe("@example/nameless");
+		expect(result.err.reason).toBe("invalidExport");
+		expect(result.err.message).toBe("expected the plugin to name itself");
+	});
+
 	it("should report a failed plugin import rather than the config's own validation issues", async () => {
 		expect.assertions(1);
 
@@ -1123,11 +1153,11 @@ describe(loadConfigWith, () => {
 
 		const seen: Array<string> = [];
 		async function importModule(
-			_specifier: string,
+			specifier: string,
 			fromDirectory: string,
 		): Promise<ImportResult> {
 			seen.push(fromDirectory);
-			return { data: { default: {} }, success: true };
+			return { data: { default: { name: specifier } }, success: true };
 		}
 
 		await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
@@ -1262,6 +1292,7 @@ describe(loadConfigWith, () => {
 			return {
 				data: {
 					default: {
+						name: "@example/state-gist",
 						stateBackends: [
 							{
 								name: "gist",
@@ -1344,7 +1375,10 @@ describe(loadConfigWith, () => {
 			]);
 
 			async function importModule(): Promise<ImportResult> {
-				return { data: { default: pluginModule }, success: true };
+				return {
+					data: { default: { name: "@example/malformed", ...pluginModule } },
+					success: true,
+				};
 			}
 
 			const result = await loadConfigWith(

@@ -352,11 +352,16 @@ export interface StateBackendDeclaration<
 }
 
 /**
- * What a module listed under the config's `plugins` field default-exports.
- * Every field is optional: a plugin contributes only the categories it
- * implements.
+ * What a module listed under the config's `plugins` field default-exports,
+ * and what a TypeScript config lists there directly. `name` is how every
+ * diagnostic refers to the plugin; the contribution fields are optional, so
+ * a plugin declares only the categories it implements.
  *
  * @since 0.2.0
+ *
+ * @template TBackends - Declarations this plugin claims. Naming the tuple
+ * is what lets a config authored in TypeScript type its `state` block from
+ * the plugins it lists; leaving it defaulted describes any plugin.
  *
  * @example
  *
@@ -366,6 +371,7 @@ export interface StateBackendDeclaration<
  * import { type } from "arktype";
  *
  * const plugin: BedrockPlugin = {
+ *     name: "@example/state-s3",
  *     stateBackends: [
  *         {
  *             name: "s3",
@@ -378,7 +384,15 @@ export interface StateBackendDeclaration<
  * expect(plugin.stateBackends).toHaveLength(1);
  * ```
  */
-export interface BedrockPlugin {
+export interface BedrockPlugin<
+	TBackends extends ReadonlyArray<{ readonly name: string }> =
+		ReadonlyArray<StateBackendDeclaration>,
+> {
+	/**
+	 * How core names this plugin in a diagnostic when the config listed no
+	 * module specifier to name it by.
+	 */
+	readonly name: string;
 	/** **Backend**s this plugin claims. */
-	readonly stateBackends?: ReadonlyArray<StateBackendDeclaration>;
+	readonly stateBackends?: TBackends;
 }

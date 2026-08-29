@@ -31,6 +31,12 @@ function environmentOf(
 }
 
 describe("s3 plugin", () => {
+	it("should name itself by its package, so a diagnostic can point at it", () => {
+		expect.assertions(1);
+
+		expect(s3Plugin.name).toBe("@bedrock-rbx/state-s3");
+	});
+
 	it("should claim the s3 backend name", () => {
 		expect.assertions(2);
 
