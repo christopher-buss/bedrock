@@ -26,3 +26,15 @@ describe("BedrockPlugin", () => {
 		>();
 	});
 });
+
+describe("StateBackendDeclaration", () => {
+	it("should carry the backend name as the literal the declaration claims", () => {
+		expectTypeOf<
+			StateBackendDeclaration<{ bucket: string }, "s3">["name"]
+		>().toEqualTypeOf<"s3">();
+	});
+
+	it("should leave the backend name open when the declaration names no literal", () => {
+		expectTypeOf<StateBackendDeclaration["name"]>().toEqualTypeOf<string>();
+	});
+});

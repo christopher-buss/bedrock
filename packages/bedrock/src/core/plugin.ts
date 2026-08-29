@@ -233,6 +233,9 @@ export interface StateBackendMigrateSource {
  *
  * @template TState - Shape `schema` validates a `state` block into, which
  * `createPort` then reads without re-parsing.
+ * @template TName - Literal `state.backend` value this declaration claims,
+ * which is what lets a config authored in TypeScript key its `state` block
+ * on the **Backend** it names.
  *
  * @example
  *
@@ -297,9 +300,12 @@ export interface StateBackendMigrateSource {
  *     });
  * ```
  */
-export interface StateBackendDeclaration<TState extends object = object> {
+export interface StateBackendDeclaration<
+	TState extends object = object,
+	TName extends string = string,
+> {
 	/** Value users write as `state.backend` to select this **Backend**. */
-	readonly name: string;
+	readonly name: TName;
 	/**
 	 * Build the **State lock port** for one validated `state` block.
 	 *

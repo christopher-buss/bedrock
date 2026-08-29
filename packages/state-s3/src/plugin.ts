@@ -34,7 +34,7 @@ import { type S3StateConfig, s3StateSchema } from "./state-schema.ts";
  * expect(built.success).toBeTrue();
  * ```
  */
-export const s3StateBackend: StateBackendDeclaration<S3StateConfig> = {
+export const s3StateBackend: StateBackendDeclaration<S3StateConfig, "s3"> = {
 	name: "s3",
 	createLockPort(context) {
 		return {
