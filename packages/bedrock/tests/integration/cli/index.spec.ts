@@ -6,7 +6,9 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 
+import type { ProgDeps as ProgDependencies } from "#src/cli/index";
 import { createProg } from "#src/cli/index";
+import { EMPTY_PLUGIN_REGISTRY } from "#src/core/plugin-registry";
 import { fakeClackPort } from "#tests/helpers/clack";
 import type { CapturedStreams } from "#tests/helpers/streams";
 import { captureStreams } from "#tests/helpers/streams";
@@ -333,5 +335,54 @@ describe("cli program factory", () => {
 
 		await expect(exited).resolves.toBe(1);
 		expect(clack.intro).toHaveBeenCalledExactlyOnceWith("bedrock state push");
+	});
+
+	it("should carry the destination coordinates through to the move", async () => {
+		expect.assertions(2);
+
+		const clack = fakeClackPort();
+		const { exit, exited } = deferredExit();
+		const moveState = vi.fn<NonNullable<ProgDependencies["moveState"]>>(async () => {
+			return {
+				data: { decisions: new Map(), locking: new Map(), moved: [] },
+				success: true,
+			};
+		});
+		const prog = createProg({
+			clack,
+			exit,
+			loadProject: async () => {
+				return {
+					data: {
+						config: {
+							environments: { production: {} },
+							state: { backend: "gist", gistId: "source" },
+						},
+						plugins: EMPTY_PLUGIN_REGISTRY,
+					},
+					success: true,
+				};
+			},
+			moveState,
+		});
+
+		prog.parse([
+			"node",
+			"bedrock",
+			"state",
+			"move",
+			"--env",
+			"production",
+			"--to",
+			"gist",
+			"--to-gistId",
+			"destination",
+		]);
+
+		await expect(exited).resolves.toBe(0);
+		expect(moveState).toHaveBeenCalledWith(
+			expect.anything(),
+			expect.objectContaining({ destination: { backend: "gist", gistId: "destination" } }),
+		);
 	});
 });
