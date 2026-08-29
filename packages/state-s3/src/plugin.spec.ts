@@ -4,9 +4,8 @@ import { assert, describe, expect, it } from "vitest";
 
 import { withEnvironment } from "#tests/helpers/environment";
 import { fakeS3 } from "#tests/helpers/fake-s3";
-import s3Plugin from "./index.ts";
 import { parseLockRecord } from "./lock-record.ts";
-import { bedrockS3Plugin, s3StateBackend } from "./plugin.ts";
+import s3Plugin, { bedrockS3Plugin, s3StateBackend } from "./plugin.ts";
 import type { S3StateConfig } from "./state-schema.ts";
 
 const STATE_CONFIG: S3StateConfig = { bucket: "my-bucket", region: "eu-west-2" };
@@ -38,7 +37,7 @@ describe("s3 plugin", () => {
 		expect(s3Plugin.name).toBe("@bedrock-rbx/state-s3");
 	});
 
-	it("should be the package's default export as well as a named one", () => {
+	it("should be the same plugin whether imported by name or as the default", () => {
 		expect.assertions(1);
 
 		expect(bedrockS3Plugin).toBe(s3Plugin);
