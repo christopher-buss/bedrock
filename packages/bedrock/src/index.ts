@@ -89,6 +89,7 @@ export type {
 export type { PluginRegistry, RegisteredStateBackend } from "./core/plugin-registry.ts";
 export type {
 	BedrockPlugin,
+	PluginEntry,
 	StateBackendBuildError,
 	StateBackendContext,
 	StateBackendDeclaration,
@@ -209,7 +210,13 @@ export {
 	type StateBackendExclusion,
 	type UnsupportedBackendError,
 } from "./shell/build-state-port.ts";
-export { defineConfig, type ConfigContext, type ConfigInput } from "./shell/define-config.ts";
+export {
+	defineConfig,
+	type AuthoredConfig,
+	type AuthoredStateConfig,
+	type ConfigContext,
+	type ConfigInput,
+} from "./shell/define-config.ts";
 export {
 	deploy,
 	type BuildStep,

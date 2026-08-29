@@ -10,7 +10,7 @@ import type { ConfigError, ConfigValidationIssue } from "./config-error.ts";
 import { ENV_NAME_PATTERN_SOURCE } from "./environment.ts";
 import { iconMap } from "./icons.ts";
 import { EMPTY_PLUGIN_REGISTRY, type PluginRegistry } from "./plugin-registry.ts";
-import type { StateBackendSchema } from "./plugin.ts";
+import type { PluginEntry, StateBackendSchema } from "./plugin.ts";
 import { collectUniverseIdIssues } from "./validate-universe-xor.ts";
 
 /**
@@ -976,9 +976,14 @@ interface ConfigBase {
 	 *
 	 * A specifier resolves from the directory holding this config file, so
 	 * a package name finds a plugin the project installed, and a relative
-	 * path finds one kept alongside the config.
+	 * path finds one kept alongside the config. A config authored in
+	 * TypeScript can list the plugin itself instead, which is what types
+	 * its `state` block from what that plugin declares.
+	 *
+	 * `loadConfig` resolves every entry to the name of the plugin that
+	 * loaded, so a config it returns lists names.
 	 */
-	plugins?: ReadonlyArray<string>;
+	plugins?: ReadonlyArray<PluginEntry>;
 	/**
 	 * Keyed-map collection of developer-product entries by user-supplied
 	 * ResourceKey.

@@ -396,3 +396,14 @@ export interface BedrockPlugin<
 	/** **Backend**s this plugin claims. */
 	readonly stateBackends?: TBackends;
 }
+
+/**
+ * One entry under a config's `plugins` field: the plugin itself, or the
+ * module specifier to import it from.
+ *
+ * A config authored in TypeScript can name either. Every other config
+ * format can only write a specifier, which is why both stay.
+ *
+ * @since unreleased
+ */
+export type PluginEntry = BedrockPlugin | string;

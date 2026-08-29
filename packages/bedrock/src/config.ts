@@ -8,6 +8,7 @@
  * barrel.
  */
 
+export type { PluginEntry } from "./core/plugin.ts";
 export type {
 	CodegenConfig,
 	Config,
@@ -30,5 +31,11 @@ export type {
 	UniverseOverlayWithId,
 	UniverseOverlayWithoutId,
 } from "./core/schema.ts";
-export { defineConfig, type ConfigContext, type ConfigInput } from "./shell/define-config.ts";
+export {
+	defineConfig,
+	type AuthoredConfig,
+	type AuthoredStateConfig,
+	type ConfigContext,
+	type ConfigInput,
+} from "./shell/define-config.ts";
 export type { SocialLink } from "@bedrock-rbx/ocale/universes";
