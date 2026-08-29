@@ -44,6 +44,22 @@ environment variables, a shared profile, an SSO session, and CI role credentials
 all work with nothing bedrock-specific configured. Point the chain at the
 account you want the way you would for any other AWS tool.
 
+`BEDROCK_S3_ACCESS_KEY_ID` and `BEDROCK_S3_SECRET_ACCESS_KEY`, plus
+`BEDROCK_S3_SESSION_TOKEN` for a temporary credential, are read ahead of
+`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, so a machine whose AWS
+variables already point at another account can send bedrock somewhere else:
+
+```bash
+export BEDROCK_S3_ACCESS_KEY_ID="<access-key-id>"
+export BEDROCK_S3_SECRET_ACCESS_KEY="<secret-access-key>"
+```
+
+Each set is read as a whole credential. Setting one half of the prefixed pair
+leaves the `AWS_` pair signing on its own, and a prefixed pair takes its session
+token from `BEDROCK_S3_SESSION_TOKEN` alone, ignoring any `AWS_SESSION_TOKEN`
+the environment holds, so no signing pairs one account's key with another's
+secret.
+
 The credential needs `s3:GetObject` and `s3:PutObject` on the objects and on the
 locks beside them. `s3:DeleteObject` is what lets the conditional-write probe
 take its scratch object away again; without it the probe still answers, and the

@@ -17,6 +17,11 @@ const CREDENTIALS = {
 	AWS_SECRET_ACCESS_KEY: "injected-secret",
 };
 
+const PREFIXED_CREDENTIALS = {
+	BEDROCK_S3_ACCESS_KEY_ID: "prefixed-access-key",
+	BEDROCK_S3_SECRET_ACCESS_KEY: "prefixed-secret",
+};
+
 /**
  * Read a variable from a fixed set, the way core hands a **Backend** the
  * environment rather than letting it reach for `process.env`.
@@ -150,6 +155,95 @@ describe("s3 plugin", () => {
 			"AWS4-HMAC-SHA256 Credential=injected-access-key/",
 		);
 		expect(store.calls[0]!.headers["x-amz-security-token"]).toBe("injected-session-token");
+	});
+
+	it("should sign with the bedrock-prefixed credentials over the aws ones", async () => {
+		expect.assertions(1);
+
+		const store = fakeS3();
+		const built = s3StateBackend.createPort(
+			context({
+				fetch: store.fetchFunc,
+				getEnv: environmentOf({ ...CREDENTIALS, ...PREFIXED_CREDENTIALS }),
+				stateConfig: STATE_CONFIG,
+			}),
+		);
+
+		assert(built.success);
+
+		await built.data.read("production");
+
+		expect(store.calls[0]!.headers["authorization"]).toStartWith(
+			"AWS4-HMAC-SHA256 Credential=prefixed-access-key/",
+		);
+	});
+
+	it("should sign with the bedrock-prefixed session token", async () => {
+		expect.assertions(1);
+
+		const store = fakeS3();
+		const built = s3StateBackend.createPort(
+			context({
+				fetch: store.fetchFunc,
+				getEnv: environmentOf({
+					...PREFIXED_CREDENTIALS,
+					BEDROCK_S3_SESSION_TOKEN: "prefixed-session-token",
+				}),
+				stateConfig: STATE_CONFIG,
+			}),
+		);
+
+		assert(built.success);
+
+		await built.data.read("production");
+
+		expect(store.calls[0]!.headers["x-amz-security-token"]).toBe("prefixed-session-token");
+	});
+
+	it("should sign with the aws pair when only half the bedrock-prefixed pair is named", async () => {
+		expect.assertions(1);
+
+		const store = fakeS3();
+		const built = s3StateBackend.createPort(
+			context({
+				fetch: store.fetchFunc,
+				getEnv: environmentOf({
+					...CREDENTIALS,
+					BEDROCK_S3_ACCESS_KEY_ID: "prefixed-access-key",
+				}),
+				stateConfig: STATE_CONFIG,
+			}),
+		);
+
+		assert(built.success);
+
+		await built.data.read("production");
+
+		expect(store.calls[0]!.headers["authorization"]).toStartWith(
+			"AWS4-HMAC-SHA256 Credential=injected-access-key/",
+		);
+	});
+
+	it("should sign without an aws session token when the bedrock-prefixed pair wins", async () => {
+		expect.assertions(1);
+
+		const store = fakeS3();
+		const built = s3StateBackend.createPort(
+			context({
+				fetch: store.fetchFunc,
+				getEnv: environmentOf({
+					...PREFIXED_CREDENTIALS,
+					AWS_SESSION_TOKEN: "injected-session-token",
+				}),
+				stateConfig: STATE_CONFIG,
+			}),
+		);
+
+		assert(built.success);
+
+		await built.data.read("production");
+
+		expect(store.calls[0]!.headers).not.toContainKey("x-amz-security-token");
 	});
 
 	it("should fall back to the standard aws chain when the environment names no key", async () => {
