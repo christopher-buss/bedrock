@@ -61,7 +61,7 @@ export const s3StateBackend: StateBackendDeclaration<S3StateConfig, "s3"> = {
  * A config authored in TypeScript lists it directly, which types its
  * `state` block from what {@link s3StateSchema} declares. Every other
  * config format lists the module specifier instead, which reaches the same
- * plugin through this module's default export.
+ * plugin through the package's default export.
  *
  * @since unreleased
  *
@@ -86,8 +86,6 @@ export const bedrockS3Plugin: BedrockPlugin<
 	name: "@bedrock-rbx/state-s3",
 	stateBackends: [s3StateBackend],
 };
-
-export default bedrockS3Plugin;
 
 /**
  * Read the bucket both of this **Backend**'s ports reach out of what core

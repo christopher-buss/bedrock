@@ -2,8 +2,7 @@ export { type S3FailureKind, type S3StateErrorDetail } from "./classify-failure.
 export { DEFAULT_LOCK_LEASE_MS } from "./lease.ts";
 export type { S3LockFailureKind, S3StateLockErrorDetail } from "./lock-failure.ts";
 export type { S3LockHolder } from "./lock-record.ts";
-export { bedrockS3Plugin, s3StateBackend } from "./plugin.ts";
-export { default } from "./plugin.ts";
+export { bedrockS3Plugin as default, bedrockS3Plugin, s3StateBackend } from "./plugin.ts";
 export type { S3StoreDeps } from "./s3-client.ts";
 export { createS3StateAdapter } from "./s3-state-adapter.ts";
 export {
