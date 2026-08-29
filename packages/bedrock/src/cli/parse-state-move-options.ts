@@ -101,7 +101,8 @@ function isOwnFlag(key: string): boolean {
 
 /**
  * Read the coordinate flags, refusing one that names no key or carries no
- * value.
+ * value. A flag nothing supplied arrives holding `undefined`, which names
+ * no coordinate and is skipped.
  *
  * @param entries - Every flag sade parsed, keyed as it was written.
  * @returns The coordinates keyed by field, or the offending flag.
@@ -111,7 +112,7 @@ function readCoordinates(
 ): Result<Readonly<Record<string, string>>, ParseOptionsError> {
 	let coordinates: Readonly<Record<string, string>> = {};
 	for (const [flag, value] of entries) {
-		if (!flag.startsWith(COORDINATE_PREFIX)) {
+		if (value === undefined || !flag.startsWith(COORDINATE_PREFIX)) {
 			continue;
 		}
 
