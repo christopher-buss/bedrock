@@ -8,7 +8,6 @@ interface CredentialVariables {
 	readonly sessionToken: string;
 }
 
-// The bedrock-prefixed names, read before the standard ones.
 const BEDROCK_VARIABLES = {
 	accessKeyId: "BEDROCK_S3_ACCESS_KEY_ID",
 	secretAccessKey: "BEDROCK_S3_SECRET_ACCESS_KEY",
