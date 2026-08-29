@@ -188,7 +188,8 @@ than the conflict, so `name` is required and diagnostics report the specifier
 the config wrote or the plugin's own name.
 
 The plugin-aware types live on what `defineConfig` accepts, not on `Config`.
-Every entry is resolved to the name of the plugin it loaded before the config is
-validated, so the config the loader returns lists names. That keeps a plugin out
-of a config rendered back as source, and keeps the type parameter off the shape
-the rest of the pipeline reads.
+Every entry is resolved to a string before the config is validated: a specifier
+stays what the config wrote, and a plugin listed by value is recorded under the
+name it declares. That keeps a plugin object out of a config rendered back as
+source, and keeps the type parameter off the shape the rest of the pipeline
+reads.

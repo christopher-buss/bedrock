@@ -13,9 +13,9 @@ export interface ConfigContext {}
  * Every `state` block a config listing `TPlugins` may write.
  *
  * The union closes around the builtin **Backend** and the ones the listed
- * plugins declare, so a misspelled key is an error rather than an accepted
- * one. A module specifier anywhere in the list reopens it: core cannot
- * check keys it cannot see declared.
+ * plugins declare, so a misspelled key is an error. A module specifier
+ * anywhere in the list reopens it: core cannot check keys it cannot see
+ * declared.
  *
  * @since unreleased
  *
@@ -124,25 +124,26 @@ type AuthoredArms<TArm, TPlugins extends ReadonlyArray<PluginEntry>> = TArm exte
 	: never;
 
 /**
- * Identity helper that gives TypeScript users full inference over a config
- * declared in a `bedrock.config.ts` file. Returns its argument unchanged so
- * `defineConfig(...)` is free at runtime.
+ * Helper that types a config declared in a `bedrock.config.ts` file
+ * against the shape `loadConfig` accepts. Returns its argument unchanged,
+ * so `defineConfig(...)` is free at runtime.
  *
  * Accepts a config object or a function that produces one. The function
  * form lets users compute config values from external data at load time;
  * `loadConfig` awaits the result on call.
  *
- * Listing a plugin by value rather than by module specifier types the
- * `state` block from what that plugin declares, so its keys complete in the
- * editor and a misspelled one is an error. A specifier leaves the block
- * open, which is what every non-TypeScript config format gets.
+ * Listing a plugin by value types the `state` block from what that plugin
+ * declares, so its keys complete in the editor and a misspelled one is an
+ * error. A module specifier leaves the block open, which is what every
+ * non-TypeScript config format gets.
  *
  * @since 0.1.0
  *
  * @template TPlugins - Inferred from `plugins`, which decides the `state`
  * blocks the config may write.
  * @param config - Either a config object or a function returning one.
- * @returns The same argument.
+ * @returns The same value, typed as the config shape rather than as the
+ * literal that was written, so a field reads back at its declared type.
  * @example
  *
  * ```ts

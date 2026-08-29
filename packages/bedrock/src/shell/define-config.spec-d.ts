@@ -27,23 +27,24 @@ const s3Plugin: BedrockPlugin<readonly [S3Declaration]> = {
 	stateBackends: [s3StateBackend],
 };
 
-/** Every `state` block a config listing only the s3 plugin may write. */
-type S3State = GistStateConfig | S3StateBlock;
-
-/** The same set, as an optional `state` field carries it. */
-type OptionalS3State = S3State | undefined;
+/** The set the union below is checked against, written out independently. */
+type ExpectedS3State = GistStateConfig | S3StateBlock | undefined;
 
 const ENVIRONMENTS = { production: {} };
 
+// What `defineConfig` itself resolves `state` to for a config listing the
+// s3 plugin, which is what the rejections below are stated against.
+const s3Config = defineConfig({
+	environments: ENVIRONMENTS,
+	plugins: [s3Plugin],
+	state: { backend: "s3", bucket: "my-bucket", prefix: "bedrock/", region: "eu-west-2" },
+});
+
+type S3State = NonNullable<typeof s3Config.state>;
+
 describe(defineConfig, () => {
 	it("should type the state block from what the listed plugins declare", () => {
-		const config = defineConfig({
-			environments: ENVIRONMENTS,
-			plugins: [s3Plugin],
-			state: { backend: "s3", bucket: "my-bucket", prefix: "bedrock/", region: "eu-west-2" },
-		});
-
-		expectTypeOf(config.state).toEqualTypeOf<OptionalS3State>();
+		expectTypeOf(s3Config.state).toEqualTypeOf<ExpectedS3State>();
 	});
 
 	it("should reject a state key no listed plugin declared", () => {
@@ -88,7 +89,7 @@ describe(defineConfig, () => {
 			state: { backend: "gist", gistId: "abc123def456" },
 		});
 
-		expectTypeOf(config.state).toEqualTypeOf<OptionalS3State>();
+		expectTypeOf(config.state).toEqualTypeOf<ExpectedS3State>();
 	});
 
 	it("should leave the state block open when a plugin is listed by specifier", () => {

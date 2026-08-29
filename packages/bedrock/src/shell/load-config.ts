@@ -214,10 +214,10 @@ async function resolveWithC12Async({
  * Load what the config's `plugins` field names, then validate the config
  * against what those plugins declared.
  *
- * Every entry is resolved to the name of the plugin it loaded before
- * validation, so the validated config carries names rather than the plugin
- * objects a TypeScript config may list. That is what keeps a plugin out of
- * a config rendered back as source.
+ * Every entry is resolved to a string before validation: a specifier stays
+ * the text the config wrote, and a plugin listed by value is recorded under
+ * the name it declares. That is what keeps a plugin object out of a config
+ * rendered back as source.
  *
  * @param source - The parsed config and the file it was read from, which a
  * failure names.

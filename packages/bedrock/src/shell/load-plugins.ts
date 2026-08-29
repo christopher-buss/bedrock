@@ -33,9 +33,10 @@ const BAD_STATE_BACKENDS_MESSAGE =
  */
 export interface LoadedPlugins {
 	/**
-	 * The name of each plugin that loaded, in the order the config listed
-	 * them, or `undefined` when the field was not a list of entries to load
-	 * and the authored value has to reach validation untouched.
+	 * How each loaded plugin is recorded, in the order the config listed
+	 * them: the specifier it was named by, or the name a plugin listed by
+	 * value declares. `undefined` when the field was not a list of entries
+	 * to load and the authored value has to reach validation untouched.
 	 */
 	readonly names: ReadonlyArray<string> | undefined;
 	/** What those plugins collectively declared. */
@@ -56,6 +57,23 @@ interface ImportPluginInput {
 	readonly sourceDirectory: string;
 	/** The module specifier to import. */
 	readonly specifier: string;
+}
+
+/**
+ * Inputs for loading one entry of the config's `plugins` list.
+ */
+interface LoadEntryInput {
+	/** The entry as the config wrote it. */
+	readonly entry: Record<string, unknown> | string;
+	/** Injected module importer. */
+	readonly importModule: ModuleImporter;
+	/** Position of this entry in the list, which labels a nameless plugin. */
+	readonly index: number;
+	/**
+	 * Directory holding the config file, which every specifier resolves
+	 * from.
+	 */
+	readonly sourceDirectory: string;
 }
 
 /**
@@ -100,15 +118,12 @@ export async function loadPluginsAsync({
 	const loaded: Array<LoadedPlugin> = [];
 	const indexed = (entries ?? []).entries();
 	for (const [index, entry] of indexed) {
-		const outcome =
-			typeof entry === "string"
-				? await importPluginAsync({ importModule, sourceDirectory, specifier: entry })
-				: readPluginShape(entry, `plugins[${String(index)}]`);
+		const outcome = await loadEntryAsync({ entry, importModule, index, sourceDirectory });
 		if (!outcome.success) {
 			return outcome;
 		}
 
-		loaded.push({ plugin: outcome.data, specifier: specifierOf(entry, outcome.data) });
+		loaded.push(outcome.data);
 	}
 
 	const registry = buildPluginRegistry(loaded);
@@ -123,21 +138,6 @@ export async function loadPluginsAsync({
 		},
 		success: true,
 	};
-}
-
-/**
- * How a diagnostic names one plugin: the specifier the config wrote, when
- * it wrote one, and the plugin's own name otherwise.
- *
- * A config listing the plugin itself has no specifier to point a user at,
- * and the name is what the import statement above the list says.
- *
- * @param entry - The entry as the config wrote it.
- * @param plugin - What that entry loaded to.
- * @returns The name to report this plugin by.
- */
-function specifierOf(entry: Record<string, unknown> | string, plugin: BedrockPlugin): string {
-	return typeof entry === "string" ? entry : plugin.name;
 }
 
 /**
@@ -267,13 +267,48 @@ async function importPluginAsync({
 }
 
 /**
+ * Load one `plugins` entry, paired with the label every diagnostic about it
+ * carries.
+ *
+ * A specifier labels itself: it is the text the user can go and edit. A
+ * plugin the config carries has none, so it is labelled by the name it
+ * declares, and by its position in the list until that name has been read.
+ *
+ * @param input - The entry, its position, and the seams an import needs.
+ * @returns `Ok` with the loaded plugin and its label, or the
+ * `pluginLoadFailed` error naming the entry.
+ */
+async function loadEntryAsync({
+	entry,
+	importModule,
+	index,
+	sourceDirectory,
+}: LoadEntryInput): Promise<Result<LoadedPlugin, ConfigError>> {
+	if (typeof entry === "string") {
+		const imported = await importPluginAsync({
+			importModule,
+			sourceDirectory,
+			specifier: entry,
+		});
+		return imported.success
+			? { data: { plugin: imported.data, specifier: entry }, success: true }
+			: imported;
+	}
+
+	const read = readPluginShape(entry, `plugins[${String(index)}]`);
+	return read.success
+		? { data: { plugin: read.data, specifier: read.data.name }, success: true }
+		: read;
+}
+
+/**
  * Narrow the raw `plugins` value to the list of entries to load: a module
  * specifier to import, or a plugin the config carries itself.
  *
  * Anything else - absent, a bare string, a list holding neither - loads
  * nothing at all, so `validateConfig` reports the malformed value as an
- * ordinary field-level issue rather than a plugin failure. Nothing in a
- * malformed list runs, including the entries that were well-formed.
+ * ordinary field-level issue. Nothing in a malformed list runs, including
+ * the entries that were well-formed.
  *
  * @param value - The raw `plugins` value read off the parsed config.
  * @returns `true` when every entry is a specifier or a record.
