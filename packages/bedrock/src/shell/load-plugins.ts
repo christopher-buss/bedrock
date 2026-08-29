@@ -27,6 +27,22 @@ const BAD_STATE_BACKENDS_MESSAGE =
 	"where schema is an arktype object schema and createPort is a function";
 
 /**
+ * What one config's `plugins` field loaded to.
+ *
+ * Internal seam: not re-exported from `src/index.ts`.
+ */
+export interface LoadedPlugins {
+	/**
+	 * The name of each plugin that loaded, in the order the config listed
+	 * them, or `undefined` when the field was not a list of entries to load
+	 * and the authored value has to reach validation untouched.
+	 */
+	readonly names: ReadonlyArray<string> | undefined;
+	/** What those plugins collectively declared. */
+	readonly registry: PluginRegistry;
+}
+
+/**
  * Inputs for importing a single plugin.
  */
 interface ImportPluginInput {
@@ -68,44 +84,60 @@ interface LoadPluginsInput {
  *
  * @param input - Parsed config, injected importer, and the directory
  * specifiers resolve from.
- * @returns `Ok` with the registry the loaded plugins produced, `Err` with
- * the `pluginLoadFailed` error for the first specifier that could not be
- * loaded, or `Err` with `stateBackendConflict` when two of them claim one
- * backend name.
+ * @returns `Ok` with the registry the loaded plugins produced and the names
+ * to record in place of what the config listed, `Err` with the
+ * `pluginLoadFailed` error for the first entry that could not be loaded, or
+ * `Err` with `stateBackendConflict` when two of them claim one backend name.
  */
 export async function loadPluginsAsync({
 	config,
 	importModule,
 	sourceDirectory,
-}: LoadPluginsInput): Promise<Result<PluginRegistry, ConfigError>> {
+}: LoadPluginsInput): Promise<Result<LoadedPlugins, ConfigError>> {
 	const declared = config["plugins"];
-	const specifiers = isSpecifierList(declared) ? declared : [];
+	const entries = isEntryList(declared) ? declared : undefined;
 
 	const loaded: Array<LoadedPlugin> = [];
-	for (const specifier of specifiers) {
-		const outcome = await importPluginAsync({ importModule, sourceDirectory, specifier });
+	const indexed = (entries ?? []).entries();
+	for (const [index, entry] of indexed) {
+		const outcome =
+			typeof entry === "string"
+				? await importPluginAsync({ importModule, sourceDirectory, specifier: entry })
+				: readPluginShape(entry, `plugins[${String(index)}]`);
 		if (!outcome.success) {
 			return outcome;
 		}
 
-		loaded.push({ plugin: outcome.data, specifier });
+		loaded.push({ plugin: outcome.data, specifier: specifierOf(entry, outcome.data) });
 	}
 
-	return buildPluginRegistry(loaded);
+	const registry = buildPluginRegistry(loaded);
+	if (!registry.success) {
+		return registry;
+	}
+
+	return {
+		data: {
+			names: entries === undefined ? undefined : loaded.map(({ specifier }) => specifier),
+			registry: registry.data,
+		},
+		success: true,
+	};
 }
 
 /**
- * Read a module's default export without assuming the module is a plain
- * record: an ESM namespace object is not one, so `isRecord` cannot gate the
- * property access here the way it gates the export itself. `Object()` boxes
- * whatever the importer handed back, so no shape reaches `Reflect.get`
- * that it would throw on.
+ * How a diagnostic names one plugin: the specifier the config wrote, when
+ * it wrote one, and the plugin's own name otherwise.
  *
- * @param module - The imported module namespace.
- * @returns The module's `default` export, or `undefined` when it has none.
+ * A config listing the plugin itself has no specifier to point a user at,
+ * and the name is what the import statement above the list says.
+ *
+ * @param entry - The entry as the config wrote it.
+ * @param plugin - What that entry loaded to.
+ * @returns The name to report this plugin by.
  */
-function defaultExportOf(module: unknown): unknown {
-	return Reflect.get(Object(module), "default");
+function specifierOf(entry: Record<string, unknown> | string, plugin: BedrockPlugin): string {
+	return typeof entry === "string" ? entry : plugin.name;
 }
 
 /**
@@ -187,6 +219,20 @@ function readPluginShape(
 }
 
 /**
+ * Read a module's default export without assuming the module is a plain
+ * record: an ESM namespace object is not one, so `isRecord` cannot gate the
+ * property access here the way it gates the export itself. `Object()` boxes
+ * whatever the importer handed back, so no shape reaches `Reflect.get`
+ * that it would throw on.
+ *
+ * @param module - The imported module namespace.
+ * @returns The module's `default` export, or `undefined` when it has none.
+ */
+function defaultExportOf(module: unknown): unknown {
+	return Reflect.get(Object(module), "default");
+}
+
+/**
  * Import one plugin, mapping an import rejection onto the
  * `pluginLoadFailed` error that names the specifier that produced it.
  *
@@ -221,14 +267,19 @@ async function importPluginAsync({
 }
 
 /**
- * Narrow the raw `plugins` value to the list of module specifiers to import.
- * Anything else - absent, a bare string, a list with a non-string entry -
- * yields no specifiers, so nothing is imported and `validateConfig` reports
- * the malformed value as an ordinary field-level issue.
+ * Narrow the raw `plugins` value to the list of entries to load: a module
+ * specifier to import, or a plugin the config carries itself.
+ *
+ * Anything else - absent, a bare string, a list holding neither - loads
+ * nothing at all, so `validateConfig` reports the malformed value as an
+ * ordinary field-level issue rather than a plugin failure. Nothing in a
+ * malformed list runs, including the entries that were well-formed.
  *
  * @param value - The raw `plugins` value read off the parsed config.
- * @returns `true` when `value` is a list whose every entry is a string.
+ * @returns `true` when every entry is a specifier or a record.
  */
-function isSpecifierList(value: unknown): value is ReadonlyArray<string> {
-	return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+function isEntryList(value: unknown): value is ReadonlyArray<Record<string, unknown> | string> {
+	return (
+		Array.isArray(value) && value.every((entry) => typeof entry === "string" || isRecord(entry))
+	);
 }

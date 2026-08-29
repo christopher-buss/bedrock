@@ -968,6 +968,31 @@ function unusedBuilder(): { err: { reason: string }; success: false } {
 	return { err: { reason: "unused in config-loading tests" }, success: false };
 }
 
+// A plugin the config file declares itself, which is what a TypeScript
+// config lists when it imports one rather than naming its specifier.
+const INLINE_S3_PLUGIN_DECLARATION = [
+	"import { type } from 'arktype';",
+	"const plugin = {",
+	"  name: '@example/state-s3',",
+	"  stateBackends: [",
+	"    {",
+	"      name: 's3',",
+	"      createPort: () => ({ err: { reason: 'unused' }, success: false }),",
+	"      schema: type({ bucket: 'string > 0' }),",
+	"    },",
+	"  ],",
+	"};",
+] as const;
+
+const INLINE_S3_PLUGIN_CONFIG = [
+	...INLINE_S3_PLUGIN_DECLARATION,
+	"export default {",
+	"  environments: { production: {} },",
+	"  plugins: [plugin],",
+	"  state: { backend: 's3', bucket: 'my-bucket' },",
+	"};",
+] as const;
+
 async function importS3Plugin(): Promise<ImportResult> {
 	return {
 		data: {
@@ -1397,6 +1422,140 @@ describe(loadConfigWith, () => {
 			);
 		},
 	);
+
+	it("should register a backend the config lists the plugin object for", async () => {
+		expect.assertions(1);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, INLINE_S3_PLUGIN_CONFIG);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: unusedImporter },
+			{ cwd },
+		);
+
+		expect(result.success).toBeTrue();
+	});
+
+	it("should resolve every plugins entry to the name of the plugin that loaded", async () => {
+		expect.assertions(1);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, INLINE_S3_PLUGIN_CONFIG);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: unusedImporter },
+			{ cwd },
+		);
+
+		assert(result.success);
+
+		expect(result.data.plugins).toStrictEqual(["@example/state-s3"]);
+	});
+
+	it("should reject a state key an inline plugin's backend did not declare", async () => {
+		expect.assertions(1);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			...INLINE_S3_PLUGIN_DECLARATION,
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: [plugin],",
+			"  state: { backend: 's3', bucket: 'my-bucket', endpoint: 'https://example.invalid' },",
+			"};",
+		]);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: unusedImporter },
+			{ cwd },
+		);
+
+		assert(!result.success);
+
+		expect(result.err.kind).toBe("validationFailed");
+	});
+
+	it("should name an inline plugin by its own name when it contests a backend", async () => {
+		expect.assertions(2);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			"import { type } from 'arktype';",
+			"const plugin = {",
+			"  name: '@example/state-gist',",
+			"  stateBackends: [",
+			"    {",
+			"      name: 'gist',",
+			"      createPort: () => ({ err: { reason: 'unused' }, success: false }),",
+			"      schema: type({ gistId: 'string' }),",
+			"    },",
+			"  ],",
+			"};",
+			"export default { environments: { production: {} }, plugins: [plugin] };",
+		]);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: unusedImporter },
+			{ cwd },
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "stateBackendConflict");
+
+		expect(result.err.backend).toBe("gist");
+		expect(result.err.specifiers).toStrictEqual(["@bedrock-rbx/core", "@example/state-gist"]);
+	});
+
+	it("should name a nameless inline plugin by its position in the list", async () => {
+		expect.assertions(3);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			...INLINE_S3_PLUGIN_DECLARATION,
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: [plugin, {}],",
+			"};",
+		]);
+
+		const result = await loadConfigWith(
+			{ evaluator: unusedEvaluator, importModule: unusedImporter },
+			{ cwd },
+		);
+
+		assert(!result.success);
+		assert(result.err.kind === "pluginLoadFailed");
+
+		expect(result.err.specifier).toBe("plugins[1]");
+		expect(result.err.reason).toBe("invalidExport");
+		expect(result.err.message).toBe("expected the plugin to name itself");
+	});
+
+	it("should take an inline plugin alongside one named by specifier", async () => {
+		expect.assertions(2);
+
+		const cwd = createTemporaryDirectory();
+		writeFixtureConfig(cwd, [
+			...INLINE_S3_PLUGIN_DECLARATION,
+			"export default {",
+			"  environments: { production: {} },",
+			"  plugins: ['@example/state-gcs', plugin],",
+			"  state: { backend: 's3', bucket: 'my-bucket' },",
+			"};",
+		]);
+
+		const imported: Array<string> = [];
+		async function importModule(specifier: string): Promise<ImportResult> {
+			imported.push(specifier);
+			return { data: { default: { name: specifier } }, success: true };
+		}
+
+		const result = await loadConfigWith({ evaluator: unusedEvaluator, importModule }, { cwd });
+
+		expect(result.success).toBeTrue();
+		expect(imported).toStrictEqual(["@example/state-gcs"]);
+	});
 
 	it("should import nothing when the config declares no plugins", async () => {
 		expect.assertions(1);
