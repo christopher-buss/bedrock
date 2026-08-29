@@ -1,7 +1,7 @@
 # S3 state backend
 
 `@bedrock-rbx/state-s3` persists bedrock's state in an S3 bucket, one object per
-environment. It is a [plugin](/bedrock/guide/plugins): install it, name it under
+environment. It is a [plugin](/bedrock/guide/plugins): install it, list it under
 `plugins`, and point `state` at a bucket.
 
 ```bash
@@ -10,13 +10,19 @@ pnpm add @bedrock-rbx/state-s3
 
 ```ts
 import { defineConfig } from "@bedrock-rbx/core/config";
+import { bedrockS3Plugin } from "@bedrock-rbx/state-s3";
 
 export default defineConfig({
 	environments: { production: {} },
-	plugins: ["@bedrock-rbx/state-s3"],
+	plugins: [bedrockS3Plugin],
 	state: { backend: "s3", bucket: "my-bucket", region: "eu-west-2" },
 });
 ```
+
+Importing the plugin types the `state` block: `bucket`, `region`, and every
+other key on this page complete in your editor, and a misspelled one is a
+compile error. A config in a format that cannot import a value names the
+specifier instead, as `plugins: ["@bedrock-rbx/state-s3"]`.
 
 Production state now lives at `s3://my-bucket/production.json`, and staging at
 `s3://my-bucket/staging.json`. Deploying both at once is safe: each environment
@@ -100,7 +106,7 @@ rather than answered a second time:
 ```ts
 export default defineConfig({
 	environments: { production: {} },
-	plugins: ["@bedrock-rbx/state-s3"],
+	plugins: [bedrockS3Plugin],
 	state: {
 		backend: "s3",
 		bucket: "my-mantle-states",
@@ -134,7 +140,7 @@ checksum headers some of them reject:
 ```ts
 export default defineConfig({
 	environments: { production: {} },
-	plugins: ["@bedrock-rbx/state-s3"],
+	plugins: [bedrockS3Plugin],
 	state: {
 		backend: "s3",
 		bucket: "my-bucket",

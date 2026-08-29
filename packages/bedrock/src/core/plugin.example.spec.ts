@@ -100,6 +100,7 @@ it('Example 2', () => {
 
 it('Example 3', () => {
   const plugin: BedrockPlugin = {
+    name: '@example/state-s3',
     stateBackends: [
       {
         name: 's3',

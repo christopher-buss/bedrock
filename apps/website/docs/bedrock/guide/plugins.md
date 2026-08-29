@@ -1,16 +1,17 @@
 # Plugins
 
 A plugin extends bedrock from your config file. Today a plugin contributes state
-**backends**: the store bedrock persists its state to. Name the plugin package
-under `plugins` and its backend becomes selectable in `state.backend`, with its
-own configuration keys validated like any other config.
+**backends**: the store bedrock persists its state to. List the plugin under
+`plugins` and its backend becomes selectable in `state.backend`, with its own
+configuration keys validated like any other config.
 
 ```ts
 import { defineConfig } from "@bedrock-rbx/core/config";
+import { examplePlugin } from "@example/state-s3";
 
 export default defineConfig({
 	environments: { production: {} },
-	plugins: ["@example/state-s3"],
+	plugins: [examplePlugin],
 	state: { backend: "s3", bucket: "my-bucket", region: "eu-west-2" },
 });
 ```
@@ -24,10 +25,42 @@ using any plugin, and about writing your own.
 
 ## Using a plugin
 
-Install the package, then list its module specifier under `plugins`. Relative
-specifiers resolve from the directory holding your config file, so
+Install the package, then list it under `plugins`. An entry is either the plugin
+itself, imported into your config, or the module specifier to import it from.
+
+### Listing the plugin itself
+
+A config written in TypeScript imports the plugin and lists the value. Doing so
+types the `state` block from what that plugin declares: the keys its backend
+accepts complete in your editor, and a misspelled key, a missing required one,
+or a `backend` no listed plugin claims is a compile error rather than a
+validation failure at deploy time.
+
+The set closes around what you list. A config listing plugin values may select
+the backend bedrock ships or one those plugins declare, and nothing else; a
+config listing no plugins at all may only select bedrock's own.
+
+### Listing a module specifier
+
+Every config format can name a plugin by its module specifier, which is the only
+form YAML, JSON, and Luau can write:
+
+```ts
+export default defineConfig({
+	environments: { production: {} },
+	plugins: ["@example/state-s3"],
+	state: { backend: "s3", bucket: "my-bucket", region: "eu-west-2" },
+});
+```
+
+Relative specifiers resolve from the directory holding your config file, so
 `plugins: ["./tools/state-s3.ts"]` means what it would mean written inside that
 file.
+
+A specifier is a string, so bedrock cannot see what the module declares until it
+loads. A `state` block alongside one accepts any key and is checked when the
+config loads, not while you write it. Mixing the two forms in one list leaves
+the block open on those terms.
 
 Every listed specifier is imported while the config loads, before the rest of
 the config is validated. A specifier that does not resolve, throws while
@@ -69,9 +102,14 @@ Bedrock still parses the foreign format; the plugin only supplies its bytes.
 
 ## Writing a plugin
 
-A plugin is a module whose default export is a
-[`BedrockPlugin`](/bedrock/api/interfaces/BedrockPlugin). Every field is
-optional: contribute only what you implement.
+A plugin is a [`BedrockPlugin`](/bedrock/api/interfaces/BedrockPlugin): a
+`name`, plus the categories it contributes. The contribution fields are
+optional, so declare only what you implement. Export it by name for a TypeScript
+config to import, and as the default export for a config that names your
+specifier.
+
+`name` is how every diagnostic refers to your plugin when the config listed no
+specifier to point at, so give it the package name.
 
 ```ts
 import type { BedrockPlugin, StateBackendDeclaration } from "@bedrock-rbx/core";
@@ -84,7 +122,7 @@ const schema = type({
 	"region?": "string",
 });
 
-const s3: StateBackendDeclaration<typeof schema.infer> = {
+const s3: StateBackendDeclaration<typeof schema.infer, "s3"> = {
 	name: "s3",
 	createPort({ fetch, getEnv, stateConfig }) {
 		const key = getEnv("AWS_ACCESS_KEY_ID");
@@ -106,7 +144,12 @@ const s3: StateBackendDeclaration<typeof schema.infer> = {
 	schema,
 };
 
-export default { stateBackends: [s3] } satisfies BedrockPlugin;
+export const examplePlugin: BedrockPlugin<readonly [typeof s3]> = {
+	name: "@example/state-s3",
+	stateBackends: [s3],
+};
+
+export default examplePlugin;
 ```
 
 ### Declare your config keys
@@ -119,6 +162,9 @@ failure instead of a state-write failure.
 
 Typing the declaration with `typeof schema.infer` is what gives `createPort` its
 `stateConfig` type, so the builder reads its own keys without re-parsing them.
+The second type argument is the `state.backend` value your declaration claims,
+written as a literal. That is what lets a config listing your plugin key its
+`state` block on the backend it names.
 
 ### Build the adapter
 

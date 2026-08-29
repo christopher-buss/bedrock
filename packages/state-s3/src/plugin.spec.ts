@@ -5,7 +5,7 @@ import { assert, describe, expect, it } from "vitest";
 import { withEnvironment } from "#tests/helpers/environment";
 import { fakeS3 } from "#tests/helpers/fake-s3";
 import { parseLockRecord } from "./lock-record.ts";
-import s3Plugin, { s3StateBackend } from "./plugin.ts";
+import s3Plugin, { bedrockS3Plugin, s3StateBackend } from "./plugin.ts";
 import type { S3StateConfig } from "./state-schema.ts";
 
 const STATE_CONFIG: S3StateConfig = { bucket: "my-bucket", region: "eu-west-2" };
@@ -31,6 +31,18 @@ function environmentOf(
 }
 
 describe("s3 plugin", () => {
+	it("should name itself by its package, so a diagnostic can point at it", () => {
+		expect.assertions(1);
+
+		expect(s3Plugin.name).toBe("@bedrock-rbx/state-s3");
+	});
+
+	it("should be the same plugin whether imported by name or as the default", () => {
+		expect.assertions(1);
+
+		expect(bedrockS3Plugin).toBe(s3Plugin);
+	});
+
 	it("should claim the s3 backend name", () => {
 		expect.assertions(2);
 

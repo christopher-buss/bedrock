@@ -211,6 +211,49 @@ async function resolveWithC12Async({
 }
 
 /**
+ * Load what the config's `plugins` field names, then validate the config
+ * against what those plugins declared.
+ *
+ * Every entry is resolved to a string before validation: a specifier stays
+ * the text the config wrote, and a plugin listed by value is recorded under
+ * the name it declares. That is what keeps a plugin object out of a config
+ * rendered back as source.
+ *
+ * @param source - The parsed config and the file it was read from, which a
+ * failure names.
+ * @param importModule - Injected module importer.
+ * @returns The validated config paired with its registry, or the first
+ * failure the load produced.
+ */
+async function loadPluginsAndValidateAsync(
+	{
+		config,
+		sourceFile,
+	}: { readonly config: Record<string, unknown>; readonly sourceFile: string },
+	importModule: ModuleImporter,
+): Promise<Result<LoadedProject, ConfigError>> {
+	const pluginLoad = await loadPluginsAsync({
+		config,
+		importModule,
+		sourceDirectory: dirname(sourceFile),
+	});
+	if (!pluginLoad.success) {
+		return pluginLoad;
+	}
+
+	const { names, registry } = pluginLoad.data;
+	const validated = createConfigValidator(registry)(
+		names === undefined ? config : { ...config, plugins: names },
+		sourceFile,
+	);
+	if (!validated.success) {
+		return validated;
+	}
+
+	return { data: { config: validated.data, plugins: registry }, success: true };
+}
+
+/**
  * Same load as {@link loadConfigWith}, keeping the plugin registry the
  * config was validated against, which is what a caller that goes on to
  * construct a **Backend** needs.
@@ -244,21 +287,10 @@ async function loadProjectWith(
 		return { err: { kind: "fileNotFound", searchedFrom: cwd }, success: false };
 	}
 
-	const pluginLoad = await loadPluginsAsync({
-		config: resolved.config,
-		importModule: deps.importModule,
-		sourceDirectory: dirname(resolved._configFile),
-	});
-	if (!pluginLoad.success) {
-		return pluginLoad;
-	}
-
-	const validated = createConfigValidator(pluginLoad.data)(resolved.config, resolved._configFile);
-	if (!validated.success) {
-		return validated;
-	}
-
-	return { data: { config: validated.data, plugins: pluginLoad.data }, success: true };
+	return loadPluginsAndValidateAsync(
+		{ config: resolved.config, sourceFile: resolved._configFile },
+		deps.importModule,
+	);
 }
 
 function resolveConfigPath(cwd: string, configFile: string): string {

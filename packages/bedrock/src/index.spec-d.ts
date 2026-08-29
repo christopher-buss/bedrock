@@ -47,11 +47,11 @@ import type {
 	Sha256Hex,
 } from "./index.ts";
 
-function syncConfigBuilder(_ctx: ConfigContext): Config {
+function syncConfigBuilder(_ctx: ConfigContext) {
 	return { environments: { production: {} }, passes: {} };
 }
 
-async function asyncConfigBuilder(_ctx: ConfigContext): Promise<Config> {
+async function asyncConfigBuilder(_ctx: ConfigContext) {
 	return { environments: { production: {} }, passes: {} };
 }
 
@@ -251,8 +251,8 @@ describe("Config", () => {
 });
 
 describe(defineConfig, () => {
-	it("should preserve the literal type when given a plain object", () => {
-		const literal = {
+	it("should keep the config's own fields readable on what it returns", () => {
+		const config = defineConfig({
 			environments: { production: {} },
 			passes: {
 				"vip-pass": {
@@ -262,21 +262,26 @@ describe(defineConfig, () => {
 					price: 500,
 				},
 			},
-		};
+		});
 
-		expectTypeOf(defineConfig(literal)).toEqualTypeOf<typeof literal>();
+		expectTypeOf(config.passes!["vip-pass"]!.name).toEqualTypeOf<string>();
 	});
 
-	it("should preserve the function type when given a sync config function", () => {
-		expectTypeOf(defineConfig(syncConfigBuilder)).toEqualTypeOf<typeof syncConfigBuilder>();
+	it("should return the config a sync config function produces", () => {
+		expectTypeOf(defineConfig(syncConfigBuilder)).returns.toExtend<{
+			environments: object;
+		}>();
 	});
 
-	it("should preserve the function type when given an async config function", () => {
-		expectTypeOf(defineConfig(asyncConfigBuilder)).toEqualTypeOf<typeof asyncConfigBuilder>();
+	it("should return the config an async config function produces", () => {
+		expectTypeOf(defineConfig(asyncConfigBuilder)).returns.resolves.toExtend<{
+			environments: object;
+		}>();
 	});
 
-	it("should constrain its generic to ConfigInput", () => {
-		expectTypeOf(defineConfig).parameter(0).toEqualTypeOf<ConfigInput>();
+	it("should describe both authored forms with ConfigInput", () => {
+		expectTypeOf<typeof syncConfigBuilder>().toExtend<ConfigInput>();
+		expectTypeOf<{ environments: { production: object } }>().toExtend<ConfigInput>();
 	});
 });
 

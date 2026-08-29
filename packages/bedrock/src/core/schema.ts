@@ -977,6 +977,12 @@ interface ConfigBase {
 	 * A specifier resolves from the directory holding this config file, so
 	 * a package name finds a plugin the project installed, and a relative
 	 * path finds one kept alongside the config.
+	 *
+	 * A config authored in TypeScript may list the plugin itself, which is
+	 * what types its `state` block from what that plugin declares. That
+	 * form is accepted by `defineConfig`; by the time a config reaches
+	 * here every entry is a string, since a plugin listed by value is
+	 * recorded under the name it declares.
 	 */
 	plugins?: ReadonlyArray<string>;
 	/**
