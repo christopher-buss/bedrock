@@ -114,4 +114,6 @@ at `send`. _Avoid_: http client, mock, request handler
 - **`@bedrock-rbx/state-s3` → the AWS SDK**: the client is the real one.
   Credentials resolve through the standard AWS Node credential chain, except
   where the environment core injects already holds a key pair, which the
-  **Backend** reads rather than reaching for `process.env`.
+  **Backend** reads rather than reaching for `process.env`. It is read as a
+  whole credential out of one set of variables, `BEDROCK_S3_` before `AWS_`, so
+  no reading pairs one account's key with another's secret.

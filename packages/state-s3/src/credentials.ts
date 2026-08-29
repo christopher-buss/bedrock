@@ -1,6 +1,25 @@
 import type { StateBackendContext } from "@bedrock-rbx/core";
 import type { AwsCredentialIdentity } from "@smithy/types";
 
+/** The variables one whole credential is named by. */
+interface CredentialVariables {
+	readonly accessKeyId: string;
+	readonly secretAccessKey: string;
+	readonly sessionToken: string;
+}
+
+const BEDROCK_VARIABLES = {
+	accessKeyId: "BEDROCK_S3_ACCESS_KEY_ID",
+	secretAccessKey: "BEDROCK_S3_SECRET_ACCESS_KEY",
+	sessionToken: "BEDROCK_S3_SESSION_TOKEN",
+} satisfies CredentialVariables;
+
+const AWS_VARIABLES = {
+	accessKeyId: "AWS_ACCESS_KEY_ID",
+	secretAccessKey: "AWS_SECRET_ACCESS_KEY",
+	sessionToken: "AWS_SESSION_TOKEN",
+} satisfies CredentialVariables;
+
 /**
  * Read static credentials out of the environment core injected, so a
  * **Deploy** signs with what the caller handed it rather than with
@@ -14,6 +33,12 @@ import type { AwsCredentialIdentity } from "@smithy/types";
  * whose secret went unset leaves behind: signing with it would refuse
  * every request rather than letting the chain resolve.
  *
+ * Each set of names is read as a whole credential. A half-written
+ * bedrock-prefixed pair leaves the standard one to sign on its own terms,
+ * and a bedrock-prefixed pair takes its session token from
+ * `BEDROCK_S3_SESSION_TOKEN` alone, so nothing here signs with one
+ * account's key and another's secret.
+ *
  * @param getEnvironment - Reads an environment variable.
  * @returns The credential the environment names, or `undefined` to leave
  * resolution to the standard chain.
@@ -21,16 +46,10 @@ import type { AwsCredentialIdentity } from "@smithy/types";
 export function credentialsFrom(
 	getEnvironment: StateBackendContext["getEnv"],
 ): AwsCredentialIdentity | undefined {
-	const accessKeyId = heldBy(getEnvironment, "AWS_ACCESS_KEY_ID");
-	const secretAccessKey = heldBy(getEnvironment, "AWS_SECRET_ACCESS_KEY");
-	if (accessKeyId === undefined || secretAccessKey === undefined) {
-		return undefined;
-	}
-
-	const sessionToken = heldBy(getEnvironment, "AWS_SESSION_TOKEN");
-	return sessionToken === undefined
-		? { accessKeyId, secretAccessKey }
-		: { accessKeyId, secretAccessKey, sessionToken };
+	return (
+		credentialNamedBy(getEnvironment, BEDROCK_VARIABLES) ??
+		credentialNamedBy(getEnvironment, AWS_VARIABLES)
+	);
 }
 
 /**
@@ -43,4 +62,29 @@ export function credentialsFrom(
 function heldBy(getEnvironment: StateBackendContext["getEnv"], name: string): string | undefined {
 	const value = getEnvironment(name);
 	return value === undefined || value.trim() === "" ? undefined : value;
+}
+
+/**
+ * Read the credential one set of names holds, taking its session token
+ * from the set the pair itself came out of.
+ *
+ * @param getEnvironment - Reads an environment variable.
+ * @param names - The variables to read the credential out of.
+ * @returns The credential, or `undefined` when the set is missing either
+ * half of one.
+ */
+function credentialNamedBy(
+	getEnvironment: StateBackendContext["getEnv"],
+	names: CredentialVariables,
+): AwsCredentialIdentity | undefined {
+	const accessKeyId = heldBy(getEnvironment, names.accessKeyId);
+	const secretAccessKey = heldBy(getEnvironment, names.secretAccessKey);
+	if (accessKeyId === undefined || secretAccessKey === undefined) {
+		return undefined;
+	}
+
+	const sessionToken = heldBy(getEnvironment, names.sessionToken);
+	return sessionToken === undefined
+		? { accessKeyId, secretAccessKey }
+		: { accessKeyId, secretAccessKey, sessionToken };
 }
