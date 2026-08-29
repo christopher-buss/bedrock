@@ -404,6 +404,6 @@ export interface BedrockPlugin<
  * A config authored in TypeScript can name either. Every other config
  * format can only write a specifier, which is why both stay.
  *
- * @since unreleased
+ * @since 0.2.3
  */
 export type PluginEntry = BedrockPlugin | string;

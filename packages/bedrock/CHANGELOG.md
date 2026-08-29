@@ -1,5 +1,16 @@
 # @bedrock-rbx/core
 
+## 0.2.3
+
+### Patch Changes
+
+- Accept a plugin object in the config's `plugins` list, alongside the module specifiers it already took. A config authored in TypeScript can import the plugin and list it directly, which types the `state` block from what that plugin declares: `import { bedrockS3Plugin } from "@bedrock-rbx/state-s3"` then `plugins: [bedrockS3Plugin]` completes `bucket`, `region`, and every other key the backend declares, and rejects a misspelled key, a missing required key, or a `backend` that no listed plugin claims at compile time rather than at deploy time. The union closes around the built-in backend and the ones the listed plugins declare; listing a plugin by specifier leaves the block open as before, which is what the YAML, JSON, and Luau formats get. `BedrockPlugin` now requires a `name`, which is how a diagnostic refers to a plugin the config listed no specifier for, and `loadConfig` resolves every entry to the name of the plugin that loaded.
+
+- Fix `bedrock state move` rejecting every invocation with `invalid value for flag '--to-<key>'`. The `--to-<key>` placeholder registered for the help output reached the parser as a real flag holding no value, and the coordinate scan refused it before reading `--to-bucket` or any other coordinate, so no move could run. A flag nothing supplied is now skipped.
+
+- Updated dependencies:
+  - @bedrock-rbx/ocale@0.2.3
+
 ## 0.2.2
 
 ### Patch Changes

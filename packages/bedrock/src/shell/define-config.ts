@@ -17,7 +17,7 @@ export interface ConfigContext {}
  * anywhere in the list reopens it: core cannot check keys it cannot see
  * declared.
  *
- * @since unreleased
+ * @since 0.2.3
  *
  * @template TPlugins - What the config lists under `plugins`.
  */
@@ -33,7 +33,7 @@ export type AuthoredStateConfig<TPlugins extends ReadonlyArray<PluginEntry>> =
  * `Config` itself describes what `loadConfig` returns, where `plugins` has
  * been resolved to the names of the plugins that loaded.
  *
- * @since unreleased
+ * @since 0.2.3
  *
  * @template TPlugins - What the config lists under `plugins`.
  */

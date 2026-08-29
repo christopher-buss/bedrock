@@ -18,6 +18,11 @@
   dir: packages/bedrock
   intents:
     - beige-beds-fix
+"@bedrock-rbx/core@0.2.3":
+  dir: packages/bedrock
+  intents:
+    - plugin-objects-in-config
+    - state-move-coordinate-flags
 "@bedrock-rbx/ocale@0.1.5":
   dir: packages/open-cloud
   intents:
@@ -45,3 +50,8 @@
   dir: packages/state-s3
   intents:
     - petite-worlds-check
+"@bedrock-rbx/state-s3@0.2.3":
+  dir: packages/state-s3
+  intents:
+    - plugin-objects-in-config
+    - s3-bedrock-prefixed-credentials
