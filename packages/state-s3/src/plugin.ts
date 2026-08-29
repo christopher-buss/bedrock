@@ -56,26 +56,38 @@ export const s3StateBackend: StateBackendDeclaration<S3StateConfig, "s3"> = {
 };
 
 /**
- * What a module listed under the config's `plugins` field
- * default-exports, which is how a user gets this **Backend** into a
- * **Deploy**.
+ * This plugin, which is how a user gets the **Backend** into a **Deploy**.
  *
- * @since 0.2.0
+ * A config authored in TypeScript lists it directly, which types its
+ * `state` block from what {@link s3StateSchema} declares. Every other
+ * config format lists the module specifier instead, which reaches the same
+ * plugin through this module's default export.
+ *
+ * @since unreleased
  *
  * @example
  *
  * ```ts
- * import s3Plugin from "@bedrock-rbx/state-s3";
+ * import { defineConfig } from "@bedrock-rbx/core/config";
+ * import { bedrockS3Plugin } from "@bedrock-rbx/state-s3";
  *
- * expect(s3Plugin.stateBackends).toHaveLength(1);
+ * const config = defineConfig({
+ *     environments: { production: {} },
+ *     plugins: [bedrockS3Plugin],
+ *     state: { backend: "s3", bucket: "my-bucket", region: "eu-west-2" },
+ * });
+ *
+ * expect(config.state?.backend).toBe("s3");
  * ```
  */
-const s3StatePlugin: BedrockPlugin = {
+export const bedrockS3Plugin: BedrockPlugin<
+	readonly [StateBackendDeclaration<S3StateConfig, "s3">]
+> = {
 	name: "@bedrock-rbx/state-s3",
 	stateBackends: [s3StateBackend],
 };
 
-export default s3StatePlugin;
+export default bedrockS3Plugin;
 
 /**
  * Read the bucket both of this **Backend**'s ports reach out of what core
