@@ -968,8 +968,6 @@ function unusedBuilder(): { err: { reason: string }; success: false } {
 	return { err: { reason: "unused in config-loading tests" }, success: false };
 }
 
-// A plugin the config file declares itself, which is what a TypeScript
-// config lists when it imports one rather than naming its specifier.
 const INLINE_S3_PLUGIN_DECLARATION = [
 	"import { type } from 'arktype';",
 	"const plugin = {",

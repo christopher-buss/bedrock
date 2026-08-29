@@ -173,13 +173,13 @@ stays. What the value form adds is the type: a **Backend** declaration carries
 its name as a literal and a plugin carries its declarations as a tuple, so
 `defineConfig` derives the `state` blocks the config may write from the plugins
 it lists. The keys a **Backend** declares complete in the editor, and a
-misspelled key, a missing required key, or a `backend` no listed plugin claims
-is a compile error rather than a validation failure at deploy time.
+misspelled key, a missing required key, or a `backend` that no listed plugin
+claims is a compile error rather than a validation failure at deploy time.
 
-The union closes. A config listing only plugin values may write the builtin
-**Backend** or one those plugins declare, and nothing else; a config listing no
-plugins at all may write only the builtin. A specifier anywhere in the list
-reopens it, because core cannot see through a string to what the module
+The union closes. A config listing only plugin values may write the built-in
+**Backend** or one that those plugins declare, and nothing else; a config
+listing no plugins at all may write only the builtin. A specifier anywhere in
+the list reopens it, because core cannot see through a string to what the module
 declares.
 
 Every plugin names itself. A value arrives with no specifier to point a user at,

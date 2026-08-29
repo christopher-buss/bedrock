@@ -12,7 +12,7 @@ export interface ConfigContext {}
 /**
  * Every `state` block a config listing `TPlugins` may write.
  *
- * The union closes around the builtin **Backend** and the ones the listed
+ * The union closes around the built-in **Backend** and the ones the listed
  * plugins declare, so a misspelled key is an error. A module specifier
  * anywhere in the list reopens it: core cannot check keys it cannot see
  * declared.
