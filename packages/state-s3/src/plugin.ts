@@ -82,7 +82,7 @@ export default s3StatePlugin;
  * directly, which types its `state` block from what {@link s3StateSchema}
  * declares.
  *
- * @since unreleased
+ * @since 0.2.3
  *
  * @example
  *
