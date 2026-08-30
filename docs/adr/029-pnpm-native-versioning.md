@@ -385,6 +385,12 @@ released package, so it enters a release plan only when an intent names it.
 `release.yaml` cuts `actions-v<x.y.z>` from that version and dispatches
 `release-actions.yaml` to bake the bundled dist onto the tag.
 
+The manifest carried `0.0.0` while the newest shipped tag was `actions-v0.1.1`,
+so joining the release plan needs a one-time seed of the manifest to `0.1.1`.
+Left at `0.0.0`, the first plan would cut a tag behind the one consumers already
+pin. That seed is the last hand-written version this package takes; every bump
+after it comes from `pnpm version -r`.
+
 Two Consequences above are narrowed by this:
 
 - **`ignore` must list the private packages** now reads: it must list the
