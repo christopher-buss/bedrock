@@ -293,9 +293,12 @@ jobs:
       # tag a consumer pins comes out of the same release plan as everything
       # else instead of being typed by hand afterwards.
       #
-      # Its own push, because the `all` ruleset caps a push at three refs and
-      # the loop above can already be at that ceiling. A no-op on every release
-      # no actions intent covered, which is most of them.
+      # Whether the bake still has to run is asked of the GitHub Release, not
+      # of the tag, for the reason the `tags` step above gives: a run whose tag
+      # push landed and whose bake then failed leaves a tag a consumer can pin
+      # with no dist behind it, and a tag-keyed test would skip it forever.
+      # Asking about the release makes the retry work and still leaves a
+      # release no actions intent covered with nothing to do.
       - id: actions-tag
         if: steps.changesets.outputs.pending == 'false'
         name: Tag the actions release
@@ -305,12 +308,16 @@ jobs:
           tag="actions-v$version"
           if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
             echo "Tag $tag already exists"
-            exit 0
+          else
+            git tag "$tag"
+            git push origin "refs/tags/$tag"
+            echo "Tagged $tag"
           fi
-          git tag "$tag"
-          git push origin "refs/tags/$tag"
-          echo "Tagged $tag"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists"
+          else
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          fi
 
       # A GITHUB_TOKEN tag push does not fire release-actions.yaml's
       # `on: push: tags` trigger — the same constraint the docs dispatch at the
