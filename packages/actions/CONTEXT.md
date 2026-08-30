@@ -5,6 +5,24 @@ regenerated codegen back to the repository. This context owns the CI/git
 vocabulary of that pipeline — distinct from Open Cloud (`@bedrock-rbx/ocale`)
 and the IaC engine (`@bedrock-rbx/core`).
 
+## Distribution
+
+The actions ship from this directory of the monorepo, consumed as
+`christopher-buss/bedrock/packages/actions/deploy@actions-v<x.y.z>`. The package
+is private, so it never reaches npm; its version exists to name that tag, and
+`release.yaml` cuts the tag from it (see the 2026-08-30 amendment to ADR-029).
+
+Staying in the monorepo has a standing cost, accepted deliberately. The runner
+materialises an action by extracting the whole repository tarball and keying it
+on `{owner}/{repo}/{ref}` — the subpath only selects which `action.yml` runs —
+so every consumer downloads the entire repo (~1.8 MiB gzipped) to use ~19 KiB of
+source, and a break anywhere in the tree can break an action download, as
+dangling symlinks did in #602. Nothing inside the monorepo can narrow that:
+GitHub's immutable-action packages, the one mechanism that would, require an
+`action.yml` at the repository root, which also rules out a Marketplace listing.
+A dedicated repository is what trades those away, and the action source living
+next to the code it deploys is what was chosen instead.
+
 ## Language
 
 **Commit-back**: Persisting the codegen files a deploy regenerated back onto the

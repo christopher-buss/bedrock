@@ -88,12 +88,14 @@ The bar is the same whether a human or an agent writes the diff:
   [ADR-003](./docs/adr/003-testing-strategy.md).
 - **100% coverage** across statements, branches, functions, and lines on
   `src/**`. CI enforces this.
-- **Commit style.** `type(scope): kebab-case subject`. Scope-enum: `core`,
-  `deps`, `e2e`, `global`, `ocale`, `testing`, `tsconfig`, `vite`, `website`.
-  `ci`, `chore`, `docs`, `build`, `refactor` are types, not scopes.
-- **Change intent.** A change to a published package (`@bedrock-rbx/core`,
-  `@bedrock-rbx/ocale`) needs a `pnpm change` intent, or CI fails. See
-  [Releases](#releases) below.
+- **Commit style.** `type(scope): kebab-case subject`. Scope-enum: `actions`,
+  `core`, `deps`, `e2e`, `example-ci-codegen`, `example-minimal`, `global`,
+  `ocale`, `state-s3`, `testing`, `tsconfig`, `vite`, `website`. `ci`, `chore`,
+  `docs`, `build`, `refactor` are types, not scopes. Print the list commitlint
+  is enforcing with `echo "feat(bogus): subject" | pnpm commitlint`.
+- **Change intent.** A change to a versioned package (`@bedrock-rbx/core`,
+  `@bedrock-rbx/ocale`, `@bedrock-rbx/state-s3`, `@bedrock-rbx/actions`) needs a
+  `pnpm change` intent, or CI fails. See [Releases](#releases) below.
 - **Public API examples.** Exported symbols carry JSDoc `@example` blocks
   ([ADR-005](./docs/adr/005-jsdoc-example-testing.md)).
 
