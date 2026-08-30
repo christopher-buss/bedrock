@@ -1,8 +1,9 @@
-# Blocking change-intent gate (ADR-029). Fails a PR that changes a published
-# package (@bedrock-rbx/core, @bedrock-rbx/ocale) without recording an intent
-# under .changeset/. PRs that touch nothing publishable (docs, CI, private
-# packages) pass without one. For a deliberately non-releasing change to a
-# published package, record an explicit decline:
+# Blocking change-intent gate (ADR-029). Fails a PR that changes a versioned
+# package without recording an intent under .changeset/. The covered set is
+# derived below: every public package, plus @bedrock-rbx/actions, which is
+# private but versioned. PRs that touch nothing versioned (docs, CI, the
+# remaining private packages) pass without one. For a deliberately
+# non-releasing change to a covered package, record an explicit decline:
 # `pnpm change --bump none @bedrock-rbx/core`.
 #
 # This is hand-rolled because pnpm has no equivalent of
@@ -63,8 +64,19 @@ jobs:
               | grep -E '^\.changeset/[^/]+\.md$' \
               | grep -vxF '.changeset/README.md' || true
           )
+          # Every package that participates in versioning: the public ones,
+          # which `pnpm publish -r` ships, plus @bedrock-rbx/actions, which is
+          # private but versioned (see the `versioning.ignore` comment in
+          # pnpm-workspace.yaml). Deriving the public half from the manifests
+          # gates a newly published package the day it lands instead of the day
+          # someone remembers to name it here — state-s3 shipped ungated
+          # because this list was written when there were two packages.
+          mapfile -t gated < <(
+            pnpm list -r --depth -1 --json | jq -r '.[] | select(.private | not) | .name'
+          )
+          gated+=("@bedrock-rbx/actions")
           missing=""
-          for pkg in "@bedrock-rbx/core" "@bedrock-rbx/ocale"; do
+          for pkg in "${gated[@]}"; do
             echo "$changed" | grep -qxF "$pkg" || continue
             covered=false
             for intent in "${intents[@]}"; do
