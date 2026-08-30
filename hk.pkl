@@ -19,6 +19,10 @@ local sharedGuards = new Mapping<String, Step> {
         shell = bash
         exclude = List("pnpm-lock.yaml", "packages/*/vendor/**")
     }
+    ["check-symlinks"] = new Step {
+        check = "bun scripts/check-symlinks.ts"
+        shell = bash
+    }
 }
 
 // Base checker steps — used directly by `hk check`, conditioned for hooks
