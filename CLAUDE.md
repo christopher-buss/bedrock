@@ -245,22 +245,27 @@ PR titles are linted by commitlint (`.github/workflows/lint-pr-title.yaml`) —
 ### Releases
 
 Versioning + publishing run on pnpm's native versioning (ADR-029), configured
-under the `versioning` key in `pnpm-workspace.yaml`. `@bedrock-rbx/core` and
-`@bedrock-rbx/ocale` are a **fixed** group (shared version, release together).
-Any PR changing a published package MUST record a change intent (`pnpm change`,
-or `pnpm change --bump none <pkg>` for a deliberately non-releasing change) — a
-blocking CI check fails the PR otherwise. PRs touching only docs/CI/private
-packages need none. Releases ship by merging the auto-generated
-`ci: version packages` PR; never hand-edit package versions.
+under the `versioning` key in `pnpm-workspace.yaml`. `@bedrock-rbx/core`,
+`@bedrock-rbx/ocale` and `@bedrock-rbx/state-s3` are a **fixed** group (shared
+version, release together). `@bedrock-rbx/actions` is versioned on its own line:
+private, so never published to npm, but carrying a version, a changelog and the
+`actions-v<x.y.z>` tag consumers pin. Any PR changing a versioned package MUST
+record a change intent (`pnpm change`, or `pnpm change --bump none <pkg>` for a
+deliberately non-releasing change) — a blocking CI check fails the PR otherwise.
+PRs touching only docs/CI/the remaining private packages need none. Releases
+ship by merging the auto-generated `ci: version packages` PR; never hand-edit
+package versions.
 
 Publishing cuts a `<pkg>@<x.y.z>` tag per package plus one `v<x.y.z>` tag for
-the release, then attempts the GitHub Release on that `v` tag, generating the
-notes with `changelogithub` from the `feat`/`fix`/`perf` commits in the range.
-That last step never fails the release; a run that publishes and tags but cannot
-generate the notes leaves the version released on npm and without a GitHub
-Release, and the next run makes it. Commit subjects are therefore
-consumer-facing copy twice over: in the PR-title changelog entry and in the
-release notes.
+the release, and `actions-v<x.y.z>` when the action's version moved (which
+dispatches `release-actions.yaml` to bake the bundled `dist/` onto that tag and
+cut its own GitHub Release). It then attempts the GitHub Release on the `v` tag,
+generating the notes with `changelogithub` from the `feat`/`fix`/`perf` commits
+in the range. That last step never fails the release; a run that publishes and
+tags but cannot generate the notes leaves the version released on npm and
+without a GitHub Release, and the next run makes it. Commit subjects are
+therefore consumer-facing copy twice over: in the PR-title changelog entry and
+in the release notes.
 
 Intent files live in `.changeset/` in the changesets format, but the Changesets
 CLI is gone: `pnpm change` records, `pnpm change status` previews,

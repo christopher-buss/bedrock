@@ -127,11 +127,17 @@ lint, typecheck, test, and build.
 
 Versioning and publishing run on
 [pnpm's built-in release management](https://pnpm.io/versioning) (see
-[ADR-029](./docs/adr/029-pnpm-native-versioning.md)). The two published packages
-— `@bedrock-rbx/core` and `@bedrock-rbx/ocale` — are a _fixed_ group: they share
-one version number and release together.
+[ADR-029](./docs/adr/029-pnpm-native-versioning.md)). The three published
+packages — `@bedrock-rbx/core`, `@bedrock-rbx/ocale` and `@bedrock-rbx/state-s3`
+— are a _fixed_ group: they share one version number and release together.
 
-**Every PR that changes a published package must record a change intent.** A CI
+`@bedrock-rbx/actions` is versioned too, on a line of its own. It is private, so
+it never reaches npm, but it carries a version, a changelog and an
+`actions-v<x.y.z>` tag, because that tag is what consumers pin their workflows
+to. It is not in the fixed group and depends on no published package, so it
+moves only when an intent names it.
+
+**Every PR that changes a versioned package must record a change intent.** A CI
 check fails the PR otherwise. Add one with:
 
 ```bash
@@ -153,8 +159,8 @@ pnpm change --bump none @bedrock-rbx/core
 Preview what the pending intents will produce at any time with
 `pnpm change status`.
 
-PRs that touch nothing publishable (docs, CI, private packages) do not need an
-intent; the check passes without one.
+PRs that touch nothing versioned (docs, CI, the remaining private packages) do
+not need an intent; the check passes without one.
 
 ### How a release happens
 
@@ -165,6 +171,13 @@ intent; the check passes without one.
 3. Merging that PR publishes the packages to npm, pushes their git tags, and
    triggers the production docs deploy. Releasing is therefore a deliberate act:
    merge the Version PR when you want a release to go out.
+
+If that release moved `@bedrock-rbx/actions`, the same workflow also cuts
+`actions-v<x.y.z>` and dispatches `Release actions`, which bundles the action,
+bakes the `dist/` onto the tag, force-moves the `actions-v<major>` alias, and
+cuts a GitHub Release so the tag consumers pin is visible on the Releases page.
+Nothing here is hand-tagged: the version comes from the intent, and the tag
+comes from the version.
 
 ## Code of conduct
 
