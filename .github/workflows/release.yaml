@@ -15,17 +15,19 @@
 #   Publish mode (no intents — i.e. a Version PR just merged): build and
 #   `pnpm publish -r` to npm with provenance, tag each newly published
 #   version alongside one `v<x.y.z>` tag for the release as a whole, push the
-#   tags, cut the GitHub Release on that `v` tag, and dispatch
-#   website-release.yaml for the new core tag (a GITHUB_TOKEN tag push does
-#   not fire the `on: push: tags` trigger on its own).
+#   tags, cut `actions-v<x.y.z>` if the action's version moved, cut the GitHub
+#   Release on that `v` tag, and dispatch release-actions.yaml and
+#   website-release.yaml for the tags they build from (a GITHUB_TOKEN tag push
+#   does not fire the `on: push: tags` trigger on its own).
 #
 # `pnpm version -r` never commits or tags — a recursive run can bump packages
 # to different versions, so there is no single version to tag. Both are done
 # explicitly below.
 #
 # Three tag schemes coexist and never overlap: `<pkg>@<x.y.z>` names an npm
-# version, `v<x.y.z>` names a release, and `actions-v*` (release-actions.yaml)
-# names a baked composite action.
+# version, `v<x.y.z>` names a release, and `actions-v<x.y.z>` names a baked
+# composite action. All three are cut here; release-actions.yaml then bakes the
+# bundled dist onto the `actions-v` one.
 #
 # Auth is via OIDC trusted publishing (no npm token) — `id-token: write` lets
 # pnpm exchange a short-lived token at publish time.
@@ -284,6 +286,42 @@ jobs:
           done
         env:
           CREATED_TAGS: ${{ steps.tags.outputs.created_tags }}
+
+      # @bedrock-rbx/actions is private, so it has no npm tag among the ones
+      # derived above, but it is versioned: `pnpm version -r` bumps it whenever
+      # an intent names it. Cut `actions-v<x.y.z>` from that version, so the
+      # tag a consumer pins comes out of the same release plan as everything
+      # else instead of being typed by hand afterwards.
+      #
+      # Its own push, because the `all` ruleset caps a push at three refs and
+      # the loop above can already be at that ceiling. A no-op on every release
+      # no actions intent covered, which is most of them.
+      - id: actions-tag
+        if: steps.changesets.outputs.pending == 'false'
+        name: Tag the actions release
+        run: |
+          set -euo pipefail
+          version=$(jq -r .version packages/actions/package.json)
+          tag="actions-v$version"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "Tag $tag already exists"
+            exit 0
+          fi
+          git tag "$tag"
+          git push origin "refs/tags/$tag"
+          echo "Tagged $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      # A GITHUB_TOKEN tag push does not fire release-actions.yaml's
+      # `on: push: tags` trigger — the same constraint the docs dispatch at the
+      # end of this job works around. Dispatch it explicitly against the new
+      # tag; `github.ref_name` resolves to that tag under either trigger, so the
+      # bake reads the same value whichever way it was reached.
+      - if: steps.changesets.outputs.pending == 'false' && steps.actions-tag.outputs.tag != ''
+        name: Trigger the actions bake for the new tag
+        run: gh workflow run release-actions.yaml --ref "$ACTIONS_TAG"
+        env:
+          ACTIONS_TAG: ${{ steps.actions-tag.outputs.tag }}
 
       # Notes come from the conventional commits in the range, not from the
       # committed CHANGELOG.md: the changelog carries the intent prose and
