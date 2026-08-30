@@ -156,8 +156,15 @@ versioning:
   # All of ours have one, so the private packages are listed explicitly —
   # otherwise apps/e2e and apps/website would be versioned and changelogged
   # for depending on a released package.
+  #
+  # @bedrock-rbx/actions is the exception: private, so `pnpm publish -r` skips
+  # it, but absent from this list so `pnpm change` can record intents against
+  # it and `pnpm version -r` bumps it and writes its CHANGELOG.md. It is not in
+  # the fixed group and depends on no released package, so it enters a release
+  # plan only when it carries an intent of its own. That keeps the action's
+  # version line independent of core's cadence; the version it lands on is what
+  # release.yaml cuts the `actions-v<x.y.z>` tag from.
   ignore:
-    - "@bedrock-rbx/actions"
     - "@bedrock-rbx/e2e"
     - "@bedrock-rbx/testing"
     - "@bedrock-rbx/typescript-config"

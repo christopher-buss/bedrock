@@ -370,6 +370,43 @@ Third-party plugins have no access to this mechanism and express compatibility
 as a peer range on `@bedrock-rbx/core` instead. The two paths differ, and a
 third-party author does not inherit the first-party guarantee.
 
+## Amendment: 2026-08-30, the action is versioned but not published
+
+`@bedrock-rbx/actions` is consumed as a git ref, not from a registry: a workflow
+pins `christopher-buss/bedrock/packages/actions/deploy@actions-v<x.y.z>`. That
+tag is a release, and it was cut by hand, with the version typed rather than
+derived from anything.
+
+The action leaves `versioning.ignore` while staying `"private": true`. pnpm
+filters on `private` before any tarball work, so it never reaches npm, but it
+now carries a version, a `CHANGELOG.md`, and a ledger entry, and `pnpm change`
+accepts intents against it. It is not in the `fixed` group and depends on no
+released package, so it enters a release plan only when an intent names it.
+`release.yaml` cuts `actions-v<x.y.z>` from that version and dispatches
+`release-actions.yaml` to bake the bundled dist onto the tag.
+
+The manifest carried `0.0.0` while the newest shipped tag was `actions-v0.1.1`,
+so joining the release plan needs a one-time seed of the manifest to `0.1.1`.
+Left at `0.0.0`, the first plan would cut a tag behind the one consumers already
+pin. That seed is the last hand-written version this package takes; every bump
+after it comes from `pnpm version -r`.
+
+Two Consequences above are narrowed by this:
+
+- **`ignore` must list the private packages** now reads: it must list the
+  private packages that should not be versioned. Membership tracks whether a
+  package has a version line of its own, which is not the same question as
+  whether it publishes.
+- **The blocking gate hardcodes the two published package names** no longer
+  holds. It derives the public half from the workspace manifests, so a newly
+  published package is gated the day it lands; `@bedrock-rbx/state-s3` shipped
+  before that change and was ungated in the interval. One name is still written
+  out, `@bedrock-rbx/actions`, because "versioned" and "public" have stopped
+  being the same set and only the public half is derivable from the manifests.
+
+The cost is that private no longer implies unversioned, so a private package's
+`ignore` membership has to be a decision rather than a default.
+
 ## References
 
 - [pnpm release management](https://pnpm.io/versioning)

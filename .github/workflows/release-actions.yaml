@@ -6,10 +6,12 @@
 # releases are pinned by exact tag; the `actions-v<major>` alias only becomes
 # a stable contract at 1.0.
 #
-# Trigger: push an `actions-v<major>.<minor>.<patch>` tag (cut from a tested
-# main commit). The workflow bundles the action, commits the dist into a
-# detached commit on top of the tagged commit, and force-moves the pushed tag
-# plus its `actions-v<major>` alias onto it.
+# Trigger: an `actions-v<major>.<minor>.<patch>` tag. release.yaml cuts that
+# tag from the version `pnpm version -r` gave @bedrock-rbx/actions and
+# dispatches this workflow against it; pushing such a tag by hand reaches the
+# same place. The workflow bundles the action, commits the dist into a detached
+# commit on top of the tagged commit, force-moves the tag plus its
+# `actions-v<major>` alias onto it, and cuts the GitHub Release.
 #
 # Baking on a TAG (not a branch) is deliberate: the repo's `all` ruleset
 # enforces required_signatures on every branch, so an unsigned dist commit
@@ -22,6 +24,12 @@ on:
   push:
     tags:
       - "actions-v*"
+
+  # release.yaml cuts the tag with GITHUB_TOKEN, which does not fire the `push`
+  # trigger above, so it dispatches this workflow against the new tag instead.
+  # `github.ref_name` is that tag under either trigger. Dispatching against a
+  # branch fails the tag-shape guard below, which is the intended outcome.
+  workflow_dispatch:
 
 # No workflow-level token: the write scope is granted only to the one job that
 # force-moves the tag refs (see the job-level `permissions` below).
@@ -76,5 +84,45 @@ jobs:
           git tag --force "${major}"
           git push --force origin "refs/tags/${TAG}" "refs/tags/${major}"
         env:
+          TAG: ${{ github.ref_name }}
+        shell: bash
+
+      # `actions-v*` is what a consumer pins, but the Releases page lists only
+      # the npm `v<x.y.z>` line, so the tag they depend on is visible nowhere
+      # but the Tags page. Cut a release on the baked tag, after the force-move
+      # above, so it names the commit that actually carries the dist.
+      #
+      # --latest=false holds the repo's "latest release" pointer on the npm
+      # line. Left to itself the pointer would alternate between the two
+      # schemes depending on which shipped last.
+      #
+      # Notes are this version's CHANGELOG.md section, which is the intent
+      # prose `pnpm version -r` wrote. A release with no section (a first
+      # release, or a bake of a hand-pushed tag) falls back to generated notes
+      # rather than shipping the whole changelog.
+      - name: Publish the GitHub Release
+        run: |
+          set -euo pipefail
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists"
+            exit 0
+          fi
+          notes=""
+          if [ -f packages/actions/CHANGELOG.md ]; then
+            notes=$(
+              awk -v heading="## ${TAG#actions-v}" '
+                $0 == heading { found = 1; next }
+                /^## / { found = 0 }
+                found
+              ' packages/actions/CHANGELOG.md
+            )
+          fi
+          if [ -n "$notes" ]; then
+            gh release create "${TAG}" --latest=false --title "${TAG}" --notes "$notes"
+          else
+            gh release create "${TAG}" --latest=false --title "${TAG}" --generate-notes
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         shell: bash
