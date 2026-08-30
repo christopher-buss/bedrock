@@ -1,6 +1,6 @@
 {
 	"name": "@bedrock-rbx/actions",
-	"version": "0.0.0",
+	"version": "0.1.1",
 	"private": true,
 	"description": "GitHub Actions for deploying Roblox projects with Bedrock",
 	"keywords": [
