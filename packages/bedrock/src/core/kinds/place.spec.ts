@@ -147,9 +147,8 @@ describe("placeKind", () => {
 		});
 
 		it("should leave fileHash undefined and read no file for a config-only place", async () => {
-			expect.assertions(3);
+			expect.assertions(2);
 
-			let reads = 0;
 			const result = await placeKind.normalize(
 				{
 					key: asResourceKey("start-place"),
@@ -162,8 +161,7 @@ describe("placeKind", () => {
 				},
 				{
 					readFile: async () => {
-						reads += 1;
-						return new Uint8Array();
+						throw new Error("readFile must not run for a config-only place");
 					},
 				},
 			);
@@ -172,7 +170,6 @@ describe("placeKind", () => {
 
 			expect(result.data.fileHash).toBeUndefined();
 			expect(result.data.filePath).toBeUndefined();
-			expect(reads).toBe(0);
 		});
 
 		it("should surface a fileReadFailed error when readFile rejects", async () => {

@@ -223,9 +223,6 @@ async function publishPlaceAsync(
 	dependencies: PlaceDriverDeps,
 	{ artifact, current, desired }: PublishInputs,
 ): Promise<Result<ResourceCurrentState<"place">, OpenCloudError>> {
-	// A config-only place declares no file, so there is nothing to publish:
-	// its last-known version (if any) carries forward untouched and the
-	// metadata PATCH below is the whole apply.
 	const outputs = await resolveOutputsAsync(dependencies, { artifact, current, desired });
 	if (!outputs.success) {
 		return outputs;
