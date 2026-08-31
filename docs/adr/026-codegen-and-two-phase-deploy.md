@@ -450,3 +450,37 @@ green `publish`.
   commits); the split makes "commit the _tested_ source" natural by landing it
   after `provision`.
 - Two-phase is available to any config format once a `.bedrock/build.ts` exists.
+
+## Amendment -- 2026-08-31 (stages route on "needs an artifact", not on kind)
+
+ADR-021's 2026-08-31 amendment makes `places.<key>.filePath` optional: a place
+without one is config-only, reconciled by metadata alone. That breaks the
+kind-shaped stage filter this ADR assumed, where `provision` took every
+non-place op and `publish` took every place op.
+
+A config-only place has no artifact, so nothing builds it and nothing waits on
+`build`. It reconciles in the **asset stage**, alongside passes, products, and
+the universe. Both stages now route through one predicate — "is this resource
+produced by the build step?" — which only a place declaring a `filePath`
+satisfies:
+
+- `provision` applies every op the build step does not produce, config-only
+  places included, and still reads no place artifact.
+- The `pendingRebuild` marker is set for **buildable** places only. A
+  config-only place is already applied at the checkpoint, so it owes no publish
+  and never carries a marker.
+- `publish` reconciles buildable places only, unchanged.
+- The `missingBuildStep` error fires only when a codegen project declares a
+  buildable place. A codegen project whose places are all config-only deploys
+  with no `build.ts`, because there is genuinely nothing to build.
+
+The predicate lives in one core function (`needsArtifact`) that both stages
+import, so provision and publish cannot disagree about which resources each
+stage owns. `buildDesired`'s stage filter widens from a `ResourceKind` predicate
+to a predicate over the flattened input, since the file is per entry and the
+kind alone no longer decides the stage. That is a breaking change to a public
+signature; pre-1.0 it ships in a minor.
+
+Nothing else in the lifecycle changes: the checkpoint, the marker semantics for
+buildable places, the fused `provision → build → publish` composition, and the
+self-healing failure path are all as this ADR's 2026-07-01 amendment describes.

@@ -73,15 +73,18 @@ export interface GamePassDesiredState {
 }
 
 /**
- * Desired state for a place, the `.rbxl` or `.rbxlx` file a universe serves
- * as one of its levels.
+ * Desired state for a place: one of the levels a universe serves, backed by
+ * an `.rbxl` or `.rbxlx` file, or by config alone.
  *
  * `placeId` sits on desired state (rather than on outputs like
  * {@link GamePassOutputs.assetId}) because Roblox Open Cloud cannot mint
  * places; the user supplies the existing place ID per entry. `filePath` and
  * `fileHash` describe the local file the driver publishes; `buildDesired`
  * computes `fileHash` from the file bytes so `diff` can detect drift without
- * re-uploading unchanged content. `displayName`, `description`, and
+ * re-uploading unchanged content. Both are `undefined` for a config-only
+ * place, which declares no file and publishes no version.
+ *
+ * `displayName`, `description`, and
  * `serverSize` are optional metadata fields routed through
  * `PlacesClient.update`; `undefined` leaves the server value untouched.
  *
@@ -115,6 +118,30 @@ export interface GamePassDesiredState {
  * expect(place.description).toBeUndefined();
  * expect(place.serverSize).toBe(50);
  * ```
+ *
+ * @example
+ *
+ * A config-only place carries no file fields at all, so the driver patches
+ * its metadata and publishes nothing.
+ *
+ * ```ts
+ * import { asResourceKey, asRobloxAssetId, type PlaceDesiredState } from "@bedrock-rbx/core";
+ *
+ * const configOnly: PlaceDesiredState = {
+ *     description: undefined,
+ *     displayName: "Start Place",
+ *     fileHash: undefined,
+ *     filePath: undefined,
+ *     key: asResourceKey("start-place"),
+ *     kind: "place",
+ *     placeId: asRobloxAssetId("4711"),
+ *     serverSize: 50,
+ * };
+ *
+ * expect(configOnly.filePath).toBeUndefined();
+ * expect(configOnly.fileHash).toBeUndefined();
+ * expect(configOnly.serverSize).toBe(50);
+ * ```
  */
 export interface PlaceDesiredState {
 	/**
@@ -133,14 +160,15 @@ export interface PlaceDesiredState {
 	readonly displayName: string | undefined;
 	/**
 	 * SHA-256 hex digest of the place file, computed by `buildDesired` in
-	 * shell.
+	 * shell. `undefined` for a config-only place.
 	 */
-	readonly fileHash: Sha256Hex;
+	readonly fileHash: Sha256Hex | undefined;
 	/**
 	 * Path to the `.rbxl` or `.rbxlx` file on disk, relative to the config
-	 * file.
+	 * file. `undefined` for a config-only place: one bedrock reconciles by
+	 * metadata alone, publishing no version.
 	 */
-	readonly filePath: string;
+	readonly filePath: string | undefined;
 	/** Discriminator tag for the `ResourceDesiredState` union. */
 	readonly kind: "place";
 	/**
@@ -172,8 +200,11 @@ export const PLACE_MANAGED_METADATA_FIELDS = ["displayName", "description", "ser
  * @since 0.1.0
  */
 export interface PlaceOutputs {
-	/** Auto-incrementing version number assigned by Roblox on every publish. */
-	readonly versionNumber: number;
+	/**
+	 * Auto-incrementing version number assigned by Roblox on every publish.
+	 * `undefined` for a config-only place bedrock has never published.
+	 */
+	readonly versionNumber: number | undefined;
 }
 
 /**

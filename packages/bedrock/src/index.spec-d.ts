@@ -306,7 +306,7 @@ describe("PlaceEntry", () => {
 		expectTypeOf<keyof PlaceEntry>().toEqualTypeOf<
 			"description" | "displayName" | "filePath" | "redacted" | "serverSize"
 		>();
-		expectTypeOf<PlaceEntry["filePath"]>().toEqualTypeOf<string>();
+		expectTypeOf<PlaceEntry["filePath"]>().toEqualTypeOf<string | undefined>();
 		expectTypeOf<PlaceEntry["serverSize"]>().toEqualTypeOf<number | undefined>();
 	});
 });
@@ -333,8 +333,8 @@ describe("PlaceDesiredState", () => {
 	it("should carry the file-backed fields under kind place", () => {
 		expectTypeOf<PlaceDesiredState["kind"]>().toEqualTypeOf<"place">();
 		expectTypeOf<PlaceDesiredState["placeId"]>().toEqualTypeOf<RobloxAssetId>();
-		expectTypeOf<PlaceDesiredState["fileHash"]>().toEqualTypeOf<Sha256Hex>();
-		expectTypeOf<PlaceDesiredState["filePath"]>().toEqualTypeOf<string>();
+		expectTypeOf<PlaceDesiredState["fileHash"]>().toEqualTypeOf<Sha256Hex | undefined>();
+		expectTypeOf<PlaceDesiredState["filePath"]>().toEqualTypeOf<string | undefined>();
 		expectTypeOf<PlaceDesiredState["key"]>().toEqualTypeOf<ResourceKey>();
 	});
 });
@@ -342,7 +342,7 @@ describe("PlaceDesiredState", () => {
 describe("PlaceOutputs", () => {
 	it("should carry only a readonly versionNumber", () => {
 		expectTypeOf<keyof PlaceOutputs>().toEqualTypeOf<"versionNumber">();
-		expectTypeOf<PlaceOutputs["versionNumber"]>().toEqualTypeOf<number>();
+		expectTypeOf<PlaceOutputs["versionNumber"]>().toEqualTypeOf<number | undefined>();
 	});
 });
 

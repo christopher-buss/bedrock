@@ -222,7 +222,7 @@ describe(buildDesired, () => {
 		expect(result.data.map((entry) => entry.kind)).toStrictEqual(["gamePass", "place"]);
 	});
 
-	it("should skip inputs the includeKind predicate rejects and read no file for them", async () => {
+	it("should skip inputs the include predicate rejects and read no file for them", async () => {
 		expect.assertions(2);
 
 		const readFile = vi
@@ -230,7 +230,7 @@ describe(buildDesired, () => {
 			.mockResolvedValue(new Uint8Array([1, 2, 3]));
 
 		const result = await buildDesired({
-			includeKind: (kind) => kind !== "place",
+			include: (input) => input.kind !== "place",
 			readFile,
 			resources: [
 				gamePassInput(),

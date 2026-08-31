@@ -66,6 +66,32 @@ describe("placeKind", () => {
 			]);
 		});
 
+		it("should emit an undefined filePath for a config-only entry", () => {
+			expect.assertions(1);
+
+			expect(
+				placeKind.flatten({
+					environments: { production: {} },
+					places: {
+						"start-place": {
+							displayName: "Start Place",
+							placeId: "4711",
+						},
+					},
+				}),
+			).toStrictEqual([
+				{
+					key: asResourceKey("start-place"),
+					description: undefined,
+					displayName: "Start Place",
+					filePath: undefined,
+					kind: "place",
+					placeId: asRobloxAssetId("4711"),
+					serverSize: undefined,
+				},
+			]);
+		});
+
 		it("should emit an empty list when the config has no places", () => {
 			expect.assertions(1);
 
@@ -118,6 +144,32 @@ describe("placeKind", () => {
 			expect(result.data.displayName).toBe("Start Place");
 			expect(result.data.description).toBe("Lobby description.");
 			expect(result.data.serverSize).toBe(50);
+		});
+
+		it("should leave fileHash undefined and read no file for a config-only place", async () => {
+			expect.assertions(2);
+
+			const result = await placeKind.normalize(
+				{
+					key: asResourceKey("start-place"),
+					description: undefined,
+					displayName: "Start Place",
+					filePath: undefined,
+					kind: "place",
+					placeId: asRobloxAssetId("4711"),
+					serverSize: 50,
+				},
+				{
+					readFile: async () => {
+						throw new Error("readFile must not run for a config-only place");
+					},
+				},
+			);
+
+			assert(result.success);
+
+			expect(result.data.fileHash).toBeUndefined();
+			expect(result.data.filePath).toBeUndefined();
 		});
 
 		it("should surface a fileReadFailed error when readFile rejects", async () => {
@@ -226,6 +278,27 @@ describe("placeKind", () => {
 				).toBeTrue();
 			},
 		);
+
+		it("should return true when a config-only place matches its recorded state", () => {
+			expect.assertions(1);
+
+			const configOnly = { fileHash: undefined, filePath: undefined };
+
+			expect(
+				placeKind.fieldsEqual(placeDesired(configOnly), placeCurrent(configOnly)),
+			).toBeTrue();
+		});
+
+		it("should return false when a place drops the filePath it was published with", () => {
+			expect.assertions(1);
+
+			expect(
+				placeKind.fieldsEqual(
+					placeDesired({ fileHash: undefined, filePath: undefined }),
+					placeCurrent(),
+				),
+			).toBeFalse();
+		});
 	});
 
 	describe("changedFieldsBetween", () => {

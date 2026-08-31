@@ -307,6 +307,10 @@ export interface DeveloperProductEntry {
  * on each per-environment overlay so the same `.rbxl` file can publish to
  * different places across staging, production, and so on.
  *
+ * Every field is optional: an entry that omits `filePath` declares a
+ * config-only place whose metadata bedrock manages without publishing any
+ * file.
+ *
  * @since 0.1.0
  */
 export interface PlaceEntry {
@@ -317,8 +321,13 @@ export interface PlaceEntry {
 	/**
 	 * Path to the `.rbxl` or `.rbxlx` file; handed to `readFile` verbatim by
 	 * `buildDesired`.
+	 *
+	 * Omit it to declare a **config-only** place: bedrock reconciles the
+	 * metadata fields against the existing Roblox place and never reads or
+	 * publishes a file. An environment overlay may supply a path the root
+	 * entry omits, but cannot clear one the root entry declares.
 	 */
-	filePath: string;
+	filePath?: string | undefined;
 	/**
 	 * Set to `true` to deploy this place with bedrock-supplied placeholder
 	 * content (empty description) in place of the real values declared
@@ -339,9 +348,10 @@ export interface PlaceEntry {
 /**
  * Body of a places entry after `selectEnvironment` has merged the
  * matching per-environment overlay onto the root entry. `filePath` flows
- * from the root (or an overlay override), `placeId` is supplied by the
- * per-environment overlay, and the optional metadata fields fall through
- * from the root unless overridden per-environment.
+ * from the root (or an overlay override) and stays `undefined` for a
+ * config-only place, `placeId` is supplied by the per-environment overlay,
+ * and the optional metadata fields fall through from the root unless
+ * overridden per-environment.
  *
  * `placeId` is user-supplied because Open Cloud cannot mint places; the
  * place must already exist in Roblox before Bedrock can publish versions
@@ -356,9 +366,10 @@ export interface ResolvedPlaceEntry {
 	displayName?: string | undefined;
 	/**
 	 * Path to the `.rbxl` or `.rbxlx` file; handed to `readFile` verbatim by
-	 * `buildDesired`.
+	 * `buildDesired`. `undefined` for a config-only place; see
+	 * {@link PlaceEntry.filePath}.
 	 */
-	filePath: string;
+	filePath?: string | undefined;
 	/** Existing Roblox place ID. */
 	placeId: string;
 	/**
@@ -881,9 +892,10 @@ export interface ResolvedUniverseEntry extends Pick<
 /**
  * Project config after `selectEnvironment` has merged a single
  * environment's overlays onto the root. The shape mirrors `Config`
- * except `places` carries `ResolvedPlaceEntry` (both `filePath` and
- * `placeId`), since the resolver fails before this point if an entry is
- * missing its environment-supplied `placeId`. Downstream consumers
+ * except `places` carries `ResolvedPlaceEntry` (`placeId` present, with
+ * `filePath` present only for a file-backed place), since the resolver
+ * fails before this point if an entry is missing its
+ * environment-supplied `placeId`. Downstream consumers
  * (`flattenConfig`, `buildDefaultRegistry`, the deploy pipeline) accept
  * this shape rather than `Config` so the post-merge invariant is visible
  * in the type system.
@@ -920,8 +932,8 @@ export interface ResolvedConfig extends Pick<ConfigBase, Exclude<keyof ConfigBas
 	 */
 	environments: Record<string, EnvironmentEntry>;
 	/**
-	 * Keyed-map collection of resolved place entries; both `filePath` and
-	 * `placeId` are present.
+	 * Keyed-map collection of resolved place entries; `placeId` is present
+	 * on every entry, `filePath` only on the file-backed ones.
 	 */
 	places?: Record<string, ResolvedPlaceEntry>;
 	/**
@@ -1156,7 +1168,7 @@ const ROBLOX_ID_DIGITS = "string.digits";
 const placeEntry = type({
 	"description?": OPTIONAL_STRING,
 	"displayName?": OPTIONAL_STRING,
-	"filePath": "string",
+	"filePath?": OPTIONAL_STRING,
 	[REDACTED_KEY]: placeRedacted,
 	"serverSize?": OPTIONAL_POSITIVE_INTEGER,
 }).onUndeclaredKey("reject");

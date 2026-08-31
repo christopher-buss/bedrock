@@ -7,6 +7,7 @@ import {
 	type DriverRegistry,
 	flattenConfig,
 	loadConfig,
+	type PlaceDesiredState,
 	type ResourceDriver,
 	selectEnvironment,
 } from "@bedrock-rbx/core";
@@ -15,11 +16,12 @@ import { createFakeHttpClient, validPlaceBody } from "@bedrock-rbx/ocale/testing
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assert, describe, expect, it } from "vitest";
+import { assert, describe, expect, it, vi } from "vitest";
 
 const FIXTURES_ROOT = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const PLACES_FIXTURE_DIR = join(FIXTURES_ROOT, "places");
 const PLACES_METADATA_FIXTURE_DIR = join(FIXTURES_ROOT, "places-metadata");
+const PLACES_CONFIG_ONLY_FIXTURE_DIR = join(FIXTURES_ROOT, "places-config-only");
 const UNIVERSE_ID = asRobloxAssetId("1234567890");
 const PLACE_ID = asRobloxAssetId("4711");
 const RBXL_BYTES = new Uint8Array([
@@ -158,5 +160,119 @@ describe("places pipeline end-to-end", () => {
 			displayName: "Start Place",
 			serverSize: 50,
 		});
+	});
+
+	it("should PATCH metadata and read no file for a place that declares no filePath", async () => {
+		expect.assertions(5);
+
+		const loaded = await loadConfig({ cwd: PLACES_CONFIG_ONLY_FIXTURE_DIR });
+		assert(loaded.success);
+
+		const resolved = selectEnvironment(loaded.data, "production");
+		assert(resolved.success);
+
+		const readFile = vi.fn<() => Promise<Uint8Array>>(readPlaceFileAsync);
+		const desiredResult = await buildDesired({
+			readFile,
+			resources: flattenConfig(resolved.data),
+		});
+		assert(desiredResult.success);
+
+		const httpClient = createFakeHttpClient().mockResponse({
+			body: validPlaceBody({
+				description: "The lobby place.",
+				displayName: "Start Place",
+				serverSize: 50,
+			}),
+			status: 200,
+		});
+
+		const registry: DriverRegistry = {
+			developerProduct: DEVELOPER_PRODUCT_TRAP,
+			gamePass: GAME_PASS_TRAP,
+			place: createPlaceDriver({
+				client: new PlacesClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: async () => {},
+				}),
+				readFile,
+				universeId: UNIVERSE_ID,
+			}),
+			universe: UNIVERSE_TRAP,
+		};
+
+		const applyResult = await applyOps(diff(desiredResult.data, []), registry);
+
+		assert(applyResult.success);
+
+		expect(readFile).not.toHaveBeenCalled();
+		expect(httpClient.requests).toHaveLength(1);
+
+		const [only] = httpClient.requests;
+		assert(only);
+
+		expect(only.request.method).toBe("PATCH");
+		expect(only.request.url).toBe(
+			`/cloud/v2/universes/${UNIVERSE_ID}/places/${PLACE_ID}?updateMask=displayName,description,serverSize`,
+		);
+		expect(applyResult.data[0]).toStrictEqual({
+			key: "start-place",
+			description: "The lobby place.",
+			displayName: "Start Place",
+			fileHash: undefined,
+			filePath: undefined,
+			kind: "place",
+			outputs: { versionNumber: undefined },
+			placeId: PLACE_ID,
+			serverSize: 50,
+		});
+	});
+
+	it("should noop a config-only place whose recorded state already matches", async () => {
+		expect.assertions(2);
+
+		const loaded = await loadConfig({ cwd: PLACES_CONFIG_ONLY_FIXTURE_DIR });
+		assert(loaded.success);
+
+		const resolved = selectEnvironment(loaded.data, "production");
+		assert(resolved.success);
+
+		const desiredResult = await buildDesired({
+			readFile: readPlaceFileAsync,
+			resources: flattenConfig(resolved.data),
+		});
+		assert(desiredResult.success);
+
+		const [desired] = desiredResult.data.filter(
+			(entry): entry is PlaceDesiredState => entry.kind === "place",
+		);
+		assert(desired);
+
+		const httpClient = createFakeHttpClient();
+		const registry: DriverRegistry = {
+			developerProduct: DEVELOPER_PRODUCT_TRAP,
+			gamePass: GAME_PASS_TRAP,
+			place: createPlaceDriver({
+				client: new PlacesClient({
+					apiKey: "test-key",
+					httpClient,
+					sleep: async () => {},
+				}),
+				readFile: readPlaceFileAsync,
+				universeId: UNIVERSE_ID,
+			}),
+			universe: UNIVERSE_TRAP,
+		};
+
+		const ops = diff(desiredResult.data, [
+			{ ...desired, outputs: { versionNumber: undefined } },
+		]);
+
+		expect(ops.map((op) => op.type)).toStrictEqual(["noop"]);
+
+		await applyOps(ops, registry);
+
+		expect(httpClient.requests).toBeEmpty();
 	});
 });

@@ -23,15 +23,15 @@ interface ExpectedPlaceDesiredState {
 	readonly key: ResourceKey;
 	readonly description: string | undefined;
 	readonly displayName: string | undefined;
-	readonly fileHash: Sha256Hex;
-	readonly filePath: string;
+	readonly fileHash: Sha256Hex | undefined;
+	readonly filePath: string | undefined;
 	readonly kind: "place";
 	readonly placeId: RobloxAssetId;
 	readonly serverSize: number | undefined;
 }
 
 interface ExpectedPlaceOutputs {
-	readonly versionNumber: number;
+	readonly versionNumber: number | undefined;
 }
 
 interface ExpectedUniverseDesiredState {

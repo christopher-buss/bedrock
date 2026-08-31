@@ -4,7 +4,7 @@ import { assert, describe, expect, it, vi } from "vitest";
 
 import { outcomeByKey } from "#tests/helpers/drivers";
 import { fakeReadFile } from "#tests/helpers/files";
-import { gamePassCurrent } from "#tests/helpers/resources";
+import { gamePassCurrent, placeCurrent } from "#tests/helpers/resources";
 import type { CodegenFile, EmitInput, Emitter } from "../core/codegen.ts";
 import type { ResourceCurrentState } from "../core/resources.ts";
 import type { Config } from "../core/schema.ts";
@@ -243,6 +243,38 @@ describe(provision, () => {
 
 		expect(writes[0]!.pendingRebuild).toStrictEqual(new Set([startPlace]));
 		expect(readFile).not.toHaveBeenCalledWith("places/start.rbxl");
+	});
+
+	it("should reconcile a config-only place in the asset pass without marking it pending", async () => {
+		expect.assertions(3);
+
+		const { port, writes } = inMemoryStatePort();
+		const configOnly = placeCurrent({ fileHash: undefined, filePath: undefined });
+		const create = vi
+			.fn<NonNullable<ResourceDriver<"place">["create"]>>()
+			.mockResolvedValue({ data: configOnly, success: true });
+
+		const result = await provision({
+			config: {
+				environments: { production: { places: { "start-place": { placeId: "4711" } } } },
+				places: { "start-place": { displayName: "Start Place" } },
+			},
+			environment: "production",
+			readFile: readIconAsync,
+			registry: {
+				developerProduct: developerProductStub,
+				gamePass: vipCreateRegistry().gamePass,
+				place: { create },
+				universe: universeStub,
+			},
+			statePort: port,
+		});
+
+		assert(result.success);
+
+		expect(create.mock.calls.map((call) => call[0].filePath)).toStrictEqual([undefined]);
+		expect(writes[0]!.resources).toStrictEqual([configOnly]);
+		expect(writes[0]!.pendingRebuild).toBeUndefined();
 	});
 
 	it("should surface stateReadFailed without dispatching drivers when StatePort.read returns Err", async () => {

@@ -280,6 +280,40 @@ The optional `update` was always available to any driver whose upstream API
 supports it; the file-backed framing here is what _requires_ `update` for the
 publish-republish loop, not what _permits_ it.
 
+### 2026-08-31: The file is per entry, not per kind
+
+`places.<key>.filePath` becomes optional. An entry that omits it is a
+**config-only place**: bedrock reconciles its `displayName`, `description`, and
+`serverSize` against a place that already exists in Roblox, and publishes no
+version. `PlaceDesiredState.filePath` and `.fileHash` are `undefined` for such
+an entry, the driver skips the publish call (no file read, no format detection),
+and `PlaceOutputs.versionNumber` widens to `number | undefined` because a
+config-only place bedrock has never published has no version to record.
+
+This serves a user the original framing excluded: a team that builds and uploads
+its places by other means (Studio, an existing pipeline) but wants bedrock to
+own the declared game configuration. Before this, such a team had to invent a
+dummy `.rbxl` or give up place-metadata management entirely.
+
+The Definition holds, read per entry rather than per kind. Criteria 2 and 3 are
+unchanged and still bind every place: the `placeId` is user-supplied, and state
+remains the only drift source. Criterion 1 ("a local file is the unit of managed
+content the driver publishes") now describes the file-backed entries of a kind,
+not every entry of it. A kind is file-backed when it _may_ publish a file;
+whether a given entry does is a property of that entry.
+
+Drift for a config-only place is metadata-only, so the fields the existing
+`changedPlaceMetadata` predicate already owns are the whole comparison. Dropping
+a `filePath` from a place already in state reads as ordinary drift
+(`fileHash`/`filePath` changed to `undefined`): one update op that patches
+metadata, publishes nothing, and rewrites state. It settles in a single deploy
+and is a no-op from the next one on.
+
+An environment overlay may supply a `filePath` the root entry omits, but cannot
+clear one the root entry declares: the overlay merge treats `undefined` as
+"inherit", and no sentinel was introduced for "publish here, not there". A
+project that needs that today declares two place entries.
+
 ## References
 
 - PR #84: `@bedrock-rbx/ocale` places client (publish + save endpoints)
