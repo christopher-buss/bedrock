@@ -297,10 +297,10 @@ dummy `.rbxl` or give up place-metadata management entirely.
 
 The Definition holds, read per entry rather than per kind. Criteria 2 and 3 are
 unchanged and still bind every place: the `placeId` is user-supplied, and state
-remains the only drift source. Criterion 1 — "a local file is the unit of
-managed content the driver publishes" — now describes the file-backed entries of
-a kind, not every entry of it. A kind is file-backed when it _may_ publish a
-file; whether a given entry does is a property of that entry.
+remains the only drift source. Criterion 1 ("a local file is the unit of managed
+content the driver publishes") now describes the file-backed entries of a kind,
+not every entry of it. A kind is file-backed when it _may_ publish a file;
+whether a given entry does is a property of that entry.
 
 Drift for a config-only place is metadata-only, so the fields the existing
 `changedPlaceMetadata` predicate already owns are the whole comparison. Dropping

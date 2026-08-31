@@ -51,6 +51,22 @@ it('Example 2', () => {
   expect(place.serverSize).toBe(50)
 })
 
+it('A config-only place carries no file fields at all, so the driver patches', () => {
+  const configOnly: PlaceDesiredState = {
+    description: undefined,
+    displayName: 'Start Place',
+    fileHash: undefined,
+    filePath: undefined,
+    key: asResourceKey('start-place'),
+    kind: 'place',
+    placeId: asRobloxAssetId('4711'),
+    serverSize: 50,
+  }
+  expect(configOnly.filePath).toBeUndefined()
+  expect(configOnly.fileHash).toBeUndefined()
+  expect(configOnly.serverSize).toBe(50)
+})
+
 it('Example 3', () => {
   const universe: UniverseDesiredState = {
     consoleEnabled: undefined,

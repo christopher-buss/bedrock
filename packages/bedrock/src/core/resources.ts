@@ -118,6 +118,30 @@ export interface GamePassDesiredState {
  * expect(place.description).toBeUndefined();
  * expect(place.serverSize).toBe(50);
  * ```
+ *
+ * @example
+ *
+ * A config-only place carries no file fields at all, so the driver patches
+ * its metadata and publishes nothing.
+ *
+ * ```ts
+ * import { asResourceKey, asRobloxAssetId, type PlaceDesiredState } from "@bedrock-rbx/core";
+ *
+ * const configOnly: PlaceDesiredState = {
+ *     description: undefined,
+ *     displayName: "Start Place",
+ *     fileHash: undefined,
+ *     filePath: undefined,
+ *     key: asResourceKey("start-place"),
+ *     kind: "place",
+ *     placeId: asRobloxAssetId("4711"),
+ *     serverSize: 50,
+ * };
+ *
+ * expect(configOnly.filePath).toBeUndefined();
+ * expect(configOnly.fileHash).toBeUndefined();
+ * expect(configOnly.serverSize).toBe(50);
+ * ```
  */
 export interface PlaceDesiredState {
 	/**
