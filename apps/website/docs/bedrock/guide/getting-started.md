@@ -81,9 +81,10 @@ What each block declares:
   icon file; Bedrock hashes its contents so an unchanged icon is not
   re-uploaded.
 - **`places`** — the root entry holds the bits every environment shares: a
-  required `filePath` to the `.rbxl`/`.rbxlx` file, plus optional `displayName`,
-  `description`, and `serverSize`. The Roblox `placeId` is _not_ here — it is
-  environment-specific.
+  `filePath` to the `.rbxl`/`.rbxlx` file, plus `displayName`, `description`,
+  and `serverSize`. All four are optional. The Roblox `placeId` is _not_ here —
+  it is environment-specific. Omit `filePath` to manage a place's configuration
+  without uploading it (see below).
 - **`universe`** — the managed universe settings. `universeId` is a string of
   digits for an existing universe (Open Cloud cannot mint universes). Other
   managed fields include `voiceChatEnabled`, `displayName`, per-device join
@@ -99,6 +100,39 @@ What each block declares:
 `universe` block (one universe for every environment) **or** on each
 `environments[name].universe` overlay (a distinct universe per environment) —
 never both. The schema rejects a config that sets it in both places. :::
+
+### Manage a place without uploading it
+
+`filePath` is optional. A place entry that omits it is a **config-only place**:
+Bedrock reconciles its `displayName`, `description`, and `serverSize` against
+the existing Roblox place and never reads or publishes a file.
+
+```ts
+export default defineConfig({
+	environments: {
+		production: {
+			places: { "start-place": { placeId: "1234567890" } },
+		},
+	},
+	places: {
+		"start-place": {
+			description: "Where every session begins.",
+			displayName: "Start Place",
+			serverSize: 50,
+		},
+	},
+	state: { backend: "gist", gistId: "abc123def456" },
+});
+```
+
+Use this when another tool already publishes your places — Studio, or an
+existing pipeline — and you want Bedrock to own the declared configuration only.
+A config-only place needs no build step, so a codegen project whose places are
+all config-only deploys without a `.bedrock/build.ts`.
+
+::: warning Whole-place, not per-environment Omitting `filePath` applies to the
+place everywhere. An environment overlay can supply a path the root entry omits,
+but cannot clear one the root entry declares. :::
 
 Config files are discovered automatically as
 `bedrock.config.{ts,js,mjs,yaml,yml,json,luau}` at the project root, or under a
