@@ -1241,6 +1241,10 @@
           "perApiKeyOwner": {
             "period": "MINUTE",
             "maxInPeriod": 30
+          },
+          "perOauth2Authorization": {
+            "period": "MINUTE",
+            "maxInPeriod": 30
           }
         },
         "x-roblox-scopes": [
@@ -1255,6 +1259,9 @@
         "security": [
           {
             "roblox-api-key": []
+          },
+          {
+            "roblox-oauth2": ["universe.analytics:read"]
           }
         ],
         "externalDocs": {
@@ -1387,6 +1394,10 @@
           "perApiKeyOwner": {
             "period": "MINUTE",
             "maxInPeriod": 30
+          },
+          "perOauth2Authorization": {
+            "period": "MINUTE",
+            "maxInPeriod": 30
           }
         },
         "x-roblox-scopes": [
@@ -1401,6 +1412,9 @@
         "security": [
           {
             "roblox-api-key": []
+          },
+          {
+            "roblox-oauth2": ["universe.analytics:read"]
           }
         ],
         "externalDocs": {
@@ -1521,6 +1535,10 @@
           "perApiKeyOwner": {
             "period": "MINUTE",
             "maxInPeriod": 3000
+          },
+          "perOauth2Authorization": {
+            "period": "MINUTE",
+            "maxInPeriod": 3000
           }
         },
         "x-roblox-scopes": [
@@ -1535,6 +1553,9 @@
         "security": [
           {
             "roblox-api-key": []
+          },
+          {
+            "roblox-oauth2": ["universe.analytics:read"]
           }
         ],
         "externalDocs": {
@@ -1655,6 +1676,10 @@
           "perApiKeyOwner": {
             "period": "MINUTE",
             "maxInPeriod": 3000
+          },
+          "perOauth2Authorization": {
+            "period": "MINUTE",
+            "maxInPeriod": 3000
           }
         },
         "x-roblox-scopes": [
@@ -1669,6 +1694,9 @@
         "security": [
           {
             "roblox-api-key": []
+          },
+          {
+            "roblox-oauth2": ["universe.analytics:read"]
           }
         ],
         "externalDocs": {
@@ -19352,9 +19380,6 @@
           "400": {
             "description": "14: Invalid game id\r\n52: Image dimensions are invalid"
           },
-          "401": {
-            "description": "0: Authorization has been denied for this request."
-          },
           "500": {
             "description": "0: An unknown error occurred."
           },
@@ -21682,6 +21707,7 @@
                 "PublishPlace",
                 "UpdateRolesetRank",
                 "UpdateRolesetData",
+                "UpdateRoleSetPosition",
                 "BanMember",
                 "UnbanMember",
                 "CreateForumCategory",
@@ -22342,6 +22368,7 @@
             "description": "0: Token Validation Failed"
           }
         },
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-rate-limits": {
           "perApiKeyOwner": {
             "period": "MINUTE",
@@ -22434,6 +22461,7 @@
             "description": "17: Feature is disabled"
           }
         },
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-rate-limits": {
           "perApiKeyOwner": {
             "period": "MINUTE",
@@ -22489,6 +22517,7 @@
             "description": "0: Authorization has been denied for this request."
           }
         },
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-rate-limits": {
           "perApiKeyOwner": {
             "period": "MINUTE",
@@ -22544,6 +22573,7 @@
             "description": "0: Authorization has been denied for this request."
           }
         },
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-rate-limits": {
           "perApiKeyOwner": {
             "period": "MINUTE",
@@ -22617,6 +22647,7 @@
             "description": "2: You do not have permission to get this table."
           }
         },
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-rate-limits": {
           "perApiKeyOwner": {
             "period": "MINUTE",
@@ -22690,6 +22721,7 @@
             "description": "2: You do not have permission to get this table."
           }
         },
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-rate-limits": {
           "perApiKeyOwner": {
             "period": "MINUTE",
@@ -22789,6 +22821,7 @@
             "description": "17: Feature is disabled"
           }
         },
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-rate-limits": {
           "perApiKeyOwner": {
             "period": "MINUTE",
@@ -22889,6 +22922,7 @@
             "description": "2: You do not have permission to get this table."
           }
         },
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-rate-limits": {
           "perApiKeyOwner": {
             "period": "MINUTE",
@@ -22993,6 +23027,7 @@
             "description": "17: Feature is disabled"
           }
         },
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-rate-limits": {
           "perApiKeyOwner": {
             "period": "MINUTE",
@@ -23084,6 +23119,7 @@
             "description": "2: You do not have permission to get this table."
           }
         },
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-rate-limits": {
           "perApiKeyOwner": {
             "period": "MINUTE",
@@ -25780,7 +25816,7 @@
     },
     "/server-management/v1/universes/{universeId}/places/{placeId}/game-servers:filter-options": {
       "get": {
-        "tags": ["Places"],
+        "tags": ["Observability"],
         "summary": "Gets available filter options for game servers.",
         "operationId": "GameServers_GetFilterOptions",
         "parameters": [
@@ -25891,13 +25927,13 @@
           }
         ],
         "externalDocs": {
-          "url": "https://create.roblox.com/docs/cloud/reference/features/places#GameServers_GetFilterOptions"
+          "url": "https://create.roblox.com/docs/cloud/reference/features/observability#GameServers_GetFilterOptions"
         }
       }
     },
     "/server-management/v1/universes/{universeId}/places/{placeId}/versions/{versionNumber}/game-servers": {
       "get": {
-        "tags": ["Places"],
+        "tags": ["Observability"],
         "summary": "Lists game servers for a specific place version.",
         "operationId": "GameServers_ListGameServers",
         "parameters": [
@@ -26040,13 +26076,13 @@
           }
         ],
         "externalDocs": {
-          "url": "https://create.roblox.com/docs/cloud/reference/features/places#GameServers_ListGameServers"
+          "url": "https://create.roblox.com/docs/cloud/reference/features/observability#GameServers_ListGameServers"
         }
       }
     },
     "/server-management/v1/universes/{universeId}/places/{placeId}/versions/{versionNumber}/game-servers/{jobId}/logs": {
       "get": {
-        "tags": ["Places"],
+        "tags": ["Observability"],
         "summary": "Lists game server logs for a specific server job id",
         "operationId": "GameServers_ListGameServerLogs",
         "parameters": [
@@ -26091,7 +26127,7 @@
           {
             "name": "MaxPageSize",
             "in": "query",
-            "description": "The maximum number of game servers to return. The service might return\r\nfewer than this value. If unspecified, at most 25 game servers are\r\nreturned. The maximum value is 100 and higher values are set to 100.",
+            "description": "The maximum number of log entries to return. Defaults to 25 and values above 100 are\r\ncapped at 100.",
             "schema": {
               "maximum": 100,
               "minimum": 1,
@@ -26102,7 +26138,7 @@
           {
             "name": "PageToken",
             "in": "query",
-            "description": "A page token, received from a previous call, to retrieve a subsequent page.\r\nWhen paginating, all other parameters provided to the subsequent call must\r\nmatch the call that provided the page token.",
+            "description": "An opaque token from a previous response. Preserve the other query parameters when\r\nrequesting the next page.",
             "schema": {
               "type": "string"
             }
@@ -26110,7 +26146,7 @@
           {
             "name": "OrderBy",
             "in": "query",
-            "description": "Sorting is supported only for a single field at a time.\r\nExample: \"orderBy\": \"uptime\"\r\nDefaults to ascending, but descending ordering is also supported by\r\nincluding the \" desc\" suffix. For example: \"orderBy\": \"uptime desc\".",
+            "description": "Sorts by `message_timestamp` or `log_severity`. Append ` desc` for descending order.\r\nEach endpoint defines its own default when this value is omitted.",
             "schema": {
               "type": "string"
             }
@@ -26118,7 +26154,7 @@
           {
             "name": "Filter",
             "in": "query",
-            "description": "This field may be set in order to filter the resources returned.\r\n- CEL filtering is supported on all fields.\r\n- Supported operators &&, <, <=, >, >=, ==, and `in`",
+            "description": "Filters log entries with CEL. Use `severity` with equality or `in`, `message_timestamp`\r\nwith comparisons, or `search` with equality or inequality for case-insensitive full-text matching.",
             "schema": {
               "type": "string"
             }
@@ -26198,13 +26234,13 @@
           }
         ],
         "externalDocs": {
-          "url": "https://create.roblox.com/docs/cloud/reference/features/places#GameServers_ListGameServerLogs"
+          "url": "https://create.roblox.com/docs/cloud/reference/features/observability#GameServers_ListGameServerLogs"
         }
       }
     },
     "/server-management/v1/universes/{universeId}/restarts": {
       "get": {
-        "tags": ["Universes"],
+        "tags": ["Observability"],
         "summary": "List restart statuses for a universe.",
         "operationId": "Restarts_ListRestartStatuses",
         "parameters": [
@@ -26293,11 +26329,11 @@
           }
         ],
         "externalDocs": {
-          "url": "https://create.roblox.com/docs/cloud/reference/features/universes#Restarts_ListRestartStatuses"
+          "url": "https://create.roblox.com/docs/cloud/reference/features/observability#Restarts_ListRestartStatuses"
         }
       },
       "post": {
-        "tags": ["Universes"],
+        "tags": ["Observability"],
         "summary": "Launch a game server restart for a universe.",
         "operationId": "Restarts_LaunchRestart",
         "parameters": [
@@ -26421,13 +26457,13 @@
           }
         ],
         "externalDocs": {
-          "url": "https://create.roblox.com/docs/cloud/reference/features/universes#Restarts_LaunchRestart"
+          "url": "https://create.roblox.com/docs/cloud/reference/features/observability#Restarts_LaunchRestart"
         }
       }
     },
     "/server-management/v1/universes/{universeId}/restarts:forecast": {
       "get": {
-        "tags": ["Universes"],
+        "tags": ["Observability"],
         "summary": "Forecast the impact of restarting game servers for a universe.",
         "operationId": "Restarts_ForecastRestart",
         "parameters": [
@@ -26516,7 +26552,7 @@
           }
         ],
         "externalDocs": {
-          "url": "https://create.roblox.com/docs/cloud/reference/features/universes#Restarts_ForecastRestart"
+          "url": "https://create.roblox.com/docs/cloud/reference/features/observability#Restarts_ForecastRestart"
         }
       }
     },
@@ -30410,6 +30446,7 @@
             "url": "https://localizationtables.roblox.com"
           }
         ],
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-engine-usability": {
           "apiKeyWithHttpService": false
         },
@@ -30488,6 +30525,7 @@
             "url": "https://localizationtables.roblox.com"
           }
         ],
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-engine-usability": {
           "apiKeyWithHttpService": false
         },
@@ -30498,72 +30536,6 @@
         ],
         "externalDocs": {
           "url": "https://create.roblox.com/docs/cloud/reference/features/localization#localizationtables_post_v1_auto_localization_table_games__gameId__auto_scrape_cleanup_request"
-        }
-      }
-    },
-    "/v1/auto-localization-table/games/{gameId}/ingestion": {
-      "patch": {
-        "tags": ["Localization", "Universes"],
-        "summary": "Ingests entries for auto localization. Needs to be an authorized user.",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "gameId",
-            "description": "The game id.",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "requestBody": {
-          "$ref": "#/components/requestBodies/Roblox.LocalizationTables.Api.IngestAutoScrapedContentForGameRequest"
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "10: Maximum entries exceeded. Please keep the number of entries per request below the maximum.\r\n13: Request body can't be null\r\n16: Entries can't be null or empty\r\n34: Actor provided is invalid"
-          },
-          "401": {
-            "description": "0: Authorization has been denied for this request."
-          },
-          "403": {
-            "description": "0: Token Validation Failed"
-          },
-          "503": {
-            "description": "17: Feature is disabled"
-          }
-        },
-        "servers": [
-          {
-            "url": "https://localizationtables.roblox.com"
-          }
-        ],
-        "x-roblox-engine-usability": {
-          "apiKeyWithHttpService": false
-        },
-        "security": [
-          {
-            "roblox-legacy-cookie": []
-          }
-        ],
-        "externalDocs": {
-          "url": "https://create.roblox.com/docs/cloud/reference/features/localization#localizationtables_patch_v1_auto_localization_table_games__gameId__ingestion"
         }
       }
     },
@@ -30624,6 +30596,7 @@
             "url": "https://localizationtables.roblox.com"
           }
         ],
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-engine-usability": {
           "apiKeyWithHttpService": false
         },
@@ -30677,6 +30650,7 @@
             "url": "https://localizationtables.roblox.com"
           }
         ],
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-engine-usability": {
           "apiKeyWithHttpService": false
         },
@@ -30763,6 +30737,7 @@
             "url": "https://localizationtables.roblox.com"
           }
         ],
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-engine-usability": {
           "apiKeyWithHttpService": false
         },
@@ -30812,6 +30787,7 @@
             "url": "https://localizationtables.roblox.com"
           }
         ],
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-engine-usability": {
           "apiKeyWithHttpService": false
         },
@@ -35910,9 +35886,6 @@
           "400": {
             "description": "14: Invalid game id\r\n52: Image dimensions are invalid"
           },
-          "401": {
-            "description": "0: Authorization has been denied for this request."
-          },
           "500": {
             "description": "0: An unknown error occurred."
           },
@@ -38399,7 +38372,7 @@
     },
     "/v1/games/vip-servers/{universeId}": {
       "post": {
-        "tags": ["Private servers", "Universes"],
+        "tags": ["Private servers"],
         "operationId": "PrivateServers_CreatePrivateServer",
         "parameters": [
           {
@@ -38592,7 +38565,7 @@
     },
     "/v1/games/{placeId}/private-servers": {
       "get": {
-        "tags": ["Private servers", "Universes"],
+        "tags": ["Private servers"],
         "operationId": "PrivateServers_GetPrivateServerList",
         "parameters": [
           {
@@ -40175,6 +40148,7 @@
                 "PublishPlace",
                 "UpdateRolesetRank",
                 "UpdateRolesetData",
+                "UpdateRoleSetPosition",
                 "BanMember",
                 "UnbanMember",
                 "CreateForumCategory",
@@ -43308,6 +43282,14 @@
               "type": "integer",
               "format": "int64"
             }
+          },
+          {
+            "in": "query",
+            "name": "includePrivate",
+            "required": true,
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -45422,6 +45404,7 @@
             "url": "https://localizationtables.roblox.com"
           }
         ],
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-engine-usability": {
           "apiKeyWithHttpService": false
         },
@@ -45468,6 +45451,7 @@
             "url": "https://localizationtables.roblox.com"
           }
         ],
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-engine-usability": {
           "apiKeyWithHttpService": false
         },
@@ -45529,6 +45513,7 @@
             "url": "https://localizationtables.roblox.com"
           }
         ],
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-engine-usability": {
           "apiKeyWithHttpService": false
         },
@@ -45589,6 +45574,7 @@
             "url": "https://localizationtables.roblox.com"
           }
         ],
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-engine-usability": {
           "apiKeyWithHttpService": false
         },
@@ -45656,6 +45642,7 @@
             "url": "https://localizationtables.roblox.com"
           }
         ],
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-engine-usability": {
           "apiKeyWithHttpService": false
         },
@@ -45749,6 +45736,7 @@
             "url": "https://localizationtables.roblox.com"
           }
         ],
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-engine-usability": {
           "apiKeyWithHttpService": false
         },
@@ -45843,6 +45831,7 @@
             "url": "https://localizationtables.roblox.com"
           }
         ],
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-engine-usability": {
           "apiKeyWithHttpService": false
         },
@@ -45941,6 +45930,7 @@
             "url": "https://localizationtables.roblox.com"
           }
         ],
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-engine-usability": {
           "apiKeyWithHttpService": false
         },
@@ -46032,6 +46022,7 @@
             "url": "https://localizationtables.roblox.com"
           }
         ],
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-engine-usability": {
           "apiKeyWithHttpService": false
         },
@@ -46117,6 +46108,7 @@
             "url": "https://localizationtables.roblox.com"
           }
         ],
+        "x-roblox-stability": "EXPERIMENTAL",
         "x-roblox-engine-usability": {
           "apiKeyWithHttpService": false
         },
@@ -48551,6 +48543,7 @@
     },
     "/v1/preferences/publishing": {
       "delete": {
+        "tags": ["Assets", "Creator Store"],
         "parameters": [
           {
             "in": "query",
@@ -48584,9 +48577,13 @@
           {
             "roblox-legacy-cookie": []
           }
-        ]
+        ],
+        "externalDocs": {
+          "url": "https://create.roblox.com/docs/cloud/reference/features/assets#itemconfiguration_delete_v1_preferences_publishing"
+        }
       },
       "get": {
+        "tags": ["Assets", "Creator Store"],
         "parameters": [
           {
             "in": "query",
@@ -48629,9 +48626,13 @@
           {
             "roblox-legacy-cookie": []
           }
-        ]
+        ],
+        "externalDocs": {
+          "url": "https://create.roblox.com/docs/cloud/reference/features/assets#itemconfiguration_get_v1_preferences_publishing"
+        }
       },
       "patch": {
+        "tags": ["Assets", "Creator Store"],
         "requestBody": {
           "content": {
             "application/json": {
@@ -48682,9 +48683,13 @@
           {
             "roblox-legacy-cookie": []
           }
-        ]
+        ],
+        "externalDocs": {
+          "url": "https://create.roblox.com/docs/cloud/reference/features/assets#itemconfiguration_patch_v1_preferences_publishing"
+        }
       },
       "post": {
+        "tags": ["Assets", "Creator Store"],
         "requestBody": {
           "content": {
             "application/json": {
@@ -48735,7 +48740,10 @@
           {
             "roblox-legacy-cookie": []
           }
-        ]
+        ],
+        "externalDocs": {
+          "url": "https://create.roblox.com/docs/cloud/reference/features/assets#itemconfiguration_post_v1_preferences_publishing"
+        }
       }
     },
     "/v1/presence/users": {
@@ -48818,7 +48826,7 @@
     },
     "/v1/private-servers/enabled-in-universe/{universeId}": {
       "get": {
-        "tags": ["Private servers", "Universes"],
+        "tags": ["Private servers"],
         "operationId": "PrivateServers_PrivateServersEnabledInUniverse",
         "parameters": [
           {
@@ -48864,7 +48872,7 @@
     },
     "/v1/private-servers/my-private-servers": {
       "get": {
-        "tags": ["Private servers", "Universes"],
+        "tags": ["Private servers"],
         "operationId": "PrivateServers_GetMyPrivateServers",
         "parameters": [
           {
@@ -49171,6 +49179,14 @@
                 "format": "int64",
                 "type": "integer"
               }
+            }
+          },
+          {
+            "in": "query",
+            "name": "includePrivate",
+            "required": true,
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -52538,7 +52554,7 @@
     },
     "/v1/universes/{universeId}/configuration/vip-servers": {
       "get": {
-        "tags": ["Private servers", "Universes"],
+        "tags": ["Private servers"],
         "summary": "Get settings for an owned universe's VIP servers.",
         "parameters": [
           {
@@ -55630,7 +55646,7 @@
                 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
                 56, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73,
                 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89,
-                90, 91, 92, 93, 94
+                90, 91, 92, 93, 94, 95
               ]
             }
           },
@@ -60209,7 +60225,7 @@
     },
     "/v1/vip-servers/{id}": {
       "get": {
-        "tags": ["Metadata", "Private servers", "Universes"],
+        "tags": ["Metadata", "Private servers"],
         "operationId": "PrivateServers_GetPrivateServer",
         "parameters": [
           {
@@ -60252,7 +60268,7 @@
         }
       },
       "patch": {
-        "tags": ["Private servers", "Universes"],
+        "tags": ["Private servers"],
         "operationId": "PrivateServers_UpdatePrivateServer",
         "parameters": [
           {
@@ -60328,7 +60344,7 @@
     },
     "/v1/vip-servers/{id}/permissions": {
       "patch": {
-        "tags": ["Groups", "Private servers", "Universes"],
+        "tags": ["Groups", "Private servers"],
         "operationId": "PrivateServers_UpdatePrivateServerPermissions",
         "parameters": [
           {
@@ -60404,7 +60420,7 @@
     },
     "/v1/vip-servers/{id}/subscription": {
       "patch": {
-        "tags": ["Private servers", "Universes"],
+        "tags": ["Private servers"],
         "operationId": "PrivateServers_UpdatePrivateServerSubscription",
         "parameters": [
           {
@@ -65738,14 +65754,14 @@
             "schema": {
               "type": "array",
               "items": {
-                "description": " ['Image' = 1, 'TShirt' = 2, 'Audio' = 3, 'Mesh' = 4, 'Lua' = 5, 'HTML' = 6, 'Text' = 7, 'Hat' = 8, 'Place' = 9, 'Model' = 10, 'Shirt' = 11, 'Pants' = 12, 'Decal' = 13, 'Avatar' = 16, 'Head' = 17, 'Face' = 18, 'Gear' = 19, 'Badge' = 21, 'GroupEmblem' = 22, 'Animation' = 24, 'Arms' = 25, 'Legs' = 26, 'Torso' = 27, 'RightArm' = 28, 'LeftArm' = 29, 'LeftLeg' = 30, 'RightLeg' = 31, 'Package' = 32, 'YouTubeVideo' = 33, 'GamePass' = 34, 'App' = 35, 'Code' = 37, 'Plugin' = 38, 'SolidModel' = 39, 'MeshPart' = 40, 'HairAccessory' = 41, 'FaceAccessory' = 42, 'NeckAccessory' = 43, 'ShoulderAccessory' = 44, 'FrontAccessory' = 45, 'BackAccessory' = 46, 'WaistAccessory' = 47, 'ClimbAnimation' = 48, 'DeathAnimation' = 49, 'FallAnimation' = 50, 'IdleAnimation' = 51, 'JumpAnimation' = 52, 'RunAnimation' = 53, 'SwimAnimation' = 54, 'WalkAnimation' = 55, 'PoseAnimation' = 56, 'LocalizationTableManifest' = 59, 'LocalizationTableTranslation' = 60, 'EmoteAnimation' = 61, 'Video' = 62, 'TexturePack' = 63, 'TShirtAccessory' = 64, 'ShirtAccessory' = 65, 'PantsAccessory' = 66, 'JacketAccessory' = 67, 'SweaterAccessory' = 68, 'ShortsAccessory' = 69, 'LeftShoeAccessory' = 70, 'RightShoeAccessory' = 71, 'DressSkirtAccessory' = 72, 'FontFamily' = 73, 'FontFace' = 74, 'MeshHiddenSurfaceRemoval' = 75, 'EyebrowAccessory' = 76, 'EyelashAccessory' = 77, 'MoodAnimation' = 78, 'DynamicHead' = 79, 'CodeSnippet' = 80, 'AdsVideo' = 81, 'OtaUpdate' = 82, 'Screenshot' = 83, 'RuntimePropertySet' = 84, 'StorePreviewVideo' = 85, 'GamePreviewVideo' = 86, 'CreatorExperienceConfig' = 87, 'FaceMakeup' = 88, 'LipMakeup' = 89, 'EyeMakeup' = 90, 'VoxelFragment' = 91, 'AvatarBackground' = 92, 'TextDocument' = 93, 'Post' = 94]",
+                "description": " ['Image' = 1, 'TShirt' = 2, 'Audio' = 3, 'Mesh' = 4, 'Lua' = 5, 'HTML' = 6, 'Text' = 7, 'Hat' = 8, 'Place' = 9, 'Model' = 10, 'Shirt' = 11, 'Pants' = 12, 'Decal' = 13, 'Avatar' = 16, 'Head' = 17, 'Face' = 18, 'Gear' = 19, 'Badge' = 21, 'GroupEmblem' = 22, 'Animation' = 24, 'Arms' = 25, 'Legs' = 26, 'Torso' = 27, 'RightArm' = 28, 'LeftArm' = 29, 'LeftLeg' = 30, 'RightLeg' = 31, 'Package' = 32, 'YouTubeVideo' = 33, 'GamePass' = 34, 'App' = 35, 'Code' = 37, 'Plugin' = 38, 'SolidModel' = 39, 'MeshPart' = 40, 'HairAccessory' = 41, 'FaceAccessory' = 42, 'NeckAccessory' = 43, 'ShoulderAccessory' = 44, 'FrontAccessory' = 45, 'BackAccessory' = 46, 'WaistAccessory' = 47, 'ClimbAnimation' = 48, 'DeathAnimation' = 49, 'FallAnimation' = 50, 'IdleAnimation' = 51, 'JumpAnimation' = 52, 'RunAnimation' = 53, 'SwimAnimation' = 54, 'WalkAnimation' = 55, 'PoseAnimation' = 56, 'LocalizationTableManifest' = 59, 'LocalizationTableTranslation' = 60, 'EmoteAnimation' = 61, 'Video' = 62, 'TexturePack' = 63, 'TShirtAccessory' = 64, 'ShirtAccessory' = 65, 'PantsAccessory' = 66, 'JacketAccessory' = 67, 'SweaterAccessory' = 68, 'ShortsAccessory' = 69, 'LeftShoeAccessory' = 70, 'RightShoeAccessory' = 71, 'DressSkirtAccessory' = 72, 'FontFamily' = 73, 'FontFace' = 74, 'MeshHiddenSurfaceRemoval' = 75, 'EyebrowAccessory' = 76, 'EyelashAccessory' = 77, 'MoodAnimation' = 78, 'DynamicHead' = 79, 'CodeSnippet' = 80, 'AdsVideo' = 81, 'OtaUpdate' = 82, 'Screenshot' = 83, 'RuntimePropertySet' = 84, 'StorePreviewVideo' = 85, 'GamePreviewVideo' = 86, 'CreatorExperienceConfig' = 87, 'FaceMakeup' = 88, 'LipMakeup' = 89, 'EyeMakeup' = 90, 'VoxelFragment' = 91, 'AvatarBackground' = 92, 'TextDocument' = 93, 'Post' = 94, 'AnimatedImage' = 95]",
                 "enum": [
                   1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17, 18, 19, 21,
                   22, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 37, 38,
                   39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53,
                   54, 55, 56, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70,
                   71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85,
-                  86, 87, 88, 89, 90, 91, 92, 93, 94
+                  86, 87, 88, 89, 90, 91, 92, 93, 94, 95
                 ]
               }
             }
@@ -67841,22 +67857,6 @@
           }
         },
         "description": "The Roblox.Groups.Api.PayoutRequest.",
-        "required": true
-      },
-      "Roblox.LocalizationTables.Api.IngestAutoScrapedContentForGameRequest": {
-        "content": {
-          "application/json": {
-            "schema": {
-              "$ref": "#/components/schemas/Roblox.LocalizationTables.Api.IngestAutoScrapedContentForGameRequest"
-            }
-          },
-          "text/json": {
-            "schema": {
-              "$ref": "#/components/schemas/Roblox.LocalizationTables.Api.IngestAutoScrapedContentForGameRequest"
-            }
-          }
-        },
-        "description": "The request body.",
         "required": true
       },
       "Roblox.PrivateMessages.Api.Models.BatchMessagesRequest": {
@@ -72701,6 +72701,32 @@
           }
         },
         "description": "Represents the permissions on a role."
+      },
+      "GroupsApi.Roblox.Web.Responses.RelatedEntityTypeResponse_Roblox.Platform.Assets.AssetType_": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "type": {
+            "format": "int32",
+            "description": " ['Image' = 1, 'TShirt' = 2, 'Audio' = 3, 'Mesh' = 4, 'Lua' = 5, 'HTML' = 6, 'Text' = 7, 'Hat' = 8, 'Place' = 9, 'Model' = 10, 'Shirt' = 11, 'Pants' = 12, 'Decal' = 13, 'Avatar' = 16, 'Head' = 17, 'Face' = 18, 'Gear' = 19, 'Badge' = 21, 'GroupEmblem' = 22, 'Animation' = 24, 'Arms' = 25, 'Legs' = 26, 'Torso' = 27, 'RightArm' = 28, 'LeftArm' = 29, 'LeftLeg' = 30, 'RightLeg' = 31, 'Package' = 32, 'YouTubeVideo' = 33, 'GamePass' = 34, 'App' = 35, 'Code' = 37, 'Plugin' = 38, 'SolidModel' = 39, 'MeshPart' = 40, 'HairAccessory' = 41, 'FaceAccessory' = 42, 'NeckAccessory' = 43, 'ShoulderAccessory' = 44, 'FrontAccessory' = 45, 'BackAccessory' = 46, 'WaistAccessory' = 47, 'ClimbAnimation' = 48, 'DeathAnimation' = 49, 'FallAnimation' = 50, 'IdleAnimation' = 51, 'JumpAnimation' = 52, 'RunAnimation' = 53, 'SwimAnimation' = 54, 'WalkAnimation' = 55, 'PoseAnimation' = 56, 'LocalizationTableManifest' = 59, 'LocalizationTableTranslation' = 60, 'EmoteAnimation' = 61, 'Video' = 62, 'TexturePack' = 63, 'TShirtAccessory' = 64, 'ShirtAccessory' = 65, 'PantsAccessory' = 66, 'JacketAccessory' = 67, 'SweaterAccessory' = 68, 'ShortsAccessory' = 69, 'LeftShoeAccessory' = 70, 'RightShoeAccessory' = 71, 'DressSkirtAccessory' = 72, 'FontFamily' = 73, 'FontFace' = 74, 'MeshHiddenSurfaceRemoval' = 75, 'EyebrowAccessory' = 76, 'EyelashAccessory' = 77, 'MoodAnimation' = 78, 'DynamicHead' = 79, 'CodeSnippet' = 80, 'AdsVideo' = 81, 'OtaUpdate' = 82, 'Screenshot' = 83, 'RuntimePropertySet' = 84, 'StorePreviewVideo' = 85, 'GamePreviewVideo' = 86, 'CreatorExperienceConfig' = 87, 'FaceMakeup' = 88, 'LipMakeup' = 89, 'EyeMakeup' = 90, 'VoxelFragment' = 91, 'AvatarBackground' = 92, 'TextDocument' = 93, 'Post' = 94, 'AnimatedImage' = 95]",
+            "enum": [
+              1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17, 18, 19, 21, 22,
+              24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 37, 38, 39, 40,
+              41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
+              59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74,
+              75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90,
+              91, 92, 93, 94, 95
+            ],
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       },
       "HomepageThumbnail": {
         "required": [
@@ -83179,6 +83205,9 @@
           "isCaptchaRequired": {
             "description": "Captcha is set to true if captcha is required from user to perform action",
             "type": "boolean"
+          },
+          "notificationMuted": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -85021,6 +85050,10 @@
           "isContentRestricted": {
             "description": "Indicates whether this experience is content-restricted and has had its details wiped.\r\nWhen true, the content fields (name, description, creator, etc.) contain placeholder or\r\nempty values rather than the real data. Consumers should branch on this flag instead of\r\ninferring restriction from placeholder text.",
             "type": "boolean"
+          },
+          "creationSource": {
+            "description": "How the experience was created, as reported by hydration (e.g. \"build\").\r\nOmitted when hydration does not return a value.",
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -86356,6 +86389,10 @@
             "description": "The role color. ['Invalid' = 0, 'Blue' = 1, 'Green' = 2, 'Purple' = 3, 'Yellow' = 4, 'Orange' = 5, 'Red' = 6, 'Magenta' = 7, 'Teal' = 8, 'Turquoise' = 9, 'Rust' = 10, 'Pistachio' = 11, 'Midnight' = 12, 'Lavender' = 13, 'Pink' = 14, 'Crimson' = 15, 'Plum' = 16]",
             "enum": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
             "type": "integer"
+          },
+          "isPrivate": {
+            "description": "Whether the role is private (only visible to members with permission).\r\nOmitted from the response when false.",
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -86396,6 +86433,10 @@
             "description": "The role color. ['Invalid' = 0, 'Blue' = 1, 'Green' = 2, 'Purple' = 3, 'Yellow' = 4, 'Orange' = 5, 'Red' = 6, 'Magenta' = 7, 'Teal' = 8, 'Turquoise' = 9, 'Rust' = 10, 'Pistachio' = 11, 'Midnight' = 12, 'Lavender' = 13, 'Pink' = 14, 'Crimson' = 15, 'Plum' = 16]",
             "enum": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
             "type": "integer"
+          },
+          "isPrivate": {
+            "description": "Whether the role is private (only visible to members with permission).\r\nOmitted from the response when false.",
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -86663,6 +86704,10 @@
           "usingGroupFunds": {
             "description": "Setting to use group funds or not.",
             "type": "boolean"
+          },
+          "isPrivate": {
+            "description": "Optional. When true the role is only visible to members with permission to see private roles.\r\nDefaults to false (public). Only accessible to group owners.",
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -86687,6 +86732,10 @@
             "format": "int32",
             "description": "Optional. The color of the roleset (GroupRoleSetColorType value, e.g. 0 = Invalid, 1 = Blue).\r\nWhen omitted, only name and description are updated and the existing color is left unchanged.\r\nWhen set, name, description, and color are updated via UpdateGroupRoleSetProperties.",
             "type": "integer"
+          },
+          "isPrivate": {
+            "description": "Optional. When set, updates the visibility of the roleset.\r\nOnly accessible to group owners.\r\nThe base (guest) role cannot be made private.",
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -86734,7 +86783,7 @@
             "$ref": "#/components/schemas/Roblox.Web.Responses.RelatedEntityTypeResponse_Roblox.Platform.Core.CreatorType_"
           },
           "rootPlace": {
-            "$ref": "#/components/schemas/Roblox.Web.Responses.RelatedEntityTypeResponse_Roblox.Platform.Assets.AssetType_"
+            "$ref": "#/components/schemas/GroupsApi.Roblox.Web.Responses.RelatedEntityTypeResponse_Roblox.Platform.Assets.AssetType_"
           },
           "created": {
             "format": "date-time",
@@ -87871,14 +87920,14 @@
           },
           "assetType": {
             "format": "int32",
-            "description": "The asset type id of asset with id Roblox.Inventory.Api.V2.UserAssetItemModelV2.AssetId. ['Image' = 1, 'TShirt' = 2, 'Audio' = 3, 'Mesh' = 4, 'Lua' = 5, 'HTML' = 6, 'Text' = 7, 'Hat' = 8, 'Place' = 9, 'Model' = 10, 'Shirt' = 11, 'Pants' = 12, 'Decal' = 13, 'Avatar' = 16, 'Head' = 17, 'Face' = 18, 'Gear' = 19, 'Badge' = 21, 'GroupEmblem' = 22, 'Animation' = 24, 'Arms' = 25, 'Legs' = 26, 'Torso' = 27, 'RightArm' = 28, 'LeftArm' = 29, 'LeftLeg' = 30, 'RightLeg' = 31, 'Package' = 32, 'YouTubeVideo' = 33, 'GamePass' = 34, 'App' = 35, 'Code' = 37, 'Plugin' = 38, 'SolidModel' = 39, 'MeshPart' = 40, 'HairAccessory' = 41, 'FaceAccessory' = 42, 'NeckAccessory' = 43, 'ShoulderAccessory' = 44, 'FrontAccessory' = 45, 'BackAccessory' = 46, 'WaistAccessory' = 47, 'ClimbAnimation' = 48, 'DeathAnimation' = 49, 'FallAnimation' = 50, 'IdleAnimation' = 51, 'JumpAnimation' = 52, 'RunAnimation' = 53, 'SwimAnimation' = 54, 'WalkAnimation' = 55, 'PoseAnimation' = 56, 'LocalizationTableManifest' = 59, 'LocalizationTableTranslation' = 60, 'EmoteAnimation' = 61, 'Video' = 62, 'TexturePack' = 63, 'TShirtAccessory' = 64, 'ShirtAccessory' = 65, 'PantsAccessory' = 66, 'JacketAccessory' = 67, 'SweaterAccessory' = 68, 'ShortsAccessory' = 69, 'LeftShoeAccessory' = 70, 'RightShoeAccessory' = 71, 'DressSkirtAccessory' = 72, 'FontFamily' = 73, 'FontFace' = 74, 'MeshHiddenSurfaceRemoval' = 75, 'EyebrowAccessory' = 76, 'EyelashAccessory' = 77, 'MoodAnimation' = 78, 'DynamicHead' = 79, 'CodeSnippet' = 80, 'AdsVideo' = 81, 'OtaUpdate' = 82, 'Screenshot' = 83, 'RuntimePropertySet' = 84, 'StorePreviewVideo' = 85, 'GamePreviewVideo' = 86, 'CreatorExperienceConfig' = 87, 'FaceMakeup' = 88, 'LipMakeup' = 89, 'EyeMakeup' = 90, 'VoxelFragment' = 91, 'AvatarBackground' = 92, 'TextDocument' = 93, 'Post' = 94]",
+            "description": "The asset type id of asset with id Roblox.Inventory.Api.V2.UserAssetItemModelV2.AssetId. ['Image' = 1, 'TShirt' = 2, 'Audio' = 3, 'Mesh' = 4, 'Lua' = 5, 'HTML' = 6, 'Text' = 7, 'Hat' = 8, 'Place' = 9, 'Model' = 10, 'Shirt' = 11, 'Pants' = 12, 'Decal' = 13, 'Avatar' = 16, 'Head' = 17, 'Face' = 18, 'Gear' = 19, 'Badge' = 21, 'GroupEmblem' = 22, 'Animation' = 24, 'Arms' = 25, 'Legs' = 26, 'Torso' = 27, 'RightArm' = 28, 'LeftArm' = 29, 'LeftLeg' = 30, 'RightLeg' = 31, 'Package' = 32, 'YouTubeVideo' = 33, 'GamePass' = 34, 'App' = 35, 'Code' = 37, 'Plugin' = 38, 'SolidModel' = 39, 'MeshPart' = 40, 'HairAccessory' = 41, 'FaceAccessory' = 42, 'NeckAccessory' = 43, 'ShoulderAccessory' = 44, 'FrontAccessory' = 45, 'BackAccessory' = 46, 'WaistAccessory' = 47, 'ClimbAnimation' = 48, 'DeathAnimation' = 49, 'FallAnimation' = 50, 'IdleAnimation' = 51, 'JumpAnimation' = 52, 'RunAnimation' = 53, 'SwimAnimation' = 54, 'WalkAnimation' = 55, 'PoseAnimation' = 56, 'LocalizationTableManifest' = 59, 'LocalizationTableTranslation' = 60, 'EmoteAnimation' = 61, 'Video' = 62, 'TexturePack' = 63, 'TShirtAccessory' = 64, 'ShirtAccessory' = 65, 'PantsAccessory' = 66, 'JacketAccessory' = 67, 'SweaterAccessory' = 68, 'ShortsAccessory' = 69, 'LeftShoeAccessory' = 70, 'RightShoeAccessory' = 71, 'DressSkirtAccessory' = 72, 'FontFamily' = 73, 'FontFace' = 74, 'MeshHiddenSurfaceRemoval' = 75, 'EyebrowAccessory' = 76, 'EyelashAccessory' = 77, 'MoodAnimation' = 78, 'DynamicHead' = 79, 'CodeSnippet' = 80, 'AdsVideo' = 81, 'OtaUpdate' = 82, 'Screenshot' = 83, 'RuntimePropertySet' = 84, 'StorePreviewVideo' = 85, 'GamePreviewVideo' = 86, 'CreatorExperienceConfig' = 87, 'FaceMakeup' = 88, 'LipMakeup' = 89, 'EyeMakeup' = 90, 'VoxelFragment' = 91, 'AvatarBackground' = 92, 'TextDocument' = 93, 'Post' = 94, 'AnimatedImage' = 95]",
             "enum": [
               1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17, 18, 19, 21, 22,
               24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 37, 38, 39, 40,
               41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
               59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74,
               75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90,
-              91, 92, 93, 94
+              91, 92, 93, 94, 95
             ],
             "type": "integer"
           },
@@ -88465,47 +88514,6 @@
         },
         "additionalProperties": false
       },
-      "Roblox.LocalizationTables.Api.AutoScrapeEntry": {
-        "type": "object",
-        "properties": {
-          "context": {
-            "type": "string"
-          },
-          "source": {
-            "type": "string"
-          },
-          "screenshot": {
-            "type": "string"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/Roblox.LocalizationTables.Api.AutoScrapeEntryMetadata"
-          }
-        },
-        "additionalProperties": false
-      },
-      "Roblox.LocalizationTables.Api.AutoScrapeEntryMetadata": {
-        "type": "object",
-        "properties": {
-          "text": {
-            "type": "string"
-          },
-          "userId": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "osPlatform": {
-            "type": "string"
-          },
-          "sessionId": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "matchedEntry": {
-            "$ref": "#/components/schemas/Roblox.LocalizationTables.Api.MatchedEntry"
-          }
-        },
-        "additionalProperties": false
-      },
       "Roblox.LocalizationTables.Api.CreateTableRequest": {
         "type": "object",
         "properties": {
@@ -88554,7 +88562,7 @@
             "type": "integer"
           },
           "sortOrder": {
-            "description": "In which order the data is sorted. ['Asc' = 1, 'Desc' = 2]",
+            "description": "In which order the data is sorted.",
             "enum": ["Asc", "Desc"],
             "type": "string"
           }
@@ -88696,7 +88704,7 @@
             "description": "A set of translation feedback reasons for the given entry identifier.",
             "type": "array",
             "items": {
-              "description": "Enum for translation feedback reason. ['None' = 0, 'Untranslated' = 1, 'Inaccurate' = 2, 'SpellingOrGrammar' = 3, 'Inappropriate' = 4]",
+              "description": "Enum for translation feedback reason.",
               "enum": [
                 "None",
                 "Untranslated",
@@ -88813,6 +88821,12 @@
           "assetId": {
             "format": "int64",
             "type": "integer"
+          },
+          "shouldUseImageLocalizationTable": {
+            "type": "boolean"
+          },
+          "isAutoLocalizationForImageEnabled": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -88954,7 +88968,7 @@
             "type": "string"
           },
           "ownerType": {
-            "description": "Enum for valid OwnerTypes. ['User' = 0, 'Group' = 1]",
+            "description": "Enum for valid OwnerTypes.",
             "enum": ["User", "Group"],
             "type": "string"
           },
@@ -88964,50 +88978,6 @@
           },
           "assetId": {
             "format": "int64",
-            "type": "integer"
-          }
-        },
-        "additionalProperties": false
-      },
-      "Roblox.LocalizationTables.Api.IngestAutoScrapedContentForGameRequest": {
-        "description": "An ingest content request to IngestAutoScrapedContentForGame.",
-        "type": "object",
-        "properties": {
-          "entries": {
-            "description": "The entries of an ingest content request.",
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Roblox.LocalizationTables.Api.AutoScrapeEntry"
-            }
-          },
-          "metadata": {
-            "$ref": "#/components/schemas/Roblox.LocalizationTables.Api.IngestContentMetadata"
-          }
-        },
-        "additionalProperties": false
-      },
-      "Roblox.LocalizationTables.Api.IngestContentMetadata": {
-        "description": "The metadata of an ingest content request.",
-        "type": "object",
-        "properties": {
-          "placeInformation": {
-            "$ref": "#/components/schemas/Roblox.LocalizationTables.Api.IngestContentMetadataPlaceInformation"
-          }
-        },
-        "additionalProperties": false
-      },
-      "Roblox.LocalizationTables.Api.IngestContentMetadataPlaceInformation": {
-        "description": "The place information metadata of an ingest content request.",
-        "type": "object",
-        "properties": {
-          "placeId": {
-            "format": "int64",
-            "description": "The place id of an ingest content request.",
-            "type": "integer"
-          },
-          "placeVersionNumber": {
-            "format": "int32",
-            "description": "The place version number of an ingest content request.",
             "type": "integer"
           }
         },
@@ -89039,19 +89009,6 @@
           "isAutomaticTranslationFilterEnabled": {
             "description": "Is filter for automatic translations on UI is enabled",
             "type": "boolean"
-          }
-        },
-        "additionalProperties": false
-      },
-      "Roblox.LocalizationTables.Api.MatchedEntry": {
-        "type": "object",
-        "properties": {
-          "source": {
-            "type": "string"
-          },
-          "matchedParamIndex": {
-            "format": "int32",
-            "type": "integer"
           }
         },
         "additionalProperties": false
@@ -89137,6 +89094,12 @@
             "type": "boolean"
           },
           "shouldUseLocalizationTable": {
+            "type": "boolean"
+          },
+          "shouldUseImageLocalizationTable": {
+            "type": "boolean"
+          },
+          "isAutoLocalizationForImageEnabled": {
             "type": "boolean"
           }
         },
@@ -97394,6 +97357,10 @@
           "inventory_get_v2_users__userId__inventory",
           "itemconfiguration_post_v1_creations_get_asset_details",
           "itemconfiguration_get_v1_creations_get_assets",
+          "itemconfiguration_get_v1_preferences_publishing",
+          "itemconfiguration_post_v1_preferences_publishing",
+          "itemconfiguration_patch_v1_preferences_publishing",
+          "itemconfiguration_delete_v1_preferences_publishing",
           "publish_get_v1_asset_quotas",
           "publish_post_v1_audio",
           "publish_post_v1_audio_verify",
@@ -97602,7 +97569,11 @@
           "Saves_GetSaves",
           "Saves_CreateSave",
           "Saves_DeleteSave",
-          "Saves_BulkDeleteSaves"
+          "Saves_BulkDeleteSaves",
+          "itemconfiguration_get_v1_preferences_publishing",
+          "itemconfiguration_post_v1_preferences_publishing",
+          "itemconfiguration_patch_v1_preferences_publishing",
+          "itemconfiguration_delete_v1_preferences_publishing"
         ]
       }
     },
@@ -98108,7 +98079,6 @@
           "locale_get_v1_locales_user_localization_locus_supported_locales",
           "localizationtables_post_v1_auto_localization_table_games__gameId__assets_generation_request",
           "localizationtables_post_v1_auto_localization_table_games__gameId__auto_scrape_cleanup_request",
-          "localizationtables_patch_v1_auto_localization_table_games__gameId__ingestion",
           "localizationtables_get_v1_localization_table_metadata",
           "localizationtables_post_v1_localization_table_tables",
           "localizationtables_post_v1_localization_table_tables__tableId__entries_translation_feedback",
@@ -98248,6 +98218,22 @@
       }
     },
     {
+      "name": "Observability",
+      "description": "Monitor and manage game servers for an experience.\n\nCommon use cases include:\n\n- Server discovery: [List active game servers](#GameServers_ListGameServers) for a specific place version and [retrieve available filter options](#GameServers_GetFilterOptions)\n- Log retrieval: [Inspect logs](#GameServers_ListGameServerLogs) for a specific game server\n- Server restarts: [Forecast the impact](#Restarts_ForecastRestart) of a restart, [launch it](#Restarts_LaunchRestart), and [monitor its status](#Restarts_ListRestartStatuses)\n",
+      "x-roblox-tag-info": {
+        "path": "observability",
+        "content": "HTTP APIs for monitoring and managing game servers on Roblox Cloud.",
+        "ordering": [
+          "GameServers_GetFilterOptions",
+          "GameServers_ListGameServers",
+          "GameServers_ListGameServerLogs",
+          "Restarts_ForecastRestart",
+          "Restarts_ListRestartStatuses",
+          "Restarts_LaunchRestart"
+        ]
+      }
+    },
+    {
       "name": "Places",
       "description": "Manage places, update instance properties, and publish place versions programmatically. See the [Engine Instances Guide](/cloud/guides/instance) and [Place Publishing Guide](/cloud/guides/usage-place-publishing).\n\nCommon use cases include:\n\n- Automated publishing: Publish place updates from CI/CD pipelines with version control and rollback support\n- Instance management: [Read](#Cloud_GetInstance) and [update](#Cloud_UpdateInstance) Script, LocalScript, and ModuleScript objects in collaborative sessions\n- Luau execution: [Run Luau scripts](#Cloud_CreateLuauExecutionSessionTask__Using_Universes) on specific place versions for testing or automation\n",
       "x-roblox-tag-info": {
@@ -98274,9 +98260,6 @@
           "develop_get_v1_places__placeId__teamcreate_active_session_members",
           "delete_legacy_develop_v2_teamtest__placeId_",
           "develop_delete_v2_teamtest__placeId_",
-          "GameServers_GetFilterOptions",
-          "GameServers_ListGameServers",
-          "GameServers_ListGameServerLogs",
           "Places_CreatePlaceVersionApiKey",
           "develop_patch_v1_places__placeId_",
           "develop_post_v1_places__placeId_",
@@ -98423,7 +98406,7 @@
     },
     {
       "name": "Universes",
-      "description": "Manage experiences (universes), publish updates, and communicate with live servers. See the [Messaging Usage Guide](/cloud/guides/usage-messaging) and [Place Publishing Guide](/cloud/guides/usage-place-publishing).\n\nCommon use cases include:\n\n- **Cross-Server Messaging**: [Send announcements](#Cloud_PublishUniverseMessage), trigger events, or update all players across servers using the Messaging Service\n- Server management: [Restart servers](#Cloud_RestartUniverseServers) after deploying updates or to clear cached state\n- User restrictions: [Ban or restrict users](#Cloud_UpdateUserRestriction__Using_Universes) from your experience at the universe or place level\n- Playtester access: [List](#develop_get_v1_universes__universeId__configuration_playtesters), [add](#develop_post_v1_universes__universeId__configuration_playtesters), or [remove](#develop_delete_v1_universes__universeId__configuration_playtesters) playtesters for a universe\n",
+      "description": "Manage experiences (universes), publish updates, and communicate with live servers. See the [Messaging Usage Guide](/cloud/guides/usage-messaging) and [Place Publishing Guide](/cloud/guides/usage-place-publishing).\n\nCommon use cases include:\n\n- **Cross-Server Messaging**: [Send announcements](#Cloud_PublishUniverseMessage), trigger events, or update all players across servers using the Messaging Service\n- User restrictions: [Ban or restrict users](#Cloud_UpdateUserRestriction__Using_Universes) from your experience at the universe or place level\n- Playtester access: [List](#develop_get_v1_universes__universeId__configuration_playtesters), [add](#develop_post_v1_universes__universeId__configuration_playtesters), or [remove](#develop_delete_v1_universes__universeId__configuration_playtesters) playtesters for a universe\n",
       "x-roblox-tag-info": {
         "path": "universes",
         "content": "HTTP APIs for working with universes on Roblox Cloud, including subscriptions, place and instance updates, user restrictions, and more.",
@@ -98511,9 +98494,6 @@
           "localizationtables_post_v1_autolocalization_games__gameId__autolocalizationtable",
           "patch_legacy_localization_tables_v1_autolocalization_games__gameId__settings",
           "localizationtables_patch_v1_autolocalization_games__gameId__settings",
-          "Restarts_ForecastRestart",
-          "Restarts_ListRestartStatuses",
-          "Restarts_LaunchRestart",
           "CrossServerMessaging_Publish",
           "Places_CreatePlaceVersionApiKey",
           "get_cloud_v2_universes__universeId__secrets_public_key",
@@ -98529,7 +98509,6 @@
           "develop_get_v1_universes__universeId_",
           "develop_get_v1_universes__universeId__configuration",
           "develop_patch_v1_universes__universeId__configuration",
-          "develop_get_v1_universes__universeId__configuration_vip_servers",
           "develop_get_v1_universes__universeId__places",
           "develop_get_v1_universes_multiget",
           "develop_get_v1_user_groups_canmanagegamesoritems",
@@ -98554,7 +98533,6 @@
           "gameinternationalization_post_v1_user_localization_settings_universe__universeId_",
           "gameinternationalization_get_v2_supported_languages_games__gameId_",
           "games_get_v1_games",
-          "PrivateServers_GetPrivateServerList",
           "games_get_v1_games__universeId__favorites",
           "games_post_v1_games__universeId__favorites",
           "games_get_v1_games__universeId__favorites_count",
@@ -98566,14 +98544,7 @@
           "games_get_v1_games_multiget_place_details",
           "games_get_v1_games_multiget_playability_status",
           "games_get_v1_games_recommendations_game__universeId_",
-          "PrivateServers_CreatePrivateServer",
           "Voting_MultiGetGameVoteStatus",
-          "PrivateServers_PrivateServersEnabledInUniverse",
-          "PrivateServers_GetMyPrivateServers",
-          "PrivateServers_GetPrivateServer",
-          "PrivateServers_UpdatePrivateServer",
-          "PrivateServers_UpdatePrivateServerPermissions",
-          "PrivateServers_UpdatePrivateServerSubscription",
           "games_get_v2_games__universeId__media",
           "games_get_v2_groups__groupId__games",
           "games_get_v2_groups__groupId__gamesV2",
@@ -98582,7 +98553,6 @@
           "inventory_get_v1_users__userId__places_inventory",
           "localizationtables_post_v1_auto_localization_table_games__gameId__assets_generation_request",
           "localizationtables_post_v1_auto_localization_table_games__gameId__auto_scrape_cleanup_request",
-          "localizationtables_patch_v1_auto_localization_table_games__gameId__ingestion",
           "notifications_get_v2_stream_notifications_get_latest_game_updates",
           "publish_post_v1_games__gameId__thumbnail_image",
           "thumbnails_get_v1_games__universeId__thumbnails",
