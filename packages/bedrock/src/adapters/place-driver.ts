@@ -69,6 +69,10 @@ interface PublishInputs {
  * `.rbxlx` → XML); any other extension returns an `ApiError`-backed failure
  * without hitting the network.
  *
+ * A place that declares no `filePath` is config-only: the driver skips the
+ * publish entirely (no file read, no version) and issues just the metadata
+ * `PATCH`.
+ *
  * @since 0.1.0
  *
  * @param deps - Injected ocale client, file reader, and owning universe.
@@ -164,20 +168,25 @@ async function publishVersionAsync(
 	{
 		artifact,
 		desired,
-	}: { readonly artifact: Uint8Array | undefined; readonly desired: PlaceDesiredState },
+		filePath,
+	}: {
+		readonly artifact: Uint8Array | undefined;
+		readonly desired: PlaceDesiredState;
+		readonly filePath: string;
+	},
 ): Promise<Result<PlaceOutputs, OpenCloudError>> {
-	const format = detectFormat(desired.filePath);
+	const format = detectFormat(filePath);
 	if (format === undefined) {
 		return {
 			err: new ApiError(
-				`Unsupported place file extension for ${desired.filePath}; expected .rbxl or .rbxlx`,
+				`Unsupported place file extension for ${filePath}; expected .rbxl or .rbxlx`,
 				{ statusCode: 0 },
 			),
 			success: false,
 		};
 	}
 
-	const body = artifact ?? (await dependencies.readFile(desired.filePath));
+	const body = artifact ?? (await dependencies.readFile(filePath));
 	return dependencies.client.publish({
 		// Narrows `Uint8Array<ArrayBufferLike>` to `Uint8Array<ArrayBuffer>`
 		// so the ocale wire type rejects SharedArrayBuffer at the call site.
@@ -188,13 +197,38 @@ async function publishVersionAsync(
 	});
 }
 
+/**
+ * Publish outputs for this apply: a fresh version number when the place
+ * declares a file, or the last-known outputs of a config-only place. A
+ * config-only place that has never published carries `versionNumber:
+ * undefined`.
+ *
+ * @param dependencies - Injected ocale client, file reader, and universe.
+ * @param inputs - The artifact, the last-known state, and the desired state.
+ * @returns `Ok` with the outputs to record, or the publish failure.
+ */
+async function resolveOutputsAsync(
+	dependencies: PlaceDriverDeps,
+	{ artifact, current, desired }: PublishInputs,
+): Promise<Result<PlaceOutputs, OpenCloudError>> {
+	const { filePath } = desired;
+	if (filePath === undefined) {
+		return { data: current?.outputs ?? { versionNumber: undefined }, success: true };
+	}
+
+	return publishVersionAsync(dependencies, { artifact, desired, filePath });
+}
+
 async function publishPlaceAsync(
 	dependencies: PlaceDriverDeps,
 	{ artifact, current, desired }: PublishInputs,
 ): Promise<Result<ResourceCurrentState<"place">, OpenCloudError>> {
-	const publishResult = await publishVersionAsync(dependencies, { artifact, desired });
-	if (!publishResult.success) {
-		return publishResult;
+	// A config-only place declares no file, so there is nothing to publish:
+	// its last-known version (if any) carries forward untouched and the
+	// metadata PATCH below is the whole apply.
+	const outputs = await resolveOutputsAsync(dependencies, { artifact, current, desired });
+	if (!outputs.success) {
+		return outputs;
 	}
 
 	const metadata = changedPlaceMetadata(desired, current);
@@ -209,5 +243,5 @@ async function publishPlaceAsync(
 		}
 	}
 
-	return { data: { ...desired, outputs: publishResult.data }, success: true };
+	return { data: { ...desired, outputs: outputs.data }, success: true };
 }

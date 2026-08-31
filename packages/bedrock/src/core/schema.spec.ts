@@ -1028,6 +1028,25 @@ describe(validateConfig, () => {
 		expect(result.data.places!["start-place"]!.filePath).toBe("places/start.rbxl");
 	});
 
+	it("should accept a root place entry that omits filePath", () => {
+		expect.assertions(2);
+
+		const result = validateConfig(
+			{
+				environments: MinEnvironments,
+				places: {
+					"start-place": { displayName: "Start Place", serverSize: 50 },
+				},
+			},
+			SOURCE,
+		);
+
+		assert(result.success);
+
+		expect(result.data.places!["start-place"]!.filePath).toBeUndefined();
+		expect(result.data.places!["start-place"]!.displayName).toBe("Start Place");
+	});
+
 	it("should reject a placeId declared on a root place entry and attribute the issue to that field", () => {
 		expect.assertions(1);
 

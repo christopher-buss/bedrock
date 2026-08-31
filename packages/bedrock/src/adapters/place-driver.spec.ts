@@ -344,4 +344,63 @@ describe(createPlaceDriver, () => {
 		expect(readFile).toHaveBeenCalledExactlyOnceWith("places/start.rbxl");
 		expect(http.requests[0]!.request.body).toStrictEqual(Uint8Array.from(fromDisk));
 	});
+
+	describe("config-only place", () => {
+		const configOnly = { fileHash: undefined, filePath: undefined };
+
+		it("should PATCH metadata without publishing a version on create", async () => {
+			expect.assertions(4);
+
+			const readFile = vi
+				.fn<PlaceDriverDependencies["readFile"]>()
+				.mockResolvedValue(RBXL_SIGNATURE);
+			const { driver, http } = makeDriver({ readFile });
+			http.mockResponse({ body: validPlaceBody({ displayName: "Lobby" }), status: 200 });
+
+			const result = await driver.create(
+				placeDesired({ ...configOnly, displayName: "Lobby" }),
+			);
+
+			assert(result.success);
+
+			expect(readFile).not.toHaveBeenCalled();
+			expect(http.requests).toHaveLength(1);
+			expect(http.requests[0]!.request.url).toBe(
+				`/cloud/v2/universes/${UNIVERSE_ID}/places/${PLACE_ID}?updateMask=displayName`,
+			);
+			expect(result.data.outputs.versionNumber).toBeUndefined();
+		});
+
+		it("should carry the recorded version number forward on update", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+			http.mockResponse({ body: validPlaceBody({ description: "New body." }), status: 200 });
+
+			assert(driver.update !== undefined);
+
+			const result = await driver.update(
+				placeCurrent({ ...configOnly, outputs: { versionNumber: 9 } }),
+				placeDesired({ ...configOnly, description: "New body." }),
+			);
+
+			assert(result.success);
+
+			expect(result.data.outputs.versionNumber).toBe(9);
+			expect(http.requests[0]!.request.method).toBe("PATCH");
+		});
+
+		it("should issue no request at all when nothing is declared to patch", async () => {
+			expect.assertions(2);
+
+			const { driver, http } = makeDriver();
+
+			const result = await driver.create(placeDesired(configOnly));
+
+			assert(result.success);
+
+			expect(http.requests).toBeEmpty();
+			expect(result.data.outputs.versionNumber).toBeUndefined();
+		});
+	});
 });

@@ -42,13 +42,13 @@ export interface UnknownEnvironmentError {
 }
 
 /**
- * Failure surfaced when a merged place entry is missing a required field.
- * Two paths reach this error: a root place declared without a matching
- * per-environment overlay supplying `placeId`, and an overlay-only place
- * declared under `environments.X.places` with no matching root entry to
- * supply `filePath`. Surfacing both at the resolution boundary attributes
- * the missing field to the offending entry's key instead of letting
- * `buildDesired` crash with a generic `fileReadFailed` later on.
+ * Failure surfaced when a merged place entry is missing `placeId`: a root
+ * place declared without a matching per-environment overlay to supply it.
+ * Open Cloud cannot mint places, so the ID is the one field no layer can
+ * default. Surfacing it at the resolution boundary attributes the missing
+ * field to the offending entry's key instead of letting the deploy fail
+ * later against a place it cannot address. `filePath` is not required: an
+ * entry without one is a config-only place.
  *
  * @since 0.1.0
  */
@@ -60,7 +60,7 @@ export interface IncompletePlaceEntryError {
 	/** Literal discriminator for narrowing. */
 	readonly kind: "incompletePlaceEntry";
 	/** Field that the merged entry lacks. */
-	readonly missingField: "filePath" | "placeId";
+	readonly missingField: "placeId";
 }
 
 /**
@@ -555,7 +555,7 @@ function resolvePlaces(
 
 	const resolved: Record<string, ResolvedPlaceEntry> = {};
 	for (const [key, entry] of Object.entries(places)) {
-		const { filePath, placeId } = entry;
+		const { placeId } = entry;
 		if (placeId === undefined) {
 			return {
 				err: { key, environment, kind: "incompletePlaceEntry", missingField: "placeId" },
@@ -563,14 +563,9 @@ function resolvePlaces(
 			};
 		}
 
-		if (filePath === undefined) {
-			return {
-				err: { key, environment, kind: "incompletePlaceEntry", missingField: "filePath" },
-				success: false,
-			};
-		}
-
-		resolved[key] = { ...entry, filePath, placeId };
+		// `filePath` stays optional: an entry without one is a config-only
+		// place bedrock reconciles by metadata alone.
+		resolved[key] = { ...entry, placeId };
 	}
 
 	return { data: resolved, success: true };

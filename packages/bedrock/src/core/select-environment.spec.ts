@@ -284,8 +284,8 @@ describe(selectEnvironment, () => {
 		expect(result.data.places!["debug-place"]!.filePath).toBe("places/debug.rbxl");
 	});
 
-	it("should return Err(incompletePlaceEntry) for an overlay-only place that omits filePath", () => {
-		expect.assertions(4);
+	it("should resolve an overlay-only place that omits filePath as a config-only place", () => {
+		expect.assertions(2);
 
 		const config: Config = {
 			environments: {
@@ -296,13 +296,10 @@ describe(selectEnvironment, () => {
 
 		const result = selectEnvironment(config, "staging");
 
-		assert(!result.success);
-		assert(result.err.kind === "incompletePlaceEntry");
+		assert(result.success);
 
-		expect(result.err.environment).toBe("staging");
-		expect(result.err.key).toBe("debug-place");
-		expect(result.err.missingField).toBe("filePath");
-		expect(result.err.kind).toBe("incompletePlaceEntry");
+		expect(result.data.places!["debug-place"]!.placeId).toBe("9999");
+		expect(result.data.places!["debug-place"]!.filePath).toBeUndefined();
 	});
 
 	it("should surface an env-only universe entry when root has no universe block", () => {

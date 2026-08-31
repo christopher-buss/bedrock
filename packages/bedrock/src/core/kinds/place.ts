@@ -3,6 +3,7 @@ import type { Result } from "@bedrock-rbx/ocale";
 import { type } from "arktype";
 
 import { asResourceKey, asRobloxAssetId, asSha256Hex } from "../../types/ids.ts";
+import type { Sha256Hex } from "../../types/ids.ts";
 import type { PlaceDesiredInput } from "../flatten.ts";
 import { PLACE_MANAGED_METADATA_FIELDS } from "../resources.ts";
 import type { PlaceDesiredState, ResourceCurrentState } from "../resources.ts";
@@ -12,10 +13,12 @@ import { sha256HexAsync } from "./hash.ts";
 import type { BuildDesiredError, KindIo, ResourceKindModule } from "./module.ts";
 import { readBytesAsync } from "./read-bytes.ts";
 
+const OPTIONAL_STRING = "string | undefined";
+
 const entrySchema = type({
-	"description?": "string | undefined",
-	"displayName?": "string | undefined",
-	"filePath": "string",
+	"description?": OPTIONAL_STRING,
+	"displayName?": OPTIONAL_STRING,
+	"filePath?": OPTIONAL_STRING,
 	"placeId": "string.digits",
 	"serverSize?": OPTIONAL_POSITIVE_INTEGER,
 }).onUndeclaredKey("reject");
@@ -70,13 +73,39 @@ function flatten(config: ResolvedConfig): ReadonlyArray<PlaceDesiredInput> {
 	});
 }
 
+/**
+ * Digest of the declared place file, or `undefined` for a config-only place.
+ * A config-only entry never reaches the injected reader: there is no file to
+ * publish, so there is nothing to hash and no read to fail on.
+ *
+ * @param input - The flattened place entry.
+ * @param io - I/O surface carrying the injected `readFile` function.
+ * @returns `Ok` with the digest or `undefined`, or the read failure.
+ */
+async function hashPlaceFileAsync(
+	input: PlaceDesiredInput,
+	io: KindIo,
+): Promise<Result<Sha256Hex | undefined, BuildDesiredError>> {
+	const { filePath } = input;
+	if (filePath === undefined) {
+		return { data: undefined, success: true };
+	}
+
+	const read = await readBytesAsync({ key: input.key, filePath }, io);
+	if (!read.success) {
+		return read;
+	}
+
+	return { data: asSha256Hex(await sha256HexAsync(read.data)), success: true };
+}
+
 async function normalizeAsync(
 	input: PlaceDesiredInput,
 	io: KindIo,
 ): Promise<Result<PlaceDesiredState, BuildDesiredError>> {
-	const read = await readBytesAsync({ key: input.key, filePath: input.filePath }, io);
-	if (!read.success) {
-		return read;
+	const hashed = await hashPlaceFileAsync(input, io);
+	if (!hashed.success) {
+		return hashed;
 	}
 
 	return {
@@ -84,7 +113,7 @@ async function normalizeAsync(
 			key: input.key,
 			description: input.description,
 			displayName: input.displayName,
-			fileHash: asSha256Hex(await sha256HexAsync(read.data)),
+			fileHash: hashed.data,
 			filePath: input.filePath,
 			kind: "place",
 			placeId: input.placeId,

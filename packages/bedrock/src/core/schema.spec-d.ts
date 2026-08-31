@@ -226,7 +226,7 @@ describe("PlaceEntry / ResolvedPlaceEntry split", () => {
 		expectTypeOf<keyof PlaceEntry>().toEqualTypeOf<
 			"description" | "displayName" | "filePath" | "redacted" | "serverSize"
 		>();
-		expectTypeOf<PlaceEntry["filePath"]>().toEqualTypeOf<string>();
+		expectTypeOf<PlaceEntry["filePath"]>().toEqualTypeOf<string | undefined>();
 		expectTypeOf<PlaceEntry["displayName"]>().toEqualTypeOf<string | undefined>();
 		expectTypeOf<PlaceEntry["description"]>().toEqualTypeOf<string | undefined>();
 		expectTypeOf<PlaceEntry["serverSize"]>().toEqualTypeOf<number | undefined>();
@@ -236,7 +236,7 @@ describe("PlaceEntry / ResolvedPlaceEntry split", () => {
 		expectTypeOf<keyof ResolvedPlaceEntry>().toEqualTypeOf<
 			"description" | "displayName" | "filePath" | "placeId" | "redacted" | "serverSize"
 		>();
-		expectTypeOf<ResolvedPlaceEntry["filePath"]>().toEqualTypeOf<string>();
+		expectTypeOf<ResolvedPlaceEntry["filePath"]>().toEqualTypeOf<string | undefined>();
 		expectTypeOf<ResolvedPlaceEntry["placeId"]>().toEqualTypeOf<string>();
 	});
 

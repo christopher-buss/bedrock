@@ -80,8 +80,11 @@ export interface PlaceDesiredInput {
 	 * User-facing place name; `undefined` leaves the server value untouched.
 	 */
 	readonly displayName: string | undefined;
-	/** Path to the `.rbxl` or `.rbxlx` file; read by `buildDesired`. */
-	readonly filePath: string;
+	/**
+	 * Path to the `.rbxl` or `.rbxlx` file; read by `buildDesired`.
+	 * `undefined` for a config-only place, which is never read or published.
+	 */
+	readonly filePath: string | undefined;
 	/** Discriminator tag for the `ResourceDesiredInput` union. */
 	readonly kind: "place";
 	/** Existing Roblox place ID, validated and branded at flatten time. */
